@@ -12367,6 +12367,45 @@ _PERMANENT_TYPES: frozenset[str] = frozenset(
 _MASS_REMOVAL_TYPES: frozenset[str] = frozenset(
     {"Creature", "Permanent", "Artifact", "Enchantment", "Planeswalker"}
 )
+
+# task #88 — a reveal/mill/dig producer concept. When ONE of these appears
+# BEFORE a ``change_zone``(->Library)/``put_library_position`` concept in
+# the SAME unit's ``effects`` chain, the put/change_zone's target filter
+# describes a CARD among the just-revealed/milled population ("Put all Elf
+# cards revealed this way into your hand and the rest on the bottom of
+# your library" — Sylvan Messenger/Goblin Ringleader/Enlistment Officer's
+# tribal-reveal cycle; "mill four cards, then you may put a creature or
+# land card from among the milled cards on top" — Lluwen), never a
+# targeted BATTLEFIELD permanent — even though the filter can carry a bare
+# permanent core type (Creature/Land) or a creature-race SUBTYPE
+# (Elf/Goblin/Merfolk/Zombie/Soldier/Kavu) that ``_perm_subject`` would
+# otherwise treat as a permanent tell. The REVERSE order (a genuine tuck
+# FOLLOWED BY a reveal — Chaos Warp's "shuffle it into their library, then
+# reveals the top card…", Audacious Swap's "shuffles it into their
+# library, then exiles the top card…", Proteus Staff's "Put target
+# creature on the bottom of its owner's library. That creature's
+# controller reveals cards…") is unaffected — those don't match this
+# ordering, so the genuine tuck target is untouched. Corpus-verified
+# false-positive class (task #88 sweep): Sylvan Messenger, Brass Herald,
+# The Fourteenth Doctor, Tidal Courier, Goblin Ringleader, Enlistment
+# Officer, Grave Defiler, Kavu Howler, Sages of the Anima (all `reveal_top`
+# selection cycles), Lluwen Imperfect Naturalist (`mill`), Ajani
+# Unyielding's +2 / Garruk Caller of Beasts' +1 / Enshrined Memories / Lair
+# Delve (the SAME reveal-then-filter idiom on a DIFFERENT ability of a
+# multi-mode card — the genuine removal on Ajani/Garruk comes from an
+# UNRELATED ability, exile/battlefield-put respectively, not this one).
+_TUCK_SELECTION_SIBLINGS: frozenset[str] = frozenset(
+    {"mill", "dig", "reveal_top", "reveal_until", "exile_top"}
+)
+
+
+def _tuck_preceded_by_selection(effects: Sequence[ConceptNode], idx: int) -> bool:
+    """Whether a reveal/mill/dig producer (:data:`_TUCK_SELECTION_SIBLINGS`)
+    appears BEFORE index ``idx`` in ``effects`` — the task #88 card-
+    selection veto (see that constant's docstring)."""
+    return any(e.concept in _TUCK_SELECTION_SIBLINGS for e in effects[:idx])
+
+
 # Evergreen team-anthem keywords (CR 702) — mirrors ``_signals_ir._TEAM_BUFF_
 # GRANT_KW`` (phase's spaceless spelling normalized via lower+strip).
 _TEAM_BUFF_GRANT_KW: frozenset[str] = frozenset(
@@ -13273,7 +13312,15 @@ def _mass_removal(tree: ConceptTree) -> list[Signal]:
     * ``DestroyAll`` over a battlefield permanent type (Wrath of God);
     * ``ChangeZoneAll`` → Exile with no graveyard origin (Merciless
       Eviction) — a graveyard-zone mass exile (Living Death) is GY
-      recursion, NOT a wipe (checklist #2);
+      recursion, NOT a wipe (checklist #2); task #88 widens the SAME tag
+      to a Library destination too (Terminus, Hallowed Burial, Harmonic
+      Convergence's "put all enchantments on top of their owners'
+      libraries") — a mass TUCK (CR 401.4) is the same "clears the board"
+      result as a mass exile, just a different zone-change verb, gated by
+      the SAME graveyard-origin veto (a mass graveyard-to-library shuffle-
+      back — Repopulate's "shuffle all creature cards from target
+      player's graveyard into that player's library" — is GY recursion,
+      not a wipe, corpus-verified);
     * ``DamageAll`` over a Creature/Permanent subject (Blasphemous Act,
       Pyroclasm);
     * a NEGATIVE symmetric ``PumpAll`` over creatures (Languish's "all
@@ -13353,6 +13400,29 @@ def _mass_removal(tree: ConceptTree) -> list[Signal]:
                 origin, dest = change_zone_dirs(c.node)
                 gy = origin == "Graveyard" or ("Graveyard" in filter_inzone_zones(sub))
                 if dest == "Exile" and not gy and cores & _MASS_REMOVAL_TYPES:
+                    return hit
+                # task #88 — mass TUCK (Terminus, Hallowed Burial, Harmonic
+                # Convergence): the same graveyard/hand-origin veto as the
+                # Exile arm above (a mass graveyard-to-library shuffle-back
+                # — Repopulate — is GY recursion, not a wipe), plus the
+                # SAME card-selection-precedence veto :func:`_removal`'s
+                # own tuck arm applies (:data:`_TUCK_SELECTION_SIBLINGS`)
+                # — no corpus mass member needs it today, kept for parity
+                # so a future reveal/mill-then-mass-tuck card can't slip
+                # through unguarded.
+                non_bf = origin in ("Graveyard", "Hand") or (
+                    set(filter_inzone_zones(sub)) & {"Graveyard", "Hand"}
+                )
+                idx = next((i for i, e in enumerate(unit.effects) if e is c), None)
+                preceded = idx is not None and _tuck_preceded_by_selection(
+                    unit.effects, idx
+                )
+                if (
+                    dest == "Library"
+                    and not non_bf
+                    and not preceded
+                    and cores & _MASS_REMOVAL_TYPES
+                ):
                     return hit
             if t == "DamageAll" and cores & {"Creature", "Permanent"}:
                 return hit
@@ -21876,6 +21946,90 @@ def _removal(tree: ConceptTree) -> list[Signal]:
     corpus card yet, but the shape is real — an Equipment/Aura granting
     "{2}: Destroy target creature." is exactly as much a removal answer as
     a top-level one).
+
+    task #88 adds a FOURTH arm: a single-target TUCK — a battlefield
+    permanent moved into a library (CR 400 zone-change / 401 library; a
+    library-destined move that also shuffles is CR 701.24/701.24a — a
+    SEPARATE action layered on top of the zone change, not what makes it a
+    removal fact). phase carries this as ``ChangeZone`` (Chaos Warp,
+    Oblation) or ``PutAtLibraryPosition``/``PutOnTopOrBottom`` (Condemn,
+    Temporal Spring, Spin into Myth, Unexpectedly Absent, Terminus's
+    single-target cousins) whose destination/position names the library,
+    regardless of WHERE in the library (top/bottom/beneath-top-N/Nth-from-
+    top all leave the battlefield the same way — CR 110.1: a permanent
+    "stops being a permanent as it's moved to ANOTHER ZONE", the position
+    WITHIN that zone is irrelevant to the "did it leave play" question).
+    A tuck is genuinely a DIFFERENT removal verb from Destroy, not a
+    disguised synonym: "dies" is defined as put into a GRAVEYARD from the
+    battlefield specifically (CR 700.4), so a permanent tucked into a
+    library never dies — no death trigger, no aristocrats payoff; and
+    Regenerate's replacement effect only intercepts a would-be DESTROY (CR
+    701.19a "the next time [it] would be DESTROYED"), so it does nothing
+    against a tuck — a tuck is thus STRICTLY BETTER removal against a
+    regenerating/recursive-from-graveyard threat, the same intuition that
+    makes Condemn/Terminus format staples.
+    The SAME ``_perm_subject`` test as the Destroy arm gates the target: no
+    zone-origin field exists on ``PutAtLibraryPosition`` at all, but none
+    is needed — "target creature"/"target permanent" with no ``InZone``
+    override is UNAMBIGUOUSLY a battlefield object (CR 109.2/110.1 — an
+    object in any OTHER zone is addressed as a "___ CARD", never the bare
+    type word). THREE vetoes:
+
+    * **card-selection precedence** (:data:`_TUCK_SELECTION_SIBLINGS` /
+      :func:`_tuck_preceded_by_selection`, corpus-verified — NOT merely
+      defensive): a reveal/mill/dig producer (``reveal_top``/
+      ``reveal_until``/``mill``/``dig``/``exile_top``) appearing BEFORE
+      the change_zone/put_library_position concept in the SAME unit's
+      ``effects`` chain means the target filter describes a card among
+      the just-revealed/milled population ("Put all Elf cards revealed
+      this way into your hand and the rest on the bottom of your
+      library" — Sylvan Messenger's whole tribal-reveal cycle; "mill four
+      cards, then... put a creature or land card from among the milled
+      cards on top" — Lluwen), never a targeted BATTLEFIELD permanent —
+      even though the filter can carry a bare permanent core type
+      (Creature/Land) or a creature-race SUBTYPE (Elf/Goblin/Merfolk/
+      Zombie/Kavu/Soldier) ``_perm_subject`` would otherwise read as a
+      permanent tell. The REVERSE order (a genuine tuck FOLLOWED BY a
+      reveal — Chaos Warp, Audacious Swap, Proteus Staff) is unaffected;
+    * **not-battlefield** (a Graveyard/Hand ``ChangeZone.origin`` or an
+      ``InZone`` Graveyard/Hand property on the target — Gaea's
+      Blessing's graveyard shuffle-back, Brainstorm's hand-to-top — is
+      card-flow, not removal, matching ``_exile_removal``'s own zone-
+      origin convention);
+    * **self-only utility** — a target restricted to "you control"
+      (``filter_controller`` == ``"You"`` — the Guildmage/Apprentice
+      cycle's "put target creature you control on top of its owner's
+      library", Rishadan Pawnshop) or "a permanent you own" (``Owned:
+      You``/``Owned:ScopedPlayer`` — Reality Scramble, Tel-Jilad Stylus,
+      and the symmetric "each player shuffles all permanents THEY own"
+      full-reset idiom: The Great Aurora, Warp World, Collision of
+      Realms) is a protective/reset UTILITY effect, never removal — it
+      can't touch an opponent's permanent at all. UNLIKE the exile-lane's
+      blink veto, an UNRESTRICTED single target that CAN (but need not)
+      hit your own permanent is NOT excluded: exile+return (CR 603.6e
+      "blink") is vetoed there because the SAME object is guaranteed back
+      this turn; a tuck has no such guarantee (CR 701.24a shuffles the
+      library immediately), so Oblation's "target nonland permanent" (no
+      controller restriction) and Chaos Warp's "target permanent" (ditto)
+      stay removal regardless of whose permanent — the same generosity
+      the Destroy arm already extends to an unrestricted "destroy target
+      permanent". A ``PutAtLibraryPosition``/``PutOnTopOrBottom`` whose
+      target is a bare ``SelfRef`` (a COUNTERED SPELL tucking ITSELF while
+      still on the stack — Spell Crumple) never matches either arm:
+      ``SelfRef`` carries no type filter, so ``_perm_subject`` is false —
+      a spell on the stack is not a battlefield permanent (CR 111.1)
+      regardless, no special case needed.
+
+    KNOWN GAP (raw-shape evidence, not fixed here): Hinder's "put that
+    card on your choice of the top or bottom of its owner's library
+    instead of into that player's graveyard" clause is upstream-dropped —
+    phase models its counter sub-ability as a bare ``ChangeZone`` to
+    ``Graveyard`` (the vanilla-counterspell default) with NO
+    ``countered_spell_zone`` field at all, unlike Spell Crumple's Counter
+    node (which DOES carry ``countered_spell_zone: {Library, Bottom}``).
+    Hinder's tuck-the-countered-card half is real but structurally
+    invisible; only ``counter_control`` (the plain Counter read) fires for
+    it today.
     """
 
     def _perm_subject(target: object) -> bool:
@@ -21887,6 +22041,16 @@ def _removal(tree: ConceptTree) -> list[Signal]:
 
     def _target_type_unresolved(target: object) -> bool:
         return not filter_core_types(target) and not filter_subtypes(target)
+
+    def _not_battlefield_origin(origin: object, target: object) -> bool:
+        return origin in ("Graveyard", "Hand") or bool(
+            set(filter_inzone_zones(target)) & {"Graveyard", "Hand"}
+        )
+
+    def _self_only_tuck(target: object) -> bool:
+        return filter_controller(target) == "You" or filter_owned_controller(
+            target
+        ) in ("You", "ScopedPlayer")
 
     for unit in tree.units:
         for c in unit.effect_concepts("destroy"):
@@ -21910,6 +22074,37 @@ def _removal(tree: ConceptTree) -> list[Signal]:
                 continue
             if _perm_subject(getattr(c.node, "target", None)):
                 return [Signal("removal", "you", "", c.raw, tree.name, "high")]
+    # task #88 — single-target TUCK (battlefield permanent -> library)
+    for unit in tree.units:
+        effects = unit.effects
+        for idx, c in enumerate(effects):
+            if c.concept == "change_zone":
+                if tag_of(c.node) != "ChangeZone":
+                    continue
+                origin, dest = change_zone_dirs(c.node)
+                if dest != "Library":
+                    continue
+                if _tuck_preceded_by_selection(effects, idx):
+                    continue
+                target = getattr(c.node, "target", None)
+                if _not_battlefield_origin(origin, target):
+                    continue
+                if _self_only_tuck(target):
+                    continue
+                if _perm_subject(target):
+                    return [Signal("removal", "you", "", c.raw, tree.name, "high")]
+            elif c.concept == "put_library_position":
+                if tag_of(c.node) not in ("PutAtLibraryPosition", "PutOnTopOrBottom"):
+                    continue
+                if _tuck_preceded_by_selection(effects, idx):
+                    continue
+                target = getattr(c.node, "target", None)
+                if _not_battlefield_origin(None, target):
+                    continue
+                if _self_only_tuck(target):
+                    continue
+                if _perm_subject(target):
+                    return [Signal("removal", "you", "", c.raw, tree.name, "high")]
     return []
 
 
@@ -21986,6 +22181,12 @@ def _removal_answer_types(tree: ConceptTree) -> frozenset[str]:
       ``_exile_removal`` applies (blink-your-own controller/owned-
       controller check, graveyard/hand origin, a sibling battlefield-return
       or ``become_copy`` — none of those are removal);
+    * ``change_zone``/``put_library_position`` reaching a ``Library`` (CR
+      401.4, task #88) — the SAME two vetoes :func:`_removal`'s own tuck
+      arm applies (self-only controller/owned check, graveyard/hand
+      origin); unfiltered on ``ChangeZone`` vs ``ChangeZoneAll`` (a
+      type-scoped view wants a mass tuck's answer types too — Terminus ->
+      {Creature}, Harmonic Convergence -> {Enchantment});
     * ``fight`` (CR 701.14a) and a P/T-shrinking ``pump`` (CR 613.4c, read
       via :func:`_negative_pt_field` on EITHER field — covers a FIXED
       shrink, a ``Variable`` dynamic ``-X/-X``, and a ``Quantity``/
@@ -22005,7 +22206,8 @@ def _removal_answer_types(tree: ConceptTree) -> frozenset[str]:
     """
     out: set[str] = set()
     for unit in tree.units:
-        for c in unit.effects:
+        effects = unit.effects
+        for idx, c in enumerate(effects):
             if c.concept == "destroy":
                 types = _perm_answer_types(effect_filter(c.node))
                 if not types:
@@ -22025,6 +22227,22 @@ def _removal_answer_types(tree: ConceptTree) -> frozenset[str]:
                 )
             ):
                 out.add("Creature")
+            elif c.concept == "put_library_position":
+                if tag_of(c.node) not in (
+                    "PutAtLibraryPosition",
+                    "PutOnTopOrBottom",
+                ):
+                    continue
+                if _tuck_preceded_by_selection(effects, idx):
+                    continue  # card-selection idiom, not removal (#88)
+                sub = effect_filter(c.node)
+                if filter_controller(sub) == "You" or (
+                    filter_owned_controller(sub) in ("You", "ScopedPlayer")
+                ):
+                    continue  # self-only tuck utility, not removal (#88)
+                if set(filter_inzone_zones(sub)) & {"Graveyard", "Hand"}:
+                    continue  # card-flow, never on the battlefield
+                out |= _perm_answer_types(sub)
         czs = unit.effect_concepts("change_zone")
         sib_return = any(
             change_zone_dirs(s.node)[1] == "Battlefield"
@@ -22034,20 +22252,32 @@ def _removal_answer_types(tree: ConceptTree) -> frozenset[str]:
         sib_clone = unit.has_effect("become_copy")
         for c in czs:
             _origin, dest = change_zone_dirs(c.node)
-            if dest != "Exile":
-                continue
             sub = effect_filter(c.node)
-            if filter_controller(sub) == "You" or (
-                filter_owned_controller(sub) == "You"
-            ):
-                continue  # blink-your-own (CR 603.6e), not removal
-            if _origin in ("Graveyard", "Hand") or (
-                set(filter_inzone_zones(sub)) & {"Graveyard", "Hand"}
-            ):
-                continue  # GY-hate / cage setup (CR 406.2), not removal
-            if sib_return or sib_clone:
-                continue
-            out |= _perm_answer_types(sub)
+            if dest == "Exile":
+                if filter_controller(sub) == "You" or (
+                    filter_owned_controller(sub) == "You"
+                ):
+                    continue  # blink-your-own (CR 603.6e), not removal
+                if _origin in ("Graveyard", "Hand") or (
+                    set(filter_inzone_zones(sub)) & {"Graveyard", "Hand"}
+                ):
+                    continue  # GY-hate / cage setup (CR 406.2), not removal
+                if sib_return or sib_clone:
+                    continue
+                out |= _perm_answer_types(sub)
+            elif dest == "Library":
+                idx = next((i for i, e in enumerate(effects) if e is c), None)
+                if idx is not None and _tuck_preceded_by_selection(effects, idx):
+                    continue  # card-selection idiom, not removal (#88)
+                if filter_controller(sub) == "You" or (
+                    filter_owned_controller(sub) in ("You", "ScopedPlayer")
+                ):
+                    continue  # self-only tuck utility, not removal (#88)
+                if _origin in ("Graveyard", "Hand") or (
+                    set(filter_inzone_zones(sub)) & {"Graveyard", "Hand"}
+                ):
+                    continue  # card-flow, never on the battlefield
+                out |= _perm_answer_types(sub)
     for unit in tree.units:
         for c in iter_nested_granted_effect_concepts(unit.node):
             if c.concept == "destroy":

@@ -1388,15 +1388,18 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
     #     attack"): neutralizes the threat but never destroys/exiles/
     #     counters/bounces/fights/-X's it, so it's not a removal-FAMILY
     #     effect by ANY of the 9 keys; routes to ``enchantments_matter``.
-    #   - Condemn ("put target attacking creature on the bottom of its
-    #     owner's library, its controller gains life…"): a library-tuck, not
-    #     a removal-family effect either; routes to ``lifegain_makers`` /
-    #     ``toughness_combat``.
-    #   - Chaos Warp ("target permanent" shuffled into its owner's library):
-    #     same library-tuck pattern; routes to ``cheat_from_top`` /
-    #     ``cheat_into_play`` (Chaos Warp's OWN "then that player reveals
-    #     the top card of their library and puts it onto the battlefield"
-    #     is the card's structurally-dominant read).
+    #
+    # Task #88 CLOSES the two library-tuck gaps this note used to document
+    # (Condemn/Chaos Warp routed to lifegain_makers/toughness_combat and
+    # cheat_from_top/cheat_into_play respectively, with NO removal-family
+    # membership at all — the TUCK-REMOVAL finding: a battlefield permanent
+    # shuffled/put into a library is a removal-family result the `removal`
+    # key never read). ``_removal``'s own tuck arm now covers both — see
+    # its docstring for the target-filter mechanics — so Condemn and Chaos
+    # Warp move from should_not_match to should_match below; Chaos Warp
+    # ALSO still fires cheat_from_top/cheat_into_play for its OWN "reveal
+    # the top card, maybe put it into play" half (both facts are true of
+    # the same card, no conflict).
     # A prior flip attempt this session hit a SEPARATE problem: three
     # downstream call sites (``cube_balance._is_removal``, archetype_audit's
     # CLI preset flag, and the tuner's classify/swaps role checks) exercised
@@ -1435,14 +1438,14 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
             "Prey Upon",  # fight_makers
             "Disfigure",  # debuff_makers
             "Toxic Deluge",  # debuff_makers + mass_removal (dynamic -X/-X)
+            "Condemn",  # removal — single-target tuck (task #88)
+            "Chaos Warp",  # removal — single-target tuck, any permanent
         ),
         should_not_match=(
             "Llanowar Elves",
             "Command Tower",
             "Lupine Prototype",
             "Pacifism",  # pacify aura -> enchantments_matter, not removal
-            "Chaos Warp",  # library-tuck -> cheat_from_top/cheat_into_play
-            "Condemn",  # library-tuck -> lifegain_makers/toughness_combat
         ),
     ),
     # Pacify aura (task #87): the dedicated structural concept the
@@ -1503,7 +1506,13 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
             "helper's own docstring assumed 'no corpus mass-debuff "
             "representative' for the Quantity shape, which this residue "
             "corrects. 6 cards of 543 (recall 0.989) — the view is still "
-            "correct to ship; these are the residual tail."
+            "correct to ship; these are the residual tail. Task #88 adds "
+            "a mass TUCK arm to `mass_removal` (ChangeZoneAll -> Library, "
+            "the SAME first-class mass tag, a different zone-change verb "
+            "— CR 401.4) — Terminus/Hallowed Burial ('put all creatures "
+            "on the bottom of their owners' libraries') were ZERO-signal "
+            "before this and are now board-wipe members, Terminus pinned "
+            "below."
         ),
         signal_keys=("mass_removal", "symmetric_damage_each"),
         should_match=(
@@ -1514,6 +1523,7 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
             "Toxic Deluge",
             "Crux of Fate",
             "Culling Ritual",
+            "Terminus",  # mass tuck (ChangeZoneAll -> Library, task #88)
         ),
         should_not_match=(
             "Lightning Bolt",
@@ -2085,8 +2095,8 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
             "remaining 10 (Armistice, Fiery Justice, Phelddagrif, ...) are "
             "OPPONENT-directed lifegain (group-hug 'target opponent gains "
             "N life') — a different scope than lifegain_makers' `you` "
-            "read, correctly excluded (same shed pattern as the removal "
-            "preset's Condemn/Chaos Warp exclusions)."
+            "read, correctly excluded (the same kind of scope-shed the "
+            "removal preset applies elsewhere)."
         ),
         keywords=("Lifelink",),
         signal_keys=("lifegain_makers", "lifegain_matters"),
