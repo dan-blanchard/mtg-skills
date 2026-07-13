@@ -6642,6 +6642,13 @@ def _any_counter_makers(tree: ConceptTree) -> list[Signal]:
         return [Signal("any_counter_makers", "you", "", c.raw, tree.name, "high")]
     for c in tree.effect_concepts("move_counters"):
         return [Signal("any_counter_makers", "you", "", c.raw, tree.name, "high")]
+    # np_counters item 3: the dropped-clause counter-move marker
+    # (``tree_synthesis._arm_dropped_counter_move`` — Ambitious Augmenter,
+    # Heroic Sacrifice) joins exactly like its typed ``MoveCounters``
+    # classmates (The Ozolith, Iron Apprentice) do via the arm above.
+    for c in tree.iter_concepts():
+        if c.concept == "synth_counter_move":
+            return [Signal("any_counter_makers", "you", "", "", tree.name, "high")]
     for c in tree.effect_concepts("remove_counter"):
         if not counter_kind(c.node):
             return [Signal("any_counter_makers", "you", "", c.raw, tree.name, "high")]
@@ -6881,9 +6888,13 @@ _P1P1_COND_TEXT_RX = re.compile(r"\+1/\+1 counter", re.IGNORECASE)
 # +1/+1 counter(s) on it" idiom (CR 122.1/603.6d — an object's last known
 # information) gating a reward, read off the unit's own description when
 # BOTH the typed condition AND the sub_ability's own condition are dropped
-# (see the sibling arm's docstring inside ``_plus_one_matters``).
+# (see the sibling arm's docstring inside ``_plus_one_matters``). np_counters
+# widened the quantifier with "two or more" (Ochre Jelly's threshold form) —
+# the removal+Token arm gains no member from it (corpus-verified), only the
+# counter-scaled-reward sibling arm does.
 _HAD_P1P1_COND_RX = re.compile(
-    r"\bhad (?:a|one or more) \+1/\+1 counters? on it\b", re.IGNORECASE
+    r"\bhad (?:a|one or more|two or more) \+1/\+1 counters? on it\b",
+    re.IGNORECASE,
 )
 # Removal-shaped tags this arm pairs a dropped-condition Token reward
 # against — a destroy/damage/exile effect on a TARGETED creature (CR 701.6
@@ -7447,6 +7458,50 @@ def _plus_one_matters(tree: ConceptTree) -> list[Signal]:
             )
         ):
             return [Signal("plus_one_matters", "you", "", "", tree.name, "high")]
+        # np_counters item 1 — the SAME dropped "had ... +1/+1 counter(s) on
+        # it" look-back condition (CR 122.1 / 603.10a: dies/leaves triggers
+        # see last known information; Reyhan's own 2020-11-10 ruling pins the
+        # amount to the counters it had), but with a counter-SCALED reward
+        # instead of the Rite arm's Destroy+Token pairing:
+        #
+        # * a ``PutCounter`` whose kind is P1P1 and whose count Refs
+        #   ``EventContextAmount`` — "put THAT MANY +1/+1 counters on target
+        #   creature" (Reyhan, Last of the Abzan; both her dies and
+        #   command-zone trigger units carry the shape); the Slurrk / Grakmaw
+        #   classmates parse a real ``HadCounters`` condition and fire via
+        #   the typed arm above, never reaching here.
+        # * a ``CopyTokenOf`` reward scaled by the same look-back ("create a
+        #   token that's a copy of it ... with half that many +1/+1 counters"
+        #   — Ochre Jelly's threshold form, whose typed condition slot holds
+        #   only the delayed-trigger ``AtNextPhase`` timing).
+        #
+        # The unit's own description must carry the past-tense P1P1 idiom, so
+        # a power-comparison look-back (Drizzt Do'Urden's "had power greater
+        # than"), an attack-requirement look-back (Firkraag's "had to attack
+        # this combat"), a kind-AGNOSTIC condition (Yuna, Grand Summoner's
+        # "had one or more counters on it" — the any-kind class whose typed
+        # classmates deliberately serve via counter_move/any_counter_makers,
+        # not a matters lane), and Fangs of Kalonia's same-resolution "had a
+        # +1/+1 counter PUT on it this way" doubler (already served
+        # structurally: MultiplyCounter → counter_doubling, the Kalonian
+        # Hydra / Branching Evolution convention) all stay out.
+        if unit.origin == "trigger" and _HAD_P1P1_COND_RX.search(
+            str(getattr(unit.node, "description", "") or "")
+        ):
+            for cn in unit.effects:
+                node = cn.node
+                tag = tag_of(node)
+                cnt = getattr(node, "count", None)
+                scaled_put = (
+                    tag == "PutCounter"
+                    and counter_kind(node) == "P1P1"
+                    and tag_of(cnt) == "Ref"
+                    and tag_of(getattr(cnt, "qty", None)) == "EventContextAmount"
+                )
+                if scaled_put or tag == "CopyTokenOf":
+                    return [
+                        Signal("plus_one_matters", "you", "", "", tree.name, "high")
+                    ]
     for c in tree.effect_concepts("move_counters"):
         if counter_kind(c.node).upper() == "P1P1":
             return [Signal("plus_one_matters", "you", "", c.raw, tree.name, "high")]
@@ -17917,10 +17972,19 @@ def _counter_move(tree: ConceptTree) -> list[Signal]:
     ``counter_manipulation`` and the kind-agnostic ``any_counter_makers``
     co-fire where already ported (additive); this adds only the dedicated
     key. A ``PutCounter`` placer (Renata) never fires. Scope "you".
+
+    np_counters item 3: the ``synth_counter_move`` marker
+    (``tree_synthesis._arm_dropped_counter_move``) covers the two corpus
+    cards whose possessed-counters relocation clause phase drops WHOLE
+    (Ambitious Augmenter, Heroic Sacrifice) — same key, same scope as their
+    19 typed ``MoveCounters`` classmates. CR 122.1.
     """
     hits = tree.effect_concepts("move_counters")
     if hits:
         return [Signal("counter_move", "you", "", hits[0].raw, tree.name, "high")]
+    for c in tree.iter_concepts():
+        if c.concept == "synth_counter_move":
+            return [Signal("counter_move", "you", "", "", tree.name, "high")]
     return []
 
 

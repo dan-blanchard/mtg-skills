@@ -4614,6 +4614,91 @@ def test_adapt_matters_excludes_doers_np_boons():
     assert ("self_counter_grow", "you", "") in _idents("Skitter Eel")
 
 
+def test_had_counter_scaled_reward_np_counters():
+    """np_counters item 1: the dropped "had ... +1/+1 counter(s) on it"
+    look-back condition (CR 122.1 / 603.10a; Reyhan's 2020-11-10 ruling
+    pins the amount to the counters the creature had) paired with a
+    counter-SCALED reward fires plus_one_matters:
+
+    * Reyhan, Last of the Abzan — a ``PutCounter`` whose count Refs
+      ``EventContextAmount`` ("put that many +1/+1 counters on target
+      creature"; the condition slot is empty on both her trigger units);
+    * Ochre Jelly — the "had two or more" threshold form rewarding a
+      ``CopyTokenOf`` ("create a token that's a copy of it ... with half
+      that many +1/+1 counters"; the typed condition slot carries only the
+      delayed-trigger AtNextPhase timing)."""
+    assert ("plus_one_matters", "you", "") in _idents("Reyhan, Last of the Abzan")
+    assert ("plus_one_matters", "you", "") in _idents("Ochre Jelly")
+
+
+def test_had_counter_scaled_reward_excludes_other_lookbacks_np_counters():
+    """np_counters item 1 negative controls: the arm keys on the PAST-TENSE
+    P1P1 idiom in the unit's own description, so other look-back conditions
+    never fire it — Firkraag's "had to attack this combat" (an attack
+    requirement, not a counter check) and Yuna, Grand Summoner's "had one
+    or more counters on it" (the kind-AGNOSTIC class whose typed classmates
+    — The Ozolith, Iron Apprentice — deliberately serve via counter_move /
+    any_counter_makers, never a matters lane)."""
+    assert ("plus_one_matters", "you", "") not in _idents(
+        "Firkraag, Cunning Instigator"
+    )
+    assert ("plus_one_matters", "you", "") not in _idents("Yuna, Grand Summoner")
+
+
+def test_fangs_of_kalonia_already_served_np_counters():
+    """np_counters item 1 (Fangs of Kalonia adjudication): the "each
+    creature that had a +1/+1 counter put on it this way" same-resolution
+    self-reference is captured STRUCTURALLY — phase parses the doubling as
+    a ``MultiplyCounter`` over ``ParentTarget`` (→ counter_doubling) and
+    the placement as a ``PutCounter`` (→ plus_one_makers). Per the counter-
+    doubler convention (Kalonian Hydra, Branching Evolution, Doubling
+    Season: counter_doubling WITHOUT plus_one_matters), no further key is
+    owed — pinned so a lane change that breaks the convention fails loud."""
+    idents = _idents("Fangs of Kalonia")
+    assert ("counter_doubling", "you", "") in idents
+    assert ("plus_one_makers", "you", "") in idents
+    assert ("plus_one_matters", "you", "") not in idents
+
+
+def test_convert_adapt_self_counter_grow_np_counters():
+    """np_counters item 2: Jetfire, Air Guardian's "{U}{U}{U}: Convert
+    Jetfire, then adapt 3." parses as a bare ``Transform`` and the chained
+    adapt (CR 701.46a — a genuine self +1/+1 grow) is dropped WHOLE (no
+    node, no Unimplemented residue), so the ``convert_adapt_self_counter_
+    grow`` tree_synthesis arm re-derives it via the existing
+    ``synth_self_counter_grow`` marker. The fixture keys the back face by
+    its single-face name, matching phase's own card-data indexing (the
+    Grizzled Angler DFC precedent). The adapt_matters lane's literal
+    "adapt N" keyword-invocation veto keeps the card OUT of the enabler
+    lane — it is a doer, not a cares-about."""
+    idents = _idents("Jetfire, Air Guardian")
+    assert ("self_counter_grow", "you", "") in idents
+    assert ("adapt_matters", "you", "") not in idents
+
+
+def test_dropped_counter_move_np_counters():
+    """np_counters item 3: the possessed-counters relocation clause phase
+    drops WHOLE fires counter_move + any_counter_makers via the
+    ``dropped_counter_move`` synthesis arm — Ambitious Augmenter ("...then
+    put this creature's counters on that token"; only the Token sibling
+    survives) and Heroic Sacrifice (the entire delayed dies-trigger is
+    gone; the card parses as only its damage-redirect replacement) join
+    their 19 typed ``MoveCounters`` classmates (The Ozolith, Iron
+    Apprentice, Reluctant Role Model, ...). CR 122.1."""
+    for name in ("Ambitious Augmenter", "Heroic Sacrifice"):
+        idents = _idents(name)
+        assert ("counter_move", "you", "") in idents, name
+        assert ("any_counter_makers", "you", "") in idents, name
+
+
+def test_dropped_counter_move_excludes_placement_np_counters():
+    """np_counters item 3 negative control: a placement of NEW counters
+    ("double the number of ... counters", "put a +1/+1 counter on") never
+    matches the possessive relocation idiom — Kalonian Hydra stays out of
+    counter_move."""
+    assert ("counter_move", "you", "") not in _idents("Kalonian Hydra")
+
+
 @pytest.mark.parametrize("name", ["Cloudform", "Cryptic Coat"])
 def test_facedown_makers_fires(name):
     """A ``Manifest`` (Cloudform) / ``Cloak`` (Cryptic Coat) doer fires

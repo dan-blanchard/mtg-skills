@@ -5003,6 +5003,88 @@ def _arm_self_power_scale(tree: ConceptTree) -> ConceptNode | None:
     )
 
 
+# ── arm: convert-then-adapt self_counter_grow (np_counters item 2) ────────────
+# CR 701.46a ("Adapt N" = "If this permanent has no +1/+1 counters on it, put
+# N +1/+1 counters on it") chained behind a Convert: Jetfire, Air Guardian's
+# "{U}{U}{U}: Convert Jetfire, then adapt 3." parses as a bare ``Transform``
+# effect and the ", then adapt 3" consequence is dropped WHOLLY — no node, no
+# Unimplemented residue (node-dump verified at the v0.23.0 pin), so neither
+# the recovery grammar (route i — nothing to re-decorate) nor an overlay
+# correction (route ii — no under-read field on the Transform) can anchor.
+# The card is a genuine Adapt DOER (its own 2022-10-14 rulings: convert works
+# exactly like transform; the adapt happens as the ability resolves) missing
+# from ``self_counter_grow``'s population — the adapt_matters lane note in
+# ``crosswalk_signals`` already flags this exact card as "a bucket-B gap in
+# self_counter_grow itself". Reuses the EXISTING ``synth_self_counter_grow``
+# marker so no lane code changes; the corpus's other 24 "adapt N" carriers
+# all parse a typed ``Adapt`` node, which the structural gate excludes here.
+_CONVERT_ADAPT_RE = re.compile(
+    r"\bconvert [^.;\n]{1,60}?, then adapt (?:\d+|x)\b", re.IGNORECASE
+)
+
+
+def _arm_convert_adapt_self_grow(tree: ConceptTree) -> ConceptNode | None:
+    """Synthesize a ``self_counter_grow`` node for the "Convert ~, then
+    adapt N" chained consequence phase drops whole. CR 701.46a."""
+    if has_structural_self_counter_grow(tree):
+        return None
+    if not _CONVERT_ADAPT_RE.search(_REMINDER.sub(" ", tree.oracle or "")):
+        return None
+    return _synthetic_concept(
+        arm_id="convert_adapt_self_counter_grow",
+        concept="synth_self_counter_grow",
+        scope="you",
+        subject=(),
+        desc="convert-then-adapt-N consequence dropped whole (CR 701.46a)",
+    )
+
+
+# ── arm: dropped possessed-counters relocation (np_counters item 3) ───────────
+# CR 122.1: the counter RELOCATION idiom — moving counters a permanent
+# already possesses onto another object ("put its/those counters on X"),
+# normally a typed ``MoveCounters`` node (19 of the corpus's 21 carriers:
+# Essence Channeler, Iron Apprentice, The Ozolith, Reluctant Role Model, …)
+# that ``counter_move`` + ``any_counter_makers`` read structurally. TWO
+# corpus cards drop the clause WHOLE with no residue node to re-decorate
+# (routes i/ii can't anchor):
+#
+# * Ambitious Augmenter — "…create a 0/0 … Fractal creature token, then put
+#   this creature's counters on that token": only the ``Token`` sibling
+#   survives; the move clause vanishes.
+# * Heroic Sacrifice — the entire delayed dies-trigger ("When that creature
+#   dies this turn, put its counters on up to one target creature you
+#   control and draw a card") is dropped; the card parses as ONLY its
+#   damage-redirect replacement.
+#
+# Gated on NO structural ``move_counters`` concept anywhere on the tree, so
+# every typed carrier stays on its real node; a placement of NEW counters
+# ("put a +1/+1 counter on") never matches the possessive form. The marker
+# concept is read by ``counter_move`` and ``any_counter_makers`` (the same
+# pair every typed classmate fires), and deliberately NOT by
+# ``plus_one_matters``'s kind-gated ``move_counters`` read — a synthetic
+# node carries no ``counter_type``, matching Iron Apprentice's own
+# kind-agnostic membership.
+_DROPPED_COUNTER_MOVE_RE = re.compile(
+    r"\bput (?:its|those|this creature's|~'s) counters on\b", re.IGNORECASE
+)
+
+
+def _arm_dropped_counter_move(tree: ConceptTree) -> ConceptNode | None:
+    """Synthesize a ``counter_move`` marker for the possessed-counters
+    relocation clause phase drops whole. CR 122.1."""
+    if tree.effect_concepts("move_counters"):
+        return None
+    if not _DROPPED_COUNTER_MOVE_RE.search(_REMINDER.sub(" ", tree.oracle or "")):
+        return None
+    return _synthetic_concept(
+        arm_id="dropped_counter_move",
+        concept="synth_counter_move",
+        scope="you",
+        subject=(),
+        desc="possessed-counters relocation clause dropped whole (CR 122.1)",
+    )
+
+
 # ── arm: plus_one_makers bucket-B (task #85, plus-one-counters preset) ────────
 # CR 122.1: a +1/+1 counter PLACEMENT phase drops entirely rather than typing
 # as a ``place_counter`` concept, corpus-confirmed across four repeated
@@ -9551,6 +9633,8 @@ _ARMS: tuple[tuple[str, _Arm], ...] = (
     ("proliferate_remove_cost", _arm_proliferate_remove_cost),
     ("self_counter_grow", _arm_self_counter_grow),
     ("self_power_scale", _arm_self_power_scale),
+    ("convert_adapt_self_counter_grow", _arm_convert_adapt_self_grow),
+    ("dropped_counter_move", _arm_dropped_counter_move),
     ("plus_one_makers", _arm_plus_one_makers),
     ("boon_plus_one_makers", _arm_boon_plus_one_makers),
     ("poison_matters", _arm_poison_matters),
