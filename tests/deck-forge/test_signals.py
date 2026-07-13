@@ -8,7 +8,6 @@ Tinybones overgeneralization the whole tool exists to prevent).
 from mtg_utils._deck_forge._signals_ir import extract_signals_ir
 from mtg_utils._deck_forge.signals import (
     Signal,
-    aggregate_signals,
     extract_signals,
 )
 from mtg_utils.card_ir import Ability, Card, Effect, Face
@@ -168,35 +167,6 @@ def test_signal_carries_source_and_quote():
     )
     assert quoting.source == "Spell Boss"
     assert "cast an instant spell" in quoting.text.lower()
-
-
-def test_aggregate_dedupes_across_records():
-    # aggregate_signals walks the legacy regex path (extract_signals). voltron_matters,
-    # the last common non-migrated key, migrated in ADR-0027 (the cutover is complete),
-    # so this uses a lane the regex still emits — type_matters (a tribal lord, scope you,
-    # subject "Goblin"). Two distinct Goblin lords open the SAME (key, scope, subject),
-    # which aggregate_signals must dedupe to one entry.
-    a = {
-        "name": "A",
-        "type_line": "Creature — Goblin",
-        "oracle_text": "Other Goblins you control get +1/+1.",
-        "power": "2",
-        "toughness": "2",
-    }
-    b = {
-        "name": "B",
-        "type_line": "Creature — Goblin",
-        "oracle_text": "Other Goblin creatures you control get +1/+0.",
-        "power": "2",
-        "toughness": "2",
-    }
-    agg = aggregate_signals([a, b])
-    sc = [
-        s
-        for s in agg
-        if s.key == "type_matters" and s.scope == "you" and s.subject == "Goblin"
-    ]
-    assert len(sc) == 1  # deduped by (key, scope, subject)
 
 
 def test_signal_is_hashable_frozen():

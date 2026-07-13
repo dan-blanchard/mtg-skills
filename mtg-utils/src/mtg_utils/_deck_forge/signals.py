@@ -20,8 +20,11 @@ as test probes, as the home of ``Signal`` + the shared parsing primitives, and
 (for the regex path) as ``rank_deck_signals``' ``ir_for=None`` degradation.
 
 ``coverage_gate`` reports the extractor's own blind spots (zero-signal / only-generic
-/ scope-uncertain) so the session-agent (M3, ADR-0009) can scope the residual tail
-with mandatory oracle-clause quotes — blind spots are queued, never silently dropped.
+/ scope-uncertain) — the same "queue it, don't silently drop it" check M3 (ADR-0009)
+used to run in production against the regex/IR paths above. It is test-only now (no
+production caller; ``coverage_gate``'s own callers are all under ``tests/``) — it
+survives as a regression probe over ``extract_signals``/``extract_signals_ir`` fixture
+shapes, not a live gate ``extract_signals_hybrid`` runs.
 """
 
 from __future__ import annotations
@@ -82,7 +85,6 @@ __all__ = [
     "_voltron_self_pump",
     "_voltron_self_recurs",
     "_voltron_self_unblockable",
-    "aggregate_signals",
     "clauses",
     "coverage_gate",
     "extract_signals",
@@ -336,18 +338,6 @@ def extract_signals_hybrid(
     # regex-path commander-damage tell (the old ``_VOLTRON_SILENCING_PLAN_KEYS`` cross-
     # check) is retired. The IR voltron set is self-consistent; no post-merge fix-up.
     return out
-
-
-def aggregate_signals(records: list[dict | None]) -> list[Signal]:
-    """Union of signals across many cards, deduped by (key, scope, subject)."""
-    seen: dict[tuple[str, str, str], Signal] = {}
-    for record in records:
-        if not record:
-            continue
-        for sig in extract_signals(record):
-            ident = (sig.key, sig.scope, sig.subject)
-            seen.setdefault(ident, sig)
-    return list(seen.values())
 
 
 def rank_deck_signals(
