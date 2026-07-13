@@ -279,7 +279,7 @@ def render_text_report(results: list[dict]) -> str:
 @click.option(
     "--bulk-data",
     "bulk_path",
-    type=click.Path(path_type=Path),
+    type=click.Path(exists=True, path_type=Path),
     default=None,
     help=(
         "MTGJSON AllPrintings.json (or legacy Scryfall bulk) for local "

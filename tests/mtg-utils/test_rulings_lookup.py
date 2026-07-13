@@ -358,3 +358,20 @@ class TestCLI:
         result = runner.invoke(main, [])
         assert result.exit_code != 0
         assert "--card" in result.output or "--batch" in result.output
+
+    def test_cli_nonexistent_bulk_data_fails_clean(self, tmp_path):
+        """task #93: a nonexistent ``--bulk-data`` path used to raise a raw
+        ``FileNotFoundError`` out of ``lookup_rulings_batch``'s eager
+        ``scryfall_lookup._load_bulk_index`` call (task #89 repro). Click's
+        ``exists=True`` now rejects it before that call ever runs — same
+        pattern every other bulk-data CLI in the repo already uses
+        (``card_search``, ``price_check``, ``combo_search``, ...)."""
+        missing = tmp_path / "does-not-exist.json"
+        runner = CliRunner()
+        result = runner.invoke(
+            main, ["--card", "Sol Ring", "--bulk-data", str(missing)]
+        )
+        assert result.exit_code != 0
+        assert isinstance(result.exception, SystemExit) or result.exception is None
+        assert "does not exist" in result.output
+        assert "Traceback" not in result.output
