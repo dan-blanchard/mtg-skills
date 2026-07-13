@@ -40,12 +40,13 @@ from __future__ import annotations
 import functools
 import json
 import re
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 from mtg_utils.card_ir import Card
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping, Sequence
+    from collections.abc import Iterator, Mapping, Sequence
 
     from mtg_utils._card_ir.crosswalk import ConceptTree
     from mtg_utils._card_ir.mirror.schema import MirrorSchema
@@ -137,7 +138,12 @@ def clear_caches() -> None:
 
     Defensive: a test may ``monkeypatch`` any of the memoized loaders with a plain
     lambda (no ``cache_clear``), so skip anything that is not an active cache."""
-    for fn in (_crosswalk_index, _phase_record_index, _committed_schema):
+    for fn in (
+        _crosswalk_index,
+        _phase_record_index,
+        _committed_schema,
+        _known_tokens_index,
+    ):
         clear = getattr(fn, "cache_clear", None)
         if clear is not None:
             clear()
@@ -294,12 +300,275 @@ def _text_only_trees(
     return out
 
 
+# ── task #92 — KNOWN-TOKENS SUBSTRATE ──────────────────────────────────────
+# phase's Token effect node (the CreateToken payload) carries the PREDEFINED
+# token's printed body — types / power / toughness / colors / whatever
+# keywords or static abilities its OWN static-ability parser DOES decompose —
+# but for a token whose ability is an activated cost ("{1}, {T}, Sacrifice
+# this token: …" — the Mutagen cycle) or a granted triggered ability the
+# static parser doesn't unpack (the WOE Role cycle's "Enchanted creature
+# has…"), the Token node is a bare shell: no ``static_abilities``, no
+# ``keywords``, nothing. That ability text is NOT missing upstream — it lives
+# in phase's own ``known-tokens.toml`` data file (``ensure_known_tokens``
+# above), one ``[[token]]`` entry per predefined token id, carrying a
+# ``rules_text`` string plus a ``[token.body]`` sub-table (``display_name`` /
+# ``core_types`` / ``subtypes`` / ``supertypes``).
+#
+# THE JOIN: a source card's raw phase record carries ``metadata.
+# related_token_ids`` — the toml ``id``(s) of every predefined token it can
+# create. A card creating exactly one predefined token type has one id; a
+# card offering a CHOICE of Role (WOE's "Young Hero Role" vs "Royal" tokens
+# both showing up on Cut In's ``related_token_ids``, per the shared per-SET
+# ``source_card_names`` census) has several — so the id list alone doesn't
+# disambiguate WHICH token a given Token effect node instantiates. The
+# reliable disambiguator is the Token node's OWN ``name`` field (phase always
+# parses this correctly — it's what prints on the token): "Young Hero Role"
+# for Cut In, matched against toml's ``display_name`` "Young Hero" (the toml
+# omits the trailing " Role" subtype suffix phase's Token node name carries).
+#
+# THE ATTACHMENT SEAM: one extra zero-unit TEXT-ONLY ``ConceptTree`` per
+# distinct matched token, appended to the SAME per-oid tuple :func:`build_trees`
+# returns (the ADR-0038 W2c text-only-face precedent, mirrored exactly — see
+# :func:`_text_only_tree`). This is deliberate: every existing lane that asks
+# "does ANY tree for this card do X" (``_concept_any_face``, the crosswalk's
+# own per-oid union in ``signals.py``) already iterates the WHOLE tuple, so a
+# card that creates a Mutagen token gets "this card's stuff includes a +1/+1
+# counter maker" for free, with ZERO changes to any consuming lane — while a
+# card that creates no predefined token (the overwhelming majority) gets an
+# unchanged, single-tree-per-face tuple. No new tree IDENTITY, no widening of
+# any structural walk — purely additive.
+#
+# GAP-GATED, NOT AN OVERRIDE: only fires when the card's own Token node
+# carries NEITHER ``static_abilities`` NOR ``keywords`` — i.e. only when phase
+# genuinely parsed nothing for that token's ability. A predefined token phase
+# DOES fully decompose (a bare vanilla keyword token, say) is left alone; this
+# substrate never second-guesses a structural parse that already exists.
+#
+# ADJUDICATED ALLOWLIST (task #92): a corpus-wide sweep of every predefined
+# token this gap-gate matches found ~30 distinct token identities across 697
+# cards — FAR more than one session can responsibly adjudicate lane-by-lane
+# (the corpus-discipline bar: every membership delta gets a verified reason).
+# Rather than mass-enable all of them (risking unaudited bucket-B idiom
+# false-fires across dozens of unrelated lanes), this substrate serves ONLY
+# the identities below, each verified to open a real, already-existing lane:
+#
+# * "Mutagen" (the TMT cycle: April O'Neil, Crustacean Commando, Genghis
+#   Frog, Mona Lisa, Mutagen Man, Mutant Chain Reaction, Ooze Spill, Return
+#   to the Sewers, Shellshock, Slithering Cryptid, Zoo Escapees) — rules_text
+#   "{1}, {T}, Sacrifice this token: Put a +1/+1 counter on target creature."
+#   opens ``plus_one_makers`` (CR 122.1) via the existing bucket-B idiom
+#   (:func:`~mtg_utils._card_ir.tree_synthesis._arm_plus_one_makers`) — no
+#   new lane, no new regex, just a genuine typed-node substrate this text
+#   now reaches.
+# * "Young Hero" (the WOE cycle: Cut In, Embereth Veteran, Merry Bards,
+#   Protective Parents, Return Triumphant) — rules_text "Whenever this
+#   creature attacks, if its toughness is 3 or less, put a +1/+1 counter on
+#   it" opens the SAME ``plus_one_makers`` lane, same mechanism.
+#
+# EVERYTHING ELSE the sweep found is DOCUMENTED RESIDUE, deliberately NOT
+# wired (a future task can widen this allowlist with its own adjudication):
+#
+# * Treasure (337 cards) / Food (140) / Clue (26) / Blood (41) — ALREADY
+#   fully covered without this substrate at all: ``_resource_token_makers``
+#   reads the Token node's own printed ``types``/subtypes (Treasure/Food/
+#   Clue/Blood), never the ability text, so these were never actually
+#   gapped for ``treasure_makers``/``food_makers``/``clue_makers``/
+#   ``blood_makers`` membership. Enabling their ability text here would be
+#   pure redundancy at best, an unaudited idiom-collision risk at worst.
+# * Powerstone (32) / Lander (20) / Junk (14) / Map (11) / Gold (4) /
+#   Eldrazi Scion (5) / Eldrazi Spawn (5) — each a genuine distinct
+#   mana-rock / land-tutor / impulse-draw / explore / mana-dork identity
+#   that plausibly opens SOME existing lane (ramp_makers, explore_makers,
+#   impulse_draw…), but none was cross-checked against its target lane's
+#   own scope/subject gates this session — an honest deferral, not a
+#   verified "no lane fits".
+# * The five OTHER WOE Role identities sharing Young Hero's mechanism
+#   (Royal +1/+1+ward, Wicked +1/+1+opponent-life-loss-on-death, Cursed
+#   base-P/T-1/1, Monster +1/+1+trample, Sorcerer +1/+1+attack-scry,
+#   Virtuous +1/+1-per-enchantment) — each grants a STATIC "gets +1/+1"
+#   bonus, NOT a counter (CR 613 continuous effect, no ``PutCounter``/
+#   "+1/+1 counter" text at all — so none opens ``plus_one_makers`` the way
+#   Young Hero's COUNTER-placing trigger does), and the secondary riders
+#   (Wicked's drain, Sorcerer's granted scry trigger, Virtuous's devotion-
+#   style anthem) each would need its OWN lane cross-check not done here.
+_KNOWN_TOKEN_WIRED_DISPLAY_NAMES = frozenset({"Mutagen", "Young Hero"})
+
+
+def _iter_raw_token_effects(node: object) -> Iterator[dict]:
+    """Depth-first walk of a RAW (pre-strict-load) phase JSON fragment,
+    yielding every ``dict`` that is a ``Token`` effect node (a CreateToken
+    payload — always carries its own ``name``). Deliberately independent of
+    the typed mirror schema: this substrate must still see a Token node whose
+    OTHER fields have drifted (unrecognized-tag drift raises inside
+    ``strict_load_card``, never reaches here at all — this walk is plain
+    dict/list recursion over the untyped JSON)."""
+    if isinstance(node, dict):
+        if node.get("type") == "Token" and "name" in node:
+            yield node
+        for v in node.values():
+            yield from _iter_raw_token_effects(v)
+    elif isinstance(node, list):
+        for item in node:
+            yield from _iter_raw_token_effects(item)
+
+
+def _known_token_display_name_candidates(token_name: str) -> tuple[str, ...]:
+    """Normalize a Token node's own printed ``name`` against toml
+    ``display_name`` conventions. phase's Role-token Token nodes carry the
+    FULL subtype suffix ("Young Hero Role"); the toml's ``display_name`` is
+    just the Role's proper name ("Young Hero") — the ``token.body.subtypes``
+    array is what carries "Role" instead. Tries the exact name first, then
+    the suffix-stripped form."""
+    name = (token_name or "").strip()
+    if not name:
+        return ()
+    if name.endswith(" Role"):
+        return (name, name[: -len(" Role")])
+    return (name,)
+
+
+_KNOWN_TOKENS_FALLBACK_ASSET = "known_tokens_fallback.toml"
+
+
+def _parse_known_tokens_toml(text: str) -> dict[str, dict] | None:
+    """toml text -> ``{id: {display_name, rules_text, core_types, subtypes,
+    supertypes}}``, or ``None`` on any parse failure. Shared by the live
+    fetch and the committed fallback below."""
+    import tomllib
+
+    try:
+        data = tomllib.loads(text)
+    except tomllib.TOMLDecodeError:
+        return None
+    entries = data.get("token")
+    if not isinstance(entries, list):
+        return None
+    out: dict[str, dict] = {}
+    for entry in entries:
+        if not isinstance(entry, dict):
+            continue
+        tid = entry.get("id")
+        if not tid:
+            continue
+        body = entry.get("body") or {}
+        out[tid] = {
+            "display_name": body.get("display_name") or "",
+            "rules_text": (entry.get("rules_text") or "").strip(),
+            "core_types": tuple(body.get("core_types") or ()),
+            "subtypes": tuple(body.get("subtypes") or ()),
+            "supertypes": tuple(body.get("supertypes") or ()),
+        }
+    return out
+
+
+@functools.cache
+def _known_tokens_index() -> dict[str, dict] | None:
+    """toml token ``id`` -> ``{display_name, rules_text, core_types,
+    subtypes, supertypes}``.
+
+    Prefers the LIVE tag-pinned ``known-tokens.toml`` (:func:`_phase.
+    ensure_known_tokens` — the full ~600-entry file, fetched once and
+    cached), so a future widening of ``_KNOWN_TOKEN_WIRED_DISPLAY_NAMES``
+    needs no code change here. Falls back to the small COMMITTED subset at
+    ``mtg_utils/data/known_tokens_fallback.toml`` — carrying only the
+    identities this task actually wires — whenever the live file can't be
+    fetched/read (offline, cold cache, CI: :mod:`mtg_utils.testkit`-driven
+    tests must stay network-independent). ``None`` only if BOTH fail (the
+    fallback ships in the package, so this is theoretical short of a
+    corrupted install)."""
+    from mtg_utils import _phase
+
+    path = _phase.ensure_known_tokens()
+    if path is not None:
+        try:
+            text = path.read_text()
+        except OSError:
+            text = None
+        if text is not None:
+            parsed = _parse_known_tokens_toml(text)
+            if parsed is not None:
+                return parsed
+
+    fallback = (
+        Path(__file__).resolve().parent.parent / "data" / _KNOWN_TOKENS_FALLBACK_ASSET
+    )
+    try:
+        text = fallback.read_text()
+    except OSError:
+        return None
+    return _parse_known_tokens_toml(text)
+
+
+def _known_token_tree(entry: dict, *, oracle_id: str) -> ConceptTree | None:
+    """One matched known-tokens.toml entry as a zero-unit text-only
+    ``ConceptTree`` (the ADR-0038 W2c shape), or ``None`` for a blank
+    ``rules_text`` (nothing to carry — e.g. a vanilla creature token that
+    already fully round-trips through the Token node's own printed body)."""
+    from mtg_utils._card_ir.crosswalk import ConceptTree
+
+    rules_text = entry["rules_text"]
+    if not rules_text:
+        return None
+    return ConceptTree(
+        name=entry["display_name"],
+        oracle_id=oracle_id,
+        units=(),
+        card_types=entry["core_types"],
+        card_subtypes=entry["subtypes"],
+        card_supertypes=entry["supertypes"],
+        cmc=0,
+        power=None,
+        has_printed_cost=False,
+        oracle=rules_text,
+    )
+
+
+def _known_token_trees(rec: dict, *, oracle_id: str) -> list[ConceptTree]:
+    """Every predefined-token ability tree ``rec`` (one raw phase face
+    record) creates, gap-gated to Token nodes phase parsed NO ability
+    substance for (see the module comment above). Empty whenever the
+    known-tokens index is unavailable, the card carries no
+    ``related_token_ids``, or every Token node phase already fully parsed."""
+    index = _known_tokens_index()
+    if not index:
+        return []
+    related_ids = (rec.get("metadata") or {}).get("related_token_ids") or []
+    candidates = {
+        index[tid]["display_name"].casefold(): index[tid]
+        for tid in related_ids
+        if tid in index
+        and index[tid]["display_name"] in _KNOWN_TOKEN_WIRED_DISPLAY_NAMES
+    }
+    if not candidates:
+        return []
+    trees: list[ConceptTree] = []
+    seen: set[str] = set()
+    for token_node in _iter_raw_token_effects(rec):
+        if token_node.get("static_abilities") or token_node.get("keywords"):
+            continue  # phase already parsed something for this token — leave it
+        entry = None
+        for cand in _known_token_display_name_candidates(
+            str(token_node.get("name") or "")
+        ):
+            entry = candidates.get(cand.casefold())
+            if entry is not None:
+                break
+        if entry is None or entry["display_name"] in seen:
+            continue
+        seen.add(entry["display_name"])
+        tree = _known_token_tree(entry, oracle_id=oracle_id)
+        if tree is not None:
+            trees.append(tree)
+    return trees
+
+
 def build_trees(
     oid: str, recs: Sequence[dict], bulk: dict | None = None
 ) -> tuple[ConceptTree, ...]:
     """The per-face ``ConceptTree`` tuple for ``oid`` from EXPLICIT phase face
     records — pure (no caching, no ``_phase_record_index`` / ``ensure_card_data``
-    I/O beyond the always-committed mirror schema fixture).
+    I/O beyond the always-committed mirror schema fixture and the known-tokens
+    index's own lazy ``functools.cache``).
 
     :func:`trees_for` wraps this with the production oid→records lookup +
     memo; :mod:`mtg_utils.testkit` calls it directly against the committed
@@ -307,7 +576,11 @@ def build_trees(
     signal test builds the SAME trees production would with zero
     ``_phase.ensure_card_data`` dependency (no phase cache / network in CI).
     See :func:`trees_for` for the per-face / ``bulk`` W2c contract this
-    mirrors exactly."""
+    mirrors exactly. Task #92 adds one more per-rec extension: every
+    predefined token ``rec`` creates whose OWN ability text phase's parse
+    left blank gets an extra text-only tree appended (see the module comment
+    above :func:`_known_token_trees`) — independent of ``schema``/strict-load
+    succeeding, since it reads the raw JSON directly."""
     schema = _committed_schema()
     if schema is None:
         return ()
@@ -320,10 +593,10 @@ def build_trees(
         try:
             root = strict_load_card(rec, schema, name=nm)
         except MirrorDriftError:
-            continue
-        if root is None:
-            continue
-        trees.append(build_concept_tree(root, name=nm, oracle_id=oid))
+            root = None
+        if root is not None:
+            trees.append(build_concept_tree(root, name=nm, oracle_id=oid))
+        trees.extend(_known_token_trees(rec, oracle_id=oid))
     if bulk is not None:
         trees.extend(_text_only_trees(bulk, tuple(recs), oracle_id=oid))
     return tuple(trees)

@@ -428,6 +428,57 @@ def ensure_card_data() -> Path:
     return dest
 
 
+def _known_tokens_path() -> Path:
+    """The tag-versioned known-tokens.toml cache path :func:`ensure_known_tokens`
+    writes. Keyed by ``PHASE_TAG`` like :func:`_card_data_path`, so a tag bump
+    auto-refetches and old tags stay cached."""
+    return cache_dir() / "known-tokens" / f"known-tokens-{PHASE_TAG}.toml"
+
+
+# task #92 (KNOWN-TOKENS SUBSTRATE): phase's ``card-data.json`` Token effect
+# nodes for PREDEFINED tokens (Saproling, Mutagen, the WOE Role cycle, …) carry
+# only the token's printed body (types/power/toughness/keywords/static
+# abilities it DOES parse) — never the token's own activated/triggered ability
+# text when phase's static-ability parser doesn't decompose it (the Mutagen
+# cycle's sacrifice ability, the Role cycle's granted trigger). That text DOES
+# exist upstream, in ``crates/engine/data/known-tokens.toml``'s per-token
+# ``rules_text`` field (a raw single-file fetch — much lighter than the full
+# release tarball :func:`ensure_card_data` pulls for one member). Unlike that
+# function, this ensure NEVER raises: a missing/unreachable file just means the
+# known-tokens substrate contributes nothing (see
+# ``_deck_forge._ir_lookup._known_tokens_index``), never a crash.
+_KNOWN_TOKENS_ASSET_PATH = "crates/engine/data/known-tokens.toml"
+
+
+def ensure_known_tokens() -> Path | None:
+    """Return a local ``known-tokens.toml`` for ``PHASE_TAG``, downloading if
+    absent. ``None`` on ANY failure (network, 404, tag missing the file) —
+    graceful by design, mirroring :func:`ensure_card_data`'s tag-keyed cache
+    but with a fail-soft contract instead of a raised ``RuntimeError``, since
+    this substrate is a pure enhancement (a card whose created tokens carry no
+    known-tokens.toml match simply gets no extra ability trees)."""
+    dest = _known_tokens_path()
+    if dest.exists():
+        return dest
+
+    url = (
+        "https://raw.githubusercontent.com/phase-rs/phase/"
+        f"{PHASE_TAG}/{_KNOWN_TOKENS_ASSET_PATH}"
+    )
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    request = urllib.request.Request(url, headers={"User-Agent": "mtg-skills/_phase"})
+    try:
+        with urllib.request.urlopen(request, timeout=30) as resp:
+            payload = resp.read()
+    except (urllib.error.URLError, OSError, ValueError):
+        return None
+
+    tmp_dest = dest.with_name(dest.name + ".tmp")
+    tmp_dest.write_bytes(payload)
+    tmp_dest.replace(dest)
+    return dest
+
+
 @lru_cache(maxsize=1)
 def load_supported_card_names() -> frozenset[str]:
     """Load the set of card names phase implements, lowercased for case-insensitive

@@ -6,6 +6,7 @@ import io
 import json
 import subprocess
 import tarfile
+import urllib.error
 from pathlib import Path
 from unittest.mock import MagicMock
 
@@ -577,6 +578,79 @@ class TestEnsureCardData:
         assert _phase.PHASE_TAG in msg
         # No partial cache file left behind on failure.
         assert not _phase._card_data_path().exists()
+
+
+class TestEnsureKnownTokens:
+    """task #92 — the known-tokens.toml raw-file fetch. Unlike
+    :func:`_phase.ensure_card_data`, this ensure NEVER raises: it degrades to
+    ``None`` on any failure (network error, bad tag, whatever)."""
+
+    def test_returns_cached_path_without_downloading(self, monkeypatch, tmp_path):
+        monkeypatch.setenv("MTG_SKILLS_CACHE_DIR", str(tmp_path))
+        dest = _phase._known_tokens_path()
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        dest.write_text("[[token]]\nid = 'x'\n")
+
+        fake = _FakeUrlopen(b"unused")
+        monkeypatch.setattr("urllib.request.urlopen", fake)
+
+        out = _phase.ensure_known_tokens()
+        assert out == dest
+        assert fake.calls == [], "must NOT download when the cache exists"
+
+    def test_downloads_to_tag_versioned_path(self, monkeypatch, tmp_path):
+        monkeypatch.setenv("MTG_SKILLS_CACHE_DIR", str(tmp_path))
+        payload = b"[[token]]\nid = 'abc'\n"
+        fake = _FakeUrlopen(payload)
+        monkeypatch.setattr("urllib.request.urlopen", fake)
+
+        out = _phase.ensure_known_tokens()
+
+        expected = (
+            tmp_path
+            / "phase"
+            / "known-tokens"
+            / f"known-tokens-{_phase.PHASE_TAG}.toml"
+        )
+        assert out == expected
+        assert out.read_bytes() == payload
+        assert len(fake.calls) == 1
+        assert _phase.PHASE_TAG in fake.calls[0]
+        assert "known-tokens.toml" in fake.calls[0]
+        assert "raw.githubusercontent.com" in fake.calls[0]
+
+    def test_keyed_by_phase_tag_refetches_on_bump(self, monkeypatch, tmp_path):
+        monkeypatch.setenv("MTG_SKILLS_CACHE_DIR", str(tmp_path))
+        first = _FakeUrlopen(b"[[token]]\nid = 'a'\n")
+        monkeypatch.setattr("urllib.request.urlopen", first)
+        path_v1 = _phase.ensure_known_tokens()
+        assert len(first.calls) == 1
+
+        again = _phase.ensure_known_tokens()
+        assert again == path_v1
+        assert len(first.calls) == 1  # no re-download for the same tag
+
+        monkeypatch.setattr(_phase, "PHASE_TAG", "v9.9.9")
+        second = _FakeUrlopen(b"[[token]]\nid = 'b'\n")
+        monkeypatch.setattr("urllib.request.urlopen", second)
+        path_v2 = _phase.ensure_known_tokens()
+        assert path_v2 != path_v1
+        assert "v9.9.9" in path_v2.name
+        assert len(second.calls) == 1
+        assert path_v1.exists()  # old tag's cache untouched
+
+    def test_degrades_to_none_on_network_error(self, monkeypatch, tmp_path):
+        """Graceful, NOT loud — the substrate contributes nothing rather
+        than crashing every caller of :func:`_phase.ensure_card_data`'s
+        sibling ensure."""
+        monkeypatch.setenv("MTG_SKILLS_CACHE_DIR", str(tmp_path))
+
+        def _boom(*_a, **_kw):
+            raise urllib.error.URLError("offline")
+
+        monkeypatch.setattr("urllib.request.urlopen", _boom)
+        assert _phase.ensure_known_tokens() is None
+        assert not _phase._known_tokens_path().exists()
 
 
 class TestBuildAndCoverageUseEnsure:

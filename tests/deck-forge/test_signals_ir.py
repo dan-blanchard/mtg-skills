@@ -2363,24 +2363,30 @@ def test_riot_grant_stays_out_of_plus_one_makers():
     assert "plus_one_makers" not in keys
 
 
-def test_mutagen_token_ability_stays_out_of_plus_one_makers():
+def test_mutagen_token_ability_opens_plus_one_makers():
     """Mutagen Man's created Mutagen token has its OWN activated ability
     ("{1}, {T}, Sacrifice this token: Put a +1/+1 counter on target
-    creature") — but phase's card-data parse carries NO ability body at
-    all for this predefined token (verified against the raw record: the
-    Token effect node's ``keywords``/``static_abilities`` fields are both
-    empty). A genuine substrate gap, not a missed structural read."""
+    creature") — phase's card-data parse carries NO ability body at all
+    for this predefined token (the Token effect node's ``keywords``/
+    ``static_abilities`` fields are both empty), a genuine substrate gap
+    rather than a missed structural read. Task #92's known-tokens
+    substrate closes it: the source card's ``metadata.related_token_ids``
+    joins to phase's own ``known-tokens.toml`` data, contributing an extra
+    text-only tree carrying the token's real rules text, which the
+    existing ``plus_one_makers`` bucket-B idiom then reads structurally."""
     keys = _skeys(test_signals("Mutagen Man, Living Ooze"))
-    assert "plus_one_makers" not in keys
+    assert "plus_one_makers" in keys
 
 
-def test_young_hero_role_token_stays_out_of_plus_one_makers():
+def test_young_hero_role_token_opens_plus_one_makers():
     """Cut In's created Young Hero Role token has its OWN triggered
     ability ("Whenever this creature attacks, if its toughness is 3 or
     less, put a +1/+1 counter on it") — same predefined-token substrate
-    gap as the Mutagen cycle: no ability body at all in phase's parse."""
+    gap as the Mutagen cycle, closed the same way by task #92's
+    known-tokens substrate (see
+    ``test_mutagen_token_ability_opens_plus_one_makers``)."""
     keys = _skeys(test_signals("Cut In"))
-    assert "plus_one_makers" not in keys
+    assert "plus_one_makers" in keys
 
 
 # ── pacify_makers (task #87) — Pacifism/Arrest class ────────────────────────
