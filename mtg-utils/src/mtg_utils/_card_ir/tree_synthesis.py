@@ -4945,6 +4945,123 @@ def _arm_self_power_scale(tree: ConceptTree) -> ConceptNode | None:
     )
 
 
+# ── arm: plus_one_makers bucket-B (task #85, plus-one-counters preset) ────────
+# CR 122.1: a +1/+1 counter PLACEMENT phase drops entirely rather than typing
+# as a ``place_counter`` concept, corpus-confirmed across four repeated
+# TEMPLATE shapes a 415-card residual census (v0.23) split into:
+#
+# * an ETB REPLACEMENT effect phase's static parser can't reach at all
+#   ("This creature enters with X +1/+1 counters on it, where X is …" —
+#   Cogwork Grinder, Naya Soulbeast, Lupine Harbingers) — the whole clause
+#   decorates as an ``Unimplemented`` EFFECT-role node whose raw literally
+#   starts "Replacement pattern matched but line failed replacement
+#   parser: ~ enters with X …", OR (Worldheart Phoenix, Undead Sprinter,
+#   Tervigon's "Ravenous" reminder) leaves NO unit/effect trace at all.
+# * a COMPUTED-amount ``PutCounter`` targeting something the unit ALSO
+#   just made ("Create a 0/0 … Fractal token. Put X +1/+1 counters on
+#   it." — Body of Research, Sequence Engine, the Kamigawa Fractal cycle;
+#   "Put a +1/+1 counter on it for each invasion counter on this
+#   enchantment" — Alien Invasion) — the preceding ``make_token``/
+#   ``change_zone`` effect survives, but the FOLLOWING variable-amount
+#   counter clause is dropped with no node at all (mirrors the
+#   ``direct_damage`` "computed-amount … clause phase drops entirely"
+#   precedent a few hundred lines up ``crosswalk_signals.py``).
+# * a PLANESWALKER loyalty ability's own effect ("[-3]: … put a number of
+#   +1/+1 counters on it equal to …" — Jared Carthalion, Elspeth
+#   Resplendent) — phase types the whole clause ``Unimplemented`` with the
+#   counter-placement instruction verbatim as the node's raw text.
+# * the general "Put N +1/+1 counter(s) on <target>" imperative-effect
+#   template anywhere else phase's grammar doesn't reach it (Furgul, Elder
+#   Arthur Maxson's granted Training, Amzu, Emissary Green, …).
+#
+# All four collapse to ONE idiom read: an IMPERATIVE "put(s) … +1/+1
+# counter(s)" clause (never the PASSIVE "is/are put" phrasing a matters-
+# side payoff uses to describe an EXTERNAL placement — Hardened Scales-
+# style triggers stay ``plus_one_matters``' territory) or the ETB-
+# replacement "enters … with … +1/+1 counter(s) on it" template, read on
+# the REMINDER-STRIPPED whole-card oracle. Reminder-stripping is what
+# keeps this SHED (not double-served) from every keyword mechanic whose
+# OWN +1/+1-counter rider is reminder text on a DIFFERENT keyword —
+# Connive ("If you discarded a nonland card, put a +1/+1 counter on this
+# creature."), Amass, Explore, Incubate, Megamorph, Awaken all template
+# their counter clause inside parens; stripping them before matching
+# means this arm never re-opens those already-distinct preset/signal
+# lanes (Connive routes to ``connive_makers``/cantrip, Amass/Incubate to
+# their own token-preset, Megamorph to ``facedown_makers`` — CR 702.153/
+# 701.47/701.53/702.75). Reanimation-with-a-bonus-counter ("Return …
+# creature card from your graveyard to the battlefield with an additional
+# +1/+1 counter on it" — A-Graveyard Shift, Drana) uses neither "put" nor
+# "enters", so it's excluded by construction, not by an explicit list —
+# CR 122.1 doesn't treat that rider as the reanimation effect's own
+# mechanic, but this preset's SCOPE decision (task #85) is that
+# reanimation stays its own archetype. Gap-gated against the SAME
+# structural ``place_counter``/P1P1 read ``_plus_one_makers`` runs first
+# (never double-counts a card Tier-1 already reads).
+_PLUS_ONE_ETB_RX = re.compile(
+    r"enters (?:the battlefield )?with .{0,80}\+1/\+1 counters? on it",
+    re.IGNORECASE,
+)
+_PLUS_ONE_PUT_RX = re.compile(
+    r"(?<!is )(?<!are )(?<!re-)\bput(?:s)?\b(?:(?!\.|;).){0,150}?\+1/\+1 counters?\b",
+    re.IGNORECASE,
+)
+
+
+def has_structural_plus_one_makers(tree: ConceptTree) -> bool:
+    """A typed P1P1 ``PutCounter``/``place_counter`` concept anywhere on
+    the tree — the SAME read ``crosswalk_signals._plus_one_makers`` runs,
+    factored out here so this module's gap-gate never drifts from it."""
+    for unit in tree.units:
+        for c in unit.effects:
+            if c.concept != "place_counter":
+                continue
+            ck = counter_kind(c.node).upper()
+            if ck == "P1P1" or (not ck and "+1/+1 counter" in (c.raw or "")):
+                return True
+    return False
+
+
+def _matches_plus_one_makers_idiom(oracle: str) -> bool:
+    stripped = _REMINDER.sub(" ", oracle or "")
+    if _PLUS_ONE_ETB_RX.search(stripped):
+        return True
+    for cl in re.split(r"[.\n]", stripped):
+        low = cl.lower()
+        if "put" not in low:
+            continue
+        # opponent-directed placements are their own archetype (task #85
+        # scope) — "target opponent puts a +1/+1 counter on a creature
+        # they control" reads as an OPPONENT choice, not this card's own
+        # making. Only excludes when "opponent" precedes the verb in the
+        # SAME clause (an opponent REFERENCED after the placement, e.g.
+        # "put a +1/+1 counter on target creature an opponent controls",
+        # still counts — you are the one placing it).
+        put_idx = low.find("put")
+        if "opponent" in low[:put_idx]:
+            continue
+        if _PLUS_ONE_PUT_RX.search(cl):
+            return True
+    return False
+
+
+def _arm_plus_one_makers(tree: ConceptTree) -> ConceptNode | None:
+    """Synthesize a ``plus_one_makers`` node for the dropped-clause /
+    Unimplemented-residue P1P1 placement residual (task #85) — see the
+    block comment above for the four template shapes this idiom read
+    unifies."""
+    if has_structural_plus_one_makers(tree):
+        return None
+    if not _matches_plus_one_makers_idiom(tree.oracle or ""):
+        return None
+    return _synthetic_concept(
+        arm_id="plus_one_makers",
+        concept="synth_plus_one_makers",
+        scope="you",
+        subject=(),
+        desc="bucket-B +1/+1 counter placement (dropped-clause residue)",
+    )
+
+
 # ── arm: poison_matters bucket-B (ADR-0036/0037 Stage 5, batch T2-counters) ────
 # CR 122 + 704.5c: the "poison counter" reference/giver mirror (the ADR-0034
 # partition — infect/toxic/poisonous keyword BEARERS ride the separate
@@ -9068,6 +9185,7 @@ _ARMS: tuple[tuple[str, _Arm], ...] = (
     ("proliferate_remove_cost", _arm_proliferate_remove_cost),
     ("self_counter_grow", _arm_self_counter_grow),
     ("self_power_scale", _arm_self_power_scale),
+    ("plus_one_makers", _arm_plus_one_makers),
     ("poison_matters", _arm_poison_matters),
     ("island_matters", _arm_island_matters),
     ("animate_artifact", _arm_animate_artifact),

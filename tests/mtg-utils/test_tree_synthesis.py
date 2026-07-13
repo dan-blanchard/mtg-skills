@@ -640,12 +640,18 @@ def test_attack_synth_vetoes_cant_attack_hoser():
 
 def test_attack_synth_noops_on_negated_didnt_attack():
     # "didn't attack this turn" is anti-attack durdle, not a payoff — the positive
-    # Raid idiom requires past-tense "you attacked".
+    # Raid idiom requires past-tense "you attacked". task #85: this text ALSO
+    # genuinely puts a +1/+1 counter on the trigger's target ("it"), so the
+    # plus_one_makers bucket-B bridge correctly co-fires (a real, unrelated
+    # placement) — the assertion narrows to "no attack-family arm fired"
+    # instead of a blanket empty tuple.
     tree = _gap_tree(
         "At the beginning of your end step, if this creature didn't attack this "
         "turn, put a +1/+1 counter on it."
     )
-    assert synthesize_nodes(tree) == ()
+    fired = dict(synthesize_nodes(tree))
+    assert "attack_matters" not in fired
+    assert set(fired) == {"plus_one_makers"}
 
 
 def test_attack_synth_noops_when_no_attack_idiom():
@@ -736,10 +742,13 @@ def test_lifegain_synth_fires_on_whenever_you_gain_gap():
     # (ADR-0036/0037 self_counter_grow fold): this text ALSO genuinely puts a
     # +1/+1 counter on the source itself, so the self_counter_grow bucket-B
     # arm co-fires — the evasion_self/exalted_lone_attacker precedent for a
-    # new arm legitimately widening a shared-text assertion.
+    # new arm legitimately widening a shared-text assertion. task #85 adds
+    # plus_one_makers to the same widening: the SAME "put a +1/+1 counter on
+    # this creature" clause is also a genuine (if self-anchored) P1P1
+    # placement the plus_one_makers bucket-B bridge correctly reads.
     tree = _gap_tree("Whenever you gain life, put a +1/+1 counter on this creature.")
     fired = dict(synthesize_nodes(tree))
-    assert set(fired) == {"lifegain_matters", "self_counter_grow"}
+    assert set(fired) == {"lifegain_matters", "self_counter_grow", "plus_one_makers"}
     node = fired["lifegain_matters"]
     assert node.concept == "synth_lifegain_matters"
     assert isinstance(node.node, SynthesizedNode)

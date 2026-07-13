@@ -319,6 +319,20 @@ def _blink_maker_concept(card: dict) -> bool:
     return blink_flicker_maker_present(card)
 
 
+def _plus_one_counters_self_grow_concept(card: dict) -> bool:
+    """concept arm for the 'plus-one-counters' preset (task #85): the
+    ``self_counter_grow`` KEY minus its ``synth_self_power_scale`` cross-
+    open (Esper Sentinel, the Khenra cycle — a card whose value scales
+    with its OWN power, never a +1/+1 counter reference). See
+    ``crosswalk_signals.self_counter_grow_narrow`` for why the raw key is
+    too broad for THIS preset specifically. Unions (OR) with this
+    preset's ``signal_keys=("plus_one_makers", "plus_one_matters",
+    "counter_distribute")`` arm."""
+    from mtg_utils._deck_forge.crosswalk_signals import self_counter_grow_narrow
+
+    return _concept_any_face(card, self_counter_grow_narrow)
+
+
 def _rx(*patterns: str) -> tuple[re.Pattern[str], ...]:
     """Compile a tuple of patterns with IGNORECASE."""
     return tuple(re.compile(p, re.IGNORECASE) for p in patterns)
@@ -1973,36 +1987,126 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
     # creatures with +1/+1 counters. Covers the classic counters-matter
     # archetype (Simic, Abzan, Hardened Scales, etc.). Excludes other
     # counter types (loyalty, charge, time, etc.) by anchoring on the
-    #
-    # task #83 structural-view conversion: DEFERRED, not converted. Adding
-    # `self_counter_grow` + `counter_distribute` + the `Mentor` (CR 702.134)
-    # / `Explore` (CR 701.44) keywords the scoping pass named cuts the old-
-    # regex residue from 585 to 379 preset-only cards (commander-legal, by
-    # oracle_id), but session diligence found this residue is NOT a single
-    # small tail — it splits into at least FOUR distinct, corpus-confirmed
-    # structural gaps, none fixable from the preset side: (1) an ETB "enters
-    # with N +1/+1 counters" template (Cogwork Grinder, Naya Soulbeast,
-    # Lupine Harbingers, Worldheart Phoenix, Undead Sprinter, ...); (2) the
-    # Kamigawa "Fractal" token+counter cycle ("Create a 0/0 ... Fractal
-    # token. Put X +1/+1 counters on it." — Body of Research, Leyline
-    # Invocation, Manifestation Sage, Sequence Engine, ...); (3) a GRANTED
-    # keyword/triggered ability placing counters (Warrior's Resolve grants
-    # Training; Dionus grants Elves a tap-trigger; Fungus Sliver / Tempered
-    # Sliver grant Slivers a damage-trigger; Power Fist / Strength of Will
-    # grant an Equip/pump trigger) — the granted ability's own effect isn't
-    # walked, the same GrantAbility-descent gap named in the bounce/edict/
-    # extra-turns deferrals; (4) a planeswalker LOYALTY ability directly
-    # placing counters (Jared Carthalion's -3, Elspeth Resplendent's +1) —
-    # loyalty-ability effects aren't walked either. A ~52-card manual sample
-    # of the 110-card "genuine top-level +1/+1 mention, no known-shed
-    # pattern" bucket confirmed roughly 75% are real misses across these four
-    # categories (the rest are legitimate different-archetype exclusions:
-    # counter_doubling, reanimation-with-a-bonus-counter, cost-reduction-by-
-    # counter-count, opponent-directed). All four are lane changes (multiple
-    # independent crosswalk_signals.py / tree_synthesis.py descent fixes)
-    # needing the full corpus-diff + CR-citation bar per fix — out of scope
-    # for a view conversion; fix the lanes first, then re-attempt.
     # literal "+1/+1" token.
+    #
+    # task #83 named FOUR lane-gap families as the reason this preset
+    # stayed regex/keyword-only (585 -> 379 preset-only residue after
+    # adding self_counter_grow/counter_distribute/Mentor/Explore, ~75% of
+    # a 110-card genuine-miss sample). task #85 re-measured at v0.23 (the
+    # residue had grown to 415, not shrunk — new-set churn outpaces the
+    # bump's own counter-parse additions) and closed all four:
+    #
+    # (1) ETB "enters with N +1/+1 counters" template (Cogwork Grinder,
+    #     Naya Soulbeast, Lupine Harbingers, Worldheart Phoenix, Undead
+    #     Sprinter): phase's static-replacement parser fails outright on
+    #     the computed-X form (decorates ``Unimplemented`` with a
+    #     "Replacement pattern matched but line failed replacement
+    #     parser" raw prefix) and drops the fixed-N form with no node at
+    #     all.
+    # (2) the Kamigawa "Fractal" token+counter cycle (Body of Research,
+    #     Sequence Engine, ...) and its general form (Alien Invasion,
+    #     Amzu, Emissary Green, Furgul, ...): a COMPUTED-amount
+    #     ``PutCounter`` clause following a ``make_token``/other effect in
+    #     the same unit is dropped entirely (mirrors the ``direct_damage``
+    #     computed-amount-clause-drop precedent).
+    # (3) planeswalker LOYALTY abilities placing counters (Jared
+    #     Carthalion's -3, Elspeth Resplendent's +1): the clause survives
+    #     as an ``Unimplemented`` EFFECT-role node with the placement text
+    #     verbatim as its raw.
+    # (4) the "creature(s) [you control] with a +1/+1 counter on it/them"
+    #     PAYOFF condition (Bred for the Hunt, Foundry Hornet, Chronicler
+    #     of Heroes): FOUR distinct typed sites the prior
+    #     ``plus_one_matters`` structural read didn't check — a
+    #     ``deals_damage``/``attacks``-mode trigger's ``valid_source``
+    #     (only ``valid_card`` was read), a static/trigger ``ControlsType``
+    #     condition (only ``IsPresent`` was read), a ``QuantityCheck``
+    #     whose ``Ref`` wraps an ``ObjectCount`` filter (only the direct
+    #     ``CountersOn`` shape was read), and the v0.23-bump-added
+    #     ``HadCounters`` past-tense condition on a leaves-the-battlefield
+    #     trigger (Promising Duskmage's dies-with-a-counter check — only
+    #     the live-object ``HasCounters`` tag was read).
+    #
+    # (1)+(2)+(3) close via one bucket-B ``tree_synthesis`` bridge feeding
+    # ``plus_one_makers`` (:func:`mtg_utils._card_ir.tree_synthesis.
+    # _arm_plus_one_makers` — see its own docstring for the unified idiom
+    # read and why reminder-stripping keeps it from re-opening the
+    # Connive/Amass/Explore/Incubate/Megamorph/Awaken keyword-mechanic
+    # shed). (4) closes as four genuine structural-read widenings in
+    # ``crosswalk_signals._plus_one_matters`` (no bridge — real typed
+    # fields/tags the prior code just didn't check yet).
+    #
+    # Re-measuring the post-fix residual (a 194-card manual census: the
+    # task #83 four-family examples plus every remaining preset-only
+    # card) found no OTHER fixable structural gap — it splits cleanly
+    # into six documented, CR-grounded exclusion classes (every card
+    # individually checked, none silently dropped):
+    #
+    # * reanimation/zone-change-with-a-bonus-counter (CR 614.12 — a
+    #   replacement rider on a graveyard/exile/dies recursion effect, the
+    #   counter is incidental to the RECURSION, not this preset's DOER;
+    #   ~29 cards — A-Graveyard Shift, Drana, Undying Malice, Valkyrie's
+    #   Call, ...).
+    # * cost-reduction-by-counter-count (CR 118.7 — Hamza, Starport
+    #   Security: the counter is a THRESHOLD reference for an unrelated
+    #   cost reducer).
+    # * a kind-AGNOSTIC "with/has A counter on it" reference (Michelangelo,
+    #   Mutant BFF — CR 122.1 requires a KIND; belongs to
+    #   any_counter_matters, the SAME split ``_plus_one_matters``'s own
+    #   docstring already documents for The Swarmlord/Cleopatra).
+    # * an EQ-0/negation "no +1/+1 counter"/"without a +1/+1 counter"
+    #   predicate (Hindervines, Wave Goodbye — the inverse of a
+    #   counter-caring payoff; already deliberately excluded corpus-wide
+    #   per ``_plus_one_matters``'s own documented Hindervines exception).
+    # * a GRANTED keyword/ability, or a SEPARATELY CREATED permanent's own
+    #   ability, placing the counter — never this card's own effect (~36
+    #   cards: the "Mutagen token" cycle — April O'Neil, Crustacean
+    #   Commando, Genghis Frog, Mona Lisa, Mutagen Man, Mutant Chain
+    #   Reaction, Ooze Spill, Return to the Sewers, Shellshock, Slithering
+    #   Cryptid, Zoo Escapees; the "Young Hero Role" token cycle — Cut In,
+    #   Embereth Veteran, Merry Bards, Protective Parents, Return
+    #   Triumphant; a granted Sunburst/Bloodthirst/Riot/Evolve/Training/
+    #   Devour/Scavenge/Dethrone (Lux Artillery, Solar Array, Twins of
+    #   Discord, Domri Chaos Bringer, Propagator Drone, Elder Arthur
+    #   Maxson, Dragon Broodmother, Varolz, Young Deathclaws, Dack's
+    #   Duplicate); a delayed "one-time boon" granted to a FUTURE spell
+    #   (Arcane Archery, Champions of Tyr, March Toward Perfection,
+    #   Tenacious Pup); a bare Amass/Incubate ACTION reference from a
+    #   loyalty ability or spell effect rather than the creature's own
+    #   keyword (Angrath, Commence the Endgame, Assimilate Essence,
+    #   Excise the Imperfect, Tangled Skyline); Aegis of the Legion's
+    #   granted Mentor; Ral and the Implicit Maze's created token's own
+    #   ability — the SAME GrantAbility-descent / token's-own-ability
+    #   substrate gap named in the bounce/edict/extra-turns deferrals
+    #   (task #85), cross-lane and out of scope for one preset. Ledgered
+    #   here, not silently dropped.
+    # * niche singleton residue, individually inspected and genuinely
+    #   ambiguous/complex enough to defer rather than force a fix:
+    #   Biomancer's Familiar (a counter-COUNT reference for an unrelated
+    #   Adapt-nerf, not a cares-about), Blightbeetle (a counter-PLACEMENT
+    #   DENIAL static on opponents' creatures — the inverse of a doer),
+    #   Bewitching Leechcraft (the counter is a RESOURCE for an unrelated
+    #   untap-lock Aura, opponent-directed), Ion Storm (a P1P1-OR-charge
+    #   alternative counter-sink cost), Rite of the Serpent (a
+    #   target-had-a-counter removal rider), Tizerus Charger (an
+    #   Escape-cost modal counter CHOICE), Cosima // The Omenkeel (a
+    #   self-granted delayed replacement ability, one card).
+    #
+    # Legitimate different-archetype exclusions carried over unchanged
+    # from task #83's own finding: counter_doubling (its own lane) and
+    # opponent-directed placement (a different scope than this preset's
+    # ``you`` read). Keyword mechanics whose OWN +1/+1-counter rider is
+    # reminder text on a DIFFERENT primary mechanic stay shed to their
+    # existing preset/lane: Connive (CR 702.153, cantrip), Amass/Incubate
+    # (CR 701.47/701.53, token-preset), Megamorph (CR 702.75,
+    # facedown_makers), Undying/Persist (CR 702.92/702.79, their own
+    # death-replacement lane). Mentor (CR 702.134) and Explore (CR
+    # 701.44) join the keywords list per task #83's own scoping-pass
+    # recommendation — both mechanics' placement is unconditional-or-
+    # primary, the same class as Bolster; Awaken (CR 702.113), Ravenous
+    # (CR 702.156), and Scavenge (CR 702.97) join for the identical
+    # reason (task #85 finding — Boiling Earth's land-animation counters,
+    # Tervigon's ETB counters, the Golgari scavenge cycle's recursion-
+    # into-counters).
     Preset(
         name="plus-one-counters",
         description=(
@@ -2011,7 +2115,8 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
             "keyword whose primary mechanic is adding +1/+1 counters: "
             "Bolster, Increment (SOS), Reinforce, Monstrosity, Graft, "
             "Outlast, Renown, Evolve, Adapt, Modular, Fabricate (modal), "
-            "Training, Support, Tribute, Endure (modal), Devour, Dethrone."
+            "Training, Support, Tribute, Endure (modal), Devour, Dethrone, "
+            "Mentor, Explore, Awaken, Ravenous, Scavenge."
         ),
         keywords=(
             "Bolster",
@@ -2031,17 +2136,24 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
             "Endure",
             "Devour",
             "Dethrone",
+            "Mentor",
+            "Explore",
+            "Awaken",
+            "Ravenous",
+            "Scavenge",
         ),
-        patterns=_rx(
-            r"\+1/\+1 counter",
-            r"with a \+1/\+1 counter on it",
-        ),
+        signal_keys=("plus_one_makers", "plus_one_matters", "counter_distribute"),
+        concept=_plus_one_counters_self_grow_concept,
         should_match=(
             "Scavenging Ooze",
             "Goldvein Hydra",
             "Berta, Wise Extrapolator",
+            "Cogwork Grinder",
+            "Body of Research",
+            "Jared Carthalion",
+            "Bred for the Hunt",
         ),
-        should_not_match=("Lightning Bolt", "Counterspell"),
+        should_not_match=("Lightning Bolt", "Counterspell", "Esper Sentinel"),
     ),
     # Cantrip gets Connive added via keywords tuple — Connive's core effect
     # is "draw a card, then discard a card" (with a +1/+1 rider on nonland

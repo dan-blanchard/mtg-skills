@@ -3025,13 +3025,21 @@ def _plus_one_makers(tree: ConceptTree) -> list[Signal]:
     Mirrors ``_signals_ir`` line ~8472: a ``place_counter`` effect whose
     ``counter_type`` is ``P1P1`` (the discriminator phase isolates from loyalty /
     oil / shield placements), plus the blank-kind enters-with/modal form whose raw
-    literally names "+1/+1 counter". Counter DOUBLERS are a separate lane. Scope
-    "you".
+    literally names "+1/+1 counter". Counter DOUBLERS are a separate lane.
+
+    task #85 adds the ``synth_plus_one_makers`` bucket-B fallback (see
+    :func:`mtg_utils._card_ir.tree_synthesis._arm_plus_one_makers`'s own
+    docstring) — the ETB-replacement / dropped-computed-amount / granted-
+    loyalty-ability P1P1 placement residue phase's static parser or effect
+    walk doesn't reach at all. Scope "you".
     """
     for c in tree.effect_concepts("place_counter"):
         ck = counter_kind(c.node).upper()
         if ck == "P1P1" or (not ck and "+1/+1 counter" in (c.raw or "")):
             return [Signal("plus_one_makers", "you", "", c.raw, tree.name, "high")]
+    for c in tree.iter_concepts():
+        if c.concept == "synth_plus_one_makers":
+            return [Signal("plus_one_makers", "you", "", "", tree.name, "high")]
     return []
 
 
@@ -6674,13 +6682,29 @@ def _plus_one_matters(tree: ConceptTree) -> list[Signal]:
             ):
                 return [Signal("plus_one_matters", "you", "", "", tree.name, "high")]
         if unit.origin == "trigger":
-            vc = getattr(unit.node, "valid_card", None)
-            if (
-                vc is not None
-                and filter_controller(vc) != "Opponent"
-                and "P1P1" in counter_pred_kinds(vc)
+            # task #85 (plus-one-counters preset conversion): a
+            # ``deals_damage``/``attacks``-mode trigger's watched-object
+            # filter rides ``valid_source`` (the creature DOING the
+            # attacking/damage), never ``valid_card`` — "whenever a
+            # creature you control with a +1/+1 counter on it deals
+            # combat damage to a player" (Bred for the Hunt). The prior
+            # code only read ``valid_card``, so this whole trigger SHAPE
+            # (any mode keyed off the source, not a watched card) fell
+            # through despite the module docstring already citing it.
+            # CR 122.1 (a counter carries a kind) / 603.2 (triggered
+            # ability watches an event, here the source's identity).
+            for site in (
+                getattr(unit.node, "valid_card", None),
+                getattr(unit.node, "valid_source", None),
             ):
-                return [Signal("plus_one_matters", "you", "", "", tree.name, "high")]
+                if (
+                    site is not None
+                    and filter_controller(site) != "Opponent"
+                    and "P1P1" in counter_pred_kinds(site)
+                ):
+                    return [
+                        Signal("plus_one_matters", "you", "", "", tree.name, "high")
+                    ]
         # ADR-0038 W5 tails — self-ref CONDITION, any unit origin (Sarulf
         # Realm Eater / Ingenious Prodigy's trigger-own HasCounters, CR
         # 603.4; Prehistoric Turtlesaurus's static IsPresent, CR 604.2 /
@@ -6697,7 +6721,30 @@ def _plus_one_matters(tree: ConceptTree) -> list[Signal]:
                         return [
                             Signal("plus_one_matters", "you", "", "", tree.name, "high")
                         ]
-                elif ctag == "IsPresent":
+                elif ctag == "HadCounters":
+                    # task #85 (v0.23 bump addition): the PAST-TENSE
+                    # sibling of ``HasCounters`` — a died/left-battlefield
+                    # trigger's "if it had a +1/+1 counter on it" check
+                    # (Promising Duskmage). Reads ``counter_type`` DIRECTLY
+                    # (no nested ``counters`` wrapper — a flatter shape
+                    # than ``HasCounters``, since the object no longer
+                    # exists to carry a live predicate). CR 122.1 / 603.6d
+                    # (leaves-the-battlefield triggers see the object's
+                    # last known information).
+                    kind = str(getattr(cond, "counter_type", "") or "").upper()
+                    if kind == "P1P1":
+                        return [
+                            Signal("plus_one_matters", "you", "", "", tree.name, "high")
+                        ]
+                elif ctag in ("IsPresent", "ControlsType"):
+                    # task #85: ``ControlsType`` is the SAME "as long as
+                    # you control an X" filter-condition shape as
+                    # ``IsPresent`` (mirrors the artifacts_matter/
+                    # enchantments_matter CONDITION-gate precedent a few
+                    # hundred lines up in this file) — "if you control a
+                    # creature with a +1/+1 counter on it" (Foundry
+                    # Hornet's ETB gate) rides ``ControlsType``, which
+                    # this arm previously didn't check. CR 603.2.
                     filt = getattr(cond, "filter", None)
                     if (
                         filt is not None
@@ -6760,20 +6807,46 @@ def _plus_one_matters(tree: ConceptTree) -> list[Signal]:
                             if tag_of(side) != "Ref":
                                 continue
                             qty = getattr(side, "qty", None)
-                            if tag_of(qty) != "CountersOn":
-                                continue
-                            kind = str(getattr(qty, "counter_type", "") or "")
-                            if kind.upper() == "P1P1":
-                                return [
-                                    Signal(
-                                        "plus_one_matters",
-                                        "you",
-                                        "",
-                                        "",
-                                        tree.name,
-                                        "high",
-                                    )
-                                ]
+                            qtytag = tag_of(qty)
+                            if qtytag == "CountersOn":
+                                kind = str(getattr(qty, "counter_type", "") or "")
+                                if kind.upper() == "P1P1":
+                                    return [
+                                        Signal(
+                                            "plus_one_matters",
+                                            "you",
+                                            "",
+                                            "",
+                                            tree.name,
+                                            "high",
+                                        )
+                                    ]
+                            elif qtytag == "ObjectCount":
+                                # task #85: "draw a card if you control a
+                                # creature with a +1/+1 counter on it"
+                                # (Chronicler of Heroes) counts OBJECTS
+                                # matching a filter, not counters
+                                # directly — the filter (not the qty
+                                # node itself) carries the P1P1 Counters
+                                # predicate. Same reuse precedent as the
+                                # artifacts_matter QuantityComparison/
+                                # ObjectCount arm above.
+                                filt = getattr(qty, "filter", None)
+                                if (
+                                    filt is not None
+                                    and filter_controller(filt) != "Opponent"
+                                    and "P1P1" in counter_pred_kinds(filt)
+                                ):
+                                    return [
+                                        Signal(
+                                            "plus_one_matters",
+                                            "you",
+                                            "",
+                                            "",
+                                            tree.name,
+                                            "high",
+                                        )
+                                    ]
                 elif ctag == "TargetHasKeywordInstead":
                     # ADR-0038 W6 endgame — a "if that creature has X
                     # instead" modal (CR 601.2f) whose keyword is a raw-text
@@ -21781,6 +21854,27 @@ def _self_counter_grow(tree: ConceptTree) -> list[Signal]:
         if c.concept in ("synth_self_counter_grow", "synth_self_power_scale"):
             return [Signal("self_counter_grow", "you", "", "", tree.name, "high")]
     return []
+
+
+def self_counter_grow_narrow(tree: ConceptTree) -> bool:
+    """task #85 (plus-one-counters preset): the ``self_counter_grow`` KEY
+    minus its ``synth_self_power_scale`` cross-open. That cross-open fires
+    on ANY "value scales with this creature's OWN power" text idiom
+    (Esper Sentinel's opponent-tax X, the Khenra cycle's ETB pump/token/
+    ward-cost scalers) — a genuine deck-building SYNERGY signal for
+    ``self_counter_grow`` (a counter-growth deck wants its own power to
+    matter), but ZERO of those cards place, remove, or reference a +1/+1
+    counter themselves. The preset's definition is "puts +1/+1 counters
+    OR cares about creatures WITH one" — a card whose value merely scales
+    with its own power fails both halves, so this predicate reads only
+    the structural PutCounter{P1P1,SelfRef} arm and the narrowed
+    ``synth_self_counter_grow`` text-idiom arm, never the power-scale
+    cross-open. Used ONLY by the plus-one-counters preset's ``concept``
+    arm — every OTHER ``self_counter_grow`` consumer (ranking, budgets)
+    keeps the full key including the cross-open."""
+    if has_structural_self_counter_grow(tree):
+        return True
+    return any(c.concept == "synth_self_counter_grow" for c in tree.iter_concepts())
 
 
 def _flash_matters_lane(tree: ConceptTree) -> list[Signal]:
