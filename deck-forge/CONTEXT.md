@@ -198,6 +198,26 @@ used as a *soft* target for Slot budgets — a starting point, not a rule. Disti
 from the mana-curve / land-count **gate**, which is hard.
 _Avoid_: "rule", "requirement" (Templates never block).
 
+**Grant-covered role**:
+A Slot role (draw, removal, …) whose effect the deck receives from a mass ability
+grant rather than dedicated cards — e.g. a commander giving every tribe creature
+"when this enters, draw a card". The Slot budget stays a literal card count (a
+grant never adds to the number); coverage is surfaced *alongside* the count, and it
+downgrades the role's shortfall from actionable to advisory — never suppresses it
+(a deck with zero dedicated draw still shows the shortfall).
+_Avoid_: "effective count", "virtual draw" (both imply the count itself moves).
+
+**Granter**:
+A card whose text gives an ability to a whole class of your creatures ("Sliver
+creatures you control have outlast {2}" / "… have double strike"). Cutting a
+Granter removes that ability from every recipient, so its keep/cut value is the
+*granted ability's quality relative to the Granter's cost* — never the strength of
+its own body, and never its playrate (playrate may break ties between Granters,
+not condemn one). Tribal decks are Granter-dense: most Slivers are Granters, so
+"weak body" reads are systematically wrong there.
+_Avoid_: "lord" (colloquially also covers stat anthems; a Granter grants abilities),
+"vanilla beater" (a Granter is never vanilla — its text is the grant).
+
 ### Signal plumbing
 
 **Folded object**:
@@ -635,7 +655,9 @@ a **tiered floor** — a **main** theme at/above ~20-per-100, a **sub**-theme at
 ~10-per-100 (a sub is genuinely shallower than the main, so it is NOT held to the main's
 bar), and an **emerging** theme at/above ~5-per-100 (a real-but-under-supported direction
 the deck started but didn't commit to — surfaced as a "commit more or cut" nudge, not
-dropped as noise). Plus a top-2 concentration ratio and the filler rate. The research ideal is one main +
+dropped as noise). A *tribal* theme only counts as started when the deck holds at least
+one **payoff naming that tribe** — bodies sharing a subtype are not a direction
+(changelings otherwise manufacture an emerging flag for every tribe at once). Plus a top-2 concentration ratio and the filler rate. The research ideal is one main +
 one sub; 3+ themes reads `SPREAD-THIN`. Two exclusions keep the count honest: **lands** never
 count as theme support (mana base, not a lane), and **Spine-role avenues** (ramp / draw /
 removal — they mirror the [[Template]]) are dropped, so scaffolding can't masquerade as the
