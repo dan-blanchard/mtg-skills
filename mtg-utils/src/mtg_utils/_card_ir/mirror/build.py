@@ -209,10 +209,25 @@ def build_substrate(
     return cache_path, stats
 
 
+# mtime → schema, one entry — parse the committed fixture once per process;
+# keyed by mtime so a regenerated fixture is re-read (mirrors ``load._MEM_CACHE``).
+_SCHEMA_CACHE: dict[float, MirrorSchema] = {}
+
+
 def load_committed_schema() -> MirrorSchema:
-    """Load the committed generated-mirror schema fixture (CI-usable, no corpus)."""
+    """Load the committed generated-mirror schema fixture (CI-usable, no corpus).
+
+    Cached by mtime: consumers call this per card (the fixture-driven tests
+    call it hundreds of times per run), and the parse dominated their runtime.
+    The schema is read-only by contract."""
     path = fixtures_dir() / SCHEMA_FIXTURE
-    return MirrorSchema.from_json(json.loads(path.read_text()))
+    mtime = path.stat().st_mtime
+    schema = _SCHEMA_CACHE.get(mtime)
+    if schema is None:
+        schema = MirrorSchema.from_json(json.loads(path.read_text()))
+        _SCHEMA_CACHE.clear()
+        _SCHEMA_CACHE[mtime] = schema
+    return schema
 
 
 def main(argv: list[str] | None = None) -> int:

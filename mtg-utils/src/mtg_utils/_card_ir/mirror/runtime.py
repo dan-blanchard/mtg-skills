@@ -53,6 +53,21 @@ def _load_missing() -> _MissingType:
 MISSING: Any = _MissingType()
 
 
+# (attr name, JSON key) pairs per node class — ``dataclasses.fields()`` rebuilds
+# its tuple on every call, and ``to_dict`` walks every node of every card.
+_JSON_FIELDS_BY_CLS: dict[type, tuple[tuple[str, str], ...]] = {}
+
+
+def _json_fields(cls: type) -> tuple[tuple[str, str], ...]:
+    pairs = _JSON_FIELDS_BY_CLS.get(cls)
+    if pairs is None:
+        pairs = tuple(
+            (f.name, f.metadata.get("json", f.name)) for f in dataclasses.fields(cls)
+        )
+        _JSON_FIELDS_BY_CLS[cls] = pairs
+    return pairs
+
+
 @dataclass(frozen=True)
 class TypedMirrorNode:
     """Base for every generated tagged / struct mirror node.
@@ -69,11 +84,10 @@ class TypedMirrorNode:
         out: dict[str, object] = {}
         if self._tag is not None:
             out["type"] = self._tag
-        for f in dataclasses.fields(self):
-            val = getattr(self, f.name)
+        for fname, json_name in _json_fields(type(self)):
+            val = getattr(self, fname)
             if val is MISSING:
                 continue
-            json_name = f.metadata.get("json", f.name)
             out[json_name] = to_plain(val)
         return out
 

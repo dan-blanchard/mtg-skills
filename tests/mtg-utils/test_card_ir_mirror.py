@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import copy
 import dataclasses
+import functools
 import json
 from pathlib import Path
 
@@ -71,12 +72,22 @@ def _samples() -> dict[str, dict]:
     return _fixture(SAMPLES_FIXTURE)["cards"]
 
 
+@functools.lru_cache(maxsize=1)
 def _card_data_records() -> list[dict]:
+    """The full pinned corpus, parsed once per test run (93MB json; the
+    full-corpus tests treat the records as read-only)."""
     path = _phase._card_data_path()
     if not path.exists():
         pytest.skip(f"pinned card-data absent at {path} (full-corpus gate)")
     data = json.loads(Path(path).read_text())
     return list(data.values()) if isinstance(data, dict) else list(data)
+
+
+@functools.lru_cache(maxsize=1)
+def _corpus_schema():
+    """One full-corpus ``infer_schema`` shared by every full-corpus gate (each
+    gate previously re-inferred it from scratch; the schema is read-only)."""
+    return infer_schema(_card_data_records(), phase_tag=_phase.PHASE_TAG)
 
 
 def _first_tagged(node, ckey="<root>"):
@@ -176,8 +187,7 @@ def test_discriminator_uniqueness_committed_schema():
 
 
 def test_discriminator_uniqueness_full_corpus():
-    records = _card_data_records()
-    schema = infer_schema(records, phase_tag=_phase.PHASE_TAG)
+    schema = _corpus_schema()
     ambiguous = find_ambiguous_fields(schema)
     assert ambiguous == [], ambiguous
     # the inference is a function: each (ckey, tag) -> exactly one GroupSchema
@@ -191,7 +201,7 @@ def test_discriminator_uniqueness_full_corpus():
 
 def test_strict_load_full_corpus():
     records = _card_data_records()
-    schema = infer_schema(records, phase_tag=_phase.PHASE_TAG)
+    schema = _corpus_schema()
     loaded = 0
     for rec in records:
         strict_load_card(rec, schema, build=False)
@@ -284,7 +294,7 @@ def test_losslessness_roundtrip_samples():
 
 def test_losslessness_roundtrip_full_corpus():
     records = _card_data_records()
-    schema = infer_schema(records, phase_tag=_phase.PHASE_TAG)
+    schema = _corpus_schema()
     # Round-trip a deterministic spread (every 1000th card) for speed.
     checked = 0
     for rec in records[::1000]:
@@ -325,12 +335,17 @@ def test_variant_population_recompute_matches_corpus():
 # ---------------------------------------------------------------------------
 
 
+@functools.cache
+def _node_field_names(cls: type) -> tuple[str, ...]:
+    return tuple(f.name for f in dataclasses.fields(cls))
+
+
 def _no_dict_leak(node) -> None:
     """Assert the built tree contains no generic ``dict`` — every record-shaped
     value is a generated typed instance (no generic-interpreter fallback)."""
     if isinstance(node, TypedMirrorNode):
-        for f in dataclasses.fields(node):
-            _no_dict_leak(getattr(node, f.name))
+        for fname in _node_field_names(type(node)):
+            _no_dict_leak(getattr(node, fname))
     elif isinstance(node, MirrorVariant):
         _no_dict_leak(node.inner)
     elif isinstance(node, list):
@@ -431,7 +446,7 @@ def test_full_corpus_typed_no_fallback():
     """100% of the corpus builds typed instances with NO generic fallback, and
     round-trips losslessly (gated: needs the pinned card-data locally)."""
     records = _card_data_records()
-    schema = infer_schema(records, phase_tag=_phase.PHASE_TAG)
+    schema = _corpus_schema()
     checked = 0
     for rec in records:
         loaded = strict_load_card(rec, schema, build=True)

@@ -2102,6 +2102,9 @@ def ref_count_filter(node: TypedMirrorNode, field: str) -> object | None:
     return None
 
 
+_MOD_SITES_CACHE_ATTR = "_xw_mod_sites"
+
+
 def iter_mod_sites(
     root: object,
 ) -> Iterator[tuple[TypedMirrorNode, TypedMirrorNode]]:
@@ -2114,7 +2117,27 @@ def iter_mod_sites(
     ``static_abilities`` whose defs carry their OWN ``affected``). The
     anthem / scaling-pump / team-buff lanes read the def's ``affected`` filter
     together with each modification (granularity b). Cycle-safe, depth-capped.
+    Iterates a per-root memoized walk like :func:`_iter_typed_nodes` — many
+    lanes re-scan the same unit node.
     """
+    yield from _mod_sites(root)
+
+
+def _mod_sites(
+    root: object,
+) -> tuple[tuple[TypedMirrorNode, TypedMirrorNode], ...]:
+    if isinstance(root, TypedMirrorNode):
+        cached = root.__dict__.get(_MOD_SITES_CACHE_ATTR)
+        if cached is None:
+            cached = tuple(_walk_mod_sites(root))
+            object.__setattr__(root, _MOD_SITES_CACHE_ATTR, cached)
+        return cached
+    return tuple(_walk_mod_sites(root))
+
+
+def _walk_mod_sites(
+    root: object,
+) -> Iterator[tuple[TypedMirrorNode, TypedMirrorNode]]:
     seen: set[int] = set()
     stack: list[object] = [root]
     while stack:
@@ -2458,6 +2481,9 @@ def _is_static_def(node: object) -> bool:
     )
 
 
+_STATIC_DEFS_CACHE_ATTR = "_xw_static_defs"
+
+
 def iter_static_defs(root: object) -> Iterator[TypedMirrorNode]:
     """Every static-ability DEF node reachable from one unit node.
 
@@ -2470,8 +2496,23 @@ def iter_static_defs(root: object) -> Iterator[TypedMirrorNode]:
     (``MustAttack`` / ``DoubleTriggers`` / ``CantBeCountered``) never surface
     through :func:`iter_mod_sites` (no modifications to pair with), so the
     mode-read lanes walk defs directly via :func:`static_mode_tag`.
-    Cycle-safe, same traversal as :func:`iter_mod_sites`.
+    Cycle-safe, same traversal as :func:`iter_mod_sites`; iterates a per-root
+    memoized walk.
     """
+    yield from _static_defs(root)
+
+
+def _static_defs(root: object) -> tuple[TypedMirrorNode, ...]:
+    if isinstance(root, TypedMirrorNode):
+        cached = root.__dict__.get(_STATIC_DEFS_CACHE_ATTR)
+        if cached is None:
+            cached = tuple(_walk_static_defs(root))
+            object.__setattr__(root, _STATIC_DEFS_CACHE_ATTR, cached)
+        return cached
+    return tuple(_walk_static_defs(root))
+
+
+def _walk_static_defs(root: object) -> Iterator[TypedMirrorNode]:
     seen: set[int] = set()
     stack: list[object] = [root]
     while stack:
@@ -2494,10 +2535,50 @@ def iter_static_defs(root: object) -> Iterator[TypedMirrorNode]:
                 stack.extend(child)
 
 
+# ``dataclasses.fields()`` rebuilds its tuple on every call; the deep walk
+# visits millions of nodes across the 256-lane extraction, so field names are
+# cached per node class.
+_FIELD_NAMES_BY_CLS: dict[type, tuple[str, ...]] = {}
+
+
+def _field_names(cls: type) -> tuple[str, ...]:
+    names = _FIELD_NAMES_BY_CLS.get(cls)
+    if names is None:
+        names = tuple(f.name for f in fields(cls))
+        _FIELD_NAMES_BY_CLS[cls] = names
+    return names
+
+
+# Memoized flat walk, stored OUTSIDE the dataclass fields so ``to_dict`` /
+# ``__eq__`` / the sidecar JSON never see it. Sound because a mirror tree is
+# frozen after build — corrections/synthesis produce new nodes via ``replace``
+# rather than mutating, so a subtree's walk can never go stale.
+_WALK_CACHE_ATTR = "_xw_typed_walk"
+
+
+def _typed_nodes(root: object) -> tuple[TypedMirrorNode, ...]:
+    """The flat walk behind :func:`_iter_typed_nodes`, as a memoized tuple:
+    computed once per ``TypedMirrorNode`` root — the lane extraction
+    re-queries the same immutable subtree hundreds of times per card, so the
+    repeat traversals collapse to a cached-tuple read."""
+    if isinstance(root, TypedMirrorNode):
+        cached = root.__dict__.get(_WALK_CACHE_ATTR)
+        if cached is None:
+            cached = tuple(_walk_typed_nodes(root))
+            object.__setattr__(root, _WALK_CACHE_ATTR, cached)
+        return cached
+    return tuple(_walk_typed_nodes(root))
+
+
 def _iter_typed_nodes(root: object) -> Iterator[TypedMirrorNode]:
     """Every typed node reachable from ``root`` via dataclass fields /
     variant payloads / lists — the generic deep walk behind the narrow
-    unique-tag scans (cycle-safe, field-order agnostic)."""
+    unique-tag scans (cycle-safe, field-order agnostic). Iterates the
+    memoized flat walk (see :func:`_typed_nodes`)."""
+    yield from _typed_nodes(root)
+
+
+def _walk_typed_nodes(root: object) -> Iterator[TypedMirrorNode]:
     seen: set[int] = set()
     stack: list[object] = [root]
     while stack:
@@ -2507,12 +2588,17 @@ def _iter_typed_nodes(root: object) -> Iterator[TypedMirrorNode]:
         seen.add(id(node))
         if isinstance(node, TypedMirrorNode):
             yield node
-            for f in fields(node):
-                stack.append(getattr(node, f.name))
+            for fname in _field_names(type(node)):
+                child = getattr(node, fname)
+                # Scalar leaves can't recurse — keep them off the stack.
+                if isinstance(child, (TypedMirrorNode, MirrorVariant, list)):
+                    stack.append(child)
         elif isinstance(node, MirrorVariant):
             stack.append(node.inner)
         elif isinstance(node, list):
-            stack.extend(node)
+            stack.extend(
+                c for c in node if isinstance(c, (TypedMirrorNode, MirrorVariant, list))
+            )
 
 
 def has_nested_roll_die(node: object) -> bool:
@@ -3457,8 +3543,9 @@ def iter_typed_nodes(root: object) -> Iterator[TypedMirrorNode]:
     """Public deep walk over every typed node reachable from ``root`` (the
     generic scan behind narrow unique-tag reads — the b12 saga CountersOn
     and big-hand HandSize operand arms). Cycle-safe, field-order agnostic.
+    Iterates the memoized flat walk (see :func:`_typed_nodes`).
     """
-    yield from _iter_typed_nodes(root)
+    yield from _typed_nodes(root)
 
 
 def iter_condition_sites(root: object) -> Iterator[TypedMirrorNode]:

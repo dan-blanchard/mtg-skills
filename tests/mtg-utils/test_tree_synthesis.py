@@ -9,6 +9,7 @@ catches a phase-node mutation/removal after a legal synthetic addition.
 
 from __future__ import annotations
 
+import functools
 from dataclasses import replace
 
 import pytest
@@ -186,18 +187,26 @@ from mtg_utils._card_ir.tree_synthesis import (
 )
 
 
-def _fixture_tree(name: str) -> ConceptTree:
-    """Build one committed-fixture card's ConceptTree (CI-safe: no phase/network)."""
+@functools.lru_cache(maxsize=1)
+def _fixture_cards() -> dict[str, dict]:
+    """The committed fixture payload, parsed once per run (read-only)."""
     import json
     from pathlib import Path
 
-    from mtg_utils._card_ir.mirror import strict_load_card
-    from mtg_utils._card_ir.mirror.build import fixtures_dir, load_committed_schema
+    from mtg_utils._card_ir.mirror.build import fixtures_dir
 
     path = fixtures_dir() / "crosswalk_fixture_cards.json"
     if not path.exists():
         pytest.skip("crosswalk_fixture_cards.json not present")
-    rec = json.loads(Path(path).read_text())["cards"][name]
+    return json.loads(Path(path).read_text())["cards"]
+
+
+def _fixture_tree(name: str) -> ConceptTree:
+    """Build one committed-fixture card's ConceptTree (CI-safe: no phase/network)."""
+    from mtg_utils._card_ir.mirror import strict_load_card
+    from mtg_utils._card_ir.mirror.build import load_committed_schema
+
+    rec = _fixture_cards()[name]
     root = strict_load_card(rec, load_committed_schema(), name=name)
     return build_tree(root, name)
 

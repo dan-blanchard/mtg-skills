@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import json
 import os
+from collections.abc import Iterator, Mapping
 from pathlib import Path
 
 from mtg_utils.card_ir import Card
@@ -44,8 +45,39 @@ def crosswalk_sidecar_path() -> Path:
     return card_ir_dir() / "card-ir-crosswalk.json"
 
 
-def load_crosswalk_card_ir(path: str | Path | None = None) -> dict[str, Card]:
-    """Load the crosswalk-backed sidecar into an ``oracle_id`` → :class:`Card` map.
+class LazyCardMap(Mapping[str, Card]):
+    """``oracle_id`` → :class:`Card`, deserialized on first access.
+
+    The sidecar carries ~35k cards but a tune/build touches ~100 of them, so
+    eager ``Card.from_dict`` over the whole payload dominated CLI startup.
+    Materialized Cards are cached, so repeated lookups stay free."""
+
+    __slots__ = ("_cards", "_raw")
+
+    def __init__(self, raw: dict[str, dict]) -> None:
+        self._raw = raw
+        self._cards: dict[str, Card] = {}
+
+    def __getitem__(self, oracle_id: str) -> Card:
+        card = self._cards.get(oracle_id)
+        if card is None:
+            card = Card.from_dict(self._raw[oracle_id])
+            self._cards[oracle_id] = card
+        return card
+
+    def __iter__(self) -> Iterator[str]:
+        return iter(self._raw)
+
+    def __len__(self) -> int:
+        return len(self._raw)
+
+    def __contains__(self, oracle_id: object) -> bool:
+        return oracle_id in self._raw
+
+
+def load_crosswalk_card_ir(path: str | Path | None = None) -> Mapping[str, Card]:
+    """Load the crosswalk-backed sidecar into an ``oracle_id`` → :class:`Card` map
+    (lazy — see :class:`LazyCardMap`).
 
     Raises ``FileNotFoundError`` when the crosswalk sidecar is absent (build it with
     ``build-card-ir-crosswalk``) and ``ValueError`` on an on-disk version mismatch.
@@ -69,13 +101,13 @@ def load_crosswalk_card_ir(path: str | Path | None = None) -> dict[str, Card]:
             f"{payload.get('version')}, expected {CROSSWALK_SIDECAR_VERSION}. "
             "Rebuild with `build-card-ir-crosswalk`."
         )
-    cards = {oid: Card.from_dict(d) for oid, d in (payload.get("cards") or {}).items()}
+    cards = LazyCardMap(payload.get("cards") or {})
     _MEM_CACHE[key] = (mtime, cards)
     return cards
 
 
 # oracle_id → Card, keyed by (path, mtime). Shared by reference; treat read-only.
-_MEM_CACHE: dict[str, tuple[float, dict[str, Card]]] = {}
+_MEM_CACHE: dict[str, tuple[float, Mapping[str, Card]]] = {}
 
 
 def clear_memory_cache() -> None:

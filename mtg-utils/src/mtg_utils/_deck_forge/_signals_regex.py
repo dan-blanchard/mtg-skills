@@ -30,6 +30,7 @@ from __future__ import annotations
 import re
 from collections.abc import Callable
 from dataclasses import dataclass
+from functools import lru_cache
 
 from mtg_utils._deck_forge import signal_keys
 from mtg_utils._deck_forge._subtypes import (
@@ -81,6 +82,14 @@ class Signal:
 def _re(pattern: str) -> Callable[[str], bool]:
     rx = re.compile(pattern)
     return lambda c: rx.search(c) is not None
+
+
+@lru_cache(maxsize=4096)
+def _rx_name(pattern: str) -> re.Pattern[str]:
+    """Compile cache for the name-interpolated detector patterns. Per-card
+    patterns overflow ``re``'s small module-level cache, so without this every
+    detector call recompiled its pattern from scratch."""
+    return re.compile(pattern, re.IGNORECASE)
 
 
 # Evergreen keywords a keyword-soup commander (Odric Lunarch Marshal, Akroma Vision)
@@ -3503,16 +3512,16 @@ def _detect_self_damage_prevention(text: str, name: str) -> bool:
     Anti-Venom) — the unkillable Pariah redirect target. Name-aware so a generic fog
     ('prevent all combat damage this turn') doesn't qualify."""
     alts = "|".join(["this creature", "~", *_self_name_alts(name)])
-    pat = re.compile(
+    pat = _rx_name(
         r"(?:prevent all damage that would be dealt to"
         r"|if damage would be dealt to) "
-        rf"(?:{alts})\b",
-        re.IGNORECASE,
+        rf"(?:{alts})\b"
     )
     return pat.search(text) is not None
 
 
-def _self_name_alts(name: str) -> list[str]:
+@lru_cache(maxsize=4096)
+def _self_name_alts(name: str) -> tuple[str, ...]:
     """Regex-escaped ways a card's oracle refers to itself BY NAME: the short name
     (everything before the first comma — 'Spider-Byte', 'Donnie & April', 'Black Cat')
     and the first meaningful token (legacy nickname forms). Oracle self-references use
@@ -3528,7 +3537,7 @@ def _self_name_alts(name: str) -> list[str]:
             if tok not in alts:
                 alts.append(tok)
             break
-    return alts
+    return tuple(alts)
 
 
 def self_power_scale_match(text: str, name: str) -> bool:
@@ -3543,11 +3552,9 @@ def self_power_scale_match(text: str, name: str) -> bool:
     122.1."""
     _self = "|".join(["this creature", "this permanent", *_self_name_alts(name)])
     return bool(
-        re.search(
-            rf"(?:equal to|x is|x equals?|where x is) [^.]*?(?:{_self})[^.]*?\bpower\b",
-            text,
-            re.IGNORECASE,
-        )
+        _rx_name(
+            rf"(?:equal to|x is|x equals?|where x is) [^.]*?(?:{_self})[^.]*?\bpower\b"
+        ).search(text)
     )
 
 
@@ -3556,9 +3563,7 @@ def _self_etb_value(text: str, name: str) -> str | None:
     alts = "|".join(["this creature", "this permanent", "~", *_self_name_alts(name)])
     # when(?:ever)? + enters? — catch "WHENEVER ~ enters" (Roxanne) and the plural
     # "enter" of two-name commanders ("When Donnie & April enter").
-    pat = re.compile(
-        rf"\bwhen(?:ever)? (?:{alts}) enters?\b[^.]*?{_SELF_ETB_PAYOFF}", re.IGNORECASE
-    )
+    pat = _rx_name(rf"\bwhen(?:ever)? (?:{alts}) enters?\b[^.]*?{_SELF_ETB_PAYOFF}")
     for clause in _clauses(text):
         if pat.search(clause):
             return clause.strip()
@@ -3662,9 +3667,7 @@ def _self_dies_value(text: str, name: str) -> str | None:
     re-fires it when the copy dies (Keiga, Kokusho). Name-aware (short name like
     Scryfall prints) so 'When Keiga dies' matches."""
     alts = "|".join(["this creature", "this permanent", "~", *_self_name_alts(name)])
-    pat = re.compile(
-        rf"\bwhen (?:{alts}) dies\b[^.]*?{_SELF_DIES_PAYOFF}", re.IGNORECASE
-    )
+    pat = _rx_name(rf"\bwhen (?:{alts}) dies\b[^.]*?{_SELF_DIES_PAYOFF}")
     for clause in _clauses(text):
         if pat.search(clause):
             return clause.strip()

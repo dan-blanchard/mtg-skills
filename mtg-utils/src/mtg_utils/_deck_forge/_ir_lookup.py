@@ -45,7 +45,7 @@ from typing import TYPE_CHECKING
 from mtg_utils.card_ir import Card
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
+    from collections.abc import Mapping, Sequence
 
     from mtg_utils._card_ir.crosswalk import ConceptTree
     from mtg_utils._card_ir.mirror.schema import MirrorSchema
@@ -55,10 +55,10 @@ if TYPE_CHECKING:
 
 
 @functools.cache
-def _crosswalk_index() -> dict[str, Card] | None:
-    """The crosswalk-backed Card IR index, loaded once per process. ``None``
-    when the crosswalk sidecar is absent / the wrong version, so :func:`ir_for`
-    degrades gracefully."""
+def _crosswalk_index() -> Mapping[str, Card] | None:
+    """The crosswalk-backed Card IR index, loaded once per process (lazy per
+    card — see ``load.LazyCardMap``). ``None`` when the crosswalk sidecar is
+    absent / the wrong version, so :func:`ir_for` degrades gracefully."""
     from mtg_utils._card_ir.load import load_crosswalk_card_ir
 
     try:
