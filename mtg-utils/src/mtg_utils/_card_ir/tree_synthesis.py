@@ -9119,6 +9119,131 @@ def _arm_ramp_dropped_add_mana_clause(tree: ConceptTree) -> ConceptNode | None:
     )
 
 
+# ── task #95 — known-tokens text-only-tree bucket-B arms ───────────────────
+# The ``_ir_lookup`` KNOWN-TOKENS SUBSTRATE (task #92) appends one zero-unit
+# TEXT-ONLY ``ConceptTree`` per matched predefined token whose OWN Token
+# effect node phase parsed no ability body for — carrying the token's
+# verbatim ``rules_text`` on ``tree.oracle``, ``units=()``. The task #95
+# adjudication sweep widened the wired allowlist beyond Mutagen/Young Hero
+# to five more identities whose FIXED, KNOWN wording names a CR-grounded
+# ramp / explore / impulse-draw / life-loss ability: Powerstone, Gold
+# (ramp), Map (explore), Junk (impulse-draw), Wicked (opponent life loss).
+# Lander ("Search your library for a basic land card, put it onto the
+# battlefield tapped") is DELIBERATELY absent from the ramp idiom below —
+# corpus-verified (Rampant Growth, Nature's Lore, Wayfarer's Bauble, Solemn
+# Simulacrum, Migration Path all probed) this system's OWN ``_ramp`` lane
+# never tags a search-basic-land-to-battlefield effect ``ramp`` at all
+# (``_ramp`` requires a literal Mana-producing effect; a land fetch is
+# ``tutor``'s territory instead, CR 701.23/701.23a) — Lander already gets
+# ``tutor`` for FREE via ``_tutor_lane``'s existing ``synth_tutor``
+# bucket-B oracle-text rescue arm (:func:`_arm_tutor` below), with zero
+# code needed here; tagging it ``ramp`` too would be a genuine
+# inconsistency against every real land-tutor card's own treatment. Each
+# arm below matches its fixed wording directly off ``tree.oracle`` — no
+# unit walk needed (there are none to walk) — gated on ``not tree.units``
+# so it scopes STRICTLY to a zero-unit text-only tree (a normal phase-
+# parsed card's ``units`` is never empty, so this gate never touches a
+# real ability's own text), plus the target lane's own "not already
+# served" check where the lane exposes one, so a future card whose OWN
+# typed effect happens to ALSO carry this wording never double-fires.
+_RAMP_KNOWN_TOKEN_IDIOMS: tuple[str, ...] = (
+    "can't be spent to cast a nonartifact spell",  # Powerstone (CR 605.1a)
+    "add one mana of any color",  # Gold (CR 106.1/605.1a)
+)
+
+
+def _arm_known_token_ramp(tree: ConceptTree) -> ConceptNode | None:
+    """Synthesize a ``ramp`` node for a Powerstone / Gold known-token
+    zero-unit text-only tree (task #95) — see the block comment above.
+    Gated on ``not tree.units`` (the text-only-tree shape) and ``not
+    tree.effect_concepts("ramp")`` (never doubles a card that already
+    structures its own ramp). Emits the REAL ``ramp`` concept — the
+    ``_ramp`` lane's first branch (``effect_concepts("ramp")``) reads it
+    unconditionally for a nonland tree (both identities are Artifacts,
+    never Lands), the SAME real-concept precedent
+    ``_arm_ramp_grant_unimplemented_body`` above already established."""
+    if tree.units or tree.effect_concepts("ramp"):
+        return None
+    oracle = (tree.oracle or "").lower()
+    if not any(idiom in oracle for idiom in _RAMP_KNOWN_TOKEN_IDIOMS):
+        return None
+    return _synthetic_concept(
+        arm_id="known_token_ramp",
+        concept="ramp",
+        scope="you",
+        subject=(),
+        desc="predefined known-token mana ability (Powerstone/Gold)",
+    )
+
+
+def _arm_known_token_explore(tree: ConceptTree) -> ConceptNode | None:
+    """Synthesize an ``explore`` node for a Map known-token zero-unit
+    text-only tree (task #95) — "Target creature you control explores"
+    (CR 701.44a). Gated on ``not tree.units`` and
+    ``not tree.effect_concepts("explore")``. Emits the REAL ``explore``
+    concept — ``_explore_makers``'s only branch reads it unconditionally."""
+    if tree.units or tree.effect_concepts("explore"):
+        return None
+    if "target creature you control explores" not in (tree.oracle or "").lower():
+        return None
+    return _synthetic_concept(
+        arm_id="known_token_explore",
+        concept="explore",
+        scope="you",
+        subject=(),
+        desc="predefined known-token explore ability (Map, CR 701.44a)",
+    )
+
+
+def _arm_known_token_impulse_top_play(tree: ConceptTree) -> ConceptNode | None:
+    """Synthesize a ``synth_impulse_top_play`` marker for a Junk known-
+    token zero-unit text-only tree (task #95) — "Exile the top card of
+    your library. You may play that card this turn" (CR 601.3b/116).
+    Gated on ``not tree.units`` — ``_impulse_top_play``'s own structural
+    exile_top+cast_from_zone pairing has no unit here to walk at all, so
+    the lane reads this marker instead (the ``synth_plus_one_makers``
+    marker precedent)."""
+    if tree.units:
+        return None
+    oracle = (tree.oracle or "").lower()
+    if "exile the top card of your library" not in oracle:
+        return None
+    if "you may play that card this turn" not in oracle:
+        return None
+    return _synthetic_concept(
+        arm_id="known_token_impulse_top_play",
+        concept="synth_impulse_top_play",
+        scope="you",
+        subject=(),
+        desc="predefined known-token impulse-draw ability (Junk)",
+    )
+
+
+def _arm_known_token_lifeloss_opponents(tree: ConceptTree) -> ConceptNode | None:
+    """Synthesize a ``synth_lifeloss_makers_opponents`` marker for a
+    Wicked known-token zero-unit text-only tree (task #95) — "When this
+    Aura is put into a graveyard from the battlefield, each opponent
+    loses 1 life" (CR 119.3). Gated on ``not tree.units`` AND the full
+    "Aura ... put into a graveyard ... opponent loses" clause (not the
+    bare "each opponent loses" fragment alone, which collides with an
+    unrelated death-trigger drain idiom the ``death_matters`` synthesis
+    test fixtures also exercise on a zero-unit ``_gap_tree``)."""
+    if tree.units:
+        return None
+    oracle = (tree.oracle or "").lower()
+    if "put into a graveyard from the battlefield" not in oracle:
+        return None
+    if "opponent loses" not in oracle:
+        return None
+    return _synthetic_concept(
+        arm_id="known_token_lifeloss_opponents",
+        concept="synth_lifeloss_makers_opponents",
+        scope="opponents",
+        subject=(),
+        desc="predefined known-token opponent life-loss ability (Wicked)",
+    )
+
+
 def _make_sweep_arm(rx: re.Pattern[str], arm_id: str, scope: str, cr: str) -> _Arm:
     def _arm(tree: ConceptTree) -> ConceptNode | None:
         oracle = _REMINDER.sub(" ", tree.oracle or "")
@@ -9265,6 +9390,10 @@ _ARMS: tuple[tuple[str, _Arm], ...] = (
     ("tap_untap_becomes", _arm_tap_untap_becomes),
     ("ramp_grant_unimplemented_body", _arm_ramp_grant_unimplemented_body),
     ("ramp_dropped_add_mana_clause", _arm_ramp_dropped_add_mana_clause),
+    ("known_token_ramp", _arm_known_token_ramp),
+    ("known_token_explore", _arm_known_token_explore),
+    ("known_token_impulse_top_play", _arm_known_token_impulse_top_play),
+    ("known_token_lifeloss_opponents", _arm_known_token_lifeloss_opponents),
     *(
         (arm_id, _make_sweep_arm(rx, arm_id, scope, cr))
         for rx, arm_id, scope, cr in _SWEEP_SYNTH_ROWS

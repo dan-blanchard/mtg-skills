@@ -344,54 +344,127 @@ def _text_only_trees(
 # DOES fully decompose (a bare vanilla keyword token, say) is left alone; this
 # substrate never second-guesses a structural parse that already exists.
 #
-# ADJUDICATED ALLOWLIST (task #92): a corpus-wide sweep of every predefined
-# token this gap-gate matches found ~30 distinct token identities across 697
-# cards — FAR more than one session can responsibly adjudicate lane-by-lane
-# (the corpus-discipline bar: every membership delta gets a verified reason).
-# Rather than mass-enable all of them (risking unaudited bucket-B idiom
-# false-fires across dozens of unrelated lanes), this substrate serves ONLY
-# the identities below, each verified to open a real, already-existing lane:
+# ADJUDICATED ALLOWLIST (task #92, widened task #95): a corpus-wide sweep of
+# every predefined token this gap-gate matches found 34 distinct token
+# identities with NONEMPTY ``rules_text`` (a much larger set of identities
+# carries BLANK ``rules_text`` — a vanilla creature token with no ability at
+# all, e.g. a plain Zombie/Soldier/Goblin — those never produce a tree
+# regardless of this allowlist: :func:`_known_token_tree` returns ``None``
+# for blank text). Task #95 (Dan's 2026-07-13 directive: adjudicate EVERY
+# remaining identity, wire what's real) re-swept all 34 and widened the
+# wired set from 2 to 8, each verified to open a real, already-existing
+# lane — the corpus-discipline bar (every membership delta gets a verified
+# reason) applied per identity, not mass-enabled:
 #
-# * "Mutagen" (the TMT cycle: April O'Neil, Crustacean Commando, Genghis
-#   Frog, Mona Lisa, Mutagen Man, Mutant Chain Reaction, Ooze Spill, Return
-#   to the Sewers, Shellshock, Slithering Cryptid, Zoo Escapees) — rules_text
-#   "{1}, {T}, Sacrifice this token: Put a +1/+1 counter on target creature."
-#   opens ``plus_one_makers`` (CR 122.1) via the existing bucket-B idiom
-#   (:func:`~mtg_utils._card_ir.tree_synthesis._arm_plus_one_makers`) — no
-#   new lane, no new regex, just a genuine typed-node substrate this text
-#   now reaches.
-# * "Young Hero" (the WOE cycle: Cut In, Embereth Veteran, Merry Bards,
-#   Protective Parents, Return Triumphant) — rules_text "Whenever this
-#   creature attacks, if its toughness is 3 or less, put a +1/+1 counter on
-#   it" opens the SAME ``plus_one_makers`` lane, same mechanism.
+# * "Mutagen" (task #92; the TMT cycle) — "{1}, {T}, Sacrifice this token:
+#   Put a +1/+1 counter on target creature." opens ``plus_one_makers``
+#   (CR 122.1) via :func:`~mtg_utils._card_ir.tree_synthesis.
+#   _arm_plus_one_makers`.
+# * "Young Hero" (task #92; the WOE cycle) — "Whenever this creature
+#   attacks, if its toughness is 3 or less, put a +1/+1 counter on it"
+#   opens the SAME ``plus_one_makers`` lane, same mechanism.
+# * "Powerstone" / "Gold" (task #95) — "{T}: Add {C}. This mana can't be
+#   spent to cast a nonartifact spell." / "Sacrifice this token: Add one
+#   mana of any color." each open ``ramp`` (CR 106.1/605.1a) via
+#   :func:`~mtg_utils._card_ir.tree_synthesis._arm_known_token_ramp`.
+# * "Lander" (task #95) — "…Sacrifice this token: Search your library for
+#   a basic land card, put it onto the battlefield tapped…" is corpus-
+#   verified NOT ``ramp`` in this system's own convention (Rampant Growth
+#   / Nature's Lore / Wayfarer's Bauble / Solemn Simulacrum / Migration
+#   Path all probed: none tags ``ramp``, since ``_ramp`` requires a
+#   literal Mana-producing effect, not a land fetch) — it opens ``tutor``
+#   (CR 701.23/701.23a) instead, for FREE, via ``_tutor_lane``'s existing
+#   ``synth_tutor`` bucket-B oracle-text rescue arm (no new code needed;
+#   confirmed by the corpus diff — all 20 Lander creators gained
+#   ``tutor``, zero gained ``ramp``).
+# * "Map" (task #95) — "…Sacrifice this artifact: Target creature you
+#   control explores…" opens ``explore_makers`` (CR 701.44a) via
+#   :func:`~mtg_utils._card_ir.tree_synthesis._arm_known_token_explore`.
+# * "Junk" (task #95) — "…Sacrifice this artifact: Exile the top card of
+#   your library. You may play that card this turn…" opens
+#   ``impulse_top_play`` (CR 601.3b/116) via
+#   :func:`~mtg_utils._card_ir.tree_synthesis.
+#   _arm_known_token_impulse_top_play`.
+# * "Wicked" (task #95; one of the WOE Role cycle) — "…When this Aura is
+#   put into a graveyard from the battlefield, each opponent loses 1
+#   life." opens ``lifeloss_makers`` scope "opponents" (CR 119.3) via
+#   :func:`~mtg_utils._card_ir.tree_synthesis.
+#   _arm_known_token_lifeloss_opponents`.
 #
-# EVERYTHING ELSE the sweep found is DOCUMENTED RESIDUE, deliberately NOT
-# wired (a future task can widen this allowlist with its own adjudication):
+# EVERYTHING ELSE the sweep found is DOCUMENTED RESIDUE — each individually
+# adjudicated (task #95), not a blanket deferral:
 #
 # * Treasure (337 cards) / Food (140) / Clue (26) / Blood (41) — ALREADY
 #   fully covered without this substrate at all: ``_resource_token_makers``
 #   reads the Token node's own printed ``types``/subtypes (Treasure/Food/
-#   Clue/Blood), never the ability text, so these were never actually
-#   gapped for ``treasure_makers``/``food_makers``/``clue_makers``/
-#   ``blood_makers`` membership. Enabling their ability text here would be
-#   pure redundancy at best, an unaudited idiom-collision risk at worst.
-# * Powerstone (32) / Lander (20) / Junk (14) / Map (11) / Gold (4) /
-#   Eldrazi Scion (5) / Eldrazi Spawn (5) — each a genuine distinct
-#   mana-rock / land-tutor / impulse-draw / explore / mana-dork identity
-#   that plausibly opens SOME existing lane (ramp_makers, explore_makers,
-#   impulse_draw…), but none was cross-checked against its target lane's
-#   own scope/subject gates this session — an honest deferral, not a
-#   verified "no lane fits".
-# * The five OTHER WOE Role identities sharing Young Hero's mechanism
-#   (Royal +1/+1+ward, Wicked +1/+1+opponent-life-loss-on-death, Cursed
-#   base-P/T-1/1, Monster +1/+1+trample, Sorcerer +1/+1+attack-scry,
-#   Virtuous +1/+1-per-enchantment) — each grants a STATIC "gets +1/+1"
-#   bonus, NOT a counter (CR 613 continuous effect, no ``PutCounter``/
-#   "+1/+1 counter" text at all — so none opens ``plus_one_makers`` the way
-#   Young Hero's COUNTER-placing trigger does), and the secondary riders
-#   (Wicked's drain, Sorcerer's granted scry trigger, Virtuous's devotion-
-#   style anthem) each would need its OWN lane cross-check not done here.
-_KNOWN_TOKEN_WIRED_DISPLAY_NAMES = frozenset({"Mutagen", "Young Hero"})
+#   Clue/Blood), never the ability text — verified at task #95 by probing
+#   2 creators each (e.g. Dire Fleet Hoarder / Contract Killing for
+#   Treasure) against ``extract_signals_hybrid``: ``treasure_makers`` /
+#   ``food_makers`` / ``clue_makers`` / ``blood_makers`` already fire.
+#   Enabling their ability text here would be pure redundancy.
+# * Eldrazi Scion / Eldrazi Spawn — ALSO already fully covered, but by a
+#   DIFFERENT mechanism than Treasure/Food/Clue/Blood: every corpus
+#   creator (Vile Redeemer, Grave Birthing, Corpsehatch, Essence Feed, …)
+#   structures the "Sacrifice this token: Add {C}." grant as a SIBLING
+#   ``GenericEffect``/``GrantAbility`` static node right after the Token
+#   creation (phase's own inline-grant idiom for simple sac-for-mana
+#   tokens), which ``crosswalk_signals._granted_mana_defs`` already reads
+#   — ``ramp`` fires at baseline for all 4 probed creators. The known-
+#   tokens gap-gate still matches these two identities (the raw ``Token``
+#   node itself carries neither ``static_abilities`` nor ``keywords`` — the
+#   grant lives on the NEXT sibling node, not the Token node), but wiring
+#   them here would be pure redundancy through a second path.
+# * Virtuous (1 card: Ellivere of the Wild Court) — "…gets +1/+1 for each
+#   enchantment you control" is itself an enchantments-matter PAYOFF, but
+#   Ellivere already fires ``enchantments_matter`` at baseline via the
+#   GENERIC ``make_token`` Enchantment-subject read every Role-token
+#   creator gets (a Role token's own core type is Enchantment/Aura, so
+#   ``_artifacts_enchantments_matter``'s token-maker branch fires
+#   regardless of ability text). The devotion-style per-enchantment
+#   SCALING nuance isn't separately captured, but the lane already opens.
+# * Cursed (base P/T set to 1/1, a single-target Aura neutralize — soft
+#   removal, Darksteel-Mutation-shaped) — NO lane in ``crosswalk_signals``
+#   reads a single-target base-P/T-set at all: ``_debuff_makers`` explicitly
+#   EXCLUDES a single-Aura shrink by design (its own docstring: "a single-
+#   Aura/single-target shrink … is a neutralize, NOT a mass -1/-1
+#   enabler"), and neither ``_removal`` nor ``_pacify_makers`` reads the
+#   ``set_pt`` concept. This is a genuine, PRE-EXISTING lane gap (a real
+#   Darksteel Mutation-shaped card would be equally unserved) — not
+#   specific to the known-tokens substrate, and out of scope for a token-
+#   identity wiring sweep (it needs a NEW lane, not a new source feeding
+#   an old one). Left unwired; a future task can design that lane.
+# * Royal (+1/+1 + ward {1}) / Monster (+1/+1 + trample) — a single-target
+#   keyword grant. ``_keyword_grant_lanes`` DOES have a text-only-tree
+#   fallback (``_KEYWORD_GRANT_TARGET_KEPT_RX``), but it's anchored to the
+#   "target creature … gains/gets +X/+Y and gains KEYWORD" phrasing (built
+#   for a split/aftermath back-face gap) — the Aura-reminder wording here
+#   ("Enchanted creature gets +1/+1 and has KEYWORD") uses a different verb
+#   ("has", not "gains") and subject ("Enchanted creature", not "target
+#   creature"), so it does not match. Widening that SHARED regex risks
+#   unaudited over-fire on other text-only-tree consumers (the split/
+#   aftermath gap it was built for); a dedicated marker-and-lane-edit (the
+#   Wicked/Junk precedent above) is the safer fix but needs its own gate
+#   design against ``_keyword_grant_lanes``'s multi-branch structure — not
+#   done this session.
+# * Sorcerer (+1/+1 + granted "whenever attacks, scry 1") — there is no
+#   "scry doer" lane at all in ``crosswalk_signals`` today:
+#   ``_scry_surveil_matters`` is explicitly the PAYOFF-only lane ("a bare
+#   Scry EFFECT node … never fires; doers ride the ported
+#   ``topdeck_selection``"), and ``topdeck_selection`` itself is unit/
+#   typed-node-based with no oracle-text fallback branch to extend safely.
+#   Needs its own marker-and-lane-edit design; not done this session.
+_KNOWN_TOKEN_WIRED_DISPLAY_NAMES = frozenset(
+    {
+        "Mutagen",
+        "Young Hero",
+        "Powerstone",
+        "Lander",
+        "Gold",
+        "Map",
+        "Junk",
+        "Wicked",
+    }
+)
 
 
 def _iter_raw_token_effects(node: object) -> Iterator[dict]:

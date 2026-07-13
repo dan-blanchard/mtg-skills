@@ -9608,6 +9608,15 @@ def _lifeloss_makers(tree: ConceptTree) -> list[Signal]:
         fire("you", "")
     if bridge_fires("zuko_modal_unconditional_paylife", tree):
         fire("you", "")
+    # task #95 — the ``synth_lifeloss_makers_opponents`` bucket-B marker
+    # (see :func:`~mtg_utils._card_ir.tree_synthesis.
+    # _arm_known_token_lifeloss_opponents`'s own docstring): the Wicked
+    # predefined-token cycle's "each opponent loses 1 life" (when the Aura
+    # leaves the battlefield) rides a zero-unit text-only tree with no
+    # ``LoseLife`` node to walk structurally.
+    for c in tree.iter_concepts():
+        if c.concept == "synth_lifeloss_makers_opponents":
+            fire("opponents", "")
     return out
 
 
@@ -15357,6 +15366,13 @@ def _impulse_top_play(tree: ConceptTree) -> list[Signal]:
     The ONGOING top-play statics (Bolas's Citadel) are a static-mode unit,
     structurally disjoint → play_from_top (checklist #3: the static /
     non-static split is the discriminator). Scope "you".
+
+    task #95 adds the ``synth_impulse_top_play`` bucket-B marker check
+    (see :func:`~mtg_utils._card_ir.tree_synthesis.
+    _arm_known_token_impulse_top_play`'s own docstring) — the Junk
+    predefined-token cycle's "Exile the top card of your library. You may
+    play that card this turn" ability rides a zero-unit text-only tree
+    with no exile_top/cast_from_zone pair to walk structurally.
     """
     for unit in tree.units:
         if unit.origin == "static":
@@ -15374,6 +15390,9 @@ def _impulse_top_play(tree: ConceptTree) -> list[Signal]:
                 and permission_tag(c.node) == "PlayFromExile"
             ):
                 return [Signal("impulse_top_play", "you", "", c.raw, tree.name, "high")]
+    for c in tree.iter_concepts():
+        if c.concept == "synth_impulse_top_play":
+            return [Signal("impulse_top_play", "you", "", "", tree.name, "high")]
     return []
 
 

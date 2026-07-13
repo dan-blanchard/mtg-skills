@@ -1,4 +1,5 @@
-# Committed offline/CI fallback for phase's known-tokens.toml (task #92).
+# Committed offline/CI fallback for phase's known-tokens.toml (task #92,
+# widened task #95).
 #
 # mtg_utils._deck_forge._ir_lookup._known_tokens_index() prefers the LIVE
 # tag-pinned known-tokens.toml (_phase.ensure_known_tokens() — a ~600-entry,
@@ -6,10 +7,11 @@
 # can be fetched/read. This file is the deterministic fallback for when it
 # can't (no network, cold cache, CI) — carrying ONLY the token identities
 # this task's adjudicated allowlist actually wires
-# (_KNOWN_TOKEN_WIRED_DISPLAY_NAMES = {"Mutagen", "Young Hero"}), trimmed to
-# the fields the join reads (id / rules_text / token.body) and dropping the
-# upstream entry's large source_card_names / source_card_refs /
-# token_image_ref arrays (informational there, unread here).
+# (_KNOWN_TOKEN_WIRED_DISPLAY_NAMES = {"Mutagen", "Young Hero", "Powerstone",
+# "Lander", "Gold", "Map", "Junk", "Wicked"}), trimmed to the fields the join
+# reads (id / rules_text / token.body) and dropping the upstream entry's
+# large source_card_names / source_card_refs / token_image_ref arrays
+# (informational there, unread here).
 #
 # Extracted verbatim from phase v0.23.0's known-tokens.toml. If the wired
 # allowlist ever widens, add the new identity's trimmed entry here too, so
@@ -33,6 +35,69 @@ Enchanted creature has "Whenever this creature attacks, if its toughness is 3 or
 
 [token.body]
 display_name = "Young Hero"
+core_types = ["Enchantment"]
+subtypes = ["Aura", "Role"]
+supertypes = []
+
+[[token]]
+id = "af8db311-3520-5cf7-8410-7390c29da873"
+rules_text = "{T}: Add {C}. This mana can't be spent to cast a nonartifact spell."
+
+[token.body]
+display_name = "Powerstone"
+core_types = ["Artifact"]
+subtypes = ["Powerstone"]
+supertypes = []
+
+[[token]]
+id = "7b3e5486-632b-5245-8026-3222282173bc"
+rules_text = "{2}, {T}, Sacrifice this token: Search your library for a basic land card, put it onto the battlefield tapped, then shuffle."
+
+[token.body]
+display_name = "Lander"
+core_types = ["Artifact"]
+subtypes = ["Lander"]
+supertypes = []
+
+[[token]]
+id = "214f0959-71fa-59ba-8efb-080cbc3e5b99"
+rules_text = "Sacrifice this token: Add one mana of any color."
+
+[token.body]
+display_name = "Gold"
+core_types = ["Artifact"]
+subtypes = ["Gold"]
+supertypes = []
+
+[[token]]
+id = "ca9e0bcd-65f0-57dd-b5a1-eb8dac469f15"
+rules_text = "{1}, {T}, Sacrifice this artifact: Target creature you control explores. Activate only as a sorcery. (Reveal the top card of your library. Put that card into your hand if it's a land. Otherwise, put a +1/+1 counter on that creature, then put the card back or put it into your graveyard.)"
+
+[token.body]
+display_name = "Map"
+core_types = ["Artifact"]
+subtypes = ["Map"]
+supertypes = []
+
+[[token]]
+id = "de557c08-4418-5956-8a9c-1a485cde1194"
+rules_text = "{T}, Sacrifice this artifact: Exile the top card of your library. You may play that card this turn. Activate only as a sorcery."
+
+[token.body]
+display_name = "Junk"
+core_types = ["Artifact"]
+subtypes = ["Junk"]
+supertypes = []
+
+[[token]]
+id = "ab887c26-ecfd-55b4-972a-7518d1e406b6"
+rules_text = """
+Enchant creature
+Enchanted creature gets +1/+1.
+When this Aura is put into a graveyard from the battlefield, each opponent loses 1 life."""
+
+[token.body]
+display_name = "Wicked"
 core_types = ["Enchantment"]
 subtypes = ["Aura", "Role"]
 supertypes = []
