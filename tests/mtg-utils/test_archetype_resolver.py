@@ -290,13 +290,13 @@ class TestMergeMemberPresets:
         from mtg_utils import testkit
         from mtg_utils._archetype_resolver import merge_member_presets
 
-        merged = merge_member_presets(
-            "value-engines", ("landfall", "plus-one-counters")
-        )
+        merged = merge_member_presets("value-engines", ("landfall", "removal"))
         assert merged.signal_keys == ("landfall",)
-        # plus-one-counters' regex arm survives the merge (task #85 converted
-        # extra-turns; plus-one-counters is task #85's OTHER deferred lane,
-        # so it's still the unconverted regex example here).
+        # removal's regex arm survives the merge (task #85 converted
+        # extra-turns AND plus-one-counters to structural views; removal
+        # is the last unconverted regex preset — its own flip attempt was
+        # reverted this wave over a downstream call-site blocker, see
+        # theme_presets.py's removal deferral comment).
         assert merged.patterns
 
         # landfall member matches ONLY via the structural signal_keys arm.
@@ -304,23 +304,19 @@ class TestMergeMemberPresets:
         landfall_card = testkit.test_card("Courser of Kruphix")
         assert merged.matches(landfall_card)
 
-        # plus-one-counters member matches ONLY via the regex arm (no
-        # oracle_id needed — plus-one-counters is still an unconverted
-        # regex preset).
-        counters_card = {
-            "name": "Scavenging Ooze",
-            "type_line": "Creature",
-            "oracle_text": (
-                "{G}, Exile a creature card from a graveyard: Put a +1/+1 "
-                "counter on Scavenging Ooze and you gain 1 life."
-            ),
+        # removal member matches ONLY via the regex arm (no oracle_id
+        # needed — removal is still an unconverted regex preset).
+        removal_card = {
+            "name": "Doom Blade",
+            "type_line": "Instant",
+            "oracle_text": "Destroy target nonblack creature.",
         }
-        assert merged.matches(counters_card)
+        assert merged.matches(removal_card)
 
         # Neither arm fires on a bystander.
         bystander = {
-            "name": "Lightning Bolt",
-            "type_line": "Instant",
-            "oracle_text": "Lightning Bolt deals 3 damage to any target.",
+            "name": "Llanowar Elves",
+            "type_line": "Creature — Elf Druid",
+            "oracle_text": "{T}: Add {G}.",
         }
         assert not merged.matches(bystander)
