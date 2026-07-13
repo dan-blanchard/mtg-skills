@@ -290,23 +290,32 @@ class TestMergeMemberPresets:
         from mtg_utils import testkit
         from mtg_utils._archetype_resolver import merge_member_presets
 
-        merged = merge_member_presets("value-engines", ("landfall", "extra-turns"))
+        merged = merge_member_presets(
+            "value-engines", ("landfall", "plus-one-counters")
+        )
         assert merged.signal_keys == ("landfall",)
-        assert merged.patterns  # extra-turns' regex arm survives the merge
+        # plus-one-counters' regex arm survives the merge (task #85 converted
+        # extra-turns; plus-one-counters is task #85's OTHER deferred lane,
+        # so it's still the unconverted regex example here).
+        assert merged.patterns
 
         # landfall member matches ONLY via the structural signal_keys arm.
         testkit.test_card_ir("Courser of Kruphix")
         landfall_card = testkit.test_card("Courser of Kruphix")
         assert merged.matches(landfall_card)
 
-        # extra-turns member matches ONLY via the regex arm (no oracle_id
-        # needed — extra-turns is still an unconverted regex preset).
-        extra_turn_card = {
-            "name": "Time Walk",
-            "type_line": "Sorcery",
-            "oracle_text": "Take an extra turn after this one.",
+        # plus-one-counters member matches ONLY via the regex arm (no
+        # oracle_id needed — plus-one-counters is still an unconverted
+        # regex preset).
+        counters_card = {
+            "name": "Scavenging Ooze",
+            "type_line": "Creature",
+            "oracle_text": (
+                "{G}, Exile a creature card from a graveyard: Put a +1/+1 "
+                "counter on Scavenging Ooze and you gain 1 life."
+            ),
         }
-        assert merged.matches(extra_turn_card)
+        assert merged.matches(counters_card)
 
         # Neither arm fires on a bystander.
         bystander = {

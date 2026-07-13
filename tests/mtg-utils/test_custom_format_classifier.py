@@ -104,9 +104,10 @@ def _hcard(
 
 class TestPrecomputeMetadata:
     def test_classifies_each_card_and_tags_archetypes(self):
-        # The archetype-tagging demo card uses ``extra-turns`` (still a regex
-        # preset) rather than ``counterspell`` (moved to a structural view,
-        # task #83) — a structural-view preset needs a real oracle_id to
+        # The archetype-tagging demo card uses ``plus-one-counters`` (still a
+        # regex preset — task #85's other deferred lane) rather than
+        # ``counterspell``/``extra-turns`` (moved to structural views, task
+        # #83/#85) — a structural-view preset needs a real oracle_id to
         # resolve, which these synthetic hydrated dicts never carry.
         hydrated = [
             _hcard(
@@ -125,15 +126,17 @@ class TestPrecomputeMetadata:
                 color_identity=["U"],
             ),
             _hcard(
-                "Time Walk",
-                mana_cost="{1}{U}",
+                "Hardened Scales",
+                mana_cost="{1}{G}",
                 cmc=2,
-                type_line="Sorcery",
-                oracle="Take an extra turn after this one.",
-                color_identity=["U"],
+                type_line="Enchantment",
+                oracle="If one or more +1/+1 counters would be put on a "
+                "creature you control, that many plus one +1/+1 counters "
+                "are put on it instead.",
+                color_identity=["G"],
             ),
         ]
-        meta = precompute_metadata(hydrated, presets=["extra-turns"])
+        meta = precompute_metadata(hydrated, presets=["plus-one-counters"])
         assert len(meta) == 3
 
         # Mountain
@@ -149,10 +152,10 @@ class TestPrecomputeMetadata:
         assert meta[1].is_land is False
         assert meta[1].library_effect in (LibraryEffect.NONE, LibraryEffect.REORDER)
 
-        # Time Walk — matches the extra-turns preset.
+        # Hardened Scales — matches the plus-one-counters preset.
         assert meta[2].is_land is False
         assert meta[2].library_effect == LibraryEffect.NONE
-        assert "extra-turns" in meta[2].archetype_matches
+        assert "plus-one-counters" in meta[2].archetype_matches
 
     def test_unknown_preset_raises(self):
         with pytest.raises(KeyError):

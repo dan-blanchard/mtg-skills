@@ -86,6 +86,7 @@ from mtg_utils._card_ir.crosswalk import (
     hand_size_scopes,
     has_filter_property,
     has_nested_connive,
+    has_nested_extra_turn,
     has_nested_fight,
     has_nested_flip_coin,
     has_nested_roll_die,
@@ -2898,6 +2899,83 @@ def _arm_fight_makers(tree: ConceptTree) -> ConceptNode | None:
         scope="you",
         subject=(),
         desc="fight clause phase drops wholly (no node of any kind)",
+    )
+
+
+# "take an extra/additional turn" idiom (CR 500.7) — the no-residue-or-
+# Unimplemented-only tail :func:`has_structural_extra_turns`'s typed reach
+# (a flat ``ExtraTurn`` OR a nested one reachable via ``has_nested_
+# extra_turn``) never finds because phase leaves no real ``ExtraTurn`` node
+# anywhere for these three shapes. Deliberately NOT reminder-stripped —
+# Perch Protection's whole grant lives inside the Gift keyword's
+# parenthetical, which is functionally operative text for that keyword,
+# not flavor reminder.
+_EXTRA_TURN_GRANT_RX = re.compile(r"take an (?:extra|additional) turn", re.IGNORECASE)
+
+
+def has_structural_extra_turns(tree: ConceptTree) -> bool:
+    """The extra_turns TYPED gate: a flat top-level ``ExtraTurn`` effect OR
+    :func:`has_nested_extra_turn` reaching one buried inside a GRANTED
+    construct (a ``Vote`` branch, a ``FlipCoin``/``FlipCoins`` win_effect,
+    a static ability's ``GrantAbility.definition``). Shared verbatim with
+    the ``_extra_turns`` lane and this arm's gap gate below."""
+    if tree.has_effect("extra_turn"):
+        return True
+    return any(has_nested_extra_turn(u.node) for u in tree.units)
+
+
+def _arm_extra_turns(tree: ConceptTree) -> ConceptNode | None:
+    """Synthesize an ``extra_turn`` node for an extra-turn grant phase
+    drops WHOLLY or parks as an untyped ``Unimplemented`` residue — a
+    no-residue-or-Unimplemented-only class 2 gap (ADR-0038 amendment).
+    Three distinct phase-v0.23.0 shapes, all covered by ONE oracle-text
+    idiom scan since none leaves a real ``ExtraTurn`` node anywhere:
+
+    * Chance for Glory's whole 3-sentence body ("Creatures you control
+      gain indestructible. Take an extra turn after this one. At the
+      beginning of that turn's end step, you lose the game.") collapses
+      into ONE ``S_static_abilities`` def whose ONLY modification is the
+      indestructible ``AddKeyword`` — the extra-turn + lose-the-game
+      sentences survive only in the def's own ``description``, no node
+      of any kind (a static-collapse silent drop).
+    * Perch Protection's Gift keyword ("Gift an extra turn (You may
+      promise an opponent a gift as you cast this spell. If you do,
+      they take an extra turn after this one.)") parks the whole gift
+      body as ``Unimplemented(name="gift", ...)`` — the grant goes to
+      the OPPONENT ("they"), still a build-around per this lane's
+      "regardless of who takes it" contract (see ``_extra_turns``'s
+      docstring in ``crosswalk_signals.py``).
+    * Ugin's Nexus's self-sacrifice replacement ("If ~ would be put
+      into a graveyard from the battlefield, instead exile it and take
+      an extra turn after this one.") parks as ``Unimplemented(name=
+      "replacement_structure", ...)``. The SAME card also carries a
+      real, correctly-typed ANTI-extra-turn ``Replacement`` (a separate
+      "if a player would begin an extra turn, skip it" static, condition
+      ``OnlyExtraTurn``) that must never be mistaken for a grant — its
+      wording is "begin an extra turn" / "skip that turn", which this
+      idiom never matches, so the scan can't double-fire on it.
+    * Piece It Together's intensity payoff ("If ~'s intensity is 4,
+      instead take an extra turn after this one.") parks as
+      ``Unimplemented(name="instead", ...)`` inside the Draw ability's
+      sub_ability chain (not commander-legal — an Un-set/Arena-only
+      printing — but the same gap shape, so this arm covers it too).
+
+    Full commander-legal corpus census (31,622 cards, phase v0.23.0,
+    2026-07-12) found exactly these 3 commander-legal hits (Chance for
+    Glory, Perch Protection, Ugin's Nexus) — a narrow, corpus-bound
+    idiom scan, not a third detector. Gap-gated on
+    :func:`has_structural_extra_turns` so a typed/nested card never
+    doubles. Scope "you" (the live doer). CR 500.7."""
+    if has_structural_extra_turns(tree):
+        return None
+    if not _EXTRA_TURN_GRANT_RX.search(tree.oracle or ""):
+        return None
+    return _synthetic_concept(
+        arm_id="extra_turns",
+        concept="extra_turn",
+        scope="you",
+        subject=(),
+        desc="extra-turn grant phase drops wholly or parks unreadably",
     )
 
 
@@ -9049,6 +9127,7 @@ _ARMS: tuple[tuple[str, _Arm], ...] = (
     ("opponent_cast_matters", _arm_opponent_cast_matters),
     ("creature_cast_trigger", _arm_creature_cast_trigger),
     ("fight_makers", _arm_fight_makers),
+    ("extra_turns", _arm_extra_turns),
     ("base_pt_have_become", _arm_base_pt_have_become),
     ("base_pt_is_a_type_with", _arm_base_pt_is_a_type_with),
     ("base_pt_mass_where_x", _arm_base_pt_mass_where_x),

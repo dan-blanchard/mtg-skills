@@ -72,6 +72,7 @@ from mtg_utils._card_ir.crosswalk import (
     has_filter_property,
     has_nested_connive,
     has_nested_damage_reaching_player,
+    has_nested_extra_turn,
     has_nested_fight,
     has_nested_flip_coin,
     is_creature_cast_trigger_def,
@@ -2866,9 +2867,20 @@ def _extra_turns(tree: ConceptTree) -> list[Signal]:
     any ``ExtraTurn`` effect, regardless of who takes it ("that player takes an
     extra turn" is still a build-around). The 5-card raw-fold tail phase buries in a
     sibling category is a known ``live_only`` residue (no ``_EXTRA_TURN_RAW`` here).
+
+    task #85 (phase v0.23.0): a flat top-level ``ExtraTurn`` OR
+    :func:`has_nested_extra_turn` reaching one buried inside a GRANTED
+    construct the narrow ``_EFFECT_CHILD_FIELDS`` walk never surfaces —
+    a ``Vote``'s ``per_choice_effect`` branch (Expropriate, Plea for
+    Power), a ``FlipCoin``/``FlipCoins`` ``win_effect`` (Stitch in Time,
+    Ral Zarek's -7), or a static ability's ``GrantAbility.definition``
+    (Ichormoon Gauntlet's granted planeswalker loyalty ability).
     """
     if tree.has_effect("extra_turn"):
         return [Signal("extra_turns", "you", "", "", tree.name, "high")]
+    for unit in tree.units:
+        if has_nested_extra_turn(unit.node):
+            return [Signal("extra_turns", "you", "", "", tree.name, "high")]
     return []
 
 
@@ -11554,10 +11566,18 @@ def _extra_combats(tree: ConceptTree) -> list[Signal]:
     here. The phase gate discriminates against the mis-routed extra-upkeep/draw/end
     forms (a documented KEPT-DETECTOR ``project`` marker). Scope "you" — the active
     player takes the phase (the live forces "you").
+
+    task #85: falls back to the ``illusionists_gambit_additional_combat_
+    swallowed`` ledgered bridge (``bridge_ledger``) for Illusionist's
+    Gambit, whose whole "after this phase, there is an additional combat
+    phase" sentence phase swallows via a ``Condition_If`` parse-warning,
+    leaving no ``AdditionalPhase`` node anywhere on the tree.
     """
     for c in tree.effect_concepts("extra_phase"):
         if additional_phase_kind(c.node) in _COMBAT_PHASES:
             return [Signal("extra_combats", "you", "", c.raw, tree.name, "high")]
+    if bridge_fires("illusionists_gambit_additional_combat_swallowed", tree):
+        return [Signal("extra_combats", "you", "", "", tree.name, "high")]
     return []
 
 

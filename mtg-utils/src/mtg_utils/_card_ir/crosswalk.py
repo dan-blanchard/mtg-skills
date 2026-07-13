@@ -2559,6 +2559,23 @@ def has_nested_fight(node: object) -> bool:
     return any(tag_of(n) == "Fight" for n in _iter_typed_nodes(node))
 
 
+def has_nested_extra_turn(node: object) -> bool:
+    """Whether an ``ExtraTurn`` tag (CR 500.7) is reachable ANYWHERE under
+    ``node`` — an extra-turn grant buried inside a ``Vote``'s
+    ``per_choice_effect`` branch (Expropriate, Plea for Power's "time"
+    vote outcome), a ``FlipCoin``/``FlipCoins`` ``win_effect`` (Stitch in
+    Time, Ral Zarek's -7), or a static ability's ``GrantAbility.
+    definition`` (Ichormoon Gauntlet's granted planeswalker loyalty
+    ability) — none of which ``_walk_effects``'s narrow
+    ``_EFFECT_CHILD_FIELDS`` walk (``effect`` / ``sub_ability`` /
+    ``execute`` / ``mode_abilities``) ever reaches, since ``per_choice_
+    effect`` / ``win_effect`` / a modification's ``definition`` aren't
+    among those fields. The ``extra_turns`` lane's structural fallback,
+    the :func:`has_nested_roll_die` sibling (task #85, phase v0.23.0).
+    """
+    return any(tag_of(n) == "ExtraTurn" for n in _iter_typed_nodes(node))
+
+
 def iter_nested_token_effects(node: object) -> Iterator[ConceptNode]:
     """Every ``Token`` effect (CR 701.7 Create) reachable ANYWHERE under
     ``node`` — a token-maker buried inside a granted static/triggered

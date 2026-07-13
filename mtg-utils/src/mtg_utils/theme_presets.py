@@ -2478,51 +2478,46 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
     # ── Turn manipulation ──────────────────────────────────────────────
     # Extra-turn / extra-combat / extra-upkeep payoffs that commander
     # archetypes (Obeka, Aurelia, Godo, Isshin, Narset) are built around.
-    # These are not keyword abilities — pure oracle-text regex.
     #
-    # extra-turns task #83 structural-view conversion: DEFERRED, not
-    # converted. The `extra_turns` signal key (an ExtraTurn effect, CR
-    # 500.7) recalls 0.80, but session diligence (oracle-text read of all 9
-    # preset-only cards, plus a direct `_ir_lookup.trees_for` inspection)
-    # confirmed EVERY ONE is a genuine "take an extra turn after this one"
-    # grant the crosswalk emits ZERO signal for — not a scope/precision
-    # boundary, a real recall gap: Chance for Glory's whole 3-sentence body
-    # collapses into ONE `grant_keyword` STATIC unit (the resolve-time
-    # ExtraTurn effect never gets decorated as its own node); Ichormoon
-    # Gauntlet's extra-turn lives inside a GRANTED planeswalker loyalty
-    # ability's quoted text (the same GrantAbility-descent gap the bounce/
-    # edict/plus-one-counters deferrals name); Stitch in Time / Ral Zarek /
-    # Plea for Power / Expropriate / Piece It Together nest the grant inside
-    # a flip-coin / vote / loyalty / intensity CONDITIONAL branch phase
-    # doesn't decorate as a typed top-level effect (the same conditional-
-    # descent gap the edict deferral names, at a different lane). Per Dan's
-    # 2026-07-12 directive: inspect the residue before accepting, and STOP
-    # rather than silently shed genuine cards. This is a lane change
-    # (crosswalk_signals.py / tree_synthesis.py effect-chain descent into
-    # conditionals + GrantAbility) needing the full corpus-diff + CR-
-    # citation bar — out of scope for a view conversion; fix the lane
-    # first, then re-attempt this conversion.
+    # extra-turns task #83/#85 structural-view conversion: CONVERTED
+    # (2026-07-12, phase v0.23.0). The prior deferral found all 9
+    # preset-only residue cards were a genuine recall gap, not a scope/
+    # precision boundary — fixed at the lane, not papered over here:
+    # Chance for Glory / Perch Protection / Ugin's Nexus are a no-node-
+    # at-all static-collapse or ``Unimplemented`` residue phase leaves
+    # zero real ``ExtraTurn`` trace for (a ``tree_synthesis._arm_extra_
+    # turns`` bucket-B idiom scan, gap-gated on
+    # ``crosswalk.has_nested_extra_turn`` finding nothing); Expropriate /
+    # Plea for Power (``Vote.per_choice_effect``), Stitch in Time / Ral
+    # Zarek (``FlipCoin``/``FlipCoins.win_effect``), and Ichormoon
+    # Gauntlet (a static ability's ``GrantAbility.definition``) all carry
+    # a REAL typed ``ExtraTurn`` node the narrow per-unit effect-chain
+    # walk never reached — ``has_nested_extra_turn``'s generic deep-field
+    # walk (the ``has_nested_roll_die``/``has_nested_flip_coin`` precedent)
+    # now reaches all three shapes. See
+    # `_deck_forge.crosswalk_signals._extra_turns` for the lane and
+    # `_card_ir.tree_synthesis._arm_extra_turns` for the synthesis arm.
     Preset(
         name="extra-turns",
         description=(
             "Take another turn after this one. Time Walk effects — the "
             "pillar of Obeka / Narset / Sakashima extra-turns archetypes "
             "(Time Walk, Temporal Manipulation, Nexus of Fate, "
-            "Expropriate, Temporal Trespass)."
+            "Expropriate, Temporal Trespass). Structural view (task #83/"
+            "#85): signal key `extra_turns` — an ExtraTurn effect, "
+            "regardless of who takes it (CR 500.7)."
         ),
-        patterns=_rx(r"take an (?:extra|additional) turn"),
+        signal_keys=("extra_turns",),
         should_match=("Time Walk", "Temporal Manipulation", "Nexus of Fate"),
         should_not_match=("Lightning Bolt", "Llanowar Elves"),
     ),
-    # DEFERRED single-card gap (task #83, not fixed here — a substrate/phase-
-    # parse fix is out of scope for a view conversion): Illusionist's Gambit
-    # ("Remove all attacking creatures from combat and untap them. After this
-    # phase, there is an additional combat phase. Each of those creatures
-    # attacks that combat if able...") is a genuine extra-combat effect, but
-    # phase-rs's OWN parse records a ``SwallowedClause`` warning on this
-    # sentence and never emits an ``AdditionalPhase`` node for it at all —
-    # verified via the raw card-data.json record — so the ``extra_combats``
-    # signal has nothing structural to read. 1 card of 45 (recall 0.978).
+    # Illusionist's Gambit fix (task #85, phase v0.23.0): the ``extra_combats``
+    # signal now reads the ``illusionists_gambit_additional_combat_swallowed``
+    # ledgered bridge (`_deck_forge.bridge_ledger`) — the ``Condition_If``
+    # SwallowedClause parse-warning on "After this phase, there is an
+    # additional combat phase" was STILL unstructured at v0.23.0 (unchanged
+    # since v0.20.0), so this stays a bridge (an upstream_parse_failure,
+    # not a forced arm) rather than a real typed node.
     Preset(
         name="extra-combats",
         description=(

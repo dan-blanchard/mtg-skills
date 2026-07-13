@@ -1761,6 +1761,37 @@ def _siege_behemoth_match(tree: ConceptTree) -> bool:
     return _siege_behemoth_gap(tree)
 
 
+# (8) Illusionist's Gambit → extra_combats. "Remove all attacking creatures
+# from combat and untap them. After this phase, there is an additional
+# combat phase. Each of those creatures attacks that combat if able. They
+# can't attack you or planeswalkers you control that combat." — the
+# ``Condition_If`` clause grammar swallows the WHOLE sentence (a phase
+# ``SwallowedClause`` parse warning fires on it, unchanged since phase
+# v0.20.0 through v0.23.0), leaving the card's one static ability def with
+# ``affected: SelfRef`` and an EMPTY ``modifications`` list — the same
+# residue shape as (7) Siege Behemoth above, no ``AdditionalPhase`` node of
+# any kind reachable anywhere on the tree.
+_ILLUSIONISTS_GAMBIT_RX = re.compile(
+    r"after this phase, there is an additional combat phase", re.IGNORECASE
+)
+
+
+def _illusionists_gambit_gap(tree: ConceptTree) -> bool:
+    for unit in tree.units:
+        for sdef in iter_static_defs(unit.node):
+            if tag_of(getattr(sdef, "affected", None)) != "SelfRef":
+                continue
+            if getattr(sdef, "modifications", None):
+                continue
+            if _ILLUSIONISTS_GAMBIT_RX.search(getattr(sdef, "description", "") or ""):
+                return True
+    return False
+
+
+def _illusionists_gambit_match(tree: ConceptTree) -> bool:
+    return _illusionists_gambit_gap(tree)
+
+
 BRIDGES: dict[str, Bridge] = {
     b.bridge_id: b
     for b in (
@@ -2966,6 +2997,29 @@ BRIDGES: dict[str, Bridge] = {
             pins=("Siege Behemoth",),
             gap=_siege_behemoth_gap,
             match=_siege_behemoth_match,
+        ),
+        Bridge(
+            bridge_id="illusionists_gambit_additional_combat_swallowed",
+            key="extra_combats",
+            kind="upstream_parse_failure",
+            todo=(
+                "upstream phase-rs report candidate (Dan posts): the "
+                "Condition_If clause grammar's SwallowedClause warning "
+                "on Illusionist's Gambit's 'after this phase, there is "
+                "an additional combat phase' sentence leaves the card's "
+                "one static def (affected=SelfRef) with an EMPTY "
+                "modifications list — no AdditionalPhase node anywhere "
+                "on the tree — retires on a phase bump that structures "
+                "the additional-combat-phase clause"
+            ),
+            census=(
+                "1 hit / 31,622 commander-legal (Illusionist's Gambit; "
+                "still SwallowedClause at v0.23.0, unchanged from "
+                "v0.20.0), phase v0.23.0, 2026-07-12"
+            ),
+            pins=("Illusionist's Gambit",),
+            gap=_illusionists_gambit_gap,
+            match=_illusionists_gambit_match,
         ),
     )
 }
