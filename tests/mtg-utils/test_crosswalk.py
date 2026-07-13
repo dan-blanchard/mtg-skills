@@ -15783,3 +15783,58 @@ def test_v23_bump_equipped_conditional_anthem_sheds():
     assert "anthem_static" not in _keys("Sharpened Pitchfork")
     assert "anthem_static" not in _keys("True-Faith Censer")
     assert ("anthem_static", "you", "") in _idents("Raggadragga, Goreguts Boss")
+
+
+# ── task #85: removal-preset lane gaps (re-measured at v0.23.0) ───────────────
+
+
+def test_task85_debuff_makers_dynamic_toughness_gain():
+    """Task #85 gain: ``debuff_makers``'s single-target Pump arm only read a
+    FIXED negative P/T (``pump_is_negative``); a dynamic ``-X/-X`` (Variable
+    or ``Quantity``/``Multiply``-scaled) never fired it, even though the
+    mass ``PumpAll`` arm already had the dynamic read (:func:`_negative_pt_field`).
+    Cloudkill (mass, ``Quantity``/``Multiply(factor=-1, ...)`` — a v0.23.0
+    "dynamic P/T pump scaling by source intensity" shape) now correctly
+    fires BOTH ``mass_removal`` and ``debuff_makers`` (CR 704.5f — the
+    toughness-side lethality tell)."""
+    assert ("debuff_makers", "any", "") in _idents("Cloudkill")
+    assert ("mass_removal", "you", "") in _idents("Cloudkill")
+
+
+def test_task85_removal_qualified_destroy_bridge_gain():
+    """Task #85 gain: a "target [combat-state/color]-qualified creature"
+    Destroy (Smite's "Destroy target blocked creature") loses its
+    ``Creature`` type_filter entirely in phase's own typed target node
+    (``type_filters=[]`` — verified against phase's ``card-data-v0.23.0
+    .json``, a genuine upstream parse gap). ``_qualified_destroy_target_type``
+    recovers the permanent-type word straight from the ability's own raw
+    English, so ``removal`` now fires (CR 701.8/701.8a)."""
+    assert ("removal", "you", "") in _idents("Smite")
+
+
+def test_task85_removal_qualified_destroy_bridge_land_destruction_shed():
+    """Task #85 negative pin: the qualified-Destroy bridge above must NOT
+    fire for a "destroy target land" spell whose structural target filter
+    DID resolve (``type_filters=['Land']`` — real data, just a
+    deliberately-excluded type per ``removal``'s own land_destruction
+    carve-out, CR 305.6). Sinkhole's target is fully resolved structurally
+    (unlike Smite's), so the bridge's "structural silence" gate must stay
+    closed here — an early version of this fix over-fired on every
+    land-destruction spell in the corpus by conflating "resolved to an
+    excluded type" with "phase found nothing"."""
+    assert "removal" not in _keys("Sinkhole")
+
+
+def test_task85_removal_qualified_destroy_bridge_backreference_shed():
+    """Task #85 negative pin: Rancid Earth ("Destroy target land. Threshold
+    — ... instead destroy THAT land ...") has a Threshold-mode second
+    ``Destroy`` targeting a typeless back-reference (``ParentTarget``, no
+    core type / subtype of its own) in the SAME unit as the base "Destroy
+    target land." sentence. An earlier version of the bridge's word list
+    included "land" and bridged the back-reference off that shared unit
+    description, producing a false ``removal`` membership for a spell that
+    is land destruction in BOTH modes. "land" is excluded from
+    :data:`_QUALIFIED_DESTROY_TYPE_RE`'s word list for exactly this
+    reason — Rancid Earth stays a pure ``land_destruction``-family card via
+    ``mass_removal``'s Threshold-mode DamageAll arm, never ``removal``."""
+    assert "removal" not in _keys("Rancid Earth")

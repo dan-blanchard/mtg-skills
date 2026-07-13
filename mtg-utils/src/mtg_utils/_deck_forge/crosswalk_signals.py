@@ -9400,7 +9400,19 @@ def _land_sacrifice_makers(tree: ConceptTree) -> list[Signal]:
 def _debuff_makers(tree: ConceptTree) -> list[Signal]:
     """debuff_makers — a -X/-X / -1/-1 enabler (CR 613.4c / 704.5g). Three anchors:
 
-    * a NEGATIVE ``Pump`` / ``PumpAll`` EFFECT (Bile Blight's -3/-3) — scope "any";
+    * a NEGATIVE ``Pump`` / ``PumpAll`` EFFECT (Bile Blight's -3/-3) — scope
+      "any"; reads BOTH a FIXED shrink (either field negative, via
+      :func:`pump_is_negative`) and a dynamic ``Variable "-X"`` TOUGHNESS
+      shrink (Death Wind / Flunk's single-target "-X/-X", Toxic Deluge's mass
+      "-X/-X" — task #85: the single-target kill class fell through here
+      because ``pump_is_negative`` only reads ``Fixed`` sub-nodes; the mass
+      arm's own :func:`_negative_pt_field` already covered the dynamic case
+      in ``_mass_removal`` per the CR 704.5f lethality tell, so this mirrors
+      that precedent — toughness only, same as the mass arm, not power: a
+      dynamic "-X/+0" power-only dip has no toughness tell to key on and
+      stays unread here, matching the Fixed arm's silence on that shape too
+      since ``pump_is_negative`` gates on EITHER field but no corpus card
+      pairs a dynamic power shrink with a static positive toughness);
     * a ``-1/-1`` (``M1M1``) counter PLACEMENT whose scope is NOT you (an opponent /
       symmetric debuff — Black Sun's Zenith), distinct from the you-maker
       ``minus_counters_matter`` — scope "any";
@@ -9420,7 +9432,9 @@ def _debuff_makers(tree: ConceptTree) -> list[Signal]:
 
     for unit in tree.units:
         for c in unit.effects:
-            if c.concept == "pump" and pump_is_negative(c.node):
+            if c.concept == "pump" and (
+                pump_is_negative(c.node) or _negative_pt_field(c.node, "toughness")
+            ):
                 fire("any", c.raw)
             if (
                 c.concept == "place_counter"
@@ -12997,18 +13011,40 @@ def _mass_removal(tree: ConceptTree) -> list[Signal]:
 def _negative_pt_field(node: TypedMirrorNode, field: str) -> bool:
     """Whether a Pump-style node's P/T ``field`` (``toughness``) is NEGATIVE —
     the mass-debuff arm's lethality tell (CR 704.5f: a creature with
-    toughness 0 or less dies; a "-2/-0" power dip never kills). Reads BOTH
+    toughness 0 or less dies; a "-2/-0" power dip never kills). Reads THREE
     shapes phase emits for a shrink: ``Fixed N`` (Languish's "-4/-4", Drown
-    in Sorrow's "-2/-2" — the literal magnitude) and ``Variable "-X"``
-    (Toxic Deluge's "-X/-X" — the magnitude is unknown at parse time, but
-    the Variable's own string carries the sign). A ``Quantity``-tagged
-    dynamic (rare, no corpus mass-debuff representative) reads as not-negative
-    rather than guessing."""
+    in Sorrow's "-2/-2" — the literal magnitude); ``Variable "-X"`` (Toxic
+    Deluge's "-X/-X" — the magnitude is unknown at parse time, but the
+    Variable's own string carries the sign); and ``Quantity`` wrapping a
+    ``Multiply`` whose OUTERMOST ``factor`` is negative (task #85 re-
+    measurement at v0.23.0 — the "dynamic P/T pump scaling by source
+    intensity" bump feature: Cloudkill/Mutilate/Olivia's Wrath's mass "-X/-X
+    where X is <count>" and Death Wind/Nightmarish End/Flunk's single-target
+    kill class, 69-card corpus census, project to ``Quantity(value=
+    Multiply(factor=-1, inner=Ref(...)))`` — a genuinely negative sign
+    regardless of the inner expression's own shape, since every corpus
+    ``inner`` resolves a non-negative count (a hand/graveyard/board size);
+    Flunk's "7 minus the number of cards in hand, clamped to 0" nests a
+    SECOND ``Multiply(-1, ...)`` under a ``ClampMin``/``Offset`` pair the
+    magnitude-reading ``ref_count_qty`` can't unwrap, but the sign is fully
+    decided by the OUTER factor alone — the clamp only floors the
+    non-negative inner count at 0, it never flips the outer sign). Reading
+    only the outermost factor (not recursing to check for a sign-flipping
+    inner ``Multiply`` too) is deliberately shallow: no corpus card double-
+    negates via nested ``Multiply`` factors, and a hypothetical one would be
+    a vanishingly narrow edge case not worth a general negate-count walk
+    here."""
     p = getattr(node, field, None)
     tag = tag_of(p)
     if tag == "Fixed":
         v = getattr(p, "value", None)
         return isinstance(v, int) and v < 0
+    if tag == "Quantity":
+        val = getattr(p, "value", None)
+        if tag_of(val) == "Multiply":
+            factor = getattr(val, "factor", None)
+            if isinstance(factor, int) and factor < 0:
+                return True
     if tag == "Variable":
         v = getattr(p, "value", None)
         return isinstance(v, str) and v.strip().startswith("-")
@@ -21328,6 +21364,54 @@ def _type_matters_lane(tree: ConceptTree) -> list[Signal]:
     return out
 
 
+# ─── Task #85: qualified-target Destroy raw-text type bridge ──────────────
+#
+# phase's typed target node drops the ``Creature`` core type ENTIRELY when
+# the target carries a combat-state or color QUALIFIER phase can't (or
+# doesn't) structure — "Destroy target blocked creature" (Smite) and
+# "Destroy target nonblack attacking creature" (Assassin's Blade) both
+# project ``Typed(type_filters=[], properties=[...])`` (Assassin's Blade at
+# least keeps the color ``NotColor`` property; Smite's "blocked" qualifier
+# vanishes with no residue at all) — a genuine phase-parse gap (verified
+# against phase's own ``card-data-v0.23.0.json``, not a crosswalk
+# mistranslation), corpus-exhaustive at 5 commander-legal cards, 2 of which
+# (Smite, Assassin's Blade) recover via this bridge; the other 3 (Knight of
+# the Mists' subtype self-ref "target Knight", Kraul Whipcracker / The
+# Ruinous Wrecking Crew's typeless "target token") are a DIFFERENT residual
+# shape this narrow bridge deliberately does not chase (no "creature" word
+# in their text for it to find — a silent, correct no-op, not a suppressed
+# match). Per ADR-0038's bucket-B doctrine (a genuine phase gap gets a
+# regex bridge NOW, a parser-substrate fix LATER): reads the literal
+# permanent-type WORD straight out of the ability's own English right after
+# "destroy target" (the SAME last-resort word-scan idiom
+# :func:`_clone_words_from_raw` uses for a sibling-selector clone target),
+# anchored on the "destroy target" phrase itself (not a bare "target") so an
+# unrelated later "target" in a multi-effect ability can't bleed in. "land"
+# is DELIBERATELY excluded from the word list — Land is land_destruction's
+# country (CR 305.6), the same veto ``_perm_subject`` applies to a
+# STRUCTURALLY-resolved Land core type; corpus-caught via Rancid Earth
+# ("Destroy target land[.] Threshold — ... instead destroy THAT land ...")
+# whose Threshold-mode second ``Destroy`` targets a typeless
+# back-reference (``ParentTarget``, no type info of its own) sharing the
+# SAME unit description as the base "Destroy target land." sentence — an
+# un-excluded "land" match would have bridged the back-reference to a
+# false ``removal`` membership for a spell that is ENTIRELY land
+# destruction, base mode and Threshold mode alike.
+_QUALIFIED_DESTROY_TYPE_RE = re.compile(
+    r"destroy\s+target\b[^.]*?\b"
+    r"(creature|artifact|enchantment|planeswalker|permanent)\b",
+    re.IGNORECASE,
+)
+
+
+def _qualified_destroy_target_type(raw: str) -> str | None:
+    """The permanent-type word right after "destroy target" in RAW (an
+    ability's own English), or ``None``. See the module comment above this
+    function for the phase-parse gap it bridges."""
+    m = _QUALIFIED_DESTROY_TYPE_RE.search(raw or "")
+    return m.group(1).title() if m else None
+
+
 def _removal(tree: ConceptTree) -> list[Signal]:
     """removal (§2) — CR 701.8/701.8a: single-target destroy or burn of a
     permanent. Two structural arms, scope "you", HIGH:
@@ -21337,7 +21421,19 @@ def _removal(tree: ConceptTree) -> list[Signal]:
     target names a permanent core type (``_PERMANENT_TYPES``, imported live
     — Land excluded: "destroy target Island" is land_destruction's country,
     CR 305.6) OR a non-land permanent SUBTYPE only ("destroy target Wall /
-    Equipment" — the live ``_is_permanent_subtype_destroy`` mirror);
+    Equipment" — the live ``_is_permanent_subtype_destroy`` mirror), OR (task
+    #85) a raw-text permanent-type word recovered by
+    :func:`_qualified_destroy_target_type` when the structural target names
+    NO type information AT ALL — no core type, no subtype (Smite / Assassin's
+    Blade's combat-state/color-qualified target — see that function's
+    docstring). The bridge is gated on total structural silence, not merely
+    on ``_perm_subject`` returning ``False``: a target phase DID resolve to a
+    DELIBERATELY-EXCLUDED type (Sinkhole's "destroy target land" resolves
+    ``type_filters=['Land']`` — real structural data, just routed to
+    land_destruction instead) must never fall through to the bridge, which
+    can't tell "phase found land_destruction's own type" from "phase found
+    nothing" — a land-destruction spell corpus-verified false-positive this
+    gate closes;
     (b) effect-role ``DealDamage`` (not DamageAll / DamageEachPlayer) with
     the same subject test — a player-only burn (target ``Any`` / Player) has
     no permanent-typed subject and stays direct_damage. Cost-role Destroy
@@ -21351,11 +21447,20 @@ def _removal(tree: ConceptTree) -> list[Signal]:
         subs = filter_subtypes(target)
         return bool(subs) and any(s.lower() not in _LIVE_LAND_SUBTYPES for s in subs)
 
-    for c in tree.effect_concepts("destroy"):
-        if tag_of(c.node) != "Destroy":
-            continue
-        if _perm_subject(getattr(c.node, "target", None)):
-            return [Signal("removal", "you", "", c.raw, tree.name, "high")]
+    def _target_type_unresolved(target: object) -> bool:
+        return not filter_core_types(target) and not filter_subtypes(target)
+
+    for unit in tree.units:
+        for c in unit.effect_concepts("destroy"):
+            if tag_of(c.node) != "Destroy":
+                continue
+            target = getattr(c.node, "target", None)
+            if _perm_subject(target):
+                return [Signal("removal", "you", "", c.raw, tree.name, "high")]
+            if _target_type_unresolved(target):
+                desc = getattr(unit.node, "description", "") or ""
+                if _qualified_destroy_target_type(desc):
+                    return [Signal("removal", "you", "", c.raw, tree.name, "high")]
     for c in tree.effect_concepts("deal_damage"):
         if tag_of(c.node) != "DealDamage":
             continue
@@ -21425,7 +21530,12 @@ def _removal_answer_types(tree: ConceptTree) -> frozenset[str]:
     board wipe included):
 
     * ``destroy`` (``Destroy``/``DestroyAll``, CR 701.8) — the target
-      filter's answer types, unfiltered;
+      filter's answer types, unfiltered, falling back to
+      :func:`_qualified_destroy_target_type`'s raw-text bridge (task #85)
+      when the structural answer is EMPTY (Smite / Assassin's Blade's
+      combat-state/color-qualified target — the same phase-parse gap
+      ``_removal`` bridges for its own key, ported here so the 10 type-
+      scoped presets recover it too);
     * ``deal_damage`` (``DealDamage``/``DamageAll``, CR 119) — the target
       filter's answer types, or ``Any`` when it names none;
     * ``change_zone`` reaching ``Exile`` (CR 406.1) — the SAME three vetoes
@@ -21433,16 +21543,24 @@ def _removal_answer_types(tree: ConceptTree) -> frozenset[str]:
       controller check, graveyard/hand origin, a sibling battlefield-return
       or ``become_copy`` — none of those are removal);
     * ``fight`` (CR 701.14a) and a P/T-shrinking ``pump`` (CR 613.4c, read
-      via :func:`_negative_pt_field` on EITHER field — covers both a FIXED
-      shrink and a dynamic ``-X/-X``, unlike ``debuff_makers``'s FIXED-only
-      ``pump_is_negative`` gate) both always answer ``Creature`` (CR 704 —
-      P/T and fighting only ever apply to creatures).
+      via :func:`_negative_pt_field` on EITHER field — covers a FIXED
+      shrink, a ``Variable`` dynamic ``-X/-X``, and a ``Quantity``/
+      ``Multiply``-scaled dynamic shrink, the SAME three shapes
+      ``debuff_makers``'s toughness-side gate now reads per task #85) both
+      always answer ``Creature`` (CR 704 — P/T and fighting only ever apply
+      to creatures).
     """
     out: set[str] = set()
     for unit in tree.units:
         for c in unit.effects:
             if c.concept == "destroy":
-                out |= _perm_answer_types(effect_filter(c.node))
+                types = _perm_answer_types(effect_filter(c.node))
+                if not types:
+                    desc = getattr(unit.node, "description", "") or ""
+                    bridged = _qualified_destroy_target_type(desc)
+                    if bridged:
+                        types = frozenset({bridged})
+                out |= types
             elif c.concept == "deal_damage":
                 types = _perm_answer_types(effect_filter(c.node))
                 out |= types or {"Any"}

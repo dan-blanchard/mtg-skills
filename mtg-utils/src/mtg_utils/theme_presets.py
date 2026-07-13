@@ -1331,34 +1331,49 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
     # Intentionally generous: catches hard and soft removal both. Used by
     # cube-balance for its removal density metric.
     #
-    # task #83 structural-view conversion: DEFERRED, not converted. The 9-key
-    # union (removal + exile_removal + mass_removal + mass_bounce +
-    # counter_control + direct_damage + bounce_tempo + fight_makers +
-    # debuff_makers) recalls 0.81, but session diligence (corpus diff,
-    # commander-legal by oracle_id) found two GENUINE, SIZEABLE, confirmed
-    # structural gaps beyond the already-adjudicated sheds (pacify auras ->
-    # enchantments_matter, library-tuck -> no removal-family key, land
-    # destruction -> land_destruction — all correct, signals-more-correct
-    # routing): (1) ~35 corpus-wide "target creature gets -X/-X" DYNAMIC-X
-    # single-target removal spells (Death Wind, Sickening Shoal, Flunk,
-    # Induce Despair, Slice from the Shadows, ...) get ZERO removal-family
-    # signal — `debuff_makers`'s `pump_is_negative(c.node)` gate (CR 613.4c)
-    # only recognizes a FIXED negative P/T value, never a Variable/Quantity
-    # dynamic one (mirrors the mass_removal dynamic-X fix, ADR-0035 task #83
-    # chunk-A, but that fix was scoped to the MASS PumpAll arm only — the
-    # single-target debuff_makers arm was never touched); (2) a "target
-    # [combat-state/color]-qualified creature" Destroy (Smite's "target
-    # blocked creature", Assassin's Blade's "target nonblack attacking
-    # creature") loses its `Creature` type_filter entirely in phase's typed
-    # target node (`type_filters=[]`, verified via `_ir_lookup.trees_for` —
-    # only the extra property survives), so `_removal`'s `_perm_subject`
-    # gate never sees a permanent-type match even though the Destroy/
-    # Creature semantics are unambiguous in the oracle text — a likely
-    # broader phase-parse gap (any "target [qualifier] creature" removal
-    # spell) not yet corpus-measured. Both are lane changes (crosswalk_
-    # signals.py / phase-parse fixes) needing the full corpus-diff + CR-
-    # citation bar — out of scope for a view conversion; fix the lane first,
-    # then re-attempt this conversion.
+    # task #83 structural-view conversion: STILL DEFERRED, not converted —
+    # blocked on a DIFFERENT problem now (task #85 closed the original one).
+    #
+    # The two lane gaps task #83 originally deferred on are FIXED (task #85,
+    # crosswalk_signals.py): (1) `debuff_makers`'s single-target Pump arm now
+    # reads a dynamic `-X/-X` (`Variable` or `Quantity`/`Multiply`-scaled —
+    # the LATTER a v0.23.0 "dynamic P/T pump scaling by source intensity"
+    # shape a straight port of the mass arm's fix didn't yet cover; re-
+    # measuring at the bump surfaced it), mirroring the mass `PumpAll` arm's
+    # existing `_negative_pt_field` read (CR 704.5f) — Death Wind, Flunk,
+    # Toxic Deluge, Cloudkill and 83 more all recover; (2) a "target
+    # [combat-state/color]-qualified creature" Destroy (Smite, Assassin's
+    # Blade) that loses its `Creature` type_filter entirely in phase's own
+    # typed target node (verified against phase's `card-data-v0.23.0.json` —
+    # a genuine upstream parse gap) now recovers via a raw-text bridge
+    # (`_qualified_destroy_target_type`) gated on TOTAL structural silence
+    # (no core type, no subtype) so a target that resolved to a
+    # deliberately-EXCLUDED type (Sinkhole's Land) or a same-unit sibling's
+    # typeless back-reference (Rancid Earth's Threshold-mode "that land")
+    # can never bleed in — both were corpus-caught false-positives from
+    # earlier iterations of this same bridge, now negative-pinned.
+    #
+    # The flip attempt itself (view = the 9-key union, patterns cleared)
+    # now fails on a SEPARATE, newly-discovered problem: three downstream
+    # consumers call `get_preset("removal").matches(card)` against
+    # SYNTHETIC cards with no `oracle_id` in their OWN unit tests —
+    # `cube_balance.py`'s `_is_removal` (removal-density metric),
+    # `archetype_audit`'s CLI text-match path, and `_deck_forge`'s tuner
+    # classify/swaps modules (a card's "spine" role partly keyed off
+    # `_is_removal`). A `signal_keys`-only Preset degrades every one of
+    # those calls to "never matches" (the structural arm needs a real
+    # `oracle_id` to resolve anything against the crosswalk — see the
+    # module docstring's "Structural views" section), which broke 12 tests
+    # (test_cube_balance.py::TestRemovalDetection + test_removal_density,
+    # test_archetype_audit.py's two CLI tests, test_tuner_classify.py's two
+    # role tests, test_tuner_swaps.py's curve-fix test) the FIRST time this
+    # session actually attempted the flip — task #83's original scoping
+    # pass never got far enough to hit it (blocked on the lane gaps above
+    # instead). Re-attempting the flip needs those three consumers migrated
+    # to pass real oracle_id-bearing cards (or a text/structural-hybrid
+    # Preset shape) FIRST — a call-site migration, out of scope for a lane
+    # fix; the two lane gaps are fixed and pinned (test_crosswalk.py's
+    # ``test_task85_*`` functions) so the NEXT flip attempt starts clean.
     Preset(
         name="removal",
         description=(
