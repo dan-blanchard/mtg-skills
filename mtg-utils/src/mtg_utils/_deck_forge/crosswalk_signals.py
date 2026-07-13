@@ -2558,13 +2558,15 @@ def _land_creatures_matter(tree: ConceptTree) -> list[Signal]:
     ADR-0039 task #82 (post-deletion grammar sprint) retired the other two
     W7 bridges into typed ``tree_synthesis`` sweep arms instead (the "land_
     creatures_matter grammar-sprint stragglers" section in
-    ``tree_synthesis.py``) — Ambush Commander's subtype-restricted mass
-    land-animate ("Forests you control are 1/1 green Elf creatures that are
-    still lands", CR 305.6/305.7/613.1d) and Primal Adversary / Sage of the
-    Maze's deferred repeat-count / formula-X animate clauses (CR
-    107.3/613.1d/613.4). Same three pins, now firing via
-    ``synth_land_creatures_subtype_animate`` / ``synth_land_creatures_
-    dynamic_animate`` below instead of a bridge.
+    ``tree_synthesis.py``). The subtype-animate arm itself then RETIRED at
+    the phase v0.23.0 bump (task #84): Ambush Commander's "Forests you
+    control are 1/1 green Elf creatures that are still lands" (CR
+    305.6/305.7/613.1d) now parses as a real Continuous static the set_pt
+    static read below sees directly, and the arm's bounding-regex re-census
+    found zero remaining gap members corpus-wide. Primal Adversary / Sage
+    of the Maze's deferred repeat-count / formula-X animate clauses (CR
+    107.3/613.1d/613.4) still fire via ``synth_land_creatures_dynamic_
+    animate`` below. Same three pins, membership unchanged.
 
     Deliberately EXCLUDED (adjudicated legacy over-fires / design boundary, CR
     grounded — landfall rule: every remaining ``live_only`` card corpus-verified
@@ -2603,19 +2605,17 @@ def _land_creatures_matter(tree: ConceptTree) -> list[Signal]:
     """
     if bridge_fires("land_creatures_condition_reference_dropped", tree):
         return [Signal("land_creatures_matter", "you", "", "", tree.name, "high")]
-    # ADR-0039 task #82 grammar sprint: the two former ledgered bridges
-    # (Ambush Commander's subtype-restricted mass animate, Primal Adversary
-    # / Sage of the Maze's dynamic-value animate) now read a bucket-B
-    # ``tree_synthesis`` sweep arm instead of a text-anchored bridge — see
-    # the "land_creatures_matter grammar-sprint stragglers" section in
-    # ``tree_synthesis.py`` for the CR citations + node-shape rationale.
-    # Retired from bridge_ledger.py; membership is unchanged (same three
-    # pins, now firing structurally).
+    # ADR-0039 task #82 grammar sprint: the former ledgered bridges read a
+    # bucket-B ``tree_synthesis`` sweep arm instead of a text-anchored
+    # bridge — see the "land_creatures_matter grammar-sprint stragglers"
+    # section in ``tree_synthesis.py`` for the CR citations + node-shape
+    # rationale. The subtype-animate arm RETIRED at the v0.23.0 bump (task
+    # #84): Ambush Commander's mass animate now parses as a real static the
+    # set_pt read below sees directly, and the arm's re-census found zero
+    # remaining gap members. Primal Adversary / Sage of the Maze's
+    # dynamic-value animate stays bucket-B; membership unchanged.
     for c in tree.iter_concepts():
-        if c.concept in (
-            "synth_land_creatures_subtype_animate",
-            "synth_land_creatures_dynamic_animate",
-        ):
+        if c.concept == "synth_land_creatures_dynamic_animate":
             return [Signal("land_creatures_matter", "you", "", "", tree.name, "high")]
     for unit in tree.units:
         for concept in unit.statics:
@@ -3978,9 +3978,26 @@ def _blink_flicker(tree: ConceptTree) -> list[Signal]:
     ``include_membership=False`` or use :func:`blink_flicker_is_maker` to
     filter the merged signal list.
     """
+
+    def _battlefield_exile(c: ConceptNode) -> bool:
+        # A blink exiles a BATTLEFIELD object (CR 400.7 — the return is a
+        # new object on the battlefield it left). A graveyard-sourced exile
+        # (Boneyard Parley's "exile up to five target creature cards from
+        # graveyards", visible in one unit since the task #84
+        # ``SeparateIntoPiles`` pile-arm descent) is exile-assisted
+        # REANIMATION, not a flicker of your own board — excluded on the
+        # exile subject's own graveyard evidence (origin field or the
+        # target filter's ``InZone: Graveyard`` predicate).
+        if change_zone_dirs(c.node)[0] == "Graveyard":
+            return False
+        return "Graveyard" not in filter_inzone_zones(effect_filter(c.node))
+
     for unit in tree.units:
         czs = [c for c in unit.effects if c.concept == "change_zone"]
-        if not any(change_zone_dirs(c.node)[1] == "Exile" for c in czs):
+        if not any(
+            change_zone_dirs(c.node)[1] == "Exile" and _battlefield_exile(c)
+            for c in czs
+        ):
             continue
         for c in czs:
             if change_zone_dirs(c.node)[1] != "Battlefield":
@@ -4817,7 +4834,26 @@ def _artifacts_enchantments_matter(tree: ConceptTree) -> list[Signal]:
     for unit in tree.units:
         for c in unit.statics:
             if c.concept in ("pump", "grant_keyword", "set_pt"):
-                out.extend(_generic_board_lanes(getattr(unit.node, "affected", None)))
+                aff = getattr(unit.node, "affected", None)
+                out.extend(_generic_board_lanes(aff))
+                # One-level Or/And descent (CR 604.3: "some static abilities
+                # apply to more than one type of object" — the Silkguard
+                # precedent, :func:`_or_wrapped_generic_creature_filter`):
+                # re-apply the SAME per-branch gate, so a subtype-scoped or
+                # opponent branch still fails for the reason it would
+                # un-wrapped. This is the STRUCTURAL read that graduated the
+                # ``bello_static_animate_artifacts`` ledgered bridge (task
+                # #84): phase v0.23.0 now parses Bello, Bard of the
+                # Brambles' whole animation line as one Continuous static
+                # over ``Or(Typed(You, non-Equipment Artifact, cmc>=4),
+                # Typed(You, non-Aura Enchantment, cmc>=4))`` with SetPower/
+                # SetToughness + AddType + GrantTrigger + AddKeyword
+                # modifications, so the anthem arm's set_pt/grant_keyword
+                # concepts reach it and the branch read replaces the
+                # bridge's bounded parse-failure-residue scan.
+                if tag_of(aff) in ("Or", "And"):
+                    for br in getattr(aff, "filters", None) or ():
+                        out.extend(_generic_board_lanes(br))
     # BECOMES-TYPE doer (ADR-0038 W4 giant) — a SANCTIONED byte-identical
     # port of legacy's ``_BECOMES_TYPE_RE`` (the LIVE constant, imported
     # not re-typed): a "becomes a/an artifact" type-grant (Relic's Roar's
@@ -5005,14 +5041,6 @@ def _artifacts_enchantments_matter(tree: ConceptTree) -> list[Signal]:
     # artifacts. CR 702.41a / 303.
     if "affinity for enchantments" in _kept(tree).lower():
         out.append("enchantments_matter")
-    # LEDGERED BRIDGE (ADR-0039): Bello, Bard of the Brambles — phase's
-    # static parser fails the whole artifact/enchantment-animation line
-    # (upstream_parse_failure residue), so no typed node exists to read.
-    # Gap-gated + corpus-bounded (1 hit / 31,622) + self-retiring; the full
-    # row (census, retirement TODO, convergence pins) lives in
-    # ``bridge_ledger.BRIDGES``.
-    if bridge_fires("bello_static_animate_artifacts", tree):
-        out.append("artifacts_matter")
     seen: set[str] = set()
     sigs: list[Signal] = []
     for lane in out:
@@ -7734,6 +7762,45 @@ def _graveyard_makers(tree: ConceptTree) -> list[Signal]:
         origin, dest = change_zone_dirs(c.node)
         if origin == "Graveyard" and dest in ("Battlefield", "Hand"):
             fire(_gy_scope(c.scope), c.raw)
+    # PILE-TO-GRAVEYARD maker (task #84): phase v0.23.0 restructured the
+    # Fact or Fiction family ("reveal the top five…, an opponent separates
+    # …, put one pile into your hand and the other into your graveyard" —
+    # FoF, Sphinx of Uthuun / Clear Skies, Unesh) from a mis-tagged
+    # ``origin: Graveyard`` recursion chain into a typed
+    # ``SeparateIntoPiles`` whose ``unchosen_pile_effect`` is a
+    # ``ChangeZone`` to Graveyard. The rejected pile fills YOUR graveyard
+    # from your own library reveal — the same self-fill value the Mill arm
+    # serves (CR 404.1; the reveal source is your library, CR 401.4-family
+    # information + selection). Gated on the pile SOURCE being your own
+    # library reveal: ``pile_source: RevealedFromLibraryTop`` directly
+    # (Fact or Fiction, Unesh), or the ``ExiledThisWay`` back-reference
+    # tag phase ALSO stamps on a "reveal the top X … those cards" chain
+    # (Sphinx of Clear Skies — nothing is exiled; the tag is the generic
+    # previous-set back-ref), accepted ONLY when the same unit carries a
+    # ``reveal_top`` effect naming that revealed set. A battlefield
+    # partition (Make an Example — an edict, CR 701.21) or a genuine
+    # graveyards-exile partition (Boneyard Parley — reanimation raw
+    # material returning where it started, no RevealTop sibling) never
+    # fires a self-fill it doesn't perform.
+    for unit in tree.units:
+        unit_reveals = any(c.concept == "reveal_top" for c in unit.effects)
+        for n in iter_typed_nodes(unit.node):
+            if tag_of(n) != "SeparateIntoPiles":
+                continue
+            src = tag_of(getattr(n, "pile_source", None))
+            if src != "RevealedFromLibraryTop" and not (
+                src == "ExiledThisWay" and unit_reveals
+            ):
+                continue
+            for arm_field in ("chosen_pile_effect", "unchosen_pile_effect"):
+                arm = getattr(n, arm_field, None)
+                eff = getattr(arm, "effect", None) if arm is not None else None
+                if (
+                    isinstance(eff, TypedMirrorNode)
+                    and tag_of(eff) == "ChangeZone"
+                    and change_zone_dirs(eff)[1] == "Graveyard"
+                ):
+                    fire("you", "")
     for c in tree.effect_concepts("mill"):
         # The ``Mill`` effect carries a ``destination``; only a Graveyard destination
         # is a CR-701.17a mill (Stitcher's Supplier). A library↔hand swap phase
@@ -12793,6 +12860,23 @@ def _mass_removal(tree: ConceptTree) -> list[Signal]:
             hit = [Signal("mass_removal", "you", "", raw, tree.name, "high")]
             if t == "DestroyAll" and ctrl != "You" and cores & _MASS_REMOVAL_TYPES:
                 return hit
+            # CHOSEN-SET sweep (task #84): "starting with you, each player
+            # chooses …; Destroy each [creature/permanent] chosen this way"
+            # — phase v0.23.0 fixed the destroy target from a bare type
+            # POPULATION (which the arm above read as a wipe, accidentally
+            # right) to the honest ``TrackedSet`` back-reference holding the
+            # per-player picks. The set scales with the player count (one+
+            # pick per player, every player's board exposed), so the table
+            # result IS a multi-permanent sweep (CR 701.8 destroy; CR 101.4
+            # APNAP each-player choice loop) — corpus-exhaustive at the
+            # v0.23.0 census: DestroyAll-over-TrackedSet is exactly Call to
+            # the Void, Druid of Purification, Grenzo's Rebuttal, and The
+            # Horus Heresy's chapter III, the four members the population
+            # fix would otherwise shed.
+            if t == "DestroyAll" and tag_of(getattr(c.node, "target", None)) == (
+                "TrackedSet"
+            ):
+                return hit
             if t == "ChangeZoneAll" and ctrl != "You":
                 origin, dest = change_zone_dirs(c.node)
                 gy = origin == "Graveyard" or ("Graveyard" in filter_inzone_zones(sub))
@@ -13005,10 +13089,19 @@ def _is_anthem_group_filter(filt: object) -> bool:
     """A creature-GROUP anthem subject (CR 604.3 / 613.4): Creature in core
     types AND (controller you OR ``Another`` OR subtyped) AND not an
     opponent-board debuff target. A single-target pump (controller any, no
-    Another/subtype) fails the group test."""
+    Another/subtype) fails the group test. An ``EquippedBy``/``EnchantedBy``
+    predicate names ONE permanent (CR 301.5c / 303.4d — an Equipment/Aura
+    can't be attached to more than one object), so a
+    conditional equip bonus phase v0.23.0 now parses with a SUBTYPED
+    equipped-creature filter ("As long as equipped creature is a Human, it
+    gets an additional +1/+0" — True-Faith Censer, Silver-Inlaid Dagger,
+    Heavy Mattock) fails the group test on the predicate, not the subtype
+    (task #84; the same single-permanent veto _global_ability_grant runs)."""
     if filt is None or filter_controller(filt) == "Opponent":
         return False
     if "Creature" not in filter_core_types(filt):
+        return False
+    if set(filter_predicates(filt)) & _SINGLE_PERMANENT_GRANT_PREDS:
         return False
     return (
         filter_controller(filt) == "You"
@@ -14756,14 +14849,29 @@ def _creature_recursion(tree: ConceptTree) -> list[Signal]:
       Battlefield over a Creature-cored filter (Alesha's attack trigger;
       Reanimate — scope stays "you" even over an opponent's graveyard: you
       control the returned creature);
-    * **recall** — a ``Bounce`` (→hand) or ``PutAtLibraryPosition``
-      (→library) whose subject is a Creature card IN a graveyard (the
-      ``InZone: Graveyard`` predicate — Soul Salvage); the graveyard-zone
-      predicate is required (a battlefield bounce is tempo, not recursion).
+    * **recall** — a ``ChangeZone`` / ``ChangeZoneAll`` Graveyard→Hand or
+      Graveyard→Library (Soul Salvage, Aether Helix's recall half — phase
+      v0.23.0 migrated the GY-recall family from a zone-predicated
+      ``Bounce`` to a full ``ChangeZone`` carrying its origin directly:
+      698 GY→Hand + 22 GY→Library carriers at the task #84 census), OR the
+      LEGACY shape — a ``Bounce`` (→hand) / ``PutAtLibraryPosition``
+      (→library) whose subject carries the ``InZone: Graveyard`` predicate
+      (retained: the 5-card Advocate cycle still parses that way at
+      v0.23.0); the graveyard origin/predicate is required either way (a
+      battlefield bounce is tempo, not recursion).
 
     Gate #6: subject controller ≠ Opponent (an opponents'-graveyard-ONLY
     pull is graveyard hate, not your loop). A type-less "target card"
     (Regrowth) has no Creature core — no fire. Scope "you".
+
+    KNOWN upstream residue (task #84 census, 1 of 228 recall carriers):
+    Aether Burst — "Return up to X target creatures to their owners'
+    hands, where X is ... cards named Aether Burst in all graveyards" is a
+    BATTLEFIELD bounce whose graveyards-COUNT clause phase mis-stamps as
+    ``origin: Graveyard`` on the ChangeZone, so this lane over-fires it.
+    Left as-is deliberately: the structure is upstream-wrong (a phase-rs
+    report candidate — Dan posts), and a text veto here would re-grep the
+    oracle against the substrate contract for one card.
     """
     for unit in tree.units:
         for c in unit.effects:
@@ -14775,7 +14883,7 @@ def _creature_recursion(tree: ConceptTree) -> list[Signal]:
                 continue
             if t in ("ChangeZone", "ChangeZoneAll"):
                 origin, dest = change_zone_dirs(c.node)
-                if origin == "Graveyard" and dest == "Battlefield":
+                if origin == "Graveyard" and dest in ("Battlefield", "Hand", "Library"):
                     return [
                         Signal(
                             "creature_recursion", "you", "", c.raw, tree.name, "high"
@@ -22328,7 +22436,23 @@ def _global_ability_grant(tree: ConceptTree) -> list[Signal]:
         all_permanents = (
             ctrl is None and not filter_subtypes(aff) and not preds and not non_narrowed
         )
-        if creature_board or all_permanents:
+        # YOUR-permanents board grant (task #84): "Permanents you control
+        # have '…'" — phase v0.23.0 fixed Cursed Wombat's affected filter
+        # from the nonsense ``[Creature, Subtype:Permanent]`` (which the
+        # creature_board arm read, accidentally right) to the honest bare
+        # ``[Permanent]`` + controller You. A quoted ability granted to
+        # your WHOLE permanent board is a board grant a fortiori (the set
+        # is a superset of the creature board — CR 613.1f layer 6);
+        # corpus-exhaustive at the v0.23.0 census: Cursed Wombat is the
+        # sole carrier of this shape.
+        your_permanents = (
+            "Permanent" in filter_core_types(aff)
+            and ctrl == "You"
+            and not filter_subtypes(aff)
+            and not preds
+            and not non_narrowed
+        )
+        if creature_board or all_permanents or your_permanents:
             raw = getattr(sdef, "description", None) or ""
             return [Signal("global_ability_grant", "any", "", raw, tree.name, "high")]
     return []

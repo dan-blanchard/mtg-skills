@@ -279,10 +279,12 @@ def test_land_creatures_matter_excludes_land_type_only_change():
 
 def test_land_creatures_matter_subtype_animate_bridge():
     """Ambush Commander: "Forests you control are 1/1 green Elf creatures
-    that are still lands." parks wholesale as Unimplemented — the subtype
-    (not core-type) mass land-animate grammar verb (CR 305.6/305.7/613.1d),
-    closed via a typed ``tree_synthesis`` sweep arm (ADR-0039 task #82;
-    formerly the ``land_creatures_subtype_animate_dropped`` bridge)."""
+    that are still lands." — the subtype (not core-type) mass land-animate
+    (CR 305.6/305.7/613.1d). MEMBERSHIP pin, mechanism history: ledgered
+    bridge (ADR-0039 W7) → ``tree_synthesis`` sweep arm (task #82) →
+    STRUCTURAL at the phase v0.23.0 bump (task #84: the line parses as a
+    real SetPT+AddType static the lane's set_pt read sees; the sweep arm
+    retired with an empty re-census)."""
     assert ("land_creatures_matter", "you", "") in _idents("Ambush Commander")
 
 
@@ -7366,8 +7368,9 @@ def test_dies_recursion_excludes_hot_potato_return():
 )
 def test_creature_recursion_arms(name):
     """creature_recursion fires the GY→battlefield reanimation arm (Alesha,
-    Reanimate) and the GY→hand recall arm (Soul Salvage — Bounce over a
-    Creature ``InZone: Graveyard``). CR 700.4 / 404."""
+    Reanimate) and the GY→hand recall arm (Soul Salvage — a
+    ``ChangeZone(origin: Graveyard, destination: Hand)`` over a Creature
+    filter since the v0.23.0 recall migration, task #84). CR 700.4 / 404."""
     assert ("creature_recursion", "you", "") in _idents(name)
 
 
@@ -9550,17 +9553,24 @@ def test_bounce_tempo_gy_screen_keeps_live_positives():
     the tempo half (Aether Helix — two bounce effects, so the single-bounce
     screen stands down)."""
     assert ("bounce_tempo", "you", "") in _idents("Blinking Spirit")
+    # v0.23.0 port (task #84): Aether Helix's recall half is now a typed
+    # ChangeZone(origin: Graveyard), so the [P21] description screen stands
+    # down structurally for the unit and the surviving Bounce node (the
+    # genuine tempo half) fires — the single-bounce count screen is no
+    # longer the mechanism that keeps it live.
     assert ("bounce_tempo", "you", "") in _idents("Aether Helix")
 
 
 def test_bounce_tempo_p21_empty_desc_residue_pinned():
-    """KNOWN [P21] residue, deliberately still firing: phase drops BOTH the
-    InZone:Graveyard marker AND the nested unit's description for the
-    pay-to-return self-recursion family (Asgardian Inspiration — "return
-    this card from your graveyard" survives only in the card oracle, which
-    the crosswalk must not re-grep). 23 cards corpus-wide; the Stage-3 [P21]
-    supplement arm re-types these — flip this pin when it lands."""
-    assert "bounce_tempo" in _keys("Asgardian Inspiration")
+    """FLIPPED at the v0.23.0 bump (task #84), per this pin's own
+    instruction: the [P21] residue resolved UPSTREAM rather than via the
+    Stage-3 supplement arm — phase now types the pay-to-return
+    self-recursion family as a real ``ChangeZone(origin: Graveyard,
+    destination: Hand, target: SelfRef)`` (Asgardian Inspiration), so no
+    zone-less ``Bounce`` node exists for the arm to mis-read and
+    ``bounce_tempo`` correctly stays silent for a self-recursion that was
+    never tempo (CR 402.1 vs 404.1)."""
+    assert "bounce_tempo" not in _keys("Asgardian Inspiration")
 
 
 def test_power_double_typed_tag():
@@ -13049,14 +13059,27 @@ def test_activated_ability_cost_census():
     deliberately NOT in the extra-cost exclusion set) and a generic-mana
     one-shot (Sensei's Top "{1}:") fire; a mana dork/rock (Llanowar
     Elves, Sol Ring, Azorius Signet — ramp-only effects) and a land
-    (Bojuka Bog) never fire."""
+    (Bojuka Bog) never fire. Generator Servant is an adjudicated task #84
+    SHED: its whole ability is a MANA ABILITY (CR 605.1a — no target,
+    adds mana, not loyalty); the old membership fired only because
+    pre-v0.23.0 phase parsed the "if that mana is spent on a creature
+    spell, it gains haste" rider as a SEPARATE pseudo-effect — v0.23.0
+    folds the rider into the Mana effect's own ``grants`` field, leaving
+    the ramp-only drop the lane's dork boundary (Sol Ring's own class)
+    always intended."""
     for name in (
         "Prodigal Sorcerer",
         "Meloku the Clouded Mirror",
         "Sensei's Divining Top",
     ):
         assert ("activated_ability", "you", "") in _idents(name), name
-    for name in ("Llanowar Elves", "Sol Ring", "Azorius Signet", "Bojuka Bog"):
+    for name in (
+        "Llanowar Elves",
+        "Sol Ring",
+        "Azorius Signet",
+        "Bojuka Bog",
+        "Generator Servant",
+    ):
         assert "activated_ability" not in _keys(name), name
 
 
@@ -13337,9 +13360,15 @@ def test_global_ability_grant_quoted_gates():
     board fires scope "any" (Cryptolith Rite, Battery Bearer); a bare
     keyword anthem has no quote and never fires (Archetype of Imagination);
     a single-permanent GrantTrigger nested in a trigger's execute chain is
-    not a top-level board grant (Mathas)."""
+    not a top-level board grant (Mathas). Cursed Wombat pins the task #84
+    YOUR-PERMANENTS arm: v0.23.0 fixed its affected filter from the
+    nonsense ``[Creature, Subtype:Permanent]`` to the honest bare
+    ``[Permanent]`` + controller You ("Permanents you control have '…'"),
+    and a whole-own-board quoted grant is a board grant a fortiori —
+    corpus-exhaustive sole carrier of the shape at the bump census."""
     assert ("global_ability_grant", "any", "") in _idents("Cryptolith Rite")
     assert ("global_ability_grant", "any", "") in _idents("Battery Bearer")
+    assert ("global_ability_grant", "any", "") in _idents("Cursed Wombat")
     assert "global_ability_grant" not in _keys("Archetype of Imagination")
     assert "global_ability_grant" not in _keys("Mathas, Fiend Seeker")
 
@@ -14337,14 +14366,33 @@ def test_overlay_blink_returns_to_lands_marker():
 
 
 def test_overlay_graveyard_zones_lands_zone():
-    """(b) _recover_graveyard_zones: a bounce whose graveyard origin phase dropped
-    (Aphetto Dredging) gains ``in:graveyard`` in the overlay ``zones``."""
+    """(b) _recover_graveyard_zones: a bounce whose graveyard origin phase
+    dropped gains ``in:graveyard`` in the overlay ``zones``. Pin repointed
+    at the v0.23.0 bump (task #84): the original pin (Aphetto Dredging) now
+    carries native graveyard evidence (a ``ChangeZone`` with ``InZone:
+    Graveyard`` target properties) so the arm correctly stands aside for it
+    — Auntie's Snitch's self-recall trigger ("you may return ~ from your
+    graveyard to your hand") is a still-served bounce-slice member (the
+    arm's v0.23.0 re-census: 3 bounce-slice + ~57 make_token-slice cards)."""
     hits = [
+        a
+        for b, a in _corrected_effects("Auntie's Snitch")
+        if "in:graveyard" in a.zones and "in:graveyard" not in b.zones
+    ]
+    assert hits
+
+
+def test_overlay_graveyard_zones_native_stand_aside():
+    """The graduation counterpart: Aphetto Dredging's recall now carries its
+    graveyard origin STRUCTURALLY (phase v0.23.0 stamps ``InZone:
+    Graveyard`` + ``Owned`` on the ChangeZone target), so the overlay
+    recovery adds nothing — no corrected effect gains a zone the structural
+    node didn't already have."""
+    assert not [
         a
         for b, a in _corrected_effects("Aphetto Dredging")
         if "in:graveyard" in a.zones and "in:graveyard" not in b.zones
     ]
-    assert hits
 
 
 def test_overlay_stage_is_noop_when_no_arm_fires():
@@ -14808,14 +14856,32 @@ def test_additional_cost_carrier_gain_classes(name, key):
 
 
 def test_bello_ledgered_bridge_membership():
-    """MEMBERSHIP pin (survives graduation): Bello, Bard of the Brambles
-    fires ``artifacts_matter``. The MECHANISM today is the first ledgered
-    bridge (``bridge_ledger.BRIDGES["bello_static_animate_artifacts"]`` —
-    phase's static parser fails the whole animation line); when a phase
-    bump or grammar verb lands the structure, the bridge's convergence
-    test (test_bridge_ledger.py) flags RETIRE-READY and THIS pin must
-    keep passing via the structural read instead."""
+    """MEMBERSHIP pin (survived graduation): Bello, Bard of the Brambles
+    fires ``artifacts_matter``. The MECHANISM was the first ledgered bridge
+    (``bello_static_animate_artifacts`` — phase's static parser failed the
+    whole animation line); the v0.23.0 bump (task #84) landed the structure
+    and the bridge GRADUATED: the anthem arm's one-level Or/And ``affected``
+    descent in :func:`_artifacts_enchantments_matter` now reads the parsed
+    Continuous static per-branch. ``enchantments_matter`` was already a
+    member pre-graduation (the legacy byte-mirror's "enchantment you
+    control" clause scan), so the structural read changes no membership."""
     assert "artifacts_matter" in _keys("Bello, Bard of the Brambles")
+
+
+def test_bello_animation_static_structural_mechanism():
+    """MECHANISM pin (the graduation's structural replacement, task #84):
+    Bello's animation line parses at phase v0.23.0 as ONE Continuous static
+    whose ``affected`` is ``Or(Typed(You, non-Equipment Artifact, cmc>=4),
+    Typed(You, non-Aura Enchantment, cmc>=4))`` with set_pt/grant_keyword
+    modification concepts — the anthem arm's per-branch
+    ``_generic_board_lanes`` re-apply (CR 604.3 multi-object statics; the
+    Silkguard Or-descent precedent) fires BOTH type lanes structurally, no
+    parse-failure residue left to bridge. Guards the descent: if a
+    projection change collapses the static's Or branches or drops the
+    set_pt/grant_keyword concepts, this fails before the membership pin."""
+    idents = _idents("Bello, Bard of the Brambles")
+    assert ("artifacts_matter", "you", "") in idents
+    assert ("enchantments_matter", "you", "") in idents
 
 
 # ── ADR-0038 W4 giant: direct_damage (structural arms + verified CR) ─────────
@@ -15544,3 +15610,176 @@ def test_damage_redirect_arm_b_redirect_clause():
     this turn is dealt to target creature you control instead" — the
     genuine CR 614.9 redirection-effect idiom."""
     assert ("damage_redirect", "you", "") in _idents("Nomads en-Kor")
+
+
+# ── task #84: phase v0.23.0 bump — corpus-diff GAIN-class pins ────────────────
+# One positive pin per gained key class of the bump's adjudicated corpus diff
+# (three for the two classes over 5 cards), each a genuine upstream recall
+# improvement: v0.21-v0.23 parsed a previously-Unimplemented / mis-shaped
+# clause into real typed structure the existing lane arms now read. The
+# LOSS-side adjudications live next to their lanes (Generator Servant's
+# mana-ability shed in test_activated_ability_cost_census, the voltron
+# has_other_plan ride-alongs in test_signals_floor.py, Bile Blight's mass
+# arm in test_crosswalk_consumer_diff.py).
+
+
+@pytest.mark.parametrize(
+    ("name", "key"),
+    [
+        # creature_recursion (+228 — the recall lane restored; the Bounce →
+        # ChangeZone(origin: Graveyard) migration port, CR 700.4/404):
+        ("Aphetto Dredging", "creature_recursion"),  # tribal GY→hand recall
+        ("Archenemy's Charm", "creature_recursion"),  # modal-arm recall
+        ("Avengers Quinjet", "creature_recursion"),  # trigger-modal recall
+        # creatures_matter (+9 — conditional/predicate statics now parse,
+        # CR 604.3): untapped-team anthem, face-down team care, mana-ability
+        # team pump.
+        ("Secret Plans", "creatures_matter"),
+        ("Etrata, Deadly Fugitive", "creatures_matter"),
+        ("Raggadragga, Goreguts Boss", "creatures_matter"),
+        # conjure_makers (+7 — the Conjure ACTION now typed; digital-only
+        # mechanic, no CR number — DD-series digital supplement):
+        ("Mine Security", "conjure_makers"),
+        ("Jessie Zane, Fangbringer", "conjure_makers"),
+        ("Sandcloud Harbinger", "conjure_makers"),
+        # bounce_tempo: the desc-blob conflation fix — a battlefield
+        # self-bounce (the Blinking Spirit family) whose SAME description
+        # sentence mentions a graveyard recall no longer suppresses (CR
+        # 402.1 vs 404.1).
+        ("Mtenda Griffin", "bounce_tempo"),
+        # mass_removal: the Radiance shared-color sweep now parses as a
+        # DamageAll (CR 115.10; Cleansing Beam); the same-name sweep case is
+        # pinned at the consumer seam (Bile Blight).
+        ("Cleansing Beam", "mass_removal"),
+        ("Bile Blight", "mass_removal"),
+        # legends_matter: "Legendary Humans you control have indestructible"
+        # — a legendary-scoped board grant (CR 205.4).
+        ("General's Enforcer", "legends_matter"),
+        # spell_keyword_grant: "each instant and sorcery spell you cast has
+        # replicate" (CR 702.56).
+        ("Djinn Illuminatus", "spell_keyword_grant"),
+        # saga_matters: "each Saga spell you cast has replicate" — a
+        # Saga-type spell care (CR 714).
+        ("Ian Chesterton", "saga_matters"),
+        # clone_makers: "you may have Shapeshifters you control become
+        # copies of that creature" (CR 707).
+        ("Absorb Identity", "clone_makers"),
+        # protection_grant: "Permanents you control have 'Ward—Sacrifice a
+        # permanent'" (CR 702.21).
+        ("Mishra, Tamer of Mak Fawa", "protection_grant"),
+        # land_sacrifice_makers: "each player who controls the most lands
+        # sacrifices two lands" (CR 701.21).
+        ("Tectonic Hellion", "land_sacrifice_makers"),
+        # graveyard_makers: the aura-reanimation shape landed — a real
+        # ChangeZone(Graveyard→Battlefield, target AttachedTo) plus the
+        # Enchant rewire statics (CR 303.4 / 400.7; Animate Dead).
+        ("Animate Dead", "graveyard_makers"),
+        # exile_matters: exile-with-counters engine (CR 406.1).
+        ("Rayami, First of the Fallen", "exile_matters"),
+        # base_pt_set: the tiered "gains 'When this dies, return it ...'" /
+        # base-setting statics (CR 613.4b).
+        ("Vincent's Limit Break", "base_pt_set"),
+        # aoe_ping: Radiance tap-ping over a shared-color set (CR 115.10).
+        ("Wojek Embermage", "aoe_ping"),
+        # scaling_pump: "gets +1/+0 for each artifact you control"-family
+        # dynamic pump (CR 107.3 / 613.4c).
+        ("Cranial Ram", "scaling_pump"),
+        # direct_damage: the player-reaching damage arm on a newly parsed
+        # trigger chain (CR 115.4).
+        ("Captain America, First Avenger", "direct_damage"),
+        # combat_buff_engine: attack-trigger team buff now parsed (CR 508).
+        ("Lara Croft, Tomb Raider", "combat_buff_engine"),
+        # enchantments_matter: type-restricted top-N dig ("reveal ... put an
+        # enchantment card into your hand") — the tutor/dig arm (CR 701.23).
+        ("Benefaction of Rhonas", "enchantments_matter"),
+        # token_copy_makers: delayed token-copy chain now parsed (CR 111.2).
+        ("Moonlit Meditation", "token_copy_makers"),
+        # lifegain_matters: life-total-based payoff now parsed (CR 119).
+        ("Elenda, Saint of Dusk", "lifegain_matters"),
+        # clue_makers: investigate/Clue arm on a newly parsed trigger
+        # (CR 111.10g).
+        ("No Witnesses", "clue_makers"),
+        # sacrifice_outlets: Rakdos Riteknife's combined buff+grant static
+        # no longer drops the granted "{T}, Sacrifice a creature:" arm —
+        # the task #84 probe card (CR 613.1f layer 6 / 602.1).
+        ("Rakdos Riteknife", "sacrifice_outlets"),
+        # count_anthem: "attacking creatures get +1/+0 for each strife
+        # counter" — a counter-scaled team anthem (CR 613.4c).
+        ("Crescendo of War", "count_anthem"),
+        # edict_makers: "each player ... sacrifices the pile of your choice"
+        # — the SeparateIntoPiles battlefield partition (CR 701.21;
+        # visible since the task #84 pile-arm descent).
+        ("Make an Example", "edict_makers"),
+        # dies_recursion: "When this creature dies, return it ..." granted
+        # by a tiered mode now parses (CR 700.4).
+        ("Breathkeeper Seraph", "dies_recursion"),
+        # land_protection: the Ambush Commander mass animate also opens the
+        # manland-utility read (CR 305.7).
+        ("Ambush Commander", "land_protection"),
+        # anthem_static: "each creature you control with a mana ability gets
+        # +2/+2" — a predicate-scoped team anthem (CR 604.3; the
+        # HasManaAbility predicate is a v0.23.0 tagged-shape addition).
+        ("Raggadragga, Goreguts Boss", "anthem_static"),
+        # extra_land_drop: Ojer Kaslem's combat-damage reveal now parses
+        # through to its land-onto-battlefield arm (CR 305.1-family
+        # additional-land value).
+        ("Ojer Kaslem, Deepest Growth", "extra_land_drop"),
+        # type_matters: Vanille's newly parsed Cleric-token line opens the
+        # tribal subject (CR 205.3m); the subject-level siblings
+        # (Death-Priest of Myrkul's Vampire, Mari's Mercenary) are the
+        # same recovery class.
+        ("Vanille, Cheerful l'Cie", "type_matters"),
+    ],
+)
+def test_v23_bump_gain_class_pins(name, key):
+    assert key in _keys(name), (name, key)
+
+
+# ── task #84: corpus-diff LOSS-class negative pins (adjudicated sheds) ────────
+
+
+def test_v23_bump_recall_rider_bounce_sheds():
+    """Adjudicated sheds (task #84): the typed-recall rider gates in
+    ``_arm_bounce_tempo`` (CR 402.1 vs 404.1). Feather, the Redeemed's
+    "return it to your hand at the beginning of the next end step" bounces
+    the TRACKED exiled spell card of its own recursion chain — a
+    spellslinger recursion engine, never a battlefield tempo bounce; Random
+    Encounter's "return those creatures to their owner's hand" is the mass
+    drawback rider on its own mill-reanimation burst. Both baseline
+    memberships were riders mis-read as tempo; the back-reference gate
+    (scoped to Graveyard-origin-ChangeZone units) sheds exactly this class
+    while Rancor / Run Away Together / The Scarab God (the same target tags
+    OUTSIDE a recall unit) stay members."""
+    assert "bounce_tempo" not in _keys("Feather, the Redeemed")
+    assert "bounce_tempo" not in _keys("Random Encounter")
+    assert ("bounce_tempo", "you", "") in _idents("Run Away Together")
+
+
+def test_v23_bump_graveyard_exile_blink_sheds():
+    """Adjudicated sheds (task #84): a graveyard-sourced exile-and-return is
+    exile-assisted REANIMATION, not a flicker of your own board (CR 400.7 —
+    the object returns as a new battlefield object from the yard, there is
+    no ETB-value loop of your own permanents to re-trigger). Winter,
+    Cynical Opportunist's delirium exile ("exile any number of cards from
+    your graveyard ... put a permanent card from among them onto the
+    battlefield") and Boneyard Parley's five-card pile version both shed
+    off the ``_battlefield_exile`` gate; a genuine battlefield flicker
+    (Flickerwisp) is untouched."""
+    assert "blink_flicker" not in _keys("Winter, Cynical Opportunist")
+    assert "blink_flicker" not in _keys("Boneyard Parley")
+    assert ("blink_flicker", "you", "") in _idents("Flickerwisp")
+
+
+def test_v23_bump_equipped_conditional_anthem_sheds():
+    """Adjudicated sheds (task #84): the ``EquippedBy``/``EnchantedBy``
+    single-permanent veto in ``_is_anthem_group_filter`` (CR 301.5c /
+    303.4d — an attachment sits on ONE object, so a conditional equip
+    bonus is a single-creature buff, not a board anthem). Sharpened
+    Pitchfork was the pre-existing baseline member of the class; True-Faith
+    Censer is the v0.23.0 newly-parsed sibling the veto keeps out on the
+    way in. Raggadragga's predicate-scoped TEAM anthem (HasManaAbility over
+    creatures you control) still fires — the veto is attachment-specific,
+    not predicate-wide."""
+    assert "anthem_static" not in _keys("Sharpened Pitchfork")
+    assert "anthem_static" not in _keys("True-Faith Censer")
+    assert ("anthem_static", "you", "") in _idents("Raggadragga, Goreguts Boss")

@@ -137,29 +137,6 @@ def _static_parse_failure_descs(tree: ConceptTree) -> Iterator[str]:
                 yield getattr(node, "description", "") or ""
 
 
-# ── Bello, Bard of the Brambles → artifacts_matter ───────────────────────────
-# "During your turn, each non-Equipment artifact and non-Aura enchantment you
-# control with mana value 4 or greater is a 4/4 Elemental creature ..." — an
-# artifact-animation payoff (CR 301; the legacy IR fires artifacts_matter).
-# Phase v0.20.0's static parser fails the whole line (upstream candidate);
-# no typed node exists anywhere to read. NOTE for the grammar sprint: the
-# same line also names enchantment animation — legacy does NOT fire
-# enchantments_matter here, so this bridge stays legacy-parity and leaves
-# that breadth to the eventual structural read.
-_BELLO_ANIMATE_RX = re.compile(
-    r"each [^.]*artifact[^.]*you control[^.]*\bis an? \d+/\d+[^.]*\bcreature\b",
-    re.IGNORECASE,
-)
-
-
-def _bello_gap(tree: ConceptTree) -> bool:
-    return any(True for _ in _static_parse_failure_descs(tree))
-
-
-def _bello_match(tree: ConceptTree) -> bool:
-    return any(_BELLO_ANIMATE_RX.search(d) for d in _static_parse_failure_descs(tree))
-
-
 # ── Degavolver / Anavolver (the APC "Volver" cycle) → lifeloss_makers ────────
 # "If this creature was kicked with its {1}{B} kicker, it enters with two
 # +1/+1 counters on it and with 'Pay 3 life: Regenerate this creature.'" —
@@ -1787,24 +1764,6 @@ def _siege_behemoth_match(tree: ConceptTree) -> bool:
 BRIDGES: dict[str, Bridge] = {
     b.bridge_id: b
     for b in (
-        Bridge(
-            bridge_id="bello_static_animate_artifacts",
-            key="artifacts_matter",
-            kind="upstream_parse_failure",
-            todo=(
-                "upstream phase-rs report candidate (Dan posts): static "
-                "parser fails 'During your turn, each non-Equipment artifact "
-                "and non-Aura enchantment you control ... is a 4/4 Elemental "
-                "creature' — retires on a phase bump that parses the line"
-            ),
-            census=(
-                "1 hit / 31,622 commander-legal (116 static_structure "
-                "failures scanned), phase v0.20.0, 2026-07-11"
-            ),
-            pins=("Bello, Bard of the Brambles",),
-            gap=_bello_gap,
-            match=_bello_match,
-        ),
         Bridge(
             bridge_id="degavolver_kicker_paylife_regen",
             key="lifeloss_makers",

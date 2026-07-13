@@ -5159,26 +5159,24 @@ def _arm_manland(tree: ConceptTree) -> ConceptNode | None:
 
 # ── land_creatures_matter grammar-sprint stragglers (ADR-0039 task #82,
 # post-deletion grammar sprint) ──────────────────────────────────────────────
-# Two ledgered land_creatures_matter bridges (bridge_ledger.py) close here —
-# both are whole-clause phase drops (a role=effect ``Unimplemented`` node
-# with ZERO typed substructure beneath it: no ``AddType``, no ``Animate``,
-# no static def anywhere for the clause), the SAME shape the sibling
+# Ledgered land_creatures_matter bridges (bridge_ledger.py) closed here —
+# whole-clause phase drops (a role=effect ``Unimplemented`` node with ZERO
+# typed substructure beneath it: no ``AddType``, no ``Animate``, no static
+# def anywhere for the clause), the SAME shape the sibling
 # ``manland``/``curse_matters``/etc. sweep arms above already close, gap-
 # gated against a NEW shared helper so a card the lane's OWN structural
 # reads already see (``_is_creature_animator`` / a first-class ``Animate``
 # effect / a mass ``iter_static_defs`` AddType-Creature def) never doubles:
 #
-#   * subtype_animate -- Ambush Commander's "Forests you control are 1/1
-#     green Elf creatures that are still lands" (CR 305.6 basic land type
-#     "Forest" / 305.7 "setting a land's subtype doesn't add or remove any
-#     card types" -- the CREATURE type here comes from THIS static, not the
-#     subtype -- / 613.1d layer 4 type-changing). A SUBTYPE-restricted
-#     (not core-type Land) mass land-animate -- the existing structural
-#     reads (``_is_creature_animator`` / the mass-static-def descent) both
-#     gate on the filter carrying a Land/land-subtype token in a REAL
-#     ``affected``/``target`` field; Ambush Commander's whole clause never
-#     reaches one. Corpus-verified sole-source (scan1.py, 2026-07-12,
-#     32,521 commander-legal cards): the ONE hit is the pin itself.
+#   * subtype_animate -- RETIRED at the phase v0.23.0 bump (task #84).
+#     Ambush Commander's "Forests you control are 1/1 green Elf creatures
+#     that are still lands" (CR 305.6/305.7/613.1d layer 4) now parses as a
+#     real Continuous static (SetPT + AddType over a Forest-subtyped
+#     affected filter) that BOTH :func:`has_structural_land_creatures_
+#     animate` and the lane's own set_pt static read see directly. The
+#     v0.23.0 re-census of the arm's own bounding regex found ZERO
+#     remaining gap members corpus-wide (the sole v0.20.0 hit was the pin
+#     itself), so the arm was deleted rather than left as dead code.
 #   * dynamic_animate -- Primal Adversary's deferred "pay this cost N
 #     times, then up to that many target lands you control become 3/3 Wolf
 #     creatures" repeat-count chain (CR 107.3 -- the paid-count value X --
@@ -5198,9 +5196,6 @@ def _arm_manland(tree: ConceptTree) -> ConceptNode | None:
 #     "Land-SUBTYPE targets ... admitted" comment in crosswalk_signals.py)
 #     -- the shared gap-gate below excludes it, leaving Sage of the Maze
 #     as the arm's sole firing card for that half.
-_LAND_CREATURES_SUBTYPE_ANIMATE_SYNTH_RX = re.compile(
-    r"you control are [^.]*creatures?[^.]*\bstill lands?\b", re.IGNORECASE
-)
 _LAND_CREATURES_DYNAMIC_REPEAT_SYNTH_RX = re.compile(
     r"up to that many target lands? you control become", re.IGNORECASE
 )
@@ -5236,27 +5231,6 @@ def has_structural_land_creatures_animate(tree: ConceptTree) -> bool:
             ):
                 return True
     return False
-
-
-def _arm_land_creatures_subtype_animate(tree: ConceptTree) -> ConceptNode | None:
-    """Synthesize a ``land_creatures_subtype_animate`` node for Ambush
-    Commander's subtype-restricted mass land-animate residue (the
-    ``land_creatures_subtype_animate_dropped`` bridge, CR 305.6/305.7/
-    613.1d), gap-gated against :func:`has_structural_land_creatures_animate`.
-    """
-    if has_structural_land_creatures_animate(tree):
-        return None
-    if not _LAND_CREATURES_SUBTYPE_ANIMATE_SYNTH_RX.search(
-        _REMINDER.sub(" ", tree.oracle or "")
-    ):
-        return None
-    return _synthetic_concept(
-        arm_id="land_creatures_subtype_animate",
-        concept="synth_land_creatures_subtype_animate",
-        scope="you",
-        subject=(),
-        desc="bucket-B subtype-restricted mass land-animate (CR 305.6/305.7/613.1d)",
-    )
 
 
 def _arm_land_creatures_dynamic_animate(tree: ConceptTree) -> ConceptNode | None:
@@ -8189,13 +8163,30 @@ def _bounce_gy_phrase(text: str) -> bool:
 def _arm_bounce_tempo(tree: ConceptTree) -> ConceptNode | None:
     """Synthesize a ``bounce_tempo`` node — the deleted lane-time GY-return
     veto (node-own description, whole-card fallback for a description-less
-    nested delayed-trigger unit) relocated verbatim. CR 402.1 vs 404.1."""
+    nested delayed-trigger unit) relocated verbatim. CR 402.1 vs 404.1.
+
+    v0.23.0 port (task #84): phase migrated the GY→hand recall family from
+    the zone-less ``Bounce`` the [P21] description screen was built for to
+    a full ``ChangeZone`` carrying ``origin: Graveyard`` directly (698
+    carriers at the bump census). When a unit's own typed nodes carry the
+    recall structurally, the unit's "from … graveyard" description is
+    ACCOUNTED FOR by that node — any ``Bounce`` node still present in the
+    same unit is the genuine tempo half (Aether Helix's two-sentence pair),
+    so the description screen stands down for that unit rather than
+    vetoing the survivor."""
     card_desc = " ".join(
         (getattr(u.node, "description", None) or "") for u in tree.units
     ).lower()
     for unit in tree.units:
         desc = (getattr(unit.node, "description", None) or "").lower()
         gy_return = _bounce_gy_phrase(desc) if desc else _bounce_gy_phrase(card_desc)
+        gy_typed = any(
+            tag_of(n) in ("ChangeZone", "ChangeZoneAll")
+            and getattr(n, "origin", None) == "Graveyard"
+            for n in iter_typed_nodes(unit.node)
+        )
+        if gy_return and gy_typed:
+            gy_return = False  # the recall is typed; the screen stands down
         bounces = [
             c
             for c in unit.iter_concepts()
@@ -8203,7 +8194,33 @@ def _arm_bounce_tempo(tree: ConceptTree) -> ConceptNode | None:
         ]
         for c in bounces:
             sub = effect_filter(c.node)
+            # Typed-recall rider gates (task #84), BOTH scoped to a unit
+            # whose own typed nodes carry a Graveyard-origin ChangeZone —
+            # i.e. the unit IS a recall/reanimation chain, so a bounce
+            # back-referencing that chain is the recalled object's rider,
+            # never an opponent-facing tempo bounce (CR 402.1 vs 404.1):
+            # * a ``ParentTarget``/``TrackedSet`` bounce is the delayed
+            #   self-return rider on the reanimated object ("return it to
+            #   its owner's hand at the beginning of the next end step" —
+            #   Cauldron Dance, Greasefang) or the recall pair's second
+            #   half (Once and Future). OUTSIDE a recall unit the same tags
+            #   are phase's generic back-reference plumbing (Rancor's own
+            #   return trigger, Run Away Together's two-target set — both
+            #   genuine members, untouched);
+            # * a ``SelfRef`` bounce on an INSTANT/SORCERY tree is the
+            #   spell returning ITSELF from the graveyard (Revive the
+            #   Fallen's clash rider) — spell recursion, not the Blinking
+            #   Spirit battlefield self-bounce family. A PERMANENT's
+            #   SelfRef bounce in the same shape (Mtenda Griffin's
+            #   return-this-to-hand cost rider) keeps firing.
+            if gy_typed and tag_of(getattr(c.node, "target", None)) in (
+                "ParentTarget",
+                "TrackedSet",
+            ):
+                continue
             if tag_of(sub) == "SelfRef":
+                if gy_typed and (tree.is_type("Instant") or tree.is_type("Sorcery")):
+                    continue
                 if gy_return:
                     continue  # self GY-return — recursion, not tempo
             elif gy_return and len(bounces) == 1 and desc:
@@ -8979,7 +8996,6 @@ _ARMS: tuple[tuple[str, _Arm], ...] = (
     ("color_change", _arm_color_change),
     ("vehicles_matter", _arm_vehicles_matter),
     ("manland", _arm_manland),
-    ("land_creatures_subtype_animate", _arm_land_creatures_subtype_animate),
     ("land_creatures_dynamic_animate", _arm_land_creatures_dynamic_animate),
     ("curse_matters", _arm_curse_matters),
     ("clue_matters", _arm_clue_matters),

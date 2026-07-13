@@ -86,7 +86,6 @@ from mtg_utils._card_ir.tree_synthesis import (
     _arm_keyword_soup_same_true,
     _arm_kill_engine,
     _arm_land_creatures_dynamic_animate,
-    _arm_land_creatures_subtype_animate,
     _arm_legend_rule_off,
     _arm_lessons_matter,
     _arm_life_payment_insurance,
@@ -1465,6 +1464,10 @@ def _untap_fires(name):
         "Bear Umbra",  # GrantTrigger-nested Twiddle carrier (granted aura ability)
         "Halo Fountain",  # EffectCost activation-cost carrier ("Untap a tapped…:")
         "Bender's Waterskin",  # SELF-scoped untap-during-each-step static
+        # v0.23.0 bump (task #84): the counter-gated conditional static now
+        # carries a typed SetTapState payload — moved up from bucket B (the
+        # gap-gated ``_arm_untap_engine`` self-retired for it).
+        "Quest for Renewal",
     ],
 )
 def test_untap_engine_bucket_a_structural(name):
@@ -1476,7 +1479,6 @@ def test_untap_engine_bucket_a_structural(name):
 @pytest.mark.parametrize(
     "name",
     [
-        "Quest for Renewal",  # counter-gated conditional static, no typed payload
         "Curse of Inertia",  # "may tap or untap" folds to a bare Tap SetTapState
         "Zariel, Archduke of Avernus",  # granted emblem ability, unstructured
     ],
@@ -2011,12 +2013,19 @@ def test_opponent_cast_matters_nested_emblem_no_double():
     assert _opponent_cast_matters_fires("Jace, Unraveler of Secrets") is True
 
 
-def test_opponent_cast_matters_soulbond_no_residue_synth():
+def test_opponent_cast_matters_soulbond_structural_no_double():
+    """v0.23.0 bump (task #84): Thundering Mightmare's soulbond-paired
+    grant no longer parses as an EMPTY ``modifications`` list — phase now
+    descends the granted opponent-cast trigger (the Deadeye Navigator
+    ``SourceOrPaired`` + GrantTrigger family), so the structural gate sees
+    it and the gap-gated synthesis arm self-retired for it (the SAME
+    no-double shape as Hunting Grounds / Jace above). The arm itself stays:
+    its v0.23.0 bounding-regex re-census still finds one genuine no-residue
+    gap member (Ring Out, a Mystery Booster playtest card — not
+    commander-legal, but the gap is real and the arm is bounded)."""
     tree = _fixture_tree("Thundering Mightmare")
-    assert has_structural_opponent_cast_matters(tree) is False  # genuine gap
-    node = _arm_opponent_cast_matters(tree)
-    assert node is not None
-    assert node.scope == "opponents"
+    assert has_structural_opponent_cast_matters(tree) is True
+    assert _arm_opponent_cast_matters(tree) is None
     assert _opponent_cast_matters_fires("Thundering Mightmare") is True
 
 
@@ -3828,14 +3837,19 @@ def test_manland_synth_registered():
 
 
 def test_land_creatures_subtype_animate_ambush_commander():
-    """Ambush Commander's "Forests you control are 1/1 green Elf creatures
-    that are still lands" parks wholesale as Unimplemented — no typed
-    AddType/affected-filter node survives anywhere for it."""
+    """v0.23.0 bump (task #84): Ambush Commander's "Forests you control are
+    1/1 green Elf creatures that are still lands" now parses as a real
+    Continuous static (SetPT + AddType over the Forest-subtyped affected
+    filter) — the structural gate sees it and the lane's own set_pt static
+    read fires. The subtype-animate synthesis arm was RETIRED (deleted, not
+    left dead): its bounding-regex re-census found zero remaining gap
+    members corpus-wide."""
+    from mtg_utils._deck_forge.crosswalk_signals import _land_creatures_matter
+
     tree = _fixture_tree("Ambush Commander")
-    assert has_structural_land_creatures_animate(tree) is False
-    node = _arm_land_creatures_subtype_animate(tree)
-    assert node is not None
-    assert node.concept == "synth_land_creatures_subtype_animate"
+    assert has_structural_land_creatures_animate(tree) is True
+    synth = apply_tree_synthesis(tree)
+    assert any(s.key == "land_creatures_matter" for s in _land_creatures_matter(synth))
 
 
 def test_land_creatures_dynamic_animate_primal_adversary_and_sage():
@@ -3850,7 +3864,9 @@ def test_land_creatures_dynamic_animate_primal_adversary_and_sage():
 
 
 def test_land_creatures_animate_synth_registered():
-    assert "land_creatures_subtype_animate" in SYNTHESIS_ARM_IDS
+    # subtype_animate RETIRED at the v0.23.0 bump (task #84) — structure
+    # landed upstream and its re-census emptied; only the dynamic arm stays.
+    assert "land_creatures_subtype_animate" not in SYNTHESIS_ARM_IDS
     assert "land_creatures_dynamic_animate" in SYNTHESIS_ARM_IDS
 
 

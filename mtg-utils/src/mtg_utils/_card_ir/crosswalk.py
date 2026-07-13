@@ -3510,7 +3510,20 @@ def _decorate_effect(node: object, role: str) -> ConceptNode | None:
 # ``execute``, Final Fortune's nested end-step loss), and branches modes through
 # ``mode_abilities`` (Demonic Pact). A faithful unit aggregates them all — the same
 # flattening the old projection's ``ab.effects`` did.
-_EFFECT_CHILD_FIELDS = ("effect", "sub_ability", "execute")
+# ``chosen_pile_effect`` / ``unchosen_pile_effect``: phase v0.23.0's
+# ``SeparateIntoPiles`` restructure (task #84) moved the Fact or Fiction
+# family's per-pile outcomes (the chosen pile → hand, the rest → graveyard)
+# out of the old ``sub_ability`` chain into these two dedicated
+# ability-shaped fields — same flattening rationale, 6 carriers at the bump
+# census (Fact or Fiction, Sphinx of Clear Skies, Sphinx of Uthuun, Unesh,
+# Boneyard Parley, Make an Example).
+_EFFECT_CHILD_FIELDS = (
+    "effect",
+    "sub_ability",
+    "execute",
+    "chosen_pile_effect",
+    "unchosen_pile_effect",
+)
 
 
 def _walk_effect_chain(ability_like: TypedMirrorNode) -> Iterator[ConceptNode]:

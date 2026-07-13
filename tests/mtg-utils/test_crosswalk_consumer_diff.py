@@ -193,7 +193,19 @@ def test_pump_mass_vs_target_split():
     assert bile
     assert bile[0].toughness is not None
     assert bile[0].toughness.factor == -3
-    assert not [e for e in _effects(_compat("Bile Blight")) if e.category == "pump"]
+    # v0.23.0 update (task #84): phase now ALSO emits the "all other
+    # creatures with the same name" sweep half as its own ``PumpAll``
+    # sub-ability (an ``And(Typed(Creature, Another, SameNameAsParentTarget),
+    # Not(ParentTarget))`` subject) — the tag-only route correctly reads
+    # that second node as mass. Bile Blight genuinely IS a mass effect (the
+    # same-name sweep is exactly how it clears a token line-up — CR 201.2a
+    # name comparison; CR 611.2c one-shot continuous effect over a set the
+    # effect doesn't target), so BOTH categories now coexist: the targeted
+    # half stays ``pump_target``, the sweep half is the mass ``pump``.
+    mass = [e for e in _effects(_compat("Bile Blight")) if e.category == "pump"]
+    assert mass
+    assert mass[0].toughness is not None
+    assert mass[0].toughness.factor == -3
     # Giant Growth ("Target creature gets +3/+3") is the textbook single
     # target — ALSO a Typed target, ALSO now pump_target (was misrouted to
     # the mass "pump" bucket pre-fix even though its buff sign never

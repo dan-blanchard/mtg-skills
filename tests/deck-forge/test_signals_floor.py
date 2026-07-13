@@ -411,3 +411,42 @@ def test_voltron_commander_damage_tell_silenced_by_mass_removal_plan(
     idents = _hybrid_idents(monkeypatch, bulk, tree, include=True)
     assert ("mass_removal", "you", "") in idents
     assert ("voltron_matters", "you", "") not in idents
+
+
+@pytest.mark.parametrize(
+    ("name", "power", "toughness", "keywords", "new_key"),
+    [
+        # "Creatures blocking or blocked by this creature have lifelink" now
+        # parses (a granted-keyword static over the combat pair) → lifegain
+        # value engine (CR 702.15).
+        ("Alms Beast", "6", "6", [], "lifegain_makers"),
+        # "put a commander you own from the command zone onto the
+        # battlefield" now parses → command-zone interaction (CR 903.10).
+        ("Hellkite Courser", "6", "5", ["Flying"], "commander_matters"),
+        # "conjure a card named Flametongue Kavu into the top eight cards of
+        # your library" now parses (a typed Conjure node — a digital-only
+        # mechanic, no CR number; DD-series digital supplement territory).
+        ("Mine Security", "3", "1", ["Conjure", "Trample"], "conjure_makers"),
+    ],
+)
+def test_voltron_fallback_silenced_by_v23_parse_gains(
+    monkeypatch, name, power, toughness, keywords, new_key
+):
+    """Task #84 (phase v0.23.0 bump) ride-along sheds, the Cataclysmic
+    Gearhulk precedent above applied three more times: each card's
+    previously-unparsed ability now lands structurally, the resulting
+    genuine new key opens ``has_other_plan``, and the low-confidence
+    "commander damage (CR 903.10a)" voltron fallback correctly silences —
+    the card was never a pure single-threat beater; the old
+    ``voltron_matters`` came only from the fallback running blind to the
+    unparsed text. Real card P/T + keywords threaded (the fallback fired at
+    the v0.20.0 baseline under these exact shapes). Membership loss
+    adjudicated correct, not a regression."""
+    built = _floor_case_for(name)
+    if built is None:
+        pytest.skip(f"{name} fixture record drifts")
+    bulk, tree = built
+    bulk = dict(bulk, power=power, toughness=toughness, keywords=keywords)
+    idents = _hybrid_idents(monkeypatch, bulk, tree, include=True)
+    assert (new_key, "you", "") in idents
+    assert ("voltron_matters", "you", "") not in idents

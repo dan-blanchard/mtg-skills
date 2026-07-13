@@ -46,13 +46,12 @@ class TokenRule:
 # ADR-0038 token allowlist — grows per-key with corpus measurement + pinned
 # tests; empty at introduction (behavior-neutral).
 ALLOWLIST: dict[str, TokenRule] = {
-    # discover ACTION idiom (CR 701.57): "discover N" / "discover again". A
-    # re-trigger ("whenever you discover, discover again for the same value"
-    # — Curator of Sun's Creation) leaves the inner discover ACTION as an
-    # Unimplemented effect phase doesn't structure; the grammar's "discover"
-    # token re-decorates it so the typed effect_concepts("discover") read
-    # (the discover_makers lane's structural arm) sees it directly.
-    "discover": TokenRule(concept="discover", category="discover"),
+    # (RETIRED at the phase v0.23.0 bump, task #84: the "discover" ACTION
+    # idiom row, CR 701.57 — Curator of Sun's Creation's "discover again for
+    # the same value" re-trigger now parses natively as a typed ``Discover``
+    # node with a ``TriggeringDiscoverValue`` mana_value_limit, and the row's
+    # re-census found zero remaining Unimplemented-discover residues
+    # corpus-wide.)
     # evasion-denial idiom (CR 509.1b/702.14): "can be blocked as though
     # it/they didn't have [landwalk/those abilities]" — an anti-evasion
     # static (Staff of the Ages) whose own static parser fails, leaving an

@@ -151,18 +151,20 @@ def test_already_recovered_not_rerecovered():
 
 
 def test_discover_makers_promoted_via_production_allowlist():
-    """Curator of Sun's Creation's re-trigger ("discover again for the same
-    value") lands as an Unimplemented effect; the production ALLOWLIST's
-    "discover" token entry re-decorates it in place (concept="discover",
-    recovered_by="discover") so the discover_makers lane's typed
-    ``effect_concepts("discover")`` structural read sees it directly — no
-    tree_synthesis marker arm needed."""
+    """RETIRED-ROW graduation pin (task #84): Curator of Sun's Creation's
+    re-trigger ("discover again for the same value") parses NATIVELY at
+    phase v0.23.0 — a typed ``Discover`` node carrying a
+    ``TriggeringDiscoverValue`` mana_value_limit under a ``Discover``-mode
+    trigger — so the ALLOWLIST's "discover" token row was retired (its
+    re-census found zero remaining Unimplemented-discover residues) and the
+    discover_makers lane's ``effect_concepts("discover")`` read now sees
+    the real node with NO recovery decoration."""
     tree = _fixture_tree("Curator of Sun's Creation")
     nodes = tree.effect_concepts("discover")
     assert len(nodes) == 1
     assert nodes[0].concept == "discover"
-    assert nodes[0].recovered_by == "discover"
-    assert tag_of(nodes[0].node) == "Unimplemented"
+    assert nodes[0].recovered_by == ""
+    assert tag_of(nodes[0].node) == "Discover"
 
 
 # ── #72 evasion_denial (static-token recovery) ─────────────────────────────
