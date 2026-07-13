@@ -16198,3 +16198,61 @@ def test_target_owner_beneficiary_scope_stays_you_for_selfref_owner():
     Oft-Nabbed Goat's own dies-trigger draw both keep scope "you"."""
     assert ("token_maker", "you", "Soldier") in _idents("Yes Man, Personal Securitron")
     assert ("card_draw_engine", "you", "") in _idents("Oft-Nabbed Goat")
+
+
+# ── task #93 item 1: target_player_draws comma-gap fix ────────────────────
+#
+# Oblation ("The owner of target nonland permanent shuffles it into their
+# library, then draws two cards.") and Deadly Cover-Up ("...That player
+# shuffles, then draws a card for each card exiled from their hand this
+# way.") both carry a ``ParentTargetOwner``-tagged Draw node, but the
+# recipient word ("owner"/"player") and "draws" sit on OPPOSITE sides of a
+# comma inside a single sentence-clause — a comma
+# :data:`_TARGET_PLAYER_DRAW_PHRASE_RE`'s ``[^.,;]*?`` middle can never
+# cross. Fixed by moving ``ParentTargetOwner`` out of the phrase-gated
+# :data:`_TARGETED_DRAW_WIDENED_TAGS` and into the UNCONDITIONAL
+# :data:`_TARGETED_DRAW_TAGS` set: a full commander-legal corpus census of
+# every ``ParentTargetOwner``-tagged Draw node (32,521 cards) turns up
+# exactly 4 hits, whole population, 0 bleed false positives, so no
+# phrase-gate is needed to guard it (unlike ``Typed``/
+# ``ParentTargetController``/``TriggeringPlayer``, whose bleed risk is
+# corpus-demonstrated by Price of Freedom/Cleansing Wildfire/Geomancer's
+# Gambit).
+def test_target_player_draws_admits_comma_separated_owner_oblation():
+    """Oblation's "shuffles it into their library, then draws two cards"
+    — the comma the phrase gate couldn't cross no longer blocks
+    admission; ``ParentTargetOwner`` is now unconditional."""
+    assert ("target_player_draws", "any", "") in _idents("Oblation")
+
+
+def test_target_player_draws_admits_comma_separated_owner_deadly_cover_up():
+    """Deadly Cover-Up's "That player shuffles, then draws a card for
+    each card exiled..." — same comma-gap shape, now admitted."""
+    assert ("target_player_draws", "any", "") in _idents("Deadly Cover-Up")
+
+
+# ── task #93 item 2: Pharika / Funeral Pyre token_maker (membership +
+#    scope decided together) ──────────────────────────────────────────────
+#
+# "Exile target [creature] card from a graveyard. Its owner creates a
+# token." tags the Token's recipient ``ParentTargetOwner`` off an
+# UNCONSTRAINED root target filter (you may legally target your own
+# graveyard, CR 601.2c) — a genuine, choosable token-maker build-around,
+# not a directed opponent gift (contrast Hunted Dragon's
+# ``Typed``/``Opponent`` maker, which stays excluded). ``token_maker``'s
+# own membership gate reads ``concept.scope``, which ``_effect_scope``
+# silently defaults to "you" for this unhandled tag — so a general
+# ``ParentTargetOwner`` scope fix (task #91) would have flipped the
+# scope away from "you" and DROPPED both cards unless the gate learned
+# the same beneficiary read. Fixed together: the gate now resolves the
+# REAL beneficiary scope via :func:`_target_owner_beneficiary_scope`
+# before checking membership, admits "any" (never "opponents" — no
+# commander-legal token_maker case constrains the filter to an
+# opponent), and fires the signal's own scope as "any" instead of the
+# hardcoded "you".
+def test_token_maker_scopes_target_owner_beneficiary_any_pharika():
+    assert ("token_maker", "any", "Snake") in _idents("Pharika, God of Affliction")
+
+
+def test_token_maker_scopes_target_owner_beneficiary_any_funeral_pyre():
+    assert ("token_maker", "any", "Spirit") in _idents("Funeral Pyre")

@@ -390,6 +390,10 @@ PORTED_KEYS: frozenset[str] = frozenset(
         "tapped_matters",
         "any_counter_makers",
         "any_counter_matters",
+        # task #93: counter_hate — an opponent-directed counter-placement
+        # denial (Blightbeetle, Suncleanser), distinct from the above
+        # payoff lane. See `_counter_hate`'s own module note.
+        "counter_hate",
         "plus_one_matters",
         "minus_counters_matter",
         "gain_control",
@@ -2422,34 +2426,73 @@ def _token_maker(tree: ConceptTree) -> list[Signal]:
     seen: set[str] = set()
     out: list[Signal] = []
 
-    def fire(subject: str, raw: str) -> None:
+    def fire(subject: str, raw: str, scope: str = "you") -> None:
         if subject in seen:
             return
         seen.add(subject)
         out.append(
-            Signal(signal_keys.TOKEN_MAKER, "you", subject, raw, tree.name, "high")
+            Signal(signal_keys.TOKEN_MAKER, scope, subject, raw, tree.name, "high")
         )
 
-    concepts = list(tree.effect_concepts("make_token"))
-    for unit in tree.units:
-        concepts.extend(iter_nested_token_effects(unit.node))
     need_mirror = False
-    for concept in concepts:
-        if concept.scope not in _YOU_EACH:
-            continue
-        types = concept.subject
-        if not types:
-            need_mirror = True
-            continue
-        if "Creature" not in types:
-            continue
-        subject = ""
-        for word in reversed(types):
-            resolved = _resolve_subject(word, CREATURE_SUBTYPES)
-            if resolved:
-                subject = resolved
-                break
-        fire(subject, concept.raw)
+    for unit in tree.units:
+        concepts = list(unit.effect_concepts("make_token"))
+        concepts.extend(iter_nested_token_effects(unit.node))
+        owner_scope: str | None = None
+        owner_scope_checked = False
+        for concept in concepts:
+            scope = concept.scope
+            # task #93 — Pharika, God of Affliction / Funeral Pyre's
+            # "Exile target card from a graveyard. Its owner creates a
+            # token." tags the Token's recipient ``ParentTargetOwner``.
+            # ``_effect_scope`` has no case for that tag and falls back
+            # to its own "you" default (so ``concept.scope`` already
+            # reads "you" and would slip past the gate below UNCHECKED,
+            # hiding the real ambiguity — the actual beneficiary is
+            # whoever's card you target, not always you). Read the task
+            # #91 beneficiary helper directly to get the REAL scope
+            # before gating: an unconstrained root target (Pharika/
+            # Funeral Pyre's bare "target [creature] card") makes the
+            # recipient "any" — a genuine, choosable "you can get this
+            # token" build-around (CR 601.2c: you may legally target
+            # your own graveyard) — while an opponent-constrained filter
+            # (no commander-legal token_maker case exists today, per
+            # task #91's exhaustive 63-card ParentTargetOwner census)
+            # would resolve "opponents", a directed gift correctly
+            # excluded below like Hunted Dragon's ``Typed``/``Opponent``
+            # maker. A SelfRef-anchored owner (no real root filter —
+            # :func:`_target_owner_beneficiary_scope` returns ``None``)
+            # leaves ``scope`` at its "you" default, unaffected.
+            owner_override = False
+            if recipient_tag(concept.node) == "ParentTargetOwner":
+                if not owner_scope_checked:
+                    owner_scope = _target_owner_beneficiary_scope(unit)
+                    owner_scope_checked = True
+                if owner_scope is not None:
+                    scope = owner_scope
+                    owner_override = True
+            # The "any" bypass below is scoped STRICTLY to the owner-
+            # override path above — an unrelated concept whose OWN
+            # natural scope happens to be "any" (a ``Player``/``Target``/
+            # ``ParentTarget`` recipient mapped there for a totally
+            # different reason) must still fail the gate exactly like
+            # before this task; only the ParentTargetOwner beneficiary
+            # read is new admission territory.
+            if scope not in _YOU_EACH and not (owner_override and scope == "any"):
+                continue
+            types = concept.subject
+            if not types:
+                need_mirror = True
+                continue
+            if "Creature" not in types:
+                continue
+            subject = ""
+            for word in reversed(types):
+                resolved = _resolve_subject(word, CREATURE_SUBTYPES)
+                if resolved:
+                    subject = resolved
+                    break
+            fire(subject, concept.raw, "any" if owner_override else "you")
     if need_mirror:
         for subject in sorted(_mirror_token_maker_type_subjects(tree.oracle or "")):
             fire(subject, "")
@@ -3070,6 +3113,35 @@ def _plus_one_makers(tree: ConceptTree) -> list[Signal]:
     own docstring for the three shapes read and why the Mutagen-token /
     Young-Hero-Role-token cycles stay OUT (no ability body at all in
     phase's parse, a substrate gap rather than a missed read).
+
+    task #93 (niche-7 re-triage, Tizerus Charger) adds a ``ChooseOneOf``
+    modal BRANCH descent: Fabricate (CR 702.146 — "put a +1/+1 counter on
+    it or create a Servo token", Glint-Sleeve Artisan/Accomplished
+    Automaton/Angel of Invention/…), Tizerus Charger's Escape-cost
+    replacement ("your choice of a +1/+1 counter or a flying counter"),
+    and Me, the Immortal's own multi-kind choice all put the genuine
+    ``PutCounter``/``P1P1`` node INSIDE a branch ``effect_concepts``
+    never reaches (the same reason ``draw_for_each``'s ``Vote``
+    ``per_choice_effect`` descent and ``_cheat_choose_one_of_battlefield_
+    put`` exist). Corpus-verified (32,521 commander-legal cards): 25 total
+    P1P1-anywhere-but-missing hits; this arm closes 20 of them. EXCLUDED
+    (by design) are Quarry Hauler / Dramatist's Puppet's "for each kind of
+    counter on target permanent, put ANOTHER counter of that kind" loop,
+    whose branch carries phase's own ``iteration_kind_binding:
+    RebindToIteratedKind`` marker — "P1P1" there is the loop-iteration
+    sentinel value, not a genuine reference to +1/+1 counters (the card's
+    own text never says "+1/+1" at all), so that marker is the exact,
+    structural discriminator gating this arm off for them. STILL MISSING
+    (a documented, different residual, not this arm's shape): Eternal
+    Thirst, Agent of the Shadow Thieves, and Thundering Mightmare each
+    place the same genuine P1P1 counter from a GRANTED TRIGGER nested in
+    a top-level STATIC's ``GrantTrigger`` modification (an Aura/anthem
+    granting "whenever X, put a +1/+1 counter on this creature" to
+    something), never a ``ChooseOneOf`` branch — the analogous gap
+    :func:`nested_plus_one_keyword_grant` already closed for a GRANTED
+    KEYWORD (``AddKeyword``); the same GrantTrigger-nested-effect walk,
+    keyed on ``PutCounter``/``P1P1`` instead, would close this one too.
+    Scope "you".
     """
     for c in tree.effect_concepts("place_counter"):
         ck = counter_kind(c.node).upper()
@@ -3081,6 +3153,19 @@ def _plus_one_makers(tree: ConceptTree) -> list[Signal]:
     for unit in tree.units:
         if nested_plus_one_keyword_grant(unit.node):
             return [Signal("plus_one_makers", "you", "", "", tree.name, "high")]
+        for n in iter_typed_nodes(unit.node):
+            if tag_of(n) != "ChooseOneOf":
+                continue
+            for br in getattr(n, "branches", None) or ():
+                if getattr(br, "iteration_kind_binding", MISSING) is not MISSING:
+                    continue  # the "for each kind of counter" loop artifact
+                for bn in iter_typed_nodes(br):
+                    if tag_of(bn) != "PutCounter":
+                        continue
+                    if counter_kind(bn).upper() == "P1P1":
+                        return [
+                            Signal("plus_one_makers", "you", "", "", tree.name, "high")
+                        ]
     return []
 
 
@@ -3108,13 +3193,24 @@ def _plus_one_makers(tree: ConceptTree) -> list[Signal]:
 # activated abilities, with no attack/block restriction, would be a
 # different mechanic, not this one).
 #
-# `EquippedBy` is deliberately NOT in the predicate set — the task frames
-# this as an AURA concept (CR 303.4), and Equipment locking its own bearer's
-# attacks/blocks is rare enough (and mechanically distinct — the wearer
-# CHOSE to equip) to defer as a separate class rather than silently fold in
-# here.
+# `EquippedBy` joined the predicate set in task #93: CR 613's layer system
+# applies a can't-attack/can't-block restriction identically regardless of
+# whether the granting permanent is an Aura or an Equipment (CR 301.5/303.4
+# both just attach; the restriction itself is an ordinary layer-6
+# ability-modifying effect either way, no rules distinction). A full
+# commander-legal corpus census (32,521 cards) for an `EquippedBy`-affected
+# `CantAttack`/`CantBlock`/`CantAttackOrBlock` static turns up exactly ONE
+# hit, Copper Carapace ("Equipped creature gets +2/+2 and can't block.") —
+# and it is the SAME Rage/Vow-cycle compensating-benefit shape the veto
+# below already excludes for Auras (a positive P/T buff riding the SAME
+# restriction, a combat enabler you put on your OWN creature, never a
+# Pacifism-style neutralize). So widening the predicate set changes NOTHING
+# in the current corpus (the veto below now also scans `EquippedBy`-
+# affected statics, correctly still excluding Copper Carapace) — it is a
+# rules-motivated generalization, not a card-count-driven one, kept ready
+# for a future genuine Equipment-pacify printing.
 #
-# COMPENSATING-BENEFIT veto (corpus-measured, task #87): a bare mode/pred
+# COMPENSATING-BENEFIT veto (corpus-measured, task #87; widened #93): a bare mode/pred
 # scan over-fires on the "Rage"/"Vow" cycles (Undying Rage, Maniacal Rage,
 # Cagemail, Gnarled Scarhide's bestow, Vow of Malice/Duty/Flight/Lightning/
 # Torment/Wildness) — a SEPARATE top-level static in the SAME card grants a
@@ -3133,21 +3229,25 @@ def _plus_one_makers(tree: ConceptTree) -> list[Signal]:
 # synergy escape hatch, not an unconditional benefit) lives in a DIFFERENT,
 # "ability"-origin unit and never gates this veto.
 _PACIFY_AURA_MODES = frozenset({"CantAttack", "CantBlock", "CantAttackOrBlock"})
-_PACIFY_AURA_PREDS = frozenset({"EnchantedBy"})
+_PACIFY_ATTACH_PREDS = frozenset({"EnchantedBy", "EquippedBy"})
 _PACIFY_PT_MOD_TAGS = frozenset({"AddPower", "AddToughness"})
 _PACIFY_ALWAYS_COMPENSATING_TAGS = frozenset({"AddKeyword", "SetPower", "SetToughness"})
 
 
 def _pacify_aura_compensates(tree: ConceptTree) -> bool:
     """True if a top-level static grants a POSITIVE benefit to the SAME
-    EnchantedBy target a pacify restriction (also top-level) targets — see
-    :func:`_pacify_makers`'s module note for the corpus-measured boundary.
-    """
+    EnchantedBy/EquippedBy target a pacify restriction (also top-level)
+    targets — see :func:`_pacify_makers`'s module note for the
+    corpus-measured boundary (widened to Equipment in task #93; Copper
+    Carapace is the sole commander-legal ``EquippedBy`` hit and is
+    correctly caught by this SAME veto)."""
     for unit in tree.units:
         if unit.origin != "static":
             continue
         node = unit.node
-        if "EnchantedBy" not in filter_predicates(getattr(node, "affected", None)):
+        if not set(filter_predicates(getattr(node, "affected", None))) & (
+            _PACIFY_ATTACH_PREDS
+        ):
             continue
         for m in getattr(node, "modifications", None) or ():
             if not isinstance(m, TypedMirrorNode):
@@ -3163,17 +3263,17 @@ def _pacify_aura_compensates(tree: ConceptTree) -> bool:
 
 
 def _pacify_makers(tree: ConceptTree) -> list[Signal]:
-    """pacify_makers — an Aura that NEUTRALIZES the permanent it enchants
-    (Pacifism, Arrest, Faith's Fetters, Prison Term — CR 508.1a/509.1b) by
-    granting a can't-attack/can't-block restriction to "whatever this
-    enchants", rather than destroying/exiling/countering/bouncing/
-    fighting/-X'ing it (CR 611.2 — the enchanted permanent stays on the
-    battlefield, so this is deliberately NOT part of `removal`; see the
-    module note above and budgets.py's `_INTERACTION_PRESETS` comment for
-    the task #86 flip that split these two facts apart). Scope "you" (the
-    Aura's controller neutralized someone/something). Gated by
-    :func:`_pacify_aura_compensates` — see its own docstring for the
-    Rage/Vow-cycle veto.
+    """pacify_makers — an Aura OR Equipment that NEUTRALIZES the permanent
+    it's attached to (Pacifism, Arrest, Faith's Fetters, Prison Term — CR
+    508.1a/509.1b) by granting a can't-attack/can't-block restriction to
+    "whatever this enchants"/"equipped creature", rather than destroying/
+    exiling/countering/bouncing/fighting/-X'ing it (CR 611.2 — the
+    permanent stays on the battlefield, so this is deliberately NOT part
+    of `removal`; see the module note above and budgets.py's
+    `_INTERACTION_PRESETS` comment for the task #86 flip that split these
+    two facts apart). Scope "you" (the controller neutralized someone/
+    something). Gated by :func:`_pacify_aura_compensates` — see its own
+    docstring for the Rage/Vow-cycle veto.
     """
     if _pacify_aura_compensates(tree):
         return []
@@ -3182,7 +3282,7 @@ def _pacify_makers(tree: ConceptTree) -> list[Signal]:
             if static_mode_tag(node) not in _PACIFY_AURA_MODES:
                 continue
             affected = getattr(node, "affected", None)
-            if set(filter_predicates(affected)) & _PACIFY_AURA_PREDS:
+            if set(filter_predicates(affected)) & _PACIFY_ATTACH_PREDS:
                 return [
                     Signal(
                         "pacify_makers", "you", "", _site_raw(node), tree.name, "high"
@@ -7363,6 +7463,44 @@ def _any_counter_matters(tree: ConceptTree) -> list[Signal]:
     return []
 
 
+# task #93 item 6 (niche-7 re-triage, Blightbeetle): a counter-DENIAL hate
+# piece — "Creatures your opponents control can't have +1/+1 counters put
+# on them" — is a genuine, if narrow, anti-counters stax tell distinct from
+# ``any_counter_matters`` (a PAYOFF for counters already present, which
+# EXPLICITLY excludes an ``Opponent``-controlled filter — see the ``!=
+# "Opponent"`` gates above) and from a SELF-protection "this creature can't
+# have counters put on it" (Melira's Keepers, Tatterkite — protects the
+# card ITSELF, no opponent scope at all, out of scope for this lane). Both
+# corpus hits (Blightbeetle's unconditional static, Suncleanser's modal
+# "Target opponent loses all counters. That player can't get counters..."
+# branch) are a phase parser gap — CR 701.71 (the "can't have/get counters"
+# restriction) has NO typed substrate at all; phase drops the whole clause
+# to an ``Unimplemented`` "static_structure"/"can't" residue either way, so
+# a raw-text regex bridge is the only way to read either. Corpus-verified
+# exhaustively (32,521 commander-legal cards): exactly these 2 hits, 0
+# false positives, 0 near-misses reachable by a broader phrasing. No
+# ``theme_presets`` entry — 2 cards is too narrow a population for an
+# archetype-level preset (matches how other single-digit-population lanes
+# in this module stay preset-less). Scope "opponents". CR 701.71.
+_COUNTER_HATE_OPPONENT_RE = re.compile(
+    r"opponents?\s+control[^.]*can.t have[^.]*counters?\s+put\s+on\s+them"
+    r"|target opponent[^.]*loses all counters[^.]*\.\s*that player can.t "
+    r"(?:get|have) counters",
+    re.IGNORECASE,
+)
+
+
+def _counter_hate(tree: ConceptTree) -> list[Signal]:
+    """counter_hate — an opponent-directed counter-placement DENIAL (CR
+    701.71), never a self-protection or an own-counter payoff. See the
+    module note above for the corpus census + boundary against
+    ``any_counter_matters``."""
+    m = _COUNTER_HATE_OPPONENT_RE.search(_kept(tree))
+    if m is None:
+        return []
+    return [Signal("counter_hate", "opponents", "", m.group(0), tree.name, "high")]
+
+
 def _chooses_opponent(node: object) -> bool:
     """Whether a ``Choose`` effect picks an OPPONENT (the give-away beneficiary).
 
@@ -9560,8 +9698,11 @@ def _sac_actor_scope(
 # Pharika / Funeral Pyre ("Exile target card from a graveyard. Its owner
 # creates a token." — token_maker's OWN membership gate is scope-coupled
 # [``concept.scope not in _YOU_EACH``], so correcting its scope would DROP
-# these two from the lane's membership — a membership change, out of scope
-# for #91; deferred, not fixed, evidence in the task report). Every other
+# these two from the lane's membership; that membership+scope call was out
+# of scope for #91 and deferred — FIXED together in task #93: ``_token_maker``
+# now calls this SAME helper per-unit and admits a ``ParentTargetOwner``
+# recipient whose beneficiary resolves "any", firing scope "any" instead of
+# the hardcoded "you"). Every other
 # hit is a "shuffle THIS card into its own owner's library" tuck-cycle
 # (Beacon of Immortality, Blitz Hellion, Cerulean Sphinx, …) whose ONLY
 # ParentTargetOwner-tagged effect is an ``Shuffle``/``other`` concept no
@@ -15319,13 +15460,30 @@ _LAND_SUBTYPES: frozenset[str] = frozenset(
 # phrase gate needed (several of the 6 don't even contain the phrase
 # gate's word list — "the attacking player"/"those players"/"defending
 # player" — so gating would UNDER-fire the very class it exists to admit).
-# CR 121.1.
+# CR 121.1. ``ParentTargetOwner`` (the OWNER, not controller, of a
+# previously targeted object — CR 108.3) joined this UNCONDITIONAL set in
+# task #93: a full commander-legal corpus census of every
+# ``ParentTargetOwner``-tagged Draw node (32,521 cards scanned) turns up
+# EXACTLY 4 hits, whole population, 0 exceptions — Oft-Nabbed Goat ("its
+# owner draws that many cards"), Apple of Eden // Isu Relic ("its owner
+# draws a card"), Oblation and Deadly Cover-Up ("The owner of target
+# nonland permanent shuffles it into their library, then draws two
+# cards." / "That player shuffles, then draws a card for each card
+# exiled..."). All 4 are the SAME genuine same-unit "target X's owner
+# gets the draw" idiom (no bled-from-elsewhere false positive anywhere in
+# the tag's population), so unlike the phrase-gated tags below there is
+# no bleed risk to guard against — moving it here also fixes the
+# previously-deferred comma-gap miss on Oblation/Deadly Cover-Up (task
+# #91 finding): their draw sits in a "..., then draws ..." clause with a
+# comma between the owner reference and the verb that
+# :data:`_TARGET_PLAYER_DRAW_PHRASE_RE`'s ``[^.,;]*?`` can't cross, so the
+# phrase gate previously always missed them regardless of wording.
 _TARGETED_DRAW_TAGS: frozenset[str] = frozenset(
-    {"Player", "ParentTarget", "Target", "Any"}
+    {"Player", "ParentTarget", "Target", "Any", "ParentTargetOwner"}
 )
 # ADR-0038 W3 batch 6 — the THREE widened tags above (``Typed``,
 # ``ParentTargetController``, ``TriggeringPlayer``) are NOT unconditional
-# like the original three: a phase templating quirk bleeds a PRECEDING
+# like the original ones: a phase templating quirk bleeds a PRECEDING
 # clause's "target X. Its controller may Y." recipient onto a FOLLOWING,
 # textually-unattributed "Draw a card." sentence that per CR 608.2h
 # actually defaults to the caster (Price of Freedom, Cleansing Wildfire,
@@ -15336,22 +15494,15 @@ _TARGETED_DRAW_TAGS: frozenset[str] = frozenset(
 # below (Call to Heel's "Its controller draws a card." — SAME clause —
 # still fires correctly; the bled cards' bare "Draw a card." clause has no
 # such wording and correctly stays out).
-# ADR-0038 W5 tails: two more widened tags, SAME phrase-gate treatment —
-# ``ParentTargetOwner`` (the OWNER, not controller, of a previously targeted
-# object — Oft-Nabbed Goat's "its owner draws that many cards", Apple of
-# Eden, Isu Relic's "its owner draws a card"; corpus-verified 4 hits total,
-# the other 2 — Oblation, Deadly Cover-Up — carry a comma between the
-# direction word and "draws" the phrase gate doesn't cross, a known,
-# deferred limitation, not a new one) and ``TriggeringSourceController`` (the
-# controller of the trigger's SOURCE permanent — Norn's Decree's "the
-# attacking player draws a card", the object-chain analog of
-# ``TriggeringPlayer``'s direct-player read).
+# ADR-0038 W5 tails: one more widened tag, SAME phrase-gate treatment —
+# ``TriggeringSourceController`` (the controller of the trigger's SOURCE
+# permanent — Norn's Decree's "the attacking player draws a card", the
+# object-chain analog of ``TriggeringPlayer``'s direct-player read).
 _TARGETED_DRAW_WIDENED_TAGS: frozenset[str] = frozenset(
     {
         "Typed",
         "ParentTargetController",
         "TriggeringPlayer",
-        "ParentTargetOwner",
         "TriggeringSourceController",
     }
 )
@@ -25123,6 +25274,7 @@ _LANES = (
     _free_cast,
     _plus_one_matters,
     _any_counter_matters,
+    _counter_hate,
     _gain_control,
     _resource_token_makers,
     _proliferate_makers,

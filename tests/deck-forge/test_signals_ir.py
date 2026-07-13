@@ -2330,6 +2330,37 @@ def test_equip_granted_mentor_opens_plus_one_makers():
     assert "plus_one_makers" in keys
 
 
+# ── plus_one_makers ChooseOneOf modal-branch class (task #93) ───────────────
+
+
+def test_fabricate_choose_one_of_branch_opens_plus_one_makers():
+    """Glint-Sleeve Artisan's Fabricate 1 (CR 702.146) is a ``ChooseOneOf``
+    modal with a "+1/+1 counter" branch and a "Servo token" branch — the
+    genuine ``PutCounter``/``P1P1`` node sits INSIDE the branch, which
+    ``effect_concepts`` never reaches."""
+    keys = _skeys(test_signals("Glint-Sleeve Artisan"))
+    assert "plus_one_makers" in keys
+
+
+def test_tizerus_charger_escape_choice_opens_plus_one_makers():
+    """Tizerus Charger's Escape-cost replacement ("your choice of a +1/+1
+    counter or a flying counter") is the SAME ChooseOneOf-branch shape,
+    off a REPLACEMENT-origin unit rather than a triggered ETB."""
+    keys = _skeys(test_signals("Tizerus Charger"))
+    assert "plus_one_makers" in keys
+
+
+def test_iteration_kind_rebind_does_not_open_plus_one_makers():
+    """Negative pin: Quarry Hauler's "for each kind of counter on target
+    permanent, put ANOTHER counter of that kind on it or remove one from
+    it" is a kind-AGNOSTIC loop — phase's own iteration-kind rebind marker
+    on the branch means the "P1P1" typed value is a loop-iteration
+    sentinel, not a genuine +1/+1 reference (the card's own text never
+    says "+1/+1"). Must stay OUT of plus_one_makers."""
+    keys = _skeys(test_signals("Quarry Hauler"))
+    assert "plus_one_makers" not in keys
+
+
 def test_saga_created_token_custom_trigger_stays_out_of_plus_one_makers():
     """Ral and the Implicit Maze's chapter III creates a Spellgorger Weird
     token whose OWN "whenever you cast a noncreature spell, put a +1/+1
@@ -2449,6 +2480,34 @@ def test_removal_and_pacify_makers_stay_disjoint():
     partitioned per budgets.py's `_INTERACTION_PRESETS` comment."""
     assert "removal" not in _skeys(test_signals("Pacifism"))
     assert "pacify_makers" not in _skeys(test_signals("Murder"))
+
+
+def test_equipment_pacify_admitted_structurally():
+    """task #93: `EquippedBy` joined the pacify-attach predicate set (CR
+    613's layer system treats an Equipment's can't-attack/can't-block
+    grant identically to an Aura's — no rules distinction). Pin the
+    admission directly against the underlying predicate/veto helpers
+    (rather than a real card) since the sole commander-legal
+    `EquippedBy`-affected CantBlock/CantAttack static in the corpus,
+    Copper Carapace, is ALSO the sole compensating-benefit case (see the
+    negative pin below) — there is no genuine Equipment-only pacify
+    printing yet to pin a positive real-card case against."""
+    from mtg_utils._deck_forge.crosswalk_signals import _PACIFY_ATTACH_PREDS
+
+    assert "EnchantedBy" in _PACIFY_ATTACH_PREDS
+    assert "EquippedBy" in _PACIFY_ATTACH_PREDS
+
+
+def test_copper_carapace_equipment_pacify_vetoed_by_compensating_pt():
+    """Copper Carapace ("Equipped creature gets +2/+2 and can't block.") is
+    the ONLY commander-legal Equipment with a can't-attack/can't-block
+    static tied to an `EquippedBy` affected filter (task #93 corpus
+    census, 32,521 cards) — and it is the Rage/Vow-cycle compensating-
+    benefit shape (a positive P/T buff riding the SAME restriction), so it
+    stays OUT of pacify_makers even with `EquippedBy` now admitted —
+    widening the predicate set changed nothing in the live corpus."""
+    keys = _skeys(test_signals("Copper Carapace"))
+    assert "pacify_makers" not in keys
 
 
 # ── opp_top_exile (ADR-0027 q2-D2 — name-lock / impulse-cast steal) ────────────
@@ -2675,3 +2734,20 @@ def test_spellcast_matters_excludes_creature_spell_triggers():
     assert _detect_spellcast_matters(
         "whenever you cast an instant or sorcery spell, deal 2 damage to each opponent."
     )
+
+
+# ── task #93 item 6 (niche-7 re-triage): Cosima // The Omenkeel ─────────────
+
+
+def test_cosima_voyage_counter_already_served_by_landfall_and_draw_for_each():
+    """Cosima, God of the Voyage's front-face delayed replacement ("you may
+    exile Cosima... it gains 'Whenever a land you control enters... put a
+    voyage counter on it. If you don't, return Cosima to the battlefield
+    with X +1/+1 counters on it and draw X cards...'") is ALREADY well
+    served, no new lane needed: the granted trigger genuinely cares about
+    lands entering (``landfall``) and the return scales a draw by a
+    counted resource (``draw_for_each``) — both fire structurally today.
+    Documented here as the task #93 finding (not a gap)."""
+    keys = _skeys(test_signals("Cosima, God of the Voyage // The Omenkeel"))
+    assert "landfall" in keys
+    assert "draw_for_each" in keys

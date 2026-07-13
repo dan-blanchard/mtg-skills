@@ -2064,6 +2064,18 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
             _PROLIFERATE_EXTRA,
         ),
     ),
+    # task #93: counter_hate — an opponent-directed counter-placement DENIAL
+    # (Blightbeetle, Suncleanser — CR 701.71), a narrow anti-counters stax
+    # tell distinct from the payoff lanes above. Only 2 commander-legal
+    # cards carry the exact shape; the search widens slightly to any
+    # "opponents/opponent...can't...counter(s)" hate text so a deck-forge
+    # search surfaces siblings if a future set prints more.
+    ("counter_hate", "opponents"): _spec(
+        "Counter denial",
+        "deny opponents' counters (anti-+1/+1, anti-proliferate stax)",
+        {"oracle": r"opponents?[^.]*can.t (?:have|get)[^.]*counters?"},
+        r"opponents?[^.]*can.t (?:have|get)[^.]*counters?",
+    ),
     # Hand spec (overrides the mined sweep detector) so the avenue can fan out a
     # dedicated "Flip fixing" sub-avenue. The flat coin-flip search returns ~60 generic
     # "flip a coin" payoffs and buries Krark's-Thumb-style fixers past the package cap,
