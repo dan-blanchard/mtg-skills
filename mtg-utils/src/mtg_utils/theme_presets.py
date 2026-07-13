@@ -1445,6 +1445,29 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
             "Condemn",  # library-tuck -> lifegain_makers/toughness_combat
         ),
     ),
+    # Pacify aura (task #87): the dedicated structural concept the
+    # `removal` preset's own should_not_match note (and budgets.py's
+    # `_INTERACTION_PRESETS` comment) named as the recovery path for
+    # Pacifism/Arrest's `interaction`-role credit — never folded back into
+    # `removal` itself (CR 611.2: the enchanted permanent stays on the
+    # battlefield, so it's a genuinely different fact than
+    # destroy/exile/counter/bounce/fight/-X). See
+    # ``crosswalk_signals._pacify_makers``'s own docstring for the
+    # structural read (a `CantAttack`/`CantBlock`/`CantAttackOrBlock`
+    # static whose ``affected`` filter is `EnchantedBy` — "whatever this
+    # enchants").
+    Preset(
+        name="pacify-aura",
+        description=(
+            "An Aura that neutralizes the creature/permanent it enchants "
+            "(can't attack/block) rather than destroying, exiling, "
+            "countering, bouncing, fighting, or -X/-X'ing it — Pacifism, "
+            "Arrest (CR 508.1a/509.1b)."
+        ),
+        signal_keys=("pacify_makers",),
+        should_match=("Pacifism", "Arrest", "Faith's Fetters", "Prison Term"),
+        should_not_match=("Lightning Bolt", "Counterspell", "Murder"),
+    ),
     # Board wipe — subset of removal that hits all/many creatures.
     Preset(
         name="board-wipe",
@@ -2145,27 +2168,56 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
     #   counter-caring payoff; already deliberately excluded corpus-wide
     #   per ``_plus_one_matters``'s own documented Hindervines exception).
     # * a GRANTED keyword/ability, or a SEPARATELY CREATED permanent's own
-    #   ability, placing the counter — never this card's own effect (~36
-    #   cards: the "Mutagen token" cycle — April O'Neil, Crustacean
-    #   Commando, Genghis Frog, Mona Lisa, Mutagen Man, Mutant Chain
-    #   Reaction, Ooze Spill, Return to the Sewers, Shellshock, Slithering
-    #   Cryptid, Zoo Escapees; the "Young Hero Role" token cycle — Cut In,
-    #   Embereth Veteran, Merry Bards, Protective Parents, Return
-    #   Triumphant; a granted Sunburst/Bloodthirst/Riot/Evolve/Training/
-    #   Devour/Scavenge/Dethrone (Lux Artillery, Solar Array, Twins of
-    #   Discord, Domri Chaos Bringer, Propagator Drone, Elder Arthur
-    #   Maxson, Dragon Broodmother, Varolz, Young Deathclaws, Dack's
-    #   Duplicate); a delayed "one-time boon" granted to a FUTURE spell
-    #   (Arcane Archery, Champions of Tyr, March Toward Perfection,
-    #   Tenacious Pup); a bare Amass/Incubate ACTION reference from a
-    #   loyalty ability or spell effect rather than the creature's own
-    #   keyword (Angrath, Commence the Endgame, Assimilate Essence,
-    #   Excise the Imperfect, Tangled Skyline); Aegis of the Legion's
-    #   granted Mentor; Ral and the Implicit Maze's created token's own
-    #   ability — the SAME GrantAbility-descent / token's-own-ability
-    #   substrate gap named in the bounce/edict/extra-turns deferrals
-    #   (task #85), cross-lane and out of scope for one preset. Ledgered
-    #   here, not silently dropped.
+    #   ability, placing the counter — never this card's own effect. task
+    #   #87 re-adjudicated this whole class (~36 cards, per-card raw-phase-
+    #   shape inspection) and closed the GRANTED-KEYWORD half via
+    #   ``crosswalk.nested_plus_one_keyword_grant`` (see its own docstring
+    #   for the three structural shapes read):
+    #     - CLOSED: a top-level static's ``AddKeyword`` grant of
+    #       Bloodthirst/Devour/Scavenge/Dethrone/Evolve/Training/Mentor to
+    #       something OTHER than the card itself (Twins of Discord's
+    #       granted Bloodthirst, Varolz / Young Deathclaws's granted
+    #       Scavenge, Propagator Drone's granted Evolve, Elder Arthur
+    #       Maxson's / Warrior's Resolve's granted Training, Aegis of the
+    #       Legion's Equip-granted Mentor); a ``BecomeCopy`` copy-exception
+    #       grant (Dack's Duplicate's granted Dethrone); a CREATED TOKEN's
+    #       OWN keyword profile (Dragon Broodmother's Devour token).
+    #     - STILL OUT, different shape, genuinely out of THIS mechanism's
+    #       reach: Sunburst (Lux Artillery, Solar Array — CR 702.44
+    #       branches +1/+1 vs charge counters by the affected permanent's
+    #       type, a fork the granting site can't resolve) and Riot (Domri,
+    #       Chaos Bringer — CR 702.136 haste-OR-counter CHOICE, never a
+    #       guaranteed placement) are deliberately excluded from the
+    #       keyword set itself, not a recall gap — see
+    #       ``nested_plus_one_keyword_grant``'s own docstring.
+    #     - STILL OUT, genuine phase-parse SUBSTRATE gap (no ability body
+    #       at all in card-data.json, verified against the raw record):
+    #       the "Mutagen token" cycle (April O'Neil, Crustacean Commando,
+    #       Genghis Frog, Mona Lisa, Mutagen Man, Mutant Chain Reaction,
+    #       Ooze Spill, Return to the Sewers, Shellshock, Slithering
+    #       Cryptid, Zoo Escapees) and the "Young Hero Role" token cycle
+    #       (Cut In, Embereth Veteran, Merry Bards, Protective Parents,
+    #       Return Triumphant) create PREDEFINED tokens whose own
+    #       activated/triggered ability phase never parses (the ``Token``
+    #       effect node's ``keywords``/``static_abilities`` fields are
+    #       both empty — the reminder text lives only in phase's engine-
+    #       side ``known-tokens.toml``, a different data source this
+    #       crosswalk never reads); Ral and the Implicit Maze's created
+    #       Spellgorger Weird token has the SAME gap for its own CUSTOM
+    #       (non-keyword) triggered ability.
+    #     - STILL OUT, a delayed "one-time boon" granted to a FUTURE spell
+    #       (Arcane Archery, Champions of Tyr, March Toward Perfection,
+    #       Tenacious Pup) or a bare Amass/Incubate ACTION reference from a
+    #       loyalty ability or spell effect (Angrath, Commence the
+    #       Endgame, Assimilate Essence, Excise the Imperfect, Tangled
+    #       Skyline) — BOTH verified this session to be WHOLLY DROPPED by
+    #       phase's own parse (no node at all, not even an ``Unimplemented``
+    #       stub — Arcane Archery's boon-grant text and Commence the
+    #       Endgame's "amass Zombies X" clause are simply absent from the
+    #       card's typed ``abilities`` list), so no structural read of any
+    #       shape can reach them — a genuine phase substrate gap, not a
+    #       lane-mechanism gap.
+    #   Ledgered here, not silently dropped.
     # * niche singleton residue, individually inspected and genuinely
     #   ambiguous/complex enough to defer rather than force a fix:
     #   Biomancer's Familiar (a counter-COUNT reference for an unrelated

@@ -2271,6 +2271,180 @@ def test_devour_keyword_opens_plus_one_makers():
     assert "plus_one_makers" in keys
 
 
+# ── plus_one_makers granted/token-body class (task #87) ────────────────────────
+
+
+def test_token_own_devour_keyword_opens_plus_one_makers():
+    """Dragon Broodmother's OWN top-level keywords are just ``Flying`` — the
+    Devour (CR 702.82) lives on the CREATED Dragon token's own keyword
+    profile (``{Devour: 2}``), not on Dragon Broodmother's card. See
+    ``crosswalk.nested_plus_one_keyword_grant``'s token-profile arm."""
+    keys = _skeys(test_signals("Dragon Broodmother"))
+    assert "plus_one_makers" in keys
+
+
+def test_granted_bloodthirst_static_opens_plus_one_makers():
+    """Twins of Discord's "Each other colorless creature you control has
+    bloodthirst 2" (CR 702.54) is a top-level static AddKeyword grant to
+    OTHER creatures — never Twins of Discord's own keyword array."""
+    keys = _skeys(test_signals("Twins of Discord"))
+    assert "plus_one_makers" in keys
+
+
+def test_granted_scavenge_static_opens_plus_one_makers():
+    """Varolz's "Each creature card in your graveyard has scavenge" (CR
+    702.97) grants the keyword to graveyard cards, not Varolz itself."""
+    keys = _skeys(test_signals("Varolz, the Scar-Striped"))
+    assert "plus_one_makers" in keys
+
+
+def test_granted_evolve_static_opens_plus_one_makers():
+    """Propagator Drone's "Creature tokens you control have evolve" grants
+    Evolve (CR 702.106) to tokens it makes, not itself."""
+    keys = _skeys(test_signals("Propagator Drone"))
+    assert "plus_one_makers" in keys
+
+
+def test_granted_training_static_opens_plus_one_makers():
+    """Elder Arthur Maxson's "Creature tokens you control have training"
+    grants Training (CR 702.149) to tokens, not itself."""
+    keys = _skeys(test_signals("Elder Arthur Maxson"))
+    assert "plus_one_makers" in keys
+
+
+def test_copy_exception_dethrone_opens_plus_one_makers():
+    """Dack's Duplicate's "...except it has haste and dethrone" is a
+    BecomeCopy replacement's ``additional_modifications`` copy-exception
+    grant (CR 702.103 Dethrone) — a different field than a static's
+    ``modifications``."""
+    keys = _skeys(test_signals("Dack's Duplicate"))
+    assert "plus_one_makers" in keys
+
+
+def test_equip_granted_mentor_opens_plus_one_makers():
+    """Aegis of the Legion's "Equipped creature gets +1/+1 and has mentor"
+    (CR 702.134) grants Mentor via Equip, not Enchant — the granted-keyword
+    read doesn't gate on the attach mechanism (Aura vs Equipment), unlike
+    the separate pacify_makers concept."""
+    keys = _skeys(test_signals("Aegis of the Legion"))
+    assert "plus_one_makers" in keys
+
+
+def test_saga_created_token_custom_trigger_stays_out_of_plus_one_makers():
+    """Ral and the Implicit Maze's chapter III creates a Spellgorger Weird
+    token whose OWN "whenever you cast a noncreature spell, put a +1/+1
+    counter" is a CUSTOM triggered ability, not a keyword — the created
+    Token effect node carries an empty ``keywords`` list and no
+    ``static_abilities`` field at all (same predefined/custom-ability
+    substrate gap as the Mutagen/Young-Hero-Role token cycles)."""
+    keys = _skeys(test_signals("Ral and the Implicit Maze"))
+    assert "plus_one_makers" not in keys
+
+
+def test_sunburst_grant_stays_out_of_plus_one_makers():
+    """Lux Artillery grants Sunburst (CR 702.44) to a cast artifact
+    CREATURE spell — but Sunburst itself branches +1/+1 counters (creature)
+    vs charge counters (noncreature) depending on the affected permanent's
+    own type, a fork ``nested_plus_one_keyword_grant`` can't resolve off
+    the bare ``TriggeringSource``/``ParentTarget`` affected-ref alone.
+    Deliberately excluded from the keyword set — genuinely different from
+    the unconditionally-P1P1 keywords (Devour/Bloodthirst/Scavenge/
+    Dethrone/Evolve/Training)."""
+    keys = _skeys(test_signals("Lux Artillery"))
+    assert "plus_one_makers" not in keys
+
+
+def test_riot_grant_stays_out_of_plus_one_makers():
+    """Domri, Chaos Bringer grants Riot (CR 702.136) to a creature spell —
+    a haste-OR-counter CHOICE, never a guaranteed placement. Native Riot
+    isn't in the plus-one-counters Preset's own keyword list either; this
+    doesn't reopen that call."""
+    keys = _skeys(test_signals("Domri, Chaos Bringer"))
+    assert "plus_one_makers" not in keys
+
+
+def test_mutagen_token_ability_stays_out_of_plus_one_makers():
+    """Mutagen Man's created Mutagen token has its OWN activated ability
+    ("{1}, {T}, Sacrifice this token: Put a +1/+1 counter on target
+    creature") — but phase's card-data parse carries NO ability body at
+    all for this predefined token (verified against the raw record: the
+    Token effect node's ``keywords``/``static_abilities`` fields are both
+    empty). A genuine substrate gap, not a missed structural read."""
+    keys = _skeys(test_signals("Mutagen Man, Living Ooze"))
+    assert "plus_one_makers" not in keys
+
+
+def test_young_hero_role_token_stays_out_of_plus_one_makers():
+    """Cut In's created Young Hero Role token has its OWN triggered
+    ability ("Whenever this creature attacks, if its toughness is 3 or
+    less, put a +1/+1 counter on it") — same predefined-token substrate
+    gap as the Mutagen cycle: no ability body at all in phase's parse."""
+    keys = _skeys(test_signals("Cut In"))
+    assert "plus_one_makers" not in keys
+
+
+# ── pacify_makers (task #87) — Pacifism/Arrest class ────────────────────────
+
+
+def test_pacifism_separate_cantattack_cantblock_opens_pacify_makers():
+    """Pacifism's two SEPARATE static defs (CantAttack, CantBlock — each
+    its own top-level static_abilities entry) both carry an EnchantedBy
+    affected filter (CR 508.1a/509.1b); one is enough to open the lane."""
+    keys = _skeys(test_signals("Pacifism"))
+    assert "pacify_makers" in keys
+
+
+def test_arrest_combined_cantattackorblock_opens_pacify_makers():
+    """Arrest's single CantAttackOrBlock static (plus a co-occurring
+    CantBeActivated rider that doesn't need to gate anything separately)."""
+    keys = _skeys(test_signals("Arrest"))
+    assert "pacify_makers" in keys
+
+
+def test_negative_pt_rider_stays_in_pacify_makers():
+    """Cast into Darkness's "-2/-0 and can't block" — a DEBUFF alongside
+    the restriction (mod_value < 0) is the same "shut this down" archetype
+    as a pure Pacifism, not a compensating benefit — stays IN."""
+    keys = _skeys(test_signals("Cast into Darkness"))
+    assert "pacify_makers" in keys
+
+
+def test_rider_activated_ability_does_not_veto_pacify_makers():
+    """Gelid Shackles's OPTIONAL "{S}: Enchanted creature gains defender
+    until end of turn" lives in a DIFFERENT, ability-origin unit (a rider
+    the Aura's controller must additionally pay for) — it must not veto
+    the top-level CantBlock static's own pacify_makers firing."""
+    keys = _skeys(test_signals("Gelid Shackles"))
+    assert "pacify_makers" in keys
+
+
+def test_positive_pump_rider_vetoes_pacify_makers():
+    """Cagemail's "+2/+2 and can't attack" — a POSITIVE combat buff
+    alongside the restriction is the "Rage" cycle's aggro-enabler
+    archetype (cast on YOUR OWN creature to trade blocking for stats),
+    never the Pacifism/Arrest neutralize-a-threat shape."""
+    keys = _skeys(test_signals("Cagemail"))
+    assert "pacify_makers" not in keys
+
+
+def test_granted_keyword_rider_vetoes_pacify_makers():
+    """Vow of Malice's "+2/+2, has intimidate, and can't attack you or
+    planeswalkers you control" — the "Vow" cycle grants a keyword
+    alongside a DIRECTED restriction (protect yourself specifically), a
+    political/protection tool, not a neutralizer."""
+    keys = _skeys(test_signals("Vow of Malice"))
+    assert "pacify_makers" not in keys
+
+
+def test_removal_and_pacify_makers_stay_disjoint():
+    """Pacifism must never open the `removal` structural view (CR 611.2 —
+    the enchanted creature stays on the battlefield), and Murder (a real
+    destroy effect) must never open pacify_makers — the two lanes stay
+    partitioned per budgets.py's `_INTERACTION_PRESETS` comment."""
+    assert "removal" not in _skeys(test_signals("Pacifism"))
+    assert "pacify_makers" not in _skeys(test_signals("Murder"))
+
+
 # ── opp_top_exile (ADR-0027 q2-D2 — name-lock / impulse-cast steal) ────────────
 
 

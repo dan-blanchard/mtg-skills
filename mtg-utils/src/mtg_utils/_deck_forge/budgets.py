@@ -50,24 +50,26 @@ _SHAPE_BANDS: dict[str, dict[str, tuple[int, int]]] = {
 # as interaction and then cutting a poison payoff to "trim the over-band role".
 #
 # Task #86 (the `removal` preset's structural-view flip): pacify auras
-# ("Enchanted creature can't attack or block" — Pacifism, Arrest) NO LONGER
-# fold in here. The old regex's pacify branch is gone; the 9-key
-# signal_keys union `removal` now reads has no lane for "neutralizes a
-# permanent without destroying/exiling/countering/bouncing/fighting/-X'ing
-# it" — the task #83/#86 scoping pass adjudicated this as MORE-correct
-# routing (Pacifism/Arrest structurally read as `enchantments_matter`, not
-# a removal-family effect), not a lane bug. Real, documented consequence:
-# a deck stacked with pacify auras now reads short on the `interaction`
-# role even though they're functionally removal. Recovering that credit
-# would need a DEDICATED structural concept for "static Aura/Attach
-# neutralizer" (the `concept=` pattern theme_presets.py already uses
-# elsewhere for facts no signal key carries) — out of scope for this flip;
-# flagged here rather than silently absorbed.
+# ("Enchanted creature can't attack or block" — Pacifism, Arrest) briefly
+# dropped OUT of `interaction` here — the 9-key signal_keys union `removal`
+# reads has no lane for "neutralizes a permanent without destroying/
+# exiling/countering/bouncing/fighting/-X'ing it" (the task #83/#86 scoping
+# pass adjudicated Pacifism/Arrest as structurally `enchantments_matter`,
+# not a removal-family effect — correct routing, not a lane bug).
+#
+# Task #87 restores the credit via the DEDICATED structural concept this
+# comment used to flag as out of scope: `pacify-aura`
+# (theme_presets.py — signal_keys=("pacify_makers",),
+# crosswalk_signals._pacify_makers). Deliberately its OWN preset, not
+# folded into `removal`'s signal_keys union — CR 611.2 keeps "neutralizes"
+# and "removes" genuinely distinct facts; `removal`'s should_not_match
+# pin on Pacifism stays in force.
 _INTERACTION_PRESETS = (
     "removal",
     "counterspell",
     "bounce",
     "creature-edict",
+    "pacify-aura",
 )
 
 # Protection (Tier-2, advisory) must GRANT a protective quality to another permanent — a

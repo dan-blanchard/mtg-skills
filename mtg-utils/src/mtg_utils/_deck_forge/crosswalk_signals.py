@@ -105,6 +105,7 @@ from mtg_utils._card_ir.crosswalk import (
     modal_mode_description,
     modify_cost_mode,
     modify_cost_spell_filter,
+    nested_plus_one_keyword_grant,
     node_lure_mode,
     oil_counter_kind_refs,
     permission_tag,
@@ -369,6 +370,11 @@ PORTED_KEYS: frozenset[str] = frozenset(
         "lifegain_makers",
         "reanimator",
         "plus_one_makers",
+        # task #87: pacify_makers — the dedicated structural concept
+        # budgets.py's `_INTERACTION_PRESETS` comment named as the recovery
+        # path for the Pacifism/Arrest `interaction`-role credit task #86's
+        # removal-preset flip cost (see `_pacify_makers`'s own docstring).
+        "pacify_makers",
         "direct_damage",
         "landfall",
         "sacrifice_outlets",
@@ -3034,6 +3040,20 @@ def _plus_one_makers(tree: ConceptTree) -> list[Signal]:
     docstring) — the ETB-replacement / dropped-computed-amount / granted-
     loyalty-ability P1P1 placement residue phase's static parser or effect
     walk doesn't reach at all. Scope "you".
+
+    task #87 adds the GRANTED/TOKEN-BODY placement class the plus-one-
+    counters Preset's own module docstring names as its last standing
+    deferral (~36 cards, three families): a GRANTED keyword mechanic
+    (Twins of Discord's Bloodthirst grant, Varolz/Young Deathclaws's
+    Scavenge grant, Propagator Drone's Evolve grant, Elder Arthur Maxson's
+    Training grant, Dack's Duplicate's Dethrone copy-exception) or a
+    CREATED TOKEN'S OWN keyword profile (Dragon Broodmother's Devour
+    token) placing the counter, never this card's own top-level keyword
+    array or ``place_counter`` effect — see
+    :func:`~mtg_utils._card_ir.crosswalk.nested_plus_one_keyword_grant`'s
+    own docstring for the three shapes read and why the Mutagen-token /
+    Young-Hero-Role-token cycles stay OUT (no ability body at all in
+    phase's parse, a substrate gap rather than a missed read).
     """
     for c in tree.effect_concepts("place_counter"):
         ck = counter_kind(c.node).upper()
@@ -3042,6 +3062,116 @@ def _plus_one_makers(tree: ConceptTree) -> list[Signal]:
     for c in tree.iter_concepts():
         if c.concept == "synth_plus_one_makers":
             return [Signal("plus_one_makers", "you", "", "", tree.name, "high")]
+    for unit in tree.units:
+        if nested_plus_one_keyword_grant(unit.node):
+            return [Signal("plus_one_makers", "you", "", "", tree.name, "high")]
+    return []
+
+
+# task #87 — the pacify-aura structural concept. Task #86's removal-preset
+# flip correctly dropped Pacifism/Arrest from `removal` (CR 611.2 leaves the
+# enchanted permanent on the battlefield — it's not removed), which
+# incidentally cost the `interaction` budget role its Pacifism/Arrest credit
+# (see budgets.py's `_INTERACTION_PRESETS` comment). This is the DEDICATED
+# structural concept that comment named as the recovery mechanism: an Aura
+# whose OWN static ability restricts what it enchants from attacking/
+# blocking (CR 508.1a / 509.1b — the standard restriction-effect hooks a
+# static "can't attack"/"can't block" grant plugs into; CR 303.4 governs the
+# Aura's own "enchant" object).
+#
+# Structural: a `CantAttack`/`CantBlock`/`CantAttackOrBlock` static def
+# (Pacifism's separate CantAttack + CantBlock pair, Arrest/Faith's
+# Fetters/Prison Term's combined CantAttackOrBlock) whose `affected` filter
+# carries an `EnchantedBy` predicate — "whatever THIS card enchants", the
+# same self-referential attach marker `_stax_structural_walk`'s pacify veto
+# already keys on (tree_synthesis.py's `_PACIFY_PREDS`) to keep Pacifism out
+# of stax_taxes/symmetric_stax. A co-occurring `CantBeActivated{EnchantedBy}`
+# rider (Arrest/Prison Term's "activated abilities can't be activated") is
+# NOT independently required — it rides along on cards that already have
+# it, never gates the signal alone (a hypothetical Aura that ONLY locked
+# activated abilities, with no attack/block restriction, would be a
+# different mechanic, not this one).
+#
+# `EquippedBy` is deliberately NOT in the predicate set — the task frames
+# this as an AURA concept (CR 303.4), and Equipment locking its own bearer's
+# attacks/blocks is rare enough (and mechanically distinct — the wearer
+# CHOSE to equip) to defer as a separate class rather than silently fold in
+# here.
+#
+# COMPENSATING-BENEFIT veto (corpus-measured, task #87): a bare mode/pred
+# scan over-fires on the "Rage"/"Vow" cycles (Undying Rage, Maniacal Rage,
+# Cagemail, Gnarled Scarhide's bestow, Vow of Malice/Duty/Flight/Lightning/
+# Torment/Wildness) — a SEPARATE top-level static in the SAME card grants a
+# POSITIVE P/T buff or keyword to the SAME EnchantedBy target alongside the
+# restriction. That's a combat ENABLER (a pump-with-a-drawback you put on
+# YOUR OWN attacker, or a directed "can't attack you" political tool),
+# never the Pacifism/Arrest neutralize-a-threat archetype — vetoed. A
+# NEGATIVE P/T modification alongside the restriction (Cast into Darkness's
+# -2/-0, Crippling Blight's -1/-1, Clawing Torment's -1/-1) is a DEBUFF, not
+# a benefit — stays IN, it's the same "shut this creature down" archetype,
+# arguably more so. Scoped to `origin == "static"` units only (the card's
+# OWN top-level continuous grants, one `AbilityUnit` per phase's
+# `static_abilities` list entry) — a rider ACTIVATED ability the Aura's
+# controller must additionally pay for (Gelid Shackles's optional
+# "{S}: Enchanted creature gains defender until end of turn", an anti-
+# synergy escape hatch, not an unconditional benefit) lives in a DIFFERENT,
+# "ability"-origin unit and never gates this veto.
+_PACIFY_AURA_MODES = frozenset({"CantAttack", "CantBlock", "CantAttackOrBlock"})
+_PACIFY_AURA_PREDS = frozenset({"EnchantedBy"})
+_PACIFY_PT_MOD_TAGS = frozenset({"AddPower", "AddToughness"})
+_PACIFY_ALWAYS_COMPENSATING_TAGS = frozenset({"AddKeyword", "SetPower", "SetToughness"})
+
+
+def _pacify_aura_compensates(tree: ConceptTree) -> bool:
+    """True if a top-level static grants a POSITIVE benefit to the SAME
+    EnchantedBy target a pacify restriction (also top-level) targets — see
+    :func:`_pacify_makers`'s module note for the corpus-measured boundary.
+    """
+    for unit in tree.units:
+        if unit.origin != "static":
+            continue
+        node = unit.node
+        if "EnchantedBy" not in filter_predicates(getattr(node, "affected", None)):
+            continue
+        for m in getattr(node, "modifications", None) or ():
+            if not isinstance(m, TypedMirrorNode):
+                continue
+            tag = tag_of(m)
+            if tag in _PACIFY_ALWAYS_COMPENSATING_TAGS:
+                return True
+            if tag in _PACIFY_PT_MOD_TAGS:
+                v = mod_value(m)
+                if v is None or v > 0:
+                    return True
+    return False
+
+
+def _pacify_makers(tree: ConceptTree) -> list[Signal]:
+    """pacify_makers — an Aura that NEUTRALIZES the permanent it enchants
+    (Pacifism, Arrest, Faith's Fetters, Prison Term — CR 508.1a/509.1b) by
+    granting a can't-attack/can't-block restriction to "whatever this
+    enchants", rather than destroying/exiling/countering/bouncing/
+    fighting/-X'ing it (CR 611.2 — the enchanted permanent stays on the
+    battlefield, so this is deliberately NOT part of `removal`; see the
+    module note above and budgets.py's `_INTERACTION_PRESETS` comment for
+    the task #86 flip that split these two facts apart). Scope "you" (the
+    Aura's controller neutralized someone/something). Gated by
+    :func:`_pacify_aura_compensates` — see its own docstring for the
+    Rage/Vow-cycle veto.
+    """
+    if _pacify_aura_compensates(tree):
+        return []
+    for unit in tree.units:
+        for node in iter_static_defs(unit.node):
+            if static_mode_tag(node) not in _PACIFY_AURA_MODES:
+                continue
+            affected = getattr(node, "affected", None)
+            if set(filter_predicates(affected)) & _PACIFY_AURA_PREDS:
+                return [
+                    Signal(
+                        "pacify_makers", "you", "", _site_raw(node), tree.name, "high"
+                    )
+                ]
     return []
 
 
@@ -24537,6 +24667,7 @@ _LANES = (
     _lifegain_makers,
     _reanimator,
     _plus_one_makers,
+    _pacify_makers,
     _direct_damage,
     _landfall,
     _sacrifice_outlets,

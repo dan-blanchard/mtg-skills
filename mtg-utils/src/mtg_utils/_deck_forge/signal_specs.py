@@ -5244,6 +5244,19 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         r"|deals? (?:\d+|x|that much) [^.\n]*damage to "
         r"(?:target (?:creature|permanent|planeswalker)|any target)",
     ),
+    # task #87: pacify_makers — an Aura that neutralizes (not removes) what
+    # it enchants (Pacifism, Arrest, Faith's Fetters, Prison Term). A
+    # pacify-aura deck wants more of the same PLUS the removal/interaction
+    # a pacify-only build still needs (a Pacifism-only pile can't answer an
+    # already-attacking evasive threat or a nonpermanent spell).
+    ("pacify_makers", "you"): _spec(
+        "Pacify auras",
+        "Auras that shut down attacking/blocking without removing the threat",
+        {"preset_names": ("pacify-aura",)},
+        r"enchanted (?:creature|permanent|artifact|land|planeswalker|battle)"
+        r"[^.]*can'?t attack",
+        serve_types=("Enchantment",),
+    ),
     # VETO exile-and-return (blink): a card that exiles a creature then returns it is a
     # flicker engine, not removal (Ephemerate, Cloudshift) — CR 603.6e.
     ("exile_removal", "you"): _spec(

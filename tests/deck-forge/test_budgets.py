@@ -101,16 +101,25 @@ def test_edicts_and_pacify_auras_count_as_interaction():
     # attack" DRAWBACK on itself (Lupine Prototype) are not removal.
     assert "interaction" not in role_of(VISCERA)
     assert "interaction" not in role_of(LUPINE)
-    # Task #86 (the `removal` preset's structural-view flip): pacify auras no
-    # longer register as `interaction` at all — the 9-key signal_keys union
-    # has no lane for "neutralizes a permanent without destroying/exiling/
-    # countering/bouncing/fighting/-X'ing it" (Pacifism structurally reads as
-    # `enchantments_matter`, not a removal-family effect; adjudicated in the
-    # task #83/#86 scoping pass as MORE-correct routing, not a lane bug — see
-    # budgets.py's `_INTERACTION_PRESETS` comment). A real, documented
-    # consequence, not silently absorbed.
+    # Task #86 (the `removal` preset's structural-view flip) briefly dropped
+    # pacify auras out of `interaction` — the 9-key signal_keys union
+    # `removal` reads has no lane for "neutralizes a permanent without
+    # destroying/exiling/countering/bouncing/fighting/-X'ing it" (Pacifism
+    # structurally reads as `enchantments_matter`, not a removal-family
+    # effect — correct routing, not a lane bug). Task #87 restores the
+    # credit via the dedicated `pacify-aura` preset (signal_keys=
+    # ("pacify_makers",)) — see budgets.py's `_INTERACTION_PRESETS` comment.
     test_card_ir("Pacifism")  # seeds the crosswalk trees memo
-    assert "interaction" not in role_of(test_card("Pacifism"))
+    assert "interaction" in role_of(test_card("Pacifism"))
+    test_card_ir("Arrest")
+    assert "interaction" in role_of(test_card("Arrest"))
+    # Over-fire guard (task #87): the "Rage"/"Vow" cycles pump the creature
+    # they restrict (a combat ENABLER, not a neutralizer) — see
+    # crosswalk_signals._pacify_aura_compensates's own docstring. (Cagemail:
+    # "gets +2/+2 and can't attack" — no OTHER interaction-family signal
+    # co-occurs, unlike Undying Rage's own self-return-to-hand bounce_tempo.)
+    test_card_ir("Cagemail")
+    assert "interaction" not in role_of(test_card("Cagemail"))
 
 
 def test_interaction_excludes_infect_creatures_and_graveyard_recursion():

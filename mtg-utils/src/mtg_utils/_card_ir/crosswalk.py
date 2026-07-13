@@ -2403,6 +2403,83 @@ def token_profile_keywords(node: object) -> tuple[str, ...]:
     return tuple(out)
 
 
+# task #87 — the keyword-mechanic names whose placement effect is ONLY ever
+# a +1/+1 counter when it places one at all (CR 702.54 Bloodthirst, 702.82
+# Devour, 702.97 Scavenge, 702.103 Dethrone, 702.106 Evolve, 702.134 Mentor,
+# 702.149 Training — each verified via ``rules-lookup``). Sunburst (CR
+# 702.44) is deliberately EXCLUDED — it branches +1/+1 vs CHARGE counters
+# depending on whether the affected permanent is a creature, a fork the
+# granting site (a bare ``TriggeringSource``/``ParentTarget`` affected-ref,
+# no type filter of its own) can't resolve reliably. Riot (CR 702.136) is
+# also EXCLUDED — a haste-OR-counter CHOICE, never a guaranteed placement
+# (and native Riot isn't in the plus-one-counters Preset's own keyword list
+# either — this set doesn't reopen that call). The other seven mirror the
+# Preset's existing native-keyword precedent (Devour/Dethrone/Training/
+# Scavenge/Evolve/Mentor already listed there as sufficient-on-their-own).
+_PLUS_ONE_KEYWORD_NAMES = frozenset(
+    {"Bloodthirst", "Devour", "Scavenge", "Dethrone", "Evolve", "Training", "Mentor"}
+)
+
+
+def nested_plus_one_keyword_grant(unit_node: object) -> bool:
+    """True if ``unit_node`` grants one of :data:`_PLUS_ONE_KEYWORD_NAMES`
+    to something other than the card's own top-level keyword list (which
+    Scryfall/MTGJSON's ``keywords`` field already exposes directly) — task
+    #87's ``plus_one_makers`` token-body/granted-keyword gap. Three
+    corpus-verified shapes, all read via already-established shared
+    descents (no new traversal):
+
+    * a static's ``AddKeyword`` modification, top-level or nested inside a
+      one-shot ``GenericEffect`` (:func:`iter_mod_sites` — Twins of
+      Discord's "Each other colorless creature you control has
+      bloodthirst 2", Varolz / Young Deathclaws's "creature cards in your
+      graveyard have scavenge", Propagator Drone's "Creature tokens you
+      control have evolve", Elder Arthur Maxson's "Creature tokens you
+      control have training", Aegis of the Legion's Equip-granted
+      "Equipped creature gets +1/+1 and has mentor" — the ``EquippedBy``
+      predicate isn't excluded here the way the SEPARATE ``pacify_makers``
+      concept excludes it; a granted keyword is a maker fact regardless of
+      the attach mechanism, CR 301/303 both read the same);
+    * a ``BecomeCopy``/``CopyTokenOf`` replacement's ``additional_
+      modifications`` list — a copy-EXCEPTION grant riding the copy node
+      itself, not its ``modifications`` field (Dack's Duplicate's "...
+      except it has haste and dethrone" — the SAME field
+      ``crosswalk_signals._b13_conferred_grant_lanes`` already reads for
+      its Myriad copy-exception, generalized to this keyword set here);
+    * a CREATED TOKEN's OWN keyword profile (:func:`token_profile_keywords`
+      — Dragon Broodmother's Dragon token's ``{Devour: 2}``, CR 111.4).
+
+    The Mutagen-token cycle (April O'Neil, Mutagen Man, Genghis Frog, ...)
+    and the Young Hero Role cycle (Cut In, Embereth Veteran, ...) stay OUT
+    — verified against the raw phase record: a predefined token's OWN
+    activated/triggered ability carries NO body at all in card-data.json
+    (Mutagen Man's ``Token`` effect node has an empty ``keywords`` list
+    and no ``static_abilities`` field; same for Cut In's Young Hero Role).
+    The actual reminder-text ability lives only in phase's engine-side
+    ``known-tokens.toml``, a different data source this crosswalk never
+    reads — a genuine substrate gap, not a missed structural read.
+    """
+    for _sdef, mod in iter_mod_sites(unit_node):
+        if (
+            tag_of(mod) == "AddKeyword"
+            and mod_keyword_name(mod) in _PLUS_ONE_KEYWORD_NAMES
+        ):
+            return True
+    for n in iter_typed_nodes(unit_node):
+        amods = getattr(n, "additional_modifications", None)
+        if isinstance(amods, list):
+            for m in amods:
+                if (
+                    isinstance(m, TypedMirrorNode)
+                    and tag_of(m) == "AddKeyword"
+                    and mod_keyword_name(m) in _PLUS_ONE_KEYWORD_NAMES
+                ):
+                    return True
+        if any(k in _PLUS_ONE_KEYWORD_NAMES for k in token_profile_keywords(n)):
+            return True
+    return False
+
+
 def cast_with_keyword_name(static_node: TypedMirrorNode) -> str | None:
     """The keyword a ``CastWithKeyword`` static confers on casts, or ``None``.
 
