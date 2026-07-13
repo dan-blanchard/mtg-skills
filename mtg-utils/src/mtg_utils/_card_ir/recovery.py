@@ -264,6 +264,21 @@ ALLOWLIST: dict[str, TokenRule] = {
     # self-tagged Draw SIBLING (the existing "you and X each draw" pairing
     # precedent), not a text re-scan.
     "ellipsis_repeat": TokenRule(concept="draw", category="draw"),
+    # task #np_gyfam: graveyard recursion (CR 400.7/701.17a) inside a
+    # for-each LOOP phase drops entirely (a for-each-color / for-each-vote
+    # "return a card from your graveyard to your hand" repeat construct —
+    # All Suns' Dawn, Rogues' Gallery, Travel Through Caradhras's
+    # Mines-of-Moria branch). Own dedicated concept (not the native
+    # "bounce"/"change_zone" a real ChangeZone node would carry) since a
+    # recovered node has no typed origin/destination fields for
+    # ``change_zone_dirs`` to read — ``_graveyard_makers``/
+    # ``graveyard_return_direction`` trust a ``graveyard_return``-recovered
+    # node unconditionally (the grammar's own "graveyard ... hand" gate
+    # already establishes the direction), the same trust the "reveal_hand"/
+    # "dig_until" rows extend their own recovered concepts.
+    "graveyard_return": TokenRule(
+        concept="graveyard_return", category="graveyard_return"
+    ),
 }
 
 

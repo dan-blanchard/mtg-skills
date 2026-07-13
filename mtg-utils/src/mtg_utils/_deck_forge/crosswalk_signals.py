@@ -8203,7 +8203,32 @@ def _graveyard_makers(tree: ConceptTree) -> list[Signal]:
       structurally without the live path's ``_EXILE_RETURN_RE`` (the substrate is
       strictly better here);
     * a ``Mill`` effect (self / any / symmetric scope) — self-mill fills your own
-      graveyard.
+      graveyard;
+    * an enchant-reanimation ``GrantAbility`` static whose granted
+      ``Unimplemented`` definition carries the CR 303.4h "put onto the
+      battlefield with ~" reminder text (Necromancy — the reanimation clause
+      itself is dropped entirely from the effect chain; see the arm's own
+      comment);
+    * a ``graveyard_return``-recovered node (:mod:`~mtg_utils._card_ir.
+      recovery`'s ALLOWLIST) — a for-each-loop graveyard recursion phase
+      drops entirely (All Suns' Dawn / Rogues' Gallery's "for each color,
+      return ... from your graveyard to your hand"; Travel Through
+      Caradhras's per-vote "For each Mines of Moria vote, return a card
+      from your graveyard to your hand");
+    * a ``Mill`` unit whose OWN ``unless_pay`` field carries a return-
+      unless-pay rider phase attaches NO effect node for at all (Sivriss,
+      Nightmare Speaker: "you mill a card, then return that card from your
+      graveyard to your hand unless that player pays 3 life" — ``S_
+      unless_pay`` structurally carries only ``cost``/``payer``, no
+      ``effect`` field for what happens on a decline, so the "return" half
+      is invisible to any node walk; the unit's own description is the only
+      surviving trace). Gated on the SAME unit ALSO carrying the mill
+      effect (granularity a) and the description naming all three of
+      "return"/"graveyard"/"hand" — corpus-swept (every mill unit
+      carrying ANY ``unless_pay``): Broken Ambitions is the one other hit,
+      whose ``unless_pay`` belongs to an unrelated Counter effect several
+      sentences before its OWN "mills four cards" clash payoff and names
+      none of those three words, so the text gate excludes it cleanly.
 
     The cast-from-GY keyword family (flashback / escape / …) rides a keyword
     field-lookup in :func:`extract_crosswalk_signals` (no effect node to read).
@@ -8262,6 +8287,56 @@ def _graveyard_makers(tree: ConceptTree) -> list[Signal]:
                     and change_zone_dirs(eff)[1] == "Graveyard"
                 ):
                     fire("you", "")
+    # ENCHANT-REANIMATION maker (task #np_gyfam): the "cast as a plain
+    # enchantment, then become an Aura and reanimate" idiom (CR 303.4h /
+    # 400.7 / 701.17a — Necromancy: no printed "Enchant creature card in a
+    # graveyard" restriction up front, unlike Animate Dead / Dance of the
+    # Dead, whose static Enchant keyword lets phase parse the ETB trigger's
+    # reanimation as a direct top-level ``ChangeZone(Graveyard, Battlefield)``
+    # effect the arm above already reads). Necromancy's ETB trigger instead
+    # drops the "Put target creature card from a graveyard onto the
+    # battlefield ... and attach ~ to it" clause ENTIRELY out of the effect
+    # chain — the only surviving trace is the ``GrantAbility`` STATIC (role=
+    # static, never reached by ``effect_concepts``) whose granted-ability
+    # ``definition.effect`` is an ``Unimplemented`` node carrying the CR
+    # 303.4h reminder text verbatim ("enchant creature put onto the
+    # battlefield with ~"). That reminder phrasing is unique to this exact
+    # reanimation-Aura idiom (corpus swept: 1 hit — Necromancy — out of every
+    # commander/brawl/standardbrawl-legal card; Scryfall rulings confirm "the
+    # bringing of the creature onto the battlefield and then putting
+    # Necromancy on it is all done as part of the resolution"), so a
+    # structural read gated on the exact GrantAbility/Unimplemented shape +
+    # phrase is safe with no oracle-text idiom scan of its own.
+    for unit in tree.units:
+        for c in unit.statics:
+            if tag_of(c.node) != "GrantAbility":
+                continue
+            definition = getattr(c.node, "definition", None)
+            granted = getattr(definition, "effect", None) if definition else None
+            if tag_of(granted) != "Unimplemented":
+                continue
+            desc = (getattr(granted, "description", "") or "").lower()
+            if "put onto the battlefield with" in desc:
+                fire("you", desc)
+    # graveyard_return-recovered for-each-loop recursion (task #np_gyfam) —
+    # trusted unconditionally, matching the "reveal_hand"/"dig_until" recovery
+    # precedent (see recovery.ALLOWLIST's own comment for this token).
+    for c in tree.effect_concepts("graveyard_return"):
+        fire("you", c.raw)
+    # Mill-then-return-unless-pay (task #np_gyfam): the "return" half has no
+    # effect node — see the docstring's own note — so this is a whole-UNIT
+    # (never whole-card) structural+text gate: the SAME unit's Mill effect
+    # plus its own ``unless_pay`` plus its own description naming the
+    # return.
+    for unit in tree.units:
+        if not any(c.concept == "mill" for c in unit.effects):
+            continue
+        up = getattr(unit.node, "unless_pay", None)
+        if not isinstance(up, TypedMirrorNode):
+            continue
+        desc = (getattr(unit.node, "description", "") or "").lower()
+        if "return" in desc and "graveyard" in desc and "hand" in desc:
+            fire("you", desc)
     for c in tree.effect_concepts("mill"):
         # The ``Mill`` effect carries a ``destination``; only a Graveyard destination
         # is a CR-701.17a mill (Stitcher's Supplier). A library↔hand swap phase
@@ -8343,12 +8418,31 @@ def graveyard_return_direction(tree: ConceptTree) -> bool:
       ``keywords=("Soulshift", "Recover")`` arm catches it instead, off
       the MTGJSON/Scryfall ``keywords`` array — a separate, independent
       data source from phase's own parse).
+
+    task #np_gyfam adds a ``graveyard_return``-recovered node (a for-each
+    loop's "return ... from your graveyard to your hand" phase drops
+    entirely — All Suns' Dawn, Rogues' Gallery, Travel Through Caradhras's
+    Mines-of-Moria vote): trusted unconditionally, the same recovery-
+    provenance trust :func:`_graveyard_makers`'s own arm extends it; and a
+    Mill-then-return-unless-pay unit (Sivriss, Nightmare Speaker) — the SAME
+    whole-unit structural+text gate :func:`_graveyard_makers` runs for it.
     """
     if any(
         change_zone_dirs(c.node) == ("Graveyard", "Hand")
         for c in tree.effect_concepts("change_zone")
     ):
         return True
+    if tree.effect_concepts("graveyard_return"):
+        return True
+    for unit in tree.units:
+        if not any(c.concept == "mill" for c in unit.effects):
+            continue
+        up = getattr(unit.node, "unless_pay", None)
+        if not isinstance(up, TypedMirrorNode):
+            continue
+        desc = (getattr(unit.node, "description", "") or "").lower()
+        if "return" in desc and "graveyard" in desc and "hand" in desc:
+            return True
     for unit in tree.units:
         for n in iter_typed_nodes(unit.node):
             t = tag_of(n)
@@ -8386,6 +8480,11 @@ def graveyard_return_direction(tree: ConceptTree) -> bool:
             ):
                 return True
     return False
+
+
+# Rowan's Grim Search's exact phrasing for a Dig's dropped rest-destination
+# (task #np_gyfam) — see ``self_mill_fill``'s Dig arm.
+_DIG_REST_GRAVEYARD_RE = re.compile(r"\brest into your graveyard\b", re.IGNORECASE)
 
 
 def self_mill_fill(tree: ConceptTree) -> bool:
@@ -8472,6 +8571,17 @@ def self_mill_fill(tree: ConceptTree) -> bool:
       walk) so an UNRELATED later reanimation effect chained via
       ``SequentialSibling`` after a genuinely rest-elsewhere Dig can't
       be mistaken for this marker.
+
+    task #np_gyfam adds a SIXTH arm for a mis-tagged ``RevealHand`` node
+    (Corpse Appraiser's "look at the top three cards of your library, then
+    put one of those cards into your hand and the rest into your graveyard"
+    parses as a ``RevealHand`` EFFECT, not the ``Dig``/``RevealTop`` shape
+    above — WRONG-CONTENT, see the arm's own comment for the structural
+    tell + corpus sweep), and extends the ``Dig``/Controller arm with a
+    text-confirmed fallback for a DROPPED ``rest_destination`` (Rowan's Grim
+    Search — phase leaves the field ``None`` rather than "Graveyard", though
+    the Dig node itself parses correctly; see that arm's own comment for the
+    exact-phrase gate + 155-card corpus sweep).
     """
     for c in tree.effect_concepts("mill"):
         if getattr(c.node, "destination", None) != "Graveyard":
@@ -8487,6 +8597,22 @@ def self_mill_fill(tree: ConceptTree) -> bool:
                 continue
             if getattr(n, "rest_destination", None) == "Graveyard":
                 return True
+            # task #np_gyfam: Rowan's Grim Search's Dig carries NO
+            # ``rest_destination`` at all (None, not "Graveyard") — the
+            # "and the rest into your graveyard" clause is dropped from the
+            # typed field entirely, though the Dig node itself (count/
+            # keep_count/player) parses correctly. Text-confirmed fallback
+            # on the SAME unit's own description (never whole-card), gated
+            # on the exact phrase so an unrelated Dig whose "rest" goes
+            # elsewhere (155-card corpus sweep of every ``rest_destination
+            # is None`` Controller-scoped Dig: most put the rest on top/
+            # bottom of library or exile it; only Underrealm Lich shares
+            # this exact phrase, already covered by the look/keep-one arm
+            # above) can't misfire.
+            if getattr(n, "rest_destination", None) is None:
+                desc = getattr(unit.node, "description", "") or ""
+                if _DIG_REST_GRAVEYARD_RE.search(desc):
+                    return True
     for c in tree.effect_concepts("change_zone"):
         if getattr(c.node, "destination", None) != "Graveyard":
             continue
@@ -8565,6 +8691,28 @@ def self_mill_fill(tree: ConceptTree) -> bool:
                 and tag_of(step_eff) == "ChangeZone"
                 and getattr(step_eff, "origin", None) == "Graveyard"
             ):
+                return True
+    # task #np_gyfam: a MIS-TAGGED ``RevealHand`` node (Corpse Appraiser's
+    # "look at the top three cards of your library, then put one of those
+    # cards into your hand and the rest into your graveyard" — phase parses
+    # this Dig-shaped look/keep-one/mill-rest idiom as a ``RevealHand``
+    # effect, WRONG-CONTENT: its own ``target`` names an ``InZone(Library)``
+    # filter, which a genuine hand-reveal (CR 402.3, always a HAND-zone
+    # recipient) can never carry — that mismatch IS the tell. Gated on BOTH
+    # the structural mismatch AND the unit's own description naming
+    # "graveyard" (corpus-swept: every ``RevealHand`` targeting a Library
+    # filter — Descendant of Soramaro's unrelated "look at the top X ...
+    # put them back in any order" scry-adjacent ability is the one other
+    # hit, and its description never mentions a graveyard at all, so the
+    # text gate excludes it cleanly).
+    for unit in tree.units:
+        for c in unit.effects:
+            if tag_of(c.node) != "RevealHand":
+                continue
+            if "Library" not in filter_inzone_zones(getattr(c.node, "target", None)):
+                continue
+            desc = (getattr(unit.node, "description", "") or "").lower()
+            if "graveyard" in desc:
                 return True
     return False
 
@@ -22306,6 +22454,14 @@ def _qualified_destroy_target_type(raw: str) -> str | None:
     return m.group(1).title() if m else None
 
 
+# CR 701.24a's "put on your choice of the top or bottom of its owner's
+# library" idiom, the ONE ``countered_spell_zone`` shape phase can't
+# structure (Hinder) — see ``_removal``'s fifth arm.
+_COUNTER_TUCK_CHOICE_RE = re.compile(
+    r"\btop or bottom\b[^.]*?\blibrary\b", re.IGNORECASE
+)
+
+
 def _removal(tree: ConceptTree) -> list[Signal]:
     """removal (§2) — CR 701.8/701.8a: single-target destroy or burn of a
     permanent. Two structural arms, scope "you", HIGH:
@@ -22427,16 +22583,26 @@ def _removal(tree: ConceptTree) -> list[Signal]:
       a spell on the stack is not a battlefield permanent (CR 111.1)
       regardless, no special case needed.
 
-    KNOWN GAP (raw-shape evidence, not fixed here): Hinder's "put that
-    card on your choice of the top or bottom of its owner's library
-    instead of into that player's graveyard" clause is upstream-dropped —
-    phase models its counter sub-ability as a bare ``ChangeZone`` to
-    ``Graveyard`` (the vanilla-counterspell default) with NO
-    ``countered_spell_zone`` field at all, unlike Spell Crumple's Counter
-    node (which DOES carry ``countered_spell_zone: {Library, Bottom}``).
-    Hinder's tuck-the-countered-card half is real but structurally
-    invisible; only ``counter_control`` (the plain Counter read) fires for
-    it today.
+    task #np_gyfam adds a FIFTH arm: the countered-spell "choice of top or
+    bottom" tuck (CR 701.24a) phase can't structure via ``Counter.
+    countered_spell_zone`` (that field only carries a FIXED ``Library``
+    position — Memory Lapse/Lapse of Certainty's ``Top``, Spell Crumple's
+    ``Bottom`` — never a player CHOICE between the two). Hinder's "put that
+    card on your choice of the top or bottom of its owner's library instead
+    of into that player's graveyard" clause is WRONG-CONTENT, not dropped: it
+    parses as a bare sibling ``ChangeZone`` to ``Graveyard`` (the vanilla-
+    counterspell default) with the Counter node's own ``countered_spell_zone``
+    left unset — the exact tell that distinguishes it from a genuine
+    graveyard-bound counter (which has no such sibling ``ChangeZone`` at all;
+    Counterspell/Negate carry only the bare ``Counter`` node). Gated on BOTH
+    that structural tell AND the unit's own description naming the "top or
+    bottom ... library" choice (CR 701.24a's idiom) so a real graveyard-bound
+    counter can never misfire; corpus-swept (every commander/brawl/
+    standardbrawl-legal ``Counter`` node with no ``countered_spell_zone``,
+    joined to a same-unit ``ChangeZone(Graveyard)`` sibling and this text) —
+    Hinder is the ONLY hit, so the "class" this arm serves is exactly one
+    card today, self-retiring the moment phase's ``countered_spell_zone``
+    grows a choice-of-position variant.
     """
 
     def _perm_subject(target: object) -> bool:
@@ -22512,6 +22678,31 @@ def _removal(tree: ConceptTree) -> list[Signal]:
                     continue
                 if _perm_subject(target):
                     return [Signal("removal", "you", "", c.raw, tree.name, "high")]
+    # task #np_gyfam — countered-spell "choice of top or bottom" tuck (see
+    # the docstring's fifth-arm note). Gated on the Counter node's OWN
+    # ``countered_spell_zone`` being unset (a real graveyard-bound counter —
+    # Counterspell, Negate — never carries a sibling ChangeZone at all, so
+    # this can't misfire there) AND a same-unit ``ChangeZone`` sibling phase
+    # defaulted to Graveyard AND the unit's own description naming the
+    # library-choice idiom (never a whole-card scan — no SequentialSibling
+    # bleed risk since this is one ability's own text).
+    for unit in tree.units:
+        has_bare_counter = any(
+            tag_of(c.node) == "Counter"
+            and getattr(c.node, "countered_spell_zone", None) in (None, MISSING)
+            for c in unit.effects
+        )
+        if not has_bare_counter:
+            continue
+        desc = getattr(unit.node, "description", "") or ""
+        if not _COUNTER_TUCK_CHOICE_RE.search(desc):
+            continue
+        for c in unit.effects:
+            if tag_of(c.node) != "ChangeZone":
+                continue
+            if change_zone_dirs(c.node)[1] != "Graveyard":
+                continue
+            return [Signal("removal", "you", "", c.raw, tree.name, "high")]
     return []
 
 

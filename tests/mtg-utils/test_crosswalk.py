@@ -4263,6 +4263,53 @@ def test_graveyard_matters_keyword():
     assert ("graveyard_matters", "you", "") in _idents("Stinkweed Imp")
 
 
+def test_graveyard_makers_enchant_reanimation_grantability():
+    """Necromancy's reanimation clause is dropped ENTIRELY from the effect
+    chain (unlike Animate Dead/Dance of the Dead, whose own printed "enchant
+    creature card in a graveyard" restriction lets phase parse a direct
+    ``ChangeZone``) — the only surviving trace is the ``GrantAbility``
+    STATIC whose granted ``Unimplemented`` definition carries the CR 303.4h
+    "put onto the battlefield with ~" reminder text verbatim (task
+    #np_gyfam)."""
+    assert ("graveyard_makers", "you", "") in _idents("Necromancy")
+
+
+@pytest.mark.parametrize("name", ["All Suns' Dawn", "Rogues' Gallery"])
+def test_graveyard_makers_for_each_color_recursion(name):
+    """A for-each-color loop's "return up to one target card of that color
+    from your graveyard to your hand" drops entirely to an Unimplemented
+    node — the clause-grammar's ``graveyard_return`` token recovers it
+    (task #np_gyfam), distinct from the generic ``bounce`` token a
+    battlefield "return target creature to its owner's hand" would hit."""
+    assert ("graveyard_makers", "you", "") in _idents(name)
+
+
+def test_graveyard_makers_travel_through_caradhras_mines_branch_only():
+    """Travel Through Caradhras's council's-dilemma vote: the Mines-of-Moria
+    branch's "For each Mines of Moria vote, return a card from your
+    graveyard to your hand" recovers via ``graveyard_return`` (task
+    #np_gyfam); the SEPARATE Redhorn Pass branch (search a basic land,
+    put it onto the battlefield) is unaffected — no cross-clause bleed."""
+    idents = _idents("Travel Through Caradhras")
+    assert ("graveyard_makers", "you", "") in idents
+    assert ("tutor", "you", "") in idents
+
+
+def test_removal_counter_tuck_choice_of_position():
+    """Hinder's "put that card on your choice of the top or bottom of its
+    owner's library instead of into that player's graveyard" — phase can't
+    structure a CHOICE-of-position ``countered_spell_zone`` (only a FIXED
+    Top/Bottom), so it wrongly defaults the sibling ``ChangeZone`` to
+    Graveyard. A real graveyard-bound counter (Counterspell) and the FIXED-
+    position siblings (Memory Lapse/Spell Crumple, whose own
+    ``countered_spell_zone`` already parses correctly) must NOT gain
+    ``removal`` from this arm (task #np_gyfam)."""
+    assert ("removal", "you", "") in _idents("Hinder")
+    assert "removal" not in _keys("Counterspell")
+    assert "removal" not in _keys("Memory Lapse")
+    assert "removal" not in _keys("Spell Crumple")
+
+
 # ── Batch 5: the named-mechanic long tail (ADR-0035 Stage 2) ──────────────────
 
 

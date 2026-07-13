@@ -259,6 +259,23 @@ _RETURN = comb.preceded(
     comb.tag("return"),
     comb.alt(
         comb.value("reanimate", comb.take_until("to the battlefield")),
+        # graveyard recursion (CR 400.7 / 701.17a): "return ... from ...
+        # graveyard ... to ... hand" — a card-in-graveyard source, not a
+        # battlefield permanent, so this is distinct from the generic
+        # ``bounce`` branches below (a battlefield "return target creature
+        # to its owner's hand" never mentions "graveyard" at all). Tried
+        # BEFORE the bounce arms so the fuller graveyard-sourced pattern
+        # wins when both would otherwise match (a graveyard-return clause
+        # always ALSO satisfies "to your/their hand"). Task #np_gyfam: All
+        # Suns' Dawn / Rogues' Gallery's "for each color, return ... from
+        # your graveyard to your hand" (the "for each " loop wrapper is
+        # already peeled by ``_DURATION_PREFIX`` before dispatch reaches
+        # here) and Travel Through Caradhras's per-vote "return a card from
+        # your graveyard to your hand".
+        comb.value(
+            "graveyard_return",
+            comb.seq2(comb.take_until("graveyard"), comb.take_until("hand")),
+        ),
         comb.value("bounce", comb.take_until("to its owner")),
         comb.value("bounce", comb.take_until("to their owner")),
         comb.value("bounce", comb.take_until("to their hand")),

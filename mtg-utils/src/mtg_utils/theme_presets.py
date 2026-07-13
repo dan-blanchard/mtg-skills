@@ -1378,6 +1378,15 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
             "HYDRA Troopers",
             "Underrealm Lich",
             "Animal Magnetism",
+            # task #np_gyfam — two more shapes the predicate's own
+            # docstring names: a mis-tagged ``RevealHand`` node (Corpse
+            # Appraiser's "look at the top three... put one into your
+            # hand and the rest into your graveyard" parses as
+            # ``RevealHand``, not ``Dig``/``RevealTop``) and a ``Dig``
+            # whose ``rest_destination`` phase drops entirely rather than
+            # setting it to Graveyard (Rowan's Grim Search).
+            "Corpse Appraiser",
+            "Rowan's Grim Search",
         ),
         # Contingency Plan is the canonical false-positive test case —
         # its oracle reveals top 5 but returns them to the BOTTOM of the
@@ -2048,6 +2057,15 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
             "Tasigur, the Golden Fang",
             "Harvest Wurm",
             "Kodama of the Center Tree",
+            # task #np_gyfam — two more residue shapes: a for-each-loop
+            # recursion phase drops entirely to an Unimplemented node (the
+            # clause-grammar's ``graveyard_return`` token recovers it —
+            # All Suns' Dawn), and a "mill, then return unless pay" unit
+            # whose consequence carries NO effect node at all (Sivriss,
+            # Nightmare Speaker — the unit's own ``unless_pay`` field is
+            # the only surviving trace).
+            "All Suns' Dawn",
+            "Sivriss, Nightmare Speaker",
         ),
         # task #87 census non-members (verified structurally False):
         # each of these carries a graveyard-TO-BATTLEFIELD reanimation
