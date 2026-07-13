@@ -1328,3 +1328,48 @@ def test_group_hug_draw_recovered_folded_each_player_scope_grothama():
     keys = {s.key for s in extract_signals_hybrid(card, ir)}
     assert "group_hug_draw" in keys
     assert "target_player_draws" not in keys
+
+
+# ── lf_ramp (2026-07-13 signal-key convention change) ──────────────────────
+# Land-fetch-to-battlefield is RAMP, not tutor (mirrors card_classify.is_ramp;
+# CR 701.23/701.23a for the search action, CR 305.6 for the basics, CR 205.3i
+# for the full land-type vocabulary). Pinned against real snapshot records on
+# the production extract path (testkit.test_signals), per clause/mode:
+#
+#   * a NONLAND card's land-to-battlefield search fires ramp, never tutor
+#     (Rampant Growth structural; Wayfarer's Bauble activated; Galactic
+#     Wayfarer via the Lander known-token tree's text-only arm);
+#   * a land fetch TO HAND (Sylvan Scrying) or an arbitrary-card search
+#     (Demonic Tutor) stays tutor and never gains ramp;
+#   * a modal clause that can do both fires BOTH keys (Archdruid's Charm's
+#     "creature or land card … onto the battlefield tapped if it's a land
+#     card. Otherwise … your hand").
+
+
+class TestLandFetchRampReroute:
+    @pytest.mark.parametrize(
+        "name",
+        [
+            "Rampant Growth",
+            "Wayfarer's Bauble",
+            "Galactic Wayfarer",
+        ],
+    )
+    def test_land_fetch_to_battlefield_is_ramp_not_tutor(self, name):
+        keys = {s.key for s in test_signals(name)}
+        assert "ramp" in keys, f"{name} must fire ramp (lf_ramp)"
+        assert "tutor" not in keys, f"{name} must not fire tutor (lf_ramp)"
+
+    @pytest.mark.parametrize("name", ["Sylvan Scrying", "Demonic Tutor"])
+    def test_hand_or_arbitrary_search_stays_tutor(self, name):
+        keys = {s.key for s in test_signals(name)}
+        assert "tutor" in keys, f"{name} must keep tutor"
+        assert "ramp" not in keys, f"{name} must not gain ramp"
+
+    def test_modal_land_or_creature_search_fires_both(self):
+        """Archdruid's Charm mode 1 can fetch a creature to hand (tutor) OR
+        a land onto the battlefield (ramp) — the adjudicated keep-both
+        modal."""
+        keys = {s.key for s in test_signals("Archdruid's Charm")}
+        assert "ramp" in keys
+        assert "tutor" in keys

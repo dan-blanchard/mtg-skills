@@ -1592,12 +1592,14 @@ def test_tutor_bucket_a_structural(name):
     "name",
     [
         "Kaito Shizuki",  # emblem-granted future search, unstructured text
-        "Rampant, Growth",  # bare Unimplemented top-level effect
         "Demolition Field",  # self search alongside a directed sibling search
         # -- no target_player marker at all on the "you may search" node
         # (the same phase gap as the plain rescue cases), rescued by the
         # own-library idiom; the directed-veto's "your library" escape
         # hatch keeps the sibling directed search from suppressing it.
+        # (Demolition Field is a LAND, so the lf_ramp reroute below never
+        # touches it -- the mana-base carve-out keeps land cards on the
+        # pre-reroute tutor path verbatim.)
     ],
 )
 def test_tutor_bucket_b_synth(name):
@@ -1610,6 +1612,33 @@ def test_tutor_bucket_b_synth(name):
     assert node.concept == "synth_tutor"
     assert node.scope == "you"
     assert _tutor_fires(name) is True
+
+
+def test_tutor_bucket_b_land_fetch_rerouted_to_ramp():
+    """lf_ramp (2026-07-13 convention change): the bucket-B rescue's former
+    bare-Unimplemented land-fetch pin ("Rampant, Growth" -- the fixture twin
+    of Rampant Growth's "search your library for a basic land card, put
+    that card onto the battlefield tapped") is a pure land-fetch-to-
+    battlefield NONLAND text, so ``_arm_tutor`` now stays silent and
+    ``_arm_land_fetch_ramp`` emits the REAL ``ramp`` concept instead --
+    the tutor lane no longer fires, the ramp lane does (mirrors
+    ``card_classify.is_ramp``; CR 701.23/701.23a, 305.6)."""
+    from mtg_utils._card_ir.tree_synthesis import (
+        _arm_land_fetch_ramp,
+        _arm_tutor,
+    )
+    from mtg_utils._deck_forge.crosswalk_signals import _ramp
+
+    tree = _fixture_tree("Rampant, Growth")
+    assert has_structural_tutor(tree) is False  # genuine gap, unchanged
+    assert _arm_tutor(tree) is None
+    node = _arm_land_fetch_ramp(tree)
+    assert node is not None
+    assert node.concept == "ramp"
+    assert node.scope == "you"
+    assert _tutor_fires("Rampant, Growth") is False
+    synth = apply_tree_synthesis(_fixture_tree("Rampant, Growth"))
+    assert any(s.key == "ramp" for s in _ramp(synth))
 
 
 @pytest.mark.parametrize(

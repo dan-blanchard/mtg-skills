@@ -370,16 +370,16 @@ def _text_only_trees(
 #   spent to cast a nonartifact spell." / "Sacrifice this token: Add one
 #   mana of any color." each open ``ramp`` (CR 106.1/605.1a) via
 #   :func:`~mtg_utils._card_ir.tree_synthesis._arm_known_token_ramp`.
-# * "Lander" (task #95) — "…Sacrifice this token: Search your library for
-#   a basic land card, put it onto the battlefield tapped…" is corpus-
-#   verified NOT ``ramp`` in this system's own convention (Rampant Growth
-#   / Nature's Lore / Wayfarer's Bauble / Solemn Simulacrum / Migration
-#   Path all probed: none tags ``ramp``, since ``_ramp`` requires a
-#   literal Mana-producing effect, not a land fetch) — it opens ``tutor``
-#   (CR 701.23/701.23a) instead, for FREE, via ``_tutor_lane``'s existing
-#   ``synth_tutor`` bucket-B oracle-text rescue arm (no new code needed;
-#   confirmed by the corpus diff — all 20 Lander creators gained
-#   ``tutor``, zero gained ``ramp``).
+# * "Lander" (task #95; re-adjudicated by the lf_ramp convention change,
+#   2026-07-13) — "…Sacrifice this token: Search your library for a basic
+#   land card, put it onto the battlefield tapped…" opens ``ramp`` (CR
+#   701.23/701.23a for the search; the land-fetch-to-battlefield = ramp
+#   boundary mirrors ``card_classify.is_ramp``, matching Rampant Growth /
+#   Nature's Lore / Wayfarer's Bauble, which now ALL tag ``ramp``) via
+#   ``tree_synthesis._arm_land_fetch_ramp``'s real ``ramp`` node on the
+#   zero-unit token tree. Originally wired to ``tutor`` through the
+#   ``synth_tutor`` rescue under the pre-lf_ramp convention; the corpus
+#   diff at the flip moved all 20 Lander creators tutor -> ramp.
 # * "Map" (task #95) — "…Sacrifice this artifact: Target creature you
 #   control explores…" opens ``explore_makers`` (CR 701.44a) via
 #   :func:`~mtg_utils._card_ir.tree_synthesis._arm_known_token_explore`.
@@ -502,9 +502,11 @@ def _text_only_trees(
 #   activation) — GENUINE NON-SIGNAL by the ``_ramp`` lane's OWN land
 #   split (CR 305 vs 106.1): a basic-equivalent single-color/single-{C}
 #   land tap is MANA BASE, never ramp — a real Forest / Mutavault card
-#   doesn't fire ``ramp``, so the token twin must not either (the Lander
-#   not-ramp precedent, applied a second time; wiring was prototyped and
-#   removed this task once the lane's own gate proved it inert). Creation
+#   doesn't fire ``ramp``, so the token twin must not either (the token
+#   twin mirrors its real-card twin; wiring was prototyped and
+#   removed this task once the lane's own gate proved it inert; the
+#   lf_ramp convention change doesn't touch this — these are LAND tokens,
+#   and the mana-base carve-out stands). Creation
 #   already fires ``token_maker`` + ``land_creatures_matter`` /
 #   ``has_changeling`` at baseline.
 # * Citizen (Planewide Celebration) — the sole creator's token is the

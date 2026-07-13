@@ -4289,10 +4289,14 @@ def test_graveyard_makers_travel_through_caradhras_mines_branch_only():
     branch's "For each Mines of Moria vote, return a card from your
     graveyard to your hand" recovers via ``graveyard_return`` (task
     #np_gyfam); the SEPARATE Redhorn Pass branch (search a basic land,
-    put it onto the battlefield) is unaffected — no cross-clause bleed."""
+    put it onto the battlefield) is unaffected — no cross-clause bleed.
+    lf_ramp (2026-07-13): the Redhorn Pass branch is a pure land-fetch-to-
+    battlefield, so it now fires ``ramp`` instead of ``tutor``
+    (``tree_synthesis._arm_land_fetch_ramp`` on the vote body's text)."""
     idents = _idents("Travel Through Caradhras")
     assert ("graveyard_makers", "you", "") in idents
-    assert ("tutor", "you", "") in idents
+    assert ("ramp", "you", "") in idents
+    assert ("tutor", "you", "") not in idents
 
 
 def test_removal_counter_tuck_choice_of_position():

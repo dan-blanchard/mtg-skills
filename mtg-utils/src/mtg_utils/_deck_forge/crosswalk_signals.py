@@ -275,6 +275,7 @@ from mtg_utils._card_ir.tree_synthesis import (
     has_value_tap_ability,
     mass_death_amount,
     structural_keyword_subjects,
+    structural_land_fetch_split,
     structural_token_maker_type_subjects,
     structural_type_subjects,
 )
@@ -4768,6 +4769,24 @@ def _ramp(tree: ConceptTree) -> list[Signal]:
         if not landish or sac_bonus or _mana_accel(eff) or _mana_fixing(eff):
             return [Signal("ramp", "you", "", "", tree.name, "high")]
     if _has_animate_treasure_grant(tree):
+        return [Signal("ramp", "you", "", "", tree.name, "high")]
+    # lf_ramp (2026-07-13 convention change): a NONLAND card's confirmed
+    # self search that fetches a LAND to the BATTLEFIELD is ramp (mirrors
+    # ``card_classify.is_ramp``'s fetch branch; CR 701.23/701.23a) — the
+    # same :func:`structural_land_fetch_split` read the ``_tutor_lane``
+    # reroute consults, so a clause can never lose tutor without this arm
+    # firing from identical facts. The ``synth_tutor_directed`` veto is
+    # mirrored for strict population parity with the tutor lane's baseline
+    # (a vetoed tree never fired tutor, so it must not gain ramp here); the
+    # bucket-B text tail rides ``tree_synthesis._arm_land_fetch_ramp``'s
+    # real ``ramp`` node through the FIRST branch above instead. LAND cards
+    # keep the mana-base carve-out (CR 305.6) — never this arm.
+    if (
+        not is_land
+        and not any(c.concept == "synth_tutor_directed" for c in tree.iter_concepts())
+        and has_structural_tutor(tree)
+        and structural_land_fetch_split(tree)[0]
+    ):
         return [Signal("ramp", "you", "", "", tree.name, "high")]
     if bridge_fires("ramp_dropped_add_mana_clause", tree):
         return [Signal("ramp", "you", "", "", tree.name, "high")]
@@ -23378,12 +23397,28 @@ def _tutor_lane(tree: ConceptTree) -> list[Signal]:
       Mr. Wiggles, "Ach! Hans, Run!"; a self clause paired with an
       unrelated directed sibling — Demolition Field, Tempt with Discovery,
       I Call on the Ancient Magics).
+    * **lf_ramp reroute (2026-07-13 convention change):** a NONLAND card's
+      clause that searches for a LAND and puts it ONTO THE BATTLEFIELD is
+      RAMP, never tutor (mirrors ``card_classify.is_ramp``'s fetch branch).
+      :func:`structural_land_fetch_split` classifies every confirmed self
+      search per clause: Rampant Growth / Cultivate / Wood Elves lose tutor
+      (the ``_ramp`` lane picks them up from the SAME split), Sylvan
+      Scrying / Demonic Tutor keep it, Archdruid's Charm (a creature-or-
+      land mode) fires both. The bucket-B side mirrors the boundary in
+      ``tree_synthesis._arm_tutor`` (a pure land-fetch text synthesizes a
+      real ``ramp`` node via ``_arm_land_fetch_ramp`` instead of
+      ``synth_tutor``). LAND cards (Evolving Wilds, Krosan Verge) keep the
+      pre-reroute behavior verbatim.
 
     Scope "you", HIGH.
     """
     if any(c.concept == "synth_tutor_directed" for c in tree.iter_concepts()):
         return []
     if has_structural_tutor(tree):
+        if not tree.is_type("Land"):
+            land_fetch, other = structural_land_fetch_split(tree)
+            if land_fetch and not other:
+                return []  # pure land fetch: the ramp lane serves it
         return [Signal("tutor", "you", "", "", tree.name, "high")]
     for c in tree.iter_concepts():
         if c.concept == "synth_tutor":

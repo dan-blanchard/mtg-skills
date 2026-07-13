@@ -1795,9 +1795,12 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
     ),
     # Tutors — search your library for a card (task #83 structural-view
     # conversion). Signal key `tutor` (CR 701.23/701.23a — your-library
-    # search). `tutor` INCLUDES basic-land ramp fetch (Sakura-Tribe Elder,
-    # Cultivate both fire it), so the old regex's should_match fixtures
-    # don't flip. See `_deck_forge.crosswalk_signals._tutor_lane` — the lane
+    # search). lf_ramp (2026-07-13 convention change): `tutor` EXCLUDES
+    # land-fetch-to-battlefield ramp (Sakura-Tribe Elder, Cultivate now fire
+    # `ramp` instead — the boundary mirrors `card_classify.is_ramp`), so
+    # those two flipped to should_not_match; a land fetch TO HAND (Sylvan
+    # Scrying) stays a genuine tutor and pins that side of the boundary.
+    # See `_deck_forge.crosswalk_signals._tutor_lane` — the lane
     # has an ADJUDICATED VETO (ADR-0037, `synth_tutor_directed`) for a
     # directed/symmetric search ("target opponent's library" — Head Games;
     # "each player searches their library" — Oath of Lieges): searching
@@ -1815,11 +1818,18 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
     Preset(
         name="tutors",
         description=(
-            "Searches your library for a card (BANNED in shared-library format)."
+            "Searches your library for a card (BANNED in shared-library "
+            "format). Land-fetch-to-battlefield (Rampant Growth, Cultivate) "
+            "is ramp, not a tutor (lf_ramp convention)."
         ),
         signal_keys=("tutor",),
-        should_match=("Sakura-Tribe Elder", "Cultivate"),
-        should_not_match=("Lightning Bolt", "Llanowar Elves"),
+        should_match=("Demonic Tutor", "Sylvan Scrying"),
+        should_not_match=(
+            "Lightning Bolt",
+            "Llanowar Elves",
+            "Sakura-Tribe Elder",
+            "Cultivate",
+        ),
     ),
     # Creature-token creation. Oracle text uses both singular ("create a
     # 1/1 ... creature token") and plural ("create two 1/1 ... creature

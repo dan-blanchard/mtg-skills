@@ -265,6 +265,7 @@ __all__ = [
     "is_clone_value_effect",
     "mass_death_amount",
     "structural_keyword_subjects",
+    "structural_land_fetch_split",
     "structural_token_maker_type_subjects",
     "structural_type_subjects",
     "synthesize_nodes",
@@ -2362,6 +2363,286 @@ def has_structural_tutor(tree: ConceptTree) -> bool:
     return any(_unit_is_self_tutor(unit) for unit in tree.units)
 
 
+# ── lf_ramp (2026-07-13 signal-key convention change): a NONLAND card whose
+# clause searches for a LAND and puts it ONTO THE BATTLEFIELD is RAMP, never
+# tutor (mirrors card_classify.is_ramp's fetch branch; CR 701.23/701.23a for
+# the search action itself). A land fetch TO HAND (Sylvan Scrying) or an
+# arbitrary/nonland search stays tutor; a clause that can do both (Archdruid's
+# Charm's "creature or land ... onto the battlefield ... if it's a land card,
+# otherwise ... your hand") fires BOTH keys. LAND cards (Evolving Wilds,
+# Krosan Verge) are untouched -- the ramp lane's mana-base carve-out stands,
+# and the callers gate on ``tree.is_type("Land")`` before consulting this
+# split. :func:`structural_land_fetch_split` is the shared classifier both
+# the ``tutor`` and ``ramp`` lanes read, so a clause can never lose tutor
+# without the ramp side firing from the SAME facts.
+
+# CR 205.3i's full land-type list (June 2026 CR). Deliberately NOT the
+# ``_LAND_SUBTYPE_WORDS_SYNTH`` manland set below (which predates Town and
+# Planet): widening THAT set would move the manland/land-animate arms'
+# population; this one is fetch-classification-only.
+_SEARCH_LAND_SUBTYPE_WORDS: frozenset[str] = frozenset(
+    {
+        "cave",
+        "desert",
+        "forest",
+        "gate",
+        "island",
+        "lair",
+        "locus",
+        "mine",
+        "mountain",
+        "plains",
+        "planet",
+        "power-plant",
+        "sphere",
+        "swamp",
+        "tower",
+        "town",
+        "urza's",
+    }
+)
+
+
+def _search_filter_land_facts(f: object) -> tuple[bool, bool] | None:
+    """``(can_fetch_land, fetches_only_lands)`` for a ``SearchLibrary``
+    filter, or ``None`` when phase left the filter unresolved (a bare ``Any``
+    -- Planar Engineering's "four basic land cards"; an empty ``Typed`` --
+    Wild Endeavor's dice-scaled count). Landish = a ``Land`` core type, a CR
+    205.3i land-subtype word, or a ``HasSupertype Basic`` property (CR
+    305.6); land-ONLY additionally requires no nonland core type / nonland
+    subtype disjunct (Archdruid's Charm's Or(Creature, Land) can fetch a
+    creature, so it is landish but never land-only)."""
+    t = tag_of(f)
+    if t in ("Or", "And"):
+        subs = [
+            _search_filter_land_facts(x) for x in (getattr(f, "filters", None) or ())
+        ]
+        subs = [s for s in subs if s is not None]
+        if not subs:
+            return None
+        can = any(c for c, _ in subs)
+        only = all(o for _, o in subs) if t == "Or" else any(o for _, o in subs)
+        return can, only
+    if t != "Typed":
+        return None
+    cores = set(filter_core_types(f))
+    subtys = {s.lower() for s in filter_subtypes(f)}
+    basic = any(
+        tag_of(p) == "HasSupertype" and getattr(p, "value", None) == "Basic"
+        for p in (getattr(f, "properties", None) or ())
+    )
+    if not cores and not subtys and not basic:
+        return None
+    landish = bool("Land" in cores or (subtys & _SEARCH_LAND_SUBTYPE_WORDS) or basic)
+    only = (
+        landish
+        and not (cores - {"Land", "Card"})
+        and not (subtys - _SEARCH_LAND_SUBTYPE_WORDS)
+    )
+    return landish, only
+
+
+def _unit_search_destinations(unit: AbilityUnit) -> set[str]:
+    """Every zone the UNIT's searched card(s) can reach: the search node's
+    own ``split`` destinations (Cultivate's one-to-battlefield/rest-to-hand)
+    plus every ``ChangeZone`` in the unit whose origin is ``Library`` (the
+    plain "put that card into X" continuation) or absent with an ``Any`` /
+    ``ParentTarget`` target (the conditional-continuation shape phase emits
+    for "put it onto the battlefield tapped if it's a land card" -- an
+    origin-less ChangeZone chained onto the search's own result)."""
+    dests: set[str] = set()
+    for n in iter_typed_nodes(unit.node):
+        t = tag_of(n)
+        if t == "SearchLibrary":
+            split = getattr(n, "split", MISSING)
+            if split is not MISSING and split is not None:
+                for fname in ("primary_destination", "rest_destination"):
+                    v = getattr(split, fname, None)
+                    if isinstance(v, str):
+                        dests.add(v)
+        elif t == "ChangeZone":
+            origin = getattr(n, "origin", MISSING)
+            if origin is not MISSING and origin is not None:
+                if origin != "Library":
+                    continue
+            elif tag_of(getattr(n, "target", None)) not in (
+                "Any",
+                "ParentTarget",
+            ):
+                continue
+            d = getattr(n, "destination", None)
+            if isinstance(d, str):
+                dests.add(d)
+    return dests
+
+
+def _tree_search_continuations(tree: ConceptTree) -> set[str]:
+    """Cross-unit battlefield continuations of a search clause. ``cont_bf``:
+    a sibling ability unit whose PRIMARY effect is an origin-less
+    ``ChangeZone(ParentTarget -> Battlefield)`` -- phase's split of Caravan
+    Vigil's "Morbid -- You may put that card onto the battlefield instead"
+    rider into its own condition-gated unit. ``exile_bf``: an exile-staging
+    re-delivery unit (``ChooseFromZone(zone=Exile, filter=ExiledBySource)``
+    chaining to a Battlefield ``ChangeZone`` -- Omenpath Journey's end-step
+    "put a card at random exiled with ~ onto the battlefield")."""
+    out: set[str] = set()
+    for unit in tree.units:
+        body = _tutor_ability_body(unit)
+        if body is None:
+            continue
+        eff = getattr(body, "effect", MISSING)
+        if eff is MISSING or eff is None:
+            continue
+        t = tag_of(eff)
+        if (
+            t == "ChangeZone"
+            and (
+                getattr(eff, "origin", MISSING) is MISSING
+                or getattr(eff, "origin", None) is None
+            )
+            and tag_of(getattr(eff, "target", None)) == "ParentTarget"
+            and getattr(eff, "destination", None) == "Battlefield"
+        ):
+            out.add("cont_bf")
+        elif (
+            t == "ChooseFromZone"
+            and getattr(eff, "zone", None) == "Exile"
+            and tag_of(getattr(eff, "filter", None)) == "ExiledBySource"
+        ):
+            for n in iter_typed_nodes(body):
+                if (
+                    tag_of(n) == "ChangeZone"
+                    and getattr(n, "destination", None) == "Battlefield"
+                ):
+                    out.add("exile_bf")
+                    break
+    return out
+
+
+def structural_land_fetch_split(tree: ConceptTree) -> tuple[bool, bool]:
+    """``(land_fetch, other_search)`` over every CONFIRMED self search
+    (:func:`_unit_is_self_tutor` ``True`` units only -- directed/symmetric
+    searches never enter). ``land_fetch``: some clause fetches a land to the
+    battlefield (the ramp side); ``other_search``: some clause remains a
+    genuine tutor (to-hand / nonland-fetchable / unresolvable destination).
+    The two flags are per CLAUSE, so Archdruid's Charm raises both while
+    Rampant Growth raises only ``land_fetch`` and Demonic Tutor only
+    ``other_search``.
+
+    Per-unit mechanics: filter facts from :func:`_search_filter_land_facts`
+    (an unresolved filter inherits a resolved sibling search's facts -- the
+    "instead search for up to three" count-upgrade idiom -- else falls back
+    to the unit-less sentence read :func:`_text_search_facts`); destinations
+    from :func:`_unit_search_destinations` plus the cross-unit continuations
+    (:func:`_tree_search_continuations`). A condition-gated land-only unit
+    with NO battlefield destination of its own is skipped as a
+    count-upgrade continuation when a land-only battlefield clause exists
+    (Nissa's Pilgrimage's spell-mastery unit, which phase parses with its
+    own Hand-dest chain)."""
+    conts = _tree_search_continuations(tree)
+    rows: list[tuple[bool, bool, bool, bool]] = []
+    other = False
+    for unit in tree.units:
+        if _unit_is_self_tutor(unit) is not True:
+            continue
+        tutors = [
+            c
+            for c in unit.effects
+            if c.concept == "tutor" and tag_of(c.node) in _TUTOR_EFFECT_TAGS
+        ]
+        if not tutors:
+            continue
+        if any(tag_of(c.node) != "SearchLibrary" for c in tutors):
+            other = True  # Augment-combine: a creature search, never lands
+        facts = [
+            _search_filter_land_facts(getattr(c.node, "filter", None))
+            for c in tutors
+            if tag_of(c.node) == "SearchLibrary"
+        ]
+        if not facts:
+            continue
+        resolved = [f for f in facts if f is not None]
+        if len(resolved) < len(facts):
+            if resolved:
+                inherit = (
+                    any(c for c, _ in resolved),
+                    all(o for _, o in resolved),
+                )
+            else:
+                kept = _REMINDER.sub(" ", tree.oracle or "")
+                t_landish, t_only, _t_other = _text_search_facts(kept)
+                inherit = (t_landish, t_only)
+            resolved = [f if f is not None else inherit for f in facts]
+        landish = any(c for c, _ in resolved)
+        land_only = all(o for _, o in resolved)
+        dests = _unit_search_destinations(unit)
+        bf = "Battlefield" in dests
+        if not bf and "cont_bf" in conts:
+            bf = True
+        if not bf and dests and dests <= {"Exile"} and "exile_bf" in conts:
+            bf = True
+        body = _tutor_ability_body(unit)
+        cond = getattr(body, "condition", MISSING) if body is not None else MISSING
+        cond_gated = cond is not MISSING and cond is not None
+        rows.append((landish, land_only, bf, cond_gated))
+    land_fetch = False
+    bf_land_only = any(lo and bf for _l, lo, bf, _c in rows)
+    for landish, land_only, bf, cond_gated in rows:
+        if cond_gated and land_only and not bf and bf_land_only:
+            continue  # count-upgrade continuation of the battlefield clause
+        if landish and bf:
+            land_fetch = True
+        if not (land_only and bf):
+            other = True
+    return land_fetch, other
+
+
+# The sentence-level text mirror of ``card_classify.is_ramp``'s fetch branch
+# (lf_ramp): a search sentence naming a land ("land card(s)" / "basic land" /
+# a CR 205.3i land-type word) AND "onto the battlefield" is the ramp side; a
+# search sentence that can also fetch a nonland type keeps the tutor side
+# too. Only consulted where the tree is text-only or a filter is unresolved
+# (the substrate-first doctrine's sanctioned text-gate territory).
+_LF_SEARCH_SENTENCE_RE = re.compile(r"search your librar(?:y|ies) for", re.IGNORECASE)
+_LF_TEXT_LAND_RE = re.compile(
+    r"\bland cards?\b|\bbasic land\b|\b(?:cave|desert|forest|gate|island|lair"
+    r"|locus|mine|mountain|plains|planet|power-plant|sphere|swamp|tower|town"
+    r"|urza's)\b",
+    re.IGNORECASE,
+)
+_LF_TEXT_NONLAND_RE = re.compile(
+    r"search your librar(?:y|ies) for [^.]*?\b(?:creature|artifact"
+    r"|enchantment|instant|sorcery|planeswalker|battle|aura|equipment"
+    r"|permanent|card named)\b[^.]*?cards?",
+    re.IGNORECASE,
+)
+_LF_ONTO_BATTLEFIELD_RE = re.compile(r"onto the battlefield", re.IGNORECASE)
+
+
+def _text_search_facts(kept: str) -> tuple[bool, bool, bool]:
+    """``(landish_bf, land_only_bf, other)`` over KEPT's search sentences:
+    ``landish_bf`` -- some sentence fetches a land to the battlefield;
+    ``land_only_bf`` -- some sentence does so and can ONLY fetch lands;
+    ``other`` -- some search sentence stays a genuine tutor (no land word,
+    no battlefield, or a nonland type alongside the land word)."""
+    landish = land_only = other = False
+    for s in re.split(r"(?<=[.!])\s+|\n", kept):
+        if not _LF_SEARCH_SENTENCE_RE.search(s):
+            continue
+        land = bool(_LF_TEXT_LAND_RE.search(s))
+        bf = bool(_LF_ONTO_BATTLEFIELD_RE.search(s))
+        nonland = bool(_LF_TEXT_NONLAND_RE.search(s))
+        if land and bf and not nonland:
+            landish = True
+            land_only = True
+        elif land and bf:
+            landish = True
+            other = True
+        else:
+            other = True
+    return landish, land_only, other
+
+
 # The directed/symmetric text idiom phase's structure sometimes omits
 # entirely (Head Games, Rootwater Thief, Oath of Lieges, Scheming Symmetry,
 # Deceptive Divination, Sphinx Ambassador, Thada Adel, Sadistic Sacrament's
@@ -2434,19 +2715,67 @@ def _arm_tutor(tree: ConceptTree) -> ConceptNode | None:
     """Synthesize a ``tutor`` node for the description-only bucket-B tail
     phase's SearchLibrary structure doesn't reach at all -- gap-gated by
     ``has_structural_tutor`` (never double-counts a card Tier-1 already
-    reads) and the directed-idiom veto (SYNTH-EXCLUSION-PARITY)."""
+    reads) and the directed-idiom veto (SYNTH-EXCLUSION-PARITY).
+
+    lf_ramp (2026-07-13): a NONLAND tree whose search text is PURE
+    land-fetch-to-battlefield (Pir's Whim, the Lander known-token tree) is
+    the ramp side of the convention -- :func:`_arm_land_fetch_ramp` emits a
+    real ``ramp`` node for it instead, so this arm stays silent. A text
+    that ALSO carries a genuine tutor sentence (Verdant Crescendo's Nissa
+    fetch) keeps its ``synth_tutor`` alongside the ramp node."""
     if has_structural_tutor(tree):
         return None
     if _matches_tutor_directed_idiom(tree.oracle or ""):
         return None
-    if not _TUTOR_OWN_LIBRARY_RE.search(_REMINDER.sub(" ", tree.oracle or "")):
+    kept = _REMINDER.sub(" ", tree.oracle or "")
+    if not _TUTOR_OWN_LIBRARY_RE.search(kept):
         return None
+    if not tree.is_type("Land"):
+        _landish, land_only, other = _text_search_facts(kept)
+        if land_only and not other:
+            return None  # pure land fetch: ramp, never tutor (lf_ramp)
     return _synthetic_concept(
         arm_id="tutor",
         concept="synth_tutor",
         scope="you",
         subject=(),
         desc="bucket-B tutor (phase emits no reachable SearchLibrary node)",
+    )
+
+
+def _arm_land_fetch_ramp(tree: ConceptTree) -> ConceptNode | None:
+    """Synthesize a real ``ramp`` node for the description-only land-fetch
+    tail (lf_ramp, 2026-07-13): a NONLAND tree phase's SearchLibrary never
+    structurally reaches whose search sentence fetches a LAND to the
+    BATTLEFIELD -- the Lander known-token zero-unit tree ("Sacrifice this
+    token: Search your library for a basic land card, put it onto the
+    battlefield tapped"), a vote/repeat-for body (Travel Through
+    Caradhras's Redhorn Pass branch), an emblem-granted future fetch.
+    Shares :func:`_arm_tutor`'s exact gap gates (structural / directed-veto
+    / own-library idiom), so its population is a strict subset of the cards
+    the old ``synth_tutor`` rescue used to fire on -- a reroute, never a
+    reach widening. Emits the REAL ``ramp`` concept, read by ``_ramp``'s
+    first branch unconditionally for a nonland tree (the
+    ``_arm_known_token_ramp`` precedent). LAND trees are excluded outright
+    (the mana-base carve-out -- CR 305.6)."""
+    if tree.is_type("Land"):
+        return None
+    if has_structural_tutor(tree):
+        return None
+    if _matches_tutor_directed_idiom(tree.oracle or ""):
+        return None
+    kept = _REMINDER.sub(" ", tree.oracle or "")
+    if not _TUTOR_OWN_LIBRARY_RE.search(kept):
+        return None
+    landish, _land_only, _other = _text_search_facts(kept)
+    if not landish:
+        return None
+    return _synthetic_concept(
+        arm_id="land_fetch_ramp",
+        concept="ramp",
+        scope="you",
+        subject=(),
+        desc="bucket-B land-fetch-to-battlefield ramp (lf_ramp reroute)",
     )
 
 
@@ -9326,7 +9655,8 @@ _RAMP_KNOWN_TOKEN_IDIOMS: tuple[str, ...] = (
     # land split (CR 305 vs 106.1) reads a basic-equivalent single-color/
     # single-{C} tap as MANA BASE, never ramp — a real Forest / Mutavault
     # card doesn't fire ``ramp``, so its token twin must not either (the
-    # Lander not-ramp precedent above, applied a second time).
+    # token twin mirrors its real-card twin; the lf_ramp convention change
+    # doesn't touch these LAND tokens — the mana-base carve-out stands).
 )
 
 
@@ -9607,6 +9937,7 @@ _ARMS: tuple[tuple[str, _Arm], ...] = (
     ("untap_engine", _arm_untap_engine),
     ("tutor_directed", _arm_tutor_directed),
     ("tutor", _arm_tutor),
+    ("land_fetch_ramp", _arm_land_fetch_ramp),
     ("discover_makers", _arm_discover_makers),
     ("suspect_makers", _arm_suspect_makers),
     ("group_hug_draw", _arm_group_hug_draw),

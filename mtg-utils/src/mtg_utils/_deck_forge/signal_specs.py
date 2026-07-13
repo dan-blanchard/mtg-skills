@@ -5335,11 +5335,24 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         r"|creatures you control get \+\d+/\+\d+",
         serve_not=r"creatures you control get \+\d+/\+\d+ until end of turn",
     ),
+    # lf_ramp (2026-07-13): land-fetch-to-battlefield is RAMP, not tutor —
+    # the serve side must not surface Rampant Growth / Cultivate / Nature's
+    # Lore under the Tutors avenue (the ramp spec's serve already includes
+    # land fetch). serve_not vetoes the fetch idiom only when the land word
+    # directly follows the count words, so a mixed-mode search ("a creature
+    # or land card" — Archdruid's Charm) still serves as a tutor.
     ("tutor", "you"): _spec(
         "Tutors",
         "tutors to assemble your key pieces and combos",
         {"oracle": r"search your library for"},
         r"search your library for",
+        serve_not=(
+            r"search your librar(?:y|ies) for (?:up to )?"
+            r"(?:a |an |one |two |three |four |five |x |that many )?"
+            r"(?:basic )?(?:cave|desert|forest|gate|island|lair|locus|mine"
+            r"|mountain|plains|planet|power-plant|sphere|swamp|tower|town"
+            r"|urza's|land)\b[^.]*onto the battlefield"
+        ),
     ),
     ("untap_engine", "you"): _spec(
         "Untap engine",
