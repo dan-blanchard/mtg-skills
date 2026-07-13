@@ -161,7 +161,7 @@ Shared Python package (`mtg_utils`). 39 CLI script modules (25 deck + 9 cube + 3
 
 - **`download_rules.py`** — Downloader for the MTG Comprehensive Rules TXT. Scrapes the Wizards rules landing page for the newest `MagicCompRules*.txt` link, writes to `comprehensive-rules-YYYYMMDD.txt` in the output dir, 24h freshness check matching `download_bulk`.
 - **`rules_lookup.py`** — Parser + CLI. Parses the CR into `{sections, rules, glossary}` with rule numbers as keys and cross-references pre-extracted; caches the parsed result as a pickled sidecar next to the TXT. CLI modes: `--rule <n>` (exact-number), `--term <keyword>` (glossary), `--grep "<regex>"` (rule-text search).
-- **`rulings_lookup.py`** — Scryfall per-card rulings fetcher. Resolves card name → `oracle_id` via the existing `scryfall_lookup.lookup_single`, then hits `/cards/:id/rulings`. Caches one JSON per oracle_id under `$TMPDIR/scryfall-rulings/` with a 30-day TTL.
+- **`rulings_lookup.py`** — Per-card rulings fetcher, local-first (task #89): resolves card name → `oracle_id` via `scryfall_lookup.lookup_single`, serves rulings from the MTGJSON bulk's oracle-keyed sidecar (`_mtgjson.rulings_index`) when present, and falls back to Scryfall's `/cards/:id/rulings` (cached one JSON per oracle_id under `$TMPDIR/scryfall-rulings/`, 30-day TTL) only on a local miss or when no bulk is configured.
 
 **Cross-cutting:** `cut_check.py` and `legality_audit.py` accept a `--cite-rules` flag that auto-attaches CR citations to their JSON output (trigger/keyword interactions → glossary-cited rules; violation reasons → a curated reason→CR map in `legality_audit._REASON_TO_CR_RULES`).
 

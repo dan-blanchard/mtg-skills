@@ -1,19 +1,32 @@
-"""Scryfall per-card rulings fetcher with on-disk cache.
+"""Per-card rulings fetcher: local MTGJSON bulk first, Scryfall API fallback.
 
-Per-card "rulings" are Scryfall's curated notes on how a card actually
-works — the closest thing MTG has to case law. They're not included in
-the Scryfall bulk data, so each card needs an HTTP round-trip to
-``/cards/:id/rulings``. This module batches + caches those requests.
+Per-card "rulings" are curated notes on how a card actually works — the
+closest thing MTG has to case law. MTGJSON's ``AllPrintings`` (ADR-0033,
+the card-data source of record) carries them on every printing; this
+module aggregates them into a small oracle-id-keyed sidecar
+(``mtg_utils._mtgjson.rulings_index``) and serves from it first — no
+network round-trip when the card is in local bulk. When the card is
+absent from local bulk (or no bulk is configured at all), it falls back
+to the Scryfall API's ``/cards/:id/rulings`` endpoint, unchanged from
+before this local-first rewire.
 
-Cache layout: one JSON file per ``oracle_id`` at
+Cache layout (fallback path only): one JSON file per ``oracle_id`` at
 ``$TMPDIR/scryfall-rulings/<oracle_id>.json`` holding the raw Scryfall
-response. ``oracle_id`` is used (not ``id``) so rulings are shared
-across printings — rulings are attached to the Oracle card, not an
-individual printing.
+response, normalized (see below) the same as a local hit. ``oracle_id``
+is used (not ``id``) so rulings are shared across printings — rulings
+are attached to the Oracle card, not an individual printing.
 
-Freshness: rulings rarely change once a card is released. We treat the
-cache as valid for 30 days, after which a re-fetch is triggered
-automatically. Users can force a refresh with ``--refresh``.
+Freshness: rulings rarely change once a card is released. The fallback
+cache is valid for 30 days, after which a re-fetch is triggered
+automatically. Users can force a refresh with ``--refresh`` (local hits
+are unaffected — the local sidecar's own freshness is tied to the bulk
+file's mtime, not this TTL).
+
+Output schema: every entry's ``rulings`` list uses the Scryfall shape —
+``{"published_at": ..., "comment": ...}`` — regardless of source, so
+consumers (the CLI's text report, the JSON sidecar) don't special-case
+MTGJSON's ``{"date": ..., "text": ...}`` shape. Each entry also carries
+an additive ``source`` field (``"mtgjson-bulk"`` or ``"scryfall-api"``).
 """
 
 from __future__ import annotations
@@ -28,8 +41,10 @@ from typing import Any
 import click
 import requests
 
+from mtg_utils._mtgjson.rulings_index import RulingsIndex, load_rulings_index
 from mtg_utils._name_index import NameIndex
 from mtg_utils._sidecar import atomic_write_json, sha_keyed_path
+from mtg_utils.bulk_loader import default_bulk_path
 from mtg_utils.scryfall_lookup import (
     RATE_LIMIT_DELAY,
     USER_AGENT,
@@ -74,25 +89,42 @@ def _fetch_rulings(
     return data
 
 
+def _normalize_local_rulings(entries: tuple[dict, ...]) -> list[dict]:
+    """Normalize MTGJSON's ``{date, text}`` rulings to the Scryfall
+    ``{published_at, comment}`` shape, so every consumer of this
+    module's output sees one schema regardless of source."""
+    return [
+        {"published_at": r.get("date", ""), "comment": r.get("text", "")}
+        for r in entries
+    ]
+
+
 def lookup_rulings(
     name: str,
     *,
     bulk_path: Path | None = None,
     bulk_index: NameIndex | None = None,
+    rulings_index: RulingsIndex | None = None,
     refresh: bool = False,
     session: requests.Session | None = None,
 ) -> dict[str, Any]:
-    """Return ``{name, oracle_id, rulings}`` for a single card.
+    """Return ``{name, oracle_id, rulings, source}`` for a single card.
 
-    The Scryfall bulk data (via ``lookup_single``) is used first to
-    resolve ``name`` to a canonical ``oracle_id`` — we don't hit
-    ``/cards/named`` for every rulings call. If the card isn't in bulk
-    data the API fallback inside ``lookup_single`` handles it.
+    The local bulk data (via ``lookup_single``) is used first to resolve
+    ``name`` to a canonical ``oracle_id`` — we don't hit ``/cards/named``
+    for every rulings call. If the card isn't in bulk data the API
+    fallback inside ``lookup_single`` handles it.
 
-    Pass ``bulk_index`` when looking up many cards in one session — each
-    ``bulk_path`` rebuild is ~300ms, which dominates the per-card cost
-    on a commander-deck-sized batch. ``lookup_rulings_batch`` handles
-    this automatically.
+    Rulings themselves are served local-first too: when ``rulings_index``
+    (or a ``rulings_index`` built lazily from ``bulk_path``) has an entry
+    for the resolved ``oracle_id``, it's served directly — no network
+    call at all. Otherwise this falls back to the Scryfall API exactly as
+    before this local-first rewire, including its 30-day on-disk cache.
+
+    Pass ``bulk_index`` / ``rulings_index`` when looking up many cards in
+    one session — each rebuild is non-trivial, which dominates the
+    per-card cost on a commander-deck-sized batch. ``lookup_rulings_batch``
+    handles this automatically.
 
     Returns an entry whose ``rulings`` is an empty list when the card
     exists but has no rulings, and whose ``oracle_id`` is ``None`` when
@@ -109,23 +141,49 @@ def lookup_rulings(
         return {"name": name, "oracle_id": None, "rulings": []}
     card_id = card.get("id")
 
+    if rulings_index is None and bulk_path is not None:
+        rulings_index = load_rulings_index(bulk_path)
+    if rulings_index is not None and oracle_id in rulings_index:
+        local_rulings = _normalize_local_rulings(rulings_index[oracle_id])
+        return {
+            "name": name,
+            "oracle_id": oracle_id,
+            "rulings": local_rulings,
+            "source": "mtgjson-bulk",
+        }
+
     cache_path = _cache_path(oracle_id)
     if not refresh and _cache_is_fresh(cache_path):
         try:
             cached = json.loads(cache_path.read_text(encoding="utf-8"))
             if isinstance(cached, list):
-                return {"name": name, "oracle_id": oracle_id, "rulings": cached}
+                return {
+                    "name": name,
+                    "oracle_id": oracle_id,
+                    "rulings": cached,
+                    "source": "scryfall-api",
+                }
         except (OSError, json.JSONDecodeError):
             pass  # fall through to refetch
 
     if not card_id:
-        return {"name": name, "oracle_id": oracle_id, "rulings": []}
+        return {
+            "name": name,
+            "oracle_id": oracle_id,
+            "rulings": [],
+            "source": "scryfall-api",
+        }
 
     session = session or _new_session()
     rulings = _fetch_rulings(card_id, session)
     cache_path.parent.mkdir(parents=True, exist_ok=True)
     atomic_write_json(cache_path, rulings)
-    return {"name": name, "oracle_id": oracle_id, "rulings": rulings}
+    return {
+        "name": name,
+        "oracle_id": oracle_id,
+        "rulings": rulings,
+        "source": "scryfall-api",
+    }
 
 
 def lookup_rulings_batch(
@@ -136,23 +194,28 @@ def lookup_rulings_batch(
 ) -> list[dict]:
     """Fetch rulings for a list of card names, reusing a single session.
 
-    Loads the Scryfall bulk index exactly once and threads it through
-    every per-card ``lookup_rulings`` call. Without this, each card
-    triggered a fresh pickle-sidecar load (~300ms) — a 100-card
-    commander deck paid ~30s of avoidable I/O.
+    Loads the bulk name index AND the local rulings sidecar exactly once
+    and threads both through every per-card ``lookup_rulings`` call.
+    Without this, each card triggered a fresh pickle-sidecar load — a
+    100-card commander deck paid ~30s of avoidable I/O for the name
+    index alone, and the API fallback was hit once per LOCAL MISS at
+    worst rather than once per card.
     """
     session = _new_session()
     bulk_index: NameIndex | None = None
+    rulings_index: RulingsIndex | None = None
     if bulk_path is not None:
         # Import locally to keep the module import graph narrow for
         # consumers (e.g., the SKILL.md smoke tests) that never batch.
         from mtg_utils.scryfall_lookup import _load_bulk_index
 
         bulk_index = _load_bulk_index(bulk_path)
+        rulings_index = load_rulings_index(bulk_path)
     return [
         lookup_rulings(
             name,
             bulk_index=bulk_index,
+            rulings_index=rulings_index,
             refresh=refresh,
             session=session,
         )
@@ -218,7 +281,11 @@ def render_text_report(results: list[dict]) -> str:
     "bulk_path",
     type=click.Path(path_type=Path),
     default=None,
-    help="Scryfall bulk data JSON (speeds up name → oracle_id resolution).",
+    help=(
+        "MTGJSON AllPrintings.json (or legacy Scryfall bulk) for local "
+        "name resolution and local-first rulings; defaults to the "
+        "auto-discovered download-mtgjson cache path if omitted."
+    ),
 )
 @click.option(
     "--refresh",
@@ -253,6 +320,9 @@ def main(
     else:
         msg = "Specify --card NAME (repeatable) or --batch <path>"
         raise click.UsageError(msg)
+
+    if bulk_path is None:
+        bulk_path = default_bulk_path()
 
     results = lookup_rulings_batch(names, bulk_path=bulk_path, refresh=refresh)
 

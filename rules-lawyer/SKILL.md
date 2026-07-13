@@ -31,7 +31,7 @@ honest "I couldn't find a matching rule — here's the closest neighbor."
 ```bash
 uv sync --directory <skill-install-dir>
 download-rules --output-dir <working-dir>
-download-bulk --output-dir <working-dir>       # only if rulings-lookup needed
+download-mtgjson                                # only for local-first rulings-lookup (API fallback needs no bulk)
 ```
 
 `download-rules` fetches the current MTG Comprehensive Rules TXT with

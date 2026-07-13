@@ -127,6 +127,137 @@ class TestLookupRulings:
             results = lookup_rulings_batch(["Sol Ring", "Sol Ring"])
         assert len(results) == 2
 
+    def test_local_hit_never_calls_http(self, tmp_path):
+        """Task #89: a rulings-index hit must serve locally — zero network."""
+        rulings_index = {
+            "oid-solring": (
+                {"date": "2020-01-01", "text": "Taps for 2."},
+                {"date": "2022-06-01", "text": "Still legal."},
+            )
+        }
+        session = MagicMock()
+        session.get.side_effect = AssertionError("local hit must not call HTTP")
+        with patch("mtg_utils.rulings_lookup.lookup_single", return_value=_FAKE_CARD):
+            result = lookup_rulings(
+                "Sol Ring",
+                rulings_index=rulings_index,
+                session=session,
+            )
+        assert result["oracle_id"] == "oid-solring"
+        assert result["source"] == "mtgjson-bulk"
+        assert result["rulings"] == [
+            {"published_at": "2020-01-01", "comment": "Taps for 2."},
+            {"published_at": "2022-06-01", "comment": "Still legal."},
+        ]
+        session.get.assert_not_called()
+
+    def test_local_miss_falls_back_to_api(self, tmp_path):
+        """A rulings-index that lacks the resolved oracle_id must fall
+        back to the (unchanged, PR #21 id-threaded) Scryfall API path."""
+        rulings_index: dict = {"some-other-oid": ({"date": "x", "text": "y"},)}
+        session = _mock_session()
+        with patch("mtg_utils.rulings_lookup.lookup_single", return_value=_FAKE_CARD):
+            result = lookup_rulings(
+                "Sol Ring",
+                rulings_index=rulings_index,
+                session=session,
+                refresh=True,
+            )
+        assert result["source"] == "scryfall-api"
+        assert len(result["rulings"]) == 2
+        session.get.assert_called_once_with(
+            "https://api.scryfall.com/cards/card-solring/rulings",
+            timeout=15,
+        )
+
+    def test_no_rulings_index_falls_back_to_api(self, tmp_path):
+        """No bulk configured at all (``rulings_index=None``,
+        ``bulk_path=None``) preserves the pre-#89 API-only behavior."""
+        session = _mock_session()
+        with patch("mtg_utils.rulings_lookup.lookup_single", return_value=_FAKE_CARD):
+            result = lookup_rulings("Sol Ring", session=session, refresh=True)
+        assert result["source"] == "scryfall-api"
+        session.get.assert_called_once_with(
+            "https://api.scryfall.com/cards/card-solring/rulings",
+            timeout=15,
+        )
+
+    def test_local_and_api_output_schema_equivalence(self):
+        """A local-served entry and an API-served entry for the same
+        underlying rulings must be byte-identical in shape — the CLI
+        text report and JSON sidecar don't special-case the source."""
+        rulings_index = {
+            "oid-solring": ({"date": "2020-01-01", "text": "Taps for 2."},)
+        }
+        with patch("mtg_utils.rulings_lookup.lookup_single", return_value=_FAKE_CARD):
+            local = lookup_rulings(
+                "Sol Ring",
+                rulings_index=rulings_index,
+                session=MagicMock(),
+            )
+            api_session = MagicMock()
+            resp = MagicMock()
+            resp.raise_for_status = MagicMock()
+            resp.json.return_value = {
+                "data": [{"published_at": "2020-01-01", "comment": "Taps for 2."}]
+            }
+            api_session.get.return_value = resp
+            api = lookup_rulings("Sol Ring", session=api_session, refresh=True)
+
+        assert local["rulings"] == api["rulings"]
+        assert set(local.keys()) == set(api.keys())
+        assert local["source"] == "mtgjson-bulk"
+        assert api["source"] == "scryfall-api"
+
+    def test_batch_hits_api_only_for_local_misses(self, tmp_path):
+        """Batch mode (#89 item 3): the rulings index loads once and the
+        API is only hit for cards that miss it locally."""
+        bulk_path = tmp_path / "AllPrintings.json"
+        bulk_path.write_text("{}", encoding="utf-8")
+
+        cards = {
+            "Sol Ring": {**_FAKE_CARD, "name": "Sol Ring"},
+            "Local Card": {
+                "id": "card-local",
+                "oracle_id": "oid-local-hit",
+                "name": "Local Card",
+            },
+        }
+        rulings_index = {
+            "oid-local-hit": ({"date": "2015-01-01", "text": "Local ruling."},)
+        }
+
+        def _fake_lookup_single(name, *, bulk_path=None, bulk_index=None):
+            del bulk_path, bulk_index
+            return cards[name]
+
+        with (
+            patch(
+                "mtg_utils.rulings_lookup.lookup_single",
+                side_effect=_fake_lookup_single,
+            ),
+            patch("mtg_utils.scryfall_lookup._load_bulk_index", lambda _p: {}),
+            patch(
+                "mtg_utils.rulings_lookup.load_rulings_index",
+                return_value=rulings_index,
+            ),
+            patch(
+                "mtg_utils.rulings_lookup._new_session",
+                return_value=_mock_session(),
+            ),
+        ):
+            results = lookup_rulings_batch(
+                ["Sol Ring", "Local Card"],
+                bulk_path=bulk_path,
+            )
+
+        by_name = {r["name"]: r for r in results}
+        assert by_name["Sol Ring"]["source"] == "scryfall-api"
+        assert by_name["Local Card"]["source"] == "mtgjson-bulk"
+        assert by_name["Local Card"]["rulings"] == [
+            {"published_at": "2015-01-01", "comment": "Local ruling."}
+        ]
+
     def test_batch_loads_bulk_index_once(self, tmp_path):
         """Pins the I-1 perf fix: the bulk pickle sidecar is loaded
         exactly once per batch invocation, not once per card.
