@@ -275,10 +275,39 @@ ALLOWLIST: dict[str, TokenRule] = {
     # ``graveyard_return_direction`` trust a ``graveyard_return``-recovered
     # node unconditionally (the grammar's own "graveyard ... hand" gate
     # already establishes the direction), the same trust the "reveal_hand"/
-    # "dig_until" rows extend their own recovered concepts.
+    # "dig_until" rows extend their own recovered concepts. NOTE
+    # (no-postponement integration): the ``graveyard_return`` grammar arm
+    # (clause_grammar.py's ``_RETURN`` alt) is tried BEFORE the ``bounce``
+    # arms below, so any clause naming both "graveyard" and "hand" tokenizes
+    # here, not as "bounce" — the sibling row below is reached only by
+    # bounce clauses that never mention "graveyard" at all (Quarry Colossus,
+    # Psychic Pickpocket), so the two rows are disjoint in practice, not
+    # merely in key-name.
     "graveyard_return": TokenRule(
         concept="graveyard_return", category="graveyard_return"
     ),
+    # np_boons task #3 (Comet, Stellar Pup): the return-to-hand/owner ACTION
+    # idiom (CR 400.4/404) — "return a card ... from your graveyard to your
+    # hand" as a numbered planeswalker die-outcome's OWN clause (each outcome
+    # is its own Unimplemented node WITH a full description — a textbook
+    # route-(i) residue, not a dropped-clause gap). Maps to the REAL
+    # "change_zone" concept (not a dedicated marker) so ``graveyard_makers``'s
+    # ordinary ``effect_concepts("change_zone")`` walk reaches it, but a
+    # recovered node carries no typed ``origin``/``destination`` fields for
+    # ``change_zone_dirs`` to read (same gap ``discard``/``draw``/``damage``
+    # already document) — every consumer of this heavily-shared concept name
+    # already discriminates via ``tag_of``/``change_zone_dirs`` first (both
+    # silently False/None for an Unimplemented node), so a recovered node is a
+    # no-op for all of them except ``graveyard_makers``, which gets its OWN
+    # ``recovered_by == "bounce"`` raw-gated arm (the recovered-node raw-read
+    # precedent — direction/origin decided from the raw text, never trusted
+    # blind). Also the sole route by which ``wants_cloning``'s
+    # ``is_clone_value_effect`` (``_CLONE_ETB_VALUE`` includes "change_zone"/
+    # "bounce" by concept name) sees a bare bounce-to-hand ETB with no
+    # graveyard involvement at all (Quarry Colossus's tuck-to-library,
+    # Psychic Pickpocket's connive-then-bounce) — unaffected by the
+    # ``graveyard_return`` row above since neither mentions "graveyard".
+    "bounce": TokenRule(concept="change_zone", category="bounce"),
 }
 
 

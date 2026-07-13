@@ -2076,6 +2076,16 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         {"oracle": r"opponents?[^.]*can.t (?:have|get)[^.]*counters?"},
         r"opponents?[^.]*can.t (?:have|get)[^.]*counters?",
     ),
+    # np_boons task #5: adapt_matters — Biomancer's Familiar's re-adapt
+    # enabler (CR 701.46a), a 1-card population today; the search widens
+    # slightly (any "adapt(s) as though"/"adapt again" idiom) so a future
+    # printing surfaces without a code change.
+    ("adapt_matters", "you"): _spec(
+        "Adapt support",
+        "enable or re-trigger Adapt (CR 701.46) on creatures you control",
+        {"oracle": r"\badapts?\b"},
+        r"adapts? as though|adapt(?:s)? again|the next time[^.]*\badapts?\b",
+    ),
     # Hand spec (overrides the mined sweep detector) so the avenue can fan out a
     # dedicated "Flip fixing" sub-avenue. The flat coin-flip search returns ~60 generic
     # "flip a coin" payoffs and buries Krark's-Thumb-style fixers past the package cap,

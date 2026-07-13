@@ -2862,6 +2862,59 @@ def _arm_creature_cast_trigger(tree: ConceptTree) -> ConceptNode | None:
     )
 
 
+# The "one-time boon" mechanic (np_boons task #2, a recent set idiom, no
+# dedicated CR number yet — Scryfall rulings gloss it as "a single-use
+# triggered ability with no source"): "You get a one-time boon with '<quoted
+# delayed trigger>'" (Arcane Archery, Champions of Tyr, March Toward
+# Perfection, Tenacious Pup, and ~16 further corpus carriers). phase parses
+# the WRAPPER two different ways, neither reachable by the existing
+# creature_cast_trigger read: (a) a plain Unimplemented "other" residue
+# whose raw is the bare "get a one-time boon with '...'" text (Champions of
+# Tyr, Tenacious Pup) — genuinely node-LESS for this purpose (the recovery
+# grammar's ALLOWLIST only re-decorates a residue INTO one of its existing
+# real concepts; there is no such concept for "grants a delayed one-time
+# trigger", so route (i) cannot anchor); (b) a garbled ``S_replacements``
+# node (event ``Moved``) whose nested ``execute`` is a bogus ``PutCounter``
+# with a GARBAGE ``counter_type`` (a fragment of the quoted text itself,
+# not a real counter kind — Arcane Archery, March Toward Perfection,
+# Patchplate Resolute, Benalish Knight-Counselor) — a MISPARSE, not a
+# correctable field on an otherwise-real placement, so overlay_corrections'
+# field-only discipline (no concept rewrites, see that module's own
+# docstring) can't serve it either; route (ii) can't anchor. Both shapes are
+# genuinely gapped for THIS signal, so route (iv): one shared whole-oracle
+# idiom pair, anchored on the literal "one-time boon with \"...\"" wrapper
+# (never a blind scan — the match is confined to inside the quoted
+# sub-string, so it can't bleed onto an unrelated sibling clause the way a
+# raw multi-sentence blob can). Reuses the SAME "creature_cast" marker
+# :func:`_arm_creature_cast_trigger` emits (CR 701.5a / 603.2 — a boon that
+# watches a creature-spell cast IS that same payoff, just single-use), so
+# the existing ``_creature_cast_trigger`` lane serves it with no lane
+# change. The `\bcreature spell\b` word boundary (leading AND trailing)
+# excludes a "noncreature spell" boon (Valiant Batrider, Illuminating Lash
+# — a different watched event entirely) the same way the sibling regex's
+# own comment above excludes it.
+_BOON_CREATURE_CAST_RE = re.compile(
+    r"\bone-time boon with \"[^\"]*?\bwhen you cast (?:a|an)\b"
+    r"[^\"]{0,40}?\bcreature spell\b",
+    re.IGNORECASE,
+)
+
+
+def _arm_boon_creature_cast_trigger(tree: ConceptTree) -> ConceptNode | None:
+    """See :data:`_BOON_CREATURE_CAST_RE`'s module comment. CR 701.5a / 603.2."""
+    if has_structural_creature_cast_trigger(tree):
+        return None
+    if not _BOON_CREATURE_CAST_RE.search(tree.oracle or ""):
+        return None
+    return _synthetic_concept(
+        arm_id="boon_creature_cast_trigger",
+        concept="creature_cast",
+        scope="any",
+        subject=(),
+        desc="one-time-boon creature-spell-cast trigger, no anchorable node",
+    )
+
+
 def has_structural_fight_makers(tree: ConceptTree) -> bool:
     """The fight_makers TYPED gate (CR 701.12): a flat top-level ``Fight``
     effect OR a ``Fight`` tag :func:`has_nested_fight` reaches inside a
@@ -5064,6 +5117,42 @@ def _arm_plus_one_makers(tree: ConceptTree) -> ConceptNode | None:
         scope="you",
         subject=(),
         desc="bucket-B +1/+1 counter placement (dropped-clause residue)",
+    )
+
+
+# The "one-time boon" +1/+1-counter sibling (np_boons task #2 — see
+# ``_BOON_CREATURE_CAST_RE``'s docstring for the two ungapped node shapes
+# this idiom covers). The delayed trigger's OWN "+1/+1 counter" grant
+# (Arcane Archery, Champions of Tyr, March Toward Perfection, Tenacious
+# Pup, Patchplate Resolute, Benalish Knight-Counselor) is a genuine CR
+# 122.1 P1P1 placement the card WILL perform (once, on its next qualifying
+# creature cast) — the same population ``_matches_plus_one_makers_idiom``
+# already recognizes for a live top-level "enters with ... +1/+1 counter"
+# clause, just wrapped in the quoted boon body instead of sitting bare in
+# the oracle (so the sibling regex's own "on it" tail requirement, tuned
+# for a SINGLE counter grant, doesn't fit a boon's "+1/+1 counter, a flying
+# counter, or a lifelink counter on it" multi-counter list — a dedicated,
+# narrowly-anchored pattern instead of loosening the general idiom's own
+# regex and risking its unrelated corpus population). Anchored the same
+# way as ``_BOON_CREATURE_CAST_RE`` — confined inside the quoted
+# sub-string, never a blind scan.
+_BOON_PLUS_ONE_RE = re.compile(
+    r"\bone-time boon with \"[^\"]*?\+1/\+1 counter\b", re.IGNORECASE
+)
+
+
+def _arm_boon_plus_one_makers(tree: ConceptTree) -> ConceptNode | None:
+    """See :data:`_BOON_PLUS_ONE_RE`'s module comment. CR 122.1."""
+    if has_structural_plus_one_makers(tree):
+        return None
+    if not _BOON_PLUS_ONE_RE.search(tree.oracle or ""):
+        return None
+    return _synthetic_concept(
+        arm_id="boon_plus_one_makers",
+        concept="synth_plus_one_makers",
+        scope="you",
+        subject=(),
+        desc="one-time-boon +1/+1 counter placement, no anchorable node",
     )
 
 
@@ -9323,6 +9412,7 @@ _ARMS: tuple[tuple[str, _Arm], ...] = (
     ("self_counter_grow", _arm_self_counter_grow),
     ("self_power_scale", _arm_self_power_scale),
     ("plus_one_makers", _arm_plus_one_makers),
+    ("boon_plus_one_makers", _arm_boon_plus_one_makers),
     ("poison_matters", _arm_poison_matters),
     ("island_matters", _arm_island_matters),
     ("animate_artifact", _arm_animate_artifact),
@@ -9381,6 +9471,7 @@ _ARMS: tuple[tuple[str, _Arm], ...] = (
     ("connive_makers", _arm_connive_makers),
     ("opponent_cast_matters", _arm_opponent_cast_matters),
     ("creature_cast_trigger", _arm_creature_cast_trigger),
+    ("boon_creature_cast_trigger", _arm_boon_creature_cast_trigger),
     ("fight_makers", _arm_fight_makers),
     ("extra_turns", _arm_extra_turns),
     ("base_pt_have_become", _arm_base_pt_have_become),

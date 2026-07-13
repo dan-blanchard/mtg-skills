@@ -4508,6 +4508,112 @@ def test_incubate_makers_new_lane():
     assert ("incubate_makers", "you", "") in _idents("Brimaz, Blight of Oreskos")
 
 
+def test_amass_incubate_keyword_fallback_np_boons():
+    """np_boons task #1: a bare amass/incubate REFERENCE with no structural
+    ``Amass``/``Incubate`` node (the whole clause folds into a chained
+    Draw-then-X ability or a counter-spell/exile/ETB rider) still fires
+    amass_makers/incubate_makers off the Scryfall keyword-array fallback
+    (CR 701.47 / 701.53)."""
+    assert ("amass_makers", "you", "") in _idents("Commence the Endgame")
+    assert ("incubate_makers", "you", "") in _idents("Assimilate Essence")
+    assert ("incubate_makers", "you", "") in _idents("Excise the Imperfect")
+    assert ("incubate_makers", "you", "") in _idents("Tangled Skyline")
+
+
+def test_one_time_boon_creature_cast_and_plus_one_np_boons():
+    """np_boons task #2: a "one-time boon" whose quoted delayed trigger
+    watches a creature-spell cast (CR 701.5a / 603.2) and grants a +1/+1
+    counter (CR 122.1) fires BOTH creature_cast_trigger and plus_one_makers
+    via the shared tree_synthesis idiom arms, whether phase parks the boon
+    as a bare Unimplemented residue (Champions of Tyr, Tenacious Pup) or
+    garbles it into a bogus PutCounter-shaped replacement node (Arcane
+    Archery, March Toward Perfection)."""
+    for name in (
+        "Arcane Archery",
+        "Champions of Tyr",
+        "March Toward Perfection",
+        "Tenacious Pup",
+    ):
+        idents = _idents(name)
+        assert ("creature_cast_trigger", "any", "") in idents, name
+        assert ("plus_one_makers", "you", "") in idents, name
+
+
+def test_one_time_boon_noncreature_spell_excluded_np_boons():
+    """np_boons task #2 negative control: a "one-time boon" watching a
+    NONcreature spell cast (Valiant Batrider) never fires
+    creature_cast_trigger — the word-boundary gate that keeps a bare
+    "creature" substring inside "noncreature" from matching."""
+    assert ("creature_cast_trigger", "any", "") not in _idents("Valiant Batrider")
+
+
+def test_comet_stellar_pup_graveyard_recall_np_boons():
+    """np_boons task #3: each numbered die outcome on Comet, Stellar Pup is
+    its own Unimplemented ability with a full description; outcome 3's
+    "return a card ... from your graveyard to your hand" recovers as the
+    grammar's "bounce" token (CR 400.4/404), and graveyard_makers reads it
+    via a recovered-node raw-gated arm (the raw must confirm a graveyard
+    origin before a "hand" destination)."""
+    assert ("graveyard_makers", "you", "") in _idents("Comet, Stellar Pup")
+
+
+def test_recovered_bounce_graveyard_gate_excludes_replacement_np_boons():
+    """np_boons task #3 negative control: Soulfire Grand Master's "put that
+    card into your hand instead of into your graveyard as it resolves" is a
+    REPLACEMENT effect (the card never touches the graveyard at all) that
+    also tokenizes as "bounce" — but "graveyard" precedes "hand" nowhere in
+    its raw (the destination — not origin — is what's near "graveyard"), so
+    the direction gate correctly excludes it from graveyard_makers."""
+    assert ("graveyard_makers", "you", "") not in _idents("Soulfire Grand Master")
+
+
+def test_recovered_bounce_wants_cloning_np_boons():
+    """np_boons task #3 side effect: the same "bounce" ALLOWLIST recovery
+    also lets ``wants_cloning``'s self-ETB-value structural read see a
+    self-ETB trigger whose effect is a genuine bounce/tuck (Quarry Colossus'
+    "put target creature into its owner's library...", Psychic Pickpocket's
+    connive-then-bounce) — both cmc >= 5, both real clone-worthy value."""
+    assert ("wants_cloning", "you", "") in _idents("Quarry Colossus")
+    assert ("wants_cloning", "you", "") in _idents("Psychic Pickpocket")
+
+
+def test_rite_of_the_serpent_had_counter_condition_np_boons():
+    """np_boons task #4: Rite of the Serpent's "Destroy target creature. If
+    that creature had a +1/+1 counter on it, create a 1/1 green Snake
+    creature token." drops the had-counter CONDITION entirely (both the
+    Destroy and the Token sub_ability carry condition=None), but both
+    effects are real, typed siblings in the same unit — the sibling-pairing
+    + raw-text arm re-derives the missing condition and fires
+    plus_one_matters (CR 122.1/603.6d), joining the Basri's Lieutenant /
+    Promising Duskmage payoff class."""
+    assert ("plus_one_matters", "you", "") in _idents("Rite of the Serpent")
+
+
+def test_had_counter_condition_gate_excludes_unconditional_removal_np_boons():
+    """np_boons task #4 negative control: a plain removal spell with no
+    Token sibling at all (Terminate) never fires plus_one_matters via the
+    new sibling-pairing arm."""
+    assert ("plus_one_matters", "you", "") not in _idents("Terminate")
+
+
+def test_adapt_matters_new_lane_np_boons():
+    """np_boons task #5: Biomancer's Familiar's "{T}: The next time target
+    creature adapts this turn, it adapts as though it had no +1/+1 counters
+    on it." is an Adapt (CR 701.46a) re-trigger ENABLER — it never adapts
+    itself, so it stays out of self_counter_grow (the doer lane) and joins
+    the new, narrow adapt_matters lane instead."""
+    assert ("adapt_matters", "you", "") in _idents("Biomancer's Familiar")
+    assert ("self_counter_grow", "you", "") not in _idents("Biomancer's Familiar")
+
+
+def test_adapt_matters_excludes_doers_np_boons():
+    """np_boons task #5 negative control: a genuine Adapt DOER (Skitter Eel,
+    a typed ``Adapt`` effect node) never joins adapt_matters — it stays
+    self_counter_grow's population, not the enabler lane's."""
+    assert ("adapt_matters", "you", "") not in _idents("Skitter Eel")
+    assert ("self_counter_grow", "you", "") in _idents("Skitter Eel")
+
+
 @pytest.mark.parametrize("name", ["Cloudform", "Cryptic Coat"])
 def test_facedown_makers_fires(name):
     """A ``Manifest`` (Cloudform) / ``Cloak`` (Cryptic Coat) doer fires

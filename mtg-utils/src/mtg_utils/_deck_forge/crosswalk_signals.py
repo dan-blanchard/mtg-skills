@@ -394,6 +394,11 @@ PORTED_KEYS: frozenset[str] = frozenset(
         # denial (Blightbeetle, Suncleanser), distinct from the above
         # payoff lane. See `_counter_hate`'s own module note.
         "counter_hate",
+        # np_boons task #5: adapt_matters — a card that supports/enables OTHER
+        # creatures' Adapt (CR 701.46) without itself adapting (Biomancer's
+        # Familiar). Distinct from `self_counter_grow`, the adapt DOER
+        # population (a creature's own typed Adapt effect).
+        "adapt_matters",
         "plus_one_matters",
         "minus_counters_matter",
         "gain_control",
@@ -6761,6 +6766,22 @@ def _free_cast(tree: ConceptTree) -> list[Signal]:
 # printings), zero false positives.
 _P1P1_COND_TEXT_RX = re.compile(r"\+1/\+1 counter", re.IGNORECASE)
 
+# np_boons task #4 (Rite of the Serpent): the PAST-TENSE "had a/one or more
+# +1/+1 counter(s) on it" idiom (CR 122.1/603.6d — an object's last known
+# information) gating a reward, read off the unit's own description when
+# BOTH the typed condition AND the sub_ability's own condition are dropped
+# (see the sibling arm's docstring inside ``_plus_one_matters``).
+_HAD_P1P1_COND_RX = re.compile(
+    r"\bhad (?:a|one or more) \+1/\+1 counters? on it\b", re.IGNORECASE
+)
+# Removal-shaped tags this arm pairs a dropped-condition Token reward
+# against — a destroy/damage/exile effect on a TARGETED creature (CR 701.6
+# / 701.3 / 701.20), the same population Rite of the Serpent's own
+# "Destroy target creature. If that creature had ..." shape belongs to.
+_HAD_P1P1_REMOVAL_TAGS: frozenset[str] = frozenset(
+    {"Destroy", "DestroyAll", "DealDamage", "Exile"}
+)
+
 
 def _plus_one_matters(tree: ConceptTree) -> list[Signal]:
     """plus_one_matters — a +1/+1 counter PAYOFF (CR 122.1). The structural arms
@@ -7278,6 +7299,43 @@ def _plus_one_matters(tree: ConceptTree) -> list[Signal]:
                     has_scaled_token = True
         if has_remove_p1p1 and has_scaled_token:
             return [Signal("plus_one_matters", "you", "", "", tree.name, "high")]
+        # np_boons task #4 (Rite of the Serpent) — a "had a +1/+1 counter on
+        # it" PAST-TENSE condition (CR 122.1/603.6d) gating a TOKEN reward
+        # off a REMOVAL effect (Destroy/DestroyAll/DealDamage/Exile), where
+        # BOTH the removal's own condition and the reward's sub_ability
+        # condition are dropped entirely — phase carries neither a
+        # HadCounters/HasCounters node nor an Unimplemented residue for the
+        # clause; the removal and the token creation are both REAL, fully-
+        # typed SIBLING effects (Rite of the Serpent: a top-level ``Destroy``
+        # ConceptNode and a top-level ``Token`` ConceptNode in the same
+        # unit), only the conditional LINK between them vanishes. Basri's
+        # Lieutenant / Promising Duskmage / Slurrk / Grakmaw already join
+        # this payoff class via a real dies-trigger HadCounters node (a
+        # DIFFERENT shape — a death watcher, not an immediate removal
+        # spell); this arm covers the sibling shape the typed condition
+        # walk can't reach. Gated on BOTH a removal-shaped sibling AND a
+        # Token sibling in the SAME unit (never a bare "token maker anywhere
+        # on the card" — an unrelated token maker must not join this lane),
+        # plus the unit's own description literally carrying the "had ...
+        # +1/+1 counter(s) on it" idiom so a differently-conditioned token
+        # reward (Reyhan's "one or more +1/+1 counterS" place_counter
+        # reward — a different reward SHAPE this gate's ``has_token``
+        # requirement already excludes; Fangs of Kalonia's "had a +1/+1
+        # counter put on it THIS WAY" self-referential doubler — a
+        # different condition entirely, no removal sibling either) never
+        # fires. Corpus-verified singleton at the v0.23.0 pin.
+        has_removal = any(
+            tag_of(cn.node) in _HAD_P1P1_REMOVAL_TAGS for cn in unit.effects
+        )
+        has_token = any(tag_of(cn.node) == "Token" for cn in unit.effects)
+        if (
+            has_removal
+            and has_token
+            and _HAD_P1P1_COND_RX.search(
+                str(getattr(unit.node, "description", "") or "")
+            )
+        ):
+            return [Signal("plus_one_matters", "you", "", "", tree.name, "high")]
     for c in tree.effect_concepts("move_counters"):
         if counter_kind(c.node).upper() == "P1P1":
             return [Signal("plus_one_matters", "you", "", c.raw, tree.name, "high")]
@@ -7529,6 +7587,64 @@ def _counter_hate(tree: ConceptTree) -> list[Signal]:
     if m is None:
         return []
     return [Signal("counter_hate", "opponents", "", m.group(0), tree.name, "high")]
+
+
+# np_boons task #5 (Biomancer's Familiar re-triage): adapt_matters — a card
+# that SUPPORTS/ENABLES another creature's Adapt (CR 701.46a: "If this
+# permanent has no +1/+1 counters on it, put N +1/+1 counters on it.") without
+# performing Adapt itself. Cares-about doctrine: its population is the adapt
+# DOER cards (self_counter_grow's ``tag_of == "Adapt"`` members, 24
+# commander-legal cards at the v0.23.0 pin) — Biomancer's Familiar's "The next
+# time target creature adapts this turn, it adapts as though it had no +1/+1
+# counters on it" resets a creature that ALREADY has counters (and so would
+# otherwise fail the 701.46a "no counters" gate) so it can adapt again, a
+# genuine re-adapt enabler for that exact doer population, CR-verified via
+# rulings-lookup (Biomancer's Familiar, 2019-01-25: "The last ability of
+# Biomancer's Familiar doesn't add or remove any counters. It just lets the
+# creature adapt despite already having +1/+1 counters on it.") Corpus
+# census (32,521 commander-legal cards): 25 total
+# cards reference the bare word "adapt" (``\badapt(s)?\b``, word-boundary
+# safe — MTG oracle text uses "adapt" ONLY for this keyword, 0 unrelated
+# English-word hits), 24 of which are the doers themselves (a typed ``Adapt``
+# effect node, already served by ``self_counter_grow``); Biomancer's Familiar
+# is the sole remaining reference — the ``not _has_structural_adapt`` gate
+# below excludes the 24 typed doers. A 25th card, Jetfire, Air Guardian (the
+# back face of Jetfire, Ingenious Scientist), turned up in the full-corpus
+# verification: its "{U}{U}{U}: Convert Jetfire, then adapt 3" chained
+# activated ability is a genuine Adapt DOER phase drops WHOLLY (no
+# Transform-then-adapt residue survives at all — a bucket-B gap in
+# ``self_counter_grow`` itself, out of THIS task's scope), so
+# ``_has_structural_adapt`` alone doesn't exclude it — the literal "Adapt N"
+# KEYWORD-INVOCATION shape (a number immediately after "adapt", the printed-
+# keyword template every one of the 25 doers uses verbatim, CR 702.130a) is a
+# second, TEXT-level veto that catches this exact class without needing the
+# missing structural node: Biomancer's Familiar's own text never pairs
+# "adapt" with a following number (it says "adapts"/"adapts as though",
+# third-person verb form referencing something ELSE adapting), so the veto
+# never excludes the genuine enabler. No ``theme_presets`` entry — a 1-card
+# population is too narrow for an archetype-level preset, matching
+# ``counter_hate``'s own precedent. Scope "you" (the enabler and its
+# beneficiary are both under your control in every corpus example; CR
+# 701.46a's "you" default).
+_ADAPT_MATTERS_RE = re.compile(r"\badapts?\b", re.IGNORECASE)
+_ADAPT_KEYWORD_INVOCATION_RE = re.compile(r"\badapt\s+\d+\b", re.IGNORECASE)
+
+
+def _has_structural_adapt(tree: ConceptTree) -> bool:
+    return any(tag_of(c.node) == "Adapt" for c in tree.iter_concepts())
+
+
+def _adapt_matters(tree: ConceptTree) -> list[Signal]:
+    """adapt_matters — see the module note directly above. CR 701.46a."""
+    if _has_structural_adapt(tree):
+        return []
+    kept = _kept(tree)
+    if _ADAPT_KEYWORD_INVOCATION_RE.search(kept):
+        return []
+    m = _ADAPT_MATTERS_RE.search(kept)
+    if m is None:
+        return []
+    return [Signal("adapt_matters", "you", "", m.group(0), tree.name, "high")]
 
 
 def _chooses_opponent(node: object) -> bool:
@@ -8193,6 +8309,22 @@ def _gy_scope(scope: str) -> str:
     return "opponents" if scope == "opponents" else "you"
 
 
+# np_boons task #3: a recovered "bounce" node's direction gate (see
+# ``_graveyard_makers``'s own docstring) — the grammar token fires on ANY
+# "return ... to hand/owner" clause regardless of origin zone, so the raw
+# text itself must confirm a graveyard ORIGIN before the lane counts it as
+# a graveyard_makers recursion (never a battlefield tempo bounce). A bare
+# "graveyard" mention isn't enough (Soulfire Grand Master's replacement
+# "put that card into your hand instead of into your graveyard as it
+# resolves" mentions "graveyard" too, but as the AVOIDED destination, with
+# no "hand" reference following it) — every genuine recursion clause names
+# "graveyard" BEFORE "hand" (the CR 400.7 origin-then-destination order:
+# "from your graveyard to your hand", "leave ... in your graveyard and put
+# the rest into your hand"), so require "hand" to appear somewhere AFTER
+# "graveyard", not merely present anywhere in the clause.
+_GY_RECOVERED_BOUNCE_RE = re.compile(r"\bgraveyard\b[\s\S]*?\bhand\b", re.IGNORECASE)
+
+
 def _graveyard_makers(tree: ConceptTree) -> list[Signal]:
     """graveyard_makers — the card PERFORMS a graveyard interaction (CR 404 /
     603.6e / 701.17a). Structural arms over the typed substrate:
@@ -8235,6 +8367,19 @@ def _graveyard_makers(tree: ConceptTree) -> list[Signal]:
     The broad zone-tag-recovered arms (GY-cast grants, GY-hate exile, ``in:graveyard``
     bounce) the lossy IR reconstructed from recovered zone strings are a documented
     ``live_only`` residue (the typed substrate exposes zones only on ``ChangeZone``).
+
+    np_boons task #3 (Comet, Stellar Pup) adds a RECOVERED-node arm: each
+    numbered die outcome on a die-roll planeswalker is its own Unimplemented
+    node with a full description (never a shared multi-outcome raw blob —
+    each outcome is its OWN ability unit), so a recovered "bounce" token
+    (the recovery ALLOWLIST's ``change_zone`` row, CR 400.4/404 — "return a
+    card ... from your graveyard to your hand") carries no typed
+    ``origin``/``destination`` for :func:`change_zone_dirs` to read (the same
+    gap ``discard``/``draw``/``damage`` already document) — direction/origin
+    is decided from the recovered node's OWN raw text instead (the
+    recovered-node raw-read precedent), gated to require the literal word
+    "graveyard" so a battlefield-bounce recovery (unrelated to this lane)
+    never fires it.
     """
     out: list[Signal] = []
     seen: set[str] = set()
@@ -8246,7 +8391,11 @@ def _graveyard_makers(tree: ConceptTree) -> list[Signal]:
 
     for c in tree.effect_concepts("change_zone"):
         origin, dest = change_zone_dirs(c.node)
-        if origin == "Graveyard" and dest in ("Battlefield", "Hand"):
+        gy_direct = origin == "Graveyard" and dest in ("Battlefield", "Hand")
+        gy_recovered = c.recovered_by == "bounce" and _GY_RECOVERED_BOUNCE_RE.search(
+            c.raw or ""
+        )
+        if gy_direct or gy_recovered:
             fire(_gy_scope(c.scope), c.raw)
     # PILE-TO-GRAVEYARD maker (task #84): phase v0.23.0 restructured the
     # Fact or Fiction family ("reveal the top five…, an opponent separates
@@ -8426,6 +8575,19 @@ def graveyard_return_direction(tree: ConceptTree) -> bool:
     provenance trust :func:`_graveyard_makers`'s own arm extends it; and a
     Mill-then-return-unless-pay unit (Sivriss, Nightmare Speaker) — the SAME
     whole-unit structural+text gate :func:`_graveyard_makers` runs for it.
+
+    np_boons task #3 (Comet, Stellar Pup): a recovered "bounce" node (see
+    ``_graveyard_makers``'s own recovered-node arm) joins this preset
+    predicate too, same raw-gated direction check — the corpus signal and
+    the preset membership stay in lockstep for this class rather than
+    silently diverging. In practice this arm is reached only by a bounce
+    clause that never mentions "graveyard" at all is impossible for THIS
+    predicate (it requires the word "graveyard"), so it is reached only when
+    the clause-grammar's ``graveyard_return`` arm (tried first in
+    ``_RETURN``'s alt chain) did NOT already claim the token — a for-each/
+    modal wrapper phase peels differently than the flat clauses that arm
+    targets. Kept as a second, independent path rather than pruned, per the
+    no-postponement integration's "prove disjointness, don't delete" rule.
     """
     if any(
         change_zone_dirs(c.node) == ("Graveyard", "Hand")
@@ -8443,6 +8605,11 @@ def graveyard_return_direction(tree: ConceptTree) -> bool:
         desc = (getattr(unit.node, "description", "") or "").lower()
         if "return" in desc and "graveyard" in desc and "hand" in desc:
             return True
+    if any(
+        c.recovered_by == "bounce" and _GY_RECOVERED_BOUNCE_RE.search(c.raw or "")
+        for c in tree.effect_concepts("change_zone")
+    ):
+        return True
     for unit in tree.units:
         for n in iter_typed_nodes(unit.node):
             t = tag_of(n)
@@ -11004,6 +11171,47 @@ def _incubate_makers(tree: ConceptTree) -> list[Signal]:
     maker. Scope "you".
     """
     return _whole_card_maker(tree, "incubate", "incubate_makers", "you")
+
+
+def _amass_incubate_keyword_fallback(
+    keywords: frozenset[str], name: str
+) -> list[Signal]:
+    """amass_makers / incubate_makers — Scryfall KEYWORD-ARRAY fallback (np_boons
+    task #1): a genuine bucket-B gap, not a bucket-A projection loss. Some
+    amass/incubate spells park the WHOLE "amass Zombies X" / "incubate N" clause
+    inside a chained (Draw-then-X, counter-then-X) ability's ``description``
+    string with NO effect node of its own at all — not even an ``Unimplemented``
+    placeholder the ADR-0038 recovery stage could re-decorate (Commence the
+    Endgame: phase's own ``T_effect__Draw`` node carries the FULL description
+    "Draw two cards, then amass Zombies X, ..." but its ``effect`` field is bare
+    ``Draw``, no sub-ability/sibling at all; Assimilate Essence / Excise the
+    Imperfect / Tangled Skyline: an "incubate N" rider on a Counter/Exile/ETB
+    effect is folded into a bare ``other``/Unimplemented raw with no allowlisted
+    grammar token, since ``parse_clause``/``scan_clause`` don't carry an
+    "incubate" verb row). Scryfall's own ``keywords`` array carries ``"Amass"``/
+    ``"Incubate"`` for every card that performs the action (CR 701.47/701.53) —
+    verified corpus-wide: of 61 Amass-keyword and 32 Incubate-keyword
+    commander/brawl-legal cards, every one but these four already fires the
+    structural ``_amass_makers``/``_incubate_makers`` read; the keyword bag is a
+    precise field-lookup for the remainder, the SAME "route iii" pattern as
+    ``_keyword_field_signals``' phasing/lifelink/prowess rows. Corpus-verified
+    (same sweep): across every OTHER structurally-firing amass/incubate card,
+    the mechanic NEVER also opens ``plus_one_makers`` or ``token_maker`` from
+    the Amass/Incubate effect itself (Norn's Inquisitor / Bloated Processor's
+    ``plus_one_makers`` comes from a wholly SEPARATE +1/+1-counter clause on
+    those cards, not the Incubate rider) — ``amass_makers``/``incubate_makers``
+    stay their own dedicated population key by design (see both functions'
+    own docstrings), so this fallback mirrors that and fires ONLY the maker
+    key, matching the existing membership shape exactly. Scope "you" (CR
+    701.47a/701.53a: both actions are performed by the spell/ability's
+    controller)."""
+    out: list[Signal] = []
+    low = {k.lower() for k in keywords}
+    if "amass" in low:
+        out.append(Signal("amass_makers", "you", "", "", name, "high"))
+    if "incubate" in low:
+        out.append(Signal("incubate_makers", "you", "", "", name, "high"))
+    return out
 
 
 def _facedown_makers(tree: ConceptTree) -> list[Signal]:
@@ -25515,6 +25723,7 @@ _LANES = (
     _plus_one_matters,
     _any_counter_matters,
     _counter_hate,
+    _adapt_matters,
     _gain_control,
     _resource_token_makers,
     _proliferate_makers,
@@ -25837,6 +26046,8 @@ def extract_crosswalk_signals(
     for sig in _keyword_field_signals_w4g(frozenset(keywords), tree.name):
         add(sig)
     for sig in _keyword_field_signals_sweep(frozenset(keywords), tree.name):
+        add(sig)
+    for sig in _amass_incubate_keyword_fallback(frozenset(keywords), tree.name):
         add(sig)
     # b15 keyword-DISCRIMINATED lanes (the bending node arm's earthbend gate
     # and the firebending / station mirror splits read the Scryfall array,
