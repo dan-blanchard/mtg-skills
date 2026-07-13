@@ -362,6 +362,20 @@ def test_ir_non_draw_and_opponent_draw_do_not_fill_card_draw():
     assert _ir_draws(giveaway) is False
 
 
+def test_role_of_unions_card_draw_preset_for_nested_draw_for_each():
+    """task #93: ``_ir_draws`` only tags a whole-ability's DIRECT effect
+    chain, so a ``draw_for_each`` reached only through a nested branch —
+    Truth or Consequences' Will-of-the-council Vote branch ("For each
+    truth vote, draw a card.") — never sets ``category="draw"`` on the
+    compat IR at all, even though the crosswalk's ``card-draw`` preset
+    (``card_draw_engine`` + ``draw_for_each`` since task #86) correctly
+    fires. ``role_of`` must union the preset in unconditionally (not just
+    as the no-IR fallback) so this class isn't budget-invisible."""
+    ir = test_card_ir("Truth or Consequences")
+    assert _ir_draws(ir) is False  # the compat-IR walk alone still misses it
+    assert "card_draw" in role_of(test_card("Truth or Consequences"))
+
+
 def _ir_effect(**kw):
     """One spell effect wrapped in a Card IR, for board-wipe structural probes."""
     return Card(

@@ -135,7 +135,16 @@ def _ir_draws(ir: Card) -> bool:
 
     More precise than the presets, which match the word "draw" anywhere — including
     an OPPONENT'S draw (Underworld Dreams), a draw PAYOFF ("whenever you draw …" —
-    Nadir Kraken), and reminder text — none of which is a draw SOURCE."""
+    Nadir Kraken), and reminder text — none of which is a draw SOURCE.
+
+    NOT a superset of the ``card-draw`` PRESET, though: this compat-``Card``
+    walk only ever tags a whole-ability's DIRECT effect chain ``category="draw"``
+    — a ``draw_for_each`` fired from a nested branch (a ``Vote``
+    ``per_choice_effect``, a granted ``GrantTrigger``/``CreateDelayedTrigger``
+    descent — Truth or Consequences, Blitzball Stadium, Cosima // The
+    Omenkeel) never surfaces here at all (task #93 corpus census: 10
+    commander-legal cards fire the crosswalk's ``draw_for_each`` key with no
+    matching ``_ir_draws`` category — see :func:`role_of`'s own union)."""
     return any(
         (e.category == "draw" and e.scope in ("you", "any")) or e.category == "connive"
         for ab in ir.all_abilities()
@@ -254,7 +263,21 @@ def role_of(card: dict) -> set[str]:
     (the IR's ``destroy`` / ``restriction`` categories don't encode the pacify-vs-self
     and edict boundaries), but a structural VETO drops a preset hit the IR shows is pure
     graveyard recursion (``_ir_recursion_only`` — "return X or Y card from your
-    graveyard", which the preset's ``card`` anchor misses)."""
+    graveyard", which the preset's ``card`` anchor misses).
+
+    ``card_draw`` ALSO unions in the ``card-draw`` PRESET unconditionally
+    (task #93) — ``_ir_draws`` alone under-counts: it only tags a whole-
+    ability's DIRECT effect chain, so a ``draw_for_each`` reached only via
+    a nested branch (Vote's ``per_choice_effect``, a granted
+    ``GrantTrigger``/``CreateDelayedTrigger`` descent — Truth or
+    Consequences, Master of Ceremonies, Blitzball Stadium, Cosima // The
+    Omenkeel) fires the crosswalk key/preset (``card-draw`` unions
+    ``card_draw_engine`` + ``draw_for_each`` since task #86) but never
+    ``_ir_draws``'s own category walk. Corpus-verified (32,521
+    commander-legal cards): 10 cards fire ``draw_for_each`` with no
+    matching ``_ir_draws`` hit; this union closes all 10 with no new
+    false positive (the preset itself is already the trusted source for
+    the no-IR fallback below, unchanged)."""
     roles: set[str] = set()
     ir = ir_for(card)
     if is_land(card):
@@ -262,9 +285,9 @@ def role_of(card: dict) -> set[str]:
     elif is_ramp(card):
         roles.add("ramp")
     draws = (
-        _ir_draws(ir)
-        if ir is not None
-        else (_matches_preset(card, "card-draw") or _matches_preset(card, "cantrip"))
+        (ir is not None and _ir_draws(ir))
+        or _matches_preset(card, "card-draw")
+        or (ir is None and _matches_preset(card, "cantrip"))
     )
     if draws:
         roles.add("card_draw")
