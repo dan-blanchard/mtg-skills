@@ -1310,13 +1310,36 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
             # sibling Graveyard-bound ChangeZone, not a Dig node) —
             # self_mill_fill's own docstring names it.
             "Mulch",
+            # task #87 census residue — one representative per shape
+            # class the ``self_mill_fill`` predicate's own docstring
+            # names: a bare Mill buried in a trigger's ``else_ability``
+            # branch, and the Dig/RevealTop "look-then-keep-one" marker
+            # (a draw-replacement Dig — Underrealm Lich; a RevealTop +
+            # Unimplemented-hop chain — Animal Magnetism).
+            "HYDRA Troopers",
+            "Underrealm Lich",
+            "Animal Magnetism",
         ),
         # Contingency Plan is the canonical false-positive test case —
         # its oracle reveals top 5 but returns them to the BOTTOM of the
         # library, never the graveyard (structurally a bare Surveil node
         # with no rest_destination field at all — see self_mill_fill's
-        # docstring).
-        should_not_match=("Lightning Bolt", "Counterspell", "Contingency Plan"),
+        # docstring). The task #87 census non-members are all
+        # graveyard-TO-BATTLEFIELD reanimation cards (Dread Wanderer /
+        # Cauldron Dance / Evershrike / Defossilize / Greasefang, Okiba
+        # Boss) or dredge (The Necrobloom) — none fills the graveyard
+        # from the library.
+        should_not_match=(
+            "Lightning Bolt",
+            "Counterspell",
+            "Contingency Plan",
+            "Dread Wanderer",
+            "Cauldron Dance",
+            "Evershrike",
+            "Defossilize",
+            "Greasefang, Okiba Boss",
+            "The Necrobloom",
+        ),
     ),
     # Counterspell (task #83 structural-view conversion). ``counter_control``
     # is the stack counterspell (CR 701.6a): a Counter/CounterAll effect
@@ -1897,15 +1920,57 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
     # predicate re-runs the SAME ``change_zone_dirs`` read
     # ``_graveyard_makers`` performs, keeping the destination that lane's
     # ``fire()`` helper collapses away.
+    #
+    # ``keywords=("Soulshift", "Recover")`` (task #87): the sanctioned
+    # keyword-array union (mill/goad/magecraft/proliferate precedent) —
+    # BOTH keywords are CR 702.46a/702.59a graveyard-to-hand recursion by
+    # definition, and this arm is the ONLY thing that catches Garza's
+    # Assassin: its whole "Recover—Pay half your life..." clause is a
+    # ``SwallowedClause`` parse_warning upstream, with ZERO surviving
+    # phase-level residue — not even a keyword tag (unlike Kodama of the
+    # Center Tree's dynamic-X Soulshift, which DOES carry a phase-native
+    # ``AddKeyword`` marker read structurally by
+    # ``graveyard_return_direction`` itself). Harmless-redundant for every
+    # properly-parsed Soulshift/Recover carrier (a FIXED-N Soulshift or a
+    # Coldsnap Recover cycle card already carries a full ``ChangeZone``
+    # trigger the concept arm catches on its own — corpus-swept 2026-07,
+    # 32/34 total carriers).
     Preset(
         name="graveyard-return",
         description=(
             "Returns a card from a graveyard to a player's hand "
             "(Eternal Witness, Regrowth, Raise Dead)."
         ),
+        keywords=("Soulshift", "Recover"),
         concept=_graveyard_return_concept,
-        should_match=("Regrowth", "Eternal Witness"),
-        should_not_match=("Lightning Bolt",),
+        should_match=(
+            "Regrowth",
+            "Eternal Witness",
+            "Garza's Assassin",
+            # task #87 census residue — one representative per shape
+            # class the ``graveyard_return_direction`` predicate's own
+            # docstring names: a modal ``ChooseMode`` branch, the
+            # opponent-chooses idiom, a cost-shaped ``ReturnToHand``
+            # rider, and a dynamic-X Soulshift keyword grant.
+            "Ghostly Dancers",
+            "Tasigur, the Golden Fang",
+            "Harvest Wurm",
+            "Kodama of the Center Tree",
+        ),
+        # task #87 census non-members (verified structurally False):
+        # each of these carries a graveyard-TO-BATTLEFIELD reanimation
+        # ability (Dread Wanderer / Cauldron Dance / Evershrike /
+        # Defossilize / Greasefang, Okiba Boss) or a dredge alternative-
+        # draw (The Necrobloom) — none is a graveyard-TO-HAND recursion.
+        should_not_match=(
+            "Lightning Bolt",
+            "Dread Wanderer",
+            "Cauldron Dance",
+            "Evershrike",
+            "Defossilize",
+            "Greasefang, Okiba Boss",
+            "The Necrobloom",
+        ),
     ),
     # Cantrip (task #83 structural-view conversion): a low-opportunity-cost
     # spell that draws exactly ONE card as a RIDER on another primary

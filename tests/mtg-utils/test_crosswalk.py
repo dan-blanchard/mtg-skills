@@ -7467,6 +7467,29 @@ def test_creature_recursion_needs_creature_core_and_gy_zone():
     assert "creature_recursion" not in _keys("Boomerang")
 
 
+@pytest.mark.parametrize("name", ["Animate Dead", "Dance of the Dead"])
+def test_creature_recursion_attached_to_enchant_cross_ref(name):
+    """task #87: the reanimation-Aura's own ChangeZone targets
+    ``AttachedTo()`` with NO type filter of its own (CR 303.4f — the
+    enchanted permanent, whatever it is). The Creature constraint lives
+    solely on the card's OWN printed ``Enchant`` keyword ("enchant
+    creature card in a graveyard"). ``_creature_recursion`` cross-
+    references that keyword filter (``ConceptTree.card_enchant_core_
+    types``) instead of stopping at the empty ``AttachedTo`` filter."""
+    assert ("creature_recursion", "you", "") in _idents(name)
+
+
+def test_creature_recursion_necromancy_stays_unimplemented():
+    """Necromancy's equivalent reanimation clause is a SEPARATE upstream
+    gap from Animate Dead/Dance of the Dead's ``AttachedTo`` shape: its
+    whole "become an Aura... put target creature card... onto the
+    battlefield" body is one ``GrantAbility.definition`` carrying an
+    ``Unimplemented("enchant")`` payload — no ``ChangeZone`` node survives
+    at all, so the task #87 cross-ref has nothing to reach and correctly
+    contributes no signal (never bridged — see the lane's own docstring)."""
+    assert "creature_recursion" not in _keys("Necromancy")
+
+
 @pytest.mark.parametrize(
     ("name", "scope"),
     [

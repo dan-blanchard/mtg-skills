@@ -430,6 +430,20 @@ class ConceptTree:
     # non-modal card (the overwhelming majority) — cheap, additive, mirrors
     # the b16 field-addition precedent (``power``/``has_printed_cost``).
     card_modal_mode_descriptions: tuple[str, ...] = ()
+    # task #87 (deepening-start-minimal, the b16 precedent): the core TYPE
+    # words of the card's OWN printed ``Enchant`` keyword filter (CR 303.4a
+    # — "Enchant creature", "Enchant creature card in a graveyard") — Animate
+    # Dead / Dance of the Dead's "enchant creature card in a graveyard".
+    # Read off ``root.keywords``'s ``Enchant`` variant (a root-level array,
+    # never surfaced on any :class:`AbilityUnit`), so a reanimation trigger's
+    # ``ChangeZone(target=AttachedTo())`` — CR 303.4f: the Aura carries no
+    # target filter of its own once attached, the type constraint lives
+    # SOLELY on this printed keyword — can cross-reference the type this
+    # ``AttachedTo`` binder implicitly restricts to (:func:`_creature_
+    # recursion`'s own cross-ref). Empty for every non-Aura card and for an
+    # Aura with a non-Enchant-typed keyword predicate this narrow read
+    # doesn't resolve.
+    card_enchant_core_types: tuple[str, ...] = ()
 
     def is_type(self, core: str) -> bool:
         """Whether the card itself has core type ``core`` (Creature / Land / …).
@@ -4147,6 +4161,17 @@ def build_concept_tree(
         elif dcl_tag == "UpTo":
             dcl_data = getattr(dcl, "data", None)
             many_copies = isinstance(dcl_data, int) and dcl_data >= 2
+    # task #87: the card's own printed ``Enchant`` keyword filter's core
+    # type words (see ``ConceptTree.card_enchant_core_types``'s own
+    # docstring) — a root-level array, never surfaced by any per-ability
+    # unit walk.
+    card_enchant_core_types: tuple[str, ...] = ()
+    kws_root = getattr(root, "keywords", None)
+    if isinstance(kws_root, list):
+        for kw in kws_root:
+            if isinstance(kw, MirrorVariant) and kw.key == "Enchant":
+                card_enchant_core_types = filter_core_types(kw.inner)
+                break
     # ADR-0039 grammar sprint (task #82): a modal SPELL's card-root
     # ``modal.mode_descriptions`` (CR 700.2), positionally paired with
     # ``root.abilities`` (Fatal Lore, Season of the Burrow) — see the
@@ -4366,6 +4391,7 @@ def build_concept_tree(
         oracle=oracle if isinstance(oracle, str) else "",
         many_copies=many_copies,
         card_modal_mode_descriptions=card_modal_mode_descriptions,
+        card_enchant_core_types=card_enchant_core_types,
     )
     # ADR-0038 — substrate-wide Unimplemented recovery runs INSIDE the tree
     # build so every consumer (signal lanes, compat projection, convergence +

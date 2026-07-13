@@ -7945,11 +7945,106 @@ def graveyard_return_direction(tree: ConceptTree) -> bool:
     filter on ``signal_keys`` alone; this predicate re-runs the SAME
     ``change_zone_dirs`` read :func:`_graveyard_makers` itself performs on
     the SAME ``ChangeZone`` concepts, just keeping the destination that
-    lane's ``fire()`` helper collapses away. No new tree read."""
-    return any(
+    lane's ``fire()`` helper collapses away.
+
+    task #87 (preset-membership only — this predicate feeds ONLY the
+    ``graveyard-return`` preset concept arm, never a corpus Signal) adds
+    FOUR structural arms for a #85-census residue tail, each a genuine
+    ``ChangeZone``/keyword-grant the flat top-level ``effect_concepts``
+    walk never reaches:
+
+    * a MODAL/branch/die-roll-table descent — a Graveyard->Hand
+      ``ChangeZone`` sitting inside a ``ChooseMode``'s ``branches[]``
+      (Ghostly Dancers's "return an enchantment card from your graveyard
+      to your hand OR unlock a Room") or a ``RollDie``'s ``results[]``
+      (The Deck of Many Things's "1-9: return a card at random from your
+      graveyard to your hand" table entry) — neither field is among
+      ``_EFFECT_CHILD_FIELDS``, so raw :func:`iter_typed_nodes` (a true
+      generic deep walk, the :func:`has_nested_extra_turn` precedent) is
+      the fallback rather than widening that curated walk's field list
+      (which would touch every OTHER lane built on it);
+    * the OPPONENT-CHOOSES idiom (Tasigur, the Golden Fang's Delve
+      ability; Mausoleum Turnkey's ETB) — phase models "return a
+      creature card OF AN OPPONENT'S CHOICE from your graveyard to your
+      hand" as a ``ChooseFromZone(zone=Graveyard, chooser=Opponent)``
+      immediately chained (``.sub_ability``) into a ``ChangeZone(
+      destination=Hand, origin=None, target=Any)`` — the selection
+      already resolved the source zone, so ``change_zone_dirs``' own
+      ``origin`` read is honestly ``None`` here (not a bug), and this
+      predicate's ONLY job is recognizing the immediately-preceding
+      ``ChooseFromZone`` as the true origin;
+    * a COST-shaped return rider (Harvest Wurm's "sacrifice it unless
+      you return a basic land card from your graveyard to your hand") —
+      phase models the "unless" alternative as an ``unless_pay.cost``
+      whose tag is ``ReturnToHand`` (a distinct tag from ``ChangeZone``,
+      carrying its own ``from_zone``), never an effect node at all —
+      cost-shaped, so :func:`_graveyard_makers`'s own effect-role walk
+      structurally can't reach it either;
+    * a Soulshift grant with a DYNAMIC value (Kodama of the Center
+      Tree's "soulshift X, where X is the number of Spirits you
+      control") — CR 702.46a: "When this permanent is put into a
+      graveyard from the battlefield, you may return target Spirit card
+      ... from your graveyard to your hand." A FIXED-N soulshift
+      (Burr Grafter's "Soulshift 3") already carries a real ``triggers``
+      entry phase fully expands (reachable via the ordinary top-level
+      arm above — corpus-swept 2026-07, 26/27 soulshift carriers), but
+      the dynamic-X variant carries ONLY a static's ``AddKeyword({
+      Soulshift: N})`` grant with no accompanying trigger node at all —
+      the keyword declaration IS the only surviving residue, read
+      generically off ANY static's keyword-grant modification (mirrors
+      the mill_makers-family keyword-array precedent, just off the
+      phase-native tag rather than the Scryfall ``keywords`` array).
+      Corpus-narrow: 1/27 soulshift carriers needs this (the census's
+      other named probe, Garza's Assassin's Recover, has NO phase-level
+      residue at all — its whole "Recover—Pay half your life..." clause
+      is a ``SwallowedClause`` parse_warning with zero surviving nodes,
+      not even a keyword tag; the ``graveyard-return`` Preset's own
+      ``keywords=("Soulshift", "Recover")`` arm catches it instead, off
+      the MTGJSON/Scryfall ``keywords`` array — a separate, independent
+      data source from phase's own parse).
+    """
+    if any(
         change_zone_dirs(c.node) == ("Graveyard", "Hand")
         for c in tree.effect_concepts("change_zone")
-    )
+    ):
+        return True
+    for unit in tree.units:
+        for n in iter_typed_nodes(unit.node):
+            t = tag_of(n)
+            if t == "ChangeZone":
+                if change_zone_dirs(n) == ("Graveyard", "Hand"):
+                    return True
+                continue
+            if t == "ReturnToHand":
+                if getattr(n, "from_zone", None) == "Graveyard":
+                    return True
+                continue
+            if t == "AddKeyword":
+                kw = getattr(n, "keyword", None)
+                if isinstance(kw, MirrorVariant) and kw.key == "Soulshift":
+                    return True
+                continue
+            # Opponent-chooses idiom: an ability WRAPPER (untagged —
+            # ``ChooseFromZone``/``ChangeZone`` are its ``.effect``/
+            # ``.sub_ability.effect``, not fields of its own) whose
+            # ``.effect`` is a ``ChooseFromZone(zone=Graveyard)`` chained
+            # directly into a ``ChangeZone(destination=Hand)``.
+            eff = getattr(n, "effect", MISSING)
+            if not (
+                isinstance(eff, TypedMirrorNode)
+                and tag_of(eff) == "ChooseFromZone"
+                and getattr(eff, "zone", None) == "Graveyard"
+            ):
+                continue
+            sub = getattr(n, "sub_ability", None)
+            sub_eff = getattr(sub, "effect", None) if sub is not None else None
+            if (
+                isinstance(sub_eff, TypedMirrorNode)
+                and tag_of(sub_eff) == "ChangeZone"
+                and getattr(sub_eff, "destination", None) == "Hand"
+            ):
+                return True
+    return False
 
 
 def self_mill_fill(tree: ConceptTree) -> bool:
@@ -8002,6 +8097,40 @@ def self_mill_fill(tree: ConceptTree) -> bool:
     "any" (self OR opponent, undiscriminated — CANNOT tell self-mill from
     opponent-mill at all), so it isn't reused here either; the three arms
     above are the precise, self-scoped shape.
+
+    task #87 (preset-membership only) adds TWO more structural arms for a
+    #85-census residue tail:
+
+    * a BRANCH-nested bare ``Mill`` (HYDRA Troopers's "create a token if
+      [condition]. Otherwise, mill two cards.") — the ``Mill`` sits inside
+      a trigger's ``else_ability`` field, which ``_EFFECT_CHILD_FIELDS``'s
+      curated walk never follows (unlike ``chosen_pile_effect`` /
+      ``mode_abilities``, added for other shapes); raw
+      :func:`iter_typed_nodes` reaches it directly (the
+      :func:`has_nested_extra_turn` precedent) with the SAME destination/
+      scope gate the bare-``Mill`` arm above already runs;
+    * a "look/reveal-then-keep-one" idiom whose surviving structural
+      residue is a single marker field rather than an explicit rest-
+      destination: a ``Dig`` (Underrealm Lich's draw-replacement "look at
+      the top three... put one into your hand and the rest into your
+      graveyard") or ``RevealTop`` (Animal Magnetism / Selective
+      Adaptation's "reveal the top N... put one onto the battlefield/
+      hand and the rest into your graveyard") node whose immediate
+      "keep one" step — followed through ``.sub_ability``, skipping past
+      any ``Unimplemented`` placeholder hop for an unparsed "choose"
+      clause (Animal Magnetism / Selective Adaptation's chosen-from-
+      revealed-set selection) — resolves to a ``ChangeZone`` tagged
+      ``origin="Graveyard"``. Both ``Dig``/``RevealTop`` are LIBRARY-only
+      actions (neither tag ever reads from a graveyard), so this
+      ``origin`` value can never be a truthful move-origin for the kept
+      card; corpus-consistent across all three known carriers, it is
+      phase's own marker that the un-kept remainder of this look/reveal
+      goes to the graveyard — the "rest into your graveyard" clause the
+      parse otherwise drops as unrepresented. Bounded to a short
+      ``Unimplemented``-only hop chain (not an unbounded downstream
+      walk) so an UNRELATED later reanimation effect chained via
+      ``SequentialSibling`` after a genuinely rest-elsewhere Dig can't
+      be mistaken for this marker.
     """
     for c in tree.effect_concepts("mill"):
         if getattr(c.node, "destination", None) != "Graveyard":
@@ -8025,6 +8154,77 @@ def self_mill_fill(tree: ConceptTree) -> bool:
         tgt = tag_of(getattr(c.node, "target", None))
         if tgt in ("TrackedSet", "TrackedSetFiltered"):
             return True
+    for unit in tree.units:
+        for n in iter_typed_nodes(unit.node):
+            t = tag_of(n)
+            if t == "Mill":
+                if getattr(n, "destination", None) != "Graveyard":
+                    continue
+                # ``target`` is a bare PlayerRef tag for a self-mill
+                # (``{"type": "Controller"}``) but a ``Typed`` filter
+                # carrying ``controller: "Opponent"`` for a TARGETED
+                # opponent mill ("Target opponent mills seven cards" —
+                # Mind Sculpt) — :func:`explicit_recipient_scope` is the
+                # general reader for both shapes (the SAME one
+                # :func:`_effect_scope`/``_decorate_effect`` uses to
+                # compute the DECORATED ``c.scope`` the bare-``Mill`` arm
+                # above reads); a bare ``tag_of`` read here would miss
+                # the ``Typed`` shape entirely and over-fire on every
+                # targeted-opponent mill card.
+                if explicit_recipient_scope(n) == "opponents":
+                    continue
+                # A GRANTED trigger's ``target: Controller`` is REBOUND
+                # by the OWNING wrapper's own ``player_scope: Opponent``
+                # (Imperious Mindbreaker's paired-creature grant: "each
+                # opponent mills cards equal to its toughness" — the
+                # Mill's own ``target`` reads "Controller" relative to
+                # the per-opponent rotation, not this card's controller).
+                # This Mill is reachable ONLY via the raw deep walk (a
+                # GrantTrigger body nested inside a static's
+                # ``modifications`` list — not one of ``_EFFECT_CHILD_
+                # FIELDS``, so :func:`effect_owner_player_scope`'s own
+                # ancestor walk can't reach it either); a direct identity
+                # scan for the wrapper whose ``.effect`` IS this node is
+                # the narrow fallback.
+                owner_scope = None
+                for w in iter_typed_nodes(unit.node):
+                    if getattr(w, "effect", None) is n:
+                        owner_scope = tag_of(getattr(w, "player_scope", None))
+                        break
+                if owner_scope == "Opponent":
+                    continue
+                return True
+            if t is not None:
+                continue
+            # Dig/RevealTop -> (skip Unimplemented hops) -> ChangeZone(
+            # origin=Graveyard) marker (see module docstring): ``n`` here
+            # is the untagged ability WRAPPER (``Dig``/``RevealTop`` are
+            # its ``.effect``, the chain continues on the WRAPPER's own
+            # ``.sub_ability``, never a field of the ``Dig``/``RevealTop``
+            # payload itself).
+            eff = getattr(n, "effect", MISSING)
+            if not (
+                isinstance(eff, TypedMirrorNode) and tag_of(eff) in ("Dig", "RevealTop")
+            ):
+                continue
+            if tag_of(getattr(eff, "player", None)) != "Controller":
+                continue
+            step = getattr(n, "sub_ability", None)
+            hops = 0
+            while (
+                isinstance(step, TypedMirrorNode)
+                and tag_of(getattr(step, "effect", None)) == "Unimplemented"
+                and hops < 3
+            ):
+                step = getattr(step, "sub_ability", None)
+                hops += 1
+            step_eff = getattr(step, "effect", None) if step is not None else None
+            if (
+                isinstance(step_eff, TypedMirrorNode)
+                and tag_of(step_eff) == "ChangeZone"
+                and getattr(step_eff, "origin", None) == "Graveyard"
+            ):
+                return True
     return False
 
 
@@ -15036,6 +15236,25 @@ def _creature_recursion(tree: ConceptTree) -> list[Signal]:
     Left as-is deliberately: the structure is upstream-wrong (a phase-rs
     report candidate — Dan posts), and a text veto here would re-grep the
     oracle against the substrate contract for one card.
+
+    task #86/#87 Aura cross-reference: a reanimation-Aura's OWN reattach
+    trigger (Animate Dead — "Return enchanted creature card to the
+    battlefield under your control and attach ~ to it") carries NO type
+    filter of its own once the ``ChangeZone``'s target is ``AttachedTo()``
+    — CR 303.4f: the enchanted permanent, whatever it is. The Creature
+    constraint lives entirely on the card's OWN printed ``Enchant``
+    keyword ("enchant creature card in a graveyard"), a SEPARATE root-level
+    fact this filter read never crossed until now. When ``filter_core_
+    types`` comes back empty AND the target is specifically ``AttachedTo``
+    (never for an ordinary explicit-target reanimation — Reanimate's own
+    filter already carries "Creature" directly), fall back to the card's
+    own :attr:`ConceptTree.card_enchant_core_types`. Necromancy's
+    equivalent clause stays Unimplemented upstream (its whole "become an
+    Aura... put target creature card... onto the battlefield" body is one
+    ``GrantAbility.definition`` with an ``Unimplemented("enchant")``
+    payload — no ``ChangeZone`` node survives at all), so it correctly
+    gains nothing here; corpus-swept 2026-07 for every OTHER ``AttachedTo``
+    reanimation carrier (Dance of the Dead is the only sibling).
     """
     for unit in tree.units:
         for c in unit.effects:
@@ -15043,7 +15262,14 @@ def _creature_recursion(tree: ConceptTree) -> list[Signal]:
             sub = effect_filter(c.node)
             if filter_controller(sub) == "Opponent":
                 continue
-            if "Creature" not in filter_core_types(sub):
+            types = filter_core_types(sub)
+            if (
+                not types
+                and t in ("ChangeZone", "ChangeZoneAll")
+                and tag_of(sub) == "AttachedTo"
+            ):
+                types = tree.card_enchant_core_types
+            if "Creature" not in types:
                 continue
             if t in ("ChangeZone", "ChangeZoneAll"):
                 origin, dest = change_zone_dirs(c.node)
