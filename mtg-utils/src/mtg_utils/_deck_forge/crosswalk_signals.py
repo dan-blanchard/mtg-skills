@@ -70,6 +70,7 @@ from mtg_utils._card_ir.crosswalk import (
     filter_without_keywords,
     granted_next_spell_keyword,
     has_filter_property,
+    has_fixed_count,
     has_nested_connive,
     has_nested_damage_reaching_player,
     has_nested_extra_turn,
@@ -15604,8 +15605,19 @@ def _cantrip(tree: ConceptTree) -> list[Signal]:
     "own-ETB-value" tell, a different key). Four structural requirements on
     the owning ability unit:
 
-    * a ``Draw`` whose ``count`` is a FIXED 1, never scaling ("draw a card
-      for each ..." is card_draw_engine's scaling arm, not incidental);
+    * a ``Draw`` whose ``count`` is an EXPLICIT, present ``Fixed`` node
+      whose value is 1 (:func:`has_fixed_count` — task #87: NOT the bare
+      ``amount_factor(...) == 1 and not amount_is_scaling(...)`` pair this
+      arm used before, which folds an ABSENT count field into the SAME
+      "1, non-scaling" numbers a genuine ``Fixed(1)`` produces. A
+      ``recovery.py``-recovered ``Unimplemented`` "draw" residue carries
+      NO count field at all — Arcane Endeavor's "Draw cards equal to
+      [a d8 roll]" satisfied the old bare-pair gate by omission, a
+      genuine over-fire: CR 121.1's "draw" isn't bounded to one card just
+      because phase's grammar couldn't structure the die-roll amount.
+      "draw a card for each ..." (real card_draw_engine's scaling arm) is
+      excluded the SAME way — its scaling qty, when phase DOES structure
+      it, is a non-``Fixed`` tag ``has_fixed_count`` also rejects);
     * at least one OTHER effect concept in the SAME unit (the rider — a bare
       Divination has none);
     * the draw's own recipient is not ``Opponent`` (Bargain's "target
@@ -15620,6 +15632,21 @@ def _cantrip(tree: ConceptTree) -> list[Signal]:
     correctly excluded): a BOUNDED read, not the deleted ``cantrip``
     preset's raw ``draws? (?:a|an additional) card`` substring (3174 hits,
     which counts every payoff mention, reflexive trigger, and creature ETB).
+
+    Task #87 corpus re-diff after the ``has_fixed_count`` tightening: TWO
+    commander-legal losses, both adjudicated genuine over-fire removals,
+    not regressions — Arcane Endeavor ("Roll two d8 and choose one
+    result. Draw cards equal to that result...", the row's own flagship
+    example) and Mob Verdict ("For each vote you received, draw a card" —
+    CR 701.38d: a vote effect gives each player exactly one vote, but
+    MULTIPLE players can vote for the SAME target, so "votes received" is
+    a genuine 0..N-1 board-count in an N-player game, not a bounded 1;
+    ``recovery.py``'s own "draw" ALLOWLIST comment already group-names
+    Mob Verdict alongside Arcane Endeavor as the identical "amount-
+    computed or per-thing draws" residue class). Both carry the SAME
+    Unimplemented-recovered "draw" concept node with no count field at
+    all — genuinely indistinguishable from each other structurally, and
+    correctly excluded together.
     Scope "you"."""
     if not (tree.is_type("Instant") or tree.is_type("Sorcery")):
         return []
@@ -15634,9 +15661,9 @@ def _cantrip(tree: ConceptTree) -> list[Signal]:
         if not others:
             continue
         for c in unit.effect_concepts("draw"):
-            if amount_factor(c.node, "count") != 1:
+            if not has_fixed_count(c.node, "count"):
                 continue
-            if amount_is_scaling(c.node, "count"):
+            if amount_factor(c.node, "count") != 1:
                 continue
             if filter_controller(effect_filter(c.node)) == "Opponent":
                 continue

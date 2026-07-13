@@ -7578,6 +7578,72 @@ def test_cantrip_bounded_rider_draw(name, should_fire):
     assert (("cantrip", "you", "") in _idents(name)) is should_fire
 
 
+@pytest.mark.parametrize(
+    ("name", "should_fire"),
+    [
+        ("Illusion of Choice", True),  # real Draw node, count=Fixed(1)
+        ("Chaotic Strike", True),  # real Draw node, count=Fixed(1)
+        ("Aleatory", True),  # real Draw node, count=Fixed(1)
+        ("Arcane Endeavor", False),  # "Draw cards equal to" a d8 roll
+        ("Mob Verdict", False),  # "For each vote you received, draw a card"
+    ],
+)
+def test_cantrip_requires_explicit_fixed_count(name, should_fire):
+    """task #87: the ``has_fixed_count`` tightening. Before this fix, an
+    ABSENT ``count`` field (an ``Unimplemented``/synthesized "draw" node
+    with no count of its own) satisfied the same "1, non-scaling" numbers
+    a genuine ``Fixed(1)`` produces (``amount_factor`` defaults to 1,
+    ``amount_is_scaling`` defaults to False for a missing field) — a real
+    over-fire, not a synonym for "one card". Illusion of Choice / Chaotic
+    Strike / Aleatory carry a REAL typed ``Draw`` node with an explicit
+    ``count=Fixed(1)`` and correctly keep firing.
+
+    Arcane Endeavor's "Roll two d8 and choose one result. Draw cards equal
+    to that result..." parks the whole draw clause as an Unimplemented
+    residue (``recovery.py``'s "draw" ALLOWLIST row) with NO count field
+    at all — the flagship over-fire this task closes.
+
+    Mob Verdict's "For each vote you received, draw a card" is the SAME
+    Unimplemented-recovered shape (``recovery.py``'s own "draw" row
+    comment already group-names it alongside Arcane Endeavor as the
+    identical "amount-computed or per-thing draws" residue class) — CR
+    701.38d: a vote effect gives each player exactly ONE vote, but
+    multiple players can vote for the SAME target, so "votes received" is
+    a genuine 0..N-1 board-count in an N-player game, not a bounded 1.
+    This correctly drops too, even though it is NOT the card most people
+    would name first when picturing this over-fire class."""
+    assert (("cantrip", "you", "") in _idents(name)) is should_fire
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Forget",  # "draws as many cards as they discarded this way"
+        "Eventide's Shadow",  # "draw cards ... equal to the number of counters"
+        "Skyshroud Ambush",  # combat-conditional single draw, no typed Draw node
+        "Skull Raid",  # "draw cards equal to the difference"
+        "Turtles in Time",  # group-hug SEVEN-card wheel, synthesized draw marker
+        "The Wedding of River Song",  # ellipsis-repeat "opponent does the same"
+        "Hymn to the Ages",  # "equal to this spell's intensity"
+    ],
+)
+def test_cantrip_corpus_reswept_over_fires(name):
+    """task #87 full commander-legal corpus re-diff after the
+    ``has_fixed_count`` tightening: 9 total losses, all adjudicated
+    genuine (2 pinned above, the other 7 here) — 0 gains. Turtles in
+    Time's real Draw node is already ``Fixed(7)`` (never satisfied the
+    OLD gate on its own); the over-fire rode a SEPARATE ``tree_synthesis.
+    _arm_group_hug_draw`` node (scope="each", no count field of its own,
+    synthesized for the "each player who does draws seven cards" idiom)
+    that satisfied the same missing-count-as-Fixed(1) numbers. The
+    Wedding of River Song's over-fire rode its OWN separate
+    ``ellipsis_repeat``-recovered "draw" node (the SAME-unit sibling
+    Draw is a real ``Fixed(2)``, but the ellipsis node itself carries no
+    count of its own — recovery.py's own docstring: the direction/kind
+    comes from the sibling, never a count)."""
+    assert "cantrip" not in _keys(name)
+
+
 @pytest.mark.parametrize("name", ["Preordain", "Sensei's Divining Top"])
 def test_topdeck_selection_fires(name):
     """topdeck_selection fires the first-class Scry doer (Preordain) and the
