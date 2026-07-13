@@ -1008,26 +1008,47 @@ def _base_pt_becomecopy_no_mods_match(tree: ConceptTree) -> bool:
 # matching node), closing the over-fire the old whole-card-regex plan
 # would have hit WITHOUT needing the name enumeration as the safety rail.
 #
-# The 2 names left are genuinely un-synthesizable by that per-node read:
+# NARROWED again (task #87): Braid of Fire GRADUATED off this row.
+# ``crosswalk.build_concept_tree`` now carries a dedicated ``"keyword"``
+# ``AbilityUnit`` origin (:func:`mtg_utils._card_ir.crosswalk.
+# _keyword_effect_units`) that walks ``root.keywords`` for an
+# ``EffectCost``-tagged variant (Cumulative Upkeep's own effect payload) and
+# decorates its ``effect`` field the same way any other origin's effect
+# chain is decorated — Braid of Fire's "Add {R}" is now a real
+# ``effect_concepts("ramp")`` hit, read by this lane's FIRST branch
+# (``crosswalk_signals._ramp``) with no bridge involved. Corpus-swept: the
+# v0.23.0 EffectCost-keyword census is exactly 9 commander-legal cards (all
+# ``CumulativeUpkeep``) — Aboroth, Braid of Fire, Herald of Leshrac,
+# Infernal Darkness, Jötun Grunt, Karplusan Minotaur, Psychic Vortex,
+# Sheltering Ancient, Varchild's War-Riders; only Braid of Fire's own
+# ``Mana`` effect tag maps to a ported concept (``ramp``) — the rest
+# surface as ``other`` and open no membership by construction (a silent,
+# correct no-op, not a suppressed match), except two SECONDARY genuine
+# gains the new origin's general per-unit reads independently produce
+# (adjudicated, not this row's concern): Jötun Grunt's
+# ``PutAtLibraryPosition`` target (an unowned "single graveyard" filter)
+# now reaches ``_graveyard_matters``'s per-effect InZone-Graveyard arm,
+# correctly defaulting to scope "you" (CR 400.7 — the SAME no-owner-field
+# default the lane already applies to every other effect shape); Varchild's
+# War-Riders' ``Token`` effect (a genuine creature-token maker) now reaches
+# ``_type_matters_go_wide``'s token-maker arm (ii), opening its own
+# ``Warrior`` CLASS_TRIBE at low confidence — the same reconciliation
+# Kalitas/Daxos already get, working for the first time on a card the
+# substrate gap previously hid entirely.
+#
+# The 1 name left is genuinely un-synthesizable by ANY current arm:
 # Raggadragga, Goreguts Boss is a mana-ability-HAVER support card (creatures
 # WITH a mana ability get +2/+2 and untap on attack) — legacy's own
 # ``_MANA_DORK_SUPPORT_MIRROR`` classification, not an add-mana clause at
 # all; phase parks BOTH its abilities as a structure-parser failure with no
 # "add ... mana" text anywhere (its filter predicate "with a mana ability"
 # is the real, deeper grammar gap — a matters-lane idiom bundled into this
-# row's enumeration, not this row's own residue class). Braid of Fire
-# structures its Mana effect off the phase record's ``keywords`` field
-# (Cumulative Upkeep's own cost-effect) — a tree position
-# ``build_concept_tree`` never reads at all (``abilities``/``triggers``/
-# ``static_abilities``/``replacements`` only), so the card carries ZERO
-# ability units for any node-scan arm to reach; a real fix needs a new
-# ``AbilityUnit`` origin for keyword-attached effects, out of this sprint's
-# scope. Both stay a name-keyed bridge until their OWN grammar/architecture
-# gap closes.
+# row's enumeration, not this row's own residue class, and not a
+# keywords-field idiom either — its ``keywords`` list is empty). Stays a
+# name-keyed bridge until its OWN grammar gap closes.
 _RAMP_DROPPED_NAMES: frozenset[str] = frozenset(
     {
         "Raggadragga, Goreguts Boss",
-        "Braid of Fire",
     }
 )
 
@@ -2473,25 +2494,24 @@ BRIDGES: dict[str, Bridge] = {
                 "the former 24 names graduated into tree_synthesis._arm_"
                 "ramp_dropped_add_mana_clause (a per-Unimplemented-node "
                 "'add {mana-expression}' read, never a whole-card regex). "
-                "The 2 left are genuinely un-synthesizable by that read: "
-                "Raggadragga, Goreguts Boss needs a 'creature WITH a mana "
-                "ability' filter-predicate grammar verb (a matters-lane "
-                "idiom, not an add-mana clause — it never emits one); "
-                "Braid of Fire needs a NEW AbilityUnit origin for keyword-"
-                "attached effects (its Mana effect lives on the phase "
-                "record's own keywords field, a tree position "
-                "build_concept_tree never reads at all — zero ability "
-                "units to scan, not a clause-grammar gap). Retires each "
-                "when its own gap closes."
+                "NARROWED AGAIN (task #87): Braid of Fire graduated a "
+                "SECOND time when build_concept_tree grew a dedicated "
+                "'keyword' AbilityUnit origin for a keyword's own effect "
+                "payload (crosswalk._keyword_effect_units) — its Mana "
+                "effect is now a real effect_concepts('ramp') hit, no "
+                "bridge needed. The 1 left is genuinely un-synthesizable "
+                "by any current arm: Raggadragga, Goreguts Boss needs a "
+                "'creature WITH a mana ability' filter-predicate grammar "
+                "verb (a matters-lane idiom, not an add-mana clause — it "
+                "never emits one, and its keywords list is empty so the "
+                "new origin doesn't touch it either). Retires when its "
+                "own gap closes."
             ),
             census=(
-                "2 hits / 31,622 commander-legal (narrowed from 24, "
-                "ADR-0039 task #82), phase v0.20.0, 2026-07-12"
+                "1 hit / 31,622 commander-legal (narrowed from 2, "
+                "ADR-0039 task #87), phase v0.23.0, 2026-07-13"
             ),
-            pins=(
-                "Raggadragga, Goreguts Boss",
-                "Braid of Fire",
-            ),
+            pins=("Raggadragga, Goreguts Boss",),
             gap=_ramp_dropped_clause_gap,
             match=_ramp_dropped_clause_match,
         ),

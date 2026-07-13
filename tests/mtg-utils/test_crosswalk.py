@@ -1016,14 +1016,85 @@ def test_ramp_dropped_add_mana_clause_synthesis():
 
 
 def test_ramp_dropped_add_mana_clause_bridge_narrowed():
-    """The 2 names left in the NARROWED ``ramp_dropped_add_mana_clause``
-    bridge — genuinely un-synthesizable by the per-node "add mana" read.
-    Raggadragga, Goreguts Boss is a mana-ability-HAVER support card (no
-    add-mana clause of its own); Braid of Fire structures its Mana effect
-    off the phase record's ``keywords`` field, a tree position
-    ``build_concept_tree`` never reads (zero ability units)."""
-    for name in ("Raggadragga, Goreguts Boss", "Braid of Fire"):
-        assert ("ramp", "you", "") in _idents(name)
+    """The 1 name left in the NARROWED ``ramp_dropped_add_mana_clause``
+    bridge — genuinely un-synthesizable by any current arm. Raggadragga,
+    Goreguts Boss is a mana-ability-HAVER support card (no add-mana clause
+    of its own at all; its ``keywords`` list is empty)."""
+    assert ("ramp", "you", "") in _idents("Raggadragga, Goreguts Boss")
+
+
+def test_keyword_effect_unit_origin_braid_of_fire():
+    """Braid of Fire's Cumulative Upkeep "Add {R}" structures off the
+    phase record's ``keywords`` field (an ``EffectCost``-tagged variant
+    whose ``effect`` is the payoff body) — a tree position ``abilities``/
+    ``triggers``/``static_abilities``/``replacements`` never reads at
+    all, so the card previously carried ZERO ability units for any arm to
+    ever reach. ``_keyword_effect_units`` (task #87) closes the gap: the
+    card now carries exactly one ``"keyword"``-origin ``AbilityUnit``
+    whose decorated effect is the REAL ``ramp`` concept — graduating the
+    former ``ramp_dropped_add_mana_clause`` bridge row a SECOND time (see
+    ``test_ramp_dropped_add_mana_clause_bridge_narrowed`` — Braid of Fire
+    no longer needs it at all)."""
+    tree = _tree("Braid of Fire")
+    kw_units = [u for u in tree.units if u.origin == "keyword"]
+    assert len(kw_units) == 1
+    assert kw_units[0].kind == "Mana"
+    assert [c.concept for c in kw_units[0].effects] == ["ramp"]
+    assert ("ramp", "you", "") in _idents("Braid of Fire")
+
+    from mtg_utils._deck_forge.bridge_ledger import bridge_fires
+
+    assert bridge_fires("ramp_dropped_add_mana_clause", tree) is False
+
+
+def test_keyword_effect_unit_origin_corpus_census():
+    """v0.23.0's full ``EffectCost``-keyword census (task #87, corpus
+    swept): exactly 9 commander-legal cards, all ``CumulativeUpkeep``.
+    Every one of them now carries a ``"keyword"``-origin unit (no arm
+    ever silently drops one); only Braid of Fire's ``Mana`` tag maps to a
+    ported concept today — the rest decorate as ``other`` (a real,
+    lossless tail, not a silent drop) until a future batch ports their own
+    effect tags (Aboroth/Sheltering Ancient: PutCounter; Herald of
+    Leshrac: GainControl; Infernal Darkness: PayCost; Jötun Grunt:
+    PutAtLibraryPosition; Karplusan Minotaur: FlipCoin; Psychic Vortex:
+    Draw; Varchild's War-Riders: Token)."""
+    census = {
+        "Aboroth": ("PutCounter", "place_counter"),
+        "Braid of Fire": ("Mana", "ramp"),
+        "Infernal Darkness": ("PayCost", OTHER),
+        "Karplusan Minotaur": ("FlipCoin", "flip_coin"),
+        "Psychic Vortex": ("Draw", "draw"),
+        "Sheltering Ancient": ("PutCounter", "place_counter"),
+    }
+    for name, (kind, concept) in census.items():
+        tree = _tree(name)
+        kw_units = [u for u in tree.units if u.origin == "keyword"]
+        assert len(kw_units) == 1, name
+        assert kw_units[0].kind == kind, name
+        assert [c.concept for c in kw_units[0].effects] == [concept], name
+
+
+def test_keyword_effect_unit_secondary_gains_adjudicated():
+    """Two SECONDARY genuine gains the new origin's general per-unit reads
+    independently produce (task #87, corpus-diff adjudicated, documented
+    in ``bridge_ledger._RAMP_DROPPED_NAMES``'s own comment — neither is a
+    ``ramp`` concern, both are the general per-unit machinery finally
+    reaching a unit it could never see before):
+
+    Jötun Grunt's Cumulative Upkeep body ("Put two cards from a single
+    graveyard on the bottom of their owner's library") targets an unowned
+    "a single graveyard" filter (no ``Owned``/``controller`` field at
+    all) — ``_graveyard_matters``'s per-effect InZone-Graveyard arm
+    defaults it to scope "you" (CR 400.7), the SAME no-owner-field default
+    the lane already applies to every other effect shape.
+
+    Varchild's War-Riders' Cumulative Upkeep body creates a genuine
+    creature-type token (a 1/1 red Survivor) — ``_type_matters_go_wide``'s
+    token-maker arm (ii) now sees it, opening the card's OWN ``Warrior``
+    CLASS_TRIBE at low confidence, the same reconciliation Kalitas/Daxos
+    already get."""
+    assert ("graveyard_matters", "you", "") in _idents("Jötun Grunt")
+    assert ("type_matters", "you", "Warrior") in _idents("Varchild's War-Riders")
 
 
 # ── Batch-2 over-fire regressions (rules-lawyer adjudicated; ADR-0035) ─────────

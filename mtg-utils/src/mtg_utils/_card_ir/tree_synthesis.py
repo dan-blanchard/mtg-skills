@@ -2679,14 +2679,19 @@ def has_structural_coin_flip(tree: ConceptTree) -> bool:
 
 def _arm_coin_flip_payoff(tree: ConceptTree) -> ConceptNode | None:
     """Synthesize a ``flip_coin`` node for the "win/lose a coin flip"
-    PAYOFF trigger phase flattens to ``event='other'`` (Chance Encounter,
-    Karplusan Minotaur's cumulative-upkeep flip + win/lose damage
-    triggers), leaving the condition wholly unstructured. Gap-gated on
-    :func:`has_structural_coin_flip` so a card the typed/nested/recovered
-    read already covers never doubles. Emits the REAL "flip_coin" concept,
-    so the ``_coin_flip`` lane reads it via its ordinary typed
-    ``effect_concepts("flip_coin")`` walk — no lane special-case. CR
-    705.2."""
+    PAYOFF trigger phase flattens to ``event='other'`` (Chance Encounter's
+    win/lose damage triggers), leaving the condition wholly unstructured.
+    Gap-gated on :func:`has_structural_coin_flip` so a card the
+    typed/nested/recovered read already covers never doubles — the gate
+    is whole-tree, not per-trigger, so a card served ELSEWHERE (Karplusan
+    Minotaur: its OWN "Flip a coin" DOER now structures off the
+    ``crosswalk._keyword_effect_units`` keyword origin, task #87 — its
+    win/lose damage triggers are STILL just as unstructured as Chance
+    Encounter's, but the card no longer needs this arm at all) correctly
+    stands this arm down without needing the payoff trigger itself to gain
+    structure. Emits the REAL "flip_coin" concept, so the ``_coin_flip``
+    lane reads it via its ordinary typed ``effect_concepts("flip_coin")``
+    walk — no lane special-case. CR 705.2."""
     if has_structural_coin_flip(tree):
         return None
     if not _COIN_FLIP_PAYOFF_RE.search(_REMINDER.sub(" ", tree.oracle or "")):
@@ -9057,12 +9062,19 @@ def _arm_ramp_dropped_add_mana_clause(tree: ConceptTree) -> ConceptNode | None:
     Chimes) — the "add ... mana" clause always survives verbatim in the
     dropped node's OWN ``description``, never elsewhere. ADR-0039 task #82
     — graduates 22 of the former ``ramp_dropped_add_mana_clause`` ledgered
-    bridge's 24-name enumeration into this typed read; the row NARROWS to
-    the 2 names this per-node scan structurally cannot reach (Raggadragga,
-    Goreguts Boss — a mana-ability-HAVER support card with no add-mana
-    clause of its own at all; Braid of Fire — phase structures its Mana
-    effect off the ``keywords`` field, a tree position ``build_concept_
-    tree`` never reads, so the card carries ZERO ability units to scan).
+    bridge's 24-name enumeration into this typed read; the row NARROWED
+    (task #82) to the 2 names this per-node scan structurally cannot
+    reach, then NARROWED AGAIN (task #87): Braid of Fire graduated a
+    SECOND time when ``build_concept_tree`` grew a dedicated
+    ``"keyword"`` ``AbilityUnit`` origin for a keyword's own effect
+    payload (Cumulative Upkeep's "Add {R}", ``root.keywords``) — it now
+    carries a REAL ``effect_concepts("ramp")`` hit, so this arm's own gap
+    check (below) stands it down through the FIRST branch (already
+    served), never reaching the per-node scan at all. Raggadragga,
+    Goreguts Boss (a mana-ability-HAVER support card with no add-mana
+    clause of its own at all — its ``keywords`` list is empty, so the new
+    origin doesn't touch it either) is the ONLY name left un-synthesizable
+    by any current arm.
 
     Gap-gated on the SAME "not a land, no existing structural ramp"
     condition the bridge's own ``_ramp_dropped_clause_gap`` used, so a card

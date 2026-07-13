@@ -336,11 +336,15 @@ class AbilityUnit:
     A unit is one entry of phase's ``abilities`` (activated/spell/static-on-an-
     ability), ``triggers`` (a triggered ability — ``trigger_event`` derived from
     its ``mode`` + zone/recipient), ``static_abilities`` (a continuous ability —
-    its ``modifications`` become ``static``-role concepts), or ``replacements``.
+    its ``modifications`` become ``static``-role concepts), ``replacements``, or
+    a KEYWORD's own effect payload (``root.keywords`` — CR 702's own-effect
+    idiom, e.g. Cumulative Upkeep's "Add {R}"; see
+    :func:`_keyword_effect_units`, distinct from a keyword's alternative-cost
+    PayLife leaf which merges onto an ``"ability"``-origin unit instead).
     ``node`` is the verbatim typed ability node (the preserved tree position).
     """
 
-    origin: str  # "ability" | "trigger" | "static" | "replacement"
+    origin: str  # "ability" | "trigger" | "static" | "replacement" | "keyword"
     index: int
     node: TypedMirrorNode
     kind: str | None  # phase ability ``kind`` (Activated/Spell/Static/…) or None
@@ -1759,6 +1763,28 @@ def amount_factor(node: TypedMirrorNode, field: str = "amount") -> int:
         if isinstance(v, int):
             return v
     return 1
+
+
+def has_fixed_count(node: TypedMirrorNode, field: str = "amount") -> bool:
+    """Whether ``field`` is EXPLICITLY present and tagged ``Fixed`` — the
+    presence check :func:`amount_factor`/:func:`amount_is_scaling`
+    deliberately don't make (both fold "field absent" into the same
+    default their genuine-``Fixed(1)`` case returns: ``amount_factor``
+    defaults to ``1``, ``amount_is_scaling`` defaults to ``False`` — the
+    same numbers a real ``Fixed(1)`` produces). That conflation is
+    harmless for the acceleration/upkeep-bleed callers (an absent count
+    correctly reads as "no extra magnitude"), but a gate that needs to
+    tell "genuinely draws exactly one card" (Illusion of Choice's typed
+    ``Draw`` with ``count=Fixed(1)``) apart from "an Unimplemented
+    residue with NO count field at all" (Arcane Endeavor's "Draw cards
+    equal to that result" — a die-roll-computed amount phase's grammar
+    never structures, recovered via ``recovery.py``'s ``"draw"`` ALLOWLIST
+    row with no count of its own) needs the field's PRESENCE, not just its
+    resolved magnitude — see :func:`mtg_utils._deck_forge.crosswalk_
+    signals._cantrip`, whose "draws exactly one card" gate this closes.
+    """
+    q = getattr(node, field, MISSING)
+    return _present(q) and tag_of(q) == "Fixed"
 
 
 def pump_is_negative(node: TypedMirrorNode) -> bool:
@@ -3914,6 +3940,61 @@ def _keyword_cost_paylife_concepts(root: TypedMirrorNode) -> tuple[ConceptNode, 
     return tuple(out)
 
 
+def _keyword_effect_units(root: TypedMirrorNode) -> list[AbilityUnit]:
+    """``AbilityUnit``\\s for a keyword's own EFFECT payload (CR 702).
+
+    Cumulative Upkeep's "Add {R}" (Braid of Fire) rides ``root.keywords`` as
+    an ``EffectCost``-tagged variant whose ``effect`` field is the payoff
+    body — a tree position ``build_concept_tree``'s ``abilities`` /
+    ``triggers`` / ``static_abilities`` / ``replacements`` walks never reach,
+    so a card whose ONLY structured content lives here previously carried
+    ZERO ability units (no arm could ever fire on it). Distinct from
+    :func:`_keyword_cost_paylife_concepts` (role=cost, merges onto an
+    ``"ability"``-origin Spell unit): this is the keyword's own role=effect
+    body, decorated the same way any other origin's effect chain is
+    (:func:`_walk_effect_chain`), so e.g. a ``Mana`` effect tag reads as the
+    ordinary ``ramp`` concept.
+
+    v0.23.0 corpus census: 9 commander-legal cards carry an ``EffectCost``
+    keyword variant, all under ``CumulativeUpkeep`` — Aboroth (PutCounter),
+    Braid of Fire (Mana), Herald of Leshrac (GainControl), Infernal
+    Darkness (PayCost), Jötun Grunt (PutAtLibraryPosition), Karplusan
+    Minotaur (FlipCoin), Psychic Vortex (Draw), Sheltering Ancient
+    (PutCounter), Varchild's War-Riders (Token) — this origin decorates all
+    9 the same structural way; only Braid of Fire's ``Mana`` tag maps to a
+    ported concept (``ramp``) today, the rest surface as ``other`` until a
+    future batch ports their own effect tags.
+    """
+    kws = getattr(root, "keywords", MISSING)
+    if not _present(kws) or not isinstance(kws, list):
+        return []
+    out: list[AbilityUnit] = []
+    i = 0
+    for kw in kws:
+        if not isinstance(kw, MirrorVariant):
+            continue
+        inner = kw.inner
+        if not isinstance(inner, TypedMirrorNode) or tag_of(inner) != "EffectCost":
+            continue
+        effect = getattr(inner, "effect", MISSING)
+        if not isinstance(effect, TypedMirrorNode):
+            continue
+        out.append(
+            AbilityUnit(
+                origin="keyword",
+                index=i,
+                node=inner,
+                kind=tag_of(effect),
+                trigger_event=None,
+                effects=tuple(_walk_effect_chain(effect)),
+                costs=(),
+                statics=(),
+            )
+        )
+        i += 1
+    return out
+
+
 # Modification tag → a coarse static-concept the land/anthem lanes read.
 _MOD_CONCEPTS: dict[str, str] = {
     "AddPower": "pump",
@@ -4268,6 +4349,8 @@ def build_concept_tree(
                 statics=_nested_static_concepts(rp),
             )
         )
+
+    units.extend(_keyword_effect_units(root))
 
     oracle = getattr(root, "oracle_text", None)
     tree = ConceptTree(

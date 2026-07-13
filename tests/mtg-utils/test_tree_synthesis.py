@@ -1883,9 +1883,16 @@ def test_dice_makers_synth_registered():
 # Frenetic Sliver's granted flip-coin ability carries a REAL nested FlipCoin
 # node under GrantAbility -- has_structural_coin_flip's nested fallback
 # (has_nested_flip_coin) reaches it, so NEITHER needs synthesis. Chance
-# Encounter's/Karplusan Minotaur's "Whenever you win/lose a coin flip" payoff
-# trigger carries NO FlipCoin node at all (a dropped trigger condition) --
-# the genuine no-residue gap the synthesis arm fills (CR 705.2).
+# Encounter's "Whenever you win/lose a coin flip" payoff trigger carries NO
+# FlipCoin node at all (a dropped trigger condition) -- the genuine
+# no-residue gap the synthesis arm fills (CR 705.2). Karplusan Minotaur
+# ALSO used to need this arm (its own coin-flip doer lives on its Cumulative
+# Upkeep -- phase's keywords field, a tree position build_concept_tree used
+# to never read at all), but GRADUATED (task #87): the new "keyword"
+# AbilityUnit origin (crosswalk._keyword_effect_units) surfaces the
+# FlipCoin tag as a real effect_concepts("flip_coin") hit, so
+# has_structural_coin_flip now covers it directly and the synthesis arm
+# correctly stands down (no double-fire).
 
 
 def _coin_flip_fires(name):
@@ -1916,9 +1923,16 @@ def test_coin_flip_payoff_synth():
 
 
 def test_coin_flip_payoff_synth_win_and_lose():
+    """Karplusan Minotaur GRADUATED off this synthesis arm (task #87): its
+    Cumulative Upkeep "Flip a coin" now structures off the new "keyword"
+    AbilityUnit origin (crosswalk._keyword_effect_units), so
+    has_structural_coin_flip already covers it and the synthesis arm
+    correctly stands down — the win/lose payoff triggers still fire
+    coin_flip, just through the structural gate now, never the synthesis
+    fallback this test used to exercise."""
     tree = _fixture_tree("Karplusan Minotaur")
-    assert has_structural_coin_flip(tree) is False  # genuine gap
-    assert _arm_coin_flip_payoff(tree) is not None
+    assert has_structural_coin_flip(tree) is True
+    assert _arm_coin_flip_payoff(tree) is None
     assert _coin_flip_fires("Karplusan Minotaur") is True
 
 
@@ -6329,9 +6343,11 @@ def test_ramp_dropped_add_mana_clause_fires_on_pins(name):
     """The 4 fixture-resident names of the former ``ramp_dropped_add_mana_
     clause`` bridge's 24-name enumeration (22 total graduate corpus-wide,
     corpus-scan-verified this session) — a per-node "add {mana-
-    expression}" read. The 2 left (Raggadragga, Braid of Fire) stay a
-    name-keyed bridge (neither carries an Unimplemented node naming an
-    add-mana clause)."""
+    expression}" read. Raggadragga stays a name-keyed bridge (no
+    Unimplemented node naming an add-mana clause); Braid of Fire graduated
+    a SECOND time (task #87) into the crosswalk's own ``"keyword"``
+    ``AbilityUnit`` origin — see
+    ``test_ramp_dropped_add_mana_clause_no_fire_on_bridge_residuals``."""
     tree = _fixture_tree(name)
     assert tree.is_type("Land") is False
     node = _arm_ramp_dropped_add_mana_clause(tree)
@@ -6348,10 +6364,15 @@ def test_ramp_dropped_add_mana_clause_fires_on_pins(name):
 
 def test_ramp_dropped_add_mana_clause_no_fire_on_bridge_residuals():
     """Raggadragga (a mana-ability-HAVER support card, no add-mana clause
-    of its own) and Braid of Fire (its Mana effect lives on the phase
-    record's ``keywords`` field — zero ability units for this per-node
-    scan to reach) correctly stand this arm down; they stay served by the
-    narrowed ``ramp_dropped_add_mana_clause`` name-keyed bridge instead."""
+    of its own) correctly stands this arm down; it stays served by the
+    narrowed ``ramp_dropped_add_mana_clause`` name-keyed bridge instead.
+    Braid of Fire ALSO stands this arm down now (task #87), but for a
+    DIFFERENT reason than before: its Mana effect is no longer invisible
+    to the tree at all — ``build_concept_tree``'s new ``"keyword"``
+    ``AbilityUnit`` origin surfaces it as a REAL ``effect_concepts(
+    "ramp")`` hit, so this arm's gap check stands it down through the
+    FIRST branch (already served structurally), never reaching the
+    per-node scan."""
     for name in ("Raggadragga, Goreguts Boss", "Braid of Fire"):
         tree = _fixture_tree(name)
         assert _arm_ramp_dropped_add_mana_clause(tree) is None
