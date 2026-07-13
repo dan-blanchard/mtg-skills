@@ -25,6 +25,7 @@ USER_AGENT = "commander-utils/0.1.0"
 RATE_LIMIT_DELAY = 0.1
 
 CARD_FIELDS = [
+    "id",
     "name",
     "oracle_id",
     "printed_name",
