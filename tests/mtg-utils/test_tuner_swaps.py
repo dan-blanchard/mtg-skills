@@ -733,3 +733,205 @@ def test_cut_candidates_null_rank_low_value_is_medium_aware():
     digital = cut_candidates(classes, medium="digital", **kw)
     assert ("low_value", "Alchemy Only") in [(r, c.name) for r, c in paper]
     assert [(r, c.name) for r, c in digital] == []
+
+
+# ── ADR-0040 companion: FOCUSED role-fix adds prefer an on-avenue candidate ──
+
+
+def _on_avenue_draw(name, cmc, rank):
+    return {
+        "name": name,
+        "type_line": "Sorcery",
+        "oracle_text": "Draw a card. Proliferate.",
+        "cmc": cmc,
+        "prices": {"usd": "2.00"},
+        "color_identity": [],
+        "edhrec_rank": rank,
+    }
+
+
+def _off_avenue_draw(name, cmc, rank):
+    return {
+        "name": name,
+        "type_line": "Sorcery",
+        "oracle_text": "Draw a card.",
+        "cmc": cmc,
+        "prices": {"usd": "1.00"},
+        "color_identity": [],
+        "edhrec_rank": rank,
+    }
+
+
+def _role_fix_scenario():
+    """A card_draw shortfall (role_short, a Spine kind — efficiency-first with
+    no synergy input) plus a cheaper off-avenue candidate and a pricier
+    on-avenue one, matching the Sliver Weftwinder benchmark failure mode."""
+    sig = _prolif_sig()
+    label = spec_for(sig).label
+    classes = [_cc("Filler Card", "filler", cmc=3.0)]
+    budgets = {"card_draw": _band(5, 10, 12)}
+    issue = {
+        "kind": "role_short",
+        "role": "card_draw",
+        "severity": 5,
+        "message": "card draw short by 5",
+    }
+    off_avenue = _off_avenue_draw("Generic Draw", cmc=1.0, rank=50)
+    on_avenue = _on_avenue_draw("Prolif Draw", cmc=2.0, rank=2000)
+    return sig, label, classes, budgets, issue, off_avenue, on_avenue
+
+
+def test_focused_role_fix_prefers_on_avenue_over_cheaper_off_avenue():
+    # Old behavior: the cheaper off-avenue card ranks first (efficiency-first
+    # sort has no synergy term at all) and would win. At FOCUSED, the pricier
+    # on-avenue candidate must win instead, since it's still in-budget.
+    sig, label, classes, budgets, issue, off_avenue, on_avenue = _role_fix_scenario()
+    out = propose_swaps(
+        classes,
+        [issue],
+        budgets=budgets,
+        focus_result=_focus(viable=[{"label": label, "depth": 20, "cards": []}]),
+        deck_signals=[sig],
+        search_fn=lambda **_: [off_avenue, on_avenue],
+        identity="",
+        fmt="commander",
+        paper_only=True,
+        owned={},
+        budget=50.0,
+        max_swaps=1,
+        top_heavy=False,
+    )
+    assert len(out["swaps"]) == 1
+    assert out["swaps"][0]["add"]["name"] == "Prolif Draw"
+    assert "off-avenue fallback" not in out["swaps"][0]["reason"]
+
+
+def test_focused_role_fix_labels_reason_when_nothing_is_on_avenue():
+    # No candidate serves the deck's viable avenue at all — the best-ranked
+    # (cheapest) one still ships, but the reason says it's a fallback.
+    sig, label, classes, budgets, issue, off_avenue, _on_avenue = _role_fix_scenario()
+    off_avenue_b = _off_avenue_draw("Generic Draw B", cmc=2.0, rank=2000)
+    out = propose_swaps(
+        classes,
+        [issue],
+        budgets=budgets,
+        focus_result=_focus(viable=[{"label": label, "depth": 20, "cards": []}]),
+        deck_signals=[sig],
+        search_fn=lambda **_: [off_avenue, off_avenue_b],
+        identity="",
+        fmt="commander",
+        paper_only=True,
+        owned={},
+        budget=50.0,
+        max_swaps=1,
+        top_heavy=False,
+    )
+    assert len(out["swaps"]) == 1
+    assert out["swaps"][0]["add"]["name"] == "Generic Draw"  # still best-ranked
+    assert "(off-avenue fallback)" in out["swaps"][0]["reason"]
+
+
+def test_spread_thin_role_fix_keeps_efficiency_first_untouched():
+    # Same candidates as the FOCUSED preference test, but SPREAD-THIN: the
+    # avenue guard must not apply — the cheaper card wins, unlabeled, exactly
+    # as before this companion fix.
+    sig, label, classes, budgets, issue, off_avenue, on_avenue = _role_fix_scenario()
+    focus_result = {
+        "viable_avenues": [{"label": label, "depth": 20, "cards": []}],
+        "emerging": [],
+        "stranded_avenues": [],
+        "verdict": "SPREAD-THIN",
+    }
+    out = propose_swaps(
+        classes,
+        [issue],
+        budgets=budgets,
+        focus_result=focus_result,
+        deck_signals=[sig],
+        search_fn=lambda **_: [off_avenue, on_avenue],
+        identity="",
+        fmt="commander",
+        paper_only=True,
+        owned={},
+        budget=50.0,
+        max_swaps=1,
+        top_heavy=False,
+    )
+    assert len(out["swaps"]) == 1
+    assert out["swaps"][0]["add"]["name"] == "Generic Draw"
+    assert "off-avenue fallback" not in out["swaps"][0]["reason"]
+
+
+def test_spine_led_role_fix_keeps_efficiency_first_untouched():
+    # Same candidates, SPINE-LED verdict: also untouched.
+    sig, label, classes, budgets, issue, off_avenue, on_avenue = _role_fix_scenario()
+    focus_result = {
+        "viable_avenues": [{"label": label, "depth": 20, "cards": []}],
+        "emerging": [],
+        "stranded_avenues": [],
+        "verdict": "SPINE-LED",
+    }
+    out = propose_swaps(
+        classes,
+        [issue],
+        budgets=budgets,
+        focus_result=focus_result,
+        deck_signals=[sig],
+        search_fn=lambda **_: [off_avenue, on_avenue],
+        identity="",
+        fmt="commander",
+        paper_only=True,
+        owned={},
+        budget=50.0,
+        max_swaps=1,
+        top_heavy=False,
+    )
+    assert len(out["swaps"]) == 1
+    assert out["swaps"][0]["add"]["name"] == "Generic Draw"
+    assert "off-avenue fallback" not in out["swaps"][0]["reason"]
+
+
+def test_focused_role_over_not_gated_by_role_fix_guard():
+    # role_over is synergy_first already (not a Spine kind) — the ADR-0040
+    # guard (scoped to _SPINE_KINDS via role_fix=not synergy_first) must not
+    # change its existing behavior: best-synergy wins, no label.
+    classes = [
+        _cc("Pure Removal", "spine", roles=["interaction"]),
+        _cc("Lone Wrath", "spine", roles=["interaction", "board_wipe"]),
+    ]
+    budgets = {
+        "interaction": _band(13, 8, 12),
+        "board_wipe": _band(2, 2, 3),
+    }
+    issue = {
+        "kind": "role_over",
+        "role": "interaction",
+        "severity": 1,
+        "message": "interaction over",
+    }
+    add = {
+        "name": "Token Maker",
+        "type_line": "Sorcery",
+        "oracle_text": "Create a token.",
+        "cmc": 3.0,
+        "prices": {"usd": "1.00"},
+        "color_identity": [],
+    }
+    out = propose_swaps(
+        classes,
+        [issue],
+        budgets=budgets,
+        focus_result=_focus(viable=[{"label": "Main", "depth": 20, "cards": []}]),
+        deck_signals=[],
+        search_fn=lambda **_: [add],
+        identity="",
+        fmt="commander",
+        paper_only=True,
+        owned={},
+        budget=50.0,
+        max_swaps=1,
+        top_heavy=False,
+    )
+    assert len(out["swaps"]) == 1
+    assert out["swaps"][0]["add"]["name"] == "Token Maker"
+    assert "off-avenue fallback" not in out["swaps"][0]["reason"]

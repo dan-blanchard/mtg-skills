@@ -488,12 +488,37 @@ def propose_swaps(
         _pool_memo[key] = ranked
         return ranked
 
+    def _viable_served_names(cards: Sequence[dict]) -> set[str]:
+        """Names among ``cards`` that serve ≥1 of the deck's VIABLE avenues —
+        reuses ``rank_candidates``' own ``served`` computation (the ADR-0040
+        role-fix guard below), never a second serving definition."""
+        viable = focus_sets["viable"]
+        if not viable or not cards:
+            return set()
+        scored = rank_candidates(
+            list(cards),
+            active_signals=deck_signals,
+            focus_sets=focus_sets,
+            deck_tribes=deck_tribes,
+        )
+        return {
+            r["card"].get("name", "")
+            for r in scored
+            if set(r["score"]["served"]) & viable
+        }
+
     def find_add(
-        spec: dict, *, synergy_first: bool, nonland_only: bool = False, limit: int = 60
-    ) -> tuple[dict, float] | None:
+        spec: dict,
+        *,
+        synergy_first: bool,
+        nonland_only: bool = False,
+        limit: int = 60,
+        role_fix: bool = False,
+    ) -> tuple[dict, float, bool] | None:
         """The best affordable, not-yet-used add for this spec — does NOT commit spend
         (the caller commits once a cut is secured, so an unpaired add can't inflate the
-        total).
+        total). Returns ``(card, cost, off_avenue_fallback)``; the third value is only
+        ever True under the ``role_fix`` guard below.
 
         Prefers an add that does NOT overshoot an already-full Spine role (so a curve
         fix can't break the template); only falls back to an overshooting add when
@@ -502,11 +527,21 @@ def propose_swaps(
         so the ramp oracle (which matches mana-producing lands) must not pull them in.
         ``limit`` widens the candidate pool — the fill pass adds many cards per spec, so
         a 60-card page runs dry after dedup; it requests a deeper page.
+
+        ``role_fix`` marks a Spine-band add (ADR-0040 companion): at FOCUSED verdict,
+        among the non-overshooting affordable candidates, one that serves ≥1 of the
+        deck's viable avenues is picked over one that serves none, whenever such a
+        candidate exists — the zero-avenue pick still ships as a last resort, and the
+        caller labels it via the returned flag. SPREAD-THIN / SPINE-LED and non-role-fix
+        calls are untouched: the first eligible candidate in ranked order wins, exactly
+        as before this guard.
         """
         ranked = _ranked_pool(
             spec, synergy_first=synergy_first, nonland_only=nonland_only, limit=limit
         )
+        guard = role_fix and focus_result["verdict"] == "FOCUSED"
         fallback: tuple[dict, float] | None = None
+        eligible: list[tuple[dict, float]] = []
         for card in ranked:
             if card.get("name") in used_adds:  # already taken — skip to the next best
                 continue
@@ -516,11 +551,27 @@ def propose_swaps(
             if role_of(card) & full_roles:
                 fallback = fallback or (card, cost)  # keep the best overshooting option
                 continue
-            return card, cost
-        return fallback
+            if not guard:
+                return card, cost, False
+            eligible.append((card, cost))
+
+        if not guard or not eligible:
+            return (*fallback, False) if fallback else None
+        on_avenue = _viable_served_names([c for c, _ in eligible])
+        for card, cost in eligible:
+            if card.get("name") in on_avenue:
+                return card, cost, False
+        card, cost = eligible[0]  # nothing on-avenue — labeled last resort
+        return card, cost, True
 
     def commit(
-        issue: dict, reason: str, cut: CardClass | None, add_card: dict, cost: float
+        issue: dict,
+        reason: str,
+        cut: CardClass | None,
+        add_card: dict,
+        cost: float,
+        *,
+        off_avenue: bool = False,
     ) -> None:
         # Charge only now that the swap is finalized (find_add probed read-only, so an
         # unpaired add never consumed budget — USD dollars or a wildcard, by mode).
@@ -528,10 +579,15 @@ def propose_swaps(
         if cut is not None:
             used_cuts.add(cut.name)
         used_adds.add(add_card.get("name", ""))
+        message = issue["message"]
+        if off_avenue:
+            # ADR-0040 companion: the find_add role_fix guard found no in-budget
+            # candidate serving a viable avenue, so this is the labeled fallback.
+            message += " (off-avenue fallback)"
         swaps.append(
             {
                 "issue": issue["kind"],
-                "reason": issue["message"],
+                "reason": message,
                 # cut is None for a fill (a pure add into an open slot, not a trade).
                 "cut": ({"name": cut.name, "why": _cut_why(reason)} if cut else None),
                 "add": {
@@ -565,7 +621,7 @@ def propose_swaps(
                 if picked is None:
                     break
                 reason, cut = cut_entry
-                add_card, cost = picked
+                add_card, cost, _off_avenue = picked
                 commit(issue, reason, cut, add_card, cost)
             continue
 
@@ -577,15 +633,23 @@ def propose_swaps(
         # must be nonland too — else a theme swap silently adds a value land (e.g.
         # Fountainport on the Aristocrats lane), shifting the land count a swap is
         # meant to preserve. The mana base is the land tooling's job, not Tune's.
-        picked = find_add(spec, synergy_first=synergy_first, nonland_only=True)
+        picked = find_add(
+            spec,
+            synergy_first=synergy_first,
+            nonland_only=True,
+            # _SPINE_KINDS ranks efficiency-first with no synergy input at all —
+            # role_fix is the ADR-0040 guard that stops that path handing a
+            # FOCUSED deck a staple over an in-budget on-avenue candidate.
+            role_fix=not synergy_first,
+        )
         if picked is None:
             continue
         cut_entry = take_cut(issue)
         if cut_entry is None:
             continue  # no appropriate cut for this issue — skip, don't grab a wrong one
         reason, cut = cut_entry
-        add_card, cost = picked
-        commit(issue, reason, cut, add_card, cost)
+        add_card, cost, off_avenue = picked
+        commit(issue, reason, cut, add_card, cost, off_avenue=off_avenue)
 
     # Fill pass — grow an under-sized deck toward target with PURE ADDS (no cut). The
     # swap loop above is cut-bound (every move trades a card), so a partially-built deck
@@ -611,7 +675,9 @@ def propose_swaps(
             )
             if picked is None:
                 break
-            add_card, cost = picked
+            # Fills are pure adds (no cut), never "role-fix swaps" — role_fix
+            # defaults False above, so this flag is always False here.
+            add_card, cost, _off_avenue = picked
             commit({"kind": kind, "message": msg}, "", None, add_card, cost)
             added += 1
             fills_done += 1
