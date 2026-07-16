@@ -92,6 +92,7 @@ __all__ = [
     "producible_static_keys",
     "rank_deck_signals",
     "signal_keys",
+    "tribal_payoff_subjects",
 ]
 
 
@@ -340,28 +341,22 @@ def extract_signals_hybrid(
     return out
 
 
-def rank_deck_signals(
+def _deck_signal_stats(
     records: Sequence[dict | None],
     commander_names: set[str],
     *,
     resolve_object: Callable[[str], dict | None] | None = None,
     ir_for: Callable[[dict], Card | None] | None = None,
-) -> list[Signal]:
-    """Deck signals deduped by (key, scope, subject) and ranked by relevance.
-
-    Membership signals (own-subtype tribal, voltron fallback) are taken from the
-    COMMANDER only — otherwise every creature's race/stat-line floods the deck. A
-    signal's *support* (how many cards feed it) drives the ranking. Kept ForgeState-free
-    so both the deck-forge engine (``engine.ranked_deck_signals``) and the deterministic
-    tuner share one ranking (ADR-0023).
-
-    ``ir_for`` (ADR-0027): a per-record Card-IR resolver. When supplied, each card
-    runs through ``extract_signals_hybrid`` so crosswalk-served keys surface in the
-    deck's ranked signals / avenues — the engine wires its index here. When ``None``
-    (the deterministic tuner's no-sidecar path — the caller never wired up an IR
-    resolver at all), falls back to the pure regex ``extract_signals`` (a
-    crosswalk-served key whose regex producer is deleted simply won't surface —
-    graceful degradation)."""
+) -> tuple[
+    dict[tuple[str, str, str], int],
+    set[tuple[str, str, str]],
+    dict[tuple[str, str, str], Signal],
+]:
+    """The shared per-card extraction loop backing ``rank_deck_signals`` and
+    ``tribal_payoff_subjects``: for every distinct ``(key, scope, subject)``
+    ident, its *support* (how many cards feed it), whether the COMMANDER is
+    among those cards, and the first ``Signal`` seen for it. See
+    ``rank_deck_signals`` for the ``ir_for`` / ``resolve_object`` contract."""
     support: dict[tuple[str, str, str], int] = {}
     from_commander: set[tuple[str, str, str]] = set()
     first: dict[tuple[str, str, str], Signal] = {}
@@ -390,6 +385,34 @@ def rank_deck_signals(
             if is_cmd:
                 from_commander.add(ident)
             first.setdefault(ident, sig)
+    return support, from_commander, first
+
+
+def rank_deck_signals(
+    records: Sequence[dict | None],
+    commander_names: set[str],
+    *,
+    resolve_object: Callable[[str], dict | None] | None = None,
+    ir_for: Callable[[dict], Card | None] | None = None,
+) -> list[Signal]:
+    """Deck signals deduped by (key, scope, subject) and ranked by relevance.
+
+    Membership signals (own-subtype tribal, voltron fallback) are taken from the
+    COMMANDER only — otherwise every creature's race/stat-line floods the deck. A
+    signal's *support* (how many cards feed it) drives the ranking. Kept ForgeState-free
+    so both the deck-forge engine (``engine.ranked_deck_signals``) and the deterministic
+    tuner share one ranking (ADR-0023).
+
+    ``ir_for`` (ADR-0027): a per-record Card-IR resolver. When supplied, each card
+    runs through ``extract_signals_hybrid`` so crosswalk-served keys surface in the
+    deck's ranked signals / avenues — the engine wires its index here. When ``None``
+    (the deterministic tuner's no-sidecar path — the caller never wired up an IR
+    resolver at all), falls back to the pure regex ``extract_signals`` (a
+    crosswalk-served key whose regex producer is deleted simply won't surface —
+    graceful degradation)."""
+    support, from_commander, first = _deck_signal_stats(
+        records, commander_names, resolve_object=resolve_object, ir_for=ir_for
+    )
     return sorted(
         first.values(),
         key=lambda s: (
@@ -399,6 +422,40 @@ def rank_deck_signals(
         ),
         reverse=True,
     )
+
+
+def tribal_payoff_subjects(
+    records: Sequence[dict | None],
+    commander_names: set[str],
+    *,
+    resolve_object: Callable[[str], dict | None] | None = None,
+    ir_for: Callable[[dict], Card | None] | None = None,
+) -> frozenset[str]:
+    """The tribal (``type_matters``) subjects with >=1 NON-COMMANDER card
+    emitting the ident — a genuine payoff (ADR-0040 companion, task #101).
+
+    ``_deck_signal_stats`` runs the 99 with ``include_membership=False``, so
+    any tribal ident a non-commander card contributes is a real cares-about
+    signal, never mere membership; a subject whose ONLY source is the
+    commander's own emission (``support - (ident in from_commander)`` == 0)
+    is membership only, not a payoff. Feeds ``metrics.focus``'s emerging-
+    tribal gate: an *emerging* tribal avenue with no payoff subject is a
+    changeling-inflated phantom (every changeling SERVES every tribe's
+    avenue once ANY card opens it — see ``signal_specs._subject_spec``'s
+    changeling fold — so depth alone over-credits a tribe nobody actually
+    built toward), not a real budding theme."""
+    support, from_commander, first = _deck_signal_stats(
+        records, commander_names, resolve_object=resolve_object, ir_for=ir_for
+    )
+    subjects: set[str] = set()
+    for ident in first:
+        key, _scope, subject = ident
+        if key != signal_keys.TYPE_MATTERS or not subject:
+            continue
+        non_commander = support[ident] - (1 if ident in from_commander else 0)
+        if non_commander >= 1:
+            subjects.add(subject)
+    return frozenset(subjects)
 
 
 # ── Coverage gate — the agent-augmentation (M3) hook ──────────────────────────

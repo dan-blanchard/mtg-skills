@@ -20,7 +20,7 @@ import click
 
 from mtg_utils._deck_forge._ir_lookup import ir_for
 from mtg_utils._deck_forge.ranking import rank_candidates
-from mtg_utils._deck_forge.signals import rank_deck_signals
+from mtg_utils._deck_forge.signals import rank_deck_signals, tribal_payoff_subjects
 from mtg_utils._tuner import metrics
 from mtg_utils._tuner.classify import classify_deck
 from mtg_utils.deck import split_type_line
@@ -54,7 +54,14 @@ def _focus_sets(hd: HydratedDeck, signals: list, commander_names: set) -> dict:
     feeds Step 6, so it wants the tuner's notion of theme prominence)."""
     classes = classify_deck(hd, signals, commander_names)
     deck_size = int(hd.deck.get("deck_size") or 100)
-    foc = metrics.focus(classes, deck_size=deck_size, deck_signals=signals)
+    # ADR-0040 companion (task #101): the emerging-tribal payoff gate.
+    payoff_subjects = tribal_payoff_subjects(hd.records, commander_names, ir_for=ir_for)
+    foc = metrics.focus(
+        classes,
+        deck_size=deck_size,
+        deck_signals=signals,
+        tribal_payoff_subjects=payoff_subjects,
+    )
     return {
         "viable": {a["label"] for a in foc["viable_avenues"]},
         "emerging": {a["label"] for a in foc.get("emerging", [])},

@@ -13,6 +13,7 @@ from __future__ import annotations
 import re
 from collections.abc import Sequence
 
+from mtg_utils._deck_forge import signal_keys
 from mtg_utils._deck_forge._ir_lookup import ir_for
 from mtg_utils._deck_forge.budgets import protects
 from mtg_utils._deck_forge.signal_specs import spec_for
@@ -174,6 +175,7 @@ def focus(
     deck_size: int,
     deck_signals: Sequence = (),
     medium: str = "paper",
+    tribal_payoff_subjects: frozenset[str] | None = None,
 ) -> dict:
     # Avenues that are really Spine roles (ramp/draw/removal) are not themes — exclude
     # them so the deck's mana base + scaffolding can't masquerade as its main lane.
@@ -224,6 +226,25 @@ def focus(
     # sub floor) the deck started but didn't commit to — flagged "commit more or cut"
     # rather than dropped as noise. Deduped against the viable themes (a subset of a
     # real theme is not its own emerging theme).
+    #
+    # ADR-0040 companion (task #101): an emerging TRIBAL avenue additionally needs a
+    # non-commander payoff card naming the tribe, or changelings (every creature
+    # type — signal_specs._subject_spec folds them into every subject's Serve) SERVE
+    # every tribal avenue that's open at all, manufacturing an emerging flag for
+    # tribes nobody built toward (the "Bird tribal" phantom on a changeling-heavy
+    # deck). Built from ``deck_signals`` (label -> subject, via ``spec_for`` — the
+    # same per-subject dynamic label the avenue itself carries); viable avenues are
+    # untouched (already past a much higher floor) and non-tribal labels never
+    # appear in this map, so the gate is a no-op for them.
+    tribal_subject_of_label: dict[str, str] = {}
+    if tribal_payoff_subjects is not None:
+        for sig in deck_signals:
+            if sig.key != signal_keys.TYPE_MATTERS or not sig.subject:
+                continue
+            spec = spec_for(sig)
+            if spec is not None:
+                tribal_subject_of_label[spec.label] = sig.subject
+
     emerging_floor = max(1, _scaled(5, deck_size))
     emerging: list[str] = []
     for lbl in sorted(depth, key=lambda x: depth[x], reverse=True):
@@ -231,6 +252,13 @@ def focus(
             continue
         s = set(members[lbl])
         if any(len(s & set(members[k])) / len(s) >= 0.8 for k in viable + emerging):
+            continue
+        subj = tribal_subject_of_label.get(lbl)
+        if (
+            subj is not None
+            and tribal_payoff_subjects is not None
+            and subj not in tribal_payoff_subjects
+        ):
             continue
         emerging.append(lbl)
 

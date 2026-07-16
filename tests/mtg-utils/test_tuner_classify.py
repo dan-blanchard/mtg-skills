@@ -1,7 +1,8 @@
 """Spine / Engine / Filler / land / commander classification (tuner substrate)."""
 
 from mtg_utils import testkit
-from mtg_utils._deck_forge.signals import rank_deck_signals
+from mtg_utils._deck_forge._ir_lookup import ir_for
+from mtg_utils._deck_forge.signals import rank_deck_signals, tribal_payoff_subjects
 from mtg_utils._tuner.classify import FRINGE_RANK, classify_deck, is_fringe
 from mtg_utils.hydrated_deck import HydratedDeck
 
@@ -43,6 +44,10 @@ RAMP_ROCK = {
 }
 testkit.test_card_ir("Murder")  # seeds the crosswalk trees memo
 MURDER = testkit.test_card("Murder")
+testkit.test_card_ir("Krenko, Mob Boss")  # seeds the crosswalk trees memo
+KRENKO_REAL = testkit.test_card("Krenko, Mob Boss")
+testkit.test_card_ir("Galerider Sliver")  # seeds the crosswalk trees memo
+GALERIDER = testkit.test_card("Galerider Sliver")
 VANILLA = {
     "name": "Hill Giant",
     "type_line": "Creature — Giant",
@@ -147,3 +152,24 @@ def test_is_fringe_ranked_cards_read_the_same_on_both_mediums():
     assert is_fringe(FRINGE_RANK + 1, medium="digital") is True
     assert is_fringe(10, medium="paper") is False
     assert is_fringe(10, medium="digital") is False
+
+
+def test_tribal_payoff_subjects_excludes_commander_only_membership():
+    # ADR-0040 companion (task #101): Krenko's own type_matters(Goblin) signal
+    # comes ONLY from the commander (his oracle text is the sole Goblin
+    # reference in this deck) — mere membership, not a payoff any OTHER card
+    # backs. Galerider Sliver genuinely cares about Slivers ("Sliver creatures
+    # you control have flying"), so Sliver has a real non-commander payoff.
+    deck = {
+        "format": "commander",
+        "commanders": [{"name": "Krenko, Mob Boss", "quantity": 1}],
+        "cards": [
+            {"name": "Galerider Sliver", "quantity": 1},
+            {"name": "Murder", "quantity": 1},
+        ],
+    }
+    index = {c["name"]: c for c in [KRENKO_REAL, GALERIDER, MURDER]}
+    hd = HydratedDeck.from_parsed(deck, by_name=index)
+    payoffs = tribal_payoff_subjects(hd.records, {"Krenko, Mob Boss"}, ir_for=ir_for)
+    assert "Sliver" in payoffs
+    assert "Goblin" not in payoffs

@@ -1,5 +1,6 @@
 """Focus metric: lands and Spine-role avenues are not themes; near-dupes collapse."""
 
+from mtg_utils._deck_forge import signal_keys
 from mtg_utils._deck_forge.signal_specs import spec_for
 from mtg_utils._deck_forge.signals import Signal
 from mtg_utils._tuner.classify import CardClass
@@ -154,3 +155,67 @@ def test_null_rank_low_value_read_is_medium_aware():
     digital = focus(classes, deck_size=10, medium="digital")
     assert set(paper["low_value_cards"]) == {"Token Maker A", "Token Maker B"}
     assert digital["low_value_cards"] == []
+
+
+def _tribal_sig(subject, source="x"):
+    return Signal(
+        key=signal_keys.TYPE_MATTERS,
+        scope="you",
+        subject=subject,
+        text="",
+        source=source,
+        confidence="high",
+    )
+
+
+def test_emerging_tribal_theme_requires_a_payoff_subject():
+    # ADR-0040 companion: an emerging TRIBAL avenue needs >=1 non-commander payoff
+    # card naming the tribe, or changelings (every creature type) manufacture an
+    # emerging flag for every tribe at once (the "Bird tribal" phantom). deck_size
+    # 100 -> emerging floor 5, sub floor 10; depth 7 lands squarely in the band.
+    goblin_sig = _tribal_sig("Goblin", "Goblin Warchief")
+    bird_sig = _tribal_sig("Bird", "Changeling A")
+    goblin_label = spec_for(goblin_sig).label  # "Goblin tribal"
+    bird_label = spec_for(bird_sig).label  # "Bird tribal"
+    classes = [_cc(f"Goblin{i}", "engine", [goblin_label]) for i in range(7)] + [
+        _cc(f"Bird{i}", "engine", [bird_label]) for i in range(7)
+    ]
+    fr = focus(
+        classes,
+        deck_size=100,
+        deck_signals=[goblin_sig, bird_sig],
+        tribal_payoff_subjects=frozenset({"Goblin"}),
+    )
+    emerging_labels = {e["label"] for e in fr["emerging"]}
+    assert goblin_label in emerging_labels  # backed by a real payoff subject
+    assert bird_label not in emerging_labels  # no payoff — the phantom is gated
+
+
+def test_emerging_gate_leaves_nontribal_themes_alone():
+    # A non-tribal emerging theme carries no type_matters ident at all, so it can
+    # never be found in the label->subject map the gate builds from deck_signals —
+    # the gate is a no-op for it even with an empty payoff set.
+    classes = [_cc(f"P{i}", "engine", ["Proliferate"]) for i in range(7)]
+    fr = focus(
+        classes,
+        deck_size=100,
+        deck_signals=[],
+        tribal_payoff_subjects=frozenset(),
+    )
+    assert [e["label"] for e in fr["emerging"]] == ["Proliferate"]
+
+
+def test_emerging_tribal_gate_off_by_default():
+    # Omitting tribal_payoff_subjects preserves the pre-ADR-0040 behavior: every
+    # emerging tribal avenue surfaces regardless of payoff backing.
+    goblin_sig = _tribal_sig("Goblin", "Goblin Warchief")
+    bird_sig = _tribal_sig("Bird", "Changeling A")
+    goblin_label = spec_for(goblin_sig).label
+    bird_label = spec_for(bird_sig).label
+    classes = [_cc(f"Goblin{i}", "engine", [goblin_label]) for i in range(7)] + [
+        _cc(f"Bird{i}", "engine", [bird_label]) for i in range(7)
+    ]
+    fr = focus(classes, deck_size=100, deck_signals=[goblin_sig, bird_sig])
+    emerging_labels = {e["label"] for e in fr["emerging"]}
+    assert goblin_label in emerging_labels
+    assert bird_label in emerging_labels
