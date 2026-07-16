@@ -291,3 +291,42 @@ def test_tribal_payoff_subjects_ignores_the_membership_floor():
     hd = HydratedDeck.from_parsed(deck, by_name=index)
     payoffs = tribal_payoff_subjects(hd.records, {"Krenko, Mob Boss"}, ir_for=ir_for)
     assert "Bird" not in payoffs
+
+
+def test_ranked_signals_and_payoffs_extracts_once_per_card(monkeypatch):
+    # tune() needed BOTH the ranked signals and the tribal payoff subjects,
+    # and the two public helpers each ran the full per-card extraction loop —
+    # doubling a cold tune's lane-pass cost. The combined read does one pass
+    # and must return exactly what the two separate calls return.
+    import mtg_utils._deck_forge.signals as signals_mod
+    from mtg_utils._deck_forge.signals import ranked_signals_and_payoffs
+
+    deck = {
+        "format": "commander",
+        "commanders": [{"name": "Krenko, Mob Boss", "quantity": 1}],
+        "cards": [
+            {"name": "Galerider Sliver", "quantity": 1},
+            {"name": "Murder", "quantity": 1},
+        ],
+    }
+    index = {c["name"]: c for c in [KRENKO_REAL, GALERIDER, MURDER]}
+    hd = HydratedDeck.from_parsed(deck, by_name=index)
+    expected_ranked = rank_deck_signals(hd.records, {"Krenko, Mob Boss"}, ir_for=ir_for)
+    expected_payoffs = tribal_payoff_subjects(
+        hd.records, {"Krenko, Mob Boss"}, ir_for=ir_for
+    )
+
+    calls = {"n": 0}
+    real = signals_mod.extract_signals_hybrid
+
+    def counting(*args, **kwargs):
+        calls["n"] += 1
+        return real(*args, **kwargs)
+
+    monkeypatch.setattr(signals_mod, "extract_signals_hybrid", counting)
+    ranked, payoffs = ranked_signals_and_payoffs(
+        hd.records, {"Krenko, Mob Boss"}, ir_for=ir_for
+    )
+    assert calls["n"] == len(hd.records)  # ONE pass, not two
+    assert ranked == expected_ranked
+    assert payoffs == expected_payoffs

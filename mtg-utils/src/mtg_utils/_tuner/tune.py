@@ -12,7 +12,7 @@ from dataclasses import dataclass
 
 from mtg_utils._deck_forge._ir_lookup import ir_for
 from mtg_utils._deck_forge.budgets import slot_budgets
-from mtg_utils._deck_forge.signals import rank_deck_signals, tribal_payoff_subjects
+from mtg_utils._deck_forge.signals import ranked_signals_and_payoffs
 from mtg_utils._tuner import commander_fit, grant_coverage, metrics
 from mtg_utils._tuner import swaps as swaps_mod
 from mtg_utils._tuner.bracket import bracket_gate
@@ -145,10 +145,12 @@ def tune(
         for name in combo.get("cards") or []
     }
 
-    # ADR-0029: resolve signals through the Card IR (regex fallback when no sidecar).
-    deck_signals = rank_deck_signals(hd.records, commander_names, ir_for=ir_for)
-    # ADR-0040 companion (task #101): the emerging-tribal payoff gate.
-    payoff_subjects = tribal_payoff_subjects(hd.records, commander_names, ir_for=ir_for)
+    # ADR-0029: resolve signals through the Card IR (regex fallback when no
+    # sidecar). One extraction pass yields both the ranked signals and the
+    # task-#101 emerging-tribal payoff subjects.
+    deck_signals, payoff_subjects = ranked_signals_and_payoffs(
+        hd.records, commander_names, ir_for=ir_for
+    )
     classes = classify_deck(hd, deck_signals, commander_names)
 
     shape_r = infer_shape(

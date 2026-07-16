@@ -6437,13 +6437,20 @@ def _enabler_extra(subj: str) -> SubAvenue:
     # Type-changers (Xenograft, Arcane Adaptation) turn OTHER creatures into {subj}s, so
     # the tribe grows and your {subj} payoffs hit more bodies. A distinct lane: an
     # enabler is NOT a payoff or a tribe member (B1). The open grant ("the chosen
-    # type") is subject-agnostic, so it credits every {subj} lane.
+    # type") is subject-agnostic, so it credits every {subj} lane. The serve ALSO
+    # carries the structural type_changers idents (task #96): the oracle regex only
+    # knows the chosen/every-type wordings, so a fixed-subtype changer (Hivestone,
+    # "are Slivers in addition to their other creature types") was invisible on
+    # this sub-avenue — hidden from the Find surface's enabler browsing.
     return SubAvenue(
         f"{subj} enablers",
         f"cards that make your other creatures {subj}s (type-changers like Xenograft), "
         f"growing the tribe so your {subj} lords and payoffs reach more of the board",
         {"oracle": _ENABLER_GRANT},
-        serve=Serve(oracle=re.compile(_ENABLER_GRANT, _IC)),
+        serve=Serve(
+            oracle=re.compile(_ENABLER_GRANT, _IC),
+            signal_idents=_type_changer_idents((subj,)),
+        ),
     )
 
 

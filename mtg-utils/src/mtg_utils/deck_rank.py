@@ -20,7 +20,7 @@ import click
 
 from mtg_utils._deck_forge._ir_lookup import ir_for
 from mtg_utils._deck_forge.ranking import rank_candidates
-from mtg_utils._deck_forge.signals import rank_deck_signals, tribal_payoff_subjects
+from mtg_utils._deck_forge.signals import ranked_signals_and_payoffs
 from mtg_utils._tuner import metrics
 from mtg_utils._tuner.classify import classify_deck
 from mtg_utils.deck import split_type_line
@@ -47,15 +47,20 @@ def _ensure_ir() -> None:
         )
 
 
-def _focus_sets(hd: HydratedDeck, signals: list, commander_names: set) -> dict:
+def _focus_sets(
+    hd: HydratedDeck,
+    signals: list,
+    commander_names: set,
+    payoff_subjects: frozenset[str],
+) -> dict:
     """The deck's avenue prominence (viable/emerging/stranded), so the ranker scores
     DEPTH in the deck's real themes — the same deck-relative weighting the tuner uses
     (couples to ``_tuner`` for the focus metric; deck-rank is the deck-wizard CLI that
-    feeds Step 6, so it wants the tuner's notion of theme prominence)."""
+    feeds Step 6, so it wants the tuner's notion of theme prominence).
+    ``payoff_subjects`` (the task-#101 emerging-tribal gate) comes from the caller's
+    single ``ranked_signals_and_payoffs`` pass — never re-extracted here."""
     classes = classify_deck(hd, signals, commander_names)
     deck_size = int(hd.deck.get("deck_size") or 100)
-    # ADR-0040 companion (task #101): the emerging-tribal payoff gate.
-    payoff_subjects = tribal_payoff_subjects(hd.records, commander_names, ir_for=ir_for)
     foc = metrics.focus(
         classes,
         deck_size=deck_size,
@@ -98,7 +103,9 @@ def main(
     _ensure_ir()  # build the sidecar on first run, BEFORE the first ir_for
     hd = HydratedDeck.from_paths(deck_json, hydrated_json)
     commander_names = {c["name"] for c in hd.commanders}
-    signals = rank_deck_signals(hd.records, commander_names, ir_for=ir_for)
+    signals, payoff_subjects = ranked_signals_and_payoffs(
+        hd.records, commander_names, ir_for=ir_for
+    )
     candidates = json.loads(Path(candidates_json).read_text(encoding="utf-8"))
     if not isinstance(candidates, list) or not all(
         isinstance(c, dict) for c in candidates
@@ -111,7 +118,7 @@ def main(
     ranked = rank_candidates(
         pool,
         active_signals=signals,
-        focus_sets=_focus_sets(hd, signals, commander_names),
+        focus_sets=_focus_sets(hd, signals, commander_names, payoff_subjects),
         deck_tribes=_deck_tribes(hd),
     )[: max(1, limit)]
     if as_json:

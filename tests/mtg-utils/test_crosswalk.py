@@ -16866,3 +16866,66 @@ def test_copy_exception_type_grant_is_not_a_tribal_payoff(name, subject):
         if s.confidence == "high"
     }
     assert ("type_matters", "you", subject) not in high
+
+
+def _synth_type_changer_tree(properties):
+    # A hand-built static def (the _ir()-style narrow structural harness):
+    # today NO phase parse carries zone properties on a type-adding static —
+    # the rider text is Unimplemented and rides the bridges — so the
+    # structural zone routing is pinned synthetically until a phase bump
+    # retires them (the bridges' own todo).
+    from types import SimpleNamespace
+
+    from mtg_utils._card_ir.mirror.generated_types import (
+        S_static_abilities,
+        T_affected__Typed,
+        T_modifications__AddChosenSubtype,
+    )
+    from mtg_utils._card_ir.mirror.runtime import MISSING
+
+    static = S_static_abilities(
+        active_zones=MISSING,
+        affected_zone=MISSING,
+        characteristic_defining=False,
+        condition=MISSING,
+        effect_zone=MISSING,
+        mode="Continuous",
+        affected=T_affected__Typed(
+            controller="You",
+            type_filters=["Creature"],
+            properties=list(properties),
+        ),
+        modifications=[T_modifications__AddChosenSubtype(kind="CreatureType")],
+        description="synthetic zone-reach static",
+    )
+    unit = SimpleNamespace(node=static, iter_concepts=list)
+    return SimpleNamespace(
+        name="Synth Changer", oracle="", units=[unit], iter_concepts=list
+    )
+
+
+def test_type_changers_structural_graveyard_zone_routes_to_graveyard_key():
+    # When phase structures a graveyard-only changer (InZone Graveyard on the
+    # affected — the Ashes of the Fallen shape, CR 109.2), the lane must key
+    # it graveyard, NOT battlefield: the bridges' retirement path depends on
+    # the structural read routing zones honestly.
+    from mtg_utils._card_ir.mirror.generated_types import T_properties__InZone
+    from mtg_utils._deck_forge.crosswalk_signals import _type_changers
+
+    tree = _synth_type_changer_tree([T_properties__InZone(zone="Graveyard")])
+    idents = {(s.key, s.scope, s.subject) for s in _type_changers(tree)}
+    assert ("type_changers_graveyard", "you", "") in idents
+    assert all(k != "type_changers" for k, _, _ in idents)
+
+
+def test_type_changers_structural_inanyzone_routes_to_all_keys():
+    from mtg_utils._card_ir.mirror.generated_types import T_properties__InAnyZone
+    from mtg_utils._deck_forge.crosswalk_signals import _type_changers
+
+    tree = _synth_type_changer_tree([T_properties__InAnyZone(zones=[])])
+    keys = {s.key for s in _type_changers(tree)}
+    assert keys == {
+        "type_changers",
+        "type_changers_all_zones",
+        "type_changers_graveyard",
+    }

@@ -7619,3 +7619,21 @@ def test_spec_for_resolves_every_type_changers_key():
             spec = spec_for(sig)
             assert spec is not None, (key, subject)
             assert spec.label, (key, subject)
+
+
+def test_enabler_extra_credits_fixed_subtype_changers_structurally():
+    # The "Sliver enablers" sub-avenue served by oracle regex only (chosen/
+    # every-type forms), so Hivestone ("Creatures you control are Slivers in
+    # addition to their other creature types") never surfaced on the Find
+    # surface's enabler avenue — hidden from the interface even though its
+    # type_changers|you|Sliver signal is exactly what the lane is for. The
+    # extra's serve now carries the structural idents arm, so it credits any
+    # type_changers emitter regardless of wording.
+    test_card_ir("Hivestone")  # seeds the crosswalk trees memo
+    hivestone = test_card("Hivestone")
+    spec = spec_for(
+        Signal(key="type_matters", scope="you", subject="Sliver", text="", source="c")
+    )
+    assert spec is not None
+    enabler = next(e for e in spec.extras if e.label == "Sliver enablers")
+    assert enabler.serve.matches(hivestone)

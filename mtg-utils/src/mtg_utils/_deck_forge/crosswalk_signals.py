@@ -3454,8 +3454,32 @@ _TYPE_CHANGER_ZONE_BRIDGES = (
 )
 
 
-def _type_changer_static_reads(tree: ConceptTree) -> list[tuple[str, str, str]]:
-    """(scope, subject, raw) per qualifying mass type-adding static def.
+def _type_changer_zone(affected: object, preds: set[str]) -> str | None:
+    """Structural zone reach of a type-adding static's ``affected`` filter.
+
+    "battlefield" (no zone qualifier — CR 400.7's default, every current
+    phase parse), "graveyard" (InZone Graveyard — the Ashes of the Fallen
+    shape, once phase's static parser structures it), "all_zones" (an
+    InAnyZone multi-zone span — the same-is-true rider, once phase grows
+    it; retires the two ledgered bridges). ``None`` = a single non-
+    battlefield/graveyard zone no serve arm consumes yet — skip rather
+    than mis-key it battlefield."""
+    if "InAnyZone" in preds:
+        return "all_zones"
+    zones = set(filter_inzone_zones(affected))
+    if not zones:
+        return "battlefield"
+    if zones == {"Graveyard"}:
+        return "graveyard"
+    if "Battlefield" in zones:
+        return "battlefield"
+    return None
+
+
+def _type_changer_static_reads(
+    tree: ConceptTree,
+) -> list[tuple[str, str, str, str]]:
+    """(scope, subject, raw, zone) per qualifying mass type-adding static def.
 
     Qualifying: non-CDA (a changeling's own every-type is a CDA, CR
     702.73a/604.3 — membership, not a changer), a Creature-cored ``affected``
@@ -3470,7 +3494,7 @@ def _type_changer_static_reads(tree: ConceptTree) -> list[tuple[str, str, str]]:
     polymorph on a player-chosen board, not a Granter serving yours).
     Controller You → scope "you"; a bare "each/other creatures" static
     (Kudo) → "each" (it grows YOUR side too)."""
-    out: list[tuple[str, str, str]] = []
+    out: list[tuple[str, str, str, str]] = []
     for unit in tree.units:
         for node in iter_static_defs(unit.node):
             if getattr(node, "characteristic_defining", False):
@@ -3478,7 +3502,8 @@ def _type_changer_static_reads(tree: ConceptTree) -> list[tuple[str, str, str]]:
             affected = getattr(node, "affected", None)
             if affected is None:
                 continue
-            if set(filter_predicates(affected)) & _PACIFY_ATTACH_PREDS:
+            preds = set(filter_predicates(affected))
+            if preds & _PACIFY_ATTACH_PREDS:
                 continue
             cores = {c.lower() for c in filter_core_types(affected)}
             if "creature" not in cores:
@@ -3487,15 +3512,18 @@ def _type_changer_static_reads(tree: ConceptTree) -> list[tuple[str, str, str]]:
             if ctrl not in ("You", None):
                 continue
             scope = "you" if ctrl == "You" else "each"
+            zone = _type_changer_zone(affected, preds)
+            if zone is None:
+                continue
             for m in getattr(node, "modifications", None) or ():
                 tag = tag_of(m)
                 if tag == "AddAllCreatureTypes":
-                    out.append((scope, "all", _site_raw(node)))
+                    out.append((scope, "all", _site_raw(node), zone))
                 elif (
                     tag == "AddChosenSubtype"
                     and getattr(m, "kind", None) == "CreatureType"
                 ):
-                    out.append((scope, "", _site_raw(node)))
+                    out.append((scope, "", _site_raw(node), zone))
                 elif tag == "AddSubtype":
                     # The _subtypes vocabulary gate: Ashaya's Forest is a LAND
                     # type, Equipment an artifact subtype — never a tribe.
@@ -3503,7 +3531,7 @@ def _type_changer_static_reads(tree: ConceptTree) -> list[tuple[str, str, str]]:
                         str(getattr(m, "subtype", "") or ""), CREATURE_SUBTYPES
                     )
                     if resolved:
-                        out.append((scope, resolved, _site_raw(node)))
+                        out.append((scope, resolved, _site_raw(node), zone))
                 elif tag == "AddKeyword" and mod_keyword_name(m) == "Changeling":
                     # Verified-review Fix 5: Mirror Entity's "{X}: ...
                     # creatures you control ... gain all creature types" is
@@ -3515,7 +3543,7 @@ def _type_changer_static_reads(tree: ConceptTree) -> list[tuple[str, str, str]]:
                     # from the ``characteristic_defining`` skip above (a
                     # card's OWN inherent changeling, a CDA membership read,
                     # never reaches this non-CDA conferred-static arm).
-                    out.append((scope, "all", _site_raw(node)))
+                    out.append((scope, "all", _site_raw(node), zone))
     return out
 
 
@@ -3549,8 +3577,19 @@ def _type_changers(tree: ConceptTree) -> list[Signal]:
             seen.add((key, scope, subject))
             out.append(Signal(key, scope, subject, raw, tree.name, "high"))
 
-    for scope, subject, raw in reads:
+    for scope, subject, raw, zone in reads:
+        if zone == "graveyard":
+            # A structurally-zoned graveyard-only static (post-phase-bump
+            # Ashes shape) keys graveyard alone — never battlefield.
+            push("type_changers_graveyard", scope, subject, raw)
+            continue
         push("type_changers", scope, subject, raw)
+        if zone == "all_zones":
+            # Structural InAnyZone reach — the same-is-true rider once phase
+            # grows it (the bridges below then gap-retire).
+            push("type_changers_all_zones", scope, subject, raw)
+            push("type_changers_graveyard", scope, subject, raw)
+            continue
         for bridge_id, key in _TYPE_CHANGER_ZONE_BRIDGES:
             if bridge_fires(bridge_id, tree):
                 push(key, scope, subject, raw)

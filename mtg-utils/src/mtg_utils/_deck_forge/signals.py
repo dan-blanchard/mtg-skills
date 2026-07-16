@@ -420,6 +420,14 @@ def rank_deck_signals(
     support, from_commander, first, _nc_high = _deck_signal_stats(
         records, commander_names, resolve_object=resolve_object, ir_for=ir_for
     )
+    return _ranked_from_stats(support, from_commander, first)
+
+
+def _ranked_from_stats(
+    support: dict[tuple[str, str, str], int],
+    from_commander: set[tuple[str, str, str]],
+    first: dict[tuple[str, str, str], Signal],
+) -> list[Signal]:
     return sorted(
         first.values(),
         key=lambda s: (
@@ -428,6 +436,43 @@ def rank_deck_signals(
             s.confidence == "high",
         ),
         reverse=True,
+    )
+
+
+def _payoffs_from_stats(
+    first: dict[tuple[str, str, str], Signal],
+    nc_high: dict[tuple[str, str, str], int],
+) -> frozenset[str]:
+    subjects: set[str] = set()
+    for ident in first:
+        key, _scope, subject = ident
+        if key != signal_keys.TYPE_MATTERS or not subject:
+            continue
+        # HIGH-confidence non-commander emissions only: the go-wide
+        # membership floor emits own-subtype type_matters at LOW confidence
+        # (Birds of Paradise → Bird) — membership, never a payoff.
+        if nc_high.get(ident, 0) >= 1:
+            subjects.add(subject)
+    return frozenset(subjects)
+
+
+def ranked_signals_and_payoffs(
+    records: Sequence[dict | None],
+    commander_names: set[str],
+    *,
+    resolve_object: Callable[[str], dict | None] | None = None,
+    ir_for: Callable[[dict], Card | None] | None = None,
+) -> tuple[list[Signal], frozenset[str]]:
+    """``rank_deck_signals`` + ``tribal_payoff_subjects`` from ONE extraction
+    pass. A tune needs both, and calling the two helpers separately ran the
+    full per-card lane pass twice per deck (the tree build is memoized; the
+    lane pass is not)."""
+    support, from_commander, first, nc_high = _deck_signal_stats(
+        records, commander_names, resolve_object=resolve_object, ir_for=ir_for
+    )
+    return (
+        _ranked_from_stats(support, from_commander, first),
+        _payoffs_from_stats(first, nc_high),
     )
 
 
@@ -454,17 +499,7 @@ def tribal_payoff_subjects(
     _support, _from_commander, first, nc_high = _deck_signal_stats(
         records, commander_names, resolve_object=resolve_object, ir_for=ir_for
     )
-    subjects: set[str] = set()
-    for ident in first:
-        key, _scope, subject = ident
-        if key != signal_keys.TYPE_MATTERS or not subject:
-            continue
-        # HIGH-confidence non-commander emissions only: the go-wide
-        # membership floor emits own-subtype type_matters at LOW confidence
-        # (Birds of Paradise → Bird) — membership, never a payoff.
-        if nc_high.get(ident, 0) >= 1:
-            subjects.add(subject)
-    return frozenset(subjects)
+    return _payoffs_from_stats(first, nc_high)
 
 
 def grant_payloads_for(card: dict) -> tuple:

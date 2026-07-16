@@ -197,7 +197,7 @@ def test_signals_resolved_through_card_ir(monkeypatch):
     # we verify the wiring — rank_deck_signals is called with a non-None ir_for resolver.
     import sys
 
-    from mtg_utils._deck_forge.signals import rank_deck_signals as real
+    from mtg_utils._deck_forge.signals import ranked_signals_and_payoffs as real
 
     # _tuner/__init__ re-exports the tune() function, shadowing the tune submodule —
     # so reach the real module object via sys.modules, not attribute access.
@@ -208,7 +208,7 @@ def test_signals_resolved_through_card_ir(monkeypatch):
         captured["ir_for"] = kw.get("ir_for")
         return real(records, commander_names, **kw)
 
-    monkeypatch.setattr(tune_mod, "rank_deck_signals", spy)
+    monkeypatch.setattr(tune_mod, "ranked_signals_and_payoffs", spy)
     tune(_hd(), search_fn=_fake_search, params=TuneParams())
     assert captured["ir_for"] is not None
     assert callable(captured["ir_for"])
