@@ -34,15 +34,17 @@ def main(
 ) -> None:
     """Print role-density budgets for DECK_JSON + HYDRATED_JSON."""
     hd = HydratedDeck.from_paths(deck_json, hydrated_json)
-    # ADR-0041: thread colors/commander CMC so the "lands" row matches the
-    # deck-specific band mana-audit reports, not the static 36-38 template.
-    burgess_info = mana_audit(hd).get("burgess_formula") or {}
+    # ADR-0041 (Fix 2): pass mana_audit's OWN already-derived land band
+    # directly so the "lands" row matches the deck-specific band mana-audit
+    # reports exactly, instead of re-deriving it from a different ramp tally.
+    land_band_info = mana_audit(hd).get("land_band")
     budgets = slot_budgets(
         hd.expanded(),
         deck_size=deck_size,
         shape=shape,
-        colors=burgess_info.get("colors"),
-        commander_cmc=burgess_info.get("commander_cmc"),
+        land_band=(
+            (land_band_info["floor"], land_band_info["top"]) if land_band_info else None
+        ),
     )
     if as_json:
         click.echo(json.dumps(budgets, indent=2))

@@ -256,6 +256,66 @@ def test_fill_gap_counts_dfc_land_via_alias_not_name_set():
     assert fill_slots == 61  # 100 - 38 floor - 1 commander, no shortfall to eat into it
 
 
+def test_fill_gap_full_deck_never_phantom_fills():
+    # Verified-review Fix 1: nonland_target is computed off the band FLOOR
+    # (ADR-0041), so a COMPLETE deck whose land count sits comfortably ABOVE
+    # the floor (the ADR-endorsed healthy state) previously still computed a
+    # positive fill_slots — e.g. 1 commander + 59 nonlands + 40 lands = 100
+    # cards, floor 38: nonland_target = 100-38-1 = 61 but current_nonland is
+    # only 59, so fill_slots=2 even though the deck has ZERO open slots. The
+    # fill pass then appended pure adds to an already-100-card deck. A full
+    # deck must always get fill_slots=0 regardless of where the land count
+    # sits inside (or above) the band.
+    from mtg_utils._tuner.tune import _fill_gap
+
+    index = {"Krenko, Mob Boss": KRENKO, "Mountain": MOUNTAIN}
+    nonland_cards = [
+        {"name": f"Nonland {i}", "type_line": "Creature — Goblin", "cmc": 2.0}
+        for i in range(59)
+    ]
+    index.update({c["name"]: c for c in nonland_cards})
+    deck = {
+        "format": "commander",
+        "deck_size": 100,
+        "commanders": [{"name": "Krenko, Mob Boss", "quantity": 1}],
+        "cards": [
+            *({"name": c["name"], "quantity": 1} for c in nonland_cards),
+            {"name": "Mountain", "quantity": 40},
+        ],
+    }
+    hd = HydratedDeck.from_parsed(deck, by_name=index)
+    # 1 (commander) + 59 (nonland) + 40 (land) = 100 — a complete deck.
+    fill_slots, _land_gap = _fill_gap(hd, deck_size=100, land_floor=38)
+    assert fill_slots == 0
+
+
+def test_fill_gap_undersized_deck_keeps_its_fill_behavior():
+    # Companion to the full-deck cap above: a genuinely under-sized deck (real
+    # open slots) must still compute its true fill_slots, uncapped by the new
+    # open-slots guard.
+    from mtg_utils._tuner.tune import _fill_gap
+
+    index = {"Krenko, Mob Boss": KRENKO, "Mountain": MOUNTAIN}
+    nonland_cards = [
+        {"name": f"Nonland {i}", "type_line": "Creature — Goblin", "cmc": 2.0}
+        for i in range(10)
+    ]
+    index.update({c["name"]: c for c in nonland_cards})
+    deck = {
+        "format": "commander",
+        "deck_size": 100,
+        "commanders": [{"name": "Krenko, Mob Boss", "quantity": 1}],
+        "cards": [
+            *({"name": c["name"], "quantity": 1} for c in nonland_cards),
+            {"name": "Mountain", "quantity": 30},
+        ],
+    }
+    hd = HydratedDeck.from_parsed(deck, by_name=index)
+    # 1 (commander) + 10 (nonland) + 30 (land) = 41 of 100 — genuinely open.
+    fill_slots, _land_gap = _fill_gap(hd, deck_size=100, land_floor=38)
+    assert fill_slots == 51  # 100 - 38 floor - 1 commander - 10 existing nonland
+
+
 def test_fill_gap_no_shortfall_when_at_the_floor_not_the_comfortable_max():
     # ADR-0041: the shortfall threshold is the band FLOOR (Karsten-adjusted),
     # not the band's comfortable-max top (raw Burgess) — a deck already at
@@ -421,6 +481,66 @@ def test_grant_covered_commander_downgrades_card_draw_shortfall_to_advisory():
         s["add"]["name"] in {"Burnished Hart", "Lightning Bolt", "Abrade"}
         for s in out["swaps"]
     )
+
+
+def test_lands_band_is_single_source_between_mana_and_template():
+    # Verified-review Fix 2: slot_budgets re-derived the "lands" band from ITS
+    # OWN ramp tally over hd.expanded() (cards + sideboard, commanders
+    # EXCLUDED) while mana_audit counts commanders + cards (sideboard
+    # excluded) — a deck with ramp ONLY in a zone one tally reads and the
+    # other doesn't (here: sideboard) produced two DIFFERENT land bands for
+    # the same deck. tune() must thread mana_audit's own already-derived band
+    # through so both surfaces agree exactly (the contradiction ADR-0041
+    # exists to eliminate).
+    boss = {
+        "name": "Simple Boss",
+        "type_line": "Legendary Creature — Human",
+        "oracle_text": "",
+        "cmc": 2.0,
+        "color_identity": ["G"],
+    }
+    rock = {
+        "name": "Mind Stone",
+        "type_line": "Artifact",
+        "oracle_text": "{T}: Add {C}.",
+        "cmc": 2.0,
+        "color_identity": [],
+        "produced_mana": ["C"],
+    }
+    index = {boss["name"]: boss, rock["name"]: rock, MOUNTAIN["name"]: MOUNTAIN}
+    deck = {
+        "format": "commander",
+        "deck_size": 100,
+        "commanders": [{"name": "Simple Boss", "quantity": 1}],
+        "cards": [{"name": "Mountain", "quantity": 1}],
+        "sideboard": [{"name": "Mind Stone", "quantity": 8}],
+    }
+    hd = HydratedDeck.from_parsed(deck, by_name=index)
+    out = tune(hd, search_fn=_fake_search, params=TuneParams())
+    sc = out["scorecard"]
+    mana_band = sc["mana"]["land_band"]
+    lands = sc["template"]["budgets"]["lands"]
+    assert (lands["min"], lands["max"]) == (mana_band["floor"], mana_band["top"])
+
+
+def test_commander_closer_grant_counts_toward_win_conditions():
+    # Verified-review Fix 5: a commander granting a closer-grade ability
+    # (team double strike) was invisible to win_conditions before this fix —
+    # classify_deck never computed grant_closer for the commander bucket.
+    from mtg_utils import testkit
+
+    testkit.test_card_ir("Bonescythe Sliver")
+    bone = testkit.test_card("Bonescythe Sliver")
+    index = {bone["name"]: bone, MOUNTAIN["name"]: MOUNTAIN}
+    deck = {
+        "format": "commander",
+        "deck_size": 100,
+        "commanders": [{"name": "Bonescythe Sliver", "quantity": 1}],
+        "cards": [{"name": "Mountain", "quantity": 1}],
+    }
+    hd = HydratedDeck.from_parsed(deck, by_name=index)
+    out = tune(hd, search_fn=_fake_search, params=TuneParams())
+    assert "Bonescythe Sliver" in out["scorecard"]["wincons"]["cards"]
 
 
 def test_combo_piece_protected_from_cuts():

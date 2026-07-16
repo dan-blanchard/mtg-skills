@@ -503,7 +503,13 @@ def top_issues(
     # upgrade targets the bucket test alone misses, e.g. a vanilla beater in a go-wide
     # deck). Both are replaced with stronger on-theme/role cards.
     dead = focus_r.get("filler", 0) + focus_r.get("low_value", 0)
-    has_target = bool(focus_r.get("viable_avenues")) or bool(template_r["short"])
+    # ADR-0040 §1 (Fix 4): a grant-covered short role isn't a real redeploy
+    # target — the commander's own grant already covers it — so it must not
+    # count toward has_target any more than it sources an actual add
+    # (_dead_weight_spec below applies the same gate).
+    has_target = bool(focus_r.get("viable_avenues")) or any(
+        not b.get("grant_covered") for b in template_r["short"].values()
+    )
     filler_tol = 2
     if dead > filler_tol and has_target:
         excess = dead - filler_tol

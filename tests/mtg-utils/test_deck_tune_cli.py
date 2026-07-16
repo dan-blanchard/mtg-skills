@@ -39,6 +39,11 @@ CONSTRUCTED_DECK = {
     "commanders": [],
     "cards": [{"name": "Mountain", "quantity": 10}],
 }
+BRAWL_DECK = {
+    "format": "brawl",
+    "commanders": [{"name": "Krenko, Mob Boss", "quantity": 1}],
+    "cards": [{"name": "Mountain", "quantity": 10}],
+}
 
 
 @pytest.fixture(autouse=True)
@@ -108,3 +113,88 @@ def test_bracket_flag_runs_the_gate(tmp_path):
     out = json.loads(out_path.read_text(encoding="utf-8"))
     assert out["scorecard"]["bracket"]["target_bracket"] == 2
     assert "pass" in out["scorecard"]["bracket"]
+
+
+_STUB_RESULT = {
+    "scorecard": {},
+    "swaps": [],
+    "spent": 0.0,
+    "wildcards_spent": None,
+    "swaps_note": None,
+    "commander_suggestions": None,
+}
+
+
+def _spy_tune(monkeypatch):
+    """Replace deck_tune's `tune` with a spy that records the TuneParams it
+    was called with, so the CLI's medium/paper_only inference can be
+    inspected without needing a real bulk index."""
+    import mtg_utils.deck_tune as deck_tune_mod
+
+    captured: dict = {}
+
+    def spy(_hd, *, params, **_kw):
+        captured["params"] = params
+        return _STUB_RESULT
+
+    monkeypatch.setattr(deck_tune_mod, "tune", spy)
+    return captured
+
+
+def test_medium_defaults_paper_for_commander(tmp_path, monkeypatch):
+    # ADR-0040 §4 fix (Fix 3): the CLI never threaded `medium` at all before
+    # this fix — TuneParams always ran the "paper" default regardless of
+    # format. Commander is paper-only, so paper stays the inferred default.
+    captured = _spy_tune(monkeypatch)
+    deck = _write(tmp_path, "deck.json", COMMANDER_DECK)
+    hyd = _write(tmp_path, "hyd.json", HYDRATED)
+    res = CliRunner().invoke(
+        deck_tune_main, [deck, hyd, "--bulk-data", _bulk(tmp_path)]
+    )
+    assert res.exit_code == 0, res.output
+    assert captured["params"].medium == "paper"
+    assert captured["params"].paper_only is True
+
+
+def test_medium_defaults_digital_for_brawl(tmp_path, monkeypatch):
+    # Historic Brawl / Brawl default to digital (Arena), same as deck-forge's
+    # DeckSession — the ADR-0040 motivating benchmark was a Historic Brawl
+    # deck, so this is the path that must actually engage the fix.
+    captured = _spy_tune(monkeypatch)
+    deck = _write(tmp_path, "deck.json", BRAWL_DECK)
+    hyd = _write(tmp_path, "hyd.json", HYDRATED)
+    res = CliRunner().invoke(
+        deck_tune_main, [deck, hyd, "--bulk-data", _bulk(tmp_path)]
+    )
+    assert res.exit_code == 0, res.output
+    assert captured["params"].medium == "digital"
+    # paper_only threads consistently with the inferred medium.
+    assert captured["params"].paper_only is False
+
+
+def test_medium_explicit_override_beats_the_inferred_default(tmp_path, monkeypatch):
+    captured = _spy_tune(monkeypatch)
+    deck = _write(tmp_path, "deck.json", BRAWL_DECK)
+    hyd = _write(tmp_path, "hyd.json", HYDRATED)
+    res = CliRunner().invoke(
+        deck_tune_main,
+        [deck, hyd, "--bulk-data", _bulk(tmp_path), "--medium", "paper"],
+    )
+    assert res.exit_code == 0, res.output
+    assert captured["params"].medium == "paper"
+    assert captured["params"].paper_only is True
+
+
+def test_paper_only_explicit_flag_beats_medium_inference(tmp_path, monkeypatch):
+    # A digital-medium deck that explicitly asks to stay paper-only-search
+    # keeps that override rather than the medium-derived default.
+    captured = _spy_tune(monkeypatch)
+    deck = _write(tmp_path, "deck.json", BRAWL_DECK)
+    hyd = _write(tmp_path, "hyd.json", HYDRATED)
+    res = CliRunner().invoke(
+        deck_tune_main,
+        [deck, hyd, "--bulk-data", _bulk(tmp_path), "--paper-only"],
+    )
+    assert res.exit_code == 0, res.output
+    assert captured["params"].medium == "digital"
+    assert captured["params"].paper_only is True

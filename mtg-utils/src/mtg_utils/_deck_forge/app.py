@@ -484,15 +484,19 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
     @app.get("/api/budgets")
     async def budgets() -> dict:
         hd = engine.hydrate(state)
-        # ADR-0041: same deck-specific "lands" band the mana section reports —
-        # the standalone budgets read must not disagree with /api/snapshot.
-        burgess_info = mana_audit(hd).get("burgess_formula") or {}
+        # ADR-0041 (Fix 2): pass mana_audit's OWN already-derived land band
+        # directly — the standalone budgets read must not disagree with
+        # /api/snapshot or the mana section's own verdict (single source).
+        land_band_info = mana_audit(hd).get("land_band")
         return {
             "budgets": slot_budgets(
                 hd.expanded(),
                 deck_size=state.session.deck_size,
-                colors=burgess_info.get("colors"),
-                commander_cmc=burgess_info.get("commander_cmc"),
+                land_band=(
+                    (land_band_info["floor"], land_band_info["top"])
+                    if land_band_info
+                    else None
+                ),
             )
         }
 

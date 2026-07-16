@@ -597,7 +597,9 @@ def propose_swaps(
                 "issue": issue["kind"],
                 "reason": message,
                 # cut is None for a fill (a pure add into an open slot, not a trade).
-                "cut": ({"name": cut.name, "why": _cut_why(reason)} if cut else None),
+                "cut": (
+                    {"name": cut.name, "why": _cut_why(reason, cut)} if cut else None
+                ),
                 "add": {
                     "name": add_card.get("name", ""),
                     "cmc": add_card.get("cmc", 0.0),
@@ -787,7 +789,13 @@ def _dead_weight_spec(
         (
             (r, b)
             for r, b in budgets.items()
-            if b.get("deviation", 0) < 0 and r in _ROLE_SEARCH
+            if b.get("deviation", 0) < 0
+            and r in _ROLE_SEARCH
+            # ADR-0040 §1 (Fix 4): skip a grant-covered role here too — this
+            # fallback is a THIRD sourcing path the #98 advisory downgrade
+            # missed (the issue-driven role_short spec and the fill pass are
+            # both already gated on grant_covered).
+            and not b.get("grant_covered")
         ),
         key=lambda kv: kv[1]["deviation"],
     )
@@ -837,10 +845,16 @@ def _spec_for_issue(issue: dict, focus_result: dict, deck_signals: list) -> dict
     return None
 
 
-def _cut_why(reason: str) -> str:
+def _cut_why(reason: str, card: CardClass | None = None) -> str:
     if reason == "filler":
         return "serves no avenue here (filler)"
     if reason == "low_value":
+        # ADR-0040 §2 (Fix 6): a Granter condemned by GRADE (playrate-
+        # independent) must say so — "barely played" is factually wrong for
+        # a well-ranked weak Granter (the cut_candidates low_value queue
+        # already reads grant_grade over playrate whenever it's set).
+        if card is not None and card.grant_grade == "weak":
+            return "weak ability grant for its cost — upgrade target"
         return "barely played for this theme — upgrade target"
     if reason.startswith("over:"):
         return f"{reason.split(':', 1)[1].replace('_', ' ')} over template band"

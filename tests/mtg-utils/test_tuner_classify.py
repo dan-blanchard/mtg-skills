@@ -251,6 +251,29 @@ def test_closer_flag_set_for_closer_grade_granters():
     assert classes["Galerider Sliver"].grant_closer is False
 
 
+def test_closer_flag_set_for_commander_granting_a_closer_ability():
+    # Verified-review Fix 5: grant_grade/grant_closer were computed only for
+    # non-commander, non-land buckets, so a COMMANDER granting a closer-grade
+    # keyword was invisible to win_conditions — the archetypal Granter is the
+    # one card exempt from the §5 count. grant_closer must now be computed
+    # for the commander bucket too; grant_grade stays None (unchanged — the
+    # cut-protection grade never applied to commanders and still doesn't).
+    testkit.test_card_ir("Bonescythe Sliver")
+    bone = testkit.test_card("Bonescythe Sliver")
+    deck = {
+        "format": "commander",
+        "commanders": [{"name": "Bonescythe Sliver", "quantity": 1}],
+        "cards": [],
+    }
+    index = {bone["name"]: bone}
+    hd = HydratedDeck.from_parsed(deck, by_name=index)
+    classes = {c.name: c for c in classify_deck(hd, [], {"Bonescythe Sliver"})}
+    cmd = classes["Bonescythe Sliver"]
+    assert cmd.bucket == "commander"
+    assert cmd.grant_grade is None  # unchanged — grade stays commander-exempt
+    assert cmd.grant_closer is True  # NEW: closer flag now reaches commanders
+
+
 def test_tribal_payoff_subjects_ignores_the_membership_floor():
     # Benchmark regression (ADR-0040 companion): Birds of Paradise emits
     # type_matters(Bird) at confidence LOW — the go-wide membership floor's

@@ -61,9 +61,15 @@ def _fill_gap(hd: HydratedDeck, deck_size: int, land_floor: int) -> tuple[int, i
 
     fill_slots is the nonland target (deck_size, less the land-band floor and
     commanders) minus the current nonland count -- the nonland adds the fill
-    pass makes. land_gap is the lands still owed to the band floor, left to
-    the land tooling (ADR-0041: the floor, not the band's comfortable-max
-    top, so a deck already inside the band shows no shortfall).
+    pass makes, capped by the deck's ACTUAL open slots (``deck_size - total``)
+    so a COMPLETE deck never gets phantom fills. Since ADR-0041 the floor is
+    the band MIN (Karsten-adjusted), so a full deck whose land count sits
+    comfortably ABOVE the floor (the ADR-endorsed healthy state) can still
+    read short on the raw nonland-target math; the open-slots cap is what
+    actually stops the fill pass from appending pure adds past deck_size.
+    land_gap is the lands still owed to the band floor, left to the land
+    tooling (ADR-0041: the floor, not the band's comfortable-max top, so a
+    deck already inside the band shows no shortfall).
 
     Lands are counted off the alias-resolved joined records (``hd.expanded``)
     rather than by comparing deck-entry names against a classified name set:
@@ -81,6 +87,8 @@ def _fill_gap(hd: HydratedDeck, deck_size: int, land_floor: int) -> tuple[int, i
     nonland_target = deck_size - land_floor - num_cmd
     current_nonland = total - lands - num_cmd
     fill_slots = max(0, nonland_target - current_nonland)
+    open_slots = max(0, deck_size - total)
+    fill_slots = min(fill_slots, open_slots)
     land_gap = max(0, land_floor - lands)
     return fill_slots, land_gap
 
@@ -151,17 +159,20 @@ def tune(
     )
     shape = shape_r.shape
 
-    # ADR-0041: thread the commander's colors/CMC so slot_budgets can replace the
-    # static "lands" band with the deck-specific one mana_audit already derived
-    # (ramp count comes from slot_budgets' own tally) — a 60-card constructed
-    # deck has no `burgess_formula` and keeps the flat template row unchanged.
-    burgess_info = mana.get("burgess_formula") or {}
+    # ADR-0041 (Fix 2): pass mana_audit's OWN already-derived land band directly
+    # so slot_budgets never re-derives it from a DIFFERENT ramp tally — mana_audit
+    # counts commanders+cards while slot_budgets' own tally over hd.expanded()
+    # counts cards+sideboard (commanders excluded), a divergence that could
+    # disagree with the mana section's own verdict. A 60-card constructed deck
+    # has no `land_band` and keeps the flat template row unchanged.
+    land_band_info = mana.get("land_band")
     budgets = slot_budgets(
         hd.expanded(),
         deck_size=deck_size,
         shape=shape,
-        colors=burgess_info.get("colors"),
-        commander_cmc=burgess_info.get("commander_cmc"),
+        land_band=(
+            (land_band_info["floor"], land_band_info["top"]) if land_band_info else None
+        ),
     )
     # ADR-0040 §1 (Grant-covered role, deck-forge CONTEXT.md): does a commander's
     # own ability GRANT structurally cover a short Spine role for every recipient

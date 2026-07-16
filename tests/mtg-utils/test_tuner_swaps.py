@@ -7,6 +7,7 @@ from mtg_utils._tuner.metrics import top_issues
 from mtg_utils._tuner.swaps import (
     _PROTECTION_SEARCH,
     _ROLE_SEARCH,
+    _cut_why,
     _is_fixing,
     _reliable_ramp,
     _spec_for_issue,
@@ -938,6 +939,80 @@ def test_focused_role_over_not_gated_by_role_fix_guard():
     assert "off-avenue fallback" not in out["swaps"][0]["reason"]
 
 
+def test_cut_why_weak_granter_message_differs_from_fringe_playrate():
+    # Verified-review Fix 6: a weak-grade Granter is condemned by ability
+    # QUALITY (playrate-independent, ADR-0040 §2) — the cut reason must say
+    # so, not the fringe-playrate message (factually wrong for a well-ranked
+    # weak Granter, e.g. rank 500).
+    weak_granter = CardClass(
+        name="Weak Granter",
+        bucket="engine",
+        roles=(),
+        served=("Slivers",),
+        dual_purpose=False,
+        cmc=2.0,
+        record={"name": "Weak Granter"},
+        edhrec_rank=500,
+        grant_grade="weak",
+    )
+    fringe = _cc("Fringe Card", "engine", served=["Slivers"], edhrec_rank=30000)
+    weak_why = _cut_why("low_value", weak_granter)
+    fringe_why = _cut_why("low_value", fringe)
+    assert "weak ability" in weak_why.lower()
+    assert "barely played" not in weak_why.lower()
+    assert "barely played" in fringe_why.lower()
+    assert weak_why != fringe_why
+
+
+def test_low_value_swap_cut_why_reflects_weak_grant_grade_end_to_end():
+    sig = _prolif_sig()
+    label = spec_for(sig).label
+    weak_granter = CardClass(
+        name="Weak Granter",
+        bucket="engine",
+        roles=(),
+        served=(label,),
+        dual_purpose=False,
+        cmc=2.0,
+        record={
+            "name": "Weak Granter",
+            "type_line": "Creature",
+            "oracle_text": "Proliferate.",
+        },
+        edhrec_rank=500,
+        grant_grade="weak",
+    )
+    issue = {"kind": "dead_weight", "severity": 8, "count": 1, "message": "x"}
+    add = {
+        "name": "Better Card",
+        "type_line": "Creature",
+        "oracle_text": "Proliferate.",
+        "cmc": 3.0,
+        "prices": {"usd": "1.00"},
+        "color_identity": [],
+        "edhrec_rank": 200,
+    }
+    out = propose_swaps(
+        [weak_granter],
+        [issue],
+        budgets={},
+        focus_result=_focus(viable=[{"label": label, "depth": 20, "cards": []}]),
+        deck_signals=[sig],
+        search_fn=lambda **_: [add],
+        identity="",
+        fmt="commander",
+        paper_only=True,
+        owned={},
+        budget=50.0,
+        max_swaps=10,
+        top_heavy=False,
+    )
+    assert len(out["swaps"]) == 1
+    why = out["swaps"][0]["cut"]["why"].lower()
+    assert "weak ability" in why
+    assert "barely played" not in why
+
+
 def test_cut_candidates_granter_quality_gates_low_value():
     # ADR-0040 §2/§4 (task #97): the low_value cut queue condemns a Granter by
     # quality, never playrate — premium/solid stay out even unranked; weak
@@ -1015,6 +1090,83 @@ def test_propose_swaps_never_sources_a_grant_covered_role_short_issue():
         top_heavy=False,
     )
     assert out["swaps"] == []
+
+
+def test_dead_weight_never_sources_a_grant_covered_role():
+    # Verified-review Fix 4: `_dead_weight_spec`'s fallback (redeploy filler
+    # into the worst-short Spine role when there's no viable avenue to
+    # deepen) is a THIRD sourcing path the #98 advisory downgrade missed —
+    # the issue-driven `_spec_for_issue` role_short handling and the fill
+    # pass are both gated on `grant_covered`, but this fallback wasn't. A
+    # grant-covered card_draw shortfall must never source a "fill card_draw"
+    # dead-weight add.
+    classes = [
+        _cc("Junk A", "filler", cmc=4.0),
+        _cc("Junk B", "filler", cmc=3.0),
+    ]
+    issue = {"kind": "dead_weight", "severity": 7, "count": 2, "message": "dead weight"}
+    draw_spell = {
+        "name": "Faithless Looting",
+        "type_line": "Sorcery",
+        "oracle_text": "Draw two cards, then discard two cards.",
+        "cmc": 1.0,
+        "prices": {"usd": "0.50"},
+        "color_identity": ["R"],
+    }
+    out = propose_swaps(
+        classes,
+        [issue],
+        budgets={"card_draw": _band(0, 10, 12, grant_covered=True)},
+        focus_result=_focus(),  # no viable avenues -> main-theme search is empty
+        deck_signals=[],
+        search_fn=lambda **_: [draw_spell],
+        identity="R",
+        fmt="commander",
+        paper_only=True,
+        owned={},
+        budget=100.0,
+        max_swaps=10,
+        top_heavy=False,
+    )
+    assert out["swaps"] == []
+
+
+def test_top_issues_dead_weight_ignored_when_only_short_role_is_grant_covered():
+    # Companion to the above at the top_issues level: when the ONLY short
+    # Spine role is grant-covered (and there's no viable avenue either), there
+    # is genuinely nowhere to redeploy filler — the dead_weight issue must not
+    # even fire (has_target must not count a grant-covered short role as a
+    # real target).
+    base = {
+        "efficiency_r": {"verdict": "ok"},
+        "wincons_r": {"status": "ok"},
+        "protection_r": {"status": "ok"},
+        "commander_r": {"misfit": False},
+    }
+    heavy = {
+        "filler": 6,
+        "viable_avenues": [],
+        "emerging": [],
+        "verdict": "SPINE-LED",
+        "stranded_avenues": [],
+    }
+    covered_short = {"card_draw": _band(0, 10, 12, grant_covered=True)}
+    kinds = {
+        i["kind"]
+        for i in top_issues(
+            focus_r=heavy, template_r={"short": covered_short, "over": {}}, **base
+        )
+    }
+    assert "dead_weight" not in kinds
+    # A short role that ISN'T grant-covered still counts as a real target.
+    uncovered_short = {"card_draw": _band(0, 10, 12)}
+    kinds2 = {
+        i["kind"]
+        for i in top_issues(
+            focus_r=heavy, template_r={"short": uncovered_short, "over": {}}, **base
+        )
+    }
+    assert "dead_weight" in kinds2
 
 
 def test_fill_pass_skips_a_grant_covered_role():

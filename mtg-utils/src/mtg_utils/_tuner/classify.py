@@ -113,7 +113,17 @@ def classify_deck(
             bucket = "filler"
         grade: str | None = None
         closer = False
-        if bucket not in ("commander", "land"):
+        if bucket == "land":
+            pass  # a land never grants anything worth grading
+        elif bucket == "commander":
+            # ADR-0040 §5 fix: grant_closer must reach the commander bucket
+            # too — the archetypal Granter (a commander granting a
+            # closer-grade ability to every recipient body) was otherwise
+            # invisible to win_conditions' closer count. grant_grade stays
+            # None: the low-value/cut-protection grade never applied to
+            # commanders (they're never a cut candidate) and still doesn't.
+            closer = has_closer_grant(grant_payloads_for(rec))
+        else:
             payloads = grant_payloads_for(rec)
             grade = grant_grade(payloads, draw_engine_commander=draw_engine)
             closer = has_closer_grant(payloads)

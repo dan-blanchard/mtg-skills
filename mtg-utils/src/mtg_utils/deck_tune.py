@@ -23,6 +23,7 @@ from pathlib import Path
 import click
 
 from mtg_utils import card_search, combo_search
+from mtg_utils._deck_forge.state import _default_medium
 from mtg_utils._tuner.tune import TuneParams, tune
 from mtg_utils.hydrated_deck import HydratedDeck
 
@@ -76,7 +77,23 @@ def _ensure_ir() -> None:
     default=None,
     help="Target Commander bracket — runs the constraint gate (ADR-0030).",
 )
-@click.option("--paper-only/--no-paper-only", default=True)
+@click.option(
+    "--medium",
+    "medium",
+    type=click.Choice(["paper", "digital"]),
+    default=None,
+    help="Deck medium (ADR-0040 §4). Defaults by format, same as deck-forge's "
+    "DeckSession: brawl / historic_brawl → digital (Arena), everything else "
+    "→ paper. Drives whether a null EDHREC rank condemns a card.",
+)
+@click.option(
+    "--paper-only/--no-paper-only",
+    "paper_only",
+    default=None,
+    help="Restrict swap-candidate search to paper-legal cards. Defaults to "
+    "the inferred/explicit medium (off for digital, on for paper) when "
+    "omitted, so it never silently fights --medium.",
+)
 @click.option(
     "--output",
     "output",
@@ -93,7 +110,8 @@ def main(
     max_swaps: int,
     shape_override: str | None,
     target_bracket: int | None,
-    paper_only: bool,
+    medium: str | None,
+    paper_only: bool | None,
     output: str | None,
 ) -> None:
     """Diagnose DECK_JSON + HYDRATED_JSON and (with --max-swaps) propose swaps."""
@@ -104,6 +122,16 @@ def main(
             f"deck-tune is Commander-family only (commander / brawl / historic_brawl); "
             f"got {hd.format!r} — 60-card constructed stays on the agent pipeline."
         )
+
+    # ADR-0040 §4 fix: infer medium the same way deck-forge's DeckSession does
+    # (brawl/historic_brawl default digital) so the digital null-rank fix
+    # actually engages on the CLI path — the ADR's own motivating benchmark
+    # was a Historic Brawl deck. paper_only threads consistently with the
+    # (inferred or explicit) medium unless the caller overrides it directly.
+    effective_medium = medium or _default_medium(hd.format)
+    effective_paper_only = (
+        paper_only if paper_only is not None else effective_medium != "digital"
+    )
 
     bulk_path = Path(bulk_data)
     search = functools.partial(card_search.search_cards, bulk_path)
@@ -118,7 +146,8 @@ def main(
         budget=budget,
         max_swaps=max(0, max_swaps),
         shape_override=shape_override,
-        paper_only=paper_only,
+        paper_only=effective_paper_only,
+        medium=effective_medium,
         target_bracket=target_bracket,
     )
     result = tune(hd, search_fn=search, params=params, combos_fn=combos_fn)

@@ -103,6 +103,22 @@ def test_lands_row_stays_static_without_commander_inputs():
     assert b["lands"]["max"] == 38
 
 
+def test_land_band_param_is_single_source_over_internal_rederivation():
+    # Verified-review Fix 2: slot_budgets previously ALWAYS re-derived the
+    # "lands" band from its OWN ramp tally over the passed records — which
+    # can diverge from mana_audit's own tally (mana_audit counts
+    # commanders+cards; slot_budgets' caller commonly passes cards+sideboard,
+    # excluding commanders). Passing the band directly must win outright,
+    # even when colors/commander_cmc are ALSO given (proving no internal
+    # re-derivation runs when the caller supplies the already-derived band).
+    records = [_rock(i) for i in range(12)]  # 12 ramp, would derive [38, 41]
+    b = slot_budgets(
+        records, deck_size=100, colors=5, commander_cmc=5, land_band=(50, 60)
+    )
+    assert b["lands"]["min"] == 50
+    assert b["lands"]["max"] == 60
+
+
 def test_role_classification_folds_counterspells_into_interaction():
     assert "lands" in role_of(FOREST)
     assert "ramp" in role_of(LLANOWAR)
