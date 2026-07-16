@@ -3460,10 +3460,16 @@ def _type_changer_static_reads(tree: ConceptTree) -> list[tuple[str, str, str]]:
     Qualifying: non-CDA (a changeling's own every-type is a CDA, CR
     702.73a/604.3 — membership, not a changer), a Creature-cored ``affected``
     with no attach predicate (Equipment/Aura "equipped/enchanted creature is
-    a …" is a single recipient — ADR-0040 excludes single-target), and not
-    Opponent-controlled (Dismiss into Dream is removal-shaped, never
-    tribal-serving). Controller You → scope "you"; a bare "each/other
-    creatures" static (Kudo) → "each" (it grows YOUR side too)."""
+    a …" is a single recipient — ADR-0040 excludes single-target), and
+    controlled by You or unscoped (None) ONLY — every other controller value
+    skips (Dismiss into Dream's ``Opponent`` is removal-shaped, never
+    tribal-serving; Polymorphist's Jest's ``TargetPlayer`` is the SAME
+    removal shape — "each creature target player controls loses all
+    abilities and becomes a blue Frog" pairs its ``AddSubtype`` with
+    ``RemoveAllAbilities``/``SetPower``/``SetToughness``, a one-shot
+    polymorph on a player-chosen board, not a Granter serving yours).
+    Controller You → scope "you"; a bare "each/other creatures" static
+    (Kudo) → "each" (it grows YOUR side too)."""
     out: list[tuple[str, str, str]] = []
     for unit in tree.units:
         for node in iter_static_defs(unit.node):
@@ -3478,7 +3484,7 @@ def _type_changer_static_reads(tree: ConceptTree) -> list[tuple[str, str, str]]:
             if "creature" not in cores:
                 continue
             ctrl = filter_controller(affected)
-            if ctrl == "Opponent":
+            if ctrl not in ("You", None):
                 continue
             scope = "you" if ctrl == "You" else "each"
             for m in getattr(node, "modifications", None) or ():
@@ -3498,6 +3504,18 @@ def _type_changer_static_reads(tree: ConceptTree) -> list[tuple[str, str, str]]:
                     )
                     if resolved:
                         out.append((scope, resolved, _site_raw(node)))
+                elif tag == "AddKeyword" and mod_keyword_name(m) == "Changeling":
+                    # Verified-review Fix 5: Mirror Entity's "{X}: ...
+                    # creatures you control ... gain all creature types" is
+                    # a CONFERRED static (inside the {X} activated ability's
+                    # effect) that phase encodes as a plain AddKeyword grant
+                    # rather than AddAllCreatureTypes — CR 702.73a: having
+                    # changeling means every creature type, the exact "all"
+                    # shape AddAllCreatureTypes already serves. Distinct
+                    # from the ``characteristic_defining`` skip above (a
+                    # card's OWN inherent changeling, a CDA membership read,
+                    # never reaches this non-CDA conferred-static arm).
+                    out.append((scope, "all", _site_raw(node)))
     return out
 
 
@@ -3571,6 +3589,16 @@ class GrantPayload:
 
 _GRANT_KW_CAMEL = re.compile(r"(?<=[a-z])(?=[A-Z])")
 
+# Verified-review Fix 4: a recipient defined by a COMBAT relationship
+# (``CombatRelation`` — "blocking or blocked by ~") is never a controller-
+# scoped mass grant: Alms Beast's "Creatures blocking or blocked by this
+# creature have lifelink." gifts lifelink to whichever creature ends up in
+# that combat, including an OPPONENT'S blocker — a drawback riding a fight,
+# not a Granter payload. Same exclusion discipline as the EquippedBy/
+# EnchantedBy attach predicates below.
+_GRANT_HOSTILE_PREDS = frozenset({"CombatRelation"})
+_GRANT_ANTHEM_TAGS = frozenset({"AddPower", "AddToughness"})
+
 
 def extract_grant_payloads(tree: ConceptTree) -> tuple[GrantPayload, ...]:
     """Every MASS static grant payload on the tree, in static-def order.
@@ -3579,15 +3607,26 @@ def extract_grant_payloads(tree: ConceptTree) -> tuple[GrantPayload, ...]:
     discipline) rather than the concept overlay, so the mass gate is the
     same one the lane applies: an attach-predicate ``affected`` ("equipped/
     enchanted creature has flying") is a single recipient — never a Granter
-    payload; Opponent-side statics are excluded; controller You → scope
-    "you", a bare mass static ("All creatures have …") → "each"."""
+    payload; a COMBAT-relation ``affected`` ("creatures blocking or blocked
+    by this creature" — Alms Beast, verified-review Fix 4) is a hostile/
+    shared recipient, same exclusion; Opponent-side statics are excluded;
+    controller You → scope "you", a bare mass static ("All creatures
+    have …") → "each".
+
+    A raw stat-boost (``AddPower``/``AddToughness``, no keyword for the
+    quality table to grade — Goblin King's +1/+1 anthem) is its OWN
+    payload, ``kind="anthem"``, one per static regardless of whether both
+    mods are present (verified-review Fix 3: the anthem IS the card's
+    value; the payload read must not see only its table-weak sibling
+    keyword)."""
     out: list[GrantPayload] = []
     for unit in tree.units:
         for node in iter_static_defs(unit.node):
             affected = getattr(node, "affected", None)
             if affected is None:
                 continue
-            if set(filter_predicates(affected)) & _PACIFY_ATTACH_PREDS:
+            preds = set(filter_predicates(affected))
+            if preds & _PACIFY_ATTACH_PREDS or preds & _GRANT_HOSTILE_PREDS:
                 continue
             cores = {c.lower() for c in filter_core_types(affected)}
             if "creature" not in cores:
@@ -3601,6 +3640,7 @@ def extract_grant_payloads(tree: ConceptTree) -> tuple[GrantPayload, ...]:
                 for s in (*filter_core_types(affected), *filter_subtypes(affected))
             )
             raw = _site_raw(node)
+            anthem_emitted = False
             for m in getattr(node, "modifications", None) or ():
                 tag = tag_of(m)
                 if tag == "AddKeyword":
@@ -3622,6 +3662,17 @@ def extract_grant_payloads(tree: ConceptTree) -> tuple[GrantPayload, ...]:
                             subject=subject,
                             raw=raw,
                             kind="ability",
+                        )
+                    )
+                elif tag in _GRANT_ANTHEM_TAGS and not anthem_emitted:
+                    anthem_emitted = True
+                    out.append(
+                        GrantPayload(
+                            keyword="",
+                            scope=scope,
+                            subject=subject,
+                            raw=raw,
+                            kind="anthem",
                         )
                     )
     return tuple(out)

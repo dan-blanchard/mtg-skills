@@ -1864,8 +1864,21 @@ def _tc_same_is_true_gap(tree: ConceptTree) -> bool:
     return True
 
 
+def _tc_same_is_true_descs(tree: ConceptTree) -> Iterator[str]:
+    # Two residue shapes carry the rider sentence: most cards (Conspiracy,
+    # Maskwood Nexus, …) leave it as its own Unimplemented(name='unknown')
+    # node; Roshan, Hidden Magister's phase parse instead folds the WHOLE
+    # rider sentence into the type-adding AddSubtype static's own
+    # ``description`` field (no separate Unimplemented residue at all — the
+    # static's ``mode: Continuous`` line is otherwise fully structured).
+    # Both are read here so the match stays ONE bounded text scan.
+    yield from _tc_unimplemented_descs(tree)
+    for node in _tc_typed_statics(tree):
+        yield getattr(node, "description", "") or ""
+
+
 def _tc_same_is_true_match(tree: ConceptTree) -> bool:
-    return any(_TC_SAME_IS_TRUE_RX.search(d) for d in _tc_unimplemented_descs(tree))
+    return any(_TC_SAME_IS_TRUE_RX.search(d) for d in _tc_same_is_true_descs(tree))
 
 
 def _tc_gy_parse_failure_gap(tree: ConceptTree) -> bool:
@@ -1899,9 +1912,12 @@ BRIDGES: dict[str, Bridge] = {
                 "structurally"
             ),
             census=(
-                "5 hits / whole pool (Conspiracy, Arcane Adaptation, "
+                "6 hits / whole pool (Conspiracy, Arcane Adaptation, "
                 "Leyline of Transformation, Maskwood Nexus, Rukarumel, "
-                "Biologist), phase v0.23.0, 2026-07-16"
+                "Biologist, Roshan, Hidden Magister — Roshan's copy of the "
+                "rider folds into its AddSubtype static's own description "
+                "instead of an Unimplemented residue), phase v0.23.0, "
+                "2026-07-16"
             ),
             pins=(
                 "Conspiracy",
@@ -1909,6 +1925,7 @@ BRIDGES: dict[str, Bridge] = {
                 "Leyline of Transformation",
                 "Maskwood Nexus",
                 "Rukarumel, Biologist",
+                "Roshan, Hidden Magister",
             ),
             gap=_tc_same_is_true_gap,
             match=_tc_same_is_true_match,
@@ -1924,7 +1941,8 @@ BRIDGES: dict[str, Bridge] = {
                 "reach — retires with its sibling on the same phase bump"
             ),
             census=(
-                "5 hits / whole pool (the same-is-true set), phase v0.23.0, 2026-07-16"
+                "6 hits / whole pool (the same-is-true set, now including "
+                "Roshan, Hidden Magister), phase v0.23.0, 2026-07-16"
             ),
             pins=(
                 "Conspiracy",
@@ -1932,6 +1950,7 @@ BRIDGES: dict[str, Bridge] = {
                 "Leyline of Transformation",
                 "Maskwood Nexus",
                 "Rukarumel, Biologist",
+                "Roshan, Hidden Magister",
             ),
             gap=_tc_same_is_true_gap,
             match=_tc_same_is_true_match,

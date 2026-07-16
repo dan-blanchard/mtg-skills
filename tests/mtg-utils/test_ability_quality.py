@@ -80,3 +80,32 @@ def test_has_closer_grant_reads_the_table_flag():
     assert has_closer_grant([_pay("vigilance")]) is False
     assert has_closer_grant([_pay("", kind="ability")]) is False
     assert has_closer_grant([]) is False
+
+
+def test_anthem_payload_grades_solid():
+    # Verified-review Fix 3: a stat-boost payload (AddPower/AddToughness,
+    # kind="anthem", no keyword to grade) is the card's real value — never
+    # table-weak, never a phantom closer.
+    from mtg_utils._tuner.ability_quality import has_closer_grant
+
+    assert grant_grade([_pay("", kind="anthem")]) == "solid"
+    assert has_closer_grant([_pay("", kind="anthem")]) is False
+
+
+def test_anthem_kind_grades_via_its_own_branch_not_table_fallback(monkeypatch):
+    # An anthem payload's ``keyword`` is always "" by construction (no table
+    # row grades a raw stat number) — guard against a future
+    # ``GRANT_QUALITY[""]`` entry silently repurposing that default: kind
+    # "anthem" must grade solid via its OWN branch in ``_payload_grade``,
+    # not by falling through to the empty-keyword table lookup.
+    import mtg_utils._tuner.ability_quality as aq
+
+    monkeypatch.setitem(aq.GRANT_QUALITY, "", ("weak", False))
+    assert grant_grade([_pay("", kind="anthem")]) == "solid"
+
+
+def test_anthem_payload_beats_weak_keyword_sibling():
+    # Goblin King: an anthem payload alongside a table-weak landwalk keyword
+    # must grade by its BEST payload — the anthem, not the landwalk.
+    pays = [_pay("landwalk"), _pay("", kind="anthem")]
+    assert grant_grade(pays) == "solid"

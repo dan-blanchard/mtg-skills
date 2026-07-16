@@ -5,6 +5,7 @@ rarity, hard-gated by support). Never EDHREC popularity."""
 import pytest
 from fastapi.testclient import TestClient
 
+from mtg_utils import theme_presets
 from mtg_utils._card_ir.crosswalk import ConceptTree
 from mtg_utils._deck_forge import _ir_lookup, engine
 from mtg_utils._deck_forge.app import build_app
@@ -372,6 +373,45 @@ def test_warm_discovery_caches_persists_served_sets(tmp_path):
     # A DIFFERENT collection content → a different sidecar key (multi-collection support).
     other_coll = coll[:1]
     assert engine._served_sidecar_path(s2, other_coll) != served_path
+
+
+def test_warm_discovery_caches_seeds_signal_key_index(tmp_path, monkeypatch):
+    # Verified-review Fix 6: a whole-pool sweep's tribal Serve.signal_idents
+    # arm (task #96) pays a LIVE extract_signals_hybrid call per cold card
+    # (~34.6k cards in production, ~141s measured for one lane) unless the
+    # ident memo is seeded from the persisted signals-index sidecar FIRST.
+    # warm_discovery_caches's _lane_density calls walk the whole density
+    # pool, so it must seed before scanning.
+    bulk = tmp_path / "bulk.json"
+    bulk.write_text("[]", encoding="utf-8")
+    calls: list = []
+    monkeypatch.setattr(
+        theme_presets,
+        "seed_signal_key_index",
+        lambda p: calls.append(p) or False,
+    )
+    s1 = _state()
+    s1.bulk_path = bulk
+    engine.warm_discovery_caches(s1, "paper")
+    assert calls == [bulk]
+
+
+def test_discover_commanders_seeds_signal_key_index(tmp_path, monkeypatch):
+    # Same whole-pool-sweep gap as warm_discovery_caches: discover_commanders
+    # is the FOREGROUND path (called directly on every discover, not just
+    # after a collection import), so it needs the same seed.
+    bulk = tmp_path / "bulk.json"
+    bulk.write_text("[]", encoding="utf-8")
+    calls: list = []
+    monkeypatch.setattr(
+        theme_presets,
+        "seed_signal_key_index",
+        lambda p: calls.append(p) or False,
+    )
+    s1 = _state()
+    s1.bulk_path = bulk
+    engine.discover_commanders(s1, sort="support")
+    assert calls == [bulk]
 
 
 def test_unknown_theme_returns_400_not_500():

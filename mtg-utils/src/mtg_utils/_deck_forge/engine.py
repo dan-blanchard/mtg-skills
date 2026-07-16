@@ -451,7 +451,16 @@ def warm_discovery_caches(state: ForgeState, slot: str) -> None:
     content-addressed served-name sets) WITHOUT ranking, so the next discover is fast.
     Run in the background right after a collection import (see app.py), so the ~65s cold
     cost is never paid at discover time. Heavy CPU — call off the event loop. A pure
-    read of state besides the caches it fills (idempotent)."""
+    read of state besides the caches it fills (idempotent).
+
+    Seeds ``theme_presets``'s signal-ident memo from the persisted whole-pool
+    signals-index sidecar FIRST (verified-review Fix 6): a tribal lane's
+    ``Serve.signal_idents`` arm (task #96) reads that memo per pool card
+    inside ``_lane_density``'s scan below, and an unseeded memo pays a LIVE
+    ``extract_signals_hybrid`` call per cold card over the whole
+    ~34.6k-card density pool (~141s measured for one lane) instead of a
+    dict lookup. Idempotent and cheap on an already-seeded/warm sidecar."""
+    theme_presets.seed_signal_key_index(state.bulk_path)
     coll = _resolved_collection(state, slot)
     if not coll:
         return
@@ -600,7 +609,15 @@ def discover_commanders(
     ranks by signal rarity, HARD-GATED to commanders you own some support for.
     ``colors`` (a color-identity subset) and ``theme`` (a ``theme_presets`` lane) narrow
     the pool. Never uses EDHREC popularity.
-    """
+
+    Seeds ``theme_presets``'s signal-ident memo from the persisted whole-pool
+    signals-index sidecar FIRST (verified-review Fix 6) — same rationale as
+    ``warm_discovery_caches``: this is the FOREGROUND discovery path (called
+    on every discover, not just after a collection import), and its
+    ``_support_depth`` → ``_lane_density`` calls below walk the same
+    whole-pool density pool a tribal lane's ``signal_idents`` arm would
+    otherwise live-extract per cold card."""
+    theme_presets.seed_signal_key_index(state.bulk_path)
     if sort not in _DISCOVER_SORTS:
         sort = "support"
     records = owned_commander_records(state)

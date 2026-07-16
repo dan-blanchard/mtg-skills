@@ -16617,6 +16617,21 @@ def test_type_changers_same_is_true_rider_adds_zone_keys(name):
     assert ("type_changers_graveyard", "you", "") in idents
 
 
+def test_type_changers_roshan_same_is_true_rider_fixed_subtype():
+    # ADR-0040 Fix 2: Roshan's rider ("The same is true for creature spells
+    # you control and creature cards you own that aren't on the
+    # battlefield.") sits on a FIXED-subtype static (AddSubtype "Assassin"),
+    # not a chosen-type rider — phase folds the WHOLE rider sentence into
+    # the AddSubtype static's own ``description`` field (no Unimplemented
+    # residue at all), so the bridge match must ALSO scan static-def
+    # descriptions (``_tc_typed_statics``), not only Unimplemented ones.
+    # Subject "Assassin" rides the same static's read on all 3 keys.
+    idents = _idents("Roshan, Hidden Magister")
+    assert ("type_changers", "you", "Assassin") in idents
+    assert ("type_changers_all_zones", "you", "Assassin") in idents
+    assert ("type_changers_graveyard", "you", "Assassin") in idents
+
+
 def test_type_changers_maskwood_nexus_every_type_all_zones():
     idents = _idents("Maskwood Nexus")
     assert ("type_changers", "you", "all") in idents
@@ -16651,6 +16666,12 @@ def test_type_changers_ashes_of_the_fallen_graveyard_only():
         "Zoetic Glyph",
         # opponent-side mass change is removal-shaped, not tribal-serving
         "Dismiss into Dream",
+        # ADR-0040 Fix 1: controller "TargetPlayer" (not You/Opponent/None)
+        # is the SAME removal shape — "each creature target player controls
+        # loses all abilities and becomes a blue Frog" (RemoveAllAbilities +
+        # SetPower/SetToughness alongside the AddSubtype) is a one-shot
+        # polymorph, never a tribal mass-grant serving YOUR board.
+        "Polymorphist's Jest",
         # non-creature-type payloads (Forest = a LAND type; BasicLandType)
         "Ashaya, Soul of the Wild",
         "Realmwright",
@@ -16756,3 +16777,72 @@ def test_grant_payloads_outlast_parameterized_keyword():
 
     pays = extract_grant_payloads(_tree("Enduring Sliver"))
     assert [(p.kind, p.keyword) for p in pays] == [("keyword", "outlast")]
+
+
+# ── verified-review Fix 3: stat-boost payloads (kind="anthem") ──────────────
+# Goblin King's static parses [AddPower(1), AddToughness(1),
+# AddKeyword(Landwalk)] — the payload read saw only the landwalk keyword and
+# graded the card table-weak, condemning the anthem itself. An AddPower/
+# AddToughness pair on a qualifying mass static is its own payload (kind
+# "anthem", keyword "" — no table row grades a raw stat number), one per
+# static (deduped) regardless of whether both mods are present.
+
+
+def test_grant_payloads_goblin_king_emits_anthem_alongside_landwalk():
+    from mtg_utils._deck_forge.crosswalk_signals import extract_grant_payloads
+
+    pays = extract_grant_payloads(_tree("Goblin King"))
+    kinds = [(p.kind, p.keyword) for p in pays]
+    assert ("anthem", "") in kinds
+    assert ("keyword", "landwalk") in kinds
+    # One anthem payload per static, not one per AddPower/AddToughness mod.
+    assert kinds.count(("anthem", "")) == 1
+
+
+def test_grant_payloads_goblin_king_grades_solid_via_anthem():
+    # The anthem IS the card's value; the table-weak landwalk keyword must
+    # never be the sole grade once the +1/+1 payload is surfaced.
+    from mtg_utils._deck_forge.crosswalk_signals import extract_grant_payloads
+    from mtg_utils._tuner.ability_quality import grant_grade
+
+    pays = extract_grant_payloads(_tree("Goblin King"))
+    assert grant_grade(pays) == "solid"
+
+
+def test_grant_payloads_enduring_sliver_still_grades_weak():
+    # A pure weak-keyword granter (no AddPower/AddToughness mod) must NOT
+    # pick up a phantom anthem payload from the anthem arm.
+    from mtg_utils._deck_forge.crosswalk_signals import extract_grant_payloads
+    from mtg_utils._tuner.ability_quality import grant_grade
+
+    pays = extract_grant_payloads(_tree("Enduring Sliver"))
+    assert "anthem" not in [p.kind for p in pays]
+    assert grant_grade(pays) == "weak"
+
+
+# ── verified-review Fix 4: hostile/combat-relation recipients excluded ──────
+# Alms Beast ("Creatures blocking or blocked by this creature have
+# lifelink.") is a DRAWBACK gifting your OPPONENTS' blockers lifelink too —
+# its affected filter carries a CombatRelation(BlockingOrBlockedBy)
+# predicate, not a controller-scoped mass grant. Excluded the same way the
+# EquippedBy/EnchantedBy attach predicates are (_PACIFY_ATTACH_PREDS).
+
+
+def test_grant_payloads_exclude_combat_relation_recipients():
+    from mtg_utils._deck_forge.crosswalk_signals import extract_grant_payloads
+
+    assert extract_grant_payloads(_tree("Alms Beast")) == ()
+
+
+# ── verified-review Fix 5: Mirror Entity's granted changeling ───────────────
+# "{X}: ... creatures you control ... gain all creature types" is a
+# CONFERRED static (nested inside the {X} activated ability's effect, not
+# the card's top-level static_abilities) that phase encodes as
+# AddKeyword(Changeling) rather than AddAllCreatureTypes — CR 702.73a:
+# changeling grants every creature type, the exact "all" shape
+# AddAllCreatureTypes already serves for Maskwood Nexus.
+
+
+def test_type_changers_mirror_entity_granted_changeling():
+    idents = _idents("Mirror Entity")
+    assert ("type_changers", "you", "all") in idents

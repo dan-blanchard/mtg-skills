@@ -81,7 +81,11 @@ def grade_of(keyword: str) -> tuple[str, bool]:
 def _payload_grade(pay: GrantPayload, *, draw_engine_commander: bool) -> str:
     if draw_engine_commander and _HELLBENT_GATE in pay.raw.lower():
         return "weak"
-    if pay.kind == "ability":
+    if pay.kind in ("ability", "anthem"):
+        # "ability": a quoted granted ability the table can't grade at all.
+        # "anthem" (verified-review Fix 3): a raw AddPower/AddToughness
+        # stat-boost payload — no keyword, so no table row could ever grade
+        # it; it IS the Granter's value (Goblin King), never table-weak.
         return "solid"
     return grade_of(pay.keyword)[0]
 
