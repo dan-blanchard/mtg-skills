@@ -236,6 +236,36 @@ def _signal_keys_for(card: dict) -> frozenset[str]:
     return keys
 
 
+# Full "key|scope|subject" idents per oracle_id — the sibling of
+# ``_SIGNAL_KEY_INDEX`` for consumers that must discriminate scope/subject
+# (``signal_specs.Serve.signal_idents``, task #96): a Sliver-tribal serve
+# matches ``type_changers|you|Sliver`` but must not match a Goblin changer.
+# Same population paths: live per-card compute here, bulk-seeded by
+# :func:`seed_signal_key_index` from the task-#90 sidecar (which already
+# stores full idents).
+_SIGNAL_IDENT_INDEX: dict[str, frozenset[str]] = {}
+
+
+def _signal_idents_for(card: dict) -> frozenset[str]:
+    """CARD's production "key|scope|subject" ident set (memoized per
+    ``oracle_id``) — :func:`_signal_keys_for`'s scope/subject-bearing
+    sibling, with the same lazy-import rationale and the same empty-set
+    degradation for a synthetic no-``oracle_id`` record."""
+    oid = card.get("oracle_id")
+    if not oid:
+        return frozenset()
+    cached = _SIGNAL_IDENT_INDEX.get(oid)
+    if cached is not None:
+        return cached
+    from mtg_utils._deck_forge.signals import extract_signals_hybrid
+
+    idents = frozenset(
+        f"{sig.key}|{sig.scope}|{sig.subject}" for sig in extract_signals_hybrid(card)
+    )
+    _SIGNAL_IDENT_INDEX[oid] = idents
+    return idents
+
+
 # Bulk-file identities (path, mtime_ns, size) already merged into
 # ``_SIGNAL_KEY_INDEX`` this process — makes :func:`seed_signal_key_index`
 # a no-op on every call after the first for the same bulk file.
@@ -286,6 +316,7 @@ def seed_signal_key_index(bulk_path: Path | None) -> bool:
         _SIGNAL_KEY_INDEX.setdefault(
             oid, frozenset(ident.split("|", 1)[0] for ident in idents)
         )
+        _SIGNAL_IDENT_INDEX.setdefault(oid, frozenset(idents))
     _SEEDED_BULK_IDENTITIES.add(identity)
     return True
 

@@ -7563,3 +7563,59 @@ def test_chaos_warp_no_longer_serves_a_you_scoped_cheat_spec():
         you_sig.subject,
     )
     assert f"engine:{any_sig.key}:{any_sig.scope}" == "engine:cheat_into_play:any"
+
+
+# ── task #96: type_changers serve wiring (ADR-0040) ──────────────────────────
+# The tribal main serve deliberately excludes type-granters by oracle (B1:
+# they are not tribe BODIES), which left Leyline of Transformation bucketed
+# filler on the Sliver benchmark — the falsely-filler build-around ADR-0040
+# names. The fix is a STRUCTURAL arm: Serve gains `signal_idents`, matched
+# against the card's own emitted "key|scope|subject" idents (the task-#90
+# ident vocabulary), and the tribal _subject_spec enumerates the
+# type_changers idents that grow the tribe ("" chosen / "all" every /
+# "<Type>" fixed, scopes you+each). Bodies-by-type-line stay unchanged.
+
+
+def test_serve_signal_idents_arm_matches_structurally():
+    test_card_ir("Leyline of Transformation")  # seeds the crosswalk trees memo
+    leyline = test_card("Leyline of Transformation")
+    serve = Serve(signal_idents=frozenset({"type_changers|you|"}))
+    assert serve.matches(leyline)
+    # A card without the ident falls through this arm (and every other).
+    test_card_ir("Murder")
+    assert not serve.matches(test_card("Murder"))
+
+
+def test_tribal_serve_credits_type_changers_structurally():
+    test_card_ir("Leyline of Transformation")
+    leyline = test_card("Leyline of Transformation")
+    spec = spec_for(
+        Signal(key="type_matters", scope="you", subject="Sliver", text="", source="c")
+    )
+    assert spec is not None
+    assert spec.serve.matches(leyline)
+    # A fixed-subtype changer serves ITS tribe only (Hivestone grows Slivers,
+    # never Goblins) — enumerated idents, not a bare-key match.
+    goblin_spec = spec_for(
+        Signal(key="type_matters", scope="you", subject="Goblin", text="", source="c")
+    )
+    hive_idents = frozenset({"type_changers|you|Sliver"})
+    assert "type_changers|you|Sliver" in (spec.serve.signal_idents or frozenset())
+    assert hive_idents & (goblin_spec.serve.signal_idents or frozenset()) == frozenset()
+
+
+def test_spec_for_resolves_every_type_changers_key():
+    # SUBJECT_KEYS routing: all three zone-reach keys resolve through
+    # _subject_spec for every subject shape, so a ranked type_changers deck
+    # signal never becomes a spec-less avenue (the import-time key-agreement
+    # gate skips subject keys; this pins the dynamic side).
+    for key in (
+        "type_changers",
+        "type_changers_all_zones",
+        "type_changers_graveyard",
+    ):
+        for subject in ("", "all", "Sliver"):
+            sig = Signal(key=key, scope="you", subject=subject, text="", source="c")
+            spec = spec_for(sig)
+            assert spec is not None, (key, subject)
+            assert spec.label, (key, subject)

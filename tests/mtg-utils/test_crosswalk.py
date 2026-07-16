@@ -16539,3 +16539,173 @@ def test_single_target_neutralize_excludes_compensating_auras():
     Deep Freeze's defender are part of the lock, not compensation)."""
     assert "single_target_neutralize" not in _keys("Burden of Proof")
     assert "single_target_neutralize" not in _keys("Awakened Awareness")
+
+
+# ── task #96: type_changers — mass creature-type changers (ADR-0040) ─────────
+# The lane reads non-CDA static defs whose affected is a mass Typed filter
+# (CR 109.2: bare "creatures you control" = battlefield permanents) with a
+# creature-type-adding modification. Subjects: "" = the chosen type
+# (AddChosenSubtype kind=CreatureType), "all" = every creature type
+# (AddAllCreatureTypes), "<Type>" = a fixed subtype (AddSubtype through the
+# _subtypes vocabulary gate). Attached single-recipient statics (EquippedBy /
+# EnchantedBy — the _PACIFY_ATTACH_PREDS shapes) are excluded per ADR-0040
+# ("single-target excluded"); a changeling's own type is a CDA (CR 702.73a /
+# 604.3 — membership, not a changer). Zone reach is modeled from v1: the
+# "The same is true for creature spells you control..." rider (CR 109.2's
+# "card"/zone words) adds type_changers_all_zones + type_changers_graveyard
+# via a ledgered bridge (phase parses the rider as Unimplemented), and Ashes
+# of the Fallen's graveyard static (a phase static-parser failure) fires
+# type_changers_graveyard alone.
+
+
+def test_type_changers_fires_for_xenograft_battlefield_only():
+    idents = _idents("Xenograft")
+    assert ("type_changers", "you", "") in idents
+    assert "type_changers_all_zones" not in _keys("Xenograft")
+    assert "type_changers_graveyard" not in _keys("Xenograft")
+
+
+def test_type_changers_fires_for_hivestone_fixed_subtype():
+    assert ("type_changers", "you", "Sliver") in _idents("Hivestone")
+
+
+@pytest.mark.parametrize(
+    ("name", "subject"),
+    [
+        ("Graaz, Unstoppable Juggernaut", "Juggernaut"),
+        ("Mephidross Vampire", "Vampire"),
+        ("Roshan, Hidden Magister", "Assassin"),
+        ("March of the World Ooze", "Ooze"),
+        ("Valentina Allegra de Fontaine", "Hero"),
+        ("Laughing Jasper Flint", "Mercenary"),
+        ("Sigarda's Summons", "Angel"),
+    ],
+)
+def test_type_changers_fixed_subtype_cases(name, subject):
+    assert ("type_changers", "you", subject) in _idents(name)
+
+
+def test_type_changers_each_scope_for_kudo():
+    # "Other creatures" (no controller filter, an Another predicate, not an
+    # attach shape) is an each-scope mass changer — it turns YOUR creatures
+    # into Bears too, so it still serves your tribal payoffs.
+    assert ("type_changers", "each", "Bear") in _idents("Kudo, King Among Bears")
+
+
+def test_type_changers_omo_counter_gated_every_type():
+    # Omo's everything-counter gate narrows the recipients, and "Each nonland
+    # creature with an everything counter" carries NO controller filter — the
+    # static is symmetric (any controller), so each-scope, like Kudo.
+    assert ("type_changers", "each", "all") in _idents("Omo, Queen of Vesuva")
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Conspiracy",
+        "Arcane Adaptation",
+        "Leyline of Transformation",
+        "Rukarumel, Biologist",
+    ],
+)
+def test_type_changers_same_is_true_rider_adds_zone_keys(name):
+    # The rider reaches spells on the stack and cards in hand/library/
+    # graveyard (CR 109.2's "card" wording), so these emit all three keys.
+    idents = _idents(name)
+    assert ("type_changers", "you", "") in idents
+    assert ("type_changers_all_zones", "you", "") in idents
+    assert ("type_changers_graveyard", "you", "") in idents
+
+
+def test_type_changers_maskwood_nexus_every_type_all_zones():
+    idents = _idents("Maskwood Nexus")
+    assert ("type_changers", "you", "all") in idents
+    assert ("type_changers_all_zones", "you", "all") in idents
+    assert ("type_changers_graveyard", "you", "all") in idents
+
+
+def test_type_changers_ashes_of_the_fallen_graveyard_only():
+    # "Each creature card in your graveyard" (CR 109.2: "card" + a named
+    # zone) never touches the battlefield: the graveyard key alone. Phase's
+    # static parser fails the line, so this is the upstream_parse_failure
+    # bridge, not a structural read.
+    idents = _idents("Ashes of the Fallen")
+    assert ("type_changers_graveyard", "you", "") in idents
+    assert "type_changers" not in _keys("Ashes of the Fallen")
+    assert "type_changers_all_zones" not in _keys("Ashes of the Fallen")
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        # changeling CDA (CR 702.73a/604.3): its own type, not a changer
+        "Taurean Mauler",
+        # self-add + counter anthem: the chosen type lands on ITSELF
+        "Adaptive Automaton",
+        "Metallic Mimic",
+        # attached single recipient (EquippedBy / EnchantedBy shapes)
+        "Amorphous Axe",
+        "Blade of the Oni",
+        "Coerced to Kill",
+        "Psychic Paper",
+        "Zoetic Glyph",
+        # opponent-side mass change is removal-shaped, not tribal-serving
+        "Dismiss into Dream",
+        # non-creature-type payloads (Forest = a LAND type; BasicLandType)
+        "Ashaya, Soul of the Wild",
+        "Realmwright",
+        # one-shot single-target mode, no static def
+        "Trickery Charm",
+    ],
+)
+def test_type_changers_excludes(name):
+    assert "type_changers" not in _keys(name)
+    assert "type_changers_all_zones" not in _keys(name)
+    assert "type_changers_graveyard" not in _keys(name)
+
+
+# ── task #96: extract_grant_payloads — the grant-payload structured read ─────
+# ADR-0040 prerequisite: "the grant payload must be surfaced by the crosswalk
+# before any quality read". A GrantPayload carries WHAT a static mass-grant
+# confers (the AddKeyword the type_matters lane deliberately drops at
+# tree_synthesis' static-def read), for the value layer (#97/#98/#100) —
+# never a Signal (emission stays strict; recipients never emit the granted
+# ability).
+
+
+def test_grant_payloads_bonescythe_double_strike():
+    from mtg_utils._deck_forge.crosswalk_signals import extract_grant_payloads
+
+    pays = extract_grant_payloads(_tree("Bonescythe Sliver"))
+    assert [(p.keyword, p.scope, p.subject) for p in pays] == [
+        ("double strike", "you", ("creature", "sliver"))
+    ]
+    assert "double strike" in pays[0].raw.lower()
+
+
+def test_grant_payloads_first_slivers_chosen_exalted():
+    from mtg_utils._deck_forge.crosswalk_signals import extract_grant_payloads
+
+    pays = extract_grant_payloads(_tree("First Sliver's Chosen"))
+    assert [(p.keyword, p.scope, p.subject) for p in pays] == [
+        ("exalted", "you", ("creature", "sliver"))
+    ]
+
+
+def test_grant_payloads_absolute_grace_each_scope_mirrorvariant():
+    # "All creatures have protection from black": no controller filter (an
+    # each-scope grant) and a MirrorVariant-wrapped keyword that must
+    # normalize to its key name.
+    from mtg_utils._deck_forge.crosswalk_signals import extract_grant_payloads
+
+    pays = extract_grant_payloads(_tree("Absolute Grace"))
+    assert [(p.keyword, p.scope, p.subject) for p in pays] == [
+        ("protection", "each", ("creature",))
+    ]
+
+
+def test_grant_payloads_empty_for_a_type_changer():
+    # Xenograft adds a TYPE, not an ability — no AddKeyword, no payload.
+    from mtg_utils._deck_forge.crosswalk_signals import extract_grant_payloads
+
+    assert extract_grant_payloads(_tree("Xenograft")) == ()

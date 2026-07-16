@@ -173,3 +173,28 @@ def test_tribal_payoff_subjects_excludes_commander_only_membership():
     payoffs = tribal_payoff_subjects(hd.records, {"Krenko, Mob Boss"}, ir_for=ir_for)
     assert "Sliver" in payoffs
     assert "Goblin" not in payoffs
+
+
+def test_type_changer_buckets_engine_serving_the_tribe():
+    # ADR-0040 (task #96): the Sliver benchmark's falsely-filler build-around.
+    # Leyline of Transformation mass-changes creature types (type_changers
+    # signal), so under a Sliver commander it must serve the "Sliver tribal"
+    # avenue structurally and bucket ENGINE — before this arm, the tribal
+    # serve's body-oracle deliberately excluded type-granters (B1) and the
+    # cut proposer ate the enabler as filler.
+    testkit.test_card_ir("The First Sliver")  # seeds the crosswalk trees memo
+    testkit.test_card_ir("Leyline of Transformation")
+    first_sliver = testkit.test_card("The First Sliver")
+    leyline = testkit.test_card("Leyline of Transformation")
+    deck = {
+        "format": "commander",
+        "commanders": [{"name": "The First Sliver", "quantity": 1}],
+        "cards": [{"name": "Leyline of Transformation", "quantity": 1}],
+    }
+    index = {c["name"]: c for c in (first_sliver, leyline)}
+    hd = HydratedDeck.from_parsed(deck, by_name=index)
+    sigs = rank_deck_signals(hd.records, {"The First Sliver"}, ir_for=ir_for)
+    classes = {c.name: c for c in classify_deck(hd, sigs, {"The First Sliver"})}
+    ley = classes["Leyline of Transformation"]
+    assert "Sliver tribal" in ley.served
+    assert ley.bucket == "engine"

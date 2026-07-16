@@ -49,6 +49,7 @@ from mtg_utils._card_ir.crosswalk import (
     effect_reaches_player,
     filter_core_types,
     filter_inzone_zones,
+    filter_predicates,
     filter_subtypes,
     iter_static_defs,
     iter_typed_nodes,
@@ -1813,9 +1814,147 @@ def _illusionists_gambit_match(tree: ConceptTree) -> bool:
     return _illusionists_gambit_gap(tree)
 
 
+# ── task #96 (ADR-0040): type_changers zone-reach bridges ────────────────────
+# CR 109.2 makes a bare "creatures you control" static battlefield-only; the
+# "The same is true for creature spells you control and creature cards you
+# own that aren't on the battlefield." rider is the all-zone extension
+# (Conspiracy / Arcane Adaptation / Leyline of Transformation / Maskwood
+# Nexus / Rukarumel, Biologist). Phase parses the rider ONLY as an
+# Unimplemented(name='unknown') effect residue, so the two zone keys ride
+# bridges. Ashes of the Fallen's graveyard grant fails phase's static parser
+# outright (a static_structure residue) — its own upstream row.
+
+_TC_MOD_TAGS = frozenset({"AddAllCreatureTypes", "AddChosenSubtype", "AddSubtype"})
+_TC_SAME_IS_TRUE_RX = re.compile(
+    r"The same is true for creature spells you control and creature cards "
+    r"you own that aren't on the battlefield",
+    re.IGNORECASE,
+)
+_TC_GY_STATIC_RX = re.compile(
+    r"Each creature card in your graveyard has the chosen creature type",
+    re.IGNORECASE,
+)
+
+
+def _tc_typed_statics(tree: ConceptTree) -> Iterator[object]:
+    for unit in tree.units:
+        for node in iter_static_defs(unit.node):
+            mods = getattr(node, "modifications", None) or ()
+            if any(tag_of(m) in _TC_MOD_TAGS for m in mods):
+                yield node
+
+
+def _tc_unimplemented_descs(tree: ConceptTree) -> Iterator[str]:
+    for unit in tree.units:
+        for cn in unit.iter_concepts():
+            if tag_of(cn.node) == "Unimplemented":
+                yield getattr(cn.node, "description", "") or ""
+
+
+def _tc_same_is_true_gap(tree: ConceptTree) -> bool:
+    # Retires when phase grows a typed beyond-battlefield reach onto a
+    # type-adding static (an InAnyZone/InZone property on its affected) —
+    # at that point the lane must read it structurally instead.
+    for node in _tc_typed_statics(tree):
+        affected = getattr(node, "affected", None)
+        if "InAnyZone" in filter_predicates(affected):
+            return False
+        if filter_inzone_zones(affected):
+            return False
+    return True
+
+
+def _tc_same_is_true_match(tree: ConceptTree) -> bool:
+    return any(_TC_SAME_IS_TRUE_RX.search(d) for d in _tc_unimplemented_descs(tree))
+
+
+def _tc_gy_parse_failure_gap(tree: ConceptTree) -> bool:
+    # Retires when phase's static parser accepts the graveyard grant (a
+    # type-adding static whose affected carries InZone Graveyard).
+    for node in _tc_typed_statics(tree):
+        if "Graveyard" in filter_inzone_zones(getattr(node, "affected", None)):
+            return False
+    return True
+
+
+def _tc_gy_parse_failure_match(tree: ConceptTree) -> bool:
+    return any(_TC_GY_STATIC_RX.search(d) for d in _static_parse_failure_descs(tree))
+
+
 BRIDGES: dict[str, Bridge] = {
     b.bridge_id: b
     for b in (
+        Bridge(
+            bridge_id="type_changers_same_is_true_all_zones",
+            key="type_changers_all_zones",
+            kind="dropped_clause",
+            todo=(
+                "upstream phase-rs report candidate (Dan posts): the "
+                "'The same is true for creature spells you control and "
+                "creature cards you own that aren't on the battlefield' "
+                "rider parses as Unimplemented(name='unknown') with no "
+                "typed multi-zone reach — retires on a phase bump that "
+                "structures the rider (an InAnyZone-property affected or "
+                "equivalent), at which point _type_changers reads it "
+                "structurally"
+            ),
+            census=(
+                "5 hits / whole pool (Conspiracy, Arcane Adaptation, "
+                "Leyline of Transformation, Maskwood Nexus, Rukarumel, "
+                "Biologist), phase v0.23.0, 2026-07-16"
+            ),
+            pins=(
+                "Conspiracy",
+                "Arcane Adaptation",
+                "Leyline of Transformation",
+                "Maskwood Nexus",
+                "Rukarumel, Biologist",
+            ),
+            gap=_tc_same_is_true_gap,
+            match=_tc_same_is_true_match,
+        ),
+        Bridge(
+            bridge_id="type_changers_same_is_true_graveyard",
+            key="type_changers_graveyard",
+            kind="dropped_clause",
+            todo=(
+                "same rider as type_changers_same_is_true_all_zones (one "
+                "ledger row per served key): the graveyard is inside the "
+                "rider's \"cards you own that aren't on the battlefield\" "
+                "reach — retires with its sibling on the same phase bump"
+            ),
+            census=(
+                "5 hits / whole pool (the same-is-true set), phase v0.23.0, 2026-07-16"
+            ),
+            pins=(
+                "Conspiracy",
+                "Arcane Adaptation",
+                "Leyline of Transformation",
+                "Maskwood Nexus",
+                "Rukarumel, Biologist",
+            ),
+            gap=_tc_same_is_true_gap,
+            match=_tc_same_is_true_match,
+        ),
+        Bridge(
+            bridge_id="type_changers_graveyard_static_parse_failure",
+            key="type_changers_graveyard",
+            kind="upstream_parse_failure",
+            todo=(
+                "upstream phase-rs report candidate (Dan posts): the "
+                "static parser matches but fails 'Each creature card in "
+                "your graveyard has the chosen creature type in addition "
+                "to its other types' (a static_structure residue) — "
+                "retires on a phase bump that structures the graveyard "
+                "grant (an InZone-Graveyard affected)"
+            ),
+            census=(
+                "1 hit / whole pool (Ashes of the Fallen), phase v0.23.0, 2026-07-16"
+            ),
+            pins=("Ashes of the Fallen",),
+            gap=_tc_gy_parse_failure_gap,
+            match=_tc_gy_parse_failure_match,
+        ),
         Bridge(
             bridge_id="degavolver_kicker_paylife_regen",
             key="lifeloss_makers",

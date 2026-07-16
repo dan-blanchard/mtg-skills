@@ -160,6 +160,13 @@ class Serve:
     self_recur: bool = False  # serve a creature that returns/recasts ITSELF from a gy
     names: frozenset[str] = frozenset()  # serve if the card NAME is in this set
     mana_cost: re.Pattern[str] | None = None  # regex on printed mana_cost (X-spells)
+    # Structural arm (task #96): serve if the card's own emitted signal idents
+    # ("key|scope|subject" — the task-#90 vocabulary, memoized per oracle_id)
+    # intersect this set. The theme_presets ``signal_keys`` precedent, with
+    # scope/subject discrimination — a Sliver-tribal serve lists
+    # ``type_changers|you|Sliver`` and never matches a Goblin changer. Empty
+    # idents (synthetic no-oracle_id fixtures) simply never match this arm.
+    signal_idents: frozenset[str] = frozenset()
     not_oracle: re.Pattern[str] | None = None
     # AND-composition: when non-empty, the card serves iff EVERY sub-serve matches
     # (each sub-serve is its own OR-of-dimensions). Lets a serve require a conjunction
@@ -241,12 +248,23 @@ class Serve:
             return True
         if self.self_recur and _self_recurs(card, oracle_text):
             return True
-        return (
+        if (
             self.min_devotion is not None
             and "instant" not in type_line
             and "sorcery" not in type_line
             and _max_color_pips(card.get("mana_cost") or "") >= self.min_devotion
-        )
+        ):
+            return True
+        if self.signal_idents:
+            # Costliest arm (a live crosswalk pass on a cold memo) — checked
+            # last, only after every record-shape dimension has missed. Lazy
+            # import: theme_presets imports _deck_forge.signals lazily for the
+            # same cycle reason its own docstring records.
+            from mtg_utils.theme_presets import _signal_idents_for
+
+            if _signal_idents_for(card) & self.signal_idents:
+                return True
+        return False
 
     def as_dict(self) -> dict:
         """Serialize for an avenue dict (JSON-safe), so ranking can re-apply the
@@ -282,6 +300,8 @@ class Serve:
             out["names"] = sorted(self.names)
         if self.mana_cost is not None:
             out["mana_cost"] = self.mana_cost.pattern
+        if self.signal_idents:
+            out["signal_idents"] = sorted(self.signal_idents)
         if self.not_oracle is not None:
             out["not_oracle"] = self.not_oracle.pattern
         if self.all_of:
@@ -305,6 +325,7 @@ class Serve:
             or self.vanilla
             or self.self_recur
             or self.names
+            or self.signal_idents
             or self.not_oracle is not None
             or bool(self.all_of)
         )
@@ -383,6 +404,7 @@ def serve_from_dict(data: dict) -> Serve:
         self_recur=bool(data.get("self_recur")),
         names=frozenset(n.lower() for n in (data.get("names") or ())),
         mana_cost=_compile(data.get("mana_cost")),
+        signal_idents=frozenset(data.get("signal_idents") or ()),
         not_oracle=_compile(data.get("not_oracle")),
         all_of=tuple(serve_from_dict(d) for d in (data.get("all_of") or ())),
     )
@@ -6387,6 +6409,30 @@ def _payoff_extra(subj: str, esc: str) -> SubAvenue:
     )
 
 
+_TYPE_CHANGER_KEYS = frozenset(
+    {
+        signal_keys.TYPE_CHANGERS,
+        signal_keys.TYPE_CHANGERS_ALL_ZONES,
+        signal_keys.TYPE_CHANGERS_GRAVEYARD,
+    }
+)
+
+
+def _type_changer_idents(tribe_subjects: tuple[str, ...]) -> frozenset[str]:
+    """The type_changers idents that grow a tribe (task #96): the open subjects
+    ("" chosen / "all" every type) always count; a fixed-subtype changer counts
+    only for ITS tribe(s). Scopes you+each (Kudo's "other creatures" grows your
+    side too); all three zone-reach keys (a graveyard-only changer still feeds
+    graveyard-facing tribal payoffs)."""
+    subjects = {"", "all"} | {s.capitalize() for s in tribe_subjects}
+    return frozenset(
+        f"{key}|{scope}|{subj}"
+        for key in _TYPE_CHANGER_KEYS
+        for scope in ("you", "each")
+        for subj in subjects
+    )
+
+
 def _enabler_extra(subj: str) -> SubAvenue:
     # Type-changers (Xenograft, Arcane Adaptation) turn OTHER creatures into {subj}s, so
     # the tribe grows and your {subj} payoffs hit more bodies. A distinct lane: an
@@ -6448,6 +6494,29 @@ def _subject_spec(signal: Signal) -> SignalSpec:
             ),
             search={"oracle": partner_re},
             serve=Serve(oracle=re.compile(partner_re, _IC)),
+        )
+    # type_changers (task #96, ADR-0040): a mass creature-type changer's own
+    # spec. Subject "" (chosen) / "all" (every type) is subject-agnostic — one
+    # "Type changers" label, so the three zone-reach keys and both open
+    # subjects collapse to a single avenue downstream (focus dedupes by
+    # label). A fixed subtype ("Sliver") reuses the tribal extras' enabler
+    # label so Hivestone's own signal and the Sliver-tribal enabler
+    # sub-avenue read as one lane.
+    if signal.key in _TYPE_CHANGER_KEYS:
+        label = "Type changers" if subj in ("", "all") else f"{subj} enablers"
+        return SignalSpec(
+            label=label,
+            avenue=(
+                "cards that mass-change creature types (Xenograft, Maskwood "
+                "Nexus) so tribal payoffs reach more of the board"
+            ),
+            search={"oracle": _ENABLER_GRANT},
+            serve=Serve(
+                oracle=re.compile(_ENABLER_GRANT, _IC),
+                signal_idents=_type_changer_idents(
+                    () if subj in ("", "all") else (subj,)
+                ),
+            ),
         )
     # token-maker: the deck CREATES {s} tokens, so find cards that *make* them (not the
     # tribe — searching the type line surfaced {s} creatures that don't make tokens).
@@ -6515,6 +6584,15 @@ def _subject_spec(signal: Signal) -> SignalSpec:
             # dropped — fatal for lord-less tribes (Shade/Kraken/Yeti read 0/10).
             types=frozenset(members) if is_type_tribal else frozenset(),
             keywords=frozenset({"changeling"}) if is_type_tribal else frozenset(),
+            # Structural enabler arm (task #96, ADR-0040): a mass type-changer
+            # SERVES the tribe it grows (Leyline of Transformation under a
+            # Sliver commander — the benchmark's falsely-filler build-around),
+            # by its own emitted type_changers idents. Bodies-by-type-line
+            # above are unchanged: B1 still keeps granters out of the body
+            # oracle; this arm credits them at the serve level instead.
+            signal_idents=(
+                _type_changer_idents(tuple(members)) if is_type_tribal else frozenset()
+            ),
         ),
         extras=(
             _payoff_extra(subj, esc),
@@ -6656,7 +6734,11 @@ def payoff_search(search: dict, serve: Serve) -> dict:
 def spec_for(signal: Signal) -> SignalSpec | None:
     """Resolve a spec. Subject-bearing signals build a per-subject spec; otherwise
     exact (key, scope) → (key, any) → first entry by key."""
-    if signal.key in _SUBJECT_KEYS and signal.subject:
+    # type_changers' "" subject is a VALUE ("the chosen type" — Xenograft),
+    # not subject-absence, so those keys dispatch dynamic even when empty.
+    if signal.key in _SUBJECT_KEYS and (
+        signal.subject or signal.key in _TYPE_CHANGER_KEYS
+    ):
         return _subject_spec(signal)
     exact = SPECS.get((signal.key, signal.scope))
     if exact is not None:

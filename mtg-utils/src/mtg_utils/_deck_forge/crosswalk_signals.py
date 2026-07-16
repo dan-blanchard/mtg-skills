@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import re
 from collections.abc import Callable, Iterator, Sequence
-from dataclasses import fields
+from dataclasses import dataclass, fields
 
 from mtg_utils._card_ir.crosswalk import (
     ARTIFACT_TOKEN_SUBTYPES,
@@ -382,6 +382,13 @@ PORTED_KEYS: frozenset[str] = frozenset(
         # 611.2 — the permanent stays). See `_single_target_neutralize`'s
         # own docstring for the fold-vs-new-key adjudication.
         "single_target_neutralize",
+        # task #96 (ADR-0040): mass creature-type changers, zone reach as
+        # sibling keys (battlefield / beyond-battlefield / graveyard) — see
+        # `_type_changers`'s docstring for the CR grounding and the two
+        # ledgered text bridges.
+        "type_changers",
+        "type_changers_all_zones",
+        "type_changers_graveyard",
         "direct_damage",
         "landfall",
         "sacrifice_outlets",
@@ -3436,6 +3443,147 @@ def _single_target_neutralize(tree: ConceptTree) -> list[Signal]:
                         )
                     ]
     return []
+
+
+# ── task #96 (ADR-0040): type_changers — mass creature-type changers ─────────
+_TYPE_CHANGER_ZONE_BRIDGES = (
+    # (bridge_id, key) — the "same is true…" rider extends an existing
+    # battlefield changer beyond the battlefield (one ledger row per key).
+    ("type_changers_same_is_true_all_zones", "type_changers_all_zones"),
+    ("type_changers_same_is_true_graveyard", "type_changers_graveyard"),
+)
+
+
+def _type_changer_static_reads(tree: ConceptTree) -> list[tuple[str, str, str]]:
+    """(scope, subject, raw) per qualifying mass type-adding static def.
+
+    Qualifying: non-CDA (a changeling's own every-type is a CDA, CR
+    702.73a/604.3 — membership, not a changer), a Creature-cored ``affected``
+    with no attach predicate (Equipment/Aura "equipped/enchanted creature is
+    a …" is a single recipient — ADR-0040 excludes single-target), and not
+    Opponent-controlled (Dismiss into Dream is removal-shaped, never
+    tribal-serving). Controller You → scope "you"; a bare "each/other
+    creatures" static (Kudo) → "each" (it grows YOUR side too)."""
+    out: list[tuple[str, str, str]] = []
+    for unit in tree.units:
+        for node in iter_static_defs(unit.node):
+            if getattr(node, "characteristic_defining", False):
+                continue
+            affected = getattr(node, "affected", None)
+            if affected is None:
+                continue
+            if set(filter_predicates(affected)) & _PACIFY_ATTACH_PREDS:
+                continue
+            cores = {c.lower() for c in filter_core_types(affected)}
+            if "creature" not in cores:
+                continue
+            ctrl = filter_controller(affected)
+            if ctrl == "Opponent":
+                continue
+            scope = "you" if ctrl == "You" else "each"
+            for m in getattr(node, "modifications", None) or ():
+                tag = tag_of(m)
+                if tag == "AddAllCreatureTypes":
+                    out.append((scope, "all", _site_raw(node)))
+                elif (
+                    tag == "AddChosenSubtype"
+                    and getattr(m, "kind", None) == "CreatureType"
+                ):
+                    out.append((scope, "", _site_raw(node)))
+                elif tag == "AddSubtype":
+                    # The _subtypes vocabulary gate: Ashaya's Forest is a LAND
+                    # type, Equipment an artifact subtype — never a tribe.
+                    resolved = _resolve_subject(
+                        str(getattr(m, "subtype", "") or ""), CREATURE_SUBTYPES
+                    )
+                    if resolved:
+                        out.append((scope, resolved, _site_raw(node)))
+    return out
+
+
+def _type_changers(tree: ConceptTree) -> list[Signal]:
+    """type_changers (+_all_zones / +_graveyard) — mass creature-type changers
+    (CR 613.1d layer 4), the ADR-0040 extraction prerequisite: Leyline of
+    Transformation was the Sliver benchmark's falsely-filler build-around.
+
+    Subjects: "" = the chosen type (``AddChosenSubtype`` kind=CreatureType,
+    Xenograft), "all" = every creature type (``AddAllCreatureTypes``,
+    Maskwood Nexus), "<Type>" = a fixed subtype (``AddSubtype`` through the
+    ``_resolve_subject`` vocabulary gate, Hivestone → Sliver). Whether the
+    grant retains prior types ("in addition", CR 205.1b) or replaces them
+    (Conspiracy) both count — either way your board IS the tribe.
+
+    Zone reach is modeled as sibling keys from v1 (ADR-0040): a bare
+    "creatures you control" static is battlefield-only (CR 109.2), so the
+    base key alone (Xenograft). The "The same is true for creature spells
+    you control and creature cards you own that aren't on the battlefield"
+    rider reaches the stack/hand/library/graveyard — phase parses it as an
+    ``Unimplemented`` residue, so the two zone keys ride ledgered bridges
+    (self-retiring when phase grows the rider's structure). Ashes of the
+    Fallen's graveyard-only static FAILS phase's static parser outright —
+    an upstream_parse_failure bridge fires the graveyard key alone."""
+    reads = _type_changer_static_reads(tree)
+    out: list[Signal] = []
+    seen: set[tuple[str, str, str]] = set()
+
+    def push(key: str, scope: str, subject: str, raw: str) -> None:
+        if (key, scope, subject) not in seen:
+            seen.add((key, scope, subject))
+            out.append(Signal(key, scope, subject, raw, tree.name, "high"))
+
+    for scope, subject, raw in reads:
+        push("type_changers", scope, subject, raw)
+        for bridge_id, key in _TYPE_CHANGER_ZONE_BRIDGES:
+            if bridge_fires(bridge_id, tree):
+                push(key, scope, subject, raw)
+    if bridge_fires("type_changers_graveyard_static_parse_failure", tree):
+        # Subject "" — the failed line is the chosen-type graveyard grant
+        # (the bridge's match is that exact sentence).
+        push("type_changers_graveyard", "you", "", tree.oracle or "")
+    return out
+
+
+@dataclass(frozen=True)
+class GrantPayload:
+    """WHAT a static mass-grant confers (ADR-0040 prerequisite): the
+    ``AddKeyword`` payload the ``type_matters`` static-def read deliberately
+    drops. A structured read for the value layer (Granter quality, grant-
+    covered roles, closer counting — tasks #97/#98/#100), never a Signal:
+    emission stays strict, a recipient never emits the granted ability.
+
+    ``keyword`` is normalized lowercase ("double strike", "protection" — a
+    parameterized MirrorVariant normalizes to its key name); ``subject`` is
+    the recipient filter's lowercased words (("creature", "sliver"));
+    ``raw`` carries the grant sentence so a quality predicate (ADR-0040 §2's
+    hellbent-gate mislead) can read the condition without new fields."""
+
+    keyword: str
+    scope: str
+    subject: tuple[str, ...]
+    raw: str
+
+
+_GRANT_KW_CAMEL = re.compile(r"(?<=[a-z])(?=[A-Z])")
+
+
+def extract_grant_payloads(tree: ConceptTree) -> tuple[GrantPayload, ...]:
+    """Every static grant payload on the tree, in concept-node order."""
+    out: list[GrantPayload] = []
+    for cn in tree.iter_concepts():
+        if cn.concept != "grant_keyword" or tag_of(cn.node) != "AddKeyword":
+            continue
+        kw = mod_keyword_name(cn.node)
+        if not kw:
+            continue
+        out.append(
+            GrantPayload(
+                keyword=_GRANT_KW_CAMEL.sub(" ", kw).lower(),
+                scope=cn.scope,
+                subject=tuple(s.lower() for s in (cn.subject or ())),
+                raw=cn.raw or "",
+            )
+        )
+    return tuple(out)
 
 
 # ADR-0038 W5 tails (direct_damage): a recovery.ALLOWLIST "damage" node (a
@@ -25938,6 +26086,7 @@ _LANES = (
     _plus_one_makers,
     _pacify_makers,
     _single_target_neutralize,
+    _type_changers,
     _direct_damage,
     _landfall,
     _sacrifice_outlets,

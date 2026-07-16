@@ -27,7 +27,26 @@ KEYWORD_TRIBE: Final = "keyword_tribe"
 # Meld (CR 701.42): the subject is THIS card's own name; the one partner that melds
 # with it names this card in its meld text, so the per-subject serve finds exactly it.
 MELD_PAIR: Final = "meld_pair"
+# Mass creature-type changers (ADR-0040 / task #96, CR 613.1d layer 4). Subject
+# "" = the chosen type, "all" = every creature type, "<Type>" = a fixed subtype
+# (Hivestone). Zone reach is modeled as sibling keys (CR 109.2: a bare
+# "creatures you control" static is battlefield-only; the "The same is true for
+# creature spells you control…" rider reaches the stack/hand/library/graveyard):
+# an all-zone changer emits all three, a graveyard-only changer (Ashes of the
+# Fallen) the graveyard key alone.
+TYPE_CHANGERS: Final = "type_changers"
+TYPE_CHANGERS_ALL_ZONES: Final = "type_changers_all_zones"
+TYPE_CHANGERS_GRAVEYARD: Final = "type_changers_graveyard"
 
 SUBJECT_KEYS: Final = frozenset(
-    {TYPE_MATTERS, TOKEN_MAKER, TYPED_SPELLCAST, KEYWORD_TRIBE, MELD_PAIR}
+    {
+        TYPE_MATTERS,
+        TOKEN_MAKER,
+        TYPED_SPELLCAST,
+        KEYWORD_TRIBE,
+        MELD_PAIR,
+        TYPE_CHANGERS,
+        TYPE_CHANGERS_ALL_ZONES,
+        TYPE_CHANGERS_GRAVEYARD,
+    }
 )
