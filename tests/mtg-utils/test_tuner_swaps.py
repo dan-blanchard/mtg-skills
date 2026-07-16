@@ -721,3 +721,15 @@ def test_reliable_ramp_excludes_conditional_and_opponent_mana():
             type_line="Instant",
         )
     )
+
+
+def test_cut_candidates_null_rank_low_value_is_medium_aware():
+    # ADR-0040 §4 (task #99): a null edhrec_rank on a digital deck is no-data
+    # (EDHREC has no Arena population), so it can't push an engine card into
+    # the low_value cut queue; on paper it stays fringe-evidence and does.
+    classes = [_cc("Alchemy Only", "engine", served=["Tokens"], edhrec_rank=None)]
+    kw = {"budgets": {}, "focus_verdict": "FOCUSED", "stranded": set()}
+    paper = cut_candidates(classes, medium="paper", **kw)
+    digital = cut_candidates(classes, medium="digital", **kw)
+    assert ("low_value", "Alchemy Only") in [(r, c.name) for r, c in paper]
+    assert [(r, c.name) for r, c in digital] == []

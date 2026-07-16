@@ -169,7 +169,11 @@ def efficiency(
 
 
 def focus(
-    classes: Sequence[CardClass], *, deck_size: int, deck_signals: Sequence = ()
+    classes: Sequence[CardClass],
+    *,
+    deck_size: int,
+    deck_signals: Sequence = (),
+    medium: str = "paper",
 ) -> dict:
     # Avenues that are really Spine roles (ramp/draw/removal) are not themes — exclude
     # them so the deck's mana base + scaffolding can't masquerade as its main lane.
@@ -243,7 +247,9 @@ def focus(
     # deck. Dead weight the bucket test alone misses, surfaced as an upgrade target (the
     # one EDHREC-popularity lean, by user direction).
     low_value_cards = [
-        c.name for c in nonland if c.bucket == "engine" and is_fringe(c.edhrec_rank)
+        c.name
+        for c in nonland
+        if c.bucket == "engine" and is_fringe(c.edhrec_rank, medium=medium)
     ]
 
     engine_labels = {lbl for c in engine for lbl in themes(c)}

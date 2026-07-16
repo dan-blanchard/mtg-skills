@@ -322,3 +322,42 @@ def test_combo_piece_protected_from_cuts():
     )
     cut_names = {s["cut"]["name"] for s in out["swaps"]}
     assert "Hill Giant" not in cut_names
+
+
+def test_medium_threads_to_the_low_value_reads():
+    # ADR-0040 §4 (task #99): tune wires ir_for, so signals only resolve for
+    # real snapshot cards — the synthetic _hd() harness buckets everything
+    # filler and can't observe the low_value read. Real Krenko + Rabblemaster
+    # (both snapshot-resident, edhrec_rank=None in the minimal records) give
+    # one engine card: fringe-evidence on the default paper medium, no-data
+    # on digital. Proves TuneParams.medium reaches metrics.focus.
+    from mtg_utils import testkit
+
+    testkit.test_card_ir("Krenko, Mob Boss")  # seeds the crosswalk trees memo
+    testkit.test_card_ir("Goblin Rabblemaster")
+    index = {
+        c["name"]: c
+        for c in (
+            testkit.test_card("Krenko, Mob Boss"),
+            testkit.test_card("Goblin Rabblemaster"),
+            MOUNTAIN,
+        )
+    }
+    deck = {
+        "format": "commander",
+        "deck_size": 100,
+        "commanders": [{"name": "Krenko, Mob Boss", "quantity": 1}],
+        "cards": [
+            {"name": "Goblin Rabblemaster", "quantity": 1},
+            {"name": "Mountain", "quantity": 1},
+        ],
+    }
+    hd = HydratedDeck.from_parsed(deck, by_name=index)
+    paper = tune(hd, search_fn=_fake_search, params=TuneParams(max_swaps=0))
+    digital = tune(
+        hd,
+        search_fn=_fake_search,
+        params=TuneParams(max_swaps=0, medium="digital"),
+    )
+    assert paper["scorecard"]["focus"]["low_value_cards"] == ["Goblin Rabblemaster"]
+    assert digital["scorecard"]["focus"]["low_value_cards"] == []

@@ -29,9 +29,15 @@ _SPINE_ROLES = frozenset({"ramp", "card_draw", "interaction", "board_wipe"})
 FRINGE_RANK = 15000
 
 
-def is_fringe(rank: int | None) -> bool:
-    """True when a card is barely-played (an upgrade candidate within its theme)."""
-    return rank is None or rank > FRINGE_RANK
+def is_fringe(rank: int | None, *, medium: str = "paper") -> bool:
+    """True when a card is barely-played (an upgrade candidate within its theme).
+
+    EDHREC is a paper-EDH population (ADR-0040 §4): a null rank on a digital
+    deck is a population artifact (Arena-only cards can never appear there) —
+    no data, never condemning. On paper, absence genuinely means unplayed."""
+    if rank is None:
+        return medium != "digital"
+    return rank > FRINGE_RANK
 
 
 @dataclass(frozen=True)

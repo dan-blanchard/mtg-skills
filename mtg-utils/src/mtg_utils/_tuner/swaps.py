@@ -124,6 +124,7 @@ def cut_candidates(
     focus_verdict: str,
     stranded: set[str],
     protected: Collection[str] = (),
+    medium: str = "paper",
 ) -> list[tuple[str, CardClass]]:
     """Ordered (reason, card) cut candidates, most-cuttable first. Hard floors apply.
 
@@ -150,7 +151,11 @@ def cut_candidates(
     #     edhrec_rank), e.g. a vanilla beater that "counts" as creature support. Upgrade
     #     targets, worst play-rate (incl. unranked) first.
     for c in sorted(
-        (c for c in classes if c.bucket == "engine" and is_fringe(c.edhrec_rank)),
+        (
+            c
+            for c in classes
+            if c.bucket == "engine" and is_fringe(c.edhrec_rank, medium=medium)
+        ),
         key=lambda c: -(c.edhrec_rank if c.edhrec_rank is not None else 10**9),
     ):
         push("low_value", c)
@@ -340,6 +345,7 @@ def propose_swaps(
     fill_slots: int = 0,
     wildcard_budget: Mapping[str, int] | None = None,
     protected: Collection[str] = (),
+    medium: str = "paper",
 ) -> dict:
     """Walk the ranked issues, sourcing a (cut, add) pair per actionable issue up to
     ``max_swaps``. When ``fill_slots`` > 0 (an under-sized deck) a fill pass then adds
@@ -374,6 +380,7 @@ def propose_swaps(
         focus_verdict=focus_result["verdict"],
         stranded=stranded,
         protected=protected,
+        medium=medium,
     )
     # Route cuts: a role_over trim cuts from THAT over role; other issues draw from the
     # generic pool (filler then stranded), so a trim isn't derailed onto filler.

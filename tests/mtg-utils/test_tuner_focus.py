@@ -139,3 +139,18 @@ def test_removal_family_avenues_are_not_themes():
     assert exile_label not in labels  # scaffolding, not a theme
     assert counter_label not in labels
     assert "Voltron / equipment & auras" in {a["label"] for a in fr["viable_avenues"]}
+
+
+def test_null_rank_low_value_read_is_medium_aware():
+    # ADR-0040 §4 (task #99): the _cc helper leaves edhrec_rank=None — on a
+    # paper deck that is fringe-evidence (genuinely unplayed), on a digital
+    # deck it is no-data (EDHREC has no Arena population) and cannot land a
+    # card in low_value_cards.
+    classes = [
+        _cc("Token Maker A", "engine", ["Tokens"]),
+        _cc("Token Maker B", "engine", ["Tokens"]),
+    ]
+    paper = focus(classes, deck_size=10, medium="paper")
+    digital = focus(classes, deck_size=10, medium="digital")
+    assert set(paper["low_value_cards"]) == {"Token Maker A", "Token Maker B"}
+    assert digital["low_value_cards"] == []

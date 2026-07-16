@@ -2,7 +2,7 @@
 
 from mtg_utils import testkit
 from mtg_utils._deck_forge.signals import rank_deck_signals
-from mtg_utils._tuner.classify import classify_deck
+from mtg_utils._tuner.classify import FRINGE_RANK, classify_deck, is_fringe
 from mtg_utils.hydrated_deck import HydratedDeck
 
 KRENKO = {
@@ -128,3 +128,22 @@ def test_serving_protection_card_buckets_spine_not_engine():
     assert hi.served  # it does serve the grant-protection lane
     assert hi.bucket == "spine"  # but protection outranks engine
     assert hi.dual_purpose is True
+
+
+def test_is_fringe_null_rank_is_medium_aware():
+    # ADR-0040 §4 (task #99): EDHREC is a paper-EDH population. A null rank on
+    # a digital deck is a population artifact (Arena-only cards can never
+    # appear there) — no data, so it must not condemn. On paper, absence from
+    # EDHREC genuinely means unplayed, and stays fringe-evidence.
+    assert is_fringe(None, medium="paper") is True
+    assert is_fringe(None) is True  # paper is the default
+    assert is_fringe(None, medium="digital") is False
+
+
+def test_is_fringe_ranked_cards_read_the_same_on_both_mediums():
+    # A REAL rank means the card exists in the paper population too — the
+    # play-rate signal is meaningful regardless of the deck's medium.
+    assert is_fringe(FRINGE_RANK + 1, medium="paper") is True
+    assert is_fringe(FRINGE_RANK + 1, medium="digital") is True
+    assert is_fringe(10, medium="paper") is False
+    assert is_fringe(10, medium="digital") is False

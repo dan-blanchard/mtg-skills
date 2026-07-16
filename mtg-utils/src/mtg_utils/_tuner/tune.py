@@ -148,7 +148,12 @@ def tune(
 
     budgets = slot_budgets(hd.expanded(), deck_size=deck_size, shape=shape)
     eff = metrics.efficiency(classes, shape=shape, avg_cmc=avg_cmc, deck_size=deck_size)
-    foc = metrics.focus(classes, deck_size=deck_size, deck_signals=deck_signals)
+    foc = metrics.focus(
+        classes,
+        deck_size=deck_size,
+        deck_signals=deck_signals,
+        medium=params.medium,
+    )
     tmpl = metrics.template_deviation(budgets)
     wins = metrics.win_conditions(classes, shape=shape, combo_count=combo_count)
     prot = metrics.protection(classes, shape=shape, deck_size=deck_size)
@@ -220,6 +225,7 @@ def tune(
             fill_slots=fill_slots,
             wildcard_budget=params.wildcard_budget,
             protected=combo_pieces | wincon_protect,
+            medium=params.medium,
         )
         # The fill pass deliberately skips lands; flag any mana-base shortfall so the
         # user runs the land tooling (balance-lands), not Tune, to finish it.
