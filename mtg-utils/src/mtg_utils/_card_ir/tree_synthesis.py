@@ -1440,6 +1440,9 @@ def structural_type_subjects(tree: ConceptTree) -> set[str]:
 # lane), so the TYPE_MATTERS-key filter drops it here.
 
 
+_COPY_EXCEPTION_RX = re.compile(r"\bas a copy of\b[^.]*\bexcept\b", re.IGNORECASE)
+
+
 def _mirror_type_subjects(oracle: str) -> set[str]:
     """Every creature subtype the four kept-oracle tribal producers capture, per
     reminder-stripped clause (the bucket-B tribal idioms — CR 205.3).
@@ -1452,6 +1455,14 @@ def _mirror_type_subjects(oracle: str) -> set[str]:
     """
     subs: set[str] = set()
     for cl in clauses(_REMINDER.sub(" ", oracle or "")):
+        # A copy-exception rider ("enter as a copy of ... except it's a Bird
+        # in addition to its other types") is SELF-directed — CR 707.9d: the
+        # exception modifies the COPY's own characteristics. That is
+        # membership (the type line already carries it), never a kindred
+        # payoff; captured here it fed the emerging-tribal payoff gate a
+        # phantom Bird payoff (Mockingbird, the Sliver benchmark).
+        if _COPY_EXCEPTION_RX.search(cl):
+            continue
         for _k, s in _detect_type_matters(cl, CREATURE_SUBTYPES):
             subs.add(s)
         for _k, s in _detect_multi_tribe_anthem(cl, CREATURE_SUBTYPES):

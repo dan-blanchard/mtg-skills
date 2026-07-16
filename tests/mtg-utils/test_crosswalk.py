@@ -16846,3 +16846,23 @@ def test_grant_payloads_exclude_combat_relation_recipients():
 def test_type_changers_mirror_entity_granted_changeling():
     idents = _idents("Mirror Entity")
     assert ("type_changers", "you", "all") in idents
+
+
+@pytest.mark.parametrize(
+    ("name", "subject"),
+    [("Mockingbird", "Bird"), ("Phantasmal Image", "Illusion")],
+)
+def test_copy_exception_type_grant_is_not_a_tribal_payoff(name, subject):
+    # "enter as a copy of ... except it's a Bird in addition to its other
+    # types" is a SELF-directed copy exception (CR 707.9d — it modifies the
+    # copy's own characteristics): membership, never a kindred payoff. The
+    # bucket-B type-grant mirror captured it as HIGH-confidence type_matters,
+    # which fed the emerging-tribal payoff gate a phantom Bird payoff on the
+    # Sliver benchmark. The type-line membership floor may still emit the
+    # subject at LOW confidence (it IS a Bird) — the payoff gate ignores LOW.
+    high = {
+        (s.key, s.scope, s.subject)
+        for s in extract_crosswalk_signals(_tree(name), keywords=_kw(name))
+        if s.confidence == "high"
+    }
+    assert ("type_matters", "you", subject) not in high
