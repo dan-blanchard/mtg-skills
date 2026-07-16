@@ -458,13 +458,27 @@ def top_issues(
 
     for role, b in template_r["short"].items():
         deficit = -b["deviation"]
+        # ADR-0040 §1: a grant-covered role (the commander's own ability GRANTS
+        # this role's resource to every recipient body — deck-forge CONTEXT.md
+        # "Grant-covered role") keeps its literal shortfall message but downgrades
+        # to advisory: swaps.py's _spec_for_issue reads this flag and sources no
+        # add for it. Never suppressed — the deficit/message are unchanged.
+        covered = bool(b.get("grant_covered"))
+        message = (
+            f"{role.replace('_', ' ')} short by {deficit} "
+            f"({b['current']}/{b['min']}-{b['max']})"
+        )
+        if covered:
+            by = b.get("grant_covered_by", "")
+            message += f" — covered by {by}'s ability grant"
         issues.append(
             {
                 "kind": "role_short",
                 "role": role,
                 "severity": deficit,
-                "message": f"{role.replace('_', ' ')} short by {deficit} "
-                f"({b['current']}/{b['min']}-{b['max']})",
+                "advisory": covered,
+                "grant_covered": covered,
+                "message": message,
             }
         )
     for role, b in template_r["over"].items():

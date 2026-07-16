@@ -364,6 +364,65 @@ def test_no_bracket_section_without_target():
     assert sc.get("bracket") is None
 
 
+def test_grant_covered_commander_downgrades_card_draw_shortfall_to_advisory():
+    # ADR-0040 §1 / the benchmark this fixes: a Sliver Weftwinder deck's commander
+    # grants every Sliver a repeatable per-body draw trigger. The card_draw band
+    # stays a literal count (the deck runs zero dedicated draw), but the shortfall
+    # must read advisory — no swap should burn budget sourcing generic draw spells.
+    from mtg_utils import testkit
+
+    testkit.test_card_ir("Sliver Weftwinder")  # seeds the crosswalk trees memo
+    weftwinder = testkit.test_card("Sliver Weftwinder")
+    sliver_filler = {
+        "name": "Sentinel Sliver",
+        "type_line": "Creature — Sliver",
+        "oracle_text": "",
+        "cmc": 2.0,
+        "color_identity": ["W"],
+    }
+    index = {
+        weftwinder["name"]: weftwinder,
+        sliver_filler["name"]: sliver_filler,
+        MOUNTAIN["name"]: MOUNTAIN,
+    }
+    deck = {
+        "format": "commander",
+        "deck_size": 100,
+        "commanders": [{"name": "Sliver Weftwinder", "quantity": 1}],
+        "cards": [
+            {"name": "Sentinel Sliver", "quantity": 1},
+            {"name": "Mountain", "quantity": 1},
+        ],
+    }
+    hd = HydratedDeck.from_parsed(deck, by_name=index)
+    out = tune(
+        hd, search_fn=_fake_search, params=TuneParams(max_swaps=10, budget=1000.0)
+    )
+    sc = out["scorecard"]
+
+    short = sc["template"]["short"]
+    # Literal numbers untouched — the deck runs zero dedicated draw either way.
+    assert short["card_draw"]["current"] == 0
+    assert short["card_draw"]["grant_covered"] is True
+    assert short["card_draw"]["grant_covered_by"] == "Sliver Weftwinder"
+    # ramp is short too, but has NO commander grant covering it — stays actionable.
+    assert "grant_covered" not in short.get("ramp", {})
+
+    issues_by_role = {
+        i["role"]: i for i in sc["top_issues"] if i["kind"] == "role_short"
+    }
+    assert issues_by_role["card_draw"]["advisory"] is True
+    assert issues_by_role["ramp"].get("advisory", False) is False
+
+    # The swap proposer must never burn a swap sourcing generic draw spells.
+    assert all(s["add"]["name"] != "Faithless Looting" for s in out["swaps"])
+    # Other short roles still get normal swap treatment (ramp/interaction/wipe).
+    assert any(
+        s["add"]["name"] in {"Burnished Hart", "Lightning Bolt", "Abrade"}
+        for s in out["swaps"]
+    )
+
+
 def test_combo_piece_protected_from_cuts():
     # ADR-0029: cut_candidates is combo-aware — a card that's part of a combo must not
     # be proposed as a cut, even when it would otherwise be the top filler cut.

@@ -52,7 +52,7 @@ def _cc(
     )
 
 
-def _band(current, lo, hi):
+def _band(current, lo, hi, **extra):
     dev = current - hi if current > hi else (current - lo if current < lo else 0)
     return {
         "current": current,
@@ -61,6 +61,7 @@ def _band(current, lo, hi):
         "target": hi,
         "remaining": max(0, lo - current),
         "deviation": dev,
+        **extra,
     }
 
 
@@ -962,3 +963,93 @@ def test_cut_candidates_granter_quality_gates_low_value():
     got = [(r, c.name) for r, c in cut_candidates(classes, **kw)]
     assert ("low_value", "Weak Granter") in got
     assert all(name != "Premium Granter" for _, name in got)
+
+
+def test_grant_covered_role_short_issue_has_no_spec():
+    # ADR-0040 §1: a role_short issue the top_issues advisory-downgrade flags
+    # grant_covered must resolve to no spec at all — the same "advisory, no swap
+    # fixes it" shape commander_misfit already uses (kind falls through to None).
+    covered = {"kind": "role_short", "role": "card_draw", "grant_covered": True}
+    assert _spec_for_issue(covered, _focus(), []) is None
+    # A normal (non-covered) role_short issue is unaffected — still actionable.
+    uncovered = {"kind": "role_short", "role": "card_draw"}
+    assert _spec_for_issue(uncovered, _focus(), []) == _ROLE_SEARCH["card_draw"]
+
+
+def test_propose_swaps_never_sources_a_grant_covered_role_short_issue():
+    # End-to-end: even though the search_fn WOULD happily return draw spells, an
+    # issue flagged grant_covered must never turn into a swap — the shortfall stays
+    # advisory, not suppressed (a literal cut still isn't taken for it either).
+    classes = [
+        _cc("Filler One", "filler", cmc=4.0),
+        _cc("Filler Two", "filler", cmc=3.0),
+    ]
+    covered_issue = {
+        "kind": "role_short",
+        "role": "card_draw",
+        "severity": 10,
+        "grant_covered": True,
+        "message": "card draw short by 10 — covered by Sliver Weftwinder",
+    }
+    draw_spell = {
+        "name": "Faithless Looting",
+        "type_line": "Sorcery",
+        "oracle_text": "Draw two cards, then discard two cards.",
+        "cmc": 1.0,
+        "prices": {"usd": "0.50"},
+        "color_identity": ["R"],
+    }
+    out = propose_swaps(
+        classes,
+        [covered_issue],
+        budgets={"card_draw": _band(0, 10, 12, grant_covered=True)},
+        focus_result=_focus(),
+        deck_signals=[],
+        search_fn=lambda **_: [draw_spell],
+        identity="R",
+        fmt="commander",
+        paper_only=True,
+        owned={},
+        budget=100.0,
+        max_swaps=10,
+        top_heavy=False,
+    )
+    assert out["swaps"] == []
+
+
+def test_fill_pass_skips_a_grant_covered_role():
+    # A grant-covered role must not get pure fill-adds either (ADR-0040 §1 stops
+    # the swap engine end to end) — only the OTHER short role gets filled.
+    interaction_spell = {
+        "name": "Swords to Plowshares",
+        "type_line": "Instant",
+        "oracle_text": "Exile target creature.",
+        "cmc": 1.0,
+        "prices": {"usd": "1.00"},
+        "color_identity": ["W"],
+        "edhrec_rank": 50,
+    }
+    budgets = {
+        "card_draw": _band(0, 10, 12, grant_covered=True),
+        "interaction": _band(0, 10, 12),
+    }
+    out = propose_swaps(
+        [_cc("Filler", "filler", cmc=3.0)],
+        [],
+        budgets=budgets,
+        focus_result=_focus(),
+        deck_signals=[],
+        search_fn=lambda **_: [interaction_spell],
+        identity="W",
+        fmt="commander",
+        paper_only=True,
+        owned={},
+        budget=100.0,
+        max_swaps=50,
+        top_heavy=False,
+        fill_slots=10,
+    )
+    fills = [s for s in out["swaps"] if s["cut"] is None]
+    assert fills  # interaction still gets filled
+    assert all(s["add"]["name"] != "Faithless Looting" for s in fills)
+    assert all("card draw" not in s["reason"].lower() for s in fills)

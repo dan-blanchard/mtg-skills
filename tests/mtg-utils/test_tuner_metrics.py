@@ -1,6 +1,6 @@
 """Tuner Tier-2 metrics: win-condition heuristic detection (grill F6)."""
 
-from mtg_utils._tuner.metrics import _ir_wincon, _is_wincon_card
+from mtg_utils._tuner.metrics import _ir_wincon, _is_wincon_card, top_issues
 from mtg_utils.card_ir import Ability, Card, Effect, Face
 
 
@@ -117,3 +117,58 @@ def test_closer_grant_counts_as_one_wincon():
     wins = win_conditions(classes, shape="midrange", combo_count=0)
     assert "Team Double Strike" in wins["cards"]
     assert "Team Vigilance" not in wins["cards"]
+
+
+def _band(current, lo, hi, **extra):
+    dev = current - hi if current > hi else (current - lo if current < lo else 0)
+    return {
+        "current": current,
+        "min": lo,
+        "max": hi,
+        "target": hi,
+        "remaining": max(0, lo - current),
+        "deviation": dev,
+        **extra,
+    }
+
+
+_ISSUES_BASE = {
+    "efficiency_r": {"verdict": "ok"},
+    "focus_r": {
+        "filler": 0,
+        "viable_avenues": [],
+        "emerging": [],
+        "verdict": "FOCUSED",
+        "stranded_avenues": [],
+    },
+    "wincons_r": {"status": "ok"},
+    "protection_r": {"status": "ok"},
+    "commander_r": {"misfit": False},
+}
+
+
+def test_grant_covered_role_short_is_advisory_but_still_shows_the_literal_number():
+    # ADR-0040 §1: a grant-covered role's shortfall stays in the scorecard with its
+    # real numbers (never suppressed) but is flagged advisory — the swap engine must
+    # not source fills for it (verified separately in test_tuner_swaps.py).
+    template_r = {
+        "short": {
+            "card_draw": _band(
+                0, 10, 12, grant_covered=True, grant_covered_by="Sliver Weftwinder"
+            ),
+            "ramp": _band(2, 10, 12),  # short too, but NOT grant-covered
+        },
+        "over": {},
+    }
+    issues = top_issues(template_r=template_r, **_ISSUES_BASE)
+    by_role = {i["role"]: i for i in issues if i["kind"] == "role_short"}
+    draw_issue = by_role["card_draw"]
+    assert draw_issue["advisory"] is True
+    assert draw_issue["grant_covered"] is True
+    assert "Sliver Weftwinder" in draw_issue["message"]
+    # The literal deficit is untouched — short by 10 (0/10-12), not suppressed to 0.
+    assert draw_issue["severity"] == 10
+    # A short role with no grant coverage stays a normal actionable issue.
+    ramp_issue = by_role["ramp"]
+    assert ramp_issue.get("advisory", False) is False
+    assert ramp_issue.get("grant_covered", False) is False

@@ -693,7 +693,11 @@ def propose_swaps(
     if fill_slots > 0:
         for role in ("ramp", "card_draw", "interaction", "board_wipe"):
             b = budgets.get(role)
-            if b and b["current"] < b["min"]:
+            # ADR-0040 §1: skip a grant-covered role here too — the fill pass is
+            # a separate code path from the issue-driven loop above (an
+            # under-sized deck's open slots, not a cut/add pair), so it needs
+            # its own gate to honor the same advisory downgrade.
+            if b and b["current"] < b["min"] and not b.get("grant_covered"):
                 take_fills(
                     _ROLE_SEARCH[role],
                     b["min"] - b["current"],
@@ -793,6 +797,12 @@ def _dead_weight_spec(
 def _spec_for_issue(issue: dict, focus_result: dict, deck_signals: list) -> dict | None:
     kind = issue["kind"]
     if kind == "role_short":
+        # ADR-0040 §1: a grant-covered role_short is advisory-only — the
+        # commander's own ability grant already covers it, so the swap engine
+        # must not burn budget sourcing a generic fill for it (mirrors
+        # commander_misfit's advisory-only "no spec" shape below).
+        if issue.get("grant_covered"):
+            return None
         return _ROLE_SEARCH.get(issue["role"])
     if kind == "protection_short":
         return _PROTECTION_SEARCH

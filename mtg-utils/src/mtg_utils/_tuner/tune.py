@@ -13,7 +13,7 @@ from dataclasses import dataclass
 from mtg_utils._deck_forge._ir_lookup import ir_for
 from mtg_utils._deck_forge.budgets import slot_budgets
 from mtg_utils._deck_forge.signals import rank_deck_signals, tribal_payoff_subjects
-from mtg_utils._tuner import commander_fit, metrics
+from mtg_utils._tuner import commander_fit, grant_coverage, metrics
 from mtg_utils._tuner import swaps as swaps_mod
 from mtg_utils._tuner.bracket import bracket_gate
 from mtg_utils._tuner.classify import CardClass, classify_deck
@@ -163,6 +163,17 @@ def tune(
         colors=burgess_info.get("colors"),
         commander_cmc=burgess_info.get("commander_cmc"),
     )
+    # ADR-0040 §1 (Grant-covered role, deck-forge CONTEXT.md): does a commander's
+    # own ability GRANT structurally cover a short Spine role for every recipient
+    # body (the Sliver Weftwinder shape)? The band NUMBER is untouched — this only
+    # annotates the short role's row so top_issues/swaps.py can downgrade its
+    # shortfall to advisory without suppressing it.
+    commander_records = [c.record for c in classes if c.bucket == "commander"]
+    for role, name in grant_coverage.covered_roles(commander_records).items():
+        band = budgets.get(role)
+        if band is not None and band["deviation"] < 0:
+            band["grant_covered"] = True
+            band["grant_covered_by"] = name
     eff = metrics.efficiency(classes, shape=shape, avg_cmc=avg_cmc, deck_size=deck_size)
     foc = metrics.focus(
         classes,
