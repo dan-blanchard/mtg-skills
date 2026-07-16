@@ -87,3 +87,33 @@ def test_small_fixed_pinger_is_not_a_group_drain_wincon():
         power="0",
     )
     assert _is_wincon_card(blood_artist) is False
+
+
+def test_closer_grant_counts_as_one_wincon():
+    # ADR-0040 §5 (task #100): a Granter granting a closer-grade ability
+    # (team double strike) is ONE closer regardless of recipient count — the
+    # benchmark read "2 closers" while holding Bonescythe-class team double
+    # strike twice. ADR-0024 advisory semantics unchanged; only the count
+    # gets honest.
+    from mtg_utils._tuner.classify import CardClass
+    from mtg_utils._tuner.metrics import win_conditions
+
+    def cc(name, closer):
+        return CardClass(
+            name=name,
+            bucket="engine",
+            roles=(),
+            served=("Slivers",),
+            dual_purpose=False,
+            cmc=4.0,
+            record={"name": name, "oracle_text": "", "type_line": "Creature"},
+            grant_closer=closer,
+        )
+
+    classes = [
+        cc("Team Double Strike", closer=True),
+        cc("Team Vigilance", closer=False),
+    ]
+    wins = win_conditions(classes, shape="midrange", combo_count=0)
+    assert "Team Double Strike" in wins["cards"]
+    assert "Team Vigilance" not in wins["cards"]

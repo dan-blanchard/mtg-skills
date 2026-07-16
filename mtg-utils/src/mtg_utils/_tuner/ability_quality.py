@@ -86,6 +86,12 @@ def _payload_grade(pay: GrantPayload, *, draw_engine_commander: bool) -> str:
     return grade_of(pay.keyword)[0]
 
 
+def has_closer_grant(payloads: Iterable[GrantPayload]) -> bool:
+    """ADR-0040 §5 (task #100): True when any payload grants a closer-grade
+    keyword — the Granter counts as ONE closer regardless of recipients."""
+    return any(pay.kind == "keyword" and grade_of(pay.keyword)[1] for pay in payloads)
+
+
 def grant_grade(
     payloads: Iterable[GrantPayload],
     *,

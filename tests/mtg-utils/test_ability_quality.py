@@ -71,3 +71,12 @@ def test_hellbent_predicate_demotes_under_draw_engine():
 
 def test_no_payloads_is_not_a_granter():
     assert grant_grade([]) is None
+
+
+def test_has_closer_grant_reads_the_table_flag():
+    from mtg_utils._tuner.ability_quality import has_closer_grant
+
+    assert has_closer_grant([_pay("double strike")]) is True
+    assert has_closer_grant([_pay("vigilance")]) is False
+    assert has_closer_grant([_pay("", kind="ability")]) is False
+    assert has_closer_grant([]) is False

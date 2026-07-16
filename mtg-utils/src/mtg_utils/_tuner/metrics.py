@@ -384,7 +384,13 @@ def _is_wincon_card(card: dict) -> bool:
 def win_conditions(
     classes: Sequence[CardClass], *, shape: str, combo_count: int
 ) -> dict:
-    cards = sorted({c.name for c in classes if _is_wincon_card(c.record)})
+    # ADR-0040 §5 (task #100): a Granter granting a closer-grade ability
+    # (team double strike) is ONE closer — the record heuristic alone missed
+    # keyword grants, reading the benchmark deck "2 closers" while it held
+    # team double strike twice.
+    cards = sorted(
+        {c.name for c in classes if _is_wincon_card(c.record) or c.grant_closer}
+    )
     count = len(cards) + combo_count
     lo, hi = _WINCON_TARGET.get(shape, (3, 6))
     return {

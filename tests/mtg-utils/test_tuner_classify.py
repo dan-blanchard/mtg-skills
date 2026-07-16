@@ -226,3 +226,26 @@ def test_granter_grade_on_real_granters():
     assert classes["Galerider Sliver"].grant_grade == "premium"
     assert classes["Enduring Sliver"].grant_grade == "weak"
     assert classes["The First Sliver"].grant_grade is None  # commander bucket
+
+
+def test_closer_flag_set_for_closer_grade_granters():
+    # ADR-0040 §5 (task #100): Bonescythe Sliver grants team double strike
+    # (CR 702.4) — closer-flagged in the quality table; Galerider's flying
+    # grant is premium but not a closer.
+    testkit.test_card_ir("Bonescythe Sliver")
+    testkit.test_card_ir("Galerider Sliver")
+    bone = testkit.test_card("Bonescythe Sliver")
+    gale = testkit.test_card("Galerider Sliver")
+    deck = {
+        "format": "commander",
+        "commanders": [],
+        "cards": [
+            {"name": "Bonescythe Sliver", "quantity": 1},
+            {"name": "Galerider Sliver", "quantity": 1},
+        ],
+    }
+    index = {c["name"]: c for c in (bone, gale)}
+    hd = HydratedDeck.from_parsed(deck, by_name=index)
+    classes = {c.name: c for c in classify_deck(hd, [], set())}
+    assert classes["Bonescythe Sliver"].grant_closer is True
+    assert classes["Galerider Sliver"].grant_closer is False

@@ -56,6 +56,9 @@ class CardClass:
     # "weak" via the ability-quality table; None = not a Granter). The
     # low-value reads condemn a Granter by GRADE, never by playrate.
     grant_grade: str | None = None
+    # ADR-0040 §5 (task #100): grants a closer-grade ability (team double
+    # strike) — ONE closer regardless of recipient count.
+    grant_closer: bool = False
 
 
 # The repeatable-draw commander keys that arm the hellbent anti-synergy
@@ -84,7 +87,7 @@ def classify_deck(
     classification can never drift from how the rest of deck-forge scores it.
     """
     from mtg_utils._deck_forge.signals import grant_payloads_for
-    from mtg_utils._tuner.ability_quality import grant_grade
+    from mtg_utils._tuner.ability_quality import grant_grade, has_closer_grant
 
     draw_engine = _commander_draws(hd, commander_names)
     out: list[CardClass] = []
@@ -108,11 +111,12 @@ def classify_deck(
             bucket = "engine"
         else:
             bucket = "filler"
-        grade = (
-            grant_grade(grant_payloads_for(rec), draw_engine_commander=draw_engine)
-            if bucket not in ("commander", "land")
-            else None
-        )
+        grade: str | None = None
+        closer = False
+        if bucket not in ("commander", "land"):
+            payloads = grant_payloads_for(rec)
+            grade = grant_grade(payloads, draw_engine_commander=draw_engine)
+            closer = has_closer_grant(payloads)
         out.append(
             CardClass(
                 name=name,
@@ -124,6 +128,7 @@ def classify_deck(
                 record=rec,
                 edhrec_rank=rec.get("edhrec_rank"),
                 grant_grade=grade,
+                grant_closer=closer,
             )
         )
     return out
