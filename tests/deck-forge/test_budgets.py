@@ -77,6 +77,32 @@ def test_empty_deck_bands_scale_to_deck_size():
     assert b60["ramp"]["max"] == 7  # round(12 * 0.6)
 
 
+def _rock(i):
+    return {
+        "name": f"Rock {i}",
+        "type_line": "Artifact",
+        "oracle_text": "{T}: Add {C}.",
+        "produced_mana": ["C"],
+    }
+
+
+def test_lands_row_uses_deck_specific_band_when_commander_inputs_given():
+    # ADR-0041 benchmark: 5 colors, commander CMC 5, 12 ramp → Karsten floor
+    # 38, raw Burgess 41 — replaces the flat 36-38 template row.
+    records = [_rock(i) for i in range(12)]
+    b = slot_budgets(records, deck_size=100, colors=5, commander_cmc=5)
+    assert b["lands"]["min"] == 38
+    assert b["lands"]["max"] == 41
+    assert b["ramp"]["current"] == 12
+
+
+def test_lands_row_stays_static_without_commander_inputs():
+    # No colors/commander_cmc supplied → the flat Command Zone band, unchanged.
+    b = slot_budgets([_rock(i) for i in range(12)], deck_size=100)
+    assert b["lands"]["min"] == 36
+    assert b["lands"]["max"] == 38
+
+
 def test_role_classification_folds_counterspells_into_interaction():
     assert "lands" in role_of(FOREST)
     assert "ramp" in role_of(LLANOWAR)

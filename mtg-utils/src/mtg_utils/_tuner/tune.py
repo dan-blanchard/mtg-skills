@@ -18,6 +18,7 @@ from mtg_utils._tuner import swaps as swaps_mod
 from mtg_utils._tuner.bracket import bracket_gate
 from mtg_utils._tuner.classify import CardClass, classify_deck
 from mtg_utils._tuner.shape import infer_shape
+from mtg_utils.card_classify import is_land
 from mtg_utils.deck_stats import deck_stats
 from mtg_utils.hydrated_deck import HydratedDeck
 from mtg_utils.mana_audit import mana_audit
@@ -55,30 +56,32 @@ def _deck_identity(hd: HydratedDeck) -> str:
     return "".join(sorted(colors))
 
 
-def _fill_gap(
-    deck: dict, classes: Sequence[CardClass], deck_size: int, recommended_lands: int
-) -> tuple[int, int]:
+def _fill_gap(hd: HydratedDeck, deck_size: int, land_floor: int) -> tuple[int, int]:
     """Open NONLAND slots in an under-sized deck: returns (fill_slots, land_gap).
 
-    fill_slots is the nonland target (deck_size, less recommended lands and commanders)
-    minus the current nonland count -- the nonland adds the fill pass makes. land_gap is
-    the lands still owed to the recommended mana base, left to the land tooling."""
-    land_names = {c.name for c in classes if c.bucket == "land"}
+    fill_slots is the nonland target (deck_size, less the land-band floor and
+    commanders) minus the current nonland count -- the nonland adds the fill
+    pass makes. land_gap is the lands still owed to the band floor, left to
+    the land tooling (ADR-0041: the floor, not the band's comfortable-max
+    top, so a deck already inside the band shows no shortfall).
+
+    Lands are counted off the alias-resolved joined records (``hd.expanded``)
+    rather than by comparing deck-entry names against a classified name set:
+    a modal DFC land's deck entry can carry only its front-face name (e.g.
+    "Cragcrown Pathway") while its record's own ``name`` is the full
+    two-face string, so a name-set membership check silently drops it."""
+    deck = hd.deck
 
     def qty(zone: str) -> int:
         return sum(int(e.get("quantity", 1)) for e in deck.get(zone) or [])
 
     num_cmd = len(deck.get("commanders") or [])
     total = qty("commanders") + qty("cards")
-    lands = sum(
-        int(e.get("quantity", 1))
-        for e in deck.get("cards") or []
-        if e["name"] in land_names
-    )
-    nonland_target = deck_size - recommended_lands - num_cmd
+    lands = sum(1 for r in hd.expanded(zones=("cards",)) if is_land(r))
+    nonland_target = deck_size - land_floor - num_cmd
     current_nonland = total - lands - num_cmd
     fill_slots = max(0, nonland_target - current_nonland)
-    land_gap = max(0, recommended_lands - lands)
+    land_gap = max(0, land_floor - lands)
     return fill_slots, land_gap
 
 
@@ -148,7 +151,18 @@ def tune(
     )
     shape = shape_r.shape
 
-    budgets = slot_budgets(hd.expanded(), deck_size=deck_size, shape=shape)
+    # ADR-0041: thread the commander's colors/CMC so slot_budgets can replace the
+    # static "lands" band with the deck-specific one mana_audit already derived
+    # (ramp count comes from slot_budgets' own tally) — a 60-card constructed
+    # deck has no `burgess_formula` and keeps the flat template row unchanged.
+    burgess_info = mana.get("burgess_formula") or {}
+    budgets = slot_budgets(
+        hd.expanded(),
+        deck_size=deck_size,
+        shape=shape,
+        colors=burgess_info.get("colors"),
+        commander_cmc=burgess_info.get("commander_cmc"),
+    )
     eff = metrics.efficiency(classes, shape=shape, avg_cmc=avg_cmc, deck_size=deck_size)
     foc = metrics.focus(
         classes,
@@ -209,8 +223,10 @@ def tune(
 
     swaps_out: dict = {"swaps": [], "spent": 0.0, "wildcards_spent": None, "note": None}
     if params.max_swaps > 0 and hd.has_records:
-        recommended_lands = int(mana.get("recommended_land_count") or 0)
-        fill_slots, land_gap = _fill_gap(deck, classes, deck_size, recommended_lands)
+        # ADR-0041: the floor (not the band's comfortable-max top), so a deck
+        # already inside its band never reports a phantom land shortfall.
+        land_floor = int(mana.get("land_count_floor") or 0)
+        fill_slots, land_gap = _fill_gap(hd, deck_size, land_floor)
         swaps_out = swaps_mod.propose_swaps(
             classes,
             issues,

@@ -126,8 +126,11 @@ def test_presets_endpoint_lists_discoverable_presets():
 
 def test_budgets_endpoint_returns_template_bands():
     budgets = _client().get("/api/budgets").json()["budgets"]
-    assert budgets["lands"]["min"] == 36
-    assert budgets["lands"]["max"] == 38
+    # ADR-0041: "lands" is now the fixture commander's deck-specific band
+    # (ETB Boss: 2 colors G/W, CMC 4, 0 ramp → Burgess 37, Karsten 42), not
+    # the static Command Zone 36-38 — the other roles stay on the flat band.
+    assert budgets["lands"]["min"] == 37
+    assert budgets["lands"]["max"] == 42
     assert budgets["ramp"]["min"] == 10
     assert budgets["ramp"]["max"] == 12
     # `interaction` replaces `removal` (counterspells fold in, ADR-0024).

@@ -214,6 +214,66 @@ def test_signals_resolved_through_card_ir(monkeypatch):
     assert callable(captured["ir_for"])
 
 
+def test_fill_gap_counts_dfc_land_via_alias_not_name_set():
+    # ADR-0041: the DFC join bug. A modal DFC land's deck entry can carry only
+    # its front-face name (as decklist import commonly does) while the
+    # hydrated record's own canonical `name` is the full two-face string —
+    # the old `_fill_gap` matched deck-entry names against a set of
+    # CLASSIFIED record names with no aliasing, silently dropping every DFC
+    # land it saw. The fix counts lands off the alias-resolved joined
+    # records (`hd.expanded`) instead of a raw name-set membership check.
+    from mtg_utils._tuner.tune import _fill_gap
+
+    pathway = {
+        "name": "Cragcrown Pathway // Timbercrown Pathway",
+        "type_line": "Land // Land",
+        "oracle_text": "",
+        "cmc": 0.0,
+        "color_identity": ["R", "G"],
+        "card_faces": [
+            {"name": "Cragcrown Pathway", "type_line": "Land"},
+            {"name": "Timbercrown Pathway", "type_line": "Land"},
+        ],
+    }
+    index = {
+        "Krenko, Mob Boss": KRENKO,
+        "Cragcrown Pathway": pathway,  # keyed by the deck entry's front face
+        "Mountain": MOUNTAIN,
+    }
+    deck = {
+        "format": "commander",
+        "deck_size": 100,
+        "commanders": [{"name": "Krenko, Mob Boss", "quantity": 1}],
+        "cards": [
+            {"name": "Cragcrown Pathway", "quantity": 4},  # front-face name
+            {"name": "Mountain", "quantity": 34},
+        ],
+    }
+    hd = HydratedDeck.from_parsed(deck, by_name=index)
+    # 4 Pathways + 34 Mountains = 38 lands, exactly at a 38-land floor.
+    fill_slots, land_gap = _fill_gap(hd, deck_size=100, land_floor=38)
+    assert land_gap == 0
+    assert fill_slots == 61  # 100 - 38 floor - 1 commander, no shortfall to eat into it
+
+
+def test_fill_gap_no_shortfall_when_at_the_floor_not_the_comfortable_max():
+    # ADR-0041: the shortfall threshold is the band FLOOR (Karsten-adjusted),
+    # not the band's comfortable-max top (raw Burgess) — a deck already at
+    # its floor must show 0 gap even though it may sit below the top.
+    from mtg_utils._tuner.tune import _fill_gap
+
+    index = {"Krenko, Mob Boss": KRENKO, "Mountain": MOUNTAIN}
+    deck = {
+        "format": "commander",
+        "deck_size": 100,
+        "commanders": [{"name": "Krenko, Mob Boss", "quantity": 1}],
+        "cards": [{"name": "Mountain", "quantity": 40}],
+    }
+    hd = HydratedDeck.from_parsed(deck, by_name=index)
+    _fill_slots, land_gap = _fill_gap(hd, deck_size=100, land_floor=38)
+    assert land_gap == 0
+
+
 def test_scorecard_surfaces_full_mana_audit():
     # ADR-0029 enrichment: the scorecard carries the full mana audit (color balance,
     # land status), not just the recommended_land_count the swap pass needs.

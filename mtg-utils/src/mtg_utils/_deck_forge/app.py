@@ -483,8 +483,18 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
 
     @app.get("/api/budgets")
     async def budgets() -> dict:
-        records = engine.hydrate(state).expanded()
-        return {"budgets": slot_budgets(records, deck_size=state.session.deck_size)}
+        hd = engine.hydrate(state)
+        # ADR-0041: same deck-specific "lands" band the mana section reports —
+        # the standalone budgets read must not disagree with /api/snapshot.
+        burgess_info = mana_audit(hd).get("burgess_formula") or {}
+        return {
+            "budgets": slot_budgets(
+                hd.expanded(),
+                deck_size=state.session.deck_size,
+                colors=burgess_info.get("colors"),
+                commander_cmc=burgess_info.get("commander_cmc"),
+            )
+        }
 
     @app.get("/api/builds")
     async def builds() -> dict:

@@ -13,6 +13,8 @@ from mtg_utils.mana_audit import (
     color_balance,
     constructed_land_target,
     karsten_adjustment,
+    land_band,
+    land_band_status,
     land_count_status,
     main,
     mana_audit,
@@ -118,6 +120,45 @@ class TestLandCountStatus:
         assert land_count_status(land_count=35, recommended=38, burgess=35) == "WARN"
 
 
+class TestLandBand:
+    """ADR-0041: ONE deck-specific band [Karsten-adjusted floor, raw Burgess]."""
+
+    def test_benchmark_band_burgess_above_karsten(self):
+        # 5 colors, commander CMC 5, 12 ramp: Burgess = 31+5+5 = 41,
+        # Karsten = 42 - floor(12/2.5) = 42-4 = 38. Burgess exceeds the
+        # static template's ceiling (38) — the bug ADR-0041 fixes.
+        floor, top = land_band(colors=5, commander_cmc=5, ramp_count=12)
+        assert (floor, top) == (38, 41)
+
+    def test_band_floor_is_burgess_when_karsten_is_higher(self):
+        # Light ramp, mono-color low-CMC commander: Burgess = 31+1+3 = 35,
+        # Karsten (0 ramp) = 42. Burgess is the smaller number either way,
+        # so it lands as the floor regardless of which formula it came from.
+        floor, top = land_band(colors=1, commander_cmc=3, ramp_count=0)
+        assert (floor, top) == (35, 42)
+
+    def test_scales_to_60(self):
+        # Same benchmark inputs at deck_size=60: Burgess round(41*.6)=25,
+        # Karsten round(38*.6)=23.
+        floor, top = land_band(colors=5, commander_cmc=5, ramp_count=12, deck_size=60)
+        assert (floor, top) == (23, 25)
+
+
+class TestLandBandStatus:
+    def test_fail_below_floor(self):
+        assert land_band_status(land_count=37, floor=38) == "FAIL"
+
+    def test_pass_at_floor(self):
+        assert land_band_status(land_count=38, floor=38) == "PASS"
+
+    def test_pass_within_band(self):
+        assert land_band_status(land_count=40, floor=38) == "PASS"
+
+    def test_pass_above_band_top_too(self):
+        # The band top is a reference, never a second failure/warning line.
+        assert land_band_status(land_count=50, floor=38) == "PASS"
+
+
 class TestPipDemand:
     def test_counts_colored_pips(self):
         cards = [
@@ -193,8 +234,10 @@ class TestManaAudit:
         expected_keys = [
             "land_count",
             "recommended_land_count",
+            "land_count_floor",
             "burgess_formula",
             "karsten_adjustment",
+            "land_band",
             "land_count_status",
             "ramp_count",
             "avg_cmc",
@@ -216,6 +259,8 @@ class TestManaAudit:
         assert "result" in result["burgess_formula"]
         assert "ramp_count" in result["karsten_adjustment"]
         assert "result" in result["karsten_adjustment"]
+        assert "floor" in result["land_band"]
+        assert "top" in result["land_band"]
 
         # Validate status values
         assert result["land_count_status"] in ("PASS", "WARN", "FAIL")
@@ -246,6 +291,67 @@ class TestManaAudit:
         result = mana_audit(_hd(deck, hydrated_cards))
         # 2 lands is well below 36, should FAIL
         assert result["overall_status"] == "FAIL"
+
+
+def _benchmark_deck(*, land_count, ramp_count=12):
+    """ADR-0041 benchmark shape: 5-color, CMC-5 commander, N ramp pieces,
+    land_count copies of one land (a real deck would vary basics/nonbasics;
+    land count is all this audit cares about)."""
+    commander = {
+        "name": "Bennie Bracks, Zoologist",
+        "cmc": 5.0,
+        "type_line": "Legendary Creature — Human Advisor",
+        "mana_cost": "{W}{U}{B}{R}{G}",
+        "keywords": [],
+        "color_identity": ["W", "U", "B", "R", "G"],
+    }
+    ramp_cards = [
+        {
+            "name": f"Rock {i}",
+            "cmc": 2.0,
+            "type_line": "Artifact",
+            "oracle_text": "{T}: Add {C}.",
+            "keywords": [],
+        }
+        for i in range(ramp_count)
+    ]
+    land = {
+        "name": "Command Tower",
+        "cmc": 0.0,
+        "type_line": "Land",
+        "oracle_text": (
+            "({T}: Add one mana of any color in your commander's color identity.)"
+        ),
+        "keywords": [],
+    }
+    deck = {
+        "format": "commander",
+        "commanders": [{"name": commander["name"], "quantity": 1}],
+        "cards": [{"name": c["name"], "quantity": 1} for c in ramp_cards]
+        + [{"name": "Command Tower", "quantity": land_count}],
+    }
+    return _hd(deck, [commander, land, *ramp_cards])
+
+
+class TestManaAuditBenchmarkLandBand:
+    """ADR-0041 benchmark: 5 colors, commander CMC 5, 12 ramp → band [38, 41].
+    Under the old raw-Burgess-floor gate, 40 lands FAILed (below 41); the
+    deck-specific band FAILs only below the Karsten-adjusted floor (38)."""
+
+    def test_pass_at_40_lands(self):
+        result = mana_audit(_benchmark_deck(land_count=40))
+        assert result["land_count_floor"] == 38
+        assert result["recommended_land_count"] == 41
+        assert result["land_band"] == {"floor": 38, "top": 41}
+        assert result["land_count_status"] == "PASS"
+
+    def test_pass_at_the_floor(self):
+        result = mana_audit(_benchmark_deck(land_count=38))
+        assert result["land_count_status"] == "PASS"
+
+    def test_fail_just_below_the_floor(self):
+        result = mana_audit(_benchmark_deck(land_count=37))
+        assert result["land_count_status"] == "FAIL"
 
 
 class TestCLI:

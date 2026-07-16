@@ -1219,14 +1219,24 @@ def snapshot(state: ForgeState) -> dict:
     hd = hydrate(state)
     stats = deck_stats(hd)
     owned = owned_quantities(state)
+    mana = mana_audit(hd)
+    # ADR-0041: thread the commander's colors/CMC so the Budgets panel's "lands"
+    # row uses the same deck-specific band as the mana section's own verdict,
+    # instead of the static 36-38 Command Zone row.
+    burgess_info = mana.get("burgess_formula") or {}
     return {
         "build_id": state.build_id,
         "build_name": state.build_name,
         "deck": views.deck_view(state, owned),
         "stats": stats,
         "bracket": detect_bracket(hd.records, stats.get("avg_cmc", 0.0)),
-        "mana": mana_audit(hd),
-        "budgets": slot_budgets(hd.expanded(), deck_size=state.session.deck_size),
+        "mana": mana,
+        "budgets": slot_budgets(
+            hd.expanded(),
+            deck_size=state.session.deck_size,
+            colors=burgess_info.get("colors"),
+            commander_cmc=burgess_info.get("commander_cmc"),
+        ),
         "signals": [signal_dict(s) for s in ranked_deck_signals(state, hd.records)],
         "avenues": avenues(state, hd.records),
         "warnings": legality_warnings(hd, max_cards=state.session.deck_size),

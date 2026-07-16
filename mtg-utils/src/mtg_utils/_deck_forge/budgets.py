@@ -21,6 +21,7 @@ from collections.abc import Sequence
 from mtg_utils._deck_forge._ir_lookup import ir_for
 from mtg_utils.card_classify import get_oracle_text, is_land, is_ramp
 from mtg_utils.card_ir import Card
+from mtg_utils.mana_audit import land_band
 from mtg_utils.theme_presets import get_preset
 
 # Command Zone template bands, per 100 cards (min, max). Scaled by deck size for Brawl.
@@ -348,13 +349,25 @@ def bands_for(shape: str | None) -> dict[str, tuple[int, int]]:
 
 
 def slot_budgets(
-    records: Sequence[dict | None], *, deck_size: int = 100, shape: str | None = None
+    records: Sequence[dict | None],
+    *,
+    deck_size: int = 100,
+    shape: str | None = None,
+    colors: int | None = None,
+    commander_cmc: int | None = None,
 ) -> dict[str, dict]:
     """Return ``{role: {min, max, target, current, remaining, deviation}}`` vs the band.
 
     ``deviation`` is 0 inside the band, negative when short of the floor, positive when
     over the ceiling. ``remaining`` is the gap up to the floor (0 once in band).
     ``target`` is the band ceiling, kept for the existing Budgets-panel bar.
+
+    ``colors``/``commander_cmc`` (from the commander's mana_audit reads) replace the
+    static ``lands`` row's flat 36-38 band with the deck-specific one
+    (``mana_audit.land_band``, ADR-0041) — ramp count comes from this call's own
+    ``current["ramp"]`` tally, so the three inputs the band needs are either passed in
+    or already computed here. Omitting either (a 60-card constructed deck, or a caller
+    with no commander read yet) keeps the flat template row unchanged.
     """
     scale = deck_size / 100
     bands = bands_for(shape)
@@ -365,10 +378,21 @@ def slot_budgets(
         for role in role_of(record):
             if role in current:
                 current[role] += 1
+    lands_band = None
+    if colors is not None and commander_cmc is not None:
+        lands_band = land_band(
+            colors=colors,
+            commander_cmc=commander_cmc,
+            ramp_count=current["ramp"],
+            deck_size=deck_size,
+        )
     out: dict[str, dict] = {}
     for role, (lo, hi) in bands.items():
-        rmin = round(lo * scale)
-        rmax = round(hi * scale)
+        if role == "lands" and lands_band is not None:
+            rmin, rmax = lands_band  # already scaled to deck_size
+        else:
+            rmin = round(lo * scale)
+            rmax = round(hi * scale)
         have = current[role]
         if have < rmin:
             deviation = have - rmin

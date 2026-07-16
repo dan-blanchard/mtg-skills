@@ -15,6 +15,7 @@ import click
 
 from mtg_utils._deck_forge.budgets import slot_budgets
 from mtg_utils.hydrated_deck import HydratedDeck
+from mtg_utils.mana_audit import mana_audit
 
 
 @click.command()
@@ -33,7 +34,16 @@ def main(
 ) -> None:
     """Print role-density budgets for DECK_JSON + HYDRATED_JSON."""
     hd = HydratedDeck.from_paths(deck_json, hydrated_json)
-    budgets = slot_budgets(hd.expanded(), deck_size=deck_size, shape=shape)
+    # ADR-0041: thread colors/commander CMC so the "lands" row matches the
+    # deck-specific band mana-audit reports, not the static 36-38 template.
+    burgess_info = mana_audit(hd).get("burgess_formula") or {}
+    budgets = slot_budgets(
+        hd.expanded(),
+        deck_size=deck_size,
+        shape=shape,
+        colors=burgess_info.get("colors"),
+        commander_cmc=burgess_info.get("commander_cmc"),
+    )
     if as_json:
         click.echo(json.dumps(budgets, indent=2))
         return

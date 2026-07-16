@@ -40,6 +40,35 @@ def karsten_adjustment(*, ramp_count: int, deck_size: int = 100) -> int:
     return round(base * deck_size / 100)
 
 
+def land_band(
+    *, colors: int, commander_cmc: int, ramp_count: int, deck_size: int = 100
+) -> tuple[int, int]:
+    """Return the deck-specific land band (floor, top) for a commander-family
+    deck (ADR-0041).
+
+    ``floor`` is the lower of raw Burgess and the Karsten ramp adjustment;
+    ``top`` is the higher, a comfortable-maximum reference — never a failure
+    line. Burgess (colors + commander CMC) and Karsten (ramp count) each
+    capture a fact the other ignores, so treating either alone as a hard
+    floor produces contradictory verdicts on a deck where they disagree (a
+    high-color/high-CMC, heavy-ramp deck can push raw Burgess above the
+    Karsten-adjusted count, and a light-ramp deck can do the reverse)."""
+    burgess = burgess_formula(
+        colors=colors, commander_cmc=commander_cmc, deck_size=deck_size
+    )
+    karsten = karsten_adjustment(ramp_count=ramp_count, deck_size=deck_size)
+    return (min(burgess, karsten), max(burgess, karsten))
+
+
+def land_band_status(*, land_count: int, floor: int) -> str:
+    """PASS/FAIL gate over the deck-specific land band (ADR-0041).
+
+    FAILs only below ``floor``; at or above it — including above the band's
+    top — is PASS. The band's top is a reference for "comfortably more than
+    enough," not a second failure or warning line."""
+    return "FAIL" if land_count < floor else "PASS"
+
+
 def constructed_land_target(
     *,
     ramp_count: int,
@@ -68,17 +97,15 @@ def land_count_status(
     recommended: int,
     burgess: int,
 ) -> str:
-    """Return PASS/WARN/FAIL status for land count.
+    """Return PASS/WARN/FAIL status for land count against a two-threshold gate.
 
-    The absolute floor is the Burgess formula result (which accounts for
-    commander CMC and color count).  Falling below Burgess is FAIL.
-    Meeting Burgess but below the recommended (max of Burgess, Karsten)
-    is WARN.  Meeting or exceeding recommended is PASS.
+    Falling below ``burgess`` (the hard floor) is FAIL. Meeting it but below
+    ``recommended`` is WARN. Meeting or exceeding ``recommended`` is PASS.
 
-    Previous behavior used a fixed floor of 36 (scaled to deck size),
-    which penalised low-curve mono-color decks whose Burgess target was
-    legitimately 35 or lower.
-    """
+    Generic two-threshold gate, now used only by the 60-card constructed
+    formula (``constructed_land_target``'s tolerance band) — the
+    commander-family gate reads ``land_band_status`` instead (ADR-0041),
+    whose band FAILs only below its floor and never emits WARN."""
     if land_count < burgess:
         return "FAIL"
     if land_count < recommended:
@@ -375,13 +402,17 @@ def mana_audit(hd: HydratedDeck) -> dict:
             colors=colors, commander_cmc=commander_cmc, deck_size=deck_size
         )
         karsten_result = karsten_adjustment(ramp_count=ramp_count, deck_size=deck_size)
-        recommended = max(burgess_result, karsten_result)
-        floor = burgess_result  # the FAIL threshold (below this can't finalize)
-        lc_status = land_count_status(
-            land_count=land_count,
-            recommended=recommended,
-            burgess=burgess_result,
+        # ADR-0041: ONE deck-specific band — [Karsten-adjusted floor, raw
+        # Burgess] — replaces treating raw Burgess alone as the hard floor
+        # (which could exceed the static template's ceiling on a heavy-ramp,
+        # high-color/high-CMC deck with no land count able to satisfy both).
+        floor, recommended = land_band(
+            colors=colors,
+            commander_cmc=commander_cmc,
+            ramp_count=ramp_count,
+            deck_size=deck_size,
         )
+        lc_status = land_band_status(land_count=land_count, floor=floor)
         formula_info = {
             "burgess_formula": {
                 "colors": colors,
@@ -389,6 +420,7 @@ def mana_audit(hd: HydratedDeck) -> dict:
                 "result": burgess_result,
             },
             "karsten_adjustment": {"ramp_count": ramp_count, "result": karsten_result},
+            "land_band": {"floor": floor, "top": recommended},
         }
     else:
         constructed_target = constructed_land_target(
@@ -458,10 +490,12 @@ def _render_single_audit(audit: dict) -> list[str]:
             f"status: {audit.get('land_count_status', '?')})"
         )
     else:
+        band = audit.get("land_band") or {}
         lines.append(
             f"Land count: {land_count} "
-            f"(Burgess target: {burgess.get('result', '?')}, "
-            f"Karsten adj: {audit.get('karsten_adjustment', {}).get('result', '?')}, "
+            f"(band: {band.get('floor', '?')}-{band.get('top', '?')}, "
+            f"Burgess: {burgess.get('result', '?')}, "
+            f"Karsten: {audit.get('karsten_adjustment', {}).get('result', '?')}, "
             f"status: {audit.get('land_count_status', '?')})"
         )
     lines.append(f"Ramp count: {audit.get('ramp_count', 0)}")
