@@ -249,3 +249,22 @@ def test_closer_flag_set_for_closer_grade_granters():
     classes = {c.name: c for c in classify_deck(hd, [], set())}
     assert classes["Bonescythe Sliver"].grant_closer is True
     assert classes["Galerider Sliver"].grant_closer is False
+
+
+def test_tribal_payoff_subjects_ignores_the_membership_floor():
+    # Benchmark regression (ADR-0040 companion): Birds of Paradise emits
+    # type_matters(Bird) at confidence LOW — the go-wide membership floor's
+    # own-subtype signal, deliberately not a payoff. Counting it revived the
+    # "Bird tribal" phantom the gate exists to kill. Only HIGH-confidence
+    # non-commander emissions are payoffs.
+    testkit.test_card_ir("Birds of Paradise")
+    bop = testkit.test_card("Birds of Paradise")
+    deck = {
+        "format": "commander",
+        "commanders": [{"name": "Krenko, Mob Boss", "quantity": 1}],
+        "cards": [{"name": "Birds of Paradise", "quantity": 1}],
+    }
+    index = {c["name"]: c for c in [KRENKO_REAL, bop]}
+    hd = HydratedDeck.from_parsed(deck, by_name=index)
+    payoffs = tribal_payoff_subjects(hd.records, {"Krenko, Mob Boss"}, ir_for=ir_for)
+    assert "Bird" not in payoffs

@@ -351,15 +351,20 @@ def _deck_signal_stats(
     dict[tuple[str, str, str], int],
     set[tuple[str, str, str]],
     dict[tuple[str, str, str], Signal],
+    dict[tuple[str, str, str], int],
 ]:
     """The shared per-card extraction loop backing ``rank_deck_signals`` and
     ``tribal_payoff_subjects``: for every distinct ``(key, scope, subject)``
     ident, its *support* (how many cards feed it), whether the COMMANDER is
-    among those cards, and the first ``Signal`` seen for it. See
-    ``rank_deck_signals`` for the ``ir_for`` / ``resolve_object`` contract."""
+    among those cards, the first ``Signal`` seen for it, and its
+    HIGH-confidence non-commander support (the payoff-grade count — the
+    membership floor's own-subtype signals are deliberately LOW and must
+    never read as payoffs). See ``rank_deck_signals`` for the ``ir_for`` /
+    ``resolve_object`` contract."""
     support: dict[tuple[str, str, str], int] = {}
     from_commander: set[tuple[str, str, str]] = set()
     first: dict[tuple[str, str, str], Signal] = {}
+    nc_high: dict[tuple[str, str, str], int] = {}
     for card in records:
         if not card:
             continue
@@ -384,8 +389,10 @@ def _deck_signal_stats(
             support[ident] = support.get(ident, 0) + 1
             if is_cmd:
                 from_commander.add(ident)
+            elif sig.confidence == "high":
+                nc_high[ident] = nc_high.get(ident, 0) + 1
             first.setdefault(ident, sig)
-    return support, from_commander, first
+    return support, from_commander, first, nc_high
 
 
 def rank_deck_signals(
@@ -410,7 +417,7 @@ def rank_deck_signals(
     resolver at all), falls back to the pure regex ``extract_signals`` (a
     crosswalk-served key whose regex producer is deleted simply won't surface —
     graceful degradation)."""
-    support, from_commander, first = _deck_signal_stats(
+    support, from_commander, first, _nc_high = _deck_signal_stats(
         records, commander_names, resolve_object=resolve_object, ir_for=ir_for
     )
     return sorted(
@@ -444,7 +451,7 @@ def tribal_payoff_subjects(
     avenue once ANY card opens it — see ``signal_specs._subject_spec``'s
     changeling fold — so depth alone over-credits a tribe nobody actually
     built toward), not a real budding theme."""
-    support, from_commander, first = _deck_signal_stats(
+    _support, _from_commander, first, nc_high = _deck_signal_stats(
         records, commander_names, resolve_object=resolve_object, ir_for=ir_for
     )
     subjects: set[str] = set()
@@ -452,8 +459,10 @@ def tribal_payoff_subjects(
         key, _scope, subject = ident
         if key != signal_keys.TYPE_MATTERS or not subject:
             continue
-        non_commander = support[ident] - (1 if ident in from_commander else 0)
-        if non_commander >= 1:
+        # HIGH-confidence non-commander emissions only: the go-wide
+        # membership floor emits own-subtype type_matters at LOW confidence
+        # (Birds of Paradise → Bird) — membership, never a payoff.
+        if nc_high.get(ident, 0) >= 1:
             subjects.add(subject)
     return frozenset(subjects)
 
