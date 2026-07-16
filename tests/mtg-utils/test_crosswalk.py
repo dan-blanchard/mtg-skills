@@ -16709,3 +16709,50 @@ def test_grant_payloads_empty_for_a_type_changer():
     from mtg_utils._deck_forge.crosswalk_signals import extract_grant_payloads
 
     assert extract_grant_payloads(_tree("Xenograft")) == ()
+
+
+def test_grant_payloads_ability_grants_carry_kind_and_raw():
+    # ADR-0040 §2 (task #97): a granted ACTIVATED ability (Scuttling Sliver's
+    # untap, CR 113.3b) is a real grant payload — kind "ability", no keyword.
+    # Dan's Q2 adjudication: Scuttling Sliver is not a correct cut.
+    from mtg_utils._deck_forge.crosswalk_signals import extract_grant_payloads
+
+    pays = extract_grant_payloads(_tree("Scuttling Sliver"))
+    assert [(p.kind, p.keyword, p.scope, p.subject) for p in pays] == [
+        ("ability", "", "you", ("creature", "sliver"))
+    ]
+    assert "untap" in pays[0].raw.lower()
+
+
+def test_grant_payloads_bladeback_hellbent_condition_survives_in_raw():
+    # The hellbent gate (the ADR-0040 §2 observed mislead) must be readable
+    # off the payload so the quality predicate can demote it.
+    from mtg_utils._deck_forge.crosswalk_signals import extract_grant_payloads
+
+    pays = extract_grant_payloads(_tree("Bladeback Sliver"))
+    assert [(p.kind, p.scope, p.subject) for p in pays] == [
+        ("ability", "you", ("creature", "sliver"))
+    ]
+    assert "no cards in hand" in pays[0].raw.lower()
+
+
+def test_grant_payloads_exclude_attached_single_recipients():
+    # "Equipped creature … has flying" grants to ONE creature — never a mass
+    # Granter payload (the type_changers attach-exclusion, same shapes).
+    from mtg_utils._deck_forge.crosswalk_signals import extract_grant_payloads
+
+    assert extract_grant_payloads(_tree("Raven Wings")) == ()
+
+
+def test_grant_payloads_keyword_kind_default():
+    from mtg_utils._deck_forge.crosswalk_signals import extract_grant_payloads
+
+    pays = extract_grant_payloads(_tree("Lancer Sliver"))
+    assert [(p.kind, p.keyword) for p in pays] == [("keyword", "first strike")]
+
+
+def test_grant_payloads_outlast_parameterized_keyword():
+    from mtg_utils._deck_forge.crosswalk_signals import extract_grant_payloads
+
+    pays = extract_grant_payloads(_tree("Enduring Sliver"))
+    assert [(p.kind, p.keyword) for p in pays] == [("keyword", "outlast")]

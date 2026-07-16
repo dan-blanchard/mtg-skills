@@ -198,3 +198,31 @@ def test_type_changer_buckets_engine_serving_the_tribe():
     ley = classes["Leyline of Transformation"]
     assert "Sliver tribal" in ley.served
     assert ley.bucket == "engine"
+
+
+def test_granter_grade_on_real_granters():
+    # ADR-0040 §2 (task #97): a Granter's value is its granted-ability quality
+    # (via the curated table), never its body/playrate. Galerider Sliver
+    # grants flying (premium); Enduring Sliver grants outlast — tap-gated
+    # sorcery-speed growth (CR 702.107a), the benchmark's one correct cut.
+    testkit.test_card_ir("The First Sliver")
+    testkit.test_card_ir("Galerider Sliver")
+    testkit.test_card_ir("Enduring Sliver")
+    first = testkit.test_card("The First Sliver")
+    gale = testkit.test_card("Galerider Sliver")
+    endure = testkit.test_card("Enduring Sliver")
+    deck = {
+        "format": "commander",
+        "commanders": [{"name": "The First Sliver", "quantity": 1}],
+        "cards": [
+            {"name": "Galerider Sliver", "quantity": 1},
+            {"name": "Enduring Sliver", "quantity": 1},
+        ],
+    }
+    index = {c["name"]: c for c in (first, gale, endure)}
+    hd = HydratedDeck.from_parsed(deck, by_name=index)
+    sigs = rank_deck_signals(hd.records, {"The First Sliver"}, ir_for=ir_for)
+    classes = {c.name: c for c in classify_deck(hd, sigs, {"The First Sliver"})}
+    assert classes["Galerider Sliver"].grant_grade == "premium"
+    assert classes["Enduring Sliver"].grant_grade == "weak"
+    assert classes["The First Sliver"].grant_grade is None  # commander bucket

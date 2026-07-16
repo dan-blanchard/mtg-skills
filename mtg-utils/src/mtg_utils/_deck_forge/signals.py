@@ -458,6 +458,22 @@ def tribal_payoff_subjects(
     return frozenset(subjects)
 
 
+def grant_payloads_for(card: dict) -> tuple:
+    """CARD's mass static-grant payloads (ADR-0040 §2, task #97) — the
+    card-record facade over ``crosswalk_signals.extract_grant_payloads``,
+    unioned across the card's per-face concept trees (the same per-face
+    resolution ``extract_signals_hybrid`` uses). Empty for a synthetic
+    no-``oracle_id`` record or a card phase can't parse — the standard
+    no-IR degradation."""
+    from mtg_utils._deck_forge._ir_lookup import trees_for
+    from mtg_utils._deck_forge.crosswalk_signals import extract_grant_payloads
+
+    out: list = []
+    for tree in trees_for(card) or ():
+        out.extend(extract_grant_payloads(tree))
+    return tuple(out)
+
+
 # ── Coverage gate — the agent-augmentation (M3) hook ──────────────────────────
 # Generic = {creatures_matter}: it fires on "creatures you control" (nearly every
 

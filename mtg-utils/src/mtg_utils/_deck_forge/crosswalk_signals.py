@@ -3546,43 +3546,84 @@ def _type_changers(tree: ConceptTree) -> list[Signal]:
 @dataclass(frozen=True)
 class GrantPayload:
     """WHAT a static mass-grant confers (ADR-0040 prerequisite): the
-    ``AddKeyword`` payload the ``type_matters`` static-def read deliberately
-    drops. A structured read for the value layer (Granter quality, grant-
-    covered roles, closer counting — tasks #97/#98/#100), never a Signal:
-    emission stays strict, a recipient never emits the granted ability.
+    ``AddKeyword`` / ``GrantAbility`` payload the ``type_matters`` static-def
+    read deliberately drops. A structured read for the value layer (Granter
+    quality, grant-covered roles, closer counting — tasks #97/#98/#100),
+    never a Signal: emission stays strict, a recipient never emits the
+    granted ability.
 
-    ``keyword`` is normalized lowercase ("double strike", "protection" — a
-    parameterized MirrorVariant normalizes to its key name); ``subject`` is
-    the recipient filter's lowercased words (("creature", "sliver"));
-    ``raw`` carries the grant sentence so a quality predicate (ADR-0040 §2's
-    hellbent-gate mislead) can read the condition without new fields."""
+    ``kind`` is "keyword" (an ``AddKeyword`` — Bonescythe's double strike)
+    or "ability" (a ``GrantAbility`` quoted activated/triggered body —
+    Scuttling Sliver's untap, CR 113.3b — which carries no keyword for the
+    quality table to grade). ``keyword`` is normalized lowercase ("double
+    strike", "protection" — a parameterized MirrorVariant normalizes to its
+    key name; "" for an ability grant); ``subject`` is the recipient
+    filter's lowercased words (("creature", "sliver")); ``raw`` carries the
+    grant sentence so a quality predicate (ADR-0040 §2's hellbent-gate
+    mislead) can read the condition without new fields."""
 
     keyword: str
     scope: str
     subject: tuple[str, ...]
     raw: str
+    kind: str = "keyword"
 
 
 _GRANT_KW_CAMEL = re.compile(r"(?<=[a-z])(?=[A-Z])")
 
 
 def extract_grant_payloads(tree: ConceptTree) -> tuple[GrantPayload, ...]:
-    """Every static grant payload on the tree, in concept-node order."""
+    """Every MASS static grant payload on the tree, in static-def order.
+
+    Walks the static defs directly (the ``_type_changer_static_reads``
+    discipline) rather than the concept overlay, so the mass gate is the
+    same one the lane applies: an attach-predicate ``affected`` ("equipped/
+    enchanted creature has flying") is a single recipient — never a Granter
+    payload; Opponent-side statics are excluded; controller You → scope
+    "you", a bare mass static ("All creatures have …") → "each"."""
     out: list[GrantPayload] = []
-    for cn in tree.iter_concepts():
-        if cn.concept != "grant_keyword" or tag_of(cn.node) != "AddKeyword":
-            continue
-        kw = mod_keyword_name(cn.node)
-        if not kw:
-            continue
-        out.append(
-            GrantPayload(
-                keyword=_GRANT_KW_CAMEL.sub(" ", kw).lower(),
-                scope=cn.scope,
-                subject=tuple(s.lower() for s in (cn.subject or ())),
-                raw=cn.raw or "",
+    for unit in tree.units:
+        for node in iter_static_defs(unit.node):
+            affected = getattr(node, "affected", None)
+            if affected is None:
+                continue
+            if set(filter_predicates(affected)) & _PACIFY_ATTACH_PREDS:
+                continue
+            cores = {c.lower() for c in filter_core_types(affected)}
+            if "creature" not in cores:
+                continue
+            ctrl = filter_controller(affected)
+            if ctrl == "Opponent":
+                continue
+            scope = "you" if ctrl == "You" else "each"
+            subject = tuple(
+                s.lower()
+                for s in (*filter_core_types(affected), *filter_subtypes(affected))
             )
-        )
+            raw = _site_raw(node)
+            for m in getattr(node, "modifications", None) or ():
+                tag = tag_of(m)
+                if tag == "AddKeyword":
+                    kw = mod_keyword_name(m)
+                    if kw:
+                        out.append(
+                            GrantPayload(
+                                keyword=_GRANT_KW_CAMEL.sub(" ", kw).lower(),
+                                scope=scope,
+                                subject=subject,
+                                raw=raw,
+                            )
+                        )
+                elif tag == "GrantAbility":
+                    out.append(
+                        GrantPayload(
+                            keyword="",
+                            scope=scope,
+                            subject=subject,
+                            raw=raw,
+                            kind="ability",
+                        )
+                    )
     return tuple(out)
 
 

@@ -274,10 +274,18 @@ def focus(
     # edhrec_rank) — the vanilla beater that "counts" as creature support in a go-wide
     # deck. Dead weight the bucket test alone misses, surfaced as an upgrade target (the
     # one EDHREC-popularity lean, by user direction).
+    # A Granter is condemned by granted-ability QUALITY alone (ADR-0040 §2:
+    # weak grade — Enduring Sliver's outlast), never by playrate; a
+    # non-Granter keeps the play-rate read (§4, medium-aware).
     low_value_cards = [
         c.name
         for c in nonland
-        if c.bucket == "engine" and is_fringe(c.edhrec_rank, medium=medium)
+        if c.bucket == "engine"
+        and (
+            c.grant_grade == "weak"
+            if c.grant_grade is not None
+            else is_fringe(c.edhrec_rank, medium=medium)
+        )
     ]
 
     engine_labels = {lbl for c in engine for lbl in themes(c)}

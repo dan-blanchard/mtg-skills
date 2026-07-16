@@ -150,11 +150,19 @@ def cut_candidates(
     # 1b. Low-value Engine cards — feed a theme but are barely played (fringe
     #     edhrec_rank), e.g. a vanilla beater that "counts" as creature support. Upgrade
     #     targets, worst play-rate (incl. unranked) first.
+    #     A Granter is condemned by granted-ability QUALITY alone (ADR-0040
+    #     §2: weak grade), never by playrate; non-Granters keep the
+    #     medium-aware play-rate read (§4).
     for c in sorted(
         (
             c
             for c in classes
-            if c.bucket == "engine" and is_fringe(c.edhrec_rank, medium=medium)
+            if c.bucket == "engine"
+            and (
+                c.grant_grade == "weak"
+                if c.grant_grade is not None
+                else is_fringe(c.edhrec_rank, medium=medium)
+            )
         ),
         key=lambda c: -(c.edhrec_rank if c.edhrec_rank is not None else 10**9),
     ):

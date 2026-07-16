@@ -219,3 +219,31 @@ def test_emerging_tribal_gate_off_by_default():
     emerging_labels = {e["label"] for e in fr["emerging"]}
     assert goblin_label in emerging_labels
     assert bird_label in emerging_labels
+
+
+def test_granter_low_value_reads_quality_not_playrate():
+    # ADR-0040 §2/§4 (task #97): a Granter is condemned by granted-ability
+    # QUALITY alone — a premium/solid Granter with a null rank never lands in
+    # low_value_cards (playrate breaks ties, never condemns); a weak Granter
+    # does regardless of rank. Non-Granters keep the playrate read.
+    def cc(name, grade):
+        c = _cc(name, "engine", ["Slivers"])
+        return CardClass(
+            name=c.name,
+            bucket=c.bucket,
+            roles=c.roles,
+            served=c.served,
+            dual_purpose=c.dual_purpose,
+            cmc=c.cmc,
+            record=c.record,
+            grant_grade=grade,
+        )
+
+    classes = [
+        cc("Premium Granter", "premium"),
+        cc("Solid Granter", "solid"),
+        cc("Weak Granter", "weak"),
+        cc("Plain Body", None),
+    ]
+    fr = focus(classes, deck_size=10)
+    assert set(fr["low_value_cards"]) == {"Weak Granter", "Plain Body"}

@@ -52,6 +52,26 @@ class CardClass:
     cmc: float
     record: dict
     edhrec_rank: int | None = None  # play-rate rank; lower=more played, None=unplayed
+    # ADR-0040 §2 (task #97): the card's Granter grade ("premium"/"solid"/
+    # "weak" via the ability-quality table; None = not a Granter). The
+    # low-value reads condemn a Granter by GRADE, never by playrate.
+    grant_grade: str | None = None
+
+
+# The repeatable-draw commander keys that arm the hellbent anti-synergy
+# predicate (ADR-0040 §2: a "no cards in hand"-gated grant under a
+# draw-engine commander never turns on — Sliver Weftwinder draws per ETB).
+_DRAW_ENGINE_KEYS = frozenset({"card_draw_engine", "draw_for_each"})
+
+
+def _commander_draws(hd: HydratedDeck, commander_names: set[str]) -> bool:
+    from mtg_utils.theme_presets import _signal_keys_for
+
+    return any(
+        _signal_keys_for(rec) & _DRAW_ENGINE_KEYS
+        for rec in hd.records
+        if rec.get("name") in commander_names
+    )
 
 
 def classify_deck(
@@ -63,6 +83,10 @@ def classify_deck(
     ``score_candidate`` machinery the Find ranker uses, so a card's tuner
     classification can never drift from how the rest of deck-forge scores it.
     """
+    from mtg_utils._deck_forge.signals import grant_payloads_for
+    from mtg_utils._tuner.ability_quality import grant_grade
+
+    draw_engine = _commander_draws(hd, commander_names)
     out: list[CardClass] = []
     for rec in hd.records:
         name = rec.get("name", "")
@@ -84,6 +108,11 @@ def classify_deck(
             bucket = "engine"
         else:
             bucket = "filler"
+        grade = (
+            grant_grade(grant_payloads_for(rec), draw_engine_commander=draw_engine)
+            if bucket not in ("commander", "land")
+            else None
+        )
         out.append(
             CardClass(
                 name=name,
@@ -94,6 +123,7 @@ def classify_deck(
                 cmc=float(rec.get("cmc", 0.0) or 0.0),
                 record=rec,
                 edhrec_rank=rec.get("edhrec_rank"),
+                grant_grade=grade,
             )
         )
     return out

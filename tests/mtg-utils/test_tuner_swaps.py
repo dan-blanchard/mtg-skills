@@ -935,3 +935,30 @@ def test_focused_role_over_not_gated_by_role_fix_guard():
     assert len(out["swaps"]) == 1
     assert out["swaps"][0]["add"]["name"] == "Token Maker"
     assert "off-avenue fallback" not in out["swaps"][0]["reason"]
+
+
+def test_cut_candidates_granter_quality_gates_low_value():
+    # ADR-0040 §2/§4 (task #97): the low_value cut queue condemns a Granter by
+    # quality, never playrate — premium/solid stay out even unranked; weak
+    # goes in even when well-ranked.
+    def gc(name, grade, rank=None):
+        base = _cc(name, "engine", served=["Slivers"], edhrec_rank=rank)
+        return CardClass(
+            name=base.name,
+            bucket=base.bucket,
+            roles=base.roles,
+            served=base.served,
+            dual_purpose=base.dual_purpose,
+            cmc=base.cmc,
+            record=base.record,
+            grant_grade=grade,
+        )
+
+    classes = [
+        gc("Premium Granter", "premium"),
+        gc("Weak Granter", "weak", rank=500),
+    ]
+    kw = {"budgets": {}, "focus_verdict": "FOCUSED", "stranded": set()}
+    got = [(r, c.name) for r, c in cut_candidates(classes, **kw)]
+    assert ("low_value", "Weak Granter") in got
+    assert all(name != "Premium Granter" for _, name in got)
