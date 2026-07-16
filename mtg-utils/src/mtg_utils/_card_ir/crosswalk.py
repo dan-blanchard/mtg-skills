@@ -39,6 +39,7 @@ from __future__ import annotations
 
 from collections.abc import Iterator
 from dataclasses import dataclass, field, fields
+from typing import Any
 
 from mtg_utils._card_ir.mirror.runtime import (
     MISSING,
@@ -2658,7 +2659,7 @@ def _walk_static_defs(root: object) -> Iterator[TypedMirrorNode]:
 _FIELD_NAMES_BY_CLS: dict[type, tuple[str, ...]] = {}
 
 
-def _field_names(cls: type) -> tuple[str, ...]:
+def _field_names(cls: type[Any]) -> tuple[str, ...]:
     names = _FIELD_NAMES_BY_CLS.get(cls)
     if names is None:
         names = tuple(f.name for f in fields(cls))

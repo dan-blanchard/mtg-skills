@@ -361,14 +361,13 @@ def archetype_audit(
     for theme_name, info in per_theme.items():
         for name in info["cards"]:
             bridge_counter.setdefault(name, []).append(theme_name)
-    bridges = sorted(
-        (
-            {"name": name, "themes": themes_list, "theme_count": len(themes_list)}
-            for name, themes_list in bridge_counter.items()
-            if len(themes_list) >= 2
-        ),
-        key=lambda x: (-x["theme_count"], x["name"]),
-    )
+    bridges = [
+        {"name": name, "themes": themes_list, "theme_count": len(themes_list)}
+        for name, themes_list in sorted(
+            ((n, t) for n, t in bridge_counter.items() if len(t) >= 2),
+            key=lambda item: (-len(item[1]), item[0]),
+        )
+    ]
 
     return {
         "themes": per_theme,

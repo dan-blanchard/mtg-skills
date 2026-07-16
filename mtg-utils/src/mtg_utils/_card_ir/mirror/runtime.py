@@ -58,7 +58,7 @@ MISSING: Any = _MissingType()
 _JSON_FIELDS_BY_CLS: dict[type, tuple[tuple[str, str], ...]] = {}
 
 
-def _json_fields(cls: type) -> tuple[tuple[str, str], ...]:
+def _json_fields(cls: type[Any]) -> tuple[tuple[str, str], ...]:
     pairs = _JSON_FIELDS_BY_CLS.get(cls)
     if pairs is None:
         pairs = tuple(

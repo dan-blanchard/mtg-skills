@@ -215,7 +215,7 @@ class _TGPAdapter:
                     "language": lang_el.get_text(strip=True) if lang_el else "English",
                 }
             )
-        out.sort(key=lambda v: (v["price"], _SHORT_TO_INDEX[v["condition"]]))
+        out.sort(key=lambda v: (v["price"], _SHORT_TO_INDEX[str(v["condition"])]))
         return out
 
     def add_to_cart(self, page: Page, listing: Listing, qty: int) -> AddToCartResult:
