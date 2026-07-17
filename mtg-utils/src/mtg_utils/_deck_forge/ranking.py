@@ -15,7 +15,11 @@ property = one credit), weights each cluster ``payoff > enabler > structural``
 (a reactive reward-trigger clause beats a bare token-creation clause beats a
 type/keyword membership), and scales by the deck's own avenue prominence
 (``focus_sets``) so the fix is deck-relative — a genuine token deck still rewards
-token makers, an aristocrats deck rewards death payoffs. Premium fixing / bombs
+token makers, an aristocrats deck rewards death payoffs. Two anti-gaming reads
+on top (2026-07-16 discovery study): same-role cluster stacks decay
+geometrically (a four-payoff text wall isn't 4x one payoff) and every cluster
+earns a prominence-weighted breadth credit (one clause the deck wants for seven
+reasons beats seven clauses it wants for one each). Premium fixing / bombs
 score low on synergy BY DESIGN and are surfaced on the separate
 ``structural_floor`` axis (so the tuner can protect them on the cut side without
 faking synergy).
@@ -44,6 +48,19 @@ from mtg_utils.card_ir import Ability, Card, Effect, Filter
 # generative/fodder action, which beats mere type/keyword membership.
 _ROLE_WEIGHT = {"payoff": 3.0, "enabler": 1.0, "structural": 0.5}
 _ROLE_RANK = {"payoff": 2, "enabler": 1, "structural": 0}
+
+# Same-role stacking decay: the i-th cluster of a role (sorted by weight desc)
+# contributes x0.35^i. A card fills ONE deck slot, so its best property defines
+# its job — the linear sum let text walls win discovery (every clause of a
+# four-ability value engine read role=payoff and the stack outranked the
+# deck's on-plan staples; 2026-07-16 EDHREC study, recall@100 4.3%→6.2% with
+# this + the breadth credit below).
+_STACK_DECAY = 0.35
+# Lane-breadth credit: one physical property the deck wants for K distinct
+# reasons beats a property wanted for one. Each lane beyond the cluster's best
+# adds 0.25 x that lane's own prominence (deck-relative: grazing K stranded
+# lanes earns a fraction of hitting K viable ones).
+_BREADTH_CREDIT = 0.25
 
 # Deck-relative avenue prominence (focus tiers); an unmapped lane is mid-low.
 _PROM = {"viable": 1.0, "emerging": 0.6, "stranded": 0.25}
@@ -419,7 +436,12 @@ def _synergy_score(
     """Depth-over-breadth synergy: cluster served lanes by the oracle clause they
     matched (one property = one credit), weight payoff > enabler > structural,
     scale by deck prominence, and discount a payoff gated on a tribe the deck
-    lacks. Returns (score, per-cluster readout).
+    lacks. Same-role cluster stacks decay geometrically (``_STACK_DECAY``) so a
+    text wall of payoff clauses can't sum linearly past the deck's on-plan
+    staples, and each cluster earns a prominence-weighted lane-breadth credit
+    (``_BREADTH_CREDIT``) so one property the deck wants for many reasons
+    outearns a property wanted for one. Returns (score, per-cluster readout);
+    readout rows carry each cluster's actual contribution and sum to the score.
 
     Cluster ROLE and the tribal-gate discount read the candidate's Card IR
     (``ir``) when present — a clause is a payoff iff it aligns to a payoff
@@ -457,27 +479,48 @@ def _synergy_score(
             else (role, labels, [i])
         )
 
-    score = 0.0
-    readout: list[dict] = []
+    # Per-cluster (role, base weight, breadth credit, labels). Base = role
+    # weight x the cluster's BEST lane prominence (x tribal-gate discount for
+    # payoffs); breadth = _BREADTH_CREDIT x Σ prominence of every extra lane.
+    entries: list[tuple[str, float, float, list[str]]] = []
     for role, labels, idxs in merged.values():
-        prom = max(
-            (_prominence(label, focus_sets) for label in labels),
-            default=_PROM_DEFAULT,
+        proms = sorted(
+            (_prominence(label, focus_sets) for label in labels), reverse=True
         )
-        weight = _ROLE_WEIGHT[role] * prom
+        weight = _ROLE_WEIGHT[role] * (proms[0] if proms else _PROM_DEFAULT)
         if role == "payoff":
             # A dead tribal gate (Lizard payoff, no Lizards) discounts the cluster.
             weight *= min(
                 _gate_penalty(clause_list[i], deck_tribes, ir, gate_subtypes)
                 for i in idxs
             )
-        weight = round(weight, 3)
-        score += weight
-        readout.append({"role": role, "weight": weight, "lanes": sorted(labels)})
+        breadth = _BREADTH_CREDIT * sum(proms[1:])
+        entries.append((role, weight, breadth, sorted(labels)))
     for label in struct_labels:
-        weight = round(_ROLE_WEIGHT["structural"] * _prominence(label, focus_sets), 3)
-        score += weight
-        readout.append({"role": "structural", "weight": weight, "lanes": [label]})
+        entries.append(
+            (
+                "structural",
+                _ROLE_WEIGHT["structural"] * _prominence(label, focus_sets),
+                0.0,
+                [label],
+            )
+        )
+
+    # Same-role stacks decay geometrically (sorted desc); the breadth credit
+    # rides undecayed on its own cluster. Each readout row's ``weight`` is the
+    # cluster's ACTUAL contribution (decayed + breadth), so rows sum to the
+    # score — the readout stays a truthful transparency surface.
+    by_role: dict[str, list[tuple[str, float, float, list[str]]]] = {}
+    for entry in entries:
+        by_role.setdefault(entry[0], []).append(entry)
+    score = 0.0
+    readout: list[dict] = []
+    for group in by_role.values():
+        group.sort(key=lambda e: -e[1])
+        for i, (role, base, breadth, labels) in enumerate(group):
+            weight = round(base * (_STACK_DECAY**i) + breadth, 3)
+            score += weight
+            readout.append({"role": role, "weight": weight, "lanes": labels})
     return round(score, 3), readout
 
 

@@ -239,6 +239,137 @@ def test_real_activated_pinger_beats_dead_tribal_gate():
     assert wb > hc
 
 
+# ── Same-role stacking decay + lane-breadth credit (2026-07-16 study) ────────
+# The linear cluster sum let TEXT WALLS win discovery: every activated/triggered
+# clause reads role=payoff, clusters summed linearly, so a four-payoff-clause
+# value engine the Krenko crowd never plays (Fires of Mount Doom) outranked the
+# on-plan staples (Siege-Gang Lieutenant, an EDHREC Krenko synergy target, sat
+# at rank ~120). Two mechanism fixes, validated on the 20-commander EDHREC
+# study (recall@100 4.3%→6.2%, recall@250 7.1%→9.3%, median target rank
+# 3741→3345):
+#   1. Same-role cluster contributions decay geometrically (sorted desc,
+#      x0.35^i): a card fills ONE slot, so its best property defines its job —
+#      a fourth payoff clause is gravy, not 4x the card.
+#   2. Each cluster earns a lane-breadth credit: one physical property the deck
+#      wants for K distinct reasons beats a property wanted for one, in
+#      proportion to the deck's own interest (0.25 x Σ prominence of each lane
+#      beyond the cluster's best).
+_KRENKO_SIGNALS = [
+    _sig("type_matters", "you"),
+    _sig("typed_spellcast", "you"),
+    _sig("token_maker", "you"),
+    _sig("creatures_matter", "you"),
+    _sig("creature_etb", "you"),
+    _sig("death_matters", "any"),
+    _sig("sacrifice_outlets", "you"),
+    _sig("direct_damage", "you"),
+    _sig("activated_ability", "you"),
+    _sig("legends_matter", "you"),
+    _sig("impulse_top_play", "you"),
+    _sig("cost_reduction", "you"),
+    _sig("attack_matters", "you"),
+    _sig("removal", "you"),
+]
+# The tribal signals carry the Goblin subject (per-subject dynamic specs).
+for _i, _s in enumerate(_KRENKO_SIGNALS):
+    if _s.key in ("type_matters", "typed_spellcast", "token_maker"):
+        _KRENKO_SIGNALS[_i] = Signal(_s.key, _s.scope, "Goblin", "", "cmd")
+# The real Krenko average-deck focus tiers (study harness, 2026-07-16).
+_KRENKO_FOCUS = {
+    "viable": {
+        "Goblin tribal",
+        "Activated-ability engine",
+        "Burn / pingers",
+        "Legends matter",
+    },
+    "emerging": set(),
+    "stranded": set(),
+}
+# Real cards (full oracle text). Siege-Gang Lieutenant: ONE payoff clause
+# serving seven lanes (sac-outlet pinger tribal piece) + a wide token clause.
+# Fires of Mount Doom: four stacked narrow payoff clauses (the text wall).
+_SIEGE_GANG_LT = {
+    "name": "Siege-Gang Lieutenant",
+    "type_line": "Creature — Goblin",
+    "cmc": 4.0,
+    "oracle_text": (
+        "Lieutenant — At the beginning of combat on your turn, if you control "
+        "your commander, create two 1/1 red Goblin creature tokens. Those "
+        "tokens gain haste until end of turn.\n{2}, Sacrifice a Goblin: This "
+        "creature deals 1 damage to any target."
+    ),
+    "prices": {"usd": "2.88"},
+}
+_FIRES_OF_MOUNT_DOOM = {
+    "name": "Fires of Mount Doom",
+    "type_line": "Legendary Enchantment",
+    "cmc": 3.0,
+    "oracle_text": (
+        "When Fires of Mount Doom enters, it deals 2 damage to target creature "
+        "an opponent controls. Destroy all Equipment attached to that "
+        "creature.\n{2}{R}: Exile the top card of your library. You may play "
+        "that card this turn. When you play a card this way, Fires of Mount "
+        "Doom deals 2 damage to each player."
+    ),
+    "prices": {"usd": "1.88"},
+}
+_EMPTY_THE_WARRENS = {
+    "name": "Empty the Warrens",
+    "type_line": "Sorcery",
+    "cmc": 4.0,
+    "oracle_text": (
+        "Create two 1/1 red Goblin creature tokens.\nStorm (When you cast "
+        "this spell, copy it for each spell cast before it this turn.)"
+    ),
+    "prices": {"usd": "0.19"},
+}
+_ASHNODS_ALTAR = {
+    "name": "Ashnod's Altar",
+    "type_line": "Artifact",
+    "cmc": 3.0,
+    "oracle_text": "Sacrifice a creature: Add {C}{C}.",
+    "prices": {"usd": "14.38"},
+}
+
+
+def _krenko_sc(card: dict) -> dict:
+    return score_candidate(
+        card, active_signals=_KRENKO_SIGNALS, focus_sets=_KRENKO_FOCUS
+    )
+
+
+def test_on_plan_breadth_beats_stacked_payoff_wall():
+    # The study's flagship flip: the EDHREC Krenko staple must outrank the
+    # text wall (previously Fires ranked #1 in the whole 7k pool, the staple
+    # #120). Depth in the deck's real plan > stacked one-dimensional value.
+    assert (
+        _krenko_sc(_SIEGE_GANG_LT)["synergy_score"]
+        > _krenko_sc(_FIRES_OF_MOUNT_DOOM)["synergy_score"]
+    )
+
+
+def test_same_role_stacking_decays_geometrically():
+    # Fires's three top payoff clusters must contribute sub-linearly. With
+    # x0.35^i decay the payoff rows sum below max x 1/(1-0.35) ≈ 1.54 (plus
+    # a small breadth term); the linear sum was 3x max.
+    sc = _krenko_sc(_FIRES_OF_MOUNT_DOOM)
+    payoff = [c["weight"] for c in sc["clusters"] if c["role"] == "payoff"]
+    assert payoff, sc["clusters"]
+    assert sum(payoff) < max(payoff) * 1.6, sc["clusters"]
+
+
+def test_wide_cluster_earns_prominence_weighted_breadth():
+    # Empty the Warrens' one token clause serves 8 lanes (Goblin tribal viable
+    # + 7 default-prominence lanes): its cluster row must carry the breadth
+    # credit above the bare enabler weight (1.0), and the wide token clause
+    # must beat the narrow sac-outlet clause (Ashnod's Altar) decisively.
+    sc = _krenko_sc(_EMPTY_THE_WARRENS)
+    widest = max(sc["clusters"], key=lambda c: len(c["lanes"]))
+    assert len(widest["lanes"]) >= 8, sc["clusters"]
+    assert widest["weight"] > 1.0, sc["clusters"]
+    assert sc["synergy_score"] > _krenko_sc(_ASHNODS_ALTAR)["synergy_score"]
+
+
 ETB = Signal("creature_etb", "you", "", "", "cmd")
 LIFE = Signal("lifegain_matters", "you", "", "", "cmd")
 
