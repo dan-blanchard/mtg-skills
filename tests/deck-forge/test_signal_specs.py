@@ -6,6 +6,8 @@ opponents, not yourself. Self-mill must NOT register as serving it.
 
 import re
 
+import pytest
+
 from mtg_utils._deck_forge import signal_specs
 from mtg_utils._deck_forge._signals_ir import extract_signals_ir
 from mtg_utils._deck_forge.signal_specs import (
@@ -7687,3 +7689,47 @@ def test_chosen_type_matters_key_resolves_and_serves_structurally():
     assert spec is not None
     assert spec.label == "Chosen-type tribal payoffs"
     assert spec.serve.matches(door)
+
+
+# ── task B-6: mana_amplifier serve wiring into the X-spell lane ──────────────
+# The xspell_matters avenue text always promised "the X-doublers ... an
+# X-matters deck is built around", but its serve only credited X-COST cards
+# — a mana doubler has neither an {X} cost nor the copy-payoff prose, so
+# Mana Reflection under Zaxara ranked as filler (the adjudicated study gap).
+# The structural arm delivers them: the serve carries the mana_amplifier
+# ident, implementing the ledgered big_mana adjudication ("Dan: big-mana-
+# generators -> X-spells" — generators serve the X lane, never the sinks
+# lane).
+
+
+@pytest.mark.parametrize(
+    ("name", "serves"),
+    [
+        ("Mana Reflection", True),
+        ("Zendikar Resurgent", True),
+        # Plain ramp / single-land Auras never emit mana_amplifier — the
+        # lane's AttachedTo/plain-producer exclusions are the precision gate.
+        ("Sol Ring", False),
+        ("Llanowar Elves", False),
+        ("Wild Growth", False),
+    ],
+)
+def test_xspell_serve_credits_mana_amplifiers_structurally(name, serves):
+    spec = spec_for(
+        Signal(key="xspell_matters", scope="you", subject="", text="", source="c")
+    )
+    assert spec is not None
+    assert "mana_amplifier|you|" in (spec.serve.signal_idents or frozenset())
+    test_card_ir(name)  # seeds the crosswalk trees memo
+    assert spec.serve.matches(test_card(name)) is serves, name
+
+
+def test_xspell_amplifier_serve_survives_avenue_round_trip():
+    # ranking rebuilds serves from avenue dicts (serve_from_dict) — the
+    # ident arm must survive the round trip.
+    spec = spec_for(
+        Signal(key="xspell_matters", scope="you", subject="", text="", source="c")
+    )
+    test_card_ir("Mana Reflection")
+    rebuilt = serve_from_dict(spec.serve.as_dict())
+    assert rebuilt.matches(test_card("Mana Reflection"))

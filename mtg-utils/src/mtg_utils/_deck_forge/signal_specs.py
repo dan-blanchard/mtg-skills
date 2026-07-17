@@ -3533,6 +3533,16 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         r"|cost (?:that )?contains? \{x\}"
         r"|spells? you cast with \{x\}",
         serve_mana_cost=r"\{X\}",
+        # task B-6: the X-DOUBLERS the avenue text always promised, delivered
+        # structurally — a mana amplifier (Mana Reflection, Nyxbloom Ancient,
+        # Zendikar Resurgent, Doubling Cube, Crypt Ghast) has neither an {X}
+        # cost nor the copy prose, so Mana Reflection under Zaxara ranked as
+        # filler (the 2026-07-16 study's adjudicated gap). Implements the
+        # big_mana ledgered call ("Dan: big-mana-generators -> X-spells"):
+        # generators serve the X lane, never the sinks lane. Symmetric
+        # doublers (Mana Flare) ride too — on-theme for an X deck, which
+        # spends the shared mana better.
+        serve_idents=frozenset({"mana_amplifier|you|"}),
     ),
     # Theft (steal an OPPONENT's cards and cast them): serve credits the opponent-
     # library dig (Gonti, Black Cat, Thief of Sanity) and the steal-and-cast engines
