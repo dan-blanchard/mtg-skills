@@ -681,6 +681,27 @@ _Avoid_: "combo" (Commander Spellbook's word — infinite/game-winning lines), "
 package" (a surfaced suggestion set, not a scored interaction), "pair" bare (collides
 with a swap's cut+add pair).
 
+**Hook**:
+The written mechanical reason a candidate belongs in THIS deck: it cites the
+candidate's machine-readable evidence (its idents, matched [[Pair read]], or cluster
+readout) AND the deck-context reason (which lane or anchor it feeds). The unit of
+discovery adjudication — a top pick whose Hook does not survive adversarial refutation
+counts as a miss. Popularity is never a Hook: the ADR-0009 crowd-independence rule
+binds the judges too (no EDHREC/meta appeals on either side of a refutation).
+_Avoid_: "justification" (vague), "synergy note" (a UI display string, not the
+adjudication unit), "reason" bare.
+
+**Adjudicated precision** (the discovery yardstick):
+The share of the ranker's top-20 out-of-deck picks, per commander on a fixed
+10-commander panel, whose [[Hook]]s survive a refuter-majority adversarial check —
+the PRIMARY discovery-quality metric (ADR-0043). Crowd recall (EDHREC targets) stays
+computable as a free secondary drift indicator but is never a bar: the ranker is
+deliberately crowd-independent, and 2026-07-16 showed absolute crowd-recall bars get
+invented rather than derived. The bar is a RATCHET — each iteration must beat the
+measured baseline and never regress the drift indicator beyond noise.
+_Avoid_: "recall" (the demoted crowd metric), "accuracy" (against what ground truth?),
+"win rate" (the playtest axis, a different instrument).
+
 **Focus** (the anti-"spread too thin" metric):
 The concentration of [[Engine card]]s across the deck's signal-derived [[Exploration
 avenue]]s (Staples excluded). Lead readout: the deck's *themes* and their depths, scored on
