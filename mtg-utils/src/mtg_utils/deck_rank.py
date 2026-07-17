@@ -20,6 +20,7 @@ import click
 
 from mtg_utils._deck_forge._ir_lookup import ir_for
 from mtg_utils._deck_forge.ranking import rank_candidates
+from mtg_utils._deck_forge.rate import build_rate_index
 from mtg_utils._deck_forge.signals import ranked_signals_and_payoffs
 from mtg_utils._tuner import metrics
 from mtg_utils._tuner.classify import classify_deck
@@ -120,6 +121,9 @@ def main(
         active_signals=signals,
         focus_sets=_focus_sets(hd, signals, commander_names, payoff_subjects),
         deck_tribes=_deck_tribes(hd),
+        # Rate (ADR-0042): percentiles over the candidate pool the caller
+        # provided — the whole in-identity pool in the discovery flow.
+        rate_index=build_rate_index(pool),
     )[: max(1, limit)]
     if as_json:
         out = [

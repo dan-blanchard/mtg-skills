@@ -33,6 +33,7 @@ from collections.abc import Callable, Mapping, Sequence
 
 from mtg_utils._deck_forge._ir_lookup import ir_for
 from mtg_utils._deck_forge.budgets import role_of
+from mtg_utils._deck_forge.rate import RateIndex, rate_for
 from mtg_utils._deck_forge.signal_specs import serve_from_dict, spec_for
 from mtg_utils._deck_forge.signals import clauses
 from mtg_utils.card_classify import (
@@ -548,6 +549,7 @@ def score_candidate(
     | None = None,
     _signal_specs: list | None = None,
     _ir_resolved: tuple[Card | None] | None = None,
+    rate_index: RateIndex | None = None,
 ) -> dict:
     """Return the multi-axis readout for one candidate.
 
@@ -591,6 +593,10 @@ def score_candidate(
     return {
         "synergy_fit": len(served),
         "synergy_score": synergy_score,
+        # Rate (ADR-0042): the card's cost-effectiveness percentile within
+        # its peer class — 0.5 (neutral) without an index or a measurable
+        # effect, so degraded/no-bulk deployments rank exactly as before.
+        "rate": rate_for(card, rate_index),
         "served": served,
         "clusters": clusters,
         "structural_floor": _structural_floor(card),
@@ -610,6 +616,7 @@ def rank_candidates(
     focus_sets: Mapping[str, set] | None = None,
     deck_tribes: frozenset[str] | None = None,
     rank_by: str = "score",
+    rate_index: RateIndex | None = None,
 ) -> list[dict]:
     """Score and sort candidates: synergy desc, then price asc (no-listing last),
     then cmc asc.
@@ -638,14 +645,25 @@ def rank_candidates(
                 _avenue_preds=avenue_preds,
                 _signal_specs=signal_specs,
                 _ir_resolved=(ir_for(c),),
+                rate_index=rate_index,
             ),
         }
         for c in cards
     ]
+
+    # Rate multiplies the depth sort (ADR-0042): synergy x (0.5 + rate) —
+    # neutral 0.5 is exactly x1.0, zero synergy stays zero (an off-plan card
+    # can never leapfrog on Rate alone). The FOCUSED fit path stays a raw
+    # count — the user hand-picked those lanes.
+    def _depth(r: dict) -> float:
+        if synergy_key == "synergy_fit":
+            return r["score"]["synergy_fit"]
+        return r["score"]["synergy_score"] * (0.5 + r["score"]["rate"])
+
     scored.sort(
         key=lambda r: (
             -r["score"]["color_widening"],
-            -r["score"][synergy_key],
+            -_depth(r),
             r["score"]["price"] if r["score"]["price"] is not None else math.inf,
             r["score"]["cmc"],
         )

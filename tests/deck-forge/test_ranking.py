@@ -821,3 +821,40 @@ def test_structural_serves_form_one_cluster_with_breadth():
     # (0.5 + 0.5x0.35 = 0.675 summed across two rows would ALSO exceed 0.5,
     # so pin the single-row shape AND the exact contribution).
     assert abs(struct[0]["weight"] - 0.75) < 0.001, struct
+
+
+# ── Rate integration (ADR-0042): the sort multiplier ─────────────────────────
+def test_rate_multiplies_the_sort_and_rides_the_readout():
+    from mtg_utils._deck_forge.rate import build_rate_index, rate_for
+    from mtg_utils.testkit import snapshot_records, test_card, test_card_ir
+
+    index = build_rate_index(snapshot_records())
+    test_card_ir("Lightning Bolt")
+    test_card_ir("Fires of Mount Doom")
+    bolt, fires = test_card("Lightning Bolt"), test_card("Fires of Mount Doom")
+    ranked = rank_candidates(
+        [fires, bolt],
+        active_signals=_BURN_SIGNALS,
+        focus_sets=_BURN_FOCUS,
+        rate_index=index,
+    )
+    by_name = {r["card"]["name"]: r["score"] for r in ranked}
+    # The readout carries each card's Rate, matching rate_for directly.
+    assert by_name["Lightning Bolt"]["rate"] == rate_for(bolt, index)
+    assert by_name["Fires of Mount Doom"]["rate"] == rate_for(fires, index)
+    # The order equals sorting on synergy x (0.5 + rate).
+    keyed = sorted(
+        by_name.items(),
+        key=lambda kv: -(kv[1]["synergy_score"] * (0.5 + kv[1]["rate"])),
+    )
+    assert [r["card"]["name"] for r in ranked] == [k for k, _ in keyed]
+
+
+def test_without_an_index_rate_is_neutral_and_order_unchanged():
+    ranked = rank_candidates(
+        [_ELVEN_BOW, _FLAYER_HUSK, _BASTION],
+        active_signals=_ARI_SIGNALS,
+        focus_sets=_ARI_FOCUS,
+    )
+    assert all(r["score"]["rate"] == 0.5 for r in ranked)
+    assert ranked[0]["card"]["name"] == "Bastion of Remembrance"

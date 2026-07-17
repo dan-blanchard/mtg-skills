@@ -131,6 +131,18 @@ def test_card(name: str) -> dict[str, Any]:
     return dict(_entry(name)["scryfall"])
 
 
+def snapshot_records() -> list[dict[str, Any]]:
+    """Every snapshot card's minimal Scryfall record, with the crosswalk
+    trees memo pre-seeded for each — a CI-usable ~900-card POOL for
+    whole-pool computations (the Rate index percentiles, ADR-0042). Copies,
+    like :func:`test_card`."""
+    out: list[dict[str, Any]] = []
+    for name in _snapshot()["cards"]:
+        _seed_trees(name)
+        out.append(dict(_entry(name)["scryfall"]))
+    return out
+
+
 def _seed_trees(name: str) -> None:
     """Pre-populate ``_ir_lookup``'s trees memo for *name* from the snapshot's
     stored phase records — so the production crosswalk merge (``trees_for``) runs
