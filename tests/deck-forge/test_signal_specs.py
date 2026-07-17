@@ -7659,7 +7659,7 @@ def test_tribal_serve_credits_chosen_type_payoffs_for_any_tribe():
         )
         assert spec is not None
         assert spec.serve.matches(horn), tribe
-        assert _CHOSEN_TYPE_IDENTS <= (spec.serve.signal_idents or frozenset())
+        assert (spec.serve.signal_idents or frozenset()) >= _CHOSEN_TYPE_IDENTS
 
 
 def test_punisher_chooser_never_serves_the_main_tribal_lane():

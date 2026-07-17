@@ -38,6 +38,13 @@ TYPE_CHANGERS: Final = "type_changers"
 TYPE_CHANGERS_ALL_ZONES: Final = "type_changers_all_zones"
 TYPE_CHANGERS_GRAVEYARD: Final = "type_changers_graveyard"
 
+# Board-count damage (task B-2): one-shot damage scaling with YOUR board —
+# DealDamage whose amount is an ObjectCount over creatures (subject "") or a
+# vocabulary subtype (subject "<Type>") you control. The count is resolved-on-
+# application game information (CR 608.2h), so a wide board turns these into
+# finishers; X-cost damage (announcement-fixed mana, CR 107.3b) stays out.
+DAMAGE_FOR_EACH: Final = "damage_for_each"
+
 # Wildcard tribal payoffs (task B-1): cards that choose a creature type as
 # they enter (CR 614.12 — the as-enters replacement choice) and PAY OFF the
 # chosen type (Door of Destinies, Herald's Horn). NOT a subject key — the
@@ -56,5 +63,6 @@ SUBJECT_KEYS: Final = frozenset(
         TYPE_CHANGERS,
         TYPE_CHANGERS_ALL_ZONES,
         TYPE_CHANGERS_GRAVEYARD,
+        DAMAGE_FOR_EACH,
     }
 )

@@ -1749,6 +1749,18 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         _CHOSEN_TYPE_ORACLE,
         serve_idents=_CHOSEN_TYPE_IDENTS,
     ),
+    # task B-2: damage_for_each — board-count damage, subject-less form (Mob
+    # Justice, Massive Raid: "equal to the number of creatures you control").
+    # The deck-building move when the deck emits this: raise the count — the
+    # same go-wide fuel the creature-ETB lane serves. One "any"-scoped entry
+    # resolves both emitted scopes via the (key, "any") fallback.
+    ("damage_for_each", "any"): _spec(
+        "Board-count damage",
+        "go-wide fuel — token makers and cheap bodies that raise the count "
+        "your board-scaled burn (Mob Justice, Massive Raid) reads",
+        {"oracle": (r"deals? (?:X )?damage[^.]*equal to (?:\w+ times )?the number of")},
+        r"create .*creature token|put .*creature.*onto the battlefield",
+    ),
     ("creature_etb", "you"): _spec(
         "Creatures entering — yours",
         "cheap ways to flood your board with creatures",
@@ -6393,6 +6405,12 @@ _SUBJECT_TEMPLATES = {
         "{s} spells",
         "{s} spells to cast and chain",
     ),
+    # task B-2: a tribe-count damage finisher (Scourge of Valkas) wants the
+    # tribe's BODIES — the count is the burn spell's size (CR 608.2h).
+    signal_keys.DAMAGE_FOR_EACH: (
+        "{s} count damage",
+        "more {s} bodies to raise the count — the tribe is the burn spell",
+    ),
 }
 
 
@@ -6585,7 +6603,12 @@ def _subject_spec(signal: Signal) -> SignalSpec:
     # but they type-line as "Shapeshifter", so the {card_type: subj} search misses every
     # one. Fold them (the keyword bearers + the "is/are every creature type" granters)
     # into the type-tribal serve so a Goblin/Elf/Zombie deck credits its changelings.
-    is_type_tribal = signal.key == signal_keys.TYPE_MATTERS
+    is_type_tribal = signal.key in (
+        signal_keys.TYPE_MATTERS,
+        # task B-2: a "{s} count damage" lane is tribal-bodies-semantics too —
+        # every body (and changeling, and type-changer) raises the count.
+        signal_keys.DAMAGE_FOR_EACH,
+    )
     # Synonym-GROUP tribes (sea monsters): a member type's serve covers the WHOLE group,
     # by type-line AND by the group-naming payoff oracle (Whelming Wave). card_search's
     # card_type is single-token-only (no OR), so each OTHER member gets its own search

@@ -17001,3 +17001,81 @@ def test_chosen_type_matters_wider_members(name, scope):
 )
 def test_chosen_type_matters_excludes(name):
     assert "chosen_type_matters" not in _keys(name)
+
+
+# ── task B-2: damage_for_each — board-count damage (2026-07-16 study) ────────
+# One-shot damage that SCALES with your own board: DealDamage whose amount is
+# an ObjectCount over creatures you control (Mob Justice, Outnumber) or a
+# vocabulary subtype you control (Goblin War Strike, Scourge of Valkas) — the
+# go-wide deck's reach/finisher read, previously invisible (the damage looked
+# flat). The count is game information determined on resolution (CR 608.2h:
+# "such as the number of creatures on the battlefield"), which is exactly why
+# a wide board turns these into finishers. X-cost damage stays out: X is a
+# mana choice fixed at announcement (CR 107.3b / 601.2b), mana_amplifier
+# territory, not a board read (Comet Storm, Crackle with Power).
+#
+# Gates: amount → (Multiply?) Ref → ObjectCount only (Crater's Claws' count
+# lives in its Ferocious condition, not the amount — no fire); counted filter
+# controller You only (Chain Reaction / Gempalm Incinerator count everyone's);
+# the "that player controls" mis-parse guard (phase stamps controller You on
+# Jovial Evil / Wing Storm's opponent-board counts); subjects through the
+# _subtypes vocabulary gate. Scope: "opponents" when the damage reaches a
+# player (reach/finisher), "any" for a creature-only bite (board-scaled
+# removal). Burn at the Stake / Superior Numbers ride the recovered-node
+# (recovered_by == "damage") text arm — phase parses their whole effect as
+# Unimplemented residue.
+
+
+def test_damage_for_each_fires_for_generic_creature_counts():
+    assert ("damage_for_each", "opponents", "") in _idents("Mob Justice")
+    assert ("damage_for_each", "opponents", "") in _idents("Massive Raid")
+    # Creature-only bite: board-scaled removal, not player reach.
+    assert ("damage_for_each", "any", "") in _idents("Outnumber")
+
+
+@pytest.mark.parametrize(
+    ("name", "scope", "subject"),
+    [
+        # Subtype-only counted filter (no Creature core) through the vocab gate.
+        ("Goblin War Strike", "opponents", "Goblin"),
+        # Trigger-site node (triggers[0].execute.effect), Dragon count.
+        ("Scourge of Valkas", "opponents", "Dragon"),
+        # ETB trigger, Human count.
+        ("Kessig Malcontents", "opponents", "Human"),
+        # Multiply wrapper (x2) over the count — ref_count_filter unwraps it.
+        ("Thraben Charm", "any", ""),
+    ],
+)
+def test_damage_for_each_typed_cases(name, scope, subject):
+    assert ("damage_for_each", scope, subject) in _idents(name)
+
+
+def test_damage_for_each_recovered_residue_arm():
+    # Phase parses both whole effects as Unimplemented; the recovered
+    # deal_damage node (recovered_by="damage") carries the raw text.
+    assert ("damage_for_each", "opponents", "") in _idents("Burn at the Stake")
+    assert ("damage_for_each", "any", "") in _idents("Superior Numbers")
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        # X-mana scaling (CR 107.3b), Unimplemented — not a board count.
+        "Crackle with Power",
+        # Variable X amount — announcement-fixed mana, not ObjectCount.
+        "Comet Storm",
+        # Flat Fixed amounts.
+        "Fiery Confluence",
+        # Its ObjectCount lives in the Ferocious condition, never the amount.
+        "Crater's Claws",
+        # Symmetric count (controller None) — everyone's creatures.
+        "Chain Reaction",
+        # All-Goblins count (controller None).
+        "Gempalm Incinerator",
+        # "that player controls" mis-parse guard (phase stamps You).
+        "Wing Storm",
+        "Jovial Evil",
+    ],
+)
+def test_damage_for_each_excludes(name):
+    assert "damage_for_each" not in _keys(name)

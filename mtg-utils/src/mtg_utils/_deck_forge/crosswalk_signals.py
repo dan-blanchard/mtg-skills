@@ -396,6 +396,12 @@ PORTED_KEYS: frozenset[str] = frozenset(
         # `_chosen_type_matters`'s docstring for the serve-vs-punish gates.
         "chosen_type_matters",
         "direct_damage",
+        # task B-2 (2026-07-16 study): board-count damage — DealDamage whose
+        # amount is an ObjectCount over YOUR creatures/tribe (Mob Justice,
+        # Goblin War Strike). The go-wide reach/finisher read; see
+        # `_damage_for_each`'s docstring for the amount-site and controller
+        # gates that keep X-spells and symmetric counts out.
+        "damage_for_each",
         "landfall",
         "sacrifice_outlets",
         "lifegain_matters",
@@ -3730,6 +3736,102 @@ def _chosen_type_matters(tree: ConceptTree) -> list[Signal]:
         mode_tag = mode if isinstance(mode, str) else tag_of(mode)
         scope = "you" if ctrl == "You" or mode_tag == "SpellCast" else "each"
         push(scope, str(getattr(node, "description", "") or ""))
+    return out
+
+
+# ── task B-2: damage_for_each — board-count damage ───────────────────────────
+# Recovered-residue arm (ADR-0038 W5 tails discipline): phase parses these
+# whole effects as Unimplemented, but the recovery allowlist surfaces them as
+# recovered deal_damage nodes carrying the raw clause. Corpus census at phase
+# v0.23.0: the tapped-this-way form is Burn at the Stake alone; the
+# creatures-you-control form is Superior Numbers alone (Angel's Trumpet's
+# punisher counts THAT player's tapped creatures — matches neither).
+_DFE_RECOVERED_RX = re.compile(
+    r"any target equal to \w+ times the number of creatures tapped this way"
+    r"|number of creatures you control",
+    re.IGNORECASE,
+)
+# Phase mis-parses "the number of X that player controls" counts as
+# controller "You". Full You-pool census (phase v0.23.0): Jovial Evil and
+# Wing Storm are the two live false fires; Anathemancer / Price of Progress
+# die at the creature/vocabulary gate anyway.
+_DFE_MISPARSE_RX = re.compile(
+    r"number of\b[^.\n]*\bthat player controls", re.IGNORECASE
+)
+
+
+def _damage_for_each(tree: ConceptTree) -> list[Signal]:
+    """damage_for_each — one-shot damage that scales with YOUR board (task
+    B-2, 2026-07-16 study: the go-wide deck's reach/finisher read).
+
+    Structural: a ``deal_damage`` concept whose AMOUNT is an ``ObjectCount``
+    over a board you control — ``amount → (Multiply?) Ref → ObjectCount``
+    via ``ref_count_filter`` (Thraben Charm's x2 reads through) — with the
+    counted filter's controller strictly ``You`` (Chain Reaction's symmetric
+    count and Gempalm Incinerator's all-Goblins count stay out). The count
+    is game information determined once, on application (CR 608.2h: "such
+    as the number of creatures on the battlefield") — which is exactly why
+    a wide board turns these into finishers. X-cost damage is NOT a board
+    read: X is fixed at announcement as a mana choice (CR 601.2b / 107.3b)
+    — Comet Storm (Variable amount) and Crackle with Power never enter.
+    Crater's Claws' ObjectCount lives in its Ferocious CONDITION, not the
+    amount site, so the amount-site read never sees it (correctly: the
+    count gates a bonus, it doesn't scale the X).
+
+    Subject: ``""`` when the counted filter is Creature-cored (generic
+    go-wide); a fixed subtype through the ``_subtypes`` vocabulary gate
+    (Goblin War Strike → "Goblin", Scourge of Valkas → "Dragon") — a
+    non-creature count (Equipment, Treasure, lands) never fires. Scope:
+    ``"opponents"`` when the damage reaches a player (``effect_reaches_
+    player`` — the finisher read), ``"any"`` for a creature-only bite
+    (board-scaled removal, Outnumber). A "that player controls" text guard
+    kills phase's two mis-parsed opponent-board counts (Jovial Evil, Wing
+    Storm). Known acceptable miss: Goblin Lyre (count inside FlipCoin's
+    win_effect — recorded, not dismissed)."""
+    out: list[Signal] = []
+    seen: set[tuple[str, str]] = set()
+
+    def push(scope: str, subject: str, raw: str) -> None:
+        if (scope, subject) not in seen:
+            seen.add((scope, subject))
+            out.append(
+                Signal("damage_for_each", scope, subject, raw, tree.name, "high")
+            )
+
+    for unit in tree.units:
+        for c in unit.effect_concepts("deal_damage"):
+            raw = c.raw or ""
+            if c.recovered_by == "damage":
+                if _DFE_RECOVERED_RX.search(raw):
+                    scope = "opponents" if "any target" in raw.lower() else "any"
+                    push(scope, "", raw)
+                continue
+            filt = ref_count_filter(c.node, "amount")
+            if filt is None:
+                continue
+            if filter_controller(filt) != "You":
+                continue
+            desc = str(getattr(unit.node, "description", "") or "")
+            if _DFE_MISPARSE_RX.search(raw + " " + desc):
+                continue
+            cores = {t.lower() for t in filter_core_types(filt)}
+            if "creature" in cores:
+                subject = ""
+            else:
+                subject = next(
+                    (
+                        resolved
+                        for st in filter_subtypes(filt)
+                        if (resolved := _resolve_subject(str(st), CREATURE_SUBTYPES))
+                    ),
+                    "",
+                )
+                if not subject:
+                    # The vocabulary gate: an Equipment/Treasure/land count is
+                    # not a board-of-bodies read.
+                    continue
+            scope = "opponents" if effect_reaches_player(c.node, unit.node) else "any"
+            push(scope, subject, raw or desc)
     return out
 
 
@@ -26352,6 +26454,7 @@ _LANES = (
     _single_target_neutralize,
     _type_changers,
     _chosen_type_matters,
+    _damage_for_each,
     _direct_damage,
     _landfall,
     _sacrifice_outlets,
