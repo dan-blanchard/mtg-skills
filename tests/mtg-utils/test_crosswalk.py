@@ -17187,3 +17187,54 @@ def test_keep_n_wrath_cataclysm_keeps_its_mass_removal_fire():
     # Adjudicated overlap: a keep-N IS also a wipe — dual-key is correct.
     assert ("keep_n_wrath", "each", "") in _idents("Cataclysm")
     assert ("mass_removal", "you", "") in _idents("Cataclysm")
+
+
+# ── task B-4: spell_redirect — the structural ChangeTargets(Spell) doer ──────
+# Redirect instruments (Wild Ricochet, Deflecting Swat, Bolt Bend) change the
+# targets of the ORIGINAL spell on the stack (CR 115.7a/b) — fizzle
+# protection and political blowouts. They were invisible: the existing
+# target_redirect key is the PAYOFF side (Shapers' Sanctuary's
+# becomes-target draw), and no structural doer arm existed, so Bolt Bend
+# emitted only power_matters and Misdirection emitted nothing. Doer/payoff
+# keys split per the counter_control / spell_copy_makers precedent.
+#
+# The boundary: copy-with-new-targets (Fork, Twincast) retargets only the
+# COPY (CR 707.10c) — the original still resolves at its owner's chosen
+# targets, so there is no fizzle-protection value; that stays
+# spell_copy_makers. Structurally exact: Fork carries retarget as a FIELD on
+# its CopySpell node, never a ChangeTargets node. Wild Ricochet fires BOTH
+# lanes — its ChangeTargets node redirects the original AND its CopySpell
+# sub-ability copies (each read on its own node). Gain-control-then-retarget
+# follow-ons (Commandeer's ParentTarget) and ability-only redirects carry no
+# StackSpell leaf in the ChangeTargets target — excluded.
+
+
+@pytest.mark.parametrize("name", ["Wild Ricochet", "Deflecting Swat", "Bolt Bend"])
+def test_spell_redirect_fires_for_stack_spell_changetargets(name):
+    assert ("spell_redirect", "you", "") in _idents(name)
+
+
+def test_wild_ricochet_fires_both_redirect_and_copy_lanes():
+    idents = _idents("Wild Ricochet")
+    assert ("spell_redirect", "you", "") in idents
+    assert ("spell_copy_makers", "you", "") in idents
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        # CopySpell.retarget field, no ChangeTargets node (CR 707.10c copy).
+        "Fork",
+        "Twincast",
+        # Counter tag — counter_control's lane.
+        "Counterspell",
+        # ParentTarget follow-on after GainControl, no StackSpell leaf.
+        "Commandeer",
+    ],
+)
+def test_spell_redirect_excludes(name):
+    assert "spell_redirect" not in _keys(name)
+
+
+def test_fork_keeps_its_copy_lane():
+    assert ("spell_copy_makers", "you", "") in _idents("Fork")

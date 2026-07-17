@@ -796,6 +796,11 @@ PORTED_KEYS: frozenset[str] = frozenset(
         "tap_down_blockers",
         "target_own_payoff",
         "target_redirect",
+        # task B-4 (2026-07-16 study): the ChangeTargets(Spell) DOER —
+        # redirect-the-original instruments (Wild Ricochet, Deflecting Swat,
+        # Bolt Bend), split from the target_redirect payoff key; see
+        # `_spell_redirect`'s docstring for the CR 115.7 / 707.10c boundary.
+        "spell_redirect",
         "targeting_matters",
         "theft_protection",
         "timing_control",
@@ -3934,6 +3939,39 @@ def _keep_n_wrath(tree: ConceptTree) -> list[Signal]:
     if bridge_fires("keep_n_wrath_unimplemented_choose", tree):
         push("each", tree.oracle or "")
     return out
+
+
+# ── task B-4: spell_redirect — the ChangeTargets(Spell) doer ─────────────────
+def _spell_redirect(tree: ConceptTree) -> list[Signal]:
+    """spell_redirect — redirect instruments for spells on the stack (task
+    B-4, 2026-07-16 study): Wild Ricochet, Deflecting Swat, Bolt Bend,
+    Misdirection, Spellskite.
+
+    Structural: a ``ChangeTargets`` effect node (concept "other" — the tag
+    is read directly, the ``_theft_protection`` precedent) whose ``target``
+    filter tree contains a ``StackSpell`` leaf. Changing targets of the
+    ORIGINAL spell (CR 115.7a/b) is fizzle protection and a political
+    blowout — distinct from copy-with-new-targets (Fork), where only the
+    COPY is retargeted (CR 707.10c) and the original still resolves at its
+    owner's chosen targets: structurally exact, since Fork's retarget rides
+    a FIELD on its CopySpell node, never a ChangeTargets node (that stays
+    spell_copy_makers; Wild Ricochet fires both lanes off its two nodes).
+
+    ``forced_to`` is irrelevant (None = free choice, SelfRef = Spellskite's
+    redirect-to-self — both redirect the original); so is ``scope``
+    (All/Single). Gain-control follow-on retargets (Commandeer's
+    ParentTarget) and ability-only redirects (Reroute, the corpus'
+    single StackAbility-only card) carry no StackSpell leaf — excluded.
+    Corpus census at phase v0.23.0: 35 ChangeTargets nodes, 26 fire the
+    StackSpell gate, zero Unimplemented residue — no bridge."""
+    for unit in tree.units:
+        for c in unit.effects:
+            if tag_of(c.node) != "ChangeTargets":
+                continue
+            target = getattr(c.node, "target", None)
+            if any(tag_of(n) == "StackSpell" for n in iter_typed_nodes(target)):
+                return [Signal("spell_redirect", "you", "", c.raw, tree.name, "high")]
+    return []
 
 
 @dataclass(frozen=True)
@@ -26564,6 +26602,7 @@ _LANES = (
     _chosen_type_matters,
     _damage_for_each,
     _keep_n_wrath,
+    _spell_redirect,
     _direct_damage,
     _landfall,
     _sacrifice_outlets,

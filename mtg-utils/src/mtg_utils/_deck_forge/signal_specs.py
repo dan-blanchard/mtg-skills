@@ -5896,11 +5896,33 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         {
             "oracle": r"change (?:a|the) target of target spell"
             r"|change (?:that|the) spell'?s target to"
+            r"|choose new targets for target"
         },
+        # task B-4: the choose-new-targets-for-target template (Deflecting
+        # Swat, Wild Ricochet) was a verified serve gap; Fork's "for the
+        # copy" cannot match the \btarget\b-anchored form (CR 707.10c).
         r"change (?:a|the) target of target spell or ability"
         r"|change (?:the|a) target of target spell"
         r"|change (?:that|the) spell'?s target to"
-        r"|new target.{0,30}this (?:creature|permanent)",
+        r"|new target.{0,30}this (?:creature|permanent)"
+        r"|choose new targets for target\b",
+        serve_idents=frozenset({"spell_redirect|you|"}),
+    ),
+    # task B-4: the DOER side (split from the payoff key above per the
+    # counter_control precedent) — deck-side key when the deck already runs
+    # redirect instruments.
+    ("spell_redirect", "you"): _spec(
+        "Spell redirection",
+        "redirect effects that turn opponents' targeted spells into blowouts "
+        "or protection (Wild Ricochet, Bolt Bend)",
+        {
+            "oracle": r"change (?:a|the) target of target spell"
+            r"|choose new targets for target"
+        },
+        r"change (?:a|the) target of target spell"
+        r"|change (?:that|the) spell'?s target to"
+        r"|choose new targets for target\b",
+        serve_idents=frozenset({"spell_redirect|you|"}),
     ),
     # Free-spell storm (Thrasta): cost drops per spell cast this turn, so it wants FREE
     # (0-cost) NONLAND spells to chain. all_of(cmc<=0, spell-type) excludes 0-mv basics

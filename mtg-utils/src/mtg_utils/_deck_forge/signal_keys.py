@@ -45,6 +45,14 @@ TYPE_CHANGERS_GRAVEYARD: Final = "type_changers_graveyard"
 # finishers; X-cost damage (announcement-fixed mana, CR 107.3b) stays out.
 DAMAGE_FOR_EACH: Final = "damage_for_each"
 
+# Spell redirection doers (task B-4): ChangeTargets over a stack SPELL —
+# changing the ORIGINAL's targets (CR 115.7a/b: Wild Ricochet, Deflecting
+# Swat, Bolt Bend), split from the target_redirect PAYOFF key (Shapers'
+# Sanctuary's becomes-target draw) per the counter_control doer/payoff
+# precedent. Copy-with-new-targets retargets only the COPY (CR 707.10c) and
+# stays spell_copy_makers.
+SPELL_REDIRECT: Final = "spell_redirect"
+
 # Wildcard tribal payoffs (task B-1): cards that choose a creature type as
 # they enter (CR 614.12 — the as-enters replacement choice) and PAY OFF the
 # chosen type (Door of Destinies, Herald's Horn). NOT a subject key — the
