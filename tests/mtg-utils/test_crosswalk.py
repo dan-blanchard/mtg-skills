@@ -17238,3 +17238,55 @@ def test_spell_redirect_excludes(name):
 
 def test_fork_keeps_its_copy_lane():
     assert ("spell_copy_makers", "you", "") in _idents("Fork")
+
+
+# ── task B-5: combat_choice_makers — you make opponents' combat choices ──────
+# Master Warcraft / Odric, Master Tactician / Melee / Brutal Hordechief /
+# Berserker's Frenzy (15-20 arm): the card transfers the combat DECLARATION
+# choices — normally the active player picks attackers (CR 508.1a) and the
+# defending player picks blockers (CR 509.1a) — to YOU. A forced-combat deck's
+# control instrument, distinct from goad (goad_makers — the creature must
+# attack, its controller still chooses how) and forced attack/block without
+# choice (Fumiko, War's Toll, Berserker's Frenzy's 1-14 ForceBlock arm).
+#
+# Phase has no typed choose-attackers/choose-blockers node — all 5 corpus
+# members park the clause as Unimplemented residue, so the lane is bridge-
+# only (ledgered upstream_parse_failure row, census 5/35397 records, zero
+# false positives at v0.23.0). Master Warcraft emits ZERO signals today.
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Master Warcraft",
+        "Brutal Hordechief",
+        "Odric, Master Tactician",
+        "Melee",
+        "Berserker's Frenzy",
+    ],
+)
+def test_combat_choice_makers_fires(name):
+    assert ("combat_choice_makers", "opponents", "") in _idents(name)
+
+
+def test_combat_choice_hordechief_keeps_its_drain_lane():
+    # The activated choice arm and the attack-drain trigger are separate
+    # abilities — the new key must not displace the existing lanes.
+    idents = _idents("Brutal Hordechief")
+    assert ("combat_choice_makers", "opponents", "") in idents
+    assert ("lifeloss_makers", "opponents", "") in idents
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        # Forced attack (typed MustAttack static) — no choice transferred.
+        "Fumiko the Lowblood",
+        # GoadAll — goad_makers' lane (controller still picks blocks).
+        "Disrupt Decorum",
+        # CantBlock static — evasion, not choice.
+        "Bedlam",
+    ],
+)
+def test_combat_choice_makers_excludes(name):
+    assert "combat_choice_makers" not in _keys(name)

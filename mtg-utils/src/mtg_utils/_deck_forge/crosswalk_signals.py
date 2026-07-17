@@ -447,6 +447,11 @@ PORTED_KEYS: frozenset[str] = frozenset(
         "graveyard_matters",
         "fight_makers",
         "goad_makers",
+        # task B-5 (2026-07-16 study): combat puppeteers — you make
+        # opponents' attack/block declarations (CR 508.1a / 509.1a);
+        # bridge-only (phase has no typed choose-combat node) — see
+        # `_combat_choice_makers`'s docstring.
+        "combat_choice_makers",
         "regenerate_makers",
         "lifeloss_makers",
         "lifeloss_matters",
@@ -3971,6 +3976,41 @@ def _spell_redirect(tree: ConceptTree) -> list[Signal]:
             target = getattr(c.node, "target", None)
             if any(tag_of(n) == "StackSpell" for n in iter_typed_nodes(target)):
                 return [Signal("spell_redirect", "you", "", c.raw, tree.name, "high")]
+    return []
+
+
+# ── task B-5: combat_choice_makers — you make opponents' combat choices ─────
+def _combat_choice_makers(tree: ConceptTree) -> list[Signal]:
+    """combat_choice_makers — cards that transfer combat DECLARATION choices
+    to you (task B-5, 2026-07-16 study): Master Warcraft, Odric Master
+    Tactician, Melee, Brutal Hordechief's activated arm, Berserker's
+    Frenzy's 15-20 die-roll arm.
+
+    Normally the active player chooses attackers (CR 508.1a) and the
+    defending player chooses blockers (CR 509.1a); these cards hand those
+    choices to YOU — the forced-combat deck's control instrument, distinct
+    from goad (goad_makers: the creature must attack but its controller
+    still declares) and from forced attack/block WITHOUT choice (Fumiko's
+    MustAttack static, War's Toll, the ForceBlock arm).
+
+    Bridge-only: phase has no typed choose-attackers/choose-blockers node —
+    all 5 corpus members park the clause as Unimplemented residue (census
+    5 / 35,397 records, zero false positives at v0.23.0), so the lane rides
+    the ledgered ``combat_choice_unimplemented_choose`` row and retires
+    into a structural read when phase grows the node. Scope "opponents"
+    uniformly (the goad_makers precedent — the choice is exercised over
+    opponents' combat decisions)."""
+    if bridge_fires("combat_choice_unimplemented_choose", tree):
+        return [
+            Signal(
+                "combat_choice_makers",
+                "opponents",
+                "",
+                tree.oracle or "",
+                tree.name,
+                "high",
+            )
+        ]
     return []
 
 
@@ -26603,6 +26643,7 @@ _LANES = (
     _damage_for_each,
     _keep_n_wrath,
     _spell_redirect,
+    _combat_choice_makers,
     _direct_damage,
     _landfall,
     _sacrifice_outlets,

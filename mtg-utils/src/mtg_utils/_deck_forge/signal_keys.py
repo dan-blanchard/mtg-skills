@@ -45,6 +45,13 @@ TYPE_CHANGERS_GRAVEYARD: Final = "type_changers_graveyard"
 # finishers; X-cost damage (announcement-fixed mana, CR 107.3b) stays out.
 DAMAGE_FOR_EACH: Final = "damage_for_each"
 
+# Combat puppeteers (task B-5): cards that transfer the combat DECLARATION
+# choices — attackers (CR 508.1a, normally the active player's) and blockers
+# (CR 509.1a, normally the defending player's) — to YOU (Master Warcraft,
+# Brutal Hordechief's activated arm). Distinct from goad (the controller
+# still chooses how to attack) and forced attack/block without choice.
+COMBAT_CHOICE_MAKERS: Final = "combat_choice_makers"
+
 # Spell redirection doers (task B-4): ChangeTargets over a stack SPELL —
 # changing the ORIGINAL's targets (CR 115.7a/b: Wild Ricochet, Deflecting
 # Swat, Bolt Bend), split from the target_redirect PAYOFF key (Shapers'

@@ -1928,9 +1928,61 @@ def _knw_match(tree: ConceptTree) -> bool:
     return bool(_KNW_REST_RX.search(oracle)) and not _KNW_RANDOM_RX.search(oracle)
 
 
+# ── task B-5: combat_choice_makers — no typed choose-attackers/blockers node ─
+_COMBAT_CHOICE_RX = re.compile(
+    r"\bchoose (?:which creatures? (?:attack|block)|how those creatures? block)\b",
+    re.IGNORECASE,
+)
+
+
+def _combat_choice_gap(tree: ConceptTree) -> bool:
+    """The choose-clause is still parked as Unimplemented residue with a bare
+    "choose" verb — goes False when a phase bump lands a typed choose-
+    attackers/choose-blockers effect node (the residue then disappears)."""
+    return any(
+        re.search(r"\bchoose\b", d, re.IGNORECASE)
+        for d in _unimplemented_effect_descs(tree)
+    )
+
+
+def _combat_choice_match(tree: ConceptTree) -> bool:
+    return any(_COMBAT_CHOICE_RX.search(d) for d in _unimplemented_effect_descs(tree))
+
+
 BRIDGES: dict[str, Bridge] = {
     b.bridge_id: b
     for b in (
+        Bridge(
+            bridge_id="combat_choice_unimplemented_choose",
+            key="combat_choice_makers",
+            kind="upstream_parse_failure",
+            todo=(
+                "upstream phase-rs report candidate (Dan posts): the effect "
+                "grammar has no choose-attackers/choose-blockers verb — 'you "
+                "choose which creatures attack/block' and 'choose how those "
+                "creatures block' park as Unimplemented(name='choose'/"
+                "'creatures'/'15—20') — retires on a phase bump that "
+                "structures the combat-choice effect (CR 508.1a / 509.1a: "
+                "the declaration choices the card transfers to you)"
+            ),
+            census=(
+                "5 hits / 35,397 phase records, all commander-legal (Master "
+                "Warcraft, Melee, Odric Master Tactician, Brutal Hordechief, "
+                "Berserker's Frenzy 15—20 arm; War's Toll's residue-shaped "
+                "'attack if able' deliberately excluded by the choose "
+                "anchor; Berserker's 1—14 ForceBlock arm fails the "
+                "which/how idiom), phase v0.23.0, 2026-07-16"
+            ),
+            pins=(
+                "Master Warcraft",
+                "Brutal Hordechief",
+                "Odric, Master Tactician",
+                "Melee",
+                "Berserker's Frenzy",
+            ),
+            gap=_combat_choice_gap,
+            match=_combat_choice_match,
+        ),
         Bridge(
             bridge_id="keep_n_wrath_unimplemented_choose",
             key="keep_n_wrath",

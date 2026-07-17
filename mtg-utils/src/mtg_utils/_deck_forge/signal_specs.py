@@ -2282,6 +2282,21 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         None,
         extras=(_BOARD_PROTECTION_EXTRA,),
     ),
+    # task B-5: combat_choice_makers — you make opponents' attack/block
+    # declarations (CR 508.1a / 509.1a transferred to you). Pairs with the
+    # forced-combat package: goad, forced attack, combat support.
+    ("combat_choice_makers", "opponents"): _spec(
+        "Combat puppeteer",
+        "cards that let you make attack and block choices for opponents "
+        "(Master Warcraft, Odric) — pair with goad and forced-attack effects",
+        {
+            "oracle": r"you choose which creatures? (?:attack|block)"
+            r"|choose how those creatures? blocks?"
+        },
+        r"you choose which creatures? (?:attack|block)"
+        r"|choose how those creatures? blocks?",
+        extras=(_FORCE_ATTACK_EXTRA, _COMBAT_SUPPORT_EXTRA),
+    ),
     ("edict_makers", "each"): _spec(
         *SWEEP_LABELS["edict_makers"],
         {"oracle": _EDICT_SWEEP_REGEX},
