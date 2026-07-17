@@ -2260,6 +2260,28 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
     # sacrifices") loses its OWN board too, so it wants recurring fodder to survive:
     # recurring token makers ("create … creature token") and self-recurring creatures
     # (Reassembling Skeleton). The opponent-only-edict half is rare among commanders.
+    # task B-3: keep_n_wrath — choose-N-keep-the-rest resets (Single Combat,
+    # Cataclysm). A voltron deck's favorite sweeper: the one big threat is
+    # exactly what you keep, and the reset dodges targeted removal (the
+    # disjoint-from-edicts adjudication — CR 701.21a fresh choice vs a
+    # TrackedSet back-reference). Serve: the rebuild package mass_removal
+    # already serves (protection + reanimation), never the wipe itself.
+    ("keep_n_wrath", "each"): _spec(
+        "Keep-N wraths",
+        "choose-N-keep-the-rest board resets that spare your one big threat",
+        {"oracle": r"(?:then )?(?:sacrifices?|destroys?) the rest"},
+        r"(?:then )?(?:sacrifices?|destroys?) the rest",
+        extras=(_BOARD_PROTECTION_EXTRA, _REANIMATION_EXTRA),
+        serve_keywords=("indestructible",),
+    ),
+    ("keep_n_wrath", "opponents"): _spec(
+        "One-sided keep-N",
+        "opponents keep N and sacrifice the rest while your board is "
+        "untouched (Archfiend of Depravity)",
+        {"oracle": r"opponents? choose[^.]*then sacrifices? the rest"},
+        None,
+        extras=(_BOARD_PROTECTION_EXTRA,),
+    ),
     ("edict_makers", "each"): _spec(
         *SWEEP_LABELS["edict_makers"],
         {"oracle": _EDICT_SWEEP_REGEX},

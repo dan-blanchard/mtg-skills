@@ -17079,3 +17079,111 @@ def test_damage_for_each_recovered_residue_arm():
 )
 def test_damage_for_each_excludes(name):
     assert "damage_for_each" not in _keys(name)
+
+
+# ── task B-3: keep_n_wrath — choose-N-keep-the-rest board resets ─────────────
+# "Each player chooses N permanents, then sacrifices the rest" (Single Combat,
+# Cataclysm, Tragic Arrogance) — DISJOINT from edict_makers: an edict forces
+# the CR 701.21a fresh sacrifice choice (player picks which permanent to lose,
+# Grave Pact); a keep-N wrath inverts it (player picks which to KEEP, the rest
+# go). A voltron deck WANTS keep-N wraths — the one big threat is exactly what
+# you keep — while it fears nothing from them, so conflating the two poisoned
+# both reads. Two structural shapes at phase v0.23.0: the first-class
+# ChooseAndSacrificeRest node (Cataclysm class, corpus-censused 8 cards) and
+# the TargetOnly choose → Sacrifice/Destroy over a TrackedSet back-reference
+# (Single Combat class). A TrackedSet target is never an edict (the choice is
+# already made) — _edict_makers now vetoes it. DestroyAll(TrackedSet) stays
+# mass_removal's destroy-the-CHOSEN arm (Druid of Purification). The
+# Unimplemented-choose members (Duneblast, Stick Together, Mount Doom) ride a
+# ledgered bridge with an "at random" veto (Last One Standing keeps no chosen
+# threat — the keep is random, excluded).
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Single Combat",
+        "Cataclysm",
+        "Tragic Arrogance",
+        # Destroy-verb TrackedSet arm; the card is signal-invisible today.
+        "Divine Reckoning",
+        "Razia's Purification",
+        "Covetous Elegy",
+        "Slaughter the Strong",
+    ],
+)
+def test_keep_n_wrath_fires_each(name):
+    assert ("keep_n_wrath", "each", "") in _idents(name)
+
+
+def test_keep_n_wrath_one_sided_opponents():
+    # "each opponent chooses N, sacrifices the rest" while your board is
+    # untouched — the trigger's OnlyDuringOpponentsTurn constraint carries
+    # the scope (Archfiend of Depravity).
+    assert ("keep_n_wrath", "opponents", "") in _idents("Archfiend of Depravity")
+    assert ("keep_n_wrath", "opponents", "") in _idents("No One Will Hear Your Cries")
+
+
+def test_keep_n_wrath_bridge_serves_unimplemented_choose_members():
+    # Phase parses the choose step as Unimplemented residue; the ledgered
+    # bridge (gap: no structural TargetOnly→TrackedSet chain landed) serves
+    # them until phase promotes the grammar.
+    assert ("keep_n_wrath", "each", "") in _idents("Duneblast")
+    assert ("keep_n_wrath", "each", "") in _idents("Stick Together")
+
+
+def test_keep_n_wrath_random_keep_is_vetoed():
+    # Last One Standing keeps a RANDOM creature — the chooser can't protect
+    # the voltron threat, so the keep-N serve story doesn't apply.
+    assert "keep_n_wrath" not in _keys("Last One Standing")
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        # Sac-the-chosen (fresh multi-target, no keep): not a board reset.
+        "Incriminate",
+        # Edicts: fresh CR 701.21a choice, edict_makers' lane.
+        "Grave Pact",
+        "Fleshbag Marauder",
+        "Smokestack",
+        # Plain wrath: DestroyAll(Typed), mass_removal's lane.
+        "Wrath of God",
+        # Destroy-the-CHOSEN (DestroyAll over the TrackedSet; choose filter is
+        # also controller Opponent — you pick what you DON'T control).
+        "Druid of Purification",
+        # Sac-the-chosen with an Unimplemented "for" choose step.
+        "Vaevictis Asmadi, the Dire",
+        # Edict + instead-rider: its TrackedSet sac back-refs its OWN first
+        # fresh sacrifice, which keeps firing edict_makers.
+        "Gideon's Triumph",
+        # Land resets: the choose core is Land (or parses bare) — a mass
+        # land-denial read, not a creature-board reset.
+        "Planetary Annihilation",
+        # "Sacrifices all other creatures" — no choice at all.
+        "Bringer of the Last Gift",
+    ],
+)
+def test_keep_n_wrath_excludes(name):
+    assert "keep_n_wrath" not in _keys(name)
+
+
+def test_keep_n_wrath_members_shed_their_false_edict_fire():
+    # The disjointness repair: a TrackedSet back-reference is a choice already
+    # made, never the fresh choice an edict forces (CR 701.21a).
+    for name in ("Single Combat", "Razia's Purification", "Covetous Elegy"):
+        assert "edict_makers" not in _keys(name), name
+
+
+def test_keep_n_wrath_veto_keeps_real_edicts_intact():
+    # Retention pins: the veto sheds ONLY TrackedSet back-references.
+    assert ("edict_makers", "opponents", "") in _idents("Grave Pact")
+    assert ("edict_makers", "opponents", "") in _idents("Gideon's Triumph")
+    assert ("edict_makers", "each", "") in _idents("Fleshbag Marauder")
+    assert ("edict_makers", "each", "") in _idents("Smokestack")
+
+
+def test_keep_n_wrath_cataclysm_keeps_its_mass_removal_fire():
+    # Adjudicated overlap: a keep-N IS also a wipe — dual-key is correct.
+    assert ("keep_n_wrath", "each", "") in _idents("Cataclysm")
+    assert ("mass_removal", "you", "") in _idents("Cataclysm")

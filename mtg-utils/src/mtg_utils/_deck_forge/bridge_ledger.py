@@ -1894,9 +1894,76 @@ def _tc_gy_parse_failure_match(tree: ConceptTree) -> bool:
     return any(_TC_GY_STATIC_RX.search(d) for d in _static_parse_failure_descs(tree))
 
 
+# ── task B-3: keep_n_wrath — Unimplemented-choose members ────────────────────
+_KNW_REST_RX = re.compile(
+    r"(?:then )?(?:sacrifices?|destroys?) the rest", re.IGNORECASE
+)
+_KNW_RANDOM_RX = re.compile(r"at random", re.IGNORECASE)
+
+
+def _knw_structural_chain(tree: ConceptTree) -> bool:
+    """A landed TargetOnly → Sacrifice/Destroy(TrackedSet) chain — the lane's
+    own Shape-B structural read. Its presence stands the bridge down."""
+    for unit in tree.units:
+        saw_choose = False
+        for c in unit.effects:
+            t = tag_of(c.node)
+            if t == "TargetOnly":
+                saw_choose = True
+            elif (
+                saw_choose
+                and t in ("Sacrifice", "Destroy")
+                and tag_of(getattr(c.node, "target", None)) == "TrackedSet"
+            ):
+                return True
+    return False
+
+
+def _knw_gap(tree: ConceptTree) -> bool:
+    return not _knw_structural_chain(tree)
+
+
+def _knw_match(tree: ConceptTree) -> bool:
+    oracle = tree.oracle or ""
+    return bool(_KNW_REST_RX.search(oracle)) and not _KNW_RANDOM_RX.search(oracle)
+
+
 BRIDGES: dict[str, Bridge] = {
     b.bridge_id: b
     for b in (
+        Bridge(
+            bridge_id="keep_n_wrath_unimplemented_choose",
+            key="keep_n_wrath",
+            kind="dropped_clause",
+            todo=(
+                "upstream phase-rs grammar candidate (Dan posts): the "
+                "'choose …, then sacrifice/destroy the rest' choose step "
+                "parses as Unimplemented(name='choose'/'for') instead of the "
+                "TargetOnly node the Single Combat class gets — retires on a "
+                "phase bump that promotes the choose to TargetOnly, at which "
+                "point _keep_n_wrath's Shape-B chain reads it structurally "
+                "(the gap stands this row down per-card the moment the "
+                "chain lands). Promise of Loyalty's vow-counter variant "
+                "(upstream_parse_failure class: only its CantAttack static "
+                "survives) rides the same row via the oracle match."
+            ),
+            census=(
+                "4 fire / whole pool (Duneblast 'Choose creature', Stick "
+                "Together 'choose a party from among creatures they "
+                "control', Mount Doom 'Choose creatures', Promise of "
+                "Loyalty — no residue at all), 1 vetoed (Last One Standing "
+                "'Choose a creature at random' — a random keep protects "
+                "nothing), phase v0.23.0, 2026-07-16"
+            ),
+            pins=(
+                "Duneblast",
+                "Stick Together",
+                "Mount Doom",
+                "Promise of Loyalty",
+            ),
+            gap=_knw_gap,
+            match=_knw_match,
+        ),
         Bridge(
             bridge_id="type_changers_same_is_true_all_zones",
             key="type_changers_all_zones",

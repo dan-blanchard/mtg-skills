@@ -402,6 +402,11 @@ PORTED_KEYS: frozenset[str] = frozenset(
         # `_damage_for_each`'s docstring for the amount-site and controller
         # gates that keep X-spells and symmetric counts out.
         "damage_for_each",
+        # task B-3 (2026-07-16 study): choose-N-keep-the-rest board resets
+        # (Single Combat, Cataclysm) — disjoint from edict_makers (a
+        # TrackedSet back-reference is never the CR 701.21a fresh sacrifice
+        # choice an edict forces); see `_keep_n_wrath`'s docstring.
+        "keep_n_wrath",
         "landfall",
         "sacrifice_outlets",
         "lifegain_matters",
@@ -3832,6 +3837,102 @@ def _damage_for_each(tree: ConceptTree) -> list[Signal]:
                     continue
             scope = "opponents" if effect_reaches_player(c.node, unit.node) else "any"
             push(scope, subject, raw or desc)
+    return out
+
+
+# ── task B-3: keep_n_wrath — choose-N-keep-the-rest board resets ─────────────
+# Core-type gate (mirrors _MASS_REMOVAL_TYPES' shape): a keep-N over lands
+# (Planetary Annihilation, Global Ruin) is mass land denial, not a creature-
+# board reset — Land is deliberately absent.
+_KEEP_N_CHOOSE_TYPES = frozenset(
+    {"Creature", "Permanent", "Planeswalker", "Artifact", "Enchantment"}
+)
+
+
+def _keep_n_wrath(tree: ConceptTree) -> list[Signal]:
+    """keep_n_wrath — "each player chooses N, then sacrifices/destroys the
+    rest" board resets (task B-3, 2026-07-16 study): Single Combat,
+    Cataclysm, Tragic Arrogance, Divine Reckoning.
+
+    DISJOINT from edict_makers by adjudication: an edict forces the fresh
+    CR 701.21a sacrifice choice (its controller picks which permanent to
+    lose — the political dodge-indestructible read); a keep-N wrath INVERTS
+    the choice (pick which to KEEP — the rest go), which is why a voltron
+    deck actively wants them: the one big threat is exactly what you keep,
+    and the reset dodges targeted removal entirely. A keep-N IS still a
+    wipe, so the mass_removal overlap (Cataclysm fires both) is correct.
+
+    Two structural shapes at phase v0.23.0 (whole-bulk prototype: 14 cards,
+    zero false positives):
+
+    * the first-class ``ChooseAndSacrificeRest`` node (8-card corpus:
+      Cataclysm class), gated on a ``sacrifice_filter`` core in
+      ``_KEEP_N_CHOOSE_TYPES`` — both chooser_scope values fire (every
+      player's board resets whether each player picks or you pick for all,
+      Tragic Arrogance);
+    * a ``TargetOnly`` choose followed by a ``Sacrifice``/``Destroy`` whose
+      target is the ``TrackedSet`` back-reference (Single Combat class).
+      ``DestroyAll(TrackedSet)`` is deliberately NOT accepted — that is
+      destroy-the-CHOSEN (Druid of Purification), mass_removal's arm.
+
+    Scope: "each" for the symmetric resets; "opponents" when the choose is
+    scoped away from you — a You-controller filter under an Opponent
+    player_scope (No One Will Hear Your Cries — phase's ScopedPlayer
+    mislabel class) or under an OnlyDuringOpponentsTurn trigger (Archfiend
+    of Depravity). The Unimplemented-choose members (Duneblast, Stick
+    Together, Mount Doom, Promise of Loyalty) ride the ledgered
+    ``keep_n_wrath_unimplemented_choose`` bridge, "at random" vetoed (Last
+    One Standing keeps a random creature — protects nothing). Winnowing's
+    tribal-keep (SharesQuality/DoesNotShare sacrifice, n=1 corpus) is a
+    recorded v2 arm, not dismissed; Harsh Mercy's dropped complement stays
+    a plain mass_removal fire until phase structures it."""
+    out: list[Signal] = []
+    seen: set[str] = set()
+
+    def push(scope: str, raw: str) -> None:
+        if scope not in seen:
+            seen.add(scope)
+            out.append(Signal("keep_n_wrath", scope, "", raw, tree.name, "high"))
+
+    for unit in tree.units:
+        pending: str | None = None
+        for c in unit.effects:
+            t = tag_of(c.node)
+            if t == "ChooseAndSacrificeRest":
+                sac_filter = getattr(c.node, "sacrifice_filter", None)
+                if set(filter_core_types(sac_filter)) & _KEEP_N_CHOOSE_TYPES:
+                    push("each", c.raw or "")
+                continue
+            if t == "TargetOnly":
+                pending = None
+                target = getattr(c.node, "target", None)
+                if target is None or not (
+                    set(filter_core_types(target)) & _KEEP_N_CHOOSE_TYPES
+                ):
+                    continue
+                ctrl = filter_controller(target)
+                owner = effect_owner_player_scope(unit.node, c.node)
+                if ctrl == "ScopedPlayer" and owner == "All":
+                    pending = "each"
+                elif ctrl == "You" and (
+                    owner == "Opponent"
+                    or (
+                        unit.origin == "trigger"
+                        and trigger_turn_constraint(unit.node)
+                        == "OnlyDuringOpponentsTurn"
+                    )
+                ):
+                    pending = "opponents"
+                continue
+            if (
+                pending
+                and t in ("Sacrifice", "Destroy")
+                and tag_of(getattr(c.node, "target", None)) == "TrackedSet"
+            ):
+                push(pending, c.raw or "")
+                pending = None
+    if bridge_fires("keep_n_wrath_unimplemented_choose", tree):
+        push("each", tree.oracle or "")
     return out
 
 
@@ -10854,6 +10955,13 @@ def _edict_makers(tree: ConceptTree) -> list[Signal]:
     for unit in tree.units:
         for c in unit.effects:
             if c.concept != "sacrifice":
+                continue
+            # task B-3 (keep_n_wrath disjointness): a TrackedSet target is a
+            # back-reference to permanents ALREADY chosen upstream ("choose
+            # N, sacrifice the rest" — Single Combat) — never the fresh
+            # CR 701.21a sacrifice choice an edict forces. keep_n_wrath owns
+            # the shape; firing edict_makers here poisoned both reads.
+            if tag_of(getattr(c.node, "target", None)) == "TrackedSet":
                 continue
             owner = effect_owner_player_scope(getattr(unit, "node", None), c.node)
             if owner in _EDICT_ACTORS:
@@ -26455,6 +26563,7 @@ _LANES = (
     _type_changers,
     _chosen_type_matters,
     _damage_for_each,
+    _keep_n_wrath,
     _direct_damage,
     _landfall,
     _sacrifice_outlets,
