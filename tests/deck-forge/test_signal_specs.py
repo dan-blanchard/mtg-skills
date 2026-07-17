@@ -9,6 +9,7 @@ import re
 from mtg_utils._deck_forge import signal_specs
 from mtg_utils._deck_forge._signals_ir import extract_signals_ir
 from mtg_utils._deck_forge.signal_specs import (
+    _CHOSEN_TYPE_IDENTS,
     Serve,
     search_filters,
     serve_from_dict,
@@ -7637,3 +7638,52 @@ def test_enabler_extra_credits_fixed_subtype_changers_structurally():
     assert spec is not None
     enabler = next(e for e in spec.extras if e.label == "Sliver enablers")
     assert enabler.serve.matches(hivestone)
+
+
+# ── task B-1: chosen_type_matters serve wiring ────────────────────────────────
+# Wildcard tribal payoffs (Door of Destinies, Herald's Horn: choose a creature
+# type as it enters — CR 614.12 — then pay off the chosen type) serve EVERY
+# tribe: the per-subject tribal serve carries the chosen_type_matters idents,
+# so a Sliver deck credits Herald's Horn exactly as a Goblin deck does. The
+# idents are punish-gated at emission (Engineered Plague's -1/-1 chooser
+# never emits), unlike the legacy choose-a-type text arm on the payoff
+# sub-avenue.
+
+
+def test_tribal_serve_credits_chosen_type_payoffs_for_any_tribe():
+    test_card_ir("Herald's Horn")  # seeds the crosswalk trees memo
+    horn = test_card("Herald's Horn")
+    for tribe in ("Sliver", "Goblin"):
+        spec = spec_for(
+            Signal(key="type_matters", scope="you", subject=tribe, text="", source="c")
+        )
+        assert spec is not None
+        assert spec.serve.matches(horn), tribe
+        assert _CHOSEN_TYPE_IDENTS <= (spec.serve.signal_idents or frozenset())
+
+
+def test_punisher_chooser_never_serves_the_main_tribal_lane():
+    # Engineered Plague chooses a type to HATE it (-1/-1): no
+    # chosen_type_matters ident is emitted, and the main tribal serve's other
+    # arms (bodies by type line, type-changer idents) don't match either.
+    test_card_ir("Engineered Plague")
+    plague = test_card("Engineered Plague")
+    spec = spec_for(
+        Signal(key="type_matters", scope="you", subject="Sliver", text="", source="c")
+    )
+    assert spec is not None
+    assert not spec.serve.matches(plague)
+
+
+def test_chosen_type_matters_key_resolves_and_serves_structurally():
+    # The deck-side spec: a deck that already runs Door of Destinies emits
+    # chosen_type_matters ("you"), which must resolve through the (key, "any")
+    # entry and serve other wildcard payoffs structurally.
+    test_card_ir("Door of Destinies")
+    door = test_card("Door of Destinies")
+    spec = spec_for(
+        Signal(key="chosen_type_matters", scope="you", subject="", text="", source="c")
+    )
+    assert spec is not None
+    assert spec.label == "Chosen-type tribal payoffs"
+    assert spec.serve.matches(door)

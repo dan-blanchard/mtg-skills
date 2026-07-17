@@ -389,6 +389,12 @@ PORTED_KEYS: frozenset[str] = frozenset(
         "type_changers",
         "type_changers_all_zones",
         "type_changers_graveyard",
+        # task B-1 (2026-07-16 study): wildcard tribal payoffs — cards that
+        # choose a creature type as they enter (CR 614.12) and pay off the
+        # chosen type (Door of Destinies, Herald's Horn). Keys on the payoff
+        # sites that REFERENCE the choice, never the Choose itself — see
+        # `_chosen_type_matters`'s docstring for the serve-vs-punish gates.
+        "chosen_type_matters",
         "direct_damage",
         "landfall",
         "sacrifice_outlets",
@@ -3597,6 +3603,133 @@ def _type_changers(tree: ConceptTree) -> list[Signal]:
         # Subject "" — the failed line is the chosen-type graveyard grant
         # (the bridge's match is that exact sentence).
         push("type_changers_graveyard", "you", "", tree.oracle or "")
+    return out
+
+
+# ── task B-1: chosen_type_matters — wildcard tribal payoffs ──────────────────
+# The chosen-type reference markers phase stamps into filters. A CreatureType
+# choice made as the permanent enters (CR 614.12 — the Voice of All as-enters
+# replacement shape) persists, and every payoff site that cares carries one of
+# these filter properties. IsChosenCardType is the spell-cast form (Door of
+# Destinies watches CAST SPELLS of the chosen type, a Card filter).
+_CHOSEN_TYPE_PREDS = frozenset({"IsChosenCreatureType", "IsChosenCardType"})
+# Static modes admitted by the marked-static arm: a plain continuous payload
+# (Door's dynamic anthem, Adaptive Automaton's lord line) or a trigger-doubler
+# over the chosen type (Roaming Throne). Default-deny keeps punisher-shaped
+# statics out (An-Zerrin Ruins' marked "CantUntap" static).
+_CHOSEN_STATIC_MODES = frozenset({"Continuous", "DoubleTriggers"})
+
+
+def _chosen_type_serve_statics(tree: ConceptTree) -> list[tuple[str, str]]:
+    """(scope, raw) per marked static that SERVES the chosen type.
+
+    Serve-vs-punish gates, in order: controller ``Opponent`` skips (Plague
+    Engineer projects -1/-1 onto an opponent's chosen tribe); a mode outside
+    ``_CHOSEN_STATIC_MODES`` skips (An-Zerrin Ruins' CantUntap); a negative
+    literal AddPower/AddToughness payload skips (the valence gate — phase
+    drops Engineered Plague's marker today, but once its parser structures
+    the "-1/-1 to the chosen type" static this gate keeps it out). Controller
+    You → scope "you"; unscoped (Cover of Darkness's symmetric Fear grant,
+    Urza's-Incubator-style neutral filters) → "each"."""
+    out: list[tuple[str, str]] = []
+    for unit in tree.units:
+        for node in iter_static_defs(unit.node):
+            mode = static_mode_tag(node)
+            affected = getattr(node, "affected", None)
+            if affected is None:
+                continue
+            ctrl = filter_controller(affected)
+            if ctrl == "Opponent":
+                continue
+            # Cost-reduction rides the ModifyCost static mode: a Reduce whose
+            # spell_filter is marked serves the chosen type (Herald's Horn /
+            # Urza's Incubator); an Increase would be a tax, never a serve.
+            if mode == "ModifyCost":
+                inner = getattr(getattr(node, "mode", None), "inner", None)
+                spell_filter = getattr(inner, "spell_filter", None)
+                if (
+                    getattr(inner, "mode", None) == "Reduce"
+                    and spell_filter is not None
+                    and set(filter_predicates(spell_filter)) & _CHOSEN_TYPE_PREDS
+                ):
+                    scope = "you" if ctrl == "You" else "each"
+                    out.append((scope, _site_raw(node)))
+                continue
+            if not set(filter_predicates(affected)) & _CHOSEN_TYPE_PREDS:
+                continue
+            if mode not in _CHOSEN_STATIC_MODES:
+                continue
+            if any(
+                tag_of(m) in ("AddPower", "AddToughness")
+                and isinstance(getattr(m, "value", None), int)
+                and getattr(m, "value", 0) < 0
+                for m in getattr(node, "modifications", None) or ()
+            ):
+                continue
+            scope = "you" if ctrl == "You" else "each"
+            out.append((scope, _site_raw(node)))
+    return out
+
+
+def _chosen_type_matters(tree: ConceptTree) -> list[Signal]:
+    """chosen_type_matters — wildcard tribal payoffs (task B-1, 2026-07-16
+    study: 7 adjudicated extraction gaps).
+
+    Cards that choose a creature type as they enter (CR 614.12) and PAY OFF
+    the chosen type — Door of Destinies, Kindred Discovery, Herald's Horn,
+    Urza's Incubator. The subject is chosen at runtime, so the payoff serves
+    WHATEVER tribe the deck fields; every per-subject tribal spec credits the
+    key via its serve-side ``signal_idents`` arm (a Sliver deck wants
+    Herald's Horn exactly as a Goblin deck does). Subject is always ``""``
+    (the chosen type), mirroring type_changers' chosen-subject convention.
+
+    The lane keys on the payoff sites that REFERENCE the choice — the
+    ``IsChosenCreatureType`` / ``IsChosenCardType`` filter properties — never
+    on the ``Choose`` replacement itself (punishers like Engineered Plague
+    choose too). Type-GRANTS stay type_changers-only (CR 613.1d layer 4:
+    granting membership is the enabler side; referencing the choice in a
+    reward filter is the payoff side — the c934b718 membership-not-payoff
+    law). Two read sites:
+
+    * marked STATICS via ``_chosen_type_serve_statics`` (continuous payloads,
+      trigger-doublers, ModifyCost reductions — with the serve-vs-punish
+      gates documented there);
+    * marked TRIGGERS: a trigger whose ``valid_card`` carries the marker
+      (Kindred Discovery's enters-or-attacks draw). Corpus-verified all-
+      serve at phase v0.23.0 (9 cards, every payload beneficial). Scope
+      "you" when the watched filter is controller-You or the trigger is a
+      SpellCast (you cast the spells that Door counts); "each" for an
+      any-player watch (Species Specialist's chosen-type dies-trigger).
+
+    One-shot chosen-type value (Distant Melody), chosen-type mana
+    (Cavern of Souls), and replacement payoffs (Metallic Mimic) are known
+    not-served-yet classes — recorded for a v2 arm, not dismissed."""
+    out: list[Signal] = []
+    seen: set[str] = set()
+
+    def push(scope: str, raw: str) -> None:
+        if scope not in seen:
+            seen.add(scope)
+            out.append(Signal("chosen_type_matters", scope, "", raw, tree.name, "high"))
+
+    for scope, raw in _chosen_type_serve_statics(tree):
+        push(scope, raw)
+    for unit in tree.units:
+        if unit.origin != "trigger":
+            continue
+        node = unit.node
+        valid_card = getattr(node, "valid_card", None)
+        if valid_card is None:
+            continue
+        if not set(filter_predicates(valid_card)) & _CHOSEN_TYPE_PREDS:
+            continue
+        ctrl = filter_controller(valid_card)
+        if ctrl == "Opponent":
+            continue
+        mode = getattr(node, "mode", None)
+        mode_tag = mode if isinstance(mode, str) else tag_of(mode)
+        scope = "you" if ctrl == "You" or mode_tag == "SpellCast" else "each"
+        push(scope, str(getattr(node, "description", "") or ""))
     return out
 
 
@@ -26218,6 +26351,7 @@ _LANES = (
     _pacify_makers,
     _single_target_neutralize,
     _type_changers,
+    _chosen_type_matters,
     _direct_damage,
     _landfall,
     _sacrifice_outlets,

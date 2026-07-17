@@ -456,6 +456,7 @@ def _spec(
     serve_vanilla: bool = False,
     serve_self_recur: bool = False,
     serve_mana_cost: str | None = None,
+    serve_idents: frozenset[str] = frozenset(),
     serve_not: str | None = None,
 ) -> SignalSpec:
     return SignalSpec(
@@ -477,6 +478,7 @@ def _spec(
             vanilla=serve_vanilla,
             self_recur=serve_self_recur,
             mana_cost=re.compile(serve_mana_cost, _IC) if serve_mana_cost else None,
+            signal_idents=serve_idents,
             not_oracle=re.compile(serve_not, _IC) if serve_not else None,
         ),
         extras=tuple(extras),
@@ -1720,8 +1722,33 @@ _LURE_EXTRA = SubAvenue(
     serve=Serve(oracle=re.compile(_LURE_ORACLE, _IC), keywords=frozenset({"provoke"})),
 )
 
+# Wildcard tribal payoffs (task B-1): the chosen_type_matters lane's idents,
+# both scopes it can emit ("you" — Door of Destinies; "each" — Urza's
+# Incubator's symmetric discount). Every per-subject tribal serve carries
+# these (a Sliver deck credits Herald's Horn exactly as a Goblin deck does),
+# and the tribal payoff sub-avenue's serve does too — structural, so payoffs
+# whose wording never says "choose a creature type" on the payoff sentence
+# (Kindred Discovery) still credit.
+_CHOSEN_TYPE_IDENTS = frozenset(
+    {"chosen_type_matters|you|", "chosen_type_matters|each|"}
+)
+_CHOSEN_TYPE_ORACLE = r"choose a (?:creature|kindred) type"
+
 
 SPECS: dict[tuple[str, str], SignalSpec] = {
+    # task B-1: chosen_type_matters — wildcard tribal payoffs (Door of
+    # Destinies, Herald's Horn, Urza's Incubator): choose a creature type as
+    # it enters (CR 614.12), pay off the chosen type. The deck-building move
+    # when the deck ITSELF emits this (it runs Herald's Horn already): more
+    # of the same open payoffs, plus the tribe's bodies to point them at.
+    ("chosen_type_matters", "any"): _spec(
+        "Chosen-type tribal payoffs",
+        "open type-of-choice payoffs (Door of Destinies, Herald's Horn) that "
+        "serve whatever tribe the deck fields",
+        {"oracle": _CHOSEN_TYPE_ORACLE},
+        _CHOSEN_TYPE_ORACLE,
+        serve_idents=_CHOSEN_TYPE_IDENTS,
+    ),
     ("creature_etb", "you"): _spec(
         "Creatures entering — yours",
         "cheap ways to flood your board with creatures",
@@ -6404,6 +6431,13 @@ def _payoff_extra(subj: str, esc: str) -> SubAvenue:
         {"oracle": positive},
         serve=Serve(
             oracle=re.compile(positive, _IC),
+            # task B-1: the structural successor to the choose-a-type text
+            # arm above. Today the text arm supersets it (every chooser's
+            # oracle says "choose a creature type" somewhere) but it also
+            # credits PUNISHER choosers (Engineered Plague) — retire the text
+            # arm onto this ident once the one-shot chooser classes (Distant
+            # Melody, Cavern of Souls) get structural arms of their own.
+            signal_idents=_CHOSEN_TYPE_IDENTS,
             not_oracle=re.compile(_GRANT_VETO, _IC),
         ),
     )
@@ -6597,9 +6631,12 @@ def _subject_spec(signal: Signal) -> SignalSpec:
             # by its own emitted type_changers idents. Bodies-by-type-line
             # above are unchanged: B1 still keeps granters out of the body
             # oracle; this arm credits them at the serve level instead.
+            # Wildcard chosen-type payoffs serve EVERY tribe (task B-1):
+            # Herald's Horn credits a Sliver deck exactly as a Goblin deck.
             signal_idents=(
                 _type_changer_idents(tuple(members)) if is_type_tribal else frozenset()
-            ),
+            )
+            | _CHOSEN_TYPE_IDENTS,
         ),
         extras=(
             _payoff_extra(subj, esc),

@@ -38,6 +38,14 @@ TYPE_CHANGERS: Final = "type_changers"
 TYPE_CHANGERS_ALL_ZONES: Final = "type_changers_all_zones"
 TYPE_CHANGERS_GRAVEYARD: Final = "type_changers_graveyard"
 
+# Wildcard tribal payoffs (task B-1): cards that choose a creature type as
+# they enter (CR 614.12 — the as-enters replacement choice) and PAY OFF the
+# chosen type (Door of Destinies, Herald's Horn). NOT a subject key — the
+# subject is chosen at runtime, always emitted "" — but named here because
+# signal_specs' per-subject tribal serves reference it cross-file (every
+# tribe's serve credits the wildcard payoffs).
+CHOSEN_TYPE_MATTERS: Final = "chosen_type_matters"
+
 SUBJECT_KEYS: Final = frozenset(
     {
         TYPE_MATTERS,

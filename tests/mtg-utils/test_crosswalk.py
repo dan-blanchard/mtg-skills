@@ -16929,3 +16929,75 @@ def test_type_changers_structural_inanyzone_routes_to_all_keys():
         "type_changers_all_zones",
         "type_changers_graveyard",
     }
+
+
+# ── task B-1: chosen_type_matters — wildcard tribal payoffs (2026-07-16) ─────
+# Cards that choose a creature type as they enter (CR 614.12 — the Voice of
+# All as-enters replacement choice shape) and then PAY OFF the chosen type:
+# Door of Destinies, Kindred Discovery, Herald's Horn, Urza's Incubator. The
+# subject is chosen at runtime, so the payoff serves WHATEVER tribe the deck
+# is — every per-subject tribal spec picks these up via the serve-side
+# signal_idents arm (a Sliver deck wants Herald's Horn exactly as a Goblin
+# deck does).
+#
+# The lane keys on the PAYOFF SITES that reference the choice (the
+# IsChosenCreatureType / IsChosenCardType filter properties), never on the
+# Choose replacement itself (punishers like Engineered Plague choose too).
+# Three arms: a marked Continuous static with a non-negative payload (Door's
+# dynamic anthem; Plague Engineer's Opponent-controller -1/-1 is out), a
+# ModifyCost Reduce whose spell_filter is marked (Herald's Horn "you",
+# Urza's Incubator symmetric → "each"), and a trigger whose valid_card is
+# marked (Kindred Discovery; Species Specialist's any-player dies-trigger →
+# "each"). A DoubleTriggers static with marked affected (Roaming Throne) is
+# the one non-Continuous static mode admitted. Type-GRANTS (Xenograft's
+# AddChosenSubtype — CR 613.1d layer 4) stay type_changers-only: granting
+# membership is the enabler side, referencing the choice is the payoff side.
+
+
+def test_chosen_type_matters_fires_for_the_four_exemplars():
+    assert ("chosen_type_matters", "you", "") in _idents("Door of Destinies")
+    assert ("chosen_type_matters", "you", "") in _idents("Kindred Discovery")
+    assert ("chosen_type_matters", "you", "") in _idents("Herald's Horn")
+    # Urza's Incubator's discount is symmetric (affected controller null).
+    assert ("chosen_type_matters", "each", "") in _idents("Urza's Incubator")
+
+
+@pytest.mark.parametrize(
+    ("name", "scope"),
+    [
+        # Marked lord static — keeps its type_matters membership separately.
+        ("Adaptive Automaton", "you"),
+        # Adjudicated serve: Fear grant to the chosen type, positive payload.
+        ("Cover of Darkness", "each"),
+        # DoubleTriggers static with marked affected.
+        ("Roaming Throne", "you"),
+        # Any-player chosen-type dies-trigger (valid_card controller null).
+        ("Species Specialist", "each"),
+        ("Vanquisher's Banner", "you"),
+    ],
+)
+def test_chosen_type_matters_wider_members(name, scope):
+    assert ("chosen_type_matters", scope, "") in _idents(name)
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        # Punisher: -1/-1 to the chosen type (phase drops the marker today;
+        # the valence gate excludes it even once phase structures it).
+        "Engineered Plague",
+        # Punisher: marked affected but mode CantUntap (mode allowlist).
+        "An-Zerrin Ruins",
+        # Punisher: Opponent-controller marked static, -1/-1 payload.
+        "Plague Engineer",
+        # Punisher: one-shot DestroyAll whose target carries the marker.
+        "Tsabo's Decree",
+        # Chooses a NAME (CardName), payoff is protection — no marker.
+        "Runed Halo",
+        # Type-GRANT (AddChosenSubtype) — type_changers' side of the
+        # boundary, membership not payoff.
+        "Xenograft",
+    ],
+)
+def test_chosen_type_matters_excludes(name):
+    assert "chosen_type_matters" not in _keys(name)
