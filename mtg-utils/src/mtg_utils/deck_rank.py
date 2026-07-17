@@ -19,8 +19,8 @@ from pathlib import Path
 import click
 
 from mtg_utils._deck_forge._ir_lookup import ir_for
+from mtg_utils._deck_forge.pair_reads import build_pair_context
 from mtg_utils._deck_forge.ranking import rank_candidates
-from mtg_utils._deck_forge.rate import build_rate_index
 from mtg_utils._deck_forge.signals import ranked_signals_and_payoffs
 from mtg_utils._tuner import metrics
 from mtg_utils._tuner.classify import classify_deck
@@ -121,9 +121,16 @@ def main(
         active_signals=signals,
         focus_sets=_focus_sets(hd, signals, commander_names, payoff_subjects),
         deck_tribes=_deck_tribes(hd),
-        # Rate (ADR-0042): percentiles over the candidate pool the caller
-        # provided — the whole in-identity pool in the discovery flow.
-        rate_index=build_rate_index(pool),
+        # Pair reads (ADR-0042): commander idents + deck ident density.
+        # Rate stays NEUTRAL by default (no index built): the v1 formula
+        # classes measured slightly NEGATIVE on aggregate study recall
+        # (every variant <= baseline, 2026-07-16 four-way eval), so the
+        # multiplier is opt-in via rank_candidates(rate_index=...) until a
+        # formula v2 validates — see ADR-0042's measured-outcome note.
+        pair_ctx=build_pair_context(
+            [hd.by_name.get(n) or {} for n in commander_names],
+            list(hd.records),
+        ),
     )[: max(1, limit)]
     if as_json:
         out = [

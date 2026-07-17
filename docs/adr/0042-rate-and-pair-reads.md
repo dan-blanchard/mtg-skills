@@ -71,3 +71,23 @@ at 0.5) is deliberately left to Pair reads rather than patched into clause
 attribution — the pair row is where that value actually lives. Formula-resistant
 lanes inherit curated-table maintenance; the table stays small and adjudicated,
 never crowd-derived.
+
+**Measured outcome (v1, 2026-07-16).** Both mechanisms landed TDD-complete with
+the named pins validated at the mechanism level: Empty the Warrens > Fires of
+Mount Doom under Krenko holds with Rate + the subject-matched tribal-fodder
+pair row (neither alone suffices — the bounded multiplier cannot close a 2.5x
+synergy gap, refining the bar's original attribution), and Mana Reflection
+under Zaxara moved 13,605 → 389 of 17,375 on the amplifier row (a 35x jump,
+short of the stated top-250 pin). The four-way aggregate eval (one pool pass,
+offline re-sorts) read: baseline 6.4%/9.5% (r@100/r@250), +Rate 5.7%/8.9%,
++Pairs 6.0%/10.4%, +both 5.6%/10.0% — Rate's v1 formula classes (tokens /
+damage / draw, trigger-origin effects already excluded after a first cut
+under-rated every triggered engine at 4.3% r@100) carry no crowd-predictive
+signal at aggregate, in ANY variant tried (multiplier, pure-lift). Per the
+bar's own measure-C-alone discipline: Rate ships as readout + plumbing with
+the production default NEUTRAL (no index built by deck-rank; opt-in via
+`rank_candidates(rate_index=...)`) pending a formula v2; Pair reads ship
+default-on (+0.9pt r@250 from six rows — ledger growth toward the designed
+20-40 rows is the identified lever, each row needing its own adjudication).
+The 10%/15% aggregate bar is NOT met; accepting, iterating the ledger, or
+revisiting Rate's formulas is the recorded open decision.

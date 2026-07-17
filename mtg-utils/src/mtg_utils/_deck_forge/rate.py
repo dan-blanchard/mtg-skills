@@ -18,12 +18,17 @@ primary job):
   mana, CR 107.3b — an X-spell's rate is its mana sink, not a fixed number).
 * ``draw`` — cards per mana: ``Fixed`` ``Draw`` counts.
 
-Cost basis: a spell/trigger unit prices at the card's mana value (the
-trigger rides the body you paid for); an ACTIVATED unit prices at its own
-activation mana (generic + colored shards — the engine's rate is what one
-activation buys, the body is sunk). Storm/Replicate double a spell-basis
-effect (the copies are the card's whole point; x2 is the deliberately
-conservative floor of CR 702.40a's one-copy-per-prior-spell scaling).
+Cost basis: a SPELL unit prices at the card's mana value; an ACTIVATED
+unit prices at its own activation mana (generic + colored shards — the
+engine's rate is what one activation buys, the body is sunk). TRIGGER-origin
+effects are deliberately unmeasured: a trigger's effect is per-EVENT (Impact
+Tremors deals 1 per creature entering, not 1 per cast), so pricing one event
+at full mana value under-rates every triggered engine — measured live: the
+first cut did exactly that and the C-alone study regressed 6.1% -> 4.3%
+recall@100 before this exclusion. Triggered engines rate neutral until a
+per-event basis exists. Storm/Replicate double a spell-basis effect (the
+copies are the card's whole point; x2 is the deliberately conservative
+floor of CR 702.40's one-copy-per-prior-spell scaling).
 
 A card no formula can read has NO class and rates neutral (0.5): Rate never
 punishes what it can't measure. The curated ability-quality table (ADR-0040)
@@ -105,12 +110,15 @@ def effect_metric(card: dict) -> tuple[str, float] | None:
         else 1.0
     )
 
-    # Spell-basis effects sum across spell/trigger units (one cast resolves
-    # them all, priced at mv); each activated unit prices on its own.
+    # Spell-basis effects sum across SPELL units (one cast resolves them
+    # all, priced at mv); each activated unit prices on its own; trigger
+    # units are skipped (per-event effects — see the module docstring).
     spell: dict[str, float] = {"tokens": 0.0, "damage": 0.0, "draw": 0.0}
     activated: list[tuple[str, float]] = []
     for tree in trees:
         for unit in tree.units:
+            if unit.origin == "trigger":
+                continue
             act_cost = _activation_mana(unit) if unit.kind == "Activated" else None
             for c in unit.effects:
                 tag = tag_of(c.node)

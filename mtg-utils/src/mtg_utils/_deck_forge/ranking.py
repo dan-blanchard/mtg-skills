@@ -33,6 +33,7 @@ from collections.abc import Callable, Mapping, Sequence
 
 from mtg_utils._deck_forge._ir_lookup import ir_for
 from mtg_utils._deck_forge.budgets import role_of
+from mtg_utils._deck_forge.pair_reads import PairContext, pair_score
 from mtg_utils._deck_forge.rate import RateIndex, rate_for
 from mtg_utils._deck_forge.signal_specs import serve_from_dict, spec_for
 from mtg_utils._deck_forge.signals import clauses
@@ -550,6 +551,7 @@ def score_candidate(
     _signal_specs: list | None = None,
     _ir_resolved: tuple[Card | None] | None = None,
     rate_index: RateIndex | None = None,
+    pair_ctx: PairContext | None = None,
 ) -> dict:
     """Return the multi-axis readout for one candidate.
 
@@ -589,6 +591,7 @@ def score_candidate(
     synergy_score, clusters = _synergy_score(
         hits, clause_list, focus_sets, deck_tribes, ir
     )
+    _pair = pair_score(card, pair_ctx)
 
     return {
         "synergy_fit": len(served),
@@ -597,6 +600,11 @@ def score_candidate(
         # its peer class — 0.5 (neutral) without an index or a measurable
         # effect, so degraded/no-bulk deployments rank exactly as before.
         "rate": rate_for(card, rate_index),
+        # Pair reads (ADR-0042): summed weights of the matched ledger rows
+        # (candidate ident-pattern x commander/density anchor) — 0.0 inert
+        # without a context. Additive, never Rate-multiplied.
+        "pair_score": _pair[0],
+        "pairs": _pair[1],
         "served": served,
         "clusters": clusters,
         "structural_floor": _structural_floor(card),
@@ -617,6 +625,7 @@ def rank_candidates(
     deck_tribes: frozenset[str] | None = None,
     rank_by: str = "score",
     rate_index: RateIndex | None = None,
+    pair_ctx: PairContext | None = None,
 ) -> list[dict]:
     """Score and sort candidates: synergy desc, then price asc (no-listing last),
     then cmc asc.
@@ -646,6 +655,7 @@ def rank_candidates(
                 _signal_specs=signal_specs,
                 _ir_resolved=(ir_for(c),),
                 rate_index=rate_index,
+                pair_ctx=pair_ctx,
             ),
         }
         for c in cards
@@ -658,7 +668,12 @@ def rank_candidates(
     def _depth(r: dict) -> float:
         if synergy_key == "synergy_fit":
             return r["score"]["synergy_fit"]
-        return r["score"]["synergy_score"] * (0.5 + r["score"]["rate"])
+        # ADR-0042 sort: synergy x (0.5 + rate) + pair_score — the pair term
+        # is additive (the row priced the interaction; Rate never touches it).
+        return (
+            r["score"]["synergy_score"] * (0.5 + r["score"]["rate"])
+            + r["score"]["pair_score"]
+        )
 
     scored.sort(
         key=lambda r: (

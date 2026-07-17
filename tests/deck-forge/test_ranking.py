@@ -858,3 +858,37 @@ def test_without_an_index_rate_is_neutral_and_order_unchanged():
     )
     assert all(r["score"]["rate"] == 0.5 for r in ranked)
     assert ranked[0]["card"]["name"] == "Bastion of Remembrance"
+
+
+# ── ADR-0042 acceptance pin: the original task-A aspiration ─────────────────
+def test_empty_the_warrens_outranks_fires_with_rate_and_pairs():
+    # Empty the Warrens (EDHREC Krenko target) over Fires of Mount Doom
+    # (junk): the bounded Rate multiplier narrows the gap and the
+    # tribal-fodder pair row (Krenko's X counts Goblins, CR 608.2h) closes
+    # it — neither alone suffices, which is exactly ADR-0042's thesis.
+    from mtg_utils._deck_forge.pair_reads import build_pair_context
+    from mtg_utils._deck_forge.rate import build_rate_index
+    from mtg_utils.testkit import snapshot_records, test_card, test_card_ir
+
+    index = build_rate_index(snapshot_records())
+    test_card_ir("Krenko, Mob Boss")
+    ctx = build_pair_context([test_card("Krenko, Mob Boss")], [])
+    test_card_ir("Empty the Warrens")
+    test_card_ir("Fires of Mount Doom")
+    ranked = rank_candidates(
+        [test_card("Fires of Mount Doom"), test_card("Empty the Warrens")],
+        active_signals=_KRENKO_SIGNALS,
+        focus_sets=_KRENKO_FOCUS,
+        rate_index=index,
+        pair_ctx=ctx,
+    )
+    names = [r["card"]["name"] for r in ranked]
+    assert names[0] == "Empty the Warrens", [
+        (
+            r["card"]["name"],
+            r["score"]["synergy_score"],
+            r["score"]["rate"],
+            r["score"]["pair_score"],
+        )
+        for r in ranked
+    ]
