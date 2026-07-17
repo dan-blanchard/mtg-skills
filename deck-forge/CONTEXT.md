@@ -641,12 +641,45 @@ archetypes; here the speed axis is Shape, the synergy axis is an [[Exploration a
 A [[Shape]]-aware panel of curve and tempo readouts — avg mana value within the Shape's
 band, ramp adequacy for that curve, early-play front-load, and *closing power* (enough
 top-end to not durdle, not so much it clogs). A transparent multi-readout (matching
-`mana_audit`'s gate style), NOT one opaque score, and deliberately **not a per-card
-power/rate judgment** — deck-forge has no card-quality model and won't fake one (ADR-0009).
-Distinct from the [[Curve gate]] / `mana_audit`, which own *land* count and color;
-Efficiency owns the *nonland* curve.
-_Avoid_: "power level" ([[Shape]]/bracket-adjacent, not curve health), "card quality" (the
-explicitly-absent per-card rate judgment), "speed" alone.
+`mana_audit`'s gate style), NOT one opaque score, and not a per-card judgment — the
+per-card cost-effectiveness axis is [[Rate]], a separate concept. Distinct from the
+[[Curve gate]] / `mana_audit`, which own *land* count and color; Efficiency owns the
+*nonland* curve.
+_Avoid_: "power level" ([[Shape]]/bracket-adjacent, not curve health), "card quality"
+(prefer [[Rate]] for the per-card axis), "speed" alone.
+
+**Rate** (per-card cost-effectiveness):
+How good a card is AT ITS JOB for its mana cost: a percentile of effect-per-mana within
+the card's peer group — the signal lane its highest-weight cluster serves, over the whole
+pool (falling back to spine roles: ramp/draw/removal/wipe). Crowd-independent by
+construction: the effect side is a structural formula where the IR gives clean numbers
+(bodies × stats per mana, damage per mana, cards per mana, net mana by turn T) and the
+curated ability-quality table (ADR-0040's premium/solid/weak pattern) where it doesn't; a
+card covered by neither is neutral (0.5) — Rate never punishes what it can't measure. It
+multiplies the synergy sort (`score × (0.5 + rate)`), so an off-plan card can never
+leapfrog on Rate alone, and it is the internal ordering of the always-on Staples avenue
+(generic goodstuff, findable because it IS good — deterministically). Extends ADR-0040's
+curated-quality posture; supersedes the older "no card-quality model" gloss that lived on
+[[Efficiency]].
+_Avoid_: "efficiency" (that's the curve panel), "power level" / "card quality" (fuzzy,
+crowd-flavored), "playrate" (the crowd metric Rate deliberately is not).
+
+**Pair read**:
+A registered two-card mechanic interaction the ranker scores deterministically: a
+candidate ident-pattern × a deck **anchor**, with a flat curated weight on the payoff
+scale and a CR-grounded rationale. Two anchor kinds: **commander-anchor** (fires on the
+commander's own idents — the commander is reliably in play, so the interaction reliably
+assembles) and **density-anchor** (fires when the deck holds ≥N cards emitting an ident —
+the free-sac-outlet × token-flood shape). Rows live in one central ledger (the
+bridge-ledger discipline: pins, hygiene, rationale), sum without decay when a candidate
+matches several (curation bounds stacking), and land in a separate additive `pair_score`
+readout — never inside the synergy clusters, and never multiplied by [[Rate]] (the row
+already priced the interaction). Exists because per-lane additive synergy cannot price
+multiplicative interactions (a mana doubler under an X commander is one lane of credit
+but the whole reason the crowd plays it).
+_Avoid_: "combo" (Commander Spellbook's word — infinite/game-winning lines), "synergy
+package" (a surfaced suggestion set, not a scored interaction), "pair" bare (collides
+with a swap's cut+add pair).
 
 **Focus** (the anti-"spread too thin" metric):
 The concentration of [[Engine card]]s across the deck's signal-derived [[Exploration

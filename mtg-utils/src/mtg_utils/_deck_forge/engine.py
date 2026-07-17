@@ -13,6 +13,7 @@ reads ``state`` at call time and can never go stale.
 
 from __future__ import annotations
 
+import functools
 import json
 import math
 from dataclasses import dataclass
@@ -363,13 +364,43 @@ def _lane_density(state: ForgeState, key: str, serve: Serve) -> float:
 _DENSITY_SIDECAR_PREFIX = "deck-forge-lane-density"
 
 
+@functools.lru_cache(maxsize=1)
+def _serve_fingerprint() -> str:
+    """Serve-definition fingerprint for the discovery sidecars (verified-
+    review F8): a warm lane-density / served-names sidecar computed under
+    OLD serve definitions must invalidate when any serve arm changes, not
+    only when the bulk file does — the B-1/B-6 serve fixes were silently
+    suppressed for warm deployments. Covers the whole extraction closure
+    (``signals_index._content_hash`` — emitted idents feed the
+    ``Serve.signal_idents`` arm) plus the two serve-defining modules that
+    closure deliberately excludes (``signal_specs`` / ``theme_presets``,
+    the one-way import rule). Memoized per process — it reads ~40 source
+    files."""
+    import contextlib
+    import hashlib
+
+    from mtg_utils._deck_forge import signal_specs as _specs_mod
+    from mtg_utils._deck_forge import signals_index
+
+    hasher = hashlib.sha256()
+    hasher.update(signals_index.content_hash().encode())
+    for mod in (_specs_mod, theme_presets):
+        with contextlib.suppress(OSError, TypeError):
+            hasher.update(Path(mod.__file__).read_bytes())
+    return hasher.hexdigest()[:16]
+
+
 def _density_sidecar_path(state: ForgeState) -> Path | None:
     """On-disk path for the lane-density cache, keyed by the BULK file's fingerprint
-    (mtime+size via ``sha_keyed_path``). A ``download-bulk`` refresh changes the key, so
-    a stale sidecar is transparently ignored, not served. ``None`` without bulk."""
+    (mtime+size via ``sha_keyed_path``) AND the serve-definition fingerprint
+    (verified-review F8). A ``download-bulk`` refresh OR a serve change alters
+    the key, so a stale sidecar is transparently ignored, not served. ``None``
+    without bulk."""
     if state.bulk_path is None:
         return None
-    return sha_keyed_path(_DENSITY_SIDECAR_PREFIX, state.bulk_path)
+    return sha_keyed_path(
+        _DENSITY_SIDECAR_PREFIX, state.bulk_path, _serve_fingerprint()
+    )
 
 
 def _load_lane_density(state: ForgeState) -> None:
@@ -412,7 +443,9 @@ def _served_sidecar_path(state: ForgeState, coll: list[dict]) -> Path | None:
     if state.bulk_path is None:
         return None
     names = sorted(c.get("name", "") for c in coll)
-    return sha_keyed_path(_SERVED_SIDECAR_PREFIX, state.bulk_path, names)
+    return sha_keyed_path(
+        _SERVED_SIDECAR_PREFIX, state.bulk_path, names, _serve_fingerprint()
+    )
 
 
 def _load_collection_serves(state: ForgeState, slot: str, coll: list[dict]) -> None:

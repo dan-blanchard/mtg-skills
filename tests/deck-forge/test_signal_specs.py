@@ -7733,3 +7733,78 @@ def test_xspell_amplifier_serve_survives_avenue_round_trip():
     test_card_ir("Mana Reflection")
     rebuilt = serve_from_dict(spec.serve.as_dict())
     assert rebuilt.matches(test_card("Mana Reflection"))
+
+
+# ── Verified-review F4/F5/F6/F7: spec serve/search contradictions ────────────
+
+
+def test_chosen_type_serve_never_credits_punisher_choosers():
+    # F5: the text arm ("choose a creature type") re-admitted every punisher
+    # the lane's emission gates exclude. The serve is idents-only now.
+    spec = spec_for(
+        Signal(key="chosen_type_matters", scope="you", subject="", text="", source="c")
+    )
+    test_card_ir("Engineered Plague")
+    assert not spec.serve.matches(test_card("Engineered Plague"))
+    test_card_ir("Door of Destinies")
+    assert spec.serve.matches(test_card("Door of Destinies"))
+
+
+def test_chosen_idents_stay_out_of_count_damage_body_lanes():
+    # F4: a "Dragon count damage" lane's serve promises BODIES that raise the
+    # count — Herald's Horn adds zero bodies and must not serve it. It still
+    # serves the type_matters tribal lane (the B-1 adjudication).
+    dfe = spec_for(
+        Signal(
+            key="damage_for_each",
+            scope="opponents",
+            subject="Dragon",
+            text="",
+            source="c",
+        )
+    )
+    test_card_ir("Herald's Horn")
+    horn = test_card("Herald's Horn")
+    assert not dfe.serve.matches(horn)
+    tm = spec_for(
+        Signal(key="type_matters", scope="you", subject="Dragon", text="", source="c")
+    )
+    assert tm.serve.matches(horn)
+
+
+def test_damage_for_each_search_finds_fuel_not_more_burn():
+    # F6: search must find cards that FEED the signal (token fuel), not more
+    # board-count burn emitters the serve then rejects.
+    spec = spec_for(
+        Signal(key="damage_for_each", scope="any", subject="", text="", source="c")
+    )
+    oracle = spec.search.get("oracle", "")
+    assert "token" in oracle, spec.search
+    assert "number of" not in oracle, spec.search
+
+
+def test_keep_n_wrath_serve_is_the_rebuild_package_not_the_wipe():
+    # F7: the serve's primary regex WAS the wipe pattern itself, so redundant
+    # wraths outranked actual rebuild cards. Serve = keyword/extras only.
+    spec = spec_for(
+        Signal(key="keep_n_wrath", scope="each", subject="", text="", source="c")
+    )
+    wipe = {
+        "name": "Another Keep-N",
+        "type_line": "Sorcery",
+        "cmc": 4.0,
+        "oracle_text": (
+            "Each player chooses two creatures they control, then sacrifices the rest."
+        ),
+        "prices": {"usd": "1.00"},
+    }
+    assert not spec.serve.matches(wipe)
+    protector = {
+        "name": "Indestructo",
+        "type_line": "Creature — Spirit",
+        "cmc": 2.0,
+        "oracle_text": "Your permanents are indestructible.",
+        "keywords": ["Indestructible"],
+        "prices": {"usd": "1.00"},
+    }
+    assert spec.serve.matches(protector)

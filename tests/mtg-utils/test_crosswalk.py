@@ -17290,3 +17290,18 @@ def test_combat_choice_hordechief_keeps_its_drain_lane():
 )
 def test_combat_choice_makers_excludes(name):
     assert "combat_choice_makers" not in _keys(name)
+
+
+# ── Verified-review F1: the keep_n_wrath bridge must respect the lane gates ──
+# The bridge's match ("sacrifices/destroys the rest") fired on mass LAND
+# denial whose choose step parses as residue — exactly the class
+# _KEEP_N_CHOOSE_TYPES exists to exclude (Land absent: a land reset is
+# denial, not a board reset a voltron deck wants). Limited Resources is
+# purely lands; Balance's rest-clause hangs off its lands choose (the
+# creature arm rides "the same way", which no bounded text read can honestly
+# attribute) — both adjudicated excluded, conservatively for Balance.
+
+
+@pytest.mark.parametrize("name", ["Balance", "Limited Resources"])
+def test_keep_n_wrath_bridge_excludes_land_resets(name):
+    assert "keep_n_wrath" not in _keys(name)

@@ -736,3 +736,88 @@ def test_bastion_drain_raw_and_scope_match_legacy_shape():
     # generic crosswalk "you" default a bare drain/punisher payoff would
     # otherwise get.
     assert {e.scope for e in dies_effects} == {"any"}
+
+
+# ── Verified-review fixes: gate x breadth, one structural cluster ────────────
+# Review findings F2/F3 (2026-07-16): (F2) the lane-breadth credit rode
+# untouched past the dead-tribal-gate penalty — the extra lanes matched the
+# SAME gated clause, so they are equally dead; the whole cluster contribution
+# (base + breadth) must scale by the gate. (F3) structural serves (type/
+# keyword membership) decayed as a same-role stack while being denied
+# breadth — but they are ONE physical property (the type line), which by the
+# breadth-credit's own rationale is one cluster with breadth, not a stack.
+
+
+def test_dead_gate_discounts_breadth_too():
+    # A gated payoff cluster serving multiple lanes: the with-tribe /
+    # without-tribe score ratio must reflect the gate on the WHOLE cluster
+    # (base + breadth), not just the base.
+    sigs = [
+        _sig("direct_damage", "you"),
+        _sig("attack_matters", "you"),
+        _sig("lifeloss_matters", "opponents"),
+    ]
+    focus = {
+        "viable": {"Burn / pingers", "Combat"},
+        "emerging": set(),
+        "stranded": set(),
+    }
+    card = {
+        "name": "Lizard Raid Captain",
+        "type_line": "Creature — Lizard",
+        "cmc": 2.0,
+        "oracle_text": (
+            "Whenever you attack with one or more Lizards, this creature "
+            "deals 2 damage to target opponent and that player loses 2 life."
+        ),
+        "prices": {"usd": "0.30"},
+    }
+    with_tribe = score_candidate(
+        card, active_signals=sigs, focus_sets=focus, deck_tribes=frozenset({"lizard"})
+    )
+    without = score_candidate(
+        card,
+        active_signals=sigs,
+        focus_sets=focus,
+        deck_tribes=frozenset({"human"}),
+    )
+    gated = [c for c in without["clusters"] if c["role"] == "payoff"]
+    full = [c for c in with_tribe["clusters"] if c["role"] == "payoff"]
+    assert gated
+    assert full
+    assert len(full[0]["lanes"]) >= 2, full  # the cluster really is multi-lane
+    # 0.4 gate on the whole contribution (small rounding slack).
+    assert gated[0]["weight"] <= 0.4 * full[0]["weight"] + 0.01, (gated, full)
+
+
+def test_structural_serves_form_one_cluster_with_breadth():
+    # A vanilla tribal body serving 3 structural lanes: one property (the
+    # type line) = ONE cluster earning breadth — not a decayed stack, not
+    # three separate rows.
+    # type_matters + damage_for_each (both tribal-bodies serves) hit a
+    # vanilla Goblin by TYPE LINE — two structural lanes, one property.
+    sigs = [
+        Signal("type_matters", "you", "Goblin", "", "cmd"),
+        Signal("damage_for_each", "opponents", "Goblin", "", "cmd"),
+    ]
+    focus = {
+        "viable": {"Goblin tribal", "Goblin count damage"},
+        "emerging": set(),
+        "stranded": set(),
+    }
+    card = {
+        "name": "Goblin Grunt",
+        "type_line": "Creature — Goblin",
+        "cmc": 2.0,
+        "oracle_text": "",
+        "prices": {"usd": "0.10"},
+    }
+    sc = score_candidate(card, active_signals=sigs, focus_sets=focus)
+    struct = [c for c in sc["clusters"] if c["role"] == "structural"]
+    assert len(struct) == 1, sc["clusters"]
+    assert len(struct[0]["lanes"]) == 2, struct
+    # base 0.5 x prom 1.0 + breadth 0.25 x 1.0 = 0.75 — strictly more than a
+    # bare single lane (0.5), strictly more than the old decayed stack
+    # (0.5 + 0.5x0.35 = 0.675 summed across two rows would ALSO exceed 0.5,
+    # so pin the single-row shape AND the exact contribution).
+    assert abs(struct[0]["weight"] - 0.75) < 0.001, struct

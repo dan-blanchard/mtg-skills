@@ -1733,6 +1733,16 @@ _CHOSEN_TYPE_IDENTS = frozenset(
     {"chosen_type_matters|you|", "chosen_type_matters|each|"}
 )
 _CHOSEN_TYPE_ORACLE = r"choose a (?:creature|kindred) type"
+# The redirect-instrument idiom set (task B-4), shared by the target_redirect
+# payoff spec and the spell_redirect doer spec — one home (verified-review
+# F9), so widening an alternate can never split the two specs.
+_REDIRECT_SERVE_ORACLE = (
+    r"change (?:a|the) target of target spell or ability"
+    r"|change (?:the|a) target of target spell"
+    r"|change (?:that|the) spell'?s target to"
+    r"|new target.{0,30}this (?:creature|permanent)"
+    r"|choose new targets for target\b"
+)
 
 
 SPECS: dict[tuple[str, str], SignalSpec] = {
@@ -1745,8 +1755,13 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         "Chosen-type tribal payoffs",
         "open type-of-choice payoffs (Door of Destinies, Herald's Horn) that "
         "serve whatever tribe the deck fields",
-        {"oracle": _CHOSEN_TYPE_ORACLE},
-        _CHOSEN_TYPE_ORACLE,
+        # Structural search AND serve (verified-review F5): a text arm
+        # ("choose a creature type") re-admits every punisher chooser the
+        # lane's emission gates exclude (Engineered Plague chooses too).
+        # The preset's signal_keys arm and the serve's ident arm both ride
+        # the punish-gated emission.
+        {"preset_names": ("chosen-type-payoff",)},
+        None,
         serve_idents=_CHOSEN_TYPE_IDENTS,
     ),
     # task B-2: damage_for_each — board-count damage, subject-less form (Mob
@@ -1758,7 +1773,10 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         "Board-count damage",
         "go-wide fuel — token makers and cheap bodies that raise the count "
         "your board-scaled burn (Mob Justice, Massive Raid) reads",
-        {"oracle": (r"deals? (?:X )?damage[^.]*equal to (?:\w+ times )?the number of")},
+        # Search finds cards that FEED the signal (verified-review F6): the
+        # go-wide fuel the avenue text promises, never more board-count burn
+        # emitters the serve below would then reject.
+        {"oracle": r"create [^.]*creature tokens?"},
         r"create .*creature token|put .*creature.*onto the battlefield",
     ),
     ("creature_etb", "you"): _spec(
@@ -2270,7 +2288,12 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         "Keep-N wraths",
         "choose-N-keep-the-rest board resets that spare your one big threat",
         {"oracle": r"(?:then )?(?:sacrifices?|destroys?) the rest"},
-        r"(?:then )?(?:sacrifices?|destroys?) the rest",
+        # Serve = the rebuild package ONLY (verified-review F7): the wipe
+        # pattern itself served redundant wraths above actual protection/
+        # reanimation cards. The search still FINDS more keep-N wraths
+        # (that is the Find surface's job); the serve scores what helps
+        # you rebuild through one.
+        None,
         extras=(_BOARD_PROTECTION_EXTRA, _REANIMATION_EXTRA),
         serve_keywords=("indestructible",),
     ),
@@ -5926,11 +5949,7 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         # task B-4: the choose-new-targets-for-target template (Deflecting
         # Swat, Wild Ricochet) was a verified serve gap; Fork's "for the
         # copy" cannot match the \btarget\b-anchored form (CR 707.10c).
-        r"change (?:a|the) target of target spell or ability"
-        r"|change (?:the|a) target of target spell"
-        r"|change (?:that|the) spell'?s target to"
-        r"|new target.{0,30}this (?:creature|permanent)"
-        r"|choose new targets for target\b",
+        _REDIRECT_SERVE_ORACLE,
         serve_idents=frozenset({"spell_redirect|you|"}),
     ),
     # task B-4: the DOER side (split from the payoff key above per the
@@ -5944,9 +5963,7 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
             "oracle": r"change (?:a|the) target of target spell"
             r"|choose new targets for target"
         },
-        r"change (?:a|the) target of target spell"
-        r"|change (?:that|the) spell'?s target to"
-        r"|choose new targets for target\b",
+        _REDIRECT_SERVE_ORACLE,
         serve_idents=frozenset({"spell_redirect|you|"}),
     ),
     # Free-spell storm (Thrasta): cost drops per spell cast this turn, so it wants FREE
@@ -6724,11 +6741,20 @@ def _subject_spec(signal: Signal) -> SignalSpec:
             # above are unchanged: B1 still keeps granters out of the body
             # oracle; this arm credits them at the serve level instead.
             # Wildcard chosen-type payoffs serve EVERY tribe (task B-1):
-            # Herald's Horn credits a Sliver deck exactly as a Goblin deck.
+            # Herald's Horn credits a Sliver deck exactly as a Goblin deck —
+            # but ONLY on the type_matters lane (verified-review F4): a
+            # "{s} count damage" bodies lane must not credit cost reducers
+            # and anthems that add zero bodies to the ObjectCount it reads.
+            # Type-CHANGERS stay on both tribal-bodies lanes: Maskwood Nexus
+            # genuinely raises the count.
             signal_idents=(
                 _type_changer_idents(tuple(members)) if is_type_tribal else frozenset()
             )
-            | _CHOSEN_TYPE_IDENTS,
+            | (
+                _CHOSEN_TYPE_IDENTS
+                if signal.key == signal_keys.TYPE_MATTERS
+                else frozenset()
+            ),
         ),
         extras=(
             _payoff_extra(subj, esc),

@@ -480,29 +480,41 @@ def _synergy_score(
         )
 
     # Per-cluster (role, base weight, breadth credit, labels). Base = role
-    # weight x the cluster's BEST lane prominence (x tribal-gate discount for
-    # payoffs); breadth = _BREADTH_CREDIT x Σ prominence of every extra lane.
+    # weight x the cluster's BEST lane prominence; breadth = _BREADTH_CREDIT
+    # x Σ prominence of every extra lane. The tribal-gate discount scales the
+    # WHOLE cluster contribution (base AND breadth) — the extra lanes matched
+    # the same gated clause, so they are equally dead (verified-review F2).
     entries: list[tuple[str, float, float, list[str]]] = []
     for role, labels, idxs in merged.values():
         proms = sorted(
             (_prominence(label, focus_sets) for label in labels), reverse=True
         )
         weight = _ROLE_WEIGHT[role] * (proms[0] if proms else _PROM_DEFAULT)
+        breadth = _BREADTH_CREDIT * sum(proms[1:])
         if role == "payoff":
             # A dead tribal gate (Lizard payoff, no Lizards) discounts the cluster.
-            weight *= min(
+            gate = min(
                 _gate_penalty(clause_list[i], deck_tribes, ir, gate_subtypes)
                 for i in idxs
             )
-        breadth = _BREADTH_CREDIT * sum(proms[1:])
+            weight *= gate
+            breadth *= gate
         entries.append((role, weight, breadth, sorted(labels)))
-    for label in struct_labels:
+    if struct_labels:
+        # ALL structural serves are one physical property (the type line /
+        # keyword array), so they form ONE cluster earning breadth — never a
+        # decayed stack of per-label rows (verified-review F3: a changeling
+        # serving three viable tribal lanes is one body, not three cards).
+        proms = sorted(
+            (_prominence(label, focus_sets) for label in struct_labels),
+            reverse=True,
+        )
         entries.append(
             (
                 "structural",
-                _ROLE_WEIGHT["structural"] * _prominence(label, focus_sets),
-                0.0,
-                [label],
+                _ROLE_WEIGHT["structural"] * proms[0],
+                _BREADTH_CREDIT * sum(proms[1:]),
+                sorted(struct_labels),
             )
         )
 

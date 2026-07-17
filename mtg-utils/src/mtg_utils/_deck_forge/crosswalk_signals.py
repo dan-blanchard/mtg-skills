@@ -340,7 +340,12 @@ from mtg_utils._deck_forge._sweep_detectors import (
     DISCARD_OUTLET_REGEX,
     TOPDECK_STACK_SWEEP_REGEX,
 )
-from mtg_utils._deck_forge.bridge_ledger import bridge_fires
+from mtg_utils._deck_forge.bridge_ledger import (
+    KEEP_N_CHOOSE_TYPES,
+    KNW_REST_RX,
+    bridge_fires,
+    keep_n_shape_b_reads,
+)
 from mtg_utils.card_classify import get_oracle_text
 
 # The Signal keys the crosswalk PORTS from the typed substrate — THE served-keys
@@ -3851,12 +3856,9 @@ def _damage_for_each(tree: ConceptTree) -> list[Signal]:
 
 
 # ── task B-3: keep_n_wrath — choose-N-keep-the-rest board resets ─────────────
-# Core-type gate (mirrors _MASS_REMOVAL_TYPES' shape): a keep-N over lands
-# (Planetary Annihilation, Global Ruin) is mass land denial, not a creature-
-# board reset — Land is deliberately absent.
-_KEEP_N_CHOOSE_TYPES = frozenset(
-    {"Creature", "Permanent", "Planeswalker", "Artifact", "Enchantment"}
-)
+# The core-type gate and the Shape-B chain walk live in bridge_ledger
+# (KEEP_N_CHOOSE_TYPES / keep_n_shape_b_reads) — one home for the lane AND
+# the bridge's gap (verified-review F1/F9).
 
 
 def _keep_n_wrath(tree: ConceptTree) -> list[Signal]:
@@ -3905,43 +3907,19 @@ def _keep_n_wrath(tree: ConceptTree) -> list[Signal]:
             out.append(Signal("keep_n_wrath", scope, "", raw, tree.name, "high"))
 
     for unit in tree.units:
-        pending: str | None = None
         for c in unit.effects:
-            t = tag_of(c.node)
-            if t == "ChooseAndSacrificeRest":
+            if tag_of(c.node) == "ChooseAndSacrificeRest":
                 sac_filter = getattr(c.node, "sacrifice_filter", None)
-                if set(filter_core_types(sac_filter)) & _KEEP_N_CHOOSE_TYPES:
+                if set(filter_core_types(sac_filter)) & KEEP_N_CHOOSE_TYPES:
                     push("each", c.raw or "")
-                continue
-            if t == "TargetOnly":
-                pending = None
-                target = getattr(c.node, "target", None)
-                if target is None or not (
-                    set(filter_core_types(target)) & _KEEP_N_CHOOSE_TYPES
-                ):
-                    continue
-                ctrl = filter_controller(target)
-                owner = effect_owner_player_scope(unit.node, c.node)
-                if ctrl == "ScopedPlayer" and owner == "All":
-                    pending = "each"
-                elif ctrl == "You" and (
-                    owner == "Opponent"
-                    or (
-                        unit.origin == "trigger"
-                        and trigger_turn_constraint(unit.node)
-                        == "OnlyDuringOpponentsTurn"
-                    )
-                ):
-                    pending = "opponents"
-                continue
-            if (
-                pending
-                and t in ("Sacrifice", "Destroy")
-                and tag_of(getattr(c.node, "target", None)) == "TrackedSet"
-            ):
-                push(pending, c.raw or "")
-                pending = None
-    if bridge_fires("keep_n_wrath_unimplemented_choose", tree):
+    for scope, raw in keep_n_shape_b_reads(tree):
+        push(scope, raw)
+    # Cheap text pre-gate before the bridge (verified-review F10): the gap's
+    # chain walk re-walks every unit, and >99.9% of the pool can be excluded
+    # by the rest-clause regex alone.
+    if KNW_REST_RX.search(tree.oracle or "") and bridge_fires(
+        "keep_n_wrath_unimplemented_choose", tree
+    ):
         push("each", tree.oracle or "")
     return out
 

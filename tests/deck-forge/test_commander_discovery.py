@@ -421,3 +421,21 @@ def test_unknown_theme_returns_400_not_500():
         "/api/commanders/discover", json={"theme": "not_a_real_preset_xyz"}
     )
     assert r.status_code == 400
+
+
+# ── Verified-review F8: discovery sidecars invalidate on serve changes ───────
+def test_discovery_sidecars_key_on_serve_definitions(tmp_path, monkeypatch):
+    # A warm lane-density / served-names sidecar computed under OLD serve
+    # definitions must not survive a serve change (the B-1/B-6 serve fixes
+    # were silently suppressed for warm deployments). The sidecar key folds
+    # in a serve-definition fingerprint; changing it changes both paths.
+    bulk = tmp_path / "bulk.json"
+    bulk.write_text("[]")
+    state = _state()
+    state.bulk_path = bulk
+    coll = [{"name": "Sol Ring"}]
+    p_density = engine._density_sidecar_path(state)
+    p_served = engine._served_sidecar_path(state, coll)
+    monkeypatch.setattr(engine, "_serve_fingerprint", lambda: "different")
+    assert engine._density_sidecar_path(state) != p_density
+    assert engine._served_sidecar_path(state, coll) != p_served

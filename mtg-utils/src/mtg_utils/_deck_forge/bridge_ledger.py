@@ -46,7 +46,9 @@ from typing import TYPE_CHECKING
 
 from mtg_utils._card_ir.crosswalk import (
     effect_filter,
+    effect_owner_player_scope,
     effect_reaches_player,
+    filter_controller,
     filter_core_types,
     filter_inzone_zones,
     filter_predicates,
@@ -55,6 +57,7 @@ from mtg_utils._card_ir.crosswalk import (
     iter_typed_nodes,
     static_mode_field,
     tag_of,
+    trigger_turn_constraint,
 )
 from mtg_utils._card_ir.mirror.runtime import MISSING
 from mtg_utils._deck_forge._sweep_detectors import NAMED_PERMANENT_REGEX
@@ -1894,38 +1897,83 @@ def _tc_gy_parse_failure_match(tree: ConceptTree) -> bool:
     return any(_TC_GY_STATIC_RX.search(d) for d in _static_parse_failure_descs(tree))
 
 
-# ── task B-3: keep_n_wrath — Unimplemented-choose members ────────────────────
-_KNW_REST_RX = re.compile(
-    r"(?:then )?(?:sacrifices?|destroys?) the rest", re.IGNORECASE
-)
+# ── task B-3: keep_n_wrath — the Shape-B walk + Unimplemented-choose bridge ──
+# Single home for the keep-N text/structure reads (verified-review F1/F9/F10):
+# the lane imports the Shape-B walk + regexes from here, and the bridge's gap
+# is "the lane's OWN accepted read finds nothing" — so a landed-but-rejected
+# chain keeps bridge eligibility, and a landed-and-accepted one stands it down.
+KNW_REST_RX = re.compile(r"(?:then )?(?:sacrifices?|destroys?) the rest", re.IGNORECASE)
 _KNW_RANDOM_RX = re.compile(r"at random", re.IGNORECASE)
+# A LANDS choose feeding the rest-clause (Limited Resources; Balance's lands
+# arm) — mass land denial, the class KEEP_N_CHOOSE_TYPES exists to exclude.
+# Balance's creature arm rides "the same way", which no bounded text read can
+# honestly attribute — adjudicated excluded, conservatively (F1).
+_KNW_LAND_CHOOSE_RX = re.compile(
+    r"chooses? [^.\n]*\blands?\b[^.\n]*(?:then )?sacrifices? the rest",
+    re.IGNORECASE,
+)
+# Core-type gate (mirrors _MASS_REMOVAL_TYPES' shape): Land deliberately
+# absent — a land reset is denial, not a board reset.
+KEEP_N_CHOOSE_TYPES = frozenset(
+    {"Creature", "Permanent", "Planeswalker", "Artifact", "Enchantment"}
+)
 
 
-def _knw_structural_chain(tree: ConceptTree) -> bool:
-    """A landed TargetOnly → Sacrifice/Destroy(TrackedSet) chain — the lane's
-    own Shape-B structural read. Its presence stands the bridge down."""
+def keep_n_shape_b_reads(tree: ConceptTree) -> list[tuple[str, str]]:
+    """(scope, raw) per ACCEPTED Shape-B keep-N chain: a gated ``TargetOnly``
+    choose followed by a ``Sacrifice``/``Destroy`` whose target is the
+    ``TrackedSet`` back-reference. The one walk both the lane (its Shape-B
+    arm) and the bridge's gap consume — acceptance means core types in
+    ``KEEP_N_CHOOSE_TYPES`` AND a resolvable scope (symmetric ScopedPlayer/
+    All → "each"; You under an Opponent player_scope or an
+    OnlyDuringOpponentsTurn trigger → "opponents")."""
+    out: list[tuple[str, str]] = []
     for unit in tree.units:
-        saw_choose = False
+        pending: str | None = None
         for c in unit.effects:
             t = tag_of(c.node)
             if t == "TargetOnly":
-                saw_choose = True
-            elif (
-                saw_choose
+                pending = None
+                target = getattr(c.node, "target", None)
+                if target is None or not (
+                    set(filter_core_types(target)) & KEEP_N_CHOOSE_TYPES
+                ):
+                    continue
+                ctrl = filter_controller(target)
+                owner = effect_owner_player_scope(unit.node, c.node)
+                if ctrl == "ScopedPlayer" and owner == "All":
+                    pending = "each"
+                elif ctrl == "You" and (
+                    owner == "Opponent"
+                    or (
+                        unit.origin == "trigger"
+                        and trigger_turn_constraint(unit.node)
+                        == "OnlyDuringOpponentsTurn"
+                    )
+                ):
+                    pending = "opponents"
+                continue
+            if (
+                pending
                 and t in ("Sacrifice", "Destroy")
                 and tag_of(getattr(c.node, "target", None)) == "TrackedSet"
             ):
-                return True
-    return False
+                out.append((pending, c.raw or ""))
+                pending = None
+    return out
 
 
 def _knw_gap(tree: ConceptTree) -> bool:
-    return not _knw_structural_chain(tree)
+    return not keep_n_shape_b_reads(tree)
 
 
 def _knw_match(tree: ConceptTree) -> bool:
     oracle = tree.oracle or ""
-    return bool(_KNW_REST_RX.search(oracle)) and not _KNW_RANDOM_RX.search(oracle)
+    return (
+        bool(KNW_REST_RX.search(oracle))
+        and not _KNW_RANDOM_RX.search(oracle)
+        and not _KNW_LAND_CHOOSE_RX.search(oracle)
+    )
 
 
 # ── task B-5: combat_choice_makers — no typed choose-attackers/blockers node ─
@@ -2003,9 +2051,11 @@ BRIDGES: dict[str, Bridge] = {
                 "4 fire / whole pool (Duneblast 'Choose creature', Stick "
                 "Together 'choose a party from among creatures they "
                 "control', Mount Doom 'Choose creatures', Promise of "
-                "Loyalty — no residue at all), 1 vetoed (Last One Standing "
+                "Loyalty — no residue at all), 3 vetoed (Last One Standing "
                 "'Choose a creature at random' — a random keep protects "
-                "nothing), phase v0.23.0, 2026-07-16"
+                "nothing; Balance + Limited Resources — lands-choose rest "
+                "clauses, mass land denial per the KEEP_N_CHOOSE_TYPES "
+                "gate, verified-review F1), phase v0.23.0, 2026-07-16"
             ),
             pins=(
                 "Duneblast",

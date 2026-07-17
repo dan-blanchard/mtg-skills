@@ -222,6 +222,13 @@ def _content_hash() -> str:
     return hasher.hexdigest()
 
 
+# Public alias: the discovery-sidecar serve fingerprint (engine.py,
+# verified-review F8) folds this into its key — the extraction closure is
+# half of what defines a Serve's behavior (emitted idents feed the
+# Serve.signal_idents arm).
+content_hash = _content_hash
+
+
 def _bulk_identity(bulk_path: Path) -> tuple[str, int, int]:
     st = bulk_path.stat()
     return (str(bulk_path), st.st_mtime_ns, st.st_size)

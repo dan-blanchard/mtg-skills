@@ -2957,6 +2957,23 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
         should_match=("Soulherder", "Ephemerate", "Conjurer's Closet"),
         should_not_match=("Lightning Bolt", "Angel of Sanctions"),
     ),
+    # Open type-of-choice tribal payoffs (task B-1 / verified-review F5):
+    # choose a creature type as it enters (CR 614.12) and REWARD the chosen
+    # type. Structural-only on purpose — a text arm ("choose a creature
+    # type") would re-admit the punisher choosers (Engineered Plague) the
+    # chosen_type_matters lane's emission gates exclude.
+    Preset(
+        name="chosen-type-payoff",
+        description=(
+            "Open type-of-choice tribal payoffs — choose a creature type as "
+            "it enters and reward the chosen type (Door of Destinies, "
+            "Herald's Horn, Kindred Discovery). Serve whatever tribe the "
+            "deck fields."
+        ),
+        signal_keys=("chosen_type_matters",),
+        should_match=("Door of Destinies", "Herald's Horn"),
+        should_not_match=("Engineered Plague",),
+    ),
 )
 
 
