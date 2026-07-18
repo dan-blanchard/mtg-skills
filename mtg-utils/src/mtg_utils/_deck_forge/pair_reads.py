@@ -503,6 +503,32 @@ PAIR_READS: dict[str, PairRead] = {
             ),
             pins=("Stroke of Genius",),
         ),
+        # ── Iteration 3 (lane-gap batch, 2026-07-18): the recast loop —
+        # the mining sweep's biggest un-priced miss cluster (Muldrotha's
+        # 13 cards, Meren's re-arm trio, Chulane's bounce package), built
+        # on two new lanes: self_etb_payload (candidate) and
+        # permanent_recast (anchor). ────────────────────────────────────
+        PairRead(
+            pair_id="etb_value_x_recast_commander",
+            candidate=("self_etb_payload|you|*",),
+            candidate_not=("token_maker|*",),
+            anchor_kind="commander",
+            anchor=("permanent_recast|you|*",),
+            weight=3.0,
+            label="ETB value x recast-engine commander",
+            rationale=(
+                "Enters triggers fire on EVERY entry (CR 603.6a) — a "
+                "one-shot ETB value clause (Shriekmaw's destroy, "
+                "Mulldrifter's draw, Fleshbag Marauder's edict) is priced "
+                "as single-use by the lanes, but under a commander that "
+                "repeatably re-delivers the permanent (Muldrotha's "
+                "graveyard-cast permission, Meren's end-step reanimate, "
+                "Chulane's bounce-and-replay) its true value is the clause "
+                "x recasts-per-game. Token MAKERS are vetoed "
+                "(candidate_not): the fodder rows already price them."
+            ),
+            pins=("Shriekmaw", "Mulldrifter"),
+        ),
     )
 }
 

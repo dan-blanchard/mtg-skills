@@ -1910,6 +1910,94 @@ def has_self_etb_value(tree: ConceptTree) -> bool:
     return False
 
 
+# The iteration-3 lane's WIDER value set: has_self_etb_value gates on
+# is_clone_value_effect (clone-worthy payloads for wants_cloning) and misses
+# the removal half of the recast-loop class — Shriekmaw ['destroy'],
+# Fleshbag Marauder ['sacrifice'] (probed 2026-07-18). This set names the
+# effect CONCEPTS a self-ETB trigger converts into value on every re-entry.
+_SELF_ETB_PAYLOAD_CONCEPTS = frozenset(
+    {"destroy", "draw", "sacrifice", "damage", "discard", "mill", "tutor", "exile"}
+)
+
+
+def has_self_etb_payload(tree: ConceptTree) -> bool:
+    """A self-ETB trigger with a VALUE payload — the recast-loop candidate
+    class (iteration-3 pair row): each re-entry re-fires it (CR 603.6a),
+    so under a commander that repeatably recasts/reanimates/bounces the
+    permanent, the one-shot clause is a per-turn engine. Wider than
+    :func:`has_self_etb_value` (which keeps its is_clone_value_effect gate
+    for wants_cloning): any :data:`_SELF_ETB_PAYLOAD_CONCEPTS` effect
+    qualifies — Shriekmaw's destroy, Mulldrifter's draw, Fleshbag
+    Marauder's edict sacrifice."""
+    for unit in tree.units:
+        if (
+            unit.origin == "trigger"
+            and unit.trigger_event in ETB_TRIGGER_EVENTS
+            and tag_of(getattr(unit.node, "valid_card", None)) == "SelfRef"
+            and any(c.concept in _SELF_ETB_PAYLOAD_CONCEPTS for c in unit.effects)
+        ):
+            return True
+    return False
+
+
+def _subtree_has_graveyard_zone(root: object) -> bool:
+    """Whether any filter node in the unit subtree is ``InZone(Graveyard)``
+    — reanimation targets carry their source zone on the TARGET filter, not
+    the ChangeZone effect (Meren's ``origin`` is absent; the "creature card
+    in your graveyard" scoping is the filter's InZone property)."""
+    seen: set[int] = set()
+    queue = [root]
+    while queue:
+        node = queue.pop(0)
+        if not isinstance(node, TypedMirrorNode) or id(node) in seen:
+            continue
+        seen.add(id(node))
+        if tag_of(node) == "InZone" and getattr(node, "zone", None) == "Graveyard":
+            return True
+        for v in vars(node).values():
+            if isinstance(v, TypedMirrorNode):
+                queue.append(v)
+            elif isinstance(v, list):
+                queue.extend(x for x in v if isinstance(x, TypedMirrorNode))
+    return False
+
+
+def has_permanent_recast(tree: ConceptTree) -> bool:
+    """A REPEATABLE engine that re-delivers your own permanents to a
+    castable/battlefield zone — the recast-loop pair row's ANCHOR class
+    (iteration-3). Three structural arms, probed 2026-07-18:
+
+    * the graveyard-cast permission static (``static_mode_tag`` ==
+      ``GraveyardCastPermission`` — Muldrotha's per-type play-from-yard);
+    * a trigger whose ``ChangeZone`` puts a graveyard card onto the
+      battlefield (destination ``Battlefield`` + an ``InZone(Graveyard)``
+      target filter in the unit subtree — Meren's end-step reanimate,
+      Sun Titan);
+    * an activated ability that bounces your own creatures (``Bounce``
+      with a ``controller == You`` target — Chulane's stapled replay).
+    """
+    for unit in tree.units:
+        if unit.origin == "static" and (
+            static_mode_tag(unit.node) == "GraveyardCastPermission"
+        ):
+            return True
+        if unit.origin == "trigger":
+            for c in unit.effects:
+                if (
+                    c.concept == "change_zone"
+                    and getattr(c.node, "destination", None) == "Battlefield"
+                    and _subtree_has_graveyard_zone(unit.node)
+                ):
+                    return True
+        if unit.origin == "ability":
+            for c in unit.effects:
+                if c.concept == "bounce" and (
+                    filter_controller(getattr(c.node, "target", None)) == "You"
+                ):
+                    return True
+    return False
+
+
 def has_self_dies_value(tree: ConceptTree) -> bool:
     """A self-DIES VALUE trigger — a clone/token-copy re-fires it when it dies
     (Kokusho, Protean Hulk — CR 700.4).

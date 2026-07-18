@@ -229,8 +229,10 @@ from mtg_utils._card_ir.tree_synthesis import (
     has_high_life_total_payoff,
     has_life_gained_this_turn,
     has_life_gained_trigger,
+    has_permanent_recast,
     has_repeatable_engine,
     has_self_dies_value,
+    has_self_etb_payload,
     has_self_etb_value,
     has_selfloss_engine,
     has_structural_arcane,
@@ -710,6 +712,8 @@ PORTED_KEYS: frozenset[str] = frozenset(
         "proliferate_matters",
         "untap_engine",
         "theft_makers",
+        "permanent_recast",
+        "self_etb_payload",
         "wants_theft",
         "wants_cloning",
         "food_matters",
@@ -24239,6 +24243,32 @@ def _theft_makers_lane(tree: ConceptTree) -> list[Signal]:
     return []
 
 
+def _permanent_recast(tree: ConceptTree) -> list[Signal]:
+    """permanent_recast — a repeatable engine re-delivering your own
+    permanents to a castable/battlefield zone (Muldrotha's graveyard-cast
+    permission static, Meren's reanimation trigger, Chulane's activated
+    self-bounce — :func:`has_permanent_recast`, three structural arms).
+    The recast-loop pair row's ANCHOR class (iteration-3): each re-entry
+    re-fires a self-ETB payload (CR 603.6a). Scope "you", HIGH.
+    """
+    if has_permanent_recast(tree):
+        return [Signal("permanent_recast", "you", "", "", tree.name, "high")]
+    return []
+
+
+def _self_etb_payload(tree: ConceptTree) -> list[Signal]:
+    """self_etb_payload — a self-ETB trigger with a VALUE payload (CR
+    603.6a: enters triggers fire on every entry, so each recast/reanimate/
+    bounce re-delivers the clause). The recast-loop pair row's candidate
+    class (iteration-3): Shriekmaw's destroy, Mulldrifter's draw, Fleshbag
+    Marauder's edict — :func:`has_self_etb_payload`, the wider sibling of
+    wants_cloning's clone-worthy gate. Scope "you", HIGH.
+    """
+    if has_self_etb_payload(tree):
+        return [Signal("self_etb_payload", "you", "", "", tree.name, "high")]
+    return []
+
+
 def _wants_cloning(tree: ConceptTree) -> list[Signal]:
     """wants_cloning (§8) — CR 707.1 / 704.5j (legend rule) / 603.6: the
     card-as-CLONE-TARGET benefit lane (NOT a clone doer — clone_makers is
@@ -26832,6 +26862,8 @@ _LANES = (
     _proliferate_matters_lane,
     _untap_engine,
     _theft_makers_lane,
+    _permanent_recast,
+    _self_etb_payload,
     _wants_cloning,
     _food_matters_lane,
     _clue_matters_lane,

@@ -5491,6 +5491,29 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         {"oracle": _UNTAP_ORACLE},
         _UNTAP_ORACLE,
     ),
+    # permanent_recast (iteration-3): a repeatable re-delivery engine — served
+    # by the one-shot ETB/self-sac value permanents it re-delivers.
+    ("permanent_recast", "you"): _spec(
+        "Permanent recast engine",
+        "one-shot ETB value permanents this engine re-delivers every turn",
+        {"oracle": r"when(?:ever)? [^.]*enters(?: the battlefield)?, "},
+        r"when(?:ever)? [^.]*enters(?: the battlefield)?, ",
+    ),
+    # self_etb_payload (iteration-3): a self-ETB value trigger — served by the
+    # engines that re-deliver it (blink/flicker, recursion, bounce-to-replay);
+    # CR 603.6a: enters triggers fire on every entry.
+    ("self_etb_payload", "you"): _spec(
+        "ETB value to re-deliver",
+        "blink, recursion, and bounce engines that re-fire this card's "
+        "enters-the-battlefield value",
+        {
+            "oracle": r"exile [^.]*return[^.]*battlefield|return [^.]*from your "
+            r"graveyard to the battlefield|return [^.]*to (?:your|its "
+            r"owner's) hand"
+        },
+        r"exile [^.]*return[^.]*battlefield|return [^.]*from your graveyard "
+        r"to the battlefield",
+    ),
     # Tap/untap commander (Tui and La) wants the untap effects that retrigger it.
     # ADR-0027: tap_untap_matters had its SWEEP_DETECTORS row deleted (detection moved
     # to the Card IR — the `taps` trigger + a "becomes tapped/untapped" kept mirror).
