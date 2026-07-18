@@ -529,6 +529,30 @@ PAIR_READS: dict[str, PairRead] = {
             ),
             pins=("Shriekmaw", "Mulldrifter"),
         ),
+        # ── Iteration 4 (2026-07-18): Feather's entire miss file sat at
+        # pair 0.0 — no ident marked "this spell targets your own
+        # permanent" until the own_target_spell lane. ───────────────────
+        PairRead(
+            pair_id="own_target_spell_x_rebate_commander",
+            candidate=("own_target_spell|you|*",),
+            anchor_kind="commander",
+            anchor=("targeting_matters|*",),
+            weight=3.0,
+            label="Own-target spell x targeting-rebate commander",
+            rationale=(
+                "A spell that targets your own permanent by its printed "
+                "filter (Ephemerate, Feat of Resistance) is a one-shot in "
+                "a generic deck; a commander whose trigger keys on spells "
+                "targeting your permanents (Feather returns them to hand "
+                "at end step; Zada copies them per creature) turns each "
+                "into a PER-TURN engine — the same CR 603.2c per-cast "
+                "trigger instance read as the cast rows. Strict candidate "
+                "class: controller==You printed filters only (an "
+                "any-target pump is Feather-compatible by choice, not by "
+                "text — a documented recall gap, not imprecision)."
+            ),
+            pins=("Ephemerate", "Feat of Resistance"),
+        ),
     )
 }
 

@@ -1998,6 +1998,75 @@ def has_permanent_recast(tree: ConceptTree) -> bool:
     return False
 
 
+def has_own_target_spell(tree: ConceptTree) -> bool:
+    """An instant/sorcery that TARGETS your own permanent by its printed
+    filter (``Typed`` target with ``controller == You`` — Ephemerate, Feat
+    of Resistance, Fall of the Hammer's first target) — the own-target
+    pair row's candidate class (iteration-4): a spell-recursion commander
+    (Feather) rebates exactly these every turn. Two arms (4b widening,
+    measured: the strict arm alone halved Feather's median target rank —
+    4340 to 2611 — but left top-250 recall flat, so the beneficial-pump
+    class was admitted):
+
+    * a ``Typed`` target with ``controller == You`` (the printed
+      own-target class — Ephemerate); or
+    * a NON-NEGATIVE targeted ``pump`` on a creature (Infuriate, Defiant
+      Strike — a beneficial pump is own-directed in practice; a "-X/-X"
+      debuff-removal spell fails the sign gate, the anthem lane's rule).
+    """
+    if not (tree.is_type("Instant") or tree.is_type("Sorcery")):
+        return False
+    for unit in tree.units:
+        for c in unit.effects:
+            if c.concept != "pump":
+                continue
+            tgt = getattr(c.node, "target", None)
+            if not (
+                isinstance(tgt, TypedMirrorNode)
+                and tag_of(tgt) == "Typed"
+                and "Creature" in filter_core_types(tgt)
+            ):
+                continue
+            if not any(v < 0 for v in _pump_mod_ints(c.node)):
+                return True
+    seen: set[int] = set()
+    queue: list[object] = [u.node for u in tree.units]
+    while queue:
+        node = queue.pop(0)
+        if not isinstance(node, TypedMirrorNode) or id(node) in seen:
+            continue
+        seen.add(id(node))
+        tgt = getattr(node, "target", None)
+        if (
+            isinstance(tgt, TypedMirrorNode)
+            and tag_of(tgt) == "Typed"
+            and filter_controller(tgt) == "You"
+        ):
+            return True
+        for v in vars(node).values():
+            if isinstance(v, TypedMirrorNode):
+                queue.append(v)
+            elif isinstance(v, list):
+                queue.extend(x for x in v if isinstance(x, TypedMirrorNode))
+    return False
+
+
+def _pump_mod_ints(node: object) -> list[int]:
+    """Every literal int reachable through a pump node's power/toughness
+    fields (Fixed(value=N) wrappers peel; Variable/Ref scale nodes yield
+    nothing — a +X/+X pump is beneficial, only literal negatives gate)."""
+    out: list[int] = []
+    for fname in ("power", "toughness"):
+        v = getattr(node, fname, None)
+        if isinstance(v, int):
+            out.append(v)
+        elif isinstance(v, TypedMirrorNode):
+            inner = getattr(v, "value", None)
+            if isinstance(inner, int):
+                out.append(inner)
+    return out
+
+
 def has_self_dies_value(tree: ConceptTree) -> bool:
     """A self-DIES VALUE trigger — a clone/token-copy re-fires it when it dies
     (Kokusho, Protean Hulk — CR 700.4).

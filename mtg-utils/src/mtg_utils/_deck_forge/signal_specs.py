@@ -5491,6 +5491,15 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         {"oracle": _UNTAP_ORACLE},
         _UNTAP_ORACLE,
     ),
+    # own_target_spell (iteration-4): served by the recursion engines that
+    # rebate own-targeting spells (Feather-class) and copy engines (Zada).
+    ("own_target_spell", "you"): _spec(
+        "Own-target spell",
+        "spell-recursion and copy engines that rebate spells targeting your "
+        "own permanents",
+        {"oracle": r"instant or sorcery spell that targets"},
+        r"instant or sorcery spell that targets",
+    ),
     # permanent_recast (iteration-3): a repeatable re-delivery engine — served
     # by the one-shot ETB/self-sac value permanents it re-delivers.
     ("permanent_recast", "you"): _spec(

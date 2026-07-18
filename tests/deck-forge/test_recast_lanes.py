@@ -83,3 +83,42 @@ def test_recast_row_fires_and_gates():
     # No recast anchor -> no row.
     _s3, rows3 = pair_score(test_card("Shriekmaw"), ctx("Krenko, Mob Boss"))
     assert not any(r["pair"] == "etb_value_x_recast_commander" for r in rows3), rows3
+
+
+# ── iteration-4: own-target spells (Feather's miss file) ─────────────────────
+
+
+@pytest.mark.parametrize(
+    ("name", "expected"),
+    [
+        ("Ephemerate", True),  # "target creature you control"
+        ("Feat of Resistance", True),
+        ("Fall of the Hammer", True),  # first target is your own creature
+        ("Murder", False),  # any-target removal
+        # 4b widening: a beneficial targeted pump is own-directed in
+        # practice (the strict arm alone left Feather's top-250 flat).
+        ("Infuriate", True),
+        ("Defiant Strike", True),
+        ("Shock", False),  # targeted damage, not a pump
+    ],
+)
+def test_own_target_spell_emission(name, expected):
+    test_card_ir(name)  # snapshot residency (parametrize -> bare variable)
+    assert ("own_target_spell|you|" in _idents_of(name)) is expected
+
+
+def test_own_target_row_fires_and_gates():
+    from mtg_utils._deck_forge.pair_reads import build_pair_context, pair_score
+    from mtg_utils.testkit import test_card
+
+    test_card_ir("Feather, the Redeemed")
+    ctx = build_pair_context([test_card("Feather, the Redeemed")], [])
+    test_card_ir("Ephemerate")
+    _s, rows = pair_score(test_card("Ephemerate"), ctx)
+    assert any(r["pair"] == "own_target_spell_x_rebate_commander" for r in rows), rows
+    test_card_ir("Krenko, Mob Boss")
+    ctx2 = build_pair_context([test_card("Krenko, Mob Boss")], [])
+    _s2, rows2 = pair_score(test_card("Ephemerate"), ctx2)
+    assert not any(r["pair"] == "own_target_spell_x_rebate_commander" for r in rows2), (
+        rows2
+    )

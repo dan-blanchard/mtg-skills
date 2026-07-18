@@ -229,6 +229,7 @@ from mtg_utils._card_ir.tree_synthesis import (
     has_high_life_total_payoff,
     has_life_gained_this_turn,
     has_life_gained_trigger,
+    has_own_target_spell,
     has_permanent_recast,
     has_repeatable_engine,
     has_self_dies_value,
@@ -712,6 +713,7 @@ PORTED_KEYS: frozenset[str] = frozenset(
         "proliferate_matters",
         "untap_engine",
         "theft_makers",
+        "own_target_spell",
         "permanent_recast",
         "self_etb_payload",
         "wants_theft",
@@ -24243,6 +24245,18 @@ def _theft_makers_lane(tree: ConceptTree) -> list[Signal]:
     return []
 
 
+def _own_target_spell(tree: ConceptTree) -> list[Signal]:
+    """own_target_spell — an instant/sorcery whose printed target filter is
+    YOUR permanent (:func:`has_own_target_spell` — Ephemerate, Feat of
+    Resistance; strict controller==You, the Infuriate any-target class is a
+    documented recall gap). The own-target pair row's candidate class
+    (iteration-4): Feather rebates these every turn. Scope "you", HIGH.
+    """
+    if has_own_target_spell(tree):
+        return [Signal("own_target_spell", "you", "", "", tree.name, "high")]
+    return []
+
+
 def _permanent_recast(tree: ConceptTree) -> list[Signal]:
     """permanent_recast — a repeatable engine re-delivering your own
     permanents to a castable/battlefield zone (Muldrotha's graveyard-cast
@@ -26862,6 +26876,7 @@ _LANES = (
     _proliferate_matters_lane,
     _untap_engine,
     _theft_makers_lane,
+    _own_target_spell,
     _permanent_recast,
     _self_etb_payload,
     _wants_cloning,
