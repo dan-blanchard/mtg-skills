@@ -278,6 +278,7 @@ from mtg_utils._card_ir.tree_synthesis import (
     structural_land_fetch_split,
     structural_token_maker_type_subjects,
     structural_type_subjects,
+    structural_untap_scope,
     structural_untap_subject,
 )
 from mtg_utils._deck_forge import signal_keys
@@ -15272,12 +15273,18 @@ def _anthem_static(tree: ConceptTree) -> list[Signal]:
         affected = getattr(unit.node, "affected", None)
         if _is_anthem_group_filter(affected):
             # Subject: the group's single subtype (Goblin King, Crucible of
-            # Fire) — the pair ledger's scoped_subject_gate compares it to
-            # the commander's swarm; core-type-only scopes (Chrome Dome's
-            # "artifact creatures", Heraldic Banner's chosen color) stay ""
-            # (subjects carry SUBTYPES only, the _subtypes vocabulary).
+            # Fire), else its single NON-CREATURE core type lowercased
+            # (Chrome Dome's "artifact creatures" -> "artifact", Weaver of
+            # Harmony's "enchantment creatures" -> "enchantment"; both
+            # killed under Zaxara, iteration-1b) — the pair ledger's
+            # scoped_subject_gate compares either against the commander's
+            # swarm. A plain creature-group anthem (Heraldic Banner,
+            # Eldrazi Monument) stays "".
             subs = set(filter_subtypes(affected))
             subject = next(iter(subs)) if len(subs) == 1 else ""
+            if not subject:
+                cores = {c.lower() for c in filter_core_types(affected)} - {"creature"}
+                subject = next(iter(cores)) if len(cores) == 1 else ""
             return [Signal("anthem_static", "you", subject, "", tree.name, "high")]
     return []
 
@@ -24182,17 +24189,22 @@ def _untap_engine(tree: ConceptTree) -> list[Signal]:
       type-change untaps nothing itself — lands_matter synergy, not a
       genuine untap_engine member (adjudicated shed).
 
-    Scope "you", HIGH. Subject: the engine's single-subtype scope when every
-    structural surface agrees (:func:`structural_untap_subject` — Myr
-    Galvanizer's ``Myr``, Merrow Reejerey's Merfolk-cast rate gate), "" for a
-    universal engine; the iteration-1 precision panel killed subtype-scoped
-    untappers ranked into off-tribe decks unanimously, and the pair ledger's
-    scoped_subject_gate reads this segment. bucket-B synth stays unscoped
-    (no typed filter survives in that tail).
+    HIGH. Subject: the engine's single-subtype scope when every structural
+    surface agrees (:func:`structural_untap_subject` — Myr Galvanizer's
+    ``Myr``, Merrow Reejerey's Merfolk-cast rate gate), "" for a universal
+    engine; the iteration-1 precision panel killed subtype-scoped untappers
+    ranked into off-tribe decks unanimously, and the pair ledger's
+    scoped_subject_gate reads this segment. Scope: "you" for a your-side
+    engine, "each" when every surface is a SYMMETRIC board-wide untap
+    (:func:`structural_untap_scope` — Intruder Alarm, iteration-1b kill),
+    which drops it out of the your-side pair row's ``untap_engine|you|*``
+    pattern. bucket-B synth stays unscoped "you" (no typed filter survives
+    in that tail).
     """
     if has_structural_untap_engine(tree):
         subject = structural_untap_subject(tree)
-        return [Signal("untap_engine", "you", subject, "", tree.name, "high")]
+        scope = structural_untap_scope(tree)
+        return [Signal("untap_engine", scope, subject, "", tree.name, "high")]
     for c in tree.iter_concepts():
         if c.concept == "synth_untap_engine":
             return [Signal("untap_engine", "you", "", "", tree.name, "high")]

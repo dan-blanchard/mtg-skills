@@ -2146,14 +2146,17 @@ def _untap_target_ok(target: object) -> bool:
 
 def _engine_untap_surfaces(
     tree: ConceptTree,
-) -> Iterator[tuple[AbilityUnit, object | None]]:
-    """``(unit, scope_filter)`` per qualifying untap-engine surface — the ONE
-    walk :func:`has_structural_untap_engine` (bool) and
-    :func:`structural_untap_subject` (subject fold) both consume, so the
+) -> Iterator[tuple[AbilityUnit, object | None, bool]]:
+    """``(unit, scope_filter, mass)`` per qualifying untap-engine surface —
+    the ONE walk :func:`has_structural_untap_engine` (bool),
+    :func:`structural_untap_subject` (subject fold), and
+    :func:`structural_untap_scope` (symmetry fold) all consume, so the
     vetoes can't drift. ``scope_filter`` is the node whose type filter scopes
     WHAT gets untapped: the resolved target for a direct/cost Untap (mass
     ``All`` scopes still carry their group filter there — Myr Galvanizer),
-    the static ``affected`` for the untap-during-each-step mode.
+    the static ``affected`` for the untap-during-each-step mode. ``mass`` is
+    True for board-wide surfaces (``scope == 'All'`` / the static mode) —
+    the only surfaces that can be SYMMETRIC.
     """
     for unit in tree.units:
         if any(tag_of(c.node) in _FORCE_BLOCK_TAGS for c in unit.effects):
@@ -2165,11 +2168,11 @@ def _engine_untap_surfaces(
             and static_mode_tag(unit.node) == "UntapsDuringEachOtherPlayersUntapStep"
             and filter_controller(getattr(unit.node, "affected", None)) != "Opponent"
         ):
-            yield unit, getattr(unit.node, "affected", None)
+            yield unit, getattr(unit.node, "affected", None), True
         for target, node in _iter_untap_targets(unit.node):
             mass = tag_of(getattr(node, "scope", None)) == "All"
             if mass or _untap_target_ok(target):
-                yield unit, target
+                yield unit, target, mass
         for cc in unit.costs:
             for leaf in iter_cost_leaves(cc.node):
                 if tag_of(leaf) != "EffectCost":
@@ -2182,7 +2185,7 @@ def _engine_untap_surfaces(
                 mass = tag_of(getattr(eff, "scope", None)) == "All"
                 tgt = getattr(eff, "target", None)
                 if mass or _untap_target_ok(tgt):
-                    yield unit, tgt
+                    yield unit, tgt, mass
 
 
 def has_structural_untap_engine(tree: ConceptTree) -> bool:
@@ -2197,10 +2200,31 @@ def has_structural_untap_engine(tree: ConceptTree) -> bool:
     == 'All'`` OR a real-type/subtype single target), and every activation-
     cost ``EffectCost`` wrapping an Untap ``SetTapState`` (Halo Fountain,
     Crackleburr). Surface enumeration lives in
-    :func:`_engine_untap_surfaces`; :func:`structural_untap_subject` folds
-    the same surfaces into the ident subject.
+    :func:`_engine_untap_surfaces`; :func:`structural_untap_subject` and
+    :func:`structural_untap_scope` fold the same surfaces into the ident
+    subject / scope.
     """
     return next(_engine_untap_surfaces(tree), None) is not None
+
+
+def structural_untap_scope(tree: ConceptTree) -> str:
+    """ "you" for a your-side engine, "each" when EVERY surface is a
+    symmetric board-wide untap (a mass Untap over a TYPED GROUP with no
+    controller filter — Intruder Alarm's "Whenever a creature enters, untap
+    all creatures" untaps every player's board; the iteration-1b panel
+    killed it unanimously as a your-side engine credit under Urza). A
+    TARGETED untap stays "you" even without a controller filter — the
+    controller chooses the target (CR 601.2c); a You-filtered mass/static
+    surface (Seedborn Muse) anchors "you"; and a SELF-scoped untap-during
+    static (Endbringer's ``SelfRef`` affected) is your own permanent, not
+    symmetry — only a real group filter without You reads "each"."""
+    saw = False
+    for _unit, scope_filter, mass in _engine_untap_surfaces(tree):
+        saw = True
+        group = tag_of(scope_filter) in ("Typed", "Or", "And")
+        if not mass or not group or filter_controller(scope_filter) == "You":
+            return "you"
+    return "each" if saw else "you"
 
 
 def _surface_untap_subject(unit: AbilityUnit, scope_filter: object | None) -> str:
@@ -2228,7 +2252,7 @@ def structural_untap_subject(tree: ConceptTree) -> str:
     commander). Feeds the ``untap_engine|you|<Subject>`` ident the pair
     ledger's scoped_subject_gate compares against commander subtypes."""
     subject = None
-    for unit, scope_filter in _engine_untap_surfaces(tree):
+    for unit, scope_filter, _mass in _engine_untap_surfaces(tree):
         s = _surface_untap_subject(unit, scope_filter)
         if not s:
             return ""

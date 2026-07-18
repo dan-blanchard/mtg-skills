@@ -38,7 +38,9 @@ def test_ledger_hygiene():
         assert row.weight >= 1.0, row.pair_id
         assert row.rationale.strip(), row.pair_id
         assert row.pins, row.pair_id
-        assert "|" in row.candidate, row.pair_id  # ident-pattern shaped
+        assert row.candidate, row.pair_id
+        for pat in row.candidate + row.anchor + row.candidate_not + row.anchor_all:
+            assert "|" in pat, (row.pair_id, pat)  # ident-pattern shaped
         if row.anchor_kind == "density":
             assert row.threshold >= 2, row.pair_id
 
@@ -70,7 +72,9 @@ def test_every_pin_emits_the_candidate_pattern():
         for pin in row.pins:
             test_card_ir(pin)
             idents = _signal_idents_for(test_card(pin))
-            assert any(fnmatch.fnmatchcase(i, row.candidate) for i in idents), (
+            assert any(
+                fnmatch.fnmatchcase(i, pat) for i in idents for pat in row.candidate
+            ), (
                 row.pair_id,
                 pin,
                 sorted(idents),
@@ -147,3 +151,191 @@ def test_rows_sum_without_decay_and_ride_the_readout():
     sc = ranked[0]["score"]
     assert sc["pair_score"] >= 4.0
     assert sc["pairs"], sc
+
+
+# ── Iteration 1 (ADR-0043 mining, 2026-07-17): 8 rows from 692 misses ────────
+# Mined from the study's miss surface (19 adjudicators + synthesis), mapped to
+# REAL idents and verified against bulk emissions. Mechanism extensions:
+# multi-pattern candidate/anchor (any-of), candidate_not (a veto — the ETB
+# row must not double-credit token MAKERS the fodder rows already price), and
+# anchor_all (an all-of conjunction — an attack-rider pairs with a commander
+# that has BOTH attack triggers AND trigger doubling, or Teysa's death
+# doubling would mispair with attack riders).
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        # Iteration-1 pins + context commanders, literals for the snapshot.
+        ("Heraldic Banner"),
+        ("Impact Tremors"),
+        ("Roaming Throne"),
+        ("Strionic Resonator"),
+        ("Dictate of Erebos"),
+        ("Guttersnipe"),
+        ("Thousand-Year Elixir"),
+        ("Hellrider"),
+        ("Putrid Goblin"),
+        ("Teysa Karlov"),
+        ("Isshin, Two Heavens as One"),
+        ("Talrand, Sky Summoner"),
+        ("Muldrotha, the Gravetide"),
+        ("Crucible of Fire"),
+        ("Kindred Discovery"),
+        ("Field of Souls"),
+        ("Aetherflux Reservoir"),
+        ("Seedborn Muse"),
+        ("Leonin Warleader"),
+    ],
+)
+def test_iteration1_pin_is_snapshot_resident(name):
+    test_card_ir(name)
+    assert test_card(name)["name"] == name
+
+
+def _ctx_for(commander: str) -> PairContext:
+    test_card_ir(commander)
+    return build_pair_context([test_card(commander)], [])
+
+
+@pytest.mark.parametrize(
+    ("candidate", "commander", "row_id"),
+    [
+        # Anthem x swarm: per-body grants scale with the commander's token
+        # output (CR 613.1g/613.4c layer-7 application to each of N bodies).
+        ("Heraldic Banner", "Krenko, Mob Boss", "anthem_x_swarm_commander"),
+        # ETB payoff x flood: each entering body is a separate trigger
+        # instance (CR 603.2c) — X tokens per activation = X triggers.
+        ("Impact Tremors", "Krenko, Mob Boss", "etb_payoff_x_flood_commander"),
+        # Trigger doubler x trigger-engine commander (marquee, 4.5).
+        (
+            "Roaming Throne",
+            "Isshin, Two Heavens as One",
+            "trigger_doubler_x_trigger_commander",
+        ),
+        (
+            "Strionic Resonator",
+            "Teysa Karlov",
+            "trigger_doubler_x_trigger_commander",
+        ),
+        # Death payoff x death engine (CR 603.6c dies triggers; the engine
+        # sets deaths-per-turn).
+        ("Dictate of Erebos", "Teysa Karlov", "death_payoff_x_death_commander"),
+        # Cast payoff x cast-rate commander (each cast = a trigger, 603.2c).
+        ("Guttersnipe", "Talrand, Sky Summoner", "cast_payoff_x_cast_commander"),
+        # Untap engine x activated commander (marquee, 4.5): a second
+        # activation per turn doubles commander output.
+        (
+            "Thousand-Year Elixir",
+            "Krenko, Mob Boss",
+            "untap_x_activated_commander",
+        ),
+        # Attack rider x attack-DOUBLING commander (anchor_all).
+        (
+            "Hellrider",
+            "Isshin, Two Heavens as One",
+            "attack_rider_x_attack_doubler_commander",
+        ),
+        # Self-recycling fodder x graveyard commander.
+        (
+            "Putrid Goblin",
+            "Muldrotha, the Gravetide",
+            "recursion_fodder_x_graveyard_commander",
+        ),
+    ],
+)
+def test_iteration1_rows_fire(candidate, commander, row_id):
+    test_card_ir(candidate)
+    _score, rows = pair_score(test_card(candidate), _ctx_for(commander))
+    assert any(r["pair"] == row_id for r in rows), (candidate, commander, rows)
+
+
+def test_etb_row_vetoes_token_makers():
+    # Empty the Warrens IS a token maker — the fodder rows price it; the ETB
+    # PAYOFF row must not double-credit the same clause (candidate_not veto).
+    test_card_ir("Empty the Warrens")
+    _score, rows = pair_score(
+        test_card("Empty the Warrens"), _ctx_for("Krenko, Mob Boss")
+    )
+    assert not any(r["pair"] == "etb_payoff_x_flood_commander" for r in rows), rows
+
+
+def test_attack_rider_needs_both_anchor_conditions():
+    # Teysa doubles DEATH triggers, not attack triggers — an attack rider
+    # must not pair with her (anchor_all: attack_matters AND trigger_doubling).
+    test_card_ir("Hellrider")
+    _score, rows = pair_score(test_card("Hellrider"), _ctx_for("Teysa Karlov"))
+    assert not any(
+        r["pair"] == "attack_rider_x_attack_doubler_commander" for r in rows
+    ), rows
+
+
+def test_doubler_row_skips_activated_only_commanders():
+    # Krenko's engine is an ACTIVATED ability — a trigger doubler has nothing
+    # to double, so the doubler row must not fire under him.
+    test_card_ir("Roaming Throne")
+    _score, rows = pair_score(test_card("Roaming Throne"), _ctx_for("Krenko, Mob Boss"))
+    assert not any(r["pair"] == "trigger_doubler_x_trigger_commander" for r in rows), (
+        rows
+    )
+
+
+# ── scoped_subject_gate (iteration-1 panel fix) ──────────────────────────────
+# The precision panel killed subtype-scoped engines ranked into off-tribe
+# decks with unanimous refuter votes: Myr Galvanizer "untaps each OTHER Myr"
+# — it never touches Krenko or Urza — and Merrow Reejerey's whole engine
+# runs at the deck's MERFOLK cast rate. Their idents now carry the scope
+# (untap_engine|you|Myr); the gated rows only accept a scoped candidate
+# whose subject matches the commander's own subtypes or a matching anchor
+# ident's subject.
+
+
+def test_untap_row_gates_off_tribe_scoped_untappers():
+    test_card_ir("Myr Galvanizer")
+    _score, rows = pair_score(test_card("Myr Galvanizer"), _ctx_for("Krenko, Mob Boss"))
+    assert not any(r["pair"] == "untap_x_activated_commander" for r in rows), rows
+    test_card_ir("Merrow Reejerey")
+    _score2, rows2 = pair_score(
+        test_card("Merrow Reejerey"), _ctx_for("Urza, Lord High Artificer")
+    )
+    assert not any(r["pair"] == "untap_x_activated_commander" for r in rows2), rows2
+    assert not any(r["pair"] == "anthem_x_swarm_commander" for r in rows2), rows2
+
+
+def test_untap_row_scoped_subject_passes_on_tribe():
+    # The SAME Myr untapper under a Myr activated-ability commander is a
+    # genuine engine — the gate compares against commander subtypes.
+    ctx = PairContext(
+        commander_idents=frozenset({"activated_ability|you|"}),
+        commander_subtypes=frozenset({"myr"}),
+    )
+    test_card_ir("Myr Galvanizer")
+    _score, rows = pair_score(test_card("Myr Galvanizer"), ctx)
+    assert any(r["pair"] == "untap_x_activated_commander" for r in rows), rows
+
+
+def test_anthem_row_subject_paths():
+    # Goblin King's Goblin-scoped anthem matches Krenko's token_maker
+    # subject (anchor-subject path) — fires; Merrow Reejerey's Merfolk
+    # anthem under Krenko does not.
+    test_card_ir("Goblin King")
+    _score, rows = pair_score(test_card("Goblin King"), _ctx_for("Krenko, Mob Boss"))
+    assert any(r["pair"] == "anthem_x_swarm_commander" for r in rows), rows
+    test_card_ir("Merrow Reejerey")
+    _score2, rows2 = pair_score(
+        test_card("Merrow Reejerey"), _ctx_for("Krenko, Mob Boss")
+    )
+    assert not any(r["pair"] == "anthem_x_swarm_commander" for r in rows2), rows2
+
+
+def test_unscoped_engines_unaffected_by_gate():
+    # Thousand-Year Elixir ("target creature") and Heraldic Banner (chosen
+    # color) carry no subtype scope — the gate must not touch them.
+    test_card_ir("Thousand-Year Elixir")
+    _s, rows = pair_score(
+        test_card("Thousand-Year Elixir"), _ctx_for("Krenko, Mob Boss")
+    )
+    assert any(r["pair"] == "untap_x_activated_commander" for r in rows), rows
+    test_card_ir("Heraldic Banner")
+    _s2, rows2 = pair_score(test_card("Heraldic Banner"), _ctx_for("Krenko, Mob Boss"))
+    assert any(r["pair"] == "anthem_x_swarm_commander" for r in rows2), rows2

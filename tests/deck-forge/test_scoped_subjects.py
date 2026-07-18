@@ -72,3 +72,53 @@ def test_scoped_ident_replaces_unscoped_never_duplicates():
     assert "untap_engine|you|" not in _idents_of("Myr Galvanizer")
     test_card_ir("Goblin King")
     assert "anthem_static|you|" not in _idents_of("Goblin King")
+
+
+# ── iteration-1b (v2 panel kills, 2026-07-18) ────────────────────────────────
+# Second measured batch: Intruder Alarm ("Whenever a creature enters, untap
+# all creatures" — no controller filter, unanimous refuter kills under Urza
+# for crediting a symmetric effect as a your-side engine) and the core-type-
+# scoped anthems (Chrome Dome "other ARTIFACT creatures", Weaver of Harmony
+# "other ENCHANTMENT creatures" — killed under Zaxara, whose Hydras are
+# neither).
+
+
+@pytest.mark.parametrize(
+    ("name", "expected_scope"),
+    [
+        # A mass untap with NO controller filter untaps every player's
+        # board — scope "each", so the your-side pair row skips it.
+        ("Intruder Alarm", "each"),
+        # Controller-filtered mass / static-mode engines stay "you".
+        ("Seedborn Muse", "you"),
+        # A TARGETED untap is controller-chosen — "you" even with no
+        # controller filter on the target ("untap target creature").
+        ("Thousand-Year Elixir", "you"),
+        # A SELF-scoped untap-during static is your own permanent, not
+        # symmetry ("Endbringer untaps during each other player's untap
+        # step" — SelfRef affected, no group filter).
+        ("Endbringer", "you"),
+    ],
+)
+def test_untap_engine_scope_symmetry(name, expected_scope):
+    test_card_ir(name)
+    scopes = {s.scope for s in test_signals(name) if s.key == "untap_engine"}
+    assert scopes == {expected_scope}, (name, scopes)
+
+
+@pytest.mark.parametrize(
+    ("name", "expected"),
+    [
+        # No subtype scope, but a single non-creature CORE type scope —
+        # the subject carries it (lowercased, distinct from the
+        # capitalized subtype vocabulary).
+        ("Chrome Dome", "anthem_static|you|artifact"),
+        ("Weaver of Harmony", "anthem_static|you|enchantment"),
+        # A plain creature-group anthem stays unscoped.
+        ("Eldrazi Monument", "anthem_static|you|"),
+    ],
+)
+def test_anthem_static_core_type_scope(name, expected):
+    test_card_ir(name)
+    idents = _idents_of(name)
+    assert expected in idents, sorted(i for i in idents if "anthem" in i)

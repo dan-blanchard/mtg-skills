@@ -697,8 +697,12 @@ The share of the ranker's top-20 out-of-deck picks, per commander on a fixed
 the PRIMARY discovery-quality metric (ADR-0043). Crowd recall (EDHREC targets) stays
 computable as a free secondary drift indicator but is never a bar: the ranker is
 deliberately crowd-independent, and 2026-07-16 showed absolute crowd-recall bars get
-invented rather than derived. The bar is a RATCHET — each iteration must beat the
-measured baseline and never regress the drift indicator beyond noise.
+invented rather than derived. Acceptance is a PAIRED DELTA
+test (ADR-0043 amendment, 2026-07-18): an iteration is judged only on its CHANGED
+picks — new-pick survival vs displaced-pick survival, non-inferior within 5 points
+AND drift improving — with a cumulative floor (carried panel mean within 0.02 of the
+protocol baseline) so non-inferior steps can't compound downward. Verdicts cache per
+(commander, card): unanimous ones freeze, split votes re-adjudicate once.
 _Avoid_: "recall" (the demoted crowd metric), "accuracy" (against what ground truth?),
 "win rate" (the playtest axis, a different instrument).
 
