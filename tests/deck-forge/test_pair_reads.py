@@ -39,7 +39,13 @@ def test_ledger_hygiene():
         assert row.rationale.strip(), row.pair_id
         assert row.pins, row.pair_id
         assert row.candidate, row.pair_id
-        for pat in row.candidate + row.anchor + row.candidate_not + row.anchor_all:
+        for pat in (
+            row.candidate
+            + row.anchor
+            + row.candidate_not
+            + row.anchor_all
+            + row.candidate_all
+        ):
             assert "|" in pat, (row.pair_id, pat)  # ident-pattern shaped
         if row.anchor_kind == "density":
             assert row.threshold >= 2, row.pair_id
@@ -66,12 +72,14 @@ def test_pin_is_snapshot_resident(name):
 def test_every_pin_emits_the_candidate_pattern():
     # A pin is a real snapshot card whose OWN idents match the row's
     # candidate pattern — the convergence proof that the pattern is live.
-    from mtg_utils.theme_presets import _signal_idents_for
+    # Uses the ledger's own ident view (_card_idents), which adds the
+    # record-derived cost-shape ident on top of the signal idents.
+    from mtg_utils._deck_forge.pair_reads import _card_idents
 
     for row in PAIR_READS.values():
         for pin in row.pins:
             test_card_ir(pin)
-            idents = _signal_idents_for(test_card(pin))
+            idents = _card_idents(test_card(pin))
             assert any(
                 fnmatch.fnmatchcase(i, pat) for i in idents for pat in row.candidate
             ), (
@@ -339,3 +347,164 @@ def test_unscoped_engines_unaffected_by_gate():
     test_card_ir("Heraldic Banner")
     _s2, rows2 = pair_score(test_card("Heraldic Banner"), _ctx_for("Krenko, Mob Boss"))
     assert any(r["pair"] == "anthem_x_swarm_commander" for r in rows2), rows2
+
+
+# ── Iteration 2 (ADR-0043 amended protocol, 2026-07-18): 7 rows from the
+# v2-panel mining sweep (20 miners + synthesis over both failure surfaces).
+# New mechanism: candidate_all — an all-of conjunction on the CANDIDATE side
+# (mirror of anchor_all): a count-payoff must BOTH be tribal-subject-matched
+# AND carry a variable-P/T count read; a yard-stocker must BOTH tutor AND
+# touch the graveyard. New plumbing: _card_idents emits a record-derived
+# cost-shape ident ("xcost_spell|you|" when any face's mana cost carries
+# {X}) — a cost read, not a signal lane.
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        # Iteration-2 pins + context commanders, literals for the snapshot.
+        ("Birthing Pod"),
+        ("Fleshbag Marauder"),
+        ("Elemental Bond"),
+        ("Hellkite Charger"),
+        ("Godo, Bandit Warlord"),
+        ("Hardened Scales"),
+        ("Ozolith, the Shattered Spire"),
+        ("Battle Squadron"),
+        ("Reckless One"),
+        ("Buried Alive"),
+        ("Unmarked Grave"),
+        ("Fauna Shaman"),
+        ("Sidisi, Undead Vizier"),
+        ("Stroke of Genius"),
+        ("Meren of Clan Nel Toth"),
+        ("Wilhelt, the Rotcleaver"),
+        ("Gishath, Sun's Avatar"),
+        ("Atraxa, Praetors' Voice"),
+    ],
+)
+def test_iteration2_pin_is_snapshot_resident(name):
+    test_card_ir(name)
+    assert test_card(name)["name"] == name
+
+
+@pytest.mark.parametrize(
+    ("candidate", "commander", "row_id"),
+    [
+        # Own-creature-death value x per-death payoff commander (CR 701.21a
+        # sacrifice; CR 603.6c dies triggers): the "cost" side of the death
+        # engine — every activation is effect + the commander's payoff.
+        (
+            "Birthing Pod",
+            "Meren of Clan Nel Toth",
+            "self_death_value_x_death_commander",
+        ),
+        (
+            "Fleshbag Marauder",
+            "Wilhelt, the Rotcleaver",
+            "self_death_value_x_death_commander",
+        ),
+        # Power-threshold payoff x body-cheating commander (CR 608.2h).
+        (
+            "Elemental Bond",
+            "Gishath, Sun's Avatar",
+            "power_threshold_x_cheat_commander",
+        ),
+        # Extra combat x attack-trigger commander (CR 505.1a additional
+        # combat phase; CR 603.2c one trigger instance per combat).
+        (
+            "Hellkite Charger",
+            "Isshin, Two Heavens as One",
+            "extra_combat_x_attack_trigger_commander",
+        ),
+        # Counter amplifier x counter-stream commander (CR 614.1a "instead"
+        # replacement; CR 122.1).
+        (
+            "Hardened Scales",
+            "Atraxa, Praetors' Voice",
+            "counter_amplifier_x_counter_commander",
+        ),
+        (
+            "Hardened Scales",
+            "Zaxara, the Exemplary",
+            "counter_amplifier_x_counter_commander",
+        ),
+        # Count payoff x tribal count engine (CR 608.2h): CDA P/T = tribe
+        # count, subject-matched + candidate_all variable_pt.
+        (
+            "Battle Squadron",
+            "Krenko, Mob Boss",
+            "count_payoff_x_tribal_count_commander",
+        ),
+        ("Reckless One", "Krenko, Mob Boss", "count_payoff_x_tribal_count_commander"),
+        # Yard stocker x graveyard commander (candidate_all: tutor AND
+        # graveyard_matters on the same card).
+        (
+            "Buried Alive",
+            "Muldrotha, the Gravetide",
+            "yard_stocker_x_graveyard_commander",
+        ),
+        (
+            "Fauna Shaman",
+            "Muldrotha, the Gravetide",
+            "yard_stocker_x_graveyard_commander",
+        ),
+        # {X}-cost spell x X-payoff commander (CR 601.2b: X announced once,
+        # read by both the spell and the commander's trigger).
+        ("Stroke of Genius", "Zaxara, the Exemplary", "xcost_spell_x_xspell_commander"),
+    ],
+)
+def test_iteration2_rows_fire(candidate, commander, row_id):
+    test_card_ir(candidate)
+    _score, rows = pair_score(test_card(candidate), _ctx_for(commander))
+    assert any(r["pair"] == row_id for r in rows), (candidate, commander, rows)
+
+
+def test_count_payoff_needs_both_subject_and_count_read():
+    # Goblin King is tribal-subject-matched to Krenko but carries no
+    # variable-P/T count read — candidate_all must veto it; and Battle
+    # Squadron under a Zombie commander is subject-mismatched.
+    test_card_ir("Goblin King")
+    _s, rows = pair_score(test_card("Goblin King"), _ctx_for("Krenko, Mob Boss"))
+    assert not any(r["pair"] == "count_payoff_x_tribal_count_commander" for r in rows)
+    test_card_ir("Battle Squadron")
+    _s2, rows2 = pair_score(
+        test_card("Battle Squadron"), _ctx_for("Wilhelt, the Rotcleaver")
+    )
+    assert not any(r["pair"] == "count_payoff_x_tribal_count_commander" for r in rows2)
+
+
+def test_yard_stocker_needs_the_graveyard_half():
+    # Sidisi, Undead Vizier tutors to HAND (no graveyard_matters ident) —
+    # candidate_all vetoes; she is priced by the self-death row instead.
+    test_card_ir("Sidisi, Undead Vizier")
+    _s, rows = pair_score(
+        test_card("Sidisi, Undead Vizier"), _ctx_for("Muldrotha, the Gravetide")
+    )
+    assert not any(r["pair"] == "yard_stocker_x_graveyard_commander" for r in rows)
+
+
+def test_xcost_ident_is_record_derived():
+    from mtg_utils._deck_forge.pair_reads import _card_idents
+
+    test_card_ir("Stroke of Genius")
+    assert "xcost_spell|you|" in _card_idents(test_card("Stroke of Genius"))
+    test_card_ir("Guttersnipe")
+    assert "xcost_spell|you|" not in _card_idents(test_card("Guttersnipe"))
+
+
+def test_iteration2_rows_need_their_anchor():
+    # The same candidates under an anchor-less commander pair with nothing.
+    test_card_ir("Birthing Pod")
+    _s, rows = pair_score(test_card("Birthing Pod"), _ctx_for("Krenko, Mob Boss"))
+    assert not any(r["pair"] == "self_death_value_x_death_commander" for r in rows)
+    test_card_ir("Elemental Bond")
+    _s2, rows2 = pair_score(
+        test_card("Elemental Bond"), _ctx_for("Talrand, Sky Summoner")
+    )
+    assert not any(r["pair"] == "power_threshold_x_cheat_commander" for r in rows2)
+    test_card_ir("Hellkite Charger")
+    _s3, rows3 = pair_score(test_card("Hellkite Charger"), _ctx_for("Krenko, Mob Boss"))
+    assert not any(
+        r["pair"] == "extra_combat_x_attack_trigger_commander" for r in rows3
+    )

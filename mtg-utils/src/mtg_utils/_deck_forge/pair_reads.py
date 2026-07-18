@@ -74,6 +74,12 @@ class PairRead:
     # vetoes a scope the deck's commander can't reach. Commander-anchored
     # rows only.
     scoped_subject_gate: bool = False
+    # Iteration-2 extension: the all-of conjunction on the CANDIDATE side
+    # (mirror of anchor_all) — every listed pattern must match some ident
+    # of the candidate. A count payoff must be tribal-subject-matched AND
+    # carry a variable-P/T count read; a yard stocker must tutor AND touch
+    # the graveyard. One matching half alone is a lane, not the pair.
+    candidate_all: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -356,6 +362,147 @@ PAIR_READS: dict[str, PairRead] = {
             ),
             pins=("Master Warcraft",),
         ),
+        # ── Iteration 2 (ADR-0043 amended protocol, 2026-07-18): 7 rows
+        # from the v2-panel mining sweep (20 per-commander miners over the
+        # adjudication-kill + crowd-miss surfaces, one synthesis; triage in
+        # the session's BUILD-PLAN). New mechanism: candidate_all. ─────────
+        PairRead(
+            pair_id="self_death_value_x_death_commander",
+            candidate=("sacrifice_outlets|you|*", "edict_makers|*"),
+            anchor_kind="commander",
+            anchor=("death_matters|*",),
+            weight=3.0,
+            label="Own-death value x death-payoff commander",
+            rationale=(
+                "The COST side of the death engine: an effect that kills "
+                "your own creatures by your choice (CR 701.21a — sacrifice "
+                "moves it from the battlefield straight to the graveyard) "
+                "is a two-for-one under a commander converting each "
+                "own-creature death into value (CR 603.6c dies triggers: "
+                "Meren's experience, Wilhelt's token, Teysa's doubling) — "
+                "the stated effect PLUS the per-death payoff, every "
+                "activation. The death_payoff row prices the observer "
+                "side; this prices the actuator."
+            ),
+            pins=("Birthing Pod", "Fleshbag Marauder"),
+        ),
+        PairRead(
+            pair_id="power_threshold_x_cheat_commander",
+            candidate=("power_matters|you|*",),
+            anchor_kind="commander",
+            anchor=("cheat_into_play|you|*",),
+            weight=3.0,
+            label="Power-threshold payoff x body-cheating commander",
+            rationale=(
+                "A payoff gated on or scaled by high power (ferocious, "
+                "'greatest power among creatures you control', power-N+ "
+                "ETB draws) is a coin-flip in a generic deck; a commander "
+                "that repeatedly CHEATS oversized bodies onto the "
+                "battlefield (Gishath, The Ur-Dragon) holds the "
+                "conditional mode reliably on — the check reads live game "
+                "state on application (CR 608.2h)."
+            ),
+            pins=("Elemental Bond",),
+        ),
+        PairRead(
+            pair_id="extra_combat_x_attack_trigger_commander",
+            candidate=("extra_combats|you|*",),
+            anchor_kind="commander",
+            anchor=("attack_matters|*",),
+            weight=3.0,
+            label="Extra combat x attack-trigger commander",
+            rationale=(
+                "An additional combat phase (CR 505.1a) is a full second "
+                "firing of the commander's per-combat attack trigger "
+                "(CR 603.2c — each combat's attack event is a separate "
+                "trigger instance): Isshin and The Ur-Dragon convert every "
+                "extra combat into a second helping of their signature "
+                "payoff on top of the raw damage."
+            ),
+            pins=("Hellkite Charger", "Godo, Bandit Warlord"),
+        ),
+        PairRead(
+            pair_id="counter_amplifier_x_counter_commander",
+            candidate=(
+                "counter_doubling|you|*",
+                "counter_replace_bonus|you|*",
+                "counter_distribute|you|*",
+            ),
+            anchor_kind="commander",
+            anchor=(
+                "plus_one_makers|you|*",
+                "any_counter_makers|you|*",
+                "proliferate_makers|you|*",
+                "experience_makers|you|*",
+            ),
+            weight=3.0,
+            label="Counter amplifier x counter-stream commander",
+            rationale=(
+                "A counters-'instead' replacement (CR 614.1a — the "
+                "Hardened Scales class) or redistributor multiplies EVERY "
+                "counter event (CR 122.1) the commander's own engine "
+                "produces: Zaxara's X-counter Hydras, Atraxa's "
+                "proliferate, Meren's experience. Flat lane weight prices "
+                "it once; the pair is per-event, all game."
+            ),
+            pins=("Hardened Scales", "Ozolith, the Shattered Spire"),
+        ),
+        PairRead(
+            pair_id="count_payoff_x_tribal_count_commander",
+            candidate=("type_matters|you|*",),
+            candidate_all=("variable_pt|*",),
+            anchor_kind="commander",
+            anchor=("token_maker|*",),
+            weight=3.0,
+            label="Count payoff x tribal count-engine commander",
+            rationale=(
+                "A characteristic-defining P/T that IS the live tribe "
+                "count (CR 604.3 CDA — Battle Squadron, Reckless One) is "
+                "pegged 1:1 to the census the commander inflates every "
+                "activation (Krenko doubling Goblins). Subject-matched "
+                "like the tribal-fodder row, plus candidate_all "
+                "(variable_pt): tribal membership alone is a lane, not "
+                "this pair."
+            ),
+            match_subject=True,
+            pins=("Battle Squadron", "Reckless One"),
+        ),
+        PairRead(
+            pair_id="yard_stocker_x_graveyard_commander",
+            candidate=("tutor|you|*",),
+            candidate_all=("graveyard_matters|you|*",),
+            anchor_kind="commander",
+            anchor=("graveyard_matters|you|*",),
+            weight=3.0,
+            label="Yard stocker x graveyard commander",
+            rationale=(
+                "A tutor whose destination or byproduct is the graveyard "
+                "(Buried Alive, Unmarked Grave, Fauna Shaman) is card "
+                "selection into the zone a graveyard commander casts from "
+                "— under Muldrotha or Meren the yard is a second hand, so "
+                "stocking it is tutoring to a castable zone. "
+                "candidate_all requires the graveyard half: a plain "
+                "to-hand tutor stays generic."
+            ),
+            pins=("Buried Alive", "Fauna Shaman"),
+        ),
+        PairRead(
+            pair_id="xcost_spell_x_xspell_commander",
+            candidate=("xcost_spell|you|*",),
+            anchor_kind="commander",
+            anchor=("xspell_matters|*",),
+            weight=3.0,
+            label="X-cost spell x X-payoff commander",
+            rationale=(
+                "X is announced once at casting (CR 601.2b) and read by "
+                "BOTH the spell's own effect and the commander's X-trigger "
+                "(Zaxara: an X-counter Hydra per X-spell) — every X-spell "
+                "is two X-sized value streams for one cost. The candidate "
+                "ident is record-derived from the mana cost ({X} "
+                "present), the ledger's one cost-shape read."
+            ),
+            pins=("Stroke of Genius",),
+        ),
     )
 }
 
@@ -363,7 +510,17 @@ PAIR_READS: dict[str, PairRead] = {
 def _card_idents(card: dict) -> frozenset[str]:
     from mtg_utils.theme_presets import _signal_idents_for
 
-    return frozenset(_signal_idents_for(card))
+    idents = set(_signal_idents_for(card))
+    # The ledger's one RECORD-DERIVED cost-shape ident (not a signal lane):
+    # {X} anywhere in the mana cost. X is announced once at casting
+    # (CR 601.2b) and read by both the spell's effect and an
+    # xspell_matters commander's trigger — the xcost row's candidate side.
+    costs = [card.get("mana_cost") or ""] + [
+        f.get("mana_cost") or "" for f in card.get("card_faces") or []
+    ]
+    if any("{X}" in c for c in costs):
+        idents.add("xcost_spell|you|")
+    return frozenset(idents)
 
 
 def _commander_subtypes(commander_records: list[dict]) -> frozenset[str]:
@@ -441,10 +598,13 @@ def pair_score(card: dict, ctx: PairContext | None) -> tuple[float, list[dict]]:
     for row in PAIR_READS.values():
         matched = [i for i in idents if _matches_any(i, row.candidate)]
         if row.scoped_subject_gate:
-            matched = [
-                i for i in matched if _scope_reaches_commander(i, row, ctx)
-            ]
+            matched = [i for i in matched if _scope_reaches_commander(i, row, ctx)]
         if not matched:
+            continue
+        if row.candidate_all and not all(
+            any(fnmatch.fnmatchcase(i, pat) for i in idents)
+            for pat in row.candidate_all
+        ):
             continue
         if row.candidate_not and any(
             _matches_any(i, row.candidate_not) for i in idents
