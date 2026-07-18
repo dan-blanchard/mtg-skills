@@ -2144,18 +2144,16 @@ def _untap_target_ok(target: object) -> bool:
     return bool(filter_core_types(target) or filter_subtypes(target))
 
 
-def has_structural_untap_engine(tree: ConceptTree) -> bool:
-    """A DELIBERATE untap engine phase structures (CR 701.26/701.26b).
-
-    Shared by the ``_untap_engine`` lane (its entire Tier-1 structural read)
-    AND this stage's synth gap gate — one source, no drift. Per unit: skip a
-    provoke sibling (:data:`_FORCE_BLOCK_TAGS`) or a ``gain_control`` sibling
-    (a Threaten-variant steal, not an engine — CR 701.26b), then check the
-    untap-during-each-step static mode (self or board-wide), every Untap
-    ``SetTapState`` reachable via :func:`_iter_untap_targets` (mass ``scope
-    == 'All'`` OR a real-type/subtype single target), and every activation-
-    cost ``EffectCost`` wrapping an Untap ``SetTapState`` (Halo Fountain,
-    Crackleburr).
+def _engine_untap_surfaces(
+    tree: ConceptTree,
+) -> Iterator[tuple[AbilityUnit, object | None]]:
+    """``(unit, scope_filter)`` per qualifying untap-engine surface — the ONE
+    walk :func:`has_structural_untap_engine` (bool) and
+    :func:`structural_untap_subject` (subject fold) both consume, so the
+    vetoes can't drift. ``scope_filter`` is the node whose type filter scopes
+    WHAT gets untapped: the resolved target for a direct/cost Untap (mass
+    ``All`` scopes still carry their group filter there — Myr Galvanizer),
+    the static ``affected`` for the untap-during-each-step mode.
     """
     for unit in tree.units:
         if any(tag_of(c.node) in _FORCE_BLOCK_TAGS for c in unit.effects):
@@ -2167,11 +2165,11 @@ def has_structural_untap_engine(tree: ConceptTree) -> bool:
             and static_mode_tag(unit.node) == "UntapsDuringEachOtherPlayersUntapStep"
             and filter_controller(getattr(unit.node, "affected", None)) != "Opponent"
         ):
-            return True
+            yield unit, getattr(unit.node, "affected", None)
         for target, node in _iter_untap_targets(unit.node):
             mass = tag_of(getattr(node, "scope", None)) == "All"
             if mass or _untap_target_ok(target):
-                return True
+                yield unit, target
         for cc in unit.costs:
             for leaf in iter_cost_leaves(cc.node):
                 if tag_of(leaf) != "EffectCost":
@@ -2182,9 +2180,63 @@ def has_structural_untap_engine(tree: ConceptTree) -> bool:
                 if tag_of(eff) != "SetTapState" or settap_state(eff) != "Untap":
                     continue
                 mass = tag_of(getattr(eff, "scope", None)) == "All"
-                if mass or _untap_target_ok(getattr(eff, "target", None)):
-                    return True
-    return False
+                tgt = getattr(eff, "target", None)
+                if mass or _untap_target_ok(tgt):
+                    yield unit, tgt
+
+
+def has_structural_untap_engine(tree: ConceptTree) -> bool:
+    """A DELIBERATE untap engine phase structures (CR 701.26/701.26b).
+
+    Shared by the ``_untap_engine`` lane (its entire Tier-1 structural read)
+    AND this stage's synth gap gate — one source, no drift. Per unit: skip a
+    provoke sibling (:data:`_FORCE_BLOCK_TAGS`) or a ``gain_control`` sibling
+    (a Threaten-variant steal, not an engine — CR 701.26b), then check the
+    untap-during-each-step static mode (self or board-wide), every Untap
+    ``SetTapState`` reachable via :func:`_iter_untap_targets` (mass ``scope
+    == 'All'`` OR a real-type/subtype single target), and every activation-
+    cost ``EffectCost`` wrapping an Untap ``SetTapState`` (Halo Fountain,
+    Crackleburr). Surface enumeration lives in
+    :func:`_engine_untap_surfaces`; :func:`structural_untap_subject` folds
+    the same surfaces into the ident subject.
+    """
+    return next(_engine_untap_surfaces(tree), None) is not None
+
+
+def _surface_untap_subject(unit: AbilityUnit, scope_filter: object | None) -> str:
+    """One surface's subtype scope: the scope filter's single subtype (Myr
+    Galvanizer's "each other Myr", Arbor Elf's Forest), else — for a
+    trigger-origin surface whose untap target is unscoped — the single
+    subtype of the trigger's ``valid_card`` event filter (Merrow Reejerey:
+    the untap fires once per Merfolk CAST, so Merfolk is the engine's rate
+    scope, CR 603.2c). Unscoped or multi-subtype → "" (universal)."""
+    subs = set(filter_subtypes(scope_filter)) if scope_filter is not None else set()
+    if len(subs) == 1:
+        return next(iter(subs))
+    if not subs and unit.origin == "trigger":
+        vc = getattr(unit.node, "valid_card", None)
+        tsubs = set(filter_subtypes(vc)) if vc is not None else set()
+        if len(tsubs) == 1:
+            return next(iter(tsubs))
+    return ""
+
+
+def structural_untap_subject(tree: ConceptTree) -> str:
+    """The card-level untap-engine subject: every qualifying surface must
+    agree on ONE subtype scope, else "" (any universal surface makes the
+    ENGINE universal — the gate must never hide a card that can untap the
+    commander). Feeds the ``untap_engine|you|<Subject>`` ident the pair
+    ledger's scoped_subject_gate compares against commander subtypes."""
+    subject = None
+    for unit, scope_filter in _engine_untap_surfaces(tree):
+        s = _surface_untap_subject(unit, scope_filter)
+        if not s:
+            return ""
+        if subject is None:
+            subject = s
+        elif s != subject:
+            return ""
+    return subject or ""
 
 
 # ── arm: untap_engine bucket-B (ADR-0036/0037 fold) ───────────────────────────

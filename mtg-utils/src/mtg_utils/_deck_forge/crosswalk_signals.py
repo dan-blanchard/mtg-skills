@@ -278,6 +278,7 @@ from mtg_utils._card_ir.tree_synthesis import (
     structural_land_fetch_split,
     structural_token_maker_type_subjects,
     structural_type_subjects,
+    structural_untap_subject,
 )
 from mtg_utils._deck_forge import signal_keys
 
@@ -15268,8 +15269,16 @@ def _anthem_static(tree: ConceptTree) -> list[Signal]:
         ints = [v for v in vals if v is not None]
         if not ints or any(v < 0 for v in ints):
             continue
-        if _is_anthem_group_filter(getattr(unit.node, "affected", None)):
-            return [Signal("anthem_static", "you", "", "", tree.name, "high")]
+        affected = getattr(unit.node, "affected", None)
+        if _is_anthem_group_filter(affected):
+            # Subject: the group's single subtype (Goblin King, Crucible of
+            # Fire) — the pair ledger's scoped_subject_gate compares it to
+            # the commander's swarm; core-type-only scopes (Chrome Dome's
+            # "artifact creatures", Heraldic Banner's chosen color) stay ""
+            # (subjects carry SUBTYPES only, the _subtypes vocabulary).
+            subs = set(filter_subtypes(affected))
+            subject = next(iter(subs)) if len(subs) == 1 else ""
+            return [Signal("anthem_static", "you", subject, "", tree.name, "high")]
     return []
 
 
@@ -24173,10 +24182,17 @@ def _untap_engine(tree: ConceptTree) -> list[Signal]:
       type-change untaps nothing itself — lands_matter synergy, not a
       genuine untap_engine member (adjudicated shed).
 
-    Scope "you", HIGH.
+    Scope "you", HIGH. Subject: the engine's single-subtype scope when every
+    structural surface agrees (:func:`structural_untap_subject` — Myr
+    Galvanizer's ``Myr``, Merrow Reejerey's Merfolk-cast rate gate), "" for a
+    universal engine; the iteration-1 precision panel killed subtype-scoped
+    untappers ranked into off-tribe decks unanimously, and the pair ledger's
+    scoped_subject_gate reads this segment. bucket-B synth stays unscoped
+    (no typed filter survives in that tail).
     """
     if has_structural_untap_engine(tree):
-        return [Signal("untap_engine", "you", "", "", tree.name, "high")]
+        subject = structural_untap_subject(tree)
+        return [Signal("untap_engine", "you", subject, "", tree.name, "high")]
     for c in tree.iter_concepts():
         if c.concept == "synth_untap_engine":
             return [Signal("untap_engine", "you", "", "", tree.name, "high")]

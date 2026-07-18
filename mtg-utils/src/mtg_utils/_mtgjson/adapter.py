@@ -108,6 +108,23 @@ def gate_arena_formats(legalities: dict, *, arena_available: bool) -> dict:
     }
 
 
+# Un-set supplemental game pieces: sticker SHEETS (type "Stickers") and
+# Attractions. MTGJSON marks them "commander: Legal" (SUNF/UNF quirk);
+# Scryfall — whose record shape this adapter translates INTO — marks them
+# not_legal in every format: they are game accessories, not deck cards.
+_SUPPLEMENTAL_TYPE_WORDS = frozenset({"Stickers", "Attraction"})
+
+
+def is_supplemental_piece(faces: list[dict]) -> bool:
+    """Whether any face is an Un-set supplemental piece (sticker sheet /
+    Attraction) rather than a deck card."""
+    for f in faces:
+        words = set(f.get("types") or []) | set(f.get("subtypes") or [])
+        if words & _SUPPLEMENTAL_TYPE_WORDS:
+            return True
+    return False
+
+
 def image_uris(scryfall_id: str | None, *, face: str = "front") -> dict | None:
     """Reconstruct the Scryfall CDN ``{size: url}`` map from a print's ``scryfallId``.
 
@@ -263,6 +280,8 @@ def translate_card(
     legalities = (legalities_index or {}).get(oracle_id)
     if legalities is None:
         legalities = normalize_legalities(front.get("legalities"))
+    if is_supplemental_piece(faces):
+        legalities = dict.fromkeys(_LEGALITY_FORMATS, "not_legal")
 
     # A multi-face card's name is the combined "A // B" (matches Scryfall). A single
     # entry that still carries a faceName is a meld piece — Scryfall names it solo.

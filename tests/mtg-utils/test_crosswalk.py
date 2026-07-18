@@ -7139,8 +7139,15 @@ def test_resource_token_matters_excludes_non_token_sac():
 )
 def test_anthem_static_group_and_sign_gates(name, should_fire):
     """anthem_static fires a STATIC non-negative +N/+N over a creature group
-    (CR 604.3 / 613.4 7c); a debuff and an activated self-pump stay out."""
-    assert (("anthem_static", "you", "") in _idents(name)) is should_fire
+    (CR 604.3 / 613.4 7c); a debuff and an activated self-pump stay out.
+    The subject segment carries the group's single-subtype scope when one
+    exists (Goblin King — the pair ledger's scoped_subject_gate reads it),
+    "" for a generic team anthem."""
+    fired = any(
+        key == "anthem_static" and scope == "you"
+        for key, scope, _subject in _idents(name)
+    )
+    assert fired is should_fire
 
 
 @pytest.mark.parametrize(

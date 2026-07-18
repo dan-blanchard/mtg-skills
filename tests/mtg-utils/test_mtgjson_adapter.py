@@ -215,6 +215,48 @@ def test_translate_game_changer_bool():
     assert adapter.translate_card([c])["game_changer"] is True
 
 
+# ── translate_card: supplemental-type legality gate ───────────────────────────
+def test_translate_stickers_forced_not_legal_everywhere():
+    # MTGJSON marks Unfinity sticker SHEETS "commander: Legal" (SUNF data quirk);
+    # Scryfall — whose record shape we translate INTO — marks them not_legal in
+    # every format (a sticker sheet is not a deck card at all).
+    c = _sunfall()
+    c["name"] = "Familiar Beeble Mascot"
+    c["type"] = "Stickers"
+    c["types"] = ["Stickers"]
+    c["legalities"] = {"commander": "Legal", "paupercommander": "Legal"}
+    rec = adapter.translate_card([c])
+    assert all(v == "not_legal" for v in rec["legalities"].values())
+
+
+def test_translate_attraction_forced_not_legal_everywhere():
+    c = _sunfall()
+    c["name"] = "Balloon Stand"
+    c["type"] = "Artifact — Attraction"
+    c["types"] = ["Artifact"]
+    c["subtypes"] = ["Attraction"]
+    c["legalities"] = {"commander": "Legal"}
+    rec = adapter.translate_card([c])
+    assert all(v == "not_legal" for v in rec["legalities"].values())
+
+
+def test_translate_supplemental_gate_beats_oracle_legality_index():
+    # The gate must also override an aggregated oracle-level legalities_index
+    # entry — the index is built from the same MTGJSON data and carries the
+    # same quirk.
+    c = _sunfall()
+    c["type"] = "Stickers"
+    c["types"] = ["Stickers"]
+    oid = c["identifiers"]["scryfallOracleId"]
+    rec = adapter.translate_card([c], legalities_index={oid: {"commander": "legal"}})
+    assert rec["legalities"].get("commander") == "not_legal"
+
+
+def test_translate_normal_card_unaffected_by_supplemental_gate():
+    rec = adapter.translate_card([_sunfall()])
+    assert rec["legalities"]["commander"] == "legal"
+
+
 # ── translate_card: DFC collapse ──────────────────────────────────────────────
 def _arlinn_faces():
     front = {
