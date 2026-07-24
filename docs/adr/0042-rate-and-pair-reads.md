@@ -91,3 +91,35 @@ default-on (+0.9pt r@250 from six rows — ledger growth toward the designed
 20-40 rows is the identified lever, each row needing its own adjudication).
 The 10%/15% aggregate bar is NOT met; accepting, iterating the ledger, or
 revisiting Rate's formulas is the recorded open decision.
+
+## Measured outcome addendum II: Rate v2 (2026-07-24)
+
+Rate v2 was designed under ADR-0043's amended protocol (design note,
+six adversarial review cycles, Dan-approved revision 2.6 — archived in
+the session's durable store), implemented in two slices, measured, and
+TERMINATED by its own program rule (two consecutive slice REJECTs):
+
+* **S1 (same-row slot permutation)** — implemented with the
+  anti-chaining parallel-pass construction, default-off
+  (`row_class_permutation`). Measured: ledger ordering score 0.464 ->
+  0.464 (+0.000 vs a +0.010 gate; ownership fragmentation cut reach
+  53 -> 31 pairs and the rider/cmc keys proved uncorrelated with
+  adjudicated quality in the classes where mis-ordering lives). REJECT.
+* **S2 (limiter discounts)** — implemented on the ident->ability
+  provenance seam, default-off (`pair_score(discount_fn=None)`).
+  Measured: held-out ordering score 0.433 -> 0.380 (a DECLINE; 858
+  cards discounted — the {T}-cost and cost-vs-yield reads generalized
+  three adjudicated kill anecdotes onto whole classes the panels
+  adjudicate as good). REJECT.
+
+Both mechanisms remain in the tree, tested and inert, as the measured
+record. The program's lasting yield is real and shipped: the falsified
+v1 multiplier is STRUCTURALLY DISARMED (rate is a readout; CI asserts
+sort invariance to any rate_index), the ranking sort is TOTAL (name
+final key — stable-sort input-order leakage closed), the
+ident->ability provenance seam exists for any future consumer, and the
+ledger ordering instrument (docs/adr/assets/0043-instrument/, 380
+frozen verdicts) turned "within-class ordering" from unfalsifiable
+into a number. The within-class ordering headroom (0.464) remains
+unclaimed — any future attempt starts from a better instrument and a
+worked falsification record.
