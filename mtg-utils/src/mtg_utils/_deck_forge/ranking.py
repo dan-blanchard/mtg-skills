@@ -661,19 +661,19 @@ def rank_candidates(
         for c in cards
     ]
 
-    # Rate multiplies the depth sort (ADR-0042): synergy x (0.5 + rate) —
-    # neutral 0.5 is exactly x1.0, zero synergy stays zero (an off-plan card
-    # can never leapfrog on Rate alone). The FOCUSED fit path stays a raw
-    # count — the user hand-picked those lanes.
+    # Rate is a READOUT ONLY — the v1 multiplier is structurally disarmed
+    # (Dan, 2026-07-24). ADR-0042's four-way eval falsified the percentile
+    # multiplier in every variant, and the "ships NEUTRAL" outcome left it
+    # armed behind a non-None rate_index; the Rate-v2 gate-(b) review
+    # (cycle 4) verified that landmine and CI now asserts the sort is
+    # invariant to any rate_index. The FOCUSED fit path stays a raw count —
+    # the user hand-picked those lanes.
     def _depth(r: dict) -> float:
         if synergy_key == "synergy_fit":
             return r["score"]["synergy_fit"]
-        # ADR-0042 sort: synergy x (0.5 + rate) + pair_score — the pair term
-        # is additive (the row priced the interaction; Rate never touches it).
-        return (
-            r["score"]["synergy_score"] * (0.5 + r["score"]["rate"])
-            + r["score"]["pair_score"]
-        )
+        # Depth: synergy + pair_score — the pair term is additive (the row
+        # priced the interaction); Rate never touches the sort.
+        return r["score"]["synergy_score"] + r["score"]["pair_score"]
 
     scored.sort(
         key=lambda r: (

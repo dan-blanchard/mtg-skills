@@ -823,8 +823,12 @@ def test_structural_serves_form_one_cluster_with_breadth():
     assert abs(struct[0]["weight"] - 0.75) < 0.001, struct
 
 
-# ── Rate integration (ADR-0042): the sort multiplier ─────────────────────────
-def test_rate_multiplies_the_sort_and_rides_the_readout():
+# ── Rate is a READOUT ONLY: the v1 multiplier is structurally disarmed ───────
+# (Dan, 2026-07-24; Rate-v2 gate-(b) cycle-4 finding). ADR-0042's four-way
+# eval falsified the percentile multiplier in every variant; these tests now
+# pin the DISARM — the readout survives, and the sort is invariant to any
+# rate_index.
+def test_rate_rides_the_readout_but_never_the_sort():
     from mtg_utils._deck_forge.rate import build_rate_index, rate_for
     from mtg_utils.testkit import snapshot_records, test_card, test_card_ir
 
@@ -842,12 +846,42 @@ def test_rate_multiplies_the_sort_and_rides_the_readout():
     # The readout carries each card's Rate, matching rate_for directly.
     assert by_name["Lightning Bolt"]["rate"] == rate_for(bolt, index)
     assert by_name["Fires of Mount Doom"]["rate"] == rate_for(fires, index)
-    # The order equals sorting on synergy x (0.5 + rate).
+    # The order equals sorting on synergy + pair alone — rate absent.
     keyed = sorted(
         by_name.items(),
-        key=lambda kv: -(kv[1]["synergy_score"] * (0.5 + kv[1]["rate"])),
+        key=lambda kv: -(kv[1]["synergy_score"] + kv[1]["pair_score"]),
     )
     assert [r["card"]["name"] for r in ranked] == [k for k, _ in keyed]
+
+
+def test_sort_is_invariant_to_any_rate_index():
+    # THE F-B regression assertion: passing any rate_index must never
+    # change ranking order relative to no index at all.
+    from mtg_utils._deck_forge.rate import build_rate_index
+    from mtg_utils.testkit import snapshot_records, test_card, test_card_ir
+
+    index = build_rate_index(snapshot_records())
+    for name in ("Lightning Bolt", "Fires of Mount Doom", "Guttersnipe"):
+        test_card_ir(name)
+    pool = [
+        test_card("Lightning Bolt"),
+        test_card("Fires of Mount Doom"),
+        test_card("Guttersnipe"),
+    ]
+    with_index = rank_candidates(
+        pool,
+        active_signals=_BURN_SIGNALS,
+        focus_sets=_BURN_FOCUS,
+        rate_index=index,
+    )
+    without = rank_candidates(
+        pool,
+        active_signals=_BURN_SIGNALS,
+        focus_sets=_BURN_FOCUS,
+    )
+    assert [r["card"]["name"] for r in with_index] == [
+        r["card"]["name"] for r in without
+    ]
 
 
 def test_without_an_index_rate_is_neutral_and_order_unchanged():
@@ -860,35 +894,11 @@ def test_without_an_index_rate_is_neutral_and_order_unchanged():
     assert ranked[0]["card"]["name"] == "Bastion of Remembrance"
 
 
-# ── ADR-0042 acceptance pin: the original task-A aspiration ─────────────────
-def test_empty_the_warrens_outranks_fires_with_rate_and_pairs():
-    # Empty the Warrens (EDHREC Krenko target) over Fires of Mount Doom
-    # (junk): the bounded Rate multiplier narrows the gap and the
-    # tribal-fodder pair row (Krenko's X counts Goblins, CR 608.2h) closes
-    # it — neither alone suffices, which is exactly ADR-0042's thesis.
-    from mtg_utils._deck_forge.pair_reads import build_pair_context
-    from mtg_utils._deck_forge.rate import build_rate_index
-    from mtg_utils.testkit import snapshot_records, test_card, test_card_ir
-
-    index = build_rate_index(snapshot_records())
-    test_card_ir("Krenko, Mob Boss")
-    ctx = build_pair_context([test_card("Krenko, Mob Boss")], [])
-    test_card_ir("Empty the Warrens")
-    test_card_ir("Fires of Mount Doom")
-    ranked = rank_candidates(
-        [test_card("Fires of Mount Doom"), test_card("Empty the Warrens")],
-        active_signals=_KRENKO_SIGNALS,
-        focus_sets=_KRENKO_FOCUS,
-        rate_index=index,
-        pair_ctx=ctx,
-    )
-    names = [r["card"]["name"] for r in ranked]
-    assert names[0] == "Empty the Warrens", [
-        (
-            r["card"]["name"],
-            r["score"]["synergy_score"],
-            r["score"]["rate"],
-            r["score"]["pair_score"],
-        )
-        for r in ranked
-    ]
+# ── ETW>Fires pin: RETIRED (Dan, 2026-07-23/24) ─────────────────────────────
+# The pin only ever held via the falsified v1 injected-index multiplier; in
+# production Fires sits 176/6917 in Krenko's pool (the original complaint —
+# Fires at #1 — is fixed, Siege-Gang Lieutenant is #1). Its proposition
+# (mechanical reads surface crowd-validated synergy) is carried by the drift
+# indicator and the ledger ordering instrument (docs/adr/assets/
+# 0043-instrument/), not a single-pair anecdote riding a falsified
+# mechanism.
