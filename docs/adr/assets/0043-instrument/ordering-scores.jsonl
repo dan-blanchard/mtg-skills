@@ -1,1 +1,2 @@
 {"label": "committed-baseline", "ordering_score": 0.46449136276391556, "total_pairs": 521, "correct": 242}
+{"label": "committed-baseline-heldout", "ordering_score": 0.432967032967033, "total_pairs": 455, "correct": 197, "holdout": ["krenko-mob-boss|krenko, baron of tin street", "krenko-mob-boss|kuldotha rebirth", "talrand-sky-summoner|donal, herald of wings", "urza-lord-high-artificer|vigean graftmage", "zaxara-the-exemplary|weaver of harmony"]}
