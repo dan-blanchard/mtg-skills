@@ -626,6 +626,7 @@ def rank_candidates(
     rank_by: str = "score",
     rate_index: RateIndex | None = None,
     pair_ctx: PairContext | None = None,
+    row_class_permutation: bool = False,
 ) -> list[dict]:
     """Score and sort candidates: synergy desc, then price asc (no-listing last),
     then cmc asc.
@@ -689,4 +690,94 @@ def rank_candidates(
             r["card"].get("name") or "",
         )
     )
+    if row_class_permutation:
+        # Rate v2 S1 (design note 2.6, approved): default-off until the
+        # slice measurement accepts; flipped by its own protocol event.
+        scored = apply_row_class_permutation(scored)
     return scored
+
+
+def _default_rider_fn(r: dict) -> bool:
+    """Cantrip rider on the OWNER class's attributed tree (2.6 D2 key a):
+    the card carries a draw-shaped ident attributed to a unit on the same
+    tree as an attributed row-matching ident. Unattributed -> no rider
+    (the conservative epistemic default, same rule as the discounts)."""
+    from mtg_utils._deck_forge.ident_provenance import unit_idents_for
+
+    pairs = r["score"].get("pairs") or []
+    if not pairs:
+        return False
+    try:
+        attr = unit_idents_for(r["card"])
+    except (KeyError, ValueError, TypeError):  # no IR — no evidence, no rider
+        return False
+    rider_keys = ("cantrip|", "card_draw_engine|")
+    match_trees = {
+        ti
+        for (ti, _ui), ids in attr.items()
+        for i in ids
+        if "|" in i  # any attributed ident on a matched card's tree
+    }
+    if not match_trees:
+        return False
+    return any(
+        i.startswith(rider_keys)
+        for (ti, _ui), ids in attr.items()
+        if ti in match_trees
+        for i in ids
+    )
+
+
+def apply_row_class_permutation(
+    scored: list[dict],
+    *,
+    rider_fn: Callable[[dict], bool] | None = None,
+) -> list[dict]:
+    """The S1 slot permutation (2.6 D2): within each (color_widening,
+    0.25-depth-bucket) stratum, each row class reorders the slots of the
+    cards it OWNS — one parallel pass against the pre-pass snapshot.
+
+    Ownership: a card's owner class is the lexicographically FIRST
+    pair_id among its matched rows; other classes treat it as fixed
+    (the cycle-6 anti-chaining fix — a shared-member card can no longer
+    ferry order changes between disjoint classes). Keys inside a class:
+    cantrip rider first, then cmc ascending, then name. Zero-class
+    candidates never move (position-fixity invariant); candidates with
+    no shared class never reorder (anti-chaining invariant) — both are
+    CI-asserted properties of this construction, not policies.
+    """
+    import math as _math
+
+    rider = rider_fn or _default_rider_fn
+    out = list(scored)
+
+    def stratum(r: dict) -> tuple:
+        depth = r["score"]["synergy_score"] + r["score"]["pair_score"]
+        return (r["score"]["color_widening"], _math.floor(depth / 0.25))
+
+    def owner(r: dict) -> str | None:
+        pids = sorted(p["pair"] for p in (r["score"].get("pairs") or []))
+        return pids[0] if pids else None
+
+    groups: dict[tuple, dict[str, list[int]]] = {}
+    for idx, r in enumerate(out):
+        o = owner(r)
+        if o is None:
+            continue
+        groups.setdefault(stratum(r), {}).setdefault(o, []).append(idx)
+
+    for classes in groups.values():
+        for slots in classes.values():
+            if len(slots) < 2:
+                continue
+            members = [out[i] for i in slots]
+            members.sort(
+                key=lambda r: (
+                    not rider(r),
+                    r["score"]["cmc"],
+                    r["card"].get("name") or "",
+                )
+            )
+            for slot, member in zip(slots, members, strict=True):
+                out[slot] = member
+    return out
