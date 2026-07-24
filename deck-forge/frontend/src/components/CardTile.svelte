@@ -14,7 +14,7 @@
   import { displayName } from "../lib/cards.js";
   import { askForge } from "../lib/agent.js";
   import { hoverPreview } from "../lib/hover.js";
-  import { isDigital } from "../lib/store.js";
+  import { isDigital, agentAttached } from "../lib/store.js";
   import Mana from "./Mana.svelte";
   import ManaCost from "./ManaCost.svelte";
   import OracleText from "./OracleText.svelte";
@@ -116,7 +116,10 @@
         >
         <button
           class="btn star"
-          title="Ask the forge-friend to explain"
+          title={$agentAttached
+            ? "Ask the forge-friend to explain"
+            : "No session connected — open deck-forge in a Claude Code session to ask"}
+          disabled={!$agentAttached}
           on:click={() => askForge("explain", { card: card.name })}>?</button
         >
       </div>

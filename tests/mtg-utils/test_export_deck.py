@@ -86,3 +86,28 @@ class TestCLI:
         assert result.exit_code == 0
         assert "1 Sol Ring" in result.output
         assert "1 Kalain, Reclusive Painter" in result.output
+
+
+class TestCompanionExport:
+    def test_companion_section_present_and_round_trips(self):
+        from mtg_utils.parse_deck import parse_deck_text
+
+        deck = {
+            "commanders": [],
+            "cards": [{"name": "Lightning Bolt", "quantity": 4}],
+            "companion": [{"name": "Keruga, the Macrosage", "quantity": 1}],
+        }
+        result = export_moxfield(deck)
+        lines = result.split("\n")
+        assert "Companion" in lines
+        idx = lines.index("Companion")
+        assert lines[idx - 1] == ""  # blank line before the section header
+        assert lines[idx + 1] == "1 Keruga, the Macrosage"
+        # Round-trip: parse_deck_text routes the section back into the
+        # companion zone (outside the deck and sideboard, CR 702.139a-b).
+        parsed = parse_deck_text(result, format="modern")
+        assert parsed["companion"] == [{"name": "Keruga, the Macrosage", "quantity": 1}]
+        assert "Keruga, the Macrosage" not in {e["name"] for e in parsed["cards"]}
+
+    def test_no_companion_section_when_absent(self):
+        assert "Companion" not in export_moxfield(SAMPLE_DECK)

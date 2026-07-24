@@ -65,6 +65,30 @@ deck JSON, which would go stale the moment the deck mutates.
 _Avoid_: "owned_cards" (the stored CLI field this deliberately replaces with a live
 derivation), "have / missing" (reserve those for a future buy-list framing).
 
+**Printing ownership**:
+The optional per-(set, collector_number) layer under a Collection entry — nonfoil and
+foil quantities per printing (etched folds into foil), fed by import sources that carry
+printing data (Moxfield suffixes / CSV columns, Arena's per-printing grpId counts). The
+name-level quantity stays the authoritative **Owned** count; printing detail only refines
+display. Surfaced as owned-first sorting + ✓/✦ counts in the printing picker and as the
+tri-state `owned_printing` on deck cards: `true` = you own the shown printing, `false` =
+you own the card in a different printing, absent = the Collection has no printing detail
+for that name (name-only ownership, the pre-existing behavior).
+_Avoid_: "owned" alone for the printing level (card-owned and printing-owned are distinct
+states — that distinction is the point), "foil" as a price fallback only (finish is a
+real, user-chosen attribute here).
+
+**Companion zone**:
+The fourth deck zone (`companion`, alongside commanders / cards / sideboard) holding at
+most one card with the companion ability (CR 103.2b). A companion is revealed from
+outside the game and is neither deck nor sideboard (CR 702.139a-b), so the zone is
+excluded from deck-size math, slot budgets, curve/mana math, and the tuner's totals —
+but its deckbuilding condition IS audited against the starting deck including the
+commander (CR 702.139b, via `mtg_utils.companion`), and the card must still be
+format-legal (a banned companion flags).
+_Avoid_: "sideboard slot" (paper-tournament framing that doesn't apply to the Commander
+family), "101st card" (it never counts toward the 100).
+
 **Commander discovery**:
 The browser panel that surfaces commander-eligible cards from your active Collection slot,
 ranked to a *stated intent* rather than to popularity — a theme filter (a `theme_presets`

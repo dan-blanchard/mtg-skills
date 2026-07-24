@@ -563,6 +563,93 @@ def test_combo_piece_protected_from_cuts():
     assert "Hill Giant" not in cut_names
 
 
+def _oversized_hd(over=3, deck_size=100, lands=38):
+    """A commander deck `over` cards past its exact legal size: 1 commander +
+    `lands` Mountains (exactly at a 38-land floor) + enough distinct nonland
+    filler (empty oracle text → bucket "filler", all safe cuts) to overflow."""
+    filler = [
+        {
+            "name": f"Filler {i}",
+            "type_line": "Creature — Giant",
+            "oracle_text": "",
+            "cmc": 3.0,
+            "color_identity": ["R"],
+        }
+        for i in range(deck_size - 1 - lands + over)
+    ]
+    index = {KRENKO["name"]: KRENKO, MOUNTAIN["name"]: MOUNTAIN}
+    index.update({c["name"]: c for c in filler})
+    deck = {
+        "format": "commander",
+        "deck_size": deck_size,
+        "commanders": [{"name": "Krenko, Mob Boss", "quantity": 1}],
+        "cards": [
+            *({"name": c["name"], "quantity": 1} for c in filler),
+            {"name": "Mountain", "quantity": lands},
+        ],
+    }
+    return HydratedDeck.from_parsed(deck, by_name=index)
+
+
+def test_oversized_deck_yields_exactly_overflow_size_cuts():
+    # CR 903.5a: a Commander deck's minimum AND maximum size are both 100 —
+    # a 103-card deck is illegal, so Tune must propose exactly 3 cuts.
+    out = tune(_oversized_hd(over=3), search_fn=_fake_search, params=TuneParams())
+    cuts = out["size_cuts"]
+    assert len(cuts) == 3
+    for c in cuts:
+        assert c["reason"] == "over:deck_size"
+        assert "CR 903.5a" in c["message"]
+        assert "3 over" in c["message"]
+        assert c["name"] != "Krenko, Mob Boss"  # never the commander
+        assert c["name"] != "Mountain"  # never a land (the floor holds)
+        assert c["why"]  # rides the existing cut ranking's explanation
+    # Distinct proposals — no card is cut twice.
+    assert len({c["name"] for c in cuts}) == 3
+    # The scorecard surfaces the overflow for "N over legal size" rendering.
+    assert out["scorecard"]["size"] == {
+        "total": 103,
+        "deck_size": 100,
+        "overflow": 3,
+    }
+
+
+def test_legal_sized_deck_yields_no_size_cuts():
+    out = tune(_oversized_hd(over=0), search_fn=_fake_search, params=TuneParams())
+    assert out["size_cuts"] == []
+    assert out["scorecard"]["size"]["overflow"] == 0
+    # The tiny fixture deck (far under 100) is under-sized, never over.
+    out2 = tune(_hd(), search_fn=_fake_search, params=TuneParams())
+    assert out2["size_cuts"] == []
+    assert out2["scorecard"]["size"]["overflow"] == 0
+
+
+def test_size_cuts_produced_even_at_max_swaps_zero():
+    # Legality-driven, not tuning-driven: a scorecard-only run (max_swaps=0,
+    # no budget) must still report the cuts needed to reach the legal 100.
+    out = tune(
+        _oversized_hd(over=3),
+        search_fn=_fake_search,
+        params=TuneParams(max_swaps=0),
+    )
+    assert len(out["size_cuts"]) == 3
+    assert out["swaps"] == []
+
+
+def test_size_cut_cards_excluded_from_regular_swap_cut_pool():
+    # A card proposed as a size cut must not ALSO be proposed as the cut side
+    # of a regular paired swap in the same run (owned add makes swaps free).
+    out = tune(
+        _oversized_hd(over=3),
+        search_fn=_fake_search,
+        params=TuneParams(max_swaps=5, budget=100.0),
+    )
+    size_cut_names = {c["name"] for c in out["size_cuts"]}
+    assert len(size_cut_names) == 3
+    swap_cut_names = {s["cut"]["name"] for s in out["swaps"] if s["cut"]}
+    assert not (size_cut_names & swap_cut_names)
+
+
 def test_medium_threads_to_the_low_value_reads():
     # ADR-0040 §4 (task #99): tune wires ir_for, so signals only resolve for
     # real snapshot cards — the synthetic _hd() harness buckets everything

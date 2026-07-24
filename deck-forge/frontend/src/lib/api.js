@@ -43,10 +43,13 @@ export const api = {
   presets: () => get("/api/presets"),
   combos: () => get("/api/combos"),
   card: (name) => get(`/api/card?name=${encodeURIComponent(name)}`),
-  // Printing picker (C): list a card's printings; pin (or clear with null) the chosen one.
+  // Printing picker (C): list a card's printings; pin (or clear with null) the chosen
+  // one. Returns an envelope {name, card_owned, card_owned_qty, printings:[…]} — each
+  // printing carries owned_qty / owned_foil_qty; owned printings sort first. An
+  // optional finish ("foil" | "etched") rides the pin; pinning without one clears it.
   printings: (name) => get(`/api/printings?name=${encodeURIComponent(name)}`),
-  setPrinting: (name, printing_id, zone = "cards") =>
-    post("/api/deck/printing", { name, printing_id, zone }),
+  setPrinting: (name, printing_id, zone = "cards", finish = null) =>
+    post("/api/deck/printing", { name, printing_id, zone, finish }),
   agentStatus: () => get("/api/agent/status"),
   removeAvenue: (id) => del(`/api/avenues/${id}`),
   // Toggle a lane as "focused" (#2): the candidate ✦ score then counts only focused lanes.

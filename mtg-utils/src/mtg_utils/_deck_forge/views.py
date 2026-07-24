@@ -16,7 +16,9 @@ from mtg_utils._deck_forge.images import image_urls
 from mtg_utils._deck_forge.state import ForgeState
 from mtg_utils.card_classify import get_mana_cost, get_oracle_text, is_commander
 
-VALID_ZONES = ("commanders", "cards", "sideboard")
+# "companion" is a rendered zone like any other, but it is outside the game
+# (CR 702.139a-b) — deck-size and budget math exclude it upstream in ``engine``.
+VALID_ZONES = ("commanders", "cards", "sideboard", "companion")
 
 
 def printing_view(record: dict) -> dict:
@@ -61,6 +63,9 @@ def result_view(record: dict, fmt: str) -> dict:
     return {"name": record.get("name", ""), **project(record, fmt)}
 
 
+_FINISH_PRICE_KEYS = {"foil": "usd_foil", "etched": "usd_etched"}
+
+
 def card_view(
     name: str,
     qty: int,
@@ -70,6 +75,8 @@ def card_view(
     *,
     printing_id: str | None = None,
     resolve_printing: Callable[[str], dict | None] | None = None,
+    finish: str | None = None,
+    owned_printing: bool | None = None,
 ) -> dict:
     """A deck-zone card: name + quantity + an ``unknown`` flag + projection (when the
     name resolves against the bulk index). ``owned_qty`` (when set) marks the card as
@@ -77,11 +84,22 @@ def card_view(
 
     When ``printing_id`` names a chosen printing (and ``resolve_printing`` can find it),
     the card's image / prices / set are overridden to it — the gameplay fields (type,
-    oracle, cmc) come from the canonical record, which is printing-invariant."""
+    oracle, cmc) come from the canonical record, which is printing-invariant.
+
+    ``finish`` ("foil" / "etched") surfaces as-is and swaps the displayed ``prices.usd``
+    to the finish price (``usd_foil`` / ``usd_etched``, falling back to ``usd``) —
+    additive: every other price key stays, so the shape is unchanged. The tri-state
+    ``owned_printing`` (printing-level ownership vs the merely name-level ``owned``)
+    is emitted only when non-None — absent means the Collection has no printing detail
+    for this name."""
     base: dict = {"name": name, "quantity": qty}
     if owned_qty is not None:
         base["owned"] = True
         base["owned_qty"] = owned_qty
+    if owned_printing is not None:
+        base["owned_printing"] = owned_printing
+    if finish:
+        base["finish"] = finish
     record = by_name.get(name)
     if record is None:
         return {**base, "unknown": True}
@@ -96,6 +114,13 @@ def card_view(
         imgs = image_urls(chosen)
         if imgs:
             view["images"] = imgs
+    price_key = _FINISH_PRICE_KEYS.get(finish or "")
+    if price_key:
+        prices = view.get("prices") or {}
+        view["prices"] = {
+            **prices,
+            "usd": prices.get(price_key) or prices.get("usd"),
+        }
     return view
 
 
@@ -120,10 +145,18 @@ def combo_card_view(name: str, record: dict | None, *, in_deck: bool, fmt: str) 
     return view
 
 
-def deck_view(state: ForgeState, owned: dict[str, int] | None = None) -> dict:
-    """The serialized deck: ``{format, commanders[], cards[], sideboard[]}``, each zone
-    a list of ``card_view`` dicts. ``owned`` (deck card name → owned count in the active
-    Collection slot) marks owned cards; absent → no ownership shown (no collection)."""
+def deck_view(
+    state: ForgeState,
+    owned: dict[str, int] | None = None,
+    printing_owned: Callable[[str, str | None], bool | None] | None = None,
+) -> dict:
+    """The serialized deck: ``{format, commanders[], cards[], sideboard[],
+    companion[]}``, each zone a list of ``card_view`` dicts. ``owned`` (deck card
+    name → owned count in the active Collection slot) marks owned cards; absent →
+    no ownership shown (no collection).
+    ``printing_owned`` (name, printing_id → tri-state) resolves whether the card's
+    effectively-chosen printing is owned at printing level (``engine.printing_owned``);
+    absent → the ``owned_printing`` field never renders."""
     deck = state.session.to_deck_dict()
     by_name = state.by_name
     fmt = deck["format"]
@@ -145,6 +178,12 @@ def deck_view(state: ForgeState, owned: dict[str, int] | None = None) -> dict:
                     owned.get(e["name"]),
                     printing_id=e.get("printing_id"),
                     resolve_printing=state.printing_by_id.get,
+                    finish=e.get("finish"),
+                    owned_printing=(
+                        printing_owned(e["name"], e.get("printing_id"))
+                        if printing_owned
+                        else None
+                    ),
                 )
                 for e in deck[zone]
             ]

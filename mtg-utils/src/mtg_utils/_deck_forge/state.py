@@ -1,9 +1,10 @@
 """deck-forge session state: the canonical in-progress deck and its mutations.
 
 A ``DeckSession`` owns the deck as ordered name→quantity maps per zone and emits the
-canonical parsed-deck dict (``{format, commanders, cards, sideboard}``) that the
-rest of ``mtg_utils`` already speaks. To analyse a session, join it to the bulk index
-with ``HydratedDeck.from_session(session, by_name)`` (see ``mtg_utils.hydrated_deck``).
+canonical parsed-deck dict (``{format, commanders, cards, sideboard, companion}``)
+that the rest of ``mtg_utils`` already speaks. To analyse a session, join it to the
+bulk index with ``HydratedDeck.from_session(session, by_name)`` (see
+``mtg_utils.hydrated_deck``).
 """
 
 from __future__ import annotations
@@ -19,7 +20,9 @@ from mtg_utils._deck_forge.persistence import BuildStore
 from mtg_utils._name_index import NameIndex
 from mtg_utils.format_config import FORMAT_CONFIGS
 
-_ZONES = ("commanders", "cards", "sideboard")
+# "companion" is the outside-the-game zone (CR 702.139a-b: a companion is neither
+# deck nor sideboard); consumers that count deck size must exclude it deliberately.
+_ZONES = ("commanders", "cards", "sideboard", "companion")
 # Brawl/Historic Brawl can be played digital (Arena) or paper; commander is paper-only.
 # Medium drives the active Collection slot and the cost mode (wildcards vs USD).
 _ARENA_FORMATS = ("brawl", "historic_brawl")
@@ -53,6 +56,10 @@ class DeckSession:
         # with no entry uses the default (cheapest) printing, so existing builds and the
         # no-bulk path are unaffected. All copies of a card share one printing.
         self._printings: dict[str, dict[str, str]] = {z: {} for z in _ZONES}
+        # Chosen finish ("foil" | "etched") per (zone, card name). Rides the pinned
+        # printing: only a pinned card can carry a finish, and re-pinning without one
+        # clears it (the plain nonfoil default).
+        self._finishes: dict[str, dict[str, str]] = {z: {} for z in _ZONES}
 
     @property
     def medium(self) -> str:
@@ -92,7 +99,12 @@ class DeckSession:
             for entry in deck.get(zone) or []:
                 session.add(entry["name"], int(entry.get("quantity", 1)), zone=zone)
                 if entry.get("printing_id"):
-                    session.set_printing(entry["name"], entry["printing_id"], zone=zone)
+                    session.set_printing(
+                        entry["name"],
+                        entry["printing_id"],
+                        zone=zone,
+                        finish=entry.get("finish"),
+                    )
         return session
 
     def add(self, name: str, qty: int = 1, *, zone: str = "cards") -> int:
@@ -116,23 +128,40 @@ class DeckSession:
         if remaining <= 0:
             del bucket[name]
             self._printings[zone].pop(name, None)  # last copy gone → drop its printing
+            self._finishes[zone].pop(name, None)  # …and its finish rides along
             return 0
         bucket[name] = remaining
         return remaining
 
     def set_printing(
-        self, name: str, printing_id: str | None, *, zone: str = "cards"
+        self,
+        name: str,
+        printing_id: str | None,
+        *,
+        zone: str = "cards",
+        finish: str | None = None,
     ) -> None:
         """Pin (or clear, with ``None``) the Scryfall printing for a card in a zone.
-        Clearing reverts the card to the default (cheapest) printing."""
+        Clearing reverts the card to the default (cheapest) printing. ``finish``
+        ("foil" / "etched") rides the pin: pinning without one clears any stored
+        finish (nonfoil default), and clearing the pin clears the finish too."""
         prints = self._printings.setdefault(zone, {})
+        finishes = self._finishes.setdefault(zone, {})
         if printing_id:
             prints[name] = printing_id
+            if finish:
+                finishes[name] = finish
+            else:
+                finishes.pop(name, None)
         else:
             prints.pop(name, None)
+            finishes.pop(name, None)
 
     def printing_of(self, name: str, *, zone: str = "cards") -> str | None:
         return self._printings.get(zone, {}).get(name)
+
+    def finish_of(self, name: str, *, zone: str = "cards") -> str | None:
+        return self._finishes.get(zone, {}).get(name)
 
     def to_deck_dict(self) -> dict:
         """Emit the canonical parsed-deck dict consumed across ``mtg_utils``. ``medium``
@@ -150,6 +179,11 @@ class DeckSession:
                         **(
                             {"printing_id": self._printings[zone][n]}
                             if n in self._printings.get(zone, {})
+                            else {}
+                        ),
+                        **(
+                            {"finish": self._finishes[zone][n]}
+                            if n in self._finishes.get(zone, {})
                             else {}
                         ),
                     }
@@ -215,6 +249,14 @@ class ForgeState:
     collection_store: CollectionStore | None = None
     collections: dict[str, dict] = field(default_factory=dict)
     collection_index: dict[str, tuple] = field(default_factory=dict)
+    # Per-slot printing-level ownership detail (``collection.printing_index``):
+    # slot → normalized name key → {(set, collector_number): (nonfoil, foil)}.
+    # Sparse by design — a name absent from its slot's index has NAME-ONLY ownership
+    # (old collection.json files / plain pastes), which the wire surfaces as the
+    # tri-state ``owned_printing`` being absent. Rebuilt alongside collection_index.
+    collection_printings: dict[
+        str, dict[str, dict[tuple[str, str], tuple[int, int]]]
+    ] = field(default_factory=dict)
     # normalized-alias → canonical map (Arena printed_name / flavor_name), built from
     # bulk once at launch. Threaded into every ``mark_owned.owned_lookup`` so the Arena
     # slot's ownership matches flavor/printed names — the ADR-0018 Arena-alias promise.

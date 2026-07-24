@@ -373,3 +373,175 @@ class TestSideboardParsing:
         )
         assert result.exit_code == 0
         assert "2 sideboard" in result.output
+
+
+# ---------- Printing retention (set / collector_number / finish) ----------
+
+
+class TestPrintingRetention:
+    def test_moxfield_suffix_retained(self):
+        text = "// Deck\n1 Sol Ring (C21) 263\n"
+        card = parse_deck_text(text)["cards"][0]
+        assert card["name"] == "Sol Ring"
+        assert card["set"] == "c21"
+        assert card["collector_number"] == "263"
+        assert "finish" not in card
+
+    def test_foil_marker_sets_finish(self):
+        text = "// Deck\n1 Lightning Bolt (2X2) 117 *F*\n"
+        card = parse_deck_text(text, format="modern")["cards"][0]
+        assert card["name"] == "Lightning Bolt"
+        assert card["set"] == "2x2"
+        assert card["collector_number"] == "117"
+        assert card["finish"] == "foil"
+
+    def test_etched_marker_sets_finish(self):
+        text = "// Deck\n1 Sol Ring (C21) 263 *E*\n"
+        card = parse_deck_text(text)["cards"][0]
+        assert card["finish"] == "etched"
+
+    def test_no_suffix_means_no_printing_keys(self):
+        text = "// Deck\n1 Sol Ring\n"
+        card = parse_deck_text(text)["cards"][0]
+        assert card == {"name": "Sol Ring", "quantity": 1}
+
+    def test_non_numeric_collector_numbers_kept_as_strings(self, tmp_path):
+        deck_path = tmp_path / "deck.txt"
+        deck_path.write_text(
+            "1 Serum Visions (SLD) 263★\n"
+            "1 Brainstorm (MH2) 123a\n"
+            "1 Sphinx of the Second Sun (PLST) CMR-99\n"
+        )
+        result = parse_deck(deck_path)
+        by_name = {c["name"]: c for c in result["cards"]}
+        assert by_name["Serum Visions"]["collector_number"] == "263★"
+        assert by_name["Brainstorm"]["collector_number"] == "123a"
+        assert by_name["Sphinx of the Second Sun"]["collector_number"] == "CMR-99"
+
+    def test_arena_export_suffix_retained(self, tmp_path):
+        deck_path = tmp_path / "deck.txt"
+        deck_path.write_text(
+            "Commander\n1 Korvold, Fae-Cursed King (ELD) 329\n\nDeck\n1 Mountain (ELD) 265\n"
+        )
+        result = parse_deck(deck_path)
+        assert result["commanders"][0]["set"] == "eld"
+        assert result["commanders"][0]["collector_number"] == "329"
+        assert result["cards"][0]["set"] == "eld"
+        assert result["cards"][0]["collector_number"] == "265"
+
+    def test_conflicting_printings_merge_drops_keys(self):
+        # Same card from two printings merges to one entry; an ambiguous
+        # printing key is dropped rather than guessing which one wins.
+        text = "// Deck\n2 Ethereal Armor (DSK) 7\n2 Ethereal Armor (RTR) 9\n"
+        result = parse_deck_text(text, format="modern")
+        assert result["cards"] == [{"name": "Ethereal Armor", "quantity": 4}]
+
+    def test_matching_printings_merge_keeps_keys(self):
+        text = "// Deck\n2 Ethereal Armor (RTR) 9\n2 Ethereal Armor (RTR) 9\n"
+        card = parse_deck_text(text, format="modern")["cards"][0]
+        assert card["quantity"] == 4
+        assert card["set"] == "rtr"
+        assert card["collector_number"] == "9"
+
+
+class TestCSVPrintingColumns:
+    def test_csv_printing_columns_captured(self, tmp_path):
+        deck_path = tmp_path / "deck.csv"
+        deck_path.write_text(
+            "Count,Name,Edition,Foil,Collector Number\n"
+            "1,Sol Ring,c21,,263\n"
+            '1,"Korvold, Fae-Cursed King",eld,foil,329\n'
+            "1,Brainstorm,sld,etched,263★\n"
+        )
+        result = parse_deck(deck_path)
+        by_name = {c["name"]: c for c in result["cards"]}
+        assert by_name["Sol Ring"]["set"] == "c21"
+        assert by_name["Sol Ring"]["collector_number"] == "263"
+        assert "finish" not in by_name["Sol Ring"]
+        assert by_name["Korvold, Fae-Cursed King"]["finish"] == "foil"
+        assert by_name["Brainstorm"]["finish"] == "etched"
+        assert by_name["Brainstorm"]["collector_number"] == "263★"
+
+    def test_csv_without_printing_columns_still_parses(self, csv_deck):
+        result = parse_deck(csv_deck)
+        by_name = {c["name"]: c for c in result["cards"]}
+        assert "Sol Ring" in by_name
+        for card in result["cards"]:
+            assert "set" not in card
+            assert "collector_number" not in card
+            assert "finish" not in card
+
+
+# ---------- Companion zone (CR 702.139a-b) ----------
+
+
+class TestCompanionZone:
+    def test_arena_companion_section(self, tmp_path):
+        deck_path = tmp_path / "deck.txt"
+        deck_path.write_text(
+            "Companion\n"
+            "1 Jegantha, the Wellspring\n"
+            "\n"
+            "Deck\n"
+            "4 Lightning Bolt\n"
+            "4 Mountain\n"
+        )
+        result = parse_deck(deck_path, format="modern")
+        assert result["companion"] == [
+            {"name": "Jegantha, the Wellspring", "quantity": 1}
+        ]
+        card_names = [c["name"] for c in result["cards"]]
+        assert "Jegantha, the Wellspring" not in card_names
+
+    def test_companion_not_counted_in_totals(self, tmp_path):
+        deck_path = tmp_path / "deck.txt"
+        deck_path.write_text(
+            "Companion\n1 Lurrus of the Dream-Den\n\n"
+            "Deck\n4 Lightning Bolt\n\n"
+            "Sideboard\n2 Smash to Smithereens\n"
+        )
+        result = parse_deck(deck_path, format="pioneer")
+        assert result["total_cards"] == 4
+        assert result["total_sideboard"] == 2
+        assert len(result["companion"]) == 1
+
+    def test_companion_suffix_retained(self, tmp_path):
+        deck_path = tmp_path / "deck.txt"
+        deck_path.write_text(
+            "Companion\n1 Jegantha, the Wellspring (IKO) 222\n\nDeck\n4 Mountain\n"
+        )
+        result = parse_deck(deck_path, format="modern")
+        companion = result["companion"][0]
+        assert companion["name"] == "Jegantha, the Wellspring"
+        assert companion["set"] == "iko"
+        assert companion["collector_number"] == "222"
+
+    def test_moxfield_companion_section(self):
+        text = "//Companion\n1 Jegantha, the Wellspring\n\n//Deck\n4 Lightning Bolt\n"
+        result = parse_deck_text(text, format="modern")
+        assert result["companion"] == [
+            {"name": "Jegantha, the Wellspring", "quantity": 1}
+        ]
+        assert [c["name"] for c in result["cards"]] == ["Lightning Bolt"]
+
+    def test_no_companion_section_defaults_empty(self, moxfield_deck, csv_deck):
+        assert parse_deck(moxfield_deck)["companion"] == []
+        assert parse_deck(csv_deck)["companion"] == []
+
+    def test_companion_survives_commander_sideboard_fold(self, tmp_path):
+        # Commander formats fold sideboard entries back into cards; the
+        # companion zone must NOT be folded in — it sits outside the deck.
+        deck_path = tmp_path / "deck.txt"
+        deck_path.write_text(
+            "Commander\n1 Aesi, Tyrant of Gyre Strait\n\n"
+            "Companion\n1 Jegantha, the Wellspring\n\n"
+            "Deck\n30 Forest\n\nSideboard\n1 Sol Ring\n"
+        )
+        result = parse_deck(deck_path, format="commander")
+        assert result["companion"] == [
+            {"name": "Jegantha, the Wellspring", "quantity": 1}
+        ]
+        card_names = [c["name"] for c in result["cards"]]
+        assert "Jegantha, the Wellspring" not in card_names
+        assert "Sol Ring" in card_names
+        assert result["total_cards"] == 32

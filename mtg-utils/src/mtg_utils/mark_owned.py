@@ -152,6 +152,17 @@ def owned_lookup(
     return entries, _build_alias_lookup(entries, name_aliases=name_aliases)
 
 
+def collection_key(deck_name: str, alias_lookup: dict[str, str]) -> str | None:
+    """Resolve ``deck_name`` to the collection's primary entry key (or ``None``).
+
+    The public face of :func:`_match_collection_key` for callers that need the KEY
+    rather than the quantity — deck-forge joins its per-printing ownership detail
+    (keyed by the same normalized primary keys as ``owned_lookup``'s entries) through
+    this, so printing-level reads share the exact DFC / Arena-alias resolution the
+    name-level ``owned_quantity`` uses."""
+    return _match_collection_key(deck_name, alias_lookup)
+
+
 def owned_quantity(
     deck_name: str,
     entries: dict[str, tuple[str, int]],

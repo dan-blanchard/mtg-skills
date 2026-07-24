@@ -38,11 +38,15 @@ class _DeckSource(Protocol):
     def to_deck_dict(self) -> dict: ...
 
 
-_ZONES = ("commanders", "cards", "sideboard")
+# "companion" hydrates like any zone (its record is needed for companion-condition
+# audits) but is outside the game (CR 702.139a-b): deck-size / curve / budget math
+# must request zones explicitly and exclude it.
+_ZONES = ("commanders", "cards", "sideboard", "companion")
 
 
 def _distinct_names(deck: Mapping) -> list[str]:
-    """Distinct card names across all zones, in commanders->cards->sideboard order."""
+    """Distinct card names across all zones, in commanders->cards->sideboard->
+    companion order."""
     seen: dict[str, None] = {}
     for zone in _ZONES:
         for entry in deck.get(zone) or []:
@@ -219,6 +223,12 @@ class HydratedDeck:
     @property
     def sideboard(self) -> list[dict]:
         return self._deck.get("sideboard") or []
+
+    @property
+    def companion(self) -> list[dict]:
+        """The outside-the-game companion zone (CR 702.139a-b) — never part of
+        deck-size, curve, or sideboard counts."""
+        return self._deck.get("companion") or []
 
     # --- drop-in sugar over .records (deliberately NOT __bool__) ----------------
 

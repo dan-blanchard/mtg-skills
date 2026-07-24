@@ -38,8 +38,15 @@
       if (s.cut) resolveOne(s.cut.name); // fills have no cut (pure add into an open slot)
       resolveOne(s.add.name);
     }
+    for (const s of result.size_cuts || []) resolveOne(s.name);
     for (const c of result.commander_suggestions || []) resolveOne(c.name);
   }
+
+  // Over-size cuts (E): the deck exceeds the format's legal size, so these are pure
+  // cut rows (no add side, never overlapping the swaps). The header borrows the CR
+  // citation from the backend's message ("… (CR 903.5a) — cut").
+  $: crCite =
+    (result?.size_cuts?.[0]?.message || "").match(/\(CR [^)]+\)/)?.[0] ?? "";
 
   async function run() {
     loading = true;
@@ -92,6 +99,33 @@
         if (r.ok) applySnapshot(r.data);
       }
       const r = await api.add(s.add.name);
+      if (r.ok) applySnapshot(r.data);
+    } finally {
+      applying = false;
+    }
+  }
+
+  // A size cut is just a removal — same path a swap's cut side takes. The row is
+  // dropped up front (same double-apply guard as applySwap) and the header's counts
+  // are kept honest locally; the next Run Tune re-derives them server-side.
+  async function applySizeCut(s) {
+    if (applying) return;
+    applying = true;
+    const size = result.scorecard.size;
+    result = {
+      ...result,
+      size_cuts: result.size_cuts.filter((x) => x !== s),
+      scorecard: {
+        ...result.scorecard,
+        size: {
+          ...size,
+          total: size.total - 1,
+          overflow: Math.max(0, size.overflow - 1),
+        },
+      },
+    };
+    try {
+      const r = await api.remove(s.name);
       if (r.ok) applySnapshot(r.data);
     } finally {
       applying = false;
@@ -362,6 +396,34 @@
         {/if}
       </div>
     </div>
+
+    {#if result.size_cuts?.length && sc.size?.overflow > 0}
+      <div class="panel widget">
+        <h3 class="panel-title size-title">
+          {sc.size.overflow} over the legal {sc.size.deck_size}{crCite
+            ? ` ${crCite}`
+            : ""} — cut these
+        </h3>
+        {#each result.size_cuts as s (s.name)}
+          <div class="swap">
+            <div class="pair">
+              <span class="pm cut">−</span>
+              <CardChip
+                name={s.name}
+                card={resolved[s.name] ?? null}
+                clickable={false}
+              />
+            </div>
+            <div class="swap-meta">
+              <span class="why">{s.why}</span>
+              <button on:click={() => applySizeCut(s)} disabled={applying}
+                >Cut</button
+              >
+            </div>
+          </div>
+        {/each}
+      </div>
+    {/if}
 
     {#if result.swaps.length}
       <div class="panel widget">
@@ -691,6 +753,11 @@
   }
   .flag-row.warn {
     color: var(--brass-bright, #e8b04b);
+  }
+
+  /* Over-size cuts — same row anatomy as a swap's cut side, headed in the cut tone. */
+  .size-title {
+    color: var(--fail, #e07a5f);
   }
 
   /* Swaps */

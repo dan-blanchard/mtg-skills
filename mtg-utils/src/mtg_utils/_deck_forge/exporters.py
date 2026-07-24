@@ -8,15 +8,22 @@ accept it) — the printing-picker selection (C) round-trips out to either tool.
 
 from __future__ import annotations
 
+# Moxfield's finish markers, appended after the collector number ("… (C21) 263 *F*").
+# parse_deck reads the same syntax back, so an exported finish round-trips on import.
+_FINISH_MARKERS = {"foil": "*F*", "etched": "*E*"}
+
 
 def _line(entry: dict) -> str:
     """``N CardName``, plus ``(SET) <collector#>`` when the entry has a chosen printing
-    (Moxfield + Arena both parse this set/collector suffix)."""
+    (Moxfield + Arena both parse this set/collector suffix), plus a ``*F*`` / ``*E*``
+    finish marker when the pinned printing carries a foil / etched finish."""
     base = f"{entry['quantity']} {entry['name']}"
     set_code = entry.get("set")
     collector = entry.get("collector_number")
     if set_code and collector:
-        return f"{base} ({set_code.upper()}) {collector}"
+        marker = _FINISH_MARKERS.get(entry.get("finish") or "")
+        suffix = f" {marker}" if marker else ""
+        return f"{base} ({set_code.upper()}) {collector}{suffix}"
     return base
 
 
@@ -28,6 +35,13 @@ def export_moxfield(deck: dict) -> str:
     if sideboard:
         lines.extend(["", "Sideboard"])
         lines.extend(_line(e) for e in sideboard)
+    companion = deck.get("companion") or []
+    if companion:
+        # A "Companion" section header parse_deck reads back into the companion
+        # zone (outside the deck and sideboard, CR 702.139a-b) — export→import
+        # round-trips.
+        lines.extend(["", "Companion"])
+        lines.extend(_line(e) for e in companion)
     return "\n".join(lines)
 
 
@@ -37,6 +51,13 @@ def export_arena(deck: dict) -> str:
     if commanders:
         lines.append("Commander")
         lines.extend(_line(e) for e in commanders)
+        lines.append("")
+    companion = deck.get("companion") or []
+    if companion:
+        # Arena exports carry a "Companion" section ahead of "Deck"; parse_deck
+        # routes it back into the companion zone (CR 702.139a-b).
+        lines.append("Companion")
+        lines.extend(_line(e) for e in companion)
         lines.append("")
     lines.append("Deck")
     lines.extend(_line(e) for e in deck.get("cards") or [])

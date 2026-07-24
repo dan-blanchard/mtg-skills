@@ -30,7 +30,7 @@
   <button
     class="btn btn-ember nudge"
     on:click={() => askForge("next_move")}
-    disabled={$agentBusy}
+    disabled={$agentBusy || !attached}
   >
     {$agentBusy
       ? $agentThinking
@@ -83,6 +83,11 @@
     width: 100%;
     font-family: var(--display);
     letter-spacing: 0.08em;
+  }
+  .nudge:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    box-shadow: none;
   }
   .reply {
     margin-top: 0.7rem;

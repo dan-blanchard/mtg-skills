@@ -16,14 +16,15 @@
   let es;
   let statusTimer;
 
-  // The right rail now holds only the Forge-Friend, so it auto-collapses when no session
-  // is attached (a tall empty column otherwise) — but a manual toggle persists until the
-  // next attach/detach transition, so the user stays in control between transitions.
-  let railCollapsed = false;
+  // The right rail now holds only the Forge-Friend, so it starts collapsed (a tall
+  // empty column otherwise) and expands the first time the agent-status poll reports
+  // an attached session. After that first observation, a manual toggle persists until
+  // the next attach/detach transition, so the user stays in control between transitions.
+  let railCollapsed = true;
   let prevAttached = null;
   $: {
     const a = $agentAttached;
-    if (prevAttached !== null && a !== prevAttached) railCollapsed = !a;
+    if (prevAttached === null || a !== prevAttached) railCollapsed = !a;
     // Persisted across reactive re-runs to detect attach/detach transitions
     // (read at the top of this block on the next run, not within it).
     // eslint-disable-next-line no-useless-assignment

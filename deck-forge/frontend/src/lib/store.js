@@ -5,6 +5,9 @@ export const deck = writable({
   commanders: [],
   cards: [],
   sideboard: [],
+  // The outside-the-game companion zone (CR 702.139) — always an array in snapshots;
+  // present here so pre-snapshot renders don't crash on $deck.companion reads.
+  companion: [],
 });
 // True for an Arena/digital build (Brawl / Historic Brawl with the medium toggle set to
 // digital). Drives every cost read-out: digital shows Arena wildcards by rarity, paper

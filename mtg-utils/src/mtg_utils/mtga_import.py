@@ -428,8 +428,8 @@ def _collection_from_decks(decks: dict | None) -> dict[str, int]:
     return {str(cid): qty for cid, qty in totals.items()}
 
 
-def _build_arena_id_index(bulk_path: Path) -> dict[int, list[str]]:
-    """Return ``{arena_id: [card_name, ...]}`` from Scryfall bulk data.
+def _build_arena_id_index(bulk_path: Path) -> dict[int, list[dict]]:
+    """Return ``{arena_id: [{name, set, collector_number}, ...]}`` from bulk data.
 
     An Arena id can map to multiple card names when an Alchemy rebalance
     shares its id with the paper version (``A-Teferi, Time Raveler`` /
@@ -437,11 +437,15 @@ def _build_arena_id_index(bulk_path: Path) -> dict[int, list[str]]:
     importer can emit all variants — in Historic Brawl, both forms are
     legal unless explicitly banned, and the user can choose either.
 
-    Names are deduplicated (two Scryfall printings of the same card
-    share an id) while preserving first-seen order.
+    Each entry also carries the bulk printing's ``set`` (lowercase) and
+    ``collector_number`` (string) — ``None`` when the record lacks them —
+    so ``_resolve_collection`` can retain per-printing quantities instead
+    of collapsing them into the name-level total. Names are deduplicated
+    (two Scryfall printings of the same card can share an id) while
+    preserving first-seen order.
     """
     cards = load_bulk_cards(bulk_path)
-    index: dict[int, list[str]] = {}
+    index: dict[int, list[dict]] = {}
     for card in cards:
         arena_id = card.get("arena_id")
         if not isinstance(arena_id, int):
@@ -450,8 +454,19 @@ def _build_arena_id_index(bulk_path: Path) -> dict[int, list[str]]:
         if not isinstance(name, str) or not name:
             continue
         bucket = index.setdefault(arena_id, [])
-        if name not in bucket:
-            bucket.append(name)
+        if any(entry["name"] == name for entry in bucket):
+            continue
+        set_code = card.get("set")
+        collector = card.get("collector_number")
+        bucket.append(
+            {
+                "name": name,
+                "set": set_code.lower() if isinstance(set_code, str) else None,
+                "collector_number": (
+                    str(collector) if collector not in (None, "") else None
+                ),
+            },
+        )
     return index
 
 
@@ -537,7 +552,7 @@ def _load_untapped_csv(
 
 def _resolve_collection(
     player_cards: dict[str, int],
-    arena_index: dict[int, list[str]],
+    arena_index: dict[int, list[dict | str]],
 ) -> tuple[list[dict], list[int]]:
     """Resolve Arena-id counts into parsed-deck-shaped card entries.
 
@@ -546,6 +561,18 @@ def _resolve_collection(
     for deterministic output. When an Arena id maps to multiple names
     (Alchemy collision), every name gets its own entry with a
     properly aggregated quantity.
+
+    ``arena_index`` values may be plain name strings (the Untapped CSV
+    fallback resolver has no printing info) or ``{name, set,
+    collector_number}`` dicts from :func:`_build_arena_id_index`. When a
+    resolved entry knows its (set, collector_number), the per-printing
+    quantities are RETAINED on the emitted card as a ``"printings"`` list of
+    ``{set, collector_number, quantity, foil_quantity}`` rows — the shape
+    deck-forge's Collection printing index reads. Printing rows are raw and
+    UNCAPPED (they answer "which printings do I own", not "how many can I
+    deck"); only the name-level total is playset-capped. Player.log /
+    Untapped exports don't distinguish foil copies, so Arena printing
+    detail is all-nonfoil (``foil_quantity`` 0).
 
     **Per-printing aggregation:** Arena stores physical card ownership
     **per printing**, not per oracle name. A card like *Lightning
@@ -575,20 +602,42 @@ def _resolve_collection(
     # conversion errors. A violation is a caller bug, not a data-quality
     # issue to paper over.
     totals: dict[str, int] = {}
+    printings: dict[str, dict[tuple[str, str], int]] = {}
     unresolved: list[int] = []
     for arena_id_str, count in player_cards.items():
         arena_id = int(arena_id_str)
-        names = arena_index.get(arena_id)
-        if not names:
+        entries = arena_index.get(arena_id)
+        if not entries:
             unresolved.append(arena_id)
             continue
-        for name in names:
+        for entry in entries:
+            if isinstance(entry, str):  # Untapped fallback — name only, no printing
+                name, set_code, collector = entry, None, None
+            else:
+                name = entry["name"]
+                set_code = entry.get("set")
+                collector = entry.get("collector_number")
             prior = totals.get(name, 0)
             totals[name] = min(prior + count, _ARENA_PLAYSET_CAP)
-    cards = [
-        {"name": name, "quantity": qty}
-        for name, qty in sorted(totals.items(), key=lambda kv: kv[0].lower())
-    ]
+            if set_code and collector:
+                bucket = printings.setdefault(name, {})
+                key = (set_code, collector)
+                bucket[key] = bucket.get(key, 0) + count
+    cards = []
+    for name, qty in sorted(totals.items(), key=lambda kv: kv[0].lower()):
+        card: dict = {"name": name, "quantity": qty}
+        detail = printings.get(name)
+        if detail:
+            card["printings"] = [
+                {
+                    "set": set_code,
+                    "collector_number": collector,
+                    "quantity": copies,
+                    "foil_quantity": 0,  # Player.log carries no foil information
+                }
+                for (set_code, collector), copies in sorted(detail.items())
+            ]
+        cards.append(card)
     return cards, unresolved
 
 
@@ -1064,13 +1113,18 @@ def main(
             aid = int(arena_id_str)
         except ValueError:
             continue
-        names = arena_index.get(aid) or []
+        # Index entries are {name, set, collector_number} dicts (bulk-derived) or
+        # bare name strings (Untapped fallback rows) — the sidecar lists names.
+        names = [
+            entry["name"] if isinstance(entry, dict) else entry
+            for entry in (arena_index.get(aid) or [])
+        ]
         raw_id_entries.append(
             {
                 "arena_id": aid,
                 "quantity": int(qty),
                 "resolved": bool(names),
-                "names": list(names),
+                "names": names,
             },
         )
     atomic_write_json(

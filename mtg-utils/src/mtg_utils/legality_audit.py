@@ -33,6 +33,7 @@ from mtg_utils.card_classify import (
     is_basic_land,
     named_card_cap,
 )
+from mtg_utils.companion import companion_violations, is_companion
 from mtg_utils.format_config import get_format_config
 from mtg_utils.hydrated_deck import HydratedDeck
 from mtg_utils.rules_lookup import load_rules, resolve_rules_path
@@ -67,6 +68,12 @@ _REASON_TO_CR_RULES: dict[str, tuple[str, ...]] = {
     # Same rule covers "designation didn't resolve to a real card", but the
     # immediate fix is tooling (typo, stale cache) rather than rules.
     "commander_not_in_hydrated": ("903.6",),
+    # 103.2b: a player may reveal at most one companion.
+    "companion_multiple": ("103.2b",),
+    # 702.139a: companion is a keyword ability — the revealed card must have it.
+    "companion_not_companion": ("702.139a",),
+    # 702.139b: the companion's condition constrains the STARTING deck.
+    "companion_condition": ("702.139b",),
 }
 
 # Basic land subtypes that produce colored mana. Wastes is a basic land too,
@@ -344,8 +351,82 @@ def check_copy_limits(
     return violations
 
 
+def check_companion(
+    deck_json: dict,
+    hydrated_by_name: Mapping[str, dict],
+    config: dict,
+) -> list[dict]:
+    """Validate the deck's ``companion`` zone (empty list → no violations).
+
+    Three reasons, each mapped to a CR rule in ``_REASON_TO_CR_RULES``:
+
+    - ``companion_multiple``: more than one companion card revealed (CR 103.2b).
+    - ``companion_not_companion``: an entry without the companion keyword ability
+      (CR 702.139a) — needs the hydrated record; un-hydratable entries are
+      skipped gracefully (no data, no verdict).
+    - ``companion_condition``: the deckbuilding condition fails against the
+      STARTING deck — commanders + mainboard, excluding sideboard and the
+      companion itself (CR 702.139b) — via ``companion_violations``. The
+      ``deck_minimum`` fed to Yorion's check derives from ``format_config``:
+      exact-size singleton formats (Commander family, CR 903.5a: minimum =
+      maximum) pass None; 60-card constructed passes its 60-card minimum.
+    """
+    entries = deck_json.get("companion") or []
+    if not entries:
+        return []
+    violations: list[dict] = []
+    total = sum(int(e.get("quantity", 1)) for e in entries)
+    if total > 1:
+        violations.append(
+            {
+                "companion_count": total,
+                "limit": 1,
+                "names": [e.get("name", "?") for e in entries],
+                "reason": "companion_multiple",
+            }
+        )
+    deck_minimum = None if config.get("is_singleton") else config.get("deck_size", 60)
+    starting_deck: list[dict] = []
+    for section in ("commanders", "cards"):
+        for entry in deck_json.get(section) or []:
+            record = hydrated_by_name.get(entry.get("name", ""))
+            if record is not None:
+                starting_deck.append(
+                    {**record, "quantity": int(entry.get("quantity", 1))}
+                )
+    for entry in entries:
+        name = entry.get("name", "")
+        record = hydrated_by_name.get(name)
+        if record is None:
+            continue  # un-hydratable companion: skip gracefully
+        if not is_companion(record):
+            violations.append({"name": name, "reason": "companion_not_companion"})
+            continue
+        try:
+            condition = companion_violations(
+                record, starting_deck, deck_minimum=deck_minimum
+            )
+        except ValueError:
+            continue  # companion keyword but not one of the ten known companions
+        violations.extend(
+            {
+                "name": name,
+                "card": v.get("card"),
+                "detail": v.get("reason"),
+                "rule": v.get("rule"),
+                "reason": "companion_condition",
+            }
+            for v in condition
+        )
+    return violations
+
+
 def check_sideboard_size(deck_json: dict, config: dict) -> list[dict]:
-    """Return a violation if the sideboard exceeds the format's limit."""
+    """Return a violation if the sideboard exceeds the format's limit.
+
+    The ``companion`` zone is deliberately not counted: a companion is neither
+    part of the deck nor of the sideboard (CR 702.139a-b).
+    """
     max_sb = config.get("sideboard_size", 0)
     if max_sb == 0:
         return []
@@ -362,7 +443,11 @@ def check_sideboard_size(deck_json: dict, config: dict) -> list[dict]:
 
 
 def check_deck_minimum(deck_json: dict, config: dict) -> list[dict]:
-    """Return a violation if the mainboard is below the format minimum."""
+    """Return a violation if the mainboard is below the format minimum.
+
+    Counts commanders + mainboard only — the ``companion`` zone is outside the
+    deck (CR 702.139a-b), so it never pads the total toward the minimum.
+    """
     min_size = config.get("deck_size", 60)
     total_cards = int(deck_json.get("total_cards", 0)) or sum(
         int(e.get("quantity", 1))
@@ -390,7 +475,10 @@ def legality_audit(hd: HydratedDeck) -> dict:
     # canonical hydrated names so aliased cards aren't silently skipped.
     hydrated_by_name = hd.by_name
     all_deck_names: set[str] = set()
-    for section in ("commanders", "cards", "sideboard"):
+    # "companion" is included deliberately: the companion sits outside the deck
+    # (CR 702.139a) but must still be a format-legal card, so it participates in
+    # the format-legality check (and only that one).
+    for section in ("commanders", "cards", "sideboard", "companion"):
         for entry in deck_json.get(section) or []:
             deck_name = entry.get("name", "")
             all_deck_names.add(deck_name)
@@ -419,6 +507,7 @@ def legality_audit(hd: HydratedDeck) -> dict:
     copy_violations = check_copy_limits(deck_json, hydrated_by_name, config)
     sb_violations = check_sideboard_size(deck_json, config)
     deck_min_violations = check_deck_minimum(deck_json, config)
+    companion_zone_violations = check_companion(deck_json, hydrated_by_name, config)
 
     counts = {
         "format_legality": len(format_violations),
@@ -427,6 +516,7 @@ def legality_audit(hd: HydratedDeck) -> dict:
         "copy_limits": len(copy_violations),
         "sideboard_size": len(sb_violations),
         "deck_minimum": len(deck_min_violations),
+        "companion": len(companion_zone_violations),
     }
     total_violations = sum(counts.values())
     overall_status = "PASS" if total_violations == 0 else "FAIL"
@@ -448,6 +538,7 @@ def legality_audit(hd: HydratedDeck) -> dict:
             "copy_limits": copy_violations,
             "sideboard_size": sb_violations,
             "deck_minimum": deck_min_violations,
+            "companion": companion_zone_violations,
         },
     }
 
@@ -487,6 +578,15 @@ def _format_violation_line(
             names.append(f"{v['sideboard_count']}/{v['limit']}")
         elif reason == "deck_minimum":
             names.append(f"{v['total_cards']}/{v['minimum']}")
+        elif reason == "companion":
+            v_reason = v.get("reason")
+            if v_reason == "companion_multiple":
+                names.append(f"{v['companion_count']} companions (max 1)")
+            elif v_reason == "companion_not_companion":
+                names.append(f"{v['name']} (no companion ability)")
+            else:  # companion_condition
+                offender = v.get("card") or "deck-level"
+                names.append(f"{v['name']}: condition failed ({offender})")
         elif v.get("reason") == "exceeds_named_card_cap":
             names.append(f"{v['name']} ({v['quantity']}/{v['limit']})")
         elif v.get("reason") == "restricted":
@@ -505,6 +605,7 @@ _REPORT_CHECKS = (
     "copy_limits",
     "sideboard_size",
     "deck_minimum",
+    "companion",
 )
 
 
@@ -522,8 +623,9 @@ def render_text_report(result: dict) -> str:
     lines = [header, ""]
     for check in _REPORT_CHECKS:
         v = violations.get(check) or []
-        # Skip checks that aren't relevant (e.g., sideboard for commander)
-        if not v and check in ("sideboard_size", "deck_minimum"):
+        # Skip checks that aren't relevant (e.g., sideboard for commander,
+        # companion for decks with no companion zone)
+        if not v and check in ("sideboard_size", "deck_minimum", "companion"):
             continue
         lines.append(_format_violation_line(check, v))
     # Surface a CR-citations lookup failure in stdout, not just the JSON

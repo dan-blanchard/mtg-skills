@@ -17,6 +17,13 @@ def export_moxfield(deck: dict) -> str:
         lines.append("")
         lines.append("Sideboard")
         lines.extend(f"{e['quantity']} {e['name']}" for e in sideboard)
+    companion = deck.get("companion") or []
+    if companion:
+        # An Arena-style "Companion" section header; parse_deck reads it back
+        # into the companion zone (outside the deck and sideboard, CR 702.139a-b).
+        lines.append("")
+        lines.append("Companion")
+        lines.extend(f"{e['quantity']} {e['name']}" for e in companion)
     return "\n".join(lines)
 
 

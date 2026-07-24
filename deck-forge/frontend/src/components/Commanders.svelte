@@ -5,7 +5,13 @@
   // shows its lanes + per-lane owned counts (transparent, like the rest of the engine).
   import { onMount } from "svelte";
   import { api } from "../lib/api.js";
-  import { applySnapshot, collectionOpen } from "../lib/store.js";
+  import {
+    applySnapshot,
+    collectionOpen,
+    agentAttached,
+    deck,
+    isDigital,
+  } from "../lib/store.js";
   import { askForge } from "../lib/agent.js";
   import { hoverPreview } from "../lib/hover.js";
   import { displayName } from "../lib/cards.js";
@@ -18,7 +24,10 @@
   let theme = "";
   let presets = [];
   let results = [];
-  let activeSlot = "paper";
+  // Best guess at the Collection slot the backend will read, before any response has
+  // arrived — derived from the deck's medium so the loading label is never wrong on
+  // first paint (task: discover-view staleness).
+  let activeSlot = $isDigital ? "arena" : "paper";
   let slotSize = 0;
   let loading = false;
   let ran = false;
@@ -53,11 +62,27 @@
     }
   }
 
-  // Re-run when controls change (cheap; deterministic backend, no LLM).
+  // Re-run when controls change (cheap; deterministic backend, no LLM) — including
+  // the deck's own format/medium, which the header can change while this tab stays
+  // mounted (SSE snapshots update the `deck` store out from under this component).
   $: sortSig = sort;
   $: colorSig = [...colors].sort().join("");
   $: themeSig = theme;
-  $: (sortSig, colorSig, themeSig, ran && run());
+  $: ctxSig = `${$deck.format}|${$deck.medium}`;
+  let prevCtxSig;
+  $: {
+    if (ran && ctxSig !== prevCtxSig) {
+      // Reflect the new medium immediately, before the re-fetch resolves, so the
+      // loading notice names the collection the backend is actually about to read
+      // instead of the previous slot.
+      activeSlot = $isDigital ? "arena" : "paper";
+    }
+    // Persisted across reactive re-runs to detect a format/medium transition
+    // (read at the top of this block on the next run, not within it).
+    // eslint-disable-next-line no-useless-assignment
+    prevCtxSig = ctxSig;
+  }
+  $: (sortSig, colorSig, themeSig, ctxSig, ran && run());
 
   function toggleColor(c) {
     colors.has(c) ? colors.delete(c) : colors.add(c);
@@ -74,6 +99,13 @@
   // `results` is replaced (every sort change re-runs the query), so it stays current.
   function headline(r) {
     return sort === "novelty" ? `✦ ${r.novelty}` : `⚒ ${r.support_depth}`;
+  }
+
+  // Display label for the active Collection slot — "paper shelf" keeps this panel's
+  // existing shelf metaphor, "Arena collection" names the digital slot (matches
+  // CollectionDialog's vocabulary).
+  function slotLabel(slot) {
+    return slot === "arena" ? "Arena collection" : "paper shelf";
   }
 </script>
 
@@ -118,22 +150,24 @@
 
   <div class="results">
     {#if loading}
-      <div class="notice">Reading your {activeSlot} shelf…</div>
+      <div class="notice">Reading your {slotLabel(activeSlot)}…</div>
     {:else if error}
       <div class="notice">{error}</div>
     {:else if slotSize === 0}
       <div class="notice empty">
-        No <b>{activeSlot}</b> collection loaded. Import the cards you own to
-        discover commanders you can build from your shelf.
+        No <b>{slotLabel(activeSlot)}</b> loaded. Import the cards you own to
+        discover commanders you can already build.
         <button class="loadbtn" on:click={() => collectionOpen.set(true)}
-          >📦 Import {activeSlot} collection</button
+          >📦 Import your {slotLabel(activeSlot)}</button
         >
       </div>
     {:else if results.length}
       <p class="lead">
         {sort === "novelty"
           ? "Your most unusual commanders you can actually build"
-          : "Commanders your collection already supports best"} — {activeSlot} slot.
+          : "Commanders your collection already supports best"} — your {slotLabel(
+          activeSlot,
+        )}.
       </p>
       <div class="grid">
         {#each results as r (r.name)}
@@ -173,7 +207,10 @@
                 >
                 <button
                   class="btn ask"
-                  title="Ask the forge-friend about this commander"
+                  title={$agentAttached
+                    ? "Ask the forge-friend about this commander"
+                    : "No session connected — open deck-forge in a Claude Code session to ask"}
+                  disabled={!$agentAttached}
                   on:click={() => askForge("explain", { card: r.name })}
                   >?</button
                 >
@@ -184,8 +221,8 @@
       </div>
     {:else if ran}
       <div class="notice">
-        No commander-eligible cards match in your {activeSlot} collection. Loosen
-        the color / theme filters{sort === "novelty"
+        No commander-eligible cards match in your {slotLabel(activeSlot)}.
+        Loosen the color / theme filters{sort === "novelty"
           ? ", or switch to Most support (Most unusual hides commanders you own no support for)"
           : ""}.
       </div>
@@ -376,6 +413,10 @@
   }
   .btn.ask {
     width: 1.9rem;
+  }
+  .btn.ask:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
   }
   .notice {
     color: var(--parchment-dim);

@@ -37,7 +37,7 @@ from mtg_utils._deck_forge.signals import (
     extract_signals_hybrid,
     rank_deck_signals,
 )
-from mtg_utils._deck_forge.state import ForgeState
+from mtg_utils._deck_forge.state import DeckSession, ForgeState
 from mtg_utils._name_index import NameIndex
 from mtg_utils._sidecar import atomic_write_json, sha_keyed_path
 from mtg_utils.card_classify import is_basic_land, is_commander, valid_partner_search
@@ -202,6 +202,9 @@ def set_collection(state: ForgeState, slot: str, pile: dict) -> None:
     state.collection_index[slot] = mark_owned.owned_lookup(
         pile, name_aliases=state.name_aliases or None
     )
+    # Per-printing detail (set/collector/foil), for entries that carry it — sparse,
+    # so a plain name-only pile yields an empty index (tri-state: printing unknown).
+    state.collection_printings[slot] = collection.printing_index(pile)
     state.lane_collection_serves.pop(slot, None)  # stale: the slot's cards changed
     if state.collection_store is not None:
         state.collection_store.save(state.collections)
@@ -211,9 +214,91 @@ def clear_collection(state: ForgeState, slot: str) -> None:
     """Drop a Collection slot (and its cached lookup), then persist."""
     state.collections.pop(slot, None)
     state.collection_index.pop(slot, None)
+    state.collection_printings.pop(slot, None)
     state.lane_collection_serves.pop(slot, None)  # stale: the slot's cards are gone
     if state.collection_store is not None:
         state.collection_store.save(state.collections)
+
+
+def owned_printing_detail(
+    state: ForgeState, name: str
+) -> dict[tuple[str, str], tuple[int, int]] | None:
+    """Per-printing owned copies of ``name`` in the ACTIVE Collection slot:
+    ``{(set, collector_number): (nonfoil_qty, foil_qty)}`` — or ``None`` when the
+    collection has NO printing detail for the name (name-only ownership, or no
+    collection at all). Resolution shares ``mark_owned``'s DFC / Arena-alias keys
+    with the name-level reads, so both levels agree on which entry a name is."""
+    slot = active_slot(state)
+    idx = state.collection_index.get(slot)
+    printings = state.collection_printings.get(slot)
+    if not idx or not printings:
+        return None
+    _entries, lookup = idx
+    primary = mark_owned.collection_key(name, lookup)
+    if primary is None:
+        return None
+    return printings.get(primary)
+
+
+def printing_owned(
+    state: ForgeState, name: str, printing_id: str | None = None
+) -> bool | None:
+    """Tri-state printing-level ownership for a card's effectively-chosen printing:
+    the pinned ``printing_id`` when given, else the default (cheapest) record the
+    deck displays. ``True`` = that exact (set, collector) is owned in the active
+    slot; ``False`` = the collection HAS printing detail for this name but not this
+    printing; ``None`` = no printing detail (name-only ownership — the existing
+    ``owned`` bool remains the only signal)."""
+    detail = owned_printing_detail(state, name)
+    if detail is None:
+        return None
+    record = state.printing_by_id.get(printing_id) if printing_id else None
+    if record is None:
+        record = state.by_name.get(name)
+    if record is None:
+        return None
+    key = ((record.get("set") or "").lower(), str(record.get("collector_number") or ""))
+    nonfoil, foil = detail.get(key, (0, 0))
+    return (nonfoil + foil) > 0
+
+
+def pin_imported_printings(
+    state: ForgeState, session: DeckSession, parsed: dict
+) -> None:
+    """Auto-pin printings for a just-imported deck (ADR-0017 + printing picker):
+    an entry carrying ``set`` + ``collector_number`` (the keys ``parse_deck`` reads
+    off Moxfield/Arena/CSV lines) resolves against ``printings_by_oracle`` — set code
+    case-insensitively, collector number as an exact string — and pins that printing
+    on the session card. A ``finish`` ("foil"/"etched") is stored with the pin when
+    the resolved printing actually offers it. Unresolvable pairs stay unpinned (the
+    cheapest default) and invalid finishes are dropped — an import never errors on
+    printing detail."""
+    for zone in ("commanders", "cards", "sideboard", "companion"):
+        for entry in parsed.get(zone) or []:
+            name = entry.get("name")
+            set_code = (entry.get("set") or "").lower()
+            collector = str(entry.get("collector_number") or "")
+            if not (name and set_code and collector):
+                continue
+            record = state.by_name.get(name)
+            oracle_id = record.get("oracle_id") if record else None
+            match = next(
+                (
+                    p
+                    for p in state.printings_by_oracle.get(oracle_id or "", [])
+                    if (p.get("set") or "").lower() == set_code
+                    and str(p.get("collector_number") or "") == collector
+                ),
+                None,
+            )
+            if match is None:
+                continue
+            finish = entry.get("finish")
+            if finish not in ("foil", "etched") or finish not in (
+                match.get("finishes") or []
+            ):
+                finish = None
+            session.set_printing(name, match.get("id"), zone=zone, finish=finish)
 
 
 def collection_summary(state: ForgeState, owned: dict[str, int]) -> dict:
@@ -256,6 +341,10 @@ def wildcard_cost(state: ForgeState) -> dict | None:
         return None
     deck = state.session.to_deck_dict()
     no_basics = dict(deck)
+    # The companion zone is deliberately absent from this walk (and from
+    # price_check's own deck walk): a companion is outside the game (CR 702.139a),
+    # and the Arena Commander-family formats deck-forge serves have no companion
+    # mechanic, so it never costs wildcards here.
     for zone in ("commanders", "cards", "sideboard"):
         if zone in deck:
             no_basics[zone] = [
@@ -290,7 +379,9 @@ def _resolved_collection(state: ForgeState, slot: str | None = None) -> list[dic
     lets background warming target a just-imported slot that isn't the active one."""
     pile = state.collections.get(slot or active_slot(state)) or {}
     out: dict[str, dict] = {}
-    for section in ("commanders", "cards", "sideboard"):
+    # "companion" included: a pasted Arena deck export used as a collection still
+    # OWNS its companion card, even though it sits outside the deck (CR 702.139a).
+    for section in ("commanders", "cards", "sideboard", "companion"):
         for entry in pile.get(section) or []:
             name = entry.get("name")
             if not name:
@@ -479,12 +570,17 @@ def _save_collection_serves(state: ForgeState, slot: str, coll: list[dict]) -> N
     atomic_write_json(path, {k: sorted(v) for k, v in cache.items()})
 
 
-def warm_discovery_caches(state: ForgeState, slot: str) -> None:
+def warm_discovery_caches(state: ForgeState, slot: str, fmt: str | None = None) -> None:
     """Compute + persist BOTH discovery caches (bulk-keyed lane density, and ``slot``'s
     content-addressed served-name sets) WITHOUT ranking, so the next discover is fast.
     Run in the background right after a collection import (see app.py), so the ~65s cold
     cost is never paid at discover time. Heavy CPU — call off the event loop. A pure
     read of state besides the caches it fills (idempotent).
+
+    ``fmt`` is the format captured at SCHEDULE time: this runs later in a background
+    thread, and ``state.session.format`` may have changed by then (a format switch
+    mid-warm), which would warm commander eligibility for the wrong format. ``None``
+    falls back to the live read (direct callers).
 
     Seeds ``theme_presets``'s signal-ident memo from the persisted whole-pool
     signals-index sidecar FIRST (verified-review Fix 6): a tribal lane's
@@ -497,7 +593,7 @@ def warm_discovery_caches(state: ForgeState, slot: str) -> None:
     coll = _resolved_collection(state, slot)
     if not coll:
         return
-    fmt = state.session.format
+    fmt = fmt or state.session.format
     _load_lane_density(state)
     _load_collection_serves(state, slot, coll)
     density_before = len(state.lane_density)
@@ -798,6 +894,9 @@ def _overflow_warnings(hd: HydratedDeck, max_cards: int | None) -> list[dict]:
     which ADR-0012 otherwise DROPs silently from the hydrated records)."""
     out: list[dict] = []
     if max_cards is not None:
+        # Commanders + maindeck only: the companion is revealed from outside the
+        # game and is not part of the deck or sideboard (CR 702.139a-b), so it
+        # never counts toward the exact Commander-family size (CR 903.5a).
         total = sum(
             int(e.get("quantity", 1))
             for zone in ("commanders", "cards")
@@ -812,7 +911,7 @@ def _overflow_warnings(hd: HydratedDeck, max_cards: int | None) -> list[dict]:
             )
     unimported = [
         e["name"]
-        for zone in ("commanders", "cards", "sideboard")
+        for zone in ("commanders", "cards", "sideboard", "companion")
         for e in hd.deck.get(zone) or []
         if e.get("name") and e["name"] not in hd.by_name
     ]
@@ -823,14 +922,46 @@ def _overflow_warnings(hd: HydratedDeck, max_cards: int | None) -> list[dict]:
     return out
 
 
+def _companion_message(v: dict) -> str:
+    """One human-readable warning line for a ``check_companion`` violation dict —
+    companion name, reason, and the governing CR cite, so the browser warning is
+    self-explanatory without the structured audit payload."""
+    reason = v.get("reason")
+    if reason == "companion_multiple":
+        names = ", ".join(v.get("names") or [])
+        return (
+            f"companion: more than one companion ({names}) — a player may "
+            f"reveal at most one (CR 103.2b)"
+        )
+    if reason == "companion_not_companion":
+        return f"companion: {v.get('name')} has no companion ability (CR 702.139a)"
+    offender = f" [{v['card']}]" if v.get("card") else ""
+    return (
+        f"companion: {v.get('name')} condition not met{offender} — "
+        f"{v.get('detail')} (CR {v.get('rule', '702.139b')})"
+    )
+
+
 def legality_warnings(hd: HydratedDeck, *, max_cards: int | None = None) -> list[dict]:
     audit = legality_audit(hd)
     violations = audit.get("violations") or {}
-    return [
-        _violation_message(cat, v)
-        for cat in _AUDIT_CATEGORIES
-        for v in (violations.get(cat) or [])
-    ] + _overflow_warnings(hd, max_cards)
+    return (
+        [
+            _violation_message(cat, v)
+            for cat in _AUDIT_CATEGORIES
+            for v in (violations.get(cat) or [])
+        ]
+        + _overflow_warnings(hd, max_cards)
+        # Companion violations (the shared ``check_companion``: max one, must
+        # have the ability, condition met over commanders + maindeck with
+        # deck_minimum=None — every deck-forge format is exact-size, CR 903.5a /
+        # 903.12d) surface as warnings like deck_maximum: through /api/audit and
+        # the finalize gate (legality_status FAIL), never a hard error.
+        + [
+            {"category": "companion", "message": _companion_message(v)}
+            for v in (violations.get("companion") or [])
+        ]
+    )
 
 
 def finalize_state(state: ForgeState) -> dict:
@@ -1277,7 +1408,7 @@ def snapshot(state: ForgeState) -> dict:
     return {
         "build_id": state.build_id,
         "build_name": state.build_name,
-        "deck": views.deck_view(state, owned),
+        "deck": views.deck_view(state, owned, functools.partial(printing_owned, state)),
         "stats": stats,
         "bracket": detect_bracket(hd.records, stats.get("avg_cmc", 0.0)),
         "mana": mana,

@@ -423,6 +423,76 @@ class TestArenaIdIndex:
         assert index[50] == ["Sol Ring"]
 
 
+class TestArenaIdIndexPrintings:
+    """The real ``_build_arena_id_index`` (disk-backed) now emits
+    ``{name, set, collector_number}`` dicts so per-printing quantities
+    survive resolution."""
+
+    def test_index_carries_set_and_collector(self, tmp_path):
+        bulk_path = _write_fake_bulk(
+            tmp_path,
+            [
+                {
+                    "arena_id": 100,
+                    "name": "Sol Ring",
+                    "set": "KHM",
+                    "collector_number": 263,
+                    "layout": "normal",
+                },
+                {"arena_id": 200, "name": "No Printing Info", "layout": "normal"},
+            ],
+        )
+        index = mtga_import._build_arena_id_index(bulk_path)
+        assert index[100] == [
+            {"name": "Sol Ring", "set": "khm", "collector_number": "263"}
+        ]
+        assert index[200] == [
+            {"name": "No Printing Info", "set": None, "collector_number": None}
+        ]
+
+    def test_cli_collection_json_carries_printings(self, tmp_path):
+        """End-to-end: the emitted collection.json entries retain the
+        per-printing rows deck-forge's Collection printing index reads."""
+        log_path = tmp_path / "Player.log"
+        log_path.write_text(_GOOD_LOG)
+        bulk = _fake_bulk_cards(
+            [
+                (100, "Sheoldred, the Apocalypse", "normal"),
+                (200, "Sol Ring", "normal"),
+                (300, "Lightning Bolt", "normal"),
+            ],
+        )
+        for card, (set_code, collector) in zip(
+            bulk, [("dmu", "107"), ("khm", "263"), ("sta", "42")], strict=True
+        ):
+            card["set"] = set_code
+            card["collector_number"] = collector
+        bulk_path = _write_fake_bulk(tmp_path, bulk)
+        output_dir = tmp_path / "out"
+
+        runner = CliRunner()
+        result = runner.invoke(
+            main,
+            [
+                "--bulk-data",
+                str(bulk_path),
+                "--log-path",
+                str(log_path),
+                "--output-dir",
+                str(output_dir),
+            ],
+        )
+        assert result.exit_code == 0, result.output
+        collection = json.loads((output_dir / "collection.json").read_text())
+        by_name = {c["name"]: c for c in collection["cards"]}
+        assert by_name["Sol Ring"]["quantity"] == 2  # name-level total unchanged
+        assert by_name["Sol Ring"]["printings"] == [
+            {"set": "khm", "collector_number": "263", "quantity": 2, "foil_quantity": 0}
+        ]
+        # Injected basics carry no printing detail (they're synthesized).
+        assert "printings" not in by_name["Island"]
+
+
 def _build_arena_id_index_from_list(cards: list[dict]) -> dict[int, list[str]]:
     """Helper that mimics _build_arena_id_index without touching disk."""
     index: dict[int, list[str]] = {}
@@ -525,6 +595,67 @@ class TestResolveCollection:
             {100: ["Sol Ring"]},
         )
         assert cards == [{"name": "Sol Ring", "quantity": 3}]
+
+    def test_per_printing_detail_retained_with_capped_name_total(self):
+        """Dict-shaped index entries (from ``_build_arena_id_index``)
+        retain per-(set, collector_number) quantities on a ``printings``
+        list. The name-level total keeps the playset cap EXACTLY as
+        before; the printing rows are raw and uncapped. Player.log has
+        no foil info, so ``foil_quantity`` is always 0."""
+        cards, _ = _resolve_collection(
+            {"1": 3, "2": 3},
+            {
+                1: [
+                    {
+                        "name": "Lightning Strike",
+                        "set": "xln",
+                        "collector_number": "149",
+                    }
+                ],
+                2: [
+                    {
+                        "name": "Lightning Strike",
+                        "set": "m19",
+                        "collector_number": "152",
+                    }
+                ],
+            },
+        )
+        assert len(cards) == 1
+        card = cards[0]
+        assert card["name"] == "Lightning Strike"
+        assert card["quantity"] == 4  # min(3+3, playset cap) — unchanged behavior
+        assert card["printings"] == [
+            # sorted by (set, collector); raw counts, NOT capped
+            {
+                "set": "m19",
+                "collector_number": "152",
+                "quantity": 3,
+                "foil_quantity": 0,
+            },
+            {
+                "set": "xln",
+                "collector_number": "149",
+                "quantity": 3,
+                "foil_quantity": 0,
+            },
+        ]
+
+    def test_string_index_entries_yield_no_printing_detail(self):
+        """Untapped-fallback entries are bare name strings with no
+        set/collector — the emitted card is printing-less (name-only)."""
+        cards, _ = _resolve_collection({"100": 2}, {100: ["Sol Ring"]})
+        assert cards == [{"name": "Sol Ring", "quantity": 2}]
+        assert "printings" not in cards[0]
+
+    def test_dict_entries_without_set_or_collector_yield_no_detail(self):
+        """A bulk record missing set/collector_number resolves the name
+        but contributes no printing row (no data, no guessing)."""
+        cards, _ = _resolve_collection(
+            {"100": 2},
+            {100: [{"name": "Sol Ring", "set": None, "collector_number": None}]},
+        )
+        assert cards == [{"name": "Sol Ring", "quantity": 2}]
 
 
 class TestBasicInject:

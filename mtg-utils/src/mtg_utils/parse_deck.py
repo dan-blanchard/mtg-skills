@@ -1,4 +1,23 @@
-"""Multi-format MTG deck list parser."""
+"""Multi-format MTG deck list parser.
+
+Auto-detects Moxfield / MTGO / Arena / CSV / plain text and emits one JSON shape:
+``{commanders, cards, sideboard, companion, ...}`` where every entry is
+``{"name": str, "quantity": int}`` plus three OPTIONAL printing keys captured
+when the source carried them (and omitted otherwise):
+
+* ``"set"`` — lowercased set code (from a ``(C21) 263`` line suffix or a CSV
+  Edition/Set column).
+* ``"collector_number"`` — collector number as a string, exactly as written
+  (may be non-numeric: ``"263a"``, ``"CMR-99"``, ``"263★"``).
+* ``"finish"`` — ``"foil"`` or ``"etched"`` (from a trailing ``*F*`` / ``*E*``
+  marker or a CSV Foil column).
+
+The top-level ``"companion"`` list (always present, default ``[]``) holds
+entries from a "Companion" section header in Arena/MTGO/plain exports. A
+companion is revealed from outside the game and is not part of the deck or
+sideboard (CR 702.139a-b), so its entries are kept out of ``cards`` and out of
+``total_cards``.
+"""
 
 import contextlib
 import csv
@@ -37,6 +56,7 @@ def _parse_moxfield(content: str) -> dict:
     commanders: list[dict] = []
     cards: list[dict] = []
     sideboard: list[dict] = []
+    companion: list[dict] = []
     current_section = ""
 
     for raw_line in content.splitlines():
@@ -60,10 +80,17 @@ def _parse_moxfield(content: str) -> dict:
             commanders.append({"name": name, "quantity": quantity})
         elif current_section == "sideboard":
             sideboard.append({"name": name, "quantity": quantity})
+        elif current_section == "companion":
+            companion.append({"name": name, "quantity": quantity})
         else:
             cards.append({"name": name, "quantity": quantity})
 
-    return {"commanders": commanders, "cards": cards, "sideboard": sideboard}
+    return {
+        "commanders": commanders,
+        "cards": cards,
+        "sideboard": sideboard,
+        "companion": companion,
+    }
 
 
 _ARENA_SECTION_HEADERS = frozenset(
@@ -80,6 +107,7 @@ def _parse_mtgo(content: str) -> dict:
     commanders: list[dict] = []
     cards: list[dict] = []
     sideboard: list[dict] = []
+    companion: list[dict] = []
     current_section = ""
 
     for raw_line in content.splitlines():
@@ -100,10 +128,33 @@ def _parse_mtgo(content: str) -> dict:
                 commanders.append({"name": name, "quantity": quantity})
             elif current_section == "sideboard":
                 sideboard.append({"name": name, "quantity": quantity})
+            elif current_section == "companion":
+                # A companion lives outside the deck and sideboard
+                # (CR 702.139a-b) — never file it into ``cards``.
+                companion.append({"name": name, "quantity": quantity})
             else:
                 cards.append({"name": name, "quantity": quantity})
 
-    return {"commanders": commanders, "cards": cards, "sideboard": sideboard}
+    return {
+        "commanders": commanders,
+        "cards": cards,
+        "sideboard": sideboard,
+        "companion": companion,
+    }
+
+
+def _csv_field(row: dict, aliases: tuple[str, ...]) -> str | None:
+    """Return the stripped value of the first matching column, or None.
+
+    Missing column and present-but-empty cell both return None, so callers can
+    key optional output fields on truthiness.
+    """
+    for key, value in row.items():
+        if key is not None and key.strip().lower() in aliases:
+            if value is not None and value.strip():
+                return value.strip()
+            return None
+    return None
 
 
 def parse_csv(content: str) -> dict:
@@ -135,15 +186,32 @@ def parse_csv(content: str) -> dict:
                     quantity = int(row[key].strip())
                 break
 
-        cards.append({"name": name, "quantity": quantity})
+        entry: dict = {"name": name, "quantity": quantity}
 
-    return {"commanders": [], "cards": cards, "sideboard": []}
+        # Optional printing columns (Moxfield CSV exports carry Edition /
+        # Collector Number / Foil; other exporters use Set / Finish).
+        set_code = _csv_field(row, ("edition", "set", "set code", "edition code"))
+        if set_code:
+            entry["set"] = set_code.lower()
+        collector = _csv_field(
+            row, ("collector number", "collector_number", "card number")
+        )
+        if collector:
+            entry["collector_number"] = collector
+        finish = _csv_field(row, ("foil", "finish"))
+        if finish and finish.lower() in ("foil", "etched"):
+            entry["finish"] = finish.lower()
+
+        cards.append(entry)
+
+    return {"commanders": [], "cards": cards, "sideboard": [], "companion": []}
 
 
 def _parse_plain(content: str) -> dict:
     commanders: list[dict] = []
     cards: list[dict] = []
     sideboard: list[dict] = []
+    companion: list[dict] = []
     current_section = ""
 
     for raw_line in content.splitlines():
@@ -168,21 +236,57 @@ def _parse_plain(content: str) -> dict:
             commanders.append({"name": name, "quantity": quantity})
         elif current_section == "sideboard":
             sideboard.append({"name": name, "quantity": quantity})
+        elif current_section == "companion":
+            # A companion lives outside the deck and sideboard
+            # (CR 702.139a-b) — never file it into ``cards``.
+            companion.append({"name": name, "quantity": quantity})
         else:
             cards.append({"name": name, "quantity": quantity})
 
-    return {"commanders": commanders, "cards": cards, "sideboard": sideboard}
+    return {
+        "commanders": commanders,
+        "cards": cards,
+        "sideboard": sideboard,
+        "companion": companion,
+    }
 
 
-# Matches Moxfield/Archidekt set code + collector number suffix: " (SET) 123" or
-# " (SET) 123a", plus any trailing foil/etched markers ("*F*", "*E*") those exporters
-# append after the collector number, e.g. "Sol Ring (C21) 263 *F*".
-_SET_CODE_PATTERN = re.compile(r"\s+\([A-Z0-9]+\)\s+\S+(?:\s+\*\w+\*)*$")
+# Matches Moxfield/Archidekt/Arena set code + collector number suffix: " (SET) 123"
+# or " (SET) 123a", plus any trailing foil/etched markers ("*F*", "*E*") those
+# exporters append after the collector number, e.g. "Sol Ring (C21) 263 *F*".
+# Groups: 1 = set code, 2 = collector number (kept as a string — may be
+# non-numeric like "263a", "CMR-99", or "263★"), 3 = the marker tail.
+_SET_CODE_PATTERN = re.compile(r"\s+\(([A-Z0-9]+)\)\s+(\S+?)((?:\s+\*\w+\*)*)$")
+
+_FINISH_MARKERS = {"f": "foil", "e": "etched"}
+
+
+def _extract_printing(name: str) -> tuple[str, dict]:
+    """Split a Moxfield/Arena-style printing suffix off a card name.
+
+    Returns ``(clean_name, extras)`` where ``extras`` carries the optional
+    output keys — ``"set"`` (lowercased), ``"collector_number"`` (string, as
+    written), and ``"finish"`` (``"foil"``/``"etched"`` from a ``*F*``/``*E*``
+    marker) — each present only when found on the line.
+    """
+    match = _SET_CODE_PATTERN.search(name)
+    if not match:
+        return name, {}
+    extras = {
+        "set": match.group(1).lower(),
+        "collector_number": match.group(2),
+    }
+    for marker in re.findall(r"\*(\w+)\*", match.group(3)):
+        finish = _FINISH_MARKERS.get(marker.lower())
+        if finish:
+            extras["finish"] = finish
+            break
+    return name[: match.start()], extras
 
 
 def _strip_set_code(name: str) -> str:
     """Remove Moxfield-style set code and collector number from a card name."""
-    return _SET_CODE_PATTERN.sub("", name)
+    return _extract_printing(name)[0]
 
 
 _PARSERS = {
@@ -215,33 +319,60 @@ def parse_deck_text(
     The body of ``parse_deck`` minus the file read, so in-process callers (deck-forge's
     import endpoint, ADR-0017) can parse a pasted/uploaded list without writing a temp
     file just to hand it a ``Path``.
+
+    Entries carry the optional ``set`` / ``collector_number`` / ``finish`` keys
+    when the source line or CSV columns supplied them (see the module
+    docstring). The output always includes a top-level ``"companion"`` list
+    (``[]`` when the export has no Companion section); companion entries are
+    excluded from ``cards`` and ``total_cards`` because a companion is revealed
+    from outside the game and is not part of the deck (CR 702.139a-b).
     """
     fmt = _detect_format(content)
     result = _PARSERS[fmt](content)
+    result.setdefault("companion", [])
 
     config = FORMAT_CONFIGS[format]
 
     # For commander formats, fold any sideboard entries back into cards so
     # Arena exports that include a "Sideboard" header don't silently lose cards.
+    # The companion zone is never folded in: it sits outside the deck.
     if config.get("has_commander", True):
         result["cards"].extend(result.get("sideboard", []))
         result["sideboard"] = []
 
-    # Strip Moxfield-style set codes from all names and merge duplicates
-    # that arise from the same card appearing with different set codes
+    # Strip Moxfield-style set codes from all names — retaining them as the
+    # optional set/collector_number/finish keys — and merge duplicates that
+    # arise from the same card appearing with different set codes
     # (e.g., "2 Ethereal Armor (DSK) 7" + "2 Ethereal Armor (RTR) 9").
-    for section in ("commanders", "cards", "sideboard"):
+    # When merged duplicates disagree on a printing key, the key is dropped
+    # rather than guessing which printing wins.
+    for section in ("commanders", "cards", "sideboard", "companion"):
         entries = result.get(section, [])
         for entry in entries:
-            entry["name"] = _strip_set_code(entry["name"])
-        merged: dict[str, int] = {}
+            entry["name"], extras = _extract_printing(entry["name"])
+            for key, value in extras.items():
+                entry.setdefault(key, value)
+        merged: dict[str, dict] = {}
         for entry in entries:
             name = entry["name"]
             qty = entry.get("quantity", 1)
-            merged[name] = merged.get(name, 0) + qty
-        result[section] = [
-            {"name": name, "quantity": qty} for name, qty in merged.items()
-        ]
+            existing = merged.get(name)
+            if existing is None:
+                merged[name] = {
+                    "name": name,
+                    "quantity": qty,
+                    **{
+                        key: entry[key]
+                        for key in ("set", "collector_number", "finish")
+                        if key in entry
+                    },
+                }
+            else:
+                existing["quantity"] += qty
+                for key in ("set", "collector_number", "finish"):
+                    if existing.get(key) != entry.get(key):
+                        existing.pop(key, None)
+        result[section] = list(merged.values())
 
     # A card promoted to the command zone shouldn't also count in the 99: some
     # exporters list the commander in both the "// Commander" header and the deck
@@ -316,11 +447,14 @@ def main(
         resolved = output_path.resolve()
         commander_count = len(result["commanders"])
         sideboard_count = result.get("total_sideboard", 0)
+        companion_count = len(result.get("companion", []))
         summary = f"parse-deck: {result['total_cards']} cards"
         if commander_count:
             summary += f", {commander_count} commander(s)"
         if sideboard_count:
             summary += f", {sideboard_count} sideboard"
+        if companion_count:
+            summary += f", {companion_count} companion"
         click.echo(f"{summary} -> {resolved}")
     else:
         click.echo(payload)

@@ -839,3 +839,203 @@ class TestCiteRules:
         result = runner.invoke(main, [str(deck_path), str(hydrated_path)])
         assert result.exit_code == 0, result.output
         assert "WARN: rule_citations not attached" in result.output
+
+
+# ---------- Companion checks ----------
+
+
+def _companion_card(name: str, *, cmc: float = 4.0) -> dict:
+    """A hydrated companion record: the Companion keyword + a real Ikoria name."""
+    return {
+        **card(name, type_line="Legendary Creature — Beast"),
+        "keywords": ["Companion"],
+        "cmc": cmc,
+    }
+
+
+class TestCompanion:
+    """The ``companion`` zone is outside the deck and sideboard (CR 702.139a-b):
+    validated on its own (max one, must have the ability, condition satisfied)
+    and never counted by the deck-minimum / sideboard-size checks."""
+
+    def test_no_companion_zone_yields_no_violations(self):
+        result = legality_audit(_hd(deck(), [jinnie()]))
+        assert result["counts"]["companion"] == 0
+        assert result["violations"]["companion"] == []
+
+    def test_condition_violation_keruga_with_a_two_drop(self):
+        # Keruga: every nonland card must be mana value 3+; Sol Ring is a 1-drop.
+        keruga = _companion_card("Keruga, the Macrosage", cmc=5.0)
+        commander = {**jinnie(), "cmc": 4.0}
+        sol_ring = {**card("Sol Ring", type_line="Artifact"), "cmc": 1.0}
+        d = deck(cards=[("Sol Ring", 1)])
+        d["companion"] = [{"name": "Keruga, the Macrosage", "quantity": 1}]
+        result = legality_audit(_hd(d, [commander, sol_ring, keruga]))
+        v = result["violations"]["companion"]
+        assert [x["reason"] for x in v] == ["companion_condition"]
+        assert v[0]["rule"] == "702.139b"
+        assert v[0]["name"] == "Keruga, the Macrosage"
+        assert v[0]["card"] == "Sol Ring"
+        assert result["overall_status"] == "FAIL"
+
+    def test_satisfied_condition_passes(self):
+        keruga = _companion_card("Keruga, the Macrosage", cmc=5.0)
+        commander = {**jinnie(), "cmc": 4.0}
+        giant = {**card("Hill Giant", type_line="Creature — Giant"), "cmc": 4.0}
+        d = deck(cards=[("Hill Giant", 1)])
+        d["companion"] = [{"name": "Keruga, the Macrosage", "quantity": 1}]
+        result = legality_audit(_hd(d, [commander, giant, keruga]))
+        assert result["violations"]["companion"] == []
+
+    def test_non_companion_card_in_the_zone(self):
+        sol_ring = {**card("Sol Ring", type_line="Artifact"), "cmc": 1.0}
+        d = deck()
+        d["companion"] = [{"name": "Sol Ring", "quantity": 1}]
+        result = legality_audit(_hd(d, [jinnie(), sol_ring]))
+        v = result["violations"]["companion"]
+        assert [x["reason"] for x in v] == ["companion_not_companion"]
+
+    def test_multiple_companions_flagged(self):
+        keruga = _companion_card("Keruga, the Macrosage", cmc=5.0)
+        yorion = _companion_card("Yorion, Sky Nomad", cmc=4.0)
+        commander = {**jinnie(), "cmc": 4.0}
+        d = deck()
+        d["companion"] = [
+            {"name": "Keruga, the Macrosage", "quantity": 1},
+            {"name": "Yorion, Sky Nomad", "quantity": 1},
+        ]
+        result = legality_audit(_hd(d, [commander, keruga, yorion]))
+        reasons = {x["reason"] for x in result["violations"]["companion"]}
+        assert "companion_multiple" in reasons
+
+    def test_unhydratable_companion_skipped_gracefully(self):
+        d = deck()
+        d["companion"] = [{"name": "Totally Unknown Cat", "quantity": 1}]
+        result = legality_audit(_hd(d, [jinnie()]))
+        assert result["violations"]["companion"] == []
+
+    def _std_deck(self, n_cards: int) -> dict:
+        plains = {
+            "name": "Plains",
+            "type_line": "Basic Land — Plains",
+            "cmc": 0.0,
+            "color_identity": [],
+            "legalities": {"standard": "legal"},
+        }
+        yorion = {
+            **_companion_card("Yorion, Sky Nomad", cmc=4.0),
+            "legalities": {"standard": "legal"},
+        }
+        d = {
+            "format": "standard",
+            "commanders": [],
+            "cards": [{"name": "Plains", "quantity": n_cards}],
+            "sideboard": [],
+            "companion": [{"name": "Yorion, Sky Nomad", "quantity": 1}],
+        }
+        return legality_audit(_hd(d, [plains, yorion]))
+
+    def test_yorion_uses_the_60_card_minimum_in_constructed(self):
+        # Non-singleton 60-card format → deck_minimum 60 → Yorion needs 80.
+        result = self._std_deck(60)
+        v = result["violations"]["companion"]
+        assert [x["reason"] for x in v] == ["companion_condition"]
+        assert "80" in v[0]["detail"]
+
+    def test_yorion_satisfied_at_80_in_constructed(self):
+        assert self._std_deck(80)["violations"]["companion"] == []
+
+    def test_companion_never_pads_the_deck_minimum(self):
+        # 100 counted cards vs a 101 minimum: the companion is outside the deck
+        # (CR 702.139a-b), so it must NOT bring the total to 101.
+        from mtg_utils.legality_audit import check_deck_minimum
+
+        d = {
+            "commanders": [{"name": "Jinnie Fay, Jetmir's Second", "quantity": 1}],
+            "cards": [{"name": "Forest", "quantity": 99}],
+            "companion": [{"name": "Yorion, Sky Nomad", "quantity": 1}],
+        }
+        violations = check_deck_minimum(d, {"deck_size": 101})
+        assert violations
+        assert violations[0]["total_cards"] == 100
+
+    def test_companion_never_counts_toward_sideboard_size(self):
+        from mtg_utils.legality_audit import check_sideboard_size
+
+        d = {
+            "sideboard": [{"name": "Duress", "quantity": 15}],
+            "companion": [{"name": "Yorion, Sky Nomad", "quantity": 1}],
+        }
+        assert check_sideboard_size(d, {"sideboard_size": 15}) == []
+
+
+class TestCompanionCiteRules:
+    """--cite-rules maps the three companion reasons onto their CR rules."""
+
+    _CR_FIXTURE = (
+        "Magic: The Gathering Comprehensive Rules\n\n"
+        "These rules are effective as of February 2, 2024\n\n"
+        "Contents\n\n"
+        "1. Game Concepts\n"
+        "100. General\n"
+        "103. Starting the Game\n"
+        "7. Additional Rules\n"
+        "702. Keyword Abilities\n"
+        "9. Casual Variants\n"
+        "903. Commander\n"
+        "Glossary\n"
+        "Credits\n\n"
+        "1. Game Concepts\n\n"
+        "100. General\n\n"
+        "100.2a Constructed copy limit.\n\n"
+        "103. Starting the Game\n\n"
+        "103.2b A player who wishes to reveal a companion may do so; each player "
+        "may reveal no more than one companion.\n\n"
+        "7. Additional Rules\n\n"
+        "702. Keyword Abilities\n\n"
+        "702.139a Companion is a keyword ability that functions outside the "
+        "game.\n\n"
+        "702.139b If a companion ability refers to your starting deck, it refers "
+        "to your deck after you've set aside any sideboard cards.\n\n"
+        "9. Casual Variants\n\n"
+        "903. Commander\n\n"
+        "903.5b Commander singleton rule.\n\n"
+        "Glossary\n\n"
+        "Credits\n"
+    )
+
+    def test_companion_reasons_are_cited(self, tmp_path: Path):
+        rules_path = tmp_path / "comprehensive-rules-20240202.txt"
+        rules_path.write_text(self._CR_FIXTURE, encoding="utf-8")
+        keruga = _companion_card("Keruga, the Macrosage", cmc=5.0)
+        commander = {**jinnie(), "cmc": 4.0}
+        sol_ring = {**card("Sol Ring", type_line="Artifact"), "cmc": 1.0}
+        # One deck triggering all three reasons: two occupants (103.2b), one of
+        # them not a companion (702.139a), and Keruga's condition broken by the
+        # 1-drop (702.139b).
+        d = deck(cards=[("Sol Ring", 1)])
+        d["companion"] = [
+            {"name": "Keruga, the Macrosage", "quantity": 1},
+            {"name": "Sol Ring", "quantity": 1},
+        ]
+        deck_path = tmp_path / "deck.json"
+        hydrated_path = tmp_path / "hydrated.json"
+        deck_path.write_text(json.dumps(d))
+        hydrated_path.write_text(json.dumps([commander, sol_ring, keruga]))
+
+        runner = CliRunner()
+        result = runner.invoke(
+            main,
+            [
+                str(deck_path),
+                str(hydrated_path),
+                "--cite-rules",
+                "--rules-file",
+                str(rules_path),
+            ],
+        )
+        assert result.exit_code == 0, result.output
+        data = json_from_cli_output(result)
+        citations = data.get("rule_citations") or {}
+        cited = {c["rule"] for c in citations.get("companion") or []}
+        assert {"103.2b", "702.139a", "702.139b"} <= cited

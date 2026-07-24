@@ -276,6 +276,12 @@ def default_state(fmt: str = "commander") -> ForgeState:
         available = True
 
     collections, collection_index = _load_collections(collection_store, name_aliases)
+    # Per-printing ownership detail (sparse): entries without detail — every
+    # collection.json saved before printing-awareness — simply contribute nothing,
+    # so old files load as name-only ownership with no printing marks.
+    collection_printings = {
+        slot: collection.printing_index(pile) for slot, pile in collections.items()
+    }
 
     return ForgeState(
         by_name=by_name,
@@ -289,6 +295,7 @@ def default_state(fmt: str = "commander") -> ForgeState:
         collection_store=collection_store,
         collections=collections,
         collection_index=collection_index,
+        collection_printings=collection_printings,
         name_aliases=name_aliases,
         bulk_path=bulk_path if available else None,
         object_resolver=object_resolver,

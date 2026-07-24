@@ -10,6 +10,7 @@ the deck logic itself is tested directly through ``engine`` / ``views``.
 
 from __future__ import annotations
 
+import functools
 import json
 import uuid
 from collections.abc import AsyncIterator
@@ -27,6 +28,7 @@ from mtg_utils._deck_forge.exporters import export_as
 from mtg_utils._deck_forge.state import DeckSession, ForgeState
 from mtg_utils._tuner.tune import TuneParams
 from mtg_utils._tuner.tune import tune as run_tune
+from mtg_utils.companion import is_companion
 from mtg_utils.deck_stats import deck_stats
 from mtg_utils.mana_audit import mana_audit, reconcile_basic_lands
 from mtg_utils.parse_deck import parse_deck_text
@@ -75,6 +77,10 @@ class SetPrintingPayload(BaseModel):
     name: str
     printing_id: str | None = None  # None → revert to default (cheapest) printing
     zone: str = "cards"
+    # Optional finish for the pinned printing: "foil" | "etched". Validated against
+    # the chosen printing's own `finishes` list; omitting it on a (re)pin clears any
+    # stored finish (nonfoil default).
+    finish: str | None = None
 
 
 class AgentRequestPayload(BaseModel):
@@ -211,6 +217,47 @@ def _zone_error(zone: str) -> JSONResponse | None:
     return None
 
 
+def _companion_add_error(state: ForgeState, name: str, qty: int) -> JSONResponse | None:
+    """Zone rules for adding to the companion zone, or None when the add is legal.
+
+    (a) At most ONE card may occupy the zone (CR 103.2b: a player may reveal at
+    most one companion) — an occupied zone 400s; the user removes/moves the old
+    occupant first, it is never silently replaced. (b) The card must actually
+    carry the companion ability (CR 702.139a), validated against the hydrated
+    record.
+    """
+    occupied = state.session.to_deck_dict().get("companion") or []
+    if occupied:
+        holder = occupied[0]["name"]
+        return JSONResponse(
+            {
+                "error": (
+                    f"companion zone already holds {holder}; a player may reveal "
+                    f"at most one companion (CR 103.2b) — remove it first"
+                )
+            },
+            status_code=400,
+        )
+    if qty != 1:
+        return JSONResponse(
+            {
+                "error": (
+                    "the companion zone holds exactly one card "
+                    "(CR 103.2b: at most one companion)"
+                )
+            },
+            status_code=400,
+        )
+    record = state.by_name.get(name)
+    if record is None or not is_companion(record):
+        return JSONResponse(
+            {"error": f"{name} has no companion ability (CR 702.139a)"},
+            status_code=400,
+        )
+    return None
+    return None
+
+
 def _no_bulk() -> JSONResponse:
     return JSONResponse(
         {"error": "Scryfall bulk data not found — run `download-bulk` first."},
@@ -228,7 +275,13 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
 
     @app.get("/api/deck")
     async def deck() -> dict:
-        return {"deck": views.deck_view(state, engine.owned_quantities(state))}
+        return {
+            "deck": views.deck_view(
+                state,
+                engine.owned_quantities(state),
+                functools.partial(engine.printing_owned, state),
+            )
+        }
 
     @app.get("/api/snapshot")
     async def snapshot() -> dict:
@@ -251,6 +304,10 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
             return JSONResponse(
                 {"error": f"card not found: {payload.name!r}"}, status_code=404
             )
+        if payload.zone == "companion":
+            bad_companion = _companion_add_error(state, payload.name, payload.qty)
+            if bad_companion is not None:
+                return bad_companion
         state.session.add(payload.name, payload.qty, zone=payload.zone)
         _autosave(state)
         snap = engine.snapshot(state)
@@ -419,15 +476,41 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
 
     @app.get("/api/printings", response_model=None)
     async def printings(name: str) -> dict | JSONResponse:
-        """Every legal printing of a card (newest set first) for the picker (C):
-        identity + set/collector + cost + art. Resolved by the card's oracle_id, so all
-        sets/arts of the same card are offered. Empty for an unknown name / no bulk."""
+        """Every legal printing of a card for the picker (C): identity + set/collector
+        + cost + art, annotated with printing-level ownership in the ACTIVE Collection
+        slot (``owned_qty`` nonfoil / ``owned_foil_qty`` — 0 when unknown). Owned
+        printings sort first (total owned desc, ties newest-first), then the rest
+        newest-first. The envelope carries the name-level ``card_owned`` /
+        ``card_owned_qty``. Empty for an unknown name / no bulk."""
         if not state.bulk_available:
             return _no_bulk()
         record = state.by_name.get(name)
         oracle_id = record.get("oracle_id") if record else None
         prints = state.printings_by_oracle.get(oracle_id, []) if oracle_id else []
-        return {"name": name, "printings": [views.printing_view(p) for p in prints]}
+        detail = engine.owned_printing_detail(state, name) or {}
+        rows = []
+        for p in prints:
+            view = views.printing_view(p)
+            key = ((p.get("set") or "").lower(), str(p.get("collector_number") or ""))
+            nonfoil, foil = detail.get(key, (0, 0))
+            view["owned_qty"] = nonfoil
+            view["owned_foil_qty"] = foil
+            rows.append(view)
+        # Stable sort over the newest-first base order: owned block first (by total
+        # owned desc, ties stay newest-first), then unowned newest-first unchanged.
+        rows.sort(
+            key=lambda v: (
+                0 if v["owned_qty"] + v["owned_foil_qty"] > 0 else 1,
+                -(v["owned_qty"] + v["owned_foil_qty"]),
+            )
+        )
+        owned_total = engine.owned_of(state, name)
+        return {
+            "name": name,
+            "card_owned": owned_total is not None,
+            "card_owned_qty": owned_total or 0,
+            "printings": rows,
+        }
 
     @app.post("/api/deck/printing", response_model=None)
     async def set_printing(payload: SetPrintingPayload) -> dict | JSONResponse:
@@ -438,17 +521,44 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
         bad_zone = _zone_error(payload.zone)
         if bad_zone is not None:
             return bad_zone
+        chosen: dict | None = None
         if payload.printing_id is not None:
             record = state.by_name.get(payload.name)
             oracle_id = record.get("oracle_id") if record else None
-            valid = {
-                p.get("id") for p in state.printings_by_oracle.get(oracle_id or "", [])
-            }
-            if payload.printing_id not in valid:
+            chosen = next(
+                (
+                    p
+                    for p in state.printings_by_oracle.get(oracle_id or "", [])
+                    if p.get("id") == payload.printing_id
+                ),
+                None,
+            )
+            if chosen is None:
                 return JSONResponse(
                     {"error": f"not a printing of {payload.name!r}"}, status_code=400
                 )
-        state.session.set_printing(payload.name, payload.printing_id, zone=payload.zone)
+        if payload.finish is not None:
+            # A finish only makes sense riding a pinned printing, and only one the
+            # printing was actually produced in (its Scryfall `finishes` list).
+            if chosen is None:
+                return JSONResponse(
+                    {"error": "finish requires a chosen printing"}, status_code=400
+                )
+            if payload.finish not in ("foil", "etched") or payload.finish not in (
+                chosen.get("finishes") or []
+            ):
+                return JSONResponse(
+                    {
+                        "error": (
+                            f"printing {payload.printing_id!r} has no "
+                            f"{payload.finish!r} finish"
+                        )
+                    },
+                    status_code=400,
+                )
+        state.session.set_printing(
+            payload.name, payload.printing_id, zone=payload.zone, finish=payload.finish
+        )
         _autosave(state)
         snap = engine.snapshot(state)
         state.hub.publish(json.dumps(snap))
@@ -535,11 +645,48 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
             return JSONResponse(
                 {"error": f"could not parse deck list: {exc}"}, status_code=400
             )
+        # Route the parsed companion zone: the FIRST plausible companion (unknown
+        # names stay — they surface as `unknown` like any other zone) keeps the
+        # zone; overflow entries (max one companion, CR 103.2b), extra copies, and
+        # cards the bulk index PROVES have no companion ability (CR 702.139a) are
+        # demoted to ``cards`` with a warning rather than dropped.
+        import_warnings: list[str] = []
+        kept_companion: list[dict] = []
+        demoted: list[dict] = []
+        for entry in parsed.get("companion") or []:
+            record = state.by_name.get(entry.get("name", ""))
+            if record is not None and not is_companion(record):
+                demoted.append(entry)
+                import_warnings.append(
+                    f"{entry['name']} has no companion ability (CR 702.139a); "
+                    f"moved to the deck"
+                )
+            elif kept_companion:
+                demoted.append(entry)
+                import_warnings.append(
+                    f"more than one companion listed; {entry['name']} moved to the "
+                    f"deck (CR 103.2b: at most one companion)"
+                )
+            else:
+                qty = int(entry.get("quantity", 1))
+                if qty > 1:
+                    demoted.append({**entry, "quantity": qty - 1})
+                    import_warnings.append(
+                        f"{entry['name']}: {qty} copies listed as companion; kept 1, "
+                        f"moved {qty - 1} to the deck (CR 103.2b)"
+                    )
+                kept_companion.append({**entry, "quantity": 1})
+        parsed["companion"] = kept_companion
+        if demoted:
+            parsed["cards"] = list(parsed.get("cards") or []) + demoted
         session = DeckSession.from_deck_dict(parsed)
         if not session.card_names():
             return JSONResponse(
                 {"error": "no cards found in the imported list"}, status_code=400
             )
+        # Entries that carried a "(SET) 123" suffix (and optional *F*/*E* finish
+        # marker) auto-pin the matching printing; unresolvable pairs stay unpinned.
+        engine.pin_imported_printings(state, session, parsed)
         state.session = session
         state.build_id = uuid.uuid4().hex[:8]
         state.build_name = payload.name or "Imported deck"
@@ -557,7 +704,9 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
                 "cards": sum(
                     int(e.get("quantity", 1)) for e in (parsed.get("cards") or [])
                 ),
+                "companion": len(kept_companion),
                 "unknown": unknown,
+                "warnings": import_warnings,
             },
             **snap,
         }
@@ -634,9 +783,16 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
         state.hub.publish(json.dumps(snap))
         # Warm the discovery caches for the just-imported slot in the background:
         # Starlette runs sync background tasks in the threadpool, so the ~65s cold cost
-        # is paid there (off the event loop), not by the user's first discover.
+        # is paid there (off the event loop), not by the user's first discover. The
+        # format is captured NOW — by execution time the live session format may have
+        # changed, which would warm eligibility for the wrong format.
         if state.bulk_available:
-            background.add_task(engine.warm_discovery_caches, state, payload.slot)
+            background.add_task(
+                engine.warm_discovery_caches,
+                state,
+                payload.slot,
+                fmt=state.session.format,
+            )
         return {
             "slot": payload.slot,
             "size": collection.slot_sizes(state.collections).get(payload.slot, 0),

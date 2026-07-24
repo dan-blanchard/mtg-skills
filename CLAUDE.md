@@ -105,7 +105,7 @@ Shared Python package (`mtg_utils`). 39 CLI script modules (25 deck + 9 cube + 3
 
 **Deck scripts:**
 
-- **`parse_deck.py`** — Multi-format deck list parser with sideboard support. Strips Moxfield set code suffixes.
+- **`parse_deck.py`** — Multi-format deck list parser with sideboard support. Strips Moxfield set code suffixes from names but retains them as optional entry keys (`set`, `collector_number`, `finish` — foil `*F*` / etched `*E*` markers and CSV printing/foil columns included). Routes Arena/MTGO/Moxfield `Companion` sections into a top-level `companion` zone (always present, `[]` default) excluded from `total_cards` (CR 702.139a-b: a companion is neither deck nor sideboard).
 - **`scryfall_lookup.py`** — Card lookup against Scryfall bulk data with API fallback and persistent caching.
 - **`edhrec_lookup.py`** — EDHREC JSON endpoint client for commander recommendations.
 - **`download_mtgjson.py`** — Card-data downloader (ADR-0033): MTGJSON `AllPrintings` + `AllPricesToday` (gzip stream-decompressed) to `~/.cache/mtg-skills/mtgjson/`, 24h freshness, eager translated-sidecar build. The card-data source of record.
@@ -123,12 +123,12 @@ Shared Python package (`mtg_utils`). 39 CLI script modules (25 deck + 9 cube + 3
 - **`deck_rank.py`** — `deck-rank` CLI: rank candidate records (e.g. `card-search --json`) by synergy with the deck's lanes, then price, then curve, via `_deck_forge.ranking.rank_candidates`. Never EDHREC popularity.
 - **`price_check.py`** — Price validation against budget using Scryfall bulk data with API fallback.
 - **`combo_search.py`** — Commander Spellbook API wrapper: `combo-search` for deck combo detection and near-miss identification; `combo-discover` for discovering combos by outcome, card name, or color identity.
-- **`export_deck.py`** — Export parsed deck JSON to Moxfield import format (`N CardName` lines) with sideboard section.
+- **`export_deck.py`** — Export parsed deck JSON to Moxfield import format (`N CardName` lines) with sideboard and companion sections.
 - **`card_search.py`** — Search Scryfall bulk data with filters: color identity, oracle text regex, type, CMC range, price range. Compact table or JSON output.
-- **`legality_audit.py`** — Format legality, copy limits, sideboard size, Vintage restricted-list audit.
+- **`legality_audit.py`** — Format legality, copy limits, sideboard size, Vintage restricted-list, and companion audit (`companion_multiple` / `companion_not_companion` / `companion_condition` via `mtg_utils.companion`, wired into `--cite-rules`).
 - **`find_commanders.py`** — Search owned collection for commander-eligible cards.
 - **`mark_owned.py`** — Populate a deck's `owned_cards` field from a collection CSV/JSON.
-- **`mtga_import.py`** — Extract Arena collection and wildcard counts from `Player.log`.
+- **`mtga_import.py`** — Extract Arena collection and wildcard counts from `Player.log`. Name-level totals stay playset-capped; per-printing (set, collector_number) quantities are retained uncapped in a `printings` list (Player.log carries no foil info).
 - **`playtest.py`** — Six entry points sharing one module:
   - `playtest-goldfish` — Solo deck simulator (mulligan, curve, color-screw,
     combo timing). Pure Python. Mana model counts lands + every cast nonland
@@ -186,6 +186,7 @@ Shared Python package (`mtg_utils`). 39 CLI script modules (25 deck + 9 cube + 3
 Shared library modules (not CLI scripts):
 
 - **`card_classify.py`** — Card classification helpers: `is_land()`, `is_creature()`, `is_ramp()`, `color_sources()`, `classify_cube_category()` (9-category W/U/B/R/G/M/L/F/C classifier for cube draft slot allocation).
+- **`companion.py`** — Pure validators for the ten Ikoria companion deckbuilding conditions (CR 702.139a-d): `COMPANION_NAMES`, `is_companion(record)`, `companion_violations(companion, starting_deck, *, deck_minimum=None)`. Starting deck includes commanders (CR 702.139b); `deck_minimum=None` = exact-size format (Yorion unsatisfiable in Commander per CR 903.5a). Consumed by `legality_audit.check_companion` and deck-forge's audit warnings.
 - **`cube_config.py`** — Cube format presets (9 formats: vintage, unpowered, legacy, modern, pauper, peasant, set, commander, pdh), size-to-drafters table, `PACK_TEMPLATES` defaults, `BALANCE_TARGETS` reference ranges, and curated `REFERENCE_CUBES` starting-point list per format.
 - **`bulk_loader.py`** — Shared card-data loader with a pickled sidecar cache (`<bulk>.idx.pkl`). ~5-10× faster on warm load; atomic-rename write so concurrent callers can't see a partial sidecar. **The MTGJSON source-swap seam (ADR-0033):** `_read_source` translates an `AllPrintings.json` through the `_mtgjson` adapter into the Scryfall record shape the rest of the code reads (a legacy Scryfall bulk loads as-is); the sidecar caches the *translated* records so every consumer stays on the Scryfall shape. `default_bulk_path()` prefers the MTGJSON file, Scryfall bulk as fallback.
 - **`_mtgjson/`** — MTGJSON → Scryfall-record adapter (ADR-0033). `adapter.py` = pure per-card translation (legalities normalize + oracle-level aggregate + Arena-format gate, image-URL reconstruction from `scryfallId`, AllPricesToday price join, DFC `card_faces` collapse by `otherFaceIds`, layout-aware top-level multi-face fields, token + meld `all_parts`). `load.py` = flattens the set-keyed `AllPrintings` (+ `AllPricesToday`) document into the flat translated list `bulk_loader` caches.

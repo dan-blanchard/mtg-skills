@@ -93,6 +93,28 @@ def _fill_gap(hd: HydratedDeck, deck_size: int, land_floor: int) -> tuple[int, i
     return fill_slots, land_gap
 
 
+# The exact-size CR citations for the singleton Commander family: CR 903.5a ("the
+# minimum deck size and the maximum deck size are both 100") governs Commander —
+# and Historic Brawl mirrors its 100-card rule — while CR 903.12d fixes Brawl at
+# exactly 60. Other formats have no CR maximum (CR 100.2a sets only a minimum),
+# so their over-size message cites the format's target size, not a rule.
+_SIZE_RULES: dict[str, str] = {
+    "commander": "CR 903.5a",
+    "historic_brawl": "CR 903.5a",
+    "brawl": "CR 903.12d",
+}
+
+
+def _counted_total(deck: dict) -> int:
+    """The deck's counted size — commanders + maindeck, the same zone walk
+    ``_fill_gap`` and deck-forge's ``_overflow_warnings`` use."""
+    return sum(
+        int(e.get("quantity", 1))
+        for zone in ("commanders", "cards")
+        for e in deck.get(zone) or []
+    )
+
+
 def _bucket_counts(classes: Sequence[CardClass]) -> dict[str, int]:
     out: dict[str, int] = {}
     for c in classes:
@@ -124,13 +146,21 @@ def tune(
     owned: Mapping[str, int] | None = None,
     combos_fn: Callable[[dict], dict] | None = None,
 ) -> dict:
-    """Diagnose the deck and (when ``max_swaps>0``) propose budgeted swaps."""
+    """Diagnose the deck and (when ``max_swaps>0``) propose budgeted swaps.
+
+    A deck over its exact legal size (CR 903.5a / 903.12d) additionally gets
+    ``size_cuts`` — legality-driven trim proposals, produced on every run
+    regardless of ``max_swaps``."""
     owned = dict(owned or {})
     deck = hd.deck
     commander_names = {e["name"] for e in deck.get("commanders") or []}
     deck_size = int(deck.get("deck_size") or 100)
     fmt = hd.format
     identity = _deck_identity(hd)
+    # Exact-size legality (CR 903.5a / 903.12d): a deck PAST deck_size is never
+    # legal in the Commander family, so the overflow is diagnosed on every run.
+    total = _counted_total(deck)
+    overflow = max(0, total - deck_size)
 
     stats = deck_stats(hd)
     avg_cmc = stats.get("avg_cmc", 0.0)
@@ -230,6 +260,9 @@ def tune(
         "commander_fit": cfit,
         "top_issues": issues,
         "counts": _bucket_counts(classes),
+        # Counted size vs the format's exact legal size (CR 903.5a / 903.12d);
+        # overflow > 0 means "N over legal size" and drives `size_cuts` below.
+        "size": {"total": total, "deck_size": deck_size, "overflow": overflow},
         # ADR-0029 enrichment: surface the mechanical reads the spine no longer leaves
         # to the agent — full mana audit (not just the land count), the curve histogram,
         # and the combo list (not just a tally).
@@ -244,6 +277,35 @@ def tune(
     # counts as a finisher — that would drop it below the floor it just reported. Above
     # the floor, marginal finishers stay trimmable.
     wincon_protect = set(wins["cards"]) if wins["count"] <= wins["target"][0] else set()
+    protected = combo_pieces | wincon_protect
+
+    # Over-legal-size cuts (legality-driven, so NOT gated on max_swaps — even a
+    # max_swaps=0 scorecard run reports them): exactly `overflow` proposals (or
+    # as many as safely exist) from the same lowest-value-first cut ranking the
+    # swap engine uses. CR 903.5a makes 100 both the minimum AND maximum
+    # Commander deck size (Brawl: exactly 60, CR 903.12d), so trimming to
+    # deck_size is a legality fix, not a tuning choice.
+    size_cut_list: list[dict] = []
+    if overflow > 0:
+        rule = _SIZE_RULES.get(fmt)
+        legal = (
+            f"the legal {deck_size} ({rule})" if rule else f"the {deck_size}-card size"
+        )
+        size_cut_list = swaps_mod.size_cuts(
+            classes,
+            overflow=overflow,
+            budgets=budgets,
+            focus_verdict=foc["verdict"],
+            stranded=set(foc["stranded_avenues"]),
+            message=f"deck is {overflow} over {legal} — cut",
+            protected=protected,
+            medium=params.medium,
+            # Maindeck-only: cutting a sideboard card wouldn't shrink the total.
+            eligible={r.get("name", "") for r in hd.expanded(zones=("cards",))},
+        )
+        # A card already proposed as a size cut must not be double-proposed by
+        # the regular paired-swap machinery below.
+        protected = protected | {c["name"] for c in size_cut_list}
 
     swaps_out: dict = {"swaps": [], "spent": 0.0, "wildcards_spent": None, "note": None}
     if params.max_swaps > 0 and hd.has_records:
@@ -267,7 +329,7 @@ def tune(
             top_heavy=eff["verdict"] == "top-heavy",
             fill_slots=fill_slots,
             wildcard_budget=params.wildcard_budget,
-            protected=combo_pieces | wincon_protect,
+            protected=protected,
             medium=params.medium,
         )
         # The fill pass deliberately skips lands; flag any mana-base shortfall so the
@@ -296,6 +358,10 @@ def tune(
 
     return {
         "scorecard": scorecard,
+        # Legality-driven trims for an over-sized deck (empty when at/under
+        # deck_size) — separate from `swaps` because they need no add, no
+        # budget, and no max_swaps allowance.
+        "size_cuts": size_cut_list,
         "swaps": swaps_out["swaps"],
         "spent": swaps_out["spent"],
         "wildcards_spent": swaps_out["wildcards_spent"],

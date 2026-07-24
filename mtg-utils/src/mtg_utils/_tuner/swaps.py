@@ -215,6 +215,57 @@ def cut_candidates(
     return out
 
 
+def size_cuts(
+    classes: Sequence[CardClass],
+    *,
+    overflow: int,
+    budgets: dict,
+    focus_verdict: str,
+    stranded: set[str],
+    message: str,
+    protected: Collection[str] = (),
+    medium: str = "paper",
+    eligible: Collection[str] | None = None,
+) -> list[dict]:
+    """Legality-driven cuts for an OVER-sized deck: up to ``overflow`` proposals.
+
+    A Commander deck's minimum and maximum deck size are both 100 (CR 903.5a;
+    Brawl is exactly 60 per CR 903.12d), so a deck past ``deck_size`` is never
+    legal — these cuts are proposed on every Tune run, even a ``max_swaps=0``
+    scorecard pass. Proposals draw from the SAME ``cut_candidates`` ranking the
+    swap machinery uses (lowest-value first), so its hard floors hold for free:
+    never a commander or a land (their buckets are never candidates, so the
+    land floor can't be breached), never a ``protected`` card, and never a card
+    filling a Spine role at/below its floor. When the safe pool runs dry the
+    list comes up short of ``overflow`` rather than proposing an unsafe cut.
+
+    ``eligible`` restricts proposals to those names (the maindeck — cutting a
+    sideboard card wouldn't shrink the counted commanders+cards total).
+    """
+    out: list[dict] = []
+    for reason, card in cut_candidates(
+        classes,
+        budgets=budgets,
+        focus_verdict=focus_verdict,
+        stranded=stranded,
+        protected=protected,
+        medium=medium,
+    ):
+        if len(out) >= overflow:
+            break
+        if eligible is not None and card.name not in eligible:
+            continue
+        out.append(
+            {
+                "name": card.name,
+                "why": _cut_why(reason, card),
+                "reason": "over:deck_size",
+                "message": message,
+            }
+        )
+    return out
+
+
 _WC_TIERS: tuple[str, ...] = ("mythic", "rare", "uncommon", "common")
 
 
