@@ -34,7 +34,22 @@ def norm(n: str) -> str:
     return n.split(" // ")[0].strip().casefold()
 
 
-def score(pools_dir: Path | None = None) -> dict:
+# S2 holdout (Rate v2.4 acceptance): the design-motivating verdicts — the
+# kills the D1 discounts were designed FROM — are excluded from any score
+# that gates a discount slice, so the slice is never graded on its own
+# training set. (slug, normalized card name).
+HOLDOUT: frozenset[tuple[str, str]] = frozenset(
+    {
+        ("urza-lord-high-artificer", "vigean graftmage"),
+        ("talrand-sky-summoner", "donal, herald of wings"),
+        ("zaxara-the-exemplary", "weaver of harmony"),
+        ("krenko-mob-boss", "kuldotha rebirth"),
+        ("krenko-mob-boss", "krenko, baron of tin street"),
+    }
+)
+
+
+def score(pools_dir: Path | None = None, *, holdout: bool = False) -> dict:
     pools = pools_dir or POOLS
     ledger = json.loads((DUR / "verdict-ledger.json").read_text())
     per_class: list[dict] = []
@@ -52,6 +67,8 @@ def score(pools_dir: Path | None = None) -> dict:
         for key, v in ledger.items():
             s, card = key.split("||", 1)
             if s == slug and card in rank:
+                if holdout and (s, card) in HOLDOUT:
+                    continue
                 verdicts[card] = v["survives"]
         by_class: dict[str, list[str]] = {}
         for card in verdicts:
