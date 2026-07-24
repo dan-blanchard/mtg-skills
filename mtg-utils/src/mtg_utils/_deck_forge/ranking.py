@@ -681,6 +681,12 @@ def rank_candidates(
             -_depth(r),
             r["score"]["price"] if r["score"]["price"] is not None else math.inf,
             r["score"]["cmc"],
+            # Deterministic final key (2026-07-24): without it, ties fell
+            # through to stable-sort INPUT order — the staples avenue's
+            # dict-merge order leaked into the ranking (gate-b cycle-5
+            # finding). Tie regions are large on the fit path (integer
+            # depth) and among no-listing candidates (price=inf).
+            r["card"].get("name") or "",
         )
     )
     return scored

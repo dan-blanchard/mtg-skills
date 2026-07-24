@@ -49,7 +49,12 @@ HOLDOUT: frozenset[tuple[str, str]] = frozenset(
 )
 
 
-def score(pools_dir: Path | None = None, *, holdout: bool = False) -> dict:
+def score(
+    pools_dir: Path | None = None,
+    *,
+    holdout: bool = False,
+    ordering_fn=None,
+) -> dict:
     pools = pools_dir or POOLS
     ledger = json.loads((DUR / "verdict-ledger.json").read_text())
     per_class: list[dict] = []
@@ -60,7 +65,15 @@ def score(pools_dir: Path | None = None, *, holdout: bool = False) -> dict:
             json.loads(x)
             for x in (pools / f"{slug}.jsonl").read_text().splitlines()
         ]
-        rows.sort(key=sort_key)
+        # ordering_fn (S1+): the PRODUCTION ordering — a callable taking the
+        # row list and returning it in final ranked order (e.g. the D2
+        # slot-permutation pass). Without it the instrument replays the
+        # committed sort key and is BLIND to post-sort passes (gate-b
+        # cycle-5 blocker).
+        if ordering_fn is not None:
+            rows = ordering_fn(rows)
+        else:
+            rows.sort(key=sort_key)
         rank = {norm(r["name"]): i for i, r in enumerate(rows)}
         pairs_of = {norm(r["name"]): set(r.get("pairs") or []) for r in rows}
         verdicts = {}

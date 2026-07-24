@@ -902,3 +902,17 @@ def test_without_an_index_rate_is_neutral_and_order_unchanged():
 # indicator and the ledger ordering instrument (docs/adr/assets/
 # 0043-instrument/), not a single-pair anecdote riding a falsified
 # mechanism.
+
+
+def test_sort_is_total_and_input_order_independent():
+    # Ties must break on NAME, never on input order (gate-b cycle-5: the
+    # staples dict-merge order was leaking into rankings through Python's
+    # stable sort).
+    cards = [_ELVEN_BOW, _FLAYER_HUSK, _BASTION]
+    fwd = rank_candidates(
+        cards, active_signals=_ARI_SIGNALS, focus_sets=_ARI_FOCUS
+    )
+    rev = rank_candidates(
+        list(reversed(cards)), active_signals=_ARI_SIGNALS, focus_sets=_ARI_FOCUS
+    )
+    assert [r["card"]["name"] for r in fwd] == [r["card"]["name"] for r in rev]

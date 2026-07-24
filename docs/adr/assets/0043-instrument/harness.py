@@ -210,7 +210,16 @@ def rank_all(workers: int = 5) -> None:
 
 def sort_key(row: dict) -> tuple:
     price = row["price"] if row["price"] is not None else float("inf")
-    return (-(row["score"] + row.get("pair", 0.0)), price, row["cmc"])
+    # Name as the deterministic final key — mirrors the production sort's
+    # 2026-07-24 totality fix (ties previously resolved to bulk-iteration
+    # order, so a bulk refresh could shuffle tied ranks under the
+    # instrument's feet).
+    return (
+        -(row["score"] + row.get("pair", 0.0)),
+        price,
+        row["cmc"],
+        row.get("name") or "",
+    )
 
 
 def recall(slug: str, ks=(100, 250)) -> dict:
