@@ -46,7 +46,14 @@ def unit_idents_for(card: dict) -> dict[tuple[int, int], frozenset[str]]:
     out: dict[tuple[int, int], frozenset[str]] = {}
     for ti, tree in enumerate(trees_for(card)):
         for ui, unit in enumerate(tree.units):
-            view = dataclasses.replace(tree, units=(unit,))
+            # Blank the tree-level raw text in the view: the synth
+            # gap-filling stage and the b12 kept-oracle mirrors read it,
+            # and on a PARTIAL view a structurally-served ident "gaps"
+            # and re-enters via raw-text idiom — attributing tree-level
+            # text reads to every unit (Vigean's graft trigger inheriting
+            # untap_engine). Attribution is unit-caused TYPED evidence
+            # only; raw-text emissions stay unattributed by design.
+            view = dataclasses.replace(tree, units=(unit,), oracle="")
             emitted = {
                 f"{s.key}|{s.scope}|{s.subject}"
                 for s in extract_crosswalk_signals(view)

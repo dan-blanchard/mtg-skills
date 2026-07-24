@@ -92,6 +92,9 @@ class PairContext:
     commander_idents: frozenset[str] = frozenset()
     commander_subtypes: frozenset[str] = frozenset()
     density: Counter = field(default_factory=Counter)
+    # S2 (2.6): the commander records the context was built from — the
+    # limiter discounts' anchor-yield read needs the actual records.
+    commander_records: tuple = ()
 
 
 PAIR_READS: dict[str, PairRead] = {
@@ -599,6 +602,7 @@ def build_pair_context(
         frozenset(commander_idents),
         _commander_subtypes(commander_records),
         density,
+        tuple(commander_records),
     )
 
 
@@ -635,9 +639,20 @@ def _anchor_met(
     return hits >= row.threshold
 
 
-def pair_score(card: dict, ctx: PairContext | None) -> tuple[float, list[dict]]:
+def pair_score(
+    card: dict,
+    ctx: PairContext | None,
+    *,
+    discount_fn=None,
+) -> tuple[float, list[dict]]:
     """(summed weight, matched-row readout) for one candidate. Rows sum
-    without decay; no context (or no idents) scores 0.0 — inert."""
+    without decay; no context (or no idents) scores 0.0 — inert.
+
+    ``discount_fn`` (S2, default None = OFF): a callable
+    ``(card, row, matched_idents) -> multiplier`` applied to each matched
+    row's weight — the limiter discounts
+    (:mod:`mtg_utils._deck_forge.limiter_discounts`); flips on only if
+    the S2 slice measurement accepts."""
     if ctx is None:
         return 0.0, []
     idents = _card_idents(card)
@@ -662,8 +677,11 @@ def pair_score(card: dict, ctx: PairContext | None) -> tuple[float, list[dict]]:
             continue
         if not _anchor_met(row, ctx, idents):
             continue
-        total += row.weight
-        readout.append({"pair": row.pair_id, "label": row.label, "weight": row.weight})
+        weight = row.weight
+        if discount_fn is not None:
+            weight = round(weight * discount_fn(card, row, matched), 4)
+        total += weight
+        readout.append({"pair": row.pair_id, "label": row.label, "weight": weight})
     return round(total, 3), readout
 
 

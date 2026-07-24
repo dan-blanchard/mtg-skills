@@ -2,3 +2,5 @@
 {"label": "committed-baseline-heldout", "ordering_score": 0.432967032967033, "total_pairs": 455, "correct": 197, "holdout": ["krenko-mob-boss|krenko, baron of tin street", "krenko-mob-boss|kuldotha rebirth", "talrand-sky-summoner|donal, herald of wings", "urza-lord-high-artificer|vigean graftmage", "zaxara-the-exemplary|weaver of harmony"]}
 {"label": "committed-baseline-totalsort", "ordering_score": 0.46449136276391556, "total_pairs": 521, "correct": 242}
 {"label": "committed-baseline-heldout-totalsort", "ordering_score": 0.432967032967033, "total_pairs": 455, "correct": 197}
+{"label": "S1-slice", "before": 0.46449136276391556, "after": 0.46449136276391556, "total_pairs": 521, "correct_after": 242, "drift_r100": 0.05741316397132774, "drift_r250": 0.15834118399182553, "bulk_hash": "68dd48aa3918adc3"}
+{"label": "S1-VERDICT", "verdict": "REJECT", "reason": "ordering gain +0.000 < +0.010 gate; diagnosis: ownership fragmentation (53->31 co-owned reachable) + rider/cmc keys uncorrelated with adjudicated quality in the wrong classes; drift r@250 improved +0.0043 but is not the binding gate; flag stays OFF"}
