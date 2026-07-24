@@ -165,7 +165,7 @@ def _find_required(record, schema):
 
 
 def test_effect_roster_shape():
-    assert len(EFFECT_VARIANTS) == 224  # v0.20.0: 216 + 8 v0.17-v0.20 additions
+    assert len(EFFECT_VARIANTS) == 225  # v0.35.2: 224 + ArrangePlanarDeckTop (v0.28.0)
     assert len(ZERO_INSTANCE_EFFECTS) == 18
     assert set(EFFECT_VARIANTS) >= ZERO_INSTANCE_EFFECTS
     # the ADR's four named examples are in the closed-union arm
@@ -312,10 +312,10 @@ def test_losslessness_roundtrip_full_corpus():
 def test_variant_population_committed_fixture():
     pop = _fixture(POPULATION_FIXTURE)
     population = pop["population"]
-    assert len(population) == 224  # v0.20.0: 216 + 8 v0.17-v0.20 additions
+    assert len(population) == 225  # v0.35.2: 224 + ArrangePlanarDeckTop (v0.28.0)
     zeros = {n for n, c in population.items() if c == 0}
     assert zeros == set(ZERO_INSTANCE_EFFECTS)
-    assert pop["distinct_variants_observed"] == 206  # v0.20.0: 198 + 8 additions
+    assert pop["distinct_variants_observed"] == 207  # 206 + ArrangePlanarDeckTop
     assert pop["zero_instance_variants"] == 18
     assert pop["total_effect_nodes"] == sum(population.values())
     # the name grep must not have drifted from phase's enum
@@ -372,8 +372,8 @@ def test_generated_classes_dispatch_table():
     for ckey in schema.structs:
         assert ckey in GENERATED_BY_CKEY, f"struct {ckey!r} has no generated class"
         assert issubclass(GENERATED_BY_CKEY[ckey], TypedMirrorNode)
-    # the headline coverage number: v0.23.0 = 1624 tagged + 105 struct = 1729 classes
-    assert len(GENERATED_BY_KEY) + len(GENERATED_BY_CKEY) == 1729
+    # the headline coverage number: v0.35.2 = 1634 tagged + 109 struct = 1743 classes
+    assert len(GENERATED_BY_KEY) + len(GENERATED_BY_CKEY) == 1743
 
 
 def test_typed_instances_no_fallback_samples():

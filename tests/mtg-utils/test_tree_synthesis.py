@@ -2237,14 +2237,24 @@ def _historic_matters_fires(name):
     return any(s.key == "historic_matters" for s in _legends_historic_matters(tree))
 
 
-def test_historic_matters_typed_gate_no_double():
-    """Jhoira, Weatherlight Captain already carries a typed Historic filter
-    property -- the structural gate covers it, so the synthesis arm
-    no-ops."""
-    tree = _fixture_tree("Jhoira, Weatherlight Captain")
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Jhoira, Weatherlight Captain",
+        # phase v0.30.0 (#6150) stopped dropping the Historic filter off
+        # bare cost modifiers — Jhoira's Familiar's "Historic spells you
+        # cast cost {1} less" graduated from the bare-word synth to the
+        # typed gate at the v0.35.2 pin bump.
+        "Jhoira's Familiar",
+    ],
+)
+def test_historic_matters_typed_gate_no_double(name):
+    """A unit already carrying a typed Historic filter property — the
+    structural gate covers it, so the synthesis arm no-ops."""
+    tree = _fixture_tree(name)
     assert any(has_filter_property(u.node, "Historic") for u in tree.units)
     assert _arm_historic_matters(tree) is None
-    assert _historic_matters_fires("Jhoira, Weatherlight Captain") is True
+    assert _historic_matters_fires(name) is True
 
 
 @pytest.mark.parametrize(
@@ -2252,7 +2262,6 @@ def test_historic_matters_typed_gate_no_double():
     [
         "Curator's Ward",
         "Sanctum Spirit",
-        "Jhoira's Familiar",
         "Banish to Another Universe",
         "The Eighth Doctor",
         "Havi, the All-Father",
@@ -6327,15 +6336,15 @@ def test_ramp_dropped_add_mana_clause_synth_registered():
     "name",
     [
         "Katilda, Dawnhart Prime",
-        "Old-Growth Troll",
         "Tazri, Stalwart Survivor",
     ],
 )
 def test_ramp_grant_unimplemented_body_fires_on_pins(name):
-    """The former ``ramp_grant_unimplemented_body`` bridge's exact 3-card
-    census — a GrantAbility whose OWN body parks as Unimplemented but
-    names an "add ... mana" clause (Katilda / Tazri's self-referential
-    "any of ~'s colors"; Old-Growth Troll's compound two-quoted grant)."""
+    """The former ``ramp_grant_unimplemented_body`` bridge's census — a
+    GrantAbility whose OWN body parks as Unimplemented but names an
+    "add ... mana" clause (Katilda / Tazri's self-referential "any of ~'s
+    colors"). Old-Growth Troll graduated to the structural read at the
+    v0.35.2 pin bump (see the sibling test below)."""
     tree = _fixture_tree(name)
     assert has_structural_ramp_grant_mana(tree) is False
     node = _arm_ramp_grant_unimplemented_body(tree)
@@ -6343,6 +6352,23 @@ def test_ramp_grant_unimplemented_body_fires_on_pins(name):
     assert node.concept == "ramp"
     assert isinstance(node.node, SynthesizedNode)
     assert node.node.arm_id == "ramp_grant_unimplemented_body"
+
+    from mtg_utils._deck_forge.crosswalk_signals import _ramp
+
+    synth_tree = apply_tree_synthesis(tree)
+    assert any(s.key == "ramp" for s in _ramp(synth_tree))
+
+
+def test_ramp_grant_structural_gate_stands_arm_down():
+    """Old-Growth Troll's compound two-quoted granted body is FULLY
+    STRUCTURED since the v0.35.2 bump (the v0.29.0 return-as-aura pipeline:
+    ``ReturnAsAura.grants`` → ``GrantStaticAbility`` → ``GrantAbility`` with
+    a real ``Mana`` effect) — the structural gate stands the synthesis arm
+    down and the lane serves ramp through
+    ``_iter_returnasaura_mana_defs``'s GrantStaticAbility descent."""
+    tree = _fixture_tree("Old-Growth Troll")
+    assert has_structural_ramp_grant_mana(tree) is True
+    assert _arm_ramp_grant_unimplemented_body(tree) is None
 
     from mtg_utils._deck_forge.crosswalk_signals import _ramp
 

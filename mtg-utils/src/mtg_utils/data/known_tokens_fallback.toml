@@ -1,27 +1,31 @@
 # Committed offline/CI fallback for phase's known-tokens.toml (task #92,
-# widened task #95, again task #np_roles).
+# widened task #95, again task #np_roles; regenerated at the v0.35.2 pin
+# bump, 2026-07-24).
 #
 # mtg_utils._deck_forge._ir_lookup._known_tokens_index() prefers the LIVE
-# tag-pinned known-tokens.toml (_phase.ensure_known_tokens() — a ~600-entry,
-# ~6MB fetch, cached under ~/.cache/mtg-skills/phase/known-tokens/) when it
-# can be fetched/read. This file is the deterministic fallback for when it
-# can't (no network, cold cache, CI) — carrying ONLY the token identities
-# the adjudicated allowlist (_KNOWN_TOKEN_WIRED_DISPLAY_NAMES: Mutagen,
+# tag-pinned known-tokens.toml (_phase.ensure_known_tokens() — since phase
+# v0.32.0 a ~2860-entry MTGJSON-derived canonical catalog, cached under
+# ~/.cache/mtg-skills/phase/known-tokens/) when it can be fetched/read.
+# This file is the deterministic fallback for when it can't (no network,
+# cold cache, CI) — carrying EVERY catalog entry whose display_name the
+# adjudicated allowlist (_KNOWN_TOKEN_WIRED_DISPLAY_NAMES: Mutagen,
 # Young Hero, Powerstone, Lander, Gold, Map, Junk, Wicked, and the
 # task #np_roles seven — Cursed, Royal, Sorcerer, Shard, Wizard, Contract,
-# Spellgorger Weird) actually wires, trimmed to the fields the join reads
+# Spellgorger Weird) wires, trimmed to the fields the join reads
 # (id / rules_text / token.body) and dropping the upstream entry's large
 # source_card_names / source_card_refs / token_image_ref arrays
-# (informational there, unread here). Same-text twin ids (Cursed / Royal /
-# Shard each exist twice upstream) are BOTH carried so the id-keyed join
-# stays whole offline; the toml's OTHER "Wizard" identities (a mana
-# wizard, a ping wizard) are deliberately absent — no gap-gated creator
-# references them today, and each needs its own adjudication before
-# joining.
+# (informational there, unread here). ALL same-name variant ids are
+# carried (the v0.32.0 catalog splits printings into id-keyed variants —
+# e.g. 7 Wizard identities, 8 Golds; a card's own related_token_ids picks
+# the right variant, and the card's own Token-node name + no-parsed-
+# abilities gap gate in _known_token_trees still applies), so the
+# id-keyed join stays byte-for-byte deterministic offline vs live.
 #
-# Extracted verbatim from phase v0.23.0's known-tokens.toml. If the wired
-# allowlist ever widens, add the new identity's trimmed entry here too, so
-# CI / offline dev stays deterministic regardless of who has a live fetch.
+# Extracted verbatim from phase v0.35.2's known-tokens.toml. If the wired
+# allowlist ever widens, regenerate this file (the bump-session script in
+# git history) so CI / offline dev stays deterministic regardless of who
+# has a live fetch.
+
 
 [[token]]
 id = "01c5a18f-07e6-593c-bc90-0683505ea03f"
@@ -56,7 +60,57 @@ subtypes = ["Powerstone"]
 supertypes = []
 
 [[token]]
+id = "f1369647-2863-5cc6-91b4-00d9c735e19e"
+rules_text = "{T}: Add {C}. This mana can't be spent to cast a nonartifact spell."
+
+[token.body]
+display_name = "Powerstone"
+core_types = ["Artifact"]
+subtypes = ["Powerstone"]
+supertypes = []
+
+[[token]]
 id = "7b3e5486-632b-5245-8026-3222282173bc"
+rules_text = "{2}, {T}, Sacrifice this token: Search your library for a basic land card, put it onto the battlefield tapped, then shuffle."
+
+[token.body]
+display_name = "Lander"
+core_types = ["Artifact"]
+subtypes = ["Lander"]
+supertypes = []
+
+[[token]]
+id = "aa102a33-13dd-5fe8-99ee-2009cef90851"
+rules_text = "{2}, {T}, Sacrifice this token: Search your library for a basic land card, put it onto the battlefield tapped, then shuffle."
+
+[token.body]
+display_name = "Lander"
+core_types = ["Artifact"]
+subtypes = ["Lander"]
+supertypes = []
+
+[[token]]
+id = "b754db78-cd98-5f25-84f4-0367b66da7ed"
+rules_text = "{2}, {T}, Sacrifice this token: Search your library for a basic land card, put it onto the battlefield tapped, then shuffle."
+
+[token.body]
+display_name = "Lander"
+core_types = ["Artifact"]
+subtypes = ["Lander"]
+supertypes = []
+
+[[token]]
+id = "c9ce4bf6-d5b9-58f6-9fdf-5066bb2bb950"
+rules_text = "{2}, {T}, Sacrifice this token: Search your library for a basic land card, put it onto the battlefield tapped, then shuffle."
+
+[token.body]
+display_name = "Lander"
+core_types = ["Artifact"]
+subtypes = ["Lander"]
+supertypes = []
+
+[[token]]
+id = "f59d0a48-ea2e-5c2f-ada8-e045fa140c1b"
 rules_text = "{2}, {T}, Sacrifice this token: Search your library for a basic land card, put it onto the battlefield tapped, then shuffle."
 
 [token.body]
@@ -76,7 +130,87 @@ subtypes = ["Gold"]
 supertypes = []
 
 [[token]]
+id = "22a28f99-386e-5b4c-98b1-ce589600b6c9"
+rules_text = "Sacrifice this token: Add one mana of any color."
+
+[token.body]
+display_name = "Gold"
+core_types = ["Artifact"]
+subtypes = ["Gold"]
+supertypes = []
+
+[[token]]
+id = "603d6f2b-313f-5453-a3f1-55f5154ec9f6"
+rules_text = "Sacrifice this token: Add one mana of any color."
+
+[token.body]
+display_name = "Gold"
+core_types = ["Artifact"]
+subtypes = ["Gold"]
+supertypes = []
+
+[[token]]
+id = "66cd1235-f092-5483-b517-bd0398621a94"
+rules_text = "Sacrifice this token: Add one mana of any color."
+
+[token.body]
+display_name = "Gold"
+core_types = ["Artifact"]
+subtypes = ["Gold"]
+supertypes = []
+
+[[token]]
+id = "6c3f3f0f-cfa8-5ae3-ac32-eadcaf33f275"
+rules_text = "Sacrifice this token: Add one mana of any color."
+
+[token.body]
+display_name = "Gold"
+core_types = ["Artifact"]
+subtypes = ["Gold"]
+supertypes = []
+
+[[token]]
+id = "6c4de848-5258-50e6-9a57-ceccc81aefce"
+rules_text = "Sacrifice this token: Add one mana of any color."
+
+[token.body]
+display_name = "Gold"
+core_types = ["Artifact"]
+subtypes = ["Gold"]
+supertypes = []
+
+[[token]]
+id = "a3d5d5c7-2133-5762-a108-aa4de8c98b17"
+rules_text = "Sacrifice this token: Add one mana of any color."
+
+[token.body]
+display_name = "Gold"
+core_types = ["Artifact"]
+subtypes = ["Gold"]
+supertypes = []
+
+[[token]]
+id = "ecdcdb66-d39d-5491-a127-238ff8ec1236"
+rules_text = "Sacrifice this token: Add one mana of any color."
+
+[token.body]
+display_name = "Gold"
+core_types = ["Artifact"]
+subtypes = ["Gold"]
+supertypes = []
+
+[[token]]
 id = "ca9e0bcd-65f0-57dd-b5a1-eb8dac469f15"
+rules_text = "{1}, {T}, Sacrifice this artifact: Target creature you control explores. Activate only as a sorcery. (Reveal the top card of your library. Put that card into your hand if it's a land. Otherwise, put a +1/+1 counter on that creature, then put the card back or put it into your graveyard.)"
+
+[token.body]
+display_name = "Map"
+core_types = ["Artifact"]
+subtypes = ["Map"]
+supertypes = []
+
+[[token]]
+id = "cd91506e-6a64-5e5c-948e-851ed31ac543"
 rules_text = "{1}, {T}, Sacrifice this artifact: Target creature you control explores. Activate only as a sorcery. (Reveal the top card of your library. Put that card into your hand if it's a land. Otherwise, put a +1/+1 counter on that creature, then put the card back or put it into your graveyard.)"
 
 [token.body]
@@ -97,6 +231,19 @@ supertypes = []
 
 [[token]]
 id = "ab887c26-ecfd-55b4-972a-7518d1e406b6"
+rules_text = """
+Enchant creature
+Enchanted creature gets +1/+1.
+When this Aura is put into a graveyard from the battlefield, each opponent loses 1 life."""
+
+[token.body]
+display_name = "Wicked"
+core_types = ["Enchantment"]
+subtypes = ["Aura", "Role"]
+supertypes = []
+
+[[token]]
+id = "be188b68-76b3-5695-88ae-97d7383f3679"
 rules_text = """
 Enchant creature
 Enchanted creature gets +1/+1.
@@ -190,8 +337,68 @@ subtypes = ["Shard"]
 supertypes = []
 
 [[token]]
+id = "04a068bc-ff53-5736-9819-67f29d4e2bce"
+rules_text = "{1}, Sacrifice this creature: Counter target noncreature spell unless its controller pays {1}."
+
+[token.body]
+display_name = "Wizard"
+core_types = ["Creature"]
+subtypes = ["Wizard"]
+supertypes = []
+
+[[token]]
+id = "3cf5972f-8201-53a4-a77e-05a0951a0d96"
+rules_text = "{T}: Add {R}. Spend this mana only to cast a planeswalker spell."
+
+[token.body]
+display_name = "Wizard"
+core_types = ["Creature"]
+subtypes = ["Wizard"]
+supertypes = []
+
+[[token]]
+id = "5d28e979-a264-59a8-8b04-fd3636ccfeb7"
+rules_text = "Whenever you cast a noncreature spell, this token deals 1 damage to each opponent."
+
+[token.body]
+display_name = "Wizard"
+core_types = ["Creature"]
+subtypes = ["Wizard"]
+supertypes = []
+
+[[token]]
+id = "9b47488c-320d-5b91-b7be-fd6a32c343a2"
+rules_text = ""
+
+[token.body]
+display_name = "Wizard"
+core_types = ["Creature"]
+subtypes = ["Wizard"]
+supertypes = []
+
+[[token]]
 id = "c510f2dd-8d22-5882-b4df-6ccb807b39d6"
 rules_text = "{1}, Sacrifice this creature: Counter target noncreature spell unless its controller pays {1}."
+
+[token.body]
+display_name = "Wizard"
+core_types = ["Creature"]
+subtypes = ["Wizard"]
+supertypes = []
+
+[[token]]
+id = "c6009a9d-3584-5b6f-88e6-1678449bc0e6"
+rules_text = "Whenever you cast a noncreature spell, this token deals 1 damage to each opponent."
+
+[token.body]
+display_name = "Wizard"
+core_types = ["Creature"]
+subtypes = ["Wizard"]
+supertypes = []
+
+[[token]]
+id = "f0b41b8f-465c-581c-b8d6-f62d42417162"
+rules_text = "Whenever you cast a noncreature spell, this token deals 1 damage to each opponent."
 
 [token.body]
 display_name = "Wizard"

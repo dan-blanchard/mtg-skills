@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
+import hashlib
 import io
 import json
 import subprocess
-import tarfile
 import urllib.error
 from pathlib import Path
 from unittest.mock import MagicMock
@@ -14,35 +14,58 @@ import pytest
 
 from mtg_utils import _phase
 
+_DATA_URL = "https://data.phase-rs.dev/card-data-deadbeef.json"
 
-def _fake_server_tarball(
-    payload: bytes, *, member: str = "data/card-data.json"
+
+def _manifest_body(
+    payload: bytes, *, entry: str = "card-data.json", sha256: str | None = ...
 ) -> bytes:
-    """Build an in-memory .tar.gz carrying a single ``member`` of ``payload``."""
-    buf = io.BytesIO()
-    with tarfile.open(fileobj=buf, mode="w:gz") as tar:
-        info = tarfile.TarInfo(member)
-        info.size = len(payload)
-        tar.addfile(info, io.BytesIO(payload))
-    return buf.getvalue()
+    """A release-server manifest (schema 1) whose ``entry`` points at
+    ``_DATA_URL`` with ``payload``'s real sha256 (pass ``sha256=`` to lie)."""
+    digest = hashlib.sha256(payload).hexdigest() if sha256 is ... else sha256
+    return json.dumps(
+        {"schema": 1, "data": [{"name": entry, "sha256": digest, "url": _DATA_URL}]}
+    ).encode()
 
 
 class _FakeUrlopen:
-    """Stand-in for ``urllib.request.urlopen`` that serves bytes and counts hits."""
+    """Stand-in for ``urllib.request.urlopen`` that serves bytes and counts hits.
 
-    def __init__(self, body: bytes) -> None:
+    ``body`` serves every URL; pass ``routes`` to serve the manifest fetch and
+    the CDN data fetch different bytes (matched by URL substring, first hit
+    wins).
+    """
+
+    def __init__(
+        self, body: bytes = b"", routes: list[tuple[str, bytes]] | None = None
+    ) -> None:
         self._body = body
+        self._routes = routes or []
         self.calls: list[str] = []
 
     def __call__(self, request, *_a, **_kw):
         # ``request`` is a urllib.request.Request — record the URL it targets.
-        self.calls.append(getattr(request, "full_url", str(request)))
+        url = getattr(request, "full_url", str(request))
+        self.calls.append(url)
+        for fragment, body in self._routes:
+            if fragment in url:
+                return io.BytesIO(body)
         return io.BytesIO(self._body)
+
+
+def _fake_card_data_fetch(payload: bytes, **manifest_kwargs) -> _FakeUrlopen:
+    """A fake urlopen serving the two-step manifest → CDN card-data flow."""
+    return _FakeUrlopen(
+        routes=[
+            ("releases/download", _manifest_body(payload, **manifest_kwargs)),
+            ("data.phase-rs.dev", payload),
+        ]
+    )
 
 
 class TestPhaseTag:
     def test_phase_tag_is_pinned(self):
-        assert _phase.PHASE_TAG == "v0.23.0"
+        assert _phase.PHASE_TAG == "v0.35.2"
 
 
 class TestCacheLayout:
@@ -522,10 +545,10 @@ class TestEnsureCardData:
         assert out == dest
         assert fake.calls == [], "must NOT download when the cache exists"
 
-    def test_downloads_and_extracts_to_tag_versioned_path(self, monkeypatch, tmp_path):
+    def test_downloads_via_manifest_to_tag_versioned_path(self, monkeypatch, tmp_path):
         monkeypatch.setenv("MTG_SKILLS_CACHE_DIR", str(tmp_path))
         payload = b'{"lightning bolt": {"name": "Lightning Bolt"}}'
-        fake = _FakeUrlopen(_fake_server_tarball(payload))
+        fake = _fake_card_data_fetch(payload)
         monkeypatch.setattr("urllib.request.urlopen", fake)
 
         out = _phase.ensure_card_data()
@@ -535,40 +558,40 @@ class TestEnsureCardData:
         )
         assert out == expected
         assert out.read_bytes() == payload
-        # Downloaded the LINUX server asset for the pinned tag.
-        assert len(fake.calls) == 1
-        assert _phase.PHASE_SERVER_ASSET in fake.calls[0]
+        # Two-step: the tag's release manifest, then the CDN data URL it names.
+        assert len(fake.calls) == 2
+        assert _phase.release_manifest_asset() in fake.calls[0]
         assert _phase.PHASE_TAG in fake.calls[0]
+        assert fake.calls[1] == _DATA_URL
 
     def test_keyed_by_phase_tag_refetches_on_bump(self, monkeypatch, tmp_path):
         monkeypatch.setenv("MTG_SKILLS_CACHE_DIR", str(tmp_path))
 
         # Seed the cache for the current tag → no download.
-        first = _FakeUrlopen(_fake_server_tarball(b'{"a": {"name": "A"}}'))
+        first = _fake_card_data_fetch(b'{"a": {"name": "A"}}')
         monkeypatch.setattr("urllib.request.urlopen", first)
         path_v1 = _phase.ensure_card_data()
-        assert len(first.calls) == 1
+        assert len(first.calls) == 2
         # Idempotent: second call for the SAME tag does not re-download.
         again = _phase.ensure_card_data()
         assert again == path_v1
-        assert len(first.calls) == 1
+        assert len(first.calls) == 2
 
         # A tag bump points at a different path and refetches.
         monkeypatch.setattr(_phase, "PHASE_TAG", "v9.9.9")
-        second = _FakeUrlopen(_fake_server_tarball(b'{"b": {"name": "B"}}'))
+        second = _fake_card_data_fetch(b'{"b": {"name": "B"}}')
         monkeypatch.setattr("urllib.request.urlopen", second)
         path_v2 = _phase.ensure_card_data()
         assert path_v2 != path_v1
         assert "v9.9.9" in path_v2.name
-        assert len(second.calls) == 1
+        assert len(second.calls) == 2
         # Old tag's cache file is untouched.
         assert path_v1.exists()
 
-    def test_fails_loud_on_bad_asset(self, monkeypatch, tmp_path):
+    def test_fails_loud_when_manifest_lacks_card_data(self, monkeypatch, tmp_path):
         monkeypatch.setenv("MTG_SKILLS_CACHE_DIR", str(tmp_path))
-        # Tarball is missing the data/card-data.json member.
-        bad = _fake_server_tarball(b"x", member="data/other.json")
-        fake = _FakeUrlopen(bad)
+        # Manifest carries only some other data file.
+        fake = _fake_card_data_fetch(b"x", entry="draft-pools.json")
         monkeypatch.setattr("urllib.request.urlopen", fake)
 
         with pytest.raises(RuntimeError) as excinfo:
@@ -577,6 +600,16 @@ class TestEnsureCardData:
         assert "card-data.json" in msg
         assert _phase.PHASE_TAG in msg
         # No partial cache file left behind on failure.
+        assert not _phase._card_data_path().exists()
+
+    def test_fails_loud_on_checksum_mismatch(self, monkeypatch, tmp_path):
+        monkeypatch.setenv("MTG_SKILLS_CACHE_DIR", str(tmp_path))
+        fake = _fake_card_data_fetch(b'{"a": {"name": "A"}}', sha256="0" * 64)
+        monkeypatch.setattr("urllib.request.urlopen", fake)
+
+        with pytest.raises(RuntimeError) as excinfo:
+            _phase.ensure_card_data()
+        assert "checksum mismatch" in str(excinfo.value)
         assert not _phase._card_data_path().exists()
 
 
@@ -678,11 +711,11 @@ class TestBuildAndCoverageUseEnsure:
     def test_coverage_uses_ensure_card_data(self, monkeypatch, tmp_path):
         monkeypatch.setenv("MTG_SKILLS_CACHE_DIR", str(tmp_path))
         payload = json.dumps({"sol ring": {"name": "Sol Ring"}}).encode()
-        fake = _FakeUrlopen(_fake_server_tarball(payload))
+        fake = _fake_card_data_fetch(payload)
         monkeypatch.setattr("urllib.request.urlopen", fake)
         _phase.load_supported_card_names.cache_clear()
 
         names = _phase.load_supported_card_names()
         assert "sol ring" in names
-        assert len(fake.calls) == 1
+        assert len(fake.calls) == 2
         _phase.load_supported_card_names.cache_clear()

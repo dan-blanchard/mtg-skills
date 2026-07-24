@@ -62,6 +62,7 @@ from mtg_utils._card_ir.crosswalk import (
     explicit_recipient_scope,
     filter_controller,
     filter_core_types,
+    filter_inanyzone_zones,
     filter_inzone_zones,
     filter_non_types,
     filter_owned_controller,
@@ -1545,7 +1546,8 @@ PORTED_KEYS: frozenset[str] = frozenset(
 # ``base_pt_tk_sticker_parse_failure`` (Cool Fluffy Loxodon),
 # ``base_pt_each_equal_to_dropped`` (Captain Rex Nebula,
 # Fractalize), ``base_pt_addpt_misattributed_typechange`` (Goddric,
-# Cloaked Reveler), ``base_pt_becomecopy_no_pt_override`` (Mindlink
+# Cloaked Reveler — RETIRED at the v0.35.2 phase bump, structure
+# landed upstream), ``base_pt_becomecopy_no_pt_override`` (Mindlink
 # Mech — the standard "except it's 0/0 and has this ability"
 # clone-shell idiom, Mimeoplasm, Revered One, is corpus-verified
 # NOT a legacy member and stays excluded via a negative lookahead).
@@ -3486,33 +3488,30 @@ def _single_target_neutralize(tree: ConceptTree) -> list[Signal]:
 
 
 # ── task #96 (ADR-0040): type_changers — mass creature-type changers ─────────
-_TYPE_CHANGER_ZONE_BRIDGES = (
-    # (bridge_id, key) — the "same is true…" rider extends an existing
-    # battlefield changer beyond the battlefield (one ledger row per key).
-    ("type_changers_same_is_true_all_zones", "type_changers_all_zones"),
-    ("type_changers_same_is_true_graveyard", "type_changers_graveyard"),
-)
-
-
 def _type_changer_zone(affected: object, preds: set[str]) -> str | None:
     """Structural zone reach of a type-adding static's ``affected`` filter.
 
-    "battlefield" (no zone qualifier — CR 400.7's default, every current
-    phase parse), "graveyard" (InZone Graveyard — the Ashes of the Fallen
-    shape, once phase's static parser structures it), "all_zones" (an
-    InAnyZone multi-zone span — the same-is-true rider, once phase grows
-    it; retires the two ledgered bridges). ``None`` = a single non-
-    battlefield/graveyard zone no serve arm consumes yet — skip rather
-    than mis-key it battlefield."""
-    if "InAnyZone" in preds:
+    "battlefield" (no zone qualifier — CR 400.7's default), "graveyard"
+    (a Graveyard-only span — the Ashes of the Fallen shape, structured
+    since phase v0.28.0), "all_zones" (a multi-zone beyond-battlefield
+    span — the same-is-true rider, structured since phase v0.26.0; both
+    retired their ledgered bridges at the v0.35.2 pin bump). ``InAnyZone``
+    is parameterized (carries a ``zones`` list) — the payload, not the
+    property's presence, decides the reach; a payload-less ``InAnyZone``
+    (pre-v0.35 shape) reads as everywhere. ``None`` = a beyond-battlefield
+    span that skips the graveyard and no serve arm consumes yet — skip
+    rather than mis-key it battlefield."""
+    anyzones = set(filter_inanyzone_zones(affected))
+    if "InAnyZone" in preds and not anyzones:
         return "all_zones"
-    zones = set(filter_inzone_zones(affected))
-    if not zones:
+    zones = set(filter_inzone_zones(affected)) | anyzones
+    beyond = zones - {"Battlefield"}
+    if not beyond:
         return "battlefield"
-    if zones == {"Graveyard"}:
+    if beyond == {"Graveyard"}:
         return "graveyard"
-    if "Battlefield" in zones:
-        return "battlefield"
+    if "Graveyard" in beyond:
+        return "all_zones"
     return None
 
 
@@ -3551,6 +3550,16 @@ def _type_changer_static_reads(
             ctrl = filter_controller(affected)
             if ctrl not in ("You", None):
                 continue
+            if ctrl is None:
+                # A controller-less span still scopes "you" when it reaches
+                # only YOUR OWN cards (Ashes of the Fallen's ``Owned: You``
+                # graveyard grant — CR 108.3); an opponent-owned span is
+                # never tribal-serving.
+                owned = filter_owned_controller(affected)
+                if owned == "You":
+                    ctrl = "You"
+                elif owned is not None:
+                    continue
             scope = "you" if ctrl == "You" else "each"
             zone = _type_changer_zone(affected, preds)
             if zone is None:
@@ -3603,11 +3612,11 @@ def _type_changers(tree: ConceptTree) -> list[Signal]:
     "creatures you control" static is battlefield-only (CR 109.2), so the
     base key alone (Xenograft). The "The same is true for creature spells
     you control and creature cards you own that aren't on the battlefield"
-    rider reaches the stack/hand/library/graveyard — phase parses it as an
-    ``Unimplemented`` residue, so the two zone keys ride ledgered bridges
-    (self-retiring when phase grows the rider's structure). Ashes of the
-    Fallen's graveyard-only static FAILS phase's static parser outright —
-    an upstream_parse_failure bridge fires the graveyard key alone."""
+    rider reaches the stack/hand/library/graveyard — phase structures it as
+    an InAnyZone span since v0.26.0, and Ashes of the Fallen's
+    graveyard-only static as InZone Graveyard since v0.28.0; both zone keys
+    are pure structural reads now (their ledgered bridges retired at the
+    v0.35.2 pin bump)."""
     reads = _type_changer_static_reads(tree)
     out: list[Signal] = []
     seen: set[tuple[str, str, str]] = set()
@@ -3619,24 +3628,15 @@ def _type_changers(tree: ConceptTree) -> list[Signal]:
 
     for scope, subject, raw, zone in reads:
         if zone == "graveyard":
-            # A structurally-zoned graveyard-only static (post-phase-bump
-            # Ashes shape) keys graveyard alone — never battlefield.
+            # A structurally-zoned graveyard-only static (the Ashes shape)
+            # keys graveyard alone — never battlefield.
             push("type_changers_graveyard", scope, subject, raw)
             continue
         push("type_changers", scope, subject, raw)
         if zone == "all_zones":
-            # Structural InAnyZone reach — the same-is-true rider once phase
-            # grows it (the bridges below then gap-retire).
+            # Structural InAnyZone reach — the same-is-true rider.
             push("type_changers_all_zones", scope, subject, raw)
             push("type_changers_graveyard", scope, subject, raw)
-            continue
-        for bridge_id, key in _TYPE_CHANGER_ZONE_BRIDGES:
-            if bridge_fires(bridge_id, tree):
-                push(key, scope, subject, raw)
-    if bridge_fires("type_changers_graveyard_static_parse_failure", tree):
-        # Subject "" — the failed line is the chosen-type graveyard grant
-        # (the bridge's match is that exact sentence).
-        push("type_changers_graveyard", "you", "", tree.oracle or "")
     return out
 
 
@@ -4246,7 +4246,6 @@ def _direct_damage(tree: ConceptTree) -> list[Signal]:
     # parse-failure bucket (bridge_ledger.py rows, docstring there for the
     # full corpus accounting):
     for bridge_id in (
-        "dmg_creature_and_controller_dropped",
         "vexing_arcanix_reveal_misread_damage_drop",
         "curse_shaken_faith_enchant_player_them",
         "flames_blood_hand_headline_clause_drop",
@@ -4350,7 +4349,13 @@ def _landfall(tree: ConceptTree) -> list[Signal]:
             return [Signal("landfall", "you", "", "", tree.name, "high")]
     for unit in tree.units:
         for f in entered_this_turn_filters(unit.node):
-            if "Land" in filter_core_types(f) and filter_controller(f) == "You":
+            # None controller: the v0.32.0 entry-ledger shape scopes the
+            # controller on the qty's own player field (the helper already
+            # gates on it), leaving the filter's controller null.
+            if "Land" in filter_core_types(f) and filter_controller(f) in (
+                "You",
+                None,
+            ):
                 return [Signal("landfall", "you", "", "", tree.name, "high")]
     for unit in tree.units:
         for trig in iter_nested_trigger_defs(unit.node):
@@ -5356,20 +5361,35 @@ def _iter_returnasaura_mana_defs(
             enchant = getattr(n, "enchant_filter", None)
             for g in getattr(n, "grants", None) or []:
                 tag = tag_of(g)
+                defs: list[object] = []
                 if tag == "GrantAbility":
-                    d = getattr(g, "definition", None)
+                    defs.append(getattr(g, "definition", None))
                 elif tag == "GrantTrigger":
                     trig = getattr(g, "trigger", None)
-                    d = getattr(trig, "execute", None) if trig is not None else None
+                    defs.append(
+                        getattr(trig, "execute", None) if trig is not None else None
+                    )
+                elif tag == "GrantStaticAbility":
+                    # phase v0.29.0's return-as-aura pipeline wraps the
+                    # granted body one level deeper: grants carries a
+                    # GrantStaticAbility whose static definition's
+                    # modifications hold the GrantAbility defs ("Enchanted
+                    # Forest has '{T}: Add {G}{G}'" — Old-Growth Troll,
+                    # Harold and Bob).
+                    sdef = getattr(g, "definition", None)
+                    for m in getattr(sdef, "modifications", None) or []:
+                        if tag_of(m) == "GrantAbility":
+                            defs.append(getattr(m, "definition", None))
                 else:
                     continue
-                if d is None:
-                    continue
-                if (
-                    getattr(d, "is_mana_ability", None) is True
-                    or tag_of(getattr(d, "effect", None)) == "Mana"
-                ):
-                    out.append((d, enchant))
+                for d in defs:
+                    if d is None:
+                        continue
+                    if (
+                        getattr(d, "is_mana_ability", None) is True
+                        or tag_of(getattr(d, "effect", None)) == "Mana"
+                    ):
+                        out.append((d, enchant))
     return out
 
 
@@ -6186,6 +6206,14 @@ def _artifacts_enchantments_matter(tree: ConceptTree) -> list[Signal]:
     # artifacts. CR 702.41a / 303.
     if "affinity for enchantments" in _kept(tree).lower():
         out.append("enchantments_matter")
+    # ADR-0039 W7 ledgered bridge — the v0.35.2 reflexive-payment
+    # regression (bridge_ledger.py row, docstring there for the CR 603.12
+    # / CR 205.3g grounding and full census): Nimble Hobbit's "you may
+    # sacrifice a Food or pay {2}{W}" trigger body parks WHOLE as an
+    # Unimplemented residue, dropping the typed Food Sacrifice branch the
+    # deep scan read at v0.23.0.
+    if bridge_fires("artifact_sac_reflexive_payment_unparsed", tree):
+        out.append("artifacts_matter")
     seen: set[str] = set()
     sigs: list[Signal] = []
     for lane in out:
@@ -6253,13 +6281,20 @@ def _or_wrapped_generic_creature_filter(filt: object) -> object | None:
     Reservoir's ``PutCounter.target``) — none of those nodes are static defs
     :func:`_iter_creatures_matter_static_defs` yields at all, so this helper
     never reaches them by construction.
+
+    The descent recurses nested ``Or``/``And`` wrappers (phase v0.35.2's
+    structured same-is-true rider groups the battlefield branches one level
+    deeper — Rukarumel's ``Or(Or(Sliver, Creature-NonToken), Stack-span,
+    owned-cards-span)``); the SAME per-leaf gate applies at every depth, so
+    the safety argument is unchanged.
     """
     if _is_generic_creature_filter(filt):
         return filt
     if tag_of(filt) in ("Or", "And"):
         for sub in getattr(filt, "filters", None) or ():
-            if _is_generic_creature_filter(sub):
-                return sub
+            found = _or_wrapped_generic_creature_filter(sub)
+            if found is not None:
+                return found
     return None
 
 
@@ -6583,7 +6618,10 @@ def _aggregate_creature_filter(node: TypedMirrorNode) -> object | None:
     self-referential-CDA exclusion (this docstring, two paragraphs up) for
     the STATIC-role shape the affected-filter check alone cannot reach here.
     """
-    for fname in ("amount", "count", "value"):
+    # announced_x: phase v0.25.0's announce-locked-X channel moves the
+    # computed operand off ``amount`` (now a bare Variable Ref) onto its
+    # own field (Monstrous Onslaught at the v0.35.2 pin).
+    for fname in ("amount", "count", "value", "announced_x"):
         q = getattr(node, fname, None)
         if isinstance(q, TypedMirrorNode) and tag_of(q) == "Ref":
             qty = getattr(q, "qty", None)
@@ -6992,6 +7030,26 @@ def _creatures_matter(tree: ConceptTree) -> list[Signal]:
             )
         ):
             return [Signal("creatures_matter", "you", "", c.raw, tree.name, "high")]
+    # announced_x (phase v0.25.0's announce-locked-X channel, CR 601.2b /
+    # 602.2b): the computed operand moves off the EFFECT node's ``amount``
+    # (now a bare Variable Ref) onto the owning cast/activation WRAPPER's
+    # own ``announced_x`` field (Monstrous Onslaught's "where X is the
+    # greatest power among creatures you control AS YOU CAST THIS SPELL" at
+    # the v0.35.2 pin) — a field position no effect-node concept walk
+    # reaches. Ability-origin units only: a static's CDA never carries an
+    # announced X, so the Towering Gibbon role-gate concern doesn't arise.
+    for unit in tree.units:
+        if unit.origin != "ability":
+            continue
+        for n in iter_typed_nodes(unit.node):
+            q = getattr(n, "announced_x", None)
+            if tag_of(q) != "Ref":
+                continue
+            qty = getattr(q, "qty", None)
+            if tag_of(qty) in ("ObjectCount", "Aggregate") and (
+                _is_generic_creature_filter(getattr(qty, "filter", None))
+            ):
+                return [Signal("creatures_matter", "you", "", "", tree.name, "high")]
     for unit in tree.units:
         for sdef in _iter_creatures_matter_static_defs(unit.node):
             if (
@@ -7955,7 +8013,43 @@ def _plus_one_matters(tree: ConceptTree) -> list[Signal]:
                                     "high",
                                 )
                             ]
-                elif ctag in ("QuantityCheck", "ConditionInstead"):
+                    else:
+                        # phase v0.35.2 structures the former gap marker:
+                        # RequiresCondition.data carries a real condition
+                        # ("Activate only if ~ has a +1/+1 counter on it" —
+                        # Skarrgan Hellkite's QuantityComparison over a
+                        # CountersOn(Source, P1P1) Ref). CR 602.5.
+                        inner_cond = getattr(inner, "condition", None) or inner
+                        if tag_of(inner_cond) in (
+                            "QuantityCheck",
+                            "QuantityComparison",
+                        ):
+                            for side in (
+                                getattr(inner_cond, "lhs", None),
+                                getattr(inner_cond, "rhs", None),
+                            ):
+                                if tag_of(side) != "Ref":
+                                    continue
+                                qty = getattr(side, "qty", None)
+                                if tag_of(qty) == "CountersOn" and (
+                                    str(getattr(qty, "counter_type", "") or "").upper()
+                                    == "P1P1"
+                                ):
+                                    return [
+                                        Signal(
+                                            "plus_one_matters",
+                                            "you",
+                                            "",
+                                            "",
+                                            tree.name,
+                                            "high",
+                                        )
+                                    ]
+                elif ctag in (
+                    "QuantityCheck",
+                    "QuantityComparison",
+                    "ConditionInstead",
+                ):
                     # ADR-0038 W6 endgame — a P1P1 self-count THRESHOLD
                     # condition rides ``QuantityCheck`` (Incubation Druid's
                     # activated-ability sub_ability condition, Oblivion's
@@ -8383,6 +8477,14 @@ def _any_counter_matters(tree: ConceptTree) -> list[Signal]:
                             "any_counter_matters", "you", "", c.raw, tree.name, "high"
                         )
                     ]
+            elif q is not None and qtag == "DistinctCounterKindsAmong":
+                # phase v0.31.0 routes "the number of different kinds of
+                # counters among permanents you control" (Perrie, the
+                # Pulverizer) to its own qty node — kind-agnostic by
+                # definition, so no P1P1 carve-out applies.
+                return [
+                    Signal("any_counter_matters", "you", "", c.raw, tree.name, "high")
+                ]
             elif q is not None and qtag == "PlayerCounter":
                 # Experience carries its OWN dedicated lane (experience_matters,
                 # ADR-0034 — Kalemne, Kelsien, Minthara, Azula) and is EXCLUDED
@@ -9119,10 +9221,11 @@ def _voltron_matters(tree: ConceptTree) -> list[Signal]:
     # ADR-0039 W7 ledgered bridges — the residual dropped-clause bucket
     # (bridge_ledger.py rows, docstring there for the full corpus
     # accounting): an attachment-count scaling clause dropped to a bare
-    # Fixed value (Judgment Bolt / Animal Friend / Sage's Reverie), a
-    # trigger condition surviving only in description text (Warchanter
-    # Skald), and an unlinked equip-cost alternative-payment PayCost
-    # (Forge Anew).
+    # Fixed value (Animal Friend / Sage's Reverie — Judgment Bolt's
+    # scaling structured upstream at the v0.35.2 bump and left the row's
+    # pins), a trigger condition surviving only in description text
+    # (Warchanter Skald), and an unlinked equip-cost alternative-payment
+    # PayCost (Forge Anew).
     for bridge_id in (
         "voltron_attach_count_scaling_dropped",
         "warchanter_skald_condition_dropped",
@@ -15810,8 +15913,22 @@ def _cheat_into_play(tree: ConceptTree) -> list[Signal]:
                     "reveal_top",
                     "exile_top",
                 )
-                if origin is None and any(
-                    c.concept in _untracked_producers for c in unit.effects
+                if origin is None and (
+                    any(c.concept in _untracked_producers for c in unit.effects)
+                    # CR 607.2a: a "put a creature card EXILED THIS WAY onto
+                    # the battlefield" put declares its exile provenance ON
+                    # ITS OWN TARGET — a TrackedSetFiltered stamped
+                    # ``caused_by: Exiled`` / an ``ExiledBySource`` filter
+                    # predicate is phase's typed form of that linked-exile
+                    # reference. Needed since v0.35.2 for Anzrag's Rampage:
+                    # its "exile the top X cards ... where X is ..." producer
+                    # clause now fails honestly (an Unimplemented
+                    # ``where_x_binding`` residue, the v0.24.0 bind-or-fail
+                    # policy), so no exile_top sibling survives — but the
+                    # put's own target still carries the linkage. Only ever
+                    # ADMITS the pair; the downstream cores gate is
+                    # unchanged and still never manufactures type evidence.
+                    or _tracked_target_exile_caused(c.node)
                 ):
                     allowed_origins = ("Hand", "Library", None)
             if origin not in allowed_origins:
@@ -16434,6 +16551,26 @@ def _filter_all_named(filt: object) -> bool:
         subs = getattr(filt, "filters", None) or []
         return bool(subs) and all(_filter_all_named(sub) for sub in subs)
     return False
+
+
+def _tracked_target_exile_caused(node: TypedMirrorNode) -> bool:
+    """Does this ChangeZone's OWN target declare exile provenance — a
+    ``TrackedSetFiltered`` stamped ``caused_by: Exiled`` or whose filter
+    carries an ``ExiledBySource`` predicate? CR 607.2a: "put a creature card
+    exiled this way onto the battlefield" is a linked-exile reference, and
+    this tracked-set stamp is phase's typed form of the linkage. Corpus
+    census (v0.35.2, 2026-07-24, every commander-legal ChangeZone{
+    Battlefield, origin: None} with such a target): exactly 1 hit —
+    Anzrag's Rampage, whose exile_top producer clause now fails honestly
+    upstream (a ``where_x_binding`` Unimplemented residue) so no sibling
+    survives to scan."""
+    tgt = getattr(node, "target", None)
+    if tag_of(tgt) != "TrackedSetFiltered":
+        return False
+    if getattr(tgt, "caused_by", None) == "Exiled":
+        return True
+    filt = getattr(tgt, "filter", None)
+    return filt is not None and "ExiledBySource" in filter_predicates(filt)
 
 
 def _sibling_named_tutor_no_core(unit: AbilityUnit) -> bool:
@@ -18572,6 +18709,22 @@ def _exile_matters(tree: ConceptTree) -> list[Signal]:
                                     "exile_matters", "you", "", "", tree.name, "high"
                                 )
                             ]
+        # phase v0.35.2 residue drift for the SAME census: Dreadlight
+        # Monstrosity's activation restriction no longer emits the empty
+        # RequiresCondition — the clause parks as an
+        # ``Unimplemented(name='activate')`` sub-effect carrying the
+        # restriction sentence in its own description. Same three-card
+        # census, same narrowly-scoped text anchor.
+        for cn in unit.iter_concepts():
+            node = cn.node
+            if (
+                tag_of(node) == "Unimplemented"
+                and getattr(node, "name", None) == "activate"
+                and _EXILE_OWNS_COND_TEXT_RX.search(
+                    str(getattr(node, "description", "") or "")
+                )
+            ):
+                return [Signal("exile_matters", "you", "", "", tree.name, "high")]
     # ADR-0038 W5 tails — a Token/PutCounter-style effect's OWN scaling
     # count nests a ZoneCardCount/ObjectCount UNDER a wrapper field
     # (``enter_with_counters`` — Serpentine Curve / Slime Against
@@ -19510,8 +19663,11 @@ def _etb_trigger_lanes(tree: ConceptTree) -> list[Signal]:
             if dt_cores is not None and (not dt_cores or "Creature" in dt_cores):
                 fire("creature_etb", "you")
         for filt in entered_this_turn_filters(unit.node):
+            # None controller: the v0.32.0 entry-ledger shape scopes the
+            # controller on the qty's own player field (the helper already
+            # gates on it), leaving the filter's controller null.
             if "Creature" in filter_core_types(filt) and (
-                filter_controller(filt) == "You"
+                filter_controller(filt) in ("You", None)
             ):
                 fire("creature_etb", "you")
         for trig in iter_nested_trigger_defs(unit.node):
@@ -20565,14 +20721,14 @@ def _base_pt_set(tree: ConceptTree) -> list[Signal]:
             if _BASE_PT_RAW_HOOK.search(text) or _BASE_PT_ANIMATE_HOOK.search(text):
                 return [Signal("base_pt_set", "any", "", "", tree.name, "high")]
     # ADR-0039 W7 endgame ledgered bridges — the final residual stragglers
-    # (a dropped dynamic-scalar site, a mis-decomposed AddPower/AddToughness
-    # site, a BecomeCopy P/T override with zero trace, a Stickers TK-cost
-    # parse failure; bridge_ledger.py rows, docstring there for the full
-    # corpus accounting):
+    # (a dropped dynamic-scalar site, a BecomeCopy P/T override with zero
+    # trace, a Stickers TK-cost parse failure; bridge_ledger.py rows,
+    # docstring there for the full corpus accounting). Goddric's
+    # mis-decomposed AddPower/AddToughness row retired at the v0.35.2 bump
+    # (phase now emits the real base-P/T type-change).
     for bridge_id in (
         "base_pt_tk_sticker_parse_failure",
         "base_pt_each_equal_to_dropped",
-        "base_pt_addpt_misattributed_typechange",
         "base_pt_becomecopy_no_pt_override",
     ):
         if bridge_fires(bridge_id, tree):
@@ -21761,23 +21917,27 @@ def _tap_lanes(tree: ConceptTree) -> list[Signal]:
                     # bare "opponent controls" — no cross-clause
                     # misattribution risk).
                     fire("tap_down", "opponents", c.raw)
-                elif ctrl == "You" and _OPPONENTS_TURN_RE.search(
+                elif ctrl in ("You", "ScopedPlayer") and _OPPONENTS_TURN_RE.search(
                     getattr(unit.node, "description", None) or ""
                 ):
-                    # ADR-0037/0038 W3: phase mis-stamps ``controller: You``
-                    # on "at the beginning of combat on each OPPONENT'S
-                    # TURN, tap target creature that player controls"
-                    # (Citadel Siege's Dragons mode, Sentinel of the
-                    # Eternal Watch) — the SAME per-iteration-variable
-                    # mis-stamp class as RevealUntil's [P28] "their
-                    # library" bug. Deliberately NARROWER than the
-                    # ``_OPPONENT_CONTROLS_TAP_RE`` clause-level check above
-                    # (requires the literal "opponent's turn", never "each
-                    # PLAYER's turn/step") — Angel's Trumpet / Monsoon's
-                    # genuinely SYMMETRIC "each player's end step, tap ...
-                    # that player controls" must NOT fire (corpus-verified:
-                    # an unscoped "that player controls" match alone
-                    # over-fired on both).
+                    # ADR-0037/0038 W3: "at the beginning of combat on each
+                    # OPPONENT'S TURN, tap target creature that player
+                    # controls" (Citadel Siege's Dragons mode, Sentinel of
+                    # the Eternal Watch). Through phase v0.23.0 this was a
+                    # ``controller: You`` mis-stamp (the same
+                    # per-iteration-variable class as RevealUntil's [P28]
+                    # "their library" bug); v0.35.2 stamps the honest
+                    # ``ScopedPlayer`` turn-player back-reference instead —
+                    # but the trigger still carries NO typed opponents-turn
+                    # constraint, so the "opponent's turn" text gate stays
+                    # the scope proof either way. Deliberately NARROWER
+                    # than the ``_OPPONENT_CONTROLS_TAP_RE`` clause-level
+                    # check above (requires the literal "opponent's turn",
+                    # never "each PLAYER's turn/step") — Angel's Trumpet /
+                    # Monsoon's genuinely SYMMETRIC "each player's end
+                    # step, tap ... that player controls" must NOT fire
+                    # (corpus-verified: an unscoped "that player controls"
+                    # match alone over-fired on both).
                     fire("tap_down", "opponents", c.raw)
             elif c.concept == "detain":
                 fire("tap_down", "opponents", c.raw)
@@ -22285,7 +22445,14 @@ def _entered_attacker(tree: ConceptTree) -> list[Signal]:
         if unit.trigger_event not in _ENTERED_ATTACKER_TRIGGER_EVENTS:
             continue
         for n in iter_typed_nodes(unit.node):
-            if tag_of(n) in ("EnteredThisTurn", "SourceEnteredThisTurn"):
+            # BattlefieldEntriesThisTurn: the v0.32.0 entry-ledger rename
+            # of the EnteredThisTurn QTY (Iron Man's intervening-if counts
+            # this-turn artifact entries through it).
+            if tag_of(n) in (
+                "EnteredThisTurn",
+                "SourceEnteredThisTurn",
+                "BattlefieldEntriesThisTurn",
+            ):
                 return [Signal("entered_attacker", "you", "", "", tree.name, "high")]
     return []
 

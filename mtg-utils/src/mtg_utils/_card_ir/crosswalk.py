@@ -1233,8 +1233,11 @@ def count_operand_filter(node: TypedMirrorNode) -> object | None:
     counted population on ``amount`` / ``count`` / ``value`` as a ``Ref`` whose
     ``qty`` is an ``ObjectCount`` with a ``filter``. The type/counter-matters lanes
     read that counted set's filter — the operand the old projection dropped.
+    ``announced_x`` joins the field list at phase v0.35.2: an announce-locked X
+    (CR 601.2b / 602.2b, the v0.25.0 channel) moves the computed operand off
+    ``amount`` (now a bare ``Variable`` Ref) onto its own field.
     """
-    for fname in ("amount", "count", "value"):
+    for fname in ("amount", "count", "value", "announced_x"):
         q = getattr(node, fname, MISSING)
         if not _present(q) or tag_of(q) != "Ref":
             continue
@@ -1501,9 +1504,12 @@ def count_operand_qty(node: TypedMirrorNode) -> object | None:
     …)))``) wraps the ``Ref`` one level deeper under ``Multiply.inner``; unwrapped the
     same way (ADR-0038 W3 batch 3). Returns the qty node so a lane can read its
     discriminator tag (:func:`tag_of`) plus its ``controller`` / ``player`` / ``kind``
-    fields.
+    fields. ``announced_x`` joins the field list at phase v0.35.2: an
+    announce-locked X (CR 601.2b / 602.2b, the v0.25.0 channel) moves the computed
+    operand off ``amount`` (now a bare ``Variable`` Ref) onto its own field
+    (Monstrous Onslaught's Max-Power Aggregate).
     """
-    for fname in ("amount", "count", "value"):
+    for fname in ("amount", "count", "value", "announced_x"):
         q = getattr(node, fname, MISSING)
         if not _present(q):
             continue
@@ -2216,6 +2222,27 @@ def filter_inzone_zones(filt: object) -> tuple[str, ...]:
     elif t in ("Or", "And"):
         for sub in getattr(filt, "filters", ()) or ():
             out.extend(filter_inzone_zones(sub))
+    return tuple(out)
+
+
+def filter_inanyzone_zones(filt: object) -> tuple[str, ...]:
+    """The zones named by a filter's ``InAnyZone`` properties, recursing
+    ``Or`` / ``And``. Parameterized since phase v0.35.2: the same-is-true
+    type-changer rider spans ``[Library, Hand, Graveyard, Stack, Exile,
+    Command]`` while Ashes of the Fallen's graveyard grant carries exactly
+    ``[Graveyard]`` — the payload, not the property's presence, decides the
+    reach."""
+    out: list[str] = []
+    t = tag_of(filt)
+    if t == "Typed":
+        for prop in getattr(filt, "properties", ()) or ():
+            if tag_of(prop) == "InAnyZone":
+                for z in getattr(prop, "zones", ()) or ():
+                    if isinstance(z, str):
+                        out.append(z)
+    elif t in ("Or", "And"):
+        for sub in getattr(filt, "filters", ()) or ():
+            out.extend(filter_inanyzone_zones(sub))
     return tuple(out)
 
 
@@ -3661,13 +3688,27 @@ def zone_change_count_reads(
 
 
 def entered_this_turn_filters(root: object) -> Iterator[object]:
-    """The ``filter`` of every ``EnteredThisTurn`` QTY node under ``root`` —
+    """The ``filter`` of every entered-this-turn QTY node under ``root`` —
     the "if a creature entered the battlefield under your control this turn"
     condition family (Bellowing Elk; CR 603.6a-adjacent state check). A
-    filterless ``EnteredThisTurn`` (Cactuar's self-check) yields nothing.
+    filterless node (Cactuar's self-check) yields nothing.
+
+    Two shapes: the legacy ``EnteredThisTurn`` qty (controller rides the
+    filter itself), and phase v0.32.0's entry-ledger ``BattlefieldEntries
+    ThisTurn`` (BB-FU10 — the controller moved to the qty's own ``player``
+    field, the filter's controller is null). The ledger shape yields only
+    when ``player`` is the Controller, so consumers may accept a None
+    filter-controller for it.
     """
     for n in _iter_typed_nodes(root):
-        if tag_of(n) == "EnteredThisTurn":
+        t = tag_of(n)
+        if t == "EnteredThisTurn":
+            f = getattr(n, "filter", MISSING)
+            if _present(f):
+                yield f
+        elif t == "BattlefieldEntriesThisTurn":
+            if tag_of(getattr(n, "player", None)) != "Controller":
+                continue
             f = getattr(n, "filter", MISSING)
             if _present(f):
                 yield f

@@ -277,7 +277,8 @@ def test_ozox_jumblebones_graveyard_return_needs_no_known_tokens_work():
 
 
 # ── task #np_roles — the deferred Role identities + the single-creator tail ──
-# Entry dicts mirror phase v0.23.0's known-tokens.toml verbatim (the same
+# Entry dicts mirror phase's known-tokens.toml verbatim (texts unchanged
+# v0.23.0 → v0.35.2, re-verified at the 2026-07-24 pin bump; the same
 # texts the committed fallback carries). Each integration test runs the
 # real production pipeline over the pinned fixture creator and asserts the
 # wired lane opens; the Monster test pins the ADJUDICATED-OUT decision

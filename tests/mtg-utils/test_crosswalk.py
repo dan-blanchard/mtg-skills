@@ -7728,15 +7728,16 @@ def test_creature_recursion_attached_to_enchant_cross_ref(name):
     assert ("creature_recursion", "you", "") in _idents(name)
 
 
-def test_creature_recursion_necromancy_stays_unimplemented():
-    """Necromancy's equivalent reanimation clause is a SEPARATE upstream
-    gap from Animate Dead/Dance of the Dead's ``AttachedTo`` shape: its
-    whole "become an Aura... put target creature card... onto the
-    battlefield" body is one ``GrantAbility.definition`` carrying an
-    ``Unimplemented("enchant")`` payload — no ``ChangeZone`` node survives
-    at all, so the task #87 cross-ref has nothing to reach and correctly
-    contributes no signal (never bridged — see the lane's own docstring)."""
-    assert "creature_recursion" not in _keys("Necromancy")
+def test_creature_recursion_necromancy_structural():
+    """Necromancy's reanimation clause was an upstream parse gap through
+    phase v0.23.0 (the whole "become an Aura... put target creature card...
+    onto the battlefield" body was one ``GrantAbility.definition`` carrying
+    an ``Unimplemented("enchant")`` payload — no ``ChangeZone`` node at
+    all, so the lane correctly contributed no signal and never bridged).
+    phase v0.25.0 (#640) landed the real ``ChangeZone
+    Graveyard→Battlefield`` trigger node — the same structural read Animate
+    Dead / Dance of the Dead already ride now serves it."""
+    assert ("creature_recursion", "you", "") in _idents("Necromancy")
 
 
 @pytest.mark.parametrize(
@@ -15294,11 +15295,14 @@ def test_artifacts_matter_search_outside_game():
 
 def test_artifacts_matter_choose_one_of_wrapped_sac():
     """Nimble Hobbit's "Whenever ~ attacks, you may sacrifice a Food or pay
-    {2}{W}." is a modal ``ChooseOneOf`` EFFECT branch (CR 701.21a — the
-    sacrifice itself is an ordinary move-to-graveyard, no different rule
-    for being inside a choice) ``_walk_effect_chain`` collapses to one
-    opaque concept — a deep scan finds the Food-subtype (CR 205.3g)
-    Sacrifice inside the branch directly."""
+    {2}{W}." (CR 603.12 reflexive trigger; Food is an artifact subtype, CR
+    205.3g). Through phase v0.23.0 this decomposed as a modal
+    ``ChooseOneOf`` branch whose typed Food Sacrifice the deep scan read;
+    the v0.26.0+ reflexive-payment rework parks the WHOLE body as
+    ``Unimplemented(name='reflexive optional payment')`` — a parse
+    REGRESSION now served by the
+    ``artifact_sac_reflexive_payment_unparsed`` ledgered bridge
+    (self-retiring when phase re-lands the typed branch)."""
     assert ("artifacts_matter", "you", "") in _idents("Nimble Hobbit")
 
 
@@ -16648,9 +16652,11 @@ def test_type_changers_maskwood_nexus_every_type_all_zones():
 
 def test_type_changers_ashes_of_the_fallen_graveyard_only():
     # "Each creature card in your graveyard" (CR 109.2: "card" + a named
-    # zone) never touches the battlefield: the graveyard key alone. Phase's
-    # static parser fails the line, so this is the upstream_parse_failure
-    # bridge, not a structural read.
+    # zone) never touches the battlefield: the graveyard key alone. Phase
+    # structures the line since v0.28.0 as an ``InAnyZone: [Graveyard]`` +
+    # ``Owned: You`` affected — a pure structural read (the former
+    # upstream_parse_failure bridge retired at the v0.35.2 bump); scope
+    # "you" rides the Owned controller (CR 108.3).
     idents = _idents("Ashes of the Fallen")
     assert ("type_changers_graveyard", "you", "") in idents
     assert "type_changers" not in _keys("Ashes of the Fallen")

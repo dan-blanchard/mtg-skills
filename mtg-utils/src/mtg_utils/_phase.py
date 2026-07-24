@@ -6,26 +6,33 @@ a per-user cache, and shell out for every duel/commander run.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import re
 import shutil
 import subprocess
-import tarfile
 import tempfile
 import urllib.error
 import urllib.request
 from functools import lru_cache
 from pathlib import Path
 
-PHASE_TAG = "v0.23.0"
+PHASE_TAG = "v0.35.2"
 PHASE_REPO = "https://github.com/phase-rs/phase"
 
-# card-data.json is byte-identical across platforms, so the linux server
-# tarball is the universal source (avoids windows-.zip / mac-intel branching).
-PHASE_SERVER_ASSET = "phase-server-linux-x86_64.tar.gz"
-# The single member we want out of that tarball.
-_CARD_DATA_MEMBER = "data/card-data.json"
+# Since v0.32.0 releases ship no server tarball; instead a small manifest
+# asset lists the data files (name + sha256 + content-hashed CDN url), and
+# card-data.json is hosted on data.phase-rs.dev. The manifest name embeds the
+# tag, hence a function rather than a constant.
+_CARD_DATA_MANIFEST_ENTRY = "card-data.json"
+
+
+def release_manifest_asset() -> str:
+    """The release asset naming the data files for ``PHASE_TAG``
+    (``release-server-<tag>.json``, schema 1: ``{"data": [{"name", "sha256",
+    "url"}, ...]}``)."""
+    return f"release-server-{PHASE_TAG}.json"
 
 
 class PhaseNotInstalledError(RuntimeError):
@@ -331,21 +338,23 @@ def _card_data_path() -> Path:
 
 
 # Known-bad card-data records: phase stamps a DIFFERENT card's parse with this
-# oracle_id. The only member at v0.23.0 (re-censused 2026-07-12, task #84;
-# unchanged from the v0.20.0 census of task #78, 2026-07-10): bulk carries TWO
-# distinct cards named "Fast // Furious" — 62411ced
+# oracle_id. The only member at v0.35.2 (re-censused 2026-07-24 at the pin
+# bump; unchanged since the v0.20.0 census of task #78, 2026-07-10): bulk
+# carries TWO distinct cards named "Fast // Furious" — 62411ced
 # (J21/MH2, commander-legal, discard-draw / damage) and 298a6369 (playtest,
 # not_legal, haste-unblockable / Fuse) — and phase's name-keyed corpus emits
 # the PLAYTEST card's "Fast" half stamped with the LEGAL card's oracle_id, so
 # every oracle_id join serves the impostor's abilities off the real card.
 # Keyed by (scryfall_oracle_id, exact oracle_text) so the entry self-retires
 # the moment upstream fixes the join (nothing matches → no-op). A general
-# text-mismatch gate was rejected: the same census found 8 other phase records
-# whose text differs from bulk only by oracle-errata drift (same card,
-# retemplated wording — e.g. Thran Turbine, Elven Farsight) that such a gate
-# would wrongly drop. Census procedure: join every card-data record to bulk by
-# scryfall_oracle_id and flag records whose oracle_text matches NO bulk face
-# text for that oracle_id (v0.23.0: 9 flagged = these 8 errata-drift + Fast).
+# text-mismatch gate was rejected: the v0.23.0 census found 8 other phase
+# records whose text differed from bulk only by oracle-errata drift (same
+# card, retemplated wording — e.g. Thran Turbine, Elven Farsight) that such a
+# gate would wrongly drop. Census procedure: join every card-data record to
+# bulk by scryfall_oracle_id and flag records whose oracle_text matches NO
+# bulk face text for that oracle_id (v0.23.0: 9 flagged = 8 errata-drift +
+# Fast; v0.35.2: exactly 1 flagged = Fast — the weekly MTGJSON refresh phase
+# runs since v0.32.0 cleaned up the errata drift, the impostor join remains).
 _IMPOSTOR_RECORDS: frozenset[tuple[str, str]] = frozenset(
     {
         (
@@ -371,56 +380,70 @@ def is_impostor_record(rec: dict) -> bool:
     ) in _IMPOSTOR_RECORDS
 
 
-def ensure_card_data() -> Path:
-    """Return a local ``card-data.json`` for ``PHASE_TAG``, downloading if absent.
-
-    Returns the tag-versioned cache path (:func:`_card_data_path`). If that file
-    already exists it is returned without any network access. Otherwise the LINUX
-    phase-server release tarball for ``PHASE_TAG`` is downloaded, ``data/
-    card-data.json`` is extracted from it, and written to the cache path
-    atomically. Idempotent. No cargo build / no repo clone required.
-
-    Raises ``RuntimeError`` (naming the URL + tag) on any HTTP or extract error.
-    """
-    dest = _card_data_path()
-    if dest.exists():
-        return dest
-
-    url = f"{PHASE_REPO}/releases/download/{PHASE_TAG}/{PHASE_SERVER_ASSET}"
-    dest.parent.mkdir(parents=True, exist_ok=True)
-
-    # 1) Stream the asset to a temp file (GitHub asset URLs 302 to a CDN;
-    #    urllib follows redirects by default).
+def _fetch_url(url: str) -> bytes:
+    """GET ``url`` (follows redirects), raising ``RuntimeError`` naming the
+    URL + tag on any HTTP/network error."""
     request = urllib.request.Request(url, headers={"User-Agent": "mtg-skills/_phase"})
-    tmp_tarball = dest.parent / f".{PHASE_SERVER_ASSET}.tmp"
     try:
-        with (
-            urllib.request.urlopen(request) as resp,
-            tmp_tarball.open("wb") as fh,
-        ):
-            shutil.copyfileobj(resp, fh)
+        with urllib.request.urlopen(request) as resp:
+            return resp.read()
     except (urllib.error.URLError, OSError) as exc:
-        tmp_tarball.unlink(missing_ok=True)
         raise RuntimeError(
             f"Failed to download phase card-data from {url} (tag {PHASE_TAG}): {exc}"
         ) from exc
 
-    # 2) Extract only data/card-data.json and write it atomically.
+
+def ensure_card_data() -> Path:
+    """Return a local ``card-data.json`` for ``PHASE_TAG``, downloading if absent.
+
+    Returns the tag-versioned cache path (:func:`_card_data_path`). If that file
+    already exists it is returned without any network access. Otherwise the
+    release-server manifest for ``PHASE_TAG`` is fetched from the GitHub
+    release, its ``card-data.json`` entry's content-hashed URL is downloaded,
+    the payload is verified against the manifest's sha256, and written to the
+    cache path atomically. Idempotent. No cargo build / no repo clone required.
+
+    Raises ``RuntimeError`` (naming the URL + tag) on any HTTP, manifest, or
+    checksum error.
+    """
+    dest = _card_data_path()
+    if dest.exists():
+        return dest
+    dest.parent.mkdir(parents=True, exist_ok=True)
+
+    manifest_url = (
+        f"{PHASE_REPO}/releases/download/{PHASE_TAG}/{release_manifest_asset()}"
+    )
     try:
-        with tarfile.open(tmp_tarball, "r:gz") as tar:
-            member = tar.extractfile(_CARD_DATA_MEMBER)
-            if member is None:
-                raise RuntimeError(
-                    f"'{_CARD_DATA_MEMBER}' missing from {url} (tag {PHASE_TAG})."
-                )
-            payload = member.read()
-    except (tarfile.TarError, KeyError, OSError) as exc:
+        manifest = json.loads(_fetch_url(manifest_url))
+    except json.JSONDecodeError as exc:
         raise RuntimeError(
-            f"Failed to extract '{_CARD_DATA_MEMBER}' from {url} "
-            f"(tag {PHASE_TAG}): {exc}"
+            f"Malformed release manifest at {manifest_url} (tag {PHASE_TAG}): {exc}"
         ) from exc
-    finally:
-        tmp_tarball.unlink(missing_ok=True)
+
+    entry = next(
+        (
+            e
+            for e in manifest.get("data", [])
+            if e.get("name") == _CARD_DATA_MANIFEST_ENTRY
+        ),
+        None,
+    )
+    if entry is None or not entry.get("url"):
+        raise RuntimeError(
+            f"'{_CARD_DATA_MANIFEST_ENTRY}' missing from {manifest_url} "
+            f"(tag {PHASE_TAG})."
+        )
+
+    payload = _fetch_url(entry["url"])
+    expected = entry.get("sha256")
+    if expected:
+        actual = hashlib.sha256(payload).hexdigest()
+        if actual != expected:
+            raise RuntimeError(
+                f"card-data.json checksum mismatch from {entry['url']} "
+                f"(tag {PHASE_TAG}): expected {expected}, got {actual}"
+            )
 
     tmp_dest = dest.with_name(dest.name + ".tmp")
     tmp_dest.write_bytes(payload)

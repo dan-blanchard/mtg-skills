@@ -2067,6 +2067,42 @@ def _pump_mod_ints(node: object) -> list[int]:
     return out
 
 
+def _parenttarget_return_refers_to_source(unit: AbilityUnit, c: ConceptNode) -> bool:
+    """Whether a ``ChangeZone{Battlefield, target: ParentTarget}`` inside this
+    SelfRef-watching trigger unit back-references the trigger's OWN SOURCE —
+    i.e. the unit targets nothing else for ``ParentTarget`` to denote.
+
+    phase v0.35.2 emits Ivory Gargoyle's "when this creature dies, return it
+    to the battlefield ... at the beginning of the next end step" as a
+    ``CreateDelayedTrigger`` whose inner return targets ``ParentTarget`` (the
+    delayed-trigger back-reference); with no other target on the unit that IS
+    the dying source — a resilience return (shed, CR 700.4), not clone value.
+    A unit that DOES target something (Restoration Angel's "exile target
+    creature, then return it" flicker — corpus census 2026-07-24: 57
+    commander-legal SelfRef-trigger ParentTarget battlefield-returns, the
+    majority this flicker-value shape) keeps the back-reference pointed at
+    that target, so the shed never touches it."""
+    if not (
+        tag_of(c.node) == "ChangeZone"
+        and getattr(c.node, "destination", None) == "Battlefield"
+        and tag_of(getattr(c.node, "target", None)) == "ParentTarget"
+    ):
+        return False
+    if getattr(unit.node, "valid_target", None) is not None:
+        return False
+    for n in iter_typed_nodes(unit.node):
+        if n is c.node:
+            continue
+        tgt = getattr(n, "target", None)
+        if (
+            tgt is not None
+            and tgt is not MISSING
+            and (tag_of(tgt) in ("Typed", "Or", "And", "Any", "Player"))
+        ):
+            return False
+    return True
+
+
 def has_self_dies_value(tree: ConceptTree) -> bool:
     """A self-DIES VALUE trigger — a clone/token-copy re-fires it when it dies
     (Kokusho, Protean Hulk — CR 700.4).
@@ -2074,15 +2110,21 @@ def has_self_dies_value(tree: ConceptTree) -> bool:
     Mirrors the death fold's ``_self_death_payoff`` shape: a ``dies`` trigger
     watching the source itself (``valid_card`` = ``SelfRef``) with a
     :func:`is_clone_value_effect` effect (the self-return / shuffle-back resilience
-    forms are shed inside the shared predicate). Shared by the lane's arm 2 and this
-    stage's gap gate — one source, no drift.
+    forms are shed inside the shared predicate; the v0.35.2 delayed
+    ``ParentTarget`` self-return form needs the unit and is shed here via
+    :func:`_parenttarget_return_refers_to_source`). Shared by the lane's arm 2
+    and this stage's gap gate — one source, no drift.
     """
     for unit in tree.units:
         if (
             unit.origin == "trigger"
             and unit.trigger_event == "dies"
             and tag_of(getattr(unit.node, "valid_card", None)) == "SelfRef"
-            and any(is_clone_value_effect(c) for c in unit.effects)
+            and any(
+                is_clone_value_effect(c)
+                and not _parenttarget_return_refers_to_source(unit, c)
+                for c in unit.effects
+            )
         ):
             return True
     return False

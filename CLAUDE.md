@@ -13,7 +13,7 @@ uv run pytest ../tests/mtg-utils/ -v  # Run tests
 uv run ruff check src/ ../tests/mtg-utils/  # Lint
 uv run ruff format src/ ../tests/mtg-utils/  # Format
 uv run download-mtgjson              # Card-data source: MTGJSON AllPrintings + AllPricesToday (ADR-0033; ~609MB; first-run only)
-uv run build-card-snapshot           # Regen the committed test card snapshot (gated; needs local MTGJSON bulk + phase card-data — auto-fetched from the phase release tarball, no cargo; NEVER CI)
+uv run build-card-snapshot           # Regen the committed test card snapshot (gated; needs local MTGJSON bulk + phase card-data — auto-fetched via the phase release-server manifest, no cargo; NEVER CI)
 ```
 
 ### deck-wizard
@@ -73,7 +73,7 @@ uv sync                              # Install deps (FastAPI/uvicorn; follows sy
 uv run pytest ../tests/deck-forge/ -v  # Run backend tests
 uv run download-mtgjson              # First-run only; card-data source (MTGJSON AllPrintings, ADR-0033). loader auto-discovers it
 uv run deck-forge                    # Launch the backend hub + open the browser UI
-uv run deck-forge-phase-crosscheck <cards.json>  # Read-only audit: diff detectors vs phase-rs parse (auto-fetches phase card-data from the pinned-PHASE_TAG release tarball — no cargo)
+uv run deck-forge-phase-crosscheck <cards.json>  # Read-only audit: diff detectors vs phase-rs parse (auto-fetches phase card-data via the pinned-PHASE_TAG release-server manifest — no cargo)
 # Frontend (only to develop the UI; the built bundle is committed under frontend/dist):
 cd frontend && npm install && npm run build
 ```
@@ -146,13 +146,14 @@ Shared Python package (`mtg_utils`). 39 CLI script modules (25 deck + 9 cube + 3
   - `playtest-draft` — Heuristic 8-player draft + per-deck goldfish.
   - `playtest-install-phase` — One-time `cargo build` of the phase
     ai-duel/ai-commander BINARIES into `~/.cache/mtg-skills/phase/`, at the
-    single `_phase.PHASE_TAG` pin (currently v0.23.0 — one tag governs both
+    single `_phase.PHASE_TAG` pin (currently v0.35.2 — one tag governs both
     the playtest binaries and the Card IR card-data). Only playtesting needs
     this. The Card IR build (`build-card-ir-crosswalk` /
     `build-card-snapshot` / deck-forge launch) fetches phase's
-    `card-data.json` straight from the same tag's release tarball via
-    `_phase.ensure_card_data` (tag-keyed, cached) — no cargo build / repo
-    clone, so non-playtest users never pay the Rust compile.
+    `card-data.json` via the same tag's `release-server-<tag>.json`
+    manifest (sha256-verified from the manifest's content-hashed CDN URL)
+    through `_phase.ensure_card_data` (tag-keyed, cached) — no cargo build /
+    repo clone, so non-playtest users never pay the Rust compile.
   - `playtest-custom-format` — Multiplayer custom-format simulator (e.g.,
     shared-library marketplace draft). Pure Python; per-format module in
     `_custom_format/`.
@@ -197,7 +198,7 @@ Shared library modules (not CLI scripts):
 - **`_phase.py`** — Phase-rs subprocess wrapper. Manages the cached phase
   install at `~/.cache/mtg-skills/phase/` (or `$MTG_SKILLS_CACHE_DIR/phase`),
   exposes `run_duel` / `run_commander` and the coverage gate. The single
-  `PHASE_TAG` pin (currently `v0.23.0`) governs both the playtest binaries
+  `PHASE_TAG` pin (currently `v0.35.2`) governs both the playtest binaries
   and the Card IR card-data; bump with care. `ensure_known_tokens` (task
   #92) fetches phase's `known-tokens.toml` (a raw single-file GitHub fetch,
   tag-keyed cache parallel to `ensure_card_data`) — the KNOWN-TOKENS

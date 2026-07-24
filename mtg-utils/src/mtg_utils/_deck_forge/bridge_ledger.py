@@ -51,7 +51,6 @@ from mtg_utils._card_ir.crosswalk import (
     filter_controller,
     filter_core_types,
     filter_inzone_zones,
-    filter_predicates,
     filter_subtypes,
     iter_static_defs,
     iter_typed_nodes,
@@ -569,22 +568,11 @@ def _no_player_reaching_damage_node(tree: ConceptTree) -> bool:
     return True
 
 
-# (1) "deals N damage to target creature and X damage to that creature's/
-# permanent's controller" (Judgment Bolt, Liquid Fire, Synchronized
-# Spellcraft; CR 102.1 — a controller is a player) — phase structures ONLY
-# the first (creature) clause; the second (controller-damage) clause carries
-# NO node anywhere, typed or ``Unimplemented``. Reuses the exact wording
-# legacy's OWN ``_DIRECT_DAMAGE_MIRROR`` alternative anchors on.
-_DMG_CREATURE_CONTROLLER_RX = re.compile(
-    r"(?:\d+|x) damage to (?:that creature's|that permanent's) controller",
-    re.IGNORECASE,
-)
-
-
-def _dmg_creature_controller_match(tree: ConceptTree) -> bool:
-    return bool(_DMG_CREATURE_CONTROLLER_RX.search(tree.oracle or ""))
-
-
+# (1) — RETIRED at the v0.35.2 phase bump: "deals N damage to target
+# creature and X damage to that creature's controller" (Judgment Bolt,
+# Liquid Fire, Synchronized Spellcraft) now decomposes to a typed
+# player-reaching damage node; row + helpers in git history.
+#
 # (2) Vexing Arcanix's "... they put it into their graveyard and ~ deals 2
 # damage to them" — the trailing damage clause is dropped after an
 # ``Unimplemented(name='otherwise')`` residue; a SEPARATE upstream bug also
@@ -898,60 +886,11 @@ def _base_pt_each_equal_to_dropped(tree: ConceptTree) -> bool:
     return False
 
 
-# (6) A fixed-value "is a <Type> with base power and toughness N/N, <extra
-# granted keyword/ability>" type-change site phase MIS-decomposes as an
-# ``AddPower``/``AddToughness`` PAIR (Goddric, Cloaked Reveler's Celebration
-# static — phase apparently attributes the SIBLING granted "{R}: Dragons
-# you control get +1/+0" activated ability's OWN pump amounts onto this
-# static's modifications instead of a ``SetPower``/``SetToughness`` pair
-# for the "is a Dragon with base power and toughness 4/4" clause itself —
-# CR 613.4b/CR 613.1f). The site's own ``description`` DOES carry the hook
-# text and the correct SelfRef subject; only the modification TAGS are
-# wrong. Gap is a tree-wide absence proof (mirrors :func:`_no_typed_
-# sacrifice_node`): Burden of Proof ALSO carries an AddPower/AddToughness-
-# only site whose description happens to span BOTH its conditional
-# branches' text, but its "Otherwise, it has base power and toughness 1/1"
-# branch DOES have a genuine SetPower/SetToughness pair elsewhere in the
-# SAME tree, so the tree-wide gap correctly stands this bridge down there
-# (verified: ``extract_signals_ir`` fires True for Burden of Proof via that
-# EXISTING structural pair, no bridge needed). Census: 2/31,622
-# commander-legal pattern-matched, 1 after the tree-wide gap exclusion
-# (exactly the 1 pin).
-def _base_pt_no_typed_set_anywhere(tree: ConceptTree) -> bool:
-    return not any(
-        tag_of(n)
-        in ("SetPower", "SetToughness", "SetPowerDynamic", "SetToughnessDynamic")
-        for unit in tree.units
-        for n in iter_typed_nodes(unit.node)
-    )
-
-
-_BASE_PT_ADDPT_RAW_HOOK_RX = re.compile(r"base power|base toughness", re.IGNORECASE)
-_BASE_PT_ADDPT_ANIMATE_HOOK_RX = re.compile(
-    r"\d+/\d+[^.]*\bin addition to its other types\b", re.IGNORECASE
-)
-
-
-def _base_pt_addpt_misattributed_match(tree: ConceptTree) -> bool:
-    sts: list[object] = []
-    for unit in tree.units:
-        if unit.origin == "static":
-            sts.append(unit.node)
-        for ge in iter_typed_nodes(unit.node):
-            if tag_of(ge) == "GenericEffect":
-                sts.extend(getattr(ge, "static_abilities", None) or [])
-    for st in sts:
-        mods = {tag_of(m) for m in (getattr(st, "modifications", None) or [])}
-        if mods != {"AddPower", "AddToughness"}:
-            continue
-        desc = getattr(st, "description", "") or ""
-        if _BASE_PT_ADDPT_RAW_HOOK_RX.search(
-            desc
-        ) or _BASE_PT_ADDPT_ANIMATE_HOOK_RX.search(desc):
-            return True
-    return False
-
-
+# (6) — RETIRED at the v0.35.2 phase bump: Goddric, Cloaked Reveler's
+# "is a Dragon with base power and toughness 4/4" static now emits the
+# real SetPower/SetToughness pair (was a mis-decomposed AddPower/
+# AddToughness pair); row + helpers in git history.
+#
 # (7) A ``BecomeCopy`` "except it's N/N" fixed P/T override with NO
 # ``additional_modifications`` field AT ALL (Mindlink Mech's "becomes a
 # copy of target nonlegendary creature ..., except it's 4/3, ..." — CR
@@ -1817,84 +1756,11 @@ def _illusionists_gambit_match(tree: ConceptTree) -> bool:
     return _illusionists_gambit_gap(tree)
 
 
-# ── task #96 (ADR-0040): type_changers zone-reach bridges ────────────────────
-# CR 109.2 makes a bare "creatures you control" static battlefield-only; the
-# "The same is true for creature spells you control and creature cards you
-# own that aren't on the battlefield." rider is the all-zone extension
-# (Conspiracy / Arcane Adaptation / Leyline of Transformation / Maskwood
-# Nexus / Rukarumel, Biologist). Phase parses the rider ONLY as an
-# Unimplemented(name='unknown') effect residue, so the two zone keys ride
-# bridges. Ashes of the Fallen's graveyard grant fails phase's static parser
-# outright (a static_structure residue) — its own upstream row.
-
-_TC_MOD_TAGS = frozenset({"AddAllCreatureTypes", "AddChosenSubtype", "AddSubtype"})
-_TC_SAME_IS_TRUE_RX = re.compile(
-    r"The same is true for creature spells you control and creature cards "
-    r"you own that aren't on the battlefield",
-    re.IGNORECASE,
-)
-_TC_GY_STATIC_RX = re.compile(
-    r"Each creature card in your graveyard has the chosen creature type",
-    re.IGNORECASE,
-)
-
-
-def _tc_typed_statics(tree: ConceptTree) -> Iterator[object]:
-    for unit in tree.units:
-        for node in iter_static_defs(unit.node):
-            mods = getattr(node, "modifications", None) or ()
-            if any(tag_of(m) in _TC_MOD_TAGS for m in mods):
-                yield node
-
-
-def _tc_unimplemented_descs(tree: ConceptTree) -> Iterator[str]:
-    for unit in tree.units:
-        for cn in unit.iter_concepts():
-            if tag_of(cn.node) == "Unimplemented":
-                yield getattr(cn.node, "description", "") or ""
-
-
-def _tc_same_is_true_gap(tree: ConceptTree) -> bool:
-    # Retires when phase grows a typed beyond-battlefield reach onto a
-    # type-adding static (an InAnyZone/InZone property on its affected) —
-    # at that point the lane must read it structurally instead.
-    for node in _tc_typed_statics(tree):
-        affected = getattr(node, "affected", None)
-        if "InAnyZone" in filter_predicates(affected):
-            return False
-        if filter_inzone_zones(affected):
-            return False
-    return True
-
-
-def _tc_same_is_true_descs(tree: ConceptTree) -> Iterator[str]:
-    # Two residue shapes carry the rider sentence: most cards (Conspiracy,
-    # Maskwood Nexus, …) leave it as its own Unimplemented(name='unknown')
-    # node; Roshan, Hidden Magister's phase parse instead folds the WHOLE
-    # rider sentence into the type-adding AddSubtype static's own
-    # ``description`` field (no separate Unimplemented residue at all — the
-    # static's ``mode: Continuous`` line is otherwise fully structured).
-    # Both are read here so the match stays ONE bounded text scan.
-    yield from _tc_unimplemented_descs(tree)
-    for node in _tc_typed_statics(tree):
-        yield getattr(node, "description", "") or ""
-
-
-def _tc_same_is_true_match(tree: ConceptTree) -> bool:
-    return any(_TC_SAME_IS_TRUE_RX.search(d) for d in _tc_same_is_true_descs(tree))
-
-
-def _tc_gy_parse_failure_gap(tree: ConceptTree) -> bool:
-    # Retires when phase's static parser accepts the graveyard grant (a
-    # type-adding static whose affected carries InZone Graveyard).
-    for node in _tc_typed_statics(tree):
-        if "Graveyard" in filter_inzone_zones(getattr(node, "affected", None)):
-            return False
-    return True
-
-
-def _tc_gy_parse_failure_match(tree: ConceptTree) -> bool:
-    return any(_TC_GY_STATIC_RX.search(d) for d in _static_parse_failure_descs(tree))
+# ── task #96 (ADR-0040): type_changers zone-reach bridges — RETIRED ──────────
+# The same-is-true rider (all_zones/graveyard) and Ashes of the Fallen's
+# graveyard grant are typed InAnyZone / InZone-Graveyard affecteds since
+# phase v0.26.0 / v0.28.0 — all three rows and their gap/match helpers
+# retired at the v0.35.2 pin bump (git history carries them).
 
 
 # ── task B-3: keep_n_wrath — the Shape-B walk + Unimplemented-choose bridge ──
@@ -1997,6 +1863,33 @@ def _combat_choice_match(tree: ConceptTree) -> bool:
     return any(_COMBAT_CHOICE_RX.search(d) for d in _unimplemented_effect_descs(tree))
 
 
+# ── artifacts_matter — the reflexive-payment regression (v0.35.2 bump) ───────
+# "you may sacrifice a Food or pay {2}{W}. When you do, ..." (Nimble Hobbit —
+# CR 603.12 reflexive trigger; Food is an artifact subtype, CR 205.3g). At
+# v0.23.0 phase decomposed the payment as a ChooseOneOf carrying a typed Food
+# Sacrifice branch; the v0.26.0+ reflexive-payment rework parks the WHOLE body
+# as ``Unimplemented(name='reflexive optional payment')`` instead. Gap is the
+# shared tree-wide ``_no_typed_sacrifice_node`` absence proof.
+_ARTIFACT_SAC_REFLEXIVE_RX = re.compile(
+    r"sacrifice an? (?:artifact|Food)\b", re.IGNORECASE
+)
+
+
+def _artifact_sac_reflexive_payment_match(tree: ConceptTree) -> bool:
+    for unit in tree.units:
+        for cn in unit.iter_concepts():
+            node = cn.node
+            if (
+                tag_of(node) == "Unimplemented"
+                and getattr(node, "name", None) == "reflexive optional payment"
+                and _ARTIFACT_SAC_REFLEXIVE_RX.search(
+                    str(getattr(node, "description", "") or "")
+                )
+            ):
+                return True
+    return False
+
+
 BRIDGES: dict[str, Bridge] = {
     b.bridge_id: b
     for b in (
@@ -2066,83 +1959,14 @@ BRIDGES: dict[str, Bridge] = {
             gap=_knw_gap,
             match=_knw_match,
         ),
-        Bridge(
-            bridge_id="type_changers_same_is_true_all_zones",
-            key="type_changers_all_zones",
-            kind="dropped_clause",
-            todo=(
-                "upstream phase-rs report candidate (Dan posts): the "
-                "'The same is true for creature spells you control and "
-                "creature cards you own that aren't on the battlefield' "
-                "rider parses as Unimplemented(name='unknown') with no "
-                "typed multi-zone reach — retires on a phase bump that "
-                "structures the rider (an InAnyZone-property affected or "
-                "equivalent), at which point _type_changers reads it "
-                "structurally"
-            ),
-            census=(
-                "6 hits / whole pool (Conspiracy, Arcane Adaptation, "
-                "Leyline of Transformation, Maskwood Nexus, Rukarumel, "
-                "Biologist, Roshan, Hidden Magister — Roshan's copy of the "
-                "rider folds into its AddSubtype static's own description "
-                "instead of an Unimplemented residue), phase v0.23.0, "
-                "2026-07-16"
-            ),
-            pins=(
-                "Conspiracy",
-                "Arcane Adaptation",
-                "Leyline of Transformation",
-                "Maskwood Nexus",
-                "Rukarumel, Biologist",
-                "Roshan, Hidden Magister",
-            ),
-            gap=_tc_same_is_true_gap,
-            match=_tc_same_is_true_match,
-        ),
-        Bridge(
-            bridge_id="type_changers_same_is_true_graveyard",
-            key="type_changers_graveyard",
-            kind="dropped_clause",
-            todo=(
-                "same rider as type_changers_same_is_true_all_zones (one "
-                "ledger row per served key): the graveyard is inside the "
-                "rider's \"cards you own that aren't on the battlefield\" "
-                "reach — retires with its sibling on the same phase bump"
-            ),
-            census=(
-                "6 hits / whole pool (the same-is-true set, now including "
-                "Roshan, Hidden Magister), phase v0.23.0, 2026-07-16"
-            ),
-            pins=(
-                "Conspiracy",
-                "Arcane Adaptation",
-                "Leyline of Transformation",
-                "Maskwood Nexus",
-                "Rukarumel, Biologist",
-                "Roshan, Hidden Magister",
-            ),
-            gap=_tc_same_is_true_gap,
-            match=_tc_same_is_true_match,
-        ),
-        Bridge(
-            bridge_id="type_changers_graveyard_static_parse_failure",
-            key="type_changers_graveyard",
-            kind="upstream_parse_failure",
-            todo=(
-                "upstream phase-rs report candidate (Dan posts): the "
-                "static parser matches but fails 'Each creature card in "
-                "your graveyard has the chosen creature type in addition "
-                "to its other types' (a static_structure residue) — "
-                "retires on a phase bump that structures the graveyard "
-                "grant (an InZone-Graveyard affected)"
-            ),
-            census=(
-                "1 hit / whole pool (Ashes of the Fallen), phase v0.23.0, 2026-07-16"
-            ),
-            pins=("Ashes of the Fallen",),
-            gap=_tc_gy_parse_failure_gap,
-            match=_tc_gy_parse_failure_match,
-        ),
+        # RETIRED at the v0.35.2 phase bump (2026-07-24):
+        # ``type_changers_same_is_true_all_zones`` /
+        # ``type_changers_same_is_true_graveyard`` (phase structures the
+        # same-is-true rider as an InAnyZone span since v0.26.0) and
+        # ``type_changers_graveyard_static_parse_failure`` (Ashes of the
+        # Fallen's graveyard grant is an InZone-Graveyard affected since
+        # v0.28.0) — _type_changers reads all three shapes structurally;
+        # git history carries the retired rows.
         Bridge(
             bridge_id="degavolver_kicker_paylife_regen",
             key="lifeloss_makers",
@@ -2397,32 +2221,12 @@ BRIDGES: dict[str, Bridge] = {
             gap=_cheat_modal_unsupported_gap,
             match=_cheat_modal_unsupported_match,
         ),
-        Bridge(
-            bridge_id="dmg_creature_and_controller_dropped",
-            key="direct_damage",
-            kind="dropped_clause",
-            todo=(
-                "upstream phase-rs report candidate (Dan posts): a burn "
-                "spell's compound 'deals N damage to target creature AND X "
-                "damage to that creature's/permanent's controller' clause "
-                "(CR 102.1) structures only the first (creature) half — the "
-                "controller-damage half carries no node anywhere, typed or "
-                "Unimplemented. Retires on a phase bump that decomposes the "
-                "second conjunct (task #82's compound-damage-clause verb)"
-            ),
-            census=(
-                "3 hits / 31,622 commander-legal, no-player-reaching-damage-"
-                "node subset scanned via legacy's OWN _DIRECT_DAMAGE_MIRROR "
-                "controller-damage alternative wording (45 corpus siblings "
-                "matching the same wording — Unlicensed Disintegration, "
-                "Lash Out, etc. — are ALREADY served via a real typed "
-                "Or[Typed(Creature), ParentTargetController] target, no "
-                "bridge needed), phase v0.20.0, 2026-07-11"
-            ),
-            pins=("Judgment Bolt", "Liquid Fire", "Synchronized Spellcraft"),
-            gap=_no_player_reaching_damage_node,
-            match=_dmg_creature_controller_match,
-        ),
+        # RETIRED at the v0.35.2 phase bump (2026-07-24):
+        # ``dmg_creature_and_controller_dropped`` — the compound "deals N
+        # damage to target creature AND X damage to its controller" second
+        # conjunct now decomposes to a real player-reaching damage node
+        # (Judgment Bolt / Liquid Fire / Synchronized Spellcraft all serve
+        # via the structural read); git history carries the retired row.
         Bridge(
             bridge_id="vexing_arcanix_reveal_misread_damage_drop",
             key="direct_damage",
@@ -2736,35 +2540,11 @@ BRIDGES: dict[str, Bridge] = {
             gap=_base_pt_each_equal_to_dropped,
             match=_base_pt_each_equal_to_dropped,
         ),
-        Bridge(
-            bridge_id="base_pt_addpt_misattributed_typechange",
-            key="base_pt_set",
-            kind="dropped_clause",
-            todo=(
-                "upstream phase-rs report candidate (Dan posts): a fixed "
-                "'is a <Type> with base power and toughness N/N, <granted "
-                "activated ability>' static mis-decomposes as an "
-                "AddPower/AddToughness pair carrying the SIBLING granted "
-                "ability's OWN pump amounts instead of a SetPower/"
-                "SetToughness pair for the type-change clause itself — "
-                "retires on a phase bump that emits the correct Set pair "
-                "at this site"
-            ),
-            census=(
-                "2 hits / 31,622 commander-legal AddPower+AddToughness-"
-                "only static sites whose description names the raw/animate "
-                "hook, phase v0.20.0, 2026-07-11; 1 after the tree-wide "
-                "no-typed-Set-anywhere gap (Burden of Proof's OTHER "
-                "conditional branch DOES carry a genuine SetPower/"
-                "SetToughness pair elsewhere in the same tree, correctly "
-                "excluded — verified against legacy's own True fire there "
-                "via the EXISTING structural pair, no bridge needed) — "
-                "exactly the 1 remaining pin"
-            ),
-            pins=("Goddric, Cloaked Reveler",),
-            gap=_base_pt_no_typed_set_anywhere,
-            match=_base_pt_addpt_misattributed_match,
-        ),
+        # RETIRED at the v0.35.2 phase bump (2026-07-24):
+        # ``base_pt_addpt_misattributed_typechange`` — Goddric, Cloaked
+        # Reveler's "is a Dragon with base power and toughness 4/4" static
+        # now emits the real SetPower/SetToughness pair; git history
+        # carries the retired row.
         Bridge(
             bridge_id="base_pt_becomecopy_no_pt_override",
             key="base_pt_set",
@@ -2986,17 +2766,20 @@ BRIDGES: dict[str, Bridge] = {
                 "number of Equipment you control' anchor AND unserved by "
                 "every other voltron_matters arm (incl. the shared "
                 "_apply_membership_floor creature-gated word tell), phase "
-                "v0.20.0, 2026-07-12 — exactly the 3 pins (Judgment Bolt, "
-                "Animal Friend, Sage's Reverie). NOTE: the legacy "
-                "VOLTRON_PAYOFF_REGEX's bare 'equipment you control' "
-                "branch is deliberately NOT reused here — it over-fires "
-                "on Affinity-for-Equipment reminder text and imperative "
-                "attach-ACTION clauses (Armed and Armored, Goldwardens' "
-                "Gambit, Oxidda Finisher, Rebel Salvo, and 5 more of the "
-                "existing attach-housekeeping shed class), all correctly "
-                "excluded by this tighter anchor"
+                "v0.20.0, 2026-07-12. At the v0.35.2 bump Judgment Bolt's "
+                "'where X is the number of Equipment you control' scaling "
+                "structured upstream (its pin graduated — served by the "
+                "lane's dynamic-count read); Animal Friend and Sage's "
+                "Reverie's 'for each ... attached' scaling still drops. "
+                "NOTE: the legacy VOLTRON_PAYOFF_REGEX's bare 'equipment "
+                "you control' branch is deliberately NOT reused here — it "
+                "over-fires on Affinity-for-Equipment reminder text and "
+                "imperative attach-ACTION clauses (Armed and Armored, "
+                "Goldwardens' Gambit, Oxidda Finisher, Rebel Salvo, and 5 "
+                "more of the existing attach-housekeeping shed class), "
+                "all correctly excluded by this tighter anchor"
             ),
-            pins=("Judgment Bolt", "Animal Friend", "Sage's Reverie"),
+            pins=("Animal Friend", "Sage's Reverie"),
             gap=_voltron_scaling_gap,
             match=_voltron_scaling_match,
         ),
@@ -3367,6 +3150,36 @@ BRIDGES: dict[str, Bridge] = {
             pins=("Illusionist's Gambit",),
             gap=_illusionists_gambit_gap,
             match=_illusionists_gambit_match,
+        ),
+        Bridge(
+            bridge_id="artifact_sac_reflexive_payment_unparsed",
+            key="artifacts_matter",
+            kind="upstream_parse_failure",
+            todo=(
+                "upstream phase-rs report candidate (Dan posts): the "
+                "v0.26.0-v0.35 reflexive-payment rework parks a 'you may "
+                "sacrifice a Food or pay {2}{W}. When you do, ...' "
+                "trigger body (CR 603.12 reflexive trigger) WHOLE as "
+                "Unimplemented(name='reflexive optional payment') — at "
+                "v0.23.0 the same body decomposed to a ChooseOneOf "
+                "carrying a typed Food Sacrifice branch the lane's deep "
+                "scan read (a REGRESSION, not a never-parsed gap) — "
+                "retires on a phase bump that re-lands the typed "
+                "Sacrifice branch inside the reflexive-payment structure"
+            ),
+            census=(
+                "4 commander-legal cards carry the reflexive-optional-"
+                "payment residue at v0.35.2 (2026-07-24); 2 name an "
+                "artifact-subtype sacrifice (Nimble Hobbit's Food — CR "
+                "205.3g; Bullseye, Death Dealer's artifact), and only "
+                "Nimble Hobbit loses serving (Bullseye's SIBLING "
+                "activated ability carries a fully-typed "
+                "Sacrifice(Artifact) cost, so the tree-wide gap stands "
+                "this bridge down there — served structurally either way)"
+            ),
+            pins=("Nimble Hobbit",),
+            gap=_no_typed_sacrifice_node,
+            match=_artifact_sac_reflexive_payment_match,
         ),
     )
 }

@@ -1,5 +1,5 @@
 {
-  "phase_tag": "v0.23.0",
+  "phase_tag": "v0.35.2",
   "schema_version": 1,
   "cards": {
     "\"Ach! Hans, Run!\"": {
@@ -64,8 +64,7 @@
                   "condition": null,
                   "optional_targeting": false,
                   "optional": false,
-                  "forward_result": false,
-                  "sub_link": "SequentialSibling"
+                  "forward_result": false
                 },
                 "uses_tracked_set": false
               },
@@ -77,7 +76,8 @@
               "condition": null,
               "optional_targeting": false,
               "optional": false,
-              "forward_result": false
+              "forward_result": false,
+              "sub_link": "SequentialSibling"
             },
             "duration": null,
             "description": null,
@@ -278,6 +278,104 @@
       ],
       "rarities": [
         "uncommon"
+      ]
+    },
+    "\"Clown Boat\"": {
+      "name": "\"Clown Boat\"",
+      "mana_cost": {
+        "type": "Cost",
+        "shards": [
+          "Blue"
+        ],
+        "generic": 2
+      },
+      "card_type": {
+        "supertypes": [],
+        "core_types": [
+          "Artifact"
+        ],
+        "subtypes": [
+          "Vehicle"
+        ]
+      },
+      "power": {
+        "type": "Fixed",
+        "value": 4
+      },
+      "toughness": {
+        "type": "Fixed",
+        "value": 4
+      },
+      "loyalty": null,
+      "defense": null,
+      "oracle_text": "Whenever you attack, you recruit. (Draw a card, then discard a card. If you discarded a nonland card, create a 1/1 white Human Soldier creature token.)\nCrew 2",
+      "non_ability_text": null,
+      "flavor_name": null,
+      "keywords": [
+        {
+          "Crew": {
+            "power": 2,
+            "once_per_turn": null
+          }
+        }
+      ],
+      "abilities": [],
+      "triggers": [
+        {
+          "mode": "YouAttack",
+          "execute": {
+            "kind": "Spell",
+            "effect": {
+              "type": "Unimplemented",
+              "name": "you",
+              "description": "you recruit"
+            },
+            "cost": null,
+            "sub_ability": null,
+            "duration": null,
+            "description": null,
+            "target_prompt": null,
+            "condition": null,
+            "optional_targeting": false,
+            "optional": false,
+            "forward_result": false
+          },
+          "valid_card": null,
+          "origin": null,
+          "destination": null,
+          "trigger_zones": [
+            "Battlefield"
+          ],
+          "phase": null,
+          "optional": false,
+          "damage_kind": "Any",
+          "secondary": false,
+          "valid_target": null,
+          "valid_source": null,
+          "description": "Whenever you attack, you recruit.",
+          "constraint": null,
+          "condition": null,
+          "batched": false
+        }
+      ],
+      "static_abilities": [],
+      "replacements": [],
+      "color_override": null,
+      "color_identity": [
+        "Blue"
+      ],
+      "scryfall_oracle_id": "d4607026-80b2-4fa6-99d5-694cd3b43868",
+      "metadata": {
+        "source_printing_ids": [
+          "b2fb3995-5b43-4776-88b2-346d353edee0"
+        ]
+      },
+      "legalities": {},
+      "printings": [
+        "HOB"
+      ],
+      "rarities": [
+        "rare"
       ]
     },
     "\"Lifetime\" Pass Holder": {
@@ -634,250 +732,133 @@
         "common"
       ]
     },
-    "17-Year Cicadas": {
-      "name": "17-Year Cicadas",
+    "1996 World Champion": {
+      "name": "1996 World Champion",
       "mana_cost": {
         "type": "Cost",
         "shards": [
-          "White"
+          "White",
+          "Blue",
+          "Black",
+          "Red",
+          "Green"
         ],
-        "generic": 7
+        "generic": 0
       },
       "card_type": {
         "supertypes": [],
-        "core_types": [
-          "Sorcery"
-        ],
+        "core_types": [],
         "subtypes": []
       },
-      "power": null,
-      "toughness": null,
+      "power": {
+        "type": "Variable",
+        "value": "*"
+      },
+      "toughness": {
+        "type": "Variable",
+        "value": "*"
+      },
       "loyalty": null,
       "defense": null,
-      "oracle_text": "Create ten 1/1 white Insect creature tokens with flying. Exile 17-Year Cicadas with seventeen time counters on it.\nSuspend 17 — {0} (Rather than cast this card from your hand, you may pay {0} and exile it with seventeen time counters on it. At the beginning of your upkeep, remove a time counter. When the last is removed, you may cast it without paying its mana cost.)\nWhenever you cast a spell, if this card is suspended, remove a time counter from it.",
+      "oracle_text": "Cannot be the target of spells or effects. World Champion has power and toughness equal to the life total of target opponent.\n{0}: Discard your hand to search your library for 1996 World Champion and reveal it to all players. Shuffle your library and put 1996 World Champion on top of it. Use this ability only at the beginning of your upkeep, and only if 1996 World Champion is in your library.",
       "non_ability_text": null,
       "flavor_name": null,
-      "keywords": [
+      "keywords": [],
+      "abilities": [
         {
-          "Suspend": {
-            "count": 17,
+          "kind": "Activated",
+          "effect": {
+            "type": "Discard",
+            "count": {
+              "type": "Ref",
+              "qty": {
+                "type": "HandSize",
+                "player": {
+                  "type": "Controller"
+                }
+              }
+            },
+            "target": {
+              "type": "Controller"
+            }
+          },
+          "cost": {
+            "type": "Mana",
             "cost": {
               "type": "Cost",
               "shards": [],
               "generic": 0
             }
-          }
-        }
-      ],
-      "abilities": [
-        {
-          "kind": "Spell",
-          "effect": {
-            "type": "Token",
-            "name": "Insect",
-            "power": {
-              "type": "Fixed",
-              "value": 1
-            },
-            "toughness": {
-              "type": "Fixed",
-              "value": 1
-            },
-            "types": [
-              "Creature",
-              "Insect"
-            ],
-            "colors": [
-              "White"
-            ],
-            "keywords": [
-              "Flying"
-            ],
-            "tapped": false,
-            "count": {
-              "type": "Fixed",
-              "value": 10
-            },
-            "owner": {
-              "type": "Controller"
-            },
-            "enters_attacking": false
           },
-          "cost": null,
           "sub_ability": {
             "kind": "Spell",
             "effect": {
-              "type": "ChangeZone",
-              "origin": null,
-              "destination": "Exile",
-              "target": {
-                "type": "SelfRef"
+              "type": "RevealTop",
+              "player": {
+                "type": "Controller"
               },
-              "owner_library": false,
-              "enter_transformed": false,
-              "enter_tapped": false,
-              "enters_attacking": false,
-              "enter_with_counters": [
-                [
-                  "time",
-                  {
-                    "type": "Fixed",
-                    "value": 17
-                  }
-                ]
-              ]
+              "count": 1
             },
             "cost": null,
-            "sub_ability": null,
-            "duration": null,
-            "description": null,
-            "target_prompt": null,
-            "condition": null,
-            "optional_targeting": false,
-            "optional": false,
-            "forward_result": false,
-            "sub_link": "SequentialSibling"
-          },
-          "duration": null,
-          "description": "Create ten 1/1 white Insect creature tokens with flying. Exile ~ with seventeen time counters on it.",
-          "target_prompt": null,
-          "condition": null,
-          "optional_targeting": false,
-          "optional": false,
-          "forward_result": false
-        },
-        {
-          "kind": "Spell",
-          "effect": {
-            "type": "CreateDelayedTrigger",
-            "condition": {
-              "type": "WheneverEvent",
-              "trigger": {
-                "mode": "SpellCast",
-                "execute": null,
-                "valid_card": null,
-                "origin": null,
-                "destination": null,
-                "trigger_zones": [
-                  "Battlefield"
-                ],
-                "phase": null,
-                "optional": false,
-                "damage_kind": "Any",
-                "secondary": false,
-                "valid_target": {
-                  "type": "Controller"
-                },
-                "valid_source": null,
-                "description": null,
-                "constraint": null,
-                "condition": null,
-                "batched": false
-              }
-            },
-            "effect": {
+            "sub_ability": {
               "kind": "Spell",
               "effect": {
-                "type": "RemoveCounter",
-                "counter_type": "time",
-                "count": {
-                  "type": "Fixed",
-                  "value": 1
-                },
+                "type": "Shuffle",
                 "target": {
-                  "type": "SelfRef"
+                  "type": "Controller"
                 }
               },
               "cost": null,
-              "sub_ability": null,
+              "sub_ability": {
+                "kind": "Spell",
+                "effect": {
+                  "type": "ChangeZone",
+                  "origin": null,
+                  "destination": "Library",
+                  "target": {
+                    "type": "SelfRef"
+                  },
+                  "owner_library": false,
+                  "enter_transformed": false,
+                  "enter_tapped": false,
+                  "enters_attacking": false
+                },
+                "cost": null,
+                "sub_ability": {
+                  "kind": "Spell",
+                  "effect": {
+                    "type": "Unimplemented",
+                    "name": "use",
+                    "description": "Use this ability only at the beginning of your upkeep"
+                  },
+                  "cost": null,
+                  "sub_ability": null,
+                  "duration": null,
+                  "description": null,
+                  "target_prompt": null,
+                  "condition": null,
+                  "optional_targeting": false,
+                  "optional": false,
+                  "forward_result": false,
+                  "sub_link": "SequentialSibling"
+                },
+                "duration": null,
+                "description": null,
+                "target_prompt": null,
+                "condition": null,
+                "optional_targeting": false,
+                "optional": false,
+                "forward_result": false
+              },
               "duration": null,
               "description": null,
               "target_prompt": null,
               "condition": null,
               "optional_targeting": false,
               "optional": false,
-              "forward_result": false
+              "forward_result": false,
+              "sub_link": "SequentialSibling"
             },
-            "uses_tracked_set": false
-          },
-          "cost": null,
-          "sub_ability": null,
-          "duration": null,
-          "description": null,
-          "target_prompt": null,
-          "condition": null,
-          "optional_targeting": false,
-          "optional": false,
-          "forward_result": false
-        },
-        {
-          "kind": "Activated",
-          "effect": {
-            "type": "PutCounter",
-            "counter_type": "time",
-            "count": {
-              "type": "Fixed",
-              "value": 17
-            },
-            "target": {
-              "type": "SelfRef"
-            }
-          },
-          "cost": {
-            "type": "Composite",
-            "costs": [
-              {
-                "type": "Mana",
-                "cost": {
-                  "type": "Cost",
-                  "shards": [],
-                  "generic": 0
-                }
-              },
-              {
-                "type": "Exile",
-                "count": 1,
-                "zone": "Hand",
-                "filter": {
-                  "type": "SelfRef"
-                }
-              }
-            ]
-          },
-          "sub_ability": null,
-          "duration": null,
-          "description": null,
-          "target_prompt": null,
-          "activation_restrictions": [
-            {
-              "type": "MatchesCardCastTiming"
-            }
-          ],
-          "activation_zone": "Hand",
-          "condition": null,
-          "optional_targeting": false,
-          "optional": false,
-          "forward_result": false
-        }
-      ],
-      "triggers": [
-        {
-          "mode": "Phase",
-          "execute": {
-            "kind": "Spell",
-            "effect": {
-              "type": "RemoveCounter",
-              "counter_type": "time",
-              "count": {
-                "type": "Fixed",
-                "value": 1
-              },
-              "target": {
-                "type": "SelfRef"
-              }
-            },
-            "cost": null,
-            "sub_ability": null,
             "duration": null,
             "description": null,
             "target_prompt": null,
@@ -886,99 +867,80 @@
             "optional": false,
             "forward_result": false
           },
-          "valid_card": {
-            "type": "SelfRef"
-          },
-          "origin": null,
-          "destination": null,
-          "trigger_zones": [
-            "Exile"
+          "duration": null,
+          "description": "{0}: Discard your hand to search your library for ~ and reveal it to all players. Shuffle your library and put ~ on top of it. Use this ability only at the beginning of your upkeep, and only if ~ is in your library.",
+          "target_prompt": null,
+          "activation_restrictions": [
+            {
+              "type": "RequiresCondition",
+              "data": {
+                "condition": {
+                  "type": "SourceInZone",
+                  "zone": "Library"
+                }
+              }
+            }
           ],
-          "phase": "Upkeep",
-          "optional": false,
-          "damage_kind": "Any",
-          "secondary": false,
-          "valid_target": null,
-          "valid_source": null,
-          "description": "CR 702.62a: At the beginning of your upkeep, if this card is suspended, remove a time counter from it.",
-          "constraint": {
-            "type": "OnlyDuringYourTurn"
-          },
-          "condition": {
-            "type": "HasCounters",
-            "counters": {
-              "type": "OfType",
-              "data": "time"
-            },
-            "minimum": 1
-          },
-          "batched": false
-        },
-        {
-          "mode": "CounterRemoved",
-          "execute": {
-            "kind": "Spell",
-            "effect": {
-              "type": "CastFromZone",
-              "target": {
-                "type": "SelfRef"
-              },
-              "without_paying_mana_cost": true,
-              "mode": "Cast",
-              "driver": "DuringResolution"
-            },
-            "cost": null,
-            "sub_ability": null,
-            "duration": null,
-            "description": null,
-            "target_prompt": null,
-            "condition": null,
-            "optional_targeting": false,
-            "optional": true,
-            "forward_result": false
-          },
-          "valid_card": {
-            "type": "SelfRef"
-          },
-          "origin": null,
-          "destination": null,
-          "trigger_zones": [
-            "Exile"
-          ],
-          "phase": null,
-          "optional": false,
-          "damage_kind": "Any",
-          "secondary": false,
-          "valid_target": null,
-          "valid_source": null,
-          "description": "CR 702.62a: When the last time counter is removed from this card, if it's exiled, you may play it without paying its mana cost.",
-          "constraint": null,
           "condition": null,
-          "counter_filter": {
-            "counter_type": "time",
-            "threshold": 0
-          },
-          "batched": false
+          "optional_targeting": false,
+          "optional": false,
+          "forward_result": false
         }
       ],
-      "static_abilities": [],
+      "triggers": [],
+      "static_abilities": [
+        {
+          "mode": "CantBeTargeted",
+          "affected": {
+            "type": "SelfRef"
+          },
+          "modifications": [],
+          "condition": null,
+          "affected_zone": null,
+          "effect_zone": null,
+          "active_zones": [],
+          "characteristic_defining": false,
+          "description": "Cannot be the target of spells or effects. World Champion has power and toughness equal to the life total of target opponent."
+        }
+      ],
       "replacements": [],
-      "color_override": null,
-      "color_identity": [
+      "color_override": [
+        "Black",
+        "Green",
+        "Red",
+        "Blue",
         "White"
       ],
-      "scryfall_oracle_id": "dcbf8d0d-a5a8-4dc2-828f-25ccfe87fe0f",
-      "metadata": {
-        "source_printing_ids": [
-          "a732bc65-33fe-4445-ba3f-082578ee837a"
-        ]
-      },
+      "color_identity": [
+        "Black",
+        "Green",
+        "Red",
+        "Blue",
+        "White"
+      ],
+      "scryfall_oracle_id": "39302443-4614-4e62-832a-b74eb2136bc7",
+      "parse_warnings": [
+        {
+          "type": "SwallowedClause",
+          "detector": "DynamicQty",
+          "description": "Cannot be the target of spells or effects. World Champion has power and toughness equal to the life total of target opponent.",
+          "line_index": 0,
+          "unit_span": {
+            "first_line": 0,
+            "last_line": 0,
+            "start_byte": 0,
+            "end_byte": 125,
+            "precision": "Exact",
+            "ordinal_within_span": 0
+          },
+          "items": [
+            0
+          ]
+        }
+      ],
       "legalities": {},
       "printings": [
-        "UNK"
-      ],
-      "rarities": [
-        "uncommon"
+        "PCEL"
       ]
     },
     "A Little Chat": {
@@ -1088,7 +1050,12 @@
           "valid_source": null,
           "description": "Casualty — copy this spell when cast with casualty paid",
           "constraint": null,
-          "condition": null,
+          "condition": {
+            "type": "AdditionalCostPaid",
+            "source": "NonKicker",
+            "origin": "Casualty",
+            "origin_ordinal": 0
+          },
           "batched": false
         }
       ],
@@ -1233,29 +1200,66 @@
               "sub_ability": {
                 "kind": "Spell",
                 "effect": {
-                  "type": "PutAtLibraryPosition",
+                  "type": "ChangeZoneAll",
+                  "origin": null,
+                  "destination": "Hand",
                   "target": {
-                    "type": "Typed",
-                    "type_filters": [
-                      "Card"
-                    ],
-                    "controller": null,
-                    "properties": [
-                      {
-                        "type": "IsChosenCardType"
-                      }
-                    ]
-                  },
-                  "count": {
-                    "type": "Fixed",
-                    "value": 1
-                  },
-                  "position": {
-                    "type": "Bottom"
+                    "type": "TrackedSetFiltered",
+                    "id": 0,
+                    "filter": {
+                      "type": "Typed",
+                      "type_filters": [
+                        "Card"
+                      ],
+                      "controller": null,
+                      "properties": [
+                        {
+                          "type": "IsChosenCardType"
+                        }
+                      ]
+                    }
                   }
                 },
                 "cost": null,
-                "sub_ability": null,
+                "sub_ability": {
+                  "kind": "Spell",
+                  "effect": {
+                    "type": "ChangeZoneAll",
+                    "origin": null,
+                    "destination": "Library",
+                    "target": {
+                      "type": "TrackedSetFiltered",
+                      "id": 0,
+                      "filter": {
+                        "type": "Not",
+                        "filter": {
+                          "type": "Typed",
+                          "type_filters": [
+                            "Card"
+                          ],
+                          "controller": null,
+                          "properties": [
+                            {
+                              "type": "IsChosenCardType"
+                            }
+                          ]
+                        }
+                      }
+                    },
+                    "library_position": {
+                      "type": "Bottom"
+                    }
+                  },
+                  "cost": null,
+                  "sub_ability": null,
+                  "duration": null,
+                  "description": null,
+                  "target_prompt": null,
+                  "condition": null,
+                  "optional_targeting": false,
+                  "optional": false,
+                  "forward_result": false
+                },
                 "duration": null,
                 "description": null,
                 "target_prompt": null,
@@ -1421,6 +1425,7 @@
         "historic": "legal"
       },
       "layout": "modal_dfc",
+      "face_index": 0,
       "printings": [
         "KHM"
       ],
@@ -1644,139 +1649,6 @@
       ],
       "rarities": [
         "uncommon"
-      ]
-    },
-    "A-Earthquake Dragon": {
-      "name": "A-Earthquake Dragon",
-      "mana_cost": {
-        "type": "Cost",
-        "shards": [
-          "Green"
-        ],
-        "generic": 14
-      },
-      "card_type": {
-        "supertypes": [],
-        "core_types": [
-          "Creature"
-        ],
-        "subtypes": [
-          "Elemental",
-          "Dragon"
-        ]
-      },
-      "power": {
-        "type": "Fixed",
-        "value": 10
-      },
-      "toughness": {
-        "type": "Fixed",
-        "value": 10
-      },
-      "loyalty": null,
-      "defense": null,
-      "oracle_text": "This spell costs {X} less to cast, where X is the total mana value of Dragons you control not named Earthquake Dragon.\nFlying, trample\n{2}{G}, Sacrifice a land: Return A-Earthquake Dragon from your graveyard to your hand.",
-      "non_ability_text": null,
-      "flavor_name": null,
-      "keywords": [
-        "Flying",
-        "Trample"
-      ],
-      "abilities": [
-        {
-          "kind": "Spell",
-          "effect": {
-            "type": "CastFromZone",
-            "target": {
-              "type": "Any"
-            },
-            "without_paying_mana_cost": false,
-            "mode": "Cast"
-          },
-          "cost": null,
-          "sub_ability": null,
-          "duration": null,
-          "description": null,
-          "target_prompt": null,
-          "condition": null,
-          "optional_targeting": false,
-          "optional": false,
-          "forward_result": false
-        },
-        {
-          "kind": "Activated",
-          "effect": {
-            "type": "ChangeZone",
-            "origin": "Graveyard",
-            "destination": "Hand",
-            "target": {
-              "type": "SelfRef"
-            },
-            "owner_library": false,
-            "enter_transformed": false,
-            "enter_tapped": false,
-            "enters_attacking": false
-          },
-          "cost": {
-            "type": "Composite",
-            "costs": [
-              {
-                "type": "Mana",
-                "cost": {
-                  "type": "Cost",
-                  "shards": [
-                    "Green"
-                  ],
-                  "generic": 2
-                }
-              },
-              {
-                "type": "Sacrifice",
-                "target": {
-                  "type": "Typed",
-                  "type_filters": [
-                    "Land"
-                  ],
-                  "controller": null,
-                  "properties": []
-                },
-                "count": 1
-              }
-            ]
-          },
-          "sub_ability": null,
-          "duration": null,
-          "description": "{2}{G}, Sacrifice a land: Return ~ from your graveyard to your hand.",
-          "target_prompt": null,
-          "condition": null,
-          "optional_targeting": false,
-          "optional": false,
-          "target_choice_timing": "Resolution",
-          "forward_result": false
-        }
-      ],
-      "triggers": [],
-      "static_abilities": [],
-      "replacements": [],
-      "color_override": null,
-      "color_identity": [
-        "Green"
-      ],
-      "scryfall_oracle_id": "ec54d637-53ab-44a5-856c-6fb8bec09361",
-      "parse_warnings": [
-        {
-          "type": "SwallowedClause",
-          "detector": "DynamicQty",
-          "description": "This spell costs {X} less to cast, where X is the total mana value of Dragons you control not named Earthquake Dragon.\nFlying, trample\n{2}{G",
-          "line_index": 0
-        }
-      ],
-      "legalities": {
-        "brawl": "legal",
-        "historic": "legal"
-      },
-      "printings": [
-        "HBG"
       ]
     },
     "A-Ellywick Tumblestrum": {
@@ -2011,8 +1883,19 @@
         {
           "type": "SwallowedClause",
           "detector": "DynamicQty",
-          "description": "[+1]: Venture into the dungeon. (Enter the first room or advance to the next room.)\n[−2]: Look at the top six cards of your library. You m",
-          "line_index": 0
+          "description": "[−6]: You get an emblem with \"Creatures you control have trample and haste and get +2/+2 for each differently named dungeon you've complet",
+          "line_index": 2,
+          "unit_span": {
+            "first_line": 2,
+            "last_line": 2,
+            "start_byte": 307,
+            "end_byte": 451,
+            "precision": "Exact",
+            "ordinal_within_span": 0
+          },
+          "items": [
+            2
+          ]
         }
       ],
       "metadata": {
