@@ -32,6 +32,11 @@ from __future__ import annotations
 
 import fnmatch
 from collections.abc import Callable
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from mtg_utils._card_ir.crosswalk import AbilityUnit
+    from mtg_utils._deck_forge.pair_reads import PairContext, PairRead
 
 from mtg_utils._card_ir.crosswalk import iter_cost_leaves, tag_of
 
@@ -44,7 +49,7 @@ DISCOUNT_COEFFICIENTS: dict[str, float] = {
 }
 
 
-def _mana_cost_of(unit) -> int:
+def _mana_cost_of(unit: AbilityUnit) -> int:
     """Generic + shard count across the unit's Mana cost leaves (the
     activation price in mana, 0 when free)."""
     total = 0
@@ -59,13 +64,13 @@ def _mana_cost_of(unit) -> int:
     return total
 
 
-def _has_tap_cost(unit) -> bool:
+def _has_tap_cost(unit: AbilityUnit) -> bool:
     return any(
         tag_of(leaf) == "Tap" for cc in unit.costs for leaf in iter_cost_leaves(cc.node)
     )
 
 
-def _has_once_per_turn(unit) -> bool:
+def _has_once_per_turn(unit: AbilityUnit) -> bool:
     return tag_of(getattr(unit.node, "constraint", None)) == "OncePerTurn"
 
 
@@ -103,7 +108,7 @@ def anchor_mana_yield(commander_records: list[dict]) -> int | None:
     return best
 
 
-def _unit_limiters(unit, anchor_yield: int | None) -> set[str]:
+def _unit_limiters(unit: AbilityUnit, anchor_yield: int | None) -> set[str]:
     found: set[str] = set()
     if _has_once_per_turn(unit):
         found.add("once_per_turn")
@@ -118,7 +123,7 @@ def _unit_limiters(unit, anchor_yield: int | None) -> set[str]:
     return found
 
 
-def limiter_discount_fn(ctx) -> Callable:
+def limiter_discount_fn(ctx: PairContext) -> Callable:
     """Build the ``discount_fn`` pair_score consumes: (card, row,
     matched_idents) -> multiplier in [0.375, 1.0]. The anchor yield is
     computed once per context from the commander records the context was
@@ -129,7 +134,7 @@ def limiter_discount_fn(ctx) -> Callable:
 
     anchor_yield = anchor_mana_yield(getattr(ctx, "commander_records", ()) or [])
 
-    def discount(card: dict, row, matched_idents: list[str]) -> float:
+    def discount(card: dict, _row: PairRead, matched_idents: list[str]) -> float:
         try:
             attr = unit_idents_for(card)
             trees = trees_for(card)

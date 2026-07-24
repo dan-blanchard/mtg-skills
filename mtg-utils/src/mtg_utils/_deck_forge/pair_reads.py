@@ -643,7 +643,7 @@ def pair_score(
     card: dict,
     ctx: PairContext | None,
     *,
-    discount_fn=None,
+    discount_fn: object | None = None,
 ) -> tuple[float, list[dict]]:
     """(summed weight, matched-row readout) for one candidate. Rows sum
     without decay; no context (or no idents) scores 0.0 — inert.
