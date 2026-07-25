@@ -1,3 +1,5 @@
+> **ARCHIVED (2026-07-25):** extraction completed; its guardrail against restoring the deleted routes is folded into ADR-0015.
+
 # deck-forge extracts the candidate pipeline into engine.find_candidates and deletes the superseded routes
 
 ADR-0013 split deck-forge into `engine` (deck analysis as free functions over

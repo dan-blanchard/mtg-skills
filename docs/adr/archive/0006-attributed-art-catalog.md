@@ -1,3 +1,5 @@
+> **ARCHIVED (2026-07-25):** still-true rationale folded into ADR-0007 (multi-source attributed art).
+
 # Attributed art catalog ships empty and interleaves with the local catalog per-slug
 
 The proxy renderer reads ASCII art from two tiers: a hand-curated

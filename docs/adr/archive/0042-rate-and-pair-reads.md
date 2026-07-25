@@ -1,3 +1,5 @@
+> **ARCHIVED (2026-07-25):** decision reversed; Rate v1 falsified, Rate v2 terminated; living residue in ADR-0043.
+
 # Rate and Pair reads enter the deterministic ranking (per-card cost-effectiveness + scored two-card interactions)
 
 The 20-commander EDHREC discovery study (2026-07-16, fixed harness) put the

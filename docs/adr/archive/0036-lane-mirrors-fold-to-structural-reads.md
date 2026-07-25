@@ -1,12 +1,14 @@
+> **ARCHIVED (2026-07-25):** fold completed under the ADR-0039 cutover; the crosswalk-only substrate (ADR-0035) is the only serving path.
+
 # 36. Lane mirrors fold to Tier-1 structural reads
 
 Date: 2026-07-04
 
 Status: Accepted
 
-Relates to: [0035](0035-lossless-phase-mirror-ir.md) (the phase-mirror substrate
+Relates to: [0035](../0035-lossless-phase-mirror-ir.md) (the phase-mirror substrate
 + concept overlay these lanes read — completes its crosswalk),
-[0034](0034-matters-sweep-doer-payoff-wants-lane-naming.md) (role-aware
+[0034](../0034-matters-sweep-doer-payoff-wants-lane-naming.md) (role-aware
 adjudication of moved signals), [0027](0027-card-ir-replaces-regex-detection.md)
 (the regex→IR cutover this finishes *inside* the crosswalk).
 

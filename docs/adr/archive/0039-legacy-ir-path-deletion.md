@@ -1,11 +1,13 @@
+> **ARCHIVED (2026-07-25):** execution complete (see this file's own amendment); legacy IR path deleted, crosswalk is the only serving path.
+
 # 39. Legacy IR path deletion: the KEPT twelve, ledgered bridges, delete-then-sprint
 
 Date: 2026-07-11
 
 Status: Accepted
 
-Relates to: [0035](0035-lossless-phase-mirror-ir.md) (this ADR schedules the
-death of its Stage-4 flag and residual routing), [0038](0038-unimplemented-recovery-re-decorates-the-concept-overlay.md)
+Relates to: [0035](../0035-lossless-phase-mirror-ir.md) (this ADR schedules the
+death of its Stage-4 flag and residual routing), [0038](../0038-unimplemented-recovery-re-decorates-the-concept-overlay.md)
 (the recovery/grammar machinery this ADR's endgame leans on),
 [0027](0027-card-ir-replaces-regex-detection.md) (the strangler this ADR
 completes — a supersession note lands there at execution).

@@ -44,3 +44,7 @@ for "grouped" browsing, and don't keep `explore` as a parallel endpoint to `sear
 (the split is exactly the two-path complexity this removes). Weighting (boost focused
 lanes while still counting the rest) was rejected in favor of filtering (focused set is
 the whole basis) — a boost keeps the noisy long tail in the number.
+
+**Guardrail (from ADR-0021):** don't restore `/api/search`, `/api/packages`, or
+`/api/explore` — the candidate-pipeline extraction deleted them as this ADR's dead
+code; `/api/find` is the one card-finding surface.

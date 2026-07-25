@@ -6,7 +6,7 @@ Status: Accepted
 
 Relates to: [0005](0005-bulk-loader-primary-scryfall-http-fallback.md) (bulk-primary
 + Scryfall-HTTP-fallback — this redefines "bulk" as MTGJSON, keeps the HTTP fallback),
-[0027](0027-card-ir-replaces-regex-detection.md) / [0028](0028-consume-phase-rs-not-fork.md)
+[0027](archive/0027-card-ir-replaces-regex-detection.md) / [0028](0028-consume-phase-rs-not-fork.md)
 (the Card IR is already projected from phase-rs, which parses MTGJSON oracle text — so
 this aligns the structured-field record with the IR's own corpus). Supersedes the
 2026-06-19 "HYBRID-GO, DEFER" spike conclusion.

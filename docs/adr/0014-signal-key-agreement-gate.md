@@ -12,9 +12,16 @@ returned `None`, and the avenue was just dropped (`continue`) with no error.
   subject keys named in both modules). VALUE = the on-the-wire key, so it's
   runtime-identical; the NAME gives a typo a compile-time death (`AttributeError`).
 - `signals.producible_static_keys()` — the set of subject-less keys a detector can
-  emit, **derived** by unioning the existing producer tables (so it can never lag the
-  detectors) and excluding the subject keys (which resolve dynamically via
-  `_subject_spec`, not a static spec).
+  emit, excluding the subject keys (which resolve dynamically via `_subject_spec`,
+  not a static spec). It unions the data-table producers (`_DETECTORS`,
+  `_HAND_FLOOR`, `SWEEP_DETECTORS`) with `crosswalk_signals.PORTED_KEYS` — a
+  **hand-maintained manifest** (571-line literal, 369 keys) covering the 269
+  crosswalk lane functions, whose keys are literals in code rather than table
+  data. The gate's original "derived, so it can never lag the detectors" property
+  held only while every producer was data; it lapsed when the crosswalk (ADR-0039)
+  became the only serving path, since a hand-maintained manifest can drift from
+  the lane code it is meant to mirror. Keeping the two in sync is now a manual
+  discipline, not a structural guarantee — a fix is in progress (see below).
 - An import-time assertion at the bottom of `signal_specs.py` requires every producible
   key to resolve to a spec. It fires at import — which `app.py`, `ranking.py`, and every
   test trigger transitively — so a forgotten spec fails loudly, not silently. A readable
@@ -39,57 +46,26 @@ silent no-avenue, a presence failure.
 **What this stops re-suggesting.** Don't "co-locate detector + spec into one registry
 record so adding a signal is one entry" — the churn/cycle cost isn't proportional to a
 33-key seam the gate already guards. And don't merge `_sweep_detectors.py` (detection
-data) with `signal_specs.py` (the exploitation map); that seam is clean.
+data) with `signal_specs.py` (the exploitation map); that seam is clean. Don't "derive
+the served-key set statically from the lane code" either: an AST sweep of
+`crosswalk_signals.py` for literal `Signal(...)` key arguments recovers only 259 of 369
+keys (the rest arrive from module-level tables, `signal_keys.*` attributes, imported
+mirrors, and the `_signals_ir` membership floor), widening the sweep to sibling modules
+cuts the gap but inflates the over-approximation to 656 non-key strings, and a runtime
+harvest over the fixture corpora under-approximates by construction (`counter_hate`
+fires on no fixture card in either corpus and would silently leave the manifest). The
+keys are not statically recoverable without executing the code.
 
-## Addendum (2026-07-24): the derivation guarantee lapsed at the crosswalk migration
-
-Surfaced by an architecture review of the signal stack, and measured rather than
-argued. Nothing here reverses the decision above — the gate is still the right
-instrument — but two of its stated properties no longer hold, and one obvious
-repair is ruled out by measurement.
-
-**1. "Derived, so it can never lag" is no longer true.** The Decision above rests
-on `producible_static_keys()` being derived by unioning the *producer tables*. That
-held while producers were data (`_DETECTORS`, `_HAND_FLOOR`, `SWEEP_DETECTORS`
-carry their own keys). ADR-0039 made the crosswalk the only serving path, and its
-producers are 269 lane *functions* whose keys are literals in code. The union now
-folds in `crosswalk_signals.PORTED_KEYS` — a hand-maintained 571-line literal of
-369 keys. So the gate's input can lag the detectors, which is exactly what the
-derivation was chosen to prevent. The docstring still claims otherwise.
-
-**2. `PORTED_KEYS`' filter role is dead scaffolding.** It was the strangler's
-arbiter — "serve only what we've ported, let legacy serve the rest." ADR-0039
-deleted the legacy arm. The filter is now applied *twice* (`extract_crosswalk_
-signals`'s own `add`, then again in `signals._add`), no caller in `src/` or
-`tests/` ever passes a non-default `keys=`, and it drops nothing: over both fixture
-corpora (2,448 + 993 cards) the set of emitted-but-undeclared keys is empty.
-
-**3. The hygiene test that guards it is tautological.**
-`test_all_emitted_keys_are_in_the_ported_set` asserts `_keys(name) <= PORTED_KEYS`,
-but `_keys` calls `extract_crosswalk_signals`, which already filters to
-`PORTED_KEYS`. The assertion cannot fail for any card or any lane. Verified by
-registering a lane emitting an unported key: the signal is silently dropped,
-nothing is raised, and the test still passes.
-
-**What this stops re-suggesting.** Don't "derive the served-key set statically from
-the lane code." Measured 2026-07-24 at v0.35.2: an AST sweep of
-`crosswalk_signals.py` for literal `Signal(...)` key arguments recovers 259 distinct
-keys and leaves **70 of 369 uncovered**, because keys also arrive from module-level
-tables, `signal_keys.*` attributes, imported mirrors, and the membership floor in
-`_signals_ir`. Widening the sweep to the six sibling modules cuts the gap to 32 but
-inflates the over-approximation from 92 to **656 non-key strings** — which, fed to
-the gate, would demand specs for hundreds of things that are not keys. The keys are
-not statically recoverable without executing the code. A runtime harvest over the
-fixture corpora is accurate for what fires (368 of 369) but *under*-approximates by
-construction, so it cannot be the gate's input either: `counter_hate` fires on no
-fixture card in either corpus and would silently leave the manifest.
-
-**The shape of a future fix,** if one is wanted: delete the filter and the `keys=`
-parameter (dead scaffolding, provably inert), keep the key set as an explicit
-manifest renamed off "ported" whose only job is feeding this gate, and add a corpus
+**Known gap, fix in progress.** `PORTED_KEYS`' original role as the strangler's
+arbiter ("serve only what we've ported, let legacy serve the rest") is dead scaffolding
+now that ADR-0039 deleted the legacy arm: the filter applies twice (`extract_crosswalk_
+signals`'s own `add`, then again in `signals._add`), no caller ever passes a non-default
+`keys=`, and the hygiene test that guards it (`test_all_emitted_keys_are_in_the_ported_
+set`) is tautological — `_keys` calls `extract_crosswalk_signals`, which already filters
+to `PORTED_KEYS`, so the assertion cannot fail for any card or lane. The fix being
+executed: delete the filter and the `keys=` parameter, keep the key set as an explicit
+manifest renamed off "ported" (its only job is feeding this gate), and add a corpus
 harness asserting both directions — `harvest ⊆ manifest` (an undeclared key fails
-loudly, closing the silent-orphan path the filter's removal would otherwise reopen)
-and `manifest − harvest ⊆ {counter_hate}` (a stale key fails loudly). Hand-maintained
-but verified, which is strictly better than today's unverified-plus-vacuous-test.
-Deferred 2026-07-24: the bug is latent, not live, and the edit lands in the repo's
-hottest file (151 of the last 200 commits).
+loudly) and `manifest − harvest ⊆ {counter_hate}` (a stale key fails loudly).
+
+*Amended 2026-07-24; original decision revised in place.*

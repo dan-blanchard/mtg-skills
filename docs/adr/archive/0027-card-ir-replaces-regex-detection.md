@@ -1,3 +1,5 @@
+> **ARCHIVED (2026-07-25):** strangler completed via ADR-0035/ADR-0039 (see this file's own Status note).
+
 # deck-forge replaces its regex detection bag with the Card IR
 
 deck-forge's signal detection runs a large bag of oracle-text regexes/substrings

@@ -1,3 +1,5 @@
+> **ARCHIVED (2026-07-25):** the single-caller extraction heuristic is house style now carried by the codebase-design skill, not a standalone architectural decision.
+
 # Defer single-caller helper extractions until a second caller appears
 
 Per LANGUAGE.md (`improve-codebase-architecture` skill): "Two adapters =

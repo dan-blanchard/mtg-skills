@@ -4,9 +4,9 @@ Date: 2026-07-09
 
 Status: Accepted
 
-Relates to: [0037](0037-tree-synthesis-stage-for-bucket-b-signal-folds.md)
+Relates to: [0037](archive/0037-tree-synthesis-stage-for-bucket-b-signal-folds.md)
 (narrows its scope — tree synthesis remains only for cares-about *references*;
-effect clauses move to this mechanism), [0036](0036-lane-mirrors-fold-to-structural-reads.md)
+effect clauses move to this mechanism), [0036](archive/0036-lane-mirrors-fold-to-structural-reads.md)
 (this is the durable form of its bucket-B "supplement arm"), [0035](0035-lossless-phase-mirror-ir.md)
 (extends the Layer-2 overlay; the substrate-purity invariant is preserved
 *unrelaxed* here).
@@ -80,6 +80,49 @@ Unimplemented recovery becomes a substrate-wide overlay stage that
   corpus crosswalk-vs-legacy measurement and pinned tests — never big-bang
   (batch promotion has already demonstrated why: it conflates hundreds of
   card-level changes needing role-aware adjudication).
+- **An Unimplemented clause is three cases, not one, and re-decoration handles
+  only the first.** (1) **Full residue** — the raw text carries the clause →
+  re-decorate per this mechanism (examples: discover-again, evasion-denial,
+  end-the-turn). (2) **No residue** — phase dropped the clause without
+  emitting a node at all → nothing exists to re-decorate; the key stays an
+  ADR-0037 synthesis arm, but now emits the real concept so lanes read it
+  through their typed arm. (3) **Partial residue** — a node exists but phase
+  consumed the datum the lane needs (e.g. Grothama's "each player" subject
+  survives only in the card's oracle text) → synthesis with real vocabulary
+  (concept + the missing decoration), never a fabricated re-decoration —
+  recovery must not write a datum the clause text does not contain. The
+  `synth_*` marker namespace retires across all three classes.
+- **Text-only face trees are a fourth case (W2c).** Phase emits **no record at
+  all** — not even a drifted or Unimplemented one — for some multi-face card
+  halves, so there is no `ConceptNode` to re-decorate in the first place. This
+  is corpus-wide for the `aftermath` layout (96/96 second halves) plus exactly
+  one two-face `split` gap ("Fast // Furious"'s "Furious" face); adventure,
+  transform, modal_dfc, flip, and prepare are fully covered by phase. The bulk
+  (MTGJSON) record is the text source of record for a phase-missing face:
+  `_ir_lookup.trees_for` synthesizes one additional **zero-unit ConceptTree**
+  per phase-missing face when its production caller threads the bulk record
+  in (`units=()`, `oracle` set to the bulk face's text verbatim,
+  `card_types`/`card_subtypes`/`card_supertypes`/`cmc`/`power` parsed from the
+  bulk face). `extract_crosswalk_signals` already runs
+  `apply_overlay_corrections` + `apply_tree_synthesis` over every tree it is
+  handed, so a text-only tree's `oracle` field feeds the same lanes a
+  phase-built tree's would. Scope is real two-face gameplay splits only:
+  `len(card_faces) != 2` excludes the Unglued/Unstable/Unfinity three-/
+  five-way joke splits, and `art_series` / `double_faced_token` /
+  `reversible_card` are excluded by layout name. Whole-oid-missing cards (no
+  phase group at all) stay out of scope — they already degrade to the legacy
+  IR path via `trees_for`'s existing empty return. Corpus quantification
+  (PORTED_KEYS, all affected cards): only 5 of 97 affected card names actually
+  gain a new signal from their text-only face — `fight_makers` (Prepare //
+  Fight), `stax_taxes` (Failure // Comply), plus `pump_makers` /
+  `evasion_self` / `spellcast_matters` on one further card apiece — every gain
+  matching `extract_signals_ir` (legacy) ground truth exactly. The Seam-B
+  compat sidecar (`build_crosswalk_sidecar`) is NOT threaded with text-only
+  faces: no Seam-B consumer reads `Card.faces` directly (all five go through
+  `Card.all_abilities()`, which already only ever saw the phase face(s) that
+  exist), so this is unchanged pre/post behavior, not a regression — threading
+  bulk data into the sidecar builder is deferred until a Seam-B consumer diff
+  shows it matters.
 
 `tree_synthesis` (ADR-0037) shrinks to its irreducible remainder: cares-about
 **references** that are not effect clauses at all (e.g. a card that names a
@@ -102,33 +145,6 @@ grammar rules and deleted.
   supplement for *all* consumers; a signals-only recovery leaves every
   residual card a compat regression and blocks retiring the old path.
 
-## Amendment (2026-07-10): residue classes
-
-Execution surfaced that "an Unimplemented clause" is three cases, not one,
-and only the first is this ADR's mechanism:
-
-1. **Full residue** — an Unimplemented node whose raw text carries the
-   clause → re-decorate (this ADR). Examples: discover-again (token already
-   in the grammar), evasion-denial (first static-token row), end-the-turn
-   (grammar growth; the shared core moves legacy too, so that commit
-   carries the old-IR sidecar/snapshot regen and a legacy-diff
-   adjudication).
-2. **No residue** — phase dropped the clause without a node (the
-   "suspect it" rider). Nothing exists to re-decorate; the key stays an
-   ADR-0037 synthesis arm, but emits the **real** concept so lanes read it
-   through their typed arm.
-3. **Partial residue** — a node exists but phase consumed the datum the
-   lane needs (Grothama's "each player" subject survives only in the card
-   oracle). Synthesis with real vocabulary (concept + the missing
-   decoration), never a fabricated re-decoration — recovery must not write
-   a datum the clause text does not contain.
-
-The `synth_*` marker namespace retires across all three classes. Corpus
-classification of the residual keys additionally showed most gap cards
-carry **no parseable residue**: the bulk of the remaining off-regex work is
-structural lane reads plus ADR-0034 role-aware adjudication, with the
-clause grammar recovering a real but bounded slice.
-
 ## Consequences
 
 - Residual-key recovery stops accreting per-key regex arms + lane
@@ -144,66 +160,4 @@ clause grammar recovering a real but bounded slice.
   and their `synth_*` lane reads deleted, key promotions and pinned tests
   intact, before the per-key grind resumes on the new mechanism.
 
-## Amendment (2026-07-10): text-only face trees (W2c)
-
-Execution surfaced a FOURTH residue class this ADR's re-decoration mechanism
-cannot reach: phase emits **no record at all** — not even a drifted or
-Unimplemented one — for some multi-face card halves, so there is no
-`ConceptNode` to re-decorate in the first place. A refined census (every
-bulk record with `card_faces` whose oracle_id DOES have a phase group,
-casefolded-name-joined against that group) found this is corpus-wide for
-the `aftermath` layout (96/96 second halves — Failure // Comply's "Comply"
-face, Prepare // Fight's "Fight" face) plus exactly one two-face `split`
-gap ("Furious", off the commander/brawl-legal "Fast // Furious"); adventure,
-transform, modal_dfc, flip, and prepare are FULLY covered by phase (0
-missing faces each) — the original crude substring probe's much larger
-per-layout numbers were false positives from imprecise text matching.
-
-**The bulk (MTGJSON) record is the text source of record for a phase-missing
-face.** `_ir_lookup.trees_for` now synthesizes one additional **zero-unit
-ConceptTree** per phase-missing face when its production caller threads the
-bulk record in: `units=()` (no typed substrate exists, so every unit-scoped
-structural lane sees an honest empty, never a fabricated parse), `oracle` set
-to the bulk face's text verbatim, `card_types`/`card_subtypes`/
-`card_supertypes`/`cmc`/`power` parsed from the bulk face's own type_line /
-mana_cost / power. `extract_crosswalk_signals` already runs
-`apply_overlay_corrections` + `apply_tree_synthesis` over every tree it is
-handed, not only phase-built ones, so a text-only tree's `oracle` field feeds
-the SAME b12 byte-mirror lanes and `tree_synthesis` bucket-B arms a
-phase-built tree's would — no new stax/fight/etc. machinery, just a tree for
-the existing text-reading arms to see. This closes `_arm_fight_makers`'s and
-`_stax_lanes`' own documented gap notes on Prepare // Fight and Failure //
-Comply (both now fire structurally instead of staying an upstream parse gap).
-
-Scope, defer-not-hack: real tournament Magic never has more than two card
-faces on a split/aftermath/adventure/transform/modal_dfc card, so
-`len(card_faces) != 2` is the exclusion gate for the Unglued/Unstable/
-Unfinity three-/five-way joke splits ("Smelt // Herd // Saw", "Who // What
-// When // Where // Why") the same casefolded-name join would otherwise
-flag — a structural gate, not a name/layout special-case. `art_series` /
-`double_faced_token` / `reversible_card` are excluded by layout name (none
-is a real two-face gameplay split). Whole-oid-missing cards (phase has no
-group at all for the oracle_id — a handful of recent `flip`-mechanic cards,
-one Un-set-only "Fast // Furious" printing) stay OUT of scope: the whole
-card already degrades to the legacy IR path via `trees_for`'s existing empty
-return, a broader gap than "one face missing from an otherwise-known card."
-
-Corpus quantification (PORTED_KEYS, all affected cards): only 5 of 97
-affected card names actually gain a NEW signal from their text-only face
-(most aftermath second halves' text is either redundant with what the front
-face / Scryfall keywords already surface, or doesn't match any lane's
-pattern) — `fight_makers` (Prepare // Fight), `stax_taxes` (Failure //
-Comply), plus `pump_makers` / `evasion_self` / `spellcast_matters` on one
-further card apiece. Every gain matches `extract_signals_ir` (legacy)
-ground truth exactly — zero beyond-legacy adjudications needed.
-
-The Seam-B compat sidecar (`build_crosswalk_sidecar`) is NOT threaded with
-text-only faces: it has no bulk-record dependency today (it reads only
-phase's `card-data.json`), and no Seam-B consumer (`ranking` / `budgets` /
-`cut_check` / `metrics` / `bracket`) reads `Card.faces` directly — all five
-go through `Card.all_abilities()`, which already only ever saw the phase
-face(s) that exist. A phase-missing face contributing zero structured
-abilities to Seam-B is unchanged pre- and post-W2c behavior, not a
-regression this task introduces; threading bulk data into the sidecar
-builder (a new load-time dependency on the full bulk corpus, joined by name)
-is deferred until a Seam-B consumer diff shows it matters.
+*Amended 2026-07-10 (twice); original decision revised in place.*

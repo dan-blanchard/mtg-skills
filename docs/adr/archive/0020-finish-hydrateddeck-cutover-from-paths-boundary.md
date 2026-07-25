@@ -1,3 +1,5 @@
+> **ARCHIVED (2026-07-25):** cutover completed; the `from_paths`/`from_parsed` boundary it settled is now just how the code reads.
+
 # Finish the HydratedDeck cutover; `from_paths` is the read boundary only for non-content-addressed CLIs
 
 ADR-0012 moved the deck-analysis functions onto a single `HydratedDeck` value and

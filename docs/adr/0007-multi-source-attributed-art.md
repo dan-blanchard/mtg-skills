@@ -1,10 +1,42 @@
 # Attributed art is mined from multiple sources with per-source license stance
 
-The attributed catalog (see ADR 0006) was originally populated by a single
-source: asciiart.eu, whose FAQ explicitly grants reuse with artist
-attribution. A single source kept `art_fetcher.py` simple and made the
-license note trivially correct — every `.txt` could cite the same FAQ
-URL. Coverage stalled at 71 subtypes.
+The attributed catalog was originally populated by a single source:
+asciiart.eu, whose FAQ explicitly grants reuse with artist attribution. A
+single source kept `art_fetcher.py` simple and made the license note
+trivially correct — every `.txt` could cite the same FAQ URL. Coverage
+stalled at 71 subtypes.
+
+## Origin (folds in ADR-0006)
+
+The proxy renderer reads ASCII art from two tiers: a hand-curated **local
+catalog** committed to the repo at `mtg-utils/src/mtg_utils/data/card_art/*.txt`,
+and the **attributed catalog** described above. Two decisions about the
+attributed catalog, made together, still hold:
+
+- **Ships empty.** The repo commits nothing under `attributed-art/`; users
+  populate it by running `fetch-art`. The renderer degrades gracefully when
+  it's empty — every lookup falls through to the local catalog or
+  `_generic.txt`. Shipping a starter populated catalog was rejected: it puts
+  licensed third-party art in git, `fetch-art` is cheap to re-run (7-day HTTP
+  cache), and the attributed catalog is morally a cache, not a source
+  artifact.
+- **Lookup interleaves per-slug, not per-tier.** For each subtype slug in the
+  type line, the chain tries `attributed/<sub>` then `local/<sub>` before
+  moving to the next subtype; after all subtypes miss, each card-type slug
+  runs the same pair; final fallback is `local/_generic.txt`. A global
+  attributed-tier-then-local-tier sweep was rejected: a single attributed
+  entry for a generic card-type (e.g. `attributed/creature`) would beat every
+  hand-curated local subtype, which is almost always the wrong call.
+
+These two only make sense together: ship-empty needs the per-slug interleave
+to degrade gracefully (an empty `attributed/vampire` falls to the next slug
+attempt and almost always finds `local/vampire`, never punching straight
+through to `_generic`); the interleave only matters in a world where the
+attributed catalog is sparse, where a hand-curated `local/vampire` beats a
+generic `attributed/creature` on specificity. The lookup chain is
+source-agnostic — anything that emits the 3-line license header and lands
+under `$MTG_SKILLS_CACHE_DIR/attributed-art/` participates; only `fetch-art`
+knows about specific sources.
 
 Adding Christopher Johnson's collection at asciiart.website roughly
 doubled the candidate pool (1721 → 3001 cards) and pushed coverage to

@@ -1,3 +1,5 @@
+> **ARCHIVED (2026-07-25):** its `parse_metrics.json` instrument was retired with the legacy builder at the ADR-0039 cutover (see this file's own Status note).
+
 # Fully-parsed Card IR is a pull-based, measured direction — not a push-to-completion
 
 We want the Card IR (ADR-0027) to trend toward *fully parsed* — every clause structured,

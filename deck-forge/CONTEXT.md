@@ -1,794 +1,165 @@
 # deck-forge Context
 
-The bounded context for collaborative, visual MTG deckbuilding: a human and an
-expert assistant build a deck together in a browser, with the assistant surfacing
-synergies, directions, and ranked candidates while the human makes every decision.
+The bounded context for collaborative, visual MTG deckbuilding: a human and an expert assistant build a deck together in a browser, with the assistant surfacing synergies, directions, and ranked candidates while the human makes every decision.
 
 ## Language
 
 ### Deck values
 
 **HydratedDeck**:
-A single immutable value that owns the join of a deck's card names to their Scryfall
-records — the deck dict and its resolved records behind one interface, built once from
-a deck plus a name→record index. A desynced deck/records pair is unconstructable, so
-the analysis functions (`deck_stats`, `mana_audit`, `legality_audit`, …) take a
-`HydratedDeck` rather than a separate `(deck, hydrated)` pair. Deck-domain only; a cube
-is a different shape (see ADR-0012).
-_Avoid_: "hydrated list" (the bare records list it replaces), "(deck, hydrated) pair"
-(the shallow shape it supersedes).
-
-**DROP convention**:
-The single rule for an un-hydratable card name: it is simply absent from a
-HydratedDeck's `.records` / `.expanded()`, never represented as `None`. Callers never
-choose drop-vs-pad — the value enforces DROP, and the one place a miss surfaces is
-`.by_name.get(name)` returning `None`.
-_Avoid_: "None-pad" (the retired outlier convention), "skip" (ambiguous).
-
-**Degraded mode**:
-The state where a deck has cards but no Scryfall records could be joined (no bulk data
-on disk). Exposed as the typed `HydratedDeck.has_records` flag (False only here) —
-distinct from an empty deck, and the queryable successor to the old `check_hydration`
-warning.
-_Avoid_: "empty deck" (an empty deck is not degraded), "no-bulk" alone (the cause, not
-the state).
+A single immutable value joining a deck's card names to their Scryfall records — built once from a deck plus a name→record index, so a desynced deck/records pair can't exist. Analysis functions (`deck_stats`, `mana_audit`, `legality_audit`, …) take a `HydratedDeck` rather than a separate `(deck, hydrated)` pair. An un-hydratable card name is simply absent from `.records` / `.expanded()` (DROP), never represented as `None` — callers never choose drop-vs-pad. `has_records` is `False` only in **degraded mode**: cards exist but no Scryfall records could be joined (no bulk data on disk), distinct from an empty deck.
 
 ### Collection & ownership
 
 **Medium** (paper / digital):
-Whether a build is played on paper or digitally (Arena). Per-build state on the
-`DeckSession`; commander is always paper, Brawl / Historic Brawl default to digital. The
-**medium** — not the format — decides the active Collection slot (digital → arena, paper →
-paper) and the cost mode (digital → wildcards, paper → USD). This is the amendment to
-ADR-0018, whose first cut keyed the slot off format via `paper_only`.
-_Avoid_: "format" as a synonym (a paper and a digital Historic Brawl share one format but
-differ in medium), "Arena" as the only digital sense (it's the digital medium here).
+Whether a build is played on paper or digitally (Arena). Per-build state on the `DeckSession`; commander is always paper, Brawl / Historic Brawl default to digital. The medium — not the format — decides the active Collection slot and the cost mode (digital → wildcards, paper → USD).
 
 **Collection**:
-The user's owned cards as a name→quantity pile (the `parse_deck` pile shape, same as a
-deck) — *what you own*, distinct from a deck (*what you're building*). Global to the hub,
-not per-build: it lives on `ForgeState`, persisted in one `collection.json`, auto-loaded
-on launch. Held in **two slots**, `paper` and `arena`, because the two real libraries are
-distinct; the active slot is auto-picked by the build's **Medium** (digital → arena,
-paper → paper), not by format. Reads are strictly single-slot — a paper deck
-never consults the Arena slot — and an empty active slot surfaces an import prompt, never
-a silent "owns nothing."
-_Avoid_: "deck" (a Collection is owned cards, not a build), "owned_cards" (that's the
-CLI's stored field — see Owned), "library" alone (collides with the MTG in-game zone).
+The user's owned cards as a name→quantity pile — what you own, distinct from a deck (what you're building). Global to the hub, persisted in one `collection.json`. Held in two slots, `paper` and `arena`; the active slot is picked by **Medium**, not format. Reads are strictly single-slot.
 
 **Owned**:
-A deck card's derived ownership: it intersects the active Collection slot (matched with
-`mark_owned`'s DFC / Arena-alias logic), surfaced as a per-card flag in `deck_view` plus
-a deck-level "N of M owned" readout. DERIVED fresh on every snapshot from the live deck ×
-the global Collection — never the stored `owned_cards` field `mark_owned` writes into a
-deck JSON, which would go stale the moment the deck mutates.
-_Avoid_: "owned_cards" (the stored CLI field this deliberately replaces with a live
-derivation), "have / missing" (reserve those for a future buy-list framing).
+A deck card's derived ownership: intersects the active Collection slot, surfaced as a per-card flag plus a deck-level "N of M owned" readout. Derived fresh on every snapshot — never the stored `owned_cards` field `mark_owned` writes into a deck JSON, which would go stale the moment the deck mutates.
 
 **Printing ownership**:
-The optional per-(set, collector_number) layer under a Collection entry — nonfoil and
-foil quantities per printing (etched folds into foil), fed by import sources that carry
-printing data (Moxfield suffixes / CSV columns, Arena's per-printing grpId counts). The
-name-level quantity stays the authoritative **Owned** count; printing detail only refines
-display. Surfaced as owned-first sorting + ✓/✦ counts in the printing picker and as the
-tri-state `owned_printing` on deck cards: `true` = you own the shown printing, `false` =
-you own the card in a different printing, absent = the Collection has no printing detail
-for that name (name-only ownership, the pre-existing behavior).
-_Avoid_: "owned" alone for the printing level (card-owned and printing-owned are distinct
-states — that distinction is the point), "foil" as a price fallback only (finish is a
-real, user-chosen attribute here).
+The optional per-(set, collector_number) layer under a Collection entry — nonfoil/foil quantities per printing. Surfaced as owned-first sorting in the printing picker and as a tri-state `owned_printing` on deck cards: `true` = you own the shown printing, `false` = you own the card in a different printing, absent = no printing detail for that name.
 
 **Companion zone**:
-The fourth deck zone (`companion`, alongside commanders / cards / sideboard) holding at
-most one card with the companion ability (CR 103.2b). A companion is revealed from
-outside the game and is neither deck nor sideboard (CR 702.139a-b), so the zone is
-excluded from deck-size math, slot budgets, curve/mana math, and the tuner's totals —
-but its deckbuilding condition IS audited against the starting deck including the
-commander (CR 702.139b, via `mtg_utils.companion`), and the card must still be
-format-legal (a banned companion flags).
-_Avoid_: "sideboard slot" (paper-tournament framing that doesn't apply to the Commander
-family), "101st card" (it never counts toward the 100).
+The fourth deck zone (`companion`, alongside commanders / cards / sideboard) holding at most one card with the companion ability (CR 103.2b). Excluded from deck-size math, slot budgets, curve/mana math, and the tuner's totals — but its deckbuilding condition IS audited against the starting deck including the commander (CR 702.139b, via `mtg_utils.companion`), and the card must still be format-legal.
 
 **Commander discovery**:
-The browser panel that surfaces commander-eligible cards from your active Collection slot,
-ranked to a *stated intent* rather than to popularity — a theme filter (a `theme_presets`
-lane) and a color filter narrow the owned pool, and the sort is **Support depth** or
-**Novelty**. Deterministic and EDHREC-free (ADR-0009): it never orders by community
-popularity. The browser-native realization of deck-wizard's "Commander Selection from a
-Collection" — intent controls in place of a chat interview.
-_Avoid_: "best commanders" (there is no context-free best — ranking is always to a stated
-intent), "recommendation" (the human picks; see [[Candidate]]).
+The browser panel that surfaces commander-eligible cards from your active Collection slot, ranked to a stated intent rather than to popularity — a theme filter and a color filter narrow the owned pool, sorted by **Support depth** or **Novelty**. Never orders by community popularity.
 
 **Support depth**:
-How much of a commander's strategy you already own — the breadth-down-weighted count of
-in-identity cards in your active Collection slot that serve the commander's signal-derived
-lanes. The default Commander-discovery sort. Deliberately NOT raw signal/lane count:
-*lane breadth is not quality* — owning the pieces is — so a near-universal lane
-("creatures matter") is down-weighted and the generic Staples lane is excluded (owning
-good-stuff isn't commander-specific support).
-_Avoid_: "signal richness" / "lane count" (the rejected breadth-as-quality proxy),
-"owned count" alone (it's lane-weighted, not a flat tally).
+How much of a commander's strategy you already own — the breadth-down-weighted count of in-identity cards in your active Collection slot that serve the commander's signal-derived lanes. The default Commander-discovery sort. Deliberately NOT raw signal/lane count: lane breadth is not quality, so a near-universal lane ("creatures matter") is down-weighted and the generic Staples lane is excluded.
 
-**Novelty** (unusual-ability sort):
-The Commander-discovery sort that ranks owned commanders by **signal rarity** — the inverse
-frequency of their signals across the whole legal commander pool — so an off-beat hook
-outranks tokens / counters / ramp. Hard-gated by Support depth: only the *buildable* weird
-ones surface. Blind by construction to commanders whose ability is so singular no detector
-fires (they emit no signals, so score zero) — the accepted limit of any signal-based
-novelty.
-_Avoid_: "best" / "strongest" (novelty is strangeness, not power), "random".
+**Novelty**:
+The Commander-discovery sort that ranks owned commanders by signal rarity — the inverse frequency of their signals across the whole legal commander pool — so an off-beat hook outranks tokens/counters/ramp. Hard-gated by Support depth: only the buildable weird ones surface.
 
 ### Engine concepts
 
 **Signal**:
-A precisely-scoped fact extracted from one card's oracle text — a trigger
-condition ("a creature you control enters"), a payoff, a type-matters hook, or a
-cost-reducer. Scope is part of the Signal's identity: *Tinybones, the Pickpocket*
-yields the Signal "cast/steal from an **opponent's** graveyard," NOT "graveyard
-matters." Signals are the atoms the discovery engine reasons over.
-**Membership is strict**: a card emits a Signal only when it *literally performs that
-exact mechanic* — never because a deck on that Signal would also want the card. The
-lane name encodes the role (ADR-0034 — the `_matters` sweep): **`<x>_makers`** = cards
-that *do* the mechanic (a "create a token that's a copy" card is a `token_copy_makers`,
-not a `clone_makers` — it *makes* copy tokens, it doesn't *become* a copy); **`<x>_matters`**
-= the *payoff* side (cards rewarded by / that reference the mechanic — "whenever you gain
-life…"); **`wants_<x>`** = a card whose own identity makes a deck *want* the mechanic done
-to it (a worth-copying commander opens `wants_cloning`, a benefit lane, not membership in
-`clone_makers`). Archetype *adjacency* — the cards a Signal's deck also reaches for — is
-never an emission; it lives entirely in the serve layer as a **SubAvenue**. This keeps
-emission a clean truth about the card and serve a separate question about the deck.
-_Avoid_: "theme" (a Signal is narrower and clause-scoped), "trigger" alone
-(ignores payoffs / static hooks), "keyword".
+A precisely-scoped fact extracted from one card's oracle text — a trigger condition, a payoff, a type-matters hook, or a cost-reducer. Informally called a **lane** (e.g. "the deck's signal lanes"). Scope is part of a Signal's identity: *Tinybones, the Pickpocket* yields "cast/steal from an **opponent's** graveyard," not "graveyard matters." Membership is strict: a card emits a Signal only when it literally performs that exact mechanic. Lane names encode role — `<x>_makers` = cards that *do* the mechanic, `<x>_matters` = the payoff side, `wants_<x>` = a card whose own identity makes a deck want the mechanic done to it. Archetype adjacency lives in the serve layer as a **SubAvenue**, never as an emission.
 
 **Synergy package**:
-The primary output unit the UI is built around — a set of real cards that amplify
-a shared Signal, carrying code-found enablers/payoffs and a written rationale for
-how each card connects. A package is a *direction made concrete in cards*.
-_Avoid_: "combo" (reserve that for closed game-winning loops — see below), "pile",
-"list".
-
-**Combo**:
-A closed interaction between cards that produces unbounded value or wins the game
-(Commander Spellbook's domain). Combos are a *secondary* layer in deck-forge, shown
-as a "go infinite?" option, distinct from the headline Synergy packages.
-_Avoid_: using "combo" for ordinary synergies (the most common drift; a Synergy
-package is not a Combo).
+The primary output unit the UI is built around — a set of real cards that amplify a shared Signal, carrying code-found enablers/payoffs and a written rationale for how each card connects. Not a **Combo** (a closed interaction that produces unbounded value or wins the game — Commander Spellbook's domain, shown as a separate "go infinite?" option).
 
 **Exploration avenue**:
-A *direction* the assistant offers to pursue — "lean Voltron vs. tokens," "look at
-ramp now?" An avenue is a branch in the build, never a specific card.
-_Avoid_: "suggestion" (overloaded — covers cards too), "option".
-
-**SubAvenue**:
-A separately-searchable angle on the *same* Signal — the serve-side fan-out. One Signal
-can want several distinct buckets (be the manlands / reward them / animate lands), each
-with its own search + classifier, so the Signal's spec carries a primary serve plus
-`extras` of SubAvenues. SubAvenues are also where archetype *adjacency* lives: a Signal
-serves cards a deck wants but that don't themselves emit the Signal (a clone deck reaching
-for token-copy gear). Because membership is strict (see [[Signal]]), every "and a deck
-might also want…" is a SubAvenue, never a new emission.
-_Avoid_: "extra" (the field name, not the concept), "sub-signal" (it's a serve angle, not
-a membership fact).
-
-**Focused avenue**:
-An Avenue the human has *pinned* to declare it a lane they're actually building
-toward (vs. one that merely happens to occur in a card already in the deck). The
-focused set is the basis for a Candidate's synergy fit: when ≥1 avenue is focused,
-`synergy_fit` counts only focused avenues, so the ✦ number reads "serves N of your M
-focused lanes." The empty focus set is the default and means *everything counts* —
-today's behavior — so focusing is purely opt-in narrowing.
-_Avoid_: "selected avenue" (reserve "select" for the multi-pick of packages), "active
-avenue" (active = present/derived, not curated), "tracked".
+A direction the assistant offers to pursue — "lean Voltron vs. tokens," "look at ramp now?" A branch in the build, never a specific card. A **SubAvenue** is a separately searchable angle on the same Signal (one Signal can want several distinct buckets, each with its own search + classifier). A **Focused avenue** is one the human has pinned to declare it a lane they're actually building toward; when ≥1 avenue is focused, a Candidate's `synergy_fit` counts only focused avenues. A fused `_matters` signal splits into a **payoff avenue** (cards that reward the thing) and a **source avenue** (cards that are/produce the thing) so a deck can see it has ten payoffs and no sources (ADR-0026).
 
 **Candidate**:
-A specific real card surfaced to fill a need, carrying a "why it fits" note and an
-honest cost. Every Candidate is a real Scryfall card the deterministic core found —
-never named from the assistant's memory.
-_Avoid_: "recommendation" (implies the tool decides; the human chooses),
-"pick" (that's the human's act of selecting a Candidate).
+A specific real card surfaced to fill a need, carrying a "why it fits" note and an honest cost. Every Candidate is a real Scryfall card the deterministic core found — never named from the assistant's memory.
 
 **Color widening** (the partner sort):
-The *primary* ranking axis for the Partner / Background avenue: the count of NEW colors a
-candidate second commander adds to the deck's current identity (`partner.color_identity −
-deck identity`). A second commander is the only card that can change color identity, so
-widening exists only here. The partner sort is strict-tiered — widening first, then
-[[Candidate]] synergy fit, then price/cmc — so the broadest color-openers surface first
-and synergy merely orders them *within* a widening tier (a high-widen / low-synergy
-partner outranks a low-widen / high-synergy one, deliberately). It counts *colors*, is
-unbounded (a five-color opener tops a two-color one), and never measures "synergy
-unlocked."
-_Avoid_: "synergy widening" (it counts colors, not unlocked cards — that alternative was
-weighed and dropped), "color fixing" (a manabase concern, unrelated).
+The primary ranking axis for the Partner/Background avenue: the count of NEW colors a candidate second commander adds to the deck's current identity. Strict-tiered — widening first, then Candidate synergy fit, then price/cmc — so the broadest color-openers surface first.
 
-**Find surface** (the unified Search ⊕ Synergies tab):
-The single card-finding surface that replaces the separate Search and Synergies tabs.
-Focusing one or more Avenues OR-combines their `serve` specs into the search filters
-(oracle/type unioned, color identity unioned), runs one search, and returns a single
-flat ✦-ranked list — there is no per-package grouped presentation. "Discover all"
-serendipity is recovered by the Avenues panel itself (focus-all → sort by ✦). See
-ADR-0015.
-_Avoid_: "Synergies tab"/"Packages tab" (both dissolved into this), "search results"
-alone (undersells that focused avenues drive it).
+**Find surface**:
+The single card-finding surface that replaces separate Search and Synergies tabs. Focusing one or more Avenues OR-combines their `serve` specs into the search filters and returns one flat ✦-ranked list.
 
 **Slot** / **slot budget**:
-A *role* the deck needs filled (ramp, draw, removal, win condition, interaction, or
-a mana-curve bucket) and its remaining count measured against the active Template.
-A "choose up to N" prompt is sized to a Slot's remaining budget.
-_Avoid_: "category" (used for color/type classification elsewhere), "quota".
-
-**Template**:
-The role-count guideline for a format (e.g. the Command Zone Commander template)
-used as a *soft* target for Slot budgets — a starting point, not a rule. Distinct
-from the mana-curve / land-count **gate**, which is hard.
-_Avoid_: "rule", "requirement" (Templates never block).
+A role the deck needs filled (ramp, draw, removal, wipe, win condition, interaction, or a mana-curve bucket) and its remaining count measured against the active **Template** — the role-count guideline for a format (e.g. the Command Zone Commander template), a *soft* target, distinct from the *hard* curve/land-count gate.
 
 **Grant-covered role**:
-A Slot role (draw, removal, …) whose effect the deck receives from a mass ability
-grant rather than dedicated cards — e.g. a commander giving every tribe creature
-"when this enters, draw a card". The Slot budget stays a literal card count (a
-grant never adds to the number); coverage is surfaced *alongside* the count, and it
-downgrades the role's shortfall from actionable to advisory — never suppresses it
-(a deck with zero dedicated draw still shows the shortfall).
-_Avoid_: "effective count", "virtual draw" (both imply the count itself moves).
+A Slot role (draw, removal, …) whose effect the deck receives from a mass ability grant rather than dedicated cards (e.g. a commander giving every tribe creature "draw a card" on ETB). The Slot budget stays a literal card count; coverage is surfaced alongside it and downgrades the shortfall from actionable to advisory, never suppresses it.
 
 **Granter**:
-A card whose text gives an ability to a whole class of your creatures ("Sliver
-creatures you control have outlast {2}" / "… have double strike"). Cutting a
-Granter removes that ability from every recipient, so its keep/cut value is the
-*granted ability's quality relative to the Granter's cost* — never the strength of
-its own body, and never its playrate (playrate may break ties between Granters,
-not condemn one). Tribal decks are Granter-dense: most Slivers are Granters, so
-"weak body" reads are systematically wrong there.
-_Avoid_: "lord" (colloquially also covers stat anthems; a Granter grants abilities),
-"vanilla beater" (a Granter is never vanilla — its text is the grant).
+A card whose text gives an ability to a whole class of your creatures ("Sliver creatures you control have outlast {2}"). Cutting a Granter removes that ability from every recipient, so its keep/cut value is the granted ability's quality relative to the Granter's cost — never the strength of its own body.
 
-### Signal plumbing
-
-**Folded object**:
-A persistent game-object a commander's *own* abilities deterministically bring into its
-core strategy — the dungeon it ventures into (a *Ventured dungeon*), the emblem from its
-ultimate, the Ring it bears, the creature it melds into (a meld *result*) — whose
-rules-text effects are part of the commander's Signals even though they aren't (always)
-printed on the commander itself. The unifying idea: a
-commander's effective oracle extends to the objects it reliably creates or enters. Where
-the object's text is *quoted in the commander's oracle* (an emblem) it is already read;
-where it lives on a *separate object* (a dungeon, the Ring) it must be joined in. The
-card-backed separate objects are discovered through Scryfall's `all_parts` (the same link
-that finds a card's tokens), so the join is structured rather than prose-scraped. Gated to
-objects the commander's text brings in as its plan (not one-off references) that carry
-their own rules text.
-_Avoid_: treating these as flavor or as out-of-scope "deck context" — they are mechanically
-the commander's plan (Acererak's *Tomb of Annihilation* bleed is why its decks run lifegain).
-
-**Ventured dungeon** (a *Folded object*):
-The specific dungeon a commander deterministically enters, whose room oracle is read as
-an additional source of that commander's Signals — because the dungeon's effects are
-mechanically part of the commander's strategy even though they print on a separate card.
-*Tomb of Annihilation*'s rooms ("Each player loses 1 life", "…loses 2 life unless they
-sacrifice…") make *Acererak the Archlich* a self-bleed + sacrifice commander, which is
-why its decks run lifegain sustain (Demon's Horn) — a synergy invisible from Acererak's
-own text. The candidate dungeons are found in `all_parts` (which lists *all three* D&D
-dungeons for any venture card, so it can't disambiguate alone); the *specific* dungeon to
-fold is the one the commander's oracle names (Acererak → Tomb of Annihilation, whose ETB
-only stops bouncing him once ToA is completed) or that a rule fixes (the Initiative →
-Undercity). A generic "venture into the dungeon" names nothing — the player chooses — so no
-specific dungeon is folded; broad venture support covers it (picking one would need
-popularity, which the gate forbids).
-_Avoid_: "dungeon matters" (the contentless, generic version this replaces — the point is
-the *specific* dungeon's rooms, not dungeons in the abstract).
-
-**Payoff avenue** vs **Source avenue** (the two halves of a mechanic):
-A `<mechanic>_matters` signal is a *payoff/enabler* fact ("this deck wants to suit up" —
-the commander, the equip-cost reducer, the extra-combat). A **Source avenue** is the
-separate lane of cards that *are or produce* the thing the payoff wants (the Auras &
-Equipment to suit up). Both are real, focusable [[Exploration avenue]]s; the Source
-avenue is a [[SubAvenue]] of the payoff signal's spec, so one signal fans out into a
-payoff lane + a source lane the human can focus and count independently. The split
-exists for *balance visibility* — "I have 6 sources but only 1 payoff" is unreadable
-from one fused list. The canonical *fully-realized* instance is the subject-keyed tribal split: a
-`type_matters:Goblin` signal already fans into "Goblin tribal" (the bodies = source),
-"Goblin payoffs" (lords/anthems), and "Goblin enablers" (type-changers) as three
-[[SubAvenue]]s. The 46 fused *non-subject* specs (voltron, artifacts_matter,
-spellcast_matters, …) are the ones NOT yet brought into line — each fuses an oracle
-payoff pattern with a `serve_types`/`serve_keywords` source into one avenue. The
-generalization: derive the payoff avenue from `serve.oracle` and the Source avenue from
-`serve.types`/`keywords` (+ the `serve_not` veto), the static-membership analogue of
-what `_subject_spec` does for tribes. A small DENYLIST of *modifier* keywords (haste,
-indestructible, trample, the evasion set) keeps a property keyword from spawning a
-junk "pool" lane. Two source FLAVORS exist and stay distinct: a *membership* source
-(you ARE the thing — type/keyword serve, e.g. auras) vs an *effect* source (you MAKE
-the thing — a detector signal, e.g. `token_maker`, which is subject-keyed and correctly
-its own lane).
-_Avoid_: "piece" as a lane name (a Source avenue may *produce* the thing, not just *be*
-it — token_maker makes tokens), "the voltron lane" (there are two: payoff + source).
+### Card IR & signals
 
 **Signal key**:
-The canonical id of a Signal (e.g. `coin_flip`, `token_maker`) — the contract between
-the detector (`signals.py`, which emits it) and the exploitation map (`signal_specs.py`,
-which maps it to an avenue). Cross-file keys live as constants in `signal_keys.py`.
-_Avoid_: "signal name", "signal type".
-
-**Silent orphan** (silent no-avenue):
-A Signal key a detector produces but no spec resolves — historically a *silent* failure
-(extraction worked, `spec_for` returned `None`, the avenue was just dropped). The
-key-agreement gate turns it into a loud import-time error.
-_Avoid_: "missing spec" alone (understates that it failed silently).
+The canonical id of a Signal (e.g. `coin_flip`, `token_maker`) — the contract between the detector (`signals.py`) and the exploitation map (`signal_specs.py`, which maps it to an avenue). Cross-file keys live as constants in `signal_keys.py`.
 
 **Key-agreement gate**:
-The import-time assertion in `signal_specs.py` that every producible static key resolves
-to a spec, derived from `signals.producible_static_keys()` (a union of the producer
-tables, so it can't lag). The successor to a hand-typed coverage list.
-_Avoid_: "validation", "check" (too generic).
+The import-time assertion in `signal_specs.py` that every producible static key resolves to a spec. Its input is the served-key manifest (a hand-maintained literal — keeping it honest against the lane code is a test discipline, not a derivation; see ADR-0014).
+
+**Folded object**:
+A commander's effective Signal set extends to objects its plan deterministically brings into play — a ventured dungeon, an emblem, a meld result (Acererak + Tomb of Annihilation → lifegain synergy invisible from Acererak's own text). Commander-only; the 99 never fold.
+
+**Detriment-directed targeting**:
+The scoping convention that a bare "target player" on a detrimental effect reads as opponent-directed for signal purposes (`detriment_directed_scope`).
 
 **Card IR**:
-The layered structured parse deck-forge's detection reasons over instead of re-grepping
-oracle text: the [[Phase-mirror substrate]] + the derived [[Concept overlay]], plus the
-compat `Card` dataclasses (`card_ir.py` — `Filter` / `Quantity` / `Effect` / `Trigger` /
-`Ability` / `Face` / `Card`) built FROM the concept trees for the dataclass-API
-consumers and cached to an `oracle_id`-keyed sidecar. Unlike a regex it binds the
-*operand* a card scales with (Craterhoof's "for each creature you control") and the
-*scope* of an effect (Tinybones reanimates only from opponents' graveyards), so a
-[[Signal key]] becomes a derived query over structure rather than a substring match.
-Historically one *lossy* projection (`_card_ir/project.py` + the supplement envelope,
-ADR-0027); ADR-0035 layered it and ADR-0039 deleted the projection, so "Card IR" now
-names the layered whole.
-_Avoid_: "phase IR" (phase provides the structural substrate; the Card IR is *our*
-payoff/scope-shaped reading of it), "the projection" (the lossy projection is deleted;
-the overlay is a lossless derivation).
+The structured parse deck-forge reasons over instead of re-grepping oracle text: a typed mirror of phase-rs's own parse, plus a derived **concept overlay** that maps its nodes into the ~80-concept synergy vocabulary a Signal key queries. The overlay's output per card face is a **concept tree** — what `_ir_lookup.trees_for` returns and `crosswalk_signals` queries over. Unlike a regex it binds the *operand* a card scales with and the *scope* of an effect, so a Signal key becomes a query over structure rather than a substring match.
 
-**parse_confidence** (historical):
-The legacy projection's per-card completeness field — `full` when no clause fell through
-to a generic "other" category, `partial` otherwise, derived from phase warnings +
-supplement coverage. Its derivation died with the projection (ADR-0039 step 7): the
-compat `Card` leaves the field at its default `full`, and substrate-level drift is
-watched by the committed `phase_variant_population.json` instead. The term survives
-only in old adjudication notes.
-_Avoid_: citing it as a live health metric (it no longer measures anything), "coverage"
-alone (collides with `coverage_gate`'s blind-spot sense).
-
-**Phase-mirror substrate** (a.k.a. Layer 1; ADR-0035):
-A codegen'd typed mirror of phase's emitted `card-data.json`, **inferred from the data**
-(not phase's Rust source) and **strict-loaded**, that retains *every* phase field verbatim.
-Because nothing is dropped, [[bucket-A]] field-loss is impossible *at the substrate* — the
-class of bug where a field phase parsed is silently omitted by our projection. It is a
-**shape-faithful structural mirror**, not a claim to phase's nominal type graph.
-_Avoid_: "the Card IR" (the substrate is the lossless bottom layer; the [[Card IR]] is the
-whole stack), "phase's IR" (it is *our* mirror of phase's output, regenerated on a phase
-bump).
-
-**Strict loader / loud drift** (ADR-0035):
-Loading the [[Phase-mirror substrate]] with `extra=forbid`, so a phase schema change becomes
-a *load-time failure* instead of today's silent `node.get("type")→None` degrade. The fix for
-the v0.8.0 silent-drift episode. Its guarantee is "caught a missed regen / version bump"; a
-strict-load failure that produces zero [[Signal]]-diff is a soft "re-run codegen" notice.
-_Avoid_: "validation" (it is drift *detection*, not card-correctness checking).
-
-**Concept overlay / crosswalk** (a.k.a. Layer 2; ADR-0035):
-The single derivation path that maps the [[Phase-mirror substrate]]'s nodes into the
-~80-concept synergy vocabulary a [[Signal key]] queries. **Totally lossless:** every node
-becomes a recognized [[Concept-node]] *or* an `other` concept that *carries the verbatim
-structured node* — so the unrecognized tail stays reachable as structure, never re-grepped
-text. The home the lossy `project.py` concept-derivation *relocated* into — and, since
-ADR-0039, the ONLY serving path (the regex bag and the projected-Card path are deleted).
-_Plainly_: the **structured-read path**. "Crosswalk" is the data-management term for a table
-that maps one vocabulary to another (like ICD-9→ICD-10 medical codes); here it maps phase-rs's
-raw parse nodes to our synergy concepts (a "dies-trigger", a "draw-effect") so a [[Signal]]
-lane reads *structure* instead of grepping the card's text. Its output is the concept tree.
-_Avoid_: "projection" (it is a lossless derivation over a retained substrate, not the old
-lossy projection it replaces), "the categoriser" (it preserves tree position, see
-[[Concept-node]]).
-
-**Concept-node** (ADR-0035):
-A per-node *decoration* hanging off its preserved Layer-1 tree position (its face and
-ability) — **not** a flattening into a node bag. This keeps the joins lanes depend on
-queryable: per-ability sibling co-occurrence (`discard_makers` needs a `draw` sibling in the
-*same* ability), per-ability aggregation, and whole-card / cross-face merges.
-_Avoid_: "flat node" / "node bag" (the granularity that would break sibling and whole-card
-lanes).
-
-**Convergence check / shrinking bridge** (ADR-0035):
-The detector that flags a *true-synthesis* [[supplement]] arm for retirement when phase
-begins parsing the clauses it covered — **input-side** (its `recovered_by_category` count
-drops toward zero), not output-shape equality. Indefinite persistence for a mechanic phase
-never implements is a *correct* true-negative, not a failure. Operationalises the supplement
-as a *shrinking* bridge whose long-term home is upstreamed phase grammar (ADR-0028).
-_Avoid_: "diff against phase" (it watches the *input* clauses converging, not byte-matching
-nodes).
-
-**Two seams** (ADR-0035):
-The two stable surfaces consumers read, both of which the migration gates: the
-[[Signal]]`(key, scope, subject)` contract (lanes/presets) **and** the Effect/Ability/Card
-dataclass API (`.category`/`.scope`/`.counter_kind`/`.toughness`/`ab.trigger.event`/…) read
-directly by `ranking` / `budgets` / `cut_check` / the tuner. "Signal is the only seam" is
-false — the dataclass seam needs its own corpus output-diff harness.
-_Avoid_: "the Signal seam" (singular — it elides the four non-Signal consumers).
-
-**bucket-A vs `bucket_a_masking`** (ADR-0035):
-**bucket-A** is the silent sub-field *drop* inside an already-categorised node (the
-re-surfacing-ledger bug class the [[Phase-mirror substrate]] eliminates). The
-`bucket_a_masking` *counter* measured a *different* thing — regex-masking recoveries —
-and read 0; it was retired with `parse_metrics.json` (ADR-0039 step 7). Keep them
-disambiguated in old notes: a 0 counter never meant the drop class was absent.
-_Avoid_: conflating the named class with the counter (the misread that made the drop class
-look already-solved).
-
-**Lane mirror** (ADR-0035 → ADR-0036; historical):
-A crosswalk lane's regex-over-oracle-*text* read — a `clauses(oracle)` split plus
-`.search`/`.finditer`, imported from `_signals_regex` / `_sweep_detectors` — kept as a
-transitional safety net where the structural read wasn't built yet. Tier-0: blind to tree
-structure, so it carried the card-level cross-clause false-positive class. What a
-[[Mirror fold]] retired. The fold era ended with ADR-0039; the surviving, sanctioned
-text reads are the gap-gated, self-retiring **ledgered bridges** (see
-`mtg-utils/CONTEXT.md`) — opposite scope and lifecycle to a mirror.
-_Plainly_: a leftover **text-regex hiding inside a signal lane** — the tech-debt a
-[[Mirror fold]] removed.
-_Avoid_: "byte-mirror" alone (that names the ADR-0027 signal-*equality* tactic; a lane
-mirror is the text-read it rides on), "fallback" (it was tech-debt, not a sanctioned
-path), calling a ledgered bridge a mirror (a bridge is enumerated, gap-gated, and
-scheduled to die).
-
-**Mirror fold** (ADR-0036):
-Replacing a [[Lane mirror]] with a [[Tier-1 structural read]] of the same datum, plus
-whatever [[Fold triage|direct / bucket-A / bucket-B]] work is needed to make the typed
-field exist first. Tier-1-only: the lane never falls back to a node-`raw` regex (the
-rejected Tier-2) — when phase's parse is lacking we *supplement* it, not text-scan in the
-lane. A fold may legitimately *improve* signals (adjudicated role-aware), not only
-reproduce them.
-_Plainly_: **swap a lane's text-regex for a read of the structured tree** (adding whatever
-parse-support the tree needs first). The concrete edit this whole migration is doing.
-_Avoid_: "de-regex" (a bucket-B fold still runs regex once at the projection seam; what's
-removed is *lane-time* text-reading), "refactor" (folds are allowed to move signals).
-
-**Tier-1 structural read** (ADR-0036):
-A lane read touching only typed [[Concept-node]] fields (`subject` / `scope` / `zones` /
-`kind` / …) — zero oracle text, zero regex, at lane time. The goal state of every lane.
-Contrast Tier-0 (the [[Lane mirror]]) and the *rejected* Tier-2 (node-`raw` regex in the
-lane, refused because the plan supplements phase's parse rather than relocating regex into
-the lane).
-_Avoid_: "IR read" (the old lossy projection was also "IR"; this is specifically a
-typed-field read of the [[Concept overlay]]).
-
-**Fold triage: direct / bucket-A / bucket-B** (ADR-0036):
-The three routes a [[Lane mirror]] takes to a [[Tier-1 structural read]]: **direct** — the
-tree already carries the datum, just rewrite the lane; **bucket-A** — phase parsed the
-structure but the projection dropped it, so add a structural [[Concept overlay]] arm (no
-oracle text); **bucket-B** — a genuine phase gap, so add a projection-time [[supplement]]
-arm that regexes text *once* and emits a typed node (log the gap; retire via the
-[[Convergence check]]). Reuses the ADR-0035 [[bucket-A]] / bucket-B supplement taxonomy;
-"direct" is the no-supplement-needed case.
-_Avoid_: reading "bucket-A" as "tree already has it" (bucket-A means phase-parsed-but-
-dropped; the already-there case is *direct*).
-
-**Tree synthesis / SynthesizedNode** (ADR-0037):
-The Layer-2 stage (`apply_tree_synthesis`) that **adds** synthetic
-[[Concept-node]]s to the crosswalk tree for a [[Fold triage|bucket-B]] gap — a
-projection-time regex-over-oracle-text run *once* emitting a typed node the signal lane
-reads. Runs in the `extract_crosswalk_signals` path **only** (never `compat_card`), so a
-bucket-B [[Mirror fold]] moves signals and nothing else (Seam-B consumers untouched). A
-synthetic node carries a `SynthesizedNode` marker (not a phase
-`TypedMirrorNode`) in its `.node` slot, tagged by arm id; the [[Concept overlay]]'s
-substrate-purity invariant relaxes to "phase L1 preserved; tagged synthetic additions
-allowed." A [[Convergence check|shrinking bridge]], not a permanent home.
-_Plainly_: when phase-rs **can't parse a phrasing**, run the regex **once at parse time** to
-mint a typed node the lane reads — so the regex lives at the parser, not the lane, and gets
-deleted once phase learns to parse that phrasing itself.
-_Avoid_: "overlay" (that *decorates* existing nodes; synthesis *adds* new ones),
-"dropped-clause synthesis" alone (that lands on the compat Card / Seam B; this feeds the
-Signal lanes / Seam A).
-
-**Recall-completion fold (role-aware)** (ADR-0034 → ADR-0036):
-The *process* a [[Mirror fold]] runs. Before deleting a lane's regex, make the structured
-read catch every genuine card the regex caught — *completing the recall* ("recall" = the
-search-quality sense: of all cards that *should* fire the signal, the fraction we catch) —
-while judging each dropped card by its **role** (ADR-0034): a *maker*/source (Soul Warden
-*gains* life), a *matters*/payoff (Ajani's Pridemate *cares* that you gained life), or a
-*wants* target. The lane keeps the genuine payoffs, recovers the ones phase under-parses (a
-[[Fold triage|bucket-A]] read or a [[Tree synthesis|bucket-B synthesis]]), and *drops* the
-ones the regex wrongly caught (a source sitting in a payoff lane) — a drop that is a
-correctness *fix*, not a coverage loss.
-_Plainly_: rewrite the lane to read structure, making sure it still catches every card that
-*genuinely belongs* (recall) and correctly tells apart *doers* from *payoffs* (role-aware).
-_Avoid_: "refactor" (it deliberately changes which cards fire — it corrects the regex),
-"recall" in the ML retraining sense (here it is search-recall: coverage of should-fire cards).
-
-**Detriment-directed targeting** (Dan, 2026-07-10; ADR-0038 deferral sweep):
-A "target player" / "target creature's controller" recipient on an unambiguously
-DETRIMENTAL effect (skip-untap/tap-down, life loss, discard/reveal-strip, sacrifice) is
-OPPONENT-DIRECTED for deck-building SIGNAL purposes, even though CR 603.3d lets the
-ability's controller legally target themself. This is a deck-building read of *intent*,
-not a rules claim — nobody builds a deck around "target player skips their next untap
-step" hoping to target themselves. `detriment_directed_scope` (`crosswalk.py`, beside
-`lifeloss_recipient_scope` / `discard_recipient_scope`, the two ad-hoc precedents this
-generalizes) is the shared predicate. "Each player" stays a DIFFERENT, symmetric signal
-class (`"each"`) — never folded into `"opponents"`, because a symmetric effect really
-does hit you too. A beneficial self-target COMBO shape (a card that *wants* its own
-detriment — e.g. a sacrifice outlet that wants to sacrifice itself) is its own structural
-pattern read elsewhere; it is never a reason to mute this mainline targeted-detriment read.
-_Avoid_: "opponent scope" alone (doesn't capture that the source is a *targeted* recipient,
-not an explicit "opponent" tag — the principle is what makes a bare `Target`/`Player` tag
-opponent-directed by inference), treating CR 603.3d as contradicted (it isn't — this is a
-signal-layer convention sitting on top of legal targeting, not a rules dispute).
+**Bridge** (ledgered, self-retiring):
+A sanctioned text-regex read living inside a signal lane for a mechanic phase-rs doesn't yet parse structurally, tracked in one central ledger with a gap rationale — gap-gated (it only fires where the structural read is absent) and scheduled to retire once phase's parse catches up. Not a "fallback": every bridge is enumerated and adjudicated, never leftover tech-debt.
 
 ### Roles & surfaces
 
-**Session-agent** (a.k.a. the reasoning layer):
-The interactive Claude Code session that supplies the judgment the deterministic
-core cannot — scoping Signals, proposing novel Synergy patterns, writing "why it
-fits," judging rules interactions, curating the next avenue. The human-in-the-loop
-brain; runs on interactive subscription billing.
-_Avoid_: "the AI"/"the bot" (vague), "BYO-key provider" (a deferred
-non-subscription fallback, not the primary path).
+**Session-agent**:
+The interactive Claude Code session that supplies the judgment the deterministic core cannot — scoping Signals, proposing novel Synergy patterns, writing "why it fits," judging rules interactions, curating the next avenue. Runs on interactive subscription billing.
 
 **Deterministic core**:
-The agent-less Python layer (wraps `mtg-utils`) that does card search, curve/mana
-audit, combo lookup, and pricing. Always available; it is the source of every real
-card the Session-agent grounds its patterns against.
-_Avoid_: "the backend logic" (the core is one part of the backend).
+The agent-less Python layer (wraps `mtg-utils`) that does card search, curve/mana audit, combo lookup, and pricing. Always available; the source of every real card the Session-agent grounds its patterns against.
 
 **Backend hub**:
-The local process that owns canonical session state, hosts the Deterministic core,
-serves the browser surface, and is the message bus between the browser and the
-Session-agent.
-_Avoid_: "the server" alone (ambiguous about the hub role).
+The local process that owns canonical session state, hosts the Deterministic core, serves the browser surface, and is the message bus between the browser and the Session-agent.
 
-**Handoff** (run-here vs session):
-A one-click route from a finished deck into another repo tool, split by the billing
-boundary. A **run-here handoff** (goldfish, proxies) is *pure local compute* — a
-`mtg_utils` function the hub already imports, run in-process with no LLM/API key — so
-its result renders in the browser even with no session attached. A **session handoff**
-(strategy guide via `deck-strat`, store-sourcing via `lgs-search`) needs reasoning or a
-headed browser, so it can only be routed to the attached Session-agent over the agent
-bridge and greys out when detached. The boundary is load-bearing: the hub may execute
-pure-compute tools but must never run a reasoning/browser skill itself (ADR-0010, ADR-0016).
-_Avoid_: "handoff" as if all four behave alike (the two tiers are not interchangeable),
-"the hub runs the skill" (it runs pure-compute tools; skills go to the session).
-
-**Import** (bring-in, the mirror of Handoff):
-Bringing an external list INTO the hub — a decklist or a Collection — parsed and
-populated in-process by the Deterministic core (`parse_deck` / `mark_owned` /
-`find_commanders`), no LLM and no API key. The *inbound* mirror of a **Handoff** (which
-routes a *finished deck out*); like a run-here handoff it is pure compute the hub runs
-itself, never the Session-agent. A **deck import** always mints a NEW build rather than
-overwriting the live one — build data is never clobbered — and never guesses a commander
-(an unmarked list lands as a pile the user promotes from).
-_Avoid_: "handoff" for an import (opposite direction), "load" (reserve that for
-reopening a saved build via `BuildStore`), "parse" alone (parsing is one step of
-importing).
+**Handoff** / **Import**:
+A **Handoff** is a one-click route from a finished deck OUT into another repo tool. A *run-here handoff* (goldfish, proxies) is pure local compute the hub runs in-process, no LLM needed. A *session handoff* (strategy guide, store-sourcing) needs reasoning or a headed browser, so it routes to the attached Session-agent and greys out when detached. An **Import** is the inbound mirror — bringing an external decklist or Collection IN, parsed by the Deterministic core, no LLM. An import always mints a NEW build rather than overwriting the live one, and never guesses a commander.
 
 **Engine module** (`engine.py`):
-The deck-analysis surface inside the hub — snapshot, ranked Signals, Avenues, finalize
-report, partner search — as free functions over a `ForgeState`. Free functions, not a
-class, so they read state at call time and can't desync from the mutable session; the
-interface is the direct test surface (no HTTP round-trip).
-_Avoid_: "the backend logic" (the engine is the analysis part only).
+The deck-analysis surface inside the hub — snapshot, ranked Signals, Avenues, finalize report, partner search — as free functions over a `ForgeState`, so they read state at call time and can't desync from the mutable session.
 
-**Views module** (`views.py`) / **wire card shape**:
-The serialization seam owning the card shapes the browser SPA consumes — one atomic
-`project` plus the deck / search / candidate / combo variants. Centralized so the
-frontend contract has one module to diff against.
-_Avoid_: "serializer" alone, "DTO".
+**Views module** (`views.py`):
+The serialization seam owning the card shapes the browser SPA consumes — one atomic `project` plus the deck/search/candidate/combo variants.
 
 **Transport adapter**:
-The FastAPI route closures in `app.py`: parse payload → call Engine/Views → apply side
-effects (mutation, autosave, SSE publish) → return. Holds no deck logic.
-_Avoid_: "the API", "the route layer" (those undersell that it's deliberately thin).
+The FastAPI route closures in `app.py`: parse payload → call Engine/Views → apply side effects (mutation, autosave, SSE publish) → return. Holds no deck logic.
 
 ### Gates & accuracy
 
 **Curve gate**:
-The hard land-count check (Burgess/Karsten for commander, constructed formula for
-60-card). Below the floor the deck holds a persistent FAIL that blocks marking the
-deck *finished* until an explicit override — distinct from soft Template nudges.
-_Avoid_: "land warning" (understates that it gates finalize).
+The hard land-count check (Burgess/Karsten for commander, constructed formula for 60-card). Below the floor the deck holds a persistent FAIL that blocks marking the deck finished until an explicit override.
 
 **Flood line**:
-The *upper* land-count band: `recommended_land_count + 2` (i.e. `max(burgess, karsten)
-+ 2`). Above it the deck is over-landed and the Mana Gate surfaces a **soft** FLOOD
-nudge plus a "Trim lands (−N)" action that removes basics (most over-produced color
-first) down to `recommended`. Deliberately **soft — it never blocks finalize** —
-because an all-lands two/three-card combo deck (mostly lands plus a few pieces) is a
-legitimate build, the mirror-image asymmetry of the hard floor (too few lands can
-brick a deck; too many is only a quality nudge).
-_Avoid_: "land ceiling" as a *hard* cap (it never gates), "Karsten ceiling" (the raw
-Karsten number can dip below the Burgess floor, so the band hangs off `recommended`,
-not Karsten alone).
+The upper land-count band (`recommended_land_count + 2`). Above it the deck is over-landed and gets a soft FLOOD nudge plus a "Trim lands" action — never blocks finalize, since an all-lands combo deck is a legitimate build.
 
 **No-listing card**:
-A card for which neither bulk data nor the live price API returns a price. Treated
-as *likely scarce/expensive*, never as free ($0). A deliberate domain term to stop
-the "missing price = $0" mistake.
-_Avoid_: "free card", "$0 card", "priceless".
+A card for which neither bulk data nor the live price API returns a price. Treated as likely scarce/expensive, never as free ($0).
 
 ### Deterministic tuning
 
-The vocabulary of the agent-less deck-evaluation pass that scores a deck and proposes
-budgeted swaps (the "Tune" surface). Distinct from the [[Session-agent]] reasoning loop:
-this is pure [[Deterministic core]] compute, runnable with no session attached. Its unit
-of *direction* is the existing [[Exploration avenue]]; this feature coins no new
-"theme"/"lane" concept.
+The vocabulary of the agent-less deck-evaluation pass that scores a deck and proposes budgeted swaps (the "Tune" surface) — pure Deterministic core compute, runnable with no session attached.
 
-**Tune** (the deterministic tuner):
-The agent-less, hub-side evaluation-and-swap pass, surfaced as its own left tab. Three layers:
-**diagnose** (the [[Shape]] chip + [[Efficiency]] / [[Template deviation]] / [[Focus]] panels +
-[[Commander fit]] + a severity-ranked Top-issues list), **cut candidates**, and budgeted
-**swaps** (a cut+add pair per top issue; [[Spine]] swaps efficiency-first, [[Engine card]] swaps
-synergy-first). Pure [[Deterministic core]] — runs with no [[Session-agent]] attached, so it
-works in deterministic-only mode and lives in the always-visible left column, not the
-attach-gated rail. Proposes only; the human confirms each swap or "applies all."
-_Avoid_: "auto-tune" / "auto-fix" (it never mutates the deck itself — propose-only), "tuner
-mode" (that is deck-wizard's *agent-driven* pipeline; Tune is the deterministic subset).
+**Tune**:
+The agent-less, hub-side evaluation-and-swap pass. Three layers: diagnose (Shape + Efficiency/Template deviation/Focus panels + Commander fit + a severity-ranked issues list), cut candidates, and budgeted swaps (a cut+add pair per top issue). Proposes only; the human confirms each swap or "applies all."
 
 **Spine**:
-The mandatory scaffolding every deck needs regardless of [[Shape]]. Two tiers: a
-**hard-counted** tier measured against the [[Template]] (lands, ramp, card draw,
-interaction, board wipes — counterspells fold into *interaction*, never a separate
-role), and a **conditional** tier surfaced as [[Shape]]-scaled advisory flags rather
-than fixed counts (win conditions; protection, only when the [[Shape]] calls for it).
-Deliberately **exempt from the focus judgment** — a deck is never "spread too thin" for
-running its interaction; the Spine's health is template deviation, not focus.
-_Avoid_: "core" (overloaded), "staples" (a Spine card need not be a generically-good
-staple — see the always-on staples avenue, a different thing), "protection" as a
-*counted* role (it is a conditional flag, and counterspells fold into interaction).
+The mandatory scaffolding every deck needs regardless of Shape. A hard-counted tier (lands, ramp, card draw, interaction, board wipes — counterspells fold into interaction) measured against the Template, and a conditional tier (win conditions, protection) surfaced as Shape-scaled advisory flags. Exempt from the focus judgment — running your interaction never reads as "spread too thin."
 
 **Engine card**:
-A nonland deck card whose primary job is to serve one of the deck's signal-derived
-[[Exploration avenue]]s — payoffs, enablers, synergy pieces. The ONLY pool the **focus**
-metric measures for concentration (the always-on Staples avenue is excluded — good-stuff
-is not a theme, the same exclusion [[Support depth]] makes). A [[Spine]] card may *also*
-serve an avenue (a dual-purpose "win-win" card); that synergy only ever *adds* to focus,
-never subtracts.
-_Avoid_: "Engine module" (that is `engine.py`, a code term — unrelated), "Synergy
-package" (a surfaced set of suggestions, not a deck card's role), "theme"/"lane" for the
-avenue it serves (an [[Exploration avenue]] is the canonical unit; a *theme* is a
-`theme_presets` matcher — the plumbing *under* an avenue).
+A nonland deck card whose primary job is to serve one of the deck's signal-derived avenues. The only pool the **Focus** metric measures for concentration (the always-on Staples avenue is excluded). A Spine card may also serve an avenue; that synergy only adds to focus, never subtracts.
 
 **Filler**:
-A nonland deck card that is neither [[Spine]] nor serves any [[Exploration avenue]] — the
-"good stuff that does nothing *here*" pile. A high filler share is itself a
-spread/efficiency signal, and the first place cut-selection looks.
-_Avoid_: "bad card" (filler may be individually strong; it is just unsupported *here*),
-"cut" (filler is a *candidate* to cut, not a cut).
+A nonland deck card that is neither Spine nor serves any avenue — good stuff that does nothing *here*. A high filler share is itself a spread/efficiency signal and the first place cut-selection looks.
 
-**Shape** (the speed/role axis):
-The aggro / midrange / control / combo classification of a deck, inferred deterministically
-from its composition (curve, creature density, interaction density, combo presence). Scales
-the conditional Spine floors (win-cons, protection) and the curve expectations; orthogonal
-to the **synergy axis** (its [[Exploration avenue]]s), which drives focus. One deck has
-exactly one Shape but many avenues. The same aggro/midrange/control/combo axis cube-wizard
-defines as **Shape** — reused here with identical meaning, now *inferred* from a finished
-deck rather than declared on a cube.
-_Avoid_: "archetype" unqualified (cube-wizard reserves it for stated / gauntlet
-archetypes; here the speed axis is Shape, the synergy axis is an [[Exploration avenue]]),
-"bracket" (power level, a different axis).
+**Shape**:
+The aggro/midrange/control/combo classification of a deck, inferred deterministically from its composition (curve, creature density, interaction density, combo presence). Scales the conditional Spine floors and curve expectations; orthogonal to the synergy axis (its avenues), which drives focus.
 
-**Efficiency** (curve / tempo health):
-A [[Shape]]-aware panel of curve and tempo readouts — avg mana value within the Shape's
-band, ramp adequacy for that curve, early-play front-load, and *closing power* (enough
-top-end to not durdle, not so much it clogs). A transparent multi-readout (matching
-`mana_audit`'s gate style), NOT one opaque score, and not a per-card judgment — the
-per-card cost-effectiveness axis is [[Rate]], a separate concept. Distinct from the
-[[Curve gate]] / `mana_audit`, which own *land* count and color; Efficiency owns the
-*nonland* curve.
-_Avoid_: "power level" ([[Shape]]/bracket-adjacent, not curve health), "card quality"
-(prefer [[Rate]] for the per-card axis), "speed" alone.
+**Efficiency**:
+A Shape-aware panel of curve and tempo readouts — avg mana value within the Shape's band, ramp adequacy, early-play front-load, closing power. A transparent multi-readout, not one opaque score. Owns the *nonland* curve (distinct from the Curve gate, which owns lands).
 
-**Rate** (per-card cost-effectiveness):
-How good a card is AT ITS JOB for its mana cost: a percentile of effect-per-mana within
-the card's peer group — the signal lane its highest-weight cluster serves, over the whole
-pool (falling back to spine roles: ramp/draw/removal/wipe). Crowd-independent by
-construction: the effect side is a structural formula where the IR gives clean numbers
-(bodies × stats per mana, damage per mana, cards per mana, net mana by turn T) and the
-curated ability-quality table (ADR-0040's premium/solid/weak pattern) where it doesn't; a
-card covered by neither is neutral (0.5) — Rate never punishes what it can't measure. It
-multiplies the synergy sort (`score × (0.5 + rate)`), so an off-plan card can never
-leapfrog on Rate alone, and it is the internal ordering of the always-on Staples avenue
-(generic goodstuff, findable because it IS good — deterministically). Extends ADR-0040's
-curated-quality posture; supersedes the older "no card-quality model" gloss that lived on
-[[Efficiency]].
-_Avoid_: "efficiency" (that's the curve panel), "power level" / "card quality" (fuzzy,
-crowd-flavored), "playrate" (the crowd metric Rate deliberately is not).
+**Rate**:
+How good a card is at its job for its mana cost: a percentile of effect-per-mana within the card's peer group. Crowd-independent by construction — a structural formula where the IR gives clean numbers, a curated ability-quality table where it doesn't, and neutral (0.5) where neither applies. Multiplies the synergy sort (`score × (0.5 + rate)`), so an off-plan card can never leapfrog on Rate alone.
 
 **Pair read**:
-A registered two-card mechanic interaction the ranker scores deterministically: a
-candidate ident-pattern × a deck **anchor**, with a flat curated weight on the payoff
-scale and a CR-grounded rationale. Two anchor kinds: **commander-anchor** (fires on the
-commander's own idents — the commander is reliably in play, so the interaction reliably
-assembles) and **density-anchor** (fires when the deck holds ≥N cards emitting an ident —
-the free-sac-outlet × token-flood shape). Rows live in one central ledger (the
-bridge-ledger discipline: pins, hygiene, rationale), sum without decay when a candidate
-matches several (curation bounds stacking), and land in a separate additive `pair_score`
-readout — never inside the synergy clusters, and never multiplied by [[Rate]] (the row
-already priced the interaction). Exists because per-lane additive synergy cannot price
-multiplicative interactions (a mana doubler under an X commander is one lane of credit
-but the whole reason the crowd plays it).
-_Avoid_: "combo" (Commander Spellbook's word — infinite/game-winning lines), "synergy
-package" (a surfaced suggestion set, not a scored interaction), "pair" bare (collides
-with a swap's cut+add pair).
+A registered two-card mechanic interaction the ranker scores deterministically: a candidate ident-pattern × a deck anchor (commander-anchor or density-anchor), with a flat curated weight and a CR-grounded rationale. Lands in a separate additive `pair_score` readout — never inside the synergy clusters, never multiplied by Rate. Exists because per-lane additive synergy can't price multiplicative interactions (a mana doubler under an X commander is one lane of credit but the whole reason the crowd plays it).
 
 **Hook**:
-The written mechanical reason a candidate belongs in THIS deck: it cites the
-candidate's machine-readable evidence (its idents, matched [[Pair read]], or cluster
-readout) AND the deck-context reason (which lane or anchor it feeds). The unit of
-discovery adjudication — a top pick whose Hook does not survive adversarial refutation
-counts as a miss. Popularity is never a Hook: the ADR-0009 crowd-independence rule
-binds the judges too (no EDHREC/meta appeals on either side of a refutation).
-_Avoid_: "justification" (vague), "synergy note" (a UI display string, not the
-adjudication unit), "reason" bare.
+The written mechanical reason a candidate belongs in THIS deck: cites the candidate's machine-readable evidence (idents, matched Pair read, or cluster readout) AND the deck-context reason. A top pick whose Hook doesn't survive adversarial refutation counts as a miss. Popularity is never a Hook.
 
-**Adjudicated precision** (the discovery yardstick):
-The share of the ranker's top-20 out-of-deck picks, per commander on a fixed
-10-commander panel, whose [[Hook]]s survive a refuter-majority adversarial check —
-the PRIMARY discovery-quality metric (ADR-0043). Crowd recall (EDHREC targets) stays
-computable as a free secondary drift indicator but is never a bar: the ranker is
-deliberately crowd-independent, and 2026-07-16 showed absolute crowd-recall bars get
-invented rather than derived. Acceptance is a PAIRED DELTA
-test (ADR-0043 amendment, 2026-07-18): an iteration is judged only on its CHANGED
-picks — new-pick survival vs displaced-pick survival, non-inferior within 5 points
-AND drift improving — with a cumulative floor (carried panel mean within 0.02 of the
-protocol baseline) so non-inferior steps can't compound downward. Verdicts cache per
-(commander, card): unanimous ones freeze, split votes re-adjudicate once.
-_Avoid_: "recall" (the demoted crowd metric), "accuracy" (against what ground truth?),
-"win rate" (the playtest axis, a different instrument).
+**Adjudicated precision**:
+The share of the ranker's top-20 out-of-deck picks, per commander on a fixed 10-commander panel, whose Hooks survive a refuter-majority adversarial check — the primary discovery-quality metric. Crowd recall (EDHREC targets) stays computable as a secondary drift indicator but is never a bar. Acceptance is a paired-delta test: an iteration is judged only on its changed picks, non-inferior within 5 points and drift improving.
 
-**Focus** (the anti-"spread too thin" metric):
-The concentration of [[Engine card]]s across the deck's signal-derived [[Exploration
-avenue]]s (Staples excluded). Lead readout: the deck's *themes* and their depths, scored on
-a **tiered floor** — a **main** theme at/above ~20-per-100, a **sub**-theme at/above
-~10-per-100 (a sub is genuinely shallower than the main, so it is NOT held to the main's
-bar), and an **emerging** theme at/above ~5-per-100 (a real-but-under-supported direction
-the deck started but didn't commit to — surfaced as a "commit more or cut" nudge, not
-dropped as noise). A *tribal* theme only counts as started when the deck holds at least
-one **payoff naming that tribe** — bodies sharing a subtype are not a direction
-(changelings otherwise manufacture an emerging flag for every tribe at once). Plus a top-2 concentration ratio and the filler rate. The research ideal is one main +
-one sub; 3+ themes reads `SPREAD-THIN`. Two exclusions keep the count honest: **lands** never
-count as theme support (mana base, not a lane), and **Spine-role avenues** (ramp / draw /
-removal — they mirror the [[Template]]) are dropped, so scaffolding can't masquerade as the
-main lane. Near-duplicate avenues collapse (≥80% shared members) so one theme isn't two.
-[[Shape]]-aware: a small-engine-pool control deck reads `SPINE-LED`, never spread-thin — the
-[[Spine]] is its plan. Dual-purpose [[Spine]] cards *deepen* a theme (bonus), never penalize.
-_Avoid_: "synergy score" (it is concentration, not a quality score), "archetype focus" (the
-avenue is the unit, not a cube archetype).
+**Focus**:
+The concentration of Engine cards across the deck's signal-derived avenues (Staples excluded). Scored on a tiered floor — main (~20-per-100), sub (~10-per-100), emerging (~5-per-100) — plus a top-2 concentration ratio and the filler rate. One main + one sub is the research ideal; 3+ themes reads SPREAD-THIN. Lands never count as theme support, and Spine-role avenues (ramp/draw/removal) are dropped so scaffolding can't masquerade as the main lane. Shape-aware: a small-engine-pool control deck reads SPINE-LED, never spread-thin.
 
-**Template deviation** (the Spine-health metric):
-How far the deck's [[Spine]] role counts sit *outside* the [[Template]] bands — 0 within the
-band, otherwise the distance to the nearest edge. Computed by the one shared `slot_budgets`,
-which takes an optional [[Shape]]: the always-on Budgets panel passes none (flat Command Zone
-bands), the Tune surface passes the inferred Shape (scaled — e.g. control wants more
-interaction). The hard-counted roles (lands / ramp / draw / interaction / wipes) drive
-deviation; the conditional roles (win-cons, protection) surface as [[Shape]]-scaled advisory
-flags, not deviation.
-_Avoid_: "off-template" as failure (deviation is a nudge, never a gate — the [[Curve gate]]
-is the only hard land check), "budget" alone (a slot budget is the *remaining count*; this is
-the distance over it).
+**Template deviation**:
+How far the deck's Spine role counts sit outside the Template bands — 0 within the band, otherwise the distance to the nearest edge. The hard-counted roles drive deviation; the conditional roles surface as Shape-scaled advisory flags, not deviation.
 
-**Commander fit** (built-deck alignment):
-How well the *current* commander's signal-derived avenues align with the deck's dominant
-viable [[Exploration avenue]]s — surfaced as a cheap default-diagnostic flag ("serves 1 of
-your 3 viable avenues → maybe built for a different commander"). Its opt-in companion ranks
-*alternative* commanders to the deck you already built ([[Commander discovery]] scored against
-the deck instead of a stated intent), each shown with its **identity cost**: the in-deck cards
-that fall out of color identity on the switch. The one tuning fix card swaps structurally
-cannot make.
-_Avoid_: "best commander" (it is fit-to-*this*-deck, not context-free best — same caveat as
-[[Commander discovery]]), "recommendation" (the human switches; the tool ranks).
+**Commander fit**:
+How well the current commander's signal-derived avenues align with the deck's dominant viable avenues — a cheap default-diagnostic flag ("serves 1 of your 3 viable avenues"). Its opt-in companion ranks alternative commanders to the deck you already built, each shown with its identity cost (in-deck cards that fall out of color identity on the switch).
 
-**Bracket-constraint gate** (the [[Tune]] permission check):
-A check, parameterized by a *target* Commander bracket (1-5), that flags deck cards /
-elements exceeding that bracket's **official WotC** allowances — Game Changers count
-(ceiling 0/0/3/∞/∞), mass land denial, extra-turn cards, and two-card infinite combos.
-Orthogonal to [[Template deviation]] (which is [[Shape]]-scaled, ADR-0024): this gates
-*permission* (what a bracket forbids), not *density* (how much Spine a Shape wants). Two
-axes are crisp (Game Changers via Scryfall's `game_changer` flag — never hardcoded; mass
-land denial), two are heuristic WARNs (extra-turn "low quantity," B3 "cheap-&-early"
-combo). Brackets 4-5 always PASS. ADR-0030.
-_Avoid_: "power level" / "bracket scaling" (this gates permission, not role density — see
-[[Shape]]'s and [[Efficiency]]'s `_Avoid_` notes), "bracket detection" (that is the
-*descriptive* `detect_bracket` inference — this gate takes a *chosen* target).
-
-**Target bracket** vs **detected bracket**:
-The **target** bracket is the one the builder is aiming for (input to the
-[[Bracket-constraint gate]]). The **detected** bracket is `detect_bracket`'s *descriptive*
-inference of the deck's natural bracket from the same signals (Game Changers / mass land
-denial / fast curve). The gate compares the deck against the *target*; detection answers
-"what is this deck already?" — a deck can detect as Bracket 3 while the builder targets
-Bracket 2, and surfacing that mismatch is the gate's whole job.
+**Bracket-constraint gate**:
+A check, parameterized by a target Commander bracket (1-5), that flags deck elements exceeding that bracket's official WotC allowances — Game Changers count, mass land denial, extra-turn cards, two-card infinite combos. Orthogonal to Template deviation (permission, not density). The **target** bracket is what the builder aims for; the **detected** bracket is `detect_bracket`'s descriptive inference of the deck's natural bracket from the same signals — a deck can detect as Bracket 3 while the builder targets Bracket 2.

@@ -4,8 +4,8 @@ Date: 2026-06-21
 
 Status: Accepted
 
-Relates to: [0027](0027-card-ir-replaces-regex-detection.md) (the regex→IR
-cutover this parser strategy serves).
+Relates to: [0027](archive/0027-card-ir-replaces-regex-detection.md) (the
+regex→IR cutover this parser strategy serves).
 
 ## Context
 

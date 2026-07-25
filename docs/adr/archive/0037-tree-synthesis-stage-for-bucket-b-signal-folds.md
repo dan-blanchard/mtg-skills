@@ -1,3 +1,5 @@
+> **ARCHIVED (2026-07-25):** bucket-B synthesis narrowed to references-only by ADR-0038 (effect clauses moved to grammar re-decoration); remainder completed under the ADR-0039 cutover.
+
 # 37. A tree-synthesis stage for bucket-B signal-lane folds
 
 Date: 2026-07-05
@@ -6,7 +8,7 @@ Status: Accepted
 
 Relates to: [0036](0036-lane-mirrors-fold-to-structural-reads.md) (implements its
 bucket-B mechanism — the "projection-time supplement arm that emits a typed
-ConceptNode"), [0035](0035-lossless-phase-mirror-ir.md) (extends the Stage-3b
+ConceptNode"), [0035](../0035-lossless-phase-mirror-ir.md) (extends the Stage-3b
 Layer-2 overlay stages + the substrate-purity invariant).
 
 ## Context

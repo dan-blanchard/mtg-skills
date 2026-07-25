@@ -4,10 +4,16 @@ Date: 2026-06-29
 
 Status: Accepted
 
-Relates to: [0027](0027-card-ir-replaces-regex-detection.md) (the regex→IR
-cutover — amends the *substrate*), [0032](0032-fully-parsed-ir-is-a-pull-based-measured-direction.md)
+Relates to: [0027](archive/0027-card-ir-replaces-regex-detection.md) (the
+regex→IR cutover — amends the *substrate*),
+[0032](archive/0032-fully-parsed-ir-is-a-pull-based-measured-direction.md)
 (pull-based fully-parsed direction — amends), [0028](0028-consume-phase-rs-not-fork.md)
 (consume phase, contribute grammar upstream — references).
+
+This is the anchor ADR for the structural substrate: Layer 1 (substrate) +
+Layer 2 (concept overlay) + Layer 3 (lanes) is the only serving path, on both
+consumer seams — `Signal` via `extract_signals_hybrid` and the dataclass API
+via the compat `Card` built from the trees.
 
 ## Context
 
@@ -160,16 +166,29 @@ A three-layer model, a three-way-decomposed supplement, and a two-layer cache.
 - ADR-0028 remains the only sanctioned "feed phase" path: each (c) supplement
   arm's long-term home is upstreamed phase grammar; the convergence check
   *measures* that bridge shrinking.
+- **Complete (2026-07-12).** ADR-0039 deleted the legacy path end to end
+  (`project.py` and the lossy projection gone, the Stage-4 cutover flag
+  retired, residual/KEPT key ledgers collapsed into one flat `PORTED_KEYS`);
+  what remains of the old vocabulary is history in comments plus the
+  gap-gated ledgered bridges in `bridge_ledger.py`.
 
-## Amendment (2026-07-12): strangler complete
+## Surviving pieces (from ADR-0039)
 
-The staged migration this ADR specified is done. ADR-0039 deleted the legacy
-path end to end (per-step commits in its completion amendment): `project.py`
-and the lossy projection are gone, the Stage-4 `MTG_SKILLS_CROSSWALK_SIGNALS`
-flag is retired, and the crosswalk — substrate + concept overlay + the
-Layer-3 lanes in `crosswalk_signals.py` — is the only serving path on both
-seams (`Signal` via `extract_signals_hybrid`; the dataclass API via the
-compat `Card` built from the trees). The residual/KEPT key ledgers are
-collapsed into one flat `PORTED_KEYS`. What remains of the old vocabulary is
-history in comments and this file, plus the gap-gated ledgered bridges
-awaiting the ADR-0039 grammar sprint.
+The KEPT twelve — signal keys deliberately kept on the legacy path at the
+Stage-2 port, later promoted by addition into `PORTED_KEYS` rather than
+retired:
+
+- base_power_matters
+- big_mana
+- cheat_from_top
+- copy_limit
+- damage_redirect
+- excess_damage
+- extra_draw_step
+- free_cast
+- ki_counter_matters
+- kicked_spell_matters
+- land_destruction
+- named_synergy
+
+*Amended 2026-07-12; original decision revised in place.*

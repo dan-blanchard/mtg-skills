@@ -54,24 +54,17 @@ lookup index now flows through the core. Consumers were transparent — they que
 `.get(name.lower())`, both of which the `NameIndex` folds — so only return-type annotations
 changed (`dict[str, dict]` → `NameIndex`).
 
-## Follow-up (completed)
+`mark_owned` also consolidated onto `alias_keys` for its DFC face derivation, keeping its own
+value shape (the bidirectional alias→canonical string map + sum/max quantity table — it does NOT
+use `build_name_index`, which is a record index). That consolidation fixed a real bug beyond DRY:
+`mark_owned` indexed the FRONT face only, so a deck/collection listing the BACK face of a split /
+MDFC / "prepare" card (e.g. `"Reflection of Kiki-Jiki"` of `"Emeritus of Woe // Demonic Tutor"`)
+silently missed; every-face, both-direction keying via `alias_keys` fixed it, pinned by a
+regression test.
 
-Both items first deferred here were addressed in a follow-up commit.
-
-- **`mark_owned`** now consumes `alias_keys` for its DFC face derivation, keeping its own value
-  shape (the bidirectional alias→canonical string map + sum/max quantity table — it does NOT use
-  `build_name_index`, which is a record index). It was filed as pure DRY, but it turned out
-  `mark_owned` *did* carry a smaller form of the DFC bug: it indexed the FRONT face only, so a
-  deck/collection listing the BACK face of a split / MDFC / "prepare" card (e.g.
-  `"Reflection of Kiki-Jiki"` of `"Emeritus of Woe // Demonic Tutor"`) silently missed.
-  Consolidating onto `alias_keys` (every face, both directions) fixed it; pinned by a regression
-  test.
-- **deck-forge `production.build_by_name`** now folds — `build_name_index(reduce=keep_cheaper)` →
-  a `NameIndex`. Its proper-case keying dissolved (folding makes search's proper-case output match
-  any spelling), so `ForgeState.by_name` is now typed `Mapping[str, dict]`. One consumer needed a
-  fix: `engine._signal_freq` iterated `by_name.values()`, which under a folding index yields the
-  same record under several keys — it now dedups by card name so the commander-pool sweep counts
-  each card once.
+deck-forge's `production.build_by_name` folds too — `build_name_index(reduce=keep_cheaper)` → a
+`NameIndex`, so `ForgeState.by_name` is typed `Mapping[str, dict]`. `engine._signal_freq` dedups
+by card name, since a folding index yields the same record under several keys.
 
 ## What this stops re-suggesting
 
@@ -81,5 +74,5 @@ Both items first deferred here were addressed in a follow-up commit.
   (`NameIndex`); the diacritic miss is the bug it fixes.
 - Don't "fix" `find_commanders` back to alias-less, or split-card front-only DFC indexing — those
   were the bugs.
-- Don't fold `mark_owned` into `build_name_index` (different value shape); consolidate its *keying*
-  onto `alias_keys` as a separate change if/when it earns its keep.
+- Don't fold `mark_owned` into `build_name_index` — different value shape; it consolidated only
+  its *keying* onto `alias_keys`, not the index itself.
