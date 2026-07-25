@@ -49,7 +49,7 @@ def _wire_trees(monkeypatch, cards: list[dict]) -> None:
     monkeypatch.setattr(
         _ir_lookup,
         "trees_for",
-        lambda card, bulk=None: by_oid.get(card.get("oracle_id") or "", ()),  # noqa: ARG005
+        lambda card, bulk=None, **_kw: by_oid.get(card.get("oracle_id") or "", ()),  # noqa: ARG005
     )
 
 

@@ -230,7 +230,9 @@ class HttpFetcher:
                 time.sleep(5.0 * (attempt + 1))
                 continue
             resp.raise_for_status()
-            path.write_bytes(resp.content)
+            tmp = path.with_name(path.name + ".tmp")
+            tmp.write_bytes(resp.content)
+            tmp.replace(path)
             return resp.content
         # Unreachable: the loop either returns or raises.
         msg = "exhausted retries without raising or returning"

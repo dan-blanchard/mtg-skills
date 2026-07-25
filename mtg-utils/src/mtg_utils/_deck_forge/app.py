@@ -978,6 +978,9 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
             # cards wrongly consume budget.
             owned=engine.owned_collection(state),
             combos_fn=state.combos_fn,
+            # ADR-0025: the tune scorecard must rank the SAME commander lanes
+            # the avenues panel shows — folded-object signals included.
+            resolve_object=state.object_resolver,
         )
 
     @app.post("/api/finalize")

@@ -83,7 +83,7 @@ def _client(monkeypatch):
     monkeypatch.setattr(
         _ir_lookup,
         "trees_for",
-        lambda card, bulk=None: trees_index.get(card.get("oracle_id") or "", ()),  # noqa: ARG005
+        lambda card, bulk=None, **_kw: trees_index.get(card.get("oracle_id") or "", ()),  # noqa: ARG005
     )
     session = DeckSession("commander")
     session.add("Pair Lord", zone="commanders")

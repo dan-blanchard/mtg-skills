@@ -112,11 +112,20 @@ class TestSignalSourceFiles:
         assert "schema.py" in names  # mirror/schema.py — codegen'd substrate
 
     def test_excludes_signal_specs_which_does_not_feed_extraction(self):
-        # signal_specs.py builds card_search serve/search kwargs from a
-        # Signal AFTER extraction — it never feeds extract_signals's
-        # own output, so it must not force a spurious rebuild on every edit.
-        names = {p.name for p in signals_index.signal_source_files()}
-        assert "signal_specs.py" not in names
+        # signal_specs/ builds card_search serve/search kwargs from a Signal
+        # AFTER extraction — it never feeds extract_signals's own output, so
+        # it must not force a spurious rebuild on every edit. Checked by
+        # PATH PARTS, not basename: signal_specs is now a package
+        # (`_deck_forge/signal_specs/__init__.py`, `core.py`, `data_1.py`, …),
+        # so no file in the closure is literally named "signal_specs.py" —
+        # a basename check is vacuously true regardless of whether the
+        # package ever entered the closure. Verified this assertion isn't
+        # itself vacuous by temporarily splicing a synthetic
+        # `.../signal_specs/core.py` path into the files tuple and
+        # confirming `not any(...)` fails against it (reverted before
+        # committing this test).
+        files = signals_index.signal_source_files()
+        assert not any("signal_specs" in p.parts for p in files)
 
 
 class TestContentHash:

@@ -134,7 +134,7 @@ def _wire_bare_ir(monkeypatch):
     monkeypatch.setattr(
         _ir_lookup,
         "trees_for",
-        lambda card, bulk=None: _TREES_BY_OID.get(  # noqa: ARG005
+        lambda card, bulk=None, **_kw: _TREES_BY_OID.get(  # noqa: ARG005
             card.get("oracle_id") or "", ()
         ),
     )
@@ -259,7 +259,7 @@ def test_support_is_collection_specific_not_lane_width(monkeypatch):
     monkeypatch.setattr(
         _ir_lookup,
         "trees_for",
-        lambda card, bulk=None: local_trees.get(  # noqa: ARG005
+        lambda card, bulk=None, **_kw: local_trees.get(  # noqa: ARG005
             card.get("oracle_id") or "", ()
         ),
     )

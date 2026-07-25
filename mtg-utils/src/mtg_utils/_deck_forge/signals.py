@@ -85,6 +85,7 @@ def extract_signals(
     *,
     vocab: frozenset[str] = CREATURE_SUBTYPES,
     include_membership: bool = True,
+    text_only_fallback: bool = False,
 ) -> list[Signal]:
     """The production signal-extraction path: ``trees_for(record, bulk=record)``
     resolves the card's per-face concept trees, ``extract_crosswalk_signals``
@@ -110,7 +111,10 @@ def extract_signals(
     # ADR-0038 W2c: `record` is already the bulk record — thread it as `bulk`
     # so `trees_for` can synthesize text-only trees for phase-missing faces
     # (aftermath second halves, one split gap) off the bulk face text.
-    trees = trees_for(record, bulk=record)
+    # ``text_only_fallback`` opts a wholly phase-uncovered FOLDED OBJECT into
+    # full text-only synthesis (ADR-0025); ordinary cards keep the default and
+    # degrade to no signals.
+    trees = trees_for(record, bulk=record, text_only_fallback=text_only_fallback)
     out: list[Signal] = []
     seen: set[tuple[str, str, str]] = set()
 
@@ -394,10 +398,24 @@ def _deck_signal_stats(
         # text-guessing.
         sigs = extract_signals(card, include_membership=is_cmd)
         if is_cmd and resolve_object is not None:
+            # Dedupe folded signals against the commander's own by ident —
+            # one physical card must contribute at most 1 to support per
+            # ident, exactly like the old single-pass fold (2026-07-25
+            # review: Frodo + The Ring share combat-damage idents).
+            card_idents = {(s.key, s.scope, s.subject) for s in sigs}
             for obj in folded_object_records(card, resolve_object):
                 # An object is not a creature and not the commander's body —
-                # membership never applies; only what the object DOES folds in.
-                sigs = [*sigs, *extract_signals(obj, include_membership=False)]
+                # membership never applies; only what the object DOES folds
+                # in. ``text_only_fallback``: a dungeon / the Ring has no
+                # phase parse — the fold is the ONE sanctioned text-only
+                # synthesis consumer (ADR-0025).
+                for sig in extract_signals(
+                    obj, include_membership=False, text_only_fallback=True
+                ):
+                    ident = (sig.key, sig.scope, sig.subject)
+                    if ident not in card_idents:
+                        card_idents.add(ident)
+                        sigs.append(sig)
         for sig in sigs:
             ident = (sig.key, sig.scope, sig.subject)
             support[ident] = support.get(ident, 0) + 1

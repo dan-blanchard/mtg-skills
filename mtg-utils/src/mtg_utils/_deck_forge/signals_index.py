@@ -19,6 +19,27 @@ helpers, which back a different family of caches — the tuner's per-query
 scratch dumps and ``engine``'s lane-density sweep — not a card-data sidecar
 that lives beside the bulk file itself).
 
+This module was also evaluated against ``_sidecar.py``'s pickle-sidecar
+PAIR — ``load_pickle_sidecar`` / ``write_pickle_sidecar``, the helper
+``bulk_loader.load_bulk_cards`` and ``rules_lookup.load_rules`` both
+migrated onto — and deliberately stays hand-rolled instead of adopting it.
+That pair's on-disk shape is fixed at ``{"version": <int>, value_key:
+value}`` (one flat value under one key) with a single mtime-vs-source
+staleness gate; this sidecar's actual payload is FOUR independent
+top-level keys (``version``, ``content_hash``, ``bulk_identity``,
+``index``) checked by three separate equality gates, staled by a
+whole-source-tree content hash rather than one file's mtime — the exact
+thing the "Invalidation" section above explains mtime alone can't safely
+give this cache (the ``creature_recursion`` lesson). Nesting the extra
+keys under one ``value_key``, or smuggling ``content_hash`` +
+``bulk_identity`` into ``version_tag`` (whose declared type is a plain
+``int``), would both change the on-disk key set — silently invalidating
+(one-time, safe, but real) every ``.signals.pkl`` a user already has on
+disk, which is exactly the byte-for-byte compatibility a migration here
+must not break. So ``_read_sidecar`` / ``_write_sidecar`` stay hand-rolled;
+only the *pattern* (tmp-file-then-replace, version-tag gate) is shared
+with the two migrated callers, not the helper functions themselves.
+
 # Invalidation (the load-bearing part)
 
 A hand-bumped version constant is NOT the invalidation key (the

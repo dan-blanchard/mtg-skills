@@ -180,7 +180,7 @@ def test_partner_avenue_filters_to_valid_partners(monkeypatch):
     monkeypatch.setattr(
         _ir_lookup,
         "trees_for",
-        lambda card, bulk=None: (  # noqa: ARG005
+        lambda card, bulk=None, **_kw: (  # noqa: ARG005
             (ishai_tree,) if card.get("oracle_id") == "oid-ishai" else ()
         ),
     )

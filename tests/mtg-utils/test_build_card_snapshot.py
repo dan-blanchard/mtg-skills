@@ -35,6 +35,27 @@ def test_undefined_helper_names_are_not_wrappers():
     assert _scan_module(src) == set()
 
 
+def test_scans_kwarg_forwarding_wrapper():
+    # The wrapper forwards its own `name` param into the core helper via a
+    # `name=` keyword rather than a bare positional — must be detected the
+    # same as `test_signals(name)`.
+    src = (
+        "def _ks_real(name):\n"
+        "    return {(s.key, s.scope) for s in test_signals(name=name)}\n"
+        "def test_x():\n"
+        '    _ks_real("Sol Ring")\n'
+    )
+    assert _scan_module(src) == {"Sol Ring"}
+
+
+def test_scans_kwarg_literal_call():
+    # A direct core-helper call with the name passed as a keyword literal
+    # (`test_card(name="Sol Ring")`) must harvest the same as a bare
+    # positional literal call.
+    src = 'def test_x():\n    assert test_card(name="Sol Ring")\n'
+    assert _scan_module(src) == {"Sol Ring"}
+
+
 def test_scans_wrapper_of_a_wrapper():
     src = (
         "def _inner(name):\n"

@@ -144,12 +144,18 @@ def tune(
     params: TuneParams,
     owned: Mapping[str, int] | None = None,
     combos_fn: Callable[[dict], dict] | None = None,
+    resolve_object: Callable[[str], dict | None] | None = None,
 ) -> dict:
     """Diagnose the deck and (when ``max_swaps>0``) propose budgeted swaps.
 
     A deck over its exact legal size (CR 903.5a / 903.12d) additionally gets
     ``size_cuts`` — legality-driven trim proposals, produced on every run
-    regardless of ``max_swaps``."""
+    regardless of ``max_swaps``.
+
+    ``resolve_object`` (ADR-0025): the folded-object resolver, threaded into
+    signal ranking so the tune scorecard sees the SAME commander lanes the
+    engine's avenues show (the deck-forge route passes
+    ``state.object_resolver``; the deck-tune CLI's ``None`` skips the fold)."""
     owned = dict(owned or {})
     deck = hd.deck
     commander_names = {e["name"] for e in deck.get("commanders") or []}
@@ -178,7 +184,7 @@ def tune(
     # sidecar). One extraction pass yields both the ranked signals and the
     # task-#101 emerging-tribal payoff subjects.
     deck_signals, payoff_subjects = ranked_signals_and_payoffs(
-        hd.records, commander_names
+        hd.records, commander_names, resolve_object=resolve_object
     )
     classes = classify_deck(hd, deck_signals, commander_names)
 

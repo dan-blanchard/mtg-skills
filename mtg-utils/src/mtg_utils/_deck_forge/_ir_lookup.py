@@ -131,6 +131,10 @@ def _committed_schema() -> MirrorSchema | None:
 # the whole corpus up front (the Stage-4 overlay cache supersedes this).
 # Cleared alongside the memoized indexes in tests.
 _TREES_MEMO: dict[str, tuple[ConceptTree, ...]] = {}
+# ADR-0025 folded-object fallback trees (text-only synthesis for wholly
+# phase-uncovered objects) — a SEPARATE memo so the fold path and the plain
+# path can't poison each other regardless of call order (2026-07-25 review).
+_TEXT_ONLY_FALLBACK_MEMO: dict[str, tuple[ConceptTree, ...]] = {}
 
 
 def clear_caches() -> None:
@@ -774,10 +778,25 @@ def seed_trees(oid: str, trees: tuple[ConceptTree, ...]) -> None:
     _TREES_MEMO[oid] = trees
 
 
-def trees_for(card: dict, bulk: dict | None = None) -> tuple[ConceptTree, ...]:
+def trees_for(
+    card: dict,
+    bulk: dict | None = None,
+    *,
+    text_only_fallback: bool = False,
+) -> tuple[ConceptTree, ...]:
     """The candidate's Layer-2 concept trees by ``oracle_id`` — one per phase
     face record (plus ADR-0038 W2c text-only trees, see below), empty when
     unavailable.
+
+    ``text_only_fallback`` (ADR-0025, keyword-only): opt-in for the
+    folded-object path ONLY — when phase covers no face of this record AND
+    phase data exists AND ``bulk`` is threaded, synthesize full text-only
+    trees (a dungeon / the Ring emblem, which phase never parses). Every
+    other caller keeps the default ``False`` and a phase-uncovered card
+    degrades to ``()`` — never to text serving (a post-``PHASE_TAG`` new-set
+    card must yield no signals, not partial text-derived ones). Fallback
+    results live in their own memo so ordinary ``trees_for`` calls on the
+    same oid neither see them nor poison them by pre-caching ``()``.
 
     A DFC / split card shares one ``oracle_id`` across its faces, and phase
     emits one ``card-data.json`` record per face; each face is strict-loaded
@@ -810,6 +829,30 @@ def trees_for(card: dict, bulk: dict | None = None) -> tuple[ConceptTree, ...]:
     oid = card.get("oracle_id") or ""
     if not oid:
         return ()
+    if text_only_fallback:
+        # ADR-0025 folded objects ONLY (the fold path is the sole caller that
+        # opts in): a phase-uncovered object gets full text-only trees. Its
+        # OWN memo — a plain trees_for(card) on the same oid (a preset scan, a
+        # provenance walk) must neither see these trees nor poison this path
+        # by pre-caching () in the shared memo (order-independence).
+        if oid in _TEXT_ONLY_FALLBACK_MEMO:
+            return _TEXT_ONLY_FALLBACK_MEMO[oid]
+        normal = trees_for(card, bulk=bulk)
+        if normal:
+            # Phase covers it — the fallback adds nothing; serve the normal
+            # trees so a playable card is NEVER text-served through this flag.
+            _TEXT_ONLY_FALLBACK_MEMO[oid] = normal
+            return normal
+        index = _phase_record_index()
+        if index is None or bulk is None:
+            # No phase data at all: empty, never text-serving — the
+            # 2026-07-25 ruling that killed the regex degradation path
+            # applies to folded objects too.
+            _TEXT_ONLY_FALLBACK_MEMO[oid] = ()
+            return ()
+        out = build_trees(oid, (), bulk=bulk)
+        _TEXT_ONLY_FALLBACK_MEMO[oid] = out
+        return out
     if oid in _TREES_MEMO:
         return _TREES_MEMO[oid]
     index = _phase_record_index()
@@ -821,18 +864,13 @@ def trees_for(card: dict, bulk: dict | None = None) -> tuple[ConceptTree, ...]:
         return ()
     recs = index.get(oid)
     if not recs:
-        if bulk is None:
-            _TREES_MEMO[oid] = ()
-            return ()
-        # Phase data exists but covers no face of THIS object — the ADR-0038
-        # W2c "missing face" case generalized to every face missing. Real for
-        # non-playable folded objects (a dungeon, the Ring emblem — ADR-0025):
-        # phase parses playable cards only, so these get full text-only trees
-        # and are served by the sanctioned text-idiom arms, exactly like an
-        # aftermath second half.
-        out = build_trees(oid, (), bulk=bulk)
-        _TREES_MEMO[oid] = out
-        return out
+        # Phase covers no face of this card and the caller did not opt into
+        # the ADR-0025 folded-object fallback: empty, never text-guessing.
+        # (Post-PHASE_TAG new-set cards land here after a routine
+        # download-mtgjson refresh — they must degrade to no signals, not to
+        # partial text serving; the review of 2026-07-25 confirmed this live.)
+        _TREES_MEMO[oid] = ()
+        return ()
     out = build_trees(oid, recs, bulk=bulk)
     _TREES_MEMO[oid] = out
     return out

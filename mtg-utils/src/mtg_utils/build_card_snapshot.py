@@ -110,10 +110,29 @@ def _helper_call_name(call: ast.Call, helpers: frozenset[str]) -> str | None:
     return name if name in helpers else None
 
 
+def _call_name_arg(call: ast.Call) -> ast.expr | None:
+    """The expression carrying a helper call's single ``name`` argument: the
+    first positional arg if present, else the ``name=`` keyword arg — every
+    core testkit helper (and every wrapper seen in practice) takes exactly one
+    parameter named ``name``, so a keyword forward (``test_signals(name=n)``)
+    or keyword literal (``test_card(name="Sol Ring")``) resolves the same way
+    a first-positional call does. Returns ``None`` when neither form matches
+    (e.g. the call passes no args at all)."""
+    if call.args:
+        return call.args[0]
+    for kw in call.keywords:
+        if kw.arg == "name":
+            return kw.value
+    return None
+
+
 def _local_wrappers(tree: ast.Module) -> frozenset[str]:
     """Names of module-local functions that forward a parameter into the testkit
     core (or into another wrapper) — computed to a fixpoint so a wrapper of a
-    wrapper still feeds the scan."""
+    wrapper still feeds the scan. A forward is recognized as either a bare
+    first-positional arg or a ``name=`` keyword arg (see ``_call_name_arg``); a
+    TRANSFORMED forward (``test_card(n.strip())``, ``test_card(name=n.strip())``)
+    is out of scope — only a bare variable reference is resolved."""
     helpers = set(_CORE_HELPERS)
     fns = [
         n
@@ -130,9 +149,8 @@ def _local_wrappers(tree: ast.Module) -> frozenset[str]:
             forwards = any(
                 isinstance(call, ast.Call)
                 and _call_name(call) in helpers
-                and call.args
-                and isinstance(call.args[0], ast.Name)
-                and call.args[0].id in params
+                and isinstance((arg := _call_name_arg(call)), ast.Name)
+                and arg.id in params
                 for call in ast.walk(fn)
             )
             if forwards:
@@ -186,12 +204,11 @@ def _parametrized_helper_names(
     parametrize argname, harvest exactly that column's string values — so a
     parametrized name table feeds the snapshot the same way a literal call does."""
     fed = {
-        call.args[0].id
+        arg.id
         for call in ast.walk(fn)
         if isinstance(call, ast.Call)
         and _helper_call_name(call, helpers)
-        and call.args
-        and isinstance(call.args[0], ast.Name)
+        and isinstance((arg := _call_name_arg(call)), ast.Name)
     }
     if not fed:
         return set()
@@ -225,13 +242,11 @@ def _scan_module(text: str) -> set[str]:
         return names
     helpers = _local_wrappers(tree)
     for node in ast.walk(tree):
-        is_helper_call = (
-            isinstance(node, ast.Call)
-            and _helper_call_name(node, helpers)
-            and node.args
+        is_helper_call = isinstance(node, ast.Call) and _helper_call_name(
+            node, helpers
         )
         if is_helper_call:
-            arg = node.args[0]
+            arg = _call_name_arg(node)
             if isinstance(arg, ast.Constant) and isinstance(arg.value, str):
                 names.add(arg.value)
         elif isinstance(node, (ast.Assign, ast.AnnAssign)):
@@ -253,9 +268,8 @@ def _scan_module(text: str) -> set[str]:
                 and any(
                     isinstance(call, ast.Call)
                     and _helper_call_name(call, helpers)
-                    and call.args
-                    and isinstance(call.args[0], ast.Name)
-                    and call.args[0].id == node.target.id
+                    and isinstance((arg := _call_name_arg(call)), ast.Name)
+                    and arg.id == node.target.id
                     for call in ast.walk(node)
                 )
             ):
