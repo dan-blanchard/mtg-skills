@@ -1,22 +1,15 @@
 """Web page fetcher for strategy articles — fallback when WebFetch returns JS shells."""
 
 import re
-import subprocess
 
 import click
 import requests
 
-BROWSER_HEADERS = {
-    "User-Agent": (
-        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
-        "AppleWebKit/537.36 (KHTML, like Gecko) "
-        "Chrome/120.0.0.0 Safari/537.36"
-    ),
-    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-    "Accept-Language": "en-US,en;q=0.9",
-    # Avoid Brotli — requests can't decode it without extra dependencies
-    "Accept-Encoding": "gzip, deflate",
-}
+from mtg_utils._http import BROWSER_HEADERS, _fetch_with_curl
+
+# Re-exported for existing importers (cubecobra_fetch.py) — the shared
+# implementations now live in mtg_utils._http; see its module docstring.
+__all__ = ["BROWSER_HEADERS", "_fetch_with_curl", "fetch_page", "main"]
 
 
 def _strip_html(html: str) -> str:
@@ -35,32 +28,6 @@ def _strip_html(html: str) -> str:
     text = re.sub(r"[ \t]+", " ", text)
     text = re.sub(r"\n\s*\n+", "\n\n", text)
     return text.strip()
-
-
-def _fetch_with_curl(url: str) -> str:
-    """Fetch via curl — bypasses TLS fingerprinting that blocks requests."""
-    result = subprocess.run(
-        [
-            "curl",
-            "-sL",
-            "-H",
-            f"User-Agent: {BROWSER_HEADERS['User-Agent']}",
-            "-H",
-            f"Accept: {BROWSER_HEADERS['Accept']}",
-            "-H",
-            f"Accept-Language: {BROWSER_HEADERS['Accept-Language']}",
-            "--compressed",
-            url,
-        ],
-        capture_output=True,
-        text=True,
-        timeout=30,
-        check=False,
-    )
-    if result.returncode != 0:
-        msg = f"curl failed with exit code {result.returncode}: {result.stderr}"
-        raise RuntimeError(msg)
-    return result.stdout
 
 
 def fetch_page(url: str) -> str:

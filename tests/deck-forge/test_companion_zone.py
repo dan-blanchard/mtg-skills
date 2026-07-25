@@ -172,7 +172,7 @@ def test_exactly_full_deck_plus_companion_has_no_deck_maximum_warning():
         companion=["Keruga, the Macrosage"],
     )
     warns = engine.legality_warnings(
-        engine.hydrate(state), max_cards=state.session.deck_size
+        engine.hydrate_session(state), max_cards=state.session.deck_size
     )
     assert "deck_maximum" not in {w["category"] for w in warns}
 
@@ -184,7 +184,7 @@ def test_overfull_deck_still_warns_with_companion_present():
         companion=["Keruga, the Macrosage"],
     )
     warns = engine.legality_warnings(
-        engine.hydrate(state), max_cards=state.session.deck_size
+        engine.hydrate_session(state), max_cards=state.session.deck_size
     )
     assert "deck_maximum" in {w["category"] for w in warns}
     assert any("101" in w["message"] for w in warns)

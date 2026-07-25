@@ -32,14 +32,14 @@ import json
 import os
 import re
 import sys
-import time
 import urllib.parse
 from pathlib import Path
-from typing import TYPE_CHECKING, Protocol
+from typing import TYPE_CHECKING
 
 import click
 import requests
 
+from mtg_utils._http import Fetcher, HttpFetcher
 from mtg_utils.deck import slug
 from mtg_utils.proxy_print import attributed_art_dir
 
@@ -74,12 +74,6 @@ SCRYFALL_CATALOGS: tuple[str, ...] = (
 # old 14-line cap excluded by 1-4 lines.
 TARGET_W, TARGET_H = 20, 10
 MAX_W, MAX_H = 30, 18
-
-
-# --- Cache freshness -------------------------------------------------------
-
-CACHE_MAX_AGE_DAYS = 7
-FRESHNESS_SECONDS = CACHE_MAX_AGE_DAYS * 86400
 
 
 # --- Polite-crawler throttle -----------------------------------------------
@@ -877,145 +871,9 @@ SKIP_SUBTYPES: frozenset[str] = frozenset(
 
 # --- Fetcher ---------------------------------------------------------------
 
-
-class Fetcher(Protocol):
-    """Seam for HTTP-with-cache.
-
-    A ``Fetcher`` returns the bytes for a URL, caching them under
-    ``cache_key`` for :data:`FRESHNESS_SECONDS`. The interface owns
-    freshness, retry, throttle, and disk-write — callers only know
-    "give me the bytes for this URL, please."
-
-    Two adapters live behind this seam: :class:`HttpFetcher` (production,
-    backed by ``requests.Session``) and ``FakeFetcher`` (test-only, in
-    ``tests/proxy-printer/_fake_fetcher.py``, dict-backed).
-    """
-
-    def fetch(
-        self,
-        url: str,
-        cache_key: str,
-        *,
-        throttle: float = 0.0,
-        max_retries: int = 2,
-    ) -> bytes:
-        """Return cached bytes for ``url``, fetching if stale/missing.
-
-        ``cache_key`` is a flat filename (the fetcher resolves it under
-        its own cache root). ``throttle`` sleeps before each *network*
-        call (cache hits return immediately). On HTTP 429 / connection
-        error, the fetcher retries with linear backoff (5s, 10s, …) up
-        to ``max_retries`` additional attempts; if all retries fail the
-        final exception is raised (fail-loud).
-        """
-        ...
-
-    def fetch_uncached(self, url: str, *, throttle: float = 0.0) -> bytes:
-        """GET without caching. Used for short-lived resources like CSRF
-        tokens that must be fresh on every call."""
-        ...
-
-    def post_form(
-        self,
-        url: str,
-        *,
-        form_fields: dict[str, str],
-        throttle: float = 0.0,
-        max_retries: int = 2,
-    ) -> bytes:
-        """POST a form-encoded body. Never cached (POST responses depend
-        on session state). Retry / throttle behaviour mirrors ``fetch``."""
-        ...
-
-
-class HttpFetcher:
-    """Production :class:`Fetcher`. Wraps a private ``requests.Session``."""
-
-    def __init__(
-        self,
-        cache_dir: Path,
-        *,
-        user_agent: str = USER_AGENT,
-        cookies: dict[str, dict[str, str]] | None = None,
-    ) -> None:
-        """``cache_dir`` is the on-disk cache root (auto-created).
-        ``cookies`` maps domain → {name: value} for cookies that must
-        be pre-set (e.g. asciiart.website's sort-order cookie).
-        """
-        cache_dir.mkdir(parents=True, exist_ok=True)
-        self._cache_dir = cache_dir
-        self._session = requests.Session()
-        self._session.headers["User-Agent"] = user_agent
-        if cookies:
-            for domain, by_name in cookies.items():
-                for name, value in by_name.items():
-                    self._session.cookies.set(name, value, domain=domain)
-
-    def fetch(
-        self,
-        url: str,
-        cache_key: str,
-        *,
-        throttle: float = 0.0,
-        max_retries: int = 2,
-    ) -> bytes:
-        path = self._cache_dir / cache_key
-        if path.is_file() and (time.time() - path.stat().st_mtime) < FRESHNESS_SECONDS:
-            return path.read_bytes()
-        for attempt in range(max_retries + 1):
-            if throttle > 0:
-                time.sleep(throttle)
-            try:
-                resp = self._session.get(url, timeout=30)
-            except (requests.ConnectionError, requests.Timeout):
-                if attempt < max_retries:
-                    time.sleep(5.0 * (attempt + 1))
-                    continue
-                raise
-            status = getattr(resp, "status_code", 200)
-            if status == 429 and attempt < max_retries:
-                time.sleep(5.0 * (attempt + 1))
-                continue
-            resp.raise_for_status()
-            path.write_bytes(resp.content)
-            return resp.content
-        # Unreachable: the loop either returns or raises.
-        msg = "exhausted retries without raising or returning"
-        raise RuntimeError(msg)
-
-    def fetch_uncached(self, url: str, *, throttle: float = 0.0) -> bytes:
-        if throttle > 0:
-            time.sleep(throttle)
-        resp = self._session.get(url, timeout=30)
-        resp.raise_for_status()
-        return resp.content
-
-    def post_form(
-        self,
-        url: str,
-        *,
-        form_fields: dict[str, str],
-        throttle: float = 0.0,
-        max_retries: int = 2,
-    ) -> bytes:
-        for attempt in range(max_retries + 1):
-            if throttle > 0:
-                time.sleep(throttle)
-            try:
-                resp = self._session.post(url, data=form_fields, timeout=30)
-            except (requests.ConnectionError, requests.Timeout):
-                if attempt < max_retries:
-                    time.sleep(5.0 * (attempt + 1))
-                    continue
-                raise
-            status = getattr(resp, "status_code", 200)
-            if status == 429 and attempt < max_retries:
-                time.sleep(5.0 * (attempt + 1))
-                continue
-            resp.raise_for_status()
-            return resp.content
-        msg = "exhausted retries without raising or returning"
-        raise RuntimeError(msg)
+# Lifted to mtg_utils._http (Fetcher protocol + HttpFetcher) so other skills
+# with the same caching/retry/throttle shape can share it — see _http.py's
+# module docstring.
 
 
 # --- Pool builders ---------------------------------------------------------
@@ -1462,6 +1320,9 @@ def run(
 
     fetcher: Fetcher = HttpFetcher(
         cache_dir=cache_dir / "ascii-art-fetcher",
+        # Namespaced UA, not _http's shared default — identifies this
+        # crawler distinctly to asciiart.eu / asciiart.website.
+        user_agent=USER_AGENT,
         # asciiart.website respects a `toolbar_settings` cookie that pins
         # the sort order. Pre-set it to "narrowest" so each tag.php page
         # lists its smallest pieces first — most subtypes have a fitting

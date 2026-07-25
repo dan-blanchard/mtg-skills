@@ -82,7 +82,7 @@ class TestCurlFallback:
 
         with (
             patch("mtg_utils.web_fetch.requests") as mock_requests,
-            patch("mtg_utils.web_fetch.subprocess") as mock_subprocess,
+            patch("mtg_utils._http.subprocess") as mock_subprocess,
         ):
             mock_session = MagicMock()
             mock_session.get.return_value = mock_resp
@@ -106,7 +106,7 @@ class TestCurlFallback:
 
         with (
             patch("mtg_utils.web_fetch.requests") as mock_requests,
-            patch("mtg_utils.web_fetch.subprocess") as mock_subprocess,
+            patch("mtg_utils._http.subprocess") as mock_subprocess,
         ):
             mock_session = MagicMock()
             mock_session.get.return_value = mock_resp

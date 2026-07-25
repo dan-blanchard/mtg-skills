@@ -41,13 +41,13 @@ from typing import Any
 import click
 import requests
 
+from mtg_utils._http import USER_AGENT
 from mtg_utils._mtgjson.rulings_index import RulingsIndex, load_rulings_index
 from mtg_utils._name_index import NameIndex
 from mtg_utils._sidecar import atomic_write_json, sha_keyed_path
 from mtg_utils.bulk_loader import default_bulk_path
 from mtg_utils.scryfall_lookup import (
     RATE_LIMIT_DELAY,
-    USER_AGENT,
     lookup_single,
 )
 

@@ -97,7 +97,7 @@ def avenue_with_serve(avenue: dict, serve: Serve | None) -> dict:
     return avenue
 
 
-def hydrate(state: ForgeState) -> HydratedDeck:
+def hydrate_session(state: ForgeState) -> HydratedDeck:
     """One HydratedDeck per request, joining the live session against the bulk index.
     Build it once at a handler's entry and thread it — every deck analysis reads it."""
     return HydratedDeck.from_session(state.session, state.by_name)
@@ -972,7 +972,7 @@ def legality_warnings(hd: HydratedDeck, *, max_cards: int | None = None) -> list
 
 def finalize_state(state: ForgeState) -> dict:
     """The finalize REPORT (not the gating decision — the route owns the override)."""
-    hd = hydrate(state)
+    hd = hydrate_session(state)
     mana = mana_audit(hd)
     avg_cmc = deck_stats(hd).get("avg_cmc", 0.0)
     cheap_ca = sum(
@@ -1250,7 +1250,7 @@ def find_candidates(state: ForgeState, params: FindParams) -> CandidatePage:
     """
     fmt = state.session.format
     ci = deck_color_identity(state)
-    hd = hydrate(state)
+    hd = hydrate_session(state)
     sigs = ranked_deck_signals(state, hd.records)
     all_avenues = avenues(state, hd.records)
     focused = [a for a in all_avenues if a.get("focused")]
@@ -1335,7 +1335,7 @@ def goldfish_report(
     from mtg_utils._playtest_common import envelope, render_goldfish_markdown
     from mtg_utils.playtest import GOLDFISH_VERSION, _run_goldfish
 
-    hd = hydrate(state)
+    hd = hydrate_session(state)
     deck = state.session.to_deck_dict()
     entries = (deck.get("commanders") or []) + (deck.get("cards") or [])
     records = hd.expanded(zones=("commanders", "cards"))
@@ -1398,7 +1398,7 @@ def snapshot(state: ForgeState) -> dict:
     """The full canonical snapshot the SPA renders — the engine's composition root.
     Builds ONE HydratedDeck and threads it to every sub-analysis, so a request hits the
     bulk index once. Pure read of state; never mutates, publishes, or autosaves."""
-    hd = hydrate(state)
+    hd = hydrate_session(state)
     stats = deck_stats(hd)
     owned = owned_quantities(state)
     mana = mana_audit(hd)

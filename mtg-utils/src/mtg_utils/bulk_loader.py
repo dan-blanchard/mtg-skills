@@ -21,11 +21,11 @@ knobs there.
 
 from __future__ import annotations
 
-import contextlib
 import json
 import os
-import pickle
 from pathlib import Path
+
+from mtg_utils._sidecar import load_pickle_sidecar, write_pickle_sidecar
 
 # Bump when the on-disk payload shape changes so old sidecars are
 # rejected and rebuilt. v2: records are MTGJSON-sourced (adapter-translated to the
@@ -68,52 +68,6 @@ def _source_mtime(bulk_path: Path) -> float:
     return bulk_path.stat().st_mtime
 
 
-def _read_sidecar(sidecar: Path, bulk_path: Path) -> list[dict] | None:
-    """Return cached cards if the sidecar is present, fresh, and valid.
-
-    Returns ``None`` to signal the caller should rebuild.
-    """
-    if not sidecar.exists():
-        return None
-    # Stale if any underlying source file has been touched since the sidecar
-    # was written (for MTGJSON that includes the sibling prices file).
-    if sidecar.stat().st_mtime < _source_mtime(bulk_path):
-        return None
-    try:
-        with sidecar.open("rb") as f:
-            payload = pickle.load(f)
-    except (pickle.PickleError, EOFError, OSError):
-        return None
-    if not isinstance(payload, dict):
-        return None
-    if payload.get("version") != SIDECAR_VERSION:
-        return None
-    cards = payload.get("cards")
-    if not isinstance(cards, list):
-        return None
-    return cards
-
-
-def _write_sidecar(sidecar: Path, cards: list[dict]) -> None:
-    """Atomically write a pickled sidecar next to the bulk JSON.
-
-    Failures here are non-fatal: the caller already has the cards in
-    memory, and the next call will simply rebuild the sidecar.
-    """
-    payload = {"version": SIDECAR_VERSION, "cards": cards}
-    tmp = sidecar.with_name(sidecar.name + ".tmp")
-    try:
-        with tmp.open("wb") as f:
-            pickle.dump(payload, f, protocol=pickle.HIGHEST_PROTOCOL)
-        tmp.replace(sidecar)
-    except OSError:
-        # Best effort: if the temp file lingered after a partial write,
-        # leave it for the next successful write to overwrite.
-        if tmp.exists():
-            with contextlib.suppress(OSError):
-                tmp.unlink()
-
-
 def bulk_mtime(bulk_path: Path) -> float:
     """The sidecar's mtime (or 0.0 if absent) — a cheap version token callers use to key
     their own derived caches so a ``download-mtgjson`` refresh invalidates them in
@@ -152,7 +106,8 @@ def load_bulk_cards(bulk_path: Path) -> list[dict]:
     key = str(bulk_path)
     # Only trust the in-memory entry when the sidecar is still FRESH (not older than
     # the JSON) AND unchanged since we cached it — otherwise a hit would skip
-    # _read_sidecar's staleness check and serve data from a since-refreshed bulk file.
+    # load_pickle_sidecar's staleness check and serve data from a since-refreshed bulk
+    # file.
     try:
         sidecar_mtime = sidecar.stat().st_mtime if sidecar.exists() else None
         fresh = sidecar_mtime is not None and sidecar_mtime >= _source_mtime(bulk_path)
@@ -163,13 +118,15 @@ def load_bulk_cards(bulk_path: Path) -> list[dict]:
         if hit is not None and hit[0] == sidecar_mtime:
             return hit[1]
 
-    cached = _read_sidecar(sidecar, bulk_path)
-    if cached is not None:
-        _MEM_CACHE[key] = (sidecar.stat().st_mtime, cached)
-        return cached
-
-    cards = _read_source(bulk_path)
-    _write_sidecar(sidecar, cards)
+    cards = load_pickle_sidecar(
+        bulk_path,
+        sidecar,
+        version_tag=SIDECAR_VERSION,
+        value_key="cards",
+        build_fn=lambda: _read_source(bulk_path),
+        source_mtime=_source_mtime(bulk_path),
+        validate=lambda v: isinstance(v, list),
+    )
     _MEM_CACHE[key] = (bulk_mtime(bulk_path), cards)
     return cards
 
@@ -183,7 +140,9 @@ def build_sidecar(bulk_path: Path) -> Path:
     """
     sidecar = _sidecar_path(bulk_path)
     cards = _read_source(bulk_path)
-    _write_sidecar(sidecar, cards)
+    write_pickle_sidecar(
+        sidecar, version_tag=SIDECAR_VERSION, value_key="cards", value=cards
+    )
     return sidecar
 
 

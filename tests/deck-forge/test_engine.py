@@ -47,7 +47,7 @@ def _state(commanders=(), cards=()):
 
 def test_hydrate_joins_session_to_records():
     st = _state(commanders=["Atraxa, Praetors' Voice"], cards=[("Forest", 10)])
-    hd = engine.hydrate(st)
+    hd = engine.hydrate_session(st)
     assert {r["name"] for r in hd.records} == {"Atraxa, Praetors' Voice", "Forest"}
 
 
@@ -66,7 +66,7 @@ def test_partner_search_only_with_exactly_one_partner_commander():
 
 def test_avenues_drop_partner_when_slot_full():
     two = _state(commanders=["Ishai, Ojutai Dragonspeaker", "Atraxa, Praetors' Voice"])
-    labels = {a["label"] for a in engine.avenues(two, engine.hydrate(two).records)}
+    labels = {a["label"] for a in engine.avenues(two, engine.hydrate_session(two).records)}
     assert "Partner / Background" not in labels
 
 
@@ -82,7 +82,7 @@ def test_avenues_append_agent_avenues():
             "search": {},
         }
     )
-    labels = [a["label"] for a in engine.avenues(st, engine.hydrate(st).records)]
+    labels = [a["label"] for a in engine.avenues(st, engine.hydrate_session(st).records)]
     assert "Custom" in labels
 
 
@@ -107,7 +107,7 @@ def test_snapshot_composes_expected_keys():
 def test_legality_warnings_flags_too_many_cards():
     # commander target is 100; 1 commander + 100 mainboard copies = 101 > 100.
     st = _state(commanders=["Atraxa, Praetors' Voice"], cards=[("Forest", 100)])
-    warns = engine.legality_warnings(engine.hydrate(st), max_cards=st.session.deck_size)
+    warns = engine.legality_warnings(engine.hydrate_session(st), max_cards=st.session.deck_size)
     cats = {w["category"] for w in warns}
     assert "deck_maximum" in cats
     assert any("101" in w["message"] for w in warns)
@@ -120,7 +120,7 @@ def test_legality_warnings_flags_unimported_cards():
         commanders=["Atraxa, Praetors' Voice"],
         cards=[("Definitely Not A Real Card", 1)],
     )
-    warns = engine.legality_warnings(engine.hydrate(st), max_cards=st.session.deck_size)
+    warns = engine.legality_warnings(engine.hydrate_session(st), max_cards=st.session.deck_size)
     cats = {w["category"] for w in warns}
     assert "unimported" in cats
     assert any("Definitely Not A Real Card" in w["message"] for w in warns)
@@ -128,7 +128,7 @@ def test_legality_warnings_flags_unimported_cards():
 
 def test_legality_warnings_clean_deck_has_no_size_or_import_warnings():
     st = _state(commanders=["Atraxa, Praetors' Voice"], cards=[("Forest", 10)])
-    warns = engine.legality_warnings(engine.hydrate(st), max_cards=st.session.deck_size)
+    warns = engine.legality_warnings(engine.hydrate_session(st), max_cards=st.session.deck_size)
     cats = {w["category"] for w in warns}
     assert "deck_maximum" not in cats
     assert "unimported" not in cats

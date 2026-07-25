@@ -158,7 +158,7 @@ def _engine_state(commander, fmt="commander"):
 class TestStaplesAvenue:
     def test_staples_avenue_always_present(self):
         st = _engine_state("Test Gruul Commander")
-        avs = engine.avenues(st, engine.hydrate(st).records)
+        avs = engine.avenues(st, engine.hydrate_session(st).records)
         assert any(a["label"] == "Staples / good stuff" for a in avs)
 
     def test_staple_pool_scoped_to_color_identity(self):
@@ -178,7 +178,7 @@ class TestStaplesAvenue:
         st = _engine_state("Test Gruul Commander")
         avenue = next(
             a
-            for a in engine.avenues(st, engine.hydrate(st).records)
+            for a in engine.avenues(st, engine.hydrate_session(st).records)
             if a["label"] == "Staples / good stuff"
         )
         # The name serve lets ranking credit staples as on-theme for this avenue.

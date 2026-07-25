@@ -266,7 +266,7 @@ def _focused_staples_state():
     )
     staples_av = next(
         a
-        for a in engine.avenues(state, engine.hydrate(state).records)
+        for a in engine.avenues(state, engine.hydrate_session(state).records)
         if a["label"] == "Staples / good stuff"
     )
     state.focused_avenue_ids = {staples_av["id"]}

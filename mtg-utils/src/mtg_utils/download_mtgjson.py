@@ -13,19 +13,17 @@ from __future__ import annotations
 
 import contextlib
 import os
-import time
 import zlib
 from pathlib import Path
 
 import click
 import requests
 
+from mtg_utils._http import USER_AGENT, is_fresh
 from mtg_utils._mtgjson.load import ALLPRINTINGS_NAME, MTGJSON_FILES
 from mtg_utils.bulk_loader import build_sidecar
 
 MTGJSON_BASE = "https://mtgjson.com/api/v5"
-USER_AGENT = "mtg-skills/0.1.0"
-FRESHNESS_SECONDS = 86400  # 24 hours
 
 
 def default_mtgjson_dir() -> Path:
@@ -37,10 +35,6 @@ def default_mtgjson_dir() -> Path:
     if home:
         return Path(home) / ".cache" / "mtg-skills" / "mtgjson"
     return Path("/tmp/mtgjson")
-
-
-def _is_fresh(path: Path) -> bool:
-    return path.exists() and (time.time() - path.stat().st_mtime) < FRESHNESS_SECONDS
 
 
 def _download_gz(session: requests.Session, url: str, dest: Path) -> None:
@@ -63,7 +57,7 @@ def download_mtgjson(output_dir: Path | None = None) -> Path:
     output_dir.mkdir(parents=True, exist_ok=True)
     printings = output_dir / ALLPRINTINGS_NAME
 
-    if all(_is_fresh(output_dir / f) for f in MTGJSON_FILES):
+    if all(is_fresh(output_dir / f) for f in MTGJSON_FILES):
         return printings
 
     session = requests.Session()

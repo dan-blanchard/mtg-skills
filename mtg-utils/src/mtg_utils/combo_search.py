@@ -9,6 +9,7 @@ from pathlib import Path
 import click
 import requests
 
+from mtg_utils._http import USER_AGENT
 from mtg_utils._sidecar import atomic_write_json, sha_keyed_path
 from mtg_utils.card_classify import get_oracle_text
 from mtg_utils.format_config import FORMAT_CONFIGS, get_format_config
@@ -16,7 +17,6 @@ from mtg_utils.hydrated_deck import HydratedDeck
 
 SPELLBOOK_URL = "https://backend.commanderspellbook.com/find-my-combos"
 SPELLBOOK_VARIANTS_URL = "https://backend.commanderspellbook.com/variants"
-USER_AGENT = "commander-utils/0.1.0"
 # Hard timeout (connect, read) on every Spellbook request. Without it a stalled response
 # hangs the caller indefinitely — and since deck-forge's /api/tune runs combos inline on
 # the async event loop, an unbounded combo call wedges the entire hub (not just one

@@ -23,6 +23,7 @@ from mtg_utils._deck_forge.ranking import rank_candidates
 from mtg_utils._deck_forge.signals import ranked_signals_and_payoffs
 from mtg_utils._tuner import metrics
 from mtg_utils._tuner.classify import classify_deck
+from mtg_utils.card_classify import type_line_has
 from mtg_utils.deck import split_type_line
 from mtg_utils.hydrated_deck import HydratedDeck
 
@@ -80,7 +81,7 @@ def _deck_tribes(hd: HydratedDeck) -> frozenset[str]:
     return frozenset(
         st.lower()
         for rec in hd.records
-        if "creature" in (rec.get("type_line") or "").lower()
+        if type_line_has((rec.get("type_line") or "").lower(), "creature")
         for st in split_type_line(rec.get("type_line", ""))[1]
     )
 

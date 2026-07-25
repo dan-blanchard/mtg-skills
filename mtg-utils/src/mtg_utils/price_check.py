@@ -9,6 +9,7 @@ from pathlib import Path
 import click
 import requests
 
+from mtg_utils._http import USER_AGENT
 from mtg_utils._name_index import NameIndex
 from mtg_utils._sidecar import atomic_write_json, sha_keyed_path
 from mtg_utils.card_classify import extract_price
@@ -17,7 +18,6 @@ from mtg_utils.format_config import is_arena_format as _is_arena_format
 from mtg_utils.scryfall_lookup import (
     RATE_LIMIT_DELAY,
     SCRYFALL_NAMED_URL,
-    USER_AGENT,
     _load_bulk_index,
     build_rarity_index,
     lookup_single,

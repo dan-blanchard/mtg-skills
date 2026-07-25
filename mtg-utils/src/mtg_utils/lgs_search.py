@@ -845,7 +845,7 @@ import os  # noqa: E402
 
 
 def _locate_bulk_data() -> Path | None:
-    """Find a Scryfall ``default-cards.json`` in common locations.
+    """Find card-data bulk in common locations, MTGJSON first.
 
     The spill check needs this file to compute cheapest-printing USD; without
     it the proxy is 0.0 for every card and ALL cards stay at LGS (silent
@@ -855,23 +855,35 @@ def _locate_bulk_data() -> Path | None:
     Search order (first hit wins):
 
       1. ``$MTG_SKILLS_BULK_DATA`` (explicit override, full path)
-      2. ``$MTG_SKILLS_CACHE_DIR/default-cards.json``
-      3. ``~/.cache/mtg-skills/default-cards.json`` (the cache_dir convention
-         shared with the persistent Playwright profiles)
-      4. ``$CWD/default-cards.json`` (where ``download-mtgjson`` puts files
-         by default)
-      5. ``$CWD/.cache/default-cards.json`` (in-repo cache convention)
-      6. Newest ``default-cards*.json`` in any of the directories above
-         (some users keep dated copies, e.g. default-cards-20260214220913.json)
+      2. ``bulk_loader.default_bulk_path()`` — MTGJSON ``AllPrintings.json``
+         (ADR-0033, the card-data source of record; ``download-mtgjson``
+         writes it under ``$MTG_SKILLS_CACHE_DIR/mtgjson/`` or
+         ``~/.cache/mtg-skills/mtgjson/``). ``load_bulk_cards`` (used by
+         :func:`_scryfall_usd_lookup`) translates it to the same
+         Scryfall-shaped records the legacy fallback below reads, so this
+         is a strict upgrade, not a different shape.
+      3. Legacy Scryfall bulk fallback, for anyone still holding a
+         pre-ADR-0033 dump (the deleted ``download-bulk`` command's
+         output): newest ``default-cards*.json`` under
+         ``$MTG_SKILLS_CACHE_DIR``, ``~/.cache/mtg-skills/``, ``$CWD``,
+         ``$CWD/.cache``, or a couple of parent dirs of ``$CWD`` (some
+         users keep dated copies, e.g.
+         default-cards-20260214220913.json).
 
-    Returns the Path of the most recently modified hit, or None if nothing
-    is found. Caller is expected to print a loud warning when None.
+    Returns the Path of the resolved hit, or None if nothing is found.
+    Caller is expected to print a loud warning when None.
     """
     explicit = os.environ.get("MTG_SKILLS_BULK_DATA")
     if explicit:
         p = Path(explicit).expanduser()
         if p.exists():
             return p
+
+    from mtg_utils.bulk_loader import default_bulk_path
+
+    mtgjson_path = default_bulk_path()
+    if mtgjson_path is not None:
+        return mtgjson_path
 
     cache_env = os.environ.get("MTG_SKILLS_CACHE_DIR")
     candidates_dirs: list[Path] = []

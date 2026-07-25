@@ -23,16 +23,14 @@ safe because writes are atomic-rename.
 
 from __future__ import annotations
 
-import contextlib
 import json
-import pickle
 import re
 from pathlib import Path
 from typing import Any
 
 import click
 
-from mtg_utils._sidecar import atomic_write_json, sha_keyed_path
+from mtg_utils._sidecar import atomic_write_json, load_pickle_sidecar, sha_keyed_path
 
 # Bundled CR-style supplement for MTG Arena / Alchemy "designed-for-digital"
 # mechanics, which are NOT in the Comprehensive Rules. Shipped with the package
@@ -424,49 +422,24 @@ def _parsed_sidecar(rules_path: Path) -> Path:
 def load_rules(rules_path: Path) -> dict[str, Any]:
     """Load + parse the CR, preferring a pickled sidecar cache.
 
-    Mirrors ``bulk_loader.load_bulk_cards``: the sidecar is invalidated
-    by mtime comparison, a version tag, or unpickle failure. Writes are
-    atomic-rename so concurrent callers never observe a half-written
-    cache.
+    Uses the shared ``mtg_utils._sidecar.load_pickle_sidecar`` helper
+    (also used by ``bulk_loader.load_bulk_cards``): the sidecar is
+    invalidated by mtime comparison, a version tag, or unpickle failure.
+    Writes are atomic-rename so concurrent callers never observe a
+    half-written cache.
     """
     sidecar = _parsed_sidecar(rules_path)
-    if sidecar.exists() and sidecar.stat().st_mtime >= rules_path.stat().st_mtime:
-        try:
-            with sidecar.open("rb") as f:
-                payload = pickle.load(f)
-            if (
-                isinstance(payload, dict)
-                and payload.get("version") == _PARSED_VERSION
-                and isinstance(payload.get("parsed"), dict)
-            ):
-                parsed = payload["parsed"]
-                # Merge the digital supplement AFTER the cache (not into the pickle),
-                # so editing digital-rules.txt takes effect without CR-mtime change.
-                _merge_digital(parsed)
-                return parsed
-        except (pickle.PickleError, EOFError, OSError):
-            pass  # fall through to reparse
-
-    text = rules_path.read_text(encoding="utf-8")
-    parsed = parse_rules(text)
-
-    tmp = sidecar.with_name(sidecar.name + ".tmp")
-    try:
-        with tmp.open("wb") as f:
-            pickle.dump(
-                {"version": _PARSED_VERSION, "parsed": parsed},
-                f,
-                protocol=pickle.HIGHEST_PROTOCOL,
-            )
-        tmp.replace(sidecar)
-    except OSError:
-        # Best-effort sidecar: clean up any partial .tmp so it doesn't
-        # linger between runs. Next call just reparses.
-        with contextlib.suppress(OSError):
-            tmp.unlink(missing_ok=True)
-
-    # Merge AFTER pickling so the cached sidecar stays CR-only (editing
-    # digital-rules.txt then takes effect without touching the CR's mtime).
+    parsed = load_pickle_sidecar(
+        rules_path,
+        sidecar,
+        version_tag=_PARSED_VERSION,
+        value_key="parsed",
+        build_fn=lambda: parse_rules(rules_path.read_text(encoding="utf-8")),
+        validate=lambda v: isinstance(v, dict),
+    )
+    # Merge the digital supplement AFTER the cache (not into the pickle), so
+    # editing digital-rules.txt takes effect without touching the CR's mtime —
+    # applies the same whether ``parsed`` came from cache or a fresh parse.
     _merge_digital(parsed)
     return parsed
 

@@ -35,6 +35,7 @@ from mtg_utils.card_classify import (
     is_ramp,
 )
 from mtg_utils.names import normalize_card_name
+from mtg_utils.names import slug as slug  # noqa: PLC0414 (re-export; home is names.py)
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterable
@@ -55,22 +56,6 @@ CARD_TYPE_WORDS: frozenset[str] = frozenset(
         "battle",
     }
 )
-
-
-def slug(name: str) -> str:
-    """Normalize a name to a filename-safe slug.
-
-    Examples
-    --------
-    >>> slug("Eldrazi Spawn")
-    'eldrazi-spawn'
-    >>> slug("Urza's")
-    'urzas'
-    """
-    s = name.lower()
-    s = s.replace("'", "").replace("’", "")  # noqa: RUF001 (curly apostrophe is intentional)
-    s = re.sub(r"[^a-z0-9]+", "-", s)
-    return s.strip("-")
 
 
 def split_type_line(type_line: str) -> tuple[list[str], list[str]]:

@@ -11,6 +11,7 @@ from pathlib import Path
 import click
 import requests
 
+from mtg_utils._http import USER_AGENT
 from mtg_utils._name_index import NameIndex, build_name_index, keep_cheaper
 from mtg_utils._sidecar import atomic_write_json
 from mtg_utils.bulk_loader import load_bulk_cards
@@ -21,7 +22,6 @@ from mtg_utils.card_classify import (
 )
 
 SCRYFALL_NAMED_URL = "https://api.scryfall.com/cards/named"
-USER_AGENT = "commander-utils/0.1.0"
 RATE_LIMIT_DELAY = 0.1
 
 CARD_FIELDS = [

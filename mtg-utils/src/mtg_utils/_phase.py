@@ -14,9 +14,15 @@ import shutil
 import subprocess
 import tempfile
 import urllib.error
-import urllib.request
 from functools import lru_cache
 from pathlib import Path
+
+from mtg_utils._http import urllib_get
+
+# Deliberately its own identity (not mtg_utils._http.USER_AGENT): this
+# fetches from GitHub releases/raw, so it names the phase subsystem
+# specifically rather than the generic Scryfall/EDHREC/Spellbook UA.
+_USER_AGENT = "mtg-skills/_phase"
 
 PHASE_TAG = "v0.35.2"
 PHASE_REPO = "https://github.com/phase-rs/phase"
@@ -383,10 +389,8 @@ def is_impostor_record(rec: dict) -> bool:
 def _fetch_url(url: str) -> bytes:
     """GET ``url`` (follows redirects), raising ``RuntimeError`` naming the
     URL + tag on any HTTP/network error."""
-    request = urllib.request.Request(url, headers={"User-Agent": "mtg-skills/_phase"})
     try:
-        with urllib.request.urlopen(request) as resp:
-            return resp.read()
+        return urllib_get(url, user_agent=_USER_AGENT)
     except (urllib.error.URLError, OSError) as exc:
         raise RuntimeError(
             f"Failed to download phase card-data from {url} (tag {PHASE_TAG}): {exc}"
@@ -489,10 +493,8 @@ def ensure_known_tokens() -> Path | None:
         f"{PHASE_TAG}/{_KNOWN_TOKENS_ASSET_PATH}"
     )
     dest.parent.mkdir(parents=True, exist_ok=True)
-    request = urllib.request.Request(url, headers={"User-Agent": "mtg-skills/_phase"})
     try:
-        with urllib.request.urlopen(request, timeout=30) as resp:
-            payload = resp.read()
+        payload = urllib_get(url, user_agent=_USER_AGENT, timeout=30)
     except (urllib.error.URLError, OSError, ValueError):
         return None
 

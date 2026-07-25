@@ -19,7 +19,7 @@ from pathlib import Path
 import click
 import requests
 
-from mtg_utils.web_fetch import BROWSER_HEADERS, _fetch_with_curl
+from mtg_utils._http import BROWSER_HEADERS, _fetch_with_curl
 
 CUBECOBRA_JSON_URL = "https://cubecobra.com/cube/api/cubeJSON/{cube_id}"
 CUBECOBRA_LIST_URL = "https://cubecobra.com/cube/api/cubelist/{cube_id}"

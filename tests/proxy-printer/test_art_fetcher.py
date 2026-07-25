@@ -9,6 +9,7 @@ to the function under test.
 from __future__ import annotations
 
 import json
+import time
 from pathlib import Path
 
 import pytest
@@ -1093,7 +1094,7 @@ def test_fetch_tag_pages_stops_when_no_new_ids(
 
 def test_http_fetcher_retries_on_429(tmp_path: Path, monkeypatch) -> None:
     """A 429 followed by a 200 retries and succeeds."""
-    monkeypatch.setattr(art_fetcher.time, "sleep", lambda _: None)
+    monkeypatch.setattr(time, "sleep", lambda _: None)
     from unittest.mock import MagicMock
 
     fetcher = HttpFetcher(cache_dir=tmp_path)
@@ -1116,7 +1117,7 @@ def test_http_fetcher_raises_after_exhausted_retries(
     tmp_path: Path, monkeypatch
 ) -> None:
     """Persistent 429s eventually raise via raise_for_status."""
-    monkeypatch.setattr(art_fetcher.time, "sleep", lambda _: None)
+    monkeypatch.setattr(time, "sleep", lambda _: None)
     from unittest.mock import MagicMock
 
     fetcher = HttpFetcher(cache_dir=tmp_path)

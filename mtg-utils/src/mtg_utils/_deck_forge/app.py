@@ -289,11 +289,11 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
 
     @app.get("/api/stats")
     async def stats() -> dict:
-        return deck_stats(engine.hydrate(state))
+        return deck_stats(engine.hydrate_session(state))
 
     @app.get("/api/mana-audit")
     async def mana() -> dict:
-        return mana_audit(engine.hydrate(state))
+        return mana_audit(engine.hydrate_session(state))
 
     @app.post("/api/deck/add", response_model=None)
     async def add(payload: AddPayload) -> dict | JSONResponse:
@@ -377,7 +377,7 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
         """Fix the mana base: add basics to reach the FAIL floor and rebalance the
         basics to match color demand (swapping over- for under-produced colors at the
         current count when already at/above the floor)."""
-        plan = reconcile_basic_lands(engine.hydrate(state))
+        plan = reconcile_basic_lands(engine.hydrate_session(state))
         applied: dict[str, dict[str, int]] = {"add": {}, "remove": {}}
         for name, qty in plan["remove"].items():
             state.session.remove(name, qty, zone="cards")
@@ -398,12 +398,12 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
         (max of Burgess/Karsten), removing over-produced colors first. No-op when the
         deck is already at/under recommended. Soft — never blocks finalize, because an
         all-lands combo deck is a legitimate build (see CONTEXT Flood line)."""
-        audit = mana_audit(engine.hydrate(state))
+        audit = mana_audit(engine.hydrate_session(state))
         recommended = audit["recommended_land_count"]
         applied: dict[str, dict[str, int]] = {"add": {}, "remove": {}}
         if audit["land_count"] > recommended:
             plan = reconcile_basic_lands(
-                engine.hydrate(state), target_total=recommended
+                engine.hydrate_session(state), target_total=recommended
             )
             for name, qty in plan["remove"].items():
                 state.session.remove(name, qty, zone="cards")
@@ -425,7 +425,8 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
         attached. See ADR-0016."""
         if not state.bulk_available:
             return _no_bulk()
-        if len(engine.hydrate(state).expanded(zones=("commanders", "cards"))) < 7:
+        hd = engine.hydrate_session(state)
+        if len(hd.expanded(zones=("commanders", "cards"))) < 7:
             return JSONResponse(
                 {"error": "Add more cards before goldfishing (need a full hand)."},
                 status_code=400,
@@ -578,7 +579,7 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
 
     @app.get("/api/signals")
     async def signals() -> dict:
-        sigs = engine.ranked_deck_signals(state, engine.hydrate(state).records)
+        sigs = engine.ranked_deck_signals(state, engine.hydrate_session(state).records)
         return {"signals": [engine.signal_dict(s) for s in sigs]}
 
     @app.get("/api/presets")
@@ -593,7 +594,7 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
 
     @app.get("/api/budgets")
     async def budgets() -> dict:
-        hd = engine.hydrate(state)
+        hd = engine.hydrate_session(state)
         # ADR-0041 (Fix 2): pass mana_audit's OWN already-derived land band
         # directly — the standalone budgets read must not disagree with
         # /api/snapshot or the mana section's own verdict (single source).
@@ -932,7 +933,7 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
     async def audit() -> dict:
         return {
             "warnings": engine.legality_warnings(
-                engine.hydrate(state), max_cards=state.session.deck_size
+                engine.hydrate_session(state), max_cards=state.session.deck_size
             )
         }
 
@@ -968,7 +969,7 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
         # the event loop and wedge the whole hub. Pure read of state, so thread-safe.
         return await run_in_threadpool(
             run_tune,
-            engine.hydrate(state),
+            engine.hydrate_session(state),
             search_fn=state.search_fn,
             params=params,
             # The WHOLE active Collection slot, not the deck-scoped owned map: the tuner

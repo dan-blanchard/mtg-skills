@@ -18,11 +18,12 @@ from __future__ import annotations
 
 import re
 import tempfile
-import time
 from pathlib import Path
 
 import click
 import requests
+
+from mtg_utils._http import is_fresh
 
 # The listing page. ``requests`` with a browser UA is enough in normal
 # networks; the MTG skills CLI is expected to run outside the sandbox.
@@ -37,11 +38,13 @@ _TXT_LINK_RE = re.compile(
     re.IGNORECASE,
 )
 
+# Deliberately its own identity (not mtg_utils._http.USER_AGENT): this scrapes
+# a Wizards-operated web page rather than an API, so it names + links the
+# project directly, the way a polite crawler's UA should.
 USER_AGENT = (
     "Mozilla/5.0 (compatible; mtg-skills rules-lawyer/0.1; "
     "+https://github.com/dan-blanchard/mtg-skills)"
 )
-FRESHNESS_SECONDS = 86400  # 24 hours — match download_bulk.
 
 _LOCAL_GLOB = "comprehensive-rules*.txt"
 
@@ -49,11 +52,6 @@ _LOCAL_GLOB = "comprehensive-rules*.txt"
 def _find_existing(output_dir: Path) -> Path | None:
     candidates = sorted(output_dir.glob(_LOCAL_GLOB))
     return candidates[-1] if candidates else None
-
-
-def _is_fresh(path: Path) -> bool:
-    age = time.time() - path.stat().st_mtime
-    return age < FRESHNESS_SECONDS
 
 
 def _discover_latest_url(session: requests.Session) -> tuple[str, str] | None:
@@ -131,7 +129,7 @@ def download_rules(
     output_dir.mkdir(parents=True, exist_ok=True)
 
     existing = _find_existing(output_dir)
-    if existing and _is_fresh(existing):
+    if existing and is_fresh(existing):
         return existing
 
     session = requests.Session()
