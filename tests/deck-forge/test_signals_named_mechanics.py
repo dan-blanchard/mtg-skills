@@ -6,7 +6,7 @@ stay clean. Each is a real archetype getting its own avenue.
 
 ADR-0039 task #80 step 6 retired the regex engine (``_signals_regex.py``) and the
 projected-IR engine (``_signals_ir.py``); every test here now asserts against the
-production ``extract_signals_hybrid`` path via the ``testkit`` real-card fixtures.
+production ``extract_signals`` path via the ``testkit`` real-card fixtures.
 Most of this file's original synthetic-fixture coverage is now a duplicate of
 ``tests/deck-forge/test_signal_keys_real_cards.py``'s ``_REAL_CASES`` table (one
 real card per migrated key) and ``tests/mtg-utils/test_crosswalk.py``'s per-key

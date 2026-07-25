@@ -18,7 +18,6 @@ from pathlib import Path
 
 import click
 
-from mtg_utils._deck_forge._ir_lookup import ir_for
 from mtg_utils._deck_forge.pair_reads import build_pair_context
 from mtg_utils._deck_forge.ranking import rank_candidates
 from mtg_utils._deck_forge.signals import ranked_signals_and_payoffs
@@ -104,9 +103,7 @@ def main(
     _ensure_ir()  # build the sidecar on first run, BEFORE the first ir_for
     hd = HydratedDeck.from_paths(deck_json, hydrated_json)
     commander_names = {c["name"] for c in hd.commanders}
-    signals, payoff_subjects = ranked_signals_and_payoffs(
-        hd.records, commander_names, ir_for=ir_for
-    )
+    signals, payoff_subjects = ranked_signals_and_payoffs(hd.records, commander_names)
     candidates = json.loads(Path(candidates_json).read_text(encoding="utf-8"))
     if not isinstance(candidates, list) or not all(
         isinstance(c, dict) for c in candidates

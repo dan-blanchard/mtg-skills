@@ -5,9 +5,9 @@ directly against hand-built ``Card`` IR fixtures. That engine, and the regex
 engine it stood beside, are both gone (repoint per docs/adr — the substrate
 now lives in ``signal_base`` / ``text_reads`` / ``membership_floor`` /
 ``crosswalk_signals``); the ONLY extractor is
-``signals.extract_signals_hybrid``. The synthetic-fixture tests were deleted
+``signals.extract_signals``. The synthetic-fixture tests were deleted
 during the repoint (no production analogue — a hand-built IR object was never
-something ``extract_signals_hybrid`` accepts). What remains is real-card
+something ``extract_signals`` accepts). What remains is real-card
 coverage: every surviving test resolves a named card from the committed
 snapshot via ``mtg_utils.testkit`` and asserts on the SAME Signal objects
 production emits.
@@ -18,7 +18,7 @@ from __future__ import annotations
 from mtg_utils.testkit import test_card_ir, test_signals
 
 # ── Real-card path (task #25): a card looked up by NAME from the committed snapshot
-# (``mtg_utils.testkit``), run through production ``extract_signals_hybrid`` over its
+# (``mtg_utils.testkit``), run through production ``extract_signals`` over its
 # REAL projected IR. Each call site passes the card name as a literal arg to
 # ``test_signals`` inline (not behind a wrapper) so the usage scanner in
 # ``build-card-snapshot`` discovers the name and snapshots the card. (Names containing

@@ -15,7 +15,7 @@ to carry the INPUT (phase's own parse) rather than a stale baked OUTPUT.
 
 Self-validation (the field-completeness guard): for every card it asserts the signals
 of the MINIMAL record equal the signals of the FULL bulk record (both over the SAME
-seeded concept trees, via the production ``extract_signals_hybrid``). A mismatch
+seeded concept trees, via the production ``extract_signals``). A mismatch
 fails loudly with the card + the differing signals so the minimal field list is
 expanded rather than a lossy slice silently shipped.
 
@@ -44,7 +44,7 @@ from pathlib import Path
 from mtg_utils._card_ir.build import _group_by_oracle_id
 from mtg_utils._card_ir.load import CROSSWALK_SIDECAR_VERSION
 from mtg_utils._deck_forge._ir_lookup import build_trees, seed_trees
-from mtg_utils._deck_forge.signals import extract_signals_hybrid
+from mtg_utils._deck_forge.signals import extract_signals
 from mtg_utils._phase import PHASE_TAG, ensure_card_data
 from mtg_utils.bulk_loader import default_bulk_path, load_bulk_cards
 from mtg_utils.names import normalize_card_name
@@ -373,10 +373,10 @@ def build_snapshot(names: set[str], out_path: Path | None = None) -> tuple[Path,
         # never reads it; only the legacy fallback would, and both calls agree by
         # construction since neither exercises it here).
         full_sigs = {
-            (s.key, s.scope, s.subject) for s in extract_signals_hybrid(rec, None)
+            (s.key, s.scope, s.subject) for s in extract_signals(rec)
         }
         mini_sigs = {
-            (s.key, s.scope, s.subject) for s in extract_signals_hybrid(minimal, None)
+            (s.key, s.scope, s.subject) for s in extract_signals(minimal)
         }
         if full_sigs != mini_sigs:
             lossy.append(

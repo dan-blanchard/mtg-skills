@@ -127,7 +127,7 @@ def _wire_bare_ir(monkeypatch):
     # ir_for (ADR-0039 task #80 step 6: crosswalk-only, no flag branch) reads
     # the crosswalk index.
     monkeypatch.setattr(_ir_lookup, "_crosswalk_index", lambda: _BARE_IR_INDEX)
-    # trees_for (Seam A — extract_signals_hybrid's ONLY signal source, task #80
+    # trees_for (the concept-tree resolver — extract_signals's ONLY signal source, task #80
     # step 6) needs a resolvable concept tree per synthetic oracle_id; these
     # fixtures have no real phase record to resolve, so wire the text-only
     # trees built above.
@@ -245,8 +245,8 @@ def test_support_is_collection_specific_not_lane_width(monkeypatch):
     # ADR-0027: type_matters / artifacts_matter migrated → hybrid path. The discovery
     # endpoint resolves each card's IR via engine._ir_index(); these locally-built cards
     # aren't in the module _BARE_IR_INDEX / _TREES_BY_OID, so wire a bare Card per
-    # oracle_id (Seam B) plus a text-only tree per oracle_id (Seam A — ADR-0039 task
-    # #80 step 6: extract_signals_hybrid's ONLY signal source) so their tribal/artifact
+    # oracle_id (the compat-Card resolver) plus a text-only tree per oracle_id (the concept-tree resolver — ADR-0039 task
+    # #80 step 6: extract_signals's ONLY signal source) so their tribal/artifact
     # lanes fire.
     local_ir = {
         c["oracle_id"]: Card(
@@ -377,7 +377,7 @@ def test_warm_discovery_caches_persists_served_sets(tmp_path):
 
 def test_warm_discovery_caches_seeds_signal_key_index(tmp_path, monkeypatch):
     # Verified-review Fix 6: a whole-pool sweep's tribal Serve.signal_idents
-    # arm (task #96) pays a LIVE extract_signals_hybrid call per cold card
+    # arm (task #96) pays a LIVE extract_signals call per cold card
     # (~34.6k cards in production, ~141s measured for one lane) unless the
     # ident memo is seeded from the persisted signals-index sidecar FIRST.
     # warm_discovery_caches's _lane_density calls walk the whole density

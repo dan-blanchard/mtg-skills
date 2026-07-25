@@ -2619,9 +2619,11 @@ def _evasion_end_to_end_fires(name: str) -> bool:
     from mtg_utils._deck_forge.crosswalk_signals import extract_crosswalk_signals
 
     tree = _fixture_tree(name)
-    sigs = extract_crosswalk_signals(
-        tree, keys=frozenset({"evasion_self"}), keywords=_evasion_kw(name)
-    )
+    sigs = [
+        s
+        for s in extract_crosswalk_signals(tree, keywords=_evasion_kw(name))
+        if s.key == "evasion_self"
+    ]
     return any(s.key == "evasion_self" for s in sigs)
 
 

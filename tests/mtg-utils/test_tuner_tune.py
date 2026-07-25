@@ -191,27 +191,6 @@ def test_shape_override_respected():
     assert out["scorecard"]["shape"]["inferred"] is False
 
 
-def test_signals_resolved_through_card_ir(monkeypatch):
-    # ADR-0029: the tuner must thread the Card IR resolver into signal extraction, not
-    # run the regex-only path. End-to-end IR needs a built sidecar (absent in tests), so
-    # we verify the wiring — rank_deck_signals is called with a non-None ir_for resolver.
-    import sys
-
-    from mtg_utils._deck_forge.signals import ranked_signals_and_payoffs as real
-
-    # _tuner/__init__ re-exports the tune() function, shadowing the tune submodule —
-    # so reach the real module object via sys.modules, not attribute access.
-    tune_mod = sys.modules["mtg_utils._tuner.tune"]
-    captured = {}
-
-    def spy(records, commander_names, **kw):
-        captured["ir_for"] = kw.get("ir_for")
-        return real(records, commander_names, **kw)
-
-    monkeypatch.setattr(tune_mod, "ranked_signals_and_payoffs", spy)
-    tune(_hd(), search_fn=_fake_search, params=TuneParams())
-    assert captured["ir_for"] is not None
-    assert callable(captured["ir_for"])
 
 
 def test_fill_gap_counts_dfc_land_via_alias_not_name_set():

@@ -37,7 +37,7 @@ from mtg_utils._card_ir.load import (
 )
 from mtg_utils._card_ir.mirror.build import fixtures_dir
 from mtg_utils._deck_forge import production
-from mtg_utils._deck_forge.crosswalk_signals import PORTED_KEYS
+from mtg_utils._deck_forge.crosswalk_signals import SERVED_SIGNAL_KEYS
 
 # Llanowar Elves' real oracle_id, borrowed from the committed crosswalk fixture.
 _CROSSWALK_OID = "68954295-54e3-4303-a6bc-fc4547a4e3a3"
@@ -141,7 +141,7 @@ def test_warns_non_blocking_when_phase_absent(tmp_path, capsys):
 
     err = capsys.readouterr().err
     assert "WARNING" in err
-    assert f"{len(PORTED_KEYS)} crosswalk signal lanes" in err
+    assert f"{len(SERVED_SIGNAL_KEYS)} crosswalk signal lanes" in err
     # Card-data is fetched (release tarball), not cargo-built — the
     # actionable fix is re-running build-card-ir-crosswalk with network, not
     # `playtest-install-phase`.

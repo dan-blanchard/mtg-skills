@@ -38,7 +38,7 @@ new entry in the curated ``PRESETS`` dict.
 
 A regex/keyword preset is a hand-rolled SECOND detector shadowing the
 production signal extractor (``mtg_utils._deck_forge.signals.
-extract_signals_hybrid``, the crosswalk read over phase-rs's parse). Per
+extract_signals``, the crosswalk read over phase-rs's parse). Per
 Dan's directive (2026-07-12), presets are being migrated one lane at a
 time into DECLARATIVE VIEWS over that extractor's own output — never a
 third detector system:
@@ -71,7 +71,7 @@ third detector system:
   hand-roll a new text scan — the TREE-level logic lives next to the lane
   helper(s) it reuses, with the same docstring discipline as the lane
   itself; the per-card glue (resolving the card's per-face trees, or —
-  for ``blink`` — calling ``extract_signals_hybrid`` directly) lives in
+  for ``blink`` — calling ``extract_signals`` directly) lives in
   THIS module next to :func:`_signal_keys_for`. Because
   :meth:`Preset.matches` only ORs its arms (there is no AND), a concept
   predicate that needs "is removal/edict of SOME kind AND targets THIS
@@ -200,10 +200,10 @@ class Preset:
 # "key|scope|subject" idents pickle keyed off the bulk file + every signal-
 # source file's content, built ONCE and reused across processes. Either way
 # this dict is the SAME cache: a card_search.py-style full-pool scan pays one
-# extract_signals_hybrid call per card overall on a COLD sidecar (same as
+# extract_signals call per card overall on a COLD sidecar (same as
 # before conversion), but a WARM sidecar (or a second structural preset
 # scanning the same pool / the same card revisited by a different consumer in
-# one process) is a dict lookup, no crosswalk re-run. extract_signals_hybrid
+# one process) is a dict lookup, no crosswalk re-run. extract_signals
 # itself already memoizes the expensive part (_ir_lookup.trees_for's per-face
 # ConceptTree resolution) per oracle_id, so this index is a second, cheaper
 # memoization layer on top of that one — the (key, scope, subject) -> Signal
@@ -215,7 +215,7 @@ def _signal_keys_for(card: dict) -> frozenset[str]:
     """CARD's production signal-key set (memoized per ``oracle_id``).
 
     Empty for a card with no ``oracle_id`` (a synthetic fixture — the same
-    "no oracle_id" degradation ``extract_signals_hybrid`` documents) or
+    "no oracle_id" degradation ``extract_signals`` documents) or
     whose oracle_id resolves to no phase parse at all — a structural-view
     preset just never matches such a card, exactly like the ``keywords`` /
     ``patterns`` arms matching nothing on a card missing the field they
@@ -231,9 +231,9 @@ def _signal_keys_for(card: dict) -> frozenset[str]:
     cached = _SIGNAL_KEY_INDEX.get(oid)
     if cached is not None:
         return cached
-    from mtg_utils._deck_forge.signals import extract_signals_hybrid
+    from mtg_utils._deck_forge.signals import extract_signals
 
-    keys = frozenset(sig.key for sig in extract_signals_hybrid(card))
+    keys = frozenset(sig.key for sig in extract_signals(card))
     _SIGNAL_KEY_INDEX[oid] = keys
     return keys
 
@@ -259,10 +259,10 @@ def _signal_idents_for(card: dict) -> frozenset[str]:
     cached = _SIGNAL_IDENT_INDEX.get(oid)
     if cached is not None:
         return cached
-    from mtg_utils._deck_forge.signals import extract_signals_hybrid
+    from mtg_utils._deck_forge.signals import extract_signals
 
     idents = frozenset(
-        f"{sig.key}|{sig.scope}|{sig.subject}" for sig in extract_signals_hybrid(card)
+        f"{sig.key}|{sig.scope}|{sig.subject}" for sig in extract_signals(card)
     )
     _SIGNAL_IDENT_INDEX[oid] = idents
     return idents
@@ -280,7 +280,7 @@ def seed_signal_key_index(bulk_path: Path | None) -> bool:
     building that sidecar on first touch (a one-time ~2-4 min pass logged to
     stderr) so a whole-pool preset scan (``card_search``'s ``--preset``
     filter, ``engine``'s commander-discovery novelty sweep) stops paying a
-    live ``extract_signals_hybrid`` call per card every process.
+    live ``extract_signals`` call per card every process.
 
     Idempotent and cheap to call repeatedly within one process: a bulk path
     already seeded (by identity — path + mtime + size) is a no-op. Returns
@@ -325,7 +325,7 @@ def seed_signal_key_index(bulk_path: Path | None) -> bool:
 
 def _concept_any_face(card: dict, predicate: Callable[[ConceptTree], bool]) -> bool:
     """True if ``predicate(tree)`` holds for any of CARD's per-face concept
-    trees — mirrors ``extract_signals_hybrid``'s own per-face union (a
+    trees — mirrors ``extract_signals``'s own per-face union (a
     DFC's two faces are read independently, never merged into one tree).
     ``False`` for a card with no ``oracle_id`` / no phase parse, the same
     degradation :func:`_signal_keys_for` documents for the ``signal_keys``

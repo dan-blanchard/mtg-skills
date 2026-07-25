@@ -14,8 +14,8 @@ from mtg_utils.slot_budgets import main as slot_budgets_main
 # Seed the crosswalk trees memo from the committed snapshot (CI-safe, no phase
 # cache / network) so these hand-rolled CLI fixtures below — real card oracle
 # text, with the matching real oracle_id threaded in — resolve through the
-# SAME production extract_signals_hybrid path a real deck-forge session uses
-# (ADR-0039 task #80 step 6: extract_signals_hybrid no longer falls back to a
+# SAME production extract_signals path a real deck-forge session uses
+# (ADR-0039 task #80 step 6: extract_signals no longer falls back to a
 # regex answer when a fixture's oracle_id has no resolvable Card IR tree — the
 # ONLY way to prove the CLI plumbing sees a real signal is a real, resolvable
 # tree). The return values are unused; the call's side effect

@@ -44,7 +44,7 @@ from mtg_utils._deck_forge.crosswalk_signals import (
     _floor_token_maker_subjects,
     _is_big_mana_tree,
 )
-from mtg_utils._deck_forge.signals import extract_signals_hybrid
+from mtg_utils._deck_forge.signals import extract_signals
 from mtg_utils.testkit import test_signals
 
 FIXTURE = "crosswalk_fixture_cards.json"
@@ -120,10 +120,10 @@ def _floor_case(oid: str, faces: list[dict]):
 
 
 def _hybrid_idents(monkeypatch, bulk, tree, *, include: bool):
-    """Every signal ident from ``extract_signals_hybrid`` (the crosswalk-only
+    """Every signal ident from ``extract_signals`` (the crosswalk-only
     path), wiring the crosswalk seam to the fixture tree."""
     monkeypatch.setattr(il, "trees_for", _returns((tree,)))
-    sigs = extract_signals_hybrid(bulk, include_membership=include)
+    sigs = extract_signals(bulk, include_membership=include)
     return {(s.key, s.scope, s.subject) for s in sigs}
 
 
@@ -336,7 +336,7 @@ def test_type_matters_go_wide_arm_vi_dropped_in_commander_mode(monkeypatch):
 # documented, accepted gap — see ``crosswalk_signals._floor_token_maker_subjects``'s
 # docstring at the time). Moving the floor to run ONCE per card, over every face's
 # tree together (``crosswalk_signals.apply_membership_floor``, called from
-# ``signals.extract_signals_hybrid``), closes it. These pins use the committed
+# ``signals.extract_signals``), closes it. These pins use the committed
 # ``mtg_utils.testkit`` card snapshot (not ``crosswalk_fixture_cards.json`` — the
 # DFC pins need TWO phase records sharing one oracle_id, keyed by name, which the
 # testkit snapshot already stores for exactly this purpose) and run the REAL

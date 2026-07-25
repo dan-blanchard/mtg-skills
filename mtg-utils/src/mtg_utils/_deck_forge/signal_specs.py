@@ -4588,7 +4588,8 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
             _ETB_DOUBLER_EXTRA,
         ),
     ),
-    # ADR-0035 Stage-3a: three crosswalk-ported maker lanes (in ``PORTED_KEYS``) that
+    # ADR-0035 Stage-3a: three served maker lanes (in ``SERVED_SIGNAL_KEYS``)
+    # that
     # the legacy regex path never produced, so their specs were never registered.
     # Added so the key-agreement gate resolves them; since the ADR-0039 cutover
     # (crosswalk-only serving, flag retired) they serve unconditionally like every

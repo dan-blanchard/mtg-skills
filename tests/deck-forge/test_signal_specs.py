@@ -7437,7 +7437,7 @@ def test_chaos_warp_no_longer_serves_a_you_scoped_cheat_spec():
     off the exact ``(key, scope, subject)`` ident) and instead carry the
     scope-'any' ident a target-dependent beneficiary needs.
 
-    Production ``test_signals`` (the real ``extract_signals_hybrid`` over
+    Production ``test_signals`` (the real ``extract_signals`` over
     the committed snapshot) never emits ``('cheat_into_play', 'you', '')``
     for Chaos Warp any more; ``spec_for`` on its actual ``('cheat_into_play',
     'any', '')`` signal still resolves a real spec via the (key, "any") /

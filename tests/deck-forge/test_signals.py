@@ -6,9 +6,9 @@ Tinybones overgeneralization the whole tool exists to prevent).
 
 ADR-0039 task #80 step 6 retired the regex engine (``_signals_regex.py``) and the
 projected-IR engine (``_signals_ir.py``) — a full commander/brawl-legal corpus
-census (see ``signals.extract_signals_hybrid``'s docstring) found the regex path
-contributed ZERO keys outside the crosswalk's own ``PORTED_KEYS``, so every test
-here now asserts against the production ``extract_signals_hybrid`` path via the
+census (see ``signals.extract_signals``'s docstring) found the regex path
+contributed ZERO keys outside the crosswalk's own ``SERVED_SIGNAL_KEYS``, so every test
+here now asserts against the production ``extract_signals`` path via the
 ``testkit`` real-card fixtures, never a hand-built synthetic ``Card`` IR.
 """
 
@@ -18,7 +18,7 @@ from mtg_utils.testkit import test_signals
 
 def _real(name):
     """(key, scope) set from production over the REAL Scryfall record + REAL
-    projected IR (``extract_signals_hybrid`` via the committed snapshot)."""
+    projected IR (``extract_signals`` via the committed snapshot)."""
     return {(s.key, s.scope) for s in test_signals(name)}
 
 

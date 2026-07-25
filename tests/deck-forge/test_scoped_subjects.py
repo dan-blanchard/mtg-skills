@@ -18,7 +18,7 @@ ident SUBJECT segment (the ``token_maker|you|Goblin`` convention):
   creatures", Heraldic Banner's chosen color) stay empty: subjects carry
   SUBTYPES only, matching the _subtypes precision-gate vocabulary.
 
-Every case runs the production ``extract_signals_hybrid`` over the REAL
+Every case runs the production ``extract_signals`` over the REAL
 committed-snapshot IR (ADR-0027/0039) — no synthetic trees.
 """
 

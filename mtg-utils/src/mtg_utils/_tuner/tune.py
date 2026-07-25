@@ -10,7 +10,6 @@ from __future__ import annotations
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 
-from mtg_utils._deck_forge._ir_lookup import ir_for
 from mtg_utils._deck_forge.budgets import slot_budgets
 from mtg_utils._deck_forge.signals import ranked_signals_and_payoffs
 from mtg_utils._tuner import commander_fit, grant_coverage, metrics
@@ -179,7 +178,7 @@ def tune(
     # sidecar). One extraction pass yields both the ranked signals and the
     # task-#101 emerging-tribal payoff subjects.
     deck_signals, payoff_subjects = ranked_signals_and_payoffs(
-        hd.records, commander_names, ir_for=ir_for
+        hd.records, commander_names
     )
     classes = classify_deck(hd, deck_signals, commander_names)
 

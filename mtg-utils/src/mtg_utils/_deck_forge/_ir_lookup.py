@@ -15,12 +15,12 @@ ADR-0035/0039 — the crosswalk is the ONLY serving path (task #80 step 6 delete
 the ``MTG_SKILLS_CROSSWALK_SIGNALS`` cutover flag and the legacy projected-Card
 revert path it gated):
 
-* :func:`ir_for` (Seam B — the five dataclass-API consumers ``ranking`` /
+* :func:`ir_for` (the compat-Card resolver — the dataclass-API consumers ``ranking`` /
   ``budgets`` / ``cut_check`` / ``metrics`` / ``bracket``) returns the
   crosswalk-backed :class:`Card` sidecar — ``None`` when that sidecar is
   unbuilt, NEVER a silent fall-through to a different builder's Card
   (ADR-0039 task #80 step 4).
-* :func:`trees_for` (Seam A — the hybrid signal dispatch) resolves a record to
+* :func:`trees_for` (the concept-tree resolver — the signal path) resolves a record to
   its Layer-2 concept trees, ONE PER PHASE FACE RECORD (a DFC / split card
   shares one ``oracle_id`` across faces, each face a separate phase record —
   ADR-0035/0038 task #74), built lazily from phase's ``card-data.json`` + the
@@ -52,7 +52,7 @@ if TYPE_CHECKING:
     from mtg_utils._card_ir.mirror.schema import MirrorSchema
 
 
-# ── Seam B — the Card dataclass API resolver ──────────────────────────────────
+# ── The compat-Card resolver (dataclass API) ──────────────────────────────────
 
 
 @functools.cache
@@ -71,7 +71,7 @@ def _crosswalk_index() -> Mapping[str, Card] | None:
 def ir_for(card: dict) -> Card | None:
     """The candidate's Card IR (by ``oracle_id``), or ``None`` when unavailable.
 
-    Returns the crosswalk-backed sidecar's Card (the single index every Seam-B
+    Returns the crosswalk-backed sidecar's Card (the single index every compat-Card
     consumer reads); if the sidecar is unbuilt, returns ``None`` — the SAME
     graceful "nothing here" contract ``production.default_state`` uses for a
     missing bulk file (``bulk_available=False``, empty search).
@@ -80,14 +80,14 @@ def ir_for(card: dict) -> Card | None:
 
     ``None`` covers the cases the callers treat identically — no sidecar, an
     oracle_id absent from the index, and a record with no ``oracle_id``
-    (synthetic fixtures) — each degrading gracefully in the Seam-B caller."""
+    (synthetic fixtures) — each degrading gracefully in the caller."""
     index = _crosswalk_index()
     if index is None:
         return None
     return index.get(card.get("oracle_id") or "")
 
 
-# ── Seam A — the concept-tree resolver ──────────────────────────────────────
+# ── The concept-tree resolver (signal path) ──────────────────────────────────────
 
 
 @functools.cache
@@ -433,7 +433,7 @@ def _text_only_trees(
 #   reads the Token node's own printed ``types``/subtypes (Treasure/Food/
 #   Clue/Blood), never the ability text — verified at task #95 by probing
 #   2 creators each (e.g. Dire Fleet Hoarder / Contract Killing for
-#   Treasure) against ``extract_signals_hybrid``: ``treasure_makers`` /
+#   Treasure) against ``extract_signals``: ``treasure_makers`` /
 #   ``food_makers`` / ``clue_makers`` / ``blood_makers`` already fire.
 #   Enabling their ability text here would be pure redundancy.
 # * Eldrazi Scion / Eldrazi Spawn — ALSO already fully covered, but by a
@@ -778,7 +778,7 @@ def trees_for(card: dict, bulk: dict | None = None) -> tuple[ConceptTree, ...]:
     lets a caller pre-populate the memo — CI-safe, no phase cache needed). An
     empty tuple covers no oracle_id, no phase record / schema, and every face
     drifting from the committed schema — each degrading the hybrid
-    (``signals.extract_signals_hybrid``) to an empty signal list for that
+    (``signals.extract_signals``) to an empty signal list for that
     card, not a crash (ADR-0039 task #80 step 6: there is no legacy IR path
     left to fall back to; the full commander/brawl-legal corpus census found
     this tuple is never actually empty for a sanctioned card).
@@ -786,7 +786,7 @@ def trees_for(card: dict, bulk: dict | None = None) -> tuple[ConceptTree, ...]:
     ``bulk`` (ADR-0038 W2c) is the full Scryfall/MTGJSON-shaped record (with
     ``card_faces``) for the same card, supplied explicitly rather than read
     off ``card`` — every OTHER caller (every existing pinned test, the
-    ``ir_for`` Seam-B API) stays a pure oracle_id join with ``bulk=None``, the
+    ``ir_for`` compat-Card API) stays a pure oracle_id join with ``bulk=None``, the
     default; only the production caller (``signals.py``, which already holds
     the bulk record) threads it. When given, a bulk face with no name-matched
     phase record among this oid's group gets one additional zero-unit

@@ -1685,7 +1685,7 @@ class TestSeedSignalKeyIndex:
                 return [Signal("ramp", "you", "", "", rec.get("name", ""), "high")]
 
             monkeypatch.setattr(
-                "mtg_utils._deck_forge.signals.extract_signals_hybrid", fake_extract
+                "mtg_utils._deck_forge.signals.extract_signals", fake_extract
             )
             records = [{"oracle_id": "oid-seed", "name": "Fake Card"}]
             signals_index.load_signals_index(bulk, records=records)
@@ -1699,7 +1699,7 @@ class TestSeedSignalKeyIndex:
                 raise AssertionError("must not recompute — already seeded")
 
             monkeypatch.setattr(
-                "mtg_utils._deck_forge.signals.extract_signals_hybrid", boom
+                "mtg_utils._deck_forge.signals.extract_signals", boom
             )
             assert theme_presets._signal_keys_for(
                 {"oracle_id": "oid-seed"}

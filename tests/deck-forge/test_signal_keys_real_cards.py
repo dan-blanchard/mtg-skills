@@ -1,7 +1,7 @@
 """Every served signal key is proven against a real card.
 
 For every key in ``_REAL_CASES``, the production extractor
-(``extract_signals_hybrid``) must emit the key for that card. Every case is a
+(``extract_signals``) must emit the key for that card. Every case is a
 real card looked up by name from the committed snapshot (``mtg_utils.testkit``):
 ``test_card(name)`` is the minimal Scryfall record, ``test_card_ir(name)`` the
 production compat Card built from the stored phase records, ``test_signals(name)``
@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import pytest
 
-from mtg_utils._deck_forge.signals import extract_signals_hybrid
+from mtg_utils._deck_forge.signals import extract_signals
 from mtg_utils.card_ir import Filter
 from mtg_utils.testkit import test_card, test_card_ir, test_signals
 
@@ -432,9 +432,9 @@ _REAL_CASES: dict[str, str] = {
 def test_every_case_key_is_served():
     """Every proven key must be in the served-key manifest — a case for a key the
     extractor cannot emit is a stale row, not coverage."""
-    from mtg_utils._deck_forge.crosswalk_signals import PORTED_KEYS
+    from mtg_utils._deck_forge.crosswalk_signals import SERVED_SIGNAL_KEYS
 
-    unserved = sorted(set(_REAL_CASES) - set(PORTED_KEYS))
+    unserved = sorted(set(_REAL_CASES) - set(SERVED_SIGNAL_KEYS))
     assert not unserved, f"_REAL_CASES rows for unserved keys: {unserved}"
 
 
@@ -446,8 +446,7 @@ def test_served_key_fires_on_real_card(key):
     so the proof runs the same structural builds production serves."""
     name = _REAL_CASES[key]
     card = test_card(name)
-    ir = test_card_ir(name)
-    hybrid_keys = {s.key for s in extract_signals_hybrid(card, ir)}
+    hybrid_keys = {s.key for s in extract_signals(card)}
     assert key in hybrid_keys, f"{key} not served for {name}"
 
 
@@ -471,8 +470,7 @@ def test_extra_combat_rider_is_not_forced_attack():
     Effect, and the narrowed forced_attack mirror (which dropped the `that attacked this
     turn` arm) no longer mis-fires forced_attack for it."""
     card = test_card("World at War")
-    ir = test_card_ir("World at War")
-    keys = {s.key for s in extract_signals_hybrid(card, ir)}
+    keys = {s.key for s in extract_signals(card)}
     assert "extra_combats" in keys
     assert "forced_attack" not in keys
 
@@ -482,8 +480,7 @@ def test_forced_attack_punisher_still_fires():
     destroys creatures that DIDN'T attack — the `didn't attack this turn` mirror (the
     one structural form phase carries no node for) still opens forced_attack. CR 508.1."""
     card = test_card("Season of the Witch")
-    ir = test_card_ir("Season of the Witch")
-    assert "forced_attack" in {s.key for s in extract_signals_hybrid(card, ir)}
+    assert "forced_attack" in {s.key for s in extract_signals(card)}
 
 
 # ── ADR-0027 #24m F1 — base_pt_set SETTER recovery ────────────────────────────
@@ -499,7 +496,7 @@ def test_base_pt_set_single_target_animate_fires_via_in_addition_hook():
     assert any(
         e.category == "base_pt_set" for ab in ir.all_abilities() for e in ab.effects
     )
-    assert "base_pt_set" in {s.key for s in extract_signals_hybrid(card, ir)}
+    assert "base_pt_set" in {s.key for s in extract_signals(card)}
 
 
 def test_base_pt_set_dynamic_setter_recovered_node_fires():
@@ -513,7 +510,7 @@ def test_base_pt_set_dynamic_setter_recovered_node_fires():
     assert any(
         e.category == "base_pt_set" for ab in ir.all_abilities() for e in ab.effects
     )
-    assert "base_pt_set" in {s.key for s in extract_signals_hybrid(card, ir)}
+    assert "base_pt_set" in {s.key for s in extract_signals(card)}
 
 
 def test_base_pt_set_mass_animator_stays_out():
@@ -522,8 +519,7 @@ def test_base_pt_set_mass_animator_stays_out():
     says neither "base power" nor "N/N … in addition to its other types", so neither the
     animate hook nor the dynamic recovery admits it. base_pt_set stays OUT (#26)."""
     card = test_card("Living Plane")
-    ir = test_card_ir("Living Plane")
-    assert "base_pt_set" not in {s.key for s in extract_signals_hybrid(card, ir)}
+    assert "base_pt_set" not in {s.key for s in extract_signals(card)}
 
 
 # ── ADR-0027 #24n G1 — base_power_matters NEW LANE (base-P/T REFERENCE payoffs) ──
@@ -546,7 +542,7 @@ def test_base_power_matters_reference_fires_and_leaves_base_pt_set():
         for ab in ir.all_abilities()
         for e in ab.effects
     )
-    keys = {s.key for s in extract_signals_hybrid(card, ir)}
+    keys = {s.key for s in extract_signals(card)}
     assert "base_power_matters" in keys
     assert "base_pt_set" not in keys
 
@@ -556,8 +552,7 @@ def test_base_power_matters_fires_zinnia():
     creatures you control with base power 1" — a base-power REFERENCE payoff. Fires
     base_power_matters via the recovered `BasePtRef` marker, NOT base_pt_set."""
     card = test_card("Zinnia, Valley's Voice")
-    ir = test_card_ir("Zinnia, Valley's Voice")
-    keys = {s.key for s in extract_signals_hybrid(card, ir)}
+    keys = {s.key for s in extract_signals(card)}
     assert "base_power_matters" in keys
     assert "base_pt_set" not in keys
 
@@ -577,7 +572,7 @@ def test_base_pt_set_setter_does_not_fire_base_power_matters():
         for ab in ir.all_abilities()
         for e in ab.effects
     )
-    keys = {s.key for s in extract_signals_hybrid(card, ir)}
+    keys = {s.key for s in extract_signals(card)}
     assert "base_pt_set" in keys
     assert "base_power_matters" not in keys
 
@@ -687,7 +682,7 @@ def test_dies_recursion_self_return_fires_via_recovered_marker():
     ir = test_card_ir("Feign Death")
     cats = {e.category for ab in ir.all_abilities() for e in ab.effects}
     assert "self_recursion" in cats, "recovered self_recursion marker missing"
-    assert "dies_recursion" in {s.key for s in extract_signals_hybrid(card, ir)}
+    assert "dies_recursion" in {s.key for s in extract_signals(card)}
 
 
 def test_dies_recursion_granter_fires_off_undying_persist_marker():
@@ -703,8 +698,7 @@ def test_dies_recursion_granter_fires_off_undying_persist_marker():
     lives in ``text_idioms``, read by ``tree_synthesis``), asserted below on
     the production path."""
     card = test_card("Mikaeus, the Unhallowed")
-    ir = test_card_ir("Mikaeus, the Unhallowed")
-    assert "dies_recursion" in {s.key for s in extract_signals_hybrid(card, ir)}
+    assert "dies_recursion" in {s.key for s in extract_signals(card)}
 
 
 def test_counter_manipulation_cost_removal_fires_via_recovered_kind():
@@ -720,7 +714,7 @@ def test_counter_manipulation_cost_removal_fires_via_recovered_kind():
         for ab in ir.all_abilities()
         for e in ab.effects
     ), "recovered remove_counter(p1p1) missing"
-    assert "counter_manipulation" in {s.key for s in extract_signals_hybrid(card, ir)}
+    assert "counter_manipulation" in {s.key for s in extract_signals(card)}
 
 
 def test_tap_untap_matters_fires_off_becomes_untapped_event():
@@ -734,7 +728,7 @@ def test_tap_untap_matters_fires_off_becomes_untapped_event():
         ab.trigger is not None and ab.trigger.event == "untaps"
         for ab in ir.all_abilities()
     ), "becomes-untapped trigger not projected to event=='untaps'"
-    assert "tap_untap_matters" in {s.key for s in extract_signals_hybrid(card, ir)}
+    assert "tap_untap_matters" in {s.key for s in extract_signals(card)}
 
 
 def test_tap_untap_matters_recovers_unknown_mode_becomes_tapped():
@@ -774,9 +768,7 @@ def test_cost_reduction_recovered_ability_cost_reducer_dragonkin():
     synthesizes one, so the structural arm fires cost_reduction. CR 601.2f."""
     keys = {
         s.key
-        for s in extract_signals_hybrid(
-            test_card("Dragonkin Berserker"), test_card_ir("Dragonkin Berserker")
-        )
+        for s in extract_signals(test_card("Dragonkin Berserker"))
     }
     assert "cost_reduction" in keys
 
@@ -786,9 +778,7 @@ def test_cost_reduction_recovered_defiler_conditional():
     dropped by phase; the recovery synthesizes the cost_reduction Effect. CR 601.2f."""
     keys = {
         s.key
-        for s in extract_signals_hybrid(
-            test_card("Defiler of Vigor"), test_card_ir("Defiler of Vigor")
-        )
+        for s in extract_signals(test_card("Defiler of Vigor"))
     }
     assert "cost_reduction" in keys
 
@@ -799,10 +789,7 @@ def test_cost_reduction_recovered_saga_chapter_collapse():
     genuine reducer from the oracle clause, so cost_reduction fires. CR 601.2f."""
     keys = {
         s.key
-        for s in extract_signals_hybrid(
-            test_card("Invasion of the Giants"),
-            test_card_ir("Invasion of the Giants"),
-        )
+        for s in extract_signals(test_card("Invasion of the Giants"))
     }
     assert "cost_reduction" in keys
 
@@ -813,9 +800,7 @@ def test_clone_makers_recovered_creature_copy_etb():
     clone Effect, so the copied-type arm fires clone_makers. CR 707.2."""
     keys = {
         s.key
-        for s in extract_signals_hybrid(
-            test_card("Spark Double"), test_card_ir("Spark Double")
-        )
+        for s in extract_signals(test_card("Spark Double"))
     }
     assert "clone_makers" in keys
 
@@ -827,9 +812,7 @@ def test_clone_makers_recovered_phase_mistyped_creature_copy_dermotaxi():
     Creature copy, so clone_makers fires. CR 707.2."""
     keys = {
         s.key
-        for s in extract_signals_hybrid(
-            test_card("Dermotaxi"), test_card_ir("Dermotaxi")
-        )
+        for s in extract_signals(test_card("Dermotaxi"))
     }
     assert "clone_makers" in keys
 
@@ -841,9 +824,7 @@ def test_clone_makers_does_not_fire_on_a_noncreature_copy_overfire():
     (it is an Enchantment)."""
     keys = {
         s.key
-        for s in extract_signals_hybrid(
-            test_card("Copy Artifact"), test_card_ir("Copy Artifact")
-        )
+        for s in extract_signals(test_card("Copy Artifact"))
     }
     assert "clone_makers" not in keys
 
@@ -855,9 +836,7 @@ def test_opponent_discard_recovered_damage_connect_specter():
     fires opponent_discard. CR 510.1c / 701.9."""
     keys = {
         s.key
-        for s in extract_signals_hybrid(
-            test_card("Abyssal Specter"), test_card_ir("Abyssal Specter")
-        )
+        for s in extract_signals(test_card("Abyssal Specter"))
     }
     assert "opponent_discard" in keys
 
@@ -868,7 +847,7 @@ def test_opponent_discard_recovered_bounce_then_discard():
     scope 'opp'. CR 701.9."""
     keys = {
         s.key
-        for s in extract_signals_hybrid(test_card("Recoil"), test_card_ir("Recoil"))
+        for s in extract_signals(test_card("Recoil"))
     }
     assert "opponent_discard" in keys
 
@@ -880,9 +859,7 @@ def test_opponent_discard_does_not_fire_on_combat_damage_self_loot():
     fire opponent_discard. CR 701.8a (loot) vs 701.9 (forced discard)."""
     keys = {
         s.key
-        for s in extract_signals_hybrid(
-            test_card("Academy Raider"), test_card_ir("Academy Raider")
-        )
+        for s in extract_signals(test_card("Academy Raider"))
     }
     assert "opponent_discard" not in keys
 
@@ -910,7 +887,7 @@ def test_facedown_recovered_carrier_backslide():
         for e in ab.effects
         if e.subject is not None
     ), "recovered facedown_ref carrier missing"
-    keys = {s.key for s in extract_signals_hybrid(test_card("Backslide"), ir)}
+    keys = {s.key for s in extract_signals(test_card("Backslide"))}
     assert "facedown_matters" in keys
 
 
@@ -930,7 +907,7 @@ def test_facedown_native_turn_face_up_break_open():
         for ab in ir.all_abilities()
         for e in ab.effects
     ), "recovery should skip a card phase parses natively"
-    keys = {s.key for s in extract_signals_hybrid(test_card("Break Open"), ir)}
+    keys = {s.key for s in extract_signals(test_card("Break Open"))}
     assert "facedown_matters" in keys
 
 
@@ -944,7 +921,7 @@ def test_facedown_does_not_fire_on_name_only_disguise():
     )
     keys = {
         s.key
-        for s in extract_signals_hybrid(test_card("Chameleon, Master of Disguise"), ir)
+        for s in extract_signals(test_card("Chameleon, Master of Disguise"))
     }
     assert "facedown_matters" not in keys
 
@@ -960,8 +937,7 @@ def test_tap_down_recovered_opp_controller_mind_spiral():
     effect concept feeds the tap_down lane; ``_recover_tap_down`` itself
     survives in ``supplement.py`` as ``field_corrections``' card-level (b)
     arm), asserted below on the production path."""
-    ir = test_card_ir("Mind Spiral")
-    keys = {s.key for s in extract_signals_hybrid(test_card("Mind Spiral"), ir)}
+    keys = {s.key for s in extract_signals(test_card("Mind Spiral"))}
     assert "tap_down" in keys
 
 
@@ -975,8 +951,7 @@ def test_tap_down_recovered_skip_untap_step_brine_elemental():
     lock — is served by the crosswalk's own structural path (phase's native
     ``skip_next_step`` effect concept on this card), asserted below on the
     production path."""
-    ir = test_card_ir("Brine Elemental")
-    keys = {s.key for s in extract_signals_hybrid(test_card("Brine Elemental"), ir)}
+    keys = {s.key for s in extract_signals(test_card("Brine Elemental"))}
     assert "tap_down" in keys
 
 
@@ -993,8 +968,7 @@ def test_damage_to_opp_recovered_quoted_trigger_serpent_generator():
     (``iter_nested_trigger_defs`` + ``damage_to_player_trigger_kind`` reads the
     granted token's own trigger definition — verified kind='Any' this step),
     asserted below on the production path."""
-    ir = test_card_ir("Serpent Generator")
-    keys = {s.key for s in extract_signals_hybrid(test_card("Serpent Generator"), ir)}
+    keys = {s.key for s in extract_signals(test_card("Serpent Generator"))}
     assert "damage_to_opp_matters" in keys
 
 
@@ -1014,7 +988,7 @@ def test_extra_land_drop_recovered_cascade_reanimate_averna():
         for e in ab.effects
     ), "recovered cheat_play Land (controller=you) missing"
     card = test_card("Averna, the Chaos Bloom")
-    assert "extra_land_drop" in {s.key for s in extract_signals_hybrid(card, ir)}
+    assert "extra_land_drop" in {s.key for s in extract_signals(card)}
 
 
 def test_extra_land_drop_recovered_empty_raw_modal_confluence():
@@ -1024,8 +998,7 @@ def test_extra_land_drop_recovered_empty_raw_modal_confluence():
     arm's controller=='you' gate misses. The supplement's joined-oracle recovery appends
     a controller='you' cheat_play Land so the arm fires. CR 305.4."""
     card = test_card("Riveteers Confluence")
-    ir = test_card_ir("Riveteers Confluence")
-    assert "extra_land_drop" in {s.key for s in extract_signals_hybrid(card, ir)}
+    assert "extra_land_drop" in {s.key for s in extract_signals(card)}
 
 
 def test_group_hug_draw_recovered_folded_each_player_scope_grothama():
@@ -1042,8 +1015,7 @@ def test_group_hug_draw_recovered_folded_each_player_scope_grothama():
     structural group-hug path (the card's ``draw`` effect concept; ADR-0039
     step 5 finding), asserted below on the production path."""
     card = test_card("Grothama, All-Devouring")
-    ir = test_card_ir("Grothama, All-Devouring")
-    keys = {s.key for s in extract_signals_hybrid(card, ir)}
+    keys = {s.key for s in extract_signals(card)}
     assert "group_hug_draw" in keys
     assert "target_player_draws" not in keys
 
@@ -1091,3 +1063,24 @@ class TestLandFetchRampReroute:
         keys = {s.key for s in test_signals("Archdruid's Charm")}
         assert "ramp" in keys
         assert "tutor" in keys
+
+
+def test_every_emitted_key_is_manifest_served():
+    """Corpus direction of the key-agreement contract (ADR-0014): over every
+    snapshot card, the production extractor emits only manifest-served keys.
+    This replaces the deleted in-extractor filter — a lane emitting an
+    unlisted key now fails HERE, loudly, instead of being silently dropped."""
+    import json
+    from pathlib import Path
+
+    from mtg_utils._deck_forge.crosswalk_signals import SERVED_SIGNAL_KEYS
+    from mtg_utils.testkit import snapshot_path
+
+    names = list(json.loads(Path(snapshot_path()).read_text())["cards"])
+    stray: dict[str, set[str]] = {}
+    for name in names:
+        emitted = {s.key for s in test_signals(name)}
+        extra = emitted - SERVED_SIGNAL_KEYS
+        if extra:
+            stray[name] = extra
+    assert not stray, f"keys emitted outside SERVED_SIGNAL_KEYS: {stray}"

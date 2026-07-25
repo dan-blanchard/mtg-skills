@@ -28,9 +28,9 @@ def _by_label(avs):
 
 
 def test_voltron_fans_into_payoff_and_source_avenues(monkeypatch):
-    # ADR-0039 task #80 step 6: extract_signals_hybrid is now crosswalk-only —
+    # ADR-0039 task #80 step 6: extract_signals is now crosswalk-only —
     # pre-seed the trees memo from the committed snapshot's stored phase
-    # records (Seam A) alongside the Seam-B Card IR index.
+    # records (the concept-tree resolver) alongside the the compat-Card resolver Card IR index.
     _seed_trees("Sram, Senior Edificer")
     monkeypatch.setattr(_ir_lookup, "_crosswalk_index", lambda: {_SRAM_OID: _SRAM_IR})
     avs = _by_label(engine.avenues(_state(), [SRAM]))

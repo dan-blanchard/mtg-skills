@@ -3,7 +3,7 @@ exhaustive sweep left at zero signal (grammar-revisit workflow, 2026-06-06). Eac
 a precise per-axis detector, NOT a grammar — and must not regress the rules-lawyer
 audit's combat-vs-noncombat damage distinction.
 
-Every extraction assertion runs the production ``extract_signals_hybrid`` over a
+Every extraction assertion runs the production ``extract_signals`` over a
 real card from the committed snapshot (``mtg_utils.testkit``) — a synthetic no-
 ``oracle_id`` dict can no longer reach the crosswalk at all post-ADR-0039, so the
 old inline-oracle-text fixtures here are replaced by real cards carrying the same

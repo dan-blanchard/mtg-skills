@@ -15,10 +15,10 @@ both halves of the production call:
     build, never a baked artifact: the snapshot carries phase's own parse (the
     INPUT), not a frozen projection (the OUTPUT), so a crosswalk code change is
     reflected the next test run with no snapshot regen.
-  * :func:`test_signals` — the production ``extract_signals_hybrid`` over the two, so
+  * :func:`test_signals` — the production ``extract_signals`` over the two, so
     a test asserts what production actually emits. Pre-seeds
     ``_ir_lookup``'s trees memo from the same stored records (:func:`_seed_trees`), so
-    the crosswalk merge (Seam A) runs for real in CI — no phase cache, no network.
+    the structural merge runs for real in CI — no phase cache, no network.
 
 (``test_legacy_card_ir`` — the LEGACY ``project_card`` IR — died with the
 builder in ADR-0039 task #80 step 7.)
@@ -148,7 +148,7 @@ def _seed_trees(name: str) -> None:
     stored phase records — so the production crosswalk merge (``trees_for``) runs
     for real in CI: no phase cache, no network dependency. Called by every IR
     accessor below (not just :func:`test_signals`) — a test that manually calls
-    ``extract_signals_hybrid(test_card(name), test_card_ir(name))`` (bypassing
+    ``extract_signals(test_card(name), test_card_ir(name))`` (bypassing
     :func:`test_signals`) still gets a CI-safe crosswalk merge, because fetching
     the IR always warms the SAME oracle_id's trees first."""
     entry = _entry(name)
@@ -182,13 +182,13 @@ def _compat_card_ir(name: str) -> Card:
 
 
 def test_signals(name: str) -> list:
-    """``extract_signals_hybrid(test_card(name), test_card_ir(name))`` — exactly what
+    """``extract_signals(test_card(name), test_card_ir(name))`` — exactly what
     production emits for *name* (real Scryfall record, real Card IR, real concept
     trees — CI-safe via the snapshot's stored phase records)."""
-    from mtg_utils._deck_forge.signals import extract_signals_hybrid
+    from mtg_utils._deck_forge.signals import extract_signals
 
     _seed_trees(name)
-    return extract_signals_hybrid(test_card(name), test_card_ir(name))
+    return extract_signals(test_card(name))
 
 
 # These are helpers, not tests — pytest must not collect them despite the ``test_``

@@ -1,7 +1,6 @@
 """Spine / Engine / Filler / land / commander classification (tuner substrate)."""
 
 from mtg_utils import testkit
-from mtg_utils._deck_forge._ir_lookup import ir_for
 from mtg_utils._deck_forge.signals import rank_deck_signals, tribal_payoff_subjects
 from mtg_utils._tuner.classify import FRINGE_RANK, classify_deck, is_fringe
 from mtg_utils.hydrated_deck import HydratedDeck
@@ -170,7 +169,7 @@ def test_tribal_payoff_subjects_excludes_commander_only_membership():
     }
     index = {c["name"]: c for c in [KRENKO_REAL, GALERIDER, MURDER]}
     hd = HydratedDeck.from_parsed(deck, by_name=index)
-    payoffs = tribal_payoff_subjects(hd.records, {"Krenko, Mob Boss"}, ir_for=ir_for)
+    payoffs = tribal_payoff_subjects(hd.records, {"Krenko, Mob Boss"})
     assert "Sliver" in payoffs
     assert "Goblin" not in payoffs
 
@@ -193,7 +192,7 @@ def test_type_changer_buckets_engine_serving_the_tribe():
     }
     index = {c["name"]: c for c in (first_sliver, leyline)}
     hd = HydratedDeck.from_parsed(deck, by_name=index)
-    sigs = rank_deck_signals(hd.records, {"The First Sliver"}, ir_for=ir_for)
+    sigs = rank_deck_signals(hd.records, {"The First Sliver"})
     classes = {c.name: c for c in classify_deck(hd, sigs, {"The First Sliver"})}
     ley = classes["Leyline of Transformation"]
     assert "Sliver tribal" in ley.served
@@ -221,7 +220,7 @@ def test_granter_grade_on_real_granters():
     }
     index = {c["name"]: c for c in (first, gale, endure)}
     hd = HydratedDeck.from_parsed(deck, by_name=index)
-    sigs = rank_deck_signals(hd.records, {"The First Sliver"}, ir_for=ir_for)
+    sigs = rank_deck_signals(hd.records, {"The First Sliver"})
     classes = {c.name: c for c in classify_deck(hd, sigs, {"The First Sliver"})}
     assert classes["Galerider Sliver"].grant_grade == "premium"
     assert classes["Enduring Sliver"].grant_grade == "weak"
@@ -289,7 +288,7 @@ def test_tribal_payoff_subjects_ignores_the_membership_floor():
     }
     index = {c["name"]: c for c in [KRENKO_REAL, bop]}
     hd = HydratedDeck.from_parsed(deck, by_name=index)
-    payoffs = tribal_payoff_subjects(hd.records, {"Krenko, Mob Boss"}, ir_for=ir_for)
+    payoffs = tribal_payoff_subjects(hd.records, {"Krenko, Mob Boss"})
     assert "Bird" not in payoffs
 
 
@@ -311,22 +310,20 @@ def test_ranked_signals_and_payoffs_extracts_once_per_card(monkeypatch):
     }
     index = {c["name"]: c for c in [KRENKO_REAL, GALERIDER, MURDER]}
     hd = HydratedDeck.from_parsed(deck, by_name=index)
-    expected_ranked = rank_deck_signals(hd.records, {"Krenko, Mob Boss"}, ir_for=ir_for)
+    expected_ranked = rank_deck_signals(hd.records, {"Krenko, Mob Boss"})
     expected_payoffs = tribal_payoff_subjects(
-        hd.records, {"Krenko, Mob Boss"}, ir_for=ir_for
-    )
+        hd.records, {"Krenko, Mob Boss"})
 
     calls = {"n": 0}
-    real = signals_mod.extract_signals_hybrid
+    real = signals_mod.extract_signals
 
     def counting(*args, **kwargs):
         calls["n"] += 1
         return real(*args, **kwargs)
 
-    monkeypatch.setattr(signals_mod, "extract_signals_hybrid", counting)
+    monkeypatch.setattr(signals_mod, "extract_signals", counting)
     ranked, payoffs = ranked_signals_and_payoffs(
-        hd.records, {"Krenko, Mob Boss"}, ir_for=ir_for
-    )
+        hd.records, {"Krenko, Mob Boss"})
     assert calls["n"] == len(hd.records)  # ONE pass, not two
     assert ranked == expected_ranked
     assert payoffs == expected_payoffs

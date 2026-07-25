@@ -170,7 +170,7 @@ def _ensure_sidecar(
     (stale on-disk version) exactly like the sidecar loader it wraps; a clean
     load means nothing to do. A build failure (no phase card-data reachable)
     warns loudly and returns ``False`` — NON-BLOCKING, never a hard crash."""
-    from mtg_utils._deck_forge.crosswalk_signals import PORTED_KEYS
+    from mtg_utils._deck_forge.crosswalk_signals import SERVED_SIGNAL_KEYS
 
     try:
         loader()  # present + current version → nothing to do (idempotent)
@@ -189,7 +189,7 @@ def _ensure_sidecar(
         # crosswalk-served lanes) and the fix.
         print(
             f"deck-forge: WARNING — {label}Card IR sidecar unavailable "
-            f"({len(PORTED_KEYS)} crosswalk signal lanes degraded). "
+            f"({len(SERVED_SIGNAL_KEYS)} crosswalk signal lanes degraded). "
             f"card-data download failed; re-run `{build_cmd}` with network "
             "access. Building continues; those lanes stay dark until then.",
             file=sys.stderr,
@@ -210,12 +210,14 @@ def ensure_crosswalk_card_ir() -> bool:
     the ``MTG_SKILLS_CROSSWALK_SIGNALS`` flag and the legacy revert path it
     gated are gone; :func:`ensure_card_ir` is now a thin alias for this).
 
-    ``_ir_lookup.ir_for`` (Seam B — ``cut_check`` / ``ranking`` / ``budgets`` /
+    ``_ir_lookup.ir_for`` (the compat-Card resolver: ``cut_check`` / ``ranking`` /
+    ``budgets`` /
     the engine / ``_tuner`` bracket-metrics-tune, plus the deck-signals /
     deck-rank / deck-tune CLIs) reads THIS sidecar: with no sidecar it returns
     ``None`` per card rather than silently cross-wiring to a different
     builder's Cards. This ensure pays the build cost once at launch (mirrors
-    the ``download-mtgjson`` ensure) so the common case never leaves Seam B dark.
+    the ``download-mtgjson`` ensure) so the common case never leaves the
+    compat-Card resolver dark.
 
     IDEMPOTENT + fast: a right-on-disk-version sidecar is a single
     ``load_crosswalk_card_ir`` (memoized) and returns ``True`` without

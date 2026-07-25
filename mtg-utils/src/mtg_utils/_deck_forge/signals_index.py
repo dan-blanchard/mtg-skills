@@ -1,6 +1,6 @@
 """oracle_id -> signal-ident sidecar over the FULL bulk pool (task #90).
 
-``extract_signals_hybrid`` (``signals.py``) is deterministic per card — its
+``extract_signals`` (``signals.py``) is deterministic per card — its
 output depends only on the card's own record + the source code of the
 crosswalk lane stack, never on process state. That means every fresh CLI /
 server process re-pays the same ~2-4 minute whole-pool pass the moment a
@@ -45,13 +45,13 @@ file, is treated as absent — silently rebuilt, never served stale.
 
 # Configuration (the trap)
 
-``extract_signals_hybrid`` takes ``vocab`` / ``include_membership`` /
+``extract_signals`` takes ``vocab`` / ``include_membership`` /
 ``resolve_object`` knobs; a sidecar entry is only valid for the SAME
 effective config a caller runs live. Every whole-pool production call site
 (``theme_presets._signal_keys_for``, ``engine._signal_freq``) calls it at
 its DEFAULTS (``vocab=CREATURE_SUBTYPES``, ``include_membership=True``,
 ``resolve_object=None`` — the latter is accepted-but-unused by the
-crosswalk path regardless, per ``extract_signals_hybrid``'s own docstring,
+crosswalk path regardless, per ``extract_signals``'s own docstring,
 so it never causes divergence). :func:`build_signals_index` calls it at
 those same defaults, so this is the ONE config the sidecar is valid for.
 The one production call site that passes ``include_membership=False``
@@ -103,19 +103,19 @@ def build_signals_index(records: Iterable[dict]) -> SignalsIndex:
     printings of the same card share the oracle_id and produce byte-identical
     signals (their oracle text / type line / keywords are the same card), so
     which printing gets processed never changes the stored result. Calls
-    ``extract_signals_hybrid`` at its DEFAULTS (see the module docstring's
+    ``extract_signals`` at its DEFAULTS (see the module docstring's
     "Configuration" section) — the ONE config every wired consumer relies on.
 
     Public + importable so a corpus-verification harness can build the exact
     same artifact this module persists, over any record list it likes."""
-    from mtg_utils._deck_forge.signals import extract_signals_hybrid
+    from mtg_utils._deck_forge.signals import extract_signals
 
     index: SignalsIndex = {}
     for rec in records:
         oid = rec.get("oracle_id")
         if not oid or oid in index:
             continue
-        sigs = extract_signals_hybrid(rec)
+        sigs = extract_signals(rec)
         index[oid] = tuple(sorted(_ident(s) for s in sigs))
     return index
 
@@ -174,13 +174,13 @@ def _imported_mtg_modules(path: Path) -> set[str]:
 def signal_source_files() -> tuple[Path, ...]:
     """Every ``.py`` file transitively reachable from ``_deck_forge.signals``
     by following ``mtg_utils``-internal imports (module-level + lazy) — the
-    exact file set whose content can change ``extract_signals_hybrid``'s
+    exact file set whose content can change ``extract_signals``'s
     output. Recomputed via a fresh AST walk every call (never a cached/
     hand-written list), so a newly-added lane module or corrections pass is
     picked up automatically the next time this runs — the "audit the actual
     import graph" the sidecar's invalidation depends on. Deliberately
     conservative: a module reachable here but NOT actually read by
-    ``extract_signals_hybrid`` at runtime still counts — over-invalidating
+    ``extract_signals`` at runtime still counts — over-invalidating
     on an unrelated edit costs one wasted rebuild; under-invalidating serves
     stale signals silently, which is the one failure mode this sidecar must
     never have."""
@@ -288,7 +288,7 @@ def load_signals_index(
     to force a consumer onto the sidecar.
 
     Builds the sidecar on first touch (a one-time whole-pool
-    ``extract_signals_hybrid`` pass — ~2-4 min over the full bulk — logged to
+    ``extract_signals`` pass — ~2-4 min over the full bulk — logged to
     stderr so a caller mid-request isn't left wondering why it's slow) and
     persists it; every subsequent call for the same bulk + source code is a
     pickle deserialize. Pass *records* when the caller already holds the

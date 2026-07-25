@@ -21,7 +21,6 @@ from pathlib import Path
 
 from mtg_utils import mark_owned, price_check, theme_presets
 from mtg_utils._deck_forge import collection, staples, views
-from mtg_utils._deck_forge._ir_lookup import ir_for
 from mtg_utils._deck_forge.budgets import role_of, slot_budgets
 from mtg_utils._deck_forge.ranking import rank_candidates
 from mtg_utils._deck_forge.signal_specs import (
@@ -34,7 +33,7 @@ from mtg_utils._deck_forge.signal_specs import (
 )
 from mtg_utils._deck_forge.signals import (
     Signal,
-    extract_signals_hybrid,
+    extract_signals,
     rank_deck_signals,
 )
 from mtg_utils._deck_forge.state import DeckSession, ForgeState
@@ -83,9 +82,7 @@ _FIND_POOL = 96
 
 def _signals(record: dict, *, include_membership: bool = True) -> list[Signal]:
     """Hybrid signal extraction with the card's IR wired by oracle_id (ADR-0027)."""
-    return extract_signals_hybrid(
-        record, ir_for(record), include_membership=include_membership
-    )
+    return extract_signals(record, include_membership=include_membership)
 
 
 def avenue_with_serve(avenue: dict, serve: Serve | None) -> dict:
@@ -586,7 +583,7 @@ def warm_discovery_caches(state: ForgeState, slot: str, fmt: str | None = None) 
     signals-index sidecar FIRST (verified-review Fix 6): a tribal lane's
     ``Serve.signal_idents`` arm (task #96) reads that memo per pool card
     inside ``_lane_density``'s scan below, and an unseeded memo pays a LIVE
-    ``extract_signals_hybrid`` call per cold card over the whole
+    ``extract_signals`` call per cold card over the whole
     ~34.6k-card density pool (~141s measured for one lane) instead of a
     dict lookup. Idempotent and cheap on an already-seeded/warm sidecar."""
     theme_presets.seed_signal_key_index(state.bulk_path)
@@ -664,7 +661,7 @@ def _support_depth(
 def _signal_key_subjects(rec: dict, index: dict[str, tuple[str, ...]] | None) -> set:
     """``{(key, subject)}`` for *rec* — from the persisted whole-pool signals-index
     sidecar (task #90) when one is available and covers this ``oracle_id``, else the
-    live ``extract_signals_hybrid`` fallback (a card the sidecar somehow doesn't cover,
+    live ``extract_signals`` fallback (a card the sidecar somehow doesn't cover,
     or no sidecar at all — no bulk, or it isn't buildable). Both routes read the SAME
     default configuration (``include_membership=True``), so this never diverges from a
     pure-live sweep, only skips re-running it."""
@@ -685,7 +682,7 @@ def _signal_freq(state: ForgeState) -> tuple[dict, int]:
 
     Reads the persisted whole-pool signals-index sidecar (task #90,
     ``_deck_forge.signals_index``) when available — building it on first touch (a
-    one-time ~2-4 min pass, logged) instead of running ``extract_signals_hybrid`` live
+    one-time ~2-4 min pass, logged) instead of running ``extract_signals`` live
     for every commander-eligible card in the bulk every time this cold-starts. A missing
     sidecar (no bulk, or one that can't be built) degrades to the original per-record
     live sweep, unchanged."""
@@ -995,12 +992,7 @@ def ranked_deck_signals(state: ForgeState, hydrated: list[dict]) -> list:
     deterministic tuner also calls (ADR-0023). Wires the Card-IR index (ADR-0027) so
     migrated keys — served only from the IR — surface in the deck's avenues."""
     commander_names = {e["name"] for e in state.session.to_deck_dict()["commanders"]}
-    return rank_deck_signals(
-        hydrated,
-        commander_names,
-        resolve_object=state.object_resolver,
-        ir_for=ir_for,
-    )
+    return rank_deck_signals(hydrated, commander_names)
 
 
 def signal_dict(signal: Signal) -> dict:

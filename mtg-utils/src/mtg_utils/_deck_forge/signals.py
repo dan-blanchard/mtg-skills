@@ -9,10 +9,10 @@ a card that benefits from an opponent's graveyard yields ``graveyard_matters`` s
 yields ``type_matters`` with ``subject="Goblin"`` (never collapsed into a generic
 "creatures matter").
 
-Production extraction is structural (ADR-0035): ``extract_signals_hybrid``
-resolves the card's per-face concept trees (``_ir_lookup.trees_for``), runs
-``crosswalk_signals.extract_crosswalk_signals`` over each (sliced to the served-key
-manifest), unions by ``(key, scope, subject)``, and applies ONE merge-level
+Production extraction is structural (ADR-0035): ``extract_signals`` resolves
+the card's per-face concept trees (``_ir_lookup.trees_for``), runs
+``crosswalk_signals.extract_crosswalk_signals`` over each, unions by
+``(key, scope, subject)``, and applies ONE merge-level
 membership floor across all faces. The shared value type and text primitives live
 in ``signal_base`` / ``text_reads`` / ``membership_floor``.
 
@@ -24,7 +24,7 @@ in ``signal_base`` / ``text_reads`` / ``membership_floor``.
 from __future__ import annotations
 
 import re
-from collections.abc import Callable, Sequence
+from collections.abc import Sequence
 
 from mtg_utils._deck_forge import signal_keys
 from mtg_utils._deck_forge._subtypes import (
@@ -68,7 +68,7 @@ __all__ = [
     "_voltron_self_unblockable",
     "clauses",
     "coverage_gate",
-    "extract_signals_hybrid",
+    "extract_signals",
     "producible_static_keys",
     "rank_deck_signals",
     "signal_keys",
@@ -76,51 +76,32 @@ __all__ = [
 ]
 
 
-# ── Crosswalk serving seam (ADR-0035/0039 — the crosswalk-native merge) ───────
+# ── The structural serving seam (ADR-0035) ────────────────────────────────────
 
 
-def extract_signals_hybrid(
+def extract_signals(
     record: dict,
-    _ir: Card | None = None,
     *,
     vocab: frozenset[str] = CREATURE_SUBTYPES,
     include_membership: bool = True,
-    resolve_object: Callable[[str], dict | None] | None = None,  # noqa: ARG001
 ) -> list[Signal]:
-    """The production signal-extraction path (ADR-0039 task #80 step 6): every
-    key comes from the crosswalk — ``trees_for(record, bulk=record)`` resolves
-    the card's per-face Layer-2 concept trees, ``extract_crosswalk_signals``
-    runs the ported lanes over EACH one (unioned by ``(key, scope, subject)``,
-    never a merged multi-face tree — that would corrupt card-level reads like
-    ``is_type`` / cmc that only make sense per-face), and the card-type /
-    cares-about MEMBERSHIP floor (``apply_membership_floor``) runs ONCE more,
-    over every face together, when ``include_membership`` (the ADR-0039 step 6
-    DFC fix — see that function's docstring for the per-face-isolation gap it
-    closes). The legacy regex path (``extract_signals``) and the old projected
-    Card-IR path (``extract_signals_ir`` / ``old_ir_for``) are GONE — a full
-    commander/brawl-legal corpus census found ``extract_signals`` contributed
-    ZERO keys outside the crosswalk's own ``PORTED_KEYS`` (every regex
-    producer for a key the crosswalk now serves was already deleted when that
-    key migrated), so routing every card through the crosswalk-only path loses
-    nothing measurable.
+    """The production signal-extraction path: ``trees_for(record, bulk=record)``
+    resolves the card's per-face concept trees, ``extract_crosswalk_signals``
+    runs the structural lanes over EACH one (unioned by ``(key, scope,
+    subject)``, never a merged multi-face tree — that would corrupt card-level
+    reads like ``is_type`` / cmc that only make sense per-face), and the
+    card-type / cares-about MEMBERSHIP floor (``apply_membership_floor``) runs
+    ONCE more, over every face together, when ``include_membership`` (see that
+    function's docstring for the per-face-isolation gap it closes).
 
-    ``_ir`` is accepted-but-unused — kept for the ~200 existing call sites'
-    positional signature (many pass the Seam-B ``ir_for(card)`` Card
-    alongside the record); the crosswalk path never reads a pre-built Card at
-    all. A card with no ``oracle_id`` / no phase record / no committed mirror
-    schema (``trees_for`` returns ``()`` — never observed across the full
-    commander/brawl-legal corpus, see the ADR-0039 task #80 step 6 no-trees
-    census) degrades to an empty signal list, not a crash. ``resolve_object``
-    (ADR-0025 folded-object references — a ventured dungeon / meld result /
-    the Ring) is likewise accepted-but-unused: it only ever folded into the
-    now-deleted regex / legacy-IR paths, so a synthetic no-``oracle_id``
-    fixture that relies on it to prove a signal no longer can (a documented,
-    reported regression — see the ADR-0039 task #80 step 6 commit; real cards
-    always carry an ``oracle_id`` and were never folded through the crosswalk
-    path even before this step)."""
+    A card with no ``oracle_id`` / no phase record / no committed mirror schema
+    (``trees_for`` returns ``()``) degrades to an empty signal list, not a
+    crash — and never to text-guessing. Note: ADR-0025 folded-object references
+    (a ventured dungeon / meld result / the Ring) do not currently extend a
+    commander's signals — the fold only ever ran through the retired engines
+    (a documented regression, tracked for adjudication)."""
     from mtg_utils._deck_forge._ir_lookup import trees_for
     from mtg_utils._deck_forge.crosswalk_signals import (
-        PORTED_KEYS,
         apply_membership_floor,
         extract_crosswalk_signals,
     )
@@ -133,8 +114,6 @@ def extract_signals_hybrid(
     seen: set[tuple[str, str, str]] = set()
 
     def _add(sig: Signal) -> None:
-        if sig.key not in PORTED_KEYS:
-            return
         ident = (sig.key, sig.scope, sig.subject)
         if ident in seen:
             return
@@ -147,7 +126,6 @@ def extract_signals_hybrid(
     for tree in trees:
         for sig in extract_crosswalk_signals(
             tree,
-            keys=PORTED_KEYS,
             keywords=keywords,
             vocab=vocab,
             all_trees=trees,
@@ -324,9 +302,6 @@ def extract_signals_hybrid(
 def _deck_signal_stats(
     records: Sequence[dict | None],
     commander_names: set[str],
-    *,
-    resolve_object: Callable[[str], dict | None] | None = None,
-    ir_for: Callable[[dict], Card | None] | None = None,
 ) -> tuple[
     dict[tuple[str, str, str], int],
     set[tuple[str, str, str]],
@@ -339,8 +314,7 @@ def _deck_signal_stats(
     among those cards, the first ``Signal`` seen for it, and its
     HIGH-confidence non-commander support (the payoff-grade count — the
     membership floor's own-subtype signals are deliberately LOW and must
-    never read as payoffs). See ``rank_deck_signals`` for the ``ir_for`` /
-    ``resolve_object`` contract."""
+    never read as payoffs)."""
     support: dict[tuple[str, str, str], int] = {}
     from_commander: set[tuple[str, str, str]] = set()
     first: dict[tuple[str, str, str], Signal] = {}
@@ -349,17 +323,10 @@ def _deck_signal_stats(
         if not card:
             continue
         is_cmd = card.get("name") in commander_names
-        # Folded objects (a ventured dungeon — ADR-0025) belong to the COMMANDER's plan,
-        # so only fold for the commander, never the 99. The structural path resolves
-        # its own concept trees from the record; ``ir_for`` is accepted for caller
-        # compatibility but no longer selects an engine — a deployment with no card
-        # data degrades to empty signals, never to text-guessing.
-        sigs = extract_signals_hybrid(
-            card,
-            ir_for(card) if ir_for is not None else None,
-            include_membership=is_cmd,
-            resolve_object=resolve_object if is_cmd else None,
-        )
+        # Membership signals come from the COMMANDER only (see rank_deck_signals);
+        # a deployment with no card data degrades to empty signals, never to
+        # text-guessing.
+        sigs = extract_signals(card, include_membership=is_cmd)
         for sig in sigs:
             ident = (sig.key, sig.scope, sig.subject)
             support[ident] = support.get(ident, 0) + 1
@@ -374,9 +341,6 @@ def _deck_signal_stats(
 def rank_deck_signals(
     records: Sequence[dict | None],
     commander_names: set[str],
-    *,
-    resolve_object: Callable[[str], dict | None] | None = None,
-    ir_for: Callable[[dict], Card | None] | None = None,
 ) -> list[Signal]:
     """Deck signals deduped by (key, scope, subject) and ranked by relevance.
 
@@ -385,13 +349,9 @@ def rank_deck_signals(
     signal's *support* (how many cards feed it) drives the ranking. Kept ForgeState-free
     so both the deck-forge engine (``engine.ranked_deck_signals``) and the deterministic
     tuner share one ranking (ADR-0023).
-
-    ``ir_for``: a per-record Card-IR resolver, accepted for caller compatibility
-    (the engine wires its index here). Extraction is structural either way — the
-    concept trees resolve from the record itself; with no card data available the
-    result is empty signals, never a text-guess."""
+"""
     support, from_commander, first, _nc_high = _deck_signal_stats(
-        records, commander_names, resolve_object=resolve_object, ir_for=ir_for
+        records, commander_names
     )
     return _ranked_from_stats(support, from_commander, first)
 
@@ -432,16 +392,13 @@ def _payoffs_from_stats(
 def ranked_signals_and_payoffs(
     records: Sequence[dict | None],
     commander_names: set[str],
-    *,
-    resolve_object: Callable[[str], dict | None] | None = None,
-    ir_for: Callable[[dict], Card | None] | None = None,
 ) -> tuple[list[Signal], frozenset[str]]:
     """``rank_deck_signals`` + ``tribal_payoff_subjects`` from ONE extraction
     pass. A tune needs both, and calling the two helpers separately ran the
     full per-card lane pass twice per deck (the tree build is memoized; the
     lane pass is not)."""
     support, from_commander, first, nc_high = _deck_signal_stats(
-        records, commander_names, resolve_object=resolve_object, ir_for=ir_for
+        records, commander_names
     )
     return (
         _ranked_from_stats(support, from_commander, first),
@@ -452,9 +409,6 @@ def ranked_signals_and_payoffs(
 def tribal_payoff_subjects(
     records: Sequence[dict | None],
     commander_names: set[str],
-    *,
-    resolve_object: Callable[[str], dict | None] | None = None,
-    ir_for: Callable[[dict], Card | None] | None = None,
 ) -> frozenset[str]:
     """The tribal (``type_matters``) subjects with >=1 NON-COMMANDER card
     emitting the ident — a genuine payoff (ADR-0040 companion, task #101).
@@ -470,7 +424,7 @@ def tribal_payoff_subjects(
     changeling fold — so depth alone over-credits a tribe nobody actually
     built toward), not a real budding theme."""
     _support, _from_commander, first, nc_high = _deck_signal_stats(
-        records, commander_names, resolve_object=resolve_object, ir_for=ir_for
+        records, commander_names
     )
     return _payoffs_from_stats(first, nc_high)
 
@@ -479,7 +433,7 @@ def grant_payloads_for(card: dict) -> tuple:
     """CARD's mass static-grant payloads (ADR-0040 §2, task #97) — the
     card-record facade over ``crosswalk_signals.extract_grant_payloads``,
     unioned across the card's per-face concept trees (the same per-face
-    resolution ``extract_signals_hybrid`` uses). Empty for a synthetic
+    resolution ``extract_signals`` uses). Empty for a synthetic
     no-``oracle_id`` record or a card phase can't parse — the standard
     no-IR degradation."""
     from mtg_utils._deck_forge._ir_lookup import trees_for
@@ -557,6 +511,6 @@ def producible_static_keys() -> set[str]:
     measured to contribute zero keys outside it before deletion (every regex /
     sweep / literal-add key was already manifest-served — 360 == 360, 2026-07-25).
     Lazy import so no lane machinery loads on a bare ``import signals``."""
-    from mtg_utils._deck_forge.crosswalk_signals import PORTED_KEYS
+    from mtg_utils._deck_forge.crosswalk_signals import SERVED_SIGNAL_KEYS
 
-    return set(PORTED_KEYS) - signal_keys.SUBJECT_KEYS
+    return set(SERVED_SIGNAL_KEYS) - signal_keys.SUBJECT_KEYS

@@ -1,9 +1,9 @@
 """Unit tests for the oracle_id -> signal-idents sidecar (task #90).
 
 ``TestByteEquivalenceAgainstRealSnapshot`` is the correctness bar: the
-sidecar must be a pure CACHE of ``extract_signals_hybrid``'s live output,
+sidecar must be a pure CACHE of ``extract_signals``'s live output,
 never a divergent second system. Every other class uses a monkeypatched
-``extract_signals_hybrid`` + synthetic bulk files so the suite runs in CI
+``extract_signals`` + synthetic bulk files so the suite runs in CI
 with no real bulk / phase cache / network.
 """
 
@@ -28,7 +28,7 @@ class TestBuildSignalsIndex:
             return [_sig("ramp")]
 
         monkeypatch.setattr(
-            "mtg_utils._deck_forge.signals.extract_signals_hybrid", fake_extract
+            "mtg_utils._deck_forge.signals.extract_signals", fake_extract
         )
         records = [
             {"oracle_id": "oid-1", "name": "Printing A"},
@@ -43,7 +43,7 @@ class TestBuildSignalsIndex:
 
     def test_skips_records_without_oracle_id(self, monkeypatch):
         monkeypatch.setattr(
-            "mtg_utils._deck_forge.signals.extract_signals_hybrid",
+            "mtg_utils._deck_forge.signals.extract_signals",
             lambda _rec, *_args, **_kwargs: [_sig("ramp")],
         )
         records = [{"name": "No Oracle Id"}, {"oracle_id": "", "name": "Empty"}]
@@ -51,7 +51,7 @@ class TestBuildSignalsIndex:
 
     def test_ident_format_is_key_pipe_scope_pipe_subject(self, monkeypatch):
         monkeypatch.setattr(
-            "mtg_utils._deck_forge.signals.extract_signals_hybrid",
+            "mtg_utils._deck_forge.signals.extract_signals",
             lambda _rec, *_args, **_kwargs: [
                 _sig("type_matters", "you", "Goblin"),
                 _sig("ramp", "you", ""),
@@ -63,7 +63,7 @@ class TestBuildSignalsIndex:
 
     def test_empty_signal_list_is_a_real_cached_answer(self, monkeypatch):
         monkeypatch.setattr(
-            "mtg_utils._deck_forge.signals.extract_signals_hybrid",
+            "mtg_utils._deck_forge.signals.extract_signals",
             lambda _rec, *_args, **_kwargs: [],
         )
         records = [{"oracle_id": "oid-1", "name": "Vanilla"}]
@@ -94,7 +94,7 @@ class TestSignalSourceFiles:
 
     def test_excludes_signal_specs_which_does_not_feed_extraction(self):
         # signal_specs.py builds card_search serve/search kwargs from a
-        # Signal AFTER extraction — it never feeds extract_signals_hybrid's
+        # Signal AFTER extraction — it never feeds extract_signals's
         # own output, so it must not force a spurious rebuild on every edit.
         names = {p.name for p in signals_index.signal_source_files()}
         assert "signal_specs.py" not in names
@@ -153,7 +153,7 @@ class TestLoadSignalsIndex:
         assert not sidecar.exists()
 
         monkeypatch.setattr(
-            "mtg_utils._deck_forge.signals.extract_signals_hybrid",
+            "mtg_utils._deck_forge.signals.extract_signals",
             lambda _rec, *_args, **_kwargs: [_sig("ramp")],
         )
         records = [{"oracle_id": "oid-1", "name": "Card"}]
@@ -167,7 +167,7 @@ class TestLoadSignalsIndex:
             raise AssertionError("recomputed despite a fresh, matching sidecar")
 
         monkeypatch.setattr(
-            "mtg_utils._deck_forge.signals.extract_signals_hybrid", boom
+            "mtg_utils._deck_forge.signals.extract_signals", boom
         )
         cached = signals_index.load_signals_index(bulk, records=records)
         assert cached == index
@@ -182,7 +182,7 @@ class TestLoadSignalsIndex:
             return []
 
         monkeypatch.setattr(
-            "mtg_utils._deck_forge.signals.extract_signals_hybrid", fake_extract
+            "mtg_utils._deck_forge.signals.extract_signals", fake_extract
         )
         records = [{"oracle_id": "oid-1", "name": "Card"}]
         signals_index.load_signals_index(bulk, records=records)
@@ -203,7 +203,7 @@ class TestLoadSignalsIndex:
             return []
 
         monkeypatch.setattr(
-            "mtg_utils._deck_forge.signals.extract_signals_hybrid", fake_extract
+            "mtg_utils._deck_forge.signals.extract_signals", fake_extract
         )
         records = [{"oracle_id": "oid-1", "name": "Card"}]
         signals_index.load_signals_index(bulk, records=records)
@@ -219,7 +219,7 @@ class TestLoadSignalsIndex:
         bulk = tmp_path / "AllPrintings.json"
         bulk.write_text("{}", encoding="utf-8")
         monkeypatch.setattr(
-            "mtg_utils._deck_forge.signals.extract_signals_hybrid",
+            "mtg_utils._deck_forge.signals.extract_signals",
             lambda _rec, *_args, **_kwargs: [_sig("ramp")],
         )
         signals_index.load_signals_index(bulk, records=[{"oracle_id": "oid-1"}])
@@ -237,7 +237,7 @@ class TestLoadSignalsIndex:
         bulk = tmp_path / "bulk.json"
         bulk.write_text('[{"oracle_id": "oid-1", "name": "Card"}]', encoding="utf-8")
         monkeypatch.setattr(
-            "mtg_utils._deck_forge.signals.extract_signals_hybrid",
+            "mtg_utils._deck_forge.signals.extract_signals",
             lambda _rec, *_args, **_kwargs: [_sig("ramp")],
         )
         index = signals_index.load_signals_index(bulk)
@@ -246,7 +246,7 @@ class TestLoadSignalsIndex:
 
 class TestByteEquivalenceAgainstRealSnapshot:
     """The correctness bar (task #90): the sidecar is a pure cache — every
-    stored entry must equal a fresh live ``extract_signals_hybrid`` run on
+    stored entry must equal a fresh live ``extract_signals`` run on
     the SAME real card, over the committed snapshot fixture (no bulk/phase/
     network needed in CI)."""
 

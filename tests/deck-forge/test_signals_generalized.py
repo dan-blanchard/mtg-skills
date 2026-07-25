@@ -3,7 +3,7 @@ hand-coded cases).
 
 Repointed after the legacy-engine deletion (post-migration consolidation):
 ``extract_signals`` (regex) and ``extract_signals_ir`` (projected IR) are gone —
-the ONLY extractor is ``signals.extract_signals_hybrid``, exercised here through
+the ONLY extractor is ``signals.extract_signals``, exercised here through
 ``mtg_utils.testkit`` real-card fixtures (``test_signals`` / ``test_card`` /
 ``test_card_ir``). Dual-engine agreement probes and deleted-engine internals were
 removed; single-behavior pins were translated onto the production path (or, for
@@ -22,7 +22,7 @@ from mtg_utils._deck_forge.signals import (
     _voltron_self_heroic,
     _voltron_self_recurs,
     coverage_gate,
-    extract_signals_hybrid,
+    extract_signals,
 )
 from mtg_utils._deck_forge.text_reads import (
     _resolve_scope,
@@ -978,7 +978,7 @@ def test_coverage_gate_flags_zero_signal():
     # coverage_gate runs over production extractor output (its intended use): a
     # record that resolves no concept trees and fires no floor lane is a blind spot.
     c = {"name": "Vanilla", "oracle_text": "Flying"}
-    needs, reason = coverage_gate(c, extract_signals_hybrid(c, None))
+    needs, reason = coverage_gate(c, extract_signals(c))
     assert needs is True
     assert reason == "zero_signal"
 
@@ -1275,7 +1275,7 @@ def test_amass_cards_served_by_tokens_matter():
 def test_play_from_top_cross_opens_topdeck_selection():
     # A "play cards from the top of your library" commander (Gwenom) curates its
     # top — it opens play_from_top and the sibling topdeck_selection lane (the
-    # cross-open lives in extract_signals_hybrid's post-merge reconciliation).
+    # cross-open lives in extract_signals's post-merge reconciliation).
     ks = _ks_real("Gwenom, Remorseless")
     # The doer lane on this card's real parse is free_cast (cast-from-top); the
     # load-bearing pin is the post-merge cross-open pair.
@@ -1461,7 +1461,7 @@ def test_gain_control_commander_also_opens_wants_theft():
     # A battlefield-steal commander (Dragonlord Silumgar "gain control of target
     # creature") is a facet of the stealing archetype — a steal deck WANTS the
     # borrow-and-cast package (ADR-0034 _matters sweep: the want-side cross-open is
-    # wants_theft, re-opened by extract_signals_hybrid's post-merge reconciliation
+    # wants_theft, re-opened by extract_signals's post-merge reconciliation
     # against the merged key set). Real snapshot card.
     ks = _ks_real("Dragonlord Silumgar")
     assert ("gain_control", "you") in ks
@@ -1489,7 +1489,7 @@ def test_dont_own_payoff_opens_wants_theft_and_gain_control():
     # (Don Andres, Arvinox) is built on stealing — it WANTS the whole theft package
     # (battlefield steals AND borrow-and-cast). Gonti, Canny Acquisitor's "Spells
     # you cast but don't own" pins the intervening-verb form. The don't-own tell is
-    # extract_signals_hybrid's post-merge reconciliation. Real oracle.
+    # extract_signals's post-merge reconciliation. Real oracle.
     for name in (
         "Don Andres, the Renegade",
         "Arvinox, the Mind Flail",

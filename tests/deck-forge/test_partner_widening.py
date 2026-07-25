@@ -52,7 +52,7 @@ def _text_only_tree(card: dict) -> ConceptTree:
     produces. partner_background is a keyword-field lookup (the Scryfall
     ``Partner`` keyword array, threaded separately as ``keywords`` — no typed
     substrate needed), so a zero-unit tree is enough (ADR-0039 task #80 step
-    6: extract_signals_hybrid is now crosswalk-only, so these synthetic
+    6: extract_signals is now crosswalk-only, so these synthetic
     fixtures need a resolvable tree, not just a synthetic Card IR, to fire at
     all)."""
     type_words, sub_words = split_type_line(card.get("type_line") or "")
@@ -69,8 +69,8 @@ def _text_only_tree(card: dict) -> ConceptTree:
 
 
 def _client(monkeypatch):
-    # Wire a non-None IR per fixture oracle_id (Seam B) plus a text-only tree
-    # per oracle_id (Seam A — ADR-0039 task #80 step 6: extract_signals_hybrid's
+    # Wire a non-None IR per fixture oracle_id (the compat-Card resolver) plus a text-only tree
+    # per oracle_id (the concept-tree resolver — ADR-0039 task #80 step 6: extract_signals's
     # ONLY signal source) so the crosswalk path serves the migrated
     # partner_background key.
     ir_index = {

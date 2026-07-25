@@ -9,7 +9,7 @@ tribes (``_subtypes.TRIBAL_SUBTYPES``) or, for CLASS tribes (``_subtypes.CLASS_T
 types with no such gate only matter with explicit oracle support, which already
 fires a high-confidence ``type_matters``.
 
-All extraction assertions run the production ``extract_signals_hybrid`` over the
+All extraction assertions run the production ``extract_signals`` over the
 committed real-card snapshot (``mtg_utils.testkit``); the word-level precision
 guards (basic land types / articles / counter-noise never minting a false tribal
 subject) call ``_resolve_subject`` directly — the exact vocabulary gate that used

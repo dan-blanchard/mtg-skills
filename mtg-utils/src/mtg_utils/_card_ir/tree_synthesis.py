@@ -7,7 +7,8 @@ Layer-2 stage can fill it:
 
 * :mod:`overlay_corrections` (bucket b) only DECORATES existing concept-nodes; its
   substrate-purity invariant forbids ADDING a node.
-* :mod:`dropped_clauses` (bucket c) synthesizes onto the compat ``Card`` (Seam B),
+* :mod:`dropped_clauses` (bucket c) synthesizes onto the compat ``Card``
+  (``ir_for``),
   which the Signal lanes never read.
 
 This stage ADDS a synthetic :class:`ConceptNode` to the crosswalk tree for such a
@@ -20,7 +21,7 @@ description), NOT phase substrate.
 **Signal-path-only.** :func:`apply_tree_synthesis` runs AFTER
 :func:`overlay_corrections.apply_overlay_corrections` in the
 ``extract_crosswalk_signals`` path ONLY — never in ``compat_card``. So the compat
-Card and the five Seam-B consumer views are unaffected: a bucket-B fold moves
+Card and the five the compat-Card consumer views are unaffected: a bucket-B fold moves
 *signals* and nothing else (the signal-diff is the whole gate).
 
 **The purity invariant relaxes, precisely (see :mod:`_substrate_purity`).** It
@@ -7499,7 +7500,7 @@ def _arm_keranos_effect_structure(tree: ConceptTree) -> ConceptNode | None:
 # THIS card) — a genuine gap, not a dropped read. Relocates the deleted
 # ``_PAY_LIFE_REF`` marker re-derivation, gap-gated against the structural
 # cost census (the project.py :8527-8530 face gate this shares — the SAME
-# marker feeds an independent Seam-B path there, untouched). Measured
+# marker feeds an independent the compat-Card resolver path there, untouched). Measured
 # byte-identical over the commander-legal corpus (155/155 union, 0 drops).
 def has_structural_life_payment_insurance(tree: ConceptTree) -> bool:
     """Whether ANY Activated unit's flattened cost carries a ``PayLife``

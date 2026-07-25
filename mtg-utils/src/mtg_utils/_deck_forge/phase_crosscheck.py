@@ -42,8 +42,7 @@ from collections.abc import Callable, Iterable
 from pathlib import Path
 
 from mtg_utils._card_ir.mirror.variants import EFFECT_VARIANTS
-from mtg_utils._deck_forge._ir_lookup import ir_for
-from mtg_utils._deck_forge.signals import extract_signals_hybrid
+from mtg_utils._deck_forge.signals import extract_signals
 
 # ── phase enum vocabularies (v0.35.2 pin bump, 2026-07-24) ───────────────────
 # Variant names verbatim; matched case-insensitively after normalization, so
@@ -474,7 +473,7 @@ PHASE_ONLY = "phase_only"
 
 def detector_lanes(card: dict) -> frozenset[str]:
     """The set of signal keys deck-forge's detectors fire on ``card``."""
-    return frozenset(s.key for s in extract_signals_hybrid(card, ir_for(card)))
+    return frozenset(s.key for s in extract_signals(card))
 
 
 def classify_card(
@@ -663,14 +662,14 @@ def render_report(report: dict) -> str:
 
 def _ensure_ir() -> None:
     """Best-effort Card IR sidecar build so a standalone crosscheck run is
-    Seam-B-native (ADR-0039 task #80 step 4) — this CLI never launches
+    the compat-Card resolver-native (ADR-0039 task #80 step 4) — this CLI never launches
     through ``default_state`` (which already ensures it), so without this
     call a fresh cache directory would leave every ``ir_for`` lookup below
     returning ``None``, silently degrading the ``ir_for``-informed detector
     lanes to their regex reads. Called BEFORE the first ``ir_for`` so the
     memoized index isn't poisoned with a pre-build ``None``. Non-fatal — a
     build failure degrades to the regex path, matching the no-sidecar
-    fallback every other Seam-B consumer already has."""
+    fallback every other the compat-Card consumer already has."""
     import sys
 
     from mtg_utils._deck_forge.production import ensure_card_ir

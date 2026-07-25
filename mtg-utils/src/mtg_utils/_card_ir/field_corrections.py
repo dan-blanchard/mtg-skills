@@ -13,7 +13,7 @@ it defined (``_recover_clone_subjects`` / ``_recover_cheat_into_play_source``)
 moved HERE verbatim (this module is their sole surviving consumer), while
 ``_recover_tap_down`` stays in ``supplement.py``.
 
-**Where it runs — the compat-Card seam (Seam B), COMPAT-ONLY.** Reached solely
+**Where it runs — the compat-Card resolver, COMPAT-ONLY.** Reached solely
 through :func:`compat_card`, strictly DOWNSTREAM of the (c) synthesis stage. It
 never receives, reads, or writes a tree / mirror node, so the substrate-purity
 invariant holds *a fortiori* (``compat_card`` already snapshots the L1 identity

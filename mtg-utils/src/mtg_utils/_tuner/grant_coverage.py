@@ -15,7 +15,7 @@ for a covered role; ``_tuner.metrics.top_issues`` turns that annotation into
 an advisory flag, and ``_tuner.swaps`` stops sourcing fills for it — the
 shortfall stays visible with its real numbers, it just stops driving swaps.
 
-The read is STRUCTURAL (Seam A concept trees — ``trees_for``), never oracle
+The read is STRUCTURAL (concept trees via ``trees_for``), never oracle
 text: a recipient card never emits the granted ability (crosswalk signal
 emission stays strict per ADR-0040), so the coverage fact can only be read
 off the GRANTER's own tree, by walking the grant's typed modification node.
@@ -92,9 +92,9 @@ def _grant_draws(record: dict) -> bool:
     enters, so a bigger creature count is a bigger draw engine, exactly
     like a dedicated repeatable-draw card would be.
 
-    Structural only — walks the commander's own concept trees (Seam A,
-    ``trees_for``); a recipient card never emits this (crosswalk signal
-    emission stays strict per ADR-0040), so there is no signal KEY to
+    Structural only — walks the commander's own concept trees (``trees_for``);
+    a recipient card never emits this (crosswalk signal emission stays strict
+    per ADR-0040), so there is no signal KEY to
     consume here, only the tree."""
     for tree in trees_for(record):
         for unit in tree.units:

@@ -3,11 +3,11 @@
 Renamed from ``test_crosswalk_cutover.py`` (ADR-0039 task #80 step 7): the
 Stage-3a ``MTG_SKILLS_CROSSWALK_SIGNALS`` cutover flag, the legacy revert path
 it gated (step 6), and the legacy ``project_card`` builder the old file still
-baseline-compared against (step 7) are all GONE. ``extract_signals_hybrid`` has
+baseline-compared against (step 7) are all GONE. ``extract_signals`` has
 exactly one serving path — ``trees_for`` resolves a card's per-face concept
 trees, the ported crosswalk lanes run over each, and the membership floor runs
 once at the merge level. These tests pin what remains true of that ONE path —
-the ``ir_for`` / ``trees_for`` Seam-A/B resolvers, the hybrid's crosswalk-only
+the ``ir_for`` / ``trees_for`` the concept-tree resolver/B resolvers, the hybrid's crosswalk-only
 dispatch, the residual-empty key partition, and the DFC face-union. The
 membership-floor behavior pins moved to ``test_signals_floor.py`` in the same
 step (named for what they test). CI-safe: the concept trees come from the
@@ -28,11 +28,11 @@ from mtg_utils._card_ir.mirror import strict_load_card
 from mtg_utils._card_ir.mirror.build import fixtures_dir, load_committed_schema
 from mtg_utils._deck_forge import _ir_lookup as il
 from mtg_utils._deck_forge.crosswalk_signals import (
-    PORTED_KEYS,
+    SERVED_SIGNAL_KEYS,
     extract_crosswalk_signals,
 )
 from mtg_utils._deck_forge.signals import (
-    extract_signals_hybrid,
+    extract_signals,
     producible_static_keys,
 )
 from mtg_utils.card_ir import Card, Face
@@ -94,7 +94,7 @@ def _ported_case() -> tuple[dict, object, str]:
         except Exception:  # noqa: BLE001 — skip drift/odd cards in the search
             continue
         sigs = extract_crosswalk_signals(tree, keywords=frozenset())
-        ported = [s.key for s in sigs if s.key in PORTED_KEYS]
+        ported = [s.key for s in sigs if s.key in SERVED_SIGNAL_KEYS]
         if ported:
             return _bulk(rec), tree, ported[0]
     pytest.skip("no PORTED-firing card found in fixture")
@@ -108,7 +108,7 @@ def _clean_caches():
     il.clear_caches()
 
 
-# ── Seam B: ir_for ────────────────────────────────────────────────────────────
+# ── the compat-Card resolver: ir_for ────────────────────────────────────────────────────────────
 
 
 def test_ir_for_reads_the_crosswalk_index(monkeypatch):
@@ -132,7 +132,7 @@ def test_ir_for_returns_none_without_oracle_id(monkeypatch):
     assert il.ir_for({"name": "no oid"}) is None
 
 
-# ── Seam A: trees_for ─────────────────────────────────────────────────────────
+# ── the concept-tree resolver: trees_for ─────────────────────────────────────────────────────────
 
 
 def test_trees_for_degrades_without_phase_data(monkeypatch):
@@ -316,7 +316,7 @@ def test_three_way_split_excluded_from_text_only_synthesis(monkeypatch):
 
 
 def test_avatar_aang_union_fires_all_four_bend_keys(monkeypatch):
-    """The production seam (``extract_signals_hybrid``): Avatar Aang's
+    """The production seam (``extract_signals``): Avatar Aang's
     ElementalBend / RegisterBending nodes live on the FRONT face only, but a
     first-record-wins tree resolver could pick the BACK face first (phase's own
     dict-key ordering sorts "aang, master of elements" before "avatar aang") and
@@ -335,7 +335,7 @@ def test_avatar_aang_union_fires_all_four_bend_keys(monkeypatch):
     }
     monkeypatch.setattr(il, "_phase_record_index", _returns({_AANG_OID: recs}))
     monkeypatch.setattr(il, "_committed_schema", _returns(_schema()))
-    keys = {s.key for s in extract_signals_hybrid(bulk)}
+    keys = {s.key for s in extract_signals(bulk)}
     assert keys >= _BEND_KEYS
 
 
@@ -346,7 +346,7 @@ def test_avatar_aang_regression_no_fire_control(monkeypatch):
     if tree.oracle_id == _AANG_OID:
         pytest.skip("ported-case card is Avatar Aang itself")
     monkeypatch.setattr(il, "trees_for", _returns((tree,)))
-    keys = {s.key for s in extract_signals_hybrid(bulk)}
+    keys = {s.key for s in extract_signals(bulk)}
     assert not (_BEND_KEYS & keys)
 
 
@@ -356,7 +356,7 @@ def test_avatar_aang_regression_no_fire_control(monkeypatch):
 def test_hybrid_serves_ported_from_crosswalk(monkeypatch):
     bulk, tree, ported_key = _ported_case()
     monkeypatch.setattr(il, "trees_for", _returns((tree,)))
-    on = {s.key for s in extract_signals_hybrid(bulk)}
+    on = {s.key for s in extract_signals(bulk)}
     assert ported_key in on
 
 
@@ -366,7 +366,7 @@ def test_hybrid_no_signal_when_tree_unavailable(monkeypatch):
     gone) — a graceful empty answer for that lane, never a crash."""
     bulk, _tree, ported_key = _ported_case()
     monkeypatch.setattr(il, "trees_for", _returns(()))
-    on = {s.key for s in extract_signals_hybrid(bulk)}
+    on = {s.key for s in extract_signals(bulk)}
     assert ported_key not in on
 
 
@@ -375,13 +375,13 @@ def test_hybrid_reconciliation_single_fire(monkeypatch):
     even though the crosswalk applies its own reconciliations before the merge."""
     bulk, tree, _key = _ported_case()
     monkeypatch.setattr(il, "trees_for", _returns((tree,)))
-    sigs = extract_signals_hybrid(bulk)
+    sigs = extract_signals(bulk)
     idents = [(s.key, s.scope, s.subject) for s in sigs]
     assert len(idents) == len(set(idents))
 
 
 # NOTE: the former ``test_migrated_keys_residual_empty`` (the ``MIGRATED_KEYS -
-# PORTED_KEYS == empty`` key-partition invariant) is DELETED — ``_migrated_keys.py``
+# SERVED_SIGNAL_KEYS == empty`` key-partition invariant) is DELETED — ``_migrated_keys.py``
 # / ``MIGRATED_KEYS`` no longer exist (the legacy regex/IR strangler finished and
 # was deleted outright). The surviving invariant it guarded — "every emitted key
 # is manifest-served / spec-resolved" — is now expressed directly via

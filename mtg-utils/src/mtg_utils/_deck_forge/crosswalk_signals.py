@@ -1,7 +1,7 @@
 """Layer-3 ``Signal`` lanes derived from the Layer-2 concept overlay (ADR-0035).
 
 THE production serving path (ADR-0039 task #80 step 6):
-``signals.extract_signals_hybrid`` runs ``extract_crosswalk_signals`` over each
+``signals.extract_signals`` runs ``extract_crosswalk_signals`` over each
 of a card's per-face concept trees (``_card_ir.crosswalk.ConceptTree``) and
 unions the results — no regex or projected-Card path backs it up anymore. Each
 lane emits the frozen ``Signal(key, scope, subject)`` contract from typed reads
@@ -9,7 +9,7 @@ wherever the substrate carries the datum; the remaining oracle-text reads are
 enumerated and gap-gated (the ledgered bridges of ``bridge_ledger`` plus a small
 kept-mirror tier), awaiting the post-deletion grammar sprint.
 
-``PORTED_KEYS`` (below) is the served-key set. The per-key comments throughout
+``SERVED_SIGNAL_KEYS`` (below) is the served-key set. The per-key comments throughout
 this module are the migration's adjudication record — shed/gain verdicts and
 corpus measurements taken against the now-deleted legacy paths
 (``old_ir_for`` / ``extract_signals_ir`` / the regex bag). They are history,
@@ -368,7 +368,7 @@ from mtg_utils.card_classify import get_oracle_text
 # notes below, preserved from the old residual-tracking block) and the legacy
 # fallback itself is gone (ADR-0039 task #80 step 6), so the subtraction is now
 # always a no-op and has been collapsed away.
-PORTED_KEYS: frozenset[str] = frozenset(
+SERVED_SIGNAL_KEYS: frozenset[str] = frozenset(
     {
         # Batch 1 (already landed):
         "win_lose_game",
@@ -799,7 +799,7 @@ PORTED_KEYS: frozenset[str] = frozenset(
         # not commander-buildable" skip rationale was falsified by measured
         # bulk legalities (min: seek_matters cl=0 but bl=98 — deck-forge
         # serves historic_brawl), so nothing stays invisible: all 23 join
-        # PORTED_KEYS (318 → 341) and the mapping file's skip klass dies.
+        # SERVED_SIGNAL_KEYS (318 → 341) and the mapping file's skip klass dies.
         "attractions_matter",
         "draft_spellbook",
         "each_mode_player",
@@ -963,7 +963,8 @@ PORTED_KEYS: frozenset[str] = frozenset(
 # ``type_matters`` (the class-tribe membership floor is go_wide-gated on the
 # residual ``creatures_matter``, so the floor lane must ride the same
 # ``old_ir_for`` arm). Routing ONLY these to residual (they stayed in the now-deleted
-# ``MIGRATED_KEYS`` set, so dropping them from ``PORTED_KEYS`` re-supplied them from the
+# migrated set, so dropping them from ``SERVED_SIGNAL_KEYS`` re-supplied them from
+# the
 # deleted ``extract_signals_ir(old)`` path — byte-identical to flag-OFF) restored the
 # legacy firing without retreating from any key the crosswalk serves correctly.
 #
@@ -1921,7 +1922,7 @@ PORTED_KEYS: frozenset[str] = frozenset(
 # session.
 
 # Below this point: per-key promotion / recall-widening history for the keys
-# ABOVE (the ``PORTED_KEYS`` literal at the top of this region), continuing the
+# ABOVE (the ``SERVED_SIGNAL_KEYS`` literal at the top of this region), continuing the
 # historical record started by the "Historical per-key promotion record" block.
 # ADR-0035 Stage-A (2026-07-09): the own-lifelink keyword row below recovers +325 of
 # lifegain_makers' residual gap (corpus live_only 420 → 95), banked toward eventually
@@ -5078,7 +5079,7 @@ def _blink_flicker(tree: ConceptTree) -> list[Signal]:
     :func:`blink_flicker_is_maker`).
 
     A SECOND, unrelated producer shares this key: :func:`apply_membership_floor`
-    (called once per card by ``signals.extract_signals_hybrid`` when its
+    (called once per card by ``signals.extract_signals`` when its
     ``include_membership`` flag is set — the commander-only deck-aggregate path,
     default True) opens a LOW-confidence "cares about being blinked" cross-open
     off a card's OWN strong ETB value (Academy Journeymage, Mulldrifter — CR
@@ -5169,7 +5170,7 @@ def blink_flicker_maker_present(card: dict) -> bool:
     """A CARD-level (not tree-level) concept predicate: true when CARD
     carries a MAKER-half ``blink_flicker`` signal (:func:`blink_flicker_is_maker`),
     excluding :func:`apply_membership_floor`'s "worth blinking" payoff
-    cross-open. Queries ``extract_signals_hybrid`` with
+    cross-open. Queries ``extract_signals`` with
     ``include_membership=False`` so the floor producer never runs at all —
     the simpler of the two filtering strategies :func:`_blink_flicker`'s
     own docstring names (the other being a post-hoc filter over the merged
@@ -5185,9 +5186,9 @@ def blink_flicker_maker_present(card: dict) -> bool:
     cycle ``mtg_utils.theme_presets._signal_keys_for`` already documents and
     avoids the same way.
     """
-    from mtg_utils._deck_forge.signals import extract_signals_hybrid
+    from mtg_utils._deck_forge.signals import extract_signals
 
-    sigs = extract_signals_hybrid(card, include_membership=False)
+    sigs = extract_signals(card, include_membership=False)
     return any(blink_flicker_is_maker(s) for s in sigs)
 
 
@@ -27155,22 +27156,19 @@ _LANES = (
 def extract_crosswalk_signals(
     tree: ConceptTree,
     *,
-    keys: frozenset[str] = PORTED_KEYS,
     keywords: frozenset[str] = frozenset(),
     vocab: frozenset[str] = CREATURE_SUBTYPES,
     all_trees: Sequence[ConceptTree] = (),
 ) -> list[Signal]:
-    """Run the ported crosswalk lanes over one concept tree; dedupe by ident.
+    """Run the structural signal lanes over one concept tree; dedupe by ident.
 
-    Returns the ``Signal`` list for the ported batch, sliced to ``keys``, with the
-    whole-card ``spell_copy_makers`` → ``spellcast_matters`` reconciliation applied
-    (granularity c — mirrors ``signals.py`` lines 185-188: a spell-copier wants a
-    dense instant/sorcery base, so a ``spellcast_matters`` LOW is cross-opened when
-    absent).
-
-    ``keys`` defaults to ``PORTED_KEYS`` — every lane this batch built — so a
-    caller validating a lane structurally sees its output; the production caller
-    (``signals.extract_signals_hybrid``) passes the same set explicitly.
+    Emits exactly what the lanes produce — there is no key filter (ADR-0014:
+    the old ``keys=`` slice was strangler-era scaffolding measured to drop
+    nothing; the served-key manifest ``SERVED_SIGNAL_KEYS`` now feeds only the
+    key-agreement gate, and a corpus test asserts every emitted key is in it).
+    The whole-card ``spell_copy_makers`` → ``spellcast_matters`` reconciliation
+    is applied (a spell-copier wants a dense instant/sorcery base, so a
+    ``spellcast_matters`` LOW is cross-opened when absent).
 
     ``keywords`` is the card's Scryfall keyword array (the bulk record's
     ``keywords``), the field-lookup source ``mill_makers`` gates on — it is NOT in
@@ -27191,7 +27189,7 @@ def extract_crosswalk_signals(
     ``()`` (single-tree callers / tests — falls back to just ``tree``), so every
     existing direct caller is unaffected. The card-type / cares-about MEMBERSHIP
     floor itself no longer runs here at all — see :func:`apply_membership_floor`,
-    called ONCE per card at the merge level (``signals.extract_signals_hybrid``)
+    called ONCE per card at the merge level (``signals.extract_signals``)
     where every face's tree is visible together (closes the Sheoldred // The True
     Scriptures kill_engine gap the same way).
     """
@@ -27205,15 +27203,13 @@ def extract_crosswalk_signals(
     tree = apply_overlay_corrections(tree)
     # ADR-0037: ADD synthetic concept-nodes for genuine phase-parse (bucket-B) gaps
     # the lanes read structurally (death_matters' Syr Konrad-family tail). Signal
-    # path ONLY — never in compat_card, so the Seam-B consumers are invariant.
+    # path ONLY — never in compat_card, so the the compat-Card consumers are invariant.
     # Preserves the phase L1 fingerprint (substrate-purity, relaxed).
     tree = apply_tree_synthesis(tree)
     out: list[Signal] = []
     seen: set[tuple[str, str, str]] = set()
 
     def add(sig: Signal) -> None:
-        if sig.key not in keys:
-            return
         ident = (sig.key, sig.scope, sig.subject)
         if ident in seen:
             return
@@ -27339,7 +27335,7 @@ def apply_membership_floor(
     structural crosswalk (a vanilla enchantment opens ``enchantments_matter``,
     an Equipment opens ``voltron_matters``, an artifact opens
     ``artifacts_matter``). Called ONCE per card, at the merge level
-    (``signals.extract_signals_hybrid``), over EVERY face's tree together —
+    (``signals.extract_signals``), over EVERY face's tree together —
     never per-face (ADR-0039 task #80 step 6: closes a step-3 regression).
 
     Per-face isolation previously lost the floor's own class-tribe / kill_engine

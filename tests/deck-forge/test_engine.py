@@ -179,7 +179,7 @@ def test_signal_freq_reads_persisted_index_without_live_compute(monkeypatch):
     def boom(_rec, *_args, **_kwargs):
         raise AssertionError("must not live-compute when the sidecar covers this oid")
 
-    monkeypatch.setattr("mtg_utils._deck_forge.engine.extract_signals_hybrid", boom)
+    monkeypatch.setattr("mtg_utils._deck_forge.engine.extract_signals", boom)
 
     freq, total = engine._signal_freq(st)
     assert total == 1
@@ -194,11 +194,11 @@ def test_signal_freq_falls_back_to_live_compute_without_a_sidecar(monkeypatch):
 
         return [Signal("ramp", "you", "", "", rec.get("name", ""), "high")]
 
-    # engine.py imports extract_signals_hybrid by name at module load (bound into
+    # engine.py imports extract_signals by name at module load (bound into
     # engine's own namespace via `_signals`), so the patch target is engine's
     # imported name, not signals.py's — unlike signals_index.py's lazy import.
     monkeypatch.setattr(
-        "mtg_utils._deck_forge.engine.extract_signals_hybrid", fake_extract
+        "mtg_utils._deck_forge.engine.extract_signals", fake_extract
     )
 
     freq, total = engine._signal_freq(st)
@@ -216,11 +216,11 @@ def test_signal_freq_caches_per_format_on_state(monkeypatch):
         calls.append(rec["name"])
         return [Signal("ramp", "you", "", "", rec.get("name", ""), "high")]
 
-    # engine.py imports extract_signals_hybrid by name at module load (bound into
+    # engine.py imports extract_signals by name at module load (bound into
     # engine's own namespace via `_signals`), so the patch target is engine's
     # imported name, not signals.py's — unlike signals_index.py's lazy import.
     monkeypatch.setattr(
-        "mtg_utils._deck_forge.engine.extract_signals_hybrid", fake_extract
+        "mtg_utils._deck_forge.engine.extract_signals", fake_extract
     )
     engine._signal_freq(st)
     engine._signal_freq(st)

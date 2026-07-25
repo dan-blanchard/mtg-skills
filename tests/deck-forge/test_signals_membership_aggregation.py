@@ -10,7 +10,7 @@ from mtg_utils._card_ir.crosswalk import ConceptTree
 from mtg_utils._deck_forge import _ir_lookup
 from mtg_utils._deck_forge.app import build_app
 from mtg_utils._deck_forge.engine import _AVENUE_CAP
-from mtg_utils._deck_forge.signals import extract_signals_hybrid
+from mtg_utils._deck_forge.signals import extract_signals
 from mtg_utils._deck_forge.state import DeckSession, ForgeState
 from mtg_utils.deck import split_type_line
 from mtg_utils.testkit import test_card, test_signals
@@ -24,7 +24,7 @@ def _text_only_tree(card: dict) -> ConceptTree:
     record), but the crosswalk's membership floor + its "b12" whole-card text
     mirrors read ``tree.oracle`` / ``tree.card_types`` / ``tree.card_subtypes``
     directly — no units needed (ADR-0039 task #80 step 6: the ENGINE's own
-    ranking/avenue pipeline calls extract_signals_hybrid, which is now
+    ranking/avenue pipeline calls extract_signals, which is now
     crosswalk-only, so these engine-level tests need a resolvable tree per
     synthetic oracle_id, not just a synthetic Card IR)."""
     type_words, sub_words = split_type_line(card.get("type_line") or "")
@@ -41,7 +41,7 @@ def _text_only_tree(card: dict) -> ConceptTree:
 
 
 def _wire_trees(monkeypatch, cards: list[dict]) -> None:
-    """Wire ``_ir_lookup.trees_for`` (Seam A — extract_signals_hybrid's ONLY
+    """Wire ``_ir_lookup.trees_for`` (the concept-tree resolver — extract_signals's ONLY
     signal source, ADR-0039 task #80 step 6) with a text-only tree per card,
     keyed by ``oracle_id``, for an engine-level (``TestClient``) test whose
     fixtures have no real phase record to resolve."""
@@ -56,7 +56,7 @@ def _wire_trees(monkeypatch, cards: list[dict]) -> None:
 # ── include_membership flag (signal level) ──
 # Real-card, production-path checks (mtg_utils.testkit): the crosswalk's own-subtype
 # type_matters lane fires UNCONDITIONALLY (not gated by include_membership at all —
-# see extract_signals_hybrid's include_membership branch, which only wraps
+# see extract_signals's include_membership branch, which only wraps
 # apply_membership_floor); only the membership-floor cross-opens (e.g.
 # voltron_matters) are gated by the flag. Verified empirically against the
 # committed snapshot (Grizzly Bears keeps type_matters/Bear but loses
@@ -69,8 +69,8 @@ def test_membership_on_by_default():
 
 def test_membership_off_drops_voltron_but_not_own_subtype_type_matters():
     card = test_card("Grizzly Bears")
-    on = extract_signals_hybrid(card, None, include_membership=True)
-    off = extract_signals_hybrid(card, None, include_membership=False)
+    on = extract_signals(card, include_membership=True)
+    off = extract_signals(card, include_membership=False)
     assert ("type_matters", "Bear") in {(s.key, s.subject) for s in on}
     assert ("type_matters", "Bear") in {(s.key, s.subject) for s in off}
     assert "voltron_matters" in {s.key for s in on}
@@ -80,8 +80,8 @@ def test_membership_off_drops_voltron_but_not_own_subtype_type_matters():
 def test_membership_flag_does_not_touch_oracle_signals():
     # a real oracle payoff fires regardless of the flag.
     card = test_card("Goblin King")  # "Other Goblins get +1/+1 and have mountainwalk."
-    on = extract_signals_hybrid(card, None, include_membership=True)
-    off = extract_signals_hybrid(card, None, include_membership=False)
+    on = extract_signals(card, include_membership=True)
+    off = extract_signals(card, include_membership=False)
     on_ids = {(s.key, s.subject, s.confidence) for s in on}
     off_ids = {(s.key, s.subject, s.confidence) for s in off}
     assert ("type_matters", "Goblin", "high") in on_ids
@@ -146,7 +146,7 @@ def test_deckcard_races_do_not_flood_avenues(monkeypatch):
     # fires unconditionally — NOT gated by include_membership — so a deck card
     # with a resolvable tree would surface its own race regardless of
     # rank_deck_signals' is_cmd gate (verified against real snapshot cards:
-    # extract_signals_hybrid(card, ir, include_membership=False) still emits
+    # extract_signals(card, ir, include_membership=False) still emits
     # type_matters for the card's own race). That is a genuine, PRE-EXISTING
     # crosswalk characteristic unrelated to this deletion step — out of scope to
     # fix here (see the step-6 report's disputes) — so the deck cards below stay

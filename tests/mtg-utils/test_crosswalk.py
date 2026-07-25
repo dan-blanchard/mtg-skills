@@ -47,7 +47,7 @@ from mtg_utils._card_ir.overlay_corrections import (
     l1_bytes,
 )
 from mtg_utils._deck_forge.crosswalk_signals import (
-    PORTED_KEYS,
+    SERVED_SIGNAL_KEYS,
     extract_crosswalk_signals,
 )
 
@@ -864,7 +864,7 @@ def test_blink_flicker_maker_signal_is_always_high_confidence():
 
 def test_blink_flicker_membership_floor_payoff_is_low_and_not_a_maker():
     """:func:`apply_membership_floor`'s "own ETB value" cross-open (the
-    merge-level pass ``signals.extract_signals_hybrid`` runs once per card,
+    merge-level pass ``signals.extract_signals`` runs once per card,
     over every face together) opens a LOW ``blink_flicker`` on Mulldrifter —
     a strong-ETB creature with NO exile/return in its text at all (confirmed:
     the plain ``_idents`` call, which never runs the floor, carries no
@@ -14740,7 +14740,7 @@ def test_gain_control_exchange_control(name):
 def test_all_emitted_keys_are_in_the_ported_set():
     """The crosswalk only emits keys it claims to have ported (no leakage)."""
     for name in _cards():
-        assert _keys(name) <= PORTED_KEYS
+        assert _keys(name) <= SERVED_SIGNAL_KEYS
 
 
 # ── ADR-0035 Stage-3b (b) — overlay-correction stage + substrate-purity ───────

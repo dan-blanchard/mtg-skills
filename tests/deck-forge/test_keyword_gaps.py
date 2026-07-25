@@ -5,7 +5,7 @@ keyword ability/action was not surfaced. Every matcher was bulk-validated during
 audit (the "existing avenue catches 0/N" disjointness proofs are pinned as tests).
 
 Tests run the REAL projected Card IR for each named commander/payoff via
-``mtg_utils.testkit`` (``test_signals`` = production ``extract_signals_hybrid`` over the
+``mtg_utils.testkit`` (``test_signals`` = production ``extract_signals`` over the
 real Scryfall record + real sidecar IR; ``test_card`` = the real minimal record). A
 handful of pins use a thin synthetic builder where the assertion is a placeholder /
 logic probe (a made-up "<Type> Lord", a forced negative, a future-shape pin) with no

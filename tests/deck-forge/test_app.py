@@ -162,7 +162,7 @@ def test_partner_avenue_filters_to_valid_partners(monkeypatch):
         )
     }
     monkeypatch.setattr(_ir_lookup, "_crosswalk_index", lambda: ishai_index)
-    # ADR-0039 task #80 step 6: extract_signals_hybrid is now crosswalk-only —
+    # ADR-0039 task #80 step 6: extract_signals is now crosswalk-only —
     # partner_background is a keyword-field lookup (no typed substrate needed),
     # so a zero-unit text-only tree (the same shape _ir_lookup's own W2c
     # phase-missing-face synthesis produces) is enough.

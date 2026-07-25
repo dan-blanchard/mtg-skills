@@ -13,7 +13,6 @@ import json
 
 import click
 
-from mtg_utils._deck_forge._ir_lookup import ir_for
 from mtg_utils._deck_forge.signal_specs import spec_for
 from mtg_utils._deck_forge.signals import rank_deck_signals
 from mtg_utils.hydrated_deck import HydratedDeck
@@ -46,7 +45,7 @@ def deck_signals(hd: HydratedDeck) -> list[dict]:
     no ``oracle_id`` (synthetic fixtures) → graceful regex fallback."""
     commander_names = {c["name"] for c in hd.commanders}
     rows: list[dict] = []
-    for sig in rank_deck_signals(hd.records, commander_names, ir_for=ir_for):
+    for sig in rank_deck_signals(hd.records, commander_names):
         spec = spec_for(sig)
         rows.append(
             {

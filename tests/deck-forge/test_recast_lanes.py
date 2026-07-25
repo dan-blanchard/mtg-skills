@@ -11,7 +11,7 @@ package). Enters triggers fire on EVERY entry (CR 603.6a), so the pair is
   Shriekmaw, Mulldrifter, Fleshbag Marauder. Wider than wants_cloning's
   clone-worthy gate (has_self_etb_value), which stays untouched.
 
-Every case runs the production ``extract_signals_hybrid`` over the REAL
+Every case runs the production ``extract_signals`` over the REAL
 committed-snapshot IR (ADR-0027/0039) — no synthetic trees.
 """
 

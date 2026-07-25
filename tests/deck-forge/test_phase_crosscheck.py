@@ -123,11 +123,11 @@ def test_corpus_joins_by_oracle_id_and_tallies_both():
     # Real card (mtg_utils.testkit): Adeline fires token_maker; a hand-built phase
     # record (mirroring phase's serialized shape, phase itself isn't installed in
     # CI) makes a Token on attack, joined by her REAL oracle_id. ADR-0039 task #80
-    # step 6: extract_signals_hybrid is crosswalk-only — a synthetic oracle_id
+    # step 6: extract_signals is crosswalk-only — a synthetic oracle_id
     # resolves no concept tree at all, so the card must be the real snapshot record
     # with its trees memo pre-seeded (test_signals warms it), letting
     # crosscheck_corpus's PRODUCTION default extractor (phase_crosscheck.detector_lanes,
-    # itself extract_signals_hybrid(card, ir_for(card))) resolve it for real — no
+    # itself extract_signals(card, ir_for(card))) resolve it for real — no
     # custom extractor needed.
     card = test_card("Adeline, Resplendent Cathar")
     oid = card["oracle_id"]
@@ -236,7 +236,7 @@ def test_load_cards_accepts_plain_list(tmp_path):
 def test_main_runs_end_to_end_and_writes_markdown(tmp_path, capsys):
     # Krenko, Mob Boss (mtg_utils.testkit) fires token_maker for real; the trees
     # memo is seeded (test_signals) before main() loads the same card fresh from
-    # disk, so its production default extractor (extract_signals_hybrid(card,
+    # disk, so its production default extractor (extract_signals(card,
     # ir_for(card))) resolves the real concept tree by oracle_id — see the
     # corpus-join test above for why a synthetic oracle_id can no longer work here.
     card = test_card("Krenko, Mob Boss")

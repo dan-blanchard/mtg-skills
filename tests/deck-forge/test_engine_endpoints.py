@@ -10,9 +10,9 @@ from mtg_utils.card_ir import Card, Face
 from mtg_utils.deck import split_type_line
 from mtg_utils.testkit import _seed_trees, test_card_ir
 
-# ADR-0039 task #80 step 6: extract_signals_hybrid is now crosswalk-only, so an
-# engine-level test needs a resolvable concept tree (Seam A), not just a
-# synthetic Card IR (Seam B) — a bare oracle_id/Card mapping alone silently
+# ADR-0039 task #80 step 6: extract_signals is now crosswalk-only, so an
+# engine-level test needs a resolvable concept tree (the concept-tree resolver), not just a
+# synthetic Card IR (the compat-Card resolver) — a bare oracle_id/Card mapping alone silently
 # produces no signal now.
 
 
@@ -39,8 +39,8 @@ def _text_only_tree(card: dict) -> ConceptTree:
 
 
 def _wire_ir(monkeypatch, mapping: dict, cards: list[dict] = ()):
-    """Wire a {oracle_id: Card} IR index (Seam B) plus a text-only tree per
-    ``cards`` (Seam A) into the engine for the test. ``cards`` empty leaves
+    """Wire a {oracle_id: Card} IR index (the compat-Card resolver) plus a text-only tree per
+    ``cards`` (the concept-tree resolver) into the engine for the test. ``cards`` empty leaves
     ``trees_for`` untouched — for a REAL card (e.g. Jyoti below), the caller
     pre-seeds ``_ir_lookup``'s trees memo via ``mtg_utils.testkit`` instead,
     so a text-only (zero-unit) tree here would shadow the real one."""

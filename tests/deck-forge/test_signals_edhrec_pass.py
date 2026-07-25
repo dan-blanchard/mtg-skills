@@ -5,7 +5,7 @@ is a diagnostic, never a ranking input; detectors key off oracle text, not memor
 Single-clause widens vs full-text detectors (the extractor splits clauses on '.', so
 trigger→payoff patterns spanning a sentence boundary need a full-text pass).
 
-Every assertion runs the production ``extract_signals_hybrid`` over a real card from
+Every assertion runs the production ``extract_signals`` over a real card from
 the committed snapshot (``mtg_utils.testkit``) — a synthetic no-``oracle_id`` dict
 plus a hand-built ``Card``/``Ability``/``Effect`` shape can no longer reach the
 crosswalk at all post-ADR-0039 (no concept tree resolves for it), so every fixture

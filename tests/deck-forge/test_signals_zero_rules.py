@@ -3,7 +3,7 @@ workflow surfaced as clean, measured wins). Each recovers a real archetype the
 12-detector baseline missed, with a structural anchor that keeps it precise.
 
 Every case here runs the REAL production extractor via ``mtg_utils.testkit``
-(``test_signals`` = ``extract_signals_hybrid`` over the real Scryfall record + real
+(``test_signals`` = ``extract_signals`` over the real Scryfall record + real
 snapshot-stored phase records). Bare key-membership for each of these keys is
 already proven by ``tests/deck-forge/test_signal_keys_real_cards.py``'s
 ``_REAL_CASES`` table; every test kept here asserts something that table does not —
