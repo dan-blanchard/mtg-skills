@@ -67,7 +67,7 @@ third detector system:
   ``_self_mill_concept``, ``_etb_bulk_draw_concept``,
   ``_blink_maker_concept``). In both cases a concept predicate MUST reuse
   an existing crosswalk lane helper (``mtg_utils._deck_forge.
-  crosswalk_signals`` — e.g. ``removal_edict_targets_type``) rather than
+  the lanes package`` — e.g. ``removal_edict_targets_type``) rather than
   hand-roll a new text scan — the TREE-level logic lives next to the lane
   helper(s) it reuses, with the same docstring discipline as the lane
   itself; the per-card glue (resolving the card's per-face trees, or —
@@ -334,7 +334,7 @@ def _concept_any_face(card: dict, predicate: Callable[[ConceptTree], bool]) -> b
     docstring; this function only resolves the trees.
 
     Runs each tree through the SAME two corrections passes
-    ``crosswalk_signals.extract_crosswalk_signals`` applies before handing
+    ``lanes.extract_crosswalk_signals`` applies before handing
     a tree to any lane (``apply_overlay_corrections`` — ADR-0035 Stage-3b
     concept-overlay fixes, e.g. a dig-into-play flipped to cheat_play; then
     ``apply_tree_synthesis`` — ADR-0037 synthetic concept-nodes for
@@ -365,7 +365,7 @@ def _concept_any_face(card: dict, predicate: Callable[[ConceptTree], bool]) -> b
 def _graveyard_return_concept(card: dict) -> bool:
     """concept arm for the 'graveyard-return' preset (task #83): true when
     ANY face's ``ChangeZone`` reads a Graveyard->Hand direction. See
-    ``crosswalk_signals.graveyard_return_direction`` / ``_graveyard_makers``'s
+    ``lanes.graveyard_return_direction`` / ``_graveyard_makers``'s
     own docstring for why this direction isn't exposed on the merged
     ``graveyard_makers`` Signal (``subject=""``) — raw ``signal_keys``
     membership on that key can't discriminate this preset from
@@ -379,7 +379,7 @@ def _graveyard_return_concept(card: dict) -> bool:
 def _self_mill_concept(card: dict) -> bool:
     """concept arm for the 'self-mill' preset (task #83): true when ANY
     face fills YOUR OWN graveyard from YOUR OWN library. See
-    ``crosswalk_signals.self_mill_fill`` for the two structural shapes it
+    ``lanes.self_mill_fill`` for the two structural shapes it
     reads (a self-scoped ``Mill``, or a filter ``Dig`` whose
     ``rest_destination`` is Graveyard) — deliberately NOT a raw
     ``signal_keys`` union of ``mill_makers``/``graveyard_makers``/
@@ -394,7 +394,7 @@ def _self_mill_concept(card: dict) -> bool:
 def _etb_bulk_draw_concept(card: dict) -> bool:
     """concept arm for the 'card-draw' preset (task #83): true when ANY
     face draws 2+ cards off its own ETB trigger (Mulldrifter). See
-    ``crosswalk_signals.etb_bulk_draw``. Unions (OR) with this preset's
+    ``lanes.etb_bulk_draw``. Unions (OR) with this preset's
     ``signal_keys=("card_draw_engine",)`` arm; the two arms are
     structurally disjoint by construction (``card_draw_engine``'s bulk
     gate excludes an ``enters`` unit, ``etb_bulk_draw`` requires one), so
@@ -409,7 +409,7 @@ def _blink_maker_concept(card: dict) -> bool:
     carries a MAKER-half ``blink_flicker`` signal (Flickerwisp/Ephemerate/
     Soulherder), never :func:`~mtg_utils._deck_forge.lanes.
     apply_membership_floor`'s "worth blinking" payoff cross-open (Academy
-    Journeymage/Mulldrifter). See ``crosswalk_signals.
+    Journeymage/Mulldrifter). See ``lanes.
     blink_flicker_maker_present``. Unions (OR) with this preset's
     ``signal_keys=("self_blink",)`` arm — a genuinely different
     self-flicker engine (CR 611.2b, a card exiling and returning ITSELF,
@@ -425,7 +425,7 @@ def _plus_one_counters_self_grow_concept(card: dict) -> bool:
     ``self_counter_grow`` KEY minus its ``synth_self_power_scale`` cross-
     open (Esper Sentinel, the Khenra cycle — a card whose value scales
     with its OWN power, never a +1/+1 counter reference). See
-    ``crosswalk_signals.self_counter_grow_narrow`` for why the raw key is
+    ``lanes.self_counter_grow_narrow`` for why the raw key is
     too broad for THIS preset specifically. Unions (OR) with this
     preset's ``signal_keys=("plus_one_makers", "plus_one_matters",
     "counter_distribute")`` arm."""
@@ -1368,7 +1368,7 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
     # fires unconditionally on any Scry/Surveil node regardless of
     # destination (would false-match Contingency Plan's reveal-then-
     # reorder-to-bottom, the preset's own long-standing false-positive
-    # test case). ``self_mill_fill`` (crosswalk_signals.py) reads the two
+    # test case). ``self_mill_fill`` (the lanes package) reads the two
     # precise structural shapes instead: a self-scoped Mill into Graveyard
     # (Stitcher's Supplier), or a filter ``Dig`` whose ``rest_destination``
     # is Graveyard (Satyr Wayfinder / Grisly Salvage / Ransack the Lab —
@@ -1463,7 +1463,7 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
     # ``bounce_tempo`` + ``fight_makers`` + ``debuff_makers``.
     #
     # Two lane gaps the original scoping deferred on are now fixed (task
-    # #85, crosswalk_signals.py): (1) ``debuff_makers``'s single-target Pump
+    # #85, the lanes package): (1) ``debuff_makers``'s single-target Pump
     # arm now reads a dynamic ``-X/-X`` (mirroring the mass ``PumpAll``
     # arm's existing ``_negative_pt_field`` read, CR 704.5f) — Toxic Deluge,
     # Death Wind, Flunk, Cloudkill and 83 more recover; (2) a "target
@@ -1545,7 +1545,7 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
     # `removal` itself (CR 611.2: the enchanted permanent stays on the
     # battlefield, so it's a genuinely different fact than
     # destroy/exile/counter/bounce/fight/-X). See
-    # ``crosswalk_signals._pacify_makers``'s own docstring for the
+    # ``lanes._pacify_makers``'s own docstring for the
     # structural read (a `CantAttack`/`CantBlock`/`CantAttackOrBlock`
     # static whose ``affected`` filter is `EnchantedBy` — "whatever this
     # enchants").
@@ -1647,7 +1647,7 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
     # ``Signal.subject`` (``removal``/``exile_removal``/``mass_removal``/
     # ``edict_makers`` all emit ``subject=""``). Each preset below is a
     # ``concept`` predicate bound to one core type via
-    # ``_removal_edict_concept`` (see that function + ``crosswalk_signals.
+    # ``_removal_edict_concept`` (see that function + ``lanes.
     # removal_edict_targets_type``'s docstrings for the target-filter
     # mechanics they reuse) — no regex, no ``signal_keys`` (Preset ORs
     # every arm; the AND between "is removal/edict" and "targets THIS type"
@@ -2117,7 +2117,7 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
     # Cantrip (task #83 structural-view conversion): a low-opportunity-cost
     # spell that draws exactly ONE card as a RIDER on another primary
     # effect (Preordain, Opt, Ponder, Remand — CR 121.1). The crosswalk
-    # ``cantrip`` lane (crosswalk_signals._cantrip) is a BOUNDED read (a
+    # ``cantrip`` lane (lanes._cantrip) is a BOUNDED read (a
     # fixed-1, non-scaling Draw sharing its unit with a sibling non-draw
     # effect, gated to Instant/Sorcery, recipient never Opponent) —
     # corpus-scanned to 433 commander-legal hits vs the deleted regex's
@@ -2147,7 +2147,7 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
     # ``card_draw_engine`` alone is the recurring/bulk-draw lane and
     # deliberately EXCLUDES a one-shot ETB bulk draw (Mulldrifter's "when
     # ~ enters, draw two cards" — see that lane's own docstring), so it
-    # ORs with ``etb_bulk_draw`` (crosswalk_signals.py, next to
+    # ORs with ``etb_bulk_draw`` (the lanes package, next to
     # ``_card_draw_engine``) to reach it. The two arms are structurally
     # disjoint (one requires an ``enters`` trigger, the other excludes
     # one), so the OR never double-fires a card under both.
@@ -2261,7 +2261,7 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
     # read and why reminder-stripping keeps it from re-opening the
     # Connive/Amass/Explore/Incubate/Megamorph/Awaken keyword-mechanic
     # shed). (4) closes as four genuine structural-read widenings in
-    # ``crosswalk_signals._plus_one_matters`` (no bridge — real typed
+    # ``lanes._plus_one_matters`` (no bridge — real typed
     # fields/tags the prior code just didn't check yet).
     #
     # Re-measuring the post-fix residual (a 194-card manual census: the
@@ -2928,7 +2928,7 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
     # always LOW) — a raw signal_keys union would catch both, cratering
     # precision (the task #83 preset-scoping pass measured .06 over the
     # raw union). ``_blink_maker_concept`` filters to the MAKER half only
-    # (crosswalk_signals.blink_flicker_maker_present /
+    # (lanes.blink_flicker_maker_present /
     # blink_flicker_is_maker). ``self_blink`` (a card exiling and
     # returning ITSELF — Aetherling — a genuinely different self-flicker
     # engine, CR 611.2b) unions in as a separate arm; the old regex's

@@ -55,7 +55,7 @@
       activeSlot = r.data.active_slot;
       slotSize = r.data.slot_size;
     } else {
-      // Surface the real cause (e.g. 503 "run download-bulk") instead of falling
+      // Surface the real cause (e.g. 503 "run download-mtgjson") instead of falling
       // through to the misleading empty-collection prompt.
       error = r.data.error || `discovery failed (${r.status})`;
       results = [];

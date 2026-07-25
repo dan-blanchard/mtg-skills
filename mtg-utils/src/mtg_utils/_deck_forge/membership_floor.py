@@ -1884,7 +1884,7 @@ def _apply_membership_floor(
                 add(signal_keys.TYPE_MATTERS, "you", sub.capitalize(), "", "low")
     # ADR-0027 — token_maker → type_matters cross-open (the regex
     # `for _sub in _token_maker_subjects: add(TYPE_MATTERS, …)` at
-    # _signals_regex.py, now migrated). A commander that MAKES tribe-X creature
+    # the deleted regex engine, now migrated). A commander that MAKES tribe-X creature
     # tokens (a captured make_token kindred subject — Krenko makes Goblins, Darien
     # Soldiers, a "create a 1/1 Human creature token" engine) wants tribe-X
     # lords/support: its token board IS that kindred. UNION: (a) the IR make_token

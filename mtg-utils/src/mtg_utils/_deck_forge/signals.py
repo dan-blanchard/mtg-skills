@@ -137,7 +137,8 @@ def extract_signals(
     # ADR-0027 spell-copy → spellcast cross-open reconciliation: the regex
     # `extract_signals` path UNCONDITIONALLY cross-opens spellcast_matters (low) from
     # any spell_copy_makers card (a spell-copier is a spellslinger wanting a dense I/S
-    # base — the inline producer at _signals_regex). Now that BOTH spell_copy_makers
+    # base — an inline producer of the deleted regex engine). Now that BOTH
+    # spell_copy_makers
     # AND spellcast_matters are migrated, that inline producer's output is stripped from
     # the regex set (line 150), so the hybrid re-supplies it from the final merged set:
     # fire whenever spell_copy_makers ends up in `out` (the regex `spell-copy` keyword
@@ -182,7 +183,7 @@ def extract_signals(
         # EVERY regex wants_theft. Re-run that cross-open condition against the MERGED
         # key set (gain_control in out_keys — from the IR arm or this reconciliation OR
         # dont_own) to restore the LOW wants_theft on the battlefield-steal + don't-own
-        # commanders. Mirrors the regex producer at _signals_regex.py (`if gain_control
+        # commanders. Mirrors the deleted regex engine's producer (`if gain_control
         # in keys_now or dont_own: add wants_theft LOW`).
         if (gc_now or dont_own) and "wants_theft" not in out_keys:
             out.append(
@@ -201,7 +202,7 @@ def extract_signals(
         # _FLOOR_MIRROR — it adds a LOW topdeck_selection AND a LOW topdeck_stack. BOTH
         # now migrate (v28), so the hybrid DROPS both regex LOW cross-opens. Re-run the
         # EXACT gate against the reminder-stripped oracle and re-add each LOW key the
-        # merged set lacks — mirroring the regex producer at _signals_regex.py (`if
+        # merged set lacks — mirroring the deleted regex engine's producer (`if
         # play_from_top mirror: add topdeck_selection LOW; add topdeck_stack LOW`). Both
         # cross-opens were LOW so neither fed has_other_plan. CR 116.
         out_now = {s.key for s in out}
@@ -246,7 +247,7 @@ def extract_signals(
         # a discard-outlet body that fills the GY without a structured recursion (a bare
         # loot, no "graveyard" word) carries no IR graveyard_matters, so re-run the
         # EXACT gate against the merged set and re-add the LOW key when the merged lacks
-        # it — mirroring the regex producer at _signals_regex.py. The cross-open was LOW
+        # it — mirroring the deleted regex engine's producer. The cross-open was LOW
         # so it never fed has_other_plan. CR 701.8a.
         out_now = {s.key for s in out}
         if "graveyard_matters" not in out_now:
@@ -274,7 +275,8 @@ def extract_signals(
         # blocked_matters. Re-run the EXACT gate (lure present in the merged set OR the
         # lure mirror) against the merged set and re-add the LOW key when the merged
         # lacks it — mirroring the regex producer at
-        # _signals_regex.py. The cross-open was LOW so it never fed has_other_plan.
+        # the deleted regex engine. The cross-open was LOW so it never fed
+        # has_other_plan.
         # CR 509.1c.
         if "blocked_matters" not in out_now and (
             "lure_makers" in out_now

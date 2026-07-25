@@ -14,7 +14,8 @@ or add a sidecar index instead.
 
 **Carve-outs (legitimate HTTP usage):**
 
-- `download_bulk.py` — one-time / daily bulk-data refresh. The HTTP call
+- `download_mtgjson.py` — one-time / daily card-data refresh (ADR-0033; the
+  legacy `download_bulk.py` is deleted). The HTTP call
   here is *how* the bulk file gets populated; it's setup, not runtime.
 - `scryfall_lookup.py` — fallback when a name isn't in the bulk dump
   (e.g., a brand-new card released since the last refresh). Strictly a

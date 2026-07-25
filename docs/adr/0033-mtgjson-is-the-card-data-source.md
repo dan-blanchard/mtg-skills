@@ -47,7 +47,8 @@ no longer required.
 
 Implementation:
 
-- `download-mtgjson` (mirrors `download-bulk`): fetches `AllPrintings.json.gz` +
+- `download-mtgjson` (the sole downloader — the legacy `download-bulk` is
+  deleted): fetches `AllPrintings.json.gz` +
   `AllPricesToday.json.gz` to `~/.cache/mtg-skills/mtgjson/`, 24h freshness, eager
   sidecar build.
 - `_mtgjson/adapter.py` — pure per-card translation; `_mtgjson/load.py` — flattens the

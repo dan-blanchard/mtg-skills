@@ -20,9 +20,10 @@ from mtg_utils._deck_forge.signals import extract_signals
 from mtg_utils.card_ir import Filter
 from mtg_utils.testkit import test_card, test_card_ir, test_signals
 
-# Real-card cases: migrated key → the representative card NAME. The card + its REAL
-# projected IR come from the committed snapshot, so the migration is proven against
-# the exact IR production parses (ADR-0027 / task #25). Keep sorted by key.
+# Real-card cases: served key → the representative card NAME. The card + its
+# production parses come from the committed snapshot, so each key is proven
+# against the exact structural builds production serves. Keep sorted by key;
+# ``has_<x>`` rows sort by their mechanic name (``has_banding`` files under B).
 _REAL_CASES: dict[str, str] = {
     "ability_copy": "Strionic Resonator",
     "ability_strip_payoff": "Abigale, Eloquent First-Year",

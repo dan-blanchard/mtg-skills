@@ -6,8 +6,11 @@ of a card's per-face concept trees (``_card_ir.crosswalk.ConceptTree``) and
 unions the results — no regex or projected-Card path backs it up anymore. Each
 lane emits the frozen ``Signal(key, scope, subject)`` contract from typed reads
 wherever the substrate carries the datum; the remaining oracle-text reads are
-enumerated and gap-gated (the ledgered bridges of ``bridge_ledger`` plus a small
-kept-mirror tier), awaiting the post-deletion grammar sprint.
+enumerated and gap-gated (the ledgered bridges of ``bridge_ledger``, a small
+kept-mirror tier, and the five key-absence-gated cross-open reconciliations in
+``signals.extract_signals`` — the facade-level tier that re-supplies a sibling
+lane the deleted regex engine used to cross-open), awaiting the post-deletion
+grammar sprint.
 
 ``SERVED_SIGNAL_KEYS`` (``manifest.py``) is the served-key set. The per-key comments
 throughout this package are the migration's adjudication record — shed/gain verdicts and

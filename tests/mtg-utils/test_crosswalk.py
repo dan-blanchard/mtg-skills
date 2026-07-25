@@ -14737,8 +14737,13 @@ def test_gain_control_exchange_control(name):
 # ── batch hygiene ─────────────────────────────────────────────────────────────
 
 
-def test_all_emitted_keys_are_in_the_ported_set():
-    """The crosswalk only emits keys it claims to have ported (no leakage)."""
+def test_fixture_corpus_emits_only_manifest_served_keys():
+    """Every key the lanes emit over the fixture corpus is manifest-served.
+
+    NOT tautological (ADR-0014): the strangler-era in-extractor filter that
+    once made this assertion unfalsifiable was deleted 2026-07-25 — the lanes
+    now emit whatever they produce, so this is a live drift guard (the
+    snapshot-corpus twin lives in test_signal_keys_real_cards.py)."""
     for name in _cards():
         assert _keys(name) <= SERVED_SIGNAL_KEYS
 

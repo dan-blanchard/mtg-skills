@@ -105,7 +105,7 @@ _Avoid_: "process" (too vague).
 **Hydrated cube**:
 The cube JSON joined with full Scryfall card data (oracle text,
 type lines, color identity, prices, etc.) — produced by
-`download-bulk` + the cube-wizard's hydration step. Required input
+`download-mtgjson` + the cube-wizard's hydration step. Required input
 for any tool that needs to inspect card text, like archetype-audit
 or playtest-gauntlet.
 _Avoid_: "expanded", "enriched".
