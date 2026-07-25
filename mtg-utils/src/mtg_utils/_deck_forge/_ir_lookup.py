@@ -285,8 +285,21 @@ def _text_only_trees(
 ) -> list[ConceptTree]:
     """Text-only trees for every ``bulk`` face with no name-matched phase
     record among ``phase_recs`` — scoped to real two-face gameplay layouts
-    (see the module comment above the exclusion set)."""
+    (see the module comment above the exclusion set).
+
+    With NO phase records at all (a wholly phase-uncovered object — a folded
+    dungeon or the Ring emblem, ADR-0025; reachable only through
+    ``trees_for``'s empty-recs + bulk branch, never for a playable card), the
+    two-face/layout scoping has no job: every face (or the faceless record
+    itself) gets a text-only tree."""
     faces = bulk.get("card_faces") or []
+    if not phase_recs:
+        out: list[ConceptTree] = []
+        for face in faces or [bulk]:
+            tree = _text_only_tree(face, bulk, oracle_id=oracle_id)
+            if tree is not None:
+                out.append(tree)
+        return out
     if bulk.get("layout") in _TEXT_ONLY_EXCLUDED_LAYOUTS or len(faces) != 2:
         return []
     phase_names = frozenset(_face_key(r.get("name")) for r in phase_recs)
@@ -801,12 +814,25 @@ def trees_for(card: dict, bulk: dict | None = None) -> tuple[ConceptTree, ...]:
         return _TREES_MEMO[oid]
     index = _phase_record_index()
     if index is None:
+        # No phase data AT ALL (a no-sidecar deployment): empty, never
+        # text-serving — the 2026-07-25 ruling that killed the regex
+        # degradation path applies here too.
         _TREES_MEMO[oid] = ()
         return ()
     recs = index.get(oid)
     if not recs:
-        _TREES_MEMO[oid] = ()
-        return ()
+        if bulk is None:
+            _TREES_MEMO[oid] = ()
+            return ()
+        # Phase data exists but covers no face of THIS object — the ADR-0038
+        # W2c "missing face" case generalized to every face missing. Real for
+        # non-playable folded objects (a dungeon, the Ring emblem — ADR-0025):
+        # phase parses playable cards only, so these get full text-only trees
+        # and are served by the sanctioned text-idiom arms, exactly like an
+        # aftermath second half.
+        out = build_trees(oid, (), bulk=bulk)
+        _TREES_MEMO[oid] = out
+        return out
     out = build_trees(oid, recs, bulk=bulk)
     _TREES_MEMO[oid] = out
     return out

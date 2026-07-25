@@ -1707,6 +1707,14 @@ def _lifeloss_makers(tree: ConceptTree) -> list[Signal]:
         fire("you", "")
     if bridge_fires("zuko_modal_unconditional_paylife", tree):
         fire("you", "")
+    # ADR-0025 folded objects (2026-07-25): a wholly phase-uncovered folded
+    # object (the dungeon Tomb of Annihilation) gets ONLY a zero-unit
+    # text-only tree — no LoseLife node exists for the typed reads above,
+    # so the bounded symmetric "each player loses N life" room idiom rides
+    # a missing_face bridge (scope "each" — the CR 309 room resolves for
+    # every player). Full row in ``bridge_ledger.BRIDGES``.
+    if bridge_fires("folded_object_text_only_each_player_loses", tree):
+        fire("each", "")
     # task #95 — the ``synth_lifeloss_makers_opponents`` bucket-B marker
     # (see :func:`~mtg_utils._card_ir.tree_synthesis.
     # _arm_known_token_lifeloss_opponents`'s own docstring): the Wicked

@@ -327,6 +327,14 @@ def _index_by_name(bulk: list[dict], groups: dict[str, list[dict]]) -> dict[str,
     resolved: dict[str, dict] = {}
     for key, printings in by_name.items():
         pick = next((c for c in printings if c.get("oracle_id") in groups), None)
+        if pick is None:
+            # No printing has phase coverage — real for NON-PLAYABLE folded
+            # objects (a dungeon, the Ring emblem — ADR-0025), which phase
+            # never parses. Fall back to any oracle_id-bearing printing
+            # (art-series records carry none, so the poisoning trap can't
+            # bite); build_snapshot stores it with zero phase records and
+            # text-only trees, and reports it loudly.
+            pick = next((c for c in printings if c.get("oracle_id")), None)
         if pick is not None:
             resolved[key] = pick
     return resolved
@@ -356,17 +364,21 @@ def build_snapshot(names: set[str], out_path: Path | None = None) -> tuple[Path,
             unresolved.append(name)
             continue
         oid = rec.get("oracle_id") or ""
-        phase_records = groups.get(oid)
-        if not phase_records:  # pragma: no cover — index already gates on this
+        phase_records = groups.get(oid) or []
+        if not phase_records:
+            # A wholly phase-uncovered object (non-playable folded object,
+            # ADR-0025): stored with ZERO phase records; the trees below are
+            # full text-only synthesis — the same trees testkit's seeding and
+            # production's empty-recs+bulk branch build. Reported in stats so
+            # a PLAYABLE card landing here (never observed) gets eyeballed.
             no_phase_records.append(name)
-            continue
         # Build the REAL concept trees once (against the FULL bulk record, so a
         # W2c text-only face — a bulk ``card_faces`` entry phase has no matching
         # record for — is captured too) and seed the trees memo so BOTH the full-
         # and minimal-record signal calls below (and every downstream test) reuse
         # this exact tree set — the same lazy-build-once contract production's
         # ``trees_for`` gives a live process.
-        seed_trees(oid, build_trees(oid, phase_records, bulk=rec))
+        seed_trees(oid, build_trees(oid, tuple(phase_records), bulk=rec))
         minimal = _minimal(rec)
         # Field-completeness guard: the slice must lose no signal vs the full
         # record, over the SAME seeded trees (``ir=None`` — the crosswalk merge
@@ -489,7 +501,10 @@ def main(argv: list[str] | None = None) -> int:
     if stats["unresolved"]:
         print(f"  unresolved (no gameplay printing): {stats['unresolved']}")
     if stats["no_phase_records"]:
-        print(f"  resolved but no phase records: {stats['no_phase_records']}")
+        print(
+            "  stored TEXT-ONLY (no phase records — expected for folded "
+            f"objects): {stats['no_phase_records']}"
+        )
     return 0
 
 

@@ -452,10 +452,10 @@ def test_served_key_fires_on_real_card(key):
 
 def test_extra_combats_restriction_fold_fires_via_ir():
     """The arm_gap card (ADR-0027): phase folds Illusionist's Gambit's whole body
-into a single `restriction` Effect and never emits the `extra_combat` category,
-so the additional-combat-phase clause survives only in that Effect's raw. The
-restriction-fold structural arm reads it there — replacing the deleted
-EXTRA_COMBATS_REGEX whole-card mirror. CR 505.1a."""
+    into a single `restriction` Effect and never emits the `extra_combat` category,
+    so the additional-combat-phase clause survives only in that Effect's raw. The
+    restriction-fold structural arm reads it there — replacing the deleted
+    EXTRA_COMBATS_REGEX whole-card mirror. CR 505.1a."""
     keys = {s.key for s in test_signals("Illusionist's Gambit")}
     assert "extra_combats" in keys
 
@@ -579,66 +579,74 @@ def test_base_pt_set_setter_does_not_fire_base_power_matters():
 
 def test_creatures_matter_mass_grant_fires_via_ir():
     """A MASS keyword grant to the generic creature board (Champion of Lambholt's
-CantBeBlockedBy) → creatures_matter via the IR grant_keyword arm, not regex."""
+    CantBeBlockedBy) → creatures_matter via the IR grant_keyword arm, not regex."""
     keys = {s.key for s in test_signals("Champion of Lambholt")}
     assert "creatures_matter" in keys
 
 
 def test_creatures_matter_does_not_fire_on_a_subtype_lord():
     """The over-fire boundary: a SUBTYPE lord ("Goblin creatures you control get
-+1/+1") is tribal (type_matters, CR 205.3), NOT the generic go-wide lane — its
-IR pump subject carries the Goblin subtype, so the generic-set gate rejects it."""
+    +1/+1") is tribal (type_matters, CR 205.3), NOT the generic go-wide lane — its
+    IR pump subject carries the Goblin subtype, so the generic-set gate rejects it."""
     keys = {s.key for s in test_signals("Goblin King")}
     assert "creatures_matter" not in keys
 
 
 def test_blood_matters_fires_from_a_sacrifice_effect_subject():
     """Token-subtype sacrifice PAYOFF (effect side): Wedding Security "sacrifice a
-Blood token" — a `sacrifice` Effect whose subject Filter carries the Blood
-subtype opens blood_matters via the IR, not the deleted floor regex."""
+    Blood token" — a `sacrifice` Effect whose subject Filter carries the Blood
+    subtype opens blood_matters via the IR, not the deleted floor regex."""
     keys = {s.key for s in test_signals("Wedding Security")}
     assert "blood_matters" in keys
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="recovery-stage arm proven only against synthetic IR during the migration; the real parse never fired it — pre-existing gap surfaced by the 2026-07-25 repoint",
-)
 def test_blood_matters_fires_from_a_sacrificed_trigger_subject():
     """Token-subtype sacrifice PAYOFF (trigger side): Blood Hypnotist "whenever you
-sacrifice one or more Blood tokens" — a `sacrificed` Trigger whose subject Filter
-carries the Blood subtype opens blood_matters via the IR."""
+    sacrifice one or more Blood tokens" — the trigger's own valid_card Filter carries
+    the Blood subtype; served by the gap-gated blood_sacrificed_trigger_payoff
+    bridge (bridge_ledger.BRIDGES) until _resource_token_matters grows a
+    Sacrificed-trigger subject arm."""
     keys = {s.key for s in test_signals("Blood Hypnotist")}
     assert "blood_matters" in keys
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="recovery-stage arm proven only against synthetic IR during the migration; the real parse never fired it — pre-existing gap surfaced by the 2026-07-25 repoint",
-)
 def test_blood_makers_fires_from_a_recovered_choice_list_maker():
-    """Token-subtype maker recovery (choice list): Transmutation Font "create your
-choice of a Blood token, a Clue token, or a Food token" — phase drops the choice
-subtypes onto a `choose` effect; project._narrow_token_subtype_makers recovers
-them as make_token markers, so all three lanes fire via the IR. ADR-0034: the
-Blood, Clue, and Food MAKER arms emit blood_makers / clue_makers / food_makers."""
+    """Token-subtype maker (choice list): Transmutation Font "create your choice of
+    a Blood token, a Clue token, or a Food token" — the typed Token nodes live on
+    ChooseOneOf BRANCHES the concept decoration doesn't descend; served by the
+    gap-gated choice_list_token_maker_{blood,clue,food} bridges
+    (bridge_ledger.BRIDGES) until the overlay decorates branch effects."""
     keys = {s.key for s in test_signals("Transmutation Font")}
     assert "blood_makers" in keys
     assert "clue_makers" in keys
     assert "food_makers" in keys
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="recovery-stage arm proven only against synthetic IR during the migration; the real parse never fired it — pre-existing gap surfaced by the 2026-07-25 repoint",
-)
 def test_blood_makers_fires_from_a_recovered_granted_ability_maker():
-    """Token-subtype maker recovery (granted ability): Ceremonial Knife grants the
-equipped creature a quoted "create a Blood token" ability — phase folds it into a
-`pump` carrier raw; the projection recovers the Blood make_token marker, so
-blood_makers fires via the IR (ADR-0034 — the make_token MAKER arm)."""
+    """Token-subtype maker (granted ability): Ceremonial Knife grants the equipped
+    creature a quoted "create a Blood token" trigger — the typed Token node lives
+    inside a GrantTrigger modification the concept decoration doesn't descend;
+    served by the gap-gated granted_trigger_blood_token_maker bridge
+    (bridge_ledger.BRIDGES) until the overlay walks granted-trigger bodies."""
     keys = {s.key for s in test_signals("Ceremonial Knife")}
     assert "blood_makers" in keys
+
+
+def test_blood_makers_fires_from_a_create_x_unimplemented_residue():
+    """Token-subtype maker (create-X residue): Odric, Blood-Cursed "create X Blood
+    tokens, where X is the number of abilities ..." parks WHOLE as phase
+    Unimplemented('create'); recovery decorates make_token with an EMPTY subject —
+    the choice_list_token_maker_blood bridge's second match arm serves it."""
+    keys = {s.key for s in test_signals("Odric, Blood-Cursed")}
+    assert "blood_makers" in keys
+
+
+def test_folded_dungeon_text_only_tree_serves_lifeloss_makers():
+    """ADR-0025 flagship: Tomb of Annihilation is a zero-unit text-only tree
+    (phase covers no dungeon), so its "Each player loses N life" rooms ride the
+    folded_object_text_only_each_player_loses bridge — scope "each"."""
+    idents = {(s.key, s.scope) for s in test_signals("Tomb of Annihilation")}
+    assert ("lifeloss_makers", "each") in idents
 
 
 # ── spellcast_matters (ADR-0027 signals-only) — scope discrimination + recovery ──
@@ -653,7 +661,7 @@ def test_spellcast_matters_does_not_fire_on_opponent_cast():
 
 def test_spellcast_matters_does_not_fire_on_symmetric_player_cast():
     """A symmetric 'whenever a player casts' punisher (no 'you cast') is not the
-you-cast spellslinger payoff."""
+    you-cast spellslinger payoff."""
     keys = {s.key for s in test_signals("Eidolon of the Great Revel")}
     assert "spellcast_matters" not in keys
 
@@ -666,7 +674,7 @@ def test_spellcast_matters_fires_on_prowess_keyword():
 
 def test_spellcast_matters_fires_from_kept_mirror_cost_reducer():
     """An instant/sorcery cost-reducer (Baral) has NO cast_spell trigger — it rides
-the byte-identical _detect_spellcast_matters kept mirror over the oracle."""
+    the byte-identical _detect_spellcast_matters kept mirror over the oracle."""
     keys = {s.key for s in test_signals("Baral, Chief of Compliance")}
     assert "spellcast_matters" in keys
 
@@ -766,20 +774,14 @@ def test_cost_reduction_recovered_ability_cost_reducer_dragonkin():
     """Dragonkin Berserker's "Boast abilities you activate cost {1} less to activate"
     is dropped by phase (no cost_reduction Effect); supplement._recover_cost_reduction
     synthesizes one, so the structural arm fires cost_reduction. CR 601.2f."""
-    keys = {
-        s.key
-        for s in extract_signals(test_card("Dragonkin Berserker"))
-    }
+    keys = {s.key for s in extract_signals(test_card("Dragonkin Berserker"))}
     assert "cost_reduction" in keys
 
 
 def test_cost_reduction_recovered_defiler_conditional():
     """Defiler of Vigor's "Those spells cost {G} less to cast" conditional reducer is
     dropped by phase; the recovery synthesizes the cost_reduction Effect. CR 601.2f."""
-    keys = {
-        s.key
-        for s in extract_signals(test_card("Defiler of Vigor"))
-    }
+    keys = {s.key for s in extract_signals(test_card("Defiler of Vigor"))}
     assert "cost_reduction" in keys
 
 
@@ -787,10 +789,7 @@ def test_cost_reduction_recovered_saga_chapter_collapse():
     """Invasion of the Giants' chapter-III reducer collapses to a raw "Chapter 3"
     Effect that fails the arm's subject-None screen; the recovery still synthesizes a
     genuine reducer from the oracle clause, so cost_reduction fires. CR 601.2f."""
-    keys = {
-        s.key
-        for s in extract_signals(test_card("Invasion of the Giants"))
-    }
+    keys = {s.key for s in extract_signals(test_card("Invasion of the Giants"))}
     assert "cost_reduction" in keys
 
 
@@ -798,10 +797,7 @@ def test_clone_makers_recovered_creature_copy_etb():
     """Spark Double's "enter as a copy of a creature" replacement is folded by phase to
     a non-clone node; supplement._recover_clone_creature synthesizes a Creature-subject
     clone Effect, so the copied-type arm fires clone_makers. CR 707.2."""
-    keys = {
-        s.key
-        for s in extract_signals(test_card("Spark Double"))
-    }
+    keys = {s.key for s in extract_signals(test_card("Spark Double"))}
     assert "clone_makers" in keys
 
 
@@ -810,10 +806,7 @@ def test_clone_makers_recovered_phase_mistyped_creature_copy_dermotaxi():
     types its clone subject 'Artifact' (the "Vehicle artifact" rider). The recovery
     runs anyway (the Artifact-typed clone does not fire clone_makers) and recovers the
     Creature copy, so clone_makers fires. CR 707.2."""
-    keys = {
-        s.key
-        for s in extract_signals(test_card("Dermotaxi"))
-    }
+    keys = {s.key for s in extract_signals(test_card("Dermotaxi"))}
     assert "clone_makers" in keys
 
 
@@ -822,10 +815,7 @@ def test_clone_makers_does_not_fire_on_a_noncreature_copy_overfire():
     creature clone). With the over-broad mirror deleted, it correctly does NOT fire
     clone_makers (the creature-blind over-fire is shed); it keeps enchantments_matter
     (it is an Enchantment)."""
-    keys = {
-        s.key
-        for s in extract_signals(test_card("Copy Artifact"))
-    }
+    keys = {s.key for s in extract_signals(test_card("Copy Artifact"))}
     assert "clone_makers" not in keys
 
 
@@ -834,10 +824,7 @@ def test_opponent_discard_recovered_damage_connect_specter():
     disconnected pieces (a damage-to-player trigger + a discard scope 'any'); supplement.
     _recover_opponent_discard links them and appends a discard scope 'opp', so the arm
     fires opponent_discard. CR 510.1c / 701.9."""
-    keys = {
-        s.key
-        for s in extract_signals(test_card("Abyssal Specter"))
-    }
+    keys = {s.key for s in extract_signals(test_card("Abyssal Specter"))}
     assert "opponent_discard" in keys
 
 
@@ -845,10 +832,7 @@ def test_opponent_discard_recovered_bounce_then_discard():
     """Recoil's "Return target permanent …, then that player discards" — the discardER
     is the bounce target's controller (an opponent); the recovery appends a discard
     scope 'opp'. CR 701.9."""
-    keys = {
-        s.key
-        for s in extract_signals(test_card("Recoil"))
-    }
+    keys = {s.key for s in extract_signals(test_card("Recoil"))}
     assert "opponent_discard" in keys
 
 
@@ -857,10 +841,7 @@ def test_opponent_discard_does_not_fire_on_combat_damage_self_loot():
     do, draw" is a SELF-loot (the discardER is YOU), not an opponent discard — the
     recovery's opponent-directed tell ("that player discards") is absent, so it does NOT
     fire opponent_discard. CR 701.8a (loot) vs 701.9 (forced discard)."""
-    keys = {
-        s.key
-        for s in extract_signals(test_card("Academy Raider"))
-    }
+    keys = {s.key for s in extract_signals(test_card("Academy Raider"))}
     assert "opponent_discard" not in keys
 
 
@@ -919,10 +900,7 @@ def test_facedown_does_not_fire_on_name_only_disguise():
     assert not any(
         e.category == "facedown_ref" for ab in ir.all_abilities() for e in ab.effects
     )
-    keys = {
-        s.key
-        for s in extract_signals(test_card("Chameleon, Master of Disguise"))
-    }
+    keys = {s.key for s in extract_signals(test_card("Chameleon, Master of Disguise"))}
     assert "facedown_matters" not in keys
 
 

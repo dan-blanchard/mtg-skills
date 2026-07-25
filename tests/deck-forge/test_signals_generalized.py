@@ -447,15 +447,13 @@ def test_wants_cloning_opens_for_recurring_value_legendary():
     # forks the per-turn engine and the copy dodges the legend rule. Obeka ("{T}: end
     # the turn") and Obeka, Splitter of Seconds (combat damage -> additional upkeep
     # steps — extra-turn/phase generators are premium clone targets) qualify; a
-    # vanilla legendary (Isamaru) does not. Commander-level (membership), so it must
-    # NOT fire for the 99. Real snapshot cards.
+    # vanilla legendary (Isamaru) does not. Real snapshot cards.
     assert "wants_cloning" in _keys_real("Obeka, Brute Chronologist")  # {T} engine
     assert "wants_cloning" in _keys_real("Obeka, Splitter of Seconds")  # extra upkeeps
     assert "wants_cloning" not in _keys_real("Isamaru, Hound of Konda")  # vanilla
-    # NOTE: the legacy engines suppressed wants_cloning under
-    # include_membership=False (a commander-only membership cross-open); the
-    # crosswalk serves it as a regular lane regardless of the flag, so that old
-    # gating pin has no production analogue and is not asserted here.
+    # Lane-level emission regardless of include_membership is RATIFIED behavior
+    # (2026-07-25): LOW emissions never read as payoffs downstream, so the old
+    # commander-only gating stays retired. See deck-forge/CONTEXT.md "Signal".
 
 
 def test_clone_engine_fires_for_legendary_with_intervening_card_type():

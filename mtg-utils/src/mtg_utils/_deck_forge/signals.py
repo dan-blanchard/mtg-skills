@@ -24,7 +24,7 @@ in ``signal_base`` / ``text_reads`` / ``membership_floor``.
 from __future__ import annotations
 
 import re
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 
 from mtg_utils._deck_forge import signal_keys
 from mtg_utils._deck_forge._subtypes import (
@@ -69,6 +69,7 @@ __all__ = [
     "clauses",
     "coverage_gate",
     "extract_signals",
+    "folded_object_records",
     "producible_static_keys",
     "rank_deck_signals",
     "signal_keys",
@@ -96,10 +97,10 @@ def extract_signals(
 
     A card with no ``oracle_id`` / no phase record / no committed mirror schema
     (``trees_for`` returns ``()``) degrades to an empty signal list, not a
-    crash — and never to text-guessing. Note: ADR-0025 folded-object references
-    (a ventured dungeon / meld result / the Ring) do not currently extend a
-    commander's signals — the fold only ever ran through the retired engines
-    (a documented regression, tracked for adjudication)."""
+    crash — and never to text-guessing. ADR-0025 folded-object references
+    (a ventured dungeon / meld result / the Ring) are handled one level up:
+    ``_deck_signal_stats`` unions ``folded_object_records``' own structural
+    signals into the commander's — this function extracts ONE record."""
     from mtg_utils._deck_forge._ir_lookup import trees_for
     from mtg_utils._deck_forge.lanes import (
         apply_membership_floor,
@@ -299,9 +300,67 @@ def extract_signals(
     return out
 
 
+def folded_object_records(
+    card: dict, resolve_object: Callable[[str], dict | None]
+) -> list[dict]:
+    """The separate game-objects a commander's plan deterministically brings
+    into play (ADR-0025) — their records, for signal extraction.
+
+    Four fold classes (each a record-level check, no engine needed):
+
+    * a **ventured dungeon** the commander's own oracle NAMES (Scryfall
+      ``all_parts`` lists every rules-legal dungeon, so the named one is the
+      deterministic one — Acererak → Tomb of Annihilation; a generic venturer
+      names none and folds nothing);
+    * a **meld result** (``all_parts`` component ``meld_result`` — conditional
+      on assembling both halves, but it IS the deck's payoff);
+    * two **rules-fixed objects**, one global object per trigger phrase:
+      "the ring tempts you" → The Ring, "take the initiative" → Undercity.
+
+    ``resolve_object`` maps an object name to its record (dungeons/emblems are
+    excluded from the addable name-index — ``production.build_object_resolver``
+    is the production impl). Returns ``[]`` when nothing folds."""
+    text = get_oracle_text(card) or ""
+    low = text.lower()
+    out: list[dict] = []
+    # Oracle-named dungeon. Discovery is a fixed name table (like the phrase
+    # map below): the dungeon roster is closed game data, and the MTGJSON
+    # adapter's reconstructed ``all_parts`` carries tokens + meld only — the
+    # Scryfall-era all_parts dungeon walk has no MTGJSON equivalent. Undercity
+    # is deliberately absent here: it folds via its Initiative phrase, never
+    # by name (CR 701.58c — you can't venture into it from a plain venture).
+    for dungeon in (
+        "Dungeon of the Mad Mage",
+        "Lost Mine of Phandelver",
+        "Tomb of Annihilation",
+    ):
+        if dungeon.lower() in low:
+            obj = resolve_object(dungeon)
+            if obj:
+                out.append(obj)
+    # Meld result — the one all_parts component the adapter does carry.
+    for part in card.get("all_parts") or []:
+        if part.get("component") == "meld_result" and part.get("name"):
+            obj = resolve_object(part["name"])
+            if obj:
+                out.append(obj)
+    # Rules-fixed objects: one global object per trigger phrase.
+    for trigger, obj_name in (
+        ("the ring tempts you", "The Ring"),
+        ("take the initiative", "Undercity"),
+    ):
+        if trigger in low:
+            obj = resolve_object(obj_name)
+            if obj:
+                out.append(obj)
+    return out
+
+
 def _deck_signal_stats(
     records: Sequence[dict | None],
     commander_names: set[str],
+    *,
+    resolve_object: Callable[[str], dict | None] | None = None,
 ) -> tuple[
     dict[tuple[str, str, str], int],
     set[tuple[str, str, str]],
@@ -314,7 +373,12 @@ def _deck_signal_stats(
     among those cards, the first ``Signal`` seen for it, and its
     HIGH-confidence non-commander support (the payoff-grade count — the
     membership floor's own-subtype signals are deliberately LOW and must
-    never read as payoffs)."""
+    never read as payoffs).
+
+    ``resolve_object`` (ADR-0025): when supplied, each COMMANDER also unions
+    the structural signals of its folded objects (``folded_object_records``) —
+    the dungeon it ventures into, the Ring, its meld result — counted as
+    commander-emitted (the plan is the commander's; the 99 never fold)."""
     support: dict[tuple[str, str, str], int] = {}
     from_commander: set[tuple[str, str, str]] = set()
     first: dict[tuple[str, str, str], Signal] = {}
@@ -327,6 +391,11 @@ def _deck_signal_stats(
         # a deployment with no card data degrades to empty signals, never to
         # text-guessing.
         sigs = extract_signals(card, include_membership=is_cmd)
+        if is_cmd and resolve_object is not None:
+            for obj in folded_object_records(card, resolve_object):
+                # An object is not a creature and not the commander's body —
+                # membership never applies; only what the object DOES folds in.
+                sigs = [*sigs, *extract_signals(obj, include_membership=False)]
         for sig in sigs:
             ident = (sig.key, sig.scope, sig.subject)
             support[ident] = support.get(ident, 0) + 1
@@ -341,6 +410,8 @@ def _deck_signal_stats(
 def rank_deck_signals(
     records: Sequence[dict | None],
     commander_names: set[str],
+    *,
+    resolve_object: Callable[[str], dict | None] | None = None,
 ) -> list[Signal]:
     """Deck signals deduped by (key, scope, subject) and ranked by relevance.
 
@@ -349,9 +420,13 @@ def rank_deck_signals(
     signal's *support* (how many cards feed it) drives the ranking. Kept ForgeState-free
     so both the deck-forge engine (``engine.ranked_deck_signals``) and the deterministic
     tuner share one ranking (ADR-0023).
-"""
+
+    ``resolve_object`` (ADR-0025): the folded-object resolver — when supplied,
+    the commander's signals extend to the objects its plan brings into play
+    (see ``folded_object_records``). The engine wires ``state.object_resolver``;
+    ``None`` (the CLIs' default) just skips the fold."""
     support, from_commander, first, _nc_high = _deck_signal_stats(
-        records, commander_names
+        records, commander_names, resolve_object=resolve_object
     )
     return _ranked_from_stats(support, from_commander, first)
 
@@ -392,13 +467,15 @@ def _payoffs_from_stats(
 def ranked_signals_and_payoffs(
     records: Sequence[dict | None],
     commander_names: set[str],
+    *,
+    resolve_object: Callable[[str], dict | None] | None = None,
 ) -> tuple[list[Signal], frozenset[str]]:
     """``rank_deck_signals`` + ``tribal_payoff_subjects`` from ONE extraction
     pass. A tune needs both, and calling the two helpers separately ran the
     full per-card lane pass twice per deck (the tree build is memoized; the
     lane pass is not)."""
     support, from_commander, first, nc_high = _deck_signal_stats(
-        records, commander_names
+        records, commander_names, resolve_object=resolve_object
     )
     return (
         _ranked_from_stats(support, from_commander, first),
@@ -409,6 +486,8 @@ def ranked_signals_and_payoffs(
 def tribal_payoff_subjects(
     records: Sequence[dict | None],
     commander_names: set[str],
+    *,
+    resolve_object: Callable[[str], dict | None] | None = None,
 ) -> frozenset[str]:
     """The tribal (``type_matters``) subjects with >=1 NON-COMMANDER card
     emitting the ident — a genuine payoff (ADR-0040 companion, task #101).
@@ -424,7 +503,7 @@ def tribal_payoff_subjects(
     changeling fold — so depth alone over-credits a tribe nobody actually
     built toward), not a real budding theme."""
     _support, _from_commander, first, nc_high = _deck_signal_stats(
-        records, commander_names
+        records, commander_names, resolve_object=resolve_object
     )
     return _payoffs_from_stats(first, nc_high)
 

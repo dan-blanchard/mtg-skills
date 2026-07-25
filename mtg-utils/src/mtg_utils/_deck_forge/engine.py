@@ -1001,7 +1001,9 @@ def ranked_deck_signals(state: ForgeState, hydrated: list[dict]) -> list:
     deterministic tuner also calls (ADR-0023). Wires the Card-IR index (ADR-0027) so
     migrated keys — served only from the IR — surface in the deck's avenues."""
     commander_names = {e["name"] for e in state.session.to_deck_dict()["commanders"]}
-    return rank_deck_signals(hydrated, commander_names)
+    return rank_deck_signals(
+        hydrated, commander_names, resolve_object=state.object_resolver
+    )
 
 
 def signal_dict(signal: Signal) -> dict:

@@ -1400,6 +1400,22 @@ def _resource_token_makers(tree: ConceptTree) -> list[Signal]:
                 out.append(key)
     if tree.has_effect("investigate"):
         out.append("clue_makers")
+    # LEDGERED BRIDGES (Blood-token gap sweep, 2026-07-25): the concept
+    # decoration only walks the top-level effect chain, so a ChooseOneOf
+    # BRANCH's typed Token (Transmutation Font's Blood/Clue/Food choice
+    # list; Odric, Blood-Cursed's Unimplemented('create') residue rides the
+    # blood row's second match arm) and a GrantTrigger-granted trigger's
+    # typed Token (Ceremonial Knife) never surface as make_token concepts.
+    # Gap-gated + corpus-bounded + self-retiring; full rows in
+    # ``bridge_ledger.BRIDGES``.
+    for bridge_id, key in (
+        ("choice_list_token_maker_blood", "blood_makers"),
+        ("choice_list_token_maker_clue", "clue_makers"),
+        ("choice_list_token_maker_food", "food_makers"),
+        ("granted_trigger_blood_token_maker", "blood_makers"),
+    ):
+        if bridge_fires(bridge_id, tree):
+            out.append(key)
     seen: set[str] = set()
     sigs: list[Signal] = []
     for key in out:

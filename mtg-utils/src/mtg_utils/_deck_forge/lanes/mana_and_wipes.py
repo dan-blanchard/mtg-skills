@@ -1249,6 +1249,14 @@ def _resource_token_matters(tree: ConceptTree) -> list[Signal]:
                 key = _SAC_TOKEN_MATTERS.get(st.lower())
                 if key:
                     fire(key, "")
+    # LEDGERED BRIDGE (Blood-token gap sweep, 2026-07-25): a "whenever you
+    # sacrifice one or more Blood tokens" PAYOFF lives on the trigger's own
+    # ``valid_card`` subject (Blood Hypnotist — typed substrate complete,
+    # mode='Sacrificed' + Typed(Blood)); this lane has no Sacrificed-trigger
+    # subject arm yet, so the read rides a gap-gated bridge until the
+    # grammar sprint grows one. Full row in ``bridge_ledger.BRIDGES``.
+    if bridge_fires("blood_sacrificed_trigger_payoff", tree):
+        fire("blood_matters", "")
     return out
 
 

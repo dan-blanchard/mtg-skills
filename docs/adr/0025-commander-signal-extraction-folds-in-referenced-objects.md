@@ -17,9 +17,13 @@ bring into its core strategy:
 
 - **Card-backed objects** (dungeons; later, anything else Scryfall links) are discovered
   through `all_parts` — the same structured link that finds a card's tokens
-  (`deck.discover_tokens`) — then **joined and re-extracted**: the object's oracle is run
-  back through the normal extractor so the existing scope rules and cross-opens decide the
-  synergies, rather than importing the object's raw signals.
+  (`deck.discover_tokens`) — then **extracted and unioned**: the object's own record runs
+  through the normal structural extractor and its signals union into the commander's at
+  the deck-stats layer (`signals.folded_object_records` +
+  `_deck_signal_stats`), counted as commander-emitted. (The original mechanism
+  appended the object's text to the commander's and re-extracted; that shape died with
+  the regex engine — per-object structural extraction is the settled equivalent, and the
+  scope rules still apply because the object's own clauses carry them.)
 - **In-oracle objects** (a planeswalker's emblem — its effect is quoted inside the
   ultimate, e.g. Elspeth's "creatures you control get +2/+2 and have flying") are *already*
   read; the extractor needs no change for them. They are documented as the same concept so

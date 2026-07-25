@@ -52,6 +52,7 @@ from mtg_utils._card_ir.crosswalk import (
     filter_core_types,
     filter_inzone_zones,
     filter_subtypes,
+    iter_cost_leaves,
     iter_static_defs,
     iter_typed_nodes,
     static_mode_field,
@@ -1758,6 +1759,186 @@ def _artifact_sac_reflexive_payment_match(tree: ConceptTree) -> bool:
     return False
 
 
+# ── predefined-token maker/payoff bridges (Blood-token gap sweep, 2026-07-25) ─
+# Four measured gaps around the Blood/Clue/Food predefined-token lanes. The
+# first three shapes are OUR overlay's frontier, not phase's: the typed
+# substrate is complete (a fully-typed ``Token`` node exists) but the concept
+# decoration only walks the top-level effect chain — a ``ChooseOneOf``
+# BRANCH's Token (Transmutation Font) and a ``GrantTrigger``-granted
+# trigger's Token (Ceremonial Knife) never surface as ``make_token``
+# concepts, so ``_resource_token_makers``'s concept read finds nothing.
+# Odric, Blood-Cursed rides the choice-list blood row via a second match arm
+# (upstream_parse_failure class, the keep_n_wrath/Promise-of-Loyalty
+# precedent): phase parks "create X Blood tokens, where X is the number of
+# abilities ..." WHOLE as ``Unimplemented(name='create')``; the recovery
+# stage decorates it as a ``make_token`` concept but with an EMPTY subject —
+# no ``Blood`` for the lane's subtype read. CR 111.10 (predefined tokens)
+# throughout.
+
+
+def _make_token_concept_missing(tree: ConceptTree, subtype: str) -> bool:
+    """The shared maker-row gap: no ``make_token`` concept ANYWHERE in the
+    tree carries ``subtype`` in its subject — the exact read
+    ``_resource_token_makers`` serves from. Self-retiring: the moment the
+    overlay decorates the branch/granted Token (or phase's create-X grammar
+    lands and recovery fills the subject), the concept appears with the
+    subtype and the bridge stands down."""
+    return not any(
+        c.concept == "make_token" and subtype in c.subject for c in tree.iter_concepts()
+    )
+
+
+def _choice_branch_makes_token(tree: ConceptTree, subtype: str) -> bool:
+    """A ``ChooseOneOf`` branch whose own effect is a typed ``Token`` node
+    carrying ``subtype`` in its ``types`` — the choice-list maker idiom
+    ("Create your choice of a Blood token, a Clue token, or a Food token"),
+    read structurally off the branch nodes the decoration skips."""
+    for unit in tree.units:
+        for n in iter_typed_nodes(unit.node):
+            if tag_of(n) != "ChooseOneOf":
+                continue
+            for br in getattr(n, "branches", None) or []:
+                eff = getattr(br, "effect", None)
+                if tag_of(eff) == "Token" and subtype in (
+                    getattr(eff, "types", None) or ()
+                ):
+                    return True
+    return False
+
+
+_CREATE_X_BLOOD_RX = re.compile(r"\bcreate x blood tokens\b", re.IGNORECASE)
+
+
+def _blood_maker_concept_gap(tree: ConceptTree) -> bool:
+    return _make_token_concept_missing(tree, "Blood")
+
+
+def _choice_list_blood_match(tree: ConceptTree) -> bool:
+    # Arm 1: the Font choice-list branch Token; arm 2: Odric's phase
+    # Unimplemented('create') residue (see the section comment above).
+    if _choice_branch_makes_token(tree, "Blood"):
+        return True
+    return any(
+        _CREATE_X_BLOOD_RX.search(d) for d in _unimplemented_descs_anywhere(tree)
+    )
+
+
+def _choice_list_clue_gap(tree: ConceptTree) -> bool:
+    # clue_makers has TWO structural reads in _resource_token_makers: the
+    # make_token subtype AND a first-class Investigate effect — both must
+    # miss before the bridge may serve.
+    if tree.has_effect("investigate"):
+        return False
+    return _make_token_concept_missing(tree, "Clue")
+
+
+def _choice_list_clue_match(tree: ConceptTree) -> bool:
+    return _choice_branch_makes_token(tree, "Clue")
+
+
+def _choice_list_food_gap(tree: ConceptTree) -> bool:
+    return _make_token_concept_missing(tree, "Food")
+
+
+def _choice_list_food_match(tree: ConceptTree) -> bool:
+    return _choice_branch_makes_token(tree, "Food")
+
+
+# NOTE (grammar sprint, NOT fired here): The Third Doctor's choice list
+# ("...create your choice of a Clue, a Food, or a Treasure token") could
+# also serve treasure_makers via the identical branch read — beyond this
+# sweep's named Blood/Clue/Food shapes, so it stays a comment; gold_makers
+# is not a served key at all (verified absent from SERVED_SIGNAL_KEYS).
+
+
+def _granted_trigger_blood_token_match(tree: ConceptTree) -> bool:
+    """A ``GrantTrigger`` static modification whose granted trigger's own
+    effect chain carries a typed Blood ``Token`` node ('Equipped creature
+    ... has "Whenever this creature deals combat damage, create a Blood
+    token."' — Ceremonial Knife, CR 301.5/613.1f)."""
+    for unit in tree.units:
+        for n in iter_typed_nodes(unit.node):
+            if tag_of(n) != "GrantTrigger":
+                continue
+            trig = getattr(n, "trigger", None)
+            if trig is None:
+                continue
+            for t in iter_typed_nodes(trig):
+                if tag_of(t) == "Token" and "Blood" in (
+                    getattr(t, "types", None) or ()
+                ):
+                    return True
+    return False
+
+
+def _blood_matters_structural_gap(tree: ConceptTree) -> bool:
+    """The payoff-row gap: none of ``_resource_token_matters``'s three
+    structural reads (a Blood-subtyped sacrifice EFFECT, a Blood-subtyped
+    ``Sacrifice`` cost leaf, a ``synth_token_subtype_own_ref`` Blood marker)
+    finds anything on this tree."""
+    for unit in tree.units:
+        for c in unit.effects:
+            if c.concept == "sacrifice" and "blood" in {
+                s.lower() for s in filter_subtypes(effect_filter(c.node))
+            }:
+                return False
+        for leaf in iter_cost_leaves(getattr(unit.node, "cost", None)):
+            if tag_of(leaf) == "Sacrifice" and "blood" in {
+                s.lower() for s in filter_subtypes(getattr(leaf, "target", None))
+            }:
+                return False
+    for c in tree.iter_concepts():
+        if c.concept == "synth_token_subtype_own_ref" and any(
+            s.lower() == "blood" for s in c.subject
+        ):
+            return False
+    return True
+
+
+def _blood_sacrificed_trigger_match(tree: ConceptTree) -> bool:
+    """A ``Sacrificed``-mode trigger whose ``valid_card`` filter carries the
+    Blood subtype and a You/unstated controller ("Whenever you sacrifice one
+    or more Blood tokens, ..." — Blood Hypnotist; CR 701.21, the
+    sacrifice-PAYOFF half). An Opponent-controller watcher is a punisher,
+    not your payoff — excluded."""
+    for unit in tree.units:
+        if unit.trigger_event != "sacrificed":
+            continue
+        vc = getattr(unit.node, "valid_card", None)
+        if vc is None or filter_controller(vc) not in (None, "You"):
+            continue
+        if any(s.lower() == "blood" for s in filter_subtypes(vc)):
+            return True
+    return False
+
+
+# ── folded-object text-only lifeloss (ADR-0025, 2026-07-25) ──────────────────
+# A wholly phase-uncovered folded object (the dungeon Tomb of Annihilation)
+# gets ONLY a zero-unit text-only ConceptTree (ADR-0038 W2c generalized —
+# ``_ir_lookup._text_only_tree``, ``units=()``): no LoseLife node exists for
+# the lifeloss lane's typed reads, so the room text "Each player loses 1
+# life" serves nothing. The bounded symmetric-bleed idiom rides a
+# missing_face bridge instead — this is what carries Acererak's fold to the
+# ADR-0025 flagship conclusion (self-bleed → the deck wants lifegain
+# sustain). CR 309 (dungeons) / CR 119.3 throughout.
+_EACH_PLAYER_LOSES_RX = re.compile(r"\beach player loses \d+ life\b", re.IGNORECASE)
+
+
+def _text_only_tree_gap(tree: ConceptTree) -> bool:
+    """No PHASE-BUILT unit == the W2c/ADR-0025 text-only shape
+    (``_text_only_tree`` builds ``units=()``; the production pipeline's
+    ``apply_tree_synthesis`` may then append ``origin="synth"`` bucket-B
+    units — Tomb's Atropal line synthesizes a token-maker marker — which
+    carry no typed ``LoseLife`` either, so they don't count as coverage).
+    Goes False the moment phase covers the object (its tree then carries a
+    real-origin unit, and the typed LoseLife reads own it)."""
+    return all(unit.origin == "synth" for unit in tree.units)
+
+
+def _each_player_loses_match(tree: ConceptTree) -> bool:
+    return bool(_EACH_PLAYER_LOSES_RX.search(tree.oracle or ""))
+
+
 BRIDGES: dict[str, Bridge] = {
     b.bridge_id: b
     for b in (
@@ -3029,6 +3210,151 @@ BRIDGES: dict[str, Bridge] = {
             pins=("Nimble Hobbit",),
             gap=_no_typed_sacrifice_node,
             match=_artifact_sac_reflexive_payment_match,
+        ),
+        Bridge(
+            bridge_id="choice_list_token_maker_blood",
+            key="blood_makers",
+            kind="grammar_straggler",
+            todo=(
+                "grammar sprint (task #82): decorate ChooseOneOf BRANCH "
+                "effects with concepts (the branch's typed Token -> a "
+                "make_token concept whose subject carries the token "
+                "subtypes) — the moment the overlay descends branches, "
+                "the shared gap goes False and this row + its "
+                "_resource_token_makers call delete. The Odric arm is an "
+                "upstream phase-rs report candidate (Dan posts) riding "
+                "this row via the match's second branch (the "
+                "keep_n_wrath/Promise-of-Loyalty precedent): 'create X "
+                "Blood tokens, where X is the number of abilities ...' "
+                "parks WHOLE as Unimplemented(name='create'); recovery "
+                "decorates it make_token but with an EMPTY subject — "
+                "retires on a phase bump that structures the create-X-"
+                "where-X count (the subject then carries Blood and the "
+                "same gap stands the arm down)"
+            ),
+            census=(
+                "2 hits / 38,261 distinct oracle_ids (31,552 commander-"
+                "legal), structural sweep over every choice-list / "
+                "create-X candidate: Transmutation Font (choice-list "
+                "branch Token) + Odric, Blood-Cursed (Unimplemented "
+                "'create' residue), MTGJSON 2026-07-25 @ phase v0.35.2"
+            ),
+            pins=("Transmutation Font", "Odric, Blood-Cursed"),
+            gap=_blood_maker_concept_gap,
+            match=_choice_list_blood_match,
+        ),
+        Bridge(
+            bridge_id="choice_list_token_maker_clue",
+            key="clue_makers",
+            kind="grammar_straggler",
+            todo=(
+                "grammar sprint (task #82): the SAME ChooseOneOf-branch "
+                "decoration gap as choice_list_token_maker_blood (one key "
+                "per row splits the serving) — retires with it; the gap "
+                "additionally stands down on a first-class Investigate "
+                "effect (the lane's second clue read)"
+            ),
+            census=(
+                "2 hits / 38,261 distinct oracle_ids (31,552 commander-"
+                "legal): Transmutation Font + The Third Doctor (its "
+                "Clue/Food/Treasure choice list shares the branch shape), "
+                "MTGJSON 2026-07-25 @ phase v0.35.2"
+            ),
+            pins=("Transmutation Font",),
+            gap=_choice_list_clue_gap,
+            match=_choice_list_clue_match,
+        ),
+        Bridge(
+            bridge_id="choice_list_token_maker_food",
+            key="food_makers",
+            kind="grammar_straggler",
+            todo=(
+                "grammar sprint (task #82): the SAME ChooseOneOf-branch "
+                "decoration gap as choice_list_token_maker_blood (one key "
+                "per row splits the serving) — retires with it"
+            ),
+            census=(
+                "2 hits / 38,261 distinct oracle_ids (31,552 commander-"
+                "legal): Transmutation Font + The Third Doctor, MTGJSON "
+                "2026-07-25 @ phase v0.35.2 (The Third Doctor's Treasure "
+                "branch could also serve treasure_makers — beyond this "
+                "sweep's named shapes, ledgered as the section comment's "
+                "grammar-sprint note instead)"
+            ),
+            pins=("Transmutation Font",),
+            gap=_choice_list_food_gap,
+            match=_choice_list_food_match,
+        ),
+        Bridge(
+            bridge_id="granted_trigger_blood_token_maker",
+            key="blood_makers",
+            kind="grammar_straggler",
+            todo=(
+                "grammar sprint (task #82): decorate GrantTrigger-granted "
+                "trigger bodies with concepts (the granted trigger's typed "
+                "Token -> make_token, the same descent the granted-paylife "
+                "/ sac-outlet granted-cost arms already hand-roll) — the "
+                "moment the overlay walks the grant, the shared "
+                "_make_token_concept_missing gap goes False and this row "
+                "+ its _resource_token_makers call delete"
+            ),
+            census=(
+                "1 hit / 38,261 distinct oracle_ids (31,552 commander-"
+                "legal), structural sweep over every Blood-mentioning "
+                "card's GrantTrigger nodes: Ceremonial Knife alone, "
+                "MTGJSON 2026-07-25 @ phase v0.35.2"
+            ),
+            pins=("Ceremonial Knife",),
+            gap=_blood_maker_concept_gap,
+            match=_granted_trigger_blood_token_match,
+        ),
+        Bridge(
+            bridge_id="blood_sacrificed_trigger_payoff",
+            key="blood_matters",
+            kind="grammar_straggler",
+            todo=(
+                "grammar sprint (task #82): grow a Sacrificed-trigger "
+                "subject arm on _resource_token_matters (read the "
+                "trigger's own valid_card subtypes structurally — the "
+                "typed substrate is COMPLETE here, mode='Sacrificed' + "
+                "Typed(Blood) valid_card; only the lane read is missing) "
+                "— delete this row + its lane call when the arm lands"
+            ),
+            census=(
+                "4 hits / 38,261 distinct oracle_ids (3 commander-legal: "
+                "Blood Hypnotist, Gluttonous Guest, Sanguine Statuette; "
+                "+ Sanguine Brushstroke, not commander-legal), MTGJSON "
+                "2026-07-25 @ phase v0.35.2"
+            ),
+            pins=("Blood Hypnotist",),
+            gap=_blood_matters_structural_gap,
+            match=_blood_sacrificed_trigger_match,
+        ),
+        Bridge(
+            bridge_id="folded_object_text_only_each_player_loses",
+            key="lifeloss_makers",
+            kind="missing_face",
+            todo=(
+                "retires on a phase bump that emits card-data records for "
+                "non-traditional folded objects (a Dungeon's rooms as "
+                "typed LoseLife triggers — the gap's zero-units check "
+                "goes False the moment ANY record lands) or on the "
+                "ADR-0025 grammar sprint giving folded objects typed "
+                "trees; until then the W2c text-only tree is the ONLY "
+                "carrier of the room text"
+            ),
+            census=(
+                "1 hit / 38,261 distinct oracle_ids, swept over every "
+                "text-only-tree-eligible object whose oracle carries the "
+                "bounded 'each player loses N life' idiom: Tomb of "
+                "Annihilation alone (a Dungeon — not itself commander-"
+                "legal; it serves via the ADR-0025 fold on its venturing "
+                "commander, e.g. Acererak the Archlich), MTGJSON "
+                "2026-07-25 @ phase v0.35.2"
+            ),
+            pins=("Tomb of Annihilation",),
+            gap=_text_only_tree_gap,
+            match=_each_player_loses_match,
         ),
     )
 }
