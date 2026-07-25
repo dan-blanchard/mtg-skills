@@ -768,10 +768,10 @@ class TestFreshnessWarnings:
     def test_unresolved_threshold_blames_bulk_staleness(self):
         """Unresolved ids most often mean stale bulk data — a real
         card was released after the bulk file was downloaded. The
-        warning should tell the user to run ``download-bulk``."""
+        warning should tell the user to run ``download-mtgjson``."""
         warning = _check_unresolved_threshold(30, 1000)
         assert warning is not None
-        assert "download-bulk" in warning
+        assert "download-mtgjson" in warning
         assert "Scryfall" in warning
 
 

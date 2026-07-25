@@ -19,9 +19,9 @@ from mtg_utils.bulk_loader import (
 
 
 def _make_bulk(root: Path) -> Path:
-    p = root / "scryfall-bulk" / "default-cards.json"
+    p = root / "mtgjson" / "AllPrintings.json"
     p.parent.mkdir(parents=True, exist_ok=True)
-    p.write_text("[]", encoding="utf-8")
+    p.write_text("{}", encoding="utf-8")
     return p
 
 
@@ -29,8 +29,8 @@ def test_default_bulk_path_uses_durable_cache_dir(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     # Without MTG_SKILLS_CACHE_DIR set, bulk in the durable cache dir
-    # (~/.cache/mtg-skills/scryfall-bulk) must be found — even though the legacy
-    # /tmp/scryfall-bulk copy also exists — so it survives the /tmp cleanup.
+    # (~/.cache/mtg-skills/mtgjson) must be found — even though the legacy
+    # /tmp/mtgjson copy also exists — so it survives the /tmp cleanup.
     monkeypatch.delenv("MTG_SKILLS_CACHE_DIR", raising=False)
     monkeypatch.setenv("HOME", str(tmp_path))
     durable = _make_bulk(tmp_path / ".cache" / "mtg-skills")
@@ -102,7 +102,7 @@ def test_in_memory_cache_reuses_the_list(bulk_path: Path):
 
 
 def test_in_memory_cache_invalidates_on_refresh(bulk_path: Path):
-    # A download-bulk refresh (newer JSON → rebuilt sidecar) must invalidate the
+    # A download-mtgjson refresh (newer JSON → rebuilt sidecar) must invalidate the
     # in-memory entry, not serve the pre-refresh list.
     first = load_bulk_cards(bulk_path)
     bulk_path.write_text(json.dumps([{"name": "Opt", "type_line": "Instant"}]))

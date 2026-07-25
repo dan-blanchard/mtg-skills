@@ -100,7 +100,7 @@ moment it finishes — do not batch updates.
 
 ```bash
 uv sync --directory <skill-install-dir>
-download-bulk --output-dir <skill-install-dir>
+download-mtgjson
 ```
 
 Subsequent runs skip `uv sync` if `.venv` exists and bulk data is fresh
@@ -284,7 +284,7 @@ All cube CLIs accept this shape. Hydrated cache lives at
 
 Cube design occasionally runs into rules questions — "does this combo actually work in the format?", "is this trigger mandatory?", "how does the layer system handle this static?". Run `rules-lookup --term <keyword>` for straightforward keyword/glossary questions. For anything nuanced (layers, replacement effects, multi-rule interactions), invoke the `rules-lawyer` skill via the Skill tool, which handles escalation to subagents loaded with the relevant CR section.
 
-Run `download-rules --output-dir <working-dir>` once per session before the first `rules-lookup` call (24-hour freshness check, same pattern as `download-bulk`).
+Run `download-rules --output-dir <working-dir>` once per session before the first `rules-lookup` call (24-hour freshness check, same pattern as `download-mtgjson`).
 
 ---
 
@@ -732,7 +732,7 @@ details and catalog setup.
 Some deck-wizard tools apply to cubes and some don't:
 
 **Apply as-is** (share the same `cards[]` shape):
-- `card-search`, `scryfall-lookup`, `download-bulk`, `price-check`
+- `card-search`, `scryfall-lookup`, `download-mtgjson`, `price-check`
 - `combo-search` — genuinely useful for finding accidental infinites
 - `card-summary`, `mark-owned`, `web-fetch`
 

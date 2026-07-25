@@ -5,7 +5,7 @@ ADR-0027 deleted 31 keys' oracle-regex detectors; production serves them (and
 every other crosswalk-served key) from the crosswalk-backed Card IR sidecar.
 Without a sidecar the hybrid degrades to an empty signal set for those lanes
 (ADR-0039 task #80 step 6: there is no more regex/legacy-IR fallback to degrade
-INTO). ``ensure_card_ir`` mirrors the ``download-bulk`` ensure: build the
+INTO). ``ensure_card_ir`` mirrors the ``download-mtgjson`` ensure: build the
 sidecar once at launch (common case → zero loss) and warn loudly + non-blocking
 when phase isn't installed so the sidecar can't be built (degraded case →
 loud).

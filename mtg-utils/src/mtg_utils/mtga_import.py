@@ -135,7 +135,7 @@ _FORMAT_DECK_SIZES = {
 
 # Freshness thresholds. These are nudges, not gates — the importer
 # still emits its output when a warning fires. The 48h mtime window is
-# intentionally laxer than ``download-bulk``'s 24h because that
+# intentionally laxer than ``download-mtgjson``'s 24h because that
 # controls re-downloading while we only decide whether to nag.
 _BULK_STALE_HOURS = 48
 _UNRESOLVED_PCT_THRESHOLD = 0.02
@@ -703,7 +703,7 @@ def _check_bulk_freshness(bulk_path: Path) -> str | None:
     days = age_hours / 24
     return (
         f"WARN: bulk data is {days:.1f} days old — consider running "
-        f"'download-bulk' to refresh (missing cards from recent Arena "
+        f"'download-mtgjson' to refresh (missing cards from recent Arena "
         f"releases will show up as unresolved arena_ids)."
     )
 
@@ -716,7 +716,7 @@ def _check_unresolved_threshold(
 
     The usual cause of an unresolved id under any collection source
     is stale Scryfall bulk data — a new set shipped on Arena but the
-    local bulk hasn't been refreshed. ``download-bulk`` fixes it.
+    local bulk hasn't been refreshed. ``download-mtgjson`` fixes it.
     Under the ``untapped-csv`` source the Untapped export also feeds
     its own arena_id → name mapping into the resolver, so unresolved
     counts there tend to be small and mostly indicate Alchemy
@@ -731,7 +731,7 @@ def _check_unresolved_threshold(
     return (
         f"WARN: {unresolved_count} arena_ids unresolved (>{threshold} "
         f"threshold) — your Scryfall bulk data may not include recent "
-        f"Arena releases; run 'download-bulk' to refresh."
+        f"Arena releases; run 'download-mtgjson' to refresh."
     )
 
 

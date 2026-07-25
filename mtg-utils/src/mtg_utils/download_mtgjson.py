@@ -4,7 +4,7 @@ MTGJSON ``AllPrintings`` is the card-data source of record (ADR-0033). ``bulk_lo
 translates it to the Scryfall-shaped record the rest of the code reads; prices come from
 ``AllPricesToday`` (joined by uuid). Scryfall's HTTP API stays a thin per-card fallback.
 
-Mirrors ``download-bulk``: a cache-dir default, 24h freshness, an eager sidecar build so
+Mirrors ``download-mtgjson``: a cache-dir default, 24h freshness, an eager sidecar build so
 the first script call after a download doesn't pay the parse + translate cost. The two
 files arrive gzip-compressed (~174 MB + ~5 MB) and are stream-decompressed to JSON.
 """

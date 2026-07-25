@@ -1,6 +1,6 @@
 """Build the committed test snapshot (``tests/fixtures/card_snapshot.json``).
 
-Gated like ``download-bulk`` / ``build-card-ir-crosswalk``: needs the local MTGJSON
+Gated like ``download-mtgjson`` / ``build-card-ir-crosswalk``: needs the local MTGJSON
 bulk AND phase's ``card-data.json`` (auto-fetched from the pinned release tarball —
 no cargo), and is NEVER run in CI (CI consumes the committed snapshot offline). It
 collects the card names the tests reference via the ``mtg_utils.testkit`` helpers,

@@ -2,7 +2,7 @@
 
 If no bulk data is on disk, the state degrades to an agent-less, search-disabled
 mode (``bulk_available=False``) so the hub still starts and the search endpoint can
-fail loudly with a "run download-bulk" message rather than silently returning empty.
+fail loudly with a "run download-mtgjson" message rather than silently returning empty.
 """
 
 from __future__ import annotations
@@ -215,7 +215,7 @@ def ensure_crosswalk_card_ir() -> bool:
     deck-rank / deck-tune CLIs) reads THIS sidecar: with no sidecar it returns
     ``None`` per card rather than silently cross-wiring to a different
     builder's Cards. This ensure pays the build cost once at launch (mirrors
-    the ``download-bulk`` ensure) so the common case never leaves Seam B dark.
+    the ``download-mtgjson`` ensure) so the common case never leaves Seam B dark.
 
     IDEMPOTENT + fast: a right-on-disk-version sidecar is a single
     ``load_crosswalk_card_ir`` (memoized) and returns ``True`` without

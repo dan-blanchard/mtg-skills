@@ -260,7 +260,7 @@ def _companion_add_error(state: ForgeState, name: str, qty: int) -> JSONResponse
 
 def _no_bulk() -> JSONResponse:
     return JSONResponse(
-        {"error": "Scryfall bulk data not found — run `download-bulk` first."},
+        {"error": "Scryfall bulk data not found — run `download-mtgjson` first."},
         status_code=503,
     )
 

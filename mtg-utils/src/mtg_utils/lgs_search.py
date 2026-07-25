@@ -858,7 +858,7 @@ def _locate_bulk_data() -> Path | None:
       2. ``$MTG_SKILLS_CACHE_DIR/default-cards.json``
       3. ``~/.cache/mtg-skills/default-cards.json`` (the cache_dir convention
          shared with the persistent Playwright profiles)
-      4. ``$CWD/default-cards.json`` (where ``download-bulk`` puts files
+      4. ``$CWD/default-cards.json`` (where ``download-mtgjson`` puts files
          by default)
       5. ``$CWD/.cache/default-cards.json`` (in-repo cache convention)
       6. Newest ``default-cards*.json`` in any of the directories above
@@ -884,7 +884,7 @@ def _locate_bulk_data() -> Path | None:
     ]
     # Also walk a few parents of cwd looking for an in-repo .cache; common
     # case is invoking the skill from a subdirectory of the repo where
-    # download-bulk was run at the repo root.
+    # download-mtgjson was run at the repo root.
     cwd = Path.cwd()
     for parent in (cwd.parent, cwd.parent.parent):
         if parent != cwd:
@@ -1107,7 +1107,7 @@ def _run_orchestrator(
                 "check will have no online-price signal — every "
                 "in-stock LGS listing will win and you may overpay "
                 "by 5-30x on cards with cheap reprints. Run "
-                "`download-bulk` (or pass --bulk-data) before re-running "
+                "`download-mtgjson` (or pass --bulk-data) before re-running "
                 "for accurate allocation.",
                 err=True,
             )

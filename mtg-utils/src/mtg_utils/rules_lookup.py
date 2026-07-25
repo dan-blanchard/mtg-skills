@@ -629,7 +629,7 @@ def resolve_rules_path(
     2. ``cwd`` (parameter) if set, else ``Path.cwd()``.
 
     Raises ``FileNotFoundError`` with an actionable message when no
-    candidate exists. Matches the ``download-bulk`` pattern.
+    candidate exists. Matches the ``download-mtgjson`` pattern.
     """
     if explicit is not None:
         if not explicit.exists():

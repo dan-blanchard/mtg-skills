@@ -484,7 +484,7 @@ def _serve_fingerprint() -> str:
 def _density_sidecar_path(state: ForgeState) -> Path | None:
     """On-disk path for the lane-density cache, keyed by the BULK file's fingerprint
     (mtime+size via ``sha_keyed_path``) AND the serve-definition fingerprint
-    (verified-review F8). A ``download-bulk`` refresh OR a serve change alters
+    (verified-review F8). A ``download-mtgjson`` refresh OR a serve change alters
     the key, so a stale sidecar is transparently ignored, not served. ``None``
     without bulk."""
     if state.bulk_path is None:

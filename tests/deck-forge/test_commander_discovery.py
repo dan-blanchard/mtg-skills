@@ -318,7 +318,7 @@ def test_collection_change_invalidates_the_lane_serve_cache():
 def test_lane_density_persists_to_a_bulk_keyed_sidecar(tmp_path):
     """The format-relative lane densities (the ~55s first-discovery sweep) persist to a
     sidecar keyed by the bulk file, so a fresh state reuses them instead of recomputing —
-    and a different bulk (a download-bulk refresh) transparently starts fresh."""
+    and a different bulk (a download-mtgjson refresh) transparently starts fresh."""
     bulk = tmp_path / "bulk.json"
     bulk.write_text("[]", encoding="utf-8")
 

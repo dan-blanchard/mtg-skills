@@ -58,7 +58,7 @@ older than 7 days the CLI exits with code 1 and a message pointing here.
 Run:
 
 ```bash
-download-bulk --output-dir /tmp/scryfall-bulk
+download-mtgjson
 ```
 
 > One-time-ish: if you want artist-credited art on the proxies, populate
@@ -340,7 +340,7 @@ were skipped and continue.
 - **Don't add tokens manually.** If a card "should" make a token but
   doesn't show up in the rendered tokens.pdf, that's because Scryfall's
   `all_parts` doesn't link it. Custom / homebrew tokens are out of scope.
-- **Don't run `download-bulk` reflexively.** It downloads ~500MB. Only
+- **Don't run `download-mtgjson` reflexively.** It downloads ~500MB. Only
   refresh when `proxy-print` exits with code 1 telling you to.
 - **Don't merge the two PDFs.** They're separate by design — tokens stay
   off to the side during play, cards go in the deck. The user almost

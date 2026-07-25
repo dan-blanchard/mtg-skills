@@ -168,7 +168,7 @@ def test_find_returns_503_without_bulk():
     )
     resp = TestClient(build_app(state)).post("/api/find", json={"name": "x"})
     assert resp.status_code == 503
-    assert "download-bulk" in resp.json()["error"]
+    assert "download-mtgjson" in resp.json()["error"]
 
 
 def test_results_carry_projection_and_images():

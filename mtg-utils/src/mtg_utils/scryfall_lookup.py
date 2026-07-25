@@ -213,7 +213,7 @@ def _build_cache_key(content: str, bulk_path: Path | None) -> str:
 
     The bulk data file is hashed by (mtime_ns, size) not content — it's
     ~500MB and content-hashing on every call is expensive. Mtime+size is
-    sufficient because ``download-bulk`` rewrites the file on refresh,
+    sufficient because ``download-mtgjson`` rewrites the file on refresh,
     which changes mtime. Without including bulk_path, a bulk-data refresh
     would silently return stale hydrated data.
     """

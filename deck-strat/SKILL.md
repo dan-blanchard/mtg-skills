@@ -86,7 +86,7 @@ run — handle each user request as an `Edit` to the existing guide.
 
 ```bash
 uv sync --directory <skill-install-dir>
-download-bulk --output-dir <skill-install-dir>
+download-mtgjson
 download-rules --output-dir <working-dir>
 ```
 
@@ -118,7 +118,7 @@ from `mtg_utils` in `deck-strat/pyproject.toml`. Invoke via
 | Acquisition | `set-commander` | Move commanders into the commanders list (idempotent) |
 | Acquisition | `scryfall-lookup --batch` | Hydrate all cards into one SHA-keyed cache |
 | Acquisition | `scryfall-lookup "<name>"` | Single-card lookup when verifying a specific card |
-| Acquisition | `download-bulk` | Refresh Scryfall bulk data (24h freshness check) |
+| Acquisition | `download-mtgjson` | Refresh Scryfall bulk data (24h freshness check) |
 | Acquisition | `download-rules` | Refresh CR text (24h freshness check) |
 | Diagnostics | `legality-audit` | Format legality, copy limits, color identity |
 | Diagnostics | `deck-stats` | Land/ramp/creature counts, curve, color sources, GC count |

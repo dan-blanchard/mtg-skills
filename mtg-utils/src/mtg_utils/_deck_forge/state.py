@@ -216,7 +216,7 @@ class ForgeState:
     validation + display enrichment). ``search_fn`` is the deterministic search
     seam (production wraps ``card_search.search_cards``; tests inject a fake).
     ``bulk_available`` is False when no Scryfall bulk data is on disk, so the
-    search endpoint can fail loudly with a "run download-bulk" message instead of
+    search endpoint can fail loudly with a "run download-mtgjson" message instead of
     silently returning nothing.
     """
 

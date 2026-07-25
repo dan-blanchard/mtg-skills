@@ -1,7 +1,7 @@
 """Shared loader for Scryfall bulk data with a pickled sidecar cache.
 
-Parsing the ~500MB ``default-cards.json`` from disk takes 3-8 seconds and
-dominates the wall-clock cost of every script that touches Scryfall data.
+Parsing the MTGJSON ``AllPrintings.json`` from disk takes several seconds and
+dominates the wall-clock cost of every script that touches card data.
 A pickle of the same parsed list loads roughly 5-10x faster, so a single
 sidecar file shared across all callers eliminates most of that cost for
 the second and subsequent calls in a session.
@@ -116,8 +116,8 @@ def _write_sidecar(sidecar: Path, cards: list[dict]) -> None:
 
 def bulk_mtime(bulk_path: Path) -> float:
     """The sidecar's mtime (or 0.0 if absent) — a cheap version token callers use to key
-    their own derived caches so a ``download-bulk`` refresh invalidates them in lockstep
-    with :func:`load_bulk_cards`'s in-memory cache."""
+    their own derived caches so a ``download-mtgjson`` refresh invalidates them in
+    lockstep with :func:`load_bulk_cards`'s in-memory cache."""
     sidecar = _sidecar_path(bulk_path)
     try:
         return sidecar.stat().st_mtime if sidecar.exists() else 0.0
@@ -130,7 +130,7 @@ def bulk_mtime(bulk_path: Path) -> float:
 # each call load_bulk_cards — so without this, one tune re-deserializes the whole DB ~30
 # times (~26s, measured). The list is shared BY REFERENCE; every caller treats it
 # read-only (search builds new lists; nothing mutates a bulk record). The stored sidecar
-# mtime invalidates the entry the moment download-bulk rebuilds the sidecar.
+# mtime invalidates the entry the moment download-mtgjson rebuilds the sidecar.
 _MEM_CACHE: dict[str, tuple[float, list[dict]]] = {}
 
 
@@ -177,7 +177,7 @@ def load_bulk_cards(bulk_path: Path) -> list[dict]:
 def build_sidecar(bulk_path: Path) -> Path:
     """Eagerly (re)build the sidecar for *bulk_path* and return its path.
 
-    Used by ``download-bulk`` after a fresh download so the first script
+    Used by ``download-mtgjson`` after a fresh download so the first script
     call doesn't pay the build cost. Always reparses the JSON, ignoring
     any existing sidecar.
     """
@@ -190,10 +190,8 @@ def build_sidecar(bulk_path: Path) -> Path:
 def default_bulk_path() -> Path | None:
     """Resolve the default card-data bulk path, first existing wins.
 
-    MTGJSON ``AllPrintings`` (``download-mtgjson``) is the source of record (ADR-0033)
-    and is preferred; a legacy Scryfall ``default-cards.json`` (``download-bulk``) is
-    kept as a graceful fallback so a not-yet-migrated install keeps working. Each is
-    checked under ``$MTG_SKILLS_CACHE_DIR``, then ``$HOME/.cache/mtg-skills`` (durable,
+    MTGJSON ``AllPrintings`` (``download-mtgjson``) is the source of record (ADR-0033).
+    Checked under ``$MTG_SKILLS_CACHE_DIR``, then ``$HOME/.cache/mtg-skills`` (durable,
     survives ``/tmp`` cleanup), then ``/tmp`` (ephemeral).
     Returns ``None`` if none exists.
     """
@@ -206,14 +204,8 @@ def default_bulk_path() -> Path | None:
         roots.append(Path(home) / ".cache" / "mtg-skills")
     roots.append(Path("/tmp"))
 
-    # (subdir, filename) pairs in preference order: MTGJSON first, Scryfall fallback.
-    sources = (
-        ("mtgjson", "AllPrintings.json"),
-        ("scryfall-bulk", "default-cards.json"),
-    )
-    for subdir, fname in sources:
-        for root in roots:
-            p = root / subdir / fname
-            if p.is_file():
-                return p
+    for root in roots:
+        p = root / "mtgjson" / "AllPrintings.json"
+        if p.is_file():
+            return p
     return None

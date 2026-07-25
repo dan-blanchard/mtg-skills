@@ -101,7 +101,7 @@ The orchestrator **auto-detects** `default-cards.json` on startup
 (searches `$MTG_SKILLS_BULK_DATA`, `$MTG_SKILLS_CACHE_DIR`,
 `~/.cache/mtg-skills/`, `$CWD`, `$CWD/.cache`, plus parents up two
 levels). When nothing is found, it prints a loud warning explaining
-the silent-no-spill failure mode and pointing at `download-bulk`.
+the silent-no-spill failure mode and pointing at `download-mtgjson`.
 Don't pass `--bulk-data` unless you need a specific path.
 
 ### Phase 4 — Online optimize

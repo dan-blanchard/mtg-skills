@@ -35,4 +35,4 @@ def test_find_without_bulk_fails_loudly(monkeypatch):
     client = TestClient(create_app())
     resp = client.post("/api/find", json={"type": "Creature"})
     assert resp.status_code == 503
-    assert "download-bulk" in resp.json()["error"]
+    assert "download-mtgjson" in resp.json()["error"]

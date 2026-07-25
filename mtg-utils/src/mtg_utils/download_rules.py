@@ -1,6 +1,6 @@
 """Comprehensive Rules downloader.
 
-Mirrors the ``download-bulk`` pattern: fetches the official Wizards of
+Mirrors the ``download-mtgjson`` pattern: fetches the official Wizards of
 the Coast MTG Comprehensive Rules TXT to the output directory, with a
 24-hour freshness check that reuses an existing local copy instead of
 re-downloading. Writes are atomic-rename so a crashed download cannot

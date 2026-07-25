@@ -182,7 +182,7 @@ def _default_output_path(
     Hashes the parsed-deck content, the filter arguments, AND the bulk data
     file (by mtime+size) so the same query against the same collection lands
     at the same file, but different queries OR a refreshed bulk data file
-    get their own files. Without hashing bulk_path, a `download-bulk` refresh
+    get their own files. Without hashing bulk_path, a `download-mtgjson` refresh
     would silently return stale recommendations.
     """
     return sha_keyed_path(

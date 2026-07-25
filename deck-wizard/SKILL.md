@@ -126,7 +126,7 @@ Do NOT create per-card sub-todos for the Cut Checklist inside Step 6 — that's 
 
 ```bash
 uv sync --directory <skill-install-dir>
-download-bulk --output-dir <skill-install-dir>
+download-mtgjson
 ```
 
 Subsequent runs skip if `.venv` exists and bulk data is fresh (24h).
@@ -279,7 +279,7 @@ For trivial rules questions that arise during tuning ("what does trample say?", 
 
 `cut-check` and `legality-audit` auto-attach CR citations to their JSON output — `--cite-rules` is **default-on**. When a CR file is present next to the deck/hydrated JSON (i.e., you ran `download-rules --output-dir <wd>` in the same working dir), each flagged interaction / violation carries a rule number + snippet with no extra flag. Pass `--no-cite-rules` to opt out on a specific invocation; when no CR is reachable the tools still exit 0 and emit a `WARN: rule_citations not attached` line to stdout.
 
-Run `download-rules --output-dir <working-dir>` once per session before any Step 1 legality-audit call (24-hour freshness check, same pattern as `download-bulk`).
+Run `download-rules --output-dir <working-dir>` once per session before any Step 1 legality-audit call (24-hour freshness check, same pattern as `download-mtgjson`).
 
 ---
 
@@ -1946,7 +1946,7 @@ See `proxy-printer/SKILL.md` for layout details and catalog setup.
 - `deck-diff <old.json> <new.json> <old-hyd.json> <new-hyd.json>` — Compare deck versions
 - `export-deck <deck.json>` — Export Moxfield/Arena format with sideboard
 - `mark-owned <deck.json> <collection.csv> [--bulk-data <path>] [--output PATH]` — Mark owned cards. Always pass `--bulk-data` for Arena.
-- `download-bulk --output-dir <dir>` — Download Scryfall bulk data
+- `download-mtgjson — Download MTGJSON card data
 - `cut-check <hydrated.json> "<Commander Name>" --cuts <path> --multiplier-low N --multiplier-high N [--trigger-type TYPE ...] [--opponents N] [--output PATH]` — Mechanical pre-grill analysis (commander formats only)
 - `edhrec-lookup "<Commander Name>" ["<Partner>"]` — EDHREC recommendations (commander formats only)
 - `web-fetch "<url>" --max-length 10000` — Fetch web page with browser headers and curl fallback

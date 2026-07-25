@@ -1489,7 +1489,7 @@ def run(
         if resolved_bulk is None or not resolved_bulk.is_file():
             msg = (
                 "--from-deck requires Scryfall bulk data; pass --bulk-data "
-                "or run download-bulk first"
+                "or run download-mtgjson first"
             )
             raise FileNotFoundError(msg)
         log(f"Filtering to subtypes used by {deck_path.name}...")

@@ -1,7 +1,7 @@
 ---
 name: deck-forge
 description: Collaboratively build or tune an MTG deck in a live browser UI — the assistant surfaces signal-driven synergy packages, exploration avenues, and ranked candidates (with "why it fits" + honest cost) plus live curve/mana guidance, while you make every decision. Commander family (Commander/Brawl/Historic Brawl), paper + Arena. Reasoning runs in your interactive Claude Code session (no API key, covered by your subscription).
-compatibility: Requires Python 3.12+, uv, a modern browser. First run needs Scryfall bulk data (`download-bulk`).
+compatibility: Requires Python 3.12+, uv, a modern browser. First run needs MTGJSON card data (`download-mtgjson`).
 license: 0BSD
 ---
 
@@ -43,9 +43,9 @@ text.
 
 ```bash
 cd deck-forge && uv sync
-# first run only (~hundreds of MB; 24h freshness). MUST target the dir the loader
-# reads — download-bulk otherwise writes to the CWD, where default_bulk_path won't find it.
-uv run download-bulk --output-dir /tmp/scryfall-bulk
+# first run only (~hundreds of MB; 24h freshness). Writes to the shared cache
+# dir the loader discovers — no --output-dir needed.
+uv run download-mtgjson
 uv run deck-forge           # starts the hub on :8765 and opens the browser
 ```
 Leave the server running. **The moment the hub answers (`GET /api/snapshot` returns

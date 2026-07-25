@@ -126,7 +126,7 @@ def _matches_filters(
 # type, cmc, price, presets), so we compute that subset ONCE per format and rescan only
 # it. For an Arena format that's ~7k cards vs all ~114k bulk records — so a tune's many
 # searches stop re-scanning the whole database each time. mtime keys invalidate on a
-# download-bulk refresh, matching load_bulk_cards's own in-memory cache.
+# download-mtgjson refresh, matching load_bulk_cards's own in-memory cache.
 _POOL_CACHE: dict[tuple[str, float, str, bool, bool], list[dict]] = {}
 
 

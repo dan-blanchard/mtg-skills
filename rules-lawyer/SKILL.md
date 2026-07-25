@@ -35,7 +35,7 @@ download-mtgjson                                # only for local-first rulings-l
 ```
 
 `download-rules` fetches the current MTG Comprehensive Rules TXT with
-a 24-hour freshness check (matches the `download-bulk` convention).
+a 24-hour freshness check (matches the `download-mtgjson` convention).
 The CR landing page is scraped for the newest `MagicCompRules*.txt`
 download link and saved as
 `<working-dir>/comprehensive-rules-YYYYMMDD.txt`.
@@ -195,7 +195,7 @@ Every answer has three required parts:
 | Per-card rulings (Scryfall "case law") | `rulings-lookup --card "<name>" --bulk-data <path>` |
 | Batch rulings for a deck | `rulings-lookup --batch <deck.json> --bulk-data <path>` |
 | Download/refresh CR locally | `download-rules --output-dir <wd>` |
-| Download Scryfall bulk data | `download-bulk --output-dir <wd>` |
+| Download MTGJSON card data | `download-mtgjson |
 | Resolve card name → oracle text | `scryfall-lookup "<name>" --bulk-data <path>` |
 
 All CLIs emit a human-readable summary to stdout plus a full JSON

@@ -952,14 +952,14 @@ def main(
         bulk_path = default_bulk_path()
     if bulk_path is None or not bulk_path.is_file():
         click.echo(
-            "ERROR: Scryfall bulk data not found. Run `download-bulk` first.",
+            "ERROR: Scryfall bulk data not found. Run `download-mtgjson` first.",
             err=True,
         )
         sys.exit(EXIT_BULK_MISSING)
     if not _bulk_is_fresh(bulk_path):
         click.echo(
             f"ERROR: bulk data at {bulk_path} is older than "
-            f"{BULK_MAX_AGE_DAYS} days. Run `download-bulk` to refresh.",
+            f"{BULK_MAX_AGE_DAYS} days. Run `download-mtgjson` to refresh.",
             err=True,
         )
         sys.exit(EXIT_BULK_MISSING)
