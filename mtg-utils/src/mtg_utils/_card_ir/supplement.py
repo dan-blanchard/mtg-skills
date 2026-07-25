@@ -2155,7 +2155,7 @@ def _has_structural_scaling_pump(card: Card) -> bool:
     """True when a real `pump` Effect already carries a scaling count (a named scale
     op, or a count/multiply/toughness op with a subject or a for-each raw) — i.e. the
     structural scaling_pump arm already fires, so no synth is needed (the byte-mirror's
-    206-card overlap). Mirrors _deck_forge.crosswalk_signals._is_scaling_count."""
+    206-card overlap). Mirrors _deck_forge.lanes._is_scaling_count."""
     for ab in card.all_abilities():
         for e in ab.effects:
             if e.category != "pump" or e.amount is None:

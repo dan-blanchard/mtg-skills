@@ -11,7 +11,7 @@ yields ``type_matters`` with ``subject="Goblin"`` (never collapsed into a generi
 
 Production extraction is structural (ADR-0035): ``extract_signals`` resolves
 the card's per-face concept trees (``_ir_lookup.trees_for``), runs
-``crosswalk_signals.extract_crosswalk_signals`` over each, unions by
+``lanes.extract_crosswalk_signals`` over each, unions by
 ``(key, scope, subject)``, and applies ONE merge-level
 membership floor across all faces. The shared value type and text primitives live
 in ``signal_base`` / ``text_reads`` / ``membership_floor``.
@@ -101,7 +101,7 @@ def extract_signals(
     commander's signals — the fold only ever ran through the retired engines
     (a documented regression, tracked for adjudication)."""
     from mtg_utils._deck_forge._ir_lookup import trees_for
-    from mtg_utils._deck_forge.crosswalk_signals import (
+    from mtg_utils._deck_forge.lanes import (
         apply_membership_floor,
         extract_crosswalk_signals,
     )
@@ -431,13 +431,13 @@ def tribal_payoff_subjects(
 
 def grant_payloads_for(card: dict) -> tuple:
     """CARD's mass static-grant payloads (ADR-0040 §2, task #97) — the
-    card-record facade over ``crosswalk_signals.extract_grant_payloads``,
+    card-record facade over ``lanes.extract_grant_payloads``,
     unioned across the card's per-face concept trees (the same per-face
     resolution ``extract_signals`` uses). Empty for a synthetic
     no-``oracle_id`` record or a card phase can't parse — the standard
     no-IR degradation."""
     from mtg_utils._deck_forge._ir_lookup import trees_for
-    from mtg_utils._deck_forge.crosswalk_signals import extract_grant_payloads
+    from mtg_utils._deck_forge.lanes import extract_grant_payloads
 
     out: list = []
     for tree in trees_for(card) or ():
@@ -511,6 +511,6 @@ def producible_static_keys() -> set[str]:
     measured to contribute zero keys outside it before deletion (every regex /
     sweep / literal-add key was already manifest-served — 360 == 360, 2026-07-25).
     Lazy import so no lane machinery loads on a bare ``import signals``."""
-    from mtg_utils._deck_forge.crosswalk_signals import SERVED_SIGNAL_KEYS
+    from mtg_utils._deck_forge.lanes import SERVED_SIGNAL_KEYS
 
     return set(SERVED_SIGNAL_KEYS) - signal_keys.SUBJECT_KEYS

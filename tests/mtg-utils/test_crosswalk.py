@@ -46,7 +46,7 @@ from mtg_utils._card_ir.overlay_corrections import (
     apply_overlay_corrections,
     l1_bytes,
 )
-from mtg_utils._deck_forge.crosswalk_signals import (
+from mtg_utils._deck_forge.lanes import (
     SERVED_SIGNAL_KEYS,
     extract_crosswalk_signals,
 )
@@ -614,7 +614,7 @@ def test_own_lifelink_keyword_fires_lifegain_makers():
     # _signals_ir._IR_KEYWORD_MAP["lifelink"]) — the _lifegain_makers typed lane
     # reads only gain_life effects + GRANTED lifelink, so a vanilla-lifelink
     # creature (no grant node) needed this keyword row.
-    from mtg_utils._deck_forge.crosswalk_signals import _keyword_field_signals
+    from mtg_utils._deck_forge.lanes import _keyword_field_signals
 
     sigs = _keyword_field_signals(frozenset({"Lifelink"}), "Aerial Responder")
     assert ("lifegain_makers", "you", "") in {(s.key, s.scope, s.subject) for s in sigs}
@@ -850,7 +850,7 @@ def test_blink_flicker_maker_signal_is_always_high_confidence():
     """The MAKER lane (:func:`_blink_flicker`) only ever emits HIGH — the
     task #83 blink preset view's discriminator (:func:`blink_flicker_is_maker`)
     depends on this."""
-    from mtg_utils._deck_forge.crosswalk_signals import blink_flicker_is_maker
+    from mtg_utils._deck_forge.lanes import blink_flicker_is_maker
 
     sigs = [
         s
@@ -871,7 +871,7 @@ def test_blink_flicker_membership_floor_payoff_is_low_and_not_a_maker():
     ``blink_flicker`` for it). ``blink_flicker_is_maker`` correctly rejects
     the floor's LOW signal — this is the task #83 'blink' preset payoff
     noise (prec .06 in the raw corpus scan), not a maker."""
-    from mtg_utils._deck_forge.crosswalk_signals import (
+    from mtg_utils._deck_forge.lanes import (
         apply_membership_floor,
         blink_flicker_is_maker,
     )
@@ -1262,7 +1262,7 @@ def test_sacrifice_outlets_shed_opponent_directed(name):
 )
 def test_sacrifice_outlets_land_only_excluded(name):
     """A land-only sacrifice subject — whether the bare core type ``Land``
-    or an ALL-:data:`~mtg_utils._deck_forge.crosswalk_signals._LAND_SUBTYPES`
+    or an ALL-:data:`~mtg_utils._deck_forge.lanes._LAND_SUBTYPES`
     subtype list (Swamp, Mountain, ...) — stays ``land_sacrifice_makers``
     territory (CR 701.21), never ``sacrifice_outlets``, across BOTH the
     additional-cost-to-cast text idiom and the Composite cost-leaf arm
@@ -1275,9 +1275,9 @@ def test_sacrifice_outlets_land_subtype_effect_arm_excluded():
     ("sacrifice a Swamp" — Akuta, Born of Ash's upkeep trigger) previously
     slipped past the effect arm's exclusion, which only tested the bare
     core-type tuple ``("Land",)`` and never the CR 205.3i subtype
-    vocabulary (:data:`~mtg_utils._deck_forge.crosswalk_signals._LAND_SUBTYPES`)
+    vocabulary (:data:`~mtg_utils._deck_forge.lanes._LAND_SUBTYPES`)
     the cost-leaf arm already read. Both arms now share ONE subject-presence
-    read (:func:`~mtg_utils._deck_forge.crosswalk_signals._sac_subject_present`),
+    read (:func:`~mtg_utils._deck_forge.lanes._sac_subject_present`),
     so a Swamp-only sacrifice stays ``land_sacrifice_makers`` territory here
     too (CR 701.21a — a player may only sacrifice a permanent they control;
     the LAND-subtype scoping is a lane boundary, not a rules distinction)."""
@@ -1309,8 +1309,8 @@ def test_sacrifice_outlets_token_predicate_effect_arm():
     (:func:`test_sacrifice_outlets_token_predicate_cost_leaf`) also hit the
     EFFECT arm — Chitterspitter's "you may sacrifice a token" trigger
     carries an explicit ``controller: You`` on a Token-predicate-only
-    filter; :func:`~mtg_utils._deck_forge.crosswalk_signals._is_you_sac_subject`
-    now reads the shared :func:`~mtg_utils._deck_forge.crosswalk_signals._sac_subject_present`
+    filter; :func:`~mtg_utils._deck_forge.lanes._is_you_sac_subject`
+    now reads the shared :func:`~mtg_utils._deck_forge.lanes._sac_subject_present`
     helper instead of the pre-flattened ``c.subject`` tuple, so this fires
     too (CR 111.1, CR 701.21a)."""
     assert ("sacrifice_outlets", "you", "") in _idents("Chitterspitter")
@@ -1345,7 +1345,7 @@ def test_sacrifice_outlets_unset_controller_other_actor_excluded(name):
     genuine bare-imperative self-sac (see
     :func:`test_sacrifice_outlets_unset_controller_defaults_to_you`) — a
     naive unset-to-you default over-fires here. The clause-head
-    disambiguator (:func:`~mtg_utils._deck_forge.crosswalk_signals.
+    disambiguator (:func:`~mtg_utils._deck_forge.lanes.
     _sac_effect_names_other_actor`) reads the owning ability's OWN
     templated text and heads the sacrifice clause with "defending player,"
     a non-controller actor (CR 701.21a — a player may only sacrifice a
@@ -1368,7 +1368,7 @@ def test_sacrifice_outlets_unset_controller_compound_predicate_excluded(name):
     sacrifices a permanent" (Undercity Plague) both put real distance
     between the actor and "sacrifices". A first-attempt proximity-window
     probe missed both and over-fired; the clause-head test
-    (:func:`~mtg_utils._deck_forge.crosswalk_signals._sac_effect_names_
+    (:func:`~mtg_utils._deck_forge.lanes._sac_effect_names_
     other_actor`) correctly heads the WHOLE sentence, not just the words
     immediately before "sacrifices" (CR 701.21a)."""
     assert "sacrifice_outlets" not in _keys(name)
@@ -13361,14 +13361,14 @@ def test_removal_granted_ability_body_descent(name):
 
 
 def test_removal_answer_types_granted_ability_body_descent():
-    """task #86: :func:`~mtg_utils._deck_forge.crosswalk_signals.
+    """task #86: :func:`~mtg_utils._deck_forge.lanes.
     _removal_answer_types` (the 10 type-scoped preset predicates' shared
     source) stays in lockstep with :func:`_removal`'s own granted-ability
     third arm — a card that gains ``removal`` membership from the descent
     must also answer its permanent type, or a "creature removal" preset
     view would silently miss it even though the bare ``removal`` lane
     fires."""
-    from mtg_utils._deck_forge.crosswalk_signals import _removal_answer_types
+    from mtg_utils._deck_forge.lanes import _removal_answer_types
 
     assert _removal_answer_types(_tree("Arc Spitter")) == {"Creature"}
     assert _removal_answer_types(_tree("Tyrant's Familiar")) == {"Creature"}
@@ -16421,7 +16421,7 @@ def test_cheat_from_top_scopes_target_owner_beneficiary_any():
     ``_idents`` call never runs the floor) — the SAME ParentTargetOwner
     beneficiary override :func:`_cheat_into_play`'s structural arm reads
     for it applies here too. Scope "any", not "you"."""
-    from mtg_utils._deck_forge.crosswalk_signals import apply_membership_floor
+    from mtg_utils._deck_forge.lanes import apply_membership_floor
 
     assert "cheat_from_top" not in _keys("Chaos Warp")
     record = {
@@ -16707,7 +16707,7 @@ def test_type_changers_excludes(name):
 
 
 def test_grant_payloads_bonescythe_double_strike():
-    from mtg_utils._deck_forge.crosswalk_signals import extract_grant_payloads
+    from mtg_utils._deck_forge.lanes import extract_grant_payloads
 
     pays = extract_grant_payloads(_tree("Bonescythe Sliver"))
     assert [(p.keyword, p.scope, p.subject) for p in pays] == [
@@ -16717,7 +16717,7 @@ def test_grant_payloads_bonescythe_double_strike():
 
 
 def test_grant_payloads_first_slivers_chosen_exalted():
-    from mtg_utils._deck_forge.crosswalk_signals import extract_grant_payloads
+    from mtg_utils._deck_forge.lanes import extract_grant_payloads
 
     pays = extract_grant_payloads(_tree("First Sliver's Chosen"))
     assert [(p.keyword, p.scope, p.subject) for p in pays] == [
@@ -16729,7 +16729,7 @@ def test_grant_payloads_absolute_grace_each_scope_mirrorvariant():
     # "All creatures have protection from black": no controller filter (an
     # each-scope grant) and a MirrorVariant-wrapped keyword that must
     # normalize to its key name.
-    from mtg_utils._deck_forge.crosswalk_signals import extract_grant_payloads
+    from mtg_utils._deck_forge.lanes import extract_grant_payloads
 
     pays = extract_grant_payloads(_tree("Absolute Grace"))
     assert [(p.keyword, p.scope, p.subject) for p in pays] == [
@@ -16739,7 +16739,7 @@ def test_grant_payloads_absolute_grace_each_scope_mirrorvariant():
 
 def test_grant_payloads_empty_for_a_type_changer():
     # Xenograft adds a TYPE, not an ability — no AddKeyword, no payload.
-    from mtg_utils._deck_forge.crosswalk_signals import extract_grant_payloads
+    from mtg_utils._deck_forge.lanes import extract_grant_payloads
 
     assert extract_grant_payloads(_tree("Xenograft")) == ()
 
@@ -16748,7 +16748,7 @@ def test_grant_payloads_ability_grants_carry_kind_and_raw():
     # ADR-0040 §2 (task #97): a granted ACTIVATED ability (Scuttling Sliver's
     # untap, CR 113.3b) is a real grant payload — kind "ability", no keyword.
     # Dan's Q2 adjudication: Scuttling Sliver is not a correct cut.
-    from mtg_utils._deck_forge.crosswalk_signals import extract_grant_payloads
+    from mtg_utils._deck_forge.lanes import extract_grant_payloads
 
     pays = extract_grant_payloads(_tree("Scuttling Sliver"))
     assert [(p.kind, p.keyword, p.scope, p.subject) for p in pays] == [
@@ -16760,7 +16760,7 @@ def test_grant_payloads_ability_grants_carry_kind_and_raw():
 def test_grant_payloads_bladeback_hellbent_condition_survives_in_raw():
     # The hellbent gate (the ADR-0040 §2 observed mislead) must be readable
     # off the payload so the quality predicate can demote it.
-    from mtg_utils._deck_forge.crosswalk_signals import extract_grant_payloads
+    from mtg_utils._deck_forge.lanes import extract_grant_payloads
 
     pays = extract_grant_payloads(_tree("Bladeback Sliver"))
     assert [(p.kind, p.scope, p.subject) for p in pays] == [
@@ -16772,20 +16772,20 @@ def test_grant_payloads_bladeback_hellbent_condition_survives_in_raw():
 def test_grant_payloads_exclude_attached_single_recipients():
     # "Equipped creature … has flying" grants to ONE creature — never a mass
     # Granter payload (the type_changers attach-exclusion, same shapes).
-    from mtg_utils._deck_forge.crosswalk_signals import extract_grant_payloads
+    from mtg_utils._deck_forge.lanes import extract_grant_payloads
 
     assert extract_grant_payloads(_tree("Raven Wings")) == ()
 
 
 def test_grant_payloads_keyword_kind_default():
-    from mtg_utils._deck_forge.crosswalk_signals import extract_grant_payloads
+    from mtg_utils._deck_forge.lanes import extract_grant_payloads
 
     pays = extract_grant_payloads(_tree("Lancer Sliver"))
     assert [(p.kind, p.keyword) for p in pays] == [("keyword", "first strike")]
 
 
 def test_grant_payloads_outlast_parameterized_keyword():
-    from mtg_utils._deck_forge.crosswalk_signals import extract_grant_payloads
+    from mtg_utils._deck_forge.lanes import extract_grant_payloads
 
     pays = extract_grant_payloads(_tree("Enduring Sliver"))
     assert [(p.kind, p.keyword) for p in pays] == [("keyword", "outlast")]
@@ -16801,7 +16801,7 @@ def test_grant_payloads_outlast_parameterized_keyword():
 
 
 def test_grant_payloads_goblin_king_emits_anthem_alongside_landwalk():
-    from mtg_utils._deck_forge.crosswalk_signals import extract_grant_payloads
+    from mtg_utils._deck_forge.lanes import extract_grant_payloads
 
     pays = extract_grant_payloads(_tree("Goblin King"))
     kinds = [(p.kind, p.keyword) for p in pays]
@@ -16814,7 +16814,7 @@ def test_grant_payloads_goblin_king_emits_anthem_alongside_landwalk():
 def test_grant_payloads_goblin_king_grades_solid_via_anthem():
     # The anthem IS the card's value; the table-weak landwalk keyword must
     # never be the sole grade once the +1/+1 payload is surfaced.
-    from mtg_utils._deck_forge.crosswalk_signals import extract_grant_payloads
+    from mtg_utils._deck_forge.lanes import extract_grant_payloads
     from mtg_utils._tuner.ability_quality import grant_grade
 
     pays = extract_grant_payloads(_tree("Goblin King"))
@@ -16824,7 +16824,7 @@ def test_grant_payloads_goblin_king_grades_solid_via_anthem():
 def test_grant_payloads_enduring_sliver_still_grades_weak():
     # A pure weak-keyword granter (no AddPower/AddToughness mod) must NOT
     # pick up a phantom anthem payload from the anthem arm.
-    from mtg_utils._deck_forge.crosswalk_signals import extract_grant_payloads
+    from mtg_utils._deck_forge.lanes import extract_grant_payloads
     from mtg_utils._tuner.ability_quality import grant_grade
 
     pays = extract_grant_payloads(_tree("Enduring Sliver"))
@@ -16841,7 +16841,7 @@ def test_grant_payloads_enduring_sliver_still_grades_weak():
 
 
 def test_grant_payloads_exclude_combat_relation_recipients():
-    from mtg_utils._deck_forge.crosswalk_signals import extract_grant_payloads
+    from mtg_utils._deck_forge.lanes import extract_grant_payloads
 
     assert extract_grant_payloads(_tree("Alms Beast")) == ()
 
@@ -16888,7 +16888,7 @@ def _synth_type_changer_tree(properties):
     # retires them (the bridges' own todo).
     from types import SimpleNamespace
 
-    from mtg_utils._card_ir.mirror.generated_types import (
+    from mtg_utils._card_ir.mirror.generated import (
         S_static_abilities,
         T_affected__Typed,
         T_modifications__AddChosenSubtype,
@@ -16921,8 +16921,8 @@ def test_type_changers_structural_graveyard_zone_routes_to_graveyard_key():
     # affected — the Ashes of the Fallen shape, CR 109.2), the lane must key
     # it graveyard, NOT battlefield: the bridges' retirement path depends on
     # the structural read routing zones honestly.
-    from mtg_utils._card_ir.mirror.generated_types import T_properties__InZone
-    from mtg_utils._deck_forge.crosswalk_signals import _type_changers
+    from mtg_utils._card_ir.mirror.generated import T_properties__InZone
+    from mtg_utils._deck_forge.lanes import _type_changers
 
     tree = _synth_type_changer_tree([T_properties__InZone(zone="Graveyard")])
     idents = {(s.key, s.scope, s.subject) for s in _type_changers(tree)}
@@ -16931,8 +16931,8 @@ def test_type_changers_structural_graveyard_zone_routes_to_graveyard_key():
 
 
 def test_type_changers_structural_inanyzone_routes_to_all_keys():
-    from mtg_utils._card_ir.mirror.generated_types import T_properties__InAnyZone
-    from mtg_utils._deck_forge.crosswalk_signals import _type_changers
+    from mtg_utils._card_ir.mirror.generated import T_properties__InAnyZone
+    from mtg_utils._deck_forge.lanes import _type_changers
 
     tree = _synth_type_changer_tree([T_properties__InAnyZone(zones=[])])
     keys = {s.key for s in _type_changers(tree)}

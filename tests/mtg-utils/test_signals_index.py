@@ -76,16 +76,35 @@ class TestSignalSourceFiles:
         names = {p.name for p in signals_index.signal_source_files()}
         # The lane-facing modules (ADR-0035/0039) named in the task.
         assert "signals.py" in names
-        assert "crosswalk_signals.py" in names
+        # crosswalk_signals.py was split into the lanes/ subpackage — the
+        # closure reaches every lane-family module through its __init__.
+        for lane_module in (
+            "manifest.py",
+            "_shared.py",
+            "core_makers.py",
+            "board_and_ramp.py",
+            "counters_voltron.py",
+            "graveyard_lifeloss.py",
+            "keyword_mechanics.py",
+            "mana_and_wipes.py",
+            "card_advantage.py",
+            "triggers_damage.py",
+            "stax_and_tempo.py",
+            "removal_tutors.py",
+            "protection_and_sweep.py",
+        ):
+            assert lane_module in names
         assert "membership_floor.py" in names
         assert "text_reads.py" in names
         assert "signal_base.py" in names
         assert "_subtypes.py" in names
         assert "bridge_ledger.py" in names
         assert "signal_keys.py" in names  # from pkg import submodule form
-        # The _card_ir concept-tree layer.
-        assert "crosswalk.py" in names
-        assert "tree_synthesis.py" in names
+        # The _card_ir concept-tree layer. crosswalk.py and tree_synthesis.py
+        # are packages now — the closure reaches their split modules.
+        assert "core.py" in names  # crosswalk/core.py
+        assert "reads.py" in names  # crosswalk/reads.py
+        assert "_registry.py" in names  # tree_synthesis/_registry.py
         assert "recovery.py" in names
         assert "text_idioms.py" in names
         assert "overlay_corrections.py" in names

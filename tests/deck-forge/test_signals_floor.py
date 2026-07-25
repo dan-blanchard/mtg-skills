@@ -40,7 +40,7 @@ from mtg_utils._card_ir.mirror.build import fixtures_dir, load_committed_schema
 from mtg_utils._card_ir.tree_synthesis import has_structural_kill_engine
 from mtg_utils._deck_forge import _ir_lookup as il
 from mtg_utils._deck_forge._subtypes import CREATURE_SUBTYPES
-from mtg_utils._deck_forge.crosswalk_signals import (
+from mtg_utils._deck_forge.lanes import (
     _floor_token_maker_subjects,
     _is_big_mana_tree,
 )

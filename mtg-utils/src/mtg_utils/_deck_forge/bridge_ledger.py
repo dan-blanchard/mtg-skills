@@ -328,7 +328,7 @@ def _sac_kept(tree: ConceptTree) -> str:
 # has casualty 2." — Anhelo, the Painter; "Each instant and sorcery spell
 # you cast has casualty 1." — Silverquill, the Disputant; CR 702.153a). The
 # bearer's OWN Casualty is a separate, ALREADY-STRUCTURAL Scryfall-keyword
-# read (:data:`~mtg_utils._deck_forge.crosswalk_signals._SWEEP_KEYWORD_LANES`)
+# read (:data:`~mtg_utils._deck_forge.lanes._SWEEP_KEYWORD_LANES`)
 # — this bridge is scoped to the keyword-LESS granter only (the gap check
 # excludes any card that already carries a Sacrifice node from elsewhere,
 # but a granter with NO own Casualty keyword needs this text anchor
@@ -345,7 +345,7 @@ def _sac_casualty_grant_match(tree: ConceptTree) -> bool:
 # ("You get an emblem with '{1}{B}, Sacrifice a creature: You gain X life
 # and draw X cards...'" — Ob Nixilis of the Black Oath; CR 602.1a — a cost
 # is always paid by the activator, so an emblem's OWN granted-cost outlet
-# is "you", mirroring :func:`~mtg_utils._deck_forge.crosswalk_signals.
+# is "you", mirroring :func:`~mtg_utils._deck_forge.lanes.
 # _sac_outlet_granted_cost`'s GrantAbility precedent). Anchored on a comma
 # immediately before the IMPERATIVE "Sacrifice" (a cost position) followed
 # by a colon (the cost/effect separator) — a third-person "sacrifices"
@@ -729,8 +729,8 @@ def _kicker_ptplayer_match(tree: ConceptTree) -> bool:
 # structural closers (a ``LastCreated`` resolved-tag accept, an
 # empty-nested-description unit-level fallback, and a modal
 # ``mode_abilities`` threaded-target walk — see
-# :func:`~mtg_utils._deck_forge.crosswalk_signals._base_pt_set` and
-# :func:`~mtg_utils._deck_forge.crosswalk_signals.
+# :func:`~mtg_utils._deck_forge.lanes._base_pt_set` and
+# :func:`~mtg_utils._deck_forge.lanes.
 # _iter_base_pt_modal_threaded_statics`). Each census below is corpus-bound
 # to EXACTLY its enumerated pins (re-verified 2026-07-11, phase v0.20.0,
 # 31,622 commander-legal cards) — no blast-radius slop.
@@ -1307,7 +1307,7 @@ def _mindculling_match(tree: ConceptTree) -> bool:
 # quoted text ("Whenever this creature deals combat damage to a player,
 # that player discards a card.") is a "that player" BACK-REFERENCE with no
 # "target opponent"/"target player"/"each player" anchor
-# :data:`~mtg_utils._deck_forge.crosswalk_signals._TEXT_ONLY_OPP_DISCARD_
+# :data:`~mtg_utils._deck_forge.lanes._TEXT_ONLY_OPP_DISCARD_
 # RX` requires — correctly NOT matched by the existing last-resort sweep
 # (see that regex's own module comment). Gap is "no REAL (phase-parsed)
 # unit anywhere" rather than a bare ``not tree.units`` — this exact face's
@@ -1487,7 +1487,7 @@ def _named_synergy_match(tree: ConceptTree) -> bool:
 # surrounding sentence (not the bare "untap all creatures you control"
 # substring, which alone hits 32 commander-legal cards — Vitalize,
 # Aurelia, Drumbellower, … — every one of them ALREADY structurally read
-# by :func:`~mtg_utils._deck_forge.crosswalk_signals.
+# by :func:`~mtg_utils._deck_forge.lanes.
 # _mass_untap_creature_filter`'s own SetTapState walk, so the shared gap
 # below stands every one of them down on its own).
 _LIGHTNING_RUNNER_UNTAP_RX = re.compile(
@@ -1547,7 +1547,7 @@ def _duskana_draw_count_match(tree: ConceptTree) -> bool:
 # an upstream mis-scope (the def's OWN ``description`` still names "and
 # creatures you control gain haste" verbatim, so the grant text survives,
 # just attributed to the wrong ``affected`` population for
-# :func:`~mtg_utils._deck_forge.crosswalk_signals.
+# :func:`~mtg_utils._deck_forge.lanes.
 # _iter_creatures_matter_static_defs`'s ``affected``-filter check to find
 # it as a team anthem).
 _MOKU_HASTE_GRANT_RX = re.compile(

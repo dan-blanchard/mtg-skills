@@ -30,7 +30,7 @@ from __future__ import annotations
 import dataclasses
 
 from mtg_utils._deck_forge._ir_lookup import trees_for
-from mtg_utils._deck_forge.crosswalk_signals import extract_crosswalk_signals
+from mtg_utils._deck_forge.lanes import extract_crosswalk_signals
 
 
 def unit_idents_for(card: dict) -> dict[tuple[int, int], frozenset[str]]:

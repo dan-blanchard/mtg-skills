@@ -22,7 +22,7 @@ from mtg_utils._card_ir._substrate_purity import (
     l1_nodes,
 )
 from mtg_utils._card_ir.crosswalk import AbilityUnit, ConceptNode, ConceptTree
-from mtg_utils._card_ir.mirror.generated_types import (
+from mtg_utils._card_ir.mirror.generated import (
     S_static_abilities,
     S_sub_ability,
     T_affected__SelfRef,
@@ -401,7 +401,7 @@ def test_synthesis_arm_ids_registered():
 
 
 def _wants_cloning_fires(name: str) -> bool:
-    from mtg_utils._deck_forge.crosswalk_signals import _wants_cloning
+    from mtg_utils._deck_forge.lanes import _wants_cloning
 
     tree = apply_tree_synthesis(_fixture_tree(name))
     return bool(_wants_cloning(tree))
@@ -683,7 +683,7 @@ def test_attack_matters_lane_reads_synth_node_end_to_end():
     the signal. Proves the synth read is the ACTIVE Tier-1 source once the mirror is
     deleted.
     """
-    from mtg_utils._deck_forge.crosswalk_signals import _attack_tapped_matters
+    from mtg_utils._deck_forge.lanes import _attack_tapped_matters
 
     synth_cnode = ConceptNode(
         concept="synth_attack_matters",
@@ -716,7 +716,7 @@ def test_death_matters_lane_reads_synth_node_end_to_end():
     ``_death_matters`` lane emit the signal. Proves the synth read is the ACTIVE
     Tier-1 source the lane will rely on once the mirror is deleted (the full fold).
     """
-    from mtg_utils._deck_forge.crosswalk_signals import _death_matters
+    from mtg_utils._deck_forge.lanes import _death_matters
 
     synth_cnode = ConceptNode(
         concept="synth_death_matters",
@@ -873,7 +873,7 @@ def test_lifegain_matters_lane_reads_synth_node_end_to_end():
     oracle carrying no lifegain idiom — makes ``_lifegain_matters`` emit the signal.
     Proves the synth read is the ACTIVE Tier-1 source once the mirror is deleted.
     """
-    from mtg_utils._deck_forge.crosswalk_signals import _lifegain_matters
+    from mtg_utils._deck_forge.lanes import _lifegain_matters
 
     synth_cnode = ConceptNode(
         concept="synth_lifegain_matters",
@@ -908,7 +908,7 @@ def test_lifegain_over_fires_are_shed(name):
     drain (Caustic Hound) is neither. The rewritten Tier-1 lane emits no
     ``lifegain_matters`` for either.
     """
-    from mtg_utils._deck_forge.crosswalk_signals import _lifegain_matters
+    from mtg_utils._deck_forge.lanes import _lifegain_matters
 
     tree = apply_tree_synthesis(_fixture_tree(name))
     assert not any(s.key == "lifegain_matters" for s in _lifegain_matters(tree))
@@ -929,7 +929,7 @@ def test_lifegain_broadened_draw_bleed_recovered(name):
     :func:`has_trigger_draw_bleed` reads it Tier-1, so the lane fires and the synth
     gap gate no-ops (no double count).
     """
-    from mtg_utils._deck_forge.crosswalk_signals import _lifegain_matters
+    from mtg_utils._deck_forge.lanes import _lifegain_matters
 
     tree = _fixture_tree(name)
     assert has_trigger_draw_bleed(tree) is True
@@ -1044,7 +1044,7 @@ def test_spellcast_matters_lane_reads_synth_node_end_to_end():
     signal. Proves the synth read is the ACTIVE Tier-1 source (the deleted
     ``_detect_spellcast_matters`` mirror no longer participates).
     """
-    from mtg_utils._deck_forge.crosswalk_signals import _spellcast_matters
+    from mtg_utils._deck_forge.lanes import _spellcast_matters
 
     synth_cnode = ConceptNode(
         concept="synth_spellcast_matters",
@@ -1074,7 +1074,7 @@ def test_spellcast_matters_lane_reads_synth_node_end_to_end():
 def test_spellcast_matters_lane_fires_on_jaya_end_to_end():
     # FIX 1, full lane: apply_tree_synthesis attaches the recovered synth node and
     # the lane emits spellcast_matters for the Jaya emblem.
-    from mtg_utils._deck_forge.crosswalk_signals import _spellcast_matters
+    from mtg_utils._deck_forge.lanes import _spellcast_matters
 
     tree = apply_tree_synthesis(_fixture_tree("Jaya, Fiery Negotiator"))
     sigs = _spellcast_matters(tree)
@@ -1087,7 +1087,7 @@ def test_spellcast_matters_lane_fires_on_jaya_end_to_end():
 def _type_subjects(name):
     """The type_matters subjects the folded lane emits for a fixture card (over
     the synthesized tree — the real Tier-1 path: Arm B union the synth node)."""
-    from mtg_utils._deck_forge.crosswalk_signals import _type_matters_lane
+    from mtg_utils._deck_forge.lanes import _type_matters_lane
 
     tree = apply_tree_synthesis(_fixture_tree(name))
     return {s.subject for s in _type_matters_lane(tree) if s.key == "type_matters"}
@@ -1172,7 +1172,7 @@ def test_type_matters_lane_reads_synth_node_end_to_end():
     a subtype tuple ALONE — oracle carrying no tribal idiom — makes the lane emit
     one type_matters Signal per element (the deleted producers do not participate).
     """
-    from mtg_utils._deck_forge.crosswalk_signals import _type_matters_lane
+    from mtg_utils._deck_forge.lanes import _type_matters_lane
 
     synth = ConceptNode(
         concept="synth_type_matters",
@@ -1205,7 +1205,7 @@ def test_type_matters_lane_reads_synth_node_end_to_end():
 def _keyword_pairs(name):
     """The (scope, subject) keyword-tribe pairs the folded lane emits for a fixture
     card (over the synthesized tree — Arm B union the synth nodes)."""
-    from mtg_utils._deck_forge.crosswalk_signals import _keyword_tribe
+    from mtg_utils._deck_forge.lanes import _keyword_tribe
 
     tree = apply_tree_synthesis(_fixture_tree(name))
     return {
@@ -1329,7 +1329,7 @@ def test_keyword_tribe_lane_reads_synth_node_end_to_end():
     """Fold path, mirror-independent: a synth ``synth_keyword_tribe`` node carrying a
     keyword tuple at scope "any" — oracle carrying no keyword idiom — makes the lane
     emit one keyword_tribe Signal per element at the node's scope."""
-    from mtg_utils._deck_forge.crosswalk_signals import _keyword_tribe
+    from mtg_utils._deck_forge.lanes import _keyword_tribe
 
     synth = ConceptNode(
         concept="synth_keyword_tribe",
@@ -1369,7 +1369,7 @@ def test_keyword_tribe_lane_reads_synth_node_end_to_end():
 
 
 def _mass_death_fires(name: str) -> bool:
-    from mtg_utils._deck_forge.crosswalk_signals import _mass_death_payoff
+    from mtg_utils._deck_forge.lanes import _mass_death_payoff
 
     tree = apply_tree_synthesis(_fixture_tree(name))
     return any(s.key == "mass_death_payoff" for s in _mass_death_payoff(tree))
@@ -1434,7 +1434,7 @@ def test_mass_death_lane_reads_synth_node_end_to_end():
     """Fold path, mirror-independent: a synth ``synth_mass_death_payoff`` node ALONE
     — oracle carrying no aggregate idiom — makes the ``_mass_death_payoff`` lane
     emit the signal (proves the synth read is the ACTIVE Tier-1 source)."""
-    from mtg_utils._deck_forge.crosswalk_signals import _mass_death_payoff
+    from mtg_utils._deck_forge.lanes import _mass_death_payoff
 
     synth = ConceptNode(
         concept="synth_mass_death_payoff",
@@ -1465,7 +1465,7 @@ def test_mass_death_lane_reads_synth_node_end_to_end():
 
 
 def _untap_fires(name):
-    from mtg_utils._deck_forge.crosswalk_signals import _untap_engine
+    from mtg_utils._deck_forge.lanes import _untap_engine
 
     tree = apply_tree_synthesis(_fixture_tree(name))
     return any(s.key == "untap_engine" for s in _untap_engine(tree))
@@ -1538,7 +1538,7 @@ def test_untap_engine_lane_reads_synth_node_end_to_end():
     """Fold path, mirror-independent: a synth ``synth_untap_engine`` node ALONE
     — oracle carrying no untap idiom — makes the ``_untap_engine`` lane emit
     the signal (proves the synth read is the ACTIVE Tier-1 source)."""
-    from mtg_utils._deck_forge.crosswalk_signals import _untap_engine
+    from mtg_utils._deck_forge.lanes import _untap_engine
 
     synth = ConceptNode(
         concept="synth_untap_engine",
@@ -1569,7 +1569,7 @@ def test_untap_engine_lane_reads_synth_node_end_to_end():
 
 
 def _tutor_fires(name):
-    from mtg_utils._deck_forge.crosswalk_signals import _tutor_lane
+    from mtg_utils._deck_forge.lanes import _tutor_lane
 
     tree = apply_tree_synthesis(_fixture_tree(name))
     return any(s.key == "tutor" for s in _tutor_lane(tree))
@@ -1627,7 +1627,7 @@ def test_tutor_bucket_b_land_fetch_rerouted_to_ramp():
         _arm_land_fetch_ramp,
         _arm_tutor,
     )
-    from mtg_utils._deck_forge.crosswalk_signals import _ramp
+    from mtg_utils._deck_forge.lanes import _ramp
 
     tree = _fixture_tree("Rampant, Growth")
     assert has_structural_tutor(tree) is False  # genuine gap, unchanged
@@ -1665,7 +1665,7 @@ def test_tutor_lane_reads_synth_node_end_to_end():
     """Fold path, mirror-independent: a synth ``synth_tutor`` node ALONE --
     oracle carrying no tutor idiom -- makes the ``_tutor_lane`` lane emit the
     signal (proves the synth read is the ACTIVE Tier-1 source)."""
-    from mtg_utils._deck_forge.crosswalk_signals import _tutor_lane
+    from mtg_utils._deck_forge.lanes import _tutor_lane
 
     synth = ConceptNode(
         concept="synth_tutor",
@@ -1700,7 +1700,7 @@ def test_tutor_lane_reads_synth_node_end_to_end():
 
 
 def _discover_fires(name):
-    from mtg_utils._deck_forge.crosswalk_signals import _discover_makers
+    from mtg_utils._deck_forge.lanes import _discover_makers
 
     tree = apply_tree_synthesis(_fixture_tree(name))
     return any(s.key == "discover_makers" for s in _discover_makers(tree))
@@ -1739,7 +1739,7 @@ def test_discover_makers_synth_registered():
 
 
 def _group_hug_draw_fires(name):
-    from mtg_utils._deck_forge.crosswalk_signals import _group_hug_draw
+    from mtg_utils._deck_forge.lanes import _group_hug_draw
 
     tree = apply_tree_synthesis(_fixture_tree(name))
     return any(s.key == "group_hug_draw" for s in _group_hug_draw(tree))
@@ -1850,7 +1850,7 @@ def test_fight_makers_synth_registered():
 
 
 def _dice_makers_fires(name):
-    from mtg_utils._deck_forge.crosswalk_signals import _dice_makers
+    from mtg_utils._deck_forge.lanes import _dice_makers
 
     tree = apply_tree_synthesis(_fixture_tree(name))
     return any(s.key == "dice_makers" for s in _dice_makers(tree))
@@ -1925,7 +1925,7 @@ def test_dice_makers_synth_registered():
 
 
 def _coin_flip_fires(name):
-    from mtg_utils._deck_forge.crosswalk_signals import _coin_flip
+    from mtg_utils._deck_forge.lanes import _coin_flip
 
     tree = apply_tree_synthesis(_fixture_tree(name))
     return any(s.key == "coin_flip" for s in _coin_flip(tree))
@@ -1983,7 +1983,7 @@ def test_coin_flip_payoff_synth_registered():
 
 
 def _connive_makers_fires(name):
-    from mtg_utils._deck_forge.crosswalk_signals import _connive_makers
+    from mtg_utils._deck_forge.lanes import _connive_makers
 
     tree = apply_tree_synthesis(_fixture_tree(name))
     return any(s.key == "connive_makers" for s in _connive_makers(tree))
@@ -2048,7 +2048,7 @@ def test_connive_makers_synth_registered():
 
 
 def _opponent_cast_matters_fires(name):
-    from mtg_utils._deck_forge.crosswalk_signals import _opponent_cast_matters
+    from mtg_utils._deck_forge.lanes import _opponent_cast_matters
 
     tree = apply_tree_synthesis(_fixture_tree(name))
     return any(s.key == "opponent_cast_matters" for s in _opponent_cast_matters(tree))
@@ -2107,7 +2107,7 @@ def test_opponent_cast_matters_synth_registered():
 
 
 def _creature_cast_trigger_fires(name):
-    from mtg_utils._deck_forge.crosswalk_signals import _creature_cast_trigger
+    from mtg_utils._deck_forge.lanes import _creature_cast_trigger
 
     tree = apply_tree_synthesis(_fixture_tree(name))
     return any(s.key == "creature_cast_trigger" for s in _creature_cast_trigger(tree))
@@ -2171,7 +2171,7 @@ def test_creature_cast_trigger_synth_registered():
 
 
 def _extra_land_drop_fires(name):
-    from mtg_utils._deck_forge.crosswalk_signals import _extra_land_drop
+    from mtg_utils._deck_forge.lanes import _extra_land_drop
 
     tree = apply_tree_synthesis(_fixture_tree(name))
     return any(s.key == "extra_land_drop" for s in _extra_land_drop(tree))
@@ -2231,7 +2231,7 @@ def test_extra_land_drop_synth_registered():
 
 
 def _historic_matters_fires(name):
-    from mtg_utils._deck_forge.crosswalk_signals import _legends_historic_matters
+    from mtg_utils._deck_forge.lanes import _legends_historic_matters
 
     tree = apply_tree_synthesis(_fixture_tree(name))
     return any(s.key == "historic_matters" for s in _legends_historic_matters(tree))
@@ -2293,7 +2293,7 @@ def test_historic_matters_synth_registered():
 
 
 def _multicolor_matters_fires(name):
-    from mtg_utils._deck_forge.crosswalk_signals import _predicate_build_around
+    from mtg_utils._deck_forge.lanes import _predicate_build_around
 
     tree = apply_tree_synthesis(_fixture_tree(name))
     return any(s.key == "multicolor_matters" for s in _predicate_build_around(tree))
@@ -2353,7 +2353,7 @@ def test_multicolor_matters_synth_registered():
 
 
 def _stax_fires(name):
-    from mtg_utils._deck_forge.crosswalk_signals import _stax_lanes
+    from mtg_utils._deck_forge.lanes import _stax_lanes
 
     tree = apply_tree_synthesis(_fixture_tree(name))
     keys = {s.key for s in _stax_lanes(tree)}
@@ -2447,7 +2447,7 @@ def test_stax_lane_reads_synth_nodes_end_to_end():
     ``synth_symmetric_stax`` node ALONE -- oracle carrying no stax idiom --
     makes the ``_stax_lanes`` lane emit both signals (proves the synth read
     is the ACTIVE Tier-1 source)."""
-    from mtg_utils._deck_forge.crosswalk_signals import _stax_lanes
+    from mtg_utils._deck_forge.lanes import _stax_lanes
 
     stax_synth = ConceptNode(
         concept="synth_stax_taxes",
@@ -2488,7 +2488,7 @@ def test_stax_lane_reads_synth_nodes_end_to_end():
 
 
 def _superfriends_fires(name):
-    from mtg_utils._deck_forge.crosswalk_signals import _superfriends_matters
+    from mtg_utils._deck_forge.lanes import _superfriends_matters
 
     tree = apply_tree_synthesis(_fixture_tree(name))
     return any(s.key == "superfriends_matters" for s in _superfriends_matters(tree))
@@ -2555,7 +2555,7 @@ def test_superfriends_lane_reads_synth_node_end_to_end():
     node ALONE — oracle carrying no superfriends idiom — makes the
     ``_superfriends_matters`` lane emit the signal (proves the synth read is
     the ACTIVE Tier-1 source)."""
-    from mtg_utils._deck_forge.crosswalk_signals import _superfriends_matters
+    from mtg_utils._deck_forge.lanes import _superfriends_matters
 
     synth = ConceptNode(
         concept="synth_superfriends_matters",
@@ -2597,14 +2597,14 @@ def _evasion_kw(name: str) -> frozenset[str]:
 
 
 def _evasion_lane_fires(name: str) -> bool:
-    from mtg_utils._deck_forge.crosswalk_signals import _evasion_self
+    from mtg_utils._deck_forge.lanes import _evasion_self
 
     tree = apply_tree_synthesis(_fixture_tree(name))
     return any(s.key == "evasion_self" for s in _evasion_self(tree))
 
 
 def _evasion_kwfield_fires(name: str) -> bool:
-    from mtg_utils._deck_forge.crosswalk_signals import _keyword_field_signals_b15
+    from mtg_utils._deck_forge.lanes import _keyword_field_signals_b15
 
     return any(
         s.key == "evasion_self"
@@ -2616,7 +2616,7 @@ def _evasion_end_to_end_fires(name: str) -> bool:
     """The FULL crosswalk pipeline (lane + keyword-field arms combined) —
     what a bucket-A-only card (no synth node) actually surfaces through
     ``extract_crosswalk_signals``."""
-    from mtg_utils._deck_forge.crosswalk_signals import extract_crosswalk_signals
+    from mtg_utils._deck_forge.lanes import extract_crosswalk_signals
 
     tree = _fixture_tree(name)
     sigs = [
@@ -2690,7 +2690,7 @@ def test_evasion_self_shed_overfires(name):
 def test_evasion_self_flying_only_does_not_fire():
     """flying is DELIBERATELY not evasion_self (soft evasion, CR 702.9)."""
     from mtg_utils._card_ir.tree_synthesis import _arm_evasion_self
-    from mtg_utils._deck_forge.crosswalk_signals import _evasion_self
+    from mtg_utils._deck_forge.lanes import _evasion_self
 
     tree = _gap_tree("Flying")
     assert _arm_evasion_self(tree) is None
@@ -2706,7 +2706,7 @@ def test_evasion_self_lane_reads_synth_node_end_to_end():
     """Fold path, mirror-independent: a synth ``synth_evasion_self`` node
     ALONE — oracle carrying no evasion idiom — makes the ``_evasion_self``
     lane emit the signal (proves the synth read is the ACTIVE Tier-1 source)."""
-    from mtg_utils._deck_forge.crosswalk_signals import _evasion_self
+    from mtg_utils._deck_forge.lanes import _evasion_self
 
     synth = ConceptNode(
         concept="synth_evasion_self",
@@ -2737,7 +2737,7 @@ def test_evasion_self_lane_reads_synth_node_end_to_end():
 
 
 def _theft_lane_fires(name: str) -> bool:
-    from mtg_utils._deck_forge.crosswalk_signals import _theft_makers_lane
+    from mtg_utils._deck_forge.lanes import _theft_makers_lane
 
     tree = apply_tree_synthesis(_fixture_tree(name))
     sigs = _theft_makers_lane(tree)
@@ -2824,7 +2824,7 @@ def test_theft_makers_lane_reads_synth_node_end_to_end():
     """Fold path, mirror-independent: a synth ``synth_theft_makers`` node
     ALONE — oracle carrying no theft idiom — makes the ``_theft_makers_lane``
     emit the signal (proves the synth read is the ACTIVE Tier-1 source)."""
-    from mtg_utils._deck_forge.crosswalk_signals import _theft_makers_lane
+    from mtg_utils._deck_forge.lanes import _theft_makers_lane
 
     synth = ConceptNode(
         concept="synth_theft_makers",
@@ -2856,7 +2856,7 @@ def test_theft_makers_lane_reads_synth_node_end_to_end():
 
 
 def _coven_lane_fires(name: str) -> bool:
-    from mtg_utils._deck_forge.crosswalk_signals import _coven_matters_lane
+    from mtg_utils._deck_forge.lanes import _coven_matters_lane
 
     tree = apply_tree_synthesis(_fixture_tree(name))
     sigs = _coven_matters_lane(tree)
@@ -2889,7 +2889,7 @@ def test_coven_matters_synth_registered():
 
 
 def test_coven_matters_lane_reads_synth_node_end_to_end():
-    from mtg_utils._deck_forge.crosswalk_signals import _coven_matters_lane
+    from mtg_utils._deck_forge.lanes import _coven_matters_lane
 
     synth = ConceptNode(
         concept="synth_coven_matters",
@@ -2917,7 +2917,7 @@ def test_coven_matters_lane_reads_synth_node_end_to_end():
 
 
 def _celebration_lane_fires(name: str) -> bool:
-    from mtg_utils._deck_forge.crosswalk_signals import _celebration_matters
+    from mtg_utils._deck_forge.lanes import _celebration_matters
 
     tree = apply_tree_synthesis(_fixture_tree(name))
     sigs = _celebration_matters(tree)
@@ -2949,7 +2949,7 @@ def test_celebration_matters_synth_registered():
 
 
 def test_celebration_matters_lane_reads_synth_node_end_to_end():
-    from mtg_utils._deck_forge.crosswalk_signals import _celebration_matters
+    from mtg_utils._deck_forge.lanes import _celebration_matters
 
     synth = ConceptNode(
         concept="synth_celebration_matters",
@@ -2977,7 +2977,7 @@ def test_celebration_matters_lane_reads_synth_node_end_to_end():
 
 
 def _outlaw_lane_fires(name: str) -> bool:
-    from mtg_utils._deck_forge.crosswalk_signals import _outlaw_matters_lane
+    from mtg_utils._deck_forge.lanes import _outlaw_matters_lane
 
     tree = apply_tree_synthesis(_fixture_tree(name))
     sigs = _outlaw_matters_lane(tree)
@@ -3030,7 +3030,7 @@ def test_outlaw_matters_synth_registered():
 
 
 def test_outlaw_matters_lane_reads_synth_node_end_to_end():
-    from mtg_utils._deck_forge.crosswalk_signals import _outlaw_matters_lane
+    from mtg_utils._deck_forge.lanes import _outlaw_matters_lane
 
     synth = ConceptNode(
         concept="synth_outlaw_matters",
@@ -3058,7 +3058,7 @@ def test_outlaw_matters_lane_reads_synth_node_end_to_end():
 
 
 def _arcane_lane_fires(name: str) -> bool:
-    from mtg_utils._deck_forge.crosswalk_signals import _arcane_matters
+    from mtg_utils._deck_forge.lanes import _arcane_matters
 
     tree = apply_tree_synthesis(_fixture_tree(name))
     sigs = _arcane_matters(tree)
@@ -3103,7 +3103,7 @@ def test_arcane_matters_synth_registered():
 
 
 def test_arcane_matters_lane_reads_synth_node_end_to_end():
-    from mtg_utils._deck_forge.crosswalk_signals import _arcane_matters
+    from mtg_utils._deck_forge.lanes import _arcane_matters
 
     synth = ConceptNode(
         concept="synth_arcane_matters",
@@ -3131,7 +3131,7 @@ def test_arcane_matters_lane_reads_synth_node_end_to_end():
 
 
 def _exalted_textual_lane_fires(name: str) -> bool:
-    from mtg_utils._deck_forge.crosswalk_signals import _exalted_textual
+    from mtg_utils._deck_forge.lanes import _exalted_textual
 
     tree = apply_tree_synthesis(_fixture_tree(name))
     sigs = _exalted_textual(tree)
@@ -3185,7 +3185,7 @@ def test_exalted_lone_attacker_synth_registered():
 
 
 def test_exalted_textual_lane_reads_synth_node_end_to_end():
-    from mtg_utils._deck_forge.crosswalk_signals import _exalted_textual
+    from mtg_utils._deck_forge.lanes import _exalted_textual
 
     synth = ConceptNode(
         concept="synth_exalted_lone_attacker",
@@ -3243,7 +3243,7 @@ def test_power_matters_synth_registered():
 
 
 def test_power_matters_lane_reads_synth_node_end_to_end():
-    from mtg_utils._deck_forge.crosswalk_signals import _predicate_build_around
+    from mtg_utils._deck_forge.lanes import _predicate_build_around
 
     synth = ConceptNode(
         concept="synth_power_matters",
@@ -3274,7 +3274,7 @@ def test_power_matters_lane_reads_synth_node_end_to_end():
 
 
 def _keyword_counter_lane_fires(tree: ConceptTree) -> bool:
-    from mtg_utils._deck_forge.crosswalk_signals import _keyword_counter
+    from mtg_utils._deck_forge.lanes import _keyword_counter
 
     return any(
         s.key == "keyword_counter" for s in _keyword_counter(apply_tree_synthesis(tree))
@@ -3321,7 +3321,7 @@ def test_keyword_counter_synth_registered():
 
 
 def test_keyword_counter_lane_reads_synth_node_end_to_end():
-    from mtg_utils._deck_forge.crosswalk_signals import _keyword_counter
+    from mtg_utils._deck_forge.lanes import _keyword_counter
 
     synth = ConceptNode(
         concept="synth_keyword_counter",
@@ -3352,7 +3352,7 @@ def test_keyword_counter_lane_reads_synth_node_end_to_end():
 
 
 def _counter_distribute_lane_fires(name: str) -> bool:
-    from mtg_utils._deck_forge.crosswalk_signals import _counter_distribute
+    from mtg_utils._deck_forge.lanes import _counter_distribute
 
     tree = apply_tree_synthesis(_fixture_tree(name))
     return any(s.key == "counter_distribute" for s in _counter_distribute(tree))
@@ -3394,7 +3394,7 @@ def test_counter_distribute_synth_registered():
 
 
 def test_counter_distribute_lane_reads_synth_node_end_to_end():
-    from mtg_utils._deck_forge.crosswalk_signals import _counter_distribute
+    from mtg_utils._deck_forge.lanes import _counter_distribute
 
     synth = ConceptNode(
         concept="synth_counter_distribute",
@@ -3425,7 +3425,7 @@ def test_counter_distribute_lane_reads_synth_node_end_to_end():
 
 
 def _proliferate_matters_lane_fires_high(tree: ConceptTree) -> bool:
-    from mtg_utils._deck_forge.crosswalk_signals import _proliferate_matters_lane
+    from mtg_utils._deck_forge.lanes import _proliferate_matters_lane
 
     return any(
         s.key == "proliferate_matters" and s.confidence == "high"
@@ -3485,7 +3485,7 @@ def test_proliferate_matters_synth_registered():
 
 
 def test_proliferate_matters_lane_reads_synth_node_end_to_end():
-    from mtg_utils._deck_forge.crosswalk_signals import _proliferate_matters_lane
+    from mtg_utils._deck_forge.lanes import _proliferate_matters_lane
 
     synth = ConceptNode(
         concept="synth_proliferate_matters",
@@ -3516,7 +3516,7 @@ def test_proliferate_matters_lane_reads_synth_node_end_to_end():
 
 
 def _self_counter_grow_lane_fires(name: str) -> bool:
-    from mtg_utils._deck_forge.crosswalk_signals import _self_counter_grow
+    from mtg_utils._deck_forge.lanes import _self_counter_grow
 
     tree = apply_tree_synthesis(_fixture_tree(name))
     return any(s.key == "self_counter_grow" for s in _self_counter_grow(tree))
@@ -3570,7 +3570,7 @@ def test_self_counter_grow_synth_registered():
 
 
 def test_self_counter_grow_lane_reads_synth_node_end_to_end():
-    from mtg_utils._deck_forge.crosswalk_signals import _self_counter_grow
+    from mtg_utils._deck_forge.lanes import _self_counter_grow
 
     synth = ConceptNode(
         concept="synth_self_counter_grow",
@@ -3601,7 +3601,7 @@ def test_self_counter_grow_lane_reads_synth_node_end_to_end():
 
 
 def _poison_matters_lane_fires(name: str) -> bool:
-    from mtg_utils._deck_forge.crosswalk_signals import _poison_matters
+    from mtg_utils._deck_forge.lanes import _poison_matters
 
     tree = apply_tree_synthesis(_fixture_tree(name))
     return any(s.key == "poison_matters" for s in _poison_matters(tree))
@@ -3643,7 +3643,7 @@ def test_poison_matters_synth_registered():
 
 
 def test_poison_matters_lane_reads_synth_node_end_to_end():
-    from mtg_utils._deck_forge.crosswalk_signals import _poison_matters
+    from mtg_utils._deck_forge.lanes import _poison_matters
 
     synth = ConceptNode(
         concept="synth_poison_matters",
@@ -3694,7 +3694,7 @@ def test_island_matters_synth_registered():
 
 
 def test_island_matters_lane_reads_synth_node_end_to_end():
-    from mtg_utils._deck_forge.crosswalk_signals import _island_matters
+    from mtg_utils._deck_forge.lanes import _island_matters
 
     synth = ConceptNode(
         concept="synth_island_matters",
@@ -3744,7 +3744,7 @@ def test_animate_artifact_synth_registered():
 
 
 def test_animate_artifact_lane_reads_synth_node_end_to_end():
-    from mtg_utils._deck_forge.crosswalk_signals import _animate_artifact
+    from mtg_utils._deck_forge.lanes import _animate_artifact
 
     synth = ConceptNode(
         concept="synth_animate_artifact",
@@ -3794,7 +3794,7 @@ def test_color_change_synth_registered():
 
 
 def test_color_change_lane_reads_synth_node_end_to_end():
-    from mtg_utils._deck_forge.crosswalk_signals import _color_change
+    from mtg_utils._deck_forge.lanes import _color_change
 
     synth = ConceptNode(
         concept="synth_color_change",
@@ -3916,7 +3916,7 @@ def test_land_creatures_subtype_animate_ambush_commander():
     read fires. The subtype-animate synthesis arm was RETIRED (deleted, not
     left dead): its bounding-regex re-census found zero remaining gap
     members corpus-wide."""
-    from mtg_utils._deck_forge.crosswalk_signals import _land_creatures_matter
+    from mtg_utils._deck_forge.lanes import _land_creatures_matter
 
     tree = _fixture_tree("Ambush Commander")
     assert has_structural_land_creatures_animate(tree) is True
@@ -3975,7 +3975,7 @@ def test_curse_matters_synth_registered():
 
 
 def test_curse_matters_lane_reads_synth_node_end_to_end():
-    from mtg_utils._deck_forge.crosswalk_signals import _curse_matters
+    from mtg_utils._deck_forge.lanes import _curse_matters
 
     synth = ConceptNode(
         concept="synth_curse_matters",
@@ -4032,7 +4032,7 @@ def test_clue_matters_synth_registered():
 
 
 def test_clue_matters_lane_reads_synth_node_end_to_end():
-    from mtg_utils._deck_forge.crosswalk_signals import _clue_matters_lane
+    from mtg_utils._deck_forge.lanes import _clue_matters_lane
 
     synth = ConceptNode(
         concept="synth_clue_matters",
@@ -4094,7 +4094,7 @@ def test_suspend_matters_synth_registered():
 
 
 def test_suspend_matters_lane_reads_synth_node_end_to_end():
-    from mtg_utils._deck_forge.crosswalk_signals import _suspend_matters
+    from mtg_utils._deck_forge.lanes import _suspend_matters
 
     synth = ConceptNode(
         concept="synth_suspend_matters",
@@ -4144,7 +4144,7 @@ def test_flash_matters_synth_registered():
 
 
 def test_flash_matters_lane_reads_synth_node_end_to_end():
-    from mtg_utils._deck_forge.crosswalk_signals import _flash_matters_lane
+    from mtg_utils._deck_forge.lanes import _flash_matters_lane
 
     synth = ConceptNode(
         concept="synth_flash_matters",
@@ -4201,7 +4201,7 @@ def test_crimes_matter_synth_registered():
 
 
 def test_crimes_matter_lane_reads_synth_node_end_to_end():
-    from mtg_utils._deck_forge.crosswalk_signals import _crimes_matter
+    from mtg_utils._deck_forge.lanes import _crimes_matter
 
     synth = ConceptNode(
         concept="synth_crimes_matter",
@@ -4261,7 +4261,7 @@ def test_suspect_matters_synth_registered():
 
 
 def test_suspect_matters_lane_reads_synth_node_end_to_end():
-    from mtg_utils._deck_forge.crosswalk_signals import _suspect_matters_lane
+    from mtg_utils._deck_forge.lanes import _suspect_matters_lane
 
     synth = ConceptNode(
         concept="synth_suspect_matters",
@@ -4389,7 +4389,7 @@ def test_pump_makers_synth_registered():
 
 
 def test_pump_makers_lane_reads_synth_node_end_to_end():
-    from mtg_utils._deck_forge.crosswalk_signals import _pump_makers_lane
+    from mtg_utils._deck_forge.lanes import _pump_makers_lane
 
     synth = ConceptNode(
         concept="synth_pump_makers",
@@ -4439,7 +4439,7 @@ def test_opponent_exile_matters_synth_registered():
 
 
 def test_opponent_exile_matters_lane_reads_synth_node_end_to_end():
-    from mtg_utils._deck_forge.crosswalk_signals import _opponent_exile_matters_lane
+    from mtg_utils._deck_forge.lanes import _opponent_exile_matters_lane
 
     synth = ConceptNode(
         concept="synth_opponent_exile_matters",
@@ -4571,7 +4571,7 @@ def test_color_hoser_synth_registered():
 
 
 def test_color_hoser_lane_reads_synth_node_end_to_end():
-    from mtg_utils._deck_forge.crosswalk_signals import _color_hoser
+    from mtg_utils._deck_forge.lanes import _color_hoser
 
     synth = ConceptNode(
         concept="synth_color_hoser",
@@ -4629,7 +4629,7 @@ def test_void_warp_makers_synth_registered():
 
 
 def test_void_warp_makers_lane_reads_synth_node_end_to_end():
-    from mtg_utils._deck_forge.crosswalk_signals import _void_warp_makers
+    from mtg_utils._deck_forge.lanes import _void_warp_makers
 
     synth = ConceptNode(
         concept="synth_void_warp_makers",
@@ -4679,7 +4679,7 @@ def test_sacrifice_protection_synth_registered():
 
 
 def test_sacrifice_protection_lane_reads_synth_node_end_to_end():
-    from mtg_utils._deck_forge.crosswalk_signals import _sacrifice_protection
+    from mtg_utils._deck_forge.lanes import _sacrifice_protection
 
     synth = ConceptNode(
         concept="synth_sacrifice_protection",
@@ -4748,7 +4748,7 @@ def test_life_payment_insurance_synth_registered():
 
 
 def test_life_payment_insurance_lane_reads_synth_node_end_to_end():
-    from mtg_utils._deck_forge.crosswalk_signals import _life_payment_insurance
+    from mtg_utils._deck_forge.lanes import _life_payment_insurance
 
     synth = ConceptNode(
         concept="synth_life_payment_insurance",
@@ -4842,7 +4842,7 @@ def test_ability_copy_synth_registered():
 
 
 def test_ability_copy_lane_reads_synth_node_end_to_end():
-    from mtg_utils._deck_forge.crosswalk_signals import _ability_copy
+    from mtg_utils._deck_forge.lanes import _ability_copy
 
     tree = _synth_concept_tree("synth_ability_copy")
     sigs = _ability_copy(tree)
@@ -4881,7 +4881,7 @@ def test_noncombat_damage_payoff_synth_registered():
 
 
 def test_noncombat_damage_payoff_lane_reads_synth_node_end_to_end():
-    from mtg_utils._deck_forge.crosswalk_signals import _noncombat_damage_payoff
+    from mtg_utils._deck_forge.lanes import _noncombat_damage_payoff
 
     tree = _synth_concept_tree("synth_noncombat_damage_payoff")
     sigs = _noncombat_damage_payoff(tree)
@@ -4910,7 +4910,7 @@ def test_per_target_payoff_synth_registered():
 
 
 def test_per_target_payoff_lane_reads_synth_node_end_to_end():
-    from mtg_utils._deck_forge.crosswalk_signals import _per_target_payoff
+    from mtg_utils._deck_forge.lanes import _per_target_payoff
 
     tree = _synth_concept_tree("synth_per_target_payoff")
     sigs = _per_target_payoff(tree)
@@ -4959,7 +4959,7 @@ def test_unspent_mana_synth_registered():
 
 
 def test_unspent_mana_lane_reads_synth_node_end_to_end():
-    from mtg_utils._deck_forge.crosswalk_signals import _unspent_mana
+    from mtg_utils._deck_forge.lanes import _unspent_mana
 
     tree = _synth_concept_tree("synth_unspent_mana")
     sigs = _unspent_mana(tree)
@@ -5016,7 +5016,7 @@ def test_kill_engine_synth_registered():
 
 
 def test_kill_engine_lane_reads_synth_node_end_to_end():
-    from mtg_utils._deck_forge.crosswalk_signals import _kill_engine
+    from mtg_utils._deck_forge.lanes import _kill_engine
 
     tree = _synth_concept_tree("synth_kill_engine")
     tree = ConceptTree(
@@ -5123,7 +5123,7 @@ def test_big_hand_matters_synth_registered():
 
 
 def test_big_hand_lanes_reads_synth_nodes_end_to_end():
-    from mtg_utils._deck_forge.crosswalk_signals import _big_hand_lanes
+    from mtg_utils._deck_forge.lanes import _big_hand_lanes
 
     makers_synth = ConceptNode(
         concept="synth_big_hand_makers",
@@ -5431,7 +5431,7 @@ def test_sweep_kept_mirrors_end_to_end_fire_and_no_fire():
     on the cast-timing restriction phrase; neither fires on an unrelated
     card. Exercises the production path (``apply_tree_synthesis`` +
     ``_sweep_kept_mirrors``), not the arm in isolation."""
-    from mtg_utils._deck_forge.crosswalk_signals import _sweep_kept_mirrors
+    from mtg_utils._deck_forge.lanes import _sweep_kept_mirrors
 
     villainous = apply_tree_synthesis(
         ConceptTree(
@@ -6220,7 +6220,7 @@ def test_base_pt_have_become_fires_on_pins(name):
 
 
 def test_base_pt_have_become_lane_fires():
-    from mtg_utils._deck_forge.crosswalk_signals import _base_pt_set
+    from mtg_utils._deck_forge.lanes import _base_pt_set
 
     for name in (
         "Ambassador Blorpityblorpboop",
@@ -6242,7 +6242,7 @@ def test_base_pt_is_a_type_with_fires_on_pin():
     assert node.concept == "base_pt_set"
     assert node.node.arm_id == "base_pt_is_a_type_with"
 
-    from mtg_utils._deck_forge.crosswalk_signals import _base_pt_set
+    from mtg_utils._deck_forge.lanes import _base_pt_set
 
     tree = apply_tree_synthesis(tree)
     assert any(s.key == "base_pt_set" for s in _base_pt_set(tree))
@@ -6270,7 +6270,7 @@ def test_base_pt_mass_where_x_fires_on_pin_both_lanes():
     assert node.concept == "base_pt_set"
     assert node.node.arm_id == "base_pt_mass_where_x"
 
-    from mtg_utils._deck_forge.crosswalk_signals import (
+    from mtg_utils._deck_forge.lanes import (
         _base_pt_set,
         _creatures_matter,
     )
@@ -6293,7 +6293,7 @@ def test_base_pt_mass_where_x_never_widens_creatures_matter(name):
     """The sibling single-target base_pt_set arms (have_become /
     is_a_type_with) never open creatures_matter — only the mass arm's OWN
     synthesized node, keyed by arm_id, does."""
-    from mtg_utils._deck_forge.crosswalk_signals import _creatures_matter
+    from mtg_utils._deck_forge.lanes import _creatures_matter
 
     tree = apply_tree_synthesis(_fixture_tree(name))
     assert not any(s.key == "creatures_matter" for s in _creatures_matter(tree))
@@ -6311,7 +6311,7 @@ def test_base_power_ref_conjunctive_fires_on_pins(name):
     assert node.concept == "base_power_matters"
     assert node.node.arm_id == "base_power_ref_conjunctive"
 
-    from mtg_utils._deck_forge.crosswalk_signals import _base_power_matters
+    from mtg_utils._deck_forge.lanes import _base_power_matters
 
     synth_tree = apply_tree_synthesis(tree)
     assert any(s.key == "base_power_matters" for s in _base_power_matters(synth_tree))
@@ -6355,7 +6355,7 @@ def test_ramp_grant_unimplemented_body_fires_on_pins(name):
     assert isinstance(node.node, SynthesizedNode)
     assert node.node.arm_id == "ramp_grant_unimplemented_body"
 
-    from mtg_utils._deck_forge.crosswalk_signals import _ramp
+    from mtg_utils._deck_forge.lanes import _ramp
 
     synth_tree = apply_tree_synthesis(tree)
     assert any(s.key == "ramp" for s in _ramp(synth_tree))
@@ -6372,7 +6372,7 @@ def test_ramp_grant_structural_gate_stands_arm_down():
     assert has_structural_ramp_grant_mana(tree) is True
     assert _arm_ramp_grant_unimplemented_body(tree) is None
 
-    from mtg_utils._deck_forge.crosswalk_signals import _ramp
+    from mtg_utils._deck_forge.lanes import _ramp
 
     synth_tree = apply_tree_synthesis(tree)
     assert any(s.key == "ramp" for s in _ramp(synth_tree))
@@ -6413,7 +6413,7 @@ def test_ramp_dropped_add_mana_clause_fires_on_pins(name):
     assert isinstance(node.node, SynthesizedNode)
     assert node.node.arm_id == "ramp_dropped_add_mana_clause"
 
-    from mtg_utils._deck_forge.crosswalk_signals import _ramp
+    from mtg_utils._deck_forge.lanes import _ramp
 
     synth_tree = apply_tree_synthesis(tree)
     assert any(s.key == "ramp" for s in _ramp(synth_tree))

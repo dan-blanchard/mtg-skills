@@ -170,7 +170,7 @@ def _ensure_sidecar(
     (stale on-disk version) exactly like the sidecar loader it wraps; a clean
     load means nothing to do. A build failure (no phase card-data reachable)
     warns loudly and returns ``False`` — NON-BLOCKING, never a hard crash."""
-    from mtg_utils._deck_forge.crosswalk_signals import SERVED_SIGNAL_KEYS
+    from mtg_utils._deck_forge.lanes import SERVED_SIGNAL_KEYS
 
     try:
         loader()  # present + current version → nothing to do (idempotent)

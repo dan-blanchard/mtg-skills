@@ -371,7 +371,7 @@ def _graveyard_return_concept(card: dict) -> bool:
     membership on that key can't discriminate this preset from
     reanimate/self-mill, which share the same key for their OTHER two
     directions."""
-    from mtg_utils._deck_forge.crosswalk_signals import graveyard_return_direction
+    from mtg_utils._deck_forge.lanes import graveyard_return_direction
 
     return _concept_any_face(card, graveyard_return_direction)
 
@@ -386,7 +386,7 @@ def _self_mill_concept(card: dict) -> bool:
     ``topdeck_selection``, which would match Contingency Plan (a
     look-then-reorder-to-bottom effect, never a mill) through
     ``topdeck_selection``'s unconditional Scry/Surveil arm."""
-    from mtg_utils._deck_forge.crosswalk_signals import self_mill_fill
+    from mtg_utils._deck_forge.lanes import self_mill_fill
 
     return _concept_any_face(card, self_mill_fill)
 
@@ -399,7 +399,7 @@ def _etb_bulk_draw_concept(card: dict) -> bool:
     structurally disjoint by construction (``card_draw_engine``'s bulk
     gate excludes an ``enters`` unit, ``etb_bulk_draw`` requires one), so
     the OR never double-counts a card under both arms."""
-    from mtg_utils._deck_forge.crosswalk_signals import etb_bulk_draw
+    from mtg_utils._deck_forge.lanes import etb_bulk_draw
 
     return _concept_any_face(card, etb_bulk_draw)
 
@@ -407,7 +407,7 @@ def _etb_bulk_draw_concept(card: dict) -> bool:
 def _blink_maker_concept(card: dict) -> bool:
     """concept arm for the 'blink' preset (task #83): true when CARD
     carries a MAKER-half ``blink_flicker`` signal (Flickerwisp/Ephemerate/
-    Soulherder), never :func:`~mtg_utils._deck_forge.crosswalk_signals.
+    Soulherder), never :func:`~mtg_utils._deck_forge.lanes.
     apply_membership_floor`'s "worth blinking" payoff cross-open (Academy
     Journeymage/Mulldrifter). See ``crosswalk_signals.
     blink_flicker_maker_present``. Unions (OR) with this preset's
@@ -415,7 +415,7 @@ def _blink_maker_concept(card: dict) -> bool:
     self-flicker engine (CR 611.2b, a card exiling and returning ITSELF,
     Aetherling) sharing no cards with the maker-of-OTHERS shape this
     predicate reads."""
-    from mtg_utils._deck_forge.crosswalk_signals import blink_flicker_maker_present
+    from mtg_utils._deck_forge.lanes import blink_flicker_maker_present
 
     return blink_flicker_maker_present(card)
 
@@ -429,7 +429,7 @@ def _plus_one_counters_self_grow_concept(card: dict) -> bool:
     too broad for THIS preset specifically. Unions (OR) with this
     preset's ``signal_keys=("plus_one_makers", "plus_one_matters",
     "counter_distribute")`` arm."""
-    from mtg_utils._deck_forge.crosswalk_signals import self_counter_grow_narrow
+    from mtg_utils._deck_forge.lanes import self_counter_grow_narrow
 
     return _concept_any_face(card, self_counter_grow_narrow)
 
@@ -443,7 +443,7 @@ def _removal_edict_concept(
     (destroy/exile/burn/fight/shrink — the default, used by the six
     ``*-removal`` presets) or "edict" (forced sacrifice only, used by the
     six ``*-edict`` presets — a destroy/exile/burn effect is never an
-    edict, CR 701.8 vs 701.21a). Reuses ``_deck_forge.crosswalk_signals.
+    edict, CR 701.8 vs 701.21a). Reuses ``_deck_forge.lanes.
     removal_edict_targets_type`` — the ONE lane helper every type-scoped
     preset in this registry shares (see that function's docstring, and its
     module's "Task #83 structural-view helper" section, for the target-
@@ -452,7 +452,7 @@ def _removal_edict_concept(
     """
 
     def _match(card: dict) -> bool:
-        from mtg_utils._deck_forge.crosswalk_signals import (
+        from mtg_utils._deck_forge.lanes import (
             removal_edict_targets_type,
         )
 
@@ -1320,7 +1320,7 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
     # Structural view (task #83): signal key `topdeck_selection` — OWN-
     # library top curation (CR 701.22a scry / 701.25a surveil / 701.20a
     # reveal / 701.13a exile / 701.17 mill / 401.5 look-at-top statics). See
-    # `_deck_forge.crosswalk_signals._topdeck_selection` — already unions in
+    # `_deck_forge.lanes._topdeck_selection` — already unions in
     # most of the old regex's territory via typed Dig/RevealTop/ExileTop/
     # MayLookAtTopOfLibrary reads, plus the "reveal from the top until you
     # find X" dig-until idiom the old regex never phrase-matched (a genuine
@@ -1435,7 +1435,7 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
     # is the stack counterspell (CR 701.6a): a Counter/CounterAll effect
     # whose target is a StackSpell (Counterspell, Mana Leak, Remand,
     # Sinister Sabotage) — see
-    # ``_deck_forge.crosswalk_signals._counter_control``. Structurally
+    # ``_deck_forge.lanes._counter_control``. Structurally
     # DISJOINT from the OTHER meaning of "counter" (+1/+1 counters) and from
     # "can't be countered" permission statics, so the view carries none of
     # the old regex's theoretical false-positive surface on those. 10
@@ -1798,7 +1798,7 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
     # recipient: targeted/opponent player or a symmetric each-player wheel)
     # and `hand_disruption` (CR 402.3 — the Thoughtseize-style reveal-and-
     # choose family: reveal the opponent's hand, then discard a chosen
-    # card). See `_deck_forge.crosswalk_signals._opponent_discard` /
+    # card). See `_deck_forge.lanes._opponent_discard` /
     # `._hand_disruption`. 2 preset-only residue (scoping census): Collective
     # Defiance / Steal the Show ("Target player discards all/any number of
     # cards, then draws that many cards") — the old regex fired on the bare
@@ -1822,7 +1822,7 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
     # `ramp` instead — the boundary mirrors `card_classify.is_ramp`), so
     # those two flipped to should_not_match; a land fetch TO HAND (Sylvan
     # Scrying) stays a genuine tutor and pins that side of the boundary.
-    # See `_deck_forge.crosswalk_signals._tutor_lane` — the lane
+    # See `_deck_forge.lanes._tutor_lane` — the lane
     # has an ADJUDICATED VETO (ADR-0037, `synth_tutor_directed`) for a
     # directed/symmetric search ("target opponent's library" — Head Games;
     # "each player searches their library" — Oath of Lieges): searching
@@ -1917,7 +1917,7 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
     ),
     # Sacrifice outlet / payoff (task #83 structural-view conversion). The
     # crosswalk `sacrifice_outlets` signal (see
-    # `_deck_forge.crosswalk_signals._sacrifice_outlets`) is DELIBERATELY
+    # `_deck_forge.lanes._sacrifice_outlets`) is DELIBERATELY
     # broader than the old "sacrifice X: <effect>" regex: it is the
     # concept's own true scope — a repeatable activated-cost outlet
     # (Viscera Seer, Ashnod's Altar), a ONE-SHOT outlet (an alt-cost pitch
@@ -1967,7 +1967,7 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
     # DamageEachPlayer / DamageAll effect that reaches a PLAYER — Lightning
     # Bolt, Fanatic of Mogis) and `removal` (CR 701.8/701.8a — includes its
     # DealDamage-to-a-permanent arm, so a creature-only bolt like Shock is
-    # covered too). See `_deck_forge.crosswalk_signals._direct_damage` /
+    # covered too). See `_deck_forge.lanes._direct_damage` /
     # `._removal`. 6 preset-only residue (scoping census: Arc Spitter,
     # Lavamancer's Skill, Pathway Arrows, Showstopper, Shuriken, Tyrant's
     # Familiar) — every one is a "deals N damage to target creature" ability
@@ -1998,7 +1998,7 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
     # so an opponent's-graveyard-ONLY pull reads as graveyard hate rather
     # than your loop) and `reanimator` (CR 700.4/603.6e — the creature-
     # PERMANENT that itself has a GY→battlefield ChangeZone, the archetype
-    # card rather than the spell). See `_deck_forge.crosswalk_signals.
+    # card rather than the spell). See `_deck_forge.lanes.
     # _creature_recursion` / `._reanimator`.
     #
     # DEFERRED residue (17 preset-only, scoping census; NOT fixed here — a
@@ -2822,7 +2822,7 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
     # Firebending — Sozin's Comet, Iroh, Fire Nation Palace/Cadets/Turret —
     # via `has_structural_firebending_grant` plus a bucket-B
     # `synth_firebending_matters` tail for grants baked into a make_token
-    # spec's own body). See `_deck_forge.crosswalk_signals._bending_lanes`.
+    # spec's own body). See `_deck_forge.lanes._bending_lanes`.
     # `keywords=("Firebending",)` stays as a belt-and-suspenders union (the
     # landfall precedent): a card with no oracle_id/phase parse degrades the
     # signal_keys arm to empty exactly like every other regex/keyword arm
@@ -2865,7 +2865,7 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
     # walk never reached — ``has_nested_extra_turn``'s generic deep-field
     # walk (the ``has_nested_roll_die``/``has_nested_flip_coin`` precedent)
     # now reaches all three shapes. See
-    # `_deck_forge.crosswalk_signals._extra_turns` for the lane and
+    # `_deck_forge.lanes._extra_turns` for the lane and
     # `_card_ir.tree_synthesis._arm_extra_turns` for the synthesis arm.
     Preset(
         name="extra-turns",
@@ -2896,7 +2896,7 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
             "Godo / Isshin commander archetypes and multi-combat 60-card "
             "lists. Structural view (task #83): signal key `extra_combats` "
             "— an AdditionalPhase effect whose phase is a combat phase (see "
-            "`_deck_forge.crosswalk_signals._extra_combats`)."
+            "`_deck_forge.lanes._extra_combats`)."
         ),
         signal_keys=("extra_combats",),
         should_match=("Aggravated Assault", "Seize the Day", "Waves of Aggression"),

@@ -9,7 +9,7 @@ zero-instance phase ``Effect`` variant raises a *specific* closed-union message
 on its first emission.
 
 Stage 2 (full codegen): the loader builds **typed instances of the generated
-classes** (``generated_types.py``) — one concrete frozen dataclass per shape,
+classes** (``generated/`` package) — one concrete frozen dataclass per shape,
 dispatched on ``(content_key, tag)`` for tagged nodes and ``content_key`` for
 structs, with **no generic-interpreter fallback** for any real card shape. The
 ``variant1`` single-key positions wrap their (already typed) inner value in the
@@ -26,7 +26,7 @@ from __future__ import annotations
 
 from typing import cast
 
-from mtg_utils._card_ir.mirror.generated_types import (
+from mtg_utils._card_ir.mirror.generated import (
     GENERATED_BY_CKEY,
     GENERATED_BY_KEY,
     JSON_TO_PY,

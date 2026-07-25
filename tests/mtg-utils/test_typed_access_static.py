@@ -13,7 +13,7 @@ type aliases (the Stage-2 substitute for the generic ``MirrorNode``).
 
 from __future__ import annotations
 
-from mtg_utils._card_ir.mirror.generated_types import (
+from mtg_utils._card_ir.mirror.generated import (
     S_abilities,
     S_filter,
     S_Root,

@@ -474,7 +474,16 @@ def _serve_fingerprint() -> str:
     hasher.update(signals_index.content_hash().encode())
     for mod in (_specs_mod, theme_presets):
         with contextlib.suppress(OSError, TypeError):
-            hasher.update(Path(mod.__file__).read_bytes())
+            mod_path = Path(mod.__file__)
+            if mod_path.name == "__init__.py":
+                # A package (signal_specs is one since the 2026-07-25 split):
+                # hash EVERY module in it, sorted for determinism — an edit to
+                # a data_*.py must invalidate even though __init__.py is
+                # untouched.
+                for part in sorted(mod_path.parent.glob("*.py")):
+                    hasher.update(part.read_bytes())
+            else:
+                hasher.update(mod_path.read_bytes())
     return hasher.hexdigest()[:16]
 
 

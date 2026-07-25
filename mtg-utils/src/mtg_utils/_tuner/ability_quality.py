@@ -30,7 +30,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 
-from mtg_utils._deck_forge.crosswalk_signals import GrantPayload
+from mtg_utils._deck_forge.lanes import GrantPayload
 
 # keyword -> (grade, closer). Keys are extract_grant_payloads' normalized
 # form (CamelCase split, lowercased; a MirrorVariant contributes its key

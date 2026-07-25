@@ -1,10 +1,10 @@
 """Stable runtime base for the generated typed mirror (ADR-0035, Stage 2).
 
-The generated module (``generated_types.py``) imports :class:`TypedMirrorNode`,
+The generated package (``generated/``) imports :class:`TypedMirrorNode`,
 :class:`MirrorVariant` and :data:`MISSING` from here, and both it and the strict
 loader build instances of these. Kept separate from the (regenerated) generated
-module so the base contract is stable across regenerations, and so there is no
-import cycle (``runtime`` <- ``generated_types`` <- ``loader``).
+package so the base contract is stable across regenerations, and so there is no
+import cycle (``runtime`` <- ``generated`` <- ``loader``).
 
 Losslessness is independent of the generated *field types*: the loader dispatches
 on the data-visible value-kind, not on a declared annotation, so a single

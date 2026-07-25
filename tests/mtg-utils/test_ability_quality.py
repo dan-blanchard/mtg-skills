@@ -10,7 +10,7 @@ Sliver's Chosen is NOT a correct cut); defender prohibits attacking (CR
 team-unblockable yes; vigilance / first strike no; haste no on its own.
 """
 
-from mtg_utils._deck_forge.crosswalk_signals import GrantPayload
+from mtg_utils._deck_forge.lanes import GrantPayload
 from mtg_utils._tuner.ability_quality import grade_of, grant_grade
 
 

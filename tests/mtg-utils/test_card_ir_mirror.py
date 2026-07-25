@@ -43,7 +43,7 @@ from mtg_utils._card_ir.mirror.build import (
     fixtures_dir,
     load_committed_schema,
 )
-from mtg_utils._card_ir.mirror.generated_types import (
+from mtg_utils._card_ir.mirror.generated import (
     GENERATED_BY_CKEY,
     GENERATED_BY_KEY,
     S_Root,

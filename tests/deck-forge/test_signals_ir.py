@@ -872,7 +872,7 @@ def test_equipment_pacify_admitted_structurally():
     Copper Carapace, is ALSO the sole compensating-benefit case (see the
     negative pin below) — there is no genuine Equipment-only pacify
     printing yet to pin a positive real-card case against."""
-    from mtg_utils._deck_forge.crosswalk_signals import _PACIFY_ATTACH_PREDS
+    from mtg_utils._deck_forge.lanes import _PACIFY_ATTACH_PREDS
 
     assert "EnchantedBy" in _PACIFY_ATTACH_PREDS
     assert "EquippedBy" in _PACIFY_ATTACH_PREDS
