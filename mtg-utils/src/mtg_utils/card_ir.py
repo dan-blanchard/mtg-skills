@@ -395,7 +395,7 @@ CATEGORIES: frozenset[str] = frozenset(
         # token_subtype_ref ← a cares-about reference to a named token subtype
         # (Food/Treasure/Clue/Blood) WITHOUT making/sacrificing it ("Foods you control",
         # "was a Treasure", "is a Food") phase has no structure for; the subtype rides
-        # counter_kind. Read in extract_signals_ir → food/treasure/clue/blood_matters.
+        # counter_kind. Read in crosswalk_signals.py → food/treasure/clue/blood_matters.
         "token_subtype_ref",
         # saga ← a lore-counter MANIPULATION / PAYOFF ("lore counter", "Saga you
         # control") phase keeps only on the face oracle (the lore placement it does emit
@@ -420,7 +420,7 @@ CATEGORIES: frozenset[str] = frozenset(
         # Reflection, Virtue of Strength). supplement._recover_static_pattern splits
         # this OUT of the generic mana_filter passthrough (which conflates it with
         # the color-CHANGE filters and the any-color SPEND permission — Celestial
-        # Dawn, Vizier — those stay mana_filter). Read in extract_signals_ir as
+        # Dawn, Vizier — those stay mana_filter). Read in crosswalk_signals.py as
         # mana_amplifier. The triggered "tap a land … add an additional" doublers
         # (Crypt Ghast, Mirari's Wake) phase types as a triggered `ramp` Mana
         # effect, read discriminator-gated there (additive — they keep firing

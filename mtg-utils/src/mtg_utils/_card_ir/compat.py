@@ -4,8 +4,7 @@ Builds a **real** ``mtg_utils.card_ir`` ``Card`` from the Layer-2 concept
 overlay (:func:`mtg_utils._card_ir.crosswalk.build_concept_tree`) so the four
 non-Signal consumers of the Effect/Ability/Card dataclass API — ``ranking`` /
 ``budgets`` / ``cut_check`` / the tuner (``metrics`` + ``bracket``) — can be
-run UNCHANGED against the typed substrate for the Stage-2 output-diff
-harness (``_deck_forge.crosswalk_consumer_diff``).
+run UNCHANGED against the typed substrate.
 
 MINIMAL by design (grow-on-demand): only the fields those consumers actually
 read are populated —

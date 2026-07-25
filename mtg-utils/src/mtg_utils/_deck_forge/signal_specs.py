@@ -2587,8 +2587,8 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         r"|(?:white|blue|black|red|green) creatures? can't (?:attack|block|be)"
         r"|can't cast (?:white|blue|black|red|green)",
     ),
-    # ADR-0027: tokens_matter migrated to the Card IR via a byte-identical kept-mirror
-    # (the lane fires from _TOKENS_MATTER_MIRROR in _signals_ir). This serve spec was
+    # ADR-0027: tokens_matter migrated to the Card IR (the lane fires from
+    # crosswalk_signals._tokens_matter). This serve spec was
     # always hand-registered and independent of the two deleted _HAND_FLOOR producers,
     # so it survives unchanged — its curated SEARCH regex below differs from the
     # detector (the detector's go-wide count-scaler + token-doubler arms are supplied
@@ -2848,10 +2848,11 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         NAMED_PERMANENT_REGEX,
     ),
     # Task #19 SPLIT — copy_limit (the COPY-LIMIT half, CR 100.2a). Detection is
-    # STRUCTURAL (the IR `many_copies` field, read in extract_signals_ir), but the SERVE
-    # pool stays oracle-defined: a copy-limit deck wants MORE cards sharing the relaxed
-    # name + go-wide-on-one-name payoffs, found by the COPY_LIMIT_REGEX scan ("A deck
-    # can have any number of / up to N cards named X"). Scope "you". CR 100.2a.
+    # STRUCTURAL (the IR `many_copies` field, read in crosswalk_signals.py), but
+    # the SERVE pool stays oracle-defined: a copy-limit deck wants MORE cards
+    # sharing the relaxed name + go-wide-on-one-name payoffs, found by the
+    # COPY_LIMIT_REGEX scan ("A deck can have any number of / up to N cards
+    # named X"). Scope "you". CR 100.2a.
     ("copy_limit", "you"): _spec(
         *SWEEP_LABELS["copy_limit"],
         {"oracle": COPY_LIMIT_REGEX},
@@ -2881,8 +2882,8 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         NONCREATURE_CAST_PUNISH_REGEX,
     ),
     # ADR-0027 β: global_ability_grant's SWEEP_DETECTORS row is deleted (detection moved
-    # to the Card IR — the board_grant + counter_kind="grant_ability" marker read by the
-    # extract_signals_ir arm). The SERVE pool stays oracle-defined, so hand-register the
+    # to the Card IR — the board_grant + counter_kind="grant_ability" marker read by
+    # crosswalk_signals.py). The SERVE pool stays oracle-defined, so hand-register the
     # spec the sweep auto-register loop used to build (scope "any", the deleted SWEEP
     # row's scope), reusing the EXACT deleted regex (pinned as
     # GLOBAL_ABILITY_GRANT_REGEX) so the serve never drifts. SWEEP_LABELS keeps label.
@@ -2892,8 +2893,8 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         GLOBAL_ABILITY_GRANT_REGEX,
     ),
     # ADR-0027 β: keyword_grant_target's SWEEP_DETECTORS row is deleted (detection moved
-    # to the Card IR — the single_target_grant marker read by the extract_signals_ir
-    # arm). The SERVE pool stays oracle-defined (the creatures worth granting evasion
+    # to the Card IR — the single_target_grant marker read by crosswalk_signals.py).
+    # The SERVE pool stays oracle-defined (the creatures worth granting evasion
     # /protection to), so hand-register the spec the sweep loop built (scope
     # "you", the deleted SWEEP row's scope), reusing the EXACT deleted regex (pinned as
     # KEYWORD_GRANT_TARGET_REGEX) so the serve never drifts. SWEEP_LABELS keeps label.
@@ -2904,11 +2905,12 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
     ),
     # ADR-0027 Cluster D: protection_grant's SWEEP_DETECTORS row is deleted (detection
     # moved to the Card IR — the structural protective-keyword grant arm in
-    # extract_signals_ir UNION a byte-identical PROTECTION_GRANT_REGEX kept mirror). The
-    # SERVE pool stays oracle-defined (the creatures worth protecting with
-    # hexproof/protection), so hand-register the spec the sweep auto-register loop used
-    # to build (scope "you", the deleted SWEEP row's scope), reusing the EXACT deleted
-    # regex (pinned as PROTECTION_GRANT_REGEX) so the serve never drifts. SWEEP_LABELS
+    # crosswalk_signals.py UNION a byte-identical PROTECTION_GRANT_REGEX kept
+    # mirror). The SERVE pool stays oracle-defined (the creatures worth
+    # protecting with hexproof/protection), so hand-register the spec the
+    # sweep auto-register loop used to build (scope "you", the deleted SWEEP
+    # row's scope), reusing the EXACT deleted regex (pinned as
+    # PROTECTION_GRANT_REGEX) so the serve never drifts. SWEEP_LABELS
     # keeps the human label.
     ("protection_grant", "you"): _spec(
         *SWEEP_LABELS["protection_grant"],
@@ -4391,7 +4393,7 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
         _TYPE_CHANGER_ORACLE,
     ),
     # ADR-0027 β: color_change migrated to the Card IR via a byte-identical kept-mirror
-    # (the lane fires from _COLOR_CHANGE_MIRROR in _signals_ir). This serve spec was
+    # (the lane fires from crosswalk_signals._color_change). This serve spec was
     # always hand-registered with its own curated SEARCH regex (broader than the
     # detector — it also credits color GRANTERS / fixers and color-conditional PAYOFFS),
     # independent of the deleted SWEEP producer, so it survives unchanged.
@@ -4560,7 +4562,7 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
     ),
     # ── Mechanics recovered from the "rejected" families ────────────────────────
     # ADR-0027 β: token_copy_makers migrated to the Card IR via a byte-identical kept-
-    # mirror (the lane fires from _TOKEN_COPY_MATTERS_MIRROR in _signals_ir). This serve
+    # mirror (the lane fires structurally from crosswalk_signals.py). This serve
     # spec was always hand-registered and independent of the deleted _HAND_FLOOR
     # producer, so it survives unchanged — its curated SEARCH regex is intentionally
     # narrower than the detector (it omits the "twice that many … tokens" doubler arm,
@@ -4586,11 +4588,11 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
             _ETB_DOUBLER_EXTRA,
         ),
     ),
-    # ADR-0035 Stage-3a: three crosswalk-ported maker lanes (in ``PORTED_KEYS`` but
-    # not ``MIGRATED_KEYS``) that the legacy regex path never produced, so their specs
-    # were never registered. Added so the key-agreement gate resolves them; since the
-    # ADR-0039 cutover (crosswalk-only serving, flag retired) they serve
-    # unconditionally like every other spec.
+    # ADR-0035 Stage-3a: three crosswalk-ported maker lanes (in ``PORTED_KEYS``) that
+    # the legacy regex path never produced, so their specs were never registered.
+    # Added so the key-agreement gate resolves them; since the ADR-0039 cutover
+    # (crosswalk-only serving, flag retired) they serve unconditionally like every
+    # other spec.
     ("copy_permanent", "you"): _spec(
         "Permanent copies",
         "generic clone effects plus strong permanents worth copying",
@@ -5568,8 +5570,8 @@ SPECS: dict[tuple[str, str], SignalSpec] = {
     # YOU must be the one gaining control — VETO the donate shapes where an OPPONENT
     # gains control of your stuff (Sky Swallower). Add the exile-and-cast theft form.
     # ADR-0027 β: gain_control migrated to the Card IR (the lane fires from a gated
-    # structural arm in extract_signals_ir + a narrowed _GAIN_CONTROL_MIRROR + a facade
-    # cross-open reconciliation). This serve spec was always hand-registered with its
+    # structural arm in crosswalk_signals._gain_control + a facade cross-open
+    # reconciliation). This serve spec was always hand-registered with its
     # own curated SEARCH regex (broader than the deleted `gain control of` detector — it
     # also
     # credits "you control enchanted permanent" Auras and Bribery/Acquire library-

@@ -16124,8 +16124,7 @@ def test_damage_redirect_arm_b_redirect_clause():
 # clause into real typed structure the existing lane arms now read. The
 # LOSS-side adjudications live next to their lanes (Generator Servant's
 # mana-ability shed in test_activated_ability_cost_census, the voltron
-# has_other_plan ride-alongs in test_signals_floor.py, Bile Blight's mass
-# arm in test_crosswalk_consumer_diff.py).
+# has_other_plan ride-alongs in test_signals_floor.py).
 
 
 @pytest.mark.parametrize(

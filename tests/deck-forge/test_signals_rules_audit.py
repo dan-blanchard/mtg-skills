@@ -1,24 +1,23 @@
 """Fixes from the rules-lawyer category audit — each pins a CR-cited distinction
 the detectors must respect (so we don't group mechanics the rules treat differently).
 
-Tests that pin a specific real card run the REAL projected Card IR via
-``mtg_utils.testkit`` (``test_signals`` = production hybrid over the real Scryfall
-record + real sidecar IR; ``test_card`` = the real minimal record). Tests that pin a
-projection ARM or a CR boundary on a controlled, made-up shape ("X"/"Y", a synthetic
-exile/Food/oil-counter IR, a constructed meld pair) keep a thin synthetic builder — the
-shape is the point, not a particular printing.
+Real-card pins run the REAL projected Card IR via ``mtg_utils.testkit``
+(``test_signals`` = production hybrid over the real Scryfall record + real sidecar IR).
+
+Many of the CR-boundary distinctions this file used to pin on hand-built synthetic
+IR shapes (a testing method the deleted ``extract_signals_ir`` engine supported) are
+now exhaustively proven on real cards in ``tests/mtg-utils/test_crosswalk.py`` — see
+the per-deleted-test notes below for the exact covering test. What remains here is
+either not duplicated there, or adds the `serves()`-classify dimension that
+extraction alone doesn't cover.
 """
 
-from mtg_utils._deck_forge._signals_ir import extract_signals_ir
-from mtg_utils._deck_forge.signal_specs import serves, spec_for
-from mtg_utils._deck_forge.signals import (
-    Signal,
-    extract_signals,
-)
-from mtg_utils.card_ir import Ability, Card, Effect, Face, Filter
-from mtg_utils.testkit import test_card, test_signals
 
-# Card names referenced through the real-card helpers above. This table feeds the
+from mtg_utils._deck_forge.signal_specs import serves, spec_for
+from mtg_utils._deck_forge.signals import Signal
+from mtg_utils.testkit import test_signals
+
+# Card names referenced through the real-card helper below. This table feeds the
 # `build-card-snapshot` usage scanner (it parses `_REAL_CASES` dict VALUES, which
 # also handles apostrophes — unlike the bare `test_card("…")` literal scan). Keep it
 # in sync with the names used below; a missing entry fails loud (KeyError) at test
@@ -26,553 +25,166 @@ from mtg_utils.testkit import test_card, test_signals
 _REAL_CASES: dict[str, str] = {
     "Diamond City": "Diamond City",
     "Fiery Emancipation": "Fiery Emancipation",
-    "Furnace of Rath": "Furnace of Rath",
     "Kaervek the Merciless": "Kaervek the Merciless",
-    "Lurrus of the Dream-Den": "Lurrus of the Dream-Den",
-    "Obeka, Brute Chronologist": "Obeka, Brute Chronologist",
-    "Sleep-Cursed Faerie": "Sleep-Cursed Faerie",
-    "Teferi, Mage of Zhalfir": "Teferi, Mage of Zhalfir",
     "Tymna the Weaver": "Tymna the Weaver",
-    "Zedruu the Greathearted": "Zedruu the Greathearted",
 }
 
 
-def _keys(card):
-    return {s.key for s in extract_signals(card)}
-
-
-# A minimal non-None IR for ADR-0027 keys whose IR source reads the Scryfall
-# keyword array (any non-None Card routes the hybrid to the IR path).
-def _bare_ir() -> Card:
-    return Card(oracle_id="x", name="X", faces=(Face(name="X", abilities=()),))
-
-
-def _keys_hybrid(card):
-    return {s.key for s in extract_signals_ir(card, _bare_ir())}
-
-
-def _signals_hybrid(card):
-    # Full Signal objects via the hybrid (IR) path. A bare non-None IR routes a card
-    # whose lane is a kept word mirror (meld_pair) through the IR re-emission.
-    return list(extract_signals_ir(card, _bare_ir()))
-
-
-# Real-card signal keysets (production hybrid path) / regex-only path, by card name.
+# Real-card signal keysets (production hybrid path), by card name.
 def _hyb(name):
     return {s.key for s in test_signals(name)}
 
 
-def _reg(name):
-    return {s.key for s in extract_signals(test_card(name))}
-
-
-# #1 Companion (CR 702.139) is a separate deck-construction rule from Partner (702.124).
-def test_companion_is_its_own_key_not_partner():
-    # Lurrus of the Dream-Den carries the Scryfall companion keyword → the real IR opens
-    # companion_keyword (not partner_background), not the deleted regex path.
-    k = _hyb("Lurrus of the Dream-Den")
-    assert "companion_keyword" in k
-    assert "partner_background" not in k
-    assert "companion_keyword" not in _reg("Lurrus of the Dream-Den")
+# #1 Companion (CR 702.139) is a separate deck-construction rule from Partner
+# (702.124).
+#
+# "companion_keyword fires, not partner_background" (Lurrus of the Dream-Den) is
+# already proven by
+# tests/mtg-utils/test_crosswalk.py::test_companion_keyword_bearer_vs_doctors_companion.
+# Not duplicated here.
 
 
 def test_partner_still_fires():
     # Tymna the Weaver carries the Scryfall Partner keyword → the real IR opens
-    # partner_background, not the deleted regex path.
+    # partner_background.
     assert "partner_background" in _hyb("Tymna the Weaver")
-    assert "partner_background" not in _reg("Tymna the Weaver")
 
 
 # #2 keyword_counter is the CR 122.1b closed set — ward/training are not counters.
-# ADR-0027 tranche2-C: keyword_counter migrated to the Card IR (place/remove of a
-# CR-122.1b keyword counter + a kept word mirror for the choice/multi tail), so the
-# regex path no longer fires it — assert via the hybrid IR path.
-def test_flying_counter_is_keyword_counter():
-    c = {
-        "name": "X",
-        "oracle_text": "This creature enters with a flying counter on it.",
-    }
-    assert "keyword_counter" in _keys_hybrid(c)
-
-
-# #4 exile removal (bypasses indestructible/recursion) is its own slice vs destroy/
-# damage. Both exile_removal (ADR-0027 SIDECAR v30) and removal migrated to the
-# Card IR, so the regex no longer fires either — exile_removal is served via the hybrid
-# IR path from a single-target `exile` Effect with a permanent subject (the destroy slice
-# from a `destroy` Effect). CR 406.1 (one-way exile) vs 701.7 (destroy).
-def test_exile_removal_separate_from_destroy():
-    ex = {"name": "X", "oracle_text": "Exile target creature."}
-    de = {"name": "Y", "oracle_text": "Destroy target creature."}
-    # exile_removal is IR-served now (regex producer deleted); supply the exile IR.
-    exile_ir = Card(
-        oracle_id="x",
-        name="X",
-        faces=(
-            Face(
-                name="X",
-                abilities=(
-                    Ability(
-                        kind="spell",
-                        effects=(
-                            Effect(
-                                category="exile",
-                                scope="any",
-                                subject=Filter(card_types=("Creature",)),
-                                zones=("to:exile",),
-                                raw="Exile target creature.",
-                            ),
-                        ),
-                    ),
-                ),
-            ),
-        ),
-    )
-    ex_keys = {s.key for s in extract_signals_ir(ex, exile_ir)}
-    assert "exile_removal" in ex_keys
-    assert "removal" not in ex_keys
-    # Regex no longer fires exile_removal / removal (both IR-served now).
-    assert "exile_removal" not in _keys(ex)
-    assert "removal" not in _keys(de)
-    assert "exile_removal" not in _keys(de)
-    destroy_ir = Card(
-        oracle_id="y",
-        name="Y",
-        faces=(
-            Face(
-                name="Y",
-                abilities=(
-                    Ability(
-                        kind="spell",
-                        effects=(
-                            Effect(
-                                category="destroy",
-                                scope="any",
-                                subject=Filter(card_types=("Creature",)),
-                                raw="Destroy target creature.",
-                            ),
-                        ),
-                    ),
-                ),
-            ),
-        ),
-    )
-    assert "removal" in {s.key for s in extract_signals_ir(de, destroy_ir)}
-
-
-# #5 clone (becomes/enters as a copy) must not fire on token-copy phrasing.
-def test_token_copy_does_not_fire_clone():
-    c = {"name": "X", "oracle_text": "Create a token that's a copy of target creature."}
-    # ADR-0027 C5: token_copy_makers is FULLY STRUCTURAL — a CopyTokenOf projects to a
-    # make_token whose subject carries the "Copy" predicate (CR 707). clone_makers is
-    # IR-served (the kept mirror over kept_oracle excludes the token-copy phrase), so it
-    # must NOT fire on token-copy phrasing.
-    ir = Card(
-        oracle_id="x",
-        name="X",
-        faces=(
-            Face(
-                name="X",
-                abilities=(
-                    Ability(
-                        kind="spell",
-                        effects=(
-                            Effect(
-                                category="make_token",
-                                scope="you",
-                                subject=Filter(
-                                    card_types=("Creature",), predicates=("Copy",)
-                                ),
-                            ),
-                        ),
-                    ),
-                ),
-            ),
-        ),
-    )
-    keys = {s.key for s in extract_signals_ir(c, ir)}
-    assert "token_copy_makers" in keys
-    assert "clone_makers" not in keys
-
-
-def test_clone_still_fires():
-    c = {
-        "name": "X",
-        "oracle_text": "You may have this creature enter as a copy of any creature.",
-    }
-    # ADR-0027 #24d (SIDECAR v53): the clone_makers word mirror is DELETED — the lane
-    # is now FULLY structural, reading a `clone` Effect's copied CREATURE type (supplement.
-    # _recover_clone_creature synthesizes this Effect for the "enter as a copy of any
-    # creature" replacement phase folds to a non-clone node). A bare IR no longer fires
-    # it; a clone Effect with a Creature subject does. CR 707.2.
-    ir = Card(
-        oracle_id="x",
-        name="X",
-        faces=(
-            Face(
-                name="X",
-                abilities=(
-                    Ability(
-                        kind="static",
-                        effects=(
-                            Effect(
-                                category="clone",
-                                scope="any",
-                                subject=Filter(card_types=("Creature",)),
-                                raw=c["oracle_text"],
-                            ),
-                        ),
-                    ),
-                ),
-            ),
-        ),
-    )
-    assert "clone_makers" in {s.key for s in extract_signals_ir(c, ir)}
-
-
-# #6 "attacks each combat if able" is a forced-attack requirement, not evasion.
-# ADR-0027: evasion_self migrated to the Card IR — assert via the hybrid path.
-def test_attacks_if_able_is_not_evasion():
-    c = {"name": "X", "oracle_text": "This creature attacks each combat if able."}
-    assert "evasion_self" not in _keys_hybrid(c)
-
-
-def test_cant_be_blocked_is_evasion():
-    c = {"name": "X", "oracle_text": "This creature can't be blocked."}
-    assert "evasion_self" in _keys_hybrid(c)
-
-
-# #7 combat damage to a creature must be COMBAT damage (CR 510 / 120.2a).
-# ADR-0027 β: combat_damage_to_creature migrated to the Card IR, so it is served
-# from the hybrid (IR) path — the byte-identical _IR_KEPT_DETECTORS mirror still
-# requires the "combat" word, so noncombat damage stays excluded.
-def test_noncombat_damage_to_creature_excluded():
-    c = {
-        "name": "X",
-        "oracle_text": "Whenever this creature deals damage to a creature, draw a card.",
-    }
-    assert "combat_damage_to_creature" not in _keys_hybrid(c)
-
-
-def test_combat_damage_to_creature_fires():
-    c = {
-        "name": "X",
-        "oracle_text": "Whenever this creature deals combat damage to a creature, draw a card.",
-    }
-    assert "combat_damage_to_creature" in _keys_hybrid(c)
-
-
-# #8 combat damage to opponents must be COMBAT damage, not any damage (burn/drain).
-# ADR-0027 β: combat_damage_to_opp migrated to the Card IR (hybrid path); the mirror
-# requires the "combat" word, so noncombat damage to a player stays excluded.
-def test_noncombat_damage_to_opponent_excluded():
-    c = {
-        "name": "X",
-        "oracle_text": "Whenever you cast a spell, this deals damage to an opponent.",
-    }
-    assert "combat_damage_to_opp" not in _keys_hybrid(c)
-
-
-# #12 Food keys on the Food-token mechanic, not the bare word.
-def test_food_token_fires():
-    # ADR-0027: food keys migrated to the Card IR — a Food-subtype make_token MAKER
-    # opens food_makers and a "Sacrifice a Food" SAC PAYOFF opens food_matters through
-    # the hybrid, not the deleted regex (ADR-0034 _matters sweep split the lane).
-    maker = {"name": "X", "oracle_text": "Create a Food token."}
-    maker_ir = Card(
-        oracle_id="x",
-        name="X",
-        faces=(
-            Face(
-                name="X",
-                abilities=(
-                    Ability(
-                        kind="spell",
-                        effects=(
-                            Effect(
-                                category="make_token",
-                                scope="you",
-                                subject=Filter(
-                                    card_types=("Artifact",), subtypes=("Food",)
-                                ),
-                                raw="Create a Food token.",
-                            ),
-                        ),
-                    ),
-                ),
-            ),
-        ),
-    )
-    assert "food_makers" in {s.key for s in extract_signals_ir(maker, maker_ir)}
-    assert "food_makers" not in _keys(maker)
-    sac = {"name": "Y", "oracle_text": "Sacrifice a Food: Gain 3 life."}
-    sac_ir = Card(
-        oracle_id="y",
-        name="Y",
-        faces=(
-            Face(
-                name="Y",
-                abilities=(
-                    Ability(
-                        kind="activated",
-                        cost="sacrifice",
-                        effects=(
-                            Effect(
-                                category="sacrifice",
-                                scope="you",
-                                subject=Filter(
-                                    subtypes=("Food",), predicates=("Token",)
-                                ),
-                                raw="Sacrifice a Food",
-                            ),
-                        ),
-                    ),
-                ),
-            ),
-        ),
-    )
-    assert "food_matters" in {s.key for s in extract_signals_ir(sac, sac_ir)}
-    assert "food_matters" not in _keys(sac)
-
-
-# #13 stun (CR 122.1d) and shield (122.1c) counters are replacement-effect counters
-# that grant NO keyword ability; "aegis" is not a CR counter at all. None belong on
-# keyword_counter, whose premise is the CR 122.1b closed keyword-counter list.
-def test_stun_counter_is_not_keyword_counter():
-    # Sleep-Cursed Faerie (flying, ward, three stun counters) — the real IR must NOT open
-    # keyword_counter (ward/stun are not CR-122.1b keyword counters).
-    assert "keyword_counter" not in _hyb("Sleep-Cursed Faerie")
+#
+# The closed-set positive (Arwen, Mortal Queen / Wingfold Pteron) and the stun-
+# counter negative (Icebind Pillar, CR 122.1d — a replacement-maker, not a 122.1b
+# keyword counter) are already proven by
+# tests/mtg-utils/test_crosswalk.py::test_keyword_counter_kind_gate_and_mirror.
+# Not duplicated here.
 
 
 def test_shield_counter_is_not_keyword_counter():
-    # Diamond City (a shield-counter land) — the real IR must NOT open keyword_counter.
+    # Diamond City (a shield-counter land, CR 122.1c — also a replacement effect,
+    # not a 122.1b keyword counter) — the real IR must NOT open keyword_counter.
     assert "keyword_counter" not in _hyb("Diamond City")
 
 
-def test_keyword_counter_still_fires_on_real_keyword():
-    # The CR 122.1b members (flying/deathtouch/…) still register (ADR-0027: via the
-    # hybrid IR path — a place_counter with a keyword counter_kind / the kept mirror).
-    c = {"name": "X", "oracle_text": "Put a deathtouch counter on target creature."}
-    assert "keyword_counter" in _keys_hybrid(c)
+# #4 exile removal (bypasses indestructible/recursion) is its own slice vs destroy/
+# damage (CR 406.1 vs 701.7) — already proven, including the blink/graveyard/mass
+# vetoes, by tests/mtg-utils/test_crosswalk.py::test_exile_removal_vetoes
+# (Swords to Plowshares et al). Not duplicated here.
+
+
+# #5 clone (becomes/enters as a copy) must not fire on token-copy phrasing (CR
+# 707) — already proven by tests/mtg-utils/test_crosswalk.py's
+# test_clone_makers_excludes_spell_and_token_copy /
+# test_clone_makers_text_idiom_excludes_token_and_land_copy /
+# test_token_copy_makers_fires / test_clone_makers_fires. Not duplicated here.
+
+
+# #6 "attacks each combat if able" is a forced-attack requirement, not evasion;
+# "can't be blocked" IS evasion (CR 509.1b / 702.x). The "can't be blocked" arm is
+# already proven by
+# tests/mtg-utils/test_crosswalk.py::test_evasion_self_keyword_and_mirror_arms
+# (Aether Figment). Only the forced-attack negative needs a real card here.
+def test_attacks_if_able_is_not_evasion():
+    # Bloodrock Cyclops: "This creature attacks each combat if able." fires
+    # forced_attack, never evasion_self.
+    assert "evasion_self" not in _hyb("Bloodrock Cyclops")
+
+
+# #7 combat damage to a creature must be COMBAT damage (CR 510 / 120.2a) —
+# already proven (positive + noncombat-damage negative) by
+# tests/mtg-utils/test_crosswalk.py::test_combat_damage_to_creature_recipient_gate
+# (Serpentine Basilisk / Seshiro the Anointed). Not duplicated here.
+
+
+# #8 combat damage to opponents must be COMBAT damage, not any damage
+# (burn/drain) — already proven (incl. the noncombat negative, Contested War
+# Zone) across tests/mtg-utils/test_crosswalk.py's combat_damage_to_opp cluster.
+# Not duplicated here.
+
+
+# #12 Food keys on the Food-token mechanic, not the bare word — the maker/matters
+# split (Bake into a Pie / Gyome / Gilded Goose / Experimental Confectioner /
+# Honored Dreyleader) is already proven by
+# tests/mtg-utils/test_crosswalk.py::test_food_matters_three_arms_and_maker_boundary.
+# Not duplicated here.
 
 
 # #14 all-damage doublers/triplers (Furnace of Rath, Fiery Emancipation) are
-# replacement effects that fire on COMBAT damage too — they belong on damage_doubling,
-# not the "noncombat damage" lane (CR 510 combat vs 702.19a noncombat).
-def test_all_damage_doubler_is_damage_doubling_not_noncombat():
-    # Furnace of Rath — the real IR serves damage_doubling from phase's damage_doubling
-    # replacement category and does NOT open the noncombat lane; the regex path emits
-    # neither.
-    assert "damage_doubling" not in _reg("Furnace of Rath")
-    assert "noncombat_damage_payoff" not in _reg("Furnace of Rath")
-    k = _hyb("Furnace of Rath")
-    assert "damage_doubling" in k
-    assert "noncombat_damage_payoff" not in k
-
-
+# replacement effects that fire on COMBAT damage too — they belong on
+# damage_doubling, not the "noncombat damage" lane (CR 510 combat vs 702.19a
+# noncombat). Furnace of Rath's damage_doubling + direct_damage co-fire is
+# already proven by tests/mtg-utils/test_crosswalk.py's
+# test_damage_doubling_replacement_read /
+# test_damage_doubling_direct_damage_co_fire_is_player_gated. Fiery
+# Emancipation's Triple multiplier (a DIFFERENT structural path — the deepened
+# replacement projection, not the bare Double) is not duplicated there.
 def test_triple_damage_is_damage_doubling():
-    # Fiery Emancipation's Triple multiplier is structured by the deepened replacement
-    # projection — fires damage_doubling from the real IR, not the regex.
-    assert "damage_doubling" not in _reg("Fiery Emancipation")
+    # Fiery Emancipation's Triple multiplier fires damage_doubling via the real IR.
     assert "damage_doubling" in _hyb("Fiery Emancipation")
 
 
-# MV-scaling burn (Kaervek) is the genuine noncombat payoff and must still open it.
-# ADR-0027: noncombat_damage_payoff is migrated to the Card IR (a byte-identical
-# NONCOMBAT_DAMAGE_PAYOFF_REGEX kept word mirror), so it surfaces only on the hybrid
-# path — the regex producer is deleted.
+# MV-scaling burn (Kaervek) is the genuine noncombat payoff and must still open
+# it. The general noncombat_damage_payoff word-mirror arm (Solphim / Boros
+# Reckoner / Ghyrson Starn, negative Cold-Eyed Selkie) is already proven by
+# tests/mtg-utils/test_crosswalk.py::test_noncombat_damage_payoff_word_mirror;
+# Kaervek's own MV-scaling shape is a distinct real card, kept here.
 def test_mv_scaling_burn_still_opens_noncombat():
-    # Kaervek the Merciless deals damage equal to a spell's mana value — the genuine
-    # MV-scaling noncombat payoff opens noncombat_damage_payoff on the real IR.
+    # Kaervek the Merciless deals damage equal to a spell's mana value — the
+    # genuine MV-scaling noncombat payoff opens noncombat_damage_payoff.
     assert "noncombat_damage_payoff" in _hyb("Kaervek the Merciless")
 
 
-# #15 Named counters are NOT interchangeable (CR 122.1): each gets its own lane, so a
-# rad commander must not open oil/ki/shield, and shield (122.1c, excluded from
-# keyword_counter) has its own home. fade is dropped (Fading clock, CR 702.32).
-def test_named_counters_are_separate_lanes():
-    # ADR-0027: rad_counter_makers migrated to the Card IR — "rad counter(s)" phase
-    # mangles, recovered by a `rad_counter` marker, read through the hybrid IR path.
-    rad = {"name": "X", "oracle_text": "Each player gets a rad counter."}
-    rad_ir = Card(
-        oracle_id="x",
-        name="X",
-        faces=(
-            Face(
-                name="X",
-                abilities=(
-                    Ability(
-                        kind="static",
-                        effects=(
-                            Effect(
-                                category="rad_counter",
-                                scope="opp",
-                                raw="rad counter",
-                            ),
-                        ),
-                    ),
-                ),
-            ),
-        ),
-    )
-    assert "rad_counter_makers" in {s.key for s in extract_signals_ir(rad, rad_ir)}
-    k = _keys(rad)
-    assert "rad_counter_makers" not in k  # regex path no longer produces it
-    assert "oil_counter_matters" not in k
-    assert "shield_counter_makers" not in k
-    assert "named_counter_mechanic" not in k  # the old junk-drawer key is gone
-
-    # ADR-0027: oil_counter_matters also migrated to the Card IR — the regex path no
-    # longer produces it; the hybrid serves it from a place_counter(counter_kind='oil').
-    oil = {"name": "Y", "oracle_text": "Put two oil counters on it."}
-    oil_ir = Card(
-        oracle_id="y",
-        name="Y",
-        faces=(
-            Face(
-                name="Y",
-                abilities=(
-                    Ability(
-                        kind="static",
-                        effects=(
-                            Effect(
-                                category="place_counter",
-                                scope="you",
-                                counter_kind="oil",
-                                raw="oil counters",
-                            ),
-                        ),
-                    ),
-                ),
-            ),
-        ),
-    )
-    assert "oil_counter_matters" not in _keys(oil)  # regex path no longer produces it
-    assert "oil_counter_matters" in {s.key for s in extract_signals_ir(oil, oil_ir)}
-    # ADR-0027: shield_counter_makers also migrated to the Card IR — the regex path no
-    # longer produces it; the hybrid serves it from a place_counter(counter_kind=
-    # 'shield'). CR 122.1c shield counters are a replacement+prevention effect, so they
-    # get their own lane (excluded from the CR-122.1b keyword_counter set).
-    shield = {
-        "name": "Z",
-        "oracle_text": "This creature enters with a shield counter on it.",
-    }
-    shield_ir = Card(
-        oracle_id="z",
-        name="Z",
-        faces=(
-            Face(
-                name="Z",
-                abilities=(
-                    Ability(
-                        kind="static",
-                        effects=(
-                            Effect(
-                                category="place_counter",
-                                scope="you",
-                                counter_kind="shield",
-                                raw="~ enters with a shield counter on it.",
-                            ),
-                        ),
-                    ),
-                ),
-            ),
-        ),
-    )
-    assert "shield_counter_makers" not in _keys(shield)  # regex path drops it
-    assert "shield_counter_makers" in {
-        s.key for s in extract_signals_ir(shield, shield_ir)
-    }
-    # fade is not a payoff axis — it must not open any named-counter lane
-    fade = _keys({"name": "W", "oracle_text": "Remove a fade counter from it."})
-    assert not any(k2.endswith("_counter_matters") for k2 in fade)
+# #15 Named counters are NOT interchangeable (CR 122.1): each gets its own lane
+# (oil/ki/shield MAKER lanes, the oil_counter_matters PAYOFF, the counter-kind
+# discriminator, and rad_counter_makers' opponents scope) — already proven by
+# tests/mtg-utils/test_crosswalk.py's batch-6 counter-kind cluster
+# (test_off_p1p1_counter_makers, test_counter_makers_kind_discriminates,
+# test_oil_counter_matters_payoff, test_rad_counter_makers_scope_opponents). Not
+# duplicated here — the old version of this test also asserted the SUPERSEDED
+# claim "oil_counter_matters fires from placing an oil counter", which the
+# ADR-0034 _matters/_makers split moved to oil_counter_makers; the current split
+# is the crosswalk suite's, not this file's, to re-litigate.
 
 
-# #16 End-the-turn (CR 724, your-turn engine) is its own you-scoped lane, split from
-# the opponents/any-scoped timing-restriction lane.
-def test_end_the_turn_split_from_timing_restriction():
-    # Obeka, Brute Chronologist — "may end the turn" opens end_the_turn (not
-    # timing_control) on the real IR. Teferi, Mage of Zhalfir — "only … as a sorcery"
-    # opens timing_control (not end_the_turn). The split holds on real cards.
-    obeka = _hyb("Obeka, Brute Chronologist")
-    assert "end_the_turn" in obeka
-    assert "timing_control" not in obeka
-
-    teferi = "Teferi, Mage of Zhalfir"
-    assert "timing_control" not in _reg(teferi)  # ADR-0027 β: regex path drops it
-    teferi_hyb = _hyb(teferi)
-    assert "timing_control" in teferi_hyb  # the IR kept-mirror serves it
-    assert "end_the_turn" not in teferi_hyb
+# #16 End-the-turn (CR 724, your-turn engine) is its own you-scoped lane, split
+# from the opponents/any-scoped timing-restriction lane — both the end_the_turn
+# recovery (Obeka, Brute Chronologist) and the timing_control mirror (Teferi,
+# Time Raveler / City of Solitude) are already proven by
+# tests/mtg-utils/test_crosswalk.py's test_end_the_turn_recovery_promoted /
+# test_timing_control_mirror_scope_any. Not duplicated here.
 
 
-# #17 Donate = a control change (CR 701.12). A group-hug "target opponent draws/creates"
-# card must NOT open the donate lane. ADR-0027: donate migrated to the IR — a
-# gain_control effect whose raw names an another-player RECIPIENT.
-def test_donate_is_control_change_only():
-    # Zedruu the Greathearted donates a permanent to another player → donate_makers on
-    # the real IR.
-    assert "donate_makers" in _hyb("Zedruu the Greathearted")
-
-    # A group-hug "target opponent draws" is NOT a control change — its IR carries a
-    # draw effect, not gain_control, so the lane stays closed (controlled negative).
-    grouphug = {"name": "Y", "oracle_text": "Target opponent draws two cards."}
-    grouphug_ir = Card(
-        oracle_id="x",
-        name="X",
-        faces=(
-            Face(
-                name="X",
-                abilities=(
-                    Ability(
-                        kind="activated",
-                        effects=(
-                            Effect(
-                                category="draw",
-                                scope="opp",
-                                raw="Target opponent draws two cards.",
-                            ),
-                        ),
-                    ),
-                ),
-            ),
-        ),
-    )
-    assert "donate_makers" not in {
-        s.key for s in extract_signals_ir(grouphug, grouphug_ir)
-    }
+# #17 Donate = a control change (CR 701.12); a group-hug "target opponent
+# draws/creates" card must NOT open the donate lane — already proven (incl. the
+# theft/control-reset/group-hug vetoes) across
+# tests/mtg-utils/test_crosswalk.py's donate_makers cluster
+# (test_donate_makers_give_away / test_donate_makers_excludes_theft / etc). Not
+# duplicated here.
 
 
-# #18 Meld (CR 701.42) is subject-bearing: a meld piece's lane serves ONLY its named
-# partner (which references this card by name), never every meld half.
-# ADR-0027 Cluster D: meld_pair migrated to the Card IR — it now fires from the hybrid
-# (IR) path via a byte-identical subject-bearing kept word mirror, NOT the deleted regex
-# producer. The subject is still THIS card's name; the serve spec is unchanged. A
-# constructed pair pins the "serves only its partner" logic.
+# #18 Meld (CR 701.42) is subject-bearing: a meld piece's lane serves ONLY its
+# named partner (which references this card by name), never every meld half.
+# The extraction side (meld_pair subject == this card's own name, on real Gisela
+# / Bruna / Hanweir Garrison, with a negative on the meld RESULT Brisela) is
+# already proven by
+# tests/mtg-utils/test_crosswalk.py::test_meld_pair_raw_oracle_and_subject. What
+# that test does NOT cover is the SERVE side — does the spec's partner-matching
+# regex actually pick out the one real partner and reject an unrelated card —
+# so that's what's pinned here, off the real signal.
 def test_meld_pair_serves_only_its_partner():
-    front = {
-        "name": "Commander A",
+    sig = next(s for s in test_signals("Bruna, the Fading Light") if s.key == "meld_pair")
+    assert sig.subject == "Bruna, the Fading Light"  # subject is THIS card's name
+    partner = {
+        "name": "Gisela, the Broken Blade",
         "oracle_text": (
             "At the beginning of your end step, if you both own and control "
-            "Commander A and a creature named Partner B, exile them, then meld "
-            "them into Melded C."
+            "Gisela, the Broken Blade and a creature named Bruna, the Fading "
+            "Light, exile them, then meld them into Brisela, Voice of "
+            "Nightmares."
         ),
     }
-    back = {
-        "name": "Partner B",
-        "oracle_text": "Flying\n(Melds with Commander A.)",
-    }
     unrelated = {"name": "Other Meld", "oracle_text": "(Melds with Someone Else.)"}
-
-    meld_sigs = [s for s in _signals_hybrid(front) if s.key == "meld_pair"]
-    assert meld_sigs, "front meld piece should open meld_pair"
-    sig = meld_sigs[0]
-    assert sig.subject == "Commander A"  # subject is THIS card's name
-    assert serves(back, sig) is True  # the partner names this card
+    assert serves(partner, sig) is True  # the partner names this card
     assert serves(unrelated, sig) is False  # not every meld half
-
-    # The back piece (reminder-only) also opens, keyed to its own name.
-    back_sigs = [s for s in _signals_hybrid(back) if s.key == "meld_pair"]
-    assert back_sigs
-    assert back_sigs[0].subject == "Partner B"
 
 
 def test_meld_pair_excluded_from_static_gate():
@@ -583,12 +195,7 @@ def test_meld_pair_excluded_from_static_gate():
     )
 
 
-# #19 Flip (CR 710) is a self-contained single-card mechanic, split from meld.
-# ADR-0027 t2b5-A: flip_self migrated to the Card IR (a kept word mirror), so it now
-# fires from the hybrid path, not the deleted regex producer.
-def test_flip_self_fires_and_is_not_meld():
-    flip = {"name": "X", "oracle_text": "{T}: Do a thing. Then flip this creature."}
-    k = _keys_hybrid(flip)
-    assert "flip_self" in k
-    assert "meld_pair" not in k
-    assert "flip_meld_matters" not in k  # old fused key is gone
+# #19 Flip (CR 710) is a self-contained single-card mechanic, split from meld —
+# already proven (Nezumi Graverobber / Bushi Tenderfoot / Akki Lavarunner) by
+# tests/mtg-utils/test_crosswalk.py::test_flip_self_structural_closes_wording_gap.
+# Not duplicated here.

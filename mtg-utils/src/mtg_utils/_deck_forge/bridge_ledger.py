@@ -298,13 +298,7 @@ def _keyword_dropped_match(tree: ConceptTree) -> bool:
 # "no structural sacrifice effect anywhere" — so a card with a Sacrifice
 # node ELSEWHERE on the SAME card, even for an unrelated edict clause,
 # correctly stands every one of these bridges down, matching legacy's own
-# gating exactly). CR 701.21a throughout. (ADR-0039 task #82 grammar
-# sprint: ``sac_alt_cost_pitch`` / ``sac_keyword_cost`` /
-# ``sac_etb_self_sac_unimplemented`` graduated OFF this ledger onto typed
-# ``tree_synthesis`` marker-node reads — see ``crosswalk_signals.
-# _sacrifice_outlets``'s docstring; ``sac_devour_unimplemented`` graduated
-# onto the Scryfall-keyword sweep instead. RETIRED, not deleted from
-# history — see git log for the removed rows' full text.)
+# gating exactly). CR 701.21a throughout.
 _REMINDER_RX = re.compile(r"\([^)]*\)")
 
 
@@ -369,7 +363,7 @@ def _sac_emblem_cost_match(tree: ConceptTree) -> bool:
 
 
 # ── cheat_into_play residual class (ADR-0039 W7 endgame) ────────────────────
-# Six bridges close the LAST 20 of the key's residual live_only set (40 at
+# Three bridges close the LAST 20 of the key's residual live_only set (40 at
 # session start; 3 closed structurally — Dr. Eggman/Impromptu Raid's scan-
 # scope descent, Telemin Performance's reveal_until-sibling origin trust,
 # all in crosswalk_signals.py; 17 adjudicated as sheds — legacy over-fires
@@ -381,18 +375,6 @@ def _sac_emblem_cost_match(tree: ConceptTree) -> bool:
 # excluded by trusting a filter that can't tell]). CR 601.2 (casting
 # defined) / CR 110.4a (permanent card) throughout for the "put onto the
 # battlefield WITHOUT casting" idiom itself.
-#
-# (1) formerly a swallowed THIRD-PERSON leading-subject clause bridge
-# (``cheat_player_prefix_battlefield_put``) — RETIRED (ADR-0039 task #82
-# grammar sprint): ``tree_synthesis._arm_cheat_player_prefix_battlefield_put``
-# ports this bridge's own verbatim leading-phrase regex + tree-wide "onto the
-# battlefield" gate onto a synthesized ``synth_cheat_reveal_or_put_
-# battlefield`` marker node, which :func:`crosswalk_signals._cheat_into_play`
-# now reads structurally (``tree.has_effect(...)``) instead of falling
-# through to this ledger. Same membership (Divergent Transformations, Círdan
-# the Shipwright, Vaevictis Asmadi the Dire, Collision of Realms, Guild Feud,
-# Liberated Livestock); Soul of Emancipation's shared leading shape still
-# excludes on the SAME "onto the battlefield" tree-wide gate.
 #
 # (2) A DROPPED clause with the type/count evidence specifically degraded —
 # CONTEXT.md's third residue class: the tree HAS nodes, just degraded (an
@@ -493,19 +475,6 @@ def _cheat_kept_dest_misparse_match(tree: ConceptTree) -> bool:
     return bool(tree.oracle and _CHEAT_KEPT_DEST_MISPARSE_RX.search(tree.oracle))
 
 
-# (4) formerly a swallowed "choose a [type] card from among them" bridge
-# (``cheat_choose_from_among_graveyard_origin``) — RETIRED (ADR-0039 task
-# #82 grammar sprint): ``tree_synthesis._arm_cheat_choose_from_among_
-# graveyard_origin`` ports this bridge's own gap/match pair (the same
-# Unimplemented "choose"+"from among them" text test, paired with the SAME
-# sibling Battlefield+Graveyard-origin ChangeZone scan) onto the shared
-# ``synth_cheat_reveal_or_put_battlefield`` marker node, which
-# :func:`crosswalk_signals._cheat_into_play` now reads structurally instead
-# of falling through to this ledger. Same membership (Animal Magnetism,
-# Selective Adaptation); Guided Passage / Manifold Insights / Kaya's
-# Spirits' Justice / Capricious Hellraiser / Green Sun's Twilight still
-# exclude on the SAME no-Battlefield-node-in-the-unit gate.
-#
 # (5) Ao, the Dawn Sky's own MODAL parser diagnostic, named exactly
 # ``modal_mode_unsupported_qualifier`` (phase's modal grammar can't
 # structure a "total mana value N or less" qualifier on a "put any number
@@ -534,15 +503,6 @@ def _cheat_modal_unsupported_match(tree: ConceptTree) -> bool:
     return False
 
 
-# (6) formerly Synthetic Destiny's delayed-trigger reveal-until node bridge
-# (``cheat_synthetic_destiny_delayed_reveal``) — RETIRED (ADR-0039 task #82
-# grammar sprint): ``tree_synthesis._arm_cheat_synthetic_destiny_delayed_
-# reveal`` ports this bridge's own verbatim idiom regex onto the shared
-# ``synth_cheat_reveal_or_put_battlefield`` marker node, which
-# :func:`crosswalk_signals._cheat_into_play` now reads structurally instead
-# of falling through to this ledger. Same membership (Synthetic Destiny,
-# corpus-verified sole hit).
-#
 # ── direct_damage — shared gap for the whole dropped-clause/upstream-parse-
 # failure residual (ADR-0039 W7 endgame) ─────────────────────────────────────
 # No ``DealDamage``/``DamageAll``/``DamageEachPlayer`` node ANYWHERE in the
@@ -568,11 +528,6 @@ def _no_player_reaching_damage_node(tree: ConceptTree) -> bool:
     return True
 
 
-# (1) — RETIRED at the v0.35.2 phase bump: "deals N damage to target
-# creature and X damage to that creature's controller" (Judgment Bolt,
-# Liquid Fire, Synchronized Spellcraft) now decomposes to a typed
-# player-reaching damage node; row + helpers in git history.
-#
 # (2) Vexing Arcanix's "... they put it into their graveyard and ~ deals 2
 # damage to them" — the trailing damage clause is dropped after an
 # ``Unimplemented(name='otherwise')`` residue; a SEPARATE upstream bug also
@@ -709,14 +664,6 @@ def _captain_rex_nebula_match(tree: ConceptTree) -> bool:
     return bool(_CAPTAIN_REX_NEBULA_RX.search(tree.oracle or ""))
 
 
-# (10) [RETIRED — ADR-0039 task #82 grammar sprint] Maestros Diabolist /
-# Pugnacious Pugilist's quoted-grant damage clause graduated onto a typed
-# ``tree_synthesis`` marker node
-# (``devil_token_quoted_grant_dominant_verb_create`` arm); see
-# ``crosswalk_signals._direct_damage``'s docstring. git history carries the
-# retired row's full text.
-
-
 # (11) Ellie, Vengeful Hunter's "Pay 2 life, Sacrifice another creature: ~
 # deals 2 damage to target player and gains indestructible until end of
 # turn." — the WHOLE ability collapses into a single ``GenericEffect``
@@ -731,18 +678,6 @@ _ELLIE_VENGEFUL_HUNTER_RX = re.compile(
 
 def _ellie_vengeful_hunter_match(tree: ConceptTree) -> bool:
     return bool(_ELLIE_VENGEFUL_HUNTER_RX.search(tree.oracle or ""))
-
-
-# (12) [RETIRED — ADR-0039 task #82 grammar sprint] Keranos, God of
-# Storms's ``effect_structure`` upstream parse-failure residue graduated
-# onto a typed ``tree_synthesis`` marker node
-# (``keranos_effect_structure_parse_failure`` arm); see
-# ``crosswalk_signals._direct_damage``'s docstring. Grolnok / Mairsil share
-# the SAME ``effect_structure`` diagnostic name for their OWN unrelated
-# idioms (a different signal key) and stay open bridge rows below — a
-# general multi-trigger-sentence parser for that diagnostic class is their
-# named upstream retirement path. git history carries the retired row's
-# full text.
 
 
 # (13) Kaboom!'s "For each of them, reveal cards ... until you reveal a
@@ -790,19 +725,15 @@ def _kicker_ptplayer_match(tree: ConceptTree) -> bool:
 
 
 # ── base_pt_set residual class (ADR-0039 W7 endgame) ─────────────────────
-# Seven bridges originally closed the final base_pt_set stragglers left
-# after this session's three structural closers (a ``LastCreated``
-# resolved-tag accept, an empty-nested-description unit-level fallback, and
-# a modal ``mode_abilities`` threaded-target walk — see
+# Four bridges close the final base_pt_set stragglers left after three
+# structural closers (a ``LastCreated`` resolved-tag accept, an
+# empty-nested-description unit-level fallback, and a modal
+# ``mode_abilities`` threaded-target walk — see
 # :func:`~mtg_utils._deck_forge.crosswalk_signals._base_pt_set` and
 # :func:`~mtg_utils._deck_forge.crosswalk_signals.
 # _iter_base_pt_modal_threaded_statics`). Each census below is corpus-bound
 # to EXACTLY its enumerated pins (re-verified 2026-07-11, phase v0.20.0,
-# 31,622 commander-legal cards) — no blast-radius slop. Three of the seven
-# (the whole-clause "have ... become" / conditional "is a(n) ... with base
-# power and toughness N/N" / mass "have base power and toughness X/X"
-# idioms) RETIRED this session (ADR-0039 task #82) into ``tree_synthesis.py``
-# arms; the remaining four stay ledgered here.
+# 31,622 commander-legal cards) — no blast-radius slop.
 def _unimplemented_descs_anywhere(tree: ConceptTree) -> Iterator[str]:
     """Every ``Unimplemented`` node's description reachable ANYWHERE in the
     tree (unlike :func:`_unimplemented_effect_descs`, this is NOT scoped to
@@ -814,16 +745,6 @@ def _unimplemented_descs_anywhere(tree: ConceptTree) -> Iterator[str]:
             if tag_of(n) == "Unimplemented":
                 yield getattr(n, "description", "") or ""
 
-
-# (1)-(3) formerly here: the "have ... base power ... become" scalar/copy
-# re-assignment, the conditional "is a(n) ... with base power and
-# toughness N/N" type-change, and the mass "have base power and toughness
-# X/X, where X is ..." idioms — all RETIRED this session (ADR-0039 task
-# #82 grammar sprint) into ``tree_synthesis.py`` arms
-# (``_arm_base_pt_have_become``, ``_arm_base_pt_is_a_type_with``,
-# ``_arm_base_pt_mass_where_x``): the regex reads moved from this lane-
-# embedded bridge into a gap-gated tree-build-time synthesis stage, and
-# ``_base_pt_set`` now reads the synthesized concept node structurally.
 
 # (4) A Stickers-templated ability whose cost is an un-parseable ``{TK}``
 # placeholder (Cool Fluffy Loxodon's "{TK}{TK}{TK}{TK}{TK} — Whenever a
@@ -886,11 +807,6 @@ def _base_pt_each_equal_to_dropped(tree: ConceptTree) -> bool:
     return False
 
 
-# (6) — RETIRED at the v0.35.2 phase bump: Goddric, Cloaked Reveler's
-# "is a Dragon with base power and toughness 4/4" static now emits the
-# real SetPower/SetToughness pair (was a mis-decomposed AddPower/
-# AddToughness pair); row + helpers in git history.
-#
 # (7) A ``BecomeCopy`` "except it's N/N" fixed P/T override with NO
 # ``additional_modifications`` field AT ALL (Mindlink Mech's "becomes a
 # copy of target nonlegendary creature ..., except it's 4/3, ..." — CR
@@ -899,7 +815,7 @@ def _base_pt_each_equal_to_dropped(tree: ConceptTree) -> bool:
 # The standard clone-SHELL idiom ("becomes a copy of X, except it's 0/0
 # and has this ability" — Mimeoplasm, Revered One) shares the identical
 # missing-additional_modifications gap but is corpus-verified NOT a legacy
-# base_pt_set member (``extract_signals_ir`` returns False for it) — the
+# base_pt_set member (the deleted legacy IR engine returned False for it) — the
 # ``(?!0/0\b)`` negative lookahead excludes that shell idiom by construction
 # rather than re-deriving legacy's own clone-shell carve-out. Census:
 # 2/31,622 commander-legal pattern-matched before the 0/0 exclusion, 1 after
@@ -923,22 +839,6 @@ def _base_pt_becomecopy_no_mods_gap(tree: ConceptTree) -> bool:
 def _base_pt_becomecopy_no_mods_match(tree: ConceptTree) -> bool:
     return bool(_BASE_PT_BECOMECOPY_PT_RX.search(tree.oracle))
 
-
-# ── Duskana / Bess → base_power_matters: RETIRED (ADR-0039 task #82) ─────────
-# The conjunctive "base power AND toughness N/N" reference bridge graduated
-# into ``tree_synthesis._arm_base_power_ref_conjunctive`` this session — the
-# ``_BASE_POWER_REF`` combinator scan moved there verbatim, and
-# ``_base_power_matters`` now reads the synthesized concept node
-# structurally instead of calling this module.
-
-# ── Katilda / Old-Growth Troll / Tazri → ramp: RETIRED (ADR-0039 task #82) ───
-# The self-referential "add one mana of any of ~'s colors" / compound
-# two-quoted-grant-body idiom graduated into
-# ``tree_synthesis._arm_ramp_grant_unimplemented_body`` this session — the
-# same ``GrantAbility``-with-Unimplemented-body regex read moved to
-# tree-build time, and ``_ramp`` now reads the synthesized "ramp" concept
-# node through its own typed ``effect_concepts("ramp")`` walk (no lane
-# special-case; every pin is a nonland creature).
 
 # ── The scaling/restricted/note-type "Add mana" residue class → ramp ────────
 # NARROWED (ADR-0039 task #82): 22 of the former 24-name enumeration
@@ -1288,19 +1188,6 @@ def _forge_anew_match(tree: ConceptTree) -> bool:
     return bool(_FORGE_ANEW_RX.search(tree.oracle or ""))
 
 
-# target_player_draws's two ADR-0039 W7 BRIDGES-wave rows
-# (tpd_widened_tag_synthetic_desc — Fatal Lore, Season of the Burrow,
-# Ertai Resurrected, Balor; tpd_wedding_ellipsis_repeat — The Wedding of
-# River Song) BOTH GRADUATED off the ledger in the grammar sprint (task
-# #82, 2026-07-12): a new `modal_mode_description` typed read
-# (mtg_utils._card_ir.crosswalk) attributes the real per-mode English the
-# first row's gap needed, and a new `ellipsis_repeat` clause_grammar verb
-# + recovery.ALLOWLIST mapping structures the second row's residue. See
-# `_target_player_draws`'s own docstring (crosswalk_signals.py) for the
-# full history; membership is unchanged (the same 5 pins still fire
-# target_player_draws, now structurally).
-
-
 # ── opponent_discard residual class (ADR-0039 W7 BRIDGES wave) ─────────────
 # Shared with ``lifeloss_makers``' ``withercrown_unless_lose_life`` bridge:
 # a discard-payoff "unless" clause phase's trigger/ability parser fails
@@ -1573,7 +1460,7 @@ def _named_synergy_match(tree: ConceptTree) -> bool:
 
 
 # ── creatures_matter residual class (ADR-0039 W8 finisher) ──────────────────
-# Seven bridges close the last of the key's 53-card true-gap tail (the
+# Four bridges close the last of the key's 53-card true-gap tail (the
 # TOKEN_MAKER_CROSS_OPEN / SYMMETRIC / BLOCKING_OR_ATTACKING / SUBTYPE_
 # TRIBAL_YOU / DEVOUR / TRIBAL_SHARESQUALITY / OPPONENT_SCOPE / NAMED_SELF
 # classes plus a cost-reduction (CR 601.2f) / self-CDA (CR 604.3/613.4a) /
@@ -1620,18 +1507,6 @@ def _lightning_runner_gap(tree: ConceptTree) -> bool:
 
 def _lightning_runner_match(tree: ConceptTree) -> bool:
     return bool(_LIGHTNING_RUNNER_UNTAP_RX.search(tree.oracle or ""))
-
-
-# (2)-(4) Superior Numbers' excess-count comparator, Sovereign Okinec
-# Ahau's per-creature counter distribution, and Whisperwood Elemental's
-# face-up team-grant residue RETIRED (ADR-0039 task #82, post-deletion
-# grammar sprint): each now decomposes into a typed
-# ``tree_synthesis`` sweep-row node (the "creatures_matter grammar-sprint
-# stragglers" section in ``tree_synthesis.py``) instead of a text-anchored
-# bridge — same three pins, now firing structurally via
-# ``synth_creatures_matter_excess_count`` /
-# ``synth_creatures_matter_diff_counters`` /
-# ``synth_creatures_matter_faceup_grant``.
 
 
 # (5) Duskana, the Rage Mother's ETB "draw a card for each creature you
@@ -1754,13 +1629,6 @@ def _illusionists_gambit_gap(tree: ConceptTree) -> bool:
 
 def _illusionists_gambit_match(tree: ConceptTree) -> bool:
     return _illusionists_gambit_gap(tree)
-
-
-# ── task #96 (ADR-0040): type_changers zone-reach bridges — RETIRED ──────────
-# The same-is-true rider (all_zones/graveyard) and Ashes of the Fallen's
-# graveyard grant are typed InAnyZone / InZone-Graveyard affecteds since
-# phase v0.26.0 / v0.28.0 — all three rows and their gap/match helpers
-# retired at the v0.35.2 pin bump (git history carries them).
 
 
 # ── task B-3: keep_n_wrath — the Shape-B walk + Unimplemented-choose bridge ──
@@ -1959,14 +1827,6 @@ BRIDGES: dict[str, Bridge] = {
             gap=_knw_gap,
             match=_knw_match,
         ),
-        # RETIRED at the v0.35.2 phase bump (2026-07-24):
-        # ``type_changers_same_is_true_all_zones`` /
-        # ``type_changers_same_is_true_graveyard`` (phase structures the
-        # same-is-true rider as an InAnyZone span since v0.26.0) and
-        # ``type_changers_graveyard_static_parse_failure`` (Ashes of the
-        # Fallen's graveyard grant is an InZone-Graveyard affected since
-        # v0.28.0) — _type_changers reads all three shapes structurally;
-        # git history carries the retired rows.
         Bridge(
             bridge_id="degavolver_kicker_paylife_regen",
             key="lifeloss_makers",
@@ -2221,12 +2081,6 @@ BRIDGES: dict[str, Bridge] = {
             gap=_cheat_modal_unsupported_gap,
             match=_cheat_modal_unsupported_match,
         ),
-        # RETIRED at the v0.35.2 phase bump (2026-07-24):
-        # ``dmg_creature_and_controller_dropped`` — the compound "deals N
-        # damage to target creature AND X damage to its controller" second
-        # conjunct now decomposes to a real player-reaching damage node
-        # (Judgment Bolt / Liquid Fire / Synchronized Spellcraft all serve
-        # via the structural read); git history carries the retired row.
         Bridge(
             bridge_id="vexing_arcanix_reveal_misread_damage_drop",
             key="direct_damage",
@@ -2540,11 +2394,6 @@ BRIDGES: dict[str, Bridge] = {
             gap=_base_pt_each_equal_to_dropped,
             match=_base_pt_each_equal_to_dropped,
         ),
-        # RETIRED at the v0.35.2 phase bump (2026-07-24):
-        # ``base_pt_addpt_misattributed_typechange`` — Goddric, Cloaked
-        # Reveler's "is a Dragon with base power and toughness 4/4" static
-        # now emits the real SetPower/SetToughness pair; git history
-        # carries the retired row.
         Bridge(
             bridge_id="base_pt_becomecopy_no_pt_override",
             key="base_pt_set",
@@ -2564,8 +2413,8 @@ BRIDGES: dict[str, Bridge] = {
                 "2026-07-11; 1 after excluding the standard clone-SHELL "
                 "idiom ('... except it's 0/0 and has this ability' — "
                 "Mimeoplasm, Revered One — corpus-verified NOT a legacy "
-                "base_pt_set member via extract_signals_ir directly) — "
-                "exactly the 1 remaining pin"
+                "base_pt_set member via the deleted legacy IR engine "
+                "directly) — exactly the 1 remaining pin"
             ),
             pins=("Mindlink Mech",),
             gap=_base_pt_becomecopy_no_mods_gap,

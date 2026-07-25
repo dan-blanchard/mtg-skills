@@ -160,39 +160,6 @@ from mtg_utils._card_ir.text_idioms import (
     _UNDYING_PERSIST_GRANT,
 )
 from mtg_utils._deck_forge import signal_keys
-from mtg_utils._deck_forge._signals_ir import (
-    _CONVOKE_RAW,
-    _FIGHT_RAW,
-    _KEYWORD_COUNTER_KINDS,
-    _OPP_COUNTER_BENEFICIAL,
-    _POWER_SCALING_RAW,
-    _PROLIFERATE_REMOVE_COST_RE,
-    _SAME_TRUE_KW_RE,
-    _STAX_TAXES_RESIDUE_RE,
-    _SYMMETRIC_STAX_RESIDUE_RE,
-    _TOUGHNESS_VALUE_MIRROR,
-    _TYPED_ANTHEM_MULTI_RAW,
-    _restriction_pacifies_single_creature,
-)
-from mtg_utils._deck_forge._signals_regex import (
-    _ABILITY_KEYWORDS,
-    _COLOR_HOSER_RE,
-    _EVERGREEN_CK,
-    _MELD_FULLTEXT_RE,
-    _detect_keyword_implied_tribe,
-    _detect_keyword_tribe,
-    _detect_multi_tribe_anthem,
-    _detect_token_maker,
-    _detect_type_matters,
-    _detect_typed_gy_recursion,
-    _resolve_subject,
-    _self_dies_value,
-    _self_etb_value,
-    _self_name_alts,
-    _type_hoser_clause,
-    clauses,
-    self_power_scale_match,
-)
 from mtg_utils._deck_forge._subtypes import CREATURE_SUBTYPES
 
 # batch T8-misc-sweep adds STICKERS_MATTER_REGEX/VOID_WARP_MATTERS_REGEX —
@@ -210,6 +177,39 @@ from mtg_utils._deck_forge._sweep_detectors import (
     VEHICLES_MATTER_REGEX,
     VOID_WARP_MAKERS_REGEX,
     VOID_WARP_MATTERS_REGEX,
+)
+from mtg_utils._deck_forge.signal_base import (
+    _resolve_subject,
+    clauses,
+)
+from mtg_utils._deck_forge.text_reads import (
+    _ABILITY_KEYWORDS,
+    _COLOR_HOSER_RE,
+    _CONVOKE_RAW,
+    _EVERGREEN_CK,
+    _FIGHT_RAW,
+    _KEYWORD_COUNTER_KINDS,
+    _MELD_FULLTEXT_RE,
+    _OPP_COUNTER_BENEFICIAL,
+    _POWER_SCALING_RAW,
+    _PROLIFERATE_REMOVE_COST_RE,
+    _SAME_TRUE_KW_RE,
+    _STAX_TAXES_RESIDUE_RE,
+    _SYMMETRIC_STAX_RESIDUE_RE,
+    _TOUGHNESS_VALUE_MIRROR,
+    _TYPED_ANTHEM_MULTI_RAW,
+    _detect_keyword_implied_tribe,
+    _detect_keyword_tribe,
+    _detect_multi_tribe_anthem,
+    _detect_token_maker,
+    _detect_type_matters,
+    _detect_typed_gy_recursion,
+    _restriction_pacifies_single_creature,
+    _self_dies_value,
+    _self_etb_value,
+    _self_name_alts,
+    _type_hoser_clause,
+    self_power_scale_match,
 )
 
 __all__ = [
@@ -1434,7 +1434,7 @@ def structural_type_subjects(tree: ConceptTree) -> set[str]:
 # Warrior, or a Berserker"; the Spider-Ham menagerie run), two-tribe heads / creature-
 # spell / tutor + comma card-lists where phase drops the subtype, and description-only
 # tribal triggers / cost-site / count / cost-reducer / tribal-tutor forms. The four
-# kept-oracle producers (imported from ``_signals_regex`` — the flag-OFF path's mirror
+# kept-oracle producers (imported from ``text_reads.py`` — the surviving mirror
 # defs, SHARED never re-implemented) capture each subtype through the SAME
 # ``_resolve_subject`` vocab gate; Vehicle routes to ``vehicles_matter`` (a different
 # lane), so the TYPE_MATTERS-key filter drops it here.
@@ -1634,7 +1634,7 @@ def structural_keyword_subjects(tree: ConceptTree) -> set[str]:
 # gated on a keyword (Errant and Giada), a symmetric anthem ("creatures with flying
 # get +1/+1" — controller-less, so Arm B misses it), and granted-fly riders. The
 # pinned kept-oracle producer (:func:`_detect_keyword_tribe`, imported from
-# ``_signals_regex`` — the flag-OFF path's mirror, SHARED never re-implemented)
+# ``text_reads.py`` — the surviving mirror, SHARED never re-implemented)
 # captures each keyword through the SAME ``_ABILITY_KEYWORDS`` vocab gate and carries
 # the mirror's per-clause scope
 # ("you" for your-tribe references / tutors; "any" for symmetric anthems). Two arms keep
@@ -2194,7 +2194,7 @@ _GRANT_ABILITIES_ONCE_RE = re.compile(
 # ("choose one —") or CONDITIONAL-COUNT ("for each {U}{U} spent, draw") or
 # return-your-own ETB (Baleful Beholder, Bladecoil Serpent, Chivalrous Chevalier),
 # and the analogous dies form. The self-ETB / self-dies VALUE idiom is read ONCE
-# (the ``_signals_regex`` mirror helpers, the SHARED flag-OFF defs — never
+# (the ``text_reads.py`` mirror helpers, the SHARED defs — never
 # re-implemented), gap-gated to :func:`has_self_etb_value` / :func:`has_self_dies_value`
 # (the SAME predicates the lane fires on) so it never double-counts a card phase
 # already structuralizes, and the self-recursion payoff is shed via
@@ -5256,8 +5256,8 @@ def _arm_exalted_lone_attacker(tree: ConceptTree) -> ConceptNode | None:
 
 
 # ── arm: power_matters bucket-B (ADR-0036/0037 Stage 5, batch T2-counters) ─────
-# The Tier-1 structural read (``_signals_ir._predicate_build_around_lanes`` /
-# the ``_power_lanes`` crosswalk lane) reads a FIXED ``PtComparison`` on Power at
+# The Tier-1 structural read (crosswalk_signals.py's power_matters /
+# low_power_matters lane) reads a FIXED ``PtComparison`` on Power at
 # an effect/count-operand/condition site. The genuine residue: the AGGREGATE
 # "total/greatest/combined power of creatures you control" scaler (Ghalta, The
 # Great Henge, Rishkar's Expertise) and the Formidable ability word (CR 207.2c)
@@ -10189,8 +10189,8 @@ def _make_sweep_arm(rx: re.Pattern[str], arm_id: str, scope: str, cr: str) -> _A
 
 # ── the stage ─────────────────────────────────────────────────────────────────
 
-# Each arm: ``tree -> ConceptNode | None``. Keyed by id for the convergence check
-# (:mod:`card_ir_convergence`) — an arm retires when phase begins parsing its
+# Each arm: ``tree -> ConceptNode | None``. Keyed by id for an input-side
+# convergence check — an arm retires when phase begins parsing its
 # clause (the synth would then duplicate a typed node the Tier-1 read already sees,
 # so its ``_has_structural_death``-style gap gate drops its firing to 0).
 _Arm = Callable[[ConceptTree], "ConceptNode | None"]
@@ -10346,10 +10346,10 @@ SYNTHESIS_ARM_IDS: tuple[str, ...] = tuple(arm_id for arm_id, _ in _ARMS)
 def synthesize_nodes(tree: ConceptTree) -> tuple[tuple[str, ConceptNode], ...]:
     """``(arm_id, node)`` for every arm that synthesizes a node on this tree.
 
-    The convergence primitive (:mod:`card_ir_convergence`): an arm that yields a
-    node "fired" (found + filled a genuine gap). An arm firing on NO corpus card
-    has CONVERGED — phase now parses the clause, so the arm's gap gate trips
-    everywhere and it is retire-ready (ADR-0035 shrinking bridge).
+    The convergence primitive: an arm that yields a node "fired" (found +
+    filled a genuine gap). An arm firing on NO corpus card has CONVERGED —
+    phase now parses the clause, so the arm's gap gate trips everywhere and
+    it is retire-ready (ADR-0035 shrinking bridge).
     """
     fired: list[tuple[str, ConceptNode]] = []
     for arm_id, arm in _ARMS:

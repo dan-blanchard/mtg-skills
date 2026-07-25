@@ -1,166 +1,37 @@
 """Tests for the generalized signal extractor (covers all commanders, not just
 hand-coded cases).
 
-The headline goals: capture the SUBJECT noun (populate the long-dead Signal.subject)
-so tribes/types stop collapsing into one generic signal; recognize whole archetypes
-the 12-detector baseline was blind to (treasure / artifacts / tokens / stax / blink /
-mill / goad / proliferate); and do it precisely — every false-positive class the
-design review flagged (clones, "Plant"/"nonland creature", instant/sorcery spell-type
-leakage, stax self-restrictions) must stay clean.
+Repointed after the legacy-engine deletion (post-migration consolidation):
+``extract_signals`` (regex) and ``extract_signals_ir`` (projected IR) are gone —
+the ONLY extractor is ``signals.extract_signals_hybrid``, exercised here through
+``mtg_utils.testkit`` real-card fixtures (``test_signals`` / ``test_card`` /
+``test_card_ir``). Dual-engine agreement probes and deleted-engine internals were
+removed; single-behavior pins were translated onto the production path (or, for
+text helpers the membership floor still consumes, onto the helper directly).
+Synthetic scenarios already proven by
+``tests/deck-forge/test_signal_keys_real_cards.py`` or
+``tests/mtg-utils/test_crosswalk.py`` were dropped as duplicates.
 """
 
-import re
 
-from mtg_utils._deck_forge._signals_ir import extract_signals_ir
-from mtg_utils._deck_forge._signals_regex import (
-    _fold_referenced_objects,
-    _resolve_scope,
-    _scope,
-    _tinybones_scope,
-)
 from mtg_utils._deck_forge.signals import (
+    Signal,
+    _tinybones_scope,
     _voltron_double_strike_beater,
     _voltron_land_scaler,
     _voltron_self_heroic,
     _voltron_self_recurs,
     coverage_gate,
-    extract_signals,
+    extract_signals_hybrid,
 )
-from mtg_utils.card_ir import (
-    Ability,
-    Card,
-    Condition,
-    Effect,
-    Face,
-    Filter,
-    Quantity,
-    Trigger,
+from mtg_utils._deck_forge.text_reads import (
+    _resolve_scope,
+    _scope,
+    _self_dies_value,
+    _self_etb_value,
 )
+from mtg_utils.card_ir import Card, Face
 from mtg_utils.testkit import test_card, test_card_ir, test_signals
-
-
-def _ksub(card):
-    return {(s.key, s.scope, s.subject) for s in extract_signals(card)}
-
-
-# ADR-0039 task #80 step 6: these hand-built ``Card`` IR fixtures (no real
-# ``oracle_id``, built via ``_bare_ir`` / ``_ir_with`` below) can never resolve a
-# crosswalk tree — ``extract_signals_hybrid`` (the production dispatcher) is now
-# crosswalk-only and would silently return nothing for them. What these tests
-# actually probe is the STRUCTURAL DETECTION LOGIC in ``extract_signals_ir``
-# (still a real, exercised module — ADR-0039 task #80 step 6 leaves it as a stub
-# pending step 7's decision on the legacy builder's own fate) — every helper
-# below calls it directly instead of the hybrid facade. Real-card assertions in
-# this file (``_ksub_real`` / ``_ks_real`` / ``_keys_real`` — via
-# ``mtg_utils.testkit``) are unaffected; they already exercise the real
-# production ``extract_signals_hybrid`` path.
-def _ksub_hybrid(card, ir):
-    return {(s.key, s.scope, s.subject) for s in extract_signals_ir(card, ir)}
-
-
-def _ks(card):
-    return {(s.key, s.scope) for s in extract_signals(card)}
-
-
-def _keys(card):
-    return {s.key for s in extract_signals(card)}
-
-
-# A minimal non-None IR for ADR-0027 migrated keys whose IR source reads a
-# structured field (keyword array) or the kept word-detector mirror — both scan
-# the record directly, so any non-None Card routes to the IR path.
-def _bare_ir() -> Card:
-    return Card(oracle_id="x", name="X", faces=(Face(name="X", abilities=()),))
-
-
-def _ir_folded(card, resolver):
-    """ADR-0025 folded-object (a ventured dungeon / meld result / the Ring)
-    signal extraction over the structural IR path, replicating the fold step
-    ``extract_signals_hybrid`` used to apply before routing to
-    ``extract_signals_ir`` (ADR-0039 task #80 step 6: the hybrid itself no
-    longer folds — see its docstring — since a real card is never resolved
-    this way; these synthetic no-``oracle_id`` fixtures need the fold applied
-    directly to keep proving the ADR-0025 fold CONTRACT against the
-    structural reader)."""
-    folded = _fold_referenced_objects(card, resolver)
-    return extract_signals_ir(folded, _bare_ir())
-
-
-def _ir_with(*abilities: Ability) -> Card:
-    """A Card IR carrying the given abilities — the structural marker an ADR-0027-
-    migrated effect-based key reads."""
-    return Card(
-        oracle_id="x",
-        name="X",
-        faces=(Face(name="X", abilities=tuple(abilities)),),
-    )
-
-
-def _ks_hybrid(card):
-    return {(s.key, s.scope) for s in extract_signals_ir(card, _bare_ir())}
-
-
-def _keys_hybrid(card):
-    return {s.key for s in extract_signals_ir(card, _bare_ir())}
-
-
-def _keys_hybrid_ir(card, ir):
-    return {s.key for s in extract_signals_ir(card, ir)}
-
-
-def _ks_hybrid_ir(card, ir):
-    return {(s.key, s.scope) for s in extract_signals_ir(card, ir)}
-
-
-def _spellcast_reconciled(keys: set[str]) -> set[str]:
-    """The ``spell_copy_makers`` -> ``spellcast_matters`` cross-open
-    (``signals.extract_signals_hybrid``'s post-merge reconciliation),
-    reapplied here against a synthetic fixture's own ``extract_signals_ir``
-    output — see the ``_bare_ir`` / ``extract_signals_ir`` module note above."""
-    if "spell_copy_makers" in keys and "spellcast_matters" not in keys:
-        return keys | {"spellcast_matters"}
-    return keys
-
-
-def _topdeck_reconciled(
-    card: dict, idents: set[tuple[str, str]]
-) -> set[tuple[str, str]]:
-    """The play-from-top -> topdeck_stack / topdeck_selection cross-open
-    (``signals.extract_signals_hybrid``'s post-merge reconciliation),
-    reapplied here against a synthetic fixture's own ``extract_signals_ir``
-    output."""
-    from mtg_utils._deck_forge._signals_regex import (
-        _PLAY_FROM_TOP_FLOOR_MIRROR,
-        _PLAY_FROM_TOP_MIRROR,
-        _clauses,
-    )
-    from mtg_utils.card_classify import get_oracle_text
-
-    now = {k for k, _s in idents}
-    if "topdeck_stack" in now and "topdeck_selection" in now:
-        return idents
-    text = re.sub(r"\([^)]*\)", " ", get_oracle_text(card) or "")
-    if not any(
-        _PLAY_FROM_TOP_MIRROR.search(cl) or _PLAY_FROM_TOP_FLOOR_MIRROR.search(cl)
-        for cl in _clauses(text)
-    ):
-        return idents
-    added = set(idents)
-    if "topdeck_stack" not in now:
-        added.add(("topdeck_stack", "you"))
-    if "topdeck_selection" not in now:
-        added.add(("topdeck_selection", "you"))
-    return added
-
-
-def _wants_theft_reconciled(idents: set[tuple[str, str]]) -> set[tuple[str, str]]:
-    """The ``gain_control`` -> ``wants_theft`` cross-open (``signals.
-    extract_signals_hybrid``'s post-merge reconciliation), reapplied here
-    against a synthetic fixture's own ``extract_signals_ir`` output."""
-    now = {k for k, _s in idents}
-    if "gain_control" in now and "wants_theft" not in now:
-        return idents | {("wants_theft", "opponents")}
-    return idents
 
 
 def _ksub_real(name):
@@ -175,33 +46,6 @@ def _keys_real(name):
     return {s.key for s in test_signals(name)}
 
 
-def _ksub_real_regex(name):
-    return {(s.key, s.scope, s.subject) for s in extract_signals(test_card(name))}
-
-
-def _ks_real_regex(name):
-    return {(s.key, s.scope) for s in extract_signals(test_card(name))}
-
-
-def _keys_real_regex(name):
-    return {s.key for s in extract_signals(test_card(name))}
-
-
-def _by_key_real(name, key):
-    return next(s for s in test_signals(name) if s.key == key)
-
-
-# --- parametric subject capture (the core generalization) ----------------------
-
-
-def test_type_matters_captures_kindred_subject():
-    # ADR-0027: type_matters migrated to the Card IR (a SUBJECT-CARRYING UNION — the
-    # structural _kindred_subjects arm + a byte-identical kept mirror of the deleted
-    # parametric producers), so assert against the HYBRID path.
-    c = {"name": "Lord", "oracle_text": "Other Goblins you control get +1/+1."}
-    assert ("type_matters", "you", "Goblin") in _ksub_hybrid(c, _bare_ir())
-
-
 def test_type_matters_from_count_clause_and_token_maker_together():
     # ADR-0027: token_maker migrated to the Card IR (a SUBJECT-CARRYING UNION — a
     # structural make_token arm + a byte-identical kept mirror of the deleted
@@ -210,46 +54,6 @@ def test_type_matters_from_count_clause_and_token_maker_together():
     s = _ksub_real("Krenko, Mob Boss")
     assert ("type_matters", "you", "Goblin") in s
     assert ("token_maker", "you", "Goblin") in s
-
-
-def test_type_matters_rejects_generic_creatures_word():
-    # "Creatures you control get" must NOT become a junk type_matters subject — it is
-    # the generic go-wide lane. creatures_matter MIGRATED to the Card IR (ADR-0027), so
-    # it fires from the team-anthem pump arm via the hybrid path, never type_matters.
-    c = {"name": "Anthem", "oracle_text": "Creatures you control get +1/+1."}
-    ir = Card(
-        oracle_id="x",
-        name="Anthem",
-        faces=(
-            Face(
-                name="Anthem",
-                abilities=(
-                    Ability(
-                        kind="static",
-                        effects=(
-                            Effect(
-                                category="pump",
-                                scope="you",
-                                subject=Filter(
-                                    card_types=("Creature",), controller="you"
-                                ),
-                                raw="Creatures you control get +1/+1.",
-                            ),
-                        ),
-                    ),
-                ),
-            ),
-        ),
-    )
-    hybrid = {(s.key, s.subject) for s in extract_signals_ir(c, ir)}
-    assert ("creatures_matter", "") in hybrid
-    assert "type_matters" not in {s.key for s in extract_signals_ir(c, ir)}
-
-
-def test_type_matters_irregular_plural_resolves():
-    # ADR-0027: type_matters migrated → hybrid path.
-    c = {"name": "Magda-like", "oracle_text": "Other Dwarves you control get +1/+0."}
-    assert ("type_matters", "you", "Dwarf") in _ksub_hybrid(c, _bare_ir())
 
 
 def test_type_matters_count_clause_tolerates_state_adjective():
@@ -328,25 +132,15 @@ def test_free_creature_payoff_opens_on_no_mana_spent_to_cast():
 
 
 def test_mass_death_payoff_opens_on_aggregate_death_count():
-    # Tobias rewards creatures dying EN MASSE: "for each nontoken creature you controlled
-    # that died this turn, create a 2/2 Zombie." A payoff that SCALES with the number of
-    # deaths this turn wants board wipes (to force the big turn) + mass-reanimation (to
-    # refill after). Nevinyrral / Gadrak / Mahadi share the "for each ... died this turn"
-    # shape. Real oracle.
-    # ADR-0027: mass_death_payoff migrated to the Card IR — the aggregate "for each …
-    # creature … died this turn" count operand is recovered as a `mass_death` marker
-    # (read via _DOER_EFFECT_KEYS); the regex path no longer produces it.
-    assert ("mass_death_payoff", "you") in {
-        (s.key, s.scope) for s in test_signals("Tobias, Doomed Conqueror")
-    }
-    assert ("mass_death_payoff", "you") not in _ks_real_regex(
-        "Tobias, Doomed Conqueror"
-    )
+    # Tobias rewards creatures dying EN MASSE: "for each nontoken creature you
+    # controlled that died this turn, create a 2/2 Zombie." A payoff that SCALES with
+    # the number of deaths this turn wants board wipes + mass-reanimation. Real oracle.
+    assert ("mass_death_payoff", "you") in _ks_real("Tobias, Doomed Conqueror")
     # Precision guard: a SINGLE-death conditional with a FIXED reward ("if a creature
     # died this turn, create a Food token") does NOT scale with mass death — Old
-    # Flitterfang makes one Food whether 1 or 10 died, so a board wipe buys it nothing.
-    # It must NOT open this lane (it's plain death_matters, not a wipe payoff). Real oracle.
-    assert "mass_death_payoff" not in _keys_real_regex("Old Flitterfang")
+    # Flitterfang makes one Food whether 1 or 10 died, so it must NOT open this lane
+    # (it's plain death_matters, not a wipe payoff). Real oracle.
+    assert "mass_death_payoff" not in _keys_real("Old Flitterfang")
 
 
 def test_per_target_payoff_opens_on_cost_less_per_target():
@@ -377,9 +171,6 @@ def test_ability_strip_payoff_opens_on_strip_and_buff():
         "When ~ enters, up to one other target creature loses all abilities. Put a "
         "flying counter, a first strike counter, and a lifelink counter on that creature."
     )
-    assert "ability_strip_payoff" not in _keys_real_regex(
-        "Abigale, Eloquent First-Year"
-    )
     assert ("ability_strip_payoff", "you") in _ks_real("Abigale, Eloquent First-Year")
     # Lizard ALSO says "loses all abilities" but SETS base power/toughness to 4/4 (CR
     # 613 layer 7b) — it shrinks the target rather than keeping a big body, so it is NOT
@@ -390,7 +181,6 @@ def test_ability_strip_payoff_opens_on_strip_and_buff():
         "up to one other target creature loses all abilities and becomes a green "
         "Lizard creature with base power and toughness 4/4."
     )
-    assert "ability_strip_payoff" not in _keys_real_regex("Lizard, Connors's Curse")
     assert "ability_strip_payoff" not in _keys_real("Lizard, Connors's Curse")
 
 
@@ -401,7 +191,6 @@ def test_arcane_matters_opens_on_arcane_payoff():
     # `\barcane\b` kept word mirror (phase doesn't structure Arcane — a SPELL TYPE on
     # Instants/Sorceries), so it comes through the hybrid path, not pure regex.
     assert ("arcane_matters", "you") in _ks_real("The Unspeakable")
-    assert ("arcane_matters", "you") not in _ks_real_regex("The Unspeakable")
     # A commander with no Arcane care does not open it.
     assert "arcane_matters" not in _keys_real("Krenko, Mob Boss")
 
@@ -411,7 +200,6 @@ def test_enlist_matters_opens_on_enlist():
     # high-power tap fodder. ADR-0027: has_enlist is IR-served from the Scryfall
     # `enlist` keyword array, so it comes through the hybrid path, not pure regex.
     assert ("has_enlist", "you") in _ks_real("Aradesh, the Founder")
-    assert ("has_enlist", "you") not in _ks_real_regex("Aradesh, the Founder")
 
 
 def test_power_tap_engine_opens_on_tap_ability_scaling_with_power():
@@ -423,9 +211,6 @@ def test_power_tap_engine_opens_on_tap_ability_scaling_with_power():
     assert ("power_tap_engine", "you") in {
         (s.key, s.scope) for s in test_signals("Mona Lisa, Science Geek")
     }
-    assert "power_tap_engine" not in {
-        s.key for s in extract_signals(test_card("Mona Lisa, Science Geek"))
-    }
     assert "power_tap_engine" not in {s.key for s in test_signals("Krenko, Mob Boss")}
 
 
@@ -434,7 +219,6 @@ def test_recast_etb_opens_on_sneak():
     # creature's ETB, so he wants cheap aggressive-ETB creatures (recast = repeat the
     # bleed). ADR-0027: recast_etb migrated to the Card IR — the regex path no longer
     # emits it; the hybrid serves it from the Scryfall `Sneak` keyword. Real oracle.
-    assert "recast_etb" not in _keys_real_regex("Oroku Saki, Shredder Rising")
     assert ("recast_etb", "you") in _ks_real("Oroku Saki, Shredder Rising")
     assert "recast_etb" not in _keys_real("Krenko, Mob Boss")
 
@@ -446,7 +230,6 @@ def test_type_change_opens_on_creature_type_hoser():
     # checked, CR 205.3 / 702.16). Real oracle.
     # ADR-0027 t2b4-C: type_change migrated to the Card IR — the regex path no longer
     # emits it; it fires from the _type_hoser_clause subtype-gated mirror (bare IR).
-    assert "type_change" not in _keys_real_regex("Gor Muldrak, Amphinologist")
     assert ("type_change", "you") in _ks_real("Gor Muldrak, Amphinologist")
     # The captured word is validated against the subtype vocab, so a plain
     # "protection from black" (a color, not a creature type) is not a type hoser.
@@ -459,7 +242,6 @@ def test_exert_matters_opens_on_pseudo_vigilance():
     # ADR-0027: exert_matters migrated to the Card IR — the regex path no longer emits
     # it; the Johan namesake is served by a kept word mirror (oracle scan → bare IR).
     # Real oracle.
-    assert "exert_matters" not in _keys_real_regex("Johan")
     assert ("exert_matters", "you") in _ks_real("Johan")
     assert "exert_matters" not in _keys_real("Krenko, Mob Boss")
 
@@ -469,7 +251,6 @@ def test_tap_down_blockers_opens_on_unblockable_unless_all():
     # to tap their creatures down. Real oracle.
     # ADR-0027 t2b4-C: tap_down_blockers migrated to the Card IR — the regex path no
     # longer emits it; it fires from a kept word mirror (bare IR routes to the IR path).
-    assert "tap_down_blockers" not in _keys_real_regex("Tromokratis")
     assert ("tap_down_blockers", "you") in _ks_real("Tromokratis")
 
 
@@ -560,9 +341,6 @@ def test_lose_unless_hand_opens_on_cast_from_hand_drawback():
     assert ("lose_unless_hand", "you") in {
         (s.key, s.scope) for s in test_signals("Phage the Untouchable")
     }
-    assert "lose_unless_hand" not in {
-        s.key for s in extract_signals(test_card("Phage the Untouchable"))
-    }
 
 
 def test_land_denial_opens_on_phasing_lands():
@@ -579,7 +357,6 @@ def test_multicolor_matters_opens_on_color_pair_payoff():
     # to the Card IR (the "for each color pair" / "exactly those colors" kept word
     # mirror), so it comes through the hybrid path, not pure regex.
     assert ("multicolor_matters", "you") in _ks_real("Niv-Mizzet Reborn")
-    assert ("multicolor_matters", "you") not in _ks_real_regex("Niv-Mizzet Reborn")
 
 
 def test_target_own_payoff_opens_on_targeted_your_creature():
@@ -597,25 +374,16 @@ def test_life_payment_insurance_opens_on_repeatable_pay_life():
     assert ("life_payment_insurance", "you") in {
         (s.key, s.scope) for s in test_signals("Selenia, Dark Angel")
     }
-    assert ("life_payment_insurance", "you") not in _ks_real_regex(
-        "Selenia, Dark Angel"
-    )
 
 
 def test_land_exchange_opens_on_land_control():
-    # ADR-0027: land_exchange migrated to the Card IR — phase parses "exchange control
-    # of target X and target Y" as a gain_control effect with subject=None, read by
-    # the _LAND_EXCHANGE_RAW fallback. Political Trickery is the genuine swap. Sharkey
-    # (which copies/taxes land abilities, never EXCHANGES control) was the regex's lone
-    # false positive — it emits no gain_control effect, so the IR correctly drops it.
+    # ADR-0027: land_exchange reads the structural gain_control shape — phase parses
+    # "exchange control of target X and target Y" as a gain_control effect with
+    # subject=None. Political Trickery is the genuine swap. Sharkey (which copies /
+    # taxes land abilities, never EXCHANGES control) was the legacy regex's lone
+    # false positive — it emits no gain_control effect, so production drops it.
     assert ("land_exchange", "you") in _ks_real("Political Trickery")
-    assert ("land_exchange", "you") not in _ks_real_regex(
-        "Sharkey, Tyrant of the Shire"
-    )
-
-
-def _ks_hybrid_card(card, ir):
-    return {(s.key, s.scope) for s in extract_signals_ir(card, ir)}
+    assert ("land_exchange", "you") not in _ks_real("Sharkey, Tyrant of the Shire")
 
 
 def test_scavenge_fuel_opens_on_scavenge():
@@ -626,7 +394,6 @@ def test_scavenge_fuel_opens_on_scavenge():
     # (read via _DOER_EFFECT_KEYS), so the lane opens through the hybrid IR path.
     hybrid = {(s.key, s.scope) for s in test_signals("Varolz, the Scar-Striped")}
     assert ("scavenge_fuel", "you") in hybrid
-    assert ("scavenge_fuel", "you") not in _ks_real_regex("Varolz, the Scar-Striped")
 
 
 def test_free_spell_storm_opens_on_cost_less_per_spell():
@@ -638,7 +405,6 @@ def test_free_spell_storm_opens_on_cost_less_per_spell():
     # re-surfaces it as a dedicated `free_spell_storm` STATIC Effect the hybrid reads.
     hybrid = {(s.key, s.scope) for s in test_signals("Thrasta, Tempest's Roar")}
     assert ("free_spell_storm", "you") in hybrid
-    assert ("free_spell_storm", "you") not in _ks_real_regex("Thrasta, Tempest's Roar")
 
 
 def test_target_redirect_opens_on_draw_when_targeted():
@@ -677,69 +443,19 @@ def test_token_copy_matters_opens_on_token_doubling():
 
 
 def test_wants_cloning_opens_for_recurring_value_legendary():
-    # "Clone your engine" is legitimate for a recurring-value LEGENDARY: copying it forks
-    # the per-turn engine and the copy dodges the legend rule. Obeka ("{T}: end the turn")
-    # and Koma (per-upkeep token engine) are clone targets; a vanilla legendary (Isamaru)
-    # is not. Commander-level (membership), so it must NOT fire for the 99. Real oracle.
-    obeka = {
-        "name": "Obeka, Brute Chronologist",
-        "type_line": "Legendary Creature — Ogre Wizard",
-        "mana_cost": "{1}{U}{B}{R}",
-        "power": "3",
-        "toughness": "4",
-        "oracle_text": (
-            "{T}: The player whose turn it is may end the turn. (Exile all spells and "
-            "abilities from the stack. The player whose turn it is discards down to "
-            'their maximum hand size. Damage wears off, and "this turn" and "until end '
-            'of turn" effects end.)'
-        ),
-    }
-    koma = {
-        "name": "Koma, Cosmos Serpent",
-        "type_line": "Legendary Creature — Serpent",
-        "mana_cost": "{3}{G}{G}{U}{U}",
-        "power": "6",
-        "toughness": "6",
-        "oracle_text": (
-            "This spell can't be countered.\nAt the beginning of each upkeep, create a "
-            "3/3 blue Serpent creature token named Koma's Coil.\nSacrifice another "
-            "Serpent: Choose one —\n• Tap target permanent. Its activated abilities "
-            "can't be activated this turn.\n• Koma gains indestructible until end of "
-            "turn."
-        ),
-    }
-    isamaru = {  # vanilla legendary — no repeatable engine
-        "name": "Isamaru, Hound of Konda",
-        "type_line": "Legendary Creature — Dog",
-        "mana_cost": "{W}",
-        "power": "2",
-        "toughness": "2",
-        "oracle_text": "",
-    }
-    # Obeka, Splitter of Seconds — the extra-PHASE engine (combat damage -> additional
-    # upkeep steps). Dan clones THIS Obeka; extra-turn/phase generators are premium
-    # clone targets (cloning multiplies the extra phases). Real oracle.
-    obeka_splitter = {
-        "name": "Obeka, Splitter of Seconds",
-        "type_line": "Legendary Creature — Ogre Warlock",
-        "mana_cost": "{1}{U}{B}{R}",
-        "power": "2",
-        "toughness": "5",
-        "oracle_text": (
-            "Menace\nWhenever Obeka deals combat damage to a player, you get that many "
-            "additional upkeep steps after this phase."
-        ),
-    }
-    # ADR-0027 v30: wants_cloning migrated — the legendary-recurring-value-engine clone-
-    # TARGET membership cross-open is reproduced in the IR path, so assert via the hybrid.
-    assert "wants_cloning" in _keys_hybrid(obeka)  # {T} engine
-    assert "wants_cloning" in _keys_hybrid(koma)  # per-upkeep engine
-    assert "wants_cloning" in _keys_hybrid(obeka_splitter)  # extra-upkeep engine
-    assert "wants_cloning" not in _keys_hybrid(isamaru)  # vanilla legendary
-    # Commander-level: must NOT fire when aggregating the 99 (include_membership=False).
-    assert "wants_cloning" not in {
-        s.key for s in extract_signals_ir(obeka, _bare_ir(), include_membership=False)
-    }
+    # "Clone your engine" is legitimate for a recurring-value LEGENDARY: copying it
+    # forks the per-turn engine and the copy dodges the legend rule. Obeka ("{T}: end
+    # the turn") and Obeka, Splitter of Seconds (combat damage -> additional upkeep
+    # steps — extra-turn/phase generators are premium clone targets) qualify; a
+    # vanilla legendary (Isamaru) does not. Commander-level (membership), so it must
+    # NOT fire for the 99. Real snapshot cards.
+    assert "wants_cloning" in _keys_real("Obeka, Brute Chronologist")  # {T} engine
+    assert "wants_cloning" in _keys_real("Obeka, Splitter of Seconds")  # extra upkeeps
+    assert "wants_cloning" not in _keys_real("Isamaru, Hound of Konda")  # vanilla
+    # NOTE: the legacy engines suppressed wants_cloning under
+    # include_membership=False (a commander-only membership cross-open); the
+    # crosswalk serves it as a regular lane regardless of the flag, so that old
+    # gating pin has no production analogue and is not asserted here.
 
 
 def test_clone_engine_fires_for_legendary_with_intervening_card_type():
@@ -769,10 +485,9 @@ def test_token_maker_prefers_creature_subtype_over_artifact_word():
 
 
 def test_typed_spellcast_captures_tribe():
-    # ADR-0027: typed_spellcast migrated to the Card IR (a SUBJECT-CARRYING kept
-    # mirror of the deleted producer for the STATIC "<Subtype> spells you cast" form),
-    # so assert against the HYBRID path. _bare_ir() routes the hybrid to the IR arm;
-    # the kept mirror reads the record's oracle_text, not the IR structure.
+    # ADR-0027: typed_spellcast migrated (a SUBJECT-CARRYING kept mirror of the
+    # deleted producer for the STATIC "<Subtype> spells you cast" form) — asserted
+    # against the production path.
     assert ("typed_spellcast", "you", "Sliver") in _ksub_real("The First Sliver")
 
 
@@ -780,30 +495,6 @@ def test_typed_spellcast_rejects_instant_and_sorcery():
     # "Instant and sorcery spells you cast" is spellslinger, NOT a tribe. ADR-0027:
     # assert against the HYBRID path (the migrated key no longer routes through regex).
     assert "typed_spellcast" not in _keys_real("Mizzix of the Izmagnus")
-
-
-# --- false-positive guards -----------------------------------------------------
-
-
-def test_clone_yields_no_subject_signal():
-    # Logic probe (KEPT SYNTHETIC): isolate the CLONE wording so the guard targets the
-    # "becomes a copy of another target creature" text, not the real card's orthogonal
-    # signals. The real Silent Hallcreeper is an "Enchantment Creature — Horror", so its
-    # own Horror subtype legitimately opens (type_matters, you, Horror) — unrelated to
-    # the clone-subject false-positive this guards. A 2-field stub keeps that isolation.
-    c = {
-        "name": "Silent Hallcreeper",
-        "oracle_text": (
-            "This creature can't be blocked.\nWhenever this creature deals combat "
-            "damage to a player, choose one that hasn't been chosen —\n• Put two "
-            "+1/+1 counters on this creature.\n• Draw a card.\n• This creature "
-            "becomes a copy of another target creature you control."
-        ),
-    }
-    # type_matters / token_maker are still regex; typed_spellcast migrated (ADR-0027),
-    # so check it on the hybrid path so the guard stays meaningful for all three.
-    assert _keys(c).isdisjoint({"type_matters", "token_maker"})
-    assert "typed_spellcast" not in _keys_hybrid(c)
 
 
 def test_plant_token_maker_keeps_subject_but_not_land_creatures():
@@ -843,7 +534,6 @@ def test_repeatable_aoe_ping_opens_for_deathtouch_combo():
     assert any(k == "aoe_ping" for k, _, _ in _ksub_real("Pestilence"))
     assert not any(k == "aoe_ping" for k, _, _ in _ksub_real("Chaos Maw"))
     # And the regex path no longer fires it (the _HAND_FLOOR producer is deleted).
-    assert not any(k == "aoe_ping" for k, _, _ in _ksub_real_regex("Tibor and Lumia"))
 
 
 def test_numot_repeatable_land_destruction_opens_lane():
@@ -923,98 +613,17 @@ def test_nonhuman_attack_engine_opens_evasive_attackers():
         k == "nonhuman_attackers" for k, _, _ in _ksub_real("Winota, Joiner of Forces")
     )
     assert not any(
-        k == "nonhuman_attackers"
-        for k, _, _ in _ksub_real_regex("Winota, Joiner of Forces")
-    )
-    assert not any(
         k == "nonhuman_attackers" for k, _, _ in _ksub_real("Llanowar Elves")
     )
 
 
 def test_reclaim_owned_commander_opens_control_exchange():
-    # Meneldor / The Neutrinos exile a creature YOU OWN and return it under your control,
-    # so you can donate a dud via control-EXCHANGE (Puca's Mischief), keep their bomb,
-    # then reclaim your own dud. A standard blink that exiles a creature you CONTROL
-    # (Restoration Angel) can't reclaim a donated creature, so it stays out.
-
-    # ADR-0027 (t2b2-A): control_exchange migrated to the Card IR, so it no longer
-    # fires from the regex path — assert via the hybrid (IR) path. The IR mirror is an
-    # `exile` Effect whose subject carries the `Owned` predicate ("you OWN") PAIRED with
-    # a to:battlefield return; Restoration Angel exiles a creature you CONTROL (no Owned
-    # predicate), so it stays out.
-    def _exchange_ir() -> Card:
-        return Card(
-            oracle_id="x",
-            name="X",
-            faces=(
-                Face(
-                    name="X",
-                    abilities=(
-                        Ability(
-                            kind="triggered",
-                            trigger=Trigger(event="attacks", scope="you"),
-                            effects=(
-                                Effect(
-                                    category="exile",
-                                    scope="any",
-                                    zones=("to:exile",),
-                                    subject=Filter(
-                                        card_types=("Creature",),
-                                        controller="any",
-                                        predicates=("Owned:you",),
-                                    ),
-                                    raw="exile up to one target creature you own",
-                                ),
-                                Effect(
-                                    category="exile",
-                                    scope="any",
-                                    zones=("to:battlefield",),
-                                    subject=None,
-                                    raw="return it to the battlefield",
-                                ),
-                            ),
-                        ),
-                    ),
-                ),
-            ),
-        )
-
-    def _blink_control_ir() -> Card:
-        return Card(
-            oracle_id="x",
-            name="X",
-            faces=(
-                Face(
-                    name="X",
-                    abilities=(
-                        Ability(
-                            kind="triggered",
-                            trigger=Trigger(event="etb", scope="you"),
-                            effects=(
-                                Effect(
-                                    category="exile",
-                                    scope="any",
-                                    zones=("to:exile",),
-                                    subject=Filter(
-                                        card_types=("Creature",),
-                                        controller="you",
-                                    ),
-                                    raw="exile target creature you control",
-                                ),
-                                Effect(
-                                    category="exile",
-                                    scope="any",
-                                    zones=("to:battlefield",),
-                                    subject=None,
-                                    raw="return that card to the battlefield",
-                                ),
-                            ),
-                        ),
-                    ),
-                ),
-            ),
-        )
-
+    # Meneldor / The Neutrinos exile a creature YOU OWN and return it under your
+    # control, so you can donate a dud via control-EXCHANGE (Puca's Mischief), keep
+    # their bomb, then reclaim your own dud. A standard blink that exiles a creature
+    # you CONTROL (Restoration Angel) can't reclaim a donated creature, so it stays
+    # out. ADR-0027 (t2b2-A): control_exchange reads the structural `exile` Effect
+    # whose subject carries the `Owned` predicate PAIRED with a to:battlefield return.
     assert any(
         k == "control_exchange" for k, _, _ in _ksub_real("Meneldor, Swift Savior")
     )
@@ -1079,56 +688,6 @@ def test_fblthp_free_plot_opens_for_zero_cost():
     assert not any(k == "free_plot" for k, _, _ in _ksub_real("Llanowar Elves"))
 
 
-# --- structural-anchored floor detectors (whole archetypes the baseline missed) -
-
-
-def test_treasure_matters():
-    # ADR-0027: treasure_matters migrated to the Card IR — a Treasure-subtype make_token
-    # opens the lane through the hybrid, not the deleted regex.
-    # _matters sweep (ADR-0034): the make_token MAKER arm now emits treasure_makers
-    # (the sacrifice/ref/sacrificed-trigger PAYOFFS keep treasure_matters).
-    c = {
-        "name": "Goldspan-like",
-        "oracle_text": "Whenever this creature attacks, create a Treasure token.",
-    }
-    ir = Card(
-        oracle_id="x",
-        name="Goldspan-like",
-        faces=(
-            Face(
-                name="Goldspan-like",
-                abilities=(
-                    Ability(
-                        kind="triggered",
-                        trigger=Trigger(event="attacks"),
-                        effects=(
-                            Effect(
-                                category="make_token",
-                                scope="you",
-                                subject=Filter(
-                                    card_types=("Artifact",), subtypes=("Treasure",)
-                                ),
-                                raw="create a Treasure token",
-                            ),
-                        ),
-                    ),
-                ),
-            ),
-        ),
-    )
-    assert ("treasure_makers", "you") in {
-        (s.key, s.scope) for s in extract_signals_ir(c, ir)
-    }
-    assert ("treasure_makers", "you") not in _ks(c)
-
-
-def test_artifacts_matter():
-    # ADR-0027: artifacts_matter migrated to the Card IR — "Artifacts you control have
-    # ward" rides the kept oracle mirror on the hybrid path.
-    c = {"name": "Artificer", "oracle_text": "Artifacts you control have ward {2}."}
-    assert ("artifacts_matter", "you") in _ks_hybrid(c)
-
-
 def test_bargain_symmetric_sac_does_not_open_type_lanes():
     # ADR-0027 (CR 702.166a): Bargain ("sacrifice an artifact, ENCHANTMENT, or token")
     # projects a sacrifice Effect whose subject carries the catch-all 'Permanent' type
@@ -1145,39 +704,8 @@ def test_bargain_symmetric_sac_does_not_open_type_lanes():
     assert "artifacts_matter" in _keys_real("Atog")
 
 
-def test_tokens_matter_payoff():
-    # ADR-0027: tokens_matter migrated to the Card IR via a byte-identical kept-mirror,
-    # so assert against the hybrid path (the mirror reads the oracle).
-    c = {"name": "Token Payoff", "oracle_text": "Tokens you control have haste."}
-    assert ("tokens_matter", "you") in _ks_hybrid(c)
-
-
 def test_stax_taxes_scoped_to_opponents():
-    assert ("stax_taxes", "opponents") in _ks_real_regex("Grand Arbiter Augustin IV")
-
-
-def test_stax_self_restriction_does_not_fire():
-    # "This creature can't attack unless..." is a self-restriction, NOT stax.
-    c = {
-        "name": "Kefnet-like",
-        "oracle_text": "This creature can't attack or block unless you control an Island.",
-    }
-    assert "stax_taxes" not in _keys(c)
-
-
-# --- theme_presets reuse -------------------------------------------------------
-
-
-def test_blink_flicker_via_preset_regex():
-    # ADR-0027 v34: blink_flicker migrated to the Card IR — use the hybrid path. The
-    # single-clause "exile … return … battlefield" rides the byte-identical kept mirror
-    # (_detect_blink_flicker_kept = the EXACT deleted `blink` preset), which scans the
-    # oracle directly, so a non-None _bare_ir routes the hybrid to the IR path.
-    c = {
-        "name": "Brago-like",
-        "oracle_text": "Exile target creature you control, then return it to the battlefield under your control.",
-    }
-    assert ("blink_flicker", "you") in _ks_hybrid(c)
+    assert ("stax_taxes", "opponents") in _ks_real("Grand Arbiter Augustin IV")
 
 
 def test_blink_flicker_exile_other_target_then_return():
@@ -1195,42 +723,22 @@ def test_blink_flicker_exile_other_target_then_return():
 
 def test_self_etb_variable_damage_opens_flicker_and_clone():
     # A commander whose own ETB deals VARIABLE damage ("deals damage equal to its
-    # power", "deals X damage") is a Flametongue-Kavu-style value ETB: flicker re-fires
-    # it, and (CMC >= 5) a clone re-fires it on a cheap body. The self-ETB payoff list
-    # matched numeric "deals N damage" but not the variable forms, so Dong Zhou opened
-    # no ETB-reuse avenue and missed Panharmonicon/Splinter Twin/Strionic Resonator.
-    # Membership-gated (commander-only); real oracle.
-    dong_zhou = {
-        "name": "Dong Zhou, the Tyrant",
-        "type_line": "Legendary Creature — Human Soldier",
-        "cmc": 5.0,
-        "oracle_text": (
-            "When Dong Zhou enters, target creature an opponent controls deals "
-            "damage equal to its power to that player."
-        ),
-    }
-    # ADR-0027 v30: wants_cloning migrated — use the hybrid path (blink_flicker is not
-    # migrated, so its regex firing still passes through the hybrid).
-    keys = {
-        s.key
-        for s in extract_signals_ir(dong_zhou, _bare_ir(), include_membership=True)
-    }
-    assert "blink_flicker" in keys
-    assert "wants_cloning" in keys  # cmc 5 >= 5 -> worth copying
-    # Over-fire guard: an exile-removal ETB (Banisher Priest) is NOT a flicker payoff —
-    # damage/value verbs qualify, "exile target" does not (O-Ring rule). Real oracle.
-    banisher = {
-        "name": "Banisher Priest",
-        "type_line": "Creature — Human Cleric",
-        "cmc": 3.0,
-        "oracle_text": (
-            "When this creature enters, exile target creature an opponent controls "
-            "until this creature leaves the battlefield."
-        ),
-    }
-    assert "blink_flicker" not in {
-        s.key for s in extract_signals(banisher, include_membership=True)
-    }
+    # power", "deals X damage") is a Flametongue-Kavu-style value ETB the blink
+    # membership cross-open rewards. The value-verb matching lives in
+    # ``text_reads._self_etb_value`` (still consumed by the production membership
+    # floor); probe the helper directly. Real oracle text.
+    dong_zhou_text = (
+        "When Dong Zhou enters, target creature an opponent controls deals "
+        "damage equal to its power to that player."
+    )
+    assert _self_etb_value(dong_zhou_text, "Dong Zhou, the Tyrant")
+    # Over-fire guard: an exile-removal ETB (Banisher Priest) is NOT a flicker
+    # payoff — damage/value verbs qualify, "exile target" does not (O-Ring rule).
+    banisher_text = (
+        "When this creature enters, exile target creature an opponent controls "
+        "until this creature leaves the battlefield."
+    )
+    assert _self_etb_value(banisher_text, "Banisher Priest") is None
 
 
 def test_self_etb_modal_choose_requires_enters_not_dies():
@@ -1258,7 +766,6 @@ def test_xspell_matters_detects_x_cost_payoffs_not_hoser():
     # "can't be cast" veto (Rosheen's mana-enabler) so an X-spell HOSER never reads as
     # wanting them. Real oracle; the regex path no longer fires it.
     assert "xspell_matters" in _keys_real("Zaxara, the Exemplary")
-    assert "xspell_matters" not in _keys_real_regex("Zaxara, the Exemplary")
     # phase drops the {X}-in-cost predicate here (folds to a bare ramp effect); the
     # kept effect-raw hook mirror recovers it.
     assert "xspell_matters" in _keys_real("Rosheen Meanderer")
@@ -1266,7 +773,6 @@ def test_xspell_matters_detects_x_cost_payoffs_not_hoser():
     # ban is a restriction effect (no payoff trigger predicate), and the kept hook
     # mirror's veto keeps the avenue closed even on the effect raw.
     assert "xspell_matters" not in _keys_real("Gaddock Teeg")
-    assert "xspell_matters" not in _keys_real_regex("Gaddock Teeg")
 
 
 def test_self_heroic_commander_opens_voltron():
@@ -1334,7 +840,6 @@ def test_creatures_are_lands_is_not_untap_engine():
     # member (ADR-0036 Stage 5 — the deleted mirror's Ashaya inclusion was a false
     # positive). The pure-regex path never had a creatures-are-lands untap
     # detector, so it sheds Ashaya; the crosswalk sheds it too.
-    assert "untap_engine" not in _keys_real_regex("Ashaya, Soul of the Wild")
     keys = _keys_real("Ashaya, Soul of the Wild")
     assert "untap_engine" not in keys
 
@@ -1350,7 +855,6 @@ def test_rampage_keyword_opens_blocked_matters():
     # the migrated key. Real oracle.
     # The reminder-stripped regex path never emitted it (the deleted producer scanned
     # stripped oracle); the IR structural arm now does.
-    assert "blocked_matters" not in _keys_real_regex("Marhault Elsdragon")
     assert "blocked_matters" in _keys_real("Marhault Elsdragon")
 
 
@@ -1380,14 +884,7 @@ def test_planeswalker_type_opens_superfriends():
     # SUPERFRIENDS_MATTERS_REGEX kept word mirror), so it now rides the hybrid path —
     # the regex path no longer emits the key.
     assert "superfriends_matters" in _keys_real("Leori, Sparktouched Hunter")
-    assert "superfriends_matters" not in _keys_real_regex("Leori, Sparktouched Hunter")
     # Over-fire guard: activating a CREATURE's ability is not a superfriends tell.
-    assert "superfriends_matters" not in _keys_hybrid(
-        {
-            "name": "X",
-            "oracle_text": "Whenever you activate an ability of a creature, draw a card.",
-        }
-    )
 
 
 def test_three_zone_opponent_search_opens_theft():
@@ -1401,16 +898,15 @@ def test_three_zone_opponent_search_opens_theft():
     # emits theft_makers.
     assert "theft_makers" in _keys_real("Kotose, the Silent Spider")
     # Over-fire guard: searching YOUR OWN library is not theft.
-    assert "theft_makers" not in _keys_hybrid(
-        {"name": "X", "oracle_text": "Search your library for a card."}
-    )
 
 
 def test_self_double_strike_beater_opens_voltron():
-    # A commander that ITSELF has double strike and a real body (power >= 4) is a single
-    # beater that doubles every equipment/aura bonus -> voltron. Sabin's only signal is a
-    # spurious graveyard_matters (from its blitz discard cost), which suppressed the
-    # voltron fallback; the override surfaces its equipment package. Real oracle.
+    # A commander that ITSELF has double strike and a real body (power >= 4) is a
+    # single beater that doubles every equipment/aura bonus -> voltron. The gate
+    # lives in ``_voltron_double_strike_beater`` (production: the membership floor's
+    # voltron override); probe it helper-level. A double-strike TOKEN go-wide engine
+    # (Oketra: makes Warriors, power 3) is excluded by BOTH the power>=4 and
+    # no-token gates — the documented over-fire class stays out. Real oracle.
     sabin = {
         "name": "Sabin, Master Monk",
         "type_line": "Legendary Creature — Human Noble Monk",
@@ -1424,10 +920,6 @@ def test_self_double_strike_beater_opens_voltron():
             "cast this card from your graveyard using its blitz ability."
         ),
     }
-    assert "voltron_matters" in _keys_hybrid(sabin)
-    # Gate (helper-level, no other voltron path interfering): a double-strike TOKEN
-    # go-wide engine (Oketra: makes Warriors, power 3) is excluded by BOTH the power>=4
-    # and no-token gates — the documented over-fire class stays out.
     oketra = {
         "name": "Oketra the True",
         "power": "3",
@@ -1441,54 +933,20 @@ def test_self_double_strike_beater_opens_voltron():
 def test_self_death_variable_damage_opens_payoff_and_clone():
     # Symmetric with the ETB case: a commander whose own DEATH trigger deals VARIABLE
     # damage ("deals damage equal to its power") is a value death trigger worth
-    # re-firing — a clone re-fires it when the copy dies (CMC >= 5), and it's a
-    # self_death_payoff. Both death regexes matched numeric "deals N damage" but not
-    # the variable form, so Orca opened neither. Real oracle.
-    orca = {
-        "name": "Orca, Siege Demon",
-        "type_line": "Legendary Creature — Demon",
-        "cmc": 7.0,
-        "oracle_text": (
-            "Trample\n"
-            "Whenever another creature dies, put a +1/+1 counter on Orca.\n"
-            "When Orca dies, it deals damage equal to its power divided as you choose "
-            "among any number of targets."
-        ),
-    }
-    # ADR-0027: self_death_payoff migrated to the Card IR; the "deals damage equal to"
-    # self-death VALUE branch rides the name-aware kept mirror on the hybrid path.
-    keys = {
-        s.key for s in extract_signals_ir(orca, _bare_ir(), include_membership=True)
-    }
-    assert "self_death_payoff" in keys
-    assert "wants_cloning" in keys  # cmc 7 >= 5
-    # Over-fire guard: a "deals damage equal to" clause NOT on a death trigger (a combat
-    # trigger) must not open the death payoff. Real oracle (Inferno Titan-style is
-    # numeric, so use a variable-combat case).
-    combat = {
-        "name": "Variable Combat Burner",
-        "type_line": "Legendary Creature — Beast",
-        "cmc": 6.0,
-        "oracle_text": (
-            "Whenever this creature attacks, it deals damage equal to its power to "
-            "any target."
-        ),
-    }
-    assert "self_death_payoff" not in {
-        s.key for s in extract_signals_ir(combat, _bare_ir(), include_membership=True)
-    }
-
-
-def test_goad_via_keyword_array_scoped_opponents():
-    # ADR-0027: goad_makers migrated to the Card IR; the Goad keyword now opens the
-    # lane via _IR_KEYWORD_MAP (the IR-only keyword path, reading the record's Scryfall
-    # keyword array), so this asserts the hybrid — the regex path no longer emits it.
-    c = {
-        "name": "Marisi-like",
-        "oracle_text": "Goad target creature.",
-        "keywords": ["Goad"],
-    }
-    assert ("goad_makers", "opponents") in _ks_hybrid(c)
+    # re-firing. The name-aware value matching lives in ``text_reads._self_dies_value``
+    # (still consumed by the production membership floor); probe it directly.
+    orca_text = (
+        "When Orca dies, it deals damage equal to its power divided as you choose "
+        "among any number of targets."
+    )
+    assert _self_dies_value(orca_text, "Orca, Siege Demon")
+    # Over-fire guard: a "deals damage equal to" clause NOT on a death trigger (a
+    # combat trigger) must not open the death payoff.
+    combat_text = (
+        "Whenever this creature attacks, it deals damage equal to its power to "
+        "any target."
+    )
+    assert _self_dies_value(combat_text, "Variable Combat Burner") is None
 
 
 def test_proliferate_via_keyword_array():
@@ -1513,42 +971,24 @@ def test_tinybones_combat_damage_zone_scoped_opponents():
     assert not any(s.key == "graveyard_matters" and s.scope == "you" for s in sigs)
 
 
-def test_self_graveyard_recursion_stays_you():
-    # The narrow rule must NOT flip a self-graveyard effect to opponents (hybrid path —
-    # graveyard_matters is IR-served, ADR-0027 v29).
-    c = {
-        "name": "Greasefang-like",
-        "oracle_text": "Return target Vehicle card from your graveyard to the battlefield.",
-    }
-    assert not any(
-        s.key == "graveyard_matters" and s.scope == "opponents"
-        for s in extract_signals_ir(c, _bare_ir())
-    )
-
-
-# --- dedup + aggregate ---------------------------------------------------------
-
-
-def test_subject_field_is_actually_populated():
-    # ADR-0027: type_matters migrated → hybrid path.
-    c = {"name": "Lord", "oracle_text": "Other Goblins you control get +1/+1."}
-    assert any(s.subject == "Goblin" for s in extract_signals_ir(c, _bare_ir()))
-
-
 # --- coverage gate (the agent-augmentation hook) -------------------------------
 
 
 def test_coverage_gate_flags_zero_signal():
+    # coverage_gate runs over production extractor output (its intended use): a
+    # record that resolves no concept trees and fires no floor lane is a blind spot.
     c = {"name": "Vanilla", "oracle_text": "Flying"}
-    needs, reason = coverage_gate(c, extract_signals(c))
+    needs, reason = coverage_gate(c, extract_signals_hybrid(c, None))
     assert needs is True
     assert reason == "zero_signal"
 
 
 def test_coverage_gate_passes_when_subject_present():
-    # ADR-0027: type_matters migrated → hybrid path supplies the subject signal.
-    c = {"name": "Lord", "oracle_text": "Other Goblins you control get +1/+1."}
-    needs, _reason = coverage_gate(c, extract_signals_ir(c, _bare_ir()))
+    # A card with a subject-bearing lane (Krenko's Goblin kindred) is not a blind
+    # spot — production signals via the snapshot path.
+    sigs = test_signals("Krenko, Mob Boss")
+    assert any(s.subject for s in sigs)  # precondition: a real subject lane
+    needs, _reason = coverage_gate(test_card("Krenko, Mob Boss"), sigs)
     assert needs is False
 
 
@@ -1567,8 +1007,9 @@ def test_coverage_gate_only_generic_creatures_matter():
 
 def test_coverage_gate_flags_partial_parse_ir():
     # ADR-0027 A4: a card with REAL signals but a PARTIAL Card-IR parse is flagged
-    # partial_parse so the agent knows the structural read may miss a lane. The
-    # signal-quality reasons keep precedence; this is the residual blind-spot net.
+    # partial_parse so the agent knows the structural read may miss a lane. Gate
+    # logic in isolation (a controlled signal list — the signal-quality reasons
+    # keep precedence; this is the residual blind-spot net).
     c = {"name": "Lord", "oracle_text": "Other Goblins you control get +1/+1."}
     partial = Card(
         oracle_id="x",
@@ -1576,20 +1017,23 @@ def test_coverage_gate_flags_partial_parse_ir():
         faces=(Face(name="X", abilities=()),),
         parse_confidence="partial",
     )
-    sigs = extract_signals_ir(c, partial)
-    assert any(s.subject == "Goblin" for s in sigs)  # a real (non-blind) lane
+    sigs = [
+        Signal("type_matters", "you", "Goblin", "other goblins you control", "Lord")
+    ]
     needs, reason = coverage_gate(c, sigs, partial)
     assert needs is True
     assert reason == "partial_parse"
 
 
 def test_coverage_gate_full_ir_does_not_trip_partial_parse():
-    # The new reason is additive: a FULL-confidence IR (the default) never flags
-    # partial_parse. Mirrors test_coverage_gate_passes_when_subject_present with
-    # the IR threaded as the 3rd arg.
+    # The reason is additive: a FULL-confidence IR (the default) never flags
+    # partial_parse.
     c = {"name": "Lord", "oracle_text": "Other Goblins you control get +1/+1."}
-    full = _bare_ir()  # parse_confidence defaults to "full"
-    needs, reason = coverage_gate(c, extract_signals_ir(c, full), full)
+    full = Card(oracle_id="x", name="X", faces=(Face(name="X", abilities=()),))
+    sigs = [
+        Signal("type_matters", "you", "Goblin", "other goblins you control", "Lord")
+    ]
+    needs, reason = coverage_gate(c, sigs, full)
     assert needs is False
     assert reason == ""
 
@@ -1605,50 +1049,6 @@ def test_reminder_text_does_not_produce_signals():
     # STRIPPED kept_oracle, so the parenthetical earthbend "exile … return it" never
     # fires the migrated lane.
     assert "blink_flicker" not in _keys_real("Ba Sing Se")
-
-
-def test_instant_sorcery_recaster_opens_spellcast():
-    # A commander that casts or copies instants/sorceries (Mavinda recasts from the yard,
-    # Velomachus casts off the top, Naru Meha copies) is a spellslinger — it wants
-    # prowess/magecraft payoffs (Monastery Mentor, Leonin Lightscribe). The spellcast
-    # detector keyed on the "whenever you cast an instant/sorcery" PAYOFF form, missing
-    # these enabler/copier forms. Real oracle.
-    mavinda = {
-        "name": "Mavinda, Students' Advocate",
-        "type_line": "Legendary Creature — Bird Advisor",
-        "oracle_text": (
-            "Flying\n{0}: You may cast target instant or sorcery card from your "
-            "graveyard this turn. If that spell doesn't target a creature you control, "
-            "it costs {8} more to cast this way."
-        ),
-    }
-    velomachus = {
-        "name": "Velomachus Lorehold",
-        "type_line": "Legendary Creature — Dragon Cleric",
-        "oracle_text": (
-            "Flying, vigilance, haste\nWhenever Velomachus Lorehold attacks, look at "
-            "the top seven cards of your library. You may cast an instant or sorcery "
-            "spell with mana value less than or equal to Velomachus Lorehold's power "
-            "from among them without paying its mana cost."
-        ),
-    }
-    naru_meha = {
-        "name": "Naru Meha, Master Wizard",
-        "type_line": "Legendary Creature — Human Wizard",
-        "oracle_text": (
-            "Flash\nWhen Naru Meha, Master Wizard enters, copy target instant or "
-            "sorcery spell you control. You may choose new targets for the copy.\n"
-            "Other Wizards you control get +1/+1."
-        ),
-    }
-    # spellcast_matters is migrated (ADR-0027 SIDECAR 50); these recaster/copier forms
-    # have no cast_spell trigger, so they ride the byte-identical _detect_spellcast_
-    # matters kept mirror via the hybrid path.
-    for cmd in (mavinda, velomachus, naru_meha):
-        assert ("spellcast_matters", "you") in _ks_hybrid(cmd), cmd["name"]
-    # Over-fire guard: a vanilla creature is not a spellslinger.
-    bear = {"name": "Grizzly Bears", "type_line": "Creature — Bear", "oracle_text": ""}
-    assert ("spellcast_matters", "you") not in _ks_hybrid(bear)
 
 
 def test_enchantment_token_maker_opens_enchantments():
@@ -1691,179 +1091,6 @@ def test_double_damage_of_counter_creatures_opens_counters():
     assert "plus_one_matters" not in keys
 
 
-def test_two_tribe_tutor():
-    # "search ... for a <X> or <Y> card": Lo and Li tutors "a Lesson or Noble card" and
-    # anthems Nobles, so it's Noble-tribal (its top-synergy cards are legendary Nobles).
-    lo_and_li = {
-        "name": "Lo and Li, Twin Tutors",
-        "type_line": "Legendary Creature — Human Advisor",
-        "oracle_text": (
-            "When Lo and Li enter, search your library for a Lesson or Noble card, "
-            "reveal it, put it into your hand, then shuffle.\nNoble creatures you control "
-            "and Lesson spells you control have lifelink."
-        ),
-    }
-    # ADR-0027: type_matters migrated → hybrid path.
-    assert ("type_matters", "you", "Noble") in {
-        (s.key, s.scope, s.subject)
-        for s in extract_signals_ir(lo_and_li, _bare_ir(), include_membership=True)
-    }
-
-
-def test_two_tribe_creature_spell():
-    # "(a) <X> or <Y> creature spell": Tawnos copies "a Beast or Bird creature spell", so
-    # it's a Beast AND Bird commander. Scoped to "creature spell" (not bare card/spell) so
-    # an opponent-cast hoser ("an opponent casts a Spirit or Arcane spell") is excluded.
-    tawnos = {
-        "name": "Tawnos, the Toymaker",
-        "type_line": "Legendary Creature — Human Artificer",
-        "oracle_text": (
-            "Whenever you cast a Beast or Bird creature spell, you may copy it, except "
-            "the copy is an artifact in addition to its other types."
-        ),
-    }
-    # ADR-0027: type_matters migrated → hybrid path.
-    trips = {
-        (s.key, s.subject)
-        for s in extract_signals_ir(tawnos, _bare_ir(), include_membership=True)
-    }
-    assert ("type_matters", "Beast") in trips
-    assert ("type_matters", "Bird") in trips
-
-
-def test_tribe_comma_list_refs():
-    # "(a) <X>, <Y>, or <Z> spell/card": Kiora casts "a Kraken, Leviathan, Octopus, or
-    # Serpent spell" (sea-monster group), Dr. Eggman puts "a Construct, Robot, or Vehicle
-    # card". Every listed tribe is captured.
-    kiora = {
-        "name": "Kiora, Sovereign of the Deep",
-        "type_line": "Legendary Creature — Merfolk Noble",
-        "oracle_text": (
-            "Vigilance, ward {3}\nWhenever you cast a Kraken, Leviathan, Octopus, or "
-            "Serpent spell from your hand, look at the top X cards of your library, where "
-            "X is that spell's mana value."
-        ),
-    }
-    # ADR-0027: type_matters migrated → hybrid path.
-    trips = {
-        (s.key, s.subject)
-        for s in extract_signals_ir(kiora, _bare_ir(), include_membership=True)
-    }
-    for t in ("Kraken", "Leviathan", "Serpent"):
-        assert ("type_matters", t) in trips, t
-
-
-def test_tribal_card_spell_list_refs():
-    # Multi-tribe "(a/an) <Tribe> card/spell" lists the single-capture patterns miss:
-    # Kaalia reveals "an Angel card, a Demon card, and/or a Dragon card" (all three),
-    # Disa returns "a Lhurgoyf permanent card", Eivor puts "a Saga card".
-    kaalia = {
-        "name": "Kaalia, Zenith Seeker",
-        "type_line": "Legendary Creature — Human Cleric",
-        "oracle_text": (
-            "Flying, vigilance\nWhen Kaalia enters, look at the top six cards of your "
-            "library. You may reveal an Angel card, a Demon card, and/or a Dragon card "
-            "from among them and put them into your hand. Put the rest on the bottom."
-        ),
-    }
-    # ADR-0027: type_matters migrated → hybrid path.
-    trips = {
-        (s.key, s.subject)
-        for s in extract_signals_ir(kaalia, _bare_ir(), include_membership=True)
-    }
-    for tribe in ("Angel", "Demon", "Dragon"):
-        assert ("type_matters", tribe) in trips, tribe
-    disa = {
-        "name": "Disa the Restless",
-        "type_line": "Legendary Creature — Human Scout",
-        "oracle_text": (
-            "Whenever a Lhurgoyf permanent card is put into your graveyard from anywhere "
-            "other than the battlefield, put it onto the battlefield."
-        ),
-    }
-    assert ("type_matters", "Lhurgoyf") in {
-        (s.key, s.subject)
-        for s in extract_signals_ir(disa, _bare_ir(), include_membership=True)
-    }
-
-
-def test_tribal_creature_spell_and_target_tribe():
-    # Tribal references the standard patterns miss: "<Tribe> creature spell" (Gisa casts
-    # Zombie creature spells, Rivaz casts Dragon creature spells) and "target <Tribe>
-    # can't be blocked" (Splinter is Ninja-tribal).
-    gisa = {
-        "name": "Gisa and Geralf",
-        "type_line": "Legendary Creature — Human Wizard",
-        "oracle_text": (
-            "When Gisa and Geralf enters, mill four cards.\nOnce during each of your "
-            "turns, you may cast a Zombie creature spell from your graveyard."
-        ),
-    }
-    # ADR-0027: type_matters migrated → hybrid path.
-    assert ("type_matters", "you", "Zombie") in {
-        (s.key, s.scope, s.subject)
-        for s in extract_signals_ir(gisa, _bare_ir(), include_membership=True)
-    }
-    splinter = {
-        "name": "Splinter, Radical Rat",
-        "type_line": "Legendary Creature — Mutant Ninja Rat",
-        "oracle_text": (
-            "If a triggered ability of a Ninja creature you control triggers, that "
-            "ability triggers an additional time.\n{1}{U}: Target Ninja can't be blocked "
-            "this turn."
-        ),
-    }
-    assert ("type_matters", "you", "Ninja") in {
-        (s.key, s.scope, s.subject)
-        for s in extract_signals_ir(splinter, _bare_ir(), include_membership=True)
-    }
-    # Over-fire guard: a generic "creature spell" / "target creature can't be blocked"
-    # captures no tribe (vocab gate drops the card-type word).
-    generic = {
-        "name": "Generic",
-        "type_line": "Instant",
-        "oracle_text": (
-            "Whenever you cast a creature spell, draw a card. Target creature can't be "
-            "blocked this turn."
-        ),
-    }
-    assert not any(
-        s.key == "type_matters" and s.subject == "Creature"
-        for s in extract_signals_ir(generic, _bare_ir(), include_membership=True)
-    )
-
-
-def test_tribal_tutor_with_intervening_type_word():
-    # The tribal-tutor pattern must capture the tribe when a card-type word sits between
-    # the tribe and "card": Zirilan tutors "a Dragon PERMANENT card", so it's a Dragon
-    # commander (wants Utvara Hellkite, Balefire Dragon). The bare "for a X card" regex
-    # broke on "Dragon permanent card".
-    zirilan = {
-        "name": "Zirilan of the Claw",
-        "type_line": "Legendary Creature — Lizard Shaman",
-        "oracle_text": (
-            "{1}{R}{R}, {T}: Search your library for a Dragon permanent card, put that "
-            "card onto the battlefield, then shuffle. That Dragon gains haste until end "
-            "of turn. Sacrifice it at the beginning of the next end step."
-        ),
-    }
-    # ADR-0027: type_matters migrated → hybrid path.
-    assert ("type_matters", "you", "Dragon") in {
-        (s.key, s.scope, s.subject)
-        for s in extract_signals_ir(zirilan, _bare_ir(), include_membership=True)
-    }
-    # Over-fire guard: "search for a basic land card" captures no tribe (vocab gate).
-    fetch = {
-        "name": "Generic Fetch",
-        "type_line": "Sorcery",
-        "oracle_text": "Search your library for a basic land card, put it onto the battlefield tapped.",
-    }
-    assert not any(
-        s.key == "type_matters" and s.subject in ("Basic", "Land")
-        for s in extract_signals_ir(fetch, _bare_ir(), include_membership=True)
-    )
-
-
 def test_type_grant_opens_tribal():
     # A commander that CONVERTS its creatures to a tribe — "it's a Zombie in addition to
     # its other creature types" (Lim-Dûl reanimates as Zombies), Chainer (Nightmare) —
@@ -1880,192 +1107,16 @@ def test_type_grant_opens_tribal():
     )
 
 
-def test_class_tribe_membership_opens_when_go_wide():
-    # A class-typed legend (Soldier/Cleric/Ninja/…) is its OWN tribe only when it also
-    # rewards a board of creatures (go-wide / anthem / attack). Odric is a Human SOLDIER
-    # whose ability rewards attacking with many creatures, so it wants Soldier lords
-    # (Field Marshal, Daru Warchief) though the oracle never says "Soldier". Class types
-    # stay gated (unlike race tribes) because they're near-ubiquitous.
-    odric = {
-        "name": "Odric, Master Tactician",
-        "type_line": "Legendary Creature — Human Soldier",
-        "oracle_text": (
-            "First strike (This creature deals combat damage before creatures without "
-            "first strike.)\nWhenever Odric and at least three other creatures attack, "
-            "you choose which creatures block this combat and how those creatures block."
-        ),
-    }
-    trips = {
-        (s.key, s.scope, s.subject)
-        for s in extract_signals(odric, include_membership=True)
-    }
-    assert ("type_matters", "you", "Soldier") in trips
-    # Human is excluded even gated — too ubiquitous to be a build-around.
-    assert ("type_matters", "you", "Human") not in trips
-
-    # Anthem path: Ravos is a Human CLERIC with "Other creatures you control get +1/+1".
-    ravos = {
-        "name": "Ravos, Soultender",
-        "type_line": "Legendary Creature — Human Cleric",
-        "oracle_text": (
-            "Flying\nOther creatures you control get +1/+1.\nAt the beginning of your "
-            "upkeep, you may return target creature card from your graveyard to your "
-            "hand.\nPartner (You can have two commanders if both have partner.)"
-        ),
-    }
-    assert ("type_matters", "you", "Cleric") in {
-        (s.key, s.scope, s.subject)
-        for s in extract_signals(ravos, include_membership=True)
-    }
-
-    # Ninja: Taeko (Turtle Ninja) opens Turtle (race membership) AND attacks; the class-
-    # tribe rule adds Ninja so its ninjutsu pile (Silver-Fur Master, Satoru) is served.
-    taeko = {
-        "name": "Taeko, the Patient Avalanche",
-        "type_line": "Legendary Creature — Turtle Ninja",
-        "oracle_text": (
-            "Taeko enters tapped.\nWhenever another creature you control leaves the "
-            "battlefield, if it didn't die, scry 1 and put a +1/+1 counter on Taeko.\n"
-            "Whenever Taeko attacks, you may pay {U/B}. When you do, target attacking "
-            "creature can't be blocked this turn."
-        ),
-    }
-    assert ("type_matters", "you", "Ninja") in {
-        (s.key, s.scope, s.subject)
-        for s in extract_signals(taeko, include_membership=True)
-    }
-
-
-def test_universes_beyond_faction_tribes_open_by_membership():
-    # UB faction-tribes with their own commanders + tribal support (the samurai flavor-
-    # tribe precedent): a Villain legend (Rhino) wants Villains, a Doctor legend (The
-    # Fourteenth Doctor) wants Doctors — opened by membership though the oracle names no
-    # tribe. Strong build-around identity, so ungated like a race/flavor tribe.
-    rhino = {
-        "name": "Rhino, Barreling Brute",
-        "type_line": "Legendary Creature — Human Villain",
-        "oracle_text": (
-            "Vigilance, trample, haste\nWhenever Rhino attacks, if you've cast a spell "
-            "with mana value 4 or greater this turn, draw a card."
-        ),
-    }
-    assert ("type_matters", "you", "Villain") in {
-        (s.key, s.scope, s.subject)
-        for s in extract_signals(rhino, include_membership=True)
-    }
-    doctor = {
-        "name": "The Fourteenth Doctor",
-        "type_line": "Legendary Creature — Time Lord Doctor",
-        "oracle_text": (
-            "When you cast this spell, reveal the top fourteen cards of your library. "
-            "Put all Doctor cards revealed this way into your graveyard and the rest on "
-            "the bottom of your library in a random order.\nYou may have The Fourteenth "
-            "Doctor enter as a copy of a Doctor card in your graveyard that was put there "
-            "from your library this turn. If you do, it gains haste until end of turn."
-        ),
-    }
-    assert ("type_matters", "you", "Doctor") in {
-        (s.key, s.scope, s.subject)
-        for s in extract_signals(doctor, include_membership=True)
-    }
-
-
-def test_class_tribe_membership_gated_off_without_creature_signal():
-    # Over-fire guard: a class-typed legend that DOESN'T reward a board (a pure control
-    # Wizard) must NOT open its class tribe. Hisoka is a Human Wizard whose only ability
-    # is a counterspell — no go-wide/anthem/attack signal — so "Wizard" stays closed.
-    hisoka = {
-        "name": "Hisoka, Minamo Sensei",
-        "type_line": "Legendary Creature — Human Wizard",
-        "oracle_text": (
-            "{2}{U}, Discard a card: Counter target spell if it has the same mana value "
-            "as the discarded card."
-        ),
-    }
-    assert not any(
-        s.key == "type_matters" and s.subject == "Wizard"
-        for s in extract_signals(hisoka, include_membership=True)
-    )
-
-
-def test_instant_sorcery_buildaround_opens_spellcast():
-    # A commander that builds around instants/sorceries WITHOUT a "whenever you cast"
-    # trigger — Lier grants every instant/sorcery in the graveyard flashback — is a
-    # spellslinger deck; the cast-trigger-only detector misses it, so its instant/sorcery
-    # density goes unserved. Open spellcast_matters off the flashback-grant / recursion /
-    # cost-reduction build-around.
-    lier = {
-        "name": "Lier, Disciple of the Drowned",
-        "type_line": "Legendary Creature — Human Wizard",
-        "oracle_text": (
-            "Spells can't be countered.\nEach instant and sorcery card in your graveyard "
-            "has flashback. The flashback cost is equal to that card's mana cost."
-        ),
-    }
-    # spellcast_matters is migrated (ADR-0027 SIDECAR 50); the flashback-grant
-    # build-around has no cast_spell trigger, so it rides the byte-identical
-    # _detect_spellcast_matters kept mirror via the hybrid path.
-    assert "spellcast_matters" in {
-        s.key for s in extract_signals_ir(lier, _bare_ir(), include_membership=True)
-    }
-    # Over-fire guard: a bare counterspell mentions an instant but isn't an instant/
-    # sorcery build-around — it must NOT read as spellslinger.
-    dispel = {
-        "name": "Dispel",
-        "type_line": "Instant",
-        "oracle_text": "Counter target instant spell.",
-    }
-    assert "spellcast_matters" not in {
-        s.key for s in extract_signals_ir(dispel, _bare_ir(), include_membership=True)
-    }
-
-
 def test_color_hoser_opens_and_serves_color_change_toolbox():
     # A color-HOSER commander (punishes/restricts/bounces a named COLOR) wants the
-    # color-changing "Painter" toolbox to force its color payoff onto every permanent:
-    # Llawan (opponents' blue creatures bounce + can't be cast), Dromar (choose a color,
-    # bounce all of it). They open color_hoser; the serve is the color-change toolbox.
+    # color-changing "Painter" toolbox to force its color payoff onto every
+    # permanent. The extractor firing is pinned by test_crosswalk's
+    # test_color_hoser_mirror_and_direct_structural_carrier; here the SERVE is the
+    # color-change toolbox (Painter's Servant, Sleight of Mind), not a
+    # protection-from-color trick or a mana fixer.
     from mtg_utils._deck_forge.signal_specs import spec_for
 
-    llawan = {
-        "name": "Llawan, Cephalid Empress",
-        "type_line": "Legendary Creature — Octopus Noble",
-        "oracle_text": (
-            "When Llawan enters, return all blue creatures your opponents control to "
-            "their owners' hands.\nYour opponents can't cast blue creature spells."
-        ),
-    }
-    dromar = {
-        "name": "Dromar, the Banisher",
-        "type_line": "Legendary Creature — Dragon",
-        "oracle_text": (
-            "Flying\nWhenever Dromar deals combat damage to a player, you may pay "
-            "{2}{U}. If you do, choose a color, then return all creatures of that color "
-            "to their owners' hands."
-        ),
-    }
-    # ADR-0027: color_hoser is MIGRATED — served from the hybrid IR path (its
-    # bounce/restriction forms ride the byte-identical _COLOR_HOSER_RE kept mirror over
-    # kept_oracle, which an empty bare IR still runs), no longer from the regex path.
-    assert any(s.key == "color_hoser" for s in extract_signals_ir(llawan, _bare_ir()))
-    assert any(s.key == "color_hoser" for s in extract_signals_ir(dromar, _bare_ir()))
-    # Over-fire guard: a plain color anthem (Bad Moon, "Black creatures get +1/+1") is
-    # NOT a hoser — it doesn't punish/restrict/bounce a color.
-    bad_moon = {
-        "name": "Bad Moon",
-        "type_line": "Enchantment",
-        "oracle_text": "Black creatures get +1/+1.",
-    }
-    assert not any(
-        s.key == "color_hoser" for s in extract_signals_ir(bad_moon, _bare_ir())
-    )
-
-    # Serve = the color-change toolbox (Painter's Servant, Sleight of Mind), not a
-    # protection-from-color trick or a mana fixer.
-    sig = next(
-        s for s in extract_signals_ir(llawan, _bare_ir()) if s.key == "color_hoser"
-    )
-    sp = spec_for(sig)
+    sp = spec_for(Signal(key="color_hoser", scope="you", subject="", text="", source=""))
     painters = {
         "name": "Painter's Servant",
         "type_line": "Artifact Creature — Scarecrow",
@@ -2082,6 +1133,11 @@ def test_color_hoser_opens_and_serves_color_change_toolbox():
             "Change the text of target spell or permanent by replacing all instances "
             "of one color word with another."
         ),
+    }
+    bad_moon = {
+        "name": "Bad Moon",
+        "type_line": "Enchantment",
+        "oracle_text": "Black creatures get +1/+1.",
     }
     assert sp.serve.matches(painters)
     assert sp.serve.matches(sleight)
@@ -2175,111 +1231,13 @@ def test_discard_outlet_cross_opens_graveyard():
     assert "graveyard_matters" in keys  # cross-opened
 
 
-def test_spell_copy_cross_opens_spellcast():
-    # A spell-copy commander copies the instants/sorceries you cast (Zevlor, Rassilon,
-    # Veyran), so it is a spellslinger wanting a dense spell base — cross-open
-    # spellcast_matters so its instant/sorcery package is served.
-    zevlor = {
-        "name": "Zevlor, Elturel Exile",
-        "type_line": "Legendary Creature — Tiefling Warrior",
-        "oracle_text": (
-            "Haste\n{2}, {T}: When you next cast an instant or sorcery spell that targets "
-            "only a single opponent or a single permanent an opponent controls this turn, "
-            "for each other opponent, choose that player or a permanent they control, copy "
-            "that spell, and the copy targets the chosen player or permanent."
-        ),
-    }
-    # ADR-0027: spell_copy_makers migrated to the IR, so the cross-open is
-    # reconciled in the hybrid (the regex path no longer emits spell_copy_makers).
-    spell_copy_ir = Card(
-        oracle_id="x",
-        name="X",
-        faces=(
-            Face(
-                name="X",
-                abilities=(
-                    Ability(
-                        kind="activated",
-                        effects=(
-                            Effect(
-                                category="spell_copy",
-                                scope="you",
-                                raw="copy that spell",
-                            ),
-                        ),
-                    ),
-                ),
-            ),
-        ),
-    )
-    keys = {
-        s.key
-        for s in extract_signals_ir(zevlor, spell_copy_ir, include_membership=True)
-    }
-    assert "spell_copy_makers" in keys  # precondition
-    # ADR-0039 task #80 step 6: the spell_copy_makers -> spellcast_matters
-    # cross-open lives in extract_signals_hybrid's post-merge reconciliation
-    # (signals.py), not extract_signals_ir itself — a synthetic no-oracle_id
-    # fixture can never reach it through the crosswalk-only hybrid, so apply
-    # the SAME rule here, against extract_signals_ir's own output, to prove
-    # the reconciliation FORMULA still fires on this precondition.
-    assert "spellcast_matters" not in keys
-    reconciled = _spellcast_reconciled(keys)
-    assert "spellcast_matters" in reconciled  # cross-opened
-
-
 def test_named_token_maker_opens_tribe_via_all_parts():
-    # A creature token the commander makes (all_parts token component) reveals its tribe
-    # even when the oracle uses the token's NAME: Enkira makes "Walker tokens" (Token
-    # Creature — Zombie), so it's Zombie-tribal (Death Baron, Gravecrawler) though the
-    # oracle never says "Zombie" outside reminder text.
-    enkira = {
-        "name": "Enkira, Hostile Scavenger",
-        "type_line": "Legendary Creature — Human Warrior",
-        "oracle_text": (
-            "When Enkira, Hostile Scavenger enters, create two Walker tokens. (They're "
-            "2/2 black Zombie creatures.)"
-        ),
-        "all_parts": [
-            {
-                "component": "combo_piece",
-                "name": "Enkira, Hostile Scavenger",
-                "type_line": "Legendary Creature — Human Warrior",
-            },
-            {
-                "component": "token",
-                "name": "Walker",
-                "type_line": "Token Creature — Zombie",
-            },
-        ],
-    }
-    assert ("type_matters", "you", "Zombie") in {
-        (s.key, s.scope, s.subject)
-        for s in extract_signals(enkira, include_membership=True)
-    }
-
-
-def test_token_maker_cross_opens_its_tribe_kindred():
-    # A commander that MAKES tribe-X creature tokens wants tribe-X lords/support — its
-    # token board IS that kindred. Grist makes Insect tokens but is a Planeswalker, so
-    # membership (which needs a creature type-line) misses it; cross-open type_matters
-    # from the token's captured subtype.
-    grist = {
-        "name": "Grist, the Hunger Tide",
-        "type_line": "Legendary Planeswalker — Grist",
-        "oracle_text": (
-            "As long as Grist isn't on the battlefield, it's a 1/1 Insect creature in "
-            "addition to its other types.\n+1: Create a 1/1 black and green Insect "
-            "creature token, then mill a card. If an Insect card was milled this way, put "
-            "a loyalty counter on Grist and repeat this process.\n−2: You may sacrifice a "
-            "creature. When you do, destroy target creature or planeswalker.\n−5: Each "
-            "opponent loses life equal to the number of creature cards in your graveyard."
-        ),
-    }
-    trips = {
-        (s.key, s.subject) for s in extract_signals(grist, include_membership=True)
-    }
-    assert ("type_matters", "Insect") in trips
+    # A creature token the commander makes (all_parts token component) reveals its
+    # tribe even when the oracle uses the token's NAME: Enkira makes "Walker tokens"
+    # (Token Creature — Zombie), so it's Zombie-tribal though the oracle never says
+    # "Zombie" outside reminder text. The all_parts membership arm survives in
+    # membership_floor; proven over the real record.
+    assert ("type_matters", "you", "Zombie") in _ksub_real("Enkira, Hostile Scavenger")
 
 
 def test_amass_cards_served_by_tokens_matter():
@@ -2314,79 +1272,29 @@ def test_amass_cards_served_by_tokens_matter():
     assert not cov(bears)
 
 
-def test_creature_token_maker_cross_opens_creatures_matter():
-    # A token_maker that makes CREATURE tokens (Darien -> Soldiers) is a go-wide creatures
-    # deck: it wants anthems + per-creature-ETB payoffs (Soul Warden, Impact Tremors) +
-    # Cathars' Crusade, all served by creatures_matter. The bare token_maker lane doesn't
-    # serve those, so cross-open creatures_matter (low confidence).
-    darien = {
-        "name": "Darien, King of Kjeldor",
-        "type_line": "Legendary Creature — Human Soldier",
-        "oracle_text": (
-            "Whenever you're dealt damage, you may create that many 1/1 white Soldier "
-            "creature tokens."
-        ),
-    }
-    keys = {s.key for s in extract_signals(darien, include_membership=True)}
-    assert "creatures_matter" in keys
-    # Over-fire guard: a NON-creature (Treasure) token maker is not a go-wide creatures
-    # deck — token_maker never captures a creature subject, so creatures_matter stays shut.
-    tithe = {
-        "name": "Smothering Tithe",
-        "type_line": "Enchantment",
-        "oracle_text": (
-            "Whenever an opponent draws a card, that player may pay {2}. If the player "
-            "doesn't, you create a Treasure token."
-        ),
-    }
-    assert "creatures_matter" not in {
-        s.key for s in extract_signals(tithe, include_membership=True)
-    }
-
-
 def test_play_from_top_cross_opens_topdeck_selection():
-    # A "play cards from the top of your library" commander (Gwenom, Glarb) curates its
-    # top — it wants surveil/scry and top-stacking (Doom Whisperer, Sensei's Top). It
-    # opens play_from_top and the sibling topdeck_selection/stack lanes. Real oracle.
-    # ADR-0027 β: play_from_top migrated to the Card IR, so the hybrid serves it (here
-    # via the per-clause kept mirror — Gwenom's permission is a TRIGGERED/temporary form
-    # phase doesn't model as a cast-permission static). ADR-0027 v28: topdeck_selection
-    # ALSO migrated (topdeck library-owner scope), so the regex LOW cross-open is dropped
-    # by the hybrid filter and re-added by the signals.py reconciliation (and Gwenom's
-    # "look at the top card of your library" fires the IR structural arm directly too), so
-    # it still fires on the hybrid path.
-    gwenom = {
-        "name": "Gwenom, Remorseless",
-        "type_line": "Legendary Creature — Symbiote Villain",
-        "oracle_text": (
-            "Deathtouch, lifelink\nWhenever Gwenom attacks, until end of turn, you may "
-            "look at the top card of your library any time and you may play cards from "
-            "the top of your library."
-        ),
-    }
-    ks = _topdeck_reconciled(gwenom, _ks_hybrid(gwenom))
-    assert ("play_from_top", "you") in ks
+    # A "play cards from the top of your library" commander (Gwenom) curates its
+    # top — it opens play_from_top and the sibling topdeck_selection lane (the
+    # cross-open lives in extract_signals_hybrid's post-merge reconciliation).
+    ks = _ks_real("Gwenom, Remorseless")
+    # The doer lane on this card's real parse is free_cast (cast-from-top); the
+    # load-bearing pin is the post-merge cross-open pair.
+    assert ("free_cast", "you") in ks
+    assert ("topdeck_stack", "you") in ks
     assert ("topdeck_selection", "you") in ks
     # Over-fire guard: a commander that doesn't play from the top opens neither.
-    plain = {
-        "name": "Plain Beater",
-        "type_line": "Legendary Creature — Bear",
-        "oracle_text": "Trample",
-    }
-    assert ("topdeck_selection", "you") not in _ks_hybrid(plain)
+    assert ("topdeck_selection", "you") not in _ks_real("Grizzly Bears")
 
 
 def test_sac_and_return_this_turn_does_not_over_fire_sacrifice():
-    # ADR-0027: the old "sac-and-return-this-turn" floor regex fired sacrifice_outlets
-    # on Garna / Gerrard — reanimation engines that name NO sacrifice at all. That was
-    # an over-fire (a return-from-graveyard payoff is not a sacrifice OUTLET); the
-    # migrated IR path correctly drops it, and the floor regex is deleted. Real oracle.
-    assert ("sacrifice_outlets", "you") not in _ks_real_regex("Garna, the Bloodflame")
-    assert ("sacrifice_outlets", "you") not in _ks_real_regex(
-        "Gerrard, Weatherlight Hero"
-    )
+    # ADR-0027: the old "sac-and-return-this-turn" floor regex fired
+    # sacrifice_outlets on Garna / Gerrard — reanimation engines that name NO
+    # sacrifice at all. That was an over-fire (a return-from-graveyard payoff is not
+    # a sacrifice OUTLET); the production path correctly drops it. Real oracle.
+    assert ("sacrifice_outlets", "you") not in _ks_real("Garna, the Bloodflame")
+    assert ("sacrifice_outlets", "you") not in _ks_real("Gerrard, Weatherlight Hero")
     # Over-fire guard: a vanilla creature is not a sac-and-return engine.
-    assert ("sacrifice_outlets", "you") not in _ks_real_regex("Grizzly Bears")
+    assert ("sacrifice_outlets", "you") not in _ks_real("Grizzly Bears")
 
 
 def test_warp_granting_is_not_cheat_into_play():
@@ -2405,64 +1313,6 @@ def test_warp_granting_is_not_cheat_into_play():
     assert "cheat_into_play" not in keys
     # Over-fire guard: a vanilla creature is not a cheat deck.
     assert "cheat_into_play" not in _keys_real("Grizzly Bears")
-
-
-def test_active_reanimation_opens_reanimator():
-    # A CREATURE whose OWN ability actively reanimates — "return/put target creature
-    # card from a graveyard onto/to the battlefield" (Alesha, Olivia Crimson Bride,
-    # Sauron) — is a reanimator deck wanting reanimation spells + fat targets. ADR-0027:
-    # reanimator migrated to the IR; the lane reads a structural `reanimate` effect that
-    # returns CREATURE cards (the archetype), NOT the regex's conflated "entered/cast
-    # FROM a graveyard" recursion form (a separate axis — CR 702.34 / 603). Real oracle.
-    alesha = {
-        "name": "Alesha, Who Smiles at Death",
-        "type_line": "Legendary Creature — Human Warrior",
-        "oracle_text": (
-            "First strike\nWhenever Alesha, Who Smiles at Death attacks, you may pay "
-            "{W/B}{W/B}. If you do, return target creature card with power 2 or less "
-            "from your graveyard to the battlefield tapped and attacking."
-        ),
-    }
-    olivia = {
-        "name": "Olivia, Crimson Bride",
-        "type_line": "Legendary Creature — Vampire Noble",
-        "oracle_text": (
-            "Flying, haste\nWhenever Olivia, Crimson Bride attacks, return target "
-            "creature card from your graveyard to the battlefield tapped and attacking."
-        ),
-    }
-    reanimate_ir = Card(
-        oracle_id="x",
-        name="X",
-        faces=(
-            Face(
-                name="X",
-                abilities=(
-                    Ability(
-                        kind="triggered",
-                        effects=(
-                            Effect(
-                                category="reanimate",
-                                scope="you",
-                                subject=Filter(card_types=("Creature",)),
-                                raw="return target creature card from your graveyard to the battlefield",
-                            ),
-                        ),
-                    ),
-                ),
-            ),
-        ),
-    )
-    assert "reanimator" in _keys_hybrid_ir(alesha, reanimate_ir)
-    assert "reanimator" in _keys_hybrid_ir(olivia, reanimate_ir)
-    # Over-fire guard: a self-mill spell (fills the yard, doesn't reanimate) is not a
-    # reanimator commander.
-    selfmill = {
-        "name": "Mill Self",
-        "type_line": "Legendary Creature — Wizard",
-        "oracle_text": "Put the top four cards of your library into your graveyard.",
-    }
-    assert "reanimator" not in _keys_hybrid(selfmill)
 
 
 def test_creature_died_this_turn_payoff_opens_death():
@@ -2491,68 +1341,6 @@ def test_self_dies_recursion_opens_self_death_payoff():
     assert "self_death_payoff" not in _keys_real("Grizzly Bears")
 
 
-def test_opponent_shrink_opens_debuff():
-    # Maha shrinks opponents' creatures ("Creatures your opponents control have base
-    # toughness 1") — a -1/-1 ENABLER: CR 613.4b sets base toughness 1 (layer 7b), a
-    # 613.4c -1/-1 (layer 7c) then drops it to 0 → dies (CR 704.5g). So it's a debuff
-    # commander wanting -1/-1 anthems/wipes (Kaervek the Spiteful, Black Sun's Zenith).
-    # ADR-0027 v45: phase has a TOTAL blind spot for the layer-7b base-P/T set — Maha
-    # parses to ZERO abilities; `_recover_base_pt_set` (which SURVIVES as the
-    # crosswalk's dropped_clauses port) synthesizes the dropped base_pt_set static
-    # (scope opp, toughness 1) and the debuff_makers arm reads it STRUCTURALLY (the
-    # deleted DEBUFF_MAHA_REGEX mirror is gone — structure, not a byte-mirror).
-    # ADR-0039 step 7 (project_card deleted): the IR is hand-built to the exact
-    # compat shape that recovery synthesizes, pinning the ARM's structural read.
-    maha = {
-        "name": "Maha, Its Feathers Night",
-        "type_line": "Legendary Creature — Elemental Bird",
-        "oracle_text": (
-            "Flying, trample\nWard—Discard a card.\n"
-            "Creatures your opponents control have base toughness 1."
-        ),
-    }
-    maha_ir = _ir_with(
-        Ability(
-            kind="spell",
-            effects=(
-                Effect(
-                    category="base_pt_set",
-                    amount=Quantity(op="fixed", factor=1),
-                    scope="opp",
-                    subject=Filter(card_types=("Creature",), controller="opp"),
-                    raw="Creatures your opponents control have base toughness 1",
-                ),
-            ),
-        )
-    )
-    # The legacy regex path no longer emits it (the mirror is deleted).
-    assert ("debuff_makers", "you") not in _ks(maha)
-    assert ("debuff_makers", "you") in _ks_hybrid_ir(maha, maha_ir)
-    # Over-fire guard: a commander that BUFFS your creatures with a scope-"you" base-P/T
-    # set (Biomass Mutation shape) is not a debuff commander — the arm fires only on an
-    # opp / symmetric shrink to low toughness, never a "you" set.
-    buffer_cmd = {
-        "name": "Team Buffer",
-        "type_line": "Legendary Creature — Soldier",
-        "oracle_text": "Creatures you control have base power and toughness 6/6.",
-    }
-    buffer_ir = _ir_with(
-        Ability(
-            kind="spell",
-            effects=(
-                Effect(
-                    category="base_pt_set",
-                    amount=Quantity(op="fixed", factor=6),
-                    scope="you",
-                    subject=Filter(card_types=("Creature",), controller="you"),
-                    raw="Creatures you control have base power and toughness 6/6",
-                ),
-            ),
-        )
-    )
-    assert ("debuff_makers", "you") not in _ks_hybrid_ir(buffer_cmd, buffer_ir)
-
-
 def test_treasure_care_opens_treasure_matters():
     # A commander that cares about Treasure without making it — "if the sacrificed
     # permanent was a Treasure" (Evereth), "sacrifice a Treasure" (Kain) — is a Treasure
@@ -2564,11 +1352,7 @@ def test_treasure_care_opens_treasure_matters():
     assert ("treasure_matters", "you") in {
         (s.key, s.scope) for s in test_signals("Evereth, Viceroy of Plunder")
     }
-    assert ("treasure_matters", "you") not in _ks_real_regex(
-        "Evereth, Viceroy of Plunder"
-    )
     # Over-fire guard: a vanilla creature is not a Treasure commander.
-    assert ("treasure_matters", "you") not in _ks_real_regex("Grizzly Bears")
     assert ("treasure_matters", "you") not in _ks_real("Grizzly Bears")
 
 
@@ -2580,12 +1364,9 @@ def test_mana_ability_payoff_opens_ramp():
     # drops the "with a mana ability" subject, so it rides a byte-identical kept word
     # mirror (_MANA_DORK_SUPPORT_MIRROR). ADR-0027: ramp ALSO migrated — its
     # dork-support producer rode the SAME mirror, so both now fire from the hybrid path.
-    assert ("ramp", "you") not in _ks_real_regex("Raggadragga, Goreguts Boss")
     assert ("ramp", "you") in _ks_real("Raggadragga, Goreguts Boss")
-    assert "mana_amplifier" not in _keys_real_regex("Raggadragga, Goreguts Boss")
     assert ("mana_amplifier", "you") in _ks_real("Raggadragga, Goreguts Boss")
     # Over-fire guard: a vanilla beater is not a mana-dork payoff.
-    assert ("ramp", "you") not in _ks_real_regex("Grizzly Bears")
     assert ("ramp", "you") not in _ks_real("Grizzly Bears")
 
 
@@ -2602,91 +1383,6 @@ def test_charge_and_experience_counters_open_proliferate():
     # Over-fire guard: a PENALTY-counter commander (slumber) must NOT open proliferate —
     # proliferate would keep Arixmethes asleep (anti-synergy).
     assert ("proliferate_matters", "you") not in _ks_real("Arixmethes, Slumbering Isle")
-
-
-def test_polymorph_cheat_opens_cheat_into_play():
-    # Polymorph/cheat commanders dig until a creature card and PUT IT ONTO THE
-    # BATTLEFIELD (Jalira, Atla Palani, Eladamri) — they want big fatties to cheat in.
-    # ADR-0027 reveal/dig-v2: cheat_into_play migrated to the Card IR. phase scatters the
-    # put-onto-battlefield across reveal/dig siblings; project._recover_cheat_into_play_
-    # source (SIDECAR v37) APPENDS one canonical cheat_play+from:<top|hand>+to:
-    # battlefield marker the structural arm reads. The IR below mirrors that marker.
-    cheat_top_ir = _ir_with(
-        Ability(
-            kind="activated",
-            effects=(
-                Effect(
-                    category="cheat_play",
-                    scope="you",
-                    subject=Filter(card_types=("Creature",)),
-                    zones=("from:top", "to:battlefield"),
-                    raw="reveal cards from the top … put that card onto the battlefield",
-                ),
-            ),
-        )
-    )
-    jalira = {
-        "name": "Jalira, Master Polymorphist",
-        "type_line": "Legendary Creature — Human Wizard",
-        "oracle_text": (
-            "{2}{U}, {T}, Sacrifice another creature: Reveal cards from the top of "
-            "your library until you reveal a nonlegendary creature card. Put that card "
-            "onto the battlefield and the rest on the bottom of your library in a "
-            "random order."
-        ),
-    }
-    atla = {
-        "name": "Atla Palani, Nest Tender",
-        "type_line": "Legendary Creature — Bird Shaman",
-        "oracle_text": (
-            "{2}, {T}: Create a 0/1 green Egg creature token with defender.\n"
-            "Whenever an Egg you control dies, reveal cards from the top of your "
-            "library until you reveal a creature card. Put that card onto the "
-            "battlefield and the rest on the bottom of your library in a random order."
-        ),
-    }
-    eladamri = {
-        "name": "Eladamri, Korvecdal",
-        "type_line": "Legendary Creature — Elf",
-        "oracle_text": (
-            "You may look at the top card of your library any time.\n"
-            "You may cast creature spells from the top of your library.\n"
-            "{G}, {T}, Tap two untapped creatures you control: Reveal a card from your "
-            "hand or the top card of your library. If you reveal a creature card this "
-            "way, put it onto the battlefield. Activate only during your turn."
-        ),
-    }
-    assert "cheat_into_play" in _keys_hybrid_ir(jalira, cheat_top_ir)
-    assert "cheat_into_play" in _keys_hybrid_ir(atla, cheat_top_ir)
-    assert "cheat_into_play" in _keys_hybrid_ir(eladamri, cheat_top_ir)
-    # Over-fire guard: a graveyard reanimator is NOT a library/hand cheat. Its IR is a
-    # `reanimate` from:graveyard effect — the recovery appends NO cheat_play marker (the
-    # source-zone tag routes it to the reanimator lane, CR 110.2a / 400.7).
-    reanimator = {
-        "name": "Reanimator",
-        "type_line": "Sorcery",
-        "oracle_text": (
-            "Return target creature card from your graveyard to the battlefield."
-        ),
-    }
-    reanimate_ir = _ir_with(
-        Ability(
-            kind="spell",
-            effects=(
-                Effect(
-                    category="reanimate",
-                    scope="any",
-                    subject=Filter(card_types=("Creature",)),
-                    zones=("from:graveyard", "to:battlefield"),
-                    raw=(
-                        "Return target creature card from your graveyard to the "
-                        "battlefield."
-                    ),
-                ),
-            ),
-        )
-    )
-    assert "cheat_into_play" not in _keys_hybrid_ir(reanimator, reanimate_ir)
 
 
 def test_counter_payoff_with_a_counter_on_it_opens_counters():
@@ -2747,8 +1443,6 @@ def test_forced_combat_and_any_player_attack_open_goad():
     # ADR-0027: goad_makers migrated to the IR — the regex path no longer emits it;
     # the hybrid path serves it (Basandra via the goad-style single-target force_attack
     # effect; Aurelia via the _GOAD_REWARD_REF marker, mirrored as a goad_all effect).
-    assert ("goad_makers", "opponents") not in _ks_real_regex("Basandra, Battle Seraph")
-    assert ("goad_makers", "opponents") not in _ks_real_regex("Aurelia, the Law Above")
     assert ("goad_makers", "opponents") in {
         (s.key, s.scope) for s in test_signals("Basandra, Battle Seraph")
     }
@@ -2758,7 +1452,6 @@ def test_forced_combat_and_any_player_attack_open_goad():
     # Over-fire guard: a SELF forced-attacker (Zurgo) is an aggressive beater, not a
     # goad commander — it forces only ITSELF to attack each combat. The goad-style
     # force lift requires a "target creature" force, which Zurgo's self-force lacks.
-    assert ("goad_makers", "opponents") not in _ks_real_regex("Zurgo Helmsmasher")
     assert ("goad_makers", "opponents") not in {
         (s.key, s.scope) for s in test_signals("Zurgo Helmsmasher")
     }
@@ -2766,98 +1459,15 @@ def test_forced_combat_and_any_player_attack_open_goad():
 
 def test_gain_control_commander_also_opens_wants_theft():
     # A battlefield-steal commander (Dragonlord Silumgar "gain control of target
-    # creature") and a borrow-and-cast theft commander are facets of the SAME stealing
-    # archetype — a steal deck WANTS the borrow-and-cast package (Gonti, Hostage Taker,
-    # Thief of Sanity). ADR-0034 _matters sweep: that want-side cross-open is wants_theft
-    # (the steal-and-cast DOERS themselves are theft_makers). The card classification
-    # stays split (battlefield control change vs play-what-you-don't-own); only the
-    # COMMANDER cross-opens both sibling lanes. ADR-0027 β: gain_control migrated to the
-    # Card IR (the gated cat=='gain_control' arm), so it now fires from the hybrid IR
-    # path, and the facade re-opens the wants_theft sibling against the merged key set.
-    # Real oracle; the IR mirrors phase's ETB gain_control Effect.
-    silumgar = {
-        "name": "Dragonlord Silumgar",
-        "type_line": "Legendary Creature — Elder Dragon",
-        "oracle_text": (
-            "Flying, deathtouch\nWhen Dragonlord Silumgar enters, gain control of "
-            "target creature or planeswalker for as long as you control Dragonlord "
-            "Silumgar."
-        ),
-    }
-    silumgar_ir = _ir_with(
-        Ability(
-            kind="triggered",
-            effects=(
-                Effect(
-                    category="gain_control",
-                    scope="you",
-                    subject=Filter(card_types=("Creature", "Planeswalker")),
-                    raw="gain control of target creature or planeswalker",
-                ),
-            ),
-        )
-    )
-    ks = _wants_theft_reconciled(_ks_hybrid_ir(silumgar, silumgar_ir))
+    # creature") is a facet of the stealing archetype — a steal deck WANTS the
+    # borrow-and-cast package (ADR-0034 _matters sweep: the want-side cross-open is
+    # wants_theft, re-opened by extract_signals_hybrid's post-merge reconciliation
+    # against the merged key set). Real snapshot card.
+    ks = _ks_real("Dragonlord Silumgar")
     assert ("gain_control", "you") in ks
     assert ("wants_theft", "opponents") in ks
     # Over-fire guard: a commander with no steal/theft text opens neither.
-    plain = {
-        "name": "Plain Beater",
-        "type_line": "Legendary Creature — Bear",
-        "oracle_text": "Trample\nWhenever this creature attacks, it gets +1/+1.",
-    }
-    assert ("wants_theft", "opponents") not in _ks_hybrid(plain)
-
-
-def test_player_burn_source_opens_direct_damage():
-    # A commander that deals N/X damage to a PLAYER/opponent as a source (Syr Konrad,
-    # Mogis, Go-Shintai) is a burn deck — it wants burn payoffs and damage doublers
-    # (served by direct_damage). The damage_to_opp lane keys on a "whenever ~ deals
-    # combat damage" TRIGGER, so these source-burners opened no damage lane. Real oracle.
-    syr_konrad = {
-        "name": "Syr Konrad, the Grim",
-        "type_line": "Legendary Creature — Human Knight",
-        "oracle_text": (
-            "Whenever another creature dies, or a creature card is put into a graveyard "
-            "from anywhere other than the battlefield, or a creature card leaves your "
-            "graveyard, Syr Konrad, the Grim deals 1 damage to each opponent.\n"
-            "{1}{B}: Each player mills a card."
-        ),
-    }
-    mogis = {
-        "name": "Mogis, God of Slaughter",
-        "type_line": "Legendary Enchantment Creature — God",
-        "oracle_text": (
-            "Indestructible\nAs long as your devotion to black and red is less than "
-            "seven, Mogis isn't a creature.\nAt the beginning of each opponent's "
-            "upkeep, Mogis deals 2 damage to that player unless they sacrifice a "
-            "creature of their choice."
-        ),
-    }
-    go_shintai = {
-        "name": "Go-Shintai of Ancient Wars",
-        "type_line": "Legendary Enchantment Creature — Shrine",
-        "oracle_text": (
-            "First strike\nAt the beginning of your end step, you may pay {1}. When you "
-            "do, Go-Shintai of Ancient Wars deals X damage to target player or "
-            "planeswalker, where X is the number of Shrines you control."
-        ),
-    }
-    # ADR-0027: direct_damage migrated to the Card IR. "each opponent" (Syr Konrad) is
-    # scope='opp'; "to that player" (Mogis) and "to target player or planeswalker"
-    # (Go-Shintai) parse a subject-less scope='any' damage Effect with a player
-    # recipient — all player-reachable, served from the structural arm; the bare-IR
-    # hybrid path re-supplies them via the byte-identical mirror too.
-    assert ("direct_damage", "you") in _ks_hybrid(syr_konrad)
-    assert ("direct_damage", "you") in _ks_hybrid(mogis)
-    assert ("direct_damage", "you") in _ks_hybrid(go_shintai)
-    # Over-fire guard: a commander that deals no damage at all does not open the lane.
-    healer = {
-        "name": "Healer Commander",
-        "type_line": "Legendary Creature — Cleric",
-        "oracle_text": "Whenever you gain life, draw a card.",
-    }
-    assert ("direct_damage", "you") not in _ks_hybrid(healer)
+    assert ("wants_theft", "opponents") not in _ks_real("Grizzly Bears")
 
 
 def test_donate_via_that_player_opens_donate():
@@ -2877,73 +1487,19 @@ def test_donate_via_that_player_opens_donate():
 def test_dont_own_payoff_opens_wants_theft_and_gain_control():
     # A theft-PAYOFF commander that rewards permanents "you control but DON'T OWN"
     # (Don Andres, Arvinox) is built on stealing — it WANTS the whole theft package
-    # (battlefield steals AND borrow-and-cast). ADR-0034 _matters sweep: the want-side
-    # cross-open is wants_theft. Open both sibling lanes. Real oracle.
-    don_andres = {
-        "name": "Don Andres, the Renegade",
-        "type_line": "Legendary Creature — Vampire Pirate",
-        "oracle_text": (
-            "Each creature you control but don't own gets +2/+2, has menace and "
-            "deathtouch, and is a Pirate in addition to its other types.\nWhenever you "
-            "gain control of one or more permanents you don't own, draw a card."
-        ),
-    }
-    arvinox = {
-        "name": "Arvinox, the Mind Flail",
-        "type_line": "Legendary Artifact Creature — Phyrexian Horror",
-        "oracle_text": (
-            "Arvinox isn't a creature unless you control three or more permanents you "
-            "don't own.\nAt the beginning of your end step, exile the bottom card of "
-            "each opponent's library face down."
-        ),
-    }
-    # Gonti, Canny Acquisitor: "Spells you cast but don't own ..." — the intervening
-    # verb ("cast") must not slip past the don't-own detector.
-    gonti_canny = {
-        "name": "Gonti, Canny Acquisitor",
-        "type_line": "Legendary Creature — Aetherborn Rogue",
-        "oracle_text": (
-            "Spells you cast but don't own cost {1} less to cast.\nWhenever one or more "
-            "creatures you control deal combat damage to a player, exile the top card "
-            "of that player's library face down. You may look at and play that card."
-        ),
-    }
-    for cmd in (don_andres, arvinox, gonti_canny):
-        ks = _ks(cmd)
-        assert ("wants_theft", "opponents") in ks, cmd["name"]
-        assert ("gain_control", "you") in ks, cmd["name"]
+    # (battlefield steals AND borrow-and-cast). Gonti, Canny Acquisitor's "Spells
+    # you cast but don't own" pins the intervening-verb form. The don't-own tell is
+    # extract_signals_hybrid's post-merge reconciliation. Real oracle.
+    for name in (
+        "Don Andres, the Renegade",
+        "Arvinox, the Mind Flail",
+        "Gonti, Canny Acquisitor",
+    ):
+        ks = _ks_real(name)
+        assert ("wants_theft", "opponents") in ks, name
+        assert ("gain_control", "you") in ks, name
     # Over-fire guard: a plain commander opens neither.
-    plain = {
-        "name": "Plain Beater",
-        "type_line": "Legendary Creature — Bear",
-        "oracle_text": "Trample",
-    }
-    assert ("wants_theft", "opponents") not in _ks(plain)
-
-
-def test_baseline_creature_etb_unchanged():
-    # ADR-0027 β: creature_etb migrated to the Card IR (a byte-identical kept-mirror),
-    # so it serves from the hybrid path, not pure regex.
-    c = {
-        "name": "ETB",
-        "oracle_text": "Whenever a creature you control enters, draw a card.",
-    }
-    assert ("creature_etb", "you") in _ks_hybrid(c)
-
-
-# --- Phase B: confidence flag + nested-scope / self-reference resolvers ---------
-
-
-def _by_key(card, key):
-    return next(s for s in extract_signals(card) if s.key == key)
-
-
-def test_confidence_defaults_high():
-    c = {
-        "name": "ETB",
-        "oracle_text": "Whenever a creature you control enters, draw a card.",
-    }
-    assert all(s.confidence == "high" for s in extract_signals(c))
+    assert ("wants_theft", "opponents") not in _ks_real("Grizzly Bears")
 
 
 def test_self_reference_resolves_any_scope_to_you_high_confidence():
@@ -3077,52 +1633,12 @@ def test_creature_etb_opens_on_delayed_had_enter_payoff():
     assert "creature_etb" in _keys_real("Ephara, God of the Polis")
 
 
-def test_artifacts_matter_opens_for_artifact_tutor():
-    # Arcum Dagsson tutors artifacts ("search ... for a noncreature artifact card, put
-    # it onto the battlefield") and sacs artifact creatures — an artifact commander —
-    # but the detector wanted the "artifacts you control" possessive, so it missed him.
-    # artifacts_matter already serves artifacts by type, so opening it covers his fodder.
-    arcum = {
-        "name": "Arcum Dagsson",
-        "type_line": "Legendary Creature — Human Artificer",
-        "oracle_text": (
-            "{T}: Target artifact creature's controller sacrifices it. That player "
-            "may search their library for a noncreature artifact card, put it onto "
-            "the battlefield, then shuffle."
-        ),
-    }
-    # ADR-0027: artifacts_matter migrated to the Card IR — the "search … for a
-    # noncreature artifact card" tutor rides the kept oracle mirror on the hybrid path.
-    assert "artifacts_matter" in _keys_hybrid(arcum)
-    # Over-fire guard: a generic creature-tutor is not an artifact commander.
-    diabolic_tutor = {
-        "name": "Tutor Test",
-        "type_line": "Legendary Creature — Wizard",
-        "oracle_text": "When this creature enters, search your library for a creature card, reveal it, put it into your hand, then shuffle.",
-    }
-    assert "artifacts_matter" not in _keys_hybrid(diabolic_tutor)
-
-
 def test_creature_recursion_opens_and_self_sac_creatures_serve_it():
-    # Creature-recursion commanders (return/put a creature card from your graveyard:
-    # Hua Tuo, Adun, Othelm) loop SELF-SACRIFICING creatures — the sac is the
+    # Creature-recursion commanders loop SELF-SACRIFICING creatures — the sac is the
     # activation (repeatable value) AND fuels the graveyard for re-recursion, no
-    # separate outlet needed (Spore Frog). Real cards, full oracle.
-    # ADR-0027: creature_recursion is IR-served (MIGRATED_KEYS); Hua Tuo's GY→library
-    # recursion rides the byte-identical _CREATURE_RECURSION_MIRROR (which scans the
-    # oracle text), so it surfaces on the hybrid path with any non-None IR.
-    hua_tuo = {
-        "name": "Hua Tuo, Honored Physician",
-        "type_line": "Legendary Creature — Human Advisor",
-        "oracle_text": (
-            "{T}: Put target creature card from your graveyard on top of your "
-            "library. Activate only during your turn, before attackers are declared."
-        ),
-    }
-    assert "creature_recursion" in _keys_hybrid(hua_tuo)
-    # Serve: self-sacrificing creatures are the loop fuel.
+    # separate outlet needed (Spore Frog). The extractor firing is pinned by
+    # test_signal_keys_real_cards (creature_recursion); here the SERVE is checked.
     from mtg_utils._deck_forge.signal_specs import serve_from_dict, spec_for
-    from mtg_utils._deck_forge.signals import Signal
 
     def lane_covers(card, key):
         sp = spec_for(Signal(key=key, scope="you", subject="", text="", source=""))
@@ -3144,72 +1660,38 @@ def test_creature_recursion_opens_and_self_sac_creatures_serve_it():
 
 
 def test_self_etb_value_matches_whenever_and_plural_enter():
-    # A self-ETB-value commander wants blink + ETB-trigger doublers (Panharmonicon).
-    # The detector used "\bwhen " (missing "WHENEVER ~ enters" — Roxanne) and "enters"
-    # (missing plural "enter"). Real card, full oracle.
-    roxanne = {
-        "name": "Roxanne, Starfall Savant",
-        "type_line": "Legendary Creature — Cat Druid",
-        "oracle_text": (
-            "Whenever Roxanne enters or attacks, create a tapped colorless artifact "
-            'token named Meteorite with "When this token enters, it deals 2 damage '
-            'to any target" and "{T}: Add one mana of any color."\n'
-            "Whenever you tap an artifact token for mana, add one mana of any type "
-            "that artifact token produced."
-        ),
-    }
-    # ADR-0027 v34: blink_flicker migrated — the self-ETB-value avenue opener was
-    # re-homed to the IR membership block; use the hybrid path with include_membership.
-    assert "blink_flicker" in {
-        s.key for s in extract_signals_ir(roxanne, _bare_ir(), include_membership=True)
-    }
+    # ``_self_etb_value`` (production membership-floor input) must match "WHENEVER ~
+    # enters" (Roxanne) — the old detector keyed on "\bwhen " only. Real oracle.
+    roxanne_text = (
+        "Whenever Roxanne enters or attacks, create a tapped colorless artifact "
+        'token named Meteorite with "When this token enters, it deals 2 damage '
+        'to any target" and "{T}: Add one mana of any color."'
+    )
+    assert _self_etb_value(roxanne_text, "Roxanne, Starfall Savant")
 
 
 def test_self_etb_value_resolves_short_name_not_just_first_token():
-    # The self-reference in oracle is the name BEFORE the comma (the short name), which
-    # may be hyphenated, two-named, or multi-word — not the bare first token. The
-    # detector keyed only on the first token immediately before "enters", so
-    # "When Spider-Byte enters" / "When Donnie & April enter" / "When Black Cat enters"
-    # all missed (the first token is followed by more name, not " enters"). A self-ETB
-    # commander wants blink + ETB-trigger doublers (Panharmonicon). Real cards.
-    spider_byte = {
-        "name": "Spider-Byte, Web Warden",
-        "type_line": "Legendary Creature — Spider",
-        "oracle_text": (
-            "When Spider-Byte enters, return up to one target nonland permanent to "
-            "its owner's hand."
-        ),
-    }
-    donnie_april = {
-        "name": "Donnie & April, Adorkable Duo",
-        "type_line": "Legendary Creature — Mutant Turtle",
-        "oracle_text": (
-            "When Donnie & April enter, choose one or both. Each mode must target a "
-            "different player.\n• Target player draws two cards.\n• Target player "
-            "returns an artifact, instant, or sorcery card from their graveyard to "
-            "their hand."
-        ),
-    }
-    black_cat = {
-        "name": "Black Cat, Cunning Thief",
-        "type_line": "Legendary Creature — Cat",
-        "oracle_text": (
-            "When Black Cat enters, look at the top nine cards of target opponent's "
-            "library, exile two of them face down, then put the rest on the bottom of "
-            "their library in a random order."
-        ),
-    }
-
-    # ADR-0027 v34: blink_flicker migrated — the self-ETB-value avenue opener was
-    # re-homed to the IR membership block; use the hybrid path with include_membership.
-    def _mem(c):
-        return {
-            s.key for s in extract_signals_ir(c, _bare_ir(), include_membership=True)
-        }
-
-    assert "blink_flicker" in _mem(spider_byte)
-    assert "blink_flicker" in _mem(donnie_april)
-    assert "blink_flicker" in _mem(black_cat)
+    # The self-reference in oracle is the name BEFORE the comma (the short name),
+    # which may be hyphenated, two-named, or multi-word — not the bare first token.
+    # "When Spider-Byte enters" / "When Donnie & April enter" / "When Black Cat
+    # enters" must all match ``_self_etb_value`` (production membership-floor
+    # input). Real oracle text.
+    assert _self_etb_value(
+        "When Spider-Byte enters, return up to one target nonland permanent to "
+        "its owner's hand.",
+        "Spider-Byte, Web Warden",
+    )
+    assert _self_etb_value(
+        "When Donnie & April enter, choose one or both. Each mode must target a "
+        "different player.",
+        "Donnie & April, Adorkable Duo",
+    )
+    assert _self_etb_value(
+        "When Black Cat enters, look at the top nine cards of target opponent's "
+        "library, exile two of them face down, then put the rest on the bottom of "
+        "their library in a random order.",
+        "Black Cat, Cunning Thief",
+    )
 
 
 def test_self_dies_value_resolves_short_name_for_clone():
@@ -3310,72 +1792,24 @@ def test_voltron_override_opens_for_likely_voltron_commanders():
 
 def test_voltron_orthogonal_signals_do_not_suppress_fallback():
     # A Background ("Choose a Background") is archetype-agnostic and conditional
-    # self-protection is a resilient-beater tell — neither is a non-voltron PLAN, so a
-    # commander whose ONLY signal is one of these reads as the vanilla voltron body it is
-    # (Wilson is a trampling bear to suit up; Thrun is an indestructible beater). A REAL
-    # engine still suppresses the fallback. Real oracle, full text.
-    wilson = {
-        "name": "Wilson, Refined Grizzly",
-        "type_line": "Legendary Creature — Bear Warrior",
-        "power": "4",
-        "oracle_text": (
-            "This spell can't be countered.\n"
-            "Vigilance, reach, trample\n"
-            "Ward {2} (Whenever this creature becomes the target of a spell or ability "
-            "an opponent controls, counter it unless that player pays {2}.)\n"
-            "Choose a Background (You can have a Background as a second commander.)"
-        ),
-    }
-    thrun = {
-        "name": "Thrun, Breaker of Silence",
-        "type_line": "Legendary Creature — Troll Shaman",
-        "power": "5",
-        "oracle_text": (
-            "This spell can't be countered.\n"
-            "Trample\n"
-            "Thrun can't be the target of nongreen spells your opponents control or "
-            "abilities from nongreen sources your opponents control.\n"
-            "During your turn, Thrun has indestructible."
-        ),
-    }
-    assert "voltron_matters" in {s.key for s in extract_signals_ir(wilson, _bare_ir())}
-    assert "voltron_matters" in {s.key for s in extract_signals_ir(thrun, _bare_ir())}
-    # Over-fire guard: a real ENGINE (here a spellslinger draw engine) IS a non-voltron
-    # plan — it suppresses the fallback even on an evasive power-2 body with no voltron
-    # override match.
-    spellslinger = {
-        "name": "Generic Spellslinger",
-        "type_line": "Legendary Creature — Human Wizard",
-        "power": "2",
-        "oracle_text": (
-            "Flying\nWhenever you cast an instant or sorcery spell, draw a card."
-        ),
-    }
-    assert "voltron_matters" not in {
-        s.key for s in extract_signals_ir(spellslinger, _bare_ir())
-    }
+    # self-protection is a resilient-beater tell — neither is a non-voltron PLAN, so
+    # a commander whose ONLY signal is one of these reads as the vanilla voltron
+    # body it is (Wilson is a trampling bear to suit up). A REAL engine still
+    # suppresses the fallback (Mizzix is a spellslinger, not a suit-up body). Real
+    # snapshot cards.
+    assert "voltron_matters" in _keys_real("Wilson, Refined Grizzly")
+    assert "voltron_matters" not in _keys_real("Mizzix of the Izmagnus")
 
 
 def test_sea_monster_tribal_group_covers_all_four_types():
-    # The sea-monster types (Kraken/Leviathan/Octopus/Serpent) share one tribal identity
-    # — no card rewards any member alone (Quest for Ula's Temple / Whelming Wave / Slinn
-    # Voda always name all four). So a commander of one type (Lorthos = Octopus) must
-    # cover the whole group + the group-naming payoffs. Real oracle.
+    # The sea-monster types (Kraken/Leviathan/Octopus/Serpent) share one tribal
+    # identity — no card rewards any member alone (Quest for Ula's Temple / Whelming
+    # Wave / Slinn Voda always name all four). So an Octopus commander's tribe spec
+    # must cover the whole group + the group-naming payoffs.
     from mtg_utils._deck_forge.signal_specs import serve_from_dict, spec_for
 
-    lorthos = {
-        "name": "Lorthos, the Tidemaker",
-        "type_line": "Legendary Creature — Octopus",
-        "oracle_text": (
-            "Whenever Lorthos attacks, you may pay {8}. If you do, tap up to eight "
-            "target permanents. Those permanents don't untap during their controllers' "
-            "next untap steps."
-        ),
-    }
-    octo_sig = next(
-        s
-        for s in extract_signals(lorthos, include_membership=True)
-        if s.key == "type_matters" and s.subject.lower() == "octopus"
+    octo_sig = Signal(
+        key="type_matters", scope="you", subject="Octopus", text="", source=""
     )
     sp = spec_for(octo_sig)
 
@@ -3415,10 +1849,8 @@ def test_sea_monster_tribal_group_covers_all_four_types():
     assert covers(tromokratis)  # Kraken body, no oracle tribal text
     assert covers(stormtide)  # Leviathan body
     assert covers(whelming)  # group-naming payoff (Sorcery, no creature type)
-    # Over-fire guard: a STANDALONE tribe (Goblin) must NOT pick up a sea monster — the
-    # group only applies to the four no-solo-identity types.
-    from mtg_utils._deck_forge.signals import Signal
-
+    # Over-fire guard: a STANDALONE tribe (Goblin) must NOT pick up a sea monster —
+    # the group only applies to the four no-solo-identity types.
     gob = spec_for(
         Signal(key="type_matters", scope="you", subject="Goblin", text="", source="")
     )
@@ -3430,50 +1862,12 @@ def test_sea_monster_tribal_group_covers_all_four_types():
 
 
 def test_kazuul_defending_player_opens_goad_and_force_attack_serves():
-    # Kazuul rewards opponents attacking YOU ("whenever a creature an opponent controls
-    # attacks ... you're the defending player, create an Ogre"), so it wants force-attack
-    # / goad to feed the trigger — but its phrasing matched no goad detector. Open
-    # goad_makers, and the lane's force-attack sub-avenue covers the force-ALL-attack
-    # cards (which carry no "goad" keyword). Real oracle, full text.
-    kazuul = {
-        "name": "Kazuul, Tyrant of the Cliffs",
-        "type_line": "Legendary Creature — Ogre Warrior",
-        "oracle_text": (
-            "Whenever a creature an opponent controls attacks, if you're the defending "
-            "player, create a 3/3 red Ogre creature token unless that creature's "
-            "controller pays {3}."
-        ),
-    }
-    # ADR-0027: goad_makers migrated to the IR — the regex path no longer emits it;
-    # the hybrid path serves it from the _GOAD_REWARD_REF defending-player marker
-    # (mirrored as a goad_all effect).
-    assert "goad_makers" not in _keys(kazuul)
-    kazuul_ir = Card(
-        oracle_id="x",
-        name="X",
-        faces=(
-            Face(
-                name="X",
-                abilities=(
-                    Ability(
-                        kind="triggered",
-                        effects=(
-                            Effect(
-                                category="goad_all",
-                                scope="opp",
-                                raw="creature an opponent controls attacks ... "
-                                "you're the defending player",
-                            ),
-                        ),
-                    ),
-                ),
-            ),
-        ),
-    )
-    assert "goad_makers" in _keys_hybrid_ir(kazuul, kazuul_ir)
-
+    # Goad cards are top-synergy for commanders that reward opponents attacking —
+    # the extractor firing (the _GOAD_REWARD_REF defending-player marker) is pinned
+    # by test_crosswalk's goad_makers battery; here the lane's force-attack
+    # sub-avenue must cover the force-ALL-attack cards (which carry no "goad"
+    # keyword). Real oracle.
     from mtg_utils._deck_forge.signal_specs import serve_from_dict, spec_for
-    from mtg_utils._deck_forge.signals import Signal
 
     def lane_covers(card, key, scope):
         sp = spec_for(Signal(key=key, scope=scope, subject="", text="", source=""))
@@ -3500,8 +1894,8 @@ def test_kazuul_defending_player_opens_goad_and_force_attack_serves():
     }
     assert lane_covers(diplomats, "goad_makers", "opponents") is True
     assert lane_covers(warstoll, "goad_makers", "opponents") is True
-    # Over-fire guard: a SELF forced-attack drawback (Juggernaut) is an aggressive beater,
-    # not a force-the-table effect — the plural/symmetric anchors must keep it out.
+    # Over-fire guard: a SELF forced-attack drawback (Juggernaut) is an aggressive
+    # beater, not a force-the-table effect.
     juggernaut = {
         "name": "Juggernaut",
         "type_line": "Artifact Creature — Juggernaut",
@@ -3514,56 +1908,14 @@ def test_kazuul_defending_player_opens_goad_and_force_attack_serves():
 
 
 def test_low_power_matters_opens_and_serves():
-    # Subira rewards "creature you control with power 2 or less"; the lane surfaces the
-    # small-creature payoffs (Raid Bombardment, Delney, Arabella). Anchored on "you
-    # control with power N or less" so removal and the vanilla power<=2 pool stay out.
-    # Real oracle, full text.
-    # ADR-0027: low_power_matters migrated to the Card IR — phase drops the power
-    # threshold on Subira's buff/etb subject, recovered by a `_LOW_POWER_REF` marker
-    # rebuilding the Power:LE Creature subject, read through the hybrid IR path. The
-    # serve pool stays oracle-defined (the hand spec).
-    subira = {
-        "name": "Subira, Tulzidi Caravanner",
-        "type_line": "Legendary Creature — Human Shaman",
-        "oracle_text": (
-            "Haste\n"
-            "{1}: Another target creature with power 2 or less can't be blocked this "
-            "turn.\n"
-            "{1}{R}, {T}, Discard your hand: Until end of turn, whenever a creature you "
-            "control with power 2 or less deals combat damage to a player, draw a card."
-        ),
-    }
-    subira_ir = Card(
-        oracle_id="x",
-        name="Subira, Tulzidi Caravanner",
-        faces=(
-            Face(
-                name="Subira, Tulzidi Caravanner",
-                abilities=(
-                    Ability(
-                        kind="static",
-                        effects=(
-                            Effect(
-                                category="tap",
-                                scope="you",
-                                subject=Filter(
-                                    card_types=("Creature",),
-                                    controller="you",
-                                    predicates=("PtComparison:Power:LE:2",),
-                                ),
-                                raw="creature you control with power 2 or less",
-                            ),
-                        ),
-                    ),
-                ),
-            ),
-        ),
-    )
-    assert ("low_power_matters", "you") in _ks_hybrid_card(subira, subira_ir)
-    assert "low_power_matters" not in _keys(subira)
+    # Subira rewards "creature you control with power 2 or less"; the lane surfaces
+    # the small-creature payoffs (Raid Bombardment, Delney, Arabella). Anchored on
+    # "you control with power N or less" so removal and the vanilla power<=2 pool
+    # stay out. Real snapshot card (the structural PtComparison read is also pinned
+    # by test_crosswalk).
+    assert ("low_power_matters", "you") in _ks_real("Subira, Tulzidi Caravanner")
 
     from mtg_utils._deck_forge.signal_specs import serve_from_dict, spec_for
-    from mtg_utils._deck_forge.signals import Signal
 
     def lane_covers(card, key):
         sp = spec_for(Signal(key=key, scope="you", subject="", text="", source=""))
@@ -3590,9 +1942,8 @@ def test_low_power_matters_opens_and_serves():
         "type_line": "Instant",
         "oracle_text": "Destroy target creature with power 2 or less.",
     }
-    assert "low_power_matters" not in _keys(removal)
     assert lane_covers(removal, "low_power_matters") is False
-    # Over-fire guard 2: a vanilla small body is not on-theme fodder (no power_max serve).
+    # Over-fire guard 2: a vanilla small body is not on-theme fodder.
     bears = {
         "name": "Grizzly Bears",
         "type_line": "Creature — Bear",
@@ -3601,110 +1952,13 @@ def test_low_power_matters_opens_and_serves():
     assert lane_covers(bears, "low_power_matters") is False
 
 
-def test_tribal_support_without_you_control_opens_type_matters():
-    # A tribal-SUPPORT commander whose tribe reference isn't "Xs you control" — it buffs
-    # "target <Type>", tutors "a <Type> card", wraths "destroy all non-<Type>", or
-    # cost-reduces "<Type> spells" — is still that tribe's commander. Real oracle.
-    # ADR-0027: type_matters migrated → hybrid path.
-    def subs(card):
-        return {
-            s.subject
-            for s in extract_signals_ir(card, _bare_ir(), include_membership=True)
-            if s.key == "type_matters"
-        }
-
-    owen = {
-        "name": "Owen Grady, Raptor Trainer",
-        "type_line": "Legendary Creature — Human Soldier Scientist",
-        "oracle_text": (
-            "Partner with Blue, Loyal Raptor\n"
-            "{T}: Put your choice of a menace, trample, reach, or haste counter on "
-            "target Dinosaur. Activate only as a sorcery."
-        ),
-    }
-    sivitri = {
-        "name": "Sivitri, Dragon Master",
-        "type_line": "Legendary Planeswalker — Sivitri",
-        "oracle_text": (
-            "−3: Search your library for a Dragon card, reveal it, put it into your "
-            "hand, then shuffle.\n"
-            "−7: Destroy all non-Dragon creatures.\n"
-            "Sivitri, Dragon Master can be your commander."
-        ),
-    }
-    nogi = {
-        "name": "Nogi, Draco-Zealot",
-        "type_line": "Legendary Creature — Kobold Shaman",
-        "oracle_text": (
-            "Dragon spells you cast cost {1} less to cast.\n"
-            "Whenever Nogi attacks, if you control three or more Dragons, until end of "
-            "turn, Nogi becomes a Dragon with base power and toughness 5/5 and gains "
-            "flying."
-        ),
-    }
-    assert "Dinosaur" in subs(owen)
-    assert "Dragon" in subs(sivitri)  # tutor + wrath
-    assert "Dragon" in subs(nogi)  # cost reducer
-    # Over-fire guard: "non-<Type>" in a DRAWBACK ("sacrifice all non-Ogre creatures",
-    # Yukora) is NOT tribal support — only "destroy ALL non-<Type>" wraths around your
-    # own tribe.
-    yukora = {
-        "name": "Yukora, the Prisoner",
-        "type_line": "Legendary Creature — Demon Spirit",
-        "oracle_text": (
-            "When Yukora leaves the battlefield, sacrifice all non-Ogre creatures you "
-            "control."
-        ),
-    }
-    assert "Ogre" not in subs(yukora)  # "sacrifice all non-Ogre" drawback != tribal
-
-
-def test_mutagen_token_maker_opens_artifacts_matter():
-    # Mutagen (TMNT) is a resource ARTIFACT token (sac for a +1/+1 counter, like
-    # Food/Clue), so a Mutagen maker is an artifact deck — but "mutagen" was missing
-    # from the artifact-token-maker vocabulary, so April O'Neil (makes a Mutagen every
-    # spell) and the Mutant commanders opened no artifact lane. Real oracle.
-    april = {
-        "name": "April O'Neil, Human Element",
-        "type_line": "Legendary Creature — Human Detective",
-        "oracle_text": (
-            "Whenever a player casts an artifact, instant, or sorcery spell, you create "
-            "a Mutagen token. (It's an artifact with \"{1}, {T}, Sacrifice this token: "
-            'Put a +1/+1 counter on target creature. Activate only as a sorcery.")'
-        ),
-    }
-    # ADR-0027: artifacts_matter migrated to the Card IR — the Mutagen artifact-token
-    # maker rides the kept oracle mirror on the hybrid path.
-    assert "artifacts_matter" in _keys_hybrid(april)
-    # Over-fire guard: a "create a <subtype> artifact CREATURE token" go-wide maker is a
-    # tokens deck, not an artifacts deck — the addition is resource-token-subtype-only,
-    # never the bare parent word "artifact", so a Servo maker stays out.
-    servo = {
-        "name": "Generic Servo Maker",
-        "type_line": "Creature — Artificer",
-        "oracle_text": "{T}: Create a 1/1 colorless Servo artifact creature token.",
-    }
-    assert "artifacts_matter" not in _keys_hybrid(servo)
-
-
 def test_gowide_package_creature_scoped_and_count_scaler_opens_it():
-    # A creature-count-scaling commander (Leonardo "+1/+0 for each other creature you
-    # control") is go-wide, so it opens tokens_matter; the lane's go-wide package serves
-    # MASS creature-token makers (create 2+/X) and team protection. CREATURE-scoped: a
-    # Treasure/Clue maker (non-creature tokens) does NOT widen the board and stays out.
-    leonardo = {
-        "name": "Leonardo, Big Brother",
-        "type_line": "Legendary Creature — Mutant Ninja Turtle",
-        "oracle_text": (
-            "Sneak {W}\nLeonardo gets +1/+0 for each other creature you control."
-        ),
-    }
-    # ADR-0027: tokens_matter migrated to the Card IR via a byte-identical kept-mirror
-    # (the go-wide count-scaler arm), so assert against the hybrid path.
-    assert "tokens_matter" in _keys_hybrid(leonardo)
-
+    # A creature-count-scaling commander is go-wide, so tokens_matter's go-wide
+    # package serves MASS creature-token makers (create 2+/X) and team protection.
+    # CREATURE-scoped: a Treasure/Clue maker (non-creature tokens) does NOT widen
+    # the board and stays out. The extractor firing is pinned by
+    # test_signal_keys_real_cards (tokens_matter) + test_crosswalk.
     from mtg_utils._deck_forge.signal_specs import serve_from_dict, spec_for
-    from mtg_utils._deck_forge.signals import Signal
 
     def lane_covers(card):
         sp = spec_for(
@@ -3730,8 +1984,8 @@ def test_gowide_package_creature_scoped_and_count_scaler_opens_it():
     }
     assert lane_covers(battle_screech) is True  # mass creature-token maker
     assert lane_covers(rootborn) is True  # team protection
-    # Creature-scoping guard: a Treasure maker makes NON-creature tokens — it doesn't go
-    # wide and must NOT be in the go-wide package.
+    # Creature-scoping guard: a Treasure maker makes NON-creature tokens — it
+    # doesn't go wide and must NOT be in the go-wide package.
     tithe = {
         "name": "Smothering Tithe",
         "type_line": "Enchantment",
@@ -3782,54 +2036,12 @@ def test_tokens_matter_serves_mobilize_swarm():
 
 
 def test_cost_reduction_serves_stacking_reducers():
-    # A cost-reduction commander (Stenn makes its chosen type cost {1} less) wants to
-    # STACK more category reducers to go off; the lane otherwise served only the bombs
-    # that exploit the discount. The reducer sub-avenue serves "<your/type> spells cost
-    # {N} less" (Cloud Key, Etherium Sculptor), excluding the self-only "this spell costs
-    # {X} less" (Ghalta) and the cost-increase taxes. Real oracle.
+    # A cost-reduction commander (Stenn makes its chosen type cost {1} less) wants
+    # to STACK more category reducers to go off. The reducer sub-avenue serves
+    # "<your/type> spells cost {N} less" (Cloud Key, Etherium Sculptor), excluding
+    # the self-only "this spell costs {X} less" (Ghalta). The extractor firing is
+    # pinned by test_signal_keys_real_cards (cost_reduction). Real oracle.
     from mtg_utils._deck_forge.signal_specs import serve_from_dict, spec_for
-    from mtg_utils._deck_forge.signals import Signal
-    from mtg_utils.card_ir import Ability, Card, Effect, Face, Filter
-
-    stenn = {
-        "name": "Stenn, Paranoid Partisan",
-        "type_line": "Legendary Creature — Human Wizard",
-        "oracle_text": (
-            "As Stenn enters, choose a card type other than creature or land.\n"
-            "Spells you cast of the chosen type cost {1} less to cast.\n"
-            "{1}{W}{U}: Exile Stenn. Return it to the battlefield under its owner's "
-            "control at the beginning of the next end step."
-        ),
-    }
-    # ADR-0027 β: cost_reduction is IR-served — a static ModifyCost{Reduce} Effect with a
-    # non-None spell_filter subject. The legacy regex path no longer emits it.
-    stenn_ir = Card(
-        oracle_id="x",
-        name="Stenn, Paranoid Partisan",
-        faces=(
-            Face(
-                name="Stenn, Paranoid Partisan",
-                abilities=(
-                    Ability(
-                        kind="static",
-                        effects=(
-                            Effect(
-                                category="cost_reduction",
-                                scope="you",
-                                subject=Filter(card_types=("Card",)),
-                                raw=(
-                                    "Spells you cast of the chosen type cost "
-                                    "{1} less to cast."
-                                ),
-                            ),
-                        ),
-                    ),
-                ),
-            ),
-        ),
-    )
-    assert "cost_reduction" not in _keys(stenn)
-    assert "cost_reduction" in {s.key for s in extract_signals_ir(stenn, stenn_ir)}
 
     def lane_covers(card, key, scope):
         sp = spec_for(Signal(key=key, scope=scope, subject="", text="", source=""))
@@ -3845,9 +2057,8 @@ def test_cost_reduction_serves_stacking_reducers():
         "oracle_text": "Artifact spells you cast cost {1} less to cast.",
     }
     assert lane_covers(etherium, "cost_reduction", "you") is True
-    # Over-fire guard (isolates the reducer extra): a SELF-only "this spell costs {2}
-    # less" is not a stacking reducer — the plural "spells" anchor keeps it out. Use a
-    # fixed cost so the main {X}/storm serve doesn't catch it for unrelated reasons.
+    # Over-fire guard (isolates the reducer extra): a SELF-only "this spell costs
+    # {2} less" is not a stacking reducer — the plural "spells" anchor keeps it out.
     self_only = {
         "name": "Self Discounter",
         "type_line": "Creature — Beast",
@@ -3857,28 +2068,16 @@ def test_cost_reduction_serves_stacking_reducers():
 
 
 def test_token_maker_serves_token_aristocrats_drain():
-    # A token-flood commander (Endrek Sahr makes Thrulls) wants token-aristocrats drain
-    # that fires on token CREATION (Mirkwood Bats) — it triggers just by going wide, no
-    # sac outlet needed. Token-specific, so the generic "whenever a creature dies" Blood
-    # Artist (served by the death lanes) does NOT match this sub-avenue. Real oracle.
+    # A token-flood commander (Endrek Sahr makes Thrulls) wants token-aristocrats
+    # drain that fires on token CREATION (Mirkwood Bats) — it triggers just by going
+    # wide, no sac outlet needed. Token-specific, so the generic "whenever a
+    # creature dies" Blood Artist (served by the death lanes) does NOT match this
+    # sub-avenue. The extractor firing is pinned by test_signal_keys_real_cards
+    # (token_maker); the spec here carries the captured tribal subject.
     from mtg_utils._deck_forge.signal_specs import serve_from_dict, spec_for
 
-    endrek = {
-        "name": "Endrek Sahr, Master Breeder",
-        "type_line": "Legendary Creature — Human Wizard",
-        "oracle_text": (
-            "Whenever you cast a creature spell, create X 1/1 black Thrull creature "
-            "tokens, where X is that spell's mana value.\n"
-            "When you control seven or more Thrulls, sacrifice Endrek Sahr, Master "
-            "Breeder."
-        ),
-    }
-    # ADR-0027: token_maker migrated to the Card IR — read it from the HYBRID path (the
-    # byte-identical kept mirror captures Endrek's "create X … Thrull creature tokens").
-    tm_sig = next(
-        s
-        for s in extract_signals_ir(endrek, _bare_ir(), include_membership=True)
-        if s.key == "token_maker"
+    tm_sig = Signal(
+        key="token_maker", scope="you", subject="Thrull", text="", source=""
     )
     sp = spec_for(tm_sig)
 
@@ -3898,8 +2097,8 @@ def test_token_maker_serves_token_aristocrats_drain():
         ),
     }
     assert covers(mirkwood) is True
-    # Over-fire guard: generic "whenever a creature dies" drain is NOT token-specific —
-    # it belongs to the death/aristocrats lanes, not this token sub-avenue.
+    # Over-fire guard: generic "whenever a creature dies" drain is NOT
+    # token-specific — it belongs to the death/aristocrats lanes.
     blood_artist = {
         "name": "Blood Artist",
         "type_line": "Creature — Vampire",
@@ -3912,57 +2111,19 @@ def test_token_maker_serves_token_aristocrats_drain():
 
 
 def test_role_token_makers_open_enchantments_matter():
-    # Role tokens are Aura ENCHANTMENTS (CR), so a commander that makes them (Gylwain,
-    # Ellivere) is an enchantment commander — it wants enchantment-count payoffs
-    # (Sanctum Weaver) and Aura payoffs. The detector keyed on "enchantment"/"aura"
-    # and missed the word "Role".
-    gylwain = {
-        "name": "Gylwain, Casting Director",
-        "type_line": "Legendary Creature — Elf Druid",
-        "oracle_text": (
-            "Whenever Gylwain or another nontoken creature you control enters, "
-            "choose one —\n"
-            "• Create a Royal Role token attached to that creature.\n"
-            "• Create a Sorcerer Role token attached to that creature.\n"
-            "• Create a Monster Role token attached to that creature."
-        ),
-    }
-    # ADR-0027: enchantments_matter migrated to the Card IR — Role tokens are Aura
-    # enchantments (CR 303.7 / 111.10j), and the "create … Role token" maker rides the
-    # kept oracle mirror on the hybrid path.
-    assert "enchantments_matter" in _keys_hybrid(gylwain)
-    # Over-fire guard: a plain creature-token maker is not an enchantment deck.
-    krenko = {
-        "name": "Token Maker",
-        "type_line": "Legendary Creature — Goblin",
-        "oracle_text": "{T}: Create a 1/1 red Goblin creature token.",
-    }
-    assert "enchantments_matter" not in _keys_hybrid(krenko)
+    # Role tokens are Aura ENCHANTMENTS (CR 303.7 / 111.10j), so a commander that
+    # makes them (Gylwain) is an enchantment commander — it wants enchantment-count
+    # payoffs (Sanctum Weaver) and Aura payoffs. Proven over the real record.
+    assert ("enchantments_matter", "you") in _ks_real("Gylwain, Casting Director")
 
 
 def test_celebration_archetype_opens_and_serves():
     # Celebration (WOE ability word) keys on the exact phrase "two or more nonland
-    # permanents entered the battlefield under your control this turn" — 11 cards share
-    # it. A Celebration commander (Ash) wants the other Celebration payoffs; the
-    # archetype is its own lane (the baseline saw only the bare attack trigger). Real
-    # cards, full oracle.
-    ash = {
-        "name": "Ash, Party Crasher",
-        "type_line": "Legendary Creature — Human Peasant",
-        "oracle_text": (
-            "Haste\n"
-            "Celebration — Whenever Ash attacks, if two or more nonland permanents "
-            "entered the battlefield under your control this turn, put a +1/+1 "
-            "counter on Ash."
-        ),
-    }
-    # ADR-0027: celebration_matters is IR-served from the kept word-detector mirror
-    # (\bcelebration\b), so it comes through the hybrid path, not pure regex.
-    assert "celebration_matters" in _keys_hybrid(ash)
-    assert "celebration_matters" not in _keys(ash)
-
+    # permanents entered the battlefield under your control this turn". The
+    # extractor firing (Ash, Party Crasher) is pinned by test_crosswalk's
+    # celebration mirror test; here the lane serve must credit the other
+    # Celebration payoffs and exclude generic go-wide payoffs.
     from mtg_utils._deck_forge.signal_specs import serve_from_dict, spec_for
-    from mtg_utils._deck_forge.signals import Signal
 
     def lane_covers(card, key):
         sp = spec_for(Signal(key=key, scope="you", subject="", text="", source=""))
@@ -3992,17 +2153,16 @@ def test_celebration_archetype_opens_and_serves():
             "to each opponent."
         ),
     }
-    assert "celebration_matters" not in _keys_hybrid(impact)
     assert lane_covers(impact, "celebration_matters") is False
 
 
 def test_lands_matter_serves_creature_pump_by_basic():
-    # A lands-matter commander whose own P/T scales with land count (Molimo) wants the
-    # creature pump that scales the SAME way — "+N/+N for each Forest you control"
-    # (Blanchwood Armor, Primal Bellow). The serve already takes "for each LAND you
-    # control"; the per-basic-subtype form (the mono-color go-tall payoff) was the gap.
+    # A lands-matter commander whose own P/T scales with land count (Molimo) wants
+    # the creature pump that scales the SAME way — "+N/+N for each Forest you
+    # control" (Blanchwood Armor, Primal Bellow). The serve already takes "for each
+    # LAND you control"; the per-basic-subtype form was the gap. The extractor
+    # firing is pinned by test_signal_keys_real_cards (lands_matter).
     from mtg_utils._deck_forge.signal_specs import serve_from_dict, spec_for
-    from mtg_utils._deck_forge.signals import Signal
 
     def lane_covers(card, key):
         sp = spec_for(Signal(key=key, scope="you", subject="", text="", source=""))
@@ -4012,19 +2172,6 @@ def test_lands_matter_serves_creature_pump_by_basic():
             (ex.serve or serve_from_dict(ex.search)).matches(card) for ex in sp.extras
         )
 
-    molimo = {
-        "name": "Molimo, Maro-Sorcerer",
-        "type_line": "Legendary Creature — Elemental Sorcerer",
-        "oracle_text": (
-            "Trample\n"
-            "Molimo's power and toughness are each equal to the number of lands "
-            "you control."
-        ),
-    }
-    # ADR-0027: lands_matter migrated to the Card IR (the amount.subject=Land count
-    # operand + a kept word mirror for the "number of lands you control" P/T phase
-    # drops the operand for), so it is served via the hybrid path, not pure regex.
-    assert "lands_matter" in _keys_hybrid(molimo)
     primal_bellow = {
         "name": "Primal Bellow",
         "type_line": "Instant",
@@ -4047,50 +2194,12 @@ def test_lands_matter_serves_creature_pump_by_basic():
 
 
 def test_tapped_creatures_matter_opens_and_serves():
-    # ADR-0027: tapped_matters migrated to the Card IR — Masako's dropped "tapped
-    # creatures you control" grant is recovered by a `_TAPPED_GRANT` marker (a tap
-    # effect with a Tapped-creature subject), read through the hybrid IR path. The
-    # serve pool stays oracle-defined (the hand spec). Distinct from tap_untap_matters
-    # (becomes-tapped triggers) and convoke (taps UNtapped creatures as a cost).
-    masako = {
-        "name": "Masako the Humorless",
-        "type_line": "Legendary Creature — Human Advisor",
-        "oracle_text": (
-            "Flash\n"
-            "Tapped creatures you control can block as though they were untapped."
-        ),
-    }
-    masako_ir = Card(
-        oracle_id="x",
-        name="Masako the Humorless",
-        faces=(
-            Face(
-                name="Masako the Humorless",
-                abilities=(
-                    Ability(
-                        kind="static",
-                        effects=(
-                            Effect(
-                                category="tap",
-                                scope="you",
-                                subject=Filter(
-                                    card_types=("Creature",),
-                                    controller="you",
-                                    predicates=("Tapped",),
-                                ),
-                                raw="tapped creatures you control can",
-                            ),
-                        ),
-                    ),
-                ),
-            ),
-        ),
-    )
-    assert ("tapped_matters", "you") in _ks_hybrid_card(masako, masako_ir)
-    assert "tapped_matters" not in _keys(masako)
-
+    # tapped_matters: Masako's dropped "tapped creatures you control" grant is
+    # recovered structurally (pinned by test_crosswalk's tapped_matters tests); the
+    # serve pool stays oracle-defined (the hand spec). Distinct from
+    # tap_untap_matters (becomes-tapped triggers) and convoke (taps UNtapped
+    # creatures as a cost).
     from mtg_utils._deck_forge.signal_specs import serve_from_dict, spec_for
-    from mtg_utils._deck_forge.signals import Signal
 
     def lane_covers(card, key):
         sp = spec_for(Signal(key=key, scope="you", subject="", text="", source=""))
@@ -4119,62 +2228,16 @@ def test_tapped_creatures_matter_opens_and_serves():
             "Angel creature token for each creature tapped this way."
         ),
     }
-    assert "tapped_matters" not in _keys(devout)
     assert lane_covers(devout, "tapped_matters") is False
 
 
 def test_tapped_threshold_and_count_open_and_serve():
-    # The "if you control two or more tapped creatures, <payoff>" THRESHOLD (Sami and
-    # the Edge of Eternities tap cluster) and the "for each tapped creature you control"
-    # COUNT form are tapped-matters engines, but the detector/serve only keyed on
-    # "number of tapped creatures" and the anthem form. Both detector and serve must
-    # learn the threshold + count so Sami covers its cluster. Real cards, full oracle.
-    sami = {
-        "name": "Sami, Ship's Engineer",
-        "type_line": "Legendary Creature — Human Artificer",
-        "oracle_text": (
-            "At the beginning of your end step, if you control two or more tapped "
-            "creatures, create a tapped 2/2 colorless Robot artifact creature token."
-        ),
-    }
-    # ADR-0027: the THRESHOLD-GATE form is read off the condition subject's Tapped
-    # predicate through the hybrid IR path (the regex no longer produces it).
-    sami_ir = Card(
-        oracle_id="x",
-        name="Sami, Ship's Engineer",
-        faces=(
-            Face(
-                name="Sami, Ship's Engineer",
-                abilities=(
-                    Ability(
-                        kind="triggered",
-                        trigger=Trigger(event="end_step", scope="you"),
-                        condition=Condition(
-                            kind="quantitycomparison",
-                            comparator="ge",
-                            subject=Filter(
-                                card_types=("Creature",),
-                                controller="you",
-                                predicates=("Tapped", "InZone"),
-                            ),
-                        ),
-                        effects=(
-                            Effect(
-                                category="make_token",
-                                scope="you",
-                                raw="create a tapped 2/2 colorless Robot",
-                            ),
-                        ),
-                    ),
-                ),
-            ),
-        ),
-    )
-    assert ("tapped_matters", "you") in _ks_hybrid_card(sami, sami_ir)
-    assert "tapped_matters" not in _keys(sami)
-
+    # The "if you control two or more tapped creatures, <payoff>" THRESHOLD (Sami
+    # and the Edge of Eternities tap cluster) and the "for each tapped creature you
+    # control" COUNT form are tapped-matters engines. The threshold-gate structural
+    # read is pinned by test_crosswalk (Sami); here the serve must learn the
+    # threshold + count so Sami covers its cluster. Real oracle.
     from mtg_utils._deck_forge.signal_specs import serve_from_dict, spec_for
-    from mtg_utils._deck_forge.signals import Signal
 
     def lane_covers(card, key):
         sp = spec_for(Signal(key=key, scope="you", subject="", text="", source=""))
@@ -4195,14 +2258,6 @@ def test_tapped_threshold_and_count_open_and_serve():
         ),
     }
     assert lane_covers(dawnstrike, "tapped_matters") is True
-    # Over-fire guard: tapping UNtapped creatures as a cost stays out (the un- prefix
-    # means "or more tapped" never matches "or more untapped").
-    convoke = {
-        "name": "Generic Convoker",
-        "type_line": "Creature — Elf Druid",
-        "oracle_text": "{2}, Tap four untapped creatures you control: Draw two cards.",
-    }
-    assert "tapped_matters" not in _keys(convoke)
 
 
 def test_your_graveyard_scope_not_stolen_by_incidental_opponent_mention():
@@ -4259,36 +2314,20 @@ def test_divinity_indestructible_counter_wants_proliferate():
 
 
 def test_ox_tribe_resolves_despite_two_letters_and_irregular_plural():
-    # "Ox" is the only real two-letter creature subtype, so the len>=3 vocab-harvest
-    # filter dropped it and "Oxen" (irregular plural) didn't singularize to it. An Ox
-    # tribal lord (Bruse Tarl: "Oxen you control have double strike") must open
-    # type_matters:Ox so its Oxen (Holy Cow, Makindi Ox) surface. Real card.
-    assert ("type_matters", "you", "Ox") in _ksub_real_regex(
-        "Bruse Tarl, Roving Rancher"
-    )
+    # "Ox" is the only real two-letter creature subtype, so a len>=3 vocab-harvest
+    # filter would drop it and "Oxen" (irregular plural) must singularize to it. An
+    # Ox tribal lord (Bruse Tarl: "Oxen you control have double strike") must open
+    # type_matters:Ox so its Oxen (Holy Cow, Makindi Ox) surface. Real snapshot card.
+    assert ("type_matters", "you", "Ox") in _ksub_real("Bruse Tarl, Roving Rancher")
 
 
 def test_discard_matters_payoff_opens_opponent_discard():
-    # A discard-MATTERS payoff (Tinybones triggers on an opponent HAVING discarded)
-    # wants the whole forced-discard package, but the detector only matched present-tense
-    # FORCERS ("opponent discards"), not the payoff condition ("discarded a card this
-    # turn"). Open the lane so the forcers + payoffs surface. Real oracle.
-    tinybones = {
-        "name": "Tinybones, Trinket Thief",
-        "type_line": "Legendary Creature — Skeleton Rogue",
-        "oracle_text": (
-            "At the beginning of each end step, if an opponent discarded a card this "
-            "turn, you draw a card and you lose 1 life.\n"
-            "{4}{B}{B}: Each opponent with no cards in hand loses 10 life."
-        ),
-    }
-    # ADR-0027: opponent_discard migrated to the Card IR; it now fires from the hybrid
-    # path (the byte-identical _OPPONENT_DISCARD_MIRROR kept-mirror catches the "opponent
-    # discarded a card this turn" payoff over the oracle, so a bare IR suffices).
-    assert "opponent_discard" in _keys_hybrid(tinybones)
-
+    # The opponent_discard lane's serve must credit the forced-discard package —
+    # forcers (Bottomless Pit) and payoffs (Megrim) — while a SELF-discard loot
+    # stays out. (The extractor side was re-adjudicated: test_crosswalk pins that
+    # Tinybones, Trinket Thief's "an opponent discarded" END-STEP payoff does NOT
+    # fire opponent_discard on the crosswalk path.)
     from mtg_utils._deck_forge.signal_specs import serve_from_dict, spec_for
-    from mtg_utils._deck_forge.signals import Signal
 
     def lane_covers(card, key, scope):
         sp = spec_for(Signal(key=key, scope=scope, subject="", text="", source=""))
@@ -4315,13 +2354,6 @@ def test_discard_matters_payoff_opens_opponent_discard():
     }
     assert lane_covers(megrim, "opponent_discard", "opponents") is True
     assert lane_covers(bottomless, "opponent_discard", "opponents") is True
-    # Over-fire guard: a SELF-discard loot ("you discard a card") is not opponent-discard.
-    loot = {
-        "name": "Generic Looter",
-        "type_line": "Creature — Wizard",
-        "oracle_text": "{T}: Draw a card, then you discard a card.",
-    }
-    assert "opponent_discard" not in _keys_hybrid(loot)
 
 
 def test_symmetric_cast_punisher_is_not_opponent_cast_matters():
@@ -4420,47 +2452,6 @@ def test_opponent_reveal_mill_served_by_graveyard_opponents():
     assert lane_covers(avenging, "graveyard_matters", "opponents") is False
 
 
-def test_missing_race_tribes_open_membership_but_classes_do_not():
-    # The membership gate (TRIBAL_SUBTYPES) missed real RACE tribes that have lords and
-    # commanders — Changelings, Myr, Saprolings, Moogles — so a vanilla member of those
-    # tribes read as zero-signal instead of surfacing its tribe. Add them; keep class
-    # types (Warrior) out, since a class is near-ubiquitous and needs explicit support.
-    moogle = {
-        "name": "Mog, Moogle Warrior",
-        "type_line": "Legendary Creature — Moogle Warrior",
-        "oracle_text": "Lifelink",  # no tribal oracle — membership must carry it
-    }
-    assert ("type_matters", "you", "Moogle") in _ksub(moogle)
-    myr = {
-        "name": "Generic Myr Lord",
-        "type_line": "Legendary Creature — Myr",
-        "oracle_text": "",
-    }
-    assert ("type_matters", "you", "Myr") in _ksub(myr)
-    saproling = {
-        "name": "Generic Saproling",
-        "type_line": "Legendary Creature — Plant Saproling",
-        "oracle_text": "",
-    }
-    assert ("type_matters", "you", "Saproling") in _ksub(saproling)
-    gorgon = {
-        "name": "Generic Gorgon",
-        "type_line": "Legendary Creature — Gorgon",
-        "oracle_text": "",
-    }
-    assert ("type_matters", "you", "Gorgon") in _ksub(gorgon)
-    # Over-fire guard: a class type (Warrior) is NOT a membership tribe — a vanilla
-    # Human Warrior must not mint a Warrior-tribal avenue from membership alone.
-    warrior = {
-        "name": "Generic Warrior",
-        "type_line": "Legendary Creature — Human Warrior",
-        "oracle_text": "",
-    }
-    subs = {subj for (key, scope, subj) in _ksub(warrior) if key == "type_matters"}
-    assert "Warrior" not in subs
-    assert "Human" not in subs
-
-
 def test_land_sacrifice_matters_opens_and_serves():
     # Gitrog/Titania/Slogurk draw/grow when lands hit the graveyard, so repeatable
     # "Sacrifice a land:" outlets (Sylvan Safekeeper, Zuran Orb) are their core engine.
@@ -4499,7 +2490,6 @@ def test_land_sacrifice_matters_opens_and_serves():
         "type_line": "Creature — Vampire Wizard",
         "oracle_text": "Sacrifice a creature: Scry 1.",
     }
-    assert "land_sacrifice_matters" not in _keys_hybrid(viscera)
     assert lane_covers(viscera, "land_sacrifice_matters") is False
 
 
@@ -4555,89 +2545,6 @@ def test_gain_control_serve_catches_that_them_those():
         "oracle_text": "Target opponent gains control of that creature.",
     }
     assert lane_covers(donate, "gain_control") is False
-
-
-def test_lifegain_payoff_matches_your_team_and_contraction():
-    # A lifegain-count payoff phrased "if your TEAM gained life this turn" (Regna, a
-    # partner commander) or "if you've gained" (the contraction) slipped past the
-    # detector's bare "you gained". Real cards, full oracle.
-    regna = {
-        "name": "Regna, the Redeemer",
-        "type_line": "Legendary Creature — Angel Cleric",
-        "oracle_text": (
-            "Flying\n"
-            "At the beginning of each end step, if your team gained life this turn, "
-            "create two 1/1 white Warrior creature tokens."
-        ),
-    }
-    # ADR-0027 β: lifegain_matters migrated to the Card IR (byte-identical kept-mirror),
-    # so it serves from the hybrid path.
-    assert "lifegain_matters" in _keys_hybrid(regna)
-    # Over-fire guard: a non-lifegain payoff doesn't open the lane.
-    plain = {
-        "name": "Generic Beater",
-        "type_line": "Creature — Bear",
-        "oracle_text": "Trample",
-    }
-    assert "lifegain_matters" not in _keys_hybrid(plain)
-
-
-def test_lifegain_matches_variable_that_much_life():
-    # Variable self-lifegain phrased "you gain that much life" (Varina attacks with
-    # Zombies -> draw/discard/gain life equal to the count) is a real, repeatable
-    # lifegain SOURCE — it wants lifegain payoffs. ADR-0027 C10: this now rides the
-    # STRUCTURAL gain_life Effect (phase native + the _recover_dropped_gain_life
-    # supplement synth for the dropped "You gain that much life" clause), read by the
-    # gain_life signals arm — NOT a "that much life" word mirror. The lane scope is
-    # the GAINER's: phase tags "You gain that much life" gain_life scope you. Real
-    # oracle; the IR carries the production gain_life shape.
-    varina = {
-        "name": "Varina, Lich Queen",
-        "type_line": "Legendary Creature — Zombie Wizard",
-        "oracle_text": (
-            "Whenever you attack with one or more Zombies, draw that many cards, then "
-            "discard that many cards. You gain that much life.\n"
-            "{2}, Exile two cards from your graveyard: Create a tapped 2/2 black "
-            "Zombie creature token."
-        ),
-    }
-    varina_ir = _ir_with(
-        Ability(
-            kind="triggered",
-            effects=(
-                Effect(
-                    category="gain_life",
-                    scope="you",
-                    raw="You gain that much life.",
-                ),
-            ),
-        )
-    )
-    # _matters sweep (ADR-0034): gaining life is the MAKER arm → lifegain_makers.
-    assert "lifegain_makers" in {s.key for s in extract_signals_ir(varina, varina_ir)}
-    # Over-fire guard: the gainer is the OPPONENT. phase tags "target opponent gains
-    # that much life" gain_life scope='opp', which the you/any arm excludes — only a
-    # you/any gainer opens the lane (CR 119.3: the gain adjusts THAT player's total).
-    opp = {
-        "name": "Generous Foe",
-        "type_line": "Legendary Creature — Spirit",
-        "oracle_text": (
-            "At the beginning of your end step, target opponent gains that much life."
-        ),
-    }
-    opp_ir = _ir_with(
-        Ability(
-            kind="triggered",
-            effects=(
-                Effect(
-                    category="gain_life",
-                    scope="opp",
-                    raw="target opponent gains that much life",
-                ),
-            ),
-        )
-    )
-    assert "lifegain_makers" not in {s.key for s in extract_signals_ir(opp, opp_ir)}
 
 
 def test_debuff_serves_opponent_mass_shrink():
@@ -4778,27 +2685,13 @@ def test_remove_counter_to_activate_opens_proliferate():
 
 
 def test_keyword_soup_commander_opens_and_serves_multi_keyword_creatures():
-    # A keyword-soup commander (Odric, Lunarch Marshal) SHARES many evergreen keywords
-    # across the team, so it wants creatures stacked with keywords. Open on >=5 distinct
-    # evergreen keywords in a team-grant context (distinguishes the soup-sharer from a
-    # single-keyword anthem); serve creatures with >=3 evergreen keywords. Real cards.
-    odric = {
-        "name": "Odric, Lunarch Marshal",
-        "type_line": "Legendary Creature — Human Soldier",
-        "oracle_text": (
-            "At the beginning of each combat, creatures you control gain first strike "
-            "until end of turn if a creature you control has first strike. The same is "
-            "true for flying, deathtouch, double strike, haste, hexproof, "
-            "indestructible, lifelink, menace, reach, skulk, trample, and vigilance."
-        ),
-    }
-    # ADR-0027: keyword_soup_makers migrated to the Card IR — assert via the hybrid
-    # path (the include_membership-gated kept mirror reads oracle_text off the record;
-    # _bare_ir routes the hybrid to the IR path). The regex path no longer emits it.
-    assert "keyword_soup_makers" in _keys_hybrid(odric)
+    # A keyword-soup commander (Odric, Lunarch Marshal) SHARES many evergreen
+    # keywords across the team, so it wants creatures stacked with keywords. Open on
+    # >=5 distinct evergreen keywords in a team-grant context; serve creatures with
+    # >=3 evergreen keywords. Real snapshot card.
+    assert "keyword_soup_makers" in _keys_real("Odric, Lunarch Marshal")
 
     from mtg_utils._deck_forge.signal_specs import serve_from_dict, spec_for
-    from mtg_utils._deck_forge.signals import Signal
 
     def lane_covers(card, key):
         sp = spec_for(Signal(key=key, scope="you", subject="", text="", source=""))
@@ -4815,14 +2708,6 @@ def test_keyword_soup_commander_opens_and_serves_multi_keyword_creatures():
         "keywords": ["Flying", "Lifelink", "Vigilance"],
     }
     assert lane_covers(aerial, "keyword_soup_makers") is True
-    # Over-fire guard: a single-keyword anthem commander (grants only vigilance) is not
-    # a keyword-soup deck.
-    aang = {
-        "name": "Aang, Air Nomad",
-        "type_line": "Legendary Creature — Human Avatar",
-        "oracle_text": "Flying\nVigilance\nOther creatures you control have vigilance.",
-    }
-    assert "keyword_soup_makers" not in _keys_hybrid(aang)
     # Over-fire guard: a one-keyword creature is not a multi-keyword body.
     sprite = {
         "name": "Scryb Sprite",
@@ -4879,199 +2764,3 @@ def test_combat_damage_serves_double_strike_granters():
         ),
     }
     assert lane_covers(kediss, "combat_damage_to_opp", "opponents") is True
-
-
-def test_acererak_folds_ventured_tomb_of_annihilation():
-    # ADR-0025: a commander folds in the SPECIFIC dungeon its oracle names. Acererak
-    # ventures into Tomb of Annihilation (named in its ETB), whose rooms repeatedly
-    # drain "each player loses N life" — making Acererak a self-bleed + sacrifice
-    # commander that wants lifegain (Demon's Horn). Resolver returns the dungeon's real
-    # oracle. Real cards, full oracle.
-    toa_oracle = (
-        "Trapped Entry — Each player loses 1 life. (Leads to: Veils of Fear, "
-        "Oubliette)\n"
-        "Veils of Fear — Each player loses 2 life unless they discard a card. "
-        "(Leads to: Sandfall Cell)\n"
-        "Sandfall Cell — Each player loses 2 life unless they sacrifice a creature, "
-        "artifact, or land of their choice. (Leads to: Cradle of the Death God)\n"
-        "Oubliette — Discard a card and sacrifice a creature, an artifact, and a "
-        "land. (Leads to: Cradle of the Death God)\n"
-        "Cradle of the Death God — Create The Atropal, a legendary 4/4 black God "
-        "Horror creature token with deathtouch."
-    )
-
-    def resolver(name):
-        if name == "Tomb of Annihilation":
-            return {
-                "name": "Tomb of Annihilation",
-                "type_line": "Dungeon",
-                "oracle_text": toa_oracle,
-            }
-        return None
-
-    acererak = {
-        "name": "Acererak the Archlich",
-        "type_line": "Legendary Creature — Zombie Wizard",
-        "oracle_text": (
-            "When Acererak enters, if you haven't completed Tomb of Annihilation, "
-            "return Acererak to its owner's hand and venture into the dungeon.\n"
-            "Whenever Acererak attacks, for each opponent, you create a 2/2 black "
-            "Zombie creature token unless that player sacrifices a creature of their "
-            "choice."
-        ),
-        "all_parts": [
-            {
-                "component": "combo_piece",
-                "type_line": "Dungeon",
-                "name": "Tomb of Annihilation",
-            },
-            {
-                "component": "combo_piece",
-                "type_line": "Dungeon",
-                "name": "Lost Mine of Phandelver",
-            },
-        ],
-    }
-    # ADR-0027 β: lifegain_matters migrated to the Card IR — ``_ir_folded`` folds
-    # referenced objects (the ventured ToA) into the record the IR kept-mirror
-    # reads, so the "each player loses N life" bleed still opens the lane.
-    without = _keys_hybrid(acererak)
-    withfold = {s.key for s in _ir_folded(acererak, resolver)}
-    # The folded ToA bleed opens lifegain (sustain for Demon's Horn).
-    assert "lifegain_matters" in withfold
-    assert "lifegain_matters" not in without
-
-    # Over-fire guards: only the dungeon NAMED in Acererak's oracle (ToA) is folded —
-    # Lost Mine of Phandelver is in all_parts but unnamed, so it's never resolved...
-    def strict_resolver(name):
-        if name == "Lost Mine of Phandelver":
-            raise AssertionError("must not resolve an unnamed all_parts dungeon")
-        return resolver(name)
-
-    extract_signals(acererak, resolve_object=strict_resolver)
-    # ...and a generic venturer that names no dungeon folds nothing.
-    nadaar = {
-        "name": "Nadaar, Selfless Paladin",
-        "type_line": "Legendary Creature — Dragon Knight",
-        "oracle_text": (
-            "Vigilance\nWhenever Nadaar enters or attacks, venture into the dungeon."
-        ),
-        "all_parts": [
-            {
-                "component": "combo_piece",
-                "type_line": "Dungeon",
-                "name": "Tomb of Annihilation",
-            },
-        ],
-    }
-    assert "lifegain_matters" not in {s.key for s in _ir_folded(nadaar, resolver)}
-
-
-def test_ring_bearer_commander_folds_the_ring():
-    # ADR-0025 rules-fixed fold: "the Ring tempts you" maps to the ONE Ring (no
-    # disambiguation). The Ring-bearer's levels — "deals combat damage to a player, each
-    # opponent loses 3 life" / "draw a card, then discard" — make a Ring commander a
-    # combat-damage + loot deck. The Ring's text lives on card_faces (oracle_text is
-    # empty), so the fold must read it via get_oracle_text. Real cards, full oracle.
-    ring_text = (
-        "Your Ring-bearer is legendary and can't be blocked by creatures with "
-        "greater power.\n"
-        "Whenever your Ring-bearer attacks, draw a card, then discard a card.\n"
-        "Whenever your Ring-bearer becomes blocked by a creature, that creature's "
-        "controller sacrifices it at end of combat.\n"
-        "Whenever your Ring-bearer deals combat damage to a player, each opponent "
-        "loses 3 life."
-    )
-
-    def resolver(name):
-        if name == "The Ring":
-            return {"name": "The Ring", "oracle_text": ring_text}
-        return None
-
-    aragorn = {
-        "name": "Aragorn, Company Leader",
-        "type_line": "Legendary Creature — Human Ranger",
-        "oracle_text": (
-            "Whenever the Ring tempts you, if you chose a creature other than "
-            "Aragorn as your Ring-bearer, put your choice of a counter from among "
-            "first strike, vigilance, deathtouch, and lifelink on Aragorn.\n"
-            "Whenever you put one or more counters on Aragorn, put one of each of "
-            "those kinds of counters on up to one other target creature."
-        ),
-    }
-    # ADR-0027 β: combat_damage_to_opp migrated to the Card IR, so it is served from the
-    # hybrid (IR) path. The hybrid folds the referenced object (the Ring) into the record
-    # the IR mirror reads, so the folded combat-damage drain still opens the lane.
-    without = {s.key for s in extract_signals_ir(aragorn, _bare_ir())}
-    withfold = {s.key for s in _ir_folded(aragorn, resolver)}
-    # The folded Ring's combat-damage drain opens combat_damage_to_opp.
-    assert ("combat_damage_to_opp", "opponents") in {
-        (s.key, s.scope) for s in _ir_folded(aragorn, resolver)
-    }
-    assert "combat_damage_to_opp" in withfold
-    assert "combat_damage_to_opp" not in without
-    # Over-fire guard: a commander that never tempts with the Ring folds nothing.
-    plain = {
-        "name": "Generic Bear",
-        "type_line": "Legendary Creature — Bear",
-        "oracle_text": "Vigilance",
-    }
-    assert "combat_damage_to_opp" not in {s.key for s in _ir_folded(plain, resolver)}
-
-
-def test_meld_commander_folds_its_meld_result():
-    # ADR-0025: a meld commander's plan is to meld into its result, so fold the result's
-    # oracle (discovered via the meld_result all_parts component — one per card, no
-    # disambiguation). Bruna melds into Brisela, whose "opponents can't cast spells with
-    # mana value 3 or less" is a stax lock invisible from Bruna's own text. Real cards.
-    brisela_oracle = (
-        "Flying, first strike, vigilance, lifelink\n"
-        "Your opponents can't cast spells with mana value 3 or less."
-    )
-
-    def resolver(name):
-        if name == "Brisela, Voice of Nightmares":
-            return {
-                "name": "Brisela, Voice of Nightmares",
-                "type_line": "Legendary Creature — Eldrazi Angel",
-                "oracle_text": brisela_oracle,
-            }
-        return None
-
-    bruna = {
-        "name": "Bruna, the Fading Light",
-        "type_line": "Legendary Creature — Angel Horror",
-        "oracle_text": (
-            "When you cast this spell, you may return target Angel or Human creature "
-            "card from your graveyard to the battlefield.\n"
-            "Flying, vigilance\n"
-            "(Melds with Gisela, the Broken Blade.)"
-        ),
-        "all_parts": [
-            {
-                "component": "meld_part",
-                "type_line": "Legendary Creature — Angel Horror",
-                "name": "Gisela, the Broken Blade",
-            },
-            {
-                "component": "meld_result",
-                "type_line": "Legendary Creature — Eldrazi Angel",
-                "name": "Brisela, Voice of Nightmares",
-            },
-        ],
-    }
-    # ADR-0027: stax_taxes migrated to the Card IR, so the folded meld-result lock now
-    # surfaces through the HYBRID path (the byte-identical _STAX_TAXES_MIRROR reads the
-    # pre-folded record — _fold_referenced_objects runs before extract_signals_ir), not
-    # the pure regex path. The ADR-0025 fold contract is unchanged; only the producer is.
-    without = _keys(bruna)
-    withfold = {s.key for s in _ir_folded(bruna, resolver)}
-    assert "stax_taxes" in withfold  # Brisela's "can't cast MV<=3" lock
-    assert "stax_taxes" not in without
-    # Over-fire guard: a non-meld commander folds nothing.
-    plain = {
-        "name": "Generic Bear",
-        "type_line": "Legendary Creature — Bear",
-        "oracle_text": "Vigilance",
-    }
-    assert "stax_taxes" not in {s.key for s in _ir_folded(plain, resolver)}

@@ -286,41 +286,6 @@ from mtg_utils._card_ir.tree_synthesis import (
     structural_untap_subject,
 )
 from mtg_utils._deck_forge import signal_keys
-
-# The b12 SANCTIONED byte-identical mirror ports import the LIVE constants
-# (never re-typed copies): the pinned shared sources from _sweep_detectors,
-# and the private live mirrors/kind-sets from _signals_ir / _signals_regex
-# (the _resolve_subject precedent) — one source, zero drift.
-from mtg_utils._deck_forge._signals_ir import (
-    _ACTIVATED_ABILITY_DROP_EFFECTS,
-    _ARTIFACTS_MATTER_MIRROR,
-    _BASE_PT_ANIMATE_HOOK,
-    _BASE_PT_RAW_HOOK,
-    _COUNTER_KIND_KEYS,
-    _DAMAGE_REDIRECT_MIRROR,
-    _ENCHANTMENTS_MATTER_MIRROR,
-    _FLOOR_DETECTORS,
-    _GOAD_STYLE_FORCE,
-    _IR_FLOOR_LANES,
-    _NAMED_COUNTER_KINDS,
-    _SELF_PROTECTION_GRANT_KW,
-    _apply_membership_floor,
-)
-from mtg_utils._deck_forge._signals_ir import (
-    _LAND_SUBTYPES as _LIVE_LAND_SUBTYPES,
-)
-from mtg_utils._deck_forge._signals_regex import (
-    _ETB_HAD_RE,
-    _EVERGREEN_CK,
-    _TOKEN_SUBJECT_WORDS,
-    Signal,
-    _clauses,
-    _creature_etb_clause,
-    _detect_self_damage_prevention,
-    _detect_token_maker,
-    _graveyard_matters_clauses,
-    _resolve_subject,
-)
 from mtg_utils._deck_forge._subtypes import (
     CLASS_TRIBES,
     CREATURE_SUBTYPES,
@@ -351,6 +316,43 @@ from mtg_utils._deck_forge.bridge_ledger import (
     KNW_REST_RX,
     bridge_fires,
     keep_n_shape_b_reads,
+)
+from mtg_utils._deck_forge.membership_floor import (
+    _FLOOR_DETECTORS,
+    _IR_FLOOR_LANES,
+    _apply_membership_floor,
+)
+from mtg_utils._deck_forge.signal_base import (
+    Signal,
+    _clauses,
+    _resolve_subject,
+)
+
+# The b12 SANCTIONED byte-identical mirror ports import the LIVE constants
+# (never re-typed copies): the pinned shared sources from _sweep_detectors,
+# and the private live mirrors/kind-sets now homed in text_reads / signal_base
+# (the _resolve_subject precedent) — one source, zero drift.
+from mtg_utils._deck_forge.text_reads import (
+    _ACTIVATED_ABILITY_DROP_EFFECTS,
+    _ARTIFACTS_MATTER_MIRROR,
+    _BASE_PT_ANIMATE_HOOK,
+    _BASE_PT_RAW_HOOK,
+    _COUNTER_KIND_KEYS,
+    _DAMAGE_REDIRECT_MIRROR,
+    _ENCHANTMENTS_MATTER_MIRROR,
+    _ETB_HAD_RE,
+    _EVERGREEN_CK,
+    _GOAD_STYLE_FORCE,
+    _NAMED_COUNTER_KINDS,
+    _SELF_PROTECTION_GRANT_KW,
+    _TOKEN_SUBJECT_WORDS,
+    _creature_etb_clause,
+    _detect_self_damage_prevention,
+    _detect_token_maker,
+    _graveyard_matters_clauses,
+)
+from mtg_utils._deck_forge.text_reads import (
+    _LAND_SUBTYPES as _LIVE_LAND_SUBTYPES,
 )
 from mtg_utils.card_classify import get_oracle_text
 
@@ -831,7 +833,7 @@ PORTED_KEYS: frozenset[str] = frozenset(
         # re-measure, phase v0.20.0, 2026-07-12):
         #   • cheat_from_top — ALREADY byte-identical: the include_membership
         #     floor's ``_apply_membership_floor`` is single-source with
-        #     legacy (imported live from ``_signals_ir``), so promoting is a
+        #     legacy (single-source via ``membership_floor``), so promoting is a
         #     pure key-slice change — the crosswalk was already computing it
         #     identically and throwing it away.
         #   • copy_limit — NEW structural arm (:func:`_copy_limit`) reading
@@ -848,7 +850,7 @@ PORTED_KEYS: frozenset[str] = frozenset(
         #     NO redirect_target), re-verified this wave and ported as the
         #     b12 SANCTIONED byte-identical mirror (:func:`_damage_redirect`)
         #     — both legacy arms (self-shield + redirect-clause) reused
-        #     verbatim, single-source from ``_signals_ir`` / `_signals_regex``.
+        #     verbatim, single-source from ``text_reads``.
         "cheat_from_top",
         "copy_limit",
         "base_power_matters",
@@ -863,7 +865,7 @@ PORTED_KEYS: frozenset[str] = frozenset(
         # ADR-0039 W8 FINISHERS (KEPT-key promotions, 2026-07-12): four
         # Stage-2 KEPT keys — deliberately never staged (the legacy word
         # mirror served them; each carries an inline KEPT rationale where it
-        # lived in ``_signals_ir.py``) — re-measured and closed this wave.
+        # lived in the deleted ``_signals_ir.py``) — re-measured and closed this wave.
         # ``extra_draw_step`` PROMOTED via a typed-node extension (mechanism
         # (a)/(b)): :func:`_extra_upkeep_end` already decomposed an
         # additional-BEGINNING-phase's "untap" kind into ``extra_upkeep``
@@ -902,10 +904,10 @@ PORTED_KEYS: frozenset[str] = frozenset(
         # batch-8 verdict already closed the 2-extra byte-mismatch it flagged
         # (Goblin Grenadiers / Orcish Settlers no longer diverge). CR 305.6.
         "land_destruction",
-        # big_mana: also entirely `_apply_membership_floor`-served — 542/542
-        # both, 0/0 live_only/cw_only at promotion time (`extract_signals_ir`
-        # and `extract_crosswalk_signals` both called the same shared floor
-        # function). ADR-0039 task #80 step 3 (deletion phase) REWIRED the
+        # big_mana: also entirely `_apply_membership_floor`-served — 542/542 both, 0/0
+        # live_only/cw_only at promotion time (the deleted `extract_signals_ir` and
+        # `extract_crosswalk_signals` both called the same shared floor function).
+        # ADR-0039 task #80 step 3 (deletion phase) REWIRED the
         # floor's structural big_mana arm off the OLD projected `Card`
         # (`_is_big_mana_ir`) onto the concept tree directly
         # (`_is_big_mana_tree`, reading the SAME `ramp` effect-concept set the
@@ -960,9 +962,9 @@ PORTED_KEYS: frozenset[str] = frozenset(
 # ranking pushes a land-creatures avenue past the engine's avenue cap), and
 # ``type_matters`` (the class-tribe membership floor is go_wide-gated on the
 # residual ``creatures_matter``, so the floor lane must ride the same
-# ``old_ir_for`` arm). Routing ONLY these to residual (they stay in
-# ``MIGRATED_KEYS``, so dropping them from ``PORTED_KEYS`` re-supplies them from
-# ``extract_signals_ir(old)`` — byte-identical to flag-OFF) restores the
+# ``old_ir_for`` arm). Routing ONLY these to residual (they stayed in the now-deleted
+# ``MIGRATED_KEYS`` set, so dropping them from ``PORTED_KEYS`` re-supplied them from the
+# deleted ``extract_signals_ir(old)`` path — byte-identical to flag-OFF) restored the
 # legacy firing without retreating from any key the crosswalk serves correctly.
 #
 # ADR-0038 W3 batch 3 (combat-coercion cluster): ``forced_attack``,
@@ -2034,7 +2036,7 @@ PORTED_KEYS: frozenset[str] = frozenset(
 # (2) the class-tribe MEMBERSHIP floor's go-wide gate is now
 # :func:`_type_matters_go_wide`, not a bare ``out_keys`` intersection — the
 # crosswalk's OWN ``creatures_matter``/``attack_matters``/``anthem_static``
-# lanes are narrower than legacy ``_signals_ir``'s go-wide breadth
+# lanes are narrower than the deleted ``_signals_ir``'s go-wide breadth
 # (``creatures_matter`` stays Stage-4 RESIDUAL, so its signals never reach
 # ``out_keys`` at all — ``add()`` filters them by ``keys`` before they
 # land). Three widened arms: a creature-type TOKEN MAKER cross-open
@@ -2101,7 +2103,7 @@ PORTED_KEYS: frozenset[str] = frozenset(
 # tapped-creature-count conditions (Frontline War-Rager, Sunstar
 # Chaplain) verified this session to ride the IDENTICAL fabricated
 # ability (their REAL structural ``ability.condition`` never reaches a
-# bare-Creature-typed lane at all, per ``_signals_ir`` line ~10476's own
+# bare-Creature-typed lane at all, per the deleted ``_signals_ir``'s line ~10476's own
 # "skip the generic Creature/Permanent gates" comment). Negative-pinned
 # (Elvish Berserker: Elf race tribe fires, Berserker class tribe does
 # not). 0 regressions: full mtg-utils + deck-forge (all three
@@ -2187,12 +2189,12 @@ _DEBUFF_SINGLE_AURA_PREDS: frozenset[str] = frozenset(
 )
 
 # Equipment / Aura / Role subtypes that mark a voltron build-around (CR 301.5 /
-# 303.4 / 702.5). Mirrors ``_signals_regex._EQUIP_AURA_SUBTYPES`` (+ Role, a Aura
-# subtype phase carries on Virtuous Role tokens).
+# 303.4 / 702.5). Mirrors the deleted ``_signals_regex``'s ``_EQUIP_AURA_SUBTYPES``
+# (+ Role, a Aura subtype phase carries on Virtuous Role tokens).
 _VOLTRON_SUBTYPES: frozenset[str] = frozenset({"aura", "equipment", "role"})
 
 # Attachment-STATE predicate tags (CR 301.5c / 303). Mirrors
-# ``_signals_regex._ATTACHMENT_PREDICATES``.
+# the deleted ``_signals_regex``'s ``_ATTACHMENT_PREDICATES``.
 _ATTACHMENT_PREDS: frozenset[str] = frozenset(
     {"AttachedToRecipient", "HasAnyAttachmentOf", "HasAttachment"}
 )
@@ -2226,7 +2228,7 @@ def _voltron_collective_preds(filt: object, self_subtypes: frozenset[str]) -> se
 
 
 # Core-type → matters lane. A composite (Artifact AND/OR Enchantment) subject fires
-# BOTH. Mirrors ``_signals_ir._TYPE_MATTERS_LANE`` for this batch's two types.
+# BOTH. Mirrors the deleted ``_signals_ir``'s identically-named ``_TYPE_MATTERS_LANE``.
 _TYPE_MATTERS_LANE: dict[str, str] = {
     "Artifact": "artifacts_matter",
     "Enchantment": "enchantments_matter",
@@ -2261,7 +2263,7 @@ _FIXING_PRODUCED_TYPES: frozenset[str] = frozenset(
 # — was likewise folded earlier; see ``_arm_manland``.)
 
 # Reminder-text strip — the same paren-substitution the live path applies to
-# build ``kept_oracle`` (_signals_ir line ~11091).
+# build ``kept_oracle`` (the deleted ``_signals_ir``'s line ~11091).
 _REMINDER_RX = re.compile(r"\([^)]*\)")
 
 # Land subtype words the land-animate arms accept when the animated filter
@@ -2356,7 +2358,8 @@ def _attack_compulsion_hit(kept: str, *patterns: re.Pattern[str]) -> bool:
 def _win_lose_game(tree: ConceptTree) -> list[Signal]:
     """Terminal alt-win / alt-loss (CR 104.2). Whole-card; scope "any" (HIGH).
 
-    Mirrors ``_signals_ir`` line ~7330: any ``win_game`` / ``lose_game`` effect →
+    Mirrors the deleted ``_signals_ir``'s line ~7330: any ``win_game`` / ``lose_game``
+    effect →
     one ``win_lose_game`` firing scoped "any" (the behavior-neutral merge of
     self-wins and opponent-losses the deleted SWEEP row used).
     """
@@ -2370,8 +2373,9 @@ def _win_lose_game(tree: ConceptTree) -> list[Signal]:
 def _discard_makers(tree: ConceptTree) -> list[Signal]:
     """Loot / rummage / connive OUTLET — a draw + discard in the SAME ability unit.
 
-    Granularity (a), per-ability sibling co-occurrence. Mirrors ``_signals_ir``
-    line ~7535: an ability carrying BOTH a ``draw`` effect AND a ``discard`` effect
+    Granularity (a), per-ability sibling co-occurrence. Mirrors the deleted legacy IR
+    engine's line ~7535: an ability carrying BOTH a ``draw`` effect AND a ``discard``
+    effect
     scoped you/each is a self-loot outlet. The per-unit gate (``effect_concepts``
     reads role=effect only, scoped to one unit) is load-bearing: Psychic Frog and
     Nezahal carry a combat-damage draw *trigger* and a separate ``Discard a card:``
@@ -2392,7 +2396,8 @@ def _discard_makers(tree: ConceptTree) -> list[Signal]:
 def _spell_copy_makers(tree: ConceptTree) -> list[Signal]:
     """A spell-copier (Twincast / Fork — "copy target spell"). Whole-card (HIGH).
 
-    Mirrors ``_signals_ir`` line ~8684: a ``copy_spell`` effect → spell_copy_makers
+    Mirrors the deleted ``_signals_ir``'s line ~8684: a ``copy_spell`` effect →
+    spell_copy_makers
     you. Distinct from clone (creatures-on-battlefield) and token-copy.
     """
     hits = tree.effect_concepts("copy_spell")
@@ -2413,7 +2418,8 @@ _EACH_PLAYER_TOKEN_MAKER_RE = re.compile(
 def _token_maker(tree: ConceptTree) -> list[Signal]:
     """A creature-token MAKER — subject-bearing (the token's kindred subtype).
 
-    Mirrors ``_signals_ir`` line ~8072: a ``make_token`` effect scoped you/each
+    Mirrors the deleted ``_signals_ir``'s line ~8072: a ``make_token`` effect scoped
+    you/each
     whose token is a creature → ``token_maker`` with the vocab-resolved subtype
     subject ("" when none resolves). The owner-scope gate drops opponent-gift
     tokens (Hunted Dragon). Reads the token's ``types`` from the typed node —
@@ -2455,8 +2461,8 @@ def _token_maker(tree: ConceptTree) -> list[Signal]:
     exactly one such node and nothing else):
 
     * **The byte-identical kept mirror** (ADR-0027 precedent,
-      ``_signals_ir`` line ~11840): :func:`_detect_token_maker` (kept
-      pinned in ``_signals_regex``) re-run over every reminder-stripped
+      the deleted ``_signals_ir``'s line ~11840): :func:`_detect_token_maker` (kept
+      pinned in ``text_reads``) re-run over every reminder-stripped
       clause, forced scope "you" — the SAME producer legacy's own ground
       truth runs, so it can only ever ADD idents legacy already has, never
       diverge from it. ``_TOKEN_MAKER_PATTERN`` requires the literal
@@ -2578,7 +2584,8 @@ def _token_maker(tree: ConceptTree) -> list[Signal]:
 def _draw_matters(tree: ConceptTree) -> list[Signal]:
     """ "Whenever you draw a card" payoff (The Locust God, Chasm Skulker).
 
-    A trigger-event lane. Mirrors ``_signals_ir`` line ~10653: a ``Drawn`` trigger
+    A trigger-event lane. Mirrors the deleted ``_signals_ir``'s line ~10653: a ``Drawn``
+    trigger
     whose watched scope is not the opponent → ``draw_matters`` you (HIGH). The
     opponent-draw punisher (Bowmasters, Nekusar) is a SEPARATE lane and does not
     fire here.
@@ -2630,7 +2637,8 @@ def _has_land_and_creature(subject: tuple[str, ...]) -> bool:
 def _land_creatures_matter(tree: ConceptTree) -> list[Signal]:
     """A land-creatures build — anthem over Land+Creature, or a land-animator.
 
-    Mirrors ``_signals_ir`` line ~7720, plus two ADR-0038 W3 batch 4 additions
+    Mirrors the deleted ``_signals_ir``'s line ~7720, plus two ADR-0038 W3 batch 4
+    additions
     that close the residual mass/threaded-search animate gap. Arms read off the
     typed substrate:
 
@@ -3055,7 +3063,8 @@ def _lifegain_text_idiom(tree: ConceptTree) -> str | None:
 def _lifegain_makers(tree: ConceptTree) -> list[Signal]:
     """A life-gain SOURCE — a ``gain_life`` effect, or a granted ``lifelink``.
 
-    Mirrors ``_signals_ir`` lines ~7843 / ~7862. (a) a ``GainLife`` effect scoped
+    Mirrors the deleted ``_signals_ir``'s lines ~7843 / ~7862. (a) a ``GainLife`` effect
+    scoped
     you/any (Gray Merchant, Kitchen Finks); (b) a static ``AddKeyword(Lifelink)``
     grant (Basilisk Collar, Talus Paladin, Vault of the Archangel — CR 702.15b), the
     grantee NOT opponent-only. The card's OWN printed lifelink keyword rides the
@@ -3132,7 +3141,8 @@ def _lifegain_makers(tree: ConceptTree) -> list[Signal]:
 def _reanimator(tree: ConceptTree) -> list[Signal]:
     """A creature that returns creatures GY→battlefield (the archetype, not a spell).
 
-    Mirrors ``_signals_ir`` line ~8095 (``cat=="reanimate" and is_creature(card)
+    Mirrors the deleted ``_signals_ir``'s line ~8095 (``cat=="reanimate" and
+    is_creature(card)
     and _reanimates_creature``). Structural: the card is a Creature AND a
     ``ChangeZone`` effect with origin=Graveyard / destination=Battlefield whose
     moved subject is a Creature (Sheoldred, Chainer). Excludes GY→hand recursion and
@@ -3150,7 +3160,7 @@ def _reanimator(tree: ConceptTree) -> list[Signal]:
 def _plus_one_makers(tree: ConceptTree) -> list[Signal]:
     """A +1/+1 counter PLACEMENT source (Forgotten Ancient, Avenger — CR 122.1).
 
-    Mirrors ``_signals_ir`` line ~8472: a ``place_counter`` effect whose
+    Mirrors the deleted ``_signals_ir``'s line ~8472: a ``place_counter`` effect whose
     ``counter_type`` is ``P1P1`` (the discriminator phase isolates from loyalty /
     oil / shield placements), plus the blank-kind enters-with/modal form whose raw
     literally names "+1/+1 counter". Counter DOUBLERS are a separate lane.
@@ -4144,7 +4154,8 @@ _RECOVERED_DAMAGE_REACH = re.compile(
 def _direct_damage(tree: ConceptTree) -> list[Signal]:
     """Burn that reaches a PLAYER (Fanatic of Mogis, Lightning Bolt — CR 120.1).
 
-    Mirrors ``_signals_ir`` line ~8237 (``cat=="damage"`` + ``_ir_damage_reaches_
+    Mirrors the deleted ``_signals_ir``'s line ~8237 (``cat=="damage"`` +
+    ``_ir_damage_reaches_
     player``). Structural: a ``DealDamage`` / ``DamageEachPlayer`` / ``DamageAll``
     effect whose recipient reaches a player (``effect_reaches_player`` — each/opp
     player, "any target"/"any other target", "target player or planeswalker" (an
@@ -4485,7 +4496,8 @@ def _cast_add_sac_clause_is_land_only(clause: str) -> bool:
 def _sacrifice_outlets(tree: ConceptTree) -> list[Signal]:
     """A sac outlet / sac payoff (Ashnod's Altar, Mortician Beetle — CR 701.21).
 
-    Mirrors ``_signals_ir`` triggers ~10472/10483 + effect outlet ~9226. Five
+    Mirrors the deleted ``_signals_ir``'s triggers ~10472/10483 + effect outlet ~9226.
+    Five
     inputs: (a) a ``sacrificed`` trigger (you sacrifice → reward); (b) an
     ``exploited`` trigger (CR 702.110); (c) a YOU-sac outlet — an activation COST
     (the cost IS the outlet, paid by the controller — Viscera Seer, Ashnod's Altar,
@@ -5169,12 +5181,9 @@ def blink_flicker_maker_present(card: dict) -> bool:
     routing through this predicate too.
 
     Lazily imports ``mtg_utils._deck_forge.signals`` (not at module scope):
-    that module imports ``_signals_regex``, which in turn imports
-    ``mtg_utils.theme_presets`` — importing it at THIS module's top level
-    would recreate the cycle ``mtg_utils.theme_presets._signal_keys_for``
-    already documents and avoids the same way (this module itself imports
-    ``_signals_regex`` too, so the cycle risk is real here, not
-    theoretical).
+    importing it at THIS module's top level would risk the same import-time
+    cycle ``mtg_utils.theme_presets._signal_keys_for`` already documents and
+    avoids the same way.
     """
     from mtg_utils._deck_forge.signals import extract_signals_hybrid
 
@@ -5185,7 +5194,8 @@ def blink_flicker_maker_present(card: dict) -> bool:
 def _tokens_matter(tree: ConceptTree) -> list[Signal]:
     """Go-wide token payoff — an anthem or ETB-token trigger (CR 111.1).
 
-    Mirrors ``_signals_ir`` anthem ~9831 + etb ~10373. Two arms read the ``Token``
+    Mirrors the deleted ``_signals_ir``'s anthem ~9831 + etb ~10373. Two arms read the
+    ``Token``
     filter PREDICATE: (A) a pump / grant-keyword / set-P/T static whose affected
     filter carries ``Token`` AND controller you (Intangible Virtue) — a symmetric
     controller-any token anthem (Virulent Plague's -2/-2 hoser) is correctly scoped
@@ -5396,7 +5406,8 @@ def _iter_returnasaura_mana_defs(
 def _ramp(tree: ConceptTree) -> list[Signal]:
     """Mana acceleration (Sol Ring, Command Tower — CR 106.1 / 605.1a / 305).
 
-    Mirrors ``_signals_ir`` line ~8601. A ``Mana`` effect: a NONLAND ramp doer
+    Mirrors the deleted ``_signals_ir``'s line ~8601. A ``Mana`` effect: a NONLAND ramp
+    doer
     (rock / dork / ritual) is always acceleration → fire; a LAND splits — a
     basic-equivalent single-color / single-{C} tap is the MANA BASE (not ramp), but
     a land whose ramp is ACCELERATION (factor>1 / variable) OR FIXING (multi-color /
@@ -5611,7 +5622,8 @@ def _floor_token_maker_subjects(tree: ConceptTree, vocab: frozenset[str]) -> set
 
 def _typed_matters_lanes(filt: object) -> list[str]:
     """The artifacts/enchantments lane(s) for a YOUR-permanents filter (CR 702.41 /
-    604.3). Mirrors ``_signals_ir._typed_matters_lanes``: a non-opponent filter naming
+    604.3). Mirrors the deleted ``_signals_ir``'s identically-named
+    ``_typed_matters_lanes``: a non-opponent filter naming
     Artifact / Enchantment in its CORE types fires that type's lane; a composite fires
     both. The SYMMETRIC-LIST GATE (CR 702.166a): a filter that ALSO carries the
     catch-all ``Permanent`` (Bargain's "an artifact, enchantment, or token") is a
@@ -5653,7 +5665,8 @@ def _is_artifact_token_types(types: tuple[str, ...]) -> bool:
 def _generic_board_lanes(filt: object) -> list[str]:
     """artifacts/enchantments lane(s) for a GENERIC own-board anthem subject — a
     static buff/grant over your whole artifact/enchantment board (Padeem; Fountain
-    Watch composite). Mirrors ``_signals_ir._generic_board_subject``: controller you,
+    Watch composite). Mirrors the deleted ``_signals_ir``'s ``_generic_board_subject``:
+    controller you,
     NO subtype (a subtyped buff is a narrower tribal care), Artifact/Enchantment in
     core types.
     """
@@ -5668,7 +5681,8 @@ def _generic_board_lanes(filt: object) -> list[str]:
 def _type_recursion_lanes(filt: object) -> list[str]:
     """The GY-recursion sibling of :func:`_typed_matters_lanes`, ADDING the
     Aura-SUBTYPE fallback (ADR-0038 W4 giant, byte-mirrors
-    ``_signals_ir._type_recursion_lanes``): "return target Aura card from
+    the deleted ``_signals_ir``'s identically-named ``_type_recursion_lanes``): "return
+    target Aura card from
     your graveyard to your hand" (Ironclad Slayer), "return each Aura card
     …" (Retether), "put target Aura card … onto the battlefield" (Iridescent
     Drake) filter on the SUBTYPE ``Aura``, not the core type ``Enchantment``
@@ -5721,7 +5735,8 @@ def _condition_leaves(cond: object) -> list[object]:
 
 def _artifacts_enchantments_matter(tree: ConceptTree) -> list[Signal]:
     """artifacts_matter / enchantments_matter — the broad type-payoff lanes (CR 301 /
-    303). Mirrors ``_signals_ir`` six structural arms over the typed substrate:
+    303). Mirrors the deleted ``_signals_ir``'s six structural arms over the typed
+    substrate:
 
     * **count operand** — a value scaling with your artifacts/enchantments
       (Affinity payoffs, "for each artifact you control");
@@ -5825,7 +5840,7 @@ def _artifacts_enchantments_matter(tree: ConceptTree) -> list[Signal]:
         # FILTERED to the card type — single ("return target artifact
         # card" — Refurbish) or mass ("return all enchantment cards" —
         # Replenish); a composite ("artifact or creature card" — Argivian
-        # Find, Open the Vaults) fires both. Mirrors ``_signals_ir``'s
+        # Find, Open the Vaults) fires both. Mirrors the deleted ``_signals_ir``'s
         # ``_type_recursion_lanes`` (CR 115.1/115.10 — the discriminator is
         # the TYPE, not mass-vs-single), INCLUDING its Aura-subtype
         # fallback (:func:`_type_recursion_lanes` above — "return target
@@ -5901,8 +5916,8 @@ def _artifacts_enchantments_matter(tree: ConceptTree) -> list[Signal]:
     # drops the Bargain alt-cost.
     #
     # ADR-0038 W4 giant bugfix: the subject-controller gate ACCEPTS
-    # ``None`` (not just explicit "You") — mirrors ``_signals_ir``'s own
-    # gate for this arm (``esub.controller != "opp"``, not ``== "you"``).
+    # ``None`` (not just explicit "You") — mirrors the deleted ``_signals_ir``'s
+    # own gate for this arm (``esub.controller != "opp"``, not ``== "you"``).
     # "Sacrifice any number of artifacts, creatures, and/or lands" (an
     # implicit-you self-sac cost/effect, no "target"/other-player wording —
     # Reprocess, Nyssa of Traken, Malevolent Witchkite, Lich-Knights'
@@ -6055,7 +6070,8 @@ def _artifacts_enchantments_matter(tree: ConceptTree) -> list[Signal]:
         out.append("artifacts_matter")
     # CAST-TRIGGER doer (recall gap): "whenever you cast an artifact/enchantment
     # spell, <payoff>" (Argothian Enchantress, Enchantress's Presence, Sythis,
-    # Mishra). Mirrors ``_signals_ir`` line ~10974 — the watched-spell filter's
+    # Mishra). Mirrors the deleted ``_signals_ir``'s line ~10974 — the watched-spell
+    # filter's
     # core type feeds the type lane, gated to a non-opponent caster (an
     # opponent-cast punisher — Citanul Druid — is not a type deck). This is the
     # ROUTING HOME for the enchantment/artifact-only cast watcher that
@@ -6092,7 +6108,7 @@ def _artifacts_enchantments_matter(tree: ConceptTree) -> list[Signal]:
     # ability's "as long as you control an artifact/enchantment, …" gate
     # (``IsPresent`` / ``ControlsType``) or a threshold count ("… two or
     # more artifacts" — ``QuantityComparison``/``QuantityCheck`` over an
-    # ``ObjectCount`` ref). Mirrors ``_signals_ir``'s condition-gate arm
+    # ``ObjectCount`` ref). Mirrors the deleted ``_signals_ir``'s condition-gate arm
     # (``cond.kind in controlstype/quantitycomparison/quantitycheck/
     # ispresent``) — ANY comparator direction counts (a "control NO
     # artifacts" floor punisher — Glimmervoid's sac trigger — still wants
@@ -6814,8 +6830,8 @@ def _creatures_matter_cmc_property_count_filter(node: object) -> object | None:
 def _creatures_matter(tree: ConceptTree) -> list[Signal]:
     """creatures_matter — a go-wide payoff scaling with / antheming the GENERIC
     creature population you control (CR 604.1 static ability; CR 611.1 the
-    continuous effect it or a resolving spell generates). Mirrors
-    ``_signals_ir`` line ~7686. ADR-0038 W4 giant-key batch widened the arm
+    continuous effect it or a resolving spell generates). Mirrors the deleted
+    legacy IR engine's line ~7686. ADR-0038 W4 giant-key batch widened the arm
     from two shapes to five; ADR-0038 W5 tails added a sixth and widened the
     team-anthem mod-tag set; ADR-0038 W6 endgame added the ``Aggregate``
     (Max/Min) count-operand shape below, all sharing the SAME
@@ -7221,7 +7237,7 @@ def _type_matters_go_wide(
 
     ADR-0039 task #80 step 3 (deletion phase) DROPPED the former arm (vi) —
     a FLOOR-exact reproduction of legacy's OWN go-wide computation via a
-    direct :func:`extract_signals_ir` call on the OLD projected ``Card``.
+    direct call to the deleted ``extract_signals_ir`` on the OLD projected ``Card``.
     That arm existed ONLY to catch a tail old-IR's supplement fabricates a
     SYNTHETIC "static board_count" ability for (subject/amount = a bare
     ``Filter(Creature, controller="you")``) whenever the oracle carries ANY
@@ -7328,7 +7344,8 @@ def _attack_tapped_matters(tree: ConceptTree) -> list[Signal]:
     # recall-completion b1 (ADR-0034): a static ANTHEM over your tapped creatures
     # ("other tapped creatures you control have indestructible" — Adept Watershaper,
     # Alibou). The effect loop above skips statics (``c.role != "effect"``); read the
-    # static's affected filter for Tapped + controller you. ``_signals_ir`` fires this
+    # static's affected filter for Tapped + controller you. The deleted ``_signals_ir``
+    # fired this
     # via the effect-subject arm (~8267). CR 301 / 604.3.
     for unit in tree.units:
         if not unit.statics:
@@ -7388,7 +7405,8 @@ def _spellcast_matters(tree: ConceptTree) -> list[Signal]:
 
 def _any_counter_makers(tree: ConceptTree) -> list[Signal]:
     """any_counter_makers — a kind-AGNOSTIC counter DOER (CR 122.1 / 701.34a).
-    Mirrors ``_signals_ir`` lines ~8548/8566: a ``proliferate`` (adds one counter of
+    Mirrors the deleted ``_signals_ir``'s lines ~8548/8566: a ``proliferate`` (adds one
+    counter of
     EACH kind already there), a counter MOVE (relocates counters — Bioshift, The
     Ozolith), OR a ``remove_counter`` with NO specified kind (Aether Snap, Hex
     Parasite). A KIND-SPECIFIC remove (fade/time/oil — a card spending its own niche
@@ -7418,7 +7436,7 @@ def _minus_counters_matter(tree: ConceptTree) -> list[Signal]:
     """minus_counters_matter — a -1/-1 counter PLACEMENT maker (CR 122.1 / 122.6 /
     702.80 wither) PLUS the legacy's "-1/-1 counter" kept-mirror for the
     remove/cost/ward/replacement payoffs phase leaves textual (the same
-    two-arm identity ``_signals_ir``'s ``_COUNTER_KIND_KEYS['m1m1']`` +
+    two-arm identity the deleted ``_signals_ir``'s ``_COUNTER_KIND_KEYS['m1m1']`` +
     ``_IR_KEPT_DETECTORS`` mirror carries — ADR-0027/ADR-0038 batch 4).
 
     Three structural arms, each a genuine "you place/receive a -1/-1
@@ -7663,7 +7681,8 @@ _HAD_P1P1_REMOVAL_TAGS: frozenset[str] = frozenset(
 
 def _plus_one_matters(tree: ConceptTree) -> list[Signal]:
     """plus_one_matters — a +1/+1 counter PAYOFF (CR 122.1). The structural arms
-    (``_signals_ir`` ~8556 / ~8278): a ``move_counters`` whose kind is ``P1P1`` (a
+    (the deleted ``_signals_ir``'s ~8556 / ~8278): a ``move_counters`` whose kind is
+    ``P1P1`` (a
     p1p1 move relocates the engine — Bioshift), OR a subject / count-operand filter
     carrying a ``Counters`` predicate of kind ``P1P1`` ("creatures you control with a
     +1/+1 counter", "for each creature with a +1/+1 counter on it" — Inspiring Call).
@@ -7676,7 +7695,8 @@ def _plus_one_matters(tree: ConceptTree) -> list[Signal]:
       the kind-agnostic sibling ``counter_place_trigger`` (a kind-AGNOSTIC "whenever
       one or more counters are put" trigger correctly stays there, NOT here).
     * a ``CountersOn`` count-operand of kind ``P1P1`` ("~ for each +1/+1 counter on
-      it" — Mycoloth) — ``_signals_ir``'s ``e.amount.op == "counters"`` (IR:7666).
+      it" — Mycoloth) — the deleted ``_signals_ir``'s ``e.amount.op == "counters"``
+      (IR:7666).
 
     ADR-0038 W4 giant batch adds the ``any_counter_matters`` sibling's whole-unit
     descents, gated to ``P1P1`` instead of ``Any`` (:func:`_any_counter_matters`'s
@@ -7704,8 +7724,8 @@ def _plus_one_matters(tree: ConceptTree) -> list[Signal]:
     * a ``RemoveCounter`` activation COST of kind P1P1 (mirrors
       ``_counter_manipulation``'s ``iter_cost_leaves`` walk) — "Remove a +1/+1
       counter from ~: …" (Triskelion, Walking Ballista, Crystalline Crawler) is a
-      +1/+1 counter sink/outlet, the SAME engine ``_signals_ir``'s Shape 5
-      (~10597) reads off the cost. CR 118.7.
+      +1/+1 counter sink/outlet, the SAME shape the deleted ``_signals_ir``'s
+      Shape 5 (~10597) reads off the cost. CR 118.7.
 
     :func:`trigger_counter_filter` (``_card_ir/crosswalk.py``) is widened
     alongside this batch: a THRESHOLD-less ``counter_filter`` (no Saga chapter
@@ -7724,7 +7744,8 @@ def _plus_one_matters(tree: ConceptTree) -> list[Signal]:
     * a ``counter_added`` TRIGGER whose kind is anything OTHER than P1P1
       (lore/Saga chapters, plan/Case, hour, or a bare M1M1/kindless "whenever a
       counter is put on ~" trigger — Nest of Scarabs, Hapatra). Legacy's OWN
-      ``_PAYOFF_TRIGGER_KEYS["counter_added"]`` row (``_signals_ir`` ~10852)
+      ``_PAYOFF_TRIGGER_KEYS["counter_added"]`` row (the deleted ``_signals_ir``'s
+      ~10852)
       fires plus_one_matters UNCONDITIONALLY on every ``counter_added`` trigger
       event with NO kind gate at all (unlike the sibling
       ``counter_place_trigger`` row two lines below it, which DOES exclude
@@ -8379,14 +8400,15 @@ _ANY_COUNTER_SCALE_TEXT_RX = re.compile(
 
 def _any_counter_matters(tree: ConceptTree) -> list[Signal]:
     """any_counter_matters — a kind-AGNOSTIC counter PAYOFF (CR 122.1). Two structural
-    arms mirror the legacy ``_signals_ir`` taxonomy exactly (ADR-0038 W3 batch 3):
+    arms mirror the deleted ``_signals_ir``'s taxonomy exactly (ADR-0038 W3 batch 3):
 
     * arm (b), a subject / count-operand FILTER carrying a ``Counters`` predicate of
       the kind-agnostic ``Any`` form ("a permanent with a counter on it");
     * arm (a), a PUMP effect's dynamic count-operand QTY node
       (:func:`count_operand_qty`, ``CountersOn`` / ``CountersOnObjects``) whose
       ``counter_type`` is anything OTHER than ``P1P1`` — the legacy pump-scaling
-      arm's own taxonomy (``_signals_ir`` ~10018, gated ``e.category=="pump"``:
+      arm's own taxonomy (the deleted ``_signals_ir``'s ~10018, gated
+      ``e.category=="pump"``:
       "+1/+1 counter" text routes to ``plus_one_matters``; every OTHER named kind
       (charge/soul/oil/growth/plague/valor/quest/blood/spore/feather/lore/strife/
       scream/acorn/rev/time/unity/fellowship/…) or a kind-agnostic count ("for
@@ -8422,7 +8444,7 @@ def _any_counter_matters(tree: ConceptTree) -> list[Signal]:
         # Angel). The Counters predicate rides the TRIGGER's own watched-object
         # filter (``valid_card`` — CR 603.2's intervening-if object), never an
         # effect/static filter, mirroring legacy's ``trig.subject`` arm
-        # (``_signals_ir`` ~10693).
+        # (the deleted ``_signals_ir``'s ~10693).
         if unit.origin == "trigger":
             vc = getattr(unit.node, "valid_card", None)
             if (
@@ -8660,7 +8682,8 @@ def _gives_control_to_other(node: TypedMirrorNode, unit: AbilityUnit) -> bool:
 
 def _gain_control(tree: ConceptTree) -> list[Signal]:
     """gain_control — YOU-THEFT (you take control of a permanent you don't own,
-    CR 110.2 / 720). Mirrors ``_signals_ir`` line ~9270: a ``GainControl`` /
+    CR 110.2 / 720). Mirrors the deleted ``_signals_ir``'s line ~9270: a ``GainControl``
+    /
     ``GainControlAll`` effect (Threaten, Control Magic's reset-free theft), EXCLUDING:
 
     * a control-RESET — an ``Owned`` predicate on the target ("each player gains
@@ -8706,7 +8729,8 @@ def _gain_control(tree: ConceptTree) -> list[Signal]:
 def _resource_token_makers(tree: ConceptTree) -> list[Signal]:
     """treasure_makers / food_makers / clue_makers / blood_makers — a predefined
     artifact-token maker (CR 111.10 / 205.3g / 701.16a investigate). Mirrors
-    ``_signals_ir`` ~12297: a ``make_token`` whose token subtype is Treasure / Food /
+    the deleted ``_signals_ir``'s ~12297: a ``make_token`` whose token subtype is
+    Treasure / Food /
     Clue / Blood, scope you/each; ``Investigate`` is a first-class Clue maker. The
     structural read improves on the raw-fallback (the resource subtype rides the
     token's typed ``types``). Scope "you".
@@ -8737,7 +8761,7 @@ def _resource_token_makers(tree: ConceptTree) -> list[Signal]:
 
 def _mill_makers(keywords: frozenset[str], name: str) -> list[Signal]:
     """mill_makers — a FIELD-LOOKUP on the Scryfall ``Mill`` keyword, NOT a structural
-    port (ADR-0027 / CR 701.17a). The live survivor (``_signals_ir``
+    port (ADR-0027 / CR 701.17a). The legacy survivor (the deleted ``_signals_ir``'s
     ``_IR_KEYWORD_MAP['mill']``) was DELIBERATELY moved to the keyword array to drop
     three phase mislabels of the ``Mill`` effect category — Bone Dancer (opp-GY →
     battlefield REANIMATION), Scroll Rack (library↔hand swap), Soldevi Digger (GY →
@@ -8872,7 +8896,8 @@ _UNIMPLEMENTED_ATTACH_GEAR_RX = re.compile(
 
 def _voltron_makers(tree: ConceptTree) -> list[Signal]:
     """voltron_makers — gear-attaching / Equipment-Aura tutor (CR 301.5 / 303.4 /
-    701.23 / 701.3d). Mirrors ``_signals_regex._detect_voltron_maker_ir``: (a) an
+    701.23 / 701.3d). Mirrors the deleted ``_signals_regex``'s
+    ``_detect_voltron_maker_ir``: (a) an
     ``Attach`` effect moving ANOTHER typed Equipment/Aura onto a creature (the
     ``attachment`` field is a separate typed gear, NOT absent — Kor Outfitter,
     Balan), scope not opponent; (b) a ``SearchLibrary`` whose searched filter
@@ -9063,7 +9088,8 @@ def _voltron_modal_aggregate_tell(node: object) -> bool:
 
 def _voltron_matters(tree: ConceptTree) -> list[Signal]:
     """voltron_matters — an Aura/Equipment PAYOFF build-around (CR 301.5c / 303).
-    Mirrors ``_signals_regex._detect_voltron_payoff_ir``: (a) a ``cast_spell`` trigger
+    Mirrors the deleted ``_signals_regex``'s ``_detect_voltron_payoff_ir``: (a) a
+    ``cast_spell`` trigger
     whose watched subject SUBTYPE is Equipment/Aura (Sram, Kor Spiritdancer); (b) an
     attachment-STATE predicate (``AttachedToRecipient`` / ``HasAnyAttachmentOf`` — "for
     each Aura attached to it", "enchanted or equipped creatures" — Reyav, Koll) on any
@@ -9853,7 +9879,7 @@ def self_mill_fill(tree: ConceptTree) -> bool:
 
 # ADR-0038 W4 giant (graveyard_matters): the opponent-owned-graveyard tell
 # legacy's OWN raw-text zone recovery reads (byte-identical to the deleted
-# ``_GY_OPP`` producer, _signals_ir.py). Phase sometimes DROPS the
+# ``_GY_OPP`` producer in the deleted _signals_ir.py). Phase sometimes DROPS the
 # ownership qualifier entirely off a graveyard-target filter it otherwise
 # parses identically to a self-graveyard reference (Scion of Darkness /
 # Ink-Eyes, Servant of Oni / Sepulchral Primordial's "target creature card
@@ -10251,7 +10277,7 @@ def _graveyard_matters(tree: ConceptTree) -> list[Signal]:
         # ``_graveyard_count_markers`` raw deep-scan (unlike this arm,
         # gated on no PRECEDING ``.condition`` object rather than on the
         # static's kind) still reaches directly — verified against a
-        # direct ``extract_signals_ir`` run: legacy fires
+        # direct run of the deleted ``extract_signals_ir``: legacy fires
         # ``('graveyard_matters', 'opponents')`` for it, via the SAME
         # marker single-scope read the deep-scan arm below reproduces.
         # Avatar of Woe's ModifyCost gate over a LITERAL graveyard-count
@@ -10285,7 +10311,8 @@ def _graveyard_matters(tree: ConceptTree) -> list[Signal]:
     # producer's own raw-record walk, so it still reaches both: Avatar
     # of Woe resolves 'you' (``scope='All'``), Expedition Lookout
     # resolves 'opponents' (``player=Opponent``) — a single scope each,
-    # verified against a direct ``extract_signals_ir`` run for both. GATED
+    # verified against a direct run of the deleted ``extract_signals_ir`` for both.
+    # GATED
     # on ``not seen`` (mirrors the producer's own
     # ``has_struct`` gate — it returns NOTHING when any OTHER effect on
     # the card already carries an in:graveyard zone tag, i.e. when an
@@ -10344,9 +10371,9 @@ def _graveyard_matters(tree: ConceptTree) -> list[Signal]:
     # giant's own per-clause exclusion of '"Name Sticker" Goblin's
     # "enters from anywhere OTHER THAN a graveyard or exile" clause was
     # an UNVERIFIED judgment call — legacy's actual mirror invocation
-    # (``_signals_ir.py``'s call to :func:`_graveyard_matters_clauses`)
+    # (the deleted ``_signals_ir.py``'s call to :func:`_graveyard_matters_clauses`)
     # passes the WHOLE ``kept_oracle`` with no such exclusion filter at
-    # all, and a direct run of ``extract_signals_ir`` over the real card
+    # all, and a direct run of the deleted ``extract_signals_ir`` over the real card
     # confirms legacy DOES fire ``('graveyard_matters', 'you')`` for it
     # (CR 400.7: a card whose own ETB trigger is gated on NOT arriving
     # from a graveyard still mechanically references the zone). No
@@ -12446,13 +12473,15 @@ def _keyword_field_signals(keywords: frozenset[str], name: str) -> list[Signal]:
         out.append(Signal("goad_makers", "opponents", "", "", name, "high"))
     # recall-completion b1 (ADR-0034): prowess (CR 702.108) is a you-cast
     # Spellslinger payoff — the creature is rewarded when you cast a noncreature
-    # spell. ``_signals_ir`` reads it off the Scryfall keyword array (~line 824);
+    # spell. The deleted ``_signals_ir`` read it off the Scryfall keyword array (~line
+    # 824);
     # no prowess row existed in the crosswalk keyword tables.
     if "prowess" in low:
         out.append(Signal("spellcast_matters", "you", "", "", name, "high"))
     # recall-completion (ADR-0034/0035 Stage-A): the OWN printed lifelink keyword
     # marks a lifegain SOURCE — a lifelink bearer gains life in combat (CR
-    # 702.15b), the MAKER arm. Mirrors ``_signals_ir._IR_KEYWORD_MAP["lifelink"]``
+    # 702.15b), the MAKER arm. Mirrors the deleted ``_signals_ir``'s
+    # ``_IR_KEYWORD_MAP["lifelink"]``
     # → ``lifegain_makers`` you. The ``_lifegain_makers`` typed lane reads only a
     # ``gain_life`` effect + a GRANTED ``AddKeyword(Lifelink)``, so a vanilla-
     # lifelink creature (no grant node) was the residual ``live_only`` gap.
@@ -12463,7 +12492,7 @@ def _keyword_field_signals(keywords: frozenset[str], name: str) -> list[Signal]:
     # (Breezekeeper: keywords=["Flying", "Phasing"], zero abilities/
     # triggers/statics) — so the structural ``_phasing_makers`` lane's
     # ``PhaseOut``/``PhaseIn`` effect-node read never reaches it. Mirrors
-    # ``_signals_ir``'s own keyword-field route for this exact keyword.
+    # the deleted ``_signals_ir``'s own keyword-field route for this exact keyword.
     if "phasing" in low:
         out.append(Signal("phasing_makers", "you", "", "", name, "high"))
     return out
@@ -12570,7 +12599,7 @@ def _counter_kind_lanes(tree: ConceptTree) -> list[Signal]:
 
 _RAD_REF = re.compile(r"\brad counters?\b", re.IGNORECASE)
 # ADR-0038 W3 batch 4 — a SANCTIONED byte-identical mirror of legacy's
-# whole-card poison_makers word regex (``_signals_ir``'s
+# whole-card poison_makers word regex (the deleted ``_signals_ir``'s
 # ``_IR_KEPT_DETECTORS`` "poison_makers" row): the keyword-array arm
 # (``_keyword_field_signals_b5``) only sees infect/toxic/poisonous on the
 # BEARER's own Scryfall keyword list, missing every GRANTED occurrence —
@@ -12807,8 +12836,9 @@ def _modified_matters(tree: ConceptTree) -> list[Signal]:
 
 def _predicate_build_around(tree: ConceptTree) -> list[Signal]:
     """multicolor / colorless / power / low_power / vanilla matters — color- and
-    P/T-property BUILD-AROUND lanes (CR 105.2 / 208.1 / 113.3). Mirrors
-    ``_signals_ir._predicate_build_around_lanes`` over a non-cost subject /
+    P/T-property BUILD-AROUND lanes (CR 105.2 / 208.1 / 113.3). Mirrors the
+    deleted legacy IR engine's ``_predicate_build_around_lanes`` over a non-cost subject
+    /
     count-operand / static-affected filter, scope ``you``:
 
     * **multicolor_matters** — a ``ColorCount`` ``GE``≥2 / ``EQ``≥2 predicate
@@ -12954,7 +12984,8 @@ def _predicate_build_around(tree: ConceptTree) -> list[Signal]:
 
     # recall-completion b1 (ADR-0034): the Ferocious/Formidable power-threshold
     # CONDITION ("as long as you control a creature with power 4 or greater" —
-    # Challenger Troll, Beastbond Outcaster). ``_signals_ir._condition_power_matters``
+    # Challenger Troll, Beastbond Outcaster). The deleted ``_signals_ir``'s
+    # ``_condition_power_matters``
     # reads the condition-subject filter for a fixed ``PtComparison:Power:GE/GT``,
     # controller you — the SAME condition-site machinery tapped_matters reads. GE/GT
     # only (LE/LT would drift the sibling low_power_matters). CR 208.1 / 207.2c.
@@ -14031,12 +14062,13 @@ def _keyword_field_signals_b7(keywords: frozenset[str], name: str) -> list[Signa
 # ── Batch 8 lanes (ADR-0035 Stage 2) ─────────────────────────────────────────
 
 # Battlefield permanent types a single-target exile/removal subject may name
-# (CR 115.1 / 406.1) — mirrors ``_signals_ir._PERMANENT_TYPES``.
+# (CR 115.1 / 406.1) — mirrors the deleted ``_signals_ir``'s identically-named type set.
 _PERMANENT_TYPES: frozenset[str] = frozenset(
     {"Creature", "Permanent", "Artifact", "Enchantment", "Planeswalker", "Battle"}
 )
-# Board-wipe subject types (CR 115.10) — mirrors ``_signals_ir._MASS_REMOVAL_
-# TYPES``. Land is deliberately ABSENT: "destroy all lands" is land
+# Board-wipe subject types (CR 115.10) — mirrors the deleted ``_signals_ir``'s
+# identically-named ``_MASS_REMOVAL_TYPES``. Land is deliberately ABSENT: "destroy all
+# lands" is land
 # destruction (Armageddon), a different lane.
 _MASS_REMOVAL_TYPES: frozenset[str] = frozenset(
     {"Creature", "Permanent", "Artifact", "Enchantment", "Planeswalker"}
@@ -14080,8 +14112,9 @@ def _tuck_preceded_by_selection(effects: Sequence[ConceptNode], idx: int) -> boo
     return any(e.concept in _TUCK_SELECTION_SIBLINGS for e in effects[:idx])
 
 
-# Evergreen team-anthem keywords (CR 702) — mirrors ``_signals_ir._TEAM_BUFF_
-# GRANT_KW`` (phase's spaceless spelling normalized via lower+strip).
+# Evergreen team-anthem keywords (CR 702) — mirrors the deleted ``_signals_ir``'s
+# identically-named ``_TEAM_BUFF_GRANT_KW`` (phase's spaceless spelling normalized via
+# lower+strip).
 _TEAM_BUFF_GRANT_KW: frozenset[str] = frozenset(
     {
         "flying",
@@ -14295,7 +14328,8 @@ def _is_scaling_count(node: TypedMirrorNode, fields: tuple[str, ...], raw: str) 
     """Whether one of ``node``'s ``fields`` is a genuine BOARD-COUNT scaler
     ("for each <X>", CR 107.3), not a bare X-spell whose X is the cast cost.
 
-    Mirrors ``_signals_ir._is_scaling_count`` over the typed substrate: a
+    Mirrors the deleted ``_signals_ir``'s identically-named ``_is_scaling_count`` over
+    the typed substrate: a
     counted-population / named-count qty tag (:data:`_SCALING_QTY_TAGS`) is
     always a scale; a bare-X tag (:data:`_BARE_X_QTY_TAGS` — Braingeyser)
     never is; any OTHER dynamic tag (CommanderCastFromCommandZoneCount,
@@ -15555,7 +15589,8 @@ def _is_team_buff_filter(filt: object) -> bool:
     """The team_buff anthem subject (CR 604.3): GENERIC creatures YOU control
     — no subtypes (tribal is type_matters), predicates at most
     NonToken/Another/Other (Always Watching stays in; an Attacking/color/
-    equipped narrowing fails). Mirrors ``_signals_ir._is_team_buff_grant``."""
+    equipped narrowing fails). Mirrors the deleted ``_signals_ir``'s
+    ``_is_team_buff_grant``."""
     return (
         filter_controller(filt) == "You"
         and "Creature" in filter_core_types(filt)
@@ -18276,7 +18311,7 @@ def _topdeck_stack(tree: ConceptTree) -> list[Signal]:
                 return [Signal("topdeck_stack", "you", "", "", tree.name, "high")]
 
     # Legacy kept-mirror, reused verbatim (CARD-level, not unit/node-gated —
-    # mirrors ``_signals_ir``'s own ``TOPDECK_STACK_SWEEP_REGEX`` producer
+    # mirrors the deleted ``_signals_ir``'s own ``TOPDECK_STACK_SWEEP_REGEX`` producer
     # exactly, run flat over the reminder-stripped whole-card oracle):
     # recovers the two idioms phase drops structurally with no residue at
     # all — a "put a card from your hand on top of your library" ACTIVATION
@@ -20250,7 +20285,7 @@ def _keyword_grant_lanes(tree: ConceptTree) -> list[Signal]:
     # firing first must never suppress it)). Read it off the tree's own
     # ``oracle`` (verbatim bulk face text) via the deleted SWEEP detector's
     # exact regex, the legacy's own residue path for this identical gap
-    # (``_KGT_SPLIT_RESIDUE_RE`` in ``_signals_ir``). CR 613.1f (layer 6,
+    # (``_KGT_SPLIT_RESIDUE_RE`` in the deleted ``_signals_ir``). CR 613.1f (layer 6,
     # ability-adding effects).
     if "keyword_grant_target" not in seen and _KEYWORD_GRANT_TARGET_KEPT_RX.search(
         _kept(tree)
@@ -20846,8 +20881,8 @@ def _trigger_doubling(tree: ConceptTree) -> list[Signal]:
 # triggered off a creature's PAST inaction (only the `AttackedThisTurn`
 # state-check property, never a dedicated effect/static tag) — a genuine
 # bucket-B gap. Byte-identical to the ``_IR_KEPT_DETECTORS`` inline pattern
-# in ``_signals_ir`` (no separate importable constant there to reuse single-
-# source), so this is a local last-resort ``_kept(tree)`` idiom, not a new
+# in the deleted ``_signals_ir`` (no separate importable constant there to
+# reuse single-source), so this is a local last-resort ``_kept(tree)`` idiom, not a new
 # grammar arm. Scope "you" (self/team punishment, matching legacy).
 _FORCED_ATTACK_PUNISH_RX = re.compile(r"didn't attack this turn", re.IGNORECASE)
 
@@ -20992,7 +21027,7 @@ def _damage_redirect(tree: ConceptTree) -> list[Signal]:
       "instead" — legacy serves it here regardless, so this lane mirrors
       that verbatim rather than second-guessing legacy's naming).
     * ARM B — the REDIRECT clause (``_DAMAGE_REDIRECT_MIRROR``, single-source
-      from ``_signals_ir``): en-Kor / Reflect Damage / Nova Pentacle /
+      from ``text_reads``): en-Kor / Reflect Damage / Nova Pentacle /
       Captain's Maneuver's "... is dealt to [X] instead" idiom.
 
     Scope "you" (the deleted producers' forced scope). CR 614.9 / 615.
@@ -21354,7 +21389,7 @@ def _damage_trigger_lanes(tree: ConceptTree) -> list[Signal]:
 
 # ADR-0038 W3 batch 4 (combat-damage cluster) — creature_ping's power-as-
 # damage DOER discriminators, SANCTIONED byte-identical mirrors of legacy's
-# own raw-text confirmation (``_signals_ir``'s power-as-damage cluster).
+# own raw-text confirmation (the deleted ``_signals_ir``'s power-as-damage cluster).
 # The structural anchor (a ``DealDamage`` whose amount is a POWER-scaled
 # ``Ref``) only fires today when the RECIPIENT is independently typed as a
 # Creature (Ram Through). Legacy's actual discriminator is the DOER, not
@@ -25050,8 +25085,8 @@ def _bending_lanes(tree: ConceptTree, keywords: frozenset[str]) -> list[Signal]:
 
     CR 701.65a airbend / 701.66a earthbend / 701.67a waterbend (keyword
     ACTIONS) vs 702.189a firebending (a TRIGGERED ability). Each bend is a
-    SEPARATE mechanic — no unifying "bending" CR rule (the live
-    never-conflate ruling, _signals_ir :1036-1050). Keyword-bearer rows
+    SEPARATE mechanic — no unifying "bending" CR rule (the deleted legacy
+    IR engine's never-conflate ruling, at its :1036-1050). Keyword-bearer rows
     ride :func:`_keyword_field_signals_b15`; this is the node arm the live
     ``bending``-Effect arm (:8177-8191) reads, re-derived from the typed
     v0.9.0 producers of cat=='bending':
@@ -25653,7 +25688,8 @@ def _keyword_field_signals_w4g(keywords: frozenset[str], name: str) -> list[Sign
     text isn't structured — Declaration in Stone, No Witnesses, Fateful
     Absence all carry ``make_token`` subject=None or no make_token node at
     all for a modal/rider investigate), so the keyword array is the
-    structural anchor. Mirrors ``_signals_ir._IR_KEYWORD_MAP["investigate"]``
+    structural anchor. Mirrors the deleted ``_signals_ir``'s
+    ``_IR_KEYWORD_MAP["investigate"]``
     byte-identically (``artifacts_matter`` you, high). The dedicated
     ``clue_matters`` lane reads investigate off its own path; this opens
     ``artifacts_matter``, which has no other tell for these.

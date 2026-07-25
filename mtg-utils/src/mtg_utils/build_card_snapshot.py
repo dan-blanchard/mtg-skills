@@ -83,40 +83,62 @@ _FACE_FIELDS = (
     "colors",
 )
 
-# The snapshot-feeding helper family: the testkit helpers themselves plus the
-# per-suite real-card wrappers that forward a name into them (``_ks_real("Atraxa,
-# …")``, ``_keys_real_regex(…)`` — the name literal sits on the wrapper, not on
-# ``test_signals``). The scan is AST-based (see ``_scan_module``), so apostrophes
-# in names, comments mentioning ``test_card("…")``, and parametrize tables all
-# behave correctly — a regex scan mis-handled all three.
-_HELPER_NAMES = frozenset(
-    {
-        "test_card",
-        "test_card_ir",
-        "test_signals",
-        "_keys_real",
-        "_ks_real",
-        "_ksub_real",
-        "_by_key_real",
-        "_keys_real_regex",
-        "_ks_real_regex",
-        "_ksub_real_regex",
-        "_by_key_real_regex",
-        "_real_full",
-        "_real",
-    }
-)
+# The snapshot-feeding core: the three testkit entry points. Per-suite wrappers
+# that forward a card name into them (``_ks_real("Atraxa, …")``, ``_keys(…)`` —
+# the name literal sits on the wrapper, not on ``test_signals``) are DERIVED per
+# module by ``_local_wrappers``, never hand-listed: a hardcoded wrapper list
+# silently dropped any new helper a test file introduced (2026-07-25 — the
+# carried-forward names in older snapshots were masking exactly that gap).
+# The scan is AST-based (see ``_scan_module``), so apostrophes in names,
+# comments mentioning ``test_card("…")``, and parametrize tables all behave
+# correctly — a regex scan mis-handled all three.
+_CORE_HELPERS = frozenset({"test_card", "test_card_ir", "test_signals"})
 
 
-def _helper_call_name(call: ast.Call) -> str | None:
-    """The called helper's bare name, when the call targets the helper family."""
+def _call_name(call: ast.Call) -> str | None:
     func = call.func
-    name = None
     if isinstance(func, ast.Name):
-        name = func.id
-    elif isinstance(func, ast.Attribute):
-        name = func.attr
-    return name if name in _HELPER_NAMES else None
+        return func.id
+    if isinstance(func, ast.Attribute):
+        return func.attr
+    return None
+
+
+def _helper_call_name(call: ast.Call, helpers: frozenset[str]) -> str | None:
+    """The called helper's bare name, when the call targets the helper family."""
+    name = _call_name(call)
+    return name if name in helpers else None
+
+
+def _local_wrappers(tree: ast.Module) -> frozenset[str]:
+    """Names of module-local functions that forward a parameter into the testkit
+    core (or into another wrapper) — computed to a fixpoint so a wrapper of a
+    wrapper still feeds the scan."""
+    helpers = set(_CORE_HELPERS)
+    fns = [
+        n
+        for n in ast.walk(tree)
+        if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))
+    ]
+    changed = True
+    while changed:
+        changed = False
+        for fn in fns:
+            if fn.name in helpers:
+                continue
+            params = {a.arg for a in fn.args.args}
+            forwards = any(
+                isinstance(call, ast.Call)
+                and _call_name(call) in helpers
+                and call.args
+                and isinstance(call.args[0], ast.Name)
+                and call.args[0].id in params
+                for call in ast.walk(fn)
+            )
+            if forwards:
+                helpers.add(fn.name)
+                changed = True
+    return frozenset(helpers)
 
 
 def _parametrize_argnames(node: ast.expr) -> list[str]:
@@ -156,7 +178,9 @@ def _parametrize_rows(node: ast.expr) -> list[tuple]:
     return rows
 
 
-def _parametrized_helper_names(fn: ast.FunctionDef | ast.AsyncFunctionDef) -> set[str]:
+def _parametrized_helper_names(
+    fn: ast.FunctionDef | ast.AsyncFunctionDef, helpers: frozenset[str]
+) -> set[str]:
     """Card names flowing into a helper call through a ``parametrize`` column: when
     the test body calls ``test_card(name)`` with a bare variable and ``name`` is a
     parametrize argname, harvest exactly that column's string values — so a
@@ -165,7 +189,7 @@ def _parametrized_helper_names(fn: ast.FunctionDef | ast.AsyncFunctionDef) -> se
         call.args[0].id
         for call in ast.walk(fn)
         if isinstance(call, ast.Call)
-        and _helper_call_name(call)
+        and _helper_call_name(call, helpers)
         and call.args
         and isinstance(call.args[0], ast.Name)
     }
@@ -199,8 +223,14 @@ def _scan_module(text: str) -> set[str]:
         tree = ast.parse(text)
     except SyntaxError:
         return names
+    helpers = _local_wrappers(tree)
     for node in ast.walk(tree):
-        if isinstance(node, ast.Call) and _helper_call_name(node) and node.args:
+        is_helper_call = (
+            isinstance(node, ast.Call)
+            and _helper_call_name(node, helpers)
+            and node.args
+        )
+        if is_helper_call:
             arg = node.args[0]
             if isinstance(arg, ast.Constant) and isinstance(arg.value, str):
                 names.add(arg.value)
@@ -214,8 +244,28 @@ def _scan_module(text: str) -> set[str]:
                     for v in node.value.values
                     if isinstance(v, ast.Constant) and isinstance(v.value, str)
                 )
+        elif isinstance(node, ast.For):
+            # ``for n in ("Card A", "Card B"): … helper(n)`` — a literal loop
+            # tuple feeding a helper call through the loop variable.
+            if (
+                isinstance(node.target, ast.Name)
+                and isinstance(node.iter, (ast.Tuple, ast.List))
+                and any(
+                    isinstance(call, ast.Call)
+                    and _helper_call_name(call, helpers)
+                    and call.args
+                    and isinstance(call.args[0], ast.Name)
+                    and call.args[0].id == node.target.id
+                    for call in ast.walk(node)
+                )
+            ):
+                names.update(
+                    e.value
+                    for e in node.iter.elts
+                    if isinstance(e, ast.Constant) and isinstance(e.value, str)
+                )
         elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
-            names.update(_parametrized_helper_names(node))
+            names.update(_parametrized_helper_names(node, helpers))
     return names
 
 

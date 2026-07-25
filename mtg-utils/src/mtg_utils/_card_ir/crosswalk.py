@@ -263,8 +263,8 @@ EFFECT_CONCEPTS: dict[str, str] = {
 
 # Predefined ARTIFACT token subtypes (CR 111.10 / 205.3g): a maker / sac-payoff over
 # one feeds artifacts_matter even when phase carries only the subtype with an empty
-# card_types (Emissary Green, Giant Opportunity). Mirrors ``_signals_ir``
-# ``_ARTIFACT_TOKEN_SUBTYPES``.
+# card_types (Emissary Green, Giant Opportunity). Consumed by
+# ``crosswalk_signals.py`` and ``dropped_clauses.py``.
 ARTIFACT_TOKEN_SUBTYPES: frozenset[str] = frozenset(
     {
         "treasure",
@@ -1336,8 +1336,8 @@ def counter_pred_kinds(filt: object) -> tuple[str, ...]:
     """The counter KINDS a filter's ``Counters`` predicates reference (``"P1P1"`` /
     ``"M1M1"`` / ``"Any"`` …), EXCLUDING the ``EQ 0`` "with NO counter" inverse.
 
-    Mirrors ``_signals_ir._counter_pred_kinds`` over the typed predicate: a
-    ``Counters`` property carries ``comparator`` + ``count`` + ``counters``
+    Mirrors the legacy regex engine's counter-kind read over the typed
+    predicate: a ``Counters`` property carries ``comparator`` + ``count`` + ``counters``
     (``{OfType: <kind>}`` for a named kind, else the kind-agnostic "any counter"
     form → ``"Any"``). The +1/+1 / -1/-1 / any-counter payoff lanes route by kind.
     Recurses ``Or`` / ``And``.

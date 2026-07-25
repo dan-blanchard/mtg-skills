@@ -27,7 +27,6 @@ from mtg_utils._card_ir.crosswalk import build_concept_tree
 from mtg_utils._card_ir.mirror import strict_load_card
 from mtg_utils._card_ir.mirror.build import fixtures_dir, load_committed_schema
 from mtg_utils._deck_forge import _ir_lookup as il
-from mtg_utils._deck_forge._migrated_keys import MIGRATED_KEYS
 from mtg_utils._deck_forge.crosswalk_signals import (
     PORTED_KEYS,
     extract_crosswalk_signals,
@@ -381,21 +380,14 @@ def test_hybrid_reconciliation_single_fire(monkeypatch):
     assert len(idents) == len(set(idents))
 
 
-def test_migrated_keys_residual_empty():
-    """The key-partition invariant (ADR-0039 W8 finisher): ``MIGRATED_KEYS -
-    PORTED_KEYS`` is EMPTY — every historically-migrated key graduated to a
-    crosswalk-native lane. ``extract_signals_hybrid`` (signals.py) has no
-    residual arm at all any more (task #80 step 6 deleted it); this test
-    guards the key-level precondition that made that deletion safe — a
-    future regression that shrinks ``PORTED_KEYS`` below ``MIGRATED_KEYS``
-    would silently stop serving a key with no fallback, so it must trip
-    here first."""
-    residual = MIGRATED_KEYS - PORTED_KEYS
-    assert residual == frozenset(), (
-        "a migrated key regressed out of PORTED_KEYS with no legacy fallback "
-        f"left to catch it: {sorted(residual)}"
-    )
-    assert MIGRATED_KEYS <= PORTED_KEYS
+# NOTE: the former ``test_migrated_keys_residual_empty`` (the ``MIGRATED_KEYS -
+# PORTED_KEYS == empty`` key-partition invariant) is DELETED — ``_migrated_keys.py``
+# / ``MIGRATED_KEYS`` no longer exist (the legacy regex/IR strangler finished and
+# was deleted outright). The surviving invariant it guarded — "every emitted key
+# is manifest-served / spec-resolved" — is now expressed directly via
+# ``producible_static_keys()`` and proven below by
+# ``test_producible_includes_crosswalk_only_lanes`` /
+# ``test_gate_resolves_every_producible_key``.
 
 
 # ── producible-key gate ───────────────────────────────────────────────────────

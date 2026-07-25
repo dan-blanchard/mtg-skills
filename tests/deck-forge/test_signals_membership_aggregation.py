@@ -8,20 +8,12 @@ from fastapi.testclient import TestClient
 
 from mtg_utils._card_ir.crosswalk import ConceptTree
 from mtg_utils._deck_forge import _ir_lookup
-from mtg_utils._deck_forge._signals_ir import extract_signals_ir
 from mtg_utils._deck_forge.app import build_app
 from mtg_utils._deck_forge.engine import _AVENUE_CAP
-from mtg_utils._deck_forge.signals import extract_signals
+from mtg_utils._deck_forge.signals import extract_signals_hybrid
 from mtg_utils._deck_forge.state import DeckSession, ForgeState
-from mtg_utils.card_ir import Card, Face
 from mtg_utils.deck import split_type_line
-
-
-# A minimal non-None IR routes extract_signals_ir to the IR path for ADR-0027
-# migrated keys (e.g. type_matters) whose source reads the record's oracle via a
-# kept mirror.
-def _bare_ir() -> Card:
-    return Card(oracle_id="x", name="X", faces=(Face(name="X", abilities=()),))
+from mtg_utils.testkit import test_card, test_signals
 
 
 def _text_only_tree(card: dict) -> ConceptTree:
@@ -61,41 +53,39 @@ def _wire_trees(monkeypatch, cards: list[dict]) -> None:
     )
 
 
-VANILLA_ELF = {
-    "name": "Plain Elf",
-    "type_line": "Legendary Creature — Elf Warrior",
-    "oracle_text": "",
-    "power": "3",
-    "toughness": "3",
-}
-
-
 # ── include_membership flag (signal level) ──
+# Real-card, production-path checks (mtg_utils.testkit): the crosswalk's own-subtype
+# type_matters lane fires UNCONDITIONALLY (not gated by include_membership at all —
+# see extract_signals_hybrid's include_membership branch, which only wraps
+# apply_membership_floor); only the membership-floor cross-opens (e.g.
+# voltron_matters) are gated by the flag. Verified empirically against the
+# committed snapshot (Grizzly Bears keeps type_matters/Bear but loses
+# voltron_matters when include_membership=False; Llanowar Elves keeps
+# type_matters/Elf either way).
 def test_membership_on_by_default():
-    keys = {(s.key, s.subject) for s in extract_signals(VANILLA_ELF)}
+    keys = {(s.key, s.subject) for s in test_signals("Llanowar Elves")}
     assert ("type_matters", "Elf") in keys
 
 
-def test_membership_off_drops_own_subtype_and_voltron():
-    sigs = extract_signals(VANILLA_ELF, include_membership=False)
-    assert ("type_matters", "Elf") not in {(s.key, s.subject) for s in sigs}
-    assert "voltron_matters" not in {s.key for s in sigs}
+def test_membership_off_drops_voltron_but_not_own_subtype_type_matters():
+    card = test_card("Grizzly Bears")
+    on = extract_signals_hybrid(card, None, include_membership=True)
+    off = extract_signals_hybrid(card, None, include_membership=False)
+    assert ("type_matters", "Bear") in {(s.key, s.subject) for s in on}
+    assert ("type_matters", "Bear") in {(s.key, s.subject) for s in off}
+    assert "voltron_matters" in {s.key for s in on}
+    assert "voltron_matters" not in {s.key for s in off}
 
 
 def test_membership_flag_does_not_touch_oracle_signals():
     # a real oracle payoff fires regardless of the flag.
-    card = {
-        "name": "Goblin Lord That Is An Elf",
-        "type_line": "Legendary Creature — Elf",
-        "oracle_text": "Other Goblins you control get +1/+1.",
-    }
-    # ADR-0027: type_matters migrated → hybrid path.
-    off = {
-        (s.key, s.subject)
-        for s in extract_signals_ir(card, _bare_ir(), include_membership=False)
-    }
-    assert ("type_matters", "Goblin") in off  # oracle Goblin payoff survives
-    assert ("type_matters", "Elf") not in off  # own-subtype membership suppressed
+    card = test_card("Goblin King")  # "Other Goblins get +1/+1 and have mountainwalk."
+    on = extract_signals_hybrid(card, None, include_membership=True)
+    off = extract_signals_hybrid(card, None, include_membership=False)
+    on_ids = {(s.key, s.subject, s.confidence) for s in on}
+    off_ids = {(s.key, s.subject, s.confidence) for s in off}
+    assert ("type_matters", "Goblin", "high") in on_ids
+    assert ("type_matters", "Goblin", "high") in off_ids
 
 
 # ── deck aggregation (the UI bug) ──

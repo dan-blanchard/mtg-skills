@@ -2,9 +2,9 @@
 
 ADR-0039 step 2 rehomed these symbol DEFINITIONS out of the old builder modules
 (``project.py`` / ``supplement.py``) so the crosswalk's sanctioned text reads
-(``crosswalk_signals.py``, ``tree_synthesis.py``, and the
-``_deck_forge._signals_ir`` mirror that ``combat_damage_recipients_from_text``
-also serves) survive the old builder's deletion. Step 7 finished that deletion:
+(``crosswalk_signals.py`` and ``tree_synthesis.py``, including the
+``combat_damage_recipients_from_text`` scan) survive the old builder's
+deletion. Step 7 finished that deletion:
 ``project.py`` is gone, and the last shared symbols it still defined (``_norm``,
 ``_DICE_TRIG``, the tree-synthesis raw anchors of Group C, and the sac-cost
 patterns ``bridge_ledger`` reads) moved here verbatim (same regex / combinator
@@ -400,9 +400,9 @@ def _topdeck_stack_self(clause: str) -> bool:
 
 # ── Group C: from project.py (ADR-0039 step 7 — the builder deleted) ──────
 # The raw anchors below were project.py's marker regexes; the crosswalk's
-# tree_synthesis arms, the _signals_ir / recovery grammar reads, and the
-# bridge_ledger sac-cost rows import them from here now that the legacy
-# builder is gone. Each moved verbatim with its original comment block.
+# tree_synthesis arms and the bridge_ledger sac-cost rows import them from
+# here now that the legacy builder is gone. Each moved verbatim with its
+# original comment block.
 
 # "<determiner> creature […] can't block" — a clause FORCING a targeted/affected
 # creature OTHER THAN THE SOURCE to be unable to block (path-clearing / pillowfort

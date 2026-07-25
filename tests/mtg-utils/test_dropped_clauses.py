@@ -2,13 +2,10 @@
 
 CI-safe tests (no phase / bulk / network): the SYNTHESIS_ARMS registry, the
 firing / convergence MECHANISM on synthetic compat Cards, idempotence, and the
-shared substrate-purity guard's non-vacuity. The corpus-wide LIVE/CONVERGED
-assertion is a gated test at the bottom (needs the local phase card-data + bulk).
+shared substrate-purity guard's non-vacuity.
 """
 
 from __future__ import annotations
-
-import os
 
 import pytest
 
@@ -276,47 +273,3 @@ def test_shared_substrate_purity_guard_is_not_vacuous():
     # … id-based guard catches it (the load-bearing failure path).
     with pytest.raises(SubstratePurityError):
         assert_substrate_pure(before, leaked)
-
-
-# ── gated corpus convergence (needs local phase card-data + bulk; never CI) ────
-
-
-@pytest.mark.skipif(
-    not os.environ.get("MTG_SKILLS_RUN_CONVERGENCE"),
-    reason="corpus convergence scan is gated (needs phase card-data + bulk); "
-    "set MTG_SKILLS_RUN_CONVERGENCE=1 to run",
-)
-def test_all_applied_arms_are_live_at_the_pin():
-    """Every currently-applied (c) arm still FINDS A GAP (fires on >=1 corpus card)
-    at the phase pin — none has silently converged. When a future pin bump teaches
-    phase to parse a clause, that arm drops to 0 firings and this test NAMES it as
-    retire-ready. Grounded on the strict mirror (the compat card the arm reads is
-    built from the mirror)."""
-    import json
-    from pathlib import Path
-
-    from mtg_utils import _phase
-    from mtg_utils._card_ir.card_ir_convergence import (
-        convergence_verdicts,
-        scan_arm_firings,
-    )
-    from mtg_utils._card_ir.mirror.build import load_committed_schema
-    from mtg_utils.bulk_loader import default_bulk_path, load_bulk_cards
-
-    bulk_path = default_bulk_path()
-    assert bulk_path is not None, "no bulk; run download-mtgjson"
-    data = json.loads(Path(_phase.ensure_card_data()).read_text())
-    records = list(data.values()) if isinstance(data, dict) else list(data)
-    bulk_index: dict[str, dict] = {}
-    for c in load_bulk_cards(bulk_path):
-        oid = c.get("oracle_id")
-        if oid and oid not in bulk_index:
-            bulk_index[oid] = c
-    firings, scanned = scan_arm_firings(records, bulk_index, load_committed_schema())
-    assert scanned > 10000
-    verdicts = convergence_verdicts(firings)
-    converged = [a for a in ARM_NAMES if verdicts[a] == "CONVERGED"]
-    assert not converged, (
-        f"arms converged (retire-ready) at this pin: {converged} — "
-        "retire them from dropped_clauses.SYNTHESIS_ARMS"
-    )

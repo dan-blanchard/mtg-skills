@@ -29,8 +29,10 @@ only live regex path left is USER-SUPPLIED: ``archetype_audit``'s
 stated_archetypes`` custom-regex entries (``_archetype_resolver.
 CustomRegexArchetype``) — a cube author's own pattern for a theme the
 presets don't name at all, never a second detector shadowing the signal
-extractor. Both build their ``Preset``/matcher directly rather than
-through this module's (now-unused) ``patterns`` arm plumbing.
+extractor. Both build a one-off ``Preset`` directly (still using the
+``patterns``/``type_patterns`` fields and matching machinery below —
+those stay live for this user-supplied path) rather than registering a
+new entry in the curated ``PRESETS`` dict.
 
 # Structural views (task #83, ADR-0035/0039)
 
@@ -111,16 +113,16 @@ if TYPE_CHECKING:
     # Type-only: mtg_utils._card_ir.crosswalk has no _deck_forge dependency
     # (verified), so this import is safe even at runtime, but every OTHER
     # crosswalk-adjacent import in this module is lazy (see _signal_keys_for
-    # / _concept_any_face's own docstrings) to dodge the _deck_forge.
-    # _signals_regex -> theme_presets cycle — keeping this one TYPE_CHECKING-
-    # only too keeps the whole module's import discipline uniform.
+    # / _concept_any_face's own docstrings) to dodge an import-time cycle
+    # with _deck_forge.signals — keeping this one TYPE_CHECKING-only too
+    # keeps the whole module's import discipline uniform.
     from mtg_utils._card_ir.crosswalk import ConceptTree
 
 # Matches a count in digit form, word form (one..twelve), or X. IGNORECASE
 # is applied at pattern compile time, so word forms match "Three" too.
 # Unused by any PRESETS entry as of task #86 (the removal flip retired the
 # last built-in preset with a raw ``patterns`` arm) — kept for a future
-# genuinely-textual fact, same reasoning as :func:`_rx` below.
+# genuinely-textual fact.
 _COUNT = r"(?:\d+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|X)"
 
 
@@ -218,10 +220,10 @@ def _signal_keys_for(card: dict) -> frozenset[str]:
     preset just never matches such a card, exactly like the ``keywords`` /
     ``patterns`` arms matching nothing on a card missing the field they
     read. Imports ``mtg_utils._deck_forge.signals`` LAZILY inside the
-    function body (never at module import time): ``_deck_forge.
-    _signals_regex`` imports ``theme_presets.get_preset``, so a top-level
-    import here would create an import-time cycle racing partial module
-    initialization the first time either module loads.
+    function body (never at module import time): a top-level import here
+    would risk an import-time cycle racing partial module initialization
+    the first time either module loads, so the lazy import stays as a
+    defensive convention.
     """
     oid = card.get("oracle_id")
     if not oid:
@@ -430,17 +432,6 @@ def _plus_one_counters_self_grow_concept(card: dict) -> bool:
     from mtg_utils._deck_forge.crosswalk_signals import self_counter_grow_narrow
 
     return _concept_any_face(card, self_counter_grow_narrow)
-
-
-def _rx(*patterns: str) -> tuple[re.Pattern[str], ...]:
-    """Compile a tuple of patterns with IGNORECASE.
-
-    Unused by any PRESETS entry as of task #86 (the ``removal`` flip
-    retired the last built-in preset with a raw ``patterns`` arm) — kept
-    in case a future genuinely-textual fact needs it; NOT a place to add a
-    second regex detector shadowing a signal (Dan's standing directive).
-    """
-    return tuple(re.compile(p, re.IGNORECASE) for p in patterns)
 
 
 def _removal_edict_concept(

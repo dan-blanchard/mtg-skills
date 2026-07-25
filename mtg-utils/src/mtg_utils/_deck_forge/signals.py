@@ -9,22 +9,16 @@ a card that benefits from an opponent's graveyard yields ``graveyard_matters`` s
 yields ``type_matters`` with ``subject="Goblin"`` (never collapsed into a generic
 "creatures matter").
 
-Production extraction is crosswalk-only (ADR-0035/0039): ``extract_signals_hybrid``
-resolves the card's per-face Layer-2 concept trees (``_ir_lookup.trees_for``), runs
-``crosswalk_signals.extract_crosswalk_signals`` over each (sliced to
-``PORTED_KEYS``), unions by ``(key, scope, subject)``, and applies ONE merge-level
-membership floor across all faces. The regex bag
-(``_signals_regex.extract_signals``) and the projected Card-IR path
-(``_signals_ir.extract_signals_ir``) are never called here anymore — they survive
-as test probes, as the home of ``Signal`` + the shared parsing primitives, and
-(for the regex path) as ``rank_deck_signals``' ``ir_for=None`` degradation.
+Production extraction is structural (ADR-0035): ``extract_signals_hybrid``
+resolves the card's per-face concept trees (``_ir_lookup.trees_for``), runs
+``crosswalk_signals.extract_crosswalk_signals`` over each (sliced to the served-key
+manifest), unions by ``(key, scope, subject)``, and applies ONE merge-level
+membership floor across all faces. The shared value type and text primitives live
+in ``signal_base`` / ``text_reads`` / ``membership_floor``.
 
 ``coverage_gate`` reports the extractor's own blind spots (zero-signal / only-generic
-/ scope-uncertain) — the same "queue it, don't silently drop it" check M3 (ADR-0009)
-used to run in production against the regex/IR paths above. It is test-only now (no
-production caller; ``coverage_gate``'s own callers are all under ``tests/``) — it
-survives as a regression probe over ``extract_signals``/``extract_signals_ir`` fixture
-shapes, not a live gate ``extract_signals_hybrid`` runs.
+/ scope-uncertain / partial-parse) — the "queue it, don't silently drop it" check
+(ADR-0009) tests run over extractor output to find cards needing agent scoping.
 """
 
 from __future__ import annotations
@@ -33,49 +27,36 @@ import re
 from collections.abc import Callable, Sequence
 
 from mtg_utils._deck_forge import signal_keys
-from mtg_utils._deck_forge._migrated_keys import MIGRATED_KEYS
-from mtg_utils._deck_forge._signals_regex import (
-    _DETECTORS,
-    _DIRECT_KEYWORD_SIGNALS,
-    _DISCARD_OUTLET_SWEEP_RE,
+from mtg_utils._deck_forge._subtypes import (
+    CREATURE_SUBTYPES,
+)
+from mtg_utils._deck_forge.signal_base import (
     _GENERIC_KEYS,
-    _HAND_FLOOR,
-    _LURE_MATTERS_PLAN_MIRROR,
-    _PLAY_FROM_TOP_FLOOR_MIRROR,
-    _PLAY_FROM_TOP_MIRROR,
-    _PRESET_KEYWORD_SIGNALS,
-    _PRESET_REGEX_SIGNALS,
-    _VOLTRON_EQUIP_RE,
     Signal,
     _clauses,
     _tinybones_scope,
+    clauses,
+)
+from mtg_utils._deck_forge.text_reads import (
+    _DISCARD_OUTLET_SWEEP_RE,
+    _LURE_MATTERS_PLAN_MIRROR,
+    _PLAY_FROM_TOP_FLOOR_MIRROR,
+    _PLAY_FROM_TOP_MIRROR,
+    _VOLTRON_EQUIP_RE,
     _voltron_double_strike_beater,
     _voltron_land_scaler,
     _voltron_self_heroic,
     _voltron_self_pump,
     _voltron_self_recurs,
     _voltron_self_unblockable,
-    clauses,
-    extract_signals,
-)
-from mtg_utils._deck_forge._subtypes import (
-    CREATURE_SUBTYPES,
-)
-from mtg_utils._deck_forge._sweep_detectors import (
-    SWEEP_DETECTORS,
 )
 from mtg_utils.card_classify import get_oracle_text
 from mtg_utils.card_ir import Card
 
 # Public surface re-exported by this facade. Listed here so the re-export
 # imports above are not pruned as "unused" — external consumers and tests still
-# do `from mtg_utils._deck_forge.signals import <name>`. ``MIGRATED_KEYS`` stays
-# re-exported for backward compatibility (test_migrated_keys.py's historical
-# migration-order record) even though ``extract_signals_hybrid`` no longer
-# dispatches on it (ADR-0039 task #80 step 6 — the crosswalk serves every key in
-# ``PORTED_KEYS``, a superset).
+# do `from mtg_utils._deck_forge.signals import <name>`.
 __all__ = [
-    "MIGRATED_KEYS",
     "_VOLTRON_EQUIP_RE",
     "Signal",
     "_tinybones_scope",
@@ -87,7 +68,6 @@ __all__ = [
     "_voltron_self_unblockable",
     "clauses",
     "coverage_gate",
-    "extract_signals",
     "extract_signals_hybrid",
     "producible_static_keys",
     "rank_deck_signals",
@@ -370,20 +350,16 @@ def _deck_signal_stats(
             continue
         is_cmd = card.get("name") in commander_names
         # Folded objects (a ventured dungeon — ADR-0025) belong to the COMMANDER's plan,
-        # so only fold for the commander, never the 99.
-        if ir_for is not None:
-            sigs = extract_signals_hybrid(
-                card,
-                ir_for(card),
-                include_membership=is_cmd,
-                resolve_object=resolve_object if is_cmd else None,
-            )
-        else:
-            sigs = extract_signals(
-                card,
-                include_membership=is_cmd,
-                resolve_object=resolve_object if is_cmd else None,
-            )
+        # so only fold for the commander, never the 99. The structural path resolves
+        # its own concept trees from the record; ``ir_for`` is accepted for caller
+        # compatibility but no longer selects an engine — a deployment with no card
+        # data degrades to empty signals, never to text-guessing.
+        sigs = extract_signals_hybrid(
+            card,
+            ir_for(card) if ir_for is not None else None,
+            include_membership=is_cmd,
+            resolve_object=resolve_object if is_cmd else None,
+        )
         for sig in sigs:
             ident = (sig.key, sig.scope, sig.subject)
             support[ident] = support.get(ident, 0) + 1
@@ -410,13 +386,10 @@ def rank_deck_signals(
     so both the deck-forge engine (``engine.ranked_deck_signals``) and the deterministic
     tuner share one ranking (ADR-0023).
 
-    ``ir_for`` (ADR-0027): a per-record Card-IR resolver. When supplied, each card
-    runs through ``extract_signals_hybrid`` so crosswalk-served keys surface in the
-    deck's ranked signals / avenues — the engine wires its index here. When ``None``
-    (the deterministic tuner's no-sidecar path — the caller never wired up an IR
-    resolver at all), falls back to the pure regex ``extract_signals`` (a
-    crosswalk-served key whose regex producer is deleted simply won't surface —
-    graceful degradation)."""
+    ``ir_for``: a per-record Card-IR resolver, accepted for caller compatibility
+    (the engine wires its index here). Extraction is structural either way — the
+    concept trees resolve from the record itself; with no card data available the
+    result is empty signals, never a text-guess."""
     support, from_commander, first, _nc_high = _deck_signal_stats(
         records, commander_names, resolve_object=resolve_object, ir_for=ir_for
     )
@@ -573,50 +546,17 @@ def coverage_gate(
     return (False, "")
 
 
-# Keys emitted by hand-written full-text / function detectors via a direct add(), i.e.
-# NOT carried by a producer table — co-listed so the key-agreement gate guards them too.
-# (Subject-bearing keys live in signal_keys.SUBJECT_KEYS and are excluded below; they
-# resolve dynamically via signal_specs._subject_spec, not a static spec.)
-_LITERAL_ADD_KEYS = frozenset(
-    {
-        "self_blink",
-        "combat_buff_engine",
-        "discard_matters",
-        "card_draw_engine",
-        "ability_strip_payoff",
-        "land_destruction",
-        "cheat_from_top",
-        "kill_engine",
-        "one_punch",
-        "big_mana",
-    }
-)
-
-
 def producible_static_keys() -> set[str]:
-    """Every scope-bearing, subject-LESS signal key a detector can emit into
-    ``Signal.key`` — DERIVED from the producer tables (so it can never lag the
-    detectors) and fed to the key-agreement gate in signal_specs.py. Subject-bearing
-    keys are excluded: they have no static spec (signal_specs._subject_spec builds one
-    from the captured subject) and so must not be probed with an empty subject."""
-    keys: set[str] = set()
-    keys.update(key for key, _matcher, _scope in _DETECTORS)
-    keys.update(key for key, _pattern, _scope in _HAND_FLOOR)
-    keys.update(d["key"] for d in SWEEP_DETECTORS)
-    for table in (
-        _PRESET_KEYWORD_SIGNALS,
-        _PRESET_REGEX_SIGNALS,
-        _DIRECT_KEYWORD_SIGNALS,
-    ):
-        keys.update(key for key, _scope in table.values())
-    keys.update(_LITERAL_ADD_KEYS)
-    # ADR-0039 task #80 step 6: the crosswalk (``PORTED_KEYS``) is the ONE other key
-    # source left (``extract_signals_hybrid`` no longer has a regex/legacy-IR arm),
-    # and it is a strict superset of ``MIGRATED_KEYS`` (every historically-migrated
-    # key graduated to a crosswalk-native lane), so unioning it alone keeps the gate
-    # honest — a lazy import so no crosswalk machinery loads on a bare `import
-    # signals` that never calls this function.
+    """Every scope-bearing, subject-LESS signal key the extractor can emit into
+    ``Signal.key`` — the served-key manifest, fed to the key-agreement gate in
+    signal_specs.py (ADR-0014). Subject-bearing keys are excluded: they have no
+    static spec (signal_specs._subject_spec builds one from the captured subject)
+    and so must not be probed with an empty subject.
+
+    The manifest is the single key source: the retired regex producer tables were
+    measured to contribute zero keys outside it before deletion (every regex /
+    sweep / literal-add key was already manifest-served — 360 == 360, 2026-07-25).
+    Lazy import so no lane machinery loads on a bare ``import signals``."""
     from mtg_utils._deck_forge.crosswalk_signals import PORTED_KEYS
 
-    keys.update(PORTED_KEYS)
-    return keys - signal_keys.SUBJECT_KEYS
+    return set(PORTED_KEYS) - signal_keys.SUBJECT_KEYS

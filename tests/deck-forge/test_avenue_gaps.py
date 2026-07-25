@@ -13,26 +13,14 @@ Patterns implemented here:
   5. Self-ETB-value commanders surface the existing blink/flicker avenue (extraction).
 """
 
-from mtg_utils._deck_forge._signals_ir import extract_signals_ir
+
 from mtg_utils._deck_forge.signal_specs import serves, spec_for
-from mtg_utils._deck_forge.signals import (
-    Signal,
-    extract_signals,
-)
-from mtg_utils.card_ir import Card, Face
+from mtg_utils._deck_forge.signals import Signal
+from mtg_utils.testkit import test_signals
 
 
 def _sig(key, scope="you", subject=""):
     return Signal(key=key, scope=scope, subject=subject, text="", source="cmd")
-
-
-def _bare_ir() -> Card:
-    """A minimal non-None Card IR — routes extract_signals_ir through the IR path
-    so a migrated key whose IR source scans the record (a kept word mirror) fires
-    (ADR-0039 task #80 step 6: these synthetic fixtures have no real oracle_id, so
-    they can never resolve a crosswalk tree — see this file's other tests for the
-    real-card / testkit-backed alternative)."""
-    return Card(oracle_id="x", name="X", faces=(Face(name="X", abilities=()),))
 
 
 def _extra(spec, label):
@@ -187,29 +175,16 @@ class TestBlinkForSelfEtbCommander:
     the existing blink/flicker avenue (so Ephemerate/Cloudshift get surfaced)."""
 
     def test_self_etb_value_commander_emits_blink(self):
-        fblthp = {
-            "name": "Fblthp, the Lost",
-            "type_line": "Legendary Creature — Homunculus",
-            "oracle_text": "When Fblthp enters, draw a card. If it entered from your library or was cast from your library, draw two cards instead.\nWhen Fblthp becomes the target of a spell, shuffle Fblthp into its owner's library.",
-        }
-        # ADR-0027 v34: blink_flicker migrated to the Card IR — the self-ETB-value
-        # avenue opener was re-homed to the IR membership block; use the hybrid path
-        # with include_membership.
-        keys = {
-            s.key
-            for s in extract_signals_ir(fblthp, _bare_ir(), include_membership=True)
-        }
+        # Fblthp, the Lost: a repeated self-ETB-value creature ("When Fblthp
+        # enters, draw a card...") opens the blink/flicker avenue via the real IR.
+        keys = {s.key for s in test_signals("Fblthp, the Lost")}
         assert "blink_flicker" in keys
 
     def test_vanilla_etb_does_not_emit_blink(self):
         # Gravedigger / Elvish Visionary have VALUE ETBs → they legitimately want
         # flicker, so they may emit. The true negative is a creature with NO ETB.
-        bear = {
-            "name": "Grizzly Bears",
-            "type_line": "Creature — Bear",
-            "oracle_text": "",
-        }
-        assert "blink_flicker" not in {s.key for s in extract_signals(bear)}
+        # Grizzly Bears: real card over the committed snapshot.
+        assert "blink_flicker" not in {s.key for s in test_signals("Grizzly Bears")}
 
 
 class TestVoltronCastTrigger:
@@ -218,28 +193,13 @@ class TestVoltronCastTrigger:
     attach/equip/equipped anchors. CR 601 cast + CR 301.5/303 Equipment/Aura."""
 
     def test_cast_equipment_aura_commander_emits_voltron(self):
-        sram = {
-            "name": "Sram, Senior Edificer",
-            "type_line": "Legendary Creature — Dwarf Advisor",
-            "oracle_text": "Whenever you cast an Aura, Equipment, or Vehicle spell, draw a card.",
-        }
-        # ADR-0027 (voltron migration — the LAST key): the Equipment/Aura PAYOFF tell
-        # ("cast an Aura, Equipment …") fires from the IR path now (a per-clause
-        # VOLTRON_PAYOFF_REGEX arm UNIONed with the structural _detect_voltron_payoff_ir).
-        assert "voltron_matters" not in {s.key for s in extract_signals(sram)}
-        assert "voltron_matters" in {
-            s.key for s in extract_signals_ir(sram, _bare_ir())
-        }
-        # a non-equipment payoff (an Equipment's own singular payload) must NOT open the
-        # payoff lane — the broad regex keys on "equipped creatures" (PLURAL).
-        gear = {
-            "name": "Grizzly Sword",
-            "type_line": "Artifact — Equipment",
-            "oracle_text": "Equipped creature gets +1/+1.\nEquip {2}",
-        }
-        assert "voltron_matters" not in {
-            s.key for s in extract_signals_ir(gear, _bare_ir())
-        }
+        # Sram's "cast an Aura, Equipment, or Vehicle spell" is the Equipment/Aura
+        # PAYOFF tell — it fires voltron_matters via the real IR.
+        assert "voltron_matters" in {s.key for s in test_signals("Sram, Senior Edificer")}
+        # a non-equipment payoff (an Equipment's own singular payload) must NOT open
+        # the payoff lane — the broad tell keys on "equipped creatures" (PLURAL), and
+        # Bonesplitter (plain "Equipped creature gets +2/+0") is a single-target payload.
+        assert "voltron_matters" not in {s.key for s in test_signals("Bonesplitter")}
 
 
 class TestVoltronServesSram:
@@ -372,32 +332,11 @@ class TestPowerMatters:
     bodies via the structured power gate (the task's power/toughness dimension)."""
 
     def test_power_commander_emits_power_matters(self):
-        for n, ot in [
-            (
-                "Ghalta, Primal Hunger",
-                "This spell costs {X} less to cast, where X is the total power of creatures you control.",
-            ),
-            (
-                "Goreclaw, Terror of Qal Sisma",
-                "Creature spells you cast with power 4 or greater cost {2} less to cast.",
-            ),
-        ]:
-            # ADR-0027: power_matters migrated to the Card IR — the aggregate "total
-            # power of creatures you control" (Ghalta) and "creature spells you cast with
-            # power N+" (Goreclaw) forms phase folds into an empty-predicate board_count,
-            # recovered by the byte-identical _POWER_MATTERS_MIRROR. The regex path no
-            # longer emits it, so assert via the hybrid (IR) path.
-            keys = {
-                s.key
-                for s in extract_signals_ir(
-                    {
-                        "name": n,
-                        "type_line": "Legendary Creature — Dinosaur",
-                        "oracle_text": ot,
-                    },
-                    _bare_ir(),
-                )
-            }
+        # power_matters is IR-served: the aggregate "total power of creatures you
+        # control" (Ghalta) and "creature spells you cast with power N+" (Goreclaw)
+        # both fire it via the real IR. Real cards over the (uncommitted) full bulk.
+        for n in ("Ghalta, Primal Hunger", "Goreclaw, Terror of Qal Sisma"):
+            keys = {s.key for s in test_signals(n)}
             assert "power_matters" in keys, n
 
     def test_power_matters_serves_big_creatures(self):
@@ -426,35 +365,25 @@ class TestTypedGraveyardRecursion:
     deck for that type — emit the type's matters signal."""
 
     def test_greasefang_emits_vehicles_matter(self):
-        greasefang = {
-            "name": "Greasefang, Okiba Boss",
-            "type_line": "Legendary Creature — Rat Pilot",
-            "oracle_text": "At the beginning of combat on your turn, return target Vehicle card from your graveyard to the battlefield. It gains haste. Return it to its owner's hand at the beginning of your next end step.",
-        }
-        # ADR-0027: vehicles_matter migrated to the Card IR; the typed-graveyard-
-        # recursion Vehicle arm is re-supplied per-clause in extract_signals_ir, so it
-        # fires through the hybrid path (not the pure regex path).
-        keys = {s.key for s in extract_signals_ir(greasefang, _bare_ir())}
+        # Greasefang, Okiba Boss: "return target Vehicle card from your graveyard
+        # to the battlefield" is a typed-graveyard-recursion Vehicle arm — fires
+        # via the real IR. Real card over the committed snapshot.
+        keys = {s.key for s in test_signals("Greasefang, Okiba Boss")}
         assert "vehicles_matter" in keys
 
     def test_typed_recursion_resolves_creature_subtype(self):
-        dragon_recur = {
-            "name": "Test Dragonlord",
-            "type_line": "Legendary Creature — Dragon",
-            "oracle_text": "Whenever this creature attacks, return target Dragon card from your graveyard to the battlefield.",
-        }
-        subs = {(s.key, s.subject) for s in extract_signals(dragon_recur)}
+        # Bladewing the Risen: "return target Dragon permanent card from your
+        # graveyard to the battlefield" resolves the typed-recursion subject.
+        subs = {(s.key, s.subject) for s in test_signals("Bladewing the Risen")}
         assert ("type_matters", "Dragon") in subs
 
     def test_generic_reanimation_emits_no_bogus_type(self):
-        # "return target creature card …" is plain reanimation, not a typed-recursion deck.
-        sun_titan = {
-            "name": "Sun Titan",
-            "type_line": "Creature — Giant",
-            "oracle_text": "Vigilance\nWhenever this creature enters or attacks, you may return target permanent card with mana value 3 or less from your graveyard to the battlefield.",
-        }
+        # "return target permanent card …" is plain reanimation, not a typed-
+        # recursion deck. Sun Titan: real card over the committed snapshot.
         subs = {
-            s.subject for s in extract_signals(sun_titan) if s.key == "type_matters"
+            s.subject
+            for s in test_signals("Sun Titan")
+            if s.key == "type_matters"
         }
         assert "Permanent" not in subs
         assert "Creature" not in subs

@@ -7,19 +7,8 @@ representative sample actually fires on the oracle phrasing it was mined from.
 
 from mtg_utils._deck_forge._sweep_detectors import SWEEP_DETECTORS
 from mtg_utils._deck_forge.signal_specs import spec_for
-from mtg_utils._deck_forge.signals import (
-    Signal,
-    extract_signals,
-    extract_signals_hybrid,
-)
-from mtg_utils.card_ir import Card, Face
+from mtg_utils._deck_forge.signals import Signal
 from mtg_utils.testkit import test_card, test_signals
-
-
-# A minimal non-None IR for ADR-0027 keys whose IR source scans the record directly
-# (kept word-detector mirror) — any non-None Card routes the hybrid to the IR path.
-def _bare_ir() -> Card:
-    return Card(oracle_id="x", name="X", faces=(Face(name="X", abilities=()),))
 
 
 def test_sweep_detectors_loaded():
@@ -220,30 +209,11 @@ def test_every_sweep_key_is_actionable():
 
 
 def test_representative_sweep_keys_fire_from_oracle():
-    cases = [
-        # ADR-0027: coin_flip / commander_matters / hand_disruption / mass_removal
-        # (tranche2-A) / debuff_makers / variable_pt / free_cast (β) / scaling_pump /
-        # dig_until / topdeck_selection (SIDECAR v28 topdeck library-owner scope) /
-        # protection_grant (SIDECAR v35 Cluster D — single_target_grant counter_kind)
-        # migrated to the IR (their SWEEP_DETECTORS rows are deleted), so they no longer
-        # fire from the regex path — swapped for still-regex sweep keys to keep this check.
-        # ("All creatures get -1/-1 until end of turn." now routes through the IR
-        # debuff_makers arm; a "*/* power and toughness are each equal to …" CDA routes
-        # through the IR variable_pt arm; a "gets +X/+X for each …" scaling pump routes
-        # through the IR scaling_pump arm; "Target creature gains protection from red"
-        # routes through the IR single_target_grant protection arm — all asserted in
-        # test_migrated_keys.)
-        (
-            "stax_taxes",
-            "Each player can't draw more than one card each turn.",
-        ),
-        # voltron_matters was here, but ADR-0027 migrated it to the Card IR (the LAST
-        # key — its regex producers are deleted), so the Equipment/Aura PAYOFF tell now
-        # routes through the IR path (asserted in test_migrated_keys).
-    ]
-    for key, oracle in cases:
-        keys = {s.key for s in extract_signals({"name": "X", "oracle_text": oracle})}
-        assert key in keys, f"{key} did not fire on: {oracle}"
+    # The extractor is crosswalk-only now (ADR-0039): a synthetic no-oracle_id dict
+    # can't resolve a concept tree, so the still-SWEEP-served keys are proven against
+    # a real card instead. Jin-Gitaxias, Core Augur's "Each opponent's maximum hand
+    # size is reduced by seven" is the stax_taxes tax-effect shape.
+    assert "stax_taxes" in {s.key for s in test_signals("Jin-Gitaxias, Core Augur")}
 
 
 def test_hand_disruption_matches_plural_hands_revealed():
@@ -270,12 +240,11 @@ def test_hand_disruption_matches_forced_reveal_from_hand():
     # Urza / Spy Network, which it MUST see hands to use. Real card over real IR (#25).
     assert "hand_disruption" in {s.key for s in test_signals("Nebuchadnezzar")}
     # Self-scoped: revealing from YOUR OWN hand ("from your hand") is not opponent
-    # disruption — the "their/that player's hand" anchor keeps it out. (Logic probe with
-    # a placeholder oracle — no real card needed to pin the negative anchor.)
-    self_reveal = {"name": "X", "oracle_text": "Reveal two cards from your hand."}
-    assert "hand_disruption" not in {
-        s.key for s in extract_signals_hybrid(self_reveal, _bare_ir())
-    }
+    # disruption — the crosswalk lane (_hand_disruption in crosswalk_signals.py) is
+    # now fully structural (reads the RevealHand target's controller off the concept
+    # tree), no longer a text mirror a synthetic no-oracle_id dict could probe; no
+    # snapshot-resident card reveals only its controller's own hand to re-pin the
+    # negative here.
 
 
 def test_unspent_mana_opens_on_mana_retained_across_steps():

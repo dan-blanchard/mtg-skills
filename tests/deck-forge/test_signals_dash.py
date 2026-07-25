@@ -4,54 +4,26 @@ Equipment unattaches but stays on the battlefield (CR 301.5c), while Auras go to
 graveyard (CR 704.5m) and +1/+1 counters are lost — so Equipment is the resilient buff
 for a recurring haste attacker (Zurgo, Ragavan, Kolaghan). The spec points at
 Equipment specifically, NOT generic voltron (Auras are anti-synergistic with Dash).
+
+Key-presence (has_dash fires off the keyword / leaves the deleted regex path) is
+proven for the same card by tests/deck-forge/test_migrated_keys.py's _REAL_CASES
+table ("has_dash": "Zurgo Bellstriker") via test_migrated_key_left_regex_and_is_ir_served.
+This file keeps only the scope assertion and the spec-targeting behavior, which
+that parametrized test doesn't cover.
 """
 
-from mtg_utils._deck_forge._signals_ir import extract_signals_ir
 from mtg_utils._deck_forge.signal_specs import serves, spec_for
-from mtg_utils._deck_forge.signals import (
-    Signal,
-    extract_signals,
-)
-from mtg_utils.card_ir import Card, Face
-
-# ADR-0027: has_dash migrated to the Card IR (it now rides the Scryfall `Dash`
-# keyword array via _IR_KEYWORD_MAP['dash'], not the regex _DIRECT_KEYWORD_SIGNALS
-# path), so the firing tests read the production dispatcher extract_signals_hybrid.
-# A bare non-None IR routes the hybrid to the IR path; the Batch-K keyword loop reads
-# the record's card['keywords'], so a vanilla IR suffices (mirrors test_migrated_keys).
-_BARE_IR = Card(oracle_id="x", name="X", faces=(Face(name="X"),))
-
-
-def _keys(card):
-    return {s.key for s in extract_signals_ir(card, _BARE_IR)}
-
-
-ZURGO = {
-    "name": "Zurgo Bellstriker",
-    "type_line": "Legendary Creature — Orc Warrior",
-    "oracle_text": "Zurgo can't block creatures with power 2 or greater.\nDash {1}{R} (You may cast this spell for its dash cost. If you do, it gains haste, and it's returned from the battlefield to its owner's hand at the beginning of the next end step.)",
-    "keywords": ["Dash"],
-}
-
-
-def test_dash_keyword_fires_dash_matters():
-    assert "has_dash" in _keys(ZURGO)
-
-
-def test_dash_regex_path_no_longer_emits_dash_matters():
-    # ADR-0027: the migrated key must leave the legacy regex path entirely.
-    assert "has_dash" not in {s.key for s in extract_signals(ZURGO)}
+from mtg_utils._deck_forge.signals import Signal
+from mtg_utils.testkit import test_signals
 
 
 def test_dash_scope_is_you():
-    sig = next(s for s in extract_signals_ir(ZURGO, _BARE_IR) if s.key == "has_dash")
+    sig = next(s for s in test_signals("Zurgo Bellstriker") if s.key == "has_dash")
     assert sig.scope == "you"
 
 
 def test_no_dash_keyword_no_signal():
-    assert "has_dash" not in _keys(
-        {"name": "X", "oracle_text": "Flying", "keywords": ["Flying"]}
-    )
+    assert "has_dash" not in {s.key for s in test_signals("Grizzly Bears")}
 
 
 def test_dash_spec_targets_equipment_not_auras():

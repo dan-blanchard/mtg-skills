@@ -3,18 +3,12 @@ commander whose ability is ramp / removal / a team buff / a tutor / etc. surface
 that direction instead of reading as a value-pile.
 
 Real-card pins run the REAL projected Card IR via ``mtg_utils.testkit``
-(``test_signals`` = production hybrid over the real Scryfall record + real sidecar IR;
-``test_card`` = the real minimal record). Pins on a controlled, made-up shape
-("X"/"Healer"/"Mind Rot-like", or a synthetic project_card input) keep a thin synthetic
-builder — the shape is the point, not a particular printing.
+(``test_signals`` = production hybrid over the real Scryfall record + real sidecar IR).
 """
 
-from mtg_utils._deck_forge._signals_ir import extract_signals_ir
-from mtg_utils._deck_forge.signals import extract_signals
-from mtg_utils.card_ir import Ability, Card, Effect, Face
-from mtg_utils.testkit import test_card, test_signals
+from mtg_utils.testkit import test_signals
 
-# Card names referenced through the real-card helpers above. This table feeds the
+# Card names referenced through the real-card helper below. This table feeds the
 # `build-card-snapshot` usage scanner (it parses `_REAL_CASES` dict VALUES, which
 # also handles apostrophes — unlike the bare `test_card("…")` literal scan). Keep it
 # in sync with the names used below; a missing entry fails loud (KeyError) at test
@@ -24,123 +18,31 @@ _REAL_CASES: dict[str, str] = {
     "Azusa, Lost but Seeking": "Azusa, Lost but Seeking",
     "Dark Deal": "Dark Deal",
     "Eladamri, Lord of Leaves": "Eladamri, Lord of Leaves",
-    "Erayo, Soratami Ascendant": "Erayo, Soratami Ascendant",
     "Gandalf the White": "Gandalf the White",
     "Heartless Pillage": "Heartless Pillage",
     "Ishai, Ojutai Dragonspeaker": "Ishai, Ojutai Dragonspeaker",
-    "Isshin, Two Heavens as One": "Isshin, Two Heavens as One",
-    "Jolrael, Empress of Beasts": "Jolrael, Empress of Beasts",
-    "Megrim": "Megrim",
-    "Mind Rot": "Mind Rot",
-    "River Song": "River Song",
     "Sheoldred, the Apocalypse": "Sheoldred, the Apocalypse",
 }
 
 
-def _ks(card):
-    return {(s.key, s.scope) for s in extract_signals(card)}
-
-
-# Real-card (key, scope) sets — production hybrid path / regex-only path, by name.
+# Real-card (key, scope) sets — the production hybrid path, by name.
 def _hyb_ks(name):
     return {(s.key, s.scope) for s in test_signals(name)}
-
-
-def _reg_ks(name):
-    return {(s.key, s.scope) for s in extract_signals(test_card(name))}
 
 
 def _hyb_keys(name):
     return {s.key for s in test_signals(name)}
 
 
-CASES = [
-    # ADR-0027: ramp migrated to the Card IR (the structural `ramp` category
-    # for NON-LAND cards + a byte-identical kept mirror), so a bare mana rock
-    # "{T}: Add {G}{G}." no longer fires on the regex path tested here — its IR path is
-    # proven in test_migrated_keys.
-    # ADR-0027: removal migrated to the Card IR (phase's single-target
-    # destroy/damage SUBJECT), so it no longer fires on the regex path tested here —
-    # its IR path is proven in test_migrated_keys.
-    # ADR-0027: counter_control migrated to the Card IR (phase's `counter_spell`
-    # effect category), so it no longer fires on the regex path tested here — its IR
-    # path is proven in test_migrated_keys.
-    # ADR-0027: team_buff migrated to the Card IR (phase's `grant_keyword` effect on a
-    # generic "creatures you control" subject), so it no longer fires on the regex path
-    # tested here — its IR path is proven in test_migrated_keys.
-    # ADR-0027 reveal/dig-v2: tutor migrated to the Card IR (a BYTE-IDENTICAL
-    # kept mirror == the deleted TUTOR_MATTERS_REGEX over the reminder-stripped oracle —
-    # phase keeps a `tutor` EFFECT for every search incl. the opp/symmetric/composite/
-    # reminder over-fires, so the regex IS the precise spec), so it no longer fires on the
-    # regex path tested here — its IR path is proven in test_migrated_keys.
-    # ADR-0027 β: gain_control migrated to the Card IR (a gated `cat=='gain_control'`
-    # structural arm + a narrowed kept mirror + a facade cross-open reconciliation), so
-    # it no longer fires on the regex path tested here — its IR path is proven in
-    # test_migrated_keys and test_signals_generalized.
-    # ADR-0027: opponent_discard migrated to the Card IR (four structural arms — POP1
-    # ForcedDiscard / POP2 subject.controller / POP4 each scope / POP7 opp `discarded`
-    # trigger — plus a NARROWED residue mirror, C3 SIDECAR v50), so it no longer fires on
-    # the regex path tested here — its IR path is asserted by
-    # test_opponent_discard_migrated_off_regex_onto_ir and the POP1/2/4/7 tests below.
-    # ADR-0027: evasion_self migrated to the Card IR (a byte-identical kept WORD MIRROR
-    # of the deleted _HAND_FLOOR producer + the _IR_KEYWORD_MAP['shadow'] recall arm), so
-    # it no longer fires on the regex path tested here — its IR path is proven in
-    # test_migrated_keys and test_cant_be_blocked_is_evasion (hybrid).
-    # ADR-0027 v30: clone_makers migrated to the Card IR (a cat=='clone' structural arm
-    # on the supplement-populated copied-type subject + a byte-identical CLONE_MATTERS_
-    # REGEX kept WORD MIRROR), so it no longer fires on the regex path tested here — its
-    # IR path is proven in test_migrated_keys and test_clone_still_fires (hybrid).
-    # ADR-0027 reveal/dig-v2: cheat_into_play migrated to the Card IR (a STRUCTURAL
-    # cat=='cheat_play'+to:battlefield+non-gy-source arm reading the project._recover_
-    # cheat_into_play_source marker + a narrow _CHEAT_INTO_PLAY_RESIDUE_RE mirror), so it
-    # no longer fires on the regex path tested here — its IR path is proven in
-    # test_migrated_keys and test_polymorph_cheat_opens_cheat_into_play (hybrid).
-    # ADR-0027 (t2b2-A): bounce_tempo migrated to the Card IR (phase's first-class
-    # `bounce` effect category, gated on no-graveyard-zone + subject not controller=you),
-    # so it no longer fires on the regex path tested here — its IR path is proven in
-    # test_migrated_keys.
-    # ADR-0027: cascade_matters (Scryfall cascade keyword + _CASCADE_GRANT marker) and
-    # regenerate_makers (phase's regenerate effect + _REGENERATE_REF marker) migrated to
-    # the Card IR, so they no longer fire on the regex path tested here — their IR paths
-    # are proven in test_migrated_keys.
-]
-
-
-def test_effect_axis_detectors_fire():
-    for key, scope, oracle in CASES:
-        sigs = {
-            (s.key, s.scope)
-            for s in extract_signals({"name": "X", "oracle_text": oracle})
-        }
-        assert (key, scope) in sigs, f"{key}/{scope} did not fire on: {oracle}"
-
-
-def test_opponent_discard_migrated_off_regex_onto_ir():
-    # ADR-0027: opponent_discard fires from the hybrid IR path, not the regex path. With
-    # a bare (structure-less) IR the forced "each opponent discards" forcer rides the
-    # NARROWED residue mirror's "each opponent discards" alternation over the oracle (real
-    # cards fire structurally via the POP projection threads — see the POP tests below).
-    # A bare-IR + synthetic-oracle probe of the MIRROR-fallback path specifically.
-    c = {
-        "name": "Mind Rot-like",
-        "oracle_text": "When this creature enters, each opponent discards a card.",
-    }
-    bare_ir = Card(oracle_id="x", name="X", faces=(Face(name="X", abilities=()),))
-    assert not any(s.key == "opponent_discard" for s in extract_signals(c))
-    assert any(
-        (s.key, s.scope) == ("opponent_discard", "opponents")
-        for s in extract_signals_ir(c, bare_ir)
-    )
-
-
-# --- ADR-0027 C3 opponent_discard structural arms (POP1/2/4/7), on real cards ---
-
-
-def test_pop1_forced_discard_marker_opens_opponent_discard():
-    """POP1 — a bare-Player "target player discards" projects scope 'opp' + a
-    ForcedDiscard subject marker (Mind Rot). The v50 arm fires opponent_discard
-    structurally on the real IR. CR 701.9."""
-    assert ("opponent_discard", "opponents") in _hyb_ks("Mind Rot")
+# --- ADR-0027 C3 opponent_discard structural arms, on real cards ---
+#
+# POP1 (Mind Rot — a bare-Player "target player discards" projects the
+# opponent_discard structural arm) is already proven by
+# tests/deck-forge/test_migrated_keys.py's `_REAL_CASES["opponent_discard"] =
+# "Mind Rot"`. POP7 (Megrim — an opponent-scoped Discarded TRIGGER, disjoint
+# from discard_matters) is already proven by
+# tests/mtg-utils/test_crosswalk.py::test_discard_matters_opponent_watcher_routes_to_opponent_discard.
+# Neither is duplicated here.
 
 
 def test_pop2_typed_opp_subject_controller_opens_opponent_discard():
@@ -157,108 +59,18 @@ def test_pop4_each_player_discard_opens_opponent_discard_each():
     assert ("opponent_discard", "each") in _hyb_ks("Dark Deal")
 
 
-def test_pop7_opponent_discarded_trigger_opens_opponent_discard():
-    """POP7 — "whenever an opponent discards a card …" is a Discarded TRIGGER scope 'opp'
-    with a non-discard punisher body (Megrim deals 2 damage). The trigger arm fires
-    opponent_discard; DISJOINT from discard_matters (scope != 'opp'). CR 701.9 / 102.2."""
-    keys = _hyb_ks("Megrim")
-    assert ("opponent_discard", "opponents") in keys
-    assert not any(k == "discard_matters" for k, _ in keys)
-
-
 # --- widens of existing keys ---------------------------------------------------
+#
+# landfall (Azusa), land_creatures_matter (Jolrael), attack_matters (Isshin), and
+# second_spell_matters (Erayo) are already proven by real-card pins in
+# tests/mtg-utils/test_crosswalk.py (same card + key), so those four are not
+# duplicated here. Azusa's landfall widen has no other-file duplicate; keep it.
 
 
 def test_landfall_widened_for_extra_land_drops():
-    # ADR-0027: landfall migrated — Azusa's extra-land STATIC ("play additional lands")
-    # has no structural shape phase carries, so it fires from the _LANDFALL_MIRROR over
-    # the oracle via the real IR, NOT the deleted regex producer.
-    assert "landfall" not in {
-        s.key for s in extract_signals(test_card("Azusa, Lost but Seeking"))
-    }
+    # Azusa's extra-land STATIC ("play additional lands") has no structural shape
+    # phase carries, so it fires from the kept oracle mirror via the real IR.
     assert "landfall" in _hyb_keys("Azusa, Lost but Seeking")
-
-
-def test_land_creatures_widened_for_animation():
-    # ADR-0027: land_creatures_matter migrated to the Card IR — Jolrael, Empress of
-    # Beasts' mass-animation "all lands … become … creatures" rides the kept oracle
-    # mirror, asserted via the real IR.
-    assert "land_creatures_matter" in _hyb_keys("Jolrael, Empress of Beasts")
-
-
-def test_attack_matters_widened_for_isshin():
-    # ADR-0027: attack_matters migrated — Isshin's "attacking causes …" static has no
-    # structural shape phase carries, so it fires from the _ATTACK_MATTERS_MIRROR over
-    # the oracle via the real IR, NOT the deleted regex producer.
-    assert "attack_matters" not in {
-        s.key for s in extract_signals(test_card("Isshin, Two Heavens as One"))
-    }
-    assert "attack_matters" in _hyb_keys("Isshin, Two Heavens as One")
-
-
-def test_lifegain_widened_for_activated_gain():
-    # ADR-0027 β: lifegain is IR-served; an activated "{T}: You gain 3 life" fires it
-    # from the IR structural arm (the gain_life Effect, scope you/any). _matters sweep
-    # (ADR-0034): gaining life is the MAKER side, so it fires lifegain_makers. A
-    # hand-built compat-shape gain_life IR pins the activated-gain shape
-    # generically (project_card deleted, ADR-0039 step 7).
-    c = {"name": "Healer", "oracle_text": "{T}: You gain 3 life."}
-    ir = Card(
-        oracle_id="x",
-        name="Healer",
-        faces=(
-            Face(
-                name="Healer",
-                abilities=(
-                    Ability(
-                        kind="spell",
-                        effects=(
-                            Effect(category="gain_life", raw="{T}: You gain 3 life"),
-                        ),
-                    ),
-                ),
-            ),
-        ),
-    )
-    assert any(s.key == "lifegain_makers" for s in extract_signals_ir(c, ir))
-
-
-def test_lifeloss_widened_for_pay_life_engine():
-    # ADR-0027: lifeloss is IR-served; a "Pay N life:" cost buying a non-ramp engine
-    # fires it from the IR (the paylife-cost + life_payment marker path). _matters
-    # sweep (ADR-0034): paying/losing life as a cost is the MAKER side, so it fires
-    # lifeloss_makers. A hand-built compat-shape IR (draw engine + life_payment
-    # marker) pins the pay-life-engine shape (project_card deleted, ADR-0039
-    # step 7).
-    c = {"name": "Bargainer", "oracle_text": "{B}, Pay 2 life: Draw a card."}
-    ir = Card(
-        oracle_id="x",
-        name="Bargainer",
-        faces=(
-            Face(
-                name="Bargainer",
-                abilities=(
-                    Ability(
-                        kind="spell",
-                        effects=(
-                            Effect(category="draw", raw="{B}, Pay 2 life: Draw a card"),
-                        ),
-                    ),
-                    Ability(
-                        kind="static",
-                        effects=(
-                            Effect(
-                                category="life_payment",
-                                scope="you",
-                                raw="Pay 2 life:",
-                            ),
-                        ),
-                    ),
-                ),
-            ),
-        ),
-    )
-    assert any(s.key == "lifeloss_makers" for s in extract_signals_ir(c, ir))
 
 
 # --- recognizable axes from the one-off tail ----------------------------------
@@ -281,60 +93,32 @@ def test_type_matters_activated_tribal():
 
 
 def test_opponent_cast_matters():
-    # ADR-0027: opponent_cast_matters migrated to the Card IR (the cast_spell trigger
-    # scope=opp arm). Ishai, Ojutai Dragonspeaker fires it via the real IR, not the
-    # regex path.
+    # opponent_cast_matters is IR-served from the cast_spell trigger scope=opp arm.
+    # Ishai, Ojutai Dragonspeaker fires it via the real IR.
     assert ("opponent_cast_matters", "opponents") in _hyb_ks(
         "Ishai, Ojutai Dragonspeaker"
     )
-    assert ("opponent_cast_matters", "opponents") not in _reg_ks(
-        "Ishai, Ojutai Dragonspeaker"
-    )
-
-
-def test_spell_count_storm_widen():
-    # ADR-0027: second_spell_matters migrated to the Card IR (the _SECOND_SPELL_MIRROR
-    # kept word detector — phase parses "fourth spell of a turn" as a bare cast_spell
-    # trigger with no count qualifier). Erayo, Soratami Ascendant fires it via the real
-    # IR, not the regex path.
-    assert "second_spell_matters" not in {
-        s.key for s in extract_signals(test_card("Erayo, Soratami Ascendant"))
-    }
-    assert "second_spell_matters" in _hyb_keys("Erayo, Soratami Ascendant")
 
 
 def test_legends_matter_for_cast_legendary():
-    # ADR-0027: legends_matter migrated to the Card IR (the HasSupertype:Legendary
-    # subject predicate + a kept word mirror for the cast-legendary refs). Gandalf the
-    # White's "cast legendary spells as though they had flash" fires it via the real IR,
-    # not the regex path.
+    # legends_matter is IR-served (the HasSupertype:Legendary subject predicate +
+    # a kept word mirror for the cast-legendary refs). Gandalf the White's "cast
+    # legendary spells as though they had flash" fires it via the real IR.
     assert "legends_matter" in _hyb_keys("Gandalf the White")
-    assert "legends_matter" not in {
-        s.key for s in extract_signals(test_card("Gandalf the White"))
-    }
 
 
-def test_opponent_library_manipulation_punisher():
-    # River Song's Spoilers: punish opponents for scry/surveil/search (opponents scope —
-    # distinct from your own scry_surveil payoff). ADR-0027 β: opponent_search_matters is
-    # IR-served from an opp-scoped `lib_search` trigger. River Song fires it via the real
-    # IR, not the regex path.
-    assert ("opponent_search_matters", "opponents") in _hyb_ks("River Song")
-    assert ("opponent_search_matters", "opponents") not in _reg_ks("River Song")
-
-
-def test_your_scry_is_not_an_opponent_punisher():
-    c = {"name": "X", "oracle_text": "Whenever you scry, draw a card."}
-    assert "opponent_search_matters" not in {s.key for s in extract_signals(c)}
+# --- opponent library manipulation / draw punishers -----------------------------
+#
+# opponent_search_matters (River Song) and the "your own scry is not an opponent
+# punisher" precision guard (Matoya) are already proven by
+# tests/mtg-utils/test_crosswalk.py::test_opponent_search_matters_trigger_modes.
+# Neither is duplicated here.
 
 
 def test_opponent_draw_punisher():
-    # ADR-0027: opponent_draw_matters is IR-served from a "drawn" trigger scoped to an
+    # opponent_draw_matters is IR-served from a "drawn" trigger scoped to an
     # opponent. Sheoldred, the Apocalypse ("Whenever an opponent draws a card, they lose
-    # 2 life") fires it via the real IR, not the regex path.
+    # 2 life") fires it via the real IR.
     assert ("opponent_draw_matters", "opponents") in _hyb_ks(
-        "Sheoldred, the Apocalypse"
-    )
-    assert ("opponent_draw_matters", "opponents") not in _reg_ks(
         "Sheoldred, the Apocalypse"
     )

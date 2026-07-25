@@ -12,13 +12,10 @@ logic probe (a made-up "<Type> Lord", a forced negative, a future-shape pin) wit
 real card to look up.
 """
 
-from mtg_utils._deck_forge._signals_ir import extract_signals_ir
+from typing import ClassVar
+
 from mtg_utils._deck_forge.signal_specs import serves, spec_for
-from mtg_utils._deck_forge.signals import (
-    Signal,
-    extract_signals,
-)
-from mtg_utils.card_ir import Ability, Card, Effect, Face
+from mtg_utils._deck_forge.signals import Signal
 from mtg_utils.testkit import test_card, test_signals
 
 # Card names referenced through the real-card helpers above. This table feeds the
@@ -79,41 +76,9 @@ def _sig(key, scope="you", subject=""):
     return Signal(key=key, scope=scope, subject=subject, text="", source="cmd")
 
 
-def _keys(card):
-    return {s.key for s in extract_signals(card)}
-
-
-# A minimal non-None IR for ADR-0027 keys whose IR source scans the record
-# directly (kept word-detector mirror / keyword array).
-def _bare_ir() -> Card:
-    return Card(oracle_id="x", name="X", faces=(Face(name="X", abilities=()),))
-
-
-def _keys_hybrid(card, ir=None):
-    return {s.key for s in extract_signals_ir(card, ir or _bare_ir())}
-
-
-def _ir_with(*abilities: Ability, keywords: tuple[str, ...] = ()) -> Card:
-    """A synthetic Card IR carrying the given abilities/keywords — used only by the
-    placeholder/logic-probe pins below (no real card to look up)."""
-    return Card(
-        oracle_id="x",
-        name="X",
-        faces=(Face(name="X", keywords=keywords, abilities=tuple(abilities)),),
-    )
-
-
-def _subjects(card, key):
-    return {s.subject for s in extract_signals(card) if s.key == key}
-
-
-# Real-card signal keysets (production hybrid path) / regex-only path, by card name.
+# Real-card signal keysets (production hybrid path), by card name.
 def _hyb(name):
     return {s.key for s in test_signals(name)}
-
-
-def _reg(name):
-    return {s.key for s in extract_signals(test_card(name))}
 
 
 # ── Batch A: high-severity wiring fixes ──────────────────────────────────────
@@ -138,14 +103,10 @@ class TestNinjaTribal:
         assert serves(test_card("Throatseeker"), _sig("type_matters", "you", "Ninja"))
 
     def test_non_ninja_commander_no_ninja_subject(self):
-        # Placeholder lord — no real card; a logic probe that a non-Ninja tribal lord
-        # does not leak a Ninja subject.
-        elf = {
-            "name": "Llanowar Elf Lord",
-            "type_line": "Legendary Creature — Elf",
-            "oracle_text": "Other Elves you control get +1/+1.",
-        }
-        assert "Ninja" not in _subjects(elf, "type_matters")
+        # Goblin King: a real tribal lord whose type_matters subject is its own
+        # tribe (Goblin) — a non-Ninja tribal lord must not leak a Ninja subject.
+        subs = {s.subject for s in test_signals("Goblin King") if s.key == "type_matters"}
+        assert "Ninja" not in subs
 
 
 class TestAttackTriggerPayoffs:
@@ -183,7 +144,6 @@ class TestMadnessMatters:
         # Anje Falkenrath's "if it has madness" payoff fires madness_matters on the real
         # IR (the structural madness payoff marker), not the deleted regex path.
         assert "madness_matters" in _hyb("Anje Falkenrath")
-        assert "madness_matters" not in _reg("Anje Falkenrath")
 
     def test_madness_keyword_card_emits_and_serves(self):
         # The Scryfall madness keyword (Asylum Visitor) opens the lane via the IR.
@@ -253,7 +213,6 @@ class TestDiscoverMatters:
     def test_discover_card_emits_and_served(self):
         # Geological Appraiser carries the Scryfall discover keyword → IR opens the lane.
         assert "discover_makers" in _hyb("Geological Appraiser")
-        assert "discover_makers" not in _reg("Geological Appraiser")
         assert serves(test_card("Geological Appraiser"), _sig("discover_makers", "you"))
 
 
@@ -272,7 +231,6 @@ class TestForetellMatters:
         # Foretold predicate on the counted subject opens the lane via the real IR, not
         # the deleted regex floor.
         assert "foretell_matters" in _hyb("Alrund, God of the Cosmos")
-        assert "foretell_matters" not in _reg("Alrund, God of the Cosmos")
 
 
 class TestUndyingPersistMatters:
@@ -283,14 +241,12 @@ class TestUndyingPersistMatters:
         # Kitchen Finks — the intrinsic Persist bearer fires from the Scryfall keyword
         # array via the real IR, not the deleted regex.
         assert "has_undying_persist" in _hyb("Kitchen Finks")
-        assert "has_undying_persist" not in _reg("Kitchen Finks")
         assert serves(test_card("Kitchen Finks"), _sig("has_undying_persist", "you"))
 
     def test_grant_card_emits(self):
         # Mikaeus, the Unhallowed is the keyword-less GRANTER ("other non-Human creatures
         # … have undying") — recovered as a conferred-grant marker on the real IR.
         assert "has_undying_persist" in _hyb("Mikaeus, the Unhallowed")
-        assert "has_undying_persist" not in _reg("Mikaeus, the Unhallowed")
 
 
 # ── Batch C: counter / payoff-regex avenues ──────────────────────────────────
@@ -303,14 +259,9 @@ class TestMinusCountersMatter:
         assert "minus_counters_matter" in _hyb("Hapatra, Vizier of Poisons")
 
     def test_plus_one_commander_does_not_emit_minus(self):
-        # Placeholder lord — the +1/+1-pin is load-bearing: a +1/+1 commander must NOT
-        # fire minus_counters.
-        ghave = {
-            "name": "Plus Counter Lord",
-            "type_line": "Legendary Creature — Fungus",
-            "oracle_text": "At the beginning of your upkeep, put a +1/+1 counter on each creature you control.",
-        }
-        assert "minus_counters_matter" not in _keys_hybrid(ghave)
+        # Hardened Scales: the +1/+1-pin is load-bearing — a +1/+1-counter card must
+        # NOT fire minus_counters (real card over the committed snapshot).
+        assert "minus_counters_matter" not in _hyb("Hardened Scales")
 
     def test_minus_payoff_served_wither_keyword_served(self):
         sig = _sig("minus_counters_matter", "you")
@@ -327,7 +278,6 @@ class TestCyclingMatters:
         # Drake Haven's "Whenever you cycle or discard a card" payoff fires cycling_matters
         # on the real IR (the cycling_payoff marker), not the deleted regex path.
         assert "cycling_matters" in _hyb("Drake Haven")
-        assert "cycling_matters" not in _reg("Drake Haven")
 
     def test_cycling_payoff_served_not_by_discard_matters(self):
         assert serves(test_card("Drake Haven"), _sig("cycling_matters", "you"))
@@ -343,7 +293,6 @@ class TestKickedSpellMatters:
         # Verazol, the Split Current's "whenever you cast a kicked spell" payoff fires
         # kicked_spell_matters on the real IR, not the deleted regex path.
         assert "kicked_spell_matters" in _hyb("Verazol, the Split Current")
-        assert "kicked_spell_matters" not in _reg("Verazol, the Split Current")
 
     def test_kicked_payoff_served_not_spellcast(self):
         sig = _sig("kicked_spell_matters", "you")
@@ -361,7 +310,6 @@ class TestColorlessMatters:
     def test_colorless_payoff_commander_emits_and_served(self):
         # Forsaken Monument — the ColorCount:EQ:0 subject predicate opens colorless_matters
         # on the real IR, not the deleted regex path.
-        assert "colorless_matters" not in _reg("Forsaken Monument")
         assert "colorless_matters" in _hyb("Forsaken Monument")
         assert serves(test_card("Forsaken Monument"), _sig("colorless_matters", "you"))
 
@@ -394,7 +342,6 @@ class TestFlashMatters:
         # Yeva, Nature's Herald grants flash to a class ("green creature spells … as
         # though they had flash") — fires flash_makers on the real IR, not the regex.
         assert "flash_makers" in _hyb("Yeva, Nature's Herald")
-        assert "flash_makers" not in _reg("Yeva, Nature's Herald")
         assert serves(test_card("Yeva, Nature's Herald"), _sig("flash_makers", "you"))
 
     def test_flash_creature_served_but_not_spellslinger(self):
@@ -442,22 +389,19 @@ class TestSagaMatters:
     catches only 1/14 chapter-retrigger payoffs."""
 
     # Placeholder lord — a generic "lore counters on a Saga" payoff with no clean
-    # single real card; pins the dropped-static `saga` marker → lane wiring.
-    LORD = {
+    # single real card; used only by the serves()-classify test below (a pure
+    # oracle-text match, no extraction). The EXTRACTION side of this claim (a
+    # dropped-static `saga` marker opening saga_matters on a lore-counter
+    # static/reference) is already proven on real cards (Keldon Warcaller,
+    # Satsuki, Barbara Wright, negative on An Unearthly Child / History of
+    # Benalia / Search for Glory) by
+    # tests/mtg-utils/test_crosswalk.py::test_saga_matters_lore_and_saga_reference_arms
+    # — not duplicated here.
+    LORD: ClassVar[dict] = {
         "name": "Test Saga Lord",
         "type_line": "Legendary Creature — Avatar",
         "oracle_text": "Sagas you control have read ahead.\nWhenever you put one or more lore counters on a Saga, draw a card.",
     }
-
-    def test_saga_commander_emits(self):
-        ir = _ir_with(
-            Ability(
-                kind="static",
-                effects=(Effect(category="saga", scope="you", raw="lore counters"),),
-            )
-        )
-        assert "saga_matters" in _keys_hybrid(self.LORD, ir)
-        assert "saga_matters" not in _keys(self.LORD)
 
     def test_saga_search_is_subtype_and_serves(self):
         spec = spec_for(_sig("saga_matters", "you"))
@@ -475,7 +419,6 @@ class TestLessonsMatter:
         # Uncle Iroh — "Lesson spells you cast cost {1} less" opens lessons_matter on the
         # real IR (the kept word-detector mirror), not the deleted regex path.
         assert "lessons_matter" in _hyb("Uncle Iroh")
-        assert "lessons_matter" not in _reg("Uncle Iroh")
 
     def test_lesson_search_is_subtype_and_serves(self):
         spec = spec_for(_sig("lessons_matter", "you"))
@@ -533,7 +476,6 @@ class TestParadoxPayoffs:
         # Vega, the Watcher's "cast a spell from anywhere other than your hand" payoff
         # fires cast_from_exile on the real IR (the kept word mirror), not the regex.
         assert "cast_from_exile" in _hyb("Vega, the Watcher")
-        assert "cast_from_exile" not in _reg("Vega, the Watcher")
 
     def test_paradox_subavenue_serves_vega(self):
         spec = spec_for(_sig("cast_from_exile", "you"))
@@ -551,7 +493,6 @@ class TestTimeCountersWiden:
         # As Foretold puts time counters on itself — the time-counter superstructure opens
         # suspend_matters on the real IR (the kept word mirror), not the deleted regex.
         assert "suspend_matters" in _hyb("As Foretold")
-        assert "suspend_matters" not in _reg("As Foretold")
 
     def test_vanishing_keyword_served(self):
         # Aeon Chronicler carries Vanishing + Suspend.
@@ -589,7 +530,6 @@ class TestCasualtyRouting:
         # appends a `sacrifice` grant marker the real IR reads → sacrifice_outlets.
         assert "sacrifice_outlets" in _hyb("Anhelo, the Painter")
         # and the legacy regex path no longer emits it
-        assert "sacrifice_outlets" not in _reg("Anhelo, the Painter")
 
 
 class TestStationDetection:
@@ -609,7 +549,6 @@ class TestSaddleMatters:
     def test_saddle_commander_emits_and_served(self):
         # Calamity, Galloping Inferno carries Saddle + the attacks-while-saddled payoff.
         assert "saddle_matters" in _hyb("Calamity, Galloping Inferno")
-        assert "saddle_matters" not in _reg("Calamity, Galloping Inferno")
         assert serves(
             test_card("Calamity, Galloping Inferno"), _sig("saddle_matters", "you")
         )
@@ -628,7 +567,6 @@ class TestSuspectMatters:
         # MAKER (suspect_makers), not the "suspected"-state payoff (suspect_matters).
         # The serve pool stays oracle-defined.
         assert "suspect_makers" in _hyb("Nelly Borca, Impulsive Accuser")
-        assert "suspect_makers" not in _reg("Nelly Borca, Impulsive Accuser")
         assert serves(
             test_card("Nelly Borca, Impulsive Accuser"), _sig("suspect_makers", "you")
         )

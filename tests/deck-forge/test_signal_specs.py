@@ -9,7 +9,6 @@ import re
 import pytest
 
 from mtg_utils._deck_forge import signal_specs
-from mtg_utils._deck_forge._signals_ir import extract_signals_ir
 from mtg_utils._deck_forge.signal_specs import (
     _CHOSEN_TYPE_IDENTS,
     Serve,
@@ -18,10 +17,7 @@ from mtg_utils._deck_forge.signal_specs import (
     serves,
     spec_for,
 )
-from mtg_utils._deck_forge.signals import (
-    Signal,
-    extract_signals,
-)
+from mtg_utils._deck_forge.signals import Signal
 from mtg_utils.testkit import test_card, test_card_ir, test_signals
 
 
@@ -2052,39 +2048,23 @@ def test_aristocrats_credits_plural_creatures_die():
     # the Card IR; the plural "creatures die" branch rides the byte-identical
     # _DEATH_MATTERS_MIRROR (scope "any") on the IR path.
 
-    morbid = {
-        "name": "Morbid Opportunist",
-        "type_line": "Creature — Human Rogue",
-        "oracle_text": "Whenever one or more other creatures die, draw a card. This "
-        "ability triggers only once each turn.",
-    }
-    # Real projected IR (the plural "creatures die" branch rides the kept mirror).
-    real_ir = test_card_ir("Morbid Opportunist")
-    keys = {(s.key, s.scope) for s in extract_signals_ir(morbid, real_ir)}
+    # Real production extractor over the real card (the plural "creatures die" branch
+    # rides the kept mirror).
+    keys = {(s.key, s.scope) for s in test_signals("Morbid Opportunist")}
     assert any(k == "death_matters" for k, _ in keys)
-    assert serves(morbid, _sig("death_matters", "any")) is True
+    assert serves(test_card("Morbid Opportunist"), _sig("death_matters", "any")) is True
 
 
 def test_vehicles_lane_opens_for_granter_and_credits_support():
     # A vehicle-GRANTER ("becomes a Vehicle … gains crew") must open the Vehicles lane,
     # and vehicle SUPPORT (cheat a Vehicle into play, mana to cast Vehicle spells) must
     # be credited — not just core "Vehicles you control / crew" text.
-    rex = {
-        "name": "Captain Rex Nebula",
-        "type_line": "Legendary Creature — Human Pilot Employee",
-        "oracle_text": (
-            'At the beginning of combat on your turn, choose target nonland permanent you control. Until end of turn, it becomes a Vehicle artifact with base power and toughness each equal to its mana value, and it gains crew 2 and "Crash Land — Whenever this Vehicle deals damage, roll a six-sided die. If the result is equal to this Vehicle\'s mana value, sacrifice this Vehicle, then it deals that much damage to any target."'
-        ),
-    }
     # ADR-0027: vehicles_matter migrated to the Card IR — the Vehicle-GRANTER
     # ("becomes a Vehicle … gains crew") lane fires through the hybrid path (the
     # byte-identical VEHICLES_MATTER_MIRROR kept word mirror), not the pure regex path.
     assert any(
         k == "vehicles_matter"
-        for k, _ in {
-            (s.key, s.scope)
-            for s in extract_signals_ir(rex, test_card_ir("Captain Rex Nebula"))
-        }
+        for k, _ in {(s.key, s.scope) for s in test_signals("Captain Rex Nebula")}
     )
     oviya = {
         "name": "Oviya, Automech Artisan",
@@ -4123,23 +4103,11 @@ class TestStructuredServeExtension:
         # ADR-0027: counter_control migrated to the Card IR — phase's `counter_spell`
         # effect category serves "Counter target creature spell" (Essence Scatter,
         # adjective gap), so the lane opens through the hybrid IR path, not the regex.
-        from mtg_utils._deck_forge.signals import (
-            extract_signals,
-        )
 
-        essence_scatter = {
-            "name": "Essence Scatter",
-            "type_line": "Instant",
-            "oracle_text": "Counter target creature spell.",
-        }
-        # Real projected IR: phase's `counter_spell` effect category serves the
+        # Real production extractor: phase's `counter_spell` effect category serves the
         # adjective-gap "Counter target creature spell".
-        ir = test_card_ir("Essence Scatter")
-        hybrid = {s.key for s in extract_signals_ir(essence_scatter, ir)}
+        hybrid = {s.key for s in test_signals("Essence Scatter")}
         assert "counter_control" in hybrid
-        assert "counter_control" not in {
-            s.key for s in extract_signals(essence_scatter)
-        }
 
 
 class TestStructuredServeFixes4:
@@ -4798,47 +4766,24 @@ class TestMediumBatch8:
     def test_creature_cast_trigger_recovers_you_cast(self):
         # ADR-0027: creature_cast_trigger migrated to the Card IR — a cast_spell trigger
         # with a Creature subject opens it via the hybrid path, not the deleted regex.
-        from mtg_utils._deck_forge.signals import (
-            extract_signals,
-        )
 
-        beast_whisperer = {
-            "name": "Beast Whisperer",
-            "type_line": "Creature — Elf Druid",
-            "oracle_text": "Whenever you cast a creature spell, draw a card.",
-        }
-        # Real projected IR: a cast_spell trigger with a Creature subject opens the lane.
-        ir = test_card_ir("Beast Whisperer")
-        keys = {s.key for s in extract_signals_ir(beast_whisperer, ir)}
+        # Real production extractor: a cast_spell trigger with a Creature subject
+        # opens the lane.
+        keys = {s.key for s in test_signals("Beast Whisperer")}
         assert "creature_cast_trigger" in keys
-        assert "creature_cast_trigger" not in {
-            s.key for s in extract_signals(beast_whisperer)
-        }
 
     def test_win_lose_game_self_win_not_mislabeled_opponents(self):
         # ADR-0027 t2b4a-B: win_lose_game is IR-served from the win_game / lose_game
         # Effect categories (scope 'any', the behavior-neutral row scope — never
         # 'opponents', so a self-wincon is not mislabeled). Regex path no longer fires.
-        from mtg_utils._deck_forge.signals import (
-            extract_signals,
-        )
 
-        felidar = {
-            "name": "Felidar Sovereign",
-            "type_line": "Creature — Cat Beast",
-            "oracle_text": "Vigilance (Attacking doesn't cause this creature to tap.)\nLifelink (Damage dealt by this creature also causes you to gain that much life.)\nAt the beginning of your upkeep, if you have 40 or more life, you win the game.",
-        }
-        # Real projected IR: the upkeep win_game Effect (scope 'you') — never
+        # Real production extractor: the upkeep win_game Effect (scope 'you') — never
         # 'opponents', so a self-wincon is not mislabeled.
-        felidar_ir = test_card_ir("Felidar Sovereign")
         sigs = [
-            s
-            for s in extract_signals_ir(felidar, felidar_ir)
-            if s.key == "win_lose_game"
+            s for s in test_signals("Felidar Sovereign") if s.key == "win_lose_game"
         ]
         assert sigs
         assert all(s.scope != "opponents" for s in sigs)
-        assert "win_lose_game" not in {s.key for s in extract_signals(felidar)}
 
 
 class TestMediumBatch9:
@@ -4857,31 +4802,20 @@ class TestMediumBatch9:
 
     def test_keyword_tribe_requires_payoff_anchor(self):
         # ADR-0027: keyword_tribe migrated to the Card IR (a subject-carrying kept
-        # mirror over the record's oracle_text), so assert against the HYBRID path with
-        # a bare IR — the mirror reads the record, not the IR structure.
-        from mtg_utils._deck_forge.signals import (
-            signal_keys,
-        )
+        # mirror over the record's oracle_text), so assert against the real production
+        # extractor — the mirror reads the record, not the IR structure.
+        from mtg_utils._deck_forge.signals import signal_keys
 
-        praetors = {
-            "name": "Hand of the Praetors",
-            "type_line": "Creature — Phyrexian Zombie",
-            "oracle_text": "Infect (This creature deals damage to creatures in the form of -1/-1 counters and to players in the form of poison counters.)\nOther creatures you control with infect get +1/+1.\nWhenever you cast a creature spell with infect, target player gets a poison counter.",
-        }
-        whiptongue = {
-            "name": "Whiptongue Hydra",
-            "type_line": "Creature — Lizard Hydra",
-            "oracle_text": "Reach\nWhen this creature enters, destroy all creatures with flying. Put a +1/+1 counter on this creature for each creature destroyed this way.",
-        }
-        # Real projected IR for each (the subject-carrying kept mirror over oracle_text).
+        # Real production extractor for each real card (the subject-carrying kept
+        # mirror over oracle_text).
         praetor_kw = {
             s.subject
-            for s in extract_signals_ir(praetors, test_card_ir("Hand of the Praetors"))
+            for s in test_signals("Hand of the Praetors")
             if s.key == signal_keys.KEYWORD_TRIBE
         }
         whip_kw = {
             s.subject
-            for s in extract_signals_ir(whiptongue, test_card_ir("Whiptongue Hydra"))
+            for s in test_signals("Whiptongue Hydra")
             if s.key == signal_keys.KEYWORD_TRIBE
         }
         assert "Infect" in praetor_kw  # a real keyword-tribe anthem
@@ -7055,21 +6989,11 @@ def test_curse_matters_is_a_named_archetype_lane():
     # trigger/effect subject Filter subtypes=='Curse' (the cares-about half) + a kept
     # word mirror; the regex path no longer fires it. Real oracle.
 
-    lynde = {
-        "name": "Lynde, Cheerful Tormentor",
-        "type_line": "Legendary Creature — Human Warlock",
-        "oracle_text": (
-            "Deathtouch\nWhenever a Curse is put into your graveyard from the "
-            "battlefield, return it to the battlefield attached to you at the "
-            "beginning of the next end step.\nAt the beginning of your upkeep, you may "
-            "attach a Curse attached to you to one of your opponents. If you do, draw "
-            "two cards."
-        ),
+    # Real production extractor: a trigger/effect subject Filter with
+    # subtypes=='Curse'.
+    assert "curse_matters" in {
+        s.key for s in test_signals("Lynde, Cheerful Tormentor")
     }
-    # Real projected IR: a trigger/effect subject Filter with subtypes=='Curse'.
-    lynde_ir = test_card_ir("Lynde, Cheerful Tormentor")
-    assert "curse_matters" in {s.key for s in extract_signals_ir(lynde, lynde_ir)}
-    assert "curse_matters" not in {s.key for s in extract_signals(lynde)}
     sig = _sig("curse_matters", "you")
     curse_of_misfortunes = {
         "name": "Curse of Misfortunes",
@@ -7129,21 +7053,11 @@ def test_villainous_choice_is_a_named_mechanic_lane():
     # The Valeyard doubles every villainous choice opponents face — its whole synergy is
     # villainous-choice cards (This Is How It Ends, Ensnared by the Mara, Hunted by The
     # Family). A named mechanic, like venture / initiative, with its own lane. Real oracle.
-    valeyard = {
-        "name": "The Valeyard",
-        "type_line": "Legendary Creature — Time Lord Noble",
-        "oracle_text": (
-            "If an opponent would face a villainous choice, they face that choice an "
-            "additional time. (They can make the same or different choices.)\nWhile "
-            "voting, you may vote an additional time."
-        ),
-    }
     # ADR-0027 t2b5-C: villainous_choice migrated to the Card IR (the kept word mirror),
-    # so the regex path no longer emits it — assert via the hybrid (IR) path.
+    # so the regex path no longer emits it — assert via the real production extractor.
 
-    # Real projected IR (the villainous_choice kept mirror over oracle_text).
-    real_ir = test_card_ir("The Valeyard")
-    assert "villainous_choice" in {s.key for s in extract_signals_ir(valeyard, real_ir)}
+    # Real production extractor (the villainous_choice kept mirror over oracle_text).
+    assert "villainous_choice" in {s.key for s in test_signals("The Valeyard")}
     sig = _sig("villainous_choice", "you")
     this_is_how_it_ends = {
         "name": "This Is How It Ends",
@@ -7234,18 +7148,6 @@ def test_dies_recursion_is_superset_of_undying_persist():
     # without counters); has_undying_persist is the counter-bearing SUBSET (undying
     # = +1/+1 per CR 702.93a, persist = -1/-1 per CR 702.79a). So undying/persist cards
     # belong to BOTH; bare dies-return (Supernatural Stamina) only to dies_recursion.
-    geralfs = {
-        "name": "Geralf's Messenger",
-        "type_line": "Creature — Zombie",
-        "keywords": ["Undying"],
-        "oracle_text": (
-            "This creature enters tapped.\n"
-            "When this creature enters, target opponent loses 2 life.\n"
-            "Undying (When this creature dies, if it had no +1/+1 counters on it, "
-            "return it to the battlefield under its owner's control with a +1/+1 "
-            "counter on it.)"
-        ),
-    }
     kitchen_finks = {
         "name": "Kitchen Finks",
         "type_line": "Creature — Ouphe",
@@ -7265,6 +7167,7 @@ def test_dies_recursion_is_superset_of_undying_persist():
             'control."'
         ),
     }
+    geralfs = test_card("Geralf's Messenger")
     dr = _sig("dies_recursion", "you")
     up = _sig("has_undying_persist", "you")
     # Superset: undying/persist AND bare dies-return are all dies_recursion.
@@ -7276,20 +7179,11 @@ def test_dies_recursion_is_superset_of_undying_persist():
     assert _lane_covers(kitchen_finks, up) is True
     assert _lane_covers(supernatural_stamina, up) is False
     # And undying/persist cards OPEN both lanes (they are members of the superset).
-    # ADR-0027: BOTH dies_recursion and has_undying_persist migrated to the Card IR,
-    # so the pure regex path emits NEITHER (the SWEEP_DETECTORS dies_recursion row and
-    # the undying/persist keyword route are deleted); the hybrid re-supplies both — the
-    # intrinsic Undying bearer fires has_undying_persist from the Scryfall keyword
-    # array, and dies_recursion fires from _IR_KEYWORD_MAP['undying'] PLUS the
+    # ADR-0027: BOTH dies_recursion and has_undying_persist migrated to the Card IR —
+    # the real production extractor supplies both from the intrinsic Undying keyword
+    # bearer (Scryfall keyword array + _IR_KEYWORD_MAP['undying']) PLUS the
     # DIES_RECURSION_REGEX kept word mirror.
-
-    gk = {s.key for s in extract_signals(geralfs)}
-    assert "dies_recursion" not in gk
-    assert "has_undying_persist" not in gk
-    # Real projected IR: the intrinsic Undying keyword bearer (Scryfall keyword array +
-    # _IR_KEYWORD_MAP['undying']) re-supplies both lanes the pure regex path drops.
-    geralfs_ir = test_card_ir("Geralf's Messenger")
-    hybrid_keys = {s.key for s in extract_signals_ir(geralfs, geralfs_ir)}
+    hybrid_keys = {s.key for s in test_signals("Geralf's Messenger")}
     assert "dies_recursion" in hybrid_keys
     assert "has_undying_persist" in hybrid_keys
 

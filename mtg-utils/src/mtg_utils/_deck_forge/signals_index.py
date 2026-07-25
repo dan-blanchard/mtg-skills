@@ -180,12 +180,10 @@ def signal_source_files() -> tuple[Path, ...]:
     picked up automatically the next time this runs — the "audit the actual
     import graph" the sidecar's invalidation depends on. Deliberately
     conservative: a module reachable here but NOT actually read by
-    ``extract_signals_hybrid`` at runtime (e.g. ``theme_presets``, pulled in
-    because ``_signals_regex`` imports ``get_preset`` for its now-dead
-    ``producible_static_keys`` probe) still counts — over-invalidating on an
-    unrelated edit costs one wasted rebuild; under-invalidating serves stale
-    signals silently, which is the one failure mode this sidecar must never
-    have."""
+    ``extract_signals_hybrid`` at runtime still counts — over-invalidating
+    on an unrelated edit costs one wasted rebuild; under-invalidating serves
+    stale signals silently, which is the one failure mode this sidecar must
+    never have."""
     seen: set[str] = set()
     queue: list[str] = [_ROOT_MODULE]
     files: set[Path] = set()

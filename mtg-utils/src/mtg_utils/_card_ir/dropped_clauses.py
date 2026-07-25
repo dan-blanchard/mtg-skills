@@ -35,14 +35,13 @@ dropped clause that maps to old-IR Card structure does not feed them — the sig
 path is unchanged by this stage (signal-diff holds by construction); tree-node
 synthesis for the few (c) clauses a Signal lane could read is a follow-on.
 
-**The convergence contract.** Each arm is keyed by name so the input-side
-convergence check (:mod:`mtg_utils._card_ir.card_ir_convergence`) can, at each pin
-bump, ask whether phase NOW parses the clause — grounded on the strict mirror: an
-arm that no longer FIRES on any corpus card (its structural idempotence guard
-trips because the mirror already carries the structure) has CONVERGED and is
-retire-ready. Every arm in :data:`SYNTHESIS_ARMS` fires on >=1 commander-legal
-card at phase v0.15.0 (the gated convergence test asserts it); the six other (c)
-arms are deferred off this seam (:data:`_DEFERRED_TRIGGER_ARMS` +
+**The convergence contract.** Each arm is keyed by name so an input-side
+convergence check can, at each pin bump, ask whether phase NOW parses the
+clause — grounded on the strict mirror: an arm that no longer FIRES on any
+corpus card (its structural idempotence guard trips because the mirror already
+carries the structure) has CONVERGED and is retire-ready. Every arm in
+:data:`SYNTHESIS_ARMS` fired on >=1 commander-legal card at phase v0.15.0; the
+six other (c) arms are deferred off this seam (:data:`_DEFERRED_TRIGGER_ARMS` +
 :data:`_DEFERRED_RAW_ARMS`).
 
 **Per-card convergence GATES (the SUPERSET guarantee).** A handful of arm guards

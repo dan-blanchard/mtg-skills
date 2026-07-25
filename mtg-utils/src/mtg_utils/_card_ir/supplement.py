@@ -13,10 +13,10 @@ What remains is exactly the surviving-consumer surface: the ``_recover_*``
 FIELD-correction arms the crosswalk's parallel machinery reuses on the compat
 Card (:mod:`dropped_clauses` — the bucket-(c) synthesis stage — and
 :mod:`field_corrections` — the bucket-(b) completion seam), plus the shared
-anchors/parsers ``_deck_forge._signals_ir``, ``tree_synthesis``, and
-``bridge_ledger`` import (the exile-removal exclusions, ``_EACH_PLAYER_P`` /
-``_TAP_OPP_CONTROL_P``, ``_BASE_POWER_REF`` / ``_anchored``). Each kept arm's
-own docstring still names the phase gap it bridges.
+anchors/parsers ``tree_synthesis`` and ``bridge_ledger`` import (the
+exile-removal exclusions, ``_EACH_PLAYER_P`` / ``_TAP_OPP_CONTROL_P``,
+``_BASE_POWER_REF`` / ``_anchored``). Each kept arm's own docstring still
+names the phase gap it bridges.
 """
 
 from __future__ import annotations
@@ -2155,7 +2155,7 @@ def _has_structural_scaling_pump(card: Card) -> bool:
     """True when a real `pump` Effect already carries a scaling count (a named scale
     op, or a count/multiply/toughness op with a subject or a for-each raw) — i.e. the
     structural scaling_pump arm already fires, so no synth is needed (the byte-mirror's
-    206-card overlap). Mirrors _deck_forge._signals_ir._is_scaling_count."""
+    206-card overlap). Mirrors _deck_forge.crosswalk_signals._is_scaling_count."""
     for ab in card.all_abilities():
         for e in ab.effects:
             if e.category != "pump" or e.amount is None:
@@ -2225,8 +2225,9 @@ def _recover_scaling_pump(card: Card, oracle: str) -> Card:
 #     creature", Break Open "turn target face-down creature … face up", Panoptic
 #     Projektor's "next face-down creature spell … costs less"). Stamp the EXACT marker
 #     phase emits for NATIVE face-down subjects (the subtype token "Face-down" — see
-#     _signals_ir._is_facedown_subject) onto every effect whose own clause references a
-#     face-down permanent / spell or a morph-family mechanic, so the existing
+#     crosswalk_signals.py's ``_is_facedown_subject`` precedent) onto every effect
+#     whose own clause references a face-down permanent / spell or a morph-family
+#     mechanic, so the existing
 #     facedown_matters effect-subject arm fires. The marker is inert outside the lane
 #     ("Face-down" is not a creature subtype, so it can't cross into tribal lanes). CR
 #     707.2 / 708.2 / 702.36-37.

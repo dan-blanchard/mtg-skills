@@ -15,9 +15,48 @@ def test_scans_direct_literal_calls():
     assert _scan_module(src) == {"Sol Ring"}
 
 
-def test_scans_wrapper_family_and_apostrophes():
-    src = 'def test_x():\n    _ks_real("Atraxa, Praetors\' Voice")\n'
+def test_scans_derived_wrapper_and_apostrophes():
+    # A wrapper counts because its DEFINITION forwards a parameter into the
+    # testkit core — never because its name is on a hardcoded list (the old
+    # list silently dropped any new helper a test file introduced).
+    src = (
+        "def _ks_real(name):\n"
+        "    return {(s.key, s.scope) for s in test_signals(name)}\n"
+        "def test_x():\n"
+        "    _ks_real(\"Atraxa, Praetors' Voice\")\n"
+    )
     assert _scan_module(src) == {"Atraxa, Praetors' Voice"}
+
+
+def test_undefined_helper_names_are_not_wrappers():
+    # A call to an undefined helper harvests nothing — wrapper status is
+    # derived from a local def, not guessed from the name.
+    src = 'def test_x():\n    _ks_real("Atraxa, Praetors\' Voice")\n'
+    assert _scan_module(src) == set()
+
+
+def test_scans_wrapper_of_a_wrapper():
+    src = (
+        "def _inner(name):\n"
+        "    return test_card(name)\n"
+        "def _outer(name):\n"
+        "    return _inner(name)\n"
+        "def test_x():\n"
+        '    _outer("Sol Ring")\n'
+    )
+    assert _scan_module(src) == {"Sol Ring"}
+
+
+def test_scans_loop_tuple_feeding_a_helper():
+    src = (
+        "def test_x():\n"
+        '    for n in ("Ghalta, Primal Hunger", "Goreclaw, Terror of Qal Sisma"):\n'
+        "        assert test_signals(n)\n"
+    )
+    assert _scan_module(src) == {
+        "Ghalta, Primal Hunger",
+        "Goreclaw, Terror of Qal Sisma",
+    }
 
 
 def test_ignores_comments_and_docstrings():

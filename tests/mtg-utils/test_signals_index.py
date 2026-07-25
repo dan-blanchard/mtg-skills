@@ -77,7 +77,9 @@ class TestSignalSourceFiles:
         # The lane-facing modules (ADR-0035/0039) named in the task.
         assert "signals.py" in names
         assert "crosswalk_signals.py" in names
-        assert "_signals_ir.py" in names
+        assert "membership_floor.py" in names
+        assert "text_reads.py" in names
+        assert "signal_base.py" in names
         assert "_subtypes.py" in names
         assert "bridge_ledger.py" in names
         assert "signal_keys.py" in names  # from pkg import submodule form

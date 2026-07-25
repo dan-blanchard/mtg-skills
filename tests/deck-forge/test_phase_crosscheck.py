@@ -21,6 +21,7 @@ fires for real (per the repo's real-card-props testing rule).
 import json
 
 from mtg_utils._deck_forge import phase_crosscheck as pc
+from mtg_utils.testkit import test_card, test_signals
 
 # ── phase_tags: project a phase face record to normalized mechanic tags ───────
 
@@ -119,22 +120,22 @@ def test_classify_omits_lanes_neither_side_touches():
 
 
 def test_corpus_joins_by_oracle_id_and_tallies_both():
-    # Real card: Adeline fires token_maker; phase record makes a Token on attack.
-    card = {
-        "name": "Adeline, Resplendent Cathar",
-        "type_line": "Legendary Creature — Human Soldier",
-        "oracle_text": (
-            "Vigilance\nWhenever you attack, for each opponent, create a 1/1 white "
-            "Human creature token that's tapped and attacking that player or a "
-            "planeswalker they control.\nAdeline, Resplendent Cathar's power is "
-            "equal to the number of creatures you control."
-        ),
-        "oracle_id": "oid-adeline",
-    }
+    # Real card (mtg_utils.testkit): Adeline fires token_maker; a hand-built phase
+    # record (mirroring phase's serialized shape, phase itself isn't installed in
+    # CI) makes a Token on attack, joined by her REAL oracle_id. ADR-0039 task #80
+    # step 6: extract_signals_hybrid is crosswalk-only — a synthetic oracle_id
+    # resolves no concept tree at all, so the card must be the real snapshot record
+    # with its trees memo pre-seeded (test_signals warms it), letting
+    # crosscheck_corpus's PRODUCTION default extractor (phase_crosscheck.detector_lanes,
+    # itself extract_signals_hybrid(card, ir_for(card))) resolve it for real — no
+    # custom extractor needed.
+    card = test_card("Adeline, Resplendent Cathar")
+    oid = card["oracle_id"]
+    test_signals("Adeline, Resplendent Cathar")  # seed the crosswalk trees memo
     phase_index = {
-        "oid-adeline": {
+        oid: {
             "name": "Adeline, Resplendent Cathar",
-            "scryfall_oracle_id": "oid-adeline",
+            "scryfall_oracle_id": oid,
             "triggers": [
                 {
                     "mode": "YouAttack",
@@ -144,23 +145,7 @@ def test_corpus_joins_by_oracle_id_and_tallies_both():
         }
     }
     crosswalk = {"token_maker": frozenset({"effect:token"})}
-    # ADR-0027: token_maker migrated to the Card IR — it is served only on the HYBRID
-    # path (the byte-identical kept mirror reads the record's oracle_text). ADR-0039
-    # task #80 step 6: extract_signals_hybrid is now crosswalk-only and this card's
-    # oracle_id is synthetic (no real phase record to resolve), so it would silently
-    # report `both`==0 — call extract_signals_ir directly (the structural detection
-    # engine this probes) with a non-None IR instead. The mirror still fires
-    # token_maker on Adeline's "create a 1/1 white Human creature token".
-    from mtg_utils._deck_forge._signals_ir import extract_signals_ir
-    from mtg_utils.card_ir import Card, Face
-
-    def _extract(c: dict) -> frozenset[str]:
-        ir = Card(oracle_id="x", name=c["name"], faces=(Face(name=c["name"]),))
-        return frozenset(s.key for s in extract_signals_ir(c, ir))
-
-    report = pc.crosscheck_corpus(
-        [card], phase_index, crosswalk=crosswalk, extract=_extract
-    )
+    report = pc.crosscheck_corpus([card], phase_index, crosswalk=crosswalk)
     assert report["joined"] == 1
     assert report["lanes"]["token_maker"]["both"] == 1
     assert (
@@ -249,16 +234,18 @@ def test_load_cards_accepts_plain_list(tmp_path):
 
 
 def test_main_runs_end_to_end_and_writes_markdown(tmp_path, capsys):
-    cards = [
-        {
-            "name": "Token Guy",
-            "oracle_text": "When Token Guy enters, create a 1/1 white Soldier creature token.",
-            "oracle_id": "oid-1",
-        }
-    ]
+    # Krenko, Mob Boss (mtg_utils.testkit) fires token_maker for real; the trees
+    # memo is seeded (test_signals) before main() loads the same card fresh from
+    # disk, so its production default extractor (extract_signals_hybrid(card,
+    # ir_for(card))) resolves the real concept tree by oracle_id — see the
+    # corpus-join test above for why a synthetic oracle_id can no longer work here.
+    card = test_card("Krenko, Mob Boss")
+    oid = card["oracle_id"]
+    test_signals("Krenko, Mob Boss")
+    cards = [card]
     phase = {
-        "tokenguy": {
-            "scryfall_oracle_id": "oid-1",
+        "krenko": {
+            "scryfall_oracle_id": oid,
             "abilities": [{"effect": {"type": "Token", "value": {}}}],
         }
     }
