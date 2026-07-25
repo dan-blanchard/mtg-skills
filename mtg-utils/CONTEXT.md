@@ -113,29 +113,7 @@ structural direction — membership never changes. Suppressing the structural
 read to keep an old pin green is never the fix.
 _Avoid_: "regression" (the pins fail because the substrate improved).
 
-**KEPT twelve**:
-The 12 signal keys deliberately left on the legacy serving arm at the Stage-2
-port (in `MIGRATED_KEYS`, never in `_PORTED_KEYS_STAGE3`): base_power_matters,
-big_mana, cheat_from_top, copy_limit, damage_redirect, excess_damage,
-extra_draw_step, free_cast, ki_counter_matters, kicked_spell_matters,
-land_destruction, named_synergy. Outside the `_STAGE4_RESIDUAL` ledger, so
-the grind's residual count understates the legacy-served surface by exactly
-this set; they promote by ADDITION to the ported set, not removal from the
-residual one. ADR-0039 W8 PROMOTED all 12 — cheat_from_top (already
-byte-identical via the shared `_apply_membership_floor`, a pure key-slice
-change), copy_limit (a new `ConceptTree.many_copies` typed field),
-base_power_matters / damage_redirect (a graduated `PtComparison.scope`
-structural read + a ledgered bridge, and a b12 byte-identical mirror,
-respectively), extra_draw_step (a typed-node extension of the existing
-`_extra_upkeep_end` beginning-phase decomposition), excess_damage /
-kicked_spell_matters / free_cast (byte-identical KEPT-MIRROR text scans, the
-same tier as the pre-existing `_MINUS_COUNTER_KEPT_RX` rows), land_destruction
-/ big_mana (both already `_apply_membership_floor`-served, pure key-slice
-changes), ki_counter_matters (a `ki_counter_kind_refs` deep-walk sibling of
-the oil arm reaching a trigger's own `condition` field), and named_synergy (a
-ledgered bridge — the typed `Named` node is corpus-verified too overloaded,
-~9x blast radius, to read directly yet). No permanent KEPT lane remains; a
-handful of adjudicated-genuine beyond-legacy gains surfaced along the way (a
-DFC face-name join fix, a base-P/T-reference sacrifice cost, among others).
-_Avoid_: "residuals" (residuals are tracked; these were invisible to that
-ledger until 2026-07-11).
+(The "KEPT twelve" — twelve keys that once lagged on a legacy serving arm —
+are ordinary manifest-served lanes since ADR-0039 completed; the surviving
+distinction, where one exists, is a per-key ledgered bridge or text mirror
+noted in `lanes/` itself. See archived ADR-0039 for the promotion record.)

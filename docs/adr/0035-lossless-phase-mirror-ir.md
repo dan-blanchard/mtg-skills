@@ -12,7 +12,7 @@ regex→IR cutover — amends the *substrate*),
 
 This is the anchor ADR for the structural substrate: Layer 1 (substrate) +
 Layer 2 (concept overlay) + Layer 3 (lanes) is the only serving path, on both
-consumer seams — `Signal` via `extract_signals_hybrid` and the dataclass API
+consumer seams — `Signal` via `extract_signals` and the dataclass API
 via the compat `Card` built from the trees.
 
 ## Context
@@ -168,14 +168,15 @@ A three-layer model, a three-way-decomposed supplement, and a two-layer cache.
   *measures* that bridge shrinking.
 - **Complete (2026-07-12).** ADR-0039 deleted the legacy path end to end
   (`project.py` and the lossy projection gone, the Stage-4 cutover flag
-  retired, residual/KEPT key ledgers collapsed into one flat `PORTED_KEYS`);
+  retired, residual/KEPT key ledgers collapsed into one flat served-key manifest
+  — today `lanes.manifest.SERVED_SIGNAL_KEYS`);
   what remains of the old vocabulary is history in comments plus the
   gap-gated ledgered bridges in `bridge_ledger.py`.
 
 ## Surviving pieces (from ADR-0039)
 
 The KEPT twelve — signal keys deliberately kept on the legacy path at the
-Stage-2 port, later promoted by addition into `PORTED_KEYS` rather than
+Stage-2 port, later promoted by addition into the served manifest rather than
 retired:
 
 - base_power_matters

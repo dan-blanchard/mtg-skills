@@ -83,7 +83,7 @@ The non-obvious reshapes the adapter absorbs (each verified against live data):
 ## Verification
 
 - **Signal parity**: every card in the committed test snapshot was translated from live
-  MTGJSON and run through `extract_signals_hybrid` over the *same* projected IR —
+  MTGJSON and run through `extract_signals` over the *same* projected IR —
   **717/717 signal-identical** with the prior Scryfall records, 0 type_line/cmc diffs.
 - **Legality**: across 30,969 commander-legal cards, MTGJSON-aggregated legality agrees
   with Scryfall **exactly** for commander / legacy / vintage / modern / pioneer /

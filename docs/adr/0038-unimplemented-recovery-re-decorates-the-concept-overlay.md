@@ -13,7 +13,7 @@ effect clauses move to this mechanism), [0036](archive/0036-lane-mirrors-fold-to
 
 ## Context
 
-~77 signal keys remain residual (`_STAGE4_RESIDUAL`): production serves them
+~77 signal keys remain residual (the since-retired residual ledger): production serves them
 from the legacy regex path because the crosswalk misses their cards. The root
 cause is structural, not per-key: those cards' clauses land in phase as
 `T_effect__Unimplemented`, and the two IR paths treat that differently.
@@ -25,7 +25,7 @@ cause is structural, not per-key: those cards' clauses land in phase as
   never runs the supplement. An Unimplemented node decorates to
   `concept="other"`, the lanes see nothing, and the key stays residual. The
   compat projection likewise emits `category="other"` — a latent regression
-  for the five Seam-B consumers the moment a key cuts over.
+  for the five compat-Card consumers the moment a key cuts over.
 
 The interim bridge — ADR-0037 synthesis arms emitting `synth_<key>` *marker*
 concepts that each lane special-cases — was flagged as the "regex-bridge now,"
@@ -112,16 +112,16 @@ Unimplemented recovery becomes a substrate-wide overlay stage that
   `reversible_card` are excluded by layout name. Whole-oid-missing cards (no
   phase group at all) stay out of scope — they already degrade to the legacy
   IR path via `trees_for`'s existing empty return. Corpus quantification
-  (PORTED_KEYS, all affected cards): only 5 of 97 affected card names actually
+  (the served-key manifest, all affected cards): only 5 of 97 affected card names actually
   gain a new signal from their text-only face — `fight_makers` (Prepare //
   Fight), `stax_taxes` (Failure // Comply), plus `pump_makers` /
   `evasion_self` / `spellcast_matters` on one further card apiece — every gain
-  matching `extract_signals_ir` (legacy) ground truth exactly. The Seam-B
+  matching the (since-deleted) legacy extractor ground truth exactly. The compat-Card
   compat sidecar (`build_crosswalk_sidecar`) is NOT threaded with text-only
-  faces: no Seam-B consumer reads `Card.faces` directly (all five go through
+  faces: no compat-Card consumer reads `Card.faces` directly (all five go through
   `Card.all_abilities()`, which already only ever saw the phase face(s) that
   exist), so this is unchanged pre/post behavior, not a regression — threading
-  bulk data into the sidecar builder is deferred until a Seam-B consumer diff
+  bulk data into the sidecar builder is deferred until a compat-Card consumer diff
   shows it matters.
 
 `tree_synthesis` (ADR-0037) shrinks to its irreducible remainder: cares-about
@@ -150,7 +150,7 @@ grammar rules and deleted.
 - Residual-key recovery stops accreting per-key regex arms + lane
   special-cases; it becomes grammar coverage plus an allowlist entry, and the
   recovered card is indistinguishable from a typed one at the concept layer.
-- The five Seam-B consumers converge toward legacy as the allowlist grows —
+- The five compat-Card consumers converge toward legacy as the allowlist grows —
   retirement of the old-IR path becomes honest instead of deferred.
 - The purity invariant needs no second exemption; re-decoration is provably
   inert to the phase fingerprint (same `.node` objects).
