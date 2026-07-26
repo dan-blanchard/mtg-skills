@@ -86,6 +86,41 @@ class TestStaplesData:
         assert staples._category_of(sample) == "Format staple"
         assert staples._category_of("Sol Ring") == "Ramp"
 
+    def test_quality_gate_holds(self):
+        # The format-staples tier is popularity-informed but quality-GATED (see the
+        # staples.py comment): broadly-played weak cards must never creep back in on a
+        # regeneration. Representatives of each pruned family: guildgate / gainland /
+        # scry temple / karoo / tri-land / surveil land / snow dual / bridge /
+        # power-crept rate cards.
+        banned = (
+            "Azorius Guildgate",
+            "Jungle Hollow",
+            "Temple of Mystery",
+            "Dimir Aqueduct",
+            "Arcane Sanctum",
+            "Undercity Sewers",
+            "Rimewood Falls",
+            "Silverbluff Bridge",
+            "Murder",
+            "Diabolic Tutor",
+            "Fog",
+        )
+        names = staples.staple_names()
+        for n in banned:
+            assert n not in names, n
+        # The conditionally-tapped / untapped fixing that replaces them stays, and the
+        # Triomes are exempt from the tapland rule: a third color + basic types +
+        # cycling makes up for entering tapped, with no untapped three-color substitute.
+        for n in (
+            "Steam Vents",
+            "Sunpetal Grove",
+            "Go for the Throat",
+            "Mana Drain",
+            "Ketria Triome",
+            "Xander's Lounge",
+        ):
+            assert n in names, n
+
 
 class TestColorIdentityFilter:
     def test_colorless_staple_fits_any_deck(self):

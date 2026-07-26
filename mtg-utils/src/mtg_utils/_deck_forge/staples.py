@@ -145,6 +145,25 @@ _MULTICOLOR_ONLY: frozenset[str] = frozenset(
 # hand-curated function list above — so each color's genuinely-played best cards (Toxic
 # Deluge, Mana Drain, Beast Within, …) are surfaced and counted as covered, not just the
 # colorless good-stuff. Color-filtered + multicolor-gated at offer time like the rest.
+#
+# QUALITY GATE: broad play is necessary but not sufficient — precon/budget ubiquity
+# drags in cards that are well-known, not good. The generated list is therefore pruned
+# (re-apply on regeneration; tripwire in tests/deck-forge/test_staples.py) of:
+#   1. Lands that UNCONDITIONALLY enter tapped (Guildgates, gainlands, Temples, karoo
+#      bounce lands, tri-lands, surveil lands, snow duals, indestructible bridges) —
+#      mechanically identified from the bulk: oracle text matches
+#      "enters (the battlefield )?tapped" with no unless/you-may-have/as-enters clause.
+#      A tapland is basically always a worse slot than the untapped or conditionally
+#      tapped fixing that stays (shocks, checks, snarls, pain/fast/filter/battle/crowd
+#      lands, fetches, duals). Two exemptions: the ten Triomes stay — a THIRD color
+#      (plus basic types and cycling) makes up for entering tapped, and unlike the
+#      two-color taplands there is no untapped three-color replacement — and curated
+#      function staples, whose tapped lands (Bojuka Bog, Myriad Landscape) buy a real
+#      effect, not just fixing.
+#   2. Power-crept rate cards strictly outclassed by modern equivalents that are
+#      already in the staple set (Murder, Diabolic Tutor, Tormenting Voice, Explosive
+#      Vegetation) and popularity-only jank (Fog, Door to Nothingness, Tibalt's
+#      Trickery).
 # staples.py lives in mtg_utils/_deck_forge/, so the data dir is one level up.
 _FORMAT_STAPLES_FILE = Path(__file__).parent.parent / "data" / "format-staples.txt"
 
