@@ -40,9 +40,13 @@ def _fixture_tree(name: str) -> ConceptTree:
 # in the fixture corpus with EXACTLY ONE role=effect ConceptNode that is
 # concept=="other", tag_of(node)=="Unimplemented", carries non-empty raw, and
 # whose raw parses (via parse_clause, falling back to scan_clause) to a
-# grammar token — "Akki Lavarunner"'s single effect ("flip it") -> "transform".
-_PROBE_CARD = "Akki Lavarunner"
-_PROBE_TOKEN = "transform"
+# grammar token — "Averna, the Chaos Bloom"'s cascade-reanimate clause ->
+# "reanimate". (Was "Akki Lavarunner"'s "flip it" -> "transform" until the
+# v0.45.0 pin bump: phase's v0.37.0 flip-card support now emits a typed
+# ``FlipPermanent`` node there, so Akki no longer carries an Unimplemented
+# residue at all.)
+_PROBE_CARD = "Averna, the Chaos Bloom"
+_PROBE_TOKEN = "reanimate"
 
 # A handful of snapshot cards for the identity fast-path test.
 _IDENTITY_CARDS = ["Akki Lavarunner", '"Name Sticker" Goblin', "Abbot of Keral Keep"]

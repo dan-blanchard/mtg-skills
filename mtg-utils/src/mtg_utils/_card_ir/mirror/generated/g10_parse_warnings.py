@@ -4,8 +4,8 @@ Codegen'd from ``tests/fixtures/phase_mirror_schema.json`` by
 ``mtg_utils._card_ir.mirror.codegen`` (run via ``build-card-ir-substrate``).
 
 Part of the generated typed-mirror package (see this directory's
-``__init__.py``). This module holds content keys ``payer`` .. ``prop`` (15
-keys).
+``__init__.py``). This module holds content keys ``parse_warnings`` .. ``prop``
+(18 keys).
 
 Class naming: ``S_<ckey>`` for a struct shape, ``T_<ckey>__<tag>`` for a tagged
 shape, ``U_<ckey>`` for the union of all tagged shapes at one content_key.
@@ -46,10 +46,10 @@ if TYPE_CHECKING:
         U_filter,
         U_invalidation,
         U_land_filter,
-        U_lhs,
     )
-    from mtg_utils._card_ir.mirror.generated.g09_library_position import (
+    from mtg_utils._card_ir.mirror.generated.g09_lhs import (
         S_multi_target,
+        U_lhs,
     )
     from mtg_utils._card_ir.mirror.generated.g11_properties import (
         U_properties,
@@ -58,13 +58,14 @@ if TYPE_CHECKING:
         U_reference,
         U_relation,
     )
-    from mtg_utils._card_ir.mirror.generated.g13_repeat_until import (
+    from mtg_utils._card_ir.mirror.generated.g13_repeat_for import (
         S_sub_ability,
         U_rhs,
         U_scope,
         U_source,
     )
-    from mtg_utils._card_ir.mirror.generated.g14_target import (
+    from mtg_utils._card_ir.mirror.generated.g14_subtype_filter import (
+        S_unit_span,
         U_value,
     )
 
@@ -99,6 +100,55 @@ class S_profile(TypedMirrorNode):
 
 
 # --- tagged shapes (discriminated enum nodes) ---
+
+
+@dataclass(frozen=True)
+class T_parse_warnings__IgnoredRemainder(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "IgnoredRemainder"
+    line_index: int
+    parser: str
+    text: str
+
+
+@dataclass(frozen=True)
+class T_parse_warnings__SwallowedClause(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "SwallowedClause"
+    description: str
+    detector: str
+    line_index: int
+    unit_span: S_unit_span
+    items: list[object] = MISSING
+
+
+@dataclass(frozen=True)
+class T_parse_warnings__TargetFallback(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "TargetFallback"
+    context: str
+    line_index: int
+    text: str
+
+
+@dataclass(frozen=True)
+class T_partition_subject__AnOpponent(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "AnOpponent"
+
+
+@dataclass(frozen=True)
+class T_partition_subject__EachOpponent(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "EachOpponent"
+
+
+@dataclass(frozen=True)
+class T_partner_filter__Any(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "Any"
+
+
+@dataclass(frozen=True)
+class T_partner_filter__Typed(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "Typed"
+    controller: str
+    properties: list[U_properties]
+    type_filters: list[MirrorVariant]
 
 
 @dataclass(frozen=True)
@@ -320,7 +370,7 @@ class T_player__TriggeringPlayer(TypedMirrorNode):
 @dataclass(frozen=True)
 class T_player__Typed(TypedMirrorNode):
     _tag: ClassVar[str | None] = "Typed"
-    controller: None | str
+    controller: None | str | MirrorVariant
     properties: list[U_properties]
     type_filters: list[MirrorVariant]
 
@@ -632,6 +682,15 @@ class T_prop__WasPlayed(TypedMirrorNode):
 
 # --- discriminated-union aliases (one per tagged content_key) ---
 
+type U_parse_warnings = (
+    T_parse_warnings__IgnoredRemainder
+    | T_parse_warnings__SwallowedClause
+    | T_parse_warnings__TargetFallback
+)
+type U_partition_subject = (
+    T_partition_subject__AnOpponent | T_partition_subject__EachOpponent
+)
+type U_partner_filter = T_partner_filter__Any | T_partner_filter__Typed
 type U_payer = (
     T_payer__AllPlayers
     | T_payer__Controller

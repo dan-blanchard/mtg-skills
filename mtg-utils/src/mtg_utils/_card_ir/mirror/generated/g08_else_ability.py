@@ -5,7 +5,7 @@ Codegen'd from ``tests/fixtures/phase_mirror_schema.json`` by
 
 Part of the generated typed-mirror package (see this directory's
 ``__init__.py``). This module holds content keys ``else_ability`` ..
-``library_players`` (35 keys).
+``legalities`` (35 keys).
 
 Class naming: ``S_<ckey>`` for a struct shape, ``T_<ckey>__<tag>`` for a tagged
 shape, ``U_<ckey>`` for the union of all tagged shapes at one content_key.
@@ -45,12 +45,13 @@ if TYPE_CHECKING:
     from mtg_utils._card_ir.mirror.generated.g07_effect import (
         U_effect,
     )
-    from mtg_utils._card_ir.mirror.generated.g09_library_position import (
+    from mtg_utils._card_ir.mirror.generated.g09_lhs import (
         S_modal,
         S_mode_abilities,
         S_multi_target,
+        U_lhs,
     )
-    from mtg_utils._card_ir.mirror.generated.g10_payer import (
+    from mtg_utils._card_ir.mirror.generated.g10_parse_warnings import (
         U_player_scope,
     )
     from mtg_utils._card_ir.mirror.generated.g11_properties import (
@@ -59,19 +60,18 @@ if TYPE_CHECKING:
     from mtg_utils._card_ir.mirror.generated.g12_qty import (
         U_qty,
         U_relation,
-        U_repeat_for,
     )
-    from mtg_utils._card_ir.mirror.generated.g13_repeat_until import (
+    from mtg_utils._card_ir.mirror.generated.g13_repeat_for import (
         S_static_abilities,
         S_sub_ability,
+        U_repeat_for,
         U_repeat_until,
         U_rhs,
-        U_right,
         U_source,
-        U_subtype_filter,
     )
-    from mtg_utils._card_ir.mirror.generated.g14_target import (
+    from mtg_utils._card_ir.mirror.generated.g14_subtype_filter import (
         S_unless_pay,
+        U_subtype_filter,
         U_target_chooser,
         U_target_constraints,
         U_target_selection_mode,
@@ -87,7 +87,7 @@ class S_else_ability(TypedMirrorNode):
     condition: None | U_condition
     cost: None
     description: None | str
-    duration: None | str
+    duration: None | str | MirrorVariant
     effect: U_effect
     forward_result: bool
     kind: str
@@ -199,6 +199,13 @@ class T_enchant_filter__Typed(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class T_end_cost__Cost(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "Cost"
+    generic: int
+    shards: list[object]
+
+
+@dataclass(frozen=True)
 class T_enter_with_counters__ClampMin(TypedMirrorNode):
     _tag: ClassVar[str | None] = "ClampMin"
     inner: U_inner
@@ -274,6 +281,11 @@ class T_exclude__TriggeringPlayer(TypedMirrorNode):
 @dataclass(frozen=True)
 class T_expiry__EndOfTurn(TypedMirrorNode):
     _tag: ClassVar[str | None] = "EndOfTurn"
+
+
+@dataclass(frozen=True)
+class T_expiry__UntilHostLeavesPlay(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "UntilHostLeavesPlay"
 
 
 @dataclass(frozen=True)
@@ -365,6 +377,11 @@ class T_filter__HasLostTheGame(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class T_filter__LastZoneChanged(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "LastZoneChanged"
+
+
+@dataclass(frozen=True)
 class T_filter__Named(TypedMirrorNode):
     _tag: ClassVar[str | None] = "Named"
     name: str
@@ -449,6 +466,14 @@ class T_filter__TrackedSet(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class T_filter__TrackedSetPossessor(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "TrackedSetPossessor"
+    filter: U_filter
+    possession: str
+    relation: U_relation
+
+
+@dataclass(frozen=True)
 class T_filter__Typed(TypedMirrorNode):
     _tag: ClassVar[str | None] = "Typed"
     controller: None | str | MirrorVariant
@@ -523,6 +548,12 @@ class T_filters__Player(TypedMirrorNode):
 @dataclass(frozen=True)
 class T_filters__SelfRef(TypedMirrorNode):
     _tag: ClassVar[str | None] = "SelfRef"
+
+
+@dataclass(frozen=True)
+class T_filters__SpecificObject(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "SpecificObject"
+    id: int
 
 
 @dataclass(frozen=True)
@@ -609,6 +640,11 @@ class T_grants__RemoveAllAbilities(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class T_graveyard_replacement__Exile(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "Exile"
+
+
+@dataclass(frozen=True)
 class T_host__TriggeringSource(TypedMirrorNode):
     _tag: ClassVar[str | None] = "TriggeringSource"
 
@@ -688,13 +724,6 @@ class T_inner__HasCityBlessing(TypedMirrorNode):
 @dataclass(frozen=True)
 class T_inner__IsMonarch(TypedMirrorNode):
     _tag: ClassVar[str | None] = "IsMonarch"
-
-
-@dataclass(frozen=True)
-class T_inner__ManaColorSpent(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "ManaColorSpent"
-    color: str
-    minimum: int
 
 
 @dataclass(frozen=True)
@@ -855,33 +884,10 @@ class T_left__Ref(TypedMirrorNode):
     qty: U_qty
 
 
-@dataclass(frozen=True)
-class T_lhs__Difference(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "Difference"
-    left: U_left
-    right: U_right
-
-
-@dataclass(frozen=True)
-class T_lhs__Ref(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "Ref"
-    qty: U_qty
-
-
-@dataclass(frozen=True)
-class T_lhs__Sum(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "Sum"
-    exprs: list[U_exprs]
-
-
-@dataclass(frozen=True)
-class T_library_players__All(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "All"
-
-
 # --- discriminated-union aliases (one per tagged content_key) ---
 
 type U_enchant_filter = T_enchant_filter__Typed
+type U_end_cost = T_end_cost__Cost
 type U_enter_with_counters = (
     T_enter_with_counters__ClampMin
     | T_enter_with_counters__Fixed
@@ -897,7 +903,7 @@ type U_exclude = (
     | T_exclude__ParentObjectTargetController
     | T_exclude__TriggeringPlayer
 )
-type U_expiry = T_expiry__EndOfTurn
+type U_expiry = T_expiry__EndOfTurn | T_expiry__UntilHostLeavesPlay
 type U_exponent = T_exponent__Ref
 type U_exprs = T_exprs__Fixed | T_exprs__Multiply | T_exprs__Ref
 type U_extra_source = T_extra_source__Typed
@@ -912,6 +918,7 @@ type U_filter = (
     | T_filter__GrantingObject
     | T_filter__HasChosenName
     | T_filter__HasLostTheGame
+    | T_filter__LastZoneChanged
     | T_filter__Named
     | T_filter__Not
     | T_filter__Opponent
@@ -926,6 +933,7 @@ type U_filter = (
     | T_filter__PlayerAttribute
     | T_filter__SelfRef
     | T_filter__TrackedSet
+    | T_filter__TrackedSetPossessor
     | T_filter__Typed
 )
 type U_filters = (
@@ -942,6 +950,7 @@ type U_filters = (
     | T_filters__ParentTargetSlot
     | T_filters__Player
     | T_filters__SelfRef
+    | T_filters__SpecificObject
     | T_filters__StackAbility
     | T_filters__StackSpell
     | T_filters__TrackedSet
@@ -955,6 +964,7 @@ type U_grantee = T_grantee__ObjectOwner | T_grantee__ParentTargetController
 type U_grants = (
     T_grants__GrantAbility | T_grants__GrantStaticAbility | T_grants__RemoveAllAbilities
 )
+type U_graveyard_replacement = T_graveyard_replacement__Exile
 type U_host = T_host__TriggeringSource | T_host__Typed
 type U_inner = (
     T_inner__And
@@ -969,7 +979,6 @@ type U_inner = (
     | T_inner__Fixed
     | T_inner__HasCityBlessing
     | T_inner__IsMonarch
-    | T_inner__ManaColorSpent
     | T_inner__Multiply
     | T_inner__Not
     | T_inner__NthResolutionThisTurn
@@ -993,5 +1002,3 @@ type U_keeper_constraint = T_keeper_constraint__exact_count
 type U_kind = T_kind__Card | T_kind__Food | T_kind__TappedFish | T_kind__Treasure
 type U_land_filter = T_land_filter__HasChosenName | T_land_filter__Typed
 type U_left = T_left__Ref
-type U_lhs = T_lhs__Difference | T_lhs__Ref | T_lhs__Sum
-type U_library_players = T_library_players__All

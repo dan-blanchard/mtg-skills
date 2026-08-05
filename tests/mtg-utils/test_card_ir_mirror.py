@@ -165,8 +165,10 @@ def _find_required(record, schema):
 
 
 def test_effect_roster_shape():
-    assert len(EFFECT_VARIANTS) == 225  # v0.35.2: 224 + ArrangePlanarDeckTop (v0.28.0)
-    assert len(ZERO_INSTANCE_EFFECTS) == 18
+    # v0.45.0: 225 + ChoosePermanent + FlipPermanent + ExileFaceDownPile
+    assert len(EFFECT_VARIANTS) == 228
+    # 18 + ExileFaceDownPile (declared in v0.45.0's enum, zero corpus nodes)
+    assert len(ZERO_INSTANCE_EFFECTS) == 19
     assert set(EFFECT_VARIANTS) >= ZERO_INSTANCE_EFFECTS
     # the ADR's four named examples are in the closed-union arm
     for name in ("Cascade", "Exploit", "MiracleCast", "VentureInto"):
@@ -312,11 +314,13 @@ def test_losslessness_roundtrip_full_corpus():
 def test_variant_population_committed_fixture():
     pop = _fixture(POPULATION_FIXTURE)
     population = pop["population"]
-    assert len(population) == 225  # v0.35.2: 224 + ArrangePlanarDeckTop (v0.28.0)
+    # v0.45.0: 225 + ChoosePermanent + FlipPermanent + ExileFaceDownPile
+    assert len(population) == 228
     zeros = {n for n, c in population.items() if c == 0}
     assert zeros == set(ZERO_INSTANCE_EFFECTS)
-    assert pop["distinct_variants_observed"] == 207  # 206 + ArrangePlanarDeckTop
-    assert pop["zero_instance_variants"] == 18
+    # 207 + ChoosePermanent + FlipPermanent (ExileFaceDownPile is zero-instance)
+    assert pop["distinct_variants_observed"] == 209
+    assert pop["zero_instance_variants"] == 19
     assert pop["total_effect_nodes"] == sum(population.values())
     # the name grep must not have drifted from phase's enum
     assert pop["unknown_effect_slot_tags"] == {}
@@ -372,8 +376,8 @@ def test_generated_classes_dispatch_table():
     for ckey in schema.structs:
         assert ckey in GENERATED_BY_CKEY, f"struct {ckey!r} has no generated class"
         assert issubclass(GENERATED_BY_CKEY[ckey], TypedMirrorNode)
-    # the headline coverage number: v0.35.2 = 1634 tagged + 109 struct = 1743 classes
-    assert len(GENERATED_BY_KEY) + len(GENERATED_BY_CKEY) == 1743
+    # the headline coverage number: v0.45.0 = 1661 tagged + 112 struct = 1773 classes
+    assert len(GENERATED_BY_KEY) + len(GENERATED_BY_CKEY) == 1773
 
 
 def test_typed_instances_no_fallback_samples():

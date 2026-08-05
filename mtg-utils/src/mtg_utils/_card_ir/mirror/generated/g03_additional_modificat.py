@@ -5,7 +5,7 @@ Codegen'd from ``tests/fixtures/phase_mirror_schema.json`` by
 
 Part of the generated typed-mirror package (see this directory's
 ``__init__.py``). This module holds content keys ``additional_modifications``
-.. ``choose_scope`` (29 keys).
+.. ``choose_scope`` (30 keys).
 
 Class naming: ``S_<ckey>`` for a struct shape, ``T_<ckey>__<tag>`` for a tagged
 shape, ``U_<ckey>`` for the union of all tagged shapes at one content_key.
@@ -49,7 +49,7 @@ if TYPE_CHECKING:
         U_iteration_kind_binding,
         U_left,
     )
-    from mtg_utils._card_ir.mirror.generated.g10_payer import (
+    from mtg_utils._card_ir.mirror.generated.g10_parse_warnings import (
         U_player,
         U_player_scope,
     )
@@ -59,12 +59,12 @@ if TYPE_CHECKING:
     from mtg_utils._card_ir.mirror.generated.g12_qty import (
         U_qty,
     )
-    from mtg_utils._card_ir.mirror.generated.g13_repeat_until import (
+    from mtg_utils._card_ir.mirror.generated.g13_repeat_for import (
         S_static_abilities,
         S_sub_ability,
         U_right,
     )
-    from mtg_utils._card_ir.mirror.generated.g14_target import (
+    from mtg_utils._card_ir.mirror.generated.g14_subtype_filter import (
         S_trigger,
         U_target,
         U_value,
@@ -592,6 +592,16 @@ class T_attachment__Typed(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class T_attacker__EventSource(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "EventSource"
+
+
+@dataclass(frozen=True)
+class T_attacker__Source(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "Source"
+
+
+@dataclass(frozen=True)
 class T_attacker_restriction__ParentTarget(TypedMirrorNode):
     _tag: ClassVar[str | None] = "ParentTarget"
 
@@ -921,6 +931,7 @@ type U_attachment = (
     | T_attachment__TriggeringSource
     | T_attachment__Typed
 )
+type U_attacker = T_attacker__EventSource | T_attacker__Source
 type U_attacker_restriction = (
     T_attacker_restriction__ParentTarget | T_attacker_restriction__Typed
 )

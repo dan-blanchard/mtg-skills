@@ -33,17 +33,17 @@ if TYPE_CHECKING:
     from mtg_utils._card_ir.mirror.generated.g08_else_ability import (
         U_filter,
     )
-    from mtg_utils._card_ir.mirror.generated.g09_library_position import (
+    from mtg_utils._card_ir.mirror.generated.g09_lhs import (
         U_parity,
     )
-    from mtg_utils._card_ir.mirror.generated.g10_payer import (
+    from mtg_utils._card_ir.mirror.generated.g10_parse_warnings import (
         U_player,
         U_prop,
     )
     from mtg_utils._card_ir.mirror.generated.g12_qty import (
         U_reference,
     )
-    from mtg_utils._card_ir.mirror.generated.g14_target import (
+    from mtg_utils._card_ir.mirror.generated.g14_subtype_filter import (
         U_target,
         U_value,
     )

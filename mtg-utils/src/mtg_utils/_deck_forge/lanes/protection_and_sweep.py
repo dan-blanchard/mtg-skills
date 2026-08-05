@@ -970,15 +970,18 @@ def _exalted_textual(tree: ConceptTree) -> list[Signal]:
 def _flip_self(tree: ConceptTree) -> list[Signal]:
     """flip_self (§7) — CR 710.1/710.2 (flip cards; live cite CORRECT): the
     Kamigawa flip fronts (Nezumi Graverobber, Bushi Tenderfoot). Tier-1
-    structural (ADR-0036 mirror fold): phase parses every creature-flip to a
-    self-identifying ``Unimplemented{name=='flip'}`` node — read it directly,
-    a superset of the ``\\bflip this creature\\b`` mirror that uniformly closes
-    the documented Akki Lavarunner ("flip it") / Erayo ("flip Erayo") /
-    Rune-Tail ("flip Rune-Tail") wording gap (+10 real Kamigawa flips). Gate:
-    a coin-flip card's "flip again" is ALSO an ``Unimplemented{name=='flip'}``
-    (Game of Chaos) — a card carrying a ``FlipCoin`` node is coin-flip
-    recursion, not a creature-flip, and is excluded (CR 705). Scope "you",
-    HIGH.
+    structural (ADR-0036 mirror fold): since the v0.45.0 pin phase parses
+    every creature-flip to a typed ``FlipPermanent`` node (the v0.37.0
+    flip-card arrival; 19 corpus nodes) — read it directly, a superset of
+    the ``\\bflip this creature\\b`` mirror that uniformly closes the
+    documented Akki Lavarunner ("flip it") / Erayo ("flip Erayo") /
+    Rune-Tail ("flip Rune-Tail") wording gap (+10 real Kamigawa flips). The
+    pre-v0.45.0 ``Unimplemented{name=='flip'}`` residue read is kept as a
+    fallback arm (nothing emits it at the current pin; it self-retires if a
+    future corpus regen proves it dead). Gate: a coin-flip card's "flip
+    again" was the residue read's collision (Game of Chaos) — a card
+    carrying a ``FlipCoin`` node is coin-flip recursion, not a
+    creature-flip, and is excluded (CR 705). Scope "you", HIGH.
     """
     if any(
         tag_of(n) == "FlipCoin"
@@ -988,7 +991,9 @@ def _flip_self(tree: ConceptTree) -> list[Signal]:
         return []
     for unit in tree.units:
         for n in iter_typed_nodes(unit.node):
-            if tag_of(n) == "Unimplemented" and getattr(n, "name", None) == "flip":
+            if tag_of(n) == "FlipPermanent" or (
+                tag_of(n) == "Unimplemented" and getattr(n, "name", None) == "flip"
+            ):
                 return [Signal("flip_self", "you", "", "", tree.name, "high")]
     return []
 

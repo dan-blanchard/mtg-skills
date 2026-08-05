@@ -4,8 +4,8 @@ Codegen'd from ``tests/fixtures/phase_mirror_schema.json`` by
 ``mtg_utils._card_ir.mirror.codegen`` (run via ``build-card-ir-substrate``).
 
 Part of the generated typed-mirror package (see this directory's
-``__init__.py``). This module holds content keys ``repeat_until`` ..
-``tally_mode`` (38 keys).
+``__init__.py``). This module holds content keys ``repeat_for`` .. ``subject``
+(36 keys).
 
 Class naming: ``S_<ckey>`` for a struct shape, ``T_<ckey>__<tag>`` for a tagged
 shape, ``U_<ckey>`` for the union of all tagged shapes at one content_key.
@@ -63,19 +63,20 @@ if TYPE_CHECKING:
         U_filter,
         U_filters,
         U_inner,
-        U_lhs,
+        U_left,
     )
-    from mtg_utils._card_ir.mirror.generated.g09_library_position import (
+    from mtg_utils._card_ir.mirror.generated.g09_lhs import (
         S_modal,
         S_mode_abilities,
         S_multi_target,
+        U_lhs,
         U_mana_modification,
         U_mana_replacement_scope,
         U_mode,
         U_modifications,
         U_owner,
     )
-    from mtg_utils._card_ir.mirror.generated.g10_payer import (
+    from mtg_utils._card_ir.mirror.generated.g10_parse_warnings import (
         U_per_player_condition,
         U_player_scope,
         U_power,
@@ -88,9 +89,8 @@ if TYPE_CHECKING:
         U_quantity_modification,
         U_redirect_target,
         U_relation,
-        U_repeat_for,
     )
-    from mtg_utils._card_ir.mirror.generated.g14_target import (
+    from mtg_utils._card_ir.mirror.generated.g14_subtype_filter import (
         S_unless_pay,
         U_target,
         U_target_chooser,
@@ -204,6 +204,7 @@ class S_static_abilities(TypedMirrorNode):
     attack_defended: str = MISSING
     bypass_beneficiary: str = MISSING
     per_player_condition: U_per_player_condition = MISSING
+    protection_does_not_remove: str = MISSING
 
 
 @dataclass(frozen=True)
@@ -257,6 +258,7 @@ class S_sub_ability(TypedMirrorNode):
     optional_for: str = MISSING
     player_scope: U_player_scope = MISSING
     repeat_for: U_repeat_for = MISSING
+    sibling_condition: str = MISSING
     starting_with: str = MISSING
     sub_link: str = MISSING
     target_choice_timing: str = MISSING
@@ -267,6 +269,39 @@ class S_sub_ability(TypedMirrorNode):
 
 
 # --- tagged shapes (discriminated enum nodes) ---
+
+
+@dataclass(frozen=True)
+class T_repeat_for__Difference(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "Difference"
+    left: U_left
+    right: U_right
+
+
+@dataclass(frozen=True)
+class T_repeat_for__Fixed(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "Fixed"
+    value: int
+
+
+@dataclass(frozen=True)
+class T_repeat_for__Multiply(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "Multiply"
+    factor: int
+    inner: U_inner
+
+
+@dataclass(frozen=True)
+class T_repeat_for__Offset(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "Offset"
+    inner: U_inner
+    offset: int
+
+
+@dataclass(frozen=True)
+class T_repeat_for__Ref(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "Ref"
+    qty: U_qty
 
 
 @dataclass(frozen=True)
@@ -860,38 +895,15 @@ class T_subject__Typed(TypedMirrorNode):
     type_filters: list[MirrorVariant]
 
 
-@dataclass(frozen=True)
-class T_subtype_filter__Or(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "Or"
-    filters: list[U_filters]
-
-
-@dataclass(frozen=True)
-class T_subtype_filter__Typed(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "Typed"
-    controller: None
-    properties: list[U_properties]
-    type_filters: list[MirrorVariant]
-
-
-@dataclass(frozen=True)
-class T_tag__Backup(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "Backup"
-
-
-@dataclass(frozen=True)
-class T_tally_mode__PerVote(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "PerVote"
-
-
-@dataclass(frozen=True)
-class T_tally_mode__TopVotes(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "TopVotes"
-    data: MirrorVariant
-
-
 # --- discriminated-union aliases (one per tagged content_key) ---
 
+type U_repeat_for = (
+    T_repeat_for__Difference
+    | T_repeat_for__Fixed
+    | T_repeat_for__Multiply
+    | T_repeat_for__Offset
+    | T_repeat_for__Ref
+)
 type U_repeat_until = (
     T_repeat_until__ControllerChoice
     | T_repeat_until__UntilStopConditions
@@ -1005,6 +1017,3 @@ type U_subject = (
     | T_subject__TriggeringSource
     | T_subject__Typed
 )
-type U_subtype_filter = T_subtype_filter__Or | T_subtype_filter__Typed
-type U_tag = T_tag__Backup
-type U_tally_mode = T_tally_mode__PerVote | T_tally_mode__TopVotes

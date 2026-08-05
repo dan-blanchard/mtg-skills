@@ -50,29 +50,27 @@ if TYPE_CHECKING:
         U_filters,
         U_land_filter,
     )
-    from mtg_utils._card_ir.mirror.generated.g09_library_position import (
+    from mtg_utils._card_ir.mirror.generated.g09_lhs import (
         S_modal,
         S_mode_abilities,
         S_multi_target,
         U_only_tag,
     )
-    from mtg_utils._card_ir.mirror.generated.g10_payer import (
+    from mtg_utils._card_ir.mirror.generated.g10_parse_warnings import (
         U_player,
         U_player_scope,
     )
     from mtg_utils._card_ir.mirror.generated.g11_properties import (
         U_properties,
     )
-    from mtg_utils._card_ir.mirror.generated.g12_qty import (
-        U_repeat_for,
-    )
-    from mtg_utils._card_ir.mirror.generated.g13_repeat_until import (
+    from mtg_utils._card_ir.mirror.generated.g13_repeat_for import (
         S_sub_ability,
+        U_repeat_for,
         U_repeat_until,
         U_source_filter,
         U_spell_filter,
     )
-    from mtg_utils._card_ir.mirror.generated.g14_target import (
+    from mtg_utils._card_ir.mirror.generated.g14_subtype_filter import (
         S_unless_pay,
         U_target,
         U_target_chooser,
@@ -259,6 +257,7 @@ class S_abilities(TypedMirrorNode):
     sub_ability: None | S_sub_ability
     target_prompt: None
     ability_tag: U_ability_tag = MISSING
+    activation_mana_payment_restriction: str = MISSING
     activation_restrictions: list[U_activation_restrictions] = MISSING
     activation_zone: str = MISSING
     activator_filter: U_activator_filter = MISSING
@@ -382,6 +381,11 @@ class T_Prowl__Cost(TypedMirrorNode):
     _tag: ClassVar[str | None] = "Cost"
     generic: int
     shards: list[object]
+
+
+@dataclass(frozen=True)
+class T_Quality__Any(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "Any"
 
 
 @dataclass(frozen=True)
@@ -814,7 +818,7 @@ type U_Partner = (
 )
 type U_Plot = T_Plot__Cost
 type U_Prowl = T_Prowl__Cost
-type U_Quality = T_Quality__Or | T_Quality__Typed
+type U_Quality = T_Quality__Any | T_Quality__Or | T_Quality__Typed
 type U_Reconfigure = T_Reconfigure__Cost
 type U_Recover = T_Recover__Cost
 type U_Replicate = T_Replicate__Cost | T_Replicate__SelfManaCost

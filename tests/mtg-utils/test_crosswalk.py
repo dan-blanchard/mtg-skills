@@ -10318,12 +10318,25 @@ def test_base_pt_set_modal_doubly_nested_parent_target():
     """Sauron, Dino Devotee's "Turn People into Dinosaurs" mode ("Put a
     saurian counter on another target creature. It's a green Dinosaur with
     base power and toughness 5/5 for as long as it has a saurian counter
-    on it.") nests a ``GenericEffect`` inside a MODAL mode's OWN
-    ``sub_ability`` chain whose ``target`` field is ITSELF an unresolved
-    ``ParentTarget`` — :func:`_iter_base_pt_modal_threaded_statics` threads
-    the mode's own ``PutCounter`` target down instead. CR 613.4b / 700.2
-    (modal target declaration)."""
+    on it."). MEMBERSHIP pin only since the v0.45.0 pin bump: v0.35.2
+    structured the mode fully (a ``GenericEffect`` nested in the mode's
+    ``sub_ability`` chain, threaded by
+    :func:`_iter_base_pt_modal_threaded_statics`), but the v0.40.x parser
+    rework regressed the whole clause to ``Unimplemented(name="it's")`` —
+    the ``base_pt_modal_its_clause_regressed`` ledgered bridge preserves
+    the serving until the upstream report lands. CR 613.4b / 700.2."""
     assert ("base_pt_set", "any", "") in _idents("Sauron, Dino Devotee")
+
+
+def test_base_pt_set_modal_its_clause_bridge_mechanism():
+    """The regression bridge's own gap+match both hold at v0.45.0 (the
+    convergence test in test_bridge_ledger.py flags this row RETIRE-READY
+    the day phase restores the structured mode body)."""
+    from mtg_utils._deck_forge.bridge_ledger import bridge_fires
+
+    assert bridge_fires(
+        "base_pt_modal_its_clause_regressed", _tree("Sauron, Dino Devotee")
+    )
 
 
 # ── ADR-0039 W7 endgame: base_pt_set ledgered bridges (bridge_ledger.py;

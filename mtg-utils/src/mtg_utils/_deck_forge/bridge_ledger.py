@@ -841,6 +841,55 @@ def _base_pt_becomecopy_no_mods_match(tree: ConceptTree) -> bool:
     return bool(_BASE_PT_BECOMECOPY_PT_RX.search(tree.oracle))
 
 
+# (8) A modal mode's "It's a <color> <subtype> with base power and toughness
+# N/N" animate clause, REGRESSED at the v0.45.0 pin bump: v0.35.2 structured
+# it fully (the mode's sub_ability carried a ``GenericEffect`` with a
+# SetPower/SetToughness/SetColor/AddType/AddSubtype modification suite);
+# the v0.40.x "Plan 05b" parser rework re-parks the WHOLE clause as
+# ``Unimplemented(name="it's")`` with only the description surviving
+# (Sauron, Dino Devotee's "Turn People into Dinosaurs" mode, CR 613.4b /
+# 700.2). Anchored to that residue's OWN description (never the whole-card
+# oracle) — the other 4 corpus cards carrying the same residue name
+# (Magar, Pirk, Otherworldly Escort, Join the Group) carried it at v0.35.2
+# already, never matched the base-P/T hook, and were never base_pt_set
+# members.
+_BASE_PT_ITS_RESIDUE_RX = re.compile(r"base power and toughness \d+/\d+", re.IGNORECASE)
+
+
+def _its_residue_descs(tree: ConceptTree) -> Iterator[str]:
+    for unit in tree.units:
+        for n in iter_typed_nodes(unit.node):
+            if tag_of(n) == "Unimplemented" and getattr(n, "name", None) == "it's":
+                yield getattr(n, "description", "") or ""
+
+
+_BASE_PT_SET_MOD_TAGS = frozenset(
+    {"SetPower", "SetToughness", "SetPowerDynamic", "SetToughnessDynamic"}
+)
+
+
+def _base_pt_its_residue_gap(tree: ConceptTree) -> bool:
+    """Absence proof: no base-P/T-setting modification survives ANYWHERE in
+    the tree (neither as a free-standing typed node nor inside a
+    ``GenericEffect.static_abilities[].modifications`` suite). Self-retiring:
+    the day phase restores the structured mode body, the SetPower pair
+    reappears and this bridge stands down with no edit."""
+    for unit in tree.units:
+        for n in iter_typed_nodes(unit.node):
+            if tag_of(n) in _BASE_PT_SET_MOD_TAGS:
+                return False
+            if tag_of(n) == "GenericEffect":
+                for st in getattr(n, "static_abilities", None) or []:
+                    mods = getattr(st, "modifications", None) or []
+                    if {tag_of(m) for m in mods} & _BASE_PT_SET_MOD_TAGS:
+                        return False
+    return True
+
+
+def _base_pt_its_residue_match(tree: ConceptTree) -> bool:
+    return any(_BASE_PT_ITS_RESIDUE_RX.search(d) for d in _its_residue_descs(tree))
+
+
 # ── The scaling/restricted/note-type "Add mana" residue class → ramp ────────
 # NARROWED (ADR-0039 task #82): 22 of the former 24-name enumeration
 # graduated into ``tree_synthesis._arm_ramp_dropped_add_mana_clause`` — a
@@ -2600,6 +2649,33 @@ BRIDGES: dict[str, Bridge] = {
             pins=("Mindlink Mech",),
             gap=_base_pt_becomecopy_no_mods_gap,
             match=_base_pt_becomecopy_no_mods_match,
+        ),
+        Bridge(
+            bridge_id="base_pt_modal_its_clause_regressed",
+            key="base_pt_set",
+            kind="upstream_parse_failure",
+            todo=(
+                "upstream phase-rs report candidate (Dan posts): the "
+                "v0.40.x 'Plan 05b' parser rework REGRESSED the modal "
+                "\"It's a <color> <type> with base power and toughness "
+                'N/N" animate clause — fully structured at v0.35.2 (a '
+                "GenericEffect modification suite: SetPower/SetToughness/"
+                "SetColor/AddType/AddSubtype), re-parked wholesale as "
+                'Unimplemented(name="it\'s") at v0.45.0 — retires on a '
+                "phase bump that restores the structured mode body"
+            ),
+            census=(
+                '5 cards carry an Unimplemented(name="it\'s") residue at '
+                "phase v0.45.0 (2026-08-04); exactly 1 ALSO names the "
+                "base-P/T hook in that residue's own description (the 1 "
+                "pin — Magar of the Magic Strings / Pirk, Heroic Captain / "
+                "Otherworldly Escort / Join the Group carried the same "
+                "residue at v0.35.2 already, never matched the hook, and "
+                "were never base_pt_set members)"
+            ),
+            pins=("Sauron, Dino Devotee",),
+            gap=_base_pt_its_residue_gap,
+            match=_base_pt_its_residue_match,
         ),
         Bridge(
             bridge_id="land_creatures_condition_reference_dropped",

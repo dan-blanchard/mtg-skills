@@ -41,13 +41,13 @@ if TYPE_CHECKING:
     )
     from mtg_utils._card_ir.mirror.generated.g08_else_ability import (
         U_filter,
-        U_lhs,
     )
-    from mtg_utils._card_ir.mirror.generated.g09_library_position import (
+    from mtg_utils._card_ir.mirror.generated.g09_lhs import (
+        U_lhs,
         U_mana_cost,
         U_materials,
     )
-    from mtg_utils._card_ir.mirror.generated.g10_payer import (
+    from mtg_utils._card_ir.mirror.generated.g10_parse_warnings import (
         U_player,
     )
     from mtg_utils._card_ir.mirror.generated.g11_properties import (
@@ -56,13 +56,13 @@ if TYPE_CHECKING:
     from mtg_utils._card_ir.mirror.generated.g12_qty import (
         U_quantity,
     )
-    from mtg_utils._card_ir.mirror.generated.g13_repeat_until import (
+    from mtg_utils._card_ir.mirror.generated.g13_repeat_for import (
         S_requirement,
         U_rhs,
         U_scaling,
         U_subject,
     )
-    from mtg_utils._card_ir.mirror.generated.g14_target import (
+    from mtg_utils._card_ir.mirror.generated.g14_subtype_filter import (
         U_target,
     )
 
@@ -195,6 +195,16 @@ class T_conditions__HasCounters(TypedMirrorNode):
 @dataclass(frozen=True)
 class T_conditions__HasObjectTarget(TypedMirrorNode):
     _tag: ClassVar[str | None] = "HasObjectTarget"
+
+
+@dataclass(frozen=True)
+class T_conditions__IsDuringUpkeep(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "IsDuringUpkeep"
+
+
+@dataclass(frozen=True)
+class T_conditions__IsOpponentsTurn(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "IsOpponentsTurn"
 
 
 @dataclass(frozen=True)
@@ -870,6 +880,8 @@ type U_conditions = (
     | T_conditions__FirstCombatPhaseOfTurn
     | T_conditions__HasCounters
     | T_conditions__HasObjectTarget
+    | T_conditions__IsDuringUpkeep
+    | T_conditions__IsOpponentsTurn
     | T_conditions__IsPresent
     | T_conditions__IsYourTurn
     | T_conditions__ManaColorSpent

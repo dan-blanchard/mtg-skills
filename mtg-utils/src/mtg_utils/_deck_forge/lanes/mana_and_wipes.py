@@ -1757,7 +1757,19 @@ def _cheat_into_play(tree: ConceptTree) -> list[Signal]:
             elif (
                 node_tag == "ChangeZoneAll"
                 and origin == "Exile"
-                and tag_of(getattr(c.node, "target", None)) == "TrackedSet"
+                and (
+                    tag_of(getattr(c.node, "target", None)) == "TrackedSet"
+                    # v0.45.0 pin bump: Anzrag's Rampage's put graduated from
+                    # ChangeZone{origin: None} to ChangeZoneAll{origin:
+                    # "Exile"} — same CR 607.2a linked-exile provenance
+                    # (``caused_by: Exiled`` / ``ExiledBySource``) declared
+                    # ON ITS OWN TARGET, now with the origin tracked too.
+                    # Corpus-censused at the bump: exactly 1 card carries
+                    # this shape (no Livio/Cold Storage collision — those
+                    # never stamp the exile linkage), and the downstream
+                    # cores gate still reads only the node's own filter.
+                    or _tracked_target_exile_caused(c.node)
+                )
             ):
                 # ADR-0038 W5 tails — a ChangeZoneAll{Battlefield, origin:
                 # Exile} whose target is a BARE TrackedSet (no filter of its

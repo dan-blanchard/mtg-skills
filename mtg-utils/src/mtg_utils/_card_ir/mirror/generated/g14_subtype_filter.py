@@ -4,8 +4,8 @@ Codegen'd from ``tests/fixtures/phase_mirror_schema.json`` by
 ``mtg_utils._card_ir.mirror.codegen`` (run via ``build-card-ir-substrate``).
 
 Part of the generated typed-mirror package (see this directory's
-``__init__.py``). This module holds content keys ``target`` ..
-``zone_change_clauses`` (29 keys).
+``__init__.py``). This module holds content keys ``subtype_filter`` ..
+``zone_change_clauses`` (33 keys).
 
 Class naming: ``S_<ckey>`` for a struct shape, ``T_<ckey>__<tag>`` for a tagged
 shape, ``U_<ckey>`` for the union of all tagged shapes at one content_key.
@@ -32,6 +32,7 @@ if TYPE_CHECKING:
     )
     from mtg_utils._card_ir.mirror.generated.g06_count import (
         S_counter_filter,
+        U_count_source,
         U_destination_constraint,
     )
     from mtg_utils._card_ir.mirror.generated.g07_effect import (
@@ -45,10 +46,10 @@ if TYPE_CHECKING:
         U_inner,
         U_left,
     )
-    from mtg_utils._card_ir.mirror.generated.g09_library_position import (
+    from mtg_utils._card_ir.mirror.generated.g09_lhs import (
         U_origin,
     )
-    from mtg_utils._card_ir.mirror.generated.g10_payer import (
+    from mtg_utils._card_ir.mirror.generated.g10_parse_warnings import (
         U_payer,
     )
     from mtg_utils._card_ir.mirror.generated.g11_properties import (
@@ -56,16 +57,30 @@ if TYPE_CHECKING:
     )
     from mtg_utils._card_ir.mirror.generated.g12_qty import (
         U_qty,
+        U_recipient,
     )
-    from mtg_utils._card_ir.mirror.generated.g13_repeat_until import (
+    from mtg_utils._card_ir.mirror.generated.g13_repeat_for import (
         S_sub_ability,
+        U_rhs,
         U_right,
         U_spell_cast_origin,
-        U_tag,
     )
 
 
 # --- struct shapes (untagged records, one per content_key) ---
+
+
+@dataclass(frozen=True)
+class S_target(TypedMirrorNode):
+    role: str
+    count_source: U_count_source = MISSING
+    recipient: U_recipient = MISSING
+
+
+@dataclass(frozen=True)
+class S_target_condition(TypedMirrorNode):
+    comparator: str
+    rhs: U_rhs
 
 
 @dataclass(frozen=True)
@@ -123,6 +138,7 @@ class S_triggers(TypedMirrorNode):
     life_amount: list[object] = MISSING
     origin_zones: list[object] = MISSING
     player_actions: list[object] = MISSING
+    scry_bottom_count: list[object] = MISSING
     spell_cast_origin: U_spell_cast_origin = MISSING
     taps_for_mana_produced: list[object] = MISSING
     unless_pay: S_unless_pay = MISSING
@@ -186,6 +202,36 @@ class S_zone_change_clauses(TypedMirrorNode):
 
 
 # --- tagged shapes (discriminated enum nodes) ---
+
+
+@dataclass(frozen=True)
+class T_subtype_filter__Or(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "Or"
+    filters: list[U_filters]
+
+
+@dataclass(frozen=True)
+class T_subtype_filter__Typed(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "Typed"
+    controller: None
+    properties: list[U_properties]
+    type_filters: list[MirrorVariant]
+
+
+@dataclass(frozen=True)
+class T_tag__Backup(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "Backup"
+
+
+@dataclass(frozen=True)
+class T_tally_mode__PerVote(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "PerVote"
+
+
+@dataclass(frozen=True)
+class T_tally_mode__TopVotes(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "TopVotes"
+    data: MirrorVariant
 
 
 @dataclass(frozen=True)
@@ -254,6 +300,11 @@ class T_target__GrantingObject(TypedMirrorNode):
 @dataclass(frozen=True)
 class T_target__LastCreated(TypedMirrorNode):
     _tag: ClassVar[str | None] = "LastCreated"
+
+
+@dataclass(frozen=True)
+class T_target__LastRevealed(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "LastRevealed"
 
 
 @dataclass(frozen=True)
@@ -698,6 +749,11 @@ class T_valid_target__Controller(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class T_valid_target__Opponent(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "Opponent"
+
+
+@dataclass(frozen=True)
 class T_valid_target__Or(TypedMirrorNode):
     _tag: ClassVar[str | None] = "Or"
     filters: list[U_filters]
@@ -816,6 +872,9 @@ class T_voter_scope__EachOpponent(TypedMirrorNode):
 
 # --- discriminated-union aliases (one per tagged content_key) ---
 
+type U_subtype_filter = T_subtype_filter__Or | T_subtype_filter__Typed
+type U_tag = T_tag__Backup
+type U_tally_mode = T_tally_mode__PerVote | T_tally_mode__TopVotes
 type U_target = (
     T_target__AllPlayers
     | T_target__And
@@ -830,6 +889,7 @@ type U_target = (
     | T_target__ExiledCardByIndex
     | T_target__GrantingObject
     | T_target__LastCreated
+    | T_target__LastRevealed
     | T_target__None
     | T_target__Or
     | T_target__OriginalController
@@ -909,6 +969,7 @@ type U_valid_subject_player = (
 type U_valid_target = (
     T_valid_target__AttachedTo
     | T_valid_target__Controller
+    | T_valid_target__Opponent
     | T_valid_target__Or
     | T_valid_target__ParentTargetController
     | T_valid_target__Player

@@ -4,8 +4,8 @@ Codegen'd from ``tests/fixtures/phase_mirror_schema.json`` by
 ``mtg_utils._card_ir.mirror.codegen`` (run via ``build-card-ir-substrate``).
 
 Part of the generated typed-mirror package (see this directory's
-``__init__.py``). This module holds content keys ``library_position`` ..
-``partner_filter`` (39 keys).
+``__init__.py``). This module holds content keys ``lhs`` .. ``parity`` (38
+keys).
 
 Class naming: ``S_<ckey>`` for a struct shape, ``T_<ckey>__<tag>`` for a tagged
 shape, ``U_<ckey>`` for the union of all tagged shapes at one content_key.
@@ -51,8 +51,9 @@ if TYPE_CHECKING:
         U_exprs,
         U_filters,
         U_inner,
+        U_left,
     )
-    from mtg_utils._card_ir.mirror.generated.g10_payer import (
+    from mtg_utils._card_ir.mirror.generated.g10_parse_warnings import (
         U_player_scope,
     )
     from mtg_utils._card_ir.mirror.generated.g11_properties import (
@@ -60,17 +61,18 @@ if TYPE_CHECKING:
     )
     from mtg_utils._card_ir.mirror.generated.g12_qty import (
         U_qty,
-        U_repeat_for,
     )
-    from mtg_utils._card_ir.mirror.generated.g13_repeat_until import (
+    from mtg_utils._card_ir.mirror.generated.g13_repeat_for import (
+        S_replacement,
         S_sub_ability,
+        U_repeat_for,
+        U_right,
         U_selection,
         U_source,
         U_source_filter,
     )
-    from mtg_utils._card_ir.mirror.generated.g14_target import (
+    from mtg_utils._card_ir.mirror.generated.g14_subtype_filter import (
         S_trigger,
-        S_unit_span,
         S_unless_pay,
         U_target_constraints,
         U_valid_card,
@@ -125,7 +127,7 @@ class S_modal(TypedMirrorNode):
 class S_mode_abilities(TypedMirrorNode):
     condition: None | U_condition
     cost: None
-    description: None | str
+    description: None
     duration: None | str | MirrorVariant
     effect: U_effect
     forward_result: bool
@@ -216,6 +218,36 @@ class S_outcome_template(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class T_lhs__Difference(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "Difference"
+    left: U_left
+    right: U_right
+
+
+@dataclass(frozen=True)
+class T_lhs__Fixed(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "Fixed"
+    value: int
+
+
+@dataclass(frozen=True)
+class T_lhs__Ref(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "Ref"
+    qty: U_qty
+
+
+@dataclass(frozen=True)
+class T_lhs__Sum(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "Sum"
+    exprs: list[U_exprs]
+
+
+@dataclass(frozen=True)
+class T_library_players__All(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "All"
+
+
+@dataclass(frozen=True)
 class T_library_position__Bottom(TypedMirrorNode):
     _tag: ClassVar[str | None] = "Bottom"
 
@@ -302,6 +334,13 @@ class T_materials__Or(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class T_max__Difference(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "Difference"
+    left: U_left
+    right: U_right
+
+
+@dataclass(frozen=True)
 class T_max__Fixed(TypedMirrorNode):
     _tag: ClassVar[str | None] = "Fixed"
     value: int
@@ -341,6 +380,12 @@ class T_metric__DistinctColors(TypedMirrorNode):
 class T_metric__FromSource(TypedMirrorNode):
     _tag: ClassVar[str | None] = "FromSource"
     source_filter: U_source_filter
+
+
+@dataclass(frozen=True)
+class T_metric__OfColor(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "OfColor"
+    color: str
 
 
 @dataclass(frozen=True)
@@ -504,6 +549,11 @@ class T_modifications__ChangeController(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class T_modifications__CopyChosen(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "CopyChosen"
+
+
+@dataclass(frozen=True)
 class T_modifications__GrantAbility(TypedMirrorNode):
     _tag: ClassVar[str | None] = "GrantAbility"
     definition: S_definition
@@ -520,6 +570,12 @@ class T_modifications__GrantAllActivatedAbilitiesOf(TypedMirrorNode):
 class T_modifications__GrantAllTriggeredAbilitiesOf(TypedMirrorNode):
     _tag: ClassVar[str | None] = "GrantAllTriggeredAbilitiesOf"
     source: U_source
+
+
+@dataclass(frozen=True)
+class T_modifications__GrantReplacement(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "GrantReplacement"
+    replacement: S_replacement
 
 
 @dataclass(frozen=True)
@@ -809,57 +865,10 @@ class T_parity__LastNamedChoice(TypedMirrorNode):
     _tag: ClassVar[str | None] = "LastNamedChoice"
 
 
-@dataclass(frozen=True)
-class T_parse_warnings__IgnoredRemainder(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "IgnoredRemainder"
-    line_index: int
-    parser: str
-    text: str
-
-
-@dataclass(frozen=True)
-class T_parse_warnings__SwallowedClause(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "SwallowedClause"
-    description: str
-    detector: str
-    line_index: int
-    unit_span: S_unit_span
-    items: list[object] = MISSING
-
-
-@dataclass(frozen=True)
-class T_parse_warnings__TargetFallback(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "TargetFallback"
-    context: str
-    line_index: int
-    text: str
-
-
-@dataclass(frozen=True)
-class T_partition_subject__AnOpponent(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "AnOpponent"
-
-
-@dataclass(frozen=True)
-class T_partition_subject__EachOpponent(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "EachOpponent"
-
-
-@dataclass(frozen=True)
-class T_partner_filter__Any(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "Any"
-
-
-@dataclass(frozen=True)
-class T_partner_filter__Typed(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "Typed"
-    controller: str
-    properties: list[U_properties]
-    type_filters: list[MirrorVariant]
-
-
 # --- discriminated-union aliases (one per tagged content_key) ---
 
+type U_lhs = T_lhs__Difference | T_lhs__Fixed | T_lhs__Ref | T_lhs__Sum
+type U_library_players = T_library_players__All
 type U_library_position = (
     T_library_position__Bottom
     | T_library_position__RandomWithinTop
@@ -877,9 +886,14 @@ type U_matched_disposition = (
     T_matched_disposition__ChooseAnyNumber | T_matched_disposition__RevealOnly
 )
 type U_materials = T_materials__Or
-type U_max = T_max__Fixed | T_max__Offset | T_max__Ref | T_max__Sum
+type U_max = T_max__Difference | T_max__Fixed | T_max__Offset | T_max__Ref | T_max__Sum
 type U_max_ticket_cost = T_max_ticket_cost__Ref
-type U_metric = T_metric__DistinctColors | T_metric__FromSource | T_metric__Total
+type U_metric = (
+    T_metric__DistinctColors
+    | T_metric__FromSource
+    | T_metric__OfColor
+    | T_metric__Total
+)
 type U_min = T_min__Ref
 type U_mode = T_mode__Mandatory | T_mode__MayCost | T_mode__Optional
 type U_mode_costs = T_mode_costs__Cost
@@ -906,9 +920,11 @@ type U_modifications = (
     | T_modifications__AssignDamageFromToughness
     | T_modifications__AssignNoCombatDamage
     | T_modifications__ChangeController
+    | T_modifications__CopyChosen
     | T_modifications__GrantAbility
     | T_modifications__GrantAllActivatedAbilitiesOf
     | T_modifications__GrantAllTriggeredAbilitiesOf
+    | T_modifications__GrantReplacement
     | T_modifications__GrantStaticAbility
     | T_modifications__GrantTrigger
     | T_modifications__RemoveAllAbilities
@@ -960,12 +976,3 @@ type U_owner = (
     | T_owner__Typed
 )
 type U_parity = T_parity__LastNamedChoice
-type U_parse_warnings = (
-    T_parse_warnings__IgnoredRemainder
-    | T_parse_warnings__SwallowedClause
-    | T_parse_warnings__TargetFallback
-)
-type U_partition_subject = (
-    T_partition_subject__AnOpponent | T_partition_subject__EachOpponent
-)
-type U_partner_filter = T_partner_filter__Any | T_partner_filter__Typed

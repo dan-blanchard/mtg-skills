@@ -1711,6 +1711,11 @@ def _base_pt_set(tree: ConceptTree) -> list[Signal]:
         "base_pt_tk_sticker_parse_failure",
         "base_pt_each_equal_to_dropped",
         "base_pt_becomecopy_no_pt_override",
+        # v0.45.0 pin bump — Sauron's previously-STRUCTURAL modal "It's a
+        # green Dinosaur with base power and toughness 5/5" mode regressed
+        # upstream to an Unimplemented residue; membership preserved via
+        # the ledgered bridge until the upstream report lands.
+        "base_pt_modal_its_clause_regressed",
     ):
         if bridge_fires(bridge_id, tree):
             return [Signal("base_pt_set", "any", "", "", tree.name, "high")]
@@ -1934,6 +1939,22 @@ def _damage_prevention(tree: ConceptTree) -> list[Signal]:
     hits = tree.effect_concepts("prevent_damage")
     if hits:
         return [Signal("damage_prevention", "you", "", hits[0].raw, tree.name, "high")]
+    # Third arm (v0.45.0 pin bump): phase v0.38.0 re-modeled the static
+    # "prevent N of that damage" shield (Urza's Armor, Orbs of Warding,
+    # Guardian Seraph) from a mis-typed ``PreventDamage`` spell effect into
+    # a proper CR 614/615 REPLACEMENT whose ``damage_modification`` field
+    # carries a ``PreventionMinus`` node. Corpus census at the bump: 19
+    # PreventionMinus replacements, 16 filtered ``Player: Controller`` + 3
+    # unfiltered creature-shields, zero opponent-directed — the kind tag
+    # alone is the unambiguous prevention tell (the sibling ``Minus``
+    # damage-REDUCTION kind is deliberately not read; Benevolent Unicorn /
+    # Lashknife Barrier were never members).
+    for unit in tree.units:
+        if unit.origin != "replacement":
+            continue
+        dm = getattr(unit.node, "damage_modification", None)
+        if dm is not None and tag_of(dm) == "PreventionMinus":
+            return [Signal("damage_prevention", "you", "", "", tree.name, "high")]
     # [P29] / Tier-1 (ADR-0036/0037 T10-finalize2 GLOBAL FINALIZE-2 fold): a
     # ``DamageDone`` REPLACEMENT with ``shield_kind {Prevention}`` (Palisade
     # Giant family) parses identically for an OFFENSIVE curse ("All damage

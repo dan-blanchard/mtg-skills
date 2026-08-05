@@ -5,7 +5,7 @@ Codegen'd from ``tests/fixtures/phase_mirror_schema.json`` by
 
 Part of the generated typed-mirror package (see this directory's
 ``__init__.py``). This module holds content keys ``count`` ..
-``dynamic_max_choices`` (20 keys).
+``dynamic_max_choices`` (21 keys).
 
 Class naming: ``S_<ckey>`` for a struct shape, ``T_<ckey>__<tag>`` for a tagged
 shape, ``U_<ckey>`` for the union of all tagged shapes at one content_key.
@@ -52,13 +52,13 @@ if TYPE_CHECKING:
         U_inner,
         U_left,
     )
-    from mtg_utils._card_ir.mirror.generated.g09_library_position import (
+    from mtg_utils._card_ir.mirror.generated.g09_lhs import (
         S_multi_target,
         S_outcome_template,
         U_max,
         U_modifications,
     )
-    from mtg_utils._card_ir.mirror.generated.g10_payer import (
+    from mtg_utils._card_ir.mirror.generated.g10_parse_warnings import (
         U_player,
         U_player_scope,
         U_position,
@@ -69,14 +69,14 @@ if TYPE_CHECKING:
     from mtg_utils._card_ir.mirror.generated.g12_qty import (
         U_qty,
     )
-    from mtg_utils._card_ir.mirror.generated.g13_repeat_until import (
+    from mtg_utils._card_ir.mirror.generated.g13_repeat_for import (
         S_requirement,
         S_sub_ability,
         U_right,
         U_scope,
         U_source,
     )
-    from mtg_utils._card_ir.mirror.generated.g14_target import (
+    from mtg_utils._card_ir.mirror.generated.g14_subtype_filter import (
         S_unless_pay,
         U_target,
         U_value,
@@ -246,6 +246,14 @@ class T_count__UpTo(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class T_count_source__Typed(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "Typed"
+    controller: str
+    properties: list[U_properties]
+    type_filters: list[MirrorVariant]
+
+
+@dataclass(frozen=True)
 class T_counter_match__OfType(TypedMirrorNode):
     _tag: ClassVar[str | None] = "OfType"
     data: str
@@ -308,6 +316,12 @@ class T_damage_modification__Plus(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class T_damage_modification__PreventionMinus(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "PreventionMinus"
+    value: int
+
+
+@dataclass(frozen=True)
 class T_damage_modification__SetToSourcePower(TypedMirrorNode):
     _tag: ClassVar[str | None] = "SetToSourcePower"
 
@@ -353,6 +367,12 @@ class T_damage_source_filter__SelfRef(TypedMirrorNode):
 @dataclass(frozen=True)
 class T_damage_source_filter__StackSpell(TypedMirrorNode):
     _tag: ClassVar[str | None] = "StackSpell"
+
+
+@dataclass(frozen=True)
+class T_damage_source_filter__TrackedSet(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "TrackedSet"
+    id: int
 
 
 @dataclass(frozen=True)
@@ -766,6 +786,7 @@ type U_count = (
     | T_count__Sum
     | T_count__UpTo
 )
+type U_count_source = T_count_source__Typed
 type U_counter_match = T_counter_match__OfType
 type U_counter_type = T_counter_type__Any | T_counter_type__OfType
 type U_countered_spell_zone = (
@@ -777,6 +798,7 @@ type U_damage_modification = (
     | T_damage_modification__LifeFloor
     | T_damage_modification__Minus
     | T_damage_modification__Plus
+    | T_damage_modification__PreventionMinus
     | T_damage_modification__SetToSourcePower
     | T_damage_modification__Triple
 )
@@ -788,6 +810,7 @@ type U_damage_source_filter = (
     | T_damage_source_filter__ParentTarget
     | T_damage_source_filter__SelfRef
     | T_damage_source_filter__StackSpell
+    | T_damage_source_filter__TrackedSet
     | T_damage_source_filter__Typed
 )
 type U_data = (

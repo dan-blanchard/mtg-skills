@@ -1,26 +1,28 @@
 """Closed-union arm for phase's ``Effect`` enum (ADR-0035, Stage 1).
 
 The ``Effect`` enum in phase's ``crates/engine/src/types/ability.rs`` declares
-225 variants at the v0.35.2 pin (a cheap variant-**name** grep — names only,
+228 variants at the v0.45.0 pin (a cheap variant-**name** grep — names only,
 never the Rust field shapes; 207 at v0.9.0 + 8 v0.15.0 + 1 v0.16.0
 (``BecomeBlocked``) + 8 v0.20.0 additions + 1 v0.28.0
-(``ArrangePlanarDeckTop``); v0.23.0 renamed ``ForEachCategoryExile`` →
-``ForEachCategory``, net zero). Of those, **207 are witnessed** in the pinned
-v0.35.2 ``card-data.json`` at the canonical effect slot (``ckey == "effect"``)
-and **18 emit zero instances** (Cascade, Exploit, MiracleCast, VentureInto, …).
-The 18 get a closed-union arm: the strict loader raises loudly on their *first
+(``ArrangePlanarDeckTop``) + 3 by v0.45.0 (``ChoosePermanent``,
+``FlipPermanent`` — the v0.37.0 Kamigawa flip-card arrival — and
+``ExileFaceDownPile``); v0.23.0 renamed ``ForEachCategoryExile`` →
+``ForEachCategory``, net zero). Of those, **209 are witnessed** in the pinned
+v0.45.0 ``card-data.json`` at the canonical effect slot (``ckey == "effect"``)
+and **19 emit zero instances** (Cascade, Exploit, MiracleCast, VentureInto, …).
+The 19 get a closed-union arm: the strict loader raises loudly on their *first
 emission* rather than letting an unwitnessed variant slip in invisibly on a
 phase bump.
 
-``EFFECT_VARIANTS`` is the full 225-name roster (the per-variant population
-baseline seeds zeros from it). ``ZERO_INSTANCE_EFFECTS`` is the 18-name
-closed-union subset. Both are data-grounded against v0.35.2 — regenerate via
+``EFFECT_VARIANTS`` is the full 228-name roster (the per-variant population
+baseline seeds zeros from it). ``ZERO_INSTANCE_EFFECTS`` is the 19-name
+closed-union subset. Both are data-grounded against v0.45.0 — regenerate via
 ``build-card-ir-substrate`` if the phase tag bumps.
 """
 
 from __future__ import annotations
 
-# The full phase ``Effect`` enum roster (225), grepped by name from ability.rs
+# The full phase ``Effect`` enum roster (228), grepped by name from ability.rs
 # (`pub enum Effect { ... }`). Order preserved from the source enum.
 EFFECT_VARIANTS: tuple[str, ...] = (
     "StartYourEngines",
@@ -91,6 +93,7 @@ EFFECT_VARIANTS: tuple[str, ...] = (
     "HideawayConceal",
     "CopyTokenBlockingAttacker",
     "BecomeCopy",
+    "ChoosePermanent",
     "GainActivatedAbilitiesOfTarget",
     "ChooseCard",
     "PutCounter",
@@ -108,6 +111,7 @@ EFFECT_VARIANTS: tuple[str, ...] = (
     "Discard",
     "Shuffle",
     "Transform",
+    "FlipPermanent",
     "SearchLibrary",
     "SearchOutsideGame",
     "RevealHand",
@@ -115,6 +119,7 @@ EFFECT_VARIANTS: tuple[str, ...] = (
     "Reveal",
     "RevealTop",
     "ExileTop",
+    "ExileFaceDownPile",
     "TargetOnly",
     "Choose",
     "ChooseDamageSource",
@@ -281,6 +286,7 @@ ZERO_INSTANCE_EFFECTS: frozenset[str] = frozenset(
         "CrankContraptions",
         "CreateTokenCopyFromPool",
         "EpicCopy",
+        "ExileFaceDownPile",
         "Exploit",
         "HeistExile",
         "MiracleCast",

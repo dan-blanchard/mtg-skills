@@ -24,7 +24,7 @@ from mtg_utils._http import urllib_get
 # specifically rather than the generic Scryfall/EDHREC/Spellbook UA.
 _USER_AGENT = "mtg-skills/_phase"
 
-PHASE_TAG = "v0.35.2"
+PHASE_TAG = "v0.45.0"
 PHASE_REPO = "https://github.com/phase-rs/phase"
 
 # Since v0.32.0 releases ship no server tarball; instead a small manifest
@@ -344,8 +344,11 @@ def _card_data_path() -> Path:
 
 
 # Known-bad card-data records: phase stamps a DIFFERENT card's parse with this
-# oracle_id. The only member at v0.35.2 (re-censused 2026-07-24 at the pin
-# bump; unchanged since the v0.20.0 census of task #78, 2026-07-10): bulk
+# oracle_id. The only member at v0.45.0 (re-censused 2026-08-04 at the pin
+# bump — 1 true impostor + 2 errata-drift records correctly left alone:
+# Uvilda's hone→refine counter retemplate and the Myojin/Grim Betrayal
+# combined card's one-word bulk typo; unchanged since the v0.20.0 census of
+# task #78, 2026-07-10): bulk
 # carries TWO distinct cards named "Fast // Furious" — 62411ced
 # (J21/MH2, commander-legal, discard-draw / damage) and 298a6369 (playtest,
 # not_legal, haste-unblockable / Fuse) — and phase's name-keyed corpus emits

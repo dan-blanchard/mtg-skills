@@ -52,6 +52,24 @@ def tag_of(node: object) -> str | None:
 _SCOPE_FIELDS = ("target", "player", "owner", "recipient", "valid_target")
 
 
+def _unwrap_role_target(sub: object) -> object:
+    """A scope field's effective player node.
+
+    Since phase v0.40.0 reified targeting intent, an effect's ``target`` may be
+    an untagged role-wrapper struct instead of the player node itself — at
+    v0.45.0 exactly ``{role: "Recipient", recipient: <player>}`` (54 corpus
+    nodes; Mana Flare's "that player adds") and ``{role: "CountSource",
+    count_source: …}`` (4 nodes, not a recipient). Descend into ``recipient``
+    when present; any other wrapper passes through unchanged and stays
+    tag-less, so the walkers skip it as before.
+    """
+    if tag_of(sub) is None:
+        rec = getattr(sub, "recipient", MISSING)
+        if _present(rec):
+            return rec
+    return sub
+
+
 def _scope_from_player_node(node: object) -> str | None:
     """Map a player-reference typed node to a Signal scope, or None if unknown.
 
@@ -86,7 +104,7 @@ def _effect_scope(node: TypedMirrorNode) -> str:
     for fname in _SCOPE_FIELDS:
         sub = getattr(node, fname, MISSING)
         if _present(sub):
-            sc = _scope_from_player_node(sub)
+            sc = _scope_from_player_node(_unwrap_role_target(sub))
             if sc is not None:
                 return sc
     return "you"
@@ -104,7 +122,7 @@ def explicit_recipient_scope(node: TypedMirrorNode) -> str | None:
     for fname in _SCOPE_FIELDS:
         sub = getattr(node, fname, MISSING)
         if _present(sub):
-            return _scope_from_player_node(sub)
+            return _scope_from_player_node(_unwrap_role_target(sub))
     return None
 
 
@@ -1116,7 +1134,10 @@ def recipient_tag(node: TypedMirrorNode) -> str | None:
     """
     for fname in _SCOPE_FIELDS:
         sub = getattr(node, fname, MISSING)
-        if _present(sub) and tag_of(sub) is not None:
+        if not _present(sub):
+            continue
+        sub = _unwrap_role_target(sub)
+        if tag_of(sub) is not None:
             return tag_of(sub)
     return None
 

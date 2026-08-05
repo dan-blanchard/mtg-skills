@@ -2138,11 +2138,8 @@ def test_creature_cast_trigger_nested_token_grant_no_double():
     "name",
     [
         "Boreal Outrider",
-        "Communal Brewing",
         "Kozilek's Return",
-        "Runadi, Behemoth Caller",
         "Volo, Itinerant Scholar",
-        "Wildgrowth Archaic",
         "Glimpse of Nature",
     ],
 )
@@ -2153,6 +2150,25 @@ def test_creature_cast_trigger_no_residue_synth(name):
     assert node is not None
     assert node.concept == "creature_cast"  # this arm's marker, not effect_concepts
     assert node.scope == "any"
+    assert _creature_cast_trigger_fires(name) is True
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Communal Brewing",
+        "Runadi, Behemoth Caller",
+        "Wildgrowth Archaic",
+    ],
+)
+def test_creature_cast_trigger_graduated_structural_no_double(name):
+    """Graduated at the v0.45.0 pin bump: phase now parses these cards'
+    creature-cast trigger structurally (Runadi via upstream #6735, the other
+    two alongside), so the structural gate covers them and the gap-gated
+    synthesis arm stands down — same no-double contract as Garruk/Blink."""
+    tree = _fixture_tree(name)
+    assert has_structural_creature_cast_trigger(tree) is True
+    assert _arm_creature_cast_trigger(tree) is None
     assert _creature_cast_trigger_fires(name) is True
 
 
@@ -6391,16 +6407,18 @@ def test_ramp_grant_unimplemented_body_no_fire_on_structural_grant():
     "name",
     [
         "Neheb, the Eternal",
-        "Rasputin, the Oneiromancer",
         "Squandered Resources",
         '"Name Sticker" Goblin',
     ],
 )
 def test_ramp_dropped_add_mana_clause_fires_on_pins(name):
-    """The 4 fixture-resident names of the former ``ramp_dropped_add_mana_
+    """The fixture-resident names of the former ``ramp_dropped_add_mana_
     clause`` bridge's 24-name enumeration (22 total graduate corpus-wide,
     corpus-scan-verified this session) — a per-node "add {mana-
-    expression}" read. Raggadragga stays a name-keyed bridge (no
+    expression}" read. Rasputin graduated at the v0.45.0 pin bump (phase
+    now structures his "Add {C}" clause — see
+    ``test_ramp_dropped_add_mana_clause_graduated_structural``);
+    Raggadragga stays a name-keyed bridge (no
     Unimplemented node naming an add-mana clause); Braid of Fire graduated
     a SECOND time (task #87) into the crosswalk's own ``"keyword"``
     ``AbilityUnit`` origin — see
@@ -6412,6 +6430,21 @@ def test_ramp_dropped_add_mana_clause_fires_on_pins(name):
     assert node.concept == "ramp"
     assert isinstance(node.node, SynthesizedNode)
     assert node.node.arm_id == "ramp_dropped_add_mana_clause"
+
+    from mtg_utils._deck_forge.lanes import _ramp
+
+    synth_tree = apply_tree_synthesis(tree)
+    assert any(s.key == "ramp" for s in _ramp(synth_tree))
+
+
+def test_ramp_dropped_add_mana_clause_graduated_structural():
+    """Rasputin, the Oneiromancer graduated at the v0.45.0 pin bump: phase
+    now parses his "Add {C}" dream-counter clause structurally, so the
+    residue-reading synthesis arm stands down and the lane serves ramp
+    through the structural read — membership preserved, mechanism
+    graduated."""
+    tree = _fixture_tree("Rasputin, the Oneiromancer")
+    assert _arm_ramp_dropped_add_mana_clause(tree) is None
 
     from mtg_utils._deck_forge.lanes import _ramp
 

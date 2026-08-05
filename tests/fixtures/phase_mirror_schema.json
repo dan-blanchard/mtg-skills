@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "phase_tag": "v0.35.2",
+  "phase_tag": "v0.45.0",
   "tagged": [
     {
       "ckey": "ActivateTagged",
@@ -506,26 +506,26 @@
     {
       "ckey": "Enchant",
       "tag": "Typed",
-      "count": 1170,
+      "count": 1172,
       "fields": {
         "controller": {
           "kinds": [
             "null",
             "str"
           ],
-          "seen": 1170
+          "seen": 1172
         },
         "properties": {
           "kinds": [
             "list"
           ],
-          "seen": 1170
+          "seen": 1172
         },
         "type_filters": {
           "kinds": [
             "list"
           ],
-          "seen": 1170
+          "seen": 1172
         }
       }
     },
@@ -812,13 +812,13 @@
     {
       "ckey": "Flashback",
       "tag": "Mana",
-      "count": 216,
+      "count": 219,
       "fields": {
         "data": {
           "kinds": [
             "tagged"
           ],
-          "seen": 216
+          "seen": 219
         }
       }
     },
@@ -926,7 +926,7 @@
     {
       "ckey": "Gift",
       "tag": "Treasure",
-      "count": 1,
+      "count": 2,
       "fields": {}
     },
     {
@@ -1398,6 +1398,12 @@
     },
     {
       "ckey": "Quality",
+      "tag": "Any",
+      "count": 1,
+      "fields": {}
+    },
+    {
+      "ckey": "Quality",
       "tag": "Or",
       "count": 17,
       "fields": {
@@ -1696,13 +1702,13 @@
     {
       "ckey": "Ward",
       "tag": "Mana",
-      "count": 225,
+      "count": 228,
       "fields": {
         "data": {
           "kinds": [
             "tagged"
           ],
-          "seen": 225
+          "seen": 228
         }
       }
     },
@@ -1798,7 +1804,7 @@
     {
       "ckey": "ability_tag",
       "tag": "Backup",
-      "count": 27,
+      "count": 28,
       "fields": {}
     },
     {
@@ -1810,13 +1816,13 @@
     {
       "ckey": "ability_tag",
       "tag": "Cycling",
-      "count": 403,
+      "count": 404,
       "fields": {}
     },
     {
       "ckey": "ability_tag",
       "tag": "Equip",
-      "count": 671,
+      "count": 682,
       "fields": {}
     },
     {
@@ -1896,7 +1902,7 @@
     {
       "ckey": "activation_restrictions",
       "tag": "AsSorcery",
-      "count": 2579,
+      "count": 2596,
       "fields": {}
     },
     {
@@ -1946,7 +1952,7 @@
     {
       "ckey": "activation_restrictions",
       "tag": "DuringYourTurn",
-      "count": 77,
+      "count": 78,
       "fields": {}
     },
     {
@@ -2003,19 +2009,19 @@
     {
       "ckey": "activation_restrictions",
       "tag": "OnlyOnceEachTurn",
-      "count": 162,
+      "count": 164,
       "fields": {}
     },
     {
       "ckey": "activation_restrictions",
       "tag": "RequiresCondition",
-      "count": 267,
+      "count": 268,
       "fields": {
         "data": {
           "kinds": [
             "variant1"
           ],
-          "seen": 267
+          "seen": 268
         }
       }
     },
@@ -2047,7 +2053,7 @@
     {
       "ckey": "activator",
       "tag": "Controller",
-      "count": 14,
+      "count": 15,
       "fields": {}
     },
     {
@@ -2090,13 +2096,13 @@
     {
       "ckey": "activity",
       "tag": "Attack",
-      "count": 4,
+      "count": 5,
       "fields": {
         "defended": {
           "kinds": [
             "str"
           ],
-          "seen": 4
+          "seen": 5
         }
       }
     },
@@ -2116,7 +2122,7 @@
     {
       "ckey": "activity",
       "tag": "CastSpells",
-      "count": 22,
+      "count": 23,
       "fields": {
         "spell_filter": {
           "kinds": [
@@ -2155,13 +2161,13 @@
     {
       "ckey": "additional_cost",
       "tag": "Choice",
-      "count": 41,
+      "count": 42,
       "fields": {
         "data": {
           "kinds": [
             "list"
           ],
-          "seen": 41
+          "seen": 42
         }
       }
     },
@@ -2182,14 +2188,14 @@
     {
       "ckey": "additional_cost",
       "tag": "Optional",
-      "count": 233,
+      "count": 234,
       "fields": {
         "data": {
           "kinds": [
             "struct",
             "variant1"
           ],
-          "seen": 233
+          "seen": 234
         }
       }
     },
@@ -2332,13 +2338,13 @@
     {
       "ckey": "additional_modifications",
       "tag": "AddType",
-      "count": 51,
+      "count": 52,
       "fields": {
         "core_type": {
           "kinds": [
             "str"
           ],
-          "seen": 51
+          "seen": 52
         }
       }
     },
@@ -2577,7 +2583,7 @@
     {
       "ckey": "affected",
       "tag": "Controller",
-      "count": 58,
+      "count": 59,
       "fields": {}
     },
     {
@@ -2589,19 +2595,19 @@
     {
       "ckey": "affected",
       "tag": "LastCreated",
-      "count": 102,
+      "count": 103,
       "fields": {}
     },
     {
       "ckey": "affected",
       "tag": "Or",
-      "count": 172,
+      "count": 173,
       "fields": {
         "filters": {
           "kinds": [
             "list"
           ],
-          "seen": 172
+          "seen": 173
         }
       }
     },
@@ -2614,13 +2620,13 @@
     {
       "ckey": "affected",
       "tag": "ParentTarget",
-      "count": 2378,
+      "count": 2387,
       "fields": {}
     },
     {
       "ckey": "affected",
       "tag": "Player",
-      "count": 29,
+      "count": 30,
       "fields": {}
     },
     {
@@ -2639,7 +2645,7 @@
     {
       "ckey": "affected",
       "tag": "SelfRef",
-      "count": 4548,
+      "count": 4571,
       "fields": {}
     },
     {
@@ -2670,39 +2676,39 @@
     {
       "ckey": "affected",
       "tag": "TriggeringSource",
-      "count": 111,
+      "count": 113,
       "fields": {}
     },
     {
       "ckey": "affected",
       "tag": "Typed",
-      "count": 4930,
+      "count": 4961,
       "fields": {
         "controller": {
           "kinds": [
             "null",
             "str"
           ],
-          "seen": 4930
+          "seen": 4961
         },
         "properties": {
           "kinds": [
             "list"
           ],
-          "seen": 4930
+          "seen": 4961
         },
         "type_filters": {
           "kinds": [
             "list"
           ],
-          "seen": 4930
+          "seen": 4961
         }
       }
     },
     {
       "ckey": "affected_players",
       "tag": "AllPlayers",
-      "count": 7,
+      "count": 8,
       "fields": {}
     },
     {
@@ -2732,7 +2738,7 @@
     {
       "ckey": "affected_players",
       "tag": "ScopedPlayer",
-      "count": 2,
+      "count": 3,
       "fields": {}
     },
     {
@@ -2833,38 +2839,38 @@
     {
       "ckey": "amount",
       "tag": "Cost",
-      "count": 596,
+      "count": 600,
       "fields": {
         "generic": {
           "kinds": [
             "int"
           ],
-          "seen": 596
+          "seen": 600
         },
         "shards": {
           "kinds": [
             "list"
           ],
-          "seen": 596
+          "seen": 600
         }
       }
     },
     {
       "ckey": "amount",
       "tag": "Difference",
-      "count": 3,
+      "count": 4,
       "fields": {
         "left": {
           "kinds": [
             "tagged"
           ],
-          "seen": 3
+          "seen": 4
         },
         "right": {
           "kinds": [
             "tagged"
           ],
-          "seen": 3
+          "seen": 4
         }
       }
     },
@@ -2896,13 +2902,13 @@
     {
       "ckey": "amount",
       "tag": "Fixed",
-      "count": 5275,
+      "count": 5306,
       "fields": {
         "value": {
           "kinds": [
             "int"
           ],
-          "seen": 5275
+          "seen": 5306
         }
       }
     },
@@ -2960,13 +2966,13 @@
     {
       "ckey": "amount",
       "tag": "Ref",
-      "count": 1561,
+      "count": 1564,
       "fields": {
         "qty": {
           "kinds": [
             "tagged"
           ],
-          "seen": 1561
+          "seen": 1564
         }
       }
     },
@@ -3069,7 +3075,7 @@
     {
       "ckey": "attachment",
       "tag": "LastCreated",
-      "count": 1,
+      "count": 2,
       "fields": {}
     },
     {
@@ -3088,7 +3094,7 @@
     {
       "ckey": "attachment",
       "tag": "ParentTarget",
-      "count": 89,
+      "count": 78,
       "fields": {}
     },
     {
@@ -3119,28 +3125,40 @@
     {
       "ckey": "attachment",
       "tag": "Typed",
-      "count": 48,
+      "count": 50,
       "fields": {
         "controller": {
           "kinds": [
             "null",
             "str"
           ],
-          "seen": 48
+          "seen": 50
         },
         "properties": {
           "kinds": [
             "list"
           ],
-          "seen": 48
+          "seen": 50
         },
         "type_filters": {
           "kinds": [
             "list"
           ],
-          "seen": 48
+          "seen": 50
         }
       }
+    },
+    {
+      "ckey": "attacker",
+      "tag": "EventSource",
+      "count": 3,
+      "fields": {}
+    },
+    {
+      "ckey": "attacker",
+      "tag": "Source",
+      "count": 22,
+      "fields": {}
     },
     {
       "ckey": "attacker_restriction",
@@ -3468,7 +3486,7 @@
     {
       "ckey": "card_filter",
       "tag": "None",
-      "count": 146,
+      "count": 147,
       "fields": {}
     },
     {
@@ -3679,7 +3697,7 @@
     {
       "ckey": "chooser",
       "tag": "Controller",
-      "count": 985,
+      "count": 993,
       "fields": {}
     },
     {
@@ -3771,7 +3789,7 @@
     {
       "ckey": "condition",
       "tag": "AdditionalCostPaid",
-      "count": 326,
+      "count": 324,
       "fields": {
         "min_count": {
           "kinds": [
@@ -3826,33 +3844,33 @@
     {
       "ckey": "condition",
       "tag": "And",
-      "count": 225,
+      "count": 229,
       "fields": {
         "conditions": {
           "kinds": [
             "list"
           ],
-          "seen": 225
+          "seen": 229
         }
       }
     },
     {
       "ckey": "condition",
       "tag": "AtNextPhase",
-      "count": 591,
+      "count": 592,
       "fields": {
         "phase": {
           "kinds": [
             "str"
           ],
-          "seen": 591
+          "seen": 592
         }
       }
     },
     {
       "ckey": "condition",
       "tag": "AtNextPhaseForPlayer",
-      "count": 64,
+      "count": 62,
       "fields": {
         "gate": {
           "kinds": [
@@ -3864,38 +3882,38 @@
           "kinds": [
             "str"
           ],
-          "seen": 64
+          "seen": 62
         },
         "player": {
           "kinds": [
             "int"
           ],
-          "seen": 64
+          "seen": 62
         }
       }
     },
     {
       "ckey": "condition",
       "tag": "AttackersDeclaredCount",
-      "count": 34,
+      "count": 36,
       "fields": {
         "comparator": {
           "kinds": [
             "str"
           ],
-          "seen": 34
+          "seen": 36
         },
         "count": {
           "kinds": [
             "int"
           ],
-          "seen": 34
+          "seen": 36
         },
         "subject": {
           "kinds": [
             "tagged"
           ],
-          "seen": 34
+          "seen": 36
         }
       }
     },
@@ -4024,13 +4042,13 @@
     {
       "ckey": "condition",
       "tag": "ChosenLabelIs",
-      "count": 40,
+      "count": 38,
       "fields": {
         "label": {
           "kinds": [
             "str"
           ],
-          "seen": 40
+          "seen": 38
         }
       }
     },
@@ -4082,13 +4100,13 @@
     {
       "ckey": "condition",
       "tag": "ConditionInstead",
-      "count": 220,
+      "count": 222,
       "fields": {
         "inner": {
           "kinds": [
             "tagged"
           ],
-          "seen": 220
+          "seen": 222
         }
       }
     },
@@ -4147,13 +4165,13 @@
     {
       "ckey": "condition",
       "tag": "ControlsType",
-      "count": 99,
+      "count": 104,
       "fields": {
         "filter": {
           "kinds": [
             "tagged"
           ],
-          "seen": 99
+          "seen": 104
         }
       }
     },
@@ -4299,14 +4317,14 @@
     {
       "ckey": "condition",
       "tag": "EffectOutcome",
-      "count": 1531,
+      "count": 1532,
       "fields": {
         "signal": {
           "kinds": [
             "str",
             "variant1"
           ],
-          "seen": 1531
+          "seen": 1532
         }
       }
     },
@@ -4446,13 +4464,13 @@
     {
       "ckey": "condition",
       "tag": "HasCounters",
-      "count": 362,
+      "count": 361,
       "fields": {
         "counters": {
           "kinds": [
             "tagged"
           ],
-          "seen": 362
+          "seen": 361
         },
         "maximum": {
           "kinds": [
@@ -4464,7 +4482,7 @@
           "kinds": [
             "int"
           ],
-          "seen": 362
+          "seen": 361
         }
       }
     },
@@ -4507,14 +4525,20 @@
     },
     {
       "ckey": "condition",
+      "tag": "IsOpponentsTurn",
+      "count": 3,
+      "fields": {}
+    },
+    {
+      "ckey": "condition",
       "tag": "IsPresent",
-      "count": 371,
+      "count": 374,
       "fields": {
         "filter": {
           "kinds": [
             "tagged"
           ],
-          "seen": 371
+          "seen": 374
         }
       }
     },
@@ -4553,25 +4577,25 @@
     {
       "ckey": "condition",
       "tag": "IsYourTurn",
-      "count": 22,
+      "count": 19,
       "fields": {}
     },
     {
       "ckey": "condition",
       "tag": "ManaColorSpent",
-      "count": 53,
+      "count": 45,
       "fields": {
         "color": {
           "kinds": [
             "str"
           ],
-          "seen": 53
+          "seen": 45
         },
         "minimum": {
           "kinds": [
             "int"
           ],
-          "seen": 53
+          "seen": 45
         }
       }
     },
@@ -4616,26 +4640,26 @@
     {
       "ckey": "condition",
       "tag": "Not",
-      "count": 726,
+      "count": 720,
       "fields": {
         "condition": {
           "kinds": [
             "tagged"
           ],
-          "seen": 726
+          "seen": 720
         }
       }
     },
     {
       "ckey": "condition",
       "tag": "NthResolutionThisTurn",
-      "count": 35,
+      "count": 38,
       "fields": {
         "n": {
           "kinds": [
             "int"
           ],
-          "seen": 35
+          "seen": 38
         }
       }
     },
@@ -4673,25 +4697,31 @@
     {
       "ckey": "condition",
       "tag": "OnlyIfQuantity",
-      "count": 29,
+      "count": 37,
       "fields": {
+        "active_player_req": {
+          "kinds": [
+            "str"
+          ],
+          "seen": 1
+        },
         "comparator": {
           "kinds": [
             "str"
           ],
-          "seen": 29
+          "seen": 37
         },
         "lhs": {
           "kinds": [
             "tagged"
           ],
-          "seen": 29
+          "seen": 37
         },
         "rhs": {
           "kinds": [
             "tagged"
           ],
-          "seen": 29
+          "seen": 37
         }
       }
     },
@@ -4774,50 +4804,50 @@
     {
       "ckey": "condition",
       "tag": "QuantityCheck",
-      "count": 526,
+      "count": 532,
       "fields": {
         "comparator": {
           "kinds": [
             "str"
           ],
-          "seen": 526
+          "seen": 532
         },
         "lhs": {
           "kinds": [
             "tagged"
           ],
-          "seen": 526
+          "seen": 532
         },
         "rhs": {
           "kinds": [
             "tagged"
           ],
-          "seen": 526
+          "seen": 532
         }
       }
     },
     {
       "ckey": "condition",
       "tag": "QuantityComparison",
-      "count": 1311,
+      "count": 1320,
       "fields": {
         "comparator": {
           "kinds": [
             "str"
           ],
-          "seen": 1311
+          "seen": 1320
         },
         "lhs": {
           "kinds": [
             "tagged"
           ],
-          "seen": 1311
+          "seen": 1320
         },
         "rhs": {
           "kinds": [
             "tagged"
           ],
-          "seen": 1311
+          "seen": 1320
         }
       }
     },
@@ -4837,19 +4867,19 @@
     {
       "ckey": "condition",
       "tag": "RecipientHasCounters",
-      "count": 27,
+      "count": 26,
       "fields": {
         "counters": {
           "kinds": [
             "tagged"
           ],
-          "seen": 27
+          "seen": 26
         },
         "minimum": {
           "kinds": [
             "int"
           ],
-          "seen": 27
+          "seen": 26
         }
       }
     },
@@ -4920,6 +4950,12 @@
       "ckey": "condition",
       "tag": "SourceAttachedToCreature",
       "count": 27,
+      "fields": {}
+    },
+    {
+      "ckey": "condition",
+      "tag": "SourceAttackedThisCombat",
+      "count": 1,
       "fields": {}
     },
     {
@@ -5023,7 +5059,7 @@
     {
       "ckey": "condition",
       "tag": "SourceIsTapped",
-      "count": 130,
+      "count": 129,
       "fields": {}
     },
     {
@@ -5069,13 +5105,13 @@
     {
       "ckey": "condition",
       "tag": "SourceTappedState",
-      "count": 5,
+      "count": 6,
       "fields": {
         "tapped": {
           "kinds": [
             "bool"
           ],
-          "seen": 5
+          "seen": 6
         }
       }
     },
@@ -5148,13 +5184,13 @@
     {
       "ckey": "condition",
       "tag": "TargetMatchesFilter",
-      "count": 223,
+      "count": 222,
       "fields": {
         "filter": {
           "kinds": [
             "tagged"
           ],
-          "seen": 223
+          "seen": 222
         },
         "subject_slot": {
           "kinds": [
@@ -5166,7 +5202,7 @@
           "kinds": [
             "bool"
           ],
-          "seen": 223
+          "seen": 222
         }
       }
     },
@@ -5326,13 +5362,13 @@
           "kinds": [
             "str"
           ],
-          "seen": 14
+          "seen": 15
         },
         "scaling": {
           "kinds": [
             "tagged"
           ],
-          "seen": 21
+          "seen": 22
         }
       }
     },
@@ -5389,13 +5425,13 @@
     {
       "ckey": "condition",
       "tag": "Unrecognized",
-      "count": 247,
+      "count": 251,
       "fields": {
         "text": {
           "kinds": [
             "str"
           ],
-          "seen": 247
+          "seen": 251
         }
       }
     },
@@ -5408,13 +5444,13 @@
           "kinds": [
             "str"
           ],
-          "seen": 18
+          "seen": 17
         },
         "owner": {
           "kinds": [
             "str"
           ],
-          "seen": 19
+          "seen": 18
         },
         "zone": {
           "kinds": [
@@ -5537,7 +5573,7 @@
     {
       "ckey": "condition",
       "tag": "WhenYouDo",
-      "count": 271,
+      "count": 274,
       "fields": {}
     },
     {
@@ -5545,6 +5581,12 @@
       "tag": "WheneverEvent",
       "count": 155,
       "fields": {
+        "expiry": {
+          "kinds": [
+            "variant1"
+          ],
+          "seen": 15
+        },
         "trigger": {
           "kinds": [
             "struct"
@@ -5574,19 +5616,19 @@
     {
       "ckey": "condition",
       "tag": "ZoneChangeObjectMatchesFilter",
-      "count": 20,
+      "count": 32,
       "fields": {
         "destination": {
           "kinds": [
             "str"
           ],
-          "seen": 20
+          "seen": 32
         },
         "filter": {
           "kinds": [
             "tagged"
           ],
-          "seen": 20
+          "seen": 32
         },
         "origin": {
           "kinds": [
@@ -5599,13 +5641,13 @@
     {
       "ckey": "condition",
       "tag": "ZoneChangedThisWay",
-      "count": 132,
+      "count": 133,
       "fields": {
         "filter": {
           "kinds": [
             "tagged"
           ],
-          "seen": 132
+          "seen": 133
         }
       }
     },
@@ -5891,6 +5933,18 @@
     },
     {
       "ckey": "conditions",
+      "tag": "IsDuringUpkeep",
+      "count": 1,
+      "fields": {}
+    },
+    {
+      "ckey": "conditions",
+      "tag": "IsOpponentsTurn",
+      "count": 1,
+      "fields": {}
+    },
+    {
+      "ckey": "conditions",
       "tag": "IsPresent",
       "count": 21,
       "fields": {
@@ -6002,63 +6056,63 @@
     {
       "ckey": "conditions",
       "tag": "QuantityCheck",
-      "count": 66,
+      "count": 67,
       "fields": {
         "comparator": {
           "kinds": [
             "str"
           ],
-          "seen": 66
+          "seen": 67
         },
         "lhs": {
           "kinds": [
             "tagged"
           ],
-          "seen": 66
+          "seen": 67
         },
         "rhs": {
           "kinds": [
             "tagged"
           ],
-          "seen": 66
+          "seen": 67
         }
       }
     },
     {
       "ckey": "conditions",
       "tag": "QuantityComparison",
-      "count": 161,
+      "count": 162,
       "fields": {
         "comparator": {
           "kinds": [
             "str"
           ],
-          "seen": 161
+          "seen": 162
         },
         "lhs": {
           "kinds": [
             "tagged"
           ],
-          "seen": 161
+          "seen": 162
         },
         "rhs": {
           "kinds": [
             "tagged"
           ],
-          "seen": 161
+          "seen": 162
         }
       }
     },
     {
       "ckey": "conditions",
       "tag": "ScopedPlayerMatches",
-      "count": 12,
+      "count": 13,
       "fields": {
         "filter": {
           "kinds": [
             "tagged"
           ],
-          "seen": 12
+          "seen": 13
         }
       }
     },
@@ -6205,63 +6259,63 @@
     {
       "ckey": "conditions",
       "tag": "UnlessPay",
-      "count": 2,
+      "count": 3,
       "fields": {
         "cost": {
           "kinds": [
             "tagged"
           ],
-          "seen": 2
+          "seen": 3
         },
         "defended": {
           "kinds": [
             "str"
           ],
-          "seen": 1
+          "seen": 2
         },
         "scaling": {
           "kinds": [
             "tagged"
           ],
-          "seen": 2
+          "seen": 3
         }
       }
     },
     {
       "ckey": "conditions",
       "tag": "Unrecognized",
-      "count": 9,
+      "count": 10,
       "fields": {
         "text": {
           "kinds": [
             "str"
           ],
-          "seen": 9
+          "seen": 10
         }
       }
     },
     {
       "ckey": "conditions",
       "tag": "WasCast",
-      "count": 10,
+      "count": 11,
       "fields": {
         "controller": {
           "kinds": [
             "str"
           ],
-          "seen": 3
+          "seen": 4
         },
         "owner": {
           "kinds": [
             "str"
           ],
-          "seen": 3
+          "seen": 4
         },
         "zone": {
           "kinds": [
             "str"
           ],
-          "seen": 6
+          "seen": 7
         }
       }
     },
@@ -6371,13 +6425,13 @@
     {
       "ckey": "constraint",
       "tag": "NthDrawThisTurn",
-      "count": 70,
+      "count": 72,
       "fields": {
         "n": {
           "kinds": [
             "int"
           ],
-          "seen": 70
+          "seen": 72
         }
       }
     },
@@ -6415,7 +6469,7 @@
     {
       "ckey": "constraint",
       "tag": "OncePerTurn",
-      "count": 228,
+      "count": 229,
       "fields": {}
     },
     {
@@ -6433,7 +6487,7 @@
     {
       "ckey": "constraint",
       "tag": "OnlyDuringYourTurn",
-      "count": 2102,
+      "count": 2104,
       "fields": {}
     },
     {
@@ -6565,32 +6619,32 @@
     {
       "ckey": "cost",
       "tag": "Composite",
-      "count": 4847,
+      "count": 4863,
       "fields": {
         "costs": {
           "kinds": [
             "list"
           ],
-          "seen": 4847
+          "seen": 4863
         }
       }
     },
     {
       "ckey": "cost",
       "tag": "Cost",
-      "count": 9629,
+      "count": 9657,
       "fields": {
         "generic": {
           "kinds": [
             "int"
           ],
-          "seen": 9629
+          "seen": 9657
         },
         "shards": {
           "kinds": [
             "list"
           ],
-          "seen": 9629
+          "seen": 9657
         }
       }
     },
@@ -6629,13 +6683,13 @@
     {
       "ckey": "cost",
       "tag": "EffectCost",
-      "count": 46,
+      "count": 48,
       "fields": {
         "effect": {
           "kinds": [
             "tagged"
           ],
-          "seen": 46
+          "seen": 48
         }
       }
     },
@@ -6725,13 +6779,13 @@
     {
       "ckey": "cost",
       "tag": "Mana",
-      "count": 4447,
+      "count": 4459,
       "fields": {
         "cost": {
           "kinds": [
             "tagged"
           ],
-          "seen": 4447
+          "seen": 4459
         }
       }
     },
@@ -6796,26 +6850,26 @@
     {
       "ckey": "cost",
       "tag": "PayEnergy",
-      "count": 92,
+      "count": 93,
       "fields": {
         "amount": {
           "kinds": [
             "tagged"
           ],
-          "seen": 92
+          "seen": 93
         }
       }
     },
     {
       "ckey": "cost",
       "tag": "PayLife",
-      "count": 160,
+      "count": 161,
       "fields": {
         "amount": {
           "kinds": [
             "tagged"
           ],
-          "seen": 160
+          "seen": 161
         }
       }
     },
@@ -6936,13 +6990,13 @@
     {
       "ckey": "cost",
       "tag": "Sacrifice",
-      "count": 589,
+      "count": 592,
       "fields": {
         "count": {
           "kinds": [
             "int"
           ],
-          "seen": 588
+          "seen": 591
         },
         "requirement": {
           "kinds": [
@@ -6954,7 +7008,7 @@
           "kinds": [
             "tagged"
           ],
-          "seen": 589
+          "seen": 592
         }
       }
     },
@@ -6967,7 +7021,7 @@
     {
       "ckey": "cost",
       "tag": "Tap",
-      "count": 3026,
+      "count": 3036,
       "fields": {}
     },
     {
@@ -7101,32 +7155,32 @@
     {
       "ckey": "costs",
       "tag": "Discard",
-      "count": 788,
+      "count": 791,
       "fields": {
         "count": {
           "kinds": [
             "tagged"
           ],
-          "seen": 788
+          "seen": 791
         },
         "filter": {
           "kinds": [
             "null",
             "tagged"
           ],
-          "seen": 788
+          "seen": 791
         },
         "random": {
           "kinds": [
             "bool"
           ],
-          "seen": 788
+          "seen": 791
         },
         "self_ref": {
           "kinds": [
             "bool"
           ],
-          "seen": 788
+          "seen": 791
         }
       }
     },
@@ -7198,13 +7252,13 @@
     {
       "ckey": "costs",
       "tag": "Mana",
-      "count": 4571,
+      "count": 4584,
       "fields": {
         "cost": {
           "kinds": [
             "tagged"
           ],
-          "seen": 4571
+          "seen": 4584
         }
       }
     },
@@ -7333,26 +7387,26 @@
     {
       "ckey": "costs",
       "tag": "Sacrifice",
-      "count": 1573,
+      "count": 1583,
       "fields": {
         "count": {
           "kinds": [
             "int"
           ],
-          "seen": 1573
+          "seen": 1583
         },
         "target": {
           "kinds": [
             "tagged"
           ],
-          "seen": 1573
+          "seen": 1583
         }
       }
     },
     {
       "ckey": "costs",
       "tag": "Tap",
-      "count": 2889,
+      "count": 2903,
       "fields": {}
     },
     {
@@ -7523,13 +7577,13 @@
     {
       "ckey": "count",
       "tag": "Fixed",
-      "count": 21891,
+      "count": 22003,
       "fields": {
         "value": {
           "kinds": [
             "int"
           ],
-          "seen": 21891
+          "seen": 22003
         }
       }
     },
@@ -7549,19 +7603,19 @@
     {
       "ckey": "count",
       "tag": "Multiply",
-      "count": 43,
+      "count": 42,
       "fields": {
         "factor": {
           "kinds": [
             "int"
           ],
-          "seen": 43
+          "seen": 42
         },
         "inner": {
           "kinds": [
             "tagged"
           ],
-          "seen": 43
+          "seen": 42
         }
       }
     },
@@ -7606,13 +7660,13 @@
     {
       "ckey": "count",
       "tag": "Ref",
-      "count": 2079,
+      "count": 2107,
       "fields": {
         "qty": {
           "kinds": [
             "tagged"
           ],
-          "seen": 2079
+          "seen": 2107
         }
       }
     },
@@ -7632,13 +7686,38 @@
     {
       "ckey": "count",
       "tag": "UpTo",
-      "count": 293,
+      "count": 296,
       "fields": {
         "max": {
           "kinds": [
             "tagged"
           ],
-          "seen": 293
+          "seen": 296
+        }
+      }
+    },
+    {
+      "ckey": "count_source",
+      "tag": "Typed",
+      "count": 4,
+      "fields": {
+        "controller": {
+          "kinds": [
+            "str"
+          ],
+          "seen": 4
+        },
+        "properties": {
+          "kinds": [
+            "list"
+          ],
+          "seen": 4
+        },
+        "type_filters": {
+          "kinds": [
+            "list"
+          ],
+          "seen": 4
         }
       }
     },
@@ -7702,13 +7781,13 @@
     {
       "ckey": "counters",
       "tag": "OfType",
-      "count": 627,
+      "count": 625,
       "fields": {
         "data": {
           "kinds": [
             "str"
           ],
-          "seen": 627
+          "seen": 625
         }
       }
     },
@@ -7754,6 +7833,19 @@
             "tagged"
           ],
           "seen": 25
+        }
+      }
+    },
+    {
+      "ckey": "damage_modification",
+      "tag": "PreventionMinus",
+      "count": 19,
+      "fields": {
+        "value": {
+          "kinds": [
+            "int"
+          ],
+          "seen": 19
         }
       }
     },
@@ -7834,27 +7926,40 @@
     },
     {
       "ckey": "damage_source_filter",
+      "tag": "TrackedSet",
+      "count": 1,
+      "fields": {
+        "id": {
+          "kinds": [
+            "int"
+          ],
+          "seen": 1
+        }
+      }
+    },
+    {
+      "ckey": "damage_source_filter",
       "tag": "Typed",
-      "count": 75,
+      "count": 92,
       "fields": {
         "controller": {
           "kinds": [
             "null",
             "str"
           ],
-          "seen": 75
+          "seen": 92
         },
         "properties": {
           "kinds": [
             "list"
           ],
-          "seen": 75
+          "seen": 92
         },
         "type_filters": {
           "kinds": [
             "list"
           ],
-          "seen": 75
+          "seen": 92
         }
       }
     },
@@ -7918,19 +8023,19 @@
     {
       "ckey": "data",
       "tag": "Cost",
-      "count": 924,
+      "count": 930,
       "fields": {
         "generic": {
           "kinds": [
             "int"
           ],
-          "seen": 924
+          "seen": 930
         },
         "shards": {
           "kinds": [
             "list"
           ],
-          "seen": 924
+          "seen": 930
         }
       }
     },
@@ -8015,13 +8120,13 @@
     {
       "ckey": "data",
       "tag": "Mana",
-      "count": 38,
+      "count": 39,
       "fields": {
         "cost": {
           "kinds": [
             "tagged"
           ],
-          "seen": 33
+          "seen": 34
         },
         "data": {
           "kinds": [
@@ -8110,19 +8215,19 @@
     {
       "ckey": "data",
       "tag": "Sacrifice",
-      "count": 141,
+      "count": 142,
       "fields": {
         "count": {
           "kinds": [
             "int"
           ],
-          "seen": 141
+          "seen": 142
         },
         "target": {
           "kinds": [
             "tagged"
           ],
-          "seen": 141
+          "seen": 142
         }
       }
     },
@@ -8268,7 +8373,7 @@
     {
       "ckey": "distribute",
       "tag": "Damage",
-      "count": 75,
+      "count": 76,
       "fields": {}
     },
     {
@@ -8738,13 +8843,13 @@
     {
       "ckey": "effect",
       "tag": "Adapt",
-      "count": 24,
+      "count": 25,
       "fields": {
         "count": {
           "kinds": [
             "tagged"
           ],
-          "seen": 24
+          "seen": 25
         }
       }
     },
@@ -8783,32 +8888,32 @@
     {
       "ckey": "effect",
       "tag": "AddRestriction",
-      "count": 66,
+      "count": 68,
       "fields": {
         "restriction": {
           "kinds": [
             "tagged"
           ],
-          "seen": 66
+          "seen": 68
         }
       }
     },
     {
       "ckey": "effect",
       "tag": "AddTargetReplacement",
-      "count": 147,
+      "count": 152,
       "fields": {
         "replacement": {
           "kinds": [
             "struct"
           ],
-          "seen": 147
+          "seen": 152
         },
         "target": {
           "kinds": [
             "tagged"
           ],
-          "seen": 147
+          "seen": 152
         }
       }
     },
@@ -8859,19 +8964,19 @@
     {
       "ckey": "effect",
       "tag": "Amass",
-      "count": 63,
+      "count": 75,
       "fields": {
         "count": {
           "kinds": [
             "tagged"
           ],
-          "seen": 63
+          "seen": 75
         },
         "subtype": {
           "kinds": [
             "str"
           ],
-          "seen": 63
+          "seen": 75
         }
       }
     },
@@ -8923,19 +9028,19 @@
     {
       "ckey": "effect",
       "tag": "ApplyPerpetual",
-      "count": 70,
+      "count": 82,
       "fields": {
         "modification": {
           "kinds": [
             "struct"
           ],
-          "seen": 70
+          "seen": 82
         },
         "target": {
           "kinds": [
             "tagged"
           ],
-          "seen": 70
+          "seen": 82
         }
       }
     },
@@ -8961,32 +9066,32 @@
     {
       "ckey": "effect",
       "tag": "AssembleContraptions",
-      "count": 20,
+      "count": 19,
       "fields": {
         "count": {
           "kinds": [
             "tagged"
           ],
-          "seen": 20
+          "seen": 19
         }
       }
     },
     {
       "ckey": "effect",
       "tag": "Attach",
-      "count": 980,
+      "count": 1027,
       "fields": {
         "attachment": {
           "kinds": [
             "tagged"
           ],
-          "seen": 143
+          "seen": 135
         },
         "target": {
           "kinds": [
             "tagged"
           ],
-          "seen": 980
+          "seen": 1027
         }
       }
     },
@@ -9012,7 +9117,7 @@
           "kinds": [
             "list"
           ],
-          "seen": 82
+          "seen": 83
         },
         "duration": {
           "kinds": [
@@ -9089,13 +9194,13 @@
     {
       "ckey": "effect",
       "tag": "Behold",
-      "count": 1,
+      "count": 2,
       "fields": {
         "filter": {
           "kinds": [
             "tagged"
           ],
-          "seen": 1
+          "seen": 2
         }
       }
     },
@@ -9134,25 +9239,25 @@
     {
       "ckey": "effect",
       "tag": "Bounce",
-      "count": 877,
+      "count": 879,
       "fields": {
         "destination": {
           "kinds": [
             "null"
           ],
-          "seen": 877
+          "seen": 879
         },
         "selection": {
           "kinds": [
             "str"
           ],
-          "seen": 127
+          "seen": 128
         },
         "target": {
           "kinds": [
             "tagged"
           ],
-          "seen": 877
+          "seen": 879
         }
       }
     },
@@ -9228,7 +9333,7 @@
           "kinds": [
             "str"
           ],
-          "seen": 264
+          "seen": 265
         },
         "duration": {
           "kinds": [
@@ -9323,7 +9428,7 @@
     {
       "ckey": "effect",
       "tag": "ChangeZone",
-      "count": 6244,
+      "count": 6249,
       "fields": {
         "conditional_enter_with_counters": {
           "kinds": [
@@ -9335,19 +9440,19 @@
           "kinds": [
             "str"
           ],
-          "seen": 6244
+          "seen": 6249
         },
         "enter_tapped": {
           "kinds": [
             "bool"
           ],
-          "seen": 6244
+          "seen": 6249
         },
         "enter_transformed": {
           "kinds": [
             "bool"
           ],
-          "seen": 6244
+          "seen": 6249
         },
         "enter_with_counters": {
           "kinds": [
@@ -9359,7 +9464,7 @@
           "kinds": [
             "bool"
           ],
-          "seen": 6244
+          "seen": 6249
         },
         "enters_modified_if": {
           "kinds": [
@@ -9371,7 +9476,7 @@
           "kinds": [
             "str"
           ],
-          "seen": 282
+          "seen": 283
         },
         "face_down_profile": {
           "kinds": [
@@ -9385,44 +9490,44 @@
             "null",
             "str"
           ],
-          "seen": 6244
+          "seen": 6249
         },
         "owner_library": {
           "kinds": [
             "bool"
           ],
-          "seen": 6244
+          "seen": 6249
         },
         "target": {
           "kinds": [
             "tagged"
           ],
-          "seen": 6244
+          "seen": 6249
         },
         "up_to": {
           "kinds": [
             "bool"
           ],
-          "seen": 79
+          "seen": 82
         }
       }
     },
     {
       "ckey": "effect",
       "tag": "ChangeZoneAll",
-      "count": 579,
+      "count": 594,
       "fields": {
         "destination": {
           "kinds": [
             "str"
           ],
-          "seen": 579
+          "seen": 594
         },
         "enter_tapped": {
           "kinds": [
             "bool"
           ],
-          "seen": 21
+          "seen": 20
         },
         "enter_with_counters": {
           "kinds": [
@@ -9434,7 +9539,7 @@
           "kinds": [
             "str"
           ],
-          "seen": 26
+          "seen": 28
         },
         "face_down_profile": {
           "kinds": [
@@ -9453,7 +9558,7 @@
             "null",
             "str"
           ],
-          "seen": 579
+          "seen": 594
         },
         "random_order": {
           "kinds": [
@@ -9465,7 +9570,7 @@
           "kinds": [
             "tagged"
           ],
-          "seen": 579
+          "seen": 594
         }
       }
     },
@@ -9591,13 +9696,13 @@
     {
       "ckey": "effect",
       "tag": "ChooseCounterKind",
-      "count": 2,
+      "count": 4,
       "fields": {
         "target": {
           "kinds": [
             "tagged"
           ],
-          "seen": 2
+          "seen": 4
         }
       }
     },
@@ -9735,6 +9840,19 @@
             "tagged"
           ],
           "seen": 173
+        }
+      }
+    },
+    {
+      "ckey": "effect",
+      "tag": "ChoosePermanent",
+      "count": 1,
+      "fields": {
+        "filter": {
+          "kinds": [
+            "tagged"
+          ],
+          "seen": 1
         }
       }
     },
@@ -9891,7 +10009,7 @@
     {
       "ckey": "effect",
       "tag": "CopySpell",
-      "count": 353,
+      "count": 354,
       "fields": {
         "additional_modifications": {
           "kinds": [
@@ -9909,19 +10027,19 @@
           "kinds": [
             "tagged"
           ],
-          "seen": 353
+          "seen": 354
         },
         "starting_loyalty_from_casualty_sacrifice": {
           "kinds": [
             "bool"
           ],
-          "seen": 353
+          "seen": 354
         },
         "target": {
           "kinds": [
             "tagged"
           ],
-          "seen": 353
+          "seen": 354
         }
       }
     },
@@ -9947,7 +10065,7 @@
     {
       "ckey": "effect",
       "tag": "CopyTokenOf",
-      "count": 425,
+      "count": 427,
       "fields": {
         "additional_modifications": {
           "kinds": [
@@ -9959,13 +10077,13 @@
           "kinds": [
             "tagged"
           ],
-          "seen": 425
+          "seen": 427
         },
         "enters_attacking": {
           "kinds": [
             "bool"
           ],
-          "seen": 425
+          "seen": 427
         },
         "extra_keywords": {
           "kinds": [
@@ -9977,7 +10095,7 @@
           "kinds": [
             "tagged"
           ],
-          "seen": 425
+          "seen": 427
         },
         "source_filter": {
           "kinds": [
@@ -9989,20 +10107,20 @@
           "kinds": [
             "bool"
           ],
-          "seen": 425
+          "seen": 427
         },
         "target": {
           "kinds": [
             "tagged"
           ],
-          "seen": 425
+          "seen": 427
         }
       }
     },
     {
       "ckey": "effect",
       "tag": "Counter",
-      "count": 522,
+      "count": 525,
       "fields": {
         "countered_spell_zone": {
           "kinds": [
@@ -10020,7 +10138,7 @@
           "kinds": [
             "tagged"
           ],
-          "seen": 522
+          "seen": 525
         }
       }
     },
@@ -10095,25 +10213,25 @@
     {
       "ckey": "effect",
       "tag": "CreateDelayedTrigger",
-      "count": 953,
+      "count": 952,
       "fields": {
         "condition": {
           "kinds": [
             "tagged"
           ],
-          "seen": 953
+          "seen": 952
         },
         "effect": {
           "kinds": [
             "struct"
           ],
-          "seen": 953
+          "seen": 952
         },
         "uses_tracked_set": {
           "kinds": [
             "bool"
           ],
-          "seen": 953
+          "seen": 952
         }
       }
     },
@@ -10165,19 +10283,19 @@
     {
       "ckey": "effect",
       "tag": "DamageAll",
-      "count": 378,
+      "count": 365,
       "fields": {
         "amount": {
           "kinds": [
             "tagged"
           ],
-          "seen": 378
+          "seen": 365
         },
         "damage_source": {
           "kinds": [
             "str"
           ],
-          "seen": 13
+          "seen": 11
         },
         "player_filter": {
           "kinds": [
@@ -10189,45 +10307,45 @@
           "kinds": [
             "tagged"
           ],
-          "seen": 378
+          "seen": 365
         }
       }
     },
     {
       "ckey": "effect",
       "tag": "DamageEachPlayer",
-      "count": 307,
+      "count": 311,
       "fields": {
         "amount": {
           "kinds": [
             "tagged"
           ],
-          "seen": 307
+          "seen": 311
         },
         "player_filter": {
           "kinds": [
             "tagged"
           ],
-          "seen": 307
+          "seen": 311
         }
       }
     },
     {
       "ckey": "effect",
       "tag": "DealDamage",
-      "count": 2629,
+      "count": 2660,
       "fields": {
         "amount": {
           "kinds": [
             "tagged"
           ],
-          "seen": 2629
+          "seen": 2660
         },
         "damage_source": {
           "kinds": [
             "str"
           ],
-          "seen": 153
+          "seen": 158
         },
         "excess": {
           "kinds": [
@@ -10239,26 +10357,26 @@
           "kinds": [
             "tagged"
           ],
-          "seen": 2629
+          "seen": 2660
         }
       }
     },
     {
       "ckey": "effect",
       "tag": "Destroy",
-      "count": 1581,
+      "count": 1592,
       "fields": {
         "cant_regenerate": {
           "kinds": [
             "bool"
           ],
-          "seen": 1581
+          "seen": 1592
         },
         "target": {
           "kinds": [
             "tagged"
           ],
-          "seen": 1581
+          "seen": 1592
         }
       }
     },
@@ -10297,39 +10415,39 @@
     {
       "ckey": "effect",
       "tag": "Dig",
-      "count": 599,
+      "count": 612,
       "fields": {
         "count": {
           "kinds": [
             "tagged"
           ],
-          "seen": 599
+          "seen": 612
         },
         "destination": {
           "kinds": [
             "null",
             "str"
           ],
-          "seen": 599
+          "seen": 612
         },
         "enter_tapped": {
           "kinds": [
             "bool"
           ],
-          "seen": 599
+          "seen": 612
         },
         "filter": {
           "kinds": [
             "tagged"
           ],
-          "seen": 599
+          "seen": 612
         },
         "keep_count": {
           "kinds": [
             "int",
             "null"
           ],
-          "seen": 599
+          "seen": 612
         },
         "keep_count_expr": {
           "kinds": [
@@ -10341,20 +10459,20 @@
           "kinds": [
             "tagged"
           ],
-          "seen": 599
+          "seen": 612
         },
         "rest_destination": {
           "kinds": [
             "null",
             "str"
           ],
-          "seen": 599
+          "seen": 612
         },
         "reveal": {
           "kinds": [
             "bool"
           ],
-          "seen": 599
+          "seen": 612
         },
         "source": {
           "kinds": [
@@ -10366,20 +10484,20 @@
           "kinds": [
             "bool"
           ],
-          "seen": 599
+          "seen": 612
         }
       }
     },
     {
       "ckey": "effect",
       "tag": "Discard",
-      "count": 1111,
+      "count": 1117,
       "fields": {
         "count": {
           "kinds": [
             "tagged"
           ],
-          "seen": 1111
+          "seen": 1117
         },
         "filter": {
           "kinds": [
@@ -10397,7 +10515,7 @@
           "kinds": [
             "tagged"
           ],
-          "seen": 1111
+          "seen": 1117
         },
         "unless_filter": {
           "kinds": [
@@ -10542,19 +10660,19 @@
     {
       "ckey": "effect",
       "tag": "Draw",
-      "count": 4153,
+      "count": 4173,
       "fields": {
         "count": {
           "kinds": [
             "tagged"
           ],
-          "seen": 4153
+          "seen": 4173
         },
         "target": {
           "kinds": [
             "tagged"
           ],
-          "seen": 4153
+          "seen": 4173
         }
       }
     },
@@ -10794,13 +10912,13 @@
     {
       "ckey": "effect",
       "tag": "ExileTop",
-      "count": 406,
+      "count": 407,
       "fields": {
         "count": {
           "kinds": [
             "tagged"
           ],
-          "seen": 406
+          "seen": 407
         },
         "face_down": {
           "kinds": [
@@ -10812,7 +10930,13 @@
           "kinds": [
             "tagged"
           ],
-          "seen": 406
+          "seen": 407
+        },
+        "position": {
+          "kinds": [
+            "tagged"
+          ],
+          "seen": 407
         }
       }
     },
@@ -10851,19 +10975,19 @@
     {
       "ckey": "effect",
       "tag": "Fight",
-      "count": 149,
+      "count": 150,
       "fields": {
         "subject": {
           "kinds": [
             "tagged"
           ],
-          "seen": 149
+          "seen": 150
         },
         "target": {
           "kinds": [
             "tagged"
           ],
-          "seen": 149
+          "seen": 150
         }
       }
     },
@@ -10935,6 +11059,19 @@
     },
     {
       "ckey": "effect",
+      "tag": "FlipPermanent",
+      "count": 19,
+      "fields": {
+        "target": {
+          "kinds": [
+            "tagged"
+          ],
+          "seen": 19
+        }
+      }
+    },
+    {
+      "ckey": "effect",
       "tag": "ForEachCategory",
       "count": 3,
       "fields": {
@@ -10992,13 +11129,25 @@
     {
       "ckey": "effect",
       "tag": "ForceBlock",
-      "count": 52,
+      "count": 53,
       "fields": {
+        "attacker": {
+          "kinds": [
+            "tagged"
+          ],
+          "seen": 25
+        },
+        "duration": {
+          "kinds": [
+            "str"
+          ],
+          "seen": 53
+        },
         "target": {
           "kinds": [
             "tagged"
           ],
-          "seen": 52
+          "seen": 53
         }
       }
     },
@@ -11013,17 +11162,17 @@
           ],
           "seen": 2
         },
-        "exile_instead_of_graveyard": {
-          "kinds": [
-            "bool"
-          ],
-          "seen": 1
-        },
         "filter": {
           "kinds": [
             "tagged"
           ],
           "seen": 2
+        },
+        "graveyard_replacement": {
+          "kinds": [
+            "tagged"
+          ],
+          "seen": 1
         },
         "max_total_mv": {
           "kinds": [
@@ -11073,13 +11222,13 @@
     {
       "ckey": "effect",
       "tag": "GainControl",
-      "count": 243,
+      "count": 242,
       "fields": {
         "target": {
           "kinds": [
             "tagged"
           ],
-          "seen": 243
+          "seen": 242
         }
       }
     },
@@ -11112,26 +11261,26 @@
     {
       "ckey": "effect",
       "tag": "GainLife",
-      "count": 1853,
+      "count": 1860,
       "fields": {
         "amount": {
           "kinds": [
             "tagged"
           ],
-          "seen": 1853
+          "seen": 1860
         },
         "player": {
           "kinds": [
             "tagged"
           ],
-          "seen": 78
+          "seen": 80
         }
       }
     },
     {
       "ckey": "effect",
       "tag": "GenericEffect",
-      "count": 4999,
+      "count": 5019,
       "fields": {
         "duration": {
           "kinds": [
@@ -11139,33 +11288,39 @@
             "str",
             "variant1"
           ],
-          "seen": 4999
+          "seen": 5019
+        },
+        "end_cost": {
+          "kinds": [
+            "tagged"
+          ],
+          "seen": 13
         },
         "static_abilities": {
           "kinds": [
             "list"
           ],
-          "seen": 4999
+          "seen": 5019
         },
         "target": {
           "kinds": [
             "null",
             "tagged"
           ],
-          "seen": 4999
+          "seen": 5019
         }
       }
     },
     {
       "ckey": "effect",
       "tag": "GiftDelivery",
-      "count": 23,
+      "count": 24,
       "fields": {
         "kind": {
           "kinds": [
             "tagged"
           ],
-          "seen": 23
+          "seen": 24
         }
       }
     },
@@ -11242,7 +11397,7 @@
     {
       "ckey": "effect",
       "tag": "GrantCastingPermission",
-      "count": 335,
+      "count": 338,
       "fields": {
         "grantee": {
           "kinds": [
@@ -11254,13 +11409,13 @@
           "kinds": [
             "tagged"
           ],
-          "seen": 335
+          "seen": 338
         },
         "target": {
           "kinds": [
             "tagged"
           ],
-          "seen": 335
+          "seen": 338
         }
       }
     },
@@ -11362,19 +11517,19 @@
     {
       "ckey": "effect",
       "tag": "Intensify",
-      "count": 16,
+      "count": 17,
       "fields": {
         "amount": {
           "kinds": [
             "tagged"
           ],
-          "seen": 16
+          "seen": 17
         },
         "scope": {
           "kinds": [
             "tagged"
           ],
-          "seen": 16
+          "seen": 17
         }
       }
     },
@@ -11406,19 +11561,19 @@
     {
       "ckey": "effect",
       "tag": "LoseLife",
-      "count": 1218,
+      "count": 1221,
       "fields": {
         "amount": {
           "kinds": [
             "tagged"
           ],
-          "seen": 1218
+          "seen": 1221
         },
         "target": {
           "kinds": [
             "tagged"
           ],
-          "seen": 764
+          "seen": 765
         }
       }
     },
@@ -11451,13 +11606,13 @@
     {
       "ckey": "effect",
       "tag": "Mana",
-      "count": 2866,
+      "count": 2883,
       "fields": {
         "expiry": {
           "kinds": [
             "str"
           ],
-          "seen": 23
+          "seen": 24
         },
         "grants": {
           "kinds": [
@@ -11469,19 +11624,19 @@
           "kinds": [
             "tagged"
           ],
-          "seen": 2866
+          "seen": 2883
         },
         "restrictions": {
           "kinds": [
             "list"
           ],
-          "seen": 165
+          "seen": 168
         },
         "target": {
           "kinds": [
-            "tagged"
+            "struct"
           ],
-          "seen": 57
+          "seen": 58
         }
       }
     },
@@ -11568,25 +11723,25 @@
     {
       "ckey": "effect",
       "tag": "Mill",
-      "count": 613,
+      "count": 617,
       "fields": {
         "count": {
           "kinds": [
             "tagged"
           ],
-          "seen": 613
+          "seen": 617
         },
         "destination": {
           "kinds": [
             "str"
           ],
-          "seen": 613
+          "seen": 617
         },
         "target": {
           "kinds": [
             "tagged"
           ],
-          "seen": 613
+          "seen": 617
         }
       }
     },
@@ -11606,45 +11761,45 @@
     {
       "ckey": "effect",
       "tag": "MoveCounters",
-      "count": 66,
+      "count": 67,
       "fields": {
         "count": {
           "kinds": [
             "null",
             "tagged"
           ],
-          "seen": 66
+          "seen": 67
         },
         "counter_type": {
           "kinds": [
             "null",
             "str"
           ],
-          "seen": 66
+          "seen": 67
         },
         "mode": {
           "kinds": [
             "str"
           ],
-          "seen": 66
+          "seen": 67
         },
         "selection": {
           "kinds": [
             "str"
           ],
-          "seen": 66
+          "seen": 67
         },
         "source": {
           "kinds": [
             "tagged"
           ],
-          "seen": 66
+          "seen": 67
         },
         "target": {
           "kinds": [
             "tagged"
           ],
-          "seen": 66
+          "seen": 67
         }
       }
     },
@@ -11734,19 +11889,19 @@
     {
       "ckey": "effect",
       "tag": "PayCost",
-      "count": 619,
+      "count": 614,
       "fields": {
         "cost": {
           "kinds": [
             "tagged"
           ],
-          "seen": 619
+          "seen": 614
         },
         "payer": {
           "kinds": [
             "tagged"
           ],
-          "seen": 619
+          "seen": 614
         },
         "scale": {
           "kinds": [
@@ -11797,14 +11952,14 @@
     {
       "ckey": "effect",
       "tag": "PreventDamage",
-      "count": 406,
+      "count": 393,
       "fields": {
         "amount": {
           "kinds": [
             "str",
             "variant1"
           ],
-          "seen": 406
+          "seen": 393
         },
         "amount_dynamic": {
           "kinds": [
@@ -11816,32 +11971,32 @@
           "kinds": [
             "tagged"
           ],
-          "seen": 77
+          "seen": 82
         },
         "prevention_duration": {
           "kinds": [
             "str"
           ],
-          "seen": 46
+          "seen": 45
         },
         "scope": {
           "kinds": [
             "str"
           ],
-          "seen": 406
+          "seen": 393
         },
         "target": {
           "kinds": [
             "tagged"
           ],
-          "seen": 406
+          "seen": 393
         }
       }
     },
     {
       "ckey": "effect",
       "tag": "Proliferate",
-      "count": 100,
+      "count": 101,
       "fields": {}
     },
     {
@@ -11860,157 +12015,169 @@
     {
       "ckey": "effect",
       "tag": "Pump",
-      "count": 2321,
+      "count": 2331,
       "fields": {
         "power": {
           "kinds": [
             "tagged"
           ],
-          "seen": 2321
+          "seen": 2331
         },
         "target": {
           "kinds": [
             "tagged"
           ],
-          "seen": 2321
+          "seen": 2331
         },
         "toughness": {
           "kinds": [
             "tagged"
           ],
-          "seen": 2321
+          "seen": 2331
         }
       }
     },
     {
       "ckey": "effect",
       "tag": "PumpAll",
-      "count": 570,
+      "count": 575,
       "fields": {
         "power": {
           "kinds": [
             "tagged"
           ],
-          "seen": 570
+          "seen": 575
         },
         "target": {
           "kinds": [
             "tagged"
           ],
-          "seen": 570
+          "seen": 575
         },
         "toughness": {
           "kinds": [
             "tagged"
           ],
-          "seen": 570
+          "seen": 575
         }
       }
     },
     {
       "ckey": "effect",
       "tag": "PutAtLibraryPosition",
-      "count": 494,
+      "count": 495,
       "fields": {
         "count": {
           "kinds": [
             "tagged"
           ],
-          "seen": 494
+          "seen": 495
         },
         "position": {
           "kinds": [
             "tagged"
           ],
-          "seen": 494
+          "seen": 495
         },
         "target": {
           "kinds": [
             "tagged"
           ],
-          "seen": 494
+          "seen": 495
         }
       }
     },
     {
       "ckey": "effect",
       "tag": "PutChosenCounter",
-      "count": 3,
+      "count": 5,
       "fields": {
         "count": {
           "kinds": [
             "tagged"
           ],
-          "seen": 3
+          "seen": 5
         },
         "target": {
           "kinds": [
             "tagged"
           ],
-          "seen": 3
+          "seen": 5
+        },
+        "target_condition": {
+          "kinds": [
+            "struct"
+          ],
+          "seen": 1
         }
       }
     },
     {
       "ckey": "effect",
       "tag": "PutCounter",
-      "count": 4382,
+      "count": 4407,
       "fields": {
         "count": {
           "kinds": [
             "tagged"
           ],
-          "seen": 4382
+          "seen": 4407
         },
         "counter_type": {
           "kinds": [
             "str"
           ],
-          "seen": 4382
+          "seen": 4407
         },
         "target": {
           "kinds": [
             "tagged"
           ],
-          "seen": 4382
+          "seen": 4407
         }
       }
     },
     {
       "ckey": "effect",
       "tag": "PutCounterAll",
-      "count": 314,
+      "count": 319,
       "fields": {
         "count": {
           "kinds": [
             "tagged"
           ],
-          "seen": 314
+          "seen": 319
         },
         "counter_type": {
           "kinds": [
             "str"
           ],
-          "seen": 314
+          "seen": 319
         },
         "target": {
           "kinds": [
             "tagged"
           ],
-          "seen": 314
+          "seen": 319
         }
       }
     },
     {
       "ckey": "effect",
       "tag": "PutOnTopOrBottom",
-      "count": 34,
+      "count": 37,
       "fields": {
+        "chooser": {
+          "kinds": [
+            "tagged"
+          ],
+          "seen": 2
+        },
         "target": {
           "kinds": [
             "tagged"
           ],
-          "seen": 34
+          "seen": 37
         }
       }
     },
@@ -12150,26 +12317,26 @@
     {
       "ckey": "effect",
       "tag": "RemoveCounter",
-      "count": 358,
+      "count": 359,
       "fields": {
         "count": {
           "kinds": [
             "tagged"
           ],
-          "seen": 358
+          "seen": 359
         },
         "counter_type": {
           "kinds": [
             "null",
             "str"
           ],
-          "seen": 358
+          "seen": 359
         },
         "target": {
           "kinds": [
             "tagged"
           ],
-          "seen": 358
+          "seen": 359
         }
       }
     },
@@ -12253,13 +12420,13 @@
     {
       "ckey": "effect",
       "tag": "RevealHand",
-      "count": 275,
+      "count": 276,
       "fields": {
         "card_filter": {
           "kinds": [
             "tagged"
           ],
-          "seen": 275
+          "seen": 276
         },
         "choice_optional": {
           "kinds": [
@@ -12272,7 +12439,7 @@
             "null",
             "tagged"
           ],
-          "seen": 275
+          "seen": 276
         },
         "random": {
           "kinds": [
@@ -12284,32 +12451,32 @@
           "kinds": [
             "bool"
           ],
-          "seen": 275
+          "seen": 276
         },
         "target": {
           "kinds": [
             "tagged"
           ],
-          "seen": 275
+          "seen": 276
         }
       }
     },
     {
       "ckey": "effect",
       "tag": "RevealTop",
-      "count": 252,
+      "count": 240,
       "fields": {
         "count": {
           "kinds": [
             "int"
           ],
-          "seen": 252
+          "seen": 240
         },
         "player": {
           "kinds": [
             "tagged"
           ],
-          "seen": 252
+          "seen": 240
         }
       }
     },
@@ -12445,13 +12612,13 @@
     {
       "ckey": "effect",
       "tag": "Sacrifice",
-      "count": 1624,
+      "count": 1627,
       "fields": {
         "count": {
           "kinds": [
             "tagged"
           ],
-          "seen": 1624
+          "seen": 1627
         },
         "min_count": {
           "kinds": [
@@ -12463,51 +12630,51 @@
           "kinds": [
             "tagged"
           ],
-          "seen": 1624
+          "seen": 1627
         }
       }
     },
     {
       "ckey": "effect",
       "tag": "Scry",
-      "count": 461,
+      "count": 463,
       "fields": {
         "count": {
           "kinds": [
             "tagged"
           ],
-          "seen": 461
+          "seen": 463
         },
         "target": {
           "kinds": [
             "tagged"
           ],
-          "seen": 461
+          "seen": 463
         }
       }
     },
     {
       "ckey": "effect",
       "tag": "SearchLibrary",
-      "count": 1195,
+      "count": 1203,
       "fields": {
         "count": {
           "kinds": [
             "tagged"
           ],
-          "seen": 1195
+          "seen": 1203
         },
         "filter": {
           "kinds": [
             "tagged"
           ],
-          "seen": 1195
+          "seen": 1203
         },
         "reveal": {
           "kinds": [
             "bool"
           ],
-          "seen": 1195
+          "seen": 1203
         },
         "selection_constraint": {
           "kinds": [
@@ -12525,13 +12692,13 @@
           "kinds": [
             "struct"
           ],
-          "seen": 11
+          "seen": 12
         },
         "target_player": {
           "kinds": [
             "tagged"
           ],
-          "seen": 121
+          "seen": 120
         }
       }
     },
@@ -12720,38 +12887,38 @@
     {
       "ckey": "effect",
       "tag": "SetTapState",
-      "count": 2443,
+      "count": 2454,
       "fields": {
         "scope": {
           "kinds": [
             "tagged"
           ],
-          "seen": 2443
+          "seen": 2454
         },
         "state": {
           "kinds": [
             "tagged"
           ],
-          "seen": 2443
+          "seen": 2454
         },
         "target": {
           "kinds": [
             "tagged"
           ],
-          "seen": 2443
+          "seen": 2454
         }
       }
     },
     {
       "ckey": "effect",
       "tag": "Shuffle",
-      "count": 1444,
+      "count": 1453,
       "fields": {
         "target": {
           "kinds": [
             "tagged"
           ],
-          "seen": 1444
+          "seen": 1453
         }
       }
     },
@@ -12890,13 +13057,13 @@
     {
       "ckey": "effect",
       "tag": "SwitchPT",
-      "count": 28,
+      "count": 27,
       "fields": {
         "target": {
           "kinds": [
             "tagged"
           ],
-          "seen": 28
+          "seen": 27
         }
       }
     },
@@ -12909,13 +13076,13 @@
     {
       "ckey": "effect",
       "tag": "TargetOnly",
-      "count": 625,
+      "count": 623,
       "fields": {
         "target": {
           "kinds": [
             "tagged"
           ],
-          "seen": 625
+          "seen": 623
         }
       }
     },
@@ -12928,7 +13095,7 @@
     {
       "ckey": "effect",
       "tag": "Token",
-      "count": 3749,
+      "count": 3770,
       "fields": {
         "attach_to": {
           "kinds": [
@@ -12940,13 +13107,13 @@
           "kinds": [
             "list"
           ],
-          "seen": 3749
+          "seen": 3770
         },
         "count": {
           "kinds": [
             "tagged"
           ],
-          "seen": 3749
+          "seen": 3770
         },
         "enter_with_counters": {
           "kinds": [
@@ -12958,37 +13125,37 @@
           "kinds": [
             "bool"
           ],
-          "seen": 3749
+          "seen": 3770
         },
         "keywords": {
           "kinds": [
             "list"
           ],
-          "seen": 3749
+          "seen": 3770
         },
         "name": {
           "kinds": [
             "str"
           ],
-          "seen": 3749
+          "seen": 3770
         },
         "owner": {
           "kinds": [
             "tagged"
           ],
-          "seen": 3749
+          "seen": 3770
         },
         "power": {
           "kinds": [
             "tagged"
           ],
-          "seen": 3749
+          "seen": 3770
         },
         "static_abilities": {
           "kinds": [
             "list"
           ],
-          "seen": 315
+          "seen": 316
         },
         "supertypes": {
           "kinds": [
@@ -13000,32 +13167,38 @@
           "kinds": [
             "bool"
           ],
-          "seen": 3749
+          "seen": 3770
         },
         "toughness": {
           "kinds": [
             "tagged"
           ],
-          "seen": 3749
+          "seen": 3770
         },
         "types": {
           "kinds": [
             "list"
           ],
-          "seen": 3749
+          "seen": 3770
         }
       }
     },
     {
       "ckey": "effect",
       "tag": "Transform",
-      "count": 290,
+      "count": 289,
       "fields": {
+        "scope": {
+          "kinds": [
+            "tagged"
+          ],
+          "seen": 289
+        },
         "target": {
           "kinds": [
             "tagged"
           ],
-          "seen": 290
+          "seen": 289
         }
       }
     },
@@ -13097,20 +13270,20 @@
     {
       "ckey": "effect",
       "tag": "Unimplemented",
-      "count": 3531,
+      "count": 3505,
       "fields": {
         "description": {
           "kinds": [
             "null",
             "str"
           ],
-          "seen": 3531
+          "seen": 3505
         },
         "name": {
           "kinds": [
             "str"
           ],
-          "seen": 3531
+          "seen": 3505
         }
       }
     },
@@ -13223,6 +13396,25 @@
             "list"
           ],
           "seen": 3
+        }
+      }
+    },
+    {
+      "ckey": "end_cost",
+      "tag": "Cost",
+      "count": 13,
+      "fields": {
+        "generic": {
+          "kinds": [
+            "int"
+          ],
+          "seen": 13
+        },
+        "shards": {
+          "kinds": [
+            "list"
+          ],
+          "seen": 13
         }
       }
     },
@@ -13387,7 +13579,13 @@
     {
       "ckey": "expiry",
       "tag": "EndOfTurn",
-      "count": 144,
+      "count": 147,
+      "fields": {}
+    },
+    {
+      "ckey": "expiry",
+      "tag": "UntilHostLeavesPlay",
+      "count": 65,
       "fields": {}
     },
     {
@@ -13495,7 +13693,7 @@
     {
       "ckey": "filter",
       "tag": "Any",
-      "count": 413,
+      "count": 424,
       "fields": {}
     },
     {
@@ -13567,6 +13765,12 @@
     },
     {
       "ckey": "filter",
+      "tag": "LastZoneChanged",
+      "count": 1,
+      "fields": {}
+    },
+    {
+      "ckey": "filter",
       "tag": "Named",
       "count": 56,
       "fields": {
@@ -13594,7 +13798,7 @@
     {
       "ckey": "filter",
       "tag": "Opponent",
-      "count": 103,
+      "count": 105,
       "fields": {}
     },
     {
@@ -13650,13 +13854,13 @@
     {
       "ckey": "filter",
       "tag": "Or",
-      "count": 526,
+      "count": 529,
       "fields": {
         "filters": {
           "kinds": [
             "list"
           ],
-          "seen": 526
+          "seen": 529
         }
       }
     },
@@ -13725,7 +13929,7 @@
     {
       "ckey": "filter",
       "tag": "SelfRef",
-      "count": 517,
+      "count": 518,
       "fields": {}
     },
     {
@@ -13743,8 +13947,33 @@
     },
     {
       "ckey": "filter",
+      "tag": "TrackedSetPossessor",
+      "count": 1,
+      "fields": {
+        "filter": {
+          "kinds": [
+            "tagged"
+          ],
+          "seen": 1
+        },
+        "possession": {
+          "kinds": [
+            "str"
+          ],
+          "seen": 1
+        },
+        "relation": {
+          "kinds": [
+            "tagged"
+          ],
+          "seen": 1
+        }
+      }
+    },
+    {
+      "ckey": "filter",
       "tag": "Typed",
-      "count": 6980,
+      "count": 7046,
       "fields": {
         "controller": {
           "kinds": [
@@ -13752,32 +13981,32 @@
             "str",
             "variant1"
           ],
-          "seen": 6980
+          "seen": 7046
         },
         "properties": {
           "kinds": [
             "list"
           ],
-          "seen": 6980
+          "seen": 7046
         },
         "type_filters": {
           "kinds": [
             "list"
           ],
-          "seen": 6980
+          "seen": 7046
         }
       }
     },
     {
       "ckey": "filters",
       "tag": "And",
-      "count": 277,
+      "count": 280,
       "fields": {
         "filters": {
           "kinds": [
             "list"
           ],
-          "seen": 277
+          "seen": 280
         }
       }
     },
@@ -13802,7 +14031,7 @@
     {
       "ckey": "filters",
       "tag": "ExiledBySource",
-      "count": 177,
+      "count": 187,
       "fields": {}
     },
     {
@@ -13865,25 +14094,38 @@
     {
       "ckey": "filters",
       "tag": "Player",
-      "count": 186,
+      "count": 192,
       "fields": {}
     },
     {
       "ckey": "filters",
       "tag": "SelfRef",
-      "count": 326,
+      "count": 328,
       "fields": {}
     },
     {
       "ckey": "filters",
+      "tag": "SpecificObject",
+      "count": 3,
+      "fields": {
+        "id": {
+          "kinds": [
+            "int"
+          ],
+          "seen": 3
+        }
+      }
+    },
+    {
+      "ckey": "filters",
       "tag": "StackAbility",
-      "count": 73,
+      "count": 74,
       "fields": {
         "controller": {
           "kinds": [
             "str"
           ],
-          "seen": 44
+          "seen": 45
         },
         "kind": {
           "kinds": [
@@ -13896,7 +14138,7 @@
     {
       "ckey": "filters",
       "tag": "StackSpell",
-      "count": 437,
+      "count": 440,
       "fields": {}
     },
     {
@@ -13927,7 +14169,7 @@
     {
       "ckey": "filters",
       "tag": "Typed",
-      "count": 7521,
+      "count": 7602,
       "fields": {
         "controller": {
           "kinds": [
@@ -13935,19 +14177,19 @@
             "str",
             "variant1"
           ],
-          "seen": 7521
+          "seen": 7602
         },
         "properties": {
           "kinds": [
             "list"
           ],
-          "seen": 7521
+          "seen": 7602
         },
         "type_filters": {
           "kinds": [
             "list"
           ],
-          "seen": 7521
+          "seen": 7602
         }
       }
     },
@@ -14017,6 +14259,12 @@
       "ckey": "grants",
       "tag": "RemoveAllAbilities",
       "count": 2,
+      "fields": {}
+    },
+    {
+      "ckey": "graveyard_replacement",
+      "tag": "Exile",
+      "count": 1,
       "fields": {}
     },
     {
@@ -14187,25 +14435,6 @@
     },
     {
       "ckey": "inner",
-      "tag": "ManaColorSpent",
-      "count": 3,
-      "fields": {
-        "color": {
-          "kinds": [
-            "str"
-          ],
-          "seen": 3
-        },
-        "minimum": {
-          "kinds": [
-            "int"
-          ],
-          "seen": 3
-        }
-      }
-    },
-    {
-      "ckey": "inner",
       "tag": "Multiply",
       "count": 18,
       "fields": {
@@ -14284,38 +14513,38 @@
     {
       "ckey": "inner",
       "tag": "QuantityCheck",
-      "count": 116,
+      "count": 119,
       "fields": {
         "comparator": {
           "kinds": [
             "str"
           ],
-          "seen": 116
+          "seen": 119
         },
         "lhs": {
           "kinds": [
             "tagged"
           ],
-          "seen": 116
+          "seen": 119
         },
         "rhs": {
           "kinds": [
             "tagged"
           ],
-          "seen": 116
+          "seen": 119
         }
       }
     },
     {
       "ckey": "inner",
       "tag": "Ref",
-      "count": 732,
+      "count": 734,
       "fields": {
         "qty": {
           "kinds": [
             "tagged"
           ],
-          "seen": 732
+          "seen": 734
         }
       }
     },
@@ -14386,13 +14615,13 @@
     {
       "ckey": "inner",
       "tag": "WasCast",
-      "count": 9,
+      "count": 11,
       "fields": {
         "zone": {
           "kinds": [
             "str"
           ],
-          "seen": 9
+          "seen": 11
         }
       }
     },
@@ -14500,7 +14729,7 @@
     {
       "ckey": "kind",
       "tag": "Treasure",
-      "count": 1,
+      "count": 2,
       "fields": {}
     },
     {
@@ -14537,13 +14766,13 @@
     {
       "ckey": "left",
       "tag": "Ref",
-      "count": 30,
+      "count": 33,
       "fields": {
         "qty": {
           "kinds": [
             "tagged"
           ],
-          "seen": 30
+          "seen": 33
         }
       }
     },
@@ -14568,14 +14797,27 @@
     },
     {
       "ckey": "lhs",
+      "tag": "Fixed",
+      "count": 1,
+      "fields": {
+        "value": {
+          "kinds": [
+            "int"
+          ],
+          "seen": 1
+        }
+      }
+    },
+    {
+      "ckey": "lhs",
       "tag": "Ref",
-      "count": 2215,
+      "count": 2242,
       "fields": {
         "qty": {
           "kinds": [
             "tagged"
           ],
-          "seen": 2215
+          "seen": 2242
         }
       }
     },
@@ -14639,26 +14881,26 @@
     {
       "ckey": "mana_cost",
       "tag": "Cost",
-      "count": 33216,
+      "count": 33364,
       "fields": {
         "generic": {
           "kinds": [
             "int"
           ],
-          "seen": 33216
+          "seen": 33364
         },
         "shards": {
           "kinds": [
             "list"
           ],
-          "seen": 33216
+          "seen": 33364
         }
       }
     },
     {
       "ckey": "mana_cost",
       "tag": "NoCost",
-      "count": 2330,
+      "count": 2338,
       "fields": {}
     },
     {
@@ -14765,14 +15007,33 @@
     },
     {
       "ckey": "max",
+      "tag": "Difference",
+      "count": 2,
+      "fields": {
+        "left": {
+          "kinds": [
+            "tagged"
+          ],
+          "seen": 2
+        },
+        "right": {
+          "kinds": [
+            "tagged"
+          ],
+          "seen": 2
+        }
+      }
+    },
+    {
+      "ckey": "max",
       "tag": "Fixed",
-      "count": 1457,
+      "count": 1495,
       "fields": {
         "value": {
           "kinds": [
             "int"
           ],
-          "seen": 1457
+          "seen": 1495
         }
       }
     },
@@ -14798,13 +15059,13 @@
     {
       "ckey": "max",
       "tag": "Ref",
-      "count": 291,
+      "count": 301,
       "fields": {
         "qty": {
           "kinds": [
             "tagged"
           ],
-          "seen": 291
+          "seen": 301
         }
       }
     },
@@ -14843,39 +15104,52 @@
     {
       "ckey": "metric",
       "tag": "FromSource",
-      "count": 23,
+      "count": 24,
       "fields": {
         "source_filter": {
           "kinds": [
             "tagged"
           ],
-          "seen": 23
+          "seen": 24
+        }
+      }
+    },
+    {
+      "ckey": "metric",
+      "tag": "OfColor",
+      "count": 16,
+      "fields": {
+        "color": {
+          "kinds": [
+            "str"
+          ],
+          "seen": 16
         }
       }
     },
     {
       "ckey": "metric",
       "tag": "Total",
-      "count": 72,
+      "count": 73,
       "fields": {}
     },
     {
       "ckey": "min",
       "tag": "Ref",
-      "count": 67,
+      "count": 71,
       "fields": {
         "qty": {
           "kinds": [
             "tagged"
           ],
-          "seen": 67
+          "seen": 71
         }
       }
     },
     {
       "ckey": "mode",
       "tag": "Mandatory",
-      "count": 2751,
+      "count": 2785,
       "fields": {}
     },
     {
@@ -14901,14 +15175,14 @@
     {
       "ckey": "mode",
       "tag": "Optional",
-      "count": 118,
+      "count": 117,
       "fields": {
         "decline": {
           "kinds": [
             "null",
             "struct"
           ],
-          "seen": 118
+          "seen": 117
         }
       }
     },
@@ -15048,41 +15322,41 @@
     {
       "ckey": "modifications",
       "tag": "AddKeyword",
-      "count": 5452,
+      "count": 5489,
       "fields": {
         "keyword": {
           "kinds": [
             "str",
             "variant1"
           ],
-          "seen": 5452
+          "seen": 5489
         }
       }
     },
     {
       "ckey": "modifications",
       "tag": "AddPower",
-      "count": 2498,
+      "count": 2522,
       "fields": {
         "value": {
           "kinds": [
             "int"
           ],
-          "seen": 2498
+          "seen": 2522
         }
       }
     },
     {
       "ckey": "modifications",
       "tag": "AddStaticMode",
-      "count": 833,
+      "count": 835,
       "fields": {
         "mode": {
           "kinds": [
             "str",
             "variant1"
           ],
-          "seen": 833
+          "seen": 835
         }
       }
     },
@@ -15115,26 +15389,26 @@
     {
       "ckey": "modifications",
       "tag": "AddToughness",
-      "count": 2499,
+      "count": 2523,
       "fields": {
         "value": {
           "kinds": [
             "int"
           ],
-          "seen": 2499
+          "seen": 2523
         }
       }
     },
     {
       "ckey": "modifications",
       "tag": "AddType",
-      "count": 750,
+      "count": 752,
       "fields": {
         "core_type": {
           "kinds": [
             "str"
           ],
-          "seen": 750
+          "seen": 752
         }
       }
     },
@@ -15164,14 +15438,20 @@
     },
     {
       "ckey": "modifications",
+      "tag": "CopyChosen",
+      "count": 1,
+      "fields": {}
+    },
+    {
+      "ckey": "modifications",
       "tag": "GrantAbility",
-      "count": 547,
+      "count": 544,
       "fields": {
         "definition": {
           "kinds": [
             "struct"
           ],
-          "seen": 547
+          "seen": 544
         }
       }
     },
@@ -15209,46 +15489,59 @@
     },
     {
       "ckey": "modifications",
+      "tag": "GrantReplacement",
+      "count": 5,
+      "fields": {
+        "replacement": {
+          "kinds": [
+            "struct"
+          ],
+          "seen": 5
+        }
+      }
+    },
+    {
+      "ckey": "modifications",
       "tag": "GrantStaticAbility",
-      "count": 82,
+      "count": 83,
       "fields": {
         "definition": {
           "kinds": [
             "struct"
           ],
-          "seen": 82
+          "seen": 83
         }
       }
     },
     {
       "ckey": "modifications",
       "tag": "GrantTrigger",
-      "count": 452,
+      "count": 454,
       "fields": {
         "trigger": {
           "kinds": [
             "struct"
           ],
-          "seen": 452
+          "seen": 454
         }
       }
     },
     {
       "ckey": "modifications",
       "tag": "RemoveAllAbilities",
-      "count": 94,
+      "count": 96,
       "fields": {}
     },
     {
       "ckey": "modifications",
       "tag": "RemoveAllSubtypes",
-      "count": 332,
+      "count": 331,
       "fields": {
         "set": {
           "kinds": [
             "str"
           ],
-          "seen": 332
+          "seen": 331
         }
       }
     },
@@ -15295,26 +15588,26 @@
     {
       "ckey": "modifications",
       "tag": "SetBasicLandType",
-      "count": 31,
+      "count": 32,
       "fields": {
         "land_type": {
           "kinds": [
             "str"
           ],
-          "seen": 31
+          "seen": 32
         }
       }
     },
     {
       "ckey": "modifications",
       "tag": "SetCardTypes",
-      "count": 51,
+      "count": 52,
       "fields": {
         "core_types": {
           "kinds": [
             "list"
           ],
-          "seen": 51
+          "seen": 52
         }
       }
     },
@@ -15346,26 +15639,26 @@
     {
       "ckey": "modifications",
       "tag": "SetDynamicPower",
-      "count": 250,
+      "count": 253,
       "fields": {
         "value": {
           "kinds": [
             "tagged"
           ],
-          "seen": 250
+          "seen": 253
         }
       }
     },
     {
       "ckey": "modifications",
       "tag": "SetDynamicToughness",
-      "count": 189,
+      "count": 191,
       "fields": {
         "value": {
           "kinds": [
             "tagged"
           ],
-          "seen": 189
+          "seen": 191
         }
       }
     },
@@ -15385,26 +15678,26 @@
     {
       "ckey": "modifications",
       "tag": "SetPower",
-      "count": 592,
+      "count": 595,
       "fields": {
         "value": {
           "kinds": [
             "int"
           ],
-          "seen": 592
+          "seen": 595
         }
       }
     },
     {
       "ckey": "modifications",
       "tag": "SetPowerDynamic",
-      "count": 46,
+      "count": 47,
       "fields": {
         "value": {
           "kinds": [
             "tagged"
           ],
-          "seen": 46
+          "seen": 47
         }
       }
     },
@@ -15424,26 +15717,26 @@
     {
       "ckey": "modifications",
       "tag": "SetToughness",
-      "count": 588,
+      "count": 591,
       "fields": {
         "value": {
           "kinds": [
             "int"
           ],
-          "seen": 588
+          "seen": 591
         }
       }
     },
     {
       "ckey": "modifications",
       "tag": "SetToughnessDynamic",
-      "count": 45,
+      "count": 46,
       "fields": {
         "value": {
           "kinds": [
             "tagged"
           ],
-          "seen": 45
+          "seen": 46
         }
       }
     },
@@ -15595,13 +15888,13 @@
     {
       "ckey": "origin",
       "tag": "Equals",
-      "count": 11,
+      "count": 12,
       "fields": {
         "data": {
           "kinds": [
             "str"
           ],
-          "seen": 11
+          "seen": 12
         }
       }
     },
@@ -15653,7 +15946,7 @@
     {
       "ckey": "owner",
       "tag": "Controller",
-      "count": 4024,
+      "count": 4046,
       "fields": {}
     },
     {
@@ -15689,13 +15982,13 @@
     {
       "ckey": "owner",
       "tag": "ScopedPlayer",
-      "count": 10,
+      "count": 7,
       "fields": {}
     },
     {
       "ckey": "owner",
       "tag": "TriggeringPlayer",
-      "count": 13,
+      "count": 14,
       "fields": {}
     },
     {
@@ -15707,7 +16000,7 @@
     {
       "ckey": "owner",
       "tag": "Typed",
-      "count": 29,
+      "count": 32,
       "fields": {
         "controller": {
           "kinds": [
@@ -15715,19 +16008,19 @@
             "str",
             "variant1"
           ],
-          "seen": 29
+          "seen": 32
         },
         "properties": {
           "kinds": [
             "list"
           ],
-          "seen": 29
+          "seen": 32
         },
         "type_filters": {
           "kinds": [
             "list"
           ],
-          "seen": 29
+          "seen": 32
         }
       }
     },
@@ -15740,87 +16033,87 @@
     {
       "ckey": "parse_warnings",
       "tag": "IgnoredRemainder",
-      "count": 4,
+      "count": 2,
       "fields": {
         "line_index": {
           "kinds": [
             "int"
           ],
-          "seen": 4
+          "seen": 2
         },
         "parser": {
           "kinds": [
             "str"
           ],
-          "seen": 4
+          "seen": 2
         },
         "text": {
           "kinds": [
             "str"
           ],
-          "seen": 4
+          "seen": 2
         }
       }
     },
     {
       "ckey": "parse_warnings",
       "tag": "SwallowedClause",
-      "count": 964,
+      "count": 962,
       "fields": {
         "description": {
           "kinds": [
             "str"
           ],
-          "seen": 964
+          "seen": 962
         },
         "detector": {
           "kinds": [
             "str"
           ],
-          "seen": 964
+          "seen": 962
         },
         "items": {
           "kinds": [
             "list"
           ],
-          "seen": 961
+          "seen": 959
         },
         "line_index": {
           "kinds": [
             "int"
           ],
-          "seen": 964
+          "seen": 962
         },
         "unit_span": {
           "kinds": [
             "struct"
           ],
-          "seen": 964
+          "seen": 962
         }
       }
     },
     {
       "ckey": "parse_warnings",
       "tag": "TargetFallback",
-      "count": 53,
+      "count": 57,
       "fields": {
         "context": {
           "kinds": [
             "str"
           ],
-          "seen": 53
+          "seen": 57
         },
         "line_index": {
           "kinds": [
             "int"
           ],
-          "seen": 53
+          "seen": 57
         },
         "text": {
           "kinds": [
             "str"
           ],
-          "seen": 53
+          "seen": 57
         }
       }
     },
@@ -15876,13 +16169,13 @@
     {
       "ckey": "payer",
       "tag": "Controller",
-      "count": 908,
+      "count": 901,
       "fields": {}
     },
     {
       "ckey": "payer",
       "tag": "ParentTargetController",
-      "count": 159,
+      "count": 160,
       "fields": {}
     },
     {
@@ -15900,7 +16193,7 @@
     {
       "ckey": "payer",
       "tag": "TriggeringPlayer",
-      "count": 49,
+      "count": 51,
       "fields": {}
     },
     {
@@ -16019,7 +16312,7 @@
     {
       "ckey": "permission",
       "tag": "PlayFromExile",
-      "count": 282,
+      "count": 285,
       "fields": {
         "card_filter": {
           "kinds": [
@@ -16038,7 +16331,7 @@
             "str",
             "variant1"
           ],
-          "seen": 282
+          "seen": 285
         },
         "frequency": {
           "kinds": [
@@ -16050,7 +16343,7 @@
           "kinds": [
             "int"
           ],
-          "seen": 282
+          "seen": 285
         },
         "invalidation": {
           "kinds": [
@@ -16150,7 +16443,7 @@
     {
       "ckey": "player",
       "tag": "Controller",
-      "count": 2860,
+      "count": 2885,
       "fields": {}
     },
     {
@@ -16162,13 +16455,13 @@
     {
       "ckey": "player",
       "tag": "Opponent",
-      "count": 122,
+      "count": 124,
       "fields": {
         "aggregate": {
           "kinds": [
             "str"
           ],
-          "seen": 94
+          "seen": 95
         }
       }
     },
@@ -16224,7 +16517,7 @@
     {
       "ckey": "player",
       "tag": "Player",
-      "count": 80,
+      "count": 81,
       "fields": {}
     },
     {
@@ -16242,7 +16535,7 @@
     {
       "ckey": "player",
       "tag": "ScopedPlayer",
-      "count": 119,
+      "count": 117,
       "fields": {}
     },
     {
@@ -16254,38 +16547,39 @@
     {
       "ckey": "player",
       "tag": "Target",
-      "count": 35,
+      "count": 37,
       "fields": {}
     },
     {
       "ckey": "player",
       "tag": "TriggeringPlayer",
-      "count": 59,
+      "count": 58,
       "fields": {}
     },
     {
       "ckey": "player",
       "tag": "Typed",
-      "count": 48,
+      "count": 50,
       "fields": {
         "controller": {
           "kinds": [
             "null",
-            "str"
+            "str",
+            "variant1"
           ],
-          "seen": 48
+          "seen": 50
         },
         "properties": {
           "kinds": [
             "list"
           ],
-          "seen": 48
+          "seen": 50
         },
         "type_filters": {
           "kinds": [
             "list"
           ],
-          "seen": 48
+          "seen": 50
         }
       }
     },
@@ -16341,7 +16635,7 @@
     {
       "ckey": "player_filter",
       "tag": "Opponent",
-      "count": 282,
+      "count": 286,
       "fields": {}
     },
     {
@@ -16385,31 +16679,31 @@
     {
       "ckey": "player_scope",
       "tag": "ControlsCount",
-      "count": 17,
+      "count": 14,
       "fields": {
         "comparator": {
           "kinds": [
             "str"
           ],
-          "seen": 17
+          "seen": 14
         },
         "count": {
           "kinds": [
             "tagged"
           ],
-          "seen": 17
+          "seen": 14
         },
         "filter": {
           "kinds": [
             "tagged"
           ],
-          "seen": 17
+          "seen": 14
         },
         "relation": {
           "kinds": [
             "tagged"
           ],
-          "seen": 17
+          "seen": 14
         }
       }
     },
@@ -16428,7 +16722,7 @@
     {
       "ckey": "player_scope",
       "tag": "Opponent",
-      "count": 689,
+      "count": 690,
       "fields": {}
     },
     {
@@ -16477,19 +16771,19 @@
     {
       "ckey": "player_scope",
       "tag": "PerformedActionThisWay",
-      "count": 1,
+      "count": 3,
       "fields": {
         "action": {
           "kinds": [
             "str"
           ],
-          "seen": 1
+          "seen": 3
         },
         "relation": {
           "kinds": [
             "tagged"
           ],
-          "seen": 1
+          "seen": 3
         }
       }
     },
@@ -16559,7 +16853,7 @@
     {
       "ckey": "position",
       "tag": "Bottom",
-      "count": 235,
+      "count": 236,
       "fields": {}
     },
     {
@@ -16578,45 +16872,45 @@
     {
       "ckey": "position",
       "tag": "Top",
-      "count": 230,
+      "count": 637,
       "fields": {}
     },
     {
       "ckey": "power",
       "tag": "Fixed",
-      "count": 25494,
+      "count": 25615,
       "fields": {
         "value": {
           "kinds": [
             "int"
           ],
-          "seen": 25494
+          "seen": 25615
         }
       }
     },
     {
       "ckey": "power",
       "tag": "Quantity",
-      "count": 459,
+      "count": 462,
       "fields": {
         "value": {
           "kinds": [
             "tagged"
           ],
-          "seen": 459
+          "seen": 462
         }
       }
     },
     {
       "ckey": "power",
       "tag": "Variable",
-      "count": 310,
+      "count": 311,
       "fields": {
         "value": {
           "kinds": [
             "str"
           ],
-          "seen": 310
+          "seen": 311
         }
       }
     },
@@ -16674,13 +16968,13 @@
     {
       "ckey": "produced",
       "tag": "AnyOneColor",
-      "count": 1074,
+      "count": 1083,
       "fields": {
         "color_options": {
           "kinds": [
             "list"
           ],
-          "seen": 1074
+          "seen": 1083
         },
         "contribution": {
           "kinds": [
@@ -16692,7 +16986,7 @@
           "kinds": [
             "tagged"
           ],
-          "seen": 1074
+          "seen": 1083
         }
       }
     },
@@ -16788,13 +17082,13 @@
     {
       "ckey": "produced",
       "tag": "Colorless",
-      "count": 666,
+      "count": 672,
       "fields": {
         "count": {
           "kinds": [
             "tagged"
           ],
-          "seen": 666
+          "seen": 672
         }
       }
     },
@@ -16814,13 +17108,13 @@
     {
       "ckey": "produced",
       "tag": "Fixed",
-      "count": 949,
+      "count": 951,
       "fields": {
         "colors": {
           "kinds": [
             "list"
           ],
-          "seen": 949
+          "seen": 951
         },
         "contribution": {
           "kinds": [
@@ -16927,7 +17221,7 @@
     {
       "ckey": "properties",
       "tag": "Another",
-      "count": 3144,
+      "count": 3176,
       "fields": {}
     },
     {
@@ -16952,7 +17246,7 @@
     {
       "ckey": "properties",
       "tag": "AttachedToSource",
-      "count": 15,
+      "count": 16,
       "fields": {}
     },
     {
@@ -16964,7 +17258,7 @@
     {
       "ckey": "properties",
       "tag": "AttackedThisTurn",
-      "count": 28,
+      "count": 26,
       "fields": {
         "defender": {
           "kinds": [
@@ -16977,7 +17271,7 @@
     {
       "ckey": "properties",
       "tag": "Attacking",
-      "count": 647,
+      "count": 650,
       "fields": {
         "defender": {
           "kinds": [
@@ -17027,38 +17321,38 @@
     {
       "ckey": "properties",
       "tag": "Cmc",
-      "count": 843,
+      "count": 847,
       "fields": {
         "comparator": {
           "kinds": [
             "str"
           ],
-          "seen": 843
+          "seen": 847
         },
         "value": {
           "kinds": [
             "tagged"
           ],
-          "seen": 843
+          "seen": 847
         }
       }
     },
     {
       "ckey": "properties",
       "tag": "ColorCount",
-      "count": 174,
+      "count": 175,
       "fields": {
         "comparator": {
           "kinds": [
             "str"
           ],
-          "seen": 174
+          "seen": 175
         },
         "count": {
           "kinds": [
             "int"
           ],
-          "seen": 174
+          "seen": 175
         }
       }
     },
@@ -17216,7 +17510,7 @@
     {
       "ckey": "properties",
       "tag": "EnchantedBy",
-      "count": 1516,
+      "count": 1523,
       "fields": {}
     },
     {
@@ -17228,7 +17522,7 @@
     {
       "ckey": "properties",
       "tag": "EquippedBy",
-      "count": 727,
+      "count": 738,
       "fields": {}
     },
     {
@@ -17296,13 +17590,13 @@
     {
       "ckey": "properties",
       "tag": "HasColor",
-      "count": 962,
+      "count": 967,
       "fields": {
         "color": {
           "kinds": [
             "str"
           ],
-          "seen": 962
+          "seen": 967
         }
       }
     },
@@ -17340,13 +17634,13 @@
     {
       "ckey": "properties",
       "tag": "HasSupertype",
-      "count": 845,
+      "count": 854,
       "fields": {
         "value": {
           "kinds": [
             "str"
           ],
-          "seen": 845
+          "seen": 854
         }
       }
     },
@@ -17371,26 +17665,26 @@
     {
       "ckey": "properties",
       "tag": "InAnyZone",
-      "count": 64,
+      "count": 66,
       "fields": {
         "zones": {
           "kinds": [
             "list"
           ],
-          "seen": 64
+          "seen": 66
         }
       }
     },
     {
       "ckey": "properties",
       "tag": "InZone",
-      "count": 4443,
+      "count": 4459,
       "fields": {
         "zone": {
           "kinds": [
             "str"
           ],
-          "seen": 4443
+          "seen": 4459
         }
       }
     },
@@ -17541,7 +17835,7 @@
     {
       "ckey": "properties",
       "tag": "NonToken",
-      "count": 384,
+      "count": 386,
       "fields": {}
     },
     {
@@ -17579,33 +17873,33 @@
     {
       "ckey": "properties",
       "tag": "NotSupertype",
-      "count": 126,
+      "count": 125,
       "fields": {
         "value": {
           "kinds": [
             "str"
           ],
-          "seen": 126
+          "seen": 125
         }
       }
     },
     {
       "ckey": "properties",
       "tag": "OtherThanTriggerObject",
-      "count": 5,
+      "count": 6,
       "fields": {}
     },
     {
       "ckey": "properties",
       "tag": "Owned",
-      "count": 768,
+      "count": 770,
       "fields": {
         "controller": {
           "kinds": [
             "str",
             "variant1"
           ],
-          "seen": 768
+          "seen": 770
         }
       }
     },
@@ -17637,31 +17931,31 @@
     {
       "ckey": "properties",
       "tag": "PtComparison",
-      "count": 559,
+      "count": 572,
       "fields": {
         "comparator": {
           "kinds": [
             "str"
           ],
-          "seen": 559
+          "seen": 572
         },
         "scope": {
           "kinds": [
             "str"
           ],
-          "seen": 559
+          "seen": 572
         },
         "stat": {
           "kinds": [
             "str"
           ],
-          "seen": 559
+          "seen": 572
         },
         "value": {
           "kinds": [
             "tagged"
           ],
-          "seen": 559
+          "seen": 572
         }
       }
     },
@@ -17704,25 +17998,25 @@
     {
       "ckey": "properties",
       "tag": "SharesQuality",
-      "count": 110,
+      "count": 112,
       "fields": {
         "quality": {
           "kinds": [
             "str"
           ],
-          "seen": 110
+          "seen": 112
         },
         "reference": {
           "kinds": [
             "tagged"
           ],
-          "seen": 89
+          "seen": 91
         },
         "relation": {
           "kinds": [
             "str"
           ],
-          "seen": 9
+          "seen": 10
         }
       }
     },
@@ -17735,19 +18029,19 @@
     {
       "ckey": "properties",
       "tag": "Tapped",
-      "count": 175,
+      "count": 178,
       "fields": {}
     },
     {
       "ckey": "properties",
       "tag": "Targets",
-      "count": 189,
+      "count": 191,
       "fields": {
         "filter": {
           "kinds": [
             "tagged"
           ],
-          "seen": 189
+          "seen": 191
         }
       }
     },
@@ -17767,7 +18061,7 @@
     {
       "ckey": "properties",
       "tag": "Token",
-      "count": 289,
+      "count": 293,
       "fields": {}
     },
     {
@@ -17797,7 +18091,7 @@
     {
       "ckey": "properties",
       "tag": "Untapped",
-      "count": 126,
+      "count": 127,
       "fields": {}
     },
     {
@@ -17821,14 +18115,14 @@
     {
       "ckey": "properties",
       "tag": "WithKeyword",
-      "count": 576,
+      "count": 589,
       "fields": {
         "value": {
           "kinds": [
             "str",
             "variant1"
           ],
-          "seen": 576
+          "seen": 589
         }
       }
     },
@@ -17975,26 +18269,26 @@
     {
       "ckey": "qty",
       "tag": "Aggregate",
-      "count": 215,
+      "count": 221,
       "fields": {
         "filter": {
           "kinds": [
             "tagged"
           ],
-          "seen": 215
+          "seen": 221
         },
         "function": {
           "kinds": [
             "str"
           ],
-          "seen": 215
+          "seen": 221
         },
         "property": {
           "kinds": [
             "str",
             "variant1"
           ],
-          "seen": 215
+          "seen": 221
         }
       }
     },
@@ -18039,32 +18333,32 @@
     {
       "ckey": "qty",
       "tag": "BasicLandTypeCount",
-      "count": 80,
+      "count": 84,
       "fields": {
         "controller": {
           "kinds": [
             "str"
           ],
-          "seen": 80
+          "seen": 84
         }
       }
     },
     {
       "ckey": "qty",
       "tag": "BattlefieldEntriesThisTurn",
-      "count": 58,
+      "count": 59,
       "fields": {
         "filter": {
           "kinds": [
             "tagged"
           ],
-          "seen": 58
+          "seen": 59
         },
         "player": {
           "kinds": [
             "tagged"
           ],
-          "seen": 58
+          "seen": 59
         }
       }
     },
@@ -18090,13 +18384,13 @@
     {
       "ckey": "qty",
       "tag": "CardsDrawnThisTurn",
-      "count": 26,
+      "count": 28,
       "fields": {
         "player": {
           "kinds": [
             "tagged"
           ],
-          "seen": 26
+          "seen": 28
         }
       }
     },
@@ -18140,19 +18434,19 @@
     {
       "ckey": "qty",
       "tag": "ControlledByEachPlayer",
-      "count": 10,
+      "count": 14,
       "fields": {
         "aggregate": {
           "kinds": [
             "str"
           ],
-          "seen": 10
+          "seen": 14
         },
         "filter": {
           "kinds": [
             "tagged"
           ],
-          "seen": 10
+          "seen": 14
         }
       }
     },
@@ -18165,7 +18459,7 @@
     {
       "ckey": "qty",
       "tag": "CostXPaid",
-      "count": 192,
+      "count": 198,
       "fields": {}
     },
     {
@@ -18196,7 +18490,7 @@
     {
       "ckey": "qty",
       "tag": "CountersOn",
-      "count": 502,
+      "count": 503,
       "fields": {
         "counter_type": {
           "kinds": [
@@ -18208,7 +18502,7 @@
           "kinds": [
             "tagged"
           ],
-          "seen": 502
+          "seen": 503
         }
       }
     },
@@ -18373,7 +18667,7 @@
     {
       "ckey": "qty",
       "tag": "EventContextAmount",
-      "count": 628,
+      "count": 632,
       "fields": {}
     },
     {
@@ -18417,32 +18711,32 @@
     {
       "ckey": "qty",
       "tag": "FilteredTrackedSetSize",
-      "count": 199,
+      "count": 202,
       "fields": {
         "caused_by": {
           "kinds": [
             "str"
           ],
-          "seen": 122
+          "seen": 125
         },
         "filter": {
           "kinds": [
             "tagged"
           ],
-          "seen": 199
+          "seen": 202
         }
       }
     },
     {
       "ckey": "qty",
       "tag": "GraveyardSize",
-      "count": 150,
+      "count": 151,
       "fields": {
         "player": {
           "kinds": [
             "tagged"
           ],
-          "seen": 150
+          "seen": 151
         }
       }
     },
@@ -18475,7 +18769,7 @@
     {
       "ckey": "qty",
       "tag": "KickerCount",
-      "count": 17,
+      "count": 18,
       "fields": {}
     },
     {
@@ -18558,19 +18852,19 @@
     {
       "ckey": "qty",
       "tag": "ManaSpentToCast",
-      "count": 150,
+      "count": 168,
       "fields": {
         "metric": {
           "kinds": [
             "tagged"
           ],
-          "seen": 150
+          "seen": 168
         },
         "scope": {
           "kinds": [
             "str"
           ],
-          "seen": 150
+          "seen": 168
         }
       }
     },
@@ -18610,38 +18904,38 @@
     {
       "ckey": "qty",
       "tag": "ObjectCount",
-      "count": 2349,
+      "count": 2361,
       "fields": {
         "filter": {
           "kinds": [
             "tagged"
           ],
-          "seen": 2349
+          "seen": 2361
         }
       }
     },
     {
       "ckey": "qty",
       "tag": "ObjectCountBySharedQuality",
-      "count": 6,
+      "count": 7,
       "fields": {
         "aggregate": {
           "kinds": [
             "str"
           ],
-          "seen": 6
+          "seen": 7
         },
         "filter": {
           "kinds": [
             "tagged"
           ],
-          "seen": 6
+          "seen": 7
         },
         "quality": {
           "kinds": [
             "str"
           ],
-          "seen": 6
+          "seen": 7
         }
       }
     },
@@ -18667,13 +18961,13 @@
     {
       "ckey": "qty",
       "tag": "ObjectManaValue",
-      "count": 388,
+      "count": 396,
       "fields": {
         "scope": {
           "kinds": [
             "tagged"
           ],
-          "seen": 388
+          "seen": 396
         }
       }
     },
@@ -18738,13 +19032,13 @@
     {
       "ckey": "qty",
       "tag": "PlayerCount",
-      "count": 199,
+      "count": 201,
       "fields": {
         "filter": {
           "kinds": [
             "tagged"
           ],
-          "seen": 199
+          "seen": 201
         }
       }
     },
@@ -18770,13 +19064,13 @@
     {
       "ckey": "qty",
       "tag": "Power",
-      "count": 787,
+      "count": 791,
       "fields": {
         "scope": {
           "kinds": [
             "tagged"
           ],
-          "seen": 787
+          "seen": 791
         }
       }
     },
@@ -18859,19 +19153,19 @@
     {
       "ckey": "qty",
       "tag": "SpellsCastThisTurn",
-      "count": 132,
+      "count": 133,
       "fields": {
         "filter": {
           "kinds": [
             "tagged"
           ],
-          "seen": 98
+          "seen": 99
         },
         "scope": {
           "kinds": [
             "str"
           ],
-          "seen": 132
+          "seen": 133
         }
       }
     },
@@ -18910,13 +19204,13 @@
     {
       "ckey": "qty",
       "tag": "TargetZoneCardCount",
-      "count": 50,
+      "count": 52,
       "fields": {
         "zone": {
           "kinds": [
             "str"
           ],
-          "seen": 50
+          "seen": 52
         }
       }
     },
@@ -18986,13 +19280,25 @@
     {
       "ckey": "qty",
       "tag": "TrackedSetSize",
-      "count": 46,
+      "count": 41,
       "fields": {}
     },
     {
       "ckey": "qty",
       "tag": "TriggeringDiscoverValue",
       "count": 1,
+      "fields": {}
+    },
+    {
+      "ckey": "qty",
+      "tag": "TriggeringScryBottomCount",
+      "count": 1,
+      "fields": {}
+    },
+    {
+      "ckey": "qty",
+      "tag": "TriggeringScryLookCount",
+      "count": 2,
       "fields": {}
     },
     {
@@ -19004,26 +19310,27 @@
     {
       "ckey": "qty",
       "tag": "UnspentMana",
-      "count": 2,
+      "count": 3,
       "fields": {
         "color": {
           "kinds": [
+            "null",
             "str"
           ],
-          "seen": 2
+          "seen": 3
         }
       }
     },
     {
       "ckey": "qty",
       "tag": "Variable",
-      "count": 906,
+      "count": 918,
       "fields": {
         "name": {
           "kinds": [
             "str"
           ],
-          "seen": 906
+          "seen": 918
         }
       }
     },
@@ -19043,13 +19350,13 @@
     {
       "ckey": "qty",
       "tag": "ZoneCardCount",
-      "count": 433,
+      "count": 434,
       "fields": {
         "card_types": {
           "kinds": [
             "list"
           ],
-          "seen": 433
+          "seen": 434
         },
         "filter": {
           "kinds": [
@@ -19061,13 +19368,13 @@
           "kinds": [
             "str"
           ],
-          "seen": 433
+          "seen": 434
         },
         "zone": {
           "kinds": [
             "str"
           ],
-          "seen": 433
+          "seen": 434
         }
       }
     },
@@ -19111,25 +19418,25 @@
     {
       "ckey": "qty",
       "tag": "ZoneChangeCountThisTurn",
-      "count": 174,
+      "count": 175,
       "fields": {
         "filter": {
           "kinds": [
             "tagged"
           ],
-          "seen": 174
+          "seen": 175
         },
         "from": {
           "kinds": [
             "str"
           ],
-          "seen": 168
+          "seen": 169
         },
         "to": {
           "kinds": [
             "str"
           ],
-          "seen": 118
+          "seen": 119
         }
       }
     },
@@ -19313,6 +19620,12 @@
     },
     {
       "ckey": "recipient",
+      "tag": "Controller",
+      "count": 3,
+      "fields": {}
+    },
+    {
+      "ckey": "recipient",
       "tag": "EachController",
       "count": 2,
       "fields": {}
@@ -19339,19 +19652,19 @@
     {
       "ckey": "recipient",
       "tag": "ParentTargetController",
-      "count": 8,
+      "count": 28,
       "fields": {}
     },
     {
       "ckey": "recipient",
       "tag": "Player",
-      "count": 5,
+      "count": 11,
       "fields": {}
     },
     {
       "ckey": "recipient",
       "tag": "ScopedPlayer",
-      "count": 5,
+      "count": 12,
       "fields": {}
     },
     {
@@ -19376,7 +19689,7 @@
     {
       "ckey": "recipient",
       "tag": "TriggeringPlayer",
-      "count": 7,
+      "count": 22,
       "fields": {}
     },
     {
@@ -19388,26 +19701,27 @@
     {
       "ckey": "recipient",
       "tag": "Typed",
-      "count": 35,
+      "count": 38,
       "fields": {
         "controller": {
           "kinds": [
             "null",
-            "str"
+            "str",
+            "variant1"
           ],
-          "seen": 35
+          "seen": 38
         },
         "properties": {
           "kinds": [
             "list"
           ],
-          "seen": 35
+          "seen": 38
         },
         "type_filters": {
           "kinds": [
             "list"
           ],
-          "seen": 35
+          "seen": 38
         }
       }
     },
@@ -19521,7 +19835,7 @@
     {
       "ckey": "reference",
       "tag": "ParentTarget",
-      "count": 38,
+      "count": 39,
       "fields": {}
     },
     {
@@ -19552,39 +19866,39 @@
     {
       "ckey": "reference",
       "tag": "Typed",
-      "count": 15,
+      "count": 16,
       "fields": {
         "controller": {
           "kinds": [
             "null",
             "str"
           ],
-          "seen": 15
+          "seen": 16
         },
         "properties": {
           "kinds": [
             "list"
           ],
-          "seen": 15
+          "seen": 16
         },
         "type_filters": {
           "kinds": [
             "list"
           ],
-          "seen": 15
+          "seen": 16
         }
       }
     },
     {
       "ckey": "relation",
       "tag": "All",
-      "count": 21,
+      "count": 20,
       "fields": {}
     },
     {
       "ckey": "relation",
       "tag": "Opponent",
-      "count": 66,
+      "count": 67,
       "fields": {}
     },
     {
@@ -19660,13 +19974,13 @@
     {
       "ckey": "repeat_for",
       "tag": "Ref",
-      "count": 217,
+      "count": 214,
       "fields": {
         "qty": {
           "kinds": [
             "tagged"
           ],
-          "seen": 217
+          "seen": 214
         }
       }
     },
@@ -19692,14 +20006,14 @@
     {
       "ckey": "repeat_until",
       "tag": "WhileCondition",
-      "count": 8,
+      "count": 9,
       "fields": {
         "data": {
           "kinds": [
             "struct",
             "variant1"
           ],
-          "seen": 8
+          "seen": 9
         }
       }
     },
@@ -19923,31 +20237,31 @@
     {
       "ckey": "restriction",
       "tag": "ProhibitActivity",
-      "count": 32,
+      "count": 34,
       "fields": {
         "activity": {
           "kinds": [
             "tagged"
           ],
-          "seen": 32
+          "seen": 34
         },
         "affected_players": {
           "kinds": [
             "tagged"
           ],
-          "seen": 32
+          "seen": 34
         },
         "expiry": {
           "kinds": [
             "tagged"
           ],
-          "seen": 32
+          "seen": 34
         },
         "source": {
           "kinds": [
             "int"
           ],
-          "seen": 32
+          "seen": 34
         }
       }
     },
@@ -19960,7 +20274,7 @@
     {
       "ckey": "retarget",
       "tag": "MayChooseNewTargets",
-      "count": 260,
+      "count": 261,
       "fields": {}
     },
     {
@@ -19997,13 +20311,13 @@
     {
       "ckey": "rhs",
       "tag": "Fixed",
-      "count": 2101,
+      "count": 2130,
       "fields": {
         "value": {
           "kinds": [
             "int"
           ],
-          "seen": 2101
+          "seen": 2130
         }
       }
     },
@@ -20055,13 +20369,13 @@
     {
       "ckey": "right",
       "tag": "Ref",
-      "count": 21,
+      "count": 24,
       "fields": {
         "qty": {
           "kinds": [
             "tagged"
           ],
-          "seen": 21
+          "seen": 24
         }
       }
     },
@@ -20119,7 +20433,7 @@
     {
       "ckey": "scaling",
       "tag": "PerAffectedCreature",
-      "count": 15,
+      "count": 17,
       "fields": {}
     },
     {
@@ -20151,7 +20465,7 @@
     {
       "ckey": "scope",
       "tag": "All",
-      "count": 210,
+      "count": 213,
       "fields": {}
     },
     {
@@ -20163,13 +20477,13 @@
     {
       "ckey": "scope",
       "tag": "Anaphoric",
-      "count": 181,
+      "count": 180,
       "fields": {}
     },
     {
       "ckey": "scope",
       "tag": "CostPaidObject",
-      "count": 253,
+      "count": 254,
       "fields": {}
     },
     {
@@ -20181,7 +20495,7 @@
     {
       "ckey": "scope",
       "tag": "EventSource",
-      "count": 134,
+      "count": 142,
       "fields": {}
     },
     {
@@ -20224,19 +20538,19 @@
     {
       "ckey": "scope",
       "tag": "Recipient",
-      "count": 87,
+      "count": 90,
       "fields": {}
     },
     {
       "ckey": "scope",
       "tag": "Single",
-      "count": 2294,
+      "count": 2591,
       "fields": {}
     },
     {
       "ckey": "scope",
       "tag": "Source",
-      "count": 987,
+      "count": 982,
       "fields": {}
     },
     {
@@ -20255,7 +20569,7 @@
     {
       "ckey": "scope",
       "tag": "Target",
-      "count": 130,
+      "count": 138,
       "fields": {}
     },
     {
@@ -20457,26 +20771,26 @@
     {
       "ckey": "source",
       "tag": "Typed",
-      "count": 32,
+      "count": 33,
       "fields": {
         "controller": {
           "kinds": [
             "null",
             "str"
           ],
-          "seen": 32
+          "seen": 33
         },
         "properties": {
           "kinds": [
             "list"
           ],
-          "seen": 32
+          "seen": 33
         },
         "type_filters": {
           "kinds": [
             "list"
           ],
-          "seen": 32
+          "seen": 33
         }
       }
     },
@@ -20546,26 +20860,26 @@
     {
       "ckey": "source_filter",
       "tag": "Typed",
-      "count": 81,
+      "count": 82,
       "fields": {
         "controller": {
           "kinds": [
             "null",
             "str"
           ],
-          "seen": 81
+          "seen": 82
         },
         "properties": {
           "kinds": [
             "list"
           ],
-          "seen": 81
+          "seen": 82
         },
         "type_filters": {
           "kinds": [
             "list"
           ],
-          "seen": 81
+          "seen": 82
         }
       }
     },
@@ -20687,39 +21001,39 @@
     {
       "ckey": "spell_filter",
       "tag": "Typed",
-      "count": 240,
+      "count": 243,
       "fields": {
         "controller": {
           "kinds": [
             "null",
             "str"
           ],
-          "seen": 240
+          "seen": 243
         },
         "properties": {
           "kinds": [
             "list"
           ],
-          "seen": 240
+          "seen": 243
         },
         "type_filters": {
           "kinds": [
             "list"
           ],
-          "seen": 240
+          "seen": 243
         }
       }
     },
     {
       "ckey": "state",
       "tag": "Tap",
-      "count": 1644,
+      "count": 1652,
       "fields": {}
     },
     {
       "ckey": "state",
       "tag": "Untap",
-      "count": 799,
+      "count": 802,
       "fields": {}
     },
     {
@@ -20795,7 +21109,7 @@
     {
       "ckey": "subject",
       "tag": "Controller",
-      "count": 33,
+      "count": 35,
       "fields": {
         "filter": {
           "kinds": [
@@ -20807,7 +21121,7 @@
           "kinds": [
             "str"
           ],
-          "seen": 33
+          "seen": 35
         }
       }
     },
@@ -20852,7 +21166,7 @@
     {
       "ckey": "subject",
       "tag": "ParentTarget",
-      "count": 41,
+      "count": 42,
       "fields": {}
     },
     {
@@ -20996,20 +21310,20 @@
     {
       "ckey": "target",
       "tag": "And",
-      "count": 276,
+      "count": 286,
       "fields": {
         "filters": {
           "kinds": [
             "list"
           ],
-          "seen": 276
+          "seen": 286
         }
       }
     },
     {
       "ckey": "target",
       "tag": "Any",
-      "count": 2770,
+      "count": 2744,
       "fields": {}
     },
     {
@@ -21021,7 +21335,7 @@
     {
       "ckey": "target",
       "tag": "Controller",
-      "count": 7976,
+      "count": 8003,
       "fields": {}
     },
     {
@@ -21047,7 +21361,7 @@
     {
       "ckey": "target",
       "tag": "DefendingPlayer",
-      "count": 54,
+      "count": 56,
       "fields": {}
     },
     {
@@ -21059,7 +21373,7 @@
     {
       "ckey": "target",
       "tag": "ExiledBySource",
-      "count": 167,
+      "count": 157,
       "fields": {}
     },
     {
@@ -21084,25 +21398,31 @@
     {
       "ckey": "target",
       "tag": "LastCreated",
-      "count": 329,
+      "count": 334,
+      "fields": {}
+    },
+    {
+      "ckey": "target",
+      "tag": "LastRevealed",
+      "count": 1,
       "fields": {}
     },
     {
       "ckey": "target",
       "tag": "None",
-      "count": 48,
+      "count": 51,
       "fields": {}
     },
     {
       "ckey": "target",
       "tag": "Or",
-      "count": 1787,
+      "count": 1813,
       "fields": {
         "filters": {
           "kinds": [
             "list"
           ],
-          "seen": 1787
+          "seen": 1813
         }
       }
     },
@@ -21121,38 +21441,38 @@
     {
       "ckey": "target",
       "tag": "ParentTarget",
-      "count": 3592,
+      "count": 3626,
       "fields": {}
     },
     {
       "ckey": "target",
       "tag": "ParentTargetController",
-      "count": 326,
+      "count": 303,
       "fields": {}
     },
     {
       "ckey": "target",
       "tag": "ParentTargetOwner",
-      "count": 73,
+      "count": 74,
       "fields": {}
     },
     {
       "ckey": "target",
       "tag": "ParentTargetSlot",
-      "count": 12,
+      "count": 13,
       "fields": {
         "index": {
           "kinds": [
             "int"
           ],
-          "seen": 12
+          "seen": 13
         }
       }
     },
     {
       "ckey": "target",
       "tag": "Player",
-      "count": 761,
+      "count": 759,
       "fields": {}
     },
     {
@@ -21188,7 +21508,7 @@
     {
       "ckey": "target",
       "tag": "SelfRef",
-      "count": 9664,
+      "count": 9723,
       "fields": {}
     },
     {
@@ -21219,57 +21539,57 @@
     {
       "ckey": "target",
       "tag": "StackSpell",
-      "count": 277,
+      "count": 281,
       "fields": {}
     },
     {
       "ckey": "target",
       "tag": "TrackedSet",
-      "count": 824,
+      "count": 834,
       "fields": {
         "id": {
           "kinds": [
             "int"
           ],
-          "seen": 824
+          "seen": 834
         }
       }
     },
     {
       "ckey": "target",
       "tag": "TrackedSetFiltered",
-      "count": 167,
+      "count": 173,
       "fields": {
         "caused_by": {
           "kinds": [
             "str"
           ],
-          "seen": 7
+          "seen": 8
         },
         "filter": {
           "kinds": [
             "tagged"
           ],
-          "seen": 167
+          "seen": 173
         },
         "id": {
           "kinds": [
             "int"
           ],
-          "seen": 167
+          "seen": 173
         }
       }
     },
     {
       "ckey": "target",
       "tag": "TriggeringPlayer",
-      "count": 322,
+      "count": 311,
       "fields": {}
     },
     {
       "ckey": "target",
       "tag": "TriggeringSource",
-      "count": 981,
+      "count": 954,
       "fields": {}
     },
     {
@@ -21287,7 +21607,7 @@
     {
       "ckey": "target",
       "tag": "Typed",
-      "count": 15713,
+      "count": 15829,
       "fields": {
         "controller": {
           "kinds": [
@@ -21295,19 +21615,19 @@
             "str",
             "variant1"
           ],
-          "seen": 15713
+          "seen": 15829
         },
         "properties": {
           "kinds": [
             "list"
           ],
-          "seen": 15713
+          "seen": 15829
         },
         "type_filters": {
           "kinds": [
             "list"
           ],
-          "seen": 15713
+          "seen": 15829
         }
       }
     },
@@ -21429,7 +21749,7 @@
     {
       "ckey": "target_constraints",
       "tag": "DifferentObjectControllers",
-      "count": 7,
+      "count": 8,
       "fields": {}
     },
     {
@@ -21448,19 +21768,19 @@
     {
       "ckey": "target_constraints",
       "tag": "TotalManaValue",
-      "count": 22,
+      "count": 23,
       "fields": {
         "comparator": {
           "kinds": [
             "str"
           ],
-          "seen": 22
+          "seen": 23
         },
         "value": {
           "kinds": [
             "tagged"
           ],
-          "seen": 22
+          "seen": 23
         }
       }
     },
@@ -21505,7 +21825,7 @@
     {
       "ckey": "target_player",
       "tag": "Player",
-      "count": 59,
+      "count": 58,
       "fields": {}
     },
     {
@@ -21601,26 +21921,26 @@
     {
       "ckey": "toughness",
       "tag": "Fixed",
-      "count": 25687,
+      "count": 25809,
       "fields": {
         "value": {
           "kinds": [
             "int"
           ],
-          "seen": 25687
+          "seen": 25809
         }
       }
     },
     {
       "ckey": "toughness",
       "tag": "Quantity",
-      "count": 342,
+      "count": 345,
       "fields": {
         "value": {
           "kinds": [
             "tagged"
           ],
-          "seen": 342
+          "seen": 345
         }
       }
     },
@@ -21716,13 +22036,13 @@
     {
       "ckey": "valid_card",
       "tag": "And",
-      "count": 65,
+      "count": 68,
       "fields": {
         "filters": {
           "kinds": [
             "list"
           ],
-          "seen": 65
+          "seen": 68
         }
       }
     },
@@ -21735,19 +22055,19 @@
     {
       "ckey": "valid_card",
       "tag": "AttachedTo",
-      "count": 273,
+      "count": 274,
       "fields": {}
     },
     {
       "ckey": "valid_card",
       "tag": "Or",
-      "count": 697,
+      "count": 700,
       "fields": {
         "filters": {
           "kinds": [
             "list"
           ],
-          "seen": 697
+          "seen": 700
         }
       }
     },
@@ -21773,32 +22093,32 @@
     {
       "ckey": "valid_card",
       "tag": "SelfRef",
-      "count": 12849,
+      "count": 12938,
       "fields": {}
     },
     {
       "ckey": "valid_card",
       "tag": "Typed",
-      "count": 3066,
+      "count": 3091,
       "fields": {
         "controller": {
           "kinds": [
             "null",
             "str"
           ],
-          "seen": 3066
+          "seen": 3091
         },
         "properties": {
           "kinds": [
             "list"
           ],
-          "seen": 3066
+          "seen": 3091
         },
         "type_filters": {
           "kinds": [
             "list"
           ],
-          "seen": 3066
+          "seen": 3091
         }
       }
     },
@@ -21824,20 +22144,20 @@
     {
       "ckey": "valid_source",
       "tag": "Or",
-      "count": 67,
+      "count": 68,
       "fields": {
         "filters": {
           "kinds": [
             "list"
           ],
-          "seen": 67
+          "seen": 68
         }
       }
     },
     {
       "ckey": "valid_source",
       "tag": "ParentTarget",
-      "count": 7,
+      "count": 11,
       "fields": {}
     },
     {
@@ -21849,7 +22169,7 @@
     {
       "ckey": "valid_source",
       "tag": "SelfRef",
-      "count": 811,
+      "count": 816,
       "fields": {}
     },
     {
@@ -21880,26 +22200,26 @@
     {
       "ckey": "valid_source",
       "tag": "Typed",
-      "count": 283,
+      "count": 284,
       "fields": {
         "controller": {
           "kinds": [
             "null",
             "str"
           ],
-          "seen": 283
+          "seen": 284
         },
         "properties": {
           "kinds": [
             "list"
           ],
-          "seen": 283
+          "seen": 284
         },
         "type_filters": {
           "kinds": [
             "list"
           ],
-          "seen": 283
+          "seen": 284
         }
       }
     },
@@ -21924,19 +22244,25 @@
     {
       "ckey": "valid_target",
       "tag": "Controller",
-      "count": 1843,
+      "count": 1850,
+      "fields": {}
+    },
+    {
+      "ckey": "valid_target",
+      "tag": "Opponent",
+      "count": 1,
       "fields": {}
     },
     {
       "ckey": "valid_target",
       "tag": "Or",
-      "count": 38,
+      "count": 40,
       "fields": {
         "filters": {
           "kinds": [
             "list"
           ],
-          "seen": 38
+          "seen": 40
         }
       }
     },
@@ -21949,7 +22275,7 @@
     {
       "ckey": "valid_target",
       "tag": "Player",
-      "count": 1476,
+      "count": 1485,
       "fields": {}
     },
     {
@@ -21973,26 +22299,26 @@
     {
       "ckey": "valid_target",
       "tag": "Typed",
-      "count": 764,
+      "count": 771,
       "fields": {
         "controller": {
           "kinds": [
             "null",
             "str"
           ],
-          "seen": 764
+          "seen": 771
         },
         "properties": {
           "kinds": [
             "list"
           ],
-          "seen": 764
+          "seen": 771
         },
         "type_filters": {
           "kinds": [
             "list"
           ],
-          "seen": 764
+          "seen": 771
         }
       }
     },
@@ -22043,13 +22369,13 @@
     {
       "ckey": "value",
       "tag": "Fixed",
-      "count": 1036,
+      "count": 1047,
       "fields": {
         "value": {
           "kinds": [
             "int"
           ],
-          "seen": 1036
+          "seen": 1047
         }
       }
     },
@@ -22069,51 +22395,51 @@
     {
       "ckey": "value",
       "tag": "Multiply",
-      "count": 292,
+      "count": 294,
       "fields": {
         "factor": {
           "kinds": [
             "int"
           ],
-          "seen": 292
+          "seen": 294
         },
         "inner": {
           "kinds": [
             "tagged"
           ],
-          "seen": 292
+          "seen": 294
         }
       }
     },
     {
       "ckey": "value",
       "tag": "Offset",
-      "count": 82,
+      "count": 83,
       "fields": {
         "inner": {
           "kinds": [
             "tagged"
           ],
-          "seen": 82
+          "seen": 83
         },
         "offset": {
           "kinds": [
             "int"
           ],
-          "seen": 82
+          "seen": 83
         }
       }
     },
     {
       "ckey": "value",
       "tag": "Ref",
-      "count": 2032,
+      "count": 2049,
       "fields": {
         "qty": {
           "kinds": [
             "tagged"
           ],
-          "seen": 2032
+          "seen": 2049
         }
       }
     },
@@ -22164,19 +22490,19 @@
   "structs": [
     {
       "ckey": "<root>",
-      "count": 35501,
+      "count": 35657,
       "fields": {
         "abilities": {
           "kinds": [
             "list"
           ],
-          "seen": 35501
+          "seen": 35657
         },
         "additional_cost": {
           "kinds": [
             "tagged"
           ],
-          "seen": 753
+          "seen": 755
         },
         "bracket_signals": {
           "kinds": [
@@ -22188,19 +22514,19 @@
           "kinds": [
             "bool"
           ],
-          "seen": 4294
+          "seen": 4329
         },
         "card_type": {
           "kinds": [
             "struct"
           ],
-          "seen": 35501
+          "seen": 35657
         },
         "casting_options": {
           "kinds": [
             "list"
           ],
-          "seen": 148
+          "seen": 149
         },
         "casting_restrictions": {
           "kinds": [
@@ -22218,14 +22544,14 @@
           "kinds": [
             "list"
           ],
-          "seen": 31974
+          "seen": 32119
         },
         "color_override": {
           "kinds": [
             "list",
             "null"
           ],
-          "seen": 35501
+          "seen": 35657
         },
         "deck_copy_limit": {
           "kinds": [
@@ -22238,25 +22564,25 @@
             "null",
             "str"
           ],
-          "seen": 35501
+          "seen": 35657
         },
         "face_index": {
           "kinds": [
             "int"
           ],
-          "seen": 1718
+          "seen": 1742
         },
         "flavor_name": {
           "kinds": [
             "null"
           ],
-          "seen": 35501
+          "seen": 35657
         },
         "is_commander": {
           "kinds": [
             "bool"
           ],
-          "seen": 4042
+          "seen": 4077
         },
         "is_oathbreaker": {
           "kinds": [
@@ -22268,108 +22594,108 @@
           "kinds": [
             "list"
           ],
-          "seen": 35501
+          "seen": 35657
         },
         "layout": {
           "kinds": [
             "str"
           ],
-          "seen": 1688
+          "seen": 1712
         },
         "legalities": {
           "kinds": [
             "empty_dict",
             "struct"
           ],
-          "seen": 35501
+          "seen": 35657
         },
         "loyalty": {
           "kinds": [
             "null",
             "str"
           ],
-          "seen": 35501
+          "seen": 35657
         },
         "mana_cost": {
           "kinds": [
             "tagged"
           ],
-          "seen": 35501
+          "seen": 35657
         },
         "metadata": {
           "kinds": [
             "struct",
             "variant1"
           ],
-          "seen": 34274
+          "seen": 34441
         },
         "modal": {
           "kinds": [
             "struct"
           ],
-          "seen": 528
+          "seen": 533
         },
         "name": {
           "kinds": [
             "str"
           ],
-          "seen": 35501
+          "seen": 35657
         },
         "non_ability_text": {
           "kinds": [
             "null"
           ],
-          "seen": 35501
+          "seen": 35657
         },
         "oracle_text": {
           "kinds": [
             "null",
             "str"
           ],
-          "seen": 35501
+          "seen": 35657
         },
         "parse_warnings": {
           "kinds": [
             "list"
           ],
-          "seen": 915
+          "seen": 916
         },
         "power": {
           "kinds": [
             "null",
             "tagged"
           ],
-          "seen": 35501
+          "seen": 35657
         },
         "printings": {
           "kinds": [
             "list"
           ],
-          "seen": 35501
+          "seen": 35657
         },
         "rarities": {
           "kinds": [
             "list"
           ],
-          "seen": 34204
+          "seen": 34371
         },
         "replacements": {
           "kinds": [
             "list"
           ],
-          "seen": 35501
+          "seen": 35657
         },
         "rulings": {
           "kinds": [
             "list"
           ],
-          "seen": 19745
+          "seen": 19743
         },
         "scryfall_oracle_id": {
           "kinds": [
             "str"
           ],
-          "seen": 35501
+          "seen": 35657
         },
         "solve_condition": {
           "kinds": [
@@ -22381,7 +22707,7 @@
           "kinds": [
             "list"
           ],
-          "seen": 35501
+          "seen": 35657
         },
         "strive_cost": {
           "kinds": [
@@ -22394,13 +22720,13 @@
             "null",
             "tagged"
           ],
-          "seen": 35501
+          "seen": 35657
         },
         "triggers": {
           "kinds": [
             "list"
           ],
-          "seen": 35501
+          "seen": 35657
         }
       }
     },
@@ -22430,25 +22756,25 @@
     },
     {
       "ckey": "Affinity",
-      "count": 88,
+      "count": 89,
       "fields": {
         "controller": {
           "kinds": [
             "null"
           ],
-          "seen": 88
+          "seen": 89
         },
         "properties": {
           "kinds": [
             "list"
           ],
-          "seen": 88
+          "seen": 89
         },
         "type_filters": {
           "kinds": [
             "list"
           ],
-          "seen": 88
+          "seen": 89
         }
       }
     },
@@ -22757,6 +23083,25 @@
       }
     },
     {
+      "ckey": "Devour",
+      "count": 24,
+      "fields": {
+        "n": {
+          "kinds": [
+            "int"
+          ],
+          "seen": 24
+        },
+        "quality": {
+          "kinds": [
+            "str",
+            "variant1"
+          ],
+          "seen": 24
+        }
+      }
+    },
+    {
       "ckey": "Disguise",
       "count": 1,
       "fields": {
@@ -23023,13 +23368,13 @@
     },
     {
       "ckey": "ModifyCost",
-      "count": 586,
+      "count": 590,
       "fields": {
         "amount": {
           "kinds": [
             "tagged"
           ],
-          "seen": 586
+          "seen": 590
         },
         "dynamic_count": {
           "kinds": [
@@ -23041,14 +23386,14 @@
           "kinds": [
             "str"
           ],
-          "seen": 586
+          "seen": 590
         },
         "spell_filter": {
           "kinds": [
             "null",
             "tagged"
           ],
-          "seen": 586
+          "seen": 590
         }
       }
     },
@@ -23168,19 +23513,19 @@
     },
     {
       "ckey": "ReduceAbilityCost",
-      "count": 38,
+      "count": 39,
       "fields": {
         "activator": {
           "kinds": [
             "tagged"
           ],
-          "seen": 15
+          "seen": 16
         },
         "amount": {
           "kinds": [
             "int"
           ],
-          "seen": 38
+          "seen": 39
         },
         "dynamic_count": {
           "kinds": [
@@ -23192,13 +23537,13 @@
           "kinds": [
             "str"
           ],
-          "seen": 38
+          "seen": 39
         },
         "keyword": {
           "kinds": [
             "str"
           ],
-          "seen": 38
+          "seen": 39
         },
         "minimum_mana": {
           "kinds": [
@@ -23210,7 +23555,7 @@
           "kinds": [
             "str"
           ],
-          "seen": 38
+          "seen": 39
         }
       }
     },
@@ -23330,37 +23675,37 @@
     },
     {
       "ckey": "SpellTypeOrAbilityActivation",
-      "count": 37,
+      "count": 39,
       "fields": {
         "ability": {
           "kinds": [
             "str"
           ],
-          "seen": 37
+          "seen": 39
         },
         "spell_type": {
           "kinds": [
             "str"
           ],
-          "seen": 37
+          "seen": 39
         }
       }
     },
     {
       "ckey": "SpellWithColorCount",
-      "count": 1,
+      "count": 2,
       "fields": {
         "comparator": {
           "kinds": [
             "str"
           ],
-          "seen": 1
+          "seen": 2
         },
         "count": {
           "kinds": [
             "int"
           ],
-          "seen": 1
+          "seen": 2
         }
       }
     },
@@ -23524,61 +23869,67 @@
     },
     {
       "ckey": "Typecycling",
-      "count": 96,
+      "count": 97,
       "fields": {
         "cost": {
           "kinds": [
             "tagged"
           ],
-          "seen": 96
+          "seen": 97
         },
         "subtype": {
           "kinds": [
             "str"
           ],
-          "seen": 96
+          "seen": 97
         }
       }
     },
     {
       "ckey": "UntilNextStepOf",
-      "count": 287,
+      "count": 304,
       "fields": {
         "player": {
           "kinds": [
             "tagged"
           ],
-          "seen": 287
+          "seen": 304
         },
         "step": {
           "kinds": [
             "str"
           ],
-          "seen": 287
+          "seen": 304
         }
       }
     },
     {
       "ckey": "abilities",
-      "count": 22667,
+      "count": 22737,
       "fields": {
         "ability_tag": {
           "kinds": [
             "tagged"
           ],
-          "seen": 1179
+          "seen": 1190
+        },
+        "activation_mana_payment_restriction": {
+          "kinds": [
+            "str"
+          ],
+          "seen": 1
         },
         "activation_restrictions": {
           "kinds": [
             "list"
           ],
-          "seen": 3197
+          "seen": 3216
         },
         "activation_zone": {
           "kinds": [
             "str"
           ],
-          "seen": 929
+          "seen": 931
         },
         "activator_filter": {
           "kinds": [
@@ -23603,20 +23954,20 @@
             "null",
             "tagged"
           ],
-          "seen": 22667
+          "seen": 22737
         },
         "consumes_source": {
           "kinds": [
             "bool"
           ],
-          "seen": 500
+          "seen": 501
         },
         "cost": {
           "kinds": [
             "null",
             "tagged"
           ],
-          "seen": 22667
+          "seen": 22737
         },
         "cost_reduction": {
           "kinds": [
@@ -23629,7 +23980,7 @@
             "null",
             "str"
           ],
-          "seen": 22667
+          "seen": 22737
         },
         "distribute": {
           "kinds": [
@@ -23643,13 +23994,13 @@
             "str",
             "variant1"
           ],
-          "seen": 22667
+          "seen": 22737
         },
         "effect": {
           "kinds": [
             "tagged"
           ],
-          "seen": 22667
+          "seen": 22737
         },
         "else_ability": {
           "kinds": [
@@ -23661,25 +24012,25 @@
           "kinds": [
             "bool"
           ],
-          "seen": 22667
+          "seen": 22737
         },
         "is_mana_ability": {
           "kinds": [
             "bool"
           ],
-          "seen": 2398
+          "seen": 2410
         },
         "kind": {
           "kinds": [
             "str"
           ],
-          "seen": 22667
+          "seen": 22737
         },
         "min_x_value": {
           "kinds": [
             "int"
           ],
-          "seen": 10
+          "seen": 15
         },
         "modal": {
           "kinds": [
@@ -23697,13 +24048,13 @@
           "kinds": [
             "struct"
           ],
-          "seen": 722
+          "seen": 741
         },
         "optional": {
           "kinds": [
             "bool"
           ],
-          "seen": 22667
+          "seen": 22737
         },
         "optional_for": {
           "kinds": [
@@ -23715,7 +24066,7 @@
           "kinds": [
             "bool"
           ],
-          "seen": 22667
+          "seen": 22737
         },
         "player_scope": {
           "kinds": [
@@ -23733,7 +24084,7 @@
           "kinds": [
             "tagged"
           ],
-          "seen": 7
+          "seen": 8
         },
         "starting_with": {
           "kinds": [
@@ -23746,7 +24097,7 @@
             "null",
             "struct"
           ],
-          "seen": 22667
+          "seen": 22737
         },
         "sub_link": {
           "kinds": [
@@ -23758,7 +24109,7 @@
           "kinds": [
             "str"
           ],
-          "seen": 288
+          "seen": 305
         },
         "target_chooser": {
           "kinds": [
@@ -23776,7 +24127,7 @@
           "kinds": [
             "null"
           ],
-          "seen": 22667
+          "seen": 22737
         },
         "target_selection_mode": {
           "kinds": [
@@ -23788,7 +24139,7 @@
           "kinds": [
             "struct"
           ],
-          "seen": 148
+          "seen": 149
         }
       }
     },
@@ -24049,25 +24400,25 @@
     },
     {
       "ckey": "card_type",
-      "count": 35501,
+      "count": 35657,
       "fields": {
         "core_types": {
           "kinds": [
             "list"
           ],
-          "seen": 35501
+          "seen": 35657
         },
         "subtypes": {
           "kinds": [
             "list"
           ],
-          "seen": 35501
+          "seen": 35657
         },
         "supertypes": {
           "kinds": [
             "list"
           ],
-          "seen": 35501
+          "seen": 35657
         }
       }
     },
@@ -24097,13 +24448,13 @@
     },
     {
       "ckey": "casting_options",
-      "count": 138,
+      "count": 139,
       "fields": {
         "condition": {
           "kinds": [
             "tagged"
           ],
-          "seen": 56
+          "seen": 57
         },
         "cost": {
           "kinds": [
@@ -24115,7 +24466,7 @@
           "kinds": [
             "str"
           ],
-          "seen": 138
+          "seen": 139
         }
       }
     },
@@ -24315,19 +24666,19 @@
     },
     {
       "ckey": "counter_filter",
-      "count": 891,
+      "count": 903,
       "fields": {
         "counter_type": {
           "kinds": [
             "str"
           ],
-          "seen": 891
+          "seen": 903
         },
         "threshold": {
           "kinds": [
             "int"
           ],
-          "seen": 891
+          "seen": 903
         }
       }
     },
@@ -24510,58 +24861,58 @@
     },
     {
       "ckey": "definition",
-      "count": 643,
+      "count": 641,
       "fields": {
         "ability_tag": {
           "kinds": [
             "tagged"
           ],
-          "seen": 22
+          "seen": 23
         },
         "activation_restrictions": {
           "kinds": [
             "list"
           ],
-          "seen": 52
+          "seen": 53
         },
         "active_zones": {
           "kinds": [
             "list"
           ],
-          "seen": 86
+          "seen": 87
         },
         "affected": {
           "kinds": [
             "null",
             "tagged"
           ],
-          "seen": 86
+          "seen": 87
         },
         "affected_zone": {
           "kinds": [
             "null"
           ],
-          "seen": 86
+          "seen": 87
         },
         "characteristic_defining": {
           "kinds": [
             "bool"
           ],
-          "seen": 86
+          "seen": 87
         },
         "condition": {
           "kinds": [
             "null",
             "tagged"
           ],
-          "seen": 643
+          "seen": 641
         },
         "cost": {
           "kinds": [
             "null",
             "tagged"
           ],
-          "seen": 557
+          "seen": 554
         },
         "cost_reduction": {
           "kinds": [
@@ -24574,57 +24925,57 @@
             "null",
             "str"
           ],
-          "seen": 643
+          "seen": 641
         },
         "duration": {
           "kinds": [
             "null",
             "str"
           ],
-          "seen": 557
+          "seen": 554
         },
         "effect": {
           "kinds": [
             "tagged"
           ],
-          "seen": 557
+          "seen": 554
         },
         "effect_zone": {
           "kinds": [
             "null"
           ],
-          "seen": 86
+          "seen": 87
         },
         "forward_result": {
           "kinds": [
             "bool"
           ],
-          "seen": 557
+          "seen": 554
         },
         "is_mana_ability": {
           "kinds": [
             "bool"
           ],
-          "seen": 196
+          "seen": 197
         },
         "kind": {
           "kinds": [
             "str"
           ],
-          "seen": 557
+          "seen": 554
         },
         "mode": {
           "kinds": [
             "str",
             "variant1"
           ],
-          "seen": 86
+          "seen": 87
         },
         "modifications": {
           "kinds": [
             "list"
           ],
-          "seen": 86
+          "seen": 87
         },
         "multi_target": {
           "kinds": [
@@ -24636,13 +24987,13 @@
           "kinds": [
             "bool"
           ],
-          "seen": 557
+          "seen": 554
         },
         "optional_targeting": {
           "kinds": [
             "bool"
           ],
-          "seen": 557
+          "seen": 554
         },
         "player_scope": {
           "kinds": [
@@ -24655,19 +25006,19 @@
             "null",
             "struct"
           ],
-          "seen": 557
+          "seen": 554
         },
         "target_choice_timing": {
           "kinds": [
             "str"
           ],
-          "seen": 2
+          "seen": 5
         },
         "target_prompt": {
           "kinds": [
             "null"
           ],
-          "seen": 557
+          "seen": 554
         },
         "unless_pay": {
           "kinds": [
@@ -24679,27 +25030,27 @@
     },
     {
       "ckey": "effect",
-      "count": 1045,
+      "count": 1044,
       "fields": {
         "condition": {
           "kinds": [
             "null",
             "tagged"
           ],
-          "seen": 1045
+          "seen": 1044
         },
         "cost": {
           "kinds": [
             "null"
           ],
-          "seen": 1045
+          "seen": 1044
         },
         "description": {
           "kinds": [
             "null",
             "str"
           ],
-          "seen": 1045
+          "seen": 1044
         },
         "duration": {
           "kinds": [
@@ -24707,19 +25058,19 @@
             "str",
             "variant1"
           ],
-          "seen": 1045
+          "seen": 1044
         },
         "effect": {
           "kinds": [
             "tagged"
           ],
-          "seen": 1045
+          "seen": 1044
         },
         "forward_result": {
           "kinds": [
             "bool"
           ],
-          "seen": 1045
+          "seen": 1044
         },
         "is_mana_ability": {
           "kinds": [
@@ -24731,7 +25082,7 @@
           "kinds": [
             "str"
           ],
-          "seen": 1045
+          "seen": 1044
         },
         "multi_target": {
           "kinds": [
@@ -24743,13 +25094,13 @@
           "kinds": [
             "bool"
           ],
-          "seen": 1045
+          "seen": 1044
         },
         "optional_targeting": {
           "kinds": [
             "bool"
           ],
-          "seen": 1045
+          "seen": 1044
         },
         "player_scope": {
           "kinds": [
@@ -24761,26 +25112,26 @@
           "kinds": [
             "tagged"
           ],
-          "seen": 5
+          "seen": 3
         },
         "sub_ability": {
           "kinds": [
             "null",
             "struct"
           ],
-          "seen": 1045
+          "seen": 1044
         },
         "target_choice_timing": {
           "kinds": [
             "str"
           ],
-          "seen": 20
+          "seen": 19
         },
         "target_prompt": {
           "kinds": [
             "null"
           ],
-          "seen": 1045
+          "seen": 1044
         },
         "target_selection_mode": {
           "kinds": [
@@ -24823,7 +25174,8 @@
         "duration": {
           "kinds": [
             "null",
-            "str"
+            "str",
+            "variant1"
           ],
           "seen": 177
         },
@@ -24880,13 +25232,13 @@
           "kinds": [
             "str"
           ],
-          "seen": 26
+          "seen": 25
         },
         "target_choice_timing": {
           "kinds": [
             "str"
           ],
-          "seen": 1
+          "seen": 3
         },
         "target_prompt": {
           "kinds": [
@@ -24958,39 +25310,39 @@
     },
     {
       "ckey": "execute",
-      "count": 22202,
+      "count": 22332,
       "fields": {
         "ability_tag": {
           "kinds": [
             "tagged"
           ],
-          "seen": 51
+          "seen": 52
         },
         "condition": {
           "kinds": [
             "null",
             "tagged"
           ],
-          "seen": 22202
+          "seen": 22332
         },
         "cost": {
           "kinds": [
             "null"
           ],
-          "seen": 22202
+          "seen": 22332
         },
         "description": {
           "kinds": [
             "null",
             "str"
           ],
-          "seen": 22202
+          "seen": 22332
         },
         "distribute": {
           "kinds": [
             "tagged"
           ],
-          "seen": 32
+          "seen": 33
         },
         "duration": {
           "kinds": [
@@ -24998,13 +25350,13 @@
             "str",
             "variant1"
           ],
-          "seen": 22202
+          "seen": 22332
         },
         "effect": {
           "kinds": [
             "tagged"
           ],
-          "seen": 22202
+          "seen": 22332
         },
         "else_ability": {
           "kinds": [
@@ -25016,43 +25368,43 @@
           "kinds": [
             "bool"
           ],
-          "seen": 22202
+          "seen": 22332
         },
         "is_mana_ability": {
           "kinds": [
             "bool"
           ],
-          "seen": 112
+          "seen": 114
         },
         "kind": {
           "kinds": [
             "str"
           ],
-          "seen": 22202
+          "seen": 22332
         },
         "modal": {
           "kinds": [
             "struct"
           ],
-          "seen": 250
+          "seen": 251
         },
         "mode_abilities": {
           "kinds": [
             "list"
           ],
-          "seen": 250
+          "seen": 251
         },
         "multi_target": {
           "kinds": [
             "struct"
           ],
-          "seen": 685
+          "seen": 711
         },
         "optional": {
           "kinds": [
             "bool"
           ],
-          "seen": 22202
+          "seen": 22332
         },
         "optional_for": {
           "kinds": [
@@ -25064,19 +25416,19 @@
           "kinds": [
             "bool"
           ],
-          "seen": 22202
+          "seen": 22332
         },
         "player_scope": {
           "kinds": [
             "tagged"
           ],
-          "seen": 639
+          "seen": 640
         },
         "repeat_for": {
           "kinds": [
             "tagged"
           ],
-          "seen": 84
+          "seen": 83
         },
         "repeat_until": {
           "kinds": [
@@ -25095,13 +25447,13 @@
             "null",
             "struct"
           ],
-          "seen": 22202
+          "seen": 22332
         },
         "target_choice_timing": {
           "kinds": [
             "str"
           ],
-          "seen": 403
+          "seen": 431
         },
         "target_chooser": {
           "kinds": [
@@ -25113,13 +25465,13 @@
           "kinds": [
             "list"
           ],
-          "seen": 16
+          "seen": 17
         },
         "target_prompt": {
           "kinds": [
             "null"
           ],
-          "seen": 22202
+          "seen": 22332
         },
         "target_selection_mode": {
           "kinds": [
@@ -25215,7 +25567,7 @@
     },
     {
       "ckey": "legalities",
-      "count": 35501,
+      "count": 35657,
       "fields": {
         "brawl": {
           "kinds": [
@@ -25227,13 +25579,13 @@
           "kinds": [
             "str"
           ],
-          "seen": 32481
+          "seen": 32482
         },
         "duel": {
           "kinds": [
             "str"
           ],
-          "seen": 32480
+          "seen": 32481
         },
         "historic": {
           "kinds": [
@@ -25245,7 +25597,7 @@
           "kinds": [
             "str"
           ],
-          "seen": 32411
+          "seen": 32412
         },
         "modern": {
           "kinds": [
@@ -25257,7 +25609,7 @@
           "kinds": [
             "str"
           ],
-          "seen": 32480
+          "seen": 32481
         },
         "pauper": {
           "kinds": [
@@ -25305,7 +25657,7 @@
           "kinds": [
             "str"
           ],
-          "seen": 32411
+          "seen": 32412
         }
       }
     },
@@ -25397,37 +25749,37 @@
     },
     {
       "ckey": "metadata",
-      "count": 3945,
+      "count": 4004,
       "fields": {
         "related_token_ids": {
           "kinds": [
             "list"
           ],
-          "seen": 3945
+          "seen": 4004
         },
         "source_printing_ids": {
           "kinds": [
             "list"
           ],
-          "seen": 3945
+          "seen": 4004
         }
       }
     },
     {
       "ckey": "modal",
-      "count": 821,
+      "count": 827,
       "fields": {
         "allow_repeat_modes": {
           "kinds": [
             "bool"
           ],
-          "seen": 821
+          "seen": 827
         },
         "chooser": {
           "kinds": [
             "tagged"
           ],
-          "seen": 821
+          "seen": 827
         },
         "constraints": {
           "kinds": [
@@ -25451,13 +25803,13 @@
           "kinds": [
             "int"
           ],
-          "seen": 821
+          "seen": 827
         },
         "min_choices": {
           "kinds": [
             "int"
           ],
-          "seen": 821
+          "seen": 827
         },
         "mode_costs": {
           "kinds": [
@@ -25469,13 +25821,13 @@
           "kinds": [
             "int"
           ],
-          "seen": 821
+          "seen": 827
         },
         "mode_descriptions": {
           "kinds": [
             "list"
           ],
-          "seen": 821
+          "seen": 827
         },
         "mode_pawprints": {
           "kinds": [
@@ -25493,27 +25845,26 @@
     },
     {
       "ckey": "mode_abilities",
-      "count": 722,
+      "count": 724,
       "fields": {
         "condition": {
           "kinds": [
             "null",
             "tagged"
           ],
-          "seen": 722
+          "seen": 724
         },
         "cost": {
           "kinds": [
             "null"
           ],
-          "seen": 722
+          "seen": 724
         },
         "description": {
           "kinds": [
-            "null",
-            "str"
+            "null"
           ],
-          "seen": 722
+          "seen": 724
         },
         "duration": {
           "kinds": [
@@ -25521,19 +25872,19 @@
             "str",
             "variant1"
           ],
-          "seen": 722
+          "seen": 724
         },
         "effect": {
           "kinds": [
             "tagged"
           ],
-          "seen": 722
+          "seen": 724
         },
         "forward_result": {
           "kinds": [
             "bool"
           ],
-          "seen": 722
+          "seen": 724
         },
         "is_mana_ability": {
           "kinds": [
@@ -25545,7 +25896,7 @@
           "kinds": [
             "str"
           ],
-          "seen": 722
+          "seen": 724
         },
         "multi_target": {
           "kinds": [
@@ -25557,13 +25908,13 @@
           "kinds": [
             "bool"
           ],
-          "seen": 722
+          "seen": 724
         },
         "optional_targeting": {
           "kinds": [
             "bool"
           ],
-          "seen": 722
+          "seen": 724
         },
         "player_scope": {
           "kinds": [
@@ -25582,25 +25933,25 @@
             "null",
             "struct"
           ],
-          "seen": 722
+          "seen": 724
         },
         "target_choice_timing": {
           "kinds": [
             "str"
           ],
-          "seen": 7
+          "seen": 9
         },
         "target_constraints": {
           "kinds": [
             "list"
           ],
-          "seen": 3
+          "seen": 4
         },
         "target_prompt": {
           "kinds": [
             "null"
           ],
-          "seen": 722
+          "seen": 724
         },
         "unless_pay": {
           "kinds": [
@@ -25612,7 +25963,7 @@
     },
     {
       "ckey": "modification",
-      "count": 70,
+      "count": 82,
       "fields": {
         "amount": {
           "kinds": [
@@ -25630,13 +25981,13 @@
           "kinds": [
             "list"
           ],
-          "seen": 11
+          "seen": 23
         },
         "kind": {
           "kinds": [
             "str"
           ],
-          "seen": 70
+          "seen": 82
         },
         "mode": {
           "kinds": [
@@ -25672,21 +26023,21 @@
     },
     {
       "ckey": "multi_target",
-      "count": 1631,
+      "count": 1679,
       "fields": {
         "max": {
           "kinds": [
             "null",
             "tagged"
           ],
-          "seen": 1631
+          "seen": 1679
         },
         "min": {
           "kinds": [
             "int",
             "tagged"
           ],
-          "seen": 1631
+          "seen": 1679
         }
       }
     },
@@ -26080,7 +26431,7 @@
     },
     {
       "ckey": "replacement",
-      "count": 147,
+      "count": 157,
       "fields": {
         "combat_scope": {
           "kinds": [
@@ -26093,13 +26444,13 @@
             "null",
             "tagged"
           ],
-          "seen": 147
+          "seen": 157
         },
         "consume_on_apply": {
           "kinds": [
             "bool"
           ],
-          "seen": 57
+          "seen": 61
         },
         "damage_modification": {
           "kinds": [
@@ -26124,38 +26475,38 @@
             "null",
             "str"
           ],
-          "seen": 147
+          "seen": 157
         },
         "destination_zone": {
           "kinds": [
             "str"
           ],
-          "seen": 58
+          "seen": 62
         },
         "event": {
           "kinds": [
             "str"
           ],
-          "seen": 147
+          "seen": 157
         },
         "execute": {
           "kinds": [
             "null",
             "struct"
           ],
-          "seen": 147
+          "seen": 157
         },
         "expiry": {
           "kinds": [
             "tagged"
           ],
-          "seen": 78
+          "seen": 144
         },
         "mode": {
           "kinds": [
             "tagged"
           ],
-          "seen": 147
+          "seen": 157
         },
         "quantity_modification": {
           "kinds": [
@@ -26186,13 +26537,13 @@
             "null",
             "tagged"
           ],
-          "seen": 147
+          "seen": 157
         }
       }
     },
     {
       "ckey": "replacements",
-      "count": 2758,
+      "count": 2781,
       "fields": {
         "additional_token_spec": {
           "kinds": [
@@ -26204,14 +26555,14 @@
           "kinds": [
             "str"
           ],
-          "seen": 55
+          "seen": 57
         },
         "condition": {
           "kinds": [
             "null",
             "tagged"
           ],
-          "seen": 2758
+          "seen": 2781
         },
         "counter_match": {
           "kinds": [
@@ -26229,33 +26580,33 @@
           "kinds": [
             "tagged"
           ],
-          "seen": 64
+          "seen": 83
         },
         "damage_source_filter": {
           "kinds": [
             "tagged"
           ],
-          "seen": 48
+          "seen": 61
         },
         "damage_target_filter": {
           "kinds": [
             "str",
             "variant1"
           ],
-          "seen": 61
+          "seen": 77
         },
         "description": {
           "kinds": [
             "null",
             "str"
           ],
-          "seen": 2758
+          "seen": 2781
         },
         "destination_zone": {
           "kinds": [
             "str"
           ],
-          "seen": 2282
+          "seen": 2285
         },
         "draw_scope": {
           "kinds": [
@@ -26279,14 +26630,14 @@
           "kinds": [
             "str"
           ],
-          "seen": 2758
+          "seen": 2781
         },
         "execute": {
           "kinds": [
             "null",
             "struct"
           ],
-          "seen": 2758
+          "seen": 2781
         },
         "mana_modification": {
           "kinds": [
@@ -26304,7 +26655,7 @@
           "kinds": [
             "tagged"
           ],
-          "seen": 2758
+          "seen": 2781
         },
         "quantity_modification": {
           "kinds": [
@@ -26322,7 +26673,7 @@
           "kinds": [
             "variant1"
           ],
-          "seen": 148
+          "seen": 149
         },
         "token_owner_scope": {
           "kinds": [
@@ -26335,7 +26686,7 @@
             "null",
             "tagged"
           ],
-          "seen": 2758
+          "seen": 2781
         },
         "valid_player": {
           "kinds": [
@@ -26407,19 +26758,19 @@
     },
     {
       "ckey": "rulings",
-      "count": 77970,
+      "count": 77962,
       "fields": {
         "date": {
           "kinds": [
             "str"
           ],
-          "seen": 77970
+          "seen": 77962
         },
         "text": {
           "kinds": [
             "str"
           ],
-          "seen": 77970
+          "seen": 77962
         }
       }
     },
@@ -26443,57 +26794,57 @@
     },
     {
       "ckey": "split",
-      "count": 11,
+      "count": 12,
       "fields": {
         "primary_count": {
           "kinds": [
             "int"
           ],
-          "seen": 11
+          "seen": 12
         },
         "primary_destination": {
           "kinds": [
             "str"
           ],
-          "seen": 11
+          "seen": 12
         },
         "primary_enter_tapped": {
           "kinds": [
             "bool"
           ],
-          "seen": 8
+          "seen": 9
         },
         "rest_destination": {
           "kinds": [
             "str"
           ],
-          "seen": 11
+          "seen": 12
         }
       }
     },
     {
       "ckey": "static_abilities",
-      "count": 12642,
+      "count": 12713,
       "fields": {
         "active_zones": {
           "kinds": [
             "list"
           ],
-          "seen": 12642
+          "seen": 12713
         },
         "affected": {
           "kinds": [
             "null",
             "tagged"
           ],
-          "seen": 12642
+          "seen": 12713
         },
         "affected_zone": {
           "kinds": [
             "null",
             "str"
           ],
-          "seen": 12642
+          "seen": 12713
         },
         "attack_defended": {
           "kinds": [
@@ -26511,46 +26862,52 @@
           "kinds": [
             "bool"
           ],
-          "seen": 12642
+          "seen": 12713
         },
         "condition": {
           "kinds": [
             "null",
             "tagged"
           ],
-          "seen": 12642
+          "seen": 12713
         },
         "description": {
           "kinds": [
             "null",
             "str"
           ],
-          "seen": 12642
+          "seen": 12713
         },
         "effect_zone": {
           "kinds": [
             "null"
           ],
-          "seen": 12642
+          "seen": 12713
         },
         "mode": {
           "kinds": [
             "str",
             "variant1"
           ],
-          "seen": 12642
+          "seen": 12713
         },
         "modifications": {
           "kinds": [
             "list"
           ],
-          "seen": 12642
+          "seen": 12713
         },
         "per_player_condition": {
           "kinds": [
             "tagged"
           ],
           "seen": 7
+        },
+        "protection_does_not_remove": {
+          "kinds": [
+            "str"
+          ],
+          "seen": 14
         }
       }
     },
@@ -26679,7 +27036,7 @@
     },
     {
       "ckey": "sub_ability",
-      "count": 18661,
+      "count": 18768,
       "fields": {
         "ability_tag": {
           "kinds": [
@@ -26704,21 +27061,21 @@
             "null",
             "tagged"
           ],
-          "seen": 18661
+          "seen": 18768
         },
         "cost": {
           "kinds": [
             "null",
             "tagged"
           ],
-          "seen": 18661
+          "seen": 18768
         },
         "description": {
           "kinds": [
             "null",
             "str"
           ],
-          "seen": 18661
+          "seen": 18768
         },
         "distribute": {
           "kinds": [
@@ -26732,13 +27089,13 @@
             "str",
             "variant1"
           ],
-          "seen": 18661
+          "seen": 18768
         },
         "effect": {
           "kinds": [
             "tagged"
           ],
-          "seen": 18661
+          "seen": 18768
         },
         "else_ability": {
           "kinds": [
@@ -26750,19 +27107,19 @@
           "kinds": [
             "bool"
           ],
-          "seen": 18661
+          "seen": 18768
         },
         "is_mana_ability": {
           "kinds": [
             "bool"
           ],
-          "seen": 74
+          "seen": 75
         },
         "kind": {
           "kinds": [
             "str"
           ],
-          "seen": 18661
+          "seen": 18768
         },
         "modal": {
           "kinds": [
@@ -26780,13 +27137,13 @@
           "kinds": [
             "struct"
           ],
-          "seen": 200
+          "seen": 203
         },
         "optional": {
           "kinds": [
             "bool"
           ],
-          "seen": 18661
+          "seen": 18768
         },
         "optional_for": {
           "kinds": [
@@ -26798,19 +27155,25 @@
           "kinds": [
             "bool"
           ],
-          "seen": 18661
+          "seen": 18768
         },
         "player_scope": {
           "kinds": [
             "tagged"
           ],
-          "seen": 425
+          "seen": 424
         },
         "repeat_for": {
           "kinds": [
             "tagged"
           ],
           "seen": 122
+        },
+        "sibling_condition": {
+          "kinds": [
+            "str"
+          ],
+          "seen": 31
         },
         "starting_with": {
           "kinds": [
@@ -26823,19 +27186,19 @@
             "null",
             "struct"
           ],
-          "seen": 18661
+          "seen": 18768
         },
         "sub_link": {
           "kinds": [
             "str"
           ],
-          "seen": 10723
+          "seen": 10730
         },
         "target_choice_timing": {
           "kinds": [
             "str"
           ],
-          "seen": 333
+          "seen": 401
         },
         "target_chooser": {
           "kinds": [
@@ -26853,7 +27216,7 @@
           "kinds": [
             "null"
           ],
-          "seen": 18661
+          "seen": 18768
         },
         "target_selection_mode": {
           "kinds": [
@@ -26870,20 +27233,62 @@
       }
     },
     {
+      "ckey": "target",
+      "count": 58,
+      "fields": {
+        "count_source": {
+          "kinds": [
+            "tagged"
+          ],
+          "seen": 4
+        },
+        "recipient": {
+          "kinds": [
+            "tagged"
+          ],
+          "seen": 54
+        },
+        "role": {
+          "kinds": [
+            "str"
+          ],
+          "seen": 58
+        }
+      }
+    },
+    {
+      "ckey": "target_condition",
+      "count": 1,
+      "fields": {
+        "comparator": {
+          "kinds": [
+            "str"
+          ],
+          "seen": 1
+        },
+        "rhs": {
+          "kinds": [
+            "tagged"
+          ],
+          "seen": 1
+        }
+      }
+    },
+    {
       "ckey": "trigger",
-      "count": 683,
+      "count": 685,
       "fields": {
         "attack_target_filter": {
           "kinds": [
             "str"
           ],
-          "seen": 12
+          "seen": 13
         },
         "batched": {
           "kinds": [
             "bool"
           ],
-          "seen": 683
+          "seen": 685
         },
         "coin_flip_result": {
           "kinds": [
@@ -26896,14 +27301,14 @@
             "null",
             "tagged"
           ],
-          "seen": 683
+          "seen": 685
         },
         "constraint": {
           "kinds": [
             "null",
             "tagged"
           ],
-          "seen": 683
+          "seen": 685
         },
         "counter_filter": {
           "kinds": [
@@ -26915,61 +27320,61 @@
           "kinds": [
             "str"
           ],
-          "seen": 683
+          "seen": 685
         },
         "description": {
           "kinds": [
             "null",
             "str"
           ],
-          "seen": 683
+          "seen": 685
         },
         "destination": {
           "kinds": [
             "null",
             "str"
           ],
-          "seen": 683
+          "seen": 685
         },
         "execute": {
           "kinds": [
             "null",
             "struct"
           ],
-          "seen": 683
+          "seen": 685
         },
         "mode": {
           "kinds": [
             "str",
             "variant1"
           ],
-          "seen": 683
+          "seen": 685
         },
         "optional": {
           "kinds": [
             "bool"
           ],
-          "seen": 683
+          "seen": 685
         },
         "origin": {
           "kinds": [
             "null",
             "str"
           ],
-          "seen": 683
+          "seen": 685
         },
         "phase": {
           "kinds": [
             "null",
             "str"
           ],
-          "seen": 683
+          "seen": 685
         },
         "secondary": {
           "kinds": [
             "bool"
           ],
-          "seen": 683
+          "seen": 685
         },
         "spell_cast_origin": {
           "kinds": [
@@ -26981,7 +27386,7 @@
           "kinds": [
             "list"
           ],
-          "seen": 683
+          "seen": 685
         },
         "unless_pay": {
           "kinds": [
@@ -26994,21 +27399,21 @@
             "null",
             "tagged"
           ],
-          "seen": 683
+          "seen": 685
         },
         "valid_source": {
           "kinds": [
             "null",
             "tagged"
           ],
-          "seen": 683
+          "seen": 685
         },
         "valid_target": {
           "kinds": [
             "null",
             "tagged"
           ],
-          "seen": 683
+          "seen": 685
         },
         "zone_change_clauses": {
           "kinds": [
@@ -27020,19 +27425,19 @@
     },
     {
       "ckey": "triggers",
-      "count": 19180,
+      "count": 19295,
       "fields": {
         "attack_target_filter": {
           "kinds": [
             "str"
           ],
-          "seen": 89
+          "seen": 91
         },
         "batched": {
           "kinds": [
             "bool"
           ],
-          "seen": 19180
+          "seen": 19295
         },
         "clash_result": {
           "kinds": [
@@ -27051,21 +27456,21 @@
             "null",
             "tagged"
           ],
-          "seen": 19180
+          "seen": 19295
         },
         "constraint": {
           "kinds": [
             "null",
             "tagged"
           ],
-          "seen": 19180
+          "seen": 19295
         },
         "counter_filter": {
           "kinds": [
             "struct",
             "variant1"
           ],
-          "seen": 943
+          "seen": 955
         },
         "damage_amount": {
           "kinds": [
@@ -27077,21 +27482,21 @@
           "kinds": [
             "str"
           ],
-          "seen": 19180
+          "seen": 19295
         },
         "description": {
           "kinds": [
             "null",
             "str"
           ],
-          "seen": 19180
+          "seen": 19295
         },
         "destination": {
           "kinds": [
             "null",
             "str"
           ],
-          "seen": 19180
+          "seen": 19295
         },
         "destination_constraint": {
           "kinds": [
@@ -27110,7 +27515,7 @@
             "null",
             "struct"
           ],
-          "seen": 19180
+          "seen": 19295
         },
         "expend_threshold": {
           "kinds": [
@@ -27129,20 +27534,20 @@
             "str",
             "variant1"
           ],
-          "seen": 19180
+          "seen": 19295
         },
         "optional": {
           "kinds": [
             "bool"
           ],
-          "seen": 19180
+          "seen": 19295
         },
         "origin": {
           "kinds": [
             "null",
             "str"
           ],
-          "seen": 19180
+          "seen": 19295
         },
         "origin_zones": {
           "kinds": [
@@ -27155,7 +27560,7 @@
             "null",
             "str"
           ],
-          "seen": 19180
+          "seen": 19295
         },
         "player_actions": {
           "kinds": [
@@ -27163,11 +27568,17 @@
           ],
           "seen": 9
         },
+        "scry_bottom_count": {
+          "kinds": [
+            "list"
+          ],
+          "seen": 1
+        },
         "secondary": {
           "kinds": [
             "bool"
           ],
-          "seen": 19180
+          "seen": 19295
         },
         "spell_cast_origin": {
           "kinds": [
@@ -27185,7 +27596,7 @@
           "kinds": [
             "list"
           ],
-          "seen": 19180
+          "seen": 19295
         },
         "unless_pay": {
           "kinds": [
@@ -27198,14 +27609,14 @@
             "null",
             "tagged"
           ],
-          "seen": 19180
+          "seen": 19295
         },
         "valid_source": {
           "kinds": [
             "null",
             "tagged"
           ],
-          "seen": 19180
+          "seen": 19295
         },
         "valid_subject_player": {
           "kinds": [
@@ -27218,13 +27629,13 @@
             "null",
             "tagged"
           ],
-          "seen": 19180
+          "seen": 19295
         },
         "zone_change_clauses": {
           "kinds": [
             "list"
           ],
-          "seen": 10
+          "seen": 11
         }
       }
     },
@@ -27302,61 +27713,61 @@
     },
     {
       "ckey": "unit_span",
-      "count": 964,
+      "count": 962,
       "fields": {
         "end_byte": {
           "kinds": [
             "int"
           ],
-          "seen": 964
+          "seen": 962
         },
         "first_line": {
           "kinds": [
             "int"
           ],
-          "seen": 964
+          "seen": 962
         },
         "last_line": {
           "kinds": [
             "int"
           ],
-          "seen": 964
+          "seen": 962
         },
         "ordinal_within_span": {
           "kinds": [
             "int"
           ],
-          "seen": 964
+          "seen": 962
         },
         "precision": {
           "kinds": [
             "str"
           ],
-          "seen": 964
+          "seen": 962
         },
         "start_byte": {
           "kinds": [
             "int"
           ],
-          "seen": 964
+          "seen": 962
         }
       }
     },
     {
       "ckey": "unless_pay",
-      "count": 552,
+      "count": 553,
       "fields": {
         "cost": {
           "kinds": [
             "tagged"
           ],
-          "seen": 552
+          "seen": 553
         },
         "payer": {
           "kinds": [
             "tagged"
           ],
-          "seen": 552
+          "seen": 553
         }
       }
     },
@@ -27448,7 +27859,7 @@
     },
     {
       "ckey": "zone_change_clauses",
-      "count": 16,
+      "count": 17,
       "fields": {
         "destination": {
           "kinds": [
@@ -27460,13 +27871,13 @@
           "kinds": [
             "tagged"
           ],
-          "seen": 16
+          "seen": 17
         },
         "valid_card": {
           "kinds": [
             "tagged"
           ],
-          "seen": 16
+          "seen": 17
         }
       }
     }
@@ -27611,6 +28022,7 @@
       "role"
     ],
     "Player": [
+      "distinctness",
       "player"
     ],
     "PlayerProtection": [
@@ -27649,6 +28061,9 @@
       "activation_source_filter",
       "spell_filter"
     ],
+    "UntilControllersNextTurn": [
+      "after"
+    ],
     "UntilEndOfNextTurnOf": [
       "player"
     ],
@@ -27681,7 +28096,8 @@
       "Keyword",
       "Labeled",
       "NumberRange",
-      "Opponent"
+      "Opponent",
+      "Player"
     ],
     "controller": [
       "ChosenPlayer"
@@ -27721,6 +28137,9 @@
       "UntilEndOfNextTurnOf",
       "UntilNextStepOf",
       "UntilNextTurnOf"
+    ],
+    "expiry": [
+      "UntilControllersNextTurn"
     ],
     "extra_keywords": [
       "Toxic"
@@ -27838,6 +28257,7 @@
       "Foretell",
       "Fortify",
       "Freerunning",
+      "Frenzy",
       "Gift",
       "Graft",
       "Harmonize",
@@ -27985,6 +28405,9 @@
     "qualifiers": [
       "CoreType",
       "Supertype"
+    ],
+    "quality": [
+      "Subtype"
     ],
     "redirect_amount": [
       "Next"

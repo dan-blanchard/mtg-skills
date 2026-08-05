@@ -4,7 +4,7 @@ Codegen'd from ``tests/fixtures/phase_mirror_schema.json`` by
 ``mtg_utils._card_ir.mirror.codegen`` (run via ``build-card-ir-substrate``).
 
 Part of the generated typed-mirror package (see this directory's
-``__init__.py``). This module holds content keys ``qty`` .. ``repeat_for`` (12
+``__init__.py``). This module holds content keys ``qty`` .. ``relation`` (11
 keys).
 
 Class naming: ``S_<ckey>`` for a struct shape, ``T_<ckey>__<tag>`` for a tagged
@@ -38,23 +38,21 @@ if TYPE_CHECKING:
         U_filter,
         U_filters,
         U_inner,
-        U_left,
     )
-    from mtg_utils._card_ir.mirror.generated.g09_library_position import (
+    from mtg_utils._card_ir.mirror.generated.g09_lhs import (
         U_metric,
     )
-    from mtg_utils._card_ir.mirror.generated.g10_payer import (
+    from mtg_utils._card_ir.mirror.generated.g10_parse_warnings import (
         U_player,
     )
     from mtg_utils._card_ir.mirror.generated.g11_properties import (
         U_properties,
     )
-    from mtg_utils._card_ir.mirror.generated.g13_repeat_until import (
-        U_right,
+    from mtg_utils._card_ir.mirror.generated.g13_repeat_for import (
         U_scope,
         U_source,
     )
-    from mtg_utils._card_ir.mirror.generated.g14_target import (
+    from mtg_utils._card_ir.mirror.generated.g14_subtype_filter import (
         U_target,
     )
 
@@ -540,6 +538,16 @@ class T_qty__TriggeringDiscoverValue(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class T_qty__TriggeringScryBottomCount(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "TriggeringScryBottomCount"
+
+
+@dataclass(frozen=True)
+class T_qty__TriggeringScryLookCount(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "TriggeringScryLookCount"
+
+
+@dataclass(frozen=True)
 class T_qty__TurnsTaken(TypedMirrorNode):
     _tag: ClassVar[str | None] = "TurnsTaken"
 
@@ -547,7 +555,7 @@ class T_qty__TurnsTaken(TypedMirrorNode):
 @dataclass(frozen=True)
 class T_qty__UnspentMana(TypedMirrorNode):
     _tag: ClassVar[str | None] = "UnspentMana"
-    color: str
+    color: None | str
 
 
 @dataclass(frozen=True)
@@ -674,6 +682,11 @@ class T_recipient__AttachedTo(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class T_recipient__Controller(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "Controller"
+
+
+@dataclass(frozen=True)
 class T_recipient__EachController(TypedMirrorNode):
     _tag: ClassVar[str | None] = "EachController"
 
@@ -728,7 +741,7 @@ class T_recipient__TriggeringSourceController(TypedMirrorNode):
 @dataclass(frozen=True)
 class T_recipient__Typed(TypedMirrorNode):
     _tag: ClassVar[str | None] = "Typed"
-    controller: None | str
+    controller: None | str | MirrorVariant
     properties: list[U_properties]
     type_filters: list[MirrorVariant]
 
@@ -829,39 +842,6 @@ class T_relation__Opponent(TypedMirrorNode):
     _tag: ClassVar[str | None] = "Opponent"
 
 
-@dataclass(frozen=True)
-class T_repeat_for__Difference(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "Difference"
-    left: U_left
-    right: U_right
-
-
-@dataclass(frozen=True)
-class T_repeat_for__Fixed(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "Fixed"
-    value: int
-
-
-@dataclass(frozen=True)
-class T_repeat_for__Multiply(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "Multiply"
-    factor: int
-    inner: U_inner
-
-
-@dataclass(frozen=True)
-class T_repeat_for__Offset(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "Offset"
-    inner: U_inner
-    offset: int
-
-
-@dataclass(frozen=True)
-class T_repeat_for__Ref(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "Ref"
-    qty: U_qty
-
-
 # --- discriminated-union aliases (one per tagged content_key) ---
 
 type U_qty = (
@@ -941,6 +921,8 @@ type U_qty = (
     | T_qty__TrackedSetAggregate
     | T_qty__TrackedSetSize
     | T_qty__TriggeringDiscoverValue
+    | T_qty__TriggeringScryBottomCount
+    | T_qty__TriggeringScryLookCount
     | T_qty__TurnsTaken
     | T_qty__UnspentMana
     | T_qty__Variable
@@ -968,6 +950,7 @@ type U_quantity_modification = (
 type U_recipient = (
     T_recipient__Any
     | T_recipient__AttachedTo
+    | T_recipient__Controller
     | T_recipient__EachController
     | T_recipient__Neighbor
     | T_recipient__ParentTarget
@@ -1001,10 +984,3 @@ type U_reference = (
     | T_reference__Typed
 )
 type U_relation = T_relation__All | T_relation__Opponent
-type U_repeat_for = (
-    T_repeat_for__Difference
-    | T_repeat_for__Fixed
-    | T_repeat_for__Multiply
-    | T_repeat_for__Offset
-    | T_repeat_for__Ref
-)

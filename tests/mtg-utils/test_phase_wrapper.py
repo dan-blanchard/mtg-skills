@@ -65,7 +65,7 @@ def _fake_card_data_fetch(payload: bytes, **manifest_kwargs) -> _FakeUrlopen:
 
 class TestPhaseTag:
     def test_phase_tag_is_pinned(self):
-        assert _phase.PHASE_TAG == "v0.35.2"
+        assert _phase.PHASE_TAG == "v0.45.0"
 
 
 class TestCacheLayout:

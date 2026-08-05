@@ -44,13 +44,13 @@ if TYPE_CHECKING:
         S_filter,
         U_filter,
         U_inner,
-        U_lhs,
     )
-    from mtg_utils._card_ir.mirror.generated.g09_library_position import (
+    from mtg_utils._card_ir.mirror.generated.g09_lhs import (
         S_or_trigger,
+        U_lhs,
         U_origin_constraint,
     )
-    from mtg_utils._card_ir.mirror.generated.g10_payer import (
+    from mtg_utils._card_ir.mirror.generated.g10_parse_warnings import (
         U_player,
         U_player_scope,
     )
@@ -58,7 +58,7 @@ if TYPE_CHECKING:
         U_reference,
         U_relation,
     )
-    from mtg_utils._card_ir.mirror.generated.g13_repeat_until import (
+    from mtg_utils._card_ir.mirror.generated.g13_repeat_for import (
         S_replacements,
         S_static_abilities,
         U_rhs,
@@ -66,11 +66,11 @@ if TYPE_CHECKING:
         U_scope,
         U_source,
         U_subject,
-        U_subtype_filter,
     )
-    from mtg_utils._card_ir.mirror.generated.g14_target import (
+    from mtg_utils._card_ir.mirror.generated.g14_subtype_filter import (
         S_trigger,
         S_triggers,
+        U_subtype_filter,
         U_target,
         U_value,
     )
@@ -532,6 +532,11 @@ class T_condition__IsMonarch(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class T_condition__IsOpponentsTurn(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "IsOpponentsTurn"
+
+
+@dataclass(frozen=True)
 class T_condition__IsPresent(TypedMirrorNode):
     _tag: ClassVar[str | None] = "IsPresent"
     filter: U_filter
@@ -615,6 +620,7 @@ class T_condition__OnlyIfQuantity(TypedMirrorNode):
     comparator: str
     lhs: U_lhs
     rhs: U_rhs
+    active_player_req: str = MISSING
 
 
 @dataclass(frozen=True)
@@ -715,6 +721,11 @@ class T_condition__SourceAttachedTo(TypedMirrorNode):
 @dataclass(frozen=True)
 class T_condition__SourceAttachedToCreature(TypedMirrorNode):
     _tag: ClassVar[str | None] = "SourceAttachedToCreature"
+
+
+@dataclass(frozen=True)
+class T_condition__SourceAttackedThisCombat(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "SourceAttackedThisCombat"
 
 
 @dataclass(frozen=True)
@@ -1022,6 +1033,7 @@ class T_condition__WhenYouDo(TypedMirrorNode):
 class T_condition__WheneverEvent(TypedMirrorNode):
     _tag: ClassVar[str | None] = "WheneverEvent"
     trigger: S_trigger
+    expiry: MirrorVariant = MISSING
 
 
 @dataclass(frozen=True)
@@ -1138,6 +1150,7 @@ type U_condition = (
     | T_condition__IfControlsMatching
     | T_condition__IsInitiative
     | T_condition__IsMonarch
+    | T_condition__IsOpponentsTurn
     | T_condition__IsPresent
     | T_condition__IsRenowned
     | T_condition__IsRingBearer
@@ -1168,6 +1181,7 @@ type U_condition = (
     | T_condition__SolveConditionMet
     | T_condition__SourceAttachedTo
     | T_condition__SourceAttachedToCreature
+    | T_condition__SourceAttackedThisCombat
     | T_condition__SourceAttackedThisTurn
     | T_condition__SourceAttackingAlone
     | T_condition__SourceEnteredThisTurn

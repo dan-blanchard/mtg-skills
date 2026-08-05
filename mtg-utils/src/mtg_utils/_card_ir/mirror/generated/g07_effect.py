@@ -34,6 +34,7 @@ if TYPE_CHECKING:
         U_amount_dynamic,
         U_attach_to,
         U_attachment,
+        U_attacker,
         U_attacker_restriction,
         U_card_filter,
         U_choose_filter,
@@ -60,6 +61,7 @@ if TYPE_CHECKING:
     from mtg_utils._card_ir.mirror.generated.g08_else_ability import (
         S_face_down_profile,
         U_enchant_filter,
+        U_end_cost,
         U_enter_with_counters,
         U_enters_modified_if,
         U_entry,
@@ -70,18 +72,19 @@ if TYPE_CHECKING:
         U_forced_to,
         U_grantee,
         U_grants,
+        U_graveyard_replacement,
         U_host,
         U_keep_count_expr,
         U_keep_on_top,
         U_keeper_constraint,
         U_kind,
-        U_library_players,
     )
-    from mtg_utils._card_ir.mirror.generated.g09_library_position import (
+    from mtg_utils._card_ir.mirror.generated.g09_lhs import (
         S_lose_effect,
         S_modification,
         S_multi_target,
         S_on_decline,
+        U_library_players,
         U_library_position,
         U_life_payment,
         U_mana_value_limit,
@@ -94,12 +97,12 @@ if TYPE_CHECKING:
         U_object_source,
         U_op,
         U_owner,
-        U_partition_subject,
-        U_partner_filter,
     )
-    from mtg_utils._card_ir.mirror.generated.g10_payer import (
+    from mtg_utils._card_ir.mirror.generated.g10_parse_warnings import (
         S_per_choice_effect,
         S_profile,
+        U_partition_subject,
+        U_partner_filter,
         U_payer,
         U_permission,
         U_pile_source,
@@ -117,9 +120,8 @@ if TYPE_CHECKING:
         U_recipient_object_filter,
         U_redirect_object_filter,
         U_redirect_to,
-        U_repeat_for,
     )
-    from mtg_utils._card_ir.mirror.generated.g13_repeat_until import (
+    from mtg_utils._card_ir.mirror.generated.g13_repeat_for import (
         S_replacement,
         S_results,
         S_scale,
@@ -127,6 +129,7 @@ if TYPE_CHECKING:
         S_static_abilities,
         S_statics,
         S_sub_ability,
+        U_repeat_for,
         U_replacement_effect,
         U_required_player,
         U_restriction,
@@ -145,13 +148,15 @@ if TYPE_CHECKING:
         U_state,
         U_step,
         U_subject,
-        U_tally_mode,
     )
-    from mtg_utils._card_ir.mirror.generated.g14_target import (
+    from mtg_utils._card_ir.mirror.generated.g14_subtype_filter import (
+        S_target,
+        S_target_condition,
         S_triggers,
         S_unchosen_pile_effect,
         S_unless_pay,
         S_win_effect,
+        U_tally_mode,
         U_target,
         U_target_a,
         U_target_b,
@@ -511,6 +516,12 @@ class T_effect__ChooseOneOf(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class T_effect__ChoosePermanent(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "ChoosePermanent"
+    filter: U_filter
+
+
+@dataclass(frozen=True)
 class T_effect__Clash(TypedMirrorNode):
     _tag: ClassVar[str | None] = "Clash"
 
@@ -863,6 +874,7 @@ class T_effect__ExileTop(TypedMirrorNode):
     _tag: ClassVar[str | None] = "ExileTop"
     count: U_count
     player: U_player
+    position: U_position
     face_down: bool = MISSING
 
 
@@ -913,6 +925,12 @@ class T_effect__FlipCoins(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class T_effect__FlipPermanent(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "FlipPermanent"
+    target: U_target
+
+
+@dataclass(frozen=True)
 class T_effect__ForEachCategory(TypedMirrorNode):
     _tag: ClassVar[str | None] = "ForEachCategory"
     action: U_action
@@ -936,7 +954,9 @@ class T_effect__ForceAttack(TypedMirrorNode):
 @dataclass(frozen=True)
 class T_effect__ForceBlock(TypedMirrorNode):
     _tag: ClassVar[str | None] = "ForceBlock"
+    duration: str
     target: U_target
+    attacker: U_attacker = MISSING
 
 
 @dataclass(frozen=True)
@@ -945,7 +965,7 @@ class T_effect__FreeCastFromZones(TypedMirrorNode):
     count: int
     filter: U_filter
     zones: list[object]
-    exile_instead_of_graveyard: bool = MISSING
+    graveyard_replacement: U_graveyard_replacement = MISSING
     max_total_mv: int = MISSING
 
 
@@ -989,6 +1009,7 @@ class T_effect__GenericEffect(TypedMirrorNode):
     duration: None | str | MirrorVariant
     static_abilities: list[S_static_abilities]
     target: None | U_target
+    end_cost: U_end_cost = MISSING
 
 
 @dataclass(frozen=True)
@@ -1120,7 +1141,7 @@ class T_effect__Mana(TypedMirrorNode):
     expiry: str = MISSING
     grants: list[U_grants | MirrorVariant] = MISSING
     restrictions: list[MirrorVariant] = MISSING
-    target: U_target = MISSING
+    target: S_target = MISSING
 
 
 @dataclass(frozen=True)
@@ -1291,6 +1312,7 @@ class T_effect__PutChosenCounter(TypedMirrorNode):
     _tag: ClassVar[str | None] = "PutChosenCounter"
     count: U_count
     target: U_target
+    target_condition: S_target_condition = MISSING
 
 
 @dataclass(frozen=True)
@@ -1313,6 +1335,7 @@ class T_effect__PutCounterAll(TypedMirrorNode):
 class T_effect__PutOnTopOrBottom(TypedMirrorNode):
     _tag: ClassVar[str | None] = "PutOnTopOrBottom"
     target: U_target
+    chooser: U_chooser = MISSING
 
 
 @dataclass(frozen=True)
@@ -1666,6 +1689,7 @@ class T_effect__Token(TypedMirrorNode):
 @dataclass(frozen=True)
 class T_effect__Transform(TypedMirrorNode):
     _tag: ClassVar[str | None] = "Transform"
+    scope: U_scope
     target: U_target
 
 
@@ -1774,6 +1798,7 @@ type U_effect = (
     | T_effect__ChooseFromZone
     | T_effect__ChooseObjectsIntoTrackedSet
     | T_effect__ChooseOneOf
+    | T_effect__ChoosePermanent
     | T_effect__Clash
     | T_effect__Cloak
     | T_effect__CollectEvidence
@@ -1827,6 +1852,7 @@ type U_effect = (
     | T_effect__FlipCoin
     | T_effect__FlipCoinUntilLose
     | T_effect__FlipCoins
+    | T_effect__FlipPermanent
     | T_effect__ForEachCategory
     | T_effect__Forage
     | T_effect__ForceAttack

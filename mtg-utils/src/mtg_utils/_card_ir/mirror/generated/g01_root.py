@@ -5,7 +5,7 @@ Codegen'd from ``tests/fixtures/phase_mirror_schema.json`` by
 
 Part of the generated typed-mirror package (see this directory's
 ``__init__.py``). This module holds content keys ``<root>`` ..
-``MustBeBlockedByAll`` (73 keys).
+``MustBeBlockedByAll`` (74 keys).
 
 Class naming: ``S_<ckey>`` for a struct shape, ``T_<ckey>__<tag>`` for a tagged
 shape, ``U_<ckey>`` for the union of all tagged shapes at one content_key.
@@ -56,16 +56,16 @@ if TYPE_CHECKING:
         U_filter,
         U_filters,
     )
-    from mtg_utils._card_ir.mirror.generated.g09_library_position import (
+    from mtg_utils._card_ir.mirror.generated.g09_lhs import (
         S_metadata,
         S_modal,
         U_mana_cost,
         U_mana_reduction,
         U_materials,
         U_once_per_turn,
-        U_parse_warnings,
     )
-    from mtg_utils._card_ir.mirror.generated.g10_payer import (
+    from mtg_utils._card_ir.mirror.generated.g10_parse_warnings import (
+        U_parse_warnings,
         U_power,
     )
     from mtg_utils._card_ir.mirror.generated.g11_properties import (
@@ -75,7 +75,7 @@ if TYPE_CHECKING:
         S_reduction,
         U_qty,
     )
-    from mtg_utils._card_ir.mirror.generated.g13_repeat_until import (
+    from mtg_utils._card_ir.mirror.generated.g13_repeat_for import (
         S_replacements,
         S_requirement,
         S_rulings,
@@ -85,7 +85,7 @@ if TYPE_CHECKING:
         U_spell_filter,
         U_strive_cost,
     )
-    from mtg_utils._card_ir.mirror.generated.g14_target import (
+    from mtg_utils._card_ir.mirror.generated.g14_subtype_filter import (
         S_triggers,
         U_target,
         U_toughness,
@@ -241,6 +241,12 @@ class S_DefilerCostReduction(TypedMirrorNode):
     color: str
     life_cost: int
     mana_reduction: U_mana_reduction
+
+
+@dataclass(frozen=True)
+class S_Devour(TypedMirrorNode):
+    n: int
+    quality: str | MirrorVariant
 
 
 @dataclass(frozen=True)
