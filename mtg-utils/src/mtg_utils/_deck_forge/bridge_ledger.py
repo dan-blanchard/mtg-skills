@@ -2389,14 +2389,16 @@ BRIDGES: dict[str, Bridge] = {
             key="direct_damage",
             kind="dropped_clause",
             todo=(
-                "upstream phase-rs report candidate (Dan posts): the "
+                "FIX PR FILED upstream: phase-rs/phase#7047 (full pipeline, "
+                "opened 2026-08-05) parses the existential exiled-with "
+                "intervening-if whose unstripped 'if ' prefix was "
+                "suppressing the ', then' clause split — restoring the "
                 "trailing 'then ~ deals that much damage to each opponent' "
-                "clause after a ChangeZone(Graveyard) effect in the SAME "
-                "sentence is dropped from execute.effect even though the "
-                "wrapping unit's own description field still carries the "
-                "full sentence text. Retires on a phase bump that "
-                "decomposes a second SequentialSibling-chained effect "
-                "sharing one sentence (task #82)"
+                "clause as a SequentialSibling-chained DamageEachPlayer "
+                "(the runtime AMOUNT still under-resolves upstream — "
+                "engine-side gap filed as phase-rs/phase#7046 — but the "
+                "PARSE this bridge's gap-check reads lands the typed "
+                "damage node). Retires on a phase bump that ships #7047"
             ),
             census=(
                 "1 hit / 31,622 commander-legal (Valakut Exploration, a "
@@ -2655,8 +2657,9 @@ BRIDGES: dict[str, Bridge] = {
             key="base_pt_set",
             kind="upstream_parse_failure",
             todo=(
-                "upstream phase-rs report candidate (Dan posts): the "
-                "v0.40.x 'Plan 05b' parser rework REGRESSED the modal "
+                "FILED upstream as phase-rs/phase#7031; fix PR "
+                "phase-rs/phase#7037 (full pipeline, opened 2026-08-05): the "
+                "modal-native-IR rework (#6811, v0.42.0) REGRESSED the modal "
                 "\"It's a <color> <type> with base power and toughness "
                 'N/N" animate clause — fully structured at v0.35.2 (a '
                 "GenericEffect modification suite: SetPower/SetToughness/"
