@@ -168,7 +168,7 @@ requires-dist = [
 dev = [
     { name = "httpx2" },
     { name = "pytest", specifier = ">=9.0.2" },
-    { name = "ruff", specifier = ">=0.9" },
+    { name = "ruff", specifier = "==0.15.16" },
 ]
 
 [[package]]

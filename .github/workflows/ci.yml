@@ -10,6 +10,18 @@ jobs:
       # Lint + format ALL python in the repo (src + every skill's tests), not just
       # mtg-utils tests. Run from mtg-utils so the shared ruff config + the
       # `../tests/*` per-file-ignores in its pyproject.toml resolve.
+      #
+      # RUFF IS PINNED (ruff==0.15.16), identically in all eight pyproject.toml
+      # files — the opposite of the ty policy below, and deliberately so. These two
+      # steps lint the whole repo with MTG-UTILS' ruff, but each skill has its own
+      # venv and lockfile, so an unpinned floor let the eight drift across six
+      # different 0.15.x versions. That makes `ruff format` from a skill's own venv
+      # (e.g. `cd deck-forge && uv run ruff format`) a hazard rather than a fix: it
+      # can rewrite files this step then rejects. Formatting output happens to agree
+      # across all of 0.15.x, but 0.16 adds rules (165 findings on this tree), so an
+      # unpinned resolver bump would fail CI with no code change to blame — which is
+      # what made the last drift confusing to diagnose. Bump all eight together, and
+      # reformat in the same commit.
       - run: cd mtg-utils && uv run ruff check src/ ../tests/
       - run: cd mtg-utils && uv run ruff format --check src/ ../tests/
       # ty is intentionally unpinned (uvx fetches latest): deck-forge ships a

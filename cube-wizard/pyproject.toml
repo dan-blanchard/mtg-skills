@@ -51,7 +51,13 @@ testpaths = ["../tests/cube-wizard"]
 [dependency-groups]
 dev = [
     "pytest>=9.0.2",
-    "ruff>=0.9",
+    # Pinned exactly, and identically across all eight pyproject.toml files: CI
+    # lints/formats the WHOLE repo with mtg-utils' ruff, so a skill resolving a
+    # different version formats code CI then rejects. `>=` let the eight lockfiles
+    # drift across six 0.15.x versions; every 0.15.x agrees on format+check, but
+    # 0.16 adds rules (165 findings here), so an unpinned bump breaks CI with no
+    # code change to blame. Bump deliberately, in all eight at once.
+    "ruff==0.15.16",
 ]
 
 [tool.ruff.lint]
