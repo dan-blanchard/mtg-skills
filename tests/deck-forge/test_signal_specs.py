@@ -6991,9 +6991,7 @@ def test_curse_matters_is_a_named_archetype_lane():
 
     # Real production extractor: a trigger/effect subject Filter with
     # subtypes=='Curse'.
-    assert "curse_matters" in {
-        s.key for s in test_signals("Lynde, Cheerful Tormentor")
-    }
+    assert "curse_matters" in {s.key for s in test_signals("Lynde, Cheerful Tormentor")}
     sig = _sig("curse_matters", "you")
     curse_of_misfortunes = {
         "name": "Curse of Misfortunes",

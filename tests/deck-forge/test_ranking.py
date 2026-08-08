@@ -909,9 +909,7 @@ def test_sort_is_total_and_input_order_independent():
     # staples dict-merge order was leaking into rankings through Python's
     # stable sort).
     cards = [_ELVEN_BOW, _FLAYER_HUSK, _BASTION]
-    fwd = rank_candidates(
-        cards, active_signals=_ARI_SIGNALS, focus_sets=_ARI_FOCUS
-    )
+    fwd = rank_candidates(cards, active_signals=_ARI_SIGNALS, focus_sets=_ARI_FOCUS)
     rev = rank_candidates(
         list(reversed(cards)), active_signals=_ARI_SIGNALS, focus_sets=_ARI_FOCUS
     )

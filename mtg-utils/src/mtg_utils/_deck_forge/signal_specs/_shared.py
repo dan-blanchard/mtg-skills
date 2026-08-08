@@ -1697,5 +1697,3 @@ _REDIRECT_SERVE_ORACLE = (
     r"|new target.{0,30}this (?:creature|permanent)"
     r"|choose new targets for target\b"
 )
-
-

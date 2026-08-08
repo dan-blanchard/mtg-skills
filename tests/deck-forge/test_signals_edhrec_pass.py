@@ -16,7 +16,6 @@ exhibiting the identical grammatical construction stands in; only Grond's specif
 "you control an Army" word order had no snapshot substitute at all.
 """
 
-
 from mtg_utils.testkit import test_signals
 
 
@@ -87,7 +86,9 @@ def test_begin_combat_single_target_pump_is_combat_buff_engine():
     # +1/+1 counter on up to one target creature you control" is the same
     # begin-combat single-target pump shape as Aurelia, Exemplar of Justice (not
     # yet snapshot-resident).
-    assert "combat_buff_engine" in {s.key for s in test_signals("Leinore, Autumn Sovereign")}
+    assert "combat_buff_engine" in {
+        s.key for s in test_signals("Leinore, Autumn Sovereign")
+    }
 
 
 def test_static_anthem_not_combat_buff():
@@ -101,4 +102,6 @@ def test_cross_sentence_loot_is_discard():
     # Katara, Waterbending Master — "you may draw a card for each experience
     # counter you have. If you do, discard a card." is a draw→discard outlet split
     # across a sentence boundary by the conditional "If you do,".
-    assert "discard_makers" in {s.key for s in test_signals("Katara, Waterbending Master")}
+    assert "discard_makers" in {
+        s.key for s in test_signals("Katara, Waterbending Master")
+    }

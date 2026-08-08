@@ -13,7 +13,6 @@ Patterns implemented here:
   5. Self-ETB-value commanders surface the existing blink/flicker avenue (extraction).
 """
 
-
 from mtg_utils._deck_forge.signal_specs import serves, spec_for
 from mtg_utils._deck_forge.signals import Signal
 from mtg_utils.testkit import test_signals
@@ -195,7 +194,9 @@ class TestVoltronCastTrigger:
     def test_cast_equipment_aura_commander_emits_voltron(self):
         # Sram's "cast an Aura, Equipment, or Vehicle spell" is the Equipment/Aura
         # PAYOFF tell — it fires voltron_matters via the real IR.
-        assert "voltron_matters" in {s.key for s in test_signals("Sram, Senior Edificer")}
+        assert "voltron_matters" in {
+            s.key for s in test_signals("Sram, Senior Edificer")
+        }
         # a non-equipment payoff (an Equipment's own singular payload) must NOT open
         # the payoff lane — the broad tell keys on "equipped creatures" (PLURAL), and
         # Bonesplitter (plain "Equipped creature gets +2/+0") is a single-target payload.
@@ -380,10 +381,6 @@ class TestTypedGraveyardRecursion:
     def test_generic_reanimation_emits_no_bogus_type(self):
         # "return target permanent card …" is plain reanimation, not a typed-
         # recursion deck. Sun Titan: real card over the committed snapshot.
-        subs = {
-            s.subject
-            for s in test_signals("Sun Titan")
-            if s.key == "type_matters"
-        }
+        subs = {s.subject for s in test_signals("Sun Titan") if s.key == "type_matters"}
         assert "Permanent" not in subs
         assert "Creature" not in subs

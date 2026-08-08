@@ -12,7 +12,6 @@ either not duplicated there, or adds the `serves()`-classify dimension that
 extraction alone doesn't cover.
 """
 
-
 from mtg_utils._deck_forge.signal_specs import serves, spec_for
 from mtg_utils._deck_forge.signals import Signal
 from mtg_utils.testkit import test_signals
@@ -171,7 +170,9 @@ def test_mv_scaling_burn_still_opens_noncombat():
 # regex actually pick out the one real partner and reject an unrelated card —
 # so that's what's pinned here, off the real signal.
 def test_meld_pair_serves_only_its_partner():
-    sig = next(s for s in test_signals("Bruna, the Fading Light") if s.key == "meld_pair")
+    sig = next(
+        s for s in test_signals("Bruna, the Fading Light") if s.key == "meld_pair"
+    )
     assert sig.subject == "Bruna, the Fading Light"  # subject is THIS card's name
     partner = {
         "name": "Gisela, the Broken Blade",

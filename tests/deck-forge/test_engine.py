@@ -66,7 +66,9 @@ def test_partner_search_only_with_exactly_one_partner_commander():
 
 def test_avenues_drop_partner_when_slot_full():
     two = _state(commanders=["Ishai, Ojutai Dragonspeaker", "Atraxa, Praetors' Voice"])
-    labels = {a["label"] for a in engine.avenues(two, engine.hydrate_session(two).records)}
+    labels = {
+        a["label"] for a in engine.avenues(two, engine.hydrate_session(two).records)
+    }
     assert "Partner / Background" not in labels
 
 
@@ -82,7 +84,9 @@ def test_avenues_append_agent_avenues():
             "search": {},
         }
     )
-    labels = [a["label"] for a in engine.avenues(st, engine.hydrate_session(st).records)]
+    labels = [
+        a["label"] for a in engine.avenues(st, engine.hydrate_session(st).records)
+    ]
     assert "Custom" in labels
 
 
@@ -107,7 +111,9 @@ def test_snapshot_composes_expected_keys():
 def test_legality_warnings_flags_too_many_cards():
     # commander target is 100; 1 commander + 100 mainboard copies = 101 > 100.
     st = _state(commanders=["Atraxa, Praetors' Voice"], cards=[("Forest", 100)])
-    warns = engine.legality_warnings(engine.hydrate_session(st), max_cards=st.session.deck_size)
+    warns = engine.legality_warnings(
+        engine.hydrate_session(st), max_cards=st.session.deck_size
+    )
     cats = {w["category"] for w in warns}
     assert "deck_maximum" in cats
     assert any("101" in w["message"] for w in warns)
@@ -120,7 +126,9 @@ def test_legality_warnings_flags_unimported_cards():
         commanders=["Atraxa, Praetors' Voice"],
         cards=[("Definitely Not A Real Card", 1)],
     )
-    warns = engine.legality_warnings(engine.hydrate_session(st), max_cards=st.session.deck_size)
+    warns = engine.legality_warnings(
+        engine.hydrate_session(st), max_cards=st.session.deck_size
+    )
     cats = {w["category"] for w in warns}
     assert "unimported" in cats
     assert any("Definitely Not A Real Card" in w["message"] for w in warns)
@@ -128,7 +136,9 @@ def test_legality_warnings_flags_unimported_cards():
 
 def test_legality_warnings_clean_deck_has_no_size_or_import_warnings():
     st = _state(commanders=["Atraxa, Praetors' Voice"], cards=[("Forest", 10)])
-    warns = engine.legality_warnings(engine.hydrate_session(st), max_cards=st.session.deck_size)
+    warns = engine.legality_warnings(
+        engine.hydrate_session(st), max_cards=st.session.deck_size
+    )
     cats = {w["category"] for w in warns}
     assert "deck_maximum" not in cats
     assert "unimported" not in cats
@@ -197,9 +207,7 @@ def test_signal_freq_falls_back_to_live_compute_without_a_sidecar(monkeypatch):
     # engine.py imports extract_signals by name at module load (bound into
     # engine's own namespace via `_signals`), so the patch target is engine's
     # imported name, not signals.py's — unlike signals_index.py's lazy import.
-    monkeypatch.setattr(
-        "mtg_utils._deck_forge.engine.extract_signals", fake_extract
-    )
+    monkeypatch.setattr("mtg_utils._deck_forge.engine.extract_signals", fake_extract)
 
     freq, total = engine._signal_freq(st)
     assert total == 1
@@ -219,9 +227,7 @@ def test_signal_freq_caches_per_format_on_state(monkeypatch):
     # engine.py imports extract_signals by name at module load (bound into
     # engine's own namespace via `_signals`), so the patch target is engine's
     # imported name, not signals.py's — unlike signals_index.py's lazy import.
-    monkeypatch.setattr(
-        "mtg_utils._deck_forge.engine.extract_signals", fake_extract
-    )
+    monkeypatch.setattr("mtg_utils._deck_forge.engine.extract_signals", fake_extract)
     engine._signal_freq(st)
     engine._signal_freq(st)
     assert calls == ["Fake Commander"]  # second call served from state cache

@@ -13,7 +13,6 @@ Synthetic scenarios already proven by
 ``tests/mtg-utils/test_crosswalk.py`` were dropped as duplicates.
 """
 
-
 from mtg_utils._deck_forge.signals import (
     Signal,
     _tinybones_scope,
@@ -1114,7 +1113,9 @@ def test_color_hoser_opens_and_serves_color_change_toolbox():
     # protection-from-color trick or a mana fixer.
     from mtg_utils._deck_forge.signal_specs import spec_for
 
-    sp = spec_for(Signal(key="color_hoser", scope="you", subject="", text="", source=""))
+    sp = spec_for(
+        Signal(key="color_hoser", scope="you", subject="", text="", source="")
+    )
     painters = {
         "name": "Painter's Servant",
         "type_line": "Artifact Creature — Scarecrow",

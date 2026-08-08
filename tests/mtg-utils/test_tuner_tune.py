@@ -191,8 +191,6 @@ def test_shape_override_respected():
     assert out["scorecard"]["shape"]["inferred"] is False
 
 
-
-
 def test_fill_gap_counts_dfc_land_via_alias_not_name_set():
     # ADR-0041: the DFC join bug. A modal DFC land's deck entry can carry only
     # its front-face name (as decklist import commonly does) while the

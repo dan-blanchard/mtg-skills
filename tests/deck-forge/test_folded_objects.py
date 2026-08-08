@@ -64,7 +64,10 @@ def _idents(records, commanders, *, fold: bool):
 def test_acererak_folds_only_his_named_dungeon():
     # all_parts lists ALL rules-legal dungeons; only the oracle-NAMED one is
     # the deterministic plan (ADR-0025's popularity-free gate).
-    names = [o["name"] for o in folded_object_records(test_card("Acererak the Archlich"), _resolver)]
+    names = [
+        o["name"]
+        for o in folded_object_records(test_card("Acererak the Archlich"), _resolver)
+    ]
     assert names == ["Tomb of Annihilation"]
 
 
@@ -74,17 +77,28 @@ def test_generic_venturer_folds_nothing():
 
 
 def test_meld_commander_folds_its_result():
-    names = [o["name"] for o in folded_object_records(test_card("Bruna, the Fading Light"), _resolver)]
+    names = [
+        o["name"]
+        for o in folded_object_records(test_card("Bruna, the Fading Light"), _resolver)
+    ]
     assert names == ["Brisela, Voice of Nightmares"]
 
 
 def test_ring_tempts_folds_the_ring():
-    names = [o["name"] for o in folded_object_records(test_card("Frodo, Sauron's Bane"), _resolver)]
+    names = [
+        o["name"]
+        for o in folded_object_records(test_card("Frodo, Sauron's Bane"), _resolver)
+    ]
     assert any(n.startswith("The Ring") for n in names)  # DFC full name
 
 
 def test_initiative_folds_undercity():
-    names = [o["name"] for o in folded_object_records(test_card("Caves of Chaos Adventurer"), _resolver)]
+    names = [
+        o["name"]
+        for o in folded_object_records(
+            test_card("Caves of Chaos Adventurer"), _resolver
+        )
+    ]
     assert any(n.startswith("Undercity") for n in names)  # DFC full name
 
 

@@ -311,8 +311,7 @@ def test_ranked_signals_and_payoffs_extracts_once_per_card(monkeypatch):
     index = {c["name"]: c for c in [KRENKO_REAL, GALERIDER, MURDER]}
     hd = HydratedDeck.from_parsed(deck, by_name=index)
     expected_ranked = rank_deck_signals(hd.records, {"Krenko, Mob Boss"})
-    expected_payoffs = tribal_payoff_subjects(
-        hd.records, {"Krenko, Mob Boss"})
+    expected_payoffs = tribal_payoff_subjects(hd.records, {"Krenko, Mob Boss"})
 
     calls = {"n": 0}
     real = signals_mod.extract_signals
@@ -322,8 +321,7 @@ def test_ranked_signals_and_payoffs_extracts_once_per_card(monkeypatch):
         return real(*args, **kwargs)
 
     monkeypatch.setattr(signals_mod, "extract_signals", counting)
-    ranked, payoffs = ranked_signals_and_payoffs(
-        hd.records, {"Krenko, Mob Boss"})
+    ranked, payoffs = ranked_signals_and_payoffs(hd.records, {"Krenko, Mob Boss"})
     assert calls["n"] == len(hd.records)  # ONE pass, not two
     assert ranked == expected_ranked
     assert payoffs == expected_payoffs

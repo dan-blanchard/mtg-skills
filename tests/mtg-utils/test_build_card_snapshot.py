@@ -23,7 +23,7 @@ def test_scans_derived_wrapper_and_apostrophes():
         "def _ks_real(name):\n"
         "    return {(s.key, s.scope) for s in test_signals(name)}\n"
         "def test_x():\n"
-        "    _ks_real(\"Atraxa, Praetors' Voice\")\n"
+        '    _ks_real("Atraxa, Praetors\' Voice")\n'
     )
     assert _scan_module(src) == {"Atraxa, Praetors' Voice"}
 

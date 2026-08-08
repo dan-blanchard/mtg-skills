@@ -242,9 +242,7 @@ def _scan_module(text: str) -> set[str]:
         return names
     helpers = _local_wrappers(tree)
     for node in ast.walk(tree):
-        is_helper_call = isinstance(node, ast.Call) and _helper_call_name(
-            node, helpers
-        )
+        is_helper_call = isinstance(node, ast.Call) and _helper_call_name(node, helpers)
         if is_helper_call:
             arg = _call_name_arg(node)
             if isinstance(arg, ast.Constant) and isinstance(arg.value, str):
@@ -398,12 +396,8 @@ def build_snapshot(names: set[str], out_path: Path | None = None) -> tuple[Path,
         # record, over the SAME seeded trees (``ir=None`` — the crosswalk merge
         # never reads it; only the legacy fallback would, and both calls agree by
         # construction since neither exercises it here).
-        full_sigs = {
-            (s.key, s.scope, s.subject) for s in extract_signals(rec)
-        }
-        mini_sigs = {
-            (s.key, s.scope, s.subject) for s in extract_signals(minimal)
-        }
+        full_sigs = {(s.key, s.scope, s.subject) for s in extract_signals(rec)}
+        mini_sigs = {(s.key, s.scope, s.subject) for s in extract_signals(minimal)}
         if full_sigs != mini_sigs:
             lossy.append(
                 f"{name}: only-full={full_sigs - mini_sigs} "

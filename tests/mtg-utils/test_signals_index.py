@@ -194,9 +194,7 @@ class TestLoadSignalsIndex:
         def boom(_rec, *_args, **_kwargs):
             raise AssertionError("recomputed despite a fresh, matching sidecar")
 
-        monkeypatch.setattr(
-            "mtg_utils._deck_forge.signals.extract_signals", boom
-        )
+        monkeypatch.setattr("mtg_utils._deck_forge.signals.extract_signals", boom)
         cached = signals_index.load_signals_index(bulk, records=records)
         assert cached == index
 

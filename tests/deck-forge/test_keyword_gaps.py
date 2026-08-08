@@ -105,7 +105,9 @@ class TestNinjaTribal:
     def test_non_ninja_commander_no_ninja_subject(self):
         # Goblin King: a real tribal lord whose type_matters subject is its own
         # tribe (Goblin) — a non-Ninja tribal lord must not leak a Ninja subject.
-        subs = {s.subject for s in test_signals("Goblin King") if s.key == "type_matters"}
+        subs = {
+            s.subject for s in test_signals("Goblin King") if s.key == "type_matters"
+        }
         assert "Ninja" not in subs
 
 

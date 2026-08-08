@@ -1698,9 +1698,7 @@ class TestSeedSignalKeyIndex:
             def boom(_rec, *_args, **_kwargs):
                 raise AssertionError("must not recompute — already seeded")
 
-            monkeypatch.setattr(
-                "mtg_utils._deck_forge.signals.extract_signals", boom
-            )
+            monkeypatch.setattr("mtg_utils._deck_forge.signals.extract_signals", boom)
             assert theme_presets._signal_keys_for(
                 {"oracle_id": "oid-seed"}
             ) == frozenset({"ramp"})
