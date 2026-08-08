@@ -34,11 +34,14 @@ dev = [
     "pytest>=9.0.2",
     # Pinned exactly, and identically across all eight pyproject.toml files: CI
     # lints/formats the WHOLE repo with mtg-utils' ruff, so a skill resolving a
-    # different version formats code CI then rejects. `>=` let the eight lockfiles
-    # drift across six 0.15.x versions; every 0.15.x agrees on format+check, but
-    # 0.16 adds rules (165 findings here), so an unpinned bump breaks CI with no
-    # code change to blame. Bump deliberately, in all eight at once.
-    "ruff==0.15.16",
+    # different version formats code CI then rejects. `>=` previously let the eight
+    # lockfiles drift across six versions. It also matters that `select = ["ALL"]`
+    # below opts into EVERY rule, so each ruff release auto-enables new ones — the
+    # 0.15 -> 0.16 bump added five (CPY001/RUF036/ISC004/PLR0917/FURB192). An
+    # unpinned resolver bump therefore fails CI with no code change to blame. Bump
+    # deliberately, in all eight at once, and triage the new rules — ignore-list or
+    # fix — in that same commit.
+    "ruff==0.16.2",
 ]
 
 [tool.ruff.lint]

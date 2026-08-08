@@ -31,7 +31,7 @@ testpaths = ["../tests/lgs-search"]
 [dependency-groups]
 # ruff is pinned exactly and identically in all eight pyproject.toml files — see
 # mtg-utils/pyproject.toml for why. Bump deliberately, in all eight at once.
-dev = ["pytest>=9.0.2", "ruff==0.15.16"]
+dev = ["pytest>=9.0.2", "ruff==0.16.2"]
 
 [tool.ruff.lint]
 select = ["ALL"]

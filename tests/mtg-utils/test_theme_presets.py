@@ -1719,7 +1719,7 @@ class TestSeedSignalKeyIndex:
 
         self._reset()
         try:
-            name = sorted(testkit._snapshot()["cards"])[0]
+            name = min(testkit._snapshot()["cards"])
             live_keys = frozenset(sig.key for sig in testkit.test_signals(name))
             rec = testkit.test_card(name)
 

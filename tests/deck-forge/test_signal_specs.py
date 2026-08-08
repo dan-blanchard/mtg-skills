@@ -191,23 +191,29 @@ def test_mass_death_payoff_serves_board_wipes_and_mass_reanimation():
             "Blasphemous Act",
             "Sorcery",
             "{8}{R}",
-            "This spell costs {1} less to cast for each creature on the battlefield.\n"
-            "Blasphemous Act deals 13 damage to each creature.",
+            (
+                "This spell costs {1} less to cast for each creature on the battlefield.\n"
+                "Blasphemous Act deals 13 damage to each creature."
+            ),
         ),
         (
             "Storm of Souls",
             "Sorcery",
             "{4}{W}{W}",
-            "Return all creature cards from your graveyard to the battlefield. Each of "
-            "them is a 1/1 Spirit with flying in addition to its other types. Exile "
-            "Storm of Souls.",
+            (
+                "Return all creature cards from your graveyard to the battlefield. Each of "
+                "them is a 1/1 Spirit with flying in addition to its other types. Exile "
+                "Storm of Souls."
+            ),
         ),
         (
             "Faith's Reward",
             "Instant",
             "{3}{W}",
-            "Return to the battlefield all permanent cards in your graveyard that were "
-            "put there from the battlefield this turn.",
+            (
+                "Return to the battlefield all permanent cards in your graveyard that were "
+                "put there from the battlefield this turn."
+            ),
         ),
     ]
     for name, tl, mc, otext in wipes_and_reanim:
@@ -6014,13 +6020,17 @@ def test_pillowfort_served_to_high_synergy_archetypes_only():
     fort = [
         (
             "Ghostly Prison",
-            "Creatures can't attack you unless their controller pays {2} "
-            "for each creature they control that's attacking you.",
+            (
+                "Creatures can't attack you unless their controller pays {2} "
+                "for each creature they control that's attacking you."
+            ),
         ),
         (
             "Sphere of Safety",
-            "Creatures can't attack you or a planeswalker you control "
-            "unless their controller pays {X} for each of those creatures.",
+            (
+                "Creatures can't attack you or a planeswalker you control "
+                "unless their controller pays {X} for each of those creatures."
+            ),
         ),
         ("Crawlspace", "No more than two creatures can attack you each combat."),
     ]
@@ -6061,20 +6071,26 @@ def test_superfriends_serves_generic_counter_doublers_via_loyalty_extra():
     generic_doublers = [
         (
             "Doubling Season",
-            "If an effect would put one or more counters on a permanent you "
-            "control, it puts twice that many of those counters on that "
-            "permanent instead.",
+            (
+                "If an effect would put one or more counters on a permanent you "
+                "control, it puts twice that many of those counters on that "
+                "permanent instead."
+            ),
         ),
         (
             "Vorinclex, Monstrous Raider",
-            "If you would put one or more counters on a permanent or player, "
-            "put twice that many of each of those kinds of counters on that "
-            "permanent or player instead.",
+            (
+                "If you would put one or more counters on a permanent or player, "
+                "put twice that many of each of those kinds of counters on that "
+                "permanent or player instead."
+            ),
         ),
         (
             "Gilder Bairn",
-            "{2}{G/U}, {Q}: Double the number of each kind of counter on "
-            "target permanent.",
+            (
+                "{2}{G/U}, {Q}: Double the number of each kind of counter on "
+                "target permanent."
+            ),
         ),
     ]
     sig = _sig("superfriends_matters", "you")
@@ -6086,19 +6102,25 @@ def test_superfriends_serves_generic_counter_doublers_via_loyalty_extra():
     typed_doublers = [
         (
             "Winding Constrictor",
-            "If one or more counters would be put on an artifact or creature "
-            "you control, that many plus one of each of those kinds of "
-            "counters are put on that permanent instead.",
+            (
+                "If one or more counters would be put on an artifact or creature "
+                "you control, that many plus one of each of those kinds of "
+                "counters are put on that permanent instead."
+            ),
         ),
         (
             "Corpsejack Menace",
-            "If one or more +1/+1 counters would be put on a creature you "
-            "control, twice that many +1/+1 counters are put on it instead.",
+            (
+                "If one or more +1/+1 counters would be put on a creature you "
+                "control, twice that many +1/+1 counters are put on it instead."
+            ),
         ),
         (
             "Vorel of the Hull Clade",
-            "{G}{U}, {T}: Double the number of each kind of counter on "
-            "target artifact, creature, or land.",
+            (
+                "{G}{U}, {T}: Double the number of each kind of counter on "
+                "target artifact, creature, or land."
+            ),
         ),
     ]
     for name, oracle in typed_doublers:
@@ -6148,8 +6170,10 @@ def test_targeting_heroic_serves_single_target_buffs():
     for name, oracle in [
         (
             "Gods Willing",
-            "Target creature you control gains protection from the color "
-            "of your choice until end of turn.",
+            (
+                "Target creature you control gains protection from the color "
+                "of your choice until end of turn."
+            ),
         ),
         ("Brute Force", "Target creature gets +3/+3 until end of turn."),
         ("Temur Battle Rage", "Target creature gains double strike until end of turn."),
@@ -6214,13 +6238,17 @@ def test_lands_matter_serves_land_ramp():
     for name, oracle in [
         (
             "Skyshroud Claim",
-            "Search your library for up to two Forest cards, put them "
-            "onto the battlefield tapped, then shuffle.",
+            (
+                "Search your library for up to two Forest cards, put them "
+                "onto the battlefield tapped, then shuffle."
+            ),
         ),
         (
             "Cultivate",
-            "Search your library for up to two basic land cards, reveal them, "
-            "put one onto the battlefield tapped and the other into your hand.",
+            (
+                "Search your library for up to two basic land cards, reveal them, "
+                "put one onto the battlefield tapped and the other into your hand."
+            ),
         ),
         ("Crucible of Worlds", "You may play lands from your graveyard."),
     ]:
@@ -6236,18 +6264,24 @@ def test_ramp_serves_basic_land_type_fetches():
     for name, oracle in [
         (
             "Skyshroud Claim",
-            "Search your library for up to two Forest cards, put them "
-            "onto the battlefield tapped, then shuffle.",
+            (
+                "Search your library for up to two Forest cards, put them "
+                "onto the battlefield tapped, then shuffle."
+            ),
         ),
         (
             "Nature's Lore",
-            "Search your library for a Forest card, put that card onto "
-            "the battlefield, then shuffle.",
+            (
+                "Search your library for a Forest card, put that card onto "
+                "the battlefield, then shuffle."
+            ),
         ),
         (
             "Farseek",
-            "Search your library for a Plains, Island, Swamp, or Mountain card, "
-            "put it onto the battlefield tapped, then shuffle.",
+            (
+                "Search your library for a Plains, Island, Swamp, or Mountain card, "
+                "put it onto the battlefield tapped, then shuffle."
+            ),
         ),
     ]:
         card = {"name": name, "type_line": "Sorcery", "oracle_text": oracle}
@@ -6264,18 +6298,24 @@ def test_sacrifice_serves_death_value_fodder():
     for name, oracle in [
         (
             "Ichor Wellspring",
-            "When this artifact enters or is put into a graveyard from "
-            "the battlefield, draw a card.",
+            (
+                "When this artifact enters or is put into a graveyard from "
+                "the battlefield, draw a card."
+            ),
         ),
         (
             "Filigree Familiar",
-            "When this creature enters, you gain 2 life.\nWhen this "
-            "creature dies, draw a card.",
+            (
+                "When this creature enters, you gain 2 life.\nWhen this "
+                "creature dies, draw a card."
+            ),
         ),
         (
             "Mycosynth Wellspring",
-            "When this artifact enters or is put into a graveyard "
-            "from the battlefield, you may search your library for a basic land card.",
+            (
+                "When this artifact enters or is put into a graveyard "
+                "from the battlefield, you may search your library for a basic land card."
+            ),
         ),
     ]:
         assert _lane_covers(

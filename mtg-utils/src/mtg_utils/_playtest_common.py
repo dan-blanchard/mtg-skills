@@ -211,8 +211,10 @@ def render_custom_format_markdown(env: dict) -> str:
         f"- Marketplace utilization: {md.get('utilization_rate', 0) * 100:.0f}%",
         f"- Library effects per turn: {md.get('library_effects_per_turn', 0):.2f}",
         f"- Marketplace cards exiled per game: {md.get('exiled_per_game', 0):.1f}",
-        "- Marketplace cards discarded per game: "
-        f"{md.get('discarded_per_game', 0):.1f}",
+        (
+            "- Marketplace cards discarded per game: "
+            f"{md.get('discarded_per_game', 0):.1f}"
+        ),
         f"- Cards milled (draw pile) per game: {md.get('milled_per_game', 0):.1f}",
         "",
         "## Per-player mana",
@@ -242,8 +244,10 @@ def render_draft_markdown(env: dict) -> str:
 
     lines = [
         *render_envelope_header(env, title="Draft report"),
-        f"## Drafted decks ({r['pods']} pods, "
-        f"{r['players']} players, {len(decks)} buildable)",
+        (
+            f"## Drafted decks ({r['pods']} pods, "
+            f"{r['players']} players, {len(decks)} buildable)"
+        ),
         "",
     ]
     if decks:

@@ -1815,8 +1815,10 @@ SWEEP_LABELS: dict[str, tuple[str, str]] = {
     "has_devour": ("Devour", "token fodder to devour"),
     "dies_recursion": (
         "Dies-recursion",
-        "anything that makes creatures recur when they die — with or without counters "
-        "(undying/persist plus bare dies-return like Feign Death)",
+        (
+            "anything that makes creatures recur when they die — with or without counters "
+            "(undying/persist plus bare dies-return like Feign Death)"
+        ),
     ),
     "dig_until": ("Dig-until", "deep top-of-library digging effects"),
     "discard_outlet": (
@@ -1917,8 +1919,10 @@ SWEEP_LABELS: dict[str, tuple[str, str]] = {
     ),
     "shield_counter_makers": (
         "Shield counters",
-        "shield-counter sources and payoffs (Brokers — a counter that absorbs the next "
-        "destroy/damage)",
+        (
+            "shield-counter sources and payoffs (Brokers — a counter that absorbs the next "
+            "destroy/damage)"
+        ),
     ),
     "named_counter_misc": (
         "Other named counters",
@@ -2044,13 +2048,17 @@ SWEEP_LABELS: dict[str, tuple[str, str]] = {
     ),
     "timing_control": (
         "Timing restriction",
-        "effects that restrict WHEN spells can be cast (Teferi, City of Solitude, "
-        "Fires of Invention)",
+        (
+            "effects that restrict WHEN spells can be cast (Teferi, City of Solitude, "
+            "Fires of Invention)"
+        ),
     ),
     "end_the_turn": (
         "End the turn",
-        "end-the-turn effects to lock in your turn's value and fizzle end-step "
-        "downsides (Sundial of the Infinite, Glorious End, Obeka)",
+        (
+            "end-the-turn effects to lock in your turn's value and fizzle end-step "
+            "downsides (Sundial of the Infinite, Glorious End, Obeka)"
+        ),
     ),
     "topdeck_selection": (
         "Top-deck selection",

@@ -249,23 +249,31 @@ def _apply_duel_files_patch(repo: Path) -> None:
         # 2. parse the flag (two positional values) ahead of the --suite arm
         (
             '"--suite" => mode = Mode::Suite,',
-            '"--matchup-files" => {\n'
-            "                let a = args_iter.next().cloned().unwrap_or_default();\n"
-            "                let b = args_iter.next().cloned().unwrap_or_default();\n"
-            "                matchup_files ="
-            " Some((PathBuf::from(a), PathBuf::from(b)));\n"
-            "            }\n"
-            '            "--suite" => mode = Mode::Suite,',
+            (
+                '"--matchup-files" => {\n'
+                # Split mid-expression purely to stay under the line limit — the
+                # concatenated value is the Rust source this patch injects verbatim.
+                "                let a = args_iter.next()"
+                ".cloned().unwrap_or_default();\n"
+                "                let b = args_iter.next()"
+                ".cloned().unwrap_or_default();\n"
+                "                matchup_files ="
+                " Some((PathBuf::from(a), PathBuf::from(b)));\n"
+                "            }\n"
+                '            "--suite" => mode = Mode::Suite,'
+            ),
         ),
         # 3. dispatch to the custom runner before the built-in mode match
         (
             "    match mode {\n",
-            "    if let Some((ref a, ref b)) = matchup_files {\n"
-            "        run_matchup_files("
-            "&db, a, b, batch, base_seed, difficulty, verbose);\n"
-            "        return;\n"
-            "    }\n\n"
-            "    match mode {\n",
+            (
+                "    if let Some((ref a, ref b)) = matchup_files {\n"
+                "        run_matchup_files("
+                "&db, a, b, batch, base_seed, difficulty, verbose);\n"
+                "        return;\n"
+                "    }\n\n"
+                "    match mode {\n"
+            ),
         ),
         # 4. the runner + deck-file reader, ahead of run_game
         ("fn run_game(", _DUEL_FILES_FNS + "fn run_game("),
@@ -368,10 +376,12 @@ _IMPOSTOR_RECORDS: frozenset[tuple[str, str]] = frozenset(
     {
         (
             "62411ced-843e-4b63-bdf6-dafb2ac27047",
-            "Target creature gains haste until end of turn. It can't be "
-            "blocked this turn except by Vehicles or by creatures with "
-            "haste.\nFuse (You may cast one or both halves of this card "
-            "from your hand.)",
+            (
+                "Target creature gains haste until end of turn. It can't be "
+                "blocked this turn except by Vehicles or by creatures with "
+                "haste.\nFuse (You may cast one or both halves of this card "
+                "from your hand.)"
+            ),
         ),
     }
 )

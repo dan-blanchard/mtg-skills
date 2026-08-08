@@ -11,17 +11,23 @@ jobs:
       # mtg-utils tests. Run from mtg-utils so the shared ruff config + the
       # `../tests/*` per-file-ignores in its pyproject.toml resolve.
       #
-      # RUFF IS PINNED (ruff==0.15.16), identically in all eight pyproject.toml
+      # RUFF IS PINNED (ruff==0.16.2), identically in all eight pyproject.toml
       # files — the opposite of the ty policy below, and deliberately so. These two
       # steps lint the whole repo with MTG-UTILS' ruff, but each skill has its own
-      # venv and lockfile, so an unpinned floor let the eight drift across six
-      # different 0.15.x versions. That makes `ruff format` from a skill's own venv
+      # venv and lockfile, so an unpinned floor previously let the eight drift
+      # across six versions. That makes `ruff format` from a skill's own venv
       # (e.g. `cd deck-forge && uv run ruff format`) a hazard rather than a fix: it
-      # can rewrite files this step then rejects. Formatting output happens to agree
-      # across all of 0.15.x, but 0.16 adds rules (165 findings on this tree), so an
-      # unpinned resolver bump would fail CI with no code change to blame — which is
-      # what made the last drift confusing to diagnose. Bump all eight together, and
-      # reformat in the same commit.
+      # can rewrite files this step then rejects.
+      #
+      # The pin matters most because mtg-utils sets `select = ["ALL"]`, opting into
+      # every rule ruff ships — so a release that ADDS rules fails CI with no code
+      # change to blame. The 0.15 -> 0.16 bump added five; each was triaged rather
+      # than blanket-suppressed (CPY001 + PLR0917 ignored, RUF036 confined to the
+      # generated mirror, ISC004 + FURB192 actually fixed).
+      #
+      # To bump: change the pin in all eight, `uv lock` each, then `ruff check` and
+      # `ruff format` from mtg-utils and triage whatever new rules fire — all in one
+      # commit, so the version and the code it demands never disagree on main.
       - run: cd mtg-utils && uv run ruff check src/ ../tests/
       - run: cd mtg-utils && uv run ruff format --check src/ ../tests/
       # ty is intentionally unpinned (uvx fetches latest): deck-forge ships a

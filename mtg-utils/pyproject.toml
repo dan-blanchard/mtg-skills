@@ -79,11 +79,14 @@ dev = [
     "pytest>=9.0.2",
     # Pinned exactly, and identically across all eight pyproject.toml files: CI
     # lints/formats the WHOLE repo with mtg-utils' ruff, so a skill resolving a
-    # different version formats code CI then rejects. `>=` let the eight lockfiles
-    # drift across six 0.15.x versions; every 0.15.x agrees on format+check, but
-    # 0.16 adds rules (165 findings here), so an unpinned bump breaks CI with no
-    # code change to blame. Bump deliberately, in all eight at once.
-    "ruff==0.15.16",
+    # different version formats code CI then rejects. `>=` previously let the eight
+    # lockfiles drift across six versions. It also matters that `select = ["ALL"]`
+    # below opts into EVERY rule, so each ruff release auto-enables new ones — the
+    # 0.15 -> 0.16 bump added five (CPY001/RUF036/ISC004/PLR0917/FURB192). An
+    # unpinned resolver bump therefore fails CI with no code change to blame. Bump
+    # deliberately, in all eight at once, and triage the new rules — ignore-list or
+    # fix — in that same commit.
+    "ruff==0.16.2",
     # deck-forge's server deps live in deck-forge/pyproject.toml, but the server
     # module (deck_forge_server / _deck_forge) is in this shared package — so the
     # type checker run from here needs them importable to resolve and check it.
@@ -110,7 +113,9 @@ ignore = [
     "C901",    # complexity — Click commands are inherently branchy
     "PLR0912", # too many branches
     "PLR0913", # too many arguments — Click commands need many params
+    "PLR0917", # too many POSITIONAL arguments — same rationale as PLR0913 above
     "PLR0911", # too many return statements — parser helpers are naturally multi-exit
+    "CPY001",  # missing copyright notice — this repo ships no per-file license headers
     "TC",      # type-checking imports
     "PLC0415", # non-top-level import
     "ARG002",  # unused method argument — mock patches require positional args
@@ -130,6 +135,9 @@ ignore = [
     #            imports the full runtime/dataclasses/typing boilerplate set
     #            (MISSING/ClassVar/field/MirrorVariant) regardless of whether
     #            THIS module's classes happen to use every one of them
+    "RUF036",  # `None` not at end of union — the emitter writes `None | X` for
+    #            every optional field. Fixing it here would be undone by the next
+    #            codegen run; the ordering is the generator's to change, not ours.
 ]
 "tests/*" = [
     "SLF001",  # private member access — tests need to test internals

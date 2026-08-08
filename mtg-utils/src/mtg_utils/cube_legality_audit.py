@@ -70,8 +70,10 @@ def _check_rarity(
         allowed = "/".join(sorted(rarity_filter))
         return (
             "warn",
-            f"default printing is {rarity}; format allows {allowed} only — "
-            f"verify no {allowed} printing exists in another set",
+            (
+                f"default printing is {rarity}; format allows {allowed} only — "
+                f"verify no {allowed} printing exists in another set"
+            ),
         )
     return None
 
