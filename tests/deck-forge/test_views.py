@@ -109,3 +109,71 @@ def test_deck_view_shape():
     assert dv["commanders"][0]["name"] == "Atraxa, Praetors' Voice"
     assert dv["cards"][0]["quantity"] == 10
     assert dv["sideboard"] == []
+
+
+# --- Pre-release badging ---------------------------------------------------------
+# ``project`` takes the flag from the caller (an ORACLE-level set) rather than reading
+# the record's own released_at, because search dedups to the CHEAPEST printing — which
+# for a reprint can itself be future-dated. These pin that contract.
+
+PRE_RELEASE = {
+    "name": "Belladonna Took",
+    "type_line": "Legendary Creature — Halfling Citizen",
+    "cmc": 2.0,
+    "color_identity": ["W"],
+    "oracle_text": "Whenever a token you control enters, you gain 1 life.",
+    "oracle_id": "oid-pre",
+    "released_at": "2026-08-14",
+}
+# A legal reprint whose cheapest printing happens to be in a future set — the exact
+# shape that a naive `released_at > today` badge would mislabel.
+FUTURE_REPRINT = {
+    "name": "Settle the Wreckage",
+    "type_line": "Instant",
+    "cmc": 4.0,
+    "color_identity": ["W"],
+    "oracle_text": "Exile all attacking creatures target player controls.",
+    "oracle_id": "oid-reprint",
+    "released_at": "2026-08-14",
+}
+
+
+def test_project_omits_the_badge_by_default():
+    assert "unreleased" not in views.project(PRE_RELEASE, "commander")
+
+
+def test_project_badges_when_told():
+    view = views.project(PRE_RELEASE, "commander", unreleased=True)
+    assert view["unreleased"] is True
+    assert view["released_at"] == "2026-08-14"
+
+
+def test_future_dated_reprint_is_not_badged():
+    # Future released_at, but the caller's oracle-level set says it's legal today.
+    assert "unreleased" not in views.project(FUTURE_REPRINT, "commander")
+
+
+def test_card_view_badges_from_the_oracle_id_set():
+    by_name = {"Belladonna Took": PRE_RELEASE, "Settle the Wreckage": FUTURE_REPRINT}
+    pre = views.card_view(
+        "Belladonna Took",
+        1,
+        by_name,
+        "commander",
+        unreleased_ids=frozenset({"oid-pre"}),
+    )
+    reprint = views.card_view(
+        "Settle the Wreckage",
+        1,
+        by_name,
+        "commander",
+        unreleased_ids=frozenset({"oid-pre"}),
+    )
+    assert pre["unreleased"] is True
+    assert "unreleased" not in reprint
+
+
+def test_card_view_defaults_to_no_badge():
+    by_name = {"Belladonna Took": PRE_RELEASE}
+    view = views.card_view("Belladonna Took", 1, by_name, "commander")
+    assert "unreleased" not in view

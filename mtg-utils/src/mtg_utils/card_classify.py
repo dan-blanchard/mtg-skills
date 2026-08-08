@@ -369,10 +369,24 @@ def color_sources(card: dict) -> set[str]:
     return colors
 
 
-def is_commander(card: dict, format: str = "commander") -> dict:  # noqa: A002
+def is_commander(
+    card: dict,
+    format: str = "commander",  # noqa: A002
+    *,
+    ignore_legality: bool = False,
+) -> dict:
     """Check if a card is eligible to be a commander in the given format.
 
     Returns {"eligible": bool, "requires_partner": bool}.
+
+    ``ignore_legality`` skips the format-legality gate and judges eligibility on the
+    card's type line and oracle text alone. It exists for spoiled-but-unreleased
+    cards, which read ``not_legal`` in every format until release day (see
+    ``card_search.unreleased_oracle_ids``) — without it a pre-release legend is
+    findable but can never be made a commander, which is most of the point of
+    pre-release brewing. Callers must have established that the card is merely
+    unreleased; passing it for an Un-card or a banned card would claim an
+    eligibility that will never arrive.
     """
     type_line = card.get("type_line", "")
     oracle = get_oracle_text(card).lower()
@@ -383,7 +397,7 @@ def is_commander(card: dict, format: str = "commander") -> dict:  # noqa: A002
     # Format legality, keyed to the right field per format (commander→"commander",
     # brawl→"standardbrawl", historic_brawl→"brawl"). Only gate when legality data is
     # present, so type-line-only fixtures keep working; mirrors find_commanders.
-    legalities = card.get("legalities")
+    legalities = None if ignore_legality else card.get("legalities")
     if legalities is not None:
         legality_key = FORMAT_CONFIGS.get(format, {}).get("legality_key", format)
         if legalities.get(legality_key) not in ("legal", "restricted"):

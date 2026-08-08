@@ -225,6 +225,11 @@ class ForgeState:
     session: DeckSession
     hub: EventHub = field(default_factory=EventHub)
     bulk_available: bool = True
+    # oracle_ids of spoiled-but-unreleased cards (card_search.unreleased_oracle_ids).
+    # Derived from the bulk at startup, never persisted. Two readers: the Find surface
+    # opts into them via SearchPayload.include_unreleased, and the views layer badges
+    # them as pre-release. Empty without bulk, which correctly disables both.
+    unreleased_ids: frozenset[str] = frozenset()
     combos_fn: Callable[[dict], dict] | None = None
     bridge: AgentBridge = field(default_factory=AgentBridge)
     store: BuildStore | None = None

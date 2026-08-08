@@ -1178,6 +1178,10 @@ class FindParams:
     format: str | None = None
     presets: tuple[str, ...] = ()
     is_commander: bool = False
+    # Admit spoiled-but-unreleased cards (pre-release brewing). WIDENS the pool rather
+    # than narrowing it, so it is deliberately not part of has_user_filters: ticking it
+    # alone must not turn an idle Find into a whole-vault dump.
+    include_unreleased: bool = False
     sort: str = "cmc-asc"
     limit: int = 25
     offset: int = 0
@@ -1268,6 +1272,7 @@ def find_candidates(state: ForgeState, params: FindParams) -> CandidatePage:
                 found = state.search_fn(
                     limit=_FIND_POOL,
                     paper_only=paper_only(fmt),
+                    include_unreleased=params.include_unreleased,
                     **refine_filters(base, params),
                 )
             for card in found:
@@ -1303,6 +1308,7 @@ def find_candidates(state: ForgeState, params: FindParams) -> CandidatePage:
             price_max=params.price_max,
             format=params.format,
             paper_only=paper_only(params.format),
+            include_unreleased=params.include_unreleased,
             preset_names=tuple(params.presets),
             is_commander_filter=params.is_commander,
             sort=params.sort,

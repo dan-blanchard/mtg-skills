@@ -36,11 +36,20 @@ def printing_view(record: dict) -> dict:
     }
 
 
-def project(record: dict, fmt: str) -> dict:
+def project(record: dict, fmt: str, *, unreleased: bool = False) -> dict:
     """The atomic display projection for one Scryfall record (no name/quantity). ``fmt``
     is the deck's format, so ``can_be_commander`` reflects the right legality mode (a
-    card can be a commander in brawl but not commander, and vice versa)."""
-    return {
+    card can be a commander in brawl but not commander, and vice versa).
+
+    ``unreleased`` marks a card from a spoiled-but-unreleased set. It is decided by the
+    caller against ``ForgeState.unreleased_ids`` (an ORACLE-level set) rather than from
+    the record's own ``released_at``, because the search layer dedups to the cheapest
+    printing — which for a reprint can itself be a future one. Reading the date off the
+    record would badge 15 currently-legal cards (Settle the Wreckage among them) as
+    pre-release. Emitted only when True, keeping the wire shape byte-compatible for
+    everything already released, exactly as the ownership keys do.
+    """
+    view = {
         "type_line": record.get("type_line", ""),
         # DFCs (transform/flip, many MDFCs) leave the top-level mana_cost/oracle_text
         # empty (or absent → None) and carry the real values on card_faces; fold them
@@ -53,14 +62,26 @@ def project(record: dict, fmt: str) -> dict:
         "prices": record.get("prices", {}),
         "images": image_urls(record),
         "game_changer": record.get("game_changer"),
-        "can_be_commander": is_commander(record, fmt)["eligible"],
+        # A pre-release legend has no legal format yet, so the default gate would
+        # report it commander-ineligible and the SPA would render its ★ disabled —
+        # searchable but un-buildable. Judge those on type/oracle alone.
+        "can_be_commander": is_commander(record, fmt, ignore_legality=unreleased)[
+            "eligible"
+        ],
         "layout": record.get("layout", ""),
     }
+    if unreleased:
+        view["unreleased"] = True
+        view["released_at"] = record.get("released_at")
+    return view
 
 
-def result_view(record: dict, fmt: str) -> dict:
+def result_view(record: dict, fmt: str, *, unreleased: bool = False) -> dict:
     """A raw search hit: name + projection (no quantity/score)."""
-    return {"name": record.get("name", ""), **project(record, fmt)}
+    return {
+        "name": record.get("name", ""),
+        **project(record, fmt, unreleased=unreleased),
+    }
 
 
 _FINISH_PRICE_KEYS = {"foil": "usd_foil", "etched": "usd_etched"}
@@ -77,6 +98,7 @@ def card_view(
     resolve_printing: Callable[[str], dict | None] | None = None,
     finish: str | None = None,
     owned_printing: bool | None = None,
+    unreleased_ids: frozenset[str] = frozenset(),
 ) -> dict:
     """A deck-zone card: name + quantity + an ``unknown`` flag + projection (when the
     name resolves against the bulk index). ``owned_qty`` (when set) marks the card as
@@ -103,7 +125,11 @@ def card_view(
     record = by_name.get(name)
     if record is None:
         return {**base, "unknown": True}
-    view = {**base, "unknown": False, **project(record, fmt)}
+    view = {
+        **base,
+        "unknown": False,
+        **project(record, fmt, unreleased=record.get("oracle_id") in unreleased_ids),
+    }
     chosen = resolve_printing(printing_id) if printing_id and resolve_printing else None
     if chosen is not None:
         view["printing_id"] = printing_id
@@ -124,13 +150,19 @@ def card_view(
     return view
 
 
-def candidate_view(row: dict, fmt: str, *, owned_qty: int | None = None) -> dict:
+def candidate_view(
+    row: dict, fmt: str, *, owned_qty: int | None = None, unreleased: bool = False
+) -> dict:
     """A ranked candidate — a ``rank_candidates`` row ``{"card", "score"}`` — as
     name + projection + score. ``owned_qty`` (when set) marks it owned in the active
     Collection slot (ADR-0018), mirroring ``card_view``; absent → no ownership keys, so
     the wire shape stays byte-compatible for a no-collection request."""
     card = row["card"]
-    view = {"name": card.get("name", ""), **project(card, fmt), "score": row["score"]}
+    view = {
+        "name": card.get("name", ""),
+        **project(card, fmt, unreleased=unreleased),
+        "score": row["score"],
+    }
     if owned_qty is not None:
         view["owned"] = True
         view["owned_qty"] = owned_qty
@@ -179,6 +211,7 @@ def deck_view(
                     printing_id=e.get("printing_id"),
                     resolve_printing=state.printing_by_id.get,
                     finish=e.get("finish"),
+                    unreleased_ids=state.unreleased_ids,
                     owned_printing=(
                         printing_owned(e["name"], e.get("printing_id"))
                         if printing_owned

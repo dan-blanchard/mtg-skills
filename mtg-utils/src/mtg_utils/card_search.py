@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import re
 from collections.abc import Callable
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -36,6 +37,93 @@ def _norm_name(text: str) -> str:
     return _NAME_NORM_RE.sub(" ", text).strip()
 
 
+# MTGJSON set types whose cards are illegal by design rather than by timing, so a
+# future release date never makes them playable. "funny" is the Un-set / Mystery
+# Booster playtest family (22 sets: Unfinity, Unstable, Unhinged, Unglued, …).
+_NEVER_LEGAL_SET_TYPES = frozenset({"funny"})
+
+
+def unreleased_oracle_ids(
+    cards: list[dict], *, today: str | None = None
+) -> frozenset[str]:
+    """oracle_ids whose "illegal in every format" status is purely a release-date
+    artifact — a card that isn't out yet, not one that will never be legal.
+
+    MTGJSON publishes a set's cards as soon as it's fully spoiled (its sets carry
+    ``isPartialPreview``), but leaves each new card's ``legalities`` EMPTY until
+    release day; ``_mtgjson.adapter.aggregate_legalities`` then fills every omitted
+    format with ``not_legal``. That makes a pre-release card indistinguishable, by
+    legality alone, from an Un-card or a 30th-Anniversary proxy — all three read
+    ``not_legal`` everywhere, and all three have an empty raw ``legalities``.
+
+    The release date is what separates them, and it has to be read at the ORACLE
+    level: legality is aggregated across printings, so a card counts as unreleased
+    only when EVERY printing of it is still in the future. One already-released
+    printing means the card is genuinely illegal (an Un-card reprinted into a
+    future set stays illegal), hence ``min(dates)`` rather than ``max``.
+
+    Cards that are legal, banned, or restricted anywhere are never candidates —
+    those carry a real status, so they never reach the date test.
+
+    ``funny`` sets (Un-sets, Mystery Booster playtest cards) are excluded outright.
+    The date test alone would misread a not-yet-released Un-set as merely pending:
+    its cards are illegal by DESIGN and stay illegal after release, so "unreleased"
+    would promise a legality that never arrives. Today no spoiled set is ``funny``,
+    so this changes nothing now — it is a guard against the next Un-set preview.
+    Checked per PRINTING, not per set: a card with both a funny and a normal
+    printing is legal somewhere and has already failed the legality test above.
+
+    Not a legality oracle for the future: we cannot know WHICH formats a card will
+    be legal in once it releases, only that its current blanket ``not_legal`` is
+    provisional. Callers surface these as pre-release, never as format-legal.
+    """
+    # UTC, matching the codebase's clock convention. MTGJSON release dates are bare
+    # calendar dates, so the worst a timezone skew costs is admitting a set a few
+    # hours early — harmless for an explicitly opt-in pre-release view.
+    today = today or datetime.now(tz=UTC).date().isoformat()
+    earliest: dict[str, str] = {}
+    legalities: dict[str, dict] = {}
+    never_legal: set[str] = set()
+    for card in cards:
+        oid = card.get("oracle_id")
+        if not oid:
+            continue
+        if card.get("set_type") in _NEVER_LEGAL_SET_TYPES:
+            never_legal.add(oid)
+        legalities.setdefault(oid, card.get("legalities") or {})
+        released = card.get("released_at")
+        if released and (oid not in earliest or released < earliest[oid]):
+            earliest[oid] = released
+    return frozenset(
+        oid
+        for oid, legal in legalities.items()
+        # An empty dict would vacuously satisfy the all() below, so require a
+        # populated map: a record with no legality data at all is not evidence
+        # of anything, and aggregate_legalities always emits the full format set.
+        if legal
+        and all(status == "not_legal" for status in legal.values())
+        and oid not in never_legal
+        and oid in earliest
+        and earliest[oid] > today
+    )
+
+
+# Cached unreleased-oracle_id sets, keyed by (path, sidecar mtime) — same
+# invalidation contract as _POOL_CACHE. Computing this walks the whole bulk, so a
+# tune's many searches share one pass.
+_UNRELEASED_CACHE: dict[tuple[str, float], frozenset[str]] = {}
+
+
+def unreleased_ids_for(bulk_path: Path, cards: list[dict]) -> frozenset[str]:
+    """:func:`unreleased_oracle_ids` for *bulk_path*, memoized on (path, mtime)."""
+    key = (str(bulk_path), bulk_mtime(bulk_path))
+    ids = _UNRELEASED_CACHE.get(key)
+    if ids is None:
+        ids = unreleased_oracle_ids(cards)
+        _UNRELEASED_CACHE[key] = ids
+    return ids
+
+
 def _matches_filters(
     card: dict,
     *,
@@ -51,6 +139,7 @@ def _matches_filters(
     legality_key: str = "commander",
     arena_only: bool = False,
     paper_only: bool = False,
+    unreleased_ok: frozenset[str] | None = None,
     is_commander_filter: bool = False,
     commander_format: str = "commander",
     presets: tuple[Preset, ...] = (),
@@ -60,8 +149,13 @@ def _matches_filters(
         return False
     if card.get("set_type") in ("token", "memorabilia"):
         return False
+    # A pre-release card is legal nowhere yet, so the format gate would reject it on
+    # data that is provisional rather than final. ``unreleased_ok`` is the opt-in
+    # escape hatch (--include-unreleased) that admits exactly those, and nothing else.
     legalities = card.get("legalities", {})
-    if legalities.get(legality_key) not in ("legal", "restricted"):
+    if legalities.get(legality_key) not in ("legal", "restricted") and (
+        unreleased_ok is None or card.get("oracle_id") not in unreleased_ok
+    ):
         return False
     games = card.get("games") or []
     if arena_only and "arena" not in games:
@@ -115,19 +209,31 @@ def _matches_filters(
         return False
 
     if is_commander_filter:
-        return is_commander(card, format=commander_format)["eligible"]
+        # A pre-release legend is commander-eligible on type line but not yet legal
+        # anywhere, so judge it on type/oracle alone — otherwise "commanders only"
+        # AND "include unreleased" together would return nothing, which is exactly
+        # the combination someone brewing around a spoiled commander reaches for.
+        unreleased = (
+            unreleased_ok is not None and card.get("oracle_id") in unreleased_ok
+        )
+        return is_commander(card, format=commander_format, ignore_legality=unreleased)[
+            "eligible"
+        ]
 
     return True
 
 
 # Cached format-invariant "playable" subsets of bulk, keyed by
-# (path, sidecar mtime, legality_key, arena_only, paper_only). The legality / layout /
-# game (paper|arena) filters don't depend on the per-query filters (colors, oracle,
-# type, cmc, price, presets), so we compute that subset ONCE per format and rescan only
-# it. For an Arena format that's ~7k cards vs all ~114k bulk records — so a tune's many
-# searches stop re-scanning the whole database each time. mtime keys invalidate on a
-# download-mtgjson refresh, matching load_bulk_cards's own in-memory cache.
-_POOL_CACHE: dict[tuple[str, float, str, bool, bool], list[dict]] = {}
+# (path, sidecar mtime, legality_key, arena_only, paper_only, include_unreleased). The
+# legality / layout / game (paper|arena) filters don't depend on the per-query filters
+# (colors, oracle, type, cmc, price, presets), so we compute that subset ONCE per format
+# and rescan only it. For an Arena format that's ~7k cards vs all ~114k bulk records —
+# so a tune's many searches stop re-scanning the whole database each time. mtime keys
+# invalidate on a download-mtgjson refresh, matching load_bulk_cards's own in-memory
+# cache. include_unreleased is part of the key because it widens the legality gate: the
+# two pools differ, so sharing one entry would leak pre-release cards into a default
+# search (or hide them from an opted-in one, depending on which ran first).
+_POOL_CACHE: dict[tuple[str, float, str, bool, bool, bool], list[dict]] = {}
 
 
 def _playable_pool(
@@ -137,8 +243,16 @@ def _playable_pool(
     legality_key: str,
     arena_only: bool,
     paper_only: bool,
+    unreleased_ok: frozenset[str] | None = None,
 ) -> list[dict]:
-    key = (str(bulk_path), bulk_mtime(bulk_path), legality_key, arena_only, paper_only)
+    key = (
+        str(bulk_path),
+        bulk_mtime(bulk_path),
+        legality_key,
+        arena_only,
+        paper_only,
+        unreleased_ok is not None,
+    )
     pool = _POOL_CACHE.get(key)
     if pool is None:
         # Reuse _matches_filters with the per-query filters disabled so the
@@ -159,6 +273,7 @@ def _playable_pool(
                 legality_key=legality_key,
                 arena_only=arena_only,
                 paper_only=paper_only,
+                unreleased_ok=unreleased_ok,
             )
         ]
         _POOL_CACHE[key] = pool
@@ -206,11 +321,19 @@ def search_cards(
     format: str | None = None,  # noqa: A002
     arena_only: bool = False,
     paper_only: bool = False,
+    include_unreleased: bool = False,
     exact_colors: bool = False,
     is_commander_filter: bool = False,
     preset_names: tuple[str, ...] = (),
 ) -> list[dict]:
-    """Search bulk data for cards matching all specified filters."""
+    """Search bulk data for cards matching all specified filters.
+
+    ``include_unreleased`` admits cards from spoiled-but-unreleased sets, which read
+    ``not_legal`` in every format until release day and are therefore invisible to the
+    default gate (see :func:`unreleased_oracle_ids`). It widens legality ONLY for those
+    — banned, restricted, and never-legal cards are unaffected — and it does not assert
+    the requested format's legality, which is unknowable before release.
+    """
     if format is not None:
         legality_key = FORMAT_CONFIGS[format]["legality_key"]
     else:
@@ -265,6 +388,7 @@ def search_cards(
         seed_signal_key_index(bulk_path)
 
     cards = load_bulk_cards(bulk_path)
+    unreleased_ok = unreleased_ids_for(bulk_path, cards) if include_unreleased else None
     # Scan only the format-invariant playable subset (cached) rather than all ~114k bulk
     # records; the per-query filters below still run on every pool member.
     pool = _playable_pool(
@@ -273,6 +397,7 @@ def search_cards(
         legality_key=legality_key,
         arena_only=arena_only,
         paper_only=paper_only,
+        unreleased_ok=unreleased_ok,
     )
 
     # Filter
@@ -293,6 +418,7 @@ def search_cards(
             legality_key=legality_key,
             arena_only=arena_only,
             paper_only=paper_only,
+            unreleased_ok=unreleased_ok,
             is_commander_filter=is_commander_filter,
             commander_format=format or "commander",
             presets=presets,
@@ -446,6 +572,15 @@ def format_results(cards: list[dict]) -> str:
     is_flag=True,
     help="Exclude Arena-only digital cards (use for paper decks).",
 )
+@click.option(
+    "--include-unreleased",
+    is_flag=True,
+    help=(
+        "Also return cards from spoiled-but-unreleased sets. They read not_legal in "
+        "every format until release day, so the default gate hides them; use this for "
+        "pre-release brewing. Does not affect banned/restricted or never-legal cards."
+    ),
+)
 def main(
     bulk_data: Path,
     color_identity: str | None,
@@ -467,6 +602,7 @@ def main(
     card_format: str | None,
     arena_only: bool,
     paper_only: bool,
+    include_unreleased: bool,
 ) -> None:
     """Search Scryfall bulk data for cards matching filters."""
     if arena_only and paper_only:
@@ -487,6 +623,7 @@ def main(
         format=card_format,
         arena_only=arena_only,
         paper_only=paper_only,
+        include_unreleased=include_unreleased,
         is_commander_filter=is_commander,
         preset_names=preset_names,
     )

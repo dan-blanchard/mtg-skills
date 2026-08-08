@@ -62,6 +62,18 @@
     <div class="main">
       <div class="l1">
         <span class="name">{displayName(card.name)}</span>
+        {#if card.unreleased}
+          <!-- Pre-release cards are opt-in (Find's "include unreleased"), so they can
+               sit beside legal ones in the same list. Badge them: their format
+               legality is provisional until the set actually drops. -->
+          <span
+            class="prerel"
+            title="Not released yet{card.released_at
+              ? ` — out ${card.released_at}`
+              : ''}. Legality is provisional and it isn't playable until then."
+            >PRE</span
+          >
+        {/if}
         <span class="ci ci-in">
           {#each colors as c (c)}<Mana sym={c} size="0.92rem" />{/each}
         </span>
@@ -255,6 +267,20 @@
     font-size: 0.72rem;
     color: var(--brass-bright);
     flex-shrink: 0;
+  }
+  /* Pre-release marker. Deliberately cooler than the ember/gold used for synergy so it
+     reads as a status flag, not a recommendation. */
+  .prerel {
+    font-size: 0.58rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    color: #9fc6d8;
+    background: rgba(90, 150, 180, 0.16);
+    border: 1px solid rgba(140, 190, 215, 0.35);
+    border-radius: 999px;
+    padding: 0.05rem 0.35rem;
+    white-space: nowrap;
+    flex: none;
   }
   .served {
     font-size: 0.62rem;

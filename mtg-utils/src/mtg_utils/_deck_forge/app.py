@@ -152,6 +152,7 @@ class SearchPayload(BaseModel):
     format: str | None = None
     presets: list[str] = []
     is_commander: bool = False
+    include_unreleased: bool = False
     sort: str = "cmc-asc"
     limit: int = 25
     offset: int = 0
@@ -201,6 +202,7 @@ def _find_params(payload: SearchPayload) -> engine.FindParams:
         format=payload.format,
         presets=tuple(payload.presets),
         is_commander=payload.is_commander,
+        include_unreleased=payload.include_unreleased,
         sort=payload.sort,
         limit=payload.limit,
         offset=payload.offset,
@@ -473,7 +475,13 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
         rec = state.by_name.get(name)
         if rec is None:
             return {"card": None}
-        return {"card": views.result_view(rec, state.session.format)}
+        return {
+            "card": views.result_view(
+                rec,
+                state.session.format,
+                unreleased=rec.get("oracle_id") in state.unreleased_ids,
+            )
+        }
 
     @app.get("/api/printings", response_model=None)
     async def printings(name: str) -> dict | JSONResponse:
@@ -923,7 +931,10 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
         fmt = state.session.format
         results = [
             views.candidate_view(
-                row, fmt, owned_qty=engine.owned_of(state, row["card"].get("name", ""))
+                row,
+                fmt,
+                owned_qty=engine.owned_of(state, row["card"].get("name", "")),
+                unreleased=row["card"].get("oracle_id") in state.unreleased_ids,
             )
             for row in page.rows
         ]

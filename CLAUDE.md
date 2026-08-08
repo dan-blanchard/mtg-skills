@@ -121,7 +121,7 @@ Shared Python package (`mtg_utils`). 39 CLI script modules (25 deck + 9 cube + 3
 - **`price_check.py`** — Price validation against budget using Scryfall bulk data with API fallback.
 - **`combo_search.py`** — Commander Spellbook API wrapper: `combo-search` for deck combo detection and near-miss identification; `combo-discover` for discovering combos by outcome, card name, or color identity.
 - **`export_deck.py`** — Export parsed deck JSON to Moxfield import format (`N CardName` lines) with sideboard and companion sections.
-- **`card_search.py`** — Search Scryfall bulk data with filters: color identity, oracle text regex, type, CMC range, price range. Compact table or JSON output.
+- **`card_search.py`** — Search Scryfall bulk data with filters: color identity, oracle text regex, type, CMC range, price range. Compact table or JSON output. Applies a **commander-legality filter by default** (not only under `--format`), so cards from spoiled-but-unreleased sets — which MTGJSON marks `not_legal` in every format until release day — are hidden; `--include-unreleased` admits exactly those (via `unreleased_oracle_ids`, which requires EVERY printing to be future-dated, so an always-illegal card reprinted into a future set stays out). Banned/restricted and never-legal cards are unaffected.
 - **`legality_audit.py`** — Format legality, copy limits, sideboard size, Vintage restricted-list, and companion audit via `mtg_utils.companion`, wired into `--cite-rules`.
 - **`find_commanders.py`** — Search owned collection for commander-eligible cards.
 - **`mark_owned.py`** — Populate a deck's `owned_cards` field from a collection CSV/JSON.

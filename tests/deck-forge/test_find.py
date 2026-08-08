@@ -204,3 +204,88 @@ def test_owned_candidate_carries_ownership_keys():
     assert tm["owned_qty"] == 2
     other = next(r for r in res if r["name"] == "Both")  # in the pool, not owned
     assert "owned" not in other
+
+
+# --- Pre-release brewing (include_unreleased) ------------------------------------
+# The flag has to survive the whole transport chain (SearchPayload -> FindParams ->
+# search_fn kwargs), and results have to be BADGED — a pre-release card sitting
+# unmarked next to legal ones is the failure mode worth testing for.
+
+_PRE = {
+    "name": "Belladonna Took",
+    "oracle_text": "Whenever a token you control enters, you gain 1 life.",
+    "type_line": "Legendary Creature — Halfling Citizen",
+    "cmc": 2.0,
+    "mana_cost": "{1}{W}",
+    "color_identity": ["W"],
+    "prices": {"usd": "2.38"},
+    "keywords": [],
+    "oracle_id": "oid-pre",
+    "released_at": "2026-08-14",
+}
+
+
+def _capturing_client(*, unreleased_ids=frozenset()):
+    """A client whose search_fn records the kwargs it was called with."""
+    seen = {}
+
+    def search_fn(**kwargs):
+        seen.update(kwargs)
+        return [_PRE] if kwargs.get("include_unreleased") else []
+
+    state = ForgeState(
+        by_name={},
+        search_fn=search_fn,
+        session=DeckSession("commander"),
+        bulk_available=True,
+        unreleased_ids=unreleased_ids,
+    )
+    return TestClient(build_app(state)), seen
+
+
+def test_include_unreleased_defaults_to_false_on_the_wire():
+    client, seen = _capturing_client()
+    client.post("/api/find", json={"name": "Belladonna", "limit": 25})
+    assert seen["include_unreleased"] is False
+
+
+def test_include_unreleased_reaches_the_search_seam():
+    client, seen = _capturing_client()
+    res = client.post(
+        "/api/find",
+        json={"name": "Belladonna", "include_unreleased": True, "limit": 25},
+    ).json()["results"]
+    assert seen["include_unreleased"] is True
+    assert _names(res) == ["Belladonna Took"]
+
+
+def test_unreleased_results_are_badged():
+    client, _ = _capturing_client(unreleased_ids=frozenset({"oid-pre"}))
+    res = client.post(
+        "/api/find",
+        json={"name": "Belladonna", "include_unreleased": True, "limit": 25},
+    ).json()["results"]
+    assert res[0]["unreleased"] is True
+    assert res[0]["released_at"] == "2026-08-14"
+
+
+def test_released_results_carry_no_badge_key():
+    # Byte-compatible wire shape for everything already out: the key is absent,
+    # not present-and-false.
+    client, _ = _capturing_client(unreleased_ids=frozenset())
+    res = client.post(
+        "/api/find",
+        json={"name": "Belladonna", "include_unreleased": True, "limit": 25},
+    ).json()["results"]
+    assert "unreleased" not in res[0]
+
+
+def test_include_unreleased_alone_does_not_dump_the_vault():
+    # It WIDENS rather than narrows, so it must not count as a user filter — a bare
+    # toggle with no other filter and no focused lane stays idle.
+    client, seen = _capturing_client()
+    res = client.post(
+        "/api/find", json={"include_unreleased": True, "limit": 25}
+    ).json()["results"]
+    assert res == []
+    assert seen == {}  # search_fn never called

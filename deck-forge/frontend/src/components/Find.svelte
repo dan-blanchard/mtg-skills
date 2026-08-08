@@ -43,6 +43,10 @@
   let colors = new Set();
   let exactColors = false;
   let commandersOnly = false;
+  // Pre-release brewing (spoiled sets that aren't out yet). A WIDENING toggle, not a
+  // refining filter — so clearFilters() deliberately leaves it alone: pinning a lane
+  // shouldn't silently drop you back out of the pre-release pool you opted into.
+  let includeUnreleased = false;
   let allPresets = [];
   let selectedPresets = new Set();
   let presetsOpen = false;
@@ -99,6 +103,7 @@
       exact_colors: exactColors,
       presets: [...selectedPresets],
       is_commander: commandersOnly,
+      include_unreleased: includeUnreleased,
       limit: PAGE,
       offset: off,
     };
@@ -359,6 +364,18 @@
         </div>
         <label class="check">
           <input type="checkbox" bind:checked={commandersOnly} /> commanders only
+        </label>
+        <!-- Re-runs on change (unlike the refining controls, which wait for submit):
+             this widens the pool, so the effect is invisible until the list refreshes. -->
+        <label
+          class="check"
+          title="Include cards from spoiled sets that haven't released yet. They're marked PRE and aren't legal to play until their release date."
+        >
+          <input
+            type="checkbox"
+            bind:checked={includeUnreleased}
+            on:change={run}
+          /> include unreleased
         </label>
       </div>
     {/if}

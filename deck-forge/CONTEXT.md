@@ -55,6 +55,9 @@ The primary ranking axis for the Partner/Background avenue: the count of NEW col
 **Find surface**:
 The single card-finding surface that replaces separate Search and Synergies tabs. Focusing one or more Avenues OR-combines their `serve` specs into the search filters and returns one flat ✦-ranked list.
 
+**Pre-release card** (the "include unreleased" toggle):
+A card from a spoiled-but-unreleased set. MTGJSON publishes these as soon as they're fully spoiled but leaves their legalities empty until release day, which the adapter fills as `not_legal` in every format — so the default legality gate hides them. The Find surface's *include unreleased* checkbox (`SearchPayload.include_unreleased`) widens the gate for exactly those, and results carry an `unreleased` flag the SPA renders as a **PRE** badge. Membership comes from `ForgeState.unreleased_ids`, an ORACLE-level set (`card_search.unreleased_oracle_ids`) — never the record's own `released_at`, because search dedups to the cheapest printing, which for a reprint can itself be future-dated. It is a *widening* control, so it is deliberately excluded from `has_user_filters`: ticking it alone leaves Find idle rather than dumping the vault.
+
 **Slot** / **slot budget**:
 A role the deck needs filled (ramp, draw, removal, wipe, win condition, interaction, or a mana-curve bucket) and its remaining count measured against the active **Template** — the role-count guideline for a format (e.g. the Command Zone Commander template), a *soft* target, distinct from the *hard* curve/land-count gate.
 

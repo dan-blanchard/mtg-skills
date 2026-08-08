@@ -264,11 +264,15 @@ def default_state(fmt: str = "commander") -> ForgeState:
     # Built from bulk so the Collection's ownership matching honors Arena printed_name /
     # flavor_name aliases (ADR-0018). Empty without bulk → DFC-only matching (fine).
     name_aliases: dict[str, str] = {}
+    unreleased_ids: frozenset[str] = frozenset()
     if bulk_path is not None and bulk_path.exists():
         cards = load_bulk_cards(bulk_path)
         by_name = build_by_name(cards)
         object_resolver = build_object_resolver(cards)
         printings_by_oracle, printing_by_id = build_printings_index(cards)
+        # Shares card_search's (path, mtime) memo, so the Find surface's first
+        # include-unreleased request doesn't pay a second whole-bulk pass.
+        unreleased_ids = card_search.unreleased_ids_for(bulk_path, cards)
 
         # partial keeps search_cards's typed keyword signature (a `**kwargs:
         # object` wrapper would widen every arg to `object` and fail the checker).
@@ -290,6 +294,7 @@ def default_state(fmt: str = "commander") -> ForgeState:
         search_fn=search,
         session=session,
         bulk_available=available,
+        unreleased_ids=unreleased_ids,
         combos_fn=lambda deck: _combos(deck, by_name),
         store=store,
         build_id=build_id,
