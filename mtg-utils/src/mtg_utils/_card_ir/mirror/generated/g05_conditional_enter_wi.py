@@ -210,7 +210,7 @@ class T_conditions__IsOpponentsTurn(TypedMirrorNode):
 @dataclass(frozen=True)
 class T_conditions__IsPresent(TypedMirrorNode):
     _tag: ClassVar[str | None] = "IsPresent"
-    filter: None | U_filter
+    filter: U_filter | None
 
 
 @dataclass(frozen=True)
@@ -534,7 +534,7 @@ class T_cost__Cost(TypedMirrorNode):
 class T_cost__Discard(TypedMirrorNode):
     _tag: ClassVar[str | None] = "Discard"
     count: U_count
-    filter: None | U_filter
+    filter: U_filter | None
     random: bool
     self_ref: bool
 
@@ -549,8 +549,8 @@ class T_cost__EffectCost(TypedMirrorNode):
 class T_cost__Exile(TypedMirrorNode):
     _tag: ClassVar[str | None] = "Exile"
     count: int
-    filter: None | U_filter
-    zone: None | str
+    filter: U_filter | None
+    zone: str | None
 
 
 @dataclass(frozen=True)
@@ -633,7 +633,7 @@ class T_cost__RemoveCounter(TypedMirrorNode):
     count: int
     counter_type: U_counter_type
     selection: str
-    target: None | U_target
+    target: U_target | None
 
 
 @dataclass(frozen=True)
@@ -725,7 +725,7 @@ class T_costs__Cost(TypedMirrorNode):
 class T_costs__Discard(TypedMirrorNode):
     _tag: ClassVar[str | None] = "Discard"
     count: U_count
-    filter: None | U_filter
+    filter: U_filter | None
     random: bool
     self_ref: bool
 
@@ -745,8 +745,8 @@ class T_costs__Exert(TypedMirrorNode):
 class T_costs__Exile(TypedMirrorNode):
     _tag: ClassVar[str | None] = "Exile"
     count: int
-    filter: None | U_filter
-    zone: None | str
+    filter: U_filter | None
+    zone: str | None
 
 
 @dataclass(frozen=True)
@@ -792,7 +792,7 @@ class T_costs__RemoveCounter(TypedMirrorNode):
     count: int
     counter_type: U_counter_type
     selection: str
-    target: None | U_target
+    target: U_target | None
 
 
 @dataclass(frozen=True)

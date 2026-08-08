@@ -99,14 +99,14 @@ class S_bracket_signals(TypedMirrorNode):
 class S_branches(TypedMirrorNode):
     condition: None
     cost: None
-    description: None | str
-    duration: None | str
+    description: str | None
+    duration: str | None
     effect: U_effect
     forward_result: bool
     kind: str
     optional: bool
     optional_targeting: bool
-    sub_ability: None | S_sub_ability
+    sub_ability: S_sub_ability | None
     target_prompt: None
     iteration_kind_binding: U_iteration_kind_binding = MISSING
     player_scope: U_player_scope = MISSING
@@ -140,10 +140,10 @@ class S_characteristics(TypedMirrorNode):
     core_types: list[object]
     display_name: str
     keywords: list[MirrorVariant]
-    power: None | int
+    power: int | None
     subtypes: list[object]
     supertypes: list[object]
-    toughness: None | int
+    toughness: int | None
 
 
 # --- tagged shapes (discriminated enum nodes) ---
@@ -160,7 +160,7 @@ class T_additional_modifications__AddCounterOnEnter(TypedMirrorNode):
     _tag: ClassVar[str | None] = "AddCounterOnEnter"
     count: U_count
     counter_type: str
-    if_type: None | str
+    if_type: str | None
 
 
 @dataclass(frozen=True)
@@ -380,7 +380,7 @@ class T_affected__TriggeringSource(TypedMirrorNode):
 @dataclass(frozen=True)
 class T_affected__Typed(TypedMirrorNode):
     _tag: ClassVar[str | None] = "Typed"
-    controller: None | str
+    controller: str | None
     properties: list[U_properties]
     type_filters: list[MirrorVariant]
 
@@ -541,7 +541,7 @@ class T_attach_to__ParentTarget(TypedMirrorNode):
 @dataclass(frozen=True)
 class T_attach_to__Typed(TypedMirrorNode):
     _tag: ClassVar[str | None] = "Typed"
-    controller: None | str
+    controller: str | None
     properties: list[U_properties]
     type_filters: list[MirrorVariant]
 
@@ -586,7 +586,7 @@ class T_attachment__TriggeringSource(TypedMirrorNode):
 @dataclass(frozen=True)
 class T_attachment__Typed(TypedMirrorNode):
     _tag: ClassVar[str | None] = "Typed"
-    controller: None | str
+    controller: str | None
     properties: list[U_properties]
     type_filters: list[MirrorVariant]
 
@@ -697,7 +697,7 @@ class T_base__Sacrifice(TypedMirrorNode):
 @dataclass(frozen=True)
 class T_blockers__Typed(TypedMirrorNode):
     _tag: ClassVar[str | None] = "Typed"
-    controller: None | str
+    controller: str | None
     properties: list[U_properties]
     type_filters: list[MirrorVariant]
 

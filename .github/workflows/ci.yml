@@ -21,9 +21,13 @@ jobs:
       #
       # The pin matters most because mtg-utils sets `select = ["ALL"]`, opting into
       # every rule ruff ships — so a release that ADDS rules fails CI with no code
-      # change to blame. The 0.15 -> 0.16 bump added five; each was triaged rather
-      # than blanket-suppressed (CPY001 + PLR0917 ignored, RUF036 confined to the
-      # generated mirror, ISC004 + FURB192 actually fixed).
+      # change to blame. The 0.15 -> 0.16 bump added five, each triaged rather than
+      # blanket-suppressed: CPY001 + PLR0917 ignored (no license headers; PLR0913's
+      # rationale), ISC004 + FURB192 fixed in place, and RUF036's 165 hits — all in
+      # the generated _card_ir mirror — fixed at the EMITTER (codegen.field_type
+      # now appends `None` last) and regenerated. Prefer fixing generated code at
+      # its generator: a per-file-ignore there would have silenced the rule for
+      # every future emission too, which is most of the value of running it.
       #
       # To bump: change the pin in all eight, `uv lock` each, then `ruff check` and
       # `ruff format` from mtg-utils and triage whatever new rules fire — all in one

@@ -78,13 +78,13 @@ class S_per_choice_effect(TypedMirrorNode):
     condition: None
     cost: None
     description: None
-    duration: None | str
+    duration: str | None
     effect: U_effect
     forward_result: bool
     kind: str
     optional: bool
     optional_targeting: bool
-    sub_ability: None | S_sub_ability
+    sub_ability: S_sub_ability | None
     target_prompt: None
     multi_target: S_multi_target = MISSING
     player_scope: U_player_scope = MISSING
@@ -189,7 +189,7 @@ class T_payer__TriggeringSpellController(TypedMirrorNode):
 @dataclass(frozen=True)
 class T_payer__Typed(TypedMirrorNode):
     _tag: ClassVar[str | None] = "Typed"
-    controller: None | str
+    controller: str | None
     properties: list[U_properties]
     type_filters: list[MirrorVariant]
 
@@ -370,7 +370,7 @@ class T_player__TriggeringPlayer(TypedMirrorNode):
 @dataclass(frozen=True)
 class T_player__Typed(TypedMirrorNode):
     _tag: ClassVar[str | None] = "Typed"
-    controller: None | str | MirrorVariant
+    controller: str | MirrorVariant | None
     properties: list[U_properties]
     type_filters: list[MirrorVariant]
 

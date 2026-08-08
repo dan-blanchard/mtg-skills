@@ -94,7 +94,7 @@ class S_NumberRange(TypedMirrorNode):
 @dataclass(frozen=True)
 class S_PerTurnCastLimit(TypedMirrorNode):
     max: int
-    spell_filter: None | U_spell_filter
+    spell_filter: U_spell_filter | None
     who: str
 
 
@@ -203,7 +203,7 @@ class S_Splice(TypedMirrorNode):
 @dataclass(frozen=True)
 class S_StepEndUnspentMana(TypedMirrorNode):
     action: str | MirrorVariant
-    filter: None | str
+    filter: str | None
 
 
 @dataclass(frozen=True)
@@ -220,7 +220,7 @@ class S_Suspend(TypedMirrorNode):
 
 @dataclass(frozen=True)
 class S_TopOfLibraryCastPermission(TypedMirrorNode):
-    alt_cost: None | U_alt_cost
+    alt_cost: U_alt_cost | None
     frequency: str
     play_mode: str
 
@@ -245,16 +245,16 @@ class S_UntilNextStepOf(TypedMirrorNode):
 
 @dataclass(frozen=True)
 class S_abilities(TypedMirrorNode):
-    condition: None | U_condition
-    cost: None | U_cost
-    description: None | str
-    duration: None | str | MirrorVariant
+    condition: U_condition | None
+    cost: U_cost | None
+    description: str | None
+    duration: str | MirrorVariant | None
     effect: U_effect
     forward_result: bool
     kind: str
     optional: bool
     optional_targeting: bool
-    sub_ability: None | S_sub_ability
+    sub_ability: S_sub_ability | None
     target_prompt: None
     ability_tag: U_ability_tag = MISSING
     activation_mana_payment_restriction: str = MISSING

@@ -86,21 +86,21 @@ class S_target_condition(TypedMirrorNode):
 @dataclass(frozen=True)
 class S_trigger(TypedMirrorNode):
     batched: bool
-    condition: None | U_condition
-    constraint: None | U_constraint
+    condition: U_condition | None
+    constraint: U_constraint | None
     damage_kind: str
-    description: None | str
-    destination: None | str
-    execute: None | S_execute
+    description: str | None
+    destination: str | None
+    execute: S_execute | None
     mode: str | MirrorVariant
     optional: bool
-    origin: None | str
-    phase: None | str
+    origin: str | None
+    phase: str | None
     secondary: bool
     trigger_zones: list[object]
-    valid_card: None | U_valid_card
-    valid_source: None | U_valid_source
-    valid_target: None | U_valid_target
+    valid_card: U_valid_card | None
+    valid_source: U_valid_source | None
+    valid_target: U_valid_target | None
     attack_target_filter: str = MISSING
     coin_flip_result: str = MISSING
     counter_filter: MirrorVariant = MISSING
@@ -112,21 +112,21 @@ class S_trigger(TypedMirrorNode):
 @dataclass(frozen=True)
 class S_triggers(TypedMirrorNode):
     batched: bool
-    condition: None | U_condition
-    constraint: None | U_constraint
+    condition: U_condition | None
+    constraint: U_constraint | None
     damage_kind: str
-    description: None | str
-    destination: None | str
-    execute: None | S_execute
+    description: str | None
+    destination: str | None
+    execute: S_execute | None
     mode: str | MirrorVariant
     optional: bool
-    origin: None | str
-    phase: None | str
+    origin: str | None
+    phase: str | None
     secondary: bool
     trigger_zones: list[object]
-    valid_card: None | U_valid_card
-    valid_source: None | U_valid_source
-    valid_target: None | U_valid_target
+    valid_card: U_valid_card | None
+    valid_source: U_valid_source | None
+    valid_target: U_valid_target | None
     attack_target_filter: str = MISSING
     clash_result: str = MISSING
     coin_flip_result: str = MISSING
@@ -182,13 +182,13 @@ class S_win_effect(TypedMirrorNode):
     condition: None
     cost: None
     description: None
-    duration: None | str
+    duration: str | None
     effect: U_effect
     forward_result: bool
     kind: str
     optional: bool
     optional_targeting: bool
-    sub_ability: None | S_sub_ability
+    sub_ability: S_sub_ability | None
     target_prompt: None
     is_mana_ability: bool = MISSING
     sub_link: str = MISSING
@@ -263,7 +263,7 @@ class T_target__Controller(TypedMirrorNode):
 @dataclass(frozen=True)
 class T_target__ControllerAndControlledPermanents(TypedMirrorNode):
     _tag: ClassVar[str | None] = "ControllerAndControlledPermanents"
-    permanent_type: None | str
+    permanent_type: str | None
 
 
 @dataclass(frozen=True)
@@ -438,7 +438,7 @@ class T_target__TriggeringSpellController(TypedMirrorNode):
 @dataclass(frozen=True)
 class T_target__Typed(TypedMirrorNode):
     _tag: ClassVar[str | None] = "Typed"
-    controller: None | str | MirrorVariant
+    controller: str | MirrorVariant | None
     properties: list[U_properties]
     type_filters: list[MirrorVariant]
 
@@ -463,7 +463,7 @@ class T_target_a__SelfRef(TypedMirrorNode):
 @dataclass(frozen=True)
 class T_target_a__Typed(TypedMirrorNode):
     _tag: ClassVar[str | None] = "Typed"
-    controller: None | str
+    controller: str | None
     properties: list[U_properties]
     type_filters: list[MirrorVariant]
 
@@ -482,7 +482,7 @@ class T_target_b__TriggeringSource(TypedMirrorNode):
 @dataclass(frozen=True)
 class T_target_b__Typed(TypedMirrorNode):
     _tag: ClassVar[str | None] = "Typed"
-    controller: None | str
+    controller: str | None
     properties: list[U_properties]
     type_filters: list[MirrorVariant]
 
@@ -545,7 +545,7 @@ class T_target_player__Player(TypedMirrorNode):
 @dataclass(frozen=True)
 class T_target_player__Typed(TypedMirrorNode):
     _tag: ClassVar[str | None] = "Typed"
-    controller: None | str
+    controller: str | None
     properties: list[U_properties]
     type_filters: list[MirrorVariant]
 
@@ -671,7 +671,7 @@ class T_valid_card__SelfRef(TypedMirrorNode):
 @dataclass(frozen=True)
 class T_valid_card__Typed(TypedMirrorNode):
     _tag: ClassVar[str | None] = "Typed"
-    controller: None | str
+    controller: str | None
     properties: list[U_properties]
     type_filters: list[MirrorVariant]
 
@@ -723,7 +723,7 @@ class T_valid_source__StackSpell(TypedMirrorNode):
 @dataclass(frozen=True)
 class T_valid_source__Typed(TypedMirrorNode):
     _tag: ClassVar[str | None] = "Typed"
-    controller: None | str
+    controller: str | None
     properties: list[U_properties]
     type_filters: list[MirrorVariant]
 
@@ -787,7 +787,7 @@ class T_valid_target__TriggeringPlayer(TypedMirrorNode):
 @dataclass(frozen=True)
 class T_valid_target__Typed(TypedMirrorNode):
     _tag: ClassVar[str | None] = "Typed"
-    controller: None | str
+    controller: str | None
     properties: list[U_properties]
     type_filters: list[MirrorVariant]
 

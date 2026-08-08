@@ -135,9 +135,6 @@ ignore = [
     #            imports the full runtime/dataclasses/typing boilerplate set
     #            (MISSING/ClassVar/field/MirrorVariant) regardless of whether
     #            THIS module's classes happen to use every one of them
-    "RUF036",  # `None` not at end of union — the emitter writes `None | X` for
-    #            every optional field. Fixing it here would be undone by the next
-    #            codegen run; the ordering is the generator's to change, not ours.
 ]
 "tests/*" = [
     "SLF001",  # private member access — tests need to test internals

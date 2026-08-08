@@ -84,16 +84,16 @@ if TYPE_CHECKING:
 
 @dataclass(frozen=True)
 class S_else_ability(TypedMirrorNode):
-    condition: None | U_condition
+    condition: U_condition | None
     cost: None
-    description: None | str
-    duration: None | str | MirrorVariant
+    description: str | None
+    duration: str | MirrorVariant | None
     effect: U_effect
     forward_result: bool
     kind: str
     optional: bool
     optional_targeting: bool
-    sub_ability: None | S_sub_ability
+    sub_ability: S_sub_ability | None
     target_prompt: None
     multi_target: S_multi_target = MISSING
     player_scope: U_player_scope = MISSING
@@ -116,16 +116,16 @@ class S_ensure_token_specs(TypedMirrorNode):
 
 @dataclass(frozen=True)
 class S_execute(TypedMirrorNode):
-    condition: None | U_condition
+    condition: U_condition | None
     cost: None
-    description: None | str
-    duration: None | str | MirrorVariant
+    description: str | None
+    duration: str | MirrorVariant | None
     effect: U_effect
     forward_result: bool
     kind: str
     optional: bool
     optional_targeting: bool
-    sub_ability: None | S_sub_ability
+    sub_ability: S_sub_ability | None
     target_prompt: None
     ability_tag: U_ability_tag = MISSING
     distribute: U_distribute = MISSING
@@ -476,7 +476,7 @@ class T_filter__TrackedSetPossessor(TypedMirrorNode):
 @dataclass(frozen=True)
 class T_filter__Typed(TypedMirrorNode):
     _tag: ClassVar[str | None] = "Typed"
-    controller: None | str | MirrorVariant
+    controller: str | MirrorVariant | None
     properties: list[U_properties]
     type_filters: list[MirrorVariant]
 
@@ -587,7 +587,7 @@ class T_filters__TriggeringSource(TypedMirrorNode):
 @dataclass(frozen=True)
 class T_filters__Typed(TypedMirrorNode):
     _tag: ClassVar[str | None] = "Typed"
-    controller: None | str | MirrorVariant
+    controller: str | MirrorVariant | None
     properties: list[U_properties]
     type_filters: list[MirrorVariant]
 
@@ -652,7 +652,7 @@ class T_host__TriggeringSource(TypedMirrorNode):
 @dataclass(frozen=True)
 class T_host__Typed(TypedMirrorNode):
     _tag: ClassVar[str | None] = "Typed"
-    controller: None | str
+    controller: str | None
     properties: list[U_properties]
     type_filters: list[MirrorVariant]
 

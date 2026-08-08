@@ -116,30 +116,30 @@ class S_data(TypedMirrorNode):
 class S_decline(TypedMirrorNode):
     condition: None
     cost: None
-    description: None | str
-    duration: None | str
+    description: str | None
+    duration: str | None
     effect: U_effect
     forward_result: bool
     kind: str
     optional: bool
     optional_targeting: bool
-    sub_ability: None | S_sub_ability
+    sub_ability: S_sub_ability | None
     target_prompt: None
 
 
 @dataclass(frozen=True)
 class S_definition(TypedMirrorNode):
-    condition: None | U_condition
-    description: None | str
+    condition: U_condition | None
+    description: str | None
     ability_tag: U_ability_tag = MISSING
     activation_restrictions: list[U_activation_restrictions] = MISSING
     active_zones: list[object] = MISSING
-    affected: None | U_affected = MISSING
+    affected: U_affected | None = MISSING
     affected_zone: None = MISSING
     characteristic_defining: bool = MISSING
-    cost: None | U_cost = MISSING
+    cost: U_cost | None = MISSING
     cost_reduction: S_cost_reduction = MISSING
-    duration: None | str = MISSING
+    duration: str | None = MISSING
     effect: U_effect = MISSING
     effect_zone: None = MISSING
     forward_result: bool = MISSING
@@ -151,7 +151,7 @@ class S_definition(TypedMirrorNode):
     optional: bool = MISSING
     optional_targeting: bool = MISSING
     player_scope: U_player_scope = MISSING
-    sub_ability: None | S_sub_ability = MISSING
+    sub_ability: S_sub_ability | None = MISSING
     target_choice_timing: str = MISSING
     target_prompt: None = MISSING
     unless_pay: S_unless_pay = MISSING
@@ -378,7 +378,7 @@ class T_damage_source_filter__TrackedSet(TypedMirrorNode):
 @dataclass(frozen=True)
 class T_damage_source_filter__Typed(TypedMirrorNode):
     _tag: ClassVar[str | None] = "Typed"
-    controller: None | str
+    controller: str | None
     properties: list[U_properties]
     type_filters: list[MirrorVariant]
 
@@ -419,7 +419,7 @@ class T_data__Cost(TypedMirrorNode):
 class T_data__Discard(TypedMirrorNode):
     _tag: ClassVar[str | None] = "Discard"
     count: U_count
-    filter: None | U_filter
+    filter: U_filter | None
     random: bool
     self_ref: bool
 
@@ -439,8 +439,8 @@ class T_data__EffectCost(TypedMirrorNode):
 class T_data__Exile(TypedMirrorNode):
     _tag: ClassVar[str | None] = "Exile"
     count: int
-    filter: None | U_filter
-    zone: None | str
+    filter: U_filter | None
+    zone: str | None
 
 
 @dataclass(frozen=True)

@@ -107,12 +107,12 @@ if TYPE_CHECKING:
 
 @dataclass(frozen=True)
 class S_replacement(TypedMirrorNode):
-    condition: None | U_condition
-    description: None | str
+    condition: U_condition | None
+    description: str | None
     event: str
-    execute: None | S_execute
+    execute: S_execute | None
     mode: U_mode
-    valid_card: None | U_valid_card
+    valid_card: U_valid_card | None
     combat_scope: str = MISSING
     consume_on_apply: bool = MISSING
     damage_modification: U_damage_modification = MISSING
@@ -128,12 +128,12 @@ class S_replacement(TypedMirrorNode):
 
 @dataclass(frozen=True)
 class S_replacements(TypedMirrorNode):
-    condition: None | U_condition
-    description: None | str
+    condition: U_condition | None
+    description: str | None
     event: str
-    execute: None | S_execute
+    execute: S_execute | None
     mode: U_mode
-    valid_card: None | U_valid_card
+    valid_card: U_valid_card | None
     additional_token_spec: S_additional_token_spec = MISSING
     combat_scope: str = MISSING
     counter_match: U_counter_match = MISSING
@@ -193,11 +193,11 @@ class S_split(TypedMirrorNode):
 @dataclass(frozen=True)
 class S_static_abilities(TypedMirrorNode):
     active_zones: list[object]
-    affected: None | U_affected
-    affected_zone: None | str
+    affected: U_affected | None
+    affected_zone: str | None
     characteristic_defining: bool
-    condition: None | U_condition
-    description: None | str
+    condition: U_condition | None
+    description: str | None
     effect_zone: None
     mode: str | MirrorVariant
     modifications: list[U_modifications]
@@ -223,10 +223,10 @@ class S_static_def(TypedMirrorNode):
 @dataclass(frozen=True)
 class S_statics(TypedMirrorNode):
     active_zones: list[object]
-    affected: None | U_affected
+    affected: U_affected | None
     affected_zone: None
     characteristic_defining: bool
-    condition: None | U_condition
+    condition: U_condition | None
     description: str
     effect_zone: None
     mode: str | MirrorVariant
@@ -235,16 +235,16 @@ class S_statics(TypedMirrorNode):
 
 @dataclass(frozen=True)
 class S_sub_ability(TypedMirrorNode):
-    condition: None | U_condition
-    cost: None | U_cost
-    description: None | str
-    duration: None | str | MirrorVariant
+    condition: U_condition | None
+    cost: U_cost | None
+    description: str | None
+    duration: str | MirrorVariant | None
     effect: U_effect
     forward_result: bool
     kind: str
     optional: bool
     optional_targeting: bool
-    sub_ability: None | S_sub_ability
+    sub_ability: S_sub_ability | None
     target_prompt: None
     ability_tag: U_ability_tag = MISSING
     activation_restrictions: list[U_activation_restrictions] = MISSING
@@ -680,7 +680,7 @@ class T_source__TriggeringSource(TypedMirrorNode):
 @dataclass(frozen=True)
 class T_source__Typed(TypedMirrorNode):
     _tag: ClassVar[str | None] = "Typed"
-    controller: None | str
+    controller: str | None
     properties: list[U_properties]
     type_filters: list[MirrorVariant]
 
@@ -722,7 +722,7 @@ class T_source_filter__SelfRef(TypedMirrorNode):
 @dataclass(frozen=True)
 class T_source_filter__Typed(TypedMirrorNode):
     _tag: ClassVar[str | None] = "Typed"
-    controller: None | str
+    controller: str | None
     properties: list[U_properties]
     type_filters: list[MirrorVariant]
 
@@ -747,7 +747,7 @@ class T_source_rider__LosesAbilities(TypedMirrorNode):
 @dataclass(frozen=True)
 class T_sources__Typed(TypedMirrorNode):
     _tag: ClassVar[str | None] = "Typed"
-    controller: None | str
+    controller: str | None
     properties: list[U_properties]
     type_filters: list[MirrorVariant]
 
@@ -784,7 +784,7 @@ class T_spell_filter__Or(TypedMirrorNode):
 @dataclass(frozen=True)
 class T_spell_filter__Typed(TypedMirrorNode):
     _tag: ClassVar[str | None] = "Typed"
-    controller: None | str
+    controller: str | None
     properties: list[U_properties]
     type_filters: list[MirrorVariant]
 
@@ -890,7 +890,7 @@ class T_subject__TriggeringSource(TypedMirrorNode):
 @dataclass(frozen=True)
 class T_subject__Typed(TypedMirrorNode):
     _tag: ClassVar[str | None] = "Typed"
-    controller: None | str
+    controller: str | None
     properties: list[U_properties]
     type_filters: list[MirrorVariant]
 

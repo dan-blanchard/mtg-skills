@@ -89,13 +89,13 @@ class S_lose_effect(TypedMirrorNode):
     condition: None
     cost: None
     description: None
-    duration: None | str
+    duration: str | None
     effect: U_effect
     forward_result: bool
     kind: str
     optional: bool
     optional_targeting: bool
-    sub_ability: None | S_sub_ability
+    sub_ability: S_sub_ability | None
     target_prompt: None
     player_scope: U_player_scope = MISSING
     unless_pay: S_unless_pay = MISSING
@@ -125,16 +125,16 @@ class S_modal(TypedMirrorNode):
 
 @dataclass(frozen=True)
 class S_mode_abilities(TypedMirrorNode):
-    condition: None | U_condition
+    condition: U_condition | None
     cost: None
     description: None
-    duration: None | str | MirrorVariant
+    duration: str | MirrorVariant | None
     effect: U_effect
     forward_result: bool
     kind: str
     optional: bool
     optional_targeting: bool
-    sub_ability: None | S_sub_ability
+    sub_ability: S_sub_ability | None
     target_prompt: None
     is_mana_ability: bool = MISSING
     multi_target: S_multi_target = MISSING
@@ -160,13 +160,13 @@ class S_modification(TypedMirrorNode):
 
 @dataclass(frozen=True)
 class S_multi_target(TypedMirrorNode):
-    max: None | U_max
+    max: U_max | None
     min: int | U_min
 
 
 @dataclass(frozen=True)
 class S_on_decline(TypedMirrorNode):
-    condition: None | U_condition
+    condition: U_condition | None
     cost: None
     description: None
     duration: None
@@ -196,7 +196,7 @@ class S_or_trigger(TypedMirrorNode):
     trigger_zones: list[object]
     valid_card: U_valid_card
     valid_source: None
-    valid_target: None | U_valid_target
+    valid_target: U_valid_target | None
 
 
 @dataclass(frozen=True)
@@ -408,13 +408,13 @@ class T_mode__Mandatory(TypedMirrorNode):
 class T_mode__MayCost(TypedMirrorNode):
     _tag: ClassVar[str | None] = "MayCost"
     cost: U_cost
-    decline: None | S_decline
+    decline: S_decline | None
 
 
 @dataclass(frozen=True)
 class T_mode__Optional(TypedMirrorNode):
     _tag: ClassVar[str | None] = "Optional"
-    decline: None | S_decline
+    decline: S_decline | None
 
 
 @dataclass(frozen=True)
@@ -855,7 +855,7 @@ class T_owner__TriggeringSource(TypedMirrorNode):
 @dataclass(frozen=True)
 class T_owner__Typed(TypedMirrorNode):
     _tag: ClassVar[str | None] = "Typed"
-    controller: None | str | MirrorVariant
+    controller: str | MirrorVariant | None
     properties: list[U_properties]
     type_filters: list[MirrorVariant]
 

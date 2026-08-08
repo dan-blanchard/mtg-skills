@@ -493,7 +493,7 @@ class T_condition__FirstTokenCreationEachTurn(TypedMirrorNode):
 @dataclass(frozen=True)
 class T_condition__HadCounters(TypedMirrorNode):
     _tag: ClassVar[str | None] = "HadCounters"
-    counter_type: None | str
+    counter_type: str | None
 
 
 @dataclass(frozen=True)
@@ -1019,7 +1019,7 @@ class T_condition__WhenLeavesPlayFiltered(TypedMirrorNode):
 @dataclass(frozen=True)
 class T_condition__WhenNextEvent(TypedMirrorNode):
     _tag: ClassVar[str | None] = "WhenNextEvent"
-    or_trigger: None | S_or_trigger
+    or_trigger: S_or_trigger | None
     trigger: S_trigger
     lifetime: str = MISSING
 

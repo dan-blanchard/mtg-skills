@@ -99,22 +99,22 @@ if TYPE_CHECKING:
 class S_Root(TypedMirrorNode):
     abilities: list[S_abilities]
     card_type: S_card_type
-    color_override: None | list[object]
-    defense: None | str
+    color_override: list[object] | None
+    defense: str | None
     flavor_name: None
     keywords: list[MirrorVariant]
     legalities: S_legalities
-    loyalty: None | str
+    loyalty: str | None
     mana_cost: U_mana_cost
     name: str
     non_ability_text: None
-    oracle_text: None | str
-    power: None | U_power
+    oracle_text: str | None
+    power: U_power | None
     printings: list[object]
     replacements: list[S_replacements]
     scryfall_oracle_id: str
     static_abilities: list[S_static_abilities]
-    toughness: None | U_toughness
+    toughness: U_toughness | None
     triggers: list[S_triggers]
     additional_cost: U_additional_cost = MISSING
     bracket_signals: S_bracket_signals = MISSING
@@ -181,7 +181,7 @@ class S_CantActivateDuring(TypedMirrorNode):
 @dataclass(frozen=True)
 class S_CantBeActivated(TypedMirrorNode):
     exemption: str
-    kind: None | str
+    kind: str | None
     source_filter: U_source_filter
     who: str
 
@@ -226,7 +226,7 @@ class S_Craft(TypedMirrorNode):
 
 @dataclass(frozen=True)
 class S_Crew(TypedMirrorNode):
-    once_per_turn: None | U_once_per_turn
+    once_per_turn: U_once_per_turn | None
     power: int
 
 
@@ -310,7 +310,7 @@ class S_ManaValue(TypedMirrorNode):
 
 @dataclass(frozen=True)
 class S_MaxAttackersEachCombat(TypedMirrorNode):
-    defender: None | str
+    defender: str | None
     max: int
 
 
@@ -330,7 +330,7 @@ class S_ModifyActivationLimit(TypedMirrorNode):
 class S_ModifyCost(TypedMirrorNode):
     amount: U_amount
     mode: str
-    spell_filter: None | U_spell_filter
+    spell_filter: U_spell_filter | None
     dynamic_count: U_dynamic_count = MISSING
 
 
@@ -580,7 +580,7 @@ class T_Enchant__Player(TypedMirrorNode):
 @dataclass(frozen=True)
 class T_Enchant__Typed(TypedMirrorNode):
     _tag: ClassVar[str | None] = "Typed"
-    controller: None | str
+    controller: str | None
     properties: list[U_properties]
     type_filters: list[MirrorVariant]
 

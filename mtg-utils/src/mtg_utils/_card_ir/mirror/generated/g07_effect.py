@@ -177,16 +177,16 @@ if TYPE_CHECKING:
 
 @dataclass(frozen=True)
 class S_effect(TypedMirrorNode):
-    condition: None | U_condition
+    condition: U_condition | None
     cost: None
-    description: None | str
-    duration: None | str | MirrorVariant
+    description: str | None
+    duration: str | MirrorVariant | None
     effect: U_effect
     forward_result: bool
     kind: str
     optional: bool
     optional_targeting: bool
-    sub_ability: None | S_sub_ability
+    sub_ability: S_sub_ability | None
     target_prompt: None
     is_mana_ability: bool = MISSING
     multi_target: S_multi_target = MISSING
@@ -236,7 +236,7 @@ class T_effect__AddTargetReplacement(TypedMirrorNode):
 class T_effect__AdditionalPhase(TypedMirrorNode):
     _tag: ClassVar[str | None] = "AdditionalPhase"
     after: str
-    attacker_restriction: None | U_attacker_restriction
+    attacker_restriction: U_attacker_restriction | None
     count: U_count
     followed_by: list[object]
     phase: str
@@ -253,9 +253,9 @@ class T_effect__Amass(TypedMirrorNode):
 @dataclass(frozen=True)
 class T_effect__Animate(TypedMirrorNode):
     _tag: ClassVar[str | None] = "Animate"
-    power: None | U_power
+    power: U_power | None
     target: U_target
-    toughness: None | U_toughness
+    toughness: U_toughness | None
     types: list[object]
     keywords: list[MirrorVariant] = MISSING
     remove_types: list[object] = MISSING
@@ -365,7 +365,7 @@ class T_effect__BounceAll(TypedMirrorNode):
 class T_effect__CastCopyOfCard(TypedMirrorNode):
     _tag: ClassVar[str | None] = "CastCopyOfCard"
     cost: U_cost
-    count: None | U_count
+    count: U_count | None
     target: U_target
 
 
@@ -395,7 +395,7 @@ class T_effect__ChangeSpeed(TypedMirrorNode):
 @dataclass(frozen=True)
 class T_effect__ChangeTargets(TypedMirrorNode):
     _tag: ClassVar[str | None] = "ChangeTargets"
-    forced_to: None | U_forced_to
+    forced_to: U_forced_to | None
     scope: U_scope
     target: U_target
 
@@ -407,7 +407,7 @@ class T_effect__ChangeZone(TypedMirrorNode):
     enter_tapped: bool
     enter_transformed: bool
     enters_attacking: bool
-    origin: None | str
+    origin: str | None
     owner_library: bool
     target: U_target
     conditional_enter_with_counters: list[U_conditional_enter_with_counters] = MISSING
@@ -422,7 +422,7 @@ class T_effect__ChangeZone(TypedMirrorNode):
 class T_effect__ChangeZoneAll(TypedMirrorNode):
     _tag: ClassVar[str | None] = "ChangeZoneAll"
     destination: str
-    origin: None | str
+    origin: str | None
     target: U_target
     enter_tapped: bool = MISSING
     enter_with_counters: list[U_enter_with_counters] = MISSING
@@ -504,7 +504,7 @@ class T_effect__ChooseObjectsIntoTrackedSet(TypedMirrorNode):
     _tag: ClassVar[str | None] = "ChooseObjectsIntoTrackedSet"
     chooser: U_chooser
     filter: U_filter
-    max: None | int
+    max: int | None
     min: int
 
 
@@ -706,12 +706,12 @@ class T_effect__Detain(TypedMirrorNode):
 class T_effect__Dig(TypedMirrorNode):
     _tag: ClassVar[str | None] = "Dig"
     count: U_count
-    destination: None | str
+    destination: str | None
     enter_tapped: bool
     filter: U_filter
-    keep_count: None | int
+    keep_count: int | None
     player: U_player
-    rest_destination: None | str
+    rest_destination: str | None
     reveal: bool
     up_to: bool
     keep_count_expr: U_keep_count_expr = MISSING
@@ -905,8 +905,8 @@ class T_effect__Fight(TypedMirrorNode):
 @dataclass(frozen=True)
 class T_effect__FlipCoin(TypedMirrorNode):
     _tag: ClassVar[str | None] = "FlipCoin"
-    lose_effect: None | S_lose_effect
-    win_effect: None | S_win_effect
+    lose_effect: S_lose_effect | None
+    win_effect: S_win_effect | None
     flipper: U_flipper = MISSING
 
 
@@ -921,7 +921,7 @@ class T_effect__FlipCoins(TypedMirrorNode):
     _tag: ClassVar[str | None] = "FlipCoins"
     count: U_count
     lose_effect: None
-    win_effect: None | S_win_effect
+    win_effect: S_win_effect | None
 
 
 @dataclass(frozen=True)
@@ -1006,9 +1006,9 @@ class T_effect__GainLife(TypedMirrorNode):
 @dataclass(frozen=True)
 class T_effect__GenericEffect(TypedMirrorNode):
     _tag: ClassVar[str | None] = "GenericEffect"
-    duration: None | str | MirrorVariant
+    duration: str | MirrorVariant | None
     static_abilities: list[S_static_abilities]
-    target: None | U_target
+    target: U_target | None
     end_cost: U_end_cost = MISSING
 
 
@@ -1186,8 +1186,8 @@ class T_effect__Monstrosity(TypedMirrorNode):
 @dataclass(frozen=True)
 class T_effect__MoveCounters(TypedMirrorNode):
     _tag: ClassVar[str | None] = "MoveCounters"
-    count: None | U_count
-    counter_type: None | str
+    count: U_count | None
+    counter_type: str | None
     mode: str
     selection: str
     source: U_source
@@ -1395,7 +1395,7 @@ class T_effect__RemoveAllDamage(TypedMirrorNode):
 class T_effect__RemoveCounter(TypedMirrorNode):
     _tag: ClassVar[str | None] = "RemoveCounter"
     count: U_count
-    counter_type: None | str
+    counter_type: str | None
     target: U_target
 
 
@@ -1435,7 +1435,7 @@ class T_effect__RevealFromHand(TypedMirrorNode):
 class T_effect__RevealHand(TypedMirrorNode):
     _tag: ClassVar[str | None] = "RevealHand"
     card_filter: U_card_filter
-    count: None | U_count
+    count: U_count | None
     reveal: bool
     target: U_target
     choice_optional: bool = MISSING
@@ -1549,7 +1549,7 @@ class T_effect__SeparateIntoPiles(TypedMirrorNode):
     object_filter: U_object_filter
     partition_subject: U_partition_subject
     pile_source: U_pile_source
-    unchosen_pile_effect: None | S_unchosen_pile_effect
+    unchosen_pile_effect: S_unchosen_pile_effect | None
 
 
 @dataclass(frozen=True)
@@ -1722,7 +1722,7 @@ class T_effect__UnattachAll(TypedMirrorNode):
 @dataclass(frozen=True)
 class T_effect__Unimplemented(TypedMirrorNode):
     _tag: ClassVar[str | None] = "Unimplemented"
-    description: None | str
+    description: str | None
     name: str
 
 

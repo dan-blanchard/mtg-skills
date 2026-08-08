@@ -354,7 +354,7 @@ class T_qty__ManaSpentToCast(TypedMirrorNode):
 @dataclass(frozen=True)
 class T_qty__ManaSymbolsInManaCost(TypedMirrorNode):
     _tag: ClassVar[str | None] = "ManaSymbolsInManaCost"
-    color: None | str
+    color: str | None
     scope: U_scope
 
 
@@ -555,7 +555,7 @@ class T_qty__TurnsTaken(TypedMirrorNode):
 @dataclass(frozen=True)
 class T_qty__UnspentMana(TypedMirrorNode):
     _tag: ClassVar[str | None] = "UnspentMana"
-    color: None | str
+    color: str | None
 
 
 @dataclass(frozen=True)
@@ -741,7 +741,7 @@ class T_recipient__TriggeringSourceController(TypedMirrorNode):
 @dataclass(frozen=True)
 class T_recipient__Typed(TypedMirrorNode):
     _tag: ClassVar[str | None] = "Typed"
-    controller: None | str | MirrorVariant
+    controller: str | MirrorVariant | None
     properties: list[U_properties]
     type_filters: list[MirrorVariant]
 
@@ -754,7 +754,7 @@ class T_recipient_object_filter__SelfRef(TypedMirrorNode):
 @dataclass(frozen=True)
 class T_recipient_object_filter__Typed(TypedMirrorNode):
     _tag: ClassVar[str | None] = "Typed"
-    controller: None | str
+    controller: str | None
     properties: list[U_properties]
     type_filters: list[MirrorVariant]
 
@@ -762,7 +762,7 @@ class T_recipient_object_filter__Typed(TypedMirrorNode):
 @dataclass(frozen=True)
 class T_redirect_object_filter__Typed(TypedMirrorNode):
     _tag: ClassVar[str | None] = "Typed"
-    controller: None | str
+    controller: str | None
     properties: list[U_properties]
     type_filters: list[MirrorVariant]
 
@@ -827,7 +827,7 @@ class T_reference__TriggeringSource(TypedMirrorNode):
 @dataclass(frozen=True)
 class T_reference__Typed(TypedMirrorNode):
     _tag: ClassVar[str | None] = "Typed"
-    controller: None | str
+    controller: str | None
     properties: list[U_properties]
     type_filters: list[MirrorVariant]
 

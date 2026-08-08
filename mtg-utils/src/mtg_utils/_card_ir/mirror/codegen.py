@@ -144,8 +144,11 @@ class _Names:
         return " | ".join(elems) if elems else "object"
 
     def field_type(self, fk: str, kinds: set[str]) -> str:
+        # "null" is deliberately NOT in this loop: an optional field reads
+        # `X | None`, never `None | X` (PEP 604 convention, enforced by RUF036).
+        # It's appended last, below.
         parts: list[str] = []
-        for vk in ("null", "bool", "int", "float", "str"):
+        for vk in ("bool", "int", "float", "str"):
             if vk in kinds:
                 parts.append(_SCALAR_TYPES[vk])
         if TAGGED in kinds:
@@ -160,6 +163,9 @@ class _Names:
         for p in parts:
             if p not in out:
                 out.append(p)
+        if "null" in kinds:
+            # A null-only field degenerates to a bare `None`, same as before.
+            out.append(_SCALAR_TYPES["null"])
         return " | ".join(out) if out else "object"
 
 
