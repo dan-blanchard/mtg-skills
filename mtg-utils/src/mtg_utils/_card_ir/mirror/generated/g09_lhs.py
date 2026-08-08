@@ -13,7 +13,7 @@ shape, ``U_<ckey>`` for the union of all tagged shapes at one content_key.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, ClassVar
 
 from mtg_utils._card_ir.mirror.runtime import (

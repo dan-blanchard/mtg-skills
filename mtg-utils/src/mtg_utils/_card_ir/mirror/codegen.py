@@ -474,15 +474,38 @@ def _render_group_module(
         wrap=True,
     )
 
+    # Import only what THIS module's body actually references. The preamble used to
+    # be emitted verbatim for every group, which left unused names behind whenever a
+    # group happened not to need one (no variant-typed field -> no MirrorVariant, no
+    # cross-module ref -> no TYPE_CHECKING) and made F401 unsuppressable on the whole
+    # package. Detected off the rendered body so this can't drift from what the
+    # emitters above actually write.
+    body_text = "\n".join(body)
+
+    def _used(symbol: str) -> bool:
+        return re.search(rf"\b{re.escape(symbol)}\b", body_text) is not None
+
     out: list[str] = [header, "", "from __future__ import annotations", ""]
-    out.append("from dataclasses import dataclass, field")
-    out.append("from typing import TYPE_CHECKING, ClassVar")
-    out.append("")
-    out.append("from mtg_utils._card_ir.mirror.runtime import (")
-    out.append("    MISSING,")
-    out.append("    MirrorVariant,")
-    out.append("    TypedMirrorNode,")
-    out.append(")")
+    dataclass_names = [n for n in ("dataclass", "field") if _used(n)]
+    if dataclass_names:
+        out.append(f"from dataclasses import {', '.join(dataclass_names)}")
+    # TYPE_CHECKING is used by the guard block emitted below, not by the body.
+    typing_names: list[str] = []
+    if external:
+        typing_names.append("TYPE_CHECKING")
+    if _used("ClassVar"):
+        typing_names.append("ClassVar")
+    if typing_names:
+        out.append(f"from typing import {', '.join(typing_names)}")
+    runtime_names = [
+        n for n in ("MISSING", "MirrorVariant", "TypedMirrorNode") if _used(n)
+    ]
+    if runtime_names:
+        out.append("")
+        out.append("from mtg_utils._card_ir.mirror.runtime import (")
+        for n in runtime_names:
+            out.append(f"    {n},")
+        out.append(")")
     if external:
         out.append("")
         out.append("if TYPE_CHECKING:")

@@ -29,6 +29,12 @@ jobs:
       # its generator: a per-file-ignore there would have silenced the rule for
       # every future emission too, which is most of the value of running it.
       #
+      # That same principle retired the generated package's F401 exemption (the
+      # preamble now emits only the symbols a module references). One exemption
+      # survives on that path, N801, because it is load-bearing rather than
+      # cosmetic: content keys are case-sensitive, CapWords folding is not, and
+      # renaming collapses `Filter`/`Typed` and `filter`/`Typed` onto one class.
+      #
       # To bump: change the pin in all eight, `uv lock` each, then `ruff check` and
       # `ruff format` from mtg-utils and triage whatever new rules fire — all in one
       # commit, so the version and the code it demands never disagree on main.

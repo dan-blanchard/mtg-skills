@@ -129,12 +129,15 @@ ignore = [
 ]
 "src/mtg_utils/_card_ir/mirror/generated/*.py" = [
     "N801",    # class name CapWords — generated S_<ckey>/T_<ckey>__<tag> names
-    #            encode (content_key, tag) verbatim for collision-free dispatch
-    #            (ADR-0035 Stage 2 codegen; treat like protobuf/openapi output)
-    "F401",    # unused import — each content-key-group module unconditionally
-    #            imports the full runtime/dataclasses/typing boilerplate set
-    #            (MISSING/ClassVar/field/MirrorVariant) regardless of whether
-    #            THIS module's classes happen to use every one of them
+    #            encode (content_key, tag) VERBATIM, and that is load-bearing:
+    #            content keys are case-sensitive and CapWords folding is not, so
+    #            renaming collides. Measured over the committed schema, the 1773
+    #            current names fold to 1772 — `Filter`/`Typed` and `filter`/`Typed`
+    #            both become TFilterTyped, silently aliasing two distinct nodes in
+    #            the dispatch table. The separator-preserving scheme is what keeps
+    #            it injective (ADR-0035 Stage 2 codegen).
+    #            NOTE: this is the ONLY exemption on this path that survives —
+    #            prefer fixing generated code at its generator (see codegen.py).
 ]
 "tests/*" = [
     "SLF001",  # private member access — tests need to test internals
