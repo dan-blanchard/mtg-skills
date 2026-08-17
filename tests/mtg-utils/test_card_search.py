@@ -1,6 +1,7 @@
 """Tests for card_search module."""
 
 import json
+from datetime import UTC, datetime, timedelta
 
 import click
 import pytest
@@ -922,6 +923,18 @@ _ALL_ILLEGAL = {"commander": "not_legal", "legacy": "not_legal", "vintage": "not
 _LEGAL = {"commander": "legal", "legacy": "legal", "vintage": "legal"}
 
 
+# Release dates are RELATIVE to the run date so these fixtures cannot expire.
+# They previously hardcoded 2026-08-14 as "the future". Once that day passed, every
+# test routing through search_cards() / is_commander() broke: those read the real
+# clock rather than an injected ``today``, so the card was no longer unreleased and
+# the "spoiled but not out yet" path stopped being exercised at all. The classes
+# that DO inject ``today=`` were unaffected — hence a half-failing suite.
+_TODAY = datetime.now(tz=UTC).date()  # matches card_search's own clock
+_TODAY_ISO = _TODAY.isoformat()
+_FUTURE = (_TODAY + timedelta(days=30)).isoformat()  # a pending set
+_FAR_FUTURE = (_TODAY + timedelta(days=120)).isoformat()  # a later pending set
+
+
 def _rec(name, oracle_id, released_at, legalities, **kw):
     """A bulk record carrying the two fields the release test reads."""
     card = _make_card(name=name, legalities=legalities, **kw)
@@ -931,13 +944,13 @@ def _rec(name, oracle_id, released_at, legalities, **kw):
 
 
 class TestUnreleasedOracleIds:
-    TODAY = "2026-08-07"
+    TODAY = _TODAY_ISO
 
     def _ids(self, cards):
         return unreleased_oracle_ids(cards, today=self.TODAY)
 
     def test_future_only_printing_is_unreleased(self):
-        cards = [_rec("Belladonna Took", "oid-new", "2026-08-14", _ALL_ILLEGAL)]
+        cards = [_rec("Belladonna Took", "oid-new", _FUTURE, _ALL_ILLEGAL)]
         assert self._ids(cards) == {"oid-new"}
 
     def test_past_printing_is_not_unreleased(self):
@@ -946,13 +959,13 @@ class TestUnreleasedOracleIds:
         assert self._ids(cards) == set()
 
     def test_legal_card_never_qualifies(self):
-        cards = [_rec("Sol Ring", "oid-legal", "2026-08-14", _LEGAL)]
+        cards = [_rec("Sol Ring", "oid-legal", _FUTURE, _LEGAL)]
         assert self._ids(cards) == set()
 
     def test_banned_card_never_qualifies(self):
         # Banned is a real status, so the card is not "legal nowhere" in this sense.
         legalities = {**_ALL_ILLEGAL, "vintage": "banned"}
-        cards = [_rec("Chaos Orb", "oid-ban", "2026-08-14", legalities)]
+        cards = [_rec("Chaos Orb", "oid-ban", _FUTURE, legalities)]
         assert self._ids(cards) == set()
 
     def test_one_released_printing_disqualifies_the_oracle_card(self):
@@ -960,14 +973,14 @@ class TestUnreleasedOracleIds:
         # reprinted into a future set must not read as merely-unreleased.
         cards = [
             _rec("Un Thing", "oid-mixed", "2022-10-07", _ALL_ILLEGAL),
-            _rec("Un Thing", "oid-mixed", "2026-11-13", _ALL_ILLEGAL),
+            _rec("Un Thing", "oid-mixed", _FAR_FUTURE, _ALL_ILLEGAL),
         ]
         assert self._ids(cards) == set()
 
     def test_empty_legalities_is_not_evidence(self):
         # all() over an empty dict is vacuously True — guard against that reading as
         # "illegal everywhere" for a record that simply carries no legality data.
-        cards = [_rec("No Data", "oid-empty", "2026-08-14", {})]
+        cards = [_rec("No Data", "oid-empty", _FUTURE, {})]
         assert self._ids(cards) == set()
 
     def test_missing_release_date_is_not_unreleased(self):
@@ -982,7 +995,7 @@ class TestUnreleasedOracleIds:
 class TestIncludeUnreleasedSearch:
     def _bulk(self, tmp_path):
         cards = [
-            _rec("Belladonna Took", "oid-new", "2026-08-14", _ALL_ILLEGAL),
+            _rec("Belladonna Took", "oid-new", _FUTURE, _ALL_ILLEGAL),
             _rec("Standard Procedure", "oid-un", "2022-10-07", _ALL_ILLEGAL),
             _rec("Sol Ring", "oid-legal", "2015-01-01", _LEGAL),
         ]
@@ -1024,7 +1037,7 @@ class TestNeverLegalSetTypeGuard:
     """`funny` sets are illegal by design, so a future release date must not read as
     "merely pending" — the one case the date test alone gets wrong."""
 
-    TODAY = "2026-08-07"
+    TODAY = _TODAY_ISO
 
     def _ids(self, cards):
         return unreleased_oracle_ids(cards, today=self.TODAY)
@@ -1036,7 +1049,7 @@ class TestNeverLegalSetTypeGuard:
             _rec(
                 "Silly Card",
                 "oid-funny",
-                "2026-12-01",
+                _FAR_FUTURE,
                 _ALL_ILLEGAL,
                 set_type="funny",
             )
@@ -1049,7 +1062,7 @@ class TestNeverLegalSetTypeGuard:
             _rec(
                 "Belladonna Took",
                 "oid-new",
-                "2026-08-14",
+                _FUTURE,
                 _ALL_ILLEGAL,
                 set_type="expansion",
             )
@@ -1060,13 +1073,11 @@ class TestNeverLegalSetTypeGuard:
         # Checked per PRINTING: a funny printing anywhere in the card's history is
         # enough, even when the other printing is an ordinary future expansion.
         cards = [
-            _rec(
-                "Two Faced", "oid-mixed", "2026-12-01", _ALL_ILLEGAL, set_type="funny"
-            ),
+            _rec("Two Faced", "oid-mixed", _FAR_FUTURE, _ALL_ILLEGAL, set_type="funny"),
             _rec(
                 "Two Faced",
                 "oid-mixed",
-                "2026-08-14",
+                _FUTURE,
                 _ALL_ILLEGAL,
                 set_type="expansion",
             ),
@@ -1076,9 +1087,9 @@ class TestNeverLegalSetTypeGuard:
     def test_funny_cards_stay_out_of_search_results(self, tmp_path):
         cards = [
             _rec(
-                "Silly Card", "oid-funny", "2026-12-01", _ALL_ILLEGAL, set_type="funny"
+                "Silly Card", "oid-funny", _FAR_FUTURE, _ALL_ILLEGAL, set_type="funny"
             ),
-            _rec("Belladonna Took", "oid-new", "2026-08-14", _ALL_ILLEGAL),
+            _rec("Belladonna Took", "oid-new", _FUTURE, _ALL_ILLEGAL),
         ]
         bulk_path = tmp_path / "bulk.json"
         bulk_path.write_text(json.dumps(cards))
@@ -1100,11 +1111,11 @@ class TestUnreleasedCommanderEligibility:
     }
 
     def test_is_commander_gates_on_legality_by_default(self):
-        card = _rec("Thorin", "oid-pre", "2026-08-14", _ALL_ILLEGAL, **self.LEGEND)
+        card = _rec("Thorin", "oid-pre", _FUTURE, _ALL_ILLEGAL, **self.LEGEND)
         assert is_commander(card, "commander")["eligible"] is False
 
     def test_ignore_legality_admits_the_pre_release_legend(self):
-        card = _rec("Thorin", "oid-pre", "2026-08-14", _ALL_ILLEGAL, **self.LEGEND)
+        card = _rec("Thorin", "oid-pre", _FUTURE, _ALL_ILLEGAL, **self.LEGEND)
         assert is_commander(card, "commander", ignore_legality=True)["eligible"] is True
 
     def test_ignore_legality_still_requires_a_legendary_type_line(self):
@@ -1112,7 +1123,7 @@ class TestUnreleasedCommanderEligibility:
         card = _rec(
             "Sol Ring",
             "oid-pre",
-            "2026-08-14",
+            _FUTURE,
             _ALL_ILLEGAL,
             type_line="Artifact",
             oracle_text="{T}: Add {C}{C}.",
@@ -1123,7 +1134,7 @@ class TestUnreleasedCommanderEligibility:
 
     def _bulk(self, tmp_path):
         cards = [
-            _rec("Thorin", "oid-pre", "2026-08-14", _ALL_ILLEGAL, **self.LEGEND),
+            _rec("Thorin", "oid-pre", _FUTURE, _ALL_ILLEGAL, **self.LEGEND),
             # An Un-card legend: illegal by design, already released.
             _rec(
                 "Urza Headmaster",

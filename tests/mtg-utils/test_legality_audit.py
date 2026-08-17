@@ -828,12 +828,21 @@ class TestCiteRules:
         assert "rule_citations" not in data
         assert "rule_citations_error" not in data
 
-    def test_warn_on_missing_cr_surfaces_in_stdout(self, tmp_path: Path):
+    def test_warn_on_missing_cr_surfaces_in_stdout(self, tmp_path: Path, monkeypatch):
         """Default-on citation lookup with no reachable CR must print a
-        WARN line to stdout (not only to the JSON sidecar)."""
+        WARN line to stdout (not only to the JSON sidecar).
+
+        ``resolve_rules_path`` searches the input file's directory and then
+        ``Path.cwd()``. The cwd leg made this test depend on ambient state: a
+        developer who has ever run ``download-rules`` from the package dir has a
+        gitignored ``comprehensive-rules-*.txt`` sitting there forever, so the CR
+        *was* reachable and no WARN was emitted. Pin cwd to the empty tmp_path so
+        both search legs are genuinely clean.
+        """
         hydrated = [jinnie()]
         d = deck()
         deck_path, hydrated_path = self._write(tmp_path, d, hydrated)
+        monkeypatch.chdir(tmp_path)
 
         runner = CliRunner()
         result = runner.invoke(main, [str(deck_path), str(hydrated_path)])

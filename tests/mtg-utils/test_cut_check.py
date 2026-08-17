@@ -702,10 +702,18 @@ class TestCiteRules:
             assert "rule_citations" not in entry
             assert "rule_citations_error" not in entry
 
-    def test_warn_on_missing_cr_surfaces_in_stdout(self, trigger_test_cards, tmp_path):
+    def test_warn_on_missing_cr_surfaces_in_stdout(
+        self, trigger_test_cards, tmp_path, monkeypatch
+    ):
         """Default-on citation lookup with no reachable CR must surface
         a WARN line in stdout, not only in the JSON sidecar. Agents skim
-        stdout; silent JSON-only errors got missed in session 0a340f10."""
+        stdout; silent JSON-only errors got missed in session 0a340f10.
+
+        cwd is pinned to tmp_path because ``resolve_rules_path`` falls back to
+        ``Path.cwd()``: a gitignored ``comprehensive-rules-*.txt`` left in the
+        package dir by any earlier ``download-rules`` run made the CR reachable
+        and silently defeated this assertion.
+        """
         from click.testing import CliRunner
 
         hydrated_path = tmp_path / "hydrated.json"
@@ -713,6 +721,7 @@ class TestCiteRules:
         cuts_path = tmp_path / "cuts.json"
         cuts_path.write_text(json.dumps(["Blocking Restrictor"]))
         output_path = tmp_path / "out.json"
+        monkeypatch.chdir(tmp_path)
 
         runner = CliRunner()
         result = runner.invoke(
