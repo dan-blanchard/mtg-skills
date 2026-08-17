@@ -33,6 +33,7 @@ from mtg_utils.card_classify import (
     is_creature,
     is_land,
     is_ramp,
+    land_fetch_profile,
 )
 from mtg_utils.names import normalize_card_name
 from mtg_utils.names import slug as slug  # noqa: PLC0414 (re-export; home is names.py)
@@ -246,6 +247,14 @@ def accumulate_deck_metrics(
             ramp_count += qty
         if card.get("game_changer"):
             game_changer_count += qty
+        # A land whose only "mana ability" is sacrificing itself to find a basic
+        # (Evolving Wilds, Hobbit Hole) is not an any-color source: it taps for
+        # nothing and converts into a basic a turn later. Reporting it as `any`
+        # overstated the manabase — bucket it separately so the count is honest.
+        direct = [c for c in (card.get("produced_mana") or []) if c in "WUBRG"]
+        if is_land(card) and not direct and land_fetch_profile(card) is not None:
+            sources["fetch"] += qty
+            continue
         for color in color_sources(card):
             sources[color] += qty
     avg_cmc = sum(nonland_cmcs) / len(nonland_cmcs) if nonland_cmcs else 0.0

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 from collections.abc import Sequence
+from typing import NamedTuple
 
 from mtg_utils._name_index import NameIndex, build_name_index
 from mtg_utils.format_config import FORMAT_CONFIGS
@@ -308,7 +309,14 @@ def is_ramp(card: dict) -> bool:
 _ADD_MANA_PATTERN = re.compile(r"[Aa]dd\s+(\{[^}]+\}(?:\s*(?:or\s+)?\{[^}]+\})*)")
 _MANA_SYMBOL_PATTERN = re.compile(r"\{([WUBRGC])\}")
 
-_FETCH_ANY_BASIC_PATTERN = re.compile(r"[Ss]earch your library for a basic land card")
+# Quantified/plural forms included: the narrow "for a basic land card" wording
+# missed every multi-land ramp spell (Explosive Vegetation, Migration Path —
+# "up to two basic land cards"), so color_sources reported them as producing
+# nothing at all.
+_FETCH_ANY_BASIC_PATTERN = re.compile(
+    r"[Ss]earch your library for (?:up to )?(?:a|an|one|two|three|four|five) "
+    r"basic land cards?"
+)
 _FETCH_BASIC_LAND_PATTERN = re.compile(
     r"[Ss]earch your library for (?:a |an )?(?:basic )?"
     r"((?:Plains|Island|Swamp|Mountain|Forest)"
@@ -367,6 +375,118 @@ def color_sources(card: dict) -> set[str]:
     # Remove C if we also found real colors
     colors.discard("C")
     return colors
+
+
+class LandFetch(NamedTuple):
+    """What a "search your library for a land" effect actually delivers.
+
+    ``color_sources`` answers the coarse question (which colors could this make,
+    with a generic basic search collapsing to ``{"any"}``). Simulators need three
+    more facts before they can credit mana for the effect, so they live here rather
+    than being re-derived per consumer:
+
+    * ``colors`` — resolved against the deck's own basics, because a generic
+      "basic land" search can only find what the deck actually runs.
+    * ``to_battlefield`` — a search that puts the land in *hand* produces no mana
+      now; only "onto the battlefield" does.
+    * ``enters_tapped`` — delays the land by a turn.
+    * ``on_etb`` — True for an enters trigger (Wood Elves). False means the fetch
+      sits behind an activation cost the caller must price itself. Note CR 302.6
+      scopes summoning sickness to *creatures*, so an artifact fetcher may legally
+      tap the turn it enters; the unmodeled cost, not sickness, is why callers
+      generally skip these.
+    * ``count`` — lands found. Explosive Vegetation and Krosan Verge fetch two.
+    """
+
+    colors: frozenset[str]
+    to_battlefield: bool
+    enters_tapped: bool
+    on_etb: bool
+    count: int
+
+
+_FETCH_TO_BATTLEFIELD_RE = re.compile(r"onto the battlefield", re.IGNORECASE)
+# Both templatings for a land arriving tapped: the inline "…onto the battlefield
+# tapped" and the newer standalone "It enters tapped." sentence.
+_FETCH_TAPPED_RE = re.compile(
+    r"onto the battlefield tapped|\bit enters tapped\b", re.IGNORECASE
+)
+_ETB_TRIGGER_RE = re.compile(r"when(?:ever)? (?:this|[^,.]*?) enters", re.IGNORECASE)
+_NUMBER_WORDS = {"a": 1, "an": 1, "one": 1, "two": 2, "three": 3, "four": 4, "five": 5}
+_FETCH_COUNT_RE = re.compile(
+    r"search your library for (?:up to )?(a|an|one|two|three|four|five)\b",
+    re.IGNORECASE,
+)
+
+
+_ENTERS_TAPPED_SENTENCE_RE = re.compile(r"^\s*it enters tapped\b", re.IGNORECASE)
+
+
+def _fetch_clause_scope(oracle: str, match_end: int) -> str:
+    """The search's own sentence, plus a trailing "It enters tapped." if present.
+
+    "…onto the battlefield tapped" sits inside the search sentence, but the newer
+    "…onto the battlefield. It enters tapped." puts it in the next one. Taking the
+    next sentence unconditionally is too greedy — a separate ability ("Whenever you
+    cycle a card, put a land from your hand onto the battlefield tapped") would then
+    misdate this fetch by a turn — so the continuation is only absorbed when it is
+    actually the enters-tapped templating. Scanning the whole card is wider still.
+    """
+    sentences = oracle[match_end:].split(".")
+    scope = sentences[0]
+    if len(sentences) > 1 and _ENTERS_TAPPED_SENTENCE_RE.match(sentences[1]):
+        scope += "." + sentences[1]
+    return scope
+
+
+def land_fetch_profile(
+    card: dict, *, deck_basic_colors: frozenset[str] = frozenset()
+) -> LandFetch | None:
+    """Resolve a land-search effect, or ``None`` when the card has none.
+
+    Scryfall leaves ``produced_mana`` empty for every land whose only mana ability
+    is sacrificing itself to fetch a basic (Evolving Wilds, Hobbit Hole), so a
+    model keyed solely off ``produced_mana`` scores them as colorless while still
+    counting them toward available mana — reporting *more* color screw the more
+    fixing a deck runs. See tests/mtg-utils/test_playtest_goldfish.py.
+
+    ``None`` means "no land-search effect here". A returned profile with an EMPTY
+    ``colors`` means "there is one, but it can't be resolved" — a generic basic
+    search in a deck running no basics. Keeping those distinct lets a caller label
+    the card a fetch (deck-stats) or warn about it, instead of silently treating an
+    unresolvable fetch as if the card had no such ability at all.
+    """
+    oracle = get_oracle_text(card)
+    if not oracle:
+        return None
+
+    colors: set[str] = set()
+    clause_end = -1
+    for match in _FETCH_BASIC_LAND_PATTERN.finditer(oracle):
+        types_text = match.group(1)
+        colors.update(
+            color for land, color in _BASIC_LAND_TYPES.items() if land in types_text
+        )
+        clause_end = match.end()
+    if not colors:
+        generic = _FETCH_ANY_BASIC_PATTERN.search(oracle)
+        if generic:
+            colors = set(deck_basic_colors)
+            clause_end = generic.end()
+    if clause_end < 0:  # no land-search clause at all
+        return None
+
+    scope = _fetch_clause_scope(oracle, clause_end)
+    count_match = _FETCH_COUNT_RE.search(oracle)
+    return LandFetch(
+        colors=frozenset(colors),
+        to_battlefield=bool(_FETCH_TO_BATTLEFIELD_RE.search(scope)),
+        enters_tapped=bool(_FETCH_TAPPED_RE.search(scope)),
+        on_etb=bool(_ETB_TRIGGER_RE.search(oracle)),
+        count=_NUMBER_WORDS.get(
+            (count_match.group(1) if count_match else "a").lower(), 1
+        ),
+    )
 
 
 def is_commander(

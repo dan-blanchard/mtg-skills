@@ -23,9 +23,19 @@ from mtg_utils._playtest_common import (
     render_goldfish_markdown,
     render_match_markdown,
 )
-from mtg_utils.card_classify import build_card_lookup, count_color_pips, is_land
+from mtg_utils.card_classify import (
+    build_card_lookup,
+    color_sources,
+    count_color_pips,
+    is_land,
+    land_fetch_profile,
+)
 
 GOLDFISH_VERSION = "goldfish v1"
+
+# Colors a source can pay a pip with. Defined here (above its first use) so the
+# fetch fallback and the produced_mana filter cannot drift apart.
+_MANA_COLORS = frozenset("WUBRG")
 
 
 def _build_indexed_deck(hydrated: list[dict]) -> list[int]:
@@ -127,13 +137,74 @@ def _card_pips(card: dict) -> dict[str, int]:
     return count_color_pips(mana)
 
 
-def _land_produces(card: dict) -> list[str]:
-    """Color identity a land can tap for. Defaults to ``produced_mana``."""
-    produced = card.get("produced_mana") or []
-    return [c for c in produced if c in {"W", "U", "B", "R", "G"}]
+def _deck_basic_colors(hydrated: list[dict]) -> frozenset[str]:
+    """Colors of the basic lands actually in this deck.
+
+    A generic "search for a basic land" can only find what the deck contains, so
+    this bounds what such a fetch may produce. Deck-scoped, hence here rather than
+    in card_classify — ``color_sources`` answers the card-only question and
+    collapses a generic search to ``{"any"}``.
+    """
+    colors: set[str] = set()
+    for card in hydrated:
+        type_line = (card.get("type_line") or "").lower()
+        if "basic" not in type_line or "land" not in type_line:
+            continue
+        colors.update(c for c in color_sources(card) if c in _MANA_COLORS)
+    return frozenset(colors)
 
 
-_MANA_COLORS = frozenset("WUBRG")
+def _unresolved_fetch_warnings(hydrated: list[dict]) -> list[str]:
+    """Warn when the deck's fixing is invisible to the mana model.
+
+    A generic "search for a basic land" resolves against the deck's OWN basics, so
+    a deck with none (an all-nonbasic manabase running Fabled Passage / Prismatic
+    Vista) silently falls back to producing nothing — restoring the inverted
+    "more fixing → more reported screw" ranking with no signal. Say so out loud
+    rather than reporting a confident wrong number.
+    """
+    if _deck_basic_colors(hydrated):
+        return []
+    blind = sorted(
+        {
+            card.get("name", "?")
+            for card in hydrated
+            if not [c for c in (card.get("produced_mana") or []) if c in _MANA_COLORS]
+            and (fetch := land_fetch_profile(card, deck_basic_colors=frozenset()))
+            is not None
+            and not fetch.colors
+        }
+    )
+    if not blind:
+        return []
+    return [
+        (
+            "color-screw may be overstated: the deck runs no basic lands, so "
+            f"generic land-fetch effects resolve to no colors ({', '.join(blind)})"
+        )
+    ]
+
+
+def _land_produces(card: dict, deck_basic_colors: frozenset[str]) -> list[str]:
+    """Color identity a land can tap for, this turn, on its own.
+
+    Prefers ``produced_mana``; falls back to a self-sacrificing fetch, which
+    ``produced_mana`` never reports. A fetch that only puts the land into *hand*
+    yields nothing now, so it is excluded — matching the nonland path.
+
+    ``deck_basic_colors`` is required, not defaulted: it carries the whole
+    correctness of the fetch fallback, and a caller that omitted it would silently
+    restore the inverted color-screw ranking this exists to fix.
+    """
+    direct = [c for c in (card.get("produced_mana") or []) if c in _MANA_COLORS]
+    if direct:
+        return direct
+    fetch = land_fetch_profile(card, deck_basic_colors=deck_basic_colors)
+    if fetch is None or not fetch.to_battlefield:
+        return []
+    return sorted(fetch.colors)
+
+
 _ADD_PATTERN = re.compile(r"\bAdd\b((?:\s*\{[^}]+\})+)")
 
 
@@ -261,6 +332,7 @@ def _simulate_game(
     max_turns: int,
     rng: random.Random,
     starting_hand: list[int] | None = None,
+    deck_basic_colors: frozenset[str] | None = None,
 ) -> dict:
     """Simulate one game: returns per-turn lands/casts/mana metrics + flags.
 
@@ -277,6 +349,12 @@ def _simulate_game(
     (deaths/attacks/upkeep) and one-shot sacrifice — see _mana_ability_profile.
     Token ramp is thus captured roughly, not precisely.
 
+    Land search is modeled separately, since ``produced_mana`` is empty for every
+    such effect: a fetch land produces the deck's own basic colors (see
+    ``_land_produces``) and an enters-triggered fetcher moves a land from library
+    to battlefield (see ``_resolve_land_fetch``), both delayed a turn by an
+    "enters tapped" clause. Activation-gated fetches are not credited.
+
     Play/draw: the goldfish is always modeled on the draw — it draws a card on
     every turn including turn 1. (Changing that would shift curve/screw output and
     is a deliberate decision, not made here.)
@@ -291,17 +369,77 @@ def _simulate_game(
         library = [i for i in indices if i not in kept]
         hand = list(starting_hand)
 
+    # A deck constant. _run_goldfish hoists it so 1000 games don't each rescan
+    # the decklist; the fallback keeps direct callers (tests) ergonomic.
+    if deck_basic_colors is None:
+        deck_basic_colors = _deck_basic_colors(hydrated)
+
     lands_in_play: list[int] = []  # indices of lands in play
     lands_in_play_by_turn: dict[int, int] = {}
     casts_by_turn: dict[int, int] = defaultdict(int)
     # Mana rocks/dorks on the battlefield; each remembers the turn it was cast
     # so dorks (creatures) respect summoning sickness.
     mana_permanents: list[dict] = []
+    # First turn each land can actually tap for mana. A land that sacrifices
+    # itself for a *tapped* basic, or one fetched onto the battlefield tapped, is
+    # only a source from the following turn.
+    land_ready_turn: dict[int, int] = {}
     color_screwed = False
+
+    def _land_ready_on_entry(index: int, turn: int) -> int:
+        """The turn a land played/fetched on ``turn`` first produces mana."""
+        card = hydrated[index]
+        if [c for c in (card.get("produced_mana") or []) if c in _MANA_COLORS]:
+            return turn
+        fetch = land_fetch_profile(card, deck_basic_colors=deck_basic_colors)
+        return turn + 1 if fetch and fetch.enters_tapped else turn
+
+    def _resolve_land_fetch(card: dict, turn: int, sources: list[set[str]]) -> None:
+        """Move a searched-up land from library to battlefield, if the card does that.
+
+        Only ETB fetches (Wood Elves, Sakura-Tribe Elder) are credited. A fetch
+        behind an activation cost — Knight of the Reliquary's ``{T}, Sacrifice a
+        Forest``, Burnished Hart's ``{3}, {T}, Sacrifice`` — is skipped because the
+        cost is real and unmodeled, so crediting free mana is the worse error.
+
+        Note the cost is the whole reason, NOT summoning sickness: CR 302.6 scopes
+        that rule to *creatures*, so Burnished Hart (an artifact) could legally tap
+        the turn it enters. Only the creature cases are also summoning-sick.
+
+        The land is *moved*, not conjured: it leaves ``library`` and joins
+        ``lands_in_play``, so mean-lands-by-turn agrees with the mana actually
+        spent and the deck cannot both fetch and later draw the same land.
+        """
+        fetch = land_fetch_profile(card, deck_basic_colors=deck_basic_colors)
+        if fetch is None or not fetch.to_battlefield or not fetch.on_etb:
+            return
+        ready = turn + 1 if fetch.enters_tapped else turn
+        for _ in range(fetch.count):  # Explosive Vegetation / Krosan Verge find two
+            target = next(
+                (
+                    li
+                    for li in library
+                    if is_land(hydrated[li])
+                    and set(_land_produces(hydrated[li], deck_basic_colors))
+                    & fetch.colors
+                ),
+                None,
+            )
+            if target is None:  # no matching land left to find
+                return
+            library.remove(target)
+            lands_in_play.append(target)
+            land_ready_turn[target] = ready
+            if ready <= turn:
+                sources.append(set(_land_produces(hydrated[target], deck_basic_colors)))
 
     def _sources_available(current_turn: int) -> list[set[str]]:
         """One entry per mana point available this turn (lands + rocks + dorks)."""
-        sources = [set(_land_produces(hydrated[li])) for li in lands_in_play]
+        sources = [
+            set(_land_produces(hydrated[li], deck_basic_colors))
+            for li in lands_in_play
+            if land_ready_turn.get(li, 0) <= current_turn
+        ]
         for perm in mana_permanents:
             # Rocks (non-creature) tap the turn they enter; dorks (creatures)
             # are summoning-sick and tap from the following turn.
@@ -318,6 +456,7 @@ def _simulate_game(
         if land_in_hand is not None:
             hand.remove(land_in_hand)
             lands_in_play.append(land_in_hand)
+            land_ready_turn[land_in_hand] = _land_ready_on_entry(land_in_hand, turn)
         lands_in_play_by_turn[turn] = len(lands_in_play)
 
         # Greedy-cast in ascending CMC, re-evaluating after each cast since a
@@ -349,6 +488,8 @@ def _simulate_game(
                     )
                     if not is_creature:  # a rock taps immediately
                         sources.extend(set(colors) for _ in range(amount))
+                else:
+                    _resolve_land_fetch(hydrated[ci], turn, sources)
                 break  # re-sort and re-evaluate with the updated mana
             else:
                 break  # nothing castable remained this pass
@@ -421,6 +562,8 @@ def _run_goldfish(
     rng = random.Random(base_seed)
     results: list[dict] = []
     mulligans: dict[str, int] = {"7": 0, "6": 0, "5": 0, "4": 0}
+    # Deck constant — computed once rather than rescanning the decklist per game.
+    deck_basic_colors = _deck_basic_colors(hydrated)
 
     for _ in range(games):
         # London mulligan: try 7, 6, 5, 4. Stop on first keep.
@@ -445,6 +588,7 @@ def _run_goldfish(
                 max_turns=max_turns,
                 rng=game_rng,
                 starting_hand=kept_indices,
+                deck_basic_colors=deck_basic_colors,
             )
         )
 
@@ -522,7 +666,10 @@ def goldfish_main(
             "missing": missing,
         },
         results=results,
-        warnings=[f"{len(missing)} cards not in hydrated cache"] if missing else [],
+        warnings=(
+            ([f"{len(missing)} cards not in hydrated cache"] if missing else [])
+            + _unresolved_fetch_warnings(deck_hydrated)
+        ),
         duration_s=elapsed,
     )
 

@@ -1836,6 +1836,18 @@ not 5. So token ramp is captured **roughly, not precisely** (timing and
 conditionality aren't modeled). Tell the user the curve/casts are an
 approximation for token-heavy decks.
 
+**Land-search effects ARE modeled** (they were not before — the omission inverted
+color-screw, reporting *more* screw the more fixing a deck ran). A fetch land
+produces the colors of the deck's own basics instead of nothing, and an
+*enters*-triggered fetcher (Wood Elves, Sakura-Tribe Elder) moves a land from
+library to battlefield; both honor an "enters tapped" clause by delaying a turn.
+Fetches behind an activation cost — Knight of the Reliquary's `{T}, Sacrifice a
+Forest`, Burnished Hart's `{3}, {T}, Sacrifice` — are deliberately **not** credited,
+because that cost isn't modeled and free mana would be the worse error. (The cost is
+the reason, not summoning sickness: CR 302.6 scopes that rule to *creatures*, so an
+artifact fetcher could legally tap the turn it enters.)
+A "search … put it into your hand" effect yields no mana now, only a future land drop.
+
 **Reporting back to the user:** present the markdown report from stdout
 verbatim. Do NOT auto-suggest cuts from the result — the user reads the
 report and decides. If the user asks for follow-up ("what should I cut?"),

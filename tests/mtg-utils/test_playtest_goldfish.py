@@ -7,16 +7,20 @@ import pytest
 from click.testing import CliRunner
 
 from mtg_utils._playtest_common import render_goldfish_markdown
+from mtg_utils.card_classify import land_fetch_profile
 from mtg_utils.playtest import (
     _aggregate_goldfish,
     _build_indexed_deck,
+    _deck_basic_colors,
     _is_color_screwed,
     _keep_hand,
+    _land_produces,
     _mana_ability_profile,
     _pay,
     _pips_coverable,
     _run_goldfish,
     _simulate_game,
+    _unresolved_fetch_warnings,
     goldfish_main,
 )
 
@@ -172,6 +176,235 @@ class TestColorScrewMetric:
         assert len(sources) == 1  # the two B sources were consumed
         screwed = {"mana_cost": "{U}{1}", "cmc": 2.0}
         assert _is_color_screwed(screwed, [{"R"}, {"R"}, {"R"}]) is True
+
+
+class TestLandFetchMana:
+    """Fetch effects carry no ``produced_mana``, so the model used to score them
+    as colorless while still counting them toward total mana — reporting *more*
+    color screw the more fixing a deck ran. Reproduced on a Hobbit sealed pool
+    where three builds ranked in perfect inverse order of their fixing.
+
+    Detection itself lives in ``card_classify.land_fetch_profile`` so playtest,
+    deck-stats and mana-audit cannot disagree about the same card; these tests
+    cover the deck-scoped resolution and the simulator wiring.
+    """
+
+    BASICS = frozenset({"B", "G"})
+
+    def _fetch_land(self, name="Hobbit Hole"):
+        return _hydrated_card(
+            name,
+            type_line="Land",
+            oracle_text=(
+                "{T}, Sacrifice this land: Search your library for a basic land "
+                "card, put it onto the battlefield tapped, then shuffle."
+            ),
+        )
+
+    def _wood_elves(self):
+        return _hydrated_card(
+            "Wood Elves",
+            mana_cost="{2}{G}",
+            cmc=3,
+            type_line="Creature — Elf Scout",
+            oracle_text=(
+                "When this creature enters, search your library for a Forest "
+                "card, put that card onto the battlefield, then shuffle."
+            ),
+        )
+
+    def test_fetch_land_produces_deck_basic_colors(self):
+        assert set(_land_produces(self._fetch_land(), self.BASICS)) == {"B", "G"}
+
+    def test_generic_fetch_with_no_basics_produces_nothing(self):
+        # Nothing to find: stay conservative rather than inventing colors.
+        assert _land_produces(self._fetch_land(), frozenset()) == []
+
+    def test_named_basic_resolves_to_its_own_color(self):
+        fetch = land_fetch_profile(self._wood_elves(), deck_basic_colors=self.BASICS)
+        assert fetch.colors == frozenset({"G"})
+        assert fetch.enters_tapped is False
+        assert fetch.on_etb is True
+
+    def test_tapped_clause_is_detected(self):
+        fetch = land_fetch_profile(self._fetch_land(), deck_basic_colors=self.BASICS)
+        assert fetch.enters_tapped is True
+
+    def test_enters_tapped_sentence_templating_is_detected(self):
+        # The newer wording: "put it onto the battlefield. It enters tapped."
+        card = _hydrated_card(
+            "Modern Fetch",
+            type_line="Land",
+            oracle_text=(
+                "{T}, Sacrifice this land: Search your library for a basic land "
+                "card and put it onto the battlefield. It enters tapped."
+            ),
+        )
+        assert land_fetch_profile(card, deck_basic_colors=self.BASICS).enters_tapped
+
+    def test_search_to_hand_is_not_a_mana_source(self):
+        # Only "onto the battlefield" yields mana now; a tutor-to-hand does not.
+        to_hand = _hydrated_card(
+            "Hobbit Hole",
+            type_line="Land",
+            oracle_text=(
+                "{T}, Sacrifice this land: Search your library for a basic land "
+                "card, reveal it, put it into your hand, then shuffle."
+            ),
+        )
+        assert _land_produces(to_hand, self.BASICS) == []
+
+    def test_direct_mana_still_wins(self):
+        dual = _hydrated_card("Mirkwood", type_line="Land")
+        dual["produced_mana"] = ["B", "G"]
+        assert set(_land_produces(dual, self.BASICS)) == {"B", "G"}
+
+    def test_non_fetch_card_has_no_profile(self):
+        card = _hydrated_card("Forest", type_line="Basic Land — Forest")
+        assert land_fetch_profile(card, deck_basic_colors=self.BASICS) is None
+
+    def test_deck_basic_colors_reads_type_lines(self):
+        deck = [
+            _hydrated_card("Forest", type_line="Basic Land — Forest"),
+            _hydrated_card("Swamp", type_line="Basic Land — Swamp"),
+            _hydrated_card("Mirkwood", type_line="Land"),
+        ]
+        assert _deck_basic_colors(deck) == frozenset({"G", "B"})
+
+    def test_fetch_land_is_not_color_screw(self):
+        # The end-to-end symptom: a {1}{B}{B} spell with a Swamp and a fetch land
+        # in play is castable, and must not be flagged as screwed.
+        gnashing = {"mana_cost": "{1}{B}{B}", "cmc": 3}
+        fetched = set(_land_produces(self._fetch_land(), self.BASICS))
+        assert _is_color_screwed(gnashing, [{"B"}, fetched, {"G"}]) is False
+
+
+class TestLandFetchCount:
+    """Multi-land searches were floored at one, under-reporting ramp decks."""
+
+    BASICS = frozenset({"G", "W"})
+
+    def test_single_fetch_counts_one(self):
+        card = _hydrated_card(
+            "Rampant Growth",
+            oracle_text=(
+                "Search your library for a basic land card, put it onto the "
+                "battlefield tapped, then shuffle."
+            ),
+        )
+        assert land_fetch_profile(card, deck_basic_colors=self.BASICS).count == 1
+
+    def test_up_to_two_counts_two(self):
+        card = _hydrated_card(
+            "Explosive Vegetation",
+            oracle_text=(
+                "Search your library for up to two basic land cards, put them "
+                "onto the battlefield tapped, then shuffle."
+            ),
+        )
+        assert land_fetch_profile(card, deck_basic_colors=self.BASICS).count == 2
+
+    def test_tapped_scan_is_scoped_to_the_fetch_clause(self):
+        # An unrelated later sentence about putting a land onto the battlefield
+        # tapped must not delay THIS fetch, which arrives untapped.
+        card = _hydrated_card(
+            "Two Abilities",
+            oracle_text=(
+                "When this creature enters, search your library for a Forest "
+                "card, put that card onto the battlefield, then shuffle. "
+                "Whenever you cycle a card, put a land from your hand onto the "
+                "battlefield tapped."
+            ),
+        )
+        assert (
+            land_fetch_profile(card, deck_basic_colors=self.BASICS).enters_tapped
+            is False
+        )
+
+
+class TestUnresolvedFetchWarning:
+    def test_warns_when_deck_has_no_basics_to_find(self):
+        deck = [
+            _hydrated_card(
+                "Fabled Passage",
+                type_line="Land",
+                oracle_text=(
+                    "{T}, Sacrifice this land: Search your library for a basic "
+                    "land card, put it onto the battlefield tapped, then shuffle."
+                ),
+            )
+        ]
+        warnings = _unresolved_fetch_warnings(deck)
+        assert len(warnings) == 1
+        assert "no basic lands" in warnings[0]
+        assert "Fabled Passage" in warnings[0]
+
+    def test_silent_when_basics_are_present(self):
+        forest = _hydrated_card("Forest", type_line="Basic Land — Forest")
+        forest["produced_mana"] = ["G"]
+        deck = [forest, _hydrated_card("Bear", type_line="Creature — Bear")]
+        assert _unresolved_fetch_warnings(deck) == []
+
+
+class TestLandFetchInSimulation:
+    """The simulator wiring, which the helper tests alone left uncovered — and
+    where the ``enters_tapped``-stored-in-``is_creature`` bug lived."""
+
+    def _forest(self):
+        c = _hydrated_card("Forest", type_line="Basic Land — Forest")
+        c["produced_mana"] = ["G"]
+        return c
+
+    def _swamp(self):
+        c = _hydrated_card("Swamp", type_line="Basic Land — Swamp")
+        c["produced_mana"] = ["B"]
+        return c
+
+    def _etb_fetcher(self):
+        return _hydrated_card(
+            "Wood Elves",
+            mana_cost="{2}{G}",
+            cmc=3,
+            type_line="Creature — Elf Scout",
+            oracle_text=(
+                "When this creature enters, search your library for a Forest "
+                "card, put that card onto the battlefield, then shuffle."
+            ),
+        )
+
+    def _activated_fetcher(self):
+        return _hydrated_card(
+            "Knight of the Reliquary",
+            mana_cost="{1}{G}{W}",
+            cmc=3,
+            type_line="Creature — Human Knight",
+            oracle_text=(
+                "{T}, Sacrifice a Forest or Plains: Search your library for a "
+                "land card, put it onto the battlefield, then shuffle."
+            ),
+        )
+
+    def test_etb_fetcher_moves_a_land_from_library_to_battlefield(self):
+        deck = [self._etb_fetcher()] + [self._forest()] * 9
+        res = _simulate_game(deck, max_turns=4, rng=random.Random(1), starting_hand=[0])
+        # Turn 3 casts Wood Elves off three Forests; its fetch adds a fourth land
+        # to the battlefield without a fourth land drop.
+        assert res["lands_in_play_by_turn"][4] >= 4
+
+    def test_activated_fetcher_does_not_mint_mana_on_the_turn_it_lands(self):
+        # A {T}-activated fetch is summoning-sick and costs a sacrifice, so it
+        # must not be credited. Previously enters_tapped was stored in the
+        # is_creature slot, making this fire immediately.
+        deck = [self._activated_fetcher()] + [self._swamp()] * 9
+        res = _simulate_game(deck, max_turns=3, rng=random.Random(1), starting_hand=[0])
+        assert res["lands_in_play_by_turn"][3] == 3  # only the three land drops
+
+    def test_fetched_land_is_not_also_drawn(self):
+        # The land is MOVED, not conjured: a 10-card deck cannot end with more
+        # lands in play than it had land cards.
+        deck = [self._etb_fetcher()] + [self._forest()] * 9
+        res = _simulate_game(deck, max_turns=9, rng=random.Random(3), starting_hand=[0])
+        assert res["lands_in_play_by_turn"][9] <= 9
 
 
 class TestManaAbilityProfile:
