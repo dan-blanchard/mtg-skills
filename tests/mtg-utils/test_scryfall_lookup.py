@@ -36,6 +36,41 @@ class TestLookupSingle:
         result = lookup_single("Viscera Seer", bulk_path=sample_bulk_data)
         assert result["edhrec_rank"] == 253
 
+    def test_lookup_preserves_power_and_toughness(self, sample_bulk_data):
+        # The MTGJSON adapter maps power/toughness, but CARD_FIELDS used to drop
+        # them, leaving every hydrated card blind to creature size. That is merely
+        # awkward for Commander and disqualifying for Limited, where P/T is the
+        # single most important stat — it forced a manual bulk-data stream to
+        # recover 67 cards' bodies during a Sealed build.
+        result = lookup_single("Viscera Seer", bulk_path=sample_bulk_data)
+        assert result["power"] == "1"
+        assert result["toughness"] == "1"
+
+        korvold = lookup_single("Korvold, Fae-Cursed King", bulk_path=sample_bulk_data)
+        assert korvold["power"] == "4"
+        assert korvold["toughness"] == "4"
+
+    def test_double_faced_card_keeps_its_faces(self, sample_bulk_data):
+        # The adapter writes top-level P/T only for {flip, adventure}; transform,
+        # modal_dfc and meld carry power/toughness/mana_cost/colors ONLY on
+        # card_faces. Projecting P/T without card_faces therefore left every MDFC
+        # blind to size anyway, and killed playtest._card_pips's card_faces
+        # fallback (its docstring exists to stop MDFC pools under-reporting screw).
+        result = lookup_single("Malakir Rebirth", bulk_path=sample_bulk_data)
+        assert result is not None
+        assert result["power"] is None, "top-level P/T is absent on an MDFC"
+        faces = result["card_faces"]
+        assert faces[0]["power"] == "2"
+        assert faces[0]["toughness"] == "3"
+        assert faces[0]["mana_cost"] == "{B}"
+
+    def test_noncreature_has_null_power_and_toughness(self, sample_bulk_data):
+        # Present-but-None, not absent: consumers should be able to read the key
+        # unconditionally rather than probing for it.
+        result = lookup_single("Rhystic Study", bulk_path=sample_bulk_data)
+        assert result["power"] is None
+        assert result["toughness"] is None
+
     def test_finds_split_card_by_full_name(self, sample_bulk_data):
         result = lookup_single("Fire // Ice", bulk_path=sample_bulk_data)
         assert result is not None

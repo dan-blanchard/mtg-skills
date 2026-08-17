@@ -34,6 +34,20 @@ CARD_FIELDS = [
     "mana_cost",
     "cmc",
     "type_line",
+    # Creature size. The MTGJSON adapter maps these, but they were absent from
+    # this list, so every hydrated card was blind to P/T. Survivable in Commander,
+    # disqualifying in Limited — where body size is the primary evaluation axis.
+    "power",
+    "toughness",
+    "loyalty",
+    "defense",
+    # Required for the four fields above to mean anything on a double-faced card:
+    # the adapter only writes top-level P/T for _TOP_PT_LAYOUTS ({flip, adventure}),
+    # so transform / modal_dfc / meld carry power, toughness, mana_cost and colors
+    # ONLY here. Without it, MDFCs stay blind to P/T and playtest._card_pips's
+    # documented card_faces fallback — which exists so MDFC-heavy pools don't
+    # under-report color screw — is dead code on hydrated input.
+    "card_faces",
     "keywords",
     "colors",
     "color_identity",
