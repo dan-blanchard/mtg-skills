@@ -434,6 +434,98 @@ def _extract_activated_abilities(oracle_text: str) -> list[str]:
     return abilities
 
 
+# ---------------------------------------------------------------------------
+# Zone-granted activated abilities
+# ---------------------------------------------------------------------------
+
+# Some commanders read a zone rather than the battlefield: Thranduil, the
+# Elvenking "has all activated abilities of all Elf cards in your graveyard."
+# Capture the card type the grant keys on and the zone it reads.
+_ZONE_GRANT_RE = re.compile(
+    r"has all activated abilities of all ([A-Za-z][\w'\-]*) cards?\s*"
+    r"(?:in your (graveyard|hand|library)|(exiled) with)",
+    re.IGNORECASE,
+)
+
+# Reminder text can hold a colon ("Equip {1} ({1}: Attach ...)"), so strip it
+# before deciding whether a line is an activated ability.
+_REMINDER_RE = re.compile(r"\([^)]*\)")
+_TRIGGER_PREFIX_RE = re.compile(
+    r"^\s*(?:At the beginning|Whenever|When)\b", re.IGNORECASE
+)
+# Loyalty costs print with U+2212 MINUS SIGN, not a hyphen — escaped so it
+# survives a copy-paste and doesn't read as an ambiguous-unicode typo.
+_LOYALTY_RE = re.compile("^\\s*[+\\u2212-]\\s*\\d+\\s*:")
+
+
+def _activated_ability_lines(
+    oracle_text: str, *, include_mana: bool = True
+) -> list[str]:
+    """Activated abilities on a card — "[Cost]: [Effect]" per CR 602.1.
+
+    Deliberately broader than ``_extract_activated_abilities``, which requires a
+    mana symbol in the cost and drops mana abilities. Neither restriction holds
+    for a zone grant: "Discard a card:" and "Tap three untapped Elves you
+    control:" are activated abilities, and a mana ability (Priest of Titania) is
+    usually the single biggest thing such a commander borrows.
+    """
+    out: list[str] = []
+    for raw in oracle_text.splitlines():
+        line = raw.strip()
+        core = _REMINDER_RE.sub("", line).strip()
+        if ":" not in core:
+            continue
+        if _TRIGGER_PREFIX_RE.match(core) or _LOYALTY_RE.match(core):
+            continue
+        if not include_mana and _MANA_ABILITY_RE.match(core):
+            continue
+        out.append(core)
+    return out
+
+
+def _card_has_type(card: dict, type_word: str) -> bool:
+    """Whether the card carries ``type_word`` (changeling counts — CR 702.73a)."""
+    type_line = card.get("type_line") or ""
+    if not type_line:
+        type_line = " ".join(
+            f.get("type_line", "") for f in (card.get("card_faces") or [])
+        )
+    if re.search(rf"\b{re.escape(type_word)}\b", type_line, re.IGNORECASE):
+        return True
+    return "changeling" in get_oracle_text(card).lower()
+
+
+def detect_zone_granted_abilities(card: dict, commander: dict) -> dict:
+    """Abilities the commander borrows from this card in a non-battlefield zone.
+
+    For a commander like Thranduil, the Elvenking, a matching card's activated
+    abilities are live *from the graveyard* — so cutting it strips a tool off
+    the commander even though the card need never be cast. Nothing else in
+    cut-check models this: ``detect_triggers`` reads triggered abilities and
+    ``detect_commander_multiplication`` only fires when the cut card copies the
+    commander, so a card whose whole value is "its activated ability, from the
+    yard" otherwise produces zero signal.
+
+    Returns ``{"grants": False}`` when the commander has no such ability.
+    """
+    match = _ZONE_GRANT_RE.search(get_oracle_text(commander))
+    if not match:
+        return {"grants": False}
+
+    type_word = match.group(1)
+    zone = (match.group(2) or match.group(3) or "exile").lower()
+    matches_type = _card_has_type(card, type_word)
+    return {
+        "grants": True,
+        "granted_type": type_word,
+        "zone": zone,
+        "card_matches_type": matches_type,
+        "abilities": (
+            _activated_ability_lines(get_oracle_text(card)) if matches_type else []
+        ),
+    }
+
+
 def detect_commander_multiplication(card: dict, commander: dict) -> dict:
     """Detect whether a card can copy the commander or its abilities.
 
@@ -520,6 +612,7 @@ def run_cut_check(
         keyword_interactions = detect_keyword_interactions(card, commander)
         self_recurring = detect_self_recurring(card)
         commander_multiplication = detect_commander_multiplication(card, commander)
+        zone_granted = detect_zone_granted_abilities(card, commander)
 
         # Add multiplied values for parseable matching triggers
         enriched_triggers: list[dict] = []
@@ -541,6 +634,7 @@ def run_cut_check(
                 "keyword_interactions": keyword_interactions,
                 "self_recurring": self_recurring,
                 "commander_multiplication": commander_multiplication,
+                "zone_granted_abilities": zone_granted,
             }
         )
 
@@ -607,6 +701,7 @@ def render_text_report(
         "trigger": 0,
         "self_recurring": 0,
         "keyword_interactions": 0,
+        "zone_granted": 0,
     }
 
     for entry in results:
@@ -629,6 +724,14 @@ def render_text_report(
         bits.append(f"keyword-interactions={ki_count}")
         if ki_count:
             flag_counts["keyword_interactions"] += 1
+        zone = entry.get("zone_granted_abilities") or {}
+        zone_abilities = zone.get("abilities") or []
+        if zone_abilities:
+            bits.append(
+                f"ZONE_GRANTED ({len(zone_abilities)} ability(s) the commander "
+                f"loses from {zone['zone']})"
+            )
+            flag_counts["zone_granted"] += 1
         lines.append(f"  {name}: {', '.join(bits)}")
 
     lines.append("")
@@ -636,8 +739,27 @@ def render_text_report(
         f"Flags: {flag_counts['commander_multiplication']} commander_multiplication, "
         f"{flag_counts['trigger']} trigger, "
         f"{flag_counts['self_recurring']} self-recurring, "
-        f"{flag_counts['keyword_interactions']} keyword-interactions"
+        f"{flag_counts['keyword_interactions']} keyword-interactions, "
+        f"{flag_counts['zone_granted']} zone-granted"
     )
+    # A commander that reads a zone makes every matching cut load-bearing, so
+    # say so once rather than leaving the agent to infer it from the per-card
+    # lines. Silence on a commander's defining mechanic reads as "no issues".
+    zone_meta = next(
+        (
+            e["zone_granted_abilities"]
+            for e in results
+            if (e.get("zone_granted_abilities") or {}).get("grants")
+        ),
+        None,
+    )
+    if zone_meta:
+        lines.append(
+            f"NOTE: {commander_name} has all activated abilities of "
+            f"{zone_meta['granted_type']} cards in your {zone_meta['zone']} — a "
+            f"cut with a ZONE_GRANTED flag removes a tool from the commander "
+            f"even though the card never has to be cast."
+        )
     # Surface a CR-citations lookup failure at the bottom of the
     # summary. Per-entry ``rule_citations_error`` strings are all the
     # same (same resolve failure), so we emit the message once.

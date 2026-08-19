@@ -10,7 +10,9 @@ from mtg_utils.cut_check import (
     detect_keyword_interactions,
     detect_self_recurring,
     detect_triggers,
+    detect_zone_granted_abilities,
     main,
+    render_text_report,
     run_cut_check,
 )
 
@@ -741,3 +743,152 @@ class TestCiteRules:
         )
         assert result.exit_code == 0, result.output
         assert "WARN: rule_citations not attached" in result.output
+
+
+# ---------------------------------------------------------------------------
+# Zone-granted activated abilities
+# ---------------------------------------------------------------------------
+
+# Real oracle text / type lines (verified against MTGJSON), not templated
+# stand-ins — a zone grant keys on the exact cost syntax, so a trimmed body
+# would test the fixture rather than the detector.
+_THRANDUIL = {
+    "name": "Thranduil, the Elvenking",
+    "type_line": "Legendary Creature — Elf Noble",
+    "oracle_text": (
+        "Thranduil has all activated abilities of all Elf cards in your "
+        "graveyard.\nWhenever another legendary Elf you control enters, draw "
+        "two cards, then discard a card."
+    ),
+}
+_OBEKA = {
+    "name": "Obeka, Splitter of Seconds",
+    "type_line": "Legendary Creature — Ogre Wizard",
+    "oracle_text": (
+        "Menace\nWhenever Obeka, Splitter of Seconds deals combat damage to a "
+        "player, you get that many additional upkeep steps after this phase."
+    ),
+}
+_PRIEST_OF_TITANIA = {
+    "name": "Priest of Titania",
+    "type_line": "Creature — Elf Druid",
+    "oracle_text": "{T}: Add {G} for each Elf on the battlefield.",
+}
+_IRON_SHIELD_ELF = {
+    "name": "Iron-Shield Elf",
+    "type_line": "Creature — Elf Warrior",
+    "oracle_text": (
+        "Discard a card: This creature gains indestructible until end of turn. "
+        'Tap it. (Damage and effects that say "destroy" don\'t destroy it. If '
+        "its toughness is 0 or less, it still dies.)"
+    ),
+}
+_LATHRIL = {
+    "name": "Lathril, Blade of the Elves",
+    "type_line": "Legendary Creature — Elf Noble",
+    "oracle_text": (
+        "Menace (This creature can't be blocked except by two or more "
+        "creatures.)\nWhenever Lathril deals combat damage to a player, create "
+        "that many 1/1 green Elf Warrior creature tokens.\n{T}, Tap ten "
+        "untapped Elves you control: Each opponent loses 10 life and you gain "
+        "10 life."
+    ),
+}
+_BLOODLINE_PRETENDER = {
+    "name": "Bloodline Pretender",
+    "type_line": "Artifact Creature — Shapeshifter",
+    "oracle_text": (
+        "Changeling (This card is every creature type.)\nAs this creature "
+        "enters, choose a creature type.\nWhenever another creature you "
+        "control of the chosen type enters, put a +1/+1 counter on this "
+        "creature."
+    ),
+}
+_DOOR_OF_DESTINIES = {
+    "name": "Door of Destinies",
+    "type_line": "Artifact",
+    "oracle_text": (
+        "As this artifact enters, choose a creature type.\nWhenever you cast a "
+        "spell of the chosen type, put a charge counter on this artifact.\n"
+        "Creatures you control of the chosen type get +1/+1 for each charge "
+        "counter on this artifact."
+    ),
+}
+
+
+class TestDetectZoneGrantedAbilities:
+    def test_no_grant_on_ordinary_commander(self):
+        result = detect_zone_granted_abilities(_PRIEST_OF_TITANIA, _OBEKA)
+        assert result == {"grants": False}
+
+    def test_parses_granted_type_and_zone(self):
+        result = detect_zone_granted_abilities(_PRIEST_OF_TITANIA, _THRANDUIL)
+        assert result["grants"] is True
+        assert result["granted_type"] == "Elf"
+        assert result["zone"] == "graveyard"
+
+    def test_mana_ability_is_reported(self):
+        """Priest of Titania's mana ability is the payoff, not noise —
+        _extract_activated_abilities drops mana abilities and must not be reused."""
+        result = detect_zone_granted_abilities(_PRIEST_OF_TITANIA, _THRANDUIL)
+        assert result["abilities"] == ["{T}: Add {G} for each Elf on the battlefield."]
+
+    def test_non_mana_symbol_cost_is_reported(self):
+        """ "Discard a card:" has no mana symbol but is still an activated ability."""
+        result = detect_zone_granted_abilities(_IRON_SHIELD_ELF, _THRANDUIL)
+        assert len(result["abilities"]) == 1
+        assert result["abilities"][0].startswith("Discard a card:")
+
+    def test_reminder_text_is_not_an_ability(self):
+        """Lathril has one activated ability; menace reminder text has no colon
+        and the combat-damage line is triggered, not activated."""
+        result = detect_zone_granted_abilities(_LATHRIL, _THRANDUIL)
+        assert len(result["abilities"]) == 1
+        assert result["abilities"][0].startswith("{T}, Tap ten untapped Elves")
+
+    def test_changeling_counts_as_the_granted_type(self):
+        result = detect_zone_granted_abilities(_BLOODLINE_PRETENDER, _THRANDUIL)
+        assert result["card_matches_type"] is True
+
+    def test_off_type_card_reports_no_abilities(self):
+        result = detect_zone_granted_abilities(_DOOR_OF_DESTINIES, _THRANDUIL)
+        assert result["grants"] is True
+        assert result["card_matches_type"] is False
+        assert result["abilities"] == []
+
+    def test_run_cut_check_surfaces_the_flag(self):
+        hydrated = [_THRANDUIL, _PRIEST_OF_TITANIA, _DOOR_OF_DESTINIES]
+        results = run_cut_check(
+            hydrated=hydrated,
+            commander_name="Thranduil, the Elvenking",
+            cut_names=["Priest of Titania", "Door of Destinies"],
+            trigger_types=[],
+            multiplier_low=1,
+            multiplier_high=2,
+            opponents=1,
+        )
+        by_name = {r["name"]: r for r in results}
+        assert by_name["Priest of Titania"]["zone_granted_abilities"]["abilities"]
+        assert not by_name["Door of Destinies"]["zone_granted_abilities"]["abilities"]
+
+    def test_report_names_the_grant(self):
+        hydrated = [_THRANDUIL, _PRIEST_OF_TITANIA]
+        results = run_cut_check(
+            hydrated=hydrated,
+            commander_name="Thranduil, the Elvenking",
+            cut_names=["Priest of Titania"],
+            trigger_types=[],
+            multiplier_low=1,
+            multiplier_high=2,
+            opponents=1,
+        )
+        report = render_text_report(
+            results,
+            commander_name="Thranduil, the Elvenking",
+            multiplier_low=1,
+            multiplier_high=2,
+            opponents=1,
+        )
+        assert "ZONE_GRANTED" in report
+        assert "1 zone-granted" in report
+        assert "removes a tool from the commander" in report

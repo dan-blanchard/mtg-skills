@@ -1208,6 +1208,21 @@ Identify cards that multiply the commander's impact. Two categories:
 
 Scan oracle text for these patterns directly — `cut-check`'s `commander_multiplication` field catches obvious cases but misses oddly-worded effects. **These cards are force-multipliers.** Treat any card you flag as untouchable when drafting cuts — it should not appear on the cuts list without explicit justification.
 
+Note the scope of `commander_activated_abilities` in that output: it is only populated when the *cut card* copies the commander, and it lists the **commander's own** abilities that would get doubled. It says nothing about the cut card's abilities. Do not read an empty list as "this cut is safe."
+
+### Zone-Granted Abilities
+
+Some commanders read a zone other than the battlefield. Thranduil, the Elvenking "has all activated abilities of all Elf cards in your graveyard"; Agatha's Soul Cauldron does the same from exile for countered creatures. **This inverts how you evaluate a whole class of cards**: a card's activated ability becomes live without the card ever being cast, so its body, mana cost, and castability stop being the relevant measure.
+
+Check the commander's oracle text for this pattern *before drafting any cuts*. If present:
+
+1. Identify the granted **type** and **zone** (e.g. Elf / graveyard).
+2. Inventory every card in the deck of that type that has an activated ability — that inventory IS the commander's toolbox, and it's the thing the deck is actually built around.
+3. Treat "ways to put those cards into that zone" as a distinct role with its own count (self-mill, looting, discard outlets, tutor-to-graveyard). **Supply and delivery are separate axes** — a deck can have a deep toolbox and no way to load it, which is a delivery problem, not a supply problem. Count both before claiming either is short.
+4. Note the anti-synergies: effects that *exile* your own graveyard or return those cards to hand shrink the toolbox. That is a real cost to weigh, not an automatic disqualifier — most such effects are optional and target any graveyard.
+
+`cut-check` flags matching cuts as `ZONE_GRANTED` and prints a `NOTE:` naming the grant. Consult per-card rulings (`rulings-lookup`) — these grants have non-obvious corner cases. Thranduil's, for instance: *"If an activated ability of an Elf card in your graveyard references the card it's printed on by name, treat Thranduil's instance of that ability as though it referenced Thranduil instead"* (compare CR 201.5), which makes self-referential abilities like Devoted Druid's untap work on the commander.
+
 ### Combo Detection
 
 Run: `combo-search <parsed-deck-json> --output /tmp/combo-search.json`
@@ -1369,6 +1384,10 @@ Before recommending ANY cut, work through this checklist for every candidate. Sk
 
 0. **Full oracle text verification.** Re-read the card's complete oracle text from the hydrated data. The `card-summary` table truncates oracle text and is for scanning only.
 
+   **Run this checklist per card, against that card's text.** Generating one bulk oracle dump for all candidates and then reasoning over it in bulk is NOT this step — it degrades into pattern-matching on card names ("that's an anthem", "that's a mana rock") and every clause after the first stops being read. If you build a dump for convenience, you still owe each candidate its own pass.
+
+   **Any dump you build MUST render `card_faces`.** DFC, split, adventure, and omen cards carry their text on faces, not on `oracle_text`. A naive `card["oracle_text"]` renders them as empty and the card gets judged against a blank body with no error raised. Use `mtg_utils.card_classify.get_oracle_text`, which already falls back to the joined faces, and eyeball the dump for empty entries before trusting it.
+
 0.5. **Alternative cost check.** If the card has suspend, foretell, adventure, evoke, flashback, escape, or other alternative casting costs, evaluate at the cost most likely to be used in this deck, not the printed CMC.
 
 1. **Clause-by-clause oracle text analysis.** Read each sentence independently. Ask: "How does THIS specific clause interact with my commander and the deck's strategy?" Common missed clauses:
@@ -1388,6 +1407,8 @@ Before recommending ANY cut, work through this checklist for every candidate. Sk
 6. **Combo piece check.** Is this card part of an existing combo line (from Step 5 combo search)?
    - **Game-winning combos:** hard to justify cutting. Valid justifications include "too slow for the bracket" or "bracket violation."
    - **Value interactions:** a soft consideration, not a hard gate.
+
+7. **Zone-granted ability check.** If the commander reads a non-battlefield zone (see Step 5 > Zone-Granted Abilities), does this card's *activated* ability stay live from that zone? `cut-check` flags these as `ZONE_GRANTED`. A card whose body is unremarkable can still be a key piece — Thranduil, the Elvenking turns Priest of Titania in the graveyard into "{T}: Add {G} for each Elf" on a 5/6 commander. **The card never has to be cast**, so evaluating it as a creature you'd play understates it. Cutting one of these removes a tool from the commander.
 
 **Cuts — Be Careful.** Before recommending ANY cut, re-read the oracle text of BOTH the card and the commander. Articulate specifically why the card underperforms in THIS deck.
 
@@ -1897,6 +1918,12 @@ See `proxy-printer/SKILL.md` for layout details and catalog setup.
 | "The mana base is probably fine" | Run `mana-audit`. Don't eyeball mana bases. |
 | "This step seems unnecessary for this deck" | Follow every step. The process exists because shortcuts cause mistakes. |
 | "I can skip oracle text verification for well-known cards" | No. Look up every card. Even Sol Ring has oracle text worth reading. |
+| "That's just an anthem / a mana rock / a do-nothing artifact" | You named a category, not the card. Categories are not verdicts. Quote the clause you're cutting on, and quote the clauses you're NOT cutting on, before you decide. |
+| "I read the card, it's a +3/+3 equipment" | Did you read the *rest* of it? Commander's Plate also grants protection from every color outside your identity; Dwynen also has reach and scaling lifegain; Agatha's Soul Cauldron's exile clause is one of three. Ruling on clause 1 and stopping is the single most common way to misjudge a cut. |
+| "I dumped every candidate's oracle text, so I've read them" | A bulk dump is a convenience, not the Cut Checklist. Run the checklist per card. And verify the dump renders `card_faces` — DFCs silently come out blank. |
+| "The tool returned nothing, so there's no issue" | Silence on the commander's defining mechanic is a broken instrument, not a clean bill of health. Ask what the field actually measures before reading an empty list as a pass. |
+| "The deck under-builds X" | Measure it. Run the same count on the current deck and the proposal, and report both. An unmeasured "you're missing X" justifies cuts that destroy X. |
+| "This is the weakest card, it's the obvious cut" | If the reason fits in four words, you haven't done item 1. Cutting to make room for something else is where flippant cuts happen — slow down exactly there. |
 | "Skip the self-grill, the analysis was thorough" | The self-grill catches exactly this overconfidence. Run it every time. |
 | "I ran cut-check + mana-audit + price-check, that covers Step 8" | No. Those are Step 7 *mechanical* gates. Step 8 is the *strategic* gate and requires two Agent tool calls. |
 | "This deck just came from the builder, the self-grill is overkill" | The builder runs no adversarial review. A fresh skeleton is the highest-leverage moment for a challenger pass. |
