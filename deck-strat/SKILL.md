@@ -658,8 +658,28 @@ purpose Agent with this exact charter:
 > claims are factually fine but need a citation added. Verified claims
 > are correct and cite-defensible.
 >
+> **Arithmetic is in scope and must be re-derived, not read.** Any combo
+> loop cost, threshold ("profits at five Elves"), damage total, turn
+> count, or card count in the guide: compute it yourself from the oracle
+> text and report the number you got. Do not confirm a number because the
+> guide's reasoning around it sounds right. Where a loop has a per-cycle
+> cost and a per-cycle yield, simulate several iterations — a loop that
+> looks break-even on iteration one often diverges by iteration three
+> (self-pumping effects compound), and a loop that looks infinite may be
+> bounded by a resource the guide didn't track.
+>
+> **Count anything the guide counts.** "N cards with X", "N lands enter
+> tapped", "N sources of colour C" — recount from the decklist and report
+> your number even when it matches.
+>
+> **Check internal consistency, not just external truth.** Guides repeat
+> claims in a cheat sheet, a summary, and a body section. Flag any place
+> two sections disagree, and any place a "Requires:" header contradicts
+> the prose beneath it. These are the most common survivors of a fix
+> round, because a correction gets applied in one location only.
+>
 > Do NOT propose strategic / deck-tuning changes. Your scope is rules
-> verification only.
+> verification, arithmetic, and internal consistency.
 
 While the subagent runs, do nothing else — wait for the report.
 
@@ -670,10 +690,31 @@ Process the report:
 - **Unsupported**: edit the guide to add the missing CR citation.
 - **Verified**: no action.
 
+**Two rules when applying fixes — both exist because fix rounds
+routinely introduce fresh errors:**
+
+1. **Propagate every correction to all its surfaces.** Before moving to
+   the next item, `Grep` the guide for the card, rule, or number you just
+   changed. A claim corrected in the combo section usually also lives in
+   the cheat sheet, the win-conditions summary, and a "Requires:" header.
+   A fix applied in one place and not the others produces a guide that
+   contradicts itself, which is worse than the original error.
+2. **Re-read any rule you cite while fixing.** Do not add a citation from
+   memory of what the audit said. A correction that cites the wrong rule
+   — or over-applies a right one, e.g. invoking CR 302.6 summoning
+   sickness against a noncreature artifact — is a new error introduced by
+   the repair.
+
 If the subagent reports zero errors and zero unsupported claims, present
-the guide. If it reports any issues, fix them and **dispatch a
-verification round 2** with the same charter — confirm no regressions
-before presenting.
+the guide. Otherwise fix and **dispatch another round with the same
+charter**, repeating until a round comes back clean.
+
+Rounds should converge fast. **If round 2 still reports errors, that is a
+signal about this SKILL.md, not just about the draft** — note what class
+of claim keeps slipping through (arithmetic? cross-section consistency?
+a card type the charter doesn't mention?) and surface it to the user with
+the finished guide so the charter can be sharpened. Do not silently
+grind extra rounds.
 
 ### Step 11: Present + iterate
 
@@ -704,7 +745,9 @@ Iteration is user-driven and in-place:
 | `combo-search` 404s or times out | Commander Spellbook API issue | Continue without combo section; log a warning in deck quirks; near-miss section omitted |
 | `edhrec-lookup` 404s | Obscure commander not on EDHREC | Fall back to `card-search` by mechanic keywords; omit community-comparison callouts |
 | `rules-lookup --term <X>` returns no match | Bad query | Try a synonym; widen to `--grep`; if still nothing, escalate to `Skill(rules-lawyer, ...)` |
-| Rules Audit subagent reports >10 errors | First-draft was sloppy on rules | Revise; the second audit must come back clean. If round 2 also reports errors, treat as a SKILL.md bug and surface to user |
+| Rules Audit subagent reports >10 errors | First-draft was sloppy on rules | Revise; keep dispatching rounds until one is clean. If round 2 still reports errors, treat as a SKILL.md bug, name the class of claim that slipped, and surface it to the user |
+| A fix round introduces new errors | Correction applied in one section only, or a citation added from memory | Grep for every surface of a changed claim before moving on; re-read any rule you cite while fixing |
+| Audit confirms a combo's arithmetic that is actually wrong | Charter let the agent verify citations without re-deriving numbers | The charter requires independent re-derivation and multi-iteration simulation of any loop — check it wasn't trimmed |
 | User asks for a 60-card constructed deck | Out of scope | Decline + redirect to `/deck-wizard` |
 
 ---
@@ -736,6 +779,9 @@ These thoughts mean STOP — you're rationalizing:
 | "This rule is obvious, skip the citation" | Obvious-looking rules are where you'll get caught. The Rules Audit will flag it as unsupported. Cite it now. |
 | "The user knows this format, skip mulligan/cheat sheet" | The core spine is mandatory. If a section truly doesn't apply, write a one-line note saying so — but it stays. |
 | "Skip the Rules Audit subagent, the draft is clean" | The audit is the discipline gate that catches the claim you didn't realize was wrong. It runs every time. |
+| "The audit verified my combo math, so the numbers are right" | Verified means it re-derived them. If the report just restates your reasoning without its own number, the claim is unchecked — ask again. |
+| "I fixed the error in the combo section, done" | Grep for every other place that claim appears. Cheat sheets and "Requires:" headers are where corrections go to die. |
+| "This loop breaks even, so it goes nowhere" | Simulate three or more iterations before concluding. Self-pumping effects compound — a break-even first cycle can diverge by the third. |
 | "This 60-card deck just needs a quick guide" | Out of scope. Redirect to `/deck-wizard`. |
 | "I'll fold combo execution into win conditions" | Combo execution is its own conditional section with stack ordering. Don't compress it. |
 | "EDHREC says include X, so the guide should recommend swapping" | Read-only. No swaps. The guide can note a deliberate omission, not propose a change. |
