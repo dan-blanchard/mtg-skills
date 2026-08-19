@@ -50,6 +50,15 @@ matrix, which is a different shape and is already produced by
 | commander | 100 | Full eternal | Yes (4P typical) | 40 life, commander damage rule |
 | brawl | 60 | Standard | 1v1 on Arena, multiplayer in paper | 25/30 life, no commander damage |
 | historic_brawl | 100 | Arena (broader than Standard) | 1v1 on Arena, multiplayer in paper | 25/30 life, no commander damage |
+| competitive_brawl | 100 | Arena, minus 10 banned cards | Always 1v1 | 25 life, no commander damage, **no free mulligan** |
+
+**Competitive Brawl** (`competitive_brawl`) is supported and is its own format —
+not a variant to audit as `historic_brawl`. It is always 1v1, 25 life, and has
+**no free mulligan**, so do not cite CR 903.12g's free-first-mulligan rule for it;
+that rule governs ordinary Brawl. It shares the `brawl` legality key but legalizes
+everything that key marks `banned`, enforcing its own ten-card list by name
+(`format_config.COMPETITIVE_BRAWL_BANNED`). Guides for this format should skip
+multiplayer/politics sections entirely.
 
 If the user invokes deck-strat on a 60-card constructed deck, decline
 and redirect: "This skill produces multiplayer strategy guides for

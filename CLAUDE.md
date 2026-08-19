@@ -207,6 +207,7 @@ Shares `mtg_utils` via symlink to `mtg-utils/src`. A **collaborative, visual** d
 | commander | 100 | 1 (singleton) | No | No | commander |
 | brawl | 60 | 1 (singleton) | No | Yes | standardbrawl |
 | historic_brawl | 100 | 1 (singleton) | No | Yes | brawl |
+| competitive_brawl | 100 | 1 (singleton) | No | Yes | brawl + own ban list |
 | standard | 60 | 4 | 15 | Yes | standard |
 | alchemy | 60 | 4 | 15 | Yes | alchemy |
 | historic | 60 | 4 | 15 | Yes | historic |

@@ -28,6 +28,7 @@ For 60-card constructed: discovery (brainstorming candidates) may use training d
 | commander | 100 | 1 (singleton) | No | Paper + MTGO | commander | 40 life, multiplayer |
 | brawl | 60 | 1 (singleton) | No | Arena | standardbrawl | 25/30 life, Standard pool |
 | historic_brawl | 100 | 1 (singleton) | No | Arena (+ paper) | brawl | 25/30 life, all Arena sets |
+| competitive_brawl | 100 | 1 (singleton) | No | Arena only | brawl + own ban list | 25 life, 1v1, **no free mulligan** |
 | standard | 60 | 4 | 15 | Arena + Paper | standard | Rotating |
 | alchemy | 60 | 4 | 15 | Arena only | alchemy | Digital mechanics |
 | historic | 60 | 4 | 15 | Arena only | historic | All Arena sets |
@@ -164,6 +165,38 @@ Alchemy includes two categories of digital-only cards beyond the Standard pool: 
 - **Re-hydration:** After every deck edit, re-run `scryfall-lookup --batch` on the new deck JSON. The hydrated cache is SHA-keyed; old caches go stale silently.
 
 **Always pass `--format <format>` to `parse-deck` once the format is established.** Without this, `parse-deck` defaults to `commander` and every downstream tool sees the wrong format.
+
+### Competitive Brawl (Arena)
+
+`competitive_brawl` is a first-class format — pass `--format competitive_brawl` and the
+tools handle it. Do NOT audit it as `historic_brawl` and hand-wave the failures.
+
+It is Arena's ranked Brawl queue (June 2026): 100-card singleton, 1v1, 25 life,
+**no free mulligan** (unlike ordinary Brawl), no commander damage, planeswalkers
+legal as commanders without explicit permission text.
+
+Two things make it different from every other format here:
+
+1. **It shares the `brawl` legality key but not its ban list.** MTGJSON/Scryfall publish
+   no `competitivebrawl` key, so the audit reads `brawl` and then applies two overrides
+   from `format_config`: a card marked **`banned`** under that key is **legal** here
+   (ordinary Brawl bans ~28 cards that Competitive Brawl allows — Mana Drain, Demonic
+   Tutor, Fierce Guardianship, Ancient Tomb, Chrome Mox…), while **`not_legal` still
+   fails** because it means the card isn't on Arena at all. The format's own ten-card ban
+   list is enforced by name via `COMPETITIVE_BRAWL_BANNED`.
+2. **Rebalanced cards supersede their paper originals.** If a card has an Alchemy `A-`
+   version, only the rebalanced version is legal. This is a real trap: `Harald, King of
+   Skemfar` is on Arena but reports `not_legal`, because `A-Harald, King of Skemfar` is
+   the legal one. When a card you expect to be legal reports `not_legal`, check for an
+   `A-` variant before concluding it's unavailable.
+
+**Determining Arena availability generally:** a card is craftable iff its MTGJSON record
+has `arena` in `games`. Checking the legality key alone is not sufficient — `banned` and
+`not_legal` both mean "not legal in ordinary Brawl" but only the latter means "not on
+Arena."
+
+The ban list is a point-in-time snapshot (source: https://mtg.wiki/page/Competitive_Brawl).
+Re-verify it after each B&R announcement.
 
 ### Arena Rarity Warning
 

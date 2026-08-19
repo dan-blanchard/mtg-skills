@@ -8,6 +8,11 @@ from pathlib import Path
 from click.testing import CliRunner
 from conftest import json_from_cli_output
 
+from mtg_utils.format_config import (
+    COMPETITIVE_BRAWL_BANNED,
+    FORMAT_CONFIGS,
+    get_format_config,
+)
 from mtg_utils.hydrated_deck import HydratedDeck
 from mtg_utils.legality_audit import (
     check_color_identity,
@@ -1048,3 +1053,76 @@ class TestCompanionCiteRules:
         citations = data.get("rule_citations") or {}
         cited = {c["rule"] for c in citations.get("companion") or []}
         assert {"103.2b", "702.139a", "702.139b"} <= cited
+
+
+# ---------- Competitive Brawl (Arena) ----------
+
+
+class TestCompetitiveBrawl:
+    """Competitive Brawl shares the `brawl` legality key but not its ban list:
+    it legalizes everything that key marks `banned` and enforces its own ten
+    cards by name. `not_legal` still fails — that means absent from Arena."""
+
+    def test_key_banned_card_is_legal(self):
+        # Mana Drain is banned in ordinary Historic Brawl, legal here.
+        hydrated = [card("Mana Drain", color_identity=["U"], brawl="banned")]
+        violations = check_format_legality(
+            hydrated,
+            "brawl",
+            ignore_key_bans=True,
+            banned_cards=COMPETITIVE_BRAWL_BANNED,
+        )
+        assert violations == []
+
+    def test_not_legal_card_still_fails(self):
+        # not_legal means the card isn't on Arena at all — still a violation.
+        hydrated = [card("Sol Ring", brawl="not_legal")]
+        violations = check_format_legality(
+            hydrated,
+            "brawl",
+            ignore_key_bans=True,
+            banned_cards=COMPETITIVE_BRAWL_BANNED,
+        )
+        assert len(violations) == 1
+        assert violations[0]["legality"] == "not_legal"
+
+    def test_format_ban_list_is_enforced_by_name(self):
+        # Oko is `legal` under the brawl key but banned in Competitive Brawl.
+        hydrated = [card("Oko, Thief of Crowns", color_identity=["G"])]
+        violations = check_format_legality(
+            hydrated,
+            "brawl",
+            ignore_key_bans=True,
+            banned_cards=COMPETITIVE_BRAWL_BANNED,
+        )
+        assert len(violations) == 1
+        assert violations[0]["name"] == "Oko, Thief of Crowns"
+        assert violations[0]["legality"] == "banned"
+
+    def test_config_wires_the_overrides(self):
+        cfg = get_format_config({"format": "competitive_brawl"})
+        assert cfg["ignores_legality_key_bans"] is True
+        assert cfg["banned_cards"] is COMPETITIVE_BRAWL_BANNED
+        assert cfg["legality_key"] == "brawl"
+        assert cfg["deck_size"] == 100
+        assert cfg["life_total"] == 25
+        # Unlike ordinary Brawl, there is no free mulligan.
+        assert cfg["free_mulligan"] is False
+        assert FORMAT_CONFIGS["brawl"]["free_mulligan"] is True
+
+    def test_end_to_end_audit_passes_with_a_key_banned_card(self):
+        cmd = card(
+            "Thranduil, the Elvenking",
+            type_line="Legendary Creature — Elf Noble",
+            color_identity=["B", "G", "U"],
+        )
+        drain = card("Mana Drain", color_identity=["U"], brawl="banned")
+        deck = {
+            "format": "competitive_brawl",
+            "deck_size": 2,
+            "commanders": [{"name": "Thranduil, the Elvenking", "quantity": 1}],
+            "cards": [{"name": "Mana Drain", "quantity": 1}],
+            "total_cards": 2,
+        }
+        result = legality_audit(_hd(deck, [cmd, drain]))
+        assert result["violations"]["format_legality"] == []

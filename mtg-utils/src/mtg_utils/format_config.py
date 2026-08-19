@@ -2,6 +2,30 @@
 
 from __future__ import annotations
 
+# Arena's Competitive Brawl (June 2026) bans ten cards outright — as commander
+# AND in the 99 — and legalizes everything else on Arena, including the ~28
+# cards the ordinary Brawl queue bans. MTGJSON/Scryfall publish no legality key
+# for it, so the audit runs off the `brawl` key plus these two overrides:
+# `banned` under that key is legal here, `not_legal` still is not (it means the
+# card isn't in the Arena pool at all).
+#
+# Source: https://mtg.wiki/page/Competitive_Brawl (banned list as of 2026-08).
+# Re-verify after each B&R announcement; this list is a point-in-time snapshot.
+COMPETITIVE_BRAWL_BANNED: frozenset[str] = frozenset(
+    {
+        "Ajani, Nacatl Pariah",
+        "A-Nadu, Winged Wisdom",
+        "Lutri, the Spellchaser",
+        "Oko, Thief of Crowns",
+        "Old Stickfingers",
+        "Ragavan, Nimble Pilferer",
+        "Rusko, Clockmaker",
+        "Tamiyo, Inquisitive Student",
+        "Wrenn and Six",
+        "Tajic, Legion's Valor",
+    }
+)
+
 FORMAT_CONFIGS: dict[str, dict] = {
     # ── Commander / Brawl variants (singleton, has commander) ──
     "commander": {
@@ -48,6 +72,27 @@ FORMAT_CONFIGS: dict[str, dict] = {
         "free_mulligan": True,
         "colorless_any_basic": True,
         "arena_format": True,
+    },
+    "competitive_brawl": {
+        "deck_size": 100,
+        "sideboard_size": 0,
+        "life_total": 25,
+        # Arena is 1v1 only; there is no multiplayer Competitive Brawl.
+        "multiplayer_life_total": 25,
+        "has_commander": True,
+        "is_singleton": True,
+        "max_copies": 1,
+        "commander_damage": False,
+        "legality_key": "brawl",
+        "planeswalker_commander_requires_text": False,
+        # Unlike ordinary Brawl, Competitive Brawl has no free mulligan.
+        "free_mulligan": False,
+        "colorless_any_basic": True,
+        "arena_format": True,
+        # Treat `banned` under the `brawl` key as legal, and enforce this
+        # format's own ban list by name instead.
+        "ignores_legality_key_bans": True,
+        "banned_cards": COMPETITIVE_BRAWL_BANNED,
     },
     # ── Constructed formats (60-card, 4-of, sideboard) ──
     # Fields shared with commander variants are included for uniform access.

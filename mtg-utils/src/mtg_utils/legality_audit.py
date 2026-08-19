@@ -102,22 +102,38 @@ def check_format_legality(
     legality_key: str,
     *,
     deck_card_names: set[str] | None = None,
+    ignore_key_bans: bool = False,
+    banned_cards: frozenset[str] | None = None,
 ) -> list[dict]:
     """Return a list of cards whose legality is not ``legal`` or ``restricted``.
 
     When *deck_card_names* is provided, only cards whose name appears in the
     set are checked. This allows callers to pass a combined main+sideboard
     name set while still feeding the full hydrated list.
+
+    *ignore_key_bans* and *banned_cards* support formats that share another
+    format's legality key but not its ban list — Arena's Competitive Brawl
+    reads the ``brawl`` key for card availability while legalizing everything
+    that key marks ``banned``, and enforces its own ten-card list by name. A
+    ``not_legal`` status is still a violation under that arrangement: it means
+    the card is absent from the pool, not merely banned.
     """
+    banned_cards = banned_cards or frozenset()
     violations: list[dict] = []
     for card in hydrated_cards:
         name = card.get("name", "?")
         if deck_card_names is not None and name not in deck_card_names:
             continue
+        if name in banned_cards:
+            violations.append({"name": name, "legality": "banned"})
+            continue
         legalities = card.get("legalities") or {}
         status = legalities.get(legality_key, "not_legal")
-        if status not in _LEGAL_STATUSES:
-            violations.append({"name": name, "legality": status})
+        if status in _LEGAL_STATUSES:
+            continue
+        if ignore_key_bans and status == "banned":
+            continue
+        violations.append({"name": name, "legality": status})
     return violations
 
 
@@ -493,6 +509,8 @@ def legality_audit(hd: HydratedDeck) -> dict:
         hd.records,
         legality_key,
         deck_card_names=all_deck_names,
+        ignore_key_bans=config.get("ignores_legality_key_bans", False),
+        banned_cards=config.get("banned_cards"),
     )
     commander_zone_violations = check_commander_zone(
         deck_json, config, hydrated_by_name
