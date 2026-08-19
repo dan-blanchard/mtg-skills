@@ -99,8 +99,12 @@ def urllib_get(url: str, *, user_agent: str, timeout: float | None = None) -> by
     on failure — callers wrap with their own error message.
     """
     request = urllib.request.Request(url, headers={"User-Agent": user_agent})
-    kwargs: dict[str, float] = {} if timeout is None else {"timeout": timeout}
-    with urllib.request.urlopen(request, **kwargs) as resp:
+    # Branch rather than splat a kwargs dict: urlopen's overloads key on the
+    # cafile/capath/context names, so `**dict[str, float]` matches none of them.
+    if timeout is None:
+        with urllib.request.urlopen(request) as resp:
+            return resp.read()
+    with urllib.request.urlopen(request, timeout=timeout) as resp:
         return resp.read()
 
 

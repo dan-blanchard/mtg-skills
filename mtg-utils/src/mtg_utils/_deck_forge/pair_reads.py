@@ -35,6 +35,7 @@ from __future__ import annotations
 
 import fnmatch
 from collections import Counter
+from collections.abc import Callable
 from dataclasses import dataclass, field
 
 
@@ -643,7 +644,7 @@ def pair_score(
     card: dict,
     ctx: PairContext | None,
     *,
-    discount_fn: object | None = None,
+    discount_fn: Callable[[dict, PairRead, list[str]], float] | None = None,
 ) -> tuple[float, list[dict]]:
     """(summed weight, matched-row readout) for one candidate. Rows sum
     without decay; no context (or no idents) scores 0.0 — inert.

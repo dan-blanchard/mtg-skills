@@ -371,8 +371,12 @@ def _simulate_game(
 
     # A deck constant. _run_goldfish hoists it so 1000 games don't each rescan
     # the decklist; the fallback keeps direct callers (tests) ergonomic.
-    if deck_basic_colors is None:
-        deck_basic_colors = _deck_basic_colors(hydrated)
+    # Bind a non-optional local: the closures below capture this, and a
+    # captured name keeps its declared `| None` type inside the closure body
+    # no matter what the enclosing scope narrowed it to.
+    basic_colors: frozenset[str] = (
+        _deck_basic_colors(hydrated) if deck_basic_colors is None else deck_basic_colors
+    )
 
     lands_in_play: list[int] = []  # indices of lands in play
     lands_in_play_by_turn: dict[int, int] = {}
@@ -391,7 +395,7 @@ def _simulate_game(
         card = hydrated[index]
         if [c for c in (card.get("produced_mana") or []) if c in _MANA_COLORS]:
             return turn
-        fetch = land_fetch_profile(card, deck_basic_colors=deck_basic_colors)
+        fetch = land_fetch_profile(card, deck_basic_colors=basic_colors)
         return turn + 1 if fetch and fetch.enters_tapped else turn
 
     def _resolve_land_fetch(card: dict, turn: int, sources: list[set[str]]) -> None:
@@ -410,7 +414,7 @@ def _simulate_game(
         ``lands_in_play``, so mean-lands-by-turn agrees with the mana actually
         spent and the deck cannot both fetch and later draw the same land.
         """
-        fetch = land_fetch_profile(card, deck_basic_colors=deck_basic_colors)
+        fetch = land_fetch_profile(card, deck_basic_colors=basic_colors)
         if fetch is None or not fetch.to_battlefield or not fetch.on_etb:
             return
         ready = turn + 1 if fetch.enters_tapped else turn
@@ -420,8 +424,7 @@ def _simulate_game(
                     li
                     for li in library
                     if is_land(hydrated[li])
-                    and set(_land_produces(hydrated[li], deck_basic_colors))
-                    & fetch.colors
+                    and set(_land_produces(hydrated[li], basic_colors)) & fetch.colors
                 ),
                 None,
             )
@@ -431,12 +434,12 @@ def _simulate_game(
             lands_in_play.append(target)
             land_ready_turn[target] = ready
             if ready <= turn:
-                sources.append(set(_land_produces(hydrated[target], deck_basic_colors)))
+                sources.append(set(_land_produces(hydrated[target], basic_colors)))
 
     def _sources_available(current_turn: int) -> list[set[str]]:
         """One entry per mana point available this turn (lands + rocks + dorks)."""
         sources = [
-            set(_land_produces(hydrated[li], deck_basic_colors))
+            set(_land_produces(hydrated[li], basic_colors))
             for li in lands_in_play
             if land_ready_turn.get(li, 0) <= current_turn
         ]

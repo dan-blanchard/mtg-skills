@@ -6,6 +6,8 @@ import json
 
 from mtg_utils.card_ir import Ability, Card, Effect, Face, Quantity, Trigger
 from mtg_utils.cut_check import (
+    _activated_ability_lines,
+    _extract_activated_abilities,
     detect_commander_multiplication,
     detect_keyword_interactions,
     detect_self_recurring,
@@ -828,8 +830,8 @@ class TestDetectZoneGrantedAbilities:
         assert result["zone"] == "graveyard"
 
     def test_mana_ability_is_reported(self):
-        """Priest of Titania's mana ability is the payoff, not noise —
-        _extract_activated_abilities drops mana abilities and must not be reused."""
+        """A mana ability is what a zone-granting commander mostly borrows, so
+        include_mana must default on for this caller."""
         result = detect_zone_granted_abilities(_PRIEST_OF_TITANIA, _THRANDUIL)
         assert result["abilities"] == ["{T}: Add {G} for each Elf on the battlefield."]
 
@@ -892,3 +894,28 @@ class TestDetectZoneGrantedAbilities:
         assert "ZONE_GRANTED" in report
         assert "1 zone-granted" in report
         assert "removes a tool from the commander" in report
+
+
+class TestExtractActivatedAbilities:
+    """The non-mana extractor and the zone-grant extractor share one
+    implementation; only the mana-ability filter differs between them."""
+
+    def test_non_mana_cost_is_still_an_activated_ability(self):
+        """Regression: a rule keyed on "{...}" in the cost dropped these."""
+        assert _extract_activated_abilities(_IRON_SHIELD_ELF["oracle_text"]) == [
+            _activated_ability_lines(_IRON_SHIELD_ELF["oracle_text"])[0]
+        ]
+
+    def test_mana_abilities_excluded_here_and_included_there(self):
+        text = _PRIEST_OF_TITANIA["oracle_text"]
+        assert _extract_activated_abilities(text) == []
+        assert _activated_ability_lines(text) == [
+            "{T}: Add {G} for each Elf on the battlefield."
+        ]
+
+    def test_triggered_abilities_are_not_activated_abilities(self):
+        assert _extract_activated_abilities(_THRANDUIL["oracle_text"]) == []
+
+    def test_loyalty_abilities_are_not_activated_abilities(self):
+        oracle = "[+1]: Draw a card.\n[−3]: Destroy target creature."
+        assert _activated_ability_lines(oracle) == []

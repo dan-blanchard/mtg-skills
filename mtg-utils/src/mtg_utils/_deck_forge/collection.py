@@ -80,9 +80,17 @@ def owned_only(pile: dict) -> dict:
 
 
 def _qty(value: object, default: int = 0) -> int:
-    """Defensive non-negative int coercion for quantity-ish fields."""
+    """Defensive non-negative int coercion for quantity-ish fields.
+
+    The isinstance gate is the type-checker-visible form of what the bare
+    ``except TypeError`` was already doing: these values come off parsed JSON,
+    so anything outside int/float/str was never convertible and always fell
+    through to ``default``.
+    """
+    if not isinstance(value, (int, float, str)):
+        return default
     try:
-        qty = int(value)  # type: ignore[call-overload]
+        qty = int(value)
     except (TypeError, ValueError):
         return default
     return max(qty, 0)

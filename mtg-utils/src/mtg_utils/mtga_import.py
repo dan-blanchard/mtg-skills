@@ -1052,7 +1052,12 @@ def main(
     # authoritative source for canonical names (including DFC full
     # names), but Untapped's index fills the gap for arena_ids
     # Scryfall hasn't yet populated.
-    arena_index = _build_arena_id_index(bulk_path)
+    # Widened at the merge point, not in _build_arena_id_index: the bulk index
+    # yields {name, set, collector_number} dicts, while the Untapped fallback
+    # contributes plain name strings. _resolve_collection accepts both.
+    arena_index: dict[int, list[dict | str]] = {
+        aid: list(entries) for aid, entries in _build_arena_id_index(bulk_path).items()
+    }
     if untapped_arena_index is not None:
         for aid, names in untapped_arena_index.items():
             if aid in arena_index:

@@ -384,8 +384,9 @@ _LEGEND_BYPASS_PATTERNS: list[re.Pattern[str]] = [
     re.compile(r"legend\s+rule.*?doesn(?:'t| not)\s+apply", re.IGNORECASE),
 ]
 
-# Activated ability pattern — {cost}: effect (excluding mana abilities)
-_ACTIVATED_ABILITY_RE = re.compile(r"\{[^}]+\}.*?:")
+# A mana ability is an activated ability whose effect adds mana (CR 605.1a).
+# Callers choose whether to include them; that is a real distinction. "Does the
+# cost contain a mana symbol" is NOT — see _activated_ability_lines.
 _MANA_ABILITY_RE = re.compile(r"^\{[^}]*\}(?:,\s*\{[^}]*\})*:\s*Add\s", re.IGNORECASE)
 
 # ---------------------------------------------------------------------------
@@ -423,15 +424,13 @@ def detect_self_recurring(card: dict) -> bool:
 
 
 def _extract_activated_abilities(oracle_text: str) -> list[str]:
-    """Extract non-mana activated abilities from oracle text."""
-    abilities: list[str] = []
-    for line in oracle_text.splitlines():
-        stripped = line.strip()
-        if _ACTIVATED_ABILITY_RE.match(stripped) and not _MANA_ABILITY_RE.match(
-            stripped
-        ):
-            abilities.append(stripped)
-    return abilities
+    """Non-mana activated abilities on a card.
+
+    Thin wrapper over :func:`_activated_ability_lines` — kept because
+    "abilities that would be doubled by an ability-copier" legitimately wants
+    mana abilities excluded, which is a caller's choice about *effects*.
+    """
+    return _activated_ability_lines(oracle_text, include_mana=False)
 
 
 # ---------------------------------------------------------------------------
@@ -455,7 +454,7 @@ _TRIGGER_PREFIX_RE = re.compile(
 )
 # Loyalty costs print with U+2212 MINUS SIGN, not a hyphen — escaped so it
 # survives a copy-paste and doesn't read as an ambiguous-unicode typo.
-_LOYALTY_RE = re.compile("^\\s*[+\\u2212-]\\s*\\d+\\s*:")
+_LOYALTY_RE = re.compile("^\\s*\\[?\\s*[+\\u2212-]?\\s*\\d+\\s*\\]?\\s*:")
 
 
 def _activated_ability_lines(
@@ -463,11 +462,17 @@ def _activated_ability_lines(
 ) -> list[str]:
     """Activated abilities on a card — "[Cost]: [Effect]" per CR 602.1.
 
-    Deliberately broader than ``_extract_activated_abilities``, which requires a
-    mana symbol in the cost and drops mana abilities. Neither restriction holds
-    for a zone grant: "Discard a card:" and "Tap three untapped Elves you
-    control:" are activated abilities, and a mana ability (Priest of Titania) is
-    usually the single biggest thing such a commander borrows.
+    The cost need not contain a mana symbol: "Discard a card:" (Iron-Shield
+    Elf) and "Tap three untapped Elves you control:" (High Perfect Morcant) are
+    activated abilities, and any rule keyed on ``{...}`` in the cost silently
+    drops them. Triggered abilities and loyalty abilities are excluded because
+    they are different ability types, not because of their cost shape.
+
+    ``include_mana`` is the one legitimate caller choice here — a mana ability
+    is still an activated ability (CR 605.1a), but "which of the commander's
+    abilities would an ability-copier double" reasonably wants them out, while
+    a zone grant reasonably wants them in (Priest of Titania's mana ability is
+    usually the single biggest thing such a commander borrows).
     """
     out: list[str] = []
     for raw in oracle_text.splitlines():

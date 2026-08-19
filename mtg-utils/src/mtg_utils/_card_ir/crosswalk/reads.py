@@ -1709,7 +1709,7 @@ def ref_count_qty(node: TypedMirrorNode, field: str) -> str | None:
     return None
 
 
-def ref_count_filter(node: TypedMirrorNode, field: str) -> object | None:
+def ref_count_filter(node: object, field: str) -> object | None:
     """The counted-object filter inside a (``Multiply``-wrapped) ``Ref`` →
     ``ObjectCount`` value at ``node.field``, or ``None``.
 
