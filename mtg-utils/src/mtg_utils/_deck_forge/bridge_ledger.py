@@ -2686,7 +2686,7 @@ BRIDGES: dict[str, Bridge] = {
             key="donate_makers",
             kind="upstream_parse_failure",
             todo=(
-                "upstream phase-rs report candidate (Dan posts): the v0.46.0 "
+                "FILED upstream as phase-rs/phase#8170 (2026-08-29): the v0.46.0 "
                 "fail-closed subject binder (#7003) parks 'the player "
                 "who/with <superlative> gains control of ~' as an "
                 "Unimplemented('unbound_subject') residue — a typed "
@@ -2711,7 +2711,7 @@ BRIDGES: dict[str, Bridge] = {
             key="direct_damage",
             kind="upstream_parse_failure",
             todo=(
-                "upstream phase-rs report candidate (Dan posts): the v0.46.0 "
+                "FILED upstream as phase-rs/phase#8169 (2026-08-29): the v0.46.0 "
                 "fail-closed subject binder (#7003) can't bind 'this emblem' "
                 "as the damage source inside a CreateEmblem granted trigger, "
                 "parking 'this emblem deals N damage to any target' as an "
@@ -2735,7 +2735,8 @@ BRIDGES: dict[str, Bridge] = {
             key="removal",
             kind="upstream_parse_failure",
             todo=(
-                "FILED-candidate upstream (Dan posts): phase v0.53.0 (#7322) "
+                "FILED upstream as phase-rs/phase#8171 (2026-08-29): phase "
+                "v0.53.0 (#7322) "
                 "fails the per-source 'each <X> … deals damage equal to its "
                 "power to target creature' rider CLOSED as "
                 "Unimplemented('each_source_unrepresentable_rider') — a "
@@ -2757,7 +2758,8 @@ BRIDGES: dict[str, Bridge] = {
             key="creature_ping",
             kind="upstream_parse_failure",
             todo=(
-                "same residue as removal_each_source_power_rider — the "
+                "same residue as removal_each_source_power_rider "
+                "(phase-rs/phase#8171) — the "
                 "creature_ping doer shape (a creature dealing damage equal "
                 "to ITS OWN power to a creature, CR 120.3); retires with it"
             ),
