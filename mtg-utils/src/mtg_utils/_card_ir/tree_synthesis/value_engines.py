@@ -10,6 +10,8 @@ from __future__ import annotations
 import re
 
 from mtg_utils._card_ir.crosswalk import (
+    AGGREGATE_QTY_TAGS,
+    DAMAGE_EFFECT_TAGS,
     AbilityUnit,
     ConceptNode,
     ConceptTree,
@@ -1392,11 +1394,7 @@ def _tree_has_reaching_damage_node(tree: ConceptTree) -> bool:
     reaching_damage_node`` exactly, CR 120.1)."""
     for unit in tree.units:
         for n in iter_typed_nodes(unit.node):
-            if tag_of(n) in (
-                "DealDamage",
-                "DamageAll",
-                "DamageEachPlayer",
-            ) and effect_reaches_player(n, unit.node):
+            if tag_of(n) in DAMAGE_EFFECT_TAGS and effect_reaches_player(n, unit.node):
                 return True
     return False
 
@@ -1764,7 +1762,7 @@ def _power_tap_has_power_amount(node: object) -> bool:
             qty = getattr(q, "qty", None)
             qt = tag_of(qty)
             if qt == "Power" or (
-                qt == "Aggregate" and getattr(qty, "property", None) == "Power"
+                qt in AGGREGATE_QTY_TAGS and getattr(qty, "property", None) == "Power"
             ):
                 return True
     return False

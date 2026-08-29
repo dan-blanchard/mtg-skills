@@ -2262,6 +2262,12 @@ def _historic_matters_fires(name):
         # cast cost {1} less" graduated from the bare-word synth to the
         # typed gate at the v0.35.2 pin bump.
         "Jhoira's Familiar",
+        # phase v0.66.0 pin bump: Sanctum Spirit's "Discard a historic
+        # card:" activation cost now carries a typed ``Historic`` filter
+        # property on the Discard cost (it was a bare filter-less Discard
+        # through v0.45.0) — graduated from the bare-word synth. CR 700.6
+        # (historic = legendary, artifact, or Saga).
+        "Sanctum Spirit",
     ],
 )
 def test_historic_matters_typed_gate_no_double(name):
@@ -2277,7 +2283,6 @@ def test_historic_matters_typed_gate_no_double(name):
     "name",
     [
         "Curator's Ward",
-        "Sanctum Spirit",
         "Banish to Another Universe",
         "The Eighth Doctor",
         "Havi, the All-Father",
@@ -6408,7 +6413,6 @@ def test_ramp_grant_unimplemented_body_no_fire_on_structural_grant():
     [
         "Neheb, the Eternal",
         "Squandered Resources",
-        '"Name Sticker" Goblin',
     ],
 )
 def test_ramp_dropped_add_mana_clause_fires_on_pins(name):
@@ -6437,13 +6441,25 @@ def test_ramp_dropped_add_mana_clause_fires_on_pins(name):
     assert any(s.key == "ramp" for s in _ramp(synth_tree))
 
 
-def test_ramp_dropped_add_mana_clause_graduated_structural():
-    """Rasputin, the Oneiromancer graduated at the v0.45.0 pin bump: phase
-    now parses his "Add {C}" dream-counter clause structurally, so the
-    residue-reading synthesis arm stands down and the lane serves ramp
+@pytest.mark.parametrize(
+    "name",
+    [
+        # v0.45.0 pin bump: phase parses his "Add {C}" dream-counter clause
+        # structurally.
+        "Rasputin, the Oneiromancer",
+        # v0.66.0 pin bump: the d20 results table ("1-6 | Add {R}{R}{R}{R}."
+        # …) parses as typed ``Mana`` rows under ``RollDie.results`` (CR
+        # 706.3), read by ``_ramp``'s lane-local ``_die_roll_table_mana_
+        # nodes`` — the flat per-row ``Unimplemented`` residue is gone.
+        '"Name Sticker" Goblin',
+    ],
+)
+def test_ramp_dropped_add_mana_clause_graduated_structural(name):
+    """Graduated pins: phase now parses the add-mana clause structurally, so
+    the residue-reading synthesis arm stands down and the lane serves ramp
     through the structural read — membership preserved, mechanism
     graduated."""
-    tree = _fixture_tree("Rasputin, the Oneiromancer")
+    tree = _fixture_tree(name)
     assert _arm_ramp_dropped_add_mana_clause(tree) is None
 
     from mtg_utils._deck_forge.lanes import _ramp

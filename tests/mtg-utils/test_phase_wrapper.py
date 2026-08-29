@@ -65,7 +65,7 @@ def _fake_card_data_fetch(payload: bytes, **manifest_kwargs) -> _FakeUrlopen:
 
 class TestPhaseTag:
     def test_phase_tag_is_pinned(self):
-        assert _phase.PHASE_TAG == "v0.45.0"
+        assert _phase.PHASE_TAG == "v0.66.0"
 
 
 class TestCacheLayout:
@@ -157,6 +157,63 @@ class TestInstall:
         version_file = _phase.cache_dir() / "version.txt"
         assert version_file.exists(), "install_phase must write version.txt"
         assert version_file.read_text().strip() == "abc1234def5678"
+
+    @pytest.mark.parametrize(
+        ("checked_out", "expect_move"),
+        [
+            ("v0.45.0", True),  # a clone left at an earlier pin
+            (None, True),  # HEAD untagged (describe fails)
+            (_phase.PHASE_TAG, False),  # already at the pin: nothing to fetch
+        ],
+    )
+    def test_existing_clone_is_moved_to_the_pinned_tag(
+        self, monkeypatch, tmp_path, checked_out, expect_move
+    ):
+        """An existing clone (the directory the first install left behind) is
+        NOT a clone at the pinned tag: the v0.66.0 pin bump found the cache
+        still checked out at v0.45.0 because ``install_phase`` only ever
+        cloned when the directory was absent. A stale clone must be fetched
+        + checked out at ``PHASE_TAG`` before the cargo build; a clone
+        already at the pin must not be touched."""
+        monkeypatch.setenv("MTG_SKILLS_CACHE_DIR", str(tmp_path))
+        repo = _phase._repo_dir()
+        repo.mkdir(parents=True)
+        calls: list[list[str]] = []
+
+        def fake_run(cmd, **_kwargs):
+            calls.append(cmd)
+            r = MagicMock()
+            joined = " ".join(cmd)
+            if "describe" in joined:
+                r.returncode = 0 if checked_out else 128
+                r.stdout = (checked_out or "") + "\n"
+            else:
+                r.returncode = 0
+                r.stdout = "abc1234def5678\n" if "rev-parse" in joined else ""
+            r.stderr = ""
+            return r
+
+        monkeypatch.setattr("subprocess.run", fake_run)
+        monkeypatch.setattr(_phase, "_ensure_prereqs", lambda: None)
+        stub_cd = tmp_path / "stub-card-data.json"
+        stub_cd.write_text("{}")
+        monkeypatch.setattr(_phase, "ensure_card_data", lambda: stub_cd)
+        monkeypatch.setattr(_phase, "_apply_duel_files_patch", lambda _repo: None)
+
+        _phase.install_phase()
+
+        joined = [" ".join(c) for c in calls]
+        assert not any("git clone" in c for c in joined), joined
+        fetches = [c for c in joined if c.startswith("git fetch")]
+        checkouts = [c for c in joined if c.startswith("git checkout")]
+        build_idx = next(i for i, c in enumerate(joined) if "cargo build" in c)
+        if expect_move:
+            assert fetches == [f"git fetch --depth=1 origin tag {_phase.PHASE_TAG}"]
+            assert checkouts == [f"git checkout --force {_phase.PHASE_TAG}"]
+            assert joined.index(checkouts[0]) < build_idx
+        else:
+            assert not fetches, joined
+            assert not checkouts, joined
 
 
 class TestDuelFilesPatch:

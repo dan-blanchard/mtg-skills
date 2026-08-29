@@ -24,7 +24,7 @@ from mtg_utils._http import urllib_get
 # specifically rather than the generic Scryfall/EDHREC/Spellbook UA.
 _USER_AGENT = "mtg-skills/_phase"
 
-PHASE_TAG = "v0.45.0"
+PHASE_TAG = "v0.66.0"
 PHASE_REPO = "https://github.com/phase-rs/phase"
 
 # Since v0.32.0 releases ship no server tarball; instead a small manifest
@@ -290,6 +290,21 @@ def _apply_duel_files_patch(repo: Path) -> None:
     src.write_text(text)
 
 
+def _checked_out_tag(repo: Path) -> str | None:
+    """The tag the clone's HEAD sits on exactly (``git describe --tags
+    --exact-match``), or ``None`` when HEAD is untagged / the query fails."""
+    result = subprocess.run(
+        ["git", "describe", "--tags", "--exact-match", "HEAD"],
+        cwd=str(repo),
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        return None
+    return result.stdout.strip() or None
+
+
 def install_phase() -> None:
     """Clone + ``cargo build`` the phase playtest binaries (ai-duel/ai-commander).
 
@@ -308,6 +323,23 @@ def install_phase() -> None:
     if not repo.exists():
         subprocess.run(
             ["git", "clone", "--depth=1", "--branch", PHASE_TAG, PHASE_REPO, str(repo)],
+            check=True,
+        )
+    elif _checked_out_tag(repo) != PHASE_TAG:
+        # A clone from an EARLIER pin: move it to the pinned tag rather than
+        # rebuilding stale sources (the v0.66.0 pin bump found the cache still
+        # at v0.45.0 — nothing re-cloned because the directory existed). A
+        # shallow fetch of just the tag keeps the clone small; ``checkout``
+        # restores a pristine ai_duel.rs, so the matchup-files patch below
+        # re-applies from its anchors (it is marker-idempotent either way).
+        subprocess.run(
+            ["git", "fetch", "--depth=1", "origin", "tag", PHASE_TAG],
+            cwd=str(repo),
+            check=True,
+        )
+        subprocess.run(
+            ["git", "checkout", "--force", PHASE_TAG],
+            cwd=str(repo),
             check=True,
         )
 
@@ -352,16 +384,18 @@ def _card_data_path() -> Path:
 
 
 # Known-bad card-data records: phase stamps a DIFFERENT card's parse with this
-# oracle_id. The only member at v0.45.0 (re-censused 2026-08-04 at the pin
-# bump — 1 true impostor + 2 errata-drift records correctly left alone:
-# Uvilda's hone→refine counter retemplate and the Myojin/Grim Betrayal
-# combined card's one-word bulk typo; unchanged since the v0.20.0 census of
-# task #78, 2026-07-10): bulk
+# oracle_id. The only member at v0.66.0 (re-censused 2026-08-29 at the pin
+# bump; 1 true impostor, zero errata-drift flags — the v0.45.0 census's 2
+# errata-drift records no longer flag): bulk
 # carries TWO distinct cards named "Fast // Furious" — 62411ced
 # (J21/MH2, commander-legal, discard-draw / damage) and 298a6369 (playtest,
-# not_legal, haste-unblockable / Fuse) — and phase's name-keyed corpus emits
-# the PLAYTEST card's "Fast" half stamped with the LEGAL card's oracle_id, so
-# every oracle_id join serves the impostor's abilities off the real card.
+# not_legal, haste-unblockable / Fuse) — and phase's name-keyed corpus
+# mis-joins the two. Through v0.45.0 it emitted the PLAYTEST card's "Fast"
+# half stamped with the LEGAL card's oracle_id; since v0.66.0 the join runs
+# the OTHER way: the LEGAL card's "Fast" half ("Discard a card, then draw two
+# cards.") is stamped with the PLAYTEST oracle_id (and the legal card has no
+# record of its own at all — a plain coverage hole, not an impostor). The
+# v0.45.0 entry self-retired exactly as designed and is replaced below.
 # Keyed by (scryfall_oracle_id, exact oracle_text) so the entry self-retires
 # the moment upstream fixes the join (nothing matches → no-op). A general
 # text-mismatch gate was rejected: the v0.23.0 census found 8 other phase
@@ -371,17 +405,13 @@ def _card_data_path() -> Path:
 # bulk by scryfall_oracle_id and flag records whose oracle_text matches NO
 # bulk face text for that oracle_id (v0.23.0: 9 flagged = 8 errata-drift +
 # Fast; v0.35.2: exactly 1 flagged = Fast — the weekly MTGJSON refresh phase
-# runs since v0.32.0 cleaned up the errata drift, the impostor join remains).
+# runs since v0.32.0 cleaned up the errata drift, the impostor join remains;
+# v0.66.0: exactly 1 flagged = the flipped Fast join).
 _IMPOSTOR_RECORDS: frozenset[tuple[str, str]] = frozenset(
     {
         (
-            "62411ced-843e-4b63-bdf6-dafb2ac27047",
-            (
-                "Target creature gains haste until end of turn. It can't be "
-                "blocked this turn except by Vehicles or by creatures with "
-                "haste.\nFuse (You may cast one or both halves of this card "
-                "from your hand.)"
-            ),
+            "298a6369-1c1f-4d75-aa97-69c56323c122",
+            "Discard a card, then draw two cards.",
         ),
     }
 )

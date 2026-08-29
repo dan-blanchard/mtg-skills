@@ -8,12 +8,14 @@ import re
 from collections.abc import Iterator
 
 from mtg_utils._card_ir.crosswalk import (
+    DAMAGE_EFFECT_TAGS,
     OTHER,
     AbilityUnit,
     ConceptTree,
     cast_with_keyword_name,
     change_zone_dirs,
     damage_filter_scope,
+    damage_recipient,
     damage_recipient_is_player,
     damage_to_player_trigger_kind,
     detriment_directed_scope,
@@ -1711,11 +1713,13 @@ def _base_pt_set(tree: ConceptTree) -> list[Signal]:
         "base_pt_tk_sticker_parse_failure",
         "base_pt_each_equal_to_dropped",
         "base_pt_becomecopy_no_pt_override",
-        # v0.45.0 pin bump — Sauron's previously-STRUCTURAL modal "It's a
-        # green Dinosaur with base power and toughness 5/5" mode regressed
-        # upstream to an Unimplemented residue; membership preserved via
-        # the ledgered bridge until the upstream report lands.
-        "base_pt_modal_its_clause_regressed",
+        # base_pt_modal_its_clause_regressed (the v0.45.0 pin bump's bridge
+        # for Sauron, Dino Devotee's upstream-regressed modal "It's a green
+        # Dinosaur with base power and toughness 5/5" mode) RETIRED at the
+        # v0.66.0 pin bump: phase-rs/phase#7037 (v0.48.0) restored the
+        # structured mode body (a GenericEffect SetPower/SetToughness suite
+        # nested in the mode's sub_ability chain, threaded by
+        # :func:`_iter_base_pt_modal_threaded_statics` again).
     ):
         if bridge_fires(bridge_id, tree):
             return [Signal("base_pt_set", "any", "", "", tree.name, "high")]
@@ -2100,11 +2104,11 @@ def _damage_equal_power(tree: ConceptTree) -> list[Signal]:
     """
     for unit in tree.units:
         for c in unit.effect_concepts("deal_damage"):
-            if tag_of(c.node) != "DealDamage":
+            if tag_of(c.node) not in ("DealDamage", "EachSourceDealsDamage"):
                 continue
             if ref_qty_tag(c.node, "amount") != "Power":
                 continue
-            tgt = getattr(c.node, "target", None)
+            tgt = damage_recipient(c.node)
             tt = tag_of(tgt)
             player = (
                 tt in _DEP_PLAYER_TAGS
@@ -2441,7 +2445,12 @@ def _creature_ping_fires(node: TypedMirrorNode, raw: str, tree: ConceptTree) -> 
     mult_tag = None if amt_tag == "Power" else ref_count_qty(node, "amount")
     if amt_tag != "Power" and mult_tag not in ("Power", "EventContextAmount"):
         return False
-    tgt = getattr(node, "target", None)
+    # v0.66.0: an ``EachSourceDealsDamage`` batch ("each Wolf … deals
+    # damage equal to its power to that creature" — Moonlight Hunt) keeps
+    # its shared target under ``recipient.data``; ``damage_recipient``
+    # resolves both shapes. Its ``Ref(Power, scope: BatchSource)`` amount
+    # IS each source's own power — the creature_ping doer (CR 120.3).
+    tgt = damage_recipient(node)
     tgt_tag = tag_of(tgt)
     recip_creature = tgt_tag in ("Typed", "Or", "And") and (
         "Creature" in filter_core_types(tgt)
@@ -2529,7 +2538,7 @@ def _mass_damage_lanes(tree: ConceptTree) -> list[Signal]:
                 tgt = getattr(c.node, "target", None)
                 if "Creature" in filter_core_types(tgt):
                     fire("aoe_ping", "you", c.raw)
-            if t in ("DealDamage", "DamageAll", "DamageEachPlayer"):
+            if t in DAMAGE_EFFECT_TAGS:
                 creature_ping_nodes.append(c.node)
                 if _creature_ping_fires(c.node, c.raw or "", tree):
                     fire("creature_ping", "you", c.raw or "")
@@ -2555,7 +2564,7 @@ def _mass_damage_lanes(tree: ConceptTree) -> list[Signal]:
             for n in iter_typed_nodes(unit.node):
                 if id(n) in seen_ids:
                     continue
-                if tag_of(n) not in ("DealDamage", "DamageAll", "DamageEachPlayer"):
+                if tag_of(n) not in DAMAGE_EFFECT_TAGS:
                     continue
                 seen_ids.add(id(n))
                 if _creature_ping_fires(n, "", tree):
@@ -2563,6 +2572,13 @@ def _mass_damage_lanes(tree: ConceptTree) -> list[Signal]:
                     break
             if "creature_ping" in seen:
                 break
+    # phase v0.66.0 pin bump — the per-source "each <X> … deals damage equal
+    # to its power to target creature" rider regressed upstream to an
+    # each_source_unrepresentable_rider residue (bridge_ledger.py row).
+    if "creature_ping" not in seen and bridge_fires(
+        "creature_ping_each_source_power_rider", tree
+    ):
+        fire("creature_ping", "you", "")
     return out
 
 

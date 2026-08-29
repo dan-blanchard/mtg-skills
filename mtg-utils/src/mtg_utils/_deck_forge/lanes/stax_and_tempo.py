@@ -37,6 +37,7 @@ from mtg_utils._card_ir.crosswalk import (
     mod_keyword_name,
     modify_cost_mode,
     modify_cost_spell_filter,
+    permission_tag,
     player_filter_tag,
     settap_state,
     static_mode_tag,
@@ -1129,7 +1130,15 @@ def _opp_top_exile(tree: ConceptTree) -> list[Signal]:
             tag_of(c.node) == "ChangeZone" and change_zone_dirs(c.node)[1] == "Exile"
             for c in unit.effect_concepts("change_zone")
         )
-        if chooses_theirs and exiles and unit.has_effect("cast_from_zone"):
+        # phase v0.66.0 pin bump: the chain's "you may cast that card for as
+        # long as it remains exiled" leg is now a ``GrantCastingPermission``
+        # (``PlayFromExile``) instead of a bare ``CastFromZone`` — the SAME
+        # steal-and-cast contract, the impulse-grant node shape.
+        casts = unit.has_effect("cast_from_zone") or any(
+            permission_tag(c.node) == "PlayFromExile"
+            for c in unit.effect_concepts("grant_cast_permission")
+        )
+        if chooses_theirs and exiles and casts:
             return [Signal("opp_top_exile", "you", "", "", tree.name, "high")]
     # Deliberate NON-extension: ``ExileFromTopUntil{player: Opponent}``
     # (Umbris, Chaos Wand, Nicol Bolas God-Pharaoh) lives in theft_makers'

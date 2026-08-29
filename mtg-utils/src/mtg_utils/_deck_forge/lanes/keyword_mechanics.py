@@ -1400,6 +1400,24 @@ _TEXT_ONLY_EACH_DISCARD_RX = re.compile(
 # 31,622 commander-legal (Hollow Marauder's superficially similar "for
 # each ... discard" residue is a DIFFERENT, unrelated draw payoff —
 # excluded, its clause doesn't END in "each opponent discards a card").
+# phase v0.66.0 pin bump: "you and defending player each discard a card"
+# (Eumidian Wastewaker) — phase v0.46.0 (#7003) fails the compound "you and
+# X" subject CLOSED into an unbound_subject residue (a ChooseOneOf with a
+# typed ``Discard{target: Any}`` branch through v0.45.0); recovery.py's
+# "discard" token recovers it with no recipient, so the residue's own clause
+# carries the direction. The named second party is an opponent by rule
+# (CR 506.2 — the defending player is an opponent of the attacking player;
+# "target opponent" / "that player" name the targeted player), and their
+# discard is CR 701.9a's own-hand-to-own-graveyard move — an opponent-
+# directed discard.
+_OPP_DISCARD_YOU_AND_EACH_RX = re.compile(
+    r"\byou and (?:defending player|the (?:attacking|defending) player"
+    r"|target (?:player|opponent)|that player|each opponent)"
+    r"(?:(?!\bif\b|\bunless\b)[^.,;])*?\beach discards?\b",
+    re.IGNORECASE,
+)
+
+
 _OPP_DISCARD_SCALING_PREFIX_RX = re.compile(
     r"each opponent discards a card\s*$", re.IGNORECASE
 )
@@ -1680,9 +1698,11 @@ def _opponent_discard(tree: ConceptTree) -> list[Signal]:
                 "T_effect__Unimplemented"
             ):
                 desc = getattr(node, "description", "") or ""
-                if _OPP_DISCARD_SCALING_PREFIX_RX.search(
-                    desc
-                ) or _OPP_DISCARD_REPLACEMENT_NEXT_TIME_RX.search(desc):
+                if (
+                    _OPP_DISCARD_SCALING_PREFIX_RX.search(desc)
+                    or _OPP_DISCARD_REPLACEMENT_NEXT_TIME_RX.search(desc)
+                    or _OPP_DISCARD_YOU_AND_EACH_RX.search(desc)
+                ):
                     sc = "opponents"
             # The Cephalid-Looter loot veto is a discriminator for THIS
             # branch's typed-recipient inference only (a targeted "target
@@ -1738,6 +1758,23 @@ def _opponent_discard(tree: ConceptTree) -> list[Signal]:
             out.append(
                 Signal("opponent_discard", "opponents", "", "", tree.name, "high")
             )
+        # phase v0.66.0 pin bump (v0.65.0 #7830 "resolve scoped unless
+        # payments"): a punisher's "target opponent loses N life unless
+        # that player discards ..." now parses STRUCTURALLY — the payoff is
+        # the unit's own ``effect`` and the discard is a ``Discard`` leaf of
+        # the unit's ``unless_pay.cost`` (a ``OneOf`` for Remorseless
+        # Punishment's discard-or-sacrifice choice) whose ``payer`` is the
+        # targeted ``Player``. Read the leaf + the payoff's opponent target
+        # (Remorseless Punishment graduated OFF the ``opp_discard_unless_
+        # clause`` bridge here). CR 608.2c (the spell's "unless" choice is
+        # made following its instructions as written), CR 603.5 (the
+        # triggered form), CR 701.9a (the payer's discard moves THEIR card
+        # from THEIR hand to THEIR graveyard — an opponent-directed discard).
+        if "opponents" not in seen and _unless_pay_opponent_discard(unit):
+            seen.add("opponents")
+            out.append(
+                Signal("opponent_discard", "opponents", "", "", tree.name, "high")
+            )
     # ADR-0039 W7 BRIDGES wave — the residual dropped-clause / upstream-
     # parse-failure bucket (bridge_ledger.py rows, each row's own module
     # comment for the full corpus accounting). The grammar sprint (task
@@ -1760,6 +1797,28 @@ def _opponent_discard(tree: ConceptTree) -> list[Signal]:
                 )
                 break
     return out
+
+
+def _unless_pay_opponent_discard(unit: AbilityUnit) -> bool:
+    """A ``Discard`` leaf in the unit's own ``unless_pay.cost`` (recursing
+    ``OneOf``/``Composite``) whose payer is the targeted ``Player``, on a unit
+    whose payoff effect targets an opponent — "target opponent loses N life
+    unless that player discards two cards" (Remorseless Punishment). The
+    alternative-cost payer is the effect's TARGET, so this reads the payoff's
+    own opponent-scoped target rather than the ability's controller."""
+    node = getattr(unit, "node", None)
+    unless_pay = getattr(node, "unless_pay", None)
+    if unless_pay is None or tag_of(getattr(unless_pay, "payer", None)) != "Player":
+        return False
+    if not any(
+        tag_of(leaf) == "Discard"
+        for leaf in iter_cost_leaves(getattr(unless_pay, "cost", None))
+    ):
+        return False
+    return any(
+        filter_controller(getattr(c.node, "target", None)) == "Opponent"
+        for c in unit.effects
+    )
 
 
 # Recipient tags naming a SINGLE targeted player (not an explicit opponent / each).
@@ -1989,6 +2048,11 @@ def _donate_makers(tree: ConceptTree) -> list[Signal]:
                 and "Owned" not in filter_predicates(sub)
             ):
                 return [Signal("donate_makers", "you", "", c.raw, tree.name, "high")]
+    # phase v0.66.0 pin bump — the "the player who/with <superlative> gains
+    # control of ~" give-away regressed upstream to an unbound_subject
+    # residue (bridge_ledger.py row for the corpus census). CR 110.2.
+    if bridge_fires("donate_superlative_player_unbound_subject", tree):
+        return [Signal("donate_makers", "you", "", "", tree.name, "high")]
     return []
 
 

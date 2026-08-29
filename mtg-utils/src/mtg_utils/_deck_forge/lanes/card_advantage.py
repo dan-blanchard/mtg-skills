@@ -728,13 +728,32 @@ def _pce_has_paired_draw(pce: object) -> bool:
 # clause); Forget's "draws as many cards as they discarded this way" and
 # Soldevi Sentry's "that player may draw a card" carry no such conditional
 # boundary and correctly match. CR 121.1.
+#
+# phase v0.66.0 pin bump — the third alternative: the "you and <player> each
+# draw" pairing idiom. Through v0.45.0 phase collapsed it into ONE
+# ``Draw{target: Any}`` node (the unconditional ``Any`` admission in
+# :data:`_TARGETED_DRAW_TAGS`); v0.46.0 (#7003, "stop failing open on an
+# unparseable subject") fails the compound subject CLOSED instead, parking
+# the whole clause as ``Unimplemented(name="unbound_subject")`` whose
+# description IS the clause — which recovery.py's ALLOWLIST "draw" token
+# recovers into this residue node. Corpus census at v0.66.0: 7
+# ``unbound_subject`` residues carry "you and … each draw" (Karazikar, the
+# Eye Tyrant's "the attacking player", Zurzoth's "those players", Nelly
+# Borca's "the controller of those creatures", Cait / The River Warlock's
+# "defending player", Splinter's "another target player", Cleaver Blow's
+# "its controller") — every one the SAME CR 121.1 directed-gift pairing the
+# ``Any`` tag used to carry; the "you and" anchor is what keeps a plain
+# self-draw out. CR 121.1 (a draw as a spell/ability effect) directed at
+# a second, specific player — CR 506.2's attacking player, a defending
+# player, a target player, "the controller of those creatures".
 _RECOVERED_DRAW_DIRECTED_RE = re.compile(
     r"\b(?:target (?:player|opponent)s?|(?:its|their|that|the) (?:controller|owner)s?"
     r"|\w+'s (?:controller|owner)s?|that player|they)\b"
     r"(?:(?!\bif\b|\bunless\b)[^.,;])*?\bdraws?\b"
     r"|\bdraws?\b(?:(?!\bif\b|\bunless\b)[^.,;])*?\b(?:target (?:player|opponent)s?"
     r"|(?:its|their|that|the) (?:controller|owner)s?|\w+'s (?:controller|owner)s?"
-    r"|that player|they)\b",
+    r"|that player|they)\b"
+    r"|\byou and\b(?:(?!\bif\b|\bunless\b)[^.,;])*?\beach draws?\b",
     re.IGNORECASE,
 )
 # A recovered "draw" residue whose diagnostic wrapper names phase's OWN

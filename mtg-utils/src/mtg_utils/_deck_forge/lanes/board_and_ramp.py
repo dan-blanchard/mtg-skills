@@ -13,6 +13,7 @@ from mtg_utils._card_ir.crosswalk import (
     ConceptNode,
     ConceptTree,
     _is_static_def,
+    aggregate_filter,
     change_zone_dirs,
     count_distinct_operand_filter,
     count_operand_filter,
@@ -28,6 +29,7 @@ from mtg_utils._card_ir.crosswalk import (
     iter_static_defs,
     iter_typed_nodes,
     ref_count_filter,
+    static_mode_field,
     static_mode_tag,
     tag_of,
     trigger_caster_scope,
@@ -1063,6 +1065,21 @@ def _iter_returnasaura_mana_defs(
     return out
 
 
+def _die_roll_table_mana_nodes(tree: ConceptTree) -> Iterator[TypedMirrorNode]:
+    """Every typed ``Mana`` effect sitting in a ``RollDie`` results-table row
+    (CR 706.3 — ``results[].effect`` is a full ability wrapper whose
+    ``.effect`` is the row's payload), across the tree's units. Lane-local
+    by design (see the call site in :func:`_ramp`)."""
+    for unit in tree.units:
+        for n in iter_typed_nodes(unit.node):
+            if tag_of(n) != "RollDie":
+                continue
+            for row in getattr(n, "results", None) or ():
+                body = getattr(getattr(row, "effect", None), "effect", None)
+                if tag_of(body) == "Mana":
+                    yield body
+
+
 def _ramp(tree: ConceptTree) -> list[Signal]:
     """Mana acceleration (Sol Ring, Command Tower — CR 106.1 / 605.1a / 305).
 
@@ -1127,6 +1144,18 @@ def _ramp(tree: ConceptTree) -> list[Signal]:
     for c in tree.effect_concepts("ramp"):
         if not is_land or _mana_accel(c.node) or _mana_fixing(c.node):
             return [Signal("ramp", "you", "", c.raw, tree.name, "high")]
+    # phase v0.66.0 pin bump: a die-roll RESULTS TABLE (CR 706.3) whose rows
+    # add mana — "Name Sticker" Goblin's "1-6 | Add {R}{R}{R}{R}." — now
+    # parses as typed ``Mana`` effects inside ``RollDie.results[].effect``
+    # (a flat ``Unimplemented("1-6 | Add …")`` residue per row through
+    # v0.45.0, served by the ``ramp_dropped_add_mana_clause`` synthesis
+    # arm). The shared effect walk deliberately does NOT descend result
+    # tables (a die-roll's put-on-top row is a documented topdeck_stack
+    # over-fire — see :func:`_topdeck_stack`), so this lane reads its own
+    # rows: the same land/nonland split as the top-level ``Mana`` branch.
+    for mana in _die_roll_table_mana_nodes(tree):
+        if not is_land or _mana_accel(mana) or _mana_fixing(mana):
+            return [Signal("ramp", "you", "", "", tree.name, "high")]
     for d, aff in (*_granted_mana_defs(tree), *_iter_returnasaura_mana_defs(tree)):
         eff = getattr(d, "effect", None)
         if tag_of(aff) in ("Typed", "Or", "And"):
@@ -2167,11 +2196,19 @@ def _pump_scaling_creature_filter(node: object) -> object | None:
         if tag_of(v) != "Ref":
             continue
         qty = getattr(v, "qty", None)
-        if tag_of(qty) in ("ObjectCount", "Aggregate"):
-            filt = getattr(qty, "filter", None)
-            if filt is not None:
-                return filt
+        filt = _count_or_aggregate_filter(qty)
+        if filt is not None:
+            return filt
     return None
+
+
+def _count_or_aggregate_filter(qty: object) -> object | None:
+    """The population filter of an ``ObjectCount`` OR an aggregate qty node
+    (:func:`aggregate_filter` — ``Aggregate`` through phase v0.45.0,
+    ``PropertyAggregate{source: Objects}`` since v0.66.0), or ``None``."""
+    if tag_of(qty) == "ObjectCount":
+        return getattr(qty, "filter", None)
+    return aggregate_filter(qty)
 
 
 def _creature_count_operand_filter(node: TypedMirrorNode) -> object | None:
@@ -2242,11 +2279,9 @@ def _aggregate_creature_filter(node: TypedMirrorNode) -> object | None:
     for fname in ("amount", "count", "value", "announced_x"):
         q = getattr(node, fname, None)
         if isinstance(q, TypedMirrorNode) and tag_of(q) == "Ref":
-            qty = getattr(q, "qty", None)
-            if tag_of(qty) == "Aggregate":
-                filt = getattr(qty, "filter", None)
-                if filt is not None:
-                    return filt
+            filt = aggregate_filter(getattr(q, "qty", None))
+            if filt is not None:
+                return filt
     return None
 
 
@@ -2283,20 +2318,16 @@ def _creatures_matter_wrapped_count_filter(node: TypedMirrorNode) -> object | No
     for fname in ("quantity", "amount_dynamic"):
         v = getattr(node, fname, None)
         if isinstance(v, TypedMirrorNode) and tag_of(v) == "Ref":
-            qty = getattr(v, "qty", None)
-            if tag_of(qty) in ("ObjectCount", "Aggregate"):
-                filt = getattr(qty, "filter", None)
-                if filt is not None:
-                    return filt
+            filt = _count_or_aggregate_filter(getattr(v, "qty", None))
+            if filt is not None:
+                return filt
     cnt = getattr(node, "count", None)
     if isinstance(cnt, TypedMirrorNode) and tag_of(cnt) == "UpTo":
         mx = getattr(cnt, "max", None)
         if isinstance(mx, TypedMirrorNode) and tag_of(mx) == "Ref":
-            qty = getattr(mx, "qty", None)
-            if tag_of(qty) in ("ObjectCount", "Aggregate"):
-                filt = getattr(qty, "filter", None)
-                if filt is not None:
-                    return filt
+            filt = _count_or_aggregate_filter(getattr(mx, "qty", None))
+            if filt is not None:
+                return filt
     return None
 
 
@@ -2663,9 +2694,8 @@ def _creatures_matter(tree: ConceptTree) -> list[Signal]:
             q = getattr(n, "announced_x", None)
             if tag_of(q) != "Ref":
                 continue
-            qty = getattr(q, "qty", None)
-            if tag_of(qty) in ("ObjectCount", "Aggregate") and (
-                _is_generic_creature_filter(getattr(qty, "filter", None))
+            if _is_generic_creature_filter(
+                _count_or_aggregate_filter(getattr(q, "qty", None))
             ):
                 return [Signal("creatures_matter", "you", "", "", tree.name, "high")]
     for unit in tree.units:
@@ -2679,6 +2709,30 @@ def _creatures_matter(tree: ConceptTree) -> list[Signal]:
             if any(tag_of(m) in _CREATURES_MATTER_MOD_TAGS for m in mods):
                 return [Signal("creatures_matter", "you", "", "", tree.name, "high")]
             if static_mode_tag(sdef) in _CREATURES_MATTER_EVASION_MODES:
+                return [Signal("creatures_matter", "you", "", "", tree.name, "high")]
+    # phase v0.66.0 pin bump: "X can't block creatures you control" is now
+    # a ``BlockRestriction`` MODE on the restricted BLOCKERS whose ``filter``
+    # is ``Not(<the creatures they can't block>)`` — the affected population
+    # is the opposing blockers (controller-less, a power/flying predicate),
+    # so the generic-team gate above never sees it; the TEAM is the Not-
+    # wrapped filter (Champion of Lambholt, Bower Passage, Storm, Windrider —
+    # a 6-node ``Not(Typed{controller: You, Creature, no predicate})`` family
+    # at v0.66.0; the tribal "Cowards can't block Warriors" / "can't block
+    # creatures with power 2 or greater" siblings fail the SAME generic gate
+    # on their Not-wrapped filter). CR 509.1b: a block RESTRICTION ("a
+    # creature can't block") and an EVASION ability ("can't be blocked by")
+    # are the same legality check on the defending player's blockers, and
+    # CR 113.12 makes either a stated quality rather than a granted ability
+    # — so this is the same team-evasion payoff as a ``CantBeBlockedBy``
+    # over the team, read from the blocker's side.
+    for unit in tree.units:
+        for sdef in _iter_creatures_matter_static_defs(unit.node):
+            if static_mode_tag(sdef) != "BlockRestriction":
+                continue
+            blocked = static_mode_field(sdef, "filter")
+            if tag_of(blocked) == "Not" and _is_generic_creature_filter(
+                getattr(blocked, "filter", None)
+            ):
                 return [Signal("creatures_matter", "you", "", "", tree.name, "high")]
     for c in tree.effect_concepts("pump"):
         if tag_of(c.node) == "PumpAll" and _is_generic_creature_filter(

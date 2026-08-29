@@ -4,8 +4,8 @@ Codegen'd from ``tests/fixtures/phase_mirror_schema.json`` by
 ``mtg_utils._card_ir.mirror.codegen`` (run via ``build-card-ir-substrate``).
 
 Part of the generated typed-mirror package (see this directory's
-``__init__.py``). This module holds content keys ``else_ability`` ..
-``legalities`` (35 keys).
+``__init__.py``). This module holds content keys ``else_ability`` .. ``kind``
+(34 keys).
 
 Class naming: ``S_<ckey>`` for a struct shape, ``T_<ckey>__<tag>`` for a tagged
 shape, ``U_<ckey>`` for the union of all tagged shapes at one content_key.
@@ -23,7 +23,7 @@ from mtg_utils._card_ir.mirror.runtime import (
 )
 
 if TYPE_CHECKING:
-    from mtg_utils._card_ir.mirror.generated.g02_mutate import (
+    from mtg_utils._card_ir.mirror.generated.g02_morph import (
         U_ability_tag,
     )
     from mtg_utils._card_ir.mirror.generated.g03_additional_modificat import (
@@ -45,13 +45,14 @@ if TYPE_CHECKING:
     from mtg_utils._card_ir.mirror.generated.g07_effect import (
         U_effect,
     )
-    from mtg_utils._card_ir.mirror.generated.g09_lhs import (
+    from mtg_utils._card_ir.mirror.generated.g09_land_filter import (
         S_modal,
         S_mode_abilities,
         S_multi_target,
         U_lhs,
+        U_optional_player,
     )
-    from mtg_utils._card_ir.mirror.generated.g10_parse_warnings import (
+    from mtg_utils._card_ir.mirror.generated.g10_owner import (
         U_player_scope,
     )
     from mtg_utils._card_ir.mirror.generated.g11_properties import (
@@ -59,17 +60,17 @@ if TYPE_CHECKING:
     )
     from mtg_utils._card_ir.mirror.generated.g12_qty import (
         U_qty,
-        U_relation,
     )
-    from mtg_utils._card_ir.mirror.generated.g13_repeat_for import (
+    from mtg_utils._card_ir.mirror.generated.g13_reference import (
         S_static_abilities,
-        S_sub_ability,
+        U_relation,
         U_repeat_for,
         U_repeat_until,
         U_rhs,
         U_source,
     )
-    from mtg_utils._card_ir.mirror.generated.g14_subtype_filter import (
+    from mtg_utils._card_ir.mirror.generated.g14_sub_ability import (
+        S_sub_ability,
         S_unless_pay,
         U_subtype_filter,
         U_target_chooser,
@@ -135,6 +136,7 @@ class S_execute(TypedMirrorNode):
     mode_abilities: list[S_mode_abilities] = MISSING
     multi_target: S_multi_target = MISSING
     optional_for: str = MISSING
+    optional_player: U_optional_player = MISSING
     player_scope: U_player_scope = MISSING
     repeat_for: U_repeat_for = MISSING
     repeat_until: U_repeat_until = MISSING
@@ -154,10 +156,11 @@ class S_extra_cost(TypedMirrorNode):
 
 @dataclass(frozen=True)
 class S_face_down_profile(TypedMirrorNode):
+    cause: str
+    extra_core_types: list[object]
+    subtypes: list[object]
     body: str = MISSING
-    extra_core_types: list[object] = MISSING
     power: int = MISSING
-    subtypes: list[object] = MISSING
     toughness: int = MISSING
 
 
@@ -166,25 +169,6 @@ class S_filter(TypedMirrorNode):
     controller: str
     properties: list[U_properties]
     type_filters: list[MirrorVariant]
-
-
-@dataclass(frozen=True)
-class S_legalities(TypedMirrorNode):
-    brawl: str = MISSING
-    commander: str = MISSING
-    duel: str = MISSING
-    historic: str = MISSING
-    legacy: str = MISSING
-    modern: str = MISSING
-    oathbreaker: str = MISSING
-    pauper: str = MISSING
-    paupercommander: str = MISSING
-    pioneer: str = MISSING
-    premodern: str = MISSING
-    standard: str = MISSING
-    standardbrawl: str = MISSING
-    timeless: str = MISSING
-    vintage: str = MISSING
 
 
 # --- tagged shapes (discriminated enum nodes) ---
@@ -276,6 +260,11 @@ class T_exclude__ParentObjectTargetController(TypedMirrorNode):
 @dataclass(frozen=True)
 class T_exclude__TriggeringPlayer(TypedMirrorNode):
     _tag: ClassVar[str | None] = "TriggeringPlayer"
+
+
+@dataclass(frozen=True)
+class T_expiry__EndOfCombat(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "EndOfCombat"
 
 
 @dataclass(frozen=True)
@@ -466,6 +455,14 @@ class T_filter__TrackedSet(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class T_filter__TrackedSetFiltered(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "TrackedSetFiltered"
+    caused_by: str
+    filter: U_filter
+    id: int
+
+
+@dataclass(frozen=True)
 class T_filter__TrackedSetPossessor(TypedMirrorNode):
     _tag: ClassVar[str | None] = "TrackedSetPossessor"
     filter: U_filter
@@ -593,11 +590,6 @@ class T_filters__Typed(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
-class T_flipper__Any(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "Any"
-
-
-@dataclass(frozen=True)
 class T_flipper__TriggeringPlayer(TypedMirrorNode):
     _tag: ClassVar[str | None] = "TriggeringPlayer"
 
@@ -655,6 +647,12 @@ class T_host__Typed(TypedMirrorNode):
     controller: str | None
     properties: list[U_properties]
     type_filters: list[MirrorVariant]
+
+
+@dataclass(frozen=True)
+class T_inner__AdditionalCostPaid(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "AdditionalCostPaid"
+    origin: str
 
 
 @dataclass(frozen=True)
@@ -828,6 +826,11 @@ class T_iteration_kind_binding__RebindToIteratedKind(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class T_journal__SpellsCast(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "SpellsCast"
+
+
+@dataclass(frozen=True)
 class T_keep_count_expr__Ref(TypedMirrorNode):
     _tag: ClassVar[str | None] = "Ref"
     qty: U_qty
@@ -846,8 +849,21 @@ class T_keeper_constraint__exact_count(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class T_kept_destination_if__Typed(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "Typed"
+    controller: None
+    properties: list[U_properties]
+    type_filters: list[MirrorVariant]
+
+
+@dataclass(frozen=True)
 class T_kind__Card(TypedMirrorNode):
     _tag: ClassVar[str | None] = "Card"
+
+
+@dataclass(frozen=True)
+class T_kind__ExtraTurn(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "ExtraTurn"
 
 
 @dataclass(frozen=True)
@@ -863,25 +879,6 @@ class T_kind__TappedFish(TypedMirrorNode):
 @dataclass(frozen=True)
 class T_kind__Treasure(TypedMirrorNode):
     _tag: ClassVar[str | None] = "Treasure"
-
-
-@dataclass(frozen=True)
-class T_land_filter__HasChosenName(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "HasChosenName"
-
-
-@dataclass(frozen=True)
-class T_land_filter__Typed(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "Typed"
-    controller: str
-    properties: list[U_properties]
-    type_filters: list[MirrorVariant]
-
-
-@dataclass(frozen=True)
-class T_left__Ref(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "Ref"
-    qty: U_qty
 
 
 # --- discriminated-union aliases (one per tagged content_key) ---
@@ -903,7 +900,9 @@ type U_exclude = (
     | T_exclude__ParentObjectTargetController
     | T_exclude__TriggeringPlayer
 )
-type U_expiry = T_expiry__EndOfTurn | T_expiry__UntilHostLeavesPlay
+type U_expiry = (
+    T_expiry__EndOfCombat | T_expiry__EndOfTurn | T_expiry__UntilHostLeavesPlay
+)
 type U_exponent = T_exponent__Ref
 type U_exprs = T_exprs__Fixed | T_exprs__Multiply | T_exprs__Ref
 type U_extra_source = T_extra_source__Typed
@@ -933,6 +932,7 @@ type U_filter = (
     | T_filter__PlayerAttribute
     | T_filter__SelfRef
     | T_filter__TrackedSet
+    | T_filter__TrackedSetFiltered
     | T_filter__TrackedSetPossessor
     | T_filter__Typed
 )
@@ -958,7 +958,7 @@ type U_filters = (
     | T_filters__TriggeringSource
     | T_filters__Typed
 )
-type U_flipper = T_flipper__Any | T_flipper__TriggeringPlayer
+type U_flipper = T_flipper__TriggeringPlayer
 type U_forced_to = T_forced_to__ParentTarget | T_forced_to__SelfRef
 type U_grantee = T_grantee__ObjectOwner | T_grantee__ParentTargetController
 type U_grants = (
@@ -967,7 +967,8 @@ type U_grants = (
 type U_graveyard_replacement = T_graveyard_replacement__Exile
 type U_host = T_host__TriggeringSource | T_host__Typed
 type U_inner = (
-    T_inner__And
+    T_inner__AdditionalCostPaid
+    | T_inner__And
     | T_inner__CastDuringPhase
     | T_inner__CastVariantPaid
     | T_inner__ClampMin
@@ -996,9 +997,15 @@ type U_inner = (
 )
 type U_invalidation = T_invalidation__UntilNextGrantFromSameSource
 type U_iteration_kind_binding = T_iteration_kind_binding__RebindToIteratedKind
+type U_journal = T_journal__SpellsCast
 type U_keep_count_expr = T_keep_count_expr__Ref
 type U_keep_on_top = T_keep_on_top__Fixed
 type U_keeper_constraint = T_keeper_constraint__exact_count
-type U_kind = T_kind__Card | T_kind__Food | T_kind__TappedFish | T_kind__Treasure
-type U_land_filter = T_land_filter__HasChosenName | T_land_filter__Typed
-type U_left = T_left__Ref
+type U_kept_destination_if = T_kept_destination_if__Typed
+type U_kind = (
+    T_kind__Card
+    | T_kind__ExtraTurn
+    | T_kind__Food
+    | T_kind__TappedFish
+    | T_kind__Treasure
+)

@@ -33,17 +33,15 @@ if TYPE_CHECKING:
     from mtg_utils._card_ir.mirror.generated.g08_else_ability import (
         U_filter,
     )
-    from mtg_utils._card_ir.mirror.generated.g09_lhs import (
+    from mtg_utils._card_ir.mirror.generated.g10_owner import (
         U_parity,
-    )
-    from mtg_utils._card_ir.mirror.generated.g10_parse_warnings import (
         U_player,
         U_prop,
     )
-    from mtg_utils._card_ir.mirror.generated.g12_qty import (
+    from mtg_utils._card_ir.mirror.generated.g13_reference import (
         U_reference,
     )
-    from mtg_utils._card_ir.mirror.generated.g14_subtype_filter import (
+    from mtg_utils._card_ir.mirror.generated.g14_sub_ability import (
         U_target,
         U_value,
     )
@@ -471,6 +469,11 @@ class T_properties__SameName(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class T_properties__SameNameAsExiledBySource(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "SameNameAsExiledBySource"
+
+
+@dataclass(frozen=True)
 class T_properties__SameNameAsParentTarget(TypedMirrorNode):
     _tag: ClassVar[str | None] = "SameNameAsParentTarget"
 
@@ -689,6 +692,7 @@ type U_properties = (
     | T_properties__RepresentedByCard
     | T_properties__SaddledSource
     | T_properties__SameName
+    | T_properties__SameNameAsExiledBySource
     | T_properties__SameNameAsParentTarget
     | T_properties__SharesCreatureTypeWithCommander
     | T_properties__SharesQuality

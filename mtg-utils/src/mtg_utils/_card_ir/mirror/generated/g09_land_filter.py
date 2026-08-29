@@ -4,8 +4,8 @@ Codegen'd from ``tests/fixtures/phase_mirror_schema.json`` by
 ``mtg_utils._card_ir.mirror.codegen`` (run via ``build-card-ir-substrate``).
 
 Part of the generated typed-mirror package (see this directory's
-``__init__.py``). This module holds content keys ``lhs`` .. ``parity`` (38
-keys).
+``__init__.py``). This module holds content keys ``land_filter`` ..
+``outcome_template`` (41 keys).
 
 Class naming: ``S_<ckey>`` for a struct shape, ``T_<ckey>__<tag>`` for a tagged
 shape, ``U_<ckey>`` for the union of all tagged shapes at one content_key.
@@ -51,9 +51,8 @@ if TYPE_CHECKING:
         U_exprs,
         U_filters,
         U_inner,
-        U_left,
     )
-    from mtg_utils._card_ir.mirror.generated.g10_parse_warnings import (
+    from mtg_utils._card_ir.mirror.generated.g10_owner import (
         U_player_scope,
     )
     from mtg_utils._card_ir.mirror.generated.g11_properties import (
@@ -62,16 +61,16 @@ if TYPE_CHECKING:
     from mtg_utils._card_ir.mirror.generated.g12_qty import (
         U_qty,
     )
-    from mtg_utils._card_ir.mirror.generated.g13_repeat_for import (
+    from mtg_utils._card_ir.mirror.generated.g13_reference import (
         S_replacement,
-        S_sub_ability,
         U_repeat_for,
         U_right,
         U_selection,
         U_source,
         U_source_filter,
     )
-    from mtg_utils._card_ir.mirror.generated.g14_subtype_filter import (
+    from mtg_utils._card_ir.mirror.generated.g14_sub_ability import (
+        S_sub_ability,
         S_trigger,
         S_unless_pay,
         U_target_constraints,
@@ -82,6 +81,25 @@ if TYPE_CHECKING:
 
 
 # --- struct shapes (untagged records, one per content_key) ---
+
+
+@dataclass(frozen=True)
+class S_legalities(TypedMirrorNode):
+    brawl: str = MISSING
+    commander: str = MISSING
+    duel: str = MISSING
+    historic: str = MISSING
+    legacy: str = MISSING
+    modern: str = MISSING
+    oathbreaker: str = MISSING
+    pauper: str = MISSING
+    paupercommander: str = MISSING
+    pioneer: str = MISSING
+    premodern: str = MISSING
+    standard: str = MISSING
+    standardbrawl: str = MISSING
+    timeless: str = MISSING
+    vintage: str = MISSING
 
 
 @dataclass(frozen=True)
@@ -218,6 +236,25 @@ class S_outcome_template(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class T_land_filter__HasChosenName(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "HasChosenName"
+
+
+@dataclass(frozen=True)
+class T_land_filter__Typed(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "Typed"
+    controller: str
+    properties: list[U_properties]
+    type_filters: list[MirrorVariant]
+
+
+@dataclass(frozen=True)
+class T_left__Ref(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "Ref"
+    qty: U_qty
+
+
+@dataclass(frozen=True)
 class T_lhs__Difference(TypedMirrorNode):
     _tag: ClassVar[str | None] = "Difference"
     left: U_left
@@ -267,6 +304,11 @@ class T_library_position__Top(TypedMirrorNode):
 class T_life_payment__Fixed(TypedMirrorNode):
     _tag: ClassVar[str | None] = "Fixed"
     value: int
+
+
+@dataclass(frozen=True)
+class T_mana_ability_produced__SourceChosenColor(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "SourceChosenColor"
 
 
 @dataclass(frozen=True)
@@ -660,12 +702,6 @@ class T_modifications__SetDynamicToughness(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
-class T_modifications__SetName(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "SetName"
-    name: str
-
-
-@dataclass(frozen=True)
 class T_modifications__SetPower(TypedMirrorNode):
     _tag: ClassVar[str | None] = "SetPower"
     value: int
@@ -779,6 +815,11 @@ class T_op__Unlock(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class T_optional_player__TriggeringPlayer(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "TriggeringPlayer"
+
+
+@dataclass(frozen=True)
 class T_origin__Equals(TypedMirrorNode):
     _tag: ClassVar[str | None] = "Equals"
     data: str
@@ -802,71 +843,10 @@ class T_origin_constraint__Equals(TypedMirrorNode):
     data: str
 
 
-@dataclass(frozen=True)
-class T_owner__Any(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "Any"
-
-
-@dataclass(frozen=True)
-class T_owner__Controller(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "Controller"
-
-
-@dataclass(frozen=True)
-class T_owner__OriginalController(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "OriginalController"
-
-
-@dataclass(frozen=True)
-class T_owner__ParentTarget(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "ParentTarget"
-
-
-@dataclass(frozen=True)
-class T_owner__ParentTargetController(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "ParentTargetController"
-
-
-@dataclass(frozen=True)
-class T_owner__ParentTargetOwner(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "ParentTargetOwner"
-
-
-@dataclass(frozen=True)
-class T_owner__Player(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "Player"
-
-
-@dataclass(frozen=True)
-class T_owner__ScopedPlayer(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "ScopedPlayer"
-
-
-@dataclass(frozen=True)
-class T_owner__TriggeringPlayer(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "TriggeringPlayer"
-
-
-@dataclass(frozen=True)
-class T_owner__TriggeringSource(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "TriggeringSource"
-
-
-@dataclass(frozen=True)
-class T_owner__Typed(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "Typed"
-    controller: str | MirrorVariant | None
-    properties: list[U_properties]
-    type_filters: list[MirrorVariant]
-
-
-@dataclass(frozen=True)
-class T_parity__LastNamedChoice(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "LastNamedChoice"
-
-
 # --- discriminated-union aliases (one per tagged content_key) ---
 
+type U_land_filter = T_land_filter__HasChosenName | T_land_filter__Typed
+type U_left = T_left__Ref
 type U_lhs = T_lhs__Difference | T_lhs__Fixed | T_lhs__Ref | T_lhs__Sum
 type U_library_players = T_library_players__All
 type U_library_position = (
@@ -875,6 +855,7 @@ type U_library_position = (
     | T_library_position__Top
 )
 type U_life_payment = T_life_payment__Fixed
+type U_mana_ability_produced = T_mana_ability_produced__SourceChosenColor
 type U_mana_cost = T_mana_cost__Cost | T_mana_cost__NoCost
 type U_mana_modification = (
     T_mana_modification__Multiply | T_mana_modification__ReplaceWith
@@ -939,7 +920,6 @@ type U_modifications = (
     | T_modifications__SetColor
     | T_modifications__SetDynamicPower
     | T_modifications__SetDynamicToughness
-    | T_modifications__SetName
     | T_modifications__SetPower
     | T_modifications__SetPowerDynamic
     | T_modifications__SetTextName
@@ -960,19 +940,6 @@ type U_object_source = T_object_source__ParentTarget | T_object_source__TrackedS
 type U_once_per_turn = T_once_per_turn__OnlyOnceEachTurn
 type U_only_tag = T_only_tag__PowerUp
 type U_op = T_op__LockOrUnlock | T_op__Unlock
+type U_optional_player = T_optional_player__TriggeringPlayer
 type U_origin = T_origin__Equals | T_origin__NotEquals | T_origin__OneOf
 type U_origin_constraint = T_origin_constraint__Equals
-type U_owner = (
-    T_owner__Any
-    | T_owner__Controller
-    | T_owner__OriginalController
-    | T_owner__ParentTarget
-    | T_owner__ParentTargetController
-    | T_owner__ParentTargetOwner
-    | T_owner__Player
-    | T_owner__ScopedPlayer
-    | T_owner__TriggeringPlayer
-    | T_owner__TriggeringSource
-    | T_owner__Typed
-)
-type U_parity = T_parity__LastNamedChoice

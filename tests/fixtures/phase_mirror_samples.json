@@ -1,5 +1,5 @@
 {
-  "phase_tag": "v0.45.0",
+  "phase_tag": "v0.66.0",
   "schema_version": 1,
   "cards": {
     "\"Ach! Hans, Run!\"": {
@@ -463,175 +463,124 @@
         "rare"
       ]
     },
-    "\"Name Sticker\" Goblin": {
-      "name": "\"Name Sticker\" Goblin",
+    "\"Rumors of My Death . . .\"": {
+      "name": "\"Rumors of My Death . . .\"",
       "mana_cost": {
         "type": "Cost",
         "shards": [
-          "Red"
+          "Black"
         ],
         "generic": 2
       },
       "card_type": {
         "supertypes": [],
         "core_types": [
-          "Creature"
+          "Enchantment"
         ],
-        "subtypes": [
-          "Goblin",
-          "Guest"
-        ]
+        "subtypes": []
       },
-      "power": {
-        "type": "Fixed",
-        "value": 2
-      },
-      "toughness": {
-        "type": "Fixed",
-        "value": 2
-      },
+      "power": null,
+      "toughness": null,
       "loyalty": null,
       "defense": null,
-      "oracle_text": "When this creature enters from anywhere other than a graveyard or exile, if it's on the battlefield and you control 9 or fewer creatures named \"Name Sticker\" Goblin, roll a 20-sided die.\n1-6 | Add {R}{R}{R}{R}.\n7-14 | Add {R}{R}{R}{R}{R}.\n15-20 | Add {R}{R}{R}{R}{R}{R}.",
+      "oracle_text": "{3}{B}, Exile a permanent you control with a League of Dastardly Doom watermark: Return a permanent card with a League of Dastardly Doom watermark from your graveyard to the battlefield.",
       "non_ability_text": null,
       "flavor_name": null,
       "keywords": [],
       "abilities": [
         {
-          "kind": "Spell",
+          "kind": "Activated",
           "effect": {
-            "type": "Unimplemented",
-            "name": "unknown",
-            "description": "1-6 | Add {R}{R}{R}{R}."
-          },
-          "cost": null,
-          "sub_ability": null,
-          "duration": null,
-          "description": "1-6 | Add {R}{R}{R}{R}.",
-          "target_prompt": null,
-          "condition": null,
-          "optional_targeting": false,
-          "optional": false,
-          "forward_result": false
-        },
-        {
-          "kind": "Spell",
-          "effect": {
-            "type": "Unimplemented",
-            "name": "unknown",
-            "description": "7-14 | Add {R}{R}{R}{R}{R}."
-          },
-          "cost": null,
-          "sub_ability": null,
-          "duration": null,
-          "description": "7-14 | Add {R}{R}{R}{R}{R}.",
-          "target_prompt": null,
-          "condition": null,
-          "optional_targeting": false,
-          "optional": false,
-          "forward_result": false
-        },
-        {
-          "kind": "Spell",
-          "effect": {
-            "type": "Unimplemented",
-            "name": "unknown",
-            "description": "15-20 | Add {R}{R}{R}{R}{R}{R}."
-          },
-          "cost": null,
-          "sub_ability": null,
-          "duration": null,
-          "description": "15-20 | Add {R}{R}{R}{R}{R}{R}.",
-          "target_prompt": null,
-          "condition": null,
-          "optional_targeting": false,
-          "optional": false,
-          "forward_result": false
-        }
-      ],
-      "triggers": [
-        {
-          "mode": "ChangesZone",
-          "execute": {
-            "kind": "Spell",
-            "effect": {
-              "type": "RollDie",
-              "count": {
-                "type": "Fixed",
-                "value": 1
-              },
-              "sides": 20,
-              "results": []
+            "type": "ChangeZone",
+            "origin": "Graveyard",
+            "destination": "Battlefield",
+            "target": {
+              "type": "Typed",
+              "type_filters": [
+                "Permanent"
+              ],
+              "controller": null,
+              "properties": [
+                {
+                  "type": "InZone",
+                  "zone": "Graveyard"
+                },
+                {
+                  "type": "Owned",
+                  "controller": "You"
+                }
+              ]
             },
-            "cost": null,
-            "sub_ability": null,
-            "duration": null,
-            "description": null,
-            "target_prompt": null,
-            "condition": null,
-            "optional_targeting": false,
-            "optional": false,
-            "forward_result": false
+            "owner_library": false,
+            "enter_transformed": false,
+            "enter_tapped": false,
+            "enters_attacking": false
           },
-          "valid_card": null,
-          "origin": null,
-          "zone_change_clauses": [
-            {
-              "origin": {
-                "type": "OneOf",
-                "data": [
-                  "Library",
-                  "Hand",
-                  "Battlefield",
-                  "Stack",
-                  "Command"
-                ]
+          "cost": {
+            "type": "Composite",
+            "costs": [
+              {
+                "type": "Mana",
+                "cost": {
+                  "type": "Cost",
+                  "shards": [
+                    "Black"
+                  ],
+                  "generic": 3
+                }
               },
-              "destination": "Battlefield",
-              "valid_card": {
-                "type": "SelfRef"
+              {
+                "type": "EffectCost",
+                "effect": {
+                  "type": "ChangeZone",
+                  "origin": null,
+                  "destination": "Exile",
+                  "target": {
+                    "type": "Typed",
+                    "type_filters": [
+                      "Permanent"
+                    ],
+                    "controller": "You",
+                    "properties": []
+                  },
+                  "owner_library": false,
+                  "enter_transformed": false,
+                  "enter_tapped": false,
+                  "enters_attacking": false
+                }
               }
-            }
-          ],
-          "destination": null,
-          "trigger_zones": [
-            "Battlefield"
-          ],
-          "phase": null,
-          "optional": false,
-          "damage_kind": "Any",
-          "secondary": false,
-          "valid_target": null,
-          "valid_source": null,
-          "description": "When ~ enters from anywhere other than a graveyard or exile, if it's on the battlefield and you control 9 or fewer creatures named \"Name Sticker\" Goblin, roll a 20-sided die.",
-          "constraint": null,
+            ]
+          },
+          "sub_ability": null,
+          "duration": null,
+          "description": "{3}{B}, Exile a permanent you control with a League of Dastardly Doom watermark: Return a permanent card with a League of Dastardly Doom watermark from your graveyard to the battlefield.",
+          "target_prompt": null,
           "condition": null,
-          "batched": false
+          "optional_targeting": false,
+          "optional": false,
+          "target_choice_timing": "Resolution",
+          "forward_result": false
         }
       ],
+      "triggers": [],
       "static_abilities": [],
       "replacements": [],
       "color_override": null,
       "color_identity": [
-        "Red"
+        "Black"
       ],
-      "scryfall_oracle_id": "acee1d16-1651-4e2c-8138-cc6456c4ee71",
+      "scryfall_oracle_id": "38bcba8b-2838-4ac8-9976-f9ccaa94fdba",
       "metadata": {
         "source_printing_ids": [
-          "fd1442b4-da59-4042-835f-143c8dcaa73b"
+          "cb3587b9-e727-4f37-b4d6-1baa7316262f"
         ]
       },
-      "legalities": {
-        "commander": "legal",
-        "legacy": "banned",
-        "pauper": "banned",
-        "vintage": "banned"
-      },
+      "legalities": {},
       "printings": [
-        "UNF"
+        "UST"
       ],
       "rarities": [
-        "common"
+        "uncommon"
       ]
     },
     "17-Year Cicadas": {
@@ -1240,7 +1189,8 @@
             },
             "rest_destination": "Library",
             "reveal": false,
-            "enter_tapped": false
+            "enter_tapped": false,
+            "enters_attacking": false
           },
           "cost": null,
           "sub_ability": null,
@@ -1977,7 +1927,8 @@
             },
             "rest_destination": null,
             "reveal": true,
-            "enter_tapped": false
+            "enter_tapped": false,
+            "enters_attacking": false
           },
           "cost": {
             "type": "Loyalty",

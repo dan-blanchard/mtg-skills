@@ -47,9 +47,11 @@ if TYPE_CHECKING:
         U_filters,
         U_inner,
         U_iteration_kind_binding,
+    )
+    from mtg_utils._card_ir.mirror.generated.g09_land_filter import (
         U_left,
     )
-    from mtg_utils._card_ir.mirror.generated.g10_parse_warnings import (
+    from mtg_utils._card_ir.mirror.generated.g10_owner import (
         U_player,
         U_player_scope,
     )
@@ -59,12 +61,12 @@ if TYPE_CHECKING:
     from mtg_utils._card_ir.mirror.generated.g12_qty import (
         U_qty,
     )
-    from mtg_utils._card_ir.mirror.generated.g13_repeat_for import (
+    from mtg_utils._card_ir.mirror.generated.g13_reference import (
         S_static_abilities,
-        S_sub_ability,
         U_right,
     )
-    from mtg_utils._card_ir.mirror.generated.g14_subtype_filter import (
+    from mtg_utils._card_ir.mirror.generated.g14_sub_ability import (
+        S_sub_ability,
         S_trigger,
         U_target,
         U_value,
@@ -416,6 +418,11 @@ class T_affected_players__ScopedPlayer(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class T_affected_players__SourceController(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "SourceController"
+
+
+@dataclass(frozen=True)
 class T_affected_players__TargetedPlayer(TypedMirrorNode):
     _tag: ClassVar[str | None] = "TargetedPlayer"
 
@@ -646,6 +653,12 @@ class T_attr__LifeTotal(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class T_attr__PlayerChosenNumber(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "PlayerChosenNumber"
+    player: U_player
+
+
+@dataclass(frozen=True)
 class T_attr__PlayerCounter(TypedMirrorNode):
     _tag: ClassVar[str | None] = "PlayerCounter"
     kind: str
@@ -659,6 +672,12 @@ class T_base__Discard(TypedMirrorNode):
     filter: None
     random: bool
     self_ref: bool
+
+
+@dataclass(frozen=True)
+class T_base__EffectCost(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "EffectCost"
+    effect: U_effect
 
 
 @dataclass(frozen=True)
@@ -898,6 +917,7 @@ type U_affected_players = (
     | T_affected_players__ParentObjectTargetController
     | T_affected_players__ParentTargetedPlayer
     | T_affected_players__ScopedPlayer
+    | T_affected_players__SourceController
     | T_affected_players__TargetedPlayer
 )
 type U_alt_ability_cost = (
@@ -941,10 +961,12 @@ type U_attr = (
     | T_attr__HandSize
     | T_attr__LifeLostThisTurn
     | T_attr__LifeTotal
+    | T_attr__PlayerChosenNumber
     | T_attr__PlayerCounter
 )
 type U_base = (
     T_base__Discard
+    | T_base__EffectCost
     | T_base__Exile
     | T_base__Mana
     | T_base__OneOf

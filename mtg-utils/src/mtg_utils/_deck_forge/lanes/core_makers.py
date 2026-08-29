@@ -1925,11 +1925,13 @@ def _direct_damage(tree: ConceptTree) -> list[Signal]:
     (``bridge_ledger.py``, all sharing :func:`~mtg_utils._deck_forge.
     bridge_ledger._no_player_reaching_damage_node`) close most of the rest
     — a compound "creature + that creature's controller" dropped-clause
-    template (Judgment Bolt / Liquid Fire / Synchronized Spellcraft), nine
+    template (Judgment Bolt / Liquid Fire / Synchronized Spellcraft), eight
     further singleton dropped-clause/upstream-parse-failure shapes (Vexing
-    Arcanix, Curse of Shaken Faith, Flames of the Blood Hand, Valakut
-    Exploration, Avatar Aang, Insult // Injury, Karn Living Legacy, Captain
-    Rex Nebula, Ellie Vengeful Hunter), and a kicker-mode ParentTarget-reuse
+    Arcanix, Curse of Shaken Faith, Flames of the Blood Hand, Avatar Aang,
+    Insult // Injury, Karn Living Legacy, Captain Rex Nebula, Ellie Vengeful
+    Hunter; Valakut Exploration's row RETIRED at the v0.66.0 pin bump —
+    upstream #7047 restored the trailing damage clause), and a kicker-mode
+    ParentTarget-reuse
     pair (Goblin Barrage / Unstable Footing). See each bridge row for its
     own corpus census; every remaining shed class stays pinned from W4/W6
     (creature/battle-only, bare-self-damage, damage doubler/matters/
@@ -1983,7 +1985,11 @@ def _direct_damage(tree: ConceptTree) -> list[Signal]:
         "vexing_arcanix_reveal_misread_damage_drop",
         "curse_shaken_faith_enchant_player_them",
         "flames_blood_hand_headline_clause_drop",
-        "valakut_exploration_trailing_clause_drop",
+        # valakut_exploration_trailing_clause_drop RETIRED at the v0.66.0
+        # pin bump — phase-rs/phase#7047 (v0.48.0) landed the trailing
+        # "then ~ deals that much damage to each opponent" clause as a
+        # SequentialSibling-chained ``DamageEachPlayer``, read structurally
+        # by :func:`has_nested_damage_reaching_player` above.
         "avatar_aang_conjunction_tail_drop",
         "insult_injury_aftermath_face_unparsed",
         "karn_living_legacy_emblem_tap_cost_damage",
@@ -1991,6 +1997,10 @@ def _direct_damage(tree: ConceptTree) -> list[Signal]:
         "ellie_vengeful_hunter_damage_half_dropped",
         "kaboom_trailing_clause_drop",
         "kicker_ptplayer_modal_new_target",
+        # v0.66.0 pin bump — a planeswalker emblem's "this emblem deals N
+        # damage to any target" self-referenced source regressed upstream
+        # to an unbound_subject residue (CR 114.1 / 115.4).
+        "emblem_self_reference_damage_unbound_subject",
     ):
         if bridge_fires(bridge_id, tree):
             return [Signal("direct_damage", "you", "", "", tree.name, "high")]

@@ -5,7 +5,7 @@ Codegen'd from ``tests/fixtures/phase_mirror_schema.json`` by
 
 Part of the generated typed-mirror package (see this directory's
 ``__init__.py``). This module holds content keys ``count`` ..
-``dynamic_max_choices`` (21 keys).
+``dynamic_max_choices`` (23 keys).
 
 Class naming: ``S_<ckey>`` for a struct shape, ``T_<ckey>__<tag>`` for a tagged
 shape, ``U_<ckey>`` for the union of all tagged shapes at one content_key.
@@ -23,7 +23,7 @@ from mtg_utils._card_ir.mirror.runtime import (
 )
 
 if TYPE_CHECKING:
-    from mtg_utils._card_ir.mirror.generated.g02_mutate import (
+    from mtg_utils._card_ir.mirror.generated.g02_morph import (
         U_ability_tag,
         U_activation_restrictions,
     )
@@ -50,15 +50,15 @@ if TYPE_CHECKING:
         U_filter,
         U_filters,
         U_inner,
-        U_left,
     )
-    from mtg_utils._card_ir.mirror.generated.g09_lhs import (
+    from mtg_utils._card_ir.mirror.generated.g09_land_filter import (
         S_multi_target,
         S_outcome_template,
+        U_left,
         U_max,
         U_modifications,
     )
-    from mtg_utils._card_ir.mirror.generated.g10_parse_warnings import (
+    from mtg_utils._card_ir.mirror.generated.g10_owner import (
         U_player,
         U_player_scope,
         U_position,
@@ -69,14 +69,15 @@ if TYPE_CHECKING:
     from mtg_utils._card_ir.mirror.generated.g12_qty import (
         U_qty,
     )
-    from mtg_utils._card_ir.mirror.generated.g13_repeat_for import (
+    from mtg_utils._card_ir.mirror.generated.g13_reference import (
         S_requirement,
-        S_sub_ability,
+        U_relation,
         U_right,
         U_scope,
         U_source,
     )
-    from mtg_utils._card_ir.mirror.generated.g14_subtype_filter import (
+    from mtg_utils._card_ir.mirror.generated.g14_sub_ability import (
+        S_sub_ability,
         S_unless_pay,
         U_target,
         U_value,
@@ -93,6 +94,13 @@ class S_counter_filter(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class S_damage_amount(TypedMirrorNode):
+    comparator: str
+    scope: str
+    threshold: int
+
+
+@dataclass(frozen=True)
 class S_data(TypedMirrorNode):
     candidate_filter: U_candidate_filter = MISSING
     comparator: str = MISSING
@@ -100,6 +108,7 @@ class S_data(TypedMirrorNode):
     cost: U_cost = MISSING
     costs: list[U_costs] = MISSING
     count: int = MISSING
+    counter_kind: str = MISSING
     counters: U_counters = MISSING
     filter: U_filter = MISSING
     max_iterations: int = MISSING
@@ -457,6 +466,12 @@ class T_data__OneOf(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class T_data__Or(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "Or"
+    filters: list[U_filters]
+
+
+@dataclass(frozen=True)
 class T_data__ParentTarget(TypedMirrorNode):
     _tag: ClassVar[str | None] = "ParentTarget"
 
@@ -507,6 +522,14 @@ class T_data__TriggeringSource(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class T_data__Typed(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "Typed"
+    controller: str
+    properties: list[U_properties]
+    type_filters: list[MirrorVariant]
+
+
+@dataclass(frozen=True)
 class T_data__Unimplemented(TypedMirrorNode):
     _tag: ClassVar[str | None] = "Unimplemented"
     description: str
@@ -527,6 +550,12 @@ class T_deck_copy_limit__Unlimited(TypedMirrorNode):
 class T_deck_copy_limit__UpTo(TypedMirrorNode):
     _tag: ClassVar[str | None] = "UpTo"
     data: int
+
+
+@dataclass(frozen=True)
+class T_defender__Matching(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "Matching"
+    filter: U_filter
 
 
 @dataclass(frozen=True)
@@ -602,14 +631,6 @@ class T_duplicate_of__Typed(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
-class T_dynamic_count__Aggregate(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "Aggregate"
-    filter: U_filter
-    function: str
-    property: str
-
-
-@dataclass(frozen=True)
 class T_dynamic_count__AttackedThisTurn(TypedMirrorNode):
     _tag: ClassVar[str | None] = "AttackedThisTurn"
     scope: str
@@ -631,6 +652,14 @@ class T_dynamic_count__CardsDiscardedThisTurn(TypedMirrorNode):
 class T_dynamic_count__CardsDrawnThisTurn(TypedMirrorNode):
     _tag: ClassVar[str | None] = "CardsDrawnThisTurn"
     player: U_player
+
+
+@dataclass(frozen=True)
+class T_dynamic_count__ControlledByEachPlayer(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "ControlledByEachPlayer"
+    aggregate: str
+    filter: U_filter
+    relation: U_relation
 
 
 @dataclass(frozen=True)
@@ -661,9 +690,9 @@ class T_dynamic_count__DistinctCardTypes(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
-class T_dynamic_count__DistinctColorsAmongPermanents(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "DistinctColorsAmongPermanents"
-    filter: U_filter
+class T_dynamic_count__DistinctColorsAmong(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "DistinctColorsAmong"
+    source: U_source
 
 
 @dataclass(frozen=True)
@@ -726,6 +755,14 @@ class T_dynamic_count__Power(TypedMirrorNode):
 @dataclass(frozen=True)
 class T_dynamic_count__PreviousEffectAmount(TypedMirrorNode):
     _tag: ClassVar[str | None] = "PreviousEffectAmount"
+
+
+@dataclass(frozen=True)
+class T_dynamic_count__PropertyAggregate(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "PropertyAggregate"
+    function: str
+    property: str
+    source: U_source
 
 
 @dataclass(frozen=True)
@@ -825,6 +862,7 @@ type U_data = (
     | T_data__Exile
     | T_data__Mana
     | T_data__OneOf
+    | T_data__Or
     | T_data__ParentTarget
     | T_data__PayLife
     | T_data__ReturnToHand
@@ -833,10 +871,12 @@ type U_data = (
     | T_data__SelfManaCost
     | T_data__TapCreatures
     | T_data__TriggeringSource
+    | T_data__Typed
     | T_data__Unimplemented
     | T_data__Waterbend
 )
 type U_deck_copy_limit = T_deck_copy_limit__Unlimited | T_deck_copy_limit__UpTo
+type U_defender = T_defender__Matching
 type U_depth = T_depth__Ref
 type U_destination = T_destination__AnyDefender
 type U_destination_constraint = T_destination_constraint__NotEquals
@@ -851,16 +891,16 @@ type U_duplicate_of = (
     | T_duplicate_of__Typed
 )
 type U_dynamic_count = (
-    T_dynamic_count__Aggregate
-    | T_dynamic_count__AttackedThisTurn
+    T_dynamic_count__AttackedThisTurn
     | T_dynamic_count__BasicLandTypeCount
     | T_dynamic_count__CardsDiscardedThisTurn
     | T_dynamic_count__CardsDrawnThisTurn
+    | T_dynamic_count__ControlledByEachPlayer
     | T_dynamic_count__CountersOn
     | T_dynamic_count__DamageDealtThisTurn
     | T_dynamic_count__Devotion
     | T_dynamic_count__DistinctCardTypes
-    | T_dynamic_count__DistinctColorsAmongPermanents
+    | T_dynamic_count__DistinctColorsAmong
     | T_dynamic_count__FilteredTrackedSetSize
     | T_dynamic_count__LifeGainedThisTurn
     | T_dynamic_count__LifeLostThisTurn
@@ -871,6 +911,7 @@ type U_dynamic_count = (
     | T_dynamic_count__PlayerCounter
     | T_dynamic_count__Power
     | T_dynamic_count__PreviousEffectAmount
+    | T_dynamic_count__PropertyAggregate
     | T_dynamic_count__Speed
     | T_dynamic_count__SpellsCastThisTurn
     | T_dynamic_count__TrackedSetSize

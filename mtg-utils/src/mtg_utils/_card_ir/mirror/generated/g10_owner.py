@@ -4,8 +4,8 @@ Codegen'd from ``tests/fixtures/phase_mirror_schema.json`` by
 ``mtg_utils._card_ir.mirror.codegen`` (run via ``build-card-ir-substrate``).
 
 Part of the generated typed-mirror package (see this directory's
-``__init__.py``). This module holds content keys ``parse_warnings`` .. ``prop``
-(18 keys).
+``__init__.py``). This module holds content keys ``owner`` .. ``prop`` (21
+keys).
 
 Class naming: ``S_<ckey>`` for a struct shape, ``T_<ckey>__<tag>`` for a tagged
 shape, ``U_<ckey>`` for the union of all tagged shapes at one content_key.
@@ -45,26 +45,24 @@ if TYPE_CHECKING:
         U_exclude,
         U_filter,
         U_invalidation,
-        U_land_filter,
     )
-    from mtg_utils._card_ir.mirror.generated.g09_lhs import (
+    from mtg_utils._card_ir.mirror.generated.g09_land_filter import (
         S_multi_target,
+        U_land_filter,
         U_lhs,
     )
     from mtg_utils._card_ir.mirror.generated.g11_properties import (
         U_properties,
     )
-    from mtg_utils._card_ir.mirror.generated.g12_qty import (
+    from mtg_utils._card_ir.mirror.generated.g13_reference import (
         U_reference,
         U_relation,
-    )
-    from mtg_utils._card_ir.mirror.generated.g13_repeat_for import (
-        S_sub_ability,
         U_rhs,
         U_scope,
         U_source,
     )
-    from mtg_utils._card_ir.mirror.generated.g14_subtype_filter import (
+    from mtg_utils._card_ir.mirror.generated.g14_sub_ability import (
+        S_sub_ability,
         S_unit_span,
         U_value,
     )
@@ -93,13 +91,77 @@ class S_per_choice_effect(TypedMirrorNode):
 
 @dataclass(frozen=True)
 class S_profile(TypedMirrorNode):
+    cause: str
+    power: int
+    subtypes: list[object]
+    toughness: int
     extra_core_types: list[object] = MISSING
-    power: int = MISSING
-    subtypes: list[object] = MISSING
-    toughness: int = MISSING
 
 
 # --- tagged shapes (discriminated enum nodes) ---
+
+
+@dataclass(frozen=True)
+class T_owner__AttachedTo(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "AttachedTo"
+
+
+@dataclass(frozen=True)
+class T_owner__Controller(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "Controller"
+
+
+@dataclass(frozen=True)
+class T_owner__OriginalController(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "OriginalController"
+
+
+@dataclass(frozen=True)
+class T_owner__ParentTarget(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "ParentTarget"
+
+
+@dataclass(frozen=True)
+class T_owner__ParentTargetController(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "ParentTargetController"
+
+
+@dataclass(frozen=True)
+class T_owner__ParentTargetOwner(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "ParentTargetOwner"
+
+
+@dataclass(frozen=True)
+class T_owner__Player(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "Player"
+
+
+@dataclass(frozen=True)
+class T_owner__ScopedPlayer(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "ScopedPlayer"
+
+
+@dataclass(frozen=True)
+class T_owner__TriggeringPlayer(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "TriggeringPlayer"
+
+
+@dataclass(frozen=True)
+class T_owner__TriggeringSource(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "TriggeringSource"
+
+
+@dataclass(frozen=True)
+class T_owner__Typed(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "Typed"
+    controller: str | MirrorVariant | None
+    properties: list[U_properties]
+    type_filters: list[MirrorVariant]
+
+
+@dataclass(frozen=True)
+class T_parity__LastNamedChoice(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "LastNamedChoice"
 
 
 @dataclass(frozen=True)
@@ -294,6 +356,15 @@ class T_player__Controller(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class T_player__ControlsCount(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "ControlsCount"
+    comparator: str
+    count: U_count
+    filter: U_filter
+    relation: U_relation
+
+
+@dataclass(frozen=True)
 class T_player__DefendingPlayer(TypedMirrorNode):
     _tag: ClassVar[str | None] = "DefendingPlayer"
 
@@ -335,6 +406,15 @@ class T_player__ParentTargetOwner(TypedMirrorNode):
 @dataclass(frozen=True)
 class T_player__Player(TypedMirrorNode):
     _tag: ClassVar[str | None] = "Player"
+
+
+@dataclass(frozen=True)
+class T_player__PlayerAttribute(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "PlayerAttribute"
+    attr: U_attr
+    comparator: str
+    relation: U_relation
+    value: U_value
 
 
 @dataclass(frozen=True)
@@ -411,6 +491,15 @@ class T_player_filter__Opponent(TypedMirrorNode):
 @dataclass(frozen=True)
 class T_player_filter__OpponentOtherThanTriggering(TypedMirrorNode):
     _tag: ClassVar[str | None] = "OpponentOtherThanTriggering"
+
+
+@dataclass(frozen=True)
+class T_player_filter__PlayerAttribute(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "PlayerAttribute"
+    attr: U_attr
+    comparator: str
+    relation: U_relation
+    value: U_value
 
 
 @dataclass(frozen=True)
@@ -506,6 +595,16 @@ class T_player_scope__TriggeringPlayer(TypedMirrorNode):
 class T_player_scope__VotedFor(TypedMirrorNode):
     _tag: ClassVar[str | None] = "VotedFor"
     choice_index: int
+
+
+@dataclass(frozen=True)
+class T_players__All(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "All"
+
+
+@dataclass(frozen=True)
+class T_players__Controller(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "Controller"
 
 
 @dataclass(frozen=True)
@@ -637,6 +736,12 @@ class T_produced__Mixed(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class T_produced__NotedType(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "NotedType"
+    count: U_count
+
+
+@dataclass(frozen=True)
 class T_produced__OpponentLandColors(TypedMirrorNode):
     _tag: ClassVar[str | None] = "OpponentLandColors"
     count: U_count
@@ -648,6 +753,11 @@ class T_produced__TriggerEventManaType(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class T_prop__Another(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "Another"
+
+
+@dataclass(frozen=True)
 class T_prop__AttackedThisTurn(TypedMirrorNode):
     _tag: ClassVar[str | None] = "AttackedThisTurn"
 
@@ -655,6 +765,12 @@ class T_prop__AttackedThisTurn(TypedMirrorNode):
 @dataclass(frozen=True)
 class T_prop__EnteredThisTurn(TypedMirrorNode):
     _tag: ClassVar[str | None] = "EnteredThisTurn"
+
+
+@dataclass(frozen=True)
+class T_prop__HasAttachment(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "HasAttachment"
+    kind: str
 
 
 @dataclass(frozen=True)
@@ -682,6 +798,20 @@ class T_prop__WasPlayed(TypedMirrorNode):
 
 # --- discriminated-union aliases (one per tagged content_key) ---
 
+type U_owner = (
+    T_owner__AttachedTo
+    | T_owner__Controller
+    | T_owner__OriginalController
+    | T_owner__ParentTarget
+    | T_owner__ParentTargetController
+    | T_owner__ParentTargetOwner
+    | T_owner__Player
+    | T_owner__ScopedPlayer
+    | T_owner__TriggeringPlayer
+    | T_owner__TriggeringSource
+    | T_owner__Typed
+)
+type U_parity = T_parity__LastNamedChoice
 type U_parse_warnings = (
     T_parse_warnings__IgnoredRemainder
     | T_parse_warnings__SwallowedClause
@@ -724,6 +854,7 @@ type U_player = (
     | T_player__Any
     | T_player__AnyTurn
     | T_player__Controller
+    | T_player__ControlsCount
     | T_player__DefendingPlayer
     | T_player__Opponent
     | T_player__OpponentDealtDamage
@@ -732,6 +863,7 @@ type U_player = (
     | T_player__ParentTargetController
     | T_player__ParentTargetOwner
     | T_player__Player
+    | T_player__PlayerAttribute
     | T_player__PostReplacementDamageTarget
     | T_player__RecipientController
     | T_player__ScopedPlayer
@@ -746,6 +878,7 @@ type U_player_filter = (
     T_player_filter__All
     | T_player_filter__Opponent
     | T_player_filter__OpponentOtherThanTriggering
+    | T_player_filter__PlayerAttribute
 )
 type U_player_scope = (
     T_player_scope__All
@@ -765,6 +898,7 @@ type U_player_scope = (
     | T_player_scope__TriggeringPlayer
     | T_player_scope__VotedFor
 )
+type U_players = T_players__All | T_players__Controller
 type U_position = (
     T_position__BeneathTop
     | T_position__Bottom
@@ -786,12 +920,15 @@ type U_produced = (
     | T_produced__DistinctColorsAmongPermanents
     | T_produced__Fixed
     | T_produced__Mixed
+    | T_produced__NotedType
     | T_produced__OpponentLandColors
     | T_produced__TriggerEventManaType
 )
 type U_prop = (
-    T_prop__AttackedThisTurn
+    T_prop__Another
+    | T_prop__AttackedThisTurn
     | T_prop__EnteredThisTurn
+    | T_prop__HasAttachment
     | T_prop__InTrackedSet
     | T_prop__SameName
     | T_prop__SharesQuality

@@ -67,6 +67,12 @@ def _unwrap_role_target(sub: object) -> object:
         rec = getattr(sub, "recipient", MISSING)
         if _present(rec):
             return rec
+    elif tag_of(sub) == "Shared":
+        # v0.66.0: an ``EachSourceDealsDamage`` recipient shared by every
+        # source in the batch wraps the player/filter node under ``data``.
+        data = getattr(sub, "data", MISSING)
+        if _present(data):
+            return data
     return sub
 
 
@@ -337,6 +343,37 @@ def mana_restrictions(node: TypedMirrorNode) -> tuple[str, ...]:
     return ()
 
 
+# phase v0.66.0 pin bump: the per-source batch damage effect. "Each <X> you
+# control deals damage equal to its power to target creature" (Moonlight
+# Hunt, Bartz and Boko, Kamahl's Will; Sarkhan the Mad's "… to target
+# player") is an ``EachSourceDealsDamage{sources: <filter>, amount:
+# Ref(Power, scope: BatchSource), recipient: Shared{data: <target>}}`` since
+# v0.53.0 (#7322) — a ``DealDamage{amount: Ref(Power, Anaphoric)}`` through
+# v0.45.0 (7 fixed-amount nodes then, 17 nodes / 14 commander-legal cards
+# now). The recipient sits under a ``Shared`` wrapper (one target shared by
+# every source; ``EachController`` / ``OtherBatchSource`` for the
+# each-creature-hits-its-controller / another-batch-member forms).
+DAMAGE_EFFECT_TAGS: frozenset[str] = frozenset(
+    {"DealDamage", "DamageAll", "DamageEachPlayer", "EachSourceDealsDamage"}
+)
+
+
+def damage_recipient(node: object) -> object:
+    """The recipient node of a damage effect — ``target`` for the
+    ``DealDamage`` / ``DamageAll`` shapes, the ``Shared``-unwrapped
+    ``recipient`` of an ``EachSourceDealsDamage`` — or ``None``."""
+    if tag_of(node) == "EachSourceDealsDamage":
+        rec = getattr(node, "recipient", MISSING)
+        if not _present(rec):
+            return None
+        if tag_of(rec) == "Shared":
+            data = getattr(rec, "data", MISSING)
+            return data if _present(data) else None
+        return rec
+    tgt = getattr(node, "target", MISSING)
+    return tgt if _present(tgt) else None
+
+
 def effect_reaches_player(node: TypedMirrorNode, root: object | None = None) -> bool:
     """Whether a damage EFFECT reaches a PLAYER (CR 120.1), read structurally.
 
@@ -379,6 +416,15 @@ def effect_reaches_player(node: TypedMirrorNode, root: object | None = None) -> 
         if not _present(tgt):
             return False
         return _damage_target_reaches_player(tgt, root)
+    if t == "EachSourceDealsDamage":
+        rec = damage_recipient(node)
+        if rec is None:
+            return False
+        if tag_of(rec) == "EachController":
+            return True  # each source hits its own controller — a player
+        if tag_of(rec) == "OtherBatchSource":
+            return False  # another creature in the batch
+        return _damage_target_reaches_player(rec, root)
     return False
 
 
@@ -531,8 +577,7 @@ def has_nested_damage_reaching_player(node: object) -> bool:
     against (the SAME ability owns both the grant and its nested damage).
     """
     return any(
-        tag_of(n) in ("DealDamage", "DamageAll", "DamageEachPlayer")
-        and effect_reaches_player(n, node)
+        tag_of(n) in DAMAGE_EFFECT_TAGS and effect_reaches_player(n, node)
         for n in _iter_typed_nodes(node)
     )
 
@@ -1673,6 +1718,35 @@ def iter_cost_leaves(node: object, *, depth: int = 0) -> Iterator[TypedMirrorNod
             yield from iter_cost_leaves(c, depth=depth + 1)
         return
     yield node
+
+
+# The MAX/MIN-over-a-population quantity node, across phase shapes. Through
+# v0.45.0 phase emitted ``Aggregate{function, property, filter}``; the v0.65.0
+# "opponent controlled count extrema" rework (#7967) reified it as
+# ``PropertyAggregate{function, property, source}`` where ``source`` is either
+# ``Objects{filter}`` (the same filtered population, one level deeper — 245
+# corpus nodes at v0.66.0) or ``TrackedSet{id}`` (an aggregate over an earlier
+# effect's tracked objects, no filter at all — 25 nodes). Every reader that
+# used to test ``tag_of(qty) == "Aggregate"`` and read ``qty.filter`` goes
+# through this pair so the rename lands in ONE place.
+AGGREGATE_QTY_TAGS: frozenset[str] = frozenset({"Aggregate", "PropertyAggregate"})
+
+
+def aggregate_filter(qty: object) -> object | None:
+    """The population filter of an ``Aggregate`` / ``PropertyAggregate`` qty
+    node (Monstrous Onslaught's "greatest power among creatures you control"),
+    or ``None`` when ``qty`` is neither, or aggregates a ``TrackedSet`` rather
+    than a filtered population. CR 107.3."""
+    t = tag_of(qty)
+    if t == "Aggregate":
+        filt = getattr(qty, "filter", MISSING)
+        return filt if _present(filt) else None
+    if t == "PropertyAggregate":
+        source = getattr(qty, "source", MISSING)
+        if tag_of(source) == "Objects":
+            filt = getattr(source, "filter", MISSING)
+            return filt if _present(filt) else None
+    return None
 
 
 def ref_qty_tag(node: TypedMirrorNode, field: str) -> str | None:

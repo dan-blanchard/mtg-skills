@@ -2404,7 +2404,21 @@ def test_topdeck_stack_reads_recovered_self_controller():
     assert "topdeck_stack" in _keys_real("Orcish Librarian")
     assert "topdeck_stack" in _keys_real("Scroll Rack")
     assert "topdeck_stack" in _keys_real("Mortuary")
-    assert "topdeck_stack" in _keys_real("Thassa's Oracle")
+    # Thassa's Oracle SHED at the phase v0.66.0 pin bump: phase now folds
+    # "Put up to one of them on top of your library and the rest on the
+    # bottom" into the Dig node's own fields (destination Library,
+    # keep_count 1, up_to, rest_destination Library/random) with NO
+    # separate PutAtLibraryPosition{Top} node — the SAME "look at N, may put
+    # one back on top" selection shape Fertile Thicket / Telling Time /
+    # Silhana Wayfinder carry, which _topdeck_stack's own docstring
+    # adjudicates as topdeck_selection's territory (legacy served Thassa via
+    # the old separate put node only). CR 701.22a: choosing which of the
+    # looked-at top cards stay on top and which go to the bottom is the
+    # scry family of library SELECTION, not a Brainstorm-style stack of
+    # cards from another zone onto the top. It stays a topdeck_selection
+    # member.
+    assert "topdeck_selection" in _keys_real("Thassa's Oracle")
+    assert "topdeck_stack" not in _keys_real("Thassa's Oracle")
     # PARTIAL — a self-curation phase FOLDED to topdeck_select-to-hand with NO
     # topdeck_stack Effect (Diabolic Vision) is not structurally recoverable; the kept
     # mirror still serves it via the hybrid path.

@@ -4,8 +4,8 @@ Codegen'd from ``tests/fixtures/phase_mirror_schema.json`` by
 ``mtg_utils._card_ir.mirror.codegen`` (run via ``build-card-ir-substrate``).
 
 Part of the generated typed-mirror package (see this directory's
-``__init__.py``). This module holds content keys ``Mutate`` ..
-``additional_filter`` (60 keys).
+``__init__.py``). This module holds content keys ``Morph`` ..
+``additional_filter`` (62 keys).
 
 Class naming: ``S_<ckey>`` for a struct shape, ``T_<ckey>__<tag>`` for a tagged
 shape, ``U_<ckey>`` for the union of all tagged shapes at one content_key.
@@ -48,40 +48,46 @@ if TYPE_CHECKING:
         S_else_ability,
         U_filter,
         U_filters,
-        U_land_filter,
     )
-    from mtg_utils._card_ir.mirror.generated.g09_lhs import (
+    from mtg_utils._card_ir.mirror.generated.g09_land_filter import (
         S_modal,
         S_mode_abilities,
         S_multi_target,
+        U_land_filter,
         U_only_tag,
     )
-    from mtg_utils._card_ir.mirror.generated.g10_parse_warnings import (
+    from mtg_utils._card_ir.mirror.generated.g10_owner import (
         U_player,
         U_player_scope,
     )
     from mtg_utils._card_ir.mirror.generated.g11_properties import (
         U_properties,
     )
-    from mtg_utils._card_ir.mirror.generated.g13_repeat_for import (
-        S_sub_ability,
+    from mtg_utils._card_ir.mirror.generated.g13_reference import (
         U_repeat_for,
         U_repeat_until,
         U_source_filter,
         U_spell_filter,
     )
-    from mtg_utils._card_ir.mirror.generated.g14_subtype_filter import (
+    from mtg_utils._card_ir.mirror.generated.g14_sub_ability import (
+        S_sub_ability,
         S_unless_pay,
         U_target,
         U_target_chooser,
         U_target_constraints,
         U_target_selection_mode,
         U_timing,
+        U_trigger_source_filter,
         U_value,
     )
 
 
 # --- struct shapes (untagged records, one per content_key) ---
+
+
+@dataclass(frozen=True)
+class S_MustBeBlockedByAll(TypedMirrorNode):
+    pass
 
 
 @dataclass(frozen=True)
@@ -106,8 +112,9 @@ class S_PerTurnDrawLimit(TypedMirrorNode):
 
 @dataclass(frozen=True)
 class S_PlayerOrPermanentsControlledBy(TypedMirrorNode):
-    permanent_type: None
+    permanent_type: str | None
     player: U_player
+    source_scope: str = MISSING
 
 
 @dataclass(frozen=True)
@@ -210,6 +217,7 @@ class S_StepEndUnspentMana(TypedMirrorNode):
 class S_SuppressTriggers(TypedMirrorNode):
     events: list[object]
     source_filter: U_source_filter
+    trigger_source_filter: U_trigger_source_filter | None
 
 
 @dataclass(frozen=True)
@@ -304,6 +312,13 @@ class S_ability(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class T_Morph__Cost(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "Cost"
+    generic: int
+    shards: list[object]
+
+
+@dataclass(frozen=True)
 class T_Mutate__Cost(TypedMirrorNode):
     _tag: ClassVar[str | None] = "Cost"
     generic: int
@@ -381,11 +396,6 @@ class T_Prowl__Cost(TypedMirrorNode):
     _tag: ClassVar[str | None] = "Cost"
     generic: int
     shards: list[object]
-
-
-@dataclass(frozen=True)
-class T_Quality__Any(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "Any"
 
 
 @dataclass(frozen=True)
@@ -505,6 +515,12 @@ class T_Ward__Compound(TypedMirrorNode):
 @dataclass(frozen=True)
 class T_Ward__DiscardCard(TypedMirrorNode):
     _tag: ClassVar[str | None] = "DiscardCard"
+
+
+@dataclass(frozen=True)
+class T_Ward__GetPlayerCounters(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "GetPlayerCounters"
+    data: S_data
 
 
 @dataclass(frozen=True)
@@ -696,6 +712,11 @@ class T_activation_restrictions__RequiresCondition(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class T_activation_source_filter__SelfRef(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "SelfRef"
+
+
+@dataclass(frozen=True)
 class T_activation_source_filter__Typed(TypedMirrorNode):
     _tag: ClassVar[str | None] = "Typed"
     controller: str
@@ -803,6 +824,7 @@ class T_additional_filter__MatchesLastChosenCardPredicate(TypedMirrorNode):
 
 # --- discriminated-union aliases (one per tagged content_key) ---
 
+type U_Morph = T_Morph__Cost
 type U_Mutate = T_Mutate__Cost
 type U_Ninjutsu = T_Ninjutsu__Cost
 type U_Offspring = T_Offspring__Cost
@@ -818,7 +840,7 @@ type U_Partner = (
 )
 type U_Plot = T_Plot__Cost
 type U_Prowl = T_Prowl__Cost
-type U_Quality = T_Quality__Any | T_Quality__Or | T_Quality__Typed
+type U_Quality = T_Quality__Or | T_Quality__Typed
 type U_Reconfigure = T_Reconfigure__Cost
 type U_Recover = T_Recover__Cost
 type U_Replicate = T_Replicate__Cost | T_Replicate__SelfManaCost
@@ -834,6 +856,7 @@ type U_Unearth = T_Unearth__Cost
 type U_Ward = (
     T_Ward__Compound
     | T_Ward__DiscardCard
+    | T_Ward__GetPlayerCounters
     | T_Ward__Mana
     | T_Ward__PayLife
     | T_Ward__PayLifeEqualToPower
@@ -872,7 +895,9 @@ type U_activation_restrictions = (
     | T_activation_restrictions__OnlyOnceEachTurn
     | T_activation_restrictions__RequiresCondition
 )
-type U_activation_source_filter = T_activation_source_filter__Typed
+type U_activation_source_filter = (
+    T_activation_source_filter__SelfRef | T_activation_source_filter__Typed
+)
 type U_activator = T_activator__Controller | T_activator__Opponent
 type U_activator_filter = T_activator_filter__All | T_activator_filter__Opponent
 type U_activity = (

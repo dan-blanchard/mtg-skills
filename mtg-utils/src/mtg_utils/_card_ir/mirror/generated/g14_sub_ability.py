@@ -4,8 +4,8 @@ Codegen'd from ``tests/fixtures/phase_mirror_schema.json`` by
 ``mtg_utils._card_ir.mirror.codegen`` (run via ``build-card-ir-substrate``).
 
 Part of the generated typed-mirror package (see this directory's
-``__init__.py``). This module holds content keys ``subtype_filter`` ..
-``zone_change_clauses`` (33 keys).
+``__init__.py``). This module holds content keys ``sub_ability`` ..
+``zone_change_clauses`` (36 keys).
 
 Class naming: ``S_<ckey>`` for a struct shape, ``T_<ckey>__<tag>`` for a tagged
 shape, ``U_<ckey>`` for the union of all tagged shapes at one content_key.
@@ -23,6 +23,13 @@ from mtg_utils._card_ir.mirror.runtime import (
 )
 
 if TYPE_CHECKING:
+    from mtg_utils._card_ir.mirror.generated.g02_morph import (
+        U_ability_tag,
+        U_activation_restrictions,
+    )
+    from mtg_utils._card_ir.mirror.generated.g03_additional_modificat import (
+        U_announced_x,
+    )
     from mtg_utils._card_ir.mirror.generated.g04_chooser import (
         U_condition,
     )
@@ -32,25 +39,36 @@ if TYPE_CHECKING:
     )
     from mtg_utils._card_ir.mirror.generated.g06_count import (
         S_counter_filter,
+        S_damage_amount,
+        S_data,
         U_count_source,
         U_destination_constraint,
+        U_distribute,
     )
     from mtg_utils._card_ir.mirror.generated.g07_effect import (
         U_effect,
     )
     from mtg_utils._card_ir.mirror.generated.g08_else_ability import (
+        S_else_ability,
         S_execute,
         U_exprs,
         U_filter,
         U_filters,
         U_inner,
-        U_left,
     )
-    from mtg_utils._card_ir.mirror.generated.g09_lhs import (
+    from mtg_utils._card_ir.mirror.generated.g09_land_filter import (
+        S_modal,
+        S_mode_abilities,
+        S_multi_target,
+        U_left,
+        U_lhs,
+        U_mana_ability_produced,
         U_origin,
     )
-    from mtg_utils._card_ir.mirror.generated.g10_parse_warnings import (
+    from mtg_utils._card_ir.mirror.generated.g10_owner import (
         U_payer,
+        U_player,
+        U_player_scope,
     )
     from mtg_utils._card_ir.mirror.generated.g11_properties import (
         U_properties,
@@ -59,8 +77,8 @@ if TYPE_CHECKING:
         U_qty,
         U_recipient,
     )
-    from mtg_utils._card_ir.mirror.generated.g13_repeat_for import (
-        S_sub_ability,
+    from mtg_utils._card_ir.mirror.generated.g13_reference import (
+        U_repeat_for,
         U_rhs,
         U_right,
         U_spell_cast_origin,
@@ -68,6 +86,41 @@ if TYPE_CHECKING:
 
 
 # --- struct shapes (untagged records, one per content_key) ---
+
+
+@dataclass(frozen=True)
+class S_sub_ability(TypedMirrorNode):
+    condition: U_condition | None
+    cost: U_cost | None
+    description: str | None
+    duration: str | MirrorVariant | None
+    effect: U_effect
+    forward_result: bool
+    kind: str
+    optional: bool
+    optional_targeting: bool
+    sub_ability: S_sub_ability | None
+    target_prompt: None
+    ability_tag: U_ability_tag = MISSING
+    activation_restrictions: list[U_activation_restrictions] = MISSING
+    announced_x: U_announced_x = MISSING
+    distribute: U_distribute = MISSING
+    else_ability: S_else_ability = MISSING
+    is_mana_ability: bool = MISSING
+    modal: S_modal = MISSING
+    mode_abilities: list[S_mode_abilities] = MISSING
+    multi_target: S_multi_target = MISSING
+    optional_for: str = MISSING
+    player_scope: U_player_scope = MISSING
+    repeat_for: U_repeat_for = MISSING
+    sibling_condition: str = MISSING
+    starting_with: str = MISSING
+    sub_link: str = MISSING
+    target_choice_timing: str = MISSING
+    target_chooser: U_target_chooser = MISSING
+    target_constraints: list[U_target_constraints] = MISSING
+    target_selection_mode: U_target_selection_mode = MISSING
+    unless_pay: S_unless_pay = MISSING
 
 
 @dataclass(frozen=True)
@@ -106,7 +159,6 @@ class S_trigger(TypedMirrorNode):
     counter_filter: MirrorVariant = MISSING
     spell_cast_origin: U_spell_cast_origin = MISSING
     unless_pay: S_unless_pay = MISSING
-    zone_change_clauses: list[S_zone_change_clauses] = MISSING
 
 
 @dataclass(frozen=True)
@@ -131,13 +183,15 @@ class S_triggers(TypedMirrorNode):
     clash_result: str = MISSING
     coin_flip_result: str = MISSING
     counter_filter: S_counter_filter | MirrorVariant = MISSING
-    damage_amount: list[object] = MISSING
+    damage_amount: S_damage_amount | list[S_damage_amount] = MISSING
     destination_constraint: U_destination_constraint = MISSING
     die_result: MirrorVariant = MISSING
     expend_threshold: int = MISSING
     life_amount: list[object] = MISSING
+    mana_ability_produced: U_mana_ability_produced = MISSING
     origin_zones: list[object] = MISSING
     player_actions: list[object] = MISSING
+    saga_chapter: int = MISSING
     scry_bottom_count: list[object] = MISSING
     spell_cast_origin: U_spell_cast_origin = MISSING
     taps_for_mana_produced: list[object] = MISSING
@@ -205,6 +259,84 @@ class S_zone_change_clauses(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class T_subject__AttackTarget(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "AttackTarget"
+    attacked: str
+    controller: str
+
+
+@dataclass(frozen=True)
+class T_subject__CommittedChoice(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "CommittedChoice"
+    choice_type: MirrorVariant
+
+
+@dataclass(frozen=True)
+class T_subject__Controller(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "Controller"
+    scope: str
+    filter: U_filter = MISSING
+
+
+@dataclass(frozen=True)
+class T_subject__LastRevealed(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "LastRevealed"
+
+
+@dataclass(frozen=True)
+class T_subject__Named(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "Named"
+
+
+@dataclass(frozen=True)
+class T_subject__Objects(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "Objects"
+    data: S_data
+
+
+@dataclass(frozen=True)
+class T_subject__Or(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "Or"
+    filters: list[U_filters]
+
+
+@dataclass(frozen=True)
+class T_subject__ParentTarget(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "ParentTarget"
+
+
+@dataclass(frozen=True)
+class T_subject__Proposition(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "Proposition"
+    comparator: str
+    lhs: U_lhs
+    rhs: U_rhs
+
+
+@dataclass(frozen=True)
+class T_subject__SelfRef(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "SelfRef"
+
+
+@dataclass(frozen=True)
+class T_subject__Target(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "Target"
+
+
+@dataclass(frozen=True)
+class T_subject__TriggeringSource(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "TriggeringSource"
+
+
+@dataclass(frozen=True)
+class T_subject__Typed(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "Typed"
+    controller: str | None
+    properties: list[U_properties]
+    type_filters: list[MirrorVariant]
+
+
+@dataclass(frozen=True)
 class T_subtype_filter__Or(TypedMirrorNode):
     _tag: ClassVar[str | None] = "Or"
     filters: list[U_filters]
@@ -237,6 +369,11 @@ class T_tally_mode__TopVotes(TypedMirrorNode):
 @dataclass(frozen=True)
 class T_target__AllPlayers(TypedMirrorNode):
     _tag: ClassVar[str | None] = "AllPlayers"
+
+
+@dataclass(frozen=True)
+class T_target__AmassedArmy(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "AmassedArmy"
 
 
 @dataclass(frozen=True)
@@ -387,6 +524,11 @@ class T_target__SelfRef(TypedMirrorNode):
 @dataclass(frozen=True)
 class T_target__SourceChosenPlayer(TypedMirrorNode):
     _tag: ClassVar[str | None] = "SourceChosenPlayer"
+
+
+@dataclass(frozen=True)
+class T_target__SourceController(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "SourceController"
 
 
 @dataclass(frozen=True)
@@ -603,6 +745,14 @@ class T_toughness__Variable(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class T_trigger_source_filter__Typed(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "Typed"
+    controller: str
+    properties: list[U_properties]
+    type_filters: list[MirrorVariant]
+
+
+@dataclass(frozen=True)
 class T_unless_filter__Or(TypedMirrorNode):
     _tag: ClassVar[str | None] = "Or"
     filters: list[U_filters]
@@ -688,6 +838,11 @@ class T_valid_source__AttachedTo(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class T_valid_source__Controller(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "Controller"
+
+
+@dataclass(frozen=True)
 class T_valid_source__Or(TypedMirrorNode):
     _tag: ClassVar[str | None] = "Or"
     filters: list[U_filters]
@@ -767,6 +922,12 @@ class T_valid_target__ParentTargetController(TypedMirrorNode):
 @dataclass(frozen=True)
 class T_valid_target__Player(TypedMirrorNode):
     _tag: ClassVar[str | None] = "Player"
+
+
+@dataclass(frozen=True)
+class T_valid_target__PlayerMatching(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "PlayerMatching"
+    player: U_player
 
 
 @dataclass(frozen=True)
@@ -872,11 +1033,27 @@ class T_voter_scope__EachOpponent(TypedMirrorNode):
 
 # --- discriminated-union aliases (one per tagged content_key) ---
 
+type U_subject = (
+    T_subject__AttackTarget
+    | T_subject__CommittedChoice
+    | T_subject__Controller
+    | T_subject__LastRevealed
+    | T_subject__Named
+    | T_subject__Objects
+    | T_subject__Or
+    | T_subject__ParentTarget
+    | T_subject__Proposition
+    | T_subject__SelfRef
+    | T_subject__Target
+    | T_subject__TriggeringSource
+    | T_subject__Typed
+)
 type U_subtype_filter = T_subtype_filter__Or | T_subtype_filter__Typed
 type U_tag = T_tag__Backup
 type U_tally_mode = T_tally_mode__PerVote | T_tally_mode__TopVotes
 type U_target = (
     T_target__AllPlayers
+    | T_target__AmassedArmy
     | T_target__And
     | T_target__Any
     | T_target__AttachedTo
@@ -906,6 +1083,7 @@ type U_target = (
     | T_target__ScopedPlayer
     | T_target__SelfRef
     | T_target__SourceChosenPlayer
+    | T_target__SourceController
     | T_target__StackAbility
     | T_target__StackSpell
     | T_target__TrackedSet
@@ -940,6 +1118,7 @@ type U_tie = T_tie__AllTied | T_tie__Breaker
 type U_timing = T_timing__AtNextPhase
 type U_total_power_cap = T_total_power_cap__Fixed
 type U_toughness = T_toughness__Fixed | T_toughness__Quantity | T_toughness__Variable
+type U_trigger_source_filter = T_trigger_source_filter__Typed
 type U_unless_filter = T_unless_filter__Or | T_unless_filter__Typed
 type U_until = T_until__CumulativeThreshold | T_until__NextMatches
 type U_valid_card = (
@@ -955,6 +1134,7 @@ type U_valid_card = (
 type U_valid_source = (
     T_valid_source__And
     | T_valid_source__AttachedTo
+    | T_valid_source__Controller
     | T_valid_source__Or
     | T_valid_source__ParentTarget
     | T_valid_source__Player
@@ -973,6 +1153,7 @@ type U_valid_target = (
     | T_valid_target__Or
     | T_valid_target__ParentTargetController
     | T_valid_target__Player
+    | T_valid_target__PlayerMatching
     | T_valid_target__SelfRef
     | T_valid_target__SourceChosenPlayer
     | T_valid_target__TriggeringPlayer

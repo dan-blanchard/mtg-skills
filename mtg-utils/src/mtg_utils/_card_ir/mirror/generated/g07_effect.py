@@ -22,7 +22,7 @@ from mtg_utils._card_ir.mirror.runtime import (
 )
 
 if TYPE_CHECKING:
-    from mtg_utils._card_ir.mirror.generated.g02_mutate import (
+    from mtg_utils._card_ir.mirror.generated.g02_morph import (
         U_action,
     )
     from mtg_utils._card_ir.mirror.generated.g03_additional_modificat import (
@@ -77,9 +77,10 @@ if TYPE_CHECKING:
         U_keep_count_expr,
         U_keep_on_top,
         U_keeper_constraint,
+        U_kept_destination_if,
         U_kind,
     )
-    from mtg_utils._card_ir.mirror.generated.g09_lhs import (
+    from mtg_utils._card_ir.mirror.generated.g09_land_filter import (
         S_lose_effect,
         S_modification,
         S_multi_target,
@@ -96,11 +97,11 @@ if TYPE_CHECKING:
         U_object_filter,
         U_object_source,
         U_op,
-        U_owner,
     )
-    from mtg_utils._card_ir.mirror.generated.g10_parse_warnings import (
+    from mtg_utils._card_ir.mirror.generated.g10_owner import (
         S_per_choice_effect,
         S_profile,
+        U_owner,
         U_partition_subject,
         U_partner_filter,
         U_payer,
@@ -111,6 +112,7 @@ if TYPE_CHECKING:
         U_player_b,
         U_player_filter,
         U_player_scope,
+        U_players,
         U_position,
         U_power,
         U_produced,
@@ -118,20 +120,20 @@ if TYPE_CHECKING:
     from mtg_utils._card_ir.mirror.generated.g12_qty import (
         U_recipient,
         U_recipient_object_filter,
+        U_redirect_lifetime,
         U_redirect_object_filter,
         U_redirect_to,
     )
-    from mtg_utils._card_ir.mirror.generated.g13_repeat_for import (
+    from mtg_utils._card_ir.mirror.generated.g13_reference import (
         S_replacement,
         S_results,
         S_scale,
         S_split,
         S_static_abilities,
         S_statics,
-        S_sub_ability,
         U_repeat_for,
         U_replacement_effect,
-        U_required_player,
+        U_required_defender,
         U_restriction,
         U_retarget,
         U_sacrifice_filter,
@@ -147,15 +149,16 @@ if TYPE_CHECKING:
         U_spell_filter,
         U_state,
         U_step,
-        U_subject,
     )
-    from mtg_utils._card_ir.mirror.generated.g14_subtype_filter import (
+    from mtg_utils._card_ir.mirror.generated.g14_sub_ability import (
+        S_sub_ability,
         S_target,
         S_target_condition,
         S_triggers,
         S_unchosen_pile_effect,
         S_unless_pay,
         S_win_effect,
+        U_subject,
         U_tally_mode,
         U_target,
         U_target_a,
@@ -307,6 +310,7 @@ class T_effect__BecomeCopy(TypedMirrorNode):
 @dataclass(frozen=True)
 class T_effect__BecomeMonarch(TypedMirrorNode):
     _tag: ClassVar[str | None] = "BecomeMonarch"
+    target: U_target = MISSING
 
 
 @dataclass(frozen=True)
@@ -414,7 +418,7 @@ class T_effect__ChangeZone(TypedMirrorNode):
     enter_with_counters: list[U_enter_with_counters] = MISSING
     enters_modified_if: U_enters_modified_if = MISSING
     enters_under: str = MISSING
-    face_down_profile: S_face_down_profile = MISSING
+    face_down_profile: S_face_down_profile | MirrorVariant = MISSING
     up_to: bool = MISSING
 
 
@@ -492,7 +496,7 @@ class T_effect__ChooseFromZone(TypedMirrorNode):
     count: int
     up_to: bool
     zone: str
-    zone_owner: str
+    zone_owner: str | MirrorVariant
     additional_zones: list[object] = MISSING
     constraint: U_constraint = MISSING
     filter: U_filter = MISSING
@@ -624,6 +628,7 @@ class T_effect__CreateDamageReplacement(TypedMirrorNode):
     modification: U_modification = MISSING
     recipient_object_filter: U_recipient_object_filter = MISSING
     redirect_amount: MirrorVariant = MISSING
+    redirect_lifetime: U_redirect_lifetime = MISSING
     redirect_object_filter: U_redirect_object_filter = MISSING
     redirect_to: U_redirect_to = MISSING
     source_filter: U_source_filter = MISSING
@@ -708,6 +713,7 @@ class T_effect__Dig(TypedMirrorNode):
     count: U_count
     destination: str | None
     enter_tapped: bool
+    enters_attacking: bool
     filter: U_filter
     keep_count: int | None
     player: U_player
@@ -715,6 +721,7 @@ class T_effect__Dig(TypedMirrorNode):
     reveal: bool
     up_to: bool
     keep_count_expr: U_keep_count_expr = MISSING
+    rest_order: str = MISSING
     source: str = MISSING
 
 
@@ -947,7 +954,8 @@ class T_effect__Forage(TypedMirrorNode):
 class T_effect__ForceAttack(TypedMirrorNode):
     _tag: ClassVar[str | None] = "ForceAttack"
     duration: str
-    required_player: U_required_player
+    required_defender: U_required_defender
+    scope: U_scope
     target: U_target
 
 
@@ -1150,6 +1158,7 @@ class T_effect__Manifest(TypedMirrorNode):
     count: U_count
     target: U_target
     enters_under: str = MISSING
+    object_source: U_object_source = MISSING
     profile: S_profile = MISSING
 
 
@@ -1210,6 +1219,11 @@ class T_effect__Myriad(TypedMirrorNode):
 @dataclass(frozen=True)
 class T_effect__NoOp(TypedMirrorNode):
     _tag: ClassVar[str | None] = "NoOp"
+
+
+@dataclass(frozen=True)
+class T_effect__NoteManaSpent(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "NoteManaSpent"
 
 
 @dataclass(frozen=True)
@@ -1412,6 +1426,13 @@ class T_effect__Renown(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class T_effect__ReproduceEventCounters(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "ReproduceEventCounters"
+    per_kind_count: str | MirrorVariant
+    target: U_target
+
+
+@dataclass(frozen=True)
 class T_effect__ReturnAsAura(TypedMirrorNode):
     _tag: ClassVar[str | None] = "ReturnAsAura"
     enchant_filter: U_enchant_filter
@@ -1422,6 +1443,12 @@ class T_effect__ReturnAsAura(TypedMirrorNode):
 class T_effect__Reveal(TypedMirrorNode):
     _tag: ClassVar[str | None] = "Reveal"
     target: U_target
+
+
+@dataclass(frozen=True)
+class T_effect__RevealChosenNumbers(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "RevealChosenNumbers"
+    players: U_players
 
 
 @dataclass(frozen=True)
@@ -1460,6 +1487,7 @@ class T_effect__RevealUntil(TypedMirrorNode):
     enter_tapped: bool = MISSING
     enters_attacking: bool = MISSING
     enters_under: str = MISSING
+    kept_destination_if: list[U_kept_destination_if] = MISSING
     kept_optional_to: str = MISSING
     matched_disposition: U_matched_disposition = MISSING
 
@@ -1702,7 +1730,7 @@ class T_effect__Tribute(TypedMirrorNode):
 @dataclass(frozen=True)
 class T_effect__TurnFaceDown(TypedMirrorNode):
     _tag: ClassVar[str | None] = "TurnFaceDown"
-    profile: S_profile
+    profile: S_profile | MirrorVariant
     target: U_target
 
 
@@ -1893,6 +1921,7 @@ type U_effect = (
     | T_effect__MultiplyCounter
     | T_effect__Myriad
     | T_effect__NoOp
+    | T_effect__NoteManaSpent
     | T_effect__OpenAttractions
     | T_effect__OpponentGuess
     | T_effect__PairWith
@@ -1922,8 +1951,10 @@ type U_effect = (
     | T_effect__RemoveCounter
     | T_effect__RemoveFromCombat
     | T_effect__Renown
+    | T_effect__ReproduceEventCounters
     | T_effect__ReturnAsAura
     | T_effect__Reveal
+    | T_effect__RevealChosenNumbers
     | T_effect__RevealFromHand
     | T_effect__RevealHand
     | T_effect__RevealTop

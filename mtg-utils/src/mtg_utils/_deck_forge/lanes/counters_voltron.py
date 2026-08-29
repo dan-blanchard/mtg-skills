@@ -8,6 +8,7 @@ import re
 from mtg_utils._card_ir.crosswalk import (
     AbilityUnit,
     ConceptTree,
+    aggregate_filter,
     count_operand_filter,
     count_operand_qty,
     counter_kind,
@@ -1741,10 +1742,7 @@ def _voltron_modal_aggregate_tell(node: object) -> bool:
         value = getattr(data, "value", None) if data is not None else None
         if tag_of(value) != "Ref":
             continue
-        qty = getattr(value, "qty", None)
-        if tag_of(qty) != "Aggregate":
-            continue
-        filt = getattr(qty, "filter", None)
+        filt = aggregate_filter(getattr(value, "qty", None))
         if filt is not None and (
             {s.lower() for s in filter_subtypes(filt)} & _VOLTRON_SUBTYPES
         ):

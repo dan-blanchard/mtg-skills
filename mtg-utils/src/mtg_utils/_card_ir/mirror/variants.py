@@ -1,28 +1,30 @@
 """Closed-union arm for phase's ``Effect`` enum (ADR-0035, Stage 1).
 
 The ``Effect`` enum in phase's ``crates/engine/src/types/ability.rs`` declares
-228 variants at the v0.45.0 pin (a cheap variant-**name** grep — names only,
+232 variants at the v0.66.0 pin (a cheap variant-**name** grep — names only,
 never the Rust field shapes; 207 at v0.9.0 + 8 v0.15.0 + 1 v0.16.0
 (``BecomeBlocked``) + 8 v0.20.0 additions + 1 v0.28.0
 (``ArrangePlanarDeckTop``) + 3 by v0.45.0 (``ChoosePermanent``,
 ``FlipPermanent`` — the v0.37.0 Kamigawa flip-card arrival — and
-``ExileFaceDownPile``); v0.23.0 renamed ``ForEachCategoryExile`` →
-``ForEachCategory``, net zero). Of those, **209 are witnessed** in the pinned
-v0.45.0 ``card-data.json`` at the canonical effect slot (``ckey == "effect"``)
-and **19 emit zero instances** (Cascade, Exploit, MiracleCast, VentureInto, …).
-The 19 get a closed-union arm: the strict loader raises loudly on their *first
-emission* rather than letting an unwitnessed variant slip in invisibly on a
-phase bump.
+``ExileFaceDownPile``) + 4 by v0.66.0 (``NoteManaSpent`` /
+``ReproduceEventCounters`` — the v0.49.0 Jeweled Amulet "note and reproduce
+spent mana" pair — ``RevealChosenNumbers``, and ``CompletePlayerAction``);
+v0.23.0 renamed ``ForEachCategoryExile`` → ``ForEachCategory``, net zero). Of
+those, **212 are witnessed** in the pinned v0.66.0 ``card-data.json`` at the
+canonical effect slot (``ckey == "effect"``) and **20 emit zero instances**
+(Cascade, Exploit, MiracleCast, VentureInto, …). The 20 get a closed-union arm:
+the strict loader raises loudly on their *first emission* rather than letting
+an unwitnessed variant slip in invisibly on a phase bump.
 
-``EFFECT_VARIANTS`` is the full 228-name roster (the per-variant population
-baseline seeds zeros from it). ``ZERO_INSTANCE_EFFECTS`` is the 19-name
-closed-union subset. Both are data-grounded against v0.45.0 — regenerate via
+``EFFECT_VARIANTS`` is the full 232-name roster (the per-variant population
+baseline seeds zeros from it). ``ZERO_INSTANCE_EFFECTS`` is the 20-name
+closed-union subset. Both are data-grounded against v0.66.0 — regenerate via
 ``build-card-ir-substrate`` if the phase tag bumps.
 """
 
 from __future__ import annotations
 
-# The full phase ``Effect`` enum roster (228), grepped by name from ability.rs
+# The full phase ``Effect`` enum roster (232), grepped by name from ability.rs
 # (`pub enum Effect { ... }`). Order preserved from the source enum.
 EFFECT_VARIANTS: tuple[str, ...] = (
     "StartYourEngines",
@@ -30,6 +32,7 @@ EFFECT_VARIANTS: tuple[str, ...] = (
     "DealDamage",
     "ApplyPostReplacementDamage",
     "EachDealsDamageEqualToPower",
+    "EachSourceDealsDamage",
     "Draw",
     "Pump",
     "PairWith",
@@ -74,6 +77,7 @@ EFFECT_VARIANTS: tuple[str, ...] = (
     "ProliferateTarget",
     "Populate",
     "Clash",
+    "Behold",
     "EndTheTurn",
     "EndCombatPhase",
     "Vote",
@@ -97,11 +101,15 @@ EFFECT_VARIANTS: tuple[str, ...] = (
     "GainActivatedAbilitiesOfTarget",
     "ChooseCard",
     "PutCounter",
+    "ChooseCounterKind",
+    "PutChosenCounter",
     "PutCounterAll",
     "MultiplyCounter",
+    "ChooseCounterAdjustment",
     "DoublePT",
     "DoublePTAll",
     "MoveCounters",
+    "ReproduceEventCounters",
     "Animate",
     "ReturnAsAura",
     "RegisterBending",
@@ -117,11 +125,14 @@ EFFECT_VARIANTS: tuple[str, ...] = (
     "RevealHand",
     "RevealFromHand",
     "Reveal",
+    "RevealChosenNumbers",
     "RevealTop",
     "ExileTop",
     "ExileFaceDownPile",
     "TargetOnly",
     "Choose",
+    "OpponentGuess",
+    "SwapChosenLabels",
     "ChooseDamageSource",
     "Suspect",
     "Unsuspect",
@@ -141,6 +152,7 @@ EFFECT_VARIANTS: tuple[str, ...] = (
     "ReduceNextSpellCost",
     "GrantNextSpellAbility",
     "AddPendingETBCounters",
+    "AddPendingEntersModifications",
     "CreateEmblem",
     "PayCost",
     "CastFromZone",
@@ -148,6 +160,8 @@ EFFECT_VARIANTS: tuple[str, ...] = (
     "ExileResolvingSpellInsteadOfGraveyard",
     "PreventDamage",
     "CreateDamageReplacement",
+    "CreateDrawReplacement",
+    "CreatePlaneswalkReplacement",
     "LoseTheGame",
     "WinTheGame",
     "RollDie",
@@ -160,6 +174,9 @@ EFFECT_VARIANTS: tuple[str, ...] = (
     "TakeTheInitiative",
     "ArrangePlanarDeckTop",
     "Planeswalk",
+    "ChaosEnsues",
+    "ReverseTurnOrder",
+    "RedistributeLifeTotals",
     "OpenAttractions",
     "RollToVisitAttractions",
     "AssembleContraptions",
@@ -173,9 +190,12 @@ EFFECT_VARIANTS: tuple[str, ...] = (
     "ProcessRadCounters",
     "GrantCastingPermission",
     "ChooseFromZone",
+    "RememberCard",
+    "NoteManaSpent",
     "ForEachCategory",
     "ChooseObjectsIntoTrackedSet",
     "ChooseAndSacrificeRest",
+    "EachPlayerCopyChosen",
     "Exploit",
     "GainEnergy",
     "GivePlayerCounter",
@@ -203,6 +223,7 @@ EFFECT_VARIANTS: tuple[str, ...] = (
     "ManifestDread",
     "Cloak",
     "TurnFaceUp",
+    "TurnFaceDown",
     "ExtraTurn",
     "GrantExtraLoyaltyActivations",
     "SkipNextTurn",
@@ -219,6 +240,7 @@ EFFECT_VARIANTS: tuple[str, ...] = (
     "Adapt",
     "Learn",
     "Forage",
+    "CompletePlayerAction",
     "Harness",
     "CollectEvidence",
     "Endure",
@@ -230,44 +252,13 @@ EFFECT_VARIANTS: tuple[str, ...] = (
     "SetDayNight",
     "GiveControl",
     "RemoveFromCombat",
+    "BecomeBlocked",
     "Conjure",
     "ApplyPerpetual",
     "Intensify",
     "DraftFromSpellbook",
     "ChooseOneOf",
     "Unimplemented",
-    # v0.15.0 additions (pin bump v0.9.0 → v0.15.0): 8 new Effect variants
-    # witnessed in v0.15.0 card-data (ChaosEnsues 9, EachSourceDealsDamage 7,
-    # TurnFaceDown 7, CreateDrawReplacement 3, PutChosenCounter 3, ChooseCounterKind
-    # 2, CreatePlaneswalkReplacement 1, RememberCard 1). Appended (source enum order
-    # unavailable without the v0.15.0 ability.rs); membership, not order, is what the
-    # closed-union + population baseline read.
-    "ChaosEnsues",
-    "ChooseCounterKind",
-    "CreateDrawReplacement",
-    "CreatePlaneswalkReplacement",
-    "EachSourceDealsDamage",
-    "PutChosenCounter",
-    "RememberCard",
-    "TurnFaceDown",
-    # v0.16.0 addition (pin bump v0.15.0 → v0.16.0): 1 new Effect variant
-    # witnessed in v0.16.0 card-data (BecomeBlocked 5 — "target creature
-    # becomes blocked": Choking Vines, Curtain of Light, Dazzling Beauty,
-    # Fog Patch, Trap Runner). Appended (source enum order unavailable
-    # without the v0.16.0 ability.rs).
-    "BecomeBlocked",
-    # v0.20.0 additions (pin bump v0.16.0 → v0.20.0): 8 new Effect variants
-    # witnessed in v0.20.0 card-data at ckey == "effect" (parser coverage across
-    # v0.17-v0.20 (Behold, OpponentGuess, RedistributeLifeTotals, ReverseTurnOrder,
-    # etc.). Appended (source enum order unavailable without the v0.20.0 ability.rs).
-    "AddPendingEntersModifications",
-    "Behold",
-    "ChooseCounterAdjustment",
-    "EachPlayerCopyChosen",
-    "OpponentGuess",
-    "RedistributeLifeTotals",
-    "ReverseTurnOrder",
-    "SwapChosenLabels",
 )
 
 # The name-known / shape-unknown variants: declared in phase's enum but with
@@ -283,6 +274,7 @@ ZERO_INSTANCE_EFFECTS: frozenset[str] = frozenset(
         "ChooseCard",
         "ChooseDamageSource",
         "Cleanup",
+        "CompletePlayerAction",
         "CrankContraptions",
         "CreateTokenCopyFromPool",
         "EpicCopy",

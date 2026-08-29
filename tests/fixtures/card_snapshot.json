@@ -683,7 +683,7 @@
      "oathbreaker": "legal",
      "pauper": "not_legal",
      "paupercommander": "not_legal",
-     "penny": "not_legal",
+     "penny": "legal",
      "pioneer": "legal",
      "predh": "not_legal",
      "premodern": "not_legal",
@@ -1858,7 +1858,7 @@
      "oathbreaker": "legal",
      "pauper": "not_legal",
      "paupercommander": "not_legal",
-     "penny": "legal",
+     "penny": "not_legal",
      "pioneer": "not_legal",
      "predh": "legal",
      "premodern": "not_legal",
@@ -2175,6 +2175,7 @@
        "b6ff4357-9d40-5630-b081-99c966483302"
       ],
       "source_printing_ids": [
+       "0b883558-b550-4654-ad1e-dc363b88dc6e",
        "0b9579d8-bc8f-4d74-bfc1-dcdd42568f79",
        "18092f68-b96e-4084-9eba-b240d2195d81",
        "1de30c12-2011-495a-be25-f7a46b23e142",
@@ -2197,6 +2198,7 @@
       "J25",
       "MID",
       "MOC",
+      "PLST",
       "PMID",
       "TDC"
      ],
@@ -5930,6 +5932,7 @@
          },
          "destination": "Hand",
          "enter_tapped": false,
+         "enters_attacking": false,
          "filter": {
           "type": "Any"
          },
@@ -8160,6 +8163,7 @@
          },
          "destination": null,
          "enter_tapped": false,
+         "enters_attacking": false,
          "filter": {
           "type": "Any"
          },
@@ -9115,6 +9119,7 @@
          },
          "destination": null,
          "enter_tapped": false,
+         "enters_attacking": false,
          "filter": {
           "type": "Any"
          },
@@ -11050,6 +11055,7 @@
       "PD3",
       "PLST",
       "SLD",
+      "SLZ",
       "SOC",
       "SUM",
       "TD0",
@@ -11156,7 +11162,7 @@
          "description": null,
          "duration": null,
          "effect": {
-          "duration": null,
+          "duration": "Permanent",
           "static_abilities": [
            {
             "active_zones": [],
@@ -11804,7 +11810,7 @@
      "oathbreaker": "legal",
      "pauper": "not_legal",
      "paupercommander": "not_legal",
-     "penny": "legal",
+     "penny": "not_legal",
      "pioneer": "legal",
      "predh": "not_legal",
      "premodern": "not_legal",
@@ -12442,11 +12448,13 @@
      },
      "metadata": {
       "related_token_ids": [
+       "0a417209-92ea-5ce3-ae2c-251ee22f1b92",
        "cf04eb05-5d99-5015-921c-d7df230b0341"
       ],
       "source_printing_ids": [
        "48b597dd-f6eb-45da-977d-453e8c1433cc",
-       "750f26c2-d7ea-4d39-bef0-f1f84c631265"
+       "750f26c2-d7ea-4d39-bef0-f1f84c631265",
+       "d114adbf-d9c2-40fe-8f8c-5268c3232f7b"
       ]
      },
      "name": "Araumi of the Dead Tide",
@@ -12458,6 +12466,7 @@
      },
      "printings": [
       "CMR",
+      "PLST",
       "PRM"
      ],
      "rarities": [
@@ -12909,6 +12918,7 @@
          "optional_targeting": false,
          "sub_ability": null,
          "sub_link": "SequentialSibling",
+         "target_choice_timing": "Resolution",
          "target_prompt": null
         },
         "sub_link": "SequentialSibling",
@@ -13519,6 +13529,7 @@
       "source_printing_ids": [
        "15c34447-b0f4-4fcc-b557-23c92850b31b",
        "1d8ecf20-5f80-4a17-93bd-700e4dd44d65",
+       "4ce95099-9032-4c44-af25-ab02e60af168",
        "531cba81-afd7-4be4-adec-87edb77ba2a9",
        "5d393449-bdbe-4638-ba0b-7ec83f81b51e",
        "aff10db6-f9bf-4fc8-b3ef-c4c11f192f53",
@@ -13647,7 +13658,7 @@
      "oathbreaker": "legal",
      "pauper": "not_legal",
      "paupercommander": "not_legal",
-     "penny": "not_legal",
+     "penny": "legal",
      "pioneer": "legal",
      "predh": "not_legal",
      "premodern": "not_legal",
@@ -14807,6 +14818,7 @@
      },
      "metadata": {
       "source_printing_ids": [
+       "43980fad-266f-47af-af12-e452db8afe17",
        "6eb712a0-b648-460b-8d3d-7d920ed11a8c",
        "728b802c-969b-4865-b7a0-871c585d097a"
       ]
@@ -14820,6 +14832,7 @@
      },
      "printings": [
       "CMR",
+      "PLST",
       "PRM"
      ],
      "rarities": [
@@ -16520,7 +16533,7 @@
            {
             "active_zones": [],
             "affected": {
-             "type": "Any"
+             "type": "Controller"
             },
             "affected_zone": null,
             "characteristic_defining": false,
@@ -16893,7 +16906,8 @@
        "0a74b4e6-f6c9-4fef-a83c-a285a541e720",
        "74943390-d25f-47cb-90bb-cbf70c87f4a2",
        "813057d4-ec5b-4ec4-a6ad-8f53cc49b827",
-       "8a6a883f-55e2-43f5-90a9-34494c14c0c4"
+       "8a6a883f-55e2-43f5-90a9-34494c14c0c4",
+       "c7161eee-f99e-4a2d-8848-911ca73c21c5"
       ]
      },
      "name": "Ashaya, Soul of the Wild",
@@ -16905,6 +16919,7 @@
      },
      "printings": [
       "DSC",
+      "PLST",
       "PRM",
       "PZNR",
       "SLD",
@@ -17171,6 +17186,7 @@
       "PLST",
       "RIN",
       "SLD",
+      "SLZ",
       "WC00"
      ],
      "rarities": [
@@ -18923,7 +18939,7 @@
      "oathbreaker": "legal",
      "pauper": "not_legal",
      "paupercommander": "not_legal",
-     "penny": "not_legal",
+     "penny": "legal",
      "pioneer": "not_legal",
      "predh": "not_legal",
      "premodern": "not_legal",
@@ -19566,6 +19582,7 @@
            "optional": true,
            "optional_targeting": false,
            "sub_ability": null,
+           "target_choice_timing": "Resolution",
            "target_prompt": null
           },
           "forward_result": false,
@@ -20909,8 +20926,8 @@
          "description": null,
          "duration": "UntilEndOfCombat",
          "effect": {
-          "description": "lose this mana as steps end",
-          "name": "lose",
+          "description": "you don't lose this mana as steps end",
+          "name": "unbound_subject",
           "type": "Unimplemented"
          },
          "forward_result": false,
@@ -22594,6 +22611,7 @@
      },
      "metadata": {
       "source_printing_ids": [
+       "a5b80768-2252-4e53-9c31-e64d333535c4",
        "adb04bab-a10a-40da-813e-6afa68956efc",
        "c0889e22-deab-48ba-bbd6-f0d49bee5d9c"
       ]
@@ -22607,7 +22625,8 @@
      },
      "printings": [
       "CMR",
-      "LCC"
+      "LCC",
+      "PLST"
      ],
      "rarities": [
       "common"
@@ -23994,7 +24013,7 @@
      "oathbreaker": "legal",
      "pauper": "legal",
      "paupercommander": "legal",
-     "penny": "not_legal",
+     "penny": "legal",
      "pioneer": "legal",
      "predh": "not_legal",
      "premodern": "not_legal",
@@ -24104,22 +24123,6 @@
      "replacements": [],
      "rulings": [
       {
-       "date": "2021-03-19",
-       "text": "Auras attached to the exiled permanent will be put into their owners' graveyards. Any Equipment will become unattached and remain on the battlefield. Any counters on the exiled permanent will cease to exist. When the card returns to the battlefield, it will be a new object with no connection to the card that was exiled."
-      },
-      {
-       "date": "2021-03-19",
-       "text": "If Banishing Light leaves the battlefield before its triggered ability resolves, the target permanent won't be exiled."
-      },
-      {
-       "date": "2021-03-19",
-       "text": "If a token is exiled this way, it will cease to exist and won't return to the battlefield."
-      },
-      {
-       "date": "2021-03-19",
-       "text": "If an Aura is exiled this way, its owner chooses what it will enchant as it returns to the battlefield. An Aura put onto the battlefield this way doesn't target anything (so it could be attached to a permanent with shroud, for example), but the Aura's enchant ability restricts what it can be attached to. If the Aura can't legally be attached to anything, it remains in exile for the rest of the game."
-      },
-      {
        "date": "2025-07-25",
        "text": "Auras attached to the exiled permanent will be put into their owners’ graveyards. Any Equipment will become unattached and remain on the battlefield. Any counters on the exiled permanent will cease to exist. When the card returns to the battlefield, it will be a new object with no connection to the card that was exiled."
       },
@@ -24219,7 +24222,7 @@
      "oathbreaker": "legal",
      "pauper": "legal",
      "paupercommander": "legal",
-     "penny": "not_legal",
+     "penny": "legal",
      "pioneer": "legal",
      "predh": "not_legal",
      "premodern": "not_legal",
@@ -24984,7 +24987,7 @@
      "oathbreaker": "legal",
      "pauper": "legal",
      "paupercommander": "legal",
-     "penny": "not_legal",
+     "penny": "legal",
      "pioneer": "not_legal",
      "predh": "legal",
      "premodern": "legal",
@@ -25444,7 +25447,7 @@
      "oathbreaker": "legal",
      "pauper": "not_legal",
      "paupercommander": "not_legal",
-     "penny": "not_legal",
+     "penny": "legal",
      "pioneer": "not_legal",
      "predh": "legal",
      "premodern": "legal",
@@ -28639,6 +28642,7 @@
        "33a931b6-607c-4cbb-ad1e-14e2cad14947",
        "3d69a3e0-6a2e-475a-964e-0affed1c017d",
        "3df4e7f8-1f40-4e97-8737-be5e2ce0d39d",
+       "3ffe931c-9f19-4ea5-bc24-041eb00a5862",
        "44060205-8a5c-4f6d-8190-e65d5250935a",
        "45835349-99c3-4071-95d1-7191110bfd9f",
        "4910cd53-87dc-4365-9a42-80dd1f77881f",
@@ -28720,6 +28724,7 @@
       "RAV",
       "RVR",
       "SLD",
+      "SLZ",
       "SUM",
       "WC00",
       "WC01",
@@ -30613,6 +30618,7 @@
        "036f387a-8dee-482e-b3e3-cf79b54c61e1",
        "1bcda0fd-0def-41ef-932a-85e83acce99d",
        "2e1fb442-68ff-4249-8e44-87edf6fae211",
+       "45b6d1f8-a470-4471-bd4f-bed31cb4d344",
        "465d8c18-c76b-488a-a4ec-ec0d2267a307",
        "5587191b-b56a-452d-8a18-1622df83c267",
        "693dd112-d04a-4404-8fce-74f7e5497312",
@@ -30775,7 +30781,7 @@
      "oathbreaker": "legal",
      "pauper": "not_legal",
      "paupercommander": "not_legal",
-     "penny": "legal",
+     "penny": "not_legal",
      "pioneer": "not_legal",
      "predh": "not_legal",
      "premodern": "not_legal",
@@ -33506,7 +33512,8 @@
       "source_printing_ids": [
        "0984b1f1-dfc8-4cb9-90a3-e084950438bf",
        "884d4eea-77c0-4b78-bb83-3f855cc77298",
-       "bdeda32b-9c70-47c6-bfbe-06b651af1ce1"
+       "bdeda32b-9c70-47c6-bfbe-06b651af1ce1",
+       "d40b1ab1-4237-44e0-94d2-fcfbc0e00b53"
       ]
      },
      "name": "Brainstealer Dragon",
@@ -33518,7 +33525,8 @@
      },
      "printings": [
       "CLB",
-      "OTC"
+      "OTC",
+      "PLST"
      ],
      "rarities": [
       "rare"
@@ -33573,7 +33581,14 @@
          "condition": null,
          "cost": null,
          "description": null,
-         "duration": null,
+         "duration": {
+          "ForAsLongAs": {
+           "condition": {
+            "text": "they remain exiled",
+            "type": "Unrecognized"
+           }
+          }
+         },
          "effect": {
           "permission": {
            "duration": "Permanent",
@@ -33887,6 +33902,7 @@
       "PZA",
       "SLD",
       "SLP",
+      "SLZ",
       "SS1",
       "STA",
       "TLE",
@@ -34425,6 +34441,7 @@
      "metadata": {
       "source_printing_ids": [
        "09ab8b60-cdb1-43a8-b180-b562bb89b5a1",
+       "7dfaa1b2-04d3-4c3b-ad2e-996336ba1660",
        "a4d6211a-c078-4ea9-9c86-c7d048c09425",
        "ef9c2b8a-148c-4393-b691-e333ad11c44e"
       ]
@@ -34436,7 +34453,8 @@
      "printings": [
       "C16",
       "CM2",
-      "KTK"
+      "KTK",
+      "PLST"
      ],
      "rarities": [
       "uncommon"
@@ -34528,7 +34546,7 @@
      "oathbreaker": "legal",
      "pauper": "not_legal",
      "paupercommander": "not_legal",
-     "penny": "not_legal",
+     "penny": "legal",
      "pioneer": "legal",
      "predh": "not_legal",
      "premodern": "not_legal",
@@ -34999,7 +35017,7 @@
      "oathbreaker": "legal",
      "pauper": "not_legal",
      "paupercommander": "not_legal",
-     "penny": "not_legal",
+     "penny": "legal",
      "pioneer": "legal",
      "predh": "not_legal",
      "premodern": "not_legal",
@@ -37707,7 +37725,7 @@
      "oathbreaker": "legal",
      "pauper": "not_legal",
      "paupercommander": "not_legal",
-     "penny": "legal",
+     "penny": "not_legal",
      "pioneer": "not_legal",
      "predh": "legal",
      "premodern": "legal",
@@ -39489,25 +39507,6 @@
      "name": "Captain Rex Nebula",
      "non_ability_text": null,
      "oracle_text": "At the beginning of combat on your turn, choose target nonland permanent you control. Until end of turn, it becomes a Vehicle artifact with base power and toughness each equal to its mana value, and it gains crew 2 and \"Crash Land — Whenever this Vehicle deals damage, roll a six-sided die. If the result is equal to this Vehicle's mana value, sacrifice this Vehicle, then it deals that much damage to any target.\"",
-     "parse_warnings": [
-      {
-       "description": "At the beginning of combat on your turn, choose target nonland permanent you control. Until end of turn, it becomes a Vehicle artifact with ",
-       "detector": "DynamicQty",
-       "items": [
-        0
-       ],
-       "line_index": 0,
-       "type": "SwallowedClause",
-       "unit_span": {
-        "end_byte": 416,
-        "first_line": 0,
-        "last_line": 0,
-        "ordinal_within_span": 0,
-        "precision": "Exact",
-        "start_byte": 0
-       }
-      }
-     ],
      "power": {
       "type": "Fixed",
       "value": 2
@@ -39995,7 +39994,25 @@
   "Captain's Maneuver": {
    "phase_records": [
     {
-     "abilities": [],
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "The next X damage that would be dealt to target creature, planeswalker, or player this turn is dealt to another target creature, planeswalker, or player instead.",
+       "duration": null,
+       "effect": {
+        "description": "The next X damage that would be dealt to target creature, planeswalker, or player this turn is dealt to another target creature, planeswalker, or player",
+        "name": "the",
+        "type": "Unimplemented"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
      "card_type": {
       "core_types": [
        "Instant"
@@ -40045,23 +40062,7 @@
      "rarities": [
       "uncommon"
      ],
-     "replacements": [
-      {
-       "condition": null,
-       "description": "The next X damage that would be dealt to target creature, planeswalker, or player this turn is dealt to another target creature, planeswalker, or player instead.",
-       "event": "DamageDone",
-       "execute": null,
-       "mode": {
-        "type": "Mandatory"
-       },
-       "shield_kind": {
-        "Prevention": {
-         "amount": "All"
-        }
-       },
-       "valid_card": null
-      }
-     ],
+     "replacements": [],
      "rulings": [
       {
        "date": "2004-10-04",
@@ -40103,7 +40104,7 @@
      "oathbreaker": "legal",
      "pauper": "not_legal",
      "paupercommander": "not_legal",
-     "penny": "not_legal",
+     "penny": "legal",
      "pioneer": "not_legal",
      "predh": "legal",
      "premodern": "legal",
@@ -41612,8 +41613,12 @@
           "duration": "UntilEndOfTurn",
           "mode": "Play",
           "target": {
+           "caused_by": "Exiled",
+           "filter": {
+            "type": "Any"
+           },
            "id": 0,
-           "type": "TrackedSet"
+           "type": "TrackedSetFiltered"
           },
           "type": "CastFromZone",
           "without_paying_mana_cost": true
@@ -41648,6 +41653,7 @@
          "optional_targeting": false,
          "sub_ability": null,
          "sub_link": "SequentialSibling",
+         "target_choice_timing": "Resolution",
          "target_prompt": null
         },
         "target_prompt": null
@@ -42876,8 +42882,28 @@
       {
        "active_zones": [],
        "affected": {
-        "controller": "You",
-        "properties": [],
+        "controller": null,
+        "properties": [
+         {
+          "comparator": "LE",
+          "scope": "Current",
+          "stat": "Power",
+          "type": "PtComparison",
+          "value": {
+           "inner": {
+            "qty": {
+             "scope": {
+              "type": "Source"
+             },
+             "type": "Power"
+            },
+            "type": "Ref"
+           },
+           "offset": -1,
+           "type": "Offset"
+          }
+         }
+        ],
         "type": "Typed",
         "type_filters": [
          "Creature"
@@ -42889,30 +42915,17 @@
        "description": "Creatures with power less than ~'s power can't block creatures you control.",
        "effect_zone": null,
        "mode": {
-        "CantBeBlockedBy": {
+        "BlockRestriction": {
          "filter": {
-          "controller": null,
-          "properties": [
-           {
-            "comparator": "LT",
-            "scope": "Current",
-            "stat": "Power",
-            "type": "PtComparison",
-            "value": {
-             "qty": {
-              "scope": {
-               "type": "Source"
-              },
-              "type": "Power"
-             },
-             "type": "Ref"
-            }
-           }
-          ],
-          "type": "Typed",
-          "type_filters": [
-           "Creature"
-          ]
+          "filter": {
+           "controller": "You",
+           "properties": [],
+           "type": "Typed",
+           "type_filters": [
+            "Creature"
+           ]
+          },
+          "type": "Not"
          }
         }
        },
@@ -43568,6 +43581,7 @@
        "e4d98ed3-e3e1-4abf-a683-429c92e47011",
        "ecca9ccd-9e16-4140-a625-d8bd295f2ca6",
        "f2c12ae4-7050-4ec3-9d9d-85a5a1265f24",
+       "fb8d8106-b9bd-405c-886e-72fc301c65e1",
        "fe285a48-9a13-4bfa-9426-fb1fe7703a82",
        "fff37491-f496-4810-80a4-d13470434994"
       ]
@@ -43598,6 +43612,7 @@
       "FIC",
       "LCC",
       "MAR",
+      "MBC",
       "MKC",
       "MOC",
       "MSC",
@@ -45137,7 +45152,7 @@
      "oathbreaker": "legal",
      "pauper": "not_legal",
      "paupercommander": "not_legal",
-     "penny": "not_legal",
+     "penny": "legal",
      "pioneer": "legal",
      "predh": "not_legal",
      "premodern": "not_legal",
@@ -45807,8 +45822,8 @@
         "description": null,
         "duration": null,
         "effect": {
-         "description": "secretly votes for a player",
-         "name": "secretly",
+         "description": "vote for a player",
+         "name": "vote",
          "type": "Unimplemented"
         },
         "forward_result": false,
@@ -46280,7 +46295,7 @@
      "oathbreaker": "legal",
      "pauper": "legal",
      "paupercommander": "legal",
-     "penny": "not_legal",
+     "penny": "legal",
      "pioneer": "not_legal",
      "predh": "legal",
      "premodern": "legal",
@@ -47949,6 +47964,7 @@
        "3edb78c2-0a3c-46e1-a7ff-97dbd8402495",
        "43a32bdf-c430-46a0-9d23-8b8e8468391b",
        "48e98c57-c42f-4a3b-b07c-bc7d4882d719",
+       "4991d066-8f4b-4b27-8ba9-bc4e2e017ed4",
        "4a2d381e-4082-4e7d-a109-a7c700ceddfd",
        "4a2dfd72-a8f4-4e43-b5de-caf6a129a51a",
        "4d51a621-be31-4b74-8e0b-3958180a8bc5",
@@ -48090,6 +48106,7 @@
       "REX",
       "SCD",
       "SLD",
+      "SLZ",
       "SOC",
       "TDC",
       "TMC",
@@ -48578,7 +48595,7 @@
      "oathbreaker": "legal",
      "pauper": "not_legal",
      "paupercommander": "not_legal",
-     "penny": "not_legal",
+     "penny": "legal",
      "pioneer": "not_legal",
      "predh": "legal",
      "premodern": "not_legal",
@@ -50424,6 +50441,7 @@
          "optional_targeting": false,
          "sub_ability": null,
          "sub_link": "SequentialSibling",
+         "target_choice_timing": "Resolution",
          "target_prompt": null
         },
         "target_prompt": null
@@ -50815,6 +50833,7 @@
        "6c4de9a0-b778-4e58-ab7d-23aeddffc5af",
        "703dc932-3f90-47e9-8d13-aad1b65f1651",
        "71cfcba5-1571-48b8-a3db-55dca135506e",
+       "77d16cf5-d85a-44cf-aaac-c4134837cbe4",
        "79976df3-e989-4f99-8534-dca962f85e3d",
        "7bd03c80-7812-4704-9e07-9cf73b49c01f",
        "7c3271da-cc20-48c2-ac61-b64a8e47f9e5",
@@ -50835,8 +50854,10 @@
        "cca8eb95-d071-46a4-885c-3da25b401806",
        "ce30f926-bc06-46ee-9f35-0cdf09a67043",
        "d14d5ff3-40c0-4f22-91ad-d6c8447cb9e0",
+       "d6a1907c-59c4-4c72-b0f0-9e2402c05719",
        "dacdd380-71cf-4832-bd02-3697501325f3",
        "e1e48b21-1a4f-4708-a4b4-e2e296df924c",
+       "e28be8b0-b4ae-4f05-8481-a666496c595f",
        "e8493631-6c9c-40a8-b7de-ecf26ba6bf7d",
        "ec4fb462-9226-43cb-862f-7467762e6c8b",
        "ee0d3f5f-7790-4772-bead-5d7114a23e94",
@@ -52685,7 +52706,8 @@
        "ef49fe58-9839-44e1-934d-ff744d3da35a",
        "f1cc00f9-ae7b-4f7b-95f2-bc5c00e4bd72",
        "f6eecb56-d5a3-4c2b-a479-dbec61da9fb4",
-       "faf2ef91-fb95-4cc0-a2a6-53fac5cd807d"
+       "faf2ef91-fb95-4cc0-a2a6-53fac5cd807d",
+       "ff0d8624-1f83-4150-8ef4-ce8345f8067f"
       ]
      },
      "name": "Cultivate",
@@ -52734,6 +52756,7 @@
       "PZ1",
       "SCD",
       "SLD",
+      "SLZ",
       "SOC",
       "STA",
       "TDC",
@@ -53111,7 +53134,7 @@
      "oathbreaker": "legal",
      "pauper": "not_legal",
      "paupercommander": "not_legal",
-     "penny": "legal",
+     "penny": "not_legal",
      "pioneer": "not_legal",
      "predh": "not_legal",
      "premodern": "not_legal",
@@ -54253,7 +54276,7 @@
          "description": null,
          "duration": null,
          "effect": {
-          "duration": null,
+          "duration": "Permanent",
           "static_abilities": [
            {
             "active_zones": [],
@@ -55902,28 +55925,8 @@
      "casting_options": [
       {
        "condition": {
-        "comparator": "GE",
-        "lhs": {
-         "qty": {
-          "filter": {
-           "controller": "You",
-           "properties": [
-            {
-             "type": "IsCommander"
-            }
-           ],
-           "type": "Typed",
-           "type_filters": []
-          },
-          "type": "ObjectCount"
-         },
-         "type": "Ref"
-        },
-        "rhs": {
-         "type": "Fixed",
-         "value": 1
-        },
-        "type": "QuantityComparison"
+        "ownership": "Any",
+        "type": "ControlsCommander"
        },
        "kind": "CastWithoutManaCost"
       }
@@ -55980,11 +55983,11 @@
      "rulings": [
       {
        "date": "2020-04-17",
-       "text": "It doesn’t matter whose commander you control. Any one will do. If you have two commanders, you just need to control one of them."
+       "text": "It doesn't matter whose commander you control. Any one will do. If you have two commanders, you just need to control one of them."
       },
       {
        "date": "2020-04-17",
-       "text": "Once you begin casting this spell, players can’t take any other actions until you’re done casting it. Notably, they can’t try to remove the commander you control to make you pay its cost."
+       "text": "Once you begin casting this spell, players can't take any other actions until you're done casting it. Notably, they can't try to remove the commander you control to make you pay its cost."
       }
      ],
      "scryfall_oracle_id": "0456ec64-2c81-4763-a352-8ff64a4c3d6b",
@@ -56422,7 +56425,7 @@
      "oathbreaker": "legal",
      "pauper": "legal",
      "paupercommander": "legal",
-     "penny": "not_legal",
+     "penny": "legal",
      "pioneer": "legal",
      "predh": "not_legal",
      "premodern": "not_legal",
@@ -56650,7 +56653,7 @@
      "oathbreaker": "legal",
      "pauper": "legal",
      "paupercommander": "legal",
-     "penny": "not_legal",
+     "penny": "legal",
      "pioneer": "not_legal",
      "predh": "legal",
      "premodern": "legal",
@@ -58131,7 +58134,7 @@
      "oathbreaker": "legal",
      "pauper": "not_legal",
      "paupercommander": "not_legal",
-     "penny": "legal",
+     "penny": "not_legal",
      "pioneer": "not_legal",
      "predh": "legal",
      "premodern": "not_legal",
@@ -58310,6 +58313,7 @@
         },
         "destination": "Hand",
         "enter_tapped": false,
+        "enters_attacking": false,
         "filter": {
          "type": "Any"
         },
@@ -59650,7 +59654,7 @@
              "value": 1
             },
             "target": {
-             "type": "TriggeringPlayer"
+             "type": "ParentTargetController"
             },
             "type": "LoseLife"
            },
@@ -59950,7 +59954,7 @@
      "oathbreaker": "legal",
      "pauper": "legal",
      "paupercommander": "legal",
-     "penny": "legal",
+     "penny": "not_legal",
      "pioneer": "legal",
      "predh": "legal",
      "premodern": "legal",
@@ -60718,6 +60722,7 @@
         },
         "destination": "Hand",
         "enter_tapped": false,
+        "enters_attacking": false,
         "filter": {
          "controller": null,
          "properties": [],
@@ -60731,6 +60736,7 @@
          "type": "Controller"
         },
         "rest_destination": "Library",
+        "rest_order": "random",
         "reveal": true,
         "type": "Dig",
         "up_to": true
@@ -63269,7 +63275,7 @@
      "oathbreaker": "legal",
      "pauper": "not_legal",
      "paupercommander": "not_legal",
-     "penny": "not_legal",
+     "penny": "legal",
      "pioneer": "legal",
      "predh": "not_legal",
      "premodern": "not_legal",
@@ -65311,17 +65317,20 @@
          "type": "AddDynamicPower",
          "value": {
           "qty": {
-           "filter": {
-            "controller": "You",
-            "properties": [],
-            "type": "Typed",
-            "type_filters": [
-             {
-              "Subtype": "Ally"
-             }
-            ]
+           "source": {
+            "filter": {
+             "controller": "You",
+             "properties": [],
+             "type": "Typed",
+             "type_filters": [
+              {
+               "Subtype": "Ally"
+              }
+             ]
+            },
+            "type": "Objects"
            },
-           "type": "DistinctColorsAmongPermanents"
+           "type": "DistinctColorsAmong"
           },
           "type": "Ref"
          }
@@ -65430,7 +65439,8 @@
        "0029955b-32a5-4dd8-8a8c-5c80cdfd13aa",
        "2183cfb3-6bf5-4fbc-b535-a42ba954e8a3",
        "22d6a4c9-4bdd-4e70-8481-95260e6aa7ab",
-       "75b7f5a3-a936-4613-b5e7-6637e1b17e2a"
+       "75b7f5a3-a936-4613-b5e7-6637e1b17e2a",
+       "d5ecb93f-290f-4798-abaa-88761141c1b7"
       ]
      },
      "name": "Edric, Spymaster of Trest",
@@ -65447,6 +65457,7 @@
       "CNS",
       "OTC",
       "PCMD",
+      "PLST",
       "PZ1",
       "VMA"
      ],
@@ -65749,7 +65760,7 @@
      "oathbreaker": "legal",
      "pauper": "legal",
      "paupercommander": "legal",
-     "penny": "legal",
+     "penny": "not_legal",
      "pioneer": "legal",
      "predh": "not_legal",
      "premodern": "not_legal",
@@ -67558,7 +67569,7 @@
      "oathbreaker": "legal",
      "pauper": "not_legal",
      "paupercommander": "not_legal",
-     "penny": "legal",
+     "penny": "not_legal",
      "pioneer": "legal",
      "predh": "legal",
      "premodern": "not_legal",
@@ -67993,6 +68004,7 @@
        "939d765a-aefb-4393-8808-98b1bbd7e803",
        "952bb27c-c58a-478a-b637-eb4f7e1e0ab4",
        "9618ad79-bca0-47c7-85f5-e620a3ce6225",
+       "e9116aa0-1993-4f4a-9a1d-0561d0fbcba9",
        "fbd81c2e-9c0d-47b2-ba02-6f1dca1d96dc"
       ]
      },
@@ -68074,7 +68086,7 @@
      "oathbreaker": "legal",
      "pauper": "banned",
      "paupercommander": "legal",
-     "penny": "not_legal",
+     "penny": "legal",
      "pioneer": "not_legal",
      "predh": "legal",
      "premodern": "not_legal",
@@ -68459,6 +68471,7 @@
         "optional_targeting": false,
         "sub_ability": null,
         "sub_link": "SequentialSibling",
+        "target_choice_timing": "Resolution",
         "target_prompt": null
        },
        "target_prompt": null
@@ -70082,7 +70095,7 @@
      "oathbreaker": "legal",
      "pauper": "not_legal",
      "paupercommander": "not_legal",
-     "penny": "legal",
+     "penny": "not_legal",
      "pioneer": "legal",
      "predh": "not_legal",
      "premodern": "not_legal",
@@ -70685,6 +70698,7 @@
        "621e3239-b527-4154-bce6-b51241809fc5",
        "7be5092f-cd24-4aea-824e-67b9767019b2",
        "954fbf3c-7cc2-4f5e-ba96-e3033a20ce61",
+       "9fa28859-376b-4d02-ba64-28a9bd73cd44",
        "d562bd6e-6e13-4309-bf80-3c10570741bf",
        "f48ab69d-8a01-4dcb-af70-31e2c62278df",
        "f704397a-c180-44ae-9e4e-90180556b87b"
@@ -71338,7 +71352,8 @@
       "source_printing_ids": [
        "2c46a2ca-27fd-44d4-80d0-7c83ed0a564e",
        "7f7e780e-fbc5-4dc0-b5c7-efcb8645c7c6",
-       "b2185d26-05b7-4e8b-ab0a-4f9d1541d4c5"
+       "b2185d26-05b7-4e8b-ab0a-4f9d1541d4c5",
+       "b2808dfb-3717-42c5-8c13-eafead85e134"
       ]
      },
      "name": "Ertai Resurrected",
@@ -71350,7 +71365,8 @@
      },
      "printings": [
       "DMU",
-      "PDMU"
+      "PDMU",
+      "SLD"
      ],
      "rarities": [
       "rare"
@@ -72679,8 +72695,12 @@
              "driver": "DuringResolution",
              "mode": "Cast",
              "target": {
+              "caused_by": "Exiled",
+              "filter": {
+               "type": "Any"
+              },
               "id": 0,
-              "type": "TrackedSet"
+              "type": "TrackedSetFiltered"
              },
              "type": "CastFromZone",
              "without_paying_mana_cost": true
@@ -72690,6 +72710,7 @@
             "optional": true,
             "optional_targeting": false,
             "sub_ability": null,
+            "target_choice_timing": "Resolution",
             "target_prompt": null
            },
            "sub_link": "SequentialSibling",
@@ -74687,7 +74708,7 @@
      "oathbreaker": "legal",
      "pauper": "not_legal",
      "paupercommander": "not_legal",
-     "penny": "not_legal",
+     "penny": "legal",
      "pioneer": "not_legal",
      "predh": "legal",
      "premodern": "legal",
@@ -76346,6 +76367,7 @@
        "optional": false,
        "origin": null,
        "phase": null,
+       "saga_chapter": 1,
        "secondary": false,
        "trigger_zones": [
         "Battlefield"
@@ -76413,6 +76435,7 @@
        "optional": false,
        "origin": null,
        "phase": null,
+       "saga_chapter": 2,
        "secondary": false,
        "trigger_zones": [
         "Battlefield"
@@ -76480,6 +76503,7 @@
        "optional": false,
        "origin": null,
        "phase": null,
+       "saga_chapter": 3,
        "secondary": false,
        "trigger_zones": [
         "Battlefield"
@@ -76699,7 +76723,7 @@
      "oathbreaker": "legal",
      "pauper": "not_legal",
      "paupercommander": "not_legal",
-     "penny": "legal",
+     "penny": "not_legal",
      "pioneer": "legal",
      "predh": "not_legal",
      "premodern": "not_legal",
@@ -76775,25 +76799,6 @@
      "name": "Faramir, Field Commander",
      "non_ability_text": null,
      "oracle_text": "At the beginning of your end step, if a creature died under your control this turn, draw a card.\nWhenever the Ring tempts you, if you chose a creature other than Faramir as your Ring-bearer, create a 1/1 white Human Soldier creature token.",
-     "parse_warnings": [
-      {
-       "description": "Whenever the Ring tempts you, if you chose a creature other than Faramir as your Ring-bearer, create a 1/1 white Human Soldier creature toke",
-       "detector": "Condition_If",
-       "items": [
-        1
-       ],
-       "line_index": 1,
-       "type": "SwallowedClause",
-       "unit_span": {
-        "end_byte": 239,
-        "first_line": 1,
-        "last_line": 1,
-        "ordinal_within_span": 0,
-        "precision": "Exact",
-        "start_byte": 97
-       }
-      }
-     ],
      "power": {
       "type": "Fixed",
       "value": 3
@@ -76899,7 +76904,9 @@
       },
       {
        "batched": false,
-       "condition": null,
+       "condition": {
+        "type": "ChoseOtherRingBearer"
+       },
        "constraint": null,
        "damage_kind": "Any",
        "description": "Whenever the ring tempts you, if you chose a creature other than ~ as your Ring-bearer, create a 1/1 white Human Soldier creature token.",
@@ -82012,7 +82019,7 @@
      "oathbreaker": "legal",
      "pauper": "legal",
      "paupercommander": "legal",
-     "penny": "not_legal",
+     "penny": "legal",
      "pioneer": "legal",
      "predh": "legal",
      "premodern": "not_legal",
@@ -83753,7 +83760,7 @@
      "oathbreaker": "legal",
      "pauper": "not_legal",
      "paupercommander": "not_legal",
-     "penny": "legal",
+     "penny": "not_legal",
      "pioneer": "legal",
      "predh": "not_legal",
      "premodern": "not_legal",
@@ -85018,7 +85025,7 @@
      "oathbreaker": "legal",
      "pauper": "not_legal",
      "paupercommander": "not_legal",
-     "penny": "not_legal",
+     "penny": "legal",
      "pioneer": "not_legal",
      "predh": "legal",
      "premodern": "not_legal",
@@ -85313,7 +85320,7 @@
      "oathbreaker": "legal",
      "pauper": "not_legal",
      "paupercommander": "not_legal",
-     "penny": "legal",
+     "penny": "not_legal",
      "pioneer": "legal",
      "predh": "legal",
      "premodern": "legal",
@@ -86011,7 +86018,14 @@
       },
       {
        "active_zones": [],
-       "affected": null,
+       "affected": {
+        "controller": "You",
+        "properties": [],
+        "type": "Typed",
+        "type_filters": [
+         "Permanent"
+        ]
+       },
        "affected_zone": null,
        "characteristic_defining": false,
        "condition": null,
@@ -86370,17 +86384,20 @@
        "effect": {
         "count": {
          "qty": {
-          "filter": {
-           "controller": "You",
-           "properties": [],
-           "type": "Typed",
-           "type_filters": [
-            "Creature"
-           ]
-          },
           "function": "Max",
           "property": "Power",
-          "type": "Aggregate"
+          "source": {
+           "filter": {
+            "controller": "You",
+            "properties": [],
+            "type": "Typed",
+            "type_filters": [
+             "Creature"
+            ]
+           },
+           "type": "Objects"
+          },
+          "type": "PropertyAggregate"
          },
          "type": "Ref"
         },
@@ -88341,17 +88358,20 @@
           "type": "Cost"
          },
          "dynamic_count": {
-          "filter": {
-           "controller": "You",
-           "properties": [],
-           "type": "Typed",
-           "type_filters": [
-            "Creature"
-           ]
-          },
           "function": "Sum",
           "property": "Power",
-          "type": "Aggregate"
+          "source": {
+           "filter": {
+            "controller": "You",
+            "properties": [],
+            "type": "Typed",
+            "type_filters": [
+             "Creature"
+            ]
+           },
+           "type": "Objects"
+          },
+          "type": "PropertyAggregate"
          },
          "mode": "Reduce",
          "spell_filter": null
@@ -90069,6 +90089,7 @@
          },
          "destination": "Battlefield",
          "enter_tapped": false,
+         "enters_attacking": false,
          "filter": {
           "controller": null,
           "properties": [],
@@ -90085,6 +90106,7 @@
           "type": "Controller"
          },
          "rest_destination": "Library",
+         "rest_order": "random",
          "reveal": true,
          "type": "Dig",
          "up_to": true
@@ -90245,6 +90267,7 @@
      },
      "metadata": {
       "source_printing_ids": [
+       "50113a1f-4b6f-4d4c-a753-9b533a949e6f",
        "b6fab12e-0f81-4728-9a35-4dc896ba3744",
        "ffc70b2d-5a3a-49ea-97db-175a62248302"
       ]
@@ -90258,7 +90281,8 @@
      },
      "printings": [
       "BLB",
-      "PBLB"
+      "PBLB",
+      "PLST"
      ],
      "rarities": [
       "mythic"
@@ -90671,6 +90695,7 @@
          },
          "destination": "Hand",
          "enter_tapped": false,
+         "enters_attacking": false,
          "filter": {
           "controller": null,
           "properties": [],
@@ -93135,7 +93160,7 @@
      "oathbreaker": "legal",
      "pauper": "not_legal",
      "paupercommander": "not_legal",
-     "penny": "not_legal",
+     "penny": "legal",
      "pioneer": "legal",
      "predh": "legal",
      "premodern": "legal",
@@ -94623,6 +94648,7 @@
        "01852cd2-16e4-4518-b5d5-b9a378b8664d",
        "2eb69961-0053-476f-b58e-20b6df0e2649",
        "34c8c61d-dad3-4aec-afcd-6db09e21e97f",
+       "3dbd197c-589c-4958-b2ec-9a34c1f9fc63",
        "4cedbfd3-907f-4042-98c1-6fe3fb8cbc01",
        "56836320-356f-4ec5-9e2b-3a73620044a6",
        "59356854-e84f-4cf6-92ca-e47a2108a8df",
@@ -94714,6 +94740,7 @@
          },
          "destination": "Exile",
          "enter_tapped": false,
+         "enters_attacking": false,
          "filter": {
           "type": "Any"
          },
@@ -95972,6 +95999,7 @@
       "PLST",
       "SCD",
       "SLC",
+      "SLZ",
       "THB",
       "THS",
       "TSR"
@@ -96383,7 +96411,7 @@
      "oathbreaker": "legal",
      "pauper": "not_legal",
      "paupercommander": "not_legal",
-     "penny": "legal",
+     "penny": "not_legal",
      "pioneer": "legal",
      "predh": "not_legal",
      "premodern": "not_legal",
@@ -96830,6 +96858,7 @@
         },
         "destination": "Hand",
         "enter_tapped": false,
+        "enters_attacking": false,
         "filter": {
          "filters": [
           {
@@ -97085,6 +97114,7 @@
       "POR",
       "RQS",
       "S99",
+      "SLZ",
       "SUM"
      ],
      "rarities": [
@@ -98156,7 +98186,7 @@
      "oathbreaker": "legal",
      "pauper": "legal",
      "paupercommander": "legal",
-     "penny": "not_legal",
+     "penny": "legal",
      "pioneer": "legal",
      "predh": "not_legal",
      "premodern": "not_legal",
@@ -98220,6 +98250,7 @@
      "metadata": {
       "source_printing_ids": [
        "1e8f9ef5-762f-438f-b06b-9c30c4e364f0",
+       "44c581ec-3277-4557-bd47-df3d7d3a9cef",
        "48eeb13e-26f8-4fc7-8850-d38790317ea4",
        "5454a9ba-c749-45f1-880a-cdb699f12bdf",
        "6a3e6ee6-6fb5-4107-a96d-e1b979f0465c",
@@ -98270,6 +98301,7 @@
       "RVR",
       "SCD",
       "SLD",
+      "SLZ",
       "TDC"
      ],
      "rarities": [
@@ -98762,6 +98794,7 @@
          },
          "destination": null,
          "enter_tapped": false,
+         "enters_attacking": false,
          "filter": {
           "type": "Any"
          },
@@ -98815,6 +98848,7 @@
          "optional": true,
          "optional_targeting": false,
          "sub_ability": null,
+         "target_choice_timing": "Resolution",
          "target_prompt": null
         },
         "target_prompt": null
@@ -100389,7 +100423,7 @@
      },
      "name": "Halana and Alena, Partners",
      "non_ability_text": null,
-     "oracle_text": "First strike (This creature deals combat damage before creatures without first strike.)\nReach (This creature can block creatures with flying.)\nAt the beginning of combat on your turn, put X +1/+1 counters on another target creature you control, where X is Halana and Alena's power. That creature gains haste until end of turn.",
+     "oracle_text": "Reach (This creature can block creatures with flying.)\nFirst strike (This creature deals combat damage before creatures without first strike.)\nAt the beginning of combat on your turn, put X +1/+1 counters on another target creature you control, where X is Halana and Alena's power. That creature gains haste until end of turn.",
      "power": {
       "type": "Fixed",
       "value": 2
@@ -100557,7 +100591,7 @@
     "mana_cost": "{2}{R}{G}",
     "name": "Halana and Alena, Partners",
     "oracle_id": "b347be2d-9aa1-42a9-b652-8fb032832f09",
-    "oracle_text": "First strike (This creature deals combat damage before creatures without first strike.)\nReach (This creature can block creatures with flying.)\nAt the beginning of combat on your turn, put X +1/+1 counters on another target creature you control, where X is Halana and Alena's power. That creature gains haste until end of turn.",
+    "oracle_text": "Reach (This creature can block creatures with flying.)\nFirst strike (This creature deals combat damage before creatures without first strike.)\nAt the beginning of combat on your turn, put X +1/+1 counters on another target creature you control, where X is Halana and Alena's power. That creature gains haste until end of turn.",
     "power": "2",
     "toughness": "3",
     "type_line": "Legendary Creature — Human Ranger"
@@ -101105,6 +101139,7 @@
           "optional_targeting": false,
           "sub_ability": {
            "condition": {
+            "destination": "Battlefield",
             "filter": {
              "controller": null,
              "properties": [],
@@ -101143,6 +101178,7 @@
          "optional_targeting": false,
          "sub_ability": {
           "condition": {
+           "destination": "Battlefield",
            "filter": {
             "controller": null,
             "properties": [],
@@ -101453,7 +101489,9 @@
         ]
        },
        "valid_source": null,
-       "valid_target": null
+       "valid_target": {
+        "type": "Controller"
+       }
       }
      ]
     }
@@ -104823,6 +104861,14 @@
       {
        "date": "2017-08-25",
        "text": "To determine the total cost of a spell, start with the mana cost or alternative cost you're paying, add any cost increases, then apply any cost reductions. The mana value of the spell remains unchanged, no matter what the total cost to cast it was."
+      },
+      {
+       "date": "2017-08-25",
+       "text": "You can't choose multiple creature types, such as \"Cat Warrior.\" A Cat Warrior is both a Cat and a Warrior. It's affected by anything that affects either type and unaffected by things that affect non-Cat or non-Warrior creatures."
+      },
+      {
+       "date": "2017-08-25",
+       "text": "You must choose an existing creature type, such as Vampire or Cat. Card types such as \"artifact\" can't be chosen."
       }
      ],
      "scryfall_oracle_id": "c02c5547-b9c9-4b2d-9d12-e87bfba8f2d2",
@@ -104890,6 +104936,7 @@
          },
          "destination": null,
          "enter_tapped": false,
+         "enters_attacking": false,
          "filter": {
           "type": "Any"
          },
@@ -106117,7 +106164,17 @@
        "optional": false,
        "optional_targeting": false,
        "sub_ability": {
-        "condition": null,
+        "condition": {
+         "filter": {
+          "controller": null,
+          "properties": [],
+          "type": "Typed",
+          "type_filters": [
+           "Card"
+          ]
+         },
+         "type": "ZoneChangedThisWay"
+        },
         "cost": null,
         "description": null,
         "duration": null,
@@ -106201,23 +106258,6 @@
         "precision": "Exact",
         "start_byte": 0
        }
-      },
-      {
-       "description": "Counter target spell. If that spell is countered this way, put that card on your choice of the top or bottom of its owner's library instead ",
-       "detector": "Condition_If",
-       "items": [
-        0
-       ],
-       "line_index": 0,
-       "type": "SwallowedClause",
-       "unit_span": {
-        "end_byte": 172,
-        "first_line": 0,
-        "last_line": 0,
-        "ordinal_within_span": 0,
-        "precision": "Exact",
-        "start_byte": 0
-       }
       }
      ],
      "power": null,
@@ -106268,7 +106308,7 @@
      "oathbreaker": "legal",
      "pauper": "not_legal",
      "paupercommander": "not_legal",
-     "penny": "legal",
+     "penny": "not_legal",
      "pioneer": "not_legal",
      "predh": "legal",
      "premodern": "not_legal",
@@ -107538,6 +107578,16 @@
     {
      "abilities": [
       {
+       "activation_restrictions": [
+        {
+         "data": {
+          "condition": {
+           "type": "HasMaxSpeed"
+          }
+         },
+         "type": "RequiresCondition"
+        }
+       ],
        "condition": null,
        "cost": {
         "type": "Tap"
@@ -109255,7 +109305,7 @@
      "oathbreaker": "legal",
      "pauper": "legal",
      "paupercommander": "legal",
-     "penny": "not_legal",
+     "penny": "legal",
      "pioneer": "legal",
      "predh": "not_legal",
      "premodern": "not_legal",
@@ -109985,7 +110035,7 @@
      "replacements": [
       {
        "condition": null,
-       "description": "CR 310.11a: As a Siege enters, its controller chooses an opponent as its protector.",
+       "description": "CR 310.12a: As a Siege enters, its controller chooses an opponent as its protector.",
        "destination_zone": "Battlefield",
        "event": "Moved",
        "execute": {
@@ -110234,7 +110284,7 @@
         "threshold": 0
        },
        "damage_kind": "Any",
-       "description": "CR 310.11b: When the last defense counter is removed from this Siege, exile it, then you may cast it transformed without paying its mana cost.",
+       "description": "CR 310.12b: When the last defense counter is removed from this Siege, exile it, then you may cast it transformed without paying its mana cost.",
        "destination": null,
        "execute": {
         "condition": null,
@@ -110699,6 +110749,7 @@
        "optional": false,
        "origin": null,
        "phase": null,
+       "saga_chapter": 1,
        "secondary": false,
        "trigger_zones": [
         "Battlefield"
@@ -110816,6 +110867,7 @@
        "optional": false,
        "origin": null,
        "phase": null,
+       "saga_chapter": 2,
        "secondary": false,
        "trigger_zones": [
         "Battlefield"
@@ -110867,6 +110919,7 @@
        "optional": false,
        "origin": null,
        "phase": null,
+       "saga_chapter": 3,
        "secondary": false,
        "trigger_zones": [
         "Battlefield"
@@ -111807,7 +111860,14 @@
      "static_abilities": [
       {
        "active_zones": [],
-       "affected": null,
+       "affected": {
+        "controller": "You",
+        "properties": [],
+        "type": "Typed",
+        "type_filters": [
+         "Permanent"
+        ]
+       },
        "affected_zone": null,
        "characteristic_defining": false,
        "condition": null,
@@ -112012,14 +112072,39 @@
         "duration": null,
         "effect": {
          "cost": {
-          "cost": {
-           "generic": 0,
-           "shards": [
-            "Green"
-           ],
-           "type": "Cost"
-          },
-          "type": "Mana"
+          "costs": [
+           {
+            "cost": {
+             "generic": 0,
+             "shards": [
+              "Green"
+             ],
+             "type": "Cost"
+            },
+            "type": "Mana"
+           },
+           {
+            "cost": {
+             "generic": 0,
+             "shards": [
+              "White"
+             ],
+             "type": "Cost"
+            },
+            "type": "Mana"
+           },
+           {
+            "cost": {
+             "generic": 0,
+             "shards": [
+              "Blue"
+             ],
+             "type": "Cost"
+            },
+            "type": "Mana"
+           }
+          ],
+          "type": "OneOf"
          },
          "payer": {
           "type": "Controller"
@@ -112054,13 +112139,12 @@
          "optional": false,
          "optional_targeting": false,
          "sub_ability": null,
-         "sub_link": "SequentialSibling",
          "target_prompt": null
         },
         "target_prompt": null
        },
        "mode": "ChangesZone",
-       "optional": true,
+       "optional": false,
        "origin": null,
        "phase": null,
        "secondary": false,
@@ -113458,7 +113542,7 @@
      "oathbreaker": "legal",
      "pauper": "not_legal",
      "paupercommander": "not_legal",
-     "penny": "legal",
+     "penny": "not_legal",
      "pioneer": "legal",
      "predh": "not_legal",
      "premodern": "not_legal",
@@ -114178,9 +114262,9 @@
         "condition": null,
         "cost": null,
         "description": null,
-        "duration": "Permanent",
+        "duration": "UntilEndOfTurn",
         "effect": {
-         "duration": "Permanent",
+         "duration": "UntilEndOfTurn",
          "static_abilities": [
           {
            "active_zones": [],
@@ -116104,7 +116188,7 @@
      "oathbreaker": "legal",
      "pauper": "not_legal",
      "paupercommander": "not_legal",
-     "penny": "not_legal",
+     "penny": "legal",
      "pioneer": "legal",
      "predh": "not_legal",
      "premodern": "not_legal",
@@ -116947,7 +117031,7 @@
      "oathbreaker": "legal",
      "pauper": "not_legal",
      "paupercommander": "not_legal",
-     "penny": "not_legal",
+     "penny": "legal",
      "pioneer": "not_legal",
      "predh": "legal",
      "premodern": "legal",
@@ -117462,6 +117546,7 @@
      "metadata": {
       "source_printing_ids": [
        "23766fa0-e673-46c7-a29f-3fb140844b1c",
+       "4b1f514f-de6d-47c8-9dec-f0df1385ab90",
        "aa1c4ada-a218-4701-a293-ae6cbbe5c4d8",
        "f606ebf1-483d-4331-b16a-9fb6f591a39f"
       ]
@@ -117475,6 +117560,7 @@
      },
      "printings": [
       "CMR",
+      "PLST",
       "PRM",
       "SLD"
      ],
@@ -118004,6 +118090,7 @@
         },
         "destination": null,
         "enter_tapped": false,
+        "enters_attacking": false,
         "filter": {
          "type": "Any"
         },
@@ -119298,6 +119385,7 @@
       "source_printing_ids": [
        "0b9ba246-0f2c-4865-a6a5-f9fd4b813ef1",
        "437ded6e-4e53-49fa-a5ca-fd76b9165a47",
+       "ca9d37a5-a37f-4d7e-81ed-a33abef0b22a",
        "e0e26f6c-44e9-4d6f-8eb1-efdef8d04ff5",
        "fc73a66f-4745-40c2-9c90-96396f6e7bce"
       ]
@@ -119313,6 +119401,7 @@
       "BOK",
       "JMP",
       "MMA",
+      "PLST",
       "SLD"
      ],
      "rarities": [
@@ -119868,6 +119957,7 @@
      },
      "metadata": {
       "source_printing_ids": [
+       "4a012a19-49d7-43a6-9313-998da10263cc",
        "c8ff751a-ec64-41d5-b22c-2a483ad9a9b2",
        "d0bbfdc9-8d68-4b4e-ac68-ac165cdc168d"
       ]
@@ -119881,7 +119971,8 @@
      },
      "printings": [
       "BLB",
-      "PBLB"
+      "PBLB",
+      "PLST"
      ],
      "rarities": [
       "mythic"
@@ -120440,6 +120531,7 @@
      },
      "metadata": {
       "source_printing_ids": [
+       "06401fc0-f230-4819-89b8-ac629cb89bcd",
        "06a80365-1613-4d26-abe3-8cec0d40146b",
        "154c2d54-6dc2-4350-8cc1-f099c7d13ccc",
        "63dc0698-e92f-4134-80e4-5cc37b80e37c",
@@ -120458,6 +120550,7 @@
       "DRB",
       "IMA",
       "MMA",
+      "PLST",
       "SLD"
      ],
      "rarities": [
@@ -120867,6 +120960,7 @@
      },
      "metadata": {
       "source_printing_ids": [
+       "064cb539-9352-4a88-a7f1-2ac33f1b2321",
        "5edab171-94b9-4e5e-ab61-bd8c6c8cfc38"
       ]
      },
@@ -120878,7 +120972,8 @@
       "value": 3
      },
      "printings": [
-      "CHK"
+      "CHK",
+      "PLST"
      ],
      "rarities": [
       "rare"
@@ -121187,7 +121282,7 @@
      "oathbreaker": "legal",
      "pauper": "legal",
      "paupercommander": "legal",
-     "penny": "not_legal",
+     "penny": "legal",
      "pioneer": "not_legal",
      "predh": "legal",
      "premodern": "not_legal",
@@ -121566,14 +121661,9 @@
            "description": null,
            "duration": "UntilHostLeavesPlay",
            "effect": {
-            "duration": "UntilHostLeavesPlay",
-            "mode": "Cast",
-            "target": {
-             "id": 0,
-             "type": "TrackedSet"
-            },
-            "type": "CastFromZone",
-            "without_paying_mana_cost": false
+            "description": "you may play one of the exiled cards, and you may spend mana as though it were mana of any color to cast it",
+            "name": "unbound_subject",
+            "type": "Unimplemented"
            },
            "forward_result": false,
            "kind": "Spell",
@@ -121819,7 +121909,7 @@
            },
            "forward_result": false,
            "kind": "Spell",
-           "optional": false,
+           "optional": true,
            "optional_targeting": false,
            "sub_ability": null,
            "target_prompt": null
@@ -122518,7 +122608,7 @@
      "oathbreaker": "legal",
      "pauper": "legal",
      "paupercommander": "legal",
-     "penny": "not_legal",
+     "penny": "legal",
      "pioneer": "legal",
      "predh": "not_legal",
      "premodern": "not_legal",
@@ -122814,7 +122904,9 @@
      },
      "metadata": {
       "source_printing_ids": [
+       "12be804d-b1bd-4299-9ab0-c65966c518f9",
        "12fede45-8c95-45eb-915c-c3ee5101dfcc",
+       "7eed966b-3423-4252-a611-b804f3da86e9",
        "c9f88a40-a6ed-4c1f-a309-011aca1acddd"
       ]
      },
@@ -122826,10 +122918,13 @@
       "value": 3
      },
      "printings": [
-      "LCI"
+      "LCI",
+      "PLST",
+      "SLD"
      ],
      "rarities": [
-      "uncommon"
+      "uncommon",
+      "rare"
      ],
      "replacements": [],
      "rulings": [
@@ -123345,7 +123440,7 @@
            {
             "active_zones": [],
             "affected": {
-             "type": "Any"
+             "type": "Controller"
             },
             "affected_zone": null,
             "characteristic_defining": false,
@@ -125821,6 +125916,7 @@
        "0277c0b1-da97-49c1-a539-7fbaa1f77419",
        "02e20655-321c-4194-ab72-b4a5473238d1",
        "0f29ea1f-a226-4ec4-8297-109e2f2b5c69",
+       "132dc07f-74e2-4bd7-bdb1-4f5d5253c7f2",
        "24484578-7885-4125-b95f-e677d970a5a1",
        "27740ea5-79c8-420f-bc49-6d5eac58dac5",
        "310de1ef-f1b6-4b61-9d6c-6b70382a7f95",
@@ -125846,6 +125942,7 @@
        "9809473d-f793-476f-ae7e-e535b6725d65",
        "988cd919-146e-4212-b0e4-146b87f806bd",
        "996a81ae-0c2d-4e74-b018-5f0ec0fcfbd3",
+       "a050f085-dc6a-4715-8cd3-33daf3e27bfc",
        "a6de74d2-0668-49c6-a385-bf706bfed8f7",
        "ae5f9fb1-5a55-4db3-98a1-2628e3598c18",
        "b14fae63-2e82-49c1-8e62-d84a65f27479",
@@ -125915,6 +126012,7 @@
       "PW26",
       "SLD",
       "SLP",
+      "SLZ",
       "STA",
       "SUM",
       "TD0",
@@ -126457,7 +126555,8 @@
      },
      "metadata": {
       "source_printing_ids": [
-       "b8a3cdfe-0289-474b-b9c4-07e8c6588ec5"
+       "b8a3cdfe-0289-474b-b9c4-07e8c6588ec5",
+       "f9f24c35-2873-4bba-8bcb-ea5c9e20e7a5"
       ]
      },
      "name": "Lim-Dûl the Necromancer",
@@ -126468,6 +126567,7 @@
       "value": 4
      },
      "printings": [
+      "PLST",
       "TSP"
      ],
      "rarities": [
@@ -126797,27 +126897,27 @@
      "replacements": [],
      "rulings": [
       {
-       "date": "2021-03-19",
-       "text": "\"Flashback [cost]\" means \"You may cast this card from your graveyard by paying [cost] rather than paying its mana cost\" and \"If the flashback cost was paid, exile this card instead of putting it anywhere else any time it would leave the stack.\""
+       "date": "2025-06-06",
+       "text": "\"Flashback [cost]\" means \"You may cast this card from your graveyard if the resulting spell is an instant or sorcery spell by paying [cost] rather than paying its mana cost\" and \"If the flashback cost was paid, exile this card instead of putting it anywhere else any time it would leave the stack.\""
       },
       {
-       "date": "2021-03-19",
+       "date": "2025-06-06",
        "text": "A spell cast using flashback will always be exiled afterward, whether it resolves, is countered, or leaves the stack in some other way."
       },
       {
-       "date": "2021-03-19",
+       "date": "2025-06-06",
        "text": "If a card with flashback is put into your graveyard during your turn, you can cast it if it's legal to do so before any other player can take any actions."
       },
       {
-       "date": "2021-03-19",
+       "date": "2025-06-06",
        "text": "To determine the total cost of a spell, start with the mana cost or alternative cost (such as a flashback cost) you're paying, add any cost increases, then apply any cost reductions. The mana value of the spell is determined only by its mana cost, no matter what the total cost to cast the spell was."
       },
       {
-       "date": "2021-03-19",
+       "date": "2025-06-06",
        "text": "You can cast a spell using flashback even if it was somehow put into your graveyard without having been cast."
       },
       {
-       "date": "2021-03-19",
+       "date": "2025-06-06",
        "text": "You must still follow any timing restrictions and permissions, including those based on the card's type. For instance, you can cast a sorcery using flashback only when you could normally cast a sorcery."
       }
      ],
@@ -127420,6 +127520,7 @@
       "PTC",
       "SLC",
       "SLD",
+      "SLZ",
       "SUM",
       "WC00",
       "WC01",
@@ -129018,8 +129119,7 @@
       "CSP",
       "DDS",
       "PLST",
-      "PSAL",
-      "PZ2"
+      "PSAL"
      ],
      "rarities": [
       "rare",
@@ -129802,7 +129902,7 @@
          }
         ],
         "target": {
-         "type": "Any"
+         "type": "Controller"
         },
         "type": "GenericEffect"
        },
@@ -130387,7 +130487,7 @@
      "oathbreaker": "legal",
      "pauper": "not_legal",
      "paupercommander": "not_legal",
-     "penny": "not_legal",
+     "penny": "legal",
      "pioneer": "legal",
      "predh": "not_legal",
      "premodern": "not_legal",
@@ -132034,6 +132134,7 @@
          "sub_link": "SequentialSibling",
          "target_prompt": null
         },
+        "target_choice_timing": "Resolution",
         "target_prompt": null
        },
        "mode": "Phase",
@@ -133366,6 +133467,28 @@
       "rare"
      ],
      "replacements": [],
+     "rulings": [
+      {
+       "date": "2025-10-02",
+       "text": "\"Firebending N\" is a keyword that represents the ability \"Whenever this creature attacks, add N {R}. Until end of combat, you don't lose this mana as steps end.\""
+      },
+      {
+       "date": "2025-10-02",
+       "text": "Any other mana you add during combat will still be lost as normal when moving between steps of combat."
+      },
+      {
+       "date": "2025-10-02",
+       "text": "Firebending abilities aren't mana abilities. They use the stack and can be responded to."
+      },
+      {
+       "date": "2025-10-02",
+       "text": "Mana from firebending abilities isn't lost until you leave combat and go to your second main phase. It can be used at any time during combat, even after combat damage has been dealt."
+      },
+      {
+       "date": "2025-10-02",
+       "text": "Multiple instances of firebending on the same creature trigger separately, each granting you the appropriate amount of mana."
+      }
+     ],
      "scryfall_oracle_id": "b86ba0aa-89f3-4924-b3c4-f7ca44468e9b",
      "static_abilities": [
       {
@@ -133716,7 +133839,7 @@
      "oathbreaker": "legal",
      "pauper": "not_legal",
      "paupercommander": "not_legal",
-     "penny": "legal",
+     "penny": "not_legal",
      "pioneer": "not_legal",
      "predh": "not_legal",
      "premodern": "not_legal",
@@ -133887,7 +134010,7 @@
      "oathbreaker": "legal",
      "pauper": "legal",
      "paupercommander": "legal",
-     "penny": "not_legal",
+     "penny": "legal",
      "pioneer": "not_legal",
      "predh": "legal",
      "premodern": "legal",
@@ -135579,7 +135702,7 @@
      "oathbreaker": "legal",
      "pauper": "not_legal",
      "paupercommander": "not_legal",
-     "penny": "legal",
+     "penny": "not_legal",
      "pioneer": "legal",
      "predh": "not_legal",
      "premodern": "not_legal",
@@ -136961,7 +137084,7 @@
      "oathbreaker": "legal",
      "pauper": "not_legal",
      "paupercommander": "not_legal",
-     "penny": "legal",
+     "penny": "not_legal",
      "pioneer": "not_legal",
      "predh": "not_legal",
      "premodern": "not_legal",
@@ -138156,7 +138279,7 @@
      "oathbreaker": "legal",
      "pauper": "not_legal",
      "paupercommander": "not_legal",
-     "penny": "legal",
+     "penny": "not_legal",
      "pioneer": "not_legal",
      "predh": "legal",
      "premodern": "not_legal",
@@ -138829,6 +138952,7 @@
        "b831b17a-396f-4242-8e98-1a60abb75c41",
        "bc1f42a2-fe11-45da-9552-069803b4068a",
        "f9595b91-45f4-48d2-b8e2-83c5b8f96ef3",
+       "fb70c1f2-b895-4eb7-ad60-463a0bcc1885",
        "ffde74fb-cc20-4d82-bf6a-b18081047b0a"
       ]
      },
@@ -141699,7 +141823,7 @@
      "oathbreaker": "legal",
      "pauper": "not_legal",
      "paupercommander": "not_legal",
-     "penny": "not_legal",
+     "penny": "legal",
      "pioneer": "legal",
      "predh": "not_legal",
      "premodern": "not_legal",
@@ -141863,7 +141987,7 @@
      "oathbreaker": "legal",
      "pauper": "not_legal",
      "paupercommander": "not_legal",
-     "penny": "legal",
+     "penny": "not_legal",
      "pioneer": "legal",
      "predh": "not_legal",
      "premodern": "not_legal",
@@ -142164,6 +142288,28 @@
       "rare"
      ],
      "replacements": [],
+     "rulings": [
+      {
+       "date": "2025-10-02",
+       "text": "If the spell you cast has {X} in its mana cost, you must choose 0 as the value of X."
+      },
+      {
+       "date": "2025-10-02",
+       "text": "Lands exiled this way cannot be played from exile. (Lands that were animated by earthbend will be returned to the battlefield tapped when they're exiled.)"
+      },
+      {
+       "date": "2025-10-02",
+       "text": "Since you are using an alternative cost to cast a spell from exile this way, you can't pay any other alternative costs. You can, however, pay additional costs, such as kicker costs. If the card has any mandatory additional costs, you must pay those."
+      },
+      {
+       "date": "2025-10-02",
+       "text": "To airbend one or more permanents and/or spells means to exile each of those objects. For each card exiled this way, for as long as it's exiled, its owner may cast it from exile by paying {2} rather than paying its mana cost."
+      },
+      {
+       "date": "2025-10-02",
+       "text": "Tokens exiled this way will cease to exist and cannot be cast."
+      }
+     ],
      "scryfall_oracle_id": "ff92fa60-f0fe-496e-8155-d9d6f5af651b",
      "static_abilities": [],
      "toughness": {
@@ -142495,7 +142641,7 @@
      "oathbreaker": "legal",
      "pauper": "not_legal",
      "paupercommander": "not_legal",
-     "penny": "not_legal",
+     "penny": "legal",
      "pioneer": "legal",
      "predh": "not_legal",
      "premodern": "not_legal",
@@ -142549,7 +142695,8 @@
      },
      "metadata": {
       "source_printing_ids": [
-       "860f46ea-6fd0-456d-971d-8d1eccc7fa60"
+       "860f46ea-6fd0-456d-971d-8d1eccc7fa60",
+       "c768dfdb-bec0-47a3-a4b4-551df29c0d5f"
       ]
      },
      "name": "Mortuary",
@@ -142557,6 +142704,8 @@
      "oracle_text": "Whenever a creature is put into your graveyard from the battlefield, put that card on top of your library.",
      "power": null,
      "printings": [
+      "PLST",
+      "SLZ",
       "STH"
      ],
      "rarities": [
@@ -142856,6 +143005,7 @@
        "2a41bb43-0328-4093-88c6-4dc00dfdfb7e",
        "2a456b1c-de58-4ba2-ac39-9e0b3e2a9b51",
        "2a7b2779-92dd-455d-920f-684276608244",
+       "2a844b96-6616-4c39-8f4f-5d14a3b2bd55",
        "2c3c0f74-485e-4b21-8f41-56666a7d0005",
        "2d78f1af-120f-4929-94ed-624ee1f2447a",
        "2d9d3ae3-1f59-49f8-9bdb-2658091a29fc",
@@ -143367,6 +143517,7 @@
        "e49c0db1-5acc-48ed-a0f0-0510433d6d34",
        "e5339dcb-2544-4f19-acf3-86f83793301c",
        "e58a9634-c2c5-4bf2-b694-86b23f8cf923",
+       "e5927fd9-dfaf-462e-9128-44b806e45178",
        "e5a66092-6748-430e-877c-0ddc94c948c2",
        "e609028b-43b8-4aea-9f9a-25aa127482db",
        "e705bad9-1c4d-44e2-89ee-9a5824e2effa",
@@ -143657,6 +143808,7 @@
       "TMP",
       "TMT",
       "TPR",
+      "TRK",
       "TSP",
       "UGL",
       "UND",
@@ -144245,6 +144397,7 @@
       "PLST",
       "PRM",
       "SLD",
+      "SLZ",
       "TD0",
       "TSR"
      ],
@@ -144706,7 +144859,7 @@
      "oathbreaker": "legal",
      "pauper": "legal",
      "paupercommander": "legal",
-     "penny": "not_legal",
+     "penny": "legal",
      "pioneer": "legal",
      "predh": "not_legal",
      "premodern": "not_legal",
@@ -144950,7 +145103,7 @@
      "oathbreaker": "legal",
      "pauper": "not_legal",
      "paupercommander": "not_legal",
-     "penny": "not_legal",
+     "penny": "legal",
      "pioneer": "legal",
      "predh": "not_legal",
      "premodern": "not_legal",
@@ -145054,9 +145207,9 @@
         "condition": null,
         "cost": null,
         "description": null,
-        "duration": "Permanent",
+        "duration": "UntilEndOfTurn",
         "effect": {
-         "duration": "Permanent",
+         "duration": "UntilEndOfTurn",
          "static_abilities": [
           {
            "active_zones": [],
@@ -145343,7 +145496,7 @@
            "factor": 2,
            "inner": {
             "qty": {
-             "type": "EventContextAmount"
+             "type": "PreviousEffectCount"
             },
             "type": "Ref"
            },
@@ -145905,7 +146058,7 @@
      "oathbreaker": "legal",
      "pauper": "not_legal",
      "paupercommander": "not_legal",
-     "penny": "not_legal",
+     "penny": "legal",
      "pioneer": "not_legal",
      "predh": "legal",
      "premodern": "not_legal",
@@ -146562,7 +146715,14 @@
      "static_abilities": [
       {
        "active_zones": [],
-       "affected": null,
+       "affected": {
+        "controller": "You",
+        "properties": [],
+        "type": "Typed",
+        "type_filters": [
+         "Permanent"
+        ]
+       },
        "affected_zone": null,
        "characteristic_defining": false,
        "condition": null,
@@ -147284,7 +147444,7 @@
          "description": null,
          "duration": null,
          "effect": {
-          "duration": null,
+          "duration": "Permanent",
           "static_abilities": [
            {
             "active_zones": [],
@@ -147500,7 +147660,8 @@
        "767c5831-2195-4efa-802d-2ea2e6dabb5b",
        "a98695d3-a8ec-43f0-9a2a-fef4566f3a2f",
        "b46cd74a-0d9d-4c56-a167-dcff58e5ab26",
-       "cb971063-5415-49d5-87c2-9ff4e88c71e1"
+       "cb971063-5415-49d5-87c2-9ff4e88c71e1",
+       "e5867cdc-f7a8-4577-a969-4b5fedfeb3cb"
       ]
      },
      "name": "Neheb, the Eternal",
@@ -147515,7 +147676,8 @@
       "CMM",
       "HOU",
       "MKC",
-      "PHOU"
+      "PHOU",
+      "PLST"
      ],
      "rarities": [
       "mythic"
@@ -148114,14 +148276,9 @@
         "description": null,
         "duration": null,
         "effect": {
-         "count": {
-          "type": "Fixed",
-          "value": 1
-         },
-         "target": {
-          "type": "Any"
-         },
-         "type": "Draw"
+         "description": "you and the controller of those creatures each draw a card",
+         "name": "unbound_subject",
+         "type": "Unimplemented"
         },
         "forward_result": false,
         "kind": "Spell",
@@ -149719,6 +149876,7 @@
        "optional": false,
        "origin": null,
        "phase": null,
+       "saga_chapter": 1,
        "secondary": false,
        "trigger_zones": [
         "Battlefield"
@@ -149784,6 +149942,7 @@
        "optional": false,
        "origin": null,
        "phase": null,
+       "saga_chapter": 2,
        "secondary": false,
        "trigger_zones": [
         "Battlefield"
@@ -149847,6 +150006,7 @@
        "optional": false,
        "origin": null,
        "phase": null,
+       "saga_chapter": 3,
        "secondary": false,
        "trigger_zones": [
         "Battlefield"
@@ -149949,6 +150109,7 @@
       "source_printing_ids": [
        "2de6edc9-4dd6-402e-a697-58957522fabc",
        "873f5d0c-7fee-4921-90d3-379c483e2882",
+       "b35a929a-feda-4b46-96f3-5d368cecb09a",
        "c34cff04-01b0-4849-85bf-9e0b034be0e6"
       ]
      },
@@ -149980,6 +150141,7 @@
      },
      "printings": [
       "C21",
+      "PLST",
       "PRM",
       "SOC"
      ],
@@ -152104,7 +152266,8 @@
      "printings": [
       "CMR",
       "PRM",
-      "SLD"
+      "SLD",
+      "SLZ"
      ],
      "rarities": [
       "rare",
@@ -153323,6 +153486,7 @@
      },
      "metadata": {
       "source_printing_ids": [
+       "11cd2e1c-c2f0-4790-ad65-409b3d967a85",
        "12e4f93c-6daf-458e-aa5a-26844c54bfdd",
        "17b429bd-d7da-45f5-988b-7eed0d3efeaa",
        "1db600b2-9b8b-4c21-8d8b-8033ec680a35",
@@ -156282,7 +156446,7 @@
      "oathbreaker": "legal",
      "pauper": "legal",
      "paupercommander": "legal",
-     "penny": "legal",
+     "penny": "not_legal",
      "pioneer": "legal",
      "predh": "legal",
      "premodern": "legal",
@@ -156651,6 +156815,7 @@
         },
         "destination": null,
         "enter_tapped": false,
+        "enters_attacking": false,
         "filter": {
          "type": "Any"
         },
@@ -157200,7 +157365,7 @@
      "oathbreaker": "legal",
      "pauper": "legal",
      "paupercommander": "legal",
-     "penny": "legal",
+     "penny": "not_legal",
      "pioneer": "legal",
      "predh": "not_legal",
      "premodern": "not_legal",
@@ -158524,6 +158689,7 @@
       "PZA",
       "SCD",
       "SLD",
+      "SLZ",
       "SOC",
       "SS2",
       "TSR",
@@ -159485,7 +159651,8 @@
       "source_printing_ids": [
        "55707746-da6e-46e5-a5ca-7ac843fdc38e",
        "644f2e7a-354f-4338-9d4f-5a06a1ad412d",
-       "95505d46-fc4f-4e2d-8e08-380d392b74a4"
+       "95505d46-fc4f-4e2d-8e08-380d392b74a4",
+       "bf28a1dc-99d6-457e-bbc9-e77819480f79"
       ]
      },
      "name": "Phelia, Exuberant Shepherd",
@@ -159497,6 +159664,7 @@
      },
      "printings": [
       "MH3",
+      "PLST",
       "PMH3"
      ],
      "rarities": [
@@ -161203,7 +161371,7 @@
      "oathbreaker": "legal",
      "pauper": "not_legal",
      "paupercommander": "not_legal",
-     "penny": "legal",
+     "penny": "not_legal",
      "pioneer": "legal",
      "predh": "not_legal",
      "premodern": "not_legal",
@@ -161237,6 +161405,7 @@
         },
         "destination": "Library",
         "enter_tapped": false,
+        "enters_attacking": false,
         "filter": {
          "type": "Any"
         },
@@ -161334,7 +161503,9 @@
      },
      "metadata": {
       "source_printing_ids": [
+       "1e180975-c62e-46a8-bb22-e4fcbfcb5e3e",
        "20edb8fa-6e26-46f7-a5a8-b4c4c3e75dfa",
+       "25f7e820-ed12-416d-83d5-e7d86dfb8296",
        "262285ab-3a6f-4932-b53b-8ab20bcad955",
        "30693fc5-b350-42ef-968f-e0efda1365c1",
        "308d4ee7-d188-47e0-b1be-8add6e229356",
@@ -161350,6 +161521,7 @@
        "8cbab1d1-25cb-456f-8d1c-3d64eb7265ea",
        "91382955-bcfc-4fb6-8cce-dc107e5b4c32",
        "9cee2eb1-f60e-4626-ba4a-b543142ca950",
+       "9fd18bb7-0816-4d35-8d79-30bfa327ee97",
        "ac1042e0-af4d-42b0-9d43-34b3fa5daf92",
        "af450adb-23be-4332-a54c-d647a1fd0248",
        "ba6b6fc5-5077-4812-b8e9-906783dbaf67",
@@ -162185,7 +162357,7 @@
            "factor": 2,
            "inner": {
             "qty": {
-             "type": "EventContextAmount"
+             "type": "PreviousEffectCount"
             },
             "type": "Ref"
            },
@@ -164651,6 +164823,7 @@
      },
      "metadata": {
       "source_printing_ids": [
+       "01001472-4adf-4a9a-a6cf-0fb450c405ee",
        "7b43ac5a-21b9-4abe-b8be-86b9056ad70d"
       ]
      },
@@ -164659,6 +164832,7 @@
      "oracle_text": "Whenever a source you control deals damage to an opponent, you may put a quest counter on this enchantment.\nRemove four quest counters from this enchantment and sacrifice it: If any source you control would deal damage to a permanent or player this turn, it deals double that damage to that permanent or player instead.",
      "power": null,
      "printings": [
+      "PLST",
       "ZEN"
      ],
      "rarities": [
@@ -164795,7 +164969,7 @@
      "oathbreaker": "legal",
      "pauper": "not_legal",
      "paupercommander": "not_legal",
-     "penny": "not_legal",
+     "penny": "legal",
      "pioneer": "not_legal",
      "predh": "legal",
      "premodern": "not_legal",
@@ -165360,6 +165534,7 @@
        "249c188d-c11d-46f7-a2d8-a67df4ba401b",
        "2e181878-d9fb-44d5-98ce-2899793ab2e7",
        "361087ea-16f9-4d93-b720-1ebaa05bc281",
+       "3e402676-d699-4674-b411-0c55dade3261",
        "7593d892-9b9e-450f-84b7-612655af23be",
        "ebdd967d-b364-47ad-a1c2-49b155f72c5b"
       ]
@@ -165375,6 +165550,7 @@
       "2X2",
       "ALA",
       "CMM",
+      "PLST",
       "V11"
      ],
      "rarities": [
@@ -166083,6 +166259,7 @@
        "optional": false,
        "origin": null,
        "phase": null,
+       "saga_chapter": 1,
        "secondary": false,
        "trigger_zones": [
         "Battlefield"
@@ -166180,6 +166357,7 @@
           "optional_targeting": false,
           "sub_ability": null,
           "sub_link": "SequentialSibling",
+          "target_choice_timing": "Resolution",
           "target_prompt": null
          },
          "sub_link": "SequentialSibling",
@@ -166191,6 +166369,7 @@
        "optional": false,
        "origin": null,
        "phase": null,
+       "saga_chapter": 2,
        "secondary": false,
        "trigger_zones": [
         "Battlefield"
@@ -166257,6 +166436,7 @@
        "optional": false,
        "origin": null,
        "phase": null,
+       "saga_chapter": 3,
        "secondary": false,
        "trigger_zones": [
         "Battlefield"
@@ -166536,6 +166716,10 @@
      "rulings": [
       {
        "date": "2004-10-04",
+       "text": "Because the \"search\" requires you to find a card with certain characteristics, you don't have to find the card if you don't want to."
+      },
+      {
+       "date": "2004-10-04",
        "text": "The land does not count toward your one per turn limit because it was put onto the battlefield by an effect."
       }
      ],
@@ -166600,6 +166784,7 @@
         },
         "destination": "Hand",
         "enter_tapped": false,
+        "enters_attacking": false,
         "filter": {
          "type": "Any"
         },
@@ -166702,7 +166887,7 @@
      "oathbreaker": "legal",
      "pauper": "legal",
      "paupercommander": "legal",
-     "penny": "legal",
+     "penny": "not_legal",
      "pioneer": "not_legal",
      "predh": "not_legal",
      "premodern": "not_legal",
@@ -167679,10 +167864,12 @@
      },
      "metadata": {
       "related_token_ids": [
+       "4121ca98-6b4d-582a-915e-7e7bb7b4ba15",
        "b5963847-fa34-5396-84fd-23bd855482af",
        "d027dcd5-c331-5be4-a6c8-0e70ea236de8"
       ],
       "source_printing_ids": [
+       "2a2082e3-94b7-448a-ba87-ede5222b6f37",
        "2c2cfcd7-b43a-4dad-a033-e661f55ceecd",
        "f2d5e87b-1ee8-47db-9bc3-f5becfe79b37"
       ]
@@ -167693,7 +167880,8 @@
      "power": null,
      "printings": [
       "KHM",
-      "LCC"
+      "LCC",
+      "PLST"
      ],
      "rarities": [
       "common"
@@ -167997,6 +168185,25 @@
      "name": "Rayne, Academy Chancellor",
      "non_ability_text": null,
      "oracle_text": "Whenever you or a permanent you control becomes the target of a spell or ability an opponent controls, you may draw a card. You may draw an additional card if Rayne is enchanted.",
+     "parse_warnings": [
+      {
+       "description": "Whenever you or a permanent you control becomes the target of a spell or ability an opponent controls, you may draw a card. You may draw an ",
+       "detector": "Condition_If",
+       "items": [
+        0
+       ],
+       "line_index": 0,
+       "type": "SwallowedClause",
+       "unit_span": {
+        "end_byte": 178,
+        "first_line": 0,
+        "last_line": 0,
+        "ordinal_within_span": 0,
+        "precision": "Exact",
+        "start_byte": 0
+       }
+      }
+     ],
      "power": {
       "type": "Fixed",
       "value": 1
@@ -168035,72 +168242,7 @@
        "condition": null,
        "constraint": null,
        "damage_kind": "Any",
-       "description": "Whenever you, you may draw a card. You may draw an additional card if ~ is enchanted.",
-       "destination": null,
-       "execute": {
-        "condition": null,
-        "cost": null,
-        "description": null,
-        "duration": null,
-        "effect": {
-         "count": {
-          "type": "Fixed",
-          "value": 1
-         },
-         "target": {
-          "type": "Controller"
-         },
-         "type": "Draw"
-        },
-        "forward_result": false,
-        "kind": "Spell",
-        "optional": true,
-        "optional_targeting": false,
-        "sub_ability": {
-         "condition": null,
-         "cost": null,
-         "description": null,
-         "duration": null,
-         "effect": {
-          "count": {
-           "type": "Fixed",
-           "value": 1
-          },
-          "target": {
-           "type": "Controller"
-          },
-          "type": "Draw"
-         },
-         "forward_result": false,
-         "kind": "Spell",
-         "optional": true,
-         "optional_targeting": false,
-         "sub_ability": null,
-         "sub_link": "SequentialSibling",
-         "target_prompt": null
-        },
-        "target_prompt": null
-       },
-       "mode": {
-        "Unknown": "Whenever you"
-       },
-       "optional": true,
-       "origin": null,
-       "phase": null,
-       "secondary": false,
-       "trigger_zones": [
-        "Battlefield"
-       ],
-       "valid_card": null,
-       "valid_source": null,
-       "valid_target": null
-      },
-      {
-       "batched": false,
-       "condition": null,
-       "constraint": null,
-       "damage_kind": "Any",
-       "description": "Whenever a permanent you control becomes the target of a spell or ability an opponent controls, you may draw a card. You may draw an additional card if ~ is enchanted.",
+       "description": "Whenever you or a permanent you control becomes the target of a spell or ability an opponent controls, you may draw a card. You may draw an additional card if ~ is enchanted.",
        "destination": null,
        "execute": {
         "condition": null,
@@ -168184,6 +168326,9 @@
          }
         ],
         "type": "Or"
+       },
+       "valid_subject_player": {
+        "type": "Controller"
        },
        "valid_target": null
       }
@@ -170275,7 +170420,7 @@
      "oathbreaker": "legal",
      "pauper": "legal",
      "paupercommander": "legal",
-     "penny": "not_legal",
+     "penny": "legal",
      "pioneer": "not_legal",
      "predh": "legal",
      "premodern": "not_legal",
@@ -170426,6 +170571,7 @@
       "PM19",
       "PRM",
       "SLD",
+      "SLZ",
       "SOC",
       "TDC",
       "WHO"
@@ -173028,7 +173174,7 @@
      "oathbreaker": "legal",
      "pauper": "not_legal",
      "paupercommander": "not_legal",
-     "penny": "not_legal",
+     "penny": "legal",
      "pioneer": "legal",
      "predh": "not_legal",
      "premodern": "not_legal",
@@ -174244,6 +174390,7 @@
         },
         "destination": null,
         "enter_tapped": false,
+        "enters_attacking": false,
         "filter": {
          "type": "Any"
         },
@@ -175023,7 +175170,7 @@
      },
      "name": "Ruric Thar, the Unbowed",
      "non_ability_text": null,
-     "oracle_text": "Vigilance, reach\nRuric Thar attacks each combat if able.\nWhenever a player casts a noncreature spell, Ruric Thar deals 6 damage to that player.",
+     "oracle_text": "Reach, vigilance\nRuric Thar attacks each combat if able.\nWhenever a player casts a noncreature spell, Ruric Thar deals 6 damage to that player.",
      "power": {
       "type": "Fixed",
       "value": 6
@@ -175168,7 +175315,7 @@
     "mana_cost": "{4}{R}{G}",
     "name": "Ruric Thar, the Unbowed",
     "oracle_id": "6ed13a89-4284-4c01-8099-75e2d68c8c63",
-    "oracle_text": "Vigilance, reach\nRuric Thar attacks each combat if able.\nWhenever a player casts a noncreature spell, Ruric Thar deals 6 damage to that player.",
+    "oracle_text": "Reach, vigilance\nRuric Thar attacks each combat if able.\nWhenever a player casts a noncreature spell, Ruric Thar deals 6 damage to that player.",
     "power": "6",
     "toughness": "6",
     "type_line": "Legendary Creature — Ogre Warrior"
@@ -175248,7 +175395,8 @@
      },
      "printings": [
       "C21",
-      "PRM"
+      "PRM",
+      "SLZ"
      ],
      "rarities": [
       "rare"
@@ -176603,7 +176751,18 @@
          "type": "Fixed",
          "value": 1
         },
-        "filter": null,
+        "filter": {
+         "controller": null,
+         "properties": [
+          {
+           "type": "Historic"
+          }
+         ],
+         "type": "Typed",
+         "type_filters": [
+          "Card"
+         ]
+        },
         "random": false,
         "self_ref": false,
         "type": "Discard"
@@ -177112,6 +177271,7 @@
            "optional_targeting": false,
            "sub_ability": null,
            "sub_link": "SequentialSibling",
+           "target_choice_timing": "Resolution",
            "target_prompt": null
           },
           "sub_link": "SequentialSibling",
@@ -177369,6 +177529,7 @@
          },
          "destination": "Hand",
          "enter_tapped": false,
+         "enters_attacking": false,
          "filter": {
           "type": "Any"
          },
@@ -177770,6 +177931,7 @@
          },
          "destination": "Hand",
          "enter_tapped": false,
+         "enters_attacking": false,
          "filter": {
           "controller": null,
           "properties": [],
@@ -179314,13 +179476,33 @@
       {
        "active_zones": [],
        "affected": {
-        "type": "SelfRef"
+        "controller": null,
+        "properties": [
+         {
+          "type": "EnchantedBy"
+         }
+        ],
+        "type": "Typed",
+        "type_filters": [
+         "Creature"
+        ]
        },
        "affected_zone": null,
        "characteristic_defining": false,
        "condition": {
-        "text": "as long as enchanted creature is attacking alone",
-        "type": "Unrecognized"
+        "filter": {
+         "controller": null,
+         "properties": [
+          {
+           "type": "AttackingAlone"
+          }
+         ],
+         "type": "Typed",
+         "type_filters": [
+          "Creature"
+         ]
+        },
+        "type": "RecipientMatchesFilter"
        },
        "description": "As long as enchanted creature is attacking alone, it can't be blocked.",
        "effect_zone": null,
@@ -180207,6 +180389,7 @@
              "optional": false,
              "optional_targeting": false,
              "sub_ability": null,
+             "target_choice_timing": "Resolution",
              "target_prompt": null
             },
             "sub_link": "SequentialSibling",
@@ -180306,6 +180489,7 @@
         },
         "destination": "Library",
         "enter_tapped": false,
+        "enters_attacking": false,
         "filter": {
          "type": "Any"
         },
@@ -180421,6 +180605,7 @@
       "MB2",
       "PLST",
       "PRM",
+      "SLZ",
       "V09"
      ],
      "rarities": [
@@ -180865,6 +181050,7 @@
       "PW24",
       "PWOS",
       "SLD",
+      "SLZ",
       "SUM",
       "V15",
       "W16",
@@ -181796,7 +181982,7 @@
      "oathbreaker": "legal",
      "pauper": "not_legal",
      "paupercommander": "not_legal",
-     "penny": "not_legal",
+     "penny": "legal",
      "pioneer": "legal",
      "predh": "not_legal",
      "premodern": "not_legal",
@@ -183095,6 +183281,7 @@
        "optional": false,
        "origin": null,
        "phase": null,
+       "saga_chapter": 1,
        "secondary": false,
        "trigger_zones": [
         "Battlefield"
@@ -183170,6 +183357,7 @@
        "optional": false,
        "origin": null,
        "phase": null,
+       "saga_chapter": 2,
        "secondary": false,
        "trigger_zones": [
         "Battlefield"
@@ -183274,6 +183462,7 @@
        "optional": false,
        "origin": null,
        "phase": null,
+       "saga_chapter": 3,
        "secondary": false,
        "trigger_zones": [
         "Battlefield"
@@ -183887,6 +184076,7 @@
        "0dcdd2db-1a4b-48dd-94cf-bd719ff40da9",
        "1fcff1e0-2745-448d-a27b-e31719e222e9",
        "227cf1b5-f85b-41fe-be98-66e383652039",
+       "294ca89d-549a-4302-9284-df5b4e833a69",
        "3815cf4a-b694-432b-b618-0893f8f3dc1b",
        "3f22dd2f-41c1-403b-a3bc-617d15922602",
        "40f32503-8400-4572-aa5c-43cd5c2eeab5",
@@ -184413,7 +184603,7 @@
      "oathbreaker": "legal",
      "pauper": "not_legal",
      "paupercommander": "not_legal",
-     "penny": "legal",
+     "penny": "not_legal",
      "pioneer": "legal",
      "predh": "not_legal",
      "premodern": "not_legal",
@@ -185450,6 +185640,7 @@
       "source_printing_ids": [
        "01ba6f40-baef-432c-aec7-bffc41e879ef",
        "02c961cc-99d7-42e7-97c7-1b5f3e2b9929",
+       "1085dab2-a672-4133-ba35-acd56b15af1e",
        "1559d660-8a9d-422b-95d3-710a046583dd",
        "159882aa-b596-4195-9b2e-983eee28d1bc",
        "1c2b13b1-31f0-4676-88a7-53f3a190e9a2",
@@ -188506,6 +188697,7 @@
        "83a0f2eb-2f6d-4aaa-b7a9-ea06d5de7eca",
        "842c3df8-43c9-4555-901c-67cdbfd26348",
        "858e0b83-7927-4e34-ae25-6ad7a787ad97",
+       "8670dac4-d369-4907-ae3a-d58ff204f1a6",
        "870ec754-a76c-40ea-9b81-81b3dca1f62c",
        "880711b0-da06-4c4f-aa4e-1be58fc0bc67",
        "8a5edac3-855a-4820-b913-44de5b29b7d0",
@@ -188632,6 +188824,7 @@
       "SCD",
       "SLC",
       "SLD",
+      "SLZ",
       "SOC",
       "SUM",
       "TDC",
@@ -189248,7 +189441,7 @@
      "oathbreaker": "legal",
      "pauper": "legal",
      "paupercommander": "legal",
-     "penny": "not_legal",
+     "penny": "legal",
      "pioneer": "not_legal",
      "predh": "legal",
      "premodern": "not_legal",
@@ -189996,8 +190189,10 @@
         "duration": null,
         "effect": {
          "count": {
-          "type": "Fixed",
-          "value": 1
+          "qty": {
+           "type": "KickerCount"
+          },
+          "type": "Ref"
          },
          "target": {
           "type": "Controller"
@@ -190084,25 +190279,6 @@
      "name": "Spell Contortion",
      "non_ability_text": null,
      "oracle_text": "Multikicker {1}{U} (You may pay an additional {1}{U} any number of times as you cast this spell.)\nCounter target spell unless its controller pays {2}. Draw a card for each time Spell Contortion was kicked.",
-     "parse_warnings": [
-      {
-       "description": "Counter target spell unless its controller pays {2}. Draw a card for each time Spell Contortion was kicked.",
-       "detector": "DynamicQty",
-       "items": [
-        0
-       ],
-       "line_index": 1,
-       "type": "SwallowedClause",
-       "unit_span": {
-        "end_byte": 205,
-        "first_line": 1,
-        "last_line": 1,
-        "ordinal_within_span": 0,
-        "precision": "Exact",
-        "start_byte": 98
-       }
-      }
-     ],
      "power": null,
      "printings": [
       "WWK"
@@ -191164,7 +191340,7 @@
      "oathbreaker": "legal",
      "pauper": "not_legal",
      "paupercommander": "not_legal",
-     "penny": "legal",
+     "penny": "not_legal",
      "pioneer": "legal",
      "predh": "not_legal",
      "premodern": "not_legal",
@@ -192792,7 +192968,14 @@
      "static_abilities": [
       {
        "active_zones": [],
-       "affected": null,
+       "affected": {
+        "controller": "You",
+        "properties": [],
+        "type": "Typed",
+        "type_filters": [
+         "Permanent"
+        ]
+       },
        "affected_zone": null,
        "characteristic_defining": false,
        "condition": null,
@@ -193426,6 +193609,7 @@
         "optional_targeting": false,
         "sub_ability": null,
         "sub_link": "SequentialSibling",
+        "target_choice_timing": "Resolution",
         "target_prompt": null
        },
        "target_prompt": null
@@ -194258,6 +194442,7 @@
         "starting_loyalty_from_casualty_sacrifice": false,
         "target": {
          "controller": "You",
+         "kind": "Triggered",
          "type": "StackAbility"
         },
         "type": "CopySpell"
@@ -194712,7 +194897,7 @@
      "oathbreaker": "legal",
      "pauper": "not_legal",
      "paupercommander": "not_legal",
-     "penny": "not_legal",
+     "penny": "legal",
      "pioneer": "not_legal",
      "predh": "legal",
      "premodern": "legal",
@@ -195965,7 +196150,7 @@
      "oathbreaker": "legal",
      "pauper": "not_legal",
      "paupercommander": "not_legal",
-     "penny": "not_legal",
+     "penny": "legal",
      "pioneer": "not_legal",
      "predh": "legal",
      "premodern": "not_legal",
@@ -199094,25 +199279,6 @@
      "name": "Tamiyo, the Moon Sage",
      "non_ability_text": null,
      "oracle_text": "[+1]: Tap target permanent. It doesn't untap during its controller's next untap step.\n[−2]: Draw a card for each tapped creature target player controls.\n[−8]: You get an emblem with \"You have no maximum hand size\" and \"Whenever a card is put into your graveyard from anywhere, you may return it to your hand.\"",
-     "parse_warnings": [
-      {
-       "description": "[−8]: You get an emblem with \"You have no maximum hand size\" and \"Whenever a card is put into your graveyard from anywhere, you may return",
-       "detector": "Optional_YouMay",
-       "items": [
-        2
-       ],
-       "line_index": 2,
-       "type": "SwallowedClause",
-       "unit_span": {
-        "end_byte": 313,
-        "first_line": 2,
-        "last_line": 2,
-        "ordinal_within_span": 0,
-        "precision": "Exact",
-        "start_byte": 155
-       }
-      }
-     ],
      "power": null,
      "printings": [
       "AVR",
@@ -202163,7 +202329,14 @@
      "static_abilities": [
       {
        "active_zones": [],
-       "affected": null,
+       "affected": {
+        "controller": "You",
+        "properties": [],
+        "type": "Typed",
+        "type_filters": [
+         "Permanent"
+        ]
+       },
        "affected_zone": null,
        "characteristic_defining": false,
        "condition": null,
@@ -202758,89 +202931,66 @@
           },
           "type": "Ref"
          },
-         "destination": null,
+         "destination": "Library",
          "enter_tapped": false,
+         "enters_attacking": false,
          "filter": {
           "type": "Any"
          },
-         "keep_count": 0,
+         "keep_count": 1,
          "player": {
           "type": "Controller"
          },
-         "rest_destination": null,
+         "rest_destination": "Library",
+         "rest_order": "random",
          "reveal": false,
          "type": "Dig",
-         "up_to": false
+         "up_to": true
         },
         "forward_result": false,
         "kind": "Spell",
         "optional": false,
         "optional_targeting": false,
         "sub_ability": {
-         "condition": null,
+         "condition": {
+          "comparator": "GE",
+          "lhs": {
+           "qty": {
+            "colors": {
+             "type": "Fixed",
+             "value": [
+              "Blue"
+             ]
+            },
+            "type": "Devotion"
+           },
+           "type": "Ref"
+          },
+          "rhs": {
+           "qty": {
+            "card_types": [],
+            "scope": "Controller",
+            "type": "ZoneCardCount",
+            "zone": "Library"
+           },
+           "type": "Ref"
+          },
+          "type": "QuantityCheck"
+         },
          "cost": null,
          "description": null,
          "duration": null,
          "effect": {
-          "count": {
-           "type": "Fixed",
-           "value": 1
-          },
-          "position": {
-           "type": "Top"
-          },
           "target": {
-           "type": "ParentTarget"
+           "type": "Controller"
           },
-          "type": "PutAtLibraryPosition"
+          "type": "WinTheGame"
          },
          "forward_result": false,
          "kind": "Spell",
          "optional": false,
          "optional_targeting": false,
-         "sub_ability": {
-          "condition": {
-           "comparator": "GE",
-           "lhs": {
-            "qty": {
-             "colors": {
-              "type": "Fixed",
-              "value": [
-               "Blue"
-              ]
-             },
-             "type": "Devotion"
-            },
-            "type": "Ref"
-           },
-           "rhs": {
-            "qty": {
-             "card_types": [],
-             "scope": "Controller",
-             "type": "ZoneCardCount",
-             "zone": "Library"
-            },
-            "type": "Ref"
-           },
-           "type": "QuantityCheck"
-          },
-          "cost": null,
-          "description": null,
-          "duration": null,
-          "effect": {
-           "target": {
-            "type": "Controller"
-           },
-           "type": "WinTheGame"
-          },
-          "forward_result": false,
-          "kind": "Spell",
-          "optional": false,
-          "optional_targeting": false,
-          "sub_ability": null,
-          "sub_link": "SequentialSibling",
-          "target_prompt": null
-         },
+         "sub_ability": null,
          "sub_link": "SequentialSibling",
          "target_prompt": null
         },
@@ -205490,7 +205640,7 @@
      "oathbreaker": "legal",
      "pauper": "not_legal",
      "paupercommander": "not_legal",
-     "penny": "legal",
+     "penny": "not_legal",
      "pioneer": "legal",
      "predh": "not_legal",
      "premodern": "not_legal",
@@ -206061,6 +206211,7 @@
      },
      "metadata": {
       "related_token_ids": [
+       "0a417209-92ea-5ce3-ae2c-251ee22f1b92",
        "3ae3c4af-2b85-5943-bab1-760e1b7da047",
        "5a9097cb-1a78-558b-90d2-217688ef45d1",
        "70911aa0-1297-5263-b92c-2348ab09b87e"
@@ -206068,6 +206219,7 @@
       "source_printing_ids": [
        "01ff8244-ec3b-41bd-a007-bbd403a96e96",
        "2025bd7b-ddef-40cf-9ffd-80591a67b508",
+       "36bbd062-e5a2-4fae-8cf5-f15232bfcee7",
        "456b330e-5ff7-4192-bc6f-2f2b4654bee7",
        "621cfd79-be4e-41e3-95ce-62b0eeff5baf",
        "70d1af08-f4e6-4030-8ebe-30d9d706b114",
@@ -206091,6 +206243,7 @@
       "HOU",
       "MP2",
       "PHOU",
+      "PLST",
       "SLD"
      ],
      "rarities": [
@@ -206918,8 +207071,7 @@
      "printings": [
       "CHK",
       "DDS",
-      "PLST",
-      "PZ2"
+      "PLST"
      ],
      "rarities": [
       "rare"
@@ -209270,6 +209422,7 @@
      },
      "metadata": {
       "source_printing_ids": [
+       "3fd3a0e2-4168-44ce-bc58-444db686b08d",
        "8c47b08c-7182-4315-8ad1-8ecad048a0df",
        "fe402b8e-f966-4971-90a5-950d8cff5025"
       ]
@@ -209281,7 +209434,8 @@
      "printings": [
       "AKH",
       "AKR",
-      "PAKH"
+      "PAKH",
+      "SLD"
      ],
      "rarities": [
       "rare"
@@ -210503,8 +210657,10 @@
      },
      "metadata": {
       "source_printing_ids": [
+       "05adb3cf-0804-490a-92a0-baadfb11439d",
        "1b2a3962-315d-48df-9af5-7cb4dd2040de",
-       "3d3025a2-4a17-4137-ba0b-bd676c6f5f88"
+       "3d3025a2-4a17-4137-ba0b-bd676c6f5f88",
+       "f2996206-cfa8-4956-9f45-d04d2a5f0f1a"
       ]
      },
      "name": "Tinybones, the Pickpocket",
@@ -210516,7 +210672,9 @@
      },
      "printings": [
       "OTJ",
-      "POTJ"
+      "PLST",
+      "POTJ",
+      "SLD"
      ],
      "rarities": [
       "mythic"
@@ -210747,18 +210905,6 @@
      "replacements": [],
      "rulings": [
       {
-       "date": "2016-04-08",
-       "text": "Clue is an artifact type. Even though it appears on some cards with other permanent types, it's never a creature type, a land type, or anything but an artifact type."
-      },
-      {
-       "date": "2016-04-08",
-       "text": "If an effect refers to a Clue, it means any Clue artifact, not just a Clue artifact token. For example, you can sacrifice Wrench to pay for Alquist Proft, Master Sleuth's activated ability."
-      },
-      {
-       "date": "2016-04-08",
-       "text": "You can't sacrifice a Clue to pay multiple costs. For example, you can't sacrifice a Clue token to activate its own ability and also to activate Alquist Proft, Master Sleuth's ability."
-      },
-      {
        "date": "2024-02-02",
        "text": "Clue is an artifact type. Even though it appears on some cards with other permanent types, it's never a creature type, a land type, or anything but an artifact type."
       },
@@ -210779,16 +210925,16 @@
        "text": "You can't sacrifice a Clue to pay multiple costs. For example, you can't sacrifice a Clue token to activate its own ability and also to activate Alquist Proft, Master Sleuth's ability."
       },
       {
-       "date": "2024-11-08",
+       "date": "2025-07-25",
        "text": "A landfall ability doesn't trigger if a permanent already on the battlefield becomes a land."
       },
       {
-       "date": "2024-11-08",
+       "date": "2025-07-25",
        "text": "A landfall ability triggers whenever a land you control enters for any reason. It triggers whenever you play a land, as well as whenever a spell or ability puts a land onto the battlefield under your control."
       },
       {
-       "date": "2024-11-08",
-       "text": "Whenever a land you control enters, each landfall ability of the permanents you control will trigger. You can put them   on the stack in any order. The last ability you put on the stack will be the first one to resolve (As a result, you can have those abilities resolve in the order of your choosing.)."
+       "date": "2025-07-25",
+       "text": "Whenever a land you control enters, each landfall ability of permanents you control will trigger. You can put them on the stack in any order. The last ability you put on the stack will be the first one to resolve. As a result, you can have those abilities resolve in the order of your choosing."
       }
      ],
      "scryfall_oracle_id": "e6555cca-e608-4c87-b835-9cd47fd1f543",
@@ -212378,6 +212524,7 @@
        "08eb31f3-7686-4d6b-a0e4-5d6ece6fba82",
        "0b261989-b34e-4bba-90f8-2adfda58c89b",
        "63e08eb1-de6e-4f31-a523-86b1e013b1ca",
+       "a118951d-89c4-492b-a7b6-75bd6efd6ca0",
        "e82e61d1-488d-4627-a54c-d8496a967814",
        "f9e79b59-94c8-4697-bf88-f0a0433170f5"
       ]
@@ -212394,6 +212541,7 @@
       "KHM",
       "MKC",
       "PKHM",
+      "PLST",
       "PRM",
       "SLD",
       "SPG"
@@ -213709,6 +213857,7 @@
           },
           "destination": "Hand",
           "enter_tapped": false,
+          "enters_attacking": false,
           "filter": {
            "controller": null,
            "properties": [],
@@ -214383,7 +214532,7 @@
      "oathbreaker": "legal",
      "pauper": "legal",
      "paupercommander": "legal",
-     "penny": "legal",
+     "penny": "not_legal",
      "pioneer": "legal",
      "predh": "not_legal",
      "premodern": "not_legal",
@@ -214500,9 +214649,9 @@
         "condition": null,
         "cost": null,
         "description": null,
-        "duration": "Permanent",
+        "duration": "UntilEndOfTurn",
         "effect": {
-         "duration": "Permanent",
+         "duration": "UntilEndOfTurn",
          "static_abilities": [
           {
            "active_zones": [],
@@ -215223,6 +215372,7 @@
      "metadata": {
       "source_printing_ids": [
        "160686f3-44fd-4f7a-81cf-d3b5b964bfba",
+       "452ad1d5-a5dd-4952-a761-30c0a08da5c4",
        "69fcad7f-2740-49ff-a448-4b232c456e16",
        "f40ad933-ddd9-4975-a222-21fe3305137c"
       ]
@@ -215239,6 +215389,7 @@
       "CMM",
       "CMR",
       "PBNG",
+      "PLST",
       "PRM"
      ],
      "rarities": [
@@ -215434,6 +215585,8 @@
       "source_printing_ids": [
        "0eeccc8d-fe98-4868-939f-29277085aeff",
        "34ea44f2-cb2f-4b86-83fc-fe507f05bb9d",
+       "6ab6e6c9-fe20-40d3-997e-fe3480081f03",
+       "91e7ccb4-703e-48cb-ae73-1cd953529cd5",
        "9d1d9d86-5666-4e59-9766-137657b4e040",
        "c2649bc6-2ed9-4d50-ad11-ae05d6df2c3d"
       ]
@@ -215449,7 +215602,8 @@
       "C19",
       "GK1",
       "PLST",
-      "RTR"
+      "RTR",
+      "SLD"
      ],
      "rarities": [
       "mythic"
@@ -217914,7 +218068,7 @@
       ],
       "mana_cost": "",
       "name": "The Initiative",
-      "oracle_text": "Whenever one or more creatures a player controls deal combat damage to you, that player takes the initiative.\nWhenever you take the initiative and at the beginning of your upkeep, venture into Undercity. (If you're in a dungeon, advance to the next room. If you're not, enter Undercity. You can take the initiative even if you already have it.)",
+      "oracle_text": "Whenever one or more creatures a player controls deal combat damage to you, that player takes the initiative.\nWhenever you take the initiative and at the beginning of your upkeep, venture into Undercity. (If you're in a dungeon, advance to the next room. If you te not, enter Undercity You can take the initiative even if you already\nhave it.)",
       "type_line": "Card"
      }
     ],
@@ -218104,6 +218258,7 @@
          },
          "destination": null,
          "enter_tapped": false,
+         "enters_attacking": false,
          "filter": {
           "type": "Any"
          },
@@ -220093,8 +220248,12 @@
           "duration": "UntilEndOfTurn",
           "mode": "Play",
           "target": {
+           "caused_by": "Exiled",
+           "filter": {
+            "type": "Any"
+           },
            "id": 0,
-           "type": "TrackedSet"
+           "type": "TrackedSetFiltered"
           },
           "type": "CastFromZone",
           "without_paying_mana_cost": true
@@ -220105,6 +220264,7 @@
          "optional_targeting": false,
          "sub_ability": null,
          "sub_link": "SequentialSibling",
+         "target_choice_timing": "Resolution",
          "target_prompt": null
         },
         "target_prompt": null
@@ -223150,6 +223310,7 @@
         "optional_targeting": false,
         "sub_ability": null,
         "sub_link": "SequentialSibling",
+        "target_choice_timing": "Resolution",
         "target_prompt": null
        },
        "target_prompt": null
@@ -223776,7 +223937,8 @@
        "03f66946-ff52-4ce4-af25-b81196fa451b",
        "2d97238c-39e0-4e90-8b83-079b0b444cd4",
        "77d17aa7-bdd4-4ae0-b791-9deadd32273f",
-       "ce6adcfe-b0f7-4a96-bab2-f76c84ef5ca6"
+       "ce6adcfe-b0f7-4a96-bab2-f76c84ef5ca6",
+       "fe1bad39-8119-4b03-80e1-cbb45db04786"
       ]
      },
      "name": "Visara the Dreadful",
@@ -223789,6 +223951,7 @@
      "printings": [
       "EMA",
       "ONS",
+      "PLST",
       "V11",
       "VMA",
       "WC03"
@@ -224439,6 +224602,7 @@
        "182dc47c-897e-4922-ba9d-80204bed7b5a",
        "5bad83b2-3b03-441a-8cbd-5a5317bfa5ea",
        "603a7305-c036-47ef-8926-25b66a7905df",
+       "6aebcc3b-504e-40fc-b232-a2aa21a0521b",
        "6f08f008-ce26-417a-9720-f4addeb7391e",
        "9fe3af8c-109d-486c-aa34-3f023abda5b7",
        "bdcd2ec9-a8e7-46b3-8d79-eb15d6e95a3c",
@@ -224717,6 +224881,7 @@
        "210920ef-917b-4e2c-a5da-1180baa37959",
        "2348be2b-2d33-4214-8f80-cf17c9619eb5",
        "2e03c618-e9c8-4bb6-b9fc-689b9bb8b9d8",
+       "3094be37-5f84-4924-9094-647175fcd207",
        "44829e30-b51c-4cd3-8598-3e2c1e06f334",
        "9834686c-6cc5-4d22-a3b7-706e4e4c9590",
        "bb43ab42-0c5e-4c71-b678-a258fec3bf48",
@@ -224737,6 +224902,7 @@
       "E02",
       "GN3",
       "MKC",
+      "PLST",
       "PZ1",
       "SCD"
      ],
@@ -226562,6 +226728,7 @@
        "46d9d1dd-0b36-42a6-8cd6-8217658ef40a",
        "4fa3660a-4141-46fe-b34b-3aeb45589cac",
        "57ead261-d358-419e-b832-086439c5e793",
+       "60d4d916-8229-4285-b8e6-34c3973eb8ae",
        "62a393b9-caaf-4951-a6ed-6be80a115578",
        "6501ccfd-8931-495d-94a8-02432c7b558e",
        "69dd3fa7-5498-4b88-bc98-6de8ca5fe007",
@@ -227843,6 +228010,7 @@
       "PLST",
       "PMEI",
       "SLD",
+      "SLZ",
       "SUM"
      ],
      "rarities": [
@@ -228713,7 +228881,7 @@
      },
      "name": "Wilson, Refined Grizzly",
      "non_ability_text": null,
-     "oracle_text": "This spell can't be countered.\nVigilance, reach, trample\nWard {2} (Whenever this creature becomes the target of a spell or ability an opponent controls, counter it unless that player pays {2}.)\nChoose a Background (You can have a Background as a second commander.)",
+     "oracle_text": "This spell can't be countered.\nReach, vigilance, trample\nWard {2} (Whenever this creature becomes the target of a spell or ability an opponent controls, counter it unless that player pays {2}.)\nChoose a Background (You can have a Background as a second commander.)",
      "power": {
       "type": "Fixed",
       "value": 2
@@ -228831,7 +228999,7 @@
     "mana_cost": "{1}{G}",
     "name": "Wilson, Refined Grizzly",
     "oracle_id": "d2766fd7-5cf9-4037-9f34-9ae3982c613a",
-    "oracle_text": "This spell can't be countered.\nVigilance, reach, trample\nWard {2} (Whenever this creature becomes the target of a spell or ability an opponent controls, counter it unless that player pays {2}.)\nChoose a Background (You can have a Background as a second commander.)",
+    "oracle_text": "This spell can't be countered.\nReach, vigilance, trample\nWard {2} (Whenever this creature becomes the target of a spell or ability an opponent controls, counter it unless that player pays {2}.)\nChoose a Background (You can have a Background as a second commander.)",
     "power": "2",
     "toughness": "2",
     "type_line": "Legendary Creature — Bear Warrior"
@@ -228886,7 +229054,8 @@
       "source_printing_ids": [
        "5dd13a6c-23d3-44ce-a628-cb1c19d777c4",
        "6e1a948f-2d7f-4398-9f56-90dac6897c69",
-       "750c7d63-b07d-456d-95ca-d3c3f346715e"
+       "750c7d63-b07d-456d-95ca-d3c3f346715e",
+       "d941df2c-3e4a-471b-8a5d-64ba400375c7"
       ]
      },
      "name": "Winota, Joiner of Forces",
@@ -228900,7 +229069,8 @@
       "FCA",
       "IKO",
       "PIKO",
-      "PRM"
+      "PRM",
+      "SLD"
      ],
      "rarities": [
       "rare",
@@ -228951,6 +229121,7 @@
          },
          "destination": "Battlefield",
          "enter_tapped": true,
+         "enters_attacking": true,
          "filter": {
           "controller": null,
           "properties": [],
@@ -230604,7 +230775,14 @@
      "static_abilities": [
       {
        "active_zones": [],
-       "affected": null,
+       "affected": {
+        "controller": "You",
+        "properties": [],
+        "type": "Typed",
+        "type_filters": [
+         "Permanent"
+        ]
+       },
        "affected_zone": null,
        "characteristic_defining": false,
        "condition": null,
@@ -231265,6 +231443,7 @@
          "enters_attacking": false,
          "face_down_profile": {
           "body": "Noncreature",
+          "cause": "Manifest",
           "extra_core_types": [
            "Land"
           ],
@@ -233171,7 +233350,7 @@
           "value": 1
          },
          "target": {
-          "type": "Any"
+          "type": "DefendingPlayer"
          },
          "type": "Discard"
         },
@@ -233698,7 +233877,6 @@
      "printings": [
       "CHK",
       "DDS",
-      "PZ2",
       "SLC"
      ],
      "rarities": [
@@ -234417,7 +234595,32 @@
        "condition": null,
        "description": "~ can't block creatures with power 2 or greater.",
        "effect_zone": null,
-       "mode": "CantBlock",
+       "mode": {
+        "BlockRestriction": {
+         "filter": {
+          "filter": {
+           "controller": null,
+           "properties": [
+            {
+             "comparator": "GE",
+             "scope": "Current",
+             "stat": "Power",
+             "type": "PtComparison",
+             "value": {
+              "type": "Fixed",
+              "value": 2
+             }
+            }
+           ],
+           "type": "Typed",
+           "type_filters": [
+            "Creature"
+           ]
+          },
+          "type": "Not"
+         }
+        }
+       },
        "modifications": []
       }
      ],
@@ -234713,6 +234916,6 @@
   }
  },
  "crosswalk_sidecar_version": 1,
- "phase_tag": "v0.45.0",
+ "phase_tag": "v0.66.0",
  "schema": 2
 }

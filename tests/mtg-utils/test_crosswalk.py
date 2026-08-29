@@ -5836,17 +5836,156 @@ def test_opponent_discard_excludes_self_discard_then_unrelated_count():
 # ── ADR-0039 W7 BRIDGES wave: opponent_discard residual closers ─────────────
 
 
-@pytest.mark.parametrize("name", ["Tainted Specter", "Remorseless Punishment"])
-def test_opponent_discard_unless_clause_bridge(name):
+def test_opponent_discard_unless_clause_bridge():
     """The ``opp_discard_unless_clause`` ledgered bridge (bridge_ledger.py,
     shared with lifeloss_makers' ``withercrown_unless_lose_life`` bridge
     via :func:`~mtg_utils._deck_forge.bridge_ledger.
     _unless_clause_failure_descs`): a discard-payoff "unless" clause
     phase's parser fails wholesale — Tainted Specter's "Target player
-    discards a card unless they put a card ... on top of their library",
-    Remorseless Punishment's "Target opponent loses 5 life unless that
-    player discards two cards or sacrifices ...". CR 119.4 / 701.9."""
-    assert ("opponent_discard", "opponents", "") in _idents(name)
+    discards a card unless they put a card ... on top of their library".
+    CR 119.4 / 701.9."""
+    assert ("opponent_discard", "opponents", "") in _idents("Tainted Specter")
+
+
+# ── phase v0.66.0 pin bump adjudications (corpus signal diff, 2026-08-29) ────
+
+
+def test_v066_donate_superlative_player_bridge():
+    """BRIDGE ``donate_superlative_player_unbound_subject``: "the player who
+    controls the most Wizards gains control of ~" (Thoughtbound Primoc) —
+    phase v0.46.0's fail-closed subject binder parks the give-away as an
+    ``unbound_subject`` residue (a typed ``GiveControl`` through v0.45.0).
+    CR 110.2 — the card hands itself to whichever player wins the
+    comparison, the same give-away direction the typed read serves."""
+    assert ("donate_makers", "you", "") in _idents("Thoughtbound Primoc")
+
+
+def test_v066_emblem_self_reference_damage_bridge():
+    """BRIDGE ``emblem_self_reference_damage_unbound_subject``: Chandra,
+    Spark Hunter's ultimate emblem "this emblem deals 3 damage to any
+    target" — the self-referenced emblem source (CR 114.1) inside the
+    ``CreateEmblem`` granted trigger is an ``unbound_subject`` residue at
+    v0.66.0 (a typed nested ``DealDamage{target: Any}`` at v0.45.0); "any
+    target" reaches a player by rule (CR 115.4)."""
+    assert ("direct_damage", "you", "") in _idents("Chandra, Spark Hunter")
+
+
+def test_v066_each_source_power_rider_bridges():
+    """BRIDGES ``removal_each_source_power_rider`` /
+    ``creature_ping_each_source_power_rider``: Master of the Wild Hunt's
+    "Each Wolf tapped this way deals damage equal to its power to target
+    creature" — phase v0.53.0 (#7322) fails the per-source rider CLOSED as
+    ``each_source_unrepresentable_rider`` (a typed DealDamage at v0.45.0).
+    CR 120.3 — a creature source dealing power-scaled damage to a creature
+    (the creature_ping doer) that removes it (CR 701.8a territory)."""
+    keys = _keys("Master of the Wild Hunt")
+    assert "removal" in keys
+    assert "creature_ping" in keys
+
+
+def test_v066_cheat_into_play_conditional_kept_destination():
+    """Part in Friendship's "If its mana value is less than or equal to the
+    number of lands you control, put it onto the battlefield. Otherwise
+    put it into your hand." — phase v0.66.0 models the conditional branch
+    as ``RevealUntil.kept_destination_if = [<cmc filter>, "Battlefield"]``
+    beside ``kept_destination: Hand`` (the Otherwise branch); the lane reads
+    the Battlefield branch as the same put (CR 608.2c)."""
+    assert ("cheat_into_play", "you", "") in _idents("Part in Friendship")
+
+
+def test_v066_opponent_discard_you_and_each_residue():
+    """Eumidian Wastewaker's "you and defending player each discard a card
+    or sacrifice a permanent" — an ``unbound_subject`` residue at v0.66.0
+    recovered by the "discard" token with no recipient; the residue's own
+    "you and defending player … each discard" clause carries the direction
+    (CR 506.2 — the defending player is the attacker's opponent; CR
+    701.9a)."""
+    assert ("opponent_discard", "opponents", "") in _idents("Eumidian Wastewaker")
+
+
+def test_v066_each_source_deals_damage_batch_shape():
+    """phase v0.66.0's ``EachSourceDealsDamage{sources, amount: Ref(Power,
+    BatchSource), recipient: Shared{data}}`` batch node (v0.53.0 #7322) —
+    "each creature you control that's a Wolf or a Werewolf deals damage
+    equal to its power to that creature" (Moonlight Hunt: creature_ping +
+    removal, CR 120.3 / 701.8a) and Sarkhan the Mad's -X "each Dragon you
+    control deals damage equal to its power to target player"
+    (direct_damage + damage_equal_power, CR 120.1). A ``DealDamage{amount:
+    Ref(Power, Anaphoric)}`` through v0.45.0; the lanes read the shared
+    recipient through ``damage_recipient``."""
+    # Moonlight Hunt's shared recipient is a ``TriggeringSource`` back-
+    # reference to its "Choose target creature you don't control" sibling
+    # (no type words of its own — never a ``removal`` member); Sarkhan's
+    # -X targets "target player or planeswalker" (an ``Or``), so his batch
+    # is ALSO planeswalker removal.
+    assert "creature_ping" in _keys("Moonlight Hunt")
+    sarkhan = _keys("Sarkhan the Mad")
+    assert {"direct_damage", "damage_equal_power", "removal"} <= sarkhan
+
+
+def test_v066_tapper_engine_sheds_self_tap_cost():
+    """Myr Battlesphere's "you may tap X untapped Myr you control" is a
+    COST paid to power its own pump/damage (CR 118.1 — an action necessary
+    to take another action), which phase v0.66.0 types as
+    ``PayCost{cost: TapCreatures}`` instead of a ``SetTapState`` effect.
+    ``tapper_engine`` ("repeatable tappers to neutralize threats") never
+    described tapping your own team as a cost — the v0.45.0 membership was
+    a false positive the typed cost removes; the card's real payoffs
+    stay."""
+    keys = _keys("Myr Battlesphere")
+    assert "tapper_engine" not in keys
+    assert {"removal", "combat_buff_engine", "token_maker"} <= keys
+
+
+def test_v066_damage_prevention_sheds_redirection():
+    """Carom's "The next 1 damage that would be dealt to target creature
+    this turn is dealt to another target creature instead." is a
+    REDIRECTION replacement effect (CR 614.1), not a prevention effect
+    (CR 615.1) — phase v0.66.0 types it as ``CreateDamageReplacement``
+    (dropped entirely through v0.45.0, when the kept text mirror
+    over-served it as ``damage_prevention``). It stays a ``damage_redirect``
+    member."""
+    keys = _keys("Carom")
+    assert "damage_prevention" not in keys
+    assert "damage_redirect" in keys
+
+
+def test_v066_ability_word_is_not_a_keyword():
+    """Shadow of the Goblin's "Undying Vengeance" is an ABILITY WORD (its
+    ability is a spellcast damage trigger), which phase mis-read as the
+    Undying KEYWORD through v0.45.0 — synthesizing a dies-return trigger
+    with a +1/+1 counter the card never has. v0.66.0 drops the phantom:
+    no ``dies_recursion`` / ``plus_one_matters`` / ``graveyard_makers``,
+    while the real spellcast payoff stays."""
+    keys = _keys("Shadow of the Goblin")
+    assert not {"dies_recursion", "plus_one_matters", "graveyard_makers"} & keys
+    assert {"direct_damage", "spellcast_matters"} <= keys
+
+
+def test_opponent_discard_unless_pay_graduated_structural():
+    """Remorseless Punishment GRADUATED off the ``opp_discard_unless_clause``
+    bridge at the v0.66.0 pin bump (phase v0.65.0 #7830): "Target opponent
+    loses 5 life unless that player discards two cards or sacrifices ..."
+    now parses as the unit's own ``LoseLife{target: Opponent}`` payoff with
+    the discard as a ``Discard`` leaf of the unit's ``unless_pay.cost``
+    ``OneOf`` (payer: the targeted ``Player``) —
+    ``keyword_mechanics._unless_pay_opponent_discard`` reads it
+    structurally. Membership preserved, mechanism graduated. CR 608.2c /
+    701.9a (the targeted opponent's own hand-to-graveyard discard)."""
+    from mtg_utils._card_ir.crosswalk import iter_cost_leaves, tag_of
+    from mtg_utils._deck_forge.bridge_ledger import bridge_fires
+
+    tree = _tree("Remorseless Punishment")
+    assert not bridge_fires("opp_discard_unless_clause", tree)
+    leaves = [
+        tag_of(leaf)
+        for u in tree.units
+        for leaf in iter_cost_leaves(
+            getattr(getattr(u.node, "unless_pay", None), "cost", None)
+        )
+    ]
+    assert "Discard" in leaves
+    assert ("opponent_discard", "opponents", "") in _idents("Remorseless Punishment")
 
 
 def test_opponent_discard_unless_clause_wand_of_ith_served_independently():
@@ -10318,24 +10457,31 @@ def test_base_pt_set_modal_doubly_nested_parent_target():
     """Sauron, Dino Devotee's "Turn People into Dinosaurs" mode ("Put a
     saurian counter on another target creature. It's a green Dinosaur with
     base power and toughness 5/5 for as long as it has a saurian counter
-    on it."). MEMBERSHIP pin only since the v0.45.0 pin bump: v0.35.2
-    structured the mode fully (a ``GenericEffect`` nested in the mode's
-    ``sub_ability`` chain, threaded by
-    :func:`_iter_base_pt_modal_threaded_statics`), but the v0.40.x parser
-    rework regressed the whole clause to ``Unimplemented(name="it's")`` —
-    the ``base_pt_modal_its_clause_regressed`` ledgered bridge preserves
-    the serving until the upstream report lands. CR 613.4b / 700.2."""
+    on it."): a ``GenericEffect`` nested in the mode's ``sub_ability``
+    chain, threaded by :func:`_iter_base_pt_modal_threaded_statics`.
+    STRUCTURAL again since the v0.66.0 pin bump — v0.35.2 structured it,
+    the v0.40.x parser rework regressed the clause to
+    ``Unimplemented(name="it's")`` (bridged as
+    ``base_pt_modal_its_clause_regressed`` at v0.45.0), and phase-rs/phase
+    #7037 (v0.48.0) restored the mode body; the bridge row is deleted.
+    CR 613.4b / 700.2."""
     assert ("base_pt_set", "any", "") in _idents("Sauron, Dino Devotee")
 
 
-def test_base_pt_set_modal_its_clause_bridge_mechanism():
-    """The regression bridge's own gap+match both hold at v0.45.0 (the
-    convergence test in test_bridge_ledger.py flags this row RETIRE-READY
-    the day phase restores the structured mode body)."""
-    from mtg_utils._deck_forge.bridge_ledger import bridge_fires
+def test_base_pt_set_modal_its_clause_structural_no_residue():
+    """The v0.45.0 regression's ``Unimplemented(name="it's")`` residue is
+    gone at v0.66.0: the mode carries a typed SetPower/SetToughness
+    modification suite (the shape the retired bridge's gap-check watched
+    for) and no ``it's`` residue anywhere in the tree."""
+    from mtg_utils._card_ir.crosswalk import iter_typed_nodes, tag_of
 
-    assert bridge_fires(
-        "base_pt_modal_its_clause_regressed", _tree("Sauron, Dino Devotee")
+    tree = _tree("Sauron, Dino Devotee")
+    tags = {tag_of(n) for u in tree.units for n in iter_typed_nodes(u.node)}
+    assert {"SetPower", "SetToughness"} <= tags
+    assert not any(
+        tag_of(n) == "Unimplemented" and getattr(n, "name", None) == "it's"
+        for u in tree.units
+        for n in iter_typed_nodes(u.node)
     )
 
 
@@ -10812,11 +10958,15 @@ def test_target_player_draws_paired_scoped_player_idiom():
 
 
 def test_target_player_draws_any_recipient_tag():
-    """``Any`` is admitted unconditionally (:data:`_TARGETED_DRAW_TAGS`) — the
-    "you and X each draw" idiom's COLLAPSED single-node form phase uses
-    instead of the paired ``OriginalController``/``ScopedPlayer`` shape
-    above. Corpus-verified as the ONLY tag used for a ``Draw`` recipient
-    across the whole commander-legal corpus (6 hits, all this idiom)."""
+    """The "you and X each draw" pairing idiom. Through phase v0.45.0 it was
+    ONE collapsed ``Draw{target: Any}`` node (``Any`` admitted
+    unconditionally in :data:`_TARGETED_DRAW_TAGS` — corpus-verified as the
+    ONLY tag used for a ``Draw`` recipient, 6 hits, all this idiom). Since
+    the v0.66.0 pin bump phase fails the compound subject CLOSED (v0.46.0
+    #7003) into an ``Unimplemented(name="unbound_subject")`` residue whose
+    description is the clause; recovery.py's "draw" ALLOWLIST token recovers
+    it and :data:`_RECOVERED_DRAW_DIRECTED_RE`'s "you and … each draw"
+    alternative reads the direction — membership preserved either way."""
     for name in (
         "Karazikar, the Eye Tyrant",
         "Zurzoth, Chaos Rider",
@@ -15782,11 +15932,20 @@ def test_direct_damage_bridge_flames_blood_hand_headline_clause_drop():
     assert ("direct_damage", "you", "") in _idents("Flames of the Blood Hand")
 
 
-def test_direct_damage_bridge_valakut_exploration_trailing_clause_drop():
-    """BRIDGE ``valakut_exploration_trailing_clause_drop``: "... put them
-    into their owner's graveyard, then ~ deals that much damage to each
-    opponent" — the trailing damage clause after a ``ChangeZone`` effect in
-    the SAME sentence is dropped from ``execute.effect`` (CR 120.1)."""
+def test_direct_damage_valakut_exploration_graduated_structural():
+    """Valakut Exploration GRADUATED off the ``valakut_exploration_trailing_
+    clause_drop`` ledgered bridge at the v0.66.0 pin bump: phase-rs/phase
+    #7047 (v0.48.0) parses the existential exiled-with intervening-if, so the
+    trailing "then ~ deals that much damage to each opponent" clause lands
+    as a SequentialSibling-chained ``DamageEachPlayer{player_filter:
+    Opponent}`` the lane reads structurally (CR 120.1). Membership preserved,
+    mechanism graduated — the bridge row is deleted."""
+    from mtg_utils._card_ir.crosswalk import has_nested_damage_reaching_player
+
+    assert any(
+        has_nested_damage_reaching_player(u.node)
+        for u in _tree("Valakut Exploration").units
+    )
     assert ("direct_damage", "you", "") in _idents("Valakut Exploration")
 
 

@@ -54,7 +54,9 @@ _NOMINAL_BOARD = 4.0
 # Storm / Replicate: the conservative copy floor (one prior spell).
 _COPY_KEYWORDS = frozenset({"storm", "replicate"})
 
-_DAMAGE_TAGS = frozenset({"DealDamage", "DamageEachPlayer", "DamageAll"})
+_DAMAGE_TAGS = frozenset(
+    {"DealDamage", "DamageEachPlayer", "DamageAll", "EachSourceDealsDamage"}
+)
 
 
 @dataclass(frozen=True)

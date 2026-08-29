@@ -5,7 +5,7 @@ Codegen'd from ``tests/fixtures/phase_mirror_schema.json`` by
 
 Part of the generated typed-mirror package (see this directory's
 ``__init__.py``). This module holds content keys ``<root>`` ..
-``MustBeBlockedByAll`` (74 keys).
+``MoreThanMeetsTheEye`` (73 keys).
 
 Class naming: ``S_<ckey>`` for a struct shape, ``T_<ckey>__<tag>`` for a tagged
 shape, ``U_<ckey>`` for the union of all tagged shapes at one content_key.
@@ -23,7 +23,7 @@ from mtg_utils._card_ir.mirror.runtime import (
 )
 
 if TYPE_CHECKING:
-    from mtg_utils._card_ir.mirror.generated.g02_mutate import (
+    from mtg_utils._card_ir.mirror.generated.g02_morph import (
         S_abilities,
         U_additional_cost,
     )
@@ -52,11 +52,11 @@ if TYPE_CHECKING:
     )
     from mtg_utils._card_ir.mirror.generated.g08_else_ability import (
         S_extra_cost,
-        S_legalities,
         U_filter,
         U_filters,
     )
-    from mtg_utils._card_ir.mirror.generated.g09_lhs import (
+    from mtg_utils._card_ir.mirror.generated.g09_land_filter import (
+        S_legalities,
         S_metadata,
         S_modal,
         U_mana_cost,
@@ -64,7 +64,7 @@ if TYPE_CHECKING:
         U_materials,
         U_once_per_turn,
     )
-    from mtg_utils._card_ir.mirror.generated.g10_parse_warnings import (
+    from mtg_utils._card_ir.mirror.generated.g10_owner import (
         U_parse_warnings,
         U_power,
     )
@@ -75,17 +75,18 @@ if TYPE_CHECKING:
         S_reduction,
         U_qty,
     )
-    from mtg_utils._card_ir.mirror.generated.g13_repeat_for import (
+    from mtg_utils._card_ir.mirror.generated.g13_reference import (
         S_replacements,
         S_requirement,
         S_rulings,
         S_static_abilities,
+        U_sacrifice_filter,
         U_solve_condition,
         U_source_filter,
         U_spell_filter,
         U_strive_cost,
     )
-    from mtg_utils._card_ir.mirror.generated.g14_subtype_filter import (
+    from mtg_utils._card_ir.mirror.generated.g14_sub_ability import (
         S_triggers,
         U_target,
         U_toughness,
@@ -256,9 +257,22 @@ class S_Disguise(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class S_Emerge(TypedMirrorNode):
+    mana_cost: U_mana_cost
+    sacrifice_filter: U_sacrifice_filter
+
+
+@dataclass(frozen=True)
 class S_EntersWithAdditionalCounters(TypedMirrorNode):
     count: int
     counter_type: str
+
+
+@dataclass(frozen=True)
+class S_EntersWithCounters(TypedMirrorNode):
+    count: U_count
+    counter_type: str
+    filter: U_filter
 
 
 @dataclass(frozen=True)
@@ -332,11 +346,6 @@ class S_ModifyCost(TypedMirrorNode):
     mode: str
     spell_filter: U_spell_filter | None
     dynamic_count: U_dynamic_count = MISSING
-
-
-@dataclass(frozen=True)
-class S_MustBeBlockedByAll(TypedMirrorNode):
-    pass
 
 
 # --- tagged shapes (discriminated enum nodes) ---
@@ -550,13 +559,6 @@ class T_Embalm__Mana(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
-class T_Emerge__Cost(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "Cost"
-    generic: int
-    shards: list[object]
-
-
-@dataclass(frozen=True)
 class T_Enchant__Any(TypedMirrorNode):
     _tag: ClassVar[str | None] = "Any"
 
@@ -750,6 +752,11 @@ class T_Gift__Card(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class T_Gift__ExtraTurn(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "ExtraTurn"
+
+
+@dataclass(frozen=True)
 class T_Gift__Food(TypedMirrorNode):
     _tag: ClassVar[str | None] = "Food"
 
@@ -891,13 +898,6 @@ class T_MoreThanMeetsTheEye__Cost(TypedMirrorNode):
     shards: list[object]
 
 
-@dataclass(frozen=True)
-class T_Morph__Cost(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "Cost"
-    generic: int
-    shards: list[object]
-
-
 # --- discriminated-union aliases (one per tagged content_key) ---
 
 type U_ActivateTagged = T_ActivateTagged__Equip | T_ActivateTagged__PowerUp
@@ -931,7 +931,6 @@ type U_Disguise = T_Disguise__Cost
 type U_Disturb = T_Disturb__Cost
 type U_Echo = T_Echo__Mana | T_Echo__NonMana
 type U_Embalm = T_Embalm__Mana
-type U_Emerge = T_Emerge__Cost
 type U_Enchant = (
     T_Enchant__Any
     | T_Enchant__Or
@@ -953,7 +952,13 @@ type U_Flashback = T_Flashback__Mana | T_Flashback__NonMana
 type U_Foretell = T_Foretell__Cost | T_Foretell__SelfManaCostReduced
 type U_Fortify = T_Fortify__Cost
 type U_Freerunning = T_Freerunning__Cost
-type U_Gift = T_Gift__Card | T_Gift__Food | T_Gift__TappedFish | T_Gift__Treasure
+type U_Gift = (
+    T_Gift__Card
+    | T_Gift__ExtraTurn
+    | T_Gift__Food
+    | T_Gift__TappedFish
+    | T_Gift__Treasure
+)
 type U_Harmonize = T_Harmonize__Cost | T_Harmonize__SelfManaCost
 type U_HexproofFrom = (
     T_HexproofFrom__CardType
@@ -975,4 +980,3 @@ type U_Megamorph = T_Megamorph__Cost
 type U_Miracle = T_Miracle__Cost | T_Miracle__SelfManaCostReduced
 type U_Mobilize = T_Mobilize__Fixed | T_Mobilize__Ref
 type U_MoreThanMeetsTheEye = T_MoreThanMeetsTheEye__Cost
-type U_Morph = T_Morph__Cost

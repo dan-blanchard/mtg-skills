@@ -119,8 +119,11 @@ _SCALING_QTY_TAGS: frozenset[str] = frozenset(
         # graveyard" — Carrion Grub, Coram; "greatest mana value among other
         # artifacts" — Emissary Escort) is a board-state-driven scaler by
         # construction (CR 107.3) — the same category as a bare count, just a
-        # MAX instead of a COUNT of the same population.
+        # MAX instead of a COUNT of the same population. ``PropertyAggregate``
+        # is the SAME node reified at phase v0.65.0 (#7967; the v0.66.0 pin
+        # bump) — see ``crosswalk.AGGREGATE_QTY_TAGS``.
         "Aggregate",
+        "PropertyAggregate",
         # ADR-0038 W3 batch-4 (single-target Pump adjudication) — a ZONE card
         # count ("for each card in your graveyard/hand/library" — Gran Pulse
         # Ochu, Ral's Staticaster, Bonehoard, Knight of the Reliquary) is the
@@ -1960,7 +1963,22 @@ def _cheat_into_play(tree: ConceptTree) -> list[Signal]:
                 continue
             kept_to = getattr(c.node, "kept_destination", None)
             kept_optional_to = getattr(c.node, "kept_optional_to", None)
-            if kept_to != "Battlefield" and kept_optional_to != "Battlefield":
+            # phase v0.66.0 pin bump: a CONDITIONAL destination ("If its
+            # mana value is less than or equal to the number of lands you
+            # control, put it onto the battlefield. Otherwise put it into
+            # your hand." — Part in Friendship) is a ``kept_destination_if``
+            # ``[<condition filter>, <zone>]`` pair beside the default
+            # ``kept_destination`` (now the Otherwise branch, "Hand"); a
+            # Battlefield branch is the same put (CR 608.2c — the spell's
+            # instructions are followed as written, the conditional branch
+            # included).
+            kept_if = getattr(c.node, "kept_destination_if", None)
+            kept_if_to = (
+                next((x for x in kept_if if isinstance(x, str)), None)
+                if isinstance(kept_if, list)
+                else None
+            )
+            if "Battlefield" not in (kept_to, kept_optional_to, kept_if_to):
                 continue
             filt = getattr(c.node, "filter", None)
             cores = set(filter_core_types(filt))

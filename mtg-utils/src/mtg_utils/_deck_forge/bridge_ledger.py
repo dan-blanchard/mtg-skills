@@ -45,6 +45,9 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from mtg_utils._card_ir.crosswalk import (
+    DAMAGE_EFFECT_TAGS,
+    aggregate_filter,
+    damage_recipient,
     effect_filter,
     effect_owner_player_scope,
     effect_reaches_player,
@@ -520,11 +523,7 @@ def _cheat_modal_unsupported_match(tree: ConceptTree) -> bool:
 def _no_player_reaching_damage_node(tree: ConceptTree) -> bool:
     for unit in tree.units:
         for n in iter_typed_nodes(unit.node):
-            if tag_of(n) in (
-                "DealDamage",
-                "DamageAll",
-                "DamageEachPlayer",
-            ) and effect_reaches_player(n, unit.node):
+            if tag_of(n) in DAMAGE_EFFECT_TAGS and effect_reaches_player(n, unit.node):
                 return False
     return True
 
@@ -580,23 +579,6 @@ _FLAMES_BLOOD_HAND_RX = re.compile(
 
 def _flames_blood_hand_match(tree: ConceptTree) -> bool:
     return bool(_FLAMES_BLOOD_HAND_RX.search(tree.oracle or ""))
-
-
-# (5) Valakut Exploration's "... put them into their owner's graveyard, then
-# this enchantment deals that much damage to each opponent" — the trailing
-# damage clause after the ``ChangeZone`` (graveyard) effect in the SAME
-# sentence is dropped; the wrapping unit's OWN ``description`` field still
-# carries the full English sentence (verified via tree dump), but
-# ``execute.effect`` decomposes only the graveyard half.
-_VALAKUT_EXPLORATION_RX = re.compile(
-    r"put them into their owner's graveyard, then [^.]*deals? that much "
-    r"damage to each opponent",
-    re.IGNORECASE,
-)
-
-
-def _valakut_exploration_match(tree: ConceptTree) -> bool:
-    return bool(_VALAKUT_EXPLORATION_RX.search(tree.oracle or ""))
 
 
 # (6) Avatar Aang // Aang, Master of Elements's transform trigger is a FIVE-
@@ -841,53 +823,120 @@ def _base_pt_becomecopy_no_mods_match(tree: ConceptTree) -> bool:
     return bool(_BASE_PT_BECOMECOPY_PT_RX.search(tree.oracle))
 
 
-# (8) A modal mode's "It's a <color> <subtype> with base power and toughness
-# N/N" animate clause, REGRESSED at the v0.45.0 pin bump: v0.35.2 structured
-# it fully (the mode's sub_ability carried a ``GenericEffect`` with a
-# SetPower/SetToughness/SetColor/AddType/AddSubtype modification suite);
-# the v0.40.x "Plan 05b" parser rework re-parks the WHOLE clause as
-# ``Unimplemented(name="it's")`` with only the description surviving
-# (Sauron, Dino Devotee's "Turn People into Dinosaurs" mode, CR 613.4b /
-# 700.2). Anchored to that residue's OWN description (never the whole-card
-# oracle) — the other 4 corpus cards carrying the same residue name
-# (Magar, Pirk, Otherworldly Escort, Join the Group) carried it at v0.35.2
-# already, never matched the base-P/T hook, and were never base_pt_set
-# members.
-_BASE_PT_ITS_RESIDUE_RX = re.compile(r"base power and toughness \d+/\d+", re.IGNORECASE)
-
-
-def _its_residue_descs(tree: ConceptTree) -> Iterator[str]:
+# ── phase v0.66.0 pin bump: the fail-closed ``unbound_subject`` residue ─────
+# phase v0.46.0 (#7003, "stop failing open on an unparseable subject") parks
+# any clause whose SUBJECT it can't bind as ``Unimplemented(name=
+# "unbound_subject")`` with the clause as its description — 183 corpus
+# residues at v0.66.0, zero at v0.45.0. Two deck-relevant sub-idioms lost
+# their typed node in the flip and are bridged here; the third ("you and X
+# each draw") rides card_advantage's recovered-residue read instead.
+def _unbound_subject_descs(tree: ConceptTree) -> Iterator[str]:
+    """Every ``unbound_subject`` residue's description, ANYWHERE under a
+    unit (a planeswalker emblem's granted trigger nests its residue under
+    ``CreateEmblem.triggers``, outside the flat ``unit.effects`` walk)."""
     for unit in tree.units:
         for n in iter_typed_nodes(unit.node):
-            if tag_of(n) == "Unimplemented" and getattr(n, "name", None) == "it's":
+            if tag_of(n) == "Unimplemented" and (
+                getattr(n, "name", None) == "unbound_subject"
+            ):
                 yield getattr(n, "description", "") or ""
 
 
-_BASE_PT_SET_MOD_TAGS = frozenset(
-    {"SetPower", "SetToughness", "SetPowerDynamic", "SetToughnessDynamic"}
+# (a) "the player who/with <superlative> gains control of ~" → donate_makers.
+# Ghazbán Ogre / Wild Dogs ("the player with the most life"), Loxodon
+# Peacekeeper ("the lowest life total"), Sokenzan Renegade ("the most cards
+# in hand"), Thoughtbound Primoc ("controls the most Wizards"), Wild Mammoth
+# ("controls the most creatures") — a ``GiveControl{target: SelfRef,
+# recipient: Any}`` through v0.45.0, now the residue. The card hands
+# ITSELF to whichever player wins the comparison (CR 110.2 — a permanent's
+# controller changes only by an effect; the give-away direction is the
+# whole point of the card), the same give-away ``_donate_makers`` reads off
+# a typed ``GiveControl`` recipient. Anchored to the residue's OWN clause:
+# a leading "the player who/with …" superlative subject AND a trailing
+# "gains control of ~" self-object — the "'s controller gains control"
+# REVENGE idiom the lane excludes never has this subject shape.
+_DONATE_SUPERLATIVE_RX = re.compile(
+    r"^the player (?:who|with|that) [^.]*\bgains control of ~$", re.IGNORECASE
+)
+_CONTROL_CHANGE_TAGS = frozenset(
+    {"GiveControl", "GainControl", "GainControlAll", "ExchangeControl"}
 )
 
 
-def _base_pt_its_residue_gap(tree: ConceptTree) -> bool:
-    """Absence proof: no base-P/T-setting modification survives ANYWHERE in
-    the tree (neither as a free-standing typed node nor inside a
-    ``GenericEffect.static_abilities[].modifications`` suite). Self-retiring:
-    the day phase restores the structured mode body, the SetPower pair
-    reappears and this bridge stands down with no edit."""
+def _no_control_change_node(tree: ConceptTree) -> bool:
+    return not any(
+        tag_of(n) in _CONTROL_CHANGE_TAGS
+        for unit in tree.units
+        for n in iter_typed_nodes(unit.node)
+    )
+
+
+def _donate_superlative_match(tree: ConceptTree) -> bool:
+    return any(_DONATE_SUPERLATIVE_RX.search(d) for d in _unbound_subject_descs(tree))
+
+
+# (b) "this emblem deals N damage to any target" → direct_damage. A
+# planeswalker's emblem (CR 114.1 — an object with abilities in the command
+# zone) whose granted trigger names ITSELF by type as the damage source:
+# Chandra, Spark Hunter / Torch of Defiance, Koth, Fire of Resistance,
+# Narset of the Ancient Way ("N damage to any target"), Chandra, Dressed to
+# Kill ("X damage to any target, where X …"), and Chandra, Awakened Inferno
+# — whose +2 hands EACH OPPONENT an emblem reading "this emblem deals 1
+# damage to you" (the emblem's own controller, i.e. the opponent) — 6 at
+# v0.66.0, every one a typed nested ``DealDamage`` at v0.45.0. "Any target"
+# reaches a player by rule (CR 115.4) and the Awakened Inferno emblem's
+# "you" IS a player, so the same player-reaching gap the other
+# direct_damage bridges share applies.
+_EMBLEM_DAMAGE_RX = re.compile(
+    r"^this emblem deals (?:\d+|x) damage to (?:any target|you|each opponent"
+    r"|that player|target (?:player|opponent))\b",
+    re.IGNORECASE,
+)
+
+
+def _emblem_damage_match(tree: ConceptTree) -> bool:
+    return any(_EMBLEM_DAMAGE_RX.search(d) for d in _unbound_subject_descs(tree))
+
+
+# ── phase v0.66.0 pin bump: the "each <source> … deals damage equal to its
+# power" rider ───────────────────────────────────────────────────────────────
+# v0.53.0 (#7322, "resolve per-source power in each-X-deals-damage clauses")
+# fails the per-source rider CLOSED as ``Unimplemented(name="each_source_
+# unrepresentable_rider")``: Master of the Wild Hunt's "Each Wolf tapped this
+# way deals damage equal to its power to target creature" was a typed
+# ``DealDamage{amount: Ref(Power, Anaphoric), target: Typed(Creature)}`` at
+# v0.45.0 (the one commander-legal member; Season's Beatings is not legal).
+# The clause is single-target creature burn scaled on each source's own
+# power (CR 120.3 — damage dealt to a creature by a creature source; the
+# ``creature_ping`` doer shape) — served for both keys off the residue's own
+# text, gated on there being NO typed creature-reaching damage node left.
+_EACH_SOURCE_RIDER_RX = re.compile(
+    r"\bdeals damage equal to its power to (?:target|another target|each) creature\b",
+    re.IGNORECASE,
+)
+
+
+def _each_source_rider_descs(tree: ConceptTree) -> Iterator[str]:
     for unit in tree.units:
         for n in iter_typed_nodes(unit.node):
-            if tag_of(n) in _BASE_PT_SET_MOD_TAGS:
+            if tag_of(n) == "Unimplemented" and (
+                getattr(n, "name", None) == "each_source_unrepresentable_rider"
+            ):
+                yield getattr(n, "description", "") or ""
+
+
+def _no_creature_reaching_damage_node(tree: ConceptTree) -> bool:
+    for unit in tree.units:
+        for n in iter_typed_nodes(unit.node):
+            if tag_of(n) in DAMAGE_EFFECT_TAGS and "Creature" in (
+                filter_core_types(damage_recipient(n))
+            ):
                 return False
-            if tag_of(n) == "GenericEffect":
-                for st in getattr(n, "static_abilities", None) or []:
-                    mods = getattr(st, "modifications", None) or []
-                    if {tag_of(m) for m in mods} & _BASE_PT_SET_MOD_TAGS:
-                        return False
     return True
 
 
-def _base_pt_its_residue_match(tree: ConceptTree) -> bool:
-    return any(_BASE_PT_ITS_RESIDUE_RX.search(d) for d in _its_residue_descs(tree))
+def _each_source_rider_match(tree: ConceptTree) -> bool:
+    return any(_EACH_SOURCE_RIDER_RX.search(d) for d in _each_source_rider_descs(tree))
 
 
 # ── The scaling/restricted/note-type "Add mana" residue class → ramp ────────
@@ -1150,9 +1199,10 @@ _VOLTRON_SCALING_RX = re.compile(
 def _voltron_scaling_gap(tree: ConceptTree) -> bool:
     for unit in tree.units:
         for n in iter_typed_nodes(unit.node):
-            if tag_of(n) not in ("ObjectCount", "Aggregate"):
-                continue
-            filt = getattr(n, "filter", None)
+            if tag_of(n) == "ObjectCount":
+                filt = getattr(n, "filter", None)
+            else:
+                filt = aggregate_filter(n)
             if filt is not None and (
                 {s.lower() for s in filter_subtypes(filt)} & _VOLTRON_SUBTYPES
             ):
@@ -1257,9 +1307,12 @@ def _forge_anew_match(tree: ConceptTree) -> bool:
 # (verified via direct tree dump: Wand of Ith already fires structurally,
 # not via this bridge). Corpus-verified 2026-07-12, phase v0.20.0,
 # 31,622 commander-legal: exactly 2 hits.
+# v0.66.0 pin bump: the "target opponent loses N life unless that player
+# discards" alternative retired with Remorseless Punishment's graduation
+# (phase now emits the unless_pay cost structurally — see
+# ``keyword_mechanics._unless_pay_opponent_discard``).
 _OPP_DISCARD_UNLESS_RX = re.compile(
-    r"target player discards? a card unless|"
-    r"target opponent loses \d+ life unless that player discards",
+    r"target player discards? a card unless",
     re.IGNORECASE,
 )
 
@@ -2385,30 +2438,6 @@ BRIDGES: dict[str, Bridge] = {
             match=_flames_blood_hand_match,
         ),
         Bridge(
-            bridge_id="valakut_exploration_trailing_clause_drop",
-            key="direct_damage",
-            kind="dropped_clause",
-            todo=(
-                "FIX PR FILED upstream: phase-rs/phase#7047 (full pipeline, "
-                "opened 2026-08-05) parses the existential exiled-with "
-                "intervening-if whose unstripped 'if ' prefix was "
-                "suppressing the ', then' clause split — restoring the "
-                "trailing 'then ~ deals that much damage to each opponent' "
-                "clause as a SequentialSibling-chained DamageEachPlayer "
-                "(the runtime AMOUNT still under-resolves upstream — "
-                "engine-side gap filed as phase-rs/phase#7046 — but the "
-                "PARSE this bridge's gap-check reads lands the typed "
-                "damage node). Retires on a phase bump that ships #7047"
-            ),
-            census=(
-                "1 hit / 31,622 commander-legal (Valakut Exploration, a "
-                "singleton idiom), phase v0.20.0, 2026-07-11"
-            ),
-            pins=("Valakut Exploration",),
-            gap=_no_player_reaching_damage_node,
-            match=_valakut_exploration_match,
-        ),
-        Bridge(
             bridge_id="avatar_aang_conjunction_tail_drop",
             key="direct_damage",
             kind="dropped_clause",
@@ -2653,32 +2682,92 @@ BRIDGES: dict[str, Bridge] = {
             match=_base_pt_becomecopy_no_mods_match,
         ),
         Bridge(
-            bridge_id="base_pt_modal_its_clause_regressed",
-            key="base_pt_set",
+            bridge_id="donate_superlative_player_unbound_subject",
+            key="donate_makers",
             kind="upstream_parse_failure",
             todo=(
-                "FILED upstream as phase-rs/phase#7031; fix PR "
-                "phase-rs/phase#7037 (full pipeline, opened 2026-08-05): the "
-                "modal-native-IR rework (#6811, v0.42.0) REGRESSED the modal "
-                "\"It's a <color> <type> with base power and toughness "
-                'N/N" animate clause — fully structured at v0.35.2 (a '
-                "GenericEffect modification suite: SetPower/SetToughness/"
-                "SetColor/AddType/AddSubtype), re-parked wholesale as "
-                'Unimplemented(name="it\'s") at v0.45.0 — retires on a '
-                "phase bump that restores the structured mode body"
+                "upstream phase-rs report candidate (Dan posts): the v0.46.0 "
+                "fail-closed subject binder (#7003) parks 'the player "
+                "who/with <superlative> gains control of ~' as an "
+                "Unimplemented('unbound_subject') residue — a typed "
+                "GiveControl{SelfRef -> Any} through v0.45.0. Retires on a "
+                "phase bump that binds a superlative-comparison player "
+                "subject (the same class as Timesifter's 'takes an extra "
+                "turn' and Celestial Convergence's 'wins the game', not "
+                "bridged — one card each)"
             ),
             census=(
-                '5 cards carry an Unimplemented(name="it\'s") residue at '
-                "phase v0.45.0 (2026-08-04); exactly 1 ALSO names the "
-                "base-P/T hook in that residue's own description (the 1 "
-                "pin — Magar of the Magic Strings / Pirk, Heroic Captain / "
-                "Otherworldly Escort / Join the Group carried the same "
-                "residue at v0.35.2 already, never matched the hook, and "
-                "were never base_pt_set members)"
+                "6 hits / 35,798 corpus records, all commander-legal "
+                "(Ghazbán Ogre, Loxodon Peacekeeper, Sokenzan Renegade, "
+                "Thoughtbound Primoc, Wild Dogs, Wild Mammoth), phase "
+                "v0.66.0, 2026-08-29"
             ),
-            pins=("Sauron, Dino Devotee",),
-            gap=_base_pt_its_residue_gap,
-            match=_base_pt_its_residue_match,
+            pins=("Thoughtbound Primoc",),
+            gap=_no_control_change_node,
+            match=_donate_superlative_match,
+        ),
+        Bridge(
+            bridge_id="emblem_self_reference_damage_unbound_subject",
+            key="direct_damage",
+            kind="upstream_parse_failure",
+            todo=(
+                "upstream phase-rs report candidate (Dan posts): the v0.46.0 "
+                "fail-closed subject binder (#7003) can't bind 'this emblem' "
+                "as the damage source inside a CreateEmblem granted trigger, "
+                "parking 'this emblem deals N damage to any target' as an "
+                "Unimplemented('unbound_subject') residue — a typed nested "
+                "DealDamage{target: Any} through v0.45.0. Retires on a phase "
+                "bump that binds the emblem's self-reference"
+            ),
+            census=(
+                "6 hits / 35,798 corpus records, all commander-legal "
+                "(Chandra, Spark Hunter / Torch of Defiance, Koth, Fire of "
+                "Resistance, Narset of the Ancient Way, Chandra, Dressed to "
+                "Kill's X-damage form, Chandra, Awakened Inferno's "
+                "opponent-owned 'to you' emblem), phase v0.66.0, 2026-08-29"
+            ),
+            pins=("Chandra, Spark Hunter",),
+            gap=_no_player_reaching_damage_node,
+            match=_emblem_damage_match,
+        ),
+        Bridge(
+            bridge_id="removal_each_source_power_rider",
+            key="removal",
+            kind="upstream_parse_failure",
+            todo=(
+                "FILED-candidate upstream (Dan posts): phase v0.53.0 (#7322) "
+                "fails the per-source 'each <X> … deals damage equal to its "
+                "power to target creature' rider CLOSED as "
+                "Unimplemented('each_source_unrepresentable_rider') — a "
+                "typed DealDamage{Ref(Power, Anaphoric) -> Typed(Creature)} "
+                "through v0.45.0. Retires on a phase bump that represents a "
+                "per-source damage amount"
+            ),
+            census=(
+                "2 hits / 35,798 corpus records, 1 commander-legal (Master "
+                "of the Wild Hunt; Season's Beatings is not legal), phase "
+                "v0.66.0, 2026-08-29"
+            ),
+            pins=("Master of the Wild Hunt",),
+            gap=_no_creature_reaching_damage_node,
+            match=_each_source_rider_match,
+        ),
+        Bridge(
+            bridge_id="creature_ping_each_source_power_rider",
+            key="creature_ping",
+            kind="upstream_parse_failure",
+            todo=(
+                "same residue as removal_each_source_power_rider — the "
+                "creature_ping doer shape (a creature dealing damage equal "
+                "to ITS OWN power to a creature, CR 120.3); retires with it"
+            ),
+            census=(
+                "2 hits / 35,798 corpus records, 1 commander-legal (Master "
+                "of the Wild Hunt), phase v0.66.0, 2026-08-29"
+            ),
+            pins=("Master of the Wild Hunt",),
+            gap=_no_creature_reaching_damage_node,
+            match=_each_source_rider_match,
         ),
         Bridge(
             bridge_id="land_creatures_condition_reference_dropped",
@@ -2957,17 +3046,25 @@ BRIDGES: dict[str, Bridge] = {
                 "unless-clause recovery ALLOWLIST row — retires on a "
                 "phase bump or a recovery-stage unless-clause row that "
                 "structures the discard/life-loss payoff (CR 119.4-"
-                "shaped unless-cost)"
+                "shaped unless-cost). HALF-RETIRED at the v0.66.0 pin "
+                "bump: phase v0.65.0 (#7830) structures the third-person "
+                "'target opponent loses N life unless that player "
+                "discards' shape as the unit's own unless_pay cost "
+                "(Remorseless Punishment graduated to keyword_mechanics' "
+                "_unless_pay_opponent_discard); the second-person "
+                "'target player discards a card unless they put a card "
+                "... on top of their library' shape (Tainted Specter) is "
+                "still parked as the residue — retires with it"
             ),
             census=(
-                "2 hits / 31,622 commander-legal 'Unsupported unless "
-                "clause' residues matching this discard-direction "
-                "anchor, phase v0.20.0, 2026-07-12; Wand of Ith carries "
-                "the SAME residue class but is served INDEPENDENTLY via "
-                "its own typed DiscardCard(ParentTarget) elsewhere in "
-                "the tree — never reaches this bridge's gap"
+                "1 hit / 35,798 corpus records, phase v0.66.0, 2026-08-29 "
+                "(2 hits / 31,622 commander-legal at phase v0.20.0, "
+                "2026-07-12); Wand of Ith carries the SAME residue class "
+                "but is served INDEPENDENTLY via its own typed "
+                "DiscardCard(ParentTarget) elsewhere in the tree — never "
+                "reaches this bridge's gap"
             ),
-            pins=("Tainted Specter", "Remorseless Punishment"),
+            pins=("Tainted Specter",),
             gap=_opp_discard_unless_gap,
             match=_opp_discard_unless_match,
         ),

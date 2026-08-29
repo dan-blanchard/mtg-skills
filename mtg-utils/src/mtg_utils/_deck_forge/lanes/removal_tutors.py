@@ -11,6 +11,7 @@ from mtg_utils._card_ir.crosswalk import (
     ConceptTree,
     cast_with_keyword_name,
     change_zone_dirs,
+    damage_recipient,
     effect_filter,
     filter_controller,
     filter_core_types,
@@ -64,6 +65,7 @@ from mtg_utils._card_ir.tree_synthesis import (
     structural_untap_subject,
 )
 from mtg_utils._deck_forge import signal_keys
+from mtg_utils._deck_forge.bridge_ledger import bridge_fires
 from mtg_utils._deck_forge.lanes._shared import (
     _PERMANENT_TYPES,
     _RETURN_TARGET_TAGS,
@@ -807,9 +809,14 @@ def _removal(tree: ConceptTree) -> list[Signal]:
                 if _qualified_destroy_target_type(desc):
                     return [Signal("removal", "you", "", c.raw, tree.name, "high")]
     for c in tree.effect_concepts("deal_damage"):
-        if tag_of(c.node) != "DealDamage":
+        # v0.66.0: the per-source batch burn ("each Bird you control deals
+        # damage equal to its power to target creature an opponent
+        # controls" — Bartz and Boko) is an ``EachSourceDealsDamage`` whose
+        # shared target ``damage_recipient`` unwraps; same single-target
+        # burn (CR 701.8a territory) as the ``DealDamage`` shape.
+        if tag_of(c.node) not in ("DealDamage", "EachSourceDealsDamage"):
             continue
-        if _perm_subject(getattr(c.node, "target", None)):
+        if _perm_subject(damage_recipient(c.node)):
             return [Signal("removal", "you", "", c.raw, tree.name, "high")]
     for unit in tree.units:
         for c in iter_nested_granted_effect_concepts(unit.node):
@@ -873,6 +880,12 @@ def _removal(tree: ConceptTree) -> list[Signal]:
             if change_zone_dirs(c.node)[1] != "Graveyard":
                 continue
             return [Signal("removal", "you", "", c.raw, tree.name, "high")]
+    # phase v0.66.0 pin bump — the per-source "each <X> … deals damage equal
+    # to its power to target creature" rider regressed upstream to an
+    # each_source_unrepresentable_rider residue (Master of the Wild Hunt;
+    # bridge_ledger.py row for the census). CR 120.3 / 701.8a.
+    if bridge_fires("removal_each_source_power_rider", tree):
+        return [Signal("removal", "you", "", "", tree.name, "high")]
     return []
 
 

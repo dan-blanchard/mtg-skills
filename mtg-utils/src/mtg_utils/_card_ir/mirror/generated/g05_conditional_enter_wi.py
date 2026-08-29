@@ -42,12 +42,12 @@ if TYPE_CHECKING:
     from mtg_utils._card_ir.mirror.generated.g08_else_ability import (
         U_filter,
     )
-    from mtg_utils._card_ir.mirror.generated.g09_lhs import (
+    from mtg_utils._card_ir.mirror.generated.g09_land_filter import (
         U_lhs,
         U_mana_cost,
         U_materials,
     )
-    from mtg_utils._card_ir.mirror.generated.g10_parse_warnings import (
+    from mtg_utils._card_ir.mirror.generated.g10_owner import (
         U_player,
     )
     from mtg_utils._card_ir.mirror.generated.g11_properties import (
@@ -56,13 +56,13 @@ if TYPE_CHECKING:
     from mtg_utils._card_ir.mirror.generated.g12_qty import (
         U_quantity,
     )
-    from mtg_utils._card_ir.mirror.generated.g13_repeat_for import (
+    from mtg_utils._card_ir.mirror.generated.g13_reference import (
         S_requirement,
         U_rhs,
         U_scaling,
-        U_subject,
     )
-    from mtg_utils._card_ir.mirror.generated.g14_subtype_filter import (
+    from mtg_utils._card_ir.mirror.generated.g14_sub_ability import (
+        U_subject,
         U_target,
     )
 
@@ -190,6 +190,11 @@ class T_conditions__HasCounters(TypedMirrorNode):
     _tag: ClassVar[str | None] = "HasCounters"
     counters: U_counters
     minimum: int
+
+
+@dataclass(frozen=True)
+class T_conditions__HasEnduringStory(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "HasEnduringStory"
 
 
 @dataclass(frozen=True)
@@ -428,6 +433,7 @@ class T_constraint__NthDrawThisTurn(TypedMirrorNode):
 class T_constraint__NthSpellThisTurn(TypedMirrorNode):
     _tag: ClassVar[str | None] = "NthSpellThisTurn"
     n: int
+    comparator: str = MISSING
     filter: U_filter = MISSING
 
 
@@ -665,6 +671,11 @@ class T_cost__SelfManaCost(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class T_cost__SelfManaValue(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "SelfManaValue"
+
+
+@dataclass(frozen=True)
 class T_cost__Tap(TypedMirrorNode):
     _tag: ClassVar[str | None] = "Tap"
 
@@ -879,6 +890,7 @@ type U_conditions = (
     | T_conditions__EffectOutcome
     | T_conditions__FirstCombatPhaseOfTurn
     | T_conditions__HasCounters
+    | T_conditions__HasEnduringStory
     | T_conditions__HasObjectTarget
     | T_conditions__IsDuringUpkeep
     | T_conditions__IsOpponentsTurn
@@ -961,6 +973,7 @@ type U_cost = (
     | T_cost__Reveal
     | T_cost__Sacrifice
     | T_cost__SelfManaCost
+    | T_cost__SelfManaValue
     | T_cost__Tap
     | T_cost__TapCreatures
     | T_cost__Unimplemented

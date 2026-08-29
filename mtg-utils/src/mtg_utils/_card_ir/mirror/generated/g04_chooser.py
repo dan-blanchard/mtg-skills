@@ -23,7 +23,7 @@ from mtg_utils._card_ir.mirror.runtime import (
 )
 
 if TYPE_CHECKING:
-    from mtg_utils._card_ir.mirror.generated.g02_mutate import (
+    from mtg_utils._card_ir.mirror.generated.g02_morph import (
         S_abilities,
         U_additional_filter,
     )
@@ -45,31 +45,29 @@ if TYPE_CHECKING:
         U_filter,
         U_inner,
     )
-    from mtg_utils._card_ir.mirror.generated.g09_lhs import (
+    from mtg_utils._card_ir.mirror.generated.g09_land_filter import (
         S_or_trigger,
         U_lhs,
         U_origin_constraint,
     )
-    from mtg_utils._card_ir.mirror.generated.g10_parse_warnings import (
+    from mtg_utils._card_ir.mirror.generated.g10_owner import (
         U_player,
         U_player_scope,
     )
-    from mtg_utils._card_ir.mirror.generated.g12_qty import (
-        U_reference,
-        U_relation,
-    )
-    from mtg_utils._card_ir.mirror.generated.g13_repeat_for import (
+    from mtg_utils._card_ir.mirror.generated.g13_reference import (
         S_replacements,
         S_static_abilities,
+        U_reference,
+        U_relation,
         U_rhs,
         U_scaling,
         U_scope,
         U_source,
-        U_subject,
     )
-    from mtg_utils._card_ir.mirror.generated.g14_subtype_filter import (
+    from mtg_utils._card_ir.mirror.generated.g14_sub_ability import (
         S_trigger,
         S_triggers,
+        U_subject,
         U_subtype_filter,
         U_target,
         U_value,
@@ -195,6 +193,11 @@ class T_condition__And(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class T_condition__AnyPlayerAttackedYouLastTurn(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "AnyPlayerAttackedYouLastTurn"
+
+
+@dataclass(frozen=True)
 class T_condition__AtNextPhase(TypedMirrorNode):
     _tag: ClassVar[str | None] = "AtNextPhase"
     phase: str
@@ -273,6 +276,16 @@ class T_condition__CastViaKicker(TypedMirrorNode):
 class T_condition__CastingAsVariant(TypedMirrorNode):
     _tag: ClassVar[str | None] = "CastingAsVariant"
     variant: str
+
+
+@dataclass(frozen=True)
+class T_condition__ChoseOtherRingBearer(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "ChoseOtherRingBearer"
+
+
+@dataclass(frozen=True)
+class T_condition__ChoseRingBearer(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "ChoseRingBearer"
 
 
 @dataclass(frozen=True)
@@ -393,6 +406,12 @@ class T_condition__DevotionGE(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class T_condition__DiscardedCardMatchesFilter(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "DiscardedCardMatchesFilter"
+    filter: U_filter
+
+
+@dataclass(frozen=True)
 class T_condition__DuringPlayersTurn(TypedMirrorNode):
     _tag: ClassVar[str | None] = "DuringPlayersTurn"
     player: U_player
@@ -510,6 +529,11 @@ class T_condition__HasCounters(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class T_condition__HasEnduringStory(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "HasEnduringStory"
+
+
+@dataclass(frozen=True)
 class T_condition__HasMaxSpeed(TypedMirrorNode):
     _tag: ClassVar[str | None] = "HasMaxSpeed"
 
@@ -529,6 +553,7 @@ class T_condition__IsInitiative(TypedMirrorNode):
 @dataclass(frozen=True)
 class T_condition__IsMonarch(TypedMirrorNode):
     _tag: ClassVar[str | None] = "IsMonarch"
+    player: U_player = MISSING
 
 
 @dataclass(frozen=True)
@@ -808,7 +833,7 @@ class T_condition__SourceIsTapped(TypedMirrorNode):
 @dataclass(frozen=True)
 class T_condition__SourceLacksKeyword(TypedMirrorNode):
     _tag: ClassVar[str | None] = "SourceLacksKeyword"
-    keyword: str | MirrorVariant
+    keyword: str
 
 
 @dataclass(frozen=True)
@@ -900,6 +925,12 @@ class T_condition__TributeNotPaid(TypedMirrorNode):
 class T_condition__TriggeringSpellTargetsFilter(TypedMirrorNode):
     _tag: ClassVar[str | None] = "TriggeringSpellTargetsFilter"
     filter: U_filter
+
+
+@dataclass(frozen=True)
+class T_condition__TurnUpCostSourcePaid(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "TurnUpCostSourcePaid"
+    source: str
 
 
 @dataclass(frozen=True)
@@ -1042,11 +1073,6 @@ class T_condition__YouAttackedThisTurn(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
-class T_condition__YouHadArtifactEnterThisTurn(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "YouHadArtifactEnterThisTurn"
-
-
-@dataclass(frozen=True)
 class T_condition__ZoneChangeObjectIsTapped(TypedMirrorNode):
     _tag: ClassVar[str | None] = "ZoneChangeObjectIsTapped"
 
@@ -1063,6 +1089,7 @@ class T_condition__ZoneChangeObjectMatchesFilter(TypedMirrorNode):
 class T_condition__ZoneChangedThisWay(TypedMirrorNode):
     _tag: ClassVar[str | None] = "ZoneChangedThisWay"
     filter: U_filter
+    destination: str = MISSING
 
 
 @dataclass(frozen=True)
@@ -1092,6 +1119,7 @@ type U_condition = (
     | T_condition__AdditionalCostPaidInstead
     | T_condition__AlternativeManaCostPaid
     | T_condition__And
+    | T_condition__AnyPlayerAttackedYouLastTurn
     | T_condition__AtNextPhase
     | T_condition__AtNextPhaseForPlayer
     | T_condition__AttackersDeclaredCount
@@ -1105,6 +1133,8 @@ type U_condition = (
     | T_condition__CastViaEscape
     | T_condition__CastViaKicker
     | T_condition__CastingAsVariant
+    | T_condition__ChoseOtherRingBearer
+    | T_condition__ChoseRingBearer
     | T_condition__ChosenLabelIs
     | T_condition__ClassLevelGE
     | T_condition__CoinFlipOutcome
@@ -1125,6 +1155,7 @@ type U_condition = (
     | T_condition__DefendingPlayerControls
     | T_condition__DefendingPlayerControlsNone
     | T_condition__DevotionGE
+    | T_condition__DiscardedCardMatchesFilter
     | T_condition__DuringPlayersTurn
     | T_condition__DuringUntapStep
     | T_condition__DuringYourTurn
@@ -1146,6 +1177,7 @@ type U_condition = (
     | T_condition__HadCounters
     | T_condition__HasCityBlessing
     | T_condition__HasCounters
+    | T_condition__HasEnduringStory
     | T_condition__HasMaxSpeed
     | T_condition__IfControlsMatching
     | T_condition__IsInitiative
@@ -1213,6 +1245,7 @@ type U_condition = (
     | T_condition__TopOfLibraryMatches
     | T_condition__TributeNotPaid
     | T_condition__TriggeringSpellTargetsFilter
+    | T_condition__TurnUpCostSourcePaid
     | T_condition__UnlessControlsCountMatching
     | T_condition__UnlessControlsMatching
     | T_condition__UnlessControlsOtherLeq
@@ -1235,7 +1268,6 @@ type U_condition = (
     | T_condition__WhenYouDo
     | T_condition__WheneverEvent
     | T_condition__YouAttackedThisTurn
-    | T_condition__YouHadArtifactEnterThisTurn
     | T_condition__ZoneChangeObjectIsTapped
     | T_condition__ZoneChangeObjectMatchesFilter
     | T_condition__ZoneChangedThisWay

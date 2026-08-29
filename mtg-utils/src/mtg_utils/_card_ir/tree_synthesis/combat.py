@@ -11,6 +11,7 @@ import re
 from collections.abc import Iterator
 
 from mtg_utils._card_ir.crosswalk import (
+    AGGREGATE_QTY_TAGS,
     ConceptNode,
     ConceptTree,
     condition_tags,
@@ -592,7 +593,8 @@ def has_structural_toughness_combat(tree: ConceptTree) -> bool:
                 qty = getattr(q, "qty", None)
                 qt = tag_of(qty)
                 if qt == "Toughness" or (
-                    qt == "Aggregate" and getattr(qty, "property", None) == "Toughness"
+                    qt in AGGREGATE_QTY_TAGS
+                    and getattr(qty, "property", None) == "Toughness"
                 ):
                     return True
     return False

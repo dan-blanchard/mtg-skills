@@ -92,6 +92,10 @@ EFFECT_CONCEPTS: dict[str, str] = {
     "LoseLife": "lose_life",  # lifegain_matters self-loss sustain
     "DealDamage": "deal_damage",  # direct_damage (single-target / "any target")
     "DamageEachPlayer": "deal_damage",  # direct_damage (each/opp player)
+    # v0.66.0 pin bump: the per-source batch form ("each X you control deals
+    # damage equal to its power to target creature/player") — see
+    # ``reads.damage_recipient`` for its Shared-wrapped recipient.
+    "EachSourceDealsDamage": "deal_damage",
     "DamageAll": "deal_damage",  # direct_damage (mass; players when player_filter)
     "Sacrifice": "sacrifice",  # sacrifice_outlets (effect + cost) / edict
     "PutCounter": "place_counter",  # plus_one_makers (counter_type discriminates)
