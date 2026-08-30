@@ -1076,7 +1076,9 @@ def _die_roll_table_mana_nodes(tree: ConceptTree) -> Iterator[TypedMirrorNode]:
                 continue
             for row in getattr(n, "results", None) or ():
                 body = getattr(getattr(row, "effect", None), "effect", None)
-                if tag_of(body) == "Mana":
+                # Explicit None guard: ``tag_of`` is not a TypeGuard, so the tag
+                # comparison alone can't narrow ``body`` to the annotated node type.
+                if body is not None and tag_of(body) == "Mana":
                     yield body
 
 
