@@ -472,6 +472,14 @@ class TestIsCommander:
         result = is_commander(card, format="brawl")
         assert result == {"eligible": True, "requires_partner": False}
 
+    def test_legendary_planeswalker_brawl_family_formats(self):
+        # The rule is config-driven (planeswalker_commander_requires_text=False),
+        # so every Brawl variant admits a planeswalker commander.
+        card = {"type_line": "Legendary Planeswalker — Jace"}
+        for fmt in ("historic_brawl", "competitive_brawl"):
+            result = is_commander(card, format=fmt)
+            assert result == {"eligible": True, "requires_partner": False}, fmt
+
     def test_can_be_your_commander_text(self):
         card = {
             "type_line": "Legendary Enchantment",

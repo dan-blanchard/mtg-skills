@@ -30,6 +30,7 @@ from mtg_utils._tuner.tune import TuneParams
 from mtg_utils._tuner.tune import tune as run_tune
 from mtg_utils.companion import is_companion
 from mtg_utils.deck_stats import deck_stats
+from mtg_utils.format_config import is_arena_only_format
 from mtg_utils.mana_audit import mana_audit, reconcile_basic_lands
 from mtg_utils.parse_deck import parse_deck_text
 from mtg_utils.theme_presets import list_presets
@@ -329,7 +330,8 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
 
     @app.post("/api/deck/format", response_model=None)
     async def set_format(payload: FormatPayload) -> dict | JSONResponse:
-        """Change the current build's format (commander / brawl / historic_brawl).
+        """Change the current build's format (any Commander-family format:
+        commander / brawl / historic_brawl / competitive_brawl).
         The deck's cards are kept; everything format-dependent (deck size, land floor,
         legality, commander eligibility) re-derives on the next snapshot."""
         if payload.format not in engine.SUPPORTED_FORMATS:
@@ -353,6 +355,10 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
             )
         if payload.medium == "digital" and state.session.format == "commander":
             return JSONResponse({"error": "commander is paper-only"}, status_code=400)
+        if payload.medium == "paper" and is_arena_only_format(state.session.format):
+            return JSONResponse(
+                {"error": f"{state.session.format} is Arena-only"}, status_code=400
+            )
         state.session.set_medium(payload.medium)
         _autosave(state)
         snap = engine.snapshot(state)

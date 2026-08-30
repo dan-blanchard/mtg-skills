@@ -1,6 +1,14 @@
 """Tests for format_config module."""
 
-from mtg_utils.format_config import FORMAT_CONFIGS, get_format_config
+from mtg_utils.format_config import (
+    COMMANDER_FORMATS,
+    FORMAT_CONFIGS,
+    get_format_config,
+    is_arena_format,
+    is_arena_only_format,
+    is_commander_format,
+    is_constructed_format,
+)
 
 
 class TestFormatConfigs:
@@ -36,6 +44,29 @@ class TestFormatConfigs:
         assert cfg["planeswalker_commander_requires_text"] is False
         assert cfg["free_mulligan"] is True
         assert cfg["colorless_any_basic"] is True
+
+
+class TestCommanderFamily:
+    def test_commander_formats_is_every_format_with_a_command_zone(self):
+        assert COMMANDER_FORMATS == (
+            "commander",
+            "brawl",
+            "historic_brawl",
+            "competitive_brawl",
+        )
+        for fmt in COMMANDER_FORMATS:
+            assert is_commander_format(fmt)
+            assert not is_constructed_format(fmt)
+        assert not is_commander_format("modern")
+        assert not is_commander_format("bogus")
+
+    def test_competitive_brawl_is_arena_only(self):
+        assert is_arena_format("competitive_brawl")
+        assert is_arena_only_format("competitive_brawl")
+        # Brawl / Historic Brawl are Arena formats that ALSO exist in paper.
+        assert is_arena_format("historic_brawl")
+        assert not is_arena_only_format("historic_brawl")
+        assert not is_arena_only_format("commander")
 
 
 class TestGetFormatConfig:

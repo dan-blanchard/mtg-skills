@@ -25,6 +25,14 @@ def test_medium_defaults_by_format():
     assert DeckSession("commander").medium == "paper"  # paper-only
     assert DeckSession("brawl").medium == "digital"  # Arena is the common case
     assert DeckSession("historic_brawl").medium == "digital"
+    assert DeckSession("competitive_brawl").medium == "digital"  # Arena-only
+
+
+def test_competitive_brawl_is_always_digital_even_if_override_set():
+    s = DeckSession("competitive_brawl")
+    s.set_medium("paper")  # ignored — the format has no paper counterpart
+    assert s.medium == "digital"
+    assert s.deck_size == 100
 
 
 def test_commander_is_always_paper_even_if_override_set():

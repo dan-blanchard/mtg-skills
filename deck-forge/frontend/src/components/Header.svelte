@@ -7,11 +7,13 @@
   let editing = false;
   let draft = "";
 
-  // The Commander-family formats deck-forge builds (paper Commander + Arena Brawl).
+  // The Commander-family formats deck-forge builds (paper Commander + the Arena
+  // Brawl queues). Mirrors format_config.COMMANDER_FORMATS on the backend.
   const FORMATS = [
     ["commander", "Commander"],
     ["brawl", "Brawl"],
     ["historic_brawl", "Historic Brawl"],
+    ["competitive_brawl", "Competitive Brawl"],
   ];
 
   async function changeFormat(e) {
@@ -29,8 +31,9 @@
     if (r.ok) applySnapshot(r.data);
   }
 
-  // Medium toggle only for the Arena-family formats (commander is paper-only); the
-  // 60/100 size picker only for paper Historic Brawl (both legal for paper "Brawl").
+  // Medium toggle only for the formats that exist in BOTH media (commander is
+  // paper-only; Competitive Brawl is Arena-only); the 60/100 size picker only for
+  // paper Historic Brawl (both legal for paper "Brawl").
   $: showMedium = $deck.format === "brawl" || $deck.format === "historic_brawl";
   $: showSize = $deck.format === "historic_brawl" && $deck.medium === "paper";
 

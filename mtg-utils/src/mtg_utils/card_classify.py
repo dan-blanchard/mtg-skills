@@ -538,8 +538,12 @@ def is_commander(
     if "Spacecraft" in type_line and card.get("power") and card.get("toughness"):
         return {"eligible": True, "requires_partner": False}
 
-    # Brawl formats: Legendary Planeswalker — eligible
-    if format in ("brawl", "historic_brawl") and "Planeswalker" in type_line:
+    # Brawl family (brawl / historic_brawl / competitive_brawl): any Legendary
+    # Planeswalker is eligible. The config flag decides, not a hardcoded tuple —
+    # Commander keeps requiring "can be your commander" text.
+    if "Planeswalker" in type_line and not FORMAT_CONFIGS.get(format, {}).get(
+        "planeswalker_commander_requires_text", True
+    ):
         return {"eligible": True, "requires_partner": False}
 
     # "can be your commander" oracle text — eligible

@@ -145,6 +145,13 @@ def test_set_format_changes_format_and_rejects_unknown():
     client = make_client()
     snap = client.post("/api/deck/format", json={"format": "brawl"}).json()
     assert snap["deck"]["format"] == "brawl"
+    # Every Commander-family format is accepted, Competitive Brawl included.
+    snap = client.post("/api/deck/format", json={"format": "competitive_brawl"}).json()
+    assert snap["deck"]["format"] == "competitive_brawl"
+    assert snap["deck"]["medium"] == "digital"
+    # ...and it is Arena-only, so a paper medium is refused like digital commander.
+    paper = client.post("/api/deck/medium", json={"medium": "paper"})
+    assert paper.status_code == 400
     bad = client.post("/api/deck/format", json={"format": "bogus"})
     assert bad.status_code == 400
 

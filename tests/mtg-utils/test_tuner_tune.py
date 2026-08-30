@@ -591,6 +591,17 @@ def test_oversized_deck_yields_exactly_overflow_size_cuts():
     }
 
 
+def test_size_rules_cover_every_commander_family_format():
+    # Every format the tuner accepts must have an exact-size CR citation, or the
+    # over-size message silently loses its rule reference.
+    from mtg_utils._tuner.tune import _SIZE_RULES
+    from mtg_utils.format_config import COMMANDER_FORMATS
+
+    for fmt in COMMANDER_FORMATS:
+        assert fmt in _SIZE_RULES, fmt
+    assert _SIZE_RULES["competitive_brawl"] == "CR 903.5a"  # 100-card, like Commander
+
+
 def test_legal_sized_deck_yields_no_size_cuts():
     out = tune(_oversized_hd(over=0), search_fn=_fake_search, params=TuneParams())
     assert out["size_cuts"] == []

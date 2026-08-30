@@ -89,6 +89,9 @@ FORMAT_CONFIGS: dict[str, dict] = {
         "free_mulligan": False,
         "colorless_any_basic": True,
         "arena_format": True,
+        # No paper counterpart at all (unlike Brawl / Historic Brawl, which can be
+        # played in paper): the medium is always digital.
+        "arena_only": True,
         # Treat `banned` under the `brawl` key as legal, and enforce this
         # format's own ban list by name instead.
         "ignores_legality_key_bans": True,
@@ -252,3 +255,22 @@ def is_constructed_format(fmt: str) -> bool:
 def is_arena_format(fmt: str) -> bool:
     """True for formats primarily played on MTG Arena."""
     return FORMAT_CONFIGS.get(fmt, {}).get("arena_format", False)
+
+
+def is_arena_only_format(fmt: str) -> bool:
+    """True for formats with no paper counterpart (Competitive Brawl): the medium is
+    always digital, never a choice."""
+    return bool(FORMAT_CONFIGS.get(fmt, {}).get("arena_only", False))
+
+
+def is_commander_format(fmt: str) -> bool:
+    """True for the Commander family — every format with a command zone
+    (commander / brawl / historic_brawl / competitive_brawl)."""
+    return bool(FORMAT_CONFIGS.get(fmt, {}).get("has_commander", False))
+
+
+# The Commander family, derived from the configs so a new commander variant is
+# wired everywhere (deck-tune, deck-forge, the tuner) by adding ONE config entry.
+COMMANDER_FORMATS: tuple[str, ...] = tuple(
+    f for f, cfg in FORMAT_CONFIGS.items() if cfg.get("has_commander")
+)

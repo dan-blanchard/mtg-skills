@@ -22,6 +22,7 @@ export const FORMAT_TARGET = {
   commander: 100,
   brawl: 60,
   historic_brawl: 100,
+  competitive_brawl: 100,
 };
 
 // Cheapest USD listing for a card, or null (no-listing ≠ free — never shown as $0).

@@ -18,14 +18,20 @@ from mtg_utils._deck_forge.collection import CollectionStore
 from mtg_utils._deck_forge.events import EventHub
 from mtg_utils._deck_forge.persistence import BuildStore
 from mtg_utils._name_index import NameIndex
-from mtg_utils.format_config import FORMAT_CONFIGS
+from mtg_utils.format_config import (
+    COMMANDER_FORMATS,
+    FORMAT_CONFIGS,
+    is_arena_format,
+    is_arena_only_format,
+)
 
 # "companion" is the outside-the-game zone (CR 702.139a-b: a companion is neither
 # deck nor sideboard); consumers that count deck size must exclude it deliberately.
 _ZONES = ("commanders", "cards", "sideboard", "companion")
-# Brawl/Historic Brawl can be played digital (Arena) or paper; commander is paper-only.
-# Medium drives the active Collection slot and the cost mode (wildcards vs USD).
-_ARENA_FORMATS = ("brawl", "historic_brawl")
+# The Arena Brawl formats default to digital (Brawl / Historic Brawl can also be paper;
+# Competitive Brawl is Arena-only); commander is paper-only. Medium drives the active
+# Collection slot and the cost mode (wildcards vs USD). Derived from the configs.
+_ARENA_FORMATS = tuple(f for f in COMMANDER_FORMATS if is_arena_format(f))
 
 
 def _default_medium(fmt: str) -> str:
@@ -63,10 +69,13 @@ class DeckSession:
 
     @property
     def medium(self) -> str:
-        """Effective medium: commander is always paper; Brawl/Historic Brawl honor the
-        override, defaulting to digital (Arena is the common case for those)."""
+        """Effective medium: commander is always paper and Competitive Brawl is always
+        digital (Arena-only); Brawl/Historic Brawl honor the override, defaulting to
+        digital (Arena is the common case for those)."""
         if self.format not in _ARENA_FORMATS:
             return "paper"
+        if is_arena_only_format(self.format):
+            return "digital"
         return self._medium_override or _default_medium(self.format)
 
     @property

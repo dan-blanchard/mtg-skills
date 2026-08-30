@@ -41,13 +41,15 @@ from mtg_utils._name_index import NameIndex
 from mtg_utils._sidecar import atomic_write_json, sha_keyed_path
 from mtg_utils.card_classify import is_basic_land, is_commander, valid_partner_search
 from mtg_utils.deck_stats import deck_stats, detect_bracket
-from mtg_utils.format_config import FORMAT_CONFIGS
+from mtg_utils.format_config import COMMANDER_FORMATS, FORMAT_CONFIGS
 from mtg_utils.hydrated_deck import HydratedDeck
 from mtg_utils.legality_audit import legality_audit
 from mtg_utils.mana_audit import mana_audit
 from mtg_utils.scryfall_lookup import build_rarity_index
 
-_DECK_SIZE = {"commander": 100, "historic_brawl": 100, "brawl": 60}
+# Deck size per Commander-family format, from the configs (commander 100 / brawl 60 /
+# historic_brawl 100 / competitive_brawl 100).
+_DECK_SIZE = {f: int(FORMAT_CONFIGS[f]["deck_size"]) for f in COMMANDER_FORMATS}
 SUPPORTED_FORMATS = frozenset(_DECK_SIZE)
 _PAPER_FORMATS = {"commander"}
 # deck_minimum is intentionally excluded: a deck-in-progress is always below the size

@@ -9,6 +9,7 @@
     ["commander", "Commander"],
     ["brawl", "Brawl"],
     ["historic_brawl", "Historic Brawl"],
+    ["competitive_brawl", "Competitive Brawl"],
   ];
 
   let text = "";

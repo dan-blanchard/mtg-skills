@@ -94,12 +94,13 @@ def _fill_gap(hd: HydratedDeck, deck_size: int, land_floor: int) -> tuple[int, i
 
 # The exact-size CR citations for the singleton Commander family: CR 903.5a ("the
 # minimum deck size and the maximum deck size are both 100") governs Commander —
-# and Historic Brawl mirrors its 100-card rule — while CR 903.12d fixes Brawl at
-# exactly 60. Other formats have no CR maximum (CR 100.2a sets only a minimum),
-# so their over-size message cites the format's target size, not a rule.
+# and Historic Brawl / Competitive Brawl mirror its 100-card rule — while CR 903.12d
+# fixes Brawl at exactly 60. Other formats have no CR maximum (CR 100.2a sets only
+# a minimum), so their over-size message cites the format's target size, not a rule.
 _SIZE_RULES: dict[str, str] = {
     "commander": "CR 903.5a",
     "historic_brawl": "CR 903.5a",
+    "competitive_brawl": "CR 903.5a",
     "brawl": "CR 903.12d",
 }
 

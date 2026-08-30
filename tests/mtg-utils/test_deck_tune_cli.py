@@ -44,6 +44,11 @@ BRAWL_DECK = {
     "commanders": [{"name": "Krenko, Mob Boss", "quantity": 1}],
     "cards": [{"name": "Mountain", "quantity": 10}],
 }
+COMPETITIVE_BRAWL_DECK = {
+    "format": "competitive_brawl",
+    "commanders": [{"name": "Krenko, Mob Boss", "quantity": 1}],
+    "cards": [{"name": "Mountain", "quantity": 10}],
+}
 
 
 @pytest.fixture(autouse=True)
@@ -75,6 +80,20 @@ def test_refuses_constructed_format(tmp_path):
     )
     assert res.exit_code != 0
     assert "Commander-family" in res.output
+
+
+def test_accepts_competitive_brawl_as_commander_family(tmp_path, monkeypatch):
+    # Competitive Brawl is a Commander-family format (a command zone, 100-card
+    # singleton); the gate must admit it, and it is Arena-only → digital medium.
+    captured = _spy_tune(monkeypatch)
+    deck = _write(tmp_path, "deck.json", COMPETITIVE_BRAWL_DECK)
+    hyd = _write(tmp_path, "hyd.json", HYDRATED)
+    res = CliRunner().invoke(
+        deck_tune_main, [deck, hyd, "--bulk-data", _bulk(tmp_path)]
+    )
+    assert res.exit_code == 0, res.output
+    assert captured["params"].medium == "digital"
+    assert captured["params"].paper_only is False
 
 
 def test_diagnoses_a_commander_deck(tmp_path):

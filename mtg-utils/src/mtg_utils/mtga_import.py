@@ -131,6 +131,7 @@ _FORMAT_DECK_SIZES = {
     "commander": 100,
     "brawl": 60,
     "historic_brawl": 100,
+    "competitive_brawl": 100,
 }
 
 # Freshness thresholds. These are nudges, not gates — the importer

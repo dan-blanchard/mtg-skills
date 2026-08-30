@@ -8,10 +8,10 @@ emits the scorecard + budgeted swaps as JSON.
     deck-tune <deck.json> <hydrated.json> --bulk-data <path> \
         [--budget N] [--max-swaps N] [--shape ...] [--bracket 1-5] [--paper-only]
 
-Commander family only (commander / brawl / historic_brawl): the tuner is
-commander-shaped (the Command Zone template, the Burgess land target, commander fit),
-so it hard-refuses 60-card constructed — that stays on deck-wizard's agent-driven
-pipeline.
+Commander family only (commander / brawl / historic_brawl / competitive_brawl): the
+tuner is commander-shaped (the Command Zone template, the Burgess land target,
+commander fit), so it hard-refuses 60-card constructed — that stays on
+deck-wizard's agent-driven pipeline.
 """
 
 from __future__ import annotations
@@ -25,10 +25,11 @@ import click
 from mtg_utils import card_search, combo_search
 from mtg_utils._deck_forge.state import _default_medium
 from mtg_utils._tuner.tune import TuneParams, tune
+from mtg_utils.format_config import COMMANDER_FORMATS
 from mtg_utils.hydrated_deck import HydratedDeck
 
 # The tuner core (and so deck-tune) is built for the Commander family only.
-_COMMANDER_FAMILY = frozenset({"commander", "brawl", "historic_brawl"})
+_COMMANDER_FAMILY = frozenset(COMMANDER_FORMATS)
 
 
 def _ensure_ir() -> None:
@@ -83,7 +84,7 @@ def _ensure_ir() -> None:
     type=click.Choice(["paper", "digital"]),
     default=None,
     help="Deck medium (ADR-0040 §4). Defaults by format, same as deck-forge's "
-    "DeckSession: brawl / historic_brawl → digital (Arena), everything else "
+    "DeckSession: the Arena Brawl formats → digital, everything else "
     "→ paper. Drives whether a null EDHREC rank condemns a card.",
 )
 @click.option(
@@ -119,12 +120,12 @@ def main(
     hd = HydratedDeck.from_paths(deck_json, hydrated_json)
     if hd.format not in _COMMANDER_FAMILY:
         raise click.ClickException(
-            f"deck-tune is Commander-family only (commander / brawl / historic_brawl); "
+            f"deck-tune is Commander-family only ({' / '.join(COMMANDER_FORMATS)}); "
             f"got {hd.format!r} — 60-card constructed stays on the agent pipeline."
         )
 
     # ADR-0040 §4 fix: infer medium the same way deck-forge's DeckSession does
-    # (brawl/historic_brawl default digital) so the digital null-rank fix
+    # (the Arena Brawl formats default digital) so the digital null-rank fix
     # actually engages on the CLI path — the ADR's own motivating benchmark
     # was a Historic Brawl deck. paper_only threads consistently with the
     # (inferred or explicit) medium unless the caller overrides it directly.
