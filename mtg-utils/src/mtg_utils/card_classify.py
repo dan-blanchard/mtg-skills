@@ -75,7 +75,9 @@ def get_oracle_text(card: dict) -> str:
     can't bridge two faces of the joined text."""
     oracle = card.get("oracle_text") or ""
     if not oracle:
-        faces = card.get("card_faces", [])
+        # `or []`, not a .get default: the MTGJSON adapter emits `card_faces: null`
+        # on single-faced records, and a vanilla creature has no oracle_text either.
+        faces = card.get("card_faces") or []
         oracle = "\n// \n".join(
             _terminate_face(f.get("oracle_text", ""))
             for f in faces

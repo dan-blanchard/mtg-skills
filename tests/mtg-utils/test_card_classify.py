@@ -142,6 +142,16 @@ class TestGetOracleTextFaceBoundary:
         }
         assert "Add {G}" in get_oracle_text(card)
 
+    def test_vanilla_creature_with_null_faces_returns_empty(self):
+        # A vanilla creature (Catacomb Crocodile) hydrated through the MTGJSON adapter
+        # carries oracle_text "" AND card_faces None -- the key is present, so a
+        # .get() default never applied and the join crashed on iterating None.
+        card = {"layout": "normal", "oracle_text": "", "card_faces": None}
+        assert get_oracle_text(card) == ""
+
+    def test_card_with_no_faces_key_returns_empty(self):
+        assert get_oracle_text({"layout": "normal"}) == ""
+
 
 class TestIsRamp:
     def test_sol_ring(self):
