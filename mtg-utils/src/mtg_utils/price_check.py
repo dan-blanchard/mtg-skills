@@ -305,8 +305,16 @@ def check_prices(
     # Arena wildcard mode
     is_arena = format is not None and _is_arena_format(format) and bulk_path is not None
     if is_arena:
-        legality_key = FORMAT_CONFIGS[format]["legality_key"]
-        rarity_index = build_rarity_index(bulk_path, legality_key, arena_only=True)
+        config = FORMAT_CONFIGS[format]
+        rarity_index = build_rarity_index(
+            bulk_path,
+            config["legality_key"],
+            arena_only=True,
+            # Competitive Brawl shares the ``brawl`` key but legalizes its bans and
+            # enforces its own list by name — same overrides legality-audit applies.
+            ignore_key_bans=config.get("ignores_legality_key_bans", False),
+            banned_cards=config.get("banned_cards"),
+        )
         return _check_arena_wildcards(deck_entries, owned_map, rarity_index)
 
     # USD price mode. Paper has no Arena-style 4-cap substitution, so the

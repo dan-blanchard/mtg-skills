@@ -741,7 +741,12 @@ def _build_collection_json(
     *,
     format: str,  # noqa: A002 — parameter name intentionally matches script flag
 ) -> dict:
-    """Shape the resolved cards into parse-deck-compatible JSON."""
+    """Shape the resolved cards into parse-deck-compatible JSON.
+
+    ``source`` marks the file as mtga-import output so a later run can tell it
+    apart from a ``parse-deck`` collection (an Untapped CSV parse) that happens
+    to live at the same ``collection.json`` path — see ``_refuse_to_clobber``.
+    """
     total_cards = sum(int(entry["quantity"]) for entry in cards)
     return {
         "format": format,
@@ -750,7 +755,40 @@ def _build_collection_json(
         "cards": cards,
         "total_cards": total_cards,
         "owned_cards": [],
+        "source": COLLECTION_SOURCE_MARKER,
     }
+
+
+COLLECTION_SOURCE_MARKER = "mtga-import"
+
+
+def _refuse_to_clobber(collection_path: Path, *, force: bool) -> None:
+    """Refuse to overwrite a ``collection.json`` this tool didn't write.
+
+    ``parse-deck <untapped.csv> --output <dir>/collection.json`` is the
+    recommended, MORE reliable collection source; ``mtga-import`` writing
+    into the same working dir silently replaced it with the lower-bound
+    deck-derived reconstruction, and every downstream ``mark-owned`` /
+    ``find-commanders`` call then ran against the wrong data. A prior
+    mtga-import output (carrying ``source``) is always safe to refresh.
+    """
+    if force or not collection_path.exists():
+        return
+    try:
+        existing = json.loads(collection_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        existing = None
+    if (
+        isinstance(existing, dict)
+        and existing.get("source") == COLLECTION_SOURCE_MARKER
+    ):
+        return
+    raise click.ClickException(
+        f"{collection_path} already exists and was not written by mtga-import "
+        "(no 'source': 'mtga-import' marker) — it is probably a parse-deck "
+        "collection from an Untapped CSV, which is the more reliable source. "
+        "Pass a different --output-dir, or --force to overwrite it."
+    )
 
 
 def _build_wildcards_json(
@@ -881,6 +919,13 @@ def _chown_outputs_to_sudo_user(*paths: Path | None) -> None:
     is_flag=True,
     help="Print the list of unresolved Arena ids after the summary.",
 )
+@click.option(
+    "--force",
+    is_flag=True,
+    help="Overwrite an existing collection.json in --output-dir even if it was "
+    "not written by mtga-import (e.g. a parse-deck collection from an Untapped "
+    "CSV). Without this flag such a file is left untouched and the run fails.",
+)
 def main(
     bulk_path: Path,
     log_path: Path | None,
@@ -889,6 +934,7 @@ def main(
     collection_source: str,
     untapped_csv: Path | None,
     verbose: bool,  # noqa: FBT001 — click injects as a keyword arg at runtime
+    force: bool,  # noqa: FBT001
 ) -> None:
     """Import an MTGA Arena collection and wildcard counts from Player.log.
 
@@ -1083,6 +1129,7 @@ def main(
     # Wildcards output (only when InventoryInfo was found).
     wildcards_path = output_dir / "wildcards.json"
     collection_path = output_dir / "collection.json"
+    _refuse_to_clobber(collection_path, force=force)
     if inventory is not None:
         # inventory is only populated inside the ``if log_path is not
         # None`` block above, and every code path that sets inventory

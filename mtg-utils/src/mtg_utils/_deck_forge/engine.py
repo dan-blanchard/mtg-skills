@@ -315,15 +315,24 @@ def collection_summary(state: ForgeState, owned: dict[str, int]) -> dict:
 
 
 def _rarity_index(state: ForgeState) -> NameIndex | None:
-    """The Arena rarity index for the current format's legality key, built once from
-    bulk and cached on the state (``build_rarity_index`` walks all of bulk)."""
+    """The Arena rarity index for the current format, built once from bulk and
+    cached on the state per FORMAT (``build_rarity_index`` walks all of bulk).
+    Keyed by format rather than legality key because Competitive Brawl shares
+    Historic Brawl's ``brawl`` key but admits the cards that key marks banned."""
     if state.bulk_path is None:
         return None
-    key = _legality_key(state.session.format)
-    cached = state.rarity_index.get(key)
+    fmt = state.session.format
+    cached = state.rarity_index.get(fmt)
     if cached is None:
-        cached = build_rarity_index(state.bulk_path, key, arena_only=True)
-        state.rarity_index[key] = cached
+        config = FORMAT_CONFIGS.get(fmt, {})
+        cached = build_rarity_index(
+            state.bulk_path,
+            _legality_key(fmt),
+            arena_only=True,
+            ignore_key_bans=config.get("ignores_legality_key_bans", False),
+            banned_cards=config.get("banned_cards"),
+        )
+        state.rarity_index[fmt] = cached
     return cached
 
 

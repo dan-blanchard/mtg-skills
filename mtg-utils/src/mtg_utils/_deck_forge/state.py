@@ -276,8 +276,9 @@ class ForgeState:
     # slot's ownership matches flavor/printed names — the ADR-0018 Arena-alias promise.
     name_aliases: dict[str, str] = field(default_factory=dict)
     # Arena wildcard costing for digital builds: the bulk path + a lazily-built, cached
-    # Arena rarity index per legality_key (``build_rarity_index`` walks all of bulk, so
-    # it's computed once per format and reused).
+    # Arena rarity index per FORMAT (``build_rarity_index`` walks all of bulk, so it's
+    # computed once per format and reused; keyed by format, not legality key, because
+    # competitive_brawl shares historic_brawl's key with a different ban policy).
     bulk_path: Path | None = None
     rarity_index: dict[str, NameIndex] = field(default_factory=dict)
     # Lazily-built novelty support: per-format signal-rarity table over the whole legal

@@ -292,7 +292,7 @@ mark-owned <deck.json> <collection.json> [--bulk-data <bulk-data-path>]
 | Price check (Arena wildcards) | `price-check <deck.json> --format <fmt> --bulk-data <path>` |
 | Apply mainboard + sideboard changes | `build-deck <deck.json> <hyd.json> --cuts <c.json> --adds <a.json> --sideboard-cuts <sc.json> --sideboard-adds <sa.json>` |
 | Compare deck versions | `deck-diff <old.json> <new.json> <old-hyd.json> <new-hyd.json>` |
-| Export for import | `export-deck <deck.json>` |
+| Export for import | `export-deck <deck.json>` (auto-picks Arena section headers for Arena formats; `--style moxfield\|arena` to force) |
 | Mark owned cards from collection | `mark-owned <deck.json> <collection.csv> [--bulk-data <path>]` |
 | Know which deck cards I own and how many | `mark-owned <deck.json> <collection.json> [--output PATH] [--bulk-data <path>]` |
 | Plan wildcard spend / get per-card or aggregate Arena rarity | `price-check <deck.json> --format <fmt> --bulk-data <path>` |
@@ -447,7 +447,7 @@ This narrows the candidate *pool*; it does NOT replace the guided interview. Run
 
 **Workflow:**
 
-0. **Arena players — ask for a collection CSV first.** If the user mentions Arena, Brawl, Historic Brawl, or wildcards, ask: "Do you have a collection export from Untapped.gg, Moxfield, or a similar tracker? A CSV with card names and quantities is the most reliable way to know what you own." If they have one, proceed to step 1. If they don't have a collection CSV, fall back to `mtga-import` as a last resort — but **warn the user**: mtga-import reconstructs a collection from saved Arena decks, which is unreliable because Arena allows building decks with unowned cards. **Always run `mtga-import` for wildcard extraction regardless** — it reads `InventoryInfo` from `Player.log` which is reliable for wildcard counts: `mtga-import --bulk-data <bulk-data-path> --output-dir <working-dir>`. This writes `wildcards.json`. Linux users need to pass `--log-path` explicitly.
+0. **Arena players — ask for a collection CSV first.** If the user mentions Arena, Brawl, Historic Brawl, or wildcards, ask: "Do you have a collection export from Untapped.gg, Moxfield, or a similar tracker? A CSV with card names and quantities is the most reliable way to know what you own." If they have one, proceed to step 1. If they don't have a collection CSV, fall back to `mtga-import` as a last resort — but **warn the user**: mtga-import reconstructs a collection from saved Arena decks, which is unreliable because Arena allows building decks with unowned cards. **Always run `mtga-import` for wildcard extraction regardless** — it reads `InventoryInfo` from `Player.log` which is reliable for wildcard counts: `mtga-import --bulk-data <bulk-data-path> --output-dir <working-dir>`. This writes `wildcards.json` (and its own `collection.json`; if the working dir already holds a `parse-deck` collection at that name, mtga-import refuses to overwrite it — parse the CSV to a different filename such as `collection-csv.json`, or pass `--force` only if you really want the deck-derived reconstruction). Linux users need to pass `--log-path` explicitly.
 
 1. **Parse the collection** — `parse-deck <absolute-path-to-collection.csv>` produces a parsed deck JSON. `parse-deck` handles Untapped.gg CSV, Moxfield CSV, Moxfield deck export, Arena, MTGO, and plain text.
 
@@ -995,7 +995,7 @@ If the user requests changes, apply them, re-run structural verification, and pr
 ### Write Output Files (Path B)
 
 1. Deck JSON: `<working-dir>/<deck-name>.json`
-2. Moxfield export: `export-deck <deck.json>` -> `<working-dir>/<deck-name>-moxfield.txt`
+2. Import text: `export-deck <deck.json>` -> `<working-dir>/<deck-name>-export.txt` (Arena formats get `Commander` / `Deck` headers automatically; Moxfield reads both layouts)
 3. Hydrated cache already at `<working-dir>/.cache/hydrated-<sha>.json`
 
 After presenting and getting user approval, proceed to **Phase 2: Tuning**.
@@ -2016,11 +2016,11 @@ See `proxy-printer/SKILL.md` for layout details and catalog setup.
 - `deck-rank <deck.json> <hydrated.json> <candidates.json> [--limit N] [--json]` — Rank candidate records (from `card-search --json`) by synergy with the deck's lanes, then price, then curve. Never EDHREC popularity.
 - `build-deck <deck.json> <hydrated.json> --cuts <c.json> --adds <a.json> [--sideboard-cuts <sc.json>] [--sideboard-adds <sa.json>] [--bulk-data <path>] [--output-dir <dir>]` — Apply changes. Cuts/adds accept `[{name, quantity}]` dicts or plain name strings.
 - `deck-diff <old.json> <new.json> <old-hyd.json> <new-hyd.json>` — Compare deck versions
-- `export-deck <deck.json>` — Export Moxfield/Arena format with sideboard
+- `export-deck <deck.json> [--style auto|moxfield|arena]` — Export import text with sideboard/companion sections. `auto` (default) emits Arena's `Commander` / `Deck` section headers for Arena formats and bare Moxfield lines otherwise.
 - `mark-owned <deck.json> <collection.csv> [--bulk-data <path>] [--output PATH]` — Mark owned cards. Always pass `--bulk-data` for Arena.
 - `download-mtgjson — Download MTGJSON card data
 - `cut-check <hydrated.json> "<Commander Name>" --cuts <path> --multiplier-low N --multiplier-high N [--trigger-type TYPE ...] [--opponents N] [--output PATH]` — Mechanical pre-grill analysis (commander formats only)
 - `edhrec-lookup "<Commander Name>" ["<Partner>"]` — EDHREC recommendations (commander formats only)
 - `web-fetch "<url>" --max-length 10000` — Fetch web page with browser headers and curl fallback
 - `find-commanders <parsed.json> --bulk-data <path> [--format FORMAT] [--color-identity CI] [--min-quantity N] [--output PATH]` — Find commander-eligible cards from collection
-- `mtga-import --bulk-data <path> [--log-path PATH] [--output-dir DIR]` — Extract Arena collection and wildcards from Player.log
+- `mtga-import --bulk-data <path> [--log-path PATH] [--output-dir DIR] [--force]` — Extract Arena collection and wildcards from Player.log. Refuses to overwrite a `collection.json` it didn't write (e.g. a `parse-deck` CSV collection) unless `--force`.

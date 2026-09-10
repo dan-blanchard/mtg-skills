@@ -111,3 +111,90 @@ class TestCompanionExport:
 
     def test_no_companion_section_when_absent(self):
         assert "Companion" not in export_moxfield(SAMPLE_DECK)
+
+
+class TestArenaStyle:
+    """Arena's importer needs a ``Commander`` header to put the commander in the
+    command zone and a ``Deck`` header before the mainboard; bare Moxfield lines
+    import the commander as a 101st main-deck card."""
+
+    ARENA_DECK = {
+        "format": "competitive_brawl",
+        "commanders": [{"name": "The Lord of the Eagles", "quantity": 1}],
+        "cards": [
+            {"name": "Island", "quantity": 30},
+            {"name": "Counterspell", "quantity": 1},
+        ],
+    }
+
+    def test_arena_layout_has_section_headers(self):
+        from mtg_utils.export_deck import export_arena
+
+        lines = export_arena(self.ARENA_DECK).split("\n")
+        assert lines[0] == "Commander"
+        assert lines[1] == "1 The Lord of the Eagles"
+        assert lines[2] == ""
+        assert lines[3] == "Deck"
+        assert lines[4] == "30 Island"
+        assert lines[5] == "1 Counterspell"
+
+    def test_arena_layout_round_trips_through_parse_deck(self):
+        from mtg_utils.export_deck import export_arena
+        from mtg_utils.parse_deck import parse_deck_text
+
+        parsed = parse_deck_text(
+            export_arena(self.ARENA_DECK), format="competitive_brawl"
+        )
+        assert parsed["commanders"] == [
+            {"name": "The Lord of the Eagles", "quantity": 1}
+        ]
+        assert {e["name"] for e in parsed["cards"]} == {"Island", "Counterspell"}
+        assert parsed["total_cards"] == 32
+
+    def test_arena_layout_sideboard_and_companion(self):
+        from mtg_utils.export_deck import export_arena
+
+        deck = {
+            "format": "historic",
+            "commanders": [],
+            "cards": [{"name": "Lightning Bolt", "quantity": 4}],
+            "sideboard": [{"name": "Roiling Vortex", "quantity": 2}],
+            "companion": [{"name": "Lurrus of the Dream-Den", "quantity": 1}],
+        }
+        lines = export_arena(deck).split("\n")
+        assert lines[:3] == ["Companion", "1 Lurrus of the Dream-Den", ""]
+        assert lines[3:5] == ["Deck", "4 Lightning Bolt"]
+        assert lines[5:] == ["", "Sideboard", "2 Roiling Vortex"]
+
+    def test_auto_style_picks_arena_for_arena_formats(self):
+        from mtg_utils.export_deck import resolve_style
+
+        assert resolve_style({"format": "competitive_brawl"}) == "arena"
+        assert resolve_style({"format": "historic_brawl"}) == "arena"
+        assert resolve_style({"format": "standard"}) == "arena"
+        assert resolve_style({"format": "commander"}) == "moxfield"
+        assert resolve_style({"format": "modern"}) == "moxfield"
+        assert resolve_style({}) == "moxfield"
+        assert resolve_style({"format": "commander"}, "arena") == "arena"
+
+    def test_cli_auto_emits_headers_for_arena_deck(self, tmp_path):
+        deck_path = tmp_path / "deck.json"
+        deck_path.write_text(json.dumps(self.ARENA_DECK))
+        result = CliRunner().invoke(main, [str(deck_path)])
+        assert result.exit_code == 0, result.output
+        assert result.output.startswith("Commander\n1 The Lord of the Eagles\n\nDeck\n")
+
+    def test_cli_moxfield_style_override(self, tmp_path):
+        deck_path = tmp_path / "deck.json"
+        deck_path.write_text(json.dumps(self.ARENA_DECK))
+        result = CliRunner().invoke(main, [str(deck_path), "--style", "moxfield"])
+        assert result.exit_code == 0, result.output
+        assert result.output.startswith("1 The Lord of the Eagles\n30 Island\n")
+
+    def test_cli_paper_deck_stays_moxfield(self, tmp_path):
+        deck_path = tmp_path / "deck.json"
+        deck_path.write_text(json.dumps(SAMPLE_DECK))  # no "format" key
+        result = CliRunner().invoke(main, [str(deck_path)])
+        assert result.exit_code == 0, result.output
+        assert "Commander" not in result.output
+        assert result.output.startswith("1 Kalain, Reclusive Painter\n")

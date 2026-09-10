@@ -492,6 +492,77 @@ class TestArenaIdIndexPrintings:
         # Injected basics carry no printing detail (they're synthesized).
         assert "printings" not in by_name["Island"]
 
+    def _run(self, tmp_path, output_dir, *extra):
+        log_path = tmp_path / "Player.log"
+        log_path.write_text(_GOOD_LOG)
+        bulk_path = _write_fake_bulk(
+            tmp_path,
+            _fake_bulk_cards(
+                [
+                    (100, "Sheoldred, the Apocalypse", "normal"),
+                    (200, "Sol Ring", "normal"),
+                ]
+            ),
+        )
+        return CliRunner().invoke(
+            main,
+            [
+                "--bulk-data",
+                str(bulk_path),
+                "--log-path",
+                str(log_path),
+                "--output-dir",
+                str(output_dir),
+                *extra,
+            ],
+        )
+
+    def test_collection_json_carries_source_marker(self, tmp_path):
+        output_dir = tmp_path / "out"
+        result = self._run(tmp_path, output_dir)
+        assert result.exit_code == 0, result.output
+        collection = json.loads((output_dir / "collection.json").read_text())
+        assert collection["source"] == "mtga-import"
+
+    def test_refuses_to_overwrite_foreign_collection_json(self, tmp_path):
+        """A parse-deck collection (Untapped CSV) at the same path must survive:
+        mtga-import's deck-derived reconstruction is the LESS reliable source."""
+        output_dir = tmp_path / "out"
+        output_dir.mkdir()
+        foreign = {
+            "format": "commander",
+            "deck_size": 100,
+            "commanders": [],
+            "cards": [{"name": "Black Lotus", "quantity": 1}],
+            "total_cards": 1,
+            "owned_cards": [],
+        }
+        (output_dir / "collection.json").write_text(json.dumps(foreign))
+        result = self._run(tmp_path, output_dir)
+        assert result.exit_code != 0
+        assert "not written by mtga-import" in result.output
+        assert "--force" in result.output
+        assert json.loads((output_dir / "collection.json").read_text()) == foreign
+        # Nothing else was written either — the refusal happens before any output.
+        assert not (output_dir / "wildcards.json").exists()
+
+    def test_force_overwrites_foreign_collection_json(self, tmp_path):
+        output_dir = tmp_path / "out"
+        output_dir.mkdir()
+        (output_dir / "collection.json").write_text(json.dumps({"cards": []}))
+        result = self._run(tmp_path, output_dir, "--force")
+        assert result.exit_code == 0, result.output
+        assert (
+            json.loads((output_dir / "collection.json").read_text())["source"]
+            == "mtga-import"
+        )
+
+    def test_refreshes_its_own_prior_output(self, tmp_path):
+        output_dir = tmp_path / "out"
+        assert self._run(tmp_path, output_dir).exit_code == 0
+        result = self._run(tmp_path, output_dir)  # second run, same dir, no --force
+        assert result.exit_code == 0, result.output
+
 
 def _build_arena_id_index_from_list(cards: list[dict]) -> dict[int, list[str]]:
     """Helper that mimics _build_arena_id_index without touching disk."""

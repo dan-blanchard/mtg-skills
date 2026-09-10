@@ -722,3 +722,67 @@ class TestBuildDigest:
         digest = build_digest(results, ["A", "B", "C"])
         assert digest["curve"]["1"] == 2
         assert digest["curve"]["7+"] == 1
+
+
+class TestRarityIndexFormatBanOverrides:
+    """Competitive Brawl reads the ``brawl`` legality key but legalizes every
+    card that key marks ``banned`` (Force of Will, Mana Drain, ...) while
+    enforcing its own ten-card list by name. The rarity index must honor the
+    same overrides ``check_format_legality`` does, or ``price-check`` reports
+    owned, legal staples as "illegal or not on Arena"."""
+
+    def _bulk(self, tmp_path):
+        cards = [
+            {
+                "name": "Force of Will",
+                "rarity": "mythic",
+                "games": ["arena"],
+                "legalities": {"brawl": "banned"},
+            },
+            {
+                "name": "Oko, Thief of Crowns",
+                "rarity": "mythic",
+                "games": ["arena"],
+                "legalities": {"brawl": "banned"},
+            },
+            {
+                "name": "Counterspell",
+                "rarity": "uncommon",
+                "games": ["arena"],
+                "legalities": {"brawl": "legal"},
+            },
+            {
+                "name": "Black Lotus",
+                "rarity": "mythic",
+                "games": ["paper"],
+                "legalities": {"brawl": "not_legal"},
+            },
+        ]
+        bulk_path = tmp_path / "bulk.json"
+        bulk_path.write_text(json.dumps(cards))
+        return bulk_path
+
+    def test_default_still_excludes_key_banned_cards(self, tmp_path):
+        index = build_rarity_index(self._bulk(tmp_path), "brawl", arena_only=True)
+        assert "force of will" not in index
+        assert "counterspell" in index
+
+    def test_ignore_key_bans_admits_banned_cards(self, tmp_path):
+        index = build_rarity_index(
+            self._bulk(tmp_path), "brawl", arena_only=True, ignore_key_bans=True
+        )
+        assert index["force of will"]["rarity"] == "mythic"
+        assert index["counterspell"]["rarity"] == "uncommon"
+        # not_legal still means "not in the pool at all".
+        assert "black lotus" not in index
+
+    def test_banned_cards_by_name_are_excluded(self, tmp_path):
+        index = build_rarity_index(
+            self._bulk(tmp_path),
+            "brawl",
+            arena_only=True,
+            ignore_key_bans=True,
+            banned_cards=frozenset({"Oko, Thief of Crowns"}),
+        )
+        assert "force of will" in index
+        assert "oko, thief of crowns" not in index

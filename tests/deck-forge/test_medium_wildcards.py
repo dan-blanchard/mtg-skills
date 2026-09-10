@@ -111,10 +111,12 @@ def _digital_state():
     )
     # Stub the cached rarity index + a non-None bulk_path so wildcard_cost runs without
     # touching disk (build_rarity_index is exercised separately in price_check's tests).
+    # The cache is keyed by FORMAT, not legality key: competitive_brawl shares
+    # historic_brawl's ``brawl`` key but admits the cards that key marks banned.
     from pathlib import Path
 
     state.bulk_path = Path("/dev/null")
-    state.rarity_index["brawl"] = _RARITY_INDEX
+    state.rarity_index["historic_brawl"] = _RARITY_INDEX
     for n in ("Shock", "Thoughtseize", "Mountain"):
         state.session.add(n)
     return state

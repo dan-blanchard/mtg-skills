@@ -610,6 +610,70 @@ class TestArenaIllegalOrMissing:
         assert "illegal or not on Arena" in text
 
 
+class TestCompetitiveBrawlBanOverrides:
+    """``competitive_brawl`` shares the ``brawl`` legality key but not its ban
+    list (format_config ``ignores_legality_key_bans`` + ``banned_cards``).
+    ``price-check`` must cost a brawl-banned staple as a normal craft, not
+    report it under ``illegal_or_missing`` — and must still reject the
+    format's own by-name bans."""
+
+    def _bulk(self, tmp_path):
+        cards = [
+            {
+                "name": "Force of Will",
+                "rarity": "mythic",
+                "legalities": {"brawl": "banned"},
+                "games": ["arena"],
+                "prices": {},
+            },
+            {
+                "name": "Oko, Thief of Crowns",
+                "rarity": "mythic",
+                "legalities": {"brawl": "banned"},
+                "games": ["arena"],
+                "prices": {},
+            },
+        ]
+        bulk_path = tmp_path / "bulk.json"
+        bulk_path.write_text(json.dumps(cards))
+        return bulk_path
+
+    def test_key_banned_card_is_costed_in_competitive_brawl(self, tmp_path):
+        deck = {
+            "format": "competitive_brawl",
+            "commanders": [],
+            "cards": [{"name": "Force of Will", "quantity": 1}],
+            "owned_cards": [],
+        }
+        result = check_prices(deck, bulk_path=self._bulk(tmp_path))
+        assert result["illegal_or_missing"] == []
+        assert result["wildcard_cost"]["mythic"] == 1
+        assert result["cards"][0]["legal"] is True
+
+    def test_key_banned_card_still_illegal_in_historic_brawl(self, tmp_path):
+        deck = {
+            "format": "historic_brawl",
+            "commanders": [],
+            "cards": [{"name": "Force of Will", "quantity": 1}],
+            "owned_cards": [],
+        }
+        result = check_prices(deck, bulk_path=self._bulk(tmp_path))
+        assert [e["name"] for e in result["illegal_or_missing"]] == ["Force of Will"]
+
+    def test_format_own_ban_list_still_enforced(self, tmp_path):
+        deck = {
+            "format": "competitive_brawl",
+            "commanders": [],
+            "cards": [{"name": "Oko, Thief of Crowns", "quantity": 1}],
+            "owned_cards": [],
+        }
+        result = check_prices(deck, bulk_path=self._bulk(tmp_path))
+        assert [e["name"] for e in result["illegal_or_missing"]] == [
+            "Oko, Thief of Crowns"
+        ]
+        assert result["wildcard_cost"]["mythic"] == 0
+
+
 class TestCLI:
     def test_cli_with_name_list(self, sample_bulk_data, tmp_path):
         from conftest import json_from_cli_output
