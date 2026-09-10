@@ -115,6 +115,9 @@ The FastAPI route closures in `app.py`: parse payload → call Engine/Views → 
 **Curve gate**:
 The hard land-count check (Burgess/Karsten for commander, constructed formula for 60-card). Below the floor the deck holds a persistent FAIL that blocks marking the deck finished until an explicit override.
 
+**Effective commander cost**:
+The earliest turn on which a deck expects to afford its commander — the smallest turn T such that the printed mana value, minus the expected value of the commander's own cost-reduction operand given the cards the deck expects to have cast by then, floored at the colored pips, is at most T. Never above the printed mana value, never below the residual cost. The quantity the **Curve gate**'s commander-cost term models; printed mana value is what it degrades to when the commander has no such clause or the reduction can't be modelled, and the degrade is always reported, never silent.
+
 **Flood line**:
 The upper land-count band (`recommended_land_count + 2`). Above it the deck is over-landed and gets a soft FLOOD nudge plus a "Trim lands" action — never blocks finalize, since an all-lands combo deck is a legitimate build.
 

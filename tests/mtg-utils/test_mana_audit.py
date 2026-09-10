@@ -19,6 +19,7 @@ from mtg_utils.mana_audit import (
     main,
     mana_audit,
     pip_demand,
+    render_text_report,
 )
 from mtg_utils.parse_deck import parse_deck
 
@@ -671,3 +672,64 @@ class TestConstructedManaAudit:
         ]
         result = mana_audit(_hd(deck, hydrated))
         assert result["land_count"] == 22  # sideboard Island not counted
+
+
+class TestEffectiveCommanderCost:
+    """ADR-0044: the Burgess term is the effective commander cost."""
+
+    def test_ordinary_commander_keeps_printed_value(
+        self, moxfield_deck, hydrated_cards
+    ):
+        deck = parse_deck(moxfield_deck)
+        result = mana_audit(_hd(deck, hydrated_cards))
+        bf = result["burgess_formula"]
+        assert bf["commander_cmc"] == bf["printed_cmc"] == 5  # Korvold, {2}{B}{R}{G}
+        block = result["commander_cost"]
+        assert block["used"] == block["printed"] == 5
+        assert len(block["commanders"]) == 1
+        # No self-discount clause (or no IR in CI) → a reported, non-silent status.
+        assert block["commanders"][0]["status"] in ("none", "unmodelled (no IR)")
+
+    def test_modelled_discount_moves_both_band_edges(self, hydrated_cards, monkeypatch):
+        from mtg_utils import commander_cost as cc
+
+        # Sixty cheap creatures + lands so the operand expectation is non-trivial
+        # (the Moxfield fixture deck has only two creatures).
+        deck = {
+            "format": "commander",
+            "deck_size": 100,
+            "commanders": [{"name": "Korvold, Fae-Cursed King", "quantity": 1}],
+            "cards": [
+                {"name": "Viscera Seer", "quantity": 30},
+                {"name": "Blood Artist", "quantity": 30},
+                {"name": "Command Tower", "quantity": 39},
+            ],
+            "total_cards": 100,
+        }
+        baseline = mana_audit(_hd(deck, hydrated_cards))
+        # Pretend Korvold costs {1} less per creature you control (an ObjectCount
+        # operand over Creature/You). Korvold is {2}{B}{R}{G}: printed 5, pips 3.
+        discount = cc.SelfDiscount("count", None, 1, ("Creature",), (), ())
+        monkeypatch.setattr(cc, "read_self_discount", lambda _rec: discount)
+        result = mana_audit(_hd(deck, hydrated_cards))
+        block = result["commander_cost"]["commanders"][0]
+        assert block["status"] == "modelled"
+        assert block["pips"] == 3
+        # Turn 3: budget 3 mana — 30 Seers seen 9/99 each (2.73 copies, 2.73 mana)
+        # fit whole, a sliver of Blood Artist fills the rest → floor 2 → residual
+        # max(3, 5-2) = 3 ≤ 3. Turn 2 fails (budget 1 → floor 1 → residual 4 > 2).
+        assert block["effective"] == 3
+        assert block["residual"] == 3
+        assert result["burgess_formula"]["commander_cmc"] == 3
+        assert result["burgess_formula"]["printed_cmc"] == 5
+        assert (
+            result["burgess_formula"]["result"]
+            == baseline["burgess_formula"]["result"] - 2
+        )
+        # The band is [min(Burgess, Karsten), max(Burgess, Karsten)]; with no ramp
+        # Karsten (42) is the top in both runs, so the FLOOR is what moves.
+        assert result["land_band"]["floor"] == baseline["land_band"]["floor"] - 2
+        assert result["land_band"]["top"] == baseline["land_band"]["top"] == 42
+        assert "Commander cost: Korvold, Fae-Cursed King printed 5, effective 3" in (
+            render_text_report(result)
+        )

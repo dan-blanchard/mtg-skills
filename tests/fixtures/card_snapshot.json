@@ -115826,6 +115826,235 @@
     "type_line": "Legendary Creature — Human Advisor"
    }
   },
+  "Karador, Ghost Chieftain": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "brawl_commander": true,
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Centaur",
+       "Spirit"
+      ],
+      "supertypes": [
+       "Legendary"
+      ]
+     },
+     "color_identity": [
+      "Black",
+      "Green",
+      "White"
+     ],
+     "color_override": [
+      "Black",
+      "Green",
+      "White"
+     ],
+     "defense": null,
+     "flavor_name": null,
+     "is_commander": true,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 5,
+      "shards": [
+       "White",
+       "Black",
+       "Green"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "033c7ca5-6a67-4eaa-9a09-a4dd6b864fcd",
+       "21c718f2-b7a2-4d3d-b5de-629347e6a45b",
+       "6200ac79-b166-43d0-9a0b-5b547625ed57",
+       "6b9a008a-df2e-438d-9bdf-a7d007179372",
+       "8d128887-13fb-4e54-90f2-d3c46b7b29d7",
+       "9317408a-374e-4b9c-b438-01618ded2cbc",
+       "c4ee1fba-ad5b-41ca-a29f-ecc8cf1edeff",
+       "c61a6018-7f07-4623-b981-9516b53b8534"
+      ]
+     },
+     "name": "Karador, Ghost Chieftain",
+     "non_ability_text": null,
+     "oracle_text": "This spell costs {1} less to cast for each creature card in your graveyard.\nOnce during each of your turns, you may cast a creature spell from your graveyard.",
+     "power": {
+      "type": "Fixed",
+      "value": 3
+     },
+     "printings": [
+      "2X2",
+      "CMD",
+      "CMM",
+      "CMR",
+      "J14",
+      "OCMD",
+      "PLST",
+      "PRM",
+      "SLD"
+     ],
+     "rarities": [
+      "rare",
+      "mythic"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2020-11-10",
+       "text": "If a creature card is put into your graveyard during your main phase and the stack is empty, you have a chance to cast it before any player may attempt to remove that card from your graveyard."
+      },
+      {
+       "date": "2020-11-10",
+       "text": "If multiple effects allow you to play a card from your graveyard, you must announce which permission you're using as you begin to play the card."
+      },
+      {
+       "date": "2020-11-10",
+       "text": "If you cast one creature spell from your graveyard and then have a new Karador come under your control in the same turn, you may cast another creature spell from your graveyard that turn."
+      },
+      {
+       "date": "2020-11-10",
+       "text": "Once you begin to cast the spell, losing control of Karador won't affect the spell. You can finish casting it as normal."
+      },
+      {
+       "date": "2020-11-10",
+       "text": "To determine the total cost of a spell, start with the mana cost or alternative cost you're paying, add any cost increases (such as the commander tax), then apply any cost reductions (such as that of Karador). The mana value of the spell is determined only by its mana cost, no matter what the total cost to cast the spell was."
+      },
+      {
+       "date": "2020-11-10",
+       "text": "You must follow the normal timing permissions and restrictions of the spell you cast from your graveyard."
+      },
+      {
+       "date": "2020-11-10",
+       "text": "You must pay the costs to cast that spell. If it has an alternative cost, you may cast it for that cost instead."
+      }
+     ],
+     "scryfall_oracle_id": "304c194f-fa0b-42e5-93ca-8c587181d33c",
+     "static_abilities": [
+      {
+       "active_zones": [
+        "Hand",
+        "Stack",
+        "Command",
+        "Graveyard",
+        "Exile",
+        "Library"
+       ],
+       "affected": {
+        "type": "SelfRef"
+       },
+       "affected_zone": null,
+       "characteristic_defining": false,
+       "condition": null,
+       "description": "This spell costs {1} less to cast for each creature card in your graveyard.",
+       "effect_zone": null,
+       "mode": {
+        "ModifyCost": {
+         "amount": {
+          "generic": 1,
+          "shards": [],
+          "type": "Cost"
+         },
+         "dynamic_count": {
+          "card_types": [
+           "Creature"
+          ],
+          "scope": "Controller",
+          "type": "ZoneCardCount",
+          "zone": "Graveyard"
+         },
+         "mode": "Reduce",
+         "spell_filter": null
+        }
+       },
+       "modifications": []
+      },
+      {
+       "active_zones": [],
+       "affected": {
+        "controller": null,
+        "properties": [],
+        "type": "Typed",
+        "type_filters": [
+         "Creature"
+        ]
+       },
+       "affected_zone": null,
+       "characteristic_defining": false,
+       "condition": null,
+       "description": "Once during each of your turns, you may cast a creature spell from your graveyard.",
+       "effect_zone": null,
+       "mode": {
+        "GraveyardCastPermission": {
+         "frequency": "OncePerTurn",
+         "play_mode": "Cast"
+        }
+       },
+       "modifications": []
+      }
+     ],
+     "toughness": {
+      "type": "Fixed",
+      "value": 4
+     },
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "cmc": 8.0,
+    "color_identity": [
+     "B",
+     "G",
+     "W"
+    ],
+    "colors": [
+     "B",
+     "G",
+     "W"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{5}{W}{B}{G}",
+    "name": "Karador, Ghost Chieftain",
+    "oracle_id": "304c194f-fa0b-42e5-93ca-8c587181d33c",
+    "oracle_text": "This spell costs {1} less to cast for each creature card in your graveyard.\nOnce during each of your turns, you may cast a creature spell from your graveyard.",
+    "power": "3",
+    "toughness": "4",
+    "type_line": "Legendary Creature — Centaur Spirit"
+   }
+  },
   "Karai's Technique": {
    "phase_records": [
     {
@@ -135702,7 +135931,7 @@
      "oathbreaker": "legal",
      "pauper": "not_legal",
      "paupercommander": "not_legal",
-     "penny": "not_legal",
+     "penny": "legal",
      "pioneer": "legal",
      "predh": "not_legal",
      "premodern": "not_legal",
@@ -181094,8 +181323,8 @@
      "legacy": "legal",
      "modern": "legal",
      "oathbreaker": "legal",
-     "pauper": "not_legal",
-     "paupercommander": "not_legal",
+     "pauper": "legal",
+     "paupercommander": "legal",
      "penny": "legal",
      "pioneer": "legal",
      "predh": "legal",
@@ -184603,7 +184832,7 @@
      "oathbreaker": "legal",
      "pauper": "not_legal",
      "paupercommander": "not_legal",
-     "penny": "not_legal",
+     "penny": "legal",
      "pioneer": "legal",
      "predh": "not_legal",
      "premodern": "not_legal",
@@ -191340,7 +191569,7 @@
      "oathbreaker": "legal",
      "pauper": "not_legal",
      "paupercommander": "not_legal",
-     "penny": "not_legal",
+     "penny": "legal",
      "pioneer": "legal",
      "predh": "not_legal",
      "premodern": "not_legal",
@@ -204712,6 +204941,201 @@
     "type_line": "Legendary Creature — God"
    }
   },
+  "The Lord of the Eagles": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "brawl_commander": true,
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Bird",
+       "Noble"
+      ],
+      "supertypes": [
+       "Legendary"
+      ]
+     },
+     "color_identity": [
+      "Blue"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "is_commander": true,
+     "keywords": [
+      "Flash",
+      "Flying"
+     ],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "standard": "legal",
+      "standardbrawl": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 7,
+      "shards": [
+       "Blue",
+       "Blue"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "8acfaac6-5a63-4fd6-999b-562e989e2ce1",
+       "b0f29cce-324d-4229-8e29-692594b2e3c7",
+       "fa0554fc-9448-4ae2-8712-4f4f7af3c7b4"
+      ]
+     },
+     "name": "The Lord of the Eagles",
+     "non_ability_text": null,
+     "oracle_text": "Flash\nThis spell costs {X} less to cast, where X is the total power of creatures you control with flying.\nFlying",
+     "power": {
+      "type": "Fixed",
+      "value": 8
+     },
+     "printings": [
+      "HOB"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2026-06-29",
+       "text": "Once a player has announced that they are casting The Lord of the Eagles, no player may take actions to try and change the power of creatures its controller controls before that spell's cost is locked in."
+      },
+      {
+       "date": "2026-06-29",
+       "text": "The cost reduction ability reduces only the generic mana in the cost to cast The Lord of the Eagles. The colored mana must still be paid."
+      },
+      {
+       "date": "2026-06-29",
+       "text": "The total cost to cast The Lord of the Eagles is locked in before you pay that cost. For example, if you control three flying creatures, each with power 2, including one you can sacrifice to add {C}, the total cost of The Lord of the Eagles is {1}{U}{U}. Then you can sacrifice the creature as you activate mana abilities just before paying the cost."
+      },
+      {
+       "date": "2026-06-29",
+       "text": "To determine the total cost of a spell, start with the mana cost or alternative cost you're paying, add any cost increases, then apply any cost reductions (such as that of The Lord of the Eagles). The mana value of the spell remains unchanged, no matter what the total cost to cast it was."
+      }
+     ],
+     "scryfall_oracle_id": "3b38f314-d997-4c2a-b4c9-40dbe780993d",
+     "static_abilities": [
+      {
+       "active_zones": [
+        "Hand",
+        "Stack",
+        "Command",
+        "Graveyard",
+        "Exile",
+        "Library"
+       ],
+       "affected": {
+        "type": "SelfRef"
+       },
+       "affected_zone": null,
+       "characteristic_defining": false,
+       "condition": null,
+       "description": "This spell costs {X} less to cast, where X is the total power of creatures you control with flying.",
+       "effect_zone": null,
+       "mode": {
+        "ModifyCost": {
+         "amount": {
+          "generic": 1,
+          "shards": [],
+          "type": "Cost"
+         },
+         "dynamic_count": {
+          "function": "Sum",
+          "property": "Power",
+          "source": {
+           "filter": {
+            "controller": "You",
+            "properties": [
+             {
+              "type": "WithKeyword",
+              "value": "Flying"
+             }
+            ],
+            "type": "Typed",
+            "type_filters": [
+             "Creature"
+            ]
+           },
+           "type": "Objects"
+          },
+          "type": "PropertyAggregate"
+         },
+         "mode": "Reduce",
+         "spell_filter": null
+        }
+       },
+       "modifications": []
+      }
+     ],
+     "toughness": {
+      "type": "Fixed",
+      "value": 8
+     },
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "cmc": 9.0,
+    "color_identity": [
+     "U"
+    ],
+    "colors": [
+     "U"
+    ],
+    "keywords": [
+     "Flash",
+     "Flying"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "legal",
+     "standardbrawl": "legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{7}{U}{U}",
+    "name": "The Lord of the Eagles",
+    "oracle_id": "3b38f314-d997-4c2a-b4c9-40dbe780993d",
+    "oracle_text": "Flash\nThis spell costs {X} less to cast, where X is the total power of creatures you control with flying.\nFlying",
+    "power": "8",
+    "toughness": "8",
+    "type_line": "Legendary Creature — Bird Noble"
+   }
+  },
   "The Masamune": {
    "phase_records": [
     {
@@ -218068,7 +218492,7 @@
       ],
       "mana_cost": "",
       "name": "The Initiative",
-      "oracle_text": "Whenever one or more creatures a player controls deal combat damage to you, that player takes the initiative.\nWhenever you take the initiative and at the beginning of your upkeep, venture into Undercity. (If you're in a dungeon, advance to the next room. If you te not, enter Undercity You can take the initiative even if you already\nhave it.)",
+      "oracle_text": "Whenever one or more creatures a player controls deal combat damage to you, that player takes the initiative.\nWhenever you take the initiative and at the beginning of your upkeep, venture into Undercity. (If you're in a dungeon, advance to the next room. If you're not, enter the Undercity. You can take the initiative even if you already have it.)",
       "type_line": "Card"
      }
     ],

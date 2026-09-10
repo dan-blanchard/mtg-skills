@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 import math
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from pathlib import Path
 
 import click
@@ -16,6 +16,7 @@ from mtg_utils.card_classify import (
     is_land,
     is_ramp,
 )
+from mtg_utils.commander_cost import effective_commander_cost
 from mtg_utils.format_config import get_format_config
 from mtg_utils.hydrated_deck import HydratedDeck
 
@@ -301,17 +302,34 @@ def _add_color_sources(
 
 
 def _commander_stats(
-    commanders: list[dict], card_lookup: Mapping[str, dict]
-) -> tuple[int, int]:
-    """Return (commander_cmc, color_count) from commander list."""
-    cmd_cmcs: list[float] = []
+    commanders: list[dict],
+    card_lookup: Mapping[str, dict],
+    deck_entries: Sequence[tuple[Mapping, int]] = (),
+    *,
+    library_size: int = 99,
+) -> tuple[int, int, dict]:
+    """Return ``(commander_cost, color_count, commander_cost_block)``.
+
+    ``commander_cost`` is the ADR-0044 **effective commander cost** — the
+    affordable turn for a self-discounting commander, the printed mana value
+    otherwise — taken as the max across partners (the same rule the printed
+    value used). The block carries every commander's per-turn table and status
+    so the degrade to printed mana value is always visible, never silent.
+    """
     color_identity: set[str] = set()
+    blocks: list[dict] = []
     for cmd_entry in commanders:
         card = card_lookup.get(cmd_entry["name"])
-        if card is not None:
-            cmd_cmcs.append(card.get("cmc", 0.0))
-            color_identity.update(card.get("color_identity", []))
-    return (int(max(cmd_cmcs)) if cmd_cmcs else 0, len(color_identity))
+        if card is None:
+            continue
+        color_identity.update(card.get("color_identity", []))
+        blocks.append(
+            effective_commander_cost(card, deck_entries, library_size=library_size)
+        )
+    used = max((b["effective"] for b in blocks), default=0)
+    printed = max((b["printed"] for b in blocks), default=0)
+    block = {"used": used, "printed": printed, "commanders": blocks}
+    return (used, len(color_identity), block)
 
 
 def _scan_entries(
@@ -385,7 +403,17 @@ def mana_audit(hd: HydratedDeck) -> dict:
     # Only analyze mainboard cards (sideboard doesn't affect mana base)
     all_entries = list(commanders) + list(hd.cards)
 
-    commander_cmc, colors = _commander_stats(commanders, card_lookup)
+    deck_entries = [
+        (card_lookup[e["name"]], int(e.get("quantity", 1)))
+        for e in hd.cards
+        if e["name"] in card_lookup
+    ]
+    commander_cmc, colors, commander_cost = _commander_stats(
+        commanders,
+        card_lookup,
+        deck_entries,
+        library_size=max(1, deck_size - len(commanders)),
+    )
     (
         land_count,
         ramp_count,
@@ -416,9 +444,14 @@ def mana_audit(hd: HydratedDeck) -> dict:
         formula_info = {
             "burgess_formula": {
                 "colors": colors,
+                # ADR-0044: the effective commander cost (affordable turn), which
+                # equals the printed mana value unless the commander's own
+                # cost-reduction operand was modelled — see ``commander_cost``.
                 "commander_cmc": commander_cmc,
+                "printed_cmc": commander_cost["printed"],
                 "result": burgess_result,
             },
+            "commander_cost": commander_cost,
             "karsten_adjustment": {"ramp_count": ramp_count, "result": karsten_result},
             "land_band": {"floor": floor, "top": recommended},
         }
@@ -498,6 +531,19 @@ def _render_single_audit(audit: dict) -> list[str]:
             f"Karsten: {audit.get('karsten_adjustment', {}).get('result', '?')}, "
             f"status: {audit.get('land_count_status', '?')})"
         )
+    for block in (audit.get("commander_cost") or {}).get("commanders", ()):
+        if block.get("status") == "modelled":
+            lines.append(
+                f"Commander cost: {block.get('name')} printed {block.get('printed')}, "
+                f"effective {block.get('effective')} (pays {block.get('residual')} on "
+                f"turn {block.get('effective')}; {block.get('operand')}; "
+                f"{block.get('assumptions')})"
+            )
+        elif block.get("status") != "none":
+            lines.append(
+                f"Commander cost: {block.get('name')} printed {block.get('printed')}, "
+                f"used as-is — {block.get('status')}"
+            )
     lines.append(f"Ramp count: {audit.get('ramp_count', 0)}")
     lines.append(f"Avg CMC: {audit.get('avg_cmc', 0)}")
 

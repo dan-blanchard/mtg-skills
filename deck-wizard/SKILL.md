@@ -792,7 +792,7 @@ Card counts scale with deck size. The base counts below are for 100-card decks; 
 | Category | 100-card | 60-card | Notes |
 |----------|----------|---------|-------|
 | Commander(s) | 1-2 | 1-2 | Already selected |
-| Lands | 36-38 | 22-23 | Burgess formula scaled: `round((31 + colors + cmc) * deck_size / 100)` |
+| Lands | 36-38 | 22-23 | Burgess formula scaled: `round((31 + colors + effective_commander_cost) * deck_size / 100)` — read it from `mana-audit`'s `land_band`, don't compute it by hand (ADR-0044: for a self-discounting commander such as The Lord of the Eagles or Ghalta the tool uses the **effective commander cost**, the earliest turn the deck expects to afford it, not the printed mana value) |
 | Ramp | 10 | 6 | Mana rocks, dorks, land-fetch spells |
 | Card draw | 10 | 6 | Prefer draw that aligns with strategy |
 | Targeted removal/disruption | 5-12 | 3-7 | Scaled to bracket |
@@ -1309,7 +1309,7 @@ Scorecard sections and what each subsumes:
 
 **Role-density budgets (deterministic).** *Commander family:* the spine's scorecard `template` section already has the count of each role (lands / ramp / card_draw / interaction / board_wipe) against the Command-Zone band — read it there, don't re-run a separate pass. A role showing `(under)`/`(over)` is a falsifiable signal of where to add or cut. (The standalone `slot-budgets <deck.json> <hydrated.json> --deck-size <60|100> [--shape ...]` CLI remains for ad-hoc use, e.g. 60-card constructed, but it's the same budgeter the scorecard runs.)
 
-**Commander formats:** Land count is a hard constraint. Calculate the Burgess formula result (`31 + colors_in_identity + commander_cmc`) and treat it as the target. The `mana-audit` script enforces this — if it returns FAIL, you must add lands or cut fewer lands. Proposing a land count below the Burgess formula result requires `mana-audit` to return PASS or WARN (not FAIL). Proposing a land count below 36 is almost always a FAIL.
+**Commander formats:** Land count is a hard constraint. Read the band from `mana-audit` (`land_band.floor` / `land_band.top`, ADR-0041) and treat the top as the target; never compute Burgess by hand. The `commander_cmc` term is the **effective commander cost** (ADR-0044): for a commander whose own clause reduces its cost by a board quantity (The Lord of the Eagles, Ghalta) it is the earliest turn the deck expects to afford the commander, computed from the deck's own cards on an uninteracted curve, and the JSON's `commander_cost` block shows the per-turn table and a `status` — `modelled`, `none`, or `unmodelled (<why>)` when the clause shape (graveyard counts, conditionals) or a missing IR forced the printed value. If it returns FAIL, you must add lands or cut fewer lands. Proposing a land count below the floor requires `mana-audit` to return PASS or WARN (not FAIL). Proposing a land count below 36 is almost always a FAIL for a commander without a modelled discount.
 
 **60-card constructed:** Uses the constructed land formula. Compare against format-specific expectations.
 

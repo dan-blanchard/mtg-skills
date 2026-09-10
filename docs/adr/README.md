@@ -39,3 +39,4 @@ live in [`archive/`](archive/).
 | 0040 | Granter-aware value in the shared tuner | quality table over playrate |
 | 0041 | A deck-specific land band replaces the static lands row and the raw-Burgess gate | |
 | 0043 | Adjudicated precision replaces crowd recall as the discovery yardstick | paired-delta acceptance + verdict ledger is the current acceptance rule |
+| 0044 | Effective commander cost replaces printed mana value in the land band | closed-form affordable turn; self-discount only; degrades to printed MV with a reported status |
