@@ -35,9 +35,23 @@ def create_app(frontend_dist: Path | None = None) -> FastAPI:
     return build_app(default_state(), frontend_dist=frontend_dist)
 
 
+_LOOPBACK_HOSTS = {"127.0.0.1", "::1", "localhost"}
+
+
 @click.command()
 @click.option("--host", default=DEFAULT_HOST, show_default=True)
 @click.option("--port", default=DEFAULT_PORT, show_default=True, type=int)
+@click.option(
+    "--allow-remote",
+    is_flag=True,
+    default=False,
+    help=(
+        "Permit binding to a non-loopback --host. Refused by default: the server "
+        "has no authentication, so a non-loopback bind exposes full read/write "
+        "deck control to anyone who can reach the address. Only pass this behind "
+        "a trusted private network (e.g. Tailscale); never on the public internet."
+    ),
+)
 @click.option(
     "--open/--no-open",
     "open_browser",
@@ -57,9 +71,18 @@ def main(
     frontend_dist: Path | None,
     *,
     open_browser: bool,
+    allow_remote: bool,
 ) -> None:
     """Launch the deck-forge backend hub."""
     import uvicorn  # deferred import so `--help` stays fast and import-light
+
+    if host not in _LOOPBACK_HOSTS and not allow_remote:
+        raise click.UsageError(
+            f"refusing to bind non-loopback host {host!r} without --allow-remote: "
+            "the server is unauthenticated, so this would expose full deck "
+            "read/write to anyone who can reach the address. Re-run with "
+            "--allow-remote only behind a trusted private network (e.g. Tailscale)."
+        )
 
     dist = frontend_dist or (Path.cwd() / "frontend" / "dist")
     app = create_app(frontend_dist=dist)

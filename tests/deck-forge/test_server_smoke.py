@@ -36,3 +36,37 @@ def test_find_without_bulk_fails_loudly(monkeypatch):
     resp = client.post("/api/find", json={"type": "Creature"})
     assert resp.status_code == 503
     assert "download-mtgjson" in resp.json()["error"]
+
+
+def test_cross_origin_post_rejected(monkeypatch):
+    # Local-server CSRF guard: a state-changing request whose Origin host differs
+    # from the target Host is refused (a malicious site can't drive the local API).
+    monkeypatch.setattr(production, "default_bulk_path", lambda: None)
+    client = TestClient(create_app())
+    resp = client.post(
+        "/api/deck/format",
+        json={"format": "commander"},
+        headers={"Origin": "http://evil.example", "Host": "127.0.0.1:8765"},
+    )
+    assert resp.status_code == 403
+    assert "cross-origin" in resp.json()["error"]
+
+
+def test_same_origin_post_allowed(monkeypatch):
+    # Same Origin host as the target Host passes the guard (real SPA traffic).
+    monkeypatch.setattr(production, "default_bulk_path", lambda: None)
+    client = TestClient(create_app())
+    resp = client.post(
+        "/api/deck/format",
+        json={"format": "commander"},
+        headers={"Origin": "http://127.0.0.1:8765", "Host": "127.0.0.1:8765"},
+    )
+    assert resp.status_code != 403
+
+
+def test_no_origin_post_allowed(monkeypatch):
+    # Non-browser clients (curl, tests) send no Origin/Referer and are not blocked.
+    monkeypatch.setattr(production, "default_bulk_path", lambda: None)
+    client = TestClient(create_app())
+    resp = client.post("/api/deck/format", json={"format": "commander"})
+    assert resp.status_code != 403

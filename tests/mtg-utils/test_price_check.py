@@ -721,6 +721,6 @@ class TestCLI:
             ],
         )
         assert result.exit_code == 0
-        assert "of $100.00 budget" in result.output
+        assert "of US$100.00 budget" in result.output
         data = json_from_cli_output(result)
         assert data["over_budget"] is False

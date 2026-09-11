@@ -48,7 +48,6 @@ jobs:
       - run: cd cube-wizard && uv sync && uv run pytest ../tests/cube-wizard/ -v
       - run: cd rules-lawyer && uv sync && uv run pytest ../tests/rules-lawyer/ -v
       - run: cd deck-strat && uv sync && uv run pytest ../tests/deck-strat/ -v
-      - run: cd lgs-search && uv sync && uv run pytest ../tests/lgs-search/ -v
       - run: cd deck-forge && uv sync && uv run pytest ../tests/deck-forge/ -v
 
   # deck-forge commits its built SPA (D11: end-users run with no Node toolchain).

@@ -272,6 +272,34 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
     """Build the FastAPI app from an injected ``ForgeState``."""
     app = FastAPI(title="deck-forge", version=VERSION)
 
+    # --- Cross-site request protection (local-server CSRF) --------------------
+    # The server has no auth and is meant for loopback use, so while it runs any
+    # web page you visit could POST to it in the background. Browsers cannot
+    # suppress the ``Origin`` header on a cross-origin request, so we reject any
+    # state-changing request whose Origin/Referer host differs from the host the
+    # request was sent to. Same-origin requests from the SPA (Origin host ==
+    # Host) and non-browser clients (curl, tests — no Origin/Referer) pass.
+    from urllib.parse import urlparse
+
+    from starlette.requests import Request
+    from starlette.responses import JSONResponse as _JSONResponse
+
+    safe_methods = {"GET", "HEAD", "OPTIONS"}
+
+    @app.middleware("http")
+    async def _same_origin_guard(request: Request, call_next):  # noqa: ANN001, ANN202
+        if request.method not in safe_methods:
+            origin = request.headers.get("origin") or request.headers.get("referer")
+            if origin:
+                origin_host = urlparse(origin).netloc
+                target_host = request.headers.get("host", "")
+                if origin_host and origin_host != target_host:
+                    return _JSONResponse(
+                        {"error": "cross-origin request rejected"},
+                        status_code=403,
+                    )
+        return await call_next(request)
+
     @app.get("/api/health")
     async def health() -> dict[str, str]:
         return {"status": "ok", "version": VERSION, "bulk": str(state.bulk_available)}

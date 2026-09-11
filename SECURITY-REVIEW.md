@@ -38,6 +38,28 @@ that subsystem is removed._
 
 ---
 
+## Remediation applied (2026-09-11 follow-up)
+
+The following changes were made after the initial review:
+
+- **H1 + H2 + M1 (storefronts):** `lgs-search/`, `mtg_utils/_stores/`, `lgs_search.py`, and
+  `tests/lgs-search/` were **removed**, along with the CI step and doc references. This eliminates
+  automated cart mutation, stored store session cookies, and the USD-vendor coupling. A safety-first
+  rebuild (Australian LGS, no login, no auto-purchase, cart-for-review only) is specified in
+  `docs/FUTURE-LGS-SEARCH.md`.
+- **M1 (AUD):** added `mtg_utils/fx.py` (offline USD→AUD conversion via `MTG_SKILLS_AUD_PER_USD`) and
+  wired AUD alongside USD into `price_check` output.
+- **M2 (local server):** deck-forge now (a) refuses a non-loopback `--host` unless `--allow-remote`
+  is passed, and (b) rejects cross-origin state-changing requests via a same-origin guard middleware.
+- **L2 (curl):** `_fetch_with_curl` now passes `--` before the URL (argument-injection guard).
+- **L3 (/tmp):** `art_fetcher` defaults its cache to `~/.cache/mtg-skills` instead of `/tmp`.
+
+**Still open (by choice / low priority):** M3 (pickle cache — low on a single-user machine; files are
+git-ignored and never loaded from GitHub) and L1 (phase `cargo build` hash check — only relevant if
+you run `playtest-install-phase`).
+
+---
+
 ## 2. Trust model — what leaves your machine, what is stored locally
 
 ### 2.1 Outbound network endpoints (complete inventory)

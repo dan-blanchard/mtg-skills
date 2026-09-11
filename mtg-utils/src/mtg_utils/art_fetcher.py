@@ -1428,7 +1428,12 @@ def run(
 
 # --- CLI -------------------------------------------------------------------
 
-_DEFAULT_CACHE = Path(os.environ.get("MTG_SKILLS_CACHE_DIR") or "/tmp")
+# Default under the user's cache home, not world-readable /tmp (avoids a
+# predictable shared-temp path and symlink races). Override with
+# MTG_SKILLS_CACHE_DIR, consistent with the rest of the package.
+_DEFAULT_CACHE = Path(
+    os.environ.get("MTG_SKILLS_CACHE_DIR") or (Path.home() / ".cache" / "mtg-skills")
+)
 
 
 @click.command()

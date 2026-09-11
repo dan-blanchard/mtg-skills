@@ -72,6 +72,9 @@ def _fetch_with_curl(url: str) -> str:
             "-H",
             f"Accept-Language: {BROWSER_HEADERS['Accept-Language']}",
             "--compressed",
+            # `--` terminates option parsing so a URL beginning with '-' can't be
+            # misread by curl as a flag (argument injection).
+            "--",
             url,
         ],
         capture_output=True,

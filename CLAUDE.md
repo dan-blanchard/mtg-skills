@@ -48,15 +48,6 @@ uv sync                              # Install dependencies (follows symlink to 
 uv run pytest ../tests/deck-strat/ -v  # Run smoke tests
 ```
 
-### lgs-search
-
-```bash
-cd lgs-search
-uv sync                              # Install dependencies (follows symlink to mtg-utils/src)
-uv run playwright install chromium  # First-run only; downloads Chromium
-uv run pytest ../tests/lgs-search/ -v  # Run smoke tests
-```
-
 ### proxy-printer
 
 ```bash
@@ -97,7 +88,7 @@ uv run pytest -k "moxfield and sideboard" ../tests/mtg-utils/ -v  # filter
 
 Mono-repo for MTG-related Claude Code skills. Each skill lives in its own directory matching the `name` field in its SKILL.md frontmatter.
 
-**Source layout.** The canonical source lives in `mtg-utils/src/mtg_utils/`. `deck-wizard/src`, `cube-wizard/src`, `rules-lawyer/src`, `deck-strat/src`, `lgs-search/src`, and `proxy-printer/src` are **symlinks** to that directory. Editing a file through any skill's `src/` edits the shared source — there is exactly one copy. Each skill's `pyproject.toml` re-declares only the CLI entry points it ships; the Python package is installed once per skill `.venv` but all six point at the same files.
+**Source layout.** The canonical source lives in `mtg-utils/src/mtg_utils/`. `deck-wizard/src`, `cube-wizard/src`, `rules-lawyer/src`, `deck-strat/src`, and `proxy-printer/src` are **symlinks** to that directory. Editing a file through any skill's `src/` edits the shared source — there is exactly one copy. Each skill's `pyproject.toml` re-declares only the CLI entry points it ships; the Python package is installed once per skill `.venv` but all six point at the same files.
 
 ### mtg-utils
 
@@ -189,9 +180,15 @@ Shares `mtg_utils` via symlink to `mtg-utils/src`. Answers MTG rules questions b
 
 Shares `mtg_utils` via symlink to `mtg-utils/src`. Produces **Strategy Guides** for finished Commander / Brawl / Historic Brawl decks. Read-only on the deck (no cuts/adds; for tuning, run `/deck-wizard` first). Three-phase pipeline: Phase 1 acquires a deck (parse + hydrate, same as deck-wizard Path A), Phase 2 analyzes (baseline diagnostics, commander interaction audit, archetype detection, combo detection, EDHREC research), Phase 3 authors (rules verification pass via `rules-lookup`, draft, parallel Rules Audit subagent, present + iterate). Output is one markdown file at `<working-dir>/STRATEGY-GUIDE.md` with a fixed core spine plus archetype-conditional sections (politics / voltron / combo execution / aristocrats / token doubling). Re-declares ~16 CLIs from `mtg-utils` and ships none of its own. Integrates with rules-lawyer via a hybrid model: CLI for routine claim verification, Skill-tool invocation for multi-rule timing/layer/stack reasoning. See `deck-strat/CONTEXT.md` for its vocabulary and `docs/adr/README.md` for related design decisions.
 
-### lgs-search
+### lgs-search — REMOVED (see build-out kit)
 
-Shares `mtg_utils` via symlink to `mtg-utils/src`. Sources MTG card lists across at most three carts: The Gathering Place + Atomic Empire (LGS) and one of TCGPlayer or Mana Pool (Marketplace), whichever's cheaper for the spillover. Per-Storefront adapters live in `mtg_utils/_stores/`; each implements a synchronous Protocol — `LGSAdapter` for the per-item search/add flow, `MarketplaceAdapter` for the bulk-submit-and-optimize flow, both extending a shared `StoreSession` base for the lifecycle methods. See `lgs-search/CONTEXT.md` for its vocabulary. Persistent Playwright profiles per Storefront under `~/.cache/mtg-skills/lgs-profiles/`.
+The original `lgs-search` skill and its `mtg_utils/_stores/` adapters were **removed** for
+security reasons (see `SECURITY-REVIEW.md`): they logged into and mutated live US storefront
+accounts (TCGPlayer, Mana Pool, The Gathering Place, Atomic Empire) and persisted authenticated
+session cookies to disk. A future, safety-first replacement — searching **Australian** LGS with
+**no login and no automated purchasing**, building carts for manual review only, and showing
+USD + AUD prices — is specified in `docs/FUTURE-LGS-SEARCH.md`. Do not reintroduce the old
+storefront code; build the new one against that kit.
 
 ### proxy-printer
 

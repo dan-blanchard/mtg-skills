@@ -15,6 +15,7 @@ from mtg_utils._sidecar import atomic_write_json, sha_keyed_path
 from mtg_utils.card_classify import extract_price
 from mtg_utils.format_config import FORMAT_CONFIGS
 from mtg_utils.format_config import is_arena_format as _is_arena_format
+from mtg_utils.fx import aud_per_usd, usd_to_aud
 from mtg_utils.scryfall_lookup import (
     RATE_LIMIT_DELAY,
     SCRYFALL_NAMED_URL,
@@ -322,6 +323,7 @@ def check_prices(
     # copies at the unit price. A deck running 17 Hare Apparent with 4
     # owned is charged for 13.
     bulk_index = _load_bulk_index(bulk_path) if bulk_path else None
+    rate_aud = aud_per_usd()  # resolve the USD->AUD rate once for the whole report
     cards_out: list[dict] = []
     total_cost = 0.0
     total_value = 0.0
@@ -347,6 +349,7 @@ def check_prices(
             {
                 "name": name,
                 "price_usd": price,
+                "price_aud": usd_to_aud(price, rate=rate_aud),
                 "owned": fully_owned,
                 "deck_quantity": deck_qty,
                 "owned_quantity": owned_qty,
@@ -359,10 +362,14 @@ def check_prices(
         "cards": cards_out,
         "total_cost": round(total_cost, 2),
         "total_value": round(total_value, 2),
+        "total_cost_aud": usd_to_aud(total_cost, rate=rate_aud),
+        "total_value_aud": usd_to_aud(total_value, rate=rate_aud),
+        "aud_per_usd": rate_aud,
         "owned_cards_count": owned_count,
     }
     if budget is not None:
         result["budget"] = budget
+        result["budget_aud"] = usd_to_aud(budget, rate=rate_aud)
         result["over_budget"] = total_cost > budget
 
     return result
@@ -402,11 +409,20 @@ def render_text_report(result: dict) -> str:
     budget = result.get("budget")
     over_budget = result.get("over_budget")
 
-    header = f"price-check: ${total_cost:.2f}"
+    rate = result.get("aud_per_usd") or aud_per_usd()
+    total_cost_aud = result.get("total_cost_aud")
+    if total_cost_aud is None:
+        total_cost_aud = usd_to_aud(total_cost, rate=rate)
+
+    header = f"price-check: US${total_cost:.2f} / A${total_cost_aud:.2f}"
     if budget is not None:
-        header += f" of ${budget:.2f} budget"
+        header += f" of US${budget:.2f} budget"
     header += f" ({card_count} cards, {owned} owned)"
     lines.append(header)
+    lines.append(
+        f"(AUD @ {rate:.4f} per USD — reference conversion; "
+        "override with MTG_SKILLS_AUD_PER_USD)"
+    )
     lines.append("")
 
     # Sort by price desc so the most expensive lines surface first
@@ -417,19 +433,27 @@ def render_text_report(result: dict) -> str:
     )
     for entry in cards:
         price = entry.get("price_usd") or 0.0
+        price_aud = entry.get("price_aud")
+        if price_aud is None:
+            price_aud = usd_to_aud(price, rate=rate) or 0.0
         name = entry.get("name", "?")
         marker = " (owned)" if entry.get("owned") else ""
-        # Format the full "$N.NN" atom first, then right-align it so the
-        # dollar sign sits flush against the digits (no inner padding).
-        price_str = f"${price:.2f}"
-        lines.append(f"  {price_str:>8}  {name}{marker}")
+        # Right-align each currency atom so the symbols sit flush against digits.
+        usd_str = f"US${price:.2f}"
+        aud_str = f"A${price_aud:.2f}"
+        lines.append(f"  {usd_str:>9}  {aud_str:>9}  {name}{marker}")
 
     lines.append("")
-    lines.append(f"Total cost: ${total_cost:.2f}  (value ${total_value:.2f})")
+    lines.append(
+        f"Total cost: US${total_cost:.2f} / A${total_cost_aud:.2f}  "
+        f"(value US${total_value:.2f})"
+    )
     if budget is not None:
         remaining = budget - total_cost
         status = "OVER BUDGET" if over_budget else "OK"
-        lines.append(f"Budget: ${budget:.2f}  Remaining: ${remaining:.2f}  [{status}]")
+        lines.append(
+            f"Budget: US${budget:.2f}  Remaining: US${remaining:.2f}  [{status}]"
+        )
 
     return "\n".join(lines) + "\n"
 

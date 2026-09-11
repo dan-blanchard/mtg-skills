@@ -6,9 +6,6 @@ relevant context and only edit terms inside it.
 
 ## Contexts
 
-- [lgs-search](./lgs-search/CONTEXT.md) — sourcing a card list across
-  local game stores and online marketplaces, allocating to minimize
-  cost, populating checkout carts.
 - [cube-wizard](./cube-wizard/CONTEXT.md) — designing, balancing, and
   stress-testing MTG cubes. Owns the theme preset / stated archetype
   / gauntlet archetype / shape vocabulary.
@@ -73,8 +70,5 @@ surfaces a term that the skill's prose doesn't already pin down.
   Shape-scaled role bands). cut-check (trigger multiplication) and
   archetype-audit (arbitrary-theme density) are NOT subsumed — cut-check
   survives Steps 5/7, archetype-audit is demoted to optional.
-- **cube-wizard ↔ lgs-search** — independent today; a cube author
-  could in principle pipe a "wishlist" cube diff into lgs-search,
-  but no automated bridge exists.
 - **All skills** share the `mtg_utils` Python package (CLI scripts
   + library modules at `mtg-utils/src/mtg_utils/`).
