@@ -586,8 +586,7 @@ def score_candidate(
         if predicate(card):
             hits.append((label, oracle_re))
 
-    seen: set[str] = set()
-    served = [label for label, _ in hits if not (label in seen or seen.add(label))]
+    served = list(dict.fromkeys(label for label, _ in hits))
     synergy_score, clusters = _synergy_score(
         hits, clause_list, focus_sets, deck_tribes, ir
     )
