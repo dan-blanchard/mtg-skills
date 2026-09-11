@@ -462,7 +462,10 @@ def mana_audit(hd: HydratedDeck) -> dict:
             deck_size=deck_size,
         )
         recommended = constructed_target
-        floor = max(_CONSTRUCTED_MIN_LANDS, recommended - _CONSTRUCTED_FAIL_TOLERANCE)
+        # The 20-land clamp is a 60-card figure; scale it like the target
+        # so a 40-card limited deck isn't held to a 60-card floor.
+        min_lands = round(_CONSTRUCTED_MIN_LANDS * deck_size / 60)
+        floor = max(min_lands, recommended - _CONSTRUCTED_FAIL_TOLERANCE)
         lc_status = land_count_status(
             land_count=land_count,
             recommended=recommended,

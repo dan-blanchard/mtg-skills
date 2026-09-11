@@ -733,3 +733,52 @@ class TestEffectiveCommanderCost:
         assert "Commander cost: Korvold, Fae-Cursed King printed 5, effective 3" in (
             render_text_report(result)
         )
+
+
+def _limited_deck(land_count: int):
+    """A 40-card constructed-shaped deck (Arena limited): 23 3-cmc
+    creatures plus ``land_count`` Plains. Avg cmc 3.0 keeps the
+    constructed target at its baseline (24 scaled to 16)."""
+    spells = [
+        {
+            "name": f"Bear {i}",
+            "cmc": 3.0,
+            "type_line": "Creature — Bear",
+            "mana_cost": "{2}{W}",
+            "oracle_text": "",
+            "keywords": [],
+        }
+        for i in range(23)
+    ]
+    plains = {
+        "name": "Plains",
+        "cmc": 0.0,
+        "type_line": "Basic Land — Plains",
+        "oracle_text": "({T}: Add {W}.)",
+        "keywords": [],
+    }
+    deck = {
+        "format": "timeless",
+        "deck_size": 40,
+        "commanders": [],
+        "cards": [{"name": s["name"], "quantity": 1} for s in spells]
+        + [{"name": "Plains", "quantity": land_count}],
+    }
+    return _hd(deck, [plains, *spells])
+
+
+class TestConstructedFloorScalesWithDeckSize:
+    """The constructed FAIL floor is ``max(20, target - 2)`` for a 60-card
+    deck; the 20-land clamp must scale with deck size too, or every
+    40-card limited deck FAILs regardless of its land count."""
+
+    def test_40_card_deck_at_target_passes(self):
+        result = mana_audit(_limited_deck(land_count=17))
+        assert result["recommended_land_count"] == 16
+        assert result["land_count_floor"] == 14
+        assert result["land_count_status"] == "PASS"
+
+    def test_40_card_deck_below_scaled_floor_fails(self):
+        result = mana_audit(_limited_deck(land_count=13))
+        assert result["land_count_floor"] == 14
+        assert result["land_count_status"] == "FAIL"
