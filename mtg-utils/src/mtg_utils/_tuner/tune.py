@@ -190,20 +190,12 @@ def tune(
     )
     shape = shape_r.shape
 
-    # ADR-0041 (Fix 2): pass mana_audit's OWN already-derived land band directly
-    # so slot_budgets never re-derives it from a DIFFERENT ramp tally — mana_audit
-    # counts commanders+cards while slot_budgets' own tally over hd.expanded()
-    # counts cards+sideboard (commanders excluded), a divergence that could
-    # disagree with the mana section's own verdict. A 60-card constructed deck
-    # has no `land_band` and keeps the flat template row unchanged.
-    land_band_info = mana.get("land_band")
+    # ADR-0041: the lands row is mana_audit's own band — never a second derivation.
     budgets = slot_budgets(
         hd.expanded(),
         deck_size=deck_size,
         shape=shape,
-        land_band=(
-            (land_band_info["floor"], land_band_info["top"]) if land_band_info else None
-        ),
+        land_band=(mana["land_band"]["floor"], mana["land_band"]["top"]),
     )
     # ADR-0040 §1 (Grant-covered role, deck-forge CONTEXT.md): does a commander's
     # own ability GRANT structurally cover a short Spine role for every recipient
@@ -330,7 +322,7 @@ def tune(
     if params.max_swaps > 0 and hd.has_records:
         # ADR-0041: the floor (not the band's comfortable-max top), so a deck
         # already inside its band never reports a phantom land shortfall.
-        land_floor = int(mana.get("land_count_floor") or 0)
+        land_floor = int(mana["land_band"]["floor"])
         fill_slots, land_gap = _fill_gap(hd, deck_size, land_floor)
         swaps_out = swaps_mod.propose_swaps(
             classes,

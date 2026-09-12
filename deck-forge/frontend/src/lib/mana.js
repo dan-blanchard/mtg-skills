@@ -92,25 +92,22 @@ export function wildcardTotals(cards) {
   return out;
 }
 
-// The land-health readout shared by the footer pill and the Mana Gate modal.
-// Adds the soft FLOOD band (recommended + 2) on top of the backend's PASS/WARN/FAIL:
-// above the flood line the deck is over-landed (offer to trim) — but FLOOD never gates
-// finalize, because an all-lands two/three-card combo deck is a legitimate build.
-// See deck-forge CONTEXT.md › "Flood line".
+// The land-health readout shared by the footer pill and the Mana Gate modal — a
+// pass-through of the backend's ONE `land_band` (ADR-0041): floor (the gate), top
+// (the target), flood (top + 2, the soft FLOOD line — never gates finalize, because an
+// all-lands combo deck is a legitimate build) and status PASS | WARN | FAIL | FLOOD.
+// Nothing about the band is derived here. See deck-forge CONTEXT.md › "Land band".
 export function landState(mana) {
-  if (!mana) return null;
-  const count = mana.land_count ?? 0;
-  const recommended = mana.recommended_land_count ?? 0;
-  const ceiling = recommended + 2;
-  const status = count > ceiling ? "FLOOD" : mana.land_count_status;
+  const band = mana?.land_band;
+  if (!band) return null;
   return {
-    count,
-    recommended,
-    floor: mana.land_count_floor ?? 0,
-    ceiling,
-    status, // PASS | WARN | FAIL | FLOOD
-    over: count - recommended, // how many to trim back to recommended (FLOOD only)
-    short: Math.max(0, (mana.land_count_floor ?? 0) - count), // how many to add (FAIL)
+    count: band.count,
+    recommended: band.top,
+    floor: band.floor,
+    ceiling: band.flood,
+    status: band.status,
+    over: band.count - band.top, // how many to trim back to the top (FLOOD only)
+    short: Math.max(0, band.floor - band.count), // how many to add (FAIL)
   };
 }
 

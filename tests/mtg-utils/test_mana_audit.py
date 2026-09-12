@@ -14,8 +14,7 @@ from mtg_utils.mana_audit import (
     constructed_land_target,
     karsten_adjustment,
     land_band,
-    land_band_status,
-    land_count_status,
+    land_band_readout,
     main,
     mana_audit,
     pip_demand,
@@ -105,20 +104,31 @@ class TestKarstenAdjustment:
         assert karsten_adjustment(ramp_count=100) == 36
 
 
-class TestLandCountStatus:
+def _constructed(land_count, *, floor, top):
+    return land_band_readout(
+        land_count=land_count, floor=floor, top=top, warn_below_top=True
+    )["status"]
+
+
+class TestConstructedReadoutStatus:
+    """The 60-card gate: FAIL below the floor, WARN between floor and the target,
+    PASS at or above it, FLOOD above top + 2."""
+
     def test_pass_at_recommended(self):
-        assert land_count_status(land_count=38, recommended=38, burgess=36) == "PASS"
+        assert _constructed(38, floor=36, top=38) == "PASS"
 
     def test_warn_below_recommended(self):
-        assert land_count_status(land_count=37, recommended=38, burgess=36) == "WARN"
+        assert _constructed(37, floor=36, top=38) == "WARN"
 
-    def test_fail_below_burgess(self):
-        assert land_count_status(land_count=35, recommended=38, burgess=36) == "FAIL"
+    def test_fail_below_floor(self):
+        assert _constructed(35, floor=36, top=38) == "FAIL"
 
-    def test_warn_at_burgess_below_recommended(self):
-        # Mono-color low CMC: Burgess says 35, Karsten says 38.
-        # At 35 lands we meet Burgess → WARN (not FAIL).
-        assert land_count_status(land_count=35, recommended=38, burgess=35) == "WARN"
+    def test_warn_at_floor_below_recommended(self):
+        assert _constructed(35, floor=35, top=38) == "WARN"
+
+    def test_flood_above_top_plus_two(self):
+        assert _constructed(40, floor=36, top=38) == "PASS"
+        assert _constructed(41, floor=36, top=38) == "FLOOD"
 
 
 class TestLandBand:
@@ -145,19 +155,36 @@ class TestLandBand:
         assert (floor, top) == (23, 25)
 
 
-class TestLandBandStatus:
+def _commander(land_count, *, floor=38, top=41):
+    return land_band_readout(
+        land_count=land_count, floor=floor, top=top, warn_below_top=False
+    )
+
+
+class TestCommanderReadout:
+    """ADR-0041: FAIL only below the floor; the top is a reference, never a WARN
+    line; above top + 2 the advisory FLOOD status (never a gate)."""
+
     def test_fail_below_floor(self):
-        assert land_band_status(land_count=37, floor=38) == "FAIL"
+        assert _commander(37)["status"] == "FAIL"
 
     def test_pass_at_floor(self):
-        assert land_band_status(land_count=38, floor=38) == "PASS"
+        assert _commander(38)["status"] == "PASS"
 
     def test_pass_within_band(self):
-        assert land_band_status(land_count=40, floor=38) == "PASS"
+        assert _commander(40)["status"] == "PASS"
 
-    def test_pass_above_band_top_too(self):
-        # The band top is a reference, never a second failure/warning line.
-        assert land_band_status(land_count=50, floor=38) == "PASS"
+    def test_pass_above_band_top_up_to_the_flood_line(self):
+        assert _commander(43)["status"] == "PASS"
+
+    def test_flood_above_the_flood_line(self):
+        assert _commander(44) == {
+            "floor": 38,
+            "top": 41,
+            "flood": 43,
+            "count": 44,
+            "status": "FLOOD",
+        }
 
 
 class TestPipDemand:
@@ -234,12 +261,9 @@ class TestManaAudit:
         # Check all required keys are present
         expected_keys = [
             "land_count",
-            "recommended_land_count",
-            "land_count_floor",
             "burgess_formula",
             "karsten_adjustment",
             "land_band",
-            "land_count_status",
             "ramp_count",
             "avg_cmc",
             "pip_demand",
@@ -260,11 +284,10 @@ class TestManaAudit:
         assert "result" in result["burgess_formula"]
         assert "ramp_count" in result["karsten_adjustment"]
         assert "result" in result["karsten_adjustment"]
-        assert "floor" in result["land_band"]
-        assert "top" in result["land_band"]
+        assert set(result["land_band"]) == {"floor", "top", "flood", "count", "status"}
 
         # Validate status values
-        assert result["land_count_status"] in ("PASS", "WARN", "FAIL")
+        assert result["land_band"]["status"] in ("PASS", "WARN", "FAIL", "FLOOD")
         assert result["color_balance_status"] in ("PASS", "WARN", "FAIL")
         assert result["overall_status"] in ("PASS", "WARN", "FAIL")
 
@@ -341,18 +364,27 @@ class TestManaAuditBenchmarkLandBand:
 
     def test_pass_at_40_lands(self):
         result = mana_audit(_benchmark_deck(land_count=40))
-        assert result["land_count_floor"] == 38
-        assert result["recommended_land_count"] == 41
-        assert result["land_band"] == {"floor": 38, "top": 41}
-        assert result["land_count_status"] == "PASS"
+        assert result["land_band"] == {
+            "floor": 38,
+            "top": 41,
+            "flood": 43,
+            "count": 40,
+            "status": "PASS",
+        }
 
     def test_pass_at_the_floor(self):
         result = mana_audit(_benchmark_deck(land_count=38))
-        assert result["land_count_status"] == "PASS"
+        assert result["land_band"]["status"] == "PASS"
 
     def test_fail_just_below_the_floor(self):
         result = mana_audit(_benchmark_deck(land_count=37))
-        assert result["land_count_status"] == "FAIL"
+        assert result["land_band"]["status"] == "FAIL"
+        assert result["overall_status"] == "FAIL"
+
+    def test_flood_is_advisory_never_the_overall_gate(self):
+        result = mana_audit(_benchmark_deck(land_count=44))
+        assert result["land_band"]["status"] == "FLOOD"
+        assert result["overall_status"] != "FAIL"
 
 
 class TestCLI:
@@ -442,15 +474,11 @@ class TestScaledFormulas:
     def test_karsten_unscaled_at_100(self):
         assert karsten_adjustment(ramp_count=0) == 42
 
-    def test_land_count_status_scaled_floor(self):
-        # For 60-card Brawl with Burgess floor 22: below is FAIL, at is WARN
-        assert land_count_status(land_count=21, recommended=23, burgess=22) == "FAIL"
-        assert land_count_status(land_count=22, recommended=23, burgess=22) == "WARN"
-        assert land_count_status(land_count=23, recommended=23, burgess=22) == "PASS"
-
-    def test_land_count_status_default_100(self):
-        # 35 lands with Burgess=36 → FAIL (below Burgess)
-        assert land_count_status(land_count=35, recommended=38, burgess=36) == "FAIL"
+    def test_constructed_readout_scaled_floor(self):
+        # For a 60-card deck with floor 22 / target 23: below is FAIL, at is WARN
+        assert _constructed(21, floor=22, top=23) == "FAIL"
+        assert _constructed(22, floor=22, top=23) == "WARN"
+        assert _constructed(23, floor=22, top=23) == "PASS"
 
 
 class TestManaAuditWithFormat:
@@ -782,11 +810,11 @@ class TestConstructedFloorScalesWithDeckSize:
 
     def test_40_card_deck_at_target_passes(self):
         result = mana_audit(_limited_deck(land_count=17))
-        assert result["recommended_land_count"] == 16
-        assert result["land_count_floor"] == 14
-        assert result["land_count_status"] == "PASS"
+        assert result["land_band"]["top"] == 16
+        assert result["land_band"]["floor"] == 14
+        assert result["land_band"]["status"] == "PASS"
 
     def test_40_card_deck_below_scaled_floor_fails(self):
         result = mana_audit(_limited_deck(land_count=13))
-        assert result["land_count_floor"] == 14
-        assert result["land_count_status"] == "FAIL"
+        assert result["land_band"]["floor"] == 14
+        assert result["land_band"]["status"] == "FAIL"

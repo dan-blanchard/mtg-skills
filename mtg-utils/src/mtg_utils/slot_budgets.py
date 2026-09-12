@@ -34,17 +34,13 @@ def main(
     """Print role-density budgets for DECK_JSON (its own deck size)."""
     hd = acquire_for_cli(deck_json, bulk_data)
     deck_size = hd.format.deck_size
-    # ADR-0041 (Fix 2): pass mana_audit's OWN already-derived land band
-    # directly so the "lands" row matches the deck-specific band mana-audit
-    # reports exactly, instead of re-deriving it from a different ramp tally.
-    land_band_info = mana_audit(hd).get("land_band")
+    # ADR-0041: the "lands" row is mana-audit's own band, never a re-derivation.
+    band = mana_audit(hd)["land_band"]
     budgets = slot_budgets(
         hd.expanded(),
         deck_size=deck_size,
         shape=shape,
-        land_band=(
-            (land_band_info["floor"], land_band_info["top"]) if land_band_info else None
-        ),
+        land_band=(band["floor"], band["top"]),
     )
     if as_json:
         click.echo(json.dumps(budgets, indent=2))

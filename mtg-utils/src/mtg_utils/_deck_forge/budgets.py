@@ -21,7 +21,6 @@ from collections.abc import Sequence
 from mtg_utils._deck_forge._ir_lookup import ir_for
 from mtg_utils.card_classify import get_oracle_text, is_land, is_ramp
 from mtg_utils.card_ir import Card
-from mtg_utils.mana_audit import land_band as _derive_land_band
 from mtg_utils.theme_presets import get_preset
 
 # Command Zone template bands, per 100 cards (min, max). Scaled by deck size for Brawl.
@@ -353,9 +352,7 @@ def slot_budgets(
     *,
     deck_size: int = 100,
     shape: str | None = None,
-    colors: int | None = None,
-    commander_cmc: int | None = None,
-    land_band: tuple[int, int] | None = None,
+    land_band: tuple[int, int],
 ) -> dict[str, dict]:
     """Return ``{role: {min, max, target, current, remaining, deviation}}`` vs the band.
 
@@ -363,18 +360,12 @@ def slot_budgets(
     over the ceiling. ``remaining`` is the gap up to the floor (0 once in band).
     ``target`` is the band ceiling, kept for the existing Budgets-panel bar.
 
-    ``land_band`` (floor, top) is the deck-specific "lands" row band ALREADY derived by
-    ``mana_audit`` (ADR-0041, ``mana.land_band``) — pass it directly so this call and
-    mana_audit's own verdict are provably reading the SAME band. Prefer this over
-    ``colors``/``commander_cmc``: those re-derive the band from THIS call's own
-    ``current["ramp"]`` tally, which is scoped to ``records`` (a caller commonly passes
-    ``hd.expanded()`` — cards + sideboard, commanders EXCLUDED) and so can disagree with
-    mana_audit's own tally (commanders + cards, sideboard excluded) — the exact
-    single-source-of-truth contradiction ADR-0041 exists to eliminate. ``colors``/
-    ``commander_cmc`` remain a fallback re-derivation for callers not yet threaded to
-    pass the band directly; they're ignored whenever ``land_band`` is given. Omitting
-    all three (a 60-card constructed deck, or a caller with no commander read yet) keeps
-    the flat template row unchanged.
+    ``land_band`` (floor, top) is the deck-specific "lands" row: ``mana_audit``'s
+    ``land_band`` (ADR-0041), which every deck carries. It is REQUIRED, so this call
+    and the mana verdict provably read the same band — a re-derivation here from this
+    call's own ramp tally (scoped to *records*, which callers commonly pass as cards +
+    sideboard with commanders excluded) is exactly the second band ADR-0041 exists to
+    eliminate, and no longer exists.
     """
     scale = deck_size / 100
     bands = bands_for(shape)
@@ -385,18 +376,10 @@ def slot_budgets(
         for role in role_of(record):
             if role in current:
                 current[role] += 1
-    lands_band = land_band
-    if lands_band is None and colors is not None and commander_cmc is not None:
-        lands_band = _derive_land_band(
-            colors=colors,
-            commander_cmc=commander_cmc,
-            ramp_count=current["ramp"],
-            deck_size=deck_size,
-        )
     out: dict[str, dict] = {}
     for role, (lo, hi) in bands.items():
-        if role == "lands" and lands_band is not None:
-            rmin, rmax = lands_band  # already scaled to deck_size
+        if role == "lands":
+            rmin, rmax = land_band  # already scaled to deck_size
         else:
             rmin = round(lo * scale)
             rmax = round(hi * scale)

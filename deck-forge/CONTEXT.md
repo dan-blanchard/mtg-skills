@@ -118,8 +118,12 @@ The hard land-count check (Burgess/Karsten for commander, constructed formula fo
 **Effective commander cost**:
 The earliest turn on which a deck expects to afford its commander — the smallest turn T such that the printed mana value, minus the expected value of the commander's own cost-reduction operand given the cards the deck expects to have cast by then, floored at the colored pips, is at most T. Never above the printed mana value, never below the residual cost. The quantity the **Curve gate**'s commander-cost term models; printed mana value is what it degrades to when the commander has no such clause or the reduction can't be modelled, and the degrade is always reported, never silent.
 
+**Land band**:
+The one land-count readout for a deck — `mana_audit`'s `land_band` `{floor, top, flood, count, status}` (ADR-0041, finished 2026-09-12). `floor` is the gate (FAIL only below it); `top` is the target: raw Burgess over the effective commander cost for the Commander family, the constructed target for 60-card decks; `flood` is the Flood line; `status` is PASS / WARN / FAIL / FLOOD, where only FAIL gates. Every surface reads it — the Budgets panel's lands row (`slot_budgets` requires it), the finalize gate, the footer pill and Mana Gate modal, the tuner and the CLIs — and none re-derives any part of it.
+_Avoid_: "recommended land count" / "land count floor" as separate facts (the retired top-level keys), computing the flood line or Burgess in the SPA or an agent.
+
 **Flood line**:
-The upper land-count band (`recommended_land_count + 2`). Above it the deck is over-landed and gets a soft FLOOD nudge plus a "Trim lands" action — never blocks finalize, since an all-lands combo deck is a legitimate build.
+The land band's `flood` edge (`top + 2`). Above it the deck is over-landed and gets a soft FLOOD status plus a "Trim lands" action — never blocks finalize, since an all-lands combo deck is a legitimate build.
 
 **No-listing card**:
 A card for which neither bulk data nor the live price API returns a price. Treated as likely scarce/expensive, never as free ($0).

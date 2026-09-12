@@ -68,11 +68,12 @@ def test_trim_brings_a_flooded_deck_back_to_recommended():
     client = _client(plains=50)  # way over the flood line
     before = client.get("/api/snapshot").json()["mana"]
     assert before["land_count"] == 50
-    assert before["land_count"] > before["recommended_land_count"] + 2  # FLOOD
+    assert before["land_count"] > before["land_band"]["flood"]
+    assert before["land_band"]["status"] == "FLOOD"
 
     snap = client.post("/api/deck/trim-lands").json()
     mana = snap["mana"]
-    assert mana["land_count"] == mana["recommended_land_count"]  # trimmed to target
+    assert mana["land_count"] == mana["land_band"]["top"]  # trimmed to the target
 
 
 def test_trim_removes_over_produced_basics_first():

@@ -35,7 +35,7 @@
       {:else if result.gated}
         <p class="reason">
           Land gate: <b>{result.land_count}</b> lands, floor
-          <b>{result.recommended_land_count}</b>
+          <b>{result.land_band.floor}</b>
           —
           <span class="status-FAIL">FAIL</span>.
         </p>

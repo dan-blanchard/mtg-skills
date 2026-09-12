@@ -1,5 +1,7 @@
 """Tests for slot budgets vs the (soft) Command Zone template (band model, ADR-0024)."""
 
+import pytest
+
 from mtg_utils._deck_forge.budgets import (
     _ir_board_wipe,
     _ir_draws,
@@ -66,13 +68,17 @@ VISCERA = {
 }
 
 
+# The flat Command Zone lands row, for tests that only read other roles.
+_BAND = (36, 38)
+
+
 def test_empty_deck_bands_scale_to_deck_size():
-    b100 = slot_budgets([], deck_size=100)
+    b100 = slot_budgets([], deck_size=100, land_band=_BAND)
     assert b100["ramp"]["min"] == 10
     assert b100["ramp"]["max"] == 12
     assert b100["lands"]["min"] == 36
     assert b100["lands"]["max"] == 38
-    b60 = slot_budgets([], deck_size=60)
+    b60 = slot_budgets([], deck_size=60, land_band=(22, 23))
     assert b60["ramp"]["min"] == 6  # round(10 * 0.6)
     assert b60["ramp"]["max"] == 7  # round(12 * 0.6)
 
@@ -86,37 +92,18 @@ def _rock(i):
     }
 
 
-def test_lands_row_uses_deck_specific_band_when_commander_inputs_given():
-    # ADR-0041 benchmark: 5 colors, commander CMC 5, 12 ramp → Karsten floor
-    # 38, raw Burgess 41 — replaces the flat 36-38 template row.
+def test_lands_row_is_the_passed_band_never_a_rederivation():
+    # ADR-0041 (finished): the "lands" row IS mana_audit's band. A re-derivation
+    # from this call's own ramp tally over the passed records (12 rocks here would
+    # once have derived [38, 41] on its own) no longer exists; the passed band is
+    # the row, and omitting it is a TypeError, never a silently different band.
     records = [_rock(i) for i in range(12)]
-    b = slot_budgets(records, deck_size=100, colors=5, commander_cmc=5)
-    assert b["lands"]["min"] == 38
-    assert b["lands"]["max"] == 41
-    assert b["ramp"]["current"] == 12
-
-
-def test_lands_row_stays_static_without_commander_inputs():
-    # No colors/commander_cmc supplied → the flat Command Zone band, unchanged.
-    b = slot_budgets([_rock(i) for i in range(12)], deck_size=100)
-    assert b["lands"]["min"] == 36
-    assert b["lands"]["max"] == 38
-
-
-def test_land_band_param_is_single_source_over_internal_rederivation():
-    # Verified-review Fix 2: slot_budgets previously ALWAYS re-derived the
-    # "lands" band from its OWN ramp tally over the passed records — which
-    # can diverge from mana_audit's own tally (mana_audit counts
-    # commanders+cards; slot_budgets' caller commonly passes cards+sideboard,
-    # excluding commanders). Passing the band directly must win outright,
-    # even when colors/commander_cmc are ALSO given (proving no internal
-    # re-derivation runs when the caller supplies the already-derived band).
-    records = [_rock(i) for i in range(12)]  # 12 ramp, would derive [38, 41]
-    b = slot_budgets(
-        records, deck_size=100, colors=5, commander_cmc=5, land_band=(50, 60)
-    )
+    b = slot_budgets(records, deck_size=100, land_band=(50, 60))
     assert b["lands"]["min"] == 50
     assert b["lands"]["max"] == 60
+    assert b["ramp"]["current"] == 12
+    with pytest.raises(TypeError):
+        slot_budgets(records, deck_size=100)  # type: ignore[call-arg]
 
 
 def test_role_classification_folds_counterspells_into_interaction():
@@ -327,7 +314,9 @@ def test_current_counts_reflect_deck():
     # for why DIVINATION routes through the testkit snapshot here.
     test_card_ir("Divination")
     b = slot_budgets(
-        [FOREST, LLANOWAR, MURDER, test_card("Divination"), WRATH], deck_size=100
+        [FOREST, LLANOWAR, MURDER, test_card("Divination"), WRATH],
+        deck_size=100,
+        land_band=_BAND,
     )
     assert b["lands"]["current"] == 1
     assert b["ramp"]["current"] == 1
@@ -338,7 +327,7 @@ def test_current_counts_reflect_deck():
 
 def test_deviation_signs_short_in_band_and_over():
     # 1 ramp source against a 10-12 band → short by 9.
-    short = slot_budgets([LLANOWAR], deck_size=100)
+    short = slot_budgets([LLANOWAR], deck_size=100, land_band=_BAND)
     assert short["ramp"]["deviation"] == -9
     assert short["ramp"]["remaining"] == 9
     # 12 ramp sources → in band → deviation 0, remaining 0.
@@ -351,22 +340,22 @@ def test_deviation_signs_short_in_band_and_over():
         }
         for i in range(12)
     ]
-    inband = slot_budgets(rocks, deck_size=100)
+    inband = slot_budgets(rocks, deck_size=100, land_band=_BAND)
     assert inband["ramp"]["deviation"] == 0
     assert inband["ramp"]["remaining"] == 0
     # 15 ramp sources → over the 12 ceiling → +3.
-    over = slot_budgets(rocks + rocks[:3], deck_size=100)
+    over = slot_budgets(rocks + rocks[:3], deck_size=100, land_band=_BAND)
     assert over["ramp"]["deviation"] == 3
 
 
 def test_shape_scales_control_interaction_up():
-    flat = slot_budgets([], deck_size=100, shape=None)
-    control = slot_budgets([], deck_size=100, shape="control")
+    flat = slot_budgets([], deck_size=100, land_band=_BAND, shape=None)
+    control = slot_budgets([], deck_size=100, land_band=_BAND, shape="control")
     assert flat["interaction"]["max"] == 12
     assert control["interaction"]["min"] == 12
     assert control["interaction"]["max"] == 15
     # Aggro trims wraths.
-    aggro = slot_budgets([], deck_size=100, shape="aggro")
+    aggro = slot_budgets([], deck_size=100, land_band=_BAND, shape="aggro")
     assert aggro["board_wipe"]["max"] == 2
 
 

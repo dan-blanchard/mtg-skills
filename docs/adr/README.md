@@ -37,7 +37,7 @@ live in [`archive/`](archive/).
 | 0035 | Lossless phase-mirror Card IR with a derived concept overlay | anchor ADR for the structural substrate; strangler complete, only serving path |
 | 0038 | Unimplemented recovery re-decorates the concept overlay via a shared clause grammar | handles four residue classes (full / none / partial / text-only face trees) |
 | 0040 | Granter-aware value in the shared tuner | quality table over playrate |
-| 0041 | A deck-specific land band replaces the static lands row and the raw-Burgess gate | |
+| 0041 | A deck-specific land band replaces the static lands row and the raw-Burgess gate | finished: one `land_band` readout (floor / top / flood / status) for every deck; `slot_budgets` requires it; no surface re-derives |
 | 0043 | Adjudicated precision replaces crowd recall as the discovery yardstick | paired-delta acceptance + verdict ledger is the current acceptance rule |
 | 0044 | Effective commander cost replaces printed mana value in the land band | closed-form affordable turn; self-discount only; degrades to printed MV with a reported status |
 | 0045 | Format facts are answered by the Format module, never re-derived from a table | one frozen `Format` value owns legality / commander eligibility / medium / size / the SPA table; the adapter emits `arena_available` instead of rewriting legalities |

@@ -26,6 +26,8 @@ _CONSTRUCTED_MAX_CURVE_ADJ = 2
 _CONSTRUCTED_MIN_LANDS = 20
 _CONSTRUCTED_MAX_LANDS = 27
 _CONSTRUCTED_FAIL_TOLERANCE = 2
+# The flood line sits this far above the band's top (deck-forge CONTEXT: Flood line).
+FLOOD_MARGIN = 2
 
 
 def burgess_formula(*, colors: int, commander_cmc: int, deck_size: int = 100) -> int:
@@ -60,13 +62,35 @@ def land_band(
     return (min(burgess, karsten), max(burgess, karsten))
 
 
-def land_band_status(*, land_count: int, floor: int) -> str:
-    """PASS/FAIL gate over the deck-specific land band (ADR-0041).
+def land_band_readout(
+    *, land_count: int, floor: int, top: int, warn_below_top: bool
+) -> dict:
+    """The ONE land-band readout every surface reads (ADR-0041, finished):
+    ``{floor, top, flood, count, status}``.
 
-    FAILs only below ``floor``; at or above it — including above the band's
-    top — is PASS. The band's top is a reference for "comfortably more than
-    enough," not a second failure or warning line."""
-    return "FAIL" if land_count < floor else "PASS"
+    ``floor`` is the hard gate — ``FAIL`` only below it. ``top`` is the target /
+    comfortable maximum; ``flood`` is ``top + FLOOD_MARGIN``, above which the deck
+    is over-landed and the status is the advisory ``FLOOD`` (never a gate — an
+    all-lands combo deck is a legitimate build). Between floor and top a
+    Commander-family deck is ``PASS`` (the top is a reference, not a line) while
+    60-card constructed reads ``WARN`` (``warn_below_top``): the recommended count
+    is a target it is a little short of. Only ``FAIL`` gates anything downstream."""
+    flood = top + FLOOD_MARGIN
+    if land_count < floor:
+        status = "FAIL"
+    elif warn_below_top and land_count < top:
+        status = "WARN"
+    elif land_count > flood:
+        status = "FLOOD"
+    else:
+        status = "PASS"
+    return {
+        "floor": floor,
+        "top": top,
+        "flood": flood,
+        "count": land_count,
+        "status": status,
+    }
 
 
 def constructed_land_target(
@@ -89,28 +113,6 @@ def constructed_land_target(
         base += max(-cap, min(cap, curve_adj))
     base = max(_CONSTRUCTED_MIN_LANDS, min(_CONSTRUCTED_MAX_LANDS, base))
     return round(base * deck_size / 60)
-
-
-def land_count_status(
-    *,
-    land_count: int,
-    recommended: int,
-    burgess: int,
-) -> str:
-    """Return PASS/WARN/FAIL status for land count against a two-threshold gate.
-
-    Falling below ``burgess`` (the hard floor) is FAIL. Meeting it but below
-    ``recommended`` is WARN. Meeting or exceeding ``recommended`` is PASS.
-
-    Generic two-threshold gate, now used only by the 60-card constructed
-    formula (``constructed_land_target``'s tolerance band) — the
-    commander-family gate reads ``land_band_status`` instead (ADR-0041),
-    whose band FAILs only below its floor and never emits WARN."""
-    if land_count < burgess:
-        return "FAIL"
-    if land_count < recommended:
-        return "WARN"
-    return "PASS"
 
 
 def _mana_cost_for_pips(card: dict) -> str:
@@ -235,7 +237,7 @@ def reconcile_basic_lands(
     drop below the current count — so it tops a short deck up to the floor AND
     rebalances the basics of a deck already at/above it (swapping over- for
     under-produced colors, net-zero count). Pass an explicit ``target_total`` to aim
-    elsewhere: the 'Trim lands' FLOOD remedy passes the *recommended* count, below the
+    elsewhere: the 'Trim lands' FLOOD remedy passes the band's *top*, below the
     current one, so the same color-demand allocation removes the over-produced basics
     down to target. Only the standard basics are managed; nonbasic lands (duals, fixing,
     snow basics) are treated as fixed production the basics fill in around — so a deck
@@ -243,7 +245,7 @@ def reconcile_basic_lands(
     audit = mana_audit(hd)
     land_count = audit["land_count"]
     if target_total is None:
-        target_total = max(land_count, audit["land_count_floor"])
+        target_total = max(land_count, audit["land_band"]["floor"])
 
     current: dict[str, int] = {}
     for entry in hd.cards:
@@ -432,13 +434,12 @@ def mana_audit(hd: HydratedDeck) -> dict:
         # Burgess] — replaces treating raw Burgess alone as the hard floor
         # (which could exceed the static template's ceiling on a heavy-ramp,
         # high-color/high-CMC deck with no land count able to satisfy both).
-        floor, recommended = land_band(
+        floor, top = land_band(
             colors=colors,
             commander_cmc=commander_cmc,
             ramp_count=ramp_count,
             deck_size=deck_size,
         )
-        lc_status = land_band_status(land_count=land_count, floor=floor)
         formula_info = {
             "burgess_formula": {
                 "colors": colors,
@@ -451,7 +452,6 @@ def mana_audit(hd: HydratedDeck) -> dict:
             },
             "commander_cost": commander_cost,
             "karsten_adjustment": {"ramp_count": ramp_count, "result": karsten_result},
-            "land_band": {"floor": floor, "top": recommended},
         }
     else:
         constructed_target = constructed_land_target(
@@ -459,16 +459,11 @@ def mana_audit(hd: HydratedDeck) -> dict:
             avg_cmc=avg_cmc,
             deck_size=deck_size,
         )
-        recommended = constructed_target
+        top = constructed_target
         # The 20-land clamp is a 60-card figure; scale it like the target
         # so a 40-card limited deck isn't held to a 60-card floor.
         min_lands = round(_CONSTRUCTED_MIN_LANDS * deck_size / 60)
-        floor = max(min_lands, recommended - _CONSTRUCTED_FAIL_TOLERANCE)
-        lc_status = land_count_status(
-            land_count=land_count,
-            recommended=recommended,
-            burgess=floor,
-        )
+        floor = max(min_lands, top - _CONSTRUCTED_FAIL_TOLERANCE)
         formula_info = {
             "constructed_land_target": {
                 "ramp_count": ramp_count,
@@ -486,13 +481,17 @@ def mana_audit(hd: HydratedDeck) -> dict:
     )
 
     cb = color_balance(pips, land_color_production, land_count)
+    # ONE band for every deck (Commander family AND constructed): the budgets row,
+    # the gate, the flood line and the SPA readout all read this and nothing else.
+    band = land_band_readout(
+        land_count=land_count, floor=floor, top=top, warn_below_top=not has_commander
+    )
+    gate_status = "PASS" if band["status"] == "FLOOD" else band["status"]
 
     return {
         "land_count": land_count,
-        "recommended_land_count": recommended,
-        "land_count_floor": floor,
+        "land_band": band,
         **formula_info,
-        "land_count_status": lc_status,
         "ramp_count": ramp_count,
         "avg_cmc": avg_cmc,
         "pip_demand": pips,
@@ -502,7 +501,7 @@ def mana_audit(hd: HydratedDeck) -> dict:
         "rock_color_pct": _pct_dict(rock_colors, sum(rock_colors.values())),
         "color_balance_status": cb["status"],
         "color_balance_flags": cb["flags"],
-        "overall_status": _overall_status([lc_status, cb["status"]]),
+        "overall_status": _overall_status([gate_status, cb["status"]]),
     }
 
 
@@ -517,20 +516,21 @@ def _render_single_audit(audit: dict) -> list[str]:
 
     constructed = audit.get("constructed_land_target")
     burgess = audit.get("burgess_formula") or {}
+    band = audit.get("land_band") or {}
     if constructed:
         lines.append(
             f"Land count: {land_count} "
-            f"(target: {constructed.get('result', '?')}, "
-            f"status: {audit.get('land_count_status', '?')})"
+            f"(target: {band.get('top', '?')}, floor: {band.get('floor', '?')}, "
+            f"flood: {band.get('flood', '?')}, status: {band.get('status', '?')})"
         )
     else:
-        band = audit.get("land_band") or {}
         lines.append(
             f"Land count: {land_count} "
             f"(band: {band.get('floor', '?')}-{band.get('top', '?')}, "
+            f"flood: {band.get('flood', '?')}, "
             f"Burgess: {burgess.get('result', '?')}, "
             f"Karsten: {audit.get('karsten_adjustment', {}).get('result', '?')}, "
-            f"status: {audit.get('land_count_status', '?')})"
+            f"status: {band.get('status', '?')})"
         )
     for block in (audit.get("commander_cost") or {}).get("commanders", ()):
         if block.get("status") == "modelled":

@@ -969,9 +969,9 @@ def finalize_state(state: ForgeState) -> dict:
     defensible = avg_cmc <= _DEFENSIBLE_AVG_CMC and cheap_ca >= _DEFENSIBLE_CHEAP_CA
     warnings = legality_warnings(hd, max_cards=state.session.deck_size)
     return {
-        "land_status": mana["land_count_status"],
+        "land_status": mana["land_band"]["status"],
         "land_count": mana["land_count"],
-        "recommended_land_count": mana["recommended_land_count"],
+        "land_band": mana["land_band"],
         "evidence": {
             "avg_cmc": avg_cmc,
             "cheap_card_advantage": cheap_ca,
@@ -1399,10 +1399,6 @@ def snapshot(state: ForgeState) -> dict:
     stats = deck_stats(hd)
     owned = owned_quantities(state)
     mana = mana_audit(hd)
-    # ADR-0041: thread the commander's colors/CMC so the Budgets panel's "lands"
-    # row uses the same deck-specific band as the mana section's own verdict,
-    # instead of the static 36-38 Command Zone row.
-    burgess_info = mana.get("burgess_formula") or {}
     return {
         "build_id": state.build_id,
         "build_name": state.build_name,
@@ -1413,11 +1409,11 @@ def snapshot(state: ForgeState) -> dict:
         "stats": stats,
         "bracket": detect_bracket(hd.records, stats.get("avg_cmc", 0.0)),
         "mana": mana,
+        # ADR-0041: the Budgets panel's "lands" row IS the mana section's band.
         "budgets": slot_budgets(
             hd.expanded(),
             deck_size=state.session.deck_size,
-            colors=burgess_info.get("colors"),
-            commander_cmc=burgess_info.get("commander_cmc"),
+            land_band=(mana["land_band"]["floor"], mana["land_band"]["top"]),
         ),
         "signals": [signal_dict(s) for s in ranked_deck_signals(state, hd.records)],
         "avenues": avenues(state, hd.records),

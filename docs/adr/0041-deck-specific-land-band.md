@@ -27,3 +27,16 @@ the old gate would have forced a 41st land. Tests pinning the raw-Burgess FAIL r
 The `_fill_gap` DFC name-join fix rides along as a plain bug fix (join on the same
 front-face aliasing `hydrate`/`mark-owned` already use, or sum land quantities from
 the classified records directly).
+
+**Current state (2026-09-12).** Finished. `mana_audit` emits ONE `land_band`
+`{floor, top, flood, count, status}` for every deck — the Commander family's
+[Karsten-adjusted floor, raw Burgess over the effective commander cost] and, for 60-card
+constructed, [recommended − tolerance, recommended] — with `status` in PASS / WARN
+(constructed only, between floor and top) / FAIL (below floor, the only gating value) /
+FLOOD (above `top + 2`, advisory). The former top-level `recommended_land_count`,
+`land_count_floor` and `land_count_status` keys are gone; the SPA's flood arithmetic
+moved into this readout; `slot_budgets` REQUIRES the band and its colors/commander-CMC
+re-derivation (which read a different ramp tally than the mana verdict, so
+`engine.snapshot`'s Budgets row could disagree with the mana section beside it) is
+deleted.
+

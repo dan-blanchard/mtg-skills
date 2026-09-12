@@ -414,7 +414,7 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
         deck is already at/under recommended. Soft — never blocks finalize, because an
         all-lands combo deck is a legitimate build (see CONTEXT Flood line)."""
         audit = mana_audit(engine.hydrate_session(state))
-        recommended = audit["recommended_land_count"]
+        recommended = audit["land_band"]["top"]
         applied: dict[str, dict[str, int]] = {"add": {}, "remove": {}}
         if audit["land_count"] > recommended:
             plan = reconcile_basic_lands(
@@ -616,19 +616,13 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
     @app.get("/api/budgets")
     async def budgets() -> dict:
         hd = engine.hydrate_session(state)
-        # ADR-0041 (Fix 2): pass mana_audit's OWN already-derived land band
-        # directly — the standalone budgets read must not disagree with
-        # /api/snapshot or the mana section's own verdict (single source).
-        land_band_info = mana_audit(hd).get("land_band")
+        # ADR-0041: the lands row is mana_audit's own band (single source).
+        band = mana_audit(hd)["land_band"]
         return {
             "budgets": slot_budgets(
                 hd.expanded(),
                 deck_size=state.session.deck_size,
-                land_band=(
-                    (land_band_info["floor"], land_band_info["top"])
-                    if land_band_info
-                    else None
-                ),
+                land_band=(band["floor"], band["top"]),
             )
         }
 

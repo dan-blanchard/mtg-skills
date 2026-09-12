@@ -65,10 +65,10 @@ def test_balance_targets_the_floor_not_recommended():
     assert client.get("/api/snapshot").json()["mana"]["land_count"] == 0
     mana = client.post("/api/deck/balance-lands").json()["mana"]
     # fills to the FAIL floor (= Burgess), not all the way to the recommended count.
-    assert mana["land_count"] == mana["land_count_floor"]
-    assert mana["land_count_floor"] == mana["burgess_formula"]["result"]
-    assert mana["land_count"] <= mana["recommended_land_count"]
-    assert mana["land_count_status"] != "FAIL"
+    assert mana["land_count"] == mana["land_band"]["floor"]
+    assert mana["land_band"]["floor"] == mana["burgess_formula"]["result"]
+    assert mana["land_count"] <= mana["land_band"]["top"]
+    assert mana["land_band"]["status"] != "FAIL"
 
 
 def test_balance_distributes_by_color_demand():
@@ -90,7 +90,7 @@ def test_rebalance_swaps_basics_at_count_net_zero():
         by_name=idx, search_fn=lambda **_: [], session=session, bulk_available=True
     )
     client = TestClient(build_app(state))
-    floor = client.get("/api/snapshot").json()["mana"]["land_count_floor"]
+    floor = client.get("/api/snapshot").json()["mana"]["land_band"]["floor"]
     session.add("Plains", floor)  # at the floor, but mono-white basics
     assert client.get("/api/snapshot").json()["mana"]["land_count"] == floor
 
