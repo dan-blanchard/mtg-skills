@@ -129,9 +129,14 @@ def build_name_alias_map(bulk_path: Path) -> dict[str, str]:
     ``printed_name`` values (e.g., Japanese Mystical Archive) are
     excluded to avoid false matches.
     """
-    from mtg_utils.bulk_loader import load_bulk_cards
+    from mtg_utils.card_pool import CardPool
 
-    cards = load_bulk_cards(bulk_path)
+    return CardPool.load(bulk_path).name_aliases
+
+
+def name_alias_map(cards: list[dict]) -> dict[str, str]:
+    """:func:`build_name_alias_map` over an in-memory record list — the pure core
+    ``CardPool.name_aliases`` memoizes."""
     aliases: dict[str, str] = {}
     for card in cards:
         if card.get("lang", "en") != "en":

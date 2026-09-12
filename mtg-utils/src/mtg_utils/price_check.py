@@ -13,12 +13,11 @@ from mtg_utils._http import USER_AGENT
 from mtg_utils._name_index import NameIndex
 from mtg_utils._sidecar import atomic_write_json, sha_keyed_path
 from mtg_utils.card_classify import extract_price
+from mtg_utils.card_pool import CardPool
 from mtg_utils.formats import FORMATS, get_format
 from mtg_utils.scryfall_lookup import (
     RATE_LIMIT_DELAY,
     SCRYFALL_NAMED_URL,
-    _load_bulk_index,
-    build_rarity_index,
     lookup_single,
 )
 
@@ -304,14 +303,14 @@ def check_prices(
     # Arena wildcard mode
     fmt = get_format(format) if format is not None else None
     if fmt is not None and fmt.is_arena and bulk_path is not None:
-        rarity_index = build_rarity_index(bulk_path, fmt, arena_only=True)
+        rarity_index = CardPool.load(bulk_path).rarity_index(fmt, arena_only=True)
         return _check_arena_wildcards(deck_entries, owned_map, rarity_index)
 
     # USD price mode. Paper has no Arena-style 4-cap substitution, so the
     # math is simply: for each deck slot, charge ``max(deck_qty - owned_qty, 0)``
     # copies at the unit price. A deck running 17 Hare Apparent with 4
     # owned is charged for 13.
-    bulk_index = _load_bulk_index(bulk_path) if bulk_path else None
+    bulk_index = CardPool.load(bulk_path).by_name if bulk_path else None
     cards_out: list[dict] = []
     total_cost = 0.0
     total_value = 0.0

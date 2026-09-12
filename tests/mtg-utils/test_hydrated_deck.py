@@ -12,7 +12,8 @@ import json
 
 import pytest
 
-from mtg_utils.hydrated_deck import HydratedDeck
+from mtg_utils.card_pool import NoBulkError
+from mtg_utils.hydrated_deck import HYDRATED_VERSION, HydratedDeck, sidecar_path
 
 # --- fixtures: real-shaped Scryfall records + a deck dict -----------------------
 
@@ -286,3 +287,125 @@ def test_from_paths_with_no_hydrated_file_is_degraded(tmp_path):
     deck_path.write_text(json.dumps(_deck()), encoding="utf-8")
     hd = HydratedDeck.from_paths(deck_path, None)  # the combo_search optional case
     assert hd.has_records is False
+
+
+# --- acquire: the deck-acquisition seam (ADR-0046) ---------------------------------
+
+
+def _write_deck(tmp_path, deck=None, name="deck.json"):
+    path = tmp_path / name
+    path.write_text(json.dumps(deck or _deck()), encoding="utf-8")
+    return path
+
+
+def _pool():
+    from mtg_utils.card_pool import CardPool
+
+    records = [dict(r, layout="normal") for r in BY_NAME.values()]
+    return CardPool.from_cards(records)
+
+
+def _no_fetch(_name):
+    return None
+
+
+def test_acquire_joins_all_zones_and_writes_the_sidecar(tmp_path):
+    deck = _deck()
+    deck["companion"] = [{"name": "Sol Ring", "quantity": 1}]  # any record will do
+    deck_path = _write_deck(tmp_path, deck)
+    hd = HydratedDeck.acquire(deck_path, pool=_pool(), fetch=_no_fetch)
+    assert hd.has_records is True
+    assert hd.by_name.get("Marwyn, the Nurturer") is not None
+    assert hd.missing == ["Nonexistent Card"]
+    # companion hydrates like any zone (its record feeds the companion audit)
+    assert next(rec for _, rec in hd.entries(zones=("companion",))) is not None
+
+    sidecar = sidecar_path(deck_path)
+    assert sidecar == tmp_path / "deck.hydrated.json"
+    payload = json.loads(sidecar.read_text(encoding="utf-8"))
+    assert payload["version"] == HYDRATED_VERSION
+    assert payload["missing"] == ["Nonexistent Card"]
+    assert {r["name"] for r in payload["records"]} == {
+        "Marwyn, the Nurturer",
+        "Sol Ring",
+        "Llanowar Elves",
+        "Forest",
+    }
+
+
+def test_acquire_reads_a_valid_sidecar_instead_of_the_pool(tmp_path):
+    deck_path = _write_deck(tmp_path)
+    pool = _pool()
+    HydratedDeck.acquire(deck_path, pool=pool, fetch=_no_fetch)
+
+    calls = []
+
+    def _counting_fetch(name):
+        calls.append(name)
+
+    # Second acquire: same deck content, same pool identity -> the sidecar is read,
+    # and the miss is never re-fetched (a hit path does no lookups at all).
+    hd = HydratedDeck.acquire(deck_path, pool=pool, fetch=_counting_fetch)
+    assert hd.by_name.get("Sol Ring") is not None
+    assert calls == []
+
+
+def test_acquire_rebuilds_when_the_deck_changes(tmp_path):
+    deck_path = _write_deck(tmp_path)
+    pool = _pool()
+    HydratedDeck.acquire(deck_path, pool=pool, fetch=_no_fetch)
+    first_key = json.loads(sidecar_path(deck_path).read_text())["key"]
+
+    deck = _deck()
+    deck["cards"].append({"name": "Branchloft Pathway // Boulderloft Pathway"})
+    deck_path.write_text(json.dumps(deck), encoding="utf-8")
+    hd = HydratedDeck.acquire(deck_path, pool=pool, fetch=_no_fetch)
+    assert hd.by_name.get("Branchloft Pathway") is not None
+    assert json.loads(sidecar_path(deck_path).read_text())["key"] != first_key
+
+
+def test_acquire_ignores_a_sidecar_with_a_stale_key(tmp_path):
+    deck_path = _write_deck(tmp_path)
+    sidecar_path(deck_path).write_text(
+        json.dumps({"version": HYDRATED_VERSION, "key": "stale", "records": []}),
+        encoding="utf-8",
+    )
+    hd = HydratedDeck.acquire(deck_path, pool=_pool(), fetch=_no_fetch)
+    assert hd.has_records is True
+
+
+def test_acquire_fetches_a_pool_miss_once_and_stores_it(tmp_path):
+    deck_path = _write_deck(tmp_path)
+    fetched = {"name": "Nonexistent Card", "type_line": "Instant", "cmc": 1.0}
+
+    def _fetch(name):
+        assert name == "Nonexistent Card"
+        return fetched
+
+    hd = HydratedDeck.acquire(deck_path, pool=_pool(), fetch=_fetch)
+    assert hd.missing == []
+    assert hd.by_name.get("Nonexistent Card") == fetched
+    stored = json.loads(sidecar_path(deck_path).read_text())["records"]
+    assert any(r["name"] == "Nonexistent Card" for r in stored)
+
+
+def test_acquire_without_bulk_raises_unless_records_are_optional(tmp_path, monkeypatch):
+    monkeypatch.setenv("MTG_SKILLS_CACHE_DIR", str(tmp_path / "empty"))
+    monkeypatch.setenv("HOME", str(tmp_path / "nohome"))
+    deck_path = _write_deck(tmp_path)
+    with pytest.raises(NoBulkError, match="download-mtgjson"):
+        HydratedDeck.acquire(deck_path, fetch=_no_fetch)
+    hd = HydratedDeck.acquire(deck_path, require_records=False, fetch=_no_fetch)
+    assert hd.has_records is False
+    assert not sidecar_path(deck_path).exists()
+
+
+def test_acquire_loads_the_pool_from_bulk_path(tmp_path):
+    bulk = tmp_path / "bulk.json"
+    bulk.write_text(
+        json.dumps([dict(r, layout="normal") for r in BY_NAME.values()]), "utf-8"
+    )
+    deck_path = _write_deck(tmp_path)
+    hd = HydratedDeck.acquire(deck_path, bulk_path=bulk, fetch=_no_fetch)
+    assert hd.by_name.get("Sol Ring") is not None
+    assert json.loads(sidecar_path(deck_path).read_text())["bulk"] == str(bulk)

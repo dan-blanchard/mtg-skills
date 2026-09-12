@@ -106,9 +106,9 @@ def test_render_two_pages_for_ten_items(tmp_path: Path) -> None:
 
 
 def test_no_real_network_in_render() -> None:
-    """Sanity: render path should not call _api_lookup. Patch it to fail loudly."""
-    with patch("mtg_utils.scryfall_lookup._api_lookup") as m:
+    """Sanity: render path should not call fetch_card. Patch it to fail loudly."""
+    with patch("mtg_utils.scryfall_lookup.fetch_card") as m:
         m.side_effect = AssertionError("render path must not hit Scryfall")
-        # If render() touches _api_lookup the patch fires.
+        # If render() touches fetch_card the patch fires.
         h = hydrate({"name": "X", "type_line": "Sorcery"})
         assert h["name"] == "X"

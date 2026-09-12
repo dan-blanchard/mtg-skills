@@ -207,9 +207,9 @@ def lookup_rulings_batch(
     if bulk_path is not None:
         # Import locally to keep the module import graph narrow for
         # consumers (e.g., the SKILL.md smoke tests) that never batch.
-        from mtg_utils.scryfall_lookup import _load_bulk_index
+        from mtg_utils.card_pool import CardPool
 
-        bulk_index = _load_bulk_index(bulk_path)
+        bulk_index = CardPool.load(bulk_path).by_name
         rulings_index = load_rulings_index(bulk_path)
     return [
         lookup_rulings(

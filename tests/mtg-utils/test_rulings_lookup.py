@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -236,7 +237,10 @@ class TestLookupRulings:
                 "mtg_utils.rulings_lookup.lookup_single",
                 side_effect=_fake_lookup_single,
             ),
-            patch("mtg_utils.scryfall_lookup._load_bulk_index", lambda _p: {}),
+            patch(
+                "mtg_utils.card_pool.CardPool.load",
+                lambda _p: SimpleNamespace(by_name={}),
+            ),
             patch(
                 "mtg_utils.rulings_lookup.load_rulings_index",
                 return_value=rulings_index,
@@ -271,10 +275,10 @@ class TestLookupRulings:
         def _fake_load(_path):
             nonlocal load_count
             load_count += 1
-            return {"sol ring": _FAKE_CARD}
+            return SimpleNamespace(by_name={"sol ring": _FAKE_CARD})
 
         with (
-            patch("mtg_utils.scryfall_lookup._load_bulk_index", _fake_load),
+            patch("mtg_utils.card_pool.CardPool.load", _fake_load),
             patch(
                 "mtg_utils.rulings_lookup._new_session",
                 return_value=_mock_session(),
@@ -362,7 +366,7 @@ class TestCLI:
     def test_cli_nonexistent_bulk_data_fails_clean(self, tmp_path):
         """task #93: a nonexistent ``--bulk-data`` path used to raise a raw
         ``FileNotFoundError`` out of ``lookup_rulings_batch``'s eager
-        ``scryfall_lookup._load_bulk_index`` call (task #89 repro). Click's
+        ``CardPool.load`` call (task #89 repro). Click's
         ``exists=True`` now rejects it before that call ever runs — same
         pattern every other bulk-data CLI in the repo already uses
         (``card_search``, ``price_check``, ``combo_search``, ...)."""

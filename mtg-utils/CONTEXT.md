@@ -160,3 +160,32 @@ the 40-life Commander pod and scaled from there.
 _Avoid_: "the game the deck plays" as loose prose (that is this term), "format" for
 this (a format has several games — paper Historic Brawl at a 30-life table and Arena
 Historic Brawl at 25 one-on-one are one format, two games).
+
+### Deck acquisition
+
+**Card pool**:
+The one owner of the card-data bulk and every index over it (`card_pool.CardPool`,
+ADR-0046): the name index (one policy — cheapest priced game-layout printing,
+text-bearing preferred, tokens never), the id index that still reaches tokens, the
+per-format Arena rarity index, the unreleased-oracle set, the Arena alias map, the
+printing indexes and the folded-object resolver. Loaded once per process
+(`CardPool.load`), indexes built on first use. Every deck-domain bulk reader reads
+through it; none walks the bulk itself.
+_Avoid_: "bulk index" (there are seven indexes; the pool is the value that owns them),
+"the bulk" for this (the bulk is the file; the pool is what the code asks).
+
+**Hydrated sidecar**:
+The memoized join `HydratedDeck.acquire` writes beside a deck JSON
+(`deck.json` → `deck.hydrated.json`): full adapter records for every distinct name in
+all four zones, keyed inside the file by the deck's content hash, the bulk's identity
+and the payload version, so a stale one is unreadable by construction. Visible on
+purpose — an agent may Grep it — but never passed to a CLI; the deck path is.
+_Avoid_: "hydrated cache" / "cache_path" (the retired SHA-named file the agent had to
+thread and re-thread), "the hydrated JSON" as a CLI argument (no CLI takes one).
+
+**Deck-acquisition seam**:
+The one place a deck on disk becomes a `HydratedDeck`: `HydratedDeck.acquire`, entered
+from every deck CLI through `deck_cli.acquire_for_cli` (the shared `--bulk-data` option,
+a `NoBulkError` turned into an actionable exit, dropped names warned once). A CLI that
+works on names alone (combo-search, export-deck) enters with records optional.
+_Avoid_: "the preamble" (what the twelve CLIs used to re-plumb), "from_paths" (retired).

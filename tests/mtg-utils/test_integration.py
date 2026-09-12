@@ -2,9 +2,10 @@
 
 from unittest.mock import MagicMock, patch
 
+from mtg_utils.card_pool import CardPool
 from mtg_utils.edhrec_lookup import edhrec_lookup
 from mtg_utils.parse_deck import parse_deck
-from mtg_utils.scryfall_lookup import _load_bulk_index, lookup_single
+from mtg_utils.scryfall_lookup import lookup_single
 
 
 class TestFullPipeline:
@@ -17,7 +18,7 @@ class TestFullPipeline:
             "quantity": 1,
         }
 
-        bulk_index = _load_bulk_index(sample_bulk_data)
+        bulk_index = CardPool.load(sample_bulk_data).by_name
 
         # Look up commander
         commander = lookup_single(deck["commanders"][0]["name"], bulk_index=bulk_index)
@@ -39,7 +40,7 @@ class TestFullPipeline:
     def test_commander_color_identity(self, moxfield_deck, sample_bulk_data):
         """Verify we can check color identity compliance."""
         deck = parse_deck(moxfield_deck)
-        bulk_index = _load_bulk_index(sample_bulk_data)
+        bulk_index = CardPool.load(sample_bulk_data).by_name
 
         commander = lookup_single(deck["commanders"][0]["name"], bulk_index=bulk_index)
         commander_identity = set(commander["color_identity"])  # {B, G, R}
@@ -55,7 +56,7 @@ class TestFullPipeline:
 
     def test_game_changer_counting(self, sample_bulk_data):
         """Verify we can count Game Changers for bracket compliance."""
-        bulk_index = _load_bulk_index(sample_bulk_data)
+        bulk_index = CardPool.load(sample_bulk_data).by_name
 
         game_changers = [
             name

@@ -8,14 +8,13 @@ from pathlib import Path
 
 import click
 
-from mtg_utils._name_index import NameIndex, build_name_index
+from mtg_utils._name_index import NameIndex
 from mtg_utils._sidecar import atomic_write_json, sha_keyed_path
-from mtg_utils.bulk_loader import load_bulk_cards
 from mtg_utils.card_classify import (
-    SKIP_LAYOUTS,
     color_identity_subset,
     get_oracle_text,
 )
+from mtg_utils.card_pool import CardPool
 from mtg_utils.deck import collect_card_entries
 from mtg_utils.formats import FORMATS, get_format
 
@@ -87,26 +86,6 @@ def _build_owned_index(parsed_deck: dict, min_quantity: int) -> dict[str, int]:
         min_quantity=min_quantity,
     )
     return {key: qty for key, (_name, qty) in entries.items()}
-
-
-def _load_bulk_index(bulk_path: Path) -> NameIndex:
-    """Build a folding name -> card index from Scryfall bulk data.
-
-    Keyed by canonical name, every face (card_faces[], handling MDFC / transform / flip
-    / adventure / meld), and Arena printed_name / flavor_name aliases — all NFKD-folded
-    via the shared name-index core, so a collection listing a front face ("Bruna, the
-    Fading Light"), an Arena display name, or ASCII spelling still matches. First-seen
-    wins among printings (bulk lists the canonical printing first and find-commanders
-    surfaces no prices). Tokens / memorabilia / non-game layouts are skipped. Preserves
-    the full Scryfall record (find-commanders needs edhrec_rank and other fields).
-    """
-    return build_name_index(
-        load_bulk_cards(bulk_path),
-        prefilter=lambda card: (
-            card.get("layout") not in SKIP_LAYOUTS
-            and card.get("set_type") not in ("token", "memorabilia")
-        ),
-    )
 
 
 def _build_candidate(card: dict, owned_quantity: int) -> dict:
@@ -278,7 +257,7 @@ def main(
     """Find commander-eligible cards in a parsed deck/collection JSON."""
     parsed_deck_content = parsed_deck_path.read_text(encoding="utf-8")
     parsed_deck = json.loads(parsed_deck_content)
-    bulk_index = _load_bulk_index(bulk_data)
+    bulk_index = CardPool.load(bulk_data).by_name
     candidates = find_commanders(
         parsed_deck,
         bulk_index,

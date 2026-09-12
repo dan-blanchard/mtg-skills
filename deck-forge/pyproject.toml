@@ -24,6 +24,7 @@ deck-forge-phase-crosscheck = "mtg_utils._deck_forge.phase_crosscheck:main"
 # Reused mtg-utils CLIs deck-forge builds on (see CLAUDE.md / ADR-0004 pattern).
 parse-deck = "mtg_utils.parse_deck:main"
 scryfall-lookup = "mtg_utils.scryfall_lookup:main"
+deck-hydrate = "mtg_utils.deck_hydrate:main"
 card-search = "mtg_utils.card_search:main"
 combo-search = "mtg_utils.combo_search:main"
 combo-discover = "mtg_utils.combo_search:discover_main"

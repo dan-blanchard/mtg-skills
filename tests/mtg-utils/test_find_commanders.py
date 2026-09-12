@@ -6,11 +6,11 @@ from pathlib import Path
 import pytest
 from click.testing import CliRunner
 
+from mtg_utils.card_pool import CardPool
 from mtg_utils.find_commanders import (
     _build_owned_index,
     _has_background_clause,
     _is_partner,
-    _load_bulk_index,
     _partner_with_target,
     find_commanders,
     main,
@@ -545,7 +545,7 @@ class TestNameNormalization:
                 ]
             )
         )
-        index = _load_bulk_index(bulk_path)
+        index = CardPool.load(bulk_path).by_name
         # Both faces and the full name should resolve to the same card object.
         assert index[_normalize_name("Bruna, the Fading Light")] is not None
         assert index[_normalize_name("Brisela, Voice of Nightmares")] is not None
@@ -574,7 +574,7 @@ class TestNameNormalization:
                 ]
             )
         )
-        bulk_index = _load_bulk_index(bulk_path)
+        bulk_index = CardPool.load(bulk_path).by_name
         parsed = {
             "commanders": [],
             "cards": [{"name": "Bruna, the Fading Light", "quantity": 1}],
@@ -599,7 +599,7 @@ class TestNameNormalization:
                 ]
             )
         )
-        bulk_index = _load_bulk_index(bulk_path)
+        bulk_index = CardPool.load(bulk_path).by_name
         parsed = {
             "commanders": [],
             "cards": [{"name": "Lim-Dul's Vault", "quantity": 1}],
@@ -630,7 +630,7 @@ class TestMdfcOracleText:
         assert _is_partner(oracle)
         assert _partner_with_target(oracle) == "Partner Side"
 
-    def test_load_bulk_index_skips_tokens(self, tmp_path: Path):
+    def test_pool_index_skips_tokens(self, tmp_path: Path):
         bulk_path = tmp_path / "bulk.json"
         bulk_path.write_text(
             json.dumps(
@@ -641,7 +641,7 @@ class TestMdfcOracleText:
                 ]
             )
         )
-        index = _load_bulk_index(bulk_path)
+        index = CardPool.load(bulk_path).by_name
         assert "real card" in index
         assert "token card" not in index
         assert "memorabilia card" not in index

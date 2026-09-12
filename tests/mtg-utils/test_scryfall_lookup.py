@@ -6,11 +6,12 @@ from unittest.mock import MagicMock, patch
 
 from click.testing import CliRunner
 
+from mtg_utils.card_pool import CardPool
 from mtg_utils.formats import FORMATS
 from mtg_utils.scryfall_lookup import (
-    _load_bulk_index,
     build_digest,
     build_rarity_index,
+    display_fields,
     lookup_cards,
     lookup_single,
     main,
@@ -59,18 +60,22 @@ class TestLookupSingle:
         # fallback (its docstring exists to stop MDFC pools under-reporting screw).
         result = lookup_single("Malakir Rebirth", bulk_path=sample_bulk_data)
         assert result is not None
-        assert result["power"] is None, "top-level P/T is absent on an MDFC"
+        assert "power" not in result, "top-level P/T is absent on an MDFC"
         faces = result["card_faces"]
         assert faces[0]["power"] == "2"
         assert faces[0]["toughness"] == "3"
         assert faces[0]["mana_cost"] == "{B}"
 
-    def test_noncreature_has_null_power_and_toughness(self, sample_bulk_data):
-        # Present-but-None, not absent: consumers should be able to read the key
-        # unconditionally rather than probing for it.
+    def test_noncreature_has_no_power_or_toughness_keys(self, sample_bulk_data):
+        # ONE record shape (ADR-0046): the bulk's own record, keys absent when the
+        # card has no such field — the same shape the hub joins, never a None-filled
+        # projection. Only the terminal projection (display_fields) None-fills.
         result = lookup_single("Rhystic Study", bulk_path=sample_bulk_data)
-        assert result["power"] is None
-        assert result["toughness"] is None
+        assert "power" not in result
+        assert "toughness" not in result
+        shown = display_fields(result)
+        assert shown["power"] is None
+        assert shown["toughness"] is None
 
     def test_finds_split_card_by_full_name(self, sample_bulk_data):
         result = lookup_single("Fire // Ice", bulk_path=sample_bulk_data)
@@ -305,9 +310,14 @@ class TestRarityField:
         result = lookup_single("Sol Ring", bulk_path=sample_bulk_data)
         assert result["id"] == "ddd-sol-ring"
 
-    def test_lookup_includes_rarity(self, sample_bulk_data):
-        result = lookup_single("Sol Ring", bulk_path=sample_bulk_data)
-        assert "rarity" in result
+    def test_lookup_keeps_rarity(self, tmp_path):
+        bulk_path = tmp_path / "bulk.json"
+        bulk_path.write_text(
+            json.dumps([{"name": "Sol Ring", "rarity": "uncommon", "prices": {}}])
+        )
+        result = lookup_single("Sol Ring", bulk_path=bulk_path)
+        assert result["rarity"] == "uncommon"
+        assert "rarity" in display_fields(result)
 
 
 class TestBuildRarityIndex:
@@ -493,7 +503,7 @@ class TestBulkIndexCheapestPrinting:
         ]
         bulk_path = tmp_path / "bulk.json"
         bulk_path.write_text(json.dumps(cards))
-        index = _load_bulk_index(bulk_path)
+        index = CardPool.load(bulk_path).by_name
         assert float(index["steam vents"]["prices"]["usd"]) == 13.00
 
     def test_prefers_priced_over_null(self, tmp_path):
@@ -511,7 +521,7 @@ class TestBulkIndexCheapestPrinting:
         ]
         bulk_path = tmp_path / "bulk.json"
         bulk_path.write_text(json.dumps(cards))
-        index = _load_bulk_index(bulk_path)
+        index = CardPool.load(bulk_path).by_name
         assert float(index["sol ring"]["prices"]["usd"]) == 1.50
 
     def test_skips_tokens(self, tmp_path):
@@ -530,7 +540,7 @@ class TestBulkIndexCheapestPrinting:
         ]
         bulk_path = tmp_path / "bulk.json"
         bulk_path.write_text(json.dumps(cards))
-        index = _load_bulk_index(bulk_path)
+        index = CardPool.load(bulk_path).by_name
         assert "soldier" not in index
         assert "real card" in index
 
@@ -550,7 +560,7 @@ class TestBulkIndexCheapestPrinting:
         ]
         bulk_path = tmp_path / "bulk.json"
         bulk_path.write_text(json.dumps(cards))
-        index = _load_bulk_index(bulk_path)
+        index = CardPool.load(bulk_path).by_name
         assert index["bind"]["name"] == "Bind"
         assert index["bind // liberate"]["name"] == "Bind // Liberate"
 
@@ -565,7 +575,7 @@ class TestBulkIndexCheapestPrinting:
         ]
         bulk_path = tmp_path / "bulk.json"
         bulk_path.write_text(json.dumps(cards))
-        index = _load_bulk_index(bulk_path)
+        index = CardPool.load(bulk_path).by_name
         assert index["fire"]["name"] == "Fire // Ice"
         assert index["fire // ice"]["name"] == "Fire // Ice"
 

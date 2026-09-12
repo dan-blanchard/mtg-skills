@@ -9,28 +9,72 @@ unconstructable: it carries the deck and its resolved records behind one interfa
 the analysis functions take a single ``HydratedDeck``.
 
 Construction funnels through three adapters into one private ``__init__``:
+  - ``acquire(deck_path, ...)`` — the deck-acquisition seam (ADR-0046): a deck JSON on
+    disk becomes a HydratedDeck, joined against the ``CardPool`` and memoized in a
+    sidecar beside the deck (``deck.json`` -> ``deck.hydrated.json``). Every deck CLI
+    enters here.
   - ``from_session(session, by_name)`` — deck-forge, in-process; build one per request.
-  - ``from_paths(deck_path, hydrated_path)`` — CLI; the one untrusted-JSON boundary.
   - ``from_parsed(deck, by_name=..., *, records=...)`` — the shared low-level seam.
 
 Conventions (ADR-0012):
   - DROP: an un-hydratable name is absent from ``.records`` / ``.expanded()`` (never
-    ``None``); the lone ``None`` is ``.by_name.get(name)`` on a miss.
+    ``None``); the lone ``None`` is ``.by_name.get(name)`` on a miss, and ``.missing``
+    lists them.
   - Degraded mode is the typed ``.has_records`` flag, never ``bool(self)``.
-  - The desync RAISE fires only where untrusted ``records`` enter (from_paths /
-    ``from_parsed(records=...)``).
+  - The desync RAISE fires only where untrusted ``records`` enter
+    (``from_parsed(records=...)``, which the sidecar read goes through).
+  - One record shape (ADR-0046): a record is the bulk's own adapter record, keys absent
+    when the card has no such field — never a None-filled projection.
 """
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
-from collections.abc import Iterator, Mapping
+from collections.abc import Callable, Iterator, Mapping
 from pathlib import Path
 from typing import Protocol
 
+from mtg_utils._sidecar import atomic_write_json
 from mtg_utils.card_classify import build_card_lookup
+from mtg_utils.card_pool import CardPool, NoBulkError
 from mtg_utils.formats import Format
+
+# Bump when the sidecar payload shape (or the record shape it stores) changes, so an
+# old sidecar is rebuilt instead of read. v1: full adapter records, all four zones.
+HYDRATED_VERSION = 1
+HYDRATED_SUFFIX = ".hydrated.json"
+
+
+def sidecar_path(deck_path: str | os.PathLike) -> Path:
+    """Where ``acquire`` memoizes a deck's join: ``<dir>/<stem>.hydrated.json`` beside
+    the deck (``deck.json`` -> ``deck.hydrated.json``). Visible on purpose — an agent
+    can Grep it for an oracle pattern."""
+    path = Path(deck_path)
+    return path.with_name(path.stem + HYDRATED_SUFFIX)
+
+
+def _hydration_key(deck_content: str, pool_identity: str) -> str:
+    """The sidecar's validity key: the deck's exact content, the bulk's identity and
+    the payload version. Any of the three changing invalidates the sidecar, so a
+    stale join is unreadable by construction (no "switch to the new cache_path")."""
+    hasher = hashlib.sha256()
+    hasher.update(deck_content.encode())
+    hasher.update(f"|bulk:{pool_identity}|v{HYDRATED_VERSION}".encode())
+    return hasher.hexdigest()[:16]
+
+
+def _read_sidecar(path: Path, key: str) -> list[dict | None] | None:
+    """The sidecar's records if it exists, parses, and carries *key*; else None."""
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    if not isinstance(payload, dict) or payload.get("key") != key:
+        return None
+    records = payload.get("records")
+    return records if isinstance(records, list) else None
 
 
 class _DeckSource(Protocol):
@@ -121,6 +165,74 @@ class HydratedDeck:
         return cls(deck, resolved)
 
     @classmethod
+    def acquire(
+        cls,
+        deck_path: str | os.PathLike,
+        *,
+        pool: CardPool | None = None,
+        bulk_path: str | os.PathLike | None = None,
+        require_records: bool = True,
+        fetch: Callable[[str], dict | None] | None = None,
+    ) -> HydratedDeck:
+        """The deck-acquisition seam (ADR-0046): read the deck JSON at *deck_path* and
+        join every zone (commanders / cards / sideboard / companion) against the
+        card pool, memoized in the sidecar beside the deck (:func:`sidecar_path`).
+
+        - A sidecar whose key matches (same deck content, same bulk, same payload
+          version) is read instead of the bulk — no bulk load at all.
+        - On a miss the pool is *pool*, else loaded from *bulk_path* (``None``:
+          auto-discovered). A name the pool cannot resolve is tried once against
+          *fetch* (default: Scryfall's per-card endpoint, the ADR-0005 cache-miss
+          path; pass ``lambda _: None`` to stay offline), and the sidecar is written.
+        - No bulk and no valid sidecar: :class:`NoBulkError`, unless
+          ``require_records=False`` (a CLI that works on names alone, e.g.
+          combo-search / export-deck), which yields the degraded state.
+        """
+        path = Path(deck_path)
+        content = path.read_text(encoding="utf-8")
+        deck = json.loads(content)
+        sidecar = sidecar_path(path)
+
+        if pool is None:
+            try:
+                pool = CardPool.load(Path(bulk_path) if bulk_path else None)
+            except NoBulkError:
+                # No bulk: a still-valid sidecar can't be keyed (no identity), but an
+                # existing one is better than nothing only when records are optional.
+                if require_records:
+                    raise
+                return cls.from_parsed(deck)
+
+        key = _hydration_key(content, pool.identity)
+        cached = _read_sidecar(sidecar, key)
+        if cached is not None:
+            return cls.from_parsed(deck, records=cached)
+
+        if fetch is None:
+            from mtg_utils.scryfall_lookup import fetch_card
+
+            fetch = fetch_card
+        records: list[dict] = []
+        for name in _distinct_names(deck):
+            record = pool.lookup(name)
+            if record is None:
+                record = fetch(name)
+            if record is not None:
+                records.append(record)
+        hd = cls(deck, records)
+        atomic_write_json(
+            sidecar,
+            {
+                "version": HYDRATED_VERSION,
+                "key": key,
+                "bulk": str(pool.path) if pool.path is not None else None,
+                "missing": hd.missing,
+                "records": records,
+            },
+        )
+        return hd
+
+    @classmethod
     def from_session(
         cls, session: _DeckSource, by_name: Mapping[str, dict]
     ) -> HydratedDeck:
@@ -165,6 +277,13 @@ class HydratedDeck:
         """Alias-aware name->record index (canonical / DFC front-face / printed_name /
         flavor_name), built once. ``.get(name)`` is None for a miss."""
         return self._by_name
+
+    @property
+    def missing(self) -> list[str]:
+        """Distinct deck names (all zones, deck order) with no joined record — the
+        DROP convention's ledger, so a CLI can warn about a typo or an unknown card
+        instead of silently under-counting."""
+        return [n for n in _distinct_names(self._deck) if n not in self._by_name]
 
     def expanded(self, zones: tuple[str, ...] = ("cards", "sideboard")) -> list[dict]:
         """Records repeated by quantity for copy-aware counting (slot budgets). Walks
