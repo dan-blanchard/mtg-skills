@@ -44,22 +44,6 @@ from mtg_utils._card_ir.text_idioms import (
     _BECOMES_TYPE_RE,
     _TOKEN_SUBTYPE_OWN_REF,
 )
-from mtg_utils._card_ir.tree_synthesis import (
-    SynthesizedNode,
-    _iter_untap_targets,
-    attack_raid_condition,
-    has_attack_trigger,
-    has_gain_life_amplifier,
-    has_high_life_total_payoff,
-    has_life_gained_this_turn,
-    has_life_gained_trigger,
-    has_selfloss_engine,
-    has_structural_spellcast,
-    has_structural_tutor,
-    has_trigger_draw_bleed,
-    structural_land_fetch_split,
-    structural_token_maker_type_subjects,
-)
 from mtg_utils._deck_forge._subtypes import CREATURE_SUBTYPES
 from mtg_utils._deck_forge.bridge_ledger import bridge_fires
 from mtg_utils._deck_forge.lanes._shared import (
@@ -82,6 +66,22 @@ from mtg_utils._deck_forge.text_reads import (
     _ARTIFACTS_MATTER_MIRROR,
     _ENCHANTMENTS_MATTER_MIRROR,
     _TOKEN_SUBJECT_WORDS,
+)
+from mtg_utils._deck_forge.tree_synthesis import (
+    SynthesizedNode,
+    _iter_untap_targets,
+    attack_raid_condition,
+    has_attack_trigger,
+    has_gain_life_amplifier,
+    has_high_life_total_payoff,
+    has_life_gained_this_turn,
+    has_life_gained_trigger,
+    has_selfloss_engine,
+    has_structural_spellcast,
+    has_structural_tutor,
+    has_trigger_draw_bleed,
+    structural_land_fetch_split,
+    structural_token_maker_type_subjects,
 )
 
 

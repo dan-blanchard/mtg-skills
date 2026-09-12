@@ -1716,7 +1716,7 @@ def _lifeloss_makers(tree: ConceptTree) -> list[Signal]:
     if bridge_fires("folded_object_text_only_each_player_loses", tree):
         fire("each", "")
     # task #95 — the ``synth_lifeloss_makers_opponents`` bucket-B marker
-    # (see :func:`~mtg_utils._card_ir.tree_synthesis.
+    # (see :func:`~mtg_utils._deck_forge.tree_synthesis.
     # _arm_known_token_lifeloss_opponents`'s own docstring): the Wicked
     # predefined-token cycle's "each opponent loses 1 life" (when the Aura
     # leaves the battlefield) rides a zero-unit text-only tree with no

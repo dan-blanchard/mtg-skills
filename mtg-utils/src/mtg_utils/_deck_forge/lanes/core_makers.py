@@ -43,13 +43,6 @@ from mtg_utils._card_ir.mirror.runtime import (
     MISSING,
     TypedMirrorNode,
 )
-from mtg_utils._card_ir.tree_synthesis import (
-    _double_triggers_creature_dying,
-    _is_creature_death_subject,
-    _is_death_payoff_effect,
-    _mirror_token_maker_type_subjects,
-    creature_death_condition,
-)
 from mtg_utils._deck_forge import signal_keys
 from mtg_utils._deck_forge._subtypes import CREATURE_SUBTYPES
 from mtg_utils._deck_forge.bridge_ledger import (
@@ -75,6 +68,13 @@ from mtg_utils._deck_forge.signal_base import (
 from mtg_utils._deck_forge.text_reads import (
     _TOKEN_SUBJECT_WORDS,
     _detect_token_maker,
+)
+from mtg_utils._deck_forge.tree_synthesis import (
+    _double_triggers_creature_dying,
+    _is_creature_death_subject,
+    _is_death_payoff_effect,
+    _mirror_token_maker_type_subjects,
+    creature_death_condition,
 )
 
 
@@ -889,7 +889,7 @@ def _plus_one_makers(tree: ConceptTree) -> list[Signal]:
     literally names "+1/+1 counter". Counter DOUBLERS are a separate lane.
 
     task #85 adds the ``synth_plus_one_makers`` bucket-B fallback (see
-    :func:`mtg_utils._card_ir.tree_synthesis._arm_plus_one_makers`'s own
+    :func:`mtg_utils._deck_forge.tree_synthesis._arm_plus_one_makers`'s own
     docstring) — the ETB-replacement / dropped-computed-amount / granted-
     loyalty-ability P1P1 placement residue phase's static parser or effect
     walk doesn't reach at all. Scope "you".

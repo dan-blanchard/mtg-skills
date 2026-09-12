@@ -43,7 +43,6 @@ from mtg_utils._card_ir.mirror.runtime import (
     TypedMirrorNode,
 )
 from mtg_utils._card_ir.text_idioms import _SINGLE_PERMANENT_GRANT_PREDS
-from mtg_utils._card_ir.tree_synthesis import has_structural_extra_land_drop
 from mtg_utils._deck_forge._sweep_detectors import DISCARD_OUTLET_REGEX
 from mtg_utils._deck_forge.bridge_ledger import bridge_fires
 from mtg_utils._deck_forge.lanes._shared import (
@@ -66,6 +65,7 @@ from mtg_utils._deck_forge.signal_base import (
     Signal,
     _clauses,
 )
+from mtg_utils._deck_forge.tree_synthesis import has_structural_extra_land_drop
 
 # Board-wipe subject types (CR 115.10) — mirrors the deleted ``_signals_ir``'s
 # identically-named ``_MASS_REMOVAL_TYPES``. Land is deliberately ABSENT: "destroy all

@@ -1,6 +1,6 @@
 """Combat: attack, evasion, exert, station, base P/T, and tap/untap synthesis arms.
 
-Part of the :mod:`mtg_utils._card_ir.tree_synthesis` package; see that
+Part of the :mod:`mtg_utils._deck_forge.tree_synthesis` package; see that
 package's ``__init__.py`` for the stage-level overview and the full
 re-exported public surface.
 """
@@ -32,13 +32,13 @@ from mtg_utils._card_ir.supplement import (
     _BASE_POWER_REF,
     _anchored,
 )
-from mtg_utils._card_ir.tree_synthesis._shared import (
-    _REMINDER,
-    _synthetic_concept,
-)
 from mtg_utils._deck_forge._sweep_detectors import PUMP_MATTERS_REGEX
 from mtg_utils._deck_forge.signal_base import clauses
 from mtg_utils._deck_forge.text_reads import _TOUGHNESS_VALUE_MIRROR
+from mtg_utils._deck_forge.tree_synthesis._shared import (
+    _REMINDER,
+    _synthetic_concept,
+)
 
 # ── attack_matters structural reads (ADR-0036 fold — shared lane/gate source) ──
 # The Tier-1 ``_attack_tapped_matters`` lane fires ``attack_matters`` on these typed

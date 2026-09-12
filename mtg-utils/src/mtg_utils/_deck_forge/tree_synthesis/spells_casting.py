@@ -1,6 +1,6 @@
 """Spellcasting bucket-B synthesis arms.
 
-Part of the :mod:`mtg_utils._card_ir.tree_synthesis` package; see that
+Part of the :mod:`mtg_utils._deck_forge.tree_synthesis` package; see that
 package's ``__init__.py`` for the stage-level overview and the full
 re-exported public surface.
 """
@@ -39,16 +39,18 @@ from mtg_utils._card_ir.text_idioms import (
     _BECOMES_TARGET_SRC_OPP,
     _EXHAUST_TRIG,
 )
-from mtg_utils._card_ir.tree_synthesis._shared import (
-    _REMINDER,
-    _synthetic_concept,
-)
-from mtg_utils._card_ir.tree_synthesis.value_engines import _subtree_has_graveyard_zone
 from mtg_utils._deck_forge.signal_base import clauses
 from mtg_utils._deck_forge.text_reads import (
     _CONVOKE_RAW,
     _EVERGREEN_CK,
     _SAME_TRUE_KW_RE,
+)
+from mtg_utils._deck_forge.tree_synthesis._shared import (
+    _REMINDER,
+    _synthetic_concept,
+)
+from mtg_utils._deck_forge.tree_synthesis.value_engines import (
+    _subtree_has_graveyard_zone,
 )
 
 # ── spellcast_matters structural reads (ADR-0036 fold — shared lane/gate source) ──

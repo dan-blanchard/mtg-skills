@@ -1,5 +1,10 @@
 """ADR-0037 Stage-3b — the tree-synthesis Layer-2 stage (bucket-B signal folds).
 
+Lives in ``_deck_forge`` (ADR-0047): it is a SIGNAL-PATH stage — reference arms that
+read the lanes' own text vocabulary (``text_reads``, the sweep regexes, the subtype
+table) — never run for the compat ``Card``, so it sits beside the lanes that consume
+it and the substrate package ``_card_ir`` keeps its no-back-edge rule by construction.
+
 Folding a lane mirror to a Tier-1 structural read (ADR-0036) leaves a **bucket-B**
 tail: a genuine phase-parse gap where the clause survives only in the card's oracle
 text (phase emits NO typed node the signal lane could read). Neither existing
@@ -51,12 +56,12 @@ from __future__ import annotations
 
 from mtg_utils._card_ir._substrate_purity import SynthesizedNode
 from mtg_utils._card_ir.crosswalk import has_filter_property
-from mtg_utils._card_ir.tree_synthesis._registry import (
+from mtg_utils._deck_forge.tree_synthesis._registry import (
     SYNTHESIS_ARM_IDS,
     apply_tree_synthesis,
     synthesize_nodes,
 )
-from mtg_utils._card_ir.tree_synthesis.combat import (
+from mtg_utils._deck_forge.tree_synthesis.combat import (
     ATTACK_TRIGGER_EVENTS,
     RAID_CONDITION_TAGS,
     _arm_base_power_ref_conjunctive,
@@ -81,7 +86,7 @@ from mtg_utils._card_ir.tree_synthesis.combat import (
     has_structural_station_reference,
     has_structural_toughness_combat,
 )
-from mtg_utils._card_ir.tree_synthesis.control_stax import (
+from mtg_utils._deck_forge.tree_synthesis.control_stax import (
     _arm_cant_block_grant,
     _arm_color_hoser,
     _arm_dont_own,
@@ -104,7 +109,7 @@ from mtg_utils._card_ir.tree_synthesis.control_stax import (
     has_structural_symmetric_stax,
     has_structural_targeting_matters,
 )
-from mtg_utils._card_ir.tree_synthesis.counters_tokens import (
+from mtg_utils._deck_forge.tree_synthesis.counters_tokens import (
     _arm_counter_distribute,
     _arm_keyword_counter,
     _arm_poison_matters,
@@ -119,7 +124,7 @@ from mtg_utils._card_ir.tree_synthesis.counters_tokens import (
     has_structural_self_counter_grow,
     structural_token_maker_type_subjects,
 )
-from mtg_utils._card_ir.tree_synthesis.death_life import (
+from mtg_utils._deck_forge.tree_synthesis.death_life import (
     _arm_life_payment_insurance,
     _double_triggers_creature_dying,
     _has_structural_lifegain,
@@ -137,7 +142,7 @@ from mtg_utils._card_ir.tree_synthesis.death_life import (
     has_trigger_draw_bleed,
     mass_death_amount,
 )
-from mtg_utils._card_ir.tree_synthesis.mana_ramp_lands import (
+from mtg_utils._deck_forge.tree_synthesis.mana_ramp_lands import (
     _arm_extra_land_drop,
     _arm_historic_matters,
     _arm_land_fetch_ramp,
@@ -157,7 +162,7 @@ from mtg_utils._card_ir.tree_synthesis.mana_ramp_lands import (
     structural_untap_scope,
     structural_untap_subject,
 )
-from mtg_utils._card_ir.tree_synthesis.mechanics_misc import (
+from mtg_utils._deck_forge.tree_synthesis.mechanics_misc import (
     _arm_celebration_matters,
     _arm_clue_matters,
     _arm_coven_matters,
@@ -173,7 +178,7 @@ from mtg_utils._card_ir.tree_synthesis.mechanics_misc import (
     has_structural_outlaw,
     has_structural_suspend_matters,
 )
-from mtg_utils._card_ir.tree_synthesis.spells_casting import (
+from mtg_utils._deck_forge.tree_synthesis.spells_casting import (
     _SPELLCAST_TRIGGER_RX,
     CAST_TRIGGER_EVENTS,
     _arm_ability_copy,
@@ -199,7 +204,7 @@ from mtg_utils._card_ir.tree_synthesis.spells_casting import (
     has_structural_opponent_cast_matters,
     has_structural_spellcast,
 )
-from mtg_utils._card_ir.tree_synthesis.types_tribal import (
+from mtg_utils._deck_forge.tree_synthesis.types_tribal import (
     _ANTHEM_PUMP_MODS,
     _arm_animate_artifact,
     _arm_color_change,
@@ -223,7 +228,7 @@ from mtg_utils._card_ir.tree_synthesis.types_tribal import (
     structural_keyword_subjects,
     structural_type_subjects,
 )
-from mtg_utils._card_ir.tree_synthesis.value_engines import (
+from mtg_utils._deck_forge.tree_synthesis.value_engines import (
     _EACH_DRAW_RECIPIENTS,
     ETB_TRIGGER_EVENTS,
     PER_TURN_CONSTRAINT_TAGS,

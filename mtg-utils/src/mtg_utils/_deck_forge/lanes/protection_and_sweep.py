@@ -36,7 +36,17 @@ from mtg_utils._card_ir.text_idioms import (
     _SINGLE_PERMANENT_GRANT_PREDS,
     _counter_kind_token,
 )
-from mtg_utils._card_ir.tree_synthesis import (
+from mtg_utils._deck_forge import signal_keys
+from mtg_utils._deck_forge.bridge_ledger import bridge_fires
+from mtg_utils._deck_forge.lanes._shared import _GRANT_ABILITY_MOD_TAGS
+from mtg_utils._deck_forge.signal_base import Signal
+from mtg_utils._deck_forge.text_reads import (
+    _COUNTER_KIND_KEYS,
+    _EVERGREEN_CK,
+    _NAMED_COUNTER_KINDS,
+    _SELF_PROTECTION_GRANT_KW,
+)
+from mtg_utils._deck_forge.tree_synthesis import (
     _ANTHEM_PUMP_MODS,
     has_structural_arcane,
     has_structural_cant_block_grant,
@@ -52,16 +62,6 @@ from mtg_utils._card_ir.tree_synthesis import (
     has_structural_station_charge,
     has_structural_station_reference,
     has_structural_toughness_combat,
-)
-from mtg_utils._deck_forge import signal_keys
-from mtg_utils._deck_forge.bridge_ledger import bridge_fires
-from mtg_utils._deck_forge.lanes._shared import _GRANT_ABILITY_MOD_TAGS
-from mtg_utils._deck_forge.signal_base import Signal
-from mtg_utils._deck_forge.text_reads import (
-    _COUNTER_KIND_KEYS,
-    _EVERGREEN_CK,
-    _NAMED_COUNTER_KINDS,
-    _SELF_PROTECTION_GRANT_KW,
 )
 
 # ── Batch-15 mirror constants + census sets ──────────────────────────────────

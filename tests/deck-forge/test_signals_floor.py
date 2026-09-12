@@ -37,7 +37,6 @@ import pytest
 from mtg_utils._card_ir.crosswalk import build_concept_tree
 from mtg_utils._card_ir.mirror import strict_load_card
 from mtg_utils._card_ir.mirror.build import fixtures_dir, load_committed_schema
-from mtg_utils._card_ir.tree_synthesis import has_structural_kill_engine
 from mtg_utils._deck_forge import _ir_lookup as il
 from mtg_utils._deck_forge._subtypes import CREATURE_SUBTYPES
 from mtg_utils._deck_forge.lanes import (
@@ -45,6 +44,7 @@ from mtg_utils._deck_forge.lanes import (
     _is_big_mana_tree,
 )
 from mtg_utils._deck_forge.signals import extract_signals
+from mtg_utils._deck_forge.tree_synthesis import has_structural_kill_engine
 from mtg_utils.testkit import test_signals
 
 FIXTURE = "crosswalk_fixture_cards.json"

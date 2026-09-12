@@ -1,6 +1,6 @@
 """Value-engine (cloning, recursion, theft, kill, big-hand, power-tap) synthesis arms.
 
-Part of the :mod:`mtg_utils._card_ir.tree_synthesis` package; see that
+Part of the :mod:`mtg_utils._deck_forge.tree_synthesis` package; see that
 package's ``__init__.py`` for the stage-level overview and the full
 re-exported public surface.
 """
@@ -47,15 +47,6 @@ from mtg_utils._card_ir.text_idioms import (
     _SOULBOND_REF,
     _UNDYING_PERSIST_GRANT,
 )
-from mtg_utils._card_ir.tree_synthesis._shared import (
-    _REMINDER,
-    _synthetic_concept,
-)
-from mtg_utils._card_ir.tree_synthesis.death_life import (
-    _is_death_payoff_effect,
-    _is_self_return_effect,
-    _is_shuffle_back_effect,
-)
 from mtg_utils._deck_forge.text_reads import (
     _FIGHT_RAW,
     _MELD_FULLTEXT_RE,
@@ -63,6 +54,15 @@ from mtg_utils._deck_forge.text_reads import (
     _self_dies_value,
     _self_etb_value,
     _self_name_alts,
+)
+from mtg_utils._deck_forge.tree_synthesis._shared import (
+    _REMINDER,
+    _synthetic_concept,
+)
+from mtg_utils._deck_forge.tree_synthesis.death_life import (
+    _is_death_payoff_effect,
+    _is_self_return_effect,
+    _is_shuffle_back_effect,
 )
 
 # ── wants_cloning structural reads (ADR-0036 fold — shared lane/gate source) ──

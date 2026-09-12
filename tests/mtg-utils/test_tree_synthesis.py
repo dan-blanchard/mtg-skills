@@ -49,7 +49,7 @@ from mtg_utils._card_ir.mirror.generated import (
     T_target__Typed,
 )
 from mtg_utils._card_ir.mirror.runtime import MirrorVariant
-from mtg_utils._card_ir.tree_synthesis import (
+from mtg_utils._deck_forge.tree_synthesis import (
     _SPELLCAST_TRIGGER_RX,
     SYNTHESIS_ARM_IDS,
     _arm_ability_copy,
@@ -1104,7 +1104,7 @@ def _type_subjects(name):
     ],
 )
 def test_type_matters_arm_b_structural(name, subjects):
-    from mtg_utils._card_ir.tree_synthesis import (
+    from mtg_utils._deck_forge.tree_synthesis import (
         _arm_type_matters,
         structural_type_subjects,
     )
@@ -1126,7 +1126,7 @@ def test_type_matters_arm_b_structural(name, subjects):
 def test_type_matters_bucket_b_synth(name, subjects):
     """The SUBJECT-carrying synth recovers the tribal subtype phase leaves
     subject-less, gap-gated against Arm B (which carries none of these)."""
-    from mtg_utils._card_ir.tree_synthesis import (
+    from mtg_utils._deck_forge.tree_synthesis import (
         _arm_type_matters,
         structural_type_subjects,
     )
@@ -1152,7 +1152,7 @@ def test_type_matters_shed_overfires(name):
     """The vocab gate sheds a bare card-type noun, a NON_CREATURE_TOKEN artifact
     subtype, and the Vehicle typed-GY-recursion (routed to vehicles_matter, a
     different lane) — no type_matters subject is minted (zero false positives)."""
-    from mtg_utils._card_ir.tree_synthesis import (
+    from mtg_utils._deck_forge.tree_synthesis import (
         _arm_type_matters,
         structural_type_subjects,
     )
@@ -1243,7 +1243,7 @@ def _keyword_pairs(name):
     ],
 )
 def test_keyword_tribe_arm_b_structural(name, subjects):
-    from mtg_utils._card_ir.tree_synthesis import (
+    from mtg_utils._deck_forge.tree_synthesis import (
         _arm_keyword_tribe,
         structural_keyword_subjects,
     )
@@ -1263,7 +1263,7 @@ def test_keyword_tribe_arm_b_structural(name, subjects):
 def test_keyword_tribe_bucket_b_synth(name):
     """The SUBJECT-carrying synth recovers a keyword phase leaves keyword-less (a
     tutor), gap-gated against Arm B (which carries none of these), scope "you"."""
-    from mtg_utils._card_ir.tree_synthesis import (
+    from mtg_utils._deck_forge.tree_synthesis import (
         _arm_keyword_tribe,
         structural_keyword_subjects,
     )
@@ -1282,7 +1282,7 @@ def test_keyword_tribe_any_scope_symmetric_anthem():
     """Inniaz carries BOTH a symmetric-anthem ("creatures with flying") AND a your-tribe
     reference, so the lane emits Flying at scope "any" (the any-scope synth arm) AND
     scope "you" — the two scopes stay distinct through the fold."""
-    from mtg_utils._card_ir.tree_synthesis import _arm_keyword_tribe_any
+    from mtg_utils._deck_forge.tree_synthesis import _arm_keyword_tribe_any
 
     tree = _fixture_tree("Inniaz, the Gale Force")
     node = _arm_keyword_tribe_any(tree)
@@ -1307,7 +1307,7 @@ def test_keyword_tribe_shed_overfires(name):
     """CR 702: a card that merely HAS a keyword, an anti-keyword removal spell, and an
     edict targeting keyworded creatures are NOT keyword-tribe payoffs — no subject is
     minted (the sacrifice carve-out sheds phase's spurious controller-You edict tag)."""
-    from mtg_utils._card_ir.tree_synthesis import (
+    from mtg_utils._deck_forge.tree_synthesis import (
         _arm_keyword_tribe,
         _arm_keyword_tribe_any,
         structural_keyword_subjects,
@@ -1403,7 +1403,7 @@ def test_mass_death_lane_sheds_morbid_conditional(name):
 def test_mass_death_amount_reads_aggregate_and_gates_synth(name):
     # The amount arm fires structurally AND suppresses the synth (the gap gate calls
     # the SAME predicate the lane fires on — no double-count, no drift).
-    from mtg_utils._card_ir.tree_synthesis import mass_death_amount
+    from mtg_utils._deck_forge.tree_synthesis import mass_death_amount
 
     base = _fixture_tree(name)
     assert mass_death_amount(base) is True
@@ -1417,7 +1417,7 @@ def test_mass_death_amount_reads_aggregate_and_gates_synth(name):
 def test_mass_death_amount_excludes_comparison_operand(name):
     # A creatures-died count in a comparison ``lhs`` (morbid CONDITION) is NOT an
     # amount — the boundary that keeps the lane off death_matters cards.
-    from mtg_utils._card_ir.tree_synthesis import mass_death_amount
+    from mtg_utils._deck_forge.tree_synthesis import mass_death_amount
 
     assert mass_death_amount(_fixture_tree(name)) is False
 
@@ -1504,7 +1504,7 @@ def test_untap_engine_bucket_a_structural(name):
 def test_untap_engine_bucket_b_synth(name):
     tree = _fixture_tree(name)
     assert has_structural_untap_engine(tree) is False  # genuine gap
-    from mtg_utils._card_ir.tree_synthesis import _arm_untap_engine
+    from mtg_utils._deck_forge.tree_synthesis import _arm_untap_engine
 
     node = _arm_untap_engine(tree)
     assert node is not None
@@ -1522,7 +1522,7 @@ def test_untap_engine_bucket_b_synth(name):
     ],
 )
 def test_untap_engine_shed_overfires(name):
-    from mtg_utils._card_ir.tree_synthesis import _arm_untap_engine
+    from mtg_utils._deck_forge.tree_synthesis import _arm_untap_engine
 
     tree = _fixture_tree(name)
     assert has_structural_untap_engine(tree) is False
@@ -1605,7 +1605,7 @@ def test_tutor_bucket_a_structural(name):
 def test_tutor_bucket_b_synth(name):
     tree = _fixture_tree(name)
     assert has_structural_tutor(tree) is False  # genuine gap
-    from mtg_utils._card_ir.tree_synthesis import _arm_tutor
+    from mtg_utils._deck_forge.tree_synthesis import _arm_tutor
 
     node = _arm_tutor(tree)
     assert node is not None
@@ -1623,11 +1623,11 @@ def test_tutor_bucket_b_land_fetch_rerouted_to_ramp():
     ``_arm_land_fetch_ramp`` emits the REAL ``ramp`` concept instead --
     the tutor lane no longer fires, the ramp lane does (mirrors
     ``card_classify.is_ramp``; CR 701.23/701.23a, 305.6)."""
-    from mtg_utils._card_ir.tree_synthesis import (
+    from mtg_utils._deck_forge.lanes import _ramp
+    from mtg_utils._deck_forge.tree_synthesis import (
         _arm_land_fetch_ramp,
         _arm_tutor,
     )
-    from mtg_utils._deck_forge.lanes import _ramp
 
     tree = _fixture_tree("Rampant, Growth")
     assert has_structural_tutor(tree) is False  # genuine gap, unchanged
@@ -2409,7 +2409,7 @@ def test_stax_taxes_bucket_b_synth():
     gap the deleted _STAX_TAXES_RESIDUE_RE covered; the synth relocates it."""
     tree = _fixture_tree("Platinum Angel")
     assert has_structural_stax_taxes(tree) is False  # genuine gap
-    from mtg_utils._card_ir.tree_synthesis import _arm_stax_taxes
+    from mtg_utils._deck_forge.tree_synthesis import _arm_stax_taxes
 
     node = _arm_stax_taxes(tree)
     assert node is not None
@@ -2425,7 +2425,7 @@ def test_symmetric_stax_bucket_b_synth():
     _SYMMETRIC_STAX_RESIDUE_RE covered it, the synth relocates it."""
     tree = _fixture_tree("Winter Orb")
     assert has_structural_symmetric_stax(tree) is False  # genuine gap
-    from mtg_utils._card_ir.tree_synthesis import _arm_symmetric_stax
+    from mtg_utils._deck_forge.tree_synthesis import _arm_symmetric_stax
 
     node = _arm_symmetric_stax(tree)
     assert node is not None
@@ -2443,7 +2443,7 @@ def test_symmetric_stax_bucket_b_synth():
     ],
 )
 def test_stax_shed_overfires(name):
-    from mtg_utils._card_ir.tree_synthesis import (
+    from mtg_utils._deck_forge.tree_synthesis import (
         _arm_stax_taxes,
         _arm_symmetric_stax,
     )
@@ -2538,7 +2538,7 @@ def test_superfriends_bucket_b_synth():
     typed carrier — a genuine bucket-B gap the synth idiom recovers."""
     tree = _fixture_tree("Oath of Teferi")
     assert has_structural_superfriends(tree) is False  # genuine gap
-    from mtg_utils._card_ir.tree_synthesis import _arm_superfriends_matters
+    from mtg_utils._deck_forge.tree_synthesis import _arm_superfriends_matters
 
     node = _arm_superfriends_matters(tree)
     assert node is not None
@@ -2559,7 +2559,7 @@ def test_superfriends_bucket_b_synth():
     ],
 )
 def test_superfriends_shed_overfires(name):
-    from mtg_utils._card_ir.tree_synthesis import _arm_superfriends_matters
+    from mtg_utils._deck_forge.tree_synthesis import _arm_superfriends_matters
 
     tree = _fixture_tree(name)
     assert has_structural_superfriends(tree) is False
@@ -2678,7 +2678,7 @@ def test_evasion_self_bucket_a_structural(name):
 def test_evasion_self_bucket_b_synth(name):
     """A genuine can't-be-blocked / granted-keyword / bare-landwalk-line tail
     phase carries no Tier-1 read for — the synth arm fills it."""
-    from mtg_utils._card_ir.tree_synthesis import _arm_evasion_self
+    from mtg_utils._deck_forge.tree_synthesis import _arm_evasion_self
 
     tree = _fixture_tree(name)
     assert _evasion_kwfield_fires(name) is False  # no OWN keyword, genuine gap
@@ -2700,7 +2700,7 @@ def test_evasion_self_bucket_b_synth(name):
     ],
 )
 def test_evasion_self_shed_overfires(name):
-    from mtg_utils._card_ir.tree_synthesis import _arm_evasion_self
+    from mtg_utils._deck_forge.tree_synthesis import _arm_evasion_self
 
     tree = _fixture_tree(name)
     assert _evasion_kwfield_fires(name) is False
@@ -2710,8 +2710,8 @@ def test_evasion_self_shed_overfires(name):
 
 def test_evasion_self_flying_only_does_not_fire():
     """flying is DELIBERATELY not evasion_self (soft evasion, CR 702.9)."""
-    from mtg_utils._card_ir.tree_synthesis import _arm_evasion_self
     from mtg_utils._deck_forge.lanes import _evasion_self
+    from mtg_utils._deck_forge.tree_synthesis import _arm_evasion_self
 
     tree = _gap_tree("Flying")
     assert _arm_evasion_self(tree) is None
@@ -2779,7 +2779,7 @@ def test_theft_makers_bucket_a_structural(name):
     """Five Tier-1 structural arms recover the mirror's population with NO
     synth node needed — ``has_structural_theft_makers`` is the lane's OWN
     gate, so the two can never diverge (GAP-GATE-ALIGNMENT)."""
-    from mtg_utils._card_ir.tree_synthesis import _arm_theft_makers
+    from mtg_utils._deck_forge.tree_synthesis import _arm_theft_makers
 
     tree = _fixture_tree(name)
     assert has_structural_theft_makers(tree) is True
@@ -2801,7 +2801,7 @@ def test_theft_makers_bucket_a_structural(name):
 def test_theft_makers_bucket_b_synth(name):
     """A genuine phase-parse gap (no typed steal/heist node reachable) the
     synth arm fills — the whole point of the ADR-0037 enabler."""
-    from mtg_utils._card_ir.tree_synthesis import _arm_theft_makers
+    from mtg_utils._deck_forge.tree_synthesis import _arm_theft_makers
 
     tree = _fixture_tree(name)
     assert has_structural_theft_makers(tree) is False  # genuine gap
@@ -2829,7 +2829,7 @@ def test_theft_makers_shed_overfires(name):
     """Cards the deleted mirror word-matched but are NOT genuine
     steal/mill/play-from-opponents members — dropping them is the fold's
     adjudicated IMPROVEMENT (ADR-0036), not a regression."""
-    from mtg_utils._card_ir.tree_synthesis import _arm_theft_makers
+    from mtg_utils._deck_forge.tree_synthesis import _arm_theft_makers
 
     tree = _fixture_tree(name)
     assert has_structural_theft_makers(tree) is False
@@ -2888,7 +2888,7 @@ def test_coven_matters_bucket_b_synth():
     """coven is an ABILITY WORD (CR 207.2c) — phase carries no typed node
     for it (a generic QuantityCheck/ObjectCountDistinct shared by unrelated
     distinct-count cards), so this arm is the lane's SOLE source."""
-    from mtg_utils._card_ir.tree_synthesis import _arm_coven_matters
+    from mtg_utils._deck_forge.tree_synthesis import _arm_coven_matters
 
     tree = _fixture_tree("Leinore, Autumn Sovereign")
     node = _arm_coven_matters(tree)
@@ -2898,7 +2898,7 @@ def test_coven_matters_bucket_b_synth():
 
 
 def test_coven_matters_no_fire_on_unrelated_card():
-    from mtg_utils._card_ir.tree_synthesis import _arm_coven_matters
+    from mtg_utils._deck_forge.tree_synthesis import _arm_coven_matters
 
     tree = _fixture_tree("Chaos Wand")
     assert _arm_coven_matters(tree) is None
@@ -2948,7 +2948,7 @@ def _celebration_lane_fires(name: str) -> bool:
 def test_celebration_matters_bucket_b_synth():
     """celebration is an ABILITY WORD (CR 207.2c) — no structured rules
     object for phase to parse, so this arm is the lane's SOLE source."""
-    from mtg_utils._card_ir.tree_synthesis import _arm_celebration_matters
+    from mtg_utils._deck_forge.tree_synthesis import _arm_celebration_matters
 
     tree = _fixture_tree("Ash, Party Crasher")
     node = _arm_celebration_matters(tree)
@@ -2958,7 +2958,7 @@ def test_celebration_matters_bucket_b_synth():
 
 
 def test_celebration_matters_no_fire_on_unrelated_card():
-    from mtg_utils._card_ir.tree_synthesis import _arm_celebration_matters
+    from mtg_utils._deck_forge.tree_synthesis import _arm_celebration_matters
 
     tree = _fixture_tree("Chaos Wand")
     assert _arm_celebration_matters(tree) is None
@@ -3015,7 +3015,7 @@ def _outlaw_lane_fires(name: str) -> bool:
 def test_outlaw_matters_structural(name):
     """Direct/bucket-A: a typed filter naming the outlaw group — no synth
     node needed, ``has_structural_outlaw`` is the lane's OWN gate."""
-    from mtg_utils._card_ir.tree_synthesis import _arm_outlaw_matters
+    from mtg_utils._deck_forge.tree_synthesis import _arm_outlaw_matters
 
     tree = _fixture_tree(name)
     assert has_structural_outlaw(tree) is True
@@ -3027,7 +3027,7 @@ def test_outlaw_matters_bucket_b_synth():
     """Hellspur Brute's "Affinity for outlaws" cost reducer — phase drops
     the whole static ability (zero units for the whole card), a genuine
     phase gap the synth arm fills."""
-    from mtg_utils._card_ir.tree_synthesis import _arm_outlaw_matters
+    from mtg_utils._deck_forge.tree_synthesis import _arm_outlaw_matters
 
     tree = _fixture_tree("Hellspur Brute")
     assert has_structural_outlaw(tree) is False
@@ -3038,7 +3038,7 @@ def test_outlaw_matters_bucket_b_synth():
 
 
 def test_outlaw_matters_no_fire_on_unrelated_card():
-    from mtg_utils._card_ir.tree_synthesis import _arm_outlaw_matters
+    from mtg_utils._deck_forge.tree_synthesis import _arm_outlaw_matters
 
     tree = _fixture_tree("Chaos Wand")
     assert has_structural_outlaw(tree) is False
@@ -3089,7 +3089,7 @@ def _arcane_lane_fires(name: str) -> bool:
 def test_arcane_matters_structural():
     """Direct: a typed filter naming the Arcane spell subtype in a cast
     payoff (Tallowisp) — no synth node needed."""
-    from mtg_utils._card_ir.tree_synthesis import _arm_arcane_matters
+    from mtg_utils._deck_forge.tree_synthesis import _arm_arcane_matters
 
     tree = _fixture_tree("Tallowisp")
     assert has_structural_arcane(tree) is True
@@ -3100,7 +3100,7 @@ def test_arcane_matters_structural():
 def test_arcane_matters_bucket_b_synth():
     """Glacial Ray's "Splice onto Arcane" — phase drops the whole static
     ability (zero units for the whole card), a genuine phase gap."""
-    from mtg_utils._card_ir.tree_synthesis import _arm_arcane_matters
+    from mtg_utils._deck_forge.tree_synthesis import _arm_arcane_matters
 
     tree = _fixture_tree("Glacial Ray")
     assert has_structural_arcane(tree) is False
@@ -3111,7 +3111,7 @@ def test_arcane_matters_bucket_b_synth():
 
 
 def test_arcane_matters_no_fire_on_unrelated_card():
-    from mtg_utils._card_ir.tree_synthesis import _arm_arcane_matters
+    from mtg_utils._deck_forge.tree_synthesis import _arm_arcane_matters
 
     tree = _fixture_tree("Chaos Wand")
     assert has_structural_arcane(tree) is False
@@ -3171,7 +3171,7 @@ def test_exalted_textual_bucket_b_synth(name):
     SourceAttackingAlone/AttackingAlone/BlockingAlone/CombatAlone tags
     structure an UNRELATED evasion mechanic — see the shed-overfire test
     below), so this is the lane's SOLE source."""
-    from mtg_utils._card_ir.tree_synthesis import _arm_exalted_lone_attacker
+    from mtg_utils._deck_forge.tree_synthesis import _arm_exalted_lone_attacker
 
     tree = _fixture_tree(name)
     node = _arm_exalted_lone_attacker(tree)
@@ -3186,7 +3186,7 @@ def test_exalted_textual_shed_overfire_cant_be_blocked_alone():
     turf), NOT an exalted bonus — the phase ``SourceAttackingAlone`` tag it
     carries is deliberately NOT read here (probed: a genuine 4-card
     over-fire on the corpus)."""
-    from mtg_utils._card_ir.tree_synthesis import _arm_exalted_lone_attacker
+    from mtg_utils._deck_forge.tree_synthesis import _arm_exalted_lone_attacker
 
     tree = _fixture_tree("Dream Prowler")
     assert _arm_exalted_lone_attacker(tree) is None
@@ -3194,7 +3194,7 @@ def test_exalted_textual_shed_overfire_cant_be_blocked_alone():
 
 
 def test_exalted_textual_no_fire_on_unrelated_card():
-    from mtg_utils._card_ir.tree_synthesis import _arm_exalted_lone_attacker
+    from mtg_utils._deck_forge.tree_synthesis import _arm_exalted_lone_attacker
 
     tree = _fixture_tree("Chaos Wand")
     assert _arm_exalted_lone_attacker(tree) is None
@@ -3240,7 +3240,7 @@ def test_power_matters_bucket_b_aggregate_synth():
     """The Formidable ability word / aggregate power scaler (CR 208/207.2c) —
     phase folds the threshold into an empty-predicate board_count carrier, so
     no structural datum distinguishes it; this arm is the residual source."""
-    from mtg_utils._card_ir.tree_synthesis import _arm_power_matters
+    from mtg_utils._deck_forge.tree_synthesis import _arm_power_matters
 
     tree = _gap_tree(
         "Formidable — At the beginning of combat on your turn, if creatures "
@@ -3254,7 +3254,7 @@ def test_power_matters_bucket_b_aggregate_synth():
 
 
 def test_power_matters_no_fire_on_unrelated_text():
-    from mtg_utils._card_ir.tree_synthesis import _arm_power_matters
+    from mtg_utils._deck_forge.tree_synthesis import _arm_power_matters
 
     assert _arm_power_matters(_gap_tree("Draw a card.")) is None
 
@@ -3314,7 +3314,7 @@ def test_keyword_counter_bucket_b_synth():
     """Boot Nipper's counter-kind CHOICE nests outside the effect chain in a
     ChooseOneOf branch — a genuine phase-parse gap (measured: 25/107 corpus
     fires)."""
-    from mtg_utils._card_ir.tree_synthesis import _arm_keyword_counter
+    from mtg_utils._deck_forge.tree_synthesis import _arm_keyword_counter
 
     tree = _gap_tree(
         "This creature enters with your choice of a deathtouch counter or a "
@@ -3329,7 +3329,7 @@ def test_keyword_counter_bucket_b_synth():
 
 
 def test_keyword_counter_no_fire_on_unrelated_card():
-    from mtg_utils._card_ir.tree_synthesis import _arm_keyword_counter
+    from mtg_utils._deck_forge.tree_synthesis import _arm_keyword_counter
 
     tree = _fixture_tree("Mycoloth")
     assert has_structural_keyword_counter(tree) is False
@@ -3390,7 +3390,7 @@ def test_counter_distribute_bucket_b_synth():
     """Bramblewood Paragon's "enters with an additional +1/+1 counter" group
     buff phase types identically to an unrelated single-target pump — a
     genuine gap (ADR-0027 #24, re-confirmed this batch: 163/383 residue)."""
-    from mtg_utils._card_ir.tree_synthesis import _arm_counter_distribute
+    from mtg_utils._deck_forge.tree_synthesis import _arm_counter_distribute
 
     tree = _fixture_tree("Bramblewood Paragon")
     assert has_structural_counter_distribute(tree) is False
@@ -3402,7 +3402,7 @@ def test_counter_distribute_bucket_b_synth():
 
 
 def test_counter_distribute_no_fire_on_unrelated_card():
-    from mtg_utils._card_ir.tree_synthesis import _arm_counter_distribute
+    from mtg_utils._deck_forge.tree_synthesis import _arm_counter_distribute
 
     tree = _fixture_tree("Scavenging Ooze")
     assert has_structural_counter_distribute(tree) is False
@@ -3478,7 +3478,7 @@ def test_proliferate_matters_bucket_b_synth():
     """Ion Storm's activation-cost reference ("remove a +1/+1 counter or a
     charge counter") is a pure text reference phase does not type as a node
     this batch — a genuine gap (measured: 9/167 corpus residue)."""
-    from mtg_utils._card_ir.tree_synthesis import _arm_proliferate_matters
+    from mtg_utils._deck_forge.tree_synthesis import _arm_proliferate_matters
 
     tree = _gap_tree(
         "{1}{R}, Remove a +1/+1 counter or a charge counter from a permanent "
@@ -3493,7 +3493,7 @@ def test_proliferate_matters_bucket_b_synth():
 
 
 def test_proliferate_matters_no_fire_on_unrelated_card():
-    from mtg_utils._card_ir.tree_synthesis import _arm_proliferate_matters
+    from mtg_utils._deck_forge.tree_synthesis import _arm_proliferate_matters
 
     tree = _fixture_tree("Bramblewood Paragon")
     assert has_structural_proliferate(tree) is False
@@ -3564,7 +3564,7 @@ def test_self_counter_grow_bucket_b_synth():
     GrantAbility payload) — phase carries no typed PutCounter node for it, a
     genuine gap (measured: 21/1555 mirror-clause residue, 103 over-fires
     excluded via the narrowed idiom)."""
-    from mtg_utils._card_ir.tree_synthesis import _arm_self_counter_grow
+    from mtg_utils._deck_forge.tree_synthesis import _arm_self_counter_grow
 
     tree = _fixture_tree("Sunbond")
     assert has_structural_self_counter_grow(tree) is False
@@ -3578,7 +3578,7 @@ def test_self_counter_grow_bucket_b_synth():
 def test_self_counter_grow_no_fire_on_unrelated_card():
     """Bramblewood Paragon's board-wide "on it" grant is counter_distribute's
     turf, NOT self_counter_grow's (the loose "on it" arm stays excluded)."""
-    from mtg_utils._card_ir.tree_synthesis import _arm_self_counter_grow
+    from mtg_utils._deck_forge.tree_synthesis import _arm_self_counter_grow
 
     tree = _fixture_tree("Bramblewood Paragon")
     assert has_structural_self_counter_grow(tree) is False
@@ -3633,7 +3633,7 @@ def test_poison_matters_bucket_b_synth():
     instead of bearing Infect — no competing Tier-1 predicate (the
     celebration/coven no-competing-predicate precedent), so this is the
     lane's SOLE source."""
-    from mtg_utils._card_ir.tree_synthesis import _arm_poison_matters
+    from mtg_utils._deck_forge.tree_synthesis import _arm_poison_matters
 
     tree = _fixture_tree("Caress of Phyrexia")
     node = _arm_poison_matters(tree)
@@ -3652,7 +3652,7 @@ def test_poison_matters_no_fire_on_reminder_only_infect():
     """Glistener Elf's Infect keyword bearer — a reminder-only "poison
     counter" mention that stays stripped; Infect bearers ride poison_makers,
     not poison_matters (the ADR-0034 partition)."""
-    from mtg_utils._card_ir.tree_synthesis import _arm_poison_matters
+    from mtg_utils._deck_forge.tree_synthesis import _arm_poison_matters
 
     tree = _fixture_tree("Glistener Elf")
     assert _arm_poison_matters(tree) is None

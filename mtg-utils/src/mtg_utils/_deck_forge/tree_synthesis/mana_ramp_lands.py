@@ -1,6 +1,6 @@
 """Mana, ramp, tutor, and land-fetch bucket-B synthesis arms.
 
-Part of the :mod:`mtg_utils._card_ir.tree_synthesis` package; see that
+Part of the :mod:`mtg_utils._deck_forge.tree_synthesis` package; see that
 package's ``__init__.py`` for the stage-level overview and the full
 re-exported public surface.
 """
@@ -34,11 +34,11 @@ from mtg_utils._card_ir.mirror.runtime import (
     MISSING,
     TypedMirrorNode,
 )
-from mtg_utils._card_ir.tree_synthesis._shared import (
+from mtg_utils._deck_forge.signal_base import clauses
+from mtg_utils._deck_forge.tree_synthesis._shared import (
     _REMINDER,
     _synthetic_concept,
 )
-from mtg_utils._deck_forge.signal_base import clauses
 
 # ── untap_engine structural reads + bucket-B synth (ADR-0036/0037 fold) ───────
 # CR 701.26/701.26b: a DELIBERATE untap engine (Seedborn Muse, Candelabra,

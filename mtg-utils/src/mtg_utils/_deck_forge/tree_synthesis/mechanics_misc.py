@@ -1,7 +1,7 @@
 """Standalone mechanic (coven, celebration, outlaw, curse, clue, suspend,
 known-token) bucket-B synthesis arms.
 
-Part of the :mod:`mtg_utils._card_ir.tree_synthesis` package; see that
+Part of the :mod:`mtg_utils._deck_forge.tree_synthesis` package; see that
 package's ``__init__.py`` for the stage-level overview and the full
 re-exported public surface.
 """
@@ -26,11 +26,11 @@ from mtg_utils._card_ir.text_idioms import (
     _SUSPECT_REF,
     _TOKEN_SUBTYPE_OWN_REF,
 )
-from mtg_utils._card_ir.tree_synthesis._shared import (
+from mtg_utils._deck_forge._sweep_detectors import CLUE_MATTERS_REGEX
+from mtg_utils._deck_forge.tree_synthesis._shared import (
     _REMINDER,
     _synthetic_concept,
 )
-from mtg_utils._deck_forge._sweep_detectors import CLUE_MATTERS_REGEX
 
 # end_the_turn (CR 724 "(may) end the turn") moved to ADR-0038 shared-grammar
 # recovery (mtg_utils._card_ir.clause_grammar's "the player whose turn it is "

@@ -1,6 +1,6 @@
 """Card-type and tribal (keyword/creature-type) bucket-B synthesis arms.
 
-Part of the :mod:`mtg_utils._card_ir.tree_synthesis` package; see that
+Part of the :mod:`mtg_utils._deck_forge.tree_synthesis` package; see that
 package's ``__init__.py`` for the stage-level overview and the full
 re-exported public surface.
 """
@@ -34,10 +34,6 @@ from mtg_utils._card_ir.crosswalk import (
     trigger_scope,
 )
 from mtg_utils._card_ir.mirror.runtime import TypedMirrorNode
-from mtg_utils._card_ir.tree_synthesis._shared import (
-    _REMINDER,
-    _synthetic_concept,
-)
 from mtg_utils._deck_forge import signal_keys
 from mtg_utils._deck_forge._subtypes import CREATURE_SUBTYPES
 from mtg_utils._deck_forge._sweep_detectors import (
@@ -59,6 +55,10 @@ from mtg_utils._deck_forge.text_reads import (
     _detect_type_matters,
     _detect_typed_gy_recursion,
     _type_hoser_clause,
+)
+from mtg_utils._deck_forge.tree_synthesis._shared import (
+    _REMINDER,
+    _synthetic_concept,
 )
 
 # ── type_matters structural reads (ADR-0036 fold — shared lane/gate source) ──

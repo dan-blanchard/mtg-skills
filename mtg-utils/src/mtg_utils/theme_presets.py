@@ -351,8 +351,8 @@ def _concept_any_face(card: dict, predicate: Callable[[ConceptTree], bool]) -> b
     if not card.get("oracle_id"):
         return False
     from mtg_utils._card_ir.overlay_corrections import apply_overlay_corrections
-    from mtg_utils._card_ir.tree_synthesis import apply_tree_synthesis
     from mtg_utils._deck_forge._ir_lookup import trees_for
+    from mtg_utils._deck_forge.tree_synthesis import apply_tree_synthesis
 
     for raw_tree in trees_for(card):
         corrected = apply_overlay_corrections(raw_tree)
@@ -2256,7 +2256,7 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
     #     the live-object ``HasCounters`` tag was read).
     #
     # (1)+(2)+(3) close via one bucket-B ``tree_synthesis`` bridge feeding
-    # ``plus_one_makers`` (:func:`mtg_utils._card_ir.tree_synthesis.
+    # ``plus_one_makers`` (:func:`mtg_utils._deck_forge.tree_synthesis.
     # _arm_plus_one_makers` — see its own docstring for the unified idiom
     # read and why reminder-stripping keeps it from re-opening the
     # Connive/Amass/Explore/Incubate/Megamorph/Awaken keyword-mechanic

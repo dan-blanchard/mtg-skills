@@ -47,20 +47,6 @@ from mtg_utils._card_ir.crosswalk import (
     trigger_scope,
 )
 from mtg_utils._card_ir.mirror.runtime import MirrorVariant
-from mtg_utils._card_ir.tree_synthesis import (
-    SynthesizedNode,
-    _stax_structural_walk,
-    has_structural_big_hand_makers,
-    has_structural_big_hand_matters,
-    has_structural_counter_distribute,
-    has_structural_exert_matters,
-    has_structural_keyword_counter,
-    has_structural_kill_engine,
-    has_structural_manland,
-    has_structural_superfriends,
-    has_structural_type_change,
-    has_structural_vehicles_matter,
-)
 from mtg_utils._deck_forge import signal_keys
 from mtg_utils._deck_forge._subtypes import CREATURE_SUBTYPES
 from mtg_utils._deck_forge.lanes._shared import (
@@ -73,6 +59,20 @@ from mtg_utils._deck_forge.lanes._shared import (
 from mtg_utils._deck_forge.signal_base import (
     Signal,
     _resolve_subject,
+)
+from mtg_utils._deck_forge.tree_synthesis import (
+    SynthesizedNode,
+    _stax_structural_walk,
+    has_structural_big_hand_makers,
+    has_structural_big_hand_matters,
+    has_structural_counter_distribute,
+    has_structural_exert_matters,
+    has_structural_keyword_counter,
+    has_structural_kill_engine,
+    has_structural_manland,
+    has_structural_superfriends,
+    has_structural_type_change,
+    has_structural_vehicles_matter,
 )
 
 
@@ -1696,7 +1696,7 @@ def _vehicles_matter(tree: ConceptTree) -> list[Signal]:
     (Greasefang); (d) Tier-1 (ADR-0036/0037 fold): the ``tree_synthesis``
     bucket-B ``synth_vehicles_matter`` node (the deleted
     ``_VEHICLES_MATTER_RX`` relocated, gap-gated against the SAME arms
-    a-c — :func:`~mtg_utils._card_ir.tree_synthesis.has_structural_vehicles_matter`).
+    a-c — :func:`~mtg_utils._deck_forge.tree_synthesis.has_structural_vehicles_matter`).
     Gate #4 membership: a card that IS a Vehicle never fires from its own
     nodes (arms a-c gated; Smuggler's Copter/Peacewalker); ``BecomesCrewed``
     with a SelfRef watcher (Ghost Ark) is not a ``crews?`` payoff — its

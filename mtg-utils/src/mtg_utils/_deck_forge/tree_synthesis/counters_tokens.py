@@ -1,6 +1,6 @@
 """Counters and tokens bucket-B synthesis arms.
 
-Part of the :mod:`mtg_utils._card_ir.tree_synthesis` package; see that
+Part of the :mod:`mtg_utils._deck_forge.tree_synthesis` package; see that
 package's ``__init__.py`` for the stage-level overview and the full
 re-exported public surface.
 """
@@ -18,10 +18,6 @@ from mtg_utils._card_ir.crosswalk import (
     filter_controller,
     tag_of,
 )
-from mtg_utils._card_ir.tree_synthesis._shared import (
-    _REMINDER,
-    _synthetic_concept,
-)
 from mtg_utils._deck_forge._subtypes import CREATURE_SUBTYPES
 from mtg_utils._deck_forge._sweep_detectors import KEYWORD_COUNTER_REGEX
 from mtg_utils._deck_forge.signal_base import (
@@ -33,6 +29,10 @@ from mtg_utils._deck_forge.text_reads import (
     _PROLIFERATE_REMOVE_COST_RE,
     _detect_token_maker,
     self_power_scale_match,
+)
+from mtg_utils._deck_forge.tree_synthesis._shared import (
+    _REMINDER,
+    _synthetic_concept,
 )
 
 # ── token_maker_type_subject structural read + bucket-B (ADR-0036/0037 ───────

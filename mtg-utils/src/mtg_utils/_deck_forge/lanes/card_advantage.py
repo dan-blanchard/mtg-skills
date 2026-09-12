@@ -49,12 +49,6 @@ from mtg_utils._card_ir.text_idioms import (
     _TOPDECK_YOUR_LIBRARY,
     _topdeck_stack_self,
 )
-from mtg_utils._card_ir.tree_synthesis import (
-    _EACH_DRAW_RECIPIENTS,
-    SynthesizedNode,
-    _is_self_return_effect,
-    _is_shuffle_back_effect,
-)
 from mtg_utils._deck_forge._sweep_detectors import TOPDECK_STACK_SWEEP_REGEX
 from mtg_utils._deck_forge.bridge_ledger import bridge_fires
 from mtg_utils._deck_forge.lanes._shared import (
@@ -69,6 +63,12 @@ from mtg_utils._deck_forge.lanes._shared import (
 from mtg_utils._deck_forge.signal_base import (
     Signal,
     _clauses,
+)
+from mtg_utils._deck_forge.tree_synthesis import (
+    _EACH_DRAW_RECIPIENTS,
+    SynthesizedNode,
+    _is_self_return_effect,
+    _is_shuffle_back_effect,
 )
 
 
@@ -87,7 +87,7 @@ def _impulse_top_play(tree: ConceptTree) -> list[Signal]:
     non-static split is the discriminator). Scope "you".
 
     task #95 adds the ``synth_impulse_top_play`` bucket-B marker check
-    (see :func:`~mtg_utils._card_ir.tree_synthesis.
+    (see :func:`~mtg_utils._deck_forge.tree_synthesis.
     _arm_known_token_impulse_top_play`'s own docstring) — the Junk
     predefined-token cycle's "Exile the top card of your library. You may
     play that card this turn" ability rides a zero-unit text-only tree
@@ -1445,7 +1445,7 @@ def _topdeck_selection(tree: ConceptTree) -> list[Signal]:
         ) and _TOPDECK_SELECTION_TOP_RX.search(corpus):
             return [Signal("topdeck_selection", "you", "", "", tree.name, "high")]
     # task #np_roles — the ``synth_topdeck_selection`` bucket-B marker
-    # (see :func:`~mtg_utils._card_ir.tree_synthesis.
+    # (see :func:`~mtg_utils._deck_forge.tree_synthesis.
     # _arm_known_token_topdeck_scry`): a known-token zero-unit text-only
     # tree whose fixed text performs a Scry (the Sorcerer Role's granted
     # attack-scry, CR 111.10n; the Shard's sac-for-scry-and-draw) has no

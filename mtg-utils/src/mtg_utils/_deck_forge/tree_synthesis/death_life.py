@@ -1,6 +1,6 @@
 """Death/dying and lifegain bucket-B synthesis arms.
 
-Part of the :mod:`mtg_utils._card_ir.tree_synthesis` package; see that
+Part of the :mod:`mtg_utils._deck_forge.tree_synthesis` package; see that
 package's ``__init__.py`` for the stage-level overview and the full
 re-exported public surface.
 """
@@ -36,14 +36,14 @@ from mtg_utils._card_ir.text_idioms import (
     _PAY_LIFE_REF,
     _STARTING_LIFE_REF,
 )
-from mtg_utils._card_ir.tree_synthesis._shared import (
-    _REMINDER,
-    _synthetic_concept,
-)
 from mtg_utils._deck_forge._subtypes import CREATURE_SUBTYPES
 from mtg_utils._deck_forge.signal_base import (
     _resolve_subject,
     clauses,
+)
+from mtg_utils._deck_forge.tree_synthesis._shared import (
+    _REMINDER,
+    _synthetic_concept,
 )
 
 

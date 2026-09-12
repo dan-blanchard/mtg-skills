@@ -72,7 +72,6 @@ from mtg_utils._card_ir.text_idioms import (
     _FORCE_ATTACK_REF,
     combat_damage_recipients_from_text,
 )
-from mtg_utils._card_ir.tree_synthesis import SynthesizedNode
 from mtg_utils._deck_forge.bridge_ledger import bridge_fires
 from mtg_utils._deck_forge.lanes._shared import (
     _REVEAL_WHO_OPP,
@@ -91,6 +90,7 @@ from mtg_utils._deck_forge.text_reads import (
     _creature_etb_clause,
     _detect_self_damage_prevention,
 )
+from mtg_utils._deck_forge.tree_synthesis import SynthesizedNode
 
 
 def _norm_kw(kw: str) -> str:
@@ -1240,7 +1240,7 @@ def _keyword_grant_lanes(tree: ConceptTree) -> list[Signal]:
     ):
         fire("keyword_grant_target", "you", "")
     # task #np_roles — the ``synth_protection_grant_suit_up`` bucket-B
-    # marker (see :func:`~mtg_utils._card_ir.tree_synthesis.
+    # marker (see :func:`~mtg_utils._deck_forge.tree_synthesis.
     # _arm_known_token_ward_grant`): the Royal Role known-token tree's
     # "Enchanted creature gets +1/+1 and has ward {1}" (CR 111.10m /
     # 702.21a) is the suit-up protective grant this lane's structural

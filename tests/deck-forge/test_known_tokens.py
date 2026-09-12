@@ -36,12 +36,12 @@ from mtg_utils._card_ir.crosswalk import build_concept_tree
 from mtg_utils._card_ir.mirror import strict_load_card
 from mtg_utils._card_ir.mirror.build import fixtures_dir, load_committed_schema
 from mtg_utils._card_ir.overlay_corrections import apply_overlay_corrections
-from mtg_utils._card_ir.tree_synthesis import apply_tree_synthesis
 from mtg_utils._deck_forge import _ir_lookup as il
 from mtg_utils._deck_forge.lanes import (
     extract_crosswalk_signals,
     graveyard_return_direction,
 )
+from mtg_utils._deck_forge.tree_synthesis import apply_tree_synthesis
 
 FIXTURE = "crosswalk_fixture_cards.json"
 

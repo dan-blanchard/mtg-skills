@@ -378,7 +378,7 @@ def _text_only_trees(
 #
 # * "Mutagen" (task #92; the TMT cycle) — "{1}, {T}, Sacrifice this token:
 #   Put a +1/+1 counter on target creature." opens ``plus_one_makers``
-#   (CR 122.1) via :func:`~mtg_utils._card_ir.tree_synthesis.
+#   (CR 122.1) via :func:`~mtg_utils._deck_forge.tree_synthesis.
 #   _arm_plus_one_makers`.
 # * "Young Hero" (task #92; the WOE cycle) — "Whenever this creature
 #   attacks, if its toughness is 3 or less, put a +1/+1 counter on it"
@@ -386,7 +386,7 @@ def _text_only_trees(
 # * "Powerstone" / "Gold" (task #95) — "{T}: Add {C}. This mana can't be
 #   spent to cast a nonartifact spell." / "Sacrifice this token: Add one
 #   mana of any color." each open ``ramp`` (CR 106.1/605.1a) via
-#   :func:`~mtg_utils._card_ir.tree_synthesis._arm_known_token_ramp`.
+#   :func:`~mtg_utils._deck_forge.tree_synthesis._arm_known_token_ramp`.
 # * "Lander" (task #95; re-adjudicated by the lf_ramp convention change,
 #   2026-07-13) — "…Sacrifice this token: Search your library for a basic
 #   land card, put it onto the battlefield tapped…" opens ``ramp`` (CR
@@ -399,16 +399,16 @@ def _text_only_trees(
 #   diff at the flip moved all 20 Lander creators tutor -> ramp.
 # * "Map" (task #95) — "…Sacrifice this artifact: Target creature you
 #   control explores…" opens ``explore_makers`` (CR 701.44a) via
-#   :func:`~mtg_utils._card_ir.tree_synthesis._arm_known_token_explore`.
+#   :func:`~mtg_utils._deck_forge.tree_synthesis._arm_known_token_explore`.
 # * "Junk" (task #95) — "…Sacrifice this artifact: Exile the top card of
 #   your library. You may play that card this turn…" opens
 #   ``impulse_top_play`` (CR 601.3b/116) via
-#   :func:`~mtg_utils._card_ir.tree_synthesis.
+#   :func:`~mtg_utils._deck_forge.tree_synthesis.
 #   _arm_known_token_impulse_top_play`.
 # * "Wicked" (task #95; one of the WOE Role cycle) — "…When this Aura is
 #   put into a graveyard from the battlefield, each opponent loses 1
 #   life." opens ``lifeloss_makers`` scope "opponents" (CR 119.3) via
-#   :func:`~mtg_utils._card_ir.tree_synthesis.
+#   :func:`~mtg_utils._deck_forge.tree_synthesis.
 #   _arm_known_token_lifeloss_opponents`.
 # * "Cursed" (task #np_roles; CR 111.10j) — "Enchanted creature has base
 #   power and toughness 1/1." opens the NEW ``single_target_neutralize``

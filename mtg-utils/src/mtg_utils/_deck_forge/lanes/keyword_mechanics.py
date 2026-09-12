@@ -47,7 +47,6 @@ from mtg_utils._card_ir.mirror.runtime import (
     TypedMirrorNode,
 )
 from mtg_utils._card_ir.text_idioms import _CAST_FROM_EXILE_P
-from mtg_utils._card_ir.tree_synthesis import has_structural_dice_makers
 from mtg_utils._deck_forge.bridge_ledger import bridge_fires
 from mtg_utils._deck_forge.lanes._shared import (
     _CAST_FROM_EXILE_PERMS,
@@ -61,6 +60,7 @@ from mtg_utils._deck_forge.lanes._shared import (
     _whole_card_maker,
 )
 from mtg_utils._deck_forge.signal_base import Signal
+from mtg_utils._deck_forge.tree_synthesis import has_structural_dice_makers
 
 _RING_BEARER_REF = re.compile(r"\bring-bearer\b", re.IGNORECASE)
 
@@ -1891,7 +1891,7 @@ def _extra_combats(tree: ConceptTree) -> list[Signal]:
 
 
 # cost_reduction kept-mirror (ADR-0038 W3 batch 4) — the same three textual
-# gates :func:`mtg_utils._card_ir.tree_synthesis._cost_reducer_node_ok`
+# gates :func:`mtg_utils._deck_forge.tree_synthesis._cost_reducer_node_ok`
 # applies node-scoped, duplicated here per-clause over the whole reminder-
 # stripped face oracle for the residual cards with NO node at all (see
 # :func:`_cost_reduction`'s docstring).

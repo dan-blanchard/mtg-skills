@@ -1,6 +1,6 @@
 """The stage: the ``_ARMS`` registry and ``apply_tree_synthesis`` entry point.
 
-Part of the :mod:`mtg_utils._card_ir.tree_synthesis` package; see that
+Part of the :mod:`mtg_utils._deck_forge.tree_synthesis` package; see that
 package's ``__init__.py`` for the stage-level overview and the full
 re-exported public surface.
 """
@@ -21,11 +21,15 @@ from mtg_utils._card_ir.crosswalk import (
     ConceptNode,
     ConceptTree,
 )
-from mtg_utils._card_ir.tree_synthesis._shared import (
+from mtg_utils._deck_forge._sweep_detectors import (
+    STICKERS_MATTER_REGEX,
+    VOID_WARP_MATTERS_REGEX,
+)
+from mtg_utils._deck_forge.tree_synthesis._shared import (
     _REMINDER,
     _synthetic_concept,
 )
-from mtg_utils._card_ir.tree_synthesis.combat import (
+from mtg_utils._deck_forge.tree_synthesis.combat import (
     _arm_attack_matters,
     _arm_base_power_ref_conjunctive,
     _arm_base_pt_have_become,
@@ -41,7 +45,7 @@ from mtg_utils._card_ir.tree_synthesis.combat import (
     _arm_tap_untap_becomes,
     _arm_toughness_combat,
 )
-from mtg_utils._card_ir.tree_synthesis.control_stax import (
+from mtg_utils._deck_forge.tree_synthesis.control_stax import (
     _arm_cant_block_grant,
     _arm_color_hoser,
     _arm_damage_prevention,
@@ -56,7 +60,7 @@ from mtg_utils._card_ir.tree_synthesis.control_stax import (
     _arm_targeting_matters,
     _arm_void_warp_makers,
 )
-from mtg_utils._card_ir.tree_synthesis.counters_tokens import (
+from mtg_utils._deck_forge.tree_synthesis.counters_tokens import (
     _arm_boon_plus_one_makers,
     _arm_convert_adapt_self_grow,
     _arm_counter_distribute,
@@ -70,14 +74,14 @@ from mtg_utils._card_ir.tree_synthesis.counters_tokens import (
     _arm_self_power_scale,
     _arm_token_maker_type_subject,
 )
-from mtg_utils._card_ir.tree_synthesis.death_life import (
+from mtg_utils._deck_forge.tree_synthesis.death_life import (
     _arm_death_matters,
     _arm_life_payment_insurance,
     _arm_lifegain_matters,
     _arm_mass_death_payoff,
     _arm_starting_life_matters,
 )
-from mtg_utils._card_ir.tree_synthesis.mana_ramp_lands import (
+from mtg_utils._deck_forge.tree_synthesis.mana_ramp_lands import (
     _arm_bounce_tempo,
     _arm_dig_until,
     _arm_extra_land_drop,
@@ -92,7 +96,7 @@ from mtg_utils._card_ir.tree_synthesis.mana_ramp_lands import (
     _arm_unspent_mana,
     _arm_untap_engine,
 )
-from mtg_utils._card_ir.tree_synthesis.mechanics_misc import (
+from mtg_utils._deck_forge.tree_synthesis.mechanics_misc import (
     _arm_celebration_matters,
     _arm_clue_matters,
     _arm_coven_matters,
@@ -111,7 +115,7 @@ from mtg_utils._card_ir.tree_synthesis.mechanics_misc import (
     _arm_suspend_matters,
     _arm_token_subtype_own_ref,
 )
-from mtg_utils._card_ir.tree_synthesis.spells_casting import (
+from mtg_utils._deck_forge.tree_synthesis.spells_casting import (
     _arm_ability_copy,
     _arm_arcane_matters,
     _arm_becomes_target_src_opp,
@@ -134,7 +138,7 @@ from mtg_utils._card_ir.tree_synthesis.spells_casting import (
     _arm_recast_etb_bleed,
     _arm_spellcast_matters,
 )
-from mtg_utils._card_ir.tree_synthesis.types_tribal import (
+from mtg_utils._deck_forge.tree_synthesis.types_tribal import (
     _arm_animate_artifact,
     _arm_color_change,
     _arm_colorless_matters,
@@ -150,7 +154,7 @@ from mtg_utils._card_ir.tree_synthesis.types_tribal import (
     _arm_typed_anthem_multi,
     _arm_vehicles_matter,
 )
-from mtg_utils._card_ir.tree_synthesis.value_engines import (
+from mtg_utils._deck_forge.tree_synthesis.value_engines import (
     _arm_b13_node_anchor,
     _arm_b13_raw_anchor,
     _arm_big_hand_makers,
@@ -172,10 +176,6 @@ from mtg_utils._card_ir.tree_synthesis.value_engines import (
     _arm_sac_keyword_cost,
     _arm_theft_makers,
     _arm_wants_cloning,
-)
-from mtg_utils._deck_forge._sweep_detectors import (
-    STICKERS_MATTER_REGEX,
-    VOID_WARP_MATTERS_REGEX,
 )
 
 # ── creatures_matter grammar-sprint stragglers (ADR-0039 task #82, post-

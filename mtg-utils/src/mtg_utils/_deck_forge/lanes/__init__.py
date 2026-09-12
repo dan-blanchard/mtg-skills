@@ -30,10 +30,6 @@ from mtg_utils._card_ir.crosswalk import (
     ConceptTree,
     recipient_tag,
 )
-from mtg_utils._card_ir.tree_synthesis import (
-    _has_repeatable_kill_unit,
-    structural_token_maker_type_subjects,
-)
 from mtg_utils._deck_forge import signal_keys
 from mtg_utils._deck_forge._subtypes import (
     CLASS_TRIBES,
@@ -770,6 +766,10 @@ from mtg_utils._deck_forge.membership_floor import (
     _apply_membership_floor,
 )
 from mtg_utils._deck_forge.signal_base import Signal
+from mtg_utils._deck_forge.tree_synthesis import (
+    _has_repeatable_kill_unit,
+    structural_token_maker_type_subjects,
+)
 from mtg_utils.card_classify import get_oracle_text
 
 __all__ = [
@@ -1506,7 +1506,7 @@ def extract_crosswalk_signals(
     # cheat_play, an edict re-scoped). Preserves the L1 mirror by identity
     # (substrate-purity invariant).
     from mtg_utils._card_ir.overlay_corrections import apply_overlay_corrections
-    from mtg_utils._card_ir.tree_synthesis import apply_tree_synthesis
+    from mtg_utils._deck_forge.tree_synthesis import apply_tree_synthesis
 
     tree = apply_overlay_corrections(tree)
     # ADR-0037: ADD synthetic concept-nodes for genuine phase-parse (bucket-B) gaps

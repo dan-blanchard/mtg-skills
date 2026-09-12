@@ -38,7 +38,24 @@ from mtg_utils._card_ir.mirror.runtime import (
     TypedMirrorNode,
 )
 from mtg_utils._card_ir.text_idioms import _LIB_SEARCH_PLAYER_ACTIONS
-from mtg_utils._card_ir.tree_synthesis import (
+from mtg_utils._deck_forge import signal_keys
+from mtg_utils._deck_forge.bridge_ledger import bridge_fires
+from mtg_utils._deck_forge.lanes._shared import (
+    _PERMANENT_TYPES,
+    _RETURN_TARGET_TAGS,
+    _negative_pt_field,
+    _site_raw,
+    _tuck_preceded_by_selection,
+)
+from mtg_utils._deck_forge.signal_base import Signal
+from mtg_utils._deck_forge.text_reads import (
+    _ACTIVATED_ABILITY_DROP_EFFECTS,
+    _EVERGREEN_CK,
+)
+from mtg_utils._deck_forge.text_reads import (
+    _LAND_SUBTYPES as _LIVE_LAND_SUBTYPES,
+)
+from mtg_utils._deck_forge.tree_synthesis import (
     has_own_target_spell,
     has_permanent_recast,
     has_repeatable_engine,
@@ -63,23 +80,6 @@ from mtg_utils._card_ir.tree_synthesis import (
     structural_type_subjects,
     structural_untap_scope,
     structural_untap_subject,
-)
-from mtg_utils._deck_forge import signal_keys
-from mtg_utils._deck_forge.bridge_ledger import bridge_fires
-from mtg_utils._deck_forge.lanes._shared import (
-    _PERMANENT_TYPES,
-    _RETURN_TARGET_TAGS,
-    _negative_pt_field,
-    _site_raw,
-    _tuck_preceded_by_selection,
-)
-from mtg_utils._deck_forge.signal_base import Signal
-from mtg_utils._deck_forge.text_reads import (
-    _ACTIVATED_ABILITY_DROP_EFFECTS,
-    _EVERGREEN_CK,
-)
-from mtg_utils._deck_forge.text_reads import (
-    _LAND_SUBTYPES as _LIVE_LAND_SUBTYPES,
 )
 
 # ── Batch 13 lanes (ADR-0035 Stage 2): the field-lookup wholesale batch ──────
