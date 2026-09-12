@@ -688,7 +688,8 @@ def propose_swaps(
 
         spec = _spec_for_issue(issue, focus_result, deck_signals)
         if spec is None:
-            continue  # no spec for this kind (commander_misfit, voltron_no_commander_damage)
+            # No spec for this kind (commander_misfit, voltron_no_commander_damage).
+            continue
         synergy_first = issue["kind"] not in _SPINE_KINDS
         # Every cut here is a NONLAND (cut_candidates never trims lands), so the add
         # must be nonland too — else a theme swap silently adds a value land (e.g.
