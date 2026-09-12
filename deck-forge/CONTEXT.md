@@ -108,7 +108,7 @@ The deck-analysis surface inside the hub — snapshot, ranked Signals, Avenues, 
 The serialization seam owning the card shapes the browser SPA consumes — one atomic `project` plus the deck/search/candidate/combo variants.
 
 **Transport adapter**:
-The FastAPI route closures in `app.py`: parse payload → call Engine/Views → apply side effects (mutation, autosave, SSE publish) → return. Holds no deck logic.
+The FastAPI route closures in `app.py`: parse payload → call Engine/Views → apply side effects (mutation, autosave, SSE publish) → return. Holds no deck logic: a deck rule the Engine refuses raises `DeckRuleError`, which one exception handler maps to a 400 (ADR-0013, finished 2026-09-12).
 
 ### Gates & accuracy
 

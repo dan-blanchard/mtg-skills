@@ -16,6 +16,7 @@ from __future__ import annotations
 import functools
 import json
 import math
+from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -39,13 +40,16 @@ from mtg_utils._deck_forge.signals import (
 from mtg_utils._deck_forge.state import DeckSession, ForgeState
 from mtg_utils._name_index import NameIndex
 from mtg_utils._sidecar import atomic_write_json, sha_keyed_path
+from mtg_utils._tuner.tune import TuneParams
 from mtg_utils.card_classify import is_basic_land, valid_partner_search
 from mtg_utils.card_pool import CardPool
+from mtg_utils.companion import is_companion
 from mtg_utils.deck_stats import deck_stats, detect_bracket
-from mtg_utils.formats import FORMATS, format_options
+from mtg_utils.formats import COMMANDER_FORMATS, FORMATS, Format, format_options
 from mtg_utils.hydrated_deck import HydratedDeck
 from mtg_utils.legality_audit import legality_audit
-from mtg_utils.mana_audit import mana_audit
+from mtg_utils.mana_audit import mana_audit, reconcile_basic_lands
+from mtg_utils.parse_deck import parse_deck_text
 
 # deck_minimum is intentionally excluded: a deck-in-progress is always below the size
 # minimum, so it's the normal building state, not a warning.
@@ -757,7 +761,6 @@ def discover_commanders(
 
     coll = _resolved_collection(state)
     slot = active_slot(state)
-    fmt = state.session.format
     freq, total = _signal_freq(state) if sort == "novelty" else ({}, 0)
     # Seed both discovery caches from their sidecars so this skips the ~55s pool sweep
     # (density) and the ~10s collection scan (served sets). New lanes still compute
@@ -782,9 +785,10 @@ def discover_commanders(
             and set(c.get("color_identity") or []) <= identity
         }
         depth, lanes, supported = _support_depth(state, rec, in_names, slot, coll)
+        # A domain row (the record + its scores); ``views.commander_view`` projects it.
         item = {
+            "record": rec,
             "name": rec["name"],
-            **views.project(rec, FORMATS[fmt]),
             "support_depth": round(depth, 2),
             "lanes": lanes,
             "supported_lanes": supported,
@@ -958,6 +962,254 @@ def legality_warnings(hd: HydratedDeck, *, max_cards: int | None = None) -> list
     )
 
 
+class DeckRuleError(ValueError):
+    """A deck rule rejected the request (a printing that isn't the card's, a second
+    companion, an unsupported import format). The transport adapter maps it to one
+    400 in one place; engine tests assert on it directly (ADR-0013)."""
+
+
+# --- land plans -----------------------------------------------------------------
+
+
+def _apply_land_plan(state: ForgeState, plan: dict) -> dict[str, dict[str, int]]:
+    """Apply a ``reconcile_basic_lands`` plan to the session: removals first, then
+    adds — only basics the loaded index can hydrate. Returns what was applied."""
+    applied: dict[str, dict[str, int]] = {"add": {}, "remove": {}}
+    for name, qty in plan["remove"].items():
+        state.session.remove(name, qty, zone="cards")
+        applied["remove"][name] = qty
+    for name, qty in plan["add"].items():
+        if name in state.by_name:
+            state.session.add(name, qty, zone="cards")
+            applied["add"][name] = qty
+    return applied
+
+
+def balance_lands(state: ForgeState) -> dict[str, dict[str, int]]:
+    """Fix the mana base: add basics up to the land band's floor and rebalance the
+    basics to color demand (swapping over- for under-produced colors at the current
+    count when already at/above the floor). Mutates the session; returns the
+    applied ``{add, remove}``."""
+    return _apply_land_plan(state, reconcile_basic_lands(hydrate_session(state)))
+
+
+def trim_lands(state: ForgeState) -> dict[str, dict[str, int]]:
+    """The FLOOD remedy: trim basics back down to the land band's top, over-produced
+    colors first. A no-op (empty plan) at or under the top — soft, never a gate,
+    because an all-lands combo deck is a legitimate build (CONTEXT: Flood line)."""
+    hd = hydrate_session(state)
+    audit = mana_audit(hd)
+    top = audit["land_band"]["top"]
+    if audit["land_count"] <= top:
+        return {"add": {}, "remove": {}}
+    return _apply_land_plan(state, reconcile_basic_lands(hd, target_total=top))
+
+
+# --- the companion zone ---------------------------------------------------------
+
+
+def check_companion_add(state: ForgeState, name: str, qty: int) -> None:
+    """The zone rules for adding to the companion zone, raising ``DeckRuleError``:
+    (a) at most ONE card may occupy it (CR 103.2b) — an occupied zone is refused;
+    the user removes the old occupant first, it is never silently replaced; (b) the
+    card must carry the companion ability (CR 702.139a), read off its record."""
+    occupied = state.session.to_deck_dict().get("companion") or []
+    if occupied:
+        raise DeckRuleError(
+            f"companion zone already holds {occupied[0]['name']}; a player may "
+            "reveal at most one companion (CR 103.2b) — remove it first"
+        )
+    if qty != 1:
+        raise DeckRuleError(
+            "the companion zone holds exactly one card (CR 103.2b: at most one "
+            "companion)"
+        )
+    record = state.by_name.get(name)
+    if record is None or not is_companion(record):
+        raise DeckRuleError(f"{name} has no companion ability (CR 702.139a)")
+
+
+def settle_companion_zone(parsed: dict, by_name: Mapping[str, dict]) -> list[str]:
+    """Route an imported list's companion zone in place: the FIRST plausible
+    companion keeps the zone (an unknown name stays — it surfaces as ``unknown``
+    like any other zone); overflow entries (CR 103.2b: at most one companion), extra
+    copies, and cards the index PROVES have no companion ability (CR 702.139a) are
+    demoted to ``cards`` with a warning, never dropped. Returns the warnings."""
+    warnings: list[str] = []
+    kept: list[dict] = []
+    demoted: list[dict] = []
+    for entry in parsed.get("companion") or []:
+        record = by_name.get(entry.get("name", ""))
+        if record is not None and not is_companion(record):
+            demoted.append(entry)
+            warnings.append(
+                f"{entry['name']} has no companion ability (CR 702.139a); "
+                "moved to the deck"
+            )
+        elif kept:
+            demoted.append(entry)
+            warnings.append(
+                f"more than one companion listed; {entry['name']} moved to the "
+                "deck (CR 103.2b: at most one companion)"
+            )
+        else:
+            qty = int(entry.get("quantity", 1))
+            if qty > 1:
+                demoted.append({**entry, "quantity": qty - 1})
+                warnings.append(
+                    f"{entry['name']}: {qty} copies listed as companion; kept 1, "
+                    f"moved {qty - 1} to the deck (CR 103.2b)"
+                )
+            kept.append({**entry, "quantity": 1})
+    parsed["companion"] = kept
+    if demoted:
+        parsed["cards"] = list(parsed.get("cards") or []) + demoted
+    return warnings
+
+
+@dataclass(frozen=True)
+class ImportedDeck:
+    """What ``import_deck`` derived from a pasted list: the parsed dict (companion
+    zone settled), a fresh session over it (printings pinned), the names the index
+    cannot hydrate, and the companion warnings."""
+
+    parsed: dict
+    session: DeckSession
+    unknown: list[str]
+    warnings: list[str]
+
+
+def import_deck(state: ForgeState, text: str, *, fmt: str) -> ImportedDeck:
+    """Parse a pasted / uploaded list IN-PROCESS (ADR-0017 — pure compute, no LLM)
+    into a NEW session: companion zone settled (``settle_companion_zone``), printing
+    suffixes pinned, unknown names collected. Never guesses a commander — an unmarked
+    list lands in ``cards`` for the user to promote from. Does not touch
+    ``state.session``; the transport adapter switches builds. Raises
+    ``DeckRuleError`` for an unsupported format, an unparseable paste, or an empty
+    list."""
+    if fmt not in COMMANDER_FORMATS:
+        raise DeckRuleError(f"unsupported format: {fmt!r}")
+    try:
+        parsed = parse_deck_text(text, format=fmt)
+    except Exception as exc:
+        raise DeckRuleError(f"could not parse deck list: {exc}") from exc
+    warnings = settle_companion_zone(parsed, state.by_name)
+    session = DeckSession.from_deck_dict(parsed)
+    if not session.card_names():
+        raise DeckRuleError("no cards found in the imported list")
+    # Entries that carried a "(SET) 123" suffix (and optional *F*/*E* finish
+    # marker) auto-pin the matching printing; unresolvable pairs stay unpinned.
+    pin_imported_printings(state, session, parsed)
+    unknown = sorted(n for n in session.card_names() if n not in state.by_name)
+    return ImportedDeck(
+        parsed=parsed, session=session, unknown=unknown, warnings=warnings
+    )
+
+
+# --- printings ------------------------------------------------------------------
+
+
+def printings_for(state: ForgeState, name: str) -> list[tuple[dict, int, int]]:
+    """Every legal printing of *name* for the picker, each with its owned nonfoil /
+    foil counts in the ACTIVE Collection slot (0 when unknown). Owned printings
+    sort first (total owned desc, ties newest-first), then the rest newest-first.
+    Empty for an unknown name."""
+    record = state.by_name.get(name)
+    oracle_id = record.get("oracle_id") if record else None
+    prints = state.printings_by_oracle.get(oracle_id, []) if oracle_id else []
+    detail = owned_printing_detail(state, name) or {}
+    rows: list[tuple[dict, int, int]] = []
+    for p in prints:
+        key = ((p.get("set") or "").lower(), str(p.get("collector_number") or ""))
+        nonfoil, foil = detail.get(key, (0, 0))
+        rows.append((p, nonfoil, foil))
+    # Stable sort over the newest-first base order: the owned block first (by total
+    # owned desc, ties stay newest-first), then unowned newest-first unchanged.
+    rows.sort(key=lambda r: (0 if r[1] + r[2] > 0 else 1, -(r[1] + r[2])))
+    return rows
+
+
+def choose_printing(
+    state: ForgeState,
+    name: str,
+    printing_id: str | None,
+    *,
+    zone: str,
+    finish: str | None,
+) -> None:
+    """Pin (or clear, with a null id) the printing for *name* in *zone*. The chosen
+    printing drives the card's image / price / export set, never its gameplay text.
+    Validated against the card's own printings so a stray id can't pin a wrong
+    card's art, and a finish only rides a pinned printing that was produced in it
+    (its ``finishes`` list). Raises ``DeckRuleError``; mutates the session."""
+    chosen: dict | None = None
+    if printing_id is not None:
+        record = state.by_name.get(name)
+        oracle_id = record.get("oracle_id") if record else None
+        chosen = next(
+            (
+                p
+                for p in state.printings_by_oracle.get(oracle_id or "", [])
+                if p.get("id") == printing_id
+            ),
+            None,
+        )
+        if chosen is None:
+            raise DeckRuleError(f"not a printing of {name!r}")
+    if finish is not None:
+        if chosen is None:
+            raise DeckRuleError("finish requires a chosen printing")
+        if finish not in ("foil", "etched") or finish not in (
+            chosen.get("finishes") or []
+        ):
+            raise DeckRuleError(f"printing {printing_id!r} has no {finish!r} finish")
+    state.session.set_printing(name, printing_id, zone=zone, finish=finish)
+
+
+def export_deck_dict(state: ForgeState) -> dict:
+    """The session as a parsed-deck dict with each chosen printing resolved to its
+    ``set`` / ``collector_number`` (the exporters' ``(SET) <collector#>`` suffix and
+    the JSON export's printing identity). A no-op for default printings."""
+    deck = state.session.to_deck_dict()
+    for zone in views.VALID_ZONES:
+        for entry in deck.get(zone) or []:
+            record = state.printing_by_id.get(entry.get("printing_id") or "")
+            if record is not None:
+                entry["set"] = record.get("set")
+                entry["collector_number"] = record.get("collector_number")
+    return deck
+
+
+# --- tune -----------------------------------------------------------------------
+
+
+def tune_params(
+    state: ForgeState,
+    *,
+    budget: float | None,
+    wildcard_budget: dict[str, int] | None,
+    max_swaps: int,
+    shape_override: str | None,
+    suggest_commander: bool,
+) -> TuneParams:
+    """The tuner's parameters for THIS build. Cost mode follows the medium (the
+    Format's rule): paper budgets in USD, digital in Arena wildcards per rarity (a
+    missing wildcard budget on a digital build is an all-zero, owned-only pass).
+    ``max_swaps`` is capped high enough to FILL a near-empty deck (an under-sized
+    build can need ~40+ adds to reach 100)."""
+    fmt = state.session.format
+    is_digital = Format.cost_mode(state.session.medium) == "wildcards"
+    return TuneParams(
+        budget=None if is_digital else budget,
+        wildcard_budget=(wildcard_budget or {}) if is_digital else None,
+        max_swaps=max(0, min(max_swaps, 99)),
+        shape_override=shape_override,
+        suggest_commander=suggest_commander,
+        paper_only=not FORMATS[fmt].is_arena,
+        medium=state.session.medium,
+    )
+
+
 def finalize_state(state: ForgeState) -> dict:
     """The finalize REPORT (not the gating decision — the route owns the override)."""
     hd = hydrate_session(state)
@@ -992,20 +1244,6 @@ def ranked_deck_signals(state: ForgeState, hydrated: list[dict]) -> list:
     return rank_deck_signals(
         hydrated, commander_names, resolve_object=state.object_resolver
     )
-
-
-def signal_dict(signal: Signal) -> dict:
-    spec = spec_for(signal)
-    return {
-        "key": signal.key,
-        "scope": signal.scope,
-        "subject": signal.subject,
-        "source": signal.source,
-        "confidence": signal.confidence,
-        "label": spec.label if spec else signal.key,
-        "avenue": spec.avenue if spec else "",
-        "actionable": spec is not None,
-    }
 
 
 def avenues(state: ForgeState, hydrated: list[dict]) -> list[dict]:
@@ -1415,7 +1653,9 @@ def snapshot(state: ForgeState) -> dict:
             deck_size=state.session.deck_size,
             land_band=(mana["land_band"]["floor"], mana["land_band"]["top"]),
         ),
-        "signals": [signal_dict(s) for s in ranked_deck_signals(state, hd.records)],
+        "signals": [
+            views.signal_view(s) for s in ranked_deck_signals(state, hd.records)
+        ],
         "avenues": avenues(state, hd.records),
         "warnings": legality_warnings(hd, max_cards=state.session.deck_size),
         "collection": collection_summary(state, owned),

@@ -16,7 +16,7 @@ live in [`archive/`](archive/).
 | 0010 | deck-forge is an interactive skill, not an Agent-SDK / ACP app | billing-safe interactive-only posture |
 | 0011 | deck-forge autosaves and resumes, departing from ADR-0003 | autosave + resume for deck-forge builds |
 | 0012 | Deck analysis takes a HydratedDeck, not a (deck, hydrated) pair | one value type; acquire (ADR-0046) / from_session / from_parsed constructors |
-| 0013 | deck-forge splits into engine / views / transport, not one app module | engine / views / app module split |
+| 0013 | deck-forge splits into engine / views / transport, not one app module | finished: every deck rule is an engine function raising `DeckRuleError` (one 400 mapping); views serializes, the engine never does outside `snapshot`; one exporter shared with the CLI |
 | 0014 | deck-forge guards signal keys with an import-time gate, not a registry | gate stands; fed by a hand-maintained manifest, rename+dedup fix in progress |
 | 0015 | deck-forge merges Search and Synergies into one Avenue-driven Find surface | one Find surface; guardrail against restoring deleted routes |
 | 0016 | deck-forge handoff buttons split by a run-here / session execution boundary | run-here vs session-side handoff execution split |

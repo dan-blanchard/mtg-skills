@@ -16,7 +16,7 @@ import uuid
 from collections.abc import AsyncIterator
 from pathlib import Path
 
-from fastapi import BackgroundTasks, FastAPI, Response
+from fastapi import BackgroundTasks, FastAPI, Request, Response
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
@@ -24,14 +24,13 @@ from pydantic import BaseModel
 
 from mtg_utils._deck_forge import collection, engine, views
 from mtg_utils._deck_forge.budgets import slot_budgets
+from mtg_utils._deck_forge.engine import DeckRuleError
 from mtg_utils._deck_forge.state import DeckSession, ForgeState
-from mtg_utils._tuner.tune import TuneParams
 from mtg_utils._tuner.tune import tune as run_tune
-from mtg_utils.companion import is_companion
 from mtg_utils.deck_stats import deck_stats
 from mtg_utils.export_deck import export_as
-from mtg_utils.formats import COMMANDER_FORMATS, FORMATS, Format
-from mtg_utils.mana_audit import mana_audit, reconcile_basic_lands
+from mtg_utils.formats import COMMANDER_FORMATS, FORMATS
+from mtg_utils.mana_audit import mana_audit
 from mtg_utils.parse_deck import parse_deck_text
 from mtg_utils.theme_presets import list_presets
 
@@ -220,47 +219,6 @@ def _zone_error(zone: str) -> JSONResponse | None:
     return None
 
 
-def _companion_add_error(state: ForgeState, name: str, qty: int) -> JSONResponse | None:
-    """Zone rules for adding to the companion zone, or None when the add is legal.
-
-    (a) At most ONE card may occupy the zone (CR 103.2b: a player may reveal at
-    most one companion) — an occupied zone 400s; the user removes/moves the old
-    occupant first, it is never silently replaced. (b) The card must actually
-    carry the companion ability (CR 702.139a), validated against the hydrated
-    record.
-    """
-    occupied = state.session.to_deck_dict().get("companion") or []
-    if occupied:
-        holder = occupied[0]["name"]
-        return JSONResponse(
-            {
-                "error": (
-                    f"companion zone already holds {holder}; a player may reveal "
-                    f"at most one companion (CR 103.2b) — remove it first"
-                )
-            },
-            status_code=400,
-        )
-    if qty != 1:
-        return JSONResponse(
-            {
-                "error": (
-                    "the companion zone holds exactly one card "
-                    "(CR 103.2b: at most one companion)"
-                )
-            },
-            status_code=400,
-        )
-    record = state.by_name.get(name)
-    if record is None or not is_companion(record):
-        return JSONResponse(
-            {"error": f"{name} has no companion ability (CR 702.139a)"},
-            status_code=400,
-        )
-    return None
-    return None
-
-
 def _no_bulk() -> JSONResponse:
     return JSONResponse(
         {"error": "Scryfall bulk data not found — run `download-mtgjson` first."},
@@ -271,6 +229,11 @@ def _no_bulk() -> JSONResponse:
 def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAPI:
     """Build the FastAPI app from an injected ``ForgeState``."""
     app = FastAPI(title="deck-forge", version=VERSION)
+
+    @app.exception_handler(DeckRuleError)
+    async def _deck_rule_error(_request: Request, exc: DeckRuleError) -> JSONResponse:
+        # Every engine rule breach (ADR-0013) is one 400 with the rule's message.
+        return JSONResponse({"error": str(exc)}, status_code=400)
 
     @app.get("/api/health")
     async def health() -> dict[str, str]:
@@ -308,9 +271,7 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
                 {"error": f"card not found: {payload.name!r}"}, status_code=404
             )
         if payload.zone == "companion":
-            bad_companion = _companion_add_error(state, payload.name, payload.qty)
-            if bad_companion is not None:
-                return bad_companion
+            engine.check_companion_add(state, payload.name, payload.qty)
         state.session.add(payload.name, payload.qty, zone=payload.zone)
         _autosave(state)
         snap = engine.snapshot(state)
@@ -392,15 +353,7 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
         """Fix the mana base: add basics to reach the FAIL floor and rebalance the
         basics to match color demand (swapping over- for under-produced colors at the
         current count when already at/above the floor)."""
-        plan = reconcile_basic_lands(engine.hydrate_session(state))
-        applied: dict[str, dict[str, int]] = {"add": {}, "remove": {}}
-        for name, qty in plan["remove"].items():
-            state.session.remove(name, qty, zone="cards")
-            applied["remove"][name] = qty
-        for name, qty in plan["add"].items():
-            if name in state.by_name:  # only add basics the loaded index can hydrate
-                state.session.add(name, qty, zone="cards")
-                applied["add"][name] = qty
+        applied = engine.balance_lands(state)
         _autosave(state)
         snap = engine.snapshot(state)
         snap["balanced"] = applied
@@ -413,20 +366,8 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
         (max of Burgess/Karsten), removing over-produced colors first. No-op when the
         deck is already at/under recommended. Soft — never blocks finalize, because an
         all-lands combo deck is a legitimate build (see CONTEXT Flood line)."""
-        audit = mana_audit(engine.hydrate_session(state))
-        recommended = audit["land_band"]["top"]
-        applied: dict[str, dict[str, int]] = {"add": {}, "remove": {}}
-        if audit["land_count"] > recommended:
-            plan = reconcile_basic_lands(
-                engine.hydrate_session(state), target_total=recommended
-            )
-            for name, qty in plan["remove"].items():
-                state.session.remove(name, qty, zone="cards")
-                applied["remove"][name] = qty
-            for name, qty in plan["add"].items():
-                if name in state.by_name:  # only basics the index can hydrate
-                    state.session.add(name, qty, zone="cards")
-                    applied["add"][name] = qty
+        applied = engine.trim_lands(state)
+        if applied["add"] or applied["remove"]:
             _autosave(state)
         snap = engine.snapshot(state)
         snap["trimmed"] = applied
@@ -506,26 +447,10 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
         ``card_owned_qty``. Empty for an unknown name / no bulk."""
         if not state.bulk_available:
             return _no_bulk()
-        record = state.by_name.get(name)
-        oracle_id = record.get("oracle_id") if record else None
-        prints = state.printings_by_oracle.get(oracle_id, []) if oracle_id else []
-        detail = engine.owned_printing_detail(state, name) or {}
-        rows = []
-        for p in prints:
-            view = views.printing_view(p)
-            key = ((p.get("set") or "").lower(), str(p.get("collector_number") or ""))
-            nonfoil, foil = detail.get(key, (0, 0))
-            view["owned_qty"] = nonfoil
-            view["owned_foil_qty"] = foil
-            rows.append(view)
-        # Stable sort over the newest-first base order: owned block first (by total
-        # owned desc, ties stay newest-first), then unowned newest-first unchanged.
-        rows.sort(
-            key=lambda v: (
-                0 if v["owned_qty"] + v["owned_foil_qty"] > 0 else 1,
-                -(v["owned_qty"] + v["owned_foil_qty"]),
-            )
-        )
+        rows = [
+            {**views.printing_view(p), "owned_qty": nonfoil, "owned_foil_qty": foil}
+            for p, nonfoil, foil in engine.printings_for(state, name)
+        ]
         owned_total = engine.owned_of(state, name)
         return {
             "name": name,
@@ -543,43 +468,12 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
         bad_zone = _zone_error(payload.zone)
         if bad_zone is not None:
             return bad_zone
-        chosen: dict | None = None
-        if payload.printing_id is not None:
-            record = state.by_name.get(payload.name)
-            oracle_id = record.get("oracle_id") if record else None
-            chosen = next(
-                (
-                    p
-                    for p in state.printings_by_oracle.get(oracle_id or "", [])
-                    if p.get("id") == payload.printing_id
-                ),
-                None,
-            )
-            if chosen is None:
-                return JSONResponse(
-                    {"error": f"not a printing of {payload.name!r}"}, status_code=400
-                )
-        if payload.finish is not None:
-            # A finish only makes sense riding a pinned printing, and only one the
-            # printing was actually produced in (its Scryfall `finishes` list).
-            if chosen is None:
-                return JSONResponse(
-                    {"error": "finish requires a chosen printing"}, status_code=400
-                )
-            if payload.finish not in ("foil", "etched") or payload.finish not in (
-                chosen.get("finishes") or []
-            ):
-                return JSONResponse(
-                    {
-                        "error": (
-                            f"printing {payload.printing_id!r} has no "
-                            f"{payload.finish!r} finish"
-                        )
-                    },
-                    status_code=400,
-                )
-        state.session.set_printing(
-            payload.name, payload.printing_id, zone=payload.zone, finish=payload.finish
+        engine.choose_printing(
+            state,
+            payload.name,
+            payload.printing_id,
+            zone=payload.zone,
+            finish=payload.finish,
         )
         _autosave(state)
         snap = engine.snapshot(state)
@@ -601,7 +495,7 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
     @app.get("/api/signals")
     async def signals() -> dict:
         sigs = engine.ranked_deck_signals(state, engine.hydrate_session(state).records)
-        return {"signals": [engine.signal_dict(s) for s in sigs]}
+        return {"signals": [views.signal_view(s) for s in sigs]}
 
     @app.get("/api/presets")
     async def presets() -> dict:
@@ -651,68 +545,15 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
         seed a fresh session, switch to it. Never overwrites the live build; never
         guesses a commander — an unmarked list lands as a pile in ``cards`` that the
         user promotes from (the DeckList ★)."""
-        if payload.format not in COMMANDER_FORMATS:
-            return JSONResponse(
-                {"error": f"unsupported format: {payload.format!r}"}, status_code=400
-            )
-        try:
-            parsed = parse_deck_text(payload.text, format=payload.format)
-        except Exception as exc:  # noqa: BLE001 — a bad paste is a 400, never a 500
-            return JSONResponse(
-                {"error": f"could not parse deck list: {exc}"}, status_code=400
-            )
-        # Route the parsed companion zone: the FIRST plausible companion (unknown
-        # names stay — they surface as `unknown` like any other zone) keeps the
-        # zone; overflow entries (max one companion, CR 103.2b), extra copies, and
-        # cards the bulk index PROVES have no companion ability (CR 702.139a) are
-        # demoted to ``cards`` with a warning rather than dropped.
-        import_warnings: list[str] = []
-        kept_companion: list[dict] = []
-        demoted: list[dict] = []
-        for entry in parsed.get("companion") or []:
-            record = state.by_name.get(entry.get("name", ""))
-            if record is not None and not is_companion(record):
-                demoted.append(entry)
-                import_warnings.append(
-                    f"{entry['name']} has no companion ability (CR 702.139a); "
-                    f"moved to the deck"
-                )
-            elif kept_companion:
-                demoted.append(entry)
-                import_warnings.append(
-                    f"more than one companion listed; {entry['name']} moved to the "
-                    f"deck (CR 103.2b: at most one companion)"
-                )
-            else:
-                qty = int(entry.get("quantity", 1))
-                if qty > 1:
-                    demoted.append({**entry, "quantity": qty - 1})
-                    import_warnings.append(
-                        f"{entry['name']}: {qty} copies listed as companion; kept 1, "
-                        f"moved {qty - 1} to the deck (CR 103.2b)"
-                    )
-                kept_companion.append({**entry, "quantity": 1})
-        parsed["companion"] = kept_companion
-        if demoted:
-            parsed["cards"] = list(parsed.get("cards") or []) + demoted
-        session = DeckSession.from_deck_dict(parsed)
-        if not session.card_names():
-            return JSONResponse(
-                {"error": "no cards found in the imported list"}, status_code=400
-            )
-        # Entries that carried a "(SET) 123" suffix (and optional *F*/*E* finish
-        # marker) auto-pin the matching printing; unresolvable pairs stay unpinned.
-        engine.pin_imported_printings(state, session, parsed)
-        state.session = session
+        imported = engine.import_deck(state, payload.text, fmt=payload.format)
+        state.session = imported.session
         state.build_id = uuid.uuid4().hex[:8]
         state.build_name = payload.name or "Imported deck"
         _reset_runtime_lanes(state)
         _autosave(state)
-        # Names the bulk index can't hydrate (typos, un-owned tokens, Arena-only cards
-        # when no bulk) surface as `unknown` cards; report them so the UI can warn.
-        unknown = sorted(n for n in session.card_names() if n not in state.by_name)
         snap = engine.snapshot(state)
         state.hub.publish(json.dumps(snap))
+        parsed = imported.parsed
         return {
             "build_id": state.build_id,
             "imported": {
@@ -720,9 +561,11 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
                 "cards": sum(
                     int(e.get("quantity", 1)) for e in (parsed.get("cards") or [])
                 ),
-                "companion": len(kept_companion),
-                "unknown": unknown,
-                "warnings": import_warnings,
+                "companion": len(parsed.get("companion") or []),
+                # Names the index can't hydrate (typos, un-owned tokens, Arena-only
+                # cards when no bulk) surface as `unknown` cards for the UI to warn.
+                "unknown": imported.unknown,
+                "warnings": imported.warnings,
             },
             **snap,
         }
@@ -853,8 +696,9 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
             theme=payload.theme,
             limit=max(1, payload.limit),
         )
+        fmt = FORMATS[state.session.format]
         return {
-            "results": results,
+            "results": [views.commander_view(row, fmt) for row in results],
             "sort": payload.sort,
             "active_slot": slot,
             "slot_size": collection.slot_sizes(state.collections).get(slot, 0),
@@ -862,15 +706,7 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
 
     @app.get("/api/export", response_model=None)
     async def export(fmt: str = "json") -> dict | JSONResponse:
-        deck = state.session.to_deck_dict()
-        # Resolve each chosen printing to its set/collector so the exporters can add the
-        # "(SET) <collector#>" suffix (printing picker, C). No-op for defaults.
-        for zone in views.VALID_ZONES:
-            for entry in deck.get(zone) or []:
-                record = state.printing_by_id.get(entry.get("printing_id") or "")
-                if record is not None:
-                    entry["set"] = record.get("set")
-                    entry["collector_number"] = record.get("collector_number")
+        deck = engine.export_deck_dict(state)
         if fmt == "json":
             return {"format": "json", "deck": deck}
         text = export_as(deck, fmt)
@@ -966,21 +802,13 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
         rarity, gated per tier (wildcards aren't interchangeable)."""
         if not state.bulk_available:
             return _no_bulk()
-        fmt = state.session.format
-        is_digital = Format.cost_mode(state.session.medium) == "wildcards"
-        params = TuneParams(
-            # Paper budgets in dollars; digital in per-rarity wildcards (a missing
-            # wildcard_budget on a digital build → all-zero → owned-only pass).
-            budget=None if is_digital else payload.budget,
-            wildcard_budget=(payload.wildcard_budget or {}) if is_digital else None,
-            # Cap high enough to FILL a near-empty deck (an under-sized build can need
-            # ~40+ adds to reach 100); the old 25 cap silently clamped large requests
-            # and starved the fill pass.
-            max_swaps=max(0, min(payload.max_swaps, 99)),
+        params = engine.tune_params(
+            state,
+            budget=payload.budget,
+            wildcard_budget=payload.wildcard_budget,
+            max_swaps=payload.max_swaps,
             shape_override=payload.shape_override,
             suggest_commander=payload.suggest_commander,
-            paper_only=not FORMATS[fmt].is_arena,
-            medium=state.session.medium,
         )
         # run_tune does blocking work (a Commander Spellbook combos call + heavy bulk
         # searches); offload it to a worker thread so a slow combo lookup can't stall
@@ -1068,23 +896,12 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
             return JSONResponse(
                 {"error": f"combo lookup failed: {exc}"}, status_code=502
             )
-        # Enrich each combo's cards with hydrated views (image/type/price) + an in-deck
-        # flag, so the UI can render them as the same CardTiles as search/synergies.
-        in_deck = set(state.session.card_names())
-        fmt = FORMATS[state.session.format]
-
-        def _card_views(names: list[str]) -> list[dict]:
-            return [
-                views.combo_card_view(
-                    name, state.by_name.get(name), in_deck=name in in_deck, fmt=fmt
-                )
-                for name in (names or [])
-            ]
-
-        for group in ("combos", "near_misses"):
-            for combo in result.get(group) or []:
-                combo["card_views"] = _card_views(combo.get("cards", []))
-        return result
+        return views.enrich_combos(
+            result,
+            state.by_name,
+            in_deck=set(state.session.card_names()),
+            fmt=FORMATS[state.session.format],
+        )
 
     _register_frontend(app, frontend_dist)
     return app

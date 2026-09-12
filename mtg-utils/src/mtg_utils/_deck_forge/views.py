@@ -13,6 +13,8 @@ from __future__ import annotations
 from collections.abc import Callable, Mapping
 
 from mtg_utils._deck_forge.images import image_urls
+from mtg_utils._deck_forge.signal_specs import spec_for
+from mtg_utils._deck_forge.signals import Signal
 from mtg_utils._deck_forge.state import ForgeState
 from mtg_utils.card_classify import get_mana_cost, get_oracle_text
 from mtg_utils.formats import FORMATS, Format
@@ -226,3 +228,45 @@ def deck_view(
             for zone in VALID_ZONES
         },
     }
+
+
+def signal_view(signal: Signal) -> dict:
+    """One deck signal on the wire: identity + the served spec's label / avenue."""
+    spec = spec_for(signal)
+    return {
+        "key": signal.key,
+        "scope": signal.scope,
+        "subject": signal.subject,
+        "source": signal.source,
+        "confidence": signal.confidence,
+        "label": spec.label if spec else signal.key,
+        "avenue": spec.avenue if spec else "",
+        "actionable": spec is not None,
+    }
+
+
+def commander_view(row: dict, fmt: Format) -> dict:
+    """A discovered commander (an ``engine.discover_commanders`` row: the record plus
+    its support scores) as name + projection + scores."""
+    view = {"name": row["name"], **project(row["record"], fmt)}
+    for key in ("support_depth", "lanes", "supported_lanes", "novelty"):
+        if key in row:
+            view[key] = row[key]
+    return view
+
+
+def enrich_combos(
+    result: dict, by_name: Mapping[str, dict], *, in_deck: set[str], fmt: Format
+) -> dict:
+    """Attach ``card_views`` (image / type / price + an ``in_deck`` flag) to every
+    combo and near-miss in a combo-search result, so the SPA renders them as the same
+    CardTiles as search. Mutates and returns *result*."""
+    for group in ("combos", "near_misses"):
+        for combo in result.get(group) or []:
+            combo["card_views"] = [
+                combo_card_view(
+                    name, by_name.get(name), in_deck=name in in_deck, fmt=fmt
+                )
+                for name in (combo.get("cards") or [])
+            ]
+    return result
