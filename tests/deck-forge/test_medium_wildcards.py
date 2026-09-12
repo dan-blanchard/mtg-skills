@@ -83,9 +83,11 @@ def test_deck_size_endpoint_and_footer_target():
 def test_deck_size_endpoint_rejects_bad_value():
     client = TestClient(build_app(_state("historic_brawl")))
     assert client.post("/api/deck/deck-size", json={"deck_size": 42}).status_code == 400
-    # A size no medium of the format can choose is refused too (commander is 100 only).
+    # A size some Commander-family medium may choose is accepted and lies dormant
+    # (set 60 under Commander, toggle to paper Historic Brawl later and it applies).
     cmd = TestClient(build_app(_state("commander")))
-    assert cmd.post("/api/deck/deck-size", json={"deck_size": 60}).status_code == 400
+    snap = cmd.post("/api/deck/deck-size", json={"deck_size": 60}).json()
+    assert snap["deck"]["deck_size"] == 100
 
 
 def test_snapshot_serves_the_format_table_the_spa_reads():
@@ -99,6 +101,10 @@ def test_snapshot_serves_the_format_table_the_spa_reads():
     by_id = {r["id"]: r for r in rows}
     # Exactly what the Header derives its pickers from: media and per-medium sizes.
     assert by_id["commander"]["media"] == ["paper"]
+    assert by_id["historic_brawl"]["medium_labels"] == {
+        "digital": "Arena",
+        "paper": "Paper",
+    }
     assert by_id["competitive_brawl"]["media"] == ["digital"]
     assert by_id["historic_brawl"]["size_choices"] == {
         "digital": [100],

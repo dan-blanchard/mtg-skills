@@ -37,7 +37,7 @@ def _card(
     card_faces=None,
 ):
     # NOTE on legalities keys: Scryfall's format-name -> legality-key mapping
-    # is counterintuitive. Our FORMAT_CONFIGS map:
+    # is counterintuitive. Our FORMATS table maps:
     #   "commander"      -> legality key "commander"
     #   "brawl"          -> legality key "standardbrawl"  (Standard Brawl)
     #   "historic_brawl" -> legality key "brawl"          (Historic / Arena Brawl)

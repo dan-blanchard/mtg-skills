@@ -179,7 +179,7 @@ Two things make it different from every other format here:
 
 1. **It shares the `brawl` legality key but not its ban list.** MTGJSON/Scryfall publish
    no `competitivebrawl` key, so the audit reads `brawl` and then applies two overrides
-   from `format_config`: a card marked **`banned`** under that key is **legal** here
+   from the `Format` (`mtg_utils.formats`): a card marked **`banned`** under that key is **legal** here
    (ordinary Brawl bans ~28 cards that Competitive Brawl allows — Mana Drain, Demonic
    Tutor, Fierce Guardianship, Ancient Tomb, Chrome Mox…), while **`not_legal` still
    fails** because it means the card isn't on Arena at all. The format's own ten-card ban

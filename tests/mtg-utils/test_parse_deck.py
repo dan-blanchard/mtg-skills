@@ -274,6 +274,16 @@ class TestFormatAndDeckSize:
         assert data["format"] == "brawl"
         assert data["deck_size"] == 60
 
+    def test_cli_rejects_an_impossible_deck_size_at_the_producer(self, moxfield_deck):
+        # parse-deck is the producer of ``deck_size``; a Commander-family size the
+        # format cannot be fails here, not one CLI later when HydratedDeck resolves it.
+        runner = CliRunner()
+        result = runner.invoke(
+            main, [str(moxfield_deck), "--format", "commander", "--deck-size", "73"]
+        )
+        assert result.exit_code == 2
+        assert "deck_size 73 is not legal for commander" in result.output
+
     def test_cli_deck_size_flag(self, moxfield_deck):
         runner = CliRunner()
         result = runner.invoke(

@@ -57,7 +57,7 @@ not a variant to audit as `historic_brawl`. It is always 1v1, 25 life, and has
 **no free mulligan**, so do not cite CR 903.12g's free-first-mulligan rule for it;
 that rule governs ordinary Brawl. It shares the `brawl` legality key but legalizes
 everything that key marks `banned`, enforcing its own ten-card list by name
-(`format_config.COMPETITIVE_BRAWL_BANNED`). Guides for this format should skip
+(`formats.COMPETITIVE_BRAWL_BANNED`). Guides for this format should skip
 multiplayer/politics sections entirely.
 
 If the user invokes deck-strat on a 60-card constructed deck, decline

@@ -612,7 +612,7 @@ class TestArenaIllegalOrMissing:
 
 class TestCompetitiveBrawlBanOverrides:
     """``competitive_brawl`` shares the ``brawl`` legality key but not its ban
-    list (format_config ``ignores_legality_key_bans`` + ``banned_cards``).
+    list (``Format.ignores_legality_key_bans`` + ``banned_cards``).
     ``price-check`` must cost a brawl-banned staple as a normal craft, not
     report it under ``illegal_or_missing`` — and must still reject the
     format's own by-name bans."""

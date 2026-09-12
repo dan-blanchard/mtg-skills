@@ -28,7 +28,7 @@ from pathlib import Path
 
 import click
 
-from mtg_utils.formats import FORMATS, get_format
+from mtg_utils.formats import FORMATS, Format, get_format
 
 
 def _detect_format(content: str) -> str:
@@ -327,8 +327,8 @@ def parse_deck_text(
     excluded from ``cards`` and ``total_cards`` because a companion is revealed
     from outside the game and is not part of the deck (CR 702.139a-b).
     """
-    fmt = _detect_format(content)
-    result = _PARSERS[fmt](content)
+    source = _detect_format(content)
+    result = _PARSERS[source](content)
     result.setdefault("companion", [])
 
     fmt = get_format(format)
@@ -397,10 +397,10 @@ def parse_deck_text(
 
     result["format"] = format
     result["sideboard_size"] = fmt.sideboard_size
-    if deck_size is not None:
-        result["deck_size"] = deck_size
-    else:
-        result["deck_size"] = fmt.deck_size
+    result["deck_size"] = deck_size if deck_size is not None else fmt.deck_size
+    # An explicit size a Commander-family format cannot be fails HERE, at the
+    # producer, not one CLI later when HydratedDeck resolves the deck's Format.
+    Format.for_deck(result)
 
     return result
 
@@ -435,7 +435,10 @@ def main(
     output_path: Path | None,
 ) -> None:
     """Parse a deck list file and output JSON."""
-    result = parse_deck(deck_path, format=deck_format, deck_size=deck_size)
+    try:
+        result = parse_deck(deck_path, format=deck_format, deck_size=deck_size)
+    except ValueError as e:
+        raise click.BadParameter(str(e), param_hint="--deck-size") from e
     payload = json.dumps(result, indent=2)
     if output_path is not None:
         if output_path.resolve() == deck_path.resolve():

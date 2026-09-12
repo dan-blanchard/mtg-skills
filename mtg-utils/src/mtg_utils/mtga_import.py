@@ -124,11 +124,6 @@ _FREE_BASICS = ("Island", "Mountain", "Plains", "Forest", "Swamp", "Wastes")
 # per-oracle-name totals.
 _ARENA_PLAYSET_CAP = 4
 
-# The in-game deck size for each supported format. Used to stamp a
-# cosmetic ``format`` / ``deck_size`` field on the collection output so
-# it structurally matches what ``parse-deck`` produces — no downstream
-# script reads these fields from the collection side.
-
 # Freshness thresholds. These are nudges, not gates — the importer
 # still emits its output when a warning fires. The 48h mtime window is
 # intentionally laxer than ``download-mtgjson``'s 24h because that

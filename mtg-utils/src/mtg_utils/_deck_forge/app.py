@@ -30,7 +30,7 @@ from mtg_utils._tuner.tune import TuneParams
 from mtg_utils._tuner.tune import tune as run_tune
 from mtg_utils.companion import is_companion
 from mtg_utils.deck_stats import deck_stats
-from mtg_utils.formats import COMMANDER_FORMATS, FORMATS
+from mtg_utils.formats import COMMANDER_FORMATS, FORMATS, Format
 from mtg_utils.mana_audit import mana_audit, reconcile_basic_lands
 from mtg_utils.parse_deck import parse_deck_text
 from mtg_utils.theme_presets import list_presets
@@ -371,12 +371,15 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
         """Choose 60 or 100 cards. Only paper Historic Brawl honors it (both are legal
         for paper "Brawl"); every other format/medium keeps its fixed size, so the
         override lies dormant until it applies."""
-        fmt = FORMATS[state.session.format]
-        choices = sorted({s for m in fmt.media for s in fmt.size_choices(m)})
+        # Any size some Commander-family (format, medium) may choose is accepted: the
+        # override lies dormant until it applies (set 60 now, toggle to paper Historic
+        # Brawl later), so the guard is derived from the table, never a hand-list.
+        choices = sorted(
+            {s for f in COMMANDER_FORMATS for s in FORMATS[f].all_size_choices}
+        )
         if payload.deck_size not in choices:
             return JSONResponse(
-                {"error": f"deck size for {fmt.name} must be one of {choices}"},
-                status_code=400,
+                {"error": f"deck size must be one of {choices}"}, status_code=400
             )
         state.session.set_deck_size(payload.deck_size)
         _autosave(state)
@@ -488,7 +491,7 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
         return {
             "card": views.result_view(
                 rec,
-                state.session.format,
+                FORMATS[state.session.format],
                 unreleased=rec.get("oracle_id") in state.unreleased_ids,
             )
         }
@@ -938,7 +941,7 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
         page = await run_in_threadpool(
             engine.find_candidates, state, _find_params(payload)
         )
-        fmt = state.session.format
+        fmt = FORMATS[state.session.format]
         results = [
             views.candidate_view(
                 row,
@@ -970,7 +973,7 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
         if not state.bulk_available:
             return _no_bulk()
         fmt = state.session.format
-        is_digital = state.session.medium == "digital"
+        is_digital = Format.cost_mode(state.session.medium) == "wildcards"
         params = TuneParams(
             # Paper budgets in dollars; digital in per-rarity wildcards (a missing
             # wildcard_budget on a digital build → all-zero → owned-only pass).
@@ -982,7 +985,7 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
             max_swaps=max(0, min(payload.max_swaps, 99)),
             shape_override=payload.shape_override,
             suggest_commander=payload.suggest_commander,
-            paper_only=engine.paper_only(fmt),
+            paper_only=not FORMATS[fmt].is_arena,
             medium=state.session.medium,
         )
         # run_tune does blocking work (a Commander Spellbook combos call + heavy bulk
@@ -1074,7 +1077,7 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
         # Enrich each combo's cards with hydrated views (image/type/price) + an in-deck
         # flag, so the UI can render them as the same CardTiles as search/synergies.
         in_deck = set(state.session.card_names())
-        fmt = state.session.format
+        fmt = FORMATS[state.session.format]
 
         def _card_views(names: list[str]) -> list[dict]:
             return [

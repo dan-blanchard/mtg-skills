@@ -31,6 +31,7 @@ from dataclasses import dataclass, field, replace
 from typing import Literal
 
 from mtg_utils.card_classify import is_commander
+from mtg_utils.names import normalize_card_name
 
 Legality = Literal["legal", "restricted", "banned", "not_legal", "unreleased"]
 Medium = Literal["paper", "digital"]
@@ -39,6 +40,9 @@ CostMode = Literal["usd", "wildcards"]
 #: The statuses under which a card may be played (Vintage's restricted list is a copy
 #: limit, not a ban).
 LEGAL_STATUSES: frozenset[str] = frozenset({"legal", "restricted"})
+
+#: How the browser names each medium.
+MEDIUM_LABELS: dict[str, str] = {"digital": "Arena", "paper": "Paper"}
 
 # Arena's Competitive Brawl (June 2026) bans ten cards outright — as commander AND in
 # the 99 — and legalizes everything else on Arena, including the ~28 cards the ordinary
@@ -83,11 +87,11 @@ class Format:
     free_mulligan: bool
     colorless_any_basic: bool
     #: Played on MTG Arena (possibly also in paper).
-    arena_format: bool
+    is_arena: bool
     #: Multiplayer starting life; None for formats with no multiplayer variant.
     multiplayer_life_total: int | None = None
     #: No paper counterpart at all: the medium is always digital, never a choice.
-    arena_only: bool = False
+    is_arena_only: bool = False
     #: The format's card pool IS Arena's (MTGJSON's brawl / historic / alchemy /
     #: timeless / standardbrawl keys): a card with no Arena printing is not legal, even
     #: when MTGJSON marks it so (Lord of Atlantis, pw24). Medium-independent — the paper
@@ -99,12 +103,24 @@ class Format:
     ignores_legality_key_bans: bool = False
     #: Canonical names banned by this format's own list (empty for most formats).
     banned_cards: frozenset[str] = frozenset()
+    #: ``banned_cards`` folded through ``names.normalize_card_name`` — the keys the
+    #: legality read matches a record's name against (derived, never set by hand).
+    banned_keys: frozenset[str] = field(
+        init=False, repr=False, compare=False, default=frozenset()
+    )
     #: CR citation for the exact deck size (Commander family only): the over-size
     #: message cites it. None where the CR sets only a minimum (CR 100.2a).
     size_rule: str | None = None
     #: Per-medium size choices where a medium may pick (paper Historic Brawl, a.k.a.
     #: paper "Brawl", is 60 OR 100). Absent medium → the fixed ``deck_size``.
     size_choices_by_medium: Mapping[str, tuple[int, ...]] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        object.__setattr__(
+            self,
+            "banned_keys",
+            frozenset(normalize_card_name(n) for n in self.banned_cards),
+        )
 
     # --- family -------------------------------------------------------------------
 
@@ -117,22 +133,14 @@ class Format:
         """60-card constructed (no command zone)."""
         return not self.has_commander
 
-    @property
-    def is_arena(self) -> bool:
-        return self.arena_format
-
-    @property
-    def is_arena_only(self) -> bool:
-        return self.arena_only
-
     # --- medium -------------------------------------------------------------------
 
     @property
     def media(self) -> tuple[Medium, ...]:
         """The media this format is played in, default first."""
-        if self.arena_only:
+        if self.is_arena_only:
             return ("digital",)
-        if self.arena_format:
+        if self.is_arena:
             return ("digital", "paper")
         return ("paper",)
 
@@ -160,6 +168,11 @@ class Format:
         """The deck sizes ``medium`` may choose from (usually just ``deck_size``)."""
         return self.size_choices_by_medium.get(medium, (self.deck_size,))
 
+    @property
+    def all_size_choices(self) -> tuple[int, ...]:
+        """Every size some medium of this format may choose, ascending."""
+        return tuple(sorted({s for m in self.media for s in self.size_choices(m)}))
+
     def is_valid_deck_size(self, size: int) -> bool:
         """Commander family: one of the size choices across every medium (exact-size
         formats, CR 903.5a / 903.12d). Constructed: any positive size — CR 100.2a sets
@@ -179,11 +192,15 @@ class Format:
     # --- legality -----------------------------------------------------------------
 
     def legality(
-        self, record: dict, *, unreleased: frozenset[str] = frozenset()
+        self, record: dict, *, unreleased: frozenset[str] | bool = False
     ) -> Legality:
         """This format's status for a card record (see the module docstring for the
-        record contract and the ``unreleased`` input)."""
-        if self.banned_cards and record.get("name") in self.banned_cards:
+        record contract). ``unreleased`` is the oracle-level pre-release set, or
+        ``True`` when the caller has already established this record is pre-release
+        (the hub's views carry that as a flag per card)."""
+        if self.banned_keys and normalize_card_name(record.get("name", "")) in (
+            self.banned_keys
+        ):
             return "banned"
         status = (record.get("legalities") or {}).get(self.legality_key, "not_legal")
         if status == "banned" and self.ignores_legality_key_bans:
@@ -194,19 +211,19 @@ class Format:
             return status  # type: ignore[return-value]
         if status == "banned":
             return "banned"
-        if unreleased and record.get("oracle_id") in unreleased:
+        if unreleased is True or (unreleased and record.get("oracle_id") in unreleased):
             return "unreleased"
         return "not_legal"
 
     def is_legal(
-        self, record: dict, *, unreleased: frozenset[str] = frozenset()
+        self, record: dict, *, unreleased: frozenset[str] | bool = False
     ) -> bool:
         """Playable here: ``legal`` or ``restricted``. Never true for ``unreleased``;
         callers that widen for pre-release cards test the status themselves."""
         return self.legality(record, unreleased=unreleased) in LEGAL_STATUSES
 
     def commander_eligibility(
-        self, record: dict, *, unreleased: frozenset[str] = frozenset()
+        self, record: dict, *, unreleased: frozenset[str] | bool = False
     ) -> dict:
         """``{"eligible", "requires_partner"}`` for this format: legality (a pre-release
         legend counts, so brewing around a spoiled commander works) composed with the
@@ -236,7 +253,7 @@ class Format:
             return fmt
         size = int(raw)
         if not fmt.is_valid_deck_size(size):
-            choices = sorted({s for m in fmt.media for s in fmt.size_choices(m)})
+            choices = list(fmt.all_size_choices)
             msg = f"deck_size {size} is not legal for {fmt.name}: expected {choices}"
             raise ValueError(msg)
         return replace(fmt, deck_size=size) if size != fmt.deck_size else fmt
@@ -250,6 +267,7 @@ class Format:
             "id": self.name,
             "label": self.label,
             "media": list(self.media),
+            "medium_labels": {m: MEDIUM_LABELS[m] for m in self.media},
             "default_medium": self.default_medium,
             "deck_size": self.deck_size,
             "size_choices": {m: list(self.size_choices(m)) for m in self.media},
@@ -270,7 +288,9 @@ def _commander_variant(name: str, label: str, **kw: object) -> Format:
     return Format(name=name, label=label, **base)  # type: ignore[arg-type]
 
 
-def _constructed(name: str, label: str, *, legality_key: str, arena: bool) -> Format:
+def _constructed(
+    name: str, label: str, *, legality_key: str, arena: bool, arena_pool: bool = False
+) -> Format:
     return Format(
         name=name,
         label=label,
@@ -284,7 +304,8 @@ def _constructed(name: str, label: str, *, legality_key: str, arena: bool) -> Fo
         planeswalker_commander_requires_text=False,
         free_mulligan=False,
         colorless_any_basic=False,
-        arena_format=arena,
+        is_arena=arena,
+        arena_pool=arena_pool,
     )
 
 
@@ -301,7 +322,7 @@ _ALL: tuple[Format, ...] = (
         planeswalker_commander_requires_text=True,
         free_mulligan=False,
         colorless_any_basic=False,
-        arena_format=False,
+        is_arena=False,
         size_rule="CR 903.5a",
     ),
     _commander_variant(
@@ -311,7 +332,7 @@ _ALL: tuple[Format, ...] = (
         life_total=25,
         multiplayer_life_total=30,
         legality_key="standardbrawl",
-        arena_format=True,
+        is_arena=True,
         arena_pool=True,
         size_rule="CR 903.12d",
     ),
@@ -322,7 +343,7 @@ _ALL: tuple[Format, ...] = (
         life_total=25,
         multiplayer_life_total=30,
         legality_key="brawl",
-        arena_format=True,
+        is_arena=True,
         arena_pool=True,
         size_rule="CR 903.5a",
         # Paper "Brawl" may be 60 OR 100 cards; Arena fixes it at 100.
@@ -338,9 +359,9 @@ _ALL: tuple[Format, ...] = (
         legality_key="brawl",
         # Unlike ordinary Brawl, Competitive Brawl has no free mulligan.
         free_mulligan=False,
-        arena_format=True,
+        is_arena=True,
         # No paper counterpart at all: the medium is always digital.
-        arena_only=True,
+        is_arena_only=True,
         arena_pool=True,
         ignores_legality_key_bans=True,
         banned_cards=COMPETITIVE_BRAWL_BANNED,
@@ -348,25 +369,21 @@ _ALL: tuple[Format, ...] = (
     ),
     # ── Constructed formats (60-card, 4-of, sideboard) ──
     _constructed("standard", "Standard", legality_key="standard", arena=True),
-    _constructed("alchemy", "Alchemy", legality_key="alchemy", arena=True),
-    _constructed("historic", "Historic", legality_key="historic", arena=True),
-    _constructed("timeless", "Timeless", legality_key="timeless", arena=True),
+    _constructed(
+        "alchemy", "Alchemy", legality_key="alchemy", arena=True, arena_pool=True
+    ),
+    _constructed(
+        "historic", "Historic", legality_key="historic", arena=True, arena_pool=True
+    ),
+    _constructed(
+        "timeless", "Timeless", legality_key="timeless", arena=True, arena_pool=True
+    ),
     _constructed("pioneer", "Pioneer", legality_key="pioneer", arena=True),
     _constructed("modern", "Modern", legality_key="modern", arena=False),
     _constructed("premodern", "Premodern", legality_key="premodern", arena=False),
     _constructed("legacy", "Legacy", legality_key="legacy", arena=False),
     _constructed("vintage", "Vintage", legality_key="vintage", arena=False),
 )
-# The Arena-pool gate applies to exactly the formats whose MTGJSON legality key is an
-# Arena-defined format (see Format.arena_pool). Set here for the constructed ones so
-# the flag has one authority.
-_ALL = tuple(
-    replace(f, arena_pool=True)
-    if f.legality_key in ("alchemy", "historic", "timeless")
-    else f
-    for f in _ALL
-)
-
 #: Every supported format, by name, in the order the table declares.
 FORMATS: dict[str, Format] = {f.name: f for f in _ALL}
 

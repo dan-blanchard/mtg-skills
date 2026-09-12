@@ -273,9 +273,9 @@ def search_combos(
     # Determine legality key for format filtering
     legality_key: str | None = None
     if format:
-        cfg = FORMATS.get(format)
-        if cfg:
-            legality_key = cfg.legality_key
+        fmt = FORMATS.get(format)
+        if fmt:
+            legality_key = fmt.legality_key
 
     # Load bulk data for arena/paper filtering if needed
     games_index: dict[str, list[str]] | None = None

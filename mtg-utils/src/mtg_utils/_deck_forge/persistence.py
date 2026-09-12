@@ -12,6 +12,8 @@ import json
 from datetime import UTC, datetime
 from pathlib import Path
 
+from mtg_utils.formats import Format
+
 
 def _card_count(deck: dict) -> int:
     total = 0
@@ -70,11 +72,15 @@ class BuildStore:
             except (json.JSONDecodeError, OSError):
                 continue
             deck = rec.get("deck") or {}
+            try:
+                fmt_name = Format.for_deck(deck).name
+            except ValueError:
+                continue  # an unknown format / impossible size: not a loadable build
             out.append(
                 {
                     "id": rec.get("id", path.stem),
                     "name": rec.get("name", "Untitled"),
-                    "format": deck.get("format", "commander"),
+                    "format": fmt_name,
                     "card_count": _card_count(deck),
                     "updated_at": rec.get("updated_at", ""),
                 }

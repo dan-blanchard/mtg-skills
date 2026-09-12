@@ -96,6 +96,21 @@ def test_accepts_competitive_brawl_as_commander_family(tmp_path, monkeypatch):
     assert captured["params"].paper_only is False
 
 
+def test_medium_the_format_cannot_honour_is_noted_not_fatal(tmp_path, monkeypatch):
+    # ``Format.resolve_medium`` ignores an override the format cannot honour (the
+    # same rule deck-forge's session applies); the CLI says so on stderr and runs.
+    captured = _spy_tune(monkeypatch)
+    deck = _write(tmp_path, "deck.json", COMPETITIVE_BRAWL_DECK)
+    hyd = _write(tmp_path, "hyd.json", HYDRATED)
+    res = CliRunner().invoke(
+        deck_tune_main,
+        [deck, hyd, "--bulk-data", _bulk(tmp_path), "--medium", "paper"],
+    )
+    assert res.exit_code == 0, res.output
+    assert captured["params"].medium == "digital"
+    assert "competitive_brawl is not played in 'paper'" in res.output
+
+
 def test_diagnoses_a_commander_deck(tmp_path):
     deck = _write(tmp_path, "deck.json", COMMANDER_DECK)
     hyd = _write(tmp_path, "hyd.json", HYDRATED)

@@ -128,7 +128,6 @@ STAPLES: dict[str, str] = {
     "Return of the Wildspeaker": "Card advantage",
 }
 
-_LEGAL = ("legal", "restricted")
 
 # Colorless on the card, but only useful in a MULTICOLOR deck: any-color FIXING lands
 # tap for "a color in your identity", so in a mono-color deck they're a strictly-worse

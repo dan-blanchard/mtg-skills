@@ -20,7 +20,7 @@ from mtg_utils.card_classify import (
     get_oracle_text,
     type_line_has,
 )
-from mtg_utils.formats import FORMATS, Format, get_format
+from mtg_utils.formats import FORMATS, LEGAL_STATUSES, Format, get_format
 from mtg_utils.theme_presets import PRESETS, Preset, get_preset
 
 _extract_price = extract_price
@@ -151,11 +151,8 @@ def _matches_filters(
     # data that is provisional rather than final. ``unreleased_ok`` is the opt-in
     # escape hatch (--include-unreleased) that admits exactly those, and nothing else.
     unreleased = unreleased_ok or frozenset()
-    if fmt.legality(card, unreleased=unreleased) not in (
-        "legal",
-        "restricted",
-        "unreleased",
-    ):
+    status = fmt.legality(card, unreleased=unreleased)
+    if status not in LEGAL_STATUSES and status != "unreleased":
         return False
     games = card.get("games") or []
     if arena_only and "arena" not in games:

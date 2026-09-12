@@ -15,7 +15,7 @@ from collections.abc import Callable, Mapping
 from mtg_utils._deck_forge.images import image_urls
 from mtg_utils._deck_forge.state import ForgeState
 from mtg_utils.card_classify import get_mana_cost, get_oracle_text
-from mtg_utils.formats import FORMATS
+from mtg_utils.formats import FORMATS, Format
 
 # "companion" is a rendered zone like any other, but it is outside the game
 # (CR 702.139a-b) — deck-size and budget math exclude it upstream in ``engine``.
@@ -37,14 +37,7 @@ def printing_view(record: dict) -> dict:
     }
 
 
-def _unreleased_set(record: dict, *, unreleased: bool) -> frozenset[str]:
-    """The oracle-level set ``Format`` reads — just this record's id when the caller
-    has already established it is a pre-release card."""
-    oid = record.get("oracle_id")
-    return frozenset({oid}) if unreleased and oid else frozenset()
-
-
-def project(record: dict, fmt: str, *, unreleased: bool = False) -> dict:
+def project(record: dict, fmt: Format, *, unreleased: bool = False) -> dict:
     """The atomic display projection for one Scryfall record (no name/quantity). ``fmt``
     is the deck's format, so ``can_be_commander`` reflects the right legality mode (a
     card can be a commander in brawl but not commander, and vice versa).
@@ -73,9 +66,9 @@ def project(record: dict, fmt: str, *, unreleased: bool = False) -> dict:
         # A pre-release legend has no legal format yet, so the default gate would
         # report it commander-ineligible and the SPA would render its ★ disabled —
         # searchable but un-buildable. Judge those on type/oracle alone.
-        "can_be_commander": FORMATS[fmt].commander_eligibility(
-            record, unreleased=_unreleased_set(record, unreleased=unreleased)
-        )["eligible"],
+        "can_be_commander": fmt.commander_eligibility(record, unreleased=unreleased)[
+            "eligible"
+        ],
         "layout": record.get("layout", ""),
     }
     if unreleased:
@@ -84,7 +77,7 @@ def project(record: dict, fmt: str, *, unreleased: bool = False) -> dict:
     return view
 
 
-def result_view(record: dict, fmt: str, *, unreleased: bool = False) -> dict:
+def result_view(record: dict, fmt: Format, *, unreleased: bool = False) -> dict:
     """A raw search hit: name + projection (no quantity/score)."""
     return {
         "name": record.get("name", ""),
@@ -99,7 +92,7 @@ def card_view(
     name: str,
     qty: int,
     by_name: Mapping[str, dict],
-    fmt: str,
+    fmt: Format,
     owned_qty: int | None = None,
     *,
     printing_id: str | None = None,
@@ -159,7 +152,7 @@ def card_view(
 
 
 def candidate_view(
-    row: dict, fmt: str, *, owned_qty: int | None = None, unreleased: bool = False
+    row: dict, fmt: Format, *, owned_qty: int | None = None, unreleased: bool = False
 ) -> dict:
     """A ranked candidate — a ``rank_candidates`` row ``{"card", "score"}`` — as
     name + projection + score. ``owned_qty`` (when set) marks it owned in the active
@@ -177,7 +170,9 @@ def candidate_view(
     return view
 
 
-def combo_card_view(name: str, record: dict | None, *, in_deck: bool, fmt: str) -> dict:
+def combo_card_view(
+    name: str, record: dict | None, *, in_deck: bool, fmt: Format
+) -> dict:
     """A combo piece: name + an ``in_deck`` flag + projection when the card is known."""
     view = {"name": name, "in_deck": in_deck}
     if record is not None:
@@ -199,10 +194,10 @@ def deck_view(
     absent → the ``owned_printing`` field never renders."""
     deck = state.session.to_deck_dict()
     by_name = state.by_name
-    fmt = deck["format"]
+    fmt = FORMATS[deck["format"]]
     owned = owned or {}
     return {
-        "format": fmt,
+        "format": fmt.name,
         # medium (paper/digital) drives the slot + cost mode; deck_size is the effective
         # size (60/100 for paper Historic Brawl). Both surface so the header can render
         # the medium toggle + the size selector.

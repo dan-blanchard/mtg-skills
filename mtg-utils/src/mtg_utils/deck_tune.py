@@ -120,17 +120,17 @@ def main(
             f"deck-tune is Commander-family only ({' / '.join(COMMANDER_FORMATS)}); "
             f"got {fmt.name!r} — 60-card constructed stays on the agent pipeline."
         )
-    if medium is not None and medium not in fmt.media:
-        raise click.ClickException(
-            f"{fmt.name} is not played in {medium!r} (media: {', '.join(fmt.media)})"
-        )
-
     # ADR-0040 §4 fix: the Format resolves the medium the same way deck-forge's
     # DeckSession does (the Arena Brawl formats default digital) so the digital
     # null-rank fix actually engages on the CLI path — the ADR's own motivating
     # benchmark was a Historic Brawl deck. paper_only threads consistently with
     # the (inferred or explicit) medium unless the caller overrides it directly.
     effective_medium = fmt.resolve_medium(medium)
+    if medium is not None and effective_medium != medium:
+        click.echo(
+            f"Note: {fmt.name} is not played in {medium!r}; using {effective_medium}.",
+            err=True,
+        )
     effective_paper_only = (
         paper_only if paper_only is not None else effective_medium != "digital"
     )

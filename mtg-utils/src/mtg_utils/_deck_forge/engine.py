@@ -100,11 +100,6 @@ def hydrate_session(state: ForgeState) -> HydratedDeck:
     return HydratedDeck.from_session(state.session, state.by_name)
 
 
-def paper_only(fmt: str | None) -> bool:
-    """Search only paper printings: the format has no Arena medium at all."""
-    return fmt is not None and not FORMATS[fmt].is_arena
-
-
 def deck_color_identity(state: ForgeState) -> str:
     """Union of the commanders' color identities (the deck's color identity)."""
     colors: set[str] = set()
@@ -788,7 +783,7 @@ def discover_commanders(
         depth, lanes, supported = _support_depth(state, rec, in_names, slot, coll)
         item = {
             "name": rec["name"],
-            **views.project(rec, fmt),
+            **views.project(rec, FORMATS[fmt]),
             "support_depth": round(depth, 2),
             "lanes": lanes,
             "supported_lanes": supported,
@@ -1263,7 +1258,7 @@ def find_candidates(state: ForgeState, params: FindParams) -> CandidatePage:
                 base = explore_filters(av["search"], color_identity=ci, fmt=fmt)
                 found = state.search_fn(
                     limit=_FIND_POOL,
-                    paper_only=paper_only(fmt),
+                    paper_only=not FORMATS[fmt].is_arena,
                     include_unreleased=params.include_unreleased,
                     **refine_filters(base, params),
                 )
@@ -1299,7 +1294,8 @@ def find_candidates(state: ForgeState, params: FindParams) -> CandidatePage:
             price_min=params.price_min,
             price_max=params.price_max,
             format=params.format,
-            paper_only=paper_only(params.format),
+            paper_only=params.format is not None
+            and not FORMATS[params.format].is_arena,
             include_unreleased=params.include_unreleased,
             preset_names=tuple(params.presets),
             is_commander_filter=params.is_commander,

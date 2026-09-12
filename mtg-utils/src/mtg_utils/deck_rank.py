@@ -61,7 +61,7 @@ def _focus_sets(
     ``payoff_subjects`` (the task-#101 emerging-tribal gate) comes from the caller's
     single ``ranked_signals_and_payoffs`` pass — never re-extracted here."""
     classes = classify_deck(hd, signals, commander_names)
-    deck_size = int(hd.deck.get("deck_size") or 100)
+    deck_size = hd.format.deck_size
     foc = metrics.focus(
         classes,
         deck_size=deck_size,

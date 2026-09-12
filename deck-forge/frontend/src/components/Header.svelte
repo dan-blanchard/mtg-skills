@@ -13,8 +13,6 @@
   let editing = false;
   let draft = "";
 
-  const MEDIUM_LABEL = { digital: "Arena", paper: "Paper" };
-
   async function changeFormat(e) {
     const r = await api.setFormat(e.target.value);
     if (r.ok) applySnapshot(r.data);
@@ -92,7 +90,7 @@
       >
         {#each media as m (m)}
           <option value={m} selected={m === $deck.medium}
-            >{MEDIUM_LABEL[m] ?? m}</option
+            >{current?.medium_labels?.[m] ?? m}</option
           >
         {/each}
       </select>

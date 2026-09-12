@@ -54,6 +54,7 @@ class TestTable:
         assert CB.legality_key == "brawl"
         assert CB.ignores_legality_key_bans
         assert CB.banned_cards is COMPETITIVE_BRAWL_BANNED
+        assert "oko, thief of crowns" in CB.banned_keys
         assert CB.is_arena_only
         assert CB.arena_pool
         assert not CB.free_mulligan
@@ -128,12 +129,32 @@ class TestLegality:
     def test_arena_pool_gate_reads_oracle_level_availability(self):
         # A record the adapter marks as having NO Arena printing is not legal in an
         # Arena-pool format even when MTGJSON's key says legal; a paper-pool format
-        # (Commander) ignores availability; a record with no evidence is not gated.
-        rec = {"name": "X", "legalities": {"brawl": "legal", "commander": "legal"}}
-        assert HB.legality({**rec, "arena_available": False}) == "not_legal"
-        assert HB.legality({**rec, "arena_available": True}) == "legal"
-        assert HB.legality(rec) == "legal"
-        assert CMD.legality({**rec, "arena_available": False}) == "legal"
+        # (Commander) ignores availability. No real card exercises this today — the
+        # bulk has zero oracles that are `brawl`-legal without an Arena printing
+        # (MTGJSON has cleaned up the pw24 Lord of Atlantis case the adapter's gate
+        # was written for) — so the gate is proven on a real record with the field
+        # flipped, and the no-evidence contract on a hand-built one.
+        drain = test_card("Mana Drain")
+        assert CB.legality(drain) == "legal"
+        assert CB.legality({**drain, "arena_available": False}) == "not_legal"
+        assert CMD.legality({**drain, "arena_available": False}) == "legal"
+        no_evidence = {"name": "X", "legalities": {"brawl": "legal"}}
+        assert HB.legality(no_evidence) == "legal"
+
+    def test_ban_list_matches_folded_names(self):
+        # The list holds canonical names; a record whose name differs only in case or
+        # Unicode form (an Arena export, a printed_name alias) still matches.
+        folded = {"name": "ragavan, nimble pilferer", "legalities": {}}
+        assert CB.legality(folded) == "banned"
+        assert CB.legality({"name": "Wrenn and Six", "legalities": {}}) == "banned"
+
+    def test_unreleased_flag_form(self):
+        # ``unreleased=True`` is the per-record form the hub's views use once the
+        # caller has established the card is pre-release.
+        ring = test_card("Sol Ring")
+        assert HB.legality(ring, unreleased=True) == "unreleased"
+        vehicle = {**ring, "type_line": "Legendary Artifact — Vehicle"}
+        assert HB.commander_eligibility(vehicle, unreleased=True)["eligible"]
 
     def test_real_records_carry_the_availability_field(self):
         # The snapshot projection keeps ``arena_available`` so the gate is live on
@@ -239,6 +260,11 @@ class TestForDeck:
         assert fmt.legality_key == "brawl"
         assert Format.for_deck({"format": "historic_brawl", "deck_size": 100}) is HB
 
+    def test_all_size_choices_spans_every_medium(self):
+        assert HB.all_size_choices == (60, 100)
+        assert CMD.all_size_choices == (100,)
+        assert FORMATS["brawl"].all_size_choices == (60,)
+
     def test_commander_family_rejects_an_impossible_size(self):
         with pytest.raises(ValueError, match="deck_size 73 is not legal for commander"):
             Format.for_deck({"format": "commander", "deck_size": 73})
@@ -274,6 +300,7 @@ class TestSpaTable:
             "id": "commander",
             "label": "Commander",
             "media": ["paper"],
+            "medium_labels": {"paper": "Paper"},
             "default_medium": "paper",
             "deck_size": 100,
             "size_choices": {"paper": [100]},

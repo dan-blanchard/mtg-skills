@@ -18,7 +18,7 @@ from mtg_utils._deck_forge.collection import CollectionStore
 from mtg_utils._deck_forge.events import EventHub
 from mtg_utils._deck_forge.persistence import BuildStore
 from mtg_utils._name_index import NameIndex
-from mtg_utils.formats import FORMATS
+from mtg_utils.formats import FORMATS, Format
 
 # "companion" is the outside-the-game zone (CR 702.139a-b: a companion is neither
 # deck nor sideboard); consumers that count deck size must exclude it deliberately.
@@ -75,7 +75,7 @@ class DeckSession:
     def from_deck_dict(cls, deck: dict) -> DeckSession:
         """Rebuild a session from a canonical parsed-deck dict (for resume/load)."""
         session = cls(
-            deck.get("format", "commander"),
+            Format.for_deck(deck).name,
             medium=deck.get("medium"),
             deck_size=deck.get("deck_size"),
         )
