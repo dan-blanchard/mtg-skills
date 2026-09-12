@@ -1,6 +1,9 @@
-"""Export parsed deck JSON to Moxfield or Arena import text.
+"""Export a parsed deck to Moxfield or Arena import text — the ONE exporter the CLI
+and deck-forge's ``/api/export`` share (ADR-0013, finished).
 
-Two layouts, sharing one ``N CardName`` line format:
+Two layouts, sharing one ``N CardName`` line format (printing-aware: an entry carrying
+a chosen printing's ``set`` / ``collector_number`` gets the ``(SET) <collector#>``
+suffix both importers read, plus a finish marker):
 
 - **moxfield** — bare lines, commanders first, optional ``Sideboard`` /
   ``Companion`` sections.
@@ -27,9 +30,24 @@ from mtg_utils.formats import FORMATS
 
 STYLES = ("auto", "moxfield", "arena")
 
+# Moxfield's finish markers, appended after the collector number ("… (C21) 263 *F*").
+# parse_deck reads the same syntax back, so an exported finish round-trips on import.
+_FINISH_MARKERS = {"foil": "*F*", "etched": "*E*"}
+
 
 def _line(entry: dict) -> str:
-    return f"{entry['quantity']} {entry['name']}"
+    """``N CardName``, plus ``(SET) <collector#>`` when the entry carries a chosen
+    printing (Moxfield and Arena both parse the set/collector suffix; deck-forge's
+    printing picker writes it), plus a ``*F*`` / ``*E*`` finish marker when the pinned
+    printing carries a foil / etched finish. A plain entry is the bare line."""
+    base = f"{entry['quantity']} {entry['name']}"
+    set_code = entry.get("set")
+    collector = entry.get("collector_number")
+    if set_code and collector:
+        marker = _FINISH_MARKERS.get(entry.get("finish") or "")
+        suffix = f" {marker}" if marker else ""
+        return f"{base} ({set_code.upper()}) {collector}{suffix}"
+    return base
 
 
 def export_arena(deck: dict) -> str:
@@ -56,6 +74,26 @@ def export_arena(deck: dict) -> str:
     return "\n".join(lines)
 
 
+def export_moxfield(deck: dict) -> str:
+    """Convert a parsed deck dict to Moxfield import text (N CardName lines)."""
+    lines = [_line(e) for e in deck.get("commanders") or []]
+    lines.extend(_line(e) for e in deck.get("cards") or [])
+    sideboard = deck.get("sideboard") or []
+    if sideboard:
+        lines.extend(["", "Sideboard"])
+        lines.extend(_line(e) for e in sideboard)
+    companion = deck.get("companion") or []
+    if companion:
+        # An Arena-style "Companion" section header; parse_deck reads it back
+        # into the companion zone (outside the deck and sideboard, CR 702.139a-b).
+        lines.extend(["", "Companion"])
+        lines.extend(_line(e) for e in companion)
+    return "\n".join(lines)
+
+
+_TEXT_EXPORTERS = {"moxfield": export_moxfield, "arena": export_arena}
+
+
 def resolve_style(deck: dict, style: str = "auto") -> str:
     """``auto`` → ``arena`` for Arena formats, ``moxfield`` otherwise."""
     if style != "auto":
@@ -66,29 +104,15 @@ def resolve_style(deck: dict, style: str = "auto") -> str:
 
 def export_deck(deck: dict, style: str = "auto") -> str:
     """Export ``deck`` in the requested (or auto-resolved) style."""
-    resolved = resolve_style(deck, style)
-    if resolved == "arena":
-        return export_arena(deck)
-    return export_moxfield(deck)
+    return _TEXT_EXPORTERS[resolve_style(deck, style)](deck)
 
 
-def export_moxfield(deck: dict) -> str:
-    """Convert a parsed deck dict to Moxfield import text (N CardName lines)."""
-    lines = [f"{e['quantity']} {e['name']}" for e in deck.get("commanders", [])]
-    lines.extend(f"{e['quantity']} {e['name']}" for e in deck.get("cards", []))
-    sideboard = deck.get("sideboard") or []
-    if sideboard:
-        lines.append("")
-        lines.append("Sideboard")
-        lines.extend(f"{e['quantity']} {e['name']}" for e in sideboard)
-    companion = deck.get("companion") or []
-    if companion:
-        # An Arena-style "Companion" section header; parse_deck reads it back
-        # into the companion zone (outside the deck and sideboard, CR 702.139a-b).
-        lines.append("")
-        lines.append("Companion")
-        lines.extend(f"{e['quantity']} {e['name']}" for e in companion)
-    return "\n".join(lines)
+def export_as(deck: dict, fmt: str) -> str | None:
+    """The exported text for an explicit ``fmt`` (``moxfield`` / ``arena``), or ``None``
+    for an unknown one — the hub's ``/api/export`` seam, which reports the unknown
+    format as a 400 rather than raising."""
+    exporter = _TEXT_EXPORTERS.get(fmt)
+    return exporter(deck) if exporter else None
 
 
 @click.command()

@@ -1,9 +1,8 @@
-"""M5 tests: build store (autosave/library), session load, exports."""
+"""M5 tests: build store (autosave/library), session load."""
 
 from fastapi.testclient import TestClient
 
 from mtg_utils._deck_forge.app import build_app
-from mtg_utils._deck_forge.exporters import export_arena, export_as
 from mtg_utils._deck_forge.persistence import BuildStore
 from mtg_utils._deck_forge.state import DeckSession, ForgeState
 
@@ -41,18 +40,6 @@ def test_load_returns_none_on_corrupt_file(tmp_path):
 def test_session_round_trips_through_deck_dict():
     session = DeckSession.from_deck_dict(DECK)
     assert session.to_deck_dict() == DECK
-
-
-def test_export_arena_has_section_headers():
-    text = export_arena(DECK)
-    assert "Commander" in text
-    assert "1 Atraxa" in text
-    assert "Deck" in text
-    assert "8 Forest" in text
-
-
-def test_export_as_unknown_format_returns_none():
-    assert export_as(DECK, "bogus") is None
 
 
 def _client(tmp_path):

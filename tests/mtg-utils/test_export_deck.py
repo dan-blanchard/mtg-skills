@@ -4,7 +4,7 @@ import json
 
 from click.testing import CliRunner
 
-from mtg_utils.export_deck import export_moxfield, main
+from mtg_utils.export_deck import export_arena, export_as, export_moxfield, main
 
 SAMPLE_DECK = {
     "commanders": [{"name": "Kalain, Reclusive Painter", "quantity": 1}],
@@ -198,3 +198,60 @@ class TestArenaStyle:
         assert result.exit_code == 0, result.output
         assert "Commander" not in result.output
         assert result.output.startswith("1 Kalain, Reclusive Painter\n")
+
+
+class TestPrintingAwareLines:
+    """The hub's printing picker writes ``set`` / ``collector_number`` / ``finish`` onto
+    an entry; the shared exporter emits the ``(SET) 123 *F*`` suffix both importers
+    read, and parse_deck reads it back. A plain entry stays a bare line."""
+
+    DECK = {
+        "format": "commander",
+        "commanders": [
+            {
+                "name": "Atraxa, Praetors' Voice",
+                "quantity": 1,
+                "set": "c16",
+                "collector_number": "28",
+                "finish": "foil",
+            }
+        ],
+        "cards": [
+            {
+                "name": "Sol Ring",
+                "quantity": 1,
+                "set": "c21",
+                "collector_number": "263",
+            },
+            {"name": "Forest", "quantity": 8},
+        ],
+        "sideboard": [],
+    }
+
+    def test_moxfield_suffix_and_finish_marker(self):
+        text = export_moxfield(self.DECK)
+        assert "1 Atraxa, Praetors' Voice (C16) 28 *F*" in text
+        assert "1 Sol Ring (C21) 263" in text
+        assert "8 Forest" in text.splitlines()
+
+    def test_arena_layout_keeps_the_suffix(self):
+        text = export_arena(self.DECK)
+        assert text.splitlines()[:2] == [
+            "Commander",
+            "1 Atraxa, Praetors' Voice (C16) 28 *F*",
+        ]
+
+    def test_suffix_round_trips_through_parse_deck(self, tmp_path):
+        from mtg_utils.parse_deck import parse_deck
+
+        path = tmp_path / "deck.txt"
+        path.write_text(export_arena(self.DECK), encoding="utf-8")  # Commander header
+        parsed = parse_deck(path)
+        sol = next(e for e in parsed["cards"] if e["name"] == "Sol Ring")
+        assert (sol["set"], sol["collector_number"]) == ("c21", "263")
+        atraxa = parsed["commanders"][0]
+        assert atraxa["finish"] == "foil"
+
+    def test_export_as_unknown_format_returns_none(self):
+        assert export_as(self.DECK, "bogus") is None
+        assert export_as(self.DECK, "arena") == export_arena(self.DECK)

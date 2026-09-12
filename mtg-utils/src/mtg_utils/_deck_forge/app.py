@@ -24,12 +24,12 @@ from pydantic import BaseModel
 
 from mtg_utils._deck_forge import collection, engine, views
 from mtg_utils._deck_forge.budgets import slot_budgets
-from mtg_utils._deck_forge.exporters import export_as
 from mtg_utils._deck_forge.state import DeckSession, ForgeState
 from mtg_utils._tuner.tune import TuneParams
 from mtg_utils._tuner.tune import tune as run_tune
 from mtg_utils.companion import is_companion
 from mtg_utils.deck_stats import deck_stats
+from mtg_utils.export_deck import export_as
 from mtg_utils.formats import COMMANDER_FORMATS, FORMATS, Format
 from mtg_utils.mana_audit import mana_audit, reconcile_basic_lands
 from mtg_utils.parse_deck import parse_deck_text
