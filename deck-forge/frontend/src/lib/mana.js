@@ -17,14 +17,6 @@ export const COLOR_LABEL = {
 // CMC buckets for the curve chart (7 collects everything 7+).
 export const CURVE_BUCKETS = [0, 1, 2, 3, 4, 5, 6, 7];
 
-// Deck-size target per Commander-family format (the footer reads "current/target").
-export const FORMAT_TARGET = {
-  commander: 100,
-  brawl: 60,
-  historic_brawl: 100,
-  competitive_brawl: 100,
-};
-
 // Cheapest USD listing for a card, or null (no-listing ≠ free — never shown as $0).
 // Mirrors DeckList.priceOf so the footer's deck total agrees with the list subtotals.
 export function priceOf(card) {

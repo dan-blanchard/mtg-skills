@@ -13,6 +13,11 @@ export const deck = writable({
 // digital). Drives every cost read-out: digital shows Arena wildcards by rarity, paper
 // shows USD. Derived so components subscribe to one flag instead of repeating the test.
 export const isDigital = derived(deck, ($d) => $d.medium === "digital");
+// The format table the backend serves in every snapshot (ADR-0045): one row per
+// Commander-family format — { id, label, media, default_medium, deck_size,
+// size_choices: { <medium>: [sizes] } }. The pickers derive from it; nothing here
+// mirrors the backend's format table.
+export const formatOptions = writable([]);
 export const stats = writable(null);
 export const bracket = writable(null);
 export const mana = writable(null);
@@ -66,6 +71,7 @@ export const collectionOpen = writable(false);
 export function applySnapshot(snap) {
   if (!snap) return;
   if (snap.deck) deck.set(snap.deck);
+  if (snap.format_options) formatOptions.set(snap.format_options);
   if (snap.stats) stats.set(snap.stats);
   if (snap.bracket) bracket.set(snap.bracket);
   if (snap.mana) mana.set(snap.mana);

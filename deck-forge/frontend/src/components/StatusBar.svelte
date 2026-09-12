@@ -20,7 +20,6 @@
   import {
     landState,
     priceOf,
-    FORMAT_TARGET,
     SYMBOL_ORDER,
     COLOR_LABEL,
     WC_TIERS,
@@ -34,7 +33,7 @@
 
   $: ls = landState($mana);
   // Effective deck-size target (60 or 100 for paper Historic Brawl), else format default.
-  $: target = $deck.deck_size ?? FORMAT_TARGET[$deck.format] ?? 100;
+  $: target = $deck.deck_size ?? 100;
   // Arena wildcard tiers (mythic→common), shown for digital builds in place of USD.
   $: wcTotal = $wildcards
     ? Object.values($wildcards).reduce((a, b) => a + b, 0)

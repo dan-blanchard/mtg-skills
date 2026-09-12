@@ -2,15 +2,13 @@
   // Import an existing deck list (#1, ADR-0017). Paste text or upload a file (Moxfield /
   // Arena / MTGO / CSV / plain — auto-detected by the backend); pick the game format;
   // the hub parses it in-process and seeds a NEW build (never overwrites the live one).
-  import { importOpen, deck, applySnapshot } from "../lib/store.js";
+  import {
+    importOpen,
+    deck,
+    formatOptions,
+    applySnapshot,
+  } from "../lib/store.js";
   import { api } from "../lib/api.js";
-
-  const FORMATS = [
-    ["commander", "Commander"],
-    ["brawl", "Brawl"],
-    ["historic_brawl", "Historic Brawl"],
-    ["competitive_brawl", "Competitive Brawl"],
-  ];
 
   let text = "";
   let name = "";
@@ -119,7 +117,9 @@
           <label class="fld">
             <span>Format</span>
             <select bind:value={format}>
-              {#each FORMATS as [v, l] (v)}<option value={v}>{l}</option>{/each}
+              {#each $formatOptions as f (f.id)}<option value={f.id}
+                  >{f.label}</option
+                >{/each}
             </select>
           </label>
           <label class="fld grow">

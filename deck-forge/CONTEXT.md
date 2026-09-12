@@ -12,7 +12,7 @@ A single immutable value joining a deck's card names to their Scryfall records �
 ### Collection & ownership
 
 **Medium** (paper / digital):
-Whether a build is played on paper or digitally (Arena). Per-build state on the `DeckSession`; commander is always paper, Brawl / Historic Brawl default to digital. The medium — not the format — decides the active Collection slot and the cost mode (digital → wildcards, paper → USD).
+Whether a build is played on paper or digitally (Arena). Per-build state on the `DeckSession`, which stores only the raw override; the `Format` (ADR-0045) resolves the effective medium from its allowed media (commander is always paper, Competitive Brawl always digital, Brawl / Historic Brawl default to digital). The medium — not the format — decides the active Collection slot and the cost mode (digital → wildcards, paper → USD). The SPA's format, medium and size pickers read the served `format_options` table, never a hand-list.
 
 **Collection**:
 The user's owned cards as a name→quantity pile — what you own, distinct from a deck (what you're building). Global to the hub, persisted in one `collection.json`. Held in two slots, `paper` and `arena`; the active slot is picked by **Medium**, not format. Reads are strictly single-slot.

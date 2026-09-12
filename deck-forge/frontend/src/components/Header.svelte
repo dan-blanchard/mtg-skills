@@ -1,5 +1,11 @@
 <script>
-  import { deck, buildId, buildName, applySnapshot } from "../lib/store.js";
+  import {
+    deck,
+    buildId,
+    buildName,
+    formatOptions,
+    applySnapshot,
+  } from "../lib/store.js";
   import { api } from "../lib/api.js";
   import BuildMenu from "./BuildMenu.svelte";
   import FinalizeButton from "./FinalizeButton.svelte";
@@ -7,14 +13,7 @@
   let editing = false;
   let draft = "";
 
-  // The Commander-family formats deck-forge builds (paper Commander + the Arena
-  // Brawl queues). Mirrors format_config.COMMANDER_FORMATS on the backend.
-  const FORMATS = [
-    ["commander", "Commander"],
-    ["brawl", "Brawl"],
-    ["historic_brawl", "Historic Brawl"],
-    ["competitive_brawl", "Competitive Brawl"],
-  ];
+  const MEDIUM_LABEL = { digital: "Arena", paper: "Paper" };
 
   async function changeFormat(e) {
     const r = await api.setFormat(e.target.value);
@@ -31,11 +30,14 @@
     if (r.ok) applySnapshot(r.data);
   }
 
-  // Medium toggle only for the formats that exist in BOTH media (commander is
-  // paper-only; Competitive Brawl is Arena-only); the 60/100 size picker only for
-  // paper Historic Brawl (both legal for paper "Brawl").
-  $: showMedium = $deck.format === "brawl" || $deck.format === "historic_brawl";
-  $: showSize = $deck.format === "historic_brawl" && $deck.medium === "paper";
+  // The pickers derive from the served format table: the medium toggle only where
+  // the format has more than one medium, the size picker only where the current
+  // medium may choose (paper Historic Brawl: 60 or 100).
+  $: current = $formatOptions.find((f) => f.id === $deck.format);
+  $: media = current?.media ?? [];
+  $: showMedium = media.length > 1;
+  $: sizeChoices = current?.size_choices?.[$deck.medium] ?? [];
+  $: showSize = sizeChoices.length > 1;
 
   function startEdit() {
     draft = $buildName;
@@ -78,8 +80,8 @@
   <div class="meta">
     <BuildMenu />
     <select class="chip format" title="Deck format" on:change={changeFormat}>
-      {#each FORMATS as [val, label] (val)}
-        <option value={val} selected={val === $deck.format}>{label}</option>
+      {#each $formatOptions as f (f.id)}
+        <option value={f.id} selected={f.id === $deck.format}>{f.label}</option>
       {/each}
     </select>
     {#if showMedium}
@@ -88,10 +90,11 @@
         title="Paper or digital (Arena) — sets the collection & cost mode"
         on:change={changeMedium}
       >
-        <option value="digital" selected={$deck.medium === "digital"}
-          >Arena</option
-        >
-        <option value="paper" selected={$deck.medium === "paper"}>Paper</option>
+        {#each media as m (m)}
+          <option value={m} selected={m === $deck.medium}
+            >{MEDIUM_LABEL[m] ?? m}</option
+          >
+        {/each}
       </select>
     {/if}
     {#if showSize}
@@ -100,8 +103,9 @@
         title="Paper Historic Brawl may be 60 or 100 cards"
         on:change={changeDeckSize}
       >
-        <option value="100" selected={$deck.deck_size === 100}>100</option>
-        <option value="60" selected={$deck.deck_size === 60}>60</option>
+        {#each sizeChoices as n (n)}
+          <option value={n} selected={n === $deck.deck_size}>{n}</option>
+        {/each}
       </select>
     {/if}
     <FinalizeButton />

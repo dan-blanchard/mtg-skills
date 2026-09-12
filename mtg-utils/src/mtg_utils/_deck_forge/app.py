@@ -349,15 +349,16 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
         """Set paper vs digital for the build (Brawl / Historic Brawl). Drives the
         active Collection slot and the cost mode — digital → Arena slot + wildcards;
         paper → paper slot + USD (ADR-0018, amended)."""
-        if payload.medium not in ("paper", "digital"):
+        fmt = FORMATS[state.session.format]
+        if payload.medium not in fmt.media:
             return JSONResponse(
-                {"error": f"unknown medium: {payload.medium!r}"}, status_code=400
-            )
-        if payload.medium == "digital" and state.session.format == "commander":
-            return JSONResponse({"error": "commander is paper-only"}, status_code=400)
-        if payload.medium == "paper" and FORMATS[state.session.format].is_arena_only:
-            return JSONResponse(
-                {"error": f"{state.session.format} is Arena-only"}, status_code=400
+                {
+                    "error": (
+                        f"{fmt.name} is not played in {payload.medium!r} "
+                        f"(media: {', '.join(fmt.media)})"
+                    )
+                },
+                status_code=400,
             )
         state.session.set_medium(payload.medium)
         _autosave(state)
@@ -370,9 +371,12 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
         """Choose 60 or 100 cards. Only paper Historic Brawl honors it (both are legal
         for paper "Brawl"); every other format/medium keeps its fixed size, so the
         override lies dormant until it applies."""
-        if payload.deck_size not in (60, 100):
+        fmt = FORMATS[state.session.format]
+        choices = sorted({s for m in fmt.media for s in fmt.size_choices(m)})
+        if payload.deck_size not in choices:
             return JSONResponse(
-                {"error": "deck size must be 60 or 100"}, status_code=400
+                {"error": f"deck size for {fmt.name} must be one of {choices}"},
+                status_code=400,
             )
         state.session.set_deck_size(payload.deck_size)
         _autosave(state)

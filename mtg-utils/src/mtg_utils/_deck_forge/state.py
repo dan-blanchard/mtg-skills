@@ -18,25 +18,11 @@ from mtg_utils._deck_forge.collection import CollectionStore
 from mtg_utils._deck_forge.events import EventHub
 from mtg_utils._deck_forge.persistence import BuildStore
 from mtg_utils._name_index import NameIndex
-from mtg_utils.formats import COMMANDER_FORMATS, FORMATS
+from mtg_utils.formats import FORMATS
 
 # "companion" is the outside-the-game zone (CR 702.139a-b: a companion is neither
 # deck nor sideboard); consumers that count deck size must exclude it deliberately.
 _ZONES = ("commanders", "cards", "sideboard", "companion")
-# The Arena Brawl formats default to digital (Brawl / Historic Brawl can also be paper;
-# Competitive Brawl is Arena-only); commander is paper-only. Medium drives the active
-# Collection slot and the cost mode (wildcards vs USD). Derived from the configs.
-_ARENA_FORMATS = tuple(f for f in COMMANDER_FORMATS if FORMATS[f].is_arena)
-
-
-def _default_medium(fmt: str) -> str:
-    return "digital" if fmt in _ARENA_FORMATS else "paper"
-
-
-def _size_choosable(fmt: str, medium: str) -> bool:
-    """Only paper Historic Brawl (a.k.a. paper "Brawl") may be 60 OR 100 cards; every
-    other (format, medium) has a fixed size."""
-    return fmt == "historic_brawl" and medium == "paper"
 
 
 class DeckSession:
@@ -64,26 +50,20 @@ class DeckSession:
 
     @property
     def medium(self) -> str:
-        """Effective medium: commander is always paper and Competitive Brawl is always
-        digital (Arena-only); Brawl/Historic Brawl honor the override, defaulting to
-        digital (Arena is the common case for those)."""
-        if self.format not in _ARENA_FORMATS:
-            return "paper"
-        if FORMATS[self.format].is_arena_only:
-            return "digital"
-        return self._medium_override or _default_medium(self.format)
+        """Effective medium — the Format resolves the raw override (commander is always
+        paper, Competitive Brawl always digital, Brawl / Historic Brawl honour the
+        override and default to digital). Drives the active Collection slot and the
+        cost mode (wildcards vs USD)."""
+        return FORMATS[self.format].resolve_medium(self._medium_override)
 
     @property
     def deck_size(self) -> int:
-        """Effective deck size: the format default, except paper Historic Brawl may
-        override to 60 or 100 (both are legal for paper "Brawl")."""
-        default = FORMATS[self.format].deck_size
-        if _size_choosable(self.format, self.medium) and self._deck_size_override in (
-            60,
-            100,
-        ):
-            return self._deck_size_override
-        return default
+        """Effective deck size — the Format resolves the raw override under the
+        effective medium (only paper Historic Brawl may choose 60 or 100; elsewhere the
+        override lies dormant)."""
+        return FORMATS[self.format].resolve_deck_size(
+            self._deck_size_override, self.medium
+        )
 
     def set_medium(self, medium: str) -> None:
         self._medium_override = medium

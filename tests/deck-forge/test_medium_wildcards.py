@@ -83,6 +83,27 @@ def test_deck_size_endpoint_and_footer_target():
 def test_deck_size_endpoint_rejects_bad_value():
     client = TestClient(build_app(_state("historic_brawl")))
     assert client.post("/api/deck/deck-size", json={"deck_size": 42}).status_code == 400
+    # A size no medium of the format can choose is refused too (commander is 100 only).
+    cmd = TestClient(build_app(_state("commander")))
+    assert cmd.post("/api/deck/deck-size", json={"deck_size": 60}).status_code == 400
+
+
+def test_snapshot_serves_the_format_table_the_spa_reads():
+    from mtg_utils.formats import COMMANDER_FORMATS, format_options
+
+    client = TestClient(build_app(_state("historic_brawl")))
+    snap = client.get("/api/snapshot").json()
+    rows = snap["format_options"]
+    assert rows == format_options()
+    assert [r["id"] for r in rows] == list(COMMANDER_FORMATS)
+    by_id = {r["id"]: r for r in rows}
+    # Exactly what the Header derives its pickers from: media and per-medium sizes.
+    assert by_id["commander"]["media"] == ["paper"]
+    assert by_id["competitive_brawl"]["media"] == ["digital"]
+    assert by_id["historic_brawl"]["size_choices"] == {
+        "digital": [100],
+        "paper": [60, 100],
+    }
 
 
 # ── wildcard cost for digital builds ─────────────────────────────────────────

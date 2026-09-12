@@ -41,7 +41,7 @@ from mtg_utils._name_index import NameIndex
 from mtg_utils._sidecar import atomic_write_json, sha_keyed_path
 from mtg_utils.card_classify import is_basic_land, valid_partner_search
 from mtg_utils.deck_stats import deck_stats, detect_bracket
-from mtg_utils.formats import FORMATS
+from mtg_utils.formats import FORMATS, format_options
 from mtg_utils.hydrated_deck import HydratedDeck
 from mtg_utils.legality_audit import legality_audit
 from mtg_utils.mana_audit import mana_audit
@@ -1409,6 +1409,9 @@ def snapshot(state: ForgeState) -> dict:
     return {
         "build_id": state.build_id,
         "build_name": state.build_name,
+        # The format table the SPA's pickers read (labels, media, size choices) — the
+        # Format is the one authority; the SPA never mirrors it (ADR-0045).
+        "format_options": format_options(),
         "deck": views.deck_view(state, owned, functools.partial(printing_owned, state)),
         "stats": stats,
         "bracket": detect_bracket(hd.records, stats.get("avg_cmc", 0.0)),

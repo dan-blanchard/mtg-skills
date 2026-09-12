@@ -10,12 +10,7 @@
   import { api } from "../lib/api.js";
   import { hoverPreview } from "../lib/hover.js";
   import { displayName } from "../lib/cards.js";
-  import {
-    wildcardLabel,
-    wildcardTotals,
-    WC_TIERS,
-    FORMAT_TARGET,
-  } from "../lib/mana.js";
+  import { wildcardLabel, wildcardTotals, WC_TIERS } from "../lib/mana.js";
   import { facetOk, nameOk } from "../lib/filter.js";
   import ManaCost from "./ManaCost.svelte";
   import FilterWidget from "./FilterWidget.svelte";
@@ -170,7 +165,7 @@
 
   // Effective deck-size target (Header/StatusBar read the same) — for the companion
   // zone's "doesn't count toward your N" caption.
-  $: target = $deck.deck_size ?? FORMAT_TARGET[$deck.format] ?? 100;
+  $: target = $deck.deck_size ?? 100;
   // The companion zone (D) renders right after the Command Zone, only when occupied.
   $: groups = [
     { key: "commanders", label: "Command Zone", cards: $deck.commanders },
