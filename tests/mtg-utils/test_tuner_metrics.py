@@ -221,6 +221,7 @@ class TestClosersReadTheGame:
             for i in range(4)
         ]
         commander = win_conditions(equips, shape="midrange", combo_count=0)
+        assert commander["voltron"] is True
         assert commander["voltron_commander_damage"] is True
         assert commander["count"] == 1  # the 21-damage plan (CR 903.10a) is a closer
         # The synthetic closer is its pieces — what the cut-protection floor keeps.

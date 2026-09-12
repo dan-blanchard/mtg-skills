@@ -232,7 +232,9 @@ def tune(
         deck_size=deck_size,
         game=game,
     )
-    prot = metrics.protection(classes, shape=shape, deck_size=deck_size)
+    prot = metrics.protection(
+        classes, shape=shape, deck_size=deck_size, voltron=wins["voltron"]
+    )
     cfit = metrics.commander_fit(classes, foc)
     issues = metrics.top_issues(
         efficiency_r=eff,

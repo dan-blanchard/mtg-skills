@@ -164,8 +164,9 @@ def _reach_closes(text: str, *, game: Game) -> bool:
 
 
 def _voltron_pieces(classes: Sequence[CardClass]) -> list[str]:
-    """The equipment / aura cards a voltron plan is made of (one walk; callers keep
-    the list for both the density test and the protected set)."""
+    """The equipment / aura cards a voltron plan is made of — walked once per tune, in
+    ``win_conditions``, which keeps the list for the density test, the protected set,
+    and the ``voltron`` flag ``protection`` reuses."""
     return sorted(
         c.name
         for c in classes
@@ -513,6 +514,9 @@ def win_conditions(
         "status": "low" if count < lo else "ok",
         "life": game.life,
         "multiplayer": game.multiplayer,
+        # The one voltron read (equip/aura density); ``protection`` takes it from here
+        # rather than walking the pieces again.
+        "voltron": voltron,
         # The commander-damage plan counted as one closer (CR 903.10a applies), and
         # the pieces it is made of — what the cut-protection floor keeps.
         "voltron_commander_damage": voltron_closer,
@@ -522,9 +526,19 @@ def win_conditions(
     }
 
 
-def protection(classes: Sequence[CardClass], *, shape: str, deck_size: int) -> dict:
+def protection(
+    classes: Sequence[CardClass],
+    *,
+    shape: str,
+    deck_size: int,
+    voltron: bool | None = None,
+) -> dict:
+    """Protection wants vs the Shape (ADR-0024 advisory). ``voltron`` is the read
+    ``win_conditions`` already made (``wins["voltron"]``); it is recomputed only when a
+    caller has no win-conditions result in hand."""
     cards = [c.name for c in classes if protects(c.record)]
-    voltron = _is_voltron(_voltron_pieces(classes), deck_size)
+    if voltron is None:
+        voltron = _is_voltron(_voltron_pieces(classes), deck_size)
     wants = shape in ("combo", "control") or voltron
     target = _scaled(5, deck_size) if wants else 0
     return {
@@ -678,9 +692,11 @@ def top_issues(
         # Advisory only (no swap fixes a plan): the equip/aura density reads as
         # voltron, but this game has no 21-commander-damage rule (CR 903.10a is
         # Commander's extra loss rule; Brawl games don't use it, CR 903.12h), so the
-        # plan closes only by dealing the whole starting life. Advisory severity ranks
-        # how much the builder should change course: 2 here (read your closers
-        # differently) vs 5 for commander_misfit (you may have the wrong commander).
+        # plan closes only by dealing the whole starting life. ``advisory`` makes the
+        # swap engine skip it (swaps._spec_for_issue sources nothing for an advisory
+        # issue); severity ranks how much the builder should change course — 2 here
+        # (read your closers differently) vs 5 for commander_misfit (you may have the
+        # wrong commander).
         issues.append(
             {
                 "kind": "voltron_no_commander_damage",
@@ -713,6 +729,8 @@ def top_issues(
         )
 
     if commander_r["misfit"]:
+        # Advisory (no swap fixes a commander); severity 5 because it questions the
+        # whole build, where the voltron advisory above (2) only re-reads the closers.
         issues.append(
             {
                 "kind": "commander_misfit",
