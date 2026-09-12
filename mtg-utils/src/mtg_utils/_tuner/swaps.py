@@ -688,9 +688,9 @@ def propose_swaps(
 
         spec = _spec_for_issue(issue, focus_result, deck_signals)
         if spec is None:
-            # _spec_for_issue sources nothing here: a kind with no branch
+            # _spec_for_issue sources nothing here — e.g. a kind with no branch
             # (commander_misfit, voltron_no_commander_damage), a grant-covered
-            # role_short, or an efficiency subkind with no band.
+            # role_short, or a role / avenue / efficiency-band lookup that misses.
             continue
         synergy_first = issue["kind"] not in _SPINE_KINDS
         # Every cut here is a NONLAND (cut_candidates never trims lands), so the add
