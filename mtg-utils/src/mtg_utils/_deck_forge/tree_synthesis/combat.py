@@ -582,21 +582,20 @@ def has_structural_toughness_combat(tree: ConceptTree) -> bool:
     """Whether an ``AssignDamageFromToughness`` modification exists, or a
     Toughness-typed ``amount``/``count`` ref (``toughness_combat``'s direct
     arm)."""
-    for unit in tree.units:
-        for n in iter_typed_nodes(unit.node):
-            if tag_of(n) == "AssignDamageFromToughness":
+    for n in tree.iter_typed():
+        if tag_of(n) == "AssignDamageFromToughness":
+            return True
+        for fname in ("amount", "count"):
+            q = getattr(n, fname, None)
+            if tag_of(q) != "Ref":
+                continue
+            qty = getattr(q, "qty", None)
+            qt = tag_of(qty)
+            if qt == "Toughness" or (
+                qt in AGGREGATE_QTY_TAGS
+                and getattr(qty, "property", None) == "Toughness"
+            ):
                 return True
-            for fname in ("amount", "count"):
-                q = getattr(n, fname, None)
-                if tag_of(q) != "Ref":
-                    continue
-                qty = getattr(q, "qty", None)
-                qt = tag_of(qty)
-                if qt == "Toughness" or (
-                    qt in AGGREGATE_QTY_TAGS
-                    and getattr(qty, "property", None) == "Toughness"
-                ):
-                    return True
     return False
 
 
@@ -690,13 +689,12 @@ def has_structural_firebending_grant(tree: ConceptTree) -> bool:
     """Whether phase carries a typed ``AddKeyword`` static naming Firebending
     — a non-bearer GRANT (Sozin's Comet, Iroh Dragon of the West, Fire Nation
     Cadets/Palace/Turret)."""
-    for unit in tree.units:
-        for n in iter_typed_nodes(unit.node):
-            if tag_of(n) != "AddKeyword":
-                continue
-            kw = getattr(n, "keyword", None)
-            if getattr(kw, "key", None) == "Firebending":
-                return True
+    for n in tree.iter_typed():
+        if tag_of(n) != "AddKeyword":
+            continue
+        kw = getattr(n, "keyword", None)
+        if getattr(kw, "key", None) == "Firebending":
+            return True
     return False
 
 
@@ -745,10 +743,9 @@ _STATION_ENCHANT_GAP_RX = re.compile(
 def has_structural_station_reference(tree: ConceptTree) -> bool:
     """Whether phase carries a typed filter naming the Spacecraft/Planet
     subtype anywhere (a removal/count spell payoff)."""
-    for unit in tree.units:
-        for n in iter_typed_nodes(unit.node):
-            if tag_of(n) == "Typed" and set(filter_subtypes(n)) & _STATION_SUBTYPES:
-                return True
+    for n in tree.iter_typed():
+        if tag_of(n) == "Typed" and set(filter_subtypes(n)) & _STATION_SUBTYPES:
+            return True
     return False
 
 
@@ -816,10 +813,7 @@ def has_structural_tap_untap_matters(tree: ConceptTree) -> bool:
     trigger (``Taps``/``Untaps``/``TapsForMana`` mode) — the tap_untap_matters
     TYPED gate, shared with :func:`_arm_tap_untap_becomes`'s own gap gate
     below (one source, no drift) so a phase-classified card never doubles."""
-    return any(
-        u.origin == "trigger" and u.trigger_event in _TAP_UNTAP_TRIGGER_EVENTS
-        for u in tree.units
-    )
+    return tree.has_trigger(*_TAP_UNTAP_TRIGGER_EVENTS)
 
 
 def _arm_tap_untap_becomes(tree: ConceptTree) -> ConceptNode | None:
@@ -901,16 +895,15 @@ def has_structural_base_pt_set(tree: ConceptTree) -> bool:
     whether a REAL typed node fires the signal; this gate only decides
     whether a NEW synthetic node should exist at all.
     """
-    for unit in tree.units:
-        for n in iter_typed_nodes(unit.node):
-            t = tag_of(n)
-            if t in ("SetPower", "SetToughness", "SwitchPT"):
-                return True
-            if t == "Animate" and (
-                getattr(n, "power", None) is not None
-                or getattr(n, "toughness", None) is not None
-            ):
-                return True
+    for n in tree.iter_typed():
+        t = tag_of(n)
+        if t in ("SetPower", "SetToughness", "SwitchPT"):
+            return True
+        if t == "Animate" and (
+            getattr(n, "power", None) is not None
+            or getattr(n, "toughness", None) is not None
+        ):
+            return True
     return False
 
 
@@ -927,10 +920,9 @@ def _base_pt_unimplemented_descs(tree: ConceptTree) -> Iterator[str]:
     miss every conjugated ("has"/"is") card the residue's own canonical
     text still matches (corpus-verified regression: an oracle-text-only
     scan drops Better Offer from both base_pt_set and creatures_matter)."""
-    for unit in tree.units:
-        for n in iter_typed_nodes(unit.node):
-            if tag_of(n) == "Unimplemented":
-                yield getattr(n, "description", "") or ""
+    for n in tree.iter_typed():
+        if tag_of(n) == "Unimplemented":
+            yield getattr(n, "description", "") or ""
 
 
 _BASE_PT_HAVE_BECOME_SYNTH_RX = re.compile(
@@ -1040,8 +1032,7 @@ def has_structural_base_power_ref(tree: ConceptTree) -> bool:
     lane itself reads (CR 613.4b sentence 2)."""
     return any(
         tag_of(n) == "PtComparison" and getattr(n, "scope", None) == "Base"
-        for unit in tree.units
-        for n in iter_typed_nodes(unit.node)
+        for n in tree.iter_typed()
     )
 
 

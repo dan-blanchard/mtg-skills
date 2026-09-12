@@ -17,7 +17,6 @@ from mtg_utils._card_ir.crosswalk import (
     effect_filter,
     filter_subtypes,
     iter_cost_leaves,
-    iter_typed_nodes,
     tag_of,
 )
 from mtg_utils._card_ir.mirror.runtime import MirrorVariant
@@ -180,16 +179,15 @@ def has_structural_outlaw(tree: ConceptTree) -> bool:
     "Outlaw" pseudo-subtype token (:func:`_tf_names_outlaw_group`, recovers
     the ``Non``-negated "non-outlaw" phrasing no ``filter_subtypes`` call
     surfaces since it deliberately excludes ``Non`` wrappers)."""
-    for unit in tree.units:
-        for n in iter_typed_nodes(unit.node):
-            if tag_of(n) != "Typed":
-                continue
-            subs = frozenset(filter_subtypes(n))
-            if subs and subs <= OUTLAW_SUBTYPES and len(subs) >= 2:
+    for n in tree.iter_typed():
+        if tag_of(n) != "Typed":
+            continue
+        subs = frozenset(filter_subtypes(n))
+        if subs and subs <= OUTLAW_SUBTYPES and len(subs) >= 2:
+            return True
+        for tf in getattr(n, "type_filters", ()) or ():
+            if _tf_names_outlaw_group(tf):
                 return True
-            for tf in getattr(n, "type_filters", ()) or ():
-                if _tf_names_outlaw_group(tf):
-                    return True
     return False
 
 

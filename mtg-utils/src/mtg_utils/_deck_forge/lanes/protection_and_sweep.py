@@ -937,10 +937,9 @@ def _cmdzone_ability(tree: ConceptTree) -> list[Signal]:
     zone and carries no zone condition, pop-verified False). Scope "you",
     HIGH.
     """
-    for unit in tree.units:
-        for n in iter_typed_nodes(unit.node):
-            if tag_of(n) == "SourceInZone" and getattr(n, "zone", None) == "Command":
-                return [Signal("cmdzone_ability", "you", "", "", tree.name, "high")]
+    for n in tree.iter_typed():
+        if tag_of(n) == "SourceInZone" and getattr(n, "zone", None) == "Command":
+            return [Signal("cmdzone_ability", "you", "", "", tree.name, "high")]
     return []
 
 
@@ -983,18 +982,13 @@ def _flip_self(tree: ConceptTree) -> list[Signal]:
     carrying a ``FlipCoin`` node is coin-flip recursion, not a
     creature-flip, and is excluded (CR 705). Scope "you", HIGH.
     """
-    if any(
-        tag_of(n) == "FlipCoin"
-        for unit in tree.units
-        for n in iter_typed_nodes(unit.node)
-    ):
+    if any(tag_of(n) == "FlipCoin" for n in tree.iter_typed()):
         return []
-    for unit in tree.units:
-        for n in iter_typed_nodes(unit.node):
-            if tag_of(n) == "FlipPermanent" or (
-                tag_of(n) == "Unimplemented" and getattr(n, "name", None) == "flip"
-            ):
-                return [Signal("flip_self", "you", "", "", tree.name, "high")]
+    for n in tree.iter_typed():
+        if tag_of(n) == "FlipPermanent" or (
+            tag_of(n) == "Unimplemented" and getattr(n, "name", None) == "flip"
+        ):
+            return [Signal("flip_self", "you", "", "", tree.name, "high")]
     return []
 
 
@@ -1630,10 +1624,9 @@ def _each_mode_player(tree: ConceptTree) -> list[Signal]:
     the "IR does not capture per-mode target legality" skip note was STALE.
     Scope "each" (the live row's scope), HIGH.
     """
-    for unit in tree.units:
-        for node in iter_typed_nodes(unit.node):
-            if tag_of(node) == "DifferentTargetPlayers":
-                return [Signal("each_mode_player", "each", "", "", tree.name, "high")]
+    for node in tree.iter_typed():
+        if tag_of(node) == "DifferentTargetPlayers":
+            return [Signal("each_mode_player", "each", "", "", tree.name, "high")]
     return []
 
 

@@ -223,13 +223,12 @@ def _matches_death_idiom(oracle: str) -> bool:
 
 def _iter_all_typed(tree: ConceptTree) -> Iterator[TypedMirrorNode]:
     """Every typed mirror node under every phase unit (the whole-card deep walk)."""
-    for unit in tree.units:
-        yield from iter_typed_nodes(unit.node)
+    return tree.iter_typed()
 
 
 def _has_tag(tree: ConceptTree, tag: str) -> bool:
     """Whether any typed node anywhere on the card carries discriminator ``tag``."""
-    return any(tag_of(n) == tag for n in _iter_all_typed(tree))
+    return tree.has_typed(tag)
 
 
 def _double_triggers_creature_dying(tree: ConceptTree) -> bool:
@@ -532,11 +531,7 @@ def has_life_gained_this_turn(tree: ConceptTree) -> bool:
     this turn, analogous to death's morbid ``ZoneChangeCountThisTurn``. A genuine
     your-lifegain payoff the ``life_gained`` trigger arm does not see.
     """
-    return any(
-        tag_of(n) in _LIFE_GAINED_THIS_TURN_TAGS
-        for unit in tree.units
-        for n in iter_typed_nodes(unit.node)
-    )
+    return any(tag_of(n) in _LIFE_GAINED_THIS_TURN_TAGS for n in tree.iter_typed())
 
 
 def _replacement_exec_type(node: object) -> str | None:

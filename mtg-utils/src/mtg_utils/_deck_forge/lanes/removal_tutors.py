@@ -327,14 +327,11 @@ def _foretell_matters(tree: ConceptTree) -> list[Signal]:
     (exactly 3 cards). Boundary (checklist #4b): bearers AND granters /
     payoff-triggers (Ranar, Dream Devourer) ride the ported
     foretell_makers keyword+marker rows, never this lane."""
-    for unit in tree.units:
-        for q in iter_typed_nodes(unit.node):
-            for fname in ("subject", "filter", "target", "affected", "valid_card"):
-                filt = getattr(q, fname, None)
-                if filt is not None and "Foretold" in filter_predicates(filt):
-                    return [
-                        Signal("foretell_matters", "you", "", "", tree.name, "high")
-                    ]
+    for q in tree.iter_typed():
+        for fname in ("subject", "filter", "target", "affected", "valid_card"):
+            filt = getattr(q, fname, None)
+            if filt is not None and "Foretold" in filter_predicates(filt):
+                return [Signal("foretell_matters", "you", "", "", tree.name, "high")]
     return []
 
 

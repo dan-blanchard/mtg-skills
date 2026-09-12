@@ -54,6 +54,7 @@ from mtg_utils._card_ir.crosswalk.reads import (
     filter_core_types,
     iter_nested_granted_bodies,
     iter_typed_nodes,
+    static_mode_tag,
     tag_of,
 )
 from mtg_utils._card_ir.mirror.runtime import (
@@ -488,6 +489,76 @@ class ConceptTree:
     def has_effect(self, concept: str) -> bool:
         """Whether ANY unit has a role=effect concept named ``concept``."""
         return any(u.has_effect(concept) for u in self.units)
+
+    # ── The gap-predicate vocabulary (ADR-0047) ────────────────────────────────
+    # Every "does the substrate already carry X?" question a recovery row, a
+    # synthesis arm, a ledgered bridge or a lane asks is one of these reads. A gate
+    # composes them; it never re-walks the tree in its own idiom.
+
+    def iter_typed(self) -> Iterator[TypedMirrorNode]:
+        """Every typed mirror node under every unit — the whole-card deep walk."""
+        for unit in self.units:
+            yield from iter_typed_nodes(unit.node)
+
+    def has_typed(self, *tags: str) -> bool:
+        """Whether ANY typed node anywhere in the card carries one of ``tags``."""
+        return any(tag_of(n) in tags for n in self.iter_typed())
+
+    def has_concept(
+        self,
+        concept: str,
+        *,
+        role: str | None = None,
+        scope: str | None = None,
+        subject: str | None = None,
+    ) -> bool:
+        """Whether ANY concept-node is named ``concept`` (optionally in ``role``,
+        with ``scope``, naming ``subject``) — the overlay-level presence read."""
+        for c in self.iter_concepts():
+            if c.concept != concept:
+                continue
+            if role is not None and c.role != role:
+                continue
+            if scope is not None and c.scope != scope:
+                continue
+            if subject is not None and subject not in c.subject:
+                continue
+            return True
+        return False
+
+    def has_static_mode(self, *tags: str) -> bool:
+        """Whether ANY static-origin unit's mode discriminator is one of ``tags``."""
+        return any(
+            u.origin == "static" and static_mode_tag(u.node) in tags for u in self.units
+        )
+
+    def has_trigger(self, *events: str) -> bool:
+        """Whether ANY trigger unit fires on one of the derived ``events``."""
+        return any(u.trigger_event in events for u in self.units)
+
+    def residues(self, name: str | None = None) -> Iterator[str]:
+        """The descriptions of phase's ``Unimplemented`` residue nodes — every
+        typed node phase parked rather than parsed — optionally only those whose
+        phase ``name`` is ``name`` (``"static_structure"``, ``"effect_structure"``,
+        ``"Unsupported unless clause"``, …). The read every gap-gated text bridge
+        keys on: a residue present means the clause survives only as text."""
+        for n in self.iter_typed():
+            if tag_of(n) != "Unimplemented":
+                continue
+            if name is not None and getattr(n, "name", None) != name:
+                continue
+            yield getattr(n, "description", "") or ""
+
+    def has_residue(self, name: str | None = None) -> bool:
+        """Whether phase left ANY ``Unimplemented`` residue (of ``name``)."""
+        return next(self.residues(name), None) is not None
+
+    @property
+    def is_text_only(self) -> bool:
+        """Whether the card carries NO phase-parsed unit at all — a text-only face
+        tree (ADR-0038 W2c) or a tree whose only units are synthesized — so every
+        typed read is empty and only the oracle text is left to read."""
+        return all(u.origin == "synth" for u in self.units)
 
 
 def iter_nested_token_effects(node: object) -> Iterator[ConceptNode]:

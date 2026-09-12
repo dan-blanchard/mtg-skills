@@ -430,19 +430,18 @@ def _sac_outlet_granted_cost(tree: ConceptTree) -> bool:
     the warded permanent (CR 702.21a: "counter that spell or ability unless
     THAT PLAYER pays [cost]"), never the ability's own controller.
     """
-    for unit in tree.units:
-        for n in iter_typed_nodes(unit.node):
-            if tag_of(n) != "GrantAbility":
-                continue
-            defn = getattr(n, "definition", None)
-            cost = getattr(defn, "cost", None)
-            for leaf in iter_cost_leaves(cost):
-                if (
-                    tag_of(leaf) == "Sacrifice"
-                    and not type(leaf).__name__.startswith("T_Ward__")
-                    and _sac_leaf_is_you_outlet(leaf)
-                ):
-                    return True
+    for n in tree.iter_typed():
+        if tag_of(n) != "GrantAbility":
+            continue
+        defn = getattr(n, "definition", None)
+        cost = getattr(defn, "cost", None)
+        for leaf in iter_cost_leaves(cost):
+            if (
+                tag_of(leaf) == "Sacrifice"
+                and not type(leaf).__name__.startswith("T_Ward__")
+                and _sac_leaf_is_you_outlet(leaf)
+            ):
+                return True
     return False
 
 
@@ -471,13 +470,12 @@ def _has_created_token_devour(tree: ConceptTree) -> bool:
     it (ADR-0039 task #82, formerly the ``sac_devour_unimplemented``
     ledgered bridge).
     """
-    for unit in tree.units:
-        for n in iter_typed_nodes(unit.node):
-            if tag_of(n) != "Token":
-                continue
-            for kw in getattr(n, "keywords", None) or []:
-                if isinstance(kw, MirrorVariant) and kw.key == "Devour":
-                    return True
+    for n in tree.iter_typed():
+        if tag_of(n) != "Token":
+            continue
+        for kw in getattr(n, "keywords", None) or []:
+            if isinstance(kw, MirrorVariant) and kw.key == "Devour":
+                return True
     return False
 
 
@@ -1026,42 +1024,41 @@ def _iter_returnasaura_mana_defs(
     ``enchant_filter`` (the SAME land/nonland accel-or-fixing gate the
     top-level :func:`_granted_mana_defs` recipient reads applies)."""
     out: list[tuple[object, object]] = []
-    for unit in tree.units:
-        for n in iter_typed_nodes(unit.node):
-            if tag_of(n) != "ReturnAsAura":
+    for n in tree.iter_typed():
+        if tag_of(n) != "ReturnAsAura":
+            continue
+        enchant = getattr(n, "enchant_filter", None)
+        for g in getattr(n, "grants", None) or []:
+            tag = tag_of(g)
+            defs: list[object] = []
+            if tag == "GrantAbility":
+                defs.append(getattr(g, "definition", None))
+            elif tag == "GrantTrigger":
+                trig = getattr(g, "trigger", None)
+                defs.append(
+                    getattr(trig, "execute", None) if trig is not None else None
+                )
+            elif tag == "GrantStaticAbility":
+                # phase v0.29.0's return-as-aura pipeline wraps the
+                # granted body one level deeper: grants carries a
+                # GrantStaticAbility whose static definition's
+                # modifications hold the GrantAbility defs ("Enchanted
+                # Forest has '{T}: Add {G}{G}'" — Old-Growth Troll,
+                # Harold and Bob).
+                sdef = getattr(g, "definition", None)
+                for m in getattr(sdef, "modifications", None) or []:
+                    if tag_of(m) == "GrantAbility":
+                        defs.append(getattr(m, "definition", None))
+            else:
                 continue
-            enchant = getattr(n, "enchant_filter", None)
-            for g in getattr(n, "grants", None) or []:
-                tag = tag_of(g)
-                defs: list[object] = []
-                if tag == "GrantAbility":
-                    defs.append(getattr(g, "definition", None))
-                elif tag == "GrantTrigger":
-                    trig = getattr(g, "trigger", None)
-                    defs.append(
-                        getattr(trig, "execute", None) if trig is not None else None
-                    )
-                elif tag == "GrantStaticAbility":
-                    # phase v0.29.0's return-as-aura pipeline wraps the
-                    # granted body one level deeper: grants carries a
-                    # GrantStaticAbility whose static definition's
-                    # modifications hold the GrantAbility defs ("Enchanted
-                    # Forest has '{T}: Add {G}{G}'" — Old-Growth Troll,
-                    # Harold and Bob).
-                    sdef = getattr(g, "definition", None)
-                    for m in getattr(sdef, "modifications", None) or []:
-                        if tag_of(m) == "GrantAbility":
-                            defs.append(getattr(m, "definition", None))
-                else:
+            for d in defs:
+                if d is None:
                     continue
-                for d in defs:
-                    if d is None:
-                        continue
-                    if (
-                        getattr(d, "is_mana_ability", None) is True
-                        or tag_of(getattr(d, "effect", None)) == "Mana"
-                    ):
-                        out.append((d, enchant))
+                if (
+                    getattr(d, "is_mana_ability", None) is True
+                    or tag_of(getattr(d, "effect", None)) == "Mana"
+                ):
+                    out.append((d, enchant))
     return out
 
 
@@ -1070,16 +1067,15 @@ def _die_roll_table_mana_nodes(tree: ConceptTree) -> Iterator[TypedMirrorNode]:
     (CR 706.3 — ``results[].effect`` is a full ability wrapper whose
     ``.effect`` is the row's payload), across the tree's units. Lane-local
     by design (see the call site in :func:`_ramp`)."""
-    for unit in tree.units:
-        for n in iter_typed_nodes(unit.node):
-            if tag_of(n) != "RollDie":
-                continue
-            for row in getattr(n, "results", None) or ():
-                body = getattr(getattr(row, "effect", None), "effect", None)
-                # Explicit None guard: ``tag_of`` is not a TypeGuard, so the tag
-                # comparison alone can't narrow ``body`` to the annotated node type.
-                if body is not None and tag_of(body) == "Mana":
-                    yield body
+    for n in tree.iter_typed():
+        if tag_of(n) != "RollDie":
+            continue
+        for row in getattr(n, "results", None) or ():
+            body = getattr(getattr(row, "effect", None), "effect", None)
+            # Explicit None guard: ``tag_of`` is not a TypeGuard, so the tag
+            # comparison alone can't narrow ``body`` to the annotated node type.
+            if body is not None and tag_of(body) == "Mana":
+                yield body
 
 
 def _ramp(tree: ConceptTree) -> list[Signal]:

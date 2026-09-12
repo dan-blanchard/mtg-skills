@@ -42,6 +42,19 @@ tuner modules import deck-forge internals.
   trees to the six raw readers changed nothing: they read typed phase fields off
   `.node`, which corrections never touch.
 
+- **One gap-predicate vocabulary on the tree.** Every "does the substrate already
+  carry X?" question a recovery row, a synthesis arm, a ledgered bridge or a lane asks
+  is one of six reads on `ConceptTree`: `iter_typed()` (the whole-card deep walk),
+  `has_typed(*tags)`, `has_concept(concept, role=, scope=, subject=)`,
+  `has_static_mode(*tags)`, `has_trigger(*events)`, `residues(name)` /
+  `has_residue(name)` (phase's `Unimplemented` residues by phase `name`), and
+  `is_text_only`. The 71 hand-rolled deep walks across synthesis, the bridge ledger and
+  the lanes, the ledger's five residue readers and its text-only gates, and the
+  synthesis arms' mechanical presence gates now compose these; a gate that needs a
+  semantic read (an operand shape, a sibling co-occurrence) keeps its hand-written
+  half and calls the vocabulary for its presence half. The corpus dump is
+  byte-identical after the migration.
+
 **Considered and rejected.** One product with synthesis for everyone (text-derived
 reference nodes reaching the structural readers, against ADR-0038's signals-only
 wiring, with a six-consumer diff to prove no change); a third `raw_trees_for` to

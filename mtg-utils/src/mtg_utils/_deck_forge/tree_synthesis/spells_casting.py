@@ -448,12 +448,11 @@ def has_structural_arcane(tree: ConceptTree) -> bool:
     """Whether phase carries a typed filter naming the Arcane spell subtype
     (a cast-trigger / target payoff — Tallowisp, Sideswipe) or a structured
     ``Splice`` static naming Arcane (dead row today, kept for convergence)."""
-    for unit in tree.units:
-        for n in iter_typed_nodes(unit.node):
-            if tag_of(n) == "Typed" and "Arcane" in filter_subtypes(n):
-                return True
-            if tag_of(n) == "Splice" and getattr(n, "subtype", None) == "Arcane":
-                return True
+    for n in tree.iter_typed():
+        if tag_of(n) == "Typed" and "Arcane" in filter_subtypes(n):
+            return True
+        if tag_of(n) == "Splice" and getattr(n, "subtype", None) == "Arcane":
+            return True
     return False
 
 
@@ -651,10 +650,9 @@ _MIRACLE_GRANT_SYNTH_RX = re.compile(
 def has_structural_lessons_matter(tree: ConceptTree) -> bool:
     """CR 701.48: a ``{"Subtype": "Lesson"}`` filter anywhere on the card
     (Uncle Iroh's ModifyCost spell_filter, Aang's state-check)."""
-    for unit in tree.units:
-        for node in iter_typed_nodes(unit.node):
-            if any(s.lower() == "lesson" for s in filter_subtypes(node)):
-                return True
+    for node in tree.iter_typed():
+        if any(s.lower() == "lesson" for s in filter_subtypes(node)):
+            return True
     return False
 
 
@@ -1030,43 +1028,40 @@ def _arm_cost_reduction(tree: ConceptTree) -> ConceptNode | None:
     emblem) whose OWN description is a genuine "costs ... less" reducer.
     Node-own-field/description reads only, no cross-node text.
     """
-    for unit in tree.units:
-        for node in iter_typed_nodes(unit.node):
-            mt = static_mode_tag(node)
-            if mt == "ModifyCost":
-                inner_mode = modify_cost_mode(node)
-            elif mt == "ReduceAbilityCost":
-                inner_mode = static_mode_field(node, "mode")
-            else:
-                continue
-            if inner_mode != "Reduce":
-                continue
-            if tag_of(getattr(node, "affected", None)) == "SelfRef":
-                continue
-            desc = (getattr(node, "description", None) or "").lower()
-            if "this spell costs" in desc or "this ability costs" in desc:
-                continue
+    for node in tree.iter_typed():
+        mt = static_mode_tag(node)
+        if mt == "ModifyCost":
+            inner_mode = modify_cost_mode(node)
+        elif mt == "ReduceAbilityCost":
+            inner_mode = static_mode_field(node, "mode")
+        else:
+            continue
+        if inner_mode != "Reduce":
+            continue
+        if tag_of(getattr(node, "affected", None)) == "SelfRef":
+            continue
+        desc = (getattr(node, "description", None) or "").lower()
+        if "this spell costs" in desc or "this ability costs" in desc:
+            continue
+        return _synthetic_concept(
+            arm_id="cost_reduction",
+            concept="synth_cost_reduction",
+            scope="you",
+            subject=(),
+            desc="bucket-B static spell/ability-cost reducer (CR 601.2f/118.7)",
+        )
+    for node in tree.iter_typed():
+        desc = getattr(node, "description", None)
+        if not isinstance(desc, str):
+            continue
+        if _cost_reducer_node_ok(desc):
             return _synthetic_concept(
                 arm_id="cost_reduction",
                 concept="synth_cost_reduction",
                 scope="you",
                 subject=(),
-                desc="bucket-B static spell/ability-cost reducer (CR 601.2f/118.7)",
+                desc="bucket-B Unimplemented cost-reducer residue (CR 601.2f/118.7)",
             )
-    for unit in tree.units:
-        for node in iter_typed_nodes(unit.node):
-            desc = getattr(node, "description", None)
-            if not isinstance(desc, str):
-                continue
-            if _cost_reducer_node_ok(desc):
-                return _synthetic_concept(
-                    arm_id="cost_reduction",
-                    concept="synth_cost_reduction",
-                    scope="you",
-                    subject=(),
-                    desc="bucket-B Unimplemented cost-reducer residue "
-                    "(CR 601.2f/118.7)",
-                )
     return None
 
 
@@ -1149,20 +1144,19 @@ def _arm_cheat_player_prefix_battlefield_put(tree: ConceptTree) -> ConceptNode |
     ``cheat_player_prefix_battlefield_put`` row."""
     if "onto the battlefield" not in (tree.oracle or "").lower():
         return None
-    for unit in tree.units:
-        for n in iter_typed_nodes(unit.node):
-            if tag_of(n) != "Unimplemented":
-                continue
-            desc = getattr(n, "description", "") or ""
-            if _CHEAT_PLAYER_PREFIX_SYNTH_RX.search(desc):
-                return _synthetic_concept(
-                    arm_id="cheat_player_prefix_battlefield_put",
-                    concept="synth_cheat_reveal_or_put_battlefield",
-                    scope="you",
-                    subject=(),
-                    desc="leading player-referent clause swallows a "
-                    "battlefield put (CR 110.2/400.7)",
-                )
+    for n in tree.iter_typed():
+        if tag_of(n) != "Unimplemented":
+            continue
+        desc = getattr(n, "description", "") or ""
+        if _CHEAT_PLAYER_PREFIX_SYNTH_RX.search(desc):
+            return _synthetic_concept(
+                arm_id="cheat_player_prefix_battlefield_put",
+                concept="synth_cheat_reveal_or_put_battlefield",
+                scope="you",
+                subject=(),
+                desc="leading player-referent clause swallows a "
+                "battlefield put (CR 110.2/400.7)",
+            )
     return None
 
 
@@ -1184,29 +1178,27 @@ def _arm_cheat_choose_from_among_graveyard_origin(
     shape but carry no Battlefield-destined node at all)."""
     has_choose = any(
         "choose" in desc.lower() and "from among them" in desc.lower()
-        for unit in tree.units
-        for n in iter_typed_nodes(unit.node)
+        for n in tree.iter_typed()
         if tag_of(n) == "Unimplemented"
         for desc in (getattr(n, "description", "") or "",)
     )
     if not has_choose:
         return None
-    for unit in tree.units:
-        for n in iter_typed_nodes(unit.node):
-            if (
-                tag_of(n) in ("ChangeZone", "ChangeZoneAll")
-                and getattr(n, "destination", None) == "Battlefield"
-                and getattr(n, "origin", None) == "Graveyard"
-            ):
-                return _synthetic_concept(
-                    arm_id="cheat_choose_from_among_graveyard_origin",
-                    concept="synth_cheat_reveal_or_put_battlefield",
-                    scope="you",
-                    subject=(),
-                    desc="choose-from-among-them selection paired with a "
-                    "phase-mistagged Graveyard-origin battlefield put "
-                    "(CR 400.7)",
-                )
+    for n in tree.iter_typed():
+        if (
+            tag_of(n) in ("ChangeZone", "ChangeZoneAll")
+            and getattr(n, "destination", None) == "Battlefield"
+            and getattr(n, "origin", None) == "Graveyard"
+        ):
+            return _synthetic_concept(
+                arm_id="cheat_choose_from_among_graveyard_origin",
+                concept="synth_cheat_reveal_or_put_battlefield",
+                scope="you",
+                subject=(),
+                desc="choose-from-among-them selection paired with a "
+                "phase-mistagged Graveyard-origin battlefield put "
+                "(CR 400.7)",
+            )
     return None
 
 
@@ -1229,18 +1221,17 @@ def _arm_cheat_synthetic_destiny_delayed_reveal(
     it. Anchored to the card's own verbatim idiom (corpus-verified sole
     hit). bridge_ledger.py's retired
     ``cheat_synthetic_destiny_delayed_reveal`` row."""
-    for unit in tree.units:
-        for n in iter_typed_nodes(unit.node):
-            if tag_of(n) != "Unimplemented" or getattr(n, "name", None) != "reveal":
-                continue
-            desc = getattr(n, "description", "") or ""
-            if _CHEAT_SYNTHETIC_DESTINY_SYNTH_RX.search(desc):
-                return _synthetic_concept(
-                    arm_id="cheat_synthetic_destiny_delayed_reveal",
-                    concept="synth_cheat_reveal_or_put_battlefield",
-                    scope="you",
-                    subject=(),
-                    desc="delayed-trigger reveal-until node has no typed "
-                    "kept_destination field (CR 701.20a)",
-                )
+    for n in tree.iter_typed():
+        if tag_of(n) != "Unimplemented" or getattr(n, "name", None) != "reveal":
+            continue
+        desc = getattr(n, "description", "") or ""
+        if _CHEAT_SYNTHETIC_DESTINY_SYNTH_RX.search(desc):
+            return _synthetic_concept(
+                arm_id="cheat_synthetic_destiny_delayed_reveal",
+                concept="synth_cheat_reveal_or_put_battlefield",
+                scope="you",
+                subject=(),
+                desc="delayed-trigger reveal-until node has no typed "
+                "kept_destination field (CR 701.20a)",
+            )
     return None

@@ -1011,10 +1011,7 @@ def has_structural_unspent_mana(tree: ConceptTree) -> bool:
     """Whether ANY static unit carries the ``StepEndUnspentMana`` mode
     (Upwelling/Kruphix/Horizon Stone's "unspent mana becomes colorless
     instead" replacement)."""
-    return any(
-        unit.origin == "static" and static_mode_tag(unit.node) == "StepEndUnspentMana"
-        for unit in tree.units
-    )
+    return tree.has_static_mode("StepEndUnspentMana")
 
 
 _UNSPENT_MANA_SYNTH_RX = re.compile(
@@ -1278,13 +1275,12 @@ def has_structural_ramp_grant_mana(tree: ConceptTree) -> bool:
     ``ramp_grant_unimplemented_body`` TYPED gate (former ledgered bridge,
     ADR-0039 task #82), so a card phase later parses the grant natively
     never doubles."""
-    for unit in tree.units:
-        for n in iter_typed_nodes(unit.node):
-            if tag_of(n) != "GrantAbility":
-                continue
-            d = getattr(n, "definition", None)
-            if d is not None and tag_of(getattr(d, "effect", None)) == "Mana":
-                return True
+    for n in tree.iter_typed():
+        if tag_of(n) != "GrantAbility":
+            continue
+        d = getattr(n, "definition", None)
+        if d is not None and tag_of(getattr(d, "effect", None)) == "Mana":
+            return True
     return False
 
 
@@ -1310,41 +1306,39 @@ def _arm_ramp_grant_unimplemented_body(tree: ConceptTree) -> ConceptNode | None:
     pin here is a creature, never a land)."""
     if has_structural_ramp_grant_mana(tree):
         return None
-    for unit in tree.units:
-        for n in iter_typed_nodes(unit.node):
-            if tag_of(n) != "GrantAbility":
-                continue
-            d = getattr(n, "definition", None)
-            if d is None:
-                continue
-            if tag_of(getattr(d, "effect", None)) != "Unimplemented":
-                continue
-            desc = getattr(d, "description", "") or ""
-            if _matches_add_mana_clause(desc):
-                return _synthetic_concept(
-                    arm_id="ramp_grant_unimplemented_body",
-                    concept="ramp",
-                    scope="you",
-                    subject=(),
-                    desc=(
-                        "granted mana-ability body parks as Unimplemented "
-                        "(self-referential dynamic color / compound "
-                        "two-quoted grant)"
-                    ),
-                )
+    for n in tree.iter_typed():
+        if tag_of(n) != "GrantAbility":
+            continue
+        d = getattr(n, "definition", None)
+        if d is None:
+            continue
+        if tag_of(getattr(d, "effect", None)) != "Unimplemented":
+            continue
+        desc = getattr(d, "description", "") or ""
+        if _matches_add_mana_clause(desc):
+            return _synthetic_concept(
+                arm_id="ramp_grant_unimplemented_body",
+                concept="ramp",
+                scope="you",
+                subject=(),
+                desc=(
+                    "granted mana-ability body parks as Unimplemented "
+                    "(self-referential dynamic color / compound "
+                    "two-quoted grant)"
+                ),
+            )
     return None
 
 
 def _ramp_unimplemented_add_mana_node(tree: ConceptTree) -> object | None:
     """The first ``Unimplemented`` node anywhere in the tree whose OWN
     ``description`` names an add-mana clause (CR 106.1), or ``None``."""
-    for unit in tree.units:
-        for n in iter_typed_nodes(unit.node):
-            if tag_of(n) != "Unimplemented":
-                continue
-            desc = getattr(n, "description", "") or ""
-            if _matches_add_mana_clause(desc):
-                return n
+    for n in tree.iter_typed():
+        if tag_of(n) != "Unimplemented":
+            continue
+        desc = getattr(n, "description", "") or ""
+        if _matches_add_mana_clause(desc):
+            return n
     return None
 
 

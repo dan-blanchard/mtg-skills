@@ -843,18 +843,17 @@ def _lifegain_makers(tree: ConceptTree) -> list[Signal]:
                 and c.scope != "opponents"
             ):
                 return [Signal("lifegain_makers", "you", "", c.raw, tree.name, "high")]
-    for unit in tree.units:
-        for n in iter_typed_nodes(unit.node):
-            if tag_of(n) != "GainLife":
+    for n in tree.iter_typed():
+        if tag_of(n) != "GainLife":
+            continue
+        player = getattr(n, "player", None)
+        if tag_of(player) == "Typed":
+            if getattr(player, "controller", None) == "Opponent":
                 continue
-            player = getattr(n, "player", None)
-            if tag_of(player) == "Typed":
-                if getattr(player, "controller", None) == "Opponent":
-                    continue
-                props = getattr(player, "properties", None) or []
-                if any(tag_of(p) == "Another" for p in props):
-                    continue
-            return [Signal("lifegain_makers", "you", "", "", tree.name, "high")]
+            props = getattr(player, "properties", None) or []
+            if any(tag_of(p) == "Another" for p in props):
+                continue
+        return [Signal("lifegain_makers", "you", "", "", tree.name, "high")]
     idiom = _lifegain_text_idiom(tree)
     if idiom is not None:
         return [Signal("lifegain_makers", "you", "", idiom, tree.name, "high")]

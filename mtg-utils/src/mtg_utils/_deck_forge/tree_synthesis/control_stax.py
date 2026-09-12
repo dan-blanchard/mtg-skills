@@ -1066,11 +1066,7 @@ _TARGETING_RESIDUE_SYNTH_RX = re.compile(
 def has_structural_legend_rule_off(tree: ConceptTree) -> bool:
     """CR 704.5j: a ``LegendRuleDoesntApply`` static mode phase types
     directly (the unbounded AND the Cadric-style bounded forms)."""
-    return any(
-        unit.origin == "static"
-        and static_mode_tag(unit.node) == "LegendRuleDoesntApply"
-        for unit in tree.units
-    )
+    return tree.has_static_mode("LegendRuleDoesntApply")
 
 
 def _arm_legend_rule_off(tree: ConceptTree) -> ConceptNode | None:
@@ -1093,7 +1089,7 @@ def _arm_legend_rule_off(tree: ConceptTree) -> ConceptNode | None:
 
 def has_structural_targeting_matters(tree: ConceptTree) -> bool:
     """CR 702.21a: ANY native ``becomes_target`` trigger unit."""
-    return any(unit.trigger_event == "becomes_target" for unit in tree.units)
+    return tree.has_trigger("becomes_target")
 
 
 def _arm_targeting_matters(tree: ConceptTree) -> ConceptNode | None:

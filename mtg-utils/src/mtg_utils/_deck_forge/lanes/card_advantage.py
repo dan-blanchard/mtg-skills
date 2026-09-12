@@ -1852,25 +1852,23 @@ def _exile_matters(tree: ConceptTree) -> list[Signal]:
     # not an exile-as-resource build-around; excluding it is zero-guess
     # (every non-"time" counter kind in the census names a card-specific
     # exile-pile mechanic). CR 406.1.
-    for unit in tree.units:
-        for n in iter_typed_nodes(unit.node):
-            if tag_of(n) != "Typed":
+    for n in tree.iter_typed():
+        if tag_of(n) != "Typed":
+            continue
+        props = getattr(n, "properties", None) or []
+        has_exile = any(
+            tag_of(p) == "InZone" and getattr(p, "zone", None) == "Exile" for p in props
+        )
+        if not has_exile:
+            continue
+        for p in props:
+            if tag_of(p) != "Counters":
                 continue
-            props = getattr(n, "properties", None) or []
-            has_exile = any(
-                tag_of(p) == "InZone" and getattr(p, "zone", None) == "Exile"
-                for p in props
-            )
-            if not has_exile:
-                continue
-            for p in props:
-                if tag_of(p) != "Counters":
-                    continue
-                kind_node = getattr(p, "counters", None)
-                kind = getattr(kind_node, "data", None)
-                if kind == "time":
-                    continue  # the Suspend-mechanic reuse — never guess
-                return [Signal("exile_matters", "you", "", "", tree.name, "high")]
+            kind_node = getattr(p, "counters", None)
+            kind = getattr(kind_node, "data", None)
+            if kind == "time":
+                continue  # the Suspend-mechanic reuse — never guess
+            return [Signal("exile_matters", "you", "", "", tree.name, "high")]
     # ADR-0038 W3 batch 6 — the RemoveCounter-from-an-exiled-card arm: Mari,
     # the Killing Quill's granted ability ("remove a hit counter from a card
     # that player owns in exile") is a ``RemoveCounter`` whose OWN ``target``
@@ -1888,15 +1886,14 @@ def _exile_matters(tree: ConceptTree) -> list[Signal]:
     # target, not CR 702.62a reuse (see the helper's own docstring for the
     # corpus census that verified this correctly still excludes Shivan
     # Sand-Mage / Fury Charm / Timebender / Timecrafting). CR 406.1.
-    for unit in tree.units:
-        for n in iter_typed_nodes(unit.node):
-            if tag_of(n) != "RemoveCounter":
-                continue
-            target = getattr(n, "target", None)
-            if _has_suspend_keyword_property(target):
-                continue  # the Suspend-mechanic reuse — never guess
-            if "Exile" in filter_inzone_zones(target):
-                return [Signal("exile_matters", "you", "", "", tree.name, "high")]
+    for n in tree.iter_typed():
+        if tag_of(n) != "RemoveCounter":
+            continue
+        target = getattr(n, "target", None)
+        if _has_suspend_keyword_property(target):
+            continue  # the Suspend-mechanic reuse — never guess
+        if "Exile" in filter_inzone_zones(target):
+            return [Signal("exile_matters", "you", "", "", tree.name, "high")]
     # ADR-0039 W7 (2026-07-12) — the order-sensitive "for each card exiled
     # this way" TrackedSetSize arm (:func:`_exile_then_tracked_set_size`):
     # Rysorian Badger's own life-gain scales off a bare ``TrackedSetSize``
@@ -1920,13 +1917,12 @@ def _exile_matters(tree: ConceptTree) -> list[Signal]:
     # OTHER zone-change payoffs (2026-07 corpus census: 57 Exiled / 30
     # Destroyed / 19 Sacrificed / 13 Discarded / 5 Milled) — gated narrowly
     # to ``'Exiled'``. CR 406.1.
-    for unit in tree.units:
-        for n in iter_typed_nodes(unit.node):
-            if (
-                tag_of(n) == "FilteredTrackedSetSize"
-                and getattr(n, "caused_by", None) == "Exiled"
-            ):
-                return [Signal("exile_matters", "you", "", "", tree.name, "high")]
+    for n in tree.iter_typed():
+        if (
+            tag_of(n) == "FilteredTrackedSetSize"
+            and getattr(n, "caused_by", None) == "Exiled"
+        ):
+            return [Signal("exile_matters", "you", "", "", tree.name, "high")]
     # ADR-0038 W5 tails — the "draw a card for each card exiled from your
     # hand this way" arm: the "hate a card name" cycle (The Stone Brain /
     # Unmoored Ego / Lost Legacy / Necromentia / Deadly Cover-Up / The End
@@ -1934,23 +1930,21 @@ def _exile_matters(tree: ConceptTree) -> list[Signal]:
     # ``ExiledFromHandThisResolution`` qty — a dedicated node with no
     # fields at all. 2026-07 corpus census: exactly these 7 commander-legal
     # cards, zero false positives. CR 406.1.
-    for unit in tree.units:
-        for n in iter_typed_nodes(unit.node):
-            if tag_of(n) == "ExiledFromHandThisResolution":
-                return [Signal("exile_matters", "you", "", "", tree.name, "high")]
+    for n in tree.iter_typed():
+        if tag_of(n) == "ExiledFromHandThisResolution":
+            return [Signal("exile_matters", "you", "", "", tree.name, "high")]
     # ADR-0038 W5 tails — the companion-adjacent "face-up exile" search arm:
     # Karn, the Great Creator's -2 / Coax from the Blind Eternities read a
     # ``SearchOutsideGame`` whose ``source_pool`` is
     # ``SideboardAndFaceUpExile`` — the ONLY ``source_pool`` variant the
     # substrate carries (2026-07 census), so tagging it is zero-guess. CR
     # 406.1.
-    for unit in tree.units:
-        for n in iter_typed_nodes(unit.node):
-            if (
-                tag_of(n) == "SearchOutsideGame"
-                and tag_of(getattr(n, "source_pool", None)) == "SideboardAndFaceUpExile"
-            ):
-                return [Signal("exile_matters", "you", "", "", tree.name, "high")]
+    for n in tree.iter_typed():
+        if (
+            tag_of(n) == "SearchOutsideGame"
+            and tag_of(getattr(n, "source_pool", None)) == "SideboardAndFaceUpExile"
+        ):
+            return [Signal("exile_matters", "you", "", "", tree.name, "high")]
     # ADR-0038 W5 tails — the "spells you cast from exile gain keyword X"
     # arm: a STATIC ability whose OWN ``affected`` scope is a Typed filter
     # carrying InZone{Exile} (Wild-Magic Sorcerer's cascade grant, Party
@@ -2075,20 +2069,19 @@ def _exile_matters(tree: ConceptTree) -> list[Signal]:
     # counter Suspend-mechanic-reuse gate the arms above use is re-applied
     # here so this broader, later-checked arm can never re-admit Alaundo
     # the Seer / Rose Tyler / Amy Pond. CR 406.1.
-    for unit in tree.units:
-        for n in iter_typed_nodes(unit.node):
-            if tag_of(n) == "RemoveCounter" and getattr(n, "counter_type", None) == (
-                "time"
-            ):
+    for n in tree.iter_typed():
+        if tag_of(n) == "RemoveCounter" and getattr(n, "counter_type", None) == (
+            "time"
+        ):
+            continue
+        for fname in ("target", "filter"):
+            filt = getattr(n, fname, None)
+            if tag_of(filt) != "Typed":
                 continue
-            for fname in ("target", "filter"):
-                filt = getattr(n, fname, None)
-                if tag_of(filt) != "Typed":
-                    continue
-                if _exile_matters_time_counter_reuse(filt):
-                    continue
-                if "Exile" in filter_inzone_zones(filt):
-                    return [Signal("exile_matters", "you", "", "", tree.name, "high")]
+            if _exile_matters_time_counter_reuse(filt):
+                continue
+            if "Exile" in filter_inzone_zones(filt):
+                return [Signal("exile_matters", "you", "", "", tree.name, "high")]
     # ADR-0039 W7 ledgered bridges — the residual upstream-parse-failure /
     # dropped-clause bucket (bridge_ledger.py rows, docstring there for the
     # full corpus accounting):

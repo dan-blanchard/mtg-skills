@@ -131,35 +131,32 @@ def _minus_counters_matter(tree: ConceptTree) -> list[Signal]:
             return [
                 Signal("minus_counters_matter", "you", "", c.raw, tree.name, "high")
             ]
-    for unit in tree.units:
-        for node in iter_typed_nodes(unit.node):
-            t = tag_of(node)
-            if t in ("PutCounter", "PutCounterAll"):
-                if counter_kind(node).upper() == "M1M1":
-                    return [
-                        Signal(
-                            "minus_counters_matter", "you", "", "", tree.name, "high"
-                        )
-                    ]
-            elif t == "ChangeZone":
-                ewc = getattr(node, "enter_with_counters", None)
-                if isinstance(ewc, list):
-                    for pair in ewc:
-                        if (
-                            isinstance(pair, (list, tuple))
-                            and pair
-                            and str(pair[0]).upper() == "M1M1"
-                        ):
-                            return [
-                                Signal(
-                                    "minus_counters_matter",
-                                    "you",
-                                    "",
-                                    "",
-                                    tree.name,
-                                    "high",
-                                )
-                            ]
+    for node in tree.iter_typed():
+        t = tag_of(node)
+        if t in ("PutCounter", "PutCounterAll"):
+            if counter_kind(node).upper() == "M1M1":
+                return [
+                    Signal("minus_counters_matter", "you", "", "", tree.name, "high")
+                ]
+        elif t == "ChangeZone":
+            ewc = getattr(node, "enter_with_counters", None)
+            if isinstance(ewc, list):
+                for pair in ewc:
+                    if (
+                        isinstance(pair, (list, tuple))
+                        and pair
+                        and str(pair[0]).upper() == "M1M1"
+                    ):
+                        return [
+                            Signal(
+                                "minus_counters_matter",
+                                "you",
+                                "",
+                                "",
+                                tree.name,
+                                "high",
+                            )
+                        ]
     if _MINUS_COUNTER_KEPT_RX.search(_kept(tree)):
         return [Signal("minus_counters_matter", "you", "", "", tree.name, "high")]
     return []

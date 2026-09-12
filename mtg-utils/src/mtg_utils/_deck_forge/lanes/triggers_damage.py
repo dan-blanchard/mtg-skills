@@ -2043,10 +2043,9 @@ def _base_power_matters(tree: ConceptTree) -> list[Signal]:
     tree-build time, and this lane reads the synthesized concept node
     structurally. CR 613.4b.
     """
-    for unit in tree.units:
-        for n in iter_typed_nodes(unit.node):
-            if tag_of(n) == "PtComparison" and getattr(n, "scope", None) == "Base":
-                return [Signal("base_power_matters", "you", "", "", tree.name, "high")]
+    for n in tree.iter_typed():
+        if tag_of(n) == "PtComparison" and getattr(n, "scope", None) == "Base":
+            return [Signal("base_power_matters", "you", "", "", tree.name, "high")]
     for c in tree.effect_concepts("base_power_matters"):
         if isinstance(c.node, SynthesizedNode):
             return [Signal("base_power_matters", "you", "", "", tree.name, "high")]

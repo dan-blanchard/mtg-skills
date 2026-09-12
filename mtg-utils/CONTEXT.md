@@ -132,6 +132,17 @@ a structural reader never sees one (ADR-0038's signals-only wiring).
 _Avoid_: applying `apply_tree_synthesis` at a call site (the owner's second product
 does it, once), "synthesized tree" for a text-only face tree.
 
+**Gap predicate**:
+The read a gap-gated arm (a recovery row, a synthesis arm, a ledgered bridge, a
+membership-floor mirror) makes to decide the substrate lacks the structure it would
+otherwise read from text — one of the six presence reads `ConceptTree` owns
+(`has_typed` / `has_concept` / `has_static_mode` / `has_trigger` / `has_residue` /
+`is_text_only`, over `iter_typed`; ADR-0047). A gate composes them; it never re-walks
+the tree in its own idiom, so "the tree already carries X" means the same thing in
+every tier.
+_Avoid_: a per-arm `for unit in tree.units: for n in iter_typed_nodes(unit.node)` walk
+(the retired idiom), "fallback condition" (a gate is a structural fact, not a default).
+
 (The "KEPT twelve" — twelve keys that once lagged on a legacy serving arm —
 are ordinary manifest-served lanes since ADR-0039 completed; the surviving
 distinction, where one exists, is a per-key ledgered bridge or text mirror

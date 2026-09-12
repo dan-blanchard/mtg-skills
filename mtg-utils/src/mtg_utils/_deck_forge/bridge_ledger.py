@@ -134,14 +134,7 @@ def _static_parse_failure_descs(tree: ConceptTree) -> Iterator[str]:
     (116 nodes corpus-wide at v0.20.0). The line text survives only there, so
     an upstream_parse_failure bridge both gap-checks and reads that node.
     """
-    for unit in tree.units:
-        for cn in unit.iter_concepts():
-            node = cn.node
-            if (
-                tag_of(node) == "Unimplemented"
-                and getattr(node, "name", None) == "static_structure"
-            ):
-                yield getattr(node, "description", "") or ""
+    return tree.residues("static_structure")
 
 
 # ── Degavolver / Anavolver (the APC "Volver" cycle) → lifeloss_makers ────────
@@ -162,11 +155,7 @@ _DEGAVOLVER_RX = re.compile(
 
 
 def _degavolver_gap(tree: ConceptTree) -> bool:
-    for unit in tree.units:
-        for n in iter_typed_nodes(unit.node):
-            if tag_of(n) in ("PayLife", "GrantAbility"):
-                return False
-    return True
+    return all(tag_of(n) not in ("PayLife", "GrantAbility") for n in tree.iter_typed())
 
 
 def _degavolver_match(tree: ConceptTree) -> bool:
@@ -193,17 +182,11 @@ _WITHERCROWN_RX = re.compile(r"^you lose \d+ life unless\b", re.IGNORECASE)
 
 
 def _unless_clause_failure_descs(tree: ConceptTree) -> Iterator[str]:
-    for unit in tree.units:
-        for n in iter_typed_nodes(unit.node):
-            if (
-                tag_of(n) == "Unimplemented"
-                and getattr(n, "name", None) == "Unsupported unless clause"
-            ):
-                yield getattr(n, "description", "") or ""
+    return tree.residues("Unsupported unless clause")
 
 
 def _withercrown_gap(tree: ConceptTree) -> bool:
-    return any(True for _ in _unless_clause_failure_descs(tree))
+    return tree.has_residue("Unsupported unless clause")
 
 
 def _withercrown_match(tree: ConceptTree) -> bool:
@@ -256,11 +239,7 @@ _ZUKO_RX = re.compile(r"choose one[^.]*\band you lose \d+ life\b", re.IGNORECASE
 
 
 def _zuko_gap(tree: ConceptTree) -> bool:
-    for unit in tree.units:
-        for n in iter_typed_nodes(unit.node):
-            if tag_of(n) in ("PayLife", "LoseLife"):
-                return False
-    return True
+    return all(tag_of(n) not in ("PayLife", "LoseLife") for n in tree.iter_typed())
 
 
 def _zuko_match(tree: ConceptTree) -> bool:
@@ -283,11 +262,7 @@ _KEYWORD_DROPPED_RX = re.compile(
 
 
 def _keyword_dropped_gap(tree: ConceptTree) -> bool:
-    for unit in tree.units:
-        for n in iter_typed_nodes(unit.node):
-            if tag_of(n) in ("PayLife", "GrantAbility"):
-                return False
-    return True
+    return all(tag_of(n) not in ("PayLife", "GrantAbility") for n in tree.iter_typed())
 
 
 def _keyword_dropped_match(tree: ConceptTree) -> bool:
@@ -312,11 +287,7 @@ def _no_typed_sacrifice_node(tree: ConceptTree) -> bool:
     by construction — the day phase decomposes any of these idioms into a
     typed Sacrifice cost/effect node, every bridge below stands down on
     that card without any further edit."""
-    return not any(
-        tag_of(n) == "Sacrifice"
-        for unit in tree.units
-        for n in iter_typed_nodes(unit.node)
-    )
+    return not any(tag_of(n) == "Sacrifice" for n in tree.iter_typed())
 
 
 def _sac_kept(tree: ConceptTree) -> str:
@@ -403,31 +374,30 @@ def _sac_emblem_cost_match(tree: ConceptTree) -> bool:
 # — self-retiring the moment any of these nodes' filter/count/destination
 # lands real evidence (the structural arm fires on its own, no edit here).
 def _cheat_no_battlefield_type_evidence(tree: ConceptTree) -> bool:
-    for unit in tree.units:
-        for n in iter_typed_nodes(unit.node):
-            tg = tag_of(n)
-            if tg in ("ChangeZone", "ChangeZoneAll"):
-                if getattr(n, "destination", None) != "Battlefield":
-                    continue
-                filt = effect_filter(n)
-                cores = set(filter_core_types(filt))
-                if cores and not cores <= {"Land"}:
+    for n in tree.iter_typed():
+        tg = tag_of(n)
+        if tg in ("ChangeZone", "ChangeZoneAll"):
+            if getattr(n, "destination", None) != "Battlefield":
+                continue
+            filt = effect_filter(n)
+            cores = set(filter_core_types(filt))
+            if cores and not cores <= {"Land"}:
+                return False
+            if not cores:
+                subs = {s.lower() for s in filter_subtypes(filt)}
+                if subs and not subs & _LAND_SUBTYPES:
                     return False
-                if not cores:
-                    subs = {s.lower() for s in filter_subtypes(filt)}
-                    if subs and not subs & _LAND_SUBTYPES:
-                        return False
-            elif tg == "RevealUntil":
-                if getattr(n, "kept_destination", None) != "Battlefield":
-                    continue
-                filt = effect_filter(n)
-                cores = set(filter_core_types(filt))
-                if cores and not cores <= {"Land"}:
+        elif tg == "RevealUntil":
+            if getattr(n, "kept_destination", None) != "Battlefield":
+                continue
+            filt = effect_filter(n)
+            cores = set(filter_core_types(filt))
+            if cores and not cores <= {"Land"}:
+                return False
+            if not cores:
+                subs = {s.lower() for s in filter_subtypes(filt)}
+                if subs and not subs & _LAND_SUBTYPES:
                     return False
-                if not cores:
-                    subs = {s.lower() for s in filter_subtypes(filt)}
-                    if subs and not subs & _LAND_SUBTYPES:
-                        return False
     return True
 
 
@@ -487,23 +457,21 @@ def _cheat_kept_dest_misparse_match(tree: ConceptTree) -> bool:
 def _cheat_modal_unsupported_gap(tree: ConceptTree) -> bool:
     return any(
         True
-        for unit in tree.units
-        for n in iter_typed_nodes(unit.node)
+        for n in tree.iter_typed()
         if tag_of(n) == "Unimplemented"
         and getattr(n, "name", None) == "modal_mode_unsupported_qualifier"
     )
 
 
 def _cheat_modal_unsupported_match(tree: ConceptTree) -> bool:
-    for unit in tree.units:
-        for n in iter_typed_nodes(unit.node):
-            if tag_of(n) != "Unimplemented":
-                continue
-            if getattr(n, "name", None) != "modal_mode_unsupported_qualifier":
-                continue
-            desc = (getattr(n, "description", "") or "").lower()
-            if "onto the battlefield" in desc:
-                return True
+    for n in tree.iter_typed():
+        if tag_of(n) != "Unimplemented":
+            continue
+        if getattr(n, "name", None) != "modal_mode_unsupported_qualifier":
+            continue
+        desc = (getattr(n, "description", "") or "").lower()
+        if "onto the battlefield" in desc:
+            return True
     return False
 
 
@@ -723,10 +691,9 @@ def _unimplemented_descs_anywhere(tree: ConceptTree) -> Iterator[str]:
     ``unit.effects`` — a base_pt_set residue can be nested under a STATIC
     unit or a granted-ability chain, outside ``apply_unimplemented_
     recovery``'s scan scope, per the mtg-utils/CONTEXT.md landmine)."""
-    for unit in tree.units:
-        for n in iter_typed_nodes(unit.node):
-            if tag_of(n) == "Unimplemented":
-                yield getattr(n, "description", "") or ""
+    for n in tree.iter_typed():
+        if tag_of(n) == "Unimplemented":
+            yield getattr(n, "description", "") or ""
 
 
 # (4) A Stickers-templated ability whose cost is an un-parseable ``{TK}``
@@ -768,25 +735,24 @@ _BASE_PT_EACH_EQUAL_TO_RX = re.compile(
 
 
 def _base_pt_each_equal_to_dropped(tree: ConceptTree) -> bool:
-    for unit in tree.units:
-        for ge in iter_typed_nodes(unit.node):
-            if tag_of(ge) != "GenericEffect":
+    for ge in tree.iter_typed():
+        if tag_of(ge) != "GenericEffect":
+            continue
+        for st in getattr(ge, "static_abilities", None) or []:
+            desc = getattr(st, "description", "") or ""
+            if not _BASE_PT_EACH_EQUAL_TO_RX.search(desc):
                 continue
-            for st in getattr(ge, "static_abilities", None) or []:
-                desc = getattr(st, "description", "") or ""
-                if not _BASE_PT_EACH_EQUAL_TO_RX.search(desc):
-                    continue
-                mods = {tag_of(m) for m in (getattr(st, "modifications", None) or [])}
-                if not (
-                    mods
-                    & {
-                        "SetPower",
-                        "SetToughness",
-                        "SetPowerDynamic",
-                        "SetToughnessDynamic",
-                    }
-                ):
-                    return True
+            mods = {tag_of(m) for m in (getattr(st, "modifications", None) or [])}
+            if not (
+                mods
+                & {
+                    "SetPower",
+                    "SetToughness",
+                    "SetPowerDynamic",
+                    "SetToughnessDynamic",
+                }
+            ):
+                return True
     return False
 
 
@@ -809,13 +775,12 @@ _BASE_PT_BECOMECOPY_PT_RX = re.compile(
 
 
 def _base_pt_becomecopy_no_mods_gap(tree: ConceptTree) -> bool:
-    for unit in tree.units:
-        for n in iter_typed_nodes(unit.node):
-            if tag_of(n) != "BecomeCopy":
-                continue
-            addl = getattr(n, "additional_modifications", MISSING)
-            if addl is MISSING or addl in (None, []):
-                return True
+    for n in tree.iter_typed():
+        if tag_of(n) != "BecomeCopy":
+            continue
+        addl = getattr(n, "additional_modifications", MISSING)
+        if addl is MISSING or addl in (None, []):
+            return True
     return False
 
 
@@ -834,12 +799,11 @@ def _unbound_subject_descs(tree: ConceptTree) -> Iterator[str]:
     """Every ``unbound_subject`` residue's description, ANYWHERE under a
     unit (a planeswalker emblem's granted trigger nests its residue under
     ``CreateEmblem.triggers``, outside the flat ``unit.effects`` walk)."""
-    for unit in tree.units:
-        for n in iter_typed_nodes(unit.node):
-            if tag_of(n) == "Unimplemented" and (
-                getattr(n, "name", None) == "unbound_subject"
-            ):
-                yield getattr(n, "description", "") or ""
+    for n in tree.iter_typed():
+        if tag_of(n) == "Unimplemented" and (
+            getattr(n, "name", None) == "unbound_subject"
+        ):
+            yield getattr(n, "description", "") or ""
 
 
 # (a) "the player who/with <superlative> gains control of ~" → donate_makers.
@@ -864,11 +828,7 @@ _CONTROL_CHANGE_TAGS = frozenset(
 
 
 def _no_control_change_node(tree: ConceptTree) -> bool:
-    return not any(
-        tag_of(n) in _CONTROL_CHANGE_TAGS
-        for unit in tree.units
-        for n in iter_typed_nodes(unit.node)
-    )
+    return not any(tag_of(n) in _CONTROL_CHANGE_TAGS for n in tree.iter_typed())
 
 
 def _donate_superlative_match(tree: ConceptTree) -> bool:
@@ -917,21 +877,19 @@ _EACH_SOURCE_RIDER_RX = re.compile(
 
 
 def _each_source_rider_descs(tree: ConceptTree) -> Iterator[str]:
-    for unit in tree.units:
-        for n in iter_typed_nodes(unit.node):
-            if tag_of(n) == "Unimplemented" and (
-                getattr(n, "name", None) == "each_source_unrepresentable_rider"
-            ):
-                yield getattr(n, "description", "") or ""
+    for n in tree.iter_typed():
+        if tag_of(n) == "Unimplemented" and (
+            getattr(n, "name", None) == "each_source_unrepresentable_rider"
+        ):
+            yield getattr(n, "description", "") or ""
 
 
 def _no_creature_reaching_damage_node(tree: ConceptTree) -> bool:
-    for unit in tree.units:
-        for n in iter_typed_nodes(unit.node):
-            if tag_of(n) in DAMAGE_EFFECT_TAGS and "Creature" in (
-                filter_core_types(damage_recipient(n))
-            ):
-                return False
+    for n in tree.iter_typed():
+        if tag_of(n) in DAMAGE_EFFECT_TAGS and "Creature" in (
+            filter_core_types(damage_recipient(n))
+        ):
+            return False
     return True
 
 
@@ -1013,12 +971,11 @@ def _ramp_dropped_clause_match(tree: ConceptTree) -> bool:
 # survives only in that node's own ``text`` field (a typed field, not a
 # whole-card regex).
 def _land_creatures_condition_ref_gap(tree: ConceptTree) -> bool:
-    for unit in tree.units:
-        for n in iter_typed_nodes(unit.node):
-            if tag_of(n) == "Unrecognized":
-                text = getattr(n, "text", "") or ""
-                if "land creature" in text.lower():
-                    return True
+    for n in tree.iter_typed():
+        if tag_of(n) == "Unrecognized":
+            text = getattr(n, "text", "") or ""
+            if "land creature" in text.lower():
+                return True
     return False
 
 
@@ -1046,7 +1003,7 @@ _MAIRSIL_REX_RX = re.compile(
 
 
 def _mairsil_rex_gap(tree: ConceptTree) -> bool:
-    return any(True for _ in _static_parse_failure_descs(tree))
+    return tree.has_residue("static_structure")
 
 
 def _mairsil_rex_match(tree: ConceptTree) -> bool:
@@ -1061,13 +1018,7 @@ def _mairsil_rex_match(tree: ConceptTree) -> bool:
 # even though the surface idiom (a counter-gated persistent exile pile as a
 # play/cast resource) is a sibling of (1)'s ability-grant idiom.
 def _effect_structure_descs(tree: ConceptTree) -> Iterator[str]:
-    for unit in tree.units:
-        for n in iter_typed_nodes(unit.node):
-            if (
-                tag_of(n) == "Unimplemented"
-                and getattr(n, "name", None) == "effect_structure"
-            ):
-                yield getattr(n, "description", "") or ""
+    return tree.residues("effect_structure")
 
 
 _GROLNOK_RX = re.compile(
@@ -1078,7 +1029,7 @@ _GROLNOK_RX = re.compile(
 
 
 def _grolnok_gap(tree: ConceptTree) -> bool:
-    return any(True for _ in _effect_structure_descs(tree))
+    return tree.has_residue("effect_structure")
 
 
 def _grolnok_match(tree: ConceptTree) -> bool:
@@ -1094,12 +1045,7 @@ def _grolnok_match(tree: ConceptTree) -> bool:
 # dropped wholesale with no ``SetDynamicPower``/``SetDynamicToughness`` pair
 # anywhere in the tree.
 def _creatures_unimpl_descs(tree: ConceptTree) -> Iterator[str]:
-    for unit in tree.units:
-        for n in iter_typed_nodes(unit.node):
-            if tag_of(n) == "Unimplemented" and getattr(n, "name", None) == (
-                "creatures"
-            ):
-                yield getattr(n, "description", "") or ""
+    return tree.residues("creatures")
 
 
 _CANDLEKEEP_RX = re.compile(
@@ -1108,7 +1054,7 @@ _CANDLEKEEP_RX = re.compile(
 
 
 def _candlekeep_gap(tree: ConceptTree) -> bool:
-    return any(True for _ in _creatures_unimpl_descs(tree))
+    return tree.has_residue("creatures")
 
 
 def _candlekeep_match(tree: ConceptTree) -> bool:
@@ -1151,21 +1097,20 @@ def _close_encounter_match(tree: ConceptTree) -> bool:
 # (not a whole-card scan), mirroring the module's ``_unknown_mode_*``
 # per-node last-resort family.
 def _kaya_emblem_cast_from_exile_drop(tree: ConceptTree) -> bool:
-    for unit in tree.units:
-        for n in iter_typed_nodes(unit.node):
-            if tag_of(n) != "CreateEmblem":
+    for n in tree.iter_typed():
+        if tag_of(n) != "CreateEmblem":
+            continue
+        for trig in getattr(n, "triggers", None) or []:
+            desc = (getattr(trig, "description", "") or "").lower()
+            if "in exile" not in desc:
                 continue
-            for trig in getattr(n, "triggers", None) or []:
-                desc = (getattr(trig, "description", "") or "").lower()
-                if "in exile" not in desc:
-                    continue
-                execute = getattr(trig, "execute", None)
-                eff = getattr(execute, "effect", None) if execute else None
-                if tag_of(eff) != "CastFromZone":
-                    continue
-                target = getattr(eff, "target", None)
-                if "Exile" not in filter_inzone_zones(target):
-                    return True
+            execute = getattr(trig, "execute", None)
+            eff = getattr(execute, "effect", None) if execute else None
+            if tag_of(eff) != "CastFromZone":
+                continue
+            target = getattr(eff, "target", None)
+            if "Exile" not in filter_inzone_zones(target):
+                return True
     return False
 
 
@@ -1197,16 +1142,15 @@ _VOLTRON_SCALING_RX = re.compile(
 
 
 def _voltron_scaling_gap(tree: ConceptTree) -> bool:
-    for unit in tree.units:
-        for n in iter_typed_nodes(unit.node):
-            if tag_of(n) == "ObjectCount":
-                filt = getattr(n, "filter", None)
-            else:
-                filt = aggregate_filter(n)
-            if filt is not None and (
-                {s.lower() for s in filter_subtypes(filt)} & _VOLTRON_SUBTYPES
-            ):
-                return False
+    for n in tree.iter_typed():
+        if tag_of(n) == "ObjectCount":
+            filt = getattr(n, "filter", None)
+        else:
+            filt = aggregate_filter(n)
+        if filt is not None and (
+            {s.lower() for s in filter_subtypes(filt)} & _VOLTRON_SUBTYPES
+        ):
+            return False
     return True
 
 
@@ -1324,7 +1268,7 @@ def _opp_discard_unless_match(tree: ConceptTree) -> bool:
 
 
 def _opp_discard_unless_gap(tree: ConceptTree) -> bool:
-    return any(True for _ in _unless_clause_failure_descs(tree))
+    return tree.has_residue("Unsupported unless clause")
 
 
 # Yawgmoth Merfolk Soul's Unfinity Stickers "{TK}{TK} — When ~ leaves the
@@ -1342,10 +1286,9 @@ _YAWGMOTH_TK_DISCARD_RX = re.compile(
 
 
 def _yawgmoth_tk_discard_descs(tree: ConceptTree) -> Iterator[str]:
-    for unit in tree.units:
-        for n in iter_typed_nodes(unit.node):
-            if tag_of(n) == "Unimplemented" and getattr(n, "name", None) == "unknown":
-                yield getattr(n, "description", "") or ""
+    for n in tree.iter_typed():
+        if tag_of(n) == "Unimplemented" and getattr(n, "name", None) == "unknown":
+            yield getattr(n, "description", "") or ""
 
 
 def _yawgmoth_tk_discard_gap(tree: ConceptTree) -> bool:
@@ -1365,11 +1308,7 @@ def _yawgmoth_tk_discard_match(tree: ConceptTree) -> bool:
 # absence proof; the narrow per-card ``match`` below is what keeps each
 # bridge a scalpel, not a lane).
 def _no_typed_discard_node(tree: ConceptTree) -> bool:
-    return not any(
-        tag_of(n) in ("Discard", "DiscardCard")
-        for unit in tree.units
-        for n in iter_typed_nodes(unit.node)
-    )
+    return not any(tag_of(n) in ("Discard", "DiscardCard") for n in tree.iter_typed())
 
 
 # Fungal Shambler's "Whenever ~ deals damage to an opponent, you draw a
@@ -1432,7 +1371,7 @@ _DRIVEN_DESPAIR_RX = re.compile(
 
 
 def _driven_despair_gap(tree: ConceptTree) -> bool:
-    return all(u.origin == "synth" for u in tree.units)
+    return tree.is_text_only
 
 
 def _driven_despair_match(tree: ConceptTree) -> bool:
@@ -1451,7 +1390,7 @@ _ROCK_HYDRA_RX = re.compile(r"if it has a \+1/\+1 counter on it", re.IGNORECASE)
 
 
 def _rock_hydra_gap(tree: ConceptTree) -> bool:
-    return any(True for _ in _static_parse_failure_descs(tree))
+    return tree.has_residue("static_structure")
 
 
 def _rock_hydra_match(tree: ConceptTree) -> bool:
@@ -1601,11 +1540,7 @@ _LIGHTNING_RUNNER_UNTAP_RX = re.compile(
 
 
 def _lightning_runner_gap(tree: ConceptTree) -> bool:
-    return not any(
-        tag_of(n) == "SetTapState"
-        for unit in tree.units
-        for n in iter_typed_nodes(unit.node)
-    )
+    return not any(tag_of(n) == "SetTapState" for n in tree.iter_typed())
 
 
 def _lightning_runner_match(tree: ConceptTree) -> bool:
@@ -1633,8 +1568,7 @@ _DUSKANA_DRAW_COUNT_RX = re.compile(
 def _duskana_draw_count_gap(tree: ConceptTree) -> bool:
     return any(
         tag_of(n) == "Draw" and tag_of(getattr(n, "count", None)) != "Ref"
-        for unit in tree.units
-        for n in iter_typed_nodes(unit.node)
+        for n in tree.iter_typed()
     )
 
 
@@ -1895,16 +1829,15 @@ def _choice_branch_makes_token(tree: ConceptTree, subtype: str) -> bool:
     carrying ``subtype`` in its ``types`` — the choice-list maker idiom
     ("Create your choice of a Blood token, a Clue token, or a Food token"),
     read structurally off the branch nodes the decoration skips."""
-    for unit in tree.units:
-        for n in iter_typed_nodes(unit.node):
-            if tag_of(n) != "ChooseOneOf":
-                continue
-            for br in getattr(n, "branches", None) or []:
-                eff = getattr(br, "effect", None)
-                if tag_of(eff) == "Token" and subtype in (
-                    getattr(eff, "types", None) or ()
-                ):
-                    return True
+    for n in tree.iter_typed():
+        if tag_of(n) != "ChooseOneOf":
+            continue
+        for br in getattr(n, "branches", None) or []:
+            eff = getattr(br, "effect", None)
+            if tag_of(eff) == "Token" and subtype in (
+                getattr(eff, "types", None) or ()
+            ):
+                return True
     return False
 
 
@@ -1958,18 +1891,15 @@ def _granted_trigger_blood_token_match(tree: ConceptTree) -> bool:
     effect chain carries a typed Blood ``Token`` node ('Equipped creature
     ... has "Whenever this creature deals combat damage, create a Blood
     token."' — Ceremonial Knife, CR 301.5/613.1f)."""
-    for unit in tree.units:
-        for n in iter_typed_nodes(unit.node):
-            if tag_of(n) != "GrantTrigger":
-                continue
-            trig = getattr(n, "trigger", None)
-            if trig is None:
-                continue
-            for t in iter_typed_nodes(trig):
-                if tag_of(t) == "Token" and "Blood" in (
-                    getattr(t, "types", None) or ()
-                ):
-                    return True
+    for n in tree.iter_typed():
+        if tag_of(n) != "GrantTrigger":
+            continue
+        trig = getattr(n, "trigger", None)
+        if trig is None:
+            continue
+        for t in iter_typed_nodes(trig):
+            if tag_of(t) == "Token" and "Blood" in (getattr(t, "types", None) or ()):
+                return True
     return False
 
 

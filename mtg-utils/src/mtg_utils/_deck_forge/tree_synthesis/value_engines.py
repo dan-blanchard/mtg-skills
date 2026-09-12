@@ -1281,11 +1281,7 @@ def _tree_has_sacrifice_node(tree: ConceptTree) -> bool:
     """Whether TREE carries a typed ``Sacrifice`` node anywhere — the shared
     gap for the three arms below (mirrors
     ``bridge_ledger._no_typed_sacrifice_node`` exactly)."""
-    return any(
-        tag_of(n) == "Sacrifice"
-        for unit in tree.units
-        for n in iter_typed_nodes(unit.node)
-    )
+    return any(tag_of(n) == "Sacrifice" for n in tree.iter_typed())
 
 
 def _arm_sac_alt_cost_pitch(tree: ConceptTree) -> ConceptNode | None:
@@ -1352,21 +1348,20 @@ def _arm_sac_etb_self_sac(tree: ConceptTree) -> ConceptNode | None:
     out (un-keyworded) Devour-sibling ETB self-sac idiom (Dracoplasm)."""
     if _tree_has_sacrifice_node(tree):
         return None
-    for unit in tree.units:
-        for n in iter_typed_nodes(unit.node):
-            if tag_of(n) == "Unimplemented" and _SAC_ETB_UNIMPL_RX.search(
-                getattr(n, "description", "") or ""
-            ):
-                return _synthetic_concept(
-                    arm_id="sac_etb_self_sac_unimplemented",
-                    concept="synth_sac_outlet_dropped_cost",
-                    scope="you",
-                    subject=(),
-                    desc=(
-                        "bucket-B written-out ETB self-sac Devour sibling "
-                        "(CR 614.12/701.21a)"
-                    ),
-                )
+    for n in tree.iter_typed():
+        if tag_of(n) == "Unimplemented" and _SAC_ETB_UNIMPL_RX.search(
+            getattr(n, "description", "") or ""
+        ):
+            return _synthetic_concept(
+                arm_id="sac_etb_self_sac_unimplemented",
+                concept="synth_sac_outlet_dropped_cost",
+                scope="you",
+                subject=(),
+                desc=(
+                    "bucket-B written-out ETB self-sac Devour sibling "
+                    "(CR 614.12/701.21a)"
+                ),
+            )
     return None
 
 
@@ -1427,23 +1422,22 @@ def _arm_devil_token_quoted_grant(tree: ConceptTree) -> ConceptNode | None:
     split."""
     if _tree_has_reaching_damage_node(tree):
         return None
-    for unit in tree.units:
-        for n in iter_typed_nodes(unit.node):
-            if tag_of(n) != "Unimplemented" or getattr(n, "name", None) != "create":
-                continue
-            desc = getattr(n, "description", "") or ""
-            if _DEVIL_TOKEN_QUOTED_GRANT_SYNTH_RX.search(desc):
-                return _synthetic_concept(
-                    arm_id="devil_token_quoted_grant_dominant_verb_create",
-                    concept="synth_direct_damage_dropped_grant",
-                    scope="you",
-                    subject=(),
-                    desc=(
-                        "bucket-B Devil-token quoted death-trigger damage "
-                        "clause nested inside a create residue (CR "
-                        "701.7/120.1)"
-                    ),
-                )
+    for n in tree.iter_typed():
+        if tag_of(n) != "Unimplemented" or getattr(n, "name", None) != "create":
+            continue
+        desc = getattr(n, "description", "") or ""
+        if _DEVIL_TOKEN_QUOTED_GRANT_SYNTH_RX.search(desc):
+            return _synthetic_concept(
+                arm_id="devil_token_quoted_grant_dominant_verb_create",
+                concept="synth_direct_damage_dropped_grant",
+                scope="you",
+                subject=(),
+                desc=(
+                    "bucket-B Devil-token quoted death-trigger damage "
+                    "clause nested inside a create residue (CR "
+                    "701.7/120.1)"
+                ),
+            )
     return None
 
 
@@ -1474,25 +1468,24 @@ def _arm_keranos_effect_structure(tree: ConceptTree) -> ConceptNode | None:
     ``effect_structure`` parse-failure residue (CR 120.1)."""
     if _tree_has_reaching_damage_node(tree):
         return None
-    for unit in tree.units:
-        for n in iter_typed_nodes(unit.node):
-            if (
-                tag_of(n) != "Unimplemented"
-                or getattr(n, "name", None) != "effect_structure"
-            ):
-                continue
-            desc = getattr(n, "description", "") or ""
-            if _KERANOS_EFFECT_STRUCTURE_SYNTH_RX.search(desc):
-                return _synthetic_concept(
-                    arm_id="keranos_effect_structure_parse_failure",
-                    concept="synth_direct_damage_dropped_grant",
-                    scope="you",
-                    subject=(),
-                    desc=(
-                        "bucket-B bounded damage-clause tail inside an "
-                        "effect_structure parse-failure residue (CR 120.1)"
-                    ),
-                )
+    for n in tree.iter_typed():
+        if (
+            tag_of(n) != "Unimplemented"
+            or getattr(n, "name", None) != "effect_structure"
+        ):
+            continue
+        desc = getattr(n, "description", "") or ""
+        if _KERANOS_EFFECT_STRUCTURE_SYNTH_RX.search(desc):
+            return _synthetic_concept(
+                arm_id="keranos_effect_structure_parse_failure",
+                concept="synth_direct_damage_dropped_grant",
+                scope="you",
+                subject=(),
+                desc=(
+                    "bucket-B bounded damage-clause tail inside an "
+                    "effect_structure parse-failure residue (CR 120.1)"
+                ),
+            )
     return None
 
 
@@ -1845,11 +1838,7 @@ def _arm_power_tap_engine(tree: ConceptTree) -> ConceptNode | None:
 def has_structural_meld_pair(tree: ConceptTree) -> bool:
     """Whether a ``Meld`` effect node exists anywhere in the tree (the
     trigger-front's own meld — Gisela, Graf Rat)."""
-    for unit in tree.units:
-        for n in iter_typed_nodes(unit.node):
-            if tag_of(n) == "Meld":
-                return True
-    return False
+    return any(tag_of(n) == "Meld" for n in tree.iter_typed())
 
 
 def _arm_meld_pair(tree: ConceptTree) -> ConceptNode | None:

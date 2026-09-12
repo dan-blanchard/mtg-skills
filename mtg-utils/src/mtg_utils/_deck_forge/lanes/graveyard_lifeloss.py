@@ -393,42 +393,41 @@ def graveyard_return_direction(tree: ConceptTree) -> bool:
         for c in tree.effect_concepts("change_zone")
     ):
         return True
-    for unit in tree.units:
-        for n in iter_typed_nodes(unit.node):
-            t = tag_of(n)
-            if t == "ChangeZone":
-                if change_zone_dirs(n) == ("Graveyard", "Hand"):
-                    return True
-                continue
-            if t == "ReturnToHand":
-                if getattr(n, "from_zone", None) == "Graveyard":
-                    return True
-                continue
-            if t == "AddKeyword":
-                kw = getattr(n, "keyword", None)
-                if isinstance(kw, MirrorVariant) and kw.key == "Soulshift":
-                    return True
-                continue
-            # Opponent-chooses idiom: an ability WRAPPER (untagged —
-            # ``ChooseFromZone``/``ChangeZone`` are its ``.effect``/
-            # ``.sub_ability.effect``, not fields of its own) whose
-            # ``.effect`` is a ``ChooseFromZone(zone=Graveyard)`` chained
-            # directly into a ``ChangeZone(destination=Hand)``.
-            eff = getattr(n, "effect", MISSING)
-            if not (
-                isinstance(eff, TypedMirrorNode)
-                and tag_of(eff) == "ChooseFromZone"
-                and getattr(eff, "zone", None) == "Graveyard"
-            ):
-                continue
-            sub = getattr(n, "sub_ability", None)
-            sub_eff = getattr(sub, "effect", None) if sub is not None else None
-            if (
-                isinstance(sub_eff, TypedMirrorNode)
-                and tag_of(sub_eff) == "ChangeZone"
-                and getattr(sub_eff, "destination", None) == "Hand"
-            ):
+    for n in tree.iter_typed():
+        t = tag_of(n)
+        if t == "ChangeZone":
+            if change_zone_dirs(n) == ("Graveyard", "Hand"):
                 return True
+            continue
+        if t == "ReturnToHand":
+            if getattr(n, "from_zone", None) == "Graveyard":
+                return True
+            continue
+        if t == "AddKeyword":
+            kw = getattr(n, "keyword", None)
+            if isinstance(kw, MirrorVariant) and kw.key == "Soulshift":
+                return True
+            continue
+        # Opponent-chooses idiom: an ability WRAPPER (untagged —
+        # ``ChooseFromZone``/``ChangeZone`` are its ``.effect``/
+        # ``.sub_ability.effect``, not fields of its own) whose
+        # ``.effect`` is a ``ChooseFromZone(zone=Graveyard)`` chained
+        # directly into a ``ChangeZone(destination=Hand)``.
+        eff = getattr(n, "effect", MISSING)
+        if not (
+            isinstance(eff, TypedMirrorNode)
+            and tag_of(eff) == "ChooseFromZone"
+            and getattr(eff, "zone", None) == "Graveyard"
+        ):
+            continue
+        sub = getattr(n, "sub_ability", None)
+        sub_eff = getattr(sub, "effect", None) if sub is not None else None
+        if (
+            isinstance(sub_eff, TypedMirrorNode)
+            and tag_of(sub_eff) == "ChangeZone"
+            and getattr(sub_eff, "destination", None) == "Hand"
+        ):
+            return True
     return False
 
 
@@ -1293,13 +1292,12 @@ def _regenerate_makers(tree: ConceptTree) -> list[Signal]:
     """
     for c in tree.effect_concepts("regenerate"):
         return [Signal("regenerate_makers", "you", "", c.raw, tree.name, "high")]
-    for unit in tree.units:
-        for n in iter_typed_nodes(unit.node):
-            if tag_of(n) != "GrantAbility":
-                continue
-            definition = getattr(n, "definition", None)
-            if tag_of(getattr(definition, "effect", None)) == "Regenerate":
-                return [Signal("regenerate_makers", "you", "", "", tree.name, "high")]
+    for n in tree.iter_typed():
+        if tag_of(n) != "GrantAbility":
+            continue
+        definition = getattr(n, "definition", None)
+        if tag_of(getattr(definition, "effect", None)) == "Regenerate":
+            return [Signal("regenerate_makers", "you", "", "", tree.name, "high")]
     kept = _kept(tree)
     if _REGENERATE_WORD_RX.search(kept) and not _CANT_REGENERATE_RX.search(kept):
         return [Signal("regenerate_makers", "you", "", "", tree.name, "high")]

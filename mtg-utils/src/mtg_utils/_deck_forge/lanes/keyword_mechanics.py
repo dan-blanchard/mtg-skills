@@ -861,19 +861,18 @@ def _count_operand_lanes(tree: ConceptTree) -> list[Signal]:
     # devotion_matters, a genuine catch the oracle-regex IR misses; DevotionGE gods
     # (Nykthos, Nylea's as-long-as gate) fire too, matching the IR devotion-condition
     # arm.
-    for unit in tree.units:
-        for node in iter_typed_nodes(unit.node):
-            st = tag_of(node)
-            if st in ("Devotion", "DevotionGE"):
-                fire("devotion_matters", "")
-            elif st == "PartySize" and (
-                tag_of(getattr(node, "player", None)) not in _OPP_PLAYER_TAGS
-            ):
-                fire("party_matters", "")
-            elif st == "BasicLandTypeCount" and (
-                getattr(node, "controller", None) != "Opponent"
-            ):
-                fire("domain_matters", "")
+    for node in tree.iter_typed():
+        st = tag_of(node)
+        if st in ("Devotion", "DevotionGE"):
+            fire("devotion_matters", "")
+        elif st == "PartySize" and (
+            tag_of(getattr(node, "player", None)) not in _OPP_PLAYER_TAGS
+        ):
+            fire("party_matters", "")
+        elif st == "BasicLandTypeCount" and (
+            getattr(node, "controller", None) != "Opponent"
+        ):
+            fire("domain_matters", "")
     return out
 
 
