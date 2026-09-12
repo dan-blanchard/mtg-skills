@@ -19,7 +19,7 @@ from mtg_utils._deck_forge.signals import (
     folded_object_records,
     rank_deck_signals,
 )
-from mtg_utils.testkit import test_card
+from mtg_utils.testkit import test_card, test_card_ir
 
 _OBJECTS = (
     "Tomb of Annihilation",
@@ -46,13 +46,20 @@ def test_folded_object_is_snapshot_resident(name):
 
 
 def _resolver(name: str) -> dict | None:
+    if name not in _OBJECTS:
+        return None
     try:
-        return test_card(name) if name in _OBJECTS else None
+        # Warm the object's trees from the snapshot (text-only for a phase-uncovered
+        # object) so the fold's extract_signals runs with no phase cache / network.
+        test_card_ir(name)
+        return test_card(name)
     except KeyError:  # pragma: no cover — snapshot regen pending
         return None
 
 
 def _idents(records, commanders, *, fold: bool):
+    for rec in records:
+        test_card_ir(rec["name"])  # CI-safe: seed the trees memo from the snapshot
     return {
         (s.key, s.scope, s.subject)
         for s in rank_deck_signals(

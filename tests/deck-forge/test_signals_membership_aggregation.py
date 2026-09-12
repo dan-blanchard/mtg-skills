@@ -13,7 +13,7 @@ from mtg_utils._deck_forge.engine import _AVENUE_CAP
 from mtg_utils._deck_forge.signals import extract_signals
 from mtg_utils._deck_forge.state import DeckSession, ForgeState
 from mtg_utils.deck import split_type_line
-from mtg_utils.testkit import test_card, test_signals
+from mtg_utils.testkit import test_card, test_card_ir, test_signals
 
 
 def _text_only_tree(card: dict) -> ConceptTree:
@@ -80,6 +80,7 @@ def test_membership_off_drops_voltron_but_not_own_subtype_type_matters():
 def test_membership_flag_does_not_touch_oracle_signals():
     # a real oracle payoff fires regardless of the flag.
     card = test_card("Goblin King")  # "Other Goblins get +1/+1 and have mountainwalk."
+    test_card_ir("Goblin King")  # CI-safe: seed the trees memo from the snapshot
     on = extract_signals(card, include_membership=True)
     off = extract_signals(card, include_membership=False)
     on_ids = {(s.key, s.subject, s.confidence) for s in on}
