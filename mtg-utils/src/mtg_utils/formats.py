@@ -191,9 +191,9 @@ class Format:
     def starting_life(self, medium: str) -> int:
         """The starting life a deck built for ``medium`` plays against — the
         multiplayer total at a paper table, else the one-on-one total."""
-        multiplayer_life = self.multiplayer_life_total
-        if multiplayer_life is not None and not medium_is_digital(medium):
-            return multiplayer_life  # the is_multiplayer rule, narrowed for the type
+        if self.is_multiplayer(medium):
+            assert self.multiplayer_life_total is not None  # is_multiplayer's rule
+            return self.multiplayer_life_total
         return self.life_total
 
     def game(self, medium: str | None = None) -> Game:

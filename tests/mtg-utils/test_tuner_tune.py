@@ -1,5 +1,9 @@
 """End-to-end: the tuner orchestrator over a HydratedDeck with an injected search_fn."""
 
+import importlib
+
+import pytest
+
 from mtg_utils._tuner import TuneParams, tune
 from mtg_utils.hydrated_deck import HydratedDeck
 
@@ -319,17 +323,15 @@ def test_scorecard_surfaces_full_mana_audit():
     assert "overall_status" in sc["mana"]
 
 
-def test_wincon_at_floor_is_protected_from_cuts(monkeypatch):
-    # The proposer guarded template-role floors and combo pieces but was wincon-blind:
-    # it could cut a card the SAME scorecard counts as a win condition, dropping the deck
-    # below the wincon floor it just reported. tune() must add the heuristic finishers to
-    # the proposer's `protected` set while the deck is at/below the wincon floor (the
-    # propose_swaps protected-respect contract is separately tested). Verify the wiring by
-    # capturing the `protected` argument.
-    import sys
+@pytest.fixture
+def captured_protected(monkeypatch):
+    """Spy on the ``protected`` set tune() hands the swap proposer — the wiring
+    under test; the proposer's own protected-respect contract is tested separately."""
+    # The package re-exports the ``tune`` FUNCTION under the module's name, so an
+    # attribute import would bind the function; resolve the module itself.
+    tune_mod = importlib.import_module("mtg_utils._tuner.tune")
 
-    tune_mod = sys.modules["mtg_utils._tuner.tune"]
-    captured = {}
+    captured: dict = {}
     real_propose = tune_mod.swaps_mod.propose_swaps
 
     def spy(*args, **kw):
@@ -337,6 +339,17 @@ def test_wincon_at_floor_is_protected_from_cuts(monkeypatch):
         return real_propose(*args, **kw)
 
     monkeypatch.setattr(tune_mod.swaps_mod, "propose_swaps", spy)
+    return captured
+
+
+def test_wincon_at_floor_is_protected_from_cuts(captured_protected):
+    # The proposer guarded template-role floors and combo pieces but was wincon-blind:
+    # it could cut a card the SAME scorecard counts as a win condition, dropping the deck
+    # below the wincon floor it just reported. tune() must add the heuristic finishers to
+    # the proposer's `protected` set while the deck is at/below the wincon floor (the
+    # propose_swaps protected-respect contract is separately tested). Verify the wiring by
+    # capturing the `protected` argument.
+    captured = captured_protected
 
     lab = {
         "name": "Laboratory Maniac",
@@ -682,22 +695,14 @@ def test_medium_threads_to_the_low_value_reads():
     assert digital["scorecard"]["focus"]["low_value_cards"] == []
 
 
-def test_voltron_pieces_at_the_closer_floor_are_protected_from_cuts(monkeypatch):
+def test_voltron_pieces_at_the_closer_floor_are_protected_from_cuts(
+    captured_protected,
+):
     # ADR-0024 amendment: under a commander-damage plan (CR 903.10a) the equipment
     # suite IS the synthetic closer, so at/below the closer floor the proposer must
     # not cut its pieces — the same guard test_wincon_at_floor_is_protected_from_cuts
     # verifies for a named finisher.
-    import sys
-
-    tune_mod = sys.modules["mtg_utils._tuner.tune"]
-    captured = {}
-    real_propose = tune_mod.swaps_mod.propose_swaps
-
-    def spy(*args, **kw):
-        captured["protected"] = set(kw.get("protected") or ())
-        return real_propose(*args, **kw)
-
-    monkeypatch.setattr(tune_mod.swaps_mod, "propose_swaps", spy)
+    captured = captured_protected
 
     swords = [
         {

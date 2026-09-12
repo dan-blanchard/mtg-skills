@@ -40,8 +40,10 @@ much scaffolding a Shape wants, here).
 **Amendment (2026-09-12, ADR-0045 follow-up).** The closer read is relative to the
 **Game** the deck plays (`Format.game`: starting life, pod vs one opponent, whether CR
 903.10a commander damage wins), not to the 40-life Commander pod alone: the evasive-body
-and fixed-reach thresholds and both ends of the Shape band scale with starting life, and
-single-target reach counts one-on-one. A **voltron plan** (equip/aura density) counts as
+and fixed-reach thresholds and both ends of the Shape band scale with starting life (the
+band keeps at least one card of width, so a low-life control band reads "2-3", never
+"2-2"), and single-target reach counts one-on-one — scaling reach always, fixed reach
+only when one hit is the whole starting life. A **voltron plan** (equip/aura density) counts as
 ONE synthetic closer where commander damage wins (CR 903.10a, Commander's extra loss
 rule) and is surfaced as an advisory ("must deal the full life total") where it does not
 (Brawl games do not use it, CR 903.12h). The count stays the advisory "≈N
@@ -49,6 +51,8 @@ closers" this ADR describes; the only behaviour that reads it is the cut-protect
 (a deck at its closer floor keeps its closers). The synthetic closer is its equipment /
 aura pieces (`voltron_cards`), so at the floor those pieces are what the tuner protects —
 cutting an equipment suite's last pieces under a commander-damage plan is the same
-mistake as cutting a named finisher.
+mistake as cutting a named finisher. The synthetic closer also raises the count, so a
+deck exactly at its floor on named finishers alone reads one above it with the plan
+counted — protection engages one closer later there, deliberately: the plan IS a closer.
 
 *Amended by ADR-0030; original decision revised in place.*

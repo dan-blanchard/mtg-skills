@@ -155,13 +155,20 @@ class TestClosersReadTheGame:
         assert _is_wincon_card(three, game=DUEL_25) is True
         assert _is_wincon_card(five) is True
 
-    def test_fixed_single_target_reach_is_never_a_closer(self):
+    def test_fixed_single_target_reach_closes_only_when_lethal(self):
         # A fixed bolt is removal, not a finisher, even one-on-one at 25 life —
-        # otherwise every Lightning Bolt in an Arena Brawl deck would count.
+        # otherwise every Lightning Bolt in an Arena Brawl deck would count. A
+        # single hit that is the whole starting life is a closer one-on-one.
         bolt = _card("Lightning Bolt", "Lightning Bolt deals 3 damage to any target.")
         axe = _card("Lava Axe", "Lava Axe deals 5 damage to target player.")
+        reservoir = _card(
+            "Aetherflux Reservoir",
+            "Pay 50 life: Aetherflux Reservoir deals 50 damage to any target.",
+        )
         assert _is_wincon_card(bolt, game=DUEL_25) is False
         assert _is_wincon_card(axe, game=DUEL_25) is False
+        assert _is_wincon_card(reservoir, game=DUEL_25) is True
+        assert _is_wincon_card(reservoir) is False  # single-target: not a pod closer
 
     def test_single_target_scaling_reach_counts_only_one_on_one(self):
         fireball = _card("Fireball", "Fireball deals X damage to any target.")
@@ -195,6 +202,8 @@ class TestClosersReadTheGame:
         # (2, 2) at 25, so hi is held at lo + 1.
         control = win_conditions(classes, shape="control", combo_count=0, game=DUEL_25)
         assert control["target"] == [2, 3]
+        combo = win_conditions(classes, shape="combo", combo_count=0, game=DUEL_25)
+        assert combo["target"] == [2, 3]
 
     def test_voltron_is_a_closer_only_where_commander_damage_wins(self):
         from mtg_utils._tuner.metrics import win_conditions

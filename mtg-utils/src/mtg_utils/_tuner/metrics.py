@@ -54,7 +54,7 @@ _AVG_CEILING = 4.0
 # Shape → desired front-load (cmc<=2 nonland) and ramp, per 100 cards.
 _FRONT_WANT = {"aggro": 18, "midrange": 14, "control": 10, "combo": 12}
 
-# The Game every band below is calibrated at: the 40-life Commander pod (CR 903.7),
+# The Game every band below is calibrated at: the 40-life Commander pod (CR 103.4c),
 # where 21 commander damage wins (CR 903.10a). ``win_conditions`` scales from it to the
 # Game the deck actually plays (``Format.game``).
 _CALIBRATION_GAME = Game(
@@ -102,11 +102,14 @@ _WINCON_PATTERNS = [
 # Reach — burn / drain that ends a game — is ONE scope table x ONE amount read. Group
 # scope ("each opponent") counts at any table; single-target scope counts only
 # one-on-one, where "any target" is the finisher "each opponent" is at a pod. A
-# SCALING amount (X, "equal to …") is always a closer; a FIXED amount is a closer when
-# one resolution takes ``_BURN_CLOSER_FRACTION`` of starting life, and only in group
-# scope — a fixed single-target bolt is removal, never a closer, even at 25 life.
+# SCALING amount (X, "equal to …") is always a closer. A FIXED amount is a closer when
+# one resolution takes ``_BURN_CLOSER_FRACTION`` of starting life in group scope, or
+# the WHOLE starting life in single-target scope (Aetherflux Reservoir's 50 is a
+# one-on-one closer; a bolt is removal, never a closer, even at 25 life).
 _GROUP_SCOPE = r"each opponent"
 _SINGLE_SCOPE = r"any target|target (?:player|opponent)"
+# ``{scope}`` is substituted with str.replace, not str.format, so a regex quantifier
+# such as ``{1,2}`` can join a template without colliding with the placeholder.
 _REACH_TEMPLATES = (
     r"deals? (?P<amount>\d+|x) damage to (?:{scope})",
     r"deals? damage to (?:{scope}) equal to",
@@ -116,7 +119,9 @@ _REACH_TEMPLATES = (
 
 
 def _reach_patterns(scope: str) -> list[re.Pattern[str]]:
-    return [re.compile(t.format(scope=scope), re.IGNORECASE) for t in _REACH_TEMPLATES]
+    return [
+        re.compile(t.replace("{scope}", scope), re.IGNORECASE) for t in _REACH_TEMPLATES
+    ]
 
 
 _GROUP_REACH = _reach_patterns(_GROUP_SCOPE)
@@ -143,25 +148,24 @@ def _life_scaled(value: int, life: int, *, floor: int) -> int:
 
 
 def _reach_closes(text: str, *, game: Game) -> bool:
-    """Burn / drain that closes ``game`` (see the reach table above)."""
-    threshold = math.ceil(game.life * _BURN_CLOSER_FRACTION)
-    for pat in _GROUP_REACH:
-        for m in pat.finditer(text):
-            amount = m.groupdict().get("amount")
-            scaling = amount is None or amount.lower() == "x"
-            if scaling or int(amount) >= threshold:
-                return True
+    """Burn / drain that closes ``game`` (see the reach table above): each scope's
+    patterns paired with the fixed amount that closes from that scope."""
+    scopes = [(_GROUP_REACH, math.ceil(game.life * _BURN_CLOSER_FRACTION))]
     if not game.multiplayer:
-        for pat in _SINGLE_REACH:
+        scopes.append((_SINGLE_REACH, game.life))
+    for patterns, fixed_limit in scopes:
+        for pat in patterns:
             for m in pat.finditer(text):
                 amount = m.groupdict().get("amount")
-                if amount is None or amount.lower() == "x":
+                scaling = amount is None or amount.lower() == "x"
+                if scaling or int(amount) >= fixed_limit:
                     return True
     return False
 
 
 def _voltron_pieces(classes: Sequence[CardClass]) -> list[str]:
-    """The equipment / aura cards a voltron plan is made of."""
+    """The equipment / aura cards a voltron plan is made of (one walk; callers keep
+    the list for both the density test and the protected set)."""
     return sorted(
         c.name
         for c in classes
@@ -169,10 +173,10 @@ def _voltron_pieces(classes: Sequence[CardClass]) -> list[str]:
     )
 
 
-def _is_voltron(classes: Sequence[CardClass], deck_size: int) -> bool:
+def _is_voltron(pieces: Sequence[str], deck_size: int) -> bool:
     """Equip/aura density that reads as a voltron plan (shared by the protection
     advisory and the closer count)."""
-    return len(_voltron_pieces(classes)) >= _scaled(4, deck_size)
+    return len(pieces) >= _scaled(4, deck_size)
 
 
 # ── Efficiency ────────────────────────────────────────────────────────────────
@@ -492,7 +496,8 @@ def win_conditions(
             if _is_wincon_card(c.record, game=game) or c.grant_closer
         }
     )
-    voltron = _is_voltron(classes, deck_size)
+    pieces = _voltron_pieces(classes)
+    voltron = _is_voltron(pieces, deck_size)
     voltron_closer = voltron and game.commander_damage
     count = len(cards) + combo_count + (1 if voltron_closer else 0)
     lo, hi = _WINCON_TARGET.get(shape, (3, 6))
@@ -511,7 +516,7 @@ def win_conditions(
         # The commander-damage plan counted as one closer (CR 903.10a applies), and
         # the pieces it is made of — what the cut-protection floor keeps.
         "voltron_commander_damage": voltron_closer,
-        "voltron_cards": _voltron_pieces(classes) if voltron_closer else [],
+        "voltron_cards": pieces if voltron_closer else [],
         # A voltron plan with no 21-damage rule: it has to deal the whole life total.
         "voltron_needs_real_damage": voltron and not game.commander_damage,
     }
@@ -519,7 +524,7 @@ def win_conditions(
 
 def protection(classes: Sequence[CardClass], *, shape: str, deck_size: int) -> dict:
     cards = [c.name for c in classes if protects(c.record)]
-    voltron = _is_voltron(classes, deck_size)
+    voltron = _is_voltron(_voltron_pieces(classes), deck_size)
     wants = shape in ("combo", "control") or voltron
     target = _scaled(5, deck_size) if wants else 0
     return {
@@ -673,7 +678,9 @@ def top_issues(
         # Advisory only (no swap fixes a plan): the equip/aura density reads as
         # voltron, but this game has no 21-commander-damage rule (CR 903.10a is
         # Commander's extra loss rule; Brawl games don't use it, CR 903.12h), so the
-        # plan closes only by dealing the whole starting life.
+        # plan closes only by dealing the whole starting life. Advisory severity ranks
+        # how much the builder should change course: 2 here (read your closers
+        # differently) vs 5 for commander_misfit (you may have the wrong commander).
         issues.append(
             {
                 "kind": "voltron_no_commander_damage",
