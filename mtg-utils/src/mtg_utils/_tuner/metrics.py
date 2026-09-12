@@ -585,8 +585,9 @@ def top_issues(
         # this role's resource to every recipient body — deck-forge CONTEXT.md
         # "Grant-covered role") keeps its literal shortfall message but downgrades
         # to advisory: swaps.py's _spec_for_issue reads ``grant_covered`` and sources
-        # no add for it; ``advisory`` itself is a presentation marker for the SPA and
-        # the skill. Never suppressed — the deficit/message are unchanged.
+        # no add for it; ``advisory`` itself is a marker carried for consumers —
+        # nothing in the engine reads it. Never suppressed — the deficit/message are
+        # unchanged.
         covered = bool(b.get("grant_covered"))
         message = (
             f"{role.replace('_', ' ')} short by {deficit} "
@@ -686,7 +687,7 @@ def top_issues(
         # voltron, but this game has no 21-commander-damage rule (CR 903.10a is
         # Commander's extra loss rule; Brawl games don't use it, CR 903.12h), so the
         # plan closes only by dealing the whole starting life. ``advisory`` is a
-        # presentation marker (nothing in the swap engine reads it); swaps skips this
+        # marker carried for consumers (nothing in the engine reads it); swaps skips this
         # kind because _spec_for_issue has no branch for it. Severity ranks how much
         # the builder should change course — 2 here (read your closers differently)
         # vs 5 for commander_misfit (you may have the wrong commander).
