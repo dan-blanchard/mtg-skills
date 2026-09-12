@@ -324,7 +324,7 @@ def folded_object_records(
       "the ring tempts you" → The Ring, "take the initiative" → Undercity.
 
     ``resolve_object`` maps an object name to its record (dungeons/emblems are
-    excluded from the addable name-index — ``production.build_object_resolver``
+    excluded from the addable name-index — ``CardPool.resolve_object``
     is the production impl). Returns ``[]`` when nothing folds."""
     text = get_oracle_text(card) or ""
     low = text.lower()

@@ -40,12 +40,12 @@ from mtg_utils._deck_forge.state import DeckSession, ForgeState
 from mtg_utils._name_index import NameIndex
 from mtg_utils._sidecar import atomic_write_json, sha_keyed_path
 from mtg_utils.card_classify import is_basic_land, valid_partner_search
+from mtg_utils.card_pool import CardPool
 from mtg_utils.deck_stats import deck_stats, detect_bracket
 from mtg_utils.formats import FORMATS, format_options
 from mtg_utils.hydrated_deck import HydratedDeck
 from mtg_utils.legality_audit import legality_audit
 from mtg_utils.mana_audit import mana_audit
-from mtg_utils.scryfall_lookup import build_rarity_index
 
 # deck_minimum is intentionally excluded: a deck-in-progress is always below the size
 # minimum, so it's the normal building state, not a warning.
@@ -303,7 +303,7 @@ def collection_summary(state: ForgeState, owned: dict[str, int]) -> dict:
 
 def _rarity_index(state: ForgeState) -> NameIndex | None:
     """The Arena rarity index for the current format, built once from bulk and
-    cached on the state per FORMAT (``build_rarity_index`` walks all of bulk).
+    cached on the state per FORMAT (the pool's own memo shares it across states).
     Keyed by format rather than legality key because Competitive Brawl shares
     Historic Brawl's ``brawl`` key but admits the cards that key marks banned."""
     if state.bulk_path is None:
@@ -311,7 +311,8 @@ def _rarity_index(state: ForgeState) -> NameIndex | None:
     fmt = state.session.format
     cached = state.rarity_index.get(fmt)
     if cached is None:
-        cached = build_rarity_index(state.bulk_path, FORMATS[fmt], arena_only=True)
+        pool = CardPool.load(state.bulk_path)
+        cached = pool.rarity_index(FORMATS[fmt], arena_only=True)
         state.rarity_index[fmt] = cached
     return cached
 

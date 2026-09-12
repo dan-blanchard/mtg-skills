@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Sequence
 from pathlib import Path
 
 import click
@@ -13,7 +14,7 @@ from mtg_utils.hydrated_deck import records_from_file
 
 
 def card_summary(
-    hydrated: list[dict | None],
+    hydrated: Sequence[dict | None],
     *,
     lands_only: bool = False,
     nonlands_only: bool = False,
@@ -97,6 +98,7 @@ def main(
     --sideboard), or a JSON list of card records (e.g. a scryfall-lookup --batch
     cache of candidates)."""
     payload = json.loads(path.read_text(encoding="utf-8"))
+    hydrated: Sequence[dict | None]
     if isinstance(payload, list) or "records" in payload:
         # A records list (a scryfall-lookup --batch cache) or a hydrated sidecar.
         if sideboard:
