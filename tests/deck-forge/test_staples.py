@@ -11,6 +11,7 @@ network / bulk — same constraint as the rest of the suite).
 
 from mtg_utils._deck_forge import engine, staples
 from mtg_utils._deck_forge.state import DeckSession, ForgeState
+from mtg_utils.formats import FORMATS
 
 SOL_RING = {
     "name": "Sol Ring",
@@ -125,13 +126,13 @@ class TestStaplesData:
 class TestColorIdentityFilter:
     def test_colorless_staple_fits_any_deck(self):
         # Sol Ring (colorless) appears in a mono-white deck.
-        out = staples.staples_for("W", INDEX, legality_key="commander")
+        out = staples.staples_for("W", INDEX, fmt=FORMATS["commander"])
         assert SOL_RING in out
 
     def test_colored_staple_only_in_matching_identity(self):
         # Cultivate (G) is offered to a green deck, not to a mono-blue deck.
-        green = staples.staples_for("G", INDEX, legality_key="commander")
-        blue = staples.staples_for("U", INDEX, legality_key="commander")
+        green = staples.staples_for("G", INDEX, fmt=FORMATS["commander"])
+        blue = staples.staples_for("U", INDEX, fmt=FORMATS["commander"])
         assert CULTIVATE in green
         assert CULTIVATE not in blue
         assert COUNTERSPELL in blue
@@ -139,8 +140,8 @@ class TestColorIdentityFilter:
     def test_command_tower_gated_to_multicolor(self):
         # Command Tower (any-color fixing LAND) is dead in a mono-color deck — a
         # strictly-worse basic — so it's withheld there but offered to 2+ color decks.
-        mono = staples.staples_for("W", INDEX, legality_key="commander")
-        multi = staples.staples_for("WU", INDEX, legality_key="commander")
+        mono = staples.staples_for("W", INDEX, fmt=FORMATS["commander"])
+        multi = staples.staples_for("WU", INDEX, fmt=FORMATS["commander"])
         assert COMMAND_TOWER not in mono
         assert COMMAND_TOWER in multi
         # Sol Ring (a mana ROCK) stays universal — useful even in mono.
@@ -150,14 +151,14 @@ class TestColorIdentityFilter:
 class TestFormatLegalityFilter:
     def test_sol_ring_excluded_in_brawl(self):
         # Sol Ring is the #1 commander staple but BANNED in Brawl (standardbrawl).
-        commander = staples.staples_for("WUBRG", INDEX, legality_key="commander")
-        brawl = staples.staples_for("WUBRG", INDEX, legality_key="standardbrawl")
+        commander = staples.staples_for("WUBRG", INDEX, fmt=FORMATS["commander"])
+        brawl = staples.staples_for("WUBRG", INDEX, fmt=FORMATS["brawl"])
         assert SOL_RING in commander
         assert SOL_RING not in brawl
 
     def test_legal_staple_kept_for_format(self):
         # Cultivate is legal in Historic Brawl (legality key "brawl").
-        out = staples.staples_for("G", INDEX, legality_key="brawl")
+        out = staples.staples_for("G", INDEX, fmt=FORMATS["historic_brawl"])
         assert CULTIVATE in out
 
 

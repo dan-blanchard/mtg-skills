@@ -7,7 +7,7 @@ import click
 import pytest
 from click.testing import CliRunner
 
-from mtg_utils.card_classify import color_identity_subset, is_commander
+from mtg_utils.card_classify import color_identity_subset
 from mtg_utils.card_search import (
     _extract_price,
     _matches_filters,
@@ -16,6 +16,7 @@ from mtg_utils.card_search import (
     search_cards,
     unreleased_oracle_ids,
 )
+from mtg_utils.formats import FORMATS
 from mtg_utils.testkit import test_card
 
 
@@ -1110,16 +1111,19 @@ class TestUnreleasedCommanderEligibility:
         "oracle_text": "Whenever Thorin enters, create a Treasure token.",
     }
 
-    def test_is_commander_gates_on_legality_by_default(self):
+    def test_eligibility_gates_on_legality_by_default(self):
         card = _rec("Thorin", "oid-pre", _FUTURE, _ALL_ILLEGAL, **self.LEGEND)
-        assert is_commander(card, "commander")["eligible"] is False
+        assert FORMATS["commander"].commander_eligibility(card)["eligible"] is False
 
-    def test_ignore_legality_admits_the_pre_release_legend(self):
+    def test_unreleased_set_admits_the_pre_release_legend(self):
         card = _rec("Thorin", "oid-pre", _FUTURE, _ALL_ILLEGAL, **self.LEGEND)
-        assert is_commander(card, "commander", ignore_legality=True)["eligible"] is True
+        out = FORMATS["commander"].commander_eligibility(
+            card, unreleased=frozenset({"oid-pre"})
+        )
+        assert out["eligible"] is True
 
-    def test_ignore_legality_still_requires_a_legendary_type_line(self):
-        # The bypass drops the legality gate ONLY — type-line rules still apply.
+    def test_unreleased_still_requires_a_legendary_type_line(self):
+        # The widening drops the legality gate ONLY — type-line rules still apply.
         card = _rec(
             "Sol Ring",
             "oid-pre",
@@ -1128,9 +1132,10 @@ class TestUnreleasedCommanderEligibility:
             type_line="Artifact",
             oracle_text="{T}: Add {C}{C}.",
         )
-        assert (
-            is_commander(card, "commander", ignore_legality=True)["eligible"] is False
+        out = FORMATS["commander"].commander_eligibility(
+            card, unreleased=frozenset({"oid-pre"})
         )
+        assert out["eligible"] is False
 
     def _bulk(self, tmp_path):
         cards = [

@@ -271,11 +271,11 @@ class TestDeckSizeWarning:
         """A deck at its expected size should not warn."""
         deck = {
             "format": "commander",
-            "deck_size": 3,
+            "deck_size": 100,
             "commanders": [{"name": "Korvold", "quantity": 1}],
             "cards": [
                 {"name": "Sol Ring", "quantity": 1},
-                {"name": "Mountain", "quantity": 1},
+                {"name": "Mountain", "quantity": 98},
             ],
         }
         hydrated = [

@@ -7,7 +7,6 @@ from collections.abc import Sequence
 from typing import NamedTuple
 
 from mtg_utils._name_index import NameIndex, build_name_index
-from mtg_utils.format_config import FORMAT_CONFIGS
 
 SKIP_LAYOUTS = frozenset(
     # token / art_series / reversible_card are non-gameplay or cosmetic-reprint
@@ -493,37 +492,23 @@ def land_fetch_profile(
 
 def is_commander(
     card: dict,
-    format: str = "commander",  # noqa: A002
     *,
-    ignore_legality: bool = False,
+    planeswalker_commander_requires_text: bool = True,
 ) -> dict:
-    """Check if a card is eligible to be a commander in the given format.
+    """Commander eligibility on the card's TYPE LINE and ORACLE TEXT alone.
 
     Returns {"eligible": bool, "requires_partner": bool}.
 
-    ``ignore_legality`` skips the format-legality gate and judges eligibility on the
-    card's type line and oracle text alone. It exists for spoiled-but-unreleased
-    cards, which read ``not_legal`` in every format until release day (see
-    ``card_search.unreleased_oracle_ids``) — without it a pre-release legend is
-    findable but can never be made a commander, which is most of the point of
-    pre-release brewing. Callers must have established that the card is merely
-    unreleased; passing it for an Un-card or a banned card would claim an
-    eligibility that will never arrive.
+    Knows nothing about formats: legality is ``formats.Format.legality``, and
+    ``Format.commander_eligibility`` composes the two. The one format-dependent rule
+    — whether a legendary planeswalker needs "can be your commander" text (Commander)
+    or is eligible outright (the Brawl family) — arrives as the flag.
     """
     type_line = card.get("type_line", "")
     oracle = get_oracle_text(card).lower()
 
     if "Legendary" not in type_line:
         return {"eligible": False, "requires_partner": False}
-
-    # Format legality, keyed to the right field per format (commander→"commander",
-    # brawl→"standardbrawl", historic_brawl→"brawl"). Only gate when legality data is
-    # present, so type-line-only fixtures keep working; mirrors find_commanders.
-    legalities = None if ignore_legality else card.get("legalities")
-    if legalities is not None:
-        legality_key = FORMAT_CONFIGS.get(format, {}).get("legality_key", format)
-        if legalities.get(legality_key) not in ("legal", "restricted"):
-            return {"eligible": False, "requires_partner": False}
 
     # Legendary Creature — always eligible
     # Check "choose a background" before returning, since those creatures
@@ -540,12 +525,9 @@ def is_commander(
     if "Spacecraft" in type_line and card.get("power") and card.get("toughness"):
         return {"eligible": True, "requires_partner": False}
 
-    # Brawl family (brawl / historic_brawl / competitive_brawl): any Legendary
-    # Planeswalker is eligible. The config flag decides, not a hardcoded tuple —
-    # Commander keeps requiring "can be your commander" text.
-    if "Planeswalker" in type_line and not FORMAT_CONFIGS.get(format, {}).get(
-        "planeswalker_commander_requires_text", True
-    ):
+    # Brawl family: any Legendary Planeswalker is eligible; Commander keeps requiring
+    # "can be your commander" text. The format's flag decides, never a name tuple.
+    if "Planeswalker" in type_line and not planeswalker_commander_requires_text:
         return {"eligible": True, "requires_partner": False}
 
     # "can be your commander" oracle text — eligible

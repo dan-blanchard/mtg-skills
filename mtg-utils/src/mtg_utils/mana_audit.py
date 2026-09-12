@@ -17,7 +17,6 @@ from mtg_utils.card_classify import (
     is_ramp,
 )
 from mtg_utils.commander_cost import effective_commander_cost
-from mtg_utils.format_config import get_format_config
 from mtg_utils.hydrated_deck import HydratedDeck
 
 # Constructed mana base constants (60-card formats)
@@ -392,12 +391,11 @@ def mana_audit(hd: HydratedDeck) -> dict:
     """Run a full mana base audit on the deck."""
     card_lookup = hd.by_name
 
-    config = get_format_config(hd.deck)
-    # Honor an explicit deck-size on the deck (e.g. a 60-card paper Historic Brawl, or
-    # an 80-card Yorion deck) so the Burgess/Karsten/constructed land math scales to the
-    # real size — falling back to the format default when the deck doesn't declare one.
-    deck_size = hd.deck.get("deck_size") or config["deck_size"]
-    has_commander = config.get("has_commander", True)
+    # ``hd.format`` already carries the deck's explicit size (a 60-card paper Historic
+    # Brawl, an 80-card Yorion deck, a 40-card limited pool) so the Burgess/Karsten/
+    # constructed land math scales to the real size.
+    deck_size = hd.format.deck_size
+    has_commander = hd.format.has_commander
 
     commanders = hd.commanders
     # Only analyze mainboard cards (sideboard doesn't affect mana base)

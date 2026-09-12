@@ -15,10 +15,9 @@ from mtg_utils.card_classify import (
     SKIP_LAYOUTS,
     color_identity_subset,
     get_oracle_text,
-    is_commander,
 )
 from mtg_utils.deck import collect_card_entries
-from mtg_utils.format_config import FORMAT_CONFIGS
+from mtg_utils.formats import FORMATS, get_format
 
 CARD_FIELDS = (
     "name",
@@ -137,14 +136,10 @@ def find_commanders(
 
     Filters by:
       - owned quantity >= min_quantity
-      - format legality (FORMAT_CONFIGS[format]["legality_key"])
-      - commander eligibility (card_classify.is_commander)
+      - format legality + commander eligibility (``Format.commander_eligibility``)
       - optional color-identity subset
     """
-    if format not in FORMAT_CONFIGS:
-        msg = f"Unknown format: {format!r}. Valid: {', '.join(FORMAT_CONFIGS)}"
-        raise ValueError(msg)
-    legality_key = FORMAT_CONFIGS[format]["legality_key"]
+    fmt = get_format(format)
     allowed_colors = set(color_identity.upper()) if color_identity else None
 
     owned = _build_owned_index(parsed_deck, min_quantity)
@@ -154,10 +149,7 @@ def find_commanders(
         card = bulk_index.get(name_key)
         if card is None:
             continue
-        legalities = card.get("legalities") or {}
-        if legalities.get(legality_key) not in ("legal", "restricted"):
-            continue
-        if not is_commander(card, format=format)["eligible"]:
+        if not fmt.commander_eligibility(card)["eligible"]:
             continue
         if allowed_colors is not None and not color_identity_subset(
             card.get("color_identity") or [],
@@ -251,7 +243,7 @@ def _render_text_table(candidates: list[dict], *, format: str) -> str:  # noqa: 
 @click.option(
     "--format",
     "fmt",
-    type=click.Choice(sorted(FORMAT_CONFIGS)),
+    type=click.Choice(sorted(FORMATS)),
     default="commander",
     help="Target format (default: commander).",
 )

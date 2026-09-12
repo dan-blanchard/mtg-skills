@@ -3,16 +3,13 @@
 from __future__ import annotations
 
 import json
+from dataclasses import replace
 from pathlib import Path
 
 from click.testing import CliRunner
 from conftest import json_from_cli_output
 
-from mtg_utils.format_config import (
-    COMPETITIVE_BRAWL_BANNED,
-    FORMAT_CONFIGS,
-    get_format_config,
-)
+from mtg_utils.formats import FORMATS
 from mtg_utils.hydrated_deck import HydratedDeck
 from mtg_utils.legality_audit import (
     check_color_identity,
@@ -68,11 +65,22 @@ def deck(
     deck_size: int | None = None,
 ) -> dict:
     commanders = commanders or ["Jinnie Fay, Jetmir's Second"]
-    cards = cards or []
+    cards = list(cards or [])
     total = len(commanders) + sum(q for _, q in cards)
+    # An honest deck: pad to the format's size with Wastes, which stay UN-hydrated —
+    # every check walks hydrated records (or skips a name it can't resolve) and the
+    # colorless-basic rule ignores Wastes, so the padding is invisible to the checks
+    # while ``Format.for_deck`` (which rejects a Commander-family deck declaring an
+    # impossible size) sees a real 100-card deck.
+    fmt = FORMATS.get(format)
+    if deck_size is None:
+        deck_size = fmt.deck_size if fmt is not None else total
+    if deck_size > total:
+        cards.append(("Wastes", deck_size - total))
+        total = deck_size
     return {
         "format": format,
-        "deck_size": deck_size if deck_size is not None else total,
+        "deck_size": deck_size,
         "commanders": [{"name": n, "quantity": 1} for n in commanders],
         "cards": [{"name": n, "quantity": q} for n, q in cards],
         "total_cards": total,
@@ -93,12 +101,12 @@ def jinnie() -> dict:
 class TestFormatLegality:
     def test_all_legal(self):
         hydrated = [jinnie(), card("Swords to Plowshares", color_identity=["W"])]
-        violations = check_format_legality(hydrated, "brawl")
+        violations = check_format_legality(hydrated, FORMATS["historic_brawl"])
         assert violations == []
 
     def test_banned_card(self):
         hydrated = [jinnie(), card("Sol Ring", brawl="not_legal")]
-        violations = check_format_legality(hydrated, "brawl")
+        violations = check_format_legality(hydrated, FORMATS["historic_brawl"])
         assert len(violations) == 1
         assert violations[0]["name"] == "Sol Ring"
         assert violations[0]["legality"] == "not_legal"
@@ -110,7 +118,7 @@ class TestFormatLegality:
             type_line="Legendary Creature — Scout",
             brawl="banned",
         )
-        violations = check_format_legality([bad_cmd], "brawl")
+        violations = check_format_legality([bad_cmd], FORMATS["historic_brawl"])
         assert len(violations) == 1
         assert violations[0]["name"] == "Golos, Tireless Pilgrim"
         assert violations[0]["legality"] == "banned"
@@ -118,14 +126,14 @@ class TestFormatLegality:
     def test_restricted_counts_as_legal(self):
         # Codebase convention: "restricted" passes the legality filter.
         hydrated = [card("Some Card", brawl="restricted")]
-        violations = check_format_legality(hydrated, "brawl")
+        violations = check_format_legality(hydrated, FORMATS["historic_brawl"])
         assert violations == []
 
     def test_commander_format_uses_commander_key(self):
         # Sol Ring is legal in Commander, not legal in Brawl.
         hydrated = [card("Sol Ring", brawl="not_legal", commander="legal")]
-        assert check_format_legality(hydrated, "commander") == []
-        assert len(check_format_legality(hydrated, "brawl")) == 1
+        assert check_format_legality(hydrated, FORMATS["commander"]) == []
+        assert len(check_format_legality(hydrated, FORMATS["historic_brawl"])) == 1
 
 
 # ---------- Color identity checks ----------
@@ -146,7 +154,7 @@ class TestColorIdentity:
                 ("Llanowar Elves", 1),
             ]
         )
-        violations = check_color_identity(d, hydrated, {"colorless_any_basic": False})
+        violations = check_color_identity(d, hydrated, FORMATS["commander"])
         assert violations == []
 
     def test_off_identity_card(self):
@@ -155,7 +163,7 @@ class TestColorIdentity:
             card("Counterspell", color_identity=["U"]),
         ]
         d = deck(cards=[("Counterspell", 1)])
-        violations = check_color_identity(d, hydrated, {"colorless_any_basic": False})
+        violations = check_color_identity(d, hydrated, FORMATS["commander"])
         assert len(violations) == 1
         assert violations[0]["name"] == "Counterspell"
         assert violations[0]["card_identity"] == ["U"]
@@ -167,7 +175,7 @@ class TestColorIdentity:
             card("Thornwood Falls", type_line="Land", color_identity=["G", "U"]),
         ]
         d = deck(cards=[("Thornwood Falls", 1)])
-        violations = check_color_identity(d, hydrated, {"colorless_any_basic": False})
+        violations = check_color_identity(d, hydrated, FORMATS["commander"])
         assert len(violations) == 1
         assert sorted(violations[0]["card_identity"]) == ["G", "U"]
 
@@ -189,7 +197,7 @@ class TestColorIdentity:
             commanders=["Akiri, Line-Slinger", "Silas Renn, Seeker Adept"],
             cards=[("Dimir Charm", 1)],
         )
-        violations = check_color_identity(d, hydrated, {"colorless_any_basic": False})
+        violations = check_color_identity(d, hydrated, FORMATS["commander"])
         assert violations == []
 
     def test_wastes_in_colorless_commander(self):
@@ -206,7 +214,7 @@ class TestColorIdentity:
             cards=[("Wastes", 5)],
         )
         # Commander format: colorless_any_basic=False. Wastes has empty CI so no exemption needed.
-        violations = check_color_identity(d, hydrated, {"colorless_any_basic": False})
+        violations = check_color_identity(d, hydrated, FORMATS["commander"])
         assert violations == []
 
     def test_colorless_brawl_one_basic_type_allowed(self):
@@ -221,7 +229,7 @@ class TestColorIdentity:
             commanders=["Karn, Living Legacy"],
             cards=[("Plains", 30)],
         )
-        violations = check_color_identity(d, hydrated, {"colorless_any_basic": True})
+        violations = check_color_identity(d, hydrated, FORMATS["historic_brawl"])
         assert violations == []
 
     def test_colorless_brawl_mixed_basics_all_flagged(self):
@@ -236,7 +244,7 @@ class TestColorIdentity:
             commanders=["Karn, Living Legacy"],
             cards=[("Plains", 15), ("Forest", 15)],
         )
-        violations = check_color_identity(d, hydrated, {"colorless_any_basic": True})
+        violations = check_color_identity(d, hydrated, FORMATS["historic_brawl"])
         assert len(violations) == 2
         reasons = {v["reason"] for v in violations}
         assert reasons == {"colorless_deck_must_pick_one_basic_type"}
@@ -255,7 +263,7 @@ class TestColorIdentity:
             commanders=["Kozilek, the Great Distortion"],
             cards=[("Plains", 5)],
         )
-        violations = check_color_identity(d, hydrated, {"colorless_any_basic": False})
+        violations = check_color_identity(d, hydrated, FORMATS["commander"])
         assert len(violations) == 1
         assert violations[0]["name"] == "Plains"
 
@@ -276,7 +284,7 @@ class TestColorIdentity:
             commanders=["Karn, Living Legacy"],
             cards=[("Plains", 20), ("Wastes", 10)],
         )
-        violations = check_color_identity(d, hydrated, {"colorless_any_basic": True})
+        violations = check_color_identity(d, hydrated, FORMATS["historic_brawl"])
         assert violations == []
 
 
@@ -488,8 +496,8 @@ class TestCommanderZone:
 
 # ---------- Copy limit checks ----------
 
-_SINGLETON_CONFIG = {"max_copies": 1, "legality_key": "commander"}
-_CONSTRUCTED_CONFIG = {"max_copies": 4, "legality_key": "pioneer"}
+_SINGLETON_CONFIG = FORMATS["commander"]
+_CONSTRUCTED_CONFIG = FORMATS["pioneer"]
 
 
 class TestCopyLimits:
@@ -601,7 +609,7 @@ class TestCopyLimits:
         v = check_copy_limits(
             d,
             self._hyd_index(hydrated),
-            {"max_copies": 4, "legality_key": "vintage"},
+            FORMATS["vintage"],
         )
         assert len(v) == 1
         assert v[0]["limit"] == 1
@@ -969,7 +977,7 @@ class TestCompanion:
             "cards": [{"name": "Forest", "quantity": 99}],
             "companion": [{"name": "Yorion, Sky Nomad", "quantity": 1}],
         }
-        violations = check_deck_minimum(d, {"deck_size": 101})
+        violations = check_deck_minimum(d, replace(FORMATS["commander"], deck_size=101))
         assert violations
         assert violations[0]["total_cards"] == 100
 
@@ -980,7 +988,7 @@ class TestCompanion:
             "sideboard": [{"name": "Duress", "quantity": 15}],
             "companion": [{"name": "Yorion, Sky Nomad", "quantity": 1}],
         }
-        assert check_sideboard_size(d, {"sideboard_size": 15}) == []
+        assert check_sideboard_size(d, FORMATS["standard"]) == []
 
 
 class TestCompanionCiteRules:
@@ -1066,49 +1074,23 @@ class TestCompetitiveBrawl:
     def test_key_banned_card_is_legal(self):
         # Mana Drain is banned in ordinary Historic Brawl, legal here.
         hydrated = [card("Mana Drain", color_identity=["U"], brawl="banned")]
-        violations = check_format_legality(
-            hydrated,
-            "brawl",
-            ignore_key_bans=True,
-            banned_cards=COMPETITIVE_BRAWL_BANNED,
-        )
+        violations = check_format_legality(hydrated, FORMATS["competitive_brawl"])
         assert violations == []
 
     def test_not_legal_card_still_fails(self):
         # not_legal means the card isn't on Arena at all — still a violation.
         hydrated = [card("Sol Ring", brawl="not_legal")]
-        violations = check_format_legality(
-            hydrated,
-            "brawl",
-            ignore_key_bans=True,
-            banned_cards=COMPETITIVE_BRAWL_BANNED,
-        )
+        violations = check_format_legality(hydrated, FORMATS["competitive_brawl"])
         assert len(violations) == 1
         assert violations[0]["legality"] == "not_legal"
 
     def test_format_ban_list_is_enforced_by_name(self):
         # Oko is `legal` under the brawl key but banned in Competitive Brawl.
         hydrated = [card("Oko, Thief of Crowns", color_identity=["G"])]
-        violations = check_format_legality(
-            hydrated,
-            "brawl",
-            ignore_key_bans=True,
-            banned_cards=COMPETITIVE_BRAWL_BANNED,
-        )
+        violations = check_format_legality(hydrated, FORMATS["competitive_brawl"])
         assert len(violations) == 1
         assert violations[0]["name"] == "Oko, Thief of Crowns"
         assert violations[0]["legality"] == "banned"
-
-    def test_config_wires_the_overrides(self):
-        cfg = get_format_config({"format": "competitive_brawl"})
-        assert cfg["ignores_legality_key_bans"] is True
-        assert cfg["banned_cards"] is COMPETITIVE_BRAWL_BANNED
-        assert cfg["legality_key"] == "brawl"
-        assert cfg["deck_size"] == 100
-        assert cfg["life_total"] == 25
-        # Unlike ordinary Brawl, there is no free mulligan.
-        assert cfg["free_mulligan"] is False
-        assert FORMAT_CONFIGS["brawl"]["free_mulligan"] is True
 
     def test_end_to_end_audit_passes_with_a_key_banned_card(self):
         cmd = card(
@@ -1119,7 +1101,6 @@ class TestCompetitiveBrawl:
         drain = card("Mana Drain", color_identity=["U"], brawl="banned")
         deck = {
             "format": "competitive_brawl",
-            "deck_size": 2,
             "commanders": [{"name": "Thranduil, the Elvenking", "quantity": 1}],
             "cards": [{"name": "Mana Drain", "quantity": 1}],
             "total_cards": 2,

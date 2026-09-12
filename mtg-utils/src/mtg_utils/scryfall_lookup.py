@@ -20,7 +20,7 @@ from mtg_utils.card_classify import (
     get_oracle_text,
     has_copy_limit_exemption,
 )
-from mtg_utils.names import normalize_card_name
+from mtg_utils.formats import Format
 
 SCRYFALL_NAMED_URL = "https://api.scryfall.com/cards/named"
 RATE_LIMIT_DELAY = 0.1
@@ -55,6 +55,9 @@ CARD_FIELDS = [
     "produced_mana",
     "prices",
     "legalities",
+    # Oracle-level Arena availability (any printing on Arena) — ``formats.Format``
+    # gates the Arena-pool formats' legality on it, so the CLI audit path needs it.
+    "arena_available",
     "rarity",
     "game_changer",
     # Card-quality signal the tuner's fringe/upgrade logic reads (classify.is_fringe).
@@ -105,17 +108,17 @@ def _keep_lowest_rarity(existing: dict, new: dict) -> dict:
 
 def build_rarity_index(
     bulk_path: Path,
-    legality_key: str,
+    fmt: Format,
     *,
     arena_only: bool = False,
-    ignore_key_bans: bool = False,
-    banned_cards: frozenset[str] | None = None,
 ) -> NameIndex:
     """Build a folding ``name -> {rarity, exempt_from_4cap}`` index.
 
     For Arena formats, a card's wildcard cost equals its lowest rarity among
-    printings available in that format.  When *arena_only* is True, only
-    printings that exist on Arena (``"arena" in games``) are considered.
+    printings legal in *fmt* (``Format.is_legal`` — which carries Competitive
+    Brawl's ban override, so owned, legal staples like Force of Will are never
+    dropped and reported as "illegal or not on Arena").  When *arena_only* is
+    True, only printings that exist on Arena (``"arena" in games``) are considered.
 
     Some digital-only Arena sets (J21, JMP, AJMP) assign rarities for
     draft/limited purposes that don't match the wildcard cost Arena
@@ -130,28 +133,12 @@ def build_rarity_index(
     ownership of 4 copies as infinite because no legal deck can need a
     5th, but that substitution does not apply to exempt cards — a deck
     can legitimately want 17 Hare Apparent.
-
-    *ignore_key_bans* / *banned_cards* mirror ``legality_audit.check_format_legality``
-    for formats that share another format's legality key but not its ban list
-    (Arena's Competitive Brawl reads ``brawl`` yet legalizes everything that key
-    marks ``banned``, enforcing its own list by name). Without them the index
-    silently drops owned, legal staples like Force of Will and ``price-check``
-    reports them as "illegal or not on Arena". ``not_legal`` is still excluded
-    under the override: it means the card is absent from the pool.
     """
-    banned_names = {normalize_card_name(n) for n in (banned_cards or ())}
-    admitted = (
-        ("legal", "restricted", "banned")
-        if ignore_key_bans
-        else ("legal", "restricted")
-    )
 
     def _legal(card: dict) -> bool:
         if card.get("layout") in SKIP_LAYOUTS:
             return False
-        if card.get("legalities", {}).get(legality_key) not in admitted:
-            return False
-        if banned_names and normalize_card_name(card.get("name", "")) in banned_names:
+        if not fmt.is_legal(card):
             return False
         if arena_only and "arena" not in (card.get("games") or []):
             return False

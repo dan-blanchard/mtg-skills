@@ -28,7 +28,7 @@ from pathlib import Path
 
 import click
 
-from mtg_utils.format_config import FORMAT_CONFIGS
+from mtg_utils.formats import FORMATS, get_format
 
 
 def _detect_format(content: str) -> str:
@@ -331,12 +331,12 @@ def parse_deck_text(
     result = _PARSERS[fmt](content)
     result.setdefault("companion", [])
 
-    config = FORMAT_CONFIGS[format]
+    fmt = get_format(format)
 
     # For commander formats, fold any sideboard entries back into cards so
     # Arena exports that include a "Sideboard" header don't silently lose cards.
     # The companion zone is never folded in: it sits outside the deck.
-    if config.get("has_commander", True):
+    if fmt.has_commander:
         result["cards"].extend(result.get("sideboard", []))
         result["sideboard"] = []
 
@@ -396,11 +396,11 @@ def parse_deck_text(
     result.setdefault("sideboard", [])
 
     result["format"] = format
-    result["sideboard_size"] = config.get("sideboard_size", 0)
+    result["sideboard_size"] = fmt.sideboard_size
     if deck_size is not None:
         result["deck_size"] = deck_size
     else:
-        result["deck_size"] = config["deck_size"]
+        result["deck_size"] = fmt.deck_size
 
     return result
 
@@ -410,7 +410,7 @@ def parse_deck_text(
 @click.option(
     "--format",
     "deck_format",
-    type=click.Choice(sorted(FORMAT_CONFIGS.keys())),
+    type=click.Choice(sorted(FORMATS)),
     default="commander",
     show_default=True,
     help="Game format.",

@@ -12,7 +12,7 @@ Two layouts, sharing one ``N CardName`` line format:
   cards). Moxfield's importer accepts this layout too.
 
 The CLI picks ``arena`` automatically for Arena formats (per
-``format_config.FORMAT_CONFIGS[<format>]["arena_format"]``) and
+``formats.FORMATS[<format>].is_arena``) and
 ``moxfield`` otherwise; ``--style`` overrides.
 """
 
@@ -23,7 +23,7 @@ from pathlib import Path
 
 import click
 
-from mtg_utils.format_config import FORMAT_CONFIGS
+from mtg_utils.formats import FORMATS
 
 STYLES = ("auto", "moxfield", "arena")
 
@@ -60,8 +60,8 @@ def resolve_style(deck: dict, style: str = "auto") -> str:
     """``auto`` → ``arena`` for Arena formats, ``moxfield`` otherwise."""
     if style != "auto":
         return style
-    config = FORMAT_CONFIGS.get(deck.get("format") or "", {})
-    return "arena" if config.get("arena_format") else "moxfield"
+    fmt = FORMATS.get(deck.get("format") or "")
+    return "arena" if fmt is not None and fmt.is_arena else "moxfield"
 
 
 def export_deck(deck: dict, style: str = "auto") -> str:

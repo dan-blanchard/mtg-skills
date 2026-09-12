@@ -148,6 +148,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 4.0,
     "color_identity": [
      "U"
@@ -373,6 +374,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 2.0,
     "color_identity": [
      "R"
@@ -655,6 +657,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 2.0,
     "color_identity": [
      "B",
@@ -949,6 +952,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 4.0,
     "color_identity": [
      "G",
@@ -1128,6 +1132,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 4.0,
     "color_identity": [
      "B"
@@ -1318,6 +1323,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 3.0,
     "color_identity": [
      "R"
@@ -1609,6 +1615,7 @@
       "type_line": "Token Creature — Zombie"
      }
     ],
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "B"
@@ -1834,6 +1841,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 5.0,
     "color_identity": [
      "G"
@@ -2077,6 +2085,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 5.0,
     "color_identity": [
      "G"
@@ -2345,6 +2354,7 @@
       "type_line": "Token Creature — Human"
      }
     ],
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "W"
@@ -2523,6 +2533,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [],
     "colors": [],
@@ -2700,6 +2711,7 @@
       "type_line": "Token"
      }
     ],
+    "arena_available": true,
     "cmc": 4.0,
     "color_identity": [
      "G",
@@ -2913,6 +2925,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "R",
@@ -3153,6 +3166,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 2.0,
     "color_identity": [
      "R",
@@ -3598,6 +3612,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 5.0,
     "color_identity": [
      "U"
@@ -3789,6 +3804,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 4.0,
     "color_identity": [
      "W"
@@ -4030,6 +4046,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 4.0,
     "color_identity": [
      "G",
@@ -4290,6 +4307,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 0.0,
     "color_identity": [],
     "colors": [],
@@ -4489,6 +4507,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 4.0,
     "color_identity": [],
     "colors": [],
@@ -4710,6 +4729,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 5.0,
     "color_identity": [
      "B"
@@ -4997,6 +5017,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 2.0,
     "color_identity": [
      "B"
@@ -5197,6 +5218,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "R"
@@ -5392,6 +5414,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 2.0,
     "color_identity": [
      "G"
@@ -5764,6 +5787,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 2.0,
     "color_identity": [
      "W"
@@ -5968,6 +5992,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "U"
@@ -6244,6 +6269,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "R",
@@ -6469,6 +6495,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 4.0,
     "color_identity": [
      "B"
@@ -6744,6 +6771,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "B",
@@ -6906,6 +6934,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 5.0,
     "color_identity": [
      "G"
@@ -7225,6 +7254,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 4.0,
     "color_identity": [
      "U"
@@ -7450,6 +7480,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 5.0,
     "color_identity": [
      "B"
@@ -7991,6 +8022,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "card_faces": [
      {
       "colors": [
@@ -8260,6 +8292,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 6.0,
     "color_identity": [
      "G",
@@ -8384,6 +8417,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 2.0,
     "color_identity": [
      "G"
@@ -8630,6 +8664,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "B",
@@ -8991,6 +9026,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 3.0,
     "color_identity": [
      "B",
@@ -9336,6 +9372,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 2.0,
     "color_identity": [
      "U"
@@ -9652,6 +9689,7 @@
       "type_line": "Token Creature — Zombie Angel"
      }
     ],
+    "arena_available": true,
     "cmc": 5.0,
     "color_identity": [
      "W"
@@ -9859,6 +9897,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 3.0,
     "color_identity": [],
     "colors": [],
@@ -10229,6 +10268,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 5.0,
     "color_identity": [
      "B",
@@ -10446,6 +10486,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 3.0,
     "color_identity": [
      "B",
@@ -10752,6 +10793,7 @@
       "type_line": "Token"
      }
     ],
+    "arena_available": false,
     "cmc": 5.0,
     "color_identity": [
      "B",
@@ -10920,6 +10962,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 5.0,
     "color_identity": [
      "G"
@@ -11286,6 +11329,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 2.0,
     "color_identity": [
      "B"
@@ -11515,6 +11559,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 3.0,
     "color_identity": [
      "B",
@@ -11786,6 +11831,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "W"
@@ -12013,6 +12059,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 5.0,
     "color_identity": [
      "W"
@@ -12292,6 +12339,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 3.0,
     "color_identity": [
      "W"
@@ -12526,6 +12574,7 @@
       "type_line": "Token"
      }
     ],
+    "arena_available": false,
     "cmc": 3.0,
     "color_identity": [
      "B",
@@ -12808,6 +12857,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 6.0,
     "color_identity": [
      "U"
@@ -13023,6 +13073,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 7.0,
     "color_identity": [
      "U"
@@ -13239,6 +13290,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 3.0,
     "color_identity": [
      "R"
@@ -13442,6 +13494,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 0.0,
     "color_identity": [],
     "colors": [],
@@ -13633,6 +13686,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 5.0,
     "color_identity": [
      "W"
@@ -14005,6 +14059,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "G"
@@ -14213,6 +14268,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 4.0,
     "color_identity": [
      "U"
@@ -14481,6 +14537,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 1.0,
     "color_identity": [
      "W"
@@ -14730,6 +14787,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 4.0,
     "color_identity": [
      "U"
@@ -14967,6 +15025,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 3.0,
     "color_identity": [
      "W"
@@ -15121,6 +15180,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 1.0,
     "color_identity": [
      "W"
@@ -15430,6 +15490,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 4.0,
     "color_identity": [
      "G",
@@ -15623,6 +15684,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 4.0,
     "color_identity": [
      "W"
@@ -15882,6 +15944,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 2.0,
     "color_identity": [
      "G"
@@ -16083,6 +16146,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "R"
@@ -16284,6 +16348,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 3.0,
     "color_identity": [
      "W"
@@ -16578,6 +16643,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 7.0,
     "color_identity": [
      "B"
@@ -16818,6 +16884,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "U"
@@ -17041,6 +17108,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 5.0,
     "color_identity": [
      "G"
@@ -17202,6 +17270,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [],
     "colors": [],
@@ -17454,6 +17523,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 6.0,
     "color_identity": [
      "B"
@@ -17696,6 +17766,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 2.0,
     "color_identity": [
      "G"
@@ -17936,6 +18007,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 6.0,
     "color_identity": [
      "B",
@@ -18280,6 +18352,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 2.0,
     "color_identity": [
      "B"
@@ -18537,6 +18610,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 5.0,
     "color_identity": [
      "W"
@@ -18697,6 +18771,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 2.0,
     "color_identity": [
      "R"
@@ -18905,6 +18980,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 4.0,
     "color_identity": [
      "B",
@@ -19123,6 +19199,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 3.0,
     "color_identity": [
      "R",
@@ -19427,6 +19504,7 @@
       "type_line": "Token Artifact — Treasure"
      }
     ],
+    "arena_available": true,
     "cmc": 4.0,
     "color_identity": [
      "R"
@@ -19758,6 +19836,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 4.0,
     "color_identity": [
      "R"
@@ -19946,6 +20025,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 3.0,
     "color_identity": [
      "W"
@@ -20201,6 +20281,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 5.0,
     "color_identity": [
      "R",
@@ -20699,6 +20780,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "card_faces": [
      {
       "colors": [
@@ -20958,6 +21040,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 6.0,
     "color_identity": [
      "R"
@@ -21260,6 +21343,7 @@
       "type_line": "Token Creature — Plant"
      }
     ],
+    "arena_available": false,
     "cmc": 7.0,
     "color_identity": [
      "G"
@@ -21450,6 +21534,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "G",
@@ -21636,6 +21721,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 4.0,
     "color_identity": [
      "U",
@@ -21915,6 +22001,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 2.0,
     "color_identity": [
      "B",
@@ -22082,6 +22169,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 5.0,
     "color_identity": [
      "U"
@@ -22277,6 +22365,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 3.0,
     "color_identity": [
      "U",
@@ -22526,6 +22615,7 @@
       "type_line": "Token Artifact — Clue"
      }
     ],
+    "arena_available": true,
     "cmc": 4.0,
     "color_identity": [
      "B"
@@ -22730,6 +22820,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 4.0,
     "color_identity": [
      "U"
@@ -22890,6 +22981,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "G"
@@ -23240,6 +23332,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 0.0,
     "color_identity": [
      "G"
@@ -23368,6 +23461,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 3.0,
     "color_identity": [
      "U"
@@ -23553,6 +23647,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 2.0,
     "color_identity": [
      "U"
@@ -23778,6 +23873,7 @@
       "type_line": "Token Creature — Soldier"
      }
     ],
+    "arena_available": true,
     "cmc": 2.0,
     "color_identity": [
      "R",
@@ -23989,6 +24085,7 @@
       "type_line": "Token Artifact — Food"
      }
     ],
+    "arena_available": true,
     "cmc": 4.0,
     "color_identity": [
      "B"
@@ -24200,6 +24297,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "W"
@@ -24464,6 +24562,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 2.0,
     "color_identity": [
      "U"
@@ -24667,6 +24766,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 5.0,
     "color_identity": [
      "R",
@@ -24963,6 +25063,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 1.0,
     "color_identity": [
      "G"
@@ -25248,6 +25349,7 @@
       "type_line": "Token Creature — Human Soldier"
      }
     ],
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "B"
@@ -25423,6 +25525,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 5.0,
     "color_identity": [
      "R"
@@ -25658,6 +25761,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 4.0,
     "color_identity": [
      "U"
@@ -25933,6 +26037,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 6.0,
     "color_identity": [
      "B",
@@ -26121,6 +26226,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 6.0,
     "color_identity": [
      "W"
@@ -26308,6 +26414,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 4.0,
     "color_identity": [
      "G"
@@ -26588,6 +26695,7 @@
       "type_line": "Token Creature — Beast"
      }
     ],
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "G"
@@ -26773,6 +26881,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 2.0,
     "color_identity": [
      "W"
@@ -26960,6 +27069,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 1.0,
     "color_identity": [
      "W"
@@ -27118,6 +27228,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 4.0,
     "color_identity": [
      "B",
@@ -27520,6 +27631,7 @@
       "type_line": "Token Creature — Fractal"
      }
     ],
+    "arena_available": true,
     "cmc": 4.0,
     "color_identity": [
      "G",
@@ -27777,6 +27889,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 3.0,
     "color_identity": [
      "G",
@@ -28214,6 +28327,7 @@
       "type_line": "Token Creature — Fish"
      }
     ],
+    "arena_available": true,
     "cmc": 4.0,
     "color_identity": [
      "W"
@@ -28511,6 +28625,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 3.0,
     "color_identity": [
      "B",
@@ -28745,6 +28860,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 1.0,
     "color_identity": [
      "G"
@@ -29134,6 +29250,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "card_faces": [
      {
       "colors": [
@@ -29410,6 +29527,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 4.0,
     "color_identity": [
      "G"
@@ -29739,6 +29857,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "G",
@@ -29780,6 +29899,160 @@
     "oracle_id": "e9a24ed8-e844-4c50-b386-bc28da9989b1",
     "oracle_text": "Whenever you attack a player with one or more creatures with power 4 or greater, draw a card.\nExhaust — {4}: Earthbend 4. Activate only during your turn. (Target land you control becomes a 0/0 creature with haste that's still a land. Put four +1/+1 counters on it. When it dies or is exiled, return it to the battlefield tapped. Activate each exhaust ability only once.)",
     "type_line": "Enchantment"
+   }
+  },
+  "Black Lotus": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": {
+        "costs": [
+         {
+          "type": "Tap"
+         },
+         {
+          "count": 1,
+          "target": {
+           "type": "SelfRef"
+          },
+          "type": "Sacrifice"
+         }
+        ],
+        "type": "Composite"
+       },
+       "description": "{T}, Sacrifice ~: Add three mana of any one color.",
+       "duration": null,
+       "effect": {
+        "produced": {
+         "color_options": [
+          "White",
+          "Blue",
+          "Black",
+          "Red",
+          "Green"
+         ],
+         "count": {
+          "type": "Fixed",
+          "value": 3
+         },
+         "type": "AnyOneColor"
+        },
+        "type": "Mana"
+       },
+       "forward_result": false,
+       "is_mana_ability": true,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Artifact"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "banned",
+      "duel": "banned",
+      "legacy": "banned",
+      "oathbreaker": "banned",
+      "vintage": "restricted"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 0,
+      "shards": [],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "3a10650e-58f7-4a99-a77d-3f42d61ecf93",
+       "4a2e428c-dd25-484c-bbc8-2d6ce10ef42c",
+       "983c1308-d81b-444f-9806-a9723b987af1",
+       "b0faa7f2-b547-42c4-a810-839da50dadfe",
+       "b3a69a1c-c80f-4413-a6fd-ae54cabbce28",
+       "bd8fa327-dd41-4737-8f19-2cf5eb1f7cdd"
+      ]
+     },
+     "name": "Black Lotus",
+     "non_ability_text": null,
+     "oracle_text": "{T}, Sacrifice this artifact: Add three mana of any one color.",
+     "power": null,
+     "printings": [
+      "2ED",
+      "30A",
+      "CED",
+      "CEI",
+      "LEA",
+      "LEB",
+      "O90P",
+      "OVNT",
+      "PRM",
+      "VMA",
+      "YDMU"
+     ],
+     "rarities": [
+      "rare",
+      "bonus"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "5089ec1a-f881-4d55-af14-5d996171203b",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 0.0,
+    "color_identity": [],
+    "colors": [],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "banned",
+     "duel": "banned",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "banned",
+     "modern": "not_legal",
+     "oathbreaker": "banned",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "banned",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "restricted"
+    },
+    "mana_cost": "{0}",
+    "name": "Black Lotus",
+    "oracle_id": "5089ec1a-f881-4d55-af14-5d996171203b",
+    "oracle_text": "{T}, Sacrifice this artifact: Add three mana of any one color.",
+    "produced_mana": [
+     "B",
+     "G",
+     "R",
+     "U",
+     "W"
+    ],
+    "type_line": "Artifact"
    }
   },
   "Blade Splicer": {
@@ -29965,6 +30238,7 @@
       "type_line": "Token Artifact Creature — Phyrexian Golem"
      }
     ],
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "W"
@@ -30200,6 +30474,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 7.0,
     "color_identity": [
      "B",
@@ -30410,6 +30685,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 4.0,
     "color_identity": [
      "B",
@@ -30536,6 +30812,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 4.0,
     "color_identity": [
      "R"
@@ -30759,6 +31036,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 2.0,
     "color_identity": [
      "B"
@@ -30980,6 +31258,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "R"
@@ -31230,6 +31509,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 2.0,
     "color_identity": [
      "B"
@@ -31368,6 +31648,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "R"
@@ -31687,6 +31968,7 @@
       "type_line": "Token Artifact — Blood"
      }
     ],
+    "arena_available": true,
     "cmc": 2.0,
     "color_identity": [
      "B",
@@ -31868,6 +32150,7 @@
       "type_line": "Token Creature — Fractal"
      }
     ],
+    "arena_available": true,
     "cmc": 6.0,
     "color_identity": [
      "G",
@@ -32139,6 +32422,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 0.0,
     "color_identity": [
      "B"
@@ -32295,6 +32579,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 4.0,
     "color_identity": [
      "W"
@@ -32477,6 +32762,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 1.0,
     "color_identity": [],
     "colors": [],
@@ -32635,6 +32921,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 5.0,
     "color_identity": [
      "R"
@@ -32792,6 +33079,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 2.0,
     "color_identity": [
      "U"
@@ -32974,6 +33262,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 1.0,
     "color_identity": [
      "W"
@@ -33242,6 +33531,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "W"
@@ -33429,6 +33719,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 8.0,
     "color_identity": [
      "R"
@@ -33689,6 +33980,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 7.0,
     "color_identity": [
      "B"
@@ -33929,6 +34221,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 1.0,
     "color_identity": [
      "U"
@@ -34141,6 +34434,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 2.0,
     "color_identity": [
      "G"
@@ -34357,6 +34651,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 2.0,
     "color_identity": [
      "R"
@@ -34524,6 +34819,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 2.0,
     "color_identity": [
      "W"
@@ -34678,6 +34974,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 2.0,
     "color_identity": [
      "R"
@@ -34811,6 +35108,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 2.0,
     "color_identity": [
      "R"
@@ -34993,6 +35291,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "G",
@@ -35342,6 +35641,7 @@
       "type_line": "Token Artifact — Treasure"
      }
     ],
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "R"
@@ -35562,6 +35862,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 2.0,
     "color_identity": [
      "W"
@@ -35756,6 +36057,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 6.0,
     "color_identity": [
      "U"
@@ -36028,6 +36330,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 8.0,
     "color_identity": [
      "U"
@@ -36207,6 +36510,7 @@
       "type_line": "Legendary Creature — Angel Horror"
      }
     ],
+    "arena_available": true,
     "cmc": 11.0,
     "color_identity": [
      "W"
@@ -36523,6 +36827,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 2.0,
     "color_identity": [
      "G",
@@ -36747,6 +37052,7 @@
       "type_line": "Legendary Creature — Eldrazi Angel"
      }
     ],
+    "arena_available": true,
     "cmc": 7.0,
     "color_identity": [
      "W"
@@ -37049,6 +37355,7 @@
       "type_line": "Token Creature — Ox"
      }
     ],
+    "arena_available": true,
     "cmc": 4.0,
     "color_identity": [
      "R",
@@ -37327,6 +37634,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 2.0,
     "color_identity": [
      "W"
@@ -37507,6 +37815,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 1.0,
     "color_identity": [
      "G"
@@ -37703,6 +38012,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "B"
@@ -37881,6 +38191,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 2.0,
     "color_identity": [
      "R"
@@ -38045,6 +38356,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 2.0,
     "color_identity": [
      "W"
@@ -38605,6 +38917,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 5.0,
     "color_identity": [
      "B"
@@ -38926,6 +39239,7 @@
       "type_line": "Token"
      }
     ],
+    "arena_available": true,
     "cmc": 6.0,
     "color_identity": [
      "R"
@@ -39179,6 +39493,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 4.0,
     "color_identity": [
      "W"
@@ -39413,6 +39728,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 6.0,
     "color_identity": [
      "B"
@@ -39740,6 +40056,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 3.0,
     "color_identity": [
      "R",
@@ -39949,6 +40266,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 4.0,
     "color_identity": [
      "G",
@@ -40080,6 +40398,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 2.0,
     "color_identity": [
      "R",
@@ -40294,6 +40613,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 6.0,
     "color_identity": [
      "B"
@@ -40687,6 +41007,7 @@
       "type_line": "Token Creature — Skeleton"
      }
     ],
+    "arena_available": true,
     "cmc": 2.0,
     "color_identity": [
      "B"
@@ -40855,6 +41176,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 2.0,
     "color_identity": [
      "B"
@@ -41031,6 +41353,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 5.0,
     "color_identity": [
      "W"
@@ -41381,6 +41704,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 6.0,
     "color_identity": [
      "B",
@@ -41676,6 +42000,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 4.0,
     "color_identity": [
      "R"
@@ -41965,6 +42290,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 4.0,
     "color_identity": [
      "B",
@@ -42161,6 +42487,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 5.0,
     "color_identity": [
      "W"
@@ -42428,6 +42755,7 @@
       "type_line": "Token Artifact — Blood"
      }
     ],
+    "arena_available": true,
     "cmc": 1.0,
     "color_identity": [],
     "colors": [],
@@ -42563,6 +42891,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 1.0,
     "color_identity": [
      "U"
@@ -42745,6 +43074,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 4.0,
     "color_identity": [
      "U"
@@ -42994,6 +43324,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "G"
@@ -43195,6 +43526,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 4.0,
     "color_identity": [
      "R"
@@ -43231,6 +43563,371 @@
     "oracle_id": "8bd33b5c-0777-41ef-9e17-fb30ce69ec25",
     "oracle_text": "Whenever you win a coin flip, put a luck counter on this enchantment.\nAt the beginning of your upkeep, if this enchantment has ten or more luck counters on it, you win the game.",
     "type_line": "Enchantment"
+   }
+  },
+  "Chandra, Torch of Defiance": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "activation_restrictions": [
+        {
+         "type": "AsSorcery"
+        }
+       ],
+       "condition": null,
+       "cost": {
+        "amount": 1,
+        "type": "Loyalty"
+       },
+       "description": "[+1]: Exile the top card of your library. You may cast that card. If you don't, ~ deals 2 damage to each opponent.",
+       "duration": null,
+       "effect": {
+        "count": {
+         "type": "Fixed",
+         "value": 1
+        },
+        "player": {
+         "type": "Controller"
+        },
+        "position": {
+         "type": "Top"
+        },
+        "type": "ExileTop"
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "mode": "Cast",
+         "target": {
+          "type": "ParentTarget"
+         },
+         "type": "CastFromZone",
+         "without_paying_mana_cost": false
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": true,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": {
+          "condition": {
+           "signal": "OptionalEffectPerformed",
+           "type": "EffectOutcome"
+          },
+          "type": "Not"
+         },
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "amount": {
+           "type": "Fixed",
+           "value": 2
+          },
+          "player_filter": {
+           "type": "Opponent"
+          },
+          "type": "DamageEachPlayer"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": null,
+         "sub_link": "SequentialSibling",
+         "target_prompt": null
+        },
+        "sub_link": "SequentialSibling",
+        "target_choice_timing": "Resolution",
+        "target_prompt": null
+       },
+       "target_prompt": null
+      },
+      {
+       "activation_restrictions": [
+        {
+         "type": "AsSorcery"
+        }
+       ],
+       "condition": null,
+       "cost": {
+        "amount": 1,
+        "type": "Loyalty"
+       },
+       "description": "[+1]: Add {R}{R}.",
+       "duration": null,
+       "effect": {
+        "produced": {
+         "colors": [
+          "Red",
+          "Red"
+         ],
+         "type": "Fixed"
+        },
+        "type": "Mana"
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      },
+      {
+       "activation_restrictions": [
+        {
+         "type": "AsSorcery"
+        }
+       ],
+       "condition": null,
+       "cost": {
+        "amount": -3,
+        "type": "Loyalty"
+       },
+       "description": "[−3]: ~ deals 4 damage to target creature.",
+       "duration": null,
+       "effect": {
+        "amount": {
+         "type": "Fixed",
+         "value": 4
+        },
+        "target": {
+         "controller": null,
+         "properties": [],
+         "type": "Typed",
+         "type_filters": [
+          "Creature"
+         ]
+        },
+        "type": "DealDamage"
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      },
+      {
+       "activation_restrictions": [
+        {
+         "type": "AsSorcery"
+        }
+       ],
+       "condition": null,
+       "cost": {
+        "amount": -7,
+        "type": "Loyalty"
+       },
+       "description": "[−7]: You get an emblem with \"Whenever you cast a spell, this emblem deals 5 damage to any target.\"",
+       "duration": null,
+       "effect": {
+        "statics": [],
+        "triggers": [
+         {
+          "batched": false,
+          "condition": null,
+          "constraint": null,
+          "damage_kind": "Any",
+          "description": "Whenever you cast a spell, this emblem deals 5 damage to any target",
+          "destination": null,
+          "execute": {
+           "condition": null,
+           "cost": null,
+           "description": null,
+           "duration": null,
+           "effect": {
+            "description": "this emblem deals 5 damage to any target",
+            "name": "unbound_subject",
+            "type": "Unimplemented"
+           },
+           "forward_result": false,
+           "kind": "Spell",
+           "optional": false,
+           "optional_targeting": false,
+           "sub_ability": null,
+           "target_prompt": null
+          },
+          "mode": "SpellCast",
+          "optional": false,
+          "origin": null,
+          "phase": null,
+          "secondary": false,
+          "trigger_zones": [
+           "Command"
+          ],
+          "valid_card": null,
+          "valid_source": null,
+          "valid_target": {
+           "type": "Controller"
+          }
+         }
+        ],
+        "type": "CreateEmblem"
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "brawl_commander": true,
+     "card_type": {
+      "core_types": [
+       "Planeswalker"
+      ],
+      "subtypes": [
+       "Chandra"
+      ],
+      "supertypes": [
+       "Legendary"
+      ]
+     },
+     "color_identity": [
+      "Red"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "is_oathbreaker": true,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": "4",
+     "mana_cost": {
+      "generic": 2,
+      "shards": [
+       "Red",
+       "Red"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "1913788b-36d3-4488-a744-71e52b1ecb5c",
+       "2eac0eaa-55b2-444a-863d-c66769aab4ee",
+       "40cb22c8-cb03-45c9-bb0e-b8cabdcc43cd",
+       "ee245203-d10a-493b-841c-66c1eb1f89dc",
+       "ff8086cd-b868-4f4e-823e-2635ad7ebc07"
+      ]
+     },
+     "name": "Chandra, Torch of Defiance",
+     "non_ability_text": null,
+     "oracle_text": "[+1]: Exile the top card of your library. You may cast that card. If you don't, Chandra deals 2 damage to each opponent.\n[+1]: Add {R}{R}.\n[−3]: Chandra deals 4 damage to target creature.\n[−7]: You get an emblem with \"Whenever you cast a spell, this emblem deals 5 damage to any target.\"",
+     "power": null,
+     "printings": [
+      "CMM",
+      "FRA",
+      "KLD",
+      "KLR",
+      "PKLD",
+      "PRM",
+      "PS17",
+      "PS18",
+      "Q06",
+      "SS3"
+     ],
+     "rarities": [
+      "mythic"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2016-09-20",
+       "text": "An effect that instructs you to \"cast\" a card doesn't allow you to play lands. If the card exiled with Chandra's first ability is a land card, you can't play it and Chandra deals 2 damage to each opponent."
+      },
+      {
+       "date": "2016-09-20",
+       "text": "Chandra's emblem's ability resolves before the spell that caused it to trigger."
+      },
+      {
+       "date": "2016-09-20",
+       "text": "If you cast the exiled card, you do so as part of the resolution of Chandra's ability. You can't wait to cast it later in the turn. Timing permissions based on the card's type are ignored, but other restrictions (such as \"Cast [this card] only during combat\") are not."
+      },
+      {
+       "date": "2016-09-20",
+       "text": "In a Two-Headed Giant game, Chandra's first ability causes 4 damage total to be dealt to the opposing team."
+      },
+      {
+       "date": "2016-09-20",
+       "text": "Loyalty abilities can't be mana abilities. Chandra's second ability uses the stack and can be countered or otherwise responded to. Like all loyalty abilities, it can be activated only once per turn, during your main phase, when the stack is empty, and only if no other loyalty abilities of the planeswalker have been activated this turn."
+      },
+      {
+       "date": "2016-09-20",
+       "text": "The emblem created by Chandra's last ability is colorless. The damage it deals is from a colorless source."
+      },
+      {
+       "date": "2016-09-20",
+       "text": "You pay the costs for the exiled card if you cast it. You may pay alternative costs such as emerge rather than the card's mana cost."
+      }
+     ],
+     "scryfall_oracle_id": "12cc800c-c7be-4811-8207-fd01a99cc892",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 4.0,
+    "color_identity": [
+     "R"
+    ],
+    "colors": [
+     "R"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{2}{R}{R}",
+    "name": "Chandra, Torch of Defiance",
+    "oracle_id": "12cc800c-c7be-4811-8207-fd01a99cc892",
+    "oracle_text": "[+1]: Exile the top card of your library. You may cast that card. If you don't, Chandra deals 2 damage to each opponent.\n[+1]: Add {R}{R}.\n[−3]: Chandra deals 4 damage to target creature.\n[−7]: You get an emblem with \"Whenever you cast a spell, this emblem deals 5 damage to any target.\"",
+    "produced_mana": [
+     "R"
+    ],
+    "type_line": "Legendary Planeswalker — Chandra"
    }
   },
   "Chaos Maw": {
@@ -43354,6 +44051,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 7.0,
     "color_identity": [
      "R"
@@ -43666,6 +44364,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "R"
@@ -43975,6 +44674,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 2.0,
     "color_identity": [
      "W"
@@ -44249,6 +44949,7 @@
       "type_line": "Token Creature — Squid"
      }
     ],
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "U"
@@ -44415,6 +45116,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 2.0,
     "color_identity": [
      "U"
@@ -44698,6 +45400,7 @@
       "type_line": "Token Creature — Spirit"
      }
     ],
+    "arena_available": false,
     "cmc": 4.0,
     "color_identity": [
      "G",
@@ -44833,6 +45536,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 4.0,
     "color_identity": [
      "W"
@@ -45134,6 +45838,7 @@
       "type_line": "Token"
      }
     ],
+    "arena_available": true,
     "cmc": 2.0,
     "color_identity": [],
     "colors": [],
@@ -45395,6 +46100,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 5.0,
     "color_identity": [
      "G",
@@ -45665,6 +46371,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 4.0,
     "color_identity": [
      "B",
@@ -45915,6 +46622,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 5.0,
     "color_identity": [
      "G",
@@ -46067,6 +46775,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 3.0,
     "color_identity": [
      "G"
@@ -46271,6 +46980,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 1.0,
     "color_identity": [
      "G",
@@ -46465,6 +47175,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "card_faces": [
      {
       "colors": [
@@ -46819,6 +47530,7 @@
       "type_line": "Token Creature — Vampire Demon"
      }
     ],
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "B",
@@ -47005,6 +47717,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "W"
@@ -47149,6 +47862,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 6.0,
     "color_identity": [],
     "colors": [],
@@ -47263,6 +47977,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 4.0,
     "color_identity": [],
     "colors": [],
@@ -47435,6 +48150,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 3.0,
     "color_identity": [
      "G",
@@ -47650,6 +48366,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 7.0,
     "color_identity": [
      "R"
@@ -47845,6 +48562,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "G"
@@ -48142,6 +48860,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 0.0,
     "color_identity": [],
     "colors": [],
@@ -48351,6 +49070,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "card_faces": [
      {
       "colors": [
@@ -48573,6 +49293,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 1.0,
     "color_identity": [
      "W"
@@ -48768,6 +49489,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 5.0,
     "color_identity": [],
     "colors": [],
@@ -48994,6 +49716,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 1.0,
     "color_identity": [
      "U"
@@ -49125,6 +49848,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 2.0,
     "color_identity": [
      "U"
@@ -49311,6 +50035,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 4.0,
     "color_identity": [
      "U"
@@ -49504,6 +50229,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 1.0,
     "color_identity": [],
     "colors": [],
@@ -49671,6 +50397,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 2.0,
     "color_identity": [
      "U"
@@ -49902,6 +50629,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "B",
@@ -50473,6 +51201,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "card_faces": [
      {
       "colors": [
@@ -50691,6 +51420,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 2.0,
     "color_identity": [
      "B",
@@ -50945,6 +51675,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 2.0,
     "color_identity": [
      "U"
@@ -51174,6 +51905,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "G"
@@ -51316,6 +52048,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 4.0,
     "color_identity": [
      "R"
@@ -51484,6 +52217,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 2.0,
     "color_identity": [
      "B"
@@ -51668,6 +52402,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "W"
@@ -51850,6 +52585,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 5.0,
     "color_identity": [
      "B"
@@ -52131,6 +52867,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 4.0,
     "color_identity": [
      "B"
@@ -52307,6 +53044,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 2.0,
     "color_identity": [
      "G"
@@ -52514,6 +53252,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 4.0,
     "color_identity": [
      "B",
@@ -52782,6 +53521,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "G"
@@ -52979,6 +53719,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 4.0,
     "color_identity": [
      "R"
@@ -53110,6 +53851,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 4.0,
     "color_identity": [
      "W"
@@ -53257,6 +53999,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 2.0,
     "color_identity": [],
     "colors": [],
@@ -53483,6 +54226,7 @@
       "type_line": "Token Enchantment — Aura Role"
      }
     ],
+    "arena_available": true,
     "cmc": 4.0,
     "color_identity": [
      "R"
@@ -53653,6 +54397,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 3.0,
     "color_identity": [
      "G",
@@ -53868,6 +54613,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 4.0,
     "color_identity": [
      "R",
@@ -54046,6 +54792,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 6.0,
     "color_identity": [
      "B",
@@ -54476,6 +55223,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 2.0,
     "color_identity": [
      "B"
@@ -54667,6 +55415,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "W"
@@ -54915,6 +55664,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 2.0,
     "color_identity": [
      "U"
@@ -55048,6 +55798,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 1.0,
     "color_identity": [
      "B"
@@ -55280,6 +56031,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 2.0,
     "color_identity": [
      "B"
@@ -55455,6 +56207,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "B"
@@ -55681,6 +56434,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 2.0,
     "color_identity": [],
     "colors": [],
@@ -55841,6 +56595,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 1.0,
     "color_identity": [
      "B"
@@ -55997,6 +56752,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 4.0,
     "color_identity": [
      "B"
@@ -56215,6 +56971,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 4.0,
     "color_identity": [
      "B",
@@ -56401,6 +57158,7 @@
       "type_line": "Token Artifact — Clue"
      }
     ],
+    "arena_available": true,
     "cmc": 2.0,
     "color_identity": [
      "U"
@@ -56629,6 +57387,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 4.0,
     "color_identity": [
      "U"
@@ -56804,6 +57563,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 1.0,
     "color_identity": [
      "W"
@@ -57016,6 +57776,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 5.0,
     "color_identity": [
      "G"
@@ -57213,6 +57974,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 5.0,
     "color_identity": [
      "B"
@@ -57359,6 +58121,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 4.0,
     "color_identity": [
      "U"
@@ -57591,6 +58354,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 2.0,
     "color_identity": [
      "B"
@@ -57767,6 +58531,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 2.0,
     "color_identity": [],
     "colors": [],
@@ -57927,6 +58692,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 7.0,
     "color_identity": [
      "R"
@@ -58108,6 +58874,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 5.0,
     "color_identity": [
      "G",
@@ -58259,6 +59026,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 2.0,
     "color_identity": [
      "B"
@@ -58397,6 +59165,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 2.0,
     "color_identity": [
      "B",
@@ -58644,6 +59413,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 0.0,
     "color_identity": [],
     "colors": [],
@@ -58804,6 +59574,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 5.0,
     "color_identity": [
      "G",
@@ -58993,6 +59764,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 4.0,
     "color_identity": [
      "R"
@@ -59183,6 +59955,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 5.0,
     "color_identity": [
      "B"
@@ -59417,6 +60190,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 4.0,
     "color_identity": [
      "B"
@@ -59692,6 +60466,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 2.0,
     "color_identity": [
      "B"
@@ -59932,6 +60707,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 2.0,
     "color_identity": [
      "W"
@@ -60079,6 +60855,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 1.0,
     "color_identity": [
      "B"
@@ -60235,6 +61012,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 4.0,
     "color_identity": [
      "R"
@@ -60383,6 +61161,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "U"
@@ -60604,6 +61383,7 @@
       "type_line": "Token Artifact — Treasure"
      }
     ],
+    "arena_available": true,
     "cmc": 2.0,
     "color_identity": [
      "R"
@@ -60943,6 +61723,7 @@
       "type_line": "Token Creature — Beast"
      }
     ],
+    "arena_available": true,
     "cmc": 4.0,
     "color_identity": [
      "G",
@@ -61217,6 +61998,7 @@
       "type_line": "Token Artifact — Treasure"
      }
     ],
+    "arena_available": false,
     "cmc": 4.0,
     "color_identity": [
      "B",
@@ -61423,6 +62205,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 4.0,
     "color_identity": [
      "U"
@@ -61825,6 +62608,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 4.0,
     "color_identity": [
      "R"
@@ -61991,6 +62775,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 2.0,
     "color_identity": [
      "B"
@@ -62200,6 +62985,7 @@
       "type_line": "Token Creature — Zombie"
      }
     ],
+    "arena_available": true,
     "cmc": 2.0,
     "color_identity": [
      "B"
@@ -62355,6 +63141,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 5.0,
     "color_identity": [
      "W"
@@ -62614,6 +63401,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 4.0,
     "color_identity": [],
     "colors": [],
@@ -62818,6 +63606,7 @@
       "type_line": "Token Creature — Dragon"
      }
     ],
+    "arena_available": false,
     "cmc": 6.0,
     "color_identity": [
      "G",
@@ -63082,6 +63871,7 @@
       "type_line": "Token Creature — Dragon"
      }
     ],
+    "arena_available": true,
     "cmc": 2.0,
     "color_identity": [
      "R"
@@ -63248,6 +64038,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 6.0,
     "color_identity": [
      "G",
@@ -63456,6 +64247,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 6.0,
     "color_identity": [
      "B",
@@ -63697,6 +64489,7 @@
       "type_line": "Token Creature — Drake"
      }
     ],
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "U"
@@ -63888,6 +64681,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "B"
@@ -64104,6 +64898,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 1.0,
     "color_identity": [
      "B"
@@ -64414,6 +65209,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 2.0,
     "color_identity": [
      "G",
@@ -64597,6 +65393,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 5.0,
     "color_identity": [
      "G",
@@ -64769,6 +65566,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 3.0,
     "color_identity": [
      "B"
@@ -65027,6 +65825,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 3.0,
     "color_identity": [],
     "colors": [],
@@ -65346,6 +66145,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 1.0,
     "color_identity": [
      "B",
@@ -65543,6 +66343,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 3.0,
     "color_identity": [
      "G",
@@ -65736,6 +66537,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "G"
@@ -65927,6 +66729,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 2.0,
     "color_identity": [
      "R"
@@ -66106,6 +66909,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 2.0,
     "color_identity": [
      "G"
@@ -66314,6 +67118,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 3.0,
     "color_identity": [
      "B",
@@ -66545,6 +67350,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 5.0,
     "color_identity": [],
     "colors": [],
@@ -66730,6 +67536,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "R",
@@ -66910,6 +67717,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "G"
@@ -67111,6 +67919,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 4.0,
     "color_identity": [
      "B",
@@ -67315,6 +68124,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 7.0,
     "color_identity": [
      "W"
@@ -67551,6 +68361,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 1.0,
     "color_identity": [],
     "colors": [],
@@ -67861,6 +68672,7 @@
       "type_line": "Token Creature — Elf Warrior"
      }
     ],
+    "arena_available": true,
     "cmc": 1.0,
     "color_identity": [
      "G"
@@ -68062,6 +68874,7 @@
       "type_line": "Token Creature — Goblin"
      }
     ],
+    "arena_available": true,
     "cmc": 4.0,
     "color_identity": [
      "R"
@@ -68381,6 +69194,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 15.0,
     "color_identity": [],
     "colors": [],
@@ -68646,6 +69460,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "U"
@@ -68932,6 +69747,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 6.0,
     "color_identity": [],
     "colors": [],
@@ -69132,6 +69948,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 2.0,
     "color_identity": [
      "W"
@@ -69296,6 +70113,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 3.0,
     "color_identity": [
      "B"
@@ -69563,6 +70381,7 @@
       "type_line": "Token Creature — Zombie"
      }
     ],
+    "arena_available": false,
     "cmc": 5.0,
     "color_identity": [
      "B",
@@ -69780,6 +70599,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 1.0,
     "color_identity": [
      "W"
@@ -70073,6 +70893,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 2.0,
     "color_identity": [
      "W"
@@ -70278,6 +71099,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 2.0,
     "color_identity": [],
     "colors": [],
@@ -70553,6 +71375,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 4.0,
     "color_identity": [
      "U",
@@ -70750,6 +71573,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 1.0,
     "color_identity": [
      "W"
@@ -71023,6 +71847,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "card_faces": [
      {
       "colors": [
@@ -71250,6 +72075,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "U",
@@ -71587,6 +72413,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 4.0,
     "color_identity": [
      "B",
@@ -71809,6 +72636,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 1.0,
     "color_identity": [
      "W"
@@ -71979,6 +72807,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 2.0,
     "color_identity": [
      "U"
@@ -72190,6 +73019,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 2.0,
     "color_identity": [
      "B"
@@ -72410,6 +73240,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "G"
@@ -72788,6 +73619,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "B",
@@ -72938,6 +73770,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 5.0,
     "color_identity": [
      "U"
@@ -73247,6 +74080,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "B",
@@ -73566,6 +74400,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 5.0,
     "color_identity": [
      "B",
@@ -73775,6 +74610,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "G"
@@ -73989,6 +74825,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 4.0,
     "color_identity": [
      "U"
@@ -74179,6 +75016,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 2.0,
     "color_identity": [
      "R"
@@ -74441,6 +75279,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 4.0,
     "color_identity": [
      "G",
@@ -74686,6 +75525,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 4.0,
     "color_identity": [
      "U"
@@ -74872,6 +75712,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "card_faces": [
      {
       "colors": [
@@ -75120,6 +75961,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "B"
@@ -75379,6 +76221,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 4.0,
     "color_identity": [
      "W"
@@ -75703,6 +76546,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "card_faces": [
      {
       "colors": [
@@ -75976,6 +76820,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 1.0,
     "color_identity": [
      "R"
@@ -76157,6 +77002,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 2.0,
     "color_identity": [
      "R"
@@ -76518,6 +77364,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 6.0,
     "color_identity": [
      "W"
@@ -76701,6 +77548,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 4.0,
     "color_identity": [
      "R"
@@ -76978,6 +77826,7 @@
       "type_line": "Token Creature — Human Soldier"
      }
     ],
+    "arena_available": true,
     "cmc": 4.0,
     "color_identity": [
      "W"
@@ -77233,6 +78082,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 6.0,
     "color_identity": [
      "W"
@@ -77455,6 +78305,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 2.0,
     "color_identity": [
      "G"
@@ -77596,6 +78447,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 2.0,
     "color_identity": [
      "U"
@@ -77811,6 +78663,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "U"
@@ -78108,6 +78961,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 2.0,
     "color_identity": [
      "U"
@@ -78307,6 +79161,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 2.0,
     "color_identity": [
      "W"
@@ -78581,6 +79436,7 @@
       "type_line": "Token"
      }
     ],
+    "arena_available": false,
     "cmc": 3.0,
     "color_identity": [
      "R",
@@ -78827,6 +79683,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "R",
@@ -79034,6 +79891,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 1.0,
     "color_identity": [
      "B"
@@ -79223,6 +80081,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 6.0,
     "color_identity": [
      "W"
@@ -79463,6 +80322,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "R"
@@ -79602,6 +80462,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "R"
@@ -79834,6 +80695,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 1.0,
     "color_identity": [
      "B"
@@ -80043,6 +80905,7 @@
       "type_line": "Token Creature — Spirit"
      }
     ],
+    "arena_available": false,
     "cmc": 4.0,
     "color_identity": [
      "W"
@@ -80186,6 +81049,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 6.0,
     "color_identity": [
      "R"
@@ -80505,6 +81369,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "card_faces": [
      {
       "colors": [
@@ -80756,6 +81621,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 4.0,
     "color_identity": [
      "B",
@@ -81085,6 +81951,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "R"
@@ -81221,6 +82088,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 1.0,
     "color_identity": [
      "R"
@@ -81394,6 +82262,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 6.0,
     "color_identity": [
      "R"
@@ -81762,6 +82631,7 @@
       "type_line": "Token Creature — Bear"
      }
     ],
+    "arena_available": true,
     "card_faces": [
      {
       "colors": [
@@ -81997,6 +82867,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "B"
@@ -82253,6 +83124,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "W"
@@ -82445,6 +83317,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 2.0,
     "color_identity": [
      "R"
@@ -82637,6 +83510,7 @@
       "type_line": "Token Creature — Elf Warrior"
      }
     ],
+    "arena_available": false,
     "cmc": 5.0,
     "color_identity": [
      "G"
@@ -82772,6 +83646,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 4.0,
     "color_identity": [
      "G"
@@ -82965,6 +83840,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 1.0,
     "color_identity": [
      "W"
@@ -83142,6 +84018,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 1.0,
     "color_identity": [
      "G"
@@ -83409,6 +84286,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 5.0,
     "color_identity": [],
     "colors": [],
@@ -83561,6 +84439,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 1.0,
     "color_identity": [
      "B"
@@ -83738,6 +84617,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 1.0,
     "color_identity": [
      "U"
@@ -83972,6 +84852,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 2.0,
     "color_identity": [
      "B"
@@ -84259,6 +85140,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 1.0,
     "color_identity": [
      "B",
@@ -84492,6 +85374,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "U"
@@ -84641,6 +85524,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 4.0,
     "color_identity": [
      "R"
@@ -84810,6 +85694,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 5.0,
     "color_identity": [
      "U"
@@ -85001,6 +85886,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 2.0,
     "color_identity": [
      "G",
@@ -85298,6 +86184,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 2.0,
     "color_identity": [
      "G"
@@ -85473,6 +86360,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 5.0,
     "color_identity": [
      "G",
@@ -85664,6 +86552,7 @@
       "type_line": "Token Artifact — Lander"
      }
     ],
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "G"
@@ -85811,6 +86700,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 1.0,
     "color_identity": [
      "U"
@@ -86060,6 +86950,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 5.0,
     "color_identity": [
      "W"
@@ -86271,6 +87162,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 5.0,
     "color_identity": [
      "B",
@@ -86579,6 +87471,7 @@
       "type_line": "Token Creature — Beast"
      }
     ],
+    "arena_available": false,
     "cmc": 5.0,
     "color_identity": [
      "G"
@@ -86738,6 +87631,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 3.0,
     "color_identity": [
      "B"
@@ -86983,6 +87877,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 1.0,
     "color_identity": [
      "W"
@@ -87220,6 +88115,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 0.0,
     "color_identity": [],
     "colors": [],
@@ -87418,6 +88314,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 4.0,
     "color_identity": [
      "R"
@@ -87678,6 +88575,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 3.0,
     "color_identity": [
      "B"
@@ -87938,6 +88836,7 @@
       "type_line": "Token Creature — Zombie"
      }
     ],
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "U"
@@ -88174,6 +89073,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 4.0,
     "color_identity": [
      "R",
@@ -88388,6 +89288,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 12.0,
     "color_identity": [
      "G"
@@ -88683,6 +89584,7 @@
       "type_line": "Token Creature — Rhino"
      }
     ],
+    "arena_available": false,
     "cmc": 5.0,
     "color_identity": [
      "G",
@@ -88883,6 +89785,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 1.0,
     "color_identity": [],
     "colors": [],
@@ -89264,6 +90167,7 @@
       "type_line": "Token Creature — Spirit"
      }
     ],
+    "arena_available": true,
     "cmc": 5.0,
     "color_identity": [
      "W"
@@ -89509,6 +90413,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 1.0,
     "color_identity": [
      "G"
@@ -89770,6 +90675,7 @@
       "type_line": "Token Artifact — Food"
      }
     ],
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "G"
@@ -89928,6 +90834,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 5.0,
     "color_identity": [],
     "colors": [],
@@ -90138,6 +91045,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 8.0,
     "color_identity": [
      "G",
@@ -90379,6 +91287,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "B",
@@ -90568,6 +91477,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 1.0,
     "color_identity": [
      "G"
@@ -90738,6 +91648,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 2.0,
     "color_identity": [
      "U"
@@ -90993,6 +91904,7 @@
       "type_line": "Token Artifact Creature — Servo"
      }
     ],
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "W"
@@ -91134,6 +92046,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "W"
@@ -91286,6 +92199,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "W"
@@ -91421,6 +92335,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 1.0,
     "color_identity": [
      "B"
@@ -91624,6 +92539,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 2.0,
     "color_identity": [
      "U"
@@ -91823,6 +92739,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 5.0,
     "color_identity": [
      "R"
@@ -91990,6 +92907,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "R"
@@ -92227,6 +93145,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 2.0,
     "color_identity": [
      "R"
@@ -92426,6 +93345,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 2.0,
     "color_identity": [
      "R",
@@ -92624,6 +93544,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 3.0,
     "color_identity": [
      "R"
@@ -92936,6 +93857,7 @@
       "type_line": "Token Creature — Goblin"
      }
     ],
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "R"
@@ -93138,6 +94060,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "R"
@@ -93465,6 +94388,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 6.0,
     "color_identity": [
      "R"
@@ -93699,6 +94623,7 @@
       "type_line": "Token Artifact — Treasure"
      }
     ],
+    "arena_available": true,
     "cmc": 2.0,
     "color_identity": [
      "G"
@@ -94049,6 +94974,7 @@
       "type_line": "Token Artifact — Treasure"
      }
     ],
+    "arena_available": true,
     "cmc": 5.0,
     "color_identity": [
      "R"
@@ -94303,6 +95229,7 @@
       "type_line": "Token Artifact — Treasure"
      }
     ],
+    "arena_available": true,
     "cmc": 1.0,
     "color_identity": [
      "G"
@@ -94551,6 +95478,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 5.0,
     "color_identity": [
      "B",
@@ -94821,6 +95749,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 4.0,
     "color_identity": [
      "B"
@@ -95062,6 +95991,7 @@
       "type_line": "Token Creature — Salamander Warrior"
      }
     ],
+    "arena_available": false,
     "cmc": 3.0,
     "color_identity": [
      "G",
@@ -95369,6 +96299,7 @@
       "type_line": "Token Artifact — Treasure"
      }
     ],
+    "arena_available": true,
     "cmc": 2.0,
     "color_identity": [
      "B"
@@ -95636,6 +96567,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 4.0,
     "color_identity": [
      "G"
@@ -95889,6 +96821,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 4.0,
     "color_identity": [
      "U",
@@ -96119,6 +97052,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 5.0,
     "color_identity": [
      "B"
@@ -96387,6 +97321,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "B",
@@ -96581,6 +97516,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 2.0,
     "color_identity": [
      "G"
@@ -96798,6 +97734,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 6.0,
     "color_identity": [
      "B",
@@ -96979,6 +97916,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 2.0,
     "color_identity": [
      "B",
@@ -97131,6 +98069,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 2.0,
     "color_identity": [
      "G"
@@ -97299,6 +98238,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 4.0,
     "color_identity": [
      "B"
@@ -97546,6 +98486,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 5.0,
     "color_identity": [
      "G"
@@ -97715,6 +98656,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 2.0,
     "color_identity": [
      "B"
@@ -97911,6 +98853,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 5.0,
     "color_identity": [
      "W"
@@ -98168,6 +99111,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 2.0,
     "color_identity": [],
     "colors": [],
@@ -98394,6 +99338,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "R"
@@ -98624,6 +99569,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 3.0,
     "color_identity": [
      "U",
@@ -98871,6 +99817,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 5.0,
     "color_identity": [
      "B"
@@ -99247,6 +100194,7 @@
       "type_line": "Token Enchantment — Aura Role"
      }
     ],
+    "arena_available": false,
     "cmc": 3.0,
     "color_identity": [
      "G",
@@ -99541,6 +100489,7 @@
       "type_line": "Token Artifact — Food"
      }
     ],
+    "arena_available": false,
     "cmc": 4.0,
     "color_identity": [
      "B",
@@ -99828,6 +100777,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 6.0,
     "color_identity": [
      "B",
@@ -100066,6 +101016,7 @@
       "type_line": "Token Creature — Villain"
      }
     ],
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "B"
@@ -100316,6 +101267,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 5.0,
     "color_identity": [
      "U"
@@ -100552,6 +101504,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 4.0,
     "color_identity": [
      "G",
@@ -100696,6 +101649,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 5.0,
     "color_identity": [
      "W"
@@ -100940,6 +101894,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 4.0,
     "color_identity": [
      "B"
@@ -101232,6 +102187,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 4.0,
     "color_identity": [
      "G",
@@ -101506,6 +102462,7 @@
       "type_line": "Token Creature — Snake"
      }
     ],
+    "arena_available": true,
     "cmc": 2.0,
     "color_identity": [
      "B",
@@ -101679,6 +102636,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 1.0,
     "color_identity": [
      "G"
@@ -101823,6 +102781,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "R"
@@ -101953,6 +102912,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 3.0,
     "color_identity": [
      "G"
@@ -102141,6 +103101,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 2.0,
     "color_identity": [
      "G"
@@ -102386,6 +103347,7 @@
       "type_line": "Token"
      }
     ],
+    "arena_available": true,
     "cmc": 2.0,
     "color_identity": [
      "B",
@@ -102651,6 +103613,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 4.0,
     "color_identity": [
      "R"
@@ -103005,6 +103968,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 4.0,
     "color_identity": [
      "B",
@@ -103166,6 +104130,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 5.0,
     "color_identity": [
      "R"
@@ -103377,6 +104342,7 @@
       "type_line": "Token Artifact — Treasure"
      }
     ],
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "B"
@@ -103743,6 +104709,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "W"
@@ -103999,6 +104966,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 6.0,
     "color_identity": [
      "R"
@@ -104187,6 +105155,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 4.0,
     "color_identity": [
      "R"
@@ -104492,6 +105461,7 @@
       "type_line": "Token"
      }
     ],
+    "arena_available": true,
     "cmc": 4.0,
     "color_identity": [],
     "colors": [],
@@ -104701,6 +105671,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 3.0,
     "color_identity": [
      "R",
@@ -105022,6 +105993,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [],
     "colors": [],
@@ -105218,6 +106190,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [],
     "colors": [],
@@ -105398,6 +106371,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 2.0,
     "color_identity": [
      "G"
@@ -105606,6 +106580,7 @@
       "type_line": "Token Creature — Human"
      }
     ],
+    "arena_available": true,
     "cmc": 2.0,
     "color_identity": [
      "W"
@@ -105733,6 +106708,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 2.0,
     "color_identity": [
      "B"
@@ -105889,6 +106865,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "B"
@@ -106097,6 +107074,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 4.0,
     "color_identity": [
      "R",
@@ -106286,6 +107264,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 3.0,
     "color_identity": [
      "U"
@@ -106412,6 +107391,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 2.0,
     "color_identity": [],
     "colors": [],
@@ -106553,6 +107533,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 3.0,
     "color_identity": [
      "W"
@@ -106719,6 +107700,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 1.0,
     "color_identity": [],
     "colors": [],
@@ -106986,6 +107968,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 1.0,
     "color_identity": [
      "W"
@@ -107165,6 +108148,7 @@
       "type_line": "Token Creature — Goblin"
      }
     ],
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "R"
@@ -107375,6 +108359,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 2.0,
     "color_identity": [],
     "colors": [],
@@ -107533,6 +108518,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "G"
@@ -107880,6 +108866,7 @@
       "type_line": "Token Creature — Goblin"
      }
     ],
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "R"
@@ -108083,6 +109070,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 2.0,
     "color_identity": [
      "G",
@@ -108294,6 +109282,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 4.0,
     "color_identity": [],
     "colors": [],
@@ -108470,6 +109459,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "W"
@@ -108623,6 +109613,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 4.0,
     "color_identity": [
      "U"
@@ -108858,6 +109849,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 4.0,
     "color_identity": [
      "R",
@@ -109106,6 +110098,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 3.0,
     "color_identity": [
      "U"
@@ -109283,6 +110276,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 2.0,
     "color_identity": [
      "R"
@@ -109436,6 +110430,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 2.0,
     "color_identity": [
      "W"
@@ -109579,6 +110574,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 1.0,
     "color_identity": [
      "R"
@@ -109744,6 +110740,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 2.0,
     "color_identity": [
      "W"
@@ -109936,6 +110933,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "U"
@@ -110512,6 +111510,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "card_faces": [
      {
       "colors": [
@@ -110934,6 +111933,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 2.0,
     "color_identity": [
      "R",
@@ -111054,6 +112054,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 1.0,
     "color_identity": [
      "W"
@@ -111271,6 +112272,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 4.0,
     "color_identity": [
      "U",
@@ -111541,6 +112543,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 5.0,
     "color_identity": [
      "U",
@@ -111722,6 +112725,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 6.0,
     "color_identity": [
      "U",
@@ -111889,6 +112893,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "B",
@@ -112174,6 +113179,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 5.0,
     "color_identity": [
      "G",
@@ -112372,6 +113378,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 1.0,
     "color_identity": [
      "W"
@@ -112560,6 +113567,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 5.0,
     "color_identity": [
      "U"
@@ -112848,6 +113856,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 5.0,
     "color_identity": [
      "U"
@@ -113223,6 +114232,7 @@
       "type_line": "Token Creature — Kavu"
      }
     ],
+    "arena_available": false,
     "cmc": 5.0,
     "color_identity": [
      "B",
@@ -113360,6 +114370,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "U"
@@ -113522,6 +114533,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 4.0,
     "color_identity": [],
     "colors": [],
@@ -113722,6 +114734,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 2.0,
     "color_identity": [
      "R",
@@ -113933,6 +114946,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 10.0,
     "color_identity": [
      "U"
@@ -114136,6 +115150,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 6.0,
     "color_identity": [
      "G",
@@ -114388,6 +115403,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 5.0,
     "color_identity": [
      "G"
@@ -114651,6 +115667,7 @@
       "type_line": "Token Creature — Elemental"
      }
     ],
+    "arena_available": true,
     "cmc": 5.0,
     "color_identity": [
      "R",
@@ -114943,6 +115960,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 5.0,
     "color_identity": [
      "B"
@@ -115223,6 +116241,7 @@
       "type_line": "Token Land Creature — Forest Dryad"
      }
     ],
+    "arena_available": true,
     "cmc": 4.0,
     "color_identity": [
      "G",
@@ -115413,6 +116432,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 7.0,
     "color_identity": [
      "B",
@@ -115572,6 +116592,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 6.0,
     "color_identity": [
      "R"
@@ -115784,6 +116805,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "B",
@@ -116011,6 +117033,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 8.0,
     "color_identity": [
      "B",
@@ -116225,6 +117248,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "B",
@@ -116395,6 +117419,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 4.0,
     "color_identity": [
      "G"
@@ -116592,6 +117617,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 0.0,
     "color_identity": [],
     "colors": [],
@@ -116994,6 +118020,7 @@
       "type_line": "Token Artifact Creature — Construct"
      }
     ],
+    "arena_available": true,
     "cmc": 4.0,
     "color_identity": [],
     "colors": [],
@@ -117242,6 +118269,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 5.0,
     "color_identity": [],
     "colors": [],
@@ -117481,6 +118509,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 2.0,
     "color_identity": [
      "U"
@@ -117682,6 +118711,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 2.0,
     "color_identity": [
      "G",
@@ -117908,6 +118938,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 2.0,
     "color_identity": [
      "R"
@@ -118082,6 +119113,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 6.0,
     "color_identity": [
      "U"
@@ -118254,6 +119286,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 2.0,
     "color_identity": [
      "R"
@@ -118559,6 +119592,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 2.0,
     "color_identity": [
      "G",
@@ -118729,6 +119763,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 3.0,
     "color_identity": [
      "B"
@@ -119281,6 +120316,7 @@
       "type_line": "Token Creature — Fractal"
      }
     ],
+    "arena_available": true,
     "card_faces": [
      {
       "colors": [
@@ -119526,6 +120562,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 5.0,
     "color_identity": [
      "U"
@@ -119711,6 +120748,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "U"
@@ -119962,6 +121000,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 3.0,
     "color_identity": [
      "G",
@@ -120251,6 +121290,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 2.0,
     "color_identity": [
      "U"
@@ -120460,6 +121500,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 3.0,
     "color_identity": [
      "W"
@@ -120674,6 +121715,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 5.0,
     "color_identity": [
      "G"
@@ -120862,6 +121904,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 6.0,
     "color_identity": [
      "B"
@@ -121097,6 +122140,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 2.0,
     "color_identity": [
      "R",
@@ -121309,6 +122353,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 7.0,
     "color_identity": [
      "W"
@@ -121489,6 +122534,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 2.0,
     "color_identity": [
      "W"
@@ -121686,6 +122732,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 6.0,
     "color_identity": [
      "B"
@@ -121928,6 +122975,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 5.0,
     "color_identity": [
      "B",
@@ -122204,6 +123252,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "B",
@@ -122403,6 +123452,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 3.0,
     "color_identity": [
      "R"
@@ -122625,6 +123675,7 @@
       "type_line": "Token Creature — Goblin"
      }
     ],
+    "arena_available": true,
     "cmc": 4.0,
     "color_identity": [
      "R"
@@ -122813,6 +123864,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "R"
@@ -123042,6 +124094,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 4.0,
     "color_identity": [
      "R"
@@ -123252,6 +124305,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "G",
@@ -123421,6 +124475,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 4.0,
     "color_identity": [
      "W"
@@ -123715,6 +124770,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "B",
@@ -123931,6 +124987,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 2.0,
     "color_identity": [
      "U",
@@ -124118,6 +125175,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 2.0,
     "color_identity": [
      "U"
@@ -124262,6 +125320,7 @@
       "type_line": "Token"
      }
     ],
+    "arena_available": false,
     "cmc": 8.0,
     "color_identity": [
      "W"
@@ -124496,6 +125555,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 4.0,
     "color_identity": [
      "G",
@@ -124706,6 +125766,7 @@
       "type_line": "Token Creature — Cat"
      }
     ],
+    "arena_available": true,
     "cmc": 4.0,
     "color_identity": [
      "W"
@@ -124949,6 +126010,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 3.0,
     "color_identity": [
      "R",
@@ -125185,6 +126247,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 4.0,
     "color_identity": [
      "R"
@@ -125353,6 +126416,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 4.0,
     "color_identity": [
      "U"
@@ -125600,6 +126664,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 4.0,
     "color_identity": [
      "U"
@@ -125809,6 +126874,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 4.0,
     "color_identity": [
      "B"
@@ -126037,6 +127103,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "R"
@@ -126261,6 +127328,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 1.0,
     "color_identity": [
      "R"
@@ -126446,6 +127514,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 2.0,
     "color_identity": [
      "R",
@@ -126665,6 +127734,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 2.0,
     "color_identity": [
      "G"
@@ -126938,6 +128008,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 7.0,
     "color_identity": [
      "B"
@@ -127166,6 +128237,7 @@
       "type_line": "Token Creature — Spirit"
      }
     ],
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "B",
@@ -127310,6 +128382,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 4.0,
     "color_identity": [
      "G"
@@ -127535,6 +128608,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 4.0,
     "color_identity": [
      "G"
@@ -127772,6 +128846,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 1.0,
     "color_identity": [
      "G"
@@ -128135,6 +129210,7 @@
       "type_line": "Token Creature — Cat Warrior"
      }
     ],
+    "arena_available": false,
     "cmc": 5.0,
     "color_identity": [
      "B",
@@ -128328,6 +129404,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 2.0,
     "color_identity": [
      "U"
@@ -128581,6 +129658,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 4.0,
     "color_identity": [
      "B",
@@ -128878,6 +129956,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 5.0,
     "color_identity": [
      "R",
@@ -129023,6 +130102,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 2.0,
     "color_identity": [
      "U"
@@ -129240,6 +130320,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 2.0,
     "color_identity": [
      "G"
@@ -129446,6 +130527,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 5.0,
     "color_identity": [
      "R"
@@ -129625,6 +130707,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 3.0,
     "color_identity": [
      "W"
@@ -129801,6 +130884,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 4.0,
     "color_identity": [
      "U"
@@ -130038,6 +131122,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 5.0,
     "color_identity": [
      "B",
@@ -130272,6 +131357,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 5.0,
     "color_identity": [],
     "colors": [],
@@ -130486,6 +131572,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 2.0,
     "color_identity": [
      "W"
@@ -130692,6 +131779,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 4.0,
     "color_identity": [
      "W"
@@ -130865,6 +131953,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 2.0,
     "color_identity": [],
     "colors": [],
@@ -131053,6 +132142,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 3.0,
     "color_identity": [
      "G"
@@ -131316,6 +132406,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "B",
@@ -131609,6 +132700,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "R",
@@ -131862,6 +132954,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 4.0,
     "color_identity": [],
     "colors": [],
@@ -132078,6 +133171,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 3.0,
     "color_identity": [
      "B",
@@ -132382,6 +133476,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 4.0,
     "color_identity": [
      "B",
@@ -132602,6 +133697,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "B"
@@ -132987,6 +134083,7 @@
       "type_line": "Token Artifact — Food"
      }
     ],
+    "arena_available": false,
     "cmc": 4.0,
     "color_identity": [
      "G",
@@ -133203,6 +134300,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 5.0,
     "color_identity": [
      "B",
@@ -133409,6 +134507,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "B",
@@ -133575,6 +134674,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 1.0,
     "color_identity": [
      "G"
@@ -133768,6 +134868,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 4.0,
     "color_identity": [
      "B",
@@ -134042,6 +135143,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 4.0,
     "color_identity": [
      "B",
@@ -134084,6 +135186,206 @@
     "power": "4",
     "toughness": "4",
     "type_line": "Legendary Creature — Human Wizard"
+   }
+  },
+  "Mana Drain": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "Counter target spell. At the beginning of your next main phase, add an amount of {C} equal to that spell's mana value.",
+       "duration": null,
+       "effect": {
+        "target": {
+         "type": "StackSpell"
+        },
+        "type": "Counter"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "condition": {
+          "phase": "PreCombatMain",
+          "player": 0,
+          "type": "AtNextPhaseForPlayer"
+         },
+         "effect": {
+          "condition": null,
+          "cost": null,
+          "description": null,
+          "duration": null,
+          "effect": {
+           "produced": {
+            "count": {
+             "qty": {
+              "scope": {
+               "type": "Demonstrative"
+              },
+              "type": "ObjectManaValue"
+             },
+             "type": "Ref"
+            },
+            "type": "Colorless"
+           },
+           "type": "Mana"
+          },
+          "forward_result": false,
+          "is_mana_ability": true,
+          "kind": "Spell",
+          "optional": false,
+          "optional_targeting": false,
+          "sub_ability": null,
+          "target_prompt": null
+         },
+         "type": "CreateDelayedTrigger",
+         "uses_tracked_set": false
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "sub_link": "SequentialSibling",
+        "target_prompt": null
+       },
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Instant"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Blue"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "banned",
+      "commander": "legal",
+      "duel": "banned",
+      "historic": "banned",
+      "legacy": "banned",
+      "oathbreaker": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 0,
+      "shards": [
+       "Blue",
+       "Blue"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "33ebd4c1-e7ea-4708-8b7c-c47ca6b63c22",
+       "3c429c40-2389-41e5-8681-4bb274e25eba",
+       "416d2d51-8f29-4e95-b037-e8c32b081e6c",
+       "456a2f03-8304-4512-804c-76653e30f436",
+       "4c7f0ea5-a142-4157-b85d-ec49dd79adf6",
+       "6dc7d280-31be-48b8-aa1e-8de676ca01ba",
+       "ba874c0c-f66f-4edc-9859-40273487aef0",
+       "cc9a04dc-afee-4194-80f5-fb1d9c906de7",
+       "e351ec05-8c4d-4631-9dbf-7f85f664770b",
+       "e691adef-3027-4e6a-889f-9f4e2df36a7c",
+       "ec48a747-cc69-47e5-882b-b3bc17898b1b"
+      ]
+     },
+     "name": "Mana Drain",
+     "non_ability_text": null,
+     "oracle_text": "Counter target spell. At the beginning of your next main phase, add an amount of {C} equal to that spell's mana value.",
+     "power": null,
+     "printings": [
+      "2X2",
+      "CMR",
+      "IMA",
+      "J16",
+      "LEG",
+      "ME3",
+      "OTP",
+      "PRM",
+      "VMA"
+     ],
+     "rarities": [
+      "uncommon",
+      "rare",
+      "mythic"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2020-11-10",
+       "text": "If the target spell is an illegal target by the time Mana Drain tries to resolve, Mana Drain doesn't resolve. You don't add mana at the beginning of your next main phase. If the target is legal but not countered (most likely because an effect says that the spell can't be countered), you do add mana."
+      },
+      {
+       "date": "2020-11-10",
+       "text": "Mana Drain's delayed triggered ability will usually trigger at the beginning of your precombat main phase. However, if you cast Mana Drain during your precombat main phase or during your combat phase, its delayed triggered ability will trigger at the beginning of that turn's postcombat main phase."
+      }
+     ],
+     "scryfall_oracle_id": "74d3277a-38e5-4732-afed-084a56148f20",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 2.0,
+    "color_identity": [
+     "U"
+    ],
+    "colors": [
+     "U"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "banned",
+     "commander": "legal",
+     "duel": "banned",
+     "future": "not_legal",
+     "gladiator": "banned",
+     "historic": "banned",
+     "legacy": "banned",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{U}{U}",
+    "name": "Mana Drain",
+    "oracle_id": "74d3277a-38e5-4732-afed-084a56148f20",
+    "oracle_text": "Counter target spell. At the beginning of your next main phase, add an amount of {C} equal to that spell's mana value.",
+    "produced_mana": [
+     "C"
+    ],
+    "type_line": "Instant"
    }
   },
   "Mana Leak": {
@@ -134217,6 +135519,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 2.0,
     "color_identity": [
      "U"
@@ -134379,6 +135682,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 6.0,
     "color_identity": [
      "G"
@@ -134675,6 +135979,7 @@
       "type_line": "Token Creature — Warrior"
      }
     ],
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "B",
@@ -134907,6 +136212,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 6.0,
     "color_identity": [
      "G",
@@ -135079,6 +136385,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 4.0,
     "color_identity": [
      "G"
@@ -135324,6 +136631,7 @@
       "type_line": "Token Creature — Rat"
      }
     ],
+    "arena_available": true,
     "cmc": 5.0,
     "color_identity": [
      "B"
@@ -135514,6 +136822,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 6.0,
     "color_identity": [
      "W"
@@ -135729,6 +137038,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "G"
@@ -135907,6 +137217,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 2.0,
     "color_identity": [
      "G",
@@ -136196,6 +137507,7 @@
       "type_line": "Token Creature — Shapeshifter"
      }
     ],
+    "arena_available": true,
     "cmc": 4.0,
     "color_identity": [],
     "colors": [],
@@ -136395,6 +137707,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 6.0,
     "color_identity": [
      "U"
@@ -136642,6 +137955,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 6.0,
     "color_identity": [
      "B"
@@ -136806,6 +138120,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 4.0,
     "color_identity": [
      "R",
@@ -136965,6 +138280,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 3.0,
     "color_identity": [
      "G"
@@ -137285,6 +138601,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 3.0,
     "color_identity": [
      "B",
@@ -137458,6 +138775,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 3.0,
     "color_identity": [
      "B"
@@ -137667,6 +138985,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 7.0,
     "color_identity": [
      "U"
@@ -137885,6 +139204,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 4.0,
     "color_identity": [
      "U"
@@ -138210,6 +139530,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 4.0,
     "color_identity": [
      "B",
@@ -138486,6 +139807,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "U"
@@ -138741,6 +140063,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 5.0,
     "color_identity": [
      "U"
@@ -139087,6 +140410,7 @@
       "type_line": "Token Artifact Creature — Construct"
      }
     ],
+    "arena_available": true,
     "cmc": 5.0,
     "color_identity": [
      "U"
@@ -139323,6 +140647,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 6.0,
     "color_identity": [
      "B"
@@ -139497,6 +140822,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "B"
@@ -139757,6 +141083,7 @@
       "type_line": "Token Creature — Fish"
      }
     ],
+    "arena_available": true,
     "cmc": 5.0,
     "color_identity": [
      "U"
@@ -140205,6 +141532,7 @@
       "type_line": "Token Legendary Creature — Hamster"
      }
     ],
+    "arena_available": true,
     "cmc": 4.0,
     "color_identity": [
      "G",
@@ -140382,6 +141710,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 4.0,
     "color_identity": [
      "B"
@@ -140630,6 +141959,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [],
     "colors": [],
@@ -140846,6 +142176,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "R"
@@ -141095,6 +142426,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [],
     "colors": [],
@@ -141404,6 +142736,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 4.0,
     "color_identity": [
      "R",
@@ -141751,6 +143084,7 @@
       "type_line": "Token Artifact — Equipment"
      }
     ],
+    "arena_available": false,
     "cmc": 3.0,
     "color_identity": [
      "R",
@@ -142028,6 +143362,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 1.0,
     "color_identity": [
      "W"
@@ -142192,6 +143527,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "G"
@@ -142414,6 +143750,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 4.0,
     "color_identity": [
      "W"
@@ -142648,6 +143985,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 4.0,
     "color_identity": [
      "W"
@@ -142848,6 +144186,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "B"
@@ -143011,6 +144350,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 4.0,
     "color_identity": [
      "B"
@@ -144073,6 +145413,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 0.0,
     "color_identity": [
      "R"
@@ -144272,6 +145613,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 2.0,
     "color_identity": [
      "G"
@@ -144468,6 +145810,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 6.0,
     "color_identity": [
      "B",
@@ -144745,6 +146088,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 5.0,
     "color_identity": [
      "U"
@@ -144899,6 +146243,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 4.0,
     "color_identity": [
      "G"
@@ -145066,6 +146411,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "B"
@@ -145308,6 +146654,7 @@
       "type_line": "Token Artifact — Mutagen"
      }
     ],
+    "arena_available": true,
     "cmc": 2.0,
     "color_identity": [
      "G"
@@ -145549,6 +146896,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 0.0,
     "color_identity": [],
     "colors": [],
@@ -145860,6 +147208,7 @@
       "type_line": "Token Creature — Saproling"
      }
     ],
+    "arena_available": false,
     "cmc": 5.0,
     "color_identity": [
      "G"
@@ -146082,6 +147431,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 8.0,
     "color_identity": [
      "W"
@@ -146269,6 +147619,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 3.0,
     "color_identity": [],
     "colors": [],
@@ -146498,6 +147849,7 @@
       "type_line": "Token Artifact Creature — Soldier"
      }
     ],
+    "arena_available": true,
     "cmc": 4.0,
     "color_identity": [
      "W"
@@ -146791,6 +148143,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 1.0,
     "color_identity": [
      "U"
@@ -146977,6 +148330,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 2.0,
     "color_identity": [
      "U"
@@ -147212,6 +148566,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "W"
@@ -147430,6 +148785,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 5.0,
     "color_identity": [
      "B",
@@ -147792,6 +149148,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "B"
@@ -148048,6 +149405,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 5.0,
     "color_identity": [
      "R"
@@ -148276,6 +149634,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 5.0,
     "color_identity": [
      "B",
@@ -148544,6 +149903,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 4.0,
     "color_identity": [
      "R",
@@ -148762,6 +150122,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 7.0,
     "color_identity": [
      "U"
@@ -149080,6 +150441,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "card_faces": [
      {
       "colors": [
@@ -149401,6 +150763,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 8.0,
     "color_identity": [
      "B",
@@ -149635,6 +150998,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 6.0,
     "color_identity": [
      "B"
@@ -149856,6 +151220,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 1.0,
     "color_identity": [
      "B",
@@ -150250,6 +151615,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "U",
@@ -150514,6 +151880,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 3.0,
     "color_identity": [
      "W"
@@ -150748,6 +152115,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 5.0,
     "color_identity": [
      "B",
@@ -151060,6 +152428,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 1.0,
     "color_identity": [
      "R"
@@ -151319,6 +152688,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 5.0,
     "color_identity": [
      "U",
@@ -151494,6 +152864,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 2.0,
     "color_identity": [
      "B"
@@ -151630,6 +153001,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 2.0,
     "color_identity": [],
     "colors": [],
@@ -151837,6 +153209,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 6.0,
     "color_identity": [
      "R",
@@ -152106,6 +153479,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 4.0,
     "color_identity": [
      "B",
@@ -152366,6 +153740,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 6.0,
     "color_identity": [
      "B"
@@ -152531,6 +153906,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 4.0,
     "color_identity": [
      "B",
@@ -152737,6 +154113,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 4.0,
     "color_identity": [
      "B",
@@ -152918,6 +154295,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 3.0,
     "color_identity": [
      "W"
@@ -153160,6 +154538,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 3.0,
     "color_identity": [
      "W"
@@ -153409,6 +154788,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 4.0,
     "color_identity": [
      "U"
@@ -153615,6 +154995,7 @@
       "type_line": "Token Artifact — Blood"
      }
     ],
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "R",
@@ -154309,6 +155690,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 4.0,
     "color_identity": [
      "W"
@@ -154347,6 +155729,402 @@
     "power": "3",
     "toughness": "3",
     "type_line": "Legendary Creature — Human Soldier"
+   }
+  },
+  "Oko, Thief of Crowns": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "activation_restrictions": [
+        {
+         "type": "AsSorcery"
+        }
+       ],
+       "condition": null,
+       "cost": {
+        "amount": 2,
+        "type": "Loyalty"
+       },
+       "description": "[+2]: Create a Food token.",
+       "duration": null,
+       "effect": {
+        "colors": [],
+        "count": {
+         "type": "Fixed",
+         "value": 1
+        },
+        "enters_attacking": false,
+        "keywords": [],
+        "name": "Food",
+        "owner": {
+         "type": "Controller"
+        },
+        "power": {
+         "type": "Fixed",
+         "value": 0
+        },
+        "tapped": false,
+        "toughness": {
+         "type": "Fixed",
+         "value": 0
+        },
+        "type": "Token",
+        "types": [
+         "Artifact",
+         "Food"
+        ]
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      },
+      {
+       "activation_restrictions": [
+        {
+         "type": "AsSorcery"
+        }
+       ],
+       "condition": null,
+       "cost": {
+        "amount": 1,
+        "type": "Loyalty"
+       },
+       "description": "[+1]: Target artifact or creature loses all abilities and becomes a green Elk creature with base power and toughness 3/3.",
+       "duration": null,
+       "effect": {
+        "duration": null,
+        "static_abilities": [
+         {
+          "active_zones": [],
+          "affected": {
+           "type": "ParentTarget"
+          },
+          "affected_zone": null,
+          "characteristic_defining": false,
+          "condition": null,
+          "description": "lose all abilities and becomes a green Elk creature with base power and toughness 3/3",
+          "effect_zone": null,
+          "mode": "Continuous",
+          "modifications": [
+           {
+            "type": "RemoveAllAbilities"
+           },
+           {
+            "type": "SetPower",
+            "value": 3
+           },
+           {
+            "type": "SetToughness",
+            "value": 3
+           },
+           {
+            "type": "SetPower",
+            "value": 3
+           },
+           {
+            "type": "SetToughness",
+            "value": 3
+           },
+           {
+            "colors": [
+             "Green"
+            ],
+            "type": "SetColor"
+           },
+           {
+            "core_types": [
+             "Creature"
+            ],
+            "type": "SetCardTypes"
+           },
+           {
+            "set": "Creature",
+            "type": "RemoveAllSubtypes"
+           },
+           {
+            "subtype": "Elk",
+            "type": "AddSubtype"
+           }
+          ]
+         }
+        ],
+        "target": {
+         "filters": [
+          {
+           "controller": null,
+           "properties": [],
+           "type": "Typed",
+           "type_filters": [
+            "Artifact"
+           ]
+          },
+          {
+           "controller": null,
+           "properties": [],
+           "type": "Typed",
+           "type_filters": [
+            "Creature"
+           ]
+          }
+         ],
+         "type": "Or"
+        },
+        "type": "GenericEffect"
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      },
+      {
+       "activation_restrictions": [
+        {
+         "type": "AsSorcery"
+        }
+       ],
+       "condition": null,
+       "cost": {
+        "amount": -5,
+        "type": "Loyalty"
+       },
+       "description": "[−5]: Exchange control of target artifact or creature you control and target creature an opponent controls with power 3 or less.",
+       "duration": null,
+       "effect": {
+        "target_a": {
+         "filters": [
+          {
+           "controller": "You",
+           "properties": [],
+           "type": "Typed",
+           "type_filters": [
+            "Artifact"
+           ]
+          },
+          {
+           "controller": "You",
+           "properties": [],
+           "type": "Typed",
+           "type_filters": [
+            "Creature"
+           ]
+          }
+         ],
+         "type": "Or"
+        },
+        "target_b": {
+         "controller": "Opponent",
+         "properties": [
+          {
+           "comparator": "LE",
+           "scope": "Current",
+           "stat": "Power",
+           "type": "PtComparison",
+           "value": {
+            "type": "Fixed",
+            "value": 3
+           }
+          }
+         ],
+         "type": "Typed",
+         "type_filters": [
+          "Creature"
+         ]
+        },
+        "type": "ExchangeControl"
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "brawl_commander": true,
+     "card_type": {
+      "core_types": [
+       "Planeswalker"
+      ],
+      "subtypes": [
+       "Oko"
+      ],
+      "supertypes": [
+       "Legendary"
+      ]
+     },
+     "color_identity": [
+      "Green",
+      "Blue"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "is_oathbreaker": true,
+     "keywords": [],
+     "legalities": {
+      "brawl": "banned",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "banned",
+      "legacy": "banned",
+      "modern": "banned",
+      "oathbreaker": "legal",
+      "pioneer": "banned",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": "4",
+     "mana_cost": {
+      "generic": 1,
+      "shards": [
+       "Green",
+       "Blue"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "related_token_ids": [
+       "90b377a5-5f77-5f59-a5e0-3da610eef6c8",
+       "d3e213eb-ded0-5096-be47-33cc06109598"
+      ],
+      "source_printing_ids": [
+       "016b0750-d48d-4b6e-ac9c-a7904371a914",
+       "3462a3d0-5552-49fa-9eb7-100960c55891",
+       "659e8760-c7a8-445d-bfef-7cd445ea67c3",
+       "95da027e-34c1-4098-827d-1647693ad8f4"
+      ]
+     },
+     "name": "Oko, Thief of Crowns",
+     "non_ability_text": null,
+     "oracle_text": "[+2]: Create a Food token. (It's an artifact with \"{2}, {T}, Sacrifice this token: You gain 3 life.\")\n[+1]: Target artifact or creature loses all abilities and becomes a green Elk creature with base power and toughness 3/3.\n[−5]: Exchange control of target artifact or creature you control and target creature an opponent controls with power 3 or less.",
+     "power": null,
+     "printings": [
+      "ELD",
+      "OTP",
+      "PELD",
+      "PRM"
+     ],
+     "rarities": [
+      "mythic"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2019-10-04",
+       "text": "Because damage remains marked on a creature until the damage is removed as the turn ends, nonlethal damage dealt to a creature may become lethal if Oko's second ability changes its toughness during that turn."
+      },
+      {
+       "date": "2019-10-04",
+       "text": "Effects that modify a creature's power and/or toughness, such as the effect of Festive Funeral, will apply to the creature no matter when they started to take effect. The same is true for any counters that change its power and/or toughness."
+      },
+      {
+       "date": "2019-10-04",
+       "text": "Gaining control of a permanent doesn't cause you to gain control of any Auras or Equipment attached to it. Gaining control of an Equipment doesn't cause it to become unattached, although its new controller may activate its equip abilities during their main phase."
+      },
+      {
+       "date": "2019-10-04",
+       "text": "If either of the target permanents is an illegal target when Oko's last ability resolves, the exchange won't happen."
+      },
+      {
+       "date": "2019-10-04",
+       "text": "If the affected creature gains an ability after Oko's second ability resolves, it will keep that ability."
+      },
+      {
+       "date": "2019-10-04",
+       "text": "Oko's second ability may target a permanent that is only temporarily an artifact or a creature, such as Oko, the Trickster. If this happens, the effect causes that permanent to remain a green Elk creature even after the temporary effect expires."
+      },
+      {
+       "date": "2019-10-04",
+       "text": "Oko's second ability overwrites all colors and creature types the affected creature has. It's just a green Elk. The creature keeps any supertypes (such as legendary) it has, but loses any other card types it has (such as artifact)."
+      },
+      {
+       "date": "2019-10-04",
+       "text": "Oko's second ability overwrites all previous effects that set the creature's base power and toughness to specific values. Any power- or toughness-setting effects that start to apply after Oko's second ability resolves will overwrite this effect."
+      },
+      {
+       "date": "2019-10-04",
+       "text": "The effects of Oko's second ability lasts indefinitely. It doesn't expire during the cleanup step or if you or Oko leave the game."
+      },
+      {
+       "date": "2019-10-04",
+       "text": "The effects of Oko's third ability lasts indefinitely. It doesn't expire during the cleanup step or if the creature you take has its power raised above 3 later."
+      },
+      {
+       "date": "2024-11-08",
+       "text": "Food is an artifact type. Even though it appears on some creatures, it's never a creature type."
+      },
+      {
+       "date": "2024-11-08",
+       "text": "Whatever you do, don't eat the delicious cards."
+      },
+      {
+       "date": "2024-11-08",
+       "text": "You can't sacrifice a Food to pay multiple costs. For example, you can't sacrifice a Food token to activate its own ability and also to activate Maraleaf Rider's ability."
+      }
+     ],
+     "scryfall_oracle_id": "60c60923-ff1b-43f7-8768-731499fcffc9",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "all_parts": [
+     {
+      "component": "token",
+      "id": "280e3af6-7904-4214-8141-e145c48e2687",
+      "name": "Food",
+      "oracle_id": "a468338f-635e-4206-89d6-72d723071d45",
+      "type_line": "Token Artifact — Food"
+     }
+    ],
+    "arena_available": true,
+    "cmc": 3.0,
+    "color_identity": [
+     "G",
+     "U"
+    ],
+    "colors": [
+     "G",
+     "U"
+    ],
+    "keywords": [
+     "Food"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "banned",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "banned",
+     "legacy": "banned",
+     "modern": "banned",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "banned",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{1}{G}{U}",
+    "name": "Oko, Thief of Crowns",
+    "oracle_id": "60c60923-ff1b-43f7-8768-731499fcffc9",
+    "oracle_text": "[+2]: Create a Food token. (It's an artifact with \"{2}, {T}, Sacrifice this token: You gain 3 life.\")\n[+1]: Target artifact or creature loses all abilities and becomes a green Elk creature with base power and toughness 3/3.\n[−5]: Exchange control of target artifact or creature you control and target creature an opponent controls with power 3 or less.",
+    "type_line": "Legendary Planeswalker — Oko"
    }
   },
   "Oko, the Ringleader": {
@@ -154742,6 +156520,7 @@
       "type_line": "Token Creature — Elk"
      }
     ],
+    "arena_available": true,
     "cmc": 4.0,
     "color_identity": [
      "G",
@@ -155046,6 +156825,7 @@
       "type_line": "Token Artifact — Food"
      }
     ],
+    "arena_available": true,
     "cmc": 5.0,
     "color_identity": [
      "B"
@@ -155344,6 +157124,7 @@
       "type_line": "Token Artifact — Treasure"
      }
     ],
+    "arena_available": true,
     "cmc": 4.0,
     "color_identity": [
      "B",
@@ -155686,6 +157467,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 6.0,
     "color_identity": [
      "B",
@@ -155939,6 +157721,7 @@
       "type_line": "Token Creature — Human Soldier"
      }
     ],
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "W"
@@ -156098,6 +157881,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 10.0,
     "color_identity": [
      "U"
@@ -156292,6 +158076,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 2.0,
     "color_identity": [
      "W"
@@ -156466,6 +158251,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 6.0,
     "color_identity": [
      "W"
@@ -156651,6 +158437,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 1.0,
     "color_identity": [
      "U"
@@ -156843,6 +158630,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 4.0,
     "color_identity": [
      "G"
@@ -156977,6 +158765,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 3.0,
     "color_identity": [],
     "colors": [],
@@ -157189,6 +158978,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 2.0,
     "color_identity": [
      "R"
@@ -157359,6 +159149,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 1.0,
     "color_identity": [
      "G",
@@ -157570,6 +159361,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "B"
@@ -157860,6 +159652,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 2.0,
     "color_identity": [
      "G"
@@ -158092,6 +159885,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 2.0,
     "color_identity": [
      "W"
@@ -158278,6 +160072,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "U"
@@ -158416,6 +160211,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 4.0,
     "color_identity": [
      "G"
@@ -158643,6 +160439,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "W"
@@ -158948,6 +160745,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 1.0,
     "color_identity": [
      "W"
@@ -159125,6 +160923,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 7.0,
     "color_identity": [
      "B"
@@ -159282,6 +161081,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 1.0,
     "color_identity": [
      "U"
@@ -159526,6 +161326,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 4.0,
     "color_identity": [
      "B"
@@ -159791,6 +161592,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 7.0,
     "color_identity": [
      "B"
@@ -160064,6 +161866,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 2.0,
     "color_identity": [
      "W"
@@ -160238,6 +162041,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 4.0,
     "color_identity": [
      "G"
@@ -160388,6 +162192,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 2.0,
     "color_identity": [
      "B"
@@ -160595,6 +162400,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "B"
@@ -160726,6 +162532,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "W"
@@ -160931,6 +162738,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 2.0,
     "color_identity": [],
     "colors": [],
@@ -161174,6 +162982,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "B"
@@ -161305,6 +163114,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 3.0,
     "color_identity": [
      "U"
@@ -161578,6 +163388,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 2.0,
     "color_identity": [
      "U"
@@ -161807,6 +163618,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 1.0,
     "color_identity": [
      "U"
@@ -161990,6 +163802,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 1.0,
     "color_identity": [
      "U"
@@ -162266,6 +164079,7 @@
       "type_line": "Token"
      }
     ],
+    "arena_available": false,
     "cmc": 4.0,
     "color_identity": [
      "W"
@@ -162428,6 +164242,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 1.0,
     "color_identity": [
      "G"
@@ -162681,6 +164496,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 6.0,
     "color_identity": [
      "R"
@@ -162842,6 +164658,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 1.0,
     "color_identity": [
      "U"
@@ -163074,6 +164891,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 3.0,
     "color_identity": [
      "W"
@@ -163391,6 +165209,7 @@
       "type_line": "Token Creature — Eldrazi Spawn"
      }
     ],
+    "arena_available": true,
     "cmc": 2.0,
     "color_identity": [
      "G"
@@ -163689,6 +165508,7 @@
       "type_line": "Token Artifact — Treasure"
      }
     ],
+    "arena_available": true,
     "cmc": 4.0,
     "color_identity": [
      "B",
@@ -163991,6 +165811,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "W"
@@ -164165,6 +165986,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "U"
@@ -164465,6 +166287,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 4.0,
     "color_identity": [
      "R"
@@ -164661,6 +166484,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 2.0,
     "color_identity": [
      "B"
@@ -164907,6 +166731,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 4.0,
     "color_identity": [
      "G"
@@ -165174,6 +166999,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 1.0,
     "color_identity": [
      "R"
@@ -165351,6 +167177,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 1.0,
     "color_identity": [
      "U"
@@ -165495,6 +167322,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 4.0,
     "color_identity": [
      "R"
@@ -165661,6 +167489,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 4.0,
     "color_identity": [
      "U",
@@ -165949,6 +167778,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 4.0,
     "color_identity": [
      "G",
@@ -165993,6 +167823,298 @@
     "power": "3",
     "toughness": "3",
     "type_line": "Legendary Creature — Human Knight"
+   }
+  },
+  "Ragavan, Nimble Pilferer": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "brawl_commander": true,
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Monkey",
+       "Pirate"
+      ],
+      "supertypes": [
+       "Legendary"
+      ]
+     },
+     "color_identity": [
+      "Red"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "is_commander": true,
+     "keywords": [
+      {
+       "Dash": {
+        "generic": 1,
+        "shards": [
+         "Red"
+        ],
+        "type": "Cost"
+       }
+      }
+     ],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "banned",
+      "historic": "banned",
+      "legacy": "banned",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 0,
+      "shards": [
+       "Red"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "related_token_ids": [
+       "4873fe20-675e-5db5-b9ba-8d996c2806ba",
+       "74d281e4-6c2a-53c2-b0ea-253ef143d22c",
+       "7c5cdbc2-a953-53bd-81dd-9a5c8fbedb85",
+       "ce4fe62d-f077-54ec-83ec-f719fbf726a8"
+      ],
+      "source_printing_ids": [
+       "3a29b9b5-8c15-4058-a7d2-db7297635364",
+       "8d27e717-8bda-44dc-90b9-a6f7029c7b93",
+       "a71d1ec3-2d7a-4749-8936-8bf7a8b83d84",
+       "a9738cda-adb1-47fb-9f4c-ecd930228c4d",
+       "b3e685f9-cc0f-4dc6-98dc-4727944de445",
+       "e90f19e0-2461-4233-80ef-dd9c582726a2",
+       "fae3bf4a-a732-48aa-a1a4-7e5fd007774c",
+       "fc898fec-4cc6-4587-b556-c5a8d38ccbd0"
+      ]
+     },
+     "name": "Ragavan, Nimble Pilferer",
+     "non_ability_text": null,
+     "oracle_text": "Whenever Ragavan deals combat damage to a player, create a Treasure token and exile the top card of that player's library. Until end of turn, you may cast that card.\nDash {1}{R} (You may cast this spell for its dash cost. If you do, it gains haste, and it's returned from the battlefield to its owner's hand at the beginning of the next end step.)",
+     "power": {
+      "type": "Fixed",
+      "value": 2
+     },
+     "printings": [
+      "FCA",
+      "H2R",
+      "MH2",
+      "MUL",
+      "PMH2",
+      "PRM",
+      "SLP"
+     ],
+     "rarities": [
+      "mythic"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2021-06-18",
+       "text": "If a creature enters the battlefield as a copy of or becomes a copy of a creature whose dash cost was paid, the copy won't have haste and won't be returned to its owner's hand."
+      },
+      {
+       "date": "2021-06-18",
+       "text": "If you choose to pay the dash cost rather than the mana cost, you're still casting the spell. It goes on the stack and can be responded to and countered. You can cast a creature spell for its dash cost only when you otherwise could cast that creature spell. Most of the time, this means during your main phase when the stack is empty."
+      },
+      {
+       "date": "2021-06-18",
+       "text": "If you pay the dash cost to cast a creature spell, that card will be returned to its owner's hand only if it's still on the battlefield when its triggered ability resolves. If it dies or goes to another zone before then, it will stay where it is."
+      },
+      {
+       "date": "2021-06-18",
+       "text": "You don't have to attack with the creature with dash unless another ability says you do."
+      },
+      {
+       "date": "2021-06-18",
+       "text": "You must still follow all timing restrictions and pay all costs when casting the exiled card. If you exile a land card, you can't play that card."
+      },
+      {
+       "date": "2021-06-18",
+       "text": "You'll create a Treasure token even if that player has no cards left in their library to exile."
+      }
+     ],
+     "scryfall_oracle_id": "37108cd4-bbab-4ce3-9ed6-f60e8422e703",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 1
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "CombatOnly",
+       "description": "Whenever ~ deals combat damage to a player, create a Treasure token and exile the top card of that player's library. Until end of turn, you may cast that card.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "colors": [],
+         "count": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "enters_attacking": false,
+         "keywords": [],
+         "name": "Treasure",
+         "owner": {
+          "type": "Controller"
+         },
+         "power": {
+          "type": "Fixed",
+          "value": 0
+         },
+         "tapped": false,
+         "toughness": {
+          "type": "Fixed",
+          "value": 0
+         },
+         "type": "Token",
+         "types": [
+          "Artifact",
+          "Treasure"
+         ]
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": null,
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "count": {
+           "type": "Fixed",
+           "value": 1
+          },
+          "player": {
+           "type": "TriggeringPlayer"
+          },
+          "position": {
+           "type": "Top"
+          },
+          "type": "ExileTop"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": {
+          "condition": null,
+          "cost": null,
+          "description": null,
+          "duration": "UntilEndOfTurn",
+          "effect": {
+           "permission": {
+            "duration": "UntilEndOfTurn",
+            "granted_to": 0,
+            "type": "PlayFromExile"
+           },
+           "target": {
+            "id": 0,
+            "type": "TrackedSet"
+           },
+           "type": "GrantCastingPermission"
+          },
+          "forward_result": false,
+          "kind": "Spell",
+          "optional": false,
+          "optional_targeting": false,
+          "sub_ability": null,
+          "sub_link": "SequentialSibling",
+          "target_prompt": null
+         },
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "mode": "DamageDone",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": null,
+       "valid_source": {
+        "type": "SelfRef"
+       },
+       "valid_target": {
+        "type": "Player"
+       }
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "all_parts": [
+     {
+      "component": "token",
+      "id": "649d42c1-a465-435e-8b67-e901ab9ad8ab",
+      "name": "Treasure",
+      "oracle_id": "3c549374-6c37-42e0-8d88-a8555d46732d",
+      "type_line": "Token Artifact — Treasure"
+     }
+    ],
+    "arena_available": true,
+    "cmc": 1.0,
+    "color_identity": [
+     "R"
+    ],
+    "colors": [
+     "R"
+    ],
+    "keywords": [
+     "Dash",
+     "Treasure"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "duel": "banned",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "banned",
+     "legacy": "banned",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{R}",
+    "name": "Ragavan, Nimble Pilferer",
+    "oracle_id": "37108cd4-bbab-4ce3-9ed6-f60e8422e703",
+    "oracle_text": "Whenever Ragavan deals combat damage to a player, create a Treasure token and exile the top card of that player's library. Until end of turn, you may cast that card.\nDash {1}{R} (You may cast this spell for its dash cost. If you do, it gains haste, and it's returned from the battlefield to its owner's hand at the beginning of the next end step.)",
+    "power": "2",
+    "toughness": "1",
+    "type_line": "Legendary Creature — Monkey Pirate"
    }
   },
   "Raggadragga, Goreguts Boss": {
@@ -166282,6 +168404,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 4.0,
     "color_identity": [
      "G",
@@ -166689,6 +168812,7 @@
       "type_line": "Token Creature — Weird"
      }
     ],
+    "arena_available": true,
     "cmc": 5.0,
     "color_identity": [
      "R"
@@ -166959,6 +169083,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 2.0,
     "color_identity": [
      "G"
@@ -167094,6 +169219,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 2.0,
     "color_identity": [
      "B"
@@ -167369,6 +169495,7 @@
       "type_line": "Token Artifact — Mutagen"
      }
     ],
+    "arena_available": true,
     "cmc": 5.0,
     "color_identity": [
      "R"
@@ -167547,6 +169674,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 4.0,
     "color_identity": [
      "R"
@@ -167690,6 +169818,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 4.0,
     "color_identity": [
      "W"
@@ -167913,6 +170042,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 2.0,
     "color_identity": [
      "R"
@@ -168150,6 +170280,7 @@
       "type_line": "Token Creature — Bird"
      }
     ],
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "U"
@@ -168324,6 +170455,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 4.0,
     "color_identity": [
      "B"
@@ -168565,6 +170697,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 3.0,
     "color_identity": [
      "U"
@@ -168773,6 +170906,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 4.0,
     "color_identity": [
      "R"
@@ -168946,6 +171080,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 5.0,
     "color_identity": [],
     "colors": [],
@@ -169165,6 +171300,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 1.0,
     "color_identity": [
      "B"
@@ -169328,6 +171464,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 4.0,
     "color_identity": [
      "R"
@@ -169479,6 +171616,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 1.0,
     "color_identity": [
      "G"
@@ -169685,6 +171823,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "G"
@@ -169844,6 +171983,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 3.0,
     "color_identity": [
      "B",
@@ -170018,6 +172158,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 2.0,
     "color_identity": [
      "G"
@@ -170196,6 +172337,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 3.0,
     "color_identity": [
      "G"
@@ -170406,6 +172548,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 4.0,
     "color_identity": [
      "R"
@@ -170627,6 +172770,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "B"
@@ -170840,6 +172984,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 0.0,
     "color_identity": [],
     "colors": [],
@@ -171023,6 +173168,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 2.0,
     "color_identity": [
      "U"
@@ -171165,6 +173311,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 4.0,
     "color_identity": [
      "W"
@@ -171380,6 +173527,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 2.0,
     "color_identity": [
      "G"
@@ -171616,6 +173764,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "B"
@@ -171846,6 +173995,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 4.0,
     "color_identity": [
      "W"
@@ -172048,6 +174198,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "U"
@@ -172260,6 +174411,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "R",
@@ -172420,6 +174572,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 2.0,
     "color_identity": [],
     "colors": [],
@@ -172681,6 +174834,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "G"
@@ -172922,6 +175076,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 3.0,
     "color_identity": [
      "R",
@@ -173168,6 +175323,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 5.0,
     "color_identity": [
      "B",
@@ -173383,6 +175539,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 4.0,
     "color_identity": [],
     "colors": [],
@@ -173520,6 +175677,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 2.0,
     "color_identity": [
      "R"
@@ -173795,6 +175953,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 6.0,
     "color_identity": [
      "G"
@@ -173965,6 +176124,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 2.0,
     "color_identity": [
      "R"
@@ -174194,6 +176354,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 5.0,
     "color_identity": [
      "G",
@@ -174392,6 +176553,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 3.0,
     "color_identity": [
      "G"
@@ -174556,6 +176718,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 4.0,
     "color_identity": [
      "G",
@@ -174837,6 +177000,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "B"
@@ -175023,6 +177187,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 4.0,
     "color_identity": [
      "R",
@@ -175294,6 +177459,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 4.0,
     "color_identity": [
      "W"
@@ -175505,6 +177671,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 6.0,
     "color_identity": [
      "G",
@@ -175750,6 +177917,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 4.0,
     "color_identity": [
      "G"
@@ -175962,6 +178130,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 5.0,
     "color_identity": [
      "G",
@@ -176237,6 +178406,7 @@
       "type_line": "Token Artifact Creature — Thopter"
      }
     ],
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "U"
@@ -176482,6 +178652,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 2.0,
     "color_identity": [
      "G"
@@ -176676,6 +178847,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "G",
@@ -176920,6 +179092,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 6.0,
     "color_identity": [
      "G",
@@ -177109,6 +179282,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 4.0,
     "color_identity": [
      "W"
@@ -177532,6 +179706,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 6.0,
     "color_identity": [
      "B",
@@ -177794,6 +179969,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "B",
@@ -178006,6 +180182,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 2.0,
     "color_identity": [
      "B",
@@ -178203,6 +180380,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 2.0,
     "color_identity": [
      "G"
@@ -178387,6 +180565,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 6.0,
     "color_identity": [
      "G",
@@ -178637,6 +180816,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 2.0,
     "color_identity": [
      "G"
@@ -178905,6 +181085,7 @@
       "type_line": "Token Enchantment — Aura"
      }
     ],
+    "arena_available": true,
     "cmc": 4.0,
     "color_identity": [
      "B",
@@ -179151,6 +181332,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 2.0,
     "color_identity": [],
     "colors": [],
@@ -179362,6 +181544,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 2.0,
     "color_identity": [
      "G"
@@ -179579,6 +181762,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 3.0,
     "color_identity": [
      "B"
@@ -179815,6 +181999,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 2.0,
     "color_identity": [
      "U"
@@ -179976,6 +182161,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 5.0,
     "color_identity": [
      "G"
@@ -180198,6 +182384,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 4.0,
     "color_identity": [
      "R"
@@ -180343,6 +182530,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 5.0,
     "color_identity": [
      "B",
@@ -180651,6 +182839,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 5.0,
     "color_identity": [
      "B",
@@ -180859,6 +183048,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 1.0,
     "color_identity": [],
     "colors": [],
@@ -181093,6 +183283,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 6.0,
     "color_identity": [],
     "colors": [],
@@ -181300,6 +183491,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 5.0,
     "color_identity": [
      "W"
@@ -181506,6 +183698,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 2.0,
     "color_identity": [
      "R"
@@ -181730,6 +183923,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 1.0,
     "color_identity": [
      "B",
@@ -181979,6 +184173,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 1.0,
     "color_identity": [
      "B"
@@ -182187,6 +184382,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 2.0,
     "color_identity": [
      "G",
@@ -182451,6 +184647,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 7.0,
     "color_identity": [
      "B"
@@ -182655,6 +184852,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "R"
@@ -182862,6 +185060,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 4.0,
     "color_identity": [
      "B",
@@ -183054,6 +185253,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 2.0,
     "color_identity": [
      "R"
@@ -183706,6 +185906,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "card_faces": [
      {
       "colors": [
@@ -183959,6 +186160,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 2.0,
     "color_identity": [
      "B"
@@ -184175,6 +186377,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 4.0,
     "color_identity": [
      "B"
@@ -184404,6 +186607,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 6.0,
     "color_identity": [
      "R"
@@ -184599,6 +186803,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 1.0,
     "color_identity": [
      "R"
@@ -184808,6 +187013,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 6.0,
     "color_identity": [
      "R"
@@ -185065,6 +187271,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 5.0,
     "color_identity": [
      "B"
@@ -185303,6 +187510,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 5.0,
     "color_identity": [
      "B"
@@ -185590,6 +187798,7 @@
       "type_line": "Token Creature — Goblin"
      }
     ],
+    "arena_available": false,
     "cmc": 4.0,
     "color_identity": [
      "R"
@@ -185753,6 +187962,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 5.0,
     "color_identity": [
      "G",
@@ -185921,6 +188131,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 1.0,
     "color_identity": [
      "W"
@@ -186055,6 +188266,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 6.0,
     "color_identity": [
      "B"
@@ -186293,6 +188505,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 5.0,
     "color_identity": [
      "W"
@@ -186456,6 +188669,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "U"
@@ -186596,6 +188810,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 2.0,
     "color_identity": [
      "B"
@@ -186830,6 +189045,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 4.0,
     "color_identity": [
      "B"
@@ -186959,6 +189175,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 3.0,
     "color_identity": [
      "R"
@@ -187191,6 +189408,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 5.0,
     "color_identity": [
      "B"
@@ -187382,6 +189600,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 2.0,
     "color_identity": [
      "U"
@@ -187601,6 +189820,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 1.0,
     "color_identity": [
      "U"
@@ -187738,6 +189958,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 1.0,
     "color_identity": [
      "U"
@@ -187964,6 +190185,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 5.0,
     "color_identity": [
      "B",
@@ -188242,6 +190464,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 5.0,
     "color_identity": [
      "B",
@@ -188505,6 +190728,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 4.0,
     "color_identity": [
      "R"
@@ -188764,6 +190988,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 2.0,
     "color_identity": [
      "R",
@@ -189081,6 +191306,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 1.0,
     "color_identity": [],
     "colors": [],
@@ -189266,6 +191492,7 @@
       "type_line": "Token Artifact — Clue"
      }
     ],
+    "arena_available": false,
     "cmc": 4.0,
     "color_identity": [
      "R",
@@ -189488,6 +191715,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 3.0,
     "color_identity": [
      "W"
@@ -189648,6 +191876,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 3.0,
     "color_identity": [
      "R"
@@ -189914,6 +192143,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "U",
@@ -190115,6 +192345,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 5.0,
     "color_identity": [
      "R"
@@ -190352,6 +192583,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 4.0,
     "color_identity": [
      "U"
@@ -190557,6 +192789,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 3.0,
     "color_identity": [
      "U"
@@ -190734,6 +192967,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 3.0,
     "color_identity": [
      "U"
@@ -190869,6 +193103,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 2.0,
     "color_identity": [],
     "colors": [],
@@ -191052,6 +193287,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 8.0,
     "color_identity": [
      "U"
@@ -191544,6 +193780,7 @@
       "type_line": "Token Artifact — Food"
      }
     ],
+    "arena_available": true,
     "cmc": 2.0,
     "color_identity": [
      "G"
@@ -191684,6 +193921,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 6.0,
     "color_identity": [
      "G"
@@ -191913,6 +194151,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 5.0,
     "color_identity": [
      "U"
@@ -192050,6 +194289,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 5.0,
     "color_identity": [
      "U"
@@ -192332,6 +194572,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "U"
@@ -192546,6 +194787,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "R"
@@ -192709,6 +194951,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 4.0,
     "color_identity": [
      "R",
@@ -192932,6 +195175,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 2.0,
     "color_identity": [
      "W"
@@ -193048,6 +195292,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 3.0,
     "color_identity": [],
     "colors": [],
@@ -193230,6 +195475,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 4.0,
     "color_identity": [
      "U"
@@ -193369,6 +195615,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 3.0,
     "color_identity": [],
     "colors": [],
@@ -193527,6 +195774,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 2.0,
     "color_identity": [],
     "colors": [],
@@ -193740,6 +195988,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 1.0,
     "color_identity": [
      "B"
@@ -193927,6 +196176,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 4.0,
     "color_identity": [
      "U"
@@ -194111,6 +196361,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "R"
@@ -194383,6 +196634,7 @@
       "type_line": "Token Artifact — Treasure"
      }
     ],
+    "arena_available": true,
     "cmc": 4.0,
     "color_identity": [
      "R"
@@ -194595,6 +196847,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 4.0,
     "color_identity": [
      "R",
@@ -194780,6 +197033,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 2.0,
     "color_identity": [],
     "colors": [],
@@ -194966,6 +197220,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 0.0,
     "color_identity": [],
     "colors": [],
@@ -195104,6 +197359,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 3.0,
     "color_identity": [
      "U"
@@ -195293,6 +197549,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "B"
@@ -195614,6 +197871,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "R"
@@ -195814,6 +198072,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 2.0,
     "color_identity": [
      "G",
@@ -195968,6 +198227,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 6.0,
     "color_identity": [
      "U"
@@ -196211,6 +198471,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 6.0,
     "color_identity": [
      "W"
@@ -196355,6 +198616,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 5.0,
     "color_identity": [
      "G",
@@ -196566,6 +198828,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 1.0,
     "color_identity": [
      "G",
@@ -196884,6 +199147,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 1.0,
     "color_identity": [
      "W"
@@ -197163,6 +199427,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 3.0,
     "color_identity": [
      "B",
@@ -197371,6 +199636,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 2.0,
     "color_identity": [
      "B",
@@ -197561,6 +199827,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 2.0,
     "color_identity": [
      "G"
@@ -197747,6 +200014,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 2.0,
     "color_identity": [
      "G"
@@ -198008,6 +200276,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 3.0,
     "color_identity": [
      "W"
@@ -198285,6 +200554,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 5.0,
     "color_identity": [
      "B",
@@ -198486,6 +200756,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 2.0,
     "color_identity": [
      "G",
@@ -198724,6 +200995,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 2.0,
     "color_identity": [
      "W"
@@ -198978,6 +201250,7 @@
       "type_line": "Token Creature — Drake"
      }
     ],
+    "arena_available": true,
     "cmc": 4.0,
     "color_identity": [
      "U"
@@ -199198,6 +201471,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 4.0,
     "color_identity": [
      "W"
@@ -199552,6 +201826,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 5.0,
     "color_identity": [
      "U"
@@ -199708,6 +201983,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 5.0,
     "color_identity": [
      "U"
@@ -199916,6 +202192,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 4.0,
     "color_identity": [
      "R"
@@ -200176,6 +202453,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 6.0,
     "color_identity": [
      "B",
@@ -200388,6 +202666,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "R"
@@ -200660,6 +202939,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 4.0,
     "color_identity": [
      "B",
@@ -200799,6 +203079,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 2.0,
     "color_identity": [
      "R"
@@ -200997,6 +203278,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 5.0,
     "color_identity": [
      "U"
@@ -201413,6 +203695,7 @@
       "type_line": "Token Creature — Spirit"
      }
     ],
+    "arena_available": true,
     "cmc": 5.0,
     "color_identity": [
      "U"
@@ -201559,6 +203842,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 1.0,
     "color_identity": [],
     "colors": [],
@@ -201682,6 +203966,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 1.0,
     "color_identity": [
      "U"
@@ -201827,6 +204112,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 5.0,
     "color_identity": [
      "U"
@@ -201960,6 +204246,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 3.0,
     "color_identity": [
      "G",
@@ -202154,6 +204441,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 6.0,
     "color_identity": [
      "W"
@@ -202393,6 +204681,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 6.0,
     "color_identity": [
      "B"
@@ -202618,6 +204907,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 4.0,
     "color_identity": [
      "B",
@@ -202988,6 +205278,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 6.0,
     "color_identity": [
      "B",
@@ -203243,6 +205534,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 2.0,
     "color_identity": [
      "U"
@@ -203486,6 +205778,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 4.0,
     "color_identity": [],
     "colors": [],
@@ -203745,6 +206038,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 4.0,
     "color_identity": [
      "R",
@@ -203958,6 +206252,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 5.0,
     "color_identity": [
      "B",
@@ -204238,6 +206533,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 5.0,
     "color_identity": [
      "B",
@@ -204556,6 +206852,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 9.0,
     "color_identity": [
      "G"
@@ -204897,6 +207194,7 @@
       "type_line": "Token Creature — Insect"
      }
     ],
+    "arena_available": true,
     "cmc": 6.0,
     "color_identity": [
      "R",
@@ -205093,6 +207391,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 9.0,
     "color_identity": [
      "U"
@@ -205396,6 +207695,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [],
     "colors": [],
@@ -205748,6 +208048,7 @@
       "type_line": "Token Creature — Zombie"
      }
     ],
+    "arena_available": true,
     "cmc": 4.0,
     "color_identity": [
      "B",
@@ -206037,6 +208338,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 4.0,
     "color_identity": [
      "R",
@@ -206230,6 +208532,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 3.0,
     "color_identity": [
      "R",
@@ -206389,6 +208692,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 4.0,
     "color_identity": [
      "R"
@@ -206434,6 +208738,7 @@
   "The Ring": {
    "phase_records": [],
    "scryfall": {
+    "arena_available": false,
     "card_faces": [
      {
       "colors": [],
@@ -206861,6 +209166,7 @@
       "type_line": "Token"
      }
     ],
+    "arena_available": true,
     "cmc": 5.0,
     "color_identity": [
      "B",
@@ -207165,6 +209471,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 5.0,
     "color_identity": [
      "B",
@@ -207389,6 +209696,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 5.0,
     "color_identity": [
      "B"
@@ -207571,6 +209879,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 9.0,
     "color_identity": [
      "U"
@@ -207754,6 +210063,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 5.0,
     "color_identity": [
      "B",
@@ -208109,6 +210419,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 4.0,
     "color_identity": [
      "R",
@@ -208351,6 +210662,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 2.0,
     "color_identity": [
      "B",
@@ -208608,6 +210920,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 4.0,
     "color_identity": [
      "B"
@@ -208804,6 +211117,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 2.0,
     "color_identity": [
      "B",
@@ -208981,6 +211295,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [],
     "colors": [],
@@ -209229,6 +211544,7 @@
       "type_line": "Token Creature — Beast"
      }
     ],
+    "arena_available": true,
     "cmc": 5.0,
     "color_identity": [
      "G"
@@ -209267,6 +211583,245 @@
     "power": "5",
     "toughness": "3",
     "type_line": "Creature — Beast"
+   }
+  },
+  "Thranduil, the Elvenking": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "~ has all activated abilities of all Elf cards in your graveyard.",
+       "duration": null,
+       "effect": {
+        "description": "Static pattern matched but line failed static parser: ~ has all activated abilities of all Elf cards in your graveyard.",
+        "name": "static_structure",
+        "type": "Unimplemented"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "brawl_commander": true,
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Elf",
+       "Noble"
+      ],
+      "supertypes": [
+       "Legendary"
+      ]
+     },
+     "color_identity": [
+      "Black",
+      "Green",
+      "Blue"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "is_commander": true,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "standard": "legal",
+      "standardbrawl": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 2,
+      "shards": [
+       "Black",
+       "Green",
+       "Blue"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "49539856-989e-4f95-8e67-9cff4408cd87",
+       "a416ca91-e646-40b4-824c-24aed6b9c683",
+       "fe2fe8fa-3b99-44c1-bab9-922e5c864952"
+      ]
+     },
+     "name": "Thranduil, the Elvenking",
+     "non_ability_text": null,
+     "oracle_text": "Thranduil has all activated abilities of all Elf cards in your graveyard.\nWhenever another legendary Elf you control enters, draw two cards, then discard a card.",
+     "power": {
+      "type": "Fixed",
+      "value": 5
+     },
+     "printings": [
+      "HOB"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2026-06-29",
+       "text": "Activated abilities contain a colon. They're generally written \"[Cost]: [Effect].\" Some keyword abilities are activated abilities and will have colons in their reminder text."
+      },
+      {
+       "date": "2026-06-29",
+       "text": "If Thranduil, the Elvenking gains a set of linked activated abilities (for example, one ability that exiles a card and another that refers to the card \"exiled with\" the object), that link only lasts for as long as Thranduil has those abilities. If it loses the abilities and then regains them, the link is lost."
+      },
+      {
+       "date": "2026-06-29",
+       "text": "If an activated ability of an Elf card in your graveyard references the card it's printed on by name, treat Thranduil, the Elvenking's instance of that ability as though it referenced Thranduil by name instead."
+      }
+     ],
+     "scryfall_oracle_id": "4a5f76e7-40be-4b06-9935-4a3b2672e1c2",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 6
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "Whenever another legendary Elf you control enters, draw two cards, then discard a card.",
+       "destination": "Battlefield",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "count": {
+          "type": "Fixed",
+          "value": 2
+         },
+         "target": {
+          "type": "Controller"
+         },
+         "type": "Draw"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": null,
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "count": {
+           "type": "Fixed",
+           "value": 1
+          },
+          "target": {
+           "type": "Controller"
+          },
+          "type": "Discard"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": null,
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "mode": "ChangesZone",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "controller": "You",
+        "properties": [
+         {
+          "type": "HasSupertype",
+          "value": "Legendary"
+         },
+         {
+          "type": "Another"
+         }
+        ],
+        "type": "Typed",
+        "type_filters": [
+         {
+          "Subtype": "Elf"
+         }
+        ]
+       },
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 5.0,
+    "color_identity": [
+     "B",
+     "G",
+     "U"
+    ],
+    "colors": [
+     "B",
+     "G",
+     "U"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "legal",
+     "standardbrawl": "legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{2}{B}{G}{U}",
+    "name": "Thranduil, the Elvenking",
+    "oracle_id": "4a5f76e7-40be-4b06-9935-4a3b2672e1c2",
+    "oracle_text": "Thranduil has all activated abilities of all Elf cards in your graveyard.\nWhenever another legendary Elf you control enters, draw two cards, then discard a card.",
+    "power": "5",
+    "toughness": "6",
+    "type_line": "Legendary Creature — Elf Noble"
    }
   },
   "Thrasta, Tempest's Roar": {
@@ -209434,6 +211989,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 12.0,
     "color_identity": [
      "G"
@@ -209592,6 +212148,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "B"
@@ -209769,6 +212326,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 2.0,
     "color_identity": [
      "W"
@@ -209944,6 +212502,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 2.0,
     "color_identity": [],
     "colors": [],
@@ -210074,6 +212633,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 5.0,
     "color_identity": [],
     "colors": [],
@@ -210440,6 +213000,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 5.0,
     "color_identity": [
      "G"
@@ -210708,6 +213269,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 4.0,
     "color_identity": [
      "R",
@@ -210854,6 +213416,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 1.0,
     "color_identity": [
      "G"
@@ -210992,6 +213555,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 2.0,
     "color_identity": [
      "U"
@@ -211183,6 +213747,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 1.0,
     "color_identity": [
      "B"
@@ -211473,6 +214038,7 @@
       "type_line": "Token Artifact — Clue"
      }
     ],
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "G"
@@ -211740,6 +214306,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 3.0,
     "color_identity": [
      "B"
@@ -211910,6 +214477,7 @@
       "type_line": "Token Creature — Zombie"
      }
     ],
+    "arena_available": false,
     "cmc": 4.0,
     "color_identity": [
      "U",
@@ -212178,6 +214746,7 @@
       "type_line": "Token Legendary Creature — Wolf"
      }
     ],
+    "arena_available": true,
     "cmc": 5.0,
     "color_identity": [
      "G",
@@ -212225,6 +214794,7 @@
   "Tomb of Annihilation": {
    "phase_records": [],
    "scryfall": {
+    "arena_available": false,
     "cmc": 0.0,
     "color_identity": [],
     "colors": [],
@@ -212476,6 +215046,7 @@
       "type_line": "Token Artifact — Map"
      }
     ],
+    "arena_available": false,
     "cmc": 3.0,
     "color_identity": [
      "G"
@@ -212855,6 +215426,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 1.0,
     "color_identity": [
      "R"
@@ -213073,6 +215645,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 4.0,
     "color_identity": [
      "G"
@@ -213667,6 +216240,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "card_faces": [
      {
       "colors": [
@@ -213881,6 +216455,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "B"
@@ -214048,6 +216623,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 5.0,
     "color_identity": [
      "W"
@@ -214343,6 +216919,7 @@
       "type_line": "Token Artifact — Food"
      }
     ],
+    "arena_available": true,
     "cmc": 2.0,
     "color_identity": [
      "G"
@@ -214742,6 +217319,7 @@
       "type_line": "Token Artifact — Clue"
      }
     ],
+    "arena_available": true,
     "cmc": 5.0,
     "color_identity": [],
     "colors": [],
@@ -214932,6 +217510,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 2.0,
     "color_identity": [
      "W"
@@ -215235,6 +217814,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 0.0,
     "color_identity": [
      "G"
@@ -215360,6 +217940,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 6.0,
     "color_identity": [
      "B"
@@ -215512,6 +218093,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 2.0,
     "color_identity": [
      "G"
@@ -215715,6 +218297,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 6.0,
     "color_identity": [],
     "colors": [],
@@ -215886,6 +218469,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 7.0,
     "color_identity": [
      "U"
@@ -216128,6 +218712,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 4.0,
     "color_identity": [
      "G",
@@ -216342,6 +218927,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 4.0,
     "color_identity": [
      "R",
@@ -216536,6 +219122,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 4.0,
     "color_identity": [
      "W"
@@ -216783,6 +219370,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 3.0,
     "color_identity": [
      "G",
@@ -216936,6 +219524,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 1.0,
     "color_identity": [
      "G"
@@ -217127,6 +219716,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 2.0,
     "color_identity": [
      "U"
@@ -217366,6 +219956,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 7.0,
     "color_identity": [],
     "colors": [],
@@ -217619,6 +220210,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "B",
@@ -217976,6 +220568,7 @@
       "type_line": "Token Creature — Spirit"
      }
     ],
+    "arena_available": true,
     "cmc": 6.0,
     "color_identity": [],
     "colors": [],
@@ -218225,6 +220818,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 5.0,
     "color_identity": [
      "B",
@@ -218420,6 +221014,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "G",
@@ -218470,6 +221065,7 @@
   "Undercity": {
    "phase_records": [],
    "scryfall": {
+    "arena_available": false,
     "card_faces": [
      {
       "colors": [],
@@ -218756,6 +221352,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 5.0,
     "color_identity": [
      "B",
@@ -218942,6 +221539,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 3.0,
     "color_identity": [
      "B"
@@ -219125,6 +221723,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "B"
@@ -219350,6 +221949,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 3.0,
     "color_identity": [
      "R"
@@ -219507,6 +222107,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 2.0,
     "color_identity": [
      "W"
@@ -219735,6 +222336,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 4.0,
     "color_identity": [
      "W"
@@ -219875,6 +222477,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 2.0,
     "color_identity": [
      "R"
@@ -220052,6 +222655,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 2.0,
     "color_identity": [
      "B"
@@ -220227,6 +222831,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 2.0,
     "color_identity": [
      "G"
@@ -220416,6 +223021,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 1.0,
     "color_identity": [
      "U"
@@ -220545,6 +223151,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 6.0,
     "color_identity": [],
     "colors": [],
@@ -220936,6 +223543,7 @@
       "type_line": "Token Artifact Creature — Construct"
      }
     ],
+    "arena_available": true,
     "cmc": 4.0,
     "color_identity": [
      "U"
@@ -221205,6 +223813,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 6.0,
     "color_identity": [
      "B",
@@ -221417,6 +224026,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 3.0,
     "color_identity": [
      "B",
@@ -221683,6 +224293,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "B"
@@ -221822,6 +224433,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 4.0,
     "color_identity": [],
     "colors": [],
@@ -221993,6 +224605,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "U",
@@ -222165,6 +224778,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 7.0,
     "color_identity": [
      "R"
@@ -222409,6 +225023,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 2.0,
     "color_identity": [
      "G"
@@ -222715,6 +225330,7 @@
       "type_line": "Token"
      }
     ],
+    "arena_available": true,
     "cmc": 2.0,
     "color_identity": [
      "G",
@@ -222912,6 +225528,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 3.0,
     "color_identity": [
      "G"
@@ -223120,6 +225737,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 2.0,
     "color_identity": [
      "B",
@@ -223392,6 +226010,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 3.0,
     "color_identity": [
      "U"
@@ -223628,6 +226247,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 8.0,
     "color_identity": [
      "B"
@@ -223835,6 +226455,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "B",
@@ -223986,6 +226607,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "B",
@@ -224245,6 +226867,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 4.0,
     "color_identity": [
      "B"
@@ -224394,6 +227017,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 6.0,
     "color_identity": [
      "B"
@@ -224564,6 +227188,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 1.0,
     "color_identity": [
      "B"
@@ -224726,6 +227351,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 4.0,
     "color_identity": [
      "G",
@@ -224928,6 +227554,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 3.0,
     "color_identity": [
      "G",
@@ -225203,6 +227830,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 8.0,
     "color_identity": [
      "G"
@@ -225400,6 +228028,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 3.0,
     "color_identity": [
      "W"
@@ -225576,6 +228205,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 3.0,
     "color_identity": [
      "B"
@@ -225906,6 +228536,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 4.0,
     "color_identity": [
      "B",
@@ -226076,6 +228707,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 5.0,
     "color_identity": [],
     "colors": [],
@@ -226273,6 +228905,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 3.0,
     "color_identity": [
      "G",
@@ -226584,6 +229217,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 8.0,
     "color_identity": [
      "R"
@@ -226775,6 +229409,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 0.0,
     "color_identity": [],
     "colors": [],
@@ -226967,6 +229602,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 5.0,
     "color_identity": [
      "R",
@@ -227225,6 +229861,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 1.0,
     "color_identity": [],
     "colors": [],
@@ -227414,6 +230051,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 2.0,
     "color_identity": [
      "G"
@@ -227644,6 +230282,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 5.0,
     "color_identity": [
      "B"
@@ -227818,6 +230457,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 3.0,
     "color_identity": [
      "R"
@@ -228021,6 +230661,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 6.0,
     "color_identity": [
      "G"
@@ -228287,6 +230928,7 @@
       "type_line": "Token Artifact Creature — Thopter"
      }
     ],
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "R",
@@ -228508,6 +231150,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 1.0,
     "color_identity": [
      "G"
@@ -228685,6 +231328,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 6.0,
     "color_identity": [
      "R"
@@ -228872,6 +231516,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 2.0,
     "color_identity": [
      "G"
@@ -229195,6 +231840,7 @@
       "type_line": "Token Creature — Zombie"
      }
     ],
+    "arena_available": false,
     "cmc": 4.0,
     "color_identity": [
      "B",
@@ -229383,6 +232029,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 2.0,
     "color_identity": [
      "G"
@@ -229664,6 +232311,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 4.0,
     "color_identity": [
      "R",
@@ -229924,6 +232572,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "R"
@@ -230162,6 +232811,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 5.0,
     "color_identity": [
      "R"
@@ -230368,6 +233018,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 4.0,
     "color_identity": [
      "W"
@@ -230664,6 +233315,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 6.0,
     "color_identity": [
      "G",
@@ -230907,6 +233559,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 6.0,
     "color_identity": [
      "U"
@@ -231035,6 +233688,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 6.0,
     "color_identity": [
      "B",
@@ -231232,6 +233886,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 5.0,
     "color_identity": [
      "B",
@@ -231575,6 +234230,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 4.0,
     "color_identity": [
      "G",
@@ -231713,6 +234369,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 5.0,
     "color_identity": [
      "R"
@@ -231919,6 +234576,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 5.0,
     "color_identity": [
      "G"
@@ -232078,6 +234736,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 4.0,
     "color_identity": [
      "G"
@@ -232254,6 +234913,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 7.0,
     "color_identity": [
      "W"
@@ -232386,6 +235046,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 5.0,
     "color_identity": [
      "R"
@@ -232678,6 +235339,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 3.0,
     "color_identity": [
      "B",
@@ -232954,6 +235616,7 @@
       "type_line": "Token Creature — Hydra"
      }
     ],
+    "arena_available": false,
     "cmc": 4.0,
     "color_identity": [
      "B",
@@ -233237,6 +235900,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 4.0,
     "color_identity": [
      "R",
@@ -233453,6 +236117,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 7.0,
     "color_identity": [
      "G"
@@ -233655,6 +236320,7 @@
       "type_line": "Token Creature — Griffin"
      }
     ],
+    "arena_available": false,
     "cmc": 4.0,
     "color_identity": [
      "W"
@@ -233808,6 +236474,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 6.0,
     "color_identity": [
      "B"
@@ -233939,6 +236606,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 7.0,
     "color_identity": [
      "U"
@@ -234197,6 +236865,7 @@
       "type_line": "Token"
      }
     ],
+    "arena_available": false,
     "cmc": 3.0,
     "color_identity": [
      "R",
@@ -234366,6 +237035,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 3.0,
     "color_identity": [
      "R"
@@ -234616,6 +237286,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 2.0,
     "color_identity": [
      "R"
@@ -234858,6 +237529,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": false,
     "cmc": 4.0,
     "color_identity": [
      "B",
@@ -235056,6 +237728,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 1.0,
     "color_identity": [
      "R"
@@ -235292,6 +237965,7 @@
     }
    ],
    "scryfall": {
+    "arena_available": true,
     "cmc": 5.0,
     "color_identity": [
      "B",

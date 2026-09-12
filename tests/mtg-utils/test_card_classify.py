@@ -472,23 +472,17 @@ class TestIsCommander:
         result = is_commander(card)
         assert result == {"eligible": False, "requires_partner": False}
 
-    def test_legendary_planeswalker_commander_format(self):
+    def test_legendary_planeswalker_requires_text_by_default(self):
+        # Commander's rule: a planeswalker needs "can be your commander".
         card = {"type_line": "Legendary Planeswalker — Jace"}
-        result = is_commander(card, format="commander")
+        result = is_commander(card)
         assert result == {"eligible": False, "requires_partner": False}
 
-    def test_legendary_planeswalker_brawl_format(self):
+    def test_legendary_planeswalker_eligible_when_text_not_required(self):
+        # The Brawl family's rule arrives as the flag (Format passes its own).
         card = {"type_line": "Legendary Planeswalker — Jace"}
-        result = is_commander(card, format="brawl")
+        result = is_commander(card, planeswalker_commander_requires_text=False)
         assert result == {"eligible": True, "requires_partner": False}
-
-    def test_legendary_planeswalker_brawl_family_formats(self):
-        # The rule is config-driven (planeswalker_commander_requires_text=False),
-        # so every Brawl variant admits a planeswalker commander.
-        card = {"type_line": "Legendary Planeswalker — Jace"}
-        for fmt in ("historic_brawl", "competitive_brawl"):
-            result = is_commander(card, format=fmt)
-            assert result == {"eligible": True, "requires_partner": False}, fmt
 
     def test_can_be_your_commander_text(self):
         card = {
@@ -528,57 +522,6 @@ class TestIsCommander:
         card = {"type_line": "Instant"}
         result = is_commander(card)
         assert result == {"eligible": False, "requires_partner": False}
-
-
-class TestIsCommanderLegality:
-    """Eligibility includes FORMAT LEGALITY, keyed to the right field per format
-    (commander→commander, brawl→standardbrawl, historic_brawl→brawl). The gate only
-    applies when legality data is present, so type-line-only fixtures still work."""
-
-    def test_not_legal_commander_excluded(self):
-        card = {
-            "type_line": "Legendary Creature — Human Designer",
-            "legalities": {"commander": "not_legal"},
-        }
-        assert is_commander(card, format="commander")["eligible"] is False
-
-    def test_banned_commander_excluded(self):
-        card = {
-            "type_line": "Legendary Creature — Human",
-            "legalities": {"commander": "banned"},
-        }
-        assert is_commander(card, format="commander")["eligible"] is False
-
-    def test_legal_commander_included(self):
-        card = {
-            "type_line": "Legendary Creature — Dragon",
-            "legalities": {"commander": "legal"},
-        }
-        assert is_commander(card, format="commander")["eligible"] is True
-
-    def test_format_specific_legality_uses_correct_key(self):
-        # Legal in Historic Brawl (key "brawl") only — illegal in Commander and Brawl.
-        card = {
-            "type_line": "Legendary Planeswalker — Teferi",
-            "legalities": {
-                "commander": "not_legal",
-                "brawl": "legal",
-                "standardbrawl": "not_legal",
-            },
-        }
-        assert is_commander(card, format="historic_brawl")["eligible"] is True
-        assert is_commander(card, format="commander")["eligible"] is False
-        assert is_commander(card, format="brawl")["eligible"] is False
-
-    def test_missing_legalities_falls_back_to_typeline(self):
-        # No legality data → preserve the original type-line-only behavior.
-        card = {"type_line": "Legendary Creature — Dragon"}
-        assert is_commander(card, format="commander")["eligible"] is True
-
-    def test_legality_gate_does_not_promote_noncommanders(self):
-        # Being "legal" doesn't make a non-legendary instant a commander.
-        card = {"type_line": "Instant", "legalities": {"commander": "legal"}}
-        assert is_commander(card, format="commander")["eligible"] is False
 
 
 class TestClassifyCubeCategory:

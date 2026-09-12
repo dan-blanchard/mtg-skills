@@ -94,6 +94,7 @@ import click
 
 from mtg_utils._sidecar import atomic_write_json
 from mtg_utils.bulk_loader import load_bulk_cards
+from mtg_utils.formats import COMMANDER_FORMATS, FORMATS
 
 # The exact anchor string that marks a login-time API response in the
 # Arena log. The StartHook response carries ``InventoryInfo`` (wildcards
@@ -127,12 +128,6 @@ _ARENA_PLAYSET_CAP = 4
 # cosmetic ``format`` / ``deck_size`` field on the collection output so
 # it structurally matches what ``parse-deck`` produces — no downstream
 # script reads these fields from the collection side.
-_FORMAT_DECK_SIZES = {
-    "commander": 100,
-    "brawl": 60,
-    "historic_brawl": 100,
-    "competitive_brawl": 100,
-}
 
 # Freshness thresholds. These are nudges, not gates — the importer
 # still emits its output when a warning fires. The 48h mtime window is
@@ -750,7 +745,7 @@ def _build_collection_json(
     total_cards = sum(int(entry["quantity"]) for entry in cards)
     return {
         "format": format,
-        "deck_size": _FORMAT_DECK_SIZES.get(format, 100),
+        "deck_size": FORMATS[format].deck_size,
         "commanders": [],
         "cards": cards,
         "total_cards": total_cards,
@@ -878,7 +873,7 @@ def _chown_outputs_to_sudo_user(*paths: Path | None) -> None:
 @click.option(
     "--format",
     "format_",
-    type=click.Choice(sorted(_FORMAT_DECK_SIZES), case_sensitive=False),
+    type=click.Choice(sorted(COMMANDER_FORMATS), case_sensitive=False),
     default="historic_brawl",
     help="Cosmetic format stamp for the collection JSON. Downstream "
     "scripts read their own --format flag; this field is purely "

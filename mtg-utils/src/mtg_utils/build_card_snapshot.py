@@ -68,6 +68,7 @@ _SCRY_FIELDS = (
     "color_identity",
     "colors",
     "legalities",
+    "arena_available",
     "layout",
     "card_faces",
     "all_parts",

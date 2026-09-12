@@ -30,7 +30,7 @@ from mtg_utils._tuner.tune import TuneParams
 from mtg_utils._tuner.tune import tune as run_tune
 from mtg_utils.companion import is_companion
 from mtg_utils.deck_stats import deck_stats
-from mtg_utils.format_config import is_arena_only_format
+from mtg_utils.formats import COMMANDER_FORMATS, FORMATS
 from mtg_utils.mana_audit import mana_audit, reconcile_basic_lands
 from mtg_utils.parse_deck import parse_deck_text
 from mtg_utils.theme_presets import list_presets
@@ -334,7 +334,7 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
         commander / brawl / historic_brawl / competitive_brawl).
         The deck's cards are kept; everything format-dependent (deck size, land floor,
         legality, commander eligibility) re-derives on the next snapshot."""
-        if payload.format not in engine.SUPPORTED_FORMATS:
+        if payload.format not in COMMANDER_FORMATS:
             return JSONResponse(
                 {"error": f"unsupported format: {payload.format!r}"}, status_code=400
             )
@@ -355,7 +355,7 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
             )
         if payload.medium == "digital" and state.session.format == "commander":
             return JSONResponse({"error": "commander is paper-only"}, status_code=400)
-        if payload.medium == "paper" and is_arena_only_format(state.session.format):
+        if payload.medium == "paper" and FORMATS[state.session.format].is_arena_only:
             return JSONResponse(
                 {"error": f"{state.session.format} is Arena-only"}, status_code=400
             )
@@ -650,7 +650,7 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
         seed a fresh session, switch to it. Never overwrites the live build; never
         guesses a commander — an unmarked list lands as a pile in ``cards`` that the
         user promotes from (the DeckList ★)."""
-        if payload.format not in engine.SUPPORTED_FORMATS:
+        if payload.format not in COMMANDER_FORMATS:
             return JSONResponse(
                 {"error": f"unsupported format: {payload.format!r}"}, status_code=400
             )

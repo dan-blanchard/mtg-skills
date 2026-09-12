@@ -16,7 +16,6 @@ from pathlib import Path
 
 from mtg_utils._mtgjson.adapter import (
     aggregate_legalities,
-    gate_arena_formats,
     token_part,
     translate_card,
 )
@@ -94,7 +93,8 @@ def flatten(data: dict, *, price_index: dict | None = None) -> list[dict]:
     card_by_uuid: dict[str, dict] = {}
     # Oracle-level legalities: gather every printing's legalities per oracle_id so an
     # oversized/promo printing can't make a legal card read not_legal (see adapter).
-    # Also track per-oracle Arena availability to gate the Arena-only formats.
+    # Also track per-oracle Arena availability: it rides on each record as
+    # ``arena_available``; ``formats.Format.legality`` gates Arena-pool formats on it.
     raw_leg: dict[str, list[dict | None]] = {}
     arena: dict[str, bool] = {}
     for s in data.values():
@@ -111,10 +111,7 @@ def flatten(data: dict, *, price_index: dict | None = None) -> list[dict]:
                     "arena" in (c.get("availability") or [])
                 )
     legalities_index = {
-        oid: gate_arena_formats(
-            aggregate_legalities(legs), arena_available=arena.get(oid, False)
-        )
-        for oid, legs in raw_leg.items()
+        oid: aggregate_legalities(legs) for oid, legs in raw_leg.items()
     }
 
     # Oracle-level token graph: a representative token record per token oracle_id, and
@@ -165,6 +162,7 @@ def flatten(data: dict, *, price_index: dict | None = None) -> list[dict]:
                     token_parts=token_parts_by_oid.get(moid) if moid else None,
                     card_by_uuid=card_by_uuid,
                     legalities_index=legalities_index,
+                    arena_index=arena,
                     set_meta=set_meta,
                 )
             )

@@ -566,18 +566,50 @@ def test_translate_uses_oracle_legalities_index():
     assert rec["legalities"]["modern"] == "not_legal"  # index overrides own
 
 
-def test_gate_arena_formats_forces_not_legal_off_arena():
-    leg = dict.fromkeys(adapter._LEGALITY_FORMATS, "legal")
-    out = adapter.gate_arena_formats(leg, arena_available=False)
-    assert out["historic"] == "not_legal"
-    assert out["brawl"] == "not_legal"
-    assert out["timeless"] == "not_legal"
-    assert out["commander"] == "legal"  # paper format untouched
+def _printing(name="Card", **over):
+    base = {
+        "name": name,
+        "uuid": "u1",
+        "identifiers": {"scryfallOracleId": "oid-1", "scryfallId": "sid-1"},
+        "type": "Instant",
+        "types": ["Instant"],
+        "manaValue": 1.0,
+        "colorIdentity": ["R"],
+        "layout": "normal",
+        "availability": ["paper"],
+        "legalities": {"brawl": "Legal", "commander": "Legal"},
+        "setCode": "XYZ",
+        "rarity": "common",
+    }
+    base.update(over)
+    return base
 
 
-def test_gate_arena_formats_noop_when_arena_available():
-    leg = dict.fromkeys(adapter._LEGALITY_FORMATS, "legal")
-    assert adapter.gate_arena_formats(leg, arena_available=True) == leg
+def test_translate_arena_available_from_oracle_index():
+    rec = adapter.translate_card([_printing()], arena_index={"oid-1": True})
+    assert rec["arena_available"] is True
+    rec = adapter.translate_card([_printing()], arena_index={"oid-1": False})
+    assert rec["arena_available"] is False
+
+
+def test_translate_arena_available_falls_back_to_the_printing():
+    # No oracle index (a lone printing, a token): the printing's own availability.
+    assert adapter.translate_card([_printing()])["arena_available"] is False
+    on_arena = _printing(availability=["arena", "paper"])
+    assert adapter.translate_card([on_arena])["arena_available"] is True
+
+
+def test_translate_legalities_are_never_rewritten_by_availability():
+    # The retired adapter gate forced Arena-only formats to not_legal off Arena;
+    # ``formats.Format.legality`` now gates on arena_available instead, so the
+    # aggregated status survives verbatim.
+    rec = adapter.translate_card([_printing()], arena_index={"oid-1": False})
+    assert rec["legalities"]["brawl"] == "legal"
+
+
+def test_translate_reprint_from_is_reprint():
+    assert adapter.translate_card([_printing(isReprint=True)])["reprint"] is True
+    assert adapter.translate_card([_printing()])["reprint"] is False
 
 
 def test_translate_cmc_defaults_zero_when_manavalue_absent():

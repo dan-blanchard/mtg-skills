@@ -14,7 +14,8 @@ from collections.abc import Callable, Mapping
 
 from mtg_utils._deck_forge.images import image_urls
 from mtg_utils._deck_forge.state import ForgeState
-from mtg_utils.card_classify import get_mana_cost, get_oracle_text, is_commander
+from mtg_utils.card_classify import get_mana_cost, get_oracle_text
+from mtg_utils.formats import FORMATS
 
 # "companion" is a rendered zone like any other, but it is outside the game
 # (CR 702.139a-b) — deck-size and budget math exclude it upstream in ``engine``.
@@ -34,6 +35,13 @@ def printing_view(record: dict) -> dict:
         "prices": record.get("prices", {}),
         "images": image_urls(record),
     }
+
+
+def _unreleased_set(record: dict, *, unreleased: bool) -> frozenset[str]:
+    """The oracle-level set ``Format`` reads — just this record's id when the caller
+    has already established it is a pre-release card."""
+    oid = record.get("oracle_id")
+    return frozenset({oid}) if unreleased and oid else frozenset()
 
 
 def project(record: dict, fmt: str, *, unreleased: bool = False) -> dict:
@@ -65,9 +73,9 @@ def project(record: dict, fmt: str, *, unreleased: bool = False) -> dict:
         # A pre-release legend has no legal format yet, so the default gate would
         # report it commander-ineligible and the SPA would render its ★ disabled —
         # searchable but un-buildable. Judge those on type/oracle alone.
-        "can_be_commander": is_commander(record, fmt, ignore_legality=unreleased)[
-            "eligible"
-        ],
+        "can_be_commander": FORMATS[fmt].commander_eligibility(
+            record, unreleased=_unreleased_set(record, unreleased=unreleased)
+        )["eligible"],
         "layout": record.get("layout", ""),
     }
     if unreleased:

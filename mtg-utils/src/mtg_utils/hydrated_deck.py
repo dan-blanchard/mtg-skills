@@ -30,6 +30,7 @@ from pathlib import Path
 from typing import Protocol
 
 from mtg_utils.card_classify import build_card_lookup
+from mtg_utils.formats import Format
 
 
 class _DeckSource(Protocol):
@@ -65,16 +66,19 @@ def _has_stub(records: list[dict | None]) -> bool:
 class HydratedDeck:
     """An immutable deck + its joined Scryfall records (see module docstring)."""
 
-    __slots__ = ("_by_name", "_deck", "_records")
+    __slots__ = ("_by_name", "_deck", "_format", "_records")
 
     def __init__(self, deck: dict, records: list[dict]) -> None:
         """Internal. Use ``from_session`` / ``from_paths`` / ``from_parsed``.
 
-        ``records`` must already be the resolved, distinct, no-None projection.
+        ``records`` must already be the resolved, distinct, no-None projection. The
+        deck's format (and its explicit ``deck_size``) is resolved here, so an unknown
+        format or an impossible size fails at the boundary, not deep in an audit.
         """
         self._deck = deck
         self._records = records
         self._by_name = build_card_lookup(records)
+        self._format = Format.for_deck(deck)
 
     # --- constructors ----------------------------------------------------------
 
@@ -209,8 +213,10 @@ class HydratedDeck:
     # --- zone pass-throughs ----------------------------------------------------
 
     @property
-    def format(self) -> str:
-        return self._deck.get("format", "commander")
+    def format(self) -> Format:
+        """The deck's ``Format`` with its own ``deck_size`` applied — every analysis
+        reads legality / size / family from here, never from the raw dict."""
+        return self._format
 
     @property
     def commanders(self) -> list[dict]:

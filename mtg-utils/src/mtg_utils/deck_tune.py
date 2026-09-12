@@ -23,13 +23,9 @@ from pathlib import Path
 import click
 
 from mtg_utils import card_search, combo_search
-from mtg_utils._deck_forge.state import _default_medium
 from mtg_utils._tuner.tune import TuneParams, tune
-from mtg_utils.format_config import COMMANDER_FORMATS
+from mtg_utils.formats import COMMANDER_FORMATS
 from mtg_utils.hydrated_deck import HydratedDeck
-
-# The tuner core (and so deck-tune) is built for the Commander family only.
-_COMMANDER_FAMILY = frozenset(COMMANDER_FORMATS)
 
 
 def _ensure_ir() -> None:
@@ -118,18 +114,23 @@ def main(
     """Diagnose DECK_JSON + HYDRATED_JSON and (with --max-swaps) propose swaps."""
     _ensure_ir()  # build the sidecar before tune()'s first ir_for lookup
     hd = HydratedDeck.from_paths(deck_json, hydrated_json)
-    if hd.format not in _COMMANDER_FAMILY:
+    fmt = hd.format
+    if not fmt.has_commander:
         raise click.ClickException(
             f"deck-tune is Commander-family only ({' / '.join(COMMANDER_FORMATS)}); "
-            f"got {hd.format!r} — 60-card constructed stays on the agent pipeline."
+            f"got {fmt.name!r} — 60-card constructed stays on the agent pipeline."
+        )
+    if medium is not None and medium not in fmt.media:
+        raise click.ClickException(
+            f"{fmt.name} is not played in {medium!r} (media: {', '.join(fmt.media)})"
         )
 
-    # ADR-0040 §4 fix: infer medium the same way deck-forge's DeckSession does
-    # (the Arena Brawl formats default digital) so the digital null-rank fix
-    # actually engages on the CLI path — the ADR's own motivating benchmark
-    # was a Historic Brawl deck. paper_only threads consistently with the
-    # (inferred or explicit) medium unless the caller overrides it directly.
-    effective_medium = medium or _default_medium(hd.format)
+    # ADR-0040 §4 fix: the Format resolves the medium the same way deck-forge's
+    # DeckSession does (the Arena Brawl formats default digital) so the digital
+    # null-rank fix actually engages on the CLI path — the ADR's own motivating
+    # benchmark was a Historic Brawl deck. paper_only threads consistently with
+    # the (inferred or explicit) medium unless the caller overrides it directly.
+    effective_medium = fmt.resolve_medium(medium)
     effective_paper_only = (
         paper_only if paper_only is not None else effective_medium != "digital"
     )

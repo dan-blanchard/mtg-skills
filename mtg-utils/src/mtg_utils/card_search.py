@@ -18,10 +18,9 @@ from mtg_utils.card_classify import (
     color_identity_subset,
     extract_price,
     get_oracle_text,
-    is_commander,
     type_line_has,
 )
-from mtg_utils.format_config import FORMAT_CONFIGS, is_arena_format
+from mtg_utils.formats import FORMATS, Format, get_format
 from mtg_utils.theme_presets import PRESETS, Preset, get_preset
 
 _extract_price = extract_price
@@ -136,12 +135,11 @@ def _matches_filters(
     price_min: float | None,
     price_max: float | None,
     exact_colors: bool = False,
-    legality_key: str = "commander",
+    fmt: Format = FORMATS["commander"],
     arena_only: bool = False,
     paper_only: bool = False,
     unreleased_ok: frozenset[str] | None = None,
     is_commander_filter: bool = False,
-    commander_format: str = "commander",
     presets: tuple[Preset, ...] = (),
 ) -> bool:
     # Skip tokens and non-game cards
@@ -152,9 +150,11 @@ def _matches_filters(
     # A pre-release card is legal nowhere yet, so the format gate would reject it on
     # data that is provisional rather than final. ``unreleased_ok`` is the opt-in
     # escape hatch (--include-unreleased) that admits exactly those, and nothing else.
-    legalities = card.get("legalities", {})
-    if legalities.get(legality_key) not in ("legal", "restricted") and (
-        unreleased_ok is None or card.get("oracle_id") not in unreleased_ok
+    unreleased = unreleased_ok or frozenset()
+    if fmt.legality(card, unreleased=unreleased) not in (
+        "legal",
+        "restricted",
+        "unreleased",
     ):
         return False
     games = card.get("games") or []
@@ -209,22 +209,17 @@ def _matches_filters(
         return False
 
     if is_commander_filter:
-        # A pre-release legend is commander-eligible on type line but not yet legal
-        # anywhere, so judge it on type/oracle alone — otherwise "commanders only"
-        # AND "include unreleased" together would return nothing, which is exactly
-        # the combination someone brewing around a spoiled commander reaches for.
-        unreleased = (
-            unreleased_ok is not None and card.get("oracle_id") in unreleased_ok
-        )
-        return is_commander(card, format=commander_format, ignore_legality=unreleased)[
-            "eligible"
-        ]
+        # A pre-release legend counts (``commander_eligibility`` admits the
+        # ``unreleased`` status) — otherwise "commanders only" AND "include unreleased"
+        # together would return nothing, which is exactly the combination someone
+        # brewing around a spoiled commander reaches for.
+        return fmt.commander_eligibility(card, unreleased=unreleased)["eligible"]
 
     return True
 
 
 # Cached format-invariant "playable" subsets of bulk, keyed by
-# (path, sidecar mtime, legality_key, arena_only, paper_only, include_unreleased). The
+# (path, sidecar mtime, format, arena_only, paper_only, include_unreleased). The
 # legality / layout / game (paper|arena) filters don't depend on the per-query filters
 # (colors, oracle, type, cmc, price, presets), so we compute that subset ONCE per format
 # and rescan only it. For an Arena format that's ~7k cards vs all ~114k bulk records —
@@ -240,7 +235,7 @@ def _playable_pool(
     bulk_path: Path,
     cards: list[dict],
     *,
-    legality_key: str,
+    fmt: Format,
     arena_only: bool,
     paper_only: bool,
     unreleased_ok: frozenset[str] | None = None,
@@ -248,7 +243,7 @@ def _playable_pool(
     key = (
         str(bulk_path),
         bulk_mtime(bulk_path),
-        legality_key,
+        fmt.name,
         arena_only,
         paper_only,
         unreleased_ok is not None,
@@ -270,7 +265,7 @@ def _playable_pool(
                 cmc_max=None,
                 price_min=None,
                 price_max=None,
-                legality_key=legality_key,
+                fmt=fmt,
                 arena_only=arena_only,
                 paper_only=paper_only,
                 unreleased_ok=unreleased_ok,
@@ -334,17 +329,14 @@ def search_cards(
     — banned, restricted, and never-legal cards are unaffected — and it does not assert
     the requested format's legality, which is unknowable before release.
     """
-    if format is not None:
-        legality_key = FORMAT_CONFIGS[format]["legality_key"]
-    else:
-        legality_key = "commander"
+    fmt = get_format(format) if format is not None else FORMATS["commander"]
 
     # Arena-native formats: without implying arena_only, the subsequent
     # cheapest-printing dedup would happily pick a paper-only printing,
     # reporting (e.g.) Ephemerate as a common even though the only
     # Arena-legal printing is a Historic Anthology rare.
     # --paper-only remains an explicit escape hatch for the rare paper case.
-    if format is not None and is_arena_format(format) and not paper_only:
+    if format is not None and fmt.is_arena and not paper_only:
         arena_only = True
 
     allowed_colors = set(color_identity.upper()) if color_identity else None
@@ -394,7 +386,7 @@ def search_cards(
     pool = _playable_pool(
         bulk_path,
         cards,
-        legality_key=legality_key,
+        fmt=fmt,
         arena_only=arena_only,
         paper_only=paper_only,
         unreleased_ok=unreleased_ok,
@@ -415,12 +407,11 @@ def search_cards(
             price_min=price_min,
             price_max=price_max,
             exact_colors=exact_colors,
-            legality_key=legality_key,
+            fmt=fmt,
             arena_only=arena_only,
             paper_only=paper_only,
             unreleased_ok=unreleased_ok,
             is_commander_filter=is_commander_filter,
-            commander_format=format or "commander",
             presets=presets,
         )
     ]
@@ -530,7 +521,7 @@ def format_results(cards: list[dict]) -> str:
 @click.option(
     "--format",
     "card_format",
-    type=click.Choice(sorted(FORMAT_CONFIGS.keys())),
+    type=click.Choice(sorted(FORMATS)),
     default=None,
     help="Filter by format legality.",
 )

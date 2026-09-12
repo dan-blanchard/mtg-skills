@@ -204,7 +204,7 @@ def test_deck_and_zone_passthroughs():
     deck = _deck()
     hd = HydratedDeck.from_parsed(deck, BY_NAME)
     assert hd.deck is deck  # untouched, by reference
-    assert hd.format == "commander"
+    assert hd.format.name == "commander"
     assert [c["name"] for c in hd.commanders] == ["Marwyn, the Nurturer"]
     assert len(hd.cards) == 4
     assert hd.sideboard == []
@@ -212,7 +212,7 @@ def test_deck_and_zone_passthroughs():
 
 def test_format_defaults_to_commander():
     hd = HydratedDeck.from_parsed({"cards": []}, BY_NAME)
-    assert hd.format == "commander"
+    assert hd.format.name == "commander"
 
 
 # --- constructors ---------------------------------------------------------------

@@ -1,36 +1,30 @@
 """Smoke tests: verify the deck-wizard package installs and key modules resolve."""
 
-from mtg_utils.format_config import (
-    FORMAT_CONFIGS,
-    is_arena_format,
-    is_constructed_format,
-)
+from mtg_utils.formats import FORMATS
 from mtg_utils.mana_audit import constructed_land_target
 
 
-class TestFormatConfig:
+class TestFormats:
     def test_arena_formats(self):
         for fmt in ("standard", "alchemy", "historic", "timeless", "pioneer"):
-            assert is_arena_format(fmt)
+            assert FORMATS[fmt].is_arena
 
     def test_paper_formats(self):
         for fmt in ("modern", "premodern", "legacy", "vintage"):
-            assert not is_arena_format(fmt)
+            assert not FORMATS[fmt].is_arena
 
     def test_constructed_formats_exist(self):
         for fmt in ("standard", "pioneer", "modern", "premodern", "legacy", "vintage"):
-            assert fmt in FORMAT_CONFIGS
-            assert is_constructed_format(fmt)
+            assert FORMATS[fmt].is_constructed
 
     def test_commander_formats_exist(self):
         for fmt in ("commander", "brawl", "historic_brawl"):
-            assert fmt in FORMAT_CONFIGS
-            assert not is_constructed_format(fmt)
+            assert not FORMATS[fmt].is_constructed
 
     def test_all_constructed_have_sideboard(self):
-        for fmt, cfg in FORMAT_CONFIGS.items():
-            if not cfg.get("has_commander", True):
-                assert cfg["sideboard_size"] == 15, f"{fmt} missing sideboard"
+        for fmt in FORMATS.values():
+            if fmt.is_constructed:
+                assert fmt.sideboard_size == 15, f"{fmt.name} missing sideboard"
 
 
 class TestCommanderModules:

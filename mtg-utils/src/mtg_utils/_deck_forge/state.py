@@ -18,12 +18,7 @@ from mtg_utils._deck_forge.collection import CollectionStore
 from mtg_utils._deck_forge.events import EventHub
 from mtg_utils._deck_forge.persistence import BuildStore
 from mtg_utils._name_index import NameIndex
-from mtg_utils.format_config import (
-    COMMANDER_FORMATS,
-    FORMAT_CONFIGS,
-    is_arena_format,
-    is_arena_only_format,
-)
+from mtg_utils.formats import COMMANDER_FORMATS, FORMATS
 
 # "companion" is the outside-the-game zone (CR 702.139a-b: a companion is neither
 # deck nor sideboard); consumers that count deck size must exclude it deliberately.
@@ -31,7 +26,7 @@ _ZONES = ("commanders", "cards", "sideboard", "companion")
 # The Arena Brawl formats default to digital (Brawl / Historic Brawl can also be paper;
 # Competitive Brawl is Arena-only); commander is paper-only. Medium drives the active
 # Collection slot and the cost mode (wildcards vs USD). Derived from the configs.
-_ARENA_FORMATS = tuple(f for f in COMMANDER_FORMATS if is_arena_format(f))
+_ARENA_FORMATS = tuple(f for f in COMMANDER_FORMATS if FORMATS[f].is_arena)
 
 
 def _default_medium(fmt: str) -> str:
@@ -74,7 +69,7 @@ class DeckSession:
         digital (Arena is the common case for those)."""
         if self.format not in _ARENA_FORMATS:
             return "paper"
-        if is_arena_only_format(self.format):
+        if FORMATS[self.format].is_arena_only:
             return "digital"
         return self._medium_override or _default_medium(self.format)
 
@@ -82,7 +77,7 @@ class DeckSession:
     def deck_size(self) -> int:
         """Effective deck size: the format default, except paper Historic Brawl may
         override to 60 or 100 (both are legal for paper "Brawl")."""
-        default = FORMAT_CONFIGS.get(self.format, {}).get("deck_size", 100)
+        default = FORMATS[self.format].deck_size
         if _size_choosable(self.format, self.medium) and self._deck_size_override in (
             60,
             100,

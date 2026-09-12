@@ -92,19 +92,6 @@ def _fill_gap(hd: HydratedDeck, deck_size: int, land_floor: int) -> tuple[int, i
     return fill_slots, land_gap
 
 
-# The exact-size CR citations for the singleton Commander family: CR 903.5a ("the
-# minimum deck size and the maximum deck size are both 100") governs Commander —
-# and Historic Brawl / Competitive Brawl mirror its 100-card rule — while CR 903.12d
-# fixes Brawl at exactly 60. Other formats have no CR maximum (CR 100.2a sets only
-# a minimum), so their over-size message cites the format's target size, not a rule.
-_SIZE_RULES: dict[str, str] = {
-    "commander": "CR 903.5a",
-    "historic_brawl": "CR 903.5a",
-    "competitive_brawl": "CR 903.5a",
-    "brawl": "CR 903.12d",
-}
-
-
 def _counted_total(deck: dict) -> int:
     """The deck's counted size — commanders + maindeck, the same zone walk
     ``_fill_gap`` and deck-forge's ``_overflow_warnings`` use."""
@@ -160,8 +147,8 @@ def tune(
     owned = dict(owned or {})
     deck = hd.deck
     commander_names = {e["name"] for e in deck.get("commanders") or []}
-    deck_size = int(deck.get("deck_size") or 100)
-    fmt = hd.format
+    deck_size = hd.format.deck_size
+    fmt = hd.format.name
     identity = _deck_identity(hd)
     # Exact-size legality (CR 903.5a / 903.12d): a deck PAST deck_size is never
     # legal in the Commander family, so the overflow is diagnosed on every run.
@@ -293,7 +280,9 @@ def tune(
     # deck_size is a legality fix, not a tuning choice.
     size_cut_list: list[dict] = []
     if overflow > 0:
-        rule = _SIZE_RULES.get(fmt)
+        # The exact-size CR citation (CR 903.5a for the 100-card family, CR 903.12d
+        # for Brawl) lives on the Format; other formats have no CR maximum.
+        rule = hd.format.size_rule
         legal = (
             f"the legal {deck_size} ({rule})" if rule else f"the {deck_size}-card size"
         )

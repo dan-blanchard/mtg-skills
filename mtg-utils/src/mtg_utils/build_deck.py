@@ -9,7 +9,7 @@ from pathlib import Path
 import click
 
 from mtg_utils.card_classify import build_card_lookup
-from mtg_utils.format_config import get_format_config
+from mtg_utils.formats import Format
 from mtg_utils.hydrated_deck import HydratedDeck
 from mtg_utils.names import normalize_card_name
 from mtg_utils.scryfall_lookup import lookup_single
@@ -238,16 +238,16 @@ def main(
 
     # build_deck has already recomputed and persisted the post-build totals onto
     # ``hd.deck`` (see its docstring); the CLI only reads them for size warnings.
-    config = get_format_config(new_deck)
+    fmt = Format.for_deck(new_deck)
     main_total = new_deck["total_cards"]
     sb_total = new_deck["total_sideboard"]
-    deck_size = config["deck_size"]
+    deck_size = fmt.deck_size
     if main_total != deck_size:
         click.echo(
             f"Warning: mainboard has {main_total} cards (expected {deck_size})",
             err=True,
         )
-    sb_size = config.get("sideboard_size", 0)
+    sb_size = fmt.sideboard_size
     if sb_size and sb_total > sb_size:
         click.echo(
             f"Warning: sideboard has {sb_total} cards (max {sb_size})",

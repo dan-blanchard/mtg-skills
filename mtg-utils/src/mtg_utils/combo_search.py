@@ -12,7 +12,7 @@ import requests
 from mtg_utils._http import USER_AGENT
 from mtg_utils._sidecar import atomic_write_json, sha_keyed_path
 from mtg_utils.card_classify import get_oracle_text
-from mtg_utils.format_config import FORMAT_CONFIGS, get_format_config
+from mtg_utils.formats import FORMATS
 from mtg_utils.hydrated_deck import HydratedDeck
 
 SPELLBOOK_URL = "https://backend.commanderspellbook.com/find-my-combos"
@@ -140,8 +140,7 @@ def combo_search(hd: HydratedDeck, *, max_near_misses: int = 5) -> dict:
     and near-miss detection falls back to the cards-only count (legacy behavior).
     """
     deck = hd.deck
-    config = get_format_config(deck)
-    legality_key = config["legality_key"]
+    legality_key = hd.format.legality_key
 
     card_lookup = hd.by_name if hd.has_records else None
 
@@ -274,11 +273,9 @@ def search_combos(
     # Determine legality key for format filtering
     legality_key: str | None = None
     if format:
-        from mtg_utils.format_config import FORMAT_CONFIGS
-
-        cfg = FORMAT_CONFIGS.get(format)
+        cfg = FORMATS.get(format)
         if cfg:
-            legality_key = cfg["legality_key"]
+            legality_key = cfg.legality_key
 
     # Load bulk data for arena/paper filtering if needed
     games_index: dict[str, list[str]] | None = None
@@ -491,7 +488,7 @@ def main(
 @click.option(
     "--format",
     "combo_format",
-    type=click.Choice(sorted(FORMAT_CONFIGS.keys())),
+    type=click.Choice(sorted(FORMATS)),
     default=None,
 )
 @click.option("--arena-only", is_flag=True)

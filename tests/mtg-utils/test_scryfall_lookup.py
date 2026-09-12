@@ -6,6 +6,7 @@ from unittest.mock import MagicMock, patch
 
 from click.testing import CliRunner
 
+from mtg_utils.formats import FORMATS
 from mtg_utils.scryfall_lookup import (
     _load_bulk_index,
     build_digest,
@@ -325,7 +326,7 @@ class TestBuildRarityIndex:
         ]
         bulk_path = tmp_path / "bulk.json"
         bulk_path.write_text(json.dumps(cards))
-        index = build_rarity_index(bulk_path, "commander")
+        index = build_rarity_index(bulk_path, FORMATS["commander"])
         assert index["dual card"]["rarity"] == "uncommon"
         assert index["dual card"]["exempt_from_4cap"] is False
 
@@ -345,10 +346,10 @@ class TestBuildRarityIndex:
         bulk_path = tmp_path / "bulk.json"
         bulk_path.write_text(json.dumps(cards))
         # Legal in brawl — should find common
-        index = build_rarity_index(bulk_path, "brawl")
+        index = build_rarity_index(bulk_path, FORMATS["historic_brawl"])
         assert index["arena card"]["rarity"] == "common"
         # Not legal in commander — should be absent
-        index = build_rarity_index(bulk_path, "commander")
+        index = build_rarity_index(bulk_path, FORMATS["commander"])
         assert "arena card" not in index
 
     def test_treats_special_as_rare(self, tmp_path):
@@ -361,7 +362,7 @@ class TestBuildRarityIndex:
         ]
         bulk_path = tmp_path / "bulk.json"
         bulk_path.write_text(json.dumps(cards))
-        index = build_rarity_index(bulk_path, "commander")
+        index = build_rarity_index(bulk_path, FORMATS["commander"])
         assert index["special card"]["rarity"] == "rare"
 
     def test_indexes_front_face_of_split_cards(self, tmp_path):
@@ -374,7 +375,7 @@ class TestBuildRarityIndex:
         ]
         bulk_path = tmp_path / "bulk.json"
         bulk_path.write_text(json.dumps(cards))
-        index = build_rarity_index(bulk_path, "commander")
+        index = build_rarity_index(bulk_path, FORMATS["commander"])
         assert index["fire // ice"]["rarity"] == "uncommon"
         assert index["fire"]["rarity"] == "uncommon"
 
@@ -400,7 +401,7 @@ class TestBuildRarityIndex:
         ]
         bulk_path = tmp_path / "bulk.json"
         bulk_path.write_text(json.dumps(cards))
-        index = build_rarity_index(bulk_path, "commander")
+        index = build_rarity_index(bulk_path, FORMATS["commander"])
         assert index["hare apparent"]["exempt_from_4cap"] is True
         assert index["regular rare"]["exempt_from_4cap"] is False
 
@@ -420,34 +421,59 @@ class TestBuildRarityIndex:
         ]
         bulk_path = tmp_path / "bulk.json"
         bulk_path.write_text(json.dumps(cards))
-        index = build_rarity_index(bulk_path, "commander")
+        index = build_rarity_index(bulk_path, FORMATS["commander"])
         assert index["seven dwarves"]["exempt_from_4cap"] is True
 
     def test_skips_draft_set_reprints_for_arena(self, tmp_path):
         """J21/JMP/AJMP reprints have draft-format rarities that don't match
         Arena wildcard cost.  A J21 common reprint should be excluded so the
-        real printing's uncommon rarity wins."""
-        cards = [
-            {
+        real printing's uncommon rarity wins. Round-trips an MTGJSON fixture so
+        ``reprint`` is the adapter's own emission (from ``isReprint``) — a hand-built
+        Scryfall-shaped record hid that MTGJSON never carried the field."""
+
+        def printing(set_code, rarity, availability):
+            return {
                 "name": "Lightning Bolt",
-                "rarity": "common",
-                "set": "j21",
-                "reprint": True,
-                "games": ["arena"],
-                "legalities": {"brawl": "legal"},
-            },
-            {
-                "name": "Lightning Bolt",
-                "rarity": "uncommon",
-                "set": "sta",
-                "reprint": True,
-                "games": ["arena", "paper", "mtgo"],
-                "legalities": {"brawl": "legal"},
-            },
-        ]
-        bulk_path = tmp_path / "bulk.json"
-        bulk_path.write_text(json.dumps(cards))
-        index = build_rarity_index(bulk_path, "brawl", arena_only=True)
+                "uuid": f"u-{set_code}",
+                "identifiers": {
+                    "scryfallOracleId": "oid-bolt",
+                    "scryfallId": f"s-{set_code}",
+                },
+                "type": "Instant",
+                "types": ["Instant"],
+                "manaValue": 1.0,
+                "colorIdentity": ["R"],
+                "layout": "normal",
+                "availability": availability,
+                "legalities": {"brawl": "Legal"},
+                "setCode": set_code,
+                "rarity": rarity,
+                "isReprint": True,
+            }
+
+        data = {
+            "data": {
+                "J21": {
+                    "code": "J21",
+                    "name": "Jumpstart: Historic Horizons",
+                    "type": "draft_innovation",
+                    "releaseDate": "2021-08-26",
+                    "cards": [printing("J21", "common", ["arena"])],
+                },
+                "STA": {
+                    "code": "STA",
+                    "name": "Strixhaven Mystical Archive",
+                    "type": "masterpiece",
+                    "releaseDate": "2021-04-23",
+                    "cards": [printing("STA", "uncommon", ["arena", "mtgo", "paper"])],
+                },
+            }
+        }
+        bulk_path = tmp_path / "AllPrintings.json"
+        bulk_path.write_text(json.dumps(data))
+        index = build_rarity_index(
+            bulk_path, FORMATS["historic_brawl"], arena_only=True
+        )
         assert index["lightning bolt"]["rarity"] == "uncommon"
 
 
@@ -763,26 +789,25 @@ class TestRarityIndexFormatBanOverrides:
         return bulk_path
 
     def test_default_still_excludes_key_banned_cards(self, tmp_path):
-        index = build_rarity_index(self._bulk(tmp_path), "brawl", arena_only=True)
+        index = build_rarity_index(
+            self._bulk(tmp_path), FORMATS["historic_brawl"], arena_only=True
+        )
         assert "force of will" not in index
         assert "counterspell" in index
 
-    def test_ignore_key_bans_admits_banned_cards(self, tmp_path):
+    def test_competitive_brawl_admits_key_banned_cards(self, tmp_path):
         index = build_rarity_index(
-            self._bulk(tmp_path), "brawl", arena_only=True, ignore_key_bans=True
+            self._bulk(tmp_path), FORMATS["competitive_brawl"], arena_only=True
         )
         assert index["force of will"]["rarity"] == "mythic"
         assert index["counterspell"]["rarity"] == "uncommon"
         # not_legal still means "not in the pool at all".
         assert "black lotus" not in index
 
-    def test_banned_cards_by_name_are_excluded(self, tmp_path):
+    def test_competitive_brawl_own_ban_list_is_excluded_by_name(self, tmp_path):
+        # Oko is on Competitive Brawl's own ten-card list.
         index = build_rarity_index(
-            self._bulk(tmp_path),
-            "brawl",
-            arena_only=True,
-            ignore_key_bans=True,
-            banned_cards=frozenset({"Oko, Thief of Crowns"}),
+            self._bulk(tmp_path), FORMATS["competitive_brawl"], arena_only=True
         )
         assert "force of will" in index
         assert "oko, thief of crowns" not in index

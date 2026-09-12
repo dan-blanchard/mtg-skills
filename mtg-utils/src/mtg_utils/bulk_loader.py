@@ -29,8 +29,10 @@ from mtg_utils._sidecar import load_pickle_sidecar, write_pickle_sidecar
 
 # Bump when the on-disk payload shape changes so old sidecars are
 # rejected and rebuilt. v2: records are MTGJSON-sourced (adapter-translated to the
-# Scryfall shape, with new types/subtypes/supertypes arrays).
-SIDECAR_VERSION = 2
+# Scryfall shape, with new types/subtypes/supertypes arrays). v3: records carry
+# ``arena_available`` (oracle-level) and ``reprint``; legalities are no longer rewritten
+# by the retired adapter Arena gate (``formats.Format.legality`` gates instead).
+SIDECAR_VERSION = 3
 SIDECAR_SUFFIX = ".idx.pkl"
 
 

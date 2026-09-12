@@ -13,8 +13,7 @@ from mtg_utils._http import USER_AGENT
 from mtg_utils._name_index import NameIndex
 from mtg_utils._sidecar import atomic_write_json, sha_keyed_path
 from mtg_utils.card_classify import extract_price
-from mtg_utils.format_config import FORMAT_CONFIGS
-from mtg_utils.format_config import is_arena_format as _is_arena_format
+from mtg_utils.formats import FORMATS, get_format
 from mtg_utils.scryfall_lookup import (
     RATE_LIMIT_DELAY,
     SCRYFALL_NAMED_URL,
@@ -303,18 +302,9 @@ def check_prices(
         owned_map = _normalize_owned_cards(names_or_deck.get("owned_cards", []))
 
     # Arena wildcard mode
-    is_arena = format is not None and _is_arena_format(format) and bulk_path is not None
-    if is_arena:
-        config = FORMAT_CONFIGS[format]
-        rarity_index = build_rarity_index(
-            bulk_path,
-            config["legality_key"],
-            arena_only=True,
-            # Competitive Brawl shares the ``brawl`` key but legalizes its bans and
-            # enforces its own list by name — same overrides legality-audit applies.
-            ignore_key_bans=config.get("ignores_legality_key_bans", False),
-            banned_cards=config.get("banned_cards"),
-        )
+    fmt = get_format(format) if format is not None else None
+    if fmt is not None and fmt.is_arena and bulk_path is not None:
+        rarity_index = build_rarity_index(bulk_path, fmt, arena_only=True)
         return _check_arena_wildcards(deck_entries, owned_map, rarity_index)
 
     # USD price mode. Paper has no Arena-style 4-cap substitution, so the
@@ -454,7 +444,7 @@ def _default_output_path(
 @click.option(
     "--format",
     "card_format",
-    type=click.Choice(sorted(FORMAT_CONFIGS.keys())),
+    type=click.Choice(sorted(FORMATS)),
     default=None,
     help="Game format. Arena formats use wildcard pricing.",
 )

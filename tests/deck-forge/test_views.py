@@ -10,6 +10,7 @@ ATRAXA = {
     "name": "Atraxa, Praetors' Voice",
     "type_line": "Legendary Creature — Phyrexian Angel Horror",
     "cmc": 4.0,
+    "legalities": {"commander": "legal", "brawl": "legal", "standardbrawl": "legal"},
     "color_identity": ["W", "U", "B", "G"],
     "oracle_text": "Flying, vigilance, deathtouch, lifelink\nAt the beginning of your end step, proliferate. (Choose any number of permanents and/or players, then give each another counter of each kind already there.)",
 }

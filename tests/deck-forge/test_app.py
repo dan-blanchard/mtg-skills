@@ -40,6 +40,7 @@ FOREST = {
 ATRAXA = {
     "name": "Atraxa, Praetors' Voice",
     "type_line": "Legendary Creature — Phyrexian Angel Horror",
+    "legalities": {"commander": "legal", "brawl": "legal", "standardbrawl": "legal"},
     "mana_cost": "{G}{W}{U}{B}",
     "cmc": 4.0,
     "color_identity": ["W", "U", "B", "G"],

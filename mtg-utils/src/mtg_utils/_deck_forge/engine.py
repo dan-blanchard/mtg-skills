@@ -39,19 +39,14 @@ from mtg_utils._deck_forge.signals import (
 from mtg_utils._deck_forge.state import DeckSession, ForgeState
 from mtg_utils._name_index import NameIndex
 from mtg_utils._sidecar import atomic_write_json, sha_keyed_path
-from mtg_utils.card_classify import is_basic_land, is_commander, valid_partner_search
+from mtg_utils.card_classify import is_basic_land, valid_partner_search
 from mtg_utils.deck_stats import deck_stats, detect_bracket
-from mtg_utils.format_config import COMMANDER_FORMATS, FORMAT_CONFIGS
+from mtg_utils.formats import FORMATS
 from mtg_utils.hydrated_deck import HydratedDeck
 from mtg_utils.legality_audit import legality_audit
 from mtg_utils.mana_audit import mana_audit
 from mtg_utils.scryfall_lookup import build_rarity_index
 
-# Deck size per Commander-family format, from the configs (commander 100 / brawl 60 /
-# historic_brawl 100 / competitive_brawl 100).
-_DECK_SIZE = {f: int(FORMAT_CONFIGS[f]["deck_size"]) for f in COMMANDER_FORMATS}
-SUPPORTED_FORMATS = frozenset(_DECK_SIZE)
-_PAPER_FORMATS = {"commander"}
 # deck_minimum is intentionally excluded: a deck-in-progress is always below the size
 # minimum, so it's the normal building state, not a warning.
 _AUDIT_CATEGORIES = (
@@ -105,12 +100,9 @@ def hydrate_session(state: ForgeState) -> HydratedDeck:
     return HydratedDeck.from_session(state.session, state.by_name)
 
 
-def deck_size(fmt: str) -> int:
-    return _DECK_SIZE.get(fmt, 100)
-
-
 def paper_only(fmt: str | None) -> bool:
-    return fmt in _PAPER_FORMATS
+    """Search only paper printings: the format has no Arena medium at all."""
+    return fmt is not None and not FORMATS[fmt].is_arena
 
 
 def deck_color_identity(state: ForgeState) -> str:
@@ -324,14 +316,7 @@ def _rarity_index(state: ForgeState) -> NameIndex | None:
     fmt = state.session.format
     cached = state.rarity_index.get(fmt)
     if cached is None:
-        config = FORMAT_CONFIGS.get(fmt, {})
-        cached = build_rarity_index(
-            state.bulk_path,
-            _legality_key(fmt),
-            arena_only=True,
-            ignore_key_bans=config.get("ignores_legality_key_bans", False),
-            banned_cards=config.get("banned_cards"),
-        )
+        cached = build_rarity_index(state.bulk_path, FORMATS[fmt], arena_only=True)
         state.rarity_index[fmt] = cached
     return cached
 
@@ -403,7 +388,8 @@ def _resolved_collection(state: ForgeState, slot: str | None = None) -> list[dic
 def owned_commander_records(state: ForgeState) -> list[dict]:
     """Bulk records for the commander-eligible cards in the active Collection slot."""
     fmt = state.session.format
-    return [r for r in _resolved_collection(state) if is_commander(r, fmt)["eligible"]]
+    eligible = FORMATS[fmt].commander_eligibility
+    return [r for r in _resolved_collection(state) if eligible(r)["eligible"]]
 
 
 def _commander_lanes(record: dict) -> list[tuple[str, Serve, str]]:
@@ -616,7 +602,7 @@ def warm_discovery_caches(state: ForgeState, slot: str, fmt: str | None = None) 
     density_before = len(state.lane_density)
     served_before = len(state.lane_collection_serves.get(slot) or {})
     for rec in coll:
-        if not is_commander(rec, fmt)["eligible"]:
+        if not FORMATS[fmt].commander_eligibility(rec)["eligible"]:
             continue
         for _label, serve, key in _commander_lanes(rec):
             _lane_density(state, key, serve)
@@ -723,7 +709,7 @@ def _signal_freq(state: ForgeState) -> tuple[dict, int]:
         if name in seen:
             continue
         seen.add(name)
-        if not is_commander(rec, fmt)["eligible"]:
+        if not FORMATS[fmt].commander_eligibility(rec)["eligible"]:
             continue
         total += 1
         for key in _signal_key_subjects(rec, index):
@@ -844,11 +830,6 @@ def partner_search(state: ForgeState) -> dict | None:
     return valid_partner_search(record)
 
 
-def _legality_key(fmt: str) -> str:
-    cfg = FORMAT_CONFIGS.get(fmt)
-    return cfg["legality_key"] if cfg else "commander"
-
-
 def staple_pool(state: ForgeState) -> list[dict]:
     """The curated 'good stuff' staples offered to this deck — the hardcoded staple
     list (see ``staples``) filtered to the deck's color identity AND format legality,
@@ -859,7 +840,7 @@ def staple_pool(state: ForgeState) -> list[dict]:
     return staples.staples_for(
         deck_color_identity(state),
         state.by_name,
-        legality_key=_legality_key(state.session.format),
+        fmt=FORMATS[state.session.format],
     )
 
 

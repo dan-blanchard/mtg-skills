@@ -117,3 +117,34 @@ _Avoid_: "regression" (the pins fail because the substrate improved).
 are ordinary manifest-served lanes since ADR-0039 completed; the surviving
 distinction, where one exists, is a per-key ledgered bridge or text mirror
 noted in `lanes/` itself. See archived ADR-0039 for the promotion record.)
+
+### Formats
+
+**Format**:
+The frozen value that answers every question about one deck format — legality of a
+record (with the Competitive Brawl override and the Arena-pool gate folded in),
+commander eligibility, the media it is played in and the default, the deck size and
+which sizes a medium may choose, the CR citation for that size, and the cost mode a
+medium implies. Resolved once (`FORMATS[name]`, `get_format`, `Format.for_deck`,
+`HydratedDeck.format`) and never re-derived from a table at a call site (ADR-0045).
+_Avoid_: "format config" (the retired flag table), "legality key" as a caller-side
+concept (the `Format` reads it; callers read a status).
+
+**Legality status**:
+A `Format`'s answer for one record: `legal`, `restricted`, `banned`, `not_legal`, or
+`unreleased` — Scryfall's four plus the pre-release case, which the `Format` can only
+report when the caller passes the oracle-level unreleased set (a single record cannot
+tell a spoiled card from an Un-card). `restricted` is playable; `unreleased` is a
+widening callers opt into, never `is_legal`.
+_Avoid_: a bare `legalities[...]` read (the raw MTGJSON key, before the override and
+the gate).
+
+**Arena-pool format**:
+A format whose card pool IS Arena's (brawl / historic_brawl / competitive_brawl /
+alchemy / historic / timeless — the Arena-defined MTGJSON legality keys): a card with
+no Arena printing is not legal there even when MTGJSON's key says so. Gated on the
+record's oracle-level `arena_available`, medium-independent (the paper Brawl queues
+use Arena's pool too). Standard and Pioneer are Arena formats whose pool is defined in
+paper, so they are not gated.
+_Avoid_: "Arena format" for this (that is `is_arena`, the medium fact), "Arena-only"
+(that is `is_arena_only`, no paper counterpart at all).
