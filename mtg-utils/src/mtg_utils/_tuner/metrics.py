@@ -527,18 +527,11 @@ def win_conditions(
 
 
 def protection(
-    classes: Sequence[CardClass],
-    *,
-    shape: str,
-    deck_size: int,
-    voltron: bool | None = None,
+    classes: Sequence[CardClass], *, shape: str, deck_size: int, voltron: bool
 ) -> dict:
     """Protection wants vs the Shape (ADR-0024 advisory). ``voltron`` is the read
-    ``win_conditions`` already made (``wins["voltron"]``); it is recomputed only when a
-    caller has no win-conditions result in hand."""
+    ``win_conditions`` already made (``wins["voltron"]``) — the one voltron walk."""
     cards = [c.name for c in classes if protects(c.record)]
-    if voltron is None:
-        voltron = _is_voltron(_voltron_pieces(classes), deck_size)
     wants = shape in ("combo", "control") or voltron
     target = _scaled(5, deck_size) if wants else 0
     return {
@@ -546,7 +539,6 @@ def protection(
         "cards": cards,
         "target": target,
         "wants_protection": wants,
-        "voltron": voltron,
         "status": "low" if wants and len(cards) < target else "ok",
     }
 
@@ -592,8 +584,9 @@ def top_issues(
         # ADR-0040 §1: a grant-covered role (the commander's own ability GRANTS
         # this role's resource to every recipient body — deck-forge CONTEXT.md
         # "Grant-covered role") keeps its literal shortfall message but downgrades
-        # to advisory: swaps.py's _spec_for_issue reads this flag and sources no
-        # add for it. Never suppressed — the deficit/message are unchanged.
+        # to advisory: swaps.py's _spec_for_issue reads ``grant_covered`` and sources
+        # no add for it; ``advisory`` itself is a presentation marker for the SPA and
+        # the skill. Never suppressed — the deficit/message are unchanged.
         covered = bool(b.get("grant_covered"))
         message = (
             f"{role.replace('_', ' ')} short by {deficit} "
@@ -692,11 +685,11 @@ def top_issues(
         # Advisory only (no swap fixes a plan): the equip/aura density reads as
         # voltron, but this game has no 21-commander-damage rule (CR 903.10a is
         # Commander's extra loss rule; Brawl games don't use it, CR 903.12h), so the
-        # plan closes only by dealing the whole starting life. ``advisory`` makes the
-        # swap engine skip it (swaps._spec_for_issue sources nothing for an advisory
-        # issue); severity ranks how much the builder should change course — 2 here
-        # (read your closers differently) vs 5 for commander_misfit (you may have the
-        # wrong commander).
+        # plan closes only by dealing the whole starting life. ``advisory`` is a
+        # presentation marker (nothing in the swap engine reads it); swaps skips this
+        # kind because _spec_for_issue has no branch for it. Severity ranks how much
+        # the builder should change course — 2 here (read your closers differently)
+        # vs 5 for commander_misfit (you may have the wrong commander).
         issues.append(
             {
                 "kind": "voltron_no_commander_damage",
@@ -729,7 +722,8 @@ def top_issues(
         )
 
     if commander_r["misfit"]:
-        # Advisory (no swap fixes a commander); severity 5 because it questions the
+        # Advisory marker (no swap fixes a commander; swaps skips the kind because
+        # _spec_for_issue has no branch for it); severity 5 because it questions the
         # whole build, where the voltron advisory above (2) only re-reads the closers.
         issues.append(
             {
