@@ -149,12 +149,11 @@ def tune(
     commander_names = {e["name"] for e in deck.get("commanders") or []}
     deck_size = hd.format.deck_size
     fmt = hd.format.name
-    # The game the deck plays, from the Format under the build's medium: every Arena
-    # game is one-on-one at the format's own life total; a paper Commander / Brawl
-    # table is multiplayer at its table total. Drives the closer read and the bracket
-    # gate's applicability.
-    life = hd.format.starting_life(params.medium)
-    multiplayer = hd.format.is_multiplayer(params.medium)
+    # The Game the deck plays (starting life, pod vs one opponent, whether commander
+    # damage wins), from the Format under the build's medium — ``Format.game`` resolves
+    # an override the format cannot honour, so a raw caller value can't misread it.
+    # Drives the closer read and the bracket gate's applicability.
+    game = hd.format.game(params.medium)
     identity = _deck_identity(hd)
     # Exact-size legality (CR 903.5a / 903.12d): a deck PAST deck_size is never
     # legal in the Commander family, so the overflow is diagnosed on every run.
@@ -230,9 +229,7 @@ def tune(
         shape=shape,
         combo_count=combo_count,
         deck_size=deck_size,
-        life=life,
-        multiplayer=multiplayer,
-        commander_damage=hd.format.commander_damage,
+        game=game,
     )
     prot = metrics.protection(classes, shape=shape, deck_size=deck_size)
     cfit = metrics.commander_fit(classes, foc)
@@ -248,7 +245,10 @@ def tune(
     # ADR-0030: a target-bracket constraint gate, only when a target was chosen.
     bracket = (
         bracket_gate(
-            hd.records, params.target_bracket, combos=combos, multiplayer=multiplayer
+            hd.records,
+            params.target_bracket,
+            combos=combos,
+            multiplayer=game.multiplayer,
         )
         if params.target_bracket is not None
         else None

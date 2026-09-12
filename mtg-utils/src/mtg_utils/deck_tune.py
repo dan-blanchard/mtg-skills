@@ -24,7 +24,7 @@ import click
 
 from mtg_utils import card_search, combo_search
 from mtg_utils._tuner.tune import TuneParams, tune
-from mtg_utils.formats import COMMANDER_FORMATS
+from mtg_utils.formats import COMMANDER_FORMATS, medium_is_digital
 from mtg_utils.hydrated_deck import HydratedDeck
 
 
@@ -126,13 +126,24 @@ def main(
     # benchmark was a Historic Brawl deck. paper_only threads consistently with
     # the (inferred or explicit) medium unless the caller overrides it directly.
     effective_medium = fmt.resolve_medium(medium)
+    if medium is None and len(fmt.media) > 1:
+        # The medium decides the game the scorecard reads (starting life, one-on-one
+        # vs pod) — say which one was inferred so a paper table isn't tuned as Arena.
+        click.echo(
+            f"Note: --medium not given; tuning {fmt.name} as {effective_medium} "
+            f"(pass --medium {'paper' if effective_medium == 'digital' else 'digital'} "
+            "for the other).",
+            err=True,
+        )
     if medium is not None and effective_medium != medium:
         click.echo(
             f"Note: {fmt.name} is not played in {medium!r}; using {effective_medium}.",
             err=True,
         )
     effective_paper_only = (
-        paper_only if paper_only is not None else effective_medium != "digital"
+        paper_only
+        if paper_only is not None
+        else not medium_is_digital(effective_medium)
     )
 
     bulk_path = Path(bulk_data)

@@ -18,8 +18,10 @@ from mtg_utils.formats import (
     COMPETITIVE_BRAWL_BANNED,
     FORMATS,
     Format,
+    Game,
     format_options,
     get_format,
+    medium_is_digital,
 )
 from mtg_utils.testkit import test_card
 
@@ -234,6 +236,27 @@ class TestMediumAndSize:
         assert CB.starting_life("digital") == 25
         assert FORMATS["standard"].is_multiplayer("paper") is False
         assert FORMATS["standard"].starting_life("paper") == 20
+
+    def test_game_resolves_life_table_and_commander_damage(self):
+        # Commander damage is Commander's extra loss rule (CR 903.10a); Brawl games do
+        # not use it in any medium (CR 903.12h).
+        assert CMD.game("paper") == Game(
+            medium="paper", life=40, multiplayer=True, commander_damage=True
+        )
+        assert HB.game("digital") == Game(
+            medium="digital", life=25, multiplayer=False, commander_damage=False
+        )
+        assert HB.game("paper") == Game(
+            medium="paper", life=30, multiplayer=True, commander_damage=False
+        )
+        assert CB.game(None).commander_damage is False
+        # An override the format cannot honour resolves like resolve_medium.
+        assert CMD.game("digital").medium == "paper"
+        assert FORMATS["standard"].game("paper").life == 20
+
+    def test_medium_is_digital_is_the_one_string_compare(self):
+        assert medium_is_digital("digital") is True
+        assert medium_is_digital("paper") is False
 
     def test_cost_mode_follows_medium(self):
         assert Format.cost_mode("digital") == "wildcards"

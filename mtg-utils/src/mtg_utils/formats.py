@@ -44,6 +44,27 @@ LEGAL_STATUSES: frozenset[str] = frozenset({"legal", "restricted"})
 #: How the browser names each medium.
 MEDIUM_LABELS: dict[str, str] = {"digital": "Arena", "paper": "Paper"}
 
+
+def medium_is_digital(medium: str) -> bool:
+    """The one place "is this an Arena game?" is decided from a medium string."""
+    return medium == "digital"
+
+
+@dataclass(frozen=True, slots=True)
+class Game:
+    """The game a deck built for one medium is played in — what the tuner's closer
+    read and bracket gate are relative to. Built by ``Format.game``, never ad hoc."""
+
+    medium: Medium
+    #: Starting life (CR 903.7 Commander 40; CR 903.12f Brawl 25 two-player / 30
+    #: multiplayer; CR 103.4 otherwise).
+    life: int
+    #: A multiplayer table (a Commander pod, a multiplayer Brawl game) vs one opponent.
+    multiplayer: bool
+    #: Whether 21 combat damage from one commander wins (CR 903.10a; Commander only).
+    commander_damage: bool
+
+
 # Arena's Competitive Brawl (June 2026) bans ten cards outright — as commander AND in
 # the 99 — and legalizes everything else on Arena, including the ~28 cards the ordinary
 # Brawl queue bans. MTGJSON/Scryfall publish no legality key for it, so legality runs
@@ -81,6 +102,9 @@ class Format:
     life_total: int
     has_commander: bool
     max_copies: int
+    #: Whether the format has Commander's extra loss rule — 21 combat damage from one
+    #: commander (CR 903.10a). Commander only: Brawl games do not use it (CR 903.12h)
+    #: and no other format has it.
     commander_damage: bool
     legality_key: str
     planeswalker_commander_requires_text: bool
@@ -88,7 +112,8 @@ class Format:
     colorless_any_basic: bool
     #: Played on MTG Arena (possibly also in paper).
     is_arena: bool
-    #: Multiplayer starting life; None for formats with no multiplayer variant.
+    #: Multiplayer starting life (CR 903.12f: a multiplayer Brawl game starts at 30);
+    #: None for formats with no multiplayer variant.
     multiplayer_life_total: int | None = None
     #: No paper counterpart at all: the medium is always digital, never a choice.
     is_arena_only: bool = False
@@ -160,20 +185,32 @@ class Format:
     def is_multiplayer(self, medium: str) -> bool:
         """Whether a game in ``medium`` is multiplayer: Arena is one-on-one for every
         format; in paper, a format is multiplayer iff it has a multiplayer variant
-        (Commander's pod, paper Brawl's 30-life table)."""
-        return medium != "digital" and self.multiplayer_life_total is not None
+        (Commander's pod, paper Brawl's 30-life table — CR 903.12f)."""
+        return not medium_is_digital(medium) and self.multiplayer_life_total is not None
 
     def starting_life(self, medium: str) -> int:
         """The starting life a deck built for ``medium`` plays against — the
         multiplayer total at a paper table, else the one-on-one total."""
-        if self.is_multiplayer(medium) and self.multiplayer_life_total is not None:
-            return self.multiplayer_life_total
+        if self.is_multiplayer(medium):
+            return self.multiplayer_life_total or self.life_total
         return self.life_total
+
+    def game(self, medium: str | None = None) -> Game:
+        """The ``Game`` a build in ``medium`` plays (an override the format cannot
+        honour resolves as in ``resolve_medium``): starting life and table size follow
+        the medium; commander damage is the format's own rule (CR 903.10a)."""
+        resolved = self.resolve_medium(medium)
+        return Game(
+            medium=resolved,
+            life=self.starting_life(resolved),
+            multiplayer=self.is_multiplayer(resolved),
+            commander_damage=self.commander_damage,
+        )
 
     @staticmethod
     def cost_mode(medium: str) -> CostMode:
         """What a card costs to acquire in ``medium``: Arena wildcards or paper USD."""
-        return "wildcards" if medium == "digital" else "usd"
+        return "wildcards" if medium_is_digital(medium) else "usd"
 
     # --- size ---------------------------------------------------------------------
 
@@ -295,6 +332,7 @@ def _commander_variant(name: str, label: str, **kw: object) -> Format:
         "planeswalker_commander_requires_text": False,
         "colorless_any_basic": True,
         "commander_damage": False,
+        # CR 103.5c: the first mulligan in any Brawl game is free.
         "free_mulligan": True,
     }
     base.update(kw)
@@ -342,6 +380,7 @@ _ALL: tuple[Format, ...] = (
         "brawl",
         "Brawl",
         deck_size=60,
+        # CR 903.12f: 25 in a two-player Brawl game, 30 in a multiplayer one.
         life_total=25,
         multiplayer_life_total=30,
         legality_key="standardbrawl",

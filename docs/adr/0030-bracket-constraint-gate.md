@@ -9,7 +9,10 @@ role density. We want the tuner bracket-aware along *that* axis.
 **Decision.** Add a **bracket-constraint gate** to the shared `tune()`, parameterized by
 a *target* bracket (1-5), separate from and additive to the Shape-scaled role bands
 (`Template deviation`). Input: `target_bracket`. Output: `{target_bracket, pass,
-ceilings, violations: [{axis, severity: FAIL|WARN, cards, detail}]}`. Four axes, verified
+ceilings, violations: [{axis, severity: FAIL|WARN, cards, detail}]}`. The brackets are
+WotC's system for multiplayer Commander, so for a one-on-one **Game** (`Format.game`
+under the build's medium: every Arena game, Competitive Brawl) the gate passes with a
+`not_applicable` reason instead of measuring pod permissions against a duel. Four axes, verified
 against the WotC "Commander Brackets Beta Update" (most recent official version
 2026-02-09):
 

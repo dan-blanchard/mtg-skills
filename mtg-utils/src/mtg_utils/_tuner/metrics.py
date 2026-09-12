@@ -10,6 +10,7 @@ ordering the swap engine acts on (deck-forge CONTEXT.md, "Tune").
 
 from __future__ import annotations
 
+import math
 import re
 from collections.abc import Sequence
 
@@ -20,6 +21,7 @@ from mtg_utils._deck_forge.signal_specs import spec_for
 from mtg_utils._tuner.classify import CardClass, is_fringe
 from mtg_utils.card_classify import card_pt_int, is_creature
 from mtg_utils.card_ir import Card
+from mtg_utils.formats import Game
 from mtg_utils.theme_presets import get_preset
 
 # Signal keys that mirror a hard-counted Spine role (ramp / draw / interaction). Not
@@ -52,21 +54,28 @@ _AVG_CEILING = 4.0
 # Shape → desired front-load (cmc<=2 nonland) and ramp, per 100 cards.
 _FRONT_WANT = {"aggro": 18, "midrange": 14, "control": 10, "combo": 12}
 
-# Shape → (min, max) dedicated closers (ADR-0024; floor ~3, archetype-scaled) at the
-# 40-life Commander table. The floor scales with the starting life the deck plays
-# against (``_life_scaled``): at 25 life one-on-one, ordinary threats close games and
-# fewer dedicated closers are wanted.
+# The Game every band below is calibrated at: the 40-life Commander pod (CR 903.7),
+# where 21 commander damage wins (CR 903.10a). ``win_conditions`` scales from it to the
+# Game the deck actually plays (``Format.game``).
+_REFERENCE_GAME = Game(medium="paper", life=40, multiplayer=True, commander_damage=True)
+_REFERENCE_LIFE = _REFERENCE_GAME.life
+
+# Shape → (min, max) dedicated closers (ADR-0024; floor ~3, archetype-scaled) at
+# _REFERENCE_GAME. Both bounds scale with starting life (``_life_scaled``): at 25 life
+# one-on-one, ordinary threats close games and fewer dedicated closers are wanted.
 _WINCON_TARGET = {
     "aggro": (4, 6),
     "midrange": (3, 6),
     "control": (2, 4),
     "combo": (2, 3),
 }
-_REFERENCE_LIFE = 40
-# An evasive body reads as a closer from this power at 40 life (~7 swings); the
+# An evasive body reads as a closer from this power at _REFERENCE_LIFE (~7 swings); the
 # threshold scales with life so a 4-power flyer counts at 25 (~6 swings) but not at 40.
 _EVASIVE_CLOSER_POWER = 6
 _EVASIVE_CLOSER_POWER_FLOOR = 3
+# A fixed-amount burn / drain is a closer when one resolution takes at least this share
+# of starting life: 5 at _REFERENCE_LIFE, 4 at 30, 3 at 25 or 20.
+_BURN_CLOSER_FRACTION = 0.12
 
 # Heuristic finisher oracle patterns (labeled heuristic; combos are the precise source).
 _WINCON_PATTERNS = [
@@ -103,6 +112,17 @@ _WINCON_PATTERNS_1V1 = [
         r"target (?:player|opponent) loses (?:life equal|x life)",
     )
 ]
+# Fixed-amount reach, measured against starting life (``_BURN_CLOSER_FRACTION``):
+# group burn / drain counts at any table; single-target only one-on-one.
+_FIXED_REACH_GROUP = re.compile(
+    r"(?:deals? (\d+) damage to each opponent|each opponent loses (\d+) life)",
+    re.IGNORECASE,
+)
+_FIXED_REACH_1V1 = re.compile(
+    r"(?:deals? (\d+) damage to (?:any target|target (?:player|opponent))"
+    r"|target (?:player|opponent) loses (\d+) life)",
+    re.IGNORECASE,
+)
 _EVASION = ("flying", "menace", "trample", "can't be blocked", "shadow", "fear")
 
 
@@ -118,9 +138,23 @@ def _scaled(value: int, deck_size: int) -> int:
 
 
 def _life_scaled(value: int, life: int, *, floor: int) -> int:
-    """``value`` (calibrated at the 40-life Commander table) scaled to ``life``,
-    half-up rounded, never below ``floor``."""
-    return max(floor, int(value * life / _REFERENCE_LIFE + 0.5))
+    """``value`` (calibrated at ``_REFERENCE_LIFE``) scaled to ``life``, rounded the
+    same way ``_scaled`` rounds deck-size scaling (Python's round), never below
+    ``floor``."""
+    return max(floor, round(value * life / _REFERENCE_LIFE))
+
+
+def _fixed_reach_closes(text: str, *, game: Game) -> bool:
+    """A fixed burn / drain amount that takes ``_BURN_CLOSER_FRACTION`` of the game's
+    starting life in one resolution."""
+    threshold = math.ceil(game.life * _BURN_CLOSER_FRACTION)
+    patterns = [_FIXED_REACH_GROUP] + ([] if game.multiplayer else [_FIXED_REACH_1V1])
+    for pat in patterns:
+        for m in pat.finditer(text):
+            amount = next((g for g in m.groups() if g), None)
+            if amount is not None and int(amount) >= threshold:
+                return True
+    return False
 
 
 def _is_voltron(classes: Sequence[CardClass], deck_size: int) -> bool:
@@ -404,21 +438,22 @@ def _ir_wincon(ir: Card) -> bool:
     )
 
 
-def _is_wincon_card(
-    card: dict, *, life: int = _REFERENCE_LIFE, one_on_one: bool = False
-) -> bool:
-    """Heuristic finisher read, relative to the game the deck plays: ``life`` sets
-    the evasive-body threshold, ``one_on_one`` admits single-target scaling reach."""
+def _is_wincon_card(card: dict, *, game: Game = _REFERENCE_GAME) -> bool:
+    """Heuristic finisher read, relative to ``game``: its starting life sets the
+    evasive-body and fixed-reach thresholds, and one opponent admits single-target
+    reach (the same finisher "each opponent" is at a pod)."""
     ir = ir_for(card)
     if ir is not None and _ir_wincon(ir):
         return True
     text = card.get("oracle_text") or ""
     if any(p.search(text) for p in _WINCON_PATTERNS):
         return True
-    if one_on_one and any(p.search(text) for p in _WINCON_PATTERNS_1V1):
+    if not game.multiplayer and any(p.search(text) for p in _WINCON_PATTERNS_1V1):
+        return True
+    if _fixed_reach_closes(text, game=game):
         return True
     power_floor = _life_scaled(
-        _EVASIVE_CLOSER_POWER, life, floor=_EVASIVE_CLOSER_POWER_FLOOR
+        _EVASIVE_CLOSER_POWER, game.life, floor=_EVASIVE_CLOSER_POWER_FLOOR
     )
     if is_creature(card) and card_pt_int(card) >= power_floor:
         low = text.lower()
@@ -432,46 +467,42 @@ def win_conditions(
     shape: str,
     combo_count: int,
     deck_size: int = 100,
-    life: int = _REFERENCE_LIFE,
-    multiplayer: bool = True,
-    commander_damage: bool = True,
+    game: Game = _REFERENCE_GAME,
 ) -> dict:
     """Dedicated closers vs the Shape's band (ADR-0024 advisory), read against the
-    game the deck plays: ``life`` and ``multiplayer`` come from the Format under the
-    build's medium, ``commander_damage`` from the Format. A voltron plan (equip/aura
-    density) is a closer only where 21 commander damage wins — in the Brawl family it
-    must deal the full life total, so it is surfaced as needing real damage instead."""
+    ``Game`` the deck plays (``Format.game``). A voltron plan (equip/aura density) is
+    one closer only where 21 commander damage wins (CR 903.10a, Commander's extra
+    loss rule; Brawl games do not use it, CR 903.12h); elsewhere it must deal the
+    whole starting life and is surfaced as ``voltron_needs_real_damage``."""
     # ADR-0040 §5 (task #100): a Granter granting a closer-grade ability
     # (team double strike) is ONE closer — the record heuristic alone missed
     # keyword grants, reading the benchmark deck "2 closers" while it held
     # team double strike twice.
-    one_on_one = not multiplayer
     cards = sorted(
         {
             c.name
             for c in classes
-            if _is_wincon_card(c.record, life=life, one_on_one=one_on_one)
-            or c.grant_closer
+            if _is_wincon_card(c.record, game=game) or c.grant_closer
         }
     )
     voltron = _is_voltron(classes, deck_size)
-    voltron_closer = voltron and commander_damage
+    voltron_closer = voltron and game.commander_damage
     count = len(cards) + combo_count + (1 if voltron_closer else 0)
     lo, hi = _WINCON_TARGET.get(shape, (3, 6))
-    lo = _life_scaled(lo, life, floor=2)
+    lo = _life_scaled(lo, game.life, floor=2)
+    hi = max(lo, _life_scaled(hi, game.life, floor=2))
     return {
         "count": count,
         "from_combos": combo_count,
         "cards": cards,  # the heuristic finisher cards (combos add to count, not names)
         "target": [lo, hi],
         "status": "low" if count < lo else "ok",
-        "life": life,
-        "one_on_one": one_on_one,
-        "voltron": voltron,
-        # The commander-damage plan counted as one closer (Commander only).
+        "life": game.life,
+        "multiplayer": game.multiplayer,
+        # The commander-damage plan counted as one closer (CR 903.10a applies).
         "voltron_commander_damage": voltron_closer,
         # A voltron plan with no 21-damage rule: it has to deal the whole life total.
-        "voltron_needs_real_damage": voltron and not commander_damage,
+        "voltron_needs_real_damage": voltron and not game.commander_damage,
     }
 
 
@@ -625,6 +656,21 @@ def top_issues(
                 "severity": 3 + (wincons_r["target"][0] - wincons_r["count"]),
                 "message": f"≈{wincons_r['count']} closers — "
                 f"usually wants {wincons_r['target'][0]}-{wincons_r['target'][1]}",
+            }
+        )
+    if wincons_r.get("voltron_needs_real_damage"):
+        # Advisory only (no swap fixes a plan): the equip/aura density reads as
+        # voltron, but this game has no 21-commander-damage rule (CR 903.10a is
+        # Commander's extra loss rule; Brawl games don't use it, CR 903.12h), so the
+        # plan closes only by dealing the whole starting life.
+        issues.append(
+            {
+                "kind": "voltron_no_commander_damage",
+                "severity": 2,
+                "advisory": True,
+                "message": f"voltron plan, but no commander-damage rule in this game — "
+                f"it must deal the full {wincons_r.get('life')} life; count real "
+                "evasion and reach as the closers",
             }
         )
 

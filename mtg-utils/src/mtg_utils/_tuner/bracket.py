@@ -105,6 +105,19 @@ def _combined_mv(names: Sequence[str], records: Sequence[dict | None]) -> float 
     return total
 
 
+def _passing(target_bracket: int, *, not_applicable: str | None = None) -> dict:
+    """A gate with nothing to measure — brackets 4-5, or a one-on-one game."""
+    out: dict = {
+        "target_bracket": target_bracket,
+        "pass": True,
+        "ceilings": {},
+        "violations": [],
+    }
+    if not_applicable:
+        out["not_applicable"] = not_applicable
+    return out
+
+
 def bracket_gate(
     records: Sequence[dict | None],
     target_bracket: int,
@@ -117,10 +130,12 @@ def bracket_gate(
     ``combos`` is an optional ``combo-search`` result (``{"combos": [...]}``) feeding
     the two-card-combo axis; omit it to skip that axis (graceful degradation).
 
-    The brackets are a Commander-pod concept: mass land denial, extra turns and
-    two-card combos are permissions at a multiplayer table and ordinary tempo
-    one-on-one. ``multiplayer=False`` (the Format under the build's medium — every
-    Arena game, Competitive Brawl) returns a passing gate marked ``not_applicable``.
+    The brackets are WotC's system for multiplayer Commander (the "Commander
+    Brackets" document ADR-0030 verifies against; the CR has no bracket rule): mass
+    land denial, extra turns and two-card combos are permissions at a pod and
+    ordinary tempo one-on-one. ``multiplayer=False`` (``Format.game`` under the
+    build's medium — every Arena game, Competitive Brawl) returns a passing gate
+    marked ``not_applicable``.
 
     Returns ``{target_bracket, pass, ceilings, violations}`` where each violation
     names the breached ``axis``, a ``severity`` (FAIL for the deterministic axes,
@@ -128,22 +143,14 @@ def bracket_gate(
     Brackets 4-5 are banned-list-only, so they always pass with no violations.
     """
     if not multiplayer:
-        return {
-            "target_bracket": target_bracket,
-            "pass": True,
-            "ceilings": {},
-            "violations": [],
-            "not_applicable": (
+        return _passing(
+            target_bracket,
+            not_applicable=(
                 "Commander brackets are a multiplayer concept; this build is one-on-one"
             ),
-        }
+        )
     if target_bracket >= _UNCONSTRAINED_FROM:
-        return {
-            "target_bracket": target_bracket,
-            "pass": True,
-            "ceilings": {},
-            "violations": [],
-        }
+        return _passing(target_bracket)
 
     detected = detect_bracket(records, 0.0)
     violations: list[dict] = []

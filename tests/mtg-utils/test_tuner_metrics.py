@@ -2,6 +2,7 @@
 
 from mtg_utils._tuner.metrics import _ir_wincon, _is_wincon_card, top_issues
 from mtg_utils.card_ir import Ability, Card, Effect, Face
+from mtg_utils.formats import Game
 
 
 def _ir(*effects):
@@ -89,36 +90,6 @@ def test_small_fixed_pinger_is_not_a_group_drain_wincon():
     assert _is_wincon_card(blood_artist) is False
 
 
-def test_closer_grant_counts_as_one_wincon():
-    # ADR-0040 §5 (task #100): a Granter granting a closer-grade ability
-    # (team double strike) is ONE closer regardless of recipient count — the
-    # benchmark read "2 closers" while holding Bonescythe-class team double
-    # strike twice. ADR-0024 advisory semantics unchanged; only the count
-    # gets honest.
-    from mtg_utils._tuner.classify import CardClass
-    from mtg_utils._tuner.metrics import win_conditions
-
-    def cc(name, closer):
-        return CardClass(
-            name=name,
-            bucket="engine",
-            roles=(),
-            served=("Slivers",),
-            dual_purpose=False,
-            cmc=4.0,
-            record={"name": name, "oracle_text": "", "type_line": "Creature"},
-            grant_closer=closer,
-        )
-
-    classes = [
-        cc("Team Double Strike", closer=True),
-        cc("Team Vigilance", closer=False),
-    ]
-    wins = win_conditions(classes, shape="midrange", combo_count=0)
-    assert "Team Double Strike" in wins["cards"]
-    assert "Team Vigilance" not in wins["cards"]
-
-
 def _cc(name, record, **kw):
     from mtg_utils._tuner.classify import CardClass
 
@@ -134,16 +105,63 @@ def _cc(name, record, **kw):
     )
 
 
-class TestClosersReadTheGameTheDeckPlays:
-    """The closer read is relative to the starting life and the table: an evasive
-    body that closes at 25 life one-on-one is not a closer at a 40-life pod, and
-    single-target scaling reach is a finisher only against one opponent."""
+def test_closer_grant_counts_as_one_wincon():
+    # ADR-0040 §5 (task #100): a Granter granting a closer-grade ability
+    # (team double strike) is ONE closer regardless of recipient count — the
+    # benchmark read "2 closers" while holding Bonescythe-class team double
+    # strike twice. ADR-0024 advisory semantics unchanged; only the count
+    # gets honest.
+    from mtg_utils._tuner.metrics import win_conditions
+
+    def cc(name, closer):
+        return _cc(
+            name,
+            {"name": name, "oracle_text": "", "type_line": "Creature"},
+            grant_closer=closer,
+        )
+
+    classes = [
+        cc("Team Double Strike", closer=True),
+        cc("Team Vigilance", closer=False),
+    ]
+    wins = win_conditions(classes, shape="midrange", combo_count=0)
+    assert "Team Double Strike" in wins["cards"]
+    assert "Team Vigilance" not in wins["cards"]
+
+
+DUEL_25 = Game(medium="digital", life=25, multiplayer=False, commander_damage=False)
+POD_30 = Game(medium="paper", life=30, multiplayer=True, commander_damage=True)
+
+
+class TestClosersReadTheGame:
+    """The closer read is relative to the Game (``Format.game``): an evasive body
+    that closes at 25 life one-on-one is not a closer at a 40-life pod, fixed reach
+    counts when one hit takes 12% of starting life, and single-target reach is a
+    finisher only against one opponent."""
 
     def test_evasive_body_threshold_scales_with_life(self):
         flyer = _card("Serra Angel", "Flying, vigilance", "Creature — Angel", power=4)
         assert _is_wincon_card(flyer) is False  # 40 life: needs 6 power
-        assert _is_wincon_card(flyer, life=25) is True  # 25 life: 4 power closes
-        assert _is_wincon_card(flyer, life=20) is True
+        assert _is_wincon_card(flyer, game=DUEL_25) is True  # 25 life: 4 power
+        five = _card("Big Flyer", "Flying", "Creature — Drake", power=5)
+        assert _is_wincon_card(five, game=POD_30) is True  # 30 life: 5 power
+
+    def test_fixed_reach_scales_with_life(self):
+        # 3 damage to each opponent is 7.5% of a Commander life total and 12% of a
+        # Brawl one — a closer at 25, not at 40; 5 clears the 40-life bar.
+        three = _card(
+            "Fiery Confluence", "Fiery Confluence deals 3 damage to each opponent."
+        )
+        five = _card(
+            "Kaervek's Torch", "Kaervek's Torch deals 5 damage to each opponent."
+        )
+        assert _is_wincon_card(three) is False
+        assert _is_wincon_card(three, game=DUEL_25) is True
+        assert _is_wincon_card(five) is True
+        # Single-target fixed reach counts one-on-one only.
+        bolt = _card("Lava Axe", "Lava Axe deals 5 damage to target player.")
+        assert _is_wincon_card(bolt) is False
+        assert _is_wincon_card(bolt, game=DUEL_25) is True
 
     def test_single_target_scaling_reach_counts_only_one_on_one(self):
         fireball = _card("Fireball", "Fireball deals X damage to any target.")
@@ -152,27 +170,26 @@ class TestClosersReadTheGameTheDeckPlays:
             "Target opponent loses X life unless they sacrifice a permanent.",
         )
         assert _is_wincon_card(fireball) is False
-        assert _is_wincon_card(fireball, one_on_one=True) is True
-        assert _is_wincon_card(drain, one_on_one=True) is True
-        # Group reach counts at any table (unchanged).
+        assert _is_wincon_card(fireball, game=DUEL_25) is True
+        assert _is_wincon_card(drain, game=DUEL_25) is True
+        # Group scaling reach counts at any table (unchanged).
         exsanguinate = _card(
             "Exsanguinate", "Each opponent loses X life. You gain life equal to..."
         )
         assert _is_wincon_card(exsanguinate) is True
 
-    def test_closer_floor_scales_with_life(self):
+    def test_closer_band_scales_with_life(self):
         from mtg_utils._tuner.metrics import win_conditions
 
         classes = [
             _cc("Blank", {"name": "Blank", "oracle_text": "", "type_line": "Sorcery"})
         ]
         pod = win_conditions(classes, shape="aggro", combo_count=0)
-        duel = win_conditions(
-            classes, shape="aggro", combo_count=0, life=25, multiplayer=False
-        )
-        assert pod["target"][0] == 4
-        assert duel["target"][0] == 3  # 4 x 25/40 = 2.5, half-up
-        assert duel["one_on_one"] is True
+        duel = win_conditions(classes, shape="aggro", combo_count=0, game=DUEL_25)
+        assert pod["target"] == [4, 6]
+        # 4 x 25/40 = 2.5 and 6 x 25/40 = 3.75, rounded as _scaled rounds.
+        assert duel["target"] == [2, 4]
+        assert duel["multiplayer"] is False
         assert duel["life"] == 25
 
     def test_voltron_is_a_closer_only_where_commander_damage_wins(self):
@@ -191,21 +208,39 @@ class TestClosersReadTheGameTheDeckPlays:
             for i in range(4)
         ]
         commander = win_conditions(equips, shape="midrange", combo_count=0)
-        assert commander["voltron"] is True
         assert commander["voltron_commander_damage"] is True
-        assert commander["count"] == 1  # the 21-damage plan is one closer
-        brawl = win_conditions(
-            equips,
-            shape="midrange",
-            combo_count=0,
-            life=25,
-            multiplayer=False,
-            commander_damage=False,
-        )
-        assert brawl["voltron"] is True
+        assert commander["count"] == 1  # the 21-damage plan (CR 903.10a) is a closer
+        brawl = win_conditions(equips, shape="midrange", combo_count=0, game=DUEL_25)
         assert brawl["voltron_commander_damage"] is False
         assert brawl["voltron_needs_real_damage"] is True
         assert brawl["count"] == 0
+
+    def test_voltron_without_commander_damage_surfaces_as_an_advisory(self):
+        wins = {
+            "status": "ok",
+            "count": 3,
+            "target": [2, 4],
+            "life": 25,
+            "voltron_needs_real_damage": True,
+        }
+        issues = top_issues(
+            efficiency_r={"verdict": "ok"},
+            focus_r={
+                "verdict": "FOCUSED",
+                "filler": 0,
+                "low_value": 0,
+                "viable_avenues": [],
+                "stranded_avenues": [],
+                "emerging": [],
+            },
+            template_r={"short": {}, "over": {}},
+            wincons_r=wins,
+            protection_r={"status": "ok"},
+            commander_r={"misfit": False},
+        )
+        [issue] = [i for i in issues if i["kind"] == "voltron_no_commander_damage"]
+        assert issue["advisory"] is True
+        assert "full 25 life" in issue["message"]
 
 
 def _band(current, lo, hi, **extra):

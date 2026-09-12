@@ -149,3 +149,14 @@ use Arena's pool too). Standard and Pioneer are Arena formats whose pool is defi
 paper, so they are not gated.
 _Avoid_: "Arena format" for this (that is `is_arena`, the medium fact), "Arena-only"
 (that is `is_arena_only`, no paper counterpart at all).
+
+**Game**:
+The game a deck built for one medium is played in — its starting life (CR 903.7 /
+903.12f / 103.4), whether it is a multiplayer table or one opponent, and whether 21
+commander damage wins (CR 903.10a — Commander's extra loss rule; Brawl games do not use
+it, CR 903.12h). Built by `Format.game(medium)`, never assembled at
+a call site: the tuner's closer read and bracket gate are relative to it, calibrated at
+the 40-life Commander pod and scaled from there.
+_Avoid_: "the game the deck plays" as loose prose (that is this term), "format" for
+this (a format has several games — paper Historic Brawl at a 30-life table and Arena
+Historic Brawl at 25 one-on-one are one format, two games).

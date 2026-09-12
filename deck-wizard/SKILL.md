@@ -1283,7 +1283,7 @@ Scorecard sections and what each subsumes:
 - **`mana`** — the full mana audit: color balance, Burgess land target, untapped quality.
 - **`curve`** — the per-CMC histogram.
 - **`combos`** — combos + near-misses; combo pieces are auto-protected from the proposed cuts.
-- **`bracket`** — the constraint gate when you pass `--bracket` (Game Changers / mass land denial / extra turns / two-card combos vs the target bracket's official allowances; ADR-0030).
+- **`bracket`** — the constraint gate when you pass `--bracket` (Game Changers / mass land denial / extra turns / two-card combos vs the target bracket's official allowances; ADR-0030). For a one-on-one game (every Arena build, Competitive Brawl) it passes with a `not_applicable` reason — the brackets are a multiplayer-Commander system.
 - **`swaps`** — budgeted (cut, add) candidate pairs, synergy-ranked (the old `deck-rank` pass).
 
 **Your job is judgment, not counting.** Read the scorecard's `top_issues`, then run the per-card Cut Checklist (6d) on the *candidate swaps* `deck-tune` surfaced — verify oracle text, commander interaction, multiplied trigger values (Step 7 `cut-check`), and combo lines before accepting any swap. The Self-Grill (Step 8) still gates the final proposal, and **you and the user make every final call** (the user drives card choices).

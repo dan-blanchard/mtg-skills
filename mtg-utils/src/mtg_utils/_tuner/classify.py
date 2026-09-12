@@ -15,6 +15,7 @@ from dataclasses import dataclass
 from mtg_utils._deck_forge.budgets import protects, role_of
 from mtg_utils._deck_forge.ranking import score_candidate
 from mtg_utils.card_classify import is_land
+from mtg_utils.formats import medium_is_digital
 from mtg_utils.hydrated_deck import HydratedDeck
 
 # The hard-counted Spine roles; ``lands`` is its own bucket (the curve gate's domain).
@@ -36,7 +37,7 @@ def is_fringe(rank: int | None, *, medium: str = "paper") -> bool:
     deck is a population artifact (Arena-only cards can never appear there) —
     no data, never condemning. On paper, absence genuinely means unplayed."""
     if rank is None:
-        return medium != "digital"
+        return not medium_is_digital(medium)
     return rank > FRINGE_RANK
 
 
