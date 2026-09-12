@@ -151,8 +151,8 @@ _Avoid_: "Arena format" for this (that is `is_arena`, the medium fact), "Arena-o
 (that is `is_arena_only`, no paper counterpart at all).
 
 **Game**:
-The game a deck built for one medium is played in — its starting life (CR 903.7 /
-903.12f / 103.4), whether it is a multiplayer table or one opponent, and whether 21
+The game a deck built for one medium is played in — its starting life (CR 103.4;
+103.4c Commander, 103.4d Brawl), whether it is a multiplayer table or one opponent, and whether 21
 commander damage wins (CR 903.10a — Commander's extra loss rule; Brawl games do not use
 it, CR 903.12h). Built by `Format.game(medium)`, never assembled at
 a call site: the tuner's closer read and bracket gate are relative to it, calibrated at

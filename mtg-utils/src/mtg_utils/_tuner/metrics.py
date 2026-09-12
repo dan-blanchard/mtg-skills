@@ -57,11 +57,13 @@ _FRONT_WANT = {"aggro": 18, "midrange": 14, "control": 10, "combo": 12}
 # The Game every band below is calibrated at: the 40-life Commander pod (CR 903.7),
 # where 21 commander damage wins (CR 903.10a). ``win_conditions`` scales from it to the
 # Game the deck actually plays (``Format.game``).
-_REFERENCE_GAME = Game(medium="paper", life=40, multiplayer=True, commander_damage=True)
-_REFERENCE_LIFE = _REFERENCE_GAME.life
+_CALIBRATION_GAME = Game(
+    medium="paper", life=40, multiplayer=True, commander_damage=True
+)
+_CALIBRATION_LIFE = _CALIBRATION_GAME.life
 
 # Shape → (min, max) dedicated closers (ADR-0024; floor ~3, archetype-scaled) at
-# _REFERENCE_GAME. Both bounds scale with starting life (``_life_scaled``): at 25 life
+# _CALIBRATION_GAME. Both bounds scale with starting life (``_life_scaled``): at 25 life
 # one-on-one, ordinary threats close games and fewer dedicated closers are wanted.
 _WINCON_TARGET = {
     "aggro": (4, 6),
@@ -69,12 +71,13 @@ _WINCON_TARGET = {
     "control": (2, 4),
     "combo": (2, 3),
 }
-# An evasive body reads as a closer from this power at _REFERENCE_LIFE (~7 swings); the
-# threshold scales with life so a 4-power flyer counts at 25 (~6 swings) but not at 40.
+# An evasive body reads as a closer from this power at _CALIBRATION_LIFE (~7 swings);
+# the threshold scales with life so a 4-power flyer counts at 25 (~6 swings) but not
+# at 40.
 _EVASIVE_CLOSER_POWER = 6
 _EVASIVE_CLOSER_POWER_FLOOR = 3
 # A fixed-amount burn / drain is a closer when one resolution takes at least this share
-# of starting life: 5 at _REFERENCE_LIFE, 4 at 30, 3 at 25 or 20.
+# of starting life: 5 at _CALIBRATION_LIFE, 4 at 30, 3 at 25 or 20.
 _BURN_CLOSER_FRACTION = 0.12
 
 # Heuristic finisher oracle patterns (labeled heuristic; combos are the precise source).
@@ -91,38 +94,33 @@ _WINCON_PATTERNS = [
         r"an additional combat phase",
         r"extra combat",
         r"infinite",
-        r"damage to each opponent equal",
-        # Scaling group-drain finisher (Yuriko base drain, Exsanguinate) — the life-loss
-        # sibling of the burn clause above. Scaling-scoped so a 1-life pinger (Blood
-        # Artist) is not counted as a closer.
-        r"each opponent loses (?:life equal|x life)",
+        # Burn / drain reach (scaling or fixed, group or single-target) is read by
+        # ``_reach_closes`` against the Game, not here.
         r"creatures you control get \+\d",
     )
 ]
-# One-on-one only: with a single opponent, "any target" / "target player" scaling
-# damage or drain is the same finisher "each opponent" is at a pod. Never counted in
-# multiplayer, where single-target reach is not a table-closer.
-_WINCON_PATTERNS_1V1 = [
-    re.compile(p, re.IGNORECASE)
-    for p in (
-        (
-            r"deals? (?:x|damage equal to)[^.]*damage to "
-            r"(?:any target|target (?:player|opponent))"
-        ),
-        r"target (?:player|opponent) loses (?:life equal|x life)",
-    )
-]
-# Fixed-amount reach, measured against starting life (``_BURN_CLOSER_FRACTION``):
-# group burn / drain counts at any table; single-target only one-on-one.
-_FIXED_REACH_GROUP = re.compile(
-    r"(?:deals? (\d+) damage to each opponent|each opponent loses (\d+) life)",
-    re.IGNORECASE,
+# Reach — burn / drain that ends a game — is ONE scope table x ONE amount read. Group
+# scope ("each opponent") counts at any table; single-target scope counts only
+# one-on-one, where "any target" is the finisher "each opponent" is at a pod. A
+# SCALING amount (X, "equal to …") is always a closer; a FIXED amount is a closer when
+# one resolution takes ``_BURN_CLOSER_FRACTION`` of starting life, and only in group
+# scope — a fixed single-target bolt is removal, never a closer, even at 25 life.
+_GROUP_SCOPE = r"each opponent"
+_SINGLE_SCOPE = r"any target|target (?:player|opponent)"
+_REACH_TEMPLATES = (
+    r"deals? (?P<amount>\d+|x) damage to (?:{scope})",
+    r"deals? damage to (?:{scope}) equal to",
+    r"(?:{scope}) loses? (?P<amount>\d+|x) life",
+    r"(?:{scope}) loses? life equal to",
 )
-_FIXED_REACH_1V1 = re.compile(
-    r"(?:deals? (\d+) damage to (?:any target|target (?:player|opponent))"
-    r"|target (?:player|opponent) loses (\d+) life)",
-    re.IGNORECASE,
-)
+
+
+def _reach_patterns(scope: str) -> list[re.Pattern[str]]:
+    return [re.compile(t.format(scope=scope), re.IGNORECASE) for t in _REACH_TEMPLATES]
+
+
+_GROUP_REACH = _reach_patterns(_GROUP_SCOPE)
+_SINGLE_REACH = _reach_patterns(_SINGLE_SCOPE)
 _EVASION = ("flying", "menace", "trample", "can't be blocked", "shadow", "fear")
 
 
@@ -138,32 +136,43 @@ def _scaled(value: int, deck_size: int) -> int:
 
 
 def _life_scaled(value: int, life: int, *, floor: int) -> int:
-    """``value`` (calibrated at ``_REFERENCE_LIFE``) scaled to ``life``, rounded the
+    """``value`` (calibrated at ``_CALIBRATION_LIFE``) scaled to ``life``, rounded the
     same way ``_scaled`` rounds deck-size scaling (Python's round), never below
     ``floor``."""
-    return max(floor, round(value * life / _REFERENCE_LIFE))
+    return max(floor, round(value * life / _CALIBRATION_LIFE))
 
 
-def _fixed_reach_closes(text: str, *, game: Game) -> bool:
-    """A fixed burn / drain amount that takes ``_BURN_CLOSER_FRACTION`` of the game's
-    starting life in one resolution."""
+def _reach_closes(text: str, *, game: Game) -> bool:
+    """Burn / drain that closes ``game`` (see the reach table above)."""
     threshold = math.ceil(game.life * _BURN_CLOSER_FRACTION)
-    patterns = [_FIXED_REACH_GROUP] + ([] if game.multiplayer else [_FIXED_REACH_1V1])
-    for pat in patterns:
+    for pat in _GROUP_REACH:
         for m in pat.finditer(text):
-            amount = next((g for g in m.groups() if g), None)
-            if amount is not None and int(amount) >= threshold:
+            amount = m.groupdict().get("amount")
+            scaling = amount is None or amount.lower() == "x"
+            if scaling or int(amount) >= threshold:
                 return True
+    if not game.multiplayer:
+        for pat in _SINGLE_REACH:
+            for m in pat.finditer(text):
+                amount = m.groupdict().get("amount")
+                if amount is None or amount.lower() == "x":
+                    return True
     return False
+
+
+def _voltron_pieces(classes: Sequence[CardClass]) -> list[str]:
+    """The equipment / aura cards a voltron plan is made of."""
+    return sorted(
+        c.name
+        for c in classes
+        if _matches(c.record, "equip") or _matches(c.record, "auras")
+    )
 
 
 def _is_voltron(classes: Sequence[CardClass], deck_size: int) -> bool:
     """Equip/aura density that reads as a voltron plan (shared by the protection
     advisory and the closer count)."""
-    equip_aura = sum(
-        1 for c in classes if _matches(c.record, "equip") or _matches(c.record, "auras")
-    )
-    return equip_aura >= _scaled(4, deck_size)
+    return len(_voltron_pieces(classes)) >= _scaled(4, deck_size)
 
 
 # ── Efficiency ────────────────────────────────────────────────────────────────
@@ -438,7 +447,7 @@ def _ir_wincon(ir: Card) -> bool:
     )
 
 
-def _is_wincon_card(card: dict, *, game: Game = _REFERENCE_GAME) -> bool:
+def _is_wincon_card(card: dict, *, game: Game = _CALIBRATION_GAME) -> bool:
     """Heuristic finisher read, relative to ``game``: its starting life sets the
     evasive-body and fixed-reach thresholds, and one opponent admits single-target
     reach (the same finisher "each opponent" is at a pod)."""
@@ -448,9 +457,7 @@ def _is_wincon_card(card: dict, *, game: Game = _REFERENCE_GAME) -> bool:
     text = card.get("oracle_text") or ""
     if any(p.search(text) for p in _WINCON_PATTERNS):
         return True
-    if not game.multiplayer and any(p.search(text) for p in _WINCON_PATTERNS_1V1):
-        return True
-    if _fixed_reach_closes(text, game=game):
+    if _reach_closes(text, game=game):
         return True
     power_floor = _life_scaled(
         _EVASIVE_CLOSER_POWER, game.life, floor=_EVASIVE_CLOSER_POWER_FLOOR
@@ -467,7 +474,7 @@ def win_conditions(
     shape: str,
     combo_count: int,
     deck_size: int = 100,
-    game: Game = _REFERENCE_GAME,
+    game: Game = _CALIBRATION_GAME,
 ) -> dict:
     """Dedicated closers vs the Shape's band (ADR-0024 advisory), read against the
     ``Game`` the deck plays (``Format.game``). A voltron plan (equip/aura density) is
@@ -490,7 +497,9 @@ def win_conditions(
     count = len(cards) + combo_count + (1 if voltron_closer else 0)
     lo, hi = _WINCON_TARGET.get(shape, (3, 6))
     lo = _life_scaled(lo, game.life, floor=2)
-    hi = max(lo, _life_scaled(hi, game.life, floor=2))
+    # The band keeps at least one card of width, so a low-life control/combo band
+    # never collapses to "wants 2-2".
+    hi = max(lo + 1, _life_scaled(hi, game.life, floor=2))
     return {
         "count": count,
         "from_combos": combo_count,
@@ -499,8 +508,10 @@ def win_conditions(
         "status": "low" if count < lo else "ok",
         "life": game.life,
         "multiplayer": game.multiplayer,
-        # The commander-damage plan counted as one closer (CR 903.10a applies).
+        # The commander-damage plan counted as one closer (CR 903.10a applies), and
+        # the pieces it is made of — what the cut-protection floor keeps.
         "voltron_commander_damage": voltron_closer,
+        "voltron_cards": _voltron_pieces(classes) if voltron_closer else [],
         # A voltron plan with no 21-damage rule: it has to deal the whole life total.
         "voltron_needs_real_damage": voltron and not game.commander_damage,
     }
@@ -699,6 +710,7 @@ def top_issues(
             {
                 "kind": "commander_misfit",
                 "severity": 5,
+                "advisory": True,
                 "message": "commander serves "
                 f"{len(commander_r['serves_viable'])}/{commander_r['viable_count']} "
                 "viable avenues — the deck may be built for a different commander",

@@ -129,15 +129,16 @@ def main(
     if medium is None and len(fmt.media) > 1:
         # The medium decides the game the scorecard reads (starting life, one-on-one
         # vs pod) — say which one was inferred so a paper table isn't tuned as Arena.
+        other = next(m for m in fmt.media if m != effective_medium)
         click.echo(
-            f"Note: --medium not given; tuning {fmt.name} as {effective_medium} "
-            f"(pass --medium {'paper' if effective_medium == 'digital' else 'digital'} "
-            "for the other).",
+            f"Note: --medium not given; tuning {fmt.name} as {effective_medium!r} "
+            f"(pass --medium {other} for the other).",
             err=True,
         )
     if medium is not None and effective_medium != medium:
         click.echo(
-            f"Note: {fmt.name} is not played in {medium!r}; using {effective_medium}.",
+            f"Note: {fmt.name} is not played in {medium!r}; "
+            f"using {effective_medium!r}.",
             err=True,
         )
     effective_paper_only = (

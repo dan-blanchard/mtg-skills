@@ -151,7 +151,8 @@ def tune(
     fmt = hd.format.name
     # The Game the deck plays (starting life, pod vs one opponent, whether commander
     # damage wins), from the Format under the build's medium — ``Format.game`` resolves
-    # an override the format cannot honour, so a raw caller value can't misread it.
+    # an override the format cannot honour, and every medium read below uses
+    # ``game.medium`` so a raw caller value can't misread it.
     # Drives the closer read and the bracket gate's applicability.
     game = hd.format.game(params.medium)
     identity = _deck_identity(hd)
@@ -220,7 +221,7 @@ def tune(
         classes,
         deck_size=deck_size,
         deck_signals=deck_signals,
-        medium=params.medium,
+        medium=game.medium,
         tribal_payoff_subjects=payoff_subjects,
     )
     tmpl = metrics.template_deviation(budgets)
@@ -283,9 +284,14 @@ def tune(
 
     # Win-con floor protection (ADR-0029, sibling to combo-piece protection): at/below
     # the heuristic win-con floor, don't let the proposer cut a card the SAME scorecard
-    # counts as a finisher — that would drop it below the floor it just reported. Above
-    # the floor, marginal finishers stay trimmable.
-    wincon_protect = set(wins["cards"]) if wins["count"] <= wins["target"][0] else set()
+    # counts as a finisher — that would drop it below the floor it just reported. A
+    # synthetic voltron closer (ADR-0024 amendment) is its equipment/aura pieces, so
+    # those are what it protects. Above the floor, marginal finishers stay trimmable.
+    wincon_protect = (
+        set(wins["cards"]) | set(wins["voltron_cards"])
+        if wins["count"] <= wins["target"][0]
+        else set()
+    )
     protected = combo_pieces | wincon_protect
 
     # Over-legal-size cuts (legality-driven, so NOT gated on max_swaps — even a
@@ -310,7 +316,7 @@ def tune(
             stranded=set(foc["stranded_avenues"]),
             message=f"deck is {overflow} over {legal} — cut",
             protected=protected,
-            medium=params.medium,
+            medium=game.medium,
             # Maindeck-only: cutting a sideboard card wouldn't shrink the total.
             eligible={r.get("name", "") for r in hd.expanded(zones=("cards",))},
         )
@@ -341,7 +347,7 @@ def tune(
             fill_slots=fill_slots,
             wildcard_budget=params.wildcard_budget,
             protected=protected,
-            medium=params.medium,
+            medium=game.medium,
         )
         # The fill pass deliberately skips lands; flag any mana-base shortfall so the
         # user runs the land tooling (balance-lands), not Tune, to finish it.

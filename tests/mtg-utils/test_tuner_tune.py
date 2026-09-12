@@ -644,8 +644,10 @@ def test_medium_threads_to_the_low_value_reads():
     # real snapshot cards — the synthetic _hd() harness buckets everything
     # filler and can't observe the low_value read. Real Krenko + Rabblemaster
     # (both snapshot-resident, edhrec_rank=None in the minimal records) give
-    # one engine card: fringe-evidence on the default paper medium, no-data
-    # on digital. Proves TuneParams.medium reaches metrics.focus.
+    # one engine card: fringe-evidence on paper, no-data on digital. Proves
+    # TuneParams.medium reaches metrics.focus. Historic Brawl, because it is played
+    # in BOTH media — ``Format.game`` resolves an override the format cannot honour
+    # (digital on Commander) back to the format's own medium.
     from mtg_utils import testkit
 
     testkit.test_card_ir("Krenko, Mob Boss")  # seeds the crosswalk trees memo
@@ -659,7 +661,7 @@ def test_medium_threads_to_the_low_value_reads():
         )
     }
     deck = {
-        "format": "commander",
+        "format": "historic_brawl",
         "deck_size": 100,
         "commanders": [{"name": "Krenko, Mob Boss", "quantity": 1}],
         "cards": [
@@ -668,7 +670,9 @@ def test_medium_threads_to_the_low_value_reads():
         ],
     }
     hd = HydratedDeck.from_parsed(deck, by_name=index)
-    paper = tune(hd, search_fn=_fake_search, params=TuneParams(max_swaps=0))
+    paper = tune(
+        hd, search_fn=_fake_search, params=TuneParams(max_swaps=0, medium="paper")
+    )
     digital = tune(
         hd,
         search_fn=_fake_search,
@@ -676,3 +680,48 @@ def test_medium_threads_to_the_low_value_reads():
     )
     assert paper["scorecard"]["focus"]["low_value_cards"] == ["Goblin Rabblemaster"]
     assert digital["scorecard"]["focus"]["low_value_cards"] == []
+
+
+def test_voltron_pieces_at_the_closer_floor_are_protected_from_cuts(monkeypatch):
+    # ADR-0024 amendment: under a commander-damage plan (CR 903.10a) the equipment
+    # suite IS the synthetic closer, so at/below the closer floor the proposer must
+    # not cut its pieces — the same guard test_wincon_at_floor_is_protected_from_cuts
+    # verifies for a named finisher.
+    import sys
+
+    tune_mod = sys.modules["mtg_utils._tuner.tune"]
+    captured = {}
+    real_propose = tune_mod.swaps_mod.propose_swaps
+
+    def spy(*args, **kw):
+        captured["protected"] = set(kw.get("protected") or ())
+        return real_propose(*args, **kw)
+
+    monkeypatch.setattr(tune_mod.swaps_mod, "propose_swaps", spy)
+
+    swords = [
+        {
+            "name": f"Sword {i}",
+            "type_line": "Artifact — Equipment",
+            "oracle_text": "Equipped creature gets +2/+2.\nEquip {2}",
+            "keywords": ["Equip"],
+            "cmc": 3.0,
+            "color_identity": [],
+        }
+        for i in range(4)
+    ]
+    index = {KRENKO["name"]: KRENKO, MOUNTAIN["name"]: MOUNTAIN}
+    index.update({s["name"]: s for s in swords})
+    deck = {
+        "format": "commander",
+        "deck_size": 100,
+        "commanders": [{"name": "Krenko, Mob Boss", "quantity": 1}],
+        "cards": [{"name": s["name"], "quantity": 1} for s in swords]
+        + [{"name": "Mountain", "quantity": 1}],
+    }
+    hd = HydratedDeck.from_parsed(deck, by_name=index)
+    out = tune(hd, search_fn=_fake_search, params=TuneParams(max_swaps=5, budget=100.0))
+    wins = out["scorecard"]["wincons"]
+    assert wins["voltron_commander_damage"] is True
+    assert wins["count"] <= wins["target"][0]
+    assert {s["name"] for s in swords} <= captured["protected"]

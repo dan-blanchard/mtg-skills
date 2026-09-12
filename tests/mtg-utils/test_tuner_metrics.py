@@ -113,16 +113,12 @@ def test_closer_grant_counts_as_one_wincon():
     # gets honest.
     from mtg_utils._tuner.metrics import win_conditions
 
-    def cc(name, closer):
-        return _cc(
-            name,
-            {"name": name, "oracle_text": "", "type_line": "Creature"},
-            grant_closer=closer,
-        )
+    def rec(name):
+        return {"name": name, "oracle_text": "", "type_line": "Creature"}
 
     classes = [
-        cc("Team Double Strike", closer=True),
-        cc("Team Vigilance", closer=False),
+        _cc("Team Double Strike", rec("Team Double Strike"), grant_closer=True),
+        _cc("Team Vigilance", rec("Team Vigilance"), grant_closer=False),
     ]
     wins = win_conditions(classes, shape="midrange", combo_count=0)
     assert "Team Double Strike" in wins["cards"]
@@ -146,7 +142,7 @@ class TestClosersReadTheGame:
         five = _card("Big Flyer", "Flying", "Creature — Drake", power=5)
         assert _is_wincon_card(five, game=POD_30) is True  # 30 life: 5 power
 
-    def test_fixed_reach_scales_with_life(self):
+    def test_fixed_group_reach_scales_with_life(self):
         # 3 damage to each opponent is 7.5% of a Commander life total and 12% of a
         # Brawl one — a closer at 25, not at 40; 5 clears the 40-life bar.
         three = _card(
@@ -158,10 +154,14 @@ class TestClosersReadTheGame:
         assert _is_wincon_card(three) is False
         assert _is_wincon_card(three, game=DUEL_25) is True
         assert _is_wincon_card(five) is True
-        # Single-target fixed reach counts one-on-one only.
-        bolt = _card("Lava Axe", "Lava Axe deals 5 damage to target player.")
-        assert _is_wincon_card(bolt) is False
-        assert _is_wincon_card(bolt, game=DUEL_25) is True
+
+    def test_fixed_single_target_reach_is_never_a_closer(self):
+        # A fixed bolt is removal, not a finisher, even one-on-one at 25 life —
+        # otherwise every Lightning Bolt in an Arena Brawl deck would count.
+        bolt = _card("Lightning Bolt", "Lightning Bolt deals 3 damage to any target.")
+        axe = _card("Lava Axe", "Lava Axe deals 5 damage to target player.")
+        assert _is_wincon_card(bolt, game=DUEL_25) is False
+        assert _is_wincon_card(axe, game=DUEL_25) is False
 
     def test_single_target_scaling_reach_counts_only_one_on_one(self):
         fireball = _card("Fireball", "Fireball deals X damage to any target.")
@@ -191,6 +191,10 @@ class TestClosersReadTheGame:
         assert duel["target"] == [2, 4]
         assert duel["multiplayer"] is False
         assert duel["life"] == 25
+        # The band keeps a card of width at low life: control's (2, 4) would round to
+        # (2, 2) at 25, so hi is held at lo + 1.
+        control = win_conditions(classes, shape="control", combo_count=0, game=DUEL_25)
+        assert control["target"] == [2, 3]
 
     def test_voltron_is_a_closer_only_where_commander_damage_wins(self):
         from mtg_utils._tuner.metrics import win_conditions
@@ -210,9 +214,12 @@ class TestClosersReadTheGame:
         commander = win_conditions(equips, shape="midrange", combo_count=0)
         assert commander["voltron_commander_damage"] is True
         assert commander["count"] == 1  # the 21-damage plan (CR 903.10a) is a closer
+        # The synthetic closer is its pieces — what the cut-protection floor keeps.
+        assert commander["voltron_cards"] == [f"Sword {i}" for i in range(4)]
         brawl = win_conditions(equips, shape="midrange", combo_count=0, game=DUEL_25)
         assert brawl["voltron_commander_damage"] is False
         assert brawl["voltron_needs_real_damage"] is True
+        assert brawl["voltron_cards"] == []
         assert brawl["count"] == 0
 
     def test_voltron_without_commander_damage_surfaces_as_an_advisory(self):

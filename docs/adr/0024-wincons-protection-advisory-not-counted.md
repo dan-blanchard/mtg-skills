@@ -46,8 +46,9 @@ ONE synthetic closer where commander damage wins (CR 903.10a, Commander's extra 
 rule) and is surfaced as an advisory ("must deal the full life total") where it does not
 (Brawl games do not use it, CR 903.12h). The count stays the advisory "≈N
 closers" this ADR describes; the only behaviour that reads it is the cut-protection floor
-(a deck at its closer floor keeps its closers), which the synthetic closer participates
-in deliberately — cutting an equipment suite's last pieces under a commander-damage
-plan is the same mistake as cutting a named finisher.
+(a deck at its closer floor keeps its closers). The synthetic closer is its equipment /
+aura pieces (`voltron_cards`), so at the floor those pieces are what the tuner protects —
+cutting an equipment suite's last pieces under a commander-damage plan is the same
+mistake as cutting a named finisher.
 
 *Amended by ADR-0030; original decision revised in place.*

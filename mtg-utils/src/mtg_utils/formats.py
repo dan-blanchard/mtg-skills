@@ -56,8 +56,8 @@ class Game:
     read and bracket gate are relative to. Built by ``Format.game``, never ad hoc."""
 
     medium: Medium
-    #: Starting life (CR 903.7 Commander 40; CR 903.12f Brawl 25 two-player / 30
-    #: multiplayer; CR 103.4 otherwise).
+    #: Starting life (CR 103.4: 20; 103.4c Commander 40; 103.4d Brawl 25 two-player /
+    #: 30 multiplayer).
     life: int
     #: A multiplayer table (a Commander pod, a multiplayer Brawl game) vs one opponent.
     multiplayer: bool
@@ -112,7 +112,7 @@ class Format:
     colorless_any_basic: bool
     #: Played on MTG Arena (possibly also in paper).
     is_arena: bool
-    #: Multiplayer starting life (CR 903.12f: a multiplayer Brawl game starts at 30);
+    #: Multiplayer starting life (CR 103.4d: a multiplayer Brawl game starts at 30);
     #: None for formats with no multiplayer variant.
     multiplayer_life_total: int | None = None
     #: No paper counterpart at all: the medium is always digital, never a choice.
@@ -185,14 +185,15 @@ class Format:
     def is_multiplayer(self, medium: str) -> bool:
         """Whether a game in ``medium`` is multiplayer: Arena is one-on-one for every
         format; in paper, a format is multiplayer iff it has a multiplayer variant
-        (Commander's pod, paper Brawl's 30-life table — CR 903.12f)."""
+        (Commander's pod, paper Brawl's 30-life table — CR 103.4d)."""
         return not medium_is_digital(medium) and self.multiplayer_life_total is not None
 
     def starting_life(self, medium: str) -> int:
         """The starting life a deck built for ``medium`` plays against — the
         multiplayer total at a paper table, else the one-on-one total."""
-        if self.is_multiplayer(medium):
-            return self.multiplayer_life_total or self.life_total
+        multiplayer_life = self.multiplayer_life_total
+        if multiplayer_life is not None and not medium_is_digital(medium):
+            return multiplayer_life  # the is_multiplayer rule, narrowed for the type
         return self.life_total
 
     def game(self, medium: str | None = None) -> Game:
@@ -380,7 +381,7 @@ _ALL: tuple[Format, ...] = (
         "brawl",
         "Brawl",
         deck_size=60,
-        # CR 903.12f: 25 in a two-player Brawl game, 30 in a multiplayer one.
+        # CR 103.4d: 25 in a two-player Brawl game, 30 in a multiplayer one.
         life_total=25,
         multiplayer_life_total=30,
         legality_key="standardbrawl",
