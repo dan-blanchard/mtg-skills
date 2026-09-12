@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 import re
 from collections import Counter
 from collections.abc import Sequence
@@ -16,7 +15,8 @@ from mtg_utils.card_classify import (
     is_land,
 )
 from mtg_utils.deck import accumulate_deck_metrics
-from mtg_utils.hydrated_deck import HydratedDeck
+from mtg_utils.deck_cli import acquire_for_cli, bulk_data_option
+from mtg_utils.hydrated_deck import HydratedDeck, sidecar_path
 
 ALTERNATIVE_COST_KEYWORDS = {
     "suspend",
@@ -248,13 +248,17 @@ def render_text_report(stats: dict) -> str:
     return "\n".join(lines) + "\n"
 
 
-def _default_output_path(deck_content: str, hydrated_content: str) -> Path:
-    return sha_keyed_path("deck-stats", deck_content, hydrated_content)
+def _default_output_path(deck_path: Path) -> Path:
+    # Keyed by the deck's content AND its hydrated sidecar (mtime/size), so a bulk
+    # refresh that re-joins the deck also re-keys the report.
+    return sha_keyed_path(
+        "deck-stats", deck_path.read_text(encoding="utf-8"), sidecar_path(deck_path)
+    )
 
 
 @click.command()
 @click.argument("deck_path", type=click.Path(exists=True, path_type=Path))
-@click.argument("hydrated_path", type=click.Path(exists=True, path_type=Path))
+@bulk_data_option
 @click.option(
     "--output",
     "output_path",
@@ -262,16 +266,12 @@ def _default_output_path(deck_content: str, hydrated_content: str) -> Path:
     default=None,
     help="Override the default sha-keyed path for the full JSON output.",
 )
-def main(deck_path: Path, hydrated_path: Path, output_path: Path | None) -> None:
-    """Compute deck statistics from parsed deck and hydrated card data."""
-    deck_content = deck_path.read_text(encoding="utf-8")
-    hydrated_content = hydrated_path.read_text(encoding="utf-8")
-    deck = json.loads(deck_content)
-    hydrated = json.loads(hydrated_content)
-    result = deck_stats(HydratedDeck.from_parsed(deck, records=hydrated))
+def main(deck_path: Path, bulk_data: Path | None, output_path: Path | None) -> None:
+    """Compute deck statistics for DECK_PATH."""
+    result = deck_stats(acquire_for_cli(deck_path, bulk_data))
 
     if output_path is None:
-        output_path = _default_output_path(deck_content, hydrated_content)
+        output_path = _default_output_path(deck_path)
     else:
         output_path = output_path.resolve()
     atomic_write_json(output_path, result)

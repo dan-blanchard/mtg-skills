@@ -197,6 +197,12 @@ def lookup_cards(
 
     content = names_path.read_text(encoding="utf-8")
     raw = json.loads(content)
+    if isinstance(raw, dict):
+        msg = (
+            "scryfall-lookup --batch takes a JSON list of card names; a parsed deck "
+            "hydrates itself — run `deck-hydrate <deck.json>` instead."
+        )
+        raise click.ClickException(msg)
     names = _extract_names(raw)
 
     cache_key = _build_cache_key(content, bulk_path)

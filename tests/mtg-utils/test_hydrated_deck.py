@@ -3,7 +3,7 @@
 The interface IS the test surface: a desynced (deck, hydrated) pair must be
 unconstructable, missing names DROP (never None) on .records/.expanded, the no-bulk
 degraded state is the typed .has_records flag, and the desync RAISE lives only at the
-untrusted-input boundary (from_paths / from_parsed(records=...)).
+untrusted-input boundary (from_parsed(records=...), which the sidecar read uses).
 """
 
 from __future__ import annotations
@@ -266,29 +266,6 @@ def test_by_name_path_does_not_raise_on_missing_records():
     assert hd.has_records is False  # degraded, not an error
 
 
-def test_from_paths_reads_files_and_raises_on_stub_hydrated_file(tmp_path):
-    deck_path = tmp_path / "deck.json"
-    deck_path.write_text(json.dumps(_deck()), encoding="utf-8")
-
-    good_hyd = tmp_path / "hydrated.json"
-    good_hyd.write_text(json.dumps([COMMANDER, SOL_RING, LLANOWAR, FOREST]), "utf-8")
-    hd = HydratedDeck.from_paths(deck_path, good_hyd)
-    assert hd.by_name.get("Sol Ring") is not None
-    assert hd.has_records is True
-
-    bad_hyd = tmp_path / "bad.json"
-    bad_hyd.write_text(json.dumps([{"name": "Sol Ring", "quantity": 1}]), "utf-8")
-    with pytest.raises(ValueError, match=r"type_line|stub|hydrated"):
-        HydratedDeck.from_paths(deck_path, bad_hyd)
-
-
-def test_from_paths_with_no_hydrated_file_is_degraded(tmp_path):
-    deck_path = tmp_path / "deck.json"
-    deck_path.write_text(json.dumps(_deck()), encoding="utf-8")
-    hd = HydratedDeck.from_paths(deck_path, None)  # the combo_search optional case
-    assert hd.has_records is False
-
-
 # --- acquire: the deck-acquisition seam (ADR-0046) ---------------------------------
 
 
@@ -409,3 +386,21 @@ def test_acquire_loads_the_pool_from_bulk_path(tmp_path):
     hd = HydratedDeck.acquire(deck_path, bulk_path=bulk, fetch=_no_fetch)
     assert hd.by_name.get("Sol Ring") is not None
     assert json.loads(sidecar_path(deck_path).read_text())["bulk"] == str(bulk)
+
+
+def test_records_from_file_reads_a_list_or_a_sidecar(tmp_path):
+    from mtg_utils.hydrated_deck import records_from_file
+
+    deck_path = _write_deck(tmp_path)
+    hd = HydratedDeck.acquire(deck_path, pool=_pool(), fetch=_no_fetch)
+    from_sidecar = records_from_file(sidecar_path(deck_path))
+    assert [r["name"] for r in from_sidecar] == [r["name"] for r in hd.records]
+
+    listing = tmp_path / "cands.json"
+    listing.write_text(json.dumps([SOL_RING]), encoding="utf-8")
+    assert records_from_file(listing) == [SOL_RING]
+
+    bad = tmp_path / "bad.json"
+    bad.write_text(json.dumps({"format": "commander"}), encoding="utf-8")
+    with pytest.raises(ValueError, match="hydrated sidecar"):
+        records_from_file(bad)

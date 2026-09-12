@@ -1,6 +1,5 @@
 """Commander Spellbook combo search for Commander decks."""
 
-import json
 import re
 import sys
 from collections.abc import Mapping, Sequence
@@ -12,6 +11,7 @@ import requests
 from mtg_utils._http import USER_AGENT
 from mtg_utils._sidecar import atomic_write_json, sha_keyed_path
 from mtg_utils.card_classify import get_oracle_text
+from mtg_utils.deck_cli import acquire_for_cli, bulk_data_option
 from mtg_utils.formats import FORMATS
 from mtg_utils.hydrated_deck import HydratedDeck
 
@@ -421,13 +421,7 @@ def _default_discover_output_path(*args: object) -> Path:
     show_default=True,
     help="Maximum number of near-miss combos to return.",
 )
-@click.option(
-    "--hydrated",
-    "hydrated_path",
-    type=click.Path(exists=True, path_type=Path),
-    default=None,
-    help="Hydrated card data for resolving Arena display names to canonical names.",
-)
+@bulk_data_option
 @click.option(
     "--output",
     "output_path",
@@ -438,16 +432,16 @@ def _default_discover_output_path(*args: object) -> Path:
 def main(
     deck_json: Path,
     max_near_misses: int,
-    hydrated_path: Path | None,
+    bulk_data: Path | None,
     output_path: Path | None,
 ) -> None:
-    """Search Commander Spellbook for combos in a deck."""
+    """Search Commander Spellbook for combos in DECK_JSON.
+
+    Card data is optional here (Spellbook needs only names); with it, near-miss
+    detection can check template requirements against the deck's records.
+    """
     deck_content = deck_json.read_text(encoding="utf-8")
-    deck = json.loads(deck_content)
-    hydrated = None
-    if hydrated_path is not None:
-        hydrated = json.loads(hydrated_path.read_text(encoding="utf-8"))
-    hd = HydratedDeck.from_parsed(deck, records=hydrated)
+    hd = acquire_for_cli(deck_json, bulk_data, require_records=False)
     result = combo_search(hd, max_near_misses=max_near_misses)
 
     if output_path is None:

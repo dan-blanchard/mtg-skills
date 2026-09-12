@@ -65,6 +65,21 @@ def _hydration_key(deck_content: str, pool_identity: str) -> str:
     return hasher.hexdigest()[:16]
 
 
+def records_from_file(path: str | os.PathLike) -> list[dict]:
+    """The card records in a JSON file that is EITHER a bare records list (a
+    ``scryfall-lookup --batch`` cache of candidates) OR a hydrated sidecar payload
+    (``<deck>.hydrated.json``) — for a CLI that reads a record list rather than a
+    deck (``archetype-audit``, ``card-summary`` on a list), so the sidecar is usable
+    wherever a records file is. Raises ``ValueError`` on any other shape."""
+    payload = json.loads(Path(path).read_text(encoding="utf-8"))
+    if isinstance(payload, list):
+        return payload
+    if isinstance(payload, dict) and isinstance(payload.get("records"), list):
+        return payload["records"]
+    msg = f"{path}: expected a JSON list of card records or a hydrated sidecar"
+    raise ValueError(msg)
+
+
 def _read_sidecar(path: Path, key: str) -> list[dict | None] | None:
     """The sidecar's records if it exists, parses, and carries *key*; else None."""
     try:
@@ -75,6 +90,19 @@ def _read_sidecar(path: Path, key: str) -> list[dict | None] | None:
         return None
     records = payload.get("records")
     return records if isinstance(records, list) else None
+
+
+def _write_sidecar(sidecar: Path, key: str, pool: CardPool, hd: HydratedDeck) -> None:
+    atomic_write_json(
+        sidecar,
+        {
+            "version": HYDRATED_VERSION,
+            "key": key,
+            "bulk": str(pool.path) if pool.path is not None else None,
+            "missing": hd.missing,
+            "records": hd.records,
+        },
+    )
 
 
 class _DeckSource(Protocol):
@@ -113,7 +141,7 @@ class HydratedDeck:
     __slots__ = ("_by_name", "_deck", "_format", "_records")
 
     def __init__(self, deck: dict, records: list[dict]) -> None:
-        """Internal. Use ``from_session`` / ``from_paths`` / ``from_parsed``.
+        """Internal. Use ``acquire`` / ``from_session`` / ``from_parsed``.
 
         ``records`` must already be the resolved, distinct, no-None projection. The
         deck's format (and its explicit ``deck_size``) is resolved here, so an unknown
@@ -220,17 +248,18 @@ class HydratedDeck:
             if record is not None:
                 records.append(record)
         hd = cls(deck, records)
-        atomic_write_json(
-            sidecar,
-            {
-                "version": HYDRATED_VERSION,
-                "key": key,
-                "bulk": str(pool.path) if pool.path is not None else None,
-                "missing": hd.missing,
-                "records": records,
-            },
-        )
+        _write_sidecar(sidecar, key, pool, hd)
         return hd
+
+    def write_sidecar(self, deck_path: str | os.PathLike, pool: CardPool) -> Path:
+        """Memoize THIS join beside *deck_path* (which must hold ``self.deck`` as
+        written) — for a CLI that derives a new deck in-process (build-deck) so the
+        next tool reads the sidecar instead of re-joining. Returns the sidecar path."""
+        path = Path(deck_path)
+        sidecar = sidecar_path(path)
+        key = _hydration_key(path.read_text(encoding="utf-8"), pool.identity)
+        _write_sidecar(sidecar, key, pool, self)
+        return sidecar
 
     @classmethod
     def from_session(
@@ -240,22 +269,6 @@ class HydratedDeck:
         name->record index, joining once. Subsumes ``DeckSession.hydrated`` /
         ``hydrated_expanded`` and the per-request re-derivations in the backend hub."""
         return cls.from_parsed(session.to_deck_dict(), by_name)
-
-    @classmethod
-    def from_paths(
-        cls,
-        deck_path: str | os.PathLike,
-        hydrated_path: str | os.PathLike | None,
-    ) -> HydratedDeck:
-        """Build from on-disk JSON — the CLI adapter, and the one boundary that reads
-        untrusted input. ``hydrated_path=None`` is the optional-hydration case (e.g.
-        combo_search) and yields the degraded state. A hydrated file containing deck
-        stubs raises ``ValueError`` here."""
-        deck = json.loads(Path(deck_path).read_text(encoding="utf-8"))
-        if hydrated_path is None:
-            return cls.from_parsed(deck)
-        records = json.loads(Path(hydrated_path).read_text(encoding="utf-8"))
-        return cls.from_parsed(deck, records=records)
 
     # --- projections -----------------------------------------------------------
 

@@ -154,6 +154,7 @@ class TestCLI:
                 main,
                 [
                     str(deck_path),
+                    "--bulk-data",
                     str(hydrated_path),
                     "--cuts",
                     str(cuts_path),
@@ -170,7 +171,9 @@ class TestCLI:
         assert "Good Card" in card_names
         assert "Bad Card" not in card_names
 
-        new_hydrated = json.loads((output_dir / "new-hydrated.json").read_text())
+        new_hydrated = json.loads((output_dir / "new-deck.hydrated.json").read_text())[
+            "records"
+        ]
         hydrated_names = [c["name"] for c in new_hydrated if c]
         assert "Good Card" in hydrated_names
 
@@ -259,6 +262,7 @@ class TestDeckSizeWarning:
                 main,
                 [
                     str(deck_path),
+                    "--bulk-data",
                     str(hydrated_path),
                     "--output-dir",
                     str(tmp_path / "out"),
@@ -294,6 +298,7 @@ class TestDeckSizeWarning:
                 main,
                 [
                     str(deck_path),
+                    "--bulk-data",
                     str(hydrated_path),
                     "--output-dir",
                     str(tmp_path / "out"),
@@ -323,6 +328,7 @@ class TestDeckSizeWarning:
                 main,
                 [
                     str(deck_path),
+                    "--bulk-data",
                     str(hydrated_path),
                     "--output-dir",
                     str(tmp_path / "out"),
@@ -373,6 +379,7 @@ class TestTotalCardsField:
                 main,
                 [
                     str(deck_path),
+                    "--bulk-data",
                     str(hydrated_path),
                     "--adds",
                     str(adds_path),
@@ -422,6 +429,7 @@ class TestTotalCardsField:
                 main,
                 [
                     str(deck_path),
+                    "--bulk-data",
                     str(hydrated_path),
                     "--cuts",
                     str(cuts_path),
@@ -468,6 +476,7 @@ class TestTotalCardsField:
                 main,
                 [
                     str(deck_path),
+                    "--bulk-data",
                     str(hydrated_path),
                     "--sideboard-adds",
                     str(sb_adds_path),

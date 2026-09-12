@@ -19,6 +19,23 @@ from mtg_utils.cut_check import (
 )
 
 
+def _obeka_deck(tmp_path, cards):
+    """A deck JSON commanded by Obeka over every other fixture card, so the CLI reads
+    the commander from the deck and hydrates the rest through --bulk-data."""
+    commander = "Obeka, Splitter of Seconds"
+    deck = {
+        "format": "commander",
+        "commanders": [{"name": commander, "quantity": 1}],
+        "cards": [
+            {"name": c["name"], "quantity": 1} for c in cards if c["name"] != commander
+        ],
+        "sideboard": [],
+    }
+    deck_path = tmp_path / "deck.json"
+    deck_path.write_text(json.dumps(deck), encoding="utf-8")
+    return deck_path
+
+
 def _ir_triggered(event, *, category, factor, op="fixed", effect_scope="any"):
     """A hand-built single-trigger Card IR (the _SYNTHETIC_CASES pattern — no
     snapshot/bulk needed) with one triggered ability whose effect carries a value."""
@@ -308,6 +325,7 @@ class TestFlexibleInput:
 
         hydrated_path = tmp_path / "hydrated.json"
         hydrated_path.write_text(json.dumps(trigger_test_cards))
+        deck_path = _obeka_deck(tmp_path, trigger_test_cards)
         cuts_path = tmp_path / "cuts.json"
         cuts_path.write_text(json.dumps([{"name": "Upkeep Drainer", "quantity": 1}]))
         output_path = tmp_path / "out.json"
@@ -316,8 +334,9 @@ class TestFlexibleInput:
         result = runner.invoke(
             main,
             [
+                str(deck_path),
+                "--bulk-data",
                 str(hydrated_path),
-                "Obeka, Splitter of Seconds",
                 "--cuts",
                 str(cuts_path),
                 "--trigger-type",
@@ -349,6 +368,7 @@ class TestFlexibleInput:
 
         hydrated_path = tmp_path / "hydrated.json"
         hydrated_path.write_text(json.dumps(trigger_test_cards))
+        deck_path = _obeka_deck(tmp_path, trigger_test_cards)
         cuts_path = tmp_path / "cuts.json"
         cuts_path.write_text(json.dumps([{"quantity": 1}]))  # missing name
         output_path = tmp_path / "out.json"
@@ -357,8 +377,9 @@ class TestFlexibleInput:
         result = runner.invoke(
             main,
             [
+                str(deck_path),
+                "--bulk-data",
                 str(hydrated_path),
-                "Obeka, Splitter of Seconds",
                 "--cuts",
                 str(cuts_path),
                 "--trigger-type",
@@ -380,6 +401,7 @@ class TestFlexibleInput:
 
         hydrated_path = tmp_path / "hydrated.json"
         hydrated_path.write_text(json.dumps(trigger_test_cards))
+        deck_path = _obeka_deck(tmp_path, trigger_test_cards)
         cuts_path = tmp_path / "cuts.json"
         cuts_path.write_text(
             json.dumps(
@@ -395,8 +417,9 @@ class TestFlexibleInput:
         result = runner.invoke(
             main,
             [
+                str(deck_path),
+                "--bulk-data",
                 str(hydrated_path),
-                "Obeka, Splitter of Seconds",
                 "--cuts",
                 str(cuts_path),
                 "--trigger-type",
@@ -422,6 +445,7 @@ class TestCLI:
 
         hydrated_path = tmp_path / "hydrated.json"
         hydrated_path.write_text(json.dumps(trigger_test_cards))
+        deck_path = _obeka_deck(tmp_path, trigger_test_cards)
         cuts_path = tmp_path / "cuts.json"
         cuts_path.write_text(json.dumps(["Upkeep Drainer"]))
         output_path = tmp_path / "out.json"
@@ -430,8 +454,9 @@ class TestCLI:
         result = runner.invoke(
             main,
             [
+                str(deck_path),
+                "--bulk-data",
                 str(hydrated_path),
-                "Obeka, Splitter of Seconds",
                 "--cuts",
                 str(cuts_path),
                 "--trigger-type",
@@ -465,6 +490,7 @@ class TestCLI:
 
         hydrated_path = tmp_path / "hydrated.json"
         hydrated_path.write_text(json.dumps(trigger_test_cards))
+        deck_path = _obeka_deck(tmp_path, trigger_test_cards)
         cuts_path = tmp_path / "cuts.json"
         cuts_path.write_text(
             json.dumps(["Helm of the Host", "Strionic Resonator", "Upkeep Drainer"])
@@ -475,8 +501,9 @@ class TestCLI:
         result = runner.invoke(
             main,
             [
+                str(deck_path),
+                "--bulk-data",
                 str(hydrated_path),
-                "Obeka, Splitter of Seconds",
                 "--cuts",
                 str(cuts_path),
                 "--multiplier-low",
@@ -497,13 +524,15 @@ class TestCLI:
 
         hydrated_path = tmp_path / "hydrated.json"
         hydrated_path.write_text(json.dumps(trigger_test_cards))
+        deck_path = _obeka_deck(tmp_path, trigger_test_cards)
         cuts_path = tmp_path / "cuts.json"
         cuts_path.write_text(json.dumps(["Upkeep Drainer"]))
 
         runner = CliRunner()
         args = [
+            str(deck_path),
+            "--bulk-data",
             str(hydrated_path),
-            "Obeka, Splitter of Seconds",
             "--cuts",
             str(cuts_path),
             "--multiplier-low",
@@ -559,6 +588,7 @@ class TestCiteRules:
         rules_path = self._write_rules(tmp_path)
         hydrated_path = tmp_path / "hydrated.json"
         hydrated_path.write_text(json.dumps(trigger_test_cards))
+        deck_path = _obeka_deck(tmp_path, trigger_test_cards)
         cuts_path = tmp_path / "cuts.json"
         cuts_path.write_text(json.dumps(["Blocking Restrictor"]))
         output_path = tmp_path / "out.json"
@@ -567,8 +597,9 @@ class TestCiteRules:
         result = runner.invoke(
             main,
             [
+                str(deck_path),
+                "--bulk-data",
                 str(hydrated_path),
-                "Obeka, Splitter of Seconds",
                 "--cuts",
                 str(cuts_path),
                 "--multiplier-low",
@@ -597,6 +628,7 @@ class TestCiteRules:
 
         hydrated_path = tmp_path / "hydrated.json"
         hydrated_path.write_text(json.dumps(trigger_test_cards))
+        deck_path = _obeka_deck(tmp_path, trigger_test_cards)
         cuts_path = tmp_path / "cuts.json"
         cuts_path.write_text(json.dumps(["Blocking Restrictor"]))
         output_path = tmp_path / "out.json"
@@ -606,8 +638,9 @@ class TestCiteRules:
         result = runner.invoke(
             main,
             [
+                str(deck_path),
+                "--bulk-data",
                 str(hydrated_path),
-                "Obeka, Splitter of Seconds",
                 "--cuts",
                 str(cuts_path),
                 "--multiplier-low",
@@ -642,6 +675,7 @@ class TestCiteRules:
         assert rules_path.parent == tmp_path
         hydrated_path = tmp_path / "hydrated.json"
         hydrated_path.write_text(json.dumps(trigger_test_cards))
+        deck_path = _obeka_deck(tmp_path, trigger_test_cards)
         cuts_path = tmp_path / "cuts.json"
         cuts_path.write_text(json.dumps(["Blocking Restrictor"]))
         output_path = tmp_path / "out.json"
@@ -652,8 +686,9 @@ class TestCiteRules:
         result = runner.invoke(
             main,
             [
+                str(deck_path),
+                "--bulk-data",
                 str(hydrated_path),
-                "Obeka, Splitter of Seconds",
                 "--cuts",
                 str(cuts_path),
                 "--multiplier-low",
@@ -679,6 +714,7 @@ class TestCiteRules:
         self._write_rules(tmp_path)
         hydrated_path = tmp_path / "hydrated.json"
         hydrated_path.write_text(json.dumps(trigger_test_cards))
+        deck_path = _obeka_deck(tmp_path, trigger_test_cards)
         cuts_path = tmp_path / "cuts.json"
         cuts_path.write_text(json.dumps(["Blocking Restrictor"]))
         output_path = tmp_path / "out.json"
@@ -687,8 +723,9 @@ class TestCiteRules:
         result = runner.invoke(
             main,
             [
+                str(deck_path),
+                "--bulk-data",
                 str(hydrated_path),
-                "Obeka, Splitter of Seconds",
                 "--cuts",
                 str(cuts_path),
                 "--multiplier-low",
@@ -722,6 +759,7 @@ class TestCiteRules:
 
         hydrated_path = tmp_path / "hydrated.json"
         hydrated_path.write_text(json.dumps(trigger_test_cards))
+        deck_path = _obeka_deck(tmp_path, trigger_test_cards)
         cuts_path = tmp_path / "cuts.json"
         cuts_path.write_text(json.dumps(["Blocking Restrictor"]))
         output_path = tmp_path / "out.json"
@@ -731,8 +769,9 @@ class TestCiteRules:
         result = runner.invoke(
             main,
             [
+                str(deck_path),
+                "--bulk-data",
                 str(hydrated_path),
-                "Obeka, Splitter of Seconds",
                 "--cuts",
                 str(cuts_path),
                 "--multiplier-low",

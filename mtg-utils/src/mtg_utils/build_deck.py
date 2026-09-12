@@ -9,6 +9,8 @@ from pathlib import Path
 import click
 
 from mtg_utils.card_classify import build_card_lookup
+from mtg_utils.card_pool import CardPool
+from mtg_utils.deck_cli import acquire_for_cli, bulk_data_option, resolve_bulk_path
 from mtg_utils.formats import Format
 from mtg_utils.hydrated_deck import HydratedDeck
 from mtg_utils.names import normalize_card_name
@@ -149,7 +151,7 @@ def _count_total(deck: dict) -> tuple[int, int]:
 
 @click.command()
 @click.argument("deck_json", type=click.Path(exists=True, path_type=Path))
-@click.argument("hydrated_json", type=click.Path(exists=True, path_type=Path))
+@bulk_data_option
 @click.option(
     "--cuts", "cuts_json", type=click.Path(exists=True, path_type=Path), default=None
 )
@@ -170,7 +172,6 @@ def _count_total(deck: dict) -> tuple[int, int]:
     default=None,
     help="JSON file of sideboard adds.",
 )
-@click.option("--bulk-data", type=click.Path(exists=True, path_type=Path), default=None)
 @click.option(
     "--output-dir",
     type=click.Path(path_type=Path),
@@ -179,20 +180,22 @@ def _count_total(deck: dict) -> tuple[int, int]:
 )
 def main(
     deck_json: Path,
-    hydrated_json: Path,
+    bulk_data: Path | None,
     cuts_json: Path | None,
     adds_json: Path | None,
     sb_cuts_json: Path | None,
     sb_adds_json: Path | None,
-    bulk_data: Path | None,
     output_dir: Path,
 ) -> None:
-    """Apply cuts and adds to a deck, writing new-deck.json and new-hydrated.json."""
+    """Apply cuts and adds to DECK_JSON, writing new-deck.json (with its hydrated
+    sidecar) to the output directory."""
     if output_dir is None:
         output_dir = deck_json.parent
 
-    deck = json.loads(deck_json.read_text(encoding="utf-8"))
-    hydrated: list[dict | None] = json.loads(hydrated_json.read_text(encoding="utf-8"))
+    hd_in = acquire_for_cli(deck_json, bulk_data)
+    bulk_path = resolve_bulk_path(bulk_data)
+    deck = hd_in.deck
+    hydrated: list[dict | None] = list(hd_in.records)
 
     raw_cuts = json.loads(cuts_json.read_text(encoding="utf-8")) if cuts_json else []
     cuts: list[dict] = [_normalize_entry(c) for c in raw_cuts]
@@ -215,7 +218,7 @@ def main(
     for add in all_adds:
         name = add["name"]
         if name not in hydrated_names:
-            card = lookup_single(name, bulk_path=bulk_data)
+            card = lookup_single(name, bulk_path=bulk_path)
             if card:
                 extra_hydrated.append(card)
                 hydrated_names.add(name)
@@ -256,10 +259,9 @@ def main(
 
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
-    (output_dir / "new-deck.json").write_text(
-        json.dumps(new_deck, indent=2), encoding="utf-8"
-    )
-    (output_dir / "new-hydrated.json").write_text(
-        json.dumps(hd.records, indent=2), encoding="utf-8"
-    )
-    click.echo(f"Wrote new-deck.json and new-hydrated.json to {output_dir}")
+    new_deck_path = output_dir / "new-deck.json"
+    new_deck_path.write_text(json.dumps(new_deck, indent=2), encoding="utf-8")
+    # Memoize the in-process join beside the new deck so the next tool reads it
+    # instead of re-joining (and keeps any API-fetched add without a second fetch).
+    hd.write_sidecar(new_deck_path, CardPool.load(bulk_path))
+    click.echo(f"Wrote new-deck.json to {output_dir}")

@@ -478,7 +478,7 @@ def extract_deck_names(payload: list | dict) -> list[str]:
       Entries missing ``name`` are skipped, not errored (some Scryfall
       responses lack ``name`` in degenerate cases).
     * ``dict`` — a parsed deck JSON of the shape
-      ``{commanders, cards, sideboard}``. Walks all three sections and
+      ``{commanders, cards, sideboard, companion}``. Walks all four zones and
       dedups across them (so a legendary creature listed in both
       ``commanders`` and ``cards`` yields one name, not two) — this
       matches ``mark_owned._collect_entries(sum_duplicates=False)``.
@@ -493,7 +493,7 @@ def extract_deck_names(payload: list | dict) -> list[str]:
         return [n for n in payload if isinstance(n, str)]
     names: list[str] = []
     seen: set[str] = set()
-    for section in ("commanders", "cards", "sideboard"):
+    for section in ("commanders", "cards", "sideboard", "companion"):
         for entry in payload.get(section, []) or []:
             if not isinstance(entry, dict):
                 continue

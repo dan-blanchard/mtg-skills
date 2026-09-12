@@ -23,6 +23,8 @@ from mtg_utils._deck_forge._ir_lookup import ir_for
 from mtg_utils._sidecar import atomic_write_json, sha_keyed_path
 from mtg_utils.card_classify import build_card_lookup, get_oracle_text
 from mtg_utils.card_ir import Ability, Card
+from mtg_utils.deck_cli import acquire_for_cli, bulk_data_option
+from mtg_utils.hydrated_deck import sidecar_path
 from mtg_utils.rules_lookup import (
     find_citations_for_terms,
     load_rules,
@@ -782,7 +784,7 @@ def render_text_report(
 
 
 def _default_output_path(
-    hydrated_content: str,
+    deck_path: Path,
     commander_name: str,
     cuts_content: str,
     multiplier_low: int,
@@ -799,7 +801,8 @@ def _default_output_path(
     # Sort trigger_types so invocation order doesn't affect the hash.
     return sha_keyed_path(
         "cut-check",
-        hydrated_content,
+        deck_path.read_text(encoding="utf-8"),
+        sidecar_path(deck_path),
         commander_name,
         cuts_content,
         multiplier_low,
@@ -850,8 +853,15 @@ def _attach_rule_citations(
 
 
 @click.command()
-@click.argument("hydrated_path", type=click.Path(exists=True, path_type=Path))
-@click.argument("commander_name")
+@click.argument("deck_path", type=click.Path(exists=True, path_type=Path))
+@bulk_data_option
+@click.option(
+    "--commander",
+    "commander_name",
+    default=None,
+    help="Which commander's abilities to check (default: the deck's first "
+    "commander; pass the other partner to check them instead).",
+)
 @click.option(
     "--cuts",
     "cuts_path",
@@ -889,7 +899,7 @@ def _attach_rule_citations(
     help=(
         "Attach MTG Comprehensive Rules citations for flagged keyword "
         "interactions. Pass --no-cite-rules to skip. When no CR file is "
-        "found next to the hydrated cache or in cwd, citations are "
+        "found next to the deck JSON or in cwd, citations are "
         "silently omitted (with an error note in the JSON)."
     ),
 )
@@ -901,8 +911,9 @@ def _attach_rule_citations(
     help="Comprehensive Rules TXT path. Defaults to newest comprehensive-rules*.txt.",
 )
 def main(
-    hydrated_path: Path,
-    commander_name: str,
+    deck_path: Path,
+    bulk_data: Path | None,
+    commander_name: str | None,
     cuts_path: Path,
     trigger_types: tuple[str, ...],
     multiplier_low: int,
@@ -913,10 +924,16 @@ def main(
     *,
     cite_rules: bool,
 ) -> None:
-    """Run mechanical pre-grill analysis on candidate cut cards."""
-    hydrated_content = hydrated_path.read_text(encoding="utf-8")
+    """Run mechanical pre-grill analysis on candidate cuts from DECK_PATH."""
+    hd = acquire_for_cli(deck_path, bulk_data)
+    if commander_name is None:
+        if not hd.commanders:
+            raise click.ClickException(
+                'the deck has no commander; pass --commander "<Name>" to name '
+                "the card whose abilities the cuts interact with."
+            )
+        commander_name = hd.commanders[0]["name"]
     cuts_content = cuts_path.read_text(encoding="utf-8")
-    hydrated = json.loads(hydrated_content)
     raw_cuts = json.loads(cuts_content)
     # Accept both ``["Card Name", ...]`` and ``[{"name": ..., "quantity": ...}]``
     # so a single ``cuts.json`` can be shared with build-deck without rewriting.
@@ -939,7 +956,7 @@ def main(
             )
 
     results = run_cut_check(
-        hydrated=hydrated,
+        hydrated=hd.records,
         commander_name=commander_name,
         cut_names=cut_names,
         trigger_types=list(trigger_types),
@@ -949,11 +966,11 @@ def main(
     )
 
     if cite_rules:
-        _attach_rule_citations(results, rules_file, input_path=hydrated_path)
+        _attach_rule_citations(results, rules_file, input_path=deck_path)
 
     if output_path is None:
         output_path = _default_output_path(
-            hydrated_content,
+            deck_path,
             commander_name,
             cuts_content,
             multiplier_low,

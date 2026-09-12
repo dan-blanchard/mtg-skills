@@ -246,7 +246,14 @@ class TestCLI:
 
         runner = CliRunner()
         result = runner.invoke(
-            main, [str(deck_path), str(hydrated_path), "--output", str(output_path)]
+            main,
+            [
+                str(deck_path),
+                "--bulk-data",
+                str(hydrated_path),
+                "--output",
+                str(output_path),
+            ],
         )
         assert result.exit_code == 0
         assert "deck-stats:" in result.output

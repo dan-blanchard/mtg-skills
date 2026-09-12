@@ -8,7 +8,8 @@ from pathlib import Path
 import click
 
 from mtg_utils.card_classify import get_oracle_text, is_land
-from mtg_utils.hydrated_deck import HydratedDeck
+from mtg_utils.deck_cli import acquire_for_cli, bulk_data_option
+from mtg_utils.hydrated_deck import records_from_file
 
 
 def card_summary(
@@ -70,46 +71,43 @@ def card_summary(
 
 
 @click.command()
-@click.argument("hydrated_path", type=click.Path(exists=True, path_type=Path))
+@click.argument("path", type=click.Path(exists=True, path_type=Path))
+@bulk_data_option
 @click.option("--lands-only", is_flag=True, default=False, help="Show only lands.")
 @click.option(
     "--nonlands-only", is_flag=True, default=False, help="Show only non-lands."
 )
 @click.option("--type", "type_filter", default=None, help="Filter by type line.")
 @click.option(
-    "--deck",
-    "deck_path",
-    type=click.Path(exists=True, path_type=Path),
-    default=None,
-    help="Parsed deck JSON (enables --sideboard).",
-)
-@click.option(
     "--sideboard",
     is_flag=True,
     default=False,
-    help="Show only sideboard cards (requires --deck).",
+    help="Show the sideboard instead of the mainboard (deck JSON only).",
 )
 def main(
-    hydrated_path: Path,
+    path: Path,
+    bulk_data: Path | None,
     *,
     lands_only: bool,
     nonlands_only: bool,
     type_filter: str | None,
-    deck_path: Path | None,
     sideboard: bool,
 ) -> None:
-    """Format hydrated card data as a compact readable table."""
-    if sideboard:
-        if deck_path is None:
-            raise click.UsageError("--sideboard requires --deck")
-        # The deck owns the join: from_paths reads both files (raising on a stub
-        # hydrated file), and entries() pairs each distinct sideboard entry with its
-        # alias-resolved record in one walk — the replacement for _filter_to_section.
-        # card_summary drops the None misses itself, so no filter is needed here.
-        hd = HydratedDeck.from_paths(deck_path, hydrated_path)
-        hydrated = [rec for _, rec in hd.entries(zones=("sideboard",))]
+    """Print a compact card table for PATH: a parsed deck JSON (mainboard, or
+    --sideboard), or a JSON list of card records (e.g. a scryfall-lookup --batch
+    cache of candidates)."""
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    if isinstance(payload, list) or "records" in payload:
+        # A records list (a scryfall-lookup --batch cache) or a hydrated sidecar.
+        if sideboard:
+            raise click.UsageError("--sideboard needs a deck JSON, not a record list")
+        hydrated = records_from_file(path)
     else:
-        hydrated = json.loads(hydrated_path.read_text(encoding="utf-8"))
+        # The deck owns the join; entries() pairs each entry with its alias-resolved
+        # record in one walk and card_summary drops the None misses itself.
+        hd = acquire_for_cli(path, bulk_data)
+        zones = ("sideboard",) if sideboard else ("commanders", "cards")
+        hydrated = [rec for _, rec in hd.entries(zones=zones)]
     output = card_summary(
         hydrated,
         lands_only=lands_only,

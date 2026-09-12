@@ -371,7 +371,13 @@ class TestCLI:
         runner = CliRunner()
         result = runner.invoke(
             main,
-            [str(deck_path), str(hydrated_path), "--output", str(output_path)],
+            [
+                str(deck_path),
+                "--bulk-data",
+                str(hydrated_path),
+                "--output",
+                str(output_path),
+            ],
         )
         assert result.exit_code == 0, result.output
         assert "mana-audit:" in result.output
@@ -398,10 +404,10 @@ class TestCLI:
             main,
             [
                 str(deck_path),
+                "--bulk-data",
                 str(hydrated_path),
                 "--compare",
                 str(deck_path),
-                str(hydrated_path),
                 "--output",
                 str(output_path),
             ],
@@ -515,9 +521,11 @@ class TestCompareLabels:
             main,
             [
                 str(deck_path),
+                "--bulk-data",
                 str(hydrated_path),
                 "--compare",
                 str(deck_path),
+                "--bulk-data",
                 str(hydrated_path),
                 "--output",
                 str(output_path),
@@ -567,10 +575,10 @@ class TestCompareLabels:
             main,
             [
                 str(deck_path),
+                "--bulk-data",
                 str(hydrated_path),
                 "--compare",
                 str(compare_path),
-                str(hydrated_path),
                 "--output",
                 str(output_path),
             ],

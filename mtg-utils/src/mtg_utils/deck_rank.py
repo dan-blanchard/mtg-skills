@@ -25,6 +25,7 @@ from mtg_utils._tuner import metrics
 from mtg_utils._tuner.classify import classify_deck
 from mtg_utils.card_classify import type_line_has
 from mtg_utils.deck import split_type_line
+from mtg_utils.deck_cli import acquire_for_cli, bulk_data_option
 from mtg_utils.hydrated_deck import HydratedDeck
 
 _ZONES = ("commanders", "cards", "sideboard")
@@ -87,22 +88,22 @@ def _deck_tribes(hd: HydratedDeck) -> frozenset[str]:
 
 
 @click.command()
-@click.argument("deck_json", type=click.Path(exists=True))
-@click.argument("hydrated_json", type=click.Path(exists=True))
-@click.argument("candidates_json", type=click.Path(exists=True))
+@click.argument("deck_json", type=click.Path(exists=True, path_type=Path))
+@click.argument("candidates_json", type=click.Path(exists=True, path_type=Path))
+@bulk_data_option
 @click.option("--limit", default=25, show_default=True)
 @click.option("--json", "as_json", is_flag=True, help="Emit JSON instead of a table.")
 def main(
-    deck_json: str,
-    hydrated_json: str,
-    candidates_json: str,
+    deck_json: Path,
+    candidates_json: Path,
+    bulk_data: Path | None,
     *,
     limit: int,
     as_json: bool,
 ) -> None:
-    """Rank CANDIDATES_JSON by synergy with DECK_JSON + HYDRATED_JSON."""
+    """Rank CANDIDATES_JSON by synergy with DECK_JSON."""
     _ensure_ir()  # build the sidecar on first run, BEFORE the first ir_for
-    hd = HydratedDeck.from_paths(deck_json, hydrated_json)
+    hd = acquire_for_cli(deck_json, bulk_data)
     commander_names = {c["name"] for c in hd.commanders}
     signals, payoff_subjects = ranked_signals_and_payoffs(hd.records, commander_names)
     candidates = json.loads(Path(candidates_json).read_text(encoding="utf-8"))

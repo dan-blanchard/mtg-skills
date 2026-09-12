@@ -30,6 +30,7 @@ from mtg_utils.card_classify import (
     is_land,
     land_fetch_profile,
 )
+from mtg_utils.deck_cli import acquire_for_cli, bulk_data_option
 
 GOLDFISH_VERSION = "goldfish v1"
 
@@ -599,14 +600,10 @@ def _run_goldfish(
 
 
 @click.command()
-@click.argument("deck_path", type=click.Path(exists=True, dir_okay=False))
-@click.option(
-    "--hydrated",
-    "hydrated_path",
-    type=click.Path(exists=True, dir_okay=False),
-    required=True,
-    help="Hydrated card data (scryfall-lookup --batch output)",
+@click.argument(
+    "deck_path", type=click.Path(exists=True, dir_okay=False, path_type=Path)
 )
+@bulk_data_option
 @click.option(
     "--games", default=1000, show_default=True, help="Number of games to simulate"
 )
@@ -622,28 +619,20 @@ def _run_goldfish(
     help="Write full JSON envelope to this path (markdown report printed to stdout)",
 )
 def goldfish_main(
-    deck_path: str,
-    hydrated_path: str,
+    deck_path: Path,
+    bulk_data: Path | None,
     games: int,
     turns: int,
     seed: int,
     output_path: str | None,
 ) -> None:
     """Solo deck simulator (mulligan, curve, color-screw, combo timing)."""
-    deck = json.loads(Path(deck_path).read_text())
-    hydrated_raw = json.loads(Path(hydrated_path).read_text())
-    lookup = build_card_lookup(hydrated_raw)
-
-    deck_hydrated: list[dict] = []
-    missing_set: set[str] = set()
-    for entry in (deck.get("commanders") or []) + (deck.get("cards") or []):
-        card = lookup.get(entry["name"])
-        if card is None:
-            missing_set.add(entry["name"])
-            continue
-        for _ in range(int(entry.get("quantity", 1))):
-            deck_hydrated.append(card)
-    missing = sorted(missing_set)
+    hd = acquire_for_cli(deck_path, bulk_data)
+    deck = hd.deck
+    deck_hydrated = hd.expanded(zones=("commanders", "cards"))
+    missing = sorted(
+        n for n in hd.missing if any(e["name"] == n for e in hd.commanders + hd.cards)
+    )
 
     start = time.perf_counter()
     results = _run_goldfish(

@@ -8,7 +8,7 @@ adoption is worth making.
 **Decision.**
 
 - **Transport.** deck-wizard consumes the tuner through a new thin `deck-tune` CLI
-  adapter (`deck-tune <deck.json> <hydrated.json> [--budget --max-swaps --shape
+  adapter (`deck-tune <deck.json> [--bulk-data] [--budget --max-swaps --shape
   --bracket]` → scorecard + swaps JSON) — the CLI analogue of deck-forge's
   `POST /api/tune` Transport adapter (ADR-0013). It injects `card_search` as
   `search_fn` and `combo-search` as `combos_fn`. **Commander / Brawl / Historic Brawl

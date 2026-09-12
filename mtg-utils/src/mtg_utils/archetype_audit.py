@@ -25,6 +25,7 @@ from mtg_utils.card_classify import (
     is_land,
 )
 from mtg_utils.cube_config import get_balance_targets
+from mtg_utils.hydrated_deck import records_from_file
 from mtg_utils.theme_presets import (
     PRESETS,
     Preset,
@@ -595,7 +596,8 @@ def main(
     cube_content = cube_path.read_text(encoding="utf-8")
     hydrated_content = hydrated_path.read_text(encoding="utf-8")
     cube = json.loads(cube_content)
-    hydrated = json.loads(hydrated_content)
+    # A bare records list (cube hydration) or a deck's hydrated sidecar (ADR-0046).
+    hydrated = records_from_file(hydrated_path)
 
     themes: dict[str, Preset] = {}
 

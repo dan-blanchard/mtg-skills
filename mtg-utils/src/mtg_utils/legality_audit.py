@@ -19,7 +19,6 @@ inspect ``overall_status`` to decide what to do with the result.
 
 from __future__ import annotations
 
-import json
 from collections.abc import Mapping
 from pathlib import Path
 
@@ -33,8 +32,9 @@ from mtg_utils.card_classify import (
     named_card_cap,
 )
 from mtg_utils.companion import companion_violations, is_companion
+from mtg_utils.deck_cli import acquire_for_cli, bulk_data_option
 from mtg_utils.formats import LEGAL_STATUSES, Format
-from mtg_utils.hydrated_deck import HydratedDeck
+from mtg_utils.hydrated_deck import HydratedDeck, sidecar_path
 from mtg_utils.rules_lookup import load_rules, resolve_rules_path
 
 # Map legality-audit violation reasons to the Comprehensive Rules rules
@@ -681,7 +681,7 @@ def _attach_rule_citations(
 
 @click.command()
 @click.argument("deck_path", type=click.Path(exists=True, path_type=Path))
-@click.argument("hydrated_path", type=click.Path(exists=True, path_type=Path))
+@bulk_data_option
 @click.option(
     "--output",
     "output_path",
@@ -710,25 +710,22 @@ def _attach_rule_citations(
 )
 def main(
     deck_path: Path,
-    hydrated_path: Path,
+    bulk_data: Path | None,
     output_path: Path | None,
     rules_file: Path | None,
     *,
     cite_rules: bool,
 ) -> None:
-    """Audit a deck for format legality, color identity, and singleton rule."""
-    deck_content = deck_path.read_text(encoding="utf-8")
-    hydrated_content = hydrated_path.read_text(encoding="utf-8")
-    deck = json.loads(deck_content)
-    hydrated = json.loads(hydrated_content)
-
-    result = legality_audit(HydratedDeck.from_parsed(deck, records=hydrated))
+    """Audit DECK_PATH for format legality, color identity, and singleton rule."""
+    result = legality_audit(acquire_for_cli(deck_path, bulk_data))
 
     if cite_rules:
         _attach_rule_citations(result, rules_file, input_path=deck_path)
 
     if output_path is None:
-        output_path = _default_output_path(deck_content, hydrated_content)
+        output_path = _default_output_path(
+            deck_path.read_text(encoding="utf-8"), sidecar_path(deck_path)
+        )
     else:
         output_path = output_path.resolve()
     atomic_write_json(output_path, result)

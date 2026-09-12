@@ -140,8 +140,8 @@ class TestCLI:
 
 
 class TestSideboard:
-    """--sideboard joins through a HydratedDeck (from_paths) and shows only the
-    sideboard zone — the replacement for the deleted _filter_to_section helper."""
+    """--sideboard joins through the acquisition seam and shows only the sideboard
+    zone — the replacement for the deleted _filter_to_section helper."""
 
     def _write(self, tmp_path, deck, hydrated):
         deck_path = tmp_path / "deck.json"
@@ -175,33 +175,8 @@ class TestSideboard:
         deck_path, hydrated_path = self._write(tmp_path, deck, hydrated)
         runner = CliRunner()
         result = runner.invoke(
-            main, [str(hydrated_path), "--deck", str(deck_path), "--sideboard"]
+            main, [str(deck_path), "--bulk-data", str(hydrated_path), "--sideboard"]
         )
         assert result.exit_code == 0, result.output
         assert "Smash" in result.output
         assert "Sol Ring" not in result.output
-
-    def test_requires_deck(self, hydrated_cards, tmp_path):
-        hydrated_path = tmp_path / "hydrated.json"
-        hydrated_path.write_text(json.dumps(hydrated_cards))
-        runner = CliRunner()
-        result = runner.invoke(main, [str(hydrated_path), "--sideboard"])
-        assert result.exit_code != 0
-        assert "--sideboard requires --deck" in result.output
-
-    def test_rejects_stub_hydrated_file(self, tmp_path):
-        """A stale/stub hydrated file (deck entries where records belong) now RAISEs
-        via from_paths, where the old _filter_to_section silently produced junk."""
-        deck = {
-            "commanders": [],
-            "cards": [],
-            "sideboard": [{"name": "Smash", "quantity": 1}],
-        }
-        stub_hydrated = [{"name": "Smash", "quantity": 1}]  # no type_line -> a stub
-        deck_path, hydrated_path = self._write(tmp_path, deck, stub_hydrated)
-        runner = CliRunner()
-        result = runner.invoke(
-            main, [str(hydrated_path), "--deck", str(deck_path), "--sideboard"]
-        )
-        assert result.exit_code != 0
-        assert isinstance(result.exception, ValueError)

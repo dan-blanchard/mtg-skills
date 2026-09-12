@@ -4,6 +4,8 @@ import json
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+import click
+import pytest
 from click.testing import CliRunner
 
 from mtg_utils.card_pool import CardPool
@@ -249,51 +251,22 @@ class TestLookupBatch:
 
 
 class TestLookupBatchDeckJSON:
-    def test_accepts_deck_json(self, sample_bulk_data, tmp_path):
+    def test_refuses_a_deck_json_and_names_deck_hydrate(
+        self, sample_bulk_data, tmp_path
+    ):
+        # ADR-0046: a deck hydrates itself through its sidecar; the batch tool serves
+        # name lists (candidate verification) only.
         deck_json = {
             "commanders": [{"name": "Korvold, Fae-Cursed King", "quantity": 1}],
-            "cards": [
-                {"name": "Viscera Seer", "quantity": 1},
-                {"name": "Sol Ring", "quantity": 1},
-            ],
-        }
-        batch_path = tmp_path / "deck.json"
-        batch_path.write_text(json.dumps(deck_json))
-
-        results, _, _ = lookup_cards(
-            batch_path, bulk_path=sample_bulk_data, cache_dir=tmp_path / "cache"
-        )
-        result_names = {r["name"] for r in results if r}
-        assert "Korvold, Fae-Cursed King" in result_names
-        assert "Viscera Seer" in result_names
-        assert "Sol Ring" in result_names
-
-    def test_deduplicates_names(self, sample_bulk_data, tmp_path):
-        deck_json = {
-            "commanders": [{"name": "Sol Ring", "quantity": 1}],
             "cards": [{"name": "Sol Ring", "quantity": 1}],
         }
         batch_path = tmp_path / "deck.json"
         batch_path.write_text(json.dumps(deck_json))
 
-        results, _, _ = lookup_cards(
-            batch_path, bulk_path=sample_bulk_data, cache_dir=tmp_path / "cache"
-        )
-        assert len(results) == 1
-
-    def test_handles_empty_commanders(self, sample_bulk_data, tmp_path):
-        deck_json = {
-            "commanders": [],
-            "cards": [{"name": "Sol Ring", "quantity": 1}],
-        }
-        batch_path = tmp_path / "deck.json"
-        batch_path.write_text(json.dumps(deck_json))
-
-        results, _, _ = lookup_cards(
-            batch_path, bulk_path=sample_bulk_data, cache_dir=tmp_path / "cache"
-        )
-        assert len(results) == 1
-        assert results[0]["name"] == "Sol Ring"
+        with pytest.raises(click.ClickException, match="deck-hydrate"):
+            lookup_cards(
+                batch_path, bulk_path=sample_bulk_data, cache_dir=tmp_path / "cache"
+            )
 
     def test_still_accepts_name_list(self, sample_bulk_data, tmp_path):
         names_path = tmp_path / "names.json"

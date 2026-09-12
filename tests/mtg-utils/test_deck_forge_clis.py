@@ -90,7 +90,7 @@ def _write(tmp_path, name, obj):
 def test_deck_signals_surfaces_the_commander_tribe(tmp_path):
     deck = _write(tmp_path, "deck.json", DECK)
     hyd = _write(tmp_path, "hyd.json", HYDRATED)
-    res = CliRunner().invoke(deck_signals_main, [deck, hyd, "--json"])
+    res = CliRunner().invoke(deck_signals_main, [deck, "--bulk-data", hyd, "--json"])
     assert res.exit_code == 0, res.output
     rows = json.loads(res.stdout)
     assert any(r["subject"] == "Goblin" and r["actionable"] for r in rows)
@@ -99,7 +99,7 @@ def test_deck_signals_surfaces_the_commander_tribe(tmp_path):
 def test_slot_budgets_counts_lands(tmp_path):
     deck = _write(tmp_path, "deck.json", DECK)
     hyd = _write(tmp_path, "hyd.json", HYDRATED)
-    res = CliRunner().invoke(slot_budgets_main, [deck, hyd, "--json"])
+    res = CliRunner().invoke(slot_budgets_main, [deck, "--bulk-data", hyd, "--json"])
     assert res.exit_code == 0, res.output
     budgets = json.loads(res.stdout)
     assert budgets["lands"]["current"] == 10
@@ -109,7 +109,9 @@ def test_deck_rank_orders_a_goblin_payoff_by_synergy(tmp_path):
     deck = _write(tmp_path, "deck.json", DECK)
     hyd = _write(tmp_path, "hyd.json", HYDRATED)
     cands = _write(tmp_path, "cands.json", [CHIEFTAIN])
-    res = CliRunner().invoke(deck_rank_main, [deck, hyd, cands, "--json"])
+    res = CliRunner().invoke(
+        deck_rank_main, [deck, cands, "--bulk-data", hyd, "--json"]
+    )
     assert res.exit_code == 0, res.output
     ranked = json.loads(res.stdout)
     assert ranked
@@ -121,5 +123,5 @@ def test_deck_rank_rejects_a_bare_name_list(tmp_path):
     deck = _write(tmp_path, "deck.json", DECK)
     hyd = _write(tmp_path, "hyd.json", HYDRATED)
     cands = _write(tmp_path, "cands.json", ["Goblin Chieftain"])
-    res = CliRunner().invoke(deck_rank_main, [deck, hyd, cands])
+    res = CliRunner().invoke(deck_rank_main, [deck, cands, "--bulk-data", hyd])
     assert res.exit_code != 0  # records required, not bare names

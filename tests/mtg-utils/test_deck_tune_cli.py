@@ -66,18 +66,10 @@ def _write(tmp_path, name, obj):
     return str(p)
 
 
-def _bulk(tmp_path):
-    p = tmp_path / "bulk.json"
-    p.write_text("[]", encoding="utf-8")
-    return str(p)
-
-
 def test_refuses_constructed_format(tmp_path):
     deck = _write(tmp_path, "deck.json", CONSTRUCTED_DECK)
     hyd = _write(tmp_path, "hyd.json", HYDRATED)
-    res = CliRunner().invoke(
-        deck_tune_main, [deck, hyd, "--bulk-data", _bulk(tmp_path)]
-    )
+    res = CliRunner().invoke(deck_tune_main, [deck, "--bulk-data", hyd])
     assert res.exit_code != 0
     assert "Commander-family" in res.output
 
@@ -88,9 +80,7 @@ def test_accepts_competitive_brawl_as_commander_family(tmp_path, monkeypatch):
     captured = _spy_tune(monkeypatch)
     deck = _write(tmp_path, "deck.json", COMPETITIVE_BRAWL_DECK)
     hyd = _write(tmp_path, "hyd.json", HYDRATED)
-    res = CliRunner().invoke(
-        deck_tune_main, [deck, hyd, "--bulk-data", _bulk(tmp_path)]
-    )
+    res = CliRunner().invoke(deck_tune_main, [deck, "--bulk-data", hyd])
     assert res.exit_code == 0, res.output
     assert captured["params"].medium == "digital"
     assert captured["params"].paper_only is False
@@ -104,7 +94,7 @@ def test_medium_the_format_cannot_honour_is_noted_not_fatal(tmp_path, monkeypatc
     hyd = _write(tmp_path, "hyd.json", HYDRATED)
     res = CliRunner().invoke(
         deck_tune_main,
-        [deck, hyd, "--bulk-data", _bulk(tmp_path), "--medium", "paper"],
+        [deck, "--bulk-data", hyd, "--medium", "paper"],
     )
     assert res.exit_code == 0, res.output
     assert captured["params"].medium == "digital"
@@ -117,7 +107,7 @@ def test_diagnoses_a_commander_deck(tmp_path):
     out_path = tmp_path / "tune.json"
     res = CliRunner().invoke(
         deck_tune_main,
-        [deck, hyd, "--bulk-data", _bulk(tmp_path), "--output", str(out_path)],
+        [deck, "--bulk-data", hyd, "--output", str(out_path)],
     )
     assert res.exit_code == 0, res.output
     out = json.loads(out_path.read_text(encoding="utf-8"))
@@ -134,9 +124,8 @@ def test_bracket_flag_runs_the_gate(tmp_path):
         deck_tune_main,
         [
             deck,
-            hyd,
             "--bulk-data",
-            _bulk(tmp_path),
+            hyd,
             "--bracket",
             "2",
             "--output",
@@ -182,9 +171,7 @@ def test_medium_defaults_paper_for_commander(tmp_path, monkeypatch):
     captured = _spy_tune(monkeypatch)
     deck = _write(tmp_path, "deck.json", COMMANDER_DECK)
     hyd = _write(tmp_path, "hyd.json", HYDRATED)
-    res = CliRunner().invoke(
-        deck_tune_main, [deck, hyd, "--bulk-data", _bulk(tmp_path)]
-    )
+    res = CliRunner().invoke(deck_tune_main, [deck, "--bulk-data", hyd])
     assert res.exit_code == 0, res.output
     assert captured["params"].medium == "paper"
     assert captured["params"].paper_only is True
@@ -197,9 +184,7 @@ def test_medium_defaults_digital_for_brawl(tmp_path, monkeypatch):
     captured = _spy_tune(monkeypatch)
     deck = _write(tmp_path, "deck.json", BRAWL_DECK)
     hyd = _write(tmp_path, "hyd.json", HYDRATED)
-    res = CliRunner().invoke(
-        deck_tune_main, [deck, hyd, "--bulk-data", _bulk(tmp_path)]
-    )
+    res = CliRunner().invoke(deck_tune_main, [deck, "--bulk-data", hyd])
     assert res.exit_code == 0, res.output
     assert captured["params"].medium == "digital"
     # paper_only threads consistently with the inferred medium.
@@ -212,7 +197,7 @@ def test_medium_explicit_override_beats_the_inferred_default(tmp_path, monkeypat
     hyd = _write(tmp_path, "hyd.json", HYDRATED)
     res = CliRunner().invoke(
         deck_tune_main,
-        [deck, hyd, "--bulk-data", _bulk(tmp_path), "--medium", "paper"],
+        [deck, "--bulk-data", hyd, "--medium", "paper"],
     )
     assert res.exit_code == 0, res.output
     assert captured["params"].medium == "paper"
@@ -227,7 +212,7 @@ def test_paper_only_explicit_flag_beats_medium_inference(tmp_path, monkeypatch):
     hyd = _write(tmp_path, "hyd.json", HYDRATED)
     res = CliRunner().invoke(
         deck_tune_main,
-        [deck, hyd, "--bulk-data", _bulk(tmp_path), "--paper-only"],
+        [deck, "--bulk-data", hyd, "--paper-only"],
     )
     assert res.exit_code == 0, res.output
     assert captured["params"].medium == "digital"

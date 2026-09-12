@@ -10,11 +10,13 @@ deck-wizard's analysis reads the commander's TEXT-derived lanes deterministicall
 from __future__ import annotations
 
 import json
+from pathlib import Path
 
 import click
 
 from mtg_utils._deck_forge.signal_specs import spec_for
 from mtg_utils._deck_forge.signals import rank_deck_signals
+from mtg_utils.deck_cli import acquire_for_cli, bulk_data_option
 from mtg_utils.hydrated_deck import HydratedDeck
 
 
@@ -66,13 +68,13 @@ def deck_signals(hd: HydratedDeck) -> list[dict]:
 
 
 @click.command()
-@click.argument("deck_json", type=click.Path(exists=True))
-@click.argument("hydrated_json", type=click.Path(exists=True))
+@click.argument("deck_json", type=click.Path(exists=True, path_type=Path))
+@bulk_data_option
 @click.option("--json", "as_json", is_flag=True, help="Emit JSON instead of a table.")
-def main(deck_json: str, hydrated_json: str, *, as_json: bool) -> None:
-    """Print the deck's signals/avenues from DECK_JSON + HYDRATED_JSON."""
+def main(deck_json: Path, bulk_data: Path | None, *, as_json: bool) -> None:
+    """Print the deck's signals/avenues for DECK_JSON."""
     _ensure_ir()  # build the sidecar on first run, BEFORE the first ir_for
-    hd = HydratedDeck.from_paths(deck_json, hydrated_json)
+    hd = acquire_for_cli(deck_json, bulk_data)
     rows = deck_signals(hd)
     if as_json:
         click.echo(json.dumps(rows, indent=2))

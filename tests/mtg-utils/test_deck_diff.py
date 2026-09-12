@@ -149,8 +149,8 @@ class TestCLI:
             [
                 str(old_deck_path),
                 str(new_deck_path),
+                "--bulk-data",
                 str(old_hydrated_path),
-                str(new_hydrated_path),
             ],
         )
         assert result.exit_code == 0

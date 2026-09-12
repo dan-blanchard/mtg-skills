@@ -17,9 +17,10 @@ unconstructable, so `check_hydration` is **deleted**.
 - **Construction adapters.** Three classmethods funnel into one private `__init__` that
   enforces the invariant once: `from_session(session, by_name)` (deck-forge, in-process
   — build one per request and thread it, collapsing ~10 re-derivations),
-  `from_paths(deck_path, hydrated_path)` (CLI — the one boundary that reads untrusted
-  on-disk JSON), and `from_parsed(deck, by_name=…, *, records=…)` (the shared low-level
-  seam).
+  `acquire(deck_path, …)` (CLI — the deck-acquisition seam of ADR-0046: joins the deck
+  against the `CardPool` and memoizes the join in a sidecar beside the deck; it replaced
+  `from_paths(deck_path, hydrated_path)`, which read a separately produced hydrated
+  file), and `from_parsed(deck, by_name=…, *, records=…)` (the shared low-level seam).
 - **DROP convention.** Un-hydratable names are absent from `.records` / `.expanded()`,
   never `None`; the lone `None` lives at `.by_name.get(name)`, the already-handled miss
   path. This retires the `list[dict | None]` signatures and the untested None-pad.
@@ -28,8 +29,8 @@ unconstructable, so `check_hydration` is **deleted**.
   deck. `__iter__`/`__len__` are drop-in sugar over `.records`; `__bool__` is *not*
   records-truthiness (it would re-conflate empty-deck with no-bulk).
 - **Re-homed RAISE.** The "deck stubs where records belong" `ValueError` moves from the
-  three scattered guards to `from_paths`/`from_parsed(records=…)` — the only place
-  untrusted data enters — so a corrupt hydrated file still fails loud.
+  three scattered guards to `from_parsed(records=…)` — the only place untrusted data
+  enters (the sidecar read goes through it) — so a corrupt sidecar still fails loud.
 - **Analyses stay free functions.** `deck_stats(hd)`, `mana_audit(hd)`, … remain the
   seam; `HydratedDeck` is a pure join, never a memoized analysis facade (which would
   diverge the test surface and silently cache stale results off a mutable session).

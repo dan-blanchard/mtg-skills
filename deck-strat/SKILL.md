@@ -17,8 +17,8 @@ data.
 deck-strat is **read-only** on the deck. It does not propose cuts, adds,
 or tuning changes. If the user wants to tune the deck first, point them
 at `/deck-wizard`, then run `/deck-strat` on the finished list. Both
-skills share the working dir and the SHA-keyed hydrated cache, so chaining
-is transparent.
+skills share the working dir and the deck's hydrated sidecar
+(`deck.hydrated.json`), so chaining is transparent.
 
 ## The Iron Rule
 
@@ -26,7 +26,7 @@ is transparent.
 into the guide:
 
 - For a card's behavior: look up its oracle text via `scryfall-lookup`
-  or read it from the hydrated cache. Training data is not oracle text.
+  or read it from the deck's hydrated sidecar. Training data is not oracle text.
 - For a rule's behavior: look it up via `rules-lookup` (`--rule`,
   `--term`, or `--grep`) and quote the verbatim text. Training data is
   not the CR.
@@ -72,7 +72,7 @@ Mark each `in_progress` when you begin and `completed` the moment it
 finishes — never batch.
 
 1. Parse deck + set commander(s)
-2. Hydrate via scryfall-lookup --batch
+2. Hydrate via deck-hydrate
 3. Baseline diagnostics
 4. Commander Interaction Audit
 5. Archetype detection
@@ -110,7 +110,10 @@ look there.
 
 - **Absolute paths only.** `uv` rebases the working directory to the
   skill install; relative paths resolve against the wrong root.
-- **Cache directory:** `<working-dir>/.cache` for hydrated card data.
+- **Hydrated sidecar:** `deck-hydrate` writes it beside the deck JSON —
+  `<working-dir>/deck.json` → `<working-dir>/deck.hydrated.json`. No
+  cache directory to manage; every deck CLI reads the deck JSON and
+  hydrates itself through the same sidecar.
 - **CR file:** `<working-dir>/comprehensive-rules-YYYYMMDD.txt`.
 - **Bulk data:** `<skill-install-dir>/default-cards.json`.
 - **Output:** `<working-dir>/STRATEGY-GUIDE.md`.
@@ -125,7 +128,7 @@ from `mtg_utils` in `deck-strat/pyproject.toml`. Invoke via
 |---|---|---|
 | Acquisition | `parse-deck` | Parse list (Moxfield, MTGO, Arena, plain text) → deck.json |
 | Acquisition | `set-commander` | Move commanders into the commanders list (idempotent) |
-| Acquisition | `scryfall-lookup --batch` | Hydrate all cards into one SHA-keyed cache |
+| Acquisition | `deck-hydrate` | Build/verify the deck's hydrated sidecar; reports card count + missing names |
 | Acquisition | `scryfall-lookup "<name>"` | Single-card lookup when verifying a specific card |
 | Acquisition | `download-mtgjson` | Refresh Scryfall bulk data (24h freshness check) |
 | Acquisition | `download-rules` | Refresh CR text (24h freshness check) |
@@ -183,10 +186,14 @@ subagent (Step 10) follow the same escalation rule.
 
 ### Re-hydration
 
-If for any reason the deck JSON is edited mid-session (e.g., the user
-notices a wrong card name during iteration and you re-parse), re-run
-`scryfall-lookup --batch` — the hydrated cache is SHA-keyed against
-the deck JSON's content, so a stale `cache_path` gives stale data.
+deck-strat never has to think about this. If the deck JSON is edited
+mid-session (e.g., the user notices a wrong card name during iteration
+and you re-parse), the hydrated sidecar is keyed inside the file by the
+deck's content hash, the bulk's identity, and the payload version — a
+stale sidecar is unreadable by construction, so the next tool call
+rebuilds it automatically. There is no cache path to re-thread; just
+re-run `deck-hydrate` (or any analysis CLI) against the edited
+`deck.json`.
 
 ---
 
@@ -245,15 +252,17 @@ downstream step uses it.
 ### Step 2: Hydrate
 
 ```bash
-scryfall-lookup --batch <working-dir>/deck.json \
-    --bulk-data <skill-install-dir>/default-cards.json \
-    --cache-dir <working-dir>/.cache
+deck-hydrate <working-dir>/deck.json \
+    --bulk-data <skill-install-dir>/default-cards.json
 ```
 
-Stdout is a JSON envelope with `cache_path`, `card_count`, `missing`,
-and a `digest` containing counts + curve. **Do NOT `Read` the cache
-file directly** — it's large and floods context. Use `card-summary`,
-`Grep`, or targeted `scryfall-lookup "<Name>"` calls for inspection.
+Stdout is a JSON envelope with `sidecar_path`, `card_count`, `missing`,
+and a `digest` containing counts + curve. The sidecar lands beside the
+deck JSON (`deck.json` → `deck.hydrated.json`); every downstream tool
+call below takes only `deck.json` and hydrates itself through it. **Do
+NOT `Read` the sidecar directly** — it's large and floods context. Use
+`card-summary`, `Grep '<regex>' <working-dir>/deck.hydrated.json`, or
+targeted `scryfall-lookup "<Name>"` calls for inspection.
 
 If `missing` is non-empty, the user's deck contains unrecognized card
 names — ask them to verify. Common causes: typos, set-code suffixes
@@ -264,20 +273,20 @@ Chocobo = Birds of Paradise, Skittering Kitten = Masked Meower, etc.).
 
 ## Phase 2: Analysis
 
-These five steps read the hydrated cache independently — you can run
-their CLI calls in parallel where useful. Each populates context that
-later steps depend on.
+These five steps hydrate through the deck's sidecar independently — you
+can run their CLI calls in parallel where useful. Each populates context
+that later steps depend on.
 
 ### Step 3: Baseline diagnostics
 
 Run in this order (cheapest-to-fail first):
 
 ```bash
-legality-audit <deck.json> <hydrated.json>
-deck-stats <deck.json> <hydrated.json>
-mana-audit <deck.json> <hydrated.json>
-card-summary <hydrated.json> --nonlands-only
-card-summary <hydrated.json> --lands-only
+legality-audit <deck.json>
+deck-stats <deck.json>
+mana-audit <deck.json>
+card-summary <deck.json> --nonlands-only
+card-summary <deck.json> --lands-only
 ```
 
 - `legality-audit` must PASS. If FAIL, surface the violation and ask the
@@ -374,7 +383,7 @@ prominent placement in the guide's "synergies" section.
 This sub-step bridges into Step 6. Run:
 
 ```bash
-combo-search <deck.json> --hydrated <hydrated.json> \
+combo-search <deck.json> \
     --output <working-dir>/combo-search.json
 ```
 
@@ -398,7 +407,7 @@ a set of theme densities — themes above the warn threshold trigger
 their corresponding conditional section.
 
 ```bash
-archetype-audit <deck.json> <hydrated.json> \
+archetype-audit <deck.json> <deck.hydrated.json> \
     --include-commanders \
     --preset tokens \
     --preset sacrifice-outlet \
@@ -619,9 +628,9 @@ re-run reproduces the same shape if signals fire again.
 purpose Agent with this exact charter:
 
 > You are a Rules Audit agent for an MTG Strategy Guide. The guide is at
-> `<absolute-path-to-STRATEGY-GUIDE.md>`. The deck's hydrated card data
-> is at `<cache_path>`. The CR is at `<working-dir>/comprehensive-rules-
-> YYYYMMDD.txt`.
+> `<absolute-path-to-STRATEGY-GUIDE.md>`. The deck's hydrated sidecar
+> is at `<working-dir>/deck.hydrated.json`. The CR is at
+> `<working-dir>/comprehensive-rules-YYYYMMDD.txt`.
 >
 > Your task: for every rules-adjacent claim in the guide (stack timing,
 > replacement effects, commander-zone behavior, keyword interactions,
@@ -629,7 +638,7 @@ purpose Agent with this exact charter:
 > quotations), verify the claim against:
 >
 > 1. The card's actual oracle text via `scryfall-lookup "<name>"` or by
->    reading the hydrated cache.
+>    reading the hydrated sidecar.
 > 2. The relevant CR rule via `rules-lookup --rule <n>` / `--term
 >    <keyword>` / `--grep "<regex>"`.
 > 3. For multi-rule reasoning, escalate to the rules-lawyer skill via
@@ -730,8 +739,8 @@ Iteration is user-driven and in-place:
   rule, fix in place, note that the Rules Audit missed it (this is a
   signal that the audit charter may need sharpening over time).
 - User reports the deck changed (different cards) → restart the
-  pipeline. The SHA-keyed hydrated cache will rebuild automatically;
-  the guide gets rewritten.
+  pipeline. The hydrated sidecar rebuilds automatically on the next
+  tool call against the edited deck JSON; the guide gets rewritten.
 
 ---
 
@@ -739,7 +748,7 @@ Iteration is user-driven and in-place:
 
 | Symptom | Cause | Recovery |
 |---|---|---|
-| `scryfall-lookup --batch` reports `missing` cards | Typo, set-code suffix, crossover rename | Ask the user; for crossovers, suggest the canonical name (Paradise Chocobo → Birds of Paradise) |
+| `deck-hydrate` reports `missing` cards | Typo, set-code suffix, crossover rename | Ask the user; for crossovers, suggest the canonical name (Paradise Chocobo → Birds of Paradise) |
 | `legality-audit` returns FAIL | Banned card or color identity violation | Surface to user; deck-strat is read-only, can't fix it. Recommend `/deck-wizard` |
 | `mana-audit` returns FAIL but user wants to proceed | Borderline land count or color balance | Proceed with the guide; flag the mana base as a tuning consideration in deck quirks |
 | `combo-search` 404s or times out | Commander Spellbook API issue | Continue without combo section; log a warning in deck quirks; near-miss section omitted |
@@ -786,7 +795,7 @@ These thoughts mean STOP — you're rationalizing:
 | "I'll fold combo execution into win conditions" | Combo execution is its own conditional section with stack ordering. Don't compress it. |
 | "EDHREC says include X, so the guide should recommend swapping" | Read-only. No swaps. The guide can note a deliberate omission, not propose a change. |
 | "I'll re-run parse-deck without --format" | Always pass `--format`. Defaulting to commander silently breaks Brawl decks. |
-| "I'll use the rarity field from hydrated cache to score budget" | deck-strat doesn't do budget. That's `price-check` in deck-wizard. |
+| "I'll use the rarity field from the hydrated sidecar to score budget" | deck-strat doesn't do budget. That's `price-check` in deck-wizard. |
 | "The bracket question is annoying, default to auto" | Default IS auto. Ask anyway — the answer changes the guide's center of gravity. |
 
 ---
@@ -797,15 +806,15 @@ These thoughts mean STOP — you're rationalizing:
 |---|---|
 | Parse list → deck.json | `parse-deck <path> --format <fmt> --output <out>` |
 | Set commander(s) | `set-commander <deck.json> "Name" ["Name2"]` |
-| Hydrate all cards | `scryfall-lookup --batch <deck.json> --bulk-data <path> --cache-dir <wd>/.cache` |
+| Hydrate + verify deck | `deck-hydrate <deck.json> --bulk-data <path>` |
 | Single card lookup | `scryfall-lookup "<Name>" --bulk-data <path>` |
-| Card table (nonlands) | `card-summary <hydrated.json> --nonlands-only` |
-| Card table (lands) | `card-summary <hydrated.json> --lands-only` |
-| Format legality + color identity | `legality-audit <deck.json> <hydrated.json>` |
-| Curve, ramp, Game Changers | `deck-stats <deck.json> <hydrated.json>` |
-| Mana base audit | `mana-audit <deck.json> <hydrated.json>` |
-| Theme density / archetype detection | `archetype-audit <deck.json> <hydrated.json> --include-commanders --preset ...` |
-| In-deck combos + near-misses | `combo-search <deck.json> --hydrated <hydrated.json> --output <wd>/combo-search.json` |
+| Card table (nonlands) | `card-summary <deck.json> --nonlands-only` |
+| Card table (lands) | `card-summary <deck.json> --lands-only` |
+| Format legality + color identity | `legality-audit <deck.json>` |
+| Curve, ramp, Game Changers | `deck-stats <deck.json>` |
+| Mana base audit | `mana-audit <deck.json>` |
+| Theme density / archetype detection | `archetype-audit <deck.json> <deck.hydrated.json> --include-commanders --preset ...` |
+| In-deck combos + near-misses | `combo-search <deck.json> --output <wd>/combo-search.json` |
 | Explore combos by outcome | `combo-discover --result "<outcome>" --color-identity <ci>` |
 | EDHREC top cards | `edhrec-lookup "<Name>" ["<Partner>"]` |
 | CR rule by number | `rules-lookup --rule <n> --rules-file <wd>/comprehensive-rules-*.txt` |

@@ -605,7 +605,7 @@ class TestGoldfishCLI:
             goldfish_main,
             [
                 str(deck_path),
-                "--hydrated",
+                "--bulk-data",
                 str(hydrated_path),
                 "--games",
                 "10",

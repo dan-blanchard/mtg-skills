@@ -682,7 +682,9 @@ class TestCLI:
         deck_path, hydrated_path = self._write(tmp_path, d, hydrated)
 
         runner = CliRunner()
-        result = runner.invoke(main, [str(deck_path), str(hydrated_path)])
+        result = runner.invoke(
+            main, [str(deck_path), "--bulk-data", str(hydrated_path)]
+        )
         assert result.exit_code == 0
         assert "PASS" in result.output
         data = json_from_cli_output(result)
@@ -694,7 +696,9 @@ class TestCLI:
         deck_path, hydrated_path = self._write(tmp_path, d, hydrated)
 
         runner = CliRunner()
-        result = runner.invoke(main, [str(deck_path), str(hydrated_path)])
+        result = runner.invoke(
+            main, [str(deck_path), "--bulk-data", str(hydrated_path)]
+        )
         assert result.exit_code == 0  # data producer convention
         assert "FAIL" in result.output
         assert "Sol Ring" in result.output
@@ -711,7 +715,13 @@ class TestCLI:
         runner = CliRunner()
         result = runner.invoke(
             main,
-            [str(deck_path), str(hydrated_path), "--output", str(custom_output)],
+            [
+                str(deck_path),
+                "--bulk-data",
+                str(hydrated_path),
+                "--output",
+                str(custom_output),
+            ],
         )
         assert result.exit_code == 0
         assert custom_output.exists()
@@ -769,6 +779,7 @@ class TestCiteRules:
             main,
             [
                 str(deck_path),
+                "--bulk-data",
                 str(hydrated_path),
                 "--cite-rules",
                 "--rules-file",
@@ -793,6 +804,7 @@ class TestCiteRules:
             main,
             [
                 str(deck_path),
+                "--bulk-data",
                 str(hydrated_path),
                 "--cite-rules",
                 "--rules-file",
@@ -817,7 +829,9 @@ class TestCiteRules:
 
         runner = CliRunner()
         # No --cite-rules (default-on), no --rules-file (input-dir search).
-        result = runner.invoke(main, [str(deck_path), str(hydrated_path)])
+        result = runner.invoke(
+            main, [str(deck_path), "--bulk-data", str(hydrated_path)]
+        )
         assert result.exit_code == 0, result.output
         data = json_from_cli_output(result)
         citations = data.get("rule_citations") or {}
@@ -834,7 +848,7 @@ class TestCiteRules:
 
         runner = CliRunner()
         result = runner.invoke(
-            main, [str(deck_path), str(hydrated_path), "--no-cite-rules"]
+            main, [str(deck_path), "--bulk-data", str(hydrated_path), "--no-cite-rules"]
         )
         assert result.exit_code == 0, result.output
         data = json_from_cli_output(result)
@@ -858,7 +872,9 @@ class TestCiteRules:
         monkeypatch.chdir(tmp_path)
 
         runner = CliRunner()
-        result = runner.invoke(main, [str(deck_path), str(hydrated_path)])
+        result = runner.invoke(
+            main, [str(deck_path), "--bulk-data", str(hydrated_path)]
+        )
         assert result.exit_code == 0, result.output
         assert "WARN: rule_citations not attached" in result.output
 
@@ -1050,6 +1066,7 @@ class TestCompanionCiteRules:
             main,
             [
                 str(deck_path),
+                "--bulk-data",
                 str(hydrated_path),
                 "--cite-rules",
                 "--rules-file",

@@ -1,7 +1,7 @@
 """P/T-dependent classifiers must work on *hydrated* cards, not just raw bulk records.
 
-``scryfall_lookup.CARD_FIELDS`` is a strict whitelist, and ``power``/``toughness``
-were missing from it. Because ``card_classify.card_pt_int`` defaults a missing field
+``scryfall_lookup.CARD_FIELDS`` was a strict whitelist (retired by ADR-0046 for the
+bulk's own record shape), and ``power``/``toughness`` were missing from it. Because ``card_classify.card_pt_int`` defaults a missing field
 to ``0``, every gate of the form ``card_pt_int(card) >= N`` silently evaluated False
 for anything that went through ``scryfall-lookup --batch`` — which is the only input
 the tuner, deck-rank and the goldfish accept.

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 import math
 from collections.abc import Mapping, Sequence
 from pathlib import Path
@@ -17,7 +16,8 @@ from mtg_utils.card_classify import (
     is_ramp,
 )
 from mtg_utils.commander_cost import effective_commander_cost
-from mtg_utils.hydrated_deck import HydratedDeck
+from mtg_utils.deck_cli import acquire_for_cli, bulk_data_option
+from mtg_utils.hydrated_deck import HydratedDeck, sidecar_path
 
 # Constructed mana base constants (60-card formats)
 _CONSTRUCTED_BASELINE_LANDS = 24
@@ -604,12 +604,11 @@ def _default_output_path(*args: object) -> Path:
 
 @click.command()
 @click.argument("deck_path", type=click.Path(exists=True, path_type=Path))
-@click.argument("hydrated_path", type=click.Path(exists=True, path_type=Path))
+@bulk_data_option
 @click.option(
     "--compare",
-    nargs=2,
     type=click.Path(exists=True, path_type=Path),
-    metavar="<new-deck-json> <new-hydrated-json>",
+    metavar="<new-deck-json>",
     default=None,
     help="Compare against another deck version.",
 )
@@ -622,28 +621,18 @@ def _default_output_path(*args: object) -> Path:
 )
 def main(
     deck_path: Path,
-    hydrated_path: Path,
-    compare: tuple[Path, Path] | None,
+    bulk_data: Path | None,
+    compare: Path | None,
     output_path: Path | None,
 ) -> None:
-    """Audit a deck's mana base for land count and color balance."""
-    deck_content = deck_path.read_text(encoding="utf-8")
-    hydrated_content = hydrated_path.read_text(encoding="utf-8")
-    deck = json.loads(deck_content)
-    hydrated = json.loads(hydrated_content)
+    """Audit DECK_PATH's mana base for land count and color balance."""
+    hd = acquire_for_cli(deck_path, bulk_data)
 
     if compare:
-        new_deck_path, new_hydrated_path = compare
-        new_deck_content = new_deck_path.read_text(encoding="utf-8")
-        new_hydrated_content = new_hydrated_path.read_text(encoding="utf-8")
-        new_deck = json.loads(new_deck_content)
-        new_hydrated = json.loads(new_hydrated_content)
-
-        primary = mana_audit(HydratedDeck.from_parsed(deck, records=hydrated))
+        new_deck_path = compare
+        primary = mana_audit(hd)
         primary["source"] = deck_path.name
-        comparison = mana_audit(
-            HydratedDeck.from_parsed(new_deck, records=new_hydrated)
-        )
+        comparison = mana_audit(acquire_for_cli(new_deck_path, bulk_data))
         comparison["source"] = new_deck_path.name
 
         result = {
@@ -657,15 +646,17 @@ def main(
         }
         if output_path is None:
             output_path = _default_output_path(
-                deck_content,
-                hydrated_content,
-                new_deck_content,
-                new_hydrated_content,
+                deck_path.read_text(encoding="utf-8"),
+                sidecar_path(deck_path),
+                new_deck_path.read_text(encoding="utf-8"),
+                sidecar_path(new_deck_path),
             )
     else:
-        result = mana_audit(HydratedDeck.from_parsed(deck, records=hydrated))
+        result = mana_audit(hd)
         if output_path is None:
-            output_path = _default_output_path(deck_content, hydrated_content)
+            output_path = _default_output_path(
+                deck_path.read_text(encoding="utf-8"), sidecar_path(deck_path)
+            )
 
     output_path = output_path.resolve()
     atomic_write_json(output_path, result)

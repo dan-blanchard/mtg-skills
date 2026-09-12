@@ -5,7 +5,7 @@ A thin adapter over ``_tuner.tune`` — the SAME skill-agnostic core deck-forge 
 ``search_fn`` and ``combo-search`` as ``combos_fn``, ensures the Card IR sidecar, and
 emits the scorecard + budgeted swaps as JSON.
 
-    deck-tune <deck.json> <hydrated.json> --bulk-data <path> \
+    deck-tune <deck.json> [--bulk-data <path>] \
         [--budget N] [--max-swaps N] [--shape ...] [--bracket 1-5] [--paper-only]
 
 Commander family only (commander / brawl / historic_brawl / competitive_brawl): the
@@ -24,6 +24,7 @@ import click
 
 from mtg_utils import card_search, combo_search
 from mtg_utils._tuner.tune import TuneParams, tune
+from mtg_utils.deck_cli import acquire_for_cli, bulk_data_option, resolve_bulk_path
 from mtg_utils.formats import COMMANDER_FORMATS, medium_is_digital
 from mtg_utils.hydrated_deck import HydratedDeck
 
@@ -47,15 +48,8 @@ def _ensure_ir() -> None:
 
 
 @click.command()
-@click.argument("deck_json", type=click.Path(exists=True))
-@click.argument("hydrated_json", type=click.Path(exists=True))
-@click.option(
-    "--bulk-data",
-    "bulk_data",
-    required=True,
-    type=click.Path(exists=True),
-    help="Scryfall bulk JSON, for the swap proposer's card_search.",
-)
+@click.argument("deck_json", type=click.Path(exists=True, path_type=Path))
+@bulk_data_option
 @click.option(
     "--budget", type=float, default=None, help="USD buy budget; omit = owned-only."
 )
@@ -99,9 +93,8 @@ def _ensure_ir() -> None:
     help="Write the JSON result here instead of stdout.",
 )
 def main(
-    deck_json: str,
-    hydrated_json: str,
-    bulk_data: str,
+    deck_json: Path,
+    bulk_data: Path | None,
     *,
     budget: float | None,
     max_swaps: int,
@@ -111,9 +104,10 @@ def main(
     paper_only: bool | None,
     output: str | None,
 ) -> None:
-    """Diagnose DECK_JSON + HYDRATED_JSON and (with --max-swaps) propose swaps."""
+    """Diagnose DECK_JSON and (with --max-swaps) propose swaps."""
     _ensure_ir()  # build the sidecar before tune()'s first ir_for lookup
-    hd = HydratedDeck.from_paths(deck_json, hydrated_json)
+    bulk_path = resolve_bulk_path(bulk_data)
+    hd = acquire_for_cli(deck_json, bulk_data)
     fmt = hd.format
     if not fmt.has_commander:
         raise click.ClickException(
@@ -147,7 +141,6 @@ def main(
         else not medium_is_digital(effective_medium)
     )
 
-    bulk_path = Path(bulk_data)
     search = functools.partial(card_search.search_cards, bulk_path)
     by_name = hd.by_name
 

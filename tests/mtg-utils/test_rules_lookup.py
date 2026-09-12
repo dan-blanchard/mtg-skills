@@ -536,6 +536,23 @@ class TestRealCR:
 
         hydrated_path = tmp_path / "hydrated.json"
         hydrated_path.write_text(json.dumps(trigger_test_cards))
+        deck_path = tmp_path / "deck.json"
+        deck_path.write_text(
+            json.dumps(
+                {
+                    "format": "commander",
+                    "commanders": [
+                        {"name": "Obeka, Splitter of Seconds", "quantity": 1}
+                    ],
+                    "cards": [
+                        {"name": c["name"], "quantity": 1}
+                        for c in trigger_test_cards
+                        if c["name"] != "Obeka, Splitter of Seconds"
+                    ],
+                    "sideboard": [],
+                }
+            )
+        )
         cuts_path = tmp_path / "cuts.json"
         # Blocking Restrictor (trample + can't-be-blocked-by-more-than-one)
         # against Obeka (menace commander) produces two keyword
@@ -547,8 +564,9 @@ class TestRealCR:
         result = runner.invoke(
             cut_check_main,
             [
+                str(deck_path),
+                "--bulk-data",
                 str(hydrated_path),
-                "Obeka, Splitter of Seconds",
                 "--cuts",
                 str(cuts_path),
                 "--multiplier-low",
