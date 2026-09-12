@@ -4,7 +4,7 @@ phase's Token effect node for a PREDEFINED token (Saproling, Mutagen, the WOE
 Role cycle, ...) carries only the token's printed body; when its ability is
 an activated cost or a granted trigger phase's static-ability parser doesn't
 decompose, the Token node is a bare shell with no ``static_abilities``/
-``keywords`` at all. ``_ir_lookup._known_token_trees`` closes that gap for an
+``keywords`` at all. ``trees._known_token_trees`` closes that gap for an
 ADJUDICATED allowlist of token identities (``Mutagen``, ``Young Hero``) by
 joining the source card's ``metadata.related_token_ids`` to phase's own
 ``known-tokens.toml`` data and appending one extra zero-unit text-only
@@ -32,11 +32,11 @@ from functools import lru_cache
 
 import pytest
 
+from mtg_utils._card_ir import trees as il
 from mtg_utils._card_ir.crosswalk import build_concept_tree
 from mtg_utils._card_ir.mirror import strict_load_card
 from mtg_utils._card_ir.mirror.build import fixtures_dir, load_committed_schema
 from mtg_utils._card_ir.overlay_corrections import apply_overlay_corrections
-from mtg_utils._deck_forge import _ir_lookup as il
 from mtg_utils._deck_forge.lanes import (
     extract_crosswalk_signals,
     graveyard_return_direction,

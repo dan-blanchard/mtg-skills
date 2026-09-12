@@ -23,6 +23,7 @@ from functools import lru_cache
 
 import pytest
 
+from mtg_utils._card_ir import trees as ct
 from mtg_utils._card_ir.crosswalk import build_concept_tree
 from mtg_utils._card_ir.mirror import strict_load_card
 from mtg_utils._card_ir.mirror.build import fixtures_dir, load_committed_schema
@@ -136,12 +137,12 @@ def test_ir_for_returns_none_without_oracle_id(monkeypatch):
 
 
 def test_trees_for_degrades_without_phase_data(monkeypatch):
-    monkeypatch.setattr(il, "_phase_record_index", _returns(None))
-    assert il.trees_for({"oracle_id": "x"}) == ()
+    monkeypatch.setattr(ct, "_phase_record_index", _returns(None))
+    assert ct.trees_for({"oracle_id": "x"}) == ()
 
 
 def test_trees_for_none_without_oracle_id():
-    assert il.trees_for({"name": "no oid"}) == ()
+    assert ct.trees_for({"name": "no oid"}) == ()
 
 
 def test_trees_for_builds_and_memoizes(monkeypatch):
@@ -149,12 +150,12 @@ def test_trees_for_builds_and_memoizes(monkeypatch):
     oid = bulk["oracle_id"]
     # Feed the resolver our fixture record + schema directly.
     rec = next(r for r in _fixture_records() if r.get("scryfall_oracle_id") == oid)
-    monkeypatch.setattr(il, "_phase_record_index", _returns({oid: (rec,)}))
-    monkeypatch.setattr(il, "_committed_schema", _returns(_schema()))
-    got = il.trees_for(bulk)
+    monkeypatch.setattr(ct, "_phase_record_index", _returns({oid: (rec,)}))
+    monkeypatch.setattr(ct, "_committed_schema", _returns(_schema()))
+    got = ct.trees_for(bulk)
     assert got != ()
     assert got[0].oracle_id == oid
-    assert oid in il._TREES_MEMO  # memoized
+    assert oid in ct._TREES_MEMO  # memoized
 
 
 # ── DFC face-union (ADR-0035/0038 task #74) ─────────────────────────────────
@@ -173,9 +174,9 @@ def test_trees_for_returns_every_face_for_a_dfc(monkeypatch):
         r for r in _fixture_records() if r.get("scryfall_oracle_id") == _AANG_OID
     )
     assert len(recs) == 2, "fixture must carry both Avatar Aang faces"
-    monkeypatch.setattr(il, "_phase_record_index", _returns({_AANG_OID: recs}))
-    monkeypatch.setattr(il, "_committed_schema", _returns(_schema()))
-    trees = il.trees_for({"oracle_id": _AANG_OID})
+    monkeypatch.setattr(ct, "_phase_record_index", _returns({_AANG_OID: recs}))
+    monkeypatch.setattr(ct, "_committed_schema", _returns(_schema()))
+    trees = ct.trees_for({"oracle_id": _AANG_OID})
     assert {t.name for t in trees} == {"Avatar Aang", "Aang, Master of Elements"}
 
 
@@ -219,8 +220,8 @@ def test_text_only_tree_added_for_a_phase_missing_face(monkeypatch):
         r for r in _fixture_records() if r.get("name") == '"Name Sticker" Goblin'
     )
     oid = rec["scryfall_oracle_id"]
-    monkeypatch.setattr(il, "_phase_record_index", _returns({oid: (rec,)}))
-    monkeypatch.setattr(il, "_committed_schema", _returns(_schema()))
+    monkeypatch.setattr(ct, "_phase_record_index", _returns({oid: (rec,)}))
+    monkeypatch.setattr(ct, "_committed_schema", _returns(_schema()))
     bulk = _synthetic_bulk(
         oid,
         '"Name Sticker" Goblin',
@@ -234,13 +235,13 @@ def test_text_only_tree_added_for_a_phase_missing_face(monkeypatch):
     )
 
     # No ``bulk=`` → phase-record trees only (the pre-W2c shape, unchanged).
-    trees_no_bulk = il.trees_for({"oracle_id": oid})
+    trees_no_bulk = ct.trees_for({"oracle_id": oid})
     assert {t.name for t in trees_no_bulk} == {'"Name Sticker" Goblin'}
 
     il.clear_caches()
-    monkeypatch.setattr(il, "_phase_record_index", _returns({oid: (rec,)}))
-    monkeypatch.setattr(il, "_committed_schema", _returns(_schema()))
-    trees = il.trees_for({"oracle_id": oid}, bulk=bulk)
+    monkeypatch.setattr(ct, "_phase_record_index", _returns({oid: (rec,)}))
+    monkeypatch.setattr(ct, "_committed_schema", _returns(_schema()))
+    trees = ct.trees_for({"oracle_id": oid}, bulk=bulk)
     names = {t.name for t in trees}
     assert names == {'"Name Sticker" Goblin', "Fabricated Ghost Face"}
     ghost = next(t for t in trees if t.name == "Fabricated Ghost Face")
@@ -258,10 +259,10 @@ def test_vanilla_single_face_bulk_yields_no_text_only_tree(monkeypatch):
         r for r in _fixture_records() if r.get("name") == '"Name Sticker" Goblin'
     )
     oid = rec["scryfall_oracle_id"]
-    monkeypatch.setattr(il, "_phase_record_index", _returns({oid: (rec,)}))
-    monkeypatch.setattr(il, "_committed_schema", _returns(_schema()))
+    monkeypatch.setattr(ct, "_phase_record_index", _returns({oid: (rec,)}))
+    monkeypatch.setattr(ct, "_committed_schema", _returns(_schema()))
     vanilla_bulk = {"oracle_id": oid, "name": '"Name Sticker" Goblin', "cmc": 3.0}
-    trees = il.trees_for({"oracle_id": oid}, bulk=vanilla_bulk)
+    trees = ct.trees_for({"oracle_id": oid}, bulk=vanilla_bulk)
     assert {t.name for t in trees} == {'"Name Sticker" Goblin'}
 
 
@@ -272,15 +273,15 @@ def test_empty_oracle_phase_missing_face_yields_no_tree(monkeypatch):
         r for r in _fixture_records() if r.get("name") == '"Name Sticker" Goblin'
     )
     oid = rec["scryfall_oracle_id"]
-    monkeypatch.setattr(il, "_phase_record_index", _returns({oid: (rec,)}))
-    monkeypatch.setattr(il, "_committed_schema", _returns(_schema()))
+    monkeypatch.setattr(ct, "_phase_record_index", _returns({oid: (rec,)}))
+    monkeypatch.setattr(ct, "_committed_schema", _returns(_schema()))
     bulk = _synthetic_bulk(
         oid,
         '"Name Sticker" Goblin',
         rec["oracle_text"],
         second_face={"name": "Blank Face", "oracle_text": "", "type_line": "Land"},
     )
-    trees = il.trees_for({"oracle_id": oid}, bulk=bulk)
+    trees = ct.trees_for({"oracle_id": oid}, bulk=bulk)
     assert {t.name for t in trees} == {'"Name Sticker" Goblin'}
 
 
@@ -294,8 +295,8 @@ def test_three_way_split_excluded_from_text_only_synthesis(monkeypatch):
         r for r in _fixture_records() if r.get("name") == '"Name Sticker" Goblin'
     )
     oid = rec["scryfall_oracle_id"]
-    monkeypatch.setattr(il, "_phase_record_index", _returns({oid: (rec,)}))
-    monkeypatch.setattr(il, "_committed_schema", _returns(_schema()))
+    monkeypatch.setattr(ct, "_phase_record_index", _returns({oid: (rec,)}))
+    monkeypatch.setattr(ct, "_committed_schema", _returns(_schema()))
     bulk = {
         "oracle_id": oid,
         "name": '"Name Sticker" Goblin // B // C',
@@ -311,7 +312,7 @@ def test_three_way_split_excluded_from_text_only_synthesis(monkeypatch):
             {"name": "C", "oracle_text": "Another effect.", "type_line": "Instant"},
         ],
     }
-    trees = il.trees_for({"oracle_id": oid}, bulk=bulk)
+    trees = ct.trees_for({"oracle_id": oid}, bulk=bulk)
     assert {t.name for t in trees} == {'"Name Sticker" Goblin'}
 
 
@@ -333,8 +334,8 @@ def test_avatar_aang_union_fires_all_four_bend_keys(monkeypatch):
         "type_line": "Legendary Creature — Human Avatar Ally",
         "keywords": ["Flying", "Firebending"],
     }
-    monkeypatch.setattr(il, "_phase_record_index", _returns({_AANG_OID: recs}))
-    monkeypatch.setattr(il, "_committed_schema", _returns(_schema()))
+    monkeypatch.setattr(ct, "_phase_record_index", _returns({_AANG_OID: recs}))
+    monkeypatch.setattr(ct, "_committed_schema", _returns(_schema()))
     keys = {s.key for s in extract_signals(bulk)}
     assert keys >= _BEND_KEYS
 
@@ -345,7 +346,7 @@ def test_avatar_aang_regression_no_fire_control(monkeypatch):
     bulk, tree, _key = _ported_case()
     if tree.oracle_id == _AANG_OID:
         pytest.skip("ported-case card is Avatar Aang itself")
-    monkeypatch.setattr(il, "trees_for", _returns((tree,)))
+    monkeypatch.setattr(ct, "trees_for", _returns((tree,)))
     keys = {s.key for s in extract_signals(bulk)}
     assert not (_BEND_KEYS & keys)
 
@@ -355,7 +356,7 @@ def test_avatar_aang_regression_no_fire_control(monkeypatch):
 
 def test_hybrid_serves_ported_from_crosswalk(monkeypatch):
     bulk, tree, ported_key = _ported_case()
-    monkeypatch.setattr(il, "trees_for", _returns((tree,)))
+    monkeypatch.setattr(ct, "trees_for", _returns((tree,)))
     on = {s.key for s in extract_signals(bulk)}
     assert ported_key in on
 
@@ -365,7 +366,7 @@ def test_hybrid_no_signal_when_tree_unavailable(monkeypatch):
     fallback (ADR-0039 task #80 step 6: the legacy regex / Card-IR paths are
     gone) — a graceful empty answer for that lane, never a crash."""
     bulk, _tree, ported_key = _ported_case()
-    monkeypatch.setattr(il, "trees_for", _returns(()))
+    monkeypatch.setattr(ct, "trees_for", _returns(()))
     on = {s.key for s in extract_signals(bulk)}
     assert ported_key not in on
 
@@ -374,7 +375,7 @@ def test_hybrid_reconciliation_single_fire(monkeypatch):
     """No duplicate (key, scope, subject) survives the shared reconciliation tail,
     even though the crosswalk applies its own reconciliations before the merge."""
     bulk, tree, _key = _ported_case()
-    monkeypatch.setattr(il, "trees_for", _returns((tree,)))
+    monkeypatch.setattr(ct, "trees_for", _returns((tree,)))
     sigs = extract_signals(bulk)
     idents = [(s.key, s.scope, s.subject) for s in sigs]
     assert len(idents) == len(set(idents))

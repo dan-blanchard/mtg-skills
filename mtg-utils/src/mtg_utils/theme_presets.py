@@ -333,33 +333,17 @@ def _concept_any_face(card: dict, predicate: Callable[[ConceptTree], bool]) -> b
     each names the crosswalk lane helper it actually reuses in its own
     docstring; this function only resolves the trees.
 
-    Runs each tree through the SAME two corrections passes
-    ``lanes.extract_crosswalk_signals`` applies before handing
-    a tree to any lane (``apply_overlay_corrections`` — ADR-0035 Stage-3b
-    concept-overlay fixes, e.g. a dig-into-play flipped to cheat_play; then
-    ``apply_tree_synthesis`` — ADR-0037 synthetic concept-nodes for
-    genuine phase-parse gaps, e.g. the ``group_hug_draw`` "each player
-    draws" recovery). A concept predicate reading a RAW tree would silently
-    diverge from every ``signal_keys``-based lane it sits beside in the
-    same preset's OR (a corrected node the lane sees, the predicate
-    wouldn't) — this keeps the two arms reading the identical tree shape.
-
-    Lazily imports ``mtg_utils._deck_forge._ir_lookup`` for the same
-    import-cycle reason :func:`_signal_keys_for` imports ``_deck_forge.
-    signals`` lazily.
+    Reads the SIGNAL trees (``signal_trees_for``, ADR-0047: corrected +
+    synthesized — the identical tree shape every lane reads), so a concept
+    predicate can never diverge from the ``signal_keys``-based lane it sits
+    beside in the same preset's OR. Lazily imported for the same import-cycle
+    reason :func:`_signal_keys_for` imports ``_deck_forge.signals`` lazily.
     """
     if not card.get("oracle_id"):
         return False
-    from mtg_utils._card_ir.overlay_corrections import apply_overlay_corrections
-    from mtg_utils._deck_forge._ir_lookup import trees_for
-    from mtg_utils._deck_forge.tree_synthesis import apply_tree_synthesis
+    from mtg_utils._deck_forge.signal_trees import signal_trees_for
 
-    for raw_tree in trees_for(card):
-        corrected = apply_overlay_corrections(raw_tree)
-        corrected = apply_tree_synthesis(corrected)
-        if predicate(corrected):
-            return True
-    return False
+    return any(predicate(tree) for tree in signal_trees_for(card))
 
 
 def _graveyard_return_concept(card: dict) -> bool:

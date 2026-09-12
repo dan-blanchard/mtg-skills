@@ -892,14 +892,12 @@ def _ability(unit: AbilityUnit, cov: CompatCoverage) -> Ability:
 def compat_card_base(tree: ConceptTree, cov: CompatCoverage | None = None) -> Card:
     """The compat ``Card`` BEFORE the Stage-3b (c) dropped-clause synthesis stage.
 
-    Runs the (b) overlay-correction stage then reads the corrected overlay into
-    old-IR abilities. Split out from :func:`compat_card` so the (c) convergence
-    check can build the pre-synthesis card and observe which arms still fire (find
-    a gap) at the pin.
+    Reads the CORRECTED overlay (``mtg_utils._card_ir.trees.face_tree`` already ran
+    the (b) overlay-correction stage — ADR-0047: the one owner applies it, this
+    reader never re-applies) into old-IR abilities. Split out from
+    :func:`compat_card` so the (c) convergence check can build the pre-synthesis
+    card and observe which arms still fire (find a gap) at the pin.
     """
-    from mtg_utils._card_ir.overlay_corrections import apply_overlay_corrections
-
-    tree = apply_overlay_corrections(tree)
     cov = cov if cov is not None else CompatCoverage()
     abilities = tuple(_ability(u, cov) for u in tree.units)
     return Card(
@@ -916,9 +914,9 @@ def compat_card(tree: ConceptTree, cov: CompatCoverage | None = None) -> Card:
     node into ported / explicitly-unported buckets; pass ``None`` to discard
     the accounting.
 
-    Runs the ADR-0035 Stage-3b (b) overlay-correction stage FIRST — decorating a
-    handful of concept-node fields the pure substrate under-derives — then reads
-    the corrected overlay (:func:`compat_card_base`), then runs the Stage-3b (c)
+    ``tree`` is a CORRECTED tree (the owner ran the ADR-0035 Stage-3b (b)
+    overlay-correction stage; ADR-0047). Reads the corrected overlay
+    (:func:`compat_card_base`), then runs the Stage-3b (c)
     dropped-clause synthesis stage on the built Card
     (:func:`apply_dropped_clause_synthesis`), adding old-IR structure for clauses
     phase dropped entirely. The (c) stage is a strict per-card SUPERSET: a
@@ -977,24 +975,17 @@ def compat_card_from_records(
     that drifts from ``schema`` is skipped and tallied in the returned drift
     count rather than aborting the build. Returns ``(None, drift)`` when
     EVERY face drifts (nothing to build)."""
-    from mtg_utils._card_ir.crosswalk import build_concept_tree
-    from mtg_utils._card_ir.mirror import MirrorDriftError, strict_load_card
+    from mtg_utils._card_ir.trees import face_tree
 
     faces: list[Face] = []
     drift = 0
     name = ""
     for rec in records:
         name = name or (rec.get("name") or "")
-        nm = rec.get("name") or ""
-        try:
-            root = strict_load_card(rec, schema, name=nm)
-        except MirrorDriftError:
+        tree = face_tree(rec, schema, oracle_id=oid)  # the one owner (ADR-0047)
+        if tree is None:
             drift += 1
             continue
-        if root is None:
-            drift += 1
-            continue
-        tree = build_concept_tree(root, name=nm, oracle_id=oid)
         faces.extend(compat_card(tree, cov).faces)
     if not faces:
         return None, drift

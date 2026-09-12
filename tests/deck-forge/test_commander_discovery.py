@@ -6,6 +6,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from mtg_utils import theme_presets
+from mtg_utils._card_ir import trees
 from mtg_utils._card_ir.crosswalk import ConceptTree
 from mtg_utils._deck_forge import _ir_lookup, engine
 from mtg_utils._deck_forge.app import build_app
@@ -132,7 +133,7 @@ def _wire_bare_ir(monkeypatch):
     # fixtures have no real phase record to resolve, so wire the text-only
     # trees built above.
     monkeypatch.setattr(
-        _ir_lookup,
+        trees,
         "trees_for",
         lambda card, bulk=None, **_kw: _TREES_BY_OID.get(  # noqa: ARG005
             card.get("oracle_id") or "", ()
@@ -257,7 +258,7 @@ def test_support_is_collection_specific_not_lane_width(monkeypatch):
     local_trees = {c["oracle_id"]: (_text_only_tree(c),) for c in by_name.values()}
     monkeypatch.setattr(_ir_lookup, "_crosswalk_index", lambda: local_ir)
     monkeypatch.setattr(
-        _ir_lookup,
+        trees,
         "trees_for",
         lambda card, bulk=None, **_kw: local_trees.get(  # noqa: ARG005
             card.get("oracle_id") or "", ()

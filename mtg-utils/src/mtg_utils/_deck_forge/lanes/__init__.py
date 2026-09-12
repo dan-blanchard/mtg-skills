@@ -1501,19 +1501,9 @@ def extract_crosswalk_signals(
     where every face's tree is visible together (closes the Sheoldred // The True
     Scriptures kill_engine gap the same way).
     """
-    # ADR-0035 Stage-3b (b): run the named overlay-correction stage FIRST, so the
-    # lanes read the corrected concept overlay (a dig-into-play flipped to
-    # cheat_play, an edict re-scoped). Preserves the L1 mirror by identity
-    # (substrate-purity invariant).
-    from mtg_utils._card_ir.overlay_corrections import apply_overlay_corrections
-    from mtg_utils._deck_forge.tree_synthesis import apply_tree_synthesis
-
-    tree = apply_overlay_corrections(tree)
-    # ADR-0037: ADD synthetic concept-nodes for genuine phase-parse (bucket-B) gaps
-    # the lanes read structurally (death_matters' Syr Konrad-family tail). Signal
-    # path ONLY — never in compat_card, so the the compat-Card consumers are invariant.
-    # Preserves the phase L1 fingerprint (substrate-purity, relaxed).
-    tree = apply_tree_synthesis(tree)
+    # ``tree`` is a SIGNAL tree (``signal_trees_for``, ADR-0047): the overlay
+    # corrections and the signals-only tree synthesis are already applied by the
+    # one owner — a lane never re-applies a stage.
     out: list[Signal] = []
     seen: set[tuple[str, str, str]] = set()
 

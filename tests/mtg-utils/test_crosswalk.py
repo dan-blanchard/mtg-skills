@@ -50,6 +50,7 @@ from mtg_utils._deck_forge.lanes import (
     SERVED_SIGNAL_KEYS,
     extract_crosswalk_signals,
 )
+from mtg_utils._deck_forge.signal_trees import as_signal_tree
 
 FIXTURE = "crosswalk_fixture_cards.json"
 
@@ -81,10 +82,20 @@ def _schema():
     return load_committed_schema()
 
 
-def _tree(name: str) -> ConceptTree:
+def _raw_tree(name: str) -> ConceptTree:
+    """The RAW overlay tree (no corrections, no synthesis) — for the tests OF the
+    correction stage itself."""
     rec = _cards()[name]
     root = strict_load_card(rec, _schema(), name=name)
     return build_concept_tree(root, name=name)
+
+
+def _tree(name: str) -> ConceptTree:
+    """The SIGNAL tree for a fixture card (ADR-0047: corrections + synthesis applied
+    once, at the seam the lanes read — a lane never re-applies a stage)."""
+    rec = _cards()[name]
+    root = strict_load_card(rec, _schema(), name=name)
+    return as_signal_tree(build_concept_tree(root, name=name))
 
 
 def _idents(name: str) -> set[tuple[str, str, str]]:
@@ -4023,7 +4034,7 @@ def test_lure_makers_fires_on_the_lead_text_only_face_tree():
     via the production constructor and assert the ``_LURE_ABLE`` idiom reads
     it — "all creatures able to block ... do so" is a blocking requirement
     (CR 509.1c: "effects that say a creature must block")."""
-    from mtg_utils._deck_forge._ir_lookup import _text_only_tree
+    from mtg_utils._card_ir.trees import _text_only_tree
 
     face = {
         "name": "Lead",
@@ -4042,7 +4053,7 @@ def test_lure_makers_fires_on_the_lead_text_only_face_tree():
     assert tree.units == ()  # zero typed substrate — text idioms only
     idents = {
         (s.key, s.scope, s.subject)
-        for s in extract_crosswalk_signals(tree, keywords=frozenset())
+        for s in extract_crosswalk_signals(as_signal_tree(tree), keywords=frozenset())
     }
     assert ("lure_makers", "you", "") in idents
 
@@ -5779,7 +5790,7 @@ def test_opponent_discard_text_only_face_tree_oblivion():
     reference into a GRANTED trigger's quoted text with no "opponent"/
     "target player"/"each player" anchor at all) is correctly NOT
     matched — a genuinely un-closed gap, not force-fit this session."""
-    from mtg_utils._deck_forge._ir_lookup import _text_only_tree
+    from mtg_utils._card_ir.trees import _text_only_tree
 
     face = {
         "name": "Oblivion",
@@ -5798,7 +5809,7 @@ def test_opponent_discard_text_only_face_tree_oblivion():
     assert tree.units == ()  # zero typed substrate — text idioms only
     idents = {
         (s.key, s.scope, s.subject)
-        for s in extract_crosswalk_signals(tree, keywords=frozenset())
+        for s in extract_crosswalk_signals(as_signal_tree(tree), keywords=frozenset())
     }
     assert ("opponent_discard", "opponents", "") in idents
 
@@ -6070,7 +6081,7 @@ def test_opponent_discard_driven_despair_missing_face_bridge():
     :func:`test_opponent_discard_text_only_face_tree_oblivion` — this
     face has no phase record for the fixture's ``cards`` dict to carry at
     all."""
-    from mtg_utils._deck_forge._ir_lookup import _text_only_tree
+    from mtg_utils._card_ir.trees import _text_only_tree
 
     face = {
         "name": "Despair",
@@ -6088,7 +6099,7 @@ def test_opponent_discard_driven_despair_missing_face_bridge():
     assert tree is not None
     idents = {
         (s.key, s.scope, s.subject)
-        for s in extract_crosswalk_signals(tree, keywords=frozenset())
+        for s in extract_crosswalk_signals(as_signal_tree(tree), keywords=frozenset())
     }
     assert ("opponent_discard", "opponents", "") in idents
 
@@ -6847,7 +6858,7 @@ def test_draw_for_each_fires_on_text_only_face_tree():
     trusted as a fallback when a typed Draw node's wrapper carries no
     grounding raw — runs over the whole (units-empty) face text instead.
     CR 121.1/107.3."""
-    from mtg_utils._deck_forge._ir_lookup import _text_only_tree
+    from mtg_utils._card_ir.trees import _text_only_tree
 
     face = {
         "name": "Feed",
@@ -6867,7 +6878,7 @@ def test_draw_for_each_fires_on_text_only_face_tree():
     assert tree.units == ()  # zero typed substrate — text idioms only
     idents = {
         (s.key, s.scope, s.subject)
-        for s in extract_crosswalk_signals(tree, keywords=frozenset())
+        for s in extract_crosswalk_signals(as_signal_tree(tree), keywords=frozenset())
     }
     assert ("draw_for_each", "you", "") in idents
 
@@ -14923,7 +14934,7 @@ def test_overlay_stage_never_writes_into_the_l1_substrate():
     into the frozen substrate — or swapped a mirror node for a rebuilt one — fails
     here loud, per card."""
     for name in _cards():
-        tree = _tree(name)
+        tree = _raw_tree(name)
         before_bytes = l1_bytes(tree)
         before_ids = [id(n) for n in _l1_nodes(tree)]
         corrected = apply_overlay_corrections(tree)
@@ -14945,7 +14956,7 @@ def test_substrate_purity_guard_is_not_vacuous():
     content check — cannot see the swap; the id-based ``_assert_substrate_pure``
     (the live guard) MUST. If this ever stops raising, the invariant has gone
     vacuous and every positive substrate-purity assertion is worthless."""
-    tree = _tree("Smite")
+    tree = _raw_tree("Smite")
     before = _l1_identity(tree)
 
     unit = tree.units[0]
@@ -14967,7 +14978,7 @@ def test_substrate_purity_guard_is_not_vacuous():
 
 def _corrected_effects(name: str):
     """The (before, after) concept-node pairs for one fixture card's effects."""
-    tree = _tree(name)
+    tree = _raw_tree(name)
     corrected = apply_overlay_corrections(tree)
     pairs = []
     for ub, ua in zip(tree.units, corrected.units, strict=True):
@@ -15067,7 +15078,7 @@ def test_overlay_graveyard_zones_native_stand_aside():
 
 def test_overlay_stage_is_noop_when_no_arm_fires():
     """A card no arm touches is returned by identity (cheap, allocation-free)."""
-    tree = _tree("Grizzly Bears")
+    tree = _raw_tree("Grizzly Bears")
     assert apply_overlay_corrections(tree) is tree
 
 
@@ -15967,7 +15978,7 @@ def test_direct_damage_bridge_insult_injury_aftermath_face_unparsed():
     ``ConceptTree`` — neither phase's own parse nor the W2c text-only
     fallback structures this face at all (the ``lure_makers`` "Lead"
     precedent's zero-typed-substrate shape, CR 120.1)."""
-    from mtg_utils._deck_forge._ir_lookup import _text_only_tree
+    from mtg_utils._card_ir.trees import _text_only_tree
 
     face = {
         "name": "Injury",
@@ -15987,7 +15998,7 @@ def test_direct_damage_bridge_insult_injury_aftermath_face_unparsed():
     assert tree.units == ()  # zero typed substrate — text idioms only
     idents = {
         (s.key, s.scope, s.subject)
-        for s in extract_crosswalk_signals(tree, keywords=frozenset())
+        for s in extract_crosswalk_signals(as_signal_tree(tree), keywords=frozenset())
     }
     assert ("direct_damage", "you", "") in idents
 

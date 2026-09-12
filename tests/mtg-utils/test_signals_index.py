@@ -108,7 +108,8 @@ class TestSignalSourceFiles:
         assert "recovery.py" in names
         assert "text_idioms.py" in names
         assert "overlay_corrections.py" in names
-        assert "_ir_lookup.py" in names
+        assert "trees.py" in names  # _card_ir/trees.py — the tree owner (ADR-0047)
+        assert "signal_trees.py" in names
         assert "schema.py" in names  # mirror/schema.py — codegen'd substrate
 
     def test_excludes_signal_specs_which_does_not_feed_extraction(self):

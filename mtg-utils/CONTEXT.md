@@ -113,6 +113,25 @@ structural direction — membership never changes. Suppressing the structural
 read to keep an old pin green is never the fix.
 _Avoid_: "regression" (the pins fail because the substrate improved).
 
+**Corrected tree**:
+The concept tree every structural reader receives — one per phase face record (plus
+the predefined-token and text-only face trees), strict-loaded, overlaid (recovery
+included) and run through the overlay-correction stage by the one owner,
+`_card_ir.trees` (`face_tree` / `build_trees` / `trees_for`, ADR-0047). The compat
+`Card`, the tuner's commander-cost and grant reads, the rate metric, the limiter
+discounts and the removal-answer walk read it; none re-applies a stage.
+_Avoid_: "raw tree" for what a reader gets (no reader sees an uncorrected tree),
+"the tree" alone (ambiguous with the signal tree).
+
+**Signal tree**:
+A corrected tree with the signals-only tree-synthesis stage applied —
+`_deck_forge.signal_trees.signal_trees_for`, the only shape a lane or a theme-preset
+concept predicate reads. Synthesis appends one synthetic unit of reference-arm nodes
+and never touches a phase node, so a signal tree is a superset of its corrected tree;
+a structural reader never sees one (ADR-0038's signals-only wiring).
+_Avoid_: applying `apply_tree_synthesis` at a call site (the owner's second product
+does it, once), "synthesized tree" for a text-only face tree.
+
 (The "KEPT twelve" — twelve keys that once lagged on a legacy serving arm —
 are ordinary manifest-served lanes since ADR-0039 completed; the surviving
 distinction, where one exists, is a per-key ledgered bridge or text mirror

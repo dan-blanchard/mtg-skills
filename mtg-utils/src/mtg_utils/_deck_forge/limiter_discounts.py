@@ -80,7 +80,7 @@ def anchor_mana_yield(commander_records: list[dict]) -> int | None:
     when no commander mana ability is structurally readable — the
     cost-vs-yield discount then never fires (no evidence, no discount).
     """
-    from mtg_utils._deck_forge._ir_lookup import trees_for
+    from mtg_utils._card_ir.trees import trees_for
 
     best: int | None = None
     for rec in commander_records:
@@ -129,7 +129,7 @@ def limiter_discount_fn(ctx: PairContext) -> Callable:
     computed once per context from the commander records the context was
     built with (attached by build_pair_context as ``_commander_records``).
     """
-    from mtg_utils._deck_forge._ir_lookup import trees_for
+    from mtg_utils._card_ir.trees import trees_for
     from mtg_utils._deck_forge.ident_provenance import unit_idents_for
 
     anchor_yield = anchor_mana_yield(getattr(ctx, "commander_records", ()) or [])

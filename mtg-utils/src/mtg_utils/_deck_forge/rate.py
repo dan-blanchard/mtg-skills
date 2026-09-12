@@ -46,7 +46,7 @@ from mtg_utils._card_ir.crosswalk import (
     ref_count_filter,
     tag_of,
 )
-from mtg_utils._deck_forge._ir_lookup import trees_for
+from mtg_utils._card_ir.trees import trees_for
 
 # A mid-game go-wide board: what a your-board-count damage spell (Mob
 # Justice) typically reads on the turn it matters.

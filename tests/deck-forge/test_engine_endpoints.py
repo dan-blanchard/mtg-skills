@@ -2,6 +2,7 @@
 
 from fastapi.testclient import TestClient
 
+from mtg_utils._card_ir import trees as card_trees
 from mtg_utils._card_ir.crosswalk import ConceptTree
 from mtg_utils._deck_forge import _ir_lookup
 from mtg_utils._deck_forge.app import build_app
@@ -49,7 +50,7 @@ def _wire_ir(monkeypatch, mapping: dict, cards: list[dict] = ()):
         return
     trees = {c["oracle_id"]: (_text_only_tree(c),) for c in cards}
     monkeypatch.setattr(
-        _ir_lookup,
+        card_trees,
         "trees_for",
         lambda card, bulk=None, **_kw: trees.get(card.get("oracle_id") or "", ()),  # noqa: ARG005
     )

@@ -87,8 +87,9 @@ def extract_signals(
     include_membership: bool = True,
     text_only_fallback: bool = False,
 ) -> list[Signal]:
-    """The production signal-extraction path: ``trees_for(record, bulk=record)``
-    resolves the card's per-face concept trees, ``extract_crosswalk_signals``
+    """The production signal-extraction path: ``signal_trees_for(record,
+    bulk=record)`` resolves the card's per-face SIGNAL trees (corrected +
+    synthesized — ADR-0047's second product), ``extract_crosswalk_signals``
     runs the structural lanes over EACH one (unioned by ``(key, scope,
     subject)``, never a merged multi-face tree — that would corrupt card-level
     reads like ``is_type`` / cmc that only make sense per-face), and the
@@ -102,11 +103,11 @@ def extract_signals(
     (a ventured dungeon / meld result / the Ring) are handled one level up:
     ``_deck_signal_stats`` unions ``folded_object_records``' own structural
     signals into the commander's — this function extracts ONE record."""
-    from mtg_utils._deck_forge._ir_lookup import trees_for
     from mtg_utils._deck_forge.lanes import (
         apply_membership_floor,
         extract_crosswalk_signals,
     )
+    from mtg_utils._deck_forge.signal_trees import signal_trees_for
 
     # ADR-0038 W2c: `record` is already the bulk record — thread it as `bulk`
     # so `trees_for` can synthesize text-only trees for phase-missing faces
@@ -114,7 +115,7 @@ def extract_signals(
     # ``text_only_fallback`` opts a wholly phase-uncovered FOLDED OBJECT into
     # full text-only synthesis (ADR-0025); ordinary cards keep the default and
     # degrade to no signals.
-    trees = trees_for(record, bulk=record, text_only_fallback=text_only_fallback)
+    trees = signal_trees_for(record, bulk=record, text_only_fallback=text_only_fallback)
     out: list[Signal] = []
     seen: set[tuple[str, str, str]] = set()
 
@@ -535,7 +536,7 @@ def grant_payloads_for(card: dict) -> tuple:
     resolution ``extract_signals`` uses). Empty for a synthetic
     no-``oracle_id`` record or a card phase can't parse — the standard
     no-IR degradation."""
-    from mtg_utils._deck_forge._ir_lookup import trees_for
+    from mtg_utils._card_ir.trees import trees_for
     from mtg_utils._deck_forge.lanes import extract_grant_payloads
 
     out: list = []

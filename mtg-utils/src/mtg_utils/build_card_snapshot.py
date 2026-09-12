@@ -6,7 +6,7 @@ no cargo), and is NEVER run in CI (CI consumes the committed snapshot offline). 
 collects the card names the tests reference via the ``mtg_utils.testkit`` helpers,
 resolves each to its GAMEPLAY printing, and emits, per card, a minimal Scryfall
 record plus its RAW phase face records (ADR-0039 task #80 step 5) — exactly the
-records ``mtg_utils._deck_forge._ir_lookup.trees_for`` strict-loads in production, so
+records ``mtg_utils._card_ir.trees.trees_for`` strict-loads in production, so
 ``testkit`` builds the SAME ``ConceptTree`` / compat ``Card`` on demand with **no**
 phase cache / network in CI. This replaces the pre-step-5 shape (a single baked
 ``project_card`` IR slice per card): the crosswalk world derives its IR from the
@@ -43,7 +43,7 @@ from pathlib import Path
 
 from mtg_utils._card_ir.build import _group_by_oracle_id
 from mtg_utils._card_ir.load import CROSSWALK_SIDECAR_VERSION
-from mtg_utils._deck_forge._ir_lookup import build_trees, seed_trees
+from mtg_utils._card_ir.trees import build_trees, seed_trees
 from mtg_utils._deck_forge.signals import extract_signals
 from mtg_utils._phase import PHASE_TAG, ensure_card_data
 from mtg_utils.bulk_loader import default_bulk_path, load_bulk_cards

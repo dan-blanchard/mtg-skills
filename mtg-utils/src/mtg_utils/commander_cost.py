@@ -54,7 +54,7 @@ from mtg_utils._card_ir.crosswalk.reads import (
     static_mode_tag,
     tag_of,
 )
-from mtg_utils._deck_forge._ir_lookup import trees_for
+from mtg_utils._card_ir.trees import trees_for
 
 STATUS_MODELLED = "modelled"
 STATUS_NONE = "none"  # the commander has no self-discount clause

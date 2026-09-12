@@ -52,7 +52,7 @@ from typing import TYPE_CHECKING, Any
 from mtg_utils._card_ir.compat import compat_card_from_records
 from mtg_utils._card_ir.load import CROSSWALK_SIDECAR_VERSION
 from mtg_utils._card_ir.mirror.build import load_committed_schema
-from mtg_utils._deck_forge._ir_lookup import build_trees, seed_trees
+from mtg_utils._card_ir.trees import build_trees, seed_trees
 from mtg_utils._phase import PHASE_TAG
 from mtg_utils.card_ir import Card
 

@@ -37,7 +37,7 @@ from mtg_utils._card_ir.crosswalk import (
     iter_typed_nodes,
     tag_of,
 )
-from mtg_utils._deck_forge._ir_lookup import trees_for
+from mtg_utils._card_ir.trees import trees_for
 
 # A single-permanent recipient (an Aura's EnchantedBy / an Equipment's
 # EquippedBy — CR 303.4c / 301.5c) never scales with board count, so it can

@@ -82,7 +82,7 @@ def test_tap_cost_discount_applies():
 def test_once_per_turn_reads_the_constraint_tag():
     # Donal's copy trigger reads "Do this only once each turn" — the
     # OncePerTurn constraint tag is structurally readable on the unit.
-    from mtg_utils._deck_forge._ir_lookup import trees_for
+    from mtg_utils._card_ir.trees import trees_for
     from mtg_utils._deck_forge.limiter_discounts import _has_once_per_turn
 
     test_card_ir("Donal, Herald of Wings")

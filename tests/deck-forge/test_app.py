@@ -2,6 +2,7 @@
 
 from fastapi.testclient import TestClient
 
+from mtg_utils._card_ir import trees
 from mtg_utils._card_ir.crosswalk import ConceptTree
 from mtg_utils._deck_forge import _ir_lookup
 from mtg_utils._deck_forge.app import build_app
@@ -186,7 +187,7 @@ def test_partner_avenue_filters_to_valid_partners(monkeypatch):
         oracle=ISHAI["oracle_text"],
     )
     monkeypatch.setattr(
-        _ir_lookup,
+        trees,
         "trees_for",
         lambda card, bulk=None, **_kw: (  # noqa: ARG005
             (ishai_tree,) if card.get("oracle_id") == "oid-ishai" else ()

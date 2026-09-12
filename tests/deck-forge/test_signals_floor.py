@@ -34,6 +34,7 @@ from functools import lru_cache
 
 import pytest
 
+from mtg_utils._card_ir import trees
 from mtg_utils._card_ir.crosswalk import build_concept_tree
 from mtg_utils._card_ir.mirror import strict_load_card
 from mtg_utils._card_ir.mirror.build import fixtures_dir, load_committed_schema
@@ -122,7 +123,7 @@ def _floor_case(oid: str, faces: list[dict]):
 def _hybrid_idents(monkeypatch, bulk, tree, *, include: bool):
     """Every signal ident from ``extract_signals`` (the crosswalk-only
     path), wiring the crosswalk seam to the fixture tree."""
-    monkeypatch.setattr(il, "trees_for", _returns((tree,)))
+    monkeypatch.setattr(trees, "trees_for", _returns((tree,)))
     sigs = extract_signals(bulk, include_membership=include)
     return {(s.key, s.scope, s.subject) for s in sigs}
 

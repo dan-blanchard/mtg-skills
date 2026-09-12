@@ -6,8 +6,9 @@ stat-line becomes a "X tribal / X payoffs" pair (the reported UI overload).
 
 from fastapi.testclient import TestClient
 
+from mtg_utils._card_ir import trees
 from mtg_utils._card_ir.crosswalk import ConceptTree
-from mtg_utils._deck_forge import _ir_lookup
+from mtg_utils._deck_forge import signal_trees
 from mtg_utils._deck_forge.app import build_app
 from mtg_utils._deck_forge.engine import _AVENUE_CAP
 from mtg_utils._deck_forge.signals import extract_signals
@@ -41,13 +42,14 @@ def _text_only_tree(card: dict) -> ConceptTree:
 
 
 def _wire_trees(monkeypatch, cards: list[dict]) -> None:
-    """Wire ``_ir_lookup.trees_for`` (the concept-tree resolver — extract_signals's ONLY
-    signal source, ADR-0039 task #80 step 6) with a text-only tree per card,
+    """Wire the tree resolver ``signal_trees_for`` reads (``trees_for`` — the
+    concept-tree owner, extract_signals's ONLY signal source) with a text-only tree per card,
     keyed by ``oracle_id``, for an engine-level (``TestClient``) test whose
     fixtures have no real phase record to resolve."""
     by_oid = {c["oracle_id"]: (_text_only_tree(c),) for c in cards}
+    signal_trees.clear_caches()
     monkeypatch.setattr(
-        _ir_lookup,
+        trees,
         "trees_for",
         lambda card, bulk=None, **_kw: by_oid.get(card.get("oracle_id") or "", ()),  # noqa: ARG005
     )

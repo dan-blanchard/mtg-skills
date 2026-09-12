@@ -29,8 +29,9 @@ from __future__ import annotations
 
 import dataclasses
 
-from mtg_utils._deck_forge._ir_lookup import trees_for
+from mtg_utils._card_ir.trees import trees_for
 from mtg_utils._deck_forge.lanes import extract_crosswalk_signals
+from mtg_utils._deck_forge.signal_trees import as_signal_tree
 
 
 def unit_idents_for(card: dict) -> dict[tuple[int, int], frozenset[str]]:
@@ -53,10 +54,13 @@ def unit_idents_for(card: dict) -> dict[tuple[int, int], frozenset[str]]:
             # text reads to every unit (Vigean's graft trigger inheriting
             # untap_engine). Attribution is unit-caused TYPED evidence
             # only; raw-text emissions stay unattributed by design.
+            # A CORRECTED tree's units only (never the signal tree's synthetic
+            # unit — synthesis is applied to the single-unit VIEW, so a
+            # synthesized ident attributes to the unit that caused it).
             view = dataclasses.replace(tree, units=(unit,), oracle="")
             emitted = {
                 f"{s.key}|{s.scope}|{s.subject}"
-                for s in extract_crosswalk_signals(view)
+                for s in extract_crosswalk_signals(as_signal_tree(view))
             }
             out[(ti, ui)] = frozenset(emitted & full)
     return out

@@ -1094,7 +1094,7 @@ def _removal_edict_types_for(card: dict, family: str) -> frozenset[str]:
     the two-layer memo this seam piggybacks on — so no separate cache is
     needed here.
     """
-    from mtg_utils._deck_forge._ir_lookup import trees_for
+    from mtg_utils._card_ir.trees import trees_for
 
     walk = _removal_answer_types if family == "removal" else _edict_answer_types
     out: set[str] = set()

@@ -53,7 +53,7 @@ def _tree(name: str) -> ConceptTree:
     # the SAME W2c text-only path production uses.
     text_only_faces = _fixture().get("text_only_faces", {})
     if name in text_only_faces:
-        from mtg_utils._deck_forge._ir_lookup import _text_only_tree
+        from mtg_utils._card_ir.trees import _text_only_tree
 
         entry = text_only_faces[name]
         tree = _text_only_tree(
