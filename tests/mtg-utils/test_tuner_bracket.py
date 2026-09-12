@@ -241,3 +241,14 @@ def test_ir_extra_turn_read_is_structural():
 
     assert _ir_has_extra_turn(_ir(Effect(category="extra_turn", scope="any"))) is True
     assert _ir_has_extra_turn(_ir(Effect(category="draw", scope="you"))) is False
+
+
+def test_gate_is_not_applicable_one_on_one():
+    # Brackets are a Commander-pod concept: a one-on-one build (every Arena game,
+    # Competitive Brawl) passes with the reason attached, whatever it runs.
+    result = bracket_gate(
+        [_gc("Mana Crypt"), _mld("Armageddon")], target_bracket=1, multiplayer=False
+    )
+    assert result["pass"] is True
+    assert result["violations"] == []
+    assert "one-on-one" in result["not_applicable"]

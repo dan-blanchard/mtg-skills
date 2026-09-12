@@ -59,7 +59,7 @@ class TestTable:
         assert CB.arena_pool
         assert not CB.free_mulligan
         assert FORMATS["brawl"].free_mulligan
-        assert CB.multiplayer_life_total == 25
+        assert CB.multiplayer_life_total is None  # no multiplayer variant
 
     def test_arena_pool_is_exactly_the_arena_defined_legality_keys(self):
         gated = {f.name for f in FORMATS.values() if f.arena_pool}
@@ -220,6 +220,20 @@ class TestMediumAndSize:
         assert HB.resolve_medium(None) == "digital"
         assert CMD.resolve_medium("digital") == "paper"  # commander is paper-only
         assert CB.resolve_medium("paper") == "digital"  # Arena-only
+
+    def test_multiplayer_and_starting_life_follow_medium(self):
+        # Arena is one-on-one for every format; a paper table is multiplayer iff the
+        # format has a multiplayer variant, at that variant's life total.
+        assert CMD.is_multiplayer("paper") is True
+        assert CMD.starting_life("paper") == 40
+        assert HB.is_multiplayer("digital") is False
+        assert HB.starting_life("digital") == 25
+        assert HB.is_multiplayer("paper") is True
+        assert HB.starting_life("paper") == 30
+        assert CB.is_multiplayer("digital") is False
+        assert CB.starting_life("digital") == 25
+        assert FORMATS["standard"].is_multiplayer("paper") is False
+        assert FORMATS["standard"].starting_life("paper") == 20
 
     def test_cost_mode_follows_medium(self):
         assert Format.cost_mode("digital") == "wildcards"

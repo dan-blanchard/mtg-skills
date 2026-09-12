@@ -157,6 +157,19 @@ class Format:
             return override  # type: ignore[return-value]
         return self.default_medium
 
+    def is_multiplayer(self, medium: str) -> bool:
+        """Whether a game in ``medium`` is multiplayer: Arena is one-on-one for every
+        format; in paper, a format is multiplayer iff it has a multiplayer variant
+        (Commander's pod, paper Brawl's 30-life table)."""
+        return medium != "digital" and self.multiplayer_life_total is not None
+
+    def starting_life(self, medium: str) -> int:
+        """The starting life a deck built for ``medium`` plays against — the
+        multiplayer total at a paper table, else the one-on-one total."""
+        if self.is_multiplayer(medium) and self.multiplayer_life_total is not None:
+            return self.multiplayer_life_total
+        return self.life_total
+
     @staticmethod
     def cost_mode(medium: str) -> CostMode:
         """What a card costs to acquire in ``medium``: Arena wildcards or paper USD."""
@@ -355,7 +368,7 @@ _ALL: tuple[Format, ...] = (
         deck_size=100,
         life_total=25,
         # Arena is 1v1 only; there is no multiplayer Competitive Brawl.
-        multiplayer_life_total=25,
+        multiplayer_life_total=None,
         legality_key="brawl",
         # Unlike ordinary Brawl, Competitive Brawl has no free mulligan.
         free_mulligan=False,

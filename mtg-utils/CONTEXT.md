@@ -123,9 +123,10 @@ noted in `lanes/` itself. See archived ADR-0039 for the promotion record.)
 **Format**:
 The frozen value that answers every question about one deck format — legality of a
 record (with the Competitive Brawl override and the Arena-pool gate folded in),
-commander eligibility, the media it is played in and the default, the deck size and
-which sizes a medium may choose, the CR citation for that size, and the cost mode a
-medium implies. Resolved once (`FORMATS[name]`, `get_format`, `Format.for_deck`,
+commander eligibility, the media it is played in and the default, whether a game
+in a medium is multiplayer and at what starting life, the deck size and which sizes
+a medium may choose, the CR citation for that size, and the cost mode a medium
+implies. Resolved once (`FORMATS[name]`, `get_format`, `Format.for_deck`,
 `HydratedDeck.format`) and never re-derived from a table at a call site (ADR-0045).
 _Avoid_: "format config" (the retired flag table), "legality key" as a caller-side
 concept (the `Format` reads it; callers read a status).

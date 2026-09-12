@@ -52,13 +52,21 @@ _AVG_CEILING = 4.0
 # Shape → desired front-load (cmc<=2 nonland) and ramp, per 100 cards.
 _FRONT_WANT = {"aggro": 18, "midrange": 14, "control": 10, "combo": 12}
 
-# Shape → (min, max) dedicated closers (ADR-0024; floor ~3, archetype-scaled).
+# Shape → (min, max) dedicated closers (ADR-0024; floor ~3, archetype-scaled) at the
+# 40-life Commander table. The floor scales with the starting life the deck plays
+# against (``_life_scaled``): at 25 life one-on-one, ordinary threats close games and
+# fewer dedicated closers are wanted.
 _WINCON_TARGET = {
     "aggro": (4, 6),
     "midrange": (3, 6),
     "control": (2, 4),
     "combo": (2, 3),
 }
+_REFERENCE_LIFE = 40
+# An evasive body reads as a closer from this power at 40 life (~7 swings); the
+# threshold scales with life so a 4-power flyer counts at 25 (~6 swings) but not at 40.
+_EVASIVE_CLOSER_POWER = 6
+_EVASIVE_CLOSER_POWER_FLOOR = 3
 
 # Heuristic finisher oracle patterns (labeled heuristic; combos are the precise source).
 _WINCON_PATTERNS = [
@@ -82,6 +90,19 @@ _WINCON_PATTERNS = [
         r"creatures you control get \+\d",
     )
 ]
+# One-on-one only: with a single opponent, "any target" / "target player" scaling
+# damage or drain is the same finisher "each opponent" is at a pod. Never counted in
+# multiplayer, where single-target reach is not a table-closer.
+_WINCON_PATTERNS_1V1 = [
+    re.compile(p, re.IGNORECASE)
+    for p in (
+        (
+            r"deals? (?:x|damage equal to)[^.]*damage to "
+            r"(?:any target|target (?:player|opponent))"
+        ),
+        r"target (?:player|opponent) loses (?:life equal|x life)",
+    )
+]
 _EVASION = ("flying", "menace", "trample", "can't be blocked", "shadow", "fear")
 
 
@@ -94,6 +115,21 @@ def _matches(card: dict, preset: str) -> bool:
 
 def _scaled(value: int, deck_size: int) -> int:
     return round(value * deck_size / 100)
+
+
+def _life_scaled(value: int, life: int, *, floor: int) -> int:
+    """``value`` (calibrated at the 40-life Commander table) scaled to ``life``,
+    half-up rounded, never below ``floor``."""
+    return max(floor, int(value * life / _REFERENCE_LIFE + 0.5))
+
+
+def _is_voltron(classes: Sequence[CardClass], deck_size: int) -> bool:
+    """Equip/aura density that reads as a voltron plan (shared by the protection
+    advisory and the closer count)."""
+    equip_aura = sum(
+        1 for c in classes if _matches(c.record, "equip") or _matches(c.record, "auras")
+    )
+    return equip_aura >= _scaled(4, deck_size)
 
 
 # ── Efficiency ────────────────────────────────────────────────────────────────
@@ -368,46 +404,80 @@ def _ir_wincon(ir: Card) -> bool:
     )
 
 
-def _is_wincon_card(card: dict) -> bool:
+def _is_wincon_card(
+    card: dict, *, life: int = _REFERENCE_LIFE, one_on_one: bool = False
+) -> bool:
+    """Heuristic finisher read, relative to the game the deck plays: ``life`` sets
+    the evasive-body threshold, ``one_on_one`` admits single-target scaling reach."""
     ir = ir_for(card)
     if ir is not None and _ir_wincon(ir):
         return True
     text = card.get("oracle_text") or ""
     if any(p.search(text) for p in _WINCON_PATTERNS):
         return True
-    if is_creature(card) and card_pt_int(card) >= 6:
+    if one_on_one and any(p.search(text) for p in _WINCON_PATTERNS_1V1):
+        return True
+    power_floor = _life_scaled(
+        _EVASIVE_CLOSER_POWER, life, floor=_EVASIVE_CLOSER_POWER_FLOOR
+    )
+    if is_creature(card) and card_pt_int(card) >= power_floor:
         low = text.lower()
         return any(e in low for e in _EVASION)
     return False
 
 
 def win_conditions(
-    classes: Sequence[CardClass], *, shape: str, combo_count: int
+    classes: Sequence[CardClass],
+    *,
+    shape: str,
+    combo_count: int,
+    deck_size: int = 100,
+    life: int = _REFERENCE_LIFE,
+    multiplayer: bool = True,
+    commander_damage: bool = True,
 ) -> dict:
+    """Dedicated closers vs the Shape's band (ADR-0024 advisory), read against the
+    game the deck plays: ``life`` and ``multiplayer`` come from the Format under the
+    build's medium, ``commander_damage`` from the Format. A voltron plan (equip/aura
+    density) is a closer only where 21 commander damage wins — in the Brawl family it
+    must deal the full life total, so it is surfaced as needing real damage instead."""
     # ADR-0040 §5 (task #100): a Granter granting a closer-grade ability
     # (team double strike) is ONE closer — the record heuristic alone missed
     # keyword grants, reading the benchmark deck "2 closers" while it held
     # team double strike twice.
+    one_on_one = not multiplayer
     cards = sorted(
-        {c.name for c in classes if _is_wincon_card(c.record) or c.grant_closer}
+        {
+            c.name
+            for c in classes
+            if _is_wincon_card(c.record, life=life, one_on_one=one_on_one)
+            or c.grant_closer
+        }
     )
-    count = len(cards) + combo_count
+    voltron = _is_voltron(classes, deck_size)
+    voltron_closer = voltron and commander_damage
+    count = len(cards) + combo_count + (1 if voltron_closer else 0)
     lo, hi = _WINCON_TARGET.get(shape, (3, 6))
+    lo = _life_scaled(lo, life, floor=2)
     return {
         "count": count,
         "from_combos": combo_count,
         "cards": cards,  # the heuristic finisher cards (combos add to count, not names)
         "target": [lo, hi],
         "status": "low" if count < lo else "ok",
+        "life": life,
+        "one_on_one": one_on_one,
+        "voltron": voltron,
+        # The commander-damage plan counted as one closer (Commander only).
+        "voltron_commander_damage": voltron_closer,
+        # A voltron plan with no 21-damage rule: it has to deal the whole life total.
+        "voltron_needs_real_damage": voltron and not commander_damage,
     }
 
 
 def protection(classes: Sequence[CardClass], *, shape: str, deck_size: int) -> dict:
     cards = [c.name for c in classes if protects(c.record)]
-    equip_aura = sum(
-        1 for c in classes if _matches(c.record, "equip") or _matches(c.record, "auras")
-    )
-    voltron = equip_aura >= _scaled(4, deck_size)
+    voltron = _is_voltron(classes, deck_size)
     wants = shape in ("combo", "control") or voltron
     target = _scaled(5, deck_size) if wants else 0
     return {

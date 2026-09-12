@@ -110,17 +110,33 @@ def bracket_gate(
     target_bracket: int,
     *,
     combos: dict | None = None,
+    multiplayer: bool = True,
 ) -> dict:
     """Measure a deck against ``target_bracket``'s official allowances.
 
     ``combos`` is an optional ``combo-search`` result (``{"combos": [...]}``) feeding
     the two-card-combo axis; omit it to skip that axis (graceful degradation).
 
+    The brackets are a Commander-pod concept: mass land denial, extra turns and
+    two-card combos are permissions at a multiplayer table and ordinary tempo
+    one-on-one. ``multiplayer=False`` (the Format under the build's medium — every
+    Arena game, Competitive Brawl) returns a passing gate marked ``not_applicable``.
+
     Returns ``{target_bracket, pass, ceilings, violations}`` where each violation
     names the breached ``axis``, a ``severity`` (FAIL for the deterministic axes,
     WARN for the qualitative ones), the offending ``cards``, and a ``detail`` line.
     Brackets 4-5 are banned-list-only, so they always pass with no violations.
     """
+    if not multiplayer:
+        return {
+            "target_bracket": target_bracket,
+            "pass": True,
+            "ceilings": {},
+            "violations": [],
+            "not_applicable": (
+                "Commander brackets are a multiplayer concept; this build is one-on-one"
+            ),
+        }
     if target_bracket >= _UNCONSTRAINED_FROM:
         return {
             "target_bracket": target_bracket,

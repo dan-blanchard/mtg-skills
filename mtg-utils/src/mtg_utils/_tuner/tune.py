@@ -149,6 +149,12 @@ def tune(
     commander_names = {e["name"] for e in deck.get("commanders") or []}
     deck_size = hd.format.deck_size
     fmt = hd.format.name
+    # The game the deck plays, from the Format under the build's medium: every Arena
+    # game is one-on-one at the format's own life total; a paper Commander / Brawl
+    # table is multiplayer at its table total. Drives the closer read and the bracket
+    # gate's applicability.
+    life = hd.format.starting_life(params.medium)
+    multiplayer = hd.format.is_multiplayer(params.medium)
     identity = _deck_identity(hd)
     # Exact-size legality (CR 903.5a / 903.12d): a deck PAST deck_size is never
     # legal in the Commander family, so the overflow is diagnosed on every run.
@@ -219,7 +225,15 @@ def tune(
         tribal_payoff_subjects=payoff_subjects,
     )
     tmpl = metrics.template_deviation(budgets)
-    wins = metrics.win_conditions(classes, shape=shape, combo_count=combo_count)
+    wins = metrics.win_conditions(
+        classes,
+        shape=shape,
+        combo_count=combo_count,
+        deck_size=deck_size,
+        life=life,
+        multiplayer=multiplayer,
+        commander_damage=hd.format.commander_damage,
+    )
     prot = metrics.protection(classes, shape=shape, deck_size=deck_size)
     cfit = metrics.commander_fit(classes, foc)
     issues = metrics.top_issues(
@@ -233,7 +247,9 @@ def tune(
 
     # ADR-0030: a target-bracket constraint gate, only when a target was chosen.
     bracket = (
-        bracket_gate(hd.records, params.target_bracket, combos=combos)
+        bracket_gate(
+            hd.records, params.target_bracket, combos=combos, multiplayer=multiplayer
+        )
         if params.target_bracket is not None
         else None
     )
