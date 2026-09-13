@@ -29,8 +29,10 @@ front-face aliasing `hydrate`/`mark-owned` already use, or sum land quantities f
 the classified records directly).
 
 **Current state (2026-09-12).** Finished. `mana_audit` emits ONE `land_band`
-`{floor, top, flood, count, status}` for every deck — the Commander family's
-[Karsten-adjusted floor, raw Burgess over the effective commander cost] and, for 60-card
+`{floor, top, flood, count, status}` for every deck — for the Commander family the
+lower of the Karsten-adjusted count and raw Burgess (over the effective commander cost,
+ADR-0044) is the floor and the higher is the top, since a light-ramp deck can push
+Karsten above Burgess and the benchmark's heavy ramp did the reverse; for 60-card
 constructed, [recommended − tolerance, recommended] — with `status` in PASS / WARN
 (constructed only, between floor and top) / FAIL (below floor, the only gating value) /
 FLOOD (above `top + 2`, advisory). The former top-level `recommended_land_count`,

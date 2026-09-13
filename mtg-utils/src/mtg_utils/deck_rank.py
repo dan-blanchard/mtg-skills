@@ -1,6 +1,6 @@
 """CLI: rank candidate cards by synergy with a deck (D).
 
-A thin wrapper over ``_deck_forge.ranking.rank_candidates``: it extracts the deck's
+A thin wrapper over ``_analysis.ranking.rank_candidates``: it extracts the deck's
 signals (commander lanes) and scores each candidate by how many of those lanes it serves
 (synergy), then price, then curve — the transparent multi-axis score, NOT EDHREC
 popularity. Lets deck-wizard order additions deterministically, not by agent guess.

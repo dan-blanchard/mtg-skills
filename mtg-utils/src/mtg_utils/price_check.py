@@ -13,7 +13,8 @@ from mtg_utils._http import USER_AGENT
 from mtg_utils._name_index import NameIndex
 from mtg_utils._sidecar import atomic_write_json, sha_keyed_path
 from mtg_utils.card_classify import extract_price
-from mtg_utils.card_pool import CardPool
+from mtg_utils.card_pool import CardPool, NoBulkError
+from mtg_utils.deck_cli import bulk_data_option
 from mtg_utils.formats import FORMATS, get_format
 from mtg_utils.scryfall_lookup import (
     RATE_LIMIT_DELAY,
@@ -109,8 +110,9 @@ def _extract_deck_entries(names_or_deck: list | dict) -> list[tuple[str, int]]:
                 _add(name, qty)
         return pairs
 
-    # Parsed deck JSON — walk mainboard, commanders, and sideboard
-    for section in ("commanders", "cards", "sideboard"):
+    # Parsed deck JSON — walk mainboard, commanders, and sideboard; a cube JSON's
+    # commander pool (parse_cube's ``commander_pool``, same entry shape) prices too.
+    for section in ("commanders", "cards", "sideboard", "commander_pool"):
         for entry in names_or_deck.get(section, []) or []:
             if not isinstance(entry, dict):
                 continue
@@ -435,11 +437,7 @@ def _default_output_path(
 @click.command()
 @click.argument("path", type=click.Path(exists=True, path_type=Path))
 @click.option("--budget", type=float, default=None, help="Budget in USD.")
-@click.option(
-    "--bulk-data",
-    type=click.Path(exists=True, path_type=Path),
-    default=None,
-)
+@bulk_data_option
 @click.option(
     "--format",
     "card_format",
@@ -461,13 +459,37 @@ def main(
     card_format: str | None,
     output_path: Path | None,
 ) -> None:
-    """Check card prices against a budget."""
+    """Check card prices against a budget. PATH is a name list, a parsed deck JSON
+    or a cube JSON (so this CLI prices names itself rather than acquiring a deck)."""
     content = path.read_text(encoding="utf-8")
     raw = json.loads(content)
-    result = check_prices(raw, bulk_path=bulk_data, budget=budget, format=card_format)
+    # The format ``check_prices`` will use: the flag, else the deck JSON's own.
+    effective_format = card_format or (
+        raw.get("format") if isinstance(raw, dict) else None
+    )
+    try:
+        bulk_path: Path | None = CardPool.resolve_path(bulk_data)
+    except NoBulkError as exc:
+        if effective_format in FORMATS and FORMATS[effective_format].is_arena:
+            # Wildcard costing reads the bulk's rarity index; there is no per-card
+            # fallback for it, and a silent USD report would read as wildcards.
+            raise click.ClickException(
+                f"Arena wildcard pricing for {effective_format} needs the local "
+                f"bulk: {exc}"
+            ) from exc
+        # The one CLI that keeps a no-bulk mode: every name is priced against
+        # Scryfall's per-card endpoint (ADR-0005's carve-out) — say so, since that is
+        # one request per distinct name.
+        bulk_path = None
+        click.echo(
+            "WARNING: no card-data bulk found — pricing every name against Scryfall's "
+            "API; run download-mtgjson to price from the local bulk.",
+            err=True,
+        )
+    result = check_prices(raw, bulk_path=bulk_path, budget=budget, format=card_format)
 
     if output_path is None:
-        output_path = _default_output_path(content, budget, card_format, bulk_data)
+        output_path = _default_output_path(content, budget, card_format, bulk_path)
     else:
         output_path = output_path.resolve()
     atomic_write_json(output_path, result)

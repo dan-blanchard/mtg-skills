@@ -1,9 +1,10 @@
 """One consistent Scryfall name-indexing core (candidate 03).
 
 Before this module, the canonical-name → DFC-face → Arena-alias keying mechanic was
-hand-copied across ``scryfall_lookup._load_bulk_index``, ``build_rarity_index``,
-``card_classify.build_card_lookup``, ``find_commanders``, ``deck.load_bulk_indexes``,
-``card_search``, and ``mark_owned`` — each with *subtly inconsistent* rules (front-only
+hand-copied across the former ``scryfall_lookup._load_bulk_index`` and
+``build_rarity_index`` (both now ``CardPool``), ``card_classify.build_card_lookup``,
+``find_commanders``, ``deck.load_bulk_indexes``, ``card_search``, and ``mark_owned`` —
+each with *subtly inconsistent* rules (front-only
 vs every-face DFC handling, ``str.lower`` vs NFKD folding vs none, priced-beats-None vs
 not). Dual-faced cards in particular have surfaced repeated silent-lookup bugs. This
 module makes the keying ONE implementation:

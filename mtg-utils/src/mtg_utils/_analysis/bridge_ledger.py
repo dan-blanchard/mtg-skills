@@ -47,6 +47,7 @@ from collections.abc import Callable, Iterator
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+from mtg_utils._analysis._subtypes import LAND_SUBTYPES
 from mtg_utils._analysis._sweep_detectors import NAMED_PERMANENT_REGEX
 from mtg_utils._analysis.signal_base import Signal
 from mtg_utils._card_ir.crosswalk import (
@@ -72,30 +73,6 @@ from mtg_utils._card_ir.mirror.runtime import MISSING
 if TYPE_CHECKING:  # pragma: no cover
     from mtg_utils._card_ir.crosswalk import ConceptTree
 
-# Land subtypes (CR 205.3i), duplicated (not imported) from crosswalk_signals.
-# _LAND_SUBTYPES: crosswalk_signals.py imports ``bridge_fires`` FROM this
-# module, so importing the other way would be circular.
-_LAND_SUBTYPES: frozenset[str] = frozenset(
-    {
-        "plains",
-        "island",
-        "swamp",
-        "mountain",
-        "forest",
-        "wastes",
-        "gate",
-        "desert",
-        "lair",
-        "locus",
-        "mine",
-        "power-plant",
-        "tower",
-        "urza's",
-        "cave",
-        "sphere",
-        "town",
-    }
-)
 
 # The four residue classes a bridge may serve (mtg-utils/CONTEXT.md):
 # a grammar straggler (our clause grammar's frontier), a dropped clause
@@ -399,7 +376,7 @@ def _cheat_no_battlefield_type_evidence(tree: ConceptTree) -> bool:
                 return False
             if not cores:
                 subs = {s.lower() for s in filter_subtypes(filt)}
-                if subs and not subs & _LAND_SUBTYPES:
+                if subs and not subs & LAND_SUBTYPES:
                     return False
         elif tg == "RevealUntil":
             if getattr(n, "kept_destination", None) != "Battlefield":
@@ -410,7 +387,7 @@ def _cheat_no_battlefield_type_evidence(tree: ConceptTree) -> bool:
                 return False
             if not cores:
                 subs = {s.lower() for s in filter_subtypes(filt)}
-                if subs and not subs & _LAND_SUBTYPES:
+                if subs and not subs & LAND_SUBTYPES:
                     return False
     return True
 
@@ -1130,8 +1107,7 @@ def _kaya_emblem_cast_from_exile_drop(tree: ConceptTree) -> bool:
 
 # ── voltron_matters bridges (ADR-0039 W7, 2026-07-12) ─────────────────────────
 
-# Duplicated (not imported) from crosswalk_signals — same rationale as
-# _LAND_SUBTYPES (crosswalk_signals imports bridge_fires FROM this module).
+# The attachment subtypes the voltron bridges gate on (CR 205.3g).
 _VOLTRON_SUBTYPES: frozenset[str] = frozenset({"aura", "equipment", "role"})
 
 # (1) Judgment Bolt / Animal Friend / Sage's Reverie — the SAME idiom class:

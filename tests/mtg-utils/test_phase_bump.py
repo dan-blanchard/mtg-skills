@@ -8,7 +8,9 @@ import pickle
 import subprocess
 from pathlib import Path
 
+import click
 import pytest
+from click.testing import CliRunner
 
 from mtg_utils import _phase, phase_bump
 from mtg_utils.phase_bump import (
@@ -301,6 +303,8 @@ def test_dry_run_executes_every_step_in_order_and_writes_the_report(
         "pytest",
     ]
     assert (tmp_path / "report" / "signals-v0.66.0.pkl").exists()
+    # the old tag is recorded before step 1 rewrites the pin, for --from-step
+    assert phase_bump.resume_old_tag(tmp_path / "report") == "v0.66.0"
     # the report carries the census, the diff and the graduation list
     text = report.read_text()
     assert "Wrong card text." in text
@@ -329,3 +333,68 @@ def test_from_step_skips_earlier_steps(tmp_path, monkeypatch):
     run(ctx, from_step=9, echo=lambda _s: None)
     assert (repo / phase_bump.PIN_FILE).read_text() == 'PHASE_TAG = "v0.66.0"\n'
     assert [c[2] for c in calls] == ["pytest"]
+
+
+def test_rebuild_resume_keeps_the_first_runs_pre_bump_index(tmp_path):
+    # --from-step 7 after a failure: the on-disk index is already rebuilt, so the
+    # copy the first run took must survive or the signal diff compares new to new.
+    repo = _fake_repo(tmp_path)
+    bulk = tmp_path / "bulk.json"
+    bulk.write_text("[]")
+    pkl = bulk.with_name(bulk.name + ".signals.pkl")
+    pkl.write_bytes(pickle.dumps({"version": 1, "index": {"oid": ("draw|you|",)}}))
+    report_dir = tmp_path / "report"
+    report_dir.mkdir()
+    old_copy = report_dir / "signals-v0.66.0.pkl"
+    old_copy.write_bytes(pickle.dumps({"version": 1, "index": {"oid": ("ramp|you|",)}}))
+    ctx = BumpContext(
+        repo=repo,
+        old_tag="v0.66.0",
+        new_tag="v0.70.0",
+        report_dir=report_dir,
+        runner=lambda argv: subprocess.CompletedProcess(argv, 0, stdout="", stderr=""),
+        fetch=lambda _url: b"",
+        card_data_path=lambda: tmp_path / "unused",
+        bulk_path=bulk,
+    )
+    phase_bump.step_rebuild(ctx)
+    assert pickle.loads(old_copy.read_bytes())["index"] == {"oid": ("ramp|you|",)}
+    assert any("already copied" in n for n in ctx.notes)
+
+
+def test_resume_old_tag_without_a_marker_is_an_actionable_error(tmp_path):
+    with pytest.raises(click.ClickException, match="no interrupted bump to resume"):
+        phase_bump.resume_old_tag(tmp_path / "report")
+    (tmp_path / "report").mkdir()
+    (tmp_path / "report" / phase_bump.OLD_TAG_MARKER).write_text("\n")
+    with pytest.raises(click.ClickException, match="is empty"):
+        phase_bump.resume_old_tag(tmp_path / "report")
+
+
+def test_main_resumes_from_the_marker_not_the_rewritten_pin(tmp_path, monkeypatch):
+    # After step 1 the on-disk pin IS the new tag; a resumed process must not take
+    # it as the old tag (the signal diff would compare the new index to itself).
+    report_dir = tmp_path / "report"
+    report_dir.mkdir()
+    (report_dir / phase_bump.OLD_TAG_MARKER).write_text("v0.66.0\n")
+    monkeypatch.setattr(_phase, "PHASE_TAG", "v0.70.0")
+    monkeypatch.setattr(phase_bump, "_default_report_dir", lambda _tag: report_dir)
+    monkeypatch.setattr(phase_bump, "_repo_root", lambda: tmp_path)
+    seen: dict[str, str] = {}
+
+    def fake_run(ctx, *, from_step, echo):  # noqa: ARG001 — the seam's shape
+        seen.update(old=ctx.old_tag, new=ctx.new_tag)
+        return report_dir / "report.md"
+
+    monkeypatch.setattr(phase_bump, "run", fake_run)
+    result = CliRunner().invoke(phase_bump.main, ["v0.70.0", "--from-step", "9"])
+    assert result.exit_code == 0, result.output
+    assert seen == {"old": "v0.66.0", "new": "v0.70.0"}
+
+
+def test_main_refuses_a_bump_to_the_current_pin(tmp_path, monkeypatch):
+    monkeypatch.setattr(_phase, "PHASE_TAG", "v0.66.0")
+    monkeypatch.setattr(phase_bump, "_default_report_dir", lambda _tag: tmp_path)
+    result = CliRunner().invoke(phase_bump.main, ["v0.66.0"])
+    assert result.exit_code != 0
+    assert "already v0.66.0" in result.output

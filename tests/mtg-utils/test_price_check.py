@@ -3,6 +3,7 @@
 import json
 from unittest.mock import MagicMock, patch
 
+import pytest
 from click.testing import CliRunner
 
 from mtg_utils.price_check import check_prices, main
@@ -408,7 +409,7 @@ class TestArenaWildcardMode:
         also suppress the Arena 4-cap substitution: owning 4 Seven
         Dwarves when the deck wants 7 should charge 3 wildcards, not 0.
 
-        The ``exempt_from_4cap`` flag on ``build_rarity_index`` is
+        The ``exempt_from_4cap`` flag on ``CardPool.rarity_index`` is
         already unit-tested for the up-to-N oracle pattern; this test
         closes the end-to-end loop through ``_check_arena_wildcards``.
         """
@@ -724,3 +725,76 @@ class TestCLI:
         assert "of $100.00 budget" in result.output
         data = json_from_cli_output(result)
         assert data["over_budget"] is False
+
+
+def test_cli_auto_discovers_the_bulk_and_stays_offline(
+    sample_bulk_data, tmp_path, monkeypatch
+):
+    # ADR-0046: the shared --bulk-data option defaults to the auto-discovered bulk,
+    # so a bare `price-check deck.json` prices from disk, never one Scryfall request
+    # per name.
+    from mtg_utils import card_pool, price_check, scryfall_lookup
+
+    monkeypatch.setattr(card_pool, "default_bulk_path", lambda: sample_bulk_data)
+    monkeypatch.setattr(
+        scryfall_lookup, "fetch_card", lambda name: pytest.fail(f"fetched {name}")
+    )
+    names = tmp_path / "names.json"
+    names.write_text(json.dumps(["Sol Ring"]))
+    result = CliRunner().invoke(
+        price_check.main, [str(names), "--output", str(tmp_path / "out.json")]
+    )
+    assert result.exit_code == 0, result.output
+    assert "WARNING" not in result.output
+    assert json.loads((tmp_path / "out.json").read_text())["cards"]
+
+
+def test_cli_arena_format_without_a_bulk_is_an_error(tmp_path, monkeypatch):
+    # Wildcard costing has no per-card fallback: a USD report would read as
+    # wildcards to an agent following SKILL.md's "price-check --format <fmt>".
+    from mtg_utils import card_pool, price_check
+
+    monkeypatch.setattr(card_pool, "default_bulk_path", lambda: None)
+    names = tmp_path / "names.json"
+    names.write_text(json.dumps(["Sol Ring"]))
+    result = CliRunner().invoke(price_check.main, [str(names), "--format", "brawl"])
+    assert result.exit_code != 0
+    assert "Arena wildcard pricing" in result.output
+    assert "download-mtgjson" in result.output
+    # The deck JSON's own format counts too (check_prices reads it when no flag).
+    deck = tmp_path / "deck.json"
+    deck.write_text(
+        json.dumps({"format": "historic_brawl", "commanders": [], "cards": []})
+    )
+    result = CliRunner().invoke(price_check.main, [str(deck)])
+    assert result.exit_code != 0
+    assert "historic_brawl needs the local bulk" in result.output
+
+
+def test_cli_without_any_bulk_warns_and_prices_from_scryfall(tmp_path, monkeypatch):
+    from mtg_utils import card_pool, price_check, scryfall_lookup
+
+    monkeypatch.setattr(card_pool, "default_bulk_path", lambda: None)
+    monkeypatch.setattr(
+        scryfall_lookup,
+        "fetch_card",
+        lambda name: {"name": name, "prices": {"usd": "1.00"}},
+    )
+    names = tmp_path / "names.json"
+    names.write_text(json.dumps(["Sol Ring"]))
+    result = CliRunner().invoke(
+        price_check.main, [str(names), "--output", str(tmp_path / "out.json")]
+    )
+    assert result.exit_code == 0, result.output
+    assert "no card-data bulk found" in result.output
+
+
+def test_cube_json_prices_the_commander_pool_too(sample_bulk_data):
+    # cube-wizard's "Cube budget check" runs price-check on the cube JSON; the
+    # commander / PDH cube's commanders sit in ``commander_pool``, not ``cards``.
+    cube = {
+        "cards": [{"name": "Sol Ring", "quantity": 1}],
+        "commander_pool": [{"name": "Lightning Bolt", "quantity": 1}],
+    }
+    result = check_prices(cube, bulk_path=sample_bulk_data)
+    assert {c["name"] for c in result["cards"]} == {"Sol Ring", "Lightning Bolt"}

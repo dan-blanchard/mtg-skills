@@ -21,7 +21,7 @@ adoption is worth making.
   path (`rank_deck_signals(...)` with no `ir_for` at `tune.py`) — the one signal-
   extraction hole left after ADR-0027. Resolve `ir_for` **internally** at that call (no
   signature change; the candidate-scoring paths — `score_candidate`, `rank_candidates`,
-  `role_of` — already self-resolve via `_deck_forge._ir_lookup.ir_for`). Provisioning
+  `role_of` — already self-resolve via `_card_ir.compat_lookup.ir_for`). Provisioning
   the Card IR sidecar is **load-bearing**: with no sidecar, *every* signal path — not
   just the patched one — returns `None` and degrades to regex, so the `deck-tune`
   adapter must `ensure_card_ir()` (best-effort, warn-and-fall-back) before running.
@@ -72,7 +72,7 @@ free, and there is no second tuning system.
 
 **Consequences.** ADR-0023's deferred caveat — graduating the signal engine out of
 `_deck_forge` to a neutral home — now triggers, since `_tuner` (which deck-wizard now
-reaches) imports `_deck_forge.signals`. Tracked as a follow-up, not done here.
+reaches) imports `_deck_forge.signals`. Tracked as a follow-up — done by ADR-0050 (`_analysis.signals`).
 
 **What this stops re-suggesting.** Don't re-add agent-driven mechanical role-counting /
 drafting to deck-wizard Step 6 — the tuner owns it. Don't describe the spine as leaving

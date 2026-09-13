@@ -429,30 +429,15 @@ def propose_swaps(
     ``ctx.max_swaps``. When ``ctx.fill_slots`` > 0 (an under-sized deck) a fill pass
     then adds pure adds (no cut) into the open slots. Returns the swaps + a note.
     See :class:`SwapContext` for the deck facts and the purse."""
-    budgets = ctx.budgets
-    focus_result = ctx.focus_result
-    deck_signals = ctx.deck_signals
-    search_fn = ctx.search_fn
-    identity = ctx.identity
-    fmt = ctx.fmt
-    paper_only = ctx.paper_only
-    owned = ctx.owned
-    budget = ctx.budget
-    max_swaps = ctx.max_swaps
-    top_heavy = ctx.top_heavy
-    fill_slots = ctx.fill_slots
-    wildcard_budget = ctx.wildcard_budget
-    protected = ctx.protected
-    medium = ctx.medium
     in_deck = {c.name for c in classes}
-    stranded = set(focus_result["stranded_avenues"])
+    stranded = set(ctx.focus_result["stranded_avenues"])
     # The deck's own avenue prominence, so the candidate ranker scores DEPTH in
     # the deck's real themes (a death payoff) over BREADTH across incidental lanes
     # (a token equipment that grazes ten). Without this the count rewards splashy
     # box-tickers — the bug that surfaced Elven Bow / Hired Claw over real payoffs.
     focus_sets = {
-        "viable": {a["label"] for a in focus_result["viable_avenues"]},
-        "emerging": {a["label"] for a in focus_result.get("emerging", [])},
+        "viable": {a["label"] for a in ctx.focus_result["viable_avenues"]},
+        "emerging": {a["label"] for a in ctx.focus_result.get("emerging", [])},
         "stranded": stranded,
     }
     # The creature subtypes the deck actually fields, so the ranker can discount a
@@ -466,11 +451,11 @@ def propose_swaps(
     )
     cuts = cut_candidates(
         classes,
-        budgets=budgets,
-        focus_verdict=focus_result["verdict"],
+        budgets=ctx.budgets,
+        focus_verdict=ctx.focus_result["verdict"],
         stranded=stranded,
-        protected=protected,
-        medium=medium,
+        protected=ctx.protected,
+        medium=ctx.medium,
     )
     # Route cuts: a role_over trim cuts from THAT over role; other issues draw from the
     # generic pool (filler then stranded), so a trim isn't derailed onto filler.
@@ -502,15 +487,15 @@ def propose_swaps(
     used_adds: set[str] = set()
     swaps: list[dict] = []
     ledger: _UsdLedger | _WildcardLedger = (
-        _WildcardLedger(wildcard_budget)
-        if wildcard_budget is not None
-        else _UsdLedger(budget)
+        _WildcardLedger(ctx.wildcard_budget)
+        if ctx.wildcard_budget is not None
+        else _UsdLedger(ctx.budget)
     )
-    cmc_cap = 4.0 if top_heavy else None
+    cmc_cap = 4.0 if ctx.top_heavy else None
 
     # Roles already at/above their template ceiling — an add filling one would push the
     # deck OFF-template, so fixing one issue must not regress the template.
-    full_roles = {r for r, b in budgets.items() if b["current"] >= b["max"]}
+    full_roles = {r for r, b in ctx.budgets.items() if b["current"] >= b["max"]}
 
     # Search + rank a spec ONCE per propose_swaps call, memoized. The ranked ORDER
     # depends only on in_deck (fixed), not on which cards have been used — so the fill
@@ -527,11 +512,11 @@ def propose_swaps(
         if cached is not None:
             return cached
         found = _run_search(
-            search_fn,
+            ctx.search_fn,
             spec,
-            identity=identity,
-            fmt=fmt,
-            paper_only=paper_only,
+            identity=ctx.identity,
+            fmt=ctx.fmt,
+            paper_only=ctx.paper_only,
             cmc_cap=cmc_cap,
             limit=limit,
         )
@@ -549,7 +534,7 @@ def propose_swaps(
             # EDHREC-popularity lean (user-directed).
             scored = rank_candidates(
                 pool,
-                active_signals=deck_signals,
+                active_signals=ctx.deck_signals,
                 focus_sets=focus_sets,
                 deck_tribes=deck_tribes,
             )
@@ -587,7 +572,7 @@ def propose_swaps(
             return set()
         scored = rank_candidates(
             list(cards),
-            active_signals=deck_signals,
+            active_signals=ctx.deck_signals,
             focus_sets=focus_sets,
             deck_tribes=deck_tribes,
         )
@@ -629,13 +614,13 @@ def propose_swaps(
         ranked = _ranked_pool(
             spec, synergy_first=synergy_first, nonland_only=nonland_only, limit=limit
         )
-        guard = role_fix and focus_result["verdict"] == "FOCUSED"
+        guard = role_fix and ctx.focus_result["verdict"] == "FOCUSED"
         fallback: tuple[dict, float] | None = None
         eligible: list[tuple[dict, float]] = []
         for card in ranked:
             if card.get("name") in used_adds:  # already taken — skip to the next best
                 continue
-            cost = ledger.acquire_cost(card, owned)
+            cost = ledger.acquire_cost(card, ctx.owned)
             if cost is None:
                 continue
             if role_of(card) & full_roles:
@@ -665,7 +650,7 @@ def propose_swaps(
     ) -> None:
         # Charge only now that the swap is finalized (find_add probed read-only, so an
         # unpaired add never consumed budget — USD dollars or a wildcard, by mode).
-        ledger.charge(add_card, owned, cost)
+        ledger.charge(add_card, ctx.owned, cost)
         if cut is not None:
             used_cuts.add(cut.name)
         used_adds.add(add_card.get("name", ""))
@@ -686,7 +671,7 @@ def propose_swaps(
                     "name": add_card.get("name", ""),
                     "cmc": add_card.get("cmc", 0.0),
                     "cost": cost,
-                    "owned": owned.get(add_card.get("name", ""), 0) >= 1,
+                    "owned": ctx.owned.get(add_card.get("name", ""), 0) >= 1,
                     # Rarity rides along so a digital build can show the add's wildcard
                     # cost (one wildcard of its rarity) without a second card lookup.
                     "rarity": add_card.get("rarity", ""),
@@ -695,17 +680,17 @@ def propose_swaps(
         )
 
     for issue in issues:
-        if len(swaps) >= max_swaps:
+        if len(swaps) >= ctx.max_swaps:
             break
         # Dead weight: drain filler, replacing each with the best on-theme / role card.
         # One issue → many swaps (a deck can carry several do-nothing cards), so this is
         # the only multi-swap branch — and it runs first (top severity) so the genuinely
         # dead cards go before any role trim churns a functional card.
         if issue["kind"] == "dead_weight":
-            spec = _dead_weight_spec(focus_result, deck_signals, budgets)
+            spec = _dead_weight_spec(ctx.focus_result, ctx.deck_signals, ctx.budgets)
             if spec is None:
                 continue
-            while len(swaps) < max_swaps:
+            while len(swaps) < ctx.max_swaps:
                 cut_entry = _pull(filler_iter)
                 if cut_entry is None:
                     break
@@ -717,7 +702,7 @@ def propose_swaps(
                 commit(issue, reason, cut, add_card, cost)
             continue
 
-        spec = _spec_for_issue(issue, focus_result, deck_signals)
+        spec = _spec_for_issue(issue, ctx.focus_result, ctx.deck_signals)
         if spec is None:
             # _spec_for_issue sources nothing here — e.g. a kind with no branch
             # (commander_misfit, voltron_no_commander_damage), a grant-covered
@@ -760,7 +745,9 @@ def propose_swaps(
         if spec is None:
             return
         added = 0
-        while added < quota and fills_done < fill_slots and len(swaps) < max_swaps:
+        while (
+            added < quota and fills_done < ctx.fill_slots and len(swaps) < ctx.max_swaps
+        ):
             # Fill is nonland-only (land slots reserved) and pulls a DEEP page: an
             # identity-only good-stuff search is cmc-asc, so its first few hundred hits
             # are mostly CMC-0 lands — we need to page well past them to find enough
@@ -777,9 +764,9 @@ def propose_swaps(
             added += 1
             fills_done += 1
 
-    if fill_slots > 0:
+    if ctx.fill_slots > 0:
         for role in ("ramp", "card_draw", "interaction", "board_wipe"):
-            b = budgets.get(role)
+            b = ctx.budgets.get(role)
             # ADR-0040 §1: skip a grant-covered role here too — the fill pass is
             # a separate code path from the issue-driven loop above (an
             # under-sized deck's open slots, not a cut/add pair), so it needs
@@ -792,30 +779,30 @@ def propose_swaps(
                     kind="fill_role",
                     msg=f"fill {role.replace('_', ' ')} toward the floor",
                 )
-        for e in focus_result.get("emerging", []):
+        for e in ctx.focus_result.get("emerging", []):
             take_fills(
-                _avenue_search_for(e["label"], deck_signals),
-                fill_slots,
+                _avenue_search_for(e["label"], ctx.deck_signals),
+                ctx.fill_slots,
                 synergy_first=True,
                 kind="fill_theme",
                 msg=f"deepen {e['label']}",
             )
         take_fills(
-            _main_avenue_search(focus_result, deck_signals),
-            fill_slots,
+            _main_avenue_search(ctx.focus_result, ctx.deck_signals),
+            ctx.fill_slots,
             synergy_first=True,
             kind="fill_theme",
             msg="deepen the deck's main theme",
         )
         take_fills(
             {},
-            fill_slots,
+            ctx.fill_slots,
             synergy_first=True,
             kind="fill",
             msg="fill open slots with in-identity cards",
         )
 
-    digital = wildcard_budget is not None
+    digital = ctx.wildcard_budget is not None
     raise_budget = "raise your wildcard budget" if digital else "raise the budget"
     allow_buys = (
         "set a wildcard budget to allow crafting"
@@ -823,17 +810,17 @@ def propose_swaps(
         else "set a Budget to allow buys"
     )
     note = None
-    if fill_slots and fills_done < fill_slots:
+    if ctx.fill_slots and fills_done < ctx.fill_slots:
         why = (
             "hit the max-swaps limit — raise it"
-            if len(swaps) >= max_swaps
+            if len(swaps) >= ctx.max_swaps
             else f"out of distinct affordable in-identity adds — {raise_budget}"
         )
-        note = f"Filled {fills_done} of {fill_slots} open nonland slots ({why})."
-    elif not fill_slots and len(swaps) < max_swaps:
+        note = f"Filled {fills_done} of {ctx.fill_slots} open nonland slots ({why})."
+    elif not ctx.fill_slots and len(swaps) < ctx.max_swaps:
         note = (
-            f"Proposed {len(swaps)} of {max_swaps} — no further actionable issues, or "
-            f"out of safe cuts / affordable adds ({allow_buys})."
+            f"Proposed {len(swaps)} of {ctx.max_swaps} — no further actionable issues, "
+            f"or out of safe cuts / affordable adds ({allow_buys})."
         )
     return {
         "swaps": swaps,

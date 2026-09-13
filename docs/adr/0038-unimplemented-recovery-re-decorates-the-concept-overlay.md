@@ -99,7 +99,7 @@ Unimplemented recovery becomes a substrate-wide overlay stage that
   one two-face `split` gap ("Fast // Furious"'s "Furious" face); adventure,
   transform, modal_dfc, flip, and prepare are fully covered by phase. The bulk
   (MTGJSON) record is the text source of record for a phase-missing face:
-  `_ir_lookup.trees_for` synthesizes one additional **zero-unit ConceptTree**
+  `_card_ir.trees.trees_for` synthesizes one additional **zero-unit ConceptTree**
   per phase-missing face when its production caller threads the bulk record
   in (`units=()`, `oracle` set to the bulk face's text verbatim,
   `card_types`/`card_subtypes`/`card_supertypes`/`cmc`/`power` parsed from the

@@ -19,10 +19,7 @@ from mtg_utils._deck_forge.events import EventHub
 from mtg_utils._deck_forge.persistence import BuildStore
 from mtg_utils._name_index import NameIndex
 from mtg_utils.formats import FORMATS, Format
-
-# "companion" is the outside-the-game zone (CR 702.139a-b: a companion is neither
-# deck nor sideboard); consumers that count deck size must exclude it deliberately.
-_ZONES = ("commanders", "cards", "sideboard", "companion")
+from mtg_utils.hydrated_deck import ZONES
 
 
 class DeckSession:
@@ -38,15 +35,15 @@ class DeckSession:
         # and back; the properties re-derive the effective value live.
         self._medium_override = medium
         self._deck_size_override = deck_size
-        self._zones: dict[str, dict[str, int]] = {z: {} for z in _ZONES}
+        self._zones: dict[str, dict[str, int]] = {z: {} for z in ZONES}
         # Chosen printing per (zone, card name) → Scryfall printing id. Sparse: a card
         # with no entry uses the default (cheapest) printing, so existing builds and the
         # no-bulk path are unaffected. All copies of a card share one printing.
-        self._printings: dict[str, dict[str, str]] = {z: {} for z in _ZONES}
+        self._printings: dict[str, dict[str, str]] = {z: {} for z in ZONES}
         # Chosen finish ("foil" | "etched") per (zone, card name). Rides the pinned
         # printing: only a pinned card can carry a finish, and re-pinning without one
         # clears it (the plain nonfoil default).
-        self._finishes: dict[str, dict[str, str]] = {z: {} for z in _ZONES}
+        self._finishes: dict[str, dict[str, str]] = {z: {} for z in ZONES}
 
     @property
     def medium(self) -> str:
@@ -79,7 +76,7 @@ class DeckSession:
             medium=deck.get("medium"),
             deck_size=deck.get("deck_size"),
         )
-        for zone in _ZONES:
+        for zone in ZONES:
             for entry in deck.get(zone) or []:
                 session.add(entry["name"], int(entry.get("quantity", 1)), zone=zone)
                 if entry.get("printing_id"):
@@ -173,21 +170,21 @@ class DeckSession:
                     }
                     for n, q in self._zones[zone].items()
                 ]
-                for zone in _ZONES
+                for zone in ZONES
             },
         }
 
     def card_names(self) -> list[str]:
         """Every distinct card name across all zones (for hydration lookups)."""
         seen: dict[str, None] = {}
-        for zone in _ZONES:
+        for zone in ZONES:
             for name in self._zones[zone]:
                 seen.setdefault(name, None)
         return list(seen)
 
     def _bucket(self, zone: str) -> dict[str, int]:
         if zone not in self._zones:
-            msg = f"unknown zone {zone!r}; expected one of {_ZONES}"
+            msg = f"unknown zone {zone!r}; expected one of {ZONES}"
             raise ValueError(msg)
         return self._zones[zone]
 
@@ -251,8 +248,8 @@ class ForgeState:
     # slot's ownership matches flavor/printed names — the ADR-0018 Arena-alias promise.
     name_aliases: dict[str, str] = field(default_factory=dict)
     # Arena wildcard costing for digital builds: the bulk path + a lazily-built, cached
-    # Arena rarity index per FORMAT (``build_rarity_index`` walks all of bulk, so it's
-    # computed once per format and reused; keyed by format, not legality key, because
+    # Arena rarity index per FORMAT (``CardPool.rarity_index`` walks all of bulk, so
+    # it's computed once per format and reused; keyed by format, not legality key, as
     # competitive_brawl shares historic_brawl's key with a different ban policy).
     bulk_path: Path | None = None
     rarity_index: dict[str, NameIndex] = field(default_factory=dict)

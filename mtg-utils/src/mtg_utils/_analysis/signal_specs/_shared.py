@@ -212,7 +212,7 @@ class Serve:
         if self.signal_idents:
             # Costliest arm (a live crosswalk pass on a cold memo) — checked
             # last, only after every record-shape dimension has missed. Lazy
-            # import: theme_presets imports _deck_forge.signals lazily for the
+            # import: theme_presets imports _analysis.signals lazily for the
             # same cycle reason its own docstring records.
             from mtg_utils.theme_presets import _signal_idents_for
 

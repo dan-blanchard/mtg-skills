@@ -875,28 +875,6 @@ _OPP_COUNTER_BENEFICIAL: frozenset[str] = (
 )
 
 
-_LAND_SUBTYPES: frozenset[str] = frozenset(
-    {
-        "plains",
-        "island",
-        "swamp",
-        "mountain",
-        "forest",
-        "wastes",
-        "desert",
-        "gate",
-        "lair",
-        "locus",
-        "urza's",
-        "mine",
-        "power-plant",
-        "tower",
-        "cave",
-        "sphere",
-    }
-)
-
-
 _CONVOKE_RAW = re.compile(r"\bconvoke\b", re.IGNORECASE)
 
 

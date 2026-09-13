@@ -115,7 +115,7 @@ class TestSignalSourceFiles:
         # AFTER extraction — it never feeds extract_signals's own output, so
         # it must not force a spurious rebuild on every edit. Checked by
         # PATH PARTS, not basename: signal_specs is now a package
-        # (`_deck_forge/signal_specs/__init__.py`, `core.py`, `data_1.py`, …),
+        # (`_analysis/signal_specs/__init__.py`, `core.py`, `data_1.py`, …),
         # so no file in the closure is literally named "signal_specs.py" —
         # a basename check is vacuously true regardless of whether the
         # package ever entered the closure. Verified this assertion isn't

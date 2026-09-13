@@ -3,7 +3,7 @@
 
 ``_group_by_oracle_id`` is the ONE grouping seam every sidecar consumer shares —
 ``build_crosswalk_sidecar`` (the legacy ``build_sidecar`` died in step 7) and
-``_deck_forge._ir_lookup._phase_record_index`` (production ``trees_for``) call it,
+``_card_ir.trees._phase_record_index`` (production ``trees_for``) call it,
 and ``build_card_snapshot`` calls it too to capture the raw records the committed
 snapshot stores (ADR-0039 task #80 step 5). Tested directly against the grouping
 function rather than through either sidecar builder — builder-agnostic, so this

@@ -16,8 +16,7 @@ from pathlib import Path
 
 import click
 
-from mtg_utils.bulk_loader import default_bulk_path
-from mtg_utils.card_pool import NoBulkError
+from mtg_utils.card_pool import CardPool, NoBulkError
 from mtg_utils.hydrated_deck import HydratedDeck
 
 __all__ = ["acquire_for_cli", "bulk_data_option", "resolve_bulk_path", "warn_missing"]
@@ -41,10 +40,10 @@ def bulk_data_option[F: Callable[..., object]](func: F) -> F:
 def resolve_bulk_path(bulk_data: Path | None) -> Path:
     """The bulk a CLI will read: *bulk_data* or the auto-discovered MTGJSON bulk; a
     ``ClickException`` naming ``download-mtgjson`` when there is neither."""
-    path = bulk_data if bulk_data is not None else default_bulk_path()
-    if path is None or not path.is_file():
-        raise click.ClickException(str(NoBulkError(bulk_data)))
-    return path
+    try:
+        return CardPool.resolve_path(bulk_data)
+    except NoBulkError as exc:
+        raise click.ClickException(str(exc)) from exc
 
 
 def warn_missing(hd: HydratedDeck) -> None:

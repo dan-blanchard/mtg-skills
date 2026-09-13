@@ -114,7 +114,7 @@ if TYPE_CHECKING:
     # (verified), so this import is safe even at runtime, but every OTHER
     # crosswalk-adjacent import in this module is lazy (see _signal_keys_for
     # / _concept_any_face's own docstrings) to dodge an import-time cycle
-    # with _deck_forge.signals — keeping this one TYPE_CHECKING-only too
+    # with _analysis.signals — keeping this one TYPE_CHECKING-only too
     # keeps the whole module's import discipline uniform.
     from mtg_utils._card_ir.crosswalk import ConceptTree
 
@@ -196,7 +196,7 @@ class Preset:
 # per-card LIVE compute (the first time any signal_keys-bearing preset sees
 # that card — the original, no-bulk/no-sidecar/CI-safe path) or, when a whole-
 # pool caller has called :func:`seed_signal_key_index`, in bulk from the
-# persisted ``_deck_forge.signals_index`` sidecar (task #90) — an oracle_id ->
+# persisted ``_analysis.signals_index`` sidecar (task #90) — an oracle_id ->
 # "key|scope|subject" idents pickle keyed off the bulk file + every signal-
 # source file's content, built ONCE and reused across processes. Either way
 # this dict is the SAME cache: a card_search.py-style full-pool scan pays one
@@ -276,7 +276,7 @@ _SEEDED_BULK_IDENTITIES: set[tuple[str, int, int]] = set()
 
 def seed_signal_key_index(bulk_path: Path | None) -> bool:
     """Seed ``_SIGNAL_KEY_INDEX`` from the persisted whole-pool signals-index
-    sidecar for *bulk_path* (task #90's ``_deck_forge.signals_index``),
+    sidecar for *bulk_path* (task #90's ``_analysis.signals_index``),
     building that sidecar on first touch (a one-time ~2-4 min pass logged to
     stderr) so a whole-pool preset scan (``card_search``'s ``--preset``
     filter, ``engine``'s commander-discovery novelty sweep) stops paying a
@@ -337,7 +337,7 @@ def _concept_any_face(card: dict, predicate: Callable[[ConceptTree], bool]) -> b
     synthesized — the identical tree shape every lane reads), so a concept
     predicate can never diverge from the ``signal_keys``-based lane it sits
     beside in the same preset's OR. Lazily imported for the same import-cycle
-    reason :func:`_signal_keys_for` imports ``_deck_forge.signals`` lazily.
+    reason :func:`_signal_keys_for` imports ``_analysis.signals`` lazily.
     """
     if not card.get("oracle_id"):
         return False
@@ -427,7 +427,7 @@ def _removal_edict_concept(
     (destroy/exile/burn/fight/shrink — the default, used by the six
     ``*-removal`` presets) or "edict" (forced sacrifice only, used by the
     six ``*-edict`` presets — a destroy/exile/burn effect is never an
-    edict, CR 701.8 vs 701.21a). Reuses ``_deck_forge.lanes.
+    edict, CR 701.8 vs 701.21a). Reuses ``_analysis.lanes.
     removal_edict_targets_type`` — the ONE lane helper every type-scoped
     preset in this registry shares (see that function's docstring, and its
     module's "Task #83 structural-view helper" section, for the target-
@@ -1304,7 +1304,7 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
     # Structural view (task #83): signal key `topdeck_selection` — OWN-
     # library top curation (CR 701.22a scry / 701.25a surveil / 701.20a
     # reveal / 701.13a exile / 701.17 mill / 401.5 look-at-top statics). See
-    # `_deck_forge.lanes._topdeck_selection` — already unions in
+    # `_analysis.lanes._topdeck_selection` — already unions in
     # most of the old regex's territory via typed Dig/RevealTop/ExileTop/
     # MayLookAtTopOfLibrary reads, plus the "reveal from the top until you
     # find X" dig-until idiom the old regex never phrase-matched (a genuine
@@ -1419,7 +1419,7 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
     # is the stack counterspell (CR 701.6a): a Counter/CounterAll effect
     # whose target is a StackSpell (Counterspell, Mana Leak, Remand,
     # Sinister Sabotage) — see
-    # ``_deck_forge.lanes._counter_control``. Structurally
+    # ``_analysis.lanes._counter_control``. Structurally
     # DISJOINT from the OTHER meaning of "counter" (+1/+1 counters) and from
     # "can't be countered" permission statics, so the view carries none of
     # the old regex's theoretical false-positive surface on those. 10
@@ -1757,7 +1757,8 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
             "'return target permanent to hand' tempo bounce is wrongly "
             "GY-veto'd because its sibling graveyard-return effect tags as "
             "`change_zone`, not `bounce` — the veto's `len(bounces) == 1` "
-            "guard (`_card_ir/tree_synthesis.py::_arm_bounce_tempo`) treats "
+            "guard (`_analysis/tree_synthesis/mana_ramp_lands.py::"
+            "_arm_bounce_tempo`) treats "
             "the ONE `bounce`-tagged node as if it were the unit's sole "
             "(self-referential) GY return, when it's really the OTHER "
             "sentence's untagged pair; Alchemist's Retrieval's Cleave "
@@ -1782,7 +1783,7 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
     # recipient: targeted/opponent player or a symmetric each-player wheel)
     # and `hand_disruption` (CR 402.3 — the Thoughtseize-style reveal-and-
     # choose family: reveal the opponent's hand, then discard a chosen
-    # card). See `_deck_forge.lanes._opponent_discard` /
+    # card). See `_analysis.lanes._opponent_discard` /
     # `._hand_disruption`. 2 preset-only residue (scoping census): Collective
     # Defiance / Steal the Show ("Target player discards all/any number of
     # cards, then draws that many cards") — the old regex fired on the bare
@@ -1806,7 +1807,7 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
     # `ramp` instead — the boundary mirrors `card_classify.is_ramp`), so
     # those two flipped to should_not_match; a land fetch TO HAND (Sylvan
     # Scrying) stays a genuine tutor and pins that side of the boundary.
-    # See `_deck_forge.lanes._tutor_lane` — the lane
+    # See `_analysis.lanes._tutor_lane` — the lane
     # has an ADJUDICATED VETO (ADR-0037, `synth_tutor_directed`) for a
     # directed/symmetric search ("target opponent's library" — Head Games;
     # "each player searches their library" — Oath of Lieges): searching
@@ -1901,7 +1902,7 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
     ),
     # Sacrifice outlet / payoff (task #83 structural-view conversion). The
     # crosswalk `sacrifice_outlets` signal (see
-    # `_deck_forge.lanes._sacrifice_outlets`) is DELIBERATELY
+    # `_analysis.lanes._sacrifice_outlets`) is DELIBERATELY
     # broader than the old "sacrifice X: <effect>" regex: it is the
     # concept's own true scope — a repeatable activated-cost outlet
     # (Viscera Seer, Ashnod's Altar), a ONE-SHOT outlet (an alt-cost pitch
@@ -1951,7 +1952,7 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
     # DamageEachPlayer / DamageAll effect that reaches a PLAYER — Lightning
     # Bolt, Fanatic of Mogis) and `removal` (CR 701.8/701.8a — includes its
     # DealDamage-to-a-permanent arm, so a creature-only bolt like Shock is
-    # covered too). See `_deck_forge.lanes._direct_damage` /
+    # covered too). See `_analysis.lanes._direct_damage` /
     # `._removal`. 6 preset-only residue (scoping census: Arc Spitter,
     # Lavamancer's Skill, Pathway Arrows, Showstopper, Shuriken, Tyrant's
     # Familiar) — every one is a "deals N damage to target creature" ability
@@ -1982,7 +1983,7 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
     # so an opponent's-graveyard-ONLY pull reads as graveyard hate rather
     # than your loop) and `reanimator` (CR 700.4/603.6e — the creature-
     # PERMANENT that itself has a GY→battlefield ChangeZone, the archetype
-    # card rather than the spell). See `_deck_forge.lanes.
+    # card rather than the spell). See `_analysis.lanes.
     # _creature_recursion` / `._reanimator`.
     #
     # DEFERRED residue (17 preset-only, scoping census; NOT fixed here — a
@@ -2806,7 +2807,7 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
     # Firebending — Sozin's Comet, Iroh, Fire Nation Palace/Cadets/Turret —
     # via `has_structural_firebending_grant` plus a bucket-B
     # `synth_firebending_matters` tail for grants baked into a make_token
-    # spec's own body). See `_deck_forge.lanes._bending_lanes`.
+    # spec's own body). See `_analysis.lanes._bending_lanes`.
     # `keywords=("Firebending",)` stays as a belt-and-suspenders union (the
     # landfall precedent): a card with no oracle_id/phase parse degrades the
     # signal_keys arm to empty exactly like every other regex/keyword arm
@@ -2849,8 +2850,8 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
     # walk never reached — ``has_nested_extra_turn``'s generic deep-field
     # walk (the ``has_nested_roll_die``/``has_nested_flip_coin`` precedent)
     # now reaches all three shapes. See
-    # `_deck_forge.lanes._extra_turns` for the lane and
-    # `_card_ir.tree_synthesis._arm_extra_turns` for the synthesis arm.
+    # `_analysis.lanes._extra_turns` for the lane and
+    # `_analysis.tree_synthesis.value_engines._arm_extra_turns` for the synthesis arm.
     Preset(
         name="extra-turns",
         description=(
@@ -2867,7 +2868,7 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
     ),
     # Illusionist's Gambit fix (task #85, phase v0.23.0): the ``extra_combats``
     # signal now reads the ``illusionists_gambit_additional_combat_swallowed``
-    # ledgered bridge (`_deck_forge.bridge_ledger`) — the ``Condition_If``
+    # ledgered bridge (`_analysis.bridge_ledger`) — the ``Condition_If``
     # SwallowedClause parse-warning on "After this phase, there is an
     # additional combat phase" was STILL unstructured at v0.23.0 (unchanged
     # since v0.20.0), so this stays a bridge (an upstream_parse_failure,
@@ -2880,7 +2881,7 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
             "Godo / Isshin commander archetypes and multi-combat 60-card "
             "lists. Structural view (task #83): signal key `extra_combats` "
             "— an AdditionalPhase effect whose phase is a combat phase (see "
-            "`_deck_forge.lanes._extra_combats`)."
+            "`_analysis.lanes._extra_combats`)."
         ),
         signal_keys=("extra_combats",),
         should_match=("Aggravated Assault", "Seize the Day", "Waves of Aggression"),

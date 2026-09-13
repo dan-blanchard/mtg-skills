@@ -5,7 +5,7 @@ loader (the loud-on-bump drift detector). Inferred from the data, never from
 phase's Rust source. **Additive:** nothing in production reads this yet — it is
 the de-risking first step of the lossless-IR migration.
 
-Stays self-contained within ``_card_ir`` (no ``_deck_forge.signals`` import).
+Stays self-contained within ``_card_ir`` (no ``_analysis.signals`` import).
 """
 
 from __future__ import annotations

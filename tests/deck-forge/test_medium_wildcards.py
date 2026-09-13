@@ -137,7 +137,7 @@ def _digital_state():
         bulk_available=True,
     )
     # Stub the cached rarity index + a non-None bulk_path so wildcard_cost runs without
-    # touching disk (build_rarity_index is exercised separately in price_check's tests).
+    # touching disk (``CardPool.rarity_index`` is exercised separately in scryfall_lookup's tests).
     # The cache is keyed by FORMAT, not legality key: competitive_brawl shares
     # historic_brawl's ``brawl`` key but admits the cards that key marks banned.
     from pathlib import Path

@@ -136,14 +136,22 @@ class CardPool:
     # --- constructors ----------------------------------------------------------
 
     @classmethod
-    def load(cls, bulk_path: Path | None = None) -> CardPool:
-        """The pool over *bulk_path* (``None``: the auto-discovered MTGJSON bulk,
-        ``bulk_loader.default_bulk_path``). Raises :class:`NoBulkError` when there is
-        nothing to load. Memoized per process on (path, bulk version)."""
+    def resolve_path(cls, bulk_path: Path | None = None) -> Path:
+        """The bulk file :meth:`load` would read: *bulk_path* itself, or (``None``)
+        the auto-discovered MTGJSON bulk (``bulk_loader.default_bulk_path``). Raises
+        :class:`NoBulkError` when there is neither — the one resolution rule, for a
+        caller that needs the path without paying the load."""
         path = bulk_path if bulk_path is not None else default_bulk_path()
         if path is None or not Path(path).is_file():
             raise NoBulkError(bulk_path)
-        path = Path(path)
+        return Path(path)
+
+    @classmethod
+    def load(cls, bulk_path: Path | None = None) -> CardPool:
+        """The pool over *bulk_path* (:meth:`resolve_path`). Raises
+        :class:`NoBulkError` when there is nothing to load. Memoized per process on
+        (path, bulk version)."""
+        path = cls.resolve_path(bulk_path)
         cards = load_bulk_cards(path)  # refreshes the sidecar first, so mtime is final
         key = (str(path), bulk_mtime(path))
         pool = _POOLS.get(key)
@@ -173,14 +181,17 @@ class CardPool:
     def identity(self) -> str:
         """A cheap version token for derived caches: the bulk's ``mtime_ns:size``
         (``download-mtgjson`` rewrites the file on refresh, so it changes with the
-        data) or ``memory`` for an in-memory pool."""
+        data) plus the translated sidecar's mtime (``bulk_loader.bulk_mtime`` — the
+        records a pool serves come from the sidecar, which a ``SIDECAR_VERSION`` bump
+        or a price-only refresh rebuilds with the source untouched), or ``memory`` for
+        an in-memory pool."""
         if self._path is None:
             return "memory"
         try:
             stat = self._path.stat()
         except OSError:
             return "missing"
-        return f"{stat.st_mtime_ns}:{stat.st_size}"
+        return f"{stat.st_mtime_ns}:{stat.st_size}:{bulk_mtime(self._path)}"
 
     @property
     def cards(self) -> list[dict]:
@@ -198,10 +209,6 @@ class CardPool:
                 self._cards, reduce=_keep_best_printing, prefilter=is_game_card
             )
         return self._by_name
-
-    def lookup(self, name: str) -> dict | None:
-        """``by_name.get(name)``: the record for a card name, or ``None``."""
-        return self.by_name.get(name)
 
     @property
     def by_id(self) -> dict[str, dict]:

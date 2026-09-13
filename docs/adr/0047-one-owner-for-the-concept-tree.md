@@ -26,13 +26,13 @@ tuner modules import deck-forge internals.
   testkit's CI-safe warm. The compat sidecar builder and `testkit.test_card_ir` build
   from `face_tree`; `compat_card_base` no longer re-applies corrections.
 - **Two named products.** `trees_for` returns **corrected trees** — what every structural
-  reader gets, the six former raw readers included. `_deck_forge.signal_trees.
+  reader gets, the six former raw readers included. `_analysis.signal_trees.
   signal_trees_for` layers the signals-only tree-synthesis stage on top, memoized per
   oracle_id and validated against the owner's tuple by identity, and is what the lanes
   and the theme-preset concept predicates read. `as_signal_tree(tree)` is the same two
   stages for a caller holding a tree it built itself (tests over `build_concept_tree`;
   ident provenance's single-unit views). No lane, preset or reader re-applies a stage.
-- **`tree_synthesis` lives in `_deck_forge`.** It reads lane vocabulary (`text_reads`,
+- **`tree_synthesis` lives in `_analysis`, beside the lanes (ADR-0050 moved both out of `_deck_forge`).** It reads lane vocabulary (`text_reads`,
   the sweep regexes, `signal_base.clauses`, the subtype table) and never runs for the
   compat `Card`, so it sits beside the lanes that consume it; the rule "the substrate
   never imports the signals package" holds by construction.
@@ -66,5 +66,5 @@ tree).
 
 **Amends.** ADR-0038's wiring sentence ("build tree + recovery → corrections →
 synthesis, signals-only") is unchanged in order and now names where each stage is
-applied: corrections in the owner, synthesis in `signal_trees`. `_ir_lookup` is the
+applied: corrections in the owner, synthesis in `signal_trees`. `_card_ir/compat_lookup.py` (the former `_ir_lookup`) is the
 compat-Card seam only (`ir_for`).

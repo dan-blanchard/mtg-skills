@@ -669,3 +669,30 @@ CLASS_TRIBES: frozenset[str] = frozenset(
         "warlock",
     }
 )
+
+
+# Land subtypes (CR 205.3i, basic + nonbasic): the one land-membership set the
+# lanes and the bridge ledger test against. Town is a land subtype since Final
+# Fantasy (2025); the former text-reads copy lacked it, so its two removal-tutors
+# readers now also count a Town-only filter as land evidence (correct per the CR).
+LAND_SUBTYPES: frozenset[str] = frozenset(
+    {
+        "plains",
+        "island",
+        "swamp",
+        "mountain",
+        "forest",
+        "wastes",
+        "desert",
+        "gate",
+        "lair",
+        "locus",
+        "urza's",
+        "mine",
+        "power-plant",
+        "tower",
+        "town",
+        "cave",
+        "sphere",
+    }
+)

@@ -2,7 +2,7 @@
 
 Re-exports the FULL public surface of both submodules — including
 underscore-prefixed names, since this module's own test suite and a few
-production call sites (``mtg_utils/_deck_forge/limiter_discounts.py``,
+production call sites (``mtg_utils/_analysis/limiter_discounts.py``,
 ``mtg_utils/_card_ir/recovery.py``) reach into names that were never
 "public" API in the conventional sense, just module-private. See
 ``core.py``'s module docstring for the crosswalk's design.

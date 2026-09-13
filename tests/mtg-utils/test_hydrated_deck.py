@@ -377,6 +377,23 @@ def test_acquire_without_bulk_raises_unless_records_are_optional(tmp_path, monke
     assert not sidecar_path(deck_path).exists()
 
 
+def test_acquire_without_bulk_reads_a_sidecar_of_this_deck(tmp_path, monkeypatch):
+    deck_path = _write_deck(tmp_path)
+    HydratedDeck.acquire(deck_path, pool=_pool(), fetch=_no_fetch)  # writes it
+    monkeypatch.setenv("MTG_SKILLS_CACHE_DIR", str(tmp_path / "empty"))
+    monkeypatch.setenv("HOME", str(tmp_path / "nohome"))
+    # The bulk half of the key can't be computed, but the sidecar is THIS deck's.
+    hd = HydratedDeck.acquire(deck_path, require_records=False, fetch=_no_fetch)
+    assert hd.has_records is True
+    assert hd.by_name.get("Sol Ring") is not None
+    # Edit the deck: the sidecar is another deck's join, so it is not read.
+    deck = json.loads(deck_path.read_text())
+    deck["cards"].append({"name": "Lightning Bolt", "quantity": 1})
+    deck_path.write_text(json.dumps(deck), "utf-8")
+    hd = HydratedDeck.acquire(deck_path, require_records=False, fetch=_no_fetch)
+    assert hd.has_records is False
+
+
 def test_acquire_loads_the_pool_from_bulk_path(tmp_path):
     bulk = tmp_path / "bulk.json"
     bulk.write_text(

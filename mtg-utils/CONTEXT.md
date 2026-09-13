@@ -130,7 +130,7 @@ _Avoid_: "raw tree" for what a reader gets (no reader sees an uncorrected tree),
 
 **Signal tree**:
 A corrected tree with the signals-only tree-synthesis stage applied —
-`_deck_forge.signal_trees.signal_trees_for`, the only shape a lane or a theme-preset
+`_analysis.signal_trees.signal_trees_for`, the only shape a lane or a theme-preset
 concept predicate reads. Synthesis appends one synthetic unit of reference-arm nodes
 and never touches a phase node, so a signal tree is a superset of its corrected tree;
 a structural reader never sees one (ADR-0038's signals-only wiring).
@@ -213,7 +213,8 @@ _Avoid_: "bulk index" (there are seven indexes; the pool is the value that owns 
 The memoized join `HydratedDeck.acquire` writes beside a deck JSON
 (`deck.json` → `deck.hydrated.json`): full adapter records for every distinct name in
 all four zones, keyed inside the file by the deck's content hash, the bulk's identity
-and the payload version, so a stale one is unreadable by construction. Visible on
+and the payload version, so a stale one is unreadable by construction (one carve-out: with no bulk on disk, a
+names-only CLI reads a same-deck sidecar whatever bulk wrote it). Visible on
 purpose — an agent may Grep it — but never passed to a CLI; the deck path is.
 _Avoid_: "hydrated cache" / "cache_path" (the retired SHA-named file the agent had to
 thread and re-thread), "the hydrated JSON" as a CLI argument (no CLI takes one).

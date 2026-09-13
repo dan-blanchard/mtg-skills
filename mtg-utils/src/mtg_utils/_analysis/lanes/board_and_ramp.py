@@ -7,11 +7,10 @@ from __future__ import annotations
 import re
 from collections.abc import Iterator
 
-from mtg_utils._analysis._subtypes import CREATURE_SUBTYPES
+from mtg_utils._analysis._subtypes import CREATURE_SUBTYPES, LAND_SUBTYPES
 from mtg_utils._analysis.lanes._shared import (
     _FIXING_PRODUCED_TYPES,
     _LAND_SUBTYPE_WORDS,
-    _LAND_SUBTYPES,
     _TYPE_MATTERS_LANE,
     _condition_leaves,
     _is_generic_creature_filter,
@@ -90,7 +89,7 @@ def _sac_subject_present(tgt: object) -> bool:
     tails).
 
     Reads BOTH the bare core type (``Land``) and the CR 205.3i subtype
-    vocabulary (:data:`_LAND_SUBTYPES`) — Alpine Guide / Landslide / The
+    vocabulary (:data:`LAND_SUBTYPES`) — Alpine Guide / Landslide / The
     First Eruption's "sacrifice a Mountain" stays ``land_sacrifice_makers``
     territory. A ``Token`` PREDICATE-only subject ("sacrifice a token" —
     Hardened Tactician, Rat King, Pale Piper; CR 111.1 tokens are
@@ -105,7 +104,7 @@ def _sac_subject_present(tgt: object) -> bool:
     if not core and not sub:
         return "Token" in filter_predicates(tgt)
     non_land_core = [w for w in core if w != "Land"]
-    non_land_sub = [w for w in sub if w.lower() not in _LAND_SUBTYPES]
+    non_land_sub = [w for w in sub if w.lower() not in LAND_SUBTYPES]
     return bool(non_land_core or non_land_sub)
 
 
@@ -218,7 +217,7 @@ def _sacrifice_outlets(tree: ConceptTree) -> list[Signal]:
     (1) A land-SUBTYPE-only sacrifice ("sacrifice a Swamp" — Akuta, Born of
     Ash) previously slipped past the EFFECT arm's exclusion, which only
     tested the bare core type tuple ``("Land",)`` — the cost-leaf arm
-    already read :data:`_LAND_SUBTYPES`, the effect arm did not; both now
+    already read :data:`LAND_SUBTYPES`, the effect arm did not; both now
     share the one land check. (2) A ``Token`` PREDICATE-only subject
     ("sacrifice a token" — Hardened Tactician, Rat King Pale Piper,
     Fountainport, Chitterspitter, Glimmer Bairn, Combine Chrysalis, Izoni)
@@ -239,7 +238,7 @@ def _sacrifice_outlets(tree: ConceptTree) -> list[Signal]:
     flat-parsed IR mis-scopes several of these modal "each opponent
     sacrifices" arms to "any", firing sacrifice_outlets where the structural
     wrapper/controller read here correctly does not). A bare-self ("sacrifice
-    this/it") or Land-only sac (:data:`_LAND_SUBTYPES`) is excluded too; the
+    this/it") or Land-only sac (:data:`LAND_SUBTYPES`) is excluded too; the
     bare-self / subject-dropped raw fallback stays a documented residue (see
     the recall-completion b1 note below).
 
@@ -617,7 +616,7 @@ def _is_you_sac_subject(
     controller, so its subject controller is not consulted.
 
     ADR-0038 W5 tails bugfix: the land exclusion now reads the CR 205.3i subtype
-    vocabulary too (:data:`_LAND_SUBTYPES`), not just the bare core type ``Land`` —
+    vocabulary too (:data:`LAND_SUBTYPES`), not just the bare core type ``Land`` —
     the OLD ``subj == ("Land",)`` check let a land-SUBTYPE-only sacrifice ("sacrifice
     a Swamp" — Akuta, Born of Ash) slip through as a false ``sacrifice_outlets``
     fire (land_sacrifice_makers territory, CR 701.21a); the cost-leaf arm already

@@ -36,7 +36,7 @@ analysis is zero-marginal-cost deterministic compute, leaving the agent's tokens
 judgment only it can supply.
 
 **Known caveat.** The focus metric needs the signal/avenue engine, which today lives in
-`_deck_forge/signals.py`. `_tuner/` importing it is mechanically fine (one symlinked
+`_deck_forge/signals.py` (now `_analysis/signals.py`, ADR-0050). `_tuner/` importing it is mechanically fine (one symlinked
 `mtg_utils` package), but it makes deck-forge's signal engine de-facto shared infra.
 Graduating signals to a neutral home is deliberately **deferred** until deck-wizard
 actually adopts the core — noted here so the eventual move is a known follow-up, not a

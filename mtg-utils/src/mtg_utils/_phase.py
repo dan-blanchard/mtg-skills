@@ -516,7 +516,7 @@ def _known_tokens_path() -> Path:
 # release tarball :func:`ensure_card_data` pulls for one member). Unlike that
 # function, this ensure NEVER raises: a missing/unreachable file just means the
 # known-tokens substrate contributes nothing (see
-# ``_deck_forge._ir_lookup._known_tokens_index``), never a crash.
+# ``_card_ir.trees._known_tokens_index``), never a crash.
 _KNOWN_TOKENS_ASSET_PATH = "crates/engine/data/known-tokens.toml"
 
 

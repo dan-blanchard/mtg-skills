@@ -165,7 +165,7 @@ _MULTICOLOR_ONLY: frozenset[str] = frozenset(
 #      already in the staple set (Murder, Diabolic Tutor, Tormenting Voice, Explosive
 #      Vegetation) and popularity-only jank (Fog, Door to Nothingness, Tibalt's
 #      Trickery).
-# staples.py lives in mtg_utils/_deck_forge/, so the data dir is one level up.
+# staples.py lives in mtg_utils/_analysis/, so the data dir is one level up.
 _FORMAT_STAPLES_FILE = Path(__file__).parent.parent / "data" / "format-staples.txt"
 
 

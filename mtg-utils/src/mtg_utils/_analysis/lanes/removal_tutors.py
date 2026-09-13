@@ -7,6 +7,7 @@ from __future__ import annotations
 import re
 
 from mtg_utils._analysis import signal_keys
+from mtg_utils._analysis._subtypes import LAND_SUBTYPES
 from mtg_utils._analysis.lanes._shared import (
     _PERMANENT_TYPES,
     _RETURN_TARGET_TAGS,
@@ -18,9 +19,6 @@ from mtg_utils._analysis.signal_base import Signal
 from mtg_utils._analysis.text_reads import (
     _ACTIVATED_ABILITY_DROP_EFFECTS,
     _EVERGREEN_CK,
-)
-from mtg_utils._analysis.text_reads import (
-    _LAND_SUBTYPES as _LIVE_LAND_SUBTYPES,
 )
 from mtg_utils._analysis.tree_synthesis import (
     has_own_target_spell,
@@ -778,7 +776,7 @@ def _removal(tree: ConceptTree) -> list[Signal]:
         if ftypes & _PERMANENT_TYPES:
             return True
         subs = filter_subtypes(target)
-        return bool(subs) and any(s.lower() not in _LIVE_LAND_SUBTYPES for s in subs)
+        return bool(subs) and any(s.lower() not in LAND_SUBTYPES for s in subs)
 
     def _target_type_unresolved(target: object) -> bool:
         return not filter_core_types(target) and not filter_subtypes(target)
@@ -914,7 +912,7 @@ def _perm_answer_types(filt: object) -> frozenset[str]:
     if cores:
         return frozenset(cores)
     subs = {s.lower() for s in filter_subtypes(filt)}
-    if subs and subs & _LIVE_LAND_SUBTYPES:
+    if subs and subs & LAND_SUBTYPES:
         return frozenset({"Land"})
     return frozenset()
 

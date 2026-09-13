@@ -22,7 +22,7 @@ from pathlib import Path
 
 from mtg_utils import mark_owned, price_check, theme_presets
 from mtg_utils._analysis import staples
-from mtg_utils._analysis.budgets import role_of, slot_budgets
+from mtg_utils._analysis.budgets import banded_slot_budgets, role_of
 from mtg_utils._analysis.ranking import rank_candidates
 from mtg_utils._analysis.signal_specs import (
     Serve,
@@ -47,7 +47,7 @@ from mtg_utils.card_pool import CardPool
 from mtg_utils.companion import is_companion
 from mtg_utils.deck_stats import deck_stats, detect_bracket
 from mtg_utils.formats import COMMANDER_FORMATS, FORMATS, Format, format_options
-from mtg_utils.hydrated_deck import HydratedDeck
+from mtg_utils.hydrated_deck import ZONES, HydratedDeck
 from mtg_utils.legality_audit import legality_audit
 from mtg_utils.mana_audit import mana_audit, reconcile_basic_lands
 from mtg_utils.parse_deck import parse_deck_text
@@ -688,7 +688,7 @@ def _signal_freq(state: ForgeState) -> tuple[dict, int]:
     plus the commander count, for the Novelty IDF.
 
     Reads the persisted whole-pool signals-index sidecar (task #90,
-    ``_deck_forge.signals_index``) when available — building it on first touch (a
+    ``_analysis.signals_index``) when available — building it on first touch (a
     one-time ~2-4 min pass, logged) instead of running ``extract_signals`` live
     for every commander-eligible card in the bulk every time this cold-starts. A missing
     sidecar (no bulk, or one that can't be built) degrades to the original per-record
@@ -1006,6 +1006,55 @@ def trim_lands(state: ForgeState) -> dict[str, dict[str, int]]:
     return _apply_land_plan(state, reconcile_basic_lands(hd, target_total=top))
 
 
+# --- format / medium / size / zone rules -----------------------------------------
+
+
+def check_format(fmt: str) -> None:
+    """The format rule: a build is one of the Commander family's formats (ADR-0045)."""
+    if fmt not in COMMANDER_FORMATS:
+        raise DeckRuleError(f"unsupported format: {fmt!r}")
+
+
+def set_format(state: ForgeState, fmt: str) -> None:
+    """Change the build's format (:func:`check_format`). The deck's cards are kept;
+    everything format-dependent re-derives on the next snapshot."""
+    check_format(fmt)
+    state.session.format = fmt
+
+
+def set_medium(state: ForgeState, medium: str) -> None:
+    """The medium rule: paper vs digital, only where the format is played that way
+    (``Format.media``, ADR-0045). The medium drives the active Collection slot and
+    the cost mode — digital → Arena slot + wildcards; paper → paper slot + USD
+    (ADR-0018, amended)."""
+    fmt = FORMATS[state.session.format]
+    if medium not in fmt.media:
+        raise DeckRuleError(
+            f"{fmt.name} is not played in {medium!r} (media: {', '.join(fmt.media)})"
+        )
+    state.session.set_medium(medium)
+
+
+def set_deck_size(state: ForgeState, deck_size: int) -> None:
+    """The deck-size rule: any size some Commander-family (format, medium) may choose
+    is accepted — only paper Historic Brawl honors a choice (60 or 100 are both legal
+    paper "Brawl"), every other (format, medium) keeps its fixed size, so the override
+    lies dormant until it applies and the guard is derived from the format table,
+    never a hand-list (ADR-0045)."""
+    choices = sorted(
+        {s for f in COMMANDER_FORMATS for s in FORMATS[f].all_size_choices}
+    )
+    if deck_size not in choices:
+        raise DeckRuleError(f"deck size must be one of {choices}")
+    state.session.set_deck_size(deck_size)
+
+
+def check_zone(zone: str) -> None:
+    """The zone rule: a request names one of the deck's zones (``ZONES``)."""
+    if zone not in ZONES:
+        raise DeckRuleError(f"unknown zone {zone!r}")
+
+
 # --- the companion zone ---------------------------------------------------------
 
 
@@ -1088,8 +1137,7 @@ def import_deck(state: ForgeState, text: str, *, fmt: str) -> ImportedDeck:
     ``state.session``; the transport adapter switches builds. Raises
     ``DeckRuleError`` for an unsupported format, an unparseable paste, or an empty
     list."""
-    if fmt not in COMMANDER_FORMATS:
-        raise DeckRuleError(f"unsupported format: {fmt!r}")
+    check_format(fmt)
     try:
         parsed = parse_deck_text(text, format=fmt)
     except Exception as exc:
@@ -1172,7 +1220,7 @@ def export_deck_dict(state: ForgeState) -> dict:
     ``set`` / ``collector_number`` (the exporters' ``(SET) <collector#>`` suffix and
     the JSON export's printing identity). A no-op for default printings."""
     deck = state.session.to_deck_dict()
-    for zone in views.VALID_ZONES:
+    for zone in ZONES:
         for entry in deck.get(zone) or []:
             record = state.printing_by_id.get(entry.get("printing_id") or "")
             if record is not None:
@@ -1630,6 +1678,14 @@ def render_proxies(
     return len(items)
 
 
+def budgets(state: ForgeState) -> dict:
+    """The deck rule behind ``GET /api/budgets``: the banded role-density rows."""
+    hd = hydrate_session(state)
+    return banded_slot_budgets(
+        hd.expanded(), mana_audit(hd)["land_band"], deck_size=state.session.deck_size
+    )
+
+
 def snapshot(state: ForgeState) -> dict:
     """The full canonical snapshot the SPA renders — the engine's composition root.
     Builds ONE HydratedDeck and threads it to every sub-analysis, so a request hits the
@@ -1648,11 +1704,8 @@ def snapshot(state: ForgeState) -> dict:
         "stats": stats,
         "bracket": detect_bracket(hd.records, stats.get("avg_cmc", 0.0)),
         "mana": mana,
-        # ADR-0041: the Budgets panel's "lands" row IS the mana section's band.
-        "budgets": slot_budgets(
-            hd.expanded(),
-            deck_size=state.session.deck_size,
-            land_band=(mana["land_band"]["floor"], mana["land_band"]["top"]),
+        "budgets": banded_slot_budgets(
+            hd.expanded(), mana["land_band"], deck_size=state.session.deck_size
         ),
         "signals": [
             views.signal_view(s) for s in ranked_deck_signals(state, hd.records)

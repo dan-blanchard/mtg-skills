@@ -493,7 +493,9 @@ def extract_deck_names(payload: list | dict) -> list[str]:
         return [n for n in payload if isinstance(n, str)]
     names: list[str] = []
     seen: set[str] = set()
-    for section in ("commanders", "cards", "sideboard", "companion"):
+    # The four deck zones, plus a cube JSON's commander pool (parse_cube emits the
+    # commander / PDH cube's commanders there, in the same {name, quantity} shape).
+    for section in ("commanders", "cards", "sideboard", "companion", "commander_pool"):
         for entry in payload.get(section, []) or []:
             if not isinstance(entry, dict):
                 continue

@@ -18,10 +18,7 @@ from mtg_utils._deck_forge.images import image_urls
 from mtg_utils._deck_forge.state import ForgeState
 from mtg_utils.card_classify import get_mana_cost, get_oracle_text
 from mtg_utils.formats import FORMATS, Format
-
-# "companion" is a rendered zone like any other, but it is outside the game
-# (CR 702.139a-b) — deck-size and budget math exclude it upstream in ``engine``.
-VALID_ZONES = ("commanders", "cards", "sideboard", "companion")
+from mtg_utils.hydrated_deck import ZONES
 
 
 def printing_view(record: dict) -> dict:
@@ -225,7 +222,7 @@ def deck_view(
                 )
                 for e in deck[zone]
             ]
-            for zone in VALID_ZONES
+            for zone in ZONES
         },
     }
 

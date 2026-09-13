@@ -15,7 +15,7 @@ Two products (ADR-0047): this module's **corrected trees** are what every struct
 reader gets — the compat ``Card`` builder, the tuner's commander-cost and grant reads,
 the rate metric, ident provenance, the limiter discounts, the removal-answer walk.
 The **signal trees** (corrected + the signals-only tree-synthesis stage) are layered
-on by ``_deck_forge.signal_trees`` for the lanes and the theme presets. No reader
+on by ``_analysis.signal_trees`` for the lanes and the theme presets. No reader
 re-applies a stage.
 
 A DFC / split card shares one ``oracle_id`` across its faces, and phase emits one

@@ -70,10 +70,10 @@ A card whose text gives an ability to a whole class of your creatures ("Sliver c
 ### Card IR & signals
 
 **Signal key**:
-The canonical id of a Signal (e.g. `coin_flip`, `token_maker`) — the contract between the detector (`signals.py`) and the exploitation map (`signal_specs.py`, which maps it to an avenue). Cross-file keys live as constants in `signal_keys.py`.
+The canonical id of a Signal (e.g. `coin_flip`, `token_maker`) — the contract between the detector (`signals.py`) and the exploitation map (`signal_specs/`, which maps it to an avenue). Cross-file keys live as constants in `signal_keys.py`.
 
 **Key-agreement gate**:
-The import-time assertion in `signal_specs.py` that every producible static key resolves to a spec. Its input is the served-key manifest (a hand-maintained literal — keeping it honest against the lane code is a test discipline, not a derivation; see ADR-0014).
+The import-time assertion in `signal_specs/core.py` that every producible static key resolves to a spec. Its input is the served-key manifest (a hand-maintained literal — keeping it honest against the lane code is a test discipline, not a derivation; see ADR-0014).
 
 **Folded object**:
 A commander's effective Signal set extends to objects its plan deterministically brings into play — a ventured dungeon, an emblem, a meld result (Acererak + Tomb of Annihilation → lifegain synergy invisible from Acererak's own text). Commander-only; the 99 never fold.
@@ -122,7 +122,7 @@ The hard land-count check (Burgess/Karsten for commander, constructed formula fo
 The earliest turn on which a deck expects to afford its commander — the smallest turn T such that the printed mana value, minus the expected value of the commander's own cost-reduction operand given the cards the deck expects to have cast by then, floored at the colored pips, is at most T. Never above the printed mana value, never below the residual cost. The quantity the **Curve gate**'s commander-cost term models; printed mana value is what it degrades to when the commander has no such clause or the reduction can't be modelled, and the degrade is always reported, never silent.
 
 **Land band**:
-The one land-count readout for a deck — `mana_audit`'s `land_band` `{floor, top, flood, count, status}` (ADR-0041, finished 2026-09-12). `floor` is the gate (FAIL only below it); `top` is the target: raw Burgess over the effective commander cost for the Commander family, the constructed target for 60-card decks; `flood` is the Flood line; `status` is PASS / WARN / FAIL / FLOOD, where only FAIL gates. Every surface reads it — the Budgets panel's lands row (`slot_budgets` requires it), the finalize gate, the footer pill and Mana Gate modal, the tuner and the CLIs — and none re-derives any part of it.
+The one land-count readout for a deck — `mana_audit`'s `land_band` `{floor, top, flood, count, status}` (ADR-0041, finished 2026-09-12). `floor` is the gate (FAIL only below it); `top` is the target: for the Commander family the higher of raw Burgess (over the effective commander cost) and the Karsten-adjusted count, `floor` the lower of the two; the constructed target for 60-card decks; `flood` is the Flood line; `status` is PASS / WARN / FAIL / FLOOD, where only FAIL gates. Every surface reads it — the Budgets panel's lands row (`slot_budgets` requires it), the finalize gate, the footer pill and Mana Gate modal, the tuner and the CLIs — and none re-derives any part of it.
 _Avoid_: "recommended land count" / "land count floor" as separate facts (the retired top-level keys), computing the flood line or Burgess in the SPA or an agent.
 
 **Flood line**:

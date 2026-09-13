@@ -8,12 +8,12 @@ import re
 from collections.abc import Iterator
 from dataclasses import fields
 
+from mtg_utils._analysis._subtypes import LAND_SUBTYPES
 from mtg_utils._analysis._sweep_detectors import DISCARD_OUTLET_REGEX
 from mtg_utils._analysis.lanes._shared import (
     _DEBUFF_SINGLE_AURA_PREDS,
     _DYNAMIC_PT_MODS,
     _GRANT_ABILITY_MOD_TAGS,
-    _LAND_SUBTYPES,
     _OPP_DISCARD_ACTORS,
     _PERMANENT_TYPES,
     _RETURN_TARGET_TAGS,
@@ -1546,7 +1546,7 @@ def _cheat_into_play(tree: ConceptTree) -> list[Signal]:
     Two batch-9 follow-ups widen the type evidence, both typed / zero-guess:
 
     * **subtype-only filters** (fix a) — when cores are EMPTY, a non-empty
-      SUBTYPE set that names no land subtype (:data:`_LAND_SUBTYPES`) is
+      SUBTYPE set that names no land subtype (:data:`LAND_SUBTYPES`) is
       non-Land type evidence (Academy Researchers' ``{Subtype: Aura}`` filter
       — phase's filter is correct and complete, CR 205.3); a subtype set
       touching a land subtype still never fires (Nature's Lore is already
@@ -1901,7 +1901,7 @@ def _cheat_into_play(tree: ConceptTree) -> list[Signal]:
                 subs = {s.lower() for s in filter_subtypes(effect_filter(c.node))}
                 if not subs:
                     subs = {s.lower() for s in _sibling_selector_subtypes(unit)}
-                if not subs or subs & _LAND_SUBTYPES:
+                if not subs or subs & LAND_SUBTYPES:
                     # Fix (f): a Library-origin named tutor with no type
                     # evidence at all — the "Herald" cycle / Llanowar
                     # Sentinel / self-tutor shape (origin IS tracked here,
@@ -1934,7 +1934,7 @@ def _cheat_into_play(tree: ConceptTree) -> list[Signal]:
             cores = set(filter_core_types(filt))
             if not cores:
                 subs = {s.lower() for s in filter_subtypes(filt)}
-                if not subs or subs & _LAND_SUBTYPES:
+                if not subs or subs & LAND_SUBTYPES:
                     continue  # no type evidence / a land put — never guess
             elif cores <= {"Land"}:
                 continue  # land put (extra_land_drop) / no evidence — no guess
@@ -1975,7 +1975,7 @@ def _cheat_into_play(tree: ConceptTree) -> list[Signal]:
             cores = set(filter_core_types(filt))
             if not cores:
                 subs = {s.lower() for s in filter_subtypes(filt)}
-                if not subs or subs & _LAND_SUBTYPES:
+                if not subs or subs & LAND_SUBTYPES:
                     continue  # no type evidence / a land put — never guess
             elif cores <= {"Land"}:
                 continue
@@ -2132,7 +2132,7 @@ def _cheat_into_play(tree: ConceptTree) -> list[Signal]:
                         ]
                     if not cores:
                         subs = {s.lower() for s in _reveal_producer_subtypes(unit)}
-                        if subs and not subs & _LAND_SUBTYPES:
+                        if subs and not subs & LAND_SUBTYPES:
                             return [
                                 Signal(
                                     "cheat_into_play",
@@ -2253,7 +2253,7 @@ def _cheat_reveal_until_you_enters_put(unit: AbilityUnit) -> bool:
             subs |= set(filter_subtypes(filt))
         if cores and not cores <= {"Land"}:
             return True
-        if not cores and subs and not subs & _LAND_SUBTYPES:
+        if not cores and subs and not subs & LAND_SUBTYPES:
             return True
     return False
 
@@ -2289,7 +2289,7 @@ def _cheat_choose_one_of_battlefield_put(unit: AbilityUnit) -> bool:
                         return True
                     continue
                 subs = {s.lower() for s in filter_subtypes(effect_filter(bn))}
-                if subs and not subs & _LAND_SUBTYPES:
+                if subs and not subs & LAND_SUBTYPES:
                     return True
     return False
 
@@ -2374,7 +2374,7 @@ def _nested_grant_reveal_or_hand_put(unit: AbilityUnit) -> bool:
                         return True
                     if not cores:
                         subs = {s.lower() for s in filter_subtypes(filt)}
-                        if subs and not subs & _LAND_SUBTYPES:
+                        if subs and not subs & LAND_SUBTYPES:
                             return True
                 elif (
                     t == "ChangeZone"
@@ -2386,7 +2386,7 @@ def _nested_grant_reveal_or_hand_put(unit: AbilityUnit) -> bool:
                         return True
                     if not cores:
                         subs = {s.lower() for s in filter_subtypes(effect_filter(eff))}
-                        if subs and not subs & _LAND_SUBTYPES:
+                        if subs and not subs & LAND_SUBTYPES:
                             return True
             node = getattr(node, "sub_ability", None)
     return False
@@ -2436,7 +2436,7 @@ def _nested_emblem_tutor_put(unit: AbilityUnit) -> bool:
                 subs = {s.lower() for s in filter_subtypes(effect_filter(eff))}
                 if not subs:
                     subs = tutor_subs
-                if subs and not subs & _LAND_SUBTYPES:
+                if subs and not subs & LAND_SUBTYPES:
                     return True
     return False
 

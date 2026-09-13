@@ -55,6 +55,12 @@ def sidecar_path(deck_path: str | os.PathLike) -> Path:
     return path.with_name(path.stem + HYDRATED_SUFFIX)
 
 
+def _deck_digest(deck_content: str) -> str:
+    """The deck-content half of the sidecar key, stored on its own so a no-bulk
+    reader (which cannot compute the bulk half) can still tell "this deck" apart."""
+    return hashlib.sha256(deck_content.encode()).hexdigest()[:16]
+
+
 def _hydration_key(deck_content: str, pool_identity: str) -> str:
     """The sidecar's validity key: the deck's exact content, the bulk's identity and
     the payload version. Any of the three changing invalidates the sidecar, so a
@@ -80,24 +86,33 @@ def records_from_file(path: str | os.PathLike) -> list[dict]:
     raise ValueError(msg)
 
 
-def _read_sidecar(path: Path, key: str) -> list[dict | None] | None:
-    """The sidecar's records if it exists, parses, and carries *key*; else None."""
+def _sidecar_records(
+    path: Path, valid: Callable[[dict], bool]
+) -> list[dict | None] | None:
+    """The sidecar's records if it exists, parses, and *valid* accepts its payload
+    (the caller's selector: the full validity key, or the deck digest + payload
+    version for the no-bulk read); else None."""
     try:
         payload = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError):
         return None
-    if not isinstance(payload, dict) or payload.get("key") != key:
+    if not isinstance(payload, dict) or not valid(payload):
         return None
     records = payload.get("records")
     return records if isinstance(records, list) else None
 
 
-def _write_sidecar(sidecar: Path, key: str, pool: CardPool, hd: HydratedDeck) -> None:
+def _write_sidecar(
+    sidecar: Path, deck_content: str, pool: CardPool, hd: HydratedDeck
+) -> None:
+    """Memoize *hd*'s join: both selectors (the full key and the deck digest) are
+    derived here from the one *deck_content*, so they can never disagree."""
     atomic_write_json(
         sidecar,
         {
             "version": HYDRATED_VERSION,
-            "key": key,
+            "key": _hydration_key(deck_content, pool.identity),
+            "deck": _deck_digest(deck_content),
             "bulk": str(pool.path) if pool.path is not None else None,
             "missing": hd.missing,
             "records": hd.records,
@@ -114,14 +129,14 @@ class _DeckSource(Protocol):
 # "companion" hydrates like any zone (its record is needed for companion-condition
 # audits) but is outside the game (CR 702.139a-b): deck-size / curve / budget math
 # must request zones explicitly and exclude it.
-_ZONES = ("commanders", "cards", "sideboard", "companion")
+ZONES = ("commanders", "cards", "sideboard", "companion")
 
 
 def _distinct_names(deck: Mapping) -> list[str]:
     """Distinct card names across all zones, in commanders->cards->sideboard->
     companion order."""
     seen: dict[str, None] = {}
-    for zone in _ZONES:
+    for zone in ZONES:
         for entry in deck.get(zone) or []:
             seen.setdefault(entry["name"], None)
     return list(seen)
@@ -214,7 +229,7 @@ class HydratedDeck:
           path; pass ``lambda _: None`` to stay offline), and the sidecar is written.
         - No bulk and no valid sidecar: :class:`NoBulkError`, unless
           ``require_records=False`` (a CLI that works on names alone, e.g.
-          combo-search / export-deck), which yields the degraded state.
+          combo-search), which yields the degraded state.
         """
         path = Path(deck_path)
         content = path.read_text(encoding="utf-8")
@@ -225,14 +240,21 @@ class HydratedDeck:
             try:
                 pool = CardPool.load(Path(bulk_path) if bulk_path else None)
             except NoBulkError:
-                # No bulk: a still-valid sidecar can't be keyed (no identity), but an
-                # existing one is better than nothing only when records are optional.
                 if require_records:
                     raise
-                return cls.from_parsed(deck)
+                # No bulk: the key's bulk half can't be computed, but a sidecar of
+                # THIS deck (any bulk) beats no records when they are optional.
+                digest = _deck_digest(content)
+                cached = _sidecar_records(
+                    sidecar,
+                    lambda p: (
+                        p.get("deck") == digest and p.get("version") == HYDRATED_VERSION
+                    ),
+                )
+                return cls.from_parsed(deck, records=cached)
 
         key = _hydration_key(content, pool.identity)
-        cached = _read_sidecar(sidecar, key)
+        cached = _sidecar_records(sidecar, lambda p: p.get("key") == key)
         if cached is not None:
             return cls.from_parsed(deck, records=cached)
 
@@ -242,13 +264,13 @@ class HydratedDeck:
             fetch = fetch_card
         records: list[dict] = []
         for name in _distinct_names(deck):
-            record = pool.lookup(name)
+            record = pool.by_name.get(name)
             if record is None:
                 record = fetch(name)
             if record is not None:
                 records.append(record)
         hd = cls(deck, records)
-        _write_sidecar(sidecar, key, pool, hd)
+        _write_sidecar(sidecar, content, pool, hd)
         return hd
 
     def write_sidecar(self, deck_path: str | os.PathLike, pool: CardPool) -> Path:
@@ -257,8 +279,7 @@ class HydratedDeck:
         next tool reads the sidecar instead of re-joining. Returns the sidecar path."""
         path = Path(deck_path)
         sidecar = sidecar_path(path)
-        key = _hydration_key(path.read_text(encoding="utf-8"), pool.identity)
-        _write_sidecar(sidecar, key, pool, self)
+        _write_sidecar(sidecar, path.read_text(encoding="utf-8"), pool, self)
         return sidecar
 
     @classmethod
@@ -303,8 +324,8 @@ class HydratedDeck:
         ``zones`` in order, drops missing names; the command zone is excluded by
         default."""
         for zone in zones:
-            if zone not in _ZONES:
-                msg = f"unknown zone {zone!r}; expected one of {_ZONES}"
+            if zone not in ZONES:
+                msg = f"unknown zone {zone!r}; expected one of {ZONES}"
                 raise ValueError(msg)
         out: list[dict] = []
         for zone in zones:
@@ -321,8 +342,8 @@ class HydratedDeck:
         Scryfall dict or ``None`` for a miss. Pairs the deck-side quantity with its
         (possibly absent) record in one walk, so the two halves cannot drift apart."""
         for zone in zones:
-            if zone not in _ZONES:
-                msg = f"unknown zone {zone!r}; expected one of {_ZONES}"
+            if zone not in ZONES:
+                msg = f"unknown zone {zone!r}; expected one of {ZONES}"
                 raise ValueError(msg)
         out: list[tuple[dict, dict | None]] = []
         for zone in zones:
@@ -339,7 +360,7 @@ class HydratedDeck:
         check_hydration's WARN — distinct from an empty deck."""
         if self._records:
             return True
-        card_count = sum(len(self._deck.get(z) or []) for z in _ZONES)
+        card_count = sum(len(self._deck.get(z) or []) for z in ZONES)
         return card_count == 0
 
     # --- zone pass-throughs ----------------------------------------------------

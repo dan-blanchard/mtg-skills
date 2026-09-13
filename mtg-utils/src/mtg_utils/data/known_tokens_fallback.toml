@@ -3,7 +3,7 @@
 # bump, 2026-07-24; re-verified byte-identical at the v0.45.0 pin bump,
 # 2026-08-04, and again at the v0.66.0 pin bump, 2026-08-29).
 #
-# mtg_utils._deck_forge._ir_lookup._known_tokens_index() prefers the LIVE
+# mtg_utils._card_ir.trees._known_tokens_index() prefers the LIVE
 # tag-pinned known-tokens.toml (_phase.ensure_known_tokens() — since phase
 # v0.32.0 a ~2860-entry MTGJSON-derived canonical catalog, cached under
 # ~/.cache/mtg-skills/phase/known-tokens/) when it can be fetched/read.

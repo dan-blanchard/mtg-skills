@@ -1,6 +1,6 @@
 """CLI: deck-forge role-density budgets for a deck (D).
 
-A thin wrapper over ``_deck_forge.budgets.slot_budgets`` so deck-wizard's analysis step
+A thin wrapper over ``_analysis.budgets.slot_budgets`` so deck-wizard's analysis step
 gets a deterministic role table — lands / ramp / card_draw / interaction / board_wipe:
 current count vs the Command-Zone template band — instead of eyeballing it.
 
@@ -14,7 +14,7 @@ from pathlib import Path
 
 import click
 
-from mtg_utils._analysis.budgets import slot_budgets
+from mtg_utils._analysis.budgets import banded_slot_budgets
 from mtg_utils.deck_cli import acquire_for_cli, bulk_data_option
 from mtg_utils.mana_audit import mana_audit
 
@@ -35,12 +35,8 @@ def main(
     hd = acquire_for_cli(deck_json, bulk_data)
     deck_size = hd.format.deck_size
     # ADR-0041: the "lands" row is mana-audit's own band, never a re-derivation.
-    band = mana_audit(hd)["land_band"]
-    budgets = slot_budgets(
-        hd.expanded(),
-        deck_size=deck_size,
-        shape=shape,
-        land_band=(band["floor"], band["top"]),
+    budgets = banded_slot_budgets(
+        hd.expanded(), mana_audit(hd)["land_band"], deck_size=deck_size, shape=shape
     )
     if as_json:
         click.echo(json.dumps(budgets, indent=2))

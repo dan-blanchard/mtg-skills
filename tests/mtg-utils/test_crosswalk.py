@@ -1273,7 +1273,7 @@ def test_sacrifice_outlets_shed_opponent_directed(name):
 )
 def test_sacrifice_outlets_land_only_excluded(name):
     """A land-only sacrifice subject — whether the bare core type ``Land``
-    or an ALL-:data:`~mtg_utils._analysis.lanes._LAND_SUBTYPES`
+    or an ALL-:data:`~mtg_utils._analysis._subtypes.LAND_SUBTYPES`
     subtype list (Swamp, Mountain, ...) — stays ``land_sacrifice_makers``
     territory (CR 701.21), never ``sacrifice_outlets``, across BOTH the
     additional-cost-to-cast text idiom and the Composite cost-leaf arm
@@ -1286,7 +1286,7 @@ def test_sacrifice_outlets_land_subtype_effect_arm_excluded():
     ("sacrifice a Swamp" — Akuta, Born of Ash's upkeep trigger) previously
     slipped past the effect arm's exclusion, which only tested the bare
     core-type tuple ``("Land",)`` and never the CR 205.3i subtype
-    vocabulary (:data:`~mtg_utils._analysis.lanes._LAND_SUBTYPES`)
+    vocabulary (:data:`~mtg_utils._analysis._subtypes.LAND_SUBTYPES`)
     the cost-leaf arm already read. Both arms now share ONE subject-presence
     read (:func:`~mtg_utils._analysis.lanes._sac_subject_present`),
     so a Swamp-only sacrifice stays ``land_sacrifice_makers`` territory here
@@ -9184,7 +9184,7 @@ def test_cheat_into_play_dig_subtype_land_subtype_stays_out():
     Dig subtype fallback, not a gap in it — ``Gate`` is itself a LAND
     subtype (CR 205.3i — Gate is a land type), so this is genuine land ramp
     (extra_land_drop), not a cheat build-around; the existing
-    ``_LAND_SUBTYPES`` gate correctly declines to fire."""
+    ``LAND_SUBTYPES`` gate correctly declines to fire."""
     assert "cheat_into_play" not in _keys("Nine-Fingers Keene")
 
 

@@ -637,29 +637,6 @@ def _site_raw(sdef: object) -> str:
 
 # ── Batch 9 lanes (ADR-0035 Stage 2) ─────────────────────────────────────────
 
-# Land subtypes (CR 205.3i — basic + nonbasic): the fix-(a) membership test
-# that keeps a SUBTYPE-only put from resurrecting a land put as a cheat.
-_LAND_SUBTYPES: frozenset[str] = frozenset(
-    {
-        "plains",
-        "island",
-        "swamp",
-        "mountain",
-        "forest",
-        "wastes",
-        "gate",
-        "desert",
-        "lair",
-        "locus",
-        "mine",
-        "power-plant",
-        "tower",
-        "urza's",
-        "cave",
-        "sphere",
-        "town",
-    }
-)
 # Spell-cast keywords (CR 702 — flash 702.8, flashback 702.34, cascade
 # 702.85, …): an ``AddKeyword`` grant of one of these is a grant to a SPELL /
 # castable card, never a battlefield keyword anthem (team_buff). Normalized

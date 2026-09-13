@@ -193,7 +193,7 @@ def _imported_mtg_modules(path: Path) -> set[str]:
 
 
 def signal_source_files() -> tuple[Path, ...]:
-    """Every ``.py`` file transitively reachable from ``_deck_forge.signals``
+    """Every ``.py`` file transitively reachable from ``_analysis.signals``
     by following ``mtg_utils``-internal imports (module-level + lazy) — the
     exact file set whose content can change ``extract_signals``'s
     output. Recomputed via a fresh AST walk every call (never a cached/

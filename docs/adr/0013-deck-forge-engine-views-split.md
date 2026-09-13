@@ -17,7 +17,8 @@ reaching into `app.py` privates.
   `deck_view`.
 - **`app.py`** — the transport adapter: route closures that parse the payload, call
   engine/views, apply side effects (mutation, `_autosave`, `hub.publish`, the
-  `bulk_available`/zone `Response` guards), and return.
+  `bulk_available` guard), and return; every deck-rule breach (an unknown zone,
+  format, medium or size included) arrives as an engine-raised `DeckRuleError`.
 
 **Why free functions, not a `DeckEngine` class.** `ForgeState.session` is mutable and
 every mutation route edits it in place. A class caching a `HydratedDeck` at construction

@@ -33,7 +33,9 @@ was six invocations, and both SKILL.md files carried a "re-hydrate and switch to
   (ADR-0005's cache-miss carve-out, unchanged), and memoizes the join in a sidecar
   beside the deck: `deck.json` → `deck.hydrated.json`, keyed inside the file by the
   deck's content hash, the bulk's identity, and the payload version. A stale sidecar is
-  unreadable by construction; there is no cache path to thread. `from_paths` is
+  unreadable by construction; there is no cache path to thread. The one carve-out:
+  with no bulk on disk, a names-only CLI (`require_records=False`) reads a sidecar
+  of the same deck content whatever bulk wrote it — a join of this deck beats none. `from_paths` is
   retired; `from_parsed` and `from_session` stay.
 - **One record shape.** A record is the bulk's own adapter record — keys absent when the
   card has no such field — on every path. `CARD_FIELDS` and the None-filled projection
@@ -42,11 +44,16 @@ was six invocations, and both SKILL.md files carried a "re-hydrate and switch to
 - **One CLI convention.** Every deck CLI takes `DECK_JSON` and the shared `--bulk-data`
   option (`deck_cli.bulk_data_option`, default auto-discovered) and calls
   `deck_cli.acquire_for_cli`, which turns `NoBulkError` into a `ClickException` and
-  warns once on stderr about names the join dropped. `combo-search` and `export-deck`
-  pass `require_records=False` (they work on names alone). `deck-hydrate <deck.json>`
+  warns once on stderr about names the join dropped. `combo-search` passes
+  `require_records=False` (it works on names alone); `export-deck` needs no card
+  records at all, so it reads the deck JSON directly and takes no `--bulk-data`;
+  `price-check` prices name lists and cube JSON as well as decks, so it takes the
+  shared option (auto-discovered) but prices names itself, warning once when there
+  is no bulk and every name goes to Scryfall. `deck-hydrate <deck.json>`
   is the explicit warm step: it builds the sidecar and prints the envelope (sidecar
   path, card count, missing names, type/curve digest) that `scryfall-lookup --batch`
-  used to print. `scryfall-lookup --batch` serves name lists only.
+  used to print. `scryfall-lookup --batch` serves name lists (and cube JSON — the cube bounded
+  context below) only.
 - **The hub** builds `ForgeState` from one `CardPool` in `production.py`; the state's
   fields stay (populated from the pool) so `app.py` / `engine.py` do not churn.
 

@@ -22,14 +22,11 @@ from mtg_utils._http import USER_AGENT
 from mtg_utils._name_index import NameIndex
 from mtg_utils._sidecar import atomic_write_json
 from mtg_utils.card_classify import get_oracle_text
-from mtg_utils.card_pool import RARITY_ORDER, CardPool
-from mtg_utils.formats import Format
+from mtg_utils.card_pool import CardPool
 
 __all__ = [
     "DISPLAY_FIELDS",
-    "RARITY_ORDER",
     "build_digest",
-    "build_rarity_index",
     "display_fields",
     "fetch_card",
     "lookup_cards",
@@ -78,17 +75,6 @@ def display_fields(card: dict) -> dict:
     if result["oracle_text"] is None:
         result["oracle_text"] = get_oracle_text(card) or None
     return result
-
-
-def build_rarity_index(
-    bulk_path: Path,
-    fmt: Format,
-    *,
-    arena_only: bool = False,
-) -> NameIndex:
-    """``CardPool.rarity_index`` for the pool at *bulk_path* — name ->
-    ``{rarity, exempt_from_4cap}`` for Arena wildcard costing in *fmt*."""
-    return CardPool.load(bulk_path).rarity_index(fmt, arena_only=arena_only)
 
 
 def fetch_card(name: str) -> dict | None:
@@ -174,6 +160,10 @@ def _build_cache_key(content: str, bulk_path: Path | None) -> str:
     return hasher.hexdigest()[:16]
 
 
+# The keys only a parsed deck JSON carries (a cube JSON has ``cards`` alone).
+_DECK_ZONE_KEYS = frozenset({"commanders", "sideboard", "companion", "format"})
+
+
 def lookup_cards(
     names_path: Path,
     bulk_path: Path | None = None,
@@ -197,10 +187,14 @@ def lookup_cards(
 
     content = names_path.read_text(encoding="utf-8")
     raw = json.loads(content)
-    if isinstance(raw, dict):
+    if isinstance(raw, dict) and _DECK_ZONE_KEYS & raw.keys():
+        # A parsed deck hydrates itself through its sidecar (ADR-0046). A cube JSON
+        # (``{cards, name, source, cube_format}``) is the cube bounded context's own
+        # shape and still hydrates here — ADR-0046 scoped cube-wizard out.
         msg = (
-            "scryfall-lookup --batch takes a JSON list of card names; a parsed deck "
-            "hydrates itself — run `deck-hydrate <deck.json>` instead."
+            "scryfall-lookup --batch takes a JSON list of card names (or a cube "
+            "JSON); a parsed deck hydrates itself — run `deck-hydrate <deck.json>` "
+            "instead."
         )
         raise click.ClickException(msg)
     names = _extract_names(raw)

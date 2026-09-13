@@ -43,6 +43,7 @@ from pathlib import Path
 import click
 
 from mtg_utils import _phase
+from mtg_utils.deck_cli import bulk_data_option
 
 PHASE_RAW = "https://raw.githubusercontent.com/phase-rs/phase"
 ABILITY_RS = "crates/engine/src/types/ability.rs"
@@ -488,9 +489,14 @@ def _signals_pkl(ctx: BumpContext) -> Path | None:
 
 def step_rebuild(ctx: BumpContext) -> None:
     pkl = _signals_pkl(ctx)
-    if pkl is not None and pkl.exists():
+    old_copy = ctx.report_dir / f"signals-{ctx.old_tag}.pkl"
+    if old_copy.exists():
+        # A resume at this step: the index on disk is already the rebuilt one, so
+        # the copy the first run took is the only pre-bump baseline there is.
+        ctx.notes.append(f"old signals index already copied to {ctx.report_dir}")
+    elif pkl is not None and pkl.exists():
         ctx.report_dir.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(pkl, ctx.report_dir / f"signals-{ctx.old_tag}.pkl")
+        shutil.copy2(pkl, old_copy)
         ctx.notes.append(f"old signals index copied to {ctx.report_dir}")
     else:
         ctx.notes.append("no prior signals index found — the signal diff is skipped")
@@ -553,8 +559,33 @@ STEPS: tuple[tuple[str, Callable[[BumpContext], None]], ...] = (
 )
 
 
+OLD_TAG_MARKER = "old-tag"
+
+
+def resume_old_tag(report_dir: Path) -> str:
+    """The tag an interrupted bump under *report_dir* started from. Step 1 rewrites
+    ``PHASE_TAG`` on disk, so by the time ``--from-step`` runs the module's pin IS
+    the new tag; the marker ``run`` wrote before step 1 is the only record of the
+    old one (and what the signal diff's "old index" copy is named after)."""
+    marker = report_dir / OLD_TAG_MARKER
+    try:
+        tag = marker.read_text(encoding="utf-8").strip()
+    except OSError as exc:
+        raise click.ClickException(
+            f"no interrupted bump to resume under {report_dir} ({marker.name} missing)"
+        ) from exc
+    if not tag:
+        raise click.ClickException(f"{marker} is empty — no old tag to resume from")
+    return tag
+
+
 def run(ctx: BumpContext, *, from_step: int = 1, echo: Callable[[str], None]) -> Path:
     """Run the steps from ``from_step`` (1-based); write and return the report."""
+    if from_step == 1:
+        ctx.report_dir.mkdir(parents=True, exist_ok=True)
+        (ctx.report_dir / OLD_TAG_MARKER).write_text(
+            ctx.old_tag + "\n", encoding="utf-8"
+        )
     for i, (name, fn) in enumerate(STEPS, start=1):
         if i < from_step:
             continue
@@ -603,16 +634,27 @@ def _subprocess_runner(argv: Sequence[str]) -> subprocess.CompletedProcess:
 @click.argument("tag")
 @click.option("--from-step", type=click.IntRange(1, len(STEPS)), default=1)
 @click.option("--install-phase", is_flag=True, help="Also move the phase clone.")
-@click.option("--bulk-data", type=click.Path(exists=True, path_type=Path), default=None)
+@bulk_data_option
 def main(
     tag: str, from_step: int, bulk_data: Path | None, *, install_phase: bool
 ) -> None:
     """Bump the phase-rs pin to TAG: edit, regenerate, report (never CI)."""
+    report_dir = _default_report_dir(tag)
+    if from_step > 1:
+        old_tag = resume_old_tag(report_dir)
+    else:
+        old_tag = _phase.PHASE_TAG
+        if old_tag == tag:
+            raise click.ClickException(
+                f"the phase pin is already {tag}: resume an interrupted bump with "
+                f"--from-step N (its report dir is {report_dir}), or restore "
+                "PHASE_TAG and the generated rosters (git checkout) to start over"
+            )
     ctx = BumpContext(
         repo=_repo_root(),
-        old_tag=_phase.PHASE_TAG,
+        old_tag=old_tag,
         new_tag=tag,
-        report_dir=_default_report_dir(tag),
+        report_dir=report_dir,
         runner=_subprocess_runner,
         fetch=_fetch,
         card_data_path=_phase.ensure_card_data,

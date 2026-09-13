@@ -430,10 +430,11 @@ def mana_audit(hd: HydratedDeck) -> dict:
             colors=colors, commander_cmc=commander_cmc, deck_size=deck_size
         )
         karsten_result = karsten_adjustment(ramp_count=ramp_count, deck_size=deck_size)
-        # ADR-0041: ONE deck-specific band — [Karsten-adjusted floor, raw
-        # Burgess] — replaces treating raw Burgess alone as the hard floor
-        # (which could exceed the static template's ceiling on a heavy-ramp,
-        # high-color/high-CMC deck with no land count able to satisfy both).
+        # ADR-0041: ONE deck-specific band — the lower of Karsten and raw
+        # Burgess is the floor, the higher the top (see ``land_band``) —
+        # replaces treating raw Burgess alone as the hard floor (which could
+        # exceed the static template's ceiling on a heavy-ramp, high-color /
+        # high-CMC deck with no land count able to satisfy both).
         floor, top = land_band(
             colors=colors,
             commander_cmc=commander_cmc,

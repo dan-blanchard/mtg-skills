@@ -43,7 +43,7 @@ is Arena's (`arena_pool`: brawl, historic_brawl, competitive_brawl, alchemy, his
 timeless — exactly the keys the adapter gated, since Standard and Pioneer are
 paper-defined pools Arena mirrors). Medium-independent, as before. A record without the
 field carries no evidence and is not gated. The adapter also emits `reprint` from
-MTGJSON's `isReprint`, making the J21/JMP draft-rarity guard in `build_rarity_index`
+MTGJSON's `isReprint`, making the J21/JMP draft-rarity guard in `CardPool.rarity_index`
 live (it had read a field the adapter never produced).
 
 **Considered and rejected.** Free functions over the dict (callers still hold a string

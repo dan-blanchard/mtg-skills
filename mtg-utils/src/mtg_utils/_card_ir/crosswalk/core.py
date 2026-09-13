@@ -10,7 +10,7 @@ the verbatim typed node** (the lossless hatch — categorically different from a
 verbatim-*text* ``raw`` that forces re-regex; the structured node is preserved).
 
 It is **additive / shadow-only** (ADR-0035 Stage 2): nothing in production reads
-this. The live regex+IR detection path (``_deck_forge.signals``) is untouched; the
+this. The live regex+IR detection path (``_analysis.signals``) is untouched; the
 crosswalk runs alongside it for the shadow ``Signal``-diff.
 
 The overlay preserves the **three join granularities** the lanes depend on, so a
@@ -32,7 +32,7 @@ flat-overlay regression fails loud:
 
 Stays self-contained within ``_card_ir`` (Layer-2 framework only — no
 ``_deck_forge`` import); the ``Signal``-lane derivation that *uses* this overlay
-lives at Layer 3 in ``_deck_forge.lanes``.
+lives at Layer 3 in ``_analysis.lanes``.
 """
 
 from __future__ import annotations

@@ -347,6 +347,25 @@ def bands_for(shape: str | None) -> dict[str, tuple[int, int]]:
     return bands
 
 
+def banded_slot_budgets(
+    records: Sequence[dict | None],
+    land_band: dict,
+    *,
+    deck_size: int,
+    shape: str | None = None,
+) -> dict[str, dict]:
+    """:func:`slot_budgets` over *records* (a deck's ``expanded()`` cards) with the
+    lands row set to *land_band*, the mana audit's own ``{floor, top, …}`` readout
+    (ADR-0041) — passed in so a caller that already audited never audits twice, and
+    no caller re-derives the band."""
+    return slot_budgets(
+        records,
+        deck_size=deck_size,
+        shape=shape,
+        land_band=(land_band["floor"], land_band["top"]),
+    )
+
+
 def slot_budgets(
     records: Sequence[dict | None],
     *,

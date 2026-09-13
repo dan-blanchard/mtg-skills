@@ -23,7 +23,7 @@ live in [`archive/`](archive/).
 | 0017 | deck-forge imports external lists as in-process hub compute | import runs in-process, not via a handoff round-trip |
 | 0018 | deck-forge collections are global, two medium-keyed slots, derived ownership | slot keyed by medium (paper/arena), not format |
 | 0019 | deck-forge partner ranking is widening-primary and strict-tiered | color-identity widening before synergy |
-| 0022 | One Scryfall name-index core: NFKD-folded lookups, consistent DFC handling | one keying core (`alias_keys`/`NameIndex`); mark_owned and deck-forge's build_by_name both consolidated onto it |
+| 0022 | One Scryfall name-index core: NFKD-folded lookups, consistent DFC handling | one keying core (`alias_keys`/`NameIndex`); mark_owned and the CardPool name index (ADR-0046) both consolidated onto it |
 | 0023 | A shared, deterministic tuning core (HydratedDeck → scorecard + swaps) | the engine `/api/tune` and deck-wizard both call; its signals-home deferral closed by ADR-0050 |
 | 0024 | Win-conditions and protection are Shape-scaled advisory flags | not hard-counted roles; ADR-0030's bracket gate is a separate permission question |
 | 0025 | A commander's signal extraction folds in the referenced objects its plan brings into play | |
@@ -41,8 +41,8 @@ live in [`archive/`](archive/).
 | 0043 | Adjudicated precision replaces crowd recall as the discovery yardstick | paired-delta acceptance + verdict ledger is the current acceptance rule |
 | 0044 | Effective commander cost replaces printed mana value in the land band | closed-form affordable turn; self-discount only; degrades to printed MV with a reported status |
 | 0045 | Format facts are answered by the Format module, never re-derived from a table | one frozen `Format` value owns legality / commander eligibility / medium / size / the SPA table; the adapter emits `arena_available` instead of rewriting legalities |
-| 0046 | Deck acquisition is one seam: a deck JSON becomes a HydratedDeck through the CardPool | `CardPool` owns the bulk and every index; `HydratedDeck.acquire` joins all four zones and memoizes in `<deck>.hydrated.json`; one record shape; every deck CLI takes `DECK_JSON` + `--bulk-data` |
-| 0047 | One owner for the decorated concept tree: two products, no stage re-applied | `_card_ir.trees` composes the substrate stages once; `trees_for` (corrected) for structural readers, `signal_trees_for` (+ synthesis) for lanes and presets; `tree_synthesis` lives in `_deck_forge` |
+| 0046 | Deck acquisition is one seam: a deck JSON becomes a HydratedDeck through the CardPool | `CardPool` owns the bulk and every index; `HydratedDeck.acquire` joins all four zones and memoizes in `<deck>.hydrated.json`; one record shape; every deck CLI takes `DECK_JSON` + the shared `--bulk-data` (auto-discovered; `export-deck` needs no bulk) |
+| 0047 | One owner for the decorated concept tree: two products, no stage re-applied | `_card_ir.trees` composes the substrate stages once; `trees_for` (corrected) for structural readers, `signal_trees_for` (+ synthesis) for lanes and presets; `tree_synthesis` lives in `_analysis` beside the lanes (ADR-0050) |
 | 0048 | The bridge ledger owns bridge emission: a bridge is one row | `Bridge.scope` + `Bridge.signal`; one `bridge_signals` lane fires every row; no lane names a bridge id (test-enforced); `bridges_for(key)` |
 | 0049 | The phase pin bump is one command | `bump-phase-pin <tag>`: edits the pin and the generated rosters, regenerates every artifact, writes one triage report (census, per-key signal diff, RETIRE-READY rows) |
 | 0050 | The deck-analysis substrate is a neutral package, not deck-forge's | `mtg_utils/_analysis/` (signals, lanes, specs, bridges, synthesis, floor, budgets, ranking, rate, staples); `_deck_forge` is the hub only; `ir_for` in `_card_ir`; closes ADR-0023's deferral; `SwapContext` |

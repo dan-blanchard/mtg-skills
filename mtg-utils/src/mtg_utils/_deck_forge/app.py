@@ -22,14 +22,13 @@ from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from mtg_utils._analysis.budgets import slot_budgets
 from mtg_utils._deck_forge import collection, engine, views
 from mtg_utils._deck_forge.engine import DeckRuleError
 from mtg_utils._deck_forge.state import DeckSession, ForgeState
 from mtg_utils._tuner.tune import tune as run_tune
 from mtg_utils.deck_stats import deck_stats
 from mtg_utils.export_deck import export_as
-from mtg_utils.formats import COMMANDER_FORMATS, FORMATS
+from mtg_utils.formats import FORMATS
 from mtg_utils.mana_audit import mana_audit
 from mtg_utils.parse_deck import parse_deck_text
 from mtg_utils.theme_presets import list_presets
@@ -213,12 +212,6 @@ def _clamp_timeout(timeout: float) -> float:
     return max(0.0, min(timeout, 30.0))
 
 
-def _zone_error(zone: str) -> JSONResponse | None:
-    if zone not in views.VALID_ZONES:
-        return JSONResponse({"error": f"unknown zone {zone!r}"}, status_code=400)
-    return None
-
-
 def _no_bulk() -> JSONResponse:
     return JSONResponse(
         {"error": "Scryfall bulk data not found — run `download-mtgjson` first."},
@@ -263,9 +256,7 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
 
     @app.post("/api/deck/add", response_model=None)
     async def add(payload: AddPayload) -> dict | JSONResponse:
-        bad_zone = _zone_error(payload.zone)
-        if bad_zone is not None:
-            return bad_zone
+        engine.check_zone(payload.zone)
         if payload.name not in state.by_name:
             return JSONResponse(
                 {"error": f"card not found: {payload.name!r}"}, status_code=404
@@ -278,71 +269,40 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
         state.hub.publish(json.dumps(snap))
         return snap
 
-    @app.post("/api/deck/remove", response_model=None)
-    async def remove(payload: RemovePayload) -> dict | JSONResponse:
-        bad_zone = _zone_error(payload.zone)
-        if bad_zone is not None:
-            return bad_zone
+    @app.post("/api/deck/remove")
+    async def remove(payload: RemovePayload) -> dict:
+        engine.check_zone(payload.zone)
         state.session.remove(payload.name, payload.qty, zone=payload.zone)
         _autosave(state)
         snap = engine.snapshot(state)
         state.hub.publish(json.dumps(snap))
         return snap
 
-    @app.post("/api/deck/format", response_model=None)
-    async def set_format(payload: FormatPayload) -> dict | JSONResponse:
-        """Change the current build's format (any Commander-family format:
-        commander / brawl / historic_brawl / competitive_brawl).
-        The deck's cards are kept; everything format-dependent (deck size, land floor,
-        legality, commander eligibility) re-derives on the next snapshot."""
-        if payload.format not in COMMANDER_FORMATS:
-            return JSONResponse(
-                {"error": f"unsupported format: {payload.format!r}"}, status_code=400
-            )
-        state.session.format = payload.format
+    @app.post("/api/deck/format")
+    async def set_format(payload: FormatPayload) -> dict:
+        """Change the build's format (``engine.set_format`` is the rule); returns the
+        new snapshot."""
+        engine.set_format(state, payload.format)
         _autosave(state)
         snap = engine.snapshot(state)
         state.hub.publish(json.dumps(snap))
         return snap
 
-    @app.post("/api/deck/medium", response_model=None)
-    async def set_medium(payload: MediumPayload) -> dict | JSONResponse:
-        """Set paper vs digital for the build (Brawl / Historic Brawl). Drives the
-        active Collection slot and the cost mode — digital → Arena slot + wildcards;
-        paper → paper slot + USD (ADR-0018, amended)."""
-        fmt = FORMATS[state.session.format]
-        if payload.medium not in fmt.media:
-            return JSONResponse(
-                {
-                    "error": (
-                        f"{fmt.name} is not played in {payload.medium!r} "
-                        f"(media: {', '.join(fmt.media)})"
-                    )
-                },
-                status_code=400,
-            )
-        state.session.set_medium(payload.medium)
+    @app.post("/api/deck/medium")
+    async def set_medium(payload: MediumPayload) -> dict:
+        """Set paper vs digital for the build (``engine.set_medium`` is the rule);
+        returns the new snapshot."""
+        engine.set_medium(state, payload.medium)
         _autosave(state)
         snap = engine.snapshot(state)
         state.hub.publish(json.dumps(snap))
         return snap
 
-    @app.post("/api/deck/deck-size", response_model=None)
-    async def set_deck_size(payload: DeckSizePayload) -> dict | JSONResponse:
-        """Choose 60 or 100 cards. Only paper Historic Brawl honors it (both are legal
-        for paper "Brawl"); every other format/medium keeps its fixed size, so the
-        override lies dormant until it applies."""
-        # Any size some Commander-family (format, medium) may choose is accepted: the
-        # override lies dormant until it applies (set 60 now, toggle to paper Historic
-        # Brawl later), so the guard is derived from the table, never a hand-list.
-        choices = sorted(
-            {s for f in COMMANDER_FORMATS for s in FORMATS[f].all_size_choices}
-        )
-        if payload.deck_size not in choices:
-            return JSONResponse(
-                {"error": f"deck size must be one of {choices}"}, status_code=400
-            )
-        state.session.set_deck_size(payload.deck_size)
+    @app.post("/api/deck/deck-size")
+    async def set_deck_size(payload: DeckSizePayload) -> dict:
+        """Choose the deck size (``engine.set_deck_size`` is the rule); returns the
+        new snapshot."""
+        engine.set_deck_size(state, payload.deck_size)
         _autosave(state)
         snap = engine.snapshot(state)
         state.hub.publish(json.dumps(snap))
@@ -459,15 +419,13 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
             "printings": rows,
         }
 
-    @app.post("/api/deck/printing", response_model=None)
-    async def set_printing(payload: SetPrintingPayload) -> dict | JSONResponse:
+    @app.post("/api/deck/printing")
+    async def set_printing(payload: SetPrintingPayload) -> dict:
         """Pin (or clear, with a null id) the printing for a card in the deck (C). The
         chosen printing drives the card's image / price / export set, never its gameplay
         text. Validated against the card's own printings so a stray id can't pin a wrong
         card's art."""
-        bad_zone = _zone_error(payload.zone)
-        if bad_zone is not None:
-            return bad_zone
+        engine.check_zone(payload.zone)
         engine.choose_printing(
             state,
             payload.name,
@@ -509,16 +467,7 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
 
     @app.get("/api/budgets")
     async def budgets() -> dict:
-        hd = engine.hydrate_session(state)
-        # ADR-0041: the lands row is mana_audit's own band (single source).
-        band = mana_audit(hd)["land_band"]
-        return {
-            "budgets": slot_budgets(
-                hd.expanded(),
-                deck_size=state.session.deck_size,
-                land_band=(band["floor"], band["top"]),
-            )
-        }
+        return {"budgets": engine.budgets(state)}
 
     @app.get("/api/builds")
     async def builds() -> dict:
@@ -538,8 +487,8 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
         state.hub.publish(json.dumps(snap))
         return {"build_id": state.build_id, **snap}
 
-    @app.post("/api/builds/import", response_model=None)
-    async def builds_import(payload: ImportDeckPayload) -> dict | JSONResponse:
+    @app.post("/api/builds/import")
+    async def builds_import(payload: ImportDeckPayload) -> dict:
         """Import an existing list as a NEW build (ADR-0017). Parse the raw pasted /
         uploaded text IN-PROCESS (pure compute — `parse_deck_text`, no LLM, no API key),
         seed a fresh session, switch to it. Never overwrites the live build; never

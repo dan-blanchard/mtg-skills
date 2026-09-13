@@ -62,7 +62,7 @@ MDFC / "prepare" card (e.g. `"Reflection of Kiki-Jiki"` of `"Emeritus of Woe // 
 silently missed; every-face, both-direction keying via `alias_keys` fixed it, pinned by a
 regression test.
 
-deck-forge's `production.build_by_name` folds too — `build_name_index(reduce=keep_cheaper)` → a
+deck-forge's name index (now `CardPool.by_name`, ADR-0046) folds too — `build_name_index(reduce=keep_cheaper)` → a
 `NameIndex`, so `ForgeState.by_name` is typed `Mapping[str, dict]`. `engine._signal_freq` dedups
 by card name, since a folding index yields the same record under several keys.
 

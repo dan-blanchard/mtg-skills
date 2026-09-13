@@ -10,7 +10,7 @@ from __future__ import annotations
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 
-from mtg_utils._analysis.budgets import slot_budgets
+from mtg_utils._analysis.budgets import banded_slot_budgets
 from mtg_utils._analysis.signals import ranked_signals_and_payoffs
 from mtg_utils._tuner import commander_fit, grant_coverage, metrics
 from mtg_utils._tuner import swaps as swaps_mod
@@ -191,11 +191,8 @@ def tune(
     shape = shape_r.shape
 
     # ADR-0041: the lands row is mana_audit's own band — never a second derivation.
-    budgets = slot_budgets(
-        hd.expanded(),
-        deck_size=deck_size,
-        shape=shape,
-        land_band=(mana["land_band"]["floor"], mana["land_band"]["top"]),
+    budgets = banded_slot_budgets(
+        hd.expanded(), mana["land_band"], deck_size=deck_size, shape=shape
     )
     # ADR-0040 §1 (Grant-covered role, deck-forge CONTEXT.md): does a commander's
     # own ability GRANT structurally cover a short Spine role for every recipient

@@ -1273,7 +1273,7 @@ def _iter_base_pt_modal_threaded_statics(
     loop's single-level ``own_target`` read.
 
     Mirrors ``_iter_untap_targets``' established effect/sub_ability/
-    execute/mode_abilities walk (:mod:`_card_ir.tree_synthesis`, the
+    execute/mode_abilities walk (:mod:`_analysis.tree_synthesis`, the
     precedent for a per-key modal hop) rather than widening the SHARED
     ``iter_threaded_target_statics`` utility itself — no other lane needs
     the modal hop yet, and a shared-helper widening needs the full-corpus
