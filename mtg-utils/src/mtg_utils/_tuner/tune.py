@@ -324,9 +324,7 @@ def tune(
         # already inside its band never reports a phantom land shortfall.
         land_floor = int(mana["land_band"]["floor"])
         fill_slots, land_gap = _fill_gap(hd, deck_size, land_floor)
-        swaps_out = swaps_mod.propose_swaps(
-            classes,
-            issues,
+        swap_ctx = swaps_mod.SwapContext(
             budgets=budgets,
             focus_result=foc,
             deck_signals=deck_signals,
@@ -343,6 +341,7 @@ def tune(
             protected=protected,
             medium=game.medium,
         )
+        swaps_out = swaps_mod.propose_swaps(classes, issues, swap_ctx)
         # The fill pass deliberately skips lands; flag any mana-base shortfall so the
         # user runs the land tooling (balance-lands), not Tune, to finish it.
         if land_gap > 0:

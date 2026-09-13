@@ -13,6 +13,7 @@ Three layers (deck-forge CONTEXT.md, "Tune"): diagnose, cut candidates, budgeted
 
 from __future__ import annotations
 
+from mtg_utils._tuner.swaps import SwapContext
 from mtg_utils._tuner.tune import TuneParams, tune
 
-__all__ = ["TuneParams", "tune"]
+__all__ = ["SwapContext", "TuneParams", "tune"]

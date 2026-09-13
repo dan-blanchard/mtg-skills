@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import re
 from collections.abc import Callable, Collection, Iterator, Mapping, Sequence
+from dataclasses import dataclass
 
 from mtg_utils._analysis.budgets import role_of
 from mtg_utils._analysis.ranking import rank_candidates
@@ -386,33 +387,63 @@ def _avenue_search_for(label: str, deck_signals: list) -> dict | None:
     return None
 
 
+@dataclass(frozen=True)
+class SwapContext:
+    """Everything ``propose_swaps`` needs beyond the classes and the issues — the deck
+    facts the scorecard already derived and the purse it may spend (ADR-0050: one
+    context instead of 18 keyword arguments).
+
+    Deck facts: ``budgets`` (the slot bands), ``focus_result``, ``deck_signals``,
+    ``identity`` (the color identity the search is bounded to), ``fmt``, ``medium``,
+    ``top_heavy`` (the efficiency verdict), ``protected`` (cards the proposer must
+    never cut — combo pieces, at-floor closers), ``fill_slots`` (open slots an
+    under-sized deck may fill with pure adds). Purse: ``owned`` (free cards),
+    ``budget`` (USD; ignored when ``wildcard_budget`` is set), ``wildcard_budget``
+    (digital: one wildcard of the card's rarity per add, gated per tier),
+    ``max_swaps``, ``paper_only`` (restrict the search to paper-legal cards).
+    ``search_fn`` is the injected candidate search."""
+
+    budgets: dict
+    focus_result: dict
+    deck_signals: list
+    search_fn: Callable[..., list[dict]]
+    identity: str
+    fmt: str
+    paper_only: bool
+    owned: Mapping[str, int]
+    budget: float | None
+    max_swaps: int
+    top_heavy: bool
+    fill_slots: int = 0
+    wildcard_budget: Mapping[str, int] | None = None
+    protected: Collection[str] = ()
+    medium: str = "paper"
+
+
 def propose_swaps(
     classes: Sequence[CardClass],
     issues: Sequence[dict],
-    *,
-    budgets: dict,
-    focus_result: dict,
-    deck_signals: list,
-    search_fn: Callable[..., list[dict]],
-    identity: str,
-    fmt: str,
-    paper_only: bool,
-    owned: Mapping[str, int],
-    budget: float | None,
-    max_swaps: int,
-    top_heavy: bool,
-    fill_slots: int = 0,
-    wildcard_budget: Mapping[str, int] | None = None,
-    protected: Collection[str] = (),
-    medium: str = "paper",
+    ctx: SwapContext,
 ) -> dict:
     """Walk the ranked issues, sourcing a (cut, add) pair per actionable issue up to
-    ``max_swaps``. When ``fill_slots`` > 0 (an under-sized deck) a fill pass then adds
-    pure adds (no cut) into the open slots. Returns the swaps + a note.
-
-    ``wildcard_budget`` (digital builds) switches costing from a single USD pool to four
-    per-rarity Arena wildcard pools — a card costs one wildcard of its rarity, so an add
-    is only sourced while that tier's budget holds. ``budget`` is ignored when set."""
+    ``ctx.max_swaps``. When ``ctx.fill_slots`` > 0 (an under-sized deck) a fill pass
+    then adds pure adds (no cut) into the open slots. Returns the swaps + a note.
+    See :class:`SwapContext` for the deck facts and the purse."""
+    budgets = ctx.budgets
+    focus_result = ctx.focus_result
+    deck_signals = ctx.deck_signals
+    search_fn = ctx.search_fn
+    identity = ctx.identity
+    fmt = ctx.fmt
+    paper_only = ctx.paper_only
+    owned = ctx.owned
+    budget = ctx.budget
+    max_swaps = ctx.max_swaps
+    top_heavy = ctx.top_heavy
+    fill_slots = ctx.fill_slots
+    wildcard_budget = ctx.wildcard_budget
+    protected = ctx.protected
+    medium = ctx.medium
     in_deck = {c.name for c in classes}
     stranded = set(focus_result["stranded_avenues"])
     # The deck's own avenue prominence, so the candidate ranker scores DEPTH in

@@ -334,9 +334,9 @@ def captured_protected(monkeypatch):
     captured: dict = {}
     real_propose = tune_mod.swaps_mod.propose_swaps
 
-    def spy(*args, **kw):
-        captured["protected"] = set(kw.get("protected") or ())
-        return real_propose(*args, **kw)
+    def spy(classes, issues, ctx):
+        captured["protected"] = set(ctx.protected or ())
+        return real_propose(classes, issues, ctx)
 
     monkeypatch.setattr(tune_mod.swaps_mod, "propose_swaps", spy)
     return captured
