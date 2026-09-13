@@ -35,7 +35,7 @@ live in [`archive/`](archive/).
 | 0033 | MTGJSON AllPrintings is the card-data source | adapter preserves the Scryfall record shape |
 | 0034 | The `_matters` sweep: lane names encode role (doer / payoff / wants) | |
 | 0035 | Lossless phase-mirror Card IR with a derived concept overlay | anchor ADR for the structural substrate; strangler complete, only serving path |
-| 0038 | Unimplemented recovery re-decorates the concept overlay via a shared clause grammar | handles four residue classes (full / none / partial / text-only face trees) |
+| 0038 | Unimplemented recovery re-decorates the concept overlay via a shared clause grammar | handles four residue classes (full / none / partial / text-only face trees); effect-like markers retired, reference-arm concepts are the design (2026-09-13) |
 | 0040 | Granter-aware value in the shared tuner | quality table over playrate |
 | 0041 | A deck-specific land band replaces the static lands row and the raw-Burgess gate | finished: one `land_band` readout (floor / top / flood / status) for every deck; `slot_budgets` requires it; no surface re-derives |
 | 0043 | Adjudicated precision replaces crowd recall as the discovery yardstick | paired-delta acceptance + verdict ledger is the current acceptance rule |

@@ -63,9 +63,12 @@ on/off switch).
 A tree-synthesis arm for a cares-about *reference* — text that names a
 mechanic without performing it (so there is no effect clause to parse). The
 irreducible remainder of synthesis after effect clauses moved to the recovery
-stage.
+stage. Its synthesized `synth_<key>` concept is the reference's own vocabulary
+(there is no effect concept for it to become), so a lane reading its structural
+arm OR that concept is the stable two-arm shape (ADR-0038, 2026-09-13 note).
 _Avoid_: "marker arm" (the retired interim pattern where effect clauses also
-got synthesized markers).
+got synthesized markers), "placeholder" for a reference concept (nothing is
+pending behind it).
 
 **Text-only face tree**:
 A zero-unit `ConceptTree` for a multi-face card half phase never emits ANY

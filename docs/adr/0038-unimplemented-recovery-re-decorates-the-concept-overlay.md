@@ -160,4 +160,16 @@ grammar rules and deleted.
   and their `synth_*` lane reads deleted, key promotions and pinned tests
   intact, before the per-key grind resumes on the new mechanism.
 
-*Amended 2026-07-10 (twice); original decision revised in place.*
+**Current state (2026-09-13).** The effect-like marker arms are gone (re-expressed as
+grammar rules, their lane reads deleted — ADR-0037 archived). The sentence above that
+"the `synth_*` marker namespace retires across all three classes" is narrowed: it holds
+for effect clauses (classes 1–3), NOT for the reference arms this ADR itself kept.
+A cares-about reference ("wants cloning", "cares about death") is not an effect, so no
+effect concept exists for it to become; its synthesized `synth_<key>` concept IS its
+vocabulary. Consequently a lane that reads a structural arm OR a reference-arm concept
+(91 of 279 lanes at the 2026-09-12 review) is the stable design, not a pending
+retirement — the review's "tabulate the two-arm lanes" candidate is closed on that
+basis (the 95 reference concepts and their 208 reads stay imperative, per ADR-0014's
+locality argument).
+
+*Amended 2026-07-10 (twice) and 2026-09-13; original decision revised in place.*
