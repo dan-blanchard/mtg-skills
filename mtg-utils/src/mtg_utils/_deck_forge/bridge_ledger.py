@@ -1991,9 +1991,10 @@ BRIDGES: dict[str, Bridge] = {
         Bridge(
             bridge_id="combat_choice_unimplemented_choose",
             key="combat_choice_makers",
-            # Scope "opponents" uniformly (the goad_makers precedent): CR 508.1a / 509.1a
-            # give attack and block declarations to the active / defending player; these
-            # cards hand the choice to you, exercised over opponents' combat decisions.
+            # Scope "opponents" uniformly (the goad_makers precedent): CR 508.1a and
+            # 509.1a give attack and block declarations to the active and defending
+            # players; these cards hand the choice to you, exercised over opponents'
+            # combat decisions.
             scope="opponents",
             quote_oracle=True,
             kind="upstream_parse_failure",
