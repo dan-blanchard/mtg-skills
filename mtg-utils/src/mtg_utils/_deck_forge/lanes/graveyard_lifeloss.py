@@ -57,7 +57,6 @@ from mtg_utils._card_ir.text_idioms import (
 )
 from mtg_utils._deck_forge._subtypes import CREATURE_SUBTYPES
 from mtg_utils._deck_forge._sweep_detectors import COMBAT_DAMAGE_TO_OPP_DS_GRANT_REGEX
-from mtg_utils._deck_forge.bridge_ledger import bridge_fires
 from mtg_utils._deck_forge.lanes._shared import (
     _DEBUFF_SINGLE_AURA_PREDS,
     _EDICT_ACTORS,
@@ -1689,30 +1688,6 @@ def _lifeloss_makers(tree: ConceptTree) -> list[Signal]:
                 or _has_defiler_cost_reduction(unit)
             ):
                 fire("you", "")
-    # ADR-0039 W7 ledgered bridges — genuine phase-drop stragglers with no
-    # typed-node path (bridge_ledger.BRIDGES): Degavolver/Anavolver's
-    # zero-trace kicker-granted paylife regen, Withercrown's Unimplemented
-    # "Unsupported unless clause" residue nested outside the recovery
-    # stage's unit.effects-only scan, and the Warp/Blitz/Morph life-cost
-    # cycle phase drops wholesale (no keyword entry at all).
-    if bridge_fires("degavolver_kicker_paylife_regen", tree):
-        fire("you", "")
-    if bridge_fires("withercrown_unless_lose_life", tree):
-        fire("you", "")
-    if bridge_fires("keyword_dropped_paylife", tree):
-        fire("you", "")
-    if bridge_fires("night_shift_optional_paylife_dieroll", tree):
-        fire("you", "")
-    if bridge_fires("zuko_modal_unconditional_paylife", tree):
-        fire("you", "")
-    # ADR-0025 folded objects (2026-07-25): a wholly phase-uncovered folded
-    # object (the dungeon Tomb of Annihilation) gets ONLY a zero-unit
-    # text-only tree — no LoseLife node exists for the typed reads above,
-    # so the bounded symmetric "each player loses N life" room idiom rides
-    # a missing_face bridge (scope "each" — the CR 309 room resolves for
-    # every player). Full row in ``bridge_ledger.BRIDGES``.
-    if bridge_fires("folded_object_text_only_each_player_loses", tree):
-        fire("each", "")
     # task #95 — the ``synth_lifeloss_makers_opponents`` bucket-B marker
     # (see :func:`~mtg_utils._deck_forge.tree_synthesis.
     # _arm_known_token_lifeloss_opponents`'s own docstring): the Wicked

@@ -72,7 +72,6 @@ from mtg_utils._card_ir.text_idioms import (
     _FORCE_ATTACK_REF,
     combat_damage_recipients_from_text,
 )
-from mtg_utils._deck_forge.bridge_ledger import bridge_fires
 from mtg_utils._deck_forge.lanes._shared import (
     _REVEAL_WHO_OPP,
     _SPELL_GRANT_KEYWORDS,
@@ -1703,26 +1702,6 @@ def _base_pt_set(tree: ConceptTree) -> list[Signal]:
             text = getattr(unit.node, "description", "") or ""
             if _BASE_PT_RAW_HOOK.search(text) or _BASE_PT_ANIMATE_HOOK.search(text):
                 return [Signal("base_pt_set", "any", "", "", tree.name, "high")]
-    # ADR-0039 W7 endgame ledgered bridges — the final residual stragglers
-    # (a dropped dynamic-scalar site, a BecomeCopy P/T override with zero
-    # trace, a Stickers TK-cost parse failure; bridge_ledger.py rows,
-    # docstring there for the full corpus accounting). Goddric's
-    # mis-decomposed AddPower/AddToughness row retired at the v0.35.2 bump
-    # (phase now emits the real base-P/T type-change).
-    for bridge_id in (
-        "base_pt_tk_sticker_parse_failure",
-        "base_pt_each_equal_to_dropped",
-        "base_pt_becomecopy_no_pt_override",
-        # base_pt_modal_its_clause_regressed (the v0.45.0 pin bump's bridge
-        # for Sauron, Dino Devotee's upstream-regressed modal "It's a green
-        # Dinosaur with base power and toughness 5/5" mode) RETIRED at the
-        # v0.66.0 pin bump: phase-rs/phase#7037 (v0.48.0) restored the
-        # structured mode body (a GenericEffect SetPower/SetToughness suite
-        # nested in the mode's sub_ability chain, threaded by
-        # :func:`_iter_base_pt_modal_threaded_statics` again).
-    ):
-        if bridge_fires(bridge_id, tree):
-            return [Signal("base_pt_set", "any", "", "", tree.name, "high")]
     # ADR-0039 task #82 grammar sprint: the three whole-clause "have ...
     # become" / conditional "is a(n) ... with base power and toughness
     # N/N" / mass "have base power and toughness X/X, where X is ..."
@@ -2571,13 +2550,6 @@ def _mass_damage_lanes(tree: ConceptTree) -> list[Signal]:
                     break
             if "creature_ping" in seen:
                 break
-    # phase v0.66.0 pin bump — the per-source "each <X> … deals damage equal
-    # to its power to target creature" rider regressed upstream to an
-    # each_source_unrepresentable_rider residue (bridge_ledger.py row).
-    if "creature_ping" not in seen and bridge_fires(
-        "creature_ping_each_source_power_rider", tree
-    ):
-        fire("creature_ping", "you", "")
     return out
 
 

@@ -8,8 +8,11 @@ drops a legacy-served member — each bridge keeps its laggard cards served
 until the post-deletion grammar sprint (task #82) or a phase bump lands the
 real structure.
 
-Every bridge is REGISTERED here, never written inline in a lane. A row
-carries:
+Every bridge is REGISTERED here, never written inline in a lane — and since
+ADR-0048 the row also OWNS its emission (``key`` + ``scope``): the one
+``bridge_signals`` lane fires every row, so no lane names a bridge id and
+retiring a bridge is deleting its row (``tests/mtg-utils/test_bridge_ledger.py``
+forbids a bridge id literal anywhere under ``lanes/``). A row carries:
 
 * ``gap`` — the machine-checkable evidence the typed substrate still lacks
   the structure. This is what makes a bridge SELF-RETIRING: when a grammar
@@ -64,6 +67,7 @@ from mtg_utils._card_ir.crosswalk import (
 )
 from mtg_utils._card_ir.mirror.runtime import MISSING
 from mtg_utils._deck_forge._sweep_detectors import NAMED_PERMANENT_REGEX
+from mtg_utils._deck_forge.signal_base import Signal
 
 if TYPE_CHECKING:  # pragma: no cover
     from mtg_utils._card_ir.crosswalk import ConceptTree
@@ -119,10 +123,20 @@ class Bridge:
     pins: tuple[str, ...]  # representative fixture card names
     gap: Callable[[ConceptTree], bool]  # substrate still lacks the structure
     match: Callable[[ConceptTree], bool]  # the bounded text/idiom read
+    # The emission the row serves (ADR-0048): the ledger — not a lane — emits
+    # ``Signal(key, scope, "", text, card, "high")`` when the bridge fires, so a
+    # bridge is ONE row and retiring it is deleting that row.
+    scope: str = "you"  # "you" | "opponents" | "each" | "any"
+    quote_oracle: bool = False  # carry the card's oracle text as Signal.text
 
     def fires(self, tree: ConceptTree) -> bool:
         """Gap-gated firing — a landed structural read stands the bridge down."""
         return self.gap(tree) and self.match(tree)
+
+    def signal(self, tree: ConceptTree) -> Signal:
+        """The signal this row serves for ``tree`` (call only when it fires)."""
+        text = (tree.oracle or "") if self.quote_oracle else ""
+        return Signal(self.key, self.scope, "", text, tree.name, "high")
 
 
 def _static_parse_failure_descs(tree: ConceptTree) -> Iterator[str]:
@@ -1977,6 +1991,11 @@ BRIDGES: dict[str, Bridge] = {
         Bridge(
             bridge_id="combat_choice_unimplemented_choose",
             key="combat_choice_makers",
+            # Scope "opponents" uniformly (the goad_makers precedent): CR 508.1a / 509.1a
+            # give attack and block declarations to the active / defending player; these
+            # cards hand the choice to you, exercised over opponents' combat decisions.
+            scope="opponents",
+            quote_oracle=True,
             kind="upstream_parse_failure",
             todo=(
                 "upstream phase-rs report candidate (Dan posts): the effect "
@@ -2008,6 +2027,8 @@ BRIDGES: dict[str, Bridge] = {
         Bridge(
             bridge_id="keep_n_wrath_unimplemented_choose",
             key="keep_n_wrath",
+            scope="each",
+            quote_oracle=True,
             kind="dropped_clause",
             todo=(
                 "upstream phase-rs grammar candidate (Dan posts): the "
@@ -2539,6 +2560,7 @@ BRIDGES: dict[str, Bridge] = {
         Bridge(
             bridge_id="base_pt_tk_sticker_parse_failure",
             key="base_pt_set",
+            scope="any",
             kind="upstream_parse_failure",
             todo=(
                 "upstream phase-rs report candidate (Dan posts): the cost "
@@ -2562,6 +2584,7 @@ BRIDGES: dict[str, Bridge] = {
         Bridge(
             bridge_id="base_pt_each_equal_to_dropped",
             key="base_pt_set",
+            scope="any",
             kind="dropped_clause",
             todo=(
                 "upstream phase-rs report candidate (Dan posts): a DYNAMIC "
@@ -2588,6 +2611,7 @@ BRIDGES: dict[str, Bridge] = {
         Bridge(
             bridge_id="base_pt_becomecopy_no_pt_override",
             key="base_pt_set",
+            scope="any",
             kind="upstream_parse_failure",
             todo=(
                 "upstream phase-rs report candidate (Dan posts): a "
@@ -2966,6 +2990,7 @@ BRIDGES: dict[str, Bridge] = {
         Bridge(
             bridge_id="opp_discard_unless_clause",
             key="opponent_discard",
+            scope="opponents",
             kind="upstream_parse_failure",
             todo=(
                 "upstream phase-rs report candidate (Dan posts): the "
@@ -3003,6 +3028,7 @@ BRIDGES: dict[str, Bridge] = {
         Bridge(
             bridge_id="opp_discard_tk_sticker_parse_failure",
             key="opponent_discard",
+            scope="opponents",
             kind="upstream_parse_failure",
             todo=(
                 "upstream phase-rs report candidate (Dan posts): a {TK} "
@@ -3020,6 +3046,7 @@ BRIDGES: dict[str, Bridge] = {
         Bridge(
             bridge_id="opp_discard_fungal_shambler_dropped_conjunct",
             key="opponent_discard",
+            scope="opponents",
             kind="dropped_clause",
             todo=(
                 "upstream phase-rs report candidate (Dan posts): the "
@@ -3041,6 +3068,7 @@ BRIDGES: dict[str, Bridge] = {
         Bridge(
             bridge_id="opp_discard_mindculling_dropped_conjunct",
             key="opponent_discard",
+            scope="opponents",
             kind="dropped_clause",
             todo=(
                 "upstream phase-rs report candidate (Dan posts): the "
@@ -3062,6 +3090,7 @@ BRIDGES: dict[str, Bridge] = {
         Bridge(
             bridge_id="opp_discard_driven_despair_missing_face",
             key="opponent_discard",
+            scope="opponents",
             kind="missing_face",
             todo=(
                 "retires when phase (or a W2c text-only-tree successor) "
@@ -3441,6 +3470,7 @@ BRIDGES: dict[str, Bridge] = {
         Bridge(
             bridge_id="folded_object_text_only_each_player_loses",
             key="lifeloss_makers",
+            scope="each",
             kind="missing_face",
             todo=(
                 "retires on a phase bump that emits card-data records for "
@@ -3471,3 +3501,17 @@ BRIDGES: dict[str, Bridge] = {
 def bridge_fires(bridge_id: str, tree: ConceptTree) -> bool:
     """Whether the registered bridge fires for this tree (gap AND match)."""
     return BRIDGES[bridge_id].fires(tree)
+
+
+def bridges_for(key: str) -> tuple[Bridge, ...]:
+    """Every ledgered bridge serving signal ``key`` — the question the ledger
+    exists to answer (ADR-0048), so retirement and review read one place."""
+    return tuple(b for b in BRIDGES.values() if b.key == key)
+
+
+def bridge_signals(tree: ConceptTree) -> list[Signal]:
+    """The one lane every ledgered bridge fires through (ADR-0048): each row that
+    fires for ``tree`` emits its own ``Signal`` (key + scope from the row). No lane
+    names a bridge id; the crosswalk's per-lane dedupe by (key, scope, subject)
+    folds a bridge's signal into a structural read of the same ident."""
+    return [b.signal(tree) for b in BRIDGES.values() if b.fires(tree)]

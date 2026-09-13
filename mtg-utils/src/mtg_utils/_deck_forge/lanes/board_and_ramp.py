@@ -45,7 +45,6 @@ from mtg_utils._card_ir.text_idioms import (
     _TOKEN_SUBTYPE_OWN_REF,
 )
 from mtg_utils._deck_forge._subtypes import CREATURE_SUBTYPES
-from mtg_utils._deck_forge.bridge_ledger import bridge_fires
 from mtg_utils._deck_forge.lanes._shared import (
     _FIXING_PRODUCED_TYPES,
     _LAND_SUBTYPE_WORDS,
@@ -370,15 +369,6 @@ def _sacrifice_outlets(tree: ConceptTree) -> list[Signal]:
     # keyword itself IS the structured source, same as those three.
     for c in tree.iter_concepts():
         if c.concept == "synth_sac_outlet_dropped_cost":
-            return [Signal("sacrifice_outlets", "you", "", "", tree.name, "high")]
-    # ADR-0039 W7 ledgered bridges — the NO-typed-Sacrifice-node residual
-    # bucket (dropped clauses / grammar stragglers; bridge_ledger.py rows,
-    # docstring there for the full corpus accounting):
-    for bridge_id in (
-        "sac_casualty_granted_onto_other_spell",
-        "sac_emblem_activated_cost",
-    ):
-        if bridge_fires(bridge_id, tree):
             return [Signal("sacrifice_outlets", "you", "", "", tree.name, "high")]
     # recall-completion b1: the subject-dropped / modal you-sac raw fallback
     # (_SAC_OUTLET_RAW) is DELIBERATELY NOT ported. The IR gates it PER-EFFECT
@@ -1185,8 +1175,6 @@ def _ramp(tree: ConceptTree) -> list[Signal]:
         and structural_land_fetch_split(tree)[0]
     ):
         return [Signal("ramp", "you", "", "", tree.name, "high")]
-    if bridge_fires("ramp_dropped_add_mana_clause", tree):
-        return [Signal("ramp", "you", "", "", tree.name, "high")]
     return []
 
 
@@ -1882,14 +1870,6 @@ def _artifacts_enchantments_matter(tree: ConceptTree) -> list[Signal]:
     # artifacts. CR 702.41a / 303.
     if "affinity for enchantments" in _kept(tree).lower():
         out.append("enchantments_matter")
-    # ADR-0039 W7 ledgered bridge — the v0.35.2 reflexive-payment
-    # regression (bridge_ledger.py row, docstring there for the CR 603.12
-    # / CR 205.3g grounding and full census): Nimble Hobbit's "you may
-    # sacrifice a Food or pay {2}{W}" trigger body parks WHOLE as an
-    # Unimplemented residue, dropping the typed Food Sacrifice branch the
-    # deep scan read at v0.23.0.
-    if bridge_fires("artifact_sac_reflexive_payment_unparsed", tree):
-        out.append("artifacts_matter")
     seen: set[str] = set()
     sigs: list[Signal] = []
     for lane in out:
@@ -2763,17 +2743,6 @@ def _creatures_matter(tree: ConceptTree) -> list[Signal]:
             "synth_creatures_matter_diff_counters",
             "synth_creatures_matter_faceup_grant",
         ):
-            return [Signal("creatures_matter", "you", "", "", tree.name, "high")]
-    # ADR-0039 W8 finisher — the last of the 53-card true-gap tail:
-    # ledgered bridges (bridge_ledger.py, docstring there for the full
-    # corpus accounting).
-    for bridge_id in (
-        "lightning_runner_untap_all_dropped",
-        "duskana_draw_per_base_pt_creature_dropped",
-        "moku_haste_grant_misscoped_selfref",
-        "siege_behemoth_unblocked_assign_empty_mods",
-    ):
-        if bridge_fires(bridge_id, tree):
             return [Signal("creatures_matter", "you", "", "", tree.name, "high")]
     # ADR-0039 task #82 grammar sprint: Candlekeep Inspiration's mass
     # "creatures you control have base power and toughness X/X, where X

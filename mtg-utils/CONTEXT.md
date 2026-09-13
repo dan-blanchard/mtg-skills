@@ -100,8 +100,10 @@ A corpus-bounded text read serving an enumerated straggler set: gap-gated (it
 runs only where the tree provably lacks the clause), ledgered (each ties to a
 named grammar TODO or upstream report), and self-retiring (the gap-gate
 stands it down the moment structure arrives; the convergence check makes any
-laggard visible). Same matching technology as a regex detector; opposite
-scope and lifecycle.
+laggard visible). Since ADR-0048 the row also owns its emission (key + scope):
+one `bridge_signals` lane fires every row, no lane names a bridge id, and
+retiring a bridge is deleting its row. Same matching technology as a regex
+detector; opposite scope and lifecycle.
 _Avoid_: "regex bridge" (the retired per-key marker pattern), "fallback"
 (hides that each instance is enumerated, pinned, and scheduled to die).
 

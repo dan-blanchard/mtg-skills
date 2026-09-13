@@ -50,7 +50,6 @@ from mtg_utils._card_ir.text_idioms import (
     _topdeck_stack_self,
 )
 from mtg_utils._deck_forge._sweep_detectors import TOPDECK_STACK_SWEEP_REGEX
-from mtg_utils._deck_forge.bridge_ledger import bridge_fires
 from mtg_utils._deck_forge.lanes._shared import (
     _GRANT_ABILITY_MOD_TAGS,
     _OPP_TOP_OWNERS,
@@ -2082,18 +2081,6 @@ def _exile_matters(tree: ConceptTree) -> list[Signal]:
                 continue
             if "Exile" in filter_inzone_zones(filt):
                 return [Signal("exile_matters", "you", "", "", tree.name, "high")]
-    # ADR-0039 W7 ledgered bridges — the residual upstream-parse-failure /
-    # dropped-clause bucket (bridge_ledger.py rows, docstring there for the
-    # full corpus accounting):
-    for bridge_id in (
-        "exile_grant_all_activated_abilities",
-        "grolnok_cast_from_exile_counter_pile",
-        "candlekeep_inspiration_exile_gy_pt_setter",
-        "close_encounter_warped_exile_additional_cost",
-        "kaya_emblem_cast_from_exile_drop",
-    ):
-        if bridge_fires(bridge_id, tree):
-            return [Signal("exile_matters", "you", "", "", tree.name, "high")]
     return []
 
 

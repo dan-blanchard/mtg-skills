@@ -85,7 +85,7 @@ The scoping convention that a bare "target player" on a detrimental effect reads
 The structured parse deck-forge reasons over instead of re-grepping oracle text: a typed mirror of phase-rs's own parse, plus a derived **concept overlay** that maps its nodes into the ~80-concept synergy vocabulary a Signal key queries. The overlay's output per card face is a **concept tree** — the corrected tree `_card_ir.trees.trees_for` returns (mtg-utils CONTEXT: Corrected tree), which `signal_trees_for` extends into the signal tree the lane package (`_deck_forge/lanes/`) queries over (ADR-0047). Unlike a regex it binds the *operand* a card scales with and the *scope* of an effect, so a Signal key becomes a query over structure rather than a substring match.
 
 **Bridge** (ledgered, self-retiring):
-A sanctioned text-regex read living inside a signal lane for a mechanic phase-rs doesn't yet parse structurally, tracked in one central ledger with a gap rationale — gap-gated (it only fires where the structural read is absent) and scheduled to retire once phase's parse catches up. Not a "fallback": every bridge is enumerated and adjudicated, never leftover tech-debt.
+A sanctioned text-regex read for a mechanic phase-rs doesn't yet parse structurally, living entirely in one central ledger row (gap rationale, bounded match, the signal key and scope it serves — ADR-0048) — gap-gated (it only fires where the structural read is absent) and scheduled to retire once phase's parse catches up; retiring one is deleting its row. Not a "fallback": every bridge is enumerated and adjudicated, never leftover tech-debt.
 
 ### Roles & surfaces
 

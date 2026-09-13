@@ -37,7 +37,6 @@ from mtg_utils._card_ir.text_idioms import (
     _counter_kind_token,
 )
 from mtg_utils._deck_forge import signal_keys
-from mtg_utils._deck_forge.bridge_ledger import bridge_fires
 from mtg_utils._deck_forge.lanes._shared import _GRANT_ABILITY_MOD_TAGS
 from mtg_utils._deck_forge.signal_base import Signal
 from mtg_utils._deck_forge.text_reads import (
@@ -1978,22 +1977,6 @@ def _voting_matters(tree: ConceptTree) -> list[Signal]:
     return []
 
 
-def _named_synergy(tree: ConceptTree) -> list[Signal]:
-    """named_synergy (ADR-0039 W8) — CR 201.4 / 201.5: a card whose ability
-    references a specific permanent by name, self or other. Entirely
-    served by the :data:`named_synergy_overloaded_named_node
-    <mtg_utils._deck_forge.bridge_ledger.BRIDGES>` bridge — see that
-    row's module comment for why the typed ``Named`` node this key's
-    idiom carries is too overloaded (partner pairs, copy-limit swarms,
-    named-card tutoring, planeswalker-uncoupled callbacks) to read
-    directly yet. Scope "you", HIGH (the legacy producer's own scope/
-    conf — it never fed has_other_plan).
-    """
-    if bridge_fires("named_synergy_overloaded_named_node", tree):
-        return [Signal("named_synergy", "you", "", "", tree.name, "high")]
-    return []
-
-
 LANES = (
     _evasion_self,
     _cant_block_grant,
@@ -2046,4 +2029,4 @@ LANES = (
 
 
 # ADR-0039 W8 (KEPT-twelve wave):
-LANES_TAIL = (_named_synergy,)
+LANES_TAIL: tuple = ()

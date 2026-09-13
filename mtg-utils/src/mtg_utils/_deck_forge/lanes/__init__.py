@@ -36,6 +36,7 @@ from mtg_utils._deck_forge._subtypes import (
     CREATURE_SUBTYPES,
     TRIBAL_SUBTYPES,
 )
+from mtg_utils._deck_forge.bridge_ledger import bridge_signals
 from mtg_utils._deck_forge.lanes._shared import (
     _ATTACHMENT_PREDS,
     _CAST_FROM_EXILE_PERMS,
@@ -230,7 +231,6 @@ from mtg_utils._deck_forge.lanes.core_makers import (
     GrantPayload,
     _chosen_type_matters,
     _chosen_type_serve_statics,
-    _combat_choice_makers,
     _damage_for_each,
     _death_matters,
     _direct_damage,
@@ -550,7 +550,6 @@ from mtg_utils._deck_forge.lanes.protection_and_sweep import (
     _meld_pair,
     _miracle_grant,
     _named_counter_misc,
-    _named_synergy,
     _noncombat_damage_payoff,
     _nonhuman_attackers,
     _one_punch,
@@ -1041,7 +1040,6 @@ __all__ = [
     "_color_change",
     "_color_hoser",
     "_combat_buff_engine",
-    "_combat_choice_makers",
     "_combat_damage_lanes",
     "_combat_damage_to_opp",
     "_combat_damage_to_opp_fires",
@@ -1256,7 +1254,6 @@ __all__ = [
     "_modified_matters",
     "_monarch",
     "_named_counter_misc",
-    "_named_synergy",
     "_negative_pt_field",
     "_nested_emblem_tutor_put",
     "_nested_grant_reveal_or_hand_put",
@@ -1457,6 +1454,9 @@ _LANES = (
     + _REMOVAL_TUTORS_LANES
     + _PROTECTION_AND_SWEEP_LANES
     + _TRIGGERS_DAMAGE_LANES_W8
+    # ADR-0048: every ledgered bridge fires through this one lane; no lane names
+    # a bridge id, so retiring a bridge is deleting its ledger row.
+    + (bridge_signals,)
     + _PROTECTION_AND_SWEEP_LANES_TAIL
 )
 

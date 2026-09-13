@@ -104,3 +104,42 @@ def test_ledger_hygiene():
             assert pin in cards or pin in text_only_faces, (
                 f"{bridge_id}: pin {pin!r} not in fixture"
             )
+
+
+# ── ADR-0048: the row owns its emission; no lane names a bridge ──────────────────
+
+_VALID_SCOPES = {"you", "opponents", "each", "any"}
+
+
+def test_every_row_serves_a_manifest_key_with_a_valid_scope():
+    from mtg_utils._deck_forge.lanes.manifest import SERVED_SIGNAL_KEYS
+
+    for bridge_id, b in BRIDGES.items():
+        assert b.key in SERVED_SIGNAL_KEYS, f"{bridge_id}: key {b.key!r} is not served"
+        assert b.scope in _VALID_SCOPES, f"{bridge_id}: scope {b.scope!r}"
+
+
+def test_no_lane_names_a_bridge_id():
+    """Retiring a bridge is deleting its row: the lanes package may not contain a
+    bridge id literal anywhere (the one ``bridge_signals`` lane fires every row)."""
+    from mtg_utils._deck_forge import lanes
+
+    lanes_dir = Path(lanes.__file__).parent
+    for path in lanes_dir.glob("*.py"):
+        text = path.read_text(encoding="utf-8")
+        for bridge_id in BRIDGES:
+            assert f'"{bridge_id}"' not in text, f"{path.name} names {bridge_id!r}"
+
+
+def test_bridge_signals_emits_the_row_for_every_pin():
+    from mtg_utils._deck_forge.bridge_ledger import bridge_signals, bridges_for
+
+    for b in BRIDGES.values():
+        assert b in bridges_for(b.key)
+        for pin in b.pins:
+            sigs = bridge_signals(_tree(pin))
+            assert any(s.key == b.key and s.scope == b.scope for s in sigs), (
+                f"{b.bridge_id}: no {b.key}/{b.scope} signal for {pin!r}"
+            )
+            if b.quote_oracle:
+                assert any(s.key == b.key and s.text for s in sigs)

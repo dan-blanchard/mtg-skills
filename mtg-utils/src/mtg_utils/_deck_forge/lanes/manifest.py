@@ -112,7 +112,7 @@ SERVED_SIGNAL_KEYS: frozenset[str] = frozenset(
         # task B-5 (2026-07-16 study): combat puppeteers — you make
         # opponents' attack/block declarations (CR 508.1a / 509.1a);
         # bridge-only (phase has no typed choose-combat node) — see
-        # `_combat_choice_makers`'s docstring.
+        # the `combat_choice_unimplemented_choose` ledger row (ADR-0048).
         "combat_choice_makers",
         "regenerate_makers",
         "lifeloss_makers",

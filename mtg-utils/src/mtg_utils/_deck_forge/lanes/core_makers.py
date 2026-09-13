@@ -47,8 +47,6 @@ from mtg_utils._deck_forge import signal_keys
 from mtg_utils._deck_forge._subtypes import CREATURE_SUBTYPES
 from mtg_utils._deck_forge.bridge_ledger import (
     KEEP_N_CHOOSE_TYPES,
-    KNW_REST_RX,
-    bridge_fires,
     keep_n_shape_b_reads,
 )
 from mtg_utils._deck_forge.lanes._shared import (
@@ -447,8 +445,6 @@ def _land_creatures_matter(tree: ConceptTree) -> list[Signal]:
       (Hidden Stag — an Enchantment/Creature flip-flop, not a land ever
       becoming a creature) is a legacy text-mention over-fire.
     """
-    if bridge_fires("land_creatures_condition_reference_dropped", tree):
-        return [Signal("land_creatures_matter", "you", "", "", tree.name, "high")]
     # ADR-0039 task #82 grammar sprint: the former ledgered bridges read a
     # bucket-B ``tree_synthesis`` sweep arm instead of a text-anchored
     # bridge — see the "land_creatures_matter grammar-sprint stragglers"
@@ -1654,13 +1650,6 @@ def _keep_n_wrath(tree: ConceptTree) -> list[Signal]:
                     push("each", c.raw or "")
     for scope, raw in keep_n_shape_b_reads(tree):
         push(scope, raw)
-    # Cheap text pre-gate before the bridge (verified-review F10): the gap's
-    # chain walk re-walks every unit, and >99.9% of the pool can be excluded
-    # by the rest-clause regex alone.
-    if KNW_REST_RX.search(tree.oracle or "") and bridge_fires(
-        "keep_n_wrath_unimplemented_choose", tree
-    ):
-        push("each", tree.oracle or "")
     return out
 
 
@@ -1694,41 +1683,6 @@ def _spell_redirect(tree: ConceptTree) -> list[Signal]:
             target = getattr(c.node, "target", None)
             if any(tag_of(n) == "StackSpell" for n in iter_typed_nodes(target)):
                 return [Signal("spell_redirect", "you", "", c.raw, tree.name, "high")]
-    return []
-
-
-# ── task B-5: combat_choice_makers — you make opponents' combat choices ─────
-def _combat_choice_makers(tree: ConceptTree) -> list[Signal]:
-    """combat_choice_makers — cards that transfer combat DECLARATION choices
-    to you (task B-5, 2026-07-16 study): Master Warcraft, Odric Master
-    Tactician, Melee, Brutal Hordechief's activated arm, Berserker's
-    Frenzy's 15-20 die-roll arm.
-
-    Normally the active player chooses attackers (CR 508.1a) and the
-    defending player chooses blockers (CR 509.1a); these cards hand those
-    choices to YOU — the forced-combat deck's control instrument, distinct
-    from goad (goad_makers: the creature must attack but its controller
-    still declares) and from forced attack/block WITHOUT choice (Fumiko's
-    MustAttack static, War's Toll, the ForceBlock arm).
-
-    Bridge-only: phase has no typed choose-attackers/choose-blockers node —
-    all 5 corpus members park the clause as Unimplemented residue (census
-    5 / 35,397 records, zero false positives at v0.23.0), so the lane rides
-    the ledgered ``combat_choice_unimplemented_choose`` row and retires
-    into a structural read when phase grows the node. Scope "opponents"
-    uniformly (the goad_makers precedent — the choice is exercised over
-    opponents' combat decisions)."""
-    if bridge_fires("combat_choice_unimplemented_choose", tree):
-        return [
-            Signal(
-                "combat_choice_makers",
-                "opponents",
-                "",
-                tree.oracle or "",
-                tree.name,
-                "high",
-            )
-        ]
     return []
 
 
@@ -1977,32 +1931,6 @@ def _direct_damage(tree: ConceptTree) -> list[Signal]:
     for c in tree.iter_concepts():
         if c.concept == "synth_direct_damage_dropped_grant":
             return [Signal("direct_damage", "you", "", "", tree.name, "high")]
-    # ADR-0039 W7 ledgered bridges — the residual dropped-clause / upstream-
-    # parse-failure bucket (bridge_ledger.py rows, docstring there for the
-    # full corpus accounting):
-    for bridge_id in (
-        "vexing_arcanix_reveal_misread_damage_drop",
-        "curse_shaken_faith_enchant_player_them",
-        "flames_blood_hand_headline_clause_drop",
-        # valakut_exploration_trailing_clause_drop RETIRED at the v0.66.0
-        # pin bump — phase-rs/phase#7047 (v0.48.0) landed the trailing
-        # "then ~ deals that much damage to each opponent" clause as a
-        # SequentialSibling-chained ``DamageEachPlayer``, read structurally
-        # by :func:`has_nested_damage_reaching_player` above.
-        "avatar_aang_conjunction_tail_drop",
-        "insult_injury_aftermath_face_unparsed",
-        "karn_living_legacy_emblem_tap_cost_damage",
-        "captain_rex_nebula_crash_land_final_step_drop",
-        "ellie_vengeful_hunter_damage_half_dropped",
-        "kaboom_trailing_clause_drop",
-        "kicker_ptplayer_modal_new_target",
-        # v0.66.0 pin bump — a planeswalker emblem's "this emblem deals N
-        # damage to any target" self-referenced source regressed upstream
-        # to an unbound_subject residue (CR 114.1 / 115.4).
-        "emblem_self_reference_damage_unbound_subject",
-    ):
-        if bridge_fires(bridge_id, tree):
-            return [Signal("direct_damage", "you", "", "", tree.name, "high")]
     return []
 
 
@@ -2148,7 +2076,6 @@ LANES = (
     _damage_for_each,
     _keep_n_wrath,
     _spell_redirect,
-    _combat_choice_makers,
     _direct_damage,
     _landfall,
 )

@@ -38,7 +38,6 @@ from mtg_utils._card_ir.mirror.runtime import (
     MirrorVariant,
     TypedMirrorNode,
 )
-from mtg_utils._deck_forge.bridge_ledger import bridge_fires
 from mtg_utils._deck_forge.lanes._shared import (
     _ATTACHMENT_PREDS,
     _DYNAMIC_PT_MODS,
@@ -993,22 +992,6 @@ def _plus_one_matters(tree: ConceptTree) -> list[Signal]:
                 continue
             if "P1P1" in counter_pred_kinds(filt):
                 return [Signal("plus_one_matters", "you", "", c.raw, tree.name, "high")]
-    # LEDGERED BRIDGES (ADR-0039 W8/grammar sprint task #82): 2 corpus-
-    # verified singleton gaps the structural arms above genuinely can't
-    # reach yet — a static parser failure (Rock Hydra,
-    # upstream_parse_failure) and a phase encoding with no counter-kind
-    # field at all (Hierophant Bio-Titan's ModifyCost/PreviousEffectAmount,
-    # dropped_clause). Rumbling Ruin / Deepwood Denizen (recovered-node
-    # arms above) and Tetravus (the counter-to-token pairing arm above)
-    # graduated off the bridge list this sprint. Each gap-gated +
-    # corpus-bounded + self-retiring; the full rows live in
-    # ``bridge_ledger.BRIDGES``.
-    for bridge_id in (
-        "plus_one_rock_hydra_static_parse_failure",
-        "plus_one_hierophant_previouseffectamount_dropped_kind",
-    ):
-        if bridge_fires(bridge_id, tree):
-            return [Signal("plus_one_matters", "you", "", "", tree.name, "high")]
     return []
 
 
@@ -1398,22 +1381,6 @@ def _resource_token_makers(tree: ConceptTree) -> list[Signal]:
                 out.append(key)
     if tree.has_effect("investigate"):
         out.append("clue_makers")
-    # LEDGERED BRIDGES (Blood-token gap sweep, 2026-07-25): the concept
-    # decoration only walks the top-level effect chain, so a ChooseOneOf
-    # BRANCH's typed Token (Transmutation Font's Blood/Clue/Food choice
-    # list; Odric, Blood-Cursed's Unimplemented('create') residue rides the
-    # blood row's second match arm) and a GrantTrigger-granted trigger's
-    # typed Token (Ceremonial Knife) never surface as make_token concepts.
-    # Gap-gated + corpus-bounded + self-retiring; full rows in
-    # ``bridge_ledger.BRIDGES``.
-    for bridge_id, key in (
-        ("choice_list_token_maker_blood", "blood_makers"),
-        ("choice_list_token_maker_clue", "clue_makers"),
-        ("choice_list_token_maker_food", "food_makers"),
-        ("granted_trigger_blood_token_maker", "blood_makers"),
-    ):
-        if bridge_fires(bridge_id, tree):
-            out.append(key)
     seen: set[str] = set()
     sigs: list[Signal] = []
     for key in out:
@@ -1905,21 +1872,6 @@ def _voltron_matters(tree: ConceptTree) -> list[Signal]:
             if filt is not None and (set(filter_predicates(filt)) & _ATTACHMENT_PREDS):
                 raw = _site_raw(sdef)
                 return [Signal("voltron_matters", "you", "", raw, tree.name, "high")]
-    # ADR-0039 W7 ledgered bridges — the residual dropped-clause bucket
-    # (bridge_ledger.py rows, docstring there for the full corpus
-    # accounting): an attachment-count scaling clause dropped to a bare
-    # Fixed value (Animal Friend / Sage's Reverie — Judgment Bolt's
-    # scaling structured upstream at the v0.35.2 bump and left the row's
-    # pins), a trigger condition surviving only in description text
-    # (Warchanter Skald), and an unlinked equip-cost alternative-payment
-    # PayCost (Forge Anew).
-    for bridge_id in (
-        "voltron_attach_count_scaling_dropped",
-        "warchanter_skald_condition_dropped",
-        "forge_anew_equip_cost_paycost_unlinked",
-    ):
-        if bridge_fires(bridge_id, tree):
-            return [Signal("voltron_matters", "you", "", "", tree.name, "high")]
     return []
 
 

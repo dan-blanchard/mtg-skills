@@ -44,7 +44,6 @@ from mtg_utils._card_ir.mirror.runtime import (
 )
 from mtg_utils._card_ir.text_idioms import _SINGLE_PERMANENT_GRANT_PREDS
 from mtg_utils._deck_forge._sweep_detectors import DISCARD_OUTLET_REGEX
-from mtg_utils._deck_forge.bridge_ledger import bridge_fires
 from mtg_utils._deck_forge.lanes._shared import (
     _DEBUFF_SINGLE_AURA_PREDS,
     _DYNAMIC_PT_MODS,
@@ -1252,14 +1251,6 @@ def _resource_token_matters(tree: ConceptTree) -> list[Signal]:
                 key = _SAC_TOKEN_MATTERS.get(st.lower())
                 if key:
                     fire(key, "")
-    # LEDGERED BRIDGE (Blood-token gap sweep, 2026-07-25): a "whenever you
-    # sacrifice one or more Blood tokens" PAYOFF lives on the trigger's own
-    # ``valid_card`` subject (Blood Hypnotist — typed substrate complete,
-    # mode='Sacrificed' + Typed(Blood)); this lane has no Sacrificed-trigger
-    # subject arm yet, so the read rides a gap-gated bridge until the
-    # grammar sprint grows one. Full row in ``bridge_ledger.BRIDGES``.
-    if bridge_fires("blood_sacrificed_trigger_payoff", tree):
-        fire("blood_matters", "")
     return out
 
 
@@ -2218,16 +2209,6 @@ def _cheat_into_play(tree: ConceptTree) -> list[Signal]:
     # text match.
     if tree.has_effect("synth_cheat_reveal_or_put_battlefield"):
         return [Signal("cheat_into_play", "you", "", "", tree.name, "high")]
-    # ADR-0039 W7 ledgered bridges — the residual grammar-straggler /
-    # dropped-clause / upstream-parse-failure bucket (bridge_ledger.py rows,
-    # docstring there for the full corpus accounting):
-    for bridge_id in (
-        "cheat_dropped_clause_zero_residue",
-        "cheat_kept_destination_hand_misparse",
-        "cheat_modal_mode_unsupported_qualifier",
-    ):
-        if bridge_fires(bridge_id, tree):
-            return [Signal("cheat_into_play", "you", "", "", tree.name, "high")]
     return []
 
 

@@ -47,7 +47,6 @@ from mtg_utils._card_ir.mirror.runtime import (
     TypedMirrorNode,
 )
 from mtg_utils._card_ir.text_idioms import _CAST_FROM_EXILE_P
-from mtg_utils._deck_forge.bridge_ledger import bridge_fires
 from mtg_utils._deck_forge.lanes._shared import (
     _CAST_FROM_EXILE_PERMS,
     _GY_CAST_KEYWORDS,
@@ -1589,12 +1588,6 @@ def _opponent_discard(tree: ConceptTree) -> list[Signal]:
             return [Signal("opponent_discard", "each", "", "", tree.name, "high")]
         if _TEXT_ONLY_OPP_DISCARD_RX.search(kept):
             return [Signal("opponent_discard", "opponents", "", "", tree.name, "high")]
-        # Driven // Despair's "Despair" half (bridge_ledger.py row, its
-        # own module comment for the corpus census) — a "that player"
-        # back-reference the pre-existing text-only sweep above
-        # deliberately doesn't anchor.
-        if bridge_fires("opp_discard_driven_despair_missing_face", tree):
-            return [Signal("opponent_discard", "opponents", "", "", tree.name, "high")]
         return []
 
     out: list[Signal] = []
@@ -1774,27 +1767,6 @@ def _opponent_discard(tree: ConceptTree) -> list[Signal]:
             out.append(
                 Signal("opponent_discard", "opponents", "", "", tree.name, "high")
             )
-    # ADR-0039 W7 BRIDGES wave — the residual dropped-clause / upstream-
-    # parse-failure bucket (bridge_ledger.py rows, each row's own module
-    # comment for the full corpus accounting). The grammar sprint (task
-    # #82) PROMOTED the three grammar_straggler rows this bucket used to
-    # carry off text-residue ``bridge_fires`` reads onto real structure —
-    # all three now resolve in-line inside ``fire()``'s own fallback
-    # chain above (the ``_OPP_DISCARD_SCALING_PREFIX_RX`` /
-    # ``_OPP_DISCARD_REPLACEMENT_NEXT_TIME_RX`` / combat-damage-trigger
-    # branches, each with its own comment) and are retired from BRIDGES.
-    if "opponents" not in seen:
-        for bridge_id in (
-            "opp_discard_unless_clause",
-            "opp_discard_tk_sticker_parse_failure",
-            "opp_discard_fungal_shambler_dropped_conjunct",
-            "opp_discard_mindculling_dropped_conjunct",
-        ):
-            if bridge_fires(bridge_id, tree):
-                out.append(
-                    Signal("opponent_discard", "opponents", "", "", tree.name, "high")
-                )
-                break
     return out
 
 
@@ -1884,8 +1856,6 @@ def _extra_combats(tree: ConceptTree) -> list[Signal]:
     for c in tree.effect_concepts("extra_phase"):
         if additional_phase_kind(c.node) in _COMBAT_PHASES:
             return [Signal("extra_combats", "you", "", c.raw, tree.name, "high")]
-    if bridge_fires("illusionists_gambit_additional_combat_swallowed", tree):
-        return [Signal("extra_combats", "you", "", "", tree.name, "high")]
     return []
 
 
@@ -2047,11 +2017,6 @@ def _donate_makers(tree: ConceptTree) -> list[Signal]:
                 and "Owned" not in filter_predicates(sub)
             ):
                 return [Signal("donate_makers", "you", "", c.raw, tree.name, "high")]
-    # phase v0.66.0 pin bump — the "the player who/with <superlative> gains
-    # control of ~" give-away regressed upstream to an unbound_subject
-    # residue (bridge_ledger.py row for the corpus census). CR 110.2.
-    if bridge_fires("donate_superlative_player_unbound_subject", tree):
-        return [Signal("donate_makers", "you", "", "", tree.name, "high")]
     return []
 
 

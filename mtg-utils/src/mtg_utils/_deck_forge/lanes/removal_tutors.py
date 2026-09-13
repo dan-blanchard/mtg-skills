@@ -39,7 +39,6 @@ from mtg_utils._card_ir.mirror.runtime import (
 )
 from mtg_utils._card_ir.text_idioms import _LIB_SEARCH_PLAYER_ACTIONS
 from mtg_utils._deck_forge import signal_keys
-from mtg_utils._deck_forge.bridge_ledger import bridge_fires
 from mtg_utils._deck_forge.lanes._shared import (
     _PERMANENT_TYPES,
     _RETURN_TARGET_TAGS,
@@ -877,12 +876,6 @@ def _removal(tree: ConceptTree) -> list[Signal]:
             if change_zone_dirs(c.node)[1] != "Graveyard":
                 continue
             return [Signal("removal", "you", "", c.raw, tree.name, "high")]
-    # phase v0.66.0 pin bump — the per-source "each <X> … deals damage equal
-    # to its power to target creature" rider regressed upstream to an
-    # each_source_unrepresentable_rider residue (Master of the Wild Hunt;
-    # bridge_ledger.py row for the census). CR 120.3 / 701.8a.
-    if bridge_fires("removal_each_source_power_rider", tree):
-        return [Signal("removal", "you", "", "", tree.name, "high")]
     return []
 
 
