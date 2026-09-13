@@ -1,7 +1,7 @@
 """Convergence hook for the ledgered bridges (ADR-0039).
 
 A ledgered bridge is a gap-gated, corpus-bounded, self-retiring text read
-(``mtg_utils._deck_forge.bridge_ledger``). This suite is the mechanism that
+(``mtg_utils._analysis.bridge_ledger``). This suite is the mechanism that
 keeps every bridge visible until it retires:
 
 * ``gap`` goes False on a pinned card → the typed substrate now carries the
@@ -23,10 +23,10 @@ from pathlib import Path
 
 import pytest
 
+from mtg_utils._analysis.bridge_ledger import BRIDGE_KINDS, BRIDGES
 from mtg_utils._card_ir.crosswalk import ConceptTree, build_concept_tree
 from mtg_utils._card_ir.mirror import strict_load_card
 from mtg_utils._card_ir.mirror.build import fixtures_dir, load_committed_schema
-from mtg_utils._deck_forge.bridge_ledger import BRIDGE_KINDS, BRIDGES
 
 FIXTURE = "crosswalk_fixture_cards.json"
 
@@ -112,7 +112,7 @@ _VALID_SCOPES = {"you", "opponents", "each", "any"}
 
 
 def test_every_row_serves_a_manifest_key_with_a_valid_scope():
-    from mtg_utils._deck_forge.lanes.manifest import SERVED_SIGNAL_KEYS
+    from mtg_utils._analysis.lanes.manifest import SERVED_SIGNAL_KEYS
 
     for bridge_id, b in BRIDGES.items():
         assert b.key in SERVED_SIGNAL_KEYS, f"{bridge_id}: key {b.key!r} is not served"
@@ -122,7 +122,7 @@ def test_every_row_serves_a_manifest_key_with_a_valid_scope():
 def test_no_lane_names_a_bridge_id():
     """Retiring a bridge is deleting its row: the lanes package may not contain a
     bridge id literal anywhere (the one ``bridge_signals`` lane fires every row)."""
-    from mtg_utils._deck_forge import lanes
+    from mtg_utils._analysis import lanes
 
     lanes_dir = Path(lanes.__file__).parent
     for path in lanes_dir.glob("*.py"):
@@ -132,7 +132,7 @@ def test_no_lane_names_a_bridge_id():
 
 
 def test_bridge_signals_emits_the_row_for_every_pin():
-    from mtg_utils._deck_forge.bridge_ledger import bridge_signals, bridges_for
+    from mtg_utils._analysis.bridge_ledger import bridge_signals, bridges_for
 
     for b in BRIDGES.values():
         assert b in bridges_for(b.key)

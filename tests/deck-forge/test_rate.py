@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import pytest
 
-from mtg_utils._deck_forge.rate import (
+from mtg_utils._analysis.rate import (
     RateIndex,
     build_rate_index,
     effect_metric,

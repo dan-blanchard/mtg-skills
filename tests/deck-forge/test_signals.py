@@ -12,7 +12,7 @@ here now asserts against the production ``extract_signals`` path via the
 ``testkit`` real-card fixtures, never a hand-built synthetic ``Card`` IR.
 """
 
-from mtg_utils._deck_forge.signal_base import Signal
+from mtg_utils._analysis.signal_base import Signal
 from mtg_utils.testkit import test_signals
 
 

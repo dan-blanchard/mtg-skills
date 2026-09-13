@@ -9,7 +9,8 @@ the expected color identity during authoring. Tests here use synthetic records (
 network / bulk — same constraint as the rest of the suite).
 """
 
-from mtg_utils._deck_forge import engine, staples
+from mtg_utils._analysis import staples
+from mtg_utils._deck_forge import engine
 from mtg_utils._deck_forge.state import DeckSession, ForgeState
 from mtg_utils.formats import FORMATS
 

@@ -6,9 +6,10 @@ import pytest
 from fastapi.testclient import TestClient
 
 from mtg_utils import theme_presets
+from mtg_utils._card_ir import compat_lookup as _ir_lookup
 from mtg_utils._card_ir import trees
 from mtg_utils._card_ir.crosswalk import ConceptTree
-from mtg_utils._deck_forge import _ir_lookup, engine
+from mtg_utils._deck_forge import engine
 from mtg_utils._deck_forge.app import build_app
 from mtg_utils._deck_forge.state import DeckSession, ForgeState
 from mtg_utils.card_ir import Card, Face

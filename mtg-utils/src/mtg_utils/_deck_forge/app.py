@@ -22,8 +22,8 @@ from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
+from mtg_utils._analysis.budgets import slot_budgets
 from mtg_utils._deck_forge import collection, engine, views
-from mtg_utils._deck_forge.budgets import slot_budgets
 from mtg_utils._deck_forge.engine import DeckRuleError
 from mtg_utils._deck_forge.state import DeckSession, ForgeState
 from mtg_utils._tuner.tune import tune as run_tune

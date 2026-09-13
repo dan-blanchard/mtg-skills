@@ -19,7 +19,7 @@ def main(argv: list[str] | None = None) -> int:
     idents sidecar for the default bulk file (``bulk_loader.default_bulk_path``)."""
     import argparse
 
-    from mtg_utils._deck_forge.signals_index import load_signals_index
+    from mtg_utils._analysis.signals_index import load_signals_index
     from mtg_utils.bulk_loader import default_bulk_path
 
     parser = argparse.ArgumentParser(

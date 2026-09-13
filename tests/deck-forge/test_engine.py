@@ -182,7 +182,7 @@ def test_signal_freq_reads_persisted_index_without_live_compute(monkeypatch):
     st = _commander_state(bulk_path=Path("/fake/AllPrintings.json"))
     fake_index = {"oid-fake-cmd": ("ramp|you|",)}
     monkeypatch.setattr(
-        "mtg_utils._deck_forge.signals_index.load_signals_index",
+        "mtg_utils._analysis.signals_index.load_signals_index",
         lambda path: fake_index if path == st.bulk_path else None,
     )
 
@@ -200,7 +200,7 @@ def test_signal_freq_falls_back_to_live_compute_without_a_sidecar(monkeypatch):
     st = _commander_state(bulk_path=None)  # no bulk -> load_signals_index(None) -> None
 
     def fake_extract(rec, *_args, **_kwargs):
-        from mtg_utils._deck_forge.signals import Signal
+        from mtg_utils._analysis.signals import Signal
 
         return [Signal("ramp", "you", "", "", rec.get("name", ""), "high")]
 
@@ -219,7 +219,7 @@ def test_signal_freq_caches_per_format_on_state(monkeypatch):
     calls = []
 
     def fake_extract(rec, *_args, **_kwargs):
-        from mtg_utils._deck_forge.signals import Signal
+        from mtg_utils._analysis.signals import Signal
 
         calls.append(rec["name"])
         return [Signal("ramp", "you", "", "", rec.get("name", ""), "high")]

@@ -11,7 +11,7 @@ Those gates were therefore dead in production while passing their own unit tests
 asserting the classifiers against records that have actually been through hydration.
 """
 
-from mtg_utils._deck_forge.text_reads import _VOLTRON_TOKEN_MAKE_RE  # noqa: F401
+from mtg_utils._analysis.text_reads import _VOLTRON_TOKEN_MAKE_RE  # noqa: F401
 from mtg_utils._tuner.metrics import _is_wincon_card
 from mtg_utils.card_classify import card_pt_int
 from mtg_utils.scryfall_lookup import lookup_single

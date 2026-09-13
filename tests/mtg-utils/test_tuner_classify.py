@@ -1,7 +1,7 @@
 """Spine / Engine / Filler / land / commander classification (tuner substrate)."""
 
 from mtg_utils import testkit
-from mtg_utils._deck_forge.signals import rank_deck_signals, tribal_payoff_subjects
+from mtg_utils._analysis.signals import rank_deck_signals, tribal_payoff_subjects
 from mtg_utils._tuner.classify import FRINGE_RANK, classify_deck, is_fringe
 from mtg_utils.hydrated_deck import HydratedDeck
 
@@ -106,7 +106,7 @@ def test_serving_protection_card_buckets_spine_not_engine():
     # — and the stranded-cut pass then cut it WHILE the scorecard flagged the deck
     # protection-short. Protection must outrank generic avenue-serving (classify
     # docstring: "protection is conditional Spine (Tier-2), never filler").
-    from mtg_utils._deck_forge.signals import Signal
+    from mtg_utils._analysis.signals import Signal
 
     heroic = {
         "name": "Heroic Intervention",
@@ -297,8 +297,8 @@ def test_ranked_signals_and_payoffs_extracts_once_per_card(monkeypatch):
     # and the two public helpers each ran the full per-card extraction loop —
     # doubling a cold tune's lane-pass cost. The combined read does one pass
     # and must return exactly what the two separate calls return.
-    import mtg_utils._deck_forge.signals as signals_mod
-    from mtg_utils._deck_forge.signals import ranked_signals_and_payoffs
+    import mtg_utils._analysis.signals as signals_mod
+    from mtg_utils._analysis.signals import ranked_signals_and_payoffs
 
     deck = {
         "format": "commander",

@@ -10,8 +10,8 @@ from __future__ import annotations
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 
-from mtg_utils._deck_forge.budgets import slot_budgets
-from mtg_utils._deck_forge.signals import ranked_signals_and_payoffs
+from mtg_utils._analysis.budgets import slot_budgets
+from mtg_utils._analysis.signals import ranked_signals_and_payoffs
 from mtg_utils._tuner import commander_fit, grant_coverage, metrics
 from mtg_utils._tuner import swaps as swaps_mod
 from mtg_utils._tuner.bracket import bracket_gate

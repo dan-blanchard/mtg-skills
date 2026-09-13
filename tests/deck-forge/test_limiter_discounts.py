@@ -17,11 +17,11 @@ import inspect
 
 import pytest
 
-from mtg_utils._deck_forge.limiter_discounts import (
+from mtg_utils._analysis.limiter_discounts import (
     DISCOUNT_COEFFICIENTS,
     limiter_discount_fn,
 )
-from mtg_utils._deck_forge.pair_reads import (
+from mtg_utils._analysis.pair_reads import (
     build_pair_context,
     pair_score,
 )
@@ -82,8 +82,8 @@ def test_tap_cost_discount_applies():
 def test_once_per_turn_reads_the_constraint_tag():
     # Donal's copy trigger reads "Do this only once each turn" — the
     # OncePerTurn constraint tag is structurally readable on the unit.
+    from mtg_utils._analysis.limiter_discounts import _has_once_per_turn
     from mtg_utils._card_ir.trees import trees_for
-    from mtg_utils._deck_forge.limiter_discounts import _has_once_per_turn
 
     test_card_ir("Donal, Herald of Wings")
     units = [

@@ -18,9 +18,9 @@ from pathlib import Path
 
 import click
 
-from mtg_utils._deck_forge.pair_reads import build_pair_context
-from mtg_utils._deck_forge.ranking import rank_candidates
-from mtg_utils._deck_forge.signals import ranked_signals_and_payoffs
+from mtg_utils._analysis.pair_reads import build_pair_context
+from mtg_utils._analysis.ranking import rank_candidates
+from mtg_utils._analysis.signals import ranked_signals_and_payoffs
 from mtg_utils._tuner import metrics
 from mtg_utils._tuner.classify import classify_deck
 from mtg_utils.card_classify import type_line_has

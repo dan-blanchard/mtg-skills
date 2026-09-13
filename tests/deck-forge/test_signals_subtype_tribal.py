@@ -16,9 +16,9 @@ subject) call ``_resolve_subject`` directly — the exact vocabulary gate that u
 to be probed indirectly through a synthetic no-oracle_id dict (which, post ADR-0039,
 resolves to no concept trees and can't reach this logic at all)."""
 
-from mtg_utils._deck_forge._subtypes import CREATURE_SUBTYPES
-from mtg_utils._deck_forge.signal_base import _resolve_subject
-from mtg_utils._deck_forge.signals import coverage_gate
+from mtg_utils._analysis._subtypes import CREATURE_SUBTYPES
+from mtg_utils._analysis.signal_base import _resolve_subject
+from mtg_utils._analysis.signals import coverage_gate
 from mtg_utils.testkit import test_card, test_signals
 
 

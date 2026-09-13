@@ -14,10 +14,10 @@ import math
 import re
 from collections.abc import Sequence
 
-from mtg_utils._deck_forge import signal_keys
-from mtg_utils._deck_forge._ir_lookup import ir_for
-from mtg_utils._deck_forge.budgets import protects
-from mtg_utils._deck_forge.signal_specs import spec_for
+from mtg_utils._analysis import signal_keys
+from mtg_utils._analysis.budgets import protects
+from mtg_utils._analysis.signal_specs import spec_for
+from mtg_utils._card_ir.compat_lookup import ir_for
 from mtg_utils._tuner.classify import CardClass, is_fringe
 from mtg_utils.card_classify import card_pt_int, is_creature
 from mtg_utils.card_ir import Card

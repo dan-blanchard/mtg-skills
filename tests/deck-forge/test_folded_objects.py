@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import pytest
 
-from mtg_utils._deck_forge.signals import (
+from mtg_utils._analysis.signals import (
     folded_object_records,
     rank_deck_signals,
 )

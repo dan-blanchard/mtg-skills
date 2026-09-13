@@ -2,7 +2,7 @@
 
 import pytest
 
-from mtg_utils._deck_forge.budgets import (
+from mtg_utils._analysis.budgets import (
     _ir_board_wipe,
     _ir_draws,
     protects,
@@ -601,7 +601,7 @@ def test_ir_recursion_only_vetoes_pure_graveyard_return():
     # the "X or Y card" form their (?!\s+card\b) anchor can't exclude. A battlefield
     # bounce, a -X/-X shrink, a tuck, or any destroy/edict means a real answer → not
     # vetoed. Needs SIDECAR v76 per-effect graveyard zones (no sibling bleed).
-    from mtg_utils._deck_forge.budgets import _ir_recursion_only
+    from mtg_utils._analysis.budgets import _ir_recursion_only
 
     def _gy(*zones):
         return Card(
@@ -658,7 +658,7 @@ def test_ir_redirect_is_structural():
     # protects() reads that structurally instead of the "change the target / choose new
     # targets" regex (kept as the no-IR fallback — Misdirection/Deflecting Swat have no
     # oracle_id in the test record, so the regex still covers the inline-dict test above).
-    from mtg_utils._deck_forge.budgets import _ir_redirect
+    from mtg_utils._analysis.budgets import _ir_redirect
 
     assert _ir_redirect(_ir_effect(category="redirect")) is True
     assert _ir_redirect(_ir_effect(category="destroy")) is False

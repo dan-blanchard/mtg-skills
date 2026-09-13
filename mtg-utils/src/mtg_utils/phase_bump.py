@@ -479,7 +479,7 @@ def step_impostor_census(ctx: BumpContext) -> None:
 
 
 def _signals_pkl(ctx: BumpContext) -> Path | None:
-    from mtg_utils._deck_forge.signals_index import _sidecar_path
+    from mtg_utils._analysis.signals_index import _sidecar_path
     from mtg_utils.bulk_loader import default_bulk_path
 
     bulk = ctx.bulk_path or default_bulk_path()

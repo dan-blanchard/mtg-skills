@@ -24,7 +24,7 @@ live in [`archive/`](archive/).
 | 0018 | deck-forge collections are global, two medium-keyed slots, derived ownership | slot keyed by medium (paper/arena), not format |
 | 0019 | deck-forge partner ranking is widening-primary and strict-tiered | color-identity widening before synergy |
 | 0022 | One Scryfall name-index core: NFKD-folded lookups, consistent DFC handling | one keying core (`alias_keys`/`NameIndex`); mark_owned and deck-forge's build_by_name both consolidated onto it |
-| 0023 | A shared, deterministic tuning core (HydratedDeck → scorecard + swaps) | the engine `/api/tune` and deck-wizard both call |
+| 0023 | A shared, deterministic tuning core (HydratedDeck → scorecard + swaps) | the engine `/api/tune` and deck-wizard both call; its signals-home deferral closed by ADR-0050 |
 | 0024 | Win-conditions and protection are Shape-scaled advisory flags | not hard-counted roles; ADR-0030's bracket gate is a separate permission question |
 | 0025 | A commander's signal extraction folds in the referenced objects its plan brings into play | |
 | 0026 | deck-forge splits fused payoff/source specs into separate avenues | |
@@ -45,3 +45,4 @@ live in [`archive/`](archive/).
 | 0047 | One owner for the decorated concept tree: two products, no stage re-applied | `_card_ir.trees` composes the substrate stages once; `trees_for` (corrected) for structural readers, `signal_trees_for` (+ synthesis) for lanes and presets; `tree_synthesis` lives in `_deck_forge` |
 | 0048 | The bridge ledger owns bridge emission: a bridge is one row | `Bridge.scope` + `Bridge.signal`; one `bridge_signals` lane fires every row; no lane names a bridge id (test-enforced); `bridges_for(key)` |
 | 0049 | The phase pin bump is one command | `bump-phase-pin <tag>`: edits the pin and the generated rosters, regenerates every artifact, writes one triage report (census, per-key signal diff, RETIRE-READY rows) |
+| 0050 | The deck-analysis substrate is a neutral package, not deck-forge's | `mtg_utils/_analysis/` (signals, lanes, specs, bridges, synthesis, floor, budgets, ranking, rate, staples); `_deck_forge` is the hub only; `ir_for` in `_card_ir`; closes ADR-0023's deferral; `SwapContext` |

@@ -37,7 +37,7 @@ new entry in the curated ``PRESETS`` dict.
 # Structural views (task #83, ADR-0035/0039)
 
 A regex/keyword preset is a hand-rolled SECOND detector shadowing the
-production signal extractor (``mtg_utils._deck_forge.signals.
+production signal extractor (``mtg_utils._analysis.signals.
 extract_signals``, the crosswalk read over phase-rs's parse). Per
 Dan's directive (2026-07-12), presets are being migrated one lane at a
 time into DECLARATIVE VIEWS over that extractor's own output — never a
@@ -219,7 +219,7 @@ def _signal_keys_for(card: dict) -> frozenset[str]:
     whose oracle_id resolves to no phase parse at all — a structural-view
     preset just never matches such a card, exactly like the ``keywords`` /
     ``patterns`` arms matching nothing on a card missing the field they
-    read. Imports ``mtg_utils._deck_forge.signals`` LAZILY inside the
+    read. Imports ``mtg_utils._analysis.signals`` LAZILY inside the
     function body (never at module import time): a top-level import here
     would risk an import-time cycle racing partial module initialization
     the first time either module loads, so the lazy import stays as a
@@ -231,7 +231,7 @@ def _signal_keys_for(card: dict) -> frozenset[str]:
     cached = _SIGNAL_KEY_INDEX.get(oid)
     if cached is not None:
         return cached
-    from mtg_utils._deck_forge.signals import extract_signals
+    from mtg_utils._analysis.signals import extract_signals
 
     keys = frozenset(sig.key for sig in extract_signals(card))
     _SIGNAL_KEY_INDEX[oid] = keys
@@ -259,7 +259,7 @@ def _signal_idents_for(card: dict) -> frozenset[str]:
     cached = _SIGNAL_IDENT_INDEX.get(oid)
     if cached is not None:
         return cached
-    from mtg_utils._deck_forge.signals import extract_signals
+    from mtg_utils._analysis.signals import extract_signals
 
     idents = frozenset(
         f"{sig.key}|{sig.scope}|{sig.subject}" for sig in extract_signals(card)
@@ -309,7 +309,7 @@ def seed_signal_key_index(bulk_path: Path | None) -> bool:
     if identity in _SEEDED_BULK_IDENTITIES:
         return True
 
-    from mtg_utils._deck_forge.signals_index import load_signals_index
+    from mtg_utils._analysis.signals_index import load_signals_index
 
     index = load_signals_index(path)
     if index is None:
@@ -341,7 +341,7 @@ def _concept_any_face(card: dict, predicate: Callable[[ConceptTree], bool]) -> b
     """
     if not card.get("oracle_id"):
         return False
-    from mtg_utils._deck_forge.signal_trees import signal_trees_for
+    from mtg_utils._analysis.signal_trees import signal_trees_for
 
     return any(predicate(tree) for tree in signal_trees_for(card))
 
@@ -355,7 +355,7 @@ def _graveyard_return_concept(card: dict) -> bool:
     membership on that key can't discriminate this preset from
     reanimate/self-mill, which share the same key for their OTHER two
     directions."""
-    from mtg_utils._deck_forge.lanes import graveyard_return_direction
+    from mtg_utils._analysis.lanes import graveyard_return_direction
 
     return _concept_any_face(card, graveyard_return_direction)
 
@@ -370,7 +370,7 @@ def _self_mill_concept(card: dict) -> bool:
     ``topdeck_selection``, which would match Contingency Plan (a
     look-then-reorder-to-bottom effect, never a mill) through
     ``topdeck_selection``'s unconditional Scry/Surveil arm."""
-    from mtg_utils._deck_forge.lanes import self_mill_fill
+    from mtg_utils._analysis.lanes import self_mill_fill
 
     return _concept_any_face(card, self_mill_fill)
 
@@ -383,7 +383,7 @@ def _etb_bulk_draw_concept(card: dict) -> bool:
     structurally disjoint by construction (``card_draw_engine``'s bulk
     gate excludes an ``enters`` unit, ``etb_bulk_draw`` requires one), so
     the OR never double-counts a card under both arms."""
-    from mtg_utils._deck_forge.lanes import etb_bulk_draw
+    from mtg_utils._analysis.lanes import etb_bulk_draw
 
     return _concept_any_face(card, etb_bulk_draw)
 
@@ -391,7 +391,7 @@ def _etb_bulk_draw_concept(card: dict) -> bool:
 def _blink_maker_concept(card: dict) -> bool:
     """concept arm for the 'blink' preset (task #83): true when CARD
     carries a MAKER-half ``blink_flicker`` signal (Flickerwisp/Ephemerate/
-    Soulherder), never :func:`~mtg_utils._deck_forge.lanes.
+    Soulherder), never :func:`~mtg_utils._analysis.lanes.
     apply_membership_floor`'s "worth blinking" payoff cross-open (Academy
     Journeymage/Mulldrifter). See ``lanes.
     blink_flicker_maker_present``. Unions (OR) with this preset's
@@ -399,7 +399,7 @@ def _blink_maker_concept(card: dict) -> bool:
     self-flicker engine (CR 611.2b, a card exiling and returning ITSELF,
     Aetherling) sharing no cards with the maker-of-OTHERS shape this
     predicate reads."""
-    from mtg_utils._deck_forge.lanes import blink_flicker_maker_present
+    from mtg_utils._analysis.lanes import blink_flicker_maker_present
 
     return blink_flicker_maker_present(card)
 
@@ -413,7 +413,7 @@ def _plus_one_counters_self_grow_concept(card: dict) -> bool:
     too broad for THIS preset specifically. Unions (OR) with this
     preset's ``signal_keys=("plus_one_makers", "plus_one_matters",
     "counter_distribute")`` arm."""
-    from mtg_utils._deck_forge.lanes import self_counter_grow_narrow
+    from mtg_utils._analysis.lanes import self_counter_grow_narrow
 
     return _concept_any_face(card, self_counter_grow_narrow)
 
@@ -436,7 +436,7 @@ def _removal_edict_concept(
     """
 
     def _match(card: dict) -> bool:
-        from mtg_utils._deck_forge.lanes import (
+        from mtg_utils._analysis.lanes import (
             removal_edict_targets_type,
         )
 
@@ -2240,7 +2240,7 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
     #     the live-object ``HasCounters`` tag was read).
     #
     # (1)+(2)+(3) close via one bucket-B ``tree_synthesis`` bridge feeding
-    # ``plus_one_makers`` (:func:`mtg_utils._deck_forge.tree_synthesis.
+    # ``plus_one_makers`` (:func:`mtg_utils._analysis.tree_synthesis.
     # _arm_plus_one_makers` — see its own docstring for the unified idiom
     # read and why reminder-stripping keeps it from re-opening the
     # Connive/Amass/Explore/Incubate/Megamorph/Awaken keyword-mechanic

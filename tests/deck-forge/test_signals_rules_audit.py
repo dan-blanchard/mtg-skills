@@ -12,8 +12,8 @@ either not duplicated there, or adds the `serves()`-classify dimension that
 extraction alone doesn't cover.
 """
 
-from mtg_utils._deck_forge.signal_specs import serves, spec_for
-from mtg_utils._deck_forge.signals import Signal
+from mtg_utils._analysis.signal_specs import serves, spec_for
+from mtg_utils._analysis.signals import Signal
 from mtg_utils.testkit import test_signals
 
 # Card names referenced through the real-card helper below. This table feeds the

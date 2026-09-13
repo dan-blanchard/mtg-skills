@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import pytest
 
-from mtg_utils._deck_forge.signals import extract_signals
+from mtg_utils._analysis.signals import extract_signals
 from mtg_utils.card_ir import Filter
 from mtg_utils.testkit import test_card, test_card_ir, test_signals
 
@@ -433,7 +433,7 @@ _REAL_CASES: dict[str, str] = {
 def test_every_case_key_is_served():
     """Every proven key must be in the served-key manifest — a case for a key the
     extractor cannot emit is a stale row, not coverage."""
-    from mtg_utils._deck_forge.lanes import SERVED_SIGNAL_KEYS
+    from mtg_utils._analysis.lanes import SERVED_SIGNAL_KEYS
 
     unserved = sorted(set(_REAL_CASES) - set(SERVED_SIGNAL_KEYS))
     assert not unserved, f"_REAL_CASES rows for unserved keys: {unserved}"
@@ -1052,7 +1052,7 @@ def test_every_emitted_key_is_manifest_served():
     import json
     from pathlib import Path
 
-    from mtg_utils._deck_forge.lanes import SERVED_SIGNAL_KEYS
+    from mtg_utils._analysis.lanes import SERVED_SIGNAL_KEYS
     from mtg_utils.testkit import snapshot_path
 
     names = list(json.loads(Path(snapshot_path()).read_text())["cards"])

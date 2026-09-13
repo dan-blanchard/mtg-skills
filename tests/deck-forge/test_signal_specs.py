@@ -8,8 +8,8 @@ import re
 
 import pytest
 
-from mtg_utils._deck_forge import signal_specs
-from mtg_utils._deck_forge.signal_specs import (
+from mtg_utils._analysis import signal_specs
+from mtg_utils._analysis.signal_specs import (
     _CHOSEN_TYPE_IDENTS,
     Serve,
     search_filters,
@@ -17,7 +17,7 @@ from mtg_utils._deck_forge.signal_specs import (
     serves,
     spec_for,
 )
-from mtg_utils._deck_forge.signals import Signal
+from mtg_utils._analysis.signals import Signal
 from mtg_utils.testkit import test_card, test_card_ir, test_signals
 
 
@@ -2967,7 +2967,7 @@ def test_every_producible_key_resolves_to_a_spec():
     subject-less key a detector can emit must resolve to a spec, so a new detector
     without a spec can't silently produce a no-op avenue. DERIVED from the producer
     tables (replaces the old hand-typed list, which was exactly the drift this guards)."""
-    from mtg_utils._deck_forge.signals import producible_static_keys
+    from mtg_utils._analysis.signals import producible_static_keys
 
     for key in sorted(producible_static_keys()):
         spec = spec_for(_sig(key, "any"))
@@ -2988,7 +2988,7 @@ def test_search_filters_for_subject_signal_inject_identity():
 def test_land_creature_avenue_searches_exclude_false_positives():
     """The exact bug class the user hit: a Plant-token maker and a clone must not
     be surfaced by ANY land-creature avenue, while a real creature-land is."""
-    from mtg_utils._deck_forge.ranking import score_candidate
+    from mtg_utils._analysis.ranking import score_candidate
 
     avenues = _avenue_dicts(spec_for(_sig("land_creatures_matter", "you")))
 
@@ -3009,7 +3009,7 @@ def test_animate_lands_serve_covers_mass_forest_animators():
     turn them into a creature army. Life and Limb animates ALL Forests at once
     ('All Forests ... are 1/1 ... creatures'), so the Animate-your-lands
     sub-avenue must reach it, not only the 'lands you control become' phrasing."""
-    from mtg_utils._deck_forge.ranking import score_candidate
+    from mtg_utils._analysis.ranking import score_candidate
 
     avenues = _avenue_dicts(spec_for(_sig("land_creatures_matter", "you")))
 
@@ -3025,7 +3025,7 @@ def test_land_bounce_untap_engines_served():
     (Quirion / Scryb Ranger) and land-untappers (Oboro Breezecaller) — the untap
     can re-tap an animated land for mana. Narrow lane: the cost must BOUNCE a
     forest/land you control, not just any untap (Seeker of Skybreak stays out)."""
-    from mtg_utils._deck_forge.ranking import score_candidate
+    from mtg_utils._analysis.ranking import score_candidate
 
     avenues = _avenue_dicts(spec_for(_sig("land_creatures_matter", "you")))
 
@@ -3043,7 +3043,7 @@ def test_aoe_ping_serves_deathtouch_gear():
     deathtouch on the source so each ping kills (CR 702.2b). The aoe_ping lane
     serves deathtouch-granting gear (Basilisk Collar) and not a plain stat-only
     Equipment (Bonesplitter)."""
-    from mtg_utils._deck_forge.ranking import score_candidate
+    from mtg_utils._analysis.ranking import score_candidate
 
     avenues = _avenue_dicts(spec_for(_sig("aoe_ping", "you")))
 
@@ -3059,7 +3059,7 @@ def test_land_destruction_serves_ld_support_package():
     support package: own-land recursion to survive symmetric LD (Crucible of
     Worlds) and land-loss punishers (Dingus Egg, Price of Glory). A plain stat
     Equipment (Bonesplitter) is surfaced by none."""
-    from mtg_utils._deck_forge.ranking import score_candidate
+    from mtg_utils._analysis.ranking import score_candidate
 
     avenues = _avenue_dicts(spec_for(_sig("land_destruction", "you")))
 
@@ -3077,7 +3077,7 @@ def test_cheat_from_top_serves_graveyard_to_top():
     the lane serves graveyard-to-top (Haunted Crossroads, Hua Tuo). A reanimation
     spell that puts a creature straight onto the battlefield (Reanimate) is NOT a
     top-stacker and stays out."""
-    from mtg_utils._deck_forge.ranking import score_candidate
+    from mtg_utils._analysis.ranking import score_candidate
 
     avenues = _avenue_dicts(spec_for(_sig("cheat_from_top", "you")))
 
@@ -3116,7 +3116,7 @@ def test_counter_resilience_served_not_counter_hate():
     """A +1/+1-counter commander (Wolverine) wants COUNTER RESILIENCE — save/relocate
     its counters when a creature leaves (The Ozolith, Resourceful Defense), protecting
     the investment. Counter REMOVAL (Aether Snap) is the opposite and stays out."""
-    from mtg_utils._deck_forge.ranking import score_candidate
+    from mtg_utils._analysis.ranking import score_candidate
 
     avenues = _avenue_dicts(spec_for(_sig("self_counter_grow", "you")))
 
@@ -3206,7 +3206,7 @@ def test_clone_self_bounce_serves_recast_enablers():
     own body and recast it — copying a different/better creature again. Cavern Harpy is
     the canonical enabler (Whitemane Lion too). A symmetric bounce of creatures
     controlled by DIFFERENT players (Run Away Together) isn't a clean self-bounce."""
-    from mtg_utils._deck_forge.ranking import score_candidate
+    from mtg_utils._analysis.ranking import score_candidate
 
     avenues = _avenue_dicts(spec_for(_sig("clone_makers", "you")))
 
@@ -3426,7 +3426,7 @@ class TestSpellslingerServe:
         precise predicate the spec serves on — so exploring the Spellslinger avenue
         credits a real cantrip (matched by TYPE, whose oracle says only 'draw a card')
         and a prowess creature (matched by KEYWORD), but NOT a value permanent."""
-        from mtg_utils._deck_forge.ranking import score_candidate
+        from mtg_utils._analysis.ranking import score_candidate
 
         spec = spec_for(self.SLINGER)
         avenue = {
@@ -3504,7 +3504,7 @@ class TestMagecraftServe:
         assert serves(opt, self.MAGE) is True
 
     def test_avenue_does_not_credit_value_permanent(self):
-        from mtg_utils._deck_forge.ranking import score_candidate
+        from mtg_utils._analysis.ranking import score_candidate
 
         spec = spec_for(self.MAGE)
         avenue = engine_avenue(spec)
@@ -3536,7 +3536,7 @@ class TestSecondSpellSearch:
     SIG = _sig("second_spell_matters", "you")
 
     def test_avenue_excludes_value_permanent(self):
-        from mtg_utils._deck_forge.ranking import score_candidate
+        from mtg_utils._analysis.ranking import score_candidate
 
         spec = spec_for(self.SIG)
         avenue = engine_avenue(spec)
@@ -4210,7 +4210,7 @@ class TestStructuredServeFixes4:
 
     def test_crimes_avenue_excludes_counterspells(self):
         """crimes SEARCH `target.*spell` credited every counterspell. Drop it."""
-        from mtg_utils._deck_forge.ranking import score_candidate
+        from mtg_utils._analysis.ranking import score_candidate
 
         spec = spec_for(_sig("crimes_matter", "you"))
         avenue = {"label": spec.label, "search": dict(spec.search)}
@@ -4810,7 +4810,7 @@ class TestMediumBatch9:
         # ADR-0027: keyword_tribe migrated to the Card IR (a subject-carrying kept
         # mirror over the record's oracle_text), so assert against the real production
         # extractor — the mirror reads the record, not the IR structure.
-        from mtg_utils._deck_forge.signals import signal_keys
+        from mtg_utils._analysis.signals import signal_keys
 
         # Real production extractor for each real card (the subject-carrying kept
         # mirror over oracle_text).

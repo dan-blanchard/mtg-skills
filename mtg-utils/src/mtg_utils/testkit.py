@@ -185,7 +185,7 @@ def test_signals(name: str) -> list:
     """``extract_signals(test_card(name), test_card_ir(name))`` — exactly what
     production emits for *name* (real Scryfall record, real Card IR, real concept
     trees — CI-safe via the snapshot's stored phase records)."""
-    from mtg_utils._deck_forge.signals import extract_signals
+    from mtg_utils._analysis.signals import extract_signals
 
     _seed_trees(name)
     return extract_signals(test_card(name))

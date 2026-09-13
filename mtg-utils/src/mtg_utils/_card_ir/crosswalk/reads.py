@@ -2591,7 +2591,7 @@ def damage_to_player_trigger_kind(trig: object) -> str | None:
     SUBTYPE-carrying recipient (an object, not a player). ``None`` when not
     this shape; else the typed ``damage_kind`` (``"CombatOnly"`` routes
     combat_damage_matters, anything else damage_to_opp_matters — the SAME
-    split :func:`~mtg_utils._deck_forge.lanes._combat_damage_lanes`
+    split :func:`~mtg_utils._analysis.lanes._combat_damage_lanes`
     applies at its top-level read, now shared with the granted-ability
     nested position (Snake Umbra's Aura grant, Talon of Pain's static
     grant, Sword of War and Peace's Equipment grant, Stormbreath Dragon's

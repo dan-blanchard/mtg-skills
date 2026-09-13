@@ -82,7 +82,7 @@ A commander's effective Signal set extends to objects its plan deterministically
 The scoping convention that a bare "target player" on a detrimental effect reads as opponent-directed for signal purposes (`detriment_directed_scope`).
 
 **Card IR**:
-The structured parse deck-forge reasons over instead of re-grepping oracle text: a typed mirror of phase-rs's own parse, plus a derived **concept overlay** that maps its nodes into the ~80-concept synergy vocabulary a Signal key queries. The overlay's output per card face is a **concept tree** — the corrected tree `_card_ir.trees.trees_for` returns (mtg-utils CONTEXT: Corrected tree), which `signal_trees_for` extends into the signal tree the lane package (`_deck_forge/lanes/`) queries over (ADR-0047). Unlike a regex it binds the *operand* a card scales with and the *scope* of an effect, so a Signal key becomes a query over structure rather than a substring match.
+The structured parse deck-forge reasons over instead of re-grepping oracle text: a typed mirror of phase-rs's own parse, plus a derived **concept overlay** that maps its nodes into the ~80-concept synergy vocabulary a Signal key queries. The overlay's output per card face is a **concept tree** — the corrected tree `_card_ir.trees.trees_for` returns (mtg-utils CONTEXT: Corrected tree), which `signal_trees_for` extends into the signal tree the lane package (`_analysis/lanes/`) queries over (ADR-0047). Unlike a regex it binds the *operand* a card scales with and the *scope* of an effect, so a Signal key becomes a query over structure rather than a substring match.
 
 **Bridge** (ledgered, self-retiring):
 A sanctioned text-regex read for a mechanic phase-rs doesn't yet parse structurally, living entirely in one central ledger row (gap rationale, bounded match, the signal key and scope it serves — ADR-0048) — gap-gated (it only fires where the structural read is absent) and scheduled to retire once phase's parse catches up; retiring one is deleting its row. Not a "fallback": every bridge is enumerated and adjudicated, never leftover tech-debt.
@@ -100,6 +100,9 @@ The local process that owns canonical session state, hosts the Deterministic cor
 
 **Handoff** / **Import**:
 A **Handoff** is a one-click route from a finished deck OUT into another repo tool. A *run-here handoff* (goldfish, proxies) is pure local compute the hub runs in-process, no LLM needed. A *session handoff* (strategy guide, store-sourcing) needs reasoning or a headed browser, so it routes to the attached Session-agent and greys out when detached. An **Import** is the inbound mirror — bringing an external decklist or Collection IN, parsed by the Deterministic core, no LLM. An import always mints a NEW build rather than overwriting the live one, and never guesses a commander.
+
+**Analysis package** (`mtg_utils/_analysis/`, ADR-0050):
+The deck-analysis substrate — signals, lanes, specs, bridges, synthesis, the membership floor, role budgets, candidate ranking, rate, staples — as pure functions of card records and concept trees. Shared by the hub, the deterministic tuner and the deck CLIs as peers; `_deck_forge` is the hub only and nothing imports the hub.
 
 **Engine module** (`engine.py`):
 The deck-analysis surface inside the hub — snapshot, ranked Signals, Avenues, finalize report, partner search — as free functions over a `ForgeState`, so they read state at call time and can't desync from the mutable session.

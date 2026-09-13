@@ -11,8 +11,8 @@ from __future__ import annotations
 
 import pickle
 
-from mtg_utils._deck_forge import signals_index
-from mtg_utils._deck_forge.signals import Signal
+from mtg_utils._analysis import signals_index
+from mtg_utils._analysis.signals import Signal
 
 
 def _sig(key, scope="you", subject=""):
@@ -27,9 +27,7 @@ class TestBuildSignalsIndex:
             calls.append(rec["name"])
             return [_sig("ramp")]
 
-        monkeypatch.setattr(
-            "mtg_utils._deck_forge.signals.extract_signals", fake_extract
-        )
+        monkeypatch.setattr("mtg_utils._analysis.signals.extract_signals", fake_extract)
         records = [
             {"oracle_id": "oid-1", "name": "Printing A"},
             {"oracle_id": "oid-1", "name": "Printing B"},  # same card, reprint
@@ -43,7 +41,7 @@ class TestBuildSignalsIndex:
 
     def test_skips_records_without_oracle_id(self, monkeypatch):
         monkeypatch.setattr(
-            "mtg_utils._deck_forge.signals.extract_signals",
+            "mtg_utils._analysis.signals.extract_signals",
             lambda _rec, *_args, **_kwargs: [_sig("ramp")],
         )
         records = [{"name": "No Oracle Id"}, {"oracle_id": "", "name": "Empty"}]
@@ -51,7 +49,7 @@ class TestBuildSignalsIndex:
 
     def test_ident_format_is_key_pipe_scope_pipe_subject(self, monkeypatch):
         monkeypatch.setattr(
-            "mtg_utils._deck_forge.signals.extract_signals",
+            "mtg_utils._analysis.signals.extract_signals",
             lambda _rec, *_args, **_kwargs: [
                 _sig("type_matters", "you", "Goblin"),
                 _sig("ramp", "you", ""),
@@ -63,7 +61,7 @@ class TestBuildSignalsIndex:
 
     def test_empty_signal_list_is_a_real_cached_answer(self, monkeypatch):
         monkeypatch.setattr(
-            "mtg_utils._deck_forge.signals.extract_signals",
+            "mtg_utils._analysis.signals.extract_signals",
             lambda _rec, *_args, **_kwargs: [],
         )
         records = [{"oracle_id": "oid-1", "name": "Vanilla"}]
@@ -182,7 +180,7 @@ class TestLoadSignalsIndex:
         assert not sidecar.exists()
 
         monkeypatch.setattr(
-            "mtg_utils._deck_forge.signals.extract_signals",
+            "mtg_utils._analysis.signals.extract_signals",
             lambda _rec, *_args, **_kwargs: [_sig("ramp")],
         )
         records = [{"oracle_id": "oid-1", "name": "Card"}]
@@ -195,7 +193,7 @@ class TestLoadSignalsIndex:
         def boom(_rec, *_args, **_kwargs):
             raise AssertionError("recomputed despite a fresh, matching sidecar")
 
-        monkeypatch.setattr("mtg_utils._deck_forge.signals.extract_signals", boom)
+        monkeypatch.setattr("mtg_utils._analysis.signals.extract_signals", boom)
         cached = signals_index.load_signals_index(bulk, records=records)
         assert cached == index
 
@@ -208,9 +206,7 @@ class TestLoadSignalsIndex:
             calls.append(rec["oracle_id"])
             return []
 
-        monkeypatch.setattr(
-            "mtg_utils._deck_forge.signals.extract_signals", fake_extract
-        )
+        monkeypatch.setattr("mtg_utils._analysis.signals.extract_signals", fake_extract)
         records = [{"oracle_id": "oid-1", "name": "Card"}]
         signals_index.load_signals_index(bulk, records=records)
         assert calls == ["oid-1"]
@@ -229,9 +225,7 @@ class TestLoadSignalsIndex:
             calls.append(rec["oracle_id"])
             return []
 
-        monkeypatch.setattr(
-            "mtg_utils._deck_forge.signals.extract_signals", fake_extract
-        )
+        monkeypatch.setattr("mtg_utils._analysis.signals.extract_signals", fake_extract)
         records = [{"oracle_id": "oid-1", "name": "Card"}]
         signals_index.load_signals_index(bulk, records=records)
         assert calls == ["oid-1"]
@@ -246,7 +240,7 @@ class TestLoadSignalsIndex:
         bulk = tmp_path / "AllPrintings.json"
         bulk.write_text("{}", encoding="utf-8")
         monkeypatch.setattr(
-            "mtg_utils._deck_forge.signals.extract_signals",
+            "mtg_utils._analysis.signals.extract_signals",
             lambda _rec, *_args, **_kwargs: [_sig("ramp")],
         )
         signals_index.load_signals_index(bulk, records=[{"oracle_id": "oid-1"}])
@@ -264,7 +258,7 @@ class TestLoadSignalsIndex:
         bulk = tmp_path / "bulk.json"
         bulk.write_text('[{"oracle_id": "oid-1", "name": "Card"}]', encoding="utf-8")
         monkeypatch.setattr(
-            "mtg_utils._deck_forge.signals.extract_signals",
+            "mtg_utils._analysis.signals.extract_signals",
             lambda _rec, *_args, **_kwargs: [_sig("ramp")],
         )
         index = signals_index.load_signals_index(bulk)

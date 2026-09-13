@@ -6,12 +6,12 @@ stat-line becomes a "X tribal / X payoffs" pair (the reported UI overload).
 
 from fastapi.testclient import TestClient
 
+from mtg_utils._analysis import signal_trees
+from mtg_utils._analysis.signals import extract_signals
 from mtg_utils._card_ir import trees
 from mtg_utils._card_ir.crosswalk import ConceptTree
-from mtg_utils._deck_forge import signal_trees
 from mtg_utils._deck_forge.app import build_app
 from mtg_utils._deck_forge.engine import _AVENUE_CAP
-from mtg_utils._deck_forge.signals import extract_signals
 from mtg_utils._deck_forge.state import DeckSession, ForgeState
 from mtg_utils.deck import split_type_line
 from mtg_utils.testkit import test_card, test_card_ir, test_signals

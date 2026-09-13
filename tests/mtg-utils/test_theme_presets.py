@@ -1673,8 +1673,8 @@ class TestSeedSignalKeyIndex:
         theme_presets._SEEDED_BULK_IDENTITIES.clear()
 
     def test_seeded_value_matches_a_synthetic_extractor(self, tmp_path, monkeypatch):
-        from mtg_utils._deck_forge import signals_index
-        from mtg_utils._deck_forge.signals import Signal
+        from mtg_utils._analysis import signals_index
+        from mtg_utils._analysis.signals import Signal
 
         self._reset()
         try:
@@ -1685,7 +1685,7 @@ class TestSeedSignalKeyIndex:
                 return [Signal("ramp", "you", "", "", rec.get("name", ""), "high")]
 
             monkeypatch.setattr(
-                "mtg_utils._deck_forge.signals.extract_signals", fake_extract
+                "mtg_utils._analysis.signals.extract_signals", fake_extract
             )
             records = [{"oracle_id": "oid-seed", "name": "Fake Card"}]
             signals_index.load_signals_index(bulk, records=records)
@@ -1698,7 +1698,7 @@ class TestSeedSignalKeyIndex:
             def boom(_rec, *_args, **_kwargs):
                 raise AssertionError("must not recompute — already seeded")
 
-            monkeypatch.setattr("mtg_utils._deck_forge.signals.extract_signals", boom)
+            monkeypatch.setattr("mtg_utils._analysis.signals.extract_signals", boom)
             assert theme_presets._signal_keys_for(
                 {"oracle_id": "oid-seed"}
             ) == frozenset({"ramp"})
@@ -1715,7 +1715,7 @@ class TestSeedSignalKeyIndex:
 
     def test_seed_matches_live_for_a_real_snapshot_card(self, tmp_path):
         from mtg_utils import testkit
-        from mtg_utils._deck_forge import signals_index
+        from mtg_utils._analysis import signals_index
 
         self._reset()
         try:

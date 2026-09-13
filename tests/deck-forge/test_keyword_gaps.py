@@ -14,8 +14,8 @@ real card to look up.
 
 from typing import ClassVar
 
-from mtg_utils._deck_forge.signal_specs import serves, spec_for
-from mtg_utils._deck_forge.signals import Signal
+from mtg_utils._analysis.signal_specs import serves, spec_for
+from mtg_utils._analysis.signals import Signal
 from mtg_utils.testkit import test_card, test_signals
 
 # Card names referenced through the real-card helpers above. This table feeds the

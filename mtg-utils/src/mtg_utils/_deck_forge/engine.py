@@ -21,10 +21,10 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from mtg_utils import mark_owned, price_check, theme_presets
-from mtg_utils._deck_forge import collection, staples, views
-from mtg_utils._deck_forge.budgets import role_of, slot_budgets
-from mtg_utils._deck_forge.ranking import rank_candidates
-from mtg_utils._deck_forge.signal_specs import (
+from mtg_utils._analysis import staples
+from mtg_utils._analysis.budgets import role_of, slot_budgets
+from mtg_utils._analysis.ranking import rank_candidates
+from mtg_utils._analysis.signal_specs import (
     Serve,
     payoff_search,
     payoff_serve,
@@ -32,11 +32,12 @@ from mtg_utils._deck_forge.signal_specs import (
     source_split,
     spec_for,
 )
-from mtg_utils._deck_forge.signals import (
+from mtg_utils._analysis.signals import (
     Signal,
     extract_signals,
     rank_deck_signals,
 )
+from mtg_utils._deck_forge import collection, views
 from mtg_utils._deck_forge.state import DeckSession, ForgeState
 from mtg_utils._name_index import NameIndex
 from mtg_utils._sidecar import atomic_write_json, sha_keyed_path
@@ -464,8 +465,8 @@ def _serve_fingerprint() -> str:
     import contextlib
     import hashlib
 
-    from mtg_utils._deck_forge import signal_specs as _specs_mod
-    from mtg_utils._deck_forge import signals_index
+    from mtg_utils._analysis import signal_specs as _specs_mod
+    from mtg_utils._analysis import signals_index
 
     hasher = hashlib.sha256()
     hasher.update(signals_index.content_hash().encode())
@@ -701,7 +702,7 @@ def _signal_freq(state: ForgeState) -> tuple[dict, int]:
     # by_name folds and indexes every face/alias, so the same record appears under
     # several keys — dedup by canonical name so each commander is counted once.
     seen: set[str] = set()
-    from mtg_utils._deck_forge.signals_index import load_signals_index
+    from mtg_utils._analysis.signals_index import load_signals_index
 
     index = load_signals_index(state.bulk_path)
     for rec in state.by_name.values():

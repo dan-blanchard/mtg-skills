@@ -14,7 +14,7 @@ from pathlib import Path
 
 import click
 
-from mtg_utils._deck_forge.budgets import slot_budgets
+from mtg_utils._analysis.budgets import slot_budgets
 from mtg_utils.deck_cli import acquire_for_cli, bulk_data_option
 from mtg_utils.mana_audit import mana_audit
 

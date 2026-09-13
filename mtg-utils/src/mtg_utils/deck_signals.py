@@ -14,8 +14,8 @@ from pathlib import Path
 
 import click
 
-from mtg_utils._deck_forge.signal_specs import spec_for
-from mtg_utils._deck_forge.signals import rank_deck_signals
+from mtg_utils._analysis.signal_specs import spec_for
+from mtg_utils._analysis.signals import rank_deck_signals
 from mtg_utils.deck_cli import acquire_for_cli, bulk_data_option
 from mtg_utils.hydrated_deck import HydratedDeck
 

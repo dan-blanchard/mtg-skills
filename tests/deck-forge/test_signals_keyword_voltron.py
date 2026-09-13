@@ -11,7 +11,7 @@
    (an evasion/resilience keyword or power ≥2), surface a low-confidence voltron avenue.
 """
 
-from mtg_utils._deck_forge.signals import coverage_gate
+from mtg_utils._analysis.signals import coverage_gate
 from mtg_utils.testkit import test_card, test_signals
 
 

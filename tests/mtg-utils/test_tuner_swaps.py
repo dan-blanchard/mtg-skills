@@ -1,7 +1,7 @@
 """Swap engine: template-safety, role-over trims, and emerging-theme commits."""
 
-from mtg_utils._deck_forge.signal_specs import spec_for
-from mtg_utils._deck_forge.signals import Signal
+from mtg_utils._analysis.signal_specs import spec_for
+from mtg_utils._analysis.signals import Signal
 from mtg_utils._tuner.classify import CardClass
 from mtg_utils._tuner.metrics import top_issues
 from mtg_utils._tuner.swaps import (

@@ -15,14 +15,14 @@ import fnmatch
 
 import pytest
 
-from mtg_utils._deck_forge.pair_reads import (
+from mtg_utils._analysis.pair_reads import (
     PAIR_READS,
     PairContext,
     build_pair_context,
     pair_score,
 )
-from mtg_utils._deck_forge.ranking import rank_candidates
-from mtg_utils._deck_forge.signals import Signal
+from mtg_utils._analysis.ranking import rank_candidates
+from mtg_utils._analysis.signals import Signal
 from mtg_utils.testkit import test_card, test_card_ir
 
 # ── ledger hygiene (the bridge-ledger discipline) ────────────────────────────
@@ -74,7 +74,7 @@ def test_every_pin_emits_the_candidate_pattern():
     # candidate pattern — the convergence proof that the pattern is live.
     # Uses the ledger's own ident view (_card_idents), which adds the
     # record-derived cost-shape ident on top of the signal idents.
-    from mtg_utils._deck_forge.pair_reads import _card_idents
+    from mtg_utils._analysis.pair_reads import _card_idents
 
     for row in PAIR_READS.values():
         for pin in row.pins:
@@ -485,7 +485,7 @@ def test_yard_stocker_needs_the_graveyard_half():
 
 
 def test_xcost_ident_is_record_derived():
-    from mtg_utils._deck_forge.pair_reads import _card_idents
+    from mtg_utils._analysis.pair_reads import _card_idents
 
     test_card_ir("Stroke of Genius")
     assert "xcost_spell|you|" in _card_idents(test_card("Stroke of Genius"))

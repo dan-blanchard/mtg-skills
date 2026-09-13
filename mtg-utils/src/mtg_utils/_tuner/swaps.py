@@ -13,9 +13,9 @@ from __future__ import annotations
 import re
 from collections.abc import Callable, Collection, Iterator, Mapping, Sequence
 
-from mtg_utils._deck_forge.budgets import role_of
-from mtg_utils._deck_forge.ranking import rank_candidates
-from mtg_utils._deck_forge.signal_specs import spec_for
+from mtg_utils._analysis.budgets import role_of
+from mtg_utils._analysis.ranking import rank_candidates
+from mtg_utils._analysis.signal_specs import spec_for
 from mtg_utils._tuner.classify import CardClass, is_fringe
 from mtg_utils.card_classify import (
     extract_price,

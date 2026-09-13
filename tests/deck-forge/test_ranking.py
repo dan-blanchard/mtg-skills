@@ -1,13 +1,13 @@
 """Tests for transparent multi-axis candidate ranking (D6)."""
 
-from mtg_utils._deck_forge.ranking import (
+from mtg_utils._analysis.ranking import (
     _ability_is_payoff,
     _clause_role,
     _clause_role_regex,
     rank_candidates,
     score_candidate,
 )
-from mtg_utils._deck_forge.signals import Signal
+from mtg_utils._analysis.signals import Signal
 from mtg_utils.card_ir import Ability, Card, Effect, Face, Filter, Trigger
 from mtg_utils.testkit import test_card_ir
 
@@ -829,7 +829,7 @@ def test_structural_serves_form_one_cluster_with_breadth():
 # pin the DISARM — the readout survives, and the sort is invariant to any
 # rate_index.
 def test_rate_rides_the_readout_but_never_the_sort():
-    from mtg_utils._deck_forge.rate import build_rate_index, rate_for
+    from mtg_utils._analysis.rate import build_rate_index, rate_for
     from mtg_utils.testkit import snapshot_records, test_card, test_card_ir
 
     index = build_rate_index(snapshot_records())
@@ -857,7 +857,7 @@ def test_rate_rides_the_readout_but_never_the_sort():
 def test_sort_is_invariant_to_any_rate_index():
     # THE F-B regression assertion: passing any rate_index must never
     # change ranking order relative to no index at all.
-    from mtg_utils._deck_forge.rate import build_rate_index
+    from mtg_utils._analysis.rate import build_rate_index
     from mtg_utils.testkit import snapshot_records, test_card, test_card_ir
 
     index = build_rate_index(snapshot_records())

@@ -2,8 +2,9 @@
 Source avenue (the pieces, fetched by card_type) — the static-membership analogue of
 the tribal bodies/payoffs/enablers split."""
 
-from mtg_utils._deck_forge import _ir_lookup, engine
-from mtg_utils._deck_forge.signal_specs import Serve, source_split
+from mtg_utils._analysis.signal_specs import Serve, source_split
+from mtg_utils._card_ir import compat_lookup as _ir_lookup
+from mtg_utils._deck_forge import engine
 from mtg_utils._deck_forge.state import DeckSession, ForgeState
 from mtg_utils.testkit import _seed_trees, test_card, test_card_ir
 

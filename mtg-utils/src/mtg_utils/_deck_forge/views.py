@@ -12,9 +12,9 @@ from __future__ import annotations
 
 from collections.abc import Callable, Mapping
 
+from mtg_utils._analysis.signal_specs import spec_for
+from mtg_utils._analysis.signals import Signal
 from mtg_utils._deck_forge.images import image_urls
-from mtg_utils._deck_forge.signal_specs import spec_for
-from mtg_utils._deck_forge.signals import Signal
 from mtg_utils._deck_forge.state import ForgeState
 from mtg_utils.card_classify import get_mana_cost, get_oracle_text
 from mtg_utils.formats import FORMATS, Format

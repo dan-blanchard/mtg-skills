@@ -41,8 +41,8 @@ import re
 from collections.abc import Callable, Iterable
 from pathlib import Path
 
+from mtg_utils._analysis.signals import extract_signals
 from mtg_utils._card_ir.mirror.variants import EFFECT_VARIANTS
-from mtg_utils._deck_forge.signals import extract_signals
 
 # ── phase enum vocabularies (v0.35.2 pin bump, 2026-07-24) ───────────────────
 # Variant names verbatim; matched case-insensitively after normalization, so

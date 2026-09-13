@@ -15,7 +15,7 @@ name. Invariants (CI, from the gate-b cycle-6 fix):
 
 from __future__ import annotations
 
-from mtg_utils._deck_forge.ranking import apply_row_class_permutation
+from mtg_utils._analysis.ranking import apply_row_class_permutation
 
 
 def _r(name, pairs, depth=4.0, cmc=2, *, rider=False, widening=0):
@@ -125,7 +125,7 @@ def test_pass_is_default_off_in_rank_candidates():
     # The flag ships OFF until the S1 slice measurement accepts (2.6).
     import inspect
 
-    from mtg_utils._deck_forge.ranking import rank_candidates
+    from mtg_utils._analysis.ranking import rank_candidates
 
     sig = inspect.signature(rank_candidates)
     assert sig.parameters["row_class_permutation"].default is False

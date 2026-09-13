@@ -7,9 +7,9 @@ from __future__ import annotations
 
 import pytest
 
+from mtg_utils._analysis.signals import Signal
 from mtg_utils._deck_forge import engine, views
 from mtg_utils._deck_forge.engine import DeckRuleError
-from mtg_utils._deck_forge.signals import Signal
 from mtg_utils._deck_forge.state import DeckSession, ForgeState
 from mtg_utils.formats import FORMATS
 

@@ -5,9 +5,9 @@ tests pin: the set loads, EVERY key resolves to an avenue (actionable), and a
 representative sample actually fires on the oracle phrasing it was mined from.
 """
 
-from mtg_utils._deck_forge._sweep_detectors import SWEEP_DETECTORS
-from mtg_utils._deck_forge.signal_specs import spec_for
-from mtg_utils._deck_forge.signals import Signal
+from mtg_utils._analysis._sweep_detectors import SWEEP_DETECTORS
+from mtg_utils._analysis.signal_specs import spec_for
+from mtg_utils._analysis.signals import Signal
 from mtg_utils.testkit import test_card, test_signals
 
 

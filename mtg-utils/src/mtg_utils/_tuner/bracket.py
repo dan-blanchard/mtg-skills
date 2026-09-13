@@ -16,7 +16,7 @@ from __future__ import annotations
 import re
 from collections.abc import Sequence
 
-from mtg_utils._deck_forge._ir_lookup import ir_for
+from mtg_utils._card_ir.compat_lookup import ir_for
 from mtg_utils.card_classify import get_oracle_text
 from mtg_utils.card_ir import Card
 from mtg_utils.deck_stats import detect_bracket

@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import pytest
 
-from mtg_utils._deck_forge.ident_provenance import unit_idents_for
+from mtg_utils._analysis.ident_provenance import unit_idents_for
 from mtg_utils.testkit import test_card, test_card_ir
 
 

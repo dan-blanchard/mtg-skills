@@ -1,8 +1,8 @@
 """Focus metric: lands and Spine-role avenues are not themes; near-dupes collapse."""
 
-from mtg_utils._deck_forge import signal_keys
-from mtg_utils._deck_forge.signal_specs import spec_for
-from mtg_utils._deck_forge.signals import Signal
+from mtg_utils._analysis import signal_keys
+from mtg_utils._analysis.signal_specs import spec_for
+from mtg_utils._analysis.signals import Signal
 from mtg_utils._tuner.classify import CardClass
 from mtg_utils._tuner.metrics import focus
 

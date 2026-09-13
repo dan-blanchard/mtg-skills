@@ -12,8 +12,8 @@ This file keeps only the scope assertion and the spec-targeting behavior, which
 that parametrized test doesn't cover.
 """
 
-from mtg_utils._deck_forge.signal_specs import serves, spec_for
-from mtg_utils._deck_forge.signals import Signal
+from mtg_utils._analysis.signal_specs import serves, spec_for
+from mtg_utils._analysis.signals import Signal
 from mtg_utils.testkit import test_signals
 
 

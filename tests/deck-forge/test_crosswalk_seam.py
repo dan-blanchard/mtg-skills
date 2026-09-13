@@ -23,19 +23,19 @@ from functools import lru_cache
 
 import pytest
 
+from mtg_utils._analysis.lanes import (
+    SERVED_SIGNAL_KEYS,
+    extract_crosswalk_signals,
+)
+from mtg_utils._analysis.signals import (
+    extract_signals,
+    producible_static_keys,
+)
+from mtg_utils._card_ir import compat_lookup as il
 from mtg_utils._card_ir import trees as ct
 from mtg_utils._card_ir.crosswalk import build_concept_tree
 from mtg_utils._card_ir.mirror import strict_load_card
 from mtg_utils._card_ir.mirror.build import fixtures_dir, load_committed_schema
-from mtg_utils._deck_forge import _ir_lookup as il
-from mtg_utils._deck_forge.lanes import (
-    SERVED_SIGNAL_KEYS,
-    extract_crosswalk_signals,
-)
-from mtg_utils._deck_forge.signals import (
-    extract_signals,
-    producible_static_keys,
-)
 from mtg_utils.card_ir import Card, Face
 
 FIXTURE = "crosswalk_fixture_cards.json"
@@ -404,7 +404,7 @@ def test_producible_includes_crosswalk_only_lanes():
 def test_gate_resolves_every_producible_key():
     """The import-time key-agreement gate passes — every crosswalk-produced key
     (incl. the 3 PORTED-only lanes) resolves to a serve/search spec."""
-    from mtg_utils._deck_forge.signal_specs import (
+    from mtg_utils._analysis.signal_specs import (
         _assert_every_producible_key_resolves,
     )
 

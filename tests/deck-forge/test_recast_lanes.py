@@ -65,7 +65,7 @@ def test_permanent_recast_emission(name, expected):
 
 
 def test_recast_row_fires_and_gates():
-    from mtg_utils._deck_forge.pair_reads import build_pair_context, pair_score
+    from mtg_utils._analysis.pair_reads import build_pair_context, pair_score
     from mtg_utils.testkit import test_card
 
     def ctx(commander):
@@ -108,7 +108,7 @@ def test_own_target_spell_emission(name, expected):
 
 
 def test_own_target_row_fires_and_gates():
-    from mtg_utils._deck_forge.pair_reads import build_pair_context, pair_score
+    from mtg_utils._analysis.pair_reads import build_pair_context, pair_score
     from mtg_utils.testkit import test_card
 
     test_card_ir("Feather, the Redeemed")

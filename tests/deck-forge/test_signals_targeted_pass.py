@@ -14,8 +14,8 @@ exclusions bundled per axis — using a different representative card wherever o
 is available, so the two files' regression coverage stays independent.
 """
 
-from mtg_utils._deck_forge.signal_specs import spec_for
-from mtg_utils._deck_forge.signals import Signal
+from mtg_utils._analysis.signal_specs import spec_for
+from mtg_utils._analysis.signals import Signal
 from mtg_utils.testkit import test_signals
 
 

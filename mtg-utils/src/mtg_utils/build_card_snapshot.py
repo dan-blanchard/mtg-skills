@@ -41,10 +41,10 @@ import json
 from collections import defaultdict
 from pathlib import Path
 
+from mtg_utils._analysis.signals import extract_signals
 from mtg_utils._card_ir.build import _group_by_oracle_id
 from mtg_utils._card_ir.load import CROSSWALK_SIDECAR_VERSION
 from mtg_utils._card_ir.trees import build_trees, seed_trees
-from mtg_utils._deck_forge.signals import extract_signals
 from mtg_utils._phase import PHASE_TAG, ensure_card_data
 from mtg_utils.bulk_loader import default_bulk_path, load_bulk_cards
 from mtg_utils.names import normalize_card_name

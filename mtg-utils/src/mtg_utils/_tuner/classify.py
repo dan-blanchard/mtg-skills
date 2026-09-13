@@ -12,8 +12,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from mtg_utils._deck_forge.budgets import protects, role_of
-from mtg_utils._deck_forge.ranking import score_candidate
+from mtg_utils._analysis.budgets import protects, role_of
+from mtg_utils._analysis.ranking import score_candidate
 from mtg_utils.card_classify import is_land
 from mtg_utils.formats import medium_is_digital
 from mtg_utils.hydrated_deck import HydratedDeck
@@ -87,7 +87,7 @@ def classify_deck(
     ``score_candidate`` machinery the Find ranker uses, so a card's tuner
     classification can never drift from how the rest of deck-forge scores it.
     """
-    from mtg_utils._deck_forge.signals import grant_payloads_for
+    from mtg_utils._analysis.signals import grant_payloads_for
     from mtg_utils._tuner.ability_quality import grant_grade, has_closer_grant
 
     draw_engine = _commander_draws(hd, commander_names)

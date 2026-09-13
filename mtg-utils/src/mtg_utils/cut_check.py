@@ -19,7 +19,7 @@ from pathlib import Path
 
 import click
 
-from mtg_utils._deck_forge._ir_lookup import ir_for
+from mtg_utils._card_ir.compat_lookup import ir_for
 from mtg_utils._sidecar import atomic_write_json, sha_keyed_path
 from mtg_utils.card_classify import build_card_lookup, get_oracle_text
 from mtg_utils.card_ir import Ability, Card
