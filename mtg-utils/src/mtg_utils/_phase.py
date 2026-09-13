@@ -24,7 +24,7 @@ from mtg_utils._http import urllib_get
 # specifically rather than the generic Scryfall/EDHREC/Spellbook UA.
 _USER_AGENT = "mtg-skills/_phase"
 
-PHASE_TAG = "v0.66.0"
+PHASE_TAG: str = "v0.66.0"  # rewritten by `bump-phase-pin` (ADR-0049)
 PHASE_REPO = "https://github.com/phase-rs/phase"
 
 # Since v0.32.0 releases ship no server tarball; instead a small manifest

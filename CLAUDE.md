@@ -14,6 +14,7 @@ uv run ruff check src/ ../tests/mtg-utils/  # Lint
 uv run ruff format src/ ../tests/mtg-utils/  # Format
 uv run download-mtgjson              # Card-data source: MTGJSON AllPrintings + AllPricesToday (ADR-0033; ~609MB; first-run only)
 uv run build-card-snapshot           # Regen the committed test card snapshot (gated; needs local MTGJSON bulk + phase card-data — auto-fetched via the phase release-server manifest, no cargo; NEVER CI)
+uv run bump-phase-pin <tag>          # The scripted phase-rs pin bump (ADR-0049): edits PHASE_TAG + the generated Effect rosters, regenerates substrate / fixtures / snapshot / sidecar / signals index, writes one triage report; --from-step N resumes; NEVER CI
 ```
 
 ### deck-wizard
