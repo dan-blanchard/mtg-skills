@@ -138,6 +138,9 @@ The vocabulary of the agent-less deck-evaluation pass that scores a deck and pro
 **Tune**:
 The agent-less, hub-side evaluation-and-swap pass. Three layers: diagnose (Shape + Efficiency/Template deviation/Focus panels + Commander fit + a severity-ranked issues list), cut candidates, and budgeted swaps (a cut+add pair per top issue). Proposes only; the human confirms each swap or "applies all."
 
+**Remedy** (`_tuner/issues.py`, ADR-0052):
+What the Tune swap engine may do about one issue — where the add comes from, which cut pool pays for it, how candidates rank — decided once, when the issue is diagnosed. An issue with no Remedy (a misfit commander, a voltron plan with no commander-damage rule, a Grant-covered role) is the builder's to read; no swap path sources anything for it.
+
 **Spine**:
 The mandatory scaffolding every deck needs regardless of Shape. A hard-counted tier (lands, ramp, card draw, interaction, board wipes — counterspells fold into interaction) measured against the Template, and a conditional tier (win conditions, protection) surfaced as Shape-scaled advisory flags. Exempt from the focus judgment — running your interaction never reads as "spread too thin."
 

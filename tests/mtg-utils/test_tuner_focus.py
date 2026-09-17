@@ -83,14 +83,14 @@ def test_emerging_theme_surfaces_below_the_sub_floor():
 def test_efficiency_thin_top_end_is_actionable():
     # A curve issue (thin top-end) must source an add at the missing CMC band — scoped to
     # the deck's main theme — not be silently advisory.
-    from mtg_utils._tuner.swaps import _spec_for_issue
+    from mtg_utils._tuner.issues import Sourcing
 
-    issue = {"kind": "efficiency", "subkind": "thin top-end"}
-    spec = _spec_for_issue(issue, {"viable_avenues": []}, [])
-    assert spec is not None
-    assert spec.get("cmc_min") == 6  # asks for a 6+ MV finisher
-    # An unhandled curve subkind stays advisory.
-    assert _spec_for_issue({"kind": "efficiency", "subkind": "ok"}, {}, []) is None
+    sourcing = Sourcing({"viable_avenues": []}, [], {})
+    remedy = sourcing.remedy_for("efficiency", subkind="thin top-end")
+    assert remedy is not None
+    assert remedy.spec.get("cmc_min") == 6  # asks for a 6+ MV finisher
+    # An unhandled curve subkind sources nothing.
+    assert sourcing.remedy_for("efficiency", subkind="ok") is None
 
 
 def test_near_duplicate_avenues_collapse_to_one():

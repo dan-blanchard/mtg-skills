@@ -61,6 +61,18 @@ class CardClass:
     # strike) — ONE closer regardless of recipient count.
     grant_closer: bool = False
 
+    def low_value(self, *, medium: str = "paper") -> bool:
+        """An Engine card that feeds a theme but isn't pulling its weight — dead weight
+        the bucket test alone misses, and an upgrade target. A Granter is condemned by
+        granted-ability QUALITY alone (ADR-0040 §2: a weak grade — Enduring Sliver's
+        outlast), never by play-rate; a non-Granter by a fringe play-rate (the one
+        EDHREC-popularity lean, by user direction; medium-aware per §4)."""
+        if self.bucket != "engine":
+            return False
+        if self.grant_grade is not None:
+            return self.grant_grade == "weak"
+        return is_fringe(self.edhrec_rank, medium=medium)
+
 
 # The repeatable-draw commander keys that arm the hellbent anti-synergy
 # predicate (ADR-0040 §2: a "no cards in hand"-gated grant under a

@@ -1,10 +1,10 @@
-"""The three diagnostic metrics + the Tier-2 flags + the severity-ranked Top issues.
+"""The three diagnostic metrics + the Tier-2 flags.
 
 Efficiency (Shape-aware curve/tempo — NOT per-card power, ADR-0009), Template deviation
 (over the shared ``slot_budgets`` bands), and Focus (Engine-card concentration over the
 deck's signal-derived avenues). Win-cons and protection are Shape-scaled advisory flags
 (ADR-0024). Every readout is transparent (matching deck-forge's gate style); none is an
-opaque score. ``top_issues`` ranks the findings by severity and is the single
+opaque score. ``_tuner.issues.top_issues`` ranks the findings by severity — the single
 ordering the swap engine acts on (deck-forge CONTEXT.md, "Tune").
 """
 
@@ -18,7 +18,7 @@ from mtg_utils._analysis import signal_keys
 from mtg_utils._analysis.roles import protects
 from mtg_utils._analysis.signal_specs import spec_for
 from mtg_utils._card_ir.compat_lookup import ir_for
-from mtg_utils._tuner.classify import CardClass, is_fringe
+from mtg_utils._tuner.classify import CardClass
 from mtg_utils.card_classify import card_pt_int, is_creature
 from mtg_utils.card_ir import Card
 from mtg_utils.formats import Game
@@ -354,23 +354,9 @@ def focus(
     filler = len(filler_cards)
     filler_rate = round(filler / max(1, len(nonland)), 2)
 
-    # Low-value: an Engine card that feeds a theme but is barely played (fringe
-    # edhrec_rank) — the vanilla beater that "counts" as creature support in a go-wide
-    # deck. Dead weight the bucket test alone misses, surfaced as an upgrade target (the
-    # one EDHREC-popularity lean, by user direction).
-    # A Granter is condemned by granted-ability QUALITY alone (ADR-0040 §2:
-    # weak grade — Enduring Sliver's outlast), never by playrate; a
-    # non-Granter keeps the play-rate read (§4, medium-aware).
-    low_value_cards = [
-        c.name
-        for c in nonland
-        if c.bucket == "engine"
-        and (
-            c.grant_grade == "weak"
-            if c.grant_grade is not None
-            else is_fringe(c.edhrec_rank, medium=medium)
-        )
-    ]
+    # Low-value Engine cards (``CardClass.low_value``) — the vanilla beater that
+    # "counts" as creature support in a go-wide deck — surfaced as upgrade targets.
+    low_value_cards = [c.name for c in nonland if c.low_value(medium=medium)]
 
     engine_labels = {lbl for c in engine for lbl in themes(c)}
     stranded = sorted(lbl for lbl in engine_labels if 1 <= depth.get(lbl, 0) <= 2)
@@ -561,181 +547,3 @@ def commander_fit(classes: Sequence[CardClass], focus_result: dict) -> dict:
         "viable_count": len(viable),
         "misfit": misfit,
     }
-
-
-# ── Top issues (the severity-ranked ordering the swap engine acts on) ───────────
-
-
-def top_issues(
-    *,
-    efficiency_r: dict,
-    focus_r: dict,
-    template_r: dict,
-    wincons_r: dict,
-    protection_r: dict,
-    commander_r: dict,
-) -> list[dict]:
-    """Rank findings by severity. Each issue carries a ``kind`` the swap engine maps
-    to a cut/add action; ``commander_misfit`` is advisory only (no swap fixes it)."""
-    issues: list[dict] = []
-
-    for role, b in template_r["short"].items():
-        deficit = -b["deviation"]
-        # ADR-0040 §1: a grant-covered role (the commander's own ability GRANTS
-        # this role's resource to every recipient body — deck-forge CONTEXT.md
-        # "Grant-covered role") keeps its literal shortfall message but downgrades
-        # to advisory: swaps.py's _spec_for_issue reads ``grant_covered`` and sources
-        # no add for it; ``advisory`` itself is a marker carried for consumers —
-        # nothing in the engine reads it. Never suppressed — the deficit/message are
-        # unchanged.
-        covered = bool(b.get("grant_covered"))
-        message = (
-            f"{role.replace('_', ' ')} short by {deficit} "
-            f"({b['current']}/{b['min']}-{b['max']})"
-        )
-        if covered:
-            by = b.get("grant_covered_by", "")
-            message += f" — covered by {by}'s ability grant"
-        issues.append(
-            {
-                "kind": "role_short",
-                "role": role,
-                "severity": deficit,
-                "advisory": covered,
-                "grant_covered": covered,
-                "message": message,
-            }
-        )
-    for role, b in template_r["over"].items():
-        issues.append(
-            {
-                "kind": "role_over",
-                "role": role,
-                "severity": b["deviation"],
-                "message": f"{role.replace('_', ' ')} over by {b['deviation']} "
-                f"({b['current']}/{b['min']}-{b['max']})",
-            }
-        )
-
-    # Dead weight: cards that serve no avenue AND fill no template role. Swapping a
-    # do-nothing card for an on-theme / role card is almost always the highest-value
-    # move, so it ranks above template trims — but only when there's somewhere
-    # productive to redeploy (a viable theme to deepen or a short Spine role to fill);
-    # with no target it's advisory, not a swap (the swap engine has nothing better to
-    # add). A couple of off-theme good-stuff cards is normal, so a small tolerance
-    # keeps this from churning a healthy deck.
-    # Dead weight = do-nothing fillers PLUS barely-played fringe theme cards (the
-    # upgrade targets the bucket test alone misses, e.g. a vanilla beater in a go-wide
-    # deck). Both are replaced with stronger on-theme/role cards.
-    dead = focus_r.get("filler", 0) + focus_r.get("low_value", 0)
-    # ADR-0040 §1 (Fix 4): a grant-covered short role isn't a real redeploy
-    # target — the commander's own grant already covers it — so it must not
-    # count toward has_target any more than it sources an actual add
-    # (_dead_weight_spec below applies the same gate).
-    has_target = bool(focus_r.get("viable_avenues")) or any(
-        not b.get("grant_covered") for b in template_r["short"].values()
-    )
-    filler_tol = 2
-    if dead > filler_tol and has_target:
-        excess = dead - filler_tol
-        issues.append(
-            {
-                "kind": "dead_weight",
-                # Ranks above theme-refocus (spread_thin) and template trims: replacing
-                # a do-nothing card with an on-theme/role card is higher-value and only
-                # ever cuts filler, so it should consume the swap budget before any pass
-                # that risks churning a functional card.
-                "severity": 7 + min(excess, 3),
-                "count": excess,
-                "message": f"{dead} cards are dead weight (no avenue/role, or barely "
-                "played) — replace with stronger on-theme cards",
-            }
-        )
-
-    for e in focus_r.get("emerging", []):
-        issues.append(
-            {
-                "kind": "under_supported_theme",
-                "label": e["label"],
-                "severity": 2,
-                "message": f"{e['label']} ({e['depth']}) is an under-supported theme — "
-                "commit more or cut it",
-            }
-        )
-
-    if focus_r["verdict"] == "SPREAD-THIN":
-        issues.append(
-            {
-                "kind": "spread_thin",
-                "severity": 4 + len(focus_r["stranded_avenues"]),
-                "message": f"spread thin — {len(focus_r['viable_avenues'])} viable "
-                f"avenues, {focus_r['filler']} filler",
-            }
-        )
-
-    if wincons_r["status"] == "low":
-        issues.append(
-            {
-                "kind": "wincon_short",
-                "severity": 3 + (wincons_r["target"][0] - wincons_r["count"]),
-                "message": f"≈{wincons_r['count']} closers — "
-                f"usually wants {wincons_r['target'][0]}-{wincons_r['target'][1]}",
-            }
-        )
-    if wincons_r.get("voltron_needs_real_damage"):
-        # Advisory only (no swap fixes a plan): the equip/aura density reads as
-        # voltron, but this game has no 21-commander-damage rule (CR 903.10a is
-        # Commander's extra loss rule; Brawl games don't use it, CR 903.12h), so the
-        # plan closes only by dealing the whole starting life. ``advisory`` is a
-        # marker carried for consumers (nothing in the engine reads it); swaps skips
-        # this kind because _spec_for_issue has no branch for it. Severity ranks how
-        # much the builder should change course — 2 here (read your closers
-        # differently) vs 5 for commander_misfit (you may have the wrong commander).
-        issues.append(
-            {
-                "kind": "voltron_no_commander_damage",
-                "severity": 2,
-                "advisory": True,
-                "message": f"voltron plan, but no commander-damage rule in this game — "
-                f"it must deal the full {wincons_r.get('life')} life; count real "
-                "evasion and reach as the closers",
-            }
-        )
-
-    if protection_r["status"] == "low":
-        issues.append(
-            {
-                "kind": "protection_short",
-                "severity": 2 + (protection_r["target"] - protection_r["count"]),
-                "message": f"{protection_r['count']} protection — "
-                f"this Shape usually wants ~{protection_r['target']}",
-            }
-        )
-
-    if efficiency_r["verdict"] != "ok":
-        issues.append(
-            {
-                "kind": "efficiency",
-                "subkind": efficiency_r["verdict"],
-                "severity": 3,
-                "message": f"curve: {efficiency_r['verdict']}",
-            }
-        )
-
-    if commander_r["misfit"]:
-        # Advisory marker (no swap fixes a commander; swaps skips the kind because
-        # _spec_for_issue has no branch for it); severity 5 because it questions the
-        # whole build, where the voltron advisory above (2) only re-reads the closers.
-        issues.append(
-            {
-                "kind": "commander_misfit",
-                "severity": 5,
-                "advisory": True,
-                "message": "commander serves "
-                f"{len(commander_r['serves_viable'])}/{commander_r['viable_count']} "
-                "viable avenues — the deck may be built for a different commander",
-            }
-        )
-
-    issues.sort(key=lambda i: i["severity"], reverse=True)
-    return issues

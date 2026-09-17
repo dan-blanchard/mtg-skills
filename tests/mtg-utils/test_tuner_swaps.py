@@ -3,19 +3,51 @@
 from mtg_utils._analysis.signal_specs import spec_for
 from mtg_utils._analysis.signals import Signal
 from mtg_utils._tuner.classify import CardClass
-from mtg_utils._tuner.metrics import top_issues
+from mtg_utils._tuner.issues import (
+    PROTECTION_SEARCH,
+    ROLE_SEARCH,
+    Sourcing,
+    _reliable_ramp,
+)
+from mtg_utils._tuner.issues import top_issues as _top_issues
 from mtg_utils._tuner.swaps import (
-    _PROTECTION_SEARCH,
-    _ROLE_SEARCH,
     SwapContext,
     _cut_why,
     _is_fixing,
-    _reliable_ramp,
-    _spec_for_issue,
     cut_candidates,
-    propose_swaps,
 )
+from mtg_utils._tuner.swaps import propose_swaps as _propose_swaps
 from mtg_utils.theme_presets import get_preset
+
+# Issues are built THROUGH the interface: ``Sourcing.issue`` decides each remedy from
+# the same focus / signals / budgets the test hands the swap engine — a test never
+# hand-sets a remedy.
+_ISSUE_FIELDS = ("role", "label", "subkind", "count", "advisory")
+
+
+def _issue(sourcing, fields):
+    return sourcing.issue(
+        fields["kind"],
+        severity=fields.get("severity", 0),
+        message=fields.get("message", ""),
+        **{k: fields[k] for k in _ISSUE_FIELDS if k in fields},
+    )
+
+
+def propose_swaps(classes, issues, ctx):
+    sourcing = Sourcing(ctx.focus_result, ctx.deck_signals, ctx.budgets)
+    return _propose_swaps(classes, [_issue(sourcing, i) for i in issues], ctx)
+
+
+def top_issues(*, focus_r, template_r, deck_signals=(), **metrics):
+    """``issues.top_issues`` over the budgets the template rows came from."""
+    budgets = {**template_r["short"], **template_r["over"]}
+    return _top_issues(
+        focus_r=focus_r,
+        template_r=template_r,
+        sourcing=Sourcing(focus_r, list(deck_signals), budgets),
+        **metrics,
+    )
 
 
 def _focus(viable=(), emerging=(), stranded=()):
@@ -298,16 +330,16 @@ def test_role_over_trim_cuts_least_played_excess_not_a_staple():
 
 
 def test_role_search_specs_reference_only_real_presets():
-    # Regression: _ROLE_SEARCH["ramp"] once named a 'ramp' preset that did not exist,
+    # Regression: ROLE_SEARCH["ramp"] once named a 'ramp' preset that did not exist,
     # which made card_search raise BadParameter and 500'd /api/tune for any ramp-short
     # deck.
-    for spec in [*_ROLE_SEARCH.values(), _PROTECTION_SEARCH]:
+    for spec in [*ROLE_SEARCH.values(), PROTECTION_SEARCH]:
         for preset in spec.get("preset_names", ()):
             get_preset(preset)  # raises KeyError on an unknown preset → test fails
     # ADR-0051: ramp is sourced by the SAME preset roles.is_ramp counts it by — never a
     # hand-copied oracle regex that can drift from the role.
-    assert _ROLE_SEARCH["ramp"]["preset_names"] == ("ramp",)
-    assert "oracle" not in _ROLE_SEARCH["ramp"]
+    assert ROLE_SEARCH["ramp"]["preset_names"] == ("ramp",)
+    assert "oracle" not in ROLE_SEARCH["ramp"]
 
 
 def test_dead_weight_replaces_filler_with_synergy_not_engine_cards():
@@ -378,16 +410,14 @@ def test_top_issues_flags_dead_weight_only_with_a_redeploy_target():
         "verdict": "FOCUSED",
         "stranded_avenues": [],
     }
-    kinds = {i["kind"] for i in top_issues(focus_r=heavy, **base)}
+    kinds = {i.kind for i in top_issues(focus_r=heavy, **base)}
     assert "dead_weight" in kinds
     # A couple of off-theme cards is normal, not "dead weight".
     light = {**heavy, "filler": 1}
-    assert "dead_weight" not in {i["kind"] for i in top_issues(focus_r=light, **base)}
+    assert "dead_weight" not in {i.kind for i in top_issues(focus_r=light, **base)}
     # No theme to deepen and no short role → advisory only, no swap issue.
     no_target = {**heavy, "viable_avenues": []}
-    assert "dead_weight" not in {
-        i["kind"] for i in top_issues(focus_r=no_target, **base)
-    }
+    assert "dead_weight" not in {i.kind for i in top_issues(focus_r=no_target, **base)}
 
 
 def test_dead_weight_outranks_theme_refocus():
@@ -408,7 +438,7 @@ def test_dead_weight_outranks_theme_refocus():
         protection_r={"status": "ok"},
         commander_r={"misfit": False},
     )
-    kinds = [i["kind"] for i in issues]
+    kinds = [i.kind for i in issues]
     assert kinds.index("dead_weight") < kinds.index("spread_thin")
 
 
@@ -526,7 +556,7 @@ def test_dead_weight_fires_on_fringe_theme_cards_without_filler():
         "verdict": "FOCUSED",
         "stranded_avenues": [],
     }
-    assert "dead_weight" in {i["kind"] for i in top_issues(focus_r=fr, **base)}
+    assert "dead_weight" in {i.kind for i in top_issues(focus_r=fr, **base)}
 
 
 def test_fill_pass_adds_without_cuts_to_grow_an_undersized_deck():
@@ -612,10 +642,11 @@ def test_emerging_theme_proposes_a_commit_add():
         confidence="high",
     )
     label = spec_for(sig).label
-    issue = {"kind": "under_supported_theme", "label": label}
-    spec = _spec_for_issue(
-        issue, _focus(emerging=[{"label": label, "depth": 7, "cards": []}]), [sig]
+    sourcing = Sourcing(
+        _focus(emerging=[{"label": label, "depth": 7, "cards": []}]), [sig], {}
     )
+    remedy = sourcing.remedy_for("under_supported_theme", label=label)
+    spec = remedy.spec if remedy else None
     assert spec is not None  # resolves to the emerging theme's search → "commit" adds
 
 
@@ -1075,15 +1106,29 @@ def test_cut_candidates_granter_quality_gates_low_value():
     assert all(name != "Premium Granter" for _, name in got)
 
 
-def test_grant_covered_role_short_issue_has_no_spec():
-    # ADR-0040 §1: a role_short issue the top_issues advisory-downgrade flags
-    # grant_covered must resolve to no spec at all — the same "advisory, no swap
-    # fixes it" shape commander_misfit already uses (kind falls through to None).
-    covered = {"kind": "role_short", "role": "card_draw", "grant_covered": True}
-    assert _spec_for_issue(covered, _focus(), []) is None
-    # A normal (non-covered) role_short issue is unaffected — still actionable.
-    uncovered = {"kind": "role_short", "role": "card_draw"}
-    assert _spec_for_issue(uncovered, _focus(), []) == _ROLE_SEARCH["card_draw"]
+def test_a_grant_covered_role_sources_nothing_on_any_path():
+    # ADR-0040 §1: the three sourcing paths (the issue loop, the dead-weight
+    # redeploy, the fill pass) all read ONE answer — Sourcing — so a Grant-covered
+    # short role sources nothing anywhere, while its shortfall stays visible.
+    covered = Sourcing(
+        _focus(), [], {"card_draw": _band(0, 10, 12, grant_covered=True)}
+    )
+    assert covered.role_spec("card_draw") is None  # the fill pass
+    assert covered.remedy_for("role_short", role="card_draw") is None  # issue loop
+    assert covered.redeploy() is None  # the dead-weight redeploy
+    assert not covered.has_redeploy_target()
+    issue = covered.issue("role_short", role="card_draw", severity=10, message="m")
+    assert issue.advisory is True
+    assert issue.grant_covered is True
+    assert issue.remedy is None
+    # A normal (non-covered) short role is unaffected — still actionable everywhere.
+    plain = Sourcing(_focus(), [], {"card_draw": _band(0, 10, 12)})
+    assert plain.role_spec("card_draw") == ROLE_SEARCH["card_draw"]
+    assert (
+        plain.remedy_for("role_short", role="card_draw").spec
+        == (ROLE_SEARCH["card_draw"])
+    )
+    assert plain.redeploy() == ROLE_SEARCH["card_draw"]
 
 
 def test_propose_swaps_never_sources_a_grant_covered_role_short_issue():
@@ -1098,7 +1143,7 @@ def test_propose_swaps_never_sources_a_grant_covered_role_short_issue():
         "kind": "role_short",
         "role": "card_draw",
         "severity": 10,
-        "grant_covered": True,
+        # Coverage is read off the budgets row below, never hand-set on the issue.
         "message": "card draw short by 10 — covered by Sliver Weftwinder",
     }
     draw_spell = {
@@ -1130,11 +1175,10 @@ def test_propose_swaps_never_sources_a_grant_covered_role_short_issue():
 
 
 def test_dead_weight_never_sources_a_grant_covered_role():
-    # Verified-review Fix 4: `_dead_weight_spec`'s fallback (redeploy filler
-    # into the worst-short Spine role when there's no viable avenue to
-    # deepen) is a THIRD sourcing path the #98 advisory downgrade missed —
-    # the issue-driven `_spec_for_issue` role_short handling and the fill
-    # pass are both gated on `grant_covered`, but this fallback wasn't. A
+    # Verified-review Fix 4: the dead-weight redeploy (filler into the
+    # worst-short Spine role when there's no viable avenue to deepen) is a
+    # THIRD sourcing path the #98 advisory downgrade once missed — now all
+    # three read `Sourcing`, and this pins the end-to-end behaviour. A
     # grant-covered card_draw shortfall must never source a "fill card_draw"
     # dead-weight add.
     classes = [
@@ -1191,7 +1235,7 @@ def test_top_issues_dead_weight_ignored_when_only_short_role_is_grant_covered():
     }
     covered_short = {"card_draw": _band(0, 10, 12, grant_covered=True)}
     kinds = {
-        i["kind"]
+        i.kind
         for i in top_issues(
             focus_r=heavy, template_r={"short": covered_short, "over": {}}, **base
         )
@@ -1200,7 +1244,7 @@ def test_top_issues_dead_weight_ignored_when_only_short_role_is_grant_covered():
     # A short role that ISN'T grant-covered still counts as a real target.
     uncovered_short = {"card_draw": _band(0, 10, 12)}
     kinds2 = {
-        i["kind"]
+        i.kind
         for i in top_issues(
             focus_r=heavy, template_r={"short": uncovered_short, "over": {}}, **base
         )

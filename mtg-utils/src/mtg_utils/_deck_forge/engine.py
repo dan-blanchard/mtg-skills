@@ -47,7 +47,7 @@ from mtg_utils.card_classify import is_basic_land, valid_partner_search
 from mtg_utils.card_pool import CardPool
 from mtg_utils.companion import is_companion
 from mtg_utils.deck_stats import deck_stats, detect_bracket
-from mtg_utils.formats import COMMANDER_FORMATS, FORMATS, Format, format_options
+from mtg_utils.formats import COMMANDER_FORMATS, FORMATS, format_options
 from mtg_utils.hydrated_deck import ZONES, HydratedDeck
 from mtg_utils.legality_audit import legality_audit
 from mtg_utils.mana_audit import mana_audit, reconcile_basic_lands
@@ -1242,20 +1242,17 @@ def tune_params(
     shape_override: str | None,
     suggest_commander: bool,
 ) -> TuneParams:
-    """The tuner's parameters for THIS build. Cost mode follows the medium (the
-    Format's rule): paper budgets in USD, digital in Arena wildcards per rarity (a
-    missing wildcard budget on a digital build is an all-zero, owned-only pass).
-    ``max_swaps`` is capped high enough to FILL a near-empty deck (an under-sized
-    build can need ~40+ adds to reach 100)."""
-    fmt = state.session.format
-    is_digital = Format.cost_mode(state.session.medium) == "wildcards"
+    """The tuner's parameters for THIS build — transport only: the medium and both
+    purses go through as-is, and ``tune`` asks the Format which currency and which
+    candidate pool the medium means (ADR-0045). ``max_swaps`` is capped high enough
+    to FILL a near-empty deck (an under-sized build can need ~40+ adds to reach 100).
+    """
     return TuneParams(
-        budget=None if is_digital else budget,
-        wildcard_budget=(wildcard_budget or {}) if is_digital else None,
+        budget=budget,
+        wildcard_budget=wildcard_budget,
         max_swaps=max(0, min(max_swaps, 99)),
         shape_override=shape_override,
         suggest_commander=suggest_commander,
-        paper_only=not FORMATS[fmt].is_arena,
         medium=state.session.medium,
     )
 
@@ -1547,7 +1544,7 @@ def find_candidates(state: ForgeState, params: FindParams) -> CandidatePage:
                 base = explore_filters(av["search"], color_identity=ci, fmt=fmt)
                 found = state.search_fn(
                     limit=_FIND_POOL,
-                    paper_only=not FORMATS[fmt].is_arena,
+                    paper_only=FORMATS[fmt].paper_only(state.session.medium),
                     include_unreleased=params.include_unreleased,
                     **refine_filters(base, params),
                 )
@@ -1584,7 +1581,7 @@ def find_candidates(state: ForgeState, params: FindParams) -> CandidatePage:
             price_max=params.price_max,
             format=params.format,
             paper_only=params.format is not None
-            and not FORMATS[params.format].is_arena,
+            and FORMATS[params.format].paper_only(state.session.medium),
             include_unreleased=params.include_unreleased,
             preset_names=tuple(params.presets),
             is_commander_filter=params.is_commander,

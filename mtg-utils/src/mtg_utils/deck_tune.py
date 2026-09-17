@@ -25,7 +25,7 @@ import click
 from mtg_utils import card_search, combo_search
 from mtg_utils._tuner.tune import TuneParams, tune
 from mtg_utils.deck_cli import acquire_for_cli, bulk_data_option, resolve_bulk_path
-from mtg_utils.formats import COMMANDER_FORMATS, medium_is_digital
+from mtg_utils.formats import COMMANDER_FORMATS
 from mtg_utils.hydrated_deck import HydratedDeck
 
 
@@ -45,6 +45,27 @@ def _ensure_ir() -> None:
             f"deck-tune: Card IR unavailable ({exc}); using regex path.",
             file=sys.stderr,
         )
+
+
+_WILDCARD_TIERS = ("mythic", "rare", "uncommon", "common")
+
+
+def _parse_wildcards(
+    _ctx: click.Context, _param: click.Parameter, value: str | None
+) -> dict[str, int] | None:
+    """``'rare=4,uncommon=8'`` → ``{"rare": 4, "uncommon": 8}``."""
+    if value is None:
+        return None
+    out: dict[str, int] = {}
+    for part in value.split(","):
+        tier, sep, count = part.strip().partition("=")
+        if not sep or tier not in _WILDCARD_TIERS or not count.isdigit():
+            raise click.BadParameter(
+                f"{part!r}: expected <rarity>=<count>, rarity one of "
+                f"{', '.join(_WILDCARD_TIERS)}"
+            )
+        out[tier] = int(count)
+    return out
 
 
 @click.command()
@@ -78,6 +99,14 @@ def _ensure_ir() -> None:
     "→ paper. Drives whether a null EDHREC rank condemns a card.",
 )
 @click.option(
+    "--wildcards",
+    "wildcards",
+    callback=_parse_wildcards,
+    default=None,
+    help="Arena wildcard budget for a digital build, per rarity: "
+    "'mythic=1,rare=4,uncommon=8,common=8'. Omit = owned-only.",
+)
+@click.option(
     "--paper-only/--no-paper-only",
     "paper_only",
     default=None,
@@ -101,6 +130,7 @@ def main(
     shape_override: str | None,
     target_bracket: int | None,
     medium: str | None,
+    wildcards: dict[str, int] | None,
     paper_only: bool | None,
     output: str | None,
 ) -> None:
@@ -114,15 +144,12 @@ def main(
             f"deck-tune is Commander-family only ({' / '.join(COMMANDER_FORMATS)}); "
             f"got {fmt.name!r} — 60-card constructed stays on the agent pipeline."
         )
-    # ADR-0040 §4 fix: the Format resolves the medium the same way deck-forge's
-    # DeckSession does (the Arena Brawl formats default digital) so the digital
-    # null-rank fix actually engages on the CLI path — the ADR's own motivating
-    # benchmark was a Historic Brawl deck. paper_only threads consistently with
-    # the (inferred or explicit) medium unless the caller overrides it directly.
+    # The Format resolves the medium the same way deck-forge's DeckSession does (the
+    # Arena Brawl formats default digital); tune() asks it for everything else the
+    # medium decides. Say which medium was inferred so a paper table isn't tuned as
+    # Arena (the medium decides the game the scorecard reads, the currency, the pool).
     effective_medium = fmt.resolve_medium(medium)
     if medium is None and len(fmt.media) > 1:
-        # The medium decides the game the scorecard reads (starting life, one-on-one
-        # vs pod) — say which one was inferred so a paper table isn't tuned as Arena.
         other = next(m for m in fmt.media if m != effective_medium)
         click.echo(
             f"Note: --medium not given; tuning {fmt.name} as {effective_medium!r} "
@@ -135,11 +162,12 @@ def main(
             f"using {effective_medium!r}.",
             err=True,
         )
-    effective_paper_only = (
-        paper_only
-        if paper_only is not None
-        else not medium_is_digital(effective_medium)
-    )
+    if budget is not None and fmt.cost_mode(effective_medium) == "wildcards":
+        click.echo(
+            "Note: a digital build spends Arena wildcards, not USD — --budget is "
+            "ignored; pass --wildcards (e.g. rare=4,uncommon=8).",
+            err=True,
+        )
 
     search = functools.partial(card_search.search_cards, bulk_path)
     by_name = hd.by_name
@@ -153,8 +181,9 @@ def main(
         budget=budget,
         max_swaps=max(0, max_swaps),
         shape_override=shape_override,
-        paper_only=effective_paper_only,
-        medium=effective_medium,
+        paper_only=paper_only,
+        medium=medium,
+        wildcard_budget=wildcards,
         target_bracket=target_bracket,
     )
     result = tune(hd, search_fn=search, params=params, combos_fn=combos_fn)

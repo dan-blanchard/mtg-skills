@@ -730,3 +730,74 @@ def test_voltron_pieces_at_the_closer_floor_are_protected_from_cuts(
     assert wins["voltron_commander_damage"] is True
     assert wins["count"] <= wins["target"][0]
     assert {s["name"] for s in swords} <= captured["protected"]
+
+
+def _historic_brawl_hd():
+    deck = {
+        "format": "historic_brawl",
+        "deck_size": 100,
+        "commanders": [{"name": "Krenko, Mob Boss", "quantity": 1}],
+        "cards": [{"name": c["name"], "quantity": 1} for c in _DECK_CARDS],
+    }
+    return HydratedDeck.from_parsed(deck, by_name=_INDEX)
+
+
+def _searched_pools(hd, params):
+    """The ``paper_only`` values tune() handed the candidate search."""
+    seen: set[bool] = set()
+
+    def spy(**kw):
+        seen.add(kw["paper_only"])
+        return _fake_search(**kw)
+
+    tune(hd, search_fn=spy, params=params)
+    return seen
+
+
+def test_the_candidate_pool_follows_the_medium_not_the_format():
+    # A paper Historic Brawl table buys paper printings; the same format built for
+    # Arena searches Arena's. The hub once derived this from `is_arena` (False for a
+    # paper build) while the CLI derived it from the medium (True) — same deck, two
+    # pools. tune() now asks the Format, so no caller can disagree.
+    hd = _historic_brawl_hd()
+    paper = TuneParams(max_swaps=3, budget=100.0, medium="paper")
+    assert _searched_pools(hd, paper) == {True}
+    digital = TuneParams(max_swaps=3, wildcard_budget={"rare": 4}, medium="digital")
+    assert _searched_pools(hd, digital) == {False}
+    # No medium given → the format's default (digital for the Arena Brawl formats).
+    assert _searched_pools(hd, TuneParams(max_swaps=3)) == {False}
+    # An explicit override still wins.
+    forced = TuneParams(max_swaps=3, medium="digital", paper_only=True)
+    assert _searched_pools(hd, forced) == {True}
+
+
+def test_the_medium_picks_the_currency_the_purse_spends():
+    # Both purses ride along; the medium picks one (Format.cost_mode). A digital
+    # build never spends USD, a paper build never spends wildcards.
+    hd = _historic_brawl_hd()
+    both = {"budget": 100.0, "wildcard_budget": {"common": 9, "uncommon": 9}}
+    paper = tune(
+        hd,
+        search_fn=_fake_search,
+        params=TuneParams(max_swaps=3, medium="paper", **both),
+    )
+    assert paper["wildcards_spent"] is None
+    assert paper["swaps"]
+    digital = tune(
+        hd,
+        search_fn=_fake_search,
+        params=TuneParams(max_swaps=3, medium="digital", **both),
+    )
+    assert digital["spent"] == 0.0
+    assert digital["wildcards_spent"] is not None
+    # No wildcard purse on a digital build is the all-zero owned-only pass, even
+    # with a USD budget on the table.
+    broke = tune(
+        hd,
+        search_fn=_fake_search,
+        params=TuneParams(max_swaps=3, medium="digital", budget=100.0),
+    )
+    assert broke["swaps"] == []
+    assert broke["wildcards_spent"] == dict.fromkeys(
+        ("mythic", "rare", "uncommon", "common"), 0
+    )

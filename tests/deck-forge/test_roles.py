@@ -9,7 +9,7 @@ Real snapshot cards throughout (``mtg_utils.testkit``) — the production
 import pytest
 
 from mtg_utils._analysis.roles import is_ramp, role_of
-from mtg_utils._tuner.swaps import _ROLE_SEARCH, _reliable_ramp
+from mtg_utils._tuner.issues import ROLE_SEARCH, _reliable_ramp
 from mtg_utils.testkit import snapshot_records, test_card, test_signals
 from mtg_utils.theme_presets import get_preset, has_signal_coverage
 
@@ -102,7 +102,7 @@ def test_the_preset_and_the_role_agree_on_every_covered_card():
     """The agreement test that replaces the "mirrors is_ramp" comments: over the whole
     snapshot, the preset the tuner SEARCHES by and the role the budgets row COUNTS by
     are the same set — and the text degrade is never consulted for a covered card."""
-    preset = get_preset(_ROLE_SEARCH["ramp"]["preset_names"][0])
+    preset = get_preset(ROLE_SEARCH["ramp"]["preset_names"][0])
     records = snapshot_records()
     matched = {r["name"] for r in records if preset.matches(r)}
     counted = {r["name"] for r in records if "ramp" in role_of(r)}

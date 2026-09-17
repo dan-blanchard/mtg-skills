@@ -11,8 +11,8 @@ enters, ... draw a card.'").
 This module NEVER moves a Slot band — ``slot_budgets`` counts literal cards
 only, unchanged (ADR-0040 §1: "a mass grant never moves the number").
 ``covered_roles`` is consumed by ``_tuner.tune`` to *annotate* the budget row
-for a covered role; ``_tuner.metrics.top_issues`` turns that annotation into
-an advisory flag, and ``_tuner.swaps`` stops sourcing fills for it — the
+for a covered role; ``_tuner.issues.Sourcing`` turns that annotation into an
+advisory flag and sources nothing for the role on ANY swap path — the
 shortfall stays visible with its real numbers, it just stops driving swaps.
 
 The read is STRUCTURAL (concept trees via ``trees_for``), never oracle

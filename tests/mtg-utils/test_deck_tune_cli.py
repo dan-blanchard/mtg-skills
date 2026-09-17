@@ -82,8 +82,8 @@ def test_accepts_competitive_brawl_as_commander_family(tmp_path, monkeypatch):
     hyd = _write(tmp_path, "hyd.json", HYDRATED)
     res = CliRunner().invoke(deck_tune_main, [deck, "--bulk-data", hyd])
     assert res.exit_code == 0, res.output
-    assert captured["params"].medium == "digital"
-    assert captured["params"].paper_only is False
+    assert _medium(captured) == "digital"
+    assert _paper_only(captured) is False
 
 
 def test_medium_the_format_cannot_honour_is_noted_not_fatal(tmp_path, monkeypatch):
@@ -97,7 +97,7 @@ def test_medium_the_format_cannot_honour_is_noted_not_fatal(tmp_path, monkeypatc
         [deck, "--bulk-data", hyd, "--medium", "paper"],
     )
     assert res.exit_code == 0, res.output
-    assert captured["params"].medium == "digital"
+    assert _medium(captured) == "digital"
     assert "competitive_brawl is not played in 'paper'" in res.output
 
 
@@ -149,19 +149,36 @@ _STUB_RESULT = {
 
 
 def _spy_tune(monkeypatch):
-    """Replace deck_tune's `tune` with a spy that records the TuneParams it
-    was called with, so the CLI's medium/paper_only inference can be
-    inspected without needing a real bulk index."""
+    """Replace deck_tune's `tune` with a spy that records the deck and the
+    TuneParams it was called with. The CLI is transport only — it passes the raw
+    ``--medium`` / ``--paper-only`` flags and tune() asks the Format for the rest —
+    so the tests read the EFFECTIVE values the way tune() does (:func:`_medium` /
+    :func:`_paper_only`)."""
     import mtg_utils.deck_tune as deck_tune_mod
 
     captured: dict = {}
 
-    def spy(_hd, *, params, **_kw):
+    def spy(hd, *, params, **_kw):
         captured["params"] = params
+        captured["hd"] = hd
         return _STUB_RESULT
 
     monkeypatch.setattr(deck_tune_mod, "tune", spy)
     return captured
+
+
+def _medium(captured) -> str:
+    """The medium tune() resolves for the captured call (``Format.game``)."""
+    return captured["hd"].format.game(captured["params"].medium).medium
+
+
+def _paper_only(captured) -> bool:
+    """The candidate pool tune() resolves: the explicit override, else the Format's
+    rule for the medium."""
+    override = captured["params"].paper_only
+    if override is not None:
+        return override
+    return captured["hd"].format.paper_only(captured["params"].medium)
 
 
 def test_medium_defaults_paper_for_commander(tmp_path, monkeypatch):
@@ -173,8 +190,8 @@ def test_medium_defaults_paper_for_commander(tmp_path, monkeypatch):
     hyd = _write(tmp_path, "hyd.json", HYDRATED)
     res = CliRunner().invoke(deck_tune_main, [deck, "--bulk-data", hyd])
     assert res.exit_code == 0, res.output
-    assert captured["params"].medium == "paper"
-    assert captured["params"].paper_only is True
+    assert _medium(captured) == "paper"
+    assert _paper_only(captured) is True
 
 
 def test_medium_defaults_digital_for_brawl(tmp_path, monkeypatch):
@@ -186,9 +203,9 @@ def test_medium_defaults_digital_for_brawl(tmp_path, monkeypatch):
     hyd = _write(tmp_path, "hyd.json", HYDRATED)
     res = CliRunner().invoke(deck_tune_main, [deck, "--bulk-data", hyd])
     assert res.exit_code == 0, res.output
-    assert captured["params"].medium == "digital"
+    assert _medium(captured) == "digital"
     # paper_only threads consistently with the inferred medium.
-    assert captured["params"].paper_only is False
+    assert _paper_only(captured) is False
 
 
 def test_medium_explicit_override_beats_the_inferred_default(tmp_path, monkeypatch):
@@ -200,8 +217,8 @@ def test_medium_explicit_override_beats_the_inferred_default(tmp_path, monkeypat
         [deck, "--bulk-data", hyd, "--medium", "paper"],
     )
     assert res.exit_code == 0, res.output
-    assert captured["params"].medium == "paper"
-    assert captured["params"].paper_only is True
+    assert _medium(captured) == "paper"
+    assert _paper_only(captured) is True
 
 
 def test_paper_only_explicit_flag_beats_medium_inference(tmp_path, monkeypatch):
@@ -215,5 +232,50 @@ def test_paper_only_explicit_flag_beats_medium_inference(tmp_path, monkeypatch):
         [deck, "--bulk-data", hyd, "--paper-only"],
     )
     assert res.exit_code == 0, res.output
-    assert captured["params"].medium == "digital"
-    assert captured["params"].paper_only is True
+    assert _medium(captured) == "digital"
+    assert _paper_only(captured) is True
+
+
+def test_cli_passes_flags_through_untouched(tmp_path, monkeypatch):
+    # Transport only: no flag → no override, so tune() follows the medium.
+    captured = _spy_tune(monkeypatch)
+    deck = _write(tmp_path, "deck.json", BRAWL_DECK)
+    hyd = _write(tmp_path, "hyd.json", HYDRATED)
+    res = CliRunner().invoke(deck_tune_main, [deck, "--bulk-data", hyd])
+    assert res.exit_code == 0, res.output
+    assert captured["params"].medium is None
+    assert captured["params"].paper_only is None
+
+
+def test_wildcards_option_parses_a_per_rarity_budget(tmp_path, monkeypatch):
+    captured = _spy_tune(monkeypatch)
+    deck = _write(tmp_path, "deck.json", BRAWL_DECK)
+    hyd = _write(tmp_path, "hyd.json", HYDRATED)
+    res = CliRunner().invoke(
+        deck_tune_main, [deck, "--bulk-data", hyd, "--wildcards", "rare=2,common=8"]
+    )
+    assert res.exit_code == 0, res.output
+    assert captured["params"].wildcard_budget == {"rare": 2, "common": 8}
+
+
+def test_wildcards_option_rejects_an_unknown_rarity(tmp_path, monkeypatch):
+    _spy_tune(monkeypatch)
+    deck = _write(tmp_path, "deck.json", BRAWL_DECK)
+    hyd = _write(tmp_path, "hyd.json", HYDRATED)
+    res = CliRunner().invoke(
+        deck_tune_main, [deck, "--bulk-data", hyd, "--wildcards", "epic=1"]
+    )
+    assert res.exit_code != 0
+    assert "epic=1" in res.output
+
+
+def test_usd_budget_on_a_digital_build_is_noted(tmp_path, monkeypatch):
+    # A digital build spends wildcards; --budget would silently do nothing.
+    _spy_tune(monkeypatch)
+    deck = _write(tmp_path, "deck.json", BRAWL_DECK)
+    hyd = _write(tmp_path, "hyd.json", HYDRATED)
+    res = CliRunner().invoke(
+        deck_tune_main, [deck, "--bulk-data", hyd, "--budget", "5"]
+    )
+    assert res.exit_code == 0, res.output
+    assert "--wildcards" in res.output

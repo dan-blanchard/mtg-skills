@@ -1,8 +1,21 @@
 """Tuner Tier-2 metrics: win-condition heuristic detection (grill F6)."""
 
-from mtg_utils._tuner.metrics import _ir_wincon, _is_wincon_card, top_issues
+from mtg_utils._tuner.issues import Sourcing
+from mtg_utils._tuner.issues import top_issues as _top_issues
+from mtg_utils._tuner.metrics import _ir_wincon, _is_wincon_card
 from mtg_utils.card_ir import Ability, Card, Effect, Face
 from mtg_utils.formats import Game
+
+
+def top_issues(*, focus_r, template_r, **metrics):
+    """``issues.top_issues`` over the budgets the template rows came from."""
+    budgets = {**template_r["short"], **template_r["over"]}
+    return _top_issues(
+        focus_r=focus_r,
+        template_r=template_r,
+        sourcing=Sourcing(focus_r, [], budgets),
+        **metrics,
+    )
 
 
 def _ir(*effects):
@@ -255,9 +268,10 @@ class TestClosersReadTheGame:
             protection_r={"status": "ok"},
             commander_r={"misfit": False},
         )
-        [issue] = [i for i in issues if i["kind"] == "voltron_no_commander_damage"]
-        assert issue["advisory"] is True
-        assert "full 25 life" in issue["message"]
+        [issue] = [i for i in issues if i.kind == "voltron_no_commander_damage"]
+        assert issue.advisory is True
+        assert issue.remedy is None  # no swap fixes a plan
+        assert "full 25 life" in issue.message
 
 
 def _band(current, lo, hi, **extra):
@@ -302,7 +316,7 @@ def test_grant_covered_role_short_is_advisory_but_still_shows_the_literal_number
         "over": {},
     }
     issues = top_issues(template_r=template_r, **_ISSUES_BASE)
-    by_role = {i["role"]: i for i in issues if i["kind"] == "role_short"}
+    by_role = {i.role: i.to_json() for i in issues if i.kind == "role_short"}
     draw_issue = by_role["card_draw"]
     assert draw_issue["advisory"] is True
     assert draw_issue["grant_covered"] is True

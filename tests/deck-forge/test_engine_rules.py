@@ -247,7 +247,10 @@ def test_export_deck_dict_resolves_chosen_printings_only():
 # --- tune parameters ------------------------------------------------------------
 
 
-def test_tune_params_follow_the_medium_cost_mode():
+def test_tune_params_are_transport_only():
+    # The medium and BOTH purses go through unchanged: tune() asks the Format which
+    # currency and which candidate pool the medium means (ADR-0045) — the hub derives
+    # neither (it once derived paper_only from `is_arena`, disagreeing with the CLI).
     paper = engine.tune_params(
         _state(),
         budget=25.0,
@@ -256,9 +259,10 @@ def test_tune_params_follow_the_medium_cost_mode():
         shape_override=None,
         suggest_commander=False,
     )
-    assert (paper.budget, paper.wildcard_budget) == (25.0, None)
+    assert (paper.budget, paper.wildcard_budget) == (25.0, {"rare": 2})
     assert paper.max_swaps == 99  # capped, never clamped to the old 25
-    assert paper.paper_only is True
+    assert paper.paper_only is None  # no override: follows the medium
+    assert paper.medium == _state().session.medium
 
     state = _state()
     state.session.format = "brawl"  # Arena-only → digital
@@ -270,8 +274,9 @@ def test_tune_params_follow_the_medium_cost_mode():
         shape_override="aggro",
         suggest_commander=True,
     )
-    assert (digital.budget, digital.wildcard_budget) == (None, {})
-    assert digital.paper_only is False
+    assert (digital.budget, digital.wildcard_budget) == (25.0, None)
+    assert digital.paper_only is None
+    assert digital.medium == state.session.medium
     assert digital.shape_override == "aggro"
 
 

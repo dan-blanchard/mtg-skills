@@ -208,6 +208,15 @@ class Format:
             commander_damage=self.commander_damage,
         )
 
+    def paper_only(self, medium: str | None = None) -> bool:
+        """Whether a card search for a build in ``medium`` is restricted to paper
+        printings. It follows the MEDIUM, not ``is_arena``: a paper Historic Brawl
+        table buys paper printings in USD, while the same format built for Arena
+        searches Arena's printings (whose rarity is the wildcard cost). The
+        Arena-pool gate is separate and medium-independent — ``legality`` applies it
+        either way."""
+        return not medium_is_digital(self.resolve_medium(medium))
+
     @staticmethod
     def cost_mode(medium: str) -> CostMode:
         """What a card costs to acquire in ``medium``: Arena wildcards or paper USD."""

@@ -262,6 +262,16 @@ class TestMediumAndSize:
         assert Format.cost_mode("digital") == "wildcards"
         assert Format.cost_mode("paper") == "usd"
 
+    def test_paper_only_follows_the_medium_not_is_arena(self):
+        # The search pool is the MEDIUM's: a paper Historic Brawl table buys paper
+        # printings even though the format `is_arena`.
+        assert HB.paper_only("paper") is True
+        assert HB.paper_only("digital") is False
+        assert HB.paper_only(None) is False  # defaults digital
+        # An override the format cannot honour resolves first (Commander is paper).
+        assert CMD.paper_only("digital") is True
+        assert CMD.paper_only() is True
+
     def test_size_choices_only_paper_historic_brawl_may_choose(self):
         assert HB.size_choices("paper") == (60, 100)
         assert HB.size_choices("digital") == (100,)

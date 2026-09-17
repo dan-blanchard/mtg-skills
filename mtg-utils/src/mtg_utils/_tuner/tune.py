@@ -16,27 +16,37 @@ from mtg_utils._tuner import commander_fit, grant_coverage, metrics
 from mtg_utils._tuner import swaps as swaps_mod
 from mtg_utils._tuner.bracket import bracket_gate
 from mtg_utils._tuner.classify import CardClass, classify_deck
+from mtg_utils._tuner.issues import Sourcing, top_issues
 from mtg_utils._tuner.shape import infer_shape
 from mtg_utils.card_classify import is_land
 from mtg_utils.deck_stats import deck_stats
+from mtg_utils.formats import Format
 from mtg_utils.hydrated_deck import HydratedDeck
 from mtg_utils.mana_audit import mana_audit
 
 
 @dataclass(frozen=True)
 class TuneParams:
-    """A Tune request. ``budget=None`` is the owned-only zero-spend default; an explicit
-    number opens the buy pool. ``paper_only``/``medium`` come from the deck's Medium.
-    ``wildcard_budget`` (digital builds) is the per-rarity Arena wildcard allowance
-    ``{mythic, rare, uncommon, common}`` — when set it replaces the USD ``budget``: each
-    unowned add costs one wildcard of its rarity, gated per tier (they don't swap)."""
+    """A Tune request: the build's ``medium`` and a purse. Everything the medium
+    decides — the Game, the cost mode, the candidate pool — ``tune`` asks the Format
+    (ADR-0045); a caller never pre-derives it.
+
+    The purse carries both currencies and the medium picks one (``Format.cost_mode``):
+    paper spends ``budget`` USD (``None`` = the owned-only zero-spend default); digital
+    spends ``wildcard_budget``, the per-rarity Arena allowance ``{mythic, rare,
+    uncommon, common}`` — one wildcard of the add's rarity, gated per tier (they don't
+    swap), and ``None`` is the all-zero owned-only pass.
+
+    ``paper_only`` is an explicit override of the candidate pool; ``None`` (the
+    default) follows the medium: a paper build searches paper printings, a digital
+    build Arena's."""
 
     budget: float | None = None
     max_swaps: int = 0
     shape_override: str | None = None
     suggest_commander: bool = False
-    paper_only: bool = True
-    medium: str = "paper"
+    paper_only: bool | None = None
+    medium: str | None = None
     wildcard_budget: Mapping[str, int] | None = None
     # The bracket the builder is AIMING for (ADR-0030). When set, the scorecard carries
     # a bracket-constraint gate; when None, the bracket axis is skipped entirely.
@@ -155,6 +165,17 @@ def tune(
     # ``game.medium`` so a raw caller value can't misread it.
     # Drives the closer read and the bracket gate's applicability.
     game = hd.format.game(params.medium)
+    # What the medium decides, asked once: the candidate pool (a paper build buys
+    # paper printings; a digital one Arena's) and the currency the purse spends.
+    paper_only = (
+        params.paper_only
+        if params.paper_only is not None
+        else hd.format.paper_only(game.medium)
+    )
+    if Format.cost_mode(game.medium) == "wildcards":
+        budget, wildcard_budget = None, dict(params.wildcard_budget or {})
+    else:
+        budget, wildcard_budget = params.budget, None
     identity = _deck_identity(hd)
     # Exact-size legality (CR 903.5a / 903.12d): a deck PAST deck_size is never
     # legal in the Commander family, so the overflow is diagnosed on every run.
@@ -197,8 +218,8 @@ def tune(
     # ADR-0040 §1 (Grant-covered role, deck-forge CONTEXT.md): does a commander's
     # own ability GRANT structurally cover a short Spine role for every recipient
     # body (the Sliver Weftwinder shape)? The band NUMBER is untouched — this only
-    # annotates the short role's row so top_issues/swaps.py can downgrade its
-    # shortfall to advisory without suppressing it.
+    # annotates the short role's row; ``issues.Sourcing`` reads it and downgrades the
+    # shortfall to advisory (sourcing nothing for it) without suppressing it.
     commander_records = [c.record for c in classes if c.bucket == "commander"]
     for role, name in grant_coverage.covered_roles(commander_records).items():
         band = budgets.get(role)
@@ -225,13 +246,14 @@ def tune(
         classes, shape=shape, deck_size=deck_size, voltron=wins["voltron"]
     )
     cfit = metrics.commander_fit(classes, foc)
-    issues = metrics.top_issues(
+    issues = top_issues(
         efficiency_r=eff,
         focus_r=foc,
         template_r=tmpl,
         wincons_r=wins,
         protection_r=prot,
         commander_r=cfit,
+        sourcing=Sourcing(foc, deck_signals, budgets),
     )
 
     # ADR-0030: a target-bracket constraint gate, only when a target was chosen.
@@ -259,7 +281,7 @@ def tune(
         "wincons": wins,
         "protection": prot,
         "commander_fit": cfit,
-        "top_issues": issues,
+        "top_issues": [issue.to_json() for issue in issues],
         "counts": _bucket_counts(classes),
         # Counted size vs the format's exact legal size (CR 903.5a / 903.12d);
         # overflow > 0 means "N over legal size" and drives `size_cuts` below.
@@ -328,13 +350,13 @@ def tune(
             search_fn=search_fn,
             identity=identity,
             fmt=fmt,
-            paper_only=params.paper_only,
+            paper_only=paper_only,
             owned=owned,
-            budget=params.budget,
+            budget=budget,
             max_swaps=params.max_swaps,
             top_heavy=eff["verdict"] == "top-heavy",
             fill_slots=fill_slots,
-            wildcard_budget=params.wildcard_budget,
+            wildcard_budget=wildcard_budget,
             protected=protected,
             medium=game.medium,
         )
@@ -358,7 +380,7 @@ def tune(
             viable_labels=[a["label"] for a in foc["viable_avenues"]],
             identity=identity,
             fmt=fmt,
-            paper_only=params.paper_only,
+            paper_only=paper_only,
             search_fn=search_fn,
             owned=set(owned),
         )

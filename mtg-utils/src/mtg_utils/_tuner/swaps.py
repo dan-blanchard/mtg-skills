@@ -11,13 +11,13 @@ existing search + ranking (ADR-0023).
 from __future__ import annotations
 
 import re
-from collections.abc import Callable, Collection, Iterator, Mapping, Sequence
+from collections.abc import Callable, Collection, Mapping, Sequence
 from dataclasses import dataclass
 
 from mtg_utils._analysis.ranking import rank_candidates
-from mtg_utils._analysis.roles import is_ramp, role_of
-from mtg_utils._analysis.signal_specs import spec_for
-from mtg_utils._tuner.classify import CardClass, is_fringe
+from mtg_utils._analysis.roles import role_of
+from mtg_utils._tuner.classify import CardClass
+from mtg_utils._tuner.issues import CUT_FILLER, CUT_GENERIC, Issue, Sourcing
 from mtg_utils.card_classify import (
     extract_price,
     get_oracle_text,
@@ -34,44 +34,6 @@ def _popularity(card: dict) -> int:
     """edhrec_rank as a quality key (lower = more played); absent → unplayed."""
     rank = card.get("edhrec_rank")
     return rank if rank is not None else _UNPLAYED
-
-
-# The mana ability of these rocks is gated on board state a deck may not have (Mox Opal
-# wants metalcraft, Mox Jasper a Dragon: "Activate only if you control …") — so they
-# read as ramp but do nothing here. Match the gate phrase itself (not the "Activate[
-# this ability]" prefix) so re-templating can't sneak one back in. Mox Amber has no such
-# gate ("…among legendary creatures … you control"), so it's correctly still sourced.
-_RAMP_CONDITIONAL = "only if you control"
-
-
-def _reliable_ramp(card: dict) -> bool:
-    """Ramp the tuner will SOURCE: a genuine producer (``roles.is_ramp`` — which already
-    rejects mana an opponent receives, like An Offer You Can't Refuse's Treasures)
-    whose ability isn't conditionally gated. The deck's existing conditional
-    rocks still COUNT as ramp, but the tuner won't suggest one the deck can't reliably
-    turn on."""
-    return is_ramp(card) and _RAMP_CONDITIONAL not in get_oracle_text(card).lower()
-
-
-_ROLE_SEARCH: dict[str, dict] = {
-    # Ramp is SOURCED by the same ``ramp`` preset ``roles.is_ramp`` COUNTS it by
-    # (ADR-0051), so "fills the role" and "suggested for the role" cannot drift. The
-    # "_filter" is a tuner-side precision pass (applied in _ranked_pool): it drops a
-    # conditionally-gated rock — which still counts as ramp in the deck, but the tuner
-    # won't suggest one.
-    "ramp": {"preset_names": ("ramp",), "_filter": _reliable_ramp},
-    "card_draw": {"preset_names": ("card-draw",)},
-    "interaction": {
-        "preset_names": ("removal", "creature-removal", "counterspell", "bounce")
-    },
-    "board_wipe": {"preset_names": ("board-wipe",)},
-}
-_PROTECTION_SEARCH = {
-    "preset_names": ("hexproof", "indestructible", "protection", "ward", "counterspell")
-}
-_WINCON_SEARCH = {"oracle": r"wins the game|an additional combat phase|deals damage"}
-# Roles whose fills should be ranked efficiency-first (cheapest does-the-job) per ADR.
-_SPINE_KINDS = {"role_short", "protection_short"}
 
 
 def _fills_short_role(card: CardClass, budgets: dict) -> bool:
@@ -143,23 +105,10 @@ def cut_candidates(
     ):
         push("filler", c)
 
-    # 1b. Low-value Engine cards — feed a theme but are barely played (fringe
-    #     edhrec_rank), e.g. a vanilla beater that "counts" as creature support. Upgrade
-    #     targets, worst play-rate (incl. unranked) first.
-    #     A Granter is condemned by granted-ability QUALITY alone (ADR-0040
-    #     §2: weak grade), never by playrate; non-Granters keep the
-    #     medium-aware play-rate read (§4).
+    # 1b. Low-value Engine cards (``CardClass.low_value``) — upgrade targets, worst
+    #     play-rate (incl. unranked) first.
     for c in sorted(
-        (
-            c
-            for c in classes
-            if c.bucket == "engine"
-            and (
-                c.grant_grade == "weak"
-                if c.grant_grade is not None
-                else is_fringe(c.edhrec_rank, medium=medium)
-            )
-        ),
+        (c for c in classes if c.low_value(medium=medium)),
         key=lambda c: -(c.edhrec_rank if c.edhrec_rank is not None else 10**9),
     ):
         push("low_value", c)
@@ -374,14 +323,6 @@ def _run_search(
     )
 
 
-def _avenue_search_for(label: str, deck_signals: list) -> dict | None:
-    for sig in deck_signals:
-        spec = spec_for(sig)
-        if spec is not None and spec.label == label:
-            return dict(spec.search)
-    return None
-
-
 @dataclass(frozen=True)
 class SwapContext:
     """Everything ``propose_swaps`` needs beyond the classes and the issues — the deck
@@ -417,14 +358,16 @@ class SwapContext:
 
 def propose_swaps(
     classes: Sequence[CardClass],
-    issues: Sequence[dict],
+    issues: Sequence[Issue],
     ctx: SwapContext,
 ) -> dict:
-    """Walk the ranked issues, sourcing a (cut, add) pair per actionable issue up to
-    ``ctx.max_swaps``. When ``ctx.fill_slots`` > 0 (an under-sized deck) a fill pass
-    then adds pure adds (no cut) into the open slots. Returns the swaps + a note.
+    """Walk the ranked issues, sourcing a (cut, add) pair per issue that carries a
+    :class:`~mtg_utils._tuner.issues.Remedy`, up to ``ctx.max_swaps``. When
+    ``ctx.fill_slots`` > 0 (an under-sized deck) a fill pass then adds pure adds (no
+    cut) into the open slots. Returns the swaps + a note.
     See :class:`SwapContext` for the deck facts and the purse."""
     in_deck = {c.name for c in classes}
+    sourcing = Sourcing(ctx.focus_result, ctx.deck_signals, ctx.budgets)
     stranded = set(ctx.focus_result["stranded_avenues"])
     # The deck's own avenue prominence, so the candidate ranker scores DEPTH in
     # the deck's real themes (a death payoff) over BREADTH across incidental lanes
@@ -452,32 +395,25 @@ def propose_swaps(
         protected=ctx.protected,
         medium=ctx.medium,
     )
-    # Route cuts: a role_over trim cuts from THAT over role; other issues draw from the
-    # generic pool (filler then stranded), so a trim isn't derailed onto filler.
-    over_cuts: dict[str, list[tuple[str, CardClass]]] = {}
-    generic_cuts: list[tuple[str, CardClass]] = []
+    # Route cuts into the pools a Remedy names: an over-band trim cuts from THAT over
+    # role (``over:<role>``); everything else is the generic pool (filler, low-value,
+    # then stranded), so a trim isn't derailed onto filler.
+    pools: dict[str, list[tuple[str, CardClass]]] = {CUT_GENERIC: [], CUT_FILLER: []}
     for reason, card in cuts:
-        if reason.startswith("over:"):
-            over_cuts.setdefault(reason.split(":", 1)[1], []).append((reason, card))
-        else:
-            generic_cuts.append((reason, card))
-    gen_iter = iter(generic_cuts)
-    over_iters = {role: iter(items) for role, items in over_cuts.items()}
-    # The dead-weight pass cuts filler ONLY (a separate view of the same cards); a
-    # shared used_cuts guard stops it and the generic pass cutting the same card twice.
-    filler_iter = iter([(r, c) for r, c in cuts if r in ("filler", "low_value")])
+        pool = reason if reason.startswith("over:") else CUT_GENERIC
+        pools.setdefault(pool, []).append((reason, card))
+        # The dead-weight drain cuts filler ONLY (a separate view of the same cards);
+        # the shared used_cuts guard stops it and the generic pool cutting a card twice.
+        if reason in ("filler", "low_value"):
+            pools[CUT_FILLER].append((reason, card))
+    cut_iters = {name: iter(items) for name, items in pools.items()}
     used_cuts: set[str] = set()
 
-    def _pull(it: Iterator[tuple[str, CardClass]]) -> tuple[str, CardClass] | None:
-        for reason, card in it:
+    def take_cut(pool: str) -> tuple[str, CardClass] | None:
+        for reason, card in cut_iters.get(pool, iter(())):
             if card.name not in used_cuts:
                 return reason, card
         return None
-
-    def take_cut(issue: dict) -> tuple[str, CardClass] | None:
-        if issue["kind"] == "role_over":
-            return _pull(over_iters.get(issue["role"], iter(())))
-        return _pull(gen_iter)
 
     used_adds: set[str] = set()
     swaps: list[dict] = []
@@ -635,7 +571,8 @@ def propose_swaps(
         return card, cost, True
 
     def commit(
-        issue: dict,
+        kind: str,
+        message: str,
         reason: str,
         cut: CardClass | None,
         add_card: dict,
@@ -649,14 +586,13 @@ def propose_swaps(
         if cut is not None:
             used_cuts.add(cut.name)
         used_adds.add(add_card.get("name", ""))
-        message = issue["message"]
         if off_avenue:
             # ADR-0040 companion: the find_add role_fix guard found no in-budget
             # candidate serving a viable avenue, so this is the labeled fallback.
             message += " (off-avenue fallback)"
         swaps.append(
             {
-                "issue": issue["kind"],
+                "issue": kind,
                 "reason": message,
                 # cut is None for a fill (a pure add into an open slot, not a trade).
                 "cut": (
@@ -677,54 +613,44 @@ def propose_swaps(
     for issue in issues:
         if len(swaps) >= ctx.max_swaps:
             break
-        # Dead weight: drain filler, replacing each with the best on-theme / role card.
-        # One issue → many swaps (a deck can carry several do-nothing cards), so this is
-        # the only multi-swap branch — and it runs first (top severity) so the genuinely
-        # dead cards go before any role trim churns a functional card.
-        if issue["kind"] == "dead_weight":
-            spec = _dead_weight_spec(ctx.focus_result, ctx.deck_signals, ctx.budgets)
-            if spec is None:
-                continue
-            while len(swaps) < ctx.max_swaps:
-                cut_entry = _pull(filler_iter)
-                if cut_entry is None:
-                    break
-                picked = find_add(spec, synergy_first=True, nonland_only=True)
-                if picked is None:
-                    break
-                reason, cut = cut_entry
-                add_card, cost, _off_avenue = picked
-                commit(issue, reason, cut, add_card, cost)
-            continue
-
-        spec = _spec_for_issue(issue, ctx.focus_result, ctx.deck_signals)
-        if spec is None:
-            # _spec_for_issue sources nothing here — e.g. a kind with no branch
-            # (commander_misfit, voltron_no_commander_damage), a grant-covered
-            # role_short, or a role / avenue / efficiency-band lookup that misses.
-            continue
-        synergy_first = issue["kind"] not in _SPINE_KINDS
-        # Every cut here is a NONLAND (cut_candidates never trims lands), so the add
-        # must be nonland too — else a theme swap silently adds a value land (e.g.
-        # Fountainport on the Aristocrats lane), shifting the land count a swap is
-        # meant to preserve. The mana base is the land tooling's job, not Tune's.
-        picked = find_add(
-            spec,
-            synergy_first=synergy_first,
-            nonland_only=True,
-            # _SPINE_KINDS ranks efficiency-first with no synergy input at all —
-            # role_fix is the ADR-0040 guard that stops that path handing a
-            # FOCUSED deck a staple over an in-budget on-avenue candidate.
-            role_fix=not synergy_first,
-        )
-        if picked is None:
-            continue
-        cut_entry = take_cut(issue)
-        if cut_entry is None:
-            continue  # no appropriate cut for this issue — skip, don't grab a wrong one
-        reason, cut = cut_entry
-        add_card, cost, off_avenue = picked
-        commit(issue, reason, cut, add_card, cost, off_avenue=off_avenue)
+        remedy = issue.remedy
+        if remedy is None:
+            continue  # nothing to source — the issue is the builder's to read
+        # Every cut is a NONLAND (cut_candidates never trims lands), so the add must be
+        # nonland too — else a theme swap silently adds a value land (e.g. Fountainport
+        # on the Aristocrats lane), shifting the land count a swap is meant to
+        # preserve. The mana base is the land tooling's job, not Tune's.
+        while len(swaps) < ctx.max_swaps:
+            picked = find_add(
+                remedy.spec,
+                synergy_first=not remedy.spine,
+                nonland_only=True,
+                # A Spine fill ranks efficiency-first with no synergy input at all —
+                # role_fix is the ADR-0040 guard that stops that path handing a
+                # FOCUSED deck a staple over an in-budget on-avenue candidate.
+                role_fix=remedy.spine,
+            )
+            if picked is None:
+                break
+            cut_entry = take_cut(remedy.cut_from)
+            if cut_entry is None:
+                break  # no appropriate cut for this issue — don't grab a wrong one
+            reason, cut = cut_entry
+            add_card, cost, off_avenue = picked
+            commit(
+                issue.kind,
+                issue.message,
+                reason,
+                cut,
+                add_card,
+                cost,
+                off_avenue=off_avenue,
+            )
+            # One issue → one swap, except the dead-weight DRAIN: a deck can carry
+            # several do-nothing cards, and it ranks first so the genuinely dead cards
+            # go before any role trim churns a functional card.
+            if not remedy.drain:
+                break
 
     # Fill pass — grow an under-sized deck toward target with PURE ADDS (no cut). The
     # swap loop above is cut-bound (every move trades a card), so a partially-built deck
@@ -755,20 +681,18 @@ def propose_swaps(
             # Fills are pure adds (no cut), never "role-fix swaps" — role_fix
             # defaults False above, so this flag is always False here.
             add_card, cost, _off_avenue = picked
-            commit({"kind": kind, "message": msg}, "", None, add_card, cost)
+            commit(kind, msg, "", None, add_card, cost)
             added += 1
             fills_done += 1
 
     if ctx.fill_slots > 0:
         for role in ("ramp", "card_draw", "interaction", "board_wipe"):
             b = ctx.budgets.get(role)
-            # ADR-0040 §1: skip a grant-covered role here too — the fill pass is
-            # a separate code path from the issue-driven loop above (an
-            # under-sized deck's open slots, not a cut/add pair), so it needs
-            # its own gate to honor the same advisory downgrade.
-            if b and b["current"] < b["min"] and not b.get("grant_covered"):
+            if b and b["current"] < b["min"]:
                 take_fills(
-                    _ROLE_SEARCH[role],
+                    # None for a Grant-covered role: the fill pass reads the same
+                    # answer the issue loop does (ADR-0040 §1).
+                    sourcing.role_spec(role),
                     b["min"] - b["current"],
                     synergy_first=False,
                     kind="fill_role",
@@ -776,14 +700,14 @@ def propose_swaps(
                 )
         for e in ctx.focus_result.get("emerging", []):
             take_fills(
-                _avenue_search_for(e["label"], ctx.deck_signals),
+                sourcing.avenue(e["label"]),
                 ctx.fill_slots,
                 synergy_first=True,
                 kind="fill_theme",
                 msg=f"deepen {e['label']}",
             )
         take_fills(
-            _main_avenue_search(ctx.focus_result, ctx.deck_signals),
+            sourcing.main_avenue(),
             ctx.fill_slots,
             synergy_first=True,
             kind="fill_theme",
@@ -825,91 +749,6 @@ def propose_swaps(
         "wildcards_spent": ledger.wildcards_spent,
         "note": note,
     }
-
-
-# Efficiency curve issues → a CMC band to add into, scoped to the deck's main theme.
-_EFFICIENCY_BANDS: dict[str, dict] = {
-    "thin top-end": {"cmc_min": 6},
-    "thin early game": {"cmc_max": 2},
-    "top-heavy": {"cmc_max": 3},
-}
-
-
-def _main_avenue_search(focus_result: dict, deck_signals: list) -> dict:
-    """The deck's main-theme serve spec, or an empty (identity-only) spec when none."""
-    viable = focus_result["viable_avenues"]
-    if viable:
-        return _avenue_search_for(viable[0]["label"], deck_signals) or {}
-    return {}
-
-
-def _dead_weight_spec(
-    focus_result: dict, deck_signals: list, budgets: dict
-) -> dict | None:
-    """Where to redeploy a dead-weight card: deepen the deck's main theme if it has one,
-    else fill the worst-short Spine role. None when neither exists (nothing better to
-    add than the filler being replaced, so don't churn)."""
-    main = _main_avenue_search(focus_result, deck_signals)
-    if main:
-        return main
-    short = sorted(
-        (
-            (r, b)
-            for r, b in budgets.items()
-            if b.get("deviation", 0) < 0
-            and r in _ROLE_SEARCH
-            # ADR-0040 §1 (Fix 4): skip a grant-covered role here too — this
-            # fallback is a THIRD sourcing path the #98 advisory downgrade
-            # missed (the issue-driven role_short spec and the fill pass are
-            # both already gated on grant_covered).
-            and not b.get("grant_covered")
-        ),
-        key=lambda kv: kv[1]["deviation"],
-    )
-    return _ROLE_SEARCH[short[0][0]] if short else None
-
-
-def _spec_for_issue(issue: dict, focus_result: dict, deck_signals: list) -> dict | None:
-    kind = issue["kind"]
-    if kind == "role_short":
-        # ADR-0040 §1: a grant-covered role_short is advisory-only — the
-        # commander's own ability grant already covers it, so the swap engine
-        # must not burn budget sourcing a generic fill for it (mirrors
-        # commander_misfit's advisory-only "no spec" shape below).
-        if issue.get("grant_covered"):
-            return None
-        return _ROLE_SEARCH.get(issue["role"])
-    if kind == "protection_short":
-        return _PROTECTION_SEARCH
-    if kind == "wincon_short":
-        return _WINCON_SEARCH
-    if kind == "spread_thin":
-        viable = focus_result["viable_avenues"]
-        if viable:
-            return _avenue_search_for(viable[0]["label"], deck_signals)
-        return None
-    if kind == "under_supported_theme":
-        # "Commit" to the emerging theme: add more cards that feed it.
-        return _avenue_search_for(issue["label"], deck_signals)
-    if kind == "role_over":
-        # Trim the excess: the cut comes from the over role (routed in propose_swaps).
-        # The add deepens an under-supported emerging theme if any (commit while
-        # trimming), else the main theme. find_add's full-role filter keeps it from
-        # re-filling the role being trimmed.
-        emerging = focus_result.get("emerging", [])
-        if emerging:
-            spec = _avenue_search_for(emerging[0]["label"], deck_signals)
-            if spec is not None:
-                return spec
-        return _main_avenue_search(focus_result, deck_signals)
-    if kind == "efficiency":
-        # A curve problem is fixed by adding a synergistic card at the missing CMC band
-        # (a thin top-end wants a 6+ MV finisher on the deck's main theme, etc.).
-        band = _EFFICIENCY_BANDS.get(issue.get("subkind", ""))
-        if band is None:
-            return None
-        return {**_main_avenue_search(focus_result, deck_signals), **band}
-    return None
 
 
 def _cut_why(reason: str, card: CardClass | None = None) -> str:
