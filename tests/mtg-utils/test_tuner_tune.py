@@ -801,3 +801,14 @@ def test_the_medium_picks_the_currency_the_purse_spends():
     assert broke["wildcards_spent"] == dict.fromkeys(
         ("mythic", "rare", "uncommon", "common"), 0
     )
+
+
+def test_game_changer_room_is_the_bracket_ceiling_less_the_deck():
+    from mtg_utils._tuner.tune import _game_changer_room
+
+    gate = {"ceilings": {"game_changers": 3, "mass_land_denial": 0}}
+    assert _game_changer_room(gate, {"game_changer_count": 1}) == 2
+    assert _game_changer_room(gate, {"game_changer_count": 5}) == 0  # already over
+    # No target bracket / a one-on-one game / brackets 4-5: nothing constrains adds.
+    assert _game_changer_room(None, {"game_changer_count": 9}) is None
+    assert _game_changer_room({"ceilings": {}}, {"game_changer_count": 9}) is None

@@ -343,7 +343,9 @@ class SwapContext:
     under-sized deck may fill with pure adds). Purse: ``owned`` (free cards),
     ``budget`` (USD; ignored when ``wildcard_budget`` is set), ``wildcard_budget``
     (digital: one wildcard of the card's rarity per add, gated per tier),
-    ``max_swaps``, ``paper_only`` (restrict the search to paper-legal cards).
+    ``max_swaps``, ``paper_only`` (restrict the search to paper-legal cards),
+    ``game_changer_room`` (how many more Game Changers the target bracket allows —
+    ADR-0030; ``None`` = no ceiling).
     ``search_fn`` is the injected candidate search."""
 
     budgets: dict
@@ -361,6 +363,7 @@ class SwapContext:
     wildcard_budget: Mapping[str, int] | None = None
     protected: Collection[str] = ()
     medium: str = "paper"
+    game_changer_room: int | None = None
 
 
 def propose_swaps(
@@ -423,6 +426,7 @@ def propose_swaps(
         return None
 
     used_adds: set[str] = set()
+    gc_room = ctx.game_changer_room
     swaps: list[dict] = []
     ledger: _UsdLedger | _WildcardLedger = (
         _WildcardLedger(ctx.wildcard_budget)
@@ -558,6 +562,8 @@ def propose_swaps(
         for card in ranked:
             if card.get("name") in used_adds:  # already taken — skip to the next best
                 continue
+            if card.get("game_changer") and gc_room is not None and gc_room <= 0:
+                continue  # ADR-0030: never propose an add past the bracket's ceiling
             cost = ledger.acquire_cost(card, ctx.owned)
             if cost is None:
                 continue
@@ -589,7 +595,12 @@ def propose_swaps(
     ) -> None:
         # Charge only now that the swap is finalized (find_add probed read-only, so an
         # unpaired add never consumed budget — USD dollars or a wildcard, by mode).
+        nonlocal gc_room
         ledger.charge(add_card, ctx.owned, cost)
+        if gc_room is not None:
+            # A Game Changer added spends the headroom; one cut frees a slot.
+            gc_room -= bool(add_card.get("game_changer"))
+            gc_room += bool(cut is not None and cut.record.get("game_changer"))
         if cut is not None:
             used_cuts.add(cut.name)
         used_adds.add(add_card.get("name", ""))

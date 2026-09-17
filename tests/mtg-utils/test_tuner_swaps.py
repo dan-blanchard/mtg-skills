@@ -1292,3 +1292,55 @@ def test_fill_pass_skips_a_grant_covered_role():
     assert fills  # interaction still gets filled
     assert all(s["add"]["name"] != "Faithless Looting" for s in fills)
     assert all("card draw" not in s["reason"].lower() for s in fills)
+
+
+# ── ADR-0030: the proposer respects the target bracket's Game Changer ceiling ───
+
+
+def _gc_scenario(room, *, cut_is_game_changer=False):
+    """A protection-short deck whose best add is a Game Changer, with a plain
+    alternative behind it; ``room`` is the bracket's remaining Game Changer headroom."""
+    filler = _cc("Dead Card", "filler", cmc=5.0)
+    filler.record["game_changer"] = cut_is_game_changer
+    staple = {
+        "name": "Staple Game Changer",
+        "type_line": "Instant",
+        "oracle_text": "",
+        "cmc": 1.0,
+        "edhrec_rank": 5,
+        "game_changer": True,
+        "prices": {"usd": "1.00"},
+        "color_identity": [],
+    }
+    plain = {**staple, "name": "Plain Protection", "cmc": 2.0, "game_changer": False}
+    issue = {"kind": "protection_short", "severity": 3, "message": "protection"}
+    out = _swaps_for_issue_dicts(
+        [filler],
+        [issue],
+        SwapContext(
+            budgets={},
+            focus_result=_focus(),
+            deck_signals=[],
+            search_fn=lambda **_: [staple, plain],
+            identity="",
+            fmt="commander",
+            paper_only=True,
+            owned={},
+            budget=50.0,
+            max_swaps=1,
+            top_heavy=False,
+            game_changer_room=room,
+        ),
+    )
+    return [s["add"]["name"] for s in out["swaps"]]
+
+
+def test_no_target_bracket_means_no_game_changer_ceiling():
+    assert _gc_scenario(None) == ["Staple Game Changer"]
+
+
+def test_a_game_changer_is_never_proposed_past_the_bracket_ceiling():
+    # ADR-0030: "The swap proposer respects the ceiling (won't propose a Game-Changer
+    # add that breaches the target)" — the next-best legal add ships instead.
+    assert _gc_scenario(0) == ["Plain Protection"]
+    assert _gc_scenario(1) == ["Staple Game Changer"]
