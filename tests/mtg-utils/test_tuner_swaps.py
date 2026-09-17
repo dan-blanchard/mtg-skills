@@ -298,14 +298,16 @@ def test_role_over_trim_cuts_least_played_excess_not_a_staple():
 
 
 def test_role_search_specs_reference_only_real_presets():
-    # Regression: _ROLE_SEARCH["ramp"] used a nonexistent 'ramp' preset, which made
-    # card_search raise BadParameter and 500'd /api/tune for any ramp-short deck.
+    # Regression: _ROLE_SEARCH["ramp"] once named a 'ramp' preset that did not exist,
+    # which made card_search raise BadParameter and 500'd /api/tune for any ramp-short
+    # deck.
     for spec in [*_ROLE_SEARCH.values(), _PROTECTION_SEARCH]:
         for preset in spec.get("preset_names", ()):
             get_preset(preset)  # raises KeyError on an unknown preset → test fails
-    # ramp has no theme_preset, so it must be sourced by oracle text, not a preset.
-    assert "ramp" not in _ROLE_SEARCH["ramp"].get("preset_names", ())
-    assert _ROLE_SEARCH["ramp"].get("oracle")
+    # ADR-0051: ramp is sourced by the SAME preset roles.is_ramp counts it by — never a
+    # hand-copied oracle regex that can drift from the role.
+    assert _ROLE_SEARCH["ramp"]["preset_names"] == ("ramp",)
+    assert "oracle" not in _ROLE_SEARCH["ramp"]
 
 
 def test_dead_weight_replaces_filler_with_synergy_not_engine_cards():

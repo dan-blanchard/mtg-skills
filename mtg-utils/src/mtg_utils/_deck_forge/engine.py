@@ -22,8 +22,9 @@ from pathlib import Path
 
 from mtg_utils import mark_owned, price_check, theme_presets
 from mtg_utils._analysis import staples
-from mtg_utils._analysis.budgets import banded_slot_budgets, role_of
+from mtg_utils._analysis.budgets import banded_slot_budgets
 from mtg_utils._analysis.ranking import rank_candidates
+from mtg_utils._analysis.roles import role_of
 from mtg_utils._analysis.signal_specs import (
     Serve,
     payoff_search,

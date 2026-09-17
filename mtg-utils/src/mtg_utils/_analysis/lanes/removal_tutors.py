@@ -1145,7 +1145,8 @@ def _tutor_lane(tree: ConceptTree) -> list[Signal]:
       I Call on the Ancient Magics).
     * **lf_ramp reroute (2026-07-13 convention change):** a NONLAND card's
       clause that searches for a LAND and puts it ONTO THE BATTLEFIELD is
-      RAMP, never tutor (mirrors ``card_classify.is_ramp``'s fetch branch).
+      RAMP, never tutor (the template's ramp convention; ``roles.is_ramp``
+      reads the ``ramp`` key this reroute feeds).
       :func:`structural_land_fetch_split` classifies every confirmed self
       search per clause: Rampant Growth / Cultivate / Wood Elves lose tutor
       (the ``_ramp`` lane picks them up from the SAME split), Sylvan

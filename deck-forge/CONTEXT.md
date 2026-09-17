@@ -102,7 +102,7 @@ The local process that owns canonical session state, hosts the Deterministic cor
 A **Handoff** is a one-click route from a finished deck OUT into another repo tool. A *run-here handoff* (goldfish, proxies) is pure local compute the hub runs in-process, no LLM needed. A *session handoff* (strategy guide, store-sourcing) needs reasoning or a headed browser, so it routes to the attached Session-agent and greys out when detached. An **Import** is the inbound mirror — bringing an external decklist or Collection IN, parsed by the Deterministic core, no LLM. An import always mints a NEW build rather than overwriting the live one, and never guesses a commander.
 
 **Analysis package** (`mtg_utils/_analysis/`, ADR-0050):
-The deck-analysis substrate — signals, lanes, specs, bridges, synthesis, the membership floor, role budgets, candidate ranking, rate, staples — as pure functions of card records and concept trees. Shared by the hub, the deterministic tuner and the deck CLIs as peers; `_deck_forge` is the hub only and nothing imports the hub.
+The deck-analysis substrate — signals, lanes, specs, bridges, synthesis, the membership floor, template roles, role budgets, candidate ranking, rate, staples — as pure functions of card records and concept trees. Shared by the hub, the deterministic tuner and the deck CLIs as peers; `_deck_forge` is the hub only and nothing imports the hub.
 
 **Engine module** (`engine.py`):
 The deck-analysis surface inside the hub — snapshot, ranked Signals, Avenues, finalize report, partner search — as free functions over a `ForgeState`, so they read state at call time and can't desync from the mutable session.
@@ -140,6 +140,9 @@ The agent-less, hub-side evaluation-and-swap pass. Three layers: diagnose (Shape
 
 **Spine**:
 The mandatory scaffolding every deck needs regardless of Shape. A hard-counted tier (lands, ramp, card draw, interaction, board wipes — counterspells fold into interaction) measured against the Template, and a conditional tier (win conditions, protection) surfaced as Shape-scaled advisory flags. Exempt from the focus judgment — running your interaction never reads as "spread too thin."
+
+**Template role** (`_analysis/roles.py`, ADR-0051):
+What one card does for the Template — `lands`, `ramp`, `card_draw`, `interaction`, `board_wipe` (a card may fill several), plus the advisory "protects". Each role is a view over the signal path (a preset, sharpened by the card's IR where it carries more), so what a Slot *counts* and what the Tuner *sources* for it are the same read. A land is never ramp: it is the mana base, counted by the `lands` role and the Land band. A card the signal path cannot see at all answers ramp from oracle text — the one documented degrade.
 
 **Engine card**:
 A nonland deck card whose primary job is to serve one of the deck's signal-derived avenues. The only pool the **Focus** metric measures for concentration (the always-on Staples avenue is excluded). A Spine card may also serve an avenue; that synergy only adds to focus, never subtracts.

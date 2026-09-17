@@ -857,7 +857,7 @@ def test_removal_and_pacify_makers_stay_disjoint():
     """Pacifism must never open the `removal` structural view (CR 611.2 —
     the enchanted creature stays on the battlefield), and Murder (a real
     destroy effect) must never open pacify_makers — the two lanes stay
-    partitioned per budgets.py's `_INTERACTION_PRESETS` comment."""
+    partitioned per roles.py's `_INTERACTION_PRESETS` comment."""
     assert "removal" not in _skeys(test_signals("Pacifism"))
     assert "pacify_makers" not in _skeys(test_signals("Murder"))
 

@@ -14,8 +14,8 @@ import re
 from collections.abc import Callable, Collection, Iterator, Mapping, Sequence
 from dataclasses import dataclass
 
-from mtg_utils._analysis.budgets import role_of
 from mtg_utils._analysis.ranking import rank_candidates
+from mtg_utils._analysis.roles import is_ramp, role_of
 from mtg_utils._analysis.signal_specs import spec_for
 from mtg_utils._tuner.classify import CardClass, is_fringe
 from mtg_utils.card_classify import (
@@ -23,7 +23,6 @@ from mtg_utils.card_classify import (
     get_oracle_text,
     is_basic_land,
     is_land,
-    is_ramp,
 )
 from mtg_utils.deck import split_type_line
 
@@ -46,25 +45,21 @@ _RAMP_CONDITIONAL = "only if you control"
 
 
 def _reliable_ramp(card: dict) -> bool:
-    """Ramp the tuner will SOURCE: a genuine producer (is_ramp — which already rejects
-    mana an opponent receives, like An Offer You Can't Refuse's Treasures) whose ability
-    isn't conditionally gated. The deck's existing conditional rocks still COUNT as ramp
-    (is_ramp), but the tuner won't suggest one the deck can't reliably turn on."""
+    """Ramp the tuner will SOURCE: a genuine producer (``roles.is_ramp`` — which already
+    rejects a land, and mana an opponent receives, like An Offer You Can't Refuse's
+    Treasures) whose ability isn't conditionally gated. The deck's existing conditional
+    rocks still COUNT as ramp, but the tuner won't suggest one the deck can't reliably
+    turn on."""
     return is_ramp(card) and _RAMP_CONDITIONAL not in get_oracle_text(card).lower()
 
 
 _ROLE_SEARCH: dict[str, dict] = {
-    # Ramp has NO theme_preset (it's detected by card_classify.is_ramp, not a matcher),
-    # so it must be sourced by oracle text — mirroring is_ramp's own patterns (mana
-    # production or land-fetch). Using a nonexistent "ramp" preset here previously made
-    # card_search raise and 500'd /api/tune for any ramp-short deck. The "_filter" is a
-    # tuner-side precision pass (applied in _ranked_pool) the coarse regex can't do — it
-    # drops opponent-mana and conditionally-gated rocks the regex would let through.
-    "ramp": {
-        "oracle": r"add (?:\{|one mana|mana of|an amount of mana)|"
-        r"search your library for [^.]*\bland",
-        "_filter": _reliable_ramp,
-    },
+    # Ramp is SOURCED by the same ``ramp`` preset ``roles.is_ramp`` COUNTS it by
+    # (ADR-0051), so "fills the role" and "suggested for the role" cannot drift. The
+    # "_filter" is a tuner-side precision pass (applied in _ranked_pool): it drops the
+    # lands the preset's ``ramp`` key also covers, and a conditionally-gated rock —
+    # which still counts as ramp in the deck, but the tuner won't suggest one.
+    "ramp": {"preset_names": ("ramp",), "_filter": _reliable_ramp},
     "card_draw": {"preset_names": ("card-draw",)},
     "interaction": {
         "preset_names": ("removal", "creature-removal", "counterspell", "bounce")

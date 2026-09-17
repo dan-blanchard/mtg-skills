@@ -340,7 +340,7 @@ def _text_only_trees(
 #   2026-07-13) — "…Sacrifice this token: Search your library for a basic
 #   land card, put it onto the battlefield tapped…" opens ``ramp`` (CR
 #   701.23/701.23a for the search; the land-fetch-to-battlefield = ramp
-#   boundary mirrors ``card_classify.is_ramp``, matching Rampant Growth /
+#   boundary is the template's ramp convention, matching Rampant Growth /
 #   Nature's Lore / Wayfarer's Bauble, which now ALL tag ``ramp``) via
 #   ``tree_synthesis._arm_land_fetch_ramp``'s real ``ramp`` node on the
 #   zero-unit token tree. Originally wired to ``tutor`` through the

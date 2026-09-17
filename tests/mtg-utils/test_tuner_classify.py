@@ -23,7 +23,7 @@ RABBLEMASTER = {
     "cmc": 3.0,
 }
 # DUAL and MURDER need a REAL, crosswalk-resolvable oracle_id: ``role_of``
-# (budgets.py) buckets "interaction" via ``get_preset("removal").matches``,
+# (roles.py) buckets "interaction" via ``get_preset("removal").matches``,
 # a structural (``signal_keys``) view since task #86 (the last regex-bearing
 # built-in preset flip) — it never matches a synthetic no-oracle_id dict.
 # DUAL is a real Goblin/Warrior creature ("Goblin Cratermaker") whose modal

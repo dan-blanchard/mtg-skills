@@ -227,7 +227,10 @@ def count_color_pips(mana_cost: str) -> dict[str, int]:
 # — so a counterspell that hands an opponent Treasures carries "(… Add one mana …)" even
 # though it produces no mana for you.
 _REMINDER_RE = re.compile(r"\([^)]*\)")
-_ADD_MANA_RE = re.compile(r"add\s+(?:\{|one mana|mana of|an amount of (?:mana|\{))")
+_ADD_MANA_RE = re.compile(
+    r"add\s+(?:\{|(?:one|two|three|four|five|six|seven|eight|nine|ten|x) mana\b"
+    r"|mana of|an amount of (?:mana|\{))"
+)
 # Mana AMPLIFIERS: "add(s) an additional {X}/mana" when you tap a land (Nirkana
 # Revenant, Crypt Ghast, Caged Sun, Gauntlet of Power, High Tide, Bubbling Muck). The
 # mana symbol isn't adjacent to "add", so _ADD_MANA_RE misses it — but they ramp you
@@ -252,8 +255,13 @@ _OPPONENT_DIRECTED = (
 )
 
 
-def is_ramp(card: dict) -> bool:
-    """Check if a non-land card produces mana or fetches lands.
+def ramp_by_text(card: dict) -> bool:
+    """Oracle-text read of "is this nonland card ramp" — the NO-COVERAGE DEGRADE only.
+
+    ``_analysis.roles.is_ramp`` owns the ramp answer (the ``ramp`` preset, a view
+    over the signal path — ADR-0051) and falls back here ONLY for a card the signal
+    path cannot see: a synthetic record with no ``oracle_id``, or a run with no
+    phase card-data. Do not call this to classify a real card — ask ``roles.is_ramp``.
 
     Note: mana-token makers (Treasure/Gold/Powerstone) are detected only via the
     token's "Add … mana" reminder text (the second ``_ADD_MANA_RE`` branch below).
@@ -692,7 +700,7 @@ def is_fixing_land(card: dict) -> bool:
     if "any" in sources or len(sources) >= 2:
         return True
     # Lands that fetch lands without tapping for mana themselves
-    # (Evolving Wilds, fetchlands). ``is_ramp`` early-returns for lands,
+    # (Evolving Wilds, fetchlands). The ramp role early-returns for lands,
     # so we detect this by checking the oracle text directly.
     oracle = get_oracle_text(card).lower()
     return (
@@ -771,8 +779,13 @@ def classify_cube_category(card: dict) -> str:
     # (Llanowar Elves, Birds of Paradise, Cultivate) slot into their
     # mono-color position so each pack offers drafters color-specific
     # fixing help.
-    if not identity and is_ramp(card):
-        return "F"
+    if not identity:
+        # Lazy: ``_analysis.roles`` sits above this module (it reads the presets,
+        # which read this module's text helpers).
+        from mtg_utils._analysis.roles import is_ramp
+
+        if is_ramp(card):
+            return "F"
 
     if len(identity) >= 2:
         return "M"

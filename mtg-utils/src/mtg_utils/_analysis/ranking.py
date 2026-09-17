@@ -31,9 +31,9 @@ import math
 import re
 from collections.abc import Callable, Mapping, Sequence
 
-from mtg_utils._analysis.budgets import role_of
 from mtg_utils._analysis.pair_reads import PairContext, pair_score
 from mtg_utils._analysis.rate import RateIndex, rate_for
+from mtg_utils._analysis.roles import is_ramp, role_of
 from mtg_utils._analysis.signal_specs import serve_from_dict, spec_for
 from mtg_utils._analysis.signals import clauses
 from mtg_utils._card_ir.compat_lookup import ir_for
@@ -41,7 +41,6 @@ from mtg_utils.card_classify import (
     classifying_type_line,
     extract_price,
     get_oracle_text,
-    is_ramp,
     type_line_has,
 )
 from mtg_utils.card_ir import Ability, Card, Effect, Filter

@@ -1621,8 +1621,8 @@ def test_tutor_bucket_b_land_fetch_rerouted_to_ramp():
     that card onto the battlefield tapped") is a pure land-fetch-to-
     battlefield NONLAND text, so ``_arm_tutor`` now stays silent and
     ``_arm_land_fetch_ramp`` emits the REAL ``ramp`` concept instead --
-    the tutor lane no longer fires, the ramp lane does (mirrors
-    ``card_classify.is_ramp``; CR 701.23/701.23a, 305.6)."""
+    the tutor lane no longer fires, the ramp lane does (the template's
+    ramp convention; CR 701.23/701.23a, 305.6)."""
     from mtg_utils._analysis.lanes import _ramp
     from mtg_utils._analysis.tree_synthesis import (
         _arm_land_fetch_ramp,

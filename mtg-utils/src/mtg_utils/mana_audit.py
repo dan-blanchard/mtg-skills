@@ -8,12 +8,12 @@ from pathlib import Path
 
 import click
 
+from mtg_utils._analysis.roles import is_ramp
 from mtg_utils._sidecar import atomic_write_json, sha_keyed_path
 from mtg_utils.card_classify import (
     color_sources,
     count_color_pips,
     is_land,
-    is_ramp,
 )
 from mtg_utils.commander_cost import effective_commander_cost
 from mtg_utils.deck_cli import acquire_for_cli, bulk_data_option

@@ -1157,8 +1157,8 @@ def _ramp(tree: ConceptTree) -> list[Signal]:
     if _has_animate_treasure_grant(tree):
         return [Signal("ramp", "you", "", "", tree.name, "high")]
     # lf_ramp (2026-07-13 convention change): a NONLAND card's confirmed
-    # self search that fetches a LAND to the BATTLEFIELD is ramp (mirrors
-    # ``card_classify.is_ramp``'s fetch branch; CR 701.23/701.23a) — the
+    # self search that fetches a LAND to the BATTLEFIELD is ramp (the template's
+    # ramp convention — ``roles.is_ramp`` reads THIS key; CR 701.23/701.23a) — the
     # same :func:`structural_land_fetch_split` read the ``_tutor_lane``
     # reroute consults, so a clause can never lose tutor without this arm
     # firing from identical facts. The ``synth_tutor_directed`` veto is

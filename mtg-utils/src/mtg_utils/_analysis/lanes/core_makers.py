@@ -1938,6 +1938,23 @@ _LANDFALL_STATIC_LAND_DROP_MODES = frozenset(
     {"MayPlayAdditionalLand", "AdditionalLandDrop"}
 )
 
+
+def additional_land_play(tree: ConceptTree) -> bool:
+    """A static/one-shot ``MayPlayAdditionalLand`` / ``AdditionalLandDrop`` MODE
+    anywhere in the tree (Exploration, Azusa's "two additional lands", Summer
+    Bloom — CR 305.2). ONE read, two consumers: the ``landfall`` lane below (an
+    extra land drop is a landfall enabler) and the ``ramp`` preset's concept arm
+    (``theme_presets._ramp_concept`` — an extra land drop is land acceleration,
+    but ``landfall`` alone can't say so: the key also covers pure payoffs)."""
+    for unit in tree.units:
+        nodes = [c.node for c in unit.iter_concepts()]
+        if unit.origin == "static":
+            nodes.append(unit.node)
+        if any(static_mode_tag(n) in _LANDFALL_STATIC_LAND_DROP_MODES for n in nodes):
+            return True
+    return False
+
+
 # ADR-0038 W3 batch 4 (lands-and-ramp cluster): the "play lands from your
 # graveyard" enabler (Crucible of Worlds, Ramunap Excavator — CR 305.1) is a
 # ``GraveyardCastPermission`` static MODE whose ``affected`` filter names
@@ -2036,13 +2053,13 @@ def _landfall(tree: ConceptTree) -> list[Signal]:
                 and "Land" in trigger_subject(trig)
             ):
                 return [Signal("landfall", "you", "", "", tree.name, "high")]
+    if additional_land_play(tree):
+        return [Signal("landfall", "you", "", "", tree.name, "high")]
     for unit in tree.units:
         nodes = [c.node for c in unit.iter_concepts()]
         if unit.origin == "static":
             nodes.append(unit.node)
         for node in nodes:
-            if static_mode_tag(node) in _LANDFALL_STATIC_LAND_DROP_MODES:
-                return [Signal("landfall", "you", "", "", tree.name, "high")]
             if static_mode_tag(node) in _LANDFALL_GY_PERMISSION_MODES and (
                 "Land" in filter_core_types(getattr(node, "affected", None))
             ):

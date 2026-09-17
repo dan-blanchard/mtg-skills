@@ -25,12 +25,12 @@ from collections import Counter
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from mtg_utils._analysis.roles import is_ramp
 from mtg_utils._name_index import NameIndex
 from mtg_utils.card_classify import (
     color_sources,
     is_creature,
     is_land,
-    is_ramp,
     land_fetch_profile,
 )
 from mtg_utils.card_pool import CardPool

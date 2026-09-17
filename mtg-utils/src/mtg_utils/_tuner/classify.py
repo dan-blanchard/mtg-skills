@@ -12,8 +12,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from mtg_utils._analysis.budgets import protects, role_of
 from mtg_utils._analysis.ranking import score_candidate
+from mtg_utils._analysis.roles import protects, role_of
 from mtg_utils.card_classify import is_land
 from mtg_utils.formats import medium_is_digital
 from mtg_utils.hydrated_deck import HydratedDeck

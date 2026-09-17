@@ -15,7 +15,7 @@ import re
 from collections.abc import Sequence
 
 from mtg_utils._analysis import signal_keys
-from mtg_utils._analysis.budgets import protects
+from mtg_utils._analysis.roles import protects
 from mtg_utils._analysis.signal_specs import spec_for
 from mtg_utils._card_ir.compat_lookup import ir_for
 from mtg_utils._tuner.classify import CardClass, is_fringe

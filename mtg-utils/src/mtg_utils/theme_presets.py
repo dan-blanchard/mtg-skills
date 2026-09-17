@@ -95,6 +95,8 @@ public API (``Preset.matches`` / ``get_preset`` / ``matches`` /
 - :func:`get_preset` — look up a preset by name.
 - :func:`matches` — convenience wrapper around ``get_preset(name).matches(card)``.
 - :func:`list_presets` — ``name -> description`` for discoverability.
+- :func:`has_signal_coverage` — whether the signal path can see a card at all
+  (the gate a caller with a text degrade reads).
 - :data:`PRESETS` — the full registry as a frozen dict.
 """
 
@@ -236,6 +238,23 @@ def _signal_keys_for(card: dict) -> frozenset[str]:
     keys = frozenset(sig.key for sig in extract_signals(card))
     _SIGNAL_KEY_INDEX[oid] = keys
     return keys
+
+
+def has_signal_coverage(card: dict) -> bool:
+    """Can the signal path SEE this card at all? False for the cases
+    :func:`_signal_keys_for` degrades to an empty set on — no ``oracle_id`` (a
+    synthetic fixture), or no phase parse / no card-data (``signal_trees_for``
+    resolves nothing) — so a caller with a text degrade (``_analysis.roles.
+    is_ramp``) can tell "no signals" (a vanilla creature: covered, not ramp) from
+    "no answer". A non-empty keyset is coverage by construction; only the rare
+    empty one pays the tree resolve."""
+    if _signal_keys_for(card):
+        return True
+    if not card.get("oracle_id"):
+        return False
+    from mtg_utils._analysis.signal_trees import signal_trees_for
+
+    return bool(signal_trees_for(card, bulk=card))
 
 
 # Full "key|scope|subject" idents per oracle_id — the sibling of
@@ -416,6 +435,48 @@ def _plus_one_counters_self_grow_concept(card: dict) -> bool:
     from mtg_utils._analysis.lanes import self_counter_grow_narrow
 
     return _concept_any_face(card, self_counter_grow_narrow)
+
+
+# A Treasure handed to SOMEONE ELSE ("Its controller creates two Treasure
+# tokens" — An Offer You Can't Refuse; "that player creates a Treasure" — Gonti,
+# Night Minister). The ``make_token`` concept carries no recipient (phase scopes
+# it "you" whoever creates the token), so ``treasure_makers|you`` alone can't
+# tell a giveaway from ramp; the subject standing directly before "creates" can.
+_THIRD_PARTY_CREATES_RE = re.compile(
+    r"\b(?:its controller|that player|target opponent|target player|each opponent"
+    r"|that (?:spell|permanent|creature)'s controller)(?: may)? creates?\b"
+    r"[^.]*?\btreasure",
+    re.IGNORECASE,
+)
+_CREATES_TREASURE_RE = re.compile(r"\bcreates?\b[^.]*?\btreasure", re.IGNORECASE)
+_REMINDER_TEXT_RE = re.compile(r"\([^)]*\)")
+
+
+def _treasure_giveaway(card: dict) -> bool:
+    """Every Treasure-creating clause on CARD names a third-party creator — the
+    card never makes a Treasure for YOU (Generous Plunderer, which makes one for
+    each side, is NOT a giveaway)."""
+    text = _REMINDER_TEXT_RE.sub("", get_oracle_text(card))
+    creates = len(_CREATES_TREASURE_RE.findall(text))
+    return creates > 0 and creates == len(_THIRD_PARTY_CREATES_RE.findall(text))
+
+
+def _ramp_concept(card: dict) -> bool:
+    """concept arm for the 'ramp' preset — the two ramp facts no single signal
+    key carries. (1) An EXTRA LAND PLAY (Exploration, Azusa — CR 305.2): the
+    lanes route it to ``landfall``, a key that also covers pure payoffs, so
+    this reads the same static mode the landfall lane does
+    (``lanes.additional_land_play``). (2) A TREASURE MAKER you keep:
+    ``treasure_makers|you`` minus :func:`_treasure_giveaway`. Unions (OR) with
+    the preset's ``signal_keys`` arm (``ramp`` / ``mana_amplifier`` /
+    ``extra_land_drop`` / ``firebending_makers``)."""
+    if "treasure_makers|you|" in _signal_idents_for(card) and not _treasure_giveaway(
+        card
+    ):
+        return True
+    from mtg_utils._analysis.lanes import additional_land_play
+
+    return _concept_any_face(card, additional_land_play)
 
 
 def _removal_edict_concept(
@@ -1804,7 +1865,8 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
     # conversion). Signal key `tutor` (CR 701.23/701.23a — your-library
     # search). lf_ramp (2026-07-13 convention change): `tutor` EXCLUDES
     # land-fetch-to-battlefield ramp (Sakura-Tribe Elder, Cultivate now fire
-    # `ramp` instead — the boundary mirrors `card_classify.is_ramp`), so
+    # `ramp` instead — the template's ramp convention, read by the `ramp`
+    # preset / `_analysis.roles.is_ramp`), so
     # those two flipped to should_not_match; a land fetch TO HAND (Sylvan
     # Scrying) stays a genuine tutor and pins that side of the boundary.
     # See `_analysis.lanes._tutor_lane` — the lane
@@ -1822,6 +1884,40 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
     # veto comment), not a preset-noise catch the old regex correctly
     # avoided nor a genuine capability loss for the SELF-tutor concept this
     # preset is named for.
+    # Ramp — the Command-Zone template's mana-acceleration role (task: one
+    # owner for template-role facts, ADR-0051). A VIEW over the signal path:
+    # `ramp` (rocks / dorks / rituals / granted mana / land-fetch-to-
+    # battlefield, lf_ramp), `mana_amplifier` (Crypt Ghast, Caged Sun),
+    # `extra_land_drop` (Burgeoning, Arboreal Grazer — a land PUT),
+    # `firebending_makers`, plus the two concept-arm facts (`_ramp_concept`:
+    # an extra land PLAY; a Treasure maker you keep). `_analysis.roles.is_ramp`
+    # is this preset for a card the signal path covers — the tuner's ramp
+    # candidate search reads the same preset, so "counts as ramp" and "sourced
+    # as ramp" cannot drift. A LAND is never ramp here (the mana base, CR 305);
+    # the role owner gates that, since a preset has no AND.
+    Preset(
+        name="ramp",
+        description=(
+            "Mana acceleration: mana rocks / dorks / rituals, mana amplifiers, "
+            "land-fetch-to-battlefield, extra land drops, and Treasure makers."
+        ),
+        signal_keys=(
+            "ramp",
+            "mana_amplifier",
+            "extra_land_drop",
+            "firebending_makers",
+        ),
+        concept=_ramp_concept,
+        should_match=(
+            "Sol Ring",
+            "Gilded Lotus",
+            "Cultivate",
+            "Azusa, Lost but Seeking",
+            "Burgeoning",
+            "Dockside Extortionist",
+        ),
+        should_not_match=("Lightning Bolt", "Demonic Tutor", "Sylvan Scrying"),
+    ),
     Preset(
         name="tutors",
         description=(

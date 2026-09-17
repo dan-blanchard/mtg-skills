@@ -443,7 +443,7 @@ def has_structural_tutor(tree: ConceptTree) -> bool:
 
 # ── lf_ramp (2026-07-13 signal-key convention change): a NONLAND card whose
 # clause searches for a LAND and puts it ONTO THE BATTLEFIELD is RAMP, never
-# tutor (mirrors card_classify.is_ramp's fetch branch; CR 701.23/701.23a for
+# tutor (the template's ramp convention; CR 701.23/701.23a for
 # the search action itself). A land fetch TO HAND (Sylvan Scrying) or an
 # arbitrary/nonland search stays tutor; a clause that can do both (Archdruid's
 # Charm's "creature or land ... onto the battlefield ... if it's a land card,
@@ -675,8 +675,8 @@ def structural_land_fetch_split(tree: ConceptTree) -> tuple[bool, bool]:
     return land_fetch, other
 
 
-# The sentence-level text mirror of ``card_classify.is_ramp``'s fetch branch
-# (lf_ramp): a search sentence naming a land ("land card(s)" / "basic land" /
+# The sentence-level text read of the lf_ramp fetch boundary: a search
+# sentence naming a land ("land card(s)" / "basic land" /
 # a CR 205.3i land-type word) AND "onto the battlefield" is the ramp side; a
 # search sentence that can also fetch a nonland type keeps the tutor side
 # too. Only consulted where the tree is text-only or a filter is unresolved

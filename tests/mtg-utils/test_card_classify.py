@@ -10,8 +10,8 @@ from mtg_utils.card_classify import (
     is_commander,
     is_creature,
     is_land,
-    is_ramp,
     partner_ability,
+    ramp_by_text,
     valid_partner_search,
 )
 
@@ -153,76 +153,79 @@ class TestGetOracleTextFaceBoundary:
         assert get_oracle_text({"layout": "normal"}) == ""
 
 
-class TestIsRamp:
+class TestRampByText:
+    """The no-coverage text degrade (``_analysis.roles.is_ramp`` owns the real
+    answer — see ``tests/deck-forge/test_roles.py``)."""
+
     def test_sol_ring(self):
         card = {
             "type_line": "Artifact",
             "oracle_text": "{T}: Add {C}{C}.",
         }
-        assert is_ramp(card) is True
+        assert ramp_by_text(card) is True
 
     def test_sakura_tribe_elder(self):
         card = {
             "type_line": "Creature — Snake Shaman",
             "oracle_text": "Sacrifice Sakura-Tribe Elder: Search your library for a basic land card, put that card onto the battlefield tapped, then shuffle.",
         }
-        assert is_ramp(card) is True
+        assert ramp_by_text(card) is True
 
     def test_cultivate(self):
         card = {
             "type_line": "Sorcery",
             "oracle_text": "Search your library for up to two basic land cards, reveal those cards, put one onto the battlefield tapped and the other into your hand, then shuffle.",
         }
-        assert is_ramp(card) is True
+        assert ramp_by_text(card) is True
 
     def test_ashnods_altar(self):
         card = {
             "type_line": "Artifact",
             "oracle_text": "Sacrifice a creature: Add {C}{C}.",
         }
-        assert is_ramp(card) is True
+        assert ramp_by_text(card) is True
 
     def test_command_tower_not_ramp(self):
         card = {
             "type_line": "Land",
             "oracle_text": "{T}: Add one mana of any color in your commander's color identity.",
         }
-        assert is_ramp(card) is False
+        assert ramp_by_text(card) is False
 
     def test_blood_artist_not_ramp(self):
         card = {
             "type_line": "Creature — Vampire",
             "oracle_text": "Whenever Blood Artist or another creature dies, target player loses 1 life and you gain 1 life.",
         }
-        assert is_ramp(card) is False
+        assert ramp_by_text(card) is False
 
     def test_birds_of_paradise(self):
         card = {
             "type_line": "Creature — Bird",
             "oracle_text": "Flying\n{T}: Add one mana of any color.",
         }
-        assert is_ramp(card) is True
+        assert ramp_by_text(card) is True
 
     def test_arcane_signet(self):
         card = {
             "type_line": "Artifact",
             "oracle_text": "{T}: Add one mana of any color in your commander's color identity.",
         }
-        assert is_ramp(card) is True
+        assert ramp_by_text(card) is True
 
     def test_bloom_tender(self):
         card = {
             "type_line": "Creature — Elf Druid",
             "oracle_text": "Vivid — {T}: For each color among permanents you control, add one mana of that color.",
         }
-        assert is_ramp(card) is True
+        assert ramp_by_text(card) is True
 
     def test_lotus_cobra(self):
         card = {
             "type_line": "Creature — Snake",
             "oracle_text": "Landfall — Whenever a land you control enters, add one mana of any color.",
         }
-        assert is_ramp(card) is True
+        assert ramp_by_text(card) is True
 
     def test_three_tree_city_land_not_ramp(self):
         """Lands that produce mana should not be classified as ramp."""
@@ -230,7 +233,7 @@ class TestIsRamp:
             "type_line": "Legendary Land",
             "oracle_text": "{T}: Add {C}.\n{2}, {T}: Choose a color. Add an amount of mana of that color equal to the number of creatures you control of the chosen type.",
         }
-        assert is_ramp(card) is False
+        assert ramp_by_text(card) is False
 
     def test_an_offer_you_cant_refuse_not_ramp(self):
         """Opponent-directed Treasure is anti-ramp: the "Add one mana" lives only in the
@@ -243,7 +246,7 @@ class TestIsRamp:
                 'token: Add one mana of any color.")'
             ),
         }
-        assert is_ramp(card) is False
+        assert ramp_by_text(card) is False
 
     def test_you_directed_treasure_is_ramp(self):
         """A Treasure-maker you keep (Dockside / Brass's Bounty) is ramp, even though the
@@ -255,7 +258,7 @@ class TestIsRamp:
                 '"{T}, Sacrifice this token: Add one mana of any color.")'
             ),
         }
-        assert is_ramp(card) is True
+        assert ramp_by_text(card) is True
 
     def test_typed_subtype_land_fetch_to_battlefield_is_ramp(self):
         # "Search your library for a Forest card ... onto the battlefield" is ramp, but
@@ -276,9 +279,9 @@ class TestIsRamp:
             "oracle_text": "Search your library for a Plains, Island, Swamp, or Mountain "
             "card, put it onto the battlefield tapped, then shuffle.",
         }
-        assert is_ramp(natures_lore) is True
-        assert is_ramp(three_visits) is True
-        assert is_ramp(farseek) is True
+        assert ramp_by_text(natures_lore) is True
+        assert ramp_by_text(three_visits) is True
+        assert ramp_by_text(farseek) is True
 
     def test_land_tutor_to_hand_is_not_ramp(self):
         # A land TUTOR that puts the card into your hand (Moonsilver Key, Sylvan Scrying)
@@ -289,10 +292,10 @@ class TestIsRamp:
             "oracle_text": "{2}, {T}, Sacrifice Moonsilver Key: Search your library for "
             "an artifact or land card, put it into your hand, then shuffle.",
         }
-        assert is_ramp(moonsilver_key) is False
+        assert ramp_by_text(moonsilver_key) is False
 
     def test_conditional_mox_still_counts_as_ramp(self):
-        """is_ramp counts a conditionally-gated rock the user chose to run (it DOES add
+        """ramp_by_text counts a conditionally-gated rock the user chose to run (it DOES add
         mana directly). The tuner's separate reliable-ramp filter is what keeps it from
         being SUGGESTED into a deck that can't turn it on."""
         card = {
@@ -302,7 +305,7 @@ class TestIsRamp:
                 "you control three or more artifacts."
             ),
         }
-        assert is_ramp(card) is True
+        assert ramp_by_text(card) is True
 
     def test_variable_amount_mana_dork_is_ramp(self):
         """A dork that adds "an amount of {G}" (devotion/counter-scaled — Karametra's
@@ -313,7 +316,7 @@ class TestIsRamp:
                 "{T}: Add an amount of {G} equal to your devotion to green."
             ),
         }
-        assert is_ramp(karametra) is True
+        assert ramp_by_text(karametra) is True
 
     def test_mana_amplifier_is_ramp(self):
         """A mana AMPLIFIER ("add an additional {X}" per land tapped — Nirkana Revenant,
@@ -331,8 +334,8 @@ class TestIsRamp:
                 "Extort\nWhenever you tap a Swamp for mana, add an additional {B}."
             ),
         }
-        assert is_ramp(nirkana) is True
-        assert is_ramp(crypt_ghast) is True
+        assert ramp_by_text(nirkana) is True
+        assert ramp_by_text(crypt_ghast) is True
 
     def test_extra_land_and_land_from_hand_are_ramp(self):
         """Land-acceleration that adds no mana directly: extra land drops (Azusa) and
@@ -348,14 +351,14 @@ class TestIsRamp:
                 "your hand onto the battlefield."
             ),
         }
-        assert is_ramp(azusa) is True
-        assert is_ramp(grazer) is True
+        assert ramp_by_text(azusa) is True
+        assert ramp_by_text(grazer) is True
         # Over-fire guard: a plain beater that merely mentions "land" is not ramp.
         beater = {
             "type_line": "Creature — Beast",
             "oracle_text": "When this creature dies, destroy target nonbasic land.",
         }
-        assert is_ramp(beater) is False
+        assert ramp_by_text(beater) is False
 
 
 class TestColorSources:

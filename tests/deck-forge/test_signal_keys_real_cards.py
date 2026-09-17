@@ -1000,7 +1000,7 @@ def test_group_hug_draw_recovered_folded_each_player_scope_grothama():
 
 
 # ── lf_ramp (2026-07-13 signal-key convention change) ──────────────────────
-# Land-fetch-to-battlefield is RAMP, not tutor (mirrors card_classify.is_ramp;
+# Land-fetch-to-battlefield is RAMP, not tutor (the template's ramp convention;
 # CR 701.23/701.23a for the search action, CR 305.6 for the basics, CR 205.3i
 # for the full land-type vocabulary). Pinned against real snapshot records on
 # the production extract path (testkit.test_signals), per clause/mode:

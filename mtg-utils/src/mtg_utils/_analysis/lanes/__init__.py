@@ -253,6 +253,7 @@ from mtg_utils._analysis.lanes.core_makers import (
     _type_changer_zone,
     _type_changers,
     _win_lose_game,
+    additional_land_play,
     extract_grant_payloads,
 )
 from mtg_utils._analysis.lanes.core_makers import (
@@ -1422,6 +1423,7 @@ __all__ = [
     "_widened_tag_phrase_match",
     "_win_lose_game",
     "_xspell_matters",
+    "additional_land_play",
     "apply_membership_floor",
     "blink_flicker_is_maker",
     "blink_flicker_maker_present",
