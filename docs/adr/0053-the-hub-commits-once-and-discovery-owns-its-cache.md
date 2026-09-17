@@ -31,10 +31,10 @@ cache was keyed by slot — so a warm still running for collection A could `setd
 back the slot entry that importing collection B had just popped, and B's discovery read
 A's names.
 
-**Decision.** `_deck_forge/discovery.py` owns it behind three entry points —
-`discover_commanders`, `warm`, `owned_commander_records`. `ForgeState.discovery` is one
-`DiscoveryCache` with its own lock: dict reads and writes happen under it, the scans
-outside it (a lane computed twice is benign, a torn dict is not). A collection's
+**Decision.** `_deck_forge/discovery.py` owns it behind two entry points —
+`discover_commanders` and `warm`. `ForgeState.discovery` is one `DiscoveryCache` whose
+dicts and lock are private: its methods take the lock, and the scans and the sidecar
+file reads happen outside it (a lane computed twice is benign, a torn dict is not). A collection's
 served-name sets are keyed by the collection's own content, in memory as on disk, so
 there is no invalidation step to forget and a late warm can only ever fill its own
 collection's entry. `engine.py` drops to ~1,300 lines; `ForgeState.active_slot` is a

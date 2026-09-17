@@ -171,15 +171,18 @@ def _autosave(state: ForgeState) -> None:
         state.store.save(state.build_id, state.build_name, state.session.to_deck_dict())
 
 
-def _commit(state: ForgeState, *, persist: bool = True, **extra: object) -> dict:
+def _commit(
+    state: ForgeState, *, persist: bool = True, readout: dict | None = None
+) -> dict:
     """The tail of every state-changing route, written once: persist the build (a
     DECK change — ``persist=False`` for runtime-only state like lanes and
     Collections, and for a load, which must not rewrite the file it just read), take
-    the snapshot, broadcast it to every open browser, return it. ``extra`` keys ride
-    on the broadcast snapshot (``balanced`` / ``trimmed``)."""
+    the snapshot, broadcast it to every open browser, return it. ``readout`` is a
+    land-plan result that rides on the broadcast snapshot (``balanced`` /
+    ``trimmed``)."""
     if persist:
         _autosave(state)
-    snap = {**engine.snapshot(state), **extra}
+    snap = {**engine.snapshot(state), **(readout or {})}
     state.hub.publish(json.dumps(snap))
     return snap
 
@@ -298,7 +301,7 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
         """Fix the mana base: add basics to reach the FAIL floor and rebalance the
         basics to match color demand (swapping over- for under-produced colors at the
         current count when already at/above the floor)."""
-        return _commit(state, balanced=engine.balance_lands(state))
+        return _commit(state, readout={"balanced": engine.balance_lands(state)})
 
     @app.post("/api/deck/trim-lands")
     async def trim_lands() -> dict:
@@ -308,7 +311,7 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
         all-lands combo deck is a legitimate build (see CONTEXT Flood line)."""
         applied = engine.trim_lands(state)
         changed = bool(applied["add"] or applied["remove"])
-        return _commit(state, persist=changed, trimmed=applied)
+        return _commit(state, persist=changed, readout={"trimmed": applied})
 
     @app.post("/api/handoff/goldfish", response_model=None)
     async def handoff_goldfish() -> dict | JSONResponse:

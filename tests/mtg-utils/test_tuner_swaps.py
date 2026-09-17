@@ -1344,3 +1344,13 @@ def test_a_game_changer_is_never_proposed_past_the_bracket_ceiling():
     # add that breaches the target)" — the next-best legal add ships instead.
     assert _gc_scenario(0) == ["Plain Protection"]
     assert _gc_scenario(1) == ["Staple Game Changer"]
+
+
+def test_a_deck_over_the_ceiling_cannot_cut_its_way_into_a_new_game_changer():
+    # Two over the ceiling (room -2): cutting ONE Game Changer leaves the deck still one
+    # over, so the freed slot must not buy a Game Changer add. A clamped room (0) once
+    # read that cut as +1 headroom and proposed one.
+    assert _gc_scenario(-2, cut_is_game_changer=True) == ["Plain Protection"]
+    # One under after the cut (room 0 → 1)… but the add is picked BEFORE the cut is
+    # secured, so a swap never spends room its own cut would free.
+    assert _gc_scenario(0, cut_is_game_changer=True) == ["Plain Protection"]

@@ -291,6 +291,27 @@ class _WildcardLedger:
         return dict(self.spent)
 
 
+class _GameChangerRoom:
+    """How many more Game Changers the target bracket allows (ADR-0030: the proposer
+    never adds one past the ceiling). ``room=None`` is no ceiling — no target bracket,
+    a one-on-one game, brackets 4-5; a NEGATIVE room is a deck already over, which
+    must cut its way back under before any Game Changer add. The third ledger beside
+    the two purses: probed read-only, charged on commit."""
+
+    def __init__(self, room: int | None) -> None:
+        self.room = room
+
+    def allows(self, record: dict) -> bool:
+        return self.room is None or self.room > 0 or not record.get("game_changer")
+
+    def charge(self, add: dict, cut: CardClass | None) -> None:
+        """A Game Changer added spends a slot; one cut frees a slot."""
+        if self.room is None:
+            return
+        self.room -= bool(add.get("game_changer"))
+        self.room += bool(cut is not None and cut.record.get("game_changer"))
+
+
 def _run_search(
     search_fn: Callable[..., list[dict]],
     spec: dict,
@@ -426,7 +447,7 @@ def propose_swaps(
         return None
 
     used_adds: set[str] = set()
-    gc_room = ctx.game_changer_room
+    game_changers = _GameChangerRoom(ctx.game_changer_room)
     swaps: list[dict] = []
     ledger: _UsdLedger | _WildcardLedger = (
         _WildcardLedger(ctx.wildcard_budget)
@@ -562,7 +583,7 @@ def propose_swaps(
         for card in ranked:
             if card.get("name") in used_adds:  # already taken — skip to the next best
                 continue
-            if card.get("game_changer") and gc_room is not None and gc_room <= 0:
+            if not game_changers.allows(card):
                 continue  # ADR-0030: never propose an add past the bracket's ceiling
             cost = ledger.acquire_cost(card, ctx.owned)
             if cost is None:
@@ -595,12 +616,8 @@ def propose_swaps(
     ) -> None:
         # Charge only now that the swap is finalized (find_add probed read-only, so an
         # unpaired add never consumed budget — USD dollars or a wildcard, by mode).
-        nonlocal gc_room
         ledger.charge(add_card, ctx.owned, cost)
-        if gc_room is not None:
-            # A Game Changer added spends the headroom; one cut frees a slot.
-            gc_room -= bool(add_card.get("game_changer"))
-            gc_room += bool(cut is not None and cut.record.get("game_changer"))
+        game_changers.charge(add_card, cut)
         if cut is not None:
             used_cuts.add(cut.name)
         used_adds.add(add_card.get("name", ""))

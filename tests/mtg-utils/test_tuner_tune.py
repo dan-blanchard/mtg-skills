@@ -803,12 +803,30 @@ def test_the_medium_picks_the_currency_the_purse_spends():
     )
 
 
-def test_game_changer_room_is_the_bracket_ceiling_less_the_deck():
+def test_game_changer_room_is_the_gates_ceiling_less_the_gates_count():
     from mtg_utils._tuner.tune import _game_changer_room
 
-    gate = {"ceilings": {"game_changers": 3, "mass_land_denial": 0}}
-    assert _game_changer_room(gate, {"game_changer_count": 1}) == 2
-    assert _game_changer_room(gate, {"game_changer_count": 5}) == 0  # already over
+    def gate(count):
+        return {
+            "ceilings": {"game_changers": 3, "mass_land_denial": 0},
+            "counts": {"game_changers": count},
+        }
+
+    assert _game_changer_room(gate(1)) == 2
+    # Already over: NEGATIVE, never clamped to 0 — one cut must not buy an add.
+    assert _game_changer_room(gate(5)) == -2
     # No target bracket / a one-on-one game / brackets 4-5: nothing constrains adds.
-    assert _game_changer_room(None, {"game_changer_count": 9}) is None
-    assert _game_changer_room({"ceilings": {}}, {"game_changer_count": 9}) is None
+    assert _game_changer_room(None) is None
+    assert _game_changer_room({"ceilings": {}}) is None
+
+
+def test_the_bracket_gate_reports_the_count_it_measured():
+    from mtg_utils._tuner.bracket import bracket_gate
+
+    records = [
+        {"name": "Rhystic Study", "game_changer": True},
+        {"name": "Forest", "type_line": "Basic Land — Forest"},
+    ]
+    gate = bracket_gate(records, 2)
+    assert gate["ceilings"]["game_changers"] == 0
+    assert gate["counts"] == {"game_changers": 1}

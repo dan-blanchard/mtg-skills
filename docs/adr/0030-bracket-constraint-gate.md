@@ -37,7 +37,9 @@ against the WotC "Commander Brackets Beta Update" (most recent official version
 - **No tutor axis** — WotC removed tutor restrictions on 2025-10-21; the most efficient
   tutors are now caught only via their Game-Changers membership.
 - The swap proposer **respects the ceiling** (won't propose a Game-Changer add that
-  breaches the target).
+  breaches the target). The gate reports `counts` beside `ceilings`; the proposer's
+  headroom is their difference, unclamped — a deck two over the ceiling cannot cut one
+  Game Changer and add another.
 - deck-wizard's bracket interaction-*target* table (Command Zone Ep. 658: 5-7 / 8-10 /
   10-12) stays an **agent-layer overlay**, never tuner role floors — that boundary is
   the ADR-0024 line.

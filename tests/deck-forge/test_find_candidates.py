@@ -179,6 +179,27 @@ def test_paper_only_propagates_to_search_for_commander():
     assert search.calls[-1]["paper_only"] is True
 
 
+def test_the_find_pool_follows_the_build_not_the_filter_format():
+    """ADR-0052: the candidate pool is the BUILD's — its format under its medium
+    (``Format.paper_only``). A format FILTER narrows legality; it never moves a paper
+    table onto Arena printings, or an Arena build onto paper ones."""
+
+    def pool(session_format, medium, filter_format):
+        search = _recording_search(CATALOG)
+        state = _state(search_fn=search)
+        engine.set_format(state, session_format)
+        engine.set_medium(state, medium)
+        engine.find_candidates(
+            state, engine.FindParams(type="Creature", format=filter_format)
+        )
+        return search.calls[-1]["paper_only"]
+
+    assert pool("historic_brawl", "paper", "historic_brawl") is True
+    assert pool("historic_brawl", "digital", "historic_brawl") is False
+    assert pool("historic_brawl", "paper", "commander") is True
+    assert pool("historic_brawl", "digital", "commander") is False
+
+
 # ── paging math over CandidatePage ────────────────────────────────────────────
 
 

@@ -234,5 +234,8 @@ def bracket_gate(
         # WARNs are advisory; only a FAIL fails the gate.
         "pass": not any(v["severity"] == "FAIL" for v in violations),
         "ceilings": {"game_changers": gc_ceiling, "mass_land_denial": 0},
+        # What the deck holds against each counted ceiling — the swap proposer's
+        # headroom is ``ceilings - counts`` (it must never add past the ceiling).
+        "counts": {"game_changers": len(gc_cards)},
         "violations": violations,
     }

@@ -3,9 +3,9 @@
 A **Collection** is the user's library — owned cards as a ``parse_deck`` pile — distinct
 from a deck (what you're building). It is global to the hub (not per-build), held in two
 slots, ``paper`` and ``arena``, persisted in one ``collection.json`` and auto-loaded on
-launch. The active slot is auto-picked by format (see ``engine.active_slot``); reads are
-strictly single-slot. Ownership is DERIVED per snapshot — never stored on a build — so
-it can't go stale as the deck mutates.
+launch. The active slot is picked by the build's medium
+(``ForgeState.active_slot``); reads are strictly single-slot. Ownership is DERIVED
+per snapshot — never stored on a build — so it can't go stale as the deck mutates.
 """
 
 from __future__ import annotations

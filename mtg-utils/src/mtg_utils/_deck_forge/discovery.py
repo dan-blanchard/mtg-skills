@@ -1,17 +1,17 @@
 """Commander discovery — intent-ranked owned commanders (ADR-0018), and its caches.
 
-Three entry points: :func:`discover_commanders` (rank), :func:`warm` (fill the caches
-off the request path, right after a Collection import) and
-:func:`owned_commander_records`. Everything else — Support depth, Novelty, the lane
-density sweep, the served-name scan, the two sidecars and their keying — is the
-implementation.
+Two entry points: :func:`discover_commanders` (rank) and :func:`warm` (fill the caches
+off the request path, right after a Collection import). Everything else — Support
+depth, Novelty, the lane density sweep, the served-name scan, the two sidecars and
+their keying — is the implementation.
 
 The caches live on one :class:`DiscoveryCache` the ``ForgeState`` holds. Discovery
 runs in the threadpool and a warm runs as a background task, so both reach it from
 worker threads at once:
 
-* every read/write of the cache's dicts happens under its lock; the expensive scans
-  run outside it (a lane computed twice is benign, a torn dict is not);
+* the cache's dicts are private to :class:`DiscoveryCache`, whose methods take its
+  lock; the expensive scans run outside it (a lane computed twice is benign, a torn
+  dict is not);
 * a Collection's served-name sets are keyed by the Collection's OWN CONTENT, never by
   slot. A warm still running for the collection a slot held a minute ago fills that
   collection's entry; it cannot re-create, under the slot, the entry a newer import
@@ -24,7 +24,6 @@ import functools
 import json
 import math
 import threading
-from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -35,9 +34,11 @@ from mtg_utils._sidecar import atomic_write_json, sha_keyed_path
 from mtg_utils.formats import FORMATS
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from mtg_utils._deck_forge.state import ForgeState
 
-DISCOVER_SORTS = ("support", "novelty")
+_DISCOVER_SORTS = ("support", "novelty")
 _SUPPORT_FLOOR = 5  # owned in-identity cards a lane needs to count as supported
 _DENSITY_SIDECAR_PREFIX = "deck-forge-lane-density"
 _SERVED_SIDECAR_PREFIX = "deck-forge-served"
@@ -49,23 +50,114 @@ _SERVED_COLLECTIONS_KEPT = 4
 CollectionKey = frozenset[str]
 
 
-@dataclass
 class DiscoveryCache:
     """Discovery's memoized sweeps, shared across worker threads (see the module
-    docstring for the locking and keying rules). Held by ``ForgeState.discovery``."""
+    docstring for the keying rule). Held by ``ForgeState.discovery``.
 
-    lock: threading.RLock = field(default_factory=threading.RLock, repr=False)
-    # fmt → ((key, subject) → occurrences, commander count): the Novelty IDF table over
-    # the whole legal commander pool — the one expensive sweep in a novelty sort.
-    signal_freq: dict[str, tuple[dict, int]] = field(default_factory=dict)
-    # The deduped bulk-record pool (the lane-density denominator).
-    density_pool: list[dict] = field(default_factory=list)
-    # lane-key → fraction of the pool serving it, seeded once from its sidecar.
-    lane_density: dict[str, float] = field(default_factory=dict)
-    density_sidecar_loaded: bool = False
-    # Collection content → lane-key → owned card NAMES serving that lane. Computed once
-    # per distinct lane, so support is a set intersection, not a per-commander scan.
-    served: dict[CollectionKey, dict[str, frozenset[str]]] = field(default_factory=dict)
+    The lock is private and every method takes it itself, so no caller can touch a
+    dict outside it. Callers compute OUTSIDE the cache and hand the result to a
+    ``*_or`` method, which keeps the first value stored (a lane computed twice by two
+    threads is benign; a torn dict is not)."""
+
+    def __init__(self) -> None:
+        self._lock = threading.Lock()
+        # fmt → ((key, subject) → occurrences, commander count): the Novelty IDF table
+        # over the whole legal commander pool — the one expensive sweep in that sort.
+        self._signal_freq: dict[str, tuple[dict, int]] = {}
+        # The deduped bulk-record pool (the lane-density denominator).
+        self._density_pool: list[dict] = []
+        # lane-key → fraction of the pool serving it, seeded once from its sidecar.
+        self._lane_density: dict[str, float] = {}
+        self._density_seeded = False
+        # Collection content → lane-key → owned card NAMES serving that lane, most
+        # recently used last. Computed once per distinct lane, so support is a set
+        # intersection, not a per-commander scan.
+        self._served: dict[CollectionKey, dict[str, frozenset[str]]] = {}
+
+    def signal_freq(self, fmt: str) -> tuple[dict, int] | None:
+        with self._lock:
+            return self._signal_freq.get(fmt)
+
+    def signal_freq_or(self, fmt: str, table: tuple[dict, int]) -> tuple[dict, int]:
+        with self._lock:
+            return self._signal_freq.setdefault(fmt, table)
+
+    def density_pool(self) -> list[dict]:
+        with self._lock:
+            return self._density_pool
+
+    def density_pool_or(self, pool: list[dict]) -> list[dict]:
+        with self._lock:
+            if not self._density_pool:
+                self._density_pool = pool
+            return self._density_pool
+
+    def seed_density(self, load: Callable[[], dict]) -> None:
+        """Merge the density sidecar (``load()``) in, ONCE per cache — the ~55s density
+        sweep is paid once per bulk version, not once per server start."""
+        with self._lock:
+            if self._density_seeded:
+                return
+            self._density_seeded = True
+        loaded = load()  # file I/O outside the lock; a racing reader just recomputes
+        with self._lock:
+            for key, value in loaded.items():
+                if isinstance(value, (int, float)):
+                    self._lane_density.setdefault(key, float(value))
+
+    def density(self, key: str) -> float | None:
+        with self._lock:
+            return self._lane_density.get(key)
+
+    def density_or(self, key: str, value: float) -> float:
+        with self._lock:
+            return self._lane_density.setdefault(key, value)
+
+    def density_snapshot(self) -> dict[str, float]:
+        with self._lock:
+            return dict(self._lane_density)
+
+    def served_for(
+        self, coll_key: CollectionKey, load: Callable[[], dict]
+    ) -> dict[str, frozenset[str]]:
+        """``coll_key``'s served-name sets, seeded from its content-addressed sidecar
+        (``load()``) the first time the collection is seen — saving the ~10s scan on
+        restart or a slot switch. The returned dict is the live entry: read and write
+        it only through :meth:`served` / :meth:`served_or`. An evicted entry stays
+        usable by a pass still holding it."""
+        with self._lock:
+            known = coll_key in self._served
+        seed: dict[str, frozenset[str]] = {}
+        if not known:  # file I/O outside the lock; two first-comers both load, one wins
+            seed = {
+                str(key): frozenset(str(n) for n in names)
+                for key, names in load().items()
+                if isinstance(names, list)
+            }
+        with self._lock:
+            entry = self._served.pop(coll_key, None)
+            if entry is None:
+                entry = seed
+            self._served[coll_key] = entry  # most-recent last
+            while len(self._served) > _SERVED_COLLECTIONS_KEPT:
+                self._served.pop(next(iter(self._served)))
+            return entry
+
+    def served(
+        self, entry: dict[str, frozenset[str]], key: str
+    ) -> frozenset[str] | None:
+        with self._lock:
+            return entry.get(key)
+
+    def served_or(
+        self, entry: dict[str, frozenset[str]], key: str, names: frozenset[str]
+    ) -> frozenset[str]:
+        with self._lock:
+            return entry.setdefault(key, names)
+
+    def served_snapshot(self, entry: dict[str, frozenset[str]]) -> dict[str, list[str]]:
+        with self._lock:
+            return {k: sorted(v) for k, v in entry.items()}
 
 
 def _signals(record: dict, *, include_membership: bool = True) -> list:
@@ -91,10 +183,10 @@ def _resolved_collection(state: ForgeState, slot: str | None = None) -> list[dic
     return list(out.values())
 
 
-def owned_commander_records(state: ForgeState) -> list[dict]:
-    """Bulk records for the commander-eligible cards in the active Collection slot."""
-    eligible = FORMATS[state.session.format].commander_eligibility
-    return [r for r in _resolved_collection(state) if eligible(r)["eligible"]]
+def _owned_commanders(coll: list[dict], fmt: str) -> list[dict]:
+    """The commander-eligible records among a resolved collection."""
+    eligible = FORMATS[fmt].commander_eligibility
+    return [r for r in coll if eligible(r)["eligible"]]
 
 
 def _commander_lanes(record: dict) -> list[tuple[str, Serve, str]]:
@@ -197,11 +289,11 @@ def _read_json_dict(path: Path | None) -> dict:
 # ── The two caches ──────────────────────────────────────────────────────────────
 
 
-class _Session:
+class _Pass:
     """One discovery pass over one collection: seeds both caches from their sidecars on
-    entry, computes missing lanes lazily, persists whatever grew on :meth:`save`. The
-    ONE copy of the load → compute → save-if-grown protocol (rank and warm share it).
-    """
+    entry, computes missing lanes lazily, persists whatever it added on :meth:`save`.
+    The ONE copy of the load → compute → save-if-grown protocol (rank and warm share
+    it)."""
 
     def __init__(self, state: ForgeState, coll: list[dict]) -> None:
         self._state = state
@@ -214,59 +306,30 @@ class _Session:
         # LIVE ``extract_signals`` per cold card over the ~34.6k-card pool (~141s
         # measured for one lane) instead of a dict lookup. Idempotent and cheap warm.
         theme_presets.seed_signal_key_index(state.bulk_path)
-        with self._cache.lock:
-            self._seed_density()
-            self._served = self._seed_served()
-            self._density_before = len(self._cache.lane_density)
-            self._served_before = len(self._served)
-
-    def _seed_density(self) -> None:
-        """Seed ``lane_density`` from its sidecar, ONCE per cache: the ~55s density
-        sweep is paid once per bulk version, not once per server start."""
-        cache = self._cache
-        if cache.density_sidecar_loaded:
-            return
-        cache.density_sidecar_loaded = True
-        for key, value in _read_json_dict(_density_sidecar_path(self._state)).items():
-            if isinstance(value, (int, float)):
-                cache.lane_density.setdefault(key, float(value))
-
-    def _seed_served(self) -> dict[str, frozenset[str]]:
-        """This collection's served-name sets, seeded from its content-addressed
-        sidecar the first time the collection is seen (saving the ~10s scan on restart
-        or a slot switch)."""
-        served = self._cache.served
-        hit = served.pop(self._coll_key, None)
-        if hit is None:
-            hit = {
-                str(key): frozenset(str(n) for n in names)
-                for key, names in _read_json_dict(
-                    _served_sidecar_path(self._state, self._coll_key)
-                ).items()
-                if isinstance(names, list)
-            }
-        served[self._coll_key] = hit  # most-recent last
-        while len(served) > _SERVED_COLLECTIONS_KEPT:
-            served.pop(next(iter(served)))
-        return hit
+        self._cache.seed_density(lambda: _read_json_dict(_density_sidecar_path(state)))
+        self._served = self._cache.served_for(
+            self._coll_key,
+            lambda: _read_json_dict(_served_sidecar_path(state, self._coll_key)),
+        )
+        # What THIS pass computed — the save-if-grown test (a count over the shared
+        # dicts would also fire on another thread's additions).
+        self._new_density = False
+        self._new_served = False
 
     def _density_pool(self) -> list[dict]:
         """The deduped bulk-record pool used as the lane-density denominator
         (``by_name`` folds every face/alias, so dedup by canonical name)."""
-        with self._cache.lock:
-            if self._cache.density_pool:
-                return self._cache.density_pool
+        pool = self._cache.density_pool()
+        if pool:
+            return pool
         seen: set[str] = set()
-        pool: list[dict] = []
+        pool = []
         for rec in self._state.by_name.values():
             name = rec.get("name", "")
             if name not in seen:
                 seen.add(name)
                 pool.append(rec)
-        with self._cache.lock:
-            if not self._cache.density_pool:
-                self._cache.density_pool = pool
-            return self._cache.density_pool
+        return self._cache.density_pool_or(pool)
 
     def lane_density(self, key: str, serve: Serve) -> float:
         """Fraction of the whole legal pool that serves a lane, cached per lane-key. A
@@ -274,57 +337,43 @@ class _Session:
         (a niche tribe ~0.002) a high one — so collection DEPTH in a rare lane
         outweighs raw breadth. Floored at one hit so a lane that exists always carries
         some weight."""
-        with self._cache.lock:
-            cached = self._cache.lane_density.get(key)
+        cached = self._cache.density(key)
         if cached is not None:
             return cached
         pool = self._density_pool()
         hits = sum(1 for c in pool if serve.matches(c))
-        p = max(hits, 1) / (len(pool) or 1)
-        with self._cache.lock:
-            return self._cache.lane_density.setdefault(key, p)
+        self._new_density = True
+        return self._cache.density_or(key, max(hits, 1) / (len(pool) or 1))
 
     def lane_serves(self, key: str, serve: Serve) -> frozenset[str]:
         """Owned card NAMES (in this collection) that serve a lane. Scanned ONCE per
         distinct lane, so support is a set intersection, not a per-commander scan (the
         ~30s discovery hot path)."""
-        with self._cache.lock:
-            hit = self._served.get(key)
+        hit = self._cache.served(self._served, key)
         if hit is not None:
             return hit
         names = frozenset(c["name"] for c in self._coll if serve.matches(c))
-        with self._cache.lock:
-            return self._served.setdefault(key, names)
+        self._new_served = True
+        return self._cache.served_or(self._served, key, names)
 
     def save(self) -> None:
-        """Persist whichever cache grew during this pass (atomic writes, so a
-        concurrent pass never reads a half-written file)."""
-        with self._cache.lock:
-            density = (
-                dict(self._cache.lane_density)
-                if len(self._cache.lane_density) > self._density_before
-                else None
-            )
-            served = (
-                {k: sorted(v) for k, v in self._served.items()}
-                if len(self._served) > self._served_before
-                else None
-            )
-        if density is not None:
+        """Persist whichever cache this pass added to (atomic writes, so a concurrent
+        pass never reads a half-written file). Nothing is written without a bulk."""
+        if self._new_density:
             path = _density_sidecar_path(self._state)
             if path is not None:
-                atomic_write_json(path, density)
-        if served is not None:
+                atomic_write_json(path, self._cache.density_snapshot())
+        if self._new_served:
             path = _served_sidecar_path(self._state, self._coll_key)
             if path is not None:
-                atomic_write_json(path, served)
+                atomic_write_json(path, self._cache.served_snapshot(self._served))
 
 
 # ── Scores ──────────────────────────────────────────────────────────────────────
 
 
 def _support_depth(
-    session: _Session, record: dict, in_names: set[str]
+    run: _Pass, record: dict, in_names: set[str]
 ) -> tuple[float, list, int]:
     """Format-relative owned support (ADR-0018 / Q9 amended): sum over the
     commander's text-opened lanes of ``own(L) * -log(p_L)``, where ``own(L)`` =
@@ -343,10 +392,10 @@ def _support_depth(
     breakdown: list[dict] = []
     supported = 0
     for label, serve, key in _commander_lanes(record):
-        k = len(session.lane_serves(key, serve) & in_names)
+        k = len(run.lane_serves(key, serve) & in_names)
         if k == 0:
             continue
-        score += k * -math.log(session.lane_density(key, serve))
+        score += k * -math.log(run.lane_density(key, serve))
         breakdown.append({"label": label, "owned": k})
         if k >= _SUPPORT_FLOOR:
             supported += 1
@@ -383,9 +432,7 @@ def _signal_freq(state: ForgeState) -> tuple[dict, int]:
     sidecar (no bulk, or one that can't be built) degrades to the original per-record
     live sweep, unchanged."""
     fmt = state.session.format
-    cache = state.discovery
-    with cache.lock:
-        cached = cache.signal_freq.get(fmt)
+    cached = state.discovery.signal_freq(fmt)
     if cached is not None:
         return cached
     freq: dict[tuple[str, str], int] = {}
@@ -407,8 +454,7 @@ def _signal_freq(state: ForgeState) -> tuple[dict, int]:
         total += 1
         for key in _signal_key_subjects(rec, index):
             freq[key] = freq.get(key, 0) + 1
-    with cache.lock:
-        return cache.signal_freq.setdefault(fmt, (freq, total))
+    return state.discovery.signal_freq_or(fmt, (freq, total))
 
 
 def _novelty(record: dict, freq: dict, total: int) -> float:
@@ -438,15 +484,12 @@ def warm(state: ForgeState, slot: str, fmt: str | None = None) -> None:
     coll = _resolved_collection(state, slot)
     if not coll:
         return
-    eligible = FORMATS[fmt or state.session.format].commander_eligibility
-    session = _Session(state, coll)
-    for rec in coll:
-        if not eligible(rec)["eligible"]:
-            continue
+    run = _Pass(state, coll)
+    for rec in _owned_commanders(coll, fmt or state.session.format):
         for _label, serve, key in _commander_lanes(rec):
-            session.lane_density(key, serve)
-            session.lane_serves(key, serve)
-    session.save()
+            run.lane_density(key, serve)
+            run.lane_serves(key, serve)
+    run.save()
 
 
 def discover_commanders(
@@ -463,15 +506,14 @@ def discover_commanders(
     ranks by signal rarity, HARD-GATED to commanders you own some support for.
     ``colors`` (a color-identity subset) and ``theme`` (a ``theme_presets`` lane) narrow
     the pool. Never uses EDHREC popularity."""
-    if sort not in DISCOVER_SORTS:
+    if sort not in _DISCOVER_SORTS:
         sort = "support"
     coll = _resolved_collection(state)
     # Seeds both caches from their sidecars, so this skips the ~55s pool sweep
     # (density) and the ~10s collection scan (served sets). New lanes still compute
     # lazily and persist at the end. (Imports warm these in the background already.)
-    session = _Session(state, coll)
-    eligible = FORMATS[state.session.format].commander_eligibility
-    records = [r for r in coll if eligible(r)["eligible"]]
+    run = _Pass(state, coll)
+    records = _owned_commanders(coll, state.session.format)
     if colors:
         allowed = set(colors.upper())
         records = [r for r in records if set(r.get("color_identity") or []) <= allowed]
@@ -493,7 +535,7 @@ def discover_commanders(
             if c["name"] != rec["name"]
             and set(c.get("color_identity") or []) <= identity
         }
-        depth, lanes, supported = _support_depth(session, rec, in_names)
+        depth, lanes, supported = _support_depth(run, rec, in_names)
         # A domain row (the record + its scores); ``views.commander_view`` projects it.
         item = {
             "record": rec,
@@ -518,5 +560,5 @@ def discover_commanders(
         results.sort(
             key=lambda r: (-r["support_depth"], -r["supported_lanes"], r["name"])
         )
-    session.save()
+    run.save()
     return results[:limit]

@@ -300,7 +300,7 @@ def test_support_is_collection_specific_not_lane_width(monkeypatch):
     owned = [art_cmd, scare_cmd, *art_owned, *scare_owned, *w_fill, *u_fill]
     by_name = {c["name"]: c for c in [*owned, *pad]}
     # ADR-0027: type_matters / artifacts_matter migrated → hybrid path. The discovery
-    # endpoint resolves each card's IR via engine._ir_index(); these locally-built cards
+    # endpoint resolves each card's IR via ``compat_lookup.ir_for``; these locally-built cards
     # aren't in the module _BARE_IR_INDEX / _TREES_BY_OID, so wire a bare Card per
     # oracle_id (the compat-Card resolver) plus a text-only tree per oracle_id (the concept-tree resolver — ADR-0039 task
     # #80 step 6: extract_signals's ONLY signal source) so their tribal/artifact
@@ -555,9 +555,9 @@ def test_discover_commanders_seeds_signal_key_index(bulk, monkeypatch):
     assert calls == [bulk]
 
 
-def test_owned_commander_records_are_the_eligible_owned_cards():
-    names = {r["name"] for r in discovery.owned_commander_records(_state())}
-    assert names == {"Lifelord", "Tokenlord", "Vanilla Vance"}
+def test_only_the_commander_eligible_owned_cards_are_ranked():
+    found = discovery.discover_commanders(_state(), limit=99)
+    assert {r["name"] for r in found} == {"Lifelord", "Tokenlord", "Vanilla Vance"}
 
 
 def test_unknown_theme_returns_400_not_500():
@@ -596,7 +596,10 @@ def test_discovery_sidecars_key_on_serve_definitions(
 # The table is only ever observable through a novelty SCORE's arithmetic, and the
 # public sort also live-extracts the ranked commander's own signals, so "the pool
 # sweep did not live-compute" can't be told apart through ``discover_commanders``.
-# These three keep the one private reach: ``discovery._signal_freq``.
+# These three reach ``discovery._signal_freq`` directly. (The file's other private
+# reaches are monkeypatches, not reads: ``_commander_lanes`` as the race test's
+# mid-warm hook, ``_serve_fingerprint`` to simulate a serve change, and the module's
+# ``extract_signals`` to count live extractions.)
 
 
 def _commander_state(bulk_path=None):

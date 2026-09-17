@@ -112,15 +112,19 @@ def _counted_total(deck: dict) -> int:
     )
 
 
-def _game_changer_room(bracket: dict | None, stats: dict) -> int | None:
+def _game_changer_room(bracket: dict | None) -> int | None:
     """How many more Game Changers the swap proposer may add before breaching the
-    target bracket's ceiling (ADR-0030: "the swap proposer respects the ceiling").
-    ``None`` when nothing constrains it — no target bracket, a one-on-one game the
-    brackets don't apply to, or brackets 4-5 (the gate reports no ceilings)."""
-    ceiling = ((bracket or {}).get("ceilings") or {}).get("game_changers")
+    target bracket's ceiling (ADR-0030: "the swap proposer respects the ceiling") —
+    the gate's own ceiling less the gate's own count, so the two can't disagree about
+    which cards count. NEGATIVE for a deck already over: cutting one Game Changer
+    from a deck two over must not buy room to add another. ``None`` when nothing
+    constrains it — no target bracket, a one-on-one game the brackets don't apply to,
+    or brackets 4-5 (the gate reports no ceilings)."""
+    gate = bracket or {}
+    ceiling = (gate.get("ceilings") or {}).get("game_changers")
     if ceiling is None:
         return None
-    return max(0, ceiling - int(stats.get("game_changer_count", 0)))
+    return ceiling - (gate.get("counts") or {}).get("game_changers", 0)
 
 
 def _bucket_counts(classes: Sequence[CardClass]) -> dict[str, int]:
@@ -370,7 +374,7 @@ def tune(
             wildcard_budget=wildcard_budget,
             protected=protected,
             medium=game.medium,
-            game_changer_room=_game_changer_room(bracket, stats),
+            game_changer_room=_game_changer_room(bracket),
         )
         swaps_out = swaps_mod.propose_swaps(classes, issues, swap_ctx)
         # The fill pass deliberately skips lands; flag any mana-base shortfall so the
