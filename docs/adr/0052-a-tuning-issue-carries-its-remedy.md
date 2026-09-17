@@ -34,7 +34,11 @@ caller passes the medium and both purses; `tune` asks the Format (ADR-0045):
 `Format.paper_only(medium)` and `Format.cost_mode`. The rule follows the **medium** — a
 paper Historic Brawl table buys paper printings in USD; the Arena-pool gate is separate,
 medium-independent, and applied by `Format.legality` either way. The hub's Find reads
-the same method. `deck-tune` gains `--wildcards` (a digital build never spent USD
+the same method, for the build's own format and medium (a Find format filter narrows
+legality, not the pool). `TuneParams.medium` defaults to `None` — the Format's default
+medium — where it used to default to `"paper"`, and `paper_only` survives only as an
+explicit override (`--paper-only`); `deck-tune` still resolves the medium, but only to
+tell the user which one it inferred. `deck-tune` gains `--wildcards` (a digital build never spent USD
 coherently; `--budget` is now ignored there, with a note).
 
 **Considered and rejected.** Deriving `advisory` from `remedy is None` (a short `lands`

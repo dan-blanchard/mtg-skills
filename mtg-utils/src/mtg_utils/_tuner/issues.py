@@ -71,10 +71,21 @@ CUT_GENERIC = "generic"  # filler, then low-value, then stranded
 CUT_FILLER = "filler"  # filler + low-value only — the dead-weight drain
 
 
+_CUT_OVER_PREFIX = "over:"
+
+
 def cut_over(role: str) -> str:
     """The cut pool holding ``role``'s over-band excess (a ``role_over`` trim cuts from
-    THAT role, so it isn't derailed onto filler)."""
-    return f"over:{role}"
+    THAT role, so it isn't derailed onto filler). Also the cut REASON the swap engine
+    tags such a card with — one spelling, written here."""
+    return f"{_CUT_OVER_PREFIX}{role}"
+
+
+def over_role(pool_or_reason: str) -> str | None:
+    """The role named by a :func:`cut_over` pool / reason, else None."""
+    if pool_or_reason.startswith(_CUT_OVER_PREFIX):
+        return pool_or_reason.removeprefix(_CUT_OVER_PREFIX)
+    return None
 
 
 @dataclass(frozen=True)
@@ -196,11 +207,9 @@ class Sourcing:
 
     def has_redeploy_target(self) -> bool:
         """Is there somewhere productive to redeploy a dead-weight slot — a viable
-        theme to deepen, or a short role a grant doesn't already cover?"""
-        return bool(self._focus.get("viable_avenues")) or any(
-            band.get("deviation", 0) < 0 and self.grant_cover(role) is None
-            for role, band in self._budgets.items()
-        )
+        theme to deepen, or a short role the engine can source (so never ``lands``,
+        and never a Grant-covered one)?"""
+        return bool(self._focus.get("viable_avenues")) or bool(self.short_roles())
 
     def redeploy(self) -> dict | None:
         """Where a dead-weight slot goes: deepen the main theme if there is one, else

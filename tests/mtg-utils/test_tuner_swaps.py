@@ -8,15 +8,15 @@ from mtg_utils._tuner.issues import (
     ROLE_SEARCH,
     Sourcing,
     _reliable_ramp,
+    top_issues,
 )
-from mtg_utils._tuner.issues import top_issues as _top_issues
 from mtg_utils._tuner.swaps import (
     SwapContext,
     _cut_why,
     _is_fixing,
     cut_candidates,
+    propose_swaps,
 )
-from mtg_utils._tuner.swaps import propose_swaps as _propose_swaps
 from mtg_utils.theme_presets import get_preset
 
 # Issues are built THROUGH the interface: ``Sourcing.issue`` decides each remedy from
@@ -34,15 +34,15 @@ def _issue(sourcing, fields):
     )
 
 
-def propose_swaps(classes, issues, ctx):
+def _swaps_for_issue_dicts(classes, issues, ctx):
     sourcing = Sourcing(ctx.focus_result, ctx.deck_signals, ctx.budgets)
-    return _propose_swaps(classes, [_issue(sourcing, i) for i in issues], ctx)
+    return propose_swaps(classes, [_issue(sourcing, i) for i in issues], ctx)
 
 
-def top_issues(*, focus_r, template_r, deck_signals=(), **metrics):
+def _top_issues_for(*, focus_r, template_r, deck_signals=(), **metrics):
     """``issues.top_issues`` over the budgets the template rows came from."""
     budgets = {**template_r["short"], **template_r["over"]}
-    return _top_issues(
+    return top_issues(
         focus_r=focus_r,
         template_r=template_r,
         sourcing=Sourcing(focus_r, list(deck_signals), budgets),
@@ -211,7 +211,7 @@ def test_curve_fix_does_not_overshoot_a_full_role():
         "color_identity": [],
     }
 
-    out = propose_swaps(
+    out = _swaps_for_issue_dicts(
         classes,
         [issue],
         SwapContext(
@@ -260,7 +260,7 @@ def test_role_over_trims_the_over_role_not_a_floor_role():
         "prices": {"usd": "1.00"},
         "color_identity": [],
     }
-    out = propose_swaps(
+    out = _swaps_for_issue_dicts(
         classes,
         [issue],
         SwapContext(
@@ -308,7 +308,7 @@ def test_role_over_trim_cuts_least_played_excess_not_a_staple():
         "prices": {"usd": "1.00"},
         "color_identity": [],
     }
-    out = propose_swaps(
+    out = _swaps_for_issue_dicts(
         classes,
         [issue],
         SwapContext(
@@ -371,7 +371,7 @@ def test_dead_weight_replaces_filler_with_synergy_not_engine_cards():
         }
         for i in range(3)
     ]
-    out = propose_swaps(
+    out = _swaps_for_issue_dicts(
         classes,
         [issue],
         SwapContext(
@@ -410,14 +410,16 @@ def test_top_issues_flags_dead_weight_only_with_a_redeploy_target():
         "verdict": "FOCUSED",
         "stranded_avenues": [],
     }
-    kinds = {i.kind for i in top_issues(focus_r=heavy, **base)}
+    kinds = {i.kind for i in _top_issues_for(focus_r=heavy, **base)}
     assert "dead_weight" in kinds
     # A couple of off-theme cards is normal, not "dead weight".
     light = {**heavy, "filler": 1}
-    assert "dead_weight" not in {i.kind for i in top_issues(focus_r=light, **base)}
+    assert "dead_weight" not in {i.kind for i in _top_issues_for(focus_r=light, **base)}
     # No theme to deepen and no short role → advisory only, no swap issue.
     no_target = {**heavy, "viable_avenues": []}
-    assert "dead_weight" not in {i.kind for i in top_issues(focus_r=no_target, **base)}
+    assert "dead_weight" not in {
+        i.kind for i in _top_issues_for(focus_r=no_target, **base)
+    }
 
 
 def test_dead_weight_outranks_theme_refocus():
@@ -430,7 +432,7 @@ def test_dead_weight_outranks_theme_refocus():
         "verdict": "SPREAD-THIN",
         "stranded_avenues": ["A", "B"],
     }
-    issues = top_issues(
+    issues = _top_issues_for(
         efficiency_r={"verdict": "ok"},
         focus_r=focus_r,
         template_r={"short": {}, "over": {}},
@@ -474,7 +476,7 @@ def test_dead_weight_cuts_fringe_theme_cards_keeps_played_ones():
         }
         for i in range(3)
     ]
-    out = propose_swaps(
+    out = _swaps_for_issue_dicts(
         classes,
         [issue],
         SwapContext(
@@ -519,7 +521,7 @@ def test_add_prefers_higher_playrate_over_cheaper_chaff():
         "color_identity": [],
         "edhrec_rank": 40000,
     }
-    out = propose_swaps(
+    out = _swaps_for_issue_dicts(
         classes,
         [issue],
         SwapContext(
@@ -556,7 +558,7 @@ def test_dead_weight_fires_on_fringe_theme_cards_without_filler():
         "verdict": "FOCUSED",
         "stranded_avenues": [],
     }
-    assert "dead_weight" in {i.kind for i in top_issues(focus_r=fr, **base)}
+    assert "dead_weight" in {i.kind for i in _top_issues_for(focus_r=fr, **base)}
 
 
 def test_fill_pass_adds_without_cuts_to_grow_an_undersized_deck():
@@ -586,7 +588,7 @@ def test_fill_pass_adds_without_cuts_to_grow_an_undersized_deck():
         "color_identity": ["G"],
         "edhrec_rank": 100,
     }
-    out = propose_swaps(
+    out = _swaps_for_issue_dicts(
         classes,
         [],
         SwapContext(
@@ -611,7 +613,7 @@ def test_fill_pass_adds_without_cuts_to_grow_an_undersized_deck():
 
 def test_fill_slots_zero_leaves_a_full_deck_untouched():
     # A complete deck (fill_slots=0) gets no fill adds — only the normal swap behavior.
-    out = propose_swaps(
+    out = _swaps_for_issue_dicts(
         [_cc("Filler", "filler", cmc=3.0)],
         [],
         SwapContext(
@@ -674,7 +676,7 @@ def test_wildcard_budget_gates_adds_by_rarity():
         "message": "curve: thin top-end",
     }
     # Budget allows one rare but no mythic — the mythic must be skipped, the rare taken.
-    out = propose_swaps(
+    out = _swaps_for_issue_dicts(
         classes,
         [issue],
         SwapContext(
@@ -717,7 +719,7 @@ def test_wildcard_owned_is_free_even_at_zero_budget():
         "severity": 3,
         "message": "curve: thin top-end",
     }
-    out = propose_swaps(
+    out = _swaps_for_issue_dicts(
         classes,
         [issue],
         SwapContext(
@@ -842,7 +844,7 @@ def test_focused_role_fix_prefers_on_avenue_over_cheaper_off_avenue():
     # sort has no synergy term at all) and would win. At FOCUSED, the pricier
     # on-avenue candidate must win instead, since it's still in-budget.
     sig, label, classes, budgets, issue, off_avenue, on_avenue = _role_fix_scenario()
-    out = propose_swaps(
+    out = _swaps_for_issue_dicts(
         classes,
         [issue],
         SwapContext(
@@ -869,7 +871,7 @@ def test_focused_role_fix_labels_reason_when_nothing_is_on_avenue():
     # (cheapest) one still ships, but the reason says it's a fallback.
     sig, label, classes, budgets, issue, off_avenue, _on_avenue = _role_fix_scenario()
     off_avenue_b = _off_avenue_draw("Generic Draw B", cmc=2.0, rank=2000)
-    out = propose_swaps(
+    out = _swaps_for_issue_dicts(
         classes,
         [issue],
         SwapContext(
@@ -902,7 +904,7 @@ def test_spread_thin_role_fix_keeps_efficiency_first_untouched():
         "stranded_avenues": [],
         "verdict": "SPREAD-THIN",
     }
-    out = propose_swaps(
+    out = _swaps_for_issue_dicts(
         classes,
         [issue],
         SwapContext(
@@ -933,7 +935,7 @@ def test_spine_led_role_fix_keeps_efficiency_first_untouched():
         "stranded_avenues": [],
         "verdict": "SPINE-LED",
     }
-    out = propose_swaps(
+    out = _swaps_for_issue_dicts(
         classes,
         [issue],
         SwapContext(
@@ -956,9 +958,9 @@ def test_spine_led_role_fix_keeps_efficiency_first_untouched():
 
 
 def test_focused_role_over_not_gated_by_role_fix_guard():
-    # role_over is synergy_first already (not a Spine kind) — the ADR-0040
-    # guard (scoped to _SPINE_KINDS via role_fix=not synergy_first) must not
-    # change its existing behavior: best-synergy wins, no label.
+    # role_over's remedy is not a Spine fill (it ranks synergy-first) — the ADR-0040
+    # guard (scoped to ``Remedy.spine``) must not change its existing behavior:
+    # best-synergy wins, no label.
     classes = [
         _cc("Pure Removal", "spine", roles=["interaction"]),
         _cc("Lone Wrath", "spine", roles=["interaction", "board_wipe"]),
@@ -981,7 +983,7 @@ def test_focused_role_over_not_gated_by_role_fix_guard():
         "prices": {"usd": "1.00"},
         "color_identity": [],
     }
-    out = propose_swaps(
+    out = _swaps_for_issue_dicts(
         classes,
         [issue],
         SwapContext(
@@ -1056,7 +1058,7 @@ def test_low_value_swap_cut_why_reflects_weak_grant_grade_end_to_end():
         "color_identity": [],
         "edhrec_rank": 200,
     }
-    out = propose_swaps(
+    out = _swaps_for_issue_dicts(
         [weak_granter],
         [issue],
         SwapContext(
@@ -1154,7 +1156,7 @@ def test_propose_swaps_never_sources_a_grant_covered_role_short_issue():
         "prices": {"usd": "0.50"},
         "color_identity": ["R"],
     }
-    out = propose_swaps(
+    out = _swaps_for_issue_dicts(
         classes,
         [covered_issue],
         SwapContext(
@@ -1194,7 +1196,7 @@ def test_dead_weight_never_sources_a_grant_covered_role():
         "prices": {"usd": "0.50"},
         "color_identity": ["R"],
     }
-    out = propose_swaps(
+    out = _swaps_for_issue_dicts(
         classes,
         [issue],
         SwapContext(
@@ -1236,7 +1238,7 @@ def test_top_issues_dead_weight_ignored_when_only_short_role_is_grant_covered():
     covered_short = {"card_draw": _band(0, 10, 12, grant_covered=True)}
     kinds = {
         i.kind
-        for i in top_issues(
+        for i in _top_issues_for(
             focus_r=heavy, template_r={"short": covered_short, "over": {}}, **base
         )
     }
@@ -1245,7 +1247,7 @@ def test_top_issues_dead_weight_ignored_when_only_short_role_is_grant_covered():
     uncovered_short = {"card_draw": _band(0, 10, 12)}
     kinds2 = {
         i.kind
-        for i in top_issues(
+        for i in _top_issues_for(
             focus_r=heavy, template_r={"short": uncovered_short, "over": {}}, **base
         )
     }
@@ -1268,7 +1270,7 @@ def test_fill_pass_skips_a_grant_covered_role():
         "card_draw": _band(0, 10, 12, grant_covered=True),
         "interaction": _band(0, 10, 12),
     }
-    out = propose_swaps(
+    out = _swaps_for_issue_dicts(
         [_cc("Filler", "filler", cmc=3.0)],
         [],
         SwapContext(

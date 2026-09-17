@@ -17,7 +17,14 @@ from dataclasses import dataclass
 from mtg_utils._analysis.ranking import rank_candidates
 from mtg_utils._analysis.roles import role_of
 from mtg_utils._tuner.classify import CardClass
-from mtg_utils._tuner.issues import CUT_FILLER, CUT_GENERIC, Issue, Sourcing
+from mtg_utils._tuner.issues import (
+    CUT_FILLER,
+    CUT_GENERIC,
+    Issue,
+    Sourcing,
+    cut_over,
+    over_role,
+)
 from mtg_utils.card_classify import (
     extract_price,
     get_oracle_text,
@@ -140,7 +147,7 @@ def cut_candidates(
             )
         )
         for c in members[: b["deviation"]]:
-            push(f"over:{role}", c)
+            push(cut_over(role), c)
 
     # 3. Stranded Engine singletons — only when refocusing a spread-thin deck.
     if focus_verdict == "SPREAD-THIN":
@@ -400,7 +407,7 @@ def propose_swaps(
     # then stranded), so a trim isn't derailed onto filler.
     pools: dict[str, list[tuple[str, CardClass]]] = {CUT_GENERIC: [], CUT_FILLER: []}
     for reason, card in cuts:
-        pool = reason if reason.startswith("over:") else CUT_GENERIC
+        pool = reason if over_role(reason) is not None else CUT_GENERIC
         pools.setdefault(pool, []).append((reason, card))
         # The dead-weight drain cuts filler ONLY (a separate view of the same cards);
         # the shared used_cuts guard stops it and the generic pool cutting a card twice.
@@ -762,8 +769,9 @@ def _cut_why(reason: str, card: CardClass | None = None) -> str:
         if card is not None and card.grant_grade == "weak":
             return "weak ability grant for its cost — upgrade target"
         return "barely played for this theme — upgrade target"
-    if reason.startswith("over:"):
-        return f"{reason.split(':', 1)[1].replace('_', ' ')} over template band"
+    role = over_role(reason)
+    if role is not None:
+        return f"{role.replace('_', ' ')} over template band"
     if reason == "stranded":
         return "stranded on a near-empty avenue"
     return reason

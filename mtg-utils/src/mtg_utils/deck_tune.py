@@ -94,9 +94,10 @@ def _parse_wildcards(
     "medium",
     type=click.Choice(["paper", "digital"]),
     default=None,
-    help="Deck medium (ADR-0040 §4). Defaults by format, same as deck-forge's "
-    "DeckSession: the Arena Brawl formats → digital, everything else "
-    "→ paper. Drives whether a null EDHREC rank condemns a card.",
+    help="Deck medium. Defaults by format, same as deck-forge's DeckSession: the "
+    "Arena Brawl formats → digital, everything else → paper. Decides the game the "
+    "scorecard reads, the currency (--budget USD vs --wildcards), the candidate "
+    "pool, and whether a null EDHREC rank condemns a card (ADR-0040 §4).",
 )
 @click.option(
     "--wildcards",

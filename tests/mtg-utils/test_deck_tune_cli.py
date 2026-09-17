@@ -82,8 +82,7 @@ def test_accepts_competitive_brawl_as_commander_family(tmp_path, monkeypatch):
     hyd = _write(tmp_path, "hyd.json", HYDRATED)
     res = CliRunner().invoke(deck_tune_main, [deck, "--bulk-data", hyd])
     assert res.exit_code == 0, res.output
-    assert _medium(captured) == "digital"
-    assert _paper_only(captured) is False
+    assert captured["params"].medium is None  # the Format resolves it, in tune()
 
 
 def test_medium_the_format_cannot_honour_is_noted_not_fatal(tmp_path, monkeypatch):
@@ -97,7 +96,7 @@ def test_medium_the_format_cannot_honour_is_noted_not_fatal(tmp_path, monkeypatc
         [deck, "--bulk-data", hyd, "--medium", "paper"],
     )
     assert res.exit_code == 0, res.output
-    assert _medium(captured) == "digital"
+    assert captured["params"].medium == "paper"  # passed through; tune() resolves it
     assert "competitive_brawl is not played in 'paper'" in res.output
 
 
@@ -158,54 +157,35 @@ def _spy_tune(monkeypatch):
 
     captured: dict = {}
 
-    def spy(hd, *, params, **_kw):
+    def spy(_hd, *, params, **_kw):
         captured["params"] = params
-        captured["hd"] = hd
         return _STUB_RESULT
 
     monkeypatch.setattr(deck_tune_mod, "tune", spy)
     return captured
 
 
-def _medium(captured) -> str:
-    """The medium tune() resolves for the captured call (``Format.game``)."""
-    return captured["hd"].format.game(captured["params"].medium).medium
+# What a medium MEANS (the Game, the currency, the candidate pool) is tune()'s to
+# resolve through the Format — pinned in test_tuner_tune.py / test_formats.py. The CLI
+# is transport: these tests pin only what it hands over, and what it tells the user.
 
 
-def _paper_only(captured) -> bool:
-    """The candidate pool tune() resolves: the explicit override, else the Format's
-    rule for the medium."""
-    override = captured["params"].paper_only
-    if override is not None:
-        return override
-    return captured["hd"].format.paper_only(captured["params"].medium)
-
-
-def test_medium_defaults_paper_for_commander(tmp_path, monkeypatch):
-    # ADR-0040 §4 fix (Fix 3): the CLI never threaded `medium` at all before
-    # this fix — TuneParams always ran the "paper" default regardless of
-    # format. Commander is paper-only, so paper stays the inferred default.
-    captured = _spy_tune(monkeypatch)
-    deck = _write(tmp_path, "deck.json", COMMANDER_DECK)
+def test_an_inferred_medium_is_announced(tmp_path, monkeypatch):
+    # A format played in two media says which one was inferred, so a paper table
+    # isn't silently tuned as Arena; a single-medium format says nothing.
+    _spy_tune(monkeypatch)
     hyd = _write(tmp_path, "hyd.json", HYDRATED)
-    res = CliRunner().invoke(deck_tune_main, [deck, "--bulk-data", hyd])
-    assert res.exit_code == 0, res.output
-    assert _medium(captured) == "paper"
-    assert _paper_only(captured) is True
-
-
-def test_medium_defaults_digital_for_brawl(tmp_path, monkeypatch):
-    # Historic Brawl / Brawl default to digital (Arena), same as deck-forge's
-    # DeckSession — the ADR-0040 motivating benchmark was a Historic Brawl
-    # deck, so this is the path that must actually engage the fix.
-    captured = _spy_tune(monkeypatch)
-    deck = _write(tmp_path, "deck.json", BRAWL_DECK)
-    hyd = _write(tmp_path, "hyd.json", HYDRATED)
-    res = CliRunner().invoke(deck_tune_main, [deck, "--bulk-data", hyd])
-    assert res.exit_code == 0, res.output
-    assert _medium(captured) == "digital"
-    # paper_only threads consistently with the inferred medium.
-    assert _paper_only(captured) is False
+    brawl = CliRunner().invoke(
+        deck_tune_main, [_write(tmp_path, "b.json", BRAWL_DECK), "--bulk-data", hyd]
+    )
+    assert brawl.exit_code == 0, brawl.output
+    assert "--medium not given" in brawl.output
+    assert "'digital'" in brawl.output
+    commander = CliRunner().invoke(
+        deck_tune_main, [_write(tmp_path, "c.json", COMMANDER_DECK), "--bulk-data", hyd]
+    )
+    assert commander.exit_code == 0, commander.output
+    assert "--medium not given" not in commander.output
 
 
 def test_medium_explicit_override_beats_the_inferred_default(tmp_path, monkeypatch):
@@ -217,8 +197,8 @@ def test_medium_explicit_override_beats_the_inferred_default(tmp_path, monkeypat
         [deck, "--bulk-data", hyd, "--medium", "paper"],
     )
     assert res.exit_code == 0, res.output
-    assert _medium(captured) == "paper"
-    assert _paper_only(captured) is True
+    assert captured["params"].medium == "paper"
+    assert captured["params"].paper_only is None  # no flag → follows the medium
 
 
 def test_paper_only_explicit_flag_beats_medium_inference(tmp_path, monkeypatch):
@@ -232,8 +212,7 @@ def test_paper_only_explicit_flag_beats_medium_inference(tmp_path, monkeypatch):
         [deck, "--bulk-data", hyd, "--paper-only"],
     )
     assert res.exit_code == 0, res.output
-    assert _medium(captured) == "digital"
-    assert _paper_only(captured) is True
+    assert captured["params"].paper_only is True
 
 
 def test_cli_passes_flags_through_untouched(tmp_path, monkeypatch):

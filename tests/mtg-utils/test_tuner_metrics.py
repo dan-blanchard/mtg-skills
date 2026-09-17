@@ -1,16 +1,15 @@
 """Tuner Tier-2 metrics: win-condition heuristic detection (grill F6)."""
 
-from mtg_utils._tuner.issues import Sourcing
-from mtg_utils._tuner.issues import top_issues as _top_issues
+from mtg_utils._tuner.issues import Sourcing, top_issues
 from mtg_utils._tuner.metrics import _ir_wincon, _is_wincon_card
 from mtg_utils.card_ir import Ability, Card, Effect, Face
 from mtg_utils.formats import Game
 
 
-def top_issues(*, focus_r, template_r, **metrics):
+def _top_issues_for(*, focus_r, template_r, **metrics):
     """``issues.top_issues`` over the budgets the template rows came from."""
     budgets = {**template_r["short"], **template_r["over"]}
-    return _top_issues(
+    return top_issues(
         focus_r=focus_r,
         template_r=template_r,
         sourcing=Sourcing(focus_r, [], budgets),
@@ -253,7 +252,7 @@ class TestClosersReadTheGame:
             "life": 25,
             "voltron_needs_real_damage": True,
         }
-        issues = top_issues(
+        issues = _top_issues_for(
             efficiency_r={"verdict": "ok"},
             focus_r={
                 "verdict": "FOCUSED",
@@ -315,7 +314,7 @@ def test_grant_covered_role_short_is_advisory_but_still_shows_the_literal_number
         },
         "over": {},
     }
-    issues = top_issues(template_r=template_r, **_ISSUES_BASE)
+    issues = _top_issues_for(template_r=template_r, **_ISSUES_BASE)
     by_role = {i.role: i.to_json() for i in issues if i.kind == "role_short"}
     draw_issue = by_role["card_draw"]
     assert draw_issue["advisory"] is True

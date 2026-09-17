@@ -44,7 +44,8 @@ extracting it is a separate, smaller deepening.
 route closures — the balance / trim land-plan application, the import route's companion
 demotion (CR 103.2b / 702.139a) and the companion-add zone rules, the printings picker's
 owned-annotation and sort, set-printing's printing-id and finish validation, the tune
-route's `TuneParams` composition (cost mode by medium), the export route's printing
+route's `TuneParams` composition (transport only since ADR-0052: `tune` asks the
+Format what the medium means), the export route's printing
 resolution, and the combos route's card-view enrichment — are engine functions
 (`balance_lands` / `trim_lands`, `import_deck` + `settle_companion_zone`,
 `check_companion_add`, `printings_for`, `choose_printing`, `tune_params`,
