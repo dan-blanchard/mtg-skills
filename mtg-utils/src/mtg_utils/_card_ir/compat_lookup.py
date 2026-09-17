@@ -1,6 +1,6 @@
 """Resolve a Scryfall record to its compat Card IR by ``oracle_id`` (ADR-0027 / 0035).
 
-``ranking.py`` and ``budgets.py`` cluster / role-classify a candidate by reading
+``ranking.py`` and ``roles.py`` cluster / role-classify a candidate by reading
 its structured abilities instead of re-grepping oracle text. Both join the card
 to the IR the same way the engine does (``engine._ir_index``): one memoized load
 of the sidecar (oracle_id → :class:`Card`), then an ``oracle_id`` lookup per card.

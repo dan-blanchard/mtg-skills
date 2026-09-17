@@ -8461,6 +8461,232 @@
     "type_line": "Creature — Snake"
    }
   },
+  "An Offer You Can't Refuse": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "Counter target noncreature spell. Its controller creates two Treasure tokens.",
+       "duration": null,
+       "effect": {
+        "target": {
+         "filters": [
+          {
+           "type": "StackSpell"
+          },
+          {
+           "controller": null,
+           "properties": [],
+           "type": "Typed",
+           "type_filters": [
+            {
+             "Non": "Creature"
+            }
+           ]
+          }
+         ],
+         "type": "And"
+        },
+        "type": "Counter"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "colors": [],
+         "count": {
+          "type": "Fixed",
+          "value": 2
+         },
+         "enters_attacking": false,
+         "keywords": [],
+         "name": "Treasure",
+         "owner": {
+          "type": "ParentTargetController"
+         },
+         "power": {
+          "type": "Fixed",
+          "value": 0
+         },
+         "tapped": false,
+         "toughness": {
+          "type": "Fixed",
+          "value": 0
+         },
+         "type": "Token",
+         "types": [
+          "Artifact",
+          "Treasure"
+         ]
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "sub_link": "SequentialSibling",
+        "target_prompt": null
+       },
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Instant"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Blue"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "standard": "legal",
+      "standardbrawl": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 0,
+      "shards": [
+       "Blue"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "related_token_ids": [
+       "02eda719-658b-52e3-8f94-b66dda715865",
+       "4811acb4-e116-5e6b-8d42-707057b51299",
+       "9b7b8d88-0042-548c-a8dd-18089528b064",
+       "ab4fcb95-fd1f-522f-9ad6-7f7b7f12947d",
+       "b0e0f943-429b-5075-a61d-22338c7dfcf6",
+       "ce4fe62d-f077-54ec-83ec-f719fbf726a8"
+      ],
+      "source_printing_ids": [
+       "41ecf5f7-db15-4917-ad7f-1c652b0a97da",
+       "6f6aaee9-8c44-4e23-8167-ead64e599711",
+       "71c65e99-6caa-45e9-b619-6d7669ea4178",
+       "a829747f-cf9b-4d81-ba66-9f0630ed4565",
+       "b9d349f3-5be2-4b1f-a4c3-ba94822cf0cf",
+       "b9ee82ee-4899-496e-80a6-e3403f6b364f",
+       "c3d1624a-a031-4871-b9d7-7efbe507d979",
+       "fe1023a2-c096-4c62-8627-e865b348ba02"
+      ]
+     },
+     "name": "An Offer You Can't Refuse",
+     "non_ability_text": null,
+     "oracle_text": "Counter target noncreature spell. Its controller creates two Treasure tokens. (They're artifacts with \"{T}, Sacrifice this token: Add one mana of any color.\")",
+     "power": null,
+     "printings": [
+      "BLC",
+      "FDN",
+      "FIC",
+      "PLST",
+      "SLD",
+      "SLP",
+      "SLZ",
+      "SNC"
+     ],
+     "rarities": [
+      "uncommon",
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2022-04-29",
+       "text": "If the target is no longer legal as An Offer You Can't Refuse resolves, no Treasure tokens are created."
+      },
+      {
+       "date": "2022-04-29",
+       "text": "If the target is still legal as it resolves but the spell can't be countered for some reason, its controller will still create two Treasure tokens."
+      }
+     ],
+     "scryfall_oracle_id": "234a734b-ba28-4f1b-9d01-3c3e7d516590",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "all_parts": [
+     {
+      "component": "token",
+      "id": "649d42c1-a465-435e-8b67-e901ab9ad8ab",
+      "name": "Treasure",
+      "oracle_id": "3c549374-6c37-42e0-8d88-a8555d46732d",
+      "type_line": "Token Artifact — Treasure"
+     }
+    ],
+    "arena_available": true,
+    "cmc": 1.0,
+    "color_identity": [
+     "U"
+    ],
+    "colors": [
+     "U"
+    ],
+    "keywords": [
+     "Treasure"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "legal",
+     "paupercommander": "legal",
+     "penny": "not_legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "legal",
+     "standardbrawl": "legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{U}",
+    "name": "An Offer You Can't Refuse",
+    "oracle_id": "234a734b-ba28-4f1b-9d01-3c3e7d516590",
+    "oracle_text": "Counter target noncreature spell. Its controller creates two Treasure tokens. (They're artifacts with \"{T}, Sacrifice this token: Add one mana of any color.\")",
+    "produced_mana": [
+     "B",
+     "G",
+     "R",
+     "U",
+     "W"
+    ],
+    "type_line": "Instant"
+   }
+  },
   "Anafenza, the Foremost": {
    "phase_records": [
     {
@@ -88157,6 +88383,305 @@
     "type_line": "Land"
    }
   },
+  "Generous Plunderer": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Human",
+       "Rogue"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Red"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [
+      "Menace"
+     ],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "standard": "legal",
+      "standardbrawl": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 1,
+      "shards": [
+       "Red"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "related_token_ids": [
+       "3a2e0ac9-54bb-5b35-a4c9-6bad348f7144"
+      ],
+      "source_printing_ids": [
+       "351eea06-f5be-4044-b3b3-cc6bf805abb1",
+       "393bf5fc-0ad2-4116-83b4-346d61ac2911",
+       "4c6cf93a-d073-48ac-88db-c46bf3e10beb"
+      ]
+     },
+     "name": "Generous Plunderer",
+     "non_ability_text": null,
+     "oracle_text": "Menace\nAt the beginning of your upkeep, you may create a Treasure token. When you do, target opponent creates a tapped Treasure token.\nWhenever this creature attacks, it deals damage to defending player equal to the number of artifacts they control.",
+     "power": {
+      "type": "Fixed",
+      "value": 2
+     },
+     "printings": [
+      "BIG",
+      "PBIG"
+     ],
+     "rarities": [
+      "mythic"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2024-04-12",
+       "text": "You don’t choose a target for Generous Plunderer’s first triggered ability at the time it triggers. Rather, a second “reflexive” ability triggers when you create a Treasure token this way. You choose a target for that ability as it goes on the stack. Each player may respond to this triggered ability as normal. Notably, the triggered ability isn’t a crime, but the reflexive triggered ability potentially is."
+      }
+     ],
+     "scryfall_oracle_id": "91c835d1-22ca-4c90-9ba6-c8e01bbc0347",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 2
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": {
+        "type": "OnlyDuringYourTurn"
+       },
+       "damage_kind": "Any",
+       "description": "At the beginning of your upkeep, you may create a Treasure token. When you do, target opponent creates a tapped Treasure token.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "colors": [],
+         "count": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "enters_attacking": false,
+         "keywords": [],
+         "name": "Treasure",
+         "owner": {
+          "type": "Controller"
+         },
+         "power": {
+          "type": "Fixed",
+          "value": 0
+         },
+         "tapped": false,
+         "toughness": {
+          "type": "Fixed",
+          "value": 0
+         },
+         "type": "Token",
+         "types": [
+          "Artifact",
+          "Treasure"
+         ]
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": true,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": {
+          "type": "WhenYouDo"
+         },
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "colors": [],
+          "count": {
+           "type": "Fixed",
+           "value": 1
+          },
+          "enters_attacking": false,
+          "keywords": [],
+          "name": "Treasure",
+          "owner": {
+           "controller": "Opponent",
+           "properties": [],
+           "type": "Typed",
+           "type_filters": []
+          },
+          "power": {
+           "type": "Fixed",
+           "value": 0
+          },
+          "tapped": true,
+          "toughness": {
+           "type": "Fixed",
+           "value": 0
+          },
+          "type": "Token",
+          "types": [
+           "Artifact",
+           "Treasure"
+          ]
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": null,
+         "sub_link": "SequentialSibling",
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "mode": "Phase",
+       "optional": true,
+       "origin": null,
+       "phase": "Upkeep",
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": null,
+       "valid_source": null,
+       "valid_target": {
+        "type": "Player"
+       }
+      },
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "Whenever ~ attacks, it deals damage to defending player equal to the number of artifacts they control.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "amount": {
+          "qty": {
+           "filter": {
+            "controller": "DefendingPlayer",
+            "properties": [],
+            "type": "Typed",
+            "type_filters": [
+             "Artifact"
+            ]
+           },
+           "type": "ObjectCount"
+          },
+          "type": "Ref"
+         },
+         "target": {
+          "type": "DefendingPlayer"
+         },
+         "type": "DealDamage"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "Attacks",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "type": "SelfRef"
+       },
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "all_parts": [
+     {
+      "component": "token",
+      "id": "649d42c1-a465-435e-8b67-e901ab9ad8ab",
+      "name": "Treasure",
+      "oracle_id": "3c549374-6c37-42e0-8d88-a8555d46732d",
+      "type_line": "Token Artifact — Treasure"
+     }
+    ],
+    "arena_available": true,
+    "cmc": 2.0,
+    "color_identity": [
+     "R"
+    ],
+    "colors": [
+     "R"
+    ],
+    "keywords": [
+     "Menace",
+     "Treasure"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "legal",
+     "standardbrawl": "legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{1}{R}",
+    "name": "Generous Plunderer",
+    "oracle_id": "91c835d1-22ca-4c90-9ba6-c8e01bbc0347",
+    "oracle_text": "Menace\nAt the beginning of your upkeep, you may create a Treasure token. When you do, target opponent creates a tapped Treasure token.\nWhenever this creature attacks, it deals damage to defending player equal to the number of artifacts they control.",
+    "power": "2",
+    "toughness": "2",
+    "type_line": "Creature — Human Rogue"
+   }
+  },
   "Geological Appraiser": {
    "phase_records": [
     {
@@ -109111,6 +109636,326 @@
     "oracle_id": "2f3fec87-3dd2-4e5d-835c-eae535da4ecb",
     "oracle_text": "Threshold — As long as there are seven or more cards in your graveyard, this enchantment has \"Whenever an opponent casts a spell, you may put a creature card from your hand onto the battlefield.\"",
     "type_line": "Enchantment"
+   }
+  },
+  "Hunting Wilds": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "Search your library for up to two Forest cards, put them onto the battlefield tapped, then shuffle.\nIf this spell was kicked, untap all Forests put onto the battlefield this way. They become 3/3 green creatures with haste that are still lands.",
+       "duration": null,
+       "effect": {
+        "count": {
+         "max": {
+          "type": "Fixed",
+          "value": 2
+         },
+         "type": "UpTo"
+        },
+        "filter": {
+         "controller": null,
+         "properties": [],
+         "type": "Typed",
+         "type_filters": [
+          "Land",
+          {
+           "Subtype": "Forest"
+          }
+         ]
+        },
+        "reveal": false,
+        "type": "SearchLibrary"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "destination": "Battlefield",
+         "enter_tapped": true,
+         "enter_transformed": false,
+         "enters_attacking": false,
+         "origin": "Library",
+         "owner_library": false,
+         "target": {
+          "type": "Any"
+         },
+         "type": "ChangeZone"
+        },
+        "forward_result": true,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": null,
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "target": {
+           "type": "Controller"
+          },
+          "type": "Shuffle"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": {
+          "condition": {
+           "type": "AdditionalCostPaid"
+          },
+          "cost": null,
+          "description": null,
+          "duration": null,
+          "effect": {
+           "scope": {
+            "type": "All"
+           },
+           "state": {
+            "type": "Untap"
+           },
+           "target": {
+            "controller": null,
+            "properties": [],
+            "type": "Typed",
+            "type_filters": [
+             {
+              "Subtype": "Forest"
+             }
+            ]
+           },
+           "type": "SetTapState"
+          },
+          "forward_result": false,
+          "kind": "Spell",
+          "optional": false,
+          "optional_targeting": false,
+          "sub_ability": {
+           "condition": null,
+           "cost": null,
+           "description": null,
+           "duration": "Permanent",
+           "effect": {
+            "duration": "Permanent",
+            "static_abilities": [
+             {
+              "active_zones": [],
+              "affected": {
+               "type": "ParentTarget"
+              },
+              "affected_zone": null,
+              "characteristic_defining": false,
+              "condition": null,
+              "description": "become 3/3 green creatures with haste that are still lands",
+              "effect_zone": null,
+              "mode": "Continuous",
+              "modifications": [
+               {
+                "type": "SetPower",
+                "value": 3
+               },
+               {
+                "type": "SetToughness",
+                "value": 3
+               },
+               {
+                "colors": [
+                 "Green"
+                ],
+                "type": "SetColor"
+               },
+               {
+                "core_type": "Creature",
+                "type": "AddType"
+               }
+              ]
+             }
+            ],
+            "target": null,
+            "type": "GenericEffect"
+           },
+           "forward_result": false,
+           "kind": "Spell",
+           "optional": false,
+           "optional_targeting": false,
+           "sub_ability": null,
+           "sub_link": "SequentialSibling",
+           "target_prompt": null
+          },
+          "sub_link": "SequentialSibling",
+          "target_prompt": null
+         },
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "target_prompt": null
+      }
+     ],
+     "additional_cost": {
+      "data": {
+       "costs": [
+        {
+         "cost": {
+          "generic": 3,
+          "shards": [
+           "Green"
+          ],
+          "type": "Cost"
+         },
+         "type": "Mana"
+        }
+       ]
+      },
+      "type": "Kicker"
+     },
+     "card_type": {
+      "core_types": [
+       "Sorcery"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Green"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [
+      {
+       "Kicker": {
+        "generic": 3,
+        "shards": [
+         "Green"
+        ],
+        "type": "Cost"
+       }
+      }
+     ],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 3,
+      "shards": [
+       "Green"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "0097101d-e63d-4785-8c68-5d2fca3ded78",
+       "4112e0d7-5451-4e3b-8c73-2d2024f45cd8"
+      ]
+     },
+     "name": "Hunting Wilds",
+     "non_ability_text": null,
+     "oracle_text": "Kicker {3}{G} (You may pay an additional {3}{G} as you cast this spell.)\nSearch your library for up to two Forest cards, put them onto the battlefield tapped, then shuffle.\nIf this spell was kicked, untap all Forests put onto the battlefield this way. They become 3/3 green creatures with haste that are still lands.",
+     "power": null,
+     "printings": [
+      "C18",
+      "PLC"
+     ],
+     "rarities": [
+      "uncommon"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2007-02-01",
+       "text": "If the Hunting Wilds is kicked, the Forests become creatures with haste permanently."
+      },
+      {
+       "date": "2009-10-01",
+       "text": "A noncreature permanent that turns into a creature is subject to the \"summoning sickness\" rule: It can only attack, and its {T} abilities can only be activated, if its controller has continuously controlled that permanent since the beginning of their most recent turn."
+      },
+      {
+       "date": "2024-11-08",
+       "text": "If a card or token enters as a copy of a permanent, the new permanent isn't kicked, even if the original was."
+      },
+      {
+       "date": "2024-11-08",
+       "text": "If a spell's kicker cost was paid, the spell is \"kicked.\""
+      },
+      {
+       "date": "2024-11-08",
+       "text": "If you copy a kicked spell on the stack, the copy is also kicked. If the copied spell is a permanent spell, the token the copy of that spell becomes when it enters is also kicked."
+      },
+      {
+       "date": "2024-11-08",
+       "text": "If you put a permanent with a kicker ability onto the battlefield without casting it, you can't kick it."
+      },
+      {
+       "date": "2024-11-08",
+       "text": "The kicker ability doesn't let you pay a kicker cost more than once."
+      },
+      {
+       "date": "2024-11-08",
+       "text": "To determine a spell's total cost, start with the mana cost (or an alternative cost if another card's effect allows you to pay one instead), add any cost increases (such as kicker), then apply any cost reductions. The spell's mana value remains unchanged, no matter what the total cost to cast it was."
+      }
+     ],
+     "scryfall_oracle_id": "e9bc324e-c200-45ef-8b9b-52a61d0f7374",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 4.0,
+    "color_identity": [
+     "G"
+    ],
+    "colors": [
+     "G"
+    ],
+    "keywords": [
+     "Kicker"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{3}{G}",
+    "name": "Hunting Wilds",
+    "oracle_id": "e9bc324e-c200-45ef-8b9b-52a61d0f7374",
+    "oracle_text": "Kicker {3}{G} (You may pay an additional {3}{G} as you cast this spell.)\nSearch your library for up to two Forest cards, put them onto the battlefield tapped, then shuffle.\nIf this spell was kicked, untap all Forests put onto the battlefield this way. They become 3/3 green creatures with haste that are still lands.",
+    "type_line": "Sorcery"
    }
   },
   "Icy Manipulator": {
@@ -189641,6 +190486,190 @@
     "type_line": "Enchantment — Aura"
    }
   },
+  "Skyshroud Claim": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "Search your library for up to two Forest cards, put them onto the battlefield, then shuffle.",
+       "duration": null,
+       "effect": {
+        "count": {
+         "max": {
+          "type": "Fixed",
+          "value": 2
+         },
+         "type": "UpTo"
+        },
+        "filter": {
+         "controller": null,
+         "properties": [],
+         "type": "Typed",
+         "type_filters": [
+          "Land",
+          {
+           "Subtype": "Forest"
+          }
+         ]
+        },
+        "reveal": false,
+        "type": "SearchLibrary"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "destination": "Battlefield",
+         "enter_tapped": false,
+         "enter_transformed": false,
+         "enters_attacking": false,
+         "origin": "Library",
+         "owner_library": false,
+         "target": {
+          "type": "Any"
+         },
+         "type": "ChangeZone"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": null,
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "target": {
+           "type": "Controller"
+          },
+          "type": "Shuffle"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": null,
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Sorcery"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Green"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "pauper": "legal",
+      "paupercommander": "legal",
+      "premodern": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 3,
+      "shards": [
+       "Green"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "4f1579c8-2ec9-49af-bc2e-f4d16a0f1221",
+       "860c0808-3ec1-4182-bf83-783720a02780",
+       "a0e12f0e-ab41-4413-8b88-9bde907fab22",
+       "a6d2d79b-bef8-440f-a262-34349cf9fe5c",
+       "b946e86c-a6fd-4377-9746-bc08b71e499a",
+       "cf3e09ff-c917-4c0c-8ddb-e152b4b0b82c"
+      ]
+     },
+     "name": "Skyshroud Claim",
+     "non_ability_text": null,
+     "oracle_text": "Search your library for up to two Forest cards, put them onto the battlefield, then shuffle.",
+     "power": null,
+     "printings": [
+      "BBD",
+      "CMM",
+      "EOC",
+      "NEM",
+      "PLST",
+      "SLD"
+     ],
+     "rarities": [
+      "common",
+      "rare"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "376c9d3f-21d3-4251-bb6a-026fa9e1b0e1",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 4.0,
+    "color_identity": [
+     "G"
+    ],
+    "colors": [
+     "G"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "legal",
+     "paupercommander": "legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{3}{G}",
+    "name": "Skyshroud Claim",
+    "oracle_id": "376c9d3f-21d3-4251-bb6a-026fa9e1b0e1",
+    "oracle_text": "Search your library for up to two Forest cards, put them onto the battlefield, then shuffle.",
+    "type_line": "Sorcery"
+   }
+  },
   "Sleep-Cursed Faerie": {
    "phase_records": [
     {
@@ -190514,6 +191543,257 @@
     "power": "7",
     "toughness": "7",
     "type_line": "Legendary Creature — Sliver"
+   }
+  },
+  "Smothering Tithe": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "bracket_signals": {
+      "efficient_tutor": false,
+      "extra_turn": false,
+      "game_changer": true,
+      "mass_land_denial": false
+     },
+     "card_type": {
+      "core_types": [
+       "Enchantment"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "White"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 3,
+      "shards": [
+       "White"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "related_token_ids": [
+       "689f3fc1-adb2-5cbe-9f22-65d4b99d5dd8",
+       "8fb72ba2-7332-5577-b7bd-d75df4c727c8",
+       "ab4fcb95-fd1f-522f-9ad6-7f7b7f12947d",
+       "ba3bda5a-b0c8-5931-818b-0126c810dc7c",
+       "bf235272-bd80-5c56-8fa6-d355103fdf8d"
+      ],
+      "source_printing_ids": [
+       "2309fb66-3aa0-4ec5-9a8e-5a0caa19c270",
+       "4e3b9aac-c5d5-4284-9c7c-67b23748fa45",
+       "58178dd4-c61e-4017-b2e6-2d8308ded4fd",
+       "7839cdc8-0cc9-4a17-9642-fb23f6e0be06",
+       "7af082fa-86a3-4f7b-966d-2be1f1d0c0bc",
+       "861b5889-0183-4bee-afeb-a4b2aa700a8e",
+       "a095e47e-8f02-45cf-a9d2-677fe171258d",
+       "ca736b62-9b02-49bf-8abd-5de6c4bf0ab0",
+       "da65d83c-67bd-4d54-9c9a-50d57ca115bb",
+       "f25a4bbe-2af0-4d4a-95d4-d52c5937c747",
+       "f6c69c2f-729b-49ed-909d-57190a728e11"
+      ]
+     },
+     "name": "Smothering Tithe",
+     "non_ability_text": null,
+     "oracle_text": "Whenever an opponent draws a card, that player may pay {2}. If the player doesn't, you create a Treasure token. (It's an artifact with \"{T}, Sacrifice this token: Add one mana of any color.\")",
+     "power": null,
+     "printings": [
+      "2X2",
+      "CMM",
+      "P22",
+      "PRM",
+      "PRNA",
+      "RNA",
+      "SLD",
+      "WOT"
+     ],
+     "rarities": [
+      "rare",
+      "mythic"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2023-09-01",
+       "text": "If an opponent is instructed to draw multiple cards, that player draws all of them before deciding how many times to pay as the multiple triggered abilities from Smothering Tithe resolve."
+      }
+     ],
+     "scryfall_oracle_id": "153376c9-dffd-458c-8ce3-a4c8269bc4e9",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "Whenever an opponent draws a card, that player may pay {2}. If the player doesn't, you create a Treasure token.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "cost": {
+          "cost": {
+           "generic": 2,
+           "shards": [],
+           "type": "Cost"
+          },
+          "type": "Mana"
+         },
+         "payer": {
+          "type": "TriggeringPlayer"
+         },
+         "type": "PayCost"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": true,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": {
+          "condition": {
+           "signal": "OptionalEffectPerformed",
+           "type": "EffectOutcome"
+          },
+          "type": "Not"
+         },
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "colors": [],
+          "count": {
+           "type": "Fixed",
+           "value": 1
+          },
+          "enters_attacking": false,
+          "keywords": [],
+          "name": "Treasure",
+          "owner": {
+           "type": "Controller"
+          },
+          "power": {
+           "type": "Fixed",
+           "value": 0
+          },
+          "tapped": false,
+          "toughness": {
+           "type": "Fixed",
+           "value": 0
+          },
+          "type": "Token",
+          "types": [
+           "Artifact",
+           "Treasure"
+          ]
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": null,
+         "sub_link": "SequentialSibling",
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "mode": "Drawn",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": null,
+       "valid_source": null,
+       "valid_target": {
+        "controller": "Opponent",
+        "properties": [],
+        "type": "Typed",
+        "type_filters": []
+       }
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "all_parts": [
+     {
+      "component": "token",
+      "id": "649d42c1-a465-435e-8b67-e901ab9ad8ab",
+      "name": "Treasure",
+      "oracle_id": "3c549374-6c37-42e0-8d88-a8555d46732d",
+      "type_line": "Token Artifact — Treasure"
+     }
+    ],
+    "arena_available": true,
+    "cmc": 4.0,
+    "color_identity": [
+     "W"
+    ],
+    "colors": [
+     "W"
+    ],
+    "keywords": [
+     "Treasure"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{3}{W}",
+    "name": "Smothering Tithe",
+    "oracle_id": "153376c9-dffd-458c-8ce3-a4c8269bc4e9",
+    "oracle_text": "Whenever an opponent draws a card, that player may pay {2}. If the player doesn't, you create a Treasure token. (It's an artifact with \"{T}, Sacrifice this token: Add one mana of any color.\")",
+    "produced_mana": [
+     "B",
+     "G",
+     "R",
+     "U",
+     "W"
+    ],
+    "type_line": "Enchantment"
    }
   },
   "Sneak Attack": {

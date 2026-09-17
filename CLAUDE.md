@@ -112,7 +112,7 @@ Shared Python package (`mtg_utils`). 40 CLI script modules (26 deck + 9 cube + 3
 - **`edhrec_lookup.py`** — EDHREC JSON endpoint client for commander recommendations.
 - **`download_mtgjson.py`** — Card-data downloader (ADR-0033): MTGJSON `AllPrintings` + `AllPricesToday` (gzip stream-decompressed) to `~/.cache/mtg-skills/mtgjson/`, 24h freshness, eager translated-sidecar build. The card-data source of record.
 - **`web_fetch.py`** — Web page fetcher with browser headers and curl fallback.
-- **`deck_stats.py`** — Deck statistics: land/ramp/creature counts, avg CMC, curve, color sources, total card count.
+- **`deck_stats.py`** — Deck statistics: land/ramp/creature counts, avg CMC, curve, color sources, total card count. The ramp count is `_analysis.roles.is_ramp` (ADR-0051: the signal path, with an oracle-text degrade when no card-data is available) — the same read `mana-audit`, `slot-budgets` and the tuner use.
 - **`card_summary.py`** — Compact human-readable card table with filter flags (`--lands-only`, `--nonlands-only`, `--type`).
 - **`deck_diff.py`** — Deck comparison: added/removed cards, count/CMC/land/ramp deltas.
 - **`set_commander.py`** — Move cards from cards list to commanders list in parsed deck JSON.

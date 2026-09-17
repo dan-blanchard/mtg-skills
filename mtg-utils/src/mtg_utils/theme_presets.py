@@ -109,7 +109,7 @@ from pathlib import Path
 from types import MappingProxyType
 from typing import TYPE_CHECKING
 
-from mtg_utils.card_classify import get_oracle_text
+from mtg_utils.card_classify import get_oracle_text, is_land
 
 if TYPE_CHECKING:
     # Type-only: mtg_utils._card_ir.crosswalk has no _deck_forge dependency
@@ -437,46 +437,40 @@ def _plus_one_counters_self_grow_concept(card: dict) -> bool:
     return _concept_any_face(card, self_counter_grow_narrow)
 
 
-# A Treasure handed to SOMEONE ELSE ("Its controller creates two Treasure
-# tokens" — An Offer You Can't Refuse; "that player creates a Treasure" — Gonti,
-# Night Minister). The ``make_token`` concept carries no recipient (phase scopes
-# it "you" whoever creates the token), so ``treasure_makers|you`` alone can't
-# tell a giveaway from ramp; the subject standing directly before "creates" can.
-_THIRD_PARTY_CREATES_RE = re.compile(
-    r"\b(?:its controller|that player|target opponent|target player|each opponent"
-    r"|that (?:spell|permanent|creature)'s controller)(?: may)? creates?\b"
-    r"[^.]*?\btreasure",
-    re.IGNORECASE,
+# The signal keys whose doers are mana acceleration outright. ``treasure_makers``
+# is NOT here — phase scopes a giveaway "you" too, so :func:`_ramp_concept` reads
+# the token's owner instead.
+_RAMP_SIGNAL_KEYS = frozenset(
+    {"ramp", "mana_amplifier", "extra_land_drop", "firebending_makers"}
 )
-_CREATES_TREASURE_RE = re.compile(r"\bcreates?\b[^.]*?\btreasure", re.IGNORECASE)
-_REMINDER_TEXT_RE = re.compile(r"\([^)]*\)")
-
-
-def _treasure_giveaway(card: dict) -> bool:
-    """Every Treasure-creating clause on CARD names a third-party creator — the
-    card never makes a Treasure for YOU (Generous Plunderer, which makes one for
-    each side, is NOT a giveaway)."""
-    text = _REMINDER_TEXT_RE.sub("", get_oracle_text(card))
-    creates = len(_CREATES_TREASURE_RE.findall(text))
-    return creates > 0 and creates == len(_THIRD_PARTY_CREATES_RE.findall(text))
 
 
 def _ramp_concept(card: dict) -> bool:
-    """concept arm for the 'ramp' preset — the two ramp facts no single signal
-    key carries. (1) An EXTRA LAND PLAY (Exploration, Azusa — CR 305.2): the
-    lanes route it to ``landfall``, a key that also covers pure payoffs, so
-    this reads the same static mode the landfall lane does
-    (``lanes.additional_land_play``). (2) A TREASURE MAKER you keep:
-    ``treasure_makers|you`` minus :func:`_treasure_giveaway`. Unions (OR) with
-    the preset's ``signal_keys`` arm (``ramp`` / ``mana_amplifier`` /
-    ``extra_land_drop`` / ``firebending_makers``)."""
-    if "treasure_makers|you|" in _signal_idents_for(card) and not _treasure_giveaway(
-        card
-    ):
-        return True
-    from mtg_utils._analysis.lanes import additional_land_play
+    """concept arm for the 'ramp' preset — the WHOLE match (no ``signal_keys`` arm),
+    because the template's ramp role is an AND the preset's OR can't say: a NONLAND
+    card (a land is the mana base, CR 305 — and the ``ramp`` key fires for fixing
+    lands) that carries one of
 
-    return _concept_any_face(card, additional_land_play)
+    * a :data:`_RAMP_SIGNAL_KEYS` key (rocks / dorks / rituals / granted mana /
+      land-fetch-to-battlefield, mana amplifiers, a land PUT, firebending);
+    * a Treasure maker whose token YOU keep (``lanes.treasure_maker_you_keep`` —
+      An Offer You Can't Refuse hands its Treasures to an opponent);
+    * an extra land PLAY (``lanes.additional_land_play`` — Exploration, Azusa; CR
+      305.2), which the lanes route to ``landfall``, a key that also covers pure
+      payoffs.
+    """
+    if is_land(card):
+        return False
+    if _signal_keys_for(card) & _RAMP_SIGNAL_KEYS:
+        return True
+    from mtg_utils._analysis.lanes import (
+        additional_land_play,
+        treasure_maker_you_keep,
+    )
+
+    return _concept_any_face(
+        card, lambda tree: treasure_maker_you_keep(tree) or additional_land_play(tree)
+    )
 
 
 def _removal_edict_concept(
@@ -1584,7 +1578,7 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
         ),
     ),
     # Pacify aura (task #87): the dedicated structural concept the
-    # `removal` preset's own should_not_match note (and budgets.py's
+    # `removal` preset's own should_not_match note (and roles.py's
     # `_INTERACTION_PRESETS` comment) named as the recovery path for
     # Pacifism/Arrest's `interaction`-role credit — never folded back into
     # `removal` itself (CR 611.2: the enchanted permanent stays on the
@@ -1884,28 +1878,19 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
     # veto comment), not a preset-noise catch the old regex correctly
     # avoided nor a genuine capability loss for the SELF-tutor concept this
     # preset is named for.
-    # Ramp — the Command-Zone template's mana-acceleration role (task: one
-    # owner for template-role facts, ADR-0051). A VIEW over the signal path:
-    # `ramp` (rocks / dorks / rituals / granted mana / land-fetch-to-
-    # battlefield, lf_ramp), `mana_amplifier` (Crypt Ghast, Caged Sun),
-    # `extra_land_drop` (Burgeoning, Arboreal Grazer — a land PUT),
-    # `firebending_makers`, plus the two concept-arm facts (`_ramp_concept`:
-    # an extra land PLAY; a Treasure maker you keep). `_analysis.roles.is_ramp`
-    # is this preset for a card the signal path covers — the tuner's ramp
-    # candidate search reads the same preset, so "counts as ramp" and "sourced
-    # as ramp" cannot drift. A LAND is never ramp here (the mana base, CR 305);
-    # the role owner gates that, since a preset has no AND.
+    # Ramp — the Command-Zone template's mana-acceleration role (ADR-0051). A
+    # VIEW over the signal path, all in `_ramp_concept` (the role is "NONLAND
+    # and …", an AND the OR-combined arms can't express). `_analysis.roles.
+    # is_ramp` IS this preset for a card the signal path covers, and the tuner's
+    # ramp candidate search reads the same preset — so "counts as ramp" and
+    # "sourced as ramp" cannot drift, and a `card-search --preset ramp` page is
+    # never filled with mana lands.
     Preset(
         name="ramp",
         description=(
-            "Mana acceleration: mana rocks / dorks / rituals, mana amplifiers, "
-            "land-fetch-to-battlefield, extra land drops, and Treasure makers."
-        ),
-        signal_keys=(
-            "ramp",
-            "mana_amplifier",
-            "extra_land_drop",
-            "firebending_makers",
+            "Nonland mana acceleration: mana rocks / dorks / rituals, mana "
+            "amplifiers, land-fetch-to-battlefield, extra land drops, and "
+            "Treasure makers you keep."
         ),
         concept=_ramp_concept,
         should_match=(
@@ -1916,7 +1901,13 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
             "Burgeoning",
             "Dockside Extortionist",
         ),
-        should_not_match=("Lightning Bolt", "Demonic Tutor", "Sylvan Scrying"),
+        should_not_match=(
+            "Lightning Bolt",
+            "Demonic Tutor",
+            "Sylvan Scrying",
+            "Command Tower",
+            "An Offer You Can't Refuse",
+        ),
     ),
     Preset(
         name="tutors",

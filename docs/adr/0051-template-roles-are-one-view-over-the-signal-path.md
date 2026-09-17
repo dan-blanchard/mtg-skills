@@ -20,19 +20,25 @@ as a permanent second path and left `card_classify` as its unfinished Milestone 
 (`lands` / `ramp` / `card_draw` / `interaction` / `board_wipe`), `is_ramp`, and the
 advisory `protects`, moved out of `budgets.py`, which keeps the bands. Every role is a
 view over the signal path. Ramp gains the `ramp` preset the other three roles already
-had: signal keys `ramp`, `mana_amplifier`, `extra_land_drop`, `firebending_makers`, plus
-a concept arm for the two facts no key carries alone —
+had. It is concept-only, because the role is "NONLAND and …" and a preset's arms only
+OR: a nonland card carrying
 
+- a ramp signal key — `ramp`, `mana_amplifier`, `extra_land_drop`, `firebending_makers`;
+- a **Treasure maker whose token you keep** (`lanes.treasure_maker_you_keep`). The
+  `treasure_makers` key is scoped "you" for a giveaway too, but the `Token` node's own
+  `owner` says who creates it: `ParentTargetController` for *An Offer You Can't Refuse*
+  ("Its controller creates two Treasure tokens"), `Controller` for *Smothering Tithe*;
 - an **extra land play** (*Exploration*, *Azusa*; CR 305.2). The lanes route it to
   `landfall`, a key that also covers pure payoffs, so the arm reads the same static mode
-  through `lanes.additional_land_play`, now the landfall lane's own read too;
-- a **Treasure maker you keep**: `treasure_makers|you` minus a giveaway veto (every
-  Treasure-creating clause has a third-party subject — *An Offer You Can't Refuse*).
-  The `make_token` concept carries no recipient, so the veto reads the clause subject.
+  through `lanes.additional_land_play`, now the landfall lane's own read too.
 
-`roles.is_ramp` is that preset, never for a land (the mana base, CR 305). The tuner
-sources ramp by the same preset, so "counts as ramp" and "suggested as ramp" cannot
-drift; a test asserts the subset relation over the whole snapshot.
+A land is never ramp — it is the mana base (CR 305), and the `ramp` key fires for every
+fixing land, which would fill the tuner's small cmc-ascending search page with lands.
+`roles.is_ramp` is that preset. The tuner sources ramp by the same preset, so "counts as
+ramp" and "suggested as ramp" cannot drift; a test asserts the two sets are equal over
+the whole snapshot. The tree-synthesis fetch sentence read stays: it is an arm of the
+signal path (it feeds the `ramp` lane a concept for text-only trees), not a second
+definition of the role.
 
 The regex survives once, renamed `card_classify.ramp_by_text`, as the **no-coverage
 degrade**: a card the signal path cannot see (`theme_presets.has_signal_coverage` — no
@@ -49,8 +55,10 @@ mana ability, and a handful of genuine lane recall gaps a lane fix now repairs f
 consumer at once: *Tireless Provisioner* ("a Food token or a Treasure token" fires
 `food_makers` only) and *Surveyor's Scope* (its X-basics fetch reads as `tutor`).
 
-`deck-stats` and `mana-audit` now join the surfaces that read the signal path, so like
-`slot-budgets` they fetch phase's card-data on first use and degrade to text offline.
+`deck-stats`, `mana-audit` and the cube category classifier (its colorless-fixing slot)
+now join the surfaces that read the signal path, so like `slot-budgets` they fetch
+phase's card-data on first use and degrade to text offline. The degrade itself learned
+number words ("Add three mana"), so an uncovered Gilded Lotus still counts.
 
 **Considered and rejected.** Widening the `extra_land_drop` lane to cover extra land
 plays (the lane's own docstring excludes that mechanic, and it would change a served

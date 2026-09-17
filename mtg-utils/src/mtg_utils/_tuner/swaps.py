@@ -46,8 +46,8 @@ _RAMP_CONDITIONAL = "only if you control"
 
 def _reliable_ramp(card: dict) -> bool:
     """Ramp the tuner will SOURCE: a genuine producer (``roles.is_ramp`` — which already
-    rejects a land, and mana an opponent receives, like An Offer You Can't Refuse's
-    Treasures) whose ability isn't conditionally gated. The deck's existing conditional
+    rejects mana an opponent receives, like An Offer You Can't Refuse's Treasures)
+    whose ability isn't conditionally gated. The deck's existing conditional
     rocks still COUNT as ramp, but the tuner won't suggest one the deck can't reliably
     turn on."""
     return is_ramp(card) and _RAMP_CONDITIONAL not in get_oracle_text(card).lower()
@@ -56,9 +56,9 @@ def _reliable_ramp(card: dict) -> bool:
 _ROLE_SEARCH: dict[str, dict] = {
     # Ramp is SOURCED by the same ``ramp`` preset ``roles.is_ramp`` COUNTS it by
     # (ADR-0051), so "fills the role" and "suggested for the role" cannot drift. The
-    # "_filter" is a tuner-side precision pass (applied in _ranked_pool): it drops the
-    # lands the preset's ``ramp`` key also covers, and a conditionally-gated rock —
-    # which still counts as ramp in the deck, but the tuner won't suggest one.
+    # "_filter" is a tuner-side precision pass (applied in _ranked_pool): it drops a
+    # conditionally-gated rock — which still counts as ramp in the deck, but the tuner
+    # won't suggest one.
     "ramp": {"preset_names": ("ramp",), "_filter": _reliable_ramp},
     "card_draw": {"preset_names": ("card-draw",)},
     "interaction": {

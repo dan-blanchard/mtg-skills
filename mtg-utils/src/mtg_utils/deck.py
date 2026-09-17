@@ -25,7 +25,6 @@ from collections import Counter
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from mtg_utils._analysis.roles import is_ramp
 from mtg_utils._name_index import NameIndex
 from mtg_utils.card_classify import (
     color_sources,
@@ -203,6 +202,10 @@ def accumulate_deck_metrics(
     ``avg_cmc`` — so each caller formats as it needs. A ``None`` record (an
     un-hydratable name) counts toward ``total`` only.
     """
+    # Lazy: this module is also proxy-print's / fetch-art's deck walk, which must not
+    # pay for the analysis stack on import.
+    from mtg_utils._analysis.roles import is_ramp
+
     total = 0
     land_count = creature_count = ramp_count = game_changer_count = 0
     nonland_cmcs: list[float] = []

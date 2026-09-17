@@ -992,7 +992,7 @@ def _plus_one_makers(tree: ConceptTree) -> list[Signal]:
 # flip correctly dropped Pacifism/Arrest from `removal` (CR 611.2 leaves the
 # enchanted permanent on the battlefield — it's not removed), which
 # incidentally cost the `interaction` budget role its Pacifism/Arrest credit
-# (see budgets.py's `_INTERACTION_PRESETS` comment). This is the DEDICATED
+# (see roles.py's `_INTERACTION_PRESETS` comment). This is the DEDICATED
 # structural concept that comment named as the recovery mechanism: an Aura
 # whose OWN static ability restricts what it enchants from attacking/
 # blocking (CR 508.1a / 509.1b — the standard restriction-effect hooks a
@@ -1088,7 +1088,7 @@ def _pacify_makers(tree: ConceptTree) -> list[Signal]:
     "whatever this enchants"/"equipped creature", rather than destroying/
     exiling/countering/bouncing/fighting/-X'ing it (CR 611.2 — the
     permanent stays on the battlefield, so this is deliberately NOT part
-    of `removal`; see the module note above and budgets.py's
+    of `removal`; see the module note above and roles.py's
     `_INTERACTION_PRESETS` comment for the task #86 flip that split these
     two facts apart). Scope "you" (the controller neutralized someone/
     something). Gated by :func:`_pacify_aura_compensates` — see its own

@@ -56,12 +56,25 @@ def test_non_ramp_is_not_ramp(name):
 
 
 def test_a_land_is_the_mana_base_never_ramp():
-    # Command Tower fires the `ramp` KEY (a fixing land) — the role still says no:
-    # lands are the `lands` role and the land band's business (CR 305).
+    # Command Tower fires the `ramp` KEY (a fixing land) — the role and its preset
+    # still say no: lands are the `lands` role and the land band's business (CR 305),
+    # and a land-filled search page would starve the tuner's ramp sourcing.
     tower = _real("Command Tower")
-    assert get_preset("ramp").matches(tower)
+    assert "ramp" in {s.key for s in test_signals("Command Tower")}
+    assert not get_preset("ramp").matches(tower)
     assert not is_ramp(tower)
     assert role_of(tower) == {"lands"}
+
+
+def test_a_treasure_handed_to_an_opponent_is_not_ramp():
+    # Both fire `treasure_makers|you` (phase scopes the maker, not the recipient);
+    # the Token node's own `owner` tells them apart.
+    offer = _real("An Offer You Can't Refuse")  # "Its controller creates two Treasure"
+    assert "treasure_makers" in {s.key for s in test_signals(offer["name"])}
+    assert not is_ramp(offer)
+    assert is_ramp(_real("Smothering Tithe"))
+    # One Treasure for you, one for an opponent — still yours.
+    assert is_ramp(_real("Generous Plunderer"))
 
 
 def test_a_card_the_signal_path_cannot_see_degrades_to_text():
@@ -85,15 +98,32 @@ def test_covered_card_never_falls_back_to_text():
     assert not is_ramp(lying)
 
 
-def test_the_tuner_sources_ramp_by_the_preset_the_role_counts_by():
-    """ADR-0051's point: over a real pool, what the tuner's ramp search admits
-    (preset + its precision filter) is a subset of what the role counts — no card is
-    suggested "for ramp" that the budgets row wouldn't then count as ramp."""
-    (preset_name,) = _ROLE_SEARCH["ramp"]["preset_names"]
-    preset = get_preset(preset_name)
-    sourced = [r for r in snapshot_records() if preset.matches(r) and _reliable_ramp(r)]
-    assert len(sourced) > 30
-    assert all("ramp" in role_of(r) for r in sourced)
-    # …and every nonland the role counts is reachable by that search's preset.
-    counted = [r for r in snapshot_records() if is_ramp(r)]
-    assert all(preset.matches(r) for r in counted)
+def test_the_preset_and_the_role_agree_on_every_covered_card():
+    """The agreement test that replaces the "mirrors is_ramp" comments: over the whole
+    snapshot, the preset the tuner SEARCHES by and the role the budgets row COUNTS by
+    are the same set — and the text degrade is never consulted for a covered card."""
+    preset = get_preset(_ROLE_SEARCH["ramp"]["preset_names"][0])
+    records = snapshot_records()
+    matched = {r["name"] for r in records if preset.matches(r)}
+    counted = {r["name"] for r in records if "ramp" in role_of(r)}
+    assert matched == counted
+    assert len(matched) > 40
+
+
+def test_the_tuner_ramp_search_page_is_nonland_ramp():
+    """A search page is small and cmc-ascending, so a preset that matched mana lands
+    (the `ramp` key fires for every fixing land) filled it with lands and starved the
+    sourcing. Every preset hit must survive the tuner's own nonland gate."""
+    preset = get_preset("ramp")
+    hits = [r for r in snapshot_records() if preset.matches(r)]
+    assert hits
+    assert not [r["name"] for r in hits if "Land" in (r.get("type_line") or "")]
+    # The precision filter only ever removes a conditionally-gated rock.
+    dropped = [r["name"] for r in hits if not _reliable_ramp(r)]
+    assert all("only if you control" in test_card(n)["oracle_text"] for n in dropped)
+
+
+@pytest.mark.parametrize("name", ["Skyshroud Claim", "Hunting Wilds"])
+def test_multi_land_fetch_is_ramp(name):
+    # "up to two Forest cards" — the text read's fetch pattern never matched it.
+    assert is_ramp(_real(name))

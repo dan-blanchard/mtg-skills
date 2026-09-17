@@ -157,6 +157,15 @@ class TestRampByText:
     """The no-coverage text degrade (``_analysis.roles.is_ramp`` owns the real
     answer — see ``tests/deck-forge/test_roles.py``)."""
 
+    def test_number_word_mana(self):
+        # "Add three mana of any one color" (Gilded Lotus): no "{" / "one mana" after
+        # "add" — the blind spot that made the text read disagree with the signal path.
+        card = {
+            "type_line": "Artifact",
+            "oracle_text": "{T}: Add three mana of any one color.",
+        }
+        assert ramp_by_text(card) is True
+
     def test_sol_ring(self):
         card = {
             "type_line": "Artifact",

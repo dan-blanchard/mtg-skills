@@ -486,7 +486,7 @@ def _pump_pt(
     "-X/-X", scaled by life paid at cast time) has no fixed magnitude the
     adapter can project without guessing, but its SIGN is real and load-
     bearing — CR 613.4c: a mass "-X/-X" can still kill regardless of X's
-    eventual value (``budgets._ir_board_wipe``'s gate only checks
+    eventual value (``roles._ir_board_wipe``'s gate only checks
     ``factor < 0``). Kept as ``Quantity(op="variable", factor=+-1)``, the
     SAME shape project.py's ``_pump_toughness``/``_signed_pt_mod`` gives a
     dynamic pump toughness (SIDECAR v74's own contract). A ``Quantity``-
@@ -569,7 +569,7 @@ def _effect_category(cnode: ConceptNode, cov: CompatCoverage) -> str:
       pump_target split needed. The previous ``tag_of(target) in ("Typed",
       "Or", "And")`` heuristic collapsed EVERY one of these single-target
       shapes into the mass ``pump`` category, which tripped
-      ``budgets._ir_board_wipe``'s mass-shrink gate on a plain single-
+      ``roles._ir_board_wipe``'s mass-shrink gate on a plain single-
       target ``-N/-N`` removal spell (Tragic Slip's base clause) — a false
       positive a live spot-check confirmed (``_ir_board_wipe`` returned
       True for Tragic Slip pre-fix, False post-fix, matching Giant Growth's

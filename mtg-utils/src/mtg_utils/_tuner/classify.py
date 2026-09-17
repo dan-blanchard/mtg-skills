@@ -3,7 +3,7 @@
 The tri-partition (deck-forge CONTEXT.md): every nonland, non-commander card is
 **Spine** (mandatory scaffolding — ramp / draw / interaction / wipes), **Engine**
 (serves an avenue), or **Filler** (serves no avenue here). Lands and commanders are
-their own buckets. No new matchers: Spine roles come from ``budgets.role_of`` and
+their own buckets. No new matchers: Spine roles come from ``roles.role_of`` and
 avenue-serving from ``ranking.score_candidate``/``serves`` — both bottoming out in
 ``theme_presets`` (ADR-0023).
 """

@@ -34,7 +34,7 @@ SERVED_SIGNAL_KEYS: frozenset[str] = frozenset(
         "reanimator",
         "plus_one_makers",
         # task #87: pacify_makers — the dedicated structural concept
-        # budgets.py's `_INTERACTION_PRESETS` comment named as the recovery
+        # roles.py's `_INTERACTION_PRESETS` comment named as the recovery
         # path for the Pacifism/Arrest `interaction`-role credit task #86's
         # removal-preset flip cost (see `_pacify_makers`'s own docstring).
         "pacify_makers",

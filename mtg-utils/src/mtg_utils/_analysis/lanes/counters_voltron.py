@@ -1390,6 +1390,34 @@ def _resource_token_makers(tree: ConceptTree) -> list[Signal]:
     return sigs
 
 
+# Token ``owner`` tags under which YOU end up with the token: the default (no
+# owner / ``Controller``), a copied-permanent's ``OriginalController``, and
+# ``TriggeringPlayer`` ("that player creates a Treasure" — Gonti, Night Minister,
+# Jolene, Pain Distributor: a symmetric trigger you fire too). NOT
+# ``ParentTargetController`` ("Its controller creates two Treasure tokens" — An
+# Offer You Can't Refuse) nor a ``Typed`` opponent filter (Generous Plunderer's
+# second token).
+_TOKEN_OWNER_IS_YOU = frozenset(
+    {"Controller", "OriginalController", "TriggeringPlayer"}
+)
+
+
+def treasure_maker_you_keep(tree: ConceptTree) -> bool:
+    """A Treasure ``make_token`` whose token lands under YOUR control (CR 111.2 —
+    the token's owner is the player who created it). Narrower than the
+    ``treasure_makers`` key, which phase scopes "you" for a giveaway too: the
+    ``Token`` node's own ``owner`` says who creates it. The ``ramp`` preset's
+    concept arm reads this (``theme_presets._ramp_concept``) — a Treasure handed to
+    an opponent is not your mana."""
+    for c in tree.effect_concepts("make_token"):
+        if c.scope not in _YOU_EACH or "Treasure" not in c.subject:
+            continue
+        owner = getattr(c.node, "owner", None)
+        if owner is None or tag_of(owner) in _TOKEN_OWNER_IS_YOU:
+            return True
+    return False
+
+
 def _mill_makers(keywords: frozenset[str], name: str) -> list[Signal]:
     """mill_makers — a FIELD-LOOKUP on the Scryfall ``Mill`` keyword, NOT a structural
     port (ADR-0027 / CR 701.17a). The legacy survivor (the deleted ``_signals_ir``'s

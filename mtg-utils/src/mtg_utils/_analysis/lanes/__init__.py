@@ -302,6 +302,7 @@ from mtg_utils._analysis.lanes.counters_voltron import (
     _voltron_makers,
     _voltron_matters,
     _voltron_modal_aggregate_tell,
+    treasure_maker_you_keep,
 )
 from mtg_utils._analysis.lanes.counters_voltron import (
     LANES as _COUNTERS_VOLTRON_LANES,
@@ -1434,6 +1435,7 @@ __all__ = [
     "removal_edict_targets_type",
     "self_counter_grow_narrow",
     "self_mill_fill",
+    "treasure_maker_you_keep",
 ]
 
 # ORDERING CONTRACT: the concatenation below MUST reproduce the original
