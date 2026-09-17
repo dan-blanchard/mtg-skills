@@ -1,6 +1,6 @@
 """Opt-in: suggest a commander that fits the deck you already built.
 
-Commander discovery (``engine.discover_commanders``) ranks commanders to a *stated
+Commander discovery (``discovery.discover_commanders``) ranks commanders to a *stated
 intent*; this ranks them to the *built deck's* viable avenues instead, surfacing each
 with its **identity cost** — the in-deck cards that fall out of color identity on the
 switch (deck-forge CONTEXT.md, "Commander fit"). The one fix a card swap structurally

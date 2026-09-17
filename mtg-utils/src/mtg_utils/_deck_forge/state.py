@@ -15,6 +15,7 @@ from pathlib import Path
 
 from mtg_utils._deck_forge.agent_bridge import AgentBridge
 from mtg_utils._deck_forge.collection import CollectionStore
+from mtg_utils._deck_forge.discovery import DiscoveryCache
 from mtg_utils._deck_forge.events import EventHub
 from mtg_utils._deck_forge.persistence import BuildStore
 from mtg_utils._name_index import NameIndex
@@ -253,27 +254,10 @@ class ForgeState:
     # competitive_brawl shares historic_brawl's key with a different ban policy).
     bulk_path: Path | None = None
     rarity_index: dict[str, NameIndex] = field(default_factory=dict)
-    # Lazily-built novelty support: per-format signal-rarity table over the whole legal
-    # commander pool (fmt -> (freq, total)). Cached because the sweep over every
-    # commander-eligible bulk card is the one expensive part of Commander discovery.
-    commander_signal_freq: dict = field(default_factory=dict)
-    # Lazily-built support-ranking caches (ADR-0018 amended / Q9): a deduped record pool
-    # (the density denominator) plus per-lane serve density (lane-key -> pool fraction
-    # serving it). Format-relative density weights a distinctive collection lane above a
-    # merely-broad one (artifacts), so "Most supported" reflects real depth.
-    density_pool: list[dict] = field(default_factory=list)
-    lane_density: dict[str, float] = field(default_factory=dict)
-    # Whether ``lane_density`` has been seeded from its on-disk sidecar yet (once per
-    # state) — so the ~55s first-discovery density sweep is paid once per bulk version,
-    # not once per server start. See engine._load_lane_density.
-    density_sidecar_loaded: bool = False
-    # Per-Collection-slot: lane-key → frozenset of owned card NAMES serving that lane.
-    # Computed once per distinct lane (not per commander-and-lane), so discovery
-    # scores via set intersection, not millions of per-card regex matches. Keyed by
-    # slot; invalidated when that slot's collection changes (set/clear_collection).
-    lane_collection_serves: dict[str, dict[str, frozenset[str]]] = field(
-        default_factory=dict
-    )
+    # Commander discovery's memoized sweeps (lane density, per-collection served-name
+    # sets, the Novelty signal-rarity table) — shared across the threadpool and the
+    # post-import background warm, so it owns its own lock. See ``discovery``.
+    discovery: DiscoveryCache = field(default_factory=DiscoveryCache)
     # Printing selection (picking a set/art for a card). ``printings_by_oracle`` maps a
     # card's oracle_id → every legal printing's record (for the picker list);
     # ``printing_by_id`` maps a Scryfall printing id → its record (to resolve a chosen
@@ -285,3 +269,10 @@ class ForgeState:
     # Dungeons are excluded from `by_name` (unaddable), so this is a separate raw-bulk
     # lookup, built once at launch. None when no bulk → no folding (graceful).
     object_resolver: Callable[[str], dict | None] | None = None
+
+    @property
+    def active_slot(self) -> str:
+        """The Collection slot read for this build: ``paper`` for a paper build,
+        ``arena`` for a digital one. Keyed off medium, not format — so a paper Historic
+        Brawl reads the paper slot. Reads are strictly single-slot."""
+        return "paper" if self.session.medium == "paper" else "arena"

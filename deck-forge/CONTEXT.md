@@ -29,6 +29,9 @@ The fourth deck zone (`companion`, alongside commanders / cards / sideboard) hol
 **Commander discovery**:
 The browser panel that surfaces commander-eligible cards from your active Collection slot, ranked to a stated intent rather than to popularity — a theme filter and a color filter narrow the owned pool, sorted by **Support depth** or **Novelty**. Never orders by community popularity.
 
+**Discovery module** (`discovery.py`, ADR-0053):
+Commander discovery's implementation: the ranking (`discover_commanders`), the background `warm` a Collection import schedules, and the `DiscoveryCache` the `ForgeState` holds — the pool-density sweep and each Collection's served-name sets, locked, persisted to sidecars, and keyed by the Collection's own content so a changed Collection needs no invalidation.
+
 **Support depth**:
 How much of a commander's strategy you already own — the breadth-down-weighted count of in-identity cards in your active Collection slot that serve the commander's signal-derived lanes. The default Commander-discovery sort. Deliberately NOT raw signal/lane count: lane breadth is not quality, so a near-universal lane ("creatures matter") is down-weighted and the generic Staples lane is excluded.
 
@@ -111,7 +114,7 @@ The deck-analysis surface inside the hub — snapshot, ranked Signals, Avenues, 
 The serialization seam owning the card shapes the browser SPA consumes — one atomic `project` plus the deck/search/candidate/combo variants.
 
 **Transport adapter**:
-The FastAPI route closures in `app.py`: parse payload → call Engine/Views → apply side effects (mutation, autosave, SSE publish) → return. Holds no deck logic: a deck rule the Engine refuses raises `DeckRuleError`, which one exception handler maps to a 400 (ADR-0013, finished 2026-09-12).
+The FastAPI route closures in `app.py`: parse payload → call the Engine → **commit** → return. The commit (`_commit`, ADR-0053) is the one tail every state-changing route shares: persist the build when the deck changed, take the snapshot, broadcast it over SSE. Holds no deck logic: a deck rule the Engine refuses raises `DeckRuleError`, which one exception handler maps to a 400 (ADR-0013, finished 2026-09-12).
 
 ### Gates & accuracy
 

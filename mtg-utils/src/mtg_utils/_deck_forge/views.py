@@ -243,7 +243,7 @@ def signal_view(signal: Signal) -> dict:
 
 
 def commander_view(row: dict, fmt: Format) -> dict:
-    """A discovered commander (an ``engine.discover_commanders`` row: the record plus
+    """A discovered commander (an ``discovery.discover_commanders`` row: the record plus
     its support scores) as name + projection + scores."""
     view = {"name": row["name"], **project(row["record"], fmt)}
     for key in ("support_depth", "lanes", "supported_lanes", "novelty"):

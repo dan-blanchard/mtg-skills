@@ -76,7 +76,7 @@ crosswalk path regardless, per ``extract_signals``'s own docstring,
 so it never causes divergence). :func:`build_signals_index` calls it at
 those same defaults, so this is the ONE config the sidecar is valid for.
 The one production call site that passes ``include_membership=False``
-(``engine._commander_lanes``, scoped to a single owned commander at a
+(``discovery._commander_lanes``, scoped to a single owned commander at a
 time — never a pool scan) stays on live compute; it is cheap at that
 scale and wiring it would require storing a second, differently-configured
 index for no measured benefit.

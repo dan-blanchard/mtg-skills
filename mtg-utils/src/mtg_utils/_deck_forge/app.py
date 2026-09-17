@@ -12,7 +12,6 @@ from __future__ import annotations
 
 import functools
 import json
-import uuid
 from collections.abc import AsyncIterator
 from pathlib import Path
 
@@ -22,7 +21,7 @@ from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from mtg_utils._deck_forge import collection, engine, views
+from mtg_utils._deck_forge import collection, discovery, engine, views
 from mtg_utils._deck_forge.engine import DeckRuleError
 from mtg_utils._deck_forge.state import DeckSession, ForgeState
 from mtg_utils._tuner.tune import tune as run_tune
@@ -172,16 +171,17 @@ def _autosave(state: ForgeState) -> None:
         state.store.save(state.build_id, state.build_name, state.session.to_deck_dict())
 
 
-def _reset_runtime_lanes(state: ForgeState) -> None:
-    """Clear per-build runtime lane state on a build switch.
-
-    ``agent_avenues`` (lanes the session-agent posted) and ``focused_avenue_ids``
-    (the human's focus pins) are scoped to one deck. Carrying them across a
-    new/import/load would surface the prior commander's lanes and scope candidate
-    scoring (``engine.scoring_basis``) to focus pins from another build.
-    """
-    state.agent_avenues.clear()
-    state.focused_avenue_ids.clear()
+def _commit(state: ForgeState, *, persist: bool = True, **extra: object) -> dict:
+    """The tail of every state-changing route, written once: persist the build (a
+    DECK change — ``persist=False`` for runtime-only state like lanes and
+    Collections, and for a load, which must not rewrite the file it just read), take
+    the snapshot, broadcast it to every open browser, return it. ``extra`` keys ride
+    on the broadcast snapshot (``balanced`` / ``trimmed``)."""
+    if persist:
+        _autosave(state)
+    snap = {**engine.snapshot(state), **extra}
+    state.hub.publish(json.dumps(snap))
+    return snap
 
 
 def _find_params(payload: SearchPayload) -> engine.FindParams:
@@ -264,61 +264,41 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
         if payload.zone == "companion":
             engine.check_companion_add(state, payload.name, payload.qty)
         state.session.add(payload.name, payload.qty, zone=payload.zone)
-        _autosave(state)
-        snap = engine.snapshot(state)
-        state.hub.publish(json.dumps(snap))
-        return snap
+        return _commit(state)
 
     @app.post("/api/deck/remove")
     async def remove(payload: RemovePayload) -> dict:
         engine.check_zone(payload.zone)
         state.session.remove(payload.name, payload.qty, zone=payload.zone)
-        _autosave(state)
-        snap = engine.snapshot(state)
-        state.hub.publish(json.dumps(snap))
-        return snap
+        return _commit(state)
 
     @app.post("/api/deck/format")
     async def set_format(payload: FormatPayload) -> dict:
         """Change the build's format (``engine.set_format`` is the rule); returns the
         new snapshot."""
         engine.set_format(state, payload.format)
-        _autosave(state)
-        snap = engine.snapshot(state)
-        state.hub.publish(json.dumps(snap))
-        return snap
+        return _commit(state)
 
     @app.post("/api/deck/medium")
     async def set_medium(payload: MediumPayload) -> dict:
         """Set paper vs digital for the build (``engine.set_medium`` is the rule);
         returns the new snapshot."""
         engine.set_medium(state, payload.medium)
-        _autosave(state)
-        snap = engine.snapshot(state)
-        state.hub.publish(json.dumps(snap))
-        return snap
+        return _commit(state)
 
     @app.post("/api/deck/deck-size")
     async def set_deck_size(payload: DeckSizePayload) -> dict:
         """Choose the deck size (``engine.set_deck_size`` is the rule); returns the
         new snapshot."""
         engine.set_deck_size(state, payload.deck_size)
-        _autosave(state)
-        snap = engine.snapshot(state)
-        state.hub.publish(json.dumps(snap))
-        return snap
+        return _commit(state)
 
     @app.post("/api/deck/balance-lands")
     async def balance_lands() -> dict:
         """Fix the mana base: add basics to reach the FAIL floor and rebalance the
         basics to match color demand (swapping over- for under-produced colors at the
         current count when already at/above the floor)."""
-        applied = engine.balance_lands(state)
-        _autosave(state)
-        snap = engine.snapshot(state)
-        snap["balanced"] = applied
-        state.hub.publish(json.dumps(snap))
-        return snap
+        return _commit(state, balanced=engine.balance_lands(state))
 
     @app.post("/api/deck/trim-lands")
     async def trim_lands() -> dict:
@@ -327,12 +307,8 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
         deck is already at/under recommended. Soft — never blocks finalize, because an
         all-lands combo deck is a legitimate build (see CONTEXT Flood line)."""
         applied = engine.trim_lands(state)
-        if applied["add"] or applied["remove"]:
-            _autosave(state)
-        snap = engine.snapshot(state)
-        snap["trimmed"] = applied
-        state.hub.publish(json.dumps(snap))
-        return snap
+        changed = bool(applied["add"] or applied["remove"])
+        return _commit(state, persist=changed, trimmed=applied)
 
     @app.post("/api/handoff/goldfish", response_model=None)
     async def handoff_goldfish() -> dict | JSONResponse:
@@ -433,10 +409,7 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
             zone=payload.zone,
             finish=payload.finish,
         )
-        _autosave(state)
-        snap = engine.snapshot(state)
-        state.hub.publish(json.dumps(snap))
-        return snap
+        return _commit(state)
 
     @app.get("/api/events")
     async def events() -> StreamingResponse:
@@ -478,14 +451,10 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
 
     @app.post("/api/builds/new")
     async def builds_new(payload: NewBuildPayload) -> dict:
-        state.session = DeckSession(payload.format)
-        state.build_id = uuid.uuid4().hex[:8]
-        state.build_name = payload.name or "Untitled"
-        _reset_runtime_lanes(state)
-        _autosave(state)
-        snap = engine.snapshot(state)
-        state.hub.publish(json.dumps(snap))
-        return {"build_id": state.build_id, **snap}
+        engine.switch_build(
+            state, DeckSession(payload.format), name=payload.name or "Untitled"
+        )
+        return {"build_id": state.build_id, **_commit(state)}
 
     @app.post("/api/builds/import")
     async def builds_import(payload: ImportDeckPayload) -> dict:
@@ -495,13 +464,10 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
         guesses a commander — an unmarked list lands as a pile in ``cards`` that the
         user promotes from (the DeckList ★)."""
         imported = engine.import_deck(state, payload.text, fmt=payload.format)
-        state.session = imported.session
-        state.build_id = uuid.uuid4().hex[:8]
-        state.build_name = payload.name or "Imported deck"
-        _reset_runtime_lanes(state)
-        _autosave(state)
-        snap = engine.snapshot(state)
-        state.hub.publish(json.dumps(snap))
+        engine.switch_build(
+            state, imported.session, name=payload.name or "Imported deck"
+        )
+        snap = _commit(state)
         parsed = imported.parsed
         return {
             "build_id": state.build_id,
@@ -528,28 +494,26 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
             return JSONResponse(
                 {"error": f"build not found: {payload.id}"}, status_code=404
             )
-        state.session = DeckSession.from_deck_dict(record.get("deck") or {})
-        state.build_id = payload.id
-        state.build_name = record.get("name", "Untitled")
-        _reset_runtime_lanes(state)
-        snap = engine.snapshot(state)
-        state.hub.publish(json.dumps(snap))
-        return {"build_id": state.build_id, **snap}
+        engine.switch_build(
+            state,
+            DeckSession.from_deck_dict(record.get("deck") or {}),
+            name=record.get("name", "Untitled"),
+            build_id=payload.id,
+        )
+        return {"build_id": state.build_id, **_commit(state, persist=False)}
 
     @app.post("/api/builds/rename")
     async def builds_rename(payload: RenameBuildPayload) -> dict:
-        if payload.id == state.build_id:
+        live = payload.id == state.build_id
+        if live:
             # Rename the live deck and persist it under the new name immediately
             # (even if it had no file yet), so the name isn't lost without a mutation.
             state.build_name = payload.name
-            _autosave(state)
         elif state.store is not None:
             record = state.store.load(payload.id)
             if record is not None:
                 state.store.save(payload.id, payload.name, record.get("deck") or {})
-        snap = engine.snapshot(state)
-        state.hub.publish(json.dumps(snap))
-        return snap
+        return _commit(state, persist=live)
 
     @app.delete("/api/builds/{build_id}")
     async def delete_build(build_id: str) -> dict:
@@ -557,11 +521,10 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
         if deleted and build_id == state.build_id:
             # The live build's file was just deleted. Reset to a fresh build so the
             # next mutation's _autosave doesn't silently re-create the deleted id.
-            state.session = DeckSession(state.session.format)
-            state.build_id = uuid.uuid4().hex[:8]
-            state.build_name = "Untitled"
-            _reset_runtime_lanes(state)
-            _autosave(state)
+            engine.switch_build(
+                state, DeckSession(state.session.format), name="Untitled"
+            )
+            _commit(state)
         return {
             "deleted": deleted,
             "current": state.build_id,
@@ -587,8 +550,7 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
                 {"error": f"could not parse collection: {exc}"}, status_code=400
             )
         engine.set_collection(state, payload.slot, pile)
-        snap = engine.snapshot(state)
-        state.hub.publish(json.dumps(snap))
+        snap = _commit(state, persist=False)  # a Collection is not the build
         # Warm the discovery caches for the just-imported slot in the background:
         # Starlette runs sync background tasks in the threadpool, so the ~65s cold cost
         # is paid there (off the event loop), not by the user's first discover. The
@@ -596,7 +558,7 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
         # changed, which would warm eligibility for the wrong format.
         if state.bulk_available:
             background.add_task(
-                engine.warm_discovery_caches,
+                discovery.warm,
                 state,
                 payload.slot,
                 fmt=state.session.format,
@@ -614,9 +576,7 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
                 {"error": f"unknown collection slot: {payload.slot!r}"}, status_code=400
             )
         engine.clear_collection(state, payload.slot)
-        snap = engine.snapshot(state)
-        state.hub.publish(json.dumps(snap))
-        return snap
+        return _commit(state, persist=False)
 
     @app.post("/api/commanders/discover", response_model=None)
     async def commanders_discover(
@@ -636,9 +596,10 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
         # discover_commanders is heavy CPU (scores every owned commander).
         # Offload it to a worker thread so it never blocks the event loop;
         # a blocking call here froze the whole hub for the run (~30s on a big
-        # collection). Same pattern as tune/goldfish. Pure read, thread-safe.
+        # collection). Same pattern as tune/goldfish. It fills discovery's caches
+        # from this worker thread; ``DiscoveryCache`` carries the lock.
         results = await run_in_threadpool(
-            engine.discover_commanders,
+            discovery.discover_commanders,
             state,
             sort=payload.sort,
             colors=payload.colors,
@@ -668,41 +629,25 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
     @app.post("/api/avenues")
     async def add_avenue(payload: AvenuePayload) -> dict:
         state.bridge.touch()
-        state.agent_avenue_seq += 1
-        avenue = {
-            "id": f"agent:{state.agent_avenue_seq}",
-            "label": payload.label,
-            "description": payload.description,
-            "scope": "",
-            "source": "agent",
-            "search": payload.search,
-        }
-        state.agent_avenues.append(avenue)
-        snap = engine.snapshot(state)
-        state.hub.publish(json.dumps(snap))
-        return {"avenue": avenue, **snap}
+        avenue = engine.add_agent_avenue(
+            state,
+            label=payload.label,
+            description=payload.description,
+            search=payload.search,
+        )
+        return {"avenue": avenue, **_commit(state, persist=False)}
 
     @app.delete("/api/avenues/{avenue_id}")
     async def remove_avenue(avenue_id: str) -> dict:
-        state.agent_avenues[:] = [
-            a for a in state.agent_avenues if a["id"] != avenue_id
-        ]
-        state.focused_avenue_ids.discard(avenue_id)  # a removed lane can't stay focused
-        snap = engine.snapshot(state)
-        state.hub.publish(json.dumps(snap))
-        return snap
+        engine.remove_avenue(state, avenue_id)
+        return _commit(state, persist=False)
 
     @app.post("/api/avenues/{avenue_id}/focus")
     async def focus_avenue(avenue_id: str) -> dict:
         """Toggle a lane as 'focused' (#2): the candidate ✦ score then counts only the
         focused lanes. Idempotent toggle so the pin button can flip it either way."""
-        if avenue_id in state.focused_avenue_ids:
-            state.focused_avenue_ids.discard(avenue_id)
-        else:
-            state.focused_avenue_ids.add(avenue_id)
-        snap = engine.snapshot(state)
-        state.hub.publish(json.dumps(snap))
-        return snap
+        engine.toggle_avenue_focus(state, avenue_id)
+        return _commit(state, persist=False)
 
     @app.post("/api/find", response_model=None)
     async def find(payload: SearchPayload) -> dict | JSONResponse:

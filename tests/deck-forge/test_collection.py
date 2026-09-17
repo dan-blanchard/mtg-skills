@@ -4,7 +4,7 @@ with basic lands excluded from the readout."""
 
 from fastapi.testclient import TestClient
 
-from mtg_utils._deck_forge import collection, engine
+from mtg_utils._deck_forge import collection, discovery, engine
 from mtg_utils._deck_forge.app import build_app
 from mtg_utils._deck_forge.collection import CollectionStore
 from mtg_utils._deck_forge.state import DeckSession, ForgeState
@@ -211,7 +211,7 @@ def test_quantity_zero_rows_are_excluded_everywhere():
     # Ownership: Sol Ring owned, Ghave (qty 0) not owned.
     assert engine.owned_quantities(state) == {"Sol Ring": 2}
     # Discovery never surfaces the un-owned Ghave even though it's commander-eligible.
-    found = engine.discover_commanders(state, sort="support")
+    found = discovery.discover_commanders(state, sort="support")
     assert all(r["name"] != "Ghave, Guru of Spores" for r in found)
 
 
