@@ -29,6 +29,7 @@ from mtg_utils.card_classify import (
     build_card_lookup,
     has_any_number_exemption,
     is_basic_land,
+    is_basic_land_name,
     named_card_cap,
 )
 from mtg_utils.companion import companion_violations, is_companion
@@ -438,8 +439,10 @@ def check_pool_containment(
 ) -> list[dict]:
     """A pool-bounded deck (sealed / draft) is drawn from its opened pool: every copy
     in the main deck and sideboard must be in the ``pool`` zone at that quantity
-    (CR 100.2b), basic lands excepted (the product's basics are unlimited). Empty
-    for any other format."""
+    (CR 100.2b), basic lands excepted (the product's basics are unlimited — read
+    off the record, or the name when no record joined). Empty for any other
+    format. Tautological on a freshly parsed list (its pool IS its cards and
+    sideboard); it earns its keep once a build adds or a hand edit diverges."""
     if not fmt.pool_bounded:
         return []
     pool: dict[str, int] = {}
@@ -454,7 +457,7 @@ def check_pool_containment(
     violations: list[dict] = []
     for name, quantity in used.items():
         card = hydrated_by_name.get(name)
-        if card is not None and is_basic_land(card):
+        if is_basic_land(card) if card is not None else is_basic_land_name(name):
             continue
         in_pool = pool.get(name, 0)
         if quantity > in_pool:

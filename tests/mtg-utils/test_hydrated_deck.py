@@ -430,15 +430,16 @@ def test_pool_is_a_zone_that_hydrates_but_never_counts(tmp_path):
     deck_path = _write_deck(tmp_path, deck)
     hd = HydratedDeck.acquire(deck_path, pool=_pool(), fetch=_no_fetch)
     assert hd.pool == [{"name": "Llanowar Elves", "quantity": 3}]
-    assert next(rec for _, rec in hd.entries(zones=("pool",))) is not None
-    # The counted-deck reads never include the pool.
-    assert all(r is not None for r in hd.expanded(zones=("pool",)))
-    assert "Llanowar Elves" not in {r["name"] for r in hd.deck_records()} or any(
-        e["name"] == "Llanowar Elves" for e in deck["cards"]
+    assert [r["name"] for r in hd.deck_records(zones=("pool",))] == ["Llanowar Elves"]
+    # The counted-deck reads never grow with the pool.
+    bare = HydratedDeck.acquire(
+        _write_deck(tmp_path, _deck(), name="bare.json"), pool=_pool(), fetch=_no_fetch
     )
-    assert sum(1 for r in hd.expanded() if r["name"] == "Llanowar Elves") == sum(
-        e["quantity"]
-        for z in ("cards", "sideboard")
-        for e in deck.get(z, [])
-        if e["name"] == "Llanowar Elves"
-    )
+    assert len(hd.deck_records()) == len(bare.deck_records())
+    assert len(hd.expanded()) == len(bare.expanded())
+    # The sidecar round-trips the pool: a second acquire reads it back.
+    again = HydratedDeck.acquire(deck_path, pool=_pool(), fetch=_no_fetch)
+    assert again.pool == hd.pool
+    assert [r["name"] for r in again.deck_records(zones=("pool",))] == [
+        "Llanowar Elves"
+    ]

@@ -299,9 +299,9 @@ class HydratedDeck:
 
     @property
     def deck(self) -> dict:
-        """The untouched canonical {format, commanders, cards, sideboard} dict — the
-        serializable shape autosave/export consume. HydratedDeck augments it, never
-        replaces it."""
+        """The untouched canonical {format, commanders, cards, sideboard, companion,
+        pool} dict — the serializable shape autosave/export consume. HydratedDeck
+        augments it, never replaces it."""
         return self._deck
 
     @property

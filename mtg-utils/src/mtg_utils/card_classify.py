@@ -206,6 +206,19 @@ def is_creature(card: dict) -> bool:
     return "Creature" in classifying_type_line(card)
 
 
+#: The basic land names: the five basic land types (CR 305.6) plus Wastes; a
+#: Snow-Covered basic shares the name with its prefix stripped.
+BASIC_LAND_NAMES: frozenset[str] = frozenset(
+    {"Plains", "Island", "Swamp", "Mountain", "Forest", "Wastes"}
+)
+
+
+def is_basic_land_name(name: str) -> bool:
+    """Whether a card NAME is a basic land's (for a names-only read with no record —
+    ``is_basic_land`` is the record read)."""
+    return name.removeprefix("Snow-Covered ") in BASIC_LAND_NAMES
+
+
 def is_basic_land(card: dict) -> bool:
     """A basic land, including Snow basics: a land whose type line says 'Basic'.
 

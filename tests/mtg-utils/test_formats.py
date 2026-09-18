@@ -113,6 +113,11 @@ class TestTable:
                 "requires_partner": False,
             }
         assert Format.for_deck({"format": "sealed", "deck_size": 45}).deck_size == 45
+        # A build's size is its TARGET; the 40-card floor is the audit's
+        # (deck_minimum), so a smaller target is accepted, then audited short.
+        assert (
+            Format.for_deck({"format": "sealed", "deck_size": 30}).min_deck_size == 40
+        )
         row = {r["id"]: r for r in format_options()}["sealed"]
         assert row["family"] == "limited"
         assert row["pool_bounded"] is True

@@ -1189,6 +1189,17 @@ class TestSetFilter:
         # The reprint's other set never leaks in through the cheapest-printing dedup.
         assert next(c for c in results if c["name"] == "Reprint")["set"] == "hob"
 
+    def test_a_pool_bounded_format_is_never_arena_gated(self, tmp_path):
+        # A paper Sealed of a pre-Arena set must not be silently restricted to Arena
+        # printings the way an Arena constructed format is.
+        cards = [{**_make_card(name="Paper Only", games=["paper"]), "set": "mh3"}]
+        bulk_path = tmp_path / "bulk.json"
+        bulk_path.write_text(json.dumps(cards))
+        assert [c["name"] for c in search_cards(bulk_path, format="sealed")] == [
+            "Paper Only"
+        ]
+        assert search_cards(bulk_path, format="historic") == []
+
     def test_cli_set_option(self, tmp_path):
         res = CliRunner().invoke(
             main,

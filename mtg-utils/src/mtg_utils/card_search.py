@@ -440,7 +440,9 @@ def search_cards(
     # reporting (e.g.) Ephemerate as a common even though the only
     # Arena-legal printing is a Historic Anthology rare.
     # --paper-only remains an explicit escape hatch for the rare paper case.
-    if format is not None and fmt.is_arena and not paper_only:
+    # A pool-bounded format (sealed / draft) is never gated by game: its cards are
+    # whatever was opened, on Arena or at a paper table.
+    if format is not None and fmt.is_arena and not paper_only and not fmt.pool_bounded:
         arena_only = True
 
     presets = resolve_presets(preset_names) if preset_names else ()

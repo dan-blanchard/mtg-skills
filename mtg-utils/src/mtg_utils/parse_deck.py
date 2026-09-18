@@ -93,16 +93,6 @@ def _parse_moxfield(content: str) -> dict:
     }
 
 
-def _has_section_headers(content: str) -> bool:
-    """Whether the list zones itself (Arena / MTGO ``Deck`` / ``Sideboard`` headers, a
-    Moxfield ``//`` header) — a bare list of cards has none."""
-    for raw in content.splitlines():
-        line = raw.strip()
-        if line.startswith("//") or line.lower() in _ARENA_SECTION_HEADERS:
-            return True
-    return False
-
-
 _ARENA_SECTION_HEADERS = frozenset(
     {
         "commander",
@@ -111,6 +101,16 @@ _ARENA_SECTION_HEADERS = frozenset(
         "sideboard",
     }
 )
+
+
+def _has_section_headers(content: str) -> bool:
+    """Whether the list zones itself (Arena / MTGO ``Deck`` / ``Sideboard`` headers, a
+    Moxfield ``//`` header) — a bare list of cards has none."""
+    for raw in content.splitlines():
+        line = raw.strip()
+        if line.startswith("//") or line.lower() in _ARENA_SECTION_HEADERS:
+            return True
+    return False
 
 
 def _parse_mtgo(content: str) -> dict:
@@ -307,6 +307,33 @@ _PARSERS = {
 }
 
 
+#: The optional printing keys a deck entry may carry beside ``name`` / ``quantity``.
+_PRINTING_KEYS = ("set", "collector_number", "finish")
+
+
+def _merge_entries(entries: list[dict]) -> list[dict]:
+    """Merge same-name entries: quantities summed, a printing key kept only where
+    every copy agrees (two printings of one card merge to a name with no printing
+    rather than a guess at which wins). First-appearance order."""
+    merged: dict[str, dict] = {}
+    for entry in entries:
+        name = entry["name"]
+        qty = entry.get("quantity", 1)
+        existing = merged.get(name)
+        if existing is None:
+            merged[name] = {
+                "name": name,
+                "quantity": qty,
+                **{key: entry[key] for key in _PRINTING_KEYS if key in entry},
+            }
+        else:
+            existing["quantity"] += qty
+            for key in _PRINTING_KEYS:
+                if existing.get(key) != entry.get(key):
+                    existing.pop(key, None)
+    return list(merged.values())
+
+
 def parse_deck(
     path: Path,
     *,
@@ -375,27 +402,7 @@ def parse_deck_text(
             entry["name"], extras = _extract_printing(entry["name"])
             for key, value in extras.items():
                 entry.setdefault(key, value)
-        merged: dict[str, dict] = {}
-        for entry in entries:
-            name = entry["name"]
-            qty = entry.get("quantity", 1)
-            existing = merged.get(name)
-            if existing is None:
-                merged[name] = {
-                    "name": name,
-                    "quantity": qty,
-                    **{
-                        key: entry[key]
-                        for key in ("set", "collector_number", "finish")
-                        if key in entry
-                    },
-                }
-            else:
-                existing["quantity"] += qty
-                for key in ("set", "collector_number", "finish"):
-                    if existing.get(key) != entry.get(key):
-                        existing.pop(key, None)
-        result[section] = list(merged.values())
+        result[section] = _merge_entries(entries)
 
     # A card promoted to the command zone shouldn't also count in the 99: some
     # exporters list the commander in both the "// Commander" header and the deck
@@ -410,17 +417,7 @@ def parse_deck_text(
     if fmt.pool_bounded:
         # The pool is everything the list holds (deck + sideboard, quantities
         # summed, a printing kept where every copy agrees). A bare list is all pool.
-        pool: dict[str, dict] = {}
-        for entry in result["cards"] + result["sideboard"]:
-            existing = pool.get(entry["name"])
-            if existing is None:
-                pool[entry["name"]] = dict(entry)
-            else:
-                existing["quantity"] += entry.get("quantity", 1)
-                for key in ("set", "collector_number", "finish"):
-                    if existing.get(key) != entry.get(key):
-                        existing.pop(key, None)
-        result["pool"] = list(pool.values())
+        result["pool"] = _merge_entries(result["cards"] + result["sideboard"])
         if pool_only or not _has_section_headers(content):
             result["cards"] = []
             result["sideboard"] = [dict(e) for e in result["pool"]]

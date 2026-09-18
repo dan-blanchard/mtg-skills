@@ -451,7 +451,8 @@ def mana_audit(hd: HydratedDeck) -> dict:
 
     avg_cmc = round(sum(nonland_cmcs) / len(nonland_cmcs), 2) if nonland_cmcs else 0.0
 
-    if has_commander:
+    family = hd.format.family
+    if family == "commander":
         burgess_result = burgess_formula(
             colors=colors, commander_cmc=commander_cmc, deck_size=deck_size
         )
@@ -480,7 +481,7 @@ def mana_audit(hd: HydratedDeck) -> dict:
             "commander_cost": commander_cost,
             "karsten_adjustment": {"ramp_count": ramp_count, "result": karsten_result},
         }
-    elif hd.format.family == "limited":
+    elif family == "limited":
         # Sealed / draft: the 17-of-40 norm, a tight band (16-18), never the
         # constructed formula scaled down (which reads 17 lands as over-landed).
         limited_target = limited_land_target(
@@ -557,12 +558,14 @@ def _render_single_audit(audit: dict) -> list[str]:
     lines.append(f"mana-audit: {status} — {land_count} lands ({colors_str} deck)")
     lines.append("")
 
-    constructed = audit.get("constructed_land_target") or audit.get(
+    # A size-minimum family (constructed or limited) carries one target block; the
+    # Commander family carries Burgess + Karsten.
+    target_block = audit.get("constructed_land_target") or audit.get(
         "limited_land_target"
     )
     burgess = audit.get("burgess_formula") or {}
     band = audit.get("land_band") or {}
-    if constructed:
+    if target_block:
         lines.append(
             f"Land count: {land_count} "
             f"(target: {band.get('top', '?')}, floor: {band.get('floor', '?')}, "

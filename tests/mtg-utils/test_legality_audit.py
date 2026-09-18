@@ -1253,6 +1253,16 @@ class TestPoolContainment:
         result = self._audit(cards=[("Plains", 40)], pool=[("My Precious", 1)])
         assert result["violations"]["pool_containment"] == []
 
+    def test_a_basic_with_no_record_is_still_exempt_by_name(self):
+        from mtg_utils.legality_audit import check_pool_containment
+
+        d = {"cards": [{"name": "Snow-Covered Forest", "quantity": 17}], "pool": []}
+        assert check_pool_containment(d, {}, FORMATS["sealed"]) == []
+        d = {"cards": [{"name": "Not A Basic", "quantity": 1}], "pool": []}
+        assert check_pool_containment(d, {}, FORMATS["sealed"])[0]["name"] == (
+            "Not A Basic"
+        )
+
     def test_the_sideboard_is_the_unused_pool_with_no_cap(self):
         result = self._audit(
             cards=[("Plains", 40)],

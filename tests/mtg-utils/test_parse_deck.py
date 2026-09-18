@@ -618,6 +618,11 @@ class TestLimitedPool:
         assert cli.exit_code == 0, cli.output
         assert json.loads(cli.output)["cards"] == []
 
+    def test_pool_merges_a_printing_only_where_every_copy_agrees(self):
+        text = "Deck\n1 Stone by Sunlight (HOB) 33\n\nSideboard\n1 Stone by Sunlight (HOB) 99\n"
+        pool = parse_deck_text(text, format="sealed")["pool"]
+        assert pool == [{"name": "Stone by Sunlight", "quantity": 2, "set": "hob"}]
+
     def test_other_formats_carry_an_empty_pool(self):
         assert parse_deck_text(self.ARENA, format="modern")["pool"] == []
         assert parse_deck_text(self.ARENA, format="commander")["pool"] == []
