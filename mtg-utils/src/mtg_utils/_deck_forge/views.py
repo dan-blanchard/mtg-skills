@@ -185,9 +185,9 @@ def deck_view(
     printing_owned: Callable[[str, str | None], bool | None] | None = None,
 ) -> dict:
     """The serialized deck: ``{format, commanders[], cards[], sideboard[],
-    companion[]}``, each zone a list of ``card_view`` dicts. ``owned`` (deck card
-    name → owned count in the active Collection slot) marks owned cards; absent →
-    no ownership shown (no collection).
+    companion[], pool[]}``, each zone a list of ``card_view`` dicts. ``owned``
+    (deck card name → owned count in the active Collection slot) marks owned
+    cards; absent → no ownership shown (no collection).
     ``printing_owned`` (name, printing_id → tri-state) resolves whether the card's
     effectively-chosen printing is owned at printing level (``engine.printing_owned``);
     absent → the ``owned_printing`` field never renders."""

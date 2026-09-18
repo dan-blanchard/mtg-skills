@@ -122,8 +122,12 @@ def test_import_pool_only_is_a_pool_with_no_deck_yet():
 def test_the_pool_is_the_copy_limit():
     state = _state(pool=[("Bear", 3)], cards=[("Bear", 3)])
     client = _client(state)
-    assert client.post("/api/deck/add", json={"name": "Bear"}).status_code == 400
-    assert client.post("/api/deck/add", json={"name": "Dragon"}).status_code == 400
+    r = client.post("/api/deck/add", json={"name": "Bear"})
+    assert r.status_code == 400
+    assert "the pool holds 3" in r.json()["error"]
+    r = client.post("/api/deck/add", json={"name": "Dragon"})
+    assert r.status_code == 400
+    assert "not in the pool" in r.json()["error"]
     assert client.post(
         "/api/deck/add", json={"name": "Forest", "qty": 17}
     ).status_code == (
@@ -173,6 +177,18 @@ def test_moves_between_deck_and_the_derived_sideboard():
         engine.move_card(state, "Bear", from_zone="sideboard", to_zone="cards")
 
 
+def test_moves_to_and_from_the_pool_never_change_the_pool():
+    state = _state(pool=[("Bear", 3), ("Troll", 1)], cards=[("Bear", 2)])
+    engine.move_card(state, "Troll", from_zone="pool", to_zone="cards")
+    assert state.session.quantity_of("Troll") == 1
+    assert state.session.quantity_of("Troll", zone="pool") == 1  # an add, not a move
+    engine.move_card(state, "Bear", from_zone="cards", to_zone="pool")
+    assert state.session.quantity_of("Bear") == 1
+    assert state.session.quantity_of("Bear", zone="pool") == 3
+    with pytest.raises(DeckRuleError, match="the pool holds 1"):
+        engine.move_card(state, "Troll", from_zone="pool", to_zone="cards")
+
+
 # --- crossing the pool boundary -----------------------------------------------------
 
 
@@ -187,6 +203,10 @@ def test_switching_into_and_out_of_a_pool_bounded_format_keeps_the_cards():
     assert state.session.to_deck_dict()["sideboard"] == [
         {"name": "Troll", "quantity": 1}
     ]
+    assert state.session.to_deck_dict()["pool"] == []  # a Modern deck has no pool
+    # Re-entering with a stored sideboard pools it too.
+    engine.set_format(state, "draft")
+    assert state.session.zone_quantities("pool") == {"Bear": 4, "Troll": 1}
 
 
 def test_a_saved_limited_build_round_trips_with_its_pool():
@@ -206,6 +226,40 @@ def test_a_saved_limited_build_round_trips_with_its_pool():
 
 
 # --- Find and Tune search the pool --------------------------------------------------
+
+
+def test_a_paper_pool_search_never_drops_a_card_over_its_game():
+    # A paper sealed build: the game gate a database search applies must not touch
+    # pool records (an Arena-only printing you opened is still yours to play).
+    state = _state(pool=[("Bear", 1)])
+    state.by_name["Bear"] = {**BEAR, "games": ["arena"]}
+    state.session.set_medium("paper")
+    page = engine.find_candidates(state, engine.FindParams(name="bear"))
+    assert [r["card"]["name"] for r in page.rows] == ["Bear"]
+
+
+def test_signals_route_reads_the_counted_deck_not_the_pool():
+    state = _state(pool=[("Bear", 3), ("Troll", 1)], cards=[("Bear", 2)])
+    client = _client(state)
+    assert (
+        client.get("/api/signals").json()["signals"]
+        == (client.get("/api/snapshot").json()["signals"])
+    )
+
+
+def test_the_deck_view_and_the_build_store_carry_the_pool(tmp_path):
+    from mtg_utils._deck_forge import views
+    from mtg_utils._deck_forge.persistence import BuildStore
+
+    state = _state(pool=[("Bear", 3)], cards=[("Bear", 2)])
+    dv = views.deck_view(state)
+    assert [(c["name"], c["quantity"]) for c in dv["pool"]] == [("Bear", 3)]
+    assert [(c["name"], c["quantity"]) for c in dv["sideboard"]] == [("Bear", 1)]
+    store = BuildStore(tmp_path)
+    store.save("sealed1", "HOB", state.session.to_deck_dict())
+    assert [b["id"] for b in store.list()] == ["sealed1"]
+    again = DeckSession.from_deck_dict(store.load("sealed1")["deck"])
+    assert again.to_deck_dict() == state.session.to_deck_dict()
 
 
 def test_find_searches_only_the_pool_and_strips_what_the_deck_exhausted():

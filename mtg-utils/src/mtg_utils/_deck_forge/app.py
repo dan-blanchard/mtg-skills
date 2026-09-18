@@ -279,9 +279,8 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
             )
         if payload.zone == "companion":
             engine.check_companion_add(state, payload.name, payload.qty)
-        elif payload.zone != "pool":
-            # The pool is the limit itself; an add to it just grows what is owned.
-            engine.check_copy_add(state, payload.name, payload.qty)
+        else:
+            engine.check_copy_add(state, payload.name, payload.qty, zone=payload.zone)
         state.session.add(payload.name, payload.qty, zone=payload.zone)
         return _commit(state)
 
@@ -478,7 +477,9 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
 
     @app.get("/api/signals")
     async def signals() -> dict:
-        sigs = engine.ranked_deck_signals(state, engine.hydrate_session(state).records)
+        sigs = engine.ranked_deck_signals(
+            state, engine.hydrate_session(state).deck_records()
+        )
         return {"signals": [views.signal_view(s) for s in sigs]}
 
     @app.get("/api/presets")

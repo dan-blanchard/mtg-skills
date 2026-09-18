@@ -18,6 +18,7 @@ import uuid
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 from mtg_utils import card_search, mark_owned, price_check
 from mtg_utils._analysis import staples
@@ -375,7 +376,7 @@ def wildcard_cost(state: ForgeState) -> dict | None:
     for them."""
     if is_paper(state) or state.bulk_path is None:
         return None
-    if FORMATS[state.session.format].pool_bounded:
+    if state.session.pool_bounded:
         return None  # an opened pool is owned; nothing is crafted
     rarity_index = _rarity_index(state)
     if not rarity_index:
@@ -674,16 +675,14 @@ def set_format(state: ForgeState, fmt: str) -> None:
     session = state.session
     was_pool = session.pool_bounded
     now_pool = FORMATS[fmt].pool_bounded
-    if now_pool and not was_pool and not session.quantity_sum("pool"):
-        pooled: dict[str, int] = {}
-        for zone in ("cards", "sideboard"):
-            for name, qty in session.zone_quantities(zone).items():
-                pooled[name] = pooled.get(name, 0) + qty
-        session.replace_zone("pool", pooled)
-        session.replace_zone("sideboard", {})
-    elif was_pool and not now_pool:
+    if was_pool and not now_pool:
+        # The unused pool becomes a stored sideboard; the pool is emptied (a
+        # database-pooled format carries none — re-entering re-pools).
         session.replace_zone("sideboard", session.derived_sideboard())
+        session.replace_zone("pool", {})
     session.format = fmt
+    if now_pool and not was_pool:
+        session.pool_everything()
 
 
 def set_medium(state: ForgeState, medium: str) -> None:
@@ -747,7 +746,7 @@ def check_pool_remove(state: ForgeState, name: str, qty: int, zone: str) -> None
     """The pool-bounded remove rule: a pool copy the deck still runs cannot leave
     the pool (cut it from the deck first), and the derived sideboard is never
     removed from directly."""
-    if not FORMATS[state.session.format].pool_bounded:
+    if not state.session.pool_bounded:
         return
     if zone == "sideboard":
         raise DeckRuleError(
@@ -761,13 +760,6 @@ def check_pool_remove(state: ForgeState, name: str, qty: int, zone: str) -> None
                 f"{name}: the deck runs {used}; cut it from the deck before "
                 "removing it from the pool"
             )
-
-
-def zone_quantity(state: ForgeState, name: str, zone: str) -> int:
-    """How many copies a zone holds — the derived sideboard included."""
-    if zone == "sideboard" and state.session.pool_bounded:
-        return state.session.derived_sideboard().get(name, 0)
-    return state.session.quantity_of(name, zone=zone)
 
 
 # --- copy limits -----------------------------------------------------------------
@@ -808,10 +800,15 @@ def at_copy_limit(state: ForgeState, record: dict) -> bool:
     return limit is not None and copies_of(state, record.get("name", "")) >= limit
 
 
-def check_copy_add(state: ForgeState, name: str, qty: int) -> None:
+def check_copy_add(
+    state: ForgeState, name: str, qty: int, *, zone: str = "cards"
+) -> None:
     """The copy-limit rule for an add, raising ``DeckRuleError`` when ``qty`` more
     copies would exceed :func:`copy_limit`. Mirrors ``check_companion_add``: the hub
-    never over-adds, so the SPA's stepper can't run past the format."""
+    never over-adds, so the SPA's stepper can't run past the format. An add to the
+    pool itself is never limited — the pool IS the limit."""
+    if zone == "pool":
+        return
     record = state.by_name.get(name)
     if record is None:
         return  # the route 404s an unknown name before any rule
@@ -821,6 +818,12 @@ def check_copy_add(state: ForgeState, name: str, qty: int) -> None:
     have = copies_of(state, name)
     if have + qty > limit:
         fmt = FORMATS[state.session.format]
+        if fmt.pool_bounded:
+            raise DeckRuleError(
+                f"{name}: not in the pool (CR 100.2b)"
+                if limit == 0
+                else f"{name}: the pool holds {limit} and the deck runs {have}"
+            )
         raise DeckRuleError(
             f"{name}: {have + qty} copies would exceed the {fmt.label} limit of "
             f"{limit} (you have {have})"
@@ -838,19 +841,19 @@ def move_card(
     check_zone(from_zone)
     if from_zone == to_zone:
         raise DeckRuleError(f"{name} is already in {to_zone}")
-    have = zone_quantity(state, name, from_zone)
+    have = state.session.quantity_of(name, zone=from_zone)
     if have < qty:
         raise DeckRuleError(f"{name}: only {have} in {from_zone}, cannot move {qty}")
-    pool_bounded = state.session.pool_bounded
-    if pool_bounded and to_zone == "sideboard":
-        # Cutting to the (derived) sideboard is just leaving the deck.
+    if state.session.pool_bounded and to_zone in ("sideboard", "pool"):
+        # Cutting to the (derived) sideboard — or "back to the pool" — is just
+        # leaving the deck: the pool already holds the card.
         state.session.remove(name, qty, zone=from_zone)
         return
     check_zone_open(state, to_zone)
     if to_zone == "companion":
         check_companion_add(state, name, qty)
-    if pool_bounded and from_zone == "sideboard":
-        # Playing a sideboarded pool card: the pool bounds it like any add.
+    if state.session.pool_bounded and from_zone in ("sideboard", "pool"):
+        # Playing a pool card: an add the pool bounds; the pool never shrinks.
         check_copy_add(state, name, qty)
         state.session.add(name, qty, zone=to_zone)
         return
@@ -1063,11 +1066,16 @@ def search_for(state: ForgeState, hd: HydratedDeck) -> Callable[..., list[dict]]
     semantics and never name a card the builder did not open."""
     if not state.session.pool_bounded:
         return state.search_fn
-    return functools.partial(
-        card_search.filter_records,
-        pool_records(hd),
-        fmt=FORMATS[state.session.format],
-    )
+    records = pool_records(hd)
+    fmt = FORMATS[state.session.format]
+
+    def pool_search(**filters: object) -> list[dict]:
+        # The records ARE the pool, whatever game they were opened in: the game
+        # gate a caller passes for a database search never applies here.
+        kwargs: dict[str, Any] = {**filters, "paper_only": False, "arena_only": False}
+        return card_search.filter_records(records, fmt=fmt, **kwargs)
+
+    return pool_search
 
 
 def pool_readout(state: ForgeState, hd: HydratedDeck) -> dict | None:

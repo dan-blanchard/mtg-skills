@@ -89,18 +89,8 @@ class DeckSession:
             deck_size=deck.get("deck_size"),
         )
         zones: tuple[str, ...] = ZONES
-        if session.pool_bounded:
+        if session.pool_bounded and deck.get("pool"):
             zones = tuple(z for z in ZONES if z != "sideboard")
-            if not deck.get("pool"):
-                pooled: dict[str, int] = {}
-                for entry in (deck.get("cards") or []) + (deck.get("sideboard") or []):
-                    pooled[entry["name"]] = pooled.get(entry["name"], 0) + int(
-                        entry.get("quantity", 1)
-                    )
-                deck = {
-                    **deck,
-                    "pool": [{"name": n, "quantity": q} for n, q in pooled.items()],
-                }
         for zone in zones:
             for entry in deck.get(zone) or []:
                 session.add(entry["name"], int(entry.get("quantity", 1)), zone=zone)
@@ -111,6 +101,8 @@ class DeckSession:
                         zone=zone,
                         finish=entry.get("finish"),
                     )
+        if session.pool_bounded and not deck.get("pool"):
+            session.pool_everything()  # a dict from before the pool zone existed
         return session
 
     def add(self, name: str, qty: int = 1, *, zone: str = "cards") -> int:
@@ -169,6 +161,18 @@ class DeckSession:
     def finish_of(self, name: str, *, zone: str = "cards") -> str | None:
         return self._finishes.get(zone, {}).get(name)
 
+    def pool_everything(self) -> None:
+        """Make the build's cards its pool: every copy the main deck runs is in the
+        pool (at least), the stored sideboard joins the pool and is cleared (it is
+        derived from here on). What a build does entering a pool-bounded format,
+        and what a pre-pool dict does on load."""
+        pool = self._zones["pool"]
+        for name, qty in self._zones["cards"].items():
+            pool[name] = max(pool.get(name, 0), qty)
+        for name, qty in self._zones["sideboard"].items():
+            pool[name] = pool.get(name, 0) + qty
+        self.replace_zone("sideboard", {})
+
     def derived_sideboard(self) -> dict[str, int]:
         """A pool-bounded build's sideboard: the pool less the main deck, in pool
         order (empty for any other format, whose sideboard is stored)."""
@@ -181,7 +185,7 @@ class DeckSession:
             if q - cards.get(n, 0) > 0
         }
 
-    def _entries(self, zone: str, quantities: Mapping[str, int], pins: str) -> list:
+    def _entries(self, quantities: Mapping[str, int], pins: str) -> list:
         """Entries for ``quantities`` with the printing / finish pinned under
         ``pins`` (the zone whose pins apply — the pool's, for the derived sideboard)."""
         prints = self._printings.get(pins, {})
@@ -201,11 +205,9 @@ class DeckSession:
         and ``deck_size`` are the effective values (medium drives slot/cost; deck_size
         flows into mana_audit's land math and the footer target). A pool-bounded
         build's sideboard is derived (the pool less the main deck)."""
-        zones = {zone: self._entries(zone, self._zones[zone], zone) for zone in ZONES}
+        zones = {zone: self._entries(self._zones[zone], zone) for zone in ZONES}
         if self.pool_bounded:
-            zones["sideboard"] = self._entries(
-                "sideboard", self.derived_sideboard(), "pool"
-            )
+            zones["sideboard"] = self._entries(self.derived_sideboard(), "pool")
         return {
             "format": self.format,
             "medium": self.medium,
@@ -225,11 +227,14 @@ class DeckSession:
                     pinned.pop(name, None)
 
     def quantity_of(self, name: str, *, zone: str = "cards") -> int:
-        """How many copies of ``name`` a zone holds (0 when absent)."""
+        """How many copies of ``name`` a zone holds (0 when absent) — the derived
+        sideboard included, for a pool-bounded build."""
+        if zone == "sideboard" and self.pool_bounded:
+            return self.derived_sideboard().get(name, 0)
         return self._zones.get(zone, {}).get(name, 0)
 
-    def zone_quantities(self, zone: str) -> Mapping[str, int]:
-        """A zone's name → copies (read-only view of the stored bucket)."""
+    def zone_quantities(self, zone: str) -> dict[str, int]:
+        """A zone's name → copies (a copy of the stored bucket)."""
         return dict(self._bucket(zone))
 
     def quantity_sum(self, zone: str) -> int:
