@@ -690,7 +690,8 @@ def test_constructed_template_is_its_own_bands_not_a_scaled_commander():
     )
     assert list(b) == ["lands", "interaction", "card_draw", "creatures"]
     assert (b["interaction"]["min"], b["interaction"]["max"]) == (4, 12)
-    assert "ramp" not in b and "board_wipe" not in b
+    assert "ramp" not in b
+    assert "board_wipe" not in b
     assert b["lands"]["min"] == 22  # the passed band, never the template's
     assert b["creatures"]["advisory"] is True
     assert b["creatures"]["label"] == "Creatures (type line)"

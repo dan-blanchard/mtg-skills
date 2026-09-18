@@ -184,7 +184,9 @@ def tune(
     ``state.object_resolver``; the deck-tune CLI's ``None`` skips the fold)."""
     owned = dict(owned or {})
     if pool is not None:
-        owned = {**dict(pool), **owned}
+        # A pool card is owned in the pool's quantity (or the caller's, if larger).
+        for name, qty in pool.items():
+            owned[name] = max(qty, owned.get(name, 0))
     deck = hd.deck
     commander_names = {e["name"] for e in deck.get("commanders") or []}
     deck_size = hd.format.deck_size
@@ -422,7 +424,7 @@ def tune(
             template=template,
             max_copies=hd.format.max_copies,
             available=pool,
-            family=hd.format.family,
+            playrate=cal.playrate_meaningful,
         )
         swaps_out = swaps_mod.propose_swaps(classes, issues, swap_ctx)
         # The fill pass deliberately skips lands; flag any mana-base shortfall so the

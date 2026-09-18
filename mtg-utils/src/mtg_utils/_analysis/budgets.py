@@ -254,8 +254,8 @@ def slot_budgets(
     ``land_band`` (floor, top) is the deck-specific "lands" row: ``mana_audit``'s
     ``land_band`` (ADR-0041), which every deck carries. It is REQUIRED, so this call
     and the mana verdict provably read the same band — a re-derivation here from this
-    call's own ramp tally (scoped to *records*, which callers commonly pass as cards +
-    sideboard with commanders excluded) is exactly the second band ADR-0041 exists to
+    call's own ramp tally (scoped to *records*, which callers pass as the main deck
+    with commanders excluded) is exactly the second band ADR-0041 exists to
     eliminate, and no longer exists.
 
     ``template`` is the family's (``template_for(fmt.family)``); ``None`` is the

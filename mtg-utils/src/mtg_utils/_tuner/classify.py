@@ -116,7 +116,7 @@ def classify_deck(
 
     draw_engine = _commander_draws(hd, commander_names)
     out: list[CardClass] = []
-    for rec, quantity in hd.deck_records(zones=zones, with_quantity=True):
+    for rec, quantity in hd.deck_quantities(zones=zones):
         name = rec.get("name", "")
         roles = role_of(rec)
         served = tuple(score_candidate(rec, active_signals=deck_signals)["served"])

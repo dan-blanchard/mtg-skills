@@ -45,12 +45,12 @@ def _popularity(card: dict) -> int:
     return rank if rank is not None else _UNPLAYED
 
 
-def _quality(card: dict, family: str) -> int:
+def _quality(card: dict, *, playrate: bool) -> int:
     """The quality tiebreak between candidates of equal synergy / cost: play-rate
-    where it means something (edhrec_rank is a paper-EDH population — the Commander
-    family's one popularity lean, by user direction), else neutral, so price alone
-    breaks the tie for a 60-card or limited deck."""
-    return _popularity(card) if family == "commander" else 0
+    where it means something (``playrate`` — edhrec_rank is a paper-EDH population,
+    the Commander family's one popularity lean, by user direction), else neutral,
+    so price alone breaks the tie for a 60-card or limited deck."""
+    return _popularity(card) if playrate else 0
 
 
 def _fills_short_role(card: CardClass, budgets: dict) -> bool:
@@ -162,8 +162,18 @@ def cut_candidates(
                 -c.cmc,
             )
         )
-        for c in members[: b["deviation"]]:
-            push(cut_over(role), c)
+        # Exactly the excess in COPIES: a 4-of over by two lists two cut entries,
+        # not eight.
+        excess = b["deviation"]
+        for c in members:
+            if excess <= 0:
+                break
+            if c.name in seen or c.name in protected:
+                continue
+            copies = min(excess, max(1, c.quantity))
+            seen.add(c.name)
+            out.extend([(cut_over(role), c)] * copies)
+            excess -= copies
 
     # 3. Stranded Engine singletons — only when refocusing a spread-thin deck.
     if focus_verdict == "SPREAD-THIN":
@@ -408,7 +418,9 @@ class SwapContext:
     template: Template = COMMANDER_TEMPLATE
     max_copies: int | None = 1
     available: Mapping[str, int] | None = None
-    family: str = "commander"
+    #: Whether edhrec play-rate is a meaningful quality read for this deck (the
+    #: family's ``Calibration.playrate_meaningful``).
+    playrate: bool = True
 
     def copy_ceiling(self, record: dict) -> int | None:
         """How many copies of this card the build may run: the copy limit, bounded
@@ -420,6 +432,11 @@ class SwapContext:
             have = self.available.get(record.get("name", ""), 0)
             ceiling = have if ceiling is None else min(ceiling, have)
         return ceiling
+
+    def under_ceiling(self, record: dict, copies: int) -> bool:
+        """Whether ``copies`` of this card leave room for one more."""
+        ceiling = self.copy_ceiling(record)
+        return ceiling is None or copies < ceiling
 
 
 def propose_swaps(
@@ -438,14 +455,10 @@ def propose_swaps(
     any other, and the add carries ``copy`` (the copy number it becomes). A cut
     removes ONE copy; a name may be cut as many times as it holds copies."""
     in_deck: dict[str, int] = {c.name: c.quantity for c in classes}
-    playrate = ctx.family == "commander"
 
     def addable(card: dict) -> bool:
-        ceiling = ctx.copy_ceiling(card)
-        if ceiling is None:
-            return True
         name = card.get("name", "")
-        return in_deck.get(name, 0) + used_adds[name] < ceiling
+        return ctx.under_ceiling(card, in_deck.get(name, 0) + used_adds[name])
 
     sourcing = Sourcing(ctx.focus_result, ctx.deck_signals, ctx.budgets)
     stranded = set(ctx.focus_result["stranded_avenues"])
@@ -475,7 +488,7 @@ def propose_swaps(
         protected=ctx.protected,
         medium=ctx.medium,
         template=ctx.template,
-        playrate=playrate,
+        playrate=ctx.playrate,
     )
     # Route cuts into the pools a Remedy names: an over-band trim cuts from THAT over
     # role (``over:<role>``); everything else is the generic pool (filler, low-value,
@@ -539,10 +552,7 @@ def propose_swaps(
         # A card the deck already runs stays in the pool while it may hold another
         # copy (used_adds is applied at pick time, so the memoized order holds).
         pool = [
-            c
-            for c in found
-            if in_deck.get(c.get("name", ""), 0)
-            < (ctx.copy_ceiling(c) if ctx.copy_ceiling(c) is not None else 10**9)
+            c for c in found if ctx.under_ceiling(c, in_deck.get(c.get("name", ""), 0))
         ]
         if nonland_only:
             pool = [c for c in pool if not is_land(c)]
@@ -567,7 +577,7 @@ def propose_swaps(
                     scored,
                     key=lambda r: (
                         -r["score"]["synergy_score"],
-                        _quality(r["card"], ctx.family),
+                        _quality(r["card"], playrate=ctx.playrate),
                         extract_price(r["card"]) or 1e9,
                     ),
                 )
@@ -579,7 +589,7 @@ def propose_swaps(
                 pool,
                 key=lambda c: (
                     c.get("cmc", 0.0),
-                    _quality(c, ctx.family),
+                    _quality(c, playrate=ctx.playrate),
                     extract_price(c) or 1e9,
                 ),
             )

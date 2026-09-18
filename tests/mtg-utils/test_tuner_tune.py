@@ -977,3 +977,27 @@ def test_commander_scorecard_is_unchanged_by_the_family_switch():
     assert sc["focus"]["sub_floor"] == 10
     assert sc["efficiency"]["ramp"]["want"] in (9, 10, 12)
     assert sc["size"]["exact"] is True
+
+
+def test_advisory_rows_never_drive_the_verdict_or_an_issue():
+    # A control-ish 60 with few creatures: the creature row is a fact beside the
+    # verdict, never an off-template deviation and never a role_short / role_over.
+    out = tune(_hd_modern(), search_fn=_fake_search, params=TuneParams())
+    sc = out["scorecard"]
+    tmpl = sc["template"]
+    assert "creatures" not in tmpl["short"]
+    assert "creatures" not in tmpl["over"]
+    assert all(
+        i.get("role") != "creatures"
+        for i in sc["top_issues"]
+        if i["kind"] in ("role_short", "role_over")
+    )
+    assert set(tmpl["advisory"]) <= {"creatures"}
+
+
+def test_calibration_base_size_is_the_templates():
+    from mtg_utils._analysis.budgets import template_for
+    from mtg_utils._tuner.calibration import CALIBRATIONS
+
+    for family, cal in CALIBRATIONS.items():
+        assert cal.base_size == template_for(family).base_size

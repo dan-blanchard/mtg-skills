@@ -18,11 +18,12 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 
+from mtg_utils._analysis.budgets import Template, template_for
+
 
 @dataclass(frozen=True)
 class Calibration:
     family: str
-    base_size: int
     #: Shape → desired front-load (cmc<=2 nonland) at ``base_size``.
     front_want: Mapping[str, int]
     #: The (low, mid, high) ramp wants by avg-MV band at ``base_size``, or None when
@@ -45,6 +46,17 @@ class Calibration:
     playrate_meaningful: bool
     default_shape: str = field(default="midrange")
 
+    @property
+    def template(self) -> Template:
+        """The family's budgets template — the one place its base size lives."""
+        return template_for(self.family)
+
+    @property
+    def base_size(self) -> int:
+        """The deck size every floor here is stated at: the family template's, so
+        the two can never disagree about what "per deck" means."""
+        return self.template.base_size
+
     def scaled(self, value: int, deck_size: int) -> int:
         """``value`` (stated at ``base_size``) at ``deck_size``, Python-rounded."""
         return round(value * deck_size / self.base_size)
@@ -52,7 +64,6 @@ class Calibration:
 
 COMMANDER = Calibration(
     family="commander",
-    base_size=100,
     front_want={"aggro": 18, "midrange": 14, "control": 10, "combo": 12},
     ramp_want=(9, 10, 12),
     top_end=(2, 8),
@@ -74,7 +85,6 @@ COMMANDER = Calibration(
 
 CONSTRUCTED = Calibration(
     family="constructed",
-    base_size=60,
     front_want={"aggro": 16, "midrange": 12, "control": 8, "combo": 10},
     ramp_want=None,
     top_end=(0, 4),
@@ -96,7 +106,6 @@ CONSTRUCTED = Calibration(
 
 LIMITED = Calibration(
     family="limited",
-    base_size=40,
     front_want={"aggro": 8, "midrange": 8, "control": 8, "combo": 8},
     ramp_want=None,
     top_end=(0, 2),

@@ -335,18 +335,13 @@ class HydratedDeck:
                     out.extend([record] * int(entry.get("quantity", 1)))
         return out
 
-    def deck_records(
-        self,
-        *,
-        zones: tuple[str, ...] = ("commanders", "cards"),
-        with_quantity: bool = False,
-    ) -> list:
-        """One record per distinct card name in ``zones`` (the counted deck by
-        default — commanders + main deck, never the sideboard), in zone + deck order,
-        missing names dropped. With ``with_quantity`` each item is ``(record,
-        quantity)``, the copies summed across the zones — what a copy-aware analysis
-        (the tuner's classes) counts. The all-zones ``records`` is for hydration
-        bookkeeping; an analysis of the deck reads this."""
+    def deck_quantities(
+        self, *, zones: tuple[str, ...] = ("commanders", "cards")
+    ) -> list[tuple[dict, int]]:
+        """``(record, copies)`` per distinct card name in ``zones`` (the counted deck
+        by default — commanders + main deck, never the sideboard), in zone + deck
+        order, copies summed across the zones, missing names dropped — what a
+        copy-aware analysis (the tuner's classes) counts."""
         seen: dict[str, int] = {}
         order: list[dict] = []
         for entry, record in self.entries(zones=zones):
@@ -357,9 +352,16 @@ class HydratedDeck:
                 seen[name] = 0
                 order.append(record)
             seen[name] += int(entry.get("quantity", 1))
-        if with_quantity:
-            return [(r, seen[r.get("name", "")]) for r in order]
-        return order
+        return [(r, seen[r.get("name", "")]) for r in order]
+
+    def deck_records(
+        self, *, zones: tuple[str, ...] = ("commanders", "cards")
+    ) -> list[dict]:
+        """One record per distinct card name in ``zones`` (the counted deck by
+        default), in zone + deck order, missing names dropped. The all-zones
+        ``records`` is for hydration bookkeeping; an analysis of the deck reads
+        this."""
+        return [r for r, _ in self.deck_quantities(zones=zones)]
 
     def entries(
         self, *, zones: tuple[str, ...] = ("commanders", "cards")

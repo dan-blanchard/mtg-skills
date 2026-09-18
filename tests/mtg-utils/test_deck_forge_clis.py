@@ -105,6 +105,24 @@ def test_slot_budgets_counts_lands(tmp_path):
     assert budgets["lands"]["current"] == 10
 
 
+def test_slot_budgets_serves_the_familys_rows_with_labels(tmp_path):
+    modern = {
+        "format": "modern",
+        "commanders": [],
+        "cards": [{"name": "Mountain", "quantity": 20}],
+    }
+    deck = _write(tmp_path, "deck.json", modern)
+    hyd = _write(tmp_path, "hyd.json", HYDRATED)
+    res = CliRunner().invoke(slot_budgets_main, [deck, "--bulk-data", hyd, "--json"])
+    assert res.exit_code == 0, res.output
+    budgets = json.loads(res.stdout)
+    assert list(budgets) == ["lands", "interaction", "card_draw", "creatures"]
+    assert budgets["creatures"]["label"] == "Creatures (type line)"
+    assert budgets["creatures"]["advisory"] is True
+    text = CliRunner().invoke(slot_budgets_main, [deck, "--bulk-data", hyd])
+    assert "Interaction (incl. sweepers)" in text.output
+
+
 def test_deck_rank_orders_a_goblin_payoff_by_synergy(tmp_path):
     deck = _write(tmp_path, "deck.json", DECK)
     hyd = _write(tmp_path, "hyd.json", HYDRATED)

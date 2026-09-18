@@ -196,7 +196,7 @@ def efficiency(
     low_cards = [c.name for c in low_classes]
     top_cards = [c.name for c in top_classes]
     ramp, low, top = _slots(ramp_classes), _slots(low_classes), _slots(top_classes)
-    cheats = sum(1 for c in classes if _matches(c.record, "reanimate")) >= 2
+    cheats = _slots([c for c in classes if _matches(c.record, "reanimate")]) >= 2
 
     lo, hi = _AVG_BANDS.get(shape, _AVG_BANDS["midrange"])
     if (avg_cmc > _AVG_CEILING and not cheats) or avg_cmc > hi + 0.3:
@@ -432,12 +432,20 @@ def focus(
 
 
 def template_deviation(budgets: dict) -> dict:
-    short = {r: b for r, b in budgets.items() if b["deviation"] < 0}
-    over = {r: b for r, b in budgets.items() if b["deviation"] > 0}
+    """The hard-counted rows drive the verdict and the issues; an ``advisory`` row
+    (a fact about the deck — a creature count) is reported beside them, never as a
+    deviation to fix (CONTEXT: Template deviation)."""
+    counted = {r: b for r, b in budgets.items() if not b.get("advisory")}
+    short = {r: b for r, b in counted.items() if b["deviation"] < 0}
+    over = {r: b for r, b in counted.items() if b["deviation"] > 0}
+    advisory = {
+        r: b for r, b in budgets.items() if b.get("advisory") and b["deviation"] != 0
+    }
     return {
         "verdict": "on-template" if not short and not over else "off-template",
         "short": short,
         "over": over,
+        "advisory": advisory,
         "budgets": budgets,
     }
 
