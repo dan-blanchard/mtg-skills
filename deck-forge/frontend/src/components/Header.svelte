@@ -36,10 +36,11 @@
   $: showMedium = media.length > 1;
   $: sizeChoices = current?.size_choices?.[$deck.medium] ?? [];
   $: showSize = sizeChoices.length > 1;
-  // The picker groups by the served family (Commander / Constructed), never by an
-  // id list; the order is the table's.
-  $: families = [...new Set($formatOptions.map((f) => f.family))];
-  const FAMILY_LABEL = { commander: "Commander", constructed: "Constructed" };
+  // The picker groups by the served family (its label is served too — the Format
+  // is the one authority, ADR-0045); the order is the table's.
+  $: families = [
+    ...new Map($formatOptions.map((f) => [f.family, f.family_label])),
+  ];
 
   function startEdit() {
     draft = $buildName;
@@ -82,8 +83,8 @@
   <div class="meta">
     <BuildMenu />
     <select class="chip format" title="Deck format" on:change={changeFormat}>
-      {#each families as fam (fam)}
-        <optgroup label={FAMILY_LABEL[fam] ?? fam}>
+      {#each families as [fam, label] (fam)}
+        <optgroup {label}>
           {#each $formatOptions.filter((f) => f.family === fam) as f (f.id)}
             <option value={f.id} selected={f.id === $deck.format}
               >{f.label}</option

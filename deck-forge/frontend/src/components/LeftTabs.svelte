@@ -1,7 +1,8 @@
 <script>
-  import { activeTab, hasCommander } from "../lib/store.js";
+  import { activeTab, hasCommander, poolBounded } from "../lib/store.js";
   import Find from "./Find.svelte";
   import Commanders from "./Commanders.svelte";
+  import Pool from "./Pool.svelte";
   import Combos from "./Combos.svelte";
   import Export from "./Export.svelte";
   import Tune from "./Tune.svelte";
@@ -13,9 +14,15 @@
     ["combos", "Combos"],
     ["export", "Export"],
   ];
-  // Commander discovery only means something with a command zone.
-  $: tabs = TABS.filter(([id]) => id !== "commanders" || $hasCommander);
+  // Commander discovery only means something with a command zone; a sealed /
+  // draft build gets the Pool panel in its place.
+  $: tabs = TABS.flatMap(([id, label]) => {
+    if (id !== "commanders") return [[id, label]];
+    if ($hasCommander) return [[id, label]];
+    return $poolBounded ? [["pool", "Pool"]] : [];
+  });
   $: if (!$hasCommander && $activeTab === "commanders") activeTab.set("find");
+  $: if (!$poolBounded && $activeTab === "pool") activeTab.set("find");
 </script>
 
 <div class="left">
@@ -33,6 +40,8 @@
   <div class="tabbody">
     {#if $activeTab === "commanders"}
       <Commanders />
+    {:else if $activeTab === "pool"}
+      <Pool />
     {:else if $activeTab === "tune"}
       <Tune />
     {:else if $activeTab === "combos"}

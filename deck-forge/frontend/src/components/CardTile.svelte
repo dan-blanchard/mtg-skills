@@ -125,7 +125,7 @@
         >
         {#if $sideboardSize > 0}
           <button
-            class="btn star sb"
+            class="btn star"
             title="Add to the sideboard"
             on:click={() => onadd(card.name, "sideboard")}>SB</button
           >

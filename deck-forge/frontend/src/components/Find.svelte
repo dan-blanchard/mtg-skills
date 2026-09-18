@@ -14,6 +14,8 @@
     hasCommander,
     maxCopies,
     deckColors,
+    poolBounded,
+    pool,
   } from "../lib/store.js";
   import { facetOk } from "../lib/filter.js";
   import { copyLimit } from "../lib/cards.js";
@@ -298,6 +300,13 @@
           title="Exact colors — match this color identity exactly, no broader pools"
           on:click={() => (exactColors = !exactColors)}>⊜ Exact</button
         >
+        {#if $poolBounded}
+          <span
+            class="deckcolors"
+            title="A sealed / draft build searches only its opened pool"
+            >pool: {$pool?.size ?? 0} cards</span
+          >
+        {/if}
         {#if !$hasCommander && $deckColors}
           <span
             class="deckcolors"

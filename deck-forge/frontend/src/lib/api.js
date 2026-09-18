@@ -64,8 +64,13 @@ export const api = {
   buildsNew: (format = "commander", name = "Untitled") =>
     post("/api/builds/new", { format, name }),
   // Import an existing list (paste or uploaded file text) as a NEW build (ADR-0017).
-  importDeck: (text, format = "commander", name = null) =>
-    post("/api/builds/import", { text, format, name }),
+  // pool_only (sealed / draft): the whole list is the opened pool, no deck yet.
+  importDeck: (text, format = "commander", name = null, pool_only = false) =>
+    post("/api/builds/import", { text, format, name, pool_only }),
+  // What a set holds (removal by rarity, sweepers, evasion, the biggest bodies).
+  setScan: (code) => get(`/api/set-scan?code=${encodeURIComponent(code)}`),
+  // Seed a first 40 from a sealed / draft pool in the chosen colours.
+  seedBuild: (colors) => post("/api/deck/seed", { colors }),
   // Import a collection into a slot (paper | arena) — derived ownership (ADR-0018).
   importCollection: (text, slot) =>
     post("/api/collection/import", { text, slot }),

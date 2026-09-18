@@ -13,6 +13,7 @@
   let text = "";
   let name = "";
   let format = "commander";
+  let poolOnly = false;
   let busy = false;
   let error = "";
   let result = null;
@@ -46,7 +47,7 @@
     if (!text.trim() || busy) return;
     busy = true;
     error = "";
-    const r = await api.importDeck(text, format, name.trim() || null);
+    const r = await api.importDeck(text, format, name.trim() || null, poolOnly);
     busy = false;
     if (!r.ok) {
       error = r.data.error || `import failed (${r.status})`;
@@ -55,6 +56,9 @@
     applySnapshot(r.data);
     result = r.data.imported || { commanders: 0, cards: 0, unknown: [] };
   }
+  // The chosen format's served row — a sealed / draft import pools every card.
+  $: chosen = $formatOptions.find((f) => f.id === format);
+  $: limited = chosen?.pool_bounded === true;
 </script>
 
 {#if $importOpen}
@@ -80,6 +84,9 @@
           <p class="ok">Imported into a new build.</p>
           <ul>
             <li>{result.cards} card{result.cards === 1 ? "" : "s"}</li>
+            {#if result.pool}
+              <li>{result.pool} in the pool ({result.sideboard} unused)</li>
+            {/if}
             <li>
               {result.commanders} commander{result.commanders === 1 ? "" : "s"}
               {#if result.commanders === 0}
@@ -107,10 +114,16 @@
         </div>
       {:else}
         <p class="hint">
-          Paste a list (Moxfield / Arena / MTGO / CSV / plain) or upload a file.
-          A marked commander is detected automatically; an unmarked list lands
-          as a pile you promote from. Imports into a <b>new</b> build — your current
-          deck is untouched.
+          {#if limited}
+            Paste your Arena / Moxfield export — its <b>Deck</b> becomes your
+            main deck and <b>Deck + Sideboard</b> become the pool. A bare list
+            is all pool. Imports into a <b>new</b> build.
+          {:else}
+            Paste a list (Moxfield / Arena / MTGO / CSV / plain) or upload a
+            file. A marked commander is detected automatically; an unmarked list
+            lands as a pile you promote from. Imports into a <b>new</b> build — your
+            current deck is untouched.
+          {/if}
         </p>
         <textarea
           bind:value={text}
@@ -131,6 +144,12 @@
             <input bind:value={name} placeholder="Imported deck" />
           </label>
         </div>
+        {#if limited}
+          <label class="check">
+            <input type="checkbox" bind:checked={poolOnly} />
+            This is the whole pool (no deck built yet)
+          </label>
+        {/if}
         <div class="row between">
           <label class="file">
             <input
@@ -157,6 +176,15 @@
 {/if}
 
 <style>
+  .check {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.82rem;
+    color: var(--parchment-dim);
+    margin: 0.2rem 0 0.4rem;
+  }
+
   .backdrop {
     position: fixed;
     inset: 0;

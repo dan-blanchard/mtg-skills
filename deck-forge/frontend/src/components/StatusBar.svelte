@@ -19,6 +19,7 @@
     sizeIsMinimum,
     sideboardSize,
     deckSizeDefault,
+    poolBounded,
   } from "../lib/store.js";
   import {
     landState,
@@ -94,10 +95,15 @@
       >
     </div>
     {#if $sideboardSize > 0}
-      <div class="stat" title="Sideboard (CR 100.4a: at most {$sideboardSize})">
-        <b>{sideboardCount}</b><span class="o">/{$sideboardSize}</span><em
-          >side</em
-        >
+      <div
+        class="stat"
+        title={Number.isFinite($sideboardSize)
+          ? `Sideboard (CR 100.4a: at most ${$sideboardSize})`
+          : "The unused pool"}
+      >
+        <b>{sideboardCount}</b>{#if Number.isFinite($sideboardSize)}<span
+            class="o">/{$sideboardSize}</span
+          >{/if}<em>{$poolBounded ? "unused" : "side"}</em>
       </div>
     {/if}
     <div class="stat"><b>{$stats?.avg_cmc ?? 0}</b><em>avg</em></div>
@@ -115,7 +121,9 @@
         {/each}
       </div>
     {/if}
-    {#if $deck.medium === "digital"}
+    {#if $poolBounded}
+      <!-- an opened pool is owned outright: nothing to craft or buy -->
+    {:else if $deck.medium === "digital"}
       <div
         class="stat wc"
         title="Arena wildcards needed for cards you don't own (basics are free)"

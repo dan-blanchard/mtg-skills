@@ -10,6 +10,7 @@
     maxCopies,
     sideboardSize,
     deckSizeDefault,
+    poolBounded,
   } from "../lib/store.js";
   import { api } from "../lib/api.js";
   import { hoverPreview } from "../lib/hover.js";
@@ -36,6 +37,7 @@
     zoneError = "";
     const r = await api.remove(name, zone, 1);
     if (r.ok) applySnapshot(r.data);
+    else zoneError = r.data.error || "couldn't remove";
   }
 
   async function addOne(name, zone) {
@@ -151,7 +153,10 @@
   $: target = $deck.deck_size ?? $deckSizeDefault;
   // The zones, by family: the Command Zone only where the format has one; the
   // companion zone (D) right after it, only when occupied; the sideboard where the
-  // format has one (rendered even when empty, so its ⇄ affordance is discoverable).
+  // format has one (rendered even when empty, so its ⇄ affordance is discoverable —
+  // for a sealed / draft build it is the unused pool, derived and uncapped); the
+  // opened pool last, collapsed by default.
+  let poolOpen = false;
   $: groups = [
     ...($hasCommander
       ? [{ key: "commanders", label: "Command Zone", cards: $deck.commanders }]
@@ -164,16 +169,42 @@
       ? [
           {
             key: "sideboard",
-            label: "Sideboard",
+            label: $poolBounded ? "Sideboard — unused pool" : "Sideboard",
             cards: $deck.sideboard || [],
-            cap: $sideboardSize,
+            cap: Number.isFinite($sideboardSize) ? $sideboardSize : null,
           },
         ]
+      : []),
+    ...($poolBounded
+      ? [{ key: "pool", label: "Pool", cards: $deck.pool || [] }]
       : []),
   ];
   // Copies in a group (a 4-of is four cards, a singleton group reads as before).
   const copies = (cards) =>
     cards.reduce((sum, c) => sum + (c.quantity || 1), 0);
+  // The copies of a name the build holds across every zone the copy limit spans —
+  // the same count the hub's rule reads, so the stepper and Find agree.
+  $: held = [
+    ...$deck.commanders,
+    ...$deck.cards,
+    ...($deck.sideboard || []),
+    ...($deck.companion || []),
+  ].reduce(
+    (m, c) => m.set(c.name, (m.get(c.name) || 0) + (c.quantity || 1)),
+    new Map(),
+  );
+  $: poolQty = new Map(
+    ($deck.pool || []).map((c) => [c.name, c.quantity || 1]),
+  );
+  // Whether one more copy may be added to the deck: the pool's count for a sealed /
+  // draft build (basics unlimited), the format's copy limit otherwise.
+  function canAddAnother(c) {
+    if ($poolBounded) {
+      if (/\bBasic Land\b/.test(c.type_line || "")) return true;
+      return (c.quantity || 1) < (poolQty.get(c.name) ?? 0);
+    }
+    return (held.get(c.name) || 0) < copyLimit(c, $maxCopies);
+  }
   // Whether any filter is set (so we only show "N of M" and the clear hint when filtering).
   $: filtering = !!(fName || fType || fCmc || fPrice || fRarity || fOwned);
   // Filter each group client-side with the shared predicate. The facet values are read
@@ -264,6 +295,14 @@
       {#if g.cards.length || (g.key === "sideboard" && !filtering)}
         <div class="group">
           <div class="group-head">
+            {#if g.key === "pool"}
+              <button
+                class="fold"
+                title={poolOpen ? "Collapse the pool" : "Show the pool"}
+                on:click={() => (poolOpen = !poolOpen)}
+                >{poolOpen ? "▾" : "▸"}</button
+              >
+            {/if}
             {g.label}
             <span class:over={g.cap && g.total > g.cap}
               >· {filtering
@@ -292,10 +331,17 @@
           {/if}
           {#if g.key === "sideboard" && !g.cards.length}
             <div class="zone-note">
-              Empty — use ⇄ on a deck card, or SB on a Find result
+              {$poolBounded
+                ? "Empty — every opened card is in the deck"
+                : "Empty — use ⇄ on a deck card, or SB on a Find result"}
             </div>
           {/if}
-          {#each g.cards as c (c.name)}
+          {#if g.key === "pool" && !poolOpen}
+            <div class="zone-note">
+              Your opened cards — the deck and sideboard are drawn from them
+            </div>
+          {/if}
+          {#each g.key === "pool" && !poolOpen ? [] : g.cards as c (c.name)}
             <div class="row" use:hoverPreview={c}>
               <div class="thumb">
                 {#if c.images?.small}
@@ -359,7 +405,7 @@
                     on:click={() => promote(c.name)}>★</button
                   >
                 {/if}
-                {#if g.key === "cards" && looksCompanion(c)}
+                {#if g.key === "cards" && !$poolBounded && looksCompanion(c)}
                   <button
                     class="rm star"
                     title="Set as companion — revealed from outside the game"
@@ -369,31 +415,39 @@
                 {#if g.key === "cards" && $sideboardSize > 0}
                   <button
                     class="rm star"
-                    title="Move one to the sideboard"
+                    title={$poolBounded
+                      ? "Cut one to the unused pool"
+                      : "Move one to the sideboard"}
                     on:click={() => moveOne(c.name, "cards", "sideboard")}
                     >⇄</button
                   >
                 {/if}
-                {#if g.key === "sideboard"}
+                {#if g.key === "sideboard" || g.key === "pool"}
                   <button
                     class="rm star"
-                    title="Move one to the main deck"
-                    on:click={() => moveOne(c.name, "sideboard", "cards")}
-                    >⇄</button
+                    title="Play one — move it to the main deck"
+                    on:click={() =>
+                      g.key === "pool"
+                        ? addOne(c.name, "cards")
+                        : moveOne(c.name, "sideboard", "cards")}>⇄</button
                   >
                 {/if}
-                {#if (g.key === "cards" || g.key === "sideboard") && (c.quantity || 1) < copyLimit(c, $maxCopies)}
+                {#if (g.key === "cards" || (g.key === "sideboard" && !$poolBounded)) && canAddAnother(c)}
                   <button
                     class="rm add"
                     title="Add another"
                     on:click={() => addOne(c.name, g.key)}>+</button
                   >
                 {/if}
-                <button
-                  class="rm"
-                  title="Remove one"
-                  on:click={() => remove(c.name, g.key)}>−</button
-                >
+                {#if !(g.key === "sideboard" && $poolBounded)}
+                  <button
+                    class="rm"
+                    title={g.key === "pool"
+                      ? "Remove one from the pool"
+                      : "Remove one"}
+                    on:click={() => remove(c.name, g.key)}>−</button
+                  >
+                {/if}
               </div>
             </div>
             {#if pickerKey === keyOf(c, g.key)}
@@ -521,6 +575,14 @@
   }
   .group-head .over {
     color: var(--fail);
+  }
+  .fold {
+    background: transparent;
+    border: none;
+    color: var(--brass);
+    font-size: 0.9rem;
+    padding: 0 0.2rem 0 0;
+    cursor: pointer;
   }
   .group-head .subtotal {
     float: right;

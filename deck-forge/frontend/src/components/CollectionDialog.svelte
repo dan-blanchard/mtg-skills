@@ -6,7 +6,7 @@
   import {
     collectionOpen,
     collection,
-    deck,
+    isDigital,
     applySnapshot,
   } from "../lib/store.js";
   import { api } from "../lib/api.js";
@@ -26,7 +26,7 @@
 
   // Default the slot to the live deck's medium, on open (the same rule the hub's
   // active slot follows).
-  $: defaultSlot = $deck.medium === "digital" ? "arena" : "paper";
+  $: defaultSlot = $isDigital ? "arena" : "paper";
   $: if ($collectionOpen && result === null && !busy) slot = defaultSlot;
 
   function close() {

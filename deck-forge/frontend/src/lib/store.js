@@ -30,10 +30,19 @@ export const hasCommander = derived(
   currentFormat,
   ($f) => $f?.has_commander ?? true,
 );
-export const maxCopies = derived(currentFormat, ($f) => $f?.max_copies ?? 1);
-export const sideboardSize = derived(
+// A null limit / cap on the served row means NONE (a limited pool: as many copies
+// as were opened, the whole unused pool as the sideboard) — Infinity here, so the
+// comparisons read naturally; before the first snapshot the defaults are Commander's.
+export const maxCopies = derived(currentFormat, ($f) =>
+  $f ? ($f.max_copies ?? Infinity) : 1,
+);
+export const sideboardSize = derived(currentFormat, ($f) =>
+  $f ? ($f.sideboard_size ?? Infinity) : 0,
+);
+// A sealed / draft build: bounded by its opened pool, the sideboard derived.
+export const poolBounded = derived(
   currentFormat,
-  ($f) => $f?.sideboard_size ?? 0,
+  ($f) => $f?.pool_bounded ?? false,
 );
 export const sizeIsMinimum = derived(
   currentFormat,
@@ -47,6 +56,9 @@ export const deckSizeDefault = derived(
 // command zone, else the castable colors of the cards the deck runs (a caption for
 // a constructed build — the pips stay unlocked).
 export const deckColors = writable("");
+// The pool panel a sealed / draft snapshot serves ({ size, unused, color_pairs }),
+// null for every other family.
+export const pool = writable(null);
 export const stats = writable(null);
 export const bracket = writable(null);
 export const mana = writable(null);
@@ -106,6 +118,7 @@ export function applySnapshot(snap) {
   // format switch clears the stale pill.
   if ("bracket" in snap) bracket.set(snap.bracket);
   if ("deck_colors" in snap) deckColors.set(snap.deck_colors);
+  if ("pool" in snap) pool.set(snap.pool);
   if (snap.mana) mana.set(snap.mana);
   if (snap.budgets) budgets.set(snap.budgets);
   if (snap.signals) signals.set(snap.signals);

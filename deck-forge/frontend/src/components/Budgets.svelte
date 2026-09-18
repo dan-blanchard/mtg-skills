@@ -28,19 +28,17 @@
                   <i title="A fact about the deck, not a slot to fill">·adv</i
                   >{/if}</span
               >
-              <span class="num" class:met={$budgets[role].remaining === 0}>
-                {$budgets[role].current}/{$budgets[role].target}
+              <span class="num" class:met={row.remaining === 0}>
+                {row.current}/{row.target}
               </span>
             </div>
             <div class="track">
               <div
                 class="fill"
-                class:met={$budgets[role].remaining === 0}
+                class:met={row.remaining === 0}
                 style="width: {Math.min(
                   100,
-                  ($budgets[role].current /
-                    Math.max(1, $budgets[role].target)) *
-                    100,
+                  (row.current / Math.max(1, row.target)) * 100,
                 )}%"
               ></div>
             </div>
