@@ -51,6 +51,7 @@ from mtg_utils._analysis._subtypes import LAND_SUBTYPES
 from mtg_utils._analysis._sweep_detectors import NAMED_PERMANENT_REGEX
 from mtg_utils._analysis.signal_base import Signal
 from mtg_utils._card_ir.crosswalk import (
+    ARTIFACT_TOKEN_SUBTYPES,
     DAMAGE_EFFECT_TAGS,
     aggregate_filter,
     damage_recipient,
@@ -708,43 +709,15 @@ def _base_pt_tk_animate_match(tree: ConceptTree) -> bool:
     )
 
 
-# (5) A DYNAMIC "base power and toughness each equal to <mana value | X>"
-# scalar-set clause phase drops ENTIRELY from the site's own modifications
-# (Captain Rex Nebula's mana-value CDA-like scalar, Fractalize's "X plus 1"
-# scalar — CR 613.4b) — the site's own ``description`` DOES carry the hook
-# text (unlike bridges 1-4's whole-clause drop), and the target resolves
-# fine, but no ``SetPowerDynamic``/``SetToughnessDynamic`` modification
-# node exists anywhere on that site for phase to have dropped a residue
-# for. Self-retiring PER SITE: the day phase decomposes the "each equal to"
-# scalar into a typed SetDynamic pair at that exact site, this predicate
-# goes False on that card AND the main lane's existing dynamic-pair arm
-# picks it up structurally with zero further edits. Census: 2/31,622
-# commander-legal (exactly the 2 pins).
-_BASE_PT_EACH_EQUAL_TO_RX = re.compile(
-    r"base power and toughness each equal to\b", re.IGNORECASE
-)
-
-
-def _base_pt_each_equal_to_dropped(tree: ConceptTree) -> bool:
-    for ge in tree.iter_typed():
-        if tag_of(ge) != "GenericEffect":
-            continue
-        for st in getattr(ge, "static_abilities", None) or []:
-            desc = getattr(st, "description", "") or ""
-            if not _BASE_PT_EACH_EQUAL_TO_RX.search(desc):
-                continue
-            mods = {tag_of(m) for m in (getattr(st, "modifications", None) or [])}
-            if not (
-                mods
-                & {
-                    "SetPower",
-                    "SetToughness",
-                    "SetPowerDynamic",
-                    "SetToughnessDynamic",
-                }
-            ):
-                return True
-    return False
+# (5) RETIRED at the v0.86.0 pin bump: the DYNAMIC "base power and toughness each
+# equal to <mana value | X>" scalar (CR 613.4b) now decomposes into the typed
+# ``SetPowerDynamic``/``SetToughnessDynamic`` pair (Fractalize is served by the main
+# lane's dynamic-pair arm). Captain Rex Nebula regressed differently: v0.86.0 parks
+# its WHOLE "Crash Land — Whenever ~ deals damage …" trigger as an
+# ``unrecognized_clause_head`` residue whose description is truncated to the
+# trigger head — the hook text is not on the tree at all, so no residue-backed
+# bridge can serve it. Logged as a lost card, not bridged
+# (``base_pt_each_equal_to_dropped``, 2026-07-11 → 2026-09-17).
 
 
 # (7) A ``BecomeCopy`` "except it's N/N" fixed P/T override with NO
@@ -826,27 +799,14 @@ def _donate_superlative_match(tree: ConceptTree) -> bool:
     return any(_DONATE_SUPERLATIVE_RX.search(d) for d in _unbound_subject_descs(tree))
 
 
-# (b) "this emblem deals N damage to any target" → direct_damage. A
-# planeswalker's emblem (CR 114.1 — an object with abilities in the command
-# zone) whose granted trigger names ITSELF by type as the damage source:
-# Chandra, Spark Hunter / Torch of Defiance, Koth, Fire of Resistance,
-# Narset of the Ancient Way ("N damage to any target"), Chandra, Dressed to
-# Kill ("X damage to any target, where X …"), and Chandra, Awakened Inferno
-# — whose +2 hands EACH OPPONENT an emblem reading "this emblem deals 1
-# damage to you" (the emblem's own controller, i.e. the opponent) — 6 at
-# v0.66.0, every one a typed nested ``DealDamage`` at v0.45.0. "Any target"
-# reaches a player by rule (CR 115.4) and the Awakened Inferno emblem's
-# "you" IS a player, so the same player-reaching gap the other
-# direct_damage bridges share applies.
-_EMBLEM_DAMAGE_RX = re.compile(
-    r"^this emblem deals (?:\d+|x) damage to (?:any target|you|each opponent"
-    r"|that player|target (?:player|opponent))\b",
-    re.IGNORECASE,
-)
-
-
-def _emblem_damage_match(tree: ConceptTree) -> bool:
-    return any(_EMBLEM_DAMAGE_RX.search(d) for d in _unbound_subject_descs(tree))
+# RETIRED at the v0.86.0 pin bump: phase binds "this emblem" as the damage source
+# inside a ``CreateEmblem`` granted trigger again (phase-rs/phase#8169), so the
+# ``unbound_subject`` residue is gone and the direct_damage lane serves Chandra,
+# Spark Hunter / Koth / Narset structurally (``emblem_self_reference_damage_
+# unbound_subject``, 2026-08-29 → 2026-09-17). Chandra, Awakened Inferno's
+# opponent-owned "this emblem deals 1 damage to you" emblem is the one member the
+# lane does not read (the recipient is the emblem's own controller — the opponent
+# — which the player-reaching read files as self-damage); logged, not bridged.
 
 
 # ── phase v0.66.0 pin bump: the "each <source> … deals damage equal to its
@@ -1765,21 +1725,27 @@ def _combat_choice_match(tree: ConceptTree) -> bool:
 # Sacrifice branch; the v0.26.0+ reflexive-payment rework parks the WHOLE body
 # as ``Unimplemented(name='reflexive optional payment')`` instead. Gap is the
 # shared tree-wide ``_no_typed_sacrifice_node`` absence proof.
-_ARTIFACT_SAC_REFLEXIVE_RX = re.compile(
-    r"sacrifice an? (?:artifact|Food)\b", re.IGNORECASE
-)
-
-
-def _artifact_sac_reflexive_payment_match(tree: ConceptTree) -> bool:
-    for unit in tree.units:
-        for cn in unit.iter_concepts():
-            node = cn.node
-            if (
-                tag_of(node) == "Unimplemented"
-                and getattr(node, "name", None) == "reflexive optional payment"
-                and _ARTIFACT_SAC_REFLEXIVE_RX.search(
-                    str(getattr(node, "description", "") or "")
-                )
+def _paycost_artifact_sacrifice_undecorated(tree: ConceptTree) -> bool:
+    """phase v0.86.0 structures the reflexive payment (the ``Unimplemented('reflexive
+    optional payment')`` residue of v0.26.0-v0.66.0 is gone): "you may sacrifice a
+    Food or pay {2}{W}. When you do, …" is now an effect-role ``PayCost`` whose
+    ``OneOf`` cost carries a typed ``Sacrifice(Food)`` leaf, with the reflexive body
+    on a ``WhenYouDo`` sub-ability (CR 603.12). The gap is OURS now: the overlay
+    decorates activation costs and top-level effects, so a sacrifice inside an
+    effect's own cost never becomes a ``sacrifice`` concept the artifacts_matter
+    read sees. True when such a leaf names an artifact (core type or a predefined
+    artifact-token subtype) and no sacrifice concept was decorated anywhere."""
+    if any(c.concept == "sacrifice" for c in tree.iter_concepts()):
+        return False
+    for n in tree.iter_typed():
+        if tag_of(n) != "PayCost":
+            continue
+        for leaf in iter_cost_leaves(getattr(n, "cost", None)):
+            if tag_of(leaf) != "Sacrifice":
+                continue
+            filt = getattr(leaf, "target", None)
+            if "Artifact" in filter_core_types(filt) or (
+                {x.lower() for x in filter_subtypes(filt)} & ARTIFACT_TOKEN_SUBTYPES
             ):
                 return True
     return False
@@ -2559,33 +2525,6 @@ BRIDGES: dict[str, Bridge] = {
             match=_base_pt_tk_animate_match,
         ),
         Bridge(
-            bridge_id="base_pt_each_equal_to_dropped",
-            key="base_pt_set",
-            scope="any",
-            kind="dropped_clause",
-            todo=(
-                "upstream phase-rs report candidate (Dan posts): a DYNAMIC "
-                "'base power and toughness each equal to <mana value | X>' "
-                "scalar-set clause is dropped from the site's own "
-                "modifications entirely (the site's own description DOES "
-                "carry the hook text and the target resolves fine — only "
-                "the SetPowerDynamic/SetToughnessDynamic pair itself is "
-                "missing) — retires on a phase bump that decomposes the "
-                "'each equal to' scalar the way a 'become equal to your "
-                "life total' scalar already does (Aettir and Priwen)"
-            ),
-            census=(
-                "2 hits / 31,622 commander-legal GenericEffect static "
-                "sites whose OWN description matches 'base power and "
-                "toughness each equal to' with no SetPower*/SetToughness* "
-                "modification present, phase v0.20.0, 2026-07-11 (exactly "
-                "the 2 pins)"
-            ),
-            pins=("Captain Rex Nebula", "Fractalize"),
-            gap=_base_pt_each_equal_to_dropped,
-            match=_base_pt_each_equal_to_dropped,
-        ),
-        Bridge(
             bridge_id="base_pt_becomecopy_no_pt_override",
             key="base_pt_set",
             scope="any",
@@ -2636,30 +2575,6 @@ BRIDGES: dict[str, Bridge] = {
             pins=("Thoughtbound Primoc",),
             gap=_no_control_change_node,
             match=_donate_superlative_match,
-        ),
-        Bridge(
-            bridge_id="emblem_self_reference_damage_unbound_subject",
-            key="direct_damage",
-            kind="upstream_parse_failure",
-            todo=(
-                "FILED upstream as phase-rs/phase#8169 (2026-08-29): the v0.46.0 "
-                "fail-closed subject binder (#7003) can't bind 'this emblem' "
-                "as the damage source inside a CreateEmblem granted trigger, "
-                "parking 'this emblem deals N damage to any target' as an "
-                "Unimplemented('unbound_subject') residue — a typed nested "
-                "DealDamage{target: Any} through v0.45.0. Retires on a phase "
-                "bump that binds the emblem's self-reference"
-            ),
-            census=(
-                "6 hits / 35,798 corpus records, all commander-legal "
-                "(Chandra, Spark Hunter / Torch of Defiance, Koth, Fire of "
-                "Resistance, Narset of the Ancient Way, Chandra, Dressed to "
-                "Kill's X-damage form, Chandra, Awakened Inferno's "
-                "opponent-owned 'to you' emblem), phase v0.66.0, 2026-08-29"
-            ),
-            pins=("Chandra, Spark Hunter",),
-            gap=_no_player_reaching_damage_node,
-            match=_emblem_damage_match,
         ),
         Bridge(
             bridge_id="removal_each_source_power_rider",
@@ -3296,34 +3211,29 @@ BRIDGES: dict[str, Bridge] = {
             match=_illusionists_gambit_match,
         ),
         Bridge(
-            bridge_id="artifact_sac_reflexive_payment_unparsed",
+            bridge_id="artifact_sac_reflexive_payment_undecorated",
             key="artifacts_matter",
-            kind="upstream_parse_failure",
+            kind="grammar_straggler",
             todo=(
-                "upstream phase-rs report candidate (Dan posts): the "
-                "v0.26.0-v0.35 reflexive-payment rework parks a 'you may "
-                "sacrifice a Food or pay {2}{W}. When you do, ...' "
-                "trigger body (CR 603.12 reflexive trigger) WHOLE as "
-                "Unimplemented(name='reflexive optional payment') — at "
-                "v0.23.0 the same body decomposed to a ChooseOneOf "
-                "carrying a typed Food Sacrifice branch the lane's deep "
-                "scan read (a REGRESSION, not a never-parsed gap) — "
-                "retires on a phase bump that re-lands the typed "
-                "Sacrifice branch inside the reflexive-payment structure"
+                "grammar sprint: decorate the cost leaves of an EFFECT-role "
+                "``PayCost`` (phase v0.86.0's reflexive-payment shape — "
+                "``PayCost{cost: OneOf[Sacrifice(Food), Mana]}`` + a "
+                "``WhenYouDo`` sub-ability, CR 603.12) as cost concepts the way "
+                "an activation cost's leaves are, so a 'sacrifice a Food' "
+                "payment reads as a sacrifice concept and the artifacts_matter "
+                "read serves it with no bridge. Through v0.66.0 the same body "
+                "was an Unimplemented('reflexive optional payment') residue "
+                "(an upstream gap, closed at v0.86.0)"
             ),
             census=(
-                "4 commander-legal cards carry the reflexive-optional-"
-                "payment residue at v0.35.2 (2026-07-24); 2 name an "
-                "artifact-subtype sacrifice (Nimble Hobbit's Food — CR "
-                "205.3g; Bullseye, Death Dealer's artifact), and only "
-                "Nimble Hobbit loses serving (Bullseye's SIBLING "
-                "activated ability carries a fully-typed "
-                "Sacrifice(Artifact) cost, so the tree-wide gap stands "
-                "this bridge down there — served structurally either way)"
+                "1 commander-legal card lost artifacts_matter at the v0.86.0 "
+                "bump (Nimble Hobbit — the pin; Bullseye, Death Dealer's SIBLING "
+                "activated ability carries a fully-typed Sacrifice(Artifact) "
+                "cost, so it is served structurally either way), 2026-09-17"
             ),
             pins=("Nimble Hobbit",),
-            gap=_no_typed_sacrifice_node,
-            match=_artifact_sac_reflexive_payment_match,
+            gap=_paycost_artifact_sacrifice_undecorated,
+            match=_paycost_artifact_sacrifice_undecorated,
         ),
         Bridge(
             bridge_id="choice_list_token_maker_blood",

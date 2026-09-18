@@ -48,6 +48,7 @@ from mtg_utils._card_ir.crosswalk import (
     iter_mod_sites,
     iter_typed_nodes,
     recipient_tag,
+    residue_is,
     static_mode_tag,
     tag_of,
     trigger_constraint_tag,
@@ -674,10 +675,28 @@ def _arm_group_hug_draw(tree: ConceptTree) -> ConceptNode | None:
 def has_structural_dice_makers(tree: ConceptTree) -> bool:
     """Whether the card has a structural (typed, flat OR nested) die-roll
     node anywhere — the dice_makers TYPED gate. Shared verbatim with the
-    ``_dice_makers`` lane and the reroll-only synthesis arm's gap gate below."""
-    if tree.effect_concepts("roll_die"):
-        return True
-    return any(has_nested_roll_die(u.node) for u in tree.units)
+    ``_dice_makers`` lane and the reroll-only synthesis arm's gap gate below.
+
+    A ``RollDie`` inside a REPLACEMENT of the ``RollDice`` event is not a doer:
+    "if you would roll one or more dice, instead roll that many plus one"
+    (Pixie Guide's Grant an Advantage — phase v0.86.0 parses it as a
+    ``replacements[]`` entry with ``event: RollDice`` + ``die_ignore_rule``,
+    an ``Unimplemented('replacement_structure')`` residue through v0.66.0)
+    modifies a roll some OTHER instruction started (CR 706.6 / 614.1a), so
+    the card alone never rolls — it stays dice_matters territory."""
+    for unit in tree.units:
+        if unit.origin == "replacement" and _replaces_die_roll(unit.node):
+            continue
+        if any(c.concept == "roll_die" for c in unit.effect_concepts("roll_die")):
+            return True
+        if has_nested_roll_die(unit.node):
+            return True
+    return False
+
+
+def _replaces_die_roll(node: object) -> bool:
+    """A replacement unit whose replaced event is the die roll itself."""
+    return getattr(node, "event", None) == "RollDice"
 
 
 # reroll-only die ACTION idiom (CR 706.8b: "To reroll one or more stored
@@ -1423,7 +1442,7 @@ def _arm_devil_token_quoted_grant(tree: ConceptTree) -> ConceptNode | None:
     if _tree_has_reaching_damage_node(tree):
         return None
     for n in tree.iter_typed():
-        if tag_of(n) != "Unimplemented" or getattr(n, "name", None) != "create":
+        if not residue_is(n, "create"):
             continue
         desc = getattr(n, "description", "") or ""
         if _DEVIL_TOKEN_QUOTED_GRANT_SYNTH_RX.search(desc):

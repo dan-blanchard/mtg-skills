@@ -10,6 +10,7 @@ from mtg_utils._analysis import signal_keys
 from mtg_utils._analysis._subtypes import CREATURE_SUBTYPES
 from mtg_utils._analysis.lanes._shared import (
     _LAND_SUBTYPE_WORDS,
+    _OPP_TOP_WRAPPER_SCOPES,
     _SELF_BLINK_RETURN_TAGS,
     _TAP_EVENTS,
     _kept,
@@ -1082,13 +1083,25 @@ def _opp_top_exile(tree: ConceptTree) -> list[Signal]:
     Wicked Manipulator's pay-life exile rides ChangeZone, not ExileTop —
     doubly out). Scope "you" (the engine controller, matching live).
     """
-    for c in tree.effect_concepts("exile_top"):
-        player = getattr(c.node, "player", None)
-        ptag = tag_of(player)
-        if ptag == "Typed" and filter_controller(player) == "Opponent":
-            return [Signal("opp_top_exile", "you", "", c.raw, tree.name, "high")]
-        if ptag in ("Player", "TriggeringPlayer"):
-            return [Signal("opp_top_exile", "you", "", c.raw, tree.name, "high")]
+    for unit in tree.units:
+        for c in unit.effect_concepts("exile_top"):
+            player = getattr(c.node, "player", None)
+            ptag = tag_of(player)
+            if ptag == "Typed" and filter_controller(player) == "Opponent":
+                return [Signal("opp_top_exile", "you", "", c.raw, tree.name, "high")]
+            if ptag in ("Player", "TriggeringPlayer"):
+                return [Signal("opp_top_exile", "you", "", c.raw, tree.name, "high")]
+            # phase v0.86.0: the steal family (Brainstealer Dragon, Stolen Strategy,
+            # Fire Lord Ozai — a ``ChangeZone`` from an opponent's Library through
+            # v0.66.0) parses as an ``ExileTop`` whose ``player`` is ``Controller``
+            # with the OPPONENT actor on the owning wrapper's ``player_scope`` — the
+            # same "each opponent <does X>" placement the edict reads know.
+            if (
+                ptag in (None, "Controller")
+                and effect_owner_player_scope(unit.node, c.node)
+                in _OPP_TOP_WRAPPER_SCOPES
+            ):
+                return [Signal("opp_top_exile", "you", "", c.raw, tree.name, "high")]
     # b14 §R(a) — the ChangeZone/ChooseFromZone steal-chain family (CR 406.1).
     for unit in tree.units:
         # (1) Exile-from-opponent-library head: ``ChangeZone → Exile`` whose

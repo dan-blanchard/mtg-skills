@@ -5,7 +5,7 @@ Codegen'd from ``tests/fixtures/phase_mirror_schema.json`` by
 
 Part of the generated typed-mirror package (see this directory's
 ``__init__.py``). This module holds content keys ``<root>`` ..
-``MoreThanMeetsTheEye`` (73 keys).
+``ModifyActivationLimit`` (73 keys).
 
 Class naming: ``S_<ckey>`` for a struct shape, ``T_<ckey>__<tag>`` for a tagged
 shape, ``U_<ckey>`` for the union of all tagged shapes at one content_key.
@@ -23,7 +23,7 @@ from mtg_utils._card_ir.mirror.runtime import (
 )
 
 if TYPE_CHECKING:
-    from mtg_utils._card_ir.mirror.generated.g02_morph import (
+    from mtg_utils._card_ir.mirror.generated.g02_modifycost import (
         S_abilities,
         U_additional_cost,
     )
@@ -34,7 +34,7 @@ if TYPE_CHECKING:
         U_amount,
         U_casting_restrictions,
     )
-    from mtg_utils._card_ir.mirror.generated.g04_chooser import (
+    from mtg_utils._card_ir.mirror.generated.g04_choose_scope import (
         S_cleave_variant,
     )
     from mtg_utils._card_ir.mirror.generated.g05_conditional_enter_wi import (
@@ -45,7 +45,6 @@ if TYPE_CHECKING:
         U_count,
         U_data,
         U_deck_copy_limit,
-        U_dynamic_count,
     )
     from mtg_utils._card_ir.mirror.generated.g07_effect import (
         U_effect,
@@ -55,7 +54,7 @@ if TYPE_CHECKING:
         U_filter,
         U_filters,
     )
-    from mtg_utils._card_ir.mirror.generated.g09_land_filter import (
+    from mtg_utils._card_ir.mirror.generated.g09_kind import (
         S_legalities,
         S_metadata,
         S_modal,
@@ -194,6 +193,12 @@ class S_CantCastDuring(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class S_CantCauseForcedAction(TypedMirrorNode):
+    actions: list[object]
+    cause: str
+
+
+@dataclass(frozen=True)
 class S_CantPayCost(TypedMirrorNode):
     cost: str | MirrorVariant
     who: str
@@ -298,6 +303,11 @@ class S_GraveyardCastPermission(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class S_ImmediatePriorSelectedCardOwner(TypedMirrorNode):
+    pass
+
+
+@dataclass(frozen=True)
 class S_Impending(TypedMirrorNode):
     cost: U_cost
     counters: int
@@ -338,14 +348,6 @@ class S_MaxUntapPerType(TypedMirrorNode):
 class S_ModifyActivationLimit(TypedMirrorNode):
     keyword: str
     new_limit: int
-
-
-@dataclass(frozen=True)
-class S_ModifyCost(TypedMirrorNode):
-    amount: U_amount
-    mode: str
-    spell_filter: U_spell_filter | None
-    dynamic_count: U_dynamic_count = MISSING
 
 
 # --- tagged shapes (discriminated enum nodes) ---
@@ -891,13 +893,6 @@ class T_Mobilize__Ref(TypedMirrorNode):
     qty: U_qty
 
 
-@dataclass(frozen=True)
-class T_MoreThanMeetsTheEye__Cost(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "Cost"
-    generic: int
-    shards: list[object]
-
-
 # --- discriminated-union aliases (one per tagged content_key) ---
 
 type U_ActivateTagged = T_ActivateTagged__Equip | T_ActivateTagged__PowerUp
@@ -979,4 +974,3 @@ type U_Mayhem = T_Mayhem__Cost | T_Mayhem__SelfManaCost
 type U_Megamorph = T_Megamorph__Cost
 type U_Miracle = T_Miracle__Cost | T_Miracle__SelfManaCostReduced
 type U_Mobilize = T_Mobilize__Fixed | T_Mobilize__Ref
-type U_MoreThanMeetsTheEye = T_MoreThanMeetsTheEye__Cost

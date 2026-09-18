@@ -70,6 +70,7 @@ from mtg_utils._card_ir.crosswalk import (
     static_mode_tag,
     tag_of,
     trigger_caster_scope,
+    trigger_counter_filter,
     trigger_subject_scope,
 )
 from mtg_utils._card_ir.mirror.runtime import (
@@ -548,7 +549,7 @@ def _sac_effect_names_other_actor(unit: AbilityUnit) -> bool:
 # (Michiko Konda's "a source AN OPPONENT controls deals damage to you" —
 # ``valid_source: Typed(controller='Opponent')``). CR 701.21a.
 _SAC_PTC_OTHER_ACTOR_CONTROLLERS: frozenset[str] = frozenset(
-    {"TargetPlayer", "Opponent", "Opponents", "EachOpponent"}
+    {"TargetPlayer", "TargetOpponent", "Opponent", "Opponents", "EachOpponent"}
 )
 # Liliana of the Veil's -6 ("Separate all permanents TARGET PLAYER
 # controls into two piles. That player sacrifices...") locks the "target
@@ -656,7 +657,11 @@ def _is_you_sac_subject(
         and "EnchantedBy" not in filter_predicates(target)
     ):
         return not _sac_effect_names_other_actor(unit)
-    if ctrl == "ParentTargetController" and unit is not None:
+    # phase v0.86.0: "that creature's controller" resolved off the TRIGGERING
+    # EVENT's target is ``EventTargetController`` (Maarika, Brutal Gladiator's
+    # "Whenever ~ deals damage to a creature, … that creature's controller
+    # sacrifices it") — the same ambiguous-actor idiom as ``ParentTargetController``.
+    if ctrl in ("ParentTargetController", "EventTargetController") and unit is not None:
         return _sac_ptc_you_eligible(unit)
     return False
 
@@ -787,16 +792,34 @@ def _blink_flicker(tree: ConceptTree) -> list[Signal]:
             for c in iter_nested_granted_effect_concepts(unit.node)
             if c.concept == "change_zone"
         ]
-        if not any(
-            change_zone_dirs(c.node)[1] == "Exile" and _battlefield_exile(c, unit)
+        exiles = [
+            c
             for c in czs
-        ):
+            if change_zone_dirs(c.node)[1] == "Exile" and _battlefield_exile(c, unit)
+        ]
+        if not exiles:
             continue
+        # phase v0.86.0: a SELF-exile's return step names the object as ``SelfRef``
+        # again (it was a ``TrackedSet`` back-reference through v0.66.0) — Flickering
+        # Spirit, the soulbond body Deadeye Navigator grants. A Saga's chapter-III
+        # "exile this Saga, then return it transformed" is the same shape but a flip
+        # vehicle, not a blink (CR 714.2b) — the ``self_blink`` lane's own veto; the
+        # old back-reference shape let ~30 Sagas through here.
+        self_exile = (
+            any(tag_of(getattr(c.node, "target", None)) == "SelfRef" for c in exiles)
+            and trigger_counter_filter(unit.node)[0] != "lore"
+        )
         for c in czs:
-            if change_zone_dirs(c.node)[1] != "Battlefield":
+            origin, dest = change_zone_dirs(c.node)
+            if dest != "Battlefield":
                 continue
             tgt = tag_of(getattr(c.node, "target", None))
-            if tgt in ("ParentTarget", "TrackedSet"):  # the SAME exiled object
+            if tgt in ("ParentTarget", "TrackedSet") or (  # the SAME exiled object
+                # …but never unearth's Graveyard→Battlefield self-return whose "exile
+                # it" is the delayed cleanup (Anathemancer, Hell's Thunder — CR
+                # 702.84a): graveyard recursion, not a blink.
+                self_exile and tgt == "SelfRef" and origin != "Graveyard"
+            ):
                 return [Signal("blink_flicker", "you", "", "", tree.name, "high")]
     return []
 
@@ -2675,6 +2698,28 @@ def _creatures_matter(tree: ConceptTree) -> list[Signal]:
                 _count_or_aggregate_filter(getattr(q, "qty", None))
             ):
                 return [Signal("creatures_matter", "you", "", "", tree.name, "high")]
+    # phase v0.86.0 pin bump: a team-scaled damage-prevention REPLACEMENT
+    # (Shield of the Avatar's "prevent X of that damage, where X is the number
+    # of creatures you control" — CR 614.1a / 107.3) is a ``replacements[]``
+    # unit whose ``damage_modification`` (``PreventionMinus{value: {quantity:
+    # Ref(ObjectCount(Typed(You, Creature)))}}``) carries the count — through
+    # v0.66.0 it was a ``PreventDamage`` EFFECT whose ``amount_dynamic`` the
+    # wrapped-count concept read above reached. No concept node decorates a
+    # replacement's modification, so the unit walk reads it here.
+    for unit in tree.units:
+        if unit.origin != "replacement":
+            continue
+        mod = getattr(unit.node, "damage_modification", None)
+        if mod is None:
+            continue
+        # The modification's ``value`` is a ``MirrorVariant`` (key ``quantity``)
+        # wrapping the Ref — read the variant's inner node, not the wrapper.
+        value = getattr(mod, "value", None)
+        q = value.inner if isinstance(value, MirrorVariant) else value
+        if tag_of(q) == "Ref" and _is_generic_creature_filter(
+            _count_or_aggregate_filter(getattr(q, "qty", None))
+        ):
+            return [Signal("creatures_matter", "you", "", "", tree.name, "high")]
     for unit in tree.units:
         for sdef in _iter_creatures_matter_static_defs(unit.node):
             if (

@@ -1,5 +1,5 @@
 {
-  "phase_tag": "v0.66.0",
+  "phase_tag": "v0.86.0",
   "schema_version": 1,
   "cards": {
     "\"Ach! Hans, Run!\"": {
@@ -37,7 +37,7 @@
             "kind": "Spell",
             "effect": {
               "type": "Unimplemented",
-              "name": "say",
+              "name": "unrecognized_clause_head",
               "description": "say ~, run! It's the"
             },
             "cost": null,
@@ -53,7 +53,7 @@
                   "kind": "Spell",
                   "effect": {
                     "type": "Unimplemented",
-                    "name": "\"",
+                    "name": "unparsed_condition",
                     "description": "\" and the name of a creature card. If you do, search your library for a card with that name, put it onto the battlefield, then shuffle. That creature gains haste. Exile it"
                   },
                   "cost": null,
@@ -118,17 +118,9 @@
         "Red"
       ],
       "scryfall_oracle_id": "a2c5ee76-6084-413c-bb70-45490d818374",
-      "metadata": {
-        "source_printing_ids": [
-          "84f2c8f5-8e11-4639-b7de-00e4a2cbabee"
-        ]
-      },
       "legalities": {},
       "printings": [
         "UNH"
-      ],
-      "rarities": [
-        "rare"
       ]
     },
     "\"Brims\" Barone, Midway Mobster": {
@@ -917,17 +909,9 @@
         "White"
       ],
       "scryfall_oracle_id": "dcbf8d0d-a5a8-4dc2-828f-25ccfe87fe0f",
-      "metadata": {
-        "source_printing_ids": [
-          "a732bc65-33fe-4445-ba3f-082578ee837a"
-        ]
-      },
       "legalities": {},
       "printings": [
         "UNK"
-      ],
-      "rarities": [
-        "uncommon"
       ]
     },
     "1996 World Champion": {
@@ -1026,7 +1010,7 @@
                   "kind": "Spell",
                   "effect": {
                     "type": "Unimplemented",
-                    "name": "use",
+                    "name": "unrecognized_clause_head",
                     "description": "Use this ability only at the beginning of your upkeep"
                   },
                   "cost": null,

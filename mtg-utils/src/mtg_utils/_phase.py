@@ -24,7 +24,7 @@ from mtg_utils._http import urllib_get
 # specifically rather than the generic Scryfall/EDHREC/Spellbook UA.
 _USER_AGENT = "mtg-skills/_phase"
 
-PHASE_TAG: str = "v0.66.0"  # rewritten by `bump-phase-pin` (ADR-0049)
+PHASE_TAG: str = "v0.86.0"  # rewritten by `bump-phase-pin` (ADR-0049)
 PHASE_REPO = "https://github.com/phase-rs/phase"
 
 # Since v0.32.0 releases ship no server tarball; instead a small manifest
@@ -327,7 +327,7 @@ def install_phase() -> None:
         )
     elif _checked_out_tag(repo) != PHASE_TAG:
         # A clone from an EARLIER pin: move it to the pinned tag rather than
-        # rebuilding stale sources (the v0.66.0 pin bump found the cache still
+        # rebuilding stale sources (the v0.86.0 pin bump found the cache still
         # at v0.45.0 — nothing re-cloned because the directory existed). A
         # shallow fetch of just the tag keeps the clone small; ``checkout``
         # restores a pristine ai_duel.rs, so the matchup-files patch below
@@ -384,14 +384,14 @@ def _card_data_path() -> Path:
 
 
 # Known-bad card-data records: phase stamps a DIFFERENT card's parse with this
-# oracle_id. The only member at v0.66.0 (re-censused 2026-08-29 at the pin
+# oracle_id. The only member at v0.86.0 (re-censused 2026-08-29 at the pin
 # bump; 1 true impostor, zero errata-drift flags — the v0.45.0 census's 2
 # errata-drift records no longer flag): bulk
 # carries TWO distinct cards named "Fast // Furious" — 62411ced
 # (J21/MH2, commander-legal, discard-draw / damage) and 298a6369 (playtest,
 # not_legal, haste-unblockable / Fuse) — and phase's name-keyed corpus
 # mis-joins the two. Through v0.45.0 it emitted the PLAYTEST card's "Fast"
-# half stamped with the LEGAL card's oracle_id; since v0.66.0 the join runs
+# half stamped with the LEGAL card's oracle_id; since v0.86.0 the join runs
 # the OTHER way: the LEGAL card's "Fast" half ("Discard a card, then draw two
 # cards.") is stamped with the PLAYTEST oracle_id (and the legal card has no
 # record of its own at all — a plain coverage hole, not an impostor). The
@@ -406,7 +406,7 @@ def _card_data_path() -> Path:
 # bulk face text for that oracle_id (v0.23.0: 9 flagged = 8 errata-drift +
 # Fast; v0.35.2: exactly 1 flagged = Fast — the weekly MTGJSON refresh phase
 # runs since v0.32.0 cleaned up the errata drift, the impostor join remains;
-# v0.66.0: exactly 1 flagged = the flipped Fast join).
+# v0.86.0: exactly 1 flagged = the flipped Fast join).
 _IMPOSTOR_RECORDS: frozenset[tuple[str, str]] = frozenset(
     {
         (

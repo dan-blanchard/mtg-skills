@@ -4,8 +4,8 @@ Codegen'd from ``tests/fixtures/phase_mirror_schema.json`` by
 ``mtg_utils._card_ir.mirror.codegen`` (run via ``build-card-ir-substrate``).
 
 Part of the generated typed-mirror package (see this directory's
-``__init__.py``). This module holds content keys ``land_filter`` ..
-``outcome_template`` (41 keys).
+``__init__.py``). This module holds content keys ``kind`` ..
+``outcome_template`` (43 keys).
 
 Class naming: ``S_<ckey>`` for a struct shape, ``T_<ckey>__<tag>`` for a tagged
 shape, ``U_<ckey>`` for the union of all tagged shapes at one content_key.
@@ -27,7 +27,7 @@ if TYPE_CHECKING:
         U_amount,
         U_cap,
     )
-    from mtg_utils._card_ir.mirror.generated.g04_chooser import (
+    from mtg_utils._card_ir.mirror.generated.g04_choose_scope import (
         U_chooser,
         U_colors,
         U_condition,
@@ -170,6 +170,7 @@ class S_modification(TypedMirrorNode):
     creature_subtypes: list[object] = MISSING
     keywords: list[MirrorVariant] = MISSING
     mode: str = MISSING
+    modifications: list[U_modifications] = MISSING
     power: int = MISSING
     power_delta: int = MISSING
     toughness: int = MISSING
@@ -236,6 +237,31 @@ class S_outcome_template(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class T_kind__Card(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "Card"
+
+
+@dataclass(frozen=True)
+class T_kind__ExtraTurn(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "ExtraTurn"
+
+
+@dataclass(frozen=True)
+class T_kind__Food(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "Food"
+
+
+@dataclass(frozen=True)
+class T_kind__TappedFish(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "TappedFish"
+
+
+@dataclass(frozen=True)
+class T_kind__Treasure(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "Treasure"
+
+
+@dataclass(frozen=True)
 class T_land_filter__HasChosenName(TypedMirrorNode):
     _tag: ClassVar[str | None] = "HasChosenName"
 
@@ -298,6 +324,11 @@ class T_library_position__RandomWithinTop(TypedMirrorNode):
 @dataclass(frozen=True)
 class T_library_position__Top(TypedMirrorNode):
     _tag: ClassVar[str | None] = "Top"
+
+
+@dataclass(frozen=True)
+class T_library_shuffle__TerminalShuffle(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "TerminalShuffle"
 
 
 @dataclass(frozen=True)
@@ -815,6 +846,11 @@ class T_op__Unlock(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class T_optional_player__ParentTargetController(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "ParentTargetController"
+
+
+@dataclass(frozen=True)
 class T_optional_player__TriggeringPlayer(TypedMirrorNode):
     _tag: ClassVar[str | None] = "TriggeringPlayer"
 
@@ -845,6 +881,13 @@ class T_origin_constraint__Equals(TypedMirrorNode):
 
 # --- discriminated-union aliases (one per tagged content_key) ---
 
+type U_kind = (
+    T_kind__Card
+    | T_kind__ExtraTurn
+    | T_kind__Food
+    | T_kind__TappedFish
+    | T_kind__Treasure
+)
 type U_land_filter = T_land_filter__HasChosenName | T_land_filter__Typed
 type U_left = T_left__Ref
 type U_lhs = T_lhs__Difference | T_lhs__Fixed | T_lhs__Ref | T_lhs__Sum
@@ -854,6 +897,7 @@ type U_library_position = (
     | T_library_position__RandomWithinTop
     | T_library_position__Top
 )
+type U_library_shuffle = T_library_shuffle__TerminalShuffle
 type U_life_payment = T_life_payment__Fixed
 type U_mana_ability_produced = T_mana_ability_produced__SourceChosenColor
 type U_mana_cost = T_mana_cost__Cost | T_mana_cost__NoCost
@@ -940,6 +984,8 @@ type U_object_source = T_object_source__ParentTarget | T_object_source__TrackedS
 type U_once_per_turn = T_once_per_turn__OnlyOnceEachTurn
 type U_only_tag = T_only_tag__PowerUp
 type U_op = T_op__LockOrUnlock | T_op__Unlock
-type U_optional_player = T_optional_player__TriggeringPlayer
+type U_optional_player = (
+    T_optional_player__ParentTargetController | T_optional_player__TriggeringPlayer
+)
 type U_origin = T_origin__Equals | T_origin__NotEquals | T_origin__OneOf
 type U_origin_constraint = T_origin_constraint__Equals

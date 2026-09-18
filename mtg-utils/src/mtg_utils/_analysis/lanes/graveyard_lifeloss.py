@@ -939,12 +939,19 @@ def _graveyard_matters(tree: ConceptTree) -> list[Signal]:
             # property at all) — an UNAMBIGUOUS owner tag (``Opponent`` —
             # the SAME ``_gy_player_scope`` mapper the count-operand arms
             # already use), so this reads cleanly with no text-fallback
-            # needed. CR 404.1.
+            # needed. CR 404.1. phase v0.86.0 moves the owner: ``zone_owner``
+            # is ``AllOwners`` and the graveyard's owner rides the choice
+            # filter's own ``Owned{controller}`` property (Reclaimer's first
+            # choice ``Owned: Opponent``, its reciprocal ``Owned: You``) — read
+            # through the same mapper.
             if (
                 tag_of(enode) == "ChooseFromZone"
                 and getattr(enode, "zone", None) == "Graveyard"
             ):
-                sc = _gy_player_scope(getattr(enode, "zone_owner", None))
+                owner = getattr(enode, "zone_owner", None)
+                if owner == "AllOwners":
+                    owner = filter_owned_controller(getattr(enode, "filter", None))
+                sc = _gy_player_scope(owner)
                 if sc is not None:
                     fire(sc, c.raw)
                 continue
@@ -1770,14 +1777,23 @@ def _sac_actor_scope(
     ctrl = filter_controller(effect_filter(node))
     if ctrl == "ScopedPlayer":
         return _scoped_player_scope(unit)
-    if ctrl in ("Opponent", "Opponents", "EachOpponent", "TargetPlayer"):
+    # phase v0.86.0: "target opponent" is its own ``TargetOpponent`` tag (283 → 285
+    # TargetPlayer, 38 → 83 TargetOpponent across the card-data) — the same forced
+    # actor as before, one tag narrower.
+    if ctrl in (
+        "Opponent",
+        "Opponents",
+        "EachOpponent",
+        "TargetPlayer",
+        "TargetOpponent",
+    ):
         return "opponents"
     if ctrl in ("All", "EachPlayer", "Each"):
         return "each"
     if unit is not None and getattr(unit, "origin", None) == "trigger":
         if ctrl == "DefendingPlayer":
             return "opponents"
-        if ctrl == "ParentTargetController":
+        if ctrl in ("ParentTargetController", "EventTargetController"):
             return "each"
     return None
 
@@ -1838,7 +1854,7 @@ def _edict_makers(tree: ConceptTree) -> list[Signal]:
 # actors are absent too: they include you (Smallpox, Death Cloud, Keldon Firebombers,
 # Pox — you sac your own lands), keeping the lane.
 _OPP_SAC_ACTORS: frozenset[str] = frozenset(
-    {"Opponent", "Opponents", "EachOpponent", "TargetPlayer"}
+    {"Opponent", "Opponents", "EachOpponent", "TargetPlayer", "TargetOpponent"}
 )
 
 

@@ -39,6 +39,7 @@ from mtg_utils._card_ir.crosswalk import (
     iter_typed_nodes,
     mod_keyword_name,
     modify_cost_mode,
+    residue_is,
     static_mode_field,
     static_mode_tag,
     tag_of,
@@ -1222,7 +1223,7 @@ def _arm_cheat_synthetic_destiny_delayed_reveal(
     hit). bridge_ledger.py's retired
     ``cheat_synthetic_destiny_delayed_reveal`` row."""
     for n in tree.iter_typed():
-        if tag_of(n) != "Unimplemented" or getattr(n, "name", None) != "reveal":
+        if not residue_is(n, "reveal"):
             continue
         desc = getattr(n, "description", "") or ""
         if _CHEAT_SYNTHETIC_DESTINY_SYNTH_RX.search(desc):

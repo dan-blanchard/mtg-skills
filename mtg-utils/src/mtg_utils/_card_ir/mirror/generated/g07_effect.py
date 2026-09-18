@@ -22,8 +22,9 @@ from mtg_utils._card_ir.mirror.runtime import (
 )
 
 if TYPE_CHECKING:
-    from mtg_utils._card_ir.mirror.generated.g02_morph import (
+    from mtg_utils._card_ir.mirror.generated.g02_modifycost import (
         U_action,
+        U_additional_cost,
     )
     from mtg_utils._card_ir.mirror.generated.g03_additional_modificat import (
         S_branches,
@@ -38,10 +39,10 @@ if TYPE_CHECKING:
         U_attacker_restriction,
         U_card_filter,
         U_choose_filter,
-        U_choose_scope,
     )
-    from mtg_utils._card_ir.mirror.generated.g04_chooser import (
+    from mtg_utils._card_ir.mirror.generated.g04_choose_scope import (
         S_chosen_pile_effect,
+        U_choose_scope,
         U_chooser,
         U_colors,
         U_condition,
@@ -57,6 +58,7 @@ if TYPE_CHECKING:
         U_countered_spell_zone,
         U_damage_source_filter,
         U_direction,
+        U_domain,
     )
     from mtg_utils._card_ir.mirror.generated.g08_else_ability import (
         S_face_down_profile,
@@ -78,15 +80,16 @@ if TYPE_CHECKING:
         U_keep_on_top,
         U_keeper_constraint,
         U_kept_destination_if,
-        U_kind,
     )
-    from mtg_utils._card_ir.mirror.generated.g09_land_filter import (
+    from mtg_utils._card_ir.mirror.generated.g09_kind import (
         S_lose_effect,
         S_modification,
         S_multi_target,
         S_on_decline,
+        U_kind,
         U_library_players,
         U_library_position,
+        U_library_shuffle,
         U_life_payment,
         U_mana_value_limit,
         U_matched_disposition,
@@ -97,6 +100,7 @@ if TYPE_CHECKING:
         U_object_filter,
         U_object_source,
         U_op,
+        U_optional_player,
     )
     from mtg_utils._card_ir.mirror.generated.g10_owner import (
         S_per_choice_effect,
@@ -193,6 +197,7 @@ class S_effect(TypedMirrorNode):
     target_prompt: None
     is_mana_ability: bool = MISSING
     multi_target: S_multi_target = MISSING
+    optional_player: U_optional_player = MISSING
     player_scope: U_player_scope = MISSING
     repeat_for: U_repeat_for = MISSING
     target_choice_timing: str = MISSING
@@ -251,6 +256,7 @@ class T_effect__Amass(TypedMirrorNode):
     _tag: ClassVar[str | None] = "Amass"
     count: U_count
     subtype: str
+    player: U_player = MISSING
 
 
 @dataclass(frozen=True)
@@ -379,10 +385,11 @@ class T_effect__CastFromZone(TypedMirrorNode):
     mode: str
     target: U_target
     without_paying_mana_cost: bool
+    additional_cost: U_additional_cost = MISSING
     alt_ability_cost: U_alt_ability_cost = MISSING
     cast_transformed: bool = MISSING
     constraint: U_constraint = MISSING
-    driver: str = MISSING
+    driver: str | MirrorVariant = MISSING
     duration: str | MirrorVariant = MISSING
     mana_spend_permission: str = MISSING
 
@@ -433,6 +440,7 @@ class T_effect__ChangeZoneAll(TypedMirrorNode):
     enters_under: str = MISSING
     face_down_profile: S_face_down_profile = MISSING
     library_position: U_library_position = MISSING
+    library_shuffle: U_library_shuffle = MISSING
     random_order: bool = MISSING
 
 
@@ -478,6 +486,8 @@ class T_effect__ChooseCounterAdjustment(TypedMirrorNode):
 @dataclass(frozen=True)
 class T_effect__ChooseCounterKind(TypedMirrorNode):
     _tag: ClassVar[str | None] = "ChooseCounterKind"
+    chooser: U_chooser
+    domain: U_domain
     target: U_target
 
 
@@ -492,15 +502,17 @@ class T_effect__ChooseDrawnThisTurnPayOrTopdeck(TypedMirrorNode):
 @dataclass(frozen=True)
 class T_effect__ChooseFromZone(TypedMirrorNode):
     _tag: ClassVar[str | None] = "ChooseFromZone"
-    chooser: str
+    chooser: str | MirrorVariant
     count: int
     up_to: bool
     zone: str
     zone_owner: str | MirrorVariant
     additional_zones: list[object] = MISSING
+    candidate_source: str = MISSING
     constraint: U_constraint = MISSING
     filter: U_filter = MISSING
     random: bool = MISSING
+    reciprocal_role: str = MISSING
 
 
 @dataclass(frozen=True)
@@ -510,6 +522,8 @@ class T_effect__ChooseObjectsIntoTrackedSet(TypedMirrorNode):
     filter: U_filter
     max: int | None
     min: int
+    cardinality: MirrorVariant = MISSING
+    eligibility: MirrorVariant = MISSING
 
 
 @dataclass(frozen=True)
@@ -900,6 +914,7 @@ class T_effect__ExploreAll(TypedMirrorNode):
 class T_effect__ExtraTurn(TypedMirrorNode):
     _tag: ClassVar[str | None] = "ExtraTurn"
     target: U_target
+    count: U_count = MISSING
 
 
 @dataclass(frozen=True)
@@ -1230,6 +1245,15 @@ class T_effect__NoteManaSpent(TypedMirrorNode):
 class T_effect__OpenAttractions(TypedMirrorNode):
     _tag: ClassVar[str | None] = "OpenAttractions"
     count: int
+
+
+@dataclass(frozen=True)
+class T_effect__OpenBoosterPack(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "OpenBoosterPack"
+    count: U_count
+    destination: str
+    filter: U_filter
+    reveal: bool
 
 
 @dataclass(frozen=True)
@@ -1923,6 +1947,7 @@ type U_effect = (
     | T_effect__NoOp
     | T_effect__NoteManaSpent
     | T_effect__OpenAttractions
+    | T_effect__OpenBoosterPack
     | T_effect__OpponentGuess
     | T_effect__PairWith
     | T_effect__PayCost

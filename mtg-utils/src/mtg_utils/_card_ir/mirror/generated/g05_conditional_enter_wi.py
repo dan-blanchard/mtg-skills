@@ -27,7 +27,7 @@ if TYPE_CHECKING:
         U_amount,
         U_base,
     )
-    from mtg_utils._card_ir.mirror.generated.g04_chooser import (
+    from mtg_utils._card_ir.mirror.generated.g04_choose_scope import (
         U_condition,
     )
     from mtg_utils._card_ir.mirror.generated.g06_count import (
@@ -42,7 +42,7 @@ if TYPE_CHECKING:
     from mtg_utils._card_ir.mirror.generated.g08_else_ability import (
         U_filter,
     )
-    from mtg_utils._card_ir.mirror.generated.g09_land_filter import (
+    from mtg_utils._card_ir.mirror.generated.g09_kind import (
         U_lhs,
         U_mana_cost,
         U_materials,
@@ -377,6 +377,11 @@ class T_conditions__WasCast(TypedMirrorNode):
     controller: str = MISSING
     owner: str = MISSING
     zone: str = MISSING
+
+
+@dataclass(frozen=True)
+class T_conditions__WhenYouDo(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "WhenYouDo"
 
 
 @dataclass(frozen=True)
@@ -921,6 +926,7 @@ type U_conditions = (
     | T_conditions__UnlessPay
     | T_conditions__Unrecognized
     | T_conditions__WasCast
+    | T_conditions__WhenYouDo
     | T_conditions__ZoneChangeObjectMatchesFilter
     | T_conditions__ZoneChangedThisWay
 )

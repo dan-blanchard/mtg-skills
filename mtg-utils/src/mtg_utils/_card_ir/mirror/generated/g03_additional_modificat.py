@@ -5,7 +5,7 @@ Codegen'd from ``tests/fixtures/phase_mirror_schema.json`` by
 
 Part of the generated typed-mirror package (see this directory's
 ``__init__.py``). This module holds content keys ``additional_modifications``
-.. ``choose_scope`` (30 keys).
+.. ``choose_filter`` (30 keys).
 
 Class naming: ``S_<ckey>`` for a struct shape, ``T_<ckey>__<tag>`` for a tagged
 shape, ``U_<ckey>`` for the union of all tagged shapes at one content_key.
@@ -23,7 +23,7 @@ from mtg_utils._card_ir.mirror.runtime import (
 )
 
 if TYPE_CHECKING:
-    from mtg_utils._card_ir.mirror.generated.g04_chooser import (
+    from mtg_utils._card_ir.mirror.generated.g04_choose_scope import (
         U_colors,
         U_condition,
     )
@@ -34,7 +34,6 @@ if TYPE_CHECKING:
     from mtg_utils._card_ir.mirror.generated.g06_count import (
         S_definition,
         U_count,
-        U_direction,
         U_duplicate_of,
     )
     from mtg_utils._card_ir.mirror.generated.g07_effect import (
@@ -48,7 +47,7 @@ if TYPE_CHECKING:
         U_inner,
         U_iteration_kind_binding,
     )
-    from mtg_utils._card_ir.mirror.generated.g09_land_filter import (
+    from mtg_utils._card_ir.mirror.generated.g09_kind import (
         U_left,
     )
     from mtg_utils._card_ir.mirror.generated.g10_owner import (
@@ -87,6 +86,11 @@ class S_additional_token_spec(TypedMirrorNode):
     source_id: int
     static_abilities: list[S_static_abilities]
     tapped: bool
+
+
+@dataclass(frozen=True)
+class S_bounds(TypedMirrorNode):
+    pass
 
 
 @dataclass(frozen=True)
@@ -314,6 +318,11 @@ class T_affected__AttachedTo(TypedMirrorNode):
 @dataclass(frozen=True)
 class T_affected__Controller(TypedMirrorNode):
     _tag: ClassVar[str | None] = "Controller"
+
+
+@dataclass(frozen=True)
+class T_affected__EventTarget(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "EventTarget"
 
 
 @dataclass(frozen=True)
@@ -635,6 +644,12 @@ class T_attr__CardsDrawnThisTurn(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class T_attr__GraveyardSize(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "GraveyardSize"
+    player: U_player
+
+
+@dataclass(frozen=True)
 class T_attr__HandSize(TypedMirrorNode):
     _tag: ClassVar[str | None] = "HandSize"
     player: U_player
@@ -845,22 +860,17 @@ class T_casting_restrictions__RequiresCondition(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class T_casting_restrictions__SpendOnlyOnX(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "SpendOnlyOnX"
+    data: MirrorVariant
+
+
+@dataclass(frozen=True)
 class T_choose_filter__Typed(TypedMirrorNode):
     _tag: ClassVar[str | None] = "Typed"
     controller: None
     properties: list[U_properties]
     type_filters: list[MirrorVariant]
-
-
-@dataclass(frozen=True)
-class T_choose_scope__Chooser(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "Chooser"
-
-
-@dataclass(frozen=True)
-class T_choose_scope__Neighbor(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "Neighbor"
-    direction: U_direction
 
 
 # --- discriminated-union aliases (one per tagged content_key) ---
@@ -896,6 +906,7 @@ type U_affected = (
     | T_affected__Any
     | T_affected__AttachedTo
     | T_affected__Controller
+    | T_affected__EventTarget
     | T_affected__HasChosenName
     | T_affected__LastCreated
     | T_affected__Or
@@ -958,6 +969,7 @@ type U_attacker_restriction = (
 type U_attr = (
     T_attr__BattlefieldEntriesThisTurn
     | T_attr__CardsDrawnThisTurn
+    | T_attr__GraveyardSize
     | T_attr__HandSize
     | T_attr__LifeLostThisTurn
     | T_attr__LifeTotal
@@ -996,6 +1008,6 @@ type U_casting_restrictions = (
     | T_casting_restrictions__DuringYourEndStep
     | T_casting_restrictions__DuringYourTurn
     | T_casting_restrictions__RequiresCondition
+    | T_casting_restrictions__SpendOnlyOnX
 )
 type U_choose_filter = T_choose_filter__Typed
-type U_choose_scope = T_choose_scope__Chooser | T_choose_scope__Neighbor

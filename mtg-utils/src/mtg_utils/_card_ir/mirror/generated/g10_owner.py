@@ -24,11 +24,12 @@ from mtg_utils._card_ir.mirror.runtime import (
 
 if TYPE_CHECKING:
     from mtg_utils._card_ir.mirror.generated.g03_additional_modificat import (
+        U_alt_ability_cost,
         U_attr,
         U_card_filter,
         U_cast_cost_raise,
     )
-    from mtg_utils._card_ir.mirror.generated.g04_chooser import (
+    from mtg_utils._card_ir.mirror.generated.g04_choose_scope import (
         U_colors,
     )
     from mtg_utils._card_ir.mirror.generated.g05_conditional_enter_wi import (
@@ -46,7 +47,7 @@ if TYPE_CHECKING:
         U_filter,
         U_invalidation,
     )
-    from mtg_utils._card_ir.mirror.generated.g09_land_filter import (
+    from mtg_utils._card_ir.mirror.generated.g09_kind import (
         S_multi_target,
         U_land_filter,
         U_lhs,
@@ -224,6 +225,16 @@ class T_payer__Controller(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class T_payer__DefendingPlayer(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "DefendingPlayer"
+
+
+@dataclass(frozen=True)
+class T_payer__EventTargetController(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "EventTargetController"
+
+
+@dataclass(frozen=True)
 class T_payer__ParentTargetController(TypedMirrorNode):
     _tag: ClassVar[str | None] = "ParentTargetController"
 
@@ -302,12 +313,14 @@ class T_permission__PlayFromExile(TypedMirrorNode):
     _tag: ClassVar[str | None] = "PlayFromExile"
     duration: str | MirrorVariant
     granted_to: int
+    alt_ability_cost: U_alt_ability_cost = MISSING
     card_filter: U_card_filter = MISSING
     cast_cost_raise: U_cast_cost_raise = MISSING
     frequency: str = MISSING
     invalidation: U_invalidation = MISSING
     land_enter_tapped: str = MISSING
     mana_spend_permission: str = MISSING
+    mode: str = MISSING
     single_use: bool = MISSING
 
 
@@ -381,6 +394,11 @@ class T_player__OpponentDealtDamage(TypedMirrorNode):
     kind: str
     min_sources: int
     source: U_source
+
+
+@dataclass(frozen=True)
+class T_player__OpponentOfTriggeringPlayer(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "OpponentOfTriggeringPlayer"
 
 
 @dataclass(frozen=True)
@@ -484,6 +502,11 @@ class T_player_filter__All(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class T_player_filter__Controller(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "Controller"
+
+
+@dataclass(frozen=True)
 class T_player_filter__Opponent(TypedMirrorNode):
     _tag: ClassVar[str | None] = "Opponent"
 
@@ -584,6 +607,15 @@ class T_player_scope__PlayerAttribute(TypedMirrorNode):
     comparator: str
     relation: U_relation
     value: U_value
+
+
+@dataclass(frozen=True)
+class T_player_scope__TrackedSetPossessor(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "TrackedSetPossessor"
+    caused_by: str
+    filter: U_filter
+    possession: str
+    relation: U_relation
 
 
 @dataclass(frozen=True)
@@ -763,6 +795,11 @@ class T_prop__AttackedThisTurn(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class T_prop__EnchantedBy(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "EnchantedBy"
+
+
+@dataclass(frozen=True)
 class T_prop__EnteredThisTurn(TypedMirrorNode):
     _tag: ClassVar[str | None] = "EnteredThisTurn"
 
@@ -824,6 +861,8 @@ type U_partner_filter = T_partner_filter__Any | T_partner_filter__Typed
 type U_payer = (
     T_payer__AllPlayers
     | T_payer__Controller
+    | T_payer__DefendingPlayer
+    | T_payer__EventTargetController
     | T_payer__ParentTargetController
     | T_payer__Player
     | T_payer__ScopedPlayer
@@ -858,6 +897,7 @@ type U_player = (
     | T_player__DefendingPlayer
     | T_player__Opponent
     | T_player__OpponentDealtDamage
+    | T_player__OpponentOfTriggeringPlayer
     | T_player__ParentObjectTargetController
     | T_player__ParentTarget
     | T_player__ParentTargetController
@@ -876,6 +916,7 @@ type U_player_a = T_player_a__Controller | T_player_a__Player
 type U_player_b = T_player_b__Player | T_player_b__Typed
 type U_player_filter = (
     T_player_filter__All
+    | T_player_filter__Controller
     | T_player_filter__Opponent
     | T_player_filter__OpponentOtherThanTriggering
     | T_player_filter__PlayerAttribute
@@ -895,6 +936,7 @@ type U_player_scope = (
     | T_player_scope__ParentObjectTargetController
     | T_player_scope__PerformedActionThisWay
     | T_player_scope__PlayerAttribute
+    | T_player_scope__TrackedSetPossessor
     | T_player_scope__TriggeringPlayer
     | T_player_scope__VotedFor
 )
@@ -927,6 +969,7 @@ type U_produced = (
 type U_prop = (
     T_prop__Another
     | T_prop__AttackedThisTurn
+    | T_prop__EnchantedBy
     | T_prop__EnteredThisTurn
     | T_prop__HasAttachment
     | T_prop__InTrackedSet

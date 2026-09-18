@@ -23,14 +23,14 @@ from mtg_utils._card_ir.mirror.runtime import (
 )
 
 if TYPE_CHECKING:
-    from mtg_utils._card_ir.mirror.generated.g02_morph import (
+    from mtg_utils._card_ir.mirror.generated.g02_modifycost import (
         U_ability_tag,
         U_activation_restrictions,
     )
     from mtg_utils._card_ir.mirror.generated.g03_additional_modificat import (
         U_announced_x,
     )
-    from mtg_utils._card_ir.mirror.generated.g04_chooser import (
+    from mtg_utils._card_ir.mirror.generated.g04_choose_scope import (
         U_condition,
     )
     from mtg_utils._card_ir.mirror.generated.g05_conditional_enter_wi import (
@@ -56,7 +56,7 @@ if TYPE_CHECKING:
         U_filters,
         U_inner,
     )
-    from mtg_utils._card_ir.mirror.generated.g09_land_filter import (
+    from mtg_utils._card_ir.mirror.generated.g09_kind import (
         S_modal,
         S_mode_abilities,
         S_multi_target,
@@ -229,6 +229,13 @@ class S_unit_span(TypedMirrorNode):
 class S_unless_pay(TypedMirrorNode):
     cost: U_cost
     payer: U_payer
+
+
+@dataclass(frozen=True)
+class S_value(TypedMirrorNode):
+    denominator: int
+    numerator: int
+    rounding: str
 
 
 @dataclass(frozen=True)
@@ -419,6 +426,11 @@ class T_target__EventTarget(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class T_target__EventTargetController(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "EventTargetController"
+
+
+@dataclass(frozen=True)
 class T_target__ExiledBySource(TypedMirrorNode):
     _tag: ClassVar[str | None] = "ExiledBySource"
 
@@ -442,6 +454,11 @@ class T_target__LastCreated(TypedMirrorNode):
 @dataclass(frozen=True)
 class T_target__LastRevealed(TypedMirrorNode):
     _tag: ClassVar[str | None] = "LastRevealed"
+
+
+@dataclass(frozen=True)
+class T_target__LastZoneChanged(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "LastZoneChanged"
 
 
 @dataclass(frozen=True)
@@ -635,6 +652,11 @@ class T_target_chooser__Opponent(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class T_target_chooser__ParentTargetController(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "ParentTargetController"
+
+
+@dataclass(frozen=True)
 class T_target_chooser__ScopedPlayer(TypedMirrorNode):
     _tag: ClassVar[str | None] = "ScopedPlayer"
 
@@ -675,6 +697,11 @@ class T_target_kind__ManaPool(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class T_target_player__ParentTarget(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "ParentTarget"
+
+
+@dataclass(frozen=True)
 class T_target_player__ParentTargetController(TypedMirrorNode):
     _tag: ClassVar[str | None] = "ParentTargetController"
 
@@ -682,6 +709,11 @@ class T_target_player__ParentTargetController(TypedMirrorNode):
 @dataclass(frozen=True)
 class T_target_player__Player(TypedMirrorNode):
     _tag: ClassVar[str | None] = "Player"
+
+
+@dataclass(frozen=True)
+class T_target_player__ScopedPlayer(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "ScopedPlayer"
 
 
 @dataclass(frozen=True)
@@ -1062,11 +1094,13 @@ type U_target = (
     | T_target__CostPaidObject
     | T_target__DefendingPlayer
     | T_target__EventTarget
+    | T_target__EventTargetController
     | T_target__ExiledBySource
     | T_target__ExiledCardByIndex
     | T_target__GrantingObject
     | T_target__LastCreated
     | T_target__LastRevealed
+    | T_target__LastZoneChanged
     | T_target__None
     | T_target__Or
     | T_target__OriginalController
@@ -1098,7 +1132,11 @@ type U_target_a = (
     T_target_a__And | T_target_a__Or | T_target_a__SelfRef | T_target_a__Typed
 )
 type U_target_b = T_target_b__Or | T_target_b__TriggeringSource | T_target_b__Typed
-type U_target_chooser = T_target_chooser__Opponent | T_target_chooser__ScopedPlayer
+type U_target_chooser = (
+    T_target_chooser__Opponent
+    | T_target_chooser__ParentTargetController
+    | T_target_chooser__ScopedPlayer
+)
 type U_target_constraints = (
     T_target_constraints__DifferentObjectControllers
     | T_target_constraints__SameZoneOwner
@@ -1108,8 +1146,10 @@ type U_target_kind = (
     T_target_kind__Counters | T_target_kind__LifeTotal | T_target_kind__ManaPool
 )
 type U_target_player = (
-    T_target_player__ParentTargetController
+    T_target_player__ParentTarget
+    | T_target_player__ParentTargetController
     | T_target_player__Player
+    | T_target_player__ScopedPlayer
     | T_target_player__Typed
 )
 type U_target_selection_mode = T_target_selection_mode__Random

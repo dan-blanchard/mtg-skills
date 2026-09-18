@@ -2285,7 +2285,6 @@ def test_historic_matters_typed_gate_no_double(name):
         "Curator's Ward",
         "Banish to Another Universe",
         "The Eighth Doctor",
-        "Havi, the All-Father",
     ],
 )
 def test_historic_matters_bare_word_synth(name):
@@ -2296,6 +2295,18 @@ def test_historic_matters_bare_word_synth(name):
     assert node.concept == "historic_ref"  # the mechanic itself, no synth_* marker
     assert node.scope == "you"
     assert _historic_matters_fires(name) is True
+
+
+def test_historic_matters_structural_at_v086():
+    """Havi, the All-Father's "as long as there are four or more historic cards in
+    your graveyard" — an ``Unrecognized`` condition text through v0.66.0 (the
+    bare-word synth arm's pin) — is a typed ``QuantityComparison`` over a
+    ``ZoneCardCount`` whose filter carries the ``Historic`` property at v0.86.0
+    (CR 700.6a): the structural read serves it and the synth arm stands down."""
+    tree = _fixture_tree("Havi, the All-Father")
+    assert any(has_filter_property(u.node, "Historic") for u in tree.units)
+    assert _arm_historic_matters(tree) is None
+    assert _historic_matters_fires("Havi, the All-Father") is True
 
 
 def test_historic_matters_synth_registered():
@@ -6225,12 +6236,15 @@ def test_base_power_ref_conjunctive_synth_registered():
 
 @pytest.mark.parametrize(
     "name",
-    ["Ambassador Blorpityblorpboop", "Tanazir Quandrix", "Unruly Krasis"],
+    ["Ambassador Blorpityblorpboop", "Unruly Krasis"],
 )
 def test_base_pt_have_become_fires_on_pins(name):
-    """The former ``base_pt_have_become_residue`` bridge's exact 3-card
-    census — a whole-clause 'have ... base power ... become' residue with
-    no typed base-P/T-set node anywhere."""
+    """The former ``base_pt_have_become_residue`` bridge's census — a
+    whole-clause 'have ... base power ... become' residue with no typed
+    base-P/T-set node anywhere. Tanazir Quandrix left the census at phase
+    v0.86.0: its clause now parses as a ``SetPowerDynamic``/
+    ``SetToughnessDynamic`` pair Ref-scoped ``Source`` (see
+    test_base_pt_have_become_structural_at_v086)."""
     tree = _fixture_tree(name)
     assert has_structural_base_pt_set(tree) is False
     node = _arm_base_pt_have_become(tree)
@@ -6238,6 +6252,21 @@ def test_base_pt_have_become_fires_on_pins(name):
     assert node.concept == "base_pt_set"
     assert isinstance(node.node, SynthesizedNode)
     assert node.node.arm_id == "base_pt_have_become"
+
+
+def test_base_pt_have_become_structural_at_v086():
+    """Tanazir Quandrix's "have the base power and toughness of other creatures
+    you control become equal to ~'s power and toughness" — an
+    ``Unimplemented('have')`` whole-clause residue through v0.66.0 — is a typed
+    ``GenericEffect`` static at v0.86.0 whose dynamic pair Refs the SOURCE's own
+    Power/Toughness (CR 613.4b): the structural gate closes, the synthesis arm
+    stands down, and the lane's dynamic-pair arm serves it."""
+    from mtg_utils._analysis.lanes import _base_pt_set
+
+    tree = _fixture_tree("Tanazir Quandrix")
+    assert not list(tree.residues())  # nothing parked — no residue for an arm to read
+    assert _arm_base_pt_have_become(tree) is None
+    assert any(s.key == "base_pt_set" for s in _base_pt_set(tree))
 
 
 def test_base_pt_have_become_lane_fires():
@@ -6305,7 +6334,6 @@ def test_base_pt_mass_where_x_fires_on_pin_both_lanes():
     "name",
     [
         "Ambassador Blorpityblorpboop",
-        "Tanazir Quandrix",
         "Unruly Krasis",
         "Circle of the Moon Druid",
     ],
@@ -6313,7 +6341,10 @@ def test_base_pt_mass_where_x_fires_on_pin_both_lanes():
 def test_base_pt_mass_where_x_never_widens_creatures_matter(name):
     """The sibling single-target base_pt_set arms (have_become /
     is_a_type_with) never open creatures_matter — only the mass arm's OWN
-    synthesized node, keyed by arm_id, does."""
+    synthesized node, keyed by arm_id, does. (Tanazir Quandrix is out of this
+    list since phase v0.86.0: its "other creatures you control" team set is a
+    typed static the creatures_matter mod-tag arm reads directly — a genuine
+    team payoff, CR 613.4b — not a synthesis widening.)"""
     from mtg_utils._analysis.lanes import _creatures_matter
 
     tree = apply_tree_synthesis(_fixture_tree(name))

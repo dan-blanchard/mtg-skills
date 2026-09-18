@@ -23,7 +23,7 @@ from mtg_utils._card_ir.mirror.runtime import (
 )
 
 if TYPE_CHECKING:
-    from mtg_utils._card_ir.mirror.generated.g02_morph import (
+    from mtg_utils._card_ir.mirror.generated.g02_modifycost import (
         U_activity,
     )
     from mtg_utils._card_ir.mirror.generated.g03_additional_modificat import (
@@ -33,7 +33,7 @@ if TYPE_CHECKING:
         U_amount,
         U_attr,
     )
-    from mtg_utils._card_ir.mirror.generated.g04_chooser import (
+    from mtg_utils._card_ir.mirror.generated.g04_choose_scope import (
         U_colors,
         U_condition,
     )
@@ -43,6 +43,7 @@ if TYPE_CHECKING:
         U_counter_match,
         U_damage_modification,
         U_damage_source_filter,
+        U_die_ignore_rule,
     )
     from mtg_utils._card_ir.mirror.generated.g07_effect import (
         S_effect,
@@ -56,7 +57,7 @@ if TYPE_CHECKING:
         U_inner,
         U_journal,
     )
-    from mtg_utils._card_ir.mirror.generated.g09_land_filter import (
+    from mtg_utils._card_ir.mirror.generated.g09_kind import (
         U_left,
         U_mana_modification,
         U_mana_replacement_scope,
@@ -116,7 +117,9 @@ class S_replacements(TypedMirrorNode):
     execute: S_execute | None
     mode: U_mode
     valid_card: U_valid_card | None
+    active_zones: list[object] = MISSING
     additional_token_spec: S_additional_token_spec = MISSING
+    choice_authority: str = MISSING
     combat_scope: str = MISSING
     counter_match: U_counter_match = MISSING
     counter_replacement_subject: str = MISSING
@@ -124,6 +127,7 @@ class S_replacements(TypedMirrorNode):
     damage_source_filter: U_damage_source_filter = MISSING
     damage_target_filter: str | MirrorVariant = MISSING
     destination_zone: str = MISSING
+    die_ignore_rule: U_die_ignore_rule = MISSING
     draw_scope: str = MISSING
     ensure_token_specs: list[S_ensure_token_specs] = MISSING
     enters_under: str = MISSING
@@ -222,6 +226,11 @@ class S_statics(TypedMirrorNode):
 @dataclass(frozen=True)
 class T_reference__CostPaidObject(TypedMirrorNode):
     _tag: ClassVar[str | None] = "CostPaidObject"
+
+
+@dataclass(frozen=True)
+class T_reference__EventTarget(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "EventTarget"
 
 
 @dataclass(frozen=True)
@@ -518,6 +527,11 @@ class T_scope__Anaphoric(TypedMirrorNode):
 @dataclass(frozen=True)
 class T_scope__BatchSource(TypedMirrorNode):
     _tag: ClassVar[str | None] = "BatchSource"
+
+
+@dataclass(frozen=True)
+class T_scope__ChainRootTarget(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "ChainRootTarget"
 
 
 @dataclass(frozen=True)
@@ -875,6 +889,7 @@ class T_strive_cost__Cost(TypedMirrorNode):
 
 type U_reference = (
     T_reference__CostPaidObject
+    | T_reference__EventTarget
     | T_reference__ExiledBySource
     | T_reference__Or
     | T_reference__ParentTarget
@@ -933,6 +948,7 @@ type U_scope = (
     | T_scope__AmassedArmy
     | T_scope__Anaphoric
     | T_scope__BatchSource
+    | T_scope__ChainRootTarget
     | T_scope__CostPaidObject
     | T_scope__Demonstrative
     | T_scope__EventSource

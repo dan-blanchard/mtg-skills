@@ -54,6 +54,7 @@ from mtg_utils._card_ir.crosswalk.reads import (
     filter_core_types,
     iter_nested_granted_bodies,
     iter_typed_nodes,
+    residue_is,
     static_mode_tag,
     tag_of,
 )
@@ -545,7 +546,7 @@ class ConceptTree:
         for n in self.iter_typed():
             if tag_of(n) != "Unimplemented":
                 continue
-            if name is not None and getattr(n, "name", None) != name:
+            if name is not None and not residue_is(n, name):
                 continue
             yield getattr(n, "description", "") or ""
 

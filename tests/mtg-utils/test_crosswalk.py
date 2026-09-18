@@ -4778,11 +4778,12 @@ def test_dice_makers_excludes_dice_reference_shape():
     """ADR-0034 shed: Pixie Guide's "Grant an Advantage — If you would roll
     one or more dice, instead roll that many dice plus one and ignore the
     lowest roll." is a REPLACEMENT modifying an EXISTING/future roll, not an
-    instruction to roll — the grammar's cursor-anchored parse lands on the
-    "instead roll" remainder, matching the SAME dice-REFERENCE shape the
-    old-IR's ``_DICE_TRIG`` discriminator routes to dice_matters (never
-    dice_makers). The recovery guard reuses ``_DICE_TRIG`` verbatim so this
-    stays unrecovered (CR 706, CR 614 replacement effects)."""
+    instruction to roll (CR 706.6 / 614.1a). Through v0.66.0 it was an
+    ``Unimplemented('replacement_structure')`` residue the recovery guard
+    left alone; phase v0.86.0 parses it as a ``replacements[]`` entry
+    (``event: RollDice``, ``die_ignore_rule: Lowest``) whose ``execute``
+    carries a typed ``RollDie`` — the dice_makers gate skips a RollDie
+    inside a die-roll replacement, so it stays dice_matters territory."""
     assert "dice_makers" not in _keys("Pixie Guide")
 
 
@@ -5871,13 +5872,13 @@ def test_v066_donate_superlative_player_bridge():
     assert ("donate_makers", "you", "") in _idents("Thoughtbound Primoc")
 
 
-def test_v066_emblem_self_reference_damage_bridge():
-    """BRIDGE ``emblem_self_reference_damage_unbound_subject``: Chandra,
-    Spark Hunter's ultimate emblem "this emblem deals 3 damage to any
-    target" — the self-referenced emblem source (CR 114.1) inside the
-    ``CreateEmblem`` granted trigger is an ``unbound_subject`` residue at
-    v0.66.0 (a typed nested ``DealDamage{target: Any}`` at v0.45.0); "any
-    target" reaches a player by rule (CR 115.4)."""
+def test_v086_emblem_self_reference_damage_is_structural():
+    """Chandra, Spark Hunter's ultimate emblem "this emblem deals 3 damage to any
+    target" (CR 114.1): an ``unbound_subject`` residue at v0.66.0 (bridged as
+    ``emblem_self_reference_damage_unbound_subject``), a typed nested
+    ``DealDamage{target: Any}`` again at v0.86.0 (phase-rs/phase#8169) — the
+    direct_damage lane serves it with no bridge; "any target" reaches a player by
+    rule (CR 115.4)."""
     assert ("direct_damage", "you", "") in _idents("Chandra, Spark Hunter")
 
 
@@ -7029,7 +7030,7 @@ def test_discard_outlet_wheel_effect_fidelity_gain():
     "name",
     [
         "Torment of Hailfire",  # unless_pay: "unless that player discards"
-        "K'un-Lun Warrior",  # ChooseOneOf branches: ambiguous chooser
+        "Osseous Sticktwister",  # "each opponent may sacrifice OR discard": their choice
         "Mox Diamond",  # replacement MayCost decline-cost, not an outlet
     ],
 )
@@ -7050,6 +7051,17 @@ def test_discard_outlet_skip_fields_shed(name):
     Mox Diamond's "you may discard a land instead" is a replacement's
     decline-cost, not a discretionary value engine (CR 602.1a / 603.6)."""
     assert "discard_outlet" not in _keys(name)
+
+
+def test_discard_outlet_reflexive_you_pay_gain():
+    """K'un-Lun Warrior's "you may sacrifice an artifact or discard a card. If you
+    do, draw a card" was shed above through v0.66.0 (a ``ChooseOneOf`` whose
+    chooser the read couldn't tell from Osseous Sticktwister's opponent chooser).
+    phase v0.86.0 parses the reflexive payment (CR 603.12) as an effect-role
+    ``PayCost{cost: OneOf[Sacrifice(Artifact), Discard], payer: Controller}`` —
+    YOU pay, so the discard is a discretionary self-outlet (CR 602.1a) and the
+    lane serves it; Sticktwister's opponent-paid form stays out."""
+    assert ("discard_outlet", "you", "") in _idents("K'un-Lun Warrior")
 
 
 def test_discard_outlet_additional_generic_walk_gains():
@@ -10539,20 +10551,17 @@ def test_base_pt_set_bridge_tk_sticker_parse_failure():
     assert ("base_pt_set", "any", "") in _idents("Cool Fluffy Loxodon")
 
 
-@pytest.mark.parametrize(
-    "name",
-    [
-        "Captain Rex Nebula",  # "... each equal to its mana value"
-        "Fractalize",  # "... each equal to X plus 1"
-    ],
-)
-def test_base_pt_set_bridge_each_equal_to_dropped(name):
-    """A DYNAMIC "base power and toughness each equal to <mana value | X>"
-    scalar-set clause is dropped from the site's own modifications
-    entirely — the site's own description DOES carry the hook text and
-    the target resolves fine, but no SetPowerDynamic/SetToughnessDynamic
-    node exists anywhere on that site."""
-    assert ("base_pt_set", "any", "") in _idents(name)
+def test_base_pt_set_each_equal_to_is_structural_at_v086():
+    """Fractalize's "base power and toughness each equal to X plus 1" (CR
+    613.4b): through v0.66.0 the ``SetPowerDynamic``/``SetToughnessDynamic``
+    pair was dropped from the site (the ``base_pt_each_equal_to_dropped``
+    ledgered bridge served it); phase v0.86.0 decomposes the scalar and the
+    lane's dynamic-pair arm serves it with no bridge. Captain Rex Nebula, the
+    bridge's other pin, regressed the other way at v0.86.0 — its whole "Crash
+    Land — Whenever ~ deals damage …" trigger parks as an
+    ``unrecognized_clause_head`` residue truncated to the trigger head, so no
+    residue text carries the hook and the card is a logged loss, not a pin."""
+    assert ("base_pt_set", "any", "") in _idents("Fractalize")
 
 
 def test_base_pt_set_bridge_addpt_misattributed_typechange():
@@ -15477,11 +15486,12 @@ def test_artifacts_matter_choose_one_of_wrapped_sac():
     {2}{W}." (CR 603.12 reflexive trigger; Food is an artifact subtype, CR
     205.3g). Through phase v0.23.0 this decomposed as a modal
     ``ChooseOneOf`` branch whose typed Food Sacrifice the deep scan read;
-    the v0.26.0+ reflexive-payment rework parks the WHOLE body as
-    ``Unimplemented(name='reflexive optional payment')`` — a parse
-    REGRESSION now served by the
-    ``artifact_sac_reflexive_payment_unparsed`` ledgered bridge
-    (self-retiring when phase re-lands the typed branch)."""
+    the v0.26.0-v0.66.0 reflexive-payment rework parked the WHOLE body as
+    ``Unimplemented(name='reflexive optional payment')``; v0.86.0 structures
+    it as an effect-role ``PayCost{cost: OneOf[Sacrifice(Food), Mana]}`` +
+    ``WhenYouDo`` — a shape OUR overlay's cost decoration doesn't read yet,
+    served by the ``artifact_sac_reflexive_payment_undecorated`` ledgered
+    bridge until it does."""
     assert ("artifacts_matter", "you", "") in _idents("Nimble Hobbit")
 
 

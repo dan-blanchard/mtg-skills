@@ -4,8 +4,8 @@ Codegen'd from ``tests/fixtures/phase_mirror_schema.json`` by
 ``mtg_utils._card_ir.mirror.codegen`` (run via ``build-card-ir-substrate``).
 
 Part of the generated typed-mirror package (see this directory's
-``__init__.py``). This module holds content keys ``Morph`` ..
-``additional_filter`` (62 keys).
+``__init__.py``). This module holds content keys ``ModifyCost`` ..
+``additional_filter`` (64 keys).
 
 Class naming: ``S_<ckey>`` for a struct shape, ``T_<ckey>__<tag>`` for a tagged
 shape, ``U_<ckey>`` for the union of all tagged shapes at one content_key.
@@ -25,9 +25,10 @@ from mtg_utils._card_ir.mirror.runtime import (
 if TYPE_CHECKING:
     from mtg_utils._card_ir.mirror.generated.g03_additional_modificat import (
         U_alt_cost,
+        U_amount,
         U_announced_x,
     )
-    from mtg_utils._card_ir.mirror.generated.g04_chooser import (
+    from mtg_utils._card_ir.mirror.generated.g04_choose_scope import (
         U_condition,
     )
     from mtg_utils._card_ir.mirror.generated.g05_conditional_enter_wi import (
@@ -49,7 +50,7 @@ if TYPE_CHECKING:
         U_filter,
         U_filters,
     )
-    from mtg_utils._card_ir.mirror.generated.g09_land_filter import (
+    from mtg_utils._card_ir.mirror.generated.g09_kind import (
         S_modal,
         S_mode_abilities,
         S_multi_target,
@@ -64,6 +65,7 @@ if TYPE_CHECKING:
         U_properties,
     )
     from mtg_utils._card_ir.mirror.generated.g13_reference import (
+        U_reference,
         U_repeat_for,
         U_repeat_until,
         U_source_filter,
@@ -83,6 +85,14 @@ if TYPE_CHECKING:
 
 
 # --- struct shapes (untagged records, one per content_key) ---
+
+
+@dataclass(frozen=True)
+class S_ModifyCost(TypedMirrorNode):
+    amount: U_amount
+    mode: str
+    spell_filter: U_spell_filter | None
+    dynamic_count: U_dynamic_count = MISSING
 
 
 @dataclass(frozen=True)
@@ -312,6 +322,13 @@ class S_ability(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class T_MoreThanMeetsTheEye__Cost(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "Cost"
+    generic: int
+    shards: list[object]
+
+
+@dataclass(frozen=True)
 class T_Morph__Cost(TypedMirrorNode):
     _tag: ClassVar[str | None] = "Cost"
     generic: int
@@ -396,6 +413,11 @@ class T_Prowl__Cost(TypedMirrorNode):
     _tag: ClassVar[str | None] = "Cost"
     generic: int
     shards: list[object]
+
+
+@dataclass(frozen=True)
+class T_Quality__Any(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "Any"
 
 
 @dataclass(frozen=True)
@@ -788,6 +810,13 @@ class T_additional_cost__Choice(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class T_additional_cost__Cost(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "Cost"
+    generic: int
+    shards: list[object]
+
+
+@dataclass(frozen=True)
 class T_additional_cost__Kicker(TypedMirrorNode):
     _tag: ClassVar[str | None] = "Kicker"
     data: S_data | MirrorVariant
@@ -822,8 +851,16 @@ class T_additional_filter__MatchesLastChosenCardPredicate(TypedMirrorNode):
     _tag: ClassVar[str | None] = "MatchesLastChosenCardPredicate"
 
 
+@dataclass(frozen=True)
+class T_additional_filter__SharesQuality(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "SharesQuality"
+    quality: str
+    reference: U_reference
+
+
 # --- discriminated-union aliases (one per tagged content_key) ---
 
+type U_MoreThanMeetsTheEye = T_MoreThanMeetsTheEye__Cost
 type U_Morph = T_Morph__Cost
 type U_Mutate = T_Mutate__Cost
 type U_Ninjutsu = T_Ninjutsu__Cost
@@ -840,7 +877,7 @@ type U_Partner = (
 )
 type U_Plot = T_Plot__Cost
 type U_Prowl = T_Prowl__Cost
-type U_Quality = T_Quality__Or | T_Quality__Typed
+type U_Quality = T_Quality__Any | T_Quality__Or | T_Quality__Typed
 type U_Reconfigure = T_Reconfigure__Cost
 type U_Recover = T_Recover__Cost
 type U_Replicate = T_Replicate__Cost | T_Replicate__SelfManaCost
@@ -910,6 +947,7 @@ type U_activity = (
 )
 type U_additional_cost = (
     T_additional_cost__Choice
+    | T_additional_cost__Cost
     | T_additional_cost__Kicker
     | T_additional_cost__Optional
     | T_additional_cost__Required
@@ -918,4 +956,5 @@ type U_additional_filter = (
     T_additional_filter__Cmc
     | T_additional_filter__IsChosenCreatureType
     | T_additional_filter__MatchesLastChosenCardPredicate
+    | T_additional_filter__SharesQuality
 )

@@ -50,6 +50,7 @@ from mtg_utils._card_ir.crosswalk import (
     iter_typed_nodes,
     mod_keyword_name,
     modify_cost_mode,
+    residue_is,
     static_mode_field,
     tag_of,
     trigger_constraint_tag,
@@ -984,9 +985,7 @@ def _flip_self(tree: ConceptTree) -> list[Signal]:
     if any(tag_of(n) == "FlipCoin" for n in tree.iter_typed()):
         return []
     for n in tree.iter_typed():
-        if tag_of(n) == "FlipPermanent" or (
-            tag_of(n) == "Unimplemented" and getattr(n, "name", None) == "flip"
-        ):
+        if tag_of(n) == "FlipPermanent" or residue_is(n, "flip"):
             return [Signal("flip_self", "you", "", "", tree.name, "high")]
     return []
 

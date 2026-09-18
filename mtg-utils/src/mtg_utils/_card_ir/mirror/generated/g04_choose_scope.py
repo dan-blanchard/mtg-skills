@@ -4,8 +4,8 @@ Codegen'd from ``tests/fixtures/phase_mirror_schema.json`` by
 ``mtg_utils._card_ir.mirror.codegen`` (run via ``build-card-ir-substrate``).
 
 Part of the generated typed-mirror package (see this directory's
-``__init__.py``). This module holds content keys ``chooser`` .. ``condition``
-(5 keys).
+``__init__.py``). This module holds content keys ``choose_scope`` ..
+``condition`` (6 keys).
 
 Class naming: ``S_<ckey>`` for a struct shape, ``T_<ckey>__<tag>`` for a tagged
 shape, ``U_<ckey>`` for the union of all tagged shapes at one content_key.
@@ -23,7 +23,7 @@ from mtg_utils._card_ir.mirror.runtime import (
 )
 
 if TYPE_CHECKING:
-    from mtg_utils._card_ir.mirror.generated.g02_morph import (
+    from mtg_utils._card_ir.mirror.generated.g02_modifycost import (
         S_abilities,
         U_additional_filter,
     )
@@ -36,6 +36,7 @@ if TYPE_CHECKING:
     )
     from mtg_utils._card_ir.mirror.generated.g06_count import (
         U_counters,
+        U_direction,
     )
     from mtg_utils._card_ir.mirror.generated.g07_effect import (
         U_effect,
@@ -45,7 +46,7 @@ if TYPE_CHECKING:
         U_filter,
         U_inner,
     )
-    from mtg_utils._card_ir.mirror.generated.g09_land_filter import (
+    from mtg_utils._card_ir.mirror.generated.g09_kind import (
         S_or_trigger,
         U_lhs,
         U_origin_constraint,
@@ -67,6 +68,7 @@ if TYPE_CHECKING:
     from mtg_utils._card_ir.mirror.generated.g14_sub_ability import (
         S_trigger,
         S_triggers,
+        S_value,
         U_subject,
         U_subtype_filter,
         U_target,
@@ -102,6 +104,17 @@ class S_cleave_variant(TypedMirrorNode):
 
 
 # --- tagged shapes (discriminated enum nodes) ---
+
+
+@dataclass(frozen=True)
+class T_choose_scope__Chooser(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "Chooser"
+
+
+@dataclass(frozen=True)
+class T_choose_scope__Neighbor(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "Neighbor"
+    direction: U_direction
 
 
 @dataclass(frozen=True)
@@ -145,6 +158,11 @@ class T_chooser__PlayerAttribute(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class T_chooser__Random(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "Random"
+
+
+@dataclass(frozen=True)
 class T_chooser__TriggeringPlayer(TypedMirrorNode):
     _tag: ClassVar[str | None] = "TriggeringPlayer"
 
@@ -157,7 +175,15 @@ class T_colors__ChosenColor(TypedMirrorNode):
 @dataclass(frozen=True)
 class T_colors__Fixed(TypedMirrorNode):
     _tag: ClassVar[str | None] = "Fixed"
-    value: list[U_value | MirrorVariant]
+    value: list[U_value | S_value | MirrorVariant]
+
+
+@dataclass(frozen=True)
+class T_condition__AbilityUseCountThisTurn(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "AbilityUseCountThisTurn"
+    n: int
+    comparator: str = MISSING
+    tally: str = MISSING
 
 
 @dataclass(frozen=True)
@@ -208,6 +234,7 @@ class T_condition__AtNextPhaseForPlayer(TypedMirrorNode):
     _tag: ClassVar[str | None] = "AtNextPhaseForPlayer"
     phase: str
     player: int
+    binding: str = MISSING
     gate: str = MISSING
 
 
@@ -506,7 +533,7 @@ class T_condition__FirstTimeObjectTappedThisTurn(TypedMirrorNode):
 @dataclass(frozen=True)
 class T_condition__FirstTokenCreationEachTurn(TypedMirrorNode):
     _tag: ClassVar[str | None] = "FirstTokenCreationEachTurn"
-    player: str
+    active_player_req: str = MISSING
 
 
 @dataclass(frozen=True)
@@ -539,10 +566,20 @@ class T_condition__HasMaxSpeed(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class T_condition__HasObjectTarget(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "HasObjectTarget"
+
+
+@dataclass(frozen=True)
 class T_condition__IfControlsMatching(TypedMirrorNode):
     _tag: ClassVar[str | None] = "IfControlsMatching"
     filter: U_filter
     minimum: int
+
+
+@dataclass(frozen=True)
+class T_condition__IsDuringUpkeep(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "IsDuringUpkeep"
 
 
 @dataclass(frozen=True)
@@ -618,12 +655,6 @@ class T_condition__NoMonarch(TypedMirrorNode):
 class T_condition__Not(TypedMirrorNode):
     _tag: ClassVar[str | None] = "Not"
     condition: U_condition
-
-
-@dataclass(frozen=True)
-class T_condition__NthResolutionThisTurn(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "NthResolutionThisTurn"
-    n: int
 
 
 @dataclass(frozen=True)
@@ -1102,6 +1133,7 @@ class T_condition__ZoneCoreTypeCardCountAtLeast(TypedMirrorNode):
 
 # --- discriminated-union aliases (one per tagged content_key) ---
 
+type U_choose_scope = T_choose_scope__Chooser | T_choose_scope__Neighbor
 type U_chooser = (
     T_chooser__ChosenPlayer
     | T_chooser__Controller
@@ -1110,11 +1142,13 @@ type U_chooser = (
     | T_chooser__ParentObjectTargetController
     | T_chooser__ParentObjectTargetOwner
     | T_chooser__PlayerAttribute
+    | T_chooser__Random
     | T_chooser__TriggeringPlayer
 )
 type U_colors = T_colors__ChosenColor | T_colors__Fixed
 type U_condition = (
-    T_condition__ActivatedAbilityIsNonMana
+    T_condition__AbilityUseCountThisTurn
+    | T_condition__ActivatedAbilityIsNonMana
     | T_condition__AdditionalCostPaid
     | T_condition__AdditionalCostPaidInstead
     | T_condition__AlternativeManaCostPaid
@@ -1179,7 +1213,9 @@ type U_condition = (
     | T_condition__HasCounters
     | T_condition__HasEnduringStory
     | T_condition__HasMaxSpeed
+    | T_condition__HasObjectTarget
     | T_condition__IfControlsMatching
+    | T_condition__IsDuringUpkeep
     | T_condition__IsInitiative
     | T_condition__IsMonarch
     | T_condition__IsOpponentsTurn
@@ -1193,7 +1229,6 @@ type U_condition = (
     | T_condition__MinCoAttackers
     | T_condition__NoMonarch
     | T_condition__Not
-    | T_condition__NthResolutionThisTurn
     | T_condition__ObjectsShareQuality
     | T_condition__OnlyExtraTurn
     | T_condition__OnlyIfQuantity

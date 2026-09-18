@@ -47,6 +47,25 @@ def tag_of(node: object) -> str | None:
     return None
 
 
+def residue_is(node: object, name: str) -> bool:
+    """Whether an ``Unimplemented`` residue is the one a read keys on by ``name``.
+
+    Through v0.66.0 phase named a parked clause by its HEAD WORD ("turn", "flip",
+    "look", "create", "reveal", "creatures" …) or by a structural category
+    ("static_structure", "unbound_subject", "Unsupported unless clause"). v0.86.0
+    keeps the categories but files every head-word residue under a generic one
+    (``unrecognized_clause_head`` / ``unparsed_verb_arguments`` / ``unparsed_quantity``
+    …), so a verb-keyed read matches the phase name OR the description's first word —
+    the same word the old name was. ``~`` (the card's own name) is a head word too."""
+    if tag_of(node) != "Unimplemented":
+        return False
+    if getattr(node, "name", None) == name:
+        return True
+    desc = str(getattr(node, "description", "") or "")
+    head = desc.split(None, 1)[0].lower() if desc.strip() else ""
+    return head == name
+
+
 # Recipient-bearing sub-fields an effect/trigger uses to name a player. Read in
 # order; the first present one decides scope.
 _SCOPE_FIELDS = ("target", "player", "owner", "recipient", "valid_target")
@@ -133,13 +152,16 @@ def explicit_recipient_scope(node: TypedMirrorNode) -> str | None:
 
 
 # Recipient tags naming a player OTHER than the ability's controller: the
-# triggering object's controller (``ParentTargetController``), the triggering
-# player (``TriggeringPlayer``), or a chosen/targeted player (``ParentTarget`` /
-# ``Player`` / ``Target`` / ``Any``). A loss aimed at one of these is a DIRECTED
-# loss at another player (CR 119.3), never a self-loss.
+# triggering object's controller (``ParentTargetController``; phase v0.86.0 also
+# emits ``EventTargetController`` — "that creature's controller" resolved off the
+# TRIGGERING EVENT's target, Bellowing Fiend), the triggering player
+# (``TriggeringPlayer``), or a chosen/targeted player (``ParentTarget`` / ``Player``
+# / ``Target`` / ``Any``). A loss aimed at one of these is a DIRECTED loss at
+# another player (CR 119.3), never a self-loss.
 _DIRECTED_PLAYER_TAGS: frozenset[str] = frozenset(
     {
         "ParentTargetController",
+        "EventTargetController",
         "TriggeringPlayer",
         "ParentTarget",
         "Player",
@@ -489,7 +511,12 @@ def _damage_target_reaches_player(tgt: object, root: object | None = None) -> bo
         return True
     if tt in _CHOSEN_PLAYER_TARGETS:
         return True
-    if tt in ("ScopedPlayer", "ParentTargetController", "DefendingPlayer"):
+    if tt in (
+        "ScopedPlayer",
+        "ParentTargetController",
+        "EventTargetController",
+        "DefendingPlayer",
+    ):
         return True
     if tt == "Or":
         return any(

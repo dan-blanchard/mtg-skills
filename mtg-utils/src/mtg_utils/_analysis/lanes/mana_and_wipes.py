@@ -191,6 +191,7 @@ _OPP_COUNT_CONTROLLERS: frozenset[str] = frozenset(
         "Opponents",
         "EachOpponent",
         "TargetPlayer",
+        "TargetOpponent",
         "DefendingPlayer",
         "SourceChosenPlayer",
     }

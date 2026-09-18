@@ -1466,6 +1466,17 @@ def _base_pt_set(tree: ConceptTree) -> list[Signal]:
                 return True
         return False
 
+    def _refs_other_qty(value: object, qty: str) -> bool:
+        """``_refs_qty`` for a stat of an object OTHER than the source: a Ref whose
+        qty is scoped ``Source`` (the card's own power/toughness) doesn't count."""
+        for node in iter_typed_nodes(value):
+            if tag_of(node) != "Ref":
+                continue
+            q = getattr(node, "qty", None)
+            if tag_of(q) == qty and tag_of(getattr(q, "scope", None)) != "Source":
+                return True
+        return False
+
     def refs_other_object_stats(st: object) -> bool:
         """Whether a ``SetPowerDynamic``/``SetToughnessDynamic`` PAIR is a
         full-identity "become a copy of that creature's power AND
@@ -1486,6 +1497,14 @@ def _base_pt_set(tree: ConceptTree) -> list[Signal]:
         prior ANY-Ref-to-Power/Toughness check over-excluded it (corpus-
         verified via all three name-checked exclusion cases, which DO carry
         the matched pair, and Sita Varma, which does not).
+
+        phase v0.86.0 structures Tanazir Quandrix's "have the base power and
+        toughness of other creatures you control become equal to ~'s power
+        and toughness" (a whole-clause residue through v0.66.0) as the
+        matched pair whose Refs are scoped ``Source`` — the card ITSELF, not
+        another object. A team set equal to the SOURCE's own stats is the
+        Sita Varma toolbox idiom (CR 613.4b), not a copy of a target's
+        identity, so a ``Source``-scoped matched pair is not excluded.
         """
         stm = getattr(st, "modifications", None)
         if not isinstance(stm, list):
@@ -1496,10 +1515,12 @@ def _base_pt_set(tree: ConceptTree) -> list[Signal]:
             tag = tag_of(m)
             if tag == "SetPowerDynamic":
                 has_p = True
-                p_refs_power = _refs_qty(getattr(m, "value", None), "Power")
+                p_refs_power = _refs_other_qty(getattr(m, "value", None), "Power")
             elif tag == "SetToughnessDynamic":
                 has_t = True
-                t_refs_toughness = _refs_qty(getattr(m, "value", None), "Toughness")
+                t_refs_toughness = _refs_other_qty(
+                    getattr(m, "value", None), "Toughness"
+                )
         return has_p and has_t and p_refs_power and t_refs_toughness
 
     def off_battlefield_gated(st: object) -> bool:

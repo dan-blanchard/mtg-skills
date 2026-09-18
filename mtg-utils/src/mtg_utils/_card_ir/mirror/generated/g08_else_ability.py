@@ -4,8 +4,8 @@ Codegen'd from ``tests/fixtures/phase_mirror_schema.json`` by
 ``mtg_utils._card_ir.mirror.codegen`` (run via ``build-card-ir-substrate``).
 
 Part of the generated typed-mirror package (see this directory's
-``__init__.py``). This module holds content keys ``else_ability`` .. ``kind``
-(34 keys).
+``__init__.py``). This module holds content keys ``else_ability`` ..
+``kept_destination_if`` (33 keys).
 
 Class naming: ``S_<ckey>`` for a struct shape, ``T_<ckey>__<tag>`` for a tagged
 shape, ``U_<ckey>`` for the union of all tagged shapes at one content_key.
@@ -23,14 +23,14 @@ from mtg_utils._card_ir.mirror.runtime import (
 )
 
 if TYPE_CHECKING:
-    from mtg_utils._card_ir.mirror.generated.g02_morph import (
+    from mtg_utils._card_ir.mirror.generated.g02_modifycost import (
         U_ability_tag,
     )
     from mtg_utils._card_ir.mirror.generated.g03_additional_modificat import (
         S_characteristics,
         U_attr,
     )
-    from mtg_utils._card_ir.mirror.generated.g04_chooser import (
+    from mtg_utils._card_ir.mirror.generated.g04_choose_scope import (
         U_condition,
     )
     from mtg_utils._card_ir.mirror.generated.g05_conditional_enter_wi import (
@@ -45,7 +45,7 @@ if TYPE_CHECKING:
     from mtg_utils._card_ir.mirror.generated.g07_effect import (
         U_effect,
     )
-    from mtg_utils._card_ir.mirror.generated.g09_land_filter import (
+    from mtg_utils._card_ir.mirror.generated.g09_kind import (
         S_modal,
         S_mode_abilities,
         S_multi_target,
@@ -53,6 +53,7 @@ if TYPE_CHECKING:
         U_optional_player,
     )
     from mtg_utils._card_ir.mirror.generated.g10_owner import (
+        U_player,
         U_player_scope,
     )
     from mtg_utils._card_ir.mirror.generated.g11_properties import (
@@ -543,6 +544,12 @@ class T_filters__Player(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class T_filters__PlayerMatching(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "PlayerMatching"
+    player: U_player
+
+
+@dataclass(frozen=True)
 class T_filters__SelfRef(TypedMirrorNode):
     _tag: ClassVar[str | None] = "SelfRef"
 
@@ -650,6 +657,12 @@ class T_host__Typed(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class T_inner__AbilityUseCountThisTurn(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "AbilityUseCountThisTurn"
+    n: int
+
+
+@dataclass(frozen=True)
 class T_inner__AdditionalCostPaid(TypedMirrorNode):
     _tag: ClassVar[str | None] = "AdditionalCostPaid"
     origin: str
@@ -735,12 +748,6 @@ class T_inner__Multiply(TypedMirrorNode):
 class T_inner__Not(TypedMirrorNode):
     _tag: ClassVar[str | None] = "Not"
     condition: U_condition
-
-
-@dataclass(frozen=True)
-class T_inner__NthResolutionThisTurn(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "NthResolutionThisTurn"
-    n: int
 
 
 @dataclass(frozen=True)
@@ -856,31 +863,6 @@ class T_kept_destination_if__Typed(TypedMirrorNode):
     type_filters: list[MirrorVariant]
 
 
-@dataclass(frozen=True)
-class T_kind__Card(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "Card"
-
-
-@dataclass(frozen=True)
-class T_kind__ExtraTurn(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "ExtraTurn"
-
-
-@dataclass(frozen=True)
-class T_kind__Food(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "Food"
-
-
-@dataclass(frozen=True)
-class T_kind__TappedFish(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "TappedFish"
-
-
-@dataclass(frozen=True)
-class T_kind__Treasure(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "Treasure"
-
-
 # --- discriminated-union aliases (one per tagged content_key) ---
 
 type U_enchant_filter = T_enchant_filter__Typed
@@ -949,6 +931,7 @@ type U_filters = (
     | T_filters__ParentTarget
     | T_filters__ParentTargetSlot
     | T_filters__Player
+    | T_filters__PlayerMatching
     | T_filters__SelfRef
     | T_filters__SpecificObject
     | T_filters__StackAbility
@@ -967,7 +950,8 @@ type U_grants = (
 type U_graveyard_replacement = T_graveyard_replacement__Exile
 type U_host = T_host__TriggeringSource | T_host__Typed
 type U_inner = (
-    T_inner__AdditionalCostPaid
+    T_inner__AbilityUseCountThisTurn
+    | T_inner__AdditionalCostPaid
     | T_inner__And
     | T_inner__CastDuringPhase
     | T_inner__CastVariantPaid
@@ -982,7 +966,6 @@ type U_inner = (
     | T_inner__IsMonarch
     | T_inner__Multiply
     | T_inner__Not
-    | T_inner__NthResolutionThisTurn
     | T_inner__Offset
     | T_inner__Or
     | T_inner__QuantityCheck
@@ -1002,10 +985,3 @@ type U_keep_count_expr = T_keep_count_expr__Ref
 type U_keep_on_top = T_keep_on_top__Fixed
 type U_keeper_constraint = T_keeper_constraint__exact_count
 type U_kept_destination_if = T_kept_destination_if__Typed
-type U_kind = (
-    T_kind__Card
-    | T_kind__ExtraTurn
-    | T_kind__Food
-    | T_kind__TappedFish
-    | T_kind__Treasure
-)

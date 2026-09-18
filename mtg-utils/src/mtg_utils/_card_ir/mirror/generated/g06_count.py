@@ -5,7 +5,7 @@ Codegen'd from ``tests/fixtures/phase_mirror_schema.json`` by
 
 Part of the generated typed-mirror package (see this directory's
 ``__init__.py``). This module holds content keys ``count`` ..
-``dynamic_max_choices`` (23 keys).
+``dynamic_max_choices`` (25 keys).
 
 Class naming: ``S_<ckey>`` for a struct shape, ``T_<ckey>__<tag>`` for a tagged
 shape, ``U_<ckey>`` for the union of all tagged shapes at one content_key.
@@ -23,7 +23,7 @@ from mtg_utils._card_ir.mirror.runtime import (
 )
 
 if TYPE_CHECKING:
-    from mtg_utils._card_ir.mirror.generated.g02_morph import (
+    from mtg_utils._card_ir.mirror.generated.g02_modifycost import (
         U_ability_tag,
         U_activation_restrictions,
     )
@@ -32,7 +32,7 @@ if TYPE_CHECKING:
         U_amount,
         U_candidate_filter,
     )
-    from mtg_utils._card_ir.mirror.generated.g04_chooser import (
+    from mtg_utils._card_ir.mirror.generated.g04_choose_scope import (
         U_colors,
         U_condition,
     )
@@ -51,7 +51,7 @@ if TYPE_CHECKING:
         U_filters,
         U_inner,
     )
-    from mtg_utils._card_ir.mirror.generated.g09_land_filter import (
+    from mtg_utils._card_ir.mirror.generated.g09_kind import (
         S_multi_target,
         S_outcome_template,
         U_left,
@@ -79,6 +79,7 @@ if TYPE_CHECKING:
     from mtg_utils._card_ir.mirror.generated.g14_sub_ability import (
         S_sub_ability,
         S_unless_pay,
+        S_value,
         U_target,
         U_value,
     )
@@ -327,7 +328,7 @@ class T_damage_modification__Plus(TypedMirrorNode):
 @dataclass(frozen=True)
 class T_damage_modification__PreventionMinus(TypedMirrorNode):
     _tag: ClassVar[str | None] = "PreventionMinus"
-    value: int
+    value: int | S_value | MirrorVariant
 
 
 @dataclass(frozen=True)
@@ -576,6 +577,11 @@ class T_destination_constraint__NotEquals(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class T_die_ignore_rule__Lowest(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "Lowest"
+
+
+@dataclass(frozen=True)
 class T_direction__Decrease(TypedMirrorNode):
     _tag: ClassVar[str | None] = "Decrease"
 
@@ -604,6 +610,18 @@ class T_distribute__Damage(TypedMirrorNode):
 @dataclass(frozen=True)
 class T_distribute__EvenSplitDamage(TypedMirrorNode):
     _tag: ClassVar[str | None] = "EvenSplitDamage"
+
+
+@dataclass(frozen=True)
+class T_domain__OnTarget(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "OnTarget"
+
+
+@dataclass(frozen=True)
+class T_domain__Printed(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "Printed"
+    excluding_kinds_on_target: bool
+    kinds: list[object]
 
 
 @dataclass(frozen=True)
@@ -880,10 +898,12 @@ type U_defender = T_defender__Matching
 type U_depth = T_depth__Ref
 type U_destination = T_destination__AnyDefender
 type U_destination_constraint = T_destination_constraint__NotEquals
+type U_die_ignore_rule = T_die_ignore_rule__Lowest
 type U_direction = T_direction__Decrease | T_direction__Left | T_direction__Right
 type U_distribute = (
     T_distribute__Counters | T_distribute__Damage | T_distribute__EvenSplitDamage
 )
+type U_domain = T_domain__OnTarget | T_domain__Printed
 type U_duplicate_of = (
     T_duplicate_of__And
     | T_duplicate_of__ParentTarget

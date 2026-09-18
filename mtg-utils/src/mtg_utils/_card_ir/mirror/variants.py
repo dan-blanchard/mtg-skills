@@ -125,6 +125,7 @@ EFFECT_VARIANTS: tuple[str, ...] = (
     "FlipPermanent",
     "SearchLibrary",
     "SearchOutsideGame",
+    "OpenBoosterPack",
     "RevealHand",
     "RevealFromHand",
     "Reveal",

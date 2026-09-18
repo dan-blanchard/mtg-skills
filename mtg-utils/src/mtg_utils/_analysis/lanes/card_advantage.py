@@ -10,6 +10,7 @@ from mtg_utils._analysis._sweep_detectors import TOPDECK_STACK_SWEEP_REGEX
 from mtg_utils._analysis.lanes._shared import (
     _GRANT_ABILITY_MOD_TAGS,
     _OPP_TOP_OWNERS,
+    _OPP_TOP_WRAPPER_SCOPES,
     _PT_COUNTER_KINDS,
     _REMINDER_RX,
     _condition_leaves,
@@ -53,6 +54,7 @@ from mtg_utils._card_ir.crosswalk import (
     modal_mode_description,
     permission_tag,
     recipient_tag,
+    residue_is,
     reveal_until_player,
     static_mode_tag,
     tag_of,
@@ -97,7 +99,12 @@ def _impulse_top_play(tree: ConceptTree) -> list[Signal]:
             continue
         tops = [c for c in unit.effects if c.concept == "exile_top"]
         if not tops or all(
-            tag_of(getattr(c.node, "player", None)) in _OPP_TOP_OWNERS for c in tops
+            tag_of(getattr(c.node, "player", None)) in _OPP_TOP_OWNERS
+            # phase v0.86.0: an opponent-library exile can also be an ExileTop
+            # whose owning wrapper carries the opponent ``player_scope`` (the
+            # Brainstealer Dragon steal family) — theirs, not your impulse.
+            or effect_owner_player_scope(unit.node, c.node) in _OPP_TOP_WRAPPER_SCOPES
+            for c in tops
         ):
             # No exile-the-top, or another player's library only (Gonti,
             # Night Minister's theft — checklist #5): not YOUR impulse.
@@ -1999,12 +2006,8 @@ def _exile_matters(tree: ConceptTree) -> list[Signal]:
         # census, same narrowly-scoped text anchor.
         for cn in unit.iter_concepts():
             node = cn.node
-            if (
-                tag_of(node) == "Unimplemented"
-                and getattr(node, "name", None) == "activate"
-                and _EXILE_OWNS_COND_TEXT_RX.search(
-                    str(getattr(node, "description", "") or "")
-                )
+            if residue_is(node, "activate") and _EXILE_OWNS_COND_TEXT_RX.search(
+                str(getattr(node, "description", "") or "")
             ):
                 return [Signal("exile_matters", "you", "", "", tree.name, "high")]
     # ADR-0038 W5 tails — a Token/PutCounter-style effect's OWN scaling
@@ -2312,17 +2315,16 @@ def _facedown_matters(tree: ConceptTree) -> list[Signal]:
             if t == "EnchantedIsFaceDown":
                 return [Signal("facedown_matters", "you", "", "", tree.name, "high")]
             if t == "Unimplemented":
-                name = getattr(n, "name", None)
                 desc = getattr(n, "description", "") or ""
                 if (
-                    name in ("look", "turn")
+                    (residue_is(n, "look") or residue_is(n, "turn"))
                     and "face" in desc.lower()
                     and not unit_is_maker_idiom
                 ):
                     return [
                         Signal("facedown_matters", "you", "", desc, tree.name, "high")
                     ]
-                if name == "static_structure" and re.search(
+                if residue_is(n, "static_structure") and re.search(
                     r"morph costs? cost", desc, re.IGNORECASE
                 ):
                     return [

@@ -38,6 +38,9 @@ if TYPE_CHECKING:
         U_player,
         U_prop,
     )
+    from mtg_utils._card_ir.mirror.generated.g12_qty import (
+        U_recipient,
+    )
     from mtg_utils._card_ir.mirror.generated.g13_reference import (
         U_reference,
     )
@@ -59,6 +62,12 @@ class T_properties__Another(TypedMirrorNode):
 class T_properties__AnyOf(TypedMirrorNode):
     _tag: ClassVar[str | None] = "AnyOf"
     props: list[U_props]
+
+
+@dataclass(frozen=True)
+class T_properties__AttachedToPlayer(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "AttachedToPlayer"
+    player: str
 
 
 @dataclass(frozen=True)
@@ -182,6 +191,8 @@ class T_properties__CountersPutOnThisTurn(TypedMirrorNode):
 @dataclass(frozen=True)
 class T_properties__DealtDamageThisTurn(TypedMirrorNode):
     _tag: ClassVar[str | None] = "DealtDamageThisTurn"
+    kind: str
+    recipient: U_recipient = MISSING
 
 
 @dataclass(frozen=True)
@@ -620,6 +631,7 @@ class T_props__PtComparison(TypedMirrorNode):
 type U_properties = (
     T_properties__Another
     | T_properties__AnyOf
+    | T_properties__AttachedToPlayer
     | T_properties__AttachedToRecipient
     | T_properties__AttachedToSource
     | T_properties__AttackedOrBlockedThisTurn

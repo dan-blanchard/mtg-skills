@@ -1197,7 +1197,10 @@ SERVED_SIGNAL_KEYS: frozenset[str] = frozenset(
 # ``base_pt_mass_where_x_residue`` (Candlekeep Inspiration),
 # ``base_pt_tk_sticker_parse_failure`` (Cool Fluffy Loxodon),
 # ``base_pt_each_equal_to_dropped`` (Captain Rex Nebula,
-# Fractalize), ``base_pt_addpt_misattributed_typechange`` (Goddric,
+# Fractalize — RETIRED at the v0.86.0 phase bump: the dynamic pair
+# landed upstream; Captain Rex Nebula's trigger regressed to an
+# unparsed residue and is a logged loss),
+# ``base_pt_addpt_misattributed_typechange`` (Goddric,
 # Cloaked Reveler — RETIRED at the v0.35.2 phase bump, structure
 # landed upstream), ``base_pt_becomecopy_no_pt_override`` (Mindlink
 # Mech — the standard "except it's 0/0 and has this ability"

@@ -255,20 +255,24 @@ def test_dice_makers_promoted_via_production_allowlist():
     assert tag_of(nodes[0].node) == "Unimplemented"
 
 
-def test_dice_trig_shaped_roll_not_recovered():
+def test_dice_trig_shaped_roll_is_a_typed_replacement_not_recovered():
     """Pixie Guide's "If you would roll one or more dice, instead roll that
-    many dice plus one and ignore the lowest roll." parses to "roll_die" too
-    (the cursor lands on the "instead roll" remainder) but its raw ALSO
-    matches ``_DICE_TRIG`` (the old-IR's doer/payoff discriminator: a
-    dice-roll REFERENCE, not an instruction to roll — CR 706 / CR 614) — the
-    production ALLOWLIST's roll_die guard leaves it unrecovered rather than
-    conflating a replacement modifier with a maker."""
+    many dice plus one and ignore the lowest roll." — through v0.66.0 an
+    ``Unimplemented('replacement_structure')`` residue the production
+    ALLOWLIST's roll_die guard left unrecovered (a dice-roll REFERENCE, not an
+    instruction to roll — CR 706.6 / 614.1a). phase v0.86.0 parses it as a
+    ``replacements[]`` unit (``event: RollDice``) whose ``execute`` carries a
+    TYPED ``RollDie``: the concept is decorated straight off the node (no
+    recovery stamp), and the dice_makers gate reads the unit's origin to keep
+    a roll-replacement out of the maker lane."""
     tree = _fixture_tree("Pixie Guide")
-    assert tree.effect_concepts("roll_die") == ()
-    node = tree.units[0].effects[0]
-    assert node.concept == OTHER
+    (unit,) = tree.units
+    assert unit.origin == "replacement"
+    assert getattr(unit.node, "event", None) == "RollDice"
+    (node,) = unit.effects
+    assert node.concept == "roll_die"
     assert node.recovered_by == ""
-    assert tag_of(node.node) == "Unimplemented"
+    assert tag_of(node.node) == "RollDie"
 
 
 # ── W2 coin_flip (static-token flip-fixing/modal recovery) ─────────────────

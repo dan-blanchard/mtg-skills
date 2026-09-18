@@ -23,7 +23,7 @@ from mtg_utils._card_ir.mirror.runtime import (
 )
 
 if TYPE_CHECKING:
-    from mtg_utils._card_ir.mirror.generated.g04_chooser import (
+    from mtg_utils._card_ir.mirror.generated.g04_choose_scope import (
         U_colors,
     )
     from mtg_utils._card_ir.mirror.generated.g06_count import (
@@ -38,7 +38,7 @@ if TYPE_CHECKING:
         U_filter,
         U_inner,
     )
-    from mtg_utils._card_ir.mirror.generated.g09_land_filter import (
+    from mtg_utils._card_ir.mirror.generated.g09_kind import (
         U_metric,
     )
     from mtg_utils._card_ir.mirror.generated.g10_owner import (
@@ -688,8 +688,8 @@ class T_quantity_modification__Times(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
-class T_recipient__AttachedTo(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "AttachedTo"
+class T_recipient__All(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "All"
 
 
 @dataclass(frozen=True)
@@ -735,6 +735,12 @@ class T_recipient__Player(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class T_recipient__PlayerMatching(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "PlayerMatching"
+    player: U_player
+
+
+@dataclass(frozen=True)
 class T_recipient__ScopedPlayer(TypedMirrorNode):
     _tag: ClassVar[str | None] = "ScopedPlayer"
 
@@ -748,6 +754,12 @@ class T_recipient__SelfRef(TypedMirrorNode):
 class T_recipient__Shared(TypedMirrorNode):
     _tag: ClassVar[str | None] = "Shared"
     data: U_data
+
+
+@dataclass(frozen=True)
+class T_recipient__Target(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "Target"
+    filter: U_filter
 
 
 @dataclass(frozen=True)
@@ -769,6 +781,12 @@ class T_recipient__Typed(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class T_recipient__Untargeted(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "Untargeted"
+    filter: U_filter
+
+
+@dataclass(frozen=True)
 class T_recipient_object_filter__SelfRef(TypedMirrorNode):
     _tag: ClassVar[str | None] = "SelfRef"
 
@@ -784,6 +802,11 @@ class T_recipient_object_filter__Typed(TypedMirrorNode):
 @dataclass(frozen=True)
 class T_redirect_lifetime__Continuous(TypedMirrorNode):
     _tag: ClassVar[str | None] = "Continuous"
+
+
+@dataclass(frozen=True)
+class T_redirect_object_filter__Any(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "Any"
 
 
 @dataclass(frozen=True)
@@ -810,13 +833,18 @@ class T_redirect_to__AttachedToSource(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
-class T_redirect_to__ChosenObjectTarget(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "ChosenObjectTarget"
+class T_redirect_to__ChosenTarget(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "ChosenTarget"
 
 
 @dataclass(frozen=True)
 class T_redirect_to__Controller(TypedMirrorNode):
     _tag: ClassVar[str | None] = "Controller"
+
+
+@dataclass(frozen=True)
+class T_redirect_to__DamageSourceController(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "DamageSourceController"
 
 
 @dataclass(frozen=True)
@@ -933,7 +961,7 @@ type U_quantity_modification = (
     | T_quantity_modification__Times
 )
 type U_recipient = (
-    T_recipient__AttachedTo
+    T_recipient__All
     | T_recipient__Controller
     | T_recipient__DefendingPlayer
     | T_recipient__EachController
@@ -942,22 +970,28 @@ type U_recipient = (
     | T_recipient__ParentTarget
     | T_recipient__ParentTargetController
     | T_recipient__Player
+    | T_recipient__PlayerMatching
     | T_recipient__ScopedPlayer
     | T_recipient__SelfRef
     | T_recipient__Shared
+    | T_recipient__Target
     | T_recipient__TriggeringPlayer
     | T_recipient__TriggeringSourceController
     | T_recipient__Typed
+    | T_recipient__Untargeted
 )
 type U_recipient_object_filter = (
     T_recipient_object_filter__SelfRef | T_recipient_object_filter__Typed
 )
 type U_redirect_lifetime = T_redirect_lifetime__Continuous
-type U_redirect_object_filter = T_redirect_object_filter__Typed
+type U_redirect_object_filter = (
+    T_redirect_object_filter__Any | T_redirect_object_filter__Typed
+)
 type U_redirect_target = T_redirect_target__AttachedTo | T_redirect_target__SelfRef
 type U_redirect_to = (
     T_redirect_to__AttachedToSource
-    | T_redirect_to__ChosenObjectTarget
+    | T_redirect_to__ChosenTarget
     | T_redirect_to__Controller
+    | T_redirect_to__DamageSourceController
     | T_redirect_to__SourceObject
 )

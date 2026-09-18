@@ -554,7 +554,7 @@ def _tuck_preceded_by_selection(effects: Sequence[ConceptNode], idx: int) -> boo
 # (The Eldest Reborn ch. 2, Aclazotz). ``All``/``Each`` are deliberately
 # ABSENT — a symmetric wheel (Dark Deal) hits YOU too and stays loot fuel.
 _OPP_DISCARD_ACTORS: frozenset[str] = frozenset(
-    {"Opponent", "Opponents", "EachOpponent", "TargetPlayer"}
+    {"Opponent", "Opponents", "EachOpponent", "TargetPlayer", "TargetOpponent"}
 )
 # Sibling-return target tags marking the SAME exiled object coming back (CR
 # 603.6e) — the blink tell the exile_removal lane vetoes on.
@@ -564,6 +564,11 @@ _RETURN_TARGET_TAGS: frozenset[str] = frozenset(
 # ExileTop owners naming ANOTHER player's library (a theft-impulse — Gonti,
 # Night Minister exiles from the damaged OPPONENT's library): not the
 # your-library impulse engine.
+# Wrapper ``player_scope`` actors that make an ``ExileTop{player: Controller}`` an
+# exile of THEIR library (CR 406.1), not yours.
+_OPP_TOP_WRAPPER_SCOPES: frozenset[str] = frozenset(
+    {"Opponent", "Opponents", "EachOpponent", "TargetOpponent", "TargetPlayer"}
+)
 _OPP_TOP_OWNERS: frozenset[str] = frozenset(
     {
         "ParentTarget",
