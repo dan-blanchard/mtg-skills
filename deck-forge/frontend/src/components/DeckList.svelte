@@ -13,6 +13,7 @@
     poolBounded,
   } from "../lib/store.js";
   import { api } from "../lib/api.js";
+  import { tryAdd } from "../lib/adds.js";
   import { hoverPreview } from "../lib/hover.js";
   import { displayName, copyLimit } from "../lib/cards.js";
   import { wildcardLabel, wildcardTotals, WC_TIERS } from "../lib/mana.js";
@@ -41,10 +42,7 @@
   }
 
   async function addOne(name, zone) {
-    zoneError = "";
-    const r = await api.add(name, zone, 1);
-    if (r.ok) applySnapshot(r.data);
-    else zoneError = r.data.error || "couldn't add another copy";
+    zoneError = await tryAdd(name, zone);
   }
 
   // One-step zone move (main deck ⇄ sideboard, promote to commander, reveal as

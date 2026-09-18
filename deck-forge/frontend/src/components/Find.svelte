@@ -5,8 +5,8 @@
   // Type/CMC/Price chips facet the returned list client-side (instant, no round-trip).
   import { onMount } from "svelte";
   import { api } from "../lib/api.js";
+  import { tryAdd } from "../lib/adds.js";
   import {
-    applySnapshot,
     deck,
     avenues,
     isDigital,
@@ -118,6 +118,7 @@
   async function run() {
     loading = true;
     error = "";
+    addError = ""; // a refusal from the previous result set is stale now
     ran = true;
     const r = await api.find(payload(0));
     loading = false;
@@ -148,10 +149,7 @@
   // text; show it rather than letting the click do nothing.
   let addError = "";
   async function add(cardName, zone) {
-    addError = "";
-    const r = await api.add(cardName, zone, 1);
-    if (r.ok) applySnapshot(r.data);
-    else addError = r.data.error || `couldn't add ${cardName}`;
+    addError = await tryAdd(cardName, zone);
   }
 
   // A5: with an active commander, lock the pips to its color identity — you can't run an

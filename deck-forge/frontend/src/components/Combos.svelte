@@ -1,6 +1,6 @@
 <script>
   import { api } from "../lib/api.js";
-  import { applySnapshot } from "../lib/store.js";
+  import { tryAdd } from "../lib/adds.js";
   import CardTile from "./CardTile.svelte";
   import OracleText from "./OracleText.svelte";
 
@@ -29,26 +29,19 @@
   // (the panel's `error` is the lookup's), so it gets its own line.
   let addError = "";
   async function add(name, zone = "cards") {
-    addError = "";
-    const r = await api.add(name, zone, 1);
-    if (r.ok) applySnapshot(r.data);
-    else addError = r.data.error || `couldn't add ${name}`;
+    addError = await tryAdd(name, zone);
   }
 
   const missingOf = (c) => (c.card_views || []).filter((cv) => !cv.in_deck);
   const haveOf = (c) => (c.card_views || []).filter((cv) => cv.in_deck);
 
   async function addMissing(c) {
-    addError = "";
-    let snap = null;
     const refused = [];
     for (const cv of missingOf(c)) {
-      const r = await api.add(cv.name, "cards", 1);
-      if (r.ok) snap = r.data;
-      else refused.push(r.data.error || `couldn't add ${cv.name}`);
+      const why = await tryAdd(cv.name, "cards");
+      if (why) refused.push(why);
     }
-    if (snap) applySnapshot(snap);
-    if (refused.length) addError = refused.join(" · ");
+    addError = refused.join(" · ");
   }
 </script>
 

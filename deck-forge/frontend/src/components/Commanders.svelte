@@ -5,8 +5,8 @@
   // shows its lanes + per-lane owned counts (transparent, like the rest of the engine).
   import { onMount } from "svelte";
   import { api } from "../lib/api.js";
+  import { tryAdd } from "../lib/adds.js";
   import {
-    applySnapshot,
     collectionOpen,
     agentAttached,
     deck,
@@ -93,10 +93,7 @@
   // the hub's rule text; the panel's `error` is discovery's, so this is its own line.
   let addError = "";
   async function setCommander(name) {
-    addError = "";
-    const r = await api.add(name, "commanders", 1);
-    if (r.ok) applySnapshot(r.data);
-    else addError = r.data.error || `couldn't set ${name} as commander`;
+    addError = await tryAdd(name, "commanders");
   }
 
   // The headline number per result: signal rarity for novelty, support depth otherwise.
