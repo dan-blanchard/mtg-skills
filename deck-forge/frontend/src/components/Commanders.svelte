@@ -89,9 +89,14 @@
     colors = new Set(colors);
   }
 
+  // A refused set-as-commander (a second copy, an occupied singleton zone) carries
+  // the hub's rule text; the panel's `error` is discovery's, so this is its own line.
+  let addError = "";
   async function setCommander(name) {
+    addError = "";
     const r = await api.add(name, "commanders", 1);
     if (r.ok) applySnapshot(r.data);
+    else addError = r.data.error || `couldn't set ${name} as commander`;
   }
 
   // The headline number per result: signal rarity for novelty, support depth otherwise.
@@ -149,6 +154,9 @@
   </div>
 
   <div class="results">
+    {#if addError}
+      <div class="notice adderr">{addError}</div>
+    {/if}
     {#if loading}
       <div class="notice">Reading your {slotLabel(activeSlot)}…</div>
     {:else if error}
@@ -231,6 +239,10 @@
 </div>
 
 <style>
+  .notice.adderr {
+    color: var(--fail);
+  }
+
   .discover {
     padding: 1rem;
     height: 100%;

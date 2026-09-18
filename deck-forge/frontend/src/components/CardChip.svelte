@@ -21,11 +21,14 @@
   $: shown = displayName(name);
 
   let adding = false;
+  let addError = "";
   async function add() {
     if (adding) return;
     adding = true;
+    addError = "";
     const r = await api.add(name, "cards", 1);
     if (r.ok) applySnapshot(r.data);
+    else addError = r.data.error || `couldn't add ${shown}`;
     adding = false;
   }
 </script>
@@ -39,7 +42,8 @@
   >
     {#if art}<img class="thumb" src={art} alt="" loading="lazy" />{/if}
     <span class="nm">{shown}</span>
-  </button>
+  </button>{#if addError}<span class="chip-err" role="alert">{addError}</span
+    >{/if}
 {:else if card}
   <span class="cardchip static" use:hoverPreview={card}>
     {#if art}<img class="thumb" src={art} alt="" loading="lazy" />{/if}
@@ -50,6 +54,12 @@
 {/if}
 
 <style>
+  .chip-err {
+    color: var(--fail);
+    font-size: 0.78rem;
+    margin-left: 0.3rem;
+  }
+
   .cardchip {
     display: inline-flex;
     align-items: center;

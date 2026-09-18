@@ -90,19 +90,34 @@
     // twice (the old flow re-enabled the button before the slow re-tune finished, so a
     // second click on the still-showing row double-added the card).
     result = { ...result, swaps: result.swaps.filter((x) => x !== s) };
+    applyError = "";
     try {
       // applySnapshot keeps the deck list + footer live; a single apply skips the full
       // re-tune (slow combos + search) so working through the list stays snappy — the
       // scorecard refreshes on the next Run Tune.
-      if (s.cut) {
-        const r = await api.remove(s.cut.name); // a fill only adds
-        if (r.ok) applySnapshot(r.data);
-      }
-      const r = await api.add(s.add.name);
-      if (r.ok) applySnapshot(r.data);
+      await applyOne(s);
     } finally {
       applying = false;
     }
+  }
+
+  // A refused add carries the hub's rule text (a copy limit, a zone the format
+  // lacks). The ADD goes first: a swap whose add is refused must not cut its card.
+  let applyError = "";
+  async function applyOne(s) {
+    const added = await api.add(s.add.name);
+    if (!added.ok) {
+      applyError = added.data.error || `couldn't add ${s.add.name}`;
+      result = { ...result, swaps: [s, ...result.swaps] }; // back on the list
+      return false;
+    }
+    applySnapshot(added.data);
+    if (s.cut) {
+      const cut = await api.remove(s.cut.name); // a fill only adds
+      if (cut.ok) applySnapshot(cut.data);
+      else applyError = cut.data.error || `couldn't cut ${s.cut.name}`;
+    }
+    return true;
   }
 
   // A size cut is just a removal — same path a swap's cut side takes. The row is
@@ -124,9 +139,11 @@
         },
       },
     };
+    applyError = "";
     try {
       const r = await api.remove(s.name);
       if (r.ok) applySnapshot(r.data);
+      else applyError = r.data.error || `couldn't cut ${s.name}`;
     } finally {
       applying = false;
     }
@@ -135,16 +152,18 @@
   async function applyAll() {
     if (applying) return;
     applying = true;
+    applyError = "";
+    const refused = [];
     try {
-      for (const s of result.swaps) {
-        if (s.cut) {
-          const r = await api.remove(s.cut.name);
-          if (r.ok) applySnapshot(r.data);
-        }
-        const r = await api.add(s.add.name);
-        if (r.ok) applySnapshot(r.data);
+      const swaps = result.swaps;
+      result = { ...result, swaps: [] };
+      for (const s of swaps) {
+        if (!(await applyOne(s))) refused.push(applyError);
       }
+      // A refused swap's message survives the re-tune below.
+      const summary = refused.join(" · ");
       await run(); // one re-tune after the batch to refresh the scorecard + proposals
+      applyError = summary;
     } finally {
       applying = false;
     }
@@ -441,6 +460,7 @@
             Apply all ({result.swaps.length})
           </button>
         </div>
+        {#if applyError}<p class="err">{applyError}</p>{/if}
         {#each result.swaps as s ((s.cut?.name ?? "") + "→" + s.add.name)}
           <div class="swap">
             <div class="pair">

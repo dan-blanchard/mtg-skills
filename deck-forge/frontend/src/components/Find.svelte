@@ -144,9 +144,14 @@
     }
   }
 
+  // A refused add (a copy limit, a zone the format lacks) carries the hub's rule
+  // text; show it rather than letting the click do nothing.
+  let addError = "";
   async function add(cardName, zone) {
+    addError = "";
     const r = await api.add(cardName, zone, 1);
     if (r.ok) applySnapshot(r.data);
+    else addError = r.data.error || `couldn't add ${cardName}`;
   }
 
   // A5: with an active commander, lock the pips to its color identity — you can't run an
@@ -425,6 +430,10 @@
     </div>
   {/if}
 
+  {#if addError}
+    <div class="adderr">{addError}</div>
+  {/if}
+
   {#if results.length}
     <div class="facetbar">
       <div class="facetfill">
@@ -498,6 +507,11 @@
 </div>
 
 <style>
+  .adderr {
+    color: var(--fail);
+    font-size: 0.8rem;
+    margin: 0.3rem 0;
+  }
   .deckcolors {
     display: inline-flex;
     align-items: center;
