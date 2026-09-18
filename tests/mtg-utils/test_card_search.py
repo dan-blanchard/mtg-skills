@@ -11,6 +11,7 @@ from mtg_utils.card_classify import color_identity_subset
 from mtg_utils.card_search import (
     _extract_price,
     _matches_filters,
+    filter_records,
     format_results,
     main,
     search_cards,
@@ -1166,3 +1167,60 @@ class TestUnreleasedCommanderEligibility:
     def test_commanders_only_alone_still_excludes_it(self, tmp_path):
         found = search_cards(self._bulk(tmp_path), limit=100, is_commander_filter=True)
         assert found == []
+
+
+class TestSetFilter:
+    """``--set`` narrows to one set's printings, before the cheapest-printing dedup."""
+
+    def _bulk(self, tmp_path):
+        cards = [
+            {**_make_card(name="Reprint", price_usd="0.50"), "set": "hob"},
+            {**_make_card(name="Reprint", price_usd="0.10"), "set": "m21"},
+            {**_make_card(name="Only Here", price_usd="1.00"), "set": "hob"},
+            {**_make_card(name="Elsewhere", price_usd="1.00"), "set": "m21"},
+        ]
+        bulk_path = tmp_path / "bulk.json"
+        bulk_path.write_text(json.dumps(cards))
+        return bulk_path
+
+    def test_set_code_keeps_only_that_sets_printings(self, tmp_path):
+        results = search_cards(self._bulk(tmp_path), set_code="HOB", sort="name-asc")
+        assert [c["name"] for c in results] == ["Only Here", "Reprint"]
+        # The reprint's other set never leaks in through the cheapest-printing dedup.
+        assert next(c for c in results if c["name"] == "Reprint")["set"] == "hob"
+
+    def test_cli_set_option(self, tmp_path):
+        res = CliRunner().invoke(
+            main,
+            ["--bulk-data", str(self._bulk(tmp_path)), "--set", "hob", "--json"],
+        )
+        assert res.exit_code == 0, res.output
+        assert {c["name"] for c in json.loads(res.output)} == {"Only Here", "Reprint"}
+
+
+class TestFilterRecords:
+    """``filter_records`` is the one filter implementation: over an explicit record
+    list it matches ``search_cards`` on the same records — the seam a pool-bounded
+    build searches its opened pool through."""
+
+    def test_matches_search_cards_on_the_same_records(self, tmp_path):
+        cards = [
+            _make_card(name="Cheap Bolt", oracle_text="deals 3 damage", cmc=1.0),
+            _make_card(name="Big Guy", type_line="Creature — Giant", cmc=6.0),
+            _make_card(name="Green Guy", type_line="Creature", color_identity=["G"]),
+        ]
+        bulk_path = tmp_path / "bulk.json"
+        bulk_path.write_text(json.dumps(cards))
+        kwargs = {"card_type": "Creature", "sort": "name-asc", "limit": 10}
+        via_bulk = search_cards(bulk_path, **kwargs)
+        via_records = filter_records(cards, fmt=FORMATS["commander"], **kwargs)
+        assert [c["name"] for c in via_bulk] == [c["name"] for c in via_records]
+        # A pool-bounded Format reads every record as legal.
+        assert (
+            len(filter_records(cards, fmt=FORMATS["sealed"], color_identity="R")) == 2
+        )
+        # The bulk-level keywords a caller forwarding search_cards' contract may
+        # pass are ignored rather than refused.
+        assert filter_records(
+            cards, fmt=FORMATS["sealed"], format="sealed", include_unreleased=False
+        )

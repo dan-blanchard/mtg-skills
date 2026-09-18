@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 import re
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -141,11 +141,14 @@ def _matches_filters(
     unreleased_ok: frozenset[str] | None = None,
     is_commander_filter: bool = False,
     presets: tuple[Preset, ...] = (),
+    set_code: str | None = None,
 ) -> bool:
     # Skip tokens and non-game cards
     if card.get("layout") in SKIP_LAYOUTS:
         return False
     if card.get("set_type") in ("token", "memorabilia"):
+        return False
+    if set_code is not None and (card.get("set") or "").lower() != set_code:
         return False
     # A pre-release card is legal nowhere yet, so the format gate would reject it on
     # data that is provisional rather than final. ``unreleased_ok`` is the opt-in
@@ -296,6 +299,105 @@ def _parse_sort(sort: str) -> tuple[Callable[[dict], Any], bool]:
     return lambda c: _extract_price(c) or 0.0, reverse
 
 
+def resolve_presets(preset_names: tuple[str, ...]) -> tuple[Preset, ...]:
+    """The ``Preset`` values for a tuple of names, failing loud (a click parameter
+    error) on an unknown one."""
+    resolved: list[Preset] = []
+    for preset_name in preset_names:
+        try:
+            resolved.append(get_preset(preset_name))
+        except KeyError:
+            known = ", ".join(sorted(PRESETS.keys()))
+            msg = f"unknown preset {preset_name!r}. Known presets: {known}"
+            raise click.BadParameter(msg, param_hint="--preset") from None
+    return tuple(resolved)
+
+
+def filter_records(
+    records: Sequence[dict],
+    *,
+    fmt: Format,
+    color_identity: str | None = None,
+    oracle: str | None = None,
+    card_type: str | tuple[str, ...] | None = None,
+    name: str | None = None,
+    cmc_min: float | None = None,
+    cmc_max: float | None = None,
+    price_min: float | None = None,
+    price_max: float | None = None,
+    sort: str = "price-desc",
+    limit: int = 25,
+    offset: int = 0,
+    arena_only: bool = False,
+    paper_only: bool = False,
+    unreleased_ok: frozenset[str] | None = None,
+    exact_colors: bool = False,
+    is_commander_filter: bool = False,
+    preset_names: tuple[str, ...] = (),
+    set_code: str | None = None,
+    **_ignored: object,
+) -> list[dict]:
+    """The one filter implementation over an explicit record list: every per-query
+    filter ``search_cards`` takes, then the cheapest-printing dedup by name, the sort
+    and the page. ``search_cards`` runs it over the bulk's playable pool; a
+    pool-bounded build (sealed / draft) runs it over its opened pool's records, so
+    Find and the tuner search the pool with the SAME semantics. Unknown keyword
+    arguments (``format``, ``include_unreleased`` — bulk-level concerns a caller
+    forwarding ``search_cards``' contract may pass) are ignored."""
+    allowed_colors = set(color_identity.upper()) if color_identity else None
+    try:
+        oracle_re = re.compile(oracle, re.IGNORECASE) if oracle else None
+    except re.error as e:
+        msg = f"Invalid oracle regex: {e}"
+        raise click.BadParameter(msg, param_hint="--oracle") from e
+    if not card_type:
+        type_lower: str | tuple[str, ...] | None = None
+    elif isinstance(card_type, str):
+        type_lower = card_type.lower()
+    else:  # an OR of type-line tokens — a card matches if ANY is present
+        type_lower = tuple(t.lower() for t in card_type)
+    name_lower = name.lower() if name else None
+    presets = resolve_presets(preset_names) if preset_names else ()
+
+    matched = [
+        card
+        for card in records
+        if _matches_filters(
+            card,
+            allowed_colors=allowed_colors,
+            oracle_re=oracle_re,
+            type_lower=type_lower,
+            name_substr=name_lower,
+            cmc_min=cmc_min,
+            cmc_max=cmc_max,
+            price_min=price_min,
+            price_max=price_max,
+            exact_colors=exact_colors,
+            fmt=fmt,
+            arena_only=arena_only,
+            paper_only=paper_only,
+            unreleased_ok=unreleased_ok,
+            is_commander_filter=is_commander_filter,
+            presets=presets,
+            set_code=set_code.lower() if set_code else None,
+        )
+    ]
+
+    # Deduplicate by name, keeping the cheapest printing (shared acquisition-cost rule:
+    # a priced printing beats a price-less one, cheapest among priced).
+    best: dict[str, dict] = {}
+    for card in matched:
+        card_name = card.get("name", "")
+        best[card_name] = (
+            keep_cheaper(best[card_name], card) if card_name in best else card
+        )
+    deduped = list(best.values())
+
+    sort_key, sort_reverse = _parse_sort(sort)
+    deduped.sort(key=sort_key, reverse=sort_reverse)
+    return deduped[offset : offset + limit]
+
+
 def search_cards(
     bulk_path: Path,
     *,
@@ -317,6 +419,7 @@ def search_cards(
     exact_colors: bool = False,
     is_commander_filter: bool = False,
     preset_names: tuple[str, ...] = (),
+    set_code: str | None = None,
 ) -> list[dict]:
     """Search bulk data for cards matching all specified filters.
 
@@ -325,6 +428,10 @@ def search_cards(
     default gate (see :func:`unreleased_oracle_ids`). It widens legality ONLY for those
     — banned, restricted, and never-legal cards are unaffected — and it does not assert
     the requested format's legality, which is unknowable before release.
+
+    ``set_code`` narrows to one set's printings (``--set HOB``) — what a set holds, for
+    a limited scan; it runs on every printing before the cheapest-printing dedup, so a
+    reprint's other sets never leak in.
     """
     fmt = get_format(format) if format is not None else FORMATS["commander"]
 
@@ -336,32 +443,7 @@ def search_cards(
     if format is not None and fmt.is_arena and not paper_only:
         arena_only = True
 
-    allowed_colors = set(color_identity.upper()) if color_identity else None
-    try:
-        oracle_re = re.compile(oracle, re.IGNORECASE) if oracle else None
-    except re.error as e:
-        msg = f"Invalid oracle regex: {e}"
-        raise click.BadParameter(msg, param_hint="--oracle") from e
-    if not card_type:
-        type_lower: str | tuple[str, ...] | None = None
-    elif isinstance(card_type, str):
-        type_lower = card_type.lower()
-    else:  # an OR of type-line tokens — a card matches if ANY is present
-        type_lower = tuple(t.lower() for t in card_type)
-    name_lower = name.lower() if name else None
-
-    presets: tuple[Preset, ...] = ()
-    if preset_names:
-        resolved: list[Preset] = []
-        for preset_name in preset_names:
-            try:
-                resolved.append(get_preset(preset_name))
-            except KeyError:
-                known = ", ".join(sorted(PRESETS.keys()))
-                msg = f"unknown preset {preset_name!r}. Known presets: {known}"
-                raise click.BadParameter(msg, param_hint="--preset") from None
-        presets = tuple(resolved)
-
+    presets = resolve_presets(preset_names) if preset_names else ()
     # A structural-view preset (task #83) reads _signal_keys_for, which is
     # itself a per-oracle_id memo (theme_presets._SIGNAL_KEY_INDEX). Seeding it
     # from the persisted whole-pool signals-index sidecar (task #90) before the
@@ -379,7 +461,7 @@ def search_cards(
     cards = load_bulk_cards(bulk_path)
     unreleased_ok = unreleased_ids_for(bulk_path, cards) if include_unreleased else None
     # Scan only the format-invariant playable subset (cached) rather than all ~114k bulk
-    # records; the per-query filters below still run on every pool member.
+    # records; the per-query filters run on every pool member.
     pool = _playable_pool(
         bulk_path,
         cards,
@@ -388,44 +470,28 @@ def search_cards(
         paper_only=paper_only,
         unreleased_ok=unreleased_ok,
     )
-
-    # Filter
-    matched = [
-        card
-        for card in pool
-        if _matches_filters(
-            card,
-            allowed_colors=allowed_colors,
-            oracle_re=oracle_re,
-            type_lower=type_lower,
-            name_substr=name_lower,
-            cmc_min=cmc_min,
-            cmc_max=cmc_max,
-            price_min=price_min,
-            price_max=price_max,
-            exact_colors=exact_colors,
-            fmt=fmt,
-            arena_only=arena_only,
-            paper_only=paper_only,
-            unreleased_ok=unreleased_ok,
-            is_commander_filter=is_commander_filter,
-            presets=presets,
-        )
-    ]
-
-    # Deduplicate by name, keeping the cheapest printing (shared acquisition-cost rule:
-    # a priced printing beats a price-less one, cheapest among priced).
-    best: dict[str, dict] = {}
-    for card in matched:
-        name = card.get("name", "")
-        best[name] = keep_cheaper(best[name], card) if name in best else card
-    deduped = list(best.values())
-
-    # Sort
-    sort_key, sort_reverse = _parse_sort(sort)
-    deduped.sort(key=sort_key, reverse=sort_reverse)
-
-    return deduped[offset : offset + limit]
+    return filter_records(
+        pool,
+        fmt=fmt,
+        color_identity=color_identity,
+        oracle=oracle,
+        card_type=card_type,
+        name=name,
+        cmc_min=cmc_min,
+        cmc_max=cmc_max,
+        price_min=price_min,
+        price_max=price_max,
+        sort=sort,
+        limit=limit,
+        offset=offset,
+        arena_only=arena_only,
+        paper_only=paper_only,
+        unreleased_ok=unreleased_ok,
+        exact_colors=exact_colors,
+        is_commander_filter=is_commander_filter,
+        preset_names=preset_names,
+        set_code=set_code,
+    )
 
 
 def format_results(cards: list[dict]) -> str:
@@ -569,6 +635,12 @@ def format_results(cards: list[dict]) -> str:
         "pre-release brewing. Does not affect banned/restricted or never-legal cards."
     ),
 )
+@click.option(
+    "--set",
+    "set_code",
+    default=None,
+    help="Only this set's printings (a set code, e.g. HOB) — what a set holds.",
+)
 def main(
     bulk_data: Path,
     color_identity: str | None,
@@ -591,6 +663,7 @@ def main(
     arena_only: bool,
     paper_only: bool,
     include_unreleased: bool,
+    set_code: str | None,
 ) -> None:
     """Search Scryfall bulk data for cards matching filters."""
     if arena_only and paper_only:
@@ -612,6 +685,7 @@ def main(
         arena_only=arena_only,
         paper_only=paper_only,
         include_unreleased=include_unreleased,
+        set_code=set_code,
         is_commander_filter=is_commander,
         preset_names=preset_names,
     )

@@ -92,6 +92,14 @@ def _keep_lowest_rarity(existing: dict, new: dict) -> dict:
     return new if new_rank < existing_rank else existing
 
 
+def _collector_key(card: dict) -> tuple[int, str]:
+    """A sortable collector number: numeric first, then the raw string (so "12a"
+    sorts by 12, and a non-numeric number sorts after every numeric one)."""
+    raw = str(card.get("collector_number") or "")
+    digits = "".join(ch for ch in raw if ch.isdigit())
+    return (int(digits) if digits else 10**9, raw)
+
+
 def _rarity_value(card: dict) -> dict:
     rarity = card.get("rarity", "rare")
     return {
@@ -119,6 +127,7 @@ class CardPool:
         "_path",
         "_printings",
         "_rarity",
+        "_set_records",
         "_unreleased",
     )
 
@@ -132,6 +141,7 @@ class CardPool:
         self._aliases: dict[str, str] | None = None
         self._printings: tuple[dict[str, list[dict]], dict[str, dict]] | None = None
         self._object_resolver: Callable[[str], dict | None] | None = None
+        self._set_records: dict[str, list[dict]] = {}
 
     # --- constructors ----------------------------------------------------------
 
@@ -279,6 +289,26 @@ class CardPool:
 
             self._aliases = name_alias_map(self._cards)
         return self._aliases
+
+    def set_records(self, code: str) -> list[dict]:
+        """One record per distinct card in set ``code`` (game cards only, the lowest
+        collector number per oracle) — what a set holds, for a limited scan of the
+        threats and answers a pool's opponents draw from. Memoized per code."""
+        key = code.lower()
+        if key not in self._set_records:
+            best: dict[str, dict] = {}
+            for card in self._cards:
+                if (card.get("set") or "").lower() != key or not is_game_card(card):
+                    continue
+                oracle_id = card.get("oracle_id") or card.get("name", "")
+                if oracle_id not in best or _collector_key(card) < _collector_key(
+                    best[oracle_id]
+                ):
+                    best[oracle_id] = card
+            self._set_records[key] = sorted(
+                best.values(), key=lambda c: (_collector_key(c), c.get("name", ""))
+            )
+        return self._set_records[key]
 
     @property
     def printings_by_oracle(self) -> dict[str, list[dict]]:

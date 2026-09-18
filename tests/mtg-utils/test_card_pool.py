@@ -428,3 +428,15 @@ class TestRarityIndexFormatBanOverrides:
         )
         assert "force of will" in index
         assert "oko, thief of crowns" not in index
+
+
+def test_set_records_is_one_per_oracle_in_collector_order():
+    first = _card("Alpha", set="hob", collector_number="12", id="a12")
+    also = _card("Alpha", set="hob", collector_number="300", id="a300")  # a showcase
+    other = _card("Beta", set="hob", collector_number="3", id="b3")
+    elsewhere = _card("Gamma", set="m21", collector_number="1", id="g1")
+    token = _card("Elf", set="thob", layout="token", oracle_id="oid-tok", id="t1")
+    pool = CardPool.from_cards([also, elsewhere, first, other, token])
+    assert [c["id"] for c in pool.set_records("HOB")] == ["b3", "a12"]
+    assert pool.set_records("hob") is pool.set_records("HOB")  # memoized per code
+    assert pool.set_records("nope") == []

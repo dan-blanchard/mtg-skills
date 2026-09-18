@@ -216,6 +216,27 @@ def is_basic_land(card: dict) -> bool:
     return is_land(card) and "basic" in (card.get("type_line") or "").lower()
 
 
+#: The evasion keyword abilities a limited scan counts (a body that gets past
+#: blockers) — read off the record's ``keywords``.
+EVASION_KEYWORDS: frozenset[str] = frozenset(
+    {
+        "Flying",
+        "Menace",
+        "Trample",
+        "Shadow",
+        "Fear",
+        "Intimidate",
+        "Skulk",
+        "Horsemanship",
+    }
+)
+
+
+def has_evasion(card: dict) -> bool:
+    """Whether a card carries one of ``EVASION_KEYWORDS``."""
+    return any(k in EVASION_KEYWORDS for k in card.get("keywords") or [])
+
+
 def card_pt_int(card: dict, field: str = "power") -> int:
     """A creature's printed power/toughness as an int, defaulting non-numeric
     values (``*``, ``X``, missing) to 0. Centralizes the parse that had been
