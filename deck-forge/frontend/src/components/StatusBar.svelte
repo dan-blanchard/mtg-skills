@@ -20,6 +20,7 @@
     sideboardSize,
     deckSizeDefault,
     poolBounded,
+    isDigital,
   } from "../lib/store.js";
   import {
     landState,
@@ -123,7 +124,7 @@
     {/if}
     {#if $poolBounded}
       <!-- an opened pool is owned outright: nothing to craft or buy -->
-    {:else if $deck.medium === "digital"}
+    {:else if $isDigital}
       <div
         class="stat wc"
         title="Arena wildcards needed for cards you don't own (basics are free)"

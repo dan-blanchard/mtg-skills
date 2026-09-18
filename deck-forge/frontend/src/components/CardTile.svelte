@@ -19,6 +19,7 @@
     agentAttached,
     hasCommander,
     sideboardSize,
+    poolBounded,
   } from "../lib/store.js";
   import Mana from "./Mana.svelte";
   import ManaCost from "./ManaCost.svelte";
@@ -123,7 +124,7 @@
           class="btn btn-ember add"
           on:click={() => onadd(card.name, "cards")}>+ Add</button
         >
-        {#if $sideboardSize > 0}
+        {#if $sideboardSize > 0 && !$poolBounded}
           <button
             class="btn star"
             title="Add to the sideboard"

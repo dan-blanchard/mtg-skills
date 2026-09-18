@@ -401,6 +401,19 @@ def filter_records(
     return deduped[offset : offset + limit]
 
 
+def pool_search_fn(records: Sequence[dict], fmt: Format) -> Callable[..., list[dict]]:
+    """A ``search_cards``-shaped callable over an explicit record list — what a
+    pool-bounded build (sealed / draft) searches instead of the bulk: the same filter
+    implementation, with the game gate off (the records ARE the pool, whatever game
+    they were opened in). Used by deck-forge's Find / Tune and by ``deck-tune``."""
+
+    def pool_search(**filters: object) -> list[dict]:
+        kwargs: dict[str, Any] = {**filters, "paper_only": False, "arena_only": False}
+        return filter_records(records, fmt=fmt, **kwargs)
+
+    return pool_search
+
+
 def search_cards(
     bulk_path: Path,
     *,

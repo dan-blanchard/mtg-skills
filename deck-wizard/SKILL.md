@@ -1599,6 +1599,8 @@ If you can't articulate why a specific card should be cut, you haven't evaluated
 
 ## Step 8: Self-Grill (Two-Agent Debate)
 
+**Limited (Path C) variant:** the prompt to both agents is *"rank every viable colour pair from this pool and justify the ordering"* — no candidate pair is named, and the `pool-colors` table (plus `set-scan`) is the input, never a finished decklist. A Challenger handed a predetermined pair only optimises against one build.
+
 **HARD GATE.** Must use two parallel `Agent` tool calls (`subagent_type: "general-purpose"`): one proposer, one challenger, with at least one revision round. This is NOT substituted by mechanical checks (mana-audit, price-check) — those catch quantitative errors; the self-grill catches strategic errors (wrong archetype assessment, missed synergy, weak justification, metagame misread).
 
 ### Data Delivery

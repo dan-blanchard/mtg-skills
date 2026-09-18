@@ -18,7 +18,6 @@ import uuid
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
 
 from mtg_utils import card_search, mark_owned, price_check
 from mtg_utils._analysis import staples
@@ -844,19 +843,23 @@ def move_card(
     have = state.session.quantity_of(name, zone=from_zone)
     if have < qty:
         raise DeckRuleError(f"{name}: only {have} in {from_zone}, cannot move {qty}")
-    if state.session.pool_bounded and to_zone in ("sideboard", "pool"):
-        # Cutting to the (derived) sideboard — or "back to the pool" — is just
-        # leaving the deck: the pool already holds the card.
-        state.session.remove(name, qty, zone=from_zone)
-        return
+    if state.session.pool_bounded:
+        # The pool and its derived sideboard are one thing to move against: a card
+        # leaves the deck into it (a remove) or enters the deck from it (an add the
+        # pool bounds); the pool itself never changes by a move.
+        unused = ("sideboard", "pool")
+        if from_zone == "cards" and to_zone in unused:
+            state.session.remove(name, qty, zone="cards")
+            return
+        if from_zone in unused and to_zone == "cards":
+            check_copy_add(state, name, qty)
+            state.session.add(name, qty, zone="cards")
+            return
+        if from_zone in unused and to_zone in unused:
+            raise DeckRuleError(f"{name} is already in the pool")
     check_zone_open(state, to_zone)
     if to_zone == "companion":
         check_companion_add(state, name, qty)
-    if state.session.pool_bounded and from_zone in ("sideboard", "pool"):
-        # Playing a pool card: an add the pool bounds; the pool never shrinks.
-        check_copy_add(state, name, qty)
-        state.session.add(name, qty, zone=to_zone)
-        return
     printing = state.session.printing_of(name, zone=from_zone)
     finish = state.session.finish_of(name, zone=from_zone)
     state.session.remove(name, qty, zone=from_zone)
@@ -1066,16 +1069,7 @@ def search_for(state: ForgeState, hd: HydratedDeck) -> Callable[..., list[dict]]
     semantics and never name a card the builder did not open."""
     if not state.session.pool_bounded:
         return state.search_fn
-    records = pool_records(hd)
-    fmt = FORMATS[state.session.format]
-
-    def pool_search(**filters: object) -> list[dict]:
-        # The records ARE the pool, whatever game they were opened in: the game
-        # gate a caller passes for a database search never applies here.
-        kwargs: dict[str, Any] = {**filters, "paper_only": False, "arena_only": False}
-        return card_search.filter_records(records, fmt=fmt, **kwargs)
-
-    return pool_search
+    return card_search.pool_search_fn(pool_records(hd), FORMATS[state.session.format])
 
 
 def pool_readout(state: ForgeState, hd: HydratedDeck) -> dict | None:

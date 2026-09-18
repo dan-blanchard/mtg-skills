@@ -176,7 +176,13 @@
         ]
       : []),
     ...($poolBounded
-      ? [{ key: "pool", label: "Pool", cards: $deck.pool || [] }]
+      ? [
+          {
+            key: "pool",
+            label: "Pool",
+            cards: byColorThenCmc($deck.pool || []),
+          },
+        ]
       : []),
   ];
   // Copies in a group (a 4-of is four cards, a singleton group reads as before).
@@ -199,11 +205,23 @@
   // Whether one more copy may be added to the deck: the pool's count for a sealed /
   // draft build (basics unlimited), the format's copy limit otherwise.
   function canAddAnother(c) {
-    if ($poolBounded) {
-      if (/\bBasic Land\b/.test(c.type_line || "")) return true;
-      return (c.quantity || 1) < (poolQty.get(c.name) ?? 0);
-    }
+    if ($poolBounded)
+      return (c.quantity || 1) < copyLimit(c, poolQty.get(c.name) ?? 0);
     return (held.get(c.name) || 0) < copyLimit(c, $maxCopies);
+  }
+  // The pool reads colour then mana value (a booster's order says nothing).
+  function colorKey(c) {
+    return (c.color_identity || []).join("") || "~";
+  }
+  function byColorThenCmc(cards) {
+    return cards
+      .slice()
+      .sort(
+        (a, b) =>
+          colorKey(a).localeCompare(colorKey(b)) ||
+          (a.cmc || 0) - (b.cmc || 0) ||
+          a.name.localeCompare(b.name),
+      );
   }
   // Whether any filter is set (so we only show "N of M" and the clear hint when filtering).
   $: filtering = !!(fName || fType || fCmc || fPrice || fRarity || fOwned);

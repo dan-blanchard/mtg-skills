@@ -187,6 +187,10 @@ def test_moves_to_and_from_the_pool_never_change_the_pool():
     assert state.session.quantity_of("Bear", zone="pool") == 3
     with pytest.raises(DeckRuleError, match="the pool holds 1"):
         engine.move_card(state, "Troll", from_zone="pool", to_zone="cards")
+    # Between the pool and its derived sideboard there is nothing to move.
+    with pytest.raises(DeckRuleError, match="already in the pool"):
+        engine.move_card(state, "Bear", from_zone="pool", to_zone="sideboard")
+    assert state.session.quantity_of("Bear", zone="pool") == 3
 
 
 # --- crossing the pool boundary -----------------------------------------------------

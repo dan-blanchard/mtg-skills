@@ -168,7 +168,18 @@ def main(
             err=True,
         )
 
-    search = functools.partial(card_search.search_cards, bulk_path)
+    # A pool-bounded deck (sealed / draft) searches its opened pool, never the bulk,
+    # and every pool card is owned (ADR-0055).
+    pool: dict[str, int] | None = None
+    if fmt.pool_bounded:
+        search = card_search.pool_search_fn(hd.deck_records(zones=("pool",)), fmt)
+        pool = {}
+        for entry, _rec in hd.entries(zones=("pool",)):
+            pool[entry["name"]] = pool.get(entry["name"], 0) + int(
+                entry.get("quantity", 1)
+            )
+    else:
+        search = functools.partial(card_search.search_cards, bulk_path)
     by_name = hd.by_name
 
     def combos_fn(deck: dict) -> dict:
@@ -185,7 +196,7 @@ def main(
         wildcard_budget=wildcards,
         target_bracket=target_bracket,
     )
-    result = tune(hd, search_fn=search, params=params, combos_fn=combos_fn)
+    result = tune(hd, search_fn=search, params=params, combos_fn=combos_fn, pool=pool)
 
     text = json.dumps(result, indent=2)
     if output:

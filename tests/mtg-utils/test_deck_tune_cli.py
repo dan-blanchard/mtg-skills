@@ -271,3 +271,34 @@ def test_usd_budget_on_a_digital_build_is_noted(tmp_path, monkeypatch):
     )
     assert res.exit_code == 0, res.output
     assert "--wildcards" in res.output
+
+
+def test_a_sealed_deck_tunes_over_its_pool_never_the_bulk(tmp_path, monkeypatch):
+    # The CLI hands the tuner the opened pool's own search (ADR-0055).
+    import mtg_utils.deck_tune as deck_tune_mod
+
+    captured: dict = {}
+
+    def spy(_hd, *, search_fn, pool=None, **_kw):
+        captured["search_fn"] = search_fn
+        captured["pool"] = pool
+        return _STUB_RESULT
+
+    monkeypatch.setattr(deck_tune_mod, "tune", spy)
+    deck = _write(
+        tmp_path,
+        "deck.json",
+        {
+            "format": "sealed",
+            "commanders": [],
+            "cards": [{"name": "Mountain", "quantity": 17}],
+            "sideboard": [],
+            "pool": [{"name": "Krenko, Mob Boss", "quantity": 2}],
+        },
+    )
+    hyd = _write(tmp_path, "hyd.json", HYDRATED)
+    res = CliRunner().invoke(deck_tune_main, [deck, "--bulk-data", hyd])
+    assert res.exit_code == 0, res.output
+    assert captured["pool"] == {"Krenko, Mob Boss": 2}
+    found = captured["search_fn"](card_type="Creature", paper_only=True)
+    assert [c["name"] for c in found] == ["Krenko, Mob Boss"]
