@@ -90,6 +90,10 @@ number looked authoritative.
 
 ## P2 — No limited format exists, so every gate uses the wrong rules
 
+**Done (ADR-0055):** `sealed` / `draft` are the `limited` family — 40-card minimum, no
+copy limit, no sideboard cap, legality = pool containment (`check_pool_containment`
+over the `pool` zone; no `--pool` flag needed, the pool rides inside the deck JSON).
+
 **Where:** `format_config.py` — `FORMAT_CONFIGS` has 12 entries, none for limited.
 
 Consequences observed:
@@ -114,6 +118,9 @@ maindeck card is available in the pool at the required quantity.
 ---
 
 ## P2 — `mana-audit` returns FAIL for a correct limited manabase
+
+**Done (ADR-0055):** `limited_land_target` — 17 per 40, a 16–18 band — dispatched
+for the limited family.
 
 **Where:** `mana_audit.py:72` — `constructed_land_target`.
 
@@ -170,6 +177,10 @@ proportional to `--games`.
 
 ## P4 — `deck-wizard` SKILL.md has no limited path
 
+**Done (ADR-0055):** Phase 1, Path C (parse the pool, `pool-colors`, `set-scan`,
+build and compare, `legality-audit`, the limited band); deck-forge builds the same
+pool-bounded deck in the browser.
+
 Phase 1 offers "tune an existing deck" or "build from scratch." Sealed is neither:
 the deck is **built from a fixed pool**, and the whole Commander-family spine
 (`deck-tune`, `cut-check`, commander-interaction audit) is inapplicable, as is the
@@ -190,6 +201,8 @@ the deck is **built from a fixed pool**, and the whole Commander-family spine
 
 ## P4 — Add a `set-scan` capability
 
+**Done (ADR-0055):** `set-scan --set CODE` and `GET /api/set-scan` (the Pool tab).
+
 Every threat assessment this session was initially made against the *player's
 67-card pool* rather than the *193-card set opponents draw from*. That produced two
 wrong claims that survived into a published deliverable ("nothing in this format
@@ -204,6 +217,9 @@ limited path.
 ---
 
 ## P4 — Process: the self-grill cannot arbitrate archetype choice
+
+**Done (ADR-0055):** Path C's Step 8 prompt ranks every viable pair from the
+`pool-colors` table with no candidate named.
 
 Step 8 dispatches a Proposer and a Challenger **around an existing proposal**.
 That is right for tuning a deck and wrong for choosing one: in this session both

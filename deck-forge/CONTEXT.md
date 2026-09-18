@@ -7,17 +7,41 @@ The bounded context for collaborative, visual MTG deckbuilding: a human and an e
 ### Deck values
 
 **Family**:
-Which shape rules the build's format follows — `commander` (a command zone,
-singleton, an exact size the CR cites) or `constructed` (a copy limit and a sideboard
-over a size that is a minimum, CR 100.2a); `limited` (a build bounded by an opened
-pool) follows. A `Format` fact (`Format.family`, ADR-0045 / ADR-0054), served in the
-format table with the facts it implies (`has_commander`, `max_copies`,
-`sideboard_size`, `size_is_minimum`); the hub, the tuner and the SPA key every
-family decision off one of those facts, never off the format's name. The
-Commander-only surfaces — discovery, partner, staples, the bracket pill, commander
-fit — read `has_commander` and are absent (null, a 400) elsewhere, never an empty
-no-op.
+The Format's family (mtg-utils CONTEXT: Family — `commander` / `constructed` /
+`limited`), as the hub and the SPA read it: served in the format table with the
+facts it implies, and every family decision keys off one of those facts, never off
+the format's name (ADR-0054). The Commander-only surfaces — discovery, partner,
+staples, the bracket pill, commander fit — read `has_commander` and are absent
+(null, a 400) elsewhere, never an empty no-op; the limited surfaces — the Pool
+panel, the pool zone, the seed — read `pool_bounded`.
 _Avoid_: "the Commander family" as an allowlist, an `id === "commander"` compare.
+
+**Pool**:
+A sealed / draft build's opened cards — the fifth zone (`pool`), the cards the deck
+and sideboard are drawn from plus basic lands (CR 100.2b). Imported from an Arena
+/ Moxfield export (Deck + Sideboard pooled; a bare list is all pool), hydrated like
+any zone, counted by no analysis. The Pool panel enumerates every colour pair it
+supports on equal footing (**Colour-pair enumeration**: playables, creatures,
+removal, evasion, power-4-plus bodies, rares — `set_scan.pool_color_pairs`) before
+any opinion is formed, and seeds a first 40 in a pair from the pool's own cards.
+
+**Pool containment**:
+A pool-bounded build's legality: every copy in the deck is in the pool at that
+quantity (basics excepted). In the hub the pool IS the copy limit (`copy_limit`
+reads the pool's count), so the one add rule enforces it and Find strips by it; the
+audit's `check_pool_containment` is the CLI-layer statement of the same rule.
+
+**Derived sideboard**:
+A pool-bounded build's sideboard: the pool less the main deck
+(`DeckSession.derived_sideboard`), emitted by every snapshot and export, never
+stored, never written to. A cut is just leaving the deck; playing a pool card is an
+add the pool bounds; a move never changes the pool. Uncapped (the "unused" pill).
+
+**Set scan**:
+What a SET holds — removal by rarity, sweepers, evasion, the biggest bodies, the
+curve — over the pool's set index (`CardPool.set_records`), read-only and
+agent-free (`set-scan`, `GET /api/set-scan`): the threats and answers a pool's
+opponents draw from, which the pool alone never shows.
 
 **Copy limit**:
 How many copies of one card the build may run: the audit's own
@@ -44,7 +68,8 @@ _Avoid_: "colour identity" for a 60-card deck (it has none as a rule).
 
 **Sideboard**:
 The fourth zone a constructed Family has (`sideboard_size` 15, CR 100.4a; zero for
-the Commander family, whose builds never render one). Never counts toward the deck
+the Commander family, whose builds never render one; uncapped and derived for a
+pool-bounded build — see **Derived sideboard**). Never counts toward the deck
 size, a template row, the mana base or the avenues; the copy limit spans it. Over
 the cap is a warning (a build in progress may park cards while swapping), reported at
 finalize, never a hard rule.

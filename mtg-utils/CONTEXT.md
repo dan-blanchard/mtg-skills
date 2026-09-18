@@ -170,13 +170,23 @@ concept (the `Format` reads it; callers read a status).
 
 **Family** (`Format.family`):
 Which shape rules a format follows — `commander` (a command zone, singleton, an
-exact size the CR cites) or `constructed` (a copy limit and a sideboard over a
-size that is a minimum, CR 100.2a). The switch every family decision reads in the
-hub, the tuner and the SPA (served in the format table with the facts it implies:
-`has_commander`, `max_copies`, `sideboard_size`, `size_is_minimum`); a caller that
-needs one fact reads that fact, never the format's name.
+exact size the CR cites), `constructed` (a copy limit and a sideboard over a size
+that is a minimum, CR 100.2a), or `limited` (a build bounded by an opened pool over
+a minimum size, with no copy limit and no sideboard cap, CR 100.2b). The switch
+every family decision reads in the hub, the tuner and the SPA (served in the format
+table with the facts it implies: `has_commander`, `pool_bounded`, `max_copies`,
+`sideboard_size`, `size_is_minimum`, `family_label`); a caller that needs one fact
+reads that fact, never the format's name.
 _Avoid_: "is commander" string compares on a format id; "the Commander family" as an
 allowlist (it is `family == "commander"`).
+
+**Pool-bounded format**:
+A limited format (`sealed`, `draft`; `Format.pool_bounded`, ADR-0055): the deck is
+built from the cards its `pool` zone holds plus basic lands, so its legality is
+pool membership (`legality_audit.check_pool_containment`) and every record reads
+`legal` — there is no legality key. `max_copies` and `sideboard_size` are `None`
+(as many duplicates as the product included; the sideboard is the unused pool).
+_Avoid_: borrowing a constructed format at 40 cards; a faked legality key.
 
 **Primary medium**:
 For a format played in both media, the one a new build defaults to: paper for a

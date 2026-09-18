@@ -1,6 +1,6 @@
 ---
 name: deck-forge
-description: Collaboratively build or tune an MTG deck in a live browser UI — the assistant surfaces signal-driven synergy packages, exploration avenues, and ranked candidates (with "why it fits" + honest cost) plus live curve/mana guidance, while you make every decision. Every format — the Commander family (Commander/Brawl/Historic Brawl) and 60-card constructed (Standard through Vintage), paper + Arena. Reasoning runs in your interactive Claude Code session (no API key, covered by your subscription).
+description: Collaboratively build or tune an MTG deck in a live browser UI — the assistant surfaces signal-driven synergy packages, exploration avenues, and ranked candidates (with "why it fits" + honest cost) plus live curve/mana guidance, while you make every decision. Every format — the Commander family (Commander/Brawl/Historic Brawl), 60-card constructed (Standard through Vintage), and limited (Sealed/Draft from an opened pool), paper + Arena. Reasoning runs in your interactive Claude Code session (no API key, covered by your subscription).
 compatibility: Requires Python 3.12+, uv, a modern browser. First run needs MTGJSON card data (`download-mtgjson`).
 license: 0BSD
 ---
@@ -159,7 +159,19 @@ loop answers — you don't drive it from this session.
   by *signal*, not popularity. Set it via the UI (★) or `set-commander`. In a
   constructed format there is no commander: the deck's castable colours scope the
   lane searches (a caption under the Find pips; the pips stay unlocked), the
-  Sideboard zone and a 4-copy stepper appear, and the size pill reads `N/60 · min`.
+  Sideboard zone and a 4-copy stepper appear, and the size pill reads
+  `N/60 cards · min`.
+- **Sealed / draft (limited):** the user imports their Arena / Moxfield export with
+  the format set to Sealed or Draft — its Deck becomes the main deck and Deck +
+  Sideboard become the **pool** (tick "this is the whole pool" for a bare list).
+  Everything is bounded by the pool: Find and Tune search only the opened cards,
+  the sideboard is the unused pool (derived, uncapped), the pool is the copy limit,
+  the land band is the 17-of-40 norm, and there is no cost readout (the pool is
+  owned). The **Pool** tab enumerates every colour pair on equal footing — read it
+  BEFORE forming an opinion about the pair, then seed a first 40 in a pair and tune
+  from there. Scan the SET (the Pool tab's set-code box, or `set-scan --set CODE`)
+  for the threats and answers opponents draw from — never judge a removal spell
+  against the 60 cards the user opened.
 - **Tune existing:** `parse-deck` the user's list, then load it.
 
 Once a commander is set, the backend extracts its scoped **signals** automatically and

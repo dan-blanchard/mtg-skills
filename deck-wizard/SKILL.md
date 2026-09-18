@@ -1,6 +1,6 @@
 ---
 name: deck-wizard
-description: Build and tune MTG decks across all formats — Commander/EDH, Brawl, Historic Brawl, Standard, Alchemy, Historic, Pioneer, Timeless, Modern, PreModern, Legacy, and Vintage.
+description: Build and tune MTG decks across all formats — Commander/EDH, Brawl, Historic Brawl, Standard, Alchemy, Historic, Pioneer, Timeless, Modern, PreModern, Legacy, and Vintage, plus Sealed and Draft from an opened pool.
 compatibility: Requires Python 3.12+ and uv. Shares mtg_utils package via symlink.
 license: 0BSD
 ---
@@ -38,6 +38,8 @@ For 60-card constructed: discovery (brainstorming candidates) may use training d
 | premodern | 60 | 4 | 15 | Paper + MTGO | premodern | 4th Edition through Scourge |
 | legacy | 60 | 4 | 15 | Paper + MTGO | legacy | Eternal, ban list |
 | vintage | 60 | 4 (restricted=1) | 15 | Paper + MTGO | vintage | Restricted cards limited to 1 copy |
+| sealed | 40 (minimum) | none (as opened) | the unused pool | Arena + Paper | pool containment | Built from the opened pool + basics (CR 100.2b) |
+| draft | 40 (minimum) | none (as opened) | the unused pool | Arena + Paper | pool containment | Same rules as sealed; the pool is what you drafted |
 
 ---
 
@@ -321,7 +323,7 @@ Run `download-rules --output-dir <working-dir>` once per session before any Step
 
 Start by asking: **"Do you have an existing deck to tune, or do you want to build from scratch?"**
 
-If the user provides a deck list (pasted, file path, or URL), follow **Path A**. If they want to build from scratch, follow **Path B**.
+If the user provides a deck list (pasted, file path, or URL), follow **Path A**. If they want to build from scratch, follow **Path B**. If they opened a sealed pool or drafted (a limited event), follow **Path C**.
 
 ---
 
@@ -340,7 +342,7 @@ parse-deck <path> --format <format> --output <working-dir>/deck.json
 
 **Always pass `--format <format>` explicitly.** Without it, `parse-deck` defaults to `commander` and every downstream tool (legality-audit, price-check) sees the wrong format.
 
-Supported formats: `commander` (100 cards), `brawl` (60 cards, Standard card pool), `historic_brawl` (100 cards, Historic/Arena card pool), `standard`, `alchemy`, `historic`, `pioneer`, `timeless`, `modern`, `legacy`, `vintage` (all 60 cards with 15-card sideboard). Use `--deck-size` to override the default deck size.
+Supported formats: `commander` (100 cards), `brawl` (60 cards, Standard card pool), `historic_brawl` (100 cards, Historic/Arena card pool), `standard`, `alchemy`, `historic`, `pioneer`, `timeless`, `modern`, `legacy`, `vintage` (all 60 cards with 15-card sideboard), `sealed` / `draft` (40-card minimum from an opened pool — Path C). Use `--deck-size` to override the default deck size.
 
 If the format is not obvious from context, ask the user.
 
@@ -374,6 +376,25 @@ Returns an envelope with `sidecar_path`, `card_count`, `missing`, `digest`. This
 After hydration, proceed to **Phase 2: Tuning**.
 
 ---
+
+## Phase 1, Path C: Sealed / Draft (a limited pool)
+
+A limited deck is built from the cards the user opened plus basic lands (CR 100.2b): no copy limit, no sideboard cap (the sideboard is the unused pool), a 40-card minimum, and legality is **pool containment**. The whole toolchain models it as the `limited` family (ADR-0055) — never borrow a constructed format at 40 cards.
+
+```
+parse-deck <arena-export.txt> --format sealed --output <working-dir>/deck.json
+# a bare list of the opened cards (no deck yet): add --pool-only
+deck-hydrate <working-dir>/deck.json
+```
+
+The export's Deck section becomes `cards`, Deck + Sideboard become the `pool` zone, and the Sideboard section stays the sideboard. Then, **before forming any opinion about a colour pair**:
+
+1. `pool-colors <working-dir>/deck.json` — every mono colour and colour pair the pool supports on equal footing (playables, creatures, removal, evasion, power-4-plus bodies, rares). Read the whole table; the best pair is a finding, not a premise.
+2. `set-scan --set <CODE>` — what the SET holds (removal by rarity, sweepers, evasion, the biggest bodies). Judge every answer and threat against the set opponents draw from, never against the cards the user opened.
+3. Build the best 40 for the top two or three pairs and compare them on equal footing; 17 lands is the norm (`mana-audit` reads the 16–18 limited band).
+4. `legality-audit <working-dir>/deck.json` — the containment check (every copy in the pool) plus the 40-card minimum. `deck-tune` runs the limited template (creatures, removal, curve buckets) and searches only the pool.
+
+Step 8's Self-Grill for a limited build asks the Proposer and Challenger to **rank every viable colour pair from the pool-colors table and justify the ordering** — no candidate pair is named in the prompt, and the table is the input, not a finished list.
 
 ## Phase 1, Path B: Build from Scratch
 
