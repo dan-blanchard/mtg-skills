@@ -1,8 +1,11 @@
 """deck-forge session state: the canonical in-progress deck and its mutations.
 
 A ``DeckSession`` owns the deck as ordered name→quantity maps per zone and emits the
-canonical parsed-deck dict (``{format, commanders, cards, sideboard, companion}``)
-that the rest of ``mtg_utils`` already speaks. To analyse a session, join it to the
+canonical parsed-deck dict (``{format, commanders, cards, sideboard, companion,
+pool}``) that the rest of ``mtg_utils`` already speaks. For a pool-bounded format
+(sealed / draft) the sideboard is DERIVED — the pool less the main deck — so "the
+sideboard is the unused pool" holds by construction and containment collapses to
+"the deck is drawn from the pool". To analyse a session, join it to the
 bulk index with ``HydratedDeck.from_session(session, by_name)`` (see
 ``mtg_utils.hydrated_deck``).
 """
@@ -63,6 +66,11 @@ class DeckSession:
             self._deck_size_override, self.medium
         )
 
+    @property
+    def pool_bounded(self) -> bool:
+        """A limited build: the sideboard is the pool less the main deck."""
+        return FORMATS[self.format].pool_bounded
+
     def set_medium(self, medium: str) -> None:
         self._medium_override = medium
 
@@ -71,13 +79,29 @@ class DeckSession:
 
     @classmethod
     def from_deck_dict(cls, deck: dict) -> DeckSession:
-        """Rebuild a session from a canonical parsed-deck dict (for resume/load)."""
+        """Rebuild a session from a canonical parsed-deck dict (for resume/load). A
+        pool-bounded deck's sideboard is derived, so its stored list is not loaded;
+        a pool-bounded dict with no pool (a list parsed before the zone existed)
+        pools its cards and sideboard."""
         session = cls(
             Format.for_deck(deck).name,
             medium=deck.get("medium"),
             deck_size=deck.get("deck_size"),
         )
-        for zone in ZONES:
+        zones: tuple[str, ...] = ZONES
+        if session.pool_bounded:
+            zones = tuple(z for z in ZONES if z != "sideboard")
+            if not deck.get("pool"):
+                pooled: dict[str, int] = {}
+                for entry in (deck.get("cards") or []) + (deck.get("sideboard") or []):
+                    pooled[entry["name"]] = pooled.get(entry["name"], 0) + int(
+                        entry.get("quantity", 1)
+                    )
+                deck = {
+                    **deck,
+                    "pool": [{"name": n, "quantity": q} for n, q in pooled.items()],
+                }
+        for zone in zones:
             for entry in deck.get(zone) or []:
                 session.add(entry["name"], int(entry.get("quantity", 1)), zone=zone)
                 if entry.get("printing_id"):
@@ -145,39 +169,72 @@ class DeckSession:
     def finish_of(self, name: str, *, zone: str = "cards") -> str | None:
         return self._finishes.get(zone, {}).get(name)
 
+    def derived_sideboard(self) -> dict[str, int]:
+        """A pool-bounded build's sideboard: the pool less the main deck, in pool
+        order (empty for any other format, whose sideboard is stored)."""
+        if not self.pool_bounded:
+            return {}
+        cards = self._zones["cards"]
+        return {
+            n: q - cards.get(n, 0)
+            for n, q in self._zones["pool"].items()
+            if q - cards.get(n, 0) > 0
+        }
+
+    def _entries(self, zone: str, quantities: Mapping[str, int], pins: str) -> list:
+        """Entries for ``quantities`` with the printing / finish pinned under
+        ``pins`` (the zone whose pins apply — the pool's, for the derived sideboard)."""
+        prints = self._printings.get(pins, {})
+        finishes = self._finishes.get(pins, {})
+        return [
+            {
+                "name": n,
+                "quantity": q,
+                **({"printing_id": prints[n]} if n in prints else {}),
+                **({"finish": finishes[n]} if n in finishes else {}),
+            }
+            for n, q in quantities.items()
+        ]
+
     def to_deck_dict(self) -> dict:
         """Emit the canonical parsed-deck dict consumed across ``mtg_utils``. ``medium``
         and ``deck_size`` are the effective values (medium drives slot/cost; deck_size
-        flows into mana_audit's land math and the footer target)."""
+        flows into mana_audit's land math and the footer target). A pool-bounded
+        build's sideboard is derived (the pool less the main deck)."""
+        zones = {zone: self._entries(zone, self._zones[zone], zone) for zone in ZONES}
+        if self.pool_bounded:
+            zones["sideboard"] = self._entries(
+                "sideboard", self.derived_sideboard(), "pool"
+            )
         return {
             "format": self.format,
             "medium": self.medium,
             "deck_size": self.deck_size,
-            **{
-                zone: [
-                    {
-                        "name": n,
-                        "quantity": q,
-                        **(
-                            {"printing_id": self._printings[zone][n]}
-                            if n in self._printings.get(zone, {})
-                            else {}
-                        ),
-                        **(
-                            {"finish": self._finishes[zone][n]}
-                            if n in self._finishes.get(zone, {})
-                            else {}
-                        ),
-                    }
-                    for n, q in self._zones[zone].items()
-                ]
-                for zone in ZONES
-            },
+            **zones,
         }
+
+    def replace_zone(self, zone: str, quantities: Mapping[str, int]) -> None:
+        """Set a zone's contents wholesale (a seeded build, a format switch),
+        dropping the pins of any name that leaves it."""
+        bucket = self._bucket(zone)
+        bucket.clear()
+        bucket.update({n: int(q) for n, q in quantities.items() if int(q) > 0})
+        for pinned in (self._printings[zone], self._finishes[zone]):
+            for name in list(pinned):
+                if name not in bucket:
+                    pinned.pop(name, None)
 
     def quantity_of(self, name: str, *, zone: str = "cards") -> int:
         """How many copies of ``name`` a zone holds (0 when absent)."""
         return self._zones.get(zone, {}).get(name, 0)
+
+    def zone_quantities(self, zone: str) -> Mapping[str, int]:
+        """A zone's name → copies (read-only view of the stored bucket)."""
+        return dict(self._bucket(zone))
+
+    def quantity_sum(self, zone: str) -> int:
+        """The copies a zone holds in total."""
+        return sum(self._bucket(zone).values())
 
     def card_names(self) -> list[str]:
         """Every distinct card name across all zones (for hydration lookups)."""
@@ -268,6 +325,8 @@ class ForgeState:
     # printing's image/price/set on the deck view + export). Both empty without bulk.
     printings_by_oracle: dict[str, list[dict]] = field(default_factory=dict)
     printing_by_id: dict[str, dict] = field(default_factory=dict)
+    # ``set-scan`` readouts memoized per set code (a whole-bulk walk each).
+    set_scans: dict[str, dict] = field(default_factory=dict)
     # Resolves a folded object's name → its card (ADR-0025): a commander's ventured
     # dungeon, whose oracle is appended to the commander's before signal extraction.
     # Dungeons are excluded from `by_name` (unaddable), so this is a separate raw-bulk

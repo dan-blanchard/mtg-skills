@@ -117,6 +117,12 @@ class ImportDeckPayload(BaseModel):
     text: str
     format: str = "commander"
     name: str | None = None
+    # Sealed / draft: the whole list is the opened pool (no deck built yet).
+    pool_only: bool = False
+
+
+class SeedPayload(BaseModel):
+    colors: str  # one or more of WUBRG, e.g. "WG"
 
 
 class ImportCollectionPayload(BaseModel):
@@ -273,7 +279,8 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
             )
         if payload.zone == "companion":
             engine.check_companion_add(state, payload.name, payload.qty)
-        else:
+        elif payload.zone != "pool":
+            # The pool is the limit itself; an add to it just grows what is owned.
             engine.check_copy_add(state, payload.name, payload.qty)
         state.session.add(payload.name, payload.qty, zone=payload.zone)
         return _commit(state)
@@ -294,8 +301,29 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
     @app.post("/api/deck/remove")
     async def remove(payload: RemovePayload) -> dict:
         engine.check_zone(payload.zone)
+        engine.check_pool_remove(state, payload.name, payload.qty, payload.zone)
         state.session.remove(payload.name, payload.qty, zone=payload.zone)
         return _commit(state)
+
+    @app.post("/api/deck/seed")
+    async def seed(payload: SeedPayload) -> dict:
+        """Seed a first 40 from a sealed / draft pool in the chosen colours
+        (``engine.seed_build`` is the rule); returns the new snapshot."""
+        seeded = engine.seed_build(state, payload.colors)
+        return {"seeded": seeded, **_commit(state)}
+
+    @app.get("/api/set-scan", response_model=None)
+    async def set_scan(code: str) -> dict | JSONResponse:
+        """What a set holds — removal by rarity, sweepers, evasion, the biggest
+        bodies (``set_scan.set_scan`` over the pool's set index). Pure compute."""
+        if not state.bulk_available or state.bulk_path is None:
+            return _no_bulk()
+        scan = await run_in_threadpool(engine.set_scan_for, state, code)
+        if scan is None:
+            return JSONResponse(
+                {"error": f"no cards found for set {code!r}"}, status_code=404
+            )
+        return scan
 
     @app.post("/api/deck/format")
     async def set_format(payload: FormatPayload) -> dict:
@@ -489,7 +517,9 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
         seed a fresh session, switch to it. Never overwrites the live build; never
         guesses a commander — an unmarked list lands as a pile in ``cards`` that the
         user promotes from (the DeckList ★)."""
-        imported = engine.import_deck(state, payload.text, fmt=payload.format)
+        imported = engine.import_deck(
+            state, payload.text, fmt=payload.format, pool_only=payload.pool_only
+        )
         engine.switch_build(
             state, imported.session, name=payload.name or "Imported deck"
         )
@@ -503,6 +533,12 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
                     int(e.get("quantity", 1)) for e in (parsed.get("cards") or [])
                 ),
                 "companion": len(parsed.get("companion") or []),
+                "sideboard": sum(
+                    int(e.get("quantity", 1)) for e in (parsed.get("sideboard") or [])
+                ),
+                "pool": sum(
+                    int(e.get("quantity", 1)) for e in (parsed.get("pool") or [])
+                ),
                 # Names the index can't hydrate (typos, un-owned tokens, Arena-only
                 # cards when no bulk) surface as `unknown` cards for the UI to warn.
                 "unknown": imported.unknown,
@@ -730,10 +766,12 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
         # run_tune does blocking work (a Commander Spellbook combos call + heavy bulk
         # searches); offload it to a worker thread so a slow combo lookup can't stall
         # the event loop and wedge the whole hub. Pure read of state, so thread-safe.
+        hd = engine.hydrate_session(state)
         return await run_in_threadpool(
             run_tune,
-            engine.hydrate_session(state),
-            search_fn=state.search_fn,
+            hd,
+            # A pool-bounded build searches its opened pool (and owns all of it).
+            search_fn=engine.search_for(state, hd),
             params=params,
             # The WHOLE active Collection slot, not the deck-scoped owned map: the tuner
             # costs CANDIDATE adds (not in the deck yet), so it must see every card you
@@ -744,6 +782,7 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
             # ADR-0025: the tune scorecard must rank the SAME commander lanes
             # the avenues panel shows — folded-object signals included.
             resolve_object=state.object_resolver,
+            pool=engine.pool_owned(state),
         )
 
     @app.post("/api/finalize")

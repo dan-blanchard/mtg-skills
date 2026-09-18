@@ -15,11 +15,11 @@ from __future__ import annotations
 
 import functools
 import uuid
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from pathlib import Path
 
-from mtg_utils import mark_owned, price_check
+from mtg_utils import card_search, mark_owned, price_check
 from mtg_utils._analysis import staples
 from mtg_utils._analysis.budgets import banded_slot_budgets, template_for
 from mtg_utils._analysis.ranking import rank_candidates
@@ -39,6 +39,7 @@ from mtg_utils._analysis.signals import (
 )
 from mtg_utils._deck_forge import collection, views
 from mtg_utils._deck_forge.state import DeckSession, ForgeState
+from mtg_utils._gauntlet_build import build_gauntlet_deck
 from mtg_utils._name_index import NameIndex
 from mtg_utils._tuner.tune import TuneParams
 from mtg_utils.card_classify import (
@@ -54,8 +55,13 @@ from mtg_utils.deck_stats import deck_stats, detect_bracket
 from mtg_utils.formats import FORMATS, family_size_choices, format_options
 from mtg_utils.hydrated_deck import ZONES, HydratedDeck
 from mtg_utils.legality_audit import card_copy_limit, legality_audit
-from mtg_utils.mana_audit import mana_audit, reconcile_basic_lands
+from mtg_utils.mana_audit import (
+    limited_land_target,
+    mana_audit,
+    reconcile_basic_lands,
+)
 from mtg_utils.parse_deck import parse_deck_text
+from mtg_utils.set_scan import pool_color_pairs, set_scan
 
 # deck_minimum is intentionally excluded: a deck-in-progress is always below the size
 # minimum, so it's the normal building state, not a warning.
@@ -65,6 +71,7 @@ _AUDIT_CATEGORIES = (
     "color_identity",
     "copy_limits",
     "sideboard_size",
+    "pool_containment",
 )
 # Low-land defensibility heuristic (D8): a low avg CMC backed by cheap card advantage.
 _DEFENSIBLE_AVG_CMC = 2.3
@@ -302,7 +309,7 @@ def pin_imported_printings(
     the resolved printing actually offers it. Unresolvable pairs stay unpinned (the
     cheapest default) and invalid finishes are dropped — an import never errors on
     printing detail."""
-    for zone in ("commanders", "cards", "sideboard", "companion"):
+    for zone in ZONES:
         for entry in parsed.get(zone) or []:
             name = entry.get("name")
             set_code = (entry.get("set") or "").lower()
@@ -368,6 +375,8 @@ def wildcard_cost(state: ForgeState) -> dict | None:
     for them."""
     if is_paper(state) or state.bulk_path is None:
         return None
+    if FORMATS[state.session.format].pool_bounded:
+        return None  # an opened pool is owned; nothing is crafted
     rarity_index = _rarity_index(state)
     if not rarity_index:
         return None
@@ -544,7 +553,7 @@ def _overflow_warnings(hd: HydratedDeck) -> list[dict]:
             )
     unimported = [
         e["name"]
-        for zone in ("commanders", "cards", "sideboard", "companion")
+        for zone in ZONES
         for e in hd.deck.get(zone) or []
         if e.get("name") and e["name"] not in hd.by_name
     ]
@@ -657,9 +666,24 @@ def check_format(fmt: str) -> None:
 
 def set_format(state: ForgeState, fmt: str) -> None:
     """Change the build's format (:func:`check_format`). The deck's cards are kept;
-    everything format-dependent re-derives on the next snapshot."""
+    everything format-dependent re-derives on the next snapshot. Crossing the
+    pool boundary keeps the cards playable: entering a pool-bounded format with no
+    pool yet pools everything the build holds (its sideboard becomes derived);
+    leaving one stores the derived sideboard as a real one."""
     check_format(fmt)
-    state.session.format = fmt
+    session = state.session
+    was_pool = session.pool_bounded
+    now_pool = FORMATS[fmt].pool_bounded
+    if now_pool and not was_pool and not session.quantity_sum("pool"):
+        pooled: dict[str, int] = {}
+        for zone in ("cards", "sideboard"):
+            for name, qty in session.zone_quantities(zone).items():
+                pooled[name] = pooled.get(name, 0) + qty
+        session.replace_zone("pool", pooled)
+        session.replace_zone("sideboard", {})
+    elif was_pool and not now_pool:
+        session.replace_zone("sideboard", session.derived_sideboard())
+    session.format = fmt
 
 
 def set_medium(state: ForgeState, medium: str) -> None:
@@ -700,14 +724,50 @@ def check_zone(zone: str) -> None:
 
 
 def check_zone_open(state: ForgeState, zone: str) -> None:
-    """The family's zone rule: only a format with a command zone has commanders.
-    A sideboard the family caps at zero is NOT refused here — the size audit warns
-    (``sideboard_size``), so a build in progress may park cards while swapping."""
+    """The family's zone rule: only a format with a command zone has commanders;
+    only a pool-bounded format has a pool, and there the sideboard is DERIVED (the
+    pool less the deck) — nothing is added to it, a card is cut from the deck or
+    added to the pool. A sideboard the family caps at zero is NOT refused here —
+    the size audit warns (``sideboard_size``), so a build in progress may park
+    cards while swapping."""
     check_zone(zone)
-    if zone == "commanders" and not FORMATS[state.session.format].has_commander:
+    fmt = FORMATS[state.session.format]
+    if zone == "commanders" and not fmt.has_commander:
+        raise DeckRuleError(f"{fmt.label} has no command zone")
+    if zone == "pool" and not fmt.pool_bounded:
+        raise DeckRuleError(f"{fmt.label} has no pool — only sealed / draft do")
+    if zone == "sideboard" and fmt.pool_bounded:
         raise DeckRuleError(
-            f"{FORMATS[state.session.format].label} has no command zone"
+            "the sideboard is the unused pool — cut a card from the deck to "
+            "sideboard it, or add it to the pool"
         )
+
+
+def check_pool_remove(state: ForgeState, name: str, qty: int, zone: str) -> None:
+    """The pool-bounded remove rule: a pool copy the deck still runs cannot leave
+    the pool (cut it from the deck first), and the derived sideboard is never
+    removed from directly."""
+    if not FORMATS[state.session.format].pool_bounded:
+        return
+    if zone == "sideboard":
+        raise DeckRuleError(
+            "the sideboard is the unused pool — remove the card from the pool instead"
+        )
+    if zone == "pool":
+        left = state.session.quantity_of(name, zone="pool") - qty
+        used = state.session.quantity_of(name, zone="cards")
+        if left < used:
+            raise DeckRuleError(
+                f"{name}: the deck runs {used}; cut it from the deck before "
+                "removing it from the pool"
+            )
+
+
+def zone_quantity(state: ForgeState, name: str, zone: str) -> int:
+    """How many copies a zone holds — the derived sideboard included."""
+    if zone == "sideboard" and state.session.pool_bounded:
+        return state.session.derived_sideboard().get(name, 0)
+    return state.session.quantity_of(name, zone=zone)
 
 
 # --- copy limits -----------------------------------------------------------------
@@ -716,8 +776,15 @@ def check_zone_open(state: ForgeState, zone: str) -> None:
 def copy_limit(state: ForgeState, record: dict) -> int | None:
     """How many copies of one card the build may run (``None`` = unlimited) — the
     audit's own ``card_copy_limit`` under the build's Format, so the hub and
-    ``legality_audit.check_copy_limits`` cannot drift."""
-    return card_copy_limit(record, FORMATS[state.session.format])
+    ``legality_audit.check_copy_limits`` cannot drift. In a pool-bounded build the
+    limit IS what the pool holds (CR 100.2b: as many duplicates as the product
+    included; basics unlimited) — so the one add rule is also pool containment."""
+    fmt = FORMATS[state.session.format]
+    if fmt.pool_bounded:
+        if is_basic_land(record):
+            return None
+        return state.session.quantity_of(record.get("name", ""), zone="pool")
+    return card_copy_limit(record, fmt)
 
 
 def copies_of(state: ForgeState, name: str) -> int:
@@ -725,8 +792,13 @@ def copies_of(state: ForgeState, name: str) -> int:
     the deck and the sideboard (CR 100.4a), the command zone (CR 903.5a: a Commander
     deck's singleton rule includes its commander), and the companion (a sideboard
     card on Arena). Wider than the audit's cards + sideboard count — the hub is the
-    stricter of the two by design."""
-    return sum(state.session.quantity_of(name, zone=z) for z in ZONES)
+    stricter of the two by design. In a pool-bounded build the copies are the main
+    deck's (the pool is the limit, the derived sideboard the remainder)."""
+    if state.session.pool_bounded:
+        zones: tuple[str, ...] = ("cards", "companion")
+    else:
+        zones = ZONES
+    return sum(state.session.quantity_of(name, zone=z) for z in zones)
 
 
 def at_copy_limit(state: ForgeState, record: dict) -> bool:
@@ -764,14 +836,24 @@ def move_card(
     leaves the build untouched. The copy limit is not consulted: a move keeps the
     build's total."""
     check_zone(from_zone)
-    check_zone_open(state, to_zone)
     if from_zone == to_zone:
         raise DeckRuleError(f"{name} is already in {to_zone}")
-    have = state.session.quantity_of(name, zone=from_zone)
+    have = zone_quantity(state, name, from_zone)
     if have < qty:
         raise DeckRuleError(f"{name}: only {have} in {from_zone}, cannot move {qty}")
+    pool_bounded = state.session.pool_bounded
+    if pool_bounded and to_zone == "sideboard":
+        # Cutting to the (derived) sideboard is just leaving the deck.
+        state.session.remove(name, qty, zone=from_zone)
+        return
+    check_zone_open(state, to_zone)
     if to_zone == "companion":
         check_companion_add(state, name, qty)
+    if pool_bounded and from_zone == "sideboard":
+        # Playing a sideboarded pool card: the pool bounds it like any add.
+        check_copy_add(state, name, qty)
+        state.session.add(name, qty, zone=to_zone)
+        return
     printing = state.session.printing_of(name, zone=from_zone)
     finish = state.session.finish_of(name, zone=from_zone)
     state.session.remove(name, qty, zone=from_zone)
@@ -854,17 +936,20 @@ class ImportedDeck:
     warnings: list[str]
 
 
-def import_deck(state: ForgeState, text: str, *, fmt: str) -> ImportedDeck:
+def import_deck(
+    state: ForgeState, text: str, *, fmt: str, pool_only: bool = False
+) -> ImportedDeck:
     """Parse a pasted / uploaded list IN-PROCESS (ADR-0017 — pure compute, no LLM)
     into a NEW session: companion zone settled (``settle_companion_zone``), printing
     suffixes pinned, unknown names collected. Never guesses a commander — an unmarked
     list lands in ``cards`` for the user to promote from. Does not touch
     ``state.session``; the transport adapter switches builds. Raises
     ``DeckRuleError`` for an unsupported format, an unparseable paste, or an empty
-    list."""
+    list. For a pool-bounded format the list's cards become the opened pool
+    (``pool_only``: the whole list, no deck yet — see ``parse_deck_text``)."""
     check_format(fmt)
     try:
-        parsed = parse_deck_text(text, format=fmt)
+        parsed = parse_deck_text(text, format=fmt, pool_only=pool_only)
     except Exception as exc:
         raise DeckRuleError(f"could not parse deck list: {exc}") from exc
     warnings = settle_companion_zone(parsed, state.by_name)
@@ -955,6 +1040,111 @@ def export_deck_dict(state: ForgeState) -> dict:
 
 
 # --- tune -----------------------------------------------------------------------
+
+
+def pool_records(hd: HydratedDeck) -> list[dict]:
+    """The distinct records of a build's opened pool."""
+    return hd.deck_records(zones=("pool",))
+
+
+def pool_owned(state: ForgeState) -> dict[str, int] | None:
+    """A pool-bounded build's pool as name → copies (what the tuner may add and owns
+    outright), or None for any other family."""
+    if not state.session.pool_bounded:
+        return None
+    return dict(state.session.zone_quantities("pool"))
+
+
+def search_for(state: ForgeState, hd: HydratedDeck) -> Callable[..., list[dict]]:
+    """The candidate search for THIS build: the bulk-backed ``state.search_fn`` for
+    a format whose card pool is the database, or — for a pool-bounded build — the
+    same filter implementation (``card_search.filter_records``) over the opened
+    pool's records, so Find and the tuner search the pool with the search's own
+    semantics and never name a card the builder did not open."""
+    if not state.session.pool_bounded:
+        return state.search_fn
+    return functools.partial(
+        card_search.filter_records,
+        pool_records(hd),
+        fmt=FORMATS[state.session.format],
+    )
+
+
+def pool_readout(state: ForgeState, hd: HydratedDeck) -> dict | None:
+    """The snapshot's pool panel for a pool-bounded build: its size, how much is
+    unused, and every colour pair it supports on equal footing
+    (``set_scan.pool_color_pairs``); None for any other family."""
+    if not state.session.pool_bounded:
+        return None
+    unused = state.session.derived_sideboard()
+    return {
+        "size": state.session.quantity_sum("pool"),
+        "unused": sum(unused.values()),
+        "color_pairs": pool_color_pairs(
+            (rec, int(entry.get("quantity", 1)))
+            for entry, rec in hd.entries(zones=("pool",))
+            if rec is not None
+        ),
+    }
+
+
+def set_scan_for(state: ForgeState, code: str) -> dict | None:
+    """What set ``code`` holds (``set_scan.set_scan`` over the pool's set index),
+    memoized per code; None for a code the bulk has no cards for. Requires bulk."""
+    key = code.lower()
+    if key not in state.set_scans:
+        assert state.bulk_path is not None  # the route checks bulk first
+        records = CardPool.load(state.bulk_path).set_records(key)
+        state.set_scans[key] = set_scan(records, code=key) if records else {}
+    return state.set_scans[key] or None
+
+
+# The curve a seeded 40 aims for (nonland slots by mana value) — the limited norm
+# a first draft starts from; the builder tunes from there.
+_SEED_CURVE = {1: 3, 2: 7, 3: 6, 4: 4, 5: 2, 6: 1}
+
+
+def seed_build(state: ForgeState, colors: str) -> dict:
+    """One click from a pool to a first 40 in ``colors`` (``_gauntlet_build``'s
+    deterministic greedy fill over the pool's own cards plus basics) — a starting
+    point the builder then tunes, never a finished deck, and never a card the pool
+    does not hold. Replaces the main deck. Raises ``DeckRuleError`` outside a
+    pool-bounded build, for bad colours, or when the pool cannot fill the colours."""
+    if not state.session.pool_bounded:
+        raise DeckRuleError("only a sealed / draft build seeds a deck from a pool")
+    wanted = [c for c in colors.upper() if c in "WUBRG"]
+    if not wanted or len(wanted) != len(set(wanted)):
+        raise DeckRuleError(
+            f"colors must be one or more distinct of WUBRG, got {colors!r}"
+        )
+    hd = hydrate_session(state)
+    # One record PER COPY (distinct objects: the builder's fallback fill dedups by
+    # identity), so a 3-of in the pool may be picked three times and never four.
+    records: list[dict] = []
+    for entry, rec in hd.entries(zones=("pool",)):
+        if rec is not None:
+            records.extend(dict(rec) for _ in range(int(entry.get("quantity", 1))))
+    deck_size = state.session.deck_size
+    lands = limited_land_target(ramp_count=0, avg_cmc=0.0, deck_size=deck_size)
+    outcome = build_gauntlet_deck(
+        records,
+        {
+            "name": "".join(wanted),
+            "colors": wanted,
+            "shape": "midrange",
+            "curve_target": _SEED_CURVE,
+        },
+        deck_size=deck_size,
+        lands=lands,
+    )
+    if outcome.status != "ok":
+        raise DeckRuleError(outcome.reason or "the pool cannot fill those colors")
+    main: dict[str, int] = {}
+    for entry in outcome.deck.get("main") or []:
+        qty = int(entry.get("count", entry.get("quantity", 1)))
+        main[entry["name"]] = main.get(entry["name"], 0) + qty
+    state.session.replace_zone("cards", main)
+    return {"colors": "".join(wanted), "cards": sum(main.values()), "lands": lands}
 
 
 def tune_params(
@@ -1272,9 +1462,11 @@ def find_candidates(state: ForgeState, params: FindParams) -> CandidatePage:
     fmt = state.session.format
     ci = deck_colors(state)
     hd = hydrate_session(state)
-    sigs = ranked_deck_signals(state, hd.records)
-    all_avenues = avenues(state, hd.records)
+    deck_records = hd.deck_records()
+    sigs = ranked_deck_signals(state, deck_records)
+    all_avenues = avenues(state, deck_records)
     focused = [a for a in all_avenues if a.get("focused")]
+    search = search_for(state, hd)
 
     if focused:
         pool: dict[str, dict] = {}
@@ -1283,7 +1475,7 @@ def find_candidates(state: ForgeState, params: FindParams) -> CandidatePage:
                 found = staple_pool(state)
             else:
                 base = explore_filters(av["search"], color_identity=ci, fmt=fmt)
-                found = state.search_fn(
+                found = search(
                     limit=_FIND_POOL,
                     paper_only=FORMATS[fmt].paper_only(state.session.medium),
                     include_unreleased=params.include_unreleased,
@@ -1294,7 +1486,7 @@ def find_candidates(state: ForgeState, params: FindParams) -> CandidatePage:
                 if cname:
                     pool.setdefault(cname, card)
         cands = [c for c in pool.values() if not at_copy_limit(state, c)]
-        active, avs = scoring_basis(state, hd.records, sigs, focused)
+        active, avs = scoring_basis(state, deck_records, sigs, focused)
         # The partner avenue ranks by color widening first (ADR-0019): pass the deck's
         # current identity as the widening base when it is among the focused lanes, so
         # the broadest color-openers surface above synergy.
@@ -1310,7 +1502,7 @@ def find_candidates(state: ForgeState, params: FindParams) -> CandidatePage:
             rank_by="fit",
         )
     elif has_user_filters(params):
-        records = state.search_fn(
+        records = search(
             color_identity=params.color_identity,
             exact_colors=params.exact_colors,
             oracle=params.oracle,
@@ -1452,7 +1644,7 @@ def snapshot(state: ForgeState) -> dict:
         # Commander brackets are WotC's multiplayer-Commander system: a constructed
         # build has none, and the SPA drops the pill on null.
         "bracket": (
-            detect_bracket(hd.records, stats.get("avg_cmc", 0.0))
+            detect_bracket(hd.deck_records(), stats.get("avg_cmc", 0.0))
             if fmt.has_commander
             else None
         ),
@@ -1465,13 +1657,17 @@ def snapshot(state: ForgeState) -> dict:
             deck_size=state.session.deck_size,
             template=template_for(fmt.family),
         ),
+        # The counted deck (commanders + main deck): a sideboard or an opened pool
+        # never shapes the avenues.
         "signals": [
-            views.signal_view(s) for s in ranked_deck_signals(state, hd.records)
+            views.signal_view(s) for s in ranked_deck_signals(state, hd.deck_records())
         ],
-        "avenues": avenues(state, hd.records),
+        "avenues": avenues(state, hd.deck_records()),
         "warnings": legality_warnings(hd),
         "collection": collection_summary(state, owned),
         "wildcards": wildcard_cost(state),
+        # The pool panel for a sealed / draft build (None otherwise).
+        "pool": pool_readout(state, hd),
         # True when a second commander could still be added (CR 702.124 partner /
         # Background): the Find color pips stay unlocked so an off-identity partner is
         # findable; otherwise they lock to the commander's identity (A5).
