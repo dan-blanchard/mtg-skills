@@ -1,6 +1,10 @@
 <script>
   import { budgets } from "../lib/store.js";
 
+  // The rows are the served family template, in its order, each carrying its own
+  // label (Command Zone bands for a Commander deck; interaction / card draw / an
+  // advisory creature count for 60-card). The fallback names are for a snapshot
+  // from before rows carried labels.
   const LABELS = {
     lands: "Lands",
     ramp: "Ramp",
@@ -8,18 +12,22 @@
     interaction: "Interaction",
     board_wipe: "Wraths",
   };
-  const ORDER = ["lands", "ramp", "card_draw", "interaction", "board_wipe"];
+  $: rows = $budgets ? Object.entries($budgets) : [];
 </script>
 
 <div class="panel widget">
   <h3 class="panel-title">Slot Budgets</h3>
   {#if $budgets}
     <div class="rows">
-      {#each ORDER as role (role)}
-        {#if $budgets[role]}
-          <div class="row">
+      {#each rows as [role, row] (role)}
+        {#if row}
+          <div class="row" class:advisory={row.advisory}>
             <div class="head">
-              <span class="lbl">{LABELS[role]}</span>
+              <span class="lbl"
+                >{row.label ?? LABELS[role] ?? role}{#if row.advisory}
+                  <i title="A fact about the deck, not a slot to fill">·adv</i
+                  >{/if}</span
+              >
               <span class="num" class:met={$budgets[role].remaining === 0}>
                 {$budgets[role].current}/{$budgets[role].target}
               </span>
@@ -41,7 +49,8 @@
       {/each}
     </div>
     <p class="hint">
-      Soft template — nudges, not rules. The land gate is enforced above.
+      Soft template for this format's family — nudges, not rules. The land gate
+      is enforced above.
     </p>
   {:else}
     <p class="empty">No data yet.</p>
@@ -60,6 +69,14 @@
   }
   .lbl {
     color: var(--parchment-dim);
+  }
+  .lbl i {
+    font-size: 0.7rem;
+    color: var(--muted);
+    margin-left: 0.3rem;
+  }
+  .row.advisory .fill {
+    opacity: 0.55;
   }
   .num {
     font-family: var(--display);

@@ -14,7 +14,12 @@
   import { displayName } from "../lib/cards.js";
   import { askForge } from "../lib/agent.js";
   import { hoverPreview } from "../lib/hover.js";
-  import { isDigital, agentAttached } from "../lib/store.js";
+  import {
+    isDigital,
+    agentAttached,
+    hasCommander,
+    sideboardSize,
+  } from "../lib/store.js";
   import Mana from "./Mana.svelte";
   import ManaCost from "./ManaCost.svelte";
   import OracleText from "./OracleText.svelte";
@@ -118,14 +123,23 @@
           class="btn btn-ember add"
           on:click={() => onadd(card.name, "cards")}>+ Add</button
         >
-        <button
-          class="btn star"
-          title={canCommand
-            ? "Set as commander"
-            : "Not commander-eligible in this format"}
-          disabled={!canCommand}
-          on:click={() => onadd(card.name, "commanders")}>★</button
-        >
+        {#if $sideboardSize > 0}
+          <button
+            class="btn star sb"
+            title="Add to the sideboard"
+            on:click={() => onadd(card.name, "sideboard")}>SB</button
+          >
+        {/if}
+        {#if $hasCommander}
+          <button
+            class="btn star"
+            title={canCommand
+              ? "Set as commander"
+              : "Not commander-eligible in this format"}
+            disabled={!canCommand}
+            on:click={() => onadd(card.name, "commanders")}>★</button
+          >
+        {/if}
         <button
           class="btn star"
           title={$agentAttached

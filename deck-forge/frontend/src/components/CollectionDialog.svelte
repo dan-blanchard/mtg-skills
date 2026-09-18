@@ -11,9 +11,11 @@
   } from "../lib/store.js";
   import { api } from "../lib/api.js";
 
+  // Slots are keyed by MEDIUM, not format (ADR-0018): a paper build of any format
+  // reads the paper slot, an Arena build the Arena slot.
   const SLOTS = [
-    ["paper", "Paper", "Commander"],
-    ["arena", "Arena", "Brawl / Historic Brawl"],
+    ["paper", "Paper", "paper builds — Commander, Modern, paper Standard…"],
+    ["arena", "Arena", "Arena builds — Brawl, Historic, Alchemy, Timeless…"],
   ];
 
   let text = "";
@@ -22,8 +24,9 @@
   let error = "";
   let result = null;
 
-  // Default the slot to whichever matches the live deck's format, on open.
-  $: defaultSlot = $deck.format === "commander" ? "paper" : "arena";
+  // Default the slot to the live deck's medium, on open (the same rule the hub's
+  // active slot follows).
+  $: defaultSlot = $deck.medium === "digital" ? "arena" : "paper";
   $: if ($collectionOpen && result === null && !busy) slot = defaultSlot;
 
   function close() {
@@ -97,8 +100,8 @@
       {:else}
         <p class="hint">
           Paste or upload an owned-cards export (Untapped / Moxfield CSV, or any
-          list). It's stored globally per slot — a paper Commander deck reads
-          the paper slot, a Brawl / Historic Brawl deck reads the Arena slot.
+          list). It's stored globally per slot — a paper build reads the paper
+          slot, an Arena build reads the Arena slot, whatever the format.
           Ownership is derived live; nothing is stored on a build.
         </p>
         <div class="slots">

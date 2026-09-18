@@ -31,6 +31,10 @@ export const api = {
     post("/api/deck/add", { name, zone, qty }),
   remove: (name, zone = "cards", qty = 1) =>
     post("/api/deck/remove", { name, zone, qty }),
+  // Move copies between zones in one step (main deck ⇄ sideboard, promote to
+  // commander, reveal as companion); every rule runs before the session changes.
+  move: (name, from_zone, to_zone, qty = 1) =>
+    post("/api/deck/move", { name, from_zone, to_zone, qty }),
   balanceLands: () => post("/api/deck/balance-lands", {}),
   // Trim excess basics back down to the land band's top (FLOOD remedy).
   // Backend endpoint ships in the deck-forge land-model pass; the button is wired now.
@@ -38,7 +42,8 @@ export const api = {
   setFormat: (format) => post("/api/deck/format", { format }),
   // Paper vs digital (Brawl / Historic Brawl) — drives the collection slot + cost mode.
   setMedium: (medium) => post("/api/deck/medium", { medium }),
-  // 60 or 100 cards (paper Historic Brawl only).
+  // A Commander-family choice (60 or 100 for paper Historic Brawl) or a constructed
+  // target over the format's floor (an 80-card Yorion deck).
   setDeckSize: (deck_size) => post("/api/deck/deck-size", { deck_size }),
   presets: () => get("/api/presets"),
   combos: () => get("/api/combos"),

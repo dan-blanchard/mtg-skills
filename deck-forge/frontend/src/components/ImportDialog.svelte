@@ -18,9 +18,13 @@
   let result = null;
   let fileEl;
 
-  // Default the format to whatever the live deck is on, each time the dialog opens.
-  $: if ($importOpen && !busy && result === null && format === "commander")
+  // Default the format to whatever the live deck is on, each time the dialog opens
+  // (keyed on the open flag alone — any format may be the live one, so no "still
+  // the default" sentinel).
+  $: if ($importOpen) seedFormat();
+  function seedFormat() {
     format = $deck.format || "commander";
+  }
 
   function close() {
     importOpen.set(false);

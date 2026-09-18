@@ -1,6 +1,6 @@
 <script>
   import { api } from "../lib/api.js";
-  import { isDigital, applySnapshot } from "../lib/store.js";
+  import { isDigital, applySnapshot, hasCommander } from "../lib/store.js";
   import { WC_TIERS } from "../lib/mana.js";
   import CardChip from "./CardChip.svelte";
   import CardList from "./CardList.svelte";
@@ -235,10 +235,12 @@
           {#each SHAPES as s (s)}<option value={s}>{s}</option>{/each}
         </select>
       </label>
-      <label class="check">
-        <input type="checkbox" bind:checked={suggestCommander} />
-        Suggest a better commander
-      </label>
+      {#if $hasCommander}
+        <label class="check">
+          <input type="checkbox" bind:checked={suggestCommander} />
+          Suggest a better commander
+        </label>
+      {/if}
     </div>
     <button class="run" on:click={run} disabled={loading || applying}>
       {loading ? "Tuning…" : "Run Tune"}
@@ -386,7 +388,7 @@
             <CardList names={sc.protection.cards || []} label="" />
           </div>
         {/if}
-        {#if sc.commander_fit.misfit}
+        {#if sc.commander_fit?.misfit}
           <div class="flag-row warn">
             <span
               >commander serves {sc.commander_fit.serves_viable.length}/{sc
@@ -397,6 +399,12 @@
       </div>
     </div>
 
+    {#if sc.size?.shortfall > 0}
+      <p class="note">
+        {sc.size.shortfall} card{sc.size.shortfall === 1 ? "" : "s"} short of
+        {sc.size.deck_size} — the swaps below fill open slots first.
+      </p>
+    {/if}
     {#if result.size_cuts?.length && sc.size?.overflow > 0}
       <div class="panel widget">
         <h3 class="panel-title size-title">
@@ -455,6 +463,11 @@
               <span class="tag"
                 >{costTag(s.add, $isDigital, resolved[s.add.name])}</span
               >
+              {#if s.add.copy > 1}
+                <span class="tag" title="Which copy this add becomes"
+                  >copy {s.add.copy}</span
+                >
+              {/if}
             </div>
             <div class="swap-meta">
               <span class="why">{s.reason}</span>

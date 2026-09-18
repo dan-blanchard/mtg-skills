@@ -7,3 +7,16 @@
 export function displayName(name) {
   return (name || "").replace(/ \/\/ /g, " / ");
 }
+
+// How many copies of a card the build may hold, mirroring the hub's copy rule
+// (`engine.copy_limit`): a basic land or an "any number of cards named X" card
+// (Relentless Rats, Shadowborn Apostle, Dragon's Approach…) is unlimited, every
+// other card takes the served format's max_copies (1 singleton, 4 constructed).
+// The hub stays the judge (a restricted card's 1, a named cap) — this only decides
+// which affordances to show.
+export function copyLimit(card, maxCopies) {
+  if (/\bBasic Land\b/.test(card.type_line || "")) return Infinity;
+  if (/a deck can have any number of cards named/i.test(card.oracle_text || ""))
+    return Infinity;
+  return maxCopies;
+}

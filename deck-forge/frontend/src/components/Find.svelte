@@ -11,8 +11,12 @@
     avenues,
     isDigital,
     partnerOpen,
+    hasCommander,
+    maxCopies,
+    deckColors,
   } from "../lib/store.js";
   import { facetOk } from "../lib/filter.js";
+  import { copyLimit } from "../lib/cards.js";
   import CardTile from "./CardTile.svelte";
   import Mana from "./Mana.svelte";
   import FilterWidget from "./FilterWidget.svelte";
@@ -146,12 +150,17 @@
   // A5: with an active commander, lock the pips to its color identity — you can't run an
   // off-identity card. Colorless ({C}) is always legal (empty identity ⊆ any). The lock
   // lifts when a partner slot is open (a 2nd commander can widen identity) or when you're
-  // explicitly searching the commander pool (commandersOnly) for that partner.
+  // explicitly searching the commander pool (commandersOnly) for that partner. A
+  // format with no command zone has no identity rule: the pips never lock (the
+  // deck's colors are a caption, a splash is the builder's call).
   $: identityColors = new Set(
     ($deck.commanders || []).flatMap((c) => c.color_identity || []),
   );
   $: colorLocked =
-    ($deck.commanders || []).length > 0 && !$partnerOpen && !commandersOnly;
+    $hasCommander &&
+    ($deck.commanders || []).length > 0 &&
+    !$partnerOpen &&
+    !commandersOnly;
   function colorAllowed(c) {
     return !colorLocked || c === "C" || identityColors.has(c);
   }
@@ -209,11 +218,16 @@
       })
     : allPresets;
 
-  // Singleton: drop a card the instant it's added, plus apply the client facets.
-  $: inDeck = new Set(
-    [...$deck.commanders, ...$deck.cards, ...$deck.sideboard].map(
-      (c) => c.name,
-    ),
+  // Drop a card once the deck holds every copy it may (a singleton's one, a 4-of's
+  // four, a basic's never — mirroring the hub's own Find rule), plus the client facets.
+  $: copies = [
+    ...$deck.commanders,
+    ...$deck.cards,
+    ...($deck.sideboard || []),
+    ...($deck.companion || []),
+  ].reduce(
+    (m, c) => m.set(c.name, (m.get(c.name) || 0) + (c.quantity || 1)),
+    new Map(),
   );
   // Apply the shared client facets (lib/filter.js). The facet values are read into the
   // inline object HERE (not closed over) ON PURPOSE: Svelte's dependency analysis
@@ -221,7 +235,7 @@
   // makes `visible` recompute on every facet toggle (not only on Find/add).
   $: visible = results.filter(
     (c) =>
-      !inDeck.has(c.name) &&
+      (copies.get(c.name) || 0) < copyLimit(c, $maxCopies) &&
       facetOk(
         c,
         {
@@ -284,6 +298,16 @@
           title="Exact colors — match this color identity exactly, no broader pools"
           on:click={() => (exactColors = !exactColors)}>⊜ Exact</button
         >
+        {#if !$hasCommander && $deckColors}
+          <span
+            class="deckcolors"
+            title="The colors your deck casts — lane searches are scoped to them; a splash is your call"
+            >deck: {#each [...$deckColors] as c (c)}<Mana
+                sym={c}
+                size="0.9rem"
+              />{/each}</span
+          >
+        {/if}
       </div>
       <button class="btn btn-ember go" type="submit" disabled={loading}>
         {loading ? "…" : "⚒ Find"}
@@ -362,9 +386,11 @@
             {/if}
           </div>
         </div>
-        <label class="check">
-          <input type="checkbox" bind:checked={commandersOnly} /> commanders only
-        </label>
+        {#if $hasCommander}
+          <label class="check">
+            <input type="checkbox" bind:checked={commandersOnly} /> commanders only
+          </label>
+        {/if}
         <!-- Re-runs on change (unlike the refining controls, which wait for submit):
              this widens the pool, so the effect is invisible until the list refreshes. -->
         <label
@@ -463,6 +489,15 @@
 </div>
 
 <style>
+  .deckcolors {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.15rem;
+    margin-left: 0.4rem;
+    font-size: 0.72rem;
+    color: var(--muted);
+  }
+
   .find {
     padding: 1rem;
     height: 100%;

@@ -1,6 +1,11 @@
 <script>
   import { api } from "../lib/api.js";
-  import { applySnapshot, importOpen, collectionOpen } from "../lib/store.js";
+  import {
+    applySnapshot,
+    importOpen,
+    collectionOpen,
+    deck,
+  } from "../lib/store.js";
 
   let open = false;
   let builds = [];
@@ -22,8 +27,9 @@
     if (open) await refresh();
   }
 
+  // A new build follows the live deck's format (switch the picker first for another).
   async function newBuild() {
-    const r = await api.buildsNew("commander", "Untitled");
+    const r = await api.buildsNew($deck.format || "commander", "Untitled");
     if (r.ok) {
       applySnapshot(r.data);
       open = false;

@@ -32,6 +32,13 @@
       <button class="x" on:click={close} aria-label="Close">×</button>
       {#if result.error}
         <p class="reason">{result.error}</p>
+      {:else if result.below_minimum}
+        <!-- Below the format's floor (CR 100.2a) is illegal, never overridable. -->
+        <p class="reason">
+          Deck has <b>{result.deck_minimum.total}</b> of
+          <b>{result.deck_minimum.minimum}</b> cards — add
+          {result.deck_minimum.minimum - result.deck_minimum.total} more.
+        </p>
       {:else if result.gated}
         <p class="reason">
           Land gate: <b>{result.land_count}</b> lands, floor

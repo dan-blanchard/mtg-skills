@@ -36,6 +36,10 @@
   $: showMedium = media.length > 1;
   $: sizeChoices = current?.size_choices?.[$deck.medium] ?? [];
   $: showSize = sizeChoices.length > 1;
+  // The picker groups by the served family (Commander / Constructed), never by an
+  // id list; the order is the table's.
+  $: families = [...new Set($formatOptions.map((f) => f.family))];
+  const FAMILY_LABEL = { commander: "Commander", constructed: "Constructed" };
 
   function startEdit() {
     draft = $buildName;
@@ -78,8 +82,14 @@
   <div class="meta">
     <BuildMenu />
     <select class="chip format" title="Deck format" on:change={changeFormat}>
-      {#each $formatOptions as f (f.id)}
-        <option value={f.id} selected={f.id === $deck.format}>{f.label}</option>
+      {#each families as fam (fam)}
+        <optgroup label={FAMILY_LABEL[fam] ?? fam}>
+          {#each $formatOptions.filter((f) => f.family === fam) as f (f.id)}
+            <option value={f.id} selected={f.id === $deck.format}
+              >{f.label}</option
+            >
+          {/each}
+        </optgroup>
       {/each}
     </select>
     {#if showMedium}
@@ -96,11 +106,7 @@
       </select>
     {/if}
     {#if showSize}
-      <select
-        class="chip format"
-        title="Paper Historic Brawl may be 60 or 100 cards"
-        on:change={changeDeckSize}
-      >
+      <select class="chip format" title="Deck size" on:change={changeDeckSize}>
         {#each sizeChoices as n (n)}
           <option value={n} selected={n === $deck.deck_size}>{n}</option>
         {/each}

@@ -16,6 +16,9 @@
     connected,
     agentAttached,
     manaModalOpen,
+    sizeIsMinimum,
+    sideboardSize,
+    deckSizeDefault,
   } from "../lib/store.js";
   import {
     landState,
@@ -32,8 +35,16 @@
   import Warnings from "./Warnings.svelte";
 
   $: ls = landState($mana);
-  // Effective deck-size target (60 or 100 for paper Historic Brawl), else format default.
-  $: target = $deck.deck_size ?? 100;
+  // Effective deck-size target (a Commander-family choice or a constructed target),
+  // else the served format default. A constructed size is a FLOOR (CR 100.2a): the
+  // pill says "min" and reads short until the deck reaches it.
+  $: target = $deck.deck_size ?? $deckSizeDefault;
+  $: total = $stats?.total_cards ?? 0;
+  $: short = $sizeIsMinimum && total < target;
+  $: sideboardCount = ($deck.sideboard || []).reduce(
+    (sum, c) => sum + (c.quantity || 1),
+    0,
+  );
   // Arena wildcard tiers (mythic→common), shown for digital builds in place of USD.
   $: wcTotal = $wildcards
     ? Object.values($wildcards).reduce((a, b) => a + b, 0)
@@ -77,11 +88,18 @@
 <footer class="bar">
   <!-- ── summary ─────────────────────────────────────────────── -->
   <div class="zone summary">
-    <div class="stat">
-      <b>{$stats?.total_cards ?? 0}</b><span class="o">/{target}</span><em
-        >cards</em
+    <div class="stat" class:short>
+      <b>{total}</b><span class="o">/{target}</span><em
+        >{$sizeIsMinimum ? "cards · min" : "cards"}</em
       >
     </div>
+    {#if $sideboardSize > 0}
+      <div class="stat" title="Sideboard (CR 100.4a: at most {$sideboardSize})">
+        <b>{sideboardCount}</b><span class="o">/{$sideboardSize}</span><em
+          >side</em
+        >
+      </div>
+    {/if}
     <div class="stat"><b>{$stats?.avg_cmc ?? 0}</b><em>avg</em></div>
     <div class="stat">
       <b>{$stats?.creature_count ?? 0}</b><em>creatures</em>
@@ -214,6 +232,10 @@
 </footer>
 
 <style>
+  .stat.short b {
+    color: var(--warn);
+  }
+
   .bar {
     position: relative;
     z-index: 6;

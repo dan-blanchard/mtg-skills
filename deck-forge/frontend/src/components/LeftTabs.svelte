@@ -1,5 +1,5 @@
 <script>
-  import { activeTab } from "../lib/store.js";
+  import { activeTab, hasCommander } from "../lib/store.js";
   import Find from "./Find.svelte";
   import Commanders from "./Commanders.svelte";
   import Combos from "./Combos.svelte";
@@ -13,11 +13,14 @@
     ["combos", "Combos"],
     ["export", "Export"],
   ];
+  // Commander discovery only means something with a command zone.
+  $: tabs = TABS.filter(([id]) => id !== "commanders" || $hasCommander);
+  $: if (!$hasCommander && $activeTab === "commanders") activeTab.set("find");
 </script>
 
 <div class="left">
   <div class="tabbar">
-    {#each TABS as [id, label] (id)}
+    {#each tabs as [id, label] (id)}
       <button
         class="tab"
         class:active={$activeTab === id}

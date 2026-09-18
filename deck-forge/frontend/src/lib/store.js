@@ -14,10 +14,39 @@ export const deck = writable({
 // shows USD. Derived so components subscribe to one flag instead of repeating the test.
 export const isDigital = derived(deck, ($d) => $d.medium === "digital");
 // The format table the backend serves in every snapshot (ADR-0045): one row per
-// Commander-family format — { id, label, media, default_medium, deck_size,
-// size_choices: { <medium>: [sizes] } }. The pickers derive from it; nothing here
-// mirrors the backend's format table.
+// format the hub serves, every family — { id, label, family, has_commander,
+// max_copies, sideboard_size, size_is_minimum, media, default_medium, deck_size,
+// size_choices: { <medium>: [sizes] } }. The pickers, zones, copy stepper and pills
+// derive from it; nothing here mirrors the backend's format table.
 export const formatOptions = writable([]);
+// The served row for the live deck's format, and the family facts every component
+// keys off (never a string compare on the format id). Defaults reproduce a
+// Commander build for the pre-snapshot render.
+export const currentFormat = derived(
+  [formatOptions, deck],
+  ([$opts, $d]) => $opts.find((f) => f.id === $d.format) ?? null,
+);
+export const hasCommander = derived(
+  currentFormat,
+  ($f) => $f?.has_commander ?? true,
+);
+export const maxCopies = derived(currentFormat, ($f) => $f?.max_copies ?? 1);
+export const sideboardSize = derived(
+  currentFormat,
+  ($f) => $f?.sideboard_size ?? 0,
+);
+export const sizeIsMinimum = derived(
+  currentFormat,
+  ($f) => $f?.size_is_minimum ?? false,
+);
+export const deckSizeDefault = derived(
+  currentFormat,
+  ($f) => $f?.deck_size ?? 100,
+);
+// The colors the hub scopes lane searches to: the commanders' identity under a
+// command zone, else the castable colors of the cards the deck runs (a caption for
+// a constructed build — the pips stay unlocked).
+export const deckColors = writable("");
 export const stats = writable(null);
 export const bracket = writable(null);
 export const mana = writable(null);
@@ -73,7 +102,10 @@ export function applySnapshot(snap) {
   if (snap.deck) deck.set(snap.deck);
   if (snap.format_options) formatOptions.set(snap.format_options);
   if (snap.stats) stats.set(snap.stats);
-  if (snap.bracket) bracket.set(snap.bracket);
+  // bracket is null outside the Commander family — set unconditionally so a
+  // format switch clears the stale pill.
+  if ("bracket" in snap) bracket.set(snap.bracket);
+  if ("deck_colors" in snap) deckColors.set(snap.deck_colors);
   if (snap.mana) mana.set(snap.mana);
   if (snap.budgets) budgets.set(snap.budgets);
   if (snap.signals) signals.set(snap.signals);
