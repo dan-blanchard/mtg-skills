@@ -11,11 +11,13 @@ adoption is worth making.
   adapter (`deck-tune <deck.json> [--bulk-data] [--budget --max-swaps --shape
   --bracket]` → scorecard + swaps JSON) — the CLI analogue of deck-forge's
   `POST /api/tune` Transport adapter (ADR-0013). It injects `card_search` as
-  `search_fn` and `combo-search` as `combos_fn`. **Commander / Brawl / Historic Brawl
-  only** — it hard-refuses 60-card constructed, because the tuner is commander-shaped
-  (the Command Zone template at `budgets.COMMANDER_TEMPLATE`, the Burgess land target,
-  and `commander_fit` have no constructed meaning; a 60-card Burn deck would get a
-  misleading scorecard).
+  `search_fn` and `combo-search` as `combos_fn`. Every format family since ADR-0054:
+  the template and every floor are the deck's family's, and the Commander-only
+  axes (commander fit, the bracket gate) are omitted from a 60-card scorecard rather
+  than reported empty. (It first shipped Commander-only, refusing 60-card
+  constructed because the tuner was commander-shaped — the Command Zone template,
+  the Burgess land target, `commander_fit`; ADR-0041 gave every family a land band
+  and ADR-0054 the rest.)
 
 - **The tuner becomes IR-backed.** `tune()` resolved its deck signals through the regex
   path (`rank_deck_signals(...)` with no `ir_for` at `tune.py`) — the one signal-
@@ -60,8 +62,9 @@ adoption is worth making.
   cube-wizard all declare it).
 - **Role bands stay Shape-scaled.** This adds no bracket-scaled role density — ADR-0024
   stands; the bracket axis is ADR-0030.
-- **60-card constructed stays agent-driven.** Extending the tuner to a constructed
-  template is a future effort, not this one.
+- **60-card constructed is the tuner's too — since ADR-0054.** This ADR shipped it
+  agent-driven; the constructed and limited templates live in
+  `_analysis/budgets.py` now.
 
 **Why this is the right call.** ADR-0023's whole rationale — deck-wizard's tuner is slow
 and expensive because mechanical work is routed through an LLM; fix it once and share it

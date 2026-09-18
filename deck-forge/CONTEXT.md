@@ -6,6 +6,49 @@ The bounded context for collaborative, visual MTG deckbuilding: a human and an e
 
 ### Deck values
 
+**Family**:
+Which shape rules the build's format follows — `commander` (a command zone,
+singleton, an exact size the CR cites) or `constructed` (a copy limit and a sideboard
+over a size that is a minimum, CR 100.2a); `limited` (a build bounded by an opened
+pool) follows. A `Format` fact (`Format.family`, ADR-0045 / ADR-0054), served in the
+format table with the facts it implies (`has_commander`, `max_copies`,
+`sideboard_size`, `size_is_minimum`); the hub, the tuner and the SPA key every
+family decision off one of those facts, never off the format's name. The
+Commander-only surfaces — discovery, partner, staples, the bracket pill, commander
+fit — read `has_commander` and are absent (null, a 400) elsewhere, never an empty
+no-op.
+_Avoid_: "the Commander family" as an allowlist, an `id === "commander"` compare.
+
+**Copy limit**:
+How many copies of one card the build may run: the audit's own
+`legality_audit.card_copy_limit` — the Format's `max_copies` (1 singleton, 4
+constructed), a restricted card's one, and the exemptions (a basic land or an "any
+number of cards named" card is unlimited; a named cap is its own). ONE ladder, read
+by the audit and by the hub's add rule (`check_copy_add`, a 400 past the limit —
+the hub never over-adds) and by Find (`at_copy_limit`: a 2-of stays findable, a
+basic never disappears). Spans every zone: the deck and sideboard (CR 100.4a), the
+command zone, the companion.
+
+**Zone move**:
+Moving copies between two zones in one call (`move_card`, `POST /api/deck/move`):
+main deck ⇄ sideboard, promote to commander, reveal as companion. Every rule runs
+before the session changes, so a refused move leaves the build untouched — the
+old remove-then-add-then-restore dance is gone. A pinned printing rides along.
+
+**Deck colours**:
+What a lane search is scoped to, by Family: the commanders' colour identity under a
+command zone (the rule, CR 903.4), else the castable colours of the nonland cards
+the deck runs — a description, so the Find pips stay unlocked and a splash is the
+builder's call. Served in the snapshot; the SPA shows it as a caption.
+_Avoid_: "colour identity" for a 60-card deck (it has none as a rule).
+
+**Sideboard**:
+The fourth zone a constructed Family has (`sideboard_size` 15, CR 100.4a; zero for
+the Commander family, whose builds never render one). Never counts toward the deck
+size, a template row, the mana base or the avenues; the copy limit spans it. Over
+the cap is a warning (a build in progress may park cards while swapping), reported at
+finalize, never a hard rule.
+
 **HydratedDeck**:
 A single immutable value joining a deck's card names to their Scryfall records — built once from a deck plus a name→record index, so a desynced deck/records pair can't exist. Analysis functions (`deck_stats`, `mana_audit`, `legality_audit`, …) take a `HydratedDeck` rather than a separate `(deck, hydrated)` pair. An un-hydratable card name is simply absent from `.records` / `.expanded()` (DROP), never represented as `None` — callers never choose drop-vs-pad. `has_records` is `False` only in **degraded mode**: cards exist but no Scryfall records could be joined (no bulk data on disk), distinct from an empty deck.
 
@@ -62,7 +105,7 @@ The single card-finding surface that replaces separate Search and Synergies tabs
 A card from a spoiled-but-unreleased set. MTGJSON publishes these as soon as they're fully spoiled but leaves their legalities empty until release day, which the adapter fills as `not_legal` in every format — so the default legality gate hides them. The Find surface's *include unreleased* checkbox (`SearchPayload.include_unreleased`) widens the gate for exactly those, and results carry an `unreleased` flag the SPA renders as a **PRE** badge. Membership comes from `ForgeState.unreleased_ids`, an ORACLE-level set (`card_search.unreleased_oracle_ids`) — never the record's own `released_at`, because search dedups to the cheapest printing, which for a reprint can itself be future-dated. It is a *widening* control, so it is deliberately excluded from `has_user_filters`: ticking it alone leaves Find idle rather than dumping the vault.
 
 **Slot** / **slot budget**:
-A role the deck needs filled (ramp, draw, removal, wipe, win condition, interaction, or a mana-curve bucket) and its remaining count measured against the active **Template** — the role-count guideline for a format (e.g. the Command Zone Commander template), a *soft* target, distinct from the *hard* curve/land-count gate.
+A role the deck needs filled (ramp, draw, removal, wipe, win condition, interaction, or a mana-curve bucket) and its remaining count measured against the active **Template** — the role-count guideline for the build's Family (`_analysis/budgets.py`: the Command Zone bands for the Commander family; interaction with sweepers folded in, card draw and an advisory creature count for constructed; creatures, removal and the curve buckets for limited), stated at the family's base size and scaled to the deck's. A *soft* target, distinct from the *hard* curve/land-count gate. Each row carries its label; an **advisory row** is a fact about the deck (a type-line or mana-value count — never a role, ADR-0051) shown beside the verdict, never sourced by the tuner, never a cut pool, never a deviation.
 
 **Grant-covered role**:
 A Slot role (draw, removal, …) whose effect the deck receives from a mass ability grant rather than dedicated cards (e.g. a commander giving every tribe creature "draw a card" on ETB). The Slot budget stays a literal card count; coverage is surfaced alongside it and downgrades the shortfall from actionable to advisory, never suppresses it.
@@ -178,7 +221,10 @@ The share of the ranker's top-20 out-of-deck picks, per commander on a fixed 10-
 The concentration of Engine cards across the deck's signal-derived avenues (Staples excluded). Scored on a tiered floor — main (~20-per-100), sub (~10-per-100), emerging (~5-per-100) — plus a top-2 concentration ratio and the filler rate. One main + one sub is the research ideal; 3+ themes reads SPREAD-THIN. Lands never count as theme support, and Spine-role avenues (ramp/draw/removal) are dropped so scaffolding can't masquerade as the main lane. Shape-aware: a small-engine-pool control deck reads SPINE-LED, never spread-thin.
 
 **Template deviation**:
-How far the deck's Spine role counts sit outside the Template bands — 0 within the band, otherwise the distance to the nearest edge. The hard-counted roles drive deviation; the conditional roles surface as Shape-scaled advisory flags, not deviation.
+How far the deck's Spine role counts sit outside the Template bands — 0 within the band, otherwise the distance to the nearest edge. The hard-counted roles drive deviation; the conditional roles surface as Shape-scaled advisory flags, not deviation, and an advisory template row is reported beside them (`advisory`), never as a deviation.
+
+**Calibration**:
+The tuner's floors per Family (`_tuner/calibration.py`) — front-load, top-end, the Focus tiers, closers, protection, the voltron read — stated at the family template's base size and scaled to the deck's, so a 60-card deck is held to 60-card norms rather than 0.6 of a Commander deck's. Also where the Commander-only axes are switched off (`commander_axes`, `playrate_meaningful`) rather than left to no-op. Every slot count is in copies: a 4-of fills four slots.
 
 **Commander fit**:
 How well the current commander's signal-derived avenues align with the deck's dominant viable avenues — a cheap default-diagnostic flag ("serves 1 of your 3 viable avenues"). Its opt-in companion ranks alternative commanders to the deck you already built, each shown with its identity cost (in-deck cards that fall out of color identity on the switch).

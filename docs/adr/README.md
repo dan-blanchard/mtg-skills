@@ -29,7 +29,7 @@ live in [`archive/`](archive/).
 | 0025 | A commander's signal extraction folds in the referenced objects its plan brings into play | |
 | 0026 | deck-forge splits fused payoff/source specs into separate avenues | |
 | 0028 | Consume phase-rs (bump the tag); structure the tail in Python — do not fork | |
-| 0029 | deck-wizard adopts the shared deterministic tuner | enriched for both consumers |
+| 0029 | deck-wizard adopts the shared deterministic tuner | enriched for both consumers; the Commander-only scope is widened to every family by ADR-0054 |
 | 0030 | A target-bracket constraint gate in the shared tuner | orthogonal to the Shape-scaled role template (ADR-0024) |
 | 0031 | Signal membership is strict; archetype adjacency lives in SubAvenues | |
 | 0033 | MTGJSON AllPrintings is the card-data source | adapter preserves the Scryfall record shape |
@@ -49,3 +49,4 @@ live in [`archive/`](archive/).
 | 0051 | Template roles are one view over the signal path | `_analysis/roles.py` owns `role_of` / `is_ramp` / `protects`; the concept-only, land-free `ramp` preset (ramp signal keys, a Treasure maker whose token you keep, an extra land play) is what the role counts by AND what the tuner sources by; `card_classify.ramp_by_text` survives only as the no-coverage degrade |
 | 0052 | A tuning issue carries its remedy; the tuner asks the Format what the medium means | `_tuner/issues.py`: typed `Issue` + `Remedy`, decided once by `Sourcing` (the single Grant-covered gate) for all three sourcing paths; `CardClass.low_value`; `TuneParams` takes the medium + both purses and `tune` asks `Format.paper_only` / `cost_mode` |
 | 0053 | The hub commits in one place, and Commander discovery owns its cache | `app._commit` is the persist → snapshot → broadcast tail, once; `engine.switch_build` + the lane functions finish ADR-0013; `_deck_forge/discovery.py` (`discover_commanders` / `warm`) with one `DiscoveryCache` (private lock), served sets keyed by collection content — no invalidation step |
+| 0054 | deck-forge serves every Format family; the template and every tuner floor are the family's | `Format.family` + the facts it implies, served to the SPA; the hub accepts every declared Format; Commander-only surfaces gated by `has_commander`; a `Template` (labelled rows, advisory facts) and a `Calibration` per family; copies counted; the per-name copy model; `deck-tune` for every family |

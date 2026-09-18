@@ -1,6 +1,6 @@
 ---
 name: deck-forge
-description: Collaboratively build or tune an MTG deck in a live browser UI — the assistant surfaces signal-driven synergy packages, exploration avenues, and ranked candidates (with "why it fits" + honest cost) plus live curve/mana guidance, while you make every decision. Commander family (Commander/Brawl/Historic Brawl), paper + Arena. Reasoning runs in your interactive Claude Code session (no API key, covered by your subscription).
+description: Collaboratively build or tune an MTG deck in a live browser UI — the assistant surfaces signal-driven synergy packages, exploration avenues, and ranked candidates (with "why it fits" + honest cost) plus live curve/mana guidance, while you make every decision. Every format — the Commander family (Commander/Brawl/Historic Brawl) and 60-card constructed (Standard through Vintage), paper + Arena. Reasoning runs in your interactive Claude Code session (no API key, covered by your subscription).
 compatibility: Requires Python 3.12+, uv, a modern browser. First run needs MTGJSON card data (`download-mtgjson`).
 license: 0BSD
 ---
@@ -152,15 +152,21 @@ to add. Keep `text` tight and specific; cite oracle clauses and CR rules.
 With the loop already attached, acquisition usually happens in the browser while the
 loop answers — you don't drive it from this session.
 
-- **Build from scratch:** the user picks format (commander / brawl / historic_brawl) and
-  a commander, typed or via the UI's ★. To help discover one, `/api/commanders` (or
-  `card-search --is-commander --oracle ...`) finds commanders by *signal*, not
-  popularity. Set it via the UI (★) or `set-commander`.
+- **Build from scratch:** the user picks a format from the served table (the
+  Commander family or a 60-card constructed format). In the Commander family they
+  then pick a commander, typed or via the UI's ★; to help discover one,
+  `/api/commanders` (or `card-search --is-commander --oracle ...`) finds commanders
+  by *signal*, not popularity. Set it via the UI (★) or `set-commander`. In a
+  constructed format there is no commander: the deck's castable colours scope the
+  lane searches (a caption under the Find pips; the pips stay unlocked), the
+  Sideboard zone and a 4-copy stepper appear, and the size pill reads `N/60 · min`.
 - **Tune existing:** `parse-deck` the user's list, then load it.
 
 Once a commander is set, the backend extracts its scoped **signals** automatically and
 the UI shows them as **avenues**. Read them; confirm the scopes by quoting the
-commander's oracle (the Iron Rule).
+commander's oracle (the Iron Rule). A constructed deck's avenues come from the cards
+it runs; there is no staples avenue, bracket pill or Commanders tab outside the
+Commander family (they mean nothing there — see `docs/adr/0054`).
 
 ## Phase 3 — finalize
 

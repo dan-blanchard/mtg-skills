@@ -274,7 +274,7 @@ mark-owned <deck.json> <collection.json> [--bulk-data <bulk-data-path>]
 |------|------|
 | Find format-legal cards by oracle text, type, CMC | `card-search --format <fmt> --bulk-data <path>` |
 | Warm/verify the deck's hydrated sidecar (check `missing`) | `deck-hydrate <deck.json> [--bulk-data <path>]` |
-| **Run the Step-6 deterministic spine (scorecard + candidate swaps)** — Commander family | `deck-tune <deck.json> [--bulk-data <path>] [--bracket <1-5>] [--max-swaps <N>] [--budget <usd> \| --wildcards <rarity=N,…>] [--medium paper\|digital] --output <wd>/tune.json` |
+| **Run the Step-6 deterministic spine (scorecard + candidate swaps)** — every format | `deck-tune <deck.json> [--bulk-data <path>] [--bracket <1-5>] [--max-swaps <N>] [--budget <usd> \| --wildcards <rarity=N,…>] [--medium paper\|digital] --output <wd>/tune.json` |
 | See what the commander/deck cares about (signal lanes) — *ad-hoc; the spine's `focus` has this* | `deck-signals <deck.json> [--bulk-data <path>] [--json]` |
 | Role-density budgets (lands/ramp/draw/interaction/wipes) — *ad-hoc; the spine's `template` has this* | `slot-budgets <deck.json> [--bulk-data <path>] [--shape <S>] [--json]` (deck size comes from the deck JSON) |
 | Rank a separate candidate list by synergy — *the spine's `swaps` already rank adds* | `deck-rank <deck.json> <candidates.json> [--bulk-data <path>] [--limit <N>] [--json]` (candidates from `card-search --json`) |
@@ -1269,7 +1269,7 @@ Review existing combos and near-misses. Distinguish:
 
 ## Step 6: Analysis
 
-**Commander / Brawl / Historic Brawl — run the deterministic spine first.** One `deck-tune` call replaces the mechanical counting and drafting this step used to do by hand. It runs the same deterministic tuner deck-forge uses (ADR-0023/0029) and returns a **scorecard** + **candidate swaps**:
+**Every format — run the deterministic spine first.** One `deck-tune` call replaces the mechanical counting and drafting this step used to do by hand. It runs the same deterministic tuner deck-forge uses (ADR-0023/0029/0054) and returns a **scorecard** + **candidate swaps**; the template and every floor are the deck's family's (the Command Zone bands for a Commander deck; interaction / card draw / an advisory creature count for 60-card), and the Commander-only axes (`commander_fit`, `bracket`) are `null` for a 60-card deck:
 
 ```
 deck-tune <deck.json> [--bulk-data <path>] \
@@ -1281,7 +1281,7 @@ The medium picks the currency: a **paper** build spends `--budget` USD; a **digi
 
 Scorecard sections and what each subsumes:
 - **`shape` / `efficiency`** — deck speed + curve/tempo health (the 6a curve read).
-- **`template`** — role density (lands / ramp / draw / interaction / wipes) vs the Command-Zone bands (the old `slot-budgets` pass; 6a + 6b counts).
+- **`template`** — role density vs the family's bands (Commander: lands / ramp / draw / interaction / wipes; 60-card: lands / interaction incl. sweepers / draw, plus an advisory creature count — the old `slot-budgets` pass; 6a + 6b counts). An `advisory` row is a fact beside the verdict, never a deviation.
 - **`focus`** — the commander's signal lanes and whether the deck concentrates on them (the old `deck-signals` pass; 6c).
 - **`mana`** — the full mana audit: color balance, Burgess land target, untapped quality.
 - **`curve`** — the per-CMC histogram.
@@ -1296,7 +1296,7 @@ Scorecard sections and what each subsumes:
 - The **bracket interaction-target table** in 6b (5-7 / 8-10 / 10-12) is an *agent-layer overlay* — compare the scorecard's interaction count against it as judgment. It is NOT a tuner role band: ADR-0024 keeps role density Shape-scaled, while the tuner's `bracket` gate governs *permission* (Game Changers etc.), not interaction density.
 - `archetype-audit` is now **optional** — `focus` answers the commander-coherence question. Reach for `archetype-audit` only to test a specific *named* theme's density or to find bridge cards (capabilities `focus` doesn't provide).
 
-**60-card constructed:** `deck-tune` refuses non-commander formats (the tuner is commander-shaped). Use the existing agent-driven analysis below — metagame archetypes, build-around evaluation, sideboard.
+**60-card constructed:** `deck-tune` runs the same spine (its `size` reports a `shortfall` toward 60, never an overflow; a swap's `add` carries `copy` — "go to four" is a swap like any other; the sideboard is never counted and never proposed). The agent-driven analysis below — metagame archetypes, build-around evaluation, the sideboard — stays the judgment layer on top of it.
 
 ---
 
