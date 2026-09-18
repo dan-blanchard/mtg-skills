@@ -85,6 +85,21 @@ def get_oracle_text(card: dict) -> str:
     return oracle
 
 
+def get_colors(card: dict) -> set[str]:
+    """The card's CASTABLE colors (its ``colors`` — the mana cost's, plus a color
+    indicator), folding ``card_faces`` when the top level carries none (a transform
+    card's front, an MDFC's either side). Distinct from ``color_identity``, which
+    also counts activation and rules-text symbols and is the Commander family's
+    axis; a 60-card deck's colors are the colors it casts."""
+    colors = card.get("colors")
+    if colors:
+        return set(colors)
+    out: set[str] = set()
+    for face in card.get("card_faces") or []:
+        out.update(face.get("colors") or [])
+    return out
+
+
 def get_mana_cost(card: dict) -> str:
     """Get the displayable mana cost, falling back to ``card_faces`` for DFCs.
 

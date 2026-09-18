@@ -42,8 +42,10 @@ from mtg_utils._deck_forge.state import DeckSession, ForgeState
 from mtg_utils._name_index import NameIndex
 from mtg_utils._tuner.tune import TuneParams
 from mtg_utils.card_classify import (
+    get_colors,
     has_any_number_exemption,
     is_basic_land,
+    is_land,
     named_card_cap,
     valid_partner_search,
 )
@@ -117,6 +119,31 @@ def deck_color_identity(state: ForgeState) -> str:
         if record:
             colors.update(record.get("color_identity", []))
     return "".join(sorted(colors))
+
+
+def deck_colors(state: ForgeState) -> str:
+    """The colors a candidate search is scoped to, by family: the commanders' color
+    identity where there is a command zone (CR 903.4 — the rule), else the castable
+    colors of the nonland cards the build already runs (a description, so the Find
+    pips stay unlocked — a splash is the builder's call, not a rule)."""
+    if FORMATS[state.session.format].has_commander:
+        return deck_color_identity(state)
+    colors: set[str] = set()
+    deck = state.session.to_deck_dict()
+    for zone in ("cards", "sideboard"):
+        for entry in deck.get(zone) or []:
+            record = state.by_name.get(entry["name"])
+            if record and not is_land(record):
+                colors.update(get_colors(record))
+    return "".join(sorted(colors))
+
+
+def check_commander_family(state: ForgeState) -> None:
+    """The family rule for a Commander-only surface (discovery, partner search):
+    the build's format has a command zone."""
+    fmt = FORMATS[state.session.format]
+    if not fmt.has_commander:
+        raise DeckRuleError(f"{fmt.label} has no command zone")
 
 
 def is_paper(state: ForgeState) -> bool:
@@ -426,9 +453,11 @@ def partner_search(state: ForgeState) -> dict | None:
 def staple_pool(state: ForgeState) -> list[dict]:
     """The curated 'good stuff' staples offered to this deck — the hardcoded staple
     list (see ``staples``) filtered to the deck's color identity AND format legality,
-    resolved from the bulk index. Empty without bulk. This is the candidate source for
-    the always-present Staples avenue (a name list, not a search pattern)."""
-    if not state.by_name:
+    resolved from the bulk index. Empty without bulk, and empty outside the Commander
+    family — the list is curated for Commander (``staples``), and offered to a
+    Legacy deck it would name Sol Ring. This is the candidate source for the
+    always-present Staples avenue (a name list, not a search pattern)."""
+    if not state.by_name or not FORMATS[state.session.format].has_commander:
         return []
     return staples.staples_for(
         deck_color_identity(state),
@@ -946,7 +975,10 @@ def tune_params(
 
 
 def finalize_state(state: ForgeState) -> dict:
-    """The finalize REPORT (not the gating decision — the route owns the override)."""
+    """The finalize REPORT (not the gating decision — the route owns the override).
+    ``below_minimum`` is the one hard fact a size-minimum family adds: a deck under
+    its CR floor is illegal, not a judgment call, so the route never lets an
+    override lift it (the land gate stays overridable)."""
     hd = hydrate_session(state)
     mana = mana_audit(hd)
     avg_cmc = deck_stats(hd).get("avg_cmc", 0.0)
@@ -955,7 +987,17 @@ def finalize_state(state: ForgeState) -> dict:
     )
     defensible = avg_cmc <= _DEFENSIBLE_AVG_CMC and cheap_ca >= _DEFENSIBLE_CHEAP_CA
     warnings = legality_warnings(hd)
+    deck_minimum = None
+    if hd.format.size_is_minimum:
+        short = legality_audit(hd)["violations"].get("deck_minimum") or []
+        if short:
+            deck_minimum = {
+                "total": short[0]["total_cards"],
+                "minimum": short[0]["minimum"],
+            }
     return {
+        "below_minimum": deck_minimum is not None,
+        "deck_minimum": deck_minimum,
         "land_status": mana["land_band"]["status"],
         "land_count": mana["land_count"],
         "land_band": mana["land_band"],
@@ -1203,7 +1245,9 @@ def refine_filters(base: dict, params: FindParams) -> dict:
 
 def find_candidates(state: ForgeState, params: FindParams) -> CandidatePage:
     """The unified Find pipeline (ADR-0015) as a free function over ForgeState — the
-    candidate-pipeline extraction ADR-0013 parked. Three branches on focus state:
+    candidate-pipeline extraction ADR-0013 parked. Lane searches are scoped to
+    ``deck_colors`` (the identity under a commander, the castable colors otherwise).
+    Three branches on focus state:
 
     * FOCUSED avenues → OR-merge each lane's pool (a Staples lane resolves the curated
       name pool via ``staple_pool``; others ``search_fn`` the lane's ``explore_filters``
@@ -1218,7 +1262,7 @@ def find_candidates(state: ForgeState, params: FindParams) -> CandidatePage:
     this stops at ranked records.
     """
     fmt = state.session.format
-    ci = deck_color_identity(state)
+    ci = deck_colors(state)
     hd = hydrate_session(state)
     sigs = ranked_deck_signals(state, hd.records)
     all_avenues = avenues(state, hd.records)
@@ -1384,6 +1428,7 @@ def snapshot(state: ForgeState) -> dict:
     stats = deck_stats(hd)
     owned = owned_quantities(state)
     mana = mana_audit(hd)
+    fmt = hd.format
     return {
         "build_id": state.build_id,
         "build_name": state.build_name,
@@ -1392,7 +1437,15 @@ def snapshot(state: ForgeState) -> dict:
         "format_options": format_options(),
         "deck": views.deck_view(state, owned, functools.partial(printing_owned, state)),
         "stats": stats,
-        "bracket": detect_bracket(hd.records, stats.get("avg_cmc", 0.0)),
+        # Commander brackets are WotC's multiplayer-Commander system: a constructed
+        # build has none, and the SPA drops the pill on null.
+        "bracket": (
+            detect_bracket(hd.records, stats.get("avg_cmc", 0.0))
+            if fmt.has_commander
+            else None
+        ),
+        # The colors Find scopes lane searches to (identity or castable, by family).
+        "deck_colors": deck_colors(state),
         "mana": mana,
         "budgets": banded_slot_budgets(
             hd.expanded(), mana["land_band"], deck_size=state.session.deck_size

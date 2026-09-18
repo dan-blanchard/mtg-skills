@@ -54,7 +54,38 @@ KERUGA = {
     "keywords": ["Companion"],
     "legalities": {"modern": "legal", "commander": "legal"},
 }
-INDEX = {c["name"]: c for c in (MOUNTAIN, BOLT, BLACK_LOTUS, KERUGA)}
+ISLAND = {
+    "name": "Island",
+    "type_line": "Basic Land — Island",
+    "cmc": 0.0,
+    "colors": [],
+    "color_identity": ["U"],
+    "oracle_text": "({T}: Add {U}.)",
+    "produced_mana": ["U"],
+    "legalities": {"modern": "legal", "standard": "legal", "commander": "legal"},
+}
+COUNTERSPELL = {
+    "name": "Counterspell",
+    "type_line": "Instant",
+    "cmc": 2.0,
+    "colors": ["U"],
+    "color_identity": ["U"],
+    "oracle_text": "Counter target spell.",
+    "legalities": {"modern": "legal", "commander": "legal"},
+}
+RAGAVAN = {
+    "name": "Ragavan, Nimble Pilferer",
+    "type_line": "Legendary Creature — Monkey Pirate",
+    "cmc": 1.0,
+    "colors": ["R"],
+    "color_identity": ["R"],
+    "oracle_text": "Dash {1}{R}",
+    "legalities": {"modern": "legal", "commander": "legal"},
+}
+INDEX = {
+    c["name"]: c
+    for c in (MOUNTAIN, BOLT, BLACK_LOTUS, KERUGA, ISLAND, COUNTERSPELL, RAGAVAN)
+}
 
 
 def _state(fmt: str, *, cards=()) -> ForgeState:
@@ -278,3 +309,60 @@ def test_move_route_promotes_and_refuses_a_command_zone_the_format_lacks():
     ).json()
     assert [c["name"] for c in snap["deck"]["commanders"]] == ["Lightning Bolt"]
     assert snap["deck"]["cards"] == []
+
+
+# --- family gating: colours, staples, bracket, discovery, finalize ------------------
+
+
+def test_deck_colors_are_castable_for_constructed_and_identity_for_commander():
+    modern = _state(
+        "modern",
+        cards=[("Lightning Bolt", 4), ("Island", 20), ("Mountain", 20)],
+    )
+    modern.session.add("Counterspell", 2, zone="sideboard")
+    assert engine.deck_colors(modern) == "RU"  # lands never colour a deck
+    cmd = _state("commander", cards=[("Lightning Bolt", 1)])
+    cmd.session.add("Ragavan, Nimble Pilferer", 1, zone="commanders")
+    assert engine.deck_colors(cmd) == "R"
+    assert engine.snapshot(modern)["deck_colors"] == "RU"
+
+
+def test_commander_only_surfaces_are_absent_from_a_constructed_snapshot():
+    snap = engine.snapshot(_state("modern", cards=[("Lightning Bolt", 4)]))
+    assert snap["bracket"] is None
+    assert [a["id"] for a in snap["avenues"] if a["id"] == "engine:staples"] == []
+    assert snap["partner_open"] is False
+    cmd = engine.snapshot(_state("commander", cards=[("Lightning Bolt", 1)]))
+    assert cmd["bracket"] is not None
+
+
+def test_no_command_zone_no_commander_discovery():
+    client = TestClient(build_app(_state("modern")))
+    r = client.post("/api/commanders/discover", json={"sort": "support"})
+    assert r.status_code == 400
+    assert "no command zone" in r.json()["error"]
+
+
+def test_can_be_commander_is_false_without_a_command_zone():
+    snap = engine.snapshot(_state("modern", cards=[("Ragavan, Nimble Pilferer", 1)]))
+    assert snap["deck"]["cards"][0]["can_be_commander"] is False
+
+
+def test_finalize_gates_a_deck_below_the_minimum_and_no_override_lifts_it():
+    client = TestClient(build_app(_state("modern", cards=[("Mountain", 40)])))
+    r = client.post("/api/finalize", json={"override": True}).json()
+    assert r["gated"] is True
+    assert r["finalized"] is False
+    assert r["below_minimum"] is True
+    assert r["deck_minimum"] == {"total": 40, "minimum": 60}
+
+
+def test_finalize_passes_a_legal_constructed_deck():
+    client = TestClient(
+        build_app(_state("modern", cards=[("Lightning Bolt", 4), ("Mountain", 56)]))
+    )
+    r = client.post("/api/finalize", json={"override": False}).json()
+    assert r["below_minimum"] is False
+    assert r["deck_minimum"] is None
+    assert r["land_status"] != "FAIL"
+    assert r["finalized"] is True

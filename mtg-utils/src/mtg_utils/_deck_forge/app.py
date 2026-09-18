@@ -610,6 +610,7 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
     ) -> dict | JSONResponse:
         """Intent-ranked owned commanders from the active Collection slot (ADR-0018) —
         support-depth or novelty, theme/color filters, never EDHREC. Pure compute."""
+        engine.check_commander_family(state)
         if not state.bulk_available:
             return _no_bulk()
         # Validate the theme like the sibling slot/format guards (a clean 400, not a
@@ -749,7 +750,8 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
     async def finalize(payload: FinalizePayload) -> dict:
         fs = engine.finalize_state(state)
         land_fail = fs["land_status"] == "FAIL"
-        gated = land_fail and not payload.override
+        # Below the CR minimum is illegal, never overridable; the land gate is.
+        gated = fs["below_minimum"] or (land_fail and not payload.override)
         return {
             "finalized": not gated,
             "gated": gated,

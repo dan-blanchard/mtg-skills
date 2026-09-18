@@ -481,6 +481,8 @@ def warm(state: ForgeState, slot: str, fmt: str | None = None) -> None:
     falls back to the live read (direct callers). The collection is likewise read ONCE
     here: if the slot is re-imported mid-warm, this pass keeps filling the entry for
     the collection it started with."""
+    if not FORMATS[fmt or state.session.format].has_commander:
+        return  # no command zone, nothing to warm
     coll = _resolved_collection(state, slot)
     if not coll:
         return
