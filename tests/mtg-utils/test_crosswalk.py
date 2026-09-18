@@ -7059,8 +7059,10 @@ def test_discard_outlet_reflexive_you_pay_gain():
     chooser the read couldn't tell from Osseous Sticktwister's opponent chooser).
     phase v0.86.0 parses the reflexive payment (CR 603.12) as an effect-role
     ``PayCost{cost: OneOf[Sacrifice(Artifact), Discard], payer: Controller}`` —
-    YOU pay, so the discard is a discretionary self-outlet (CR 602.1a) and the
-    lane serves it; Sticktwister's opponent-paid form stays out."""
+    the action the resolving ability lets YOU take, and the reflexive trigger
+    fires on your taking it (CR 603.12), so the discard is a discretionary
+    self-outlet and the lane serves it; Sticktwister's opponent-paid form stays
+    out."""
     assert ("discard_outlet", "you", "") in _idents("K'un-Lun Warrior")
 
 

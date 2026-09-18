@@ -802,9 +802,11 @@ def _blink_flicker(tree: ConceptTree) -> list[Signal]:
         # phase v0.86.0: a SELF-exile's return step names the object as ``SelfRef``
         # again (it was a ``TrackedSet`` back-reference through v0.66.0) — Flickering
         # Spirit, the soulbond body Deadeye Navigator grants. A Saga's chapter-III
-        # "exile this Saga, then return it transformed" is the same shape but a flip
-        # vehicle, not a blink (CR 714.2b) — the ``self_blink`` lane's own veto; the
-        # old back-reference shape let ~30 Sagas through here.
+        # "exile this Saga, then return it transformed" has the same shape — and the
+        # returned Saga IS a new object (CR 400.7) — but it is a chapter ability (CR
+        # 714.2b) whose exile-and-return is the transform vehicle, not a blink
+        # engine: the ``self_blink`` lane's adjudicated veto, applied here too; the
+        # old back-reference shape let ~30 Sagas through.
         self_exile = (
             any(tag_of(getattr(c.node, "target", None)) == "SelfRef" for c in exiles)
             and trigger_counter_filter(unit.node)[0] != "lore"
@@ -2700,7 +2702,8 @@ def _creatures_matter(tree: ConceptTree) -> list[Signal]:
                 return [Signal("creatures_matter", "you", "", "", tree.name, "high")]
     # phase v0.86.0 pin bump: a team-scaled damage-prevention REPLACEMENT
     # (Shield of the Avatar's "prevent X of that damage, where X is the number
-    # of creatures you control" — CR 614.1a / 107.3) is a ``replacements[]``
+    # of creatures you control" — a prevention effect, CR 615.1, with X defined
+    # by the object, CR 107.3) is a ``replacements[]``
     # unit whose ``damage_modification`` (``PreventionMinus{value: {quantity:
     # Ref(ObjectCount(Typed(You, Creature)))}}``) carries the count — through
     # v0.66.0 it was a ``PreventDamage`` EFFECT whose ``amount_dynamic`` the
