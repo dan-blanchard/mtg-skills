@@ -93,6 +93,16 @@ def _parse_moxfield(content: str) -> dict:
     }
 
 
+def _has_section_headers(content: str) -> bool:
+    """Whether the list zones itself (Arena / MTGO ``Deck`` / ``Sideboard`` headers, a
+    Moxfield ``//`` header) — a bare list of cards has none."""
+    for raw in content.splitlines():
+        line = raw.strip()
+        if line.startswith("//") or line.lower() in _ARENA_SECTION_HEADERS:
+            return True
+    return False
+
+
 _ARENA_SECTION_HEADERS = frozenset(
     {
         "commander",
@@ -302,9 +312,13 @@ def parse_deck(
     *,
     format: str = "commander",  # noqa: A002
     deck_size: int | None = None,
+    pool_only: bool = False,
 ) -> dict:
     return parse_deck_text(
-        path.read_text(encoding="utf-8"), format=format, deck_size=deck_size
+        path.read_text(encoding="utf-8"),
+        format=format,
+        deck_size=deck_size,
+        pool_only=pool_only,
     )
 
 
@@ -313,6 +327,7 @@ def parse_deck_text(
     *,
     format: str = "commander",  # noqa: A002
     deck_size: int | None = None,
+    pool_only: bool = False,
 ) -> dict:
     """Parse raw deck-list text (auto-detecting Moxfield / MTGO / Arena / CSV / plain).
 
@@ -326,10 +341,18 @@ def parse_deck_text(
     (``[]`` when the export has no Companion section); companion entries are
     excluded from ``cards`` and ``total_cards`` because a companion is revealed
     from outside the game and is not part of the deck (CR 702.139a-b).
+
+    A pool-bounded format (sealed / draft, CR 100.2b) also fills the ``"pool"``
+    zone — the opened cards the deck must be drawn from: every card the list holds,
+    across its Deck and Sideboard sections. A list with section headers keeps its
+    deck / sideboard split; a bare list (or ``pool_only``) is ALL pool — the deck is
+    empty and the sideboard is the whole pool. ``pool`` is ``[]`` for every other
+    format.
     """
     source = _detect_format(content)
     result = _PARSERS[source](content)
     result.setdefault("companion", [])
+    result.setdefault("pool", [])
 
     fmt = get_format(format)
 
@@ -346,7 +369,7 @@ def parse_deck_text(
     # (e.g., "2 Ethereal Armor (DSK) 7" + "2 Ethereal Armor (RTR) 9").
     # When merged duplicates disagree on a printing key, the key is dropped
     # rather than guessing which printing wins.
-    for section in ("commanders", "cards", "sideboard", "companion"):
+    for section in ("commanders", "cards", "sideboard", "companion", "pool"):
         entries = result.get(section, [])
         for entry in entries:
             entry["name"], extras = _extract_printing(entry["name"])
@@ -384,6 +407,24 @@ def parse_deck_text(
                 e for e in result.get(section, []) if e["name"] not in commander_names
             ]
 
+    if fmt.pool_bounded:
+        # The pool is everything the list holds (deck + sideboard, quantities
+        # summed, a printing kept where every copy agrees). A bare list is all pool.
+        pool: dict[str, dict] = {}
+        for entry in result["cards"] + result["sideboard"]:
+            existing = pool.get(entry["name"])
+            if existing is None:
+                pool[entry["name"]] = dict(entry)
+            else:
+                existing["quantity"] += entry.get("quantity", 1)
+                for key in ("set", "collector_number", "finish"):
+                    if existing.get(key) != entry.get(key):
+                        existing.pop(key, None)
+        result["pool"] = list(pool.values())
+        if pool_only or not _has_section_headers(content):
+            result["cards"] = []
+            result["sideboard"] = [dict(e) for e in result["pool"]]
+
     result["total_cards"] = sum(
         c.get("quantity", 1) for c in result["commanders"]
     ) + sum(c.get("quantity", 1) for c in result["cards"])
@@ -391,6 +432,7 @@ def parse_deck_text(
     result["total_sideboard"] = sum(
         c.get("quantity", 1) for c in result.get("sideboard", [])
     )
+    result["total_pool"] = sum(c.get("quantity", 1) for c in result.get("pool", []))
 
     result.setdefault("owned_cards", [])
     result.setdefault("sideboard", [])
@@ -428,15 +470,25 @@ def parse_deck_text(
     default=None,
     help="Write JSON to this file instead of stdout.",
 )
+@click.option(
+    "--pool-only",
+    is_flag=True,
+    default=False,
+    help="Sealed / draft: the whole list is the opened pool (no deck built yet).",
+)
 def main(
     deck_path: Path,
     deck_format: str,
     deck_size: int | None,
     output_path: Path | None,
+    *,
+    pool_only: bool,
 ) -> None:
     """Parse a deck list file and output JSON."""
     try:
-        result = parse_deck(deck_path, format=deck_format, deck_size=deck_size)
+        result = parse_deck(
+            deck_path, format=deck_format, deck_size=deck_size, pool_only=pool_only
+        )
     except ValueError as e:
         raise click.BadParameter(str(e), param_hint="--deck-size") from e
     payload = json.dumps(result, indent=2)
@@ -458,6 +510,8 @@ def main(
             summary += f", {sideboard_count} sideboard"
         if companion_count:
             summary += f", {companion_count} companion"
+        if result.get("total_pool"):
+            summary += f", {result['total_pool']} in the pool"
         click.echo(f"{summary} -> {resolved}")
     else:
         click.echo(payload)
@@ -478,8 +532,8 @@ def extract_deck_names(payload: list | dict) -> list[str]:
       Entries missing ``name`` are skipped, not errored (some Scryfall
       responses lack ``name`` in degenerate cases).
     * ``dict`` — a parsed deck JSON of the shape
-      ``{commanders, cards, sideboard, companion}``. Walks all four zones and
-      dedups across them (so a legendary creature listed in both
+      ``{commanders, cards, sideboard, companion, pool}``. Walks all five zones
+      and dedups across them (so a legendary creature listed in both
       ``commanders`` and ``cards`` yields one name, not two) — this
       matches ``mark_owned._collect_entries(sum_duplicates=False)``.
 
@@ -493,9 +547,16 @@ def extract_deck_names(payload: list | dict) -> list[str]:
         return [n for n in payload if isinstance(n, str)]
     names: list[str] = []
     seen: set[str] = set()
-    # The four deck zones, plus a cube JSON's commander pool (parse_cube emits the
+    # The five deck zones, plus a cube JSON's commander pool (parse_cube emits the
     # commander / PDH cube's commanders there, in the same {name, quantity} shape).
-    for section in ("commanders", "cards", "sideboard", "companion", "commander_pool"):
+    for section in (
+        "commanders",
+        "cards",
+        "sideboard",
+        "companion",
+        "pool",
+        "commander_pool",
+    ):
         for entry in payload.get(section, []) or []:
             if not isinstance(entry, dict):
                 continue

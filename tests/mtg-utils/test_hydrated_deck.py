@@ -421,3 +421,24 @@ def test_records_from_file_reads_a_list_or_a_sidecar(tmp_path):
     bad.write_text(json.dumps({"format": "commander"}), encoding="utf-8")
     with pytest.raises(ValueError, match="hydrated sidecar"):
         records_from_file(bad)
+
+
+def test_pool_is_a_zone_that_hydrates_but_never_counts(tmp_path):
+    deck = _deck()
+    deck["format"] = "sealed"
+    deck["pool"] = [{"name": "Llanowar Elves", "quantity": 3}]
+    deck_path = _write_deck(tmp_path, deck)
+    hd = HydratedDeck.acquire(deck_path, pool=_pool(), fetch=_no_fetch)
+    assert hd.pool == [{"name": "Llanowar Elves", "quantity": 3}]
+    assert next(rec for _, rec in hd.entries(zones=("pool",))) is not None
+    # The counted-deck reads never include the pool.
+    assert all(r is not None for r in hd.expanded(zones=("pool",)))
+    assert "Llanowar Elves" not in {r["name"] for r in hd.deck_records()} or any(
+        e["name"] == "Llanowar Elves" for e in deck["cards"]
+    )
+    assert sum(1 for r in hd.expanded() if r["name"] == "Llanowar Elves") == sum(
+        e["quantity"]
+        for z in ("cards", "sideboard")
+        for e in deck.get(z, [])
+        if e["name"] == "Llanowar Elves"
+    )

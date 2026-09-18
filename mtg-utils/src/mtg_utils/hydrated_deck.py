@@ -43,7 +43,8 @@ from mtg_utils.formats import Format
 
 # Bump when the sidecar payload shape (or the record shape it stores) changes, so an
 # old sidecar is rebuilt instead of read. v1: full adapter records, all four zones.
-HYDRATED_VERSION = 1
+# v2: five zones — the limited ``pool`` joins beside the sideboard.
+HYDRATED_VERSION = 2
 HYDRATED_SUFFIX = ".hydrated.json"
 
 
@@ -129,12 +130,15 @@ class _DeckSource(Protocol):
 # "companion" hydrates like any zone (its record is needed for companion-condition
 # audits) but is outside the game (CR 702.139a-b): deck-size / curve / budget math
 # must request zones explicitly and exclude it.
-ZONES = ("commanders", "cards", "sideboard", "companion")
+#: The deck's zones. ``pool`` is the limited family's opened pool (CR 100.2b) —
+#: hydrated like any zone, counted by none of the deck analyses (they walk the zones
+#: they mean by name).
+ZONES = ("commanders", "cards", "sideboard", "companion", "pool")
 
 
 def _distinct_names(deck: Mapping) -> list[str]:
     """Distinct card names across all zones, in commanders->cards->sideboard->
-    companion order."""
+    companion->pool order."""
     seen: dict[str, None] = {}
     for zone in ZONES:
         for entry in deck.get(zone) or []:
@@ -416,6 +420,12 @@ class HydratedDeck:
         """The outside-the-game companion zone (CR 702.139a-b) — never part of
         deck-size, curve, or sideboard counts."""
         return self._deck.get("companion") or []
+
+    @property
+    def pool(self) -> list[dict]:
+        """A limited build's opened pool (CR 100.2b): what the deck and sideboard
+        must be drawn from. Never part of any count."""
+        return self._deck.get("pool") or []
 
     # --- drop-in sugar over .records (deliberately NOT __bool__) ----------------
 

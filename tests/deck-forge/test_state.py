@@ -15,6 +15,7 @@ def test_new_session_is_empty_with_format():
         "cards": [],
         "sideboard": [],
         "companion": [],
+        "pool": [],
     }
 
 

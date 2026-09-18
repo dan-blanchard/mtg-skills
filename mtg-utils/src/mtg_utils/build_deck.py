@@ -245,7 +245,13 @@ def main(
     main_total = new_deck["total_cards"]
     sb_total = new_deck["total_sideboard"]
     deck_size = fmt.deck_size
-    if main_total != deck_size:
+    if fmt.size_is_minimum and main_total < fmt.min_deck_size:
+        click.echo(
+            f"Warning: mainboard has {main_total} cards (at least "
+            f"{fmt.min_deck_size} needed)",
+            err=True,
+        )
+    elif not fmt.size_is_minimum and main_total != deck_size:
         click.echo(
             f"Warning: mainboard has {main_total} cards (expected {deck_size})",
             err=True,

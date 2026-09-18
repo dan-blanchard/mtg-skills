@@ -102,8 +102,11 @@ def _unmet_templates(
     ]
 
 
-def _is_format_legal(variant: dict, legality_key: str = "commander") -> bool:
-    """Check if a combo is legal in the given format."""
+def _is_format_legal(variant: dict, legality_key: str | None = "commander") -> bool:
+    """Check if a combo is legal in the given format. A pool-bounded format (no
+    legality key) has no ban list: any combo the pool holds is playable."""
+    if legality_key is None:
+        return True
     legalities = variant.get("legalities", {})
     return legalities.get(legality_key, False)
 

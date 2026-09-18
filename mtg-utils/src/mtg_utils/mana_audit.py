@@ -480,6 +480,21 @@ def mana_audit(hd: HydratedDeck) -> dict:
             "commander_cost": commander_cost,
             "karsten_adjustment": {"ramp_count": ramp_count, "result": karsten_result},
         }
+    elif hd.format.family == "limited":
+        # Sealed / draft: the 17-of-40 norm, a tight band (16-18), never the
+        # constructed formula scaled down (which reads 17 lands as over-landed).
+        limited_target = limited_land_target(
+            ramp_count=ramp_count, avg_cmc=avg_cmc, deck_size=deck_size
+        )
+        top = limited_target
+        floor = top - 1
+        formula_info = {
+            "limited_land_target": {
+                "ramp_count": ramp_count,
+                "avg_cmc": avg_cmc,
+                "result": limited_target,
+            },
+        }
     else:
         constructed_target = constructed_land_target(
             ramp_count=ramp_count,
@@ -488,7 +503,8 @@ def mana_audit(hd: HydratedDeck) -> dict:
         )
         top = constructed_target
         # The 20-land clamp is a 60-card figure; scale it like the target
-        # so a 40-card limited deck isn't held to a 60-card floor.
+        # so a deck labelled with a constructed format at another size isn't held
+        # to a 60-card floor.
         min_lands = round(_CONSTRUCTED_MIN_LANDS * deck_size / 60)
         floor = max(min_lands, top - _CONSTRUCTED_FAIL_TOLERANCE)
         formula_info = {
@@ -541,7 +557,9 @@ def _render_single_audit(audit: dict) -> list[str]:
     lines.append(f"mana-audit: {status} — {land_count} lands ({colors_str} deck)")
     lines.append("")
 
-    constructed = audit.get("constructed_land_target")
+    constructed = audit.get("constructed_land_target") or audit.get(
+        "limited_land_target"
+    )
     burgess = audit.get("burgess_formula") or {}
     band = audit.get("land_band") or {}
     if constructed:

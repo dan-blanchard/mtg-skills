@@ -80,10 +80,45 @@ class TestTable:
 
     def test_family_is_the_shape_rule_switch(self):
         # Every family decision reads ``family`` — never a format name.
-        assert {f.family for f in FORMATS.values()} == {"commander", "constructed"}
+        assert {f.family for f in FORMATS.values()} == {
+            "commander",
+            "constructed",
+            "limited",
+        }
         assert format_options(()) == []
         assert family_size_choices("commander") == (60, 100)
         assert family_size_choices("constructed") == (60,)
+        assert family_size_choices("limited") == (40,)
+
+    def test_limited_is_pool_bounded(self):
+        # CR 100.2b: a 40-card minimum, as many duplicates as the product included,
+        # built from the opened product plus basic lands — so legality is pool
+        # membership (the audit's question), the sideboard is the unused pool, and
+        # there is no copy limit.
+        for name in ("sealed", "draft"):
+            fmt = FORMATS[name]
+            assert fmt.family == "limited"
+            assert fmt.pool_bounded is True
+            assert fmt.has_commander is False
+            assert fmt.max_copies is None
+            assert fmt.is_singleton is False
+            assert fmt.sideboard_size is None
+            assert (fmt.deck_size, fmt.min_deck_size, fmt.size_cap) == (40, 40, None)
+            assert fmt.size_is_minimum is True
+            assert fmt.media == ("digital", "paper")
+            assert fmt.legality({"name": "Anything", "legalities": {}}) == "legal"
+            assert fmt.is_legal({"name": "Anything"})
+            assert fmt.commander_eligibility(test_card("Thranduil, the Elvenking")) == {
+                "eligible": False,
+                "requires_partner": False,
+            }
+        assert Format.for_deck({"format": "sealed", "deck_size": 45}).deck_size == 45
+        row = {r["id"]: r for r in format_options()}["sealed"]
+        assert row["family"] == "limited"
+        assert row["pool_bounded"] is True
+        assert row["max_copies"] is None
+        assert row["sideboard_size"] is None
+        assert [r["id"] for r in format_options()][-2:] == ["sealed", "draft"]
 
     def test_a_larger_constructed_size_is_a_target_never_the_floor(self):
         # An 80-card Yorion deck is still a 60-minimum Standard deck (CR 100.2a);
@@ -408,6 +443,7 @@ class TestSpaTable:
             "label": "Commander",
             "family": "commander",
             "has_commander": True,
+            "pool_bounded": False,
             "max_copies": 1,
             "sideboard_size": 0,
             "size_is_minimum": False,

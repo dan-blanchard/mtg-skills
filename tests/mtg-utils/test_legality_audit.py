@@ -1176,3 +1176,108 @@ class TestCompetitiveBrawl:
         }
         result = legality_audit(_hd(deck, [cmd, drain]))
         assert result["violations"]["format_legality"] == []
+
+
+# ---------- Pool containment (limited) ----------
+
+
+class TestPoolContainment:
+    """A sealed / draft deck is drawn from its opened pool (CR 100.2b): every copy in
+    the main deck and sideboard must be in the pool, basics excepted; there is no
+    copy limit and no sideboard cap."""
+
+    COMMON = {
+        "name": "Stone by Sunlight",
+        "type_line": "Instant",
+        "cmc": 2.0,
+        "color_identity": ["W"],
+        "legalities": {},
+    }
+    RARE = {
+        "name": "My Precious",
+        "type_line": "Legendary Artifact",
+        "cmc": 1.0,
+        "color_identity": [],
+        "legalities": {},
+    }
+    PLAINS = {
+        "name": "Plains",
+        "type_line": "Basic Land — Plains",
+        "cmc": 0.0,
+        "color_identity": [],
+        "legalities": {},
+    }
+
+    def _audit(self, *, cards, sideboard=(), pool=()):
+        d = {
+            "format": "sealed",
+            "commanders": [],
+            "cards": [{"name": n, "quantity": q} for n, q in cards],
+            "sideboard": [{"name": n, "quantity": q} for n, q in sideboard],
+            "pool": [{"name": n, "quantity": q} for n, q in pool],
+        }
+        return legality_audit(_hd(d, [self.COMMON, self.RARE, self.PLAINS]))
+
+    def test_off_pool_card_is_a_violation(self):
+        result = self._audit(
+            cards=[("My Precious", 1), ("Plains", 39)],
+            pool=[("Stone by Sunlight", 3)],
+        )
+        v = result["violations"]["pool_containment"]
+        assert v == [
+            {
+                "name": "My Precious",
+                "quantity": 1,
+                "in_pool": 0,
+                "reason": "not_in_pool",
+            }
+        ]
+        assert result["overall_status"] == "FAIL"
+
+    def test_duplicates_the_product_included_are_legal(self):
+        result = self._audit(
+            cards=[("Stone by Sunlight", 3), ("Plains", 37)],
+            pool=[("Stone by Sunlight", 3)],
+        )
+        assert result["violations"]["pool_containment"] == []
+        assert result["violations"]["copy_limits"] == []  # no copy limit
+
+    def test_a_fourth_copy_the_pool_lacks_is_a_violation(self):
+        result = self._audit(
+            cards=[("Stone by Sunlight", 4), ("Plains", 36)],
+            pool=[("Stone by Sunlight", 3)],
+        )
+        assert result["violations"]["pool_containment"][0]["in_pool"] == 3
+
+    def test_basics_are_unlimited_and_outside_the_pool(self):
+        result = self._audit(cards=[("Plains", 40)], pool=[("My Precious", 1)])
+        assert result["violations"]["pool_containment"] == []
+
+    def test_the_sideboard_is_the_unused_pool_with_no_cap(self):
+        result = self._audit(
+            cards=[("Plains", 40)],
+            sideboard=[("Stone by Sunlight", 43)],
+            pool=[("Stone by Sunlight", 43)],
+        )
+        assert result["violations"]["sideboard_size"] == []
+        assert result["violations"]["pool_containment"] == []
+
+    def test_below_the_40_card_minimum_cites_100_2b(self):
+        result = self._audit(cards=[("Plains", 39)], pool=[])
+        assert result["violations"]["deck_minimum"][0]["minimum"] == 40
+        from mtg_utils.legality_audit import _REASON_TO_CR_RULES
+
+        assert "100.2b" in _REASON_TO_CR_RULES["below_minimum"]
+        assert _REASON_TO_CR_RULES["not_in_pool"] == ("100.2b",)
+
+    def test_a_constructed_deck_has_no_containment_check(self):
+        d = {
+            "format": "modern",
+            "commanders": [],
+            "cards": [{"name": "Plains", "quantity": 60}],
+            "sideboard": [],
+        }
+        assert (
+            legality_audit(_hd(d, [self.PLAINS]))["violations"]["pool_containment"]
+            == []
+        )

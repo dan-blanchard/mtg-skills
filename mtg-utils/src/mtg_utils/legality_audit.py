@@ -55,8 +55,11 @@ _REASON_TO_CR_RULES: dict[str, tuple[str, ...]] = {
     "colorless_deck_must_pick_one_basic_type": ("903.5d",),
     # 100.4a: sideboard max 15 cards.
     "sideboard_too_large": ("100.4a",),
-    # 100.2a (60-card minimum) and 903.5a (100-card Commander minimum).
-    "below_minimum": ("100.2a", "903.5a"),
+    # 100.2a (60-card minimum), 100.2b (40-card limited minimum) and 903.5a
+    # (100-card Commander minimum).
+    "below_minimum": ("100.2a", "100.2b", "903.5a"),
+    # 100.2b: a limited deck is built from the opened product plus basic lands.
+    "not_in_pool": ("100.2b",),
     # Vintage restricted list (effectively a custom copy limit).
     "restricted": ("100.2a",),
     # Generic banned/not-legal in a format.
@@ -306,7 +309,7 @@ def check_copy_limits(
     Counts are computed across mainboard + sideboard combined, matching MTG
     rules (the copy limit spans both zones).
     """
-    max_copies = fmt.max_copies
+    max_copies = fmt.max_copies or 0  # None (no limit) never reads as restricted
 
     # Aggregate quantities across mainboard and sideboard
     combined_quantities: dict[str, int] = {}
@@ -414,8 +417,8 @@ def check_sideboard_size(deck_json: dict, fmt: Format) -> list[dict]:
     part of the deck nor of the sideboard (CR 702.139a-b).
     """
     max_sb = fmt.sideboard_size
-    if max_sb == 0:
-        return []
+    if max_sb is None or max_sb == 0:
+        return []  # no sideboard (Commander) / no cap (limited: the unused pool)
     sb_total = sum(int(e.get("quantity", 1)) for e in deck_json.get("sideboard") or [])
     if sb_total > max_sb:
         return [
@@ -426,6 +429,44 @@ def check_sideboard_size(deck_json: dict, fmt: Format) -> list[dict]:
             }
         ]
     return []
+
+
+def check_pool_containment(
+    deck_json: dict,
+    hydrated_by_name: Mapping[str, dict],
+    fmt: Format,
+) -> list[dict]:
+    """A pool-bounded deck (sealed / draft) is drawn from its opened pool: every copy
+    in the main deck and sideboard must be in the ``pool`` zone at that quantity
+    (CR 100.2b), basic lands excepted (the product's basics are unlimited). Empty
+    for any other format."""
+    if not fmt.pool_bounded:
+        return []
+    pool: dict[str, int] = {}
+    for entry in deck_json.get("pool") or []:
+        pool[entry["name"]] = pool.get(entry["name"], 0) + int(entry.get("quantity", 1))
+    used: dict[str, int] = {}
+    for section in ("cards", "sideboard"):
+        for entry in deck_json.get(section) or []:
+            used[entry["name"]] = used.get(entry["name"], 0) + int(
+                entry.get("quantity", 1)
+            )
+    violations: list[dict] = []
+    for name, quantity in used.items():
+        card = hydrated_by_name.get(name)
+        if card is not None and is_basic_land(card):
+            continue
+        in_pool = pool.get(name, 0)
+        if quantity > in_pool:
+            violations.append(
+                {
+                    "name": name,
+                    "quantity": quantity,
+                    "in_pool": in_pool,
+                    "reason": "not_in_pool",
+                }
+            )
+    return violations
 
 
 def check_deck_minimum(deck_json: dict, fmt: Format) -> list[dict]:
@@ -489,6 +530,7 @@ def legality_audit(hd: HydratedDeck) -> dict:
     sb_violations = check_sideboard_size(deck_json, fmt)
     deck_min_violations = check_deck_minimum(deck_json, fmt)
     companion_zone_violations = check_companion(deck_json, hydrated_by_name, fmt)
+    pool_violations = check_pool_containment(deck_json, hydrated_by_name, fmt)
 
     counts = {
         "format_legality": len(format_violations),
@@ -498,6 +540,7 @@ def legality_audit(hd: HydratedDeck) -> dict:
         "sideboard_size": len(sb_violations),
         "deck_minimum": len(deck_min_violations),
         "companion": len(companion_zone_violations),
+        "pool_containment": len(pool_violations),
     }
     total_violations = sum(counts.values())
     overall_status = "PASS" if total_violations == 0 else "FAIL"
@@ -520,6 +563,7 @@ def legality_audit(hd: HydratedDeck) -> dict:
             "sideboard_size": sb_violations,
             "deck_minimum": deck_min_violations,
             "companion": companion_zone_violations,
+            "pool_containment": pool_violations,
         },
     }
 
@@ -559,6 +603,8 @@ def _format_violation_line(
             names.append(f"{v['sideboard_count']}/{v['limit']}")
         elif reason == "deck_minimum":
             names.append(f"{v['total_cards']}/{v['minimum']}")
+        elif reason == "pool_containment":
+            names.append(f"{v['name']} ({v['quantity']}x, {v['in_pool']} in pool)")
         elif reason == "companion":
             v_reason = v.get("reason")
             if v_reason == "companion_multiple":
@@ -587,6 +633,7 @@ _REPORT_CHECKS = (
     "sideboard_size",
     "deck_minimum",
     "companion",
+    "pool_containment",
 )
 
 
@@ -606,7 +653,12 @@ def render_text_report(result: dict) -> str:
         v = violations.get(check) or []
         # Skip checks that aren't relevant (e.g., sideboard for commander,
         # companion for decks with no companion zone)
-        if not v and check in ("sideboard_size", "deck_minimum", "companion"):
+        if not v and check in (
+            "sideboard_size",
+            "deck_minimum",
+            "companion",
+            "pool_containment",
+        ):
             continue
         lines.append(_format_violation_line(check, v))
     # Surface a CR-citations lookup failure in stdout, not just the JSON

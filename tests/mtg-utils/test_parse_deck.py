@@ -555,3 +555,69 @@ class TestCompanionZone:
         assert "Jegantha, the Wellspring" not in card_names
         assert "Sol Ring" in card_names
         assert result["total_cards"] == 32
+
+
+class TestLimitedPool:
+    """A pool-bounded format (sealed / draft) fills the ``pool`` zone: the opened
+    cards the deck must be drawn from (CR 100.2b)."""
+
+    ARENA = (
+        "Deck\n"
+        "2 Stone by Sunlight (HOB) 33\n"
+        "1 Wood Elves (HOB) 190\n"
+        "17 Forest (HOB) 280\n"
+        "\n"
+        "Sideboard\n"
+        "1 Stone by Sunlight (HOB) 33\n"
+        "3 Elven Passage (HOB) 250\n"
+    )
+
+    def test_arena_export_keeps_its_split_and_pools_every_card(self):
+        result = parse_deck_text(self.ARENA, format="sealed")
+        pool = {e["name"]: e["quantity"] for e in result["pool"]}
+        assert pool == {
+            "Stone by Sunlight": 3,  # deck + sideboard copies summed
+            "Wood Elves": 1,
+            "Forest": 17,
+            "Elven Passage": 3,
+        }
+        assert {e["name"]: e["quantity"] for e in result["cards"]} == {
+            "Stone by Sunlight": 2,
+            "Wood Elves": 1,
+            "Forest": 17,
+        }
+        assert {e["name"] for e in result["sideboard"]} == {
+            "Stone by Sunlight",
+            "Elven Passage",
+        }
+        assert result["deck_size"] == 40
+        assert result["sideboard_size"] is None
+        assert result["total_pool"] == 24
+        # Printing keys ride into the pool where every copy agrees.
+        assert next(e for e in result["pool"] if e["name"] == "Wood Elves")["set"] == (
+            "hob"
+        )
+
+    def test_bare_list_is_all_pool_with_no_deck_yet(self):
+        result = parse_deck_text("2 Stone by Sunlight\n1 Wood Elves\n", format="draft")
+        assert result["cards"] == []
+        assert {e["name"]: e["quantity"] for e in result["pool"]} == {
+            "Stone by Sunlight": 2,
+            "Wood Elves": 1,
+        }
+        assert result["sideboard"] == result["pool"]
+        assert result["total_cards"] == 0
+
+    def test_pool_only_overrides_a_split_list(self, tmp_path):
+        path = tmp_path / "pool.txt"
+        path.write_text(self.ARENA)
+        result = parse_deck(path, format="sealed", pool_only=True)
+        assert result["cards"] == []
+        assert result["total_pool"] == 24
+        cli = CliRunner().invoke(main, [str(path), "--format", "sealed", "--pool-only"])
+        assert cli.exit_code == 0, cli.output
+        assert json.loads(cli.output)["cards"] == []
+
+    def test_other_formats_carry_an_empty_pool(self):
+        assert parse_deck_text(self.ARENA, format="modern")["pool"] == []
+        assert parse_deck_text(self.ARENA, format="commander")["pool"] == []

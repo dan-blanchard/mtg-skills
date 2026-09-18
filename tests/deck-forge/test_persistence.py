@@ -14,6 +14,7 @@ DECK = {
     "cards": [{"name": "Forest", "quantity": 8}, {"name": "Sol Ring", "quantity": 1}],
     "sideboard": [],
     "companion": [],
+    "pool": [],
 }
 
 

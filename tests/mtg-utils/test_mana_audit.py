@@ -799,10 +799,11 @@ class TestEffectiveCommanderCost:
         )
 
 
-def _limited_deck(land_count: int):
-    """A 40-card constructed-shaped deck (Arena limited): 23 3-cmc
-    creatures plus ``land_count`` Plains. Avg cmc 3.0 keeps the
-    constructed target at its baseline (24 scaled to 16)."""
+def _limited_deck(land_count: int, fmt: str = "timeless"):
+    """A 40-card deck: 23 3-cmc creatures plus ``land_count`` Plains. Labelled
+    ``timeless`` it is a constructed-shaped deck (avg cmc 3.0 keeps the constructed
+    target at its baseline, 24 scaled to 16); labelled ``sealed`` it is a limited
+    deck under the 17-of-40 norm."""
     spells = [
         {
             "name": f"Bear {i}",
@@ -822,13 +823,42 @@ def _limited_deck(land_count: int):
         "keywords": [],
     }
     deck = {
-        "format": "timeless",
+        "format": fmt,
         "deck_size": 40,
         "commanders": [],
         "cards": [{"name": s["name"], "quantity": 1} for s in spells]
         + [{"name": "Plains", "quantity": land_count}],
     }
     return _hd(deck, [plains, *spells])
+
+
+class TestLimitedManaAudit:
+    """A limited deck reads the 17-of-40 band (16-18), not the constructed formula
+    scaled down."""
+
+    def test_17_lands_is_the_norm(self):
+        result = mana_audit(_limited_deck(17, fmt="sealed"))
+        assert "limited_land_target" in result
+        assert "constructed_land_target" not in result
+        assert result["land_band"]["top"] == 17
+        assert result["land_band"]["floor"] == 16
+        assert result["land_band"]["flood"] == 19
+        assert result["land_band"]["status"] == "PASS"
+
+    def test_band_edges(self):
+        assert mana_audit(_limited_deck(16, fmt="draft"))["land_band"]["status"] == (
+            "WARN"
+        )
+        assert mana_audit(_limited_deck(15, fmt="sealed"))["land_band"]["status"] == (
+            "FAIL"
+        )
+        assert mana_audit(_limited_deck(20, fmt="sealed"))["land_band"]["status"] == (
+            "FLOOD"
+        )
+
+    def test_render_shows_the_limited_target(self):
+        text = render_text_report(mana_audit(_limited_deck(17, fmt="sealed")))
+        assert "target: 17" in text
 
 
 class TestConstructedFloorScalesWithDeckSize:

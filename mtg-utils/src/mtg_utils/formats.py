@@ -37,11 +37,13 @@ Legality = Literal["legal", "restricted", "banned", "not_legal", "unreleased"]
 Medium = Literal["paper", "digital"]
 CostMode = Literal["usd", "wildcards"]
 #: The format families. A family is what a deck's SHAPE rules follow — a command zone
-#: and exact size (commander) or a copy limit + sideboard over a minimum size
-#: (constructed). A caller that needs the family reads ``Format.family``, one that
-#: needs a single family fact reads it (``has_commander``, ``size_is_minimum``, …);
-#: no caller compares format names.
-Family = Literal["commander", "constructed"]
+#: and exact size (commander), a copy limit + sideboard over a minimum size
+#: (constructed), or a build bounded by an opened pool over a minimum size, with no
+#: copy limit and no sideboard cap (limited: sealed / draft, CR 100.2b). A caller
+#: that needs the family reads ``Format.family``, one that needs a single family
+#: fact reads it (``has_commander``, ``pool_bounded``, ``size_is_minimum``, …); no
+#: caller compares format names.
+Family = Literal["commander", "constructed", "limited"]
 
 #: The statuses under which a card may be played (Vintage's restricted list is a copy
 #: limit, not a ban).
@@ -104,15 +106,22 @@ class Format:
     name: str
     label: str
     deck_size: int
-    sideboard_size: int
+    #: The sideboard cap; ``None`` where a format has no cap (limited: the sideboard
+    #: is the unused pool, CR 100.4b).
+    sideboard_size: int | None
     life_total: int
     has_commander: bool
-    max_copies: int
+    #: The copy limit; ``None`` where a format has none (limited: as many duplicates
+    #: as the product included, CR 100.2b).
+    max_copies: int | None
     #: Whether the format has Commander's extra loss rule — 21 combat damage from one
     #: commander (CR 903.10a). Commander only: Brawl games do not use it (CR 903.12h)
     #: and no other format has it.
     commander_damage: bool
-    legality_key: str
+    #: The MTGJSON legality key, or ``None`` for a pool-bounded format: a limited
+    #: deck's legality is pool membership, not a set's status, so every record is
+    #: ``legal`` here and ``legality_audit`` checks containment instead.
+    legality_key: str | None
     planeswalker_commander_requires_text: bool
     free_mulligan: bool
     colorless_any_basic: bool
@@ -177,9 +186,19 @@ class Format:
         return not self.has_commander
 
     @property
+    def pool_bounded(self) -> bool:
+        """A limited format: the deck is built from an opened pool (CR 100.2b), so
+        legality is pool membership and the sideboard is the unused pool."""
+        return self.legality_key is None
+
+    @property
     def family(self) -> Family:
         """Which family's shape rules this format follows (see ``Family``)."""
-        return "commander" if self.has_commander else "constructed"
+        if self.has_commander:
+            return "commander"
+        if self.pool_bounded:
+            return "limited"
+        return "constructed"
 
     @property
     def size_is_minimum(self) -> bool:
@@ -283,9 +302,9 @@ class Format:
 
     def is_valid_deck_size(self, size: int) -> bool:
         """Commander family: one of the size choices across every medium (exact-size
-        formats, CR 903.5a / 903.12d). Constructed: any positive size — CR 100.2a sets
-        only a minimum, an 80-card Yorion deck is legal, and a 40-card limited deck
-        labels itself with the constructed format whose legality it borrows."""
+        formats, CR 903.5a / 903.12d). Constructed and limited: any positive size —
+        CR 100.2a / 100.2b set only a minimum (an 80-card Yorion deck is legal; a
+        build's size is its target, ``min_deck_size`` its floor)."""
         if self.has_commander:
             return any(size in self.size_choices(m) for m in self.media)
         return size > 0
@@ -316,6 +335,8 @@ class Format:
             self.banned_keys
         ):
             return "banned"
+        if self.legality_key is None:
+            return "legal"  # pool-bounded: membership is the audit's question
         status = (record.get("legalities") or {}).get(self.legality_key, "not_legal")
         if status == "banned" and self.ignores_legality_key_bans:
             status = "legal"
@@ -385,6 +406,7 @@ class Format:
             "label": self.label,
             "family": self.family,
             "has_commander": self.has_commander,
+            "pool_bounded": self.pool_bounded,
             "max_copies": self.max_copies,
             "sideboard_size": self.sideboard_size,
             "size_is_minimum": self.size_is_minimum,
@@ -438,6 +460,27 @@ def _constructed(
         arena_pool=arena_pool,
         is_arena_only=arena_only,
         primary_medium=primary_medium,
+    )
+
+
+def _limited(name: str, label: str) -> Format:
+    """A pool-bounded format (CR 100.2b): 40-card minimum, as many duplicates as the
+    product included, the unused pool as the sideboard; played on Arena and on
+    paper, Arena first."""
+    return Format(
+        name=name,
+        label=label,
+        deck_size=40,
+        sideboard_size=None,
+        life_total=20,
+        has_commander=False,
+        max_copies=None,
+        commander_damage=False,
+        legality_key=None,
+        planeswalker_commander_requires_text=False,
+        free_mulligan=False,
+        colorless_any_basic=False,
+        is_arena=True,
     )
 
 
@@ -545,6 +588,9 @@ _ALL: tuple[Format, ...] = (
     _constructed("premodern", "Premodern", legality_key="premodern", arena=False),
     _constructed("legacy", "Legacy", legality_key="legacy", arena=False),
     _constructed("vintage", "Vintage", legality_key="vintage", arena=False),
+    # ── Limited (40-card minimum, pool-bounded: sealed / draft) ──
+    _limited("sealed", "Sealed"),
+    _limited("draft", "Draft"),
 )
 #: Every supported format, by name, in the order the table declares.
 FORMATS: dict[str, Format] = {f.name: f for f in _ALL}
