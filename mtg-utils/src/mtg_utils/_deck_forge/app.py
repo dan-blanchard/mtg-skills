@@ -755,7 +755,8 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
         return {
             "finalized": not gated,
             "gated": gated,
-            "overridden": land_fail and payload.override,
+            # An override that could not lift the gate overrode nothing.
+            "overridden": land_fail and payload.override and not gated,
             **fs,
         }
 

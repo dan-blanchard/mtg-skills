@@ -327,11 +327,52 @@ def test_deck_colors_are_castable_for_constructed_and_identity_for_commander():
     assert engine.snapshot(modern)["deck_colors"] == "RU"
 
 
+def test_deck_colors_read_a_transform_front_and_an_mdfc_spell_face():
+    state = _state("modern")
+    state.by_name["Delver"] = {
+        "name": "Delver of Secrets // Insectile Aberration",
+        "type_line": "Creature — Human Wizard // Creature — Human Insect",
+        "layout": "transform",
+        "colors": [],
+        "card_faces": [{"colors": ["U"]}, {"colors": ["B"]}],  # a made-up back
+        "color_identity": ["U", "B"],
+    }
+    state.by_name["Awakening"] = {
+        "name": "Agadeem's Awakening // Agadeem, the Undercrypt",
+        "type_line": "Sorcery // Land",
+        "layout": "modal_dfc",
+        "colors": [],
+        "card_faces": [
+            {"type_line": "Sorcery", "colors": ["G"]},
+            {"type_line": "Land", "colors": []},
+        ],
+        "color_identity": ["G"],
+    }
+    state.by_name["Pathway"] = {
+        "name": "Cragcrown Pathway // Timbercrown Pathway",
+        "type_line": "Land // Land",
+        "layout": "modal_dfc",
+        "colors": [],
+        "card_faces": [{"type_line": "Land"}, {"type_line": "Land"}],
+        "color_identity": ["R", "G"],
+    }
+    for name in ("Delver", "Awakening", "Pathway"):
+        state.session.add(name, 1)
+    assert engine.deck_colors(state) == "GU"  # never the transform back's B
+
+
+def test_finalize_override_reports_overridden_only_when_it_lifted_the_gate():
+    # Below the minimum AND short on lands: the override lifts nothing.
+    client = TestClient(build_app(_state("modern", cards=[("Lightning Bolt", 4)])))
+    r = client.post("/api/finalize", json={"override": True}).json()
+    assert r["gated"] is True
+    assert r["overridden"] is False
+
+
 def test_commander_only_surfaces_are_absent_from_a_constructed_snapshot():
     snap = engine.snapshot(_state("modern", cards=[("Lightning Bolt", 4)]))
     assert snap["bracket"] is None
     assert [a["id"] for a in snap["avenues"] if a["id"] == "engine:staples"] == []
-    assert snap["partner_open"] is False
     cmd = engine.snapshot(_state("commander", cards=[("Lightning Bolt", 1)]))
     assert cmd["bracket"] is not None
 

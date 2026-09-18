@@ -271,6 +271,20 @@ def check_color_identity(
     return violations
 
 
+def card_copy_limit(card: dict, fmt: Format) -> int | None:
+    """How many copies of ``card`` a deck may run in ``fmt`` — the ONE owner of the
+    exemption ladder every copy-limit read follows (the audit below and the hub's
+    add rule alike): a basic land or an "any number" card is unlimited (``None``);
+    a named cap ("up to seven") is its own limit; a restricted card is one; else the
+    Format's ``max_copies`` (CR 100.2a constructed, CR 903.5b Commander)."""
+    if is_basic_land(card) or has_any_number_exemption(card):
+        return None
+    cap = named_card_cap(card)
+    if cap is not None:
+        return cap
+    return 1 if fmt.legality(card) == "restricted" else fmt.max_copies
+
+
 def check_copy_limits(
     deck_json: dict,
     hydrated_by_name: Mapping[str, dict],
@@ -307,41 +321,18 @@ def check_copy_limits(
         card = hydrated_by_name.get(name)
         if card is None:
             continue
-
-        if is_basic_land(card):
+        limit = card_copy_limit(card, fmt)
+        if limit is None or quantity <= limit:
             continue
-
-        if has_any_number_exemption(card):
-            continue
-
-        cap = named_card_cap(card)
-        if cap is not None:
-            if quantity <= cap:
-                continue
-            violations.append(
-                {
-                    "name": name,
-                    "quantity": quantity,
-                    "limit": cap,
-                    "reason": "exceeds_named_card_cap",
-                }
-            )
-            continue
-
-        # Restricted (Vintage): capped at 1 regardless of format max_copies.
-        effective_limit = 1 if fmt.legality(card) == "restricted" else max_copies
-
-        if quantity > effective_limit:
-            is_restricted = effective_limit == 1 and max_copies > 1
-            reason = "restricted" if is_restricted else "copy_limit"
-            violations.append(
-                {
-                    "name": name,
-                    "quantity": quantity,
-                    "limit": effective_limit,
-                    "reason": reason,
-                }
-            )
+        if named_card_cap(card) is not None:
+            reason = "exceeds_named_card_cap"
+        elif limit == 1 and max_copies > 1:
+            reason = "restricted"  # Vintage: capped at 1 regardless of max_copies
+        else:
+            reason = "copy_limit"
+        violations.append(
+            {"name": name, "quantity": quantity, "limit": limit, "reason": reason}
+        )
     return violations
 
 

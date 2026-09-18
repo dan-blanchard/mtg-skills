@@ -42,11 +42,10 @@ from mtg_utils._deck_forge.state import DeckSession, ForgeState
 from mtg_utils._name_index import NameIndex
 from mtg_utils._tuner.tune import TuneParams
 from mtg_utils.card_classify import (
+    classifying_type_line,
     get_colors,
-    has_any_number_exemption,
     is_basic_land,
     is_land,
-    named_card_cap,
     valid_partner_search,
 )
 from mtg_utils.card_pool import CardPool
@@ -54,7 +53,7 @@ from mtg_utils.companion import is_companion
 from mtg_utils.deck_stats import deck_stats, detect_bracket
 from mtg_utils.formats import FORMATS, family_size_choices, format_options
 from mtg_utils.hydrated_deck import ZONES, HydratedDeck
-from mtg_utils.legality_audit import legality_audit
+from mtg_utils.legality_audit import card_copy_limit, legality_audit
 from mtg_utils.mana_audit import mana_audit, reconcile_basic_lands
 from mtg_utils.parse_deck import parse_deck_text
 
@@ -133,14 +132,26 @@ def deck_colors(state: ForgeState) -> str:
     for zone in ("cards", "sideboard"):
         for entry in deck.get(zone) or []:
             record = state.by_name.get(entry["name"])
-            if record and not is_land(record):
+            if record and _casts(record):
                 colors.update(get_colors(record))
     return "".join(sorted(colors))
 
 
+def _casts(record: dict) -> bool:
+    """Whether a card is something the deck CASTS (its colours are the deck's): any
+    nonland, and a modal DFC with a spell face (a Sorcery // Land is cast for its
+    front; a Land // Land is not). A transform card is judged by its front."""
+    if not is_land(record):
+        return True
+    faces = record.get("card_faces") or []
+    if record.get("layout") == "modal_dfc" and faces:
+        return any("Land" not in (f.get("type_line") or "") for f in faces)
+    return "Land" not in classifying_type_line(record)
+
+
 def check_commander_family(state: ForgeState) -> None:
-    """The family rule for a Commander-only surface (discovery, partner search):
-    the build's format has a command zone."""
+    """The family rule for a Commander-only surface (commander discovery): the
+    build's format has a command zone."""
     fmt = FORMATS[state.session.format]
     if not fmt.has_commander:
         raise DeckRuleError(f"{fmt.label} has no command zone")
@@ -564,11 +575,12 @@ def _companion_message(v: dict) -> str:
     )
 
 
-def legality_warnings(hd: HydratedDeck) -> list[dict]:
+def legality_warnings(hd: HydratedDeck, *, audit: dict | None = None) -> list[dict]:
     """The live warning list: every audited category, the size cap where the family
     has one, and the companion checks. ``hd.format`` carries the build's effective
-    size, so the cap is derived here — no caller passes one."""
-    audit = legality_audit(hd)
+    size, so the cap is derived here — no caller passes one. ``audit`` is a
+    ``legality_audit`` result the caller already has (finalize reads it twice)."""
+    audit = legality_audit(hd) if audit is None else audit
     violations = audit.get("violations") or {}
     return (
         [
@@ -702,23 +714,18 @@ def check_zone_open(state: ForgeState, zone: str) -> None:
 
 
 def copy_limit(state: ForgeState, record: dict) -> int | None:
-    """How many copies of one card the build may run (``None`` = unlimited): the SAME
-    rule ``legality_audit.check_copy_limits`` audits — the Format's ``max_copies``
-    (CR 100.2a constructed, CR 903.5b Commander), a restricted card capped at 1, and
-    the exemptions (a basic land or an "any number" card is unlimited; a named cap
-    such as "up to seven" is its own limit)."""
-    if is_basic_land(record) or has_any_number_exemption(record):
-        return None
-    cap = named_card_cap(record)
-    if cap is not None:
-        return cap
-    fmt = FORMATS[state.session.format]
-    return 1 if fmt.legality(record) == "restricted" else fmt.max_copies
+    """How many copies of one card the build may run (``None`` = unlimited) — the
+    audit's own ``card_copy_limit`` under the build's Format, so the hub and
+    ``legality_audit.check_copy_limits`` cannot drift."""
+    return card_copy_limit(record, FORMATS[state.session.format])
 
 
 def copies_of(state: ForgeState, name: str) -> int:
-    """The copies of ``name`` the build holds across every zone — the copy limit spans
-    the deck, the sideboard (CR 100.4a) and the command zone alike."""
+    """The copies of ``name`` the build holds across EVERY zone: the copy limit spans
+    the deck and the sideboard (CR 100.4a), the command zone (CR 903.5a: a Commander
+    deck's singleton rule includes its commander), and the companion (a sideboard
+    card on Arena). Wider than the audit's cards + sideboard count — the hub is the
+    stricter of the two by design."""
     return sum(state.session.quantity_of(name, zone=z) for z in ZONES)
 
 
@@ -726,7 +733,7 @@ def at_copy_limit(state: ForgeState, record: dict) -> bool:
     """Whether the build already runs every copy of this card it may — the one rule
     Find strips by, so a 2-of in a 4-of format stays findable."""
     limit = copy_limit(state, record)
-    return limit is not None and copies_of(state, record["name"]) >= limit
+    return limit is not None and copies_of(state, record.get("name", "")) >= limit
 
 
 def check_copy_add(state: ForgeState, name: str, qty: int) -> None:
@@ -986,10 +993,11 @@ def finalize_state(state: ForgeState) -> dict:
         1 for r in hd.expanded() if "card_draw" in role_of(r) and r.get("cmc", 0) <= 2
     )
     defensible = avg_cmc <= _DEFENSIBLE_AVG_CMC and cheap_ca >= _DEFENSIBLE_CHEAP_CA
-    warnings = legality_warnings(hd)
+    audit = legality_audit(hd)
+    warnings = legality_warnings(hd, audit=audit)
     deck_minimum = None
     if hd.format.size_is_minimum:
-        short = legality_audit(hd)["violations"].get("deck_minimum") or []
+        short = audit["violations"].get("deck_minimum") or []
         if short:
             deck_minimum = {
                 "total": short[0]["total_cards"],

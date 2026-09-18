@@ -570,6 +570,27 @@ class TestCopyLimits:
         d = deck(cards=[("Nazgûl", 9)])
         assert check_copy_limits(d, self._hyd_index([nazgul]), _SINGLETON_CONFIG) == []
 
+    def test_card_copy_limit_is_the_one_ladder(self):
+        from mtg_utils.legality_audit import card_copy_limit
+
+        plains = {"name": "Plains", "type_line": "Basic Land — Plains"}
+        rats = {
+            "name": "Relentless Rats",
+            "type_line": "Creature — Rat",
+            "oracle_text": "A deck can have any number of cards named Relentless Rats.",
+        }
+        bolt = {"name": "Lightning Bolt", "type_line": "Instant", "legalities": {}}
+        lotus = {
+            "name": "Black Lotus",
+            "type_line": "Artifact",
+            "legalities": {"vintage": "restricted"},
+        }
+        assert card_copy_limit(plains, FORMATS["modern"]) is None
+        assert card_copy_limit(rats, FORMATS["modern"]) is None
+        assert card_copy_limit(bolt, FORMATS["modern"]) == 4
+        assert card_copy_limit(bolt, FORMATS["commander"]) == 1
+        assert card_copy_limit(lotus, FORMATS["vintage"]) == 1
+
     def test_constructed_4_of_allowed(self):
         hydrated = [card("Lightning Bolt")]
         d = deck(cards=[("Lightning Bolt", 4)])
