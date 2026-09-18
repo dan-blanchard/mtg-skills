@@ -983,6 +983,37 @@ class TestCompanion:
     def test_yorion_satisfied_at_80_in_constructed(self):
         assert self._std_deck(80)["violations"]["companion"] == []
 
+    def test_a_builds_own_size_never_raises_the_floor(self):
+        # A Standard build targeting 80 (Yorion) is audited against the 60-card CR
+        # floor: 80 cards satisfy Yorion (60 + 20), and 60 cards are not below
+        # the minimum.
+        plains = {
+            "name": "Plains",
+            "type_line": "Basic Land — Plains",
+            "cmc": 0.0,
+            "color_identity": [],
+            "legalities": {"standard": "legal"},
+        }
+        yorion = {
+            **_companion_card("Yorion, Sky Nomad", cmc=4.0),
+            "legalities": {"standard": "legal"},
+        }
+        d = {
+            "format": "standard",
+            "deck_size": 80,
+            "commanders": [],
+            "cards": [{"name": "Plains", "quantity": 80}],
+            "sideboard": [],
+            "companion": [{"name": "Yorion, Sky Nomad", "quantity": 1}],
+        }
+        result = legality_audit(_hd(d, [plains, yorion]))
+        assert result["violations"]["companion"] == []
+        d["cards"] = [{"name": "Plains", "quantity": 60}]
+        d["companion"] = []
+        assert legality_audit(_hd(d, [plains, yorion]))["violations"][
+            "deck_minimum"
+        ] == ([])
+
     def test_companion_never_pads_the_deck_minimum(self):
         # 100 counted cards vs a 101 minimum: the companion is outside the deck
         # (CR 702.139a-b), so it must NOT bring the total to 101.

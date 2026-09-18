@@ -188,6 +188,22 @@ class Format:
         ``size_rule`` cites (CR 903.5a / 903.12d)."""
         return not self.has_commander
 
+    @property
+    def min_deck_size(self) -> int:
+        """The smallest legal deck. For an exact-size family it is ``deck_size``; for a
+        size-minimum family it is the TABLE's size (the CR floor) even when this
+        value carries a build's own larger ``deck_size`` (an 80-card Yorion deck is
+        still a 60-minimum Standard deck — ``for_deck`` / ``resolve_deck_size`` set
+        the target, never the floor)."""
+        if self.size_is_minimum:
+            return FORMATS[self.name].deck_size
+        return self.deck_size
+
+    @property
+    def size_cap(self) -> int | None:
+        """The largest legal deck, or ``None`` where the family sets only a minimum."""
+        return None if self.size_is_minimum else self.deck_size
+
     # --- medium -------------------------------------------------------------------
 
     @property
@@ -536,6 +552,22 @@ FORMATS: dict[str, Format] = {f.name: f for f in _ALL}
 #: The Commander family — every format with a command zone — derived from the table so
 #: a new commander variant is wired everywhere by adding ONE entry.
 COMMANDER_FORMATS: tuple[str, ...] = tuple(f.name for f in _ALL if f.has_commander)
+
+
+def family_size_choices(family: Family) -> tuple[int, ...]:
+    """Every size some format of ``family`` may choose in some medium, ascending —
+    what a build may set as its size before the (format, medium) that honours it is
+    active (the override lies dormant until then; ``Format.resolve_deck_size``)."""
+    return tuple(
+        sorted(
+            {
+                s
+                for f in FORMATS.values()
+                if f.family == family
+                for s in f.all_size_choices
+            }
+        )
+    )
 
 
 def get_format(name: str) -> Format:

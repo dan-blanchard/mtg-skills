@@ -20,7 +20,7 @@ MOUNTAIN = {
     "color_identity": ["R"],
     "oracle_text": "({T}: Add {R}.)",
     "produced_mana": ["R"],
-    "legalities": {"modern": "legal", "commander": "legal"},
+    "legalities": {"modern": "legal", "standard": "legal", "commander": "legal"},
 }
 BOLT = {
     "name": "Lightning Bolt",
@@ -72,6 +72,17 @@ def test_constructed_size_is_a_floor_so_no_deck_maximum_warning():
     assert "deck_maximum" not in {w["category"] for w in warns}
 
 
+def test_an_80_card_target_keeps_the_60_card_floor():
+    # Set the Yorion size, then hold 60 cards: no below-minimum, no cap.
+    state = _state("standard", cards=[("Mountain", 60)])
+    engine.set_deck_size(state, 80)
+    hd = engine.hydrate_session(state)
+    assert hd.format.deck_size == 80  # the land math scales to the target
+    assert hd.format.min_deck_size == 60
+    warns = engine.legality_warnings(hd)
+    assert {w["category"] for w in warns} == set()
+
+
 def test_commander_family_size_cap_still_warns():
     over = _state("commander", cards=[("Mountain", 101)])
     warns = engine.legality_warnings(engine.hydrate_session(over))
@@ -82,7 +93,7 @@ def test_deck_size_rule_by_family():
     std = _state("standard")
     engine.set_deck_size(std, 80)  # Yorion
     assert std.session.deck_size == 80
-    with pytest.raises(DeckRuleError, match="at least"):
+    with pytest.raises(DeckRuleError, match="not a valid"):
         engine.set_deck_size(std, 0)
     cmd = TestClient(build_app(_state("commander")))
     assert cmd.post("/api/deck/deck-size", json={"deck_size": 80}).status_code == 400

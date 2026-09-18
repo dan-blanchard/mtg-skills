@@ -363,7 +363,8 @@ def check_companion(
       companion itself (CR 702.139b) — via ``companion_violations``. The
       ``deck_minimum`` fed to Yorion's check derives from the ``Format``:
       exact-size singleton formats (Commander family, CR 903.5a: minimum =
-      maximum) pass None; 60-card constructed passes its 60-card minimum.
+      maximum) pass None; 60-card constructed passes its 60-card minimum
+      (``min_deck_size`` — the CR floor, whatever size the build targets).
     """
     entries = deck_json.get("companion") or []
     if not entries:
@@ -379,7 +380,7 @@ def check_companion(
                 "reason": "companion_multiple",
             }
         )
-    deck_minimum = None if fmt.is_singleton else fmt.deck_size
+    deck_minimum = None if fmt.is_singleton else fmt.min_deck_size
     starting_deck: list[dict] = []
     for section in ("commanders", "cards"):
         for entry in deck_json.get(section) or []:
@@ -442,7 +443,7 @@ def check_deck_minimum(deck_json: dict, fmt: Format) -> list[dict]:
     Counts commanders + mainboard only — the ``companion`` zone is outside the
     deck (CR 702.139a-b), so it never pads the total toward the minimum.
     """
-    min_size = fmt.deck_size
+    min_size = fmt.min_deck_size
     total_cards = int(deck_json.get("total_cards", 0)) or sum(
         int(e.get("quantity", 1))
         for e in (deck_json.get("cards") or []) + (deck_json.get("commanders") or [])

@@ -19,6 +19,7 @@ from mtg_utils.formats import (
     FORMATS,
     Format,
     Game,
+    family_size_choices,
     format_options,
     get_format,
     medium_is_digital,
@@ -81,6 +82,19 @@ class TestTable:
         # Every family decision reads ``family`` — never a format name.
         assert {f.family for f in FORMATS.values()} == {"commander", "constructed"}
         assert format_options(()) == []
+        assert family_size_choices("commander") == (60, 100)
+        assert family_size_choices("constructed") == (60,)
+
+    def test_a_larger_constructed_size_is_a_target_never_the_floor(self):
+        # An 80-card Yorion deck is still a 60-minimum Standard deck (CR 100.2a);
+        # Commander's size is exact, so its floor and cap are the size itself.
+        yorion = Format.for_deck({"format": "standard", "deck_size": 80})
+        assert (yorion.deck_size, yorion.min_deck_size, yorion.size_cap) == (
+            80,
+            60,
+            None,
+        )
+        assert (CMD.deck_size, CMD.min_deck_size, CMD.size_cap) == (100, 100, 100)
 
     def test_medium_flags_must_agree(self):
         with pytest.raises(ValueError, match="is_arena_only requires is_arena"):

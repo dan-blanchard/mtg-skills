@@ -167,6 +167,26 @@ def test_wildcard_cost_subtracts_owned_copies():
     assert wc == {"mythic": 0, "rare": 0, "uncommon": 1, "common": 0}  # rare now owned
 
 
+def test_wildcard_cost_charges_the_companion():
+    # On Arena the companion is a sideboard card you must own (a Historic build's
+    # Yorion is crafted like any other), so it costs wildcards.
+    state = _digital_state()
+    state.by_name["Keruga, the Macrosage"] = {
+        "name": "Keruga, the Macrosage",
+        "type_line": "Legendary Creature — Dinosaur Hippo",
+        "color_identity": ["G", "U"],
+        "keywords": ["Companion"],
+        "oracle_text": "Companion — Each nonland card in your starting deck has mana value 3 or greater.",
+    }
+    state.rarity_index["historic_brawl"]["keruga, the macrosage"] = {
+        "rarity": "rare",
+        "exempt_from_4cap": False,
+    }
+    state.session.add("Keruga, the Macrosage", zone="companion")
+    wc = engine.wildcard_cost(state)
+    assert wc == {"mythic": 0, "rare": 2, "uncommon": 1, "common": 0}
+
+
 def test_paper_build_has_no_wildcard_cost():
     state = _digital_state()
     state.session.set_medium("paper")

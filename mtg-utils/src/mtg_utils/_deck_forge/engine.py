@@ -45,7 +45,7 @@ from mtg_utils.card_classify import is_basic_land, valid_partner_search
 from mtg_utils.card_pool import CardPool
 from mtg_utils.companion import is_companion
 from mtg_utils.deck_stats import deck_stats, detect_bracket
-from mtg_utils.formats import FORMATS, format_options
+from mtg_utils.formats import FORMATS, family_size_choices, format_options
 from mtg_utils.hydrated_deck import ZONES, HydratedDeck
 from mtg_utils.legality_audit import legality_audit
 from mtg_utils.mana_audit import mana_audit, reconcile_basic_lands
@@ -330,11 +330,9 @@ def wildcard_cost(state: ForgeState) -> dict | None:
         return None
     deck = state.session.to_deck_dict()
     no_basics = dict(deck)
-    # The companion zone is deliberately absent from this walk (and from
-    # price_check's own deck walk): a companion is outside the game (CR 702.139a),
-    # so it never costs wildcards here — the one card a Historic / Timeless build
-    # reveals from outside the deck is not what the deck costs to craft.
-    for zone in ("commanders", "cards", "sideboard"):
+    # Every zone costs, the companion included: on Arena it is a sideboard card you
+    # must own (a Historic / Timeless build's Yorion is crafted like any other).
+    for zone in ("commanders", "cards", "sideboard", "companion"):
         if zone in deck:
             no_basics[zone] = [
                 e
@@ -482,7 +480,7 @@ def _overflow_warnings(hd: HydratedDeck) -> list[dict]:
     and card names that resolved to no Scryfall record (a typo or a failed paste-import,
     which ADR-0012 otherwise DROPs silently from the hydrated records)."""
     out: list[dict] = []
-    max_cards = None if hd.format.size_is_minimum else hd.format.deck_size
+    max_cards = hd.format.size_cap
     if max_cards is not None:
         # Commanders + maindeck only: the companion is revealed from outside the
         # game and is not part of the deck or sideboard (CR 702.139a-b), so it
@@ -641,18 +639,11 @@ def set_deck_size(state: ForgeState, deck_size: int) -> None:
     fmt = FORMATS[state.session.format]
     if fmt.size_is_minimum:
         if not fmt.is_valid_deck_size(deck_size):
-            raise DeckRuleError(f"deck size must be at least 1 for {fmt.label}")
+            raise DeckRuleError(f"{deck_size} is not a valid {fmt.label} deck size")
     else:
-        choices = sorted(
-            {
-                s
-                for f in FORMATS.values()
-                if f.family == fmt.family
-                for s in f.all_size_choices
-            }
-        )
+        choices = family_size_choices(fmt.family)
         if deck_size not in choices:
-            raise DeckRuleError(f"deck size must be one of {choices}")
+            raise DeckRuleError(f"deck size must be one of {list(choices)}")
     state.session.set_deck_size(deck_size)
 
 

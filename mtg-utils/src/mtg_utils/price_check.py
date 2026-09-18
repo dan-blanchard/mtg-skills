@@ -110,9 +110,10 @@ def _extract_deck_entries(names_or_deck: list | dict) -> list[tuple[str, int]]:
                 _add(name, qty)
         return pairs
 
-    # Parsed deck JSON — walk mainboard, commanders, and sideboard; a cube JSON's
-    # commander pool (parse_cube's ``commander_pool``, same entry shape) prices too.
-    for section in ("commanders", "cards", "sideboard", "commander_pool"):
+    # Parsed deck JSON — walk mainboard, commanders, sideboard and the companion (a
+    # card you must own like any sideboard card); a cube JSON's commander pool
+    # (parse_cube's ``commander_pool``, same entry shape) prices too.
+    for section in ("commanders", "cards", "sideboard", "companion", "commander_pool"):
         for entry in names_or_deck.get(section, []) or []:
             if not isinstance(entry, dict):
                 continue
