@@ -10,11 +10,12 @@ from __future__ import annotations
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 
-from mtg_utils._analysis.budgets import banded_slot_budgets
+from mtg_utils._analysis.budgets import banded_slot_budgets, template_for
 from mtg_utils._analysis.signals import ranked_signals_and_payoffs
 from mtg_utils._tuner import commander_fit, grant_coverage, metrics
 from mtg_utils._tuner import swaps as swaps_mod
 from mtg_utils._tuner.bracket import bracket_gate
+from mtg_utils._tuner.calibration import calibration_for
 from mtg_utils._tuner.classify import CardClass, classify_deck
 from mtg_utils._tuner.issues import Sourcing, top_issues
 from mtg_utils._tuner.shape import infer_shape
@@ -55,11 +56,12 @@ class TuneParams:
 
 def _deck_identity(hd: HydratedDeck) -> str:
     """The deck's color identity — the commander's (the deck identity it enforces),
-    or the union across all cards when there is no commander."""
+    or the union across the main deck's cards when there is no commander (never the
+    sideboard's, and never an opened pool's)."""
     colors: set[str] = set()
     sources = hd.commanders or []
     records = [hd.by_name.get(e["name"]) for e in sources]
-    records = [r for r in records if r] or hd.records
+    records = [r for r in records if r] or hd.deck_records(zones=("cards",))
     for rec in records:
         colors.update(rec.get("color_identity") or [])
     return "".join(sorted(colors))
@@ -158,22 +160,37 @@ def tune(
     owned: Mapping[str, int] | None = None,
     combos_fn: Callable[[dict], dict] | None = None,
     resolve_object: Callable[[str], dict | None] | None = None,
+    pool: Mapping[str, int] | None = None,
 ) -> dict:
     """Diagnose the deck and (when ``max_swaps>0``) propose budgeted swaps.
 
+    Every band and floor is the deck's FAMILY's (``Format.family``): the template
+    (``budgets.template_for``) and the calibration (``calibration_for``), so a
+    60-card deck is measured against 60-card norms. The Commander-only axes —
+    commander fit, grant coverage, the bracket gate, commander suggestions — are
+    ``None`` / skipped outside the Commander family, never a silent no-op.
+
     A deck over its exact legal size (CR 903.5a / 903.12d) additionally gets
     ``size_cuts`` — legality-driven trim proposals, produced on every run
-    regardless of ``max_swaps``.
+    regardless of ``max_swaps``; a size-minimum family (constructed, limited)
+    reports a ``shortfall`` toward its target instead.
+
+    ``pool`` (limited): the opened pool's name→quantity, which bounds every add and
+    makes every pool card free.
 
     ``resolve_object`` (ADR-0025): the folded-object resolver, threaded into
     signal ranking so the tune scorecard sees the SAME commander lanes the
     engine's avenues show (the deck-forge route passes
     ``state.object_resolver``; the deck-tune CLI's ``None`` skips the fold)."""
     owned = dict(owned or {})
+    if pool is not None:
+        owned = {**dict(pool), **owned}
     deck = hd.deck
     commander_names = {e["name"] for e in deck.get("commanders") or []}
     deck_size = hd.format.deck_size
     fmt = hd.format.name
+    template = template_for(hd.format.family)
+    cal = calibration_for(hd.format.family)
     # The Game the deck plays (starting life, pod vs one opponent, whether commander
     # damage wins), from the Format under the build's medium — ``Format.game`` resolves
     # an override the format cannot honour, and every medium read below uses
@@ -193,9 +210,12 @@ def tune(
         budget, wildcard_budget = params.budget, None
     identity = _deck_identity(hd)
     # Exact-size legality (CR 903.5a / 903.12d): a deck PAST deck_size is never
-    # legal in the Commander family, so the overflow is diagnosed on every run.
+    # legal in the Commander family, so the overflow is diagnosed on every run. A
+    # size-minimum family (CR 100.2a) has no cap: it reports the shortfall to target.
     total = _counted_total(deck)
-    overflow = max(0, total - deck_size)
+    exact = not hd.format.size_is_minimum
+    overflow = max(0, total - deck_size) if exact else 0
+    shortfall = max(0, deck_size - total)
 
     stats = deck_stats(hd)
     avg_cmc = stats.get("avg_cmc", 0.0)
@@ -213,8 +233,10 @@ def tune(
     # ADR-0029: resolve signals through the Card IR (regex fallback when no
     # sidecar). One extraction pass yields both the ranked signals and the
     # task-#101 emerging-tribal payoff subjects.
+    # The counted deck (commanders + main deck): a sideboard never shapes the
+    # avenues or the classes.
     deck_signals, payoff_subjects = ranked_signals_and_payoffs(
-        hd.records, commander_names, resolve_object=resolve_object
+        hd.deck_records(), commander_names, resolve_object=resolve_object
     )
     classes = classify_deck(hd, deck_signals, commander_names)
 
@@ -227,27 +249,37 @@ def tune(
     shape = shape_r.shape
 
     # ADR-0041: the lands row is mana_audit's own band — never a second derivation.
+    # The rows are the family's template over the MAIN deck (a sideboard fills no
+    # slot).
     budgets = banded_slot_budgets(
-        hd.expanded(), mana["land_band"], deck_size=deck_size, shape=shape
+        hd.expanded(zones=("cards",)),
+        mana["land_band"],
+        deck_size=deck_size,
+        shape=shape,
+        template=template,
     )
     # ADR-0040 §1 (Grant-covered role, deck-forge CONTEXT.md): does a commander's
     # own ability GRANT structurally cover a short Spine role for every recipient
     # body (the Sliver Weftwinder shape)? The band NUMBER is untouched — this only
     # annotates the short role's row; ``issues.Sourcing`` reads it and downgrades the
     # shortfall to advisory (sourcing nothing for it) without suppressing it.
-    commander_records = [c.record for c in classes if c.bucket == "commander"]
-    for role, name in grant_coverage.covered_roles(commander_records).items():
-        band = budgets.get(role)
-        if band is not None and band["deviation"] < 0:
-            band["grant_covered"] = True
-            band["grant_covered_by"] = name
-    eff = metrics.efficiency(classes, shape=shape, avg_cmc=avg_cmc, deck_size=deck_size)
+    if cal.commander_axes:
+        commander_records = [c.record for c in classes if c.bucket == "commander"]
+        for role, name in grant_coverage.covered_roles(commander_records).items():
+            band = budgets.get(role)
+            if band is not None and band["deviation"] < 0:
+                band["grant_covered"] = True
+                band["grant_covered_by"] = name
+    eff = metrics.efficiency(
+        classes, shape=shape, avg_cmc=avg_cmc, deck_size=deck_size, cal=cal
+    )
     foc = metrics.focus(
         classes,
         deck_size=deck_size,
         deck_signals=deck_signals,
         medium=game.medium,
         tribal_payoff_subjects=payoff_subjects,
+        cal=cal,
     )
     tmpl = metrics.template_deviation(budgets)
     wins = metrics.win_conditions(
@@ -256,11 +288,14 @@ def tune(
         combo_count=combo_count,
         deck_size=deck_size,
         game=game,
+        cal=cal,
     )
     prot = metrics.protection(
-        classes, shape=shape, deck_size=deck_size, voltron=wins["voltron"]
+        classes, shape=shape, deck_size=deck_size, voltron=wins["voltron"], cal=cal
     )
-    cfit = metrics.commander_fit(classes, foc)
+    # Commander fit only means something with a commander to fit (None otherwise —
+    # the scorecard says so, the SPA renders nothing).
+    cfit = metrics.commander_fit(classes, foc) if cal.commander_axes else None
     issues = top_issues(
         efficiency_r=eff,
         focus_r=foc,
@@ -271,7 +306,8 @@ def tune(
         sourcing=Sourcing(foc, deck_signals, budgets),
     )
 
-    # ADR-0030: a target-bracket constraint gate, only when a target was chosen.
+    # ADR-0030: a target-bracket constraint gate, only when a target was chosen —
+    # and only in the Commander family (WotC's brackets are a Commander construct).
     bracket = (
         bracket_gate(
             hd.records,
@@ -279,7 +315,7 @@ def tune(
             combos=combos,
             multiplayer=game.multiplayer,
         )
-        if params.target_bracket is not None
+        if params.target_bracket is not None and cal.commander_axes
         else None
     )
 
@@ -298,9 +334,17 @@ def tune(
         "commander_fit": cfit,
         "top_issues": [issue.to_json() for issue in issues],
         "counts": _bucket_counts(classes),
-        # Counted size vs the format's exact legal size (CR 903.5a / 903.12d);
-        # overflow > 0 means "N over legal size" and drives `size_cuts` below.
-        "size": {"total": total, "deck_size": deck_size, "overflow": overflow},
+        # Counted size vs the format's size: exact for the Commander family (CR
+        # 903.5a / 903.12d — overflow > 0 means "N over legal size" and drives
+        # `size_cuts` below), a target over a CR minimum otherwise (shortfall > 0
+        # means "N to go").
+        "size": {
+            "total": total,
+            "deck_size": deck_size,
+            "exact": exact,
+            "overflow": overflow,
+            "shortfall": shortfall,
+        },
         # ADR-0029 enrichment: surface the mechanical reads the spine no longer leaves
         # to the agent — full mana audit (not just the land count), the curve histogram,
         # and the combo list (not just a tally).
@@ -375,6 +419,10 @@ def tune(
             protected=protected,
             medium=game.medium,
             game_changer_room=_game_changer_room(bracket),
+            template=template,
+            max_copies=hd.format.max_copies,
+            available=pool,
+            family=hd.format.family,
         )
         swaps_out = swaps_mod.propose_swaps(classes, issues, swap_ctx)
         # The fill pass deliberately skips lands; flag any mana-base shortfall so the
@@ -389,7 +437,7 @@ def tune(
             )
 
     suggestions = None
-    if params.suggest_commander:
+    if params.suggest_commander and cal.commander_axes:
         suggestions = commander_fit.suggest_commanders(
             classes,
             deck_signals,

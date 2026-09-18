@@ -53,6 +53,11 @@ ROLE_SEARCH: dict[str, dict] = {
         "preset_names": ("removal", "creature-removal", "counterspell", "bounce")
     },
     "board_wipe": {"preset_names": ("board-wipe",)},
+    # The constructed / limited template rows that are plain facts (type line,
+    # mana value) are sourced by the same fact: a creature, a card at that cost.
+    "creatures": {"card_type": "Creature"},
+    "two_drops": {"cmc_min": 2, "cmc_max": 2},
+    "three_drops": {"cmc_min": 3, "cmc_max": 3},
 }
 PROTECTION_SEARCH = {
     "preset_names": ("hexproof", "indestructible", "protection", "ward", "counterspell")
@@ -170,10 +175,13 @@ class Sourcing:
         return band.get("grant_covered_by", "")
 
     def role_spec(self, role: str) -> dict | None:
-        """The search that fills a Spine role — None for a role nothing sources
-        (``lands`` is the land tooling's) and for a Grant-covered one: the commander's
-        own grant already covers it, so no path burns budget on a generic fill."""
+        """The search that fills a template row — None for a row nothing sources
+        (``lands`` is the land tooling's; an ``advisory`` row is a fact to read, never
+        a slot to fill) and for a Grant-covered one: the commander's own grant already
+        covers it, so no path burns budget on a generic fill."""
         if self.grant_cover(role) is not None:
+            return None
+        if (self._budgets.get(role) or {}).get("advisory"):
             return None
         return ROLE_SEARCH.get(role)
 
@@ -312,16 +320,20 @@ def top_issues(
     template_r: dict,
     wincons_r: dict,
     protection_r: dict,
-    commander_r: dict,
+    commander_r: dict | None,
     sourcing: Sourcing,
 ) -> list[Issue]:
-    """Rank the scorecard's findings by severity, each with its remedy decided."""
+    """Rank the scorecard's findings by severity, each with its remedy decided.
+    ``commander_r`` is None outside the Commander family (no commander to misfit)."""
     issues: list[Issue] = []
+
+    def row_name(role: str, b: dict) -> str:
+        return (b.get("label") or role.replace("_", " ")).lower()
 
     for role, b in template_r["short"].items():
         deficit = -b["deviation"]
         message = (
-            f"{role.replace('_', ' ')} short by {deficit} "
+            f"{row_name(role, b)} short by {deficit} "
             f"({b['current']}/{b['min']}-{b['max']})"
         )
         by = sourcing.grant_cover(role)
@@ -336,7 +348,7 @@ def top_issues(
                 "role_over",
                 role=role,
                 severity=b["deviation"],
-                message=f"{role.replace('_', ' ')} over by {b['deviation']} "
+                message=f"{row_name(role, b)} over by {b['deviation']} "
                 f"({b['current']}/{b['min']}-{b['max']})",
             )
         )
@@ -437,7 +449,7 @@ def top_issues(
             )
         )
 
-    if commander_r["misfit"]:
+    if commander_r is not None and commander_r["misfit"]:
         # Severity 5 because it questions the whole build, where the voltron advisory
         # above (2) only re-reads the closers.
         issues.append(

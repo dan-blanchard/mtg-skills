@@ -11,9 +11,11 @@ existing search + ranking (ADR-0023).
 from __future__ import annotations
 
 import re
+from collections import Counter
 from collections.abc import Callable, Collection, Mapping, Sequence
 from dataclasses import dataclass
 
+from mtg_utils._analysis.budgets import COMMANDER_TEMPLATE, Template
 from mtg_utils._analysis.ranking import rank_candidates
 from mtg_utils._analysis.roles import role_of
 from mtg_utils._tuner.classify import CardClass
@@ -41,6 +43,14 @@ def _popularity(card: dict) -> int:
     """edhrec_rank as a quality key (lower = more played); absent → unplayed."""
     rank = card.get("edhrec_rank")
     return rank if rank is not None else _UNPLAYED
+
+
+def _quality(card: dict, family: str) -> int:
+    """The quality tiebreak between candidates of equal synergy / cost: play-rate
+    where it means something (edhrec_rank is a paper-EDH population — the Commander
+    family's one popularity lean, by user direction), else neutral, so price alone
+    breaks the tie for a 60-card or limited deck."""
+    return _popularity(card) if family == "commander" else 0
 
 
 def _fills_short_role(card: CardClass, budgets: dict) -> bool:
@@ -90,11 +100,16 @@ def cut_candidates(
     stranded: set[str],
     protected: Collection[str] = (),
     medium: str = "paper",
+    template: Template = COMMANDER_TEMPLATE,
+    playrate: bool = True,
 ) -> list[tuple[str, CardClass]]:
     """Ordered (reason, card) cut candidates, most-cuttable first. Hard floors apply.
 
     ``protected`` names cards the proposer must never cut (e.g. combo pieces, ADR-0029);
-    they are skipped even when they would otherwise be the top filler cut.
+    they are skipped even when they would otherwise be the top filler cut. A card is
+    listed once per COPY it holds (a 4-of filler may be cut four times); an over-band
+    row's members are read through the ``template``'s own membership, and an
+    ``advisory`` row is never a cut pool.
     """
     out: list[tuple[str, CardClass]] = []
     seen: set[str] = set()
@@ -102,7 +117,7 @@ def cut_candidates(
     def push(reason: str, card: CardClass) -> None:
         if card.name not in seen and card.name not in protected:
             seen.add(card.name)
-            out.append((reason, card))
+            out.extend([(reason, card)] * max(1, card.quantity))
 
     # 1. Filler — do-nothing high-CMC before do-nothing cheap (efficiency-aware).
     for c in sorted(
@@ -115,22 +130,23 @@ def cut_candidates(
     # 1b. Low-value Engine cards (``CardClass.low_value``) — upgrade targets, worst
     #     play-rate (incl. unranked) first.
     for c in sorted(
-        (c for c in classes if c.low_value(medium=medium)),
+        (c for c in classes if c.low_value(medium=medium, playrate=playrate)),
         key=lambda c: -(c.edhrec_rank if c.edhrec_rank is not None else 10**9),
     ):
         push("low_value", c)
 
     # 2. Over-band Spine excess, weakest (low synergy, high CMC) first. Never a card
     #    also filling a floor role. Dual-purpose cards are eligible (the role is over),
-    #    sorted last so the least-synergistic excess goes first.
+    #    sorted last so the least-synergistic excess goes first. Membership is the
+    #    template's own read (a constructed interaction row counts a sweeper too).
     for role, b in budgets.items():
-        if role == "lands" or b["deviation"] <= 0:
+        if role == "lands" or b["deviation"] <= 0 or b.get("advisory"):
             continue
         members = [
             c
             for c in classes
             if c.bucket == "spine"
-            and role in c.roles
+            and template.fills(role, c.record, roles=set(c.roles))
             and not _fills_short_role(c, budgets)
         ]
         # Color-fixing ramp sorts LAST (cut redundant single-purpose ramp before a
@@ -385,6 +401,25 @@ class SwapContext:
     protected: Collection[str] = ()
     medium: str = "paper"
     game_changer_room: int | None = None
+    # The family's template (membership for over-band cuts, the fill order) and the
+    # copy model: ``max_copies`` (None = unbounded), ``available`` (a limited pool's
+    # quantities — None = the whole card database), and whether play-rate is a
+    # meaningful quality read here (the Commander family's paper-EDH population).
+    template: Template = COMMANDER_TEMPLATE
+    max_copies: int | None = 1
+    available: Mapping[str, int] | None = None
+    family: str = "commander"
+
+    def copy_ceiling(self, record: dict) -> int | None:
+        """How many copies of this card the build may run: the copy limit, bounded
+        by what the pool holds; ``None`` = unbounded (a basic land)."""
+        if is_basic_land(record):
+            return None
+        ceiling = self.max_copies
+        if self.available is not None:
+            have = self.available.get(record.get("name", ""), 0)
+            ceiling = have if ceiling is None else min(ceiling, have)
+        return ceiling
 
 
 def propose_swaps(
@@ -396,8 +431,22 @@ def propose_swaps(
     :class:`~mtg_utils._tuner.issues.Remedy`, up to ``ctx.max_swaps``. When
     ``ctx.fill_slots`` > 0 (an under-sized deck) a fill pass then adds pure adds (no
     cut) into the open slots. Returns the swaps + a note.
-    See :class:`SwapContext` for the deck facts and the purse."""
-    in_deck = {c.name for c in classes}
+    See :class:`SwapContext` for the deck facts and the purse.
+
+    Copies: a candidate stays addable while the deck's copies plus the copies this
+    run already added are under its ``copy_ceiling`` — "go to four" is a swap like
+    any other, and the add carries ``copy`` (the copy number it becomes). A cut
+    removes ONE copy; a name may be cut as many times as it holds copies."""
+    in_deck: dict[str, int] = {c.name: c.quantity for c in classes}
+    playrate = ctx.family == "commander"
+
+    def addable(card: dict) -> bool:
+        ceiling = ctx.copy_ceiling(card)
+        if ceiling is None:
+            return True
+        name = card.get("name", "")
+        return in_deck.get(name, 0) + used_adds[name] < ceiling
+
     sourcing = Sourcing(ctx.focus_result, ctx.deck_signals, ctx.budgets)
     stranded = set(ctx.focus_result["stranded_avenues"])
     # The deck's own avenue prominence, so the candidate ranker scores DEPTH in
@@ -425,6 +474,8 @@ def propose_swaps(
         stranded=stranded,
         protected=ctx.protected,
         medium=ctx.medium,
+        template=ctx.template,
+        playrate=playrate,
     )
     # Route cuts into the pools a Remedy names: an over-band trim cuts from THAT over
     # role (``over:<role>``); everything else is the generic pool (filler, low-value,
@@ -438,15 +489,17 @@ def propose_swaps(
         if reason in ("filler", "low_value"):
             pools[CUT_FILLER].append((reason, card))
     cut_iters = {name: iter(items) for name, items in pools.items()}
-    used_cuts: set[str] = set()
+    # Copies cut so far per name: a name may be cut up to the copies it holds (each
+    # pool lists it once per copy), and never more across pools.
+    used_cuts: Counter[str] = Counter()
 
     def take_cut(pool: str) -> tuple[str, CardClass] | None:
         for reason, card in cut_iters.get(pool, iter(())):
-            if card.name not in used_cuts:
+            if used_cuts[card.name] < card.quantity:
                 return reason, card
         return None
 
-    used_adds: set[str] = set()
+    used_adds: Counter[str] = Counter()
     game_changers = _GameChangerRoom(ctx.game_changer_room)
     swaps: list[dict] = []
     ledger: _UsdLedger | _WildcardLedger = (
@@ -483,7 +536,14 @@ def propose_swaps(
             cmc_cap=cmc_cap,
             limit=limit,
         )
-        pool = [c for c in found if c.get("name") not in in_deck]
+        # A card the deck already runs stays in the pool while it may hold another
+        # copy (used_adds is applied at pick time, so the memoized order holds).
+        pool = [
+            c
+            for c in found
+            if in_deck.get(c.get("name", ""), 0)
+            < (ctx.copy_ceiling(c) if ctx.copy_ceiling(c) is not None else 10**9)
+        ]
         if nonland_only:
             pool = [c for c in pool if not is_land(c)]
         spec_filter = spec.get("_filter")
@@ -507,7 +567,7 @@ def propose_swaps(
                     scored,
                     key=lambda r: (
                         -r["score"]["synergy_score"],
-                        _popularity(r["card"]),
+                        _quality(r["card"], ctx.family),
                         extract_price(r["card"]) or 1e9,
                     ),
                 )
@@ -519,7 +579,7 @@ def propose_swaps(
                 pool,
                 key=lambda c: (
                     c.get("cmc", 0.0),
-                    _popularity(c),
+                    _quality(c, ctx.family),
                     extract_price(c) or 1e9,
                 ),
             )
@@ -581,7 +641,7 @@ def propose_swaps(
         fallback: tuple[dict, float] | None = None
         eligible: list[tuple[dict, float]] = []
         for card in ranked:
-            if card.get("name") in used_adds:  # already taken — skip to the next best
+            if not addable(card):  # every allowed copy taken — the next best
                 continue
             if not game_changers.allows(card):
                 continue  # ADR-0030: never propose an add past the bracket's ceiling
@@ -619,8 +679,10 @@ def propose_swaps(
         ledger.charge(add_card, ctx.owned, cost)
         game_changers.charge(add_card, cut)
         if cut is not None:
-            used_cuts.add(cut.name)
-        used_adds.add(add_card.get("name", ""))
+            used_cuts[cut.name] += 1
+        add_name = add_card.get("name", "")
+        used_adds[add_name] += 1
+        copy_no = in_deck.get(add_name, 0) + used_adds[add_name]
         if off_avenue:
             # ADR-0040 companion: the find_add role_fix guard found no in-budget
             # candidate serving a viable avenue, so this is the labeled fallback.
@@ -631,11 +693,16 @@ def propose_swaps(
                 "reason": message,
                 # cut is None for a fill (a pure add into an open slot, not a trade).
                 "cut": (
-                    {"name": cut.name, "why": _cut_why(reason, cut)} if cut else None
+                    {"name": cut.name, "why": _cut_why(reason, cut), "quantity": 1}
+                    if cut
+                    else None
                 ),
                 "add": {
-                    "name": add_card.get("name", ""),
+                    "name": add_name,
                     "cmc": add_card.get("cmc", 0.0),
+                    # Which copy this add becomes (1 for a card the deck lacks; a
+                    # "go to four" reads as copy 4).
+                    "copy": copy_no,
                     "cost": cost,
                     "owned": ctx.owned.get(add_card.get("name", ""), 0) >= 1,
                     # Rarity rides along so a digital build can show the add's wildcard
@@ -721,9 +788,11 @@ def propose_swaps(
             fills_done += 1
 
     if ctx.fill_slots > 0:
-        for role in ("ramp", "card_draw", "interaction", "board_wipe"):
-            b = ctx.budgets.get(role)
-            if b and b["current"] < b["min"]:
+        # Short rows in template order; a row nothing sources (lands, an advisory
+        # fact, a Grant-covered role) reads None from the same Sourcing the issue
+        # loop uses.
+        for role, b in ctx.budgets.items():
+            if b["current"] < b["min"] and sourcing.role_spec(role) is not None:
                 take_fills(
                     # None for a Grant-covered role: the fill pass reads the same
                     # answer the issue loop does (ADR-0040 §1).

@@ -66,12 +66,24 @@ def _write(tmp_path, name, obj):
     return str(p)
 
 
-def test_refuses_constructed_format(tmp_path):
+def test_accepts_constructed_format(tmp_path, monkeypatch):
+    captured = _spy_tune(monkeypatch)
     deck = _write(tmp_path, "deck.json", CONSTRUCTED_DECK)
     hyd = _write(tmp_path, "hyd.json", HYDRATED)
     res = CliRunner().invoke(deck_tune_main, [deck, "--bulk-data", hyd])
-    assert res.exit_code != 0
-    assert "Commander-family" in res.output
+    assert res.exit_code == 0, res.output
+    assert captured["hd"].format.name == "modern"
+
+
+def test_bracket_on_a_constructed_deck_is_noted_not_fatal(tmp_path, monkeypatch):
+    _spy_tune(monkeypatch)
+    deck = _write(tmp_path, "deck.json", CONSTRUCTED_DECK)
+    hyd = _write(tmp_path, "hyd.json", HYDRATED)
+    res = CliRunner().invoke(
+        deck_tune_main, [deck, "--bulk-data", hyd, "--bracket", "2"]
+    )
+    assert res.exit_code == 0, res.output
+    assert "Commander brackets do not apply" in res.output
 
 
 def test_accepts_competitive_brawl_as_commander_family(tmp_path, monkeypatch):
@@ -158,6 +170,7 @@ def _spy_tune(monkeypatch):
     captured: dict = {}
 
     def spy(_hd, *, params, **_kw):
+        captured["hd"] = _hd
         captured["params"] = params
         return _STUB_RESULT
 

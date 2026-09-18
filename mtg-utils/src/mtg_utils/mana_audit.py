@@ -26,6 +26,16 @@ _CONSTRUCTED_MAX_CURVE_ADJ = 2
 _CONSTRUCTED_MIN_LANDS = 20
 _CONSTRUCTED_MAX_LANDS = 27
 _CONSTRUCTED_FAIL_TOLERANCE = 2
+# Limited mana base constants (40-card sealed / draft): 17 of 40 is the norm every
+# primer agrees on, one fewer for a low curve or real land-fetch ramp, one more for
+# a top-heavy pool — a tight band, not the constructed formula scaled down (which
+# would call the 17-land default over-landed).
+_LIMITED_BASELINE_LANDS = 17
+_LIMITED_LOW_CMC = 2.5
+_LIMITED_HIGH_CMC = 3.5
+_LIMITED_RAMP_FOR_CUT = 3
+_LIMITED_MIN_LANDS = 16
+_LIMITED_MAX_LANDS = 18
 # The flood line sits this far above the band's top (deck-forge CONTEXT: Flood line).
 FLOOD_MARGIN = 2
 
@@ -60,6 +70,22 @@ def land_band(
     )
     karsten = karsten_adjustment(ramp_count=ramp_count, deck_size=deck_size)
     return (min(burgess, karsten), max(burgess, karsten))
+
+
+def limited_land_target(*, ramp_count: int, avg_cmc: float, deck_size: int = 40) -> int:
+    """The limited land target: 17 per 40, minus one for a low curve (avg MV < 2.5)
+    or for real ramp (three or more land-fetch / mana producers — the ADR-0051 ramp
+    read, which already counts a land put onto the battlefield), plus one for a high
+    curve (avg MV > 3.5), clamped to 16-18 and scaled to the deck's size."""
+    base = _LIMITED_BASELINE_LANDS
+    if (
+        avg_cmc > 0 and avg_cmc < _LIMITED_LOW_CMC
+    ) or ramp_count >= _LIMITED_RAMP_FOR_CUT:
+        base -= 1
+    elif avg_cmc > _LIMITED_HIGH_CMC:
+        base += 1
+    base = max(_LIMITED_MIN_LANDS, min(_LIMITED_MAX_LANDS, base))
+    return round(base * deck_size / 40)
 
 
 def land_band_readout(

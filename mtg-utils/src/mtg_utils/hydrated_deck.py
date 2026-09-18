@@ -335,6 +335,32 @@ class HydratedDeck:
                     out.extend([record] * int(entry.get("quantity", 1)))
         return out
 
+    def deck_records(
+        self,
+        *,
+        zones: tuple[str, ...] = ("commanders", "cards"),
+        with_quantity: bool = False,
+    ) -> list:
+        """One record per distinct card name in ``zones`` (the counted deck by
+        default — commanders + main deck, never the sideboard), in zone + deck order,
+        missing names dropped. With ``with_quantity`` each item is ``(record,
+        quantity)``, the copies summed across the zones — what a copy-aware analysis
+        (the tuner's classes) counts. The all-zones ``records`` is for hydration
+        bookkeeping; an analysis of the deck reads this."""
+        seen: dict[str, int] = {}
+        order: list[dict] = []
+        for entry, record in self.entries(zones=zones):
+            if record is None:
+                continue
+            name = record.get("name", "")
+            if name not in seen:
+                seen[name] = 0
+                order.append(record)
+            seen[name] += int(entry.get("quantity", 1))
+        if with_quantity:
+            return [(r, seen[r.get("name", "")]) for r in order]
+        return order
+
     def entries(
         self, *, zones: tuple[str, ...] = ("commanders", "cards")
     ) -> list[tuple[dict, dict | None]]:

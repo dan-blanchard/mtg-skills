@@ -21,7 +21,7 @@ from pathlib import Path
 
 from mtg_utils import mark_owned, price_check
 from mtg_utils._analysis import staples
-from mtg_utils._analysis.budgets import banded_slot_budgets
+from mtg_utils._analysis.budgets import banded_slot_budgets, template_for
 from mtg_utils._analysis.ranking import rank_candidates
 from mtg_utils._analysis.roles import role_of
 from mtg_utils._analysis.signal_specs import (
@@ -1413,10 +1413,14 @@ def render_proxies(
 
 
 def budgets(state: ForgeState) -> dict:
-    """The deck rule behind ``GET /api/budgets``: the banded role-density rows."""
+    """The deck rule behind ``GET /api/budgets``: the family's template rows over
+    the main deck (a sideboard fills no slot), lands from the mana audit's band."""
     hd = hydrate_session(state)
     return banded_slot_budgets(
-        hd.expanded(), mana_audit(hd)["land_band"], deck_size=state.session.deck_size
+        hd.expanded(zones=("cards",)),
+        mana_audit(hd)["land_band"],
+        deck_size=state.session.deck_size,
+        template=template_for(hd.format.family),
     )
 
 
@@ -1448,7 +1452,10 @@ def snapshot(state: ForgeState) -> dict:
         "deck_colors": deck_colors(state),
         "mana": mana,
         "budgets": banded_slot_budgets(
-            hd.expanded(), mana["land_band"], deck_size=state.session.deck_size
+            hd.expanded(zones=("cards",)),
+            mana["land_band"],
+            deck_size=state.session.deck_size,
+            template=template_for(fmt.family),
         ),
         "signals": [
             views.signal_view(s) for s in ranked_deck_signals(state, hd.records)

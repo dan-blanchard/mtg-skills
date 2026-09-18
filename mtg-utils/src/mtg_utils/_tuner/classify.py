@@ -53,6 +53,9 @@ class CardClass:
     cmc: float
     record: dict
     edhrec_rank: int | None = None  # play-rate rank; lower=more played, None=unplayed
+    # Copies of the card in the counted zones (1 in a singleton deck; up to the copy
+    # limit in a 4-of one). Every slot count sums it; name lists stay per name.
+    quantity: int = 1
     # ADR-0040 §2 (task #97): the card's Granter grade ("premium"/"solid"/
     # "weak" via the ability-quality table; None = not a Granter). The
     # low-value reads condemn a Granter by GRADE, never by playrate.
@@ -61,16 +64,20 @@ class CardClass:
     # strike) — ONE closer regardless of recipient count.
     grant_closer: bool = False
 
-    def low_value(self, *, medium: str = "paper") -> bool:
+    def low_value(self, *, medium: str = "paper", playrate: bool = True) -> bool:
         """An Engine card that feeds a theme but isn't pulling its weight — dead weight
         the bucket test alone misses, and an upgrade target. A Granter is condemned by
         granted-ability QUALITY alone (ADR-0040 §2: a weak grade — Enduring Sliver's
         outlast), never by play-rate; a non-Granter by a fringe play-rate (the one
-        EDHREC-popularity lean, by user direction; medium-aware per §4)."""
+        EDHREC-popularity lean, by user direction; medium-aware per §4) — and only
+        where play-rate means something (``playrate``: a paper-EDH population says
+        nothing about a Modern card)."""
         if self.bucket != "engine":
             return False
         if self.grant_grade is not None:
             return self.grant_grade == "weak"
+        if not playrate:
+            return False
         return is_fringe(self.edhrec_rank, medium=medium)
 
 
@@ -91,9 +98,14 @@ def _commander_draws(hd: HydratedDeck, commander_names: set[str]) -> bool:
 
 
 def classify_deck(
-    hd: HydratedDeck, deck_signals: list, commander_names: set[str]
+    hd: HydratedDeck,
+    deck_signals: list,
+    commander_names: set[str],
+    *,
+    zones: tuple[str, ...] = ("commanders", "cards"),
 ) -> list[CardClass]:
-    """Classify every distinct deck card (all zones, one record per name).
+    """Classify every distinct card in ``zones`` (one record per name, quantities
+    summed — the counted deck: commanders + main deck, never the sideboard).
 
     ``served`` is the set of avenue labels the card feeds — the same
     ``score_candidate`` machinery the Find ranker uses, so a card's tuner
@@ -104,7 +116,7 @@ def classify_deck(
 
     draw_engine = _commander_draws(hd, commander_names)
     out: list[CardClass] = []
-    for rec in hd.records:
+    for rec, quantity in hd.deck_records(zones=zones, with_quantity=True):
         name = rec.get("name", "")
         roles = role_of(rec)
         served = tuple(score_candidate(rec, active_signals=deck_signals)["served"])
@@ -152,6 +164,7 @@ def classify_deck(
                 edhrec_rank=rec.get("edhrec_rank"),
                 grant_grade=grade,
                 grant_closer=closer,
+                quantity=quantity,
             )
         )
     return out

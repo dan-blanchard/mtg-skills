@@ -2,7 +2,12 @@
 
 import pytest
 
-from mtg_utils._analysis.budgets import slot_budgets
+from mtg_utils._analysis.budgets import (
+    CONSTRUCTED_TEMPLATE,
+    LIMITED_TEMPLATE,
+    slot_budgets,
+    template_for,
+)
 from mtg_utils._analysis.roles import _ir_board_wipe, _ir_draws, protects, role_of
 from mtg_utils.card_ir import Ability, Card, Effect, Face, Filter, Quantity
 from mtg_utils.testkit import test_card, test_card_ir
@@ -657,3 +662,104 @@ def test_ir_redirect_is_structural():
 
     assert _ir_redirect(_ir_effect(category="redirect")) is True
     assert _ir_redirect(_ir_effect(category="destroy")) is False
+
+
+# ── per-family templates ──────────────────────────────────────────────────────
+
+
+def _creature(i, cmc):
+    return {
+        "name": f"Beast {i}",
+        "type_line": "Creature — Beast",
+        "oracle_text": "",
+        "cmc": float(cmc),
+    }
+
+
+def test_template_default_is_the_commander_rows_with_labels():
+    b = slot_budgets([], deck_size=100, land_band=_BAND)
+    assert list(b) == ["lands", "ramp", "card_draw", "interaction", "board_wipe"]
+    assert b["ramp"]["label"] == "Ramp"
+    assert all(row["advisory"] is False for row in b.values())
+    assert template_for("commander").base_size == 100
+
+
+def test_constructed_template_is_its_own_bands_not_a_scaled_commander():
+    b = slot_budgets(
+        [], deck_size=60, land_band=(22, 24), template=CONSTRUCTED_TEMPLATE
+    )
+    assert list(b) == ["lands", "interaction", "card_draw", "creatures"]
+    assert (b["interaction"]["min"], b["interaction"]["max"]) == (4, 12)
+    assert "ramp" not in b and "board_wipe" not in b
+    assert b["lands"]["min"] == 22  # the passed band, never the template's
+    assert b["creatures"]["advisory"] is True
+    assert b["creatures"]["label"] == "Creatures (type line)"
+
+
+def test_constructed_interaction_counts_a_sweeper_and_creatures_by_type_line():
+    records = [WRATH, MURDER, COUNTERSPELL, _creature(1, 2), _creature(2, 3)]
+    b = slot_budgets(
+        records, deck_size=60, land_band=(22, 24), template=CONSTRUCTED_TEMPLATE
+    )
+    assert b["interaction"]["current"] == 3  # Wrath folds into interaction
+    assert b["creatures"]["current"] == 2
+
+
+def test_constructed_shape_bands_scale_by_archetype():
+    aggro = slot_budgets(
+        [],
+        deck_size=60,
+        land_band=(20, 22),
+        shape="aggro",
+        template=CONSTRUCTED_TEMPLATE,
+    )
+    control = slot_budgets(
+        [],
+        deck_size=60,
+        land_band=(24, 26),
+        shape="control",
+        template=CONSTRUCTED_TEMPLATE,
+    )
+    assert aggro["creatures"]["min"] > control["creatures"]["max"]
+    assert control["interaction"]["min"] > aggro["interaction"]["max"]
+
+
+def test_limited_template_rows_and_curve_buckets():
+    records = [_creature(i, 2) for i in range(5)] + [_creature(9, 6), MURDER]
+    b = slot_budgets(
+        records, deck_size=40, land_band=(16, 17), template=LIMITED_TEMPLATE
+    )
+    assert list(b) == [
+        "lands",
+        "creatures",
+        "interaction",
+        "two_drops",
+        "three_drops",
+        "six_plus",
+    ]
+    assert b["creatures"]["current"] == 6
+    assert b["two_drops"]["current"] == 5
+    assert b["six_plus"]["current"] == 1
+    assert (b["creatures"]["min"], b["creatures"]["max"]) == (14, 17)
+    assert b["interaction"]["current"] == 1
+
+
+def test_template_scales_from_its_own_base_size():
+    # An 80-card (Yorion) constructed deck scales 60-card bands by 4/3, not by 0.8
+    # of a Commander deck.
+    b = slot_budgets(
+        [], deck_size=80, land_band=(29, 32), template=CONSTRUCTED_TEMPLATE
+    )
+    assert (b["interaction"]["min"], b["interaction"]["max"]) == (5, 16)
+
+
+def test_template_fills_is_the_one_membership_read():
+    assert CONSTRUCTED_TEMPLATE.fills("interaction", WRATH)
+    assert CONSTRUCTED_TEMPLATE.fills("creatures", _creature(1, 2))
+    assert not CONSTRUCTED_TEMPLATE.fills("creatures", MURDER)
+    assert not CONSTRUCTED_TEMPLATE.fills("ramp", LLANOWAR)  # no such row
+
+
+def test_unknown_family_fails_loud():
+    with pytest.raises(ValueError, match="no template"):
+        template_for("cube")

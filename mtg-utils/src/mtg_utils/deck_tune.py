@@ -8,10 +8,9 @@ emits the scorecard + budgeted swaps as JSON.
     deck-tune <deck.json> [--bulk-data <path>] \
         [--budget N] [--max-swaps N] [--shape ...] [--bracket 1-5] [--paper-only]
 
-Commander family only (commander / brawl / historic_brawl / competitive_brawl): the
-tuner is commander-shaped (the Command Zone template, the Burgess land target,
-commander fit), so it hard-refuses 60-card constructed — that stays on
-deck-wizard's agent-driven pipeline.
+Every format family: the template and every floor are the deck's family's
+(``Format.family``), and the Commander-only axes — commander fit, the bracket gate —
+are omitted from a 60-card or limited scorecard rather than reported empty.
 """
 
 from __future__ import annotations
@@ -25,7 +24,6 @@ import click
 from mtg_utils import card_search, combo_search
 from mtg_utils._tuner.tune import TuneParams, tune
 from mtg_utils.deck_cli import acquire_for_cli, bulk_data_option, resolve_bulk_path
-from mtg_utils.formats import COMMANDER_FORMATS
 from mtg_utils.hydrated_deck import HydratedDeck
 
 
@@ -140,10 +138,10 @@ def main(
     bulk_path = resolve_bulk_path(bulk_data)
     hd = acquire_for_cli(deck_json, bulk_data)
     fmt = hd.format
-    if not fmt.has_commander:
-        raise click.ClickException(
-            f"deck-tune is Commander-family only ({' / '.join(COMMANDER_FORMATS)}); "
-            f"got {fmt.name!r} — 60-card constructed stays on the agent pipeline."
+    if target_bracket is not None and not fmt.has_commander:
+        click.echo(
+            f"Note: Commander brackets do not apply to {fmt.name}; --bracket ignored.",
+            err=True,
         )
     # The Format resolves the medium the same way deck-forge's DeckSession does (the
     # Arena Brawl formats default digital); tune() asks it for everything else the

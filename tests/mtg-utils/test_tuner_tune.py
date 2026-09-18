@@ -600,7 +600,9 @@ def test_oversized_deck_yields_exactly_overflow_size_cuts():
     assert out["scorecard"]["size"] == {
         "total": 103,
         "deck_size": 100,
+        "exact": True,
         "overflow": 3,
+        "shortfall": 0,
     }
 
 
@@ -830,3 +832,148 @@ def test_the_bracket_gate_reports_the_count_it_measured():
     gate = bracket_gate(records, 2)
     assert gate["ceilings"]["game_changers"] == 0
     assert gate["counts"] == {"game_changers": 1}
+
+
+# ── the constructed family: 60-card norms, no Commander-only axes ─────────────
+
+BOLT = _priced(
+    "Lightning Bolt", "Lightning Bolt deals 3 damage to any target.", 1.0, "1.00"
+)
+SIDEBOARD_FILLER = {
+    "name": "Sideboard Filler",
+    "type_line": "Creature — Ogre",
+    "oracle_text": "",
+    "cmc": 5.0,
+    "color_identity": ["R"],
+}
+_MODERN_INDEX = {**_INDEX, "Lightning Bolt": BOLT, "Sideboard Filler": SIDEBOARD_FILLER}
+
+
+def _hd_modern(*, bolts=3, total=58, sideboard=()):
+    nonland = [
+        ("Lightning Bolt", bolts),
+        ("Goblin Rabblemaster", 4),
+        ("Goblin Warchief", 4),
+        ("Hill Giant", 4),
+        ("Lumbering Battlement", 4),
+    ]
+    lands = total - sum(q for _, q in nonland)
+    deck = {
+        "format": "modern",
+        "commanders": [],
+        "cards": [{"name": n, "quantity": q} for n, q in nonland]
+        + [{"name": "Mountain", "quantity": lands}],
+        "sideboard": [{"name": n, "quantity": q} for n, q in sideboard],
+    }
+    return HydratedDeck.from_parsed(deck, by_name=_MODERN_INDEX)
+
+
+def test_constructed_scorecard_omits_the_commander_only_axes():
+    out = tune(
+        _hd_modern(),
+        search_fn=_fake_search,
+        params=TuneParams(target_bracket=2, suggest_commander=True),
+    )
+    sc = out["scorecard"]
+    assert sc["commander_fit"] is None
+    assert sc["bracket"] is None  # WotC brackets are a Commander construct
+    assert out["commander_suggestions"] is None
+    kinds = {i["kind"] for i in sc["top_issues"]}
+    assert not kinds & {"commander_misfit", "voltron_no_commander_damage"}
+    # The constructed template: interaction + card draw + an advisory creature
+    # count, no ramp / wipe rows, every row labelled.
+    budgets = sc["template"]["budgets"]
+    assert list(budgets) == ["lands", "interaction", "card_draw", "creatures"]
+    assert budgets["creatures"]["advisory"] is True
+    assert budgets["interaction"]["label"] == "Interaction (incl. sweepers)"
+    assert sc["efficiency"]["ramp"]["status"] == "n/a"
+
+
+def test_constructed_size_is_a_shortfall_never_an_overflow():
+    short = tune(_hd_modern(total=58), search_fn=_fake_search, params=TuneParams())
+    assert short["scorecard"]["size"] == {
+        "total": 58,
+        "deck_size": 60,
+        "exact": False,
+        "overflow": 0,
+        "shortfall": 2,
+    }
+    assert short["size_cuts"] == []
+    over = tune(_hd_modern(total=62), search_fn=_fake_search, params=TuneParams())
+    assert over["scorecard"]["size"]["overflow"] == 0  # CR 100.2a: a floor
+    assert over["size_cuts"] == []
+
+
+def test_constructed_counts_copies_not_names():
+    sc = tune(_hd_modern(bolts=4), search_fn=_fake_search, params=TuneParams())[
+        "scorecard"
+    ]
+    # Four 4-of creatures are sixteen creature SLOTS (the type-line row and the
+    # shape evidence both count copies); ``counts`` stays per distinct name.
+    assert sc["template"]["budgets"]["creatures"]["current"] == 16
+    creatures = next(e for e in sc["shape"]["evidence"] if "creatures" in e["label"])
+    assert creatures["label"].startswith("16 creatures")
+    # ``counts`` stays per distinct name: five nonland names, however many copies.
+    assert sum(v for k, v in sc["counts"].items() if k != "land") == 5
+
+
+def test_constructed_adds_another_copy_up_to_the_limit():
+    # 3 Bolts, interaction short → the fill adds the 4th Bolt (copy 4), and with 4
+    # already in the deck the 5th is never proposed.
+    three = tune(
+        _hd_modern(bolts=3),
+        search_fn=_fake_search,
+        params=TuneParams(max_swaps=6, budget=100.0, paper_only=True),
+    )
+    adds = [s["add"] for s in three["swaps"]]
+    bolt = next(a for a in adds if a["name"] == "Lightning Bolt")
+    assert bolt["copy"] == 4
+    four = tune(
+        _hd_modern(bolts=4),
+        search_fn=_fake_search,
+        params=TuneParams(max_swaps=6, budget=100.0, paper_only=True),
+    )
+    assert all(s["add"]["name"] != "Lightning Bolt" for s in four["swaps"])
+    assert any(s["add"]["name"] == "Abrade" for s in four["swaps"])
+
+
+def test_constructed_cuts_one_copy_at_a_time():
+    out = tune(
+        _hd_modern(bolts=4),
+        search_fn=_fake_search,
+        params=TuneParams(max_swaps=3, budget=100.0, paper_only=True),
+    )
+    cuts = [s["cut"] for s in out["swaps"] if s["cut"]]
+    assert cuts, "the four-of fillers are dead weight to swap out"
+    assert all(c["quantity"] == 1 for c in cuts)
+    assert all(c["name"] in ("Hill Giant", "Lumbering Battlement") for c in cuts)
+
+
+def test_sideboard_never_counts_and_is_never_cut():
+    out = tune(
+        _hd_modern(sideboard=[("Sideboard Filler", 4)]),
+        search_fn=_fake_search,
+        params=TuneParams(max_swaps=4, budget=100.0, paper_only=True),
+    )
+    sc = out["scorecard"]
+    assert "Sideboard Filler" not in sc["focus"]["filler_cards"]
+    assert all((s["cut"] or {}).get("name") != "Sideboard Filler" for s in out["swaps"])
+    assert sc["size"]["total"] == 58
+
+
+def test_commander_scorecard_is_unchanged_by_the_family_switch():
+    # The Commander numbers are the calibration every readout was tuned on: the
+    # scorecard's axes and floors read exactly as before.
+    sc = tune(_hd(), search_fn=_fake_search, params=TuneParams())["scorecard"]
+    assert sc["commander_fit"] is not None
+    assert list(sc["template"]["budgets"]) == [
+        "lands",
+        "ramp",
+        "card_draw",
+        "interaction",
+        "board_wipe",
+    ]
+    assert sc["focus"]["main_floor"] == 20
+    assert sc["focus"]["sub_floor"] == 10
+    assert sc["efficiency"]["ramp"]["want"] in (9, 10, 12)
+    assert sc["size"]["exact"] is True

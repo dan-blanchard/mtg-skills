@@ -1,8 +1,10 @@
 """CLI: deck-forge role-density budgets for a deck (D).
 
 A thin wrapper over ``_analysis.budgets.slot_budgets`` so deck-wizard's analysis step
-gets a deterministic role table — lands / ramp / card_draw / interaction / board_wipe:
-current count vs the Command-Zone template band — instead of eyeballing it.
+gets a deterministic role table — the deck's FAMILY's template rows (the Command
+Zone bands for a Commander deck; interaction / card draw / creatures for 60-card;
+the creature, removal and curve rows for limited): current count vs the band —
+instead of eyeballing it.
 
     slot-budgets <deck.json> [--bulk-data PATH] [--shape SHAPE] [--json]
 """
@@ -14,7 +16,7 @@ from pathlib import Path
 
 import click
 
-from mtg_utils._analysis.budgets import banded_slot_budgets
+from mtg_utils._analysis.budgets import banded_slot_budgets, template_for
 from mtg_utils.deck_cli import acquire_for_cli, bulk_data_option
 from mtg_utils.mana_audit import mana_audit
 
@@ -35,8 +37,14 @@ def main(
     hd = acquire_for_cli(deck_json, bulk_data)
     deck_size = hd.format.deck_size
     # ADR-0041: the "lands" row is mana-audit's own band, never a re-derivation.
+    # The rows are the family's template over the main deck (a sideboard fills no
+    # slot).
     budgets = banded_slot_budgets(
-        hd.expanded(), mana_audit(hd)["land_band"], deck_size=deck_size, shape=shape
+        hd.expanded(zones=("cards",)),
+        mana_audit(hd)["land_band"],
+        deck_size=deck_size,
+        shape=shape,
+        template=template_for(hd.format.family),
     )
     if as_json:
         click.echo(json.dumps(budgets, indent=2))
@@ -48,6 +56,6 @@ def main(
             flag = f"{b['deviation']} (under)"
         else:
             flag = f"+{b['deviation']} (over)"
-        label = role.replace("_", " ")
+        label = b.get("label") or role.replace("_", " ")
         band = f"{b['min']}-{b['max']}"
-        click.echo(f"{label:14} {b['current']:>3}   band {band}   {flag}")
+        click.echo(f"{label:28} {b['current']:>3}   band {band}   {flag}")

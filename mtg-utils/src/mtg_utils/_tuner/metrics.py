@@ -18,6 +18,7 @@ from mtg_utils._analysis import signal_keys
 from mtg_utils._analysis.roles import protects
 from mtg_utils._analysis.signal_specs import spec_for
 from mtg_utils._card_ir.compat_lookup import ir_for
+from mtg_utils._tuner.calibration import COMMANDER, Calibration
 from mtg_utils._tuner.classify import CardClass
 from mtg_utils.card_classify import card_pt_int, is_creature
 from mtg_utils.card_ir import Card
@@ -51,9 +52,6 @@ _AVG_BANDS = {
 }
 _AVG_CEILING = 4.0
 
-# Shape → desired front-load (cmc<=2 nonland) and ramp, per 100 cards.
-_FRONT_WANT = {"aggro": 18, "midrange": 14, "control": 10, "combo": 12}
-
 # The Game every band below is calibrated at: the 40-life Commander pod (CR 103.4c),
 # where 21 commander damage wins (CR 903.10a). ``win_conditions`` scales from it to the
 # Game the deck actually plays (``Format.game``).
@@ -62,15 +60,10 @@ _CALIBRATION_GAME = Game(
 )
 _CALIBRATION_LIFE = _CALIBRATION_GAME.life
 
-# Shape → (min, max) dedicated closers (ADR-0024; floor ~3, archetype-scaled) at
-# _CALIBRATION_GAME. Both bounds scale with starting life (``_life_scaled``): at 25 life
-# one-on-one, ordinary threats close games and fewer dedicated closers are wanted.
-_WINCON_TARGET = {
-    "aggro": (4, 6),
-    "midrange": (3, 6),
-    "control": (2, 4),
-    "combo": (2, 3),
-}
+# The dedicated-closer bands (ADR-0024; floor ~3, archetype-scaled) live on the
+# family's ``Calibration`` at _CALIBRATION_GAME. Both bounds scale with starting life
+# (``_life_scaled``): at 25 life one-on-one, ordinary threats close games and fewer
+# dedicated closers are wanted.
 # An evasive body reads as a closer from this power at _CALIBRATION_LIFE (~7 swings);
 # the threshold scales with life so a 4-power flyer counts at 25 (~6 swings) but not
 # at 40.
@@ -136,14 +129,10 @@ def _matches(card: dict, preset: str) -> bool:
         return False
 
 
-def _scaled(value: int, deck_size: int) -> int:
-    return round(value * deck_size / 100)
-
-
 def _life_scaled(value: int, life: int, *, floor: int) -> int:
     """``value`` (calibrated at ``_CALIBRATION_LIFE``) scaled to ``life``, rounded the
-    same way ``_scaled`` rounds deck-size scaling (Python's round), never below
-    ``floor``."""
+    same way ``Calibration.scaled`` rounds deck-size scaling (Python's round), never
+    below ``floor``."""
     return max(floor, round(value * life / _CALIBRATION_LIFE))
 
 
@@ -174,23 +163,39 @@ def _voltron_pieces(classes: Sequence[CardClass]) -> list[str]:
     )
 
 
-def _is_voltron(pieces: Sequence[str], deck_size: int) -> bool:
+def _is_voltron(pieces: Sequence[str], deck_size: int, cal: Calibration) -> bool:
     """Equip/aura density that reads as a voltron plan (shared by the protection
-    advisory and the closer count)."""
-    return len(pieces) >= _scaled(4, deck_size)
+    advisory and the closer count); never outside a family with the read."""
+    if cal.voltron_pieces is None:
+        return False
+    return len(pieces) >= cal.scaled(cal.voltron_pieces, deck_size)
+
+
+def _slots(cards: Sequence[CardClass]) -> int:
+    """How many deck SLOTS a set of classes fills — copies, not names (a 60-card
+    deck of 4-ofs holds ~15 distinct nonland names; every floor counts slots)."""
+    return sum(c.quantity for c in cards)
 
 
 # ── Efficiency ────────────────────────────────────────────────────────────────
 
 
 def efficiency(
-    classes: Sequence[CardClass], *, shape: str, avg_cmc: float, deck_size: int
+    classes: Sequence[CardClass],
+    *,
+    shape: str,
+    avg_cmc: float,
+    deck_size: int,
+    cal: Calibration = COMMANDER,
 ) -> dict:
     nonland = [c for c in classes if c.bucket not in ("land", "commander")]
-    ramp_cards = [c.name for c in classes if "ramp" in c.roles]
-    low_cards = [c.name for c in nonland if c.cmc <= 2.0]
-    top_cards = [c.name for c in nonland if c.cmc >= 6.0]
-    ramp, low, top = len(ramp_cards), len(low_cards), len(top_cards)
+    ramp_classes = [c for c in classes if "ramp" in c.roles]
+    low_classes = [c for c in nonland if c.cmc <= 2.0]
+    top_classes = [c for c in nonland if c.cmc >= 6.0]
+    ramp_cards = [c.name for c in ramp_classes]
+    low_cards = [c.name for c in low_classes]
+    top_cards = [c.name for c in top_classes]
+    ramp, low, top = _slots(ramp_classes), _slots(low_classes), _slots(top_classes)
     cheats = sum(1 for c in classes if _matches(c.record, "reanimate")) >= 2
 
     lo, hi = _AVG_BANDS.get(shape, _AVG_BANDS["midrange"])
@@ -199,14 +204,23 @@ def efficiency(
     else:
         avg_status = "ok"
 
-    ramp_want = 12 if avg_cmc >= 3.3 else (9 if avg_cmc <= 2.6 else 10)
-    ramp_want = _scaled(ramp_want, deck_size)
-    ramp_status = "low" if ramp < ramp_want - 2 else "ok"
+    ramp_want: int | None
+    if cal.ramp_want is None:
+        # Ramp is not an axis for this family (a Burn deck at zero ramp is fine).
+        ramp_want, ramp_status = None, "n/a"
+    else:
+        low_w, mid_w, high_w = cal.ramp_want
+        ramp_want = high_w if avg_cmc >= 3.3 else (low_w if avg_cmc <= 2.6 else mid_w)
+        ramp_want = cal.scaled(ramp_want, deck_size)
+        ramp_status = "low" if ramp < ramp_want - 2 else "ok"
 
-    front_want = _scaled(_FRONT_WANT.get(shape, 14), deck_size)
+    front_want = cal.scaled(
+        cal.front_want.get(shape, cal.front_want[cal.default_shape]), deck_size
+    )
     front_status = "thin" if low < round(front_want * 0.7) else "ok"
 
-    top_lo, top_hi = _scaled(2, deck_size), _scaled(8, deck_size)
+    top_lo = cal.scaled(cal.top_end[0], deck_size)
+    top_hi = cal.scaled(cal.top_end[1], deck_size)
     if top < top_lo:
         top_status = "thin"
     elif top > top_hi:
@@ -260,6 +274,7 @@ def focus(
     deck_signals: Sequence = (),
     medium: str = "paper",
     tribal_payoff_subjects: frozenset[str] | None = None,
+    cal: Calibration = COMMANDER,
 ) -> dict:
     # Avenues that are really Spine roles (ramp/draw/removal) are not themes — exclude
     # them so the deck's mana base + scaffolding can't masquerade as its main lane.
@@ -274,22 +289,24 @@ def focus(
 
     nonland = [c for c in classes if c.bucket not in ("land", "commander")]
     engine = [c for c in classes if c.bucket == "engine"]
-    engine_pool = len(engine)
+    engine_pool = _slots(engine)
 
     # Depth counts NONLAND supporters only (a land is mana base, never theme support) of
     # genuine theme avenues — engine cards + dual-purpose Spine cards that feed a theme.
+    # Names are listed once; depth counts slots (copies).
     members: dict[str, list[str]] = {}
+    depth: dict[str, int] = {}
     for c in classes:
         if c.bucket == "land":
             continue
         for label in themes(c):
             members.setdefault(label, []).append(c.name)
-    depth = {lbl: len(names) for lbl, names in members.items()}
+            depth[label] = depth.get(label, 0) + c.quantity
 
     # Two-tier viability (research: 1 main + 1 *sub*-theme; a sub is shallower than the
     # main, so it gets a lower floor — not the same bar as the main).
-    main_floor = max(1, _scaled(20, deck_size))
-    sub_floor = max(1, _scaled(10, deck_size))
+    main_floor = max(1, cal.scaled(cal.focus_main, deck_size))
+    sub_floor = max(1, cal.scaled(cal.focus_sub, deck_size))
     candidates = sorted(
         (lbl for lbl, d in depth.items() if d >= sub_floor),
         key=lambda lbl: depth[lbl],
@@ -329,7 +346,7 @@ def focus(
             if spec is not None:
                 tribal_subject_of_label[spec.label] = sig.subject
 
-    emerging_floor = max(1, _scaled(5, deck_size))
+    emerging_floor = max(1, cal.scaled(cal.focus_emerging, deck_size))
     emerging: list[str] = []
     for lbl in sorted(depth, key=lambda x: depth[x], reverse=True):
         if not emerging_floor <= depth[lbl] < sub_floor:
@@ -347,21 +364,28 @@ def focus(
         emerging.append(lbl)
 
     top2 = viable[:2]
-    in_top2 = sum(1 for c in engine if set(top2).intersection(themes(c)))
+    in_top2 = _slots([c for c in engine if set(top2).intersection(themes(c))])
     top2_share = round(in_top2 / engine_pool, 2) if engine_pool else 0.0
 
-    filler_cards = [c.name for c in nonland if c.bucket == "filler"]
-    filler = len(filler_cards)
-    filler_rate = round(filler / max(1, len(nonland)), 2)
+    filler_classes = [c for c in nonland if c.bucket == "filler"]
+    filler_cards = [c.name for c in filler_classes]
+    filler = _slots(filler_classes)
+    filler_rate = round(filler / max(1, _slots(nonland)), 2)
 
     # Low-value Engine cards (``CardClass.low_value``) — the vanilla beater that
     # "counts" as creature support in a go-wide deck — surfaced as upgrade targets.
-    low_value_cards = [c.name for c in nonland if c.low_value(medium=medium)]
+    # Play-rate condemns only where it means something (a paper-EDH population).
+    low_value_classes = [
+        c
+        for c in nonland
+        if c.low_value(medium=medium, playrate=cal.playrate_meaningful)
+    ]
+    low_value_cards = [c.name for c in low_value_classes]
 
     engine_labels = {lbl for c in engine for lbl in themes(c)}
     stranded = sorted(lbl for lbl in engine_labels if 1 <= depth.get(lbl, 0) <= 2)
 
-    spine_led_floor = max(1, _scaled(8, deck_size))
+    spine_led_floor = max(1, cal.scaled(cal.spine_led, deck_size))
     if engine_pool < spine_led_floor:
         verdict = "SPINE-LED"
     elif len(viable) >= 3:
@@ -397,7 +421,7 @@ def focus(
         "filler": filler,
         "filler_rate": filler_rate,
         "filler_cards": filler_cards,
-        "low_value": len(low_value_cards),
+        "low_value": _slots(low_value_classes),
         "low_value_cards": low_value_cards,
         "stranded_avenues": stranded,
         "_depth": depth,
@@ -466,6 +490,7 @@ def win_conditions(
     combo_count: int,
     deck_size: int = 100,
     game: Game = _CALIBRATION_GAME,
+    cal: Calibration = COMMANDER,
 ) -> dict:
     """Dedicated closers vs the Shape's band (ADR-0024 advisory), read against the
     ``Game`` the deck plays (``Format.game``). A voltron plan (equip/aura density) is
@@ -476,18 +501,17 @@ def win_conditions(
     # (team double strike) is ONE closer — the record heuristic alone missed
     # keyword grants, reading the benchmark deck "2 closers" while it held
     # team double strike twice.
-    cards = sorted(
-        {
-            c.name
-            for c in classes
-            if _is_wincon_card(c.record, game=game) or c.grant_closer
-        }
-    )
+    closers = {
+        c.name: c
+        for c in classes
+        if _is_wincon_card(c.record, game=game) or c.grant_closer
+    }
+    cards = sorted(closers)
     pieces = _voltron_pieces(classes)
-    voltron = _is_voltron(pieces, deck_size)
+    voltron = _is_voltron(pieces, deck_size, cal)
     voltron_closer = voltron and game.commander_damage
-    count = len(cards) + combo_count + (1 if voltron_closer else 0)
-    lo, hi = _WINCON_TARGET.get(shape, (3, 6))
+    count = _slots(list(closers.values())) + combo_count + (1 if voltron_closer else 0)
+    lo, hi = cal.wincon_target.get(shape, cal.wincon_target[cal.default_shape])
     lo = _life_scaled(lo, game.life, floor=2)
     # The band keeps at least one card of width, so a low-life control/combo band
     # never collapses to "wants 2-2".
@@ -513,19 +537,25 @@ def win_conditions(
 
 
 def protection(
-    classes: Sequence[CardClass], *, shape: str, deck_size: int, voltron: bool
+    classes: Sequence[CardClass],
+    *,
+    shape: str,
+    deck_size: int,
+    voltron: bool,
+    cal: Calibration = COMMANDER,
 ) -> dict:
     """Protection wants vs the Shape (ADR-0024 advisory). ``voltron`` is the read
     ``win_conditions`` already made (``wins["voltron"]``) — the one voltron walk."""
-    cards = [c.name for c in classes if protects(c.record)]
+    protecting = [c for c in classes if protects(c.record)]
+    cards = [c.name for c in protecting]
     wants = shape in ("combo", "control") or voltron
-    target = _scaled(5, deck_size) if wants else 0
+    target = cal.scaled(cal.protection_target, deck_size) if wants else 0
     return {
-        "count": len(cards),
+        "count": _slots(protecting),
         "cards": cards,
         "target": target,
         "wants_protection": wants,
-        "status": "low" if wants and len(cards) < target else "ok",
+        "status": "low" if wants and _slots(protecting) < target else "ok",
     }
 
 

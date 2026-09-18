@@ -50,19 +50,19 @@ def infer_shape(
     midrange carries a baseline so it wins on a featureless/ambiguous deck (the genre
     mean). An ``override`` in :data:`SHAPES` wins outright and marks ``inferred=False``.
     """
+    # Every count is in SLOTS (copies), so a 60-card deck of 4-ofs reads its real
+    # density; the evidence lists stay per name.
     nonland = [c for c in classes if c.bucket not in ("land", "commander")]
-    n = max(1, len(nonland))
+    n = max(1, sum(c.quantity for c in nonland))
     creature_cards = [c.name for c in nonland if is_creature(c.record)]
     interaction_cards = [c.name for c in nonland if "interaction" in c.roles]
     draw_cards = [c.name for c in nonland if "card_draw" in c.roles]
-    low_drops = sum(1 for c in nonland if c.cmc <= 2.0)
-    creatures, interaction, draw = (
-        len(creature_cards),
-        len(interaction_cards),
-        len(draw_cards),
-    )
+    low_drops = sum(c.quantity for c in nonland if c.cmc <= 2.0)
+    creatures = sum(c.quantity for c in nonland if is_creature(c.record))
+    interaction = sum(c.quantity for c in nonland if "interaction" in c.roles)
+    draw = sum(c.quantity for c in nonland if "card_draw" in c.roles)
 
-    wipes = sum(1 for c in nonland if "board_wipe" in c.roles)
+    wipes = sum(c.quantity for c in nonland if "board_wipe" in c.roles)
 
     creat = creatures / n
     inter = interaction / n

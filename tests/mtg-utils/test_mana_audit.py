@@ -15,6 +15,7 @@ from mtg_utils.mana_audit import (
     karsten_adjustment,
     land_band,
     land_band_readout,
+    limited_land_target,
     main,
     mana_audit,
     pip_demand,
@@ -643,6 +644,33 @@ class TestConstructedLandTarget:
         r60 = constructed_land_target(ramp_count=0, avg_cmc=3.0, deck_size=60)
         r80 = constructed_land_target(ramp_count=0, avg_cmc=3.0, deck_size=80)
         assert r80 > r60
+
+
+class TestLimitedLandTarget:
+    """The 40-card norm is 17, a tight 16-18 band — not the constructed formula
+    scaled down (which reads the 17-land default as over-landed)."""
+
+    def test_baseline_17(self):
+        assert limited_land_target(ramp_count=0, avg_cmc=3.0) == 17
+
+    def test_low_curve_cuts_one(self):
+        assert limited_land_target(ramp_count=0, avg_cmc=2.4) == 16
+
+    def test_real_ramp_cuts_one(self):
+        assert limited_land_target(ramp_count=3, avg_cmc=3.0) == 16
+
+    def test_high_curve_adds_one(self):
+        assert limited_land_target(ramp_count=0, avg_cmc=3.6) == 18
+
+    def test_never_outside_the_band(self):
+        assert limited_land_target(ramp_count=9, avg_cmc=1.0) == 16
+        assert limited_land_target(ramp_count=0, avg_cmc=6.0) == 18
+
+    def test_scales_to_the_deck_size(self):
+        assert limited_land_target(ramp_count=0, avg_cmc=3.0, deck_size=60) == 26
+
+    def test_no_curve_yet_is_the_baseline(self):
+        assert limited_land_target(ramp_count=0, avg_cmc=0.0) == 17
 
 
 class TestConstructedManaAudit:
