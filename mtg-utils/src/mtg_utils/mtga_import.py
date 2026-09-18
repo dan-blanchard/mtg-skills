@@ -94,7 +94,7 @@ import click
 
 from mtg_utils._sidecar import atomic_write_json
 from mtg_utils.bulk_loader import load_bulk_cards
-from mtg_utils.formats import COMMANDER_FORMATS, FORMATS
+from mtg_utils.formats import FORMATS
 
 # The exact anchor string that marks a login-time API response in the
 # Arena log. The StartHook response carries ``InventoryInfo`` (wildcards
@@ -868,7 +868,10 @@ def _chown_outputs_to_sudo_user(*paths: Path | None) -> None:
 @click.option(
     "--format",
     "format_",
-    type=click.Choice(sorted(COMMANDER_FORMATS), case_sensitive=False),
+    # An Arena collection: only the formats Arena hosts can stamp it.
+    type=click.Choice(
+        sorted(n for n, f in FORMATS.items() if f.is_arena), case_sensitive=False
+    ),
     default="historic_brawl",
     help="Cosmetic format stamp for the collection JSON. Downstream "
     "scripts read their own --format flag; this field is purely "

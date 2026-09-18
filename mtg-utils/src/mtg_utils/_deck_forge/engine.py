@@ -45,7 +45,7 @@ from mtg_utils.card_classify import is_basic_land, valid_partner_search
 from mtg_utils.card_pool import CardPool
 from mtg_utils.companion import is_companion
 from mtg_utils.deck_stats import deck_stats, detect_bracket
-from mtg_utils.formats import COMMANDER_FORMATS, FORMATS, format_options
+from mtg_utils.formats import FORMATS, format_options
 from mtg_utils.hydrated_deck import ZONES, HydratedDeck
 from mtg_utils.legality_audit import legality_audit
 from mtg_utils.mana_audit import mana_audit, reconcile_basic_lands
@@ -332,8 +332,8 @@ def wildcard_cost(state: ForgeState) -> dict | None:
     no_basics = dict(deck)
     # The companion zone is deliberately absent from this walk (and from
     # price_check's own deck walk): a companion is outside the game (CR 702.139a),
-    # and the Arena Commander-family formats deck-forge serves have no companion
-    # mechanic, so it never costs wildcards here.
+    # so it never costs wildcards here — the one card a Historic / Timeless build
+    # reveals from outside the deck is not what the deck costs to craft.
     for zone in ("commanders", "cards", "sideboard"):
         if zone in deck:
             no_basics[zone] = [
@@ -474,13 +474,15 @@ def _violation_message(category: str, violation: dict) -> dict:
     return {"category": category, "message": f"{label}: {body}".strip(": ")}
 
 
-def _overflow_warnings(hd: HydratedDeck, max_cards: int | None) -> list[dict]:
+def _overflow_warnings(hd: HydratedDeck) -> list[dict]:
     """Two failure modes the shared ``legality_audit`` deliberately doesn't own, because
     they're build-surface concerns: a deck that has grown PAST its size cap (the mirror
-    of the excluded ``deck_minimum`` — under is normal building, over is never legal),
+    of the excluded ``deck_minimum`` — under is normal building, over is never legal;
+    only an exact-size family HAS a cap, a constructed size is a floor — CR 100.2a),
     and card names that resolved to no Scryfall record (a typo or a failed paste-import,
     which ADR-0012 otherwise DROPs silently from the hydrated records)."""
     out: list[dict] = []
+    max_cards = None if hd.format.size_is_minimum else hd.format.deck_size
     if max_cards is not None:
         # Commanders + maindeck only: the companion is revealed from outside the
         # game and is not part of the deck or sideboard (CR 702.139a-b), so it
@@ -530,7 +532,10 @@ def _companion_message(v: dict) -> str:
     )
 
 
-def legality_warnings(hd: HydratedDeck, *, max_cards: int | None = None) -> list[dict]:
+def legality_warnings(hd: HydratedDeck) -> list[dict]:
+    """The live warning list: every audited category, the size cap where the family
+    has one, and the companion checks. ``hd.format`` carries the build's effective
+    size, so the cap is derived here — no caller passes one."""
     audit = legality_audit(hd)
     violations = audit.get("violations") or {}
     return (
@@ -539,12 +544,13 @@ def legality_warnings(hd: HydratedDeck, *, max_cards: int | None = None) -> list
             for cat in _AUDIT_CATEGORIES
             for v in (violations.get(cat) or [])
         ]
-        + _overflow_warnings(hd, max_cards)
+        + _overflow_warnings(hd)
         # Companion violations (the shared ``check_companion``: max one, must
-        # have the ability, condition met over commanders + maindeck with
-        # deck_minimum=None — every deck-forge format is exact-size, CR 903.5a /
-        # 903.12d) surface as warnings like deck_maximum: through /api/audit and
-        # the finalize gate (legality_status FAIL), never a hard error.
+        # have the ability, condition met over commanders + maindeck — with
+        # deck_minimum=None for the exact-size Commander family, CR 903.5a /
+        # 903.12d, and the format's minimum for constructed) surface as warnings
+        # like deck_maximum: through /api/audit and the finalize gate
+        # (legality_status FAIL), never a hard error.
         + [
             {"category": "companion", "message": _companion_message(v)}
             for v in (violations.get("companion") or [])
@@ -599,9 +605,10 @@ def trim_lands(state: ForgeState) -> dict[str, dict[str, int]]:
 
 
 def check_format(fmt: str) -> None:
-    """The format rule: a build is one of the Commander family's formats (ADR-0045)."""
-    if fmt not in COMMANDER_FORMATS:
-        raise DeckRuleError(f"unsupported format: {fmt!r}")
+    """The format rule: a build is one of the formats the table declares (ADR-0045);
+    every family the Format module knows is served."""
+    if fmt not in FORMATS:
+        raise DeckRuleError(f"unknown format: {fmt!r}")
 
 
 def set_format(state: ForgeState, fmt: str) -> None:
@@ -625,16 +632,27 @@ def set_medium(state: ForgeState, medium: str) -> None:
 
 
 def set_deck_size(state: ForgeState, deck_size: int) -> None:
-    """The deck-size rule: any size some Commander-family (format, medium) may choose
-    is accepted — only paper Historic Brawl honors a choice (60 or 100 are both legal
-    paper "Brawl"), every other (format, medium) keeps its fixed size, so the override
-    lies dormant until it applies and the guard is derived from the format table,
-    never a hand-list (ADR-0045)."""
-    choices = sorted(
-        {s for f in COMMANDER_FORMATS for s in FORMATS[f].all_size_choices}
-    )
-    if deck_size not in choices:
-        raise DeckRuleError(f"deck size must be one of {choices}")
+    """The deck-size rule, by family (ADR-0045): a constructed build takes any size
+    its Format calls valid (a floor — an 80-card Yorion deck); a Commander-family
+    build takes any size some format of the family may choose — only paper Historic
+    Brawl honors a choice (60 or 100 are both legal paper "Brawl"), every other
+    (format, medium) keeps its fixed size, so the override lies dormant until it
+    applies. The guard is derived from the format table, never a hand-list."""
+    fmt = FORMATS[state.session.format]
+    if fmt.size_is_minimum:
+        if not fmt.is_valid_deck_size(deck_size):
+            raise DeckRuleError(f"deck size must be at least 1 for {fmt.label}")
+    else:
+        choices = sorted(
+            {
+                s
+                for f in FORMATS.values()
+                if f.family == fmt.family
+                for s in f.all_size_choices
+            }
+        )
+        if deck_size not in choices:
+            raise DeckRuleError(f"deck size must be one of {choices}")
     state.session.set_deck_size(deck_size)
 
 
@@ -854,7 +872,7 @@ def finalize_state(state: ForgeState) -> dict:
         1 for r in hd.expanded() if "card_draw" in role_of(r) and r.get("cmc", 0) <= 2
     )
     defensible = avg_cmc <= _DEFENSIBLE_AVG_CMC and cheap_ca >= _DEFENSIBLE_CHEAP_CA
-    warnings = legality_warnings(hd, max_cards=state.session.deck_size)
+    warnings = legality_warnings(hd)
     return {
         "land_status": mana["land_band"]["status"],
         "land_count": mana["land_count"],
@@ -1300,7 +1318,7 @@ def snapshot(state: ForgeState) -> dict:
             views.signal_view(s) for s in ranked_deck_signals(state, hd.records)
         ],
         "avenues": avenues(state, hd.records),
-        "warnings": legality_warnings(hd, max_cards=state.session.deck_size),
+        "warnings": legality_warnings(hd),
         "collection": collection_summary(state, owned),
         "wildcards": wildcard_cost(state),
         # True when a second commander could still be added (CR 702.124 partner /

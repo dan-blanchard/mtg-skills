@@ -77,6 +77,27 @@ class TestTable:
         assert FORMATS["standard"].is_arena
         assert not FORMATS["standard"].arena_pool
 
+    def test_family_is_the_shape_rule_switch(self):
+        # Every family decision reads ``family`` — never a format name.
+        assert {f.family for f in FORMATS.values()} == {"commander", "constructed"}
+        assert format_options(()) == []
+
+    def test_medium_flags_must_agree(self):
+        with pytest.raises(ValueError, match="is_arena_only requires is_arena"):
+            replace(FORMATS["modern"], is_arena_only=True)
+        with pytest.raises(ValueError, match="primary_medium"):
+            replace(FORMATS["modern"], primary_medium="digital")
+        for name in COMMANDER_FORMATS:
+            assert FORMATS[name].family == "commander"
+            assert FORMATS[name].size_is_minimum is False
+        for name in ("standard", "modern", "vintage"):
+            assert FORMATS[name].family == "constructed"
+            assert FORMATS[name].has_commander is False
+            assert FORMATS[name].max_copies == 4
+            assert FORMATS[name].sideboard_size == 15
+            # CR 100.2a sets only a minimum for constructed.
+            assert FORMATS[name].size_is_minimum is True
+
 
 # ---------- legality (real cards) ----------
 
@@ -190,6 +211,15 @@ class TestCommanderEligibility:
             is False
         )
 
+    def test_no_command_zone_means_nothing_is_eligible(self):
+        # Ragavan is Modern-legal and legendary; Modern has no commanders.
+        ragavan = test_card("Ragavan, Nimble Pilferer")
+        assert FORMATS["modern"].legality(ragavan) == "legal"
+        assert FORMATS["modern"].commander_eligibility(ragavan) == {
+            "eligible": False,
+            "requires_partner": False,
+        }
+
     def test_unreleased_legend_is_eligible_with_the_set(self):
         # Pre-release brewing: a spoiled legend reads not_legal everywhere until
         # release day; the widening admits exactly it.
@@ -216,6 +246,14 @@ class TestMediumAndSize:
         assert CB.media == ("digital",)
         assert CB.default_medium == "digital"
         assert FORMATS["modern"].media == ("paper",)
+        # Paper-defined formats Arena also hosts default to paper; the Arena-only
+        # constructed formats never offer paper.
+        for name in ("standard", "pioneer"):
+            assert FORMATS[name].media == ("paper", "digital"), name
+            assert FORMATS[name].default_medium == "paper", name
+        for name in ("alchemy", "historic", "timeless"):
+            assert FORMATS[name].media == ("digital",), name
+            assert FORMATS[name].is_arena_only, name
 
     def test_resolve_medium_honours_only_allowed_overrides(self):
         assert HB.resolve_medium("paper") == "paper"
@@ -283,6 +321,11 @@ class TestMediumAndSize:
         assert HB.resolve_deck_size(60, "digital") == 100
         assert HB.resolve_deck_size(None, "paper") == 100
         assert CMD.resolve_deck_size(60, "paper") == 100
+        # Constructed sizes are minimums, not a choice list: any valid size holds.
+        assert FORMATS["standard"].resolve_deck_size(80, "paper") == 80
+        assert CMD.resolve_deck_size(80, "paper") == 100  # exact-size family
+        assert FORMATS["standard"].resolve_deck_size(0, "paper") == 60
+        assert FORMATS["standard"].resolve_deck_size(None, "digital") == 60
 
     def test_size_rule_citations(self):
         for name in COMMANDER_FORMATS:
@@ -339,13 +382,21 @@ class TestForDeck:
 
 
 class TestSpaTable:
-    def test_format_options_is_the_commander_family(self):
+    def test_format_options_is_every_format_in_table_order(self):
         rows = format_options()
-        assert [r["id"] for r in rows] == list(COMMANDER_FORMATS)
+        assert [r["id"] for r in rows] == list(FORMATS)
+        assert [r["id"] for r in format_options(COMMANDER_FORMATS)] == list(
+            COMMANDER_FORMATS
+        )
         by_id = {r["id"]: r for r in rows}
         assert by_id["commander"] == {
             "id": "commander",
             "label": "Commander",
+            "family": "commander",
+            "has_commander": True,
+            "max_copies": 1,
+            "sideboard_size": 0,
+            "size_is_minimum": False,
             "media": ["paper"],
             "medium_labels": {"paper": "Paper"},
             "default_medium": "paper",
@@ -357,3 +408,13 @@ class TestSpaTable:
             "paper": [60, 100],
         }
         assert by_id["competitive_brawl"]["media"] == ["digital"]
+        # The family facts the SPA keys its zones, stepper and pills off.
+        modern = by_id["modern"]
+        assert modern["family"] == "constructed"
+        assert modern["has_commander"] is False
+        assert modern["max_copies"] == 4
+        assert modern["sideboard_size"] == 15
+        assert modern["size_is_minimum"] is True
+        assert modern["media"] == ["paper"]
+        assert by_id["standard"]["media"] == ["paper", "digital"]
+        assert by_id["alchemy"]["media"] == ["digital"]

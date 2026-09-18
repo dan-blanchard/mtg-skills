@@ -91,14 +91,16 @@ def test_deck_size_endpoint_rejects_bad_value():
 
 
 def test_snapshot_serves_the_format_table_the_spa_reads():
-    from mtg_utils.formats import COMMANDER_FORMATS, format_options
+    from mtg_utils.formats import FORMATS, format_options
 
     client = TestClient(build_app(_state("historic_brawl")))
     snap = client.get("/api/snapshot").json()
     rows = snap["format_options"]
     assert rows == format_options()
-    assert [r["id"] for r in rows] == list(COMMANDER_FORMATS)
+    # Every Format the table declares, in table order — the SPA groups by family.
+    assert [r["id"] for r in rows] == list(FORMATS)
     by_id = {r["id"]: r for r in rows}
+    assert by_id["modern"]["family"] == "constructed"
     # Exactly what the Header derives its pickers from: media and per-medium sizes.
     assert by_id["commander"]["media"] == ["paper"]
     assert by_id["historic_brawl"]["medium_labels"] == {

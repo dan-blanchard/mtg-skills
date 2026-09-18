@@ -188,13 +188,23 @@ def test_import_deck_builds_a_session_and_leaves_the_live_one_alone():
 @pytest.mark.parametrize(
     ("text", "fmt", "match"),
     [
-        ("1 Plains", "modern", "unsupported format"),
+        ("1 Plains", "bogus", "unknown format"),
         ("", "commander", "no cards"),
     ],
 )
 def test_import_deck_rejects_with_the_rule(text, fmt, match):
     with pytest.raises(DeckRuleError, match=match):
         engine.import_deck(_state(), text, fmt=fmt)
+
+
+def test_import_deck_accepts_a_constructed_format():
+    imported = engine.import_deck(
+        _state(), "Deck\n4 Plains\n\nSideboard\n2 Plains", fmt="modern"
+    )
+    deck = imported.session.to_deck_dict()
+    assert deck["format"] == "modern"
+    assert deck["cards"] == [{"name": "Plains", "quantity": 4}]
+    assert deck["sideboard"] == [{"name": "Plains", "quantity": 2}]
 
 
 # --- printings ------------------------------------------------------------------

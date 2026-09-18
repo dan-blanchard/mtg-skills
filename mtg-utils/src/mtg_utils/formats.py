@@ -36,6 +36,12 @@ from mtg_utils.names import normalize_card_name
 Legality = Literal["legal", "restricted", "banned", "not_legal", "unreleased"]
 Medium = Literal["paper", "digital"]
 CostMode = Literal["usd", "wildcards"]
+#: The format families. A family is what a deck's SHAPE rules follow — a command zone
+#: and exact size (commander) or a copy limit + sideboard over a minimum size
+#: (constructed). A caller that needs the family reads ``Format.family``, one that
+#: needs a single family fact reads it (``has_commander``, ``size_is_minimum``, …);
+#: no caller compares format names.
+Family = Literal["commander", "constructed"]
 
 #: The statuses under which a card may be played (Vintage's restricted list is a copy
 #: limit, not a ban).
@@ -117,6 +123,10 @@ class Format:
     multiplayer_life_total: int | None = None
     #: No paper counterpart at all: the medium is always digital, never a choice.
     is_arena_only: bool = False
+    #: For a format played in BOTH media, the one a new build defaults to. ``None``
+    #: keeps digital first (the Brawl queues live on Arena); ``"paper"`` puts paper
+    #: first for a paper-defined format Arena also hosts (Standard, Pioneer).
+    primary_medium: Medium | None = None
     #: The format's card pool IS Arena's (MTGJSON's brawl / historic / alchemy /
     #: timeless / standardbrawl keys): a card with no Arena printing is not legal, even
     #: when MTGJSON marks it so (Lord of Atlantis, pw24). Medium-independent — the paper
@@ -146,6 +156,14 @@ class Format:
             "banned_keys",
             frozenset(normalize_card_name(n) for n in self.banned_cards),
         )
+        # The medium flags must agree: Arena-only is a kind of Arena, and a primary
+        # medium names one the format is actually played in.
+        if self.is_arena_only and not self.is_arena:
+            msg = f"{self.name}: is_arena_only requires is_arena"
+            raise ValueError(msg)
+        if self.primary_medium is not None and self.primary_medium not in self.media:
+            msg = f"{self.name}: primary_medium {self.primary_medium!r} not in media"
+            raise ValueError(msg)
 
     # --- family -------------------------------------------------------------------
 
@@ -158,6 +176,18 @@ class Format:
         """60-card constructed (no command zone)."""
         return not self.has_commander
 
+    @property
+    def family(self) -> Family:
+        """Which family's shape rules this format follows (see ``Family``)."""
+        return "commander" if self.has_commander else "constructed"
+
+    @property
+    def size_is_minimum(self) -> bool:
+        """Whether ``deck_size`` is a floor the deck may exceed (CR 100.2a sets only a
+        minimum for constructed) rather than the exact size the Commander family's
+        ``size_rule`` cites (CR 903.5a / 903.12d)."""
+        return not self.has_commander
+
     # --- medium -------------------------------------------------------------------
 
     @property
@@ -166,6 +196,8 @@ class Format:
         if self.is_arena_only:
             return ("digital",)
         if self.is_arena:
+            if self.primary_medium == "paper":
+                return ("paper", "digital")
             return ("digital", "paper")
         return ("paper",)
 
@@ -244,10 +276,16 @@ class Format:
 
     def resolve_deck_size(self, override: int | None, medium: str) -> int:
         """The effective size under ``medium``: ``override`` when it is one of that
-        medium's choices, else the fixed size (the override lies dormant)."""
-        if override is not None and override in self.size_choices(medium):
-            return override
-        return self.deck_size
+        medium's choices, else the fixed size (the override lies dormant). A
+        constructed format honours any valid size (an 80-card Yorion deck), since its
+        size is a minimum, not a choice list."""
+        if override is None:
+            return self.deck_size
+        if self.has_commander:
+            if override in self.size_choices(medium):
+                return override
+            return self.deck_size
+        return override if self.is_valid_deck_size(override) else self.deck_size
 
     # --- legality -----------------------------------------------------------------
 
@@ -289,7 +327,10 @@ class Format:
         legend counts, so brewing around a spoiled commander works) composed with the
         type-line / oracle-text rules in ``card_classify.is_commander``, under this
         format's planeswalker rule (the Brawl family admits any legendary planeswalker;
-        Commander needs "can be your commander")."""
+        Commander needs "can be your commander"). A format with no command zone has
+        no commanders: nothing is eligible, however legendary."""
+        if not self.has_commander:
+            return {"eligible": False, "requires_partner": False}
         status = self.legality(record, unreleased=unreleased)
         if status not in LEGAL_STATUSES and status != "unreleased":
             return {"eligible": False, "requires_partner": False}
@@ -326,6 +367,11 @@ class Format:
         return {
             "id": self.name,
             "label": self.label,
+            "family": self.family,
+            "has_commander": self.has_commander,
+            "max_copies": self.max_copies,
+            "sideboard_size": self.sideboard_size,
+            "size_is_minimum": self.size_is_minimum,
             "media": list(self.media),
             "medium_labels": {m: MEDIUM_LABELS[m] for m in self.media},
             "default_medium": self.default_medium,
@@ -350,7 +396,14 @@ def _commander_variant(name: str, label: str, **kw: object) -> Format:
 
 
 def _constructed(
-    name: str, label: str, *, legality_key: str, arena: bool, arena_pool: bool = False
+    name: str,
+    label: str,
+    *,
+    legality_key: str,
+    arena: bool,
+    arena_pool: bool = False,
+    arena_only: bool = False,
+    primary_medium: Medium | None = None,
 ) -> Format:
     return Format(
         name=name,
@@ -367,6 +420,8 @@ def _constructed(
         colorless_any_basic=False,
         is_arena=arena,
         arena_pool=arena_pool,
+        is_arena_only=arena_only,
+        primary_medium=primary_medium,
     )
 
 
@@ -430,17 +485,46 @@ _ALL: tuple[Format, ...] = (
         size_rule="CR 903.5a",
     ),
     # ── Constructed formats (60-card, 4-of, sideboard) ──
-    _constructed("standard", "Standard", legality_key="standard", arena=True),
+    # Standard and Pioneer are paper-defined formats Arena also hosts: a new build
+    # defaults to paper. Alchemy / Historic / Timeless exist only on Arena.
     _constructed(
-        "alchemy", "Alchemy", legality_key="alchemy", arena=True, arena_pool=True
+        "standard",
+        "Standard",
+        legality_key="standard",
+        arena=True,
+        primary_medium="paper",
     ),
     _constructed(
-        "historic", "Historic", legality_key="historic", arena=True, arena_pool=True
+        "alchemy",
+        "Alchemy",
+        legality_key="alchemy",
+        arena=True,
+        arena_pool=True,
+        arena_only=True,
     ),
     _constructed(
-        "timeless", "Timeless", legality_key="timeless", arena=True, arena_pool=True
+        "historic",
+        "Historic",
+        legality_key="historic",
+        arena=True,
+        arena_pool=True,
+        arena_only=True,
     ),
-    _constructed("pioneer", "Pioneer", legality_key="pioneer", arena=True),
+    _constructed(
+        "timeless",
+        "Timeless",
+        legality_key="timeless",
+        arena=True,
+        arena_pool=True,
+        arena_only=True,
+    ),
+    _constructed(
+        "pioneer",
+        "Pioneer",
+        legality_key="pioneer",
+        arena=True,
+        primary_medium="paper",
+    ),
     _constructed("modern", "Modern", legality_key="modern", arena=False),
     _constructed("premodern", "Premodern", legality_key="premodern", arena=False),
     _constructed("legacy", "Legacy", legality_key="legacy", arena=False),
@@ -464,6 +548,9 @@ def get_format(name: str) -> Format:
     return fmt
 
 
-def format_options(names: tuple[str, ...] = COMMANDER_FORMATS) -> list[dict]:
-    """The format table the browser SPA reads (``Format.spa_entry`` per format)."""
+def format_options(names: tuple[str, ...] | None = None) -> list[dict]:
+    """The format table the browser SPA reads (``Format.spa_entry`` per format) —
+    every format in table order unless ``names`` narrows it."""
+    if names is None:
+        names = tuple(FORMATS)
     return [FORMATS[n].spa_entry() for n in names]

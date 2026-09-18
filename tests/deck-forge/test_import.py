@@ -73,7 +73,14 @@ def test_import_rejects_an_empty_list():
     )
 
 
-def test_import_rejects_an_unsupported_format():
+def test_import_rejects_an_unknown_format():
     client, _ = _client()
-    r = client.post("/api/builds/import", json={"text": PLAIN, "format": "modern"})
+    r = client.post("/api/builds/import", json={"text": PLAIN, "format": "bogus"})
     assert r.status_code == 400
+
+
+def test_import_accepts_a_constructed_format():
+    client, _ = _client(by_name={"Sol Ring": SOL_RING})
+    r = client.post("/api/builds/import", json={"text": PLAIN, "format": "modern"})
+    assert r.status_code == 200
+    assert r.json()["deck"]["format"] == "modern"

@@ -168,6 +168,21 @@ the medium and is separate from the medium-independent Arena-pool gate). Resolve
 _Avoid_: "format config" (the retired flag table), "legality key" as a caller-side
 concept (the `Format` reads it; callers read a status).
 
+**Family** (`Format.family`):
+Which shape rules a format follows — `commander` (a command zone, singleton, an
+exact size the CR cites) or `constructed` (a copy limit and a sideboard over a
+size that is a minimum, CR 100.2a). The switch every family decision reads in the
+hub, the tuner and the SPA (served in the format table with the facts it implies:
+`has_commander`, `max_copies`, `sideboard_size`, `size_is_minimum`); a caller that
+needs one fact reads that fact, never the format's name.
+_Avoid_: "is commander" string compares on a format id; "the Commander family" as an
+allowlist (it is `family == "commander"`).
+
+**Primary medium**:
+For a format played in both media, the one a new build defaults to: paper for a
+paper-defined format Arena also hosts (Standard, Pioneer), digital otherwise (the
+Brawl queues). A `Format` field, ordered first in `media`; never a UI default.
+
 **Legality status**:
 A `Format`'s answer for one record: `legal`, `restricted`, `banned`, `not_legal`, or
 `unreleased` — Scryfall's four plus the pre-release case, which the `Format` can only

@@ -68,7 +68,7 @@ class MediumPayload(BaseModel):
 
 
 class DeckSizePayload(BaseModel):
-    deck_size: int  # 60 | 100 (paper Historic Brawl)
+    deck_size: int  # a Commander-family choice (60 | 100) or a constructed floor
 
 
 class SetPrintingPayload(BaseModel):
@@ -454,6 +454,7 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
 
     @app.post("/api/builds/new")
     async def builds_new(payload: NewBuildPayload) -> dict:
+        engine.check_format(payload.format)
         engine.switch_build(
             state, DeckSession(payload.format), name=payload.name or "Untitled"
         )
@@ -682,11 +683,7 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
 
     @app.get("/api/audit")
     async def audit() -> dict:
-        return {
-            "warnings": engine.legality_warnings(
-                engine.hydrate_session(state), max_cards=state.session.deck_size
-            )
-        }
+        return {"warnings": engine.legality_warnings(engine.hydrate_session(state))}
 
     @app.post("/api/tune", response_model=None)
     async def tune(payload: TunePayload) -> dict | JSONResponse:
