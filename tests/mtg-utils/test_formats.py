@@ -447,6 +447,7 @@ class TestSpaTable:
             "id": "commander",
             "label": "Commander",
             "family": "commander",
+            "family_label": "Commander",
             "has_commander": True,
             "pool_bounded": False,
             "max_copies": 1,

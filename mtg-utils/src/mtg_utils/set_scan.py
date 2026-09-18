@@ -29,6 +29,7 @@ import click
 
 from mtg_utils._analysis.roles import role_of
 from mtg_utils.card_classify import (
+    EVASION_KEYWORDS,
     card_pt_int,
     has_evasion,
     is_creature,
@@ -58,7 +59,7 @@ def set_scan(records: Sequence[dict], *, code: str | None = None) -> dict:
     creatures: list[dict] = []
     curve: dict[str, int] = {}
     for rec in records:
-        rarity = rec.get("rarity") or "common"
+        rarity = rec.get("rarity") or "unknown"  # never inflate a real bucket
         by_rarity[rarity] = by_rarity.get(rarity, 0) + 1
         roles = role_of(rec)
         if "interaction" in roles:
@@ -69,7 +70,7 @@ def set_scan(records: Sequence[dict], *, code: str | None = None) -> dict:
         if is_creature(rec):
             creatures.append(rec)
             for kw in rec.get("keywords") or []:
-                if has_evasion({"keywords": [kw]}):
+                if kw in EVASION_KEYWORDS:
                     evasion_by_keyword[kw] = evasion_by_keyword.get(kw, 0) + 1
         if not is_land(rec):
             bucket = _curve_bucket(float(rec.get("cmc", 0.0) or 0.0))
@@ -124,8 +125,11 @@ def _pairs() -> list[str]:
 
 def pool_color_pairs(records_with_qty: Iterable[tuple[dict, int]]) -> list[dict]:
     """Every mono colour and colour pair a pool supports, quantity-aware: a card
-    counts toward a pair when its colour identity fits in it (colourless cards fit
-    every pair). Rows sort by playables (nonland cards) then removal, descending."""
+    counts toward a pair when its colour identity fits in it (a colourless card fits
+    every pair, so it lifts every row equally and never changes the ranking).
+    ``removal`` counts sweepers too (``interaction`` or ``board_wipe``): in limited a
+    sweeper is an answer like any other, where ``set_scan`` lists sweepers apart.
+    Rows sort by playables (nonland cards) then removal, descending."""
     pool = [(rec, int(qty)) for rec, qty in records_with_qty]
     rows: list[dict] = []
     for pair in _pairs():
@@ -227,9 +231,9 @@ def set_scan_main(set_code: str, bulk_data: Path | None, *, as_json: bool) -> No
 def pool_colors_main(deck_json: Path, bulk_data: Path | None, *, as_json: bool) -> None:
     """Every colour pair DECK_JSON's opened pool supports, on equal footing."""
     hd = acquire_for_cli(deck_json, bulk_data)
-    rows = pool_color_pairs(
-        (rec, int(entry.get("quantity", 1)))
-        for entry, rec in hd.entries(zones=("pool",))
-        if rec is not None
-    )
+    if not hd.format.pool_bounded:
+        raise click.ClickException(
+            f"{hd.format.name} has no pool — pool-colors reads a sealed / draft deck"
+        )
+    rows = pool_color_pairs(hd.deck_quantities(zones=("pool",)))
     click.echo(json.dumps(rows, indent=2) if as_json else render_color_pairs(rows))

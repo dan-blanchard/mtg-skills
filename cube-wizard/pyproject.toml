@@ -12,6 +12,8 @@ dependencies = ["click>=8.0", "requests>=2.28"]
 [project.scripts]
 # Reused from mtg-utils / deck-wizard
 card-search = "mtg_utils.card_search:main"
+set-scan = "mtg_utils.set_scan:set_scan_main"
+pool-colors = "mtg_utils.set_scan:pool_colors_main"
 card-summary = "mtg_utils.card_summary:main"
 combo-discover = "mtg_utils.combo_search:discover_main"
 combo-search = "mtg_utils.combo_search:main"

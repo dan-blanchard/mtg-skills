@@ -141,14 +141,14 @@ def _matches_filters(
     unreleased_ok: frozenset[str] | None = None,
     is_commander_filter: bool = False,
     presets: tuple[Preset, ...] = (),
-    set_code: str | None = None,
+    set_lower: str | None = None,
 ) -> bool:
     # Skip tokens and non-game cards
     if card.get("layout") in SKIP_LAYOUTS:
         return False
     if card.get("set_type") in ("token", "memorabilia"):
         return False
-    if set_code is not None and (card.get("set") or "").lower() != set_code:
+    if set_lower is not None and (card.get("set") or "").lower() != set_lower:
         return False
     # A pre-release card is legal nowhere yet, so the format gate would reject it on
     # data that is provisional rather than final. ``unreleased_ok`` is the opt-in
@@ -335,15 +335,18 @@ def filter_records(
     is_commander_filter: bool = False,
     preset_names: tuple[str, ...] = (),
     set_code: str | None = None,
-    **_ignored: object,
+    format: str | None = None,  # noqa: A002
+    include_unreleased: bool = False,
 ) -> list[dict]:
     """The one filter implementation over an explicit record list: every per-query
     filter ``search_cards`` takes, then the cheapest-printing dedup by name, the sort
     and the page. ``search_cards`` runs it over the bulk's playable pool; a
     pool-bounded build (sealed / draft) runs it over its opened pool's records, so
-    Find and the tuner search the pool with the SAME semantics. Unknown keyword
-    arguments (``format``, ``include_unreleased`` — bulk-level concerns a caller
-    forwarding ``search_cards``' contract may pass) are ignored."""
+    Find and the tuner search the pool with the SAME semantics. ``format`` and
+    ``include_unreleased`` are accepted so a caller forwarding ``search_cards``'
+    keyword contract need not strip them, and are no-ops here: ``fmt`` is the
+    legality the records are read under, and the records are already the pool."""
+    del format, include_unreleased  # bulk-level concerns; the records are the pool
     allowed_colors = set(color_identity.upper()) if color_identity else None
     try:
         oracle_re = re.compile(oracle, re.IGNORECASE) if oracle else None
@@ -379,7 +382,7 @@ def filter_records(
             unreleased_ok=unreleased_ok,
             is_commander_filter=is_commander_filter,
             presets=presets,
-            set_code=set_code.lower() if set_code else None,
+            set_lower=set_code.lower() if set_code else None,
         )
     ]
 

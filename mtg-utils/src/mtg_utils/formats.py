@@ -51,6 +51,12 @@ LEGAL_STATUSES: frozenset[str] = frozenset({"legal", "restricted"})
 
 #: How the browser names each medium.
 MEDIUM_LABELS: dict[str, str] = {"digital": "Arena", "paper": "Paper"}
+#: How the browser names each family (the format picker's groups).
+FAMILY_LABELS: dict[str, str] = {
+    "commander": "Commander",
+    "constructed": "Constructed",
+    "limited": "Limited",
+}
 
 
 def medium_is_digital(medium: str) -> bool:
@@ -405,6 +411,7 @@ class Format:
             "id": self.name,
             "label": self.label,
             "family": self.family,
+            "family_label": FAMILY_LABELS[self.family],
             "has_commander": self.has_commander,
             "pool_bounded": self.pool_bounded,
             "max_copies": self.max_copies,

@@ -79,6 +79,24 @@ def test_set_scan_counts_answers_evasion_and_bodies():
     assert "Sweepers: Wrath of God" in text
 
 
+def test_a_missing_rarity_is_its_own_bucket_never_common():
+    scan = set_scan([{**BEAR, "rarity": None}])
+    assert scan["by_rarity"]["unknown"] == 1
+    assert scan["by_rarity"]["common"] == 0
+
+
+def test_pool_colors_refuses_a_deck_with_no_pool(tmp_path):
+    bulk = tmp_path / "bulk.json"
+    bulk.write_text(
+        json.dumps([{**BEAR, "id": "b", "oracle_id": "b", "layout": "normal"}])
+    )
+    deck = tmp_path / "deck.json"
+    deck.write_text(json.dumps({"format": "modern", "commanders": [], "cards": []}))
+    res = CliRunner().invoke(pool_colors_main, [str(deck), "--bulk-data", str(bulk)])
+    assert res.exit_code != 0
+    assert "no pool" in res.output
+
+
 def test_pool_color_pairs_counts_copies_and_ranks_pairs():
     rows = pool_color_pairs(
         [(FLYER, 1), (TROLL, 1), (BEAR, 3), (MURDER, 2), (FOREST, 17)]

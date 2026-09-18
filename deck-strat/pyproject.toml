@@ -35,6 +35,8 @@ combo-search = "mtg_utils.combo_search:main"
 combo-discover = "mtg_utils.combo_search:discover_main"
 edhrec-lookup = "mtg_utils.edhrec_lookup:main"
 card-search = "mtg_utils.card_search:main"
+set-scan = "mtg_utils.set_scan:set_scan_main"
+pool-colors = "mtg_utils.set_scan:pool_colors_main"
 
 # Rules verification (also re-declared by rules-lawyer; see ADR-0008)
 download-rules = "mtg_utils.download_rules:main"

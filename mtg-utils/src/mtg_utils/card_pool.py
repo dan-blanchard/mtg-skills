@@ -92,12 +92,13 @@ def _keep_lowest_rarity(existing: dict, new: dict) -> dict:
     return new if new_rank < existing_rank else existing
 
 
-def _collector_key(card: dict) -> tuple[int, str]:
-    """A sortable collector number: numeric first, then the raw string (so "12a"
-    sorts by 12, and a non-numeric number sorts after every numeric one)."""
+def _collector_key(card: dict) -> tuple[int, int, str]:
+    """A sortable collector number: a digit-bearing number sorts by its digits ("12a"
+    by 12, "A-123" by 123), ties by the raw string; a number with no digit at all
+    sorts after every one that has."""
     raw = str(card.get("collector_number") or "")
     digits = "".join(ch for ch in raw if ch.isdigit())
-    return (int(digits) if digits else 10**9, raw)
+    return (0, int(digits), raw) if digits else (1, 0, raw)
 
 
 def _rarity_value(card: dict) -> dict:

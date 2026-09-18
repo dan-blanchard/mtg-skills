@@ -440,3 +440,13 @@ def test_set_records_is_one_per_oracle_in_collector_order():
     assert [c["id"] for c in pool.set_records("HOB")] == ["b3", "a12"]
     assert pool.set_records("hob") is pool.set_records("HOB")  # memoized per code
     assert pool.set_records("nope") == []
+
+
+def test_set_records_collector_order_reads_digits_then_the_raw_string():
+    from mtg_utils.card_pool import _collector_key
+
+    order = sorted(
+        ["12a", "3", "A-123", "★", "12", "100"],
+        key=lambda n: _collector_key({"collector_number": n}),
+    )
+    assert order == ["3", "12", "12a", "100", "A-123", "★"]

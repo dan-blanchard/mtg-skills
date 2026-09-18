@@ -1080,11 +1080,7 @@ def pool_readout(state: ForgeState, hd: HydratedDeck) -> dict | None:
     return {
         "size": state.session.quantity_sum("pool"),
         "unused": sum(unused.values()),
-        "color_pairs": pool_color_pairs(
-            (rec, int(entry.get("quantity", 1)))
-            for entry, rec in hd.entries(zones=("pool",))
-            if rec is not None
-        ),
+        "color_pairs": pool_color_pairs(hd.deck_quantities(zones=("pool",))),
     }
 
 
