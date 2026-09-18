@@ -90,6 +90,11 @@ class TestTable:
         assert family_size_choices("constructed") == (60,)
         assert family_size_choices("limited") == (40,)
 
+    def test_is_constructed_is_the_family_not_the_absence_of_a_command_zone(self):
+        assert FORMATS["modern"].is_constructed
+        assert not FORMATS["sealed"].is_constructed
+        assert not FORMATS["commander"].is_constructed
+
     def test_limited_is_pool_bounded(self):
         # CR 100.2b: a 40-card minimum, as many duplicates as the product included,
         # built from the opened product plus basic lands — so legality is pool

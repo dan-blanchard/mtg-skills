@@ -188,8 +188,10 @@ class Format:
 
     @property
     def is_constructed(self) -> bool:
-        """60-card constructed (no command zone)."""
-        return not self.has_commander
+        """The constructed family: a copy limit and a sideboard over a minimum size
+        (``family == "constructed"`` — not merely "no command zone", which a limited
+        format also lacks)."""
+        return self.family == "constructed"
 
     @property
     def pool_bounded(self) -> bool:
