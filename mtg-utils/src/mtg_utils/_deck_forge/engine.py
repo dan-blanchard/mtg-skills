@@ -41,7 +41,12 @@ from mtg_utils._deck_forge import collection, views
 from mtg_utils._deck_forge.state import DeckSession, ForgeState
 from mtg_utils._name_index import NameIndex
 from mtg_utils._tuner.tune import TuneParams
-from mtg_utils.card_classify import is_basic_land, valid_partner_search
+from mtg_utils.card_classify import (
+    has_any_number_exemption,
+    is_basic_land,
+    named_card_cap,
+    valid_partner_search,
+)
 from mtg_utils.card_pool import CardPool
 from mtg_utils.companion import is_companion
 from mtg_utils.deck_stats import deck_stats, detect_bracket
@@ -653,6 +658,92 @@ def check_zone(zone: str) -> None:
         raise DeckRuleError(f"unknown zone {zone!r}")
 
 
+def check_zone_open(state: ForgeState, zone: str) -> None:
+    """The family's zone rule: only a format with a command zone has commanders.
+    A sideboard the family caps at zero is NOT refused here — the size audit warns
+    (``sideboard_size``), so a build in progress may park cards while swapping."""
+    check_zone(zone)
+    if zone == "commanders" and not FORMATS[state.session.format].has_commander:
+        raise DeckRuleError(
+            f"{FORMATS[state.session.format].label} has no command zone"
+        )
+
+
+# --- copy limits -----------------------------------------------------------------
+
+
+def copy_limit(state: ForgeState, record: dict) -> int | None:
+    """How many copies of one card the build may run (``None`` = unlimited): the SAME
+    rule ``legality_audit.check_copy_limits`` audits — the Format's ``max_copies``
+    (CR 100.2a constructed, CR 903.5b Commander), a restricted card capped at 1, and
+    the exemptions (a basic land or an "any number" card is unlimited; a named cap
+    such as "up to seven" is its own limit)."""
+    if is_basic_land(record) or has_any_number_exemption(record):
+        return None
+    cap = named_card_cap(record)
+    if cap is not None:
+        return cap
+    fmt = FORMATS[state.session.format]
+    return 1 if fmt.legality(record) == "restricted" else fmt.max_copies
+
+
+def copies_of(state: ForgeState, name: str) -> int:
+    """The copies of ``name`` the build holds across every zone — the copy limit spans
+    the deck, the sideboard (CR 100.4a) and the command zone alike."""
+    return sum(state.session.quantity_of(name, zone=z) for z in ZONES)
+
+
+def at_copy_limit(state: ForgeState, record: dict) -> bool:
+    """Whether the build already runs every copy of this card it may — the one rule
+    Find strips by, so a 2-of in a 4-of format stays findable."""
+    limit = copy_limit(state, record)
+    return limit is not None and copies_of(state, record["name"]) >= limit
+
+
+def check_copy_add(state: ForgeState, name: str, qty: int) -> None:
+    """The copy-limit rule for an add, raising ``DeckRuleError`` when ``qty`` more
+    copies would exceed :func:`copy_limit`. Mirrors ``check_companion_add``: the hub
+    never over-adds, so the SPA's stepper can't run past the format."""
+    record = state.by_name.get(name)
+    if record is None:
+        return  # the route 404s an unknown name before any rule
+    limit = copy_limit(state, record)
+    if limit is None:
+        return
+    have = copies_of(state, name)
+    if have + qty > limit:
+        fmt = FORMATS[state.session.format]
+        raise DeckRuleError(
+            f"{name}: {have + qty} copies would exceed the {fmt.label} limit of "
+            f"{limit} (you have {have})"
+        )
+
+
+def move_card(
+    state: ForgeState, name: str, *, from_zone: str, to_zone: str, qty: int = 1
+) -> None:
+    """Move ``qty`` copies of ``name`` between two zones in one step (main deck ⇄
+    sideboard, promote to commander, reveal as companion), carrying a pinned
+    printing along. Every rule runs BEFORE the session changes, so a refused move
+    leaves the build untouched. The copy limit is not consulted: a move keeps the
+    build's total."""
+    check_zone(from_zone)
+    check_zone_open(state, to_zone)
+    if from_zone == to_zone:
+        raise DeckRuleError(f"{name} is already in {to_zone}")
+    have = state.session.quantity_of(name, zone=from_zone)
+    if have < qty:
+        raise DeckRuleError(f"{name}: only {have} in {from_zone}, cannot move {qty}")
+    if to_zone == "companion":
+        check_companion_add(state, name, qty)
+    printing = state.session.printing_of(name, zone=from_zone)
+    finish = state.session.finish_of(name, zone=from_zone)
+    state.session.remove(name, qty, zone=from_zone)
+    state.session.add(name, qty, zone=to_zone)
+    if printing and state.session.printing_of(name, zone=to_zone) is None:
+        state.session.set_printing(name, printing, zone=to_zone, finish=finish)
+
+
 # --- the companion zone ---------------------------------------------------------
 
 
@@ -1121,8 +1212,10 @@ def find_candidates(state: ForgeState, params: FindParams) -> CandidatePage:
     * no focus but user FILTERS → a manual ``search_fn`` scored against everything.
     * neither → an empty page (an idle prompt, not the whole vault).
 
-    Strips cards already in the deck, then returns the requested window of ranked rows.
-    The route serializes the rows and annotates ownership; this stops at ranked records.
+    Strips cards the deck already runs every allowed copy of (``at_copy_limit``: a
+    singleton's one, a 4-of's four, a basic's never), then returns the requested
+    window of ranked rows. The route serializes the rows and annotates ownership;
+    this stops at ranked records.
     """
     fmt = state.session.format
     ci = deck_color_identity(state)
@@ -1130,7 +1223,6 @@ def find_candidates(state: ForgeState, params: FindParams) -> CandidatePage:
     sigs = ranked_deck_signals(state, hd.records)
     all_avenues = avenues(state, hd.records)
     focused = [a for a in all_avenues if a.get("focused")]
-    in_deck = set(state.session.card_names())
 
     if focused:
         pool: dict[str, dict] = {}
@@ -1149,7 +1241,7 @@ def find_candidates(state: ForgeState, params: FindParams) -> CandidatePage:
                 cname = card.get("name")
                 if cname:
                     pool.setdefault(cname, card)
-        cands = [c for c in pool.values() if c.get("name") not in in_deck]
+        cands = [c for c in pool.values() if not at_copy_limit(state, c)]
         active, avs = scoring_basis(state, hd.records, sigs, focused)
         # The partner avenue ranks by color widening first (ADR-0019): pass the deck's
         # current identity as the widening base when it is among the focused lanes, so
@@ -1189,7 +1281,7 @@ def find_candidates(state: ForgeState, params: FindParams) -> CandidatePage:
             limit=_FIND_POOL,
             offset=0,
         )
-        cands = [c for c in records if c.get("name") not in in_deck]
+        cands = [c for c in records if not at_copy_limit(state, c)]
         ranked = rank_candidates(cands, active_signals=sigs, avenues=all_avenues)
     else:
         ranked = []

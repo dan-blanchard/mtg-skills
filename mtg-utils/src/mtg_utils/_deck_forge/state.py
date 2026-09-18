@@ -175,6 +175,10 @@ class DeckSession:
             },
         }
 
+    def quantity_of(self, name: str, *, zone: str = "cards") -> int:
+        """How many copies of ``name`` a zone holds (0 when absent)."""
+        return self._zones.get(zone, {}).get(name, 0)
+
     def card_names(self) -> list[str]:
         """Every distinct card name across all zones (for hydration lookups)."""
         seen: dict[str, None] = {}

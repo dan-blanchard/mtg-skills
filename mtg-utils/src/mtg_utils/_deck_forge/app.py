@@ -59,6 +59,13 @@ class RemovePayload(BaseModel):
     zone: str = "cards"
 
 
+class MovePayload(BaseModel):
+    name: str
+    from_zone: str
+    to_zone: str
+    qty: int = 1
+
+
 class FormatPayload(BaseModel):
     format: str
 
@@ -259,14 +266,29 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
 
     @app.post("/api/deck/add", response_model=None)
     async def add(payload: AddPayload) -> dict | JSONResponse:
-        engine.check_zone(payload.zone)
+        engine.check_zone_open(state, payload.zone)
         if payload.name not in state.by_name:
             return JSONResponse(
                 {"error": f"card not found: {payload.name!r}"}, status_code=404
             )
         if payload.zone == "companion":
             engine.check_companion_add(state, payload.name, payload.qty)
+        else:
+            engine.check_copy_add(state, payload.name, payload.qty)
         state.session.add(payload.name, payload.qty, zone=payload.zone)
+        return _commit(state)
+
+    @app.post("/api/deck/move")
+    async def move(payload: MovePayload) -> dict:
+        """Move copies between zones in one step (``engine.move_card`` is the rule);
+        returns the new snapshot."""
+        engine.move_card(
+            state,
+            payload.name,
+            from_zone=payload.from_zone,
+            to_zone=payload.to_zone,
+            qty=payload.qty,
+        )
         return _commit(state)
 
     @app.post("/api/deck/remove")
