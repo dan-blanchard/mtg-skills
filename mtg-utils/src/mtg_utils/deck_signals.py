@@ -47,7 +47,7 @@ def deck_signals(hd: HydratedDeck) -> list[dict]:
     no ``oracle_id`` (synthetic fixtures) → graceful regex fallback."""
     commander_names = {c["name"] for c in hd.commanders}
     rows: list[dict] = []
-    for sig in rank_deck_signals(hd.records, commander_names):
+    for sig in rank_deck_signals(hd.deck_records(), commander_names):
         spec = spec_for(sig)
         rows.append(
             {

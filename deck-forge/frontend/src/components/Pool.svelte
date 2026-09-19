@@ -7,6 +7,7 @@
   import { api } from "../lib/api.js";
   import { pool, deck, applySnapshot, importOpen } from "../lib/store.js";
   import Mana from "./Mana.svelte";
+  import { isBasicLand } from "../lib/cards.js";
 
   const COLUMNS = [
     ["playables", "play", "Nonland cards the pair can run"],
@@ -40,7 +41,7 @@
   let seedError = "";
   let armed = ""; // the pair whose "replace?" confirmation is showing
   $: heldNonbasic = ($deck.cards || [])
-    .filter((c) => !/\bBasic Land\b/.test(c.type_line || ""))
+    .filter((c) => !isBasicLand(c))
     .reduce((n, c) => n + (c.quantity || 1), 0);
   async function seed(pair) {
     if (heldNonbasic && armed !== pair) {

@@ -36,6 +36,10 @@ def printing_view(record: dict) -> dict:
     }
 
 
+#: "Not given" for an optional wire field whose real values include ``None``.
+_UNSET: object = object()
+
+
 def project(record: dict, fmt: Format, *, unreleased: bool = False) -> dict:
     """The atomic display projection for one Scryfall record (no name/quantity). ``fmt``
     is the deck's format, so ``can_be_commander`` reflects the right legality mode (a
@@ -76,12 +80,22 @@ def project(record: dict, fmt: Format, *, unreleased: bool = False) -> dict:
     return view
 
 
-def result_view(record: dict, fmt: Format, *, unreleased: bool = False) -> dict:
-    """A raw search hit: name + projection (no quantity/score)."""
-    return {
+def result_view(
+    record: dict,
+    fmt: Format,
+    *,
+    unreleased: bool = False,
+    copy_limit: int | object | None = _UNSET,
+) -> dict:
+    """A raw search hit: name + projection (no quantity/score). ``copy_limit`` (when
+    given) is the copies this build may run, null for unlimited."""
+    view = {
         "name": record.get("name", ""),
         **project(record, fmt, unreleased=unreleased),
     }
+    if copy_limit is not _UNSET:
+        view["copy_limit"] = copy_limit
+    return view
 
 
 _FINISH_PRICE_KEYS = {"foil": "usd_foil", "etched": "usd_etched"}
@@ -99,10 +113,14 @@ def card_view(
     finish: str | None = None,
     owned_printing: bool | None = None,
     unreleased_ids: frozenset[str] = frozenset(),
+    copy_limit: Callable[[dict], int | None] | None = None,
 ) -> dict:
     """A deck-zone card: name + quantity + an ``unknown`` flag + projection (when the
-    name resolves against the bulk index). ``owned_qty`` (when set) marks the card as
-    owned in the active Collection slot — DERIVED upstream, never stored (ADR-0018).
+    name resolves against the bulk index). ``copy_limit`` (the engine's ladder for
+    this build) adds ``copy_limit`` — how many copies the build may run, null for
+    unlimited — so the browser never re-derives the exemptions. ``owned_qty`` (when
+    set) marks the card as owned in the active Collection slot — DERIVED upstream,
+    never stored (ADR-0018).
 
     When ``printing_id`` names a chosen printing (and ``resolve_printing`` can find it),
     the card's image / prices / set are overridden to it — the gameplay fields (type,
@@ -130,6 +148,8 @@ def card_view(
         "unknown": False,
         **project(record, fmt, unreleased=record.get("oracle_id") in unreleased_ids),
     }
+    if copy_limit is not None:
+        view["copy_limit"] = copy_limit(record)
     chosen = resolve_printing(printing_id) if printing_id and resolve_printing else None
     if chosen is not None:
         view["printing_id"] = printing_id
@@ -151,12 +171,18 @@ def card_view(
 
 
 def candidate_view(
-    row: dict, fmt: Format, *, owned_qty: int | None = None, unreleased: bool = False
+    row: dict,
+    fmt: Format,
+    *,
+    owned_qty: int | None = None,
+    unreleased: bool = False,
+    copy_limit: int | object | None = _UNSET,
 ) -> dict:
     """A ranked candidate — a ``rank_candidates`` row ``{"card", "score"}`` — as
     name + projection + score. ``owned_qty`` (when set) marks it owned in the active
     Collection slot (ADR-0018), mirroring ``card_view``; absent → no ownership keys, so
-    the wire shape stays byte-compatible for a no-collection request."""
+    the wire shape stays byte-compatible for a no-collection request. ``copy_limit``
+    (when given) is the copies this build may run, null for unlimited."""
     card = row["card"]
     view = {
         "name": card.get("name", ""),
@@ -166,6 +192,8 @@ def candidate_view(
     if owned_qty is not None:
         view["owned"] = True
         view["owned_qty"] = owned_qty
+    if copy_limit is not _UNSET:
+        view["copy_limit"] = copy_limit
     return view
 
 
@@ -183,6 +211,7 @@ def deck_view(
     state: ForgeState,
     owned: dict[str, int] | None = None,
     printing_owned: Callable[[str, str | None], bool | None] | None = None,
+    copy_limit: Callable[[dict], int | None] | None = None,
 ) -> dict:
     """The serialized deck: ``{format, commanders[], cards[], sideboard[],
     companion[], pool[]}``, each zone a list of ``card_view`` dicts. ``owned``
@@ -219,6 +248,7 @@ def deck_view(
                         if printing_owned
                         else None
                     ),
+                    copy_limit=copy_limit,
                 )
                 for e in deck[zone]
             ]

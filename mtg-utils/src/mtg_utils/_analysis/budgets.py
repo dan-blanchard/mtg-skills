@@ -26,6 +26,7 @@ from dataclasses import dataclass, field
 
 from mtg_utils._analysis.roles import role_of
 from mtg_utils.card_classify import is_creature, is_land
+from mtg_utils.formats import Family
 
 
 @dataclass(frozen=True)
@@ -57,7 +58,7 @@ class Template:
     row's band always comes from the mana audit's land band (ADR-0041), never from
     here."""
 
-    family: str
+    family: Family
     base_size: int
     rows: tuple[BudgetRow, ...]
 
@@ -206,7 +207,7 @@ TEMPLATES: dict[str, Template] = {
 }
 
 
-def template_for(family: str) -> Template:
+def template_for(family: Family) -> Template:
     """The template for a format family (``Format.family``)."""
     try:
         return TEMPLATES[family]

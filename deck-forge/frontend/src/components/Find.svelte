@@ -12,13 +12,12 @@
     isDigital,
     partnerOpen,
     hasCommander,
-    maxCopies,
     deckColors,
     poolBounded,
     pool,
   } from "../lib/store.js";
   import { facetOk } from "../lib/filter.js";
-  import { copyLimit } from "../lib/cards.js";
+  import { heldCopies, canHoldAnother } from "../lib/cards.js";
   import CardTile from "./CardTile.svelte";
   import Mana from "./Mana.svelte";
   import FilterWidget from "./FilterWidget.svelte";
@@ -224,23 +223,16 @@
     : allPresets;
 
   // Drop a card once the deck holds every copy it may (a singleton's one, a 4-of's
-  // four, a basic's never — mirroring the hub's own Find rule), plus the client facets.
-  $: copies = [
-    ...$deck.commanders,
-    ...$deck.cards,
-    ...($deck.sideboard || []),
-    ...($deck.companion || []),
-  ].reduce(
-    (m, c) => m.set(c.name, (m.get(c.name) || 0) + (c.quantity || 1)),
-    new Map(),
-  );
+  // four, a basic's never — the row's served copy limit, the hub's own Find rule),
+  // plus the client facets.
+  $: copies = heldCopies($deck);
   // Apply the shared client facets (lib/filter.js). The facet values are read into the
   // inline object HERE (not closed over) ON PURPOSE: Svelte's dependency analysis
   // traverses the inline arrow in the reactive statement, so referencing the facets here
   // makes `visible` recompute on every facet toggle (not only on Find/add).
   $: visible = results.filter(
     (c) =>
-      (copies.get(c.name) || 0) < copyLimit(c, $maxCopies) &&
+      canHoldAnother(c, copies.get(c.name) || 0) &&
       facetOk(
         c,
         {

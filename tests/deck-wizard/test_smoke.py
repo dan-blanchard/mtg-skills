@@ -15,15 +15,15 @@ class TestFormats:
 
     def test_constructed_formats_exist(self):
         for fmt in ("standard", "pioneer", "modern", "premodern", "legacy", "vintage"):
-            assert FORMATS[fmt].is_constructed
+            assert FORMATS[fmt].family == "constructed"
 
     def test_commander_formats_exist(self):
         for fmt in ("commander", "brawl", "historic_brawl"):
-            assert not FORMATS[fmt].is_constructed
+            assert FORMATS[fmt].family == "commander"
 
     def test_all_constructed_have_sideboard(self):
         for fmt in FORMATS.values():
-            if fmt.is_constructed:
+            if fmt.family == "constructed":
                 assert fmt.sideboard_size == 15, f"{fmt.name} missing sideboard"
 
 

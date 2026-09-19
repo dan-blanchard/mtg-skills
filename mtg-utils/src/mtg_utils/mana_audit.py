@@ -451,8 +451,7 @@ def mana_audit(hd: HydratedDeck) -> dict:
 
     avg_cmc = round(sum(nonland_cmcs) / len(nonland_cmcs), 2) if nonland_cmcs else 0.0
 
-    family = hd.format.family
-    if family == "commander":
+    def commander_band() -> tuple[int, int, dict]:
         burgess_result = burgess_formula(
             colors=colors, commander_cmc=commander_cmc, deck_size=deck_size
         )
@@ -468,53 +467,75 @@ def mana_audit(hd: HydratedDeck) -> dict:
             ramp_count=ramp_count,
             deck_size=deck_size,
         )
-        formula_info = {
-            "burgess_formula": {
-                "colors": colors,
-                # ADR-0044: the effective commander cost (affordable turn), which
-                # equals the printed mana value unless the commander's own
-                # cost-reduction operand was modelled — see ``commander_cost``.
-                "commander_cmc": commander_cmc,
-                "printed_cmc": commander_cost["printed"],
-                "result": burgess_result,
+        return (
+            floor,
+            top,
+            {
+                "burgess_formula": {
+                    "colors": colors,
+                    # ADR-0044: the effective commander cost (affordable turn), which
+                    # equals the printed mana value unless the commander's own
+                    # cost-reduction operand was modelled — see ``commander_cost``.
+                    "commander_cmc": commander_cmc,
+                    "printed_cmc": commander_cost["printed"],
+                    "result": burgess_result,
+                },
+                "commander_cost": commander_cost,
+                "karsten_adjustment": {
+                    "ramp_count": ramp_count,
+                    "result": karsten_result,
+                },
             },
-            "commander_cost": commander_cost,
-            "karsten_adjustment": {"ramp_count": ramp_count, "result": karsten_result},
-        }
-    elif family == "limited":
-        # Sealed / draft: the 17-of-40 norm, a tight band (16-18), never the
-        # constructed formula scaled down (which reads 17 lands as over-landed).
-        limited_target = limited_land_target(
+        )
+
+    def limited_band() -> tuple[int, int, dict]:
+        # Sealed / draft: the 17-of-40 norm, a tight 16-18 band (ADR-0055) — the
+        # floor never drops below the band's own minimum — never the constructed
+        # formula scaled down (which reads 17 lands as over-landed).
+        top = limited_land_target(
             ramp_count=ramp_count, avg_cmc=avg_cmc, deck_size=deck_size
         )
-        top = limited_target
-        floor = top - 1
-        formula_info = {
-            "limited_land_target": {
-                "ramp_count": ramp_count,
-                "avg_cmc": avg_cmc,
-                "result": limited_target,
+        floor = max(round(_LIMITED_MIN_LANDS * deck_size / 40), top - 1)
+        return (
+            floor,
+            top,
+            {
+                "limited_land_target": {
+                    "ramp_count": ramp_count,
+                    "avg_cmc": avg_cmc,
+                    "result": top,
+                }
             },
-        }
-    else:
-        constructed_target = constructed_land_target(
-            ramp_count=ramp_count,
-            avg_cmc=avg_cmc,
-            deck_size=deck_size,
         )
-        top = constructed_target
+
+    def constructed_band() -> tuple[int, int, dict]:
+        top = constructed_land_target(
+            ramp_count=ramp_count, avg_cmc=avg_cmc, deck_size=deck_size
+        )
         # The 20-land clamp is a 60-card figure; scale it like the target
         # so a deck labelled with a constructed format at another size isn't held
         # to a 60-card floor.
         min_lands = round(_CONSTRUCTED_MIN_LANDS * deck_size / 60)
         floor = max(min_lands, top - _CONSTRUCTED_FAIL_TOLERANCE)
-        formula_info = {
-            "constructed_land_target": {
-                "ramp_count": ramp_count,
-                "avg_cmc": avg_cmc,
-                "result": constructed_target,
+        return (
+            floor,
+            top,
+            {
+                "constructed_land_target": {
+                    "ramp_count": ramp_count,
+                    "avg_cmc": avg_cmc,
+                    "result": top,
+                }
             },
-        }
+        )
+
+    # One band per family, dispatched the way the templates and calibrations are.
+    bands = {
+        "commander": commander_band,
+        "limited": limited_band,
+        "constructed": constructed_band,
+    }
+    floor, top, formula_info = bands[hd.format.family]()
 
     pips = pip_demand(pip_cards)
     total_pips = sum(pips.values())

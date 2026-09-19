@@ -48,7 +48,9 @@ left `limited` as the family to follow.
   not open.
 - **The mana band is the limited norm.** `mana_audit.limited_land_target`: 17 per 40,
   a 16–18 band (one fewer for a low curve or real ramp, one more for a top-heavy
-  pool), never the constructed formula scaled down.
+  pool), never the constructed formula scaled down. The FAIL floor is one below the
+  target but never below the band's own minimum (16 per 40): a 16-land target does
+  not make 15 lands merely a warning.
 - **Two read-only readouts, agent-free.** `set-scan --set CODE` (what a set holds:
   removal by rarity, sweepers, evasion, the biggest bodies, the curve — over
   `CardPool.set_records`, the index a set filter needs) and `pool-colors` /
@@ -72,8 +74,9 @@ size is its target; the 40-card floor is `deck_minimum`'s, as for constructed).
 
 **Consequences.** `Family` gains `limited`; `Format.max_copies`, `sideboard_size` and
 `legality_key` are Optional and every reader is None-safe (an unlimited copy count
-reads Infinity in the SPA). `filter_records` is the seam a second record-bounded
-search (a cube, a collection) can reuse. The seed replaces the main deck and keeps
+reads as unlimited in the SPA, which takes every copy limit from the served row and
+derives none). `filter_records` is the seam a second record-bounded search (a cube,
+a collection) can reuse. The seed replaces the main deck and keeps
 what it replaced for one undo (a first draft, never a finished deck); a paper sealed pool's printings are what was opened, so
 `card-search --format sealed` is never Arena-gated. Non-goals: pack generation and
 draft simulation (cube-wizard's), a matchup model, ranking the colour pairs

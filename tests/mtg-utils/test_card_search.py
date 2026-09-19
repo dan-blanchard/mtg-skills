@@ -14,6 +14,7 @@ from mtg_utils.card_search import (
     filter_records,
     format_results,
     main,
+    pool_search_fn,
     search_cards,
     unreleased_oracle_ids,
 )
@@ -1230,8 +1231,12 @@ class TestFilterRecords:
         assert (
             len(filter_records(cards, fmt=FORMATS["sealed"], color_identity="R")) == 2
         )
-        # The bulk-level keywords a caller forwarding search_cards' contract may
-        # pass are ignored rather than refused.
-        assert filter_records(
-            cards, fmt=FORMATS["sealed"], format="sealed", include_unreleased=False
+        # The bulk-level keywords of search_cards' contract mean nothing over a pool:
+        # pool_search_fn strips them for a caller forwarding that contract, and
+        # filter_records itself refuses them.
+        pool_search = pool_search_fn(cards, FORMATS["sealed"])
+        assert pool_search(
+            format="sealed", include_unreleased=False, color_identity="R"
         )
+        with pytest.raises(TypeError):
+            filter_records(cards, fmt=FORMATS["sealed"], format="sealed")

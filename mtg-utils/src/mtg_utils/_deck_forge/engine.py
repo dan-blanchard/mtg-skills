@@ -132,16 +132,34 @@ def deck_colors(state: ForgeState) -> str:
     identity where there is a command zone (CR 903.4 — the rule), else the castable
     colors of the nonland cards the build already runs (a description, so the Find
     pips stay unlocked — a splash is the builder's call, not a rule)."""
-    if FORMATS[state.session.format].has_commander:
+    if state.session.fmt.has_commander:
         return deck_color_identity(state)
     colors: set[str] = set()
     deck = state.session.to_deck_dict()
-    for zone in ("cards", "sideboard"):
+    for zone in built_zones(state):
         for entry in deck.get(zone) or []:
             record = state.by_name.get(entry["name"])
             if record and _casts(record):
                 colors.update(get_colors(record))
     return "".join(sorted(colors))
+
+
+def built_zones(state: ForgeState) -> tuple[str, ...]:
+    """The zones a build's own cards live in — the main deck plus a STORED sideboard.
+    A pool-bounded build's sideboard is the unused pool, which is not something the
+    builder chose to run, so there it is the main deck alone. The one answer for
+    every read of "the cards this deck runs" that is not the counted deck
+    (``HydratedDeck.deck_records``): colours, ownership, combos, finalize evidence."""
+    return ("cards",) if state.session.pool_bounded else ("cards", "sideboard")
+
+
+def deck_names(state: ForgeState) -> set[str]:
+    """Every distinct name the build runs: commanders, the built zones, the companion
+    — never an opened pool."""
+    names: set[str] = set()
+    for zone in ("commanders", *built_zones(state), "companion"):
+        names.update(state.session.quantities(zone))
+    return names
 
 
 def _casts(record: dict) -> bool:
@@ -159,7 +177,7 @@ def _casts(record: dict) -> bool:
 def check_commander_family(state: ForgeState) -> None:
     """The family rule for a Commander-only surface (commander discovery): the
     build's format has a command zone."""
-    fmt = FORMATS[state.session.format]
+    fmt = state.session.fmt
     if not fmt.has_commander:
         raise DeckRuleError(f"{fmt.label} has no command zone")
 
@@ -341,7 +359,7 @@ def collection_summary(state: ForgeState, owned: dict[str, int]) -> dict:
     """The Collection readout the SPA renders: which slot is active, each slot's size,
     and the deck's owned count vs its non-basic distinct total (the 'N of M owned')."""
     deck_total = sum(
-        1 for n in state.session.card_names() if not _is_basic(state.by_name.get(n))
+        1 for n in deck_names(state) if not _is_basic(state.by_name.get(n))
     )
     return {
         "active_slot": active_slot(state),
@@ -478,12 +496,12 @@ def staple_pool(state: ForgeState) -> list[dict]:
     family — the list is curated for Commander (``staples``), and offered to a
     Legacy deck it would name Sol Ring. This is the candidate source for the
     always-present Staples avenue (a name list, not a search pattern)."""
-    if not state.by_name or not FORMATS[state.session.format].has_commander:
+    if not state.by_name or not state.session.fmt.has_commander:
         return []
     return staples.staples_for(
         deck_color_identity(state),
         state.by_name,
-        fmt=FORMATS[state.session.format],
+        fmt=state.session.fmt,
     )
 
 
@@ -692,7 +710,7 @@ def set_medium(state: ForgeState, medium: str) -> None:
     (``Format.media``, ADR-0045). The medium drives the active Collection slot and
     the cost mode — digital → Arena slot + wildcards; paper → paper slot + USD
     (ADR-0018, amended)."""
-    fmt = FORMATS[state.session.format]
+    fmt = state.session.fmt
     if medium not in fmt.media:
         raise DeckRuleError(
             f"{fmt.name} is not played in {medium!r} (media: {', '.join(fmt.media)})"
@@ -707,7 +725,7 @@ def set_deck_size(state: ForgeState, deck_size: int) -> None:
     Brawl honors a choice (60 or 100 are both legal paper "Brawl"), every other
     (format, medium) keeps its fixed size, so the override lies dormant until it
     applies. The guard is derived from the format table, never a hand-list."""
-    fmt = FORMATS[state.session.format]
+    fmt = state.session.fmt
     if fmt.size_is_minimum:
         if not fmt.is_valid_deck_size(deck_size):
             raise DeckRuleError(f"{deck_size} is not a valid {fmt.label} deck size")
@@ -732,7 +750,7 @@ def check_zone_open(state: ForgeState, zone: str) -> None:
     the size audit warns (``sideboard_size``), so a build in progress may park
     cards while swapping."""
     check_zone(zone)
-    fmt = FORMATS[state.session.format]
+    fmt = state.session.fmt
     if zone == "commanders" and not fmt.has_commander:
         raise DeckRuleError(f"{fmt.label} has no command zone")
     if zone == "pool" and not fmt.pool_bounded:
@@ -773,7 +791,7 @@ def copy_limit(state: ForgeState, record: dict) -> int | None:
     ``legality_audit.check_copy_limits`` cannot drift. In a pool-bounded build the
     limit IS what the pool holds (CR 100.2b: as many duplicates as the product
     included; basics unlimited) — so the one add rule is also pool containment."""
-    fmt = FORMATS[state.session.format]
+    fmt = state.session.fmt
     if fmt.pool_bounded:
         if is_basic_land(record):
             return None
@@ -819,7 +837,7 @@ def check_copy_add(
         return
     have = copies_of(state, name)
     if have + qty > limit:
-        fmt = FORMATS[state.session.format]
+        fmt = state.session.fmt
         if fmt.pool_bounded:
             raise DeckRuleError(
                 f"{name}: not in the pool (CR 100.2b)"
@@ -830,6 +848,27 @@ def check_copy_add(
             f"{name}: {have + qty} copies would exceed the {fmt.label} limit of "
             f"{limit} (you have {have})"
         )
+
+
+def add_card(state: ForgeState, name: str, qty: int, *, zone: str) -> None:
+    """Add copies to a zone under every rule: the zone is one the family has, the
+    companion zone's own rules, the copy limit (which is pool containment in a
+    pool-bounded build). Raises ``DeckRuleError``; an unknown name is the route's
+    404 (a lookup miss, not a rule)."""
+    check_zone_open(state, zone)
+    if zone == "companion":
+        check_companion_add(state, name, qty)
+    else:
+        check_copy_add(state, name, qty, zone=zone)
+    state.session.add(name, qty, zone=zone)
+
+
+def remove_card(state: ForgeState, name: str, qty: int, *, zone: str) -> None:
+    """Remove copies from a zone under the pool-bounded rules (a pool copy the deck
+    runs stays; the derived sideboard is never removed from directly)."""
+    check_zone(zone)
+    check_pool_remove(state, name, qty, zone)
+    state.session.remove(name, qty, zone=zone)
 
 
 def move_card(
@@ -1061,7 +1100,7 @@ def pool_owned(state: ForgeState) -> dict[str, int] | None:
     outright), or None for any other family."""
     if not state.session.pool_bounded:
         return None
-    return dict(state.session.zone_quantities("pool"))
+    return dict(state.session.quantities("pool"))
 
 
 def search_for(state: ForgeState, hd: HydratedDeck) -> Callable[..., list[dict]]:
@@ -1072,7 +1111,7 @@ def search_for(state: ForgeState, hd: HydratedDeck) -> Callable[..., list[dict]]
     semantics and never name a card the builder did not open."""
     if not state.session.pool_bounded:
         return state.search_fn
-    return card_search.pool_search_fn(pool_records(hd), FORMATS[state.session.format])
+    return card_search.pool_search_fn(pool_records(hd), state.session.fmt)
 
 
 def pool_readout(state: ForgeState, hd: HydratedDeck) -> dict | None:
@@ -1145,9 +1184,9 @@ def seed_build(state: ForgeState, colors: str) -> dict:
         raise DeckRuleError(outcome.reason or "the pool cannot fill those colors")
     main: dict[str, int] = {}
     for entry in outcome.deck.get("main") or []:
-        qty = int(entry.get("count", entry.get("quantity", 1)))
+        qty = int(entry["count"])  # the gauntlet builder's contract
         main[entry["name"]] = main.get(entry["name"], 0) + qty
-    replaced = state.session.zone_quantities("cards")
+    replaced = state.session.quantities("cards")
     state.seed_undo = replaced
     state.session.replace_zone("cards", main)
     return {
@@ -1205,7 +1244,9 @@ def finalize_state(state: ForgeState) -> dict:
     mana = mana_audit(hd)
     avg_cmc = deck_stats(hd).get("avg_cmc", 0.0)
     cheap_ca = sum(
-        1 for r in hd.expanded() if "card_draw" in role_of(r) and r.get("cmc", 0) <= 2
+        1
+        for r in hd.expanded(zones=built_zones(state))
+        if "card_draw" in role_of(r) and r.get("cmc", 0) <= 2
     )
     defensible = avg_cmc <= _DEFENSIBLE_AVG_CMC and cheap_ca >= _DEFENSIBLE_CHEAP_CA
     audit = legality_audit(hd)
@@ -1542,7 +1583,7 @@ def find_candidates(state: ForgeState, params: FindParams) -> CandidatePage:
             # filter's format: a paper table filtering by another format still buys
             # paper printings. No format filter → no pool restriction, as before.
             paper_only=params.format is not None
-            and FORMATS[state.session.format].paper_only(state.session.medium),
+            and state.session.fmt.paper_only(state.session.medium),
             include_unreleased=params.include_unreleased,
             preset_names=tuple(params.presets),
             is_commander_filter=params.is_commander,
@@ -1664,7 +1705,12 @@ def snapshot(state: ForgeState) -> dict:
         # The format table the SPA's pickers read (labels, media, size choices) — the
         # Format is the one authority; the SPA never mirrors it (ADR-0045).
         "format_options": format_options(),
-        "deck": views.deck_view(state, owned, functools.partial(printing_owned, state)),
+        "deck": views.deck_view(
+            state,
+            owned,
+            functools.partial(printing_owned, state),
+            functools.partial(copy_limit, state),
+        ),
         "stats": stats,
         # Commander brackets are WotC's multiplayer-Commander system: a constructed
         # build has none, and the SPA drops the pill on null.

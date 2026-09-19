@@ -407,3 +407,10 @@ def test_finalize_passes_a_legal_constructed_deck():
     assert r["deck_minimum"] is None
     assert r["land_status"] != "FAIL"
     assert r["finalized"] is True
+
+
+def test_served_rows_carry_the_copy_limit():
+    modern = engine.snapshot(_state("modern", cards=[("Lightning Bolt", 2)]))
+    assert modern["deck"]["cards"][0]["copy_limit"] == 4
+    commander = engine.snapshot(_state("commander", cards=[("Lightning Bolt", 1)]))
+    assert commander["deck"]["cards"][0]["copy_limit"] == 1

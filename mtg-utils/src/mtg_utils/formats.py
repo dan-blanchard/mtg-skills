@@ -128,6 +128,9 @@ class Format:
     #: deck's legality is pool membership, not a set's status, so every record is
     #: ``legal`` here and ``legality_audit`` checks containment instead.
     legality_key: str | None
+    #: Which family's shape rules this format follows (see ``Family``) — declared by
+    #: the table, validated against the facts it implies in ``__post_init__``.
+    family: Family
     planeswalker_commander_requires_text: bool
     free_mulligan: bool
     colorless_any_basic: bool
@@ -179,6 +182,19 @@ class Format:
         if self.primary_medium is not None and self.primary_medium not in self.media:
             msg = f"{self.name}: primary_medium {self.primary_medium!r} not in media"
             raise ValueError(msg)
+        # The family is declared, and the facts it implies must agree with it: a
+        # command zone means the Commander family, no legality key means limited.
+        implied: Family = (
+            "commander"
+            if self.has_commander
+            else ("limited" if self.legality_key is None else "constructed")
+        )
+        if self.family != implied:
+            msg = (
+                f"{self.name}: family {self.family!r} contradicts its facts "
+                f"({implied!r})"
+            )
+            raise ValueError(msg)
 
     # --- family -------------------------------------------------------------------
 
@@ -187,26 +203,10 @@ class Format:
         return self.max_copies == 1
 
     @property
-    def is_constructed(self) -> bool:
-        """The constructed family: a copy limit and a sideboard over a minimum size
-        (``family == "constructed"`` — not merely "no command zone", which a limited
-        format also lacks)."""
-        return self.family == "constructed"
-
-    @property
     def pool_bounded(self) -> bool:
         """A limited format: the deck is built from an opened pool (CR 100.2b), so
         legality is pool membership and the sideboard is the unused pool."""
         return self.legality_key is None
-
-    @property
-    def family(self) -> Family:
-        """Which family's shape rules this format follows (see ``Family``)."""
-        if self.has_commander:
-            return "commander"
-        if self.pool_bounded:
-            return "limited"
-        return "constructed"
 
     @property
     def size_is_minimum(self) -> bool:
@@ -429,6 +429,7 @@ class Format:
 
 def _commander_variant(name: str, label: str, **kw: object) -> Format:
     base: dict = {
+        "family": "commander",
         "sideboard_size": 0,
         "has_commander": True,
         "max_copies": 1,
@@ -462,6 +463,7 @@ def _constructed(
         max_copies=4,
         commander_damage=False,
         legality_key=legality_key,
+        family="constructed",
         planeswalker_commander_requires_text=False,
         free_mulligan=False,
         colorless_any_basic=False,
@@ -486,6 +488,7 @@ def _limited(name: str, label: str) -> Format:
         max_copies=None,
         commander_damage=False,
         legality_key=None,
+        family="limited",
         planeswalker_commander_requires_text=False,
         free_mulligan=False,
         colorless_any_basic=False,

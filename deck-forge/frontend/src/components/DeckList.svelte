@@ -7,7 +7,6 @@
     activeTab,
     isDigital,
     hasCommander,
-    maxCopies,
     sideboardSize,
     deckSizeDefault,
     poolBounded,
@@ -15,7 +14,7 @@
   import { api } from "../lib/api.js";
   import { tryAdd } from "../lib/adds.js";
   import { hoverPreview } from "../lib/hover.js";
-  import { displayName, copyLimit } from "../lib/cards.js";
+  import { displayName, heldCopies, canHoldAnother } from "../lib/cards.js";
   import { wildcardLabel, wildcardTotals, WC_TIERS } from "../lib/mana.js";
   import { facetOk, nameOk } from "../lib/filter.js";
   import ManaCost from "./ManaCost.svelte";
@@ -186,26 +185,12 @@
   // Copies in a group (a 4-of is four cards, a singleton group reads as before).
   const copies = (cards) =>
     cards.reduce((sum, c) => sum + (c.quantity || 1), 0);
-  // The copies of a name the build holds across every zone the copy limit spans —
-  // the same count the hub's rule reads, so the stepper and Find agree.
-  $: held = [
-    ...$deck.commanders,
-    ...$deck.cards,
-    ...($deck.sideboard || []),
-    ...($deck.companion || []),
-  ].reduce(
-    (m, c) => m.set(c.name, (m.get(c.name) || 0) + (c.quantity || 1)),
-    new Map(),
-  );
-  $: poolQty = new Map(
-    ($deck.pool || []).map((c) => [c.name, c.quantity || 1]),
-  );
-  // Whether one more copy may be added to the deck: the pool's count for a sealed /
-  // draft build (basics unlimited), the format's copy limit otherwise.
+  $: held = heldCopies($deck);
+  // Whether one more copy may be added: the served row's own copy limit (the pool's
+  // count for a sealed / draft build, whose derived sideboard is not "held").
   function canAddAnother(c) {
-    if ($poolBounded)
-      return (c.quantity || 1) < copyLimit(c, poolQty.get(c.name) ?? 0);
-    return (held.get(c.name) || 0) < copyLimit(c, $maxCopies);
+    const count = $poolBounded ? c.quantity || 1 : held.get(c.name) || 0;
+    return canHoldAnother(c, count);
   }
   // The pool reads colour then mana value (a booster's order says nothing).
   function colorKey(c) {

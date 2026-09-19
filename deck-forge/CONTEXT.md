@@ -68,7 +68,7 @@ builder's call. Served in the snapshot; the SPA shows it as a caption.
 _Avoid_: "colour identity" for a 60-card deck (it has none as a rule).
 
 **Sideboard**:
-The fourth zone a constructed Family has (`sideboard_size` 15, CR 100.4a; zero for
+The third zone a constructed Family has (`sideboard_size` 15, CR 100.4a; zero for
 the Commander family, whose builds never render one; uncapped and derived for a
 pool-bounded build — see **Derived sideboard**). Never counts toward the deck
 size, a template row, the mana base or the avenues; the copy limit spans it. Over

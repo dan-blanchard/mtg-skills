@@ -933,3 +933,31 @@ class TestNearMissTemplateValidation:
         )
         assert len(result["near_misses"]) == 1
         assert result["near_misses"][0]["missing_template"] == "Persist Creature"
+
+
+class TestPoolBoundedDeck:
+    """A sealed / draft deck's sideboard is its unused pool: the combo engine reads
+    the cards it runs, never what it left in the pool (ADR-0055)."""
+
+    def test_posts_the_main_deck_only(self, sample_combo_response):
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = sample_combo_response
+        mock_resp.raise_for_status = MagicMock()
+        deck = {
+            "format": "sealed",
+            "commanders": [],
+            "cards": [{"name": "Viscera Seer", "quantity": 1}],
+            "sideboard": [{"name": "Blood Artist", "quantity": 1}],
+            "pool": [
+                {"name": "Viscera Seer", "quantity": 1},
+                {"name": "Blood Artist", "quantity": 1},
+            ],
+        }
+        with patch("mtg_utils.combo_search.requests") as mock_requests:
+            mock_session = MagicMock()
+            mock_session.post.return_value = mock_resp
+            mock_requests.Session.return_value = mock_session
+            combo_search(_cs_hd(deck))
+        payload = mock_session.post.call_args.kwargs["json"]
+        assert payload["main"] == [{"card": "Viscera Seer"}]

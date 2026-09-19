@@ -799,15 +799,15 @@ class TestEffectiveCommanderCost:
         )
 
 
-def _limited_deck(land_count: int, fmt: str = "timeless"):
-    """A 40-card deck: 23 3-cmc creatures plus ``land_count`` Plains. Labelled
+def _limited_deck(land_count: int, fmt: str = "timeless", cmc: float = 3.0):
+    """A 40-card deck: 23 ``cmc``-cost creatures plus ``land_count`` Plains. Labelled
     ``timeless`` it is a constructed-shaped deck (avg cmc 3.0 keeps the constructed
     target at its baseline, 24 scaled to 16); labelled ``sealed`` it is a limited
     deck under the 17-of-40 norm."""
     spells = [
         {
             "name": f"Bear {i}",
-            "cmc": 3.0,
+            "cmc": cmc,
             "type_line": "Creature — Bear",
             "mana_cost": "{2}{W}",
             "oracle_text": "",
@@ -859,6 +859,18 @@ class TestLimitedManaAudit:
     def test_render_shows_the_limited_target(self):
         text = render_text_report(mana_audit(_limited_deck(17, fmt="sealed")))
         assert "target: 17" in text
+
+    def test_floor_never_drops_below_the_band_minimum(self):
+        """A low curve pulls the target to 16, the band's own minimum; the FAIL
+        floor stays there rather than sliding to 15."""
+        result = mana_audit(_limited_deck(16, fmt="sealed", cmc=2.0))
+        assert result["land_band"]["top"] == 16
+        assert result["land_band"]["floor"] == 16
+        assert result["land_band"]["status"] == "PASS"
+        assert (
+            mana_audit(_limited_deck(15, fmt="sealed", cmc=2.0))["land_band"]["status"]
+            == "FAIL"
+        )
 
 
 class TestConstructedFloorScalesWithDeckSize:

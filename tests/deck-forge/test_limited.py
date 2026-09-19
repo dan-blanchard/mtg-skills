@@ -200,17 +200,17 @@ def test_switching_into_and_out_of_a_pool_bounded_format_keeps_the_cards():
     state = _state("modern", cards=[("Bear", 4)])
     state.session.add("Troll", 1, zone="sideboard")
     engine.set_format(state, "sealed")
-    assert state.session.zone_quantities("pool") == {"Bear": 4, "Troll": 1}
+    assert state.session.quantities("pool") == {"Bear": 4, "Troll": 1}
     assert state.session.derived_sideboard() == {"Troll": 1}
     engine.set_format(state, "modern")
-    assert state.session.zone_quantities("sideboard") == {"Troll": 1}
+    assert state.session.quantities("sideboard") == {"Troll": 1}
     assert state.session.to_deck_dict()["sideboard"] == [
         {"name": "Troll", "quantity": 1}
     ]
     assert state.session.to_deck_dict()["pool"] == []  # a Modern deck has no pool
     # Re-entering with a stored sideboard pools it too.
     engine.set_format(state, "draft")
-    assert state.session.zone_quantities("pool") == {"Bear": 4, "Troll": 1}
+    assert state.session.quantities("pool") == {"Bear": 4, "Troll": 1}
 
 
 def test_a_saved_limited_build_round_trips_with_its_pool():
@@ -225,7 +225,7 @@ def test_a_saved_limited_build_round_trips_with_its_pool():
         "sideboard": [{"name": "Troll", "quantity": 1}],
     }
     old = DeckSession.from_deck_dict(legacy)
-    assert old.zone_quantities("pool") == {"Bear": 2, "Troll": 1}
+    assert old.quantities("pool") == {"Bear": 2, "Troll": 1}
     assert old.derived_sideboard() == {"Troll": 1}
 
 
@@ -386,3 +386,45 @@ def test_seed_builds_a_first_deck_from_the_pool_only():
         _client(_state()).post("/api/deck/seed", json={"colors": "G"}).status_code
         == 400
     )
+
+
+# --- the deck, never the unused pool ------------------------------------------------
+
+
+def test_the_deck_not_the_unused_pool_colours_and_names_the_build():
+    state = _state(pool=[("Bear", 2), ("Eagle", 1), ("Forest", 3)], cards=[("Bear", 2)])
+    # Eagle is in the pool (so in the derived sideboard) but not run: never W.
+    assert engine.deck_colors(state) == "G"
+    assert engine.snapshot(state)["deck_colors"] == "G"
+    assert engine.deck_names(state) == {"Bear"}
+    assert engine.built_zones(state) == ("cards",)
+    assert engine.built_zones(_state("modern")) == ("cards", "sideboard")
+
+
+def test_served_rows_carry_the_pools_copy_limit():
+    state = _state(
+        pool=[("Bear", 3), ("Eagle", 1), ("Forest", 2)],
+        cards=[("Bear", 1), ("Forest", 2)],
+    )
+    client = _client(state)
+    rows = {c["name"]: c for c in client.get("/api/deck").json()["deck"]["cards"]}
+    assert rows["Bear"]["copy_limit"] == 3  # what the pool holds
+    assert rows["Forest"]["copy_limit"] is None  # basics unlimited
+    found = client.post("/api/find", json={"name": "eagle", "limit": 5}).json()
+    assert [(r["name"], r["copy_limit"]) for r in found["results"]] == [("Eagle", 1)]
+    card = client.get("/api/card", params={"name": "Bear"}).json()["card"]
+    assert card["copy_limit"] == 3
+
+
+def test_add_and_remove_are_engine_rules():
+    state = _state(pool=[("Bear", 1), ("Troll", 1)], cards=[("Bear", 1)])
+    with pytest.raises(DeckRuleError):
+        engine.add_card(state, "Bear", 1, zone="cards")  # the pool holds one
+    with pytest.raises(DeckRuleError):
+        engine.add_card(state, "Troll", 1, zone="sideboard")  # derived, never added to
+    engine.add_card(state, "Troll", 1, zone="cards")
+    assert state.session.quantities("cards") == {"Bear": 1, "Troll": 1}
+    with pytest.raises(DeckRuleError):
+        engine.remove_card(state, "Bear", 1, zone="pool")  # the deck runs it
+    engine.remove_card(state, "Troll", 1, zone="cards")
+    assert state.session.quantities("sideboard") == {"Troll": 1}

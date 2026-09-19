@@ -4,6 +4,7 @@
   //   summary  — read-only deck numbers (cards · curve · counts · colors · price · bracket)
   //   health   — land pill (CLICK → Mana Gate modal), budgets + warnings (HOVER → popover)
   //   link     — the two genuinely-distinct status dots: ● Hub (SSE) and ● Session (agent)
+  import { isBasicLand } from "../lib/cards.js";
   import {
     stats,
     mana,
@@ -66,7 +67,7 @@
   // excluded (assumed owned, matching the owned readout). Owned-ness is the derived flag.
   $: collectionLoaded =
     $collection && ($collection.slots?.[$collection.active_slot] || 0) > 0;
-  const isBasic = (c) => /\bBasic Land\b/.test(c.type_line || "");
+  const isBasic = isBasicLand;
   $: unownedTotal = [...$deck.commanders, ...$deck.cards].reduce(
     (sum, c) =>
       c.owned || isBasic(c) ? sum : sum + (priceOf(c) ?? 0) * (c.quantity || 1),

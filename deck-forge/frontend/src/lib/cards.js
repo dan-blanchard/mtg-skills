@@ -8,15 +8,32 @@ export function displayName(name) {
   return (name || "").replace(/ \/\/ /g, " / ");
 }
 
-// How many copies of a card the build may hold, mirroring the hub's copy rule
-// (`engine.copy_limit`): a basic land or an "any number of cards named X" card
-// (Relentless Rats, Shadowborn Apostle, Dragon's Approach…) is unlimited, every
-// other card takes the served format's max_copies (1 singleton, 4 constructed).
-// The hub stays the judge (a restricted card's 1, a named cap) — this only decides
-// which affordances to show.
-export function copyLimit(card, maxCopies) {
-  if (/\bBasic Land\b/.test(card.type_line || "")) return Infinity;
-  if (/a deck can have any number of cards named/i.test(card.oracle_text || ""))
-    return Infinity;
-  return maxCopies;
+// A basic land, by its type line (CR 205.4c: the basic supertype is what makes the
+// unlimited-copies and pool-containment exemptions apply).
+export function isBasicLand(card) {
+  return /\bBasic Land\b/.test(card.type_line || "");
+}
+
+// The copies of each name the build holds across every zone the copy limit spans —
+// the same count the hub's rule reads, so the stepper and Find agree.
+export function heldCopies(deck) {
+  return [
+    ...(deck.commanders || []),
+    ...(deck.cards || []),
+    ...(deck.sideboard || []),
+    ...(deck.companion || []),
+  ].reduce(
+    (m, c) => m.set(c.name, (m.get(c.name) || 0) + (c.quantity || 1)),
+    new Map(),
+  );
+}
+
+// Whether the build may hold one more copy of a served card row. The hub serves
+// `copy_limit` on every deck / Find / card row (`engine.copy_limit`: the format's
+// cap, a restricted card's 1, a named cap, the pool's count for a sealed / draft
+// build; null = unlimited) — the SPA never re-derives the exemptions.
+export function canHoldAnother(card, held) {
+  const limit = card.copy_limit;
+  if (limit === null || limit === undefined) return true;
+  return held < limit;
 }

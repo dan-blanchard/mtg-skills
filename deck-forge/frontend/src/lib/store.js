@@ -30,12 +30,10 @@ export const hasCommander = derived(
   currentFormat,
   ($f) => $f?.has_commander ?? true,
 );
-// A null limit / cap on the served row means NONE (a limited pool: as many copies
-// as were opened, the whole unused pool as the sideboard) — Infinity here, so the
-// comparisons read naturally; before the first snapshot the defaults are Commander's.
-export const maxCopies = derived(currentFormat, ($f) =>
-  $f ? ($f.max_copies ?? Infinity) : 1,
-);
+// A null cap on the served row means NONE (a limited build: the whole unused pool
+// as the sideboard) — Infinity here, so the comparisons read naturally; before the
+// first snapshot the defaults are Commander's. (A card's copy limit is served per
+// row as `copy_limit` — see lib/cards.js — never derived from the format here.)
 export const sideboardSize = derived(currentFormat, ($f) =>
   $f ? ($f.sideboard_size ?? Infinity) : 0,
 );

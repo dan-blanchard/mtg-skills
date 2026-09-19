@@ -19,11 +19,12 @@ from collections.abc import Mapping
 from dataclasses import dataclass, field
 
 from mtg_utils._analysis.budgets import Template, template_for
+from mtg_utils.formats import Family
 
 
 @dataclass(frozen=True)
 class Calibration:
-    family: str
+    family: Family
     #: Shape → desired front-load (cmc<=2 nonland) at ``base_size``.
     front_want: Mapping[str, int]
     #: The (low, mid, high) ramp wants by avg-MV band at ``base_size``, or None when
@@ -130,7 +131,7 @@ CALIBRATIONS: dict[str, Calibration] = {
 }
 
 
-def calibration_for(family: str) -> Calibration:
+def calibration_for(family: Family) -> Calibration:
     """The calibration for a format family (``Format.family``)."""
     try:
         return CALIBRATIONS[family]

@@ -130,6 +130,7 @@ _FOREST_VIEW = {
     "can_be_commander": False,
     "layout": "",
     "unknown": False,
+    "copy_limit": None,  # a basic land: unlimited (CR 100.2a)
 }
 
 

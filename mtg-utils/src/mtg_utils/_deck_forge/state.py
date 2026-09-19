@@ -67,9 +67,15 @@ class DeckSession:
         )
 
     @property
+    def fmt(self) -> Format:
+        """THE Format of this build (ADR-0045) — every format fact the hub reads comes
+        through here, never a second lookup of the table."""
+        return FORMATS[self.format]
+
+    @property
     def pool_bounded(self) -> bool:
         """A limited build: the sideboard is the pool less the main deck."""
-        return FORMATS[self.format].pool_bounded
+        return self.fmt.pool_bounded
 
     def set_medium(self, medium: str) -> None:
         self._medium_override = medium
@@ -226,20 +232,20 @@ class DeckSession:
                 if name not in bucket:
                     pinned.pop(name, None)
 
-    def quantity_of(self, name: str, *, zone: str = "cards") -> int:
-        """How many copies of ``name`` a zone holds (0 when absent) — the derived
-        sideboard included, for a pool-bounded build."""
+    def quantities(self, zone: str) -> dict[str, int]:
+        """A zone's name → copies — THE read of what a zone holds: the derived
+        sideboard for a pool-bounded build, the stored bucket otherwise (a copy)."""
         if zone == "sideboard" and self.pool_bounded:
-            return self.derived_sideboard().get(name, 0)
-        return self._zones.get(zone, {}).get(name, 0)
-
-    def zone_quantities(self, zone: str) -> dict[str, int]:
-        """A zone's name → copies (a copy of the stored bucket)."""
+            return self.derived_sideboard()
         return dict(self._bucket(zone))
+
+    def quantity_of(self, name: str, *, zone: str = "cards") -> int:
+        """How many copies of ``name`` a zone holds (0 when absent)."""
+        return self.quantities(zone).get(name, 0)
 
     def quantity_sum(self, zone: str) -> int:
         """The copies a zone holds in total."""
-        return sum(self._bucket(zone).values())
+        return sum(self.quantities(zone).values())
 
     def card_names(self) -> list[str]:
         """Every distinct card name across all zones (for hydration lookups)."""

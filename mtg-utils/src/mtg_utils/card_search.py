@@ -335,18 +335,13 @@ def filter_records(
     is_commander_filter: bool = False,
     preset_names: tuple[str, ...] = (),
     set_code: str | None = None,
-    format: str | None = None,  # noqa: A002
-    include_unreleased: bool = False,
 ) -> list[dict]:
     """The one filter implementation over an explicit record list: every per-query
     filter ``search_cards`` takes, then the cheapest-printing dedup by name, the sort
     and the page. ``search_cards`` runs it over the bulk's playable pool; a
-    pool-bounded build (sealed / draft) runs it over its opened pool's records, so
-    Find and the tuner search the pool with the SAME semantics. ``format`` and
-    ``include_unreleased`` are accepted so a caller forwarding ``search_cards``'
-    keyword contract need not strip them, and are no-ops here: ``fmt`` is the
-    legality the records are read under, and the records are already the pool."""
-    del format, include_unreleased  # bulk-level concerns; the records are the pool
+    pool-bounded build (sealed / draft) runs it over its opened pool's records
+    (``pool_search_fn``), so Find and the tuner search the pool with the SAME
+    semantics."""
     allowed_colors = set(color_identity.upper()) if color_identity else None
     try:
         oracle_re = re.compile(oracle, re.IGNORECASE) if oracle else None
@@ -407,8 +402,16 @@ def pool_search_fn(records: Sequence[dict], fmt: Format) -> Callable[..., list[d
     implementation, with the game gate off (the records ARE the pool, whatever game
     they were opened in). Used by deck-forge's Find / Tune and by ``deck-tune``."""
 
+    #: The bulk-level keywords of ``search_cards``' contract a caller may forward
+    #: that mean nothing over a pool: the records are already the pool, and ``fmt``
+    #: is the legality they are read under.
+    bulk_only = ("format", "include_unreleased")
+
     def pool_search(**filters: object) -> list[dict]:
-        kwargs: dict[str, Any] = {**filters, "paper_only": False, "arena_only": False}
+        kwargs: dict[str, Any] = {
+            k: v for k, v in filters.items() if k not in bulk_only
+        }
+        kwargs.update(paper_only=False, arena_only=False)
         return filter_records(records, fmt=fmt, **kwargs)
 
     return pool_search

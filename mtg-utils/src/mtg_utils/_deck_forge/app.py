@@ -27,7 +27,6 @@ from mtg_utils._deck_forge.state import DeckSession, ForgeState
 from mtg_utils._tuner.tune import tune as run_tune
 from mtg_utils.deck_stats import deck_stats
 from mtg_utils.export_deck import export_as
-from mtg_utils.formats import FORMATS
 from mtg_utils.mana_audit import mana_audit
 from mtg_utils.parse_deck import parse_deck_text
 from mtg_utils.theme_presets import list_presets
@@ -255,6 +254,7 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
                 state,
                 engine.owned_quantities(state),
                 functools.partial(engine.printing_owned, state),
+                functools.partial(engine.copy_limit, state),
             )
         }
 
@@ -272,16 +272,11 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
 
     @app.post("/api/deck/add", response_model=None)
     async def add(payload: AddPayload) -> dict | JSONResponse:
-        engine.check_zone_open(state, payload.zone)
         if payload.name not in state.by_name:
             return JSONResponse(
                 {"error": f"card not found: {payload.name!r}"}, status_code=404
             )
-        if payload.zone == "companion":
-            engine.check_companion_add(state, payload.name, payload.qty)
-        else:
-            engine.check_copy_add(state, payload.name, payload.qty, zone=payload.zone)
-        state.session.add(payload.name, payload.qty, zone=payload.zone)
+        engine.add_card(state, payload.name, payload.qty, zone=payload.zone)
         return _commit(state)
 
     @app.post("/api/deck/move")
@@ -299,9 +294,7 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
 
     @app.post("/api/deck/remove")
     async def remove(payload: RemovePayload) -> dict:
-        engine.check_zone(payload.zone)
-        engine.check_pool_remove(state, payload.name, payload.qty, payload.zone)
-        state.session.remove(payload.name, payload.qty, zone=payload.zone)
+        engine.remove_card(state, payload.name, payload.qty, zone=payload.zone)
         return _commit(state)
 
     @app.post("/api/deck/seed")
@@ -427,8 +420,9 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
         return {
             "card": views.result_view(
                 rec,
-                FORMATS[state.session.format],
+                state.session.fmt,
                 unreleased=rec.get("oracle_id") in state.unreleased_ids,
+                copy_limit=engine.copy_limit(state, rec),
             )
         }
 
@@ -677,7 +671,7 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
             theme=payload.theme,
             limit=max(1, payload.limit),
         )
-        fmt = FORMATS[state.session.format]
+        fmt = state.session.fmt
         return {
             "results": [views.commander_view(row, fmt) for row in results],
             "sort": payload.sort,
@@ -736,13 +730,14 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
         page = await run_in_threadpool(
             engine.find_candidates, state, _find_params(payload)
         )
-        fmt = FORMATS[state.session.format]
+        fmt = state.session.fmt
         results = [
             views.candidate_view(
                 row,
                 fmt,
                 owned_qty=engine.owned_of(state, row["card"].get("name", "")),
                 unreleased=row["card"].get("oracle_id") in state.unreleased_ids,
+                copy_limit=engine.copy_limit(state, row["card"]),
             )
             for row in page.rows
         ]
@@ -865,8 +860,8 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
         return views.enrich_combos(
             result,
             state.by_name,
-            in_deck=set(state.session.card_names()),
-            fmt=FORMATS[state.session.format],
+            in_deck=engine.deck_names(state),
+            fmt=state.session.fmt,
         )
 
     _register_frontend(app, frontend_dist)

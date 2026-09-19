@@ -78,5 +78,7 @@ tuner is the deterministic spine for every family). `deck-tune` accepts every
 format; `--bracket` on a non-commander deck is noted and ignored. The scorecard's
 `size` gains `exact` / `shortfall`, budget rows gain `label` / `advisory`, swaps
 carry `copy` / `quantity`, and the finalize report carries `below_minimum` — all
-additive. Non-goals: sideboard proposals, a matchup or metagame model, bracket-scaled
-bands (ADR-0024 stands).
+additive. The companion is priced like any other card the deck runs (its wildcard
+/ USD cost counts): it is a card the builder must own to play, which is the reading
+the cost readouts exist for. Non-goals: sideboard proposals, a matchup or metagame
+model, bracket-scaled bands (ADR-0024 stands).

@@ -154,9 +154,16 @@ def combo_search(hd: HydratedDeck, *, max_near_misses: int = 5) -> dict:
     cards = [
         _resolve_name(entry["name"], card_lookup) for entry in deck.get("cards", [])
     ]
-    sideboard = [
-        _resolve_name(entry["name"], card_lookup) for entry in deck.get("sideboard", [])
-    ]
+    # A pool-bounded deck's sideboard is its unused pool — not cards it runs, so not
+    # part of what the combo engine reads.
+    sideboard = (
+        []
+        if hd.format.pool_bounded
+        else [
+            _resolve_name(entry["name"], card_lookup)
+            for entry in deck.get("sideboard", [])
+        ]
+    )
     all_card_names = set(commanders + cards + sideboard)
 
     body = {
