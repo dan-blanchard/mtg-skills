@@ -36,6 +36,22 @@
   $: showMedium = media.length > 1;
   $: sizeChoices = current?.size_choices?.[$deck.medium] ?? [];
   $: showSize = sizeChoices.length > 1;
+  // A size-minimum family (constructed, limited) has no choice list: its size is a
+  // TARGET at or above the served floor (an 80-card Yorion deck). Typed, then
+  // applied on change; the hub refuses anything below 1 and the floor stays the
+  // audit's (CR 100.2a / 100.2b).
+  $: sizeFloor = current?.deck_size ?? 60;
+  $: showTarget = current?.size_is_minimum === true;
+  async function changeTarget(e) {
+    const n = Math.max(
+      sizeFloor,
+      Math.floor(Number(e.target.value) || sizeFloor),
+    );
+    e.target.value = n;
+    if (n === $deck.deck_size) return;
+    const r = await api.setDeckSize(n);
+    if (r.ok) applySnapshot(r.data);
+  }
   // The picker groups by the served family (its label is served too — the Format
   // is the one authority, ADR-0045); the order is the table's.
   $: families = [
@@ -112,6 +128,20 @@
           <option value={n} selected={n === $deck.deck_size}>{n}</option>
         {/each}
       </select>
+    {:else if showTarget}
+      <label
+        class="chip format target"
+        title="Deck size target — at least {sizeFloor}; set 80 for a Yorion deck. The land math scales to it; the {sizeFloor}-card floor is the rule."
+      >
+        <input
+          type="number"
+          min={sizeFloor}
+          step="1"
+          value={$deck.deck_size}
+          on:change={changeTarget}
+        />
+        <span>cards</span>
+      </label>
     {/if}
     <FinalizeButton />
   </div>
@@ -221,5 +251,28 @@
   select.format option {
     background: var(--panel);
     color: var(--parchment);
+  }
+  .target {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    cursor: text;
+  }
+  .target input {
+    width: 3.2rem;
+    background: transparent;
+    border: none;
+    border-bottom: 1px dashed var(--hairline);
+    color: var(--brass-bright);
+    font-family: var(--body);
+    font-size: 0.78rem;
+    text-align: right;
+  }
+  .target input:focus {
+    outline: none;
+    border-bottom-color: var(--brass);
+  }
+  .target span {
+    color: var(--parchment-dim);
   }
 </style>

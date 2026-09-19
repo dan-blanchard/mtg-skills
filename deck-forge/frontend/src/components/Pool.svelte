@@ -5,7 +5,7 @@
   // readout, never a guess), a one-click seed of a first 40 in a pair, and a scan
   // of what the SET holds (the threats and answers opponents draw from).
   import { api } from "../lib/api.js";
-  import { pool, applySnapshot, importOpen } from "../lib/store.js";
+  import { pool, deck, applySnapshot, importOpen } from "../lib/store.js";
   import Mana from "./Mana.svelte";
 
   const COLUMNS = [
@@ -32,15 +32,33 @@
       sortDesc ? b[sortKey] - a[sortKey] : a[sortKey] - b[sortKey],
     );
 
+  // A seed REPLACES the main deck: when the deck already holds nonland cards the
+  // button asks once ("replace N?") before it fires; afterwards Undo puts the
+  // replaced deck back (one level, held by the hub until the next seed or build).
   let seeding = "";
   let seedError = "";
+  let armed = ""; // the pair whose "replace?" confirmation is showing
+  $: heldNonland = ($deck.cards || [])
+    .filter((c) => !/\bBasic Land\b/.test(c.type_line || ""))
+    .reduce((n, c) => n + (c.quantity || 1), 0);
   async function seed(pair) {
+    if (heldNonland && armed !== pair) {
+      armed = pair;
+      return;
+    }
+    armed = "";
     seeding = pair;
     seedError = "";
     const r = await api.seedBuild(pair);
     seeding = "";
     if (r.ok) applySnapshot(r.data);
     else seedError = r.data.error || "couldn't seed a deck";
+  }
+  async function undo() {
+    seedError = "";
+    const r = await api.undoSeed();
+    if (r.ok) applySnapshot(r.data);
+    else seedError = r.data.error || "couldn't undo the seed";
   }
 
   let setCode = "";
@@ -108,16 +126,29 @@
             <td>
               <button
                 class="seedbtn"
-                title="Replace the deck with a first 40 in these colours, from the pool"
+                class:armed={armed === r.pair}
+                title={armed === r.pair
+                  ? `Replace the ${heldNonland} nonland cards in the deck with a first 40 in these colours`
+                  : "Replace the deck with a first 40 in these colours, from the pool"}
                 disabled={!!seeding}
                 on:click={() => seed(r.pair)}
-                >{seeding === r.pair ? "…" : "seed"}</button
+                on:blur={() => (armed = armed === r.pair ? "" : armed)}
+                >{seeding === r.pair
+                  ? "…"
+                  : armed === r.pair
+                    ? `replace ${heldNonland}?`
+                    : "seed"}</button
               >
             </td>
           </tr>
         {/each}
       </tbody>
     </table>
+    {#if $pool.seed_undo}
+      <button class="undobtn" on:click={undo}
+        >↶ Undo the seed — put the previous deck back</button
+      >
+    {/if}
     {#if seedError}<div class="err">{seedError}</div>{/if}
   {/if}
 
@@ -225,6 +256,24 @@
     padding: 0.1rem 0.4rem;
   }
   .seedbtn:hover:not(:disabled) {
+    border-color: var(--brass);
+    color: var(--brass-bright);
+  }
+  .seedbtn.armed {
+    border-color: var(--fail);
+    color: var(--fail);
+    white-space: nowrap;
+  }
+  .undobtn {
+    align-self: flex-start;
+    background: transparent;
+    border: 1px solid var(--hairline);
+    color: var(--parchment-dim);
+    border-radius: var(--radius);
+    font-size: 0.78rem;
+    padding: 0.25rem 0.6rem;
+  }
+  .undobtn:hover {
     border-color: var(--brass);
     color: var(--brass-bright);
   }

@@ -69,8 +69,10 @@ export const api = {
     post("/api/builds/import", { text, format, name, pool_only }),
   // What a set holds (removal by rarity, sweepers, evasion, the biggest bodies).
   setScan: (code) => get(`/api/set-scan?code=${encodeURIComponent(code)}`),
-  // Seed a first 40 from a sealed / draft pool in the chosen colours.
+  // Seed a first 40 from a sealed / draft pool in the chosen colours; undo puts
+  // back the deck the last seed replaced (one level).
   seedBuild: (colors) => post("/api/deck/seed", { colors }),
+  undoSeed: () => post("/api/deck/seed/undo", {}),
   // Import a collection into a slot (paper | arena) — derived ownership (ADR-0018).
   importCollection: (text, slot) =>
     post("/api/collection/import", { text, slot }),

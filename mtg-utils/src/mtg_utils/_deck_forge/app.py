@@ -311,6 +311,13 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
         seeded = engine.seed_build(state, payload.colors)
         return {"seeded": seeded, **_commit(state)}
 
+    @app.post("/api/deck/seed/undo")
+    async def seed_undo() -> dict:
+        """Put back the main deck the last seed replaced (``engine.undo_seed`` is
+        the rule); returns the new snapshot."""
+        engine.undo_seed(state)
+        return _commit(state)
+
     @app.get("/api/set-scan", response_model=None)
     async def set_scan(code: str) -> dict | JSONResponse:
         """What a set holds — removal by rarity, sweepers, evasion, the biggest

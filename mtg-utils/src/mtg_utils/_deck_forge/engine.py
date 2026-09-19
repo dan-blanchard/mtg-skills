@@ -422,6 +422,7 @@ def switch_build(
     state.build_name = name
     state.agent_avenues.clear()
     state.focused_avenue_ids.clear()
+    state.seed_undo = None
 
 
 def add_agent_avenue(
@@ -1083,6 +1084,8 @@ def pool_readout(state: ForgeState, hd: HydratedDeck) -> dict | None:
         "size": state.session.quantity_sum("pool"),
         "unused": sum(unused.values()),
         "color_pairs": pool_color_pairs(hd.deck_quantities(zones=("pool",))),
+        # Whether the last seed can be undone (its replaced deck is still held).
+        "seed_undo": state.seed_undo is not None,
     }
 
 
@@ -1106,7 +1109,8 @@ def seed_build(state: ForgeState, colors: str) -> dict:
     """One click from a pool to a first 40 in ``colors`` (``_gauntlet_build``'s
     deterministic greedy fill over the pool's own cards plus basics) — a starting
     point the builder then tunes, never a finished deck, and never a card the pool
-    does not hold. Replaces the main deck. Raises ``DeckRuleError`` outside a
+    does not hold. Replaces the main deck, keeping what it replaced for ONE
+    ``undo_seed``. Raises ``DeckRuleError`` outside a
     pool-bounded build, for bad colours, or when the pool cannot fill the colours."""
     if not state.session.pool_bounded:
         raise DeckRuleError("only a sealed / draft build seeds a deck from a pool")
@@ -1141,8 +1145,25 @@ def seed_build(state: ForgeState, colors: str) -> dict:
     for entry in outcome.deck.get("main") or []:
         qty = int(entry.get("count", entry.get("quantity", 1)))
         main[entry["name"]] = main.get(entry["name"], 0) + qty
+    replaced = state.session.zone_quantities("cards")
+    state.seed_undo = replaced
     state.session.replace_zone("cards", main)
-    return {"colors": "".join(wanted), "cards": sum(main.values()), "lands": lands}
+    return {
+        "colors": "".join(wanted),
+        "cards": sum(main.values()),
+        "lands": lands,
+        "replaced": sum(replaced.values()),
+    }
+
+
+def undo_seed(state: ForgeState) -> None:
+    """Put back the main deck the last seed replaced (one level; the pool is
+    untouched, so the restored deck is still drawn from it). Raises
+    ``DeckRuleError`` when there is nothing to undo."""
+    if state.seed_undo is None:
+        raise DeckRuleError("nothing to undo — no seed has replaced this deck")
+    state.session.replace_zone("cards", state.seed_undo)
+    state.seed_undo = None
 
 
 def tune_params(

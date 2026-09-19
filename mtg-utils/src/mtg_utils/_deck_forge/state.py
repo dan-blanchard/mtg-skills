@@ -332,6 +332,9 @@ class ForgeState:
     printing_by_id: dict[str, dict] = field(default_factory=dict)
     # ``set-scan`` readouts memoized per set code (a whole-bulk walk each).
     set_scans: dict[str, dict] = field(default_factory=dict)
+    # The main deck a pool seed replaced (name → copies), for one undo. Runtime,
+    # scoped to the live build (``switch_build`` drops it), never persisted.
+    seed_undo: dict[str, int] | None = None
     # Resolves a folded object's name → its card (ADR-0025): a commander's ventured
     # dungeon, whose oracle is appended to the commander's before signal extraction.
     # Dungeons are excluded from `by_name` (unaddable), so this is a separate raw-bulk

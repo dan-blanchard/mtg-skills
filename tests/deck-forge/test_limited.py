@@ -333,6 +333,26 @@ def test_set_scan_route(tmp_path):
     assert scan["evasion"]["by_keyword"] == {"Flying": 1}
 
 
+def test_seed_keeps_what_it_replaced_for_one_undo():
+    state = _state(
+        pool=[("Bear", 15), ("Troll", 8), ("Eagle", 8)], cards=[("Eagle", 3)]
+    )
+    client = _client(state)
+    assert engine.snapshot(state)["pool"]["seed_undo"] is False
+    assert client.post("/api/deck/seed/undo").status_code == 400
+    r = client.post("/api/deck/seed", json={"colors": "G"})
+    assert r.json()["seeded"]["replaced"] == 3
+    assert r.json()["pool"]["seed_undo"] is True
+    snap = client.post("/api/deck/seed/undo").json()
+    assert [(c["name"], c["quantity"]) for c in snap["deck"]["cards"]] == [("Eagle", 3)]
+    assert snap["pool"]["seed_undo"] is False
+    assert client.post("/api/deck/seed/undo").status_code == 400  # one level
+    # Switching builds drops the undo: it belongs to the deck it replaced.
+    client.post("/api/deck/seed", json={"colors": "G"})
+    client.post("/api/builds/new", json={"format": "sealed"})
+    assert client.post("/api/deck/seed/undo").status_code == 400
+
+
 def test_seed_builds_a_first_deck_from_the_pool_only():
     state = _state(
         pool=[("Bear", 15), ("Troll", 8), ("Eagle", 8), ("Pony", 6), ("Dragon", 4)]
