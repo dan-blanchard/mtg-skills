@@ -66,6 +66,18 @@ def _write(tmp_path, name, obj):
     return str(p)
 
 
+def test_exclude_reaches_the_tuner(tmp_path, monkeypatch):
+    captured = _spy_tune(monkeypatch)
+    deck = _write(tmp_path, "deck.json", COMMANDER_DECK)
+    hyd = _write(tmp_path, "hyd.json", HYDRATED)
+    res = CliRunner().invoke(
+        deck_tune_main,
+        [deck, "--bulk-data", hyd, "--exclude", "Sol Ring", "--exclude", "Skullclamp"],
+    )
+    assert res.exit_code == 0, res.output
+    assert captured["params"].exclude == frozenset({"Sol Ring", "Skullclamp"})
+
+
 def test_accepts_constructed_format(tmp_path, monkeypatch):
     captured = _spy_tune(monkeypatch)
     deck = _write(tmp_path, "deck.json", CONSTRUCTED_DECK)

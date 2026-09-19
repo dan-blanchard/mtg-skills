@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import functools
 import uuid
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Collection, Mapping
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -1221,11 +1221,15 @@ def tune_params(
     max_swaps: int,
     shape_override: str | None,
     suggest_commander: bool,
+    exclude: Collection[str] = (),
 ) -> TuneParams:
     """The tuner's parameters for THIS build — transport only: the medium and both
     purses go through as-is, and ``tune`` asks the Format which currency and which
     candidate pool the medium means (ADR-0045). ``max_swaps`` is capped high enough
     to FILL a near-empty deck (an under-sized build can need ~40+ adds to reach 100).
+    ``exclude`` is the adds the builder rejected this session — the browser holds
+    the list per build and sends it with every run, so a rejected card's slot is
+    re-sourced from the next candidate.
     """
     return TuneParams(
         budget=budget,
@@ -1234,6 +1238,7 @@ def tune_params(
         shape_override=shape_override,
         suggest_commander=suggest_commander,
         medium=state.session.medium,
+        exclude=frozenset(exclude),
     )
 
 

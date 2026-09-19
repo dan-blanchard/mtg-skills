@@ -6,7 +6,8 @@ A thin adapter over ``_tuner.tune`` — the SAME skill-agnostic core deck-forge 
 emits the scorecard + budgeted swaps as JSON.
 
     deck-tune <deck.json> [--bulk-data <path>] \
-        [--budget N] [--max-swaps N] [--shape ...] [--bracket 1-5] [--paper-only]
+        [--budget N] [--max-swaps N] [--shape ...] [--bracket 1-5] [--paper-only] \
+        [--exclude <name>]...
 
 Every format family: the template and every floor are the deck's family's
 (``Format.family``), and the Commander-only axes — commander fit, the bracket gate —
@@ -114,6 +115,13 @@ def _parse_wildcards(
     "omitted, so it never silently fights --medium.",
 )
 @click.option(
+    "--exclude",
+    "exclude",
+    multiple=True,
+    help="A card never to propose as an add (repeatable) — the CLI's form of "
+    "deck-forge's Reject: its slot goes to the next-ranked candidate.",
+)
+@click.option(
     "--output",
     "output",
     type=click.Path(),
@@ -131,6 +139,7 @@ def main(
     medium: str | None,
     wildcards: dict[str, int] | None,
     paper_only: bool | None,
+    exclude: tuple[str, ...],
     output: str | None,
 ) -> None:
     """Diagnose DECK_JSON and (with --max-swaps) propose swaps."""
@@ -195,6 +204,7 @@ def main(
         medium=medium,
         wildcard_budget=wildcards,
         target_bracket=target_bracket,
+        exclude=frozenset(exclude),
     )
     result = tune(hd, search_fn=search, params=params, combos_fn=combos_fn, pool=pool)
 

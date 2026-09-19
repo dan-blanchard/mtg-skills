@@ -1,7 +1,12 @@
 <script>
   import { api } from "../lib/api.js";
   import { tryAdd } from "../lib/adds.js";
-  import { isDigital, applySnapshot, hasCommander } from "../lib/store.js";
+  import {
+    isDigital,
+    applySnapshot,
+    hasCommander,
+    rejectedAdds,
+  } from "../lib/store.js";
   import { WC_TIERS } from "../lib/mana.js";
   import CardChip from "./CardChip.svelte";
   import CardList from "./CardList.svelte";
@@ -24,6 +29,9 @@
   // so it has a home whether or not the re-tune leaves any swaps to show.
   let applyError = "";
   let result = null;
+  // The add being rejected right now (its row shows "finding an alternative…"
+  // while the re-run sources the next candidate for that slot).
+  let rejecting = "";
 
   const SHAPES = ["aggro", "midrange", "control", "combo"];
 
@@ -59,6 +67,7 @@
       max_swaps: Number(maxSwaps) || 0,
       shape_override: shapeOverride || null,
       suggest_commander: suggestCommander,
+      exclude: [...$rejectedAdds],
     };
     if ($isDigital) {
       // Per-rarity wildcard allowance — the tuner gates each unowned add against the
@@ -85,6 +94,29 @@
       result = r.data;
     }
     loading = false;
+  }
+
+  // Reject a proposed add: it is never proposed again for this build, and the
+  // re-run (deterministic, combos cached) fills the same slot with the next-ranked
+  // candidate while every other swap holds.
+  async function reject(s) {
+    if (applying || rejecting) return;
+    rejecting = s.add.name;
+    rejectedAdds.update((set) => new Set([...set, s.add.name]));
+    try {
+      await run();
+    } finally {
+      rejecting = "";
+    }
+  }
+  async function unreject(name) {
+    if (applying || rejecting) return;
+    rejectedAdds.update((set) => {
+      const next = new Set(set);
+      next.delete(name);
+      return next;
+    });
+    if (result) await run();
   }
 
   async function applySwap(s) {
@@ -492,9 +524,21 @@
               {/if}
             </div>
             <div class="swap-meta">
-              <span class="why">{s.reason}</span>
-              <button on:click={() => applySwap(s)} disabled={applying}
-                >Apply</button
+              <span class="why"
+                >{rejecting === s.add.name
+                  ? "finding an alternative…"
+                  : s.reason}</span
+              >
+              <button
+                class="reject"
+                title="Never propose {s.add
+                  .name}; show the next candidate for this slot"
+                on:click={() => reject(s)}
+                disabled={applying || !!rejecting}>Reject</button
+              >
+              <button
+                on:click={() => applySwap(s)}
+                disabled={applying || !!rejecting}>Apply</button
               >
             </div>
           </div>
@@ -514,6 +558,19 @@
       </div>
     {/if}
     {#if result.swaps_note}<p class="note">{result.swaps_note}</p>{/if}
+    {#if $rejectedAdds.size}
+      <p class="rejected">
+        Rejected:
+        {#each [...$rejectedAdds] as n (n)}
+          <button
+            type="button"
+            class="rejchip"
+            title="Allow {n} again"
+            on:click={() => unreject(n)}>{n} <em>✕</em></button
+          >
+        {/each}
+      </p>
+    {/if}
 
     {#if result.commander_suggestions && result.commander_suggestions.length}
       <div class="panel widget">
@@ -841,6 +898,34 @@
   .why {
     font-size: 0.78rem;
     color: var(--parchment-dim);
+  }
+  .rejected {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.3rem;
+    font-size: 0.78rem;
+    color: var(--muted);
+    margin: 0.4rem 0 0;
+  }
+  .rejchip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    font-size: 0.74rem;
+    color: var(--parchment-dim);
+    background: rgba(212, 69, 47, 0.12);
+    border: 1px solid rgba(212, 69, 47, 0.45);
+    border-radius: 999px;
+    padding: 0.12rem 0.55rem;
+    cursor: pointer;
+  }
+  .rejchip em {
+    font-style: normal;
+  }
+  .swap-meta button.reject {
+    color: var(--parchment-dim);
+    border-color: rgba(212, 69, 47, 0.45);
   }
   .swap-meta button {
     padding: 0.2rem 0.6rem;

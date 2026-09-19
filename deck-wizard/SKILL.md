@@ -276,7 +276,7 @@ mark-owned <deck.json> <collection.json> [--bulk-data <bulk-data-path>]
 |------|------|
 | Find format-legal cards by oracle text, type, CMC | `card-search --format <fmt> --bulk-data <path>` |
 | Warm/verify the deck's hydrated sidecar (check `missing`) | `deck-hydrate <deck.json> [--bulk-data <path>]` |
-| **Run the Step-6 deterministic spine (scorecard + candidate swaps)** — every format | `deck-tune <deck.json> [--bulk-data <path>] [--bracket <1-5>] [--max-swaps <N>] [--budget <usd> \| --wildcards <rarity=N,…>] [--medium paper\|digital] --output <wd>/tune.json` |
+| **Run the Step-6 deterministic spine (scorecard + candidate swaps)** — every format | `deck-tune <deck.json> [--bulk-data <path>] [--bracket <1-5>] [--max-swaps <N>] [--budget <usd> \| --wildcards <rarity=N,…>] [--medium paper\|digital] [--exclude <name>]… --output <wd>/tune.json` |
 | See what the commander/deck cares about (signal lanes) — *ad-hoc; the spine's `focus` has this* | `deck-signals <deck.json> [--bulk-data <path>] [--json]` |
 | Role-density budgets (lands/ramp/draw/interaction/wipes) — *ad-hoc; the spine's `template` has this* | `slot-budgets <deck.json> [--bulk-data <path>] [--shape <S>] [--json]` (deck size comes from the deck JSON) |
 | Rank a separate candidate list by synergy — *the spine's `swaps` already rank adds* | `deck-rank <deck.json> <candidates.json> [--bulk-data <path>] [--limit <N>] [--json]` (candidates from `card-search --json`) |
@@ -1294,7 +1294,7 @@ Review existing combos and near-misses. Distinguish:
 
 ```
 deck-tune <deck.json> [--bulk-data <path>] \
-    --bracket <1-5> --max-swaps <N> [--budget <usd> | --wildcards rare=4,uncommon=8] [--medium paper|digital] [--shape <aggro|midrange|control|combo>] \
+    --bracket <1-5> --max-swaps <N> [--budget <usd> | --wildcards rare=4,uncommon=8] [--medium paper|digital] [--shape <aggro|midrange|control|combo>] [--exclude <name>]... \
     --output <working-dir>/tune.json
 ```
 

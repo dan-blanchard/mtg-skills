@@ -237,6 +237,58 @@ def test_curve_fix_does_not_overshoot_a_full_role():
     assert out["swaps"][0]["add"]["name"] == "Big Wincon"
 
 
+def test_an_excluded_add_yields_its_slot_to_the_next_candidate():
+    """The builder's Reject (``SwapContext.exclude``): the rejected card is never
+    sourced, and the same issue is answered by the next-ranked candidate."""
+    classes = [
+        _cc("Filler One", "filler", cmc=4.0),
+        _cc("Filler Two", "filler", cmc=3.0),
+    ]
+    budgets = {"card_draw": _band(10, 10, 12)}
+    issue = {
+        "kind": "efficiency",
+        "subkind": "thin top-end",
+        "severity": 3,
+        "message": "curve: thin top-end",
+    }
+
+    def finisher(name):
+        return {
+            "name": name,
+            "type_line": "Sorcery",
+            "oracle_text": "You win the game.",
+            "cmc": 7.0,
+            "prices": {"usd": "1.00"},
+            "color_identity": [],
+        }
+
+    def ctx(exclude):
+        return SwapContext(
+            budgets=budgets,
+            focus_result={
+                "viable_avenues": [],
+                "stranded_avenues": [],
+                "verdict": "FOCUSED",
+            },
+            deck_signals=[],
+            search_fn=lambda **_: [finisher("First Pick"), finisher("Second Pick")],
+            identity="",
+            fmt="commander",
+            paper_only=True,
+            owned={},
+            budget=50.0,
+            max_swaps=1,
+            top_heavy=False,
+            exclude=exclude,
+        )
+
+    plain = _swaps_for_issue_dicts(classes, [issue], ctx(()))
+    assert [s["add"]["name"] for s in plain["swaps"]] == ["First Pick"]
+    rejected = _swaps_for_issue_dicts(classes, [issue], ctx({"First Pick"}))
+    assert [s["add"]["name"] for s in rejected["swaps"]] == ["Second Pick"]
+    assert rejected["swaps"][0]["cut"] == plain["swaps"][0]["cut"]
+
+
 def test_role_over_trims_the_over_role_not_a_floor_role():
     classes = [
         _cc("Pure Removal", "spine", roles=["interaction"]),

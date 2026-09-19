@@ -44,7 +44,15 @@ BOLT = {
     "oracle_text": "Lightning Bolt deals 3 damage to any target.",
     "prices": {"usd": "1.00"},
 }
-INDEX = {c["name"]: c for c in (CMD, RABBLE, FILLER, MOUNTAIN, BOLT)}
+SHOCK = {
+    "name": "Shock",
+    "type_line": "Instant",
+    "cmc": 1.0,
+    "color_identity": ["R"],
+    "oracle_text": "Shock deals 2 damage to any target.",
+    "prices": {"usd": "0.50"},
+}
+INDEX = {c["name"]: c for c in (CMD, RABBLE, FILLER, MOUNTAIN, BOLT, SHOCK)}
 
 
 def _client(*, search_results=None, bulk=True):
@@ -84,6 +92,21 @@ def test_tune_proposes_swaps_with_budget():
         assert s["cut"]["name"]
         assert s["add"]["name"] == "Lightning Bolt"
     assert data["spent"] <= 50.0
+
+
+def test_tune_exclude_resources_the_same_slot_from_the_next_candidate():
+    """The builder's Reject: an excluded add is never proposed, and the slot it held
+    goes to the next-ranked candidate for the same issue."""
+    client = _client(search_results=[BOLT, SHOCK])
+    first = client.post("/api/tune", json={"max_swaps": 1, "budget": 50.0}).json()
+    (picked,) = [s["add"]["name"] for s in first["swaps"]]
+    other = {"Lightning Bolt": "Shock", "Shock": "Lightning Bolt"}[picked]
+    again = client.post(
+        "/api/tune", json={"max_swaps": 1, "budget": 50.0, "exclude": [picked]}
+    ).json()
+    assert [s["add"]["name"] for s in again["swaps"]] == [other]
+    assert again["excluded"] == [picked]
+    assert again["swaps"][0]["cut"] == first["swaps"][0]["cut"]  # the same slot
 
 
 def test_tune_owned_only_default_no_spend():

@@ -176,6 +176,9 @@ class TunePayload(BaseModel):
     max_swaps: int = 0  # 0 = diagnose only
     shape_override: str | None = None
     suggest_commander: bool = False
+    # Adds the builder rejected (Tune's Reject button): never proposed; the slot a
+    # rejected card held goes to the next-ranked candidate on the re-run.
+    exclude: list[str] = []
 
 
 def _autosave(state: ForgeState) -> None:
@@ -766,6 +769,7 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
             max_swaps=payload.max_swaps,
             shape_override=payload.shape_override,
             suggest_commander=payload.suggest_commander,
+            exclude=payload.exclude,
         )
         # run_tune does blocking work (a Commander Spellbook combos call + heavy bulk
         # searches); offload it to a worker thread so a slow combo lookup can't stall

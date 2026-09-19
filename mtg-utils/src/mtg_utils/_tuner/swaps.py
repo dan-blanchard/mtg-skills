@@ -421,6 +421,9 @@ class SwapContext:
     #: Whether edhrec play-rate is a meaningful quality read for this deck (the
     #: family's ``Calibration.playrate_meaningful``).
     playrate: bool = True
+    #: Adds the builder rejected — never sourced, on any path (the issue loop, the
+    #: dead-weight drain, the fill pass all pick through ``addable``).
+    exclude: Collection[str] = ()
 
     def copy_ceiling(self, record: dict) -> int | None:
         """How many copies of this card the build may run: the copy limit, bounded
@@ -458,6 +461,8 @@ def propose_swaps(
 
     def addable(card: dict) -> bool:
         name = card.get("name", "")
+        if name in ctx.exclude:
+            return False  # rejected by the builder: the next-ranked candidate instead
         return ctx.under_ceiling(card, in_deck.get(name, 0) + used_adds[name])
 
     sourcing = Sourcing(ctx.focus_result, ctx.deck_signals, ctx.budgets)

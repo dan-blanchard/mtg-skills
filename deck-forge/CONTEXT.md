@@ -208,7 +208,7 @@ A card for which neither bulk data nor the live price API returns a price. Treat
 The vocabulary of the agent-less deck-evaluation pass that scores a deck and proposes budgeted swaps (the "Tune" surface) — pure Deterministic core compute, runnable with no session attached.
 
 **Tune**:
-The agent-less, hub-side evaluation-and-swap pass. Three layers: diagnose (Shape + Efficiency/Template deviation/Focus panels + Commander fit + a severity-ranked issues list), cut candidates, and budgeted swaps (a cut+add pair per top issue). Proposes only; the human confirms each swap or "applies all."
+The agent-less, hub-side evaluation-and-swap pass. Three layers: diagnose (Shape + Efficiency/Template deviation/Focus panels + Commander fit + a severity-ranked issues list), cut candidates, and budgeted swaps (a cut+add pair per top issue). Proposes only; the human confirms each swap, "applies all," or **rejects** an add — a rejected card is sent as `exclude` with every later run of this build, so the swap engine never sources it again and the same slot goes to the next-ranked candidate (the run is deterministic and the combo lookup is cached, so every other swap holds). Rejections live in the browser per build; `deck-tune --exclude` is the CLI's form.
 
 **Remedy** (`_tuner/issues.py`, ADR-0052):
 What the Tune swap engine may do about one issue — where the add comes from, which cut pool pays for it, how candidates rank — decided once, when the issue is diagnosed. An issue with no Remedy (a misfit commander, a voltron plan with no commander-damage rule, a Grant-covered role) is the builder's to read; no swap path sources anything for it.

@@ -52,6 +52,11 @@ class TuneParams:
     # The bracket the builder is AIMING for (ADR-0030). When set, the scorecard carries
     # a bracket-constraint gate; when None, the bracket axis is skipped entirely.
     target_bracket: int | None = None
+    # Adds the builder has REJECTED: never proposed again, so the slot a rejected card
+    # would have filled goes to the next-ranked candidate for the same issue (the run
+    # is deterministic, so every other swap holds). Names, exactly as the bulk spells
+    # them.
+    exclude: frozenset[str] = frozenset()
 
 
 def _deck_identity(hd: HydratedDeck) -> str:
@@ -425,6 +430,7 @@ def tune(
             max_copies=hd.format.max_copies,
             available=pool,
             playrate=cal.playrate_meaningful,
+            exclude=params.exclude,
         )
         swaps_out = swaps_mod.propose_swaps(classes, issues, swap_ctx)
         # The fill pass deliberately skips lands; flag any mana-base shortfall so the
@@ -462,4 +468,6 @@ def tune(
         "wildcards_spent": swaps_out["wildcards_spent"],
         "swaps_note": swaps_out["note"],
         "commander_suggestions": suggestions,
+        # The adds this run was told never to propose (the builder's rejections).
+        "excluded": sorted(params.exclude),
     }
