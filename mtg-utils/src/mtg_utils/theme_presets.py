@@ -171,6 +171,10 @@ class Preset:
     concept: Callable[[dict], bool] | None = None
     should_match: tuple[str, ...] = ()
     should_not_match: tuple[str, ...] = ()
+    #: Provenance for maintainers — the structural-view conversion notes (which
+    #: signal keys the view reads, recall vs the old regex, the named residual) —
+    #: NEVER served: ``description`` is the player-facing blurb the UI shows.
+    notes: str = ""
 
     def matches(self, card: dict) -> bool:
         if self.keywords:
@@ -717,14 +721,19 @@ _KEYWORD_ABILITIES: tuple[Preset, ...] = (
     Preset(
         name="landfall",
         description=(
-            "Card has landfall (whenever a land enters under your control), "
-            "OR is a landfall ENABLER the crosswalk `landfall` signal folds "
-            "in: casts a land from the graveyard (Crucible of Worlds, "
-            "Ramunap Excavator), grants extra land drops (Exploration, "
-            "Azusa), or returns lands from the graveyard to the "
-            "battlefield — all read the same 'more land-ETB triggers' "
-            "archetype the old oracle-text regex only caught the trigger "
-            "half of (task #83 structural-view conversion)."
+            "Card has landfall (whenever a land enters under your control), OR is "
+            "a landfall enabler: casts lands from the graveyard (Crucible of "
+            "Worlds, Ramunap Excavator), grants extra land drops (Exploration, "
+            "Azusa), or returns lands from the graveyard to the battlefield."
+        ),
+        notes=(
+            "The crosswalk `landfall` signal folds the enablers in: OR is a "
+            "landfall ENABLER the crosswalk `landfall` signal folds in: casts a "
+            "land from the graveyard (Crucible of Worlds, Ramunap Excavator), "
+            "grants extra land drops (Exploration, Azusa), or returns lands from "
+            "the graveyard to the battlefield — all read the same 'more land-ETB "
+            "triggers' archetype the old oracle-text regex only caught the "
+            "trigger half of (task #83 structural-view conversion)."
         ),
         # Keyword arm UNIONS with the signal_keys view rather than being
         # subsumed by it: the scoping census found landfall is one of the
@@ -823,6 +832,16 @@ _KEYWORD_ABILITIES: tuple[Preset, ...] = (
         description="Creature has undying.",
         keywords=("Undying",),
         should_match=(),
+        should_not_match=("Lightning Bolt",),
+    ),
+    Preset(
+        name="mutate",
+        description=(
+            "Creature has mutate (CR 702.140a): cast for its mutate cost to merge "
+            "onto a non-Human creature you own, keeping every ability of both."
+        ),
+        keywords=("Mutate",),
+        should_match=("Gemrazer",),
         should_not_match=("Lightning Bolt",),
     ),
     Preset(
@@ -1604,44 +1623,45 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
     Preset(
         name="board-wipe",
         description=(
-            "Destroys or damages all creatures (board-wide removal) — "
-            "task #83 structural-view conversion: signal keys "
-            "`mass_removal` (DestroyAll / mass-exile / DamageAll / a "
-            "SYMMETRIC negative-toughness PumpAll, FIXED or dynamic-X — CR "
-            "115.10 / 701.8 / 701.21a / 406.1 — plus a "
-            "ChooseAndSacrificeRest sweep, Tragic Arrogance/Cataclysm) + "
-            "`symmetric_damage_each` (DamageAll/DamageEachPlayer, the "
-            "burn-side twin). mass_removal deliberately EXCLUDES an "
-            "opponent-scoped one-sided shrink (Massacre Wurm, Cower in "
-            "Fear: 'creatures your opponents control get -N/-N') — a real "
-            "deck-building distinction between a SYMMETRIC sweep and a "
-            "one-sided punisher (adjudicated, not a gap; see "
-            "`_mass_removal`'s own docstring) — so Massacre Wurm moves to "
-            "should_not_match here. Recall 0.86 vs the old regex; the "
-            "large majority of the 75 preset-only cards are this same "
-            "one-sided-debuff family (Doomwake Giant, Elesh Norn, Ethereal "
-            "Absolution, ...) plus graveyard-hate mass-exile ('exile all "
-            "creature cards from a graveyard' — Crypt Incursion, Honor the "
-            "Fallen — a different mechanic, not a battlefield wipe), both "
-            "correct sheds. DEFERRED narrow residual (not fixed here — a "
-            "lane change, out of scope for a view conversion): 6 symmetric "
-            "'All creatures get -X/-X' wipes whose X is a COMPUTED value "
-            "(Cloudkill: negative of a commander's mana value; also Deluge "
-            "of Doom, Planar Despair, Kagemaro First to Suffer, Ichor "
-            "Explosion, Terisiare's Devastation) carry the toughness "
-            "reduction as a `Quantity`/`Multiply(factor=-1, ...)` node, "
-            "not the `Variable('-X')` shape `_negative_pt_field` reads (the "
-            "Toxic Deluge dynamic-X fix, ADR-0035 task #83 chunk-A) — that "
-            "helper's own docstring assumed 'no corpus mass-debuff "
-            "representative' for the Quantity shape, which this residue "
-            "corrects. 6 cards of 543 (recall 0.989) — the view is still "
-            "correct to ship; these are the residual tail. Task #88 adds "
-            "a mass TUCK arm to `mass_removal` (ChangeZoneAll -> Library, "
-            "the SAME first-class mass tag, a different zone-change verb "
-            "— CR 401.4) — Terminus/Hallowed Burial ('put all creatures "
-            "on the bottom of their owners' libraries') were ZERO-signal "
-            "before this and are now board-wipe members, Terminus pinned "
-            "below."
+            "Destroys or damages all creatures (board-wide removal): symmetric "
+            "sweeps, including mass tuck (Terminus, Hallowed Burial). A one-sided "
+            "shrink of only your opponents' creatures (Massacre Wurm, Cower in "
+            "Fear) is a punisher, not a wipe."
+        ),
+        notes=(
+            "task #83 structural-view conversion: signal keys `mass_removal` "
+            "(DestroyAll / mass-exile / DamageAll / a SYMMETRIC "
+            "negative-toughness PumpAll, FIXED or dynamic-X — CR 115.10 / 701.8 / "
+            "701.21a / 406.1 — plus a ChooseAndSacrificeRest sweep, Tragic "
+            "Arrogance/Cataclysm) + `symmetric_damage_each` "
+            "(DamageAll/DamageEachPlayer, the burn-side twin). mass_removal "
+            "deliberately EXCLUDES an opponent-scoped one-sided shrink (Massacre "
+            "Wurm, Cower in Fear: 'creatures your opponents control get -N/-N') — "
+            "a real deck-building distinction between a SYMMETRIC sweep and a "
+            "one-sided punisher (adjudicated, not a gap; see `_mass_removal`'s "
+            "own docstring) — so Massacre Wurm moves to should_not_match here. "
+            "Recall 0.86 vs the old regex; the large majority of the 75 "
+            "preset-only cards are this same one-sided-debuff family (Doomwake "
+            "Giant, Elesh Norn, Ethereal Absolution, ...) plus graveyard-hate "
+            "mass-exile ('exile all creature cards from a graveyard' — Crypt "
+            "Incursion, Honor the Fallen — a different mechanic, not a "
+            "battlefield wipe), both correct sheds. DEFERRED narrow residual (not "
+            "fixed here — a lane change, out of scope for a view conversion): 6 "
+            "symmetric 'All creatures get -X/-X' wipes whose X is a COMPUTED "
+            "value (Cloudkill: negative of a commander's mana value; also Deluge "
+            "of Doom, Planar Despair, Kagemaro First to Suffer, Ichor Explosion, "
+            "Terisiare's Devastation) carry the toughness reduction as a "
+            "`Quantity`/`Multiply(factor=-1, ...)` node, not the `Variable('-X')` "
+            "shape `_negative_pt_field` reads (the Toxic Deluge dynamic-X fix, "
+            "ADR-0035 task #83 chunk-A) — that helper's own docstring assumed 'no "
+            "corpus mass-debuff representative' for the Quantity shape, which "
+            "this residue corrects. 6 cards of 543 (recall 0.989) — the view is "
+            "still correct to ship; these are the residual tail. Task #88 adds a "
+            "mass TUCK arm to `mass_removal` (ChangeZoneAll -> Library, the SAME "
+            "first-class mass tag, a different zone-change verb — CR 401.4) — "
+            "Terminus/Hallowed Burial ('put all creatures on the bottom of their "
+            "owners' libraries') were ZERO-signal before this and are now "
+            "board-wipe members, Terminus pinned below."
         ),
         signal_keys=("mass_removal", "symmetric_damage_each"),
         should_match=(
@@ -1743,14 +1763,17 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
     Preset(
         name="land-removal",
         description=(
-            "Land destruction, single-target or mass (MLD). Includes "
-            "Sinkhole, Strip Mine, Wasteland, Armageddon. Unions the "
-            "``land_destruction`` REPEATABLE-LD-ENGINE membership floor "
-            "(a creature-commander cross-open the target-type walk below "
-            "can't see — Numot, Goblin Settler) with a target-type walk "
-            "over destroy/exile effects (the ``removal``/``mass_removal`` "
-            "lanes deliberately EXCLUDE Land, routing it here instead —"
-            " see ``_removal``'s docstring)."
+            "Land destruction, single-target or mass (MLD). Includes Sinkhole, "
+            "Strip Mine, Wasteland, Armageddon, and repeatable land-destruction "
+            "engines (Numot, Goblin Settler)."
+        ),
+        notes=(
+            "Unions the ``land_destruction`` REPEATABLE-LD-ENGINE membership "
+            "floor (a creature-commander cross-open the target-type walk below "
+            "can't see — Numot, Goblin Settler) with a target-type walk over "
+            "destroy/exile effects (the ``removal``/``mass_removal`` lanes "
+            "deliberately EXCLUDE Land, routing it here instead — see "
+            "``_removal``'s docstring)."
         ),
         signal_keys=("land_destruction",),
         concept=_removal_edict_concept("Land"),
@@ -1796,36 +1819,37 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
     Preset(
         name="bounce",
         description=(
-            "Returns a target creature, nonland permanent, or permanent to "
-            "its owner's hand (CR 402.1) — task #83 structural-view "
-            "conversion: signal keys `bounce_tempo` (single-target "
-            "battlefield->hand, self-bounce/GY-recall vetoed — CR 402.1 vs "
-            "404.1) + `mass_bounce` (board-wide). Recall 0.87 vs the old "
-            "regex; 30 preset-only, near all a deliberate self-bounce "
-            "('return target permanent YOU CONTROL' — a protection idiom, "
-            "not tempo) or GY-card-recursion ('return target ... CARD from "
-            "a graveyard') the old regex's own comment already meant to "
-            "exclude but its negative lookahead missed on 'creature OR "
-            "land card' phrasings (Awaken the Honored Dead). "
-            "DEFERRED narrow residual (not fixed here — a lane change, out "
-            "of scope for a view conversion): Aether Helix's genuine "
-            "'return target permanent to hand' tempo bounce is wrongly "
-            "GY-veto'd because its sibling graveyard-return effect tags as "
-            "`change_zone`, not `bounce` — the veto's `len(bounces) == 1` "
-            "guard (`_analysis/tree_synthesis/mana_ramp_lands.py::"
-            "_arm_bounce_tempo`) treats "
-            "the ONE `bounce`-tagged node as if it were the unit's sole "
-            "(self-referential) GY return, when it's really the OTHER "
-            "sentence's untagged pair; Alchemist's Retrieval's Cleave "
-            "alternate mode (which drops the '[you control]' restriction) "
-            "isn't modeled separately, so its base parse reads as a vetoed "
-            "self-bounce; Whirlpool Whelm's Clash-then-bounce composite "
-            "gets no `bounce` concept node at all; Banishing Knack / "
-            "Retraction Helix grant another creature a bounce-activated "
-            "ability ('target creature gains \"{T}: Return...\"') and the "
-            "granted ability's effect isn't walked (the same GrantAbility-"
-            "descent gap the sacrifice-outlet conversion's Rakdos Riteknife "
-            "note names). 5 cards of 231 (recall 0.978) — the view is "
+            "Returns a target creature, nonland permanent, or permanent to its "
+            "owner's hand (CR 402.1) — tempo bounce. Returning your own permanent "
+            "to protect it, or a card from a graveyard to hand, is not this "
+            "theme."
+        ),
+        notes=(
+            "task #83 structural-view conversion: signal keys `bounce_tempo` "
+            "(single-target battlefield->hand, self-bounce/GY-recall vetoed — CR "
+            "402.1 vs 404.1) + `mass_bounce` (board-wide). Recall 0.87 vs the old "
+            "regex; 30 preset-only, near all a deliberate self-bounce ('return "
+            "target permanent YOU CONTROL' — a protection idiom, not tempo) or "
+            "GY-card-recursion ('return target ... CARD from a graveyard') the "
+            "old regex's own comment already meant to exclude but its negative "
+            "lookahead missed on 'creature OR land card' phrasings (Awaken the "
+            "Honored Dead). DEFERRED narrow residual (not fixed here — a lane "
+            "change, out of scope for a view conversion): Aether Helix's genuine "
+            "'return target permanent to hand' tempo bounce is wrongly GY-veto'd "
+            "because its sibling graveyard-return effect tags as `change_zone`, "
+            "not `bounce` — the veto's `len(bounces) == 1` guard "
+            "(`_analysis/tree_synthesis/mana_ramp_lands.py::_arm_bounce_tempo`) "
+            "treats the ONE `bounce`-tagged node as if it were the unit's sole "
+            "(self-referential) GY return, when it's really the OTHER sentence's "
+            "untagged pair; Alchemist's Retrieval's Cleave alternate mode (which "
+            "drops the '[you control]' restriction) isn't modeled separately, so "
+            "its base parse reads as a vetoed self-bounce; Whirlpool Whelm's "
+            "Clash-then-bounce composite gets no `bounce` concept node at all; "
+            "Banishing Knack / Retraction Helix grant another creature a "
+            "bounce-activated ability ('target creature gains \"{T}: Return...\"') "
+            "and the granted ability's effect isn't walked (the same "
+            "GrantAbility-descent gap the sacrifice-outlet conversion's Rakdos "
+            "Riteknife note names). 5 cards of 231 (recall 0.978) — the view is "
             "still correct to ship; these are the residual tail."
         ),
         signal_keys=("bounce_tempo", "mass_bounce"),
@@ -1935,32 +1959,36 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
     Preset(
         name="tokens",
         description=(
-            "Creates one or more creature tokens — task #83 structural-view "
-            "conversion: the `token_maker` signal key (a CreateToken effect) "
-            "UNION the broad family of keywords that create tokens as part "
-            "of their OWN keyword template rather than a separately-tagged "
-            "effect (`token_maker` doesn't fire on the keyword alone): "
-            "Embalm and Eternalize (Zombie copies from graveyard), Populate "
-            "(copy your own token), Amass (Zombie Army), Offspring (1/1 "
+            "Creates one or more creature tokens, including the keywords that "
+            "make them: Embalm, Eternalize, Populate, Amass, Offspring, Manifest, "
+            "Cloak, Incubate, Fabricate, Afterlife, Mobilize, Encore, Myriad, "
+            "Endure."
+        ),
+        notes=(
+            "task #83 structural-view conversion: the `token_maker` signal key (a "
+            "CreateToken effect) UNION the broad family of keywords that create "
+            "tokens as part of their OWN keyword template rather than a "
+            "separately-tagged effect (`token_maker` doesn't fire on the keyword "
+            "alone): Embalm and Eternalize (Zombie copies from graveyard), "
+            "Populate (copy your own token), Amass (Zombie Army), Offspring (1/1 "
             "copy), Manifest and Cloak (face-down 2/2), Incubate (Incubator "
-            "transform token), Fabricate (Servos), Afterlife (Spirits on "
-            "death), Mobilize (attacking Warriors), Encore (attacking "
-            "copies), Myriad (combat token copies), Endure (CR 702.62 — "
-            "counters OR a Spirit token, a genuine possible-token maker). "
-            "Corpus diff vs the old regex (commander-legal, by oracle_id): "
-            "18 preset-only before the Endure keyword closed 10 of them "
-            "(a modal 'put counters or make a Spirit token' cycle); the "
-            "remaining 8 are a small, named residual, not fixed here (a "
-            "lane change, out of scope for a view conversion) — Afterlife "
-            "Insurance / Infantry Shield TEMPORARILY GRANT the Afterlife / "
-            "Mobilize keyword to a creature ('creatures you control gain "
-            "afterlife 1 until end of turn') rather than printing it, so "
-            "the keyword-array check (which reads the CARD's own printed "
-            "keywords) never fires; the other 6 use the `Gift` keyword's "
-            "token-flavored variant ('Gift a tapped Fish') — `Gift` itself "
-            "is too coarse to union (most Gift cards gift a card, life, or "
-            "something else, never a token), so the token-specific Gift "
-            "cards stay a narrow, acceptable residual."
+            "transform token), Fabricate (Servos), Afterlife (Spirits on death), "
+            "Mobilize (attacking Warriors), Encore (attacking copies), Myriad "
+            "(combat token copies), Endure (CR 702.62 — counters OR a Spirit "
+            "token, a genuine possible-token maker). Corpus diff vs the old regex "
+            "(commander-legal, by oracle_id): 18 preset-only before the Endure "
+            "keyword closed 10 of them (a modal 'put counters or make a Spirit "
+            "token' cycle); the remaining 8 are a small, named residual, not "
+            "fixed here (a lane change, out of scope for a view conversion) — "
+            "Afterlife Insurance / Infantry Shield TEMPORARILY GRANT the "
+            "Afterlife / Mobilize keyword to a creature ('creatures you control "
+            "gain afterlife 1 until end of turn') rather than printing it, so the "
+            "keyword-array check (which reads the CARD's own printed keywords) "
+            "never fires; the other 6 use the `Gift` keyword's token-flavored "
+            "variant ('Gift a tapped Fish') — `Gift` itself is too coarse to "
+            "union (most Gift cards gift a card, life, or something else, never a "
+            "token), so the token-specific Gift cards stay a narrow, acceptable "
+            "residual."
         ),
         keywords=(
             "Embalm",
@@ -2258,26 +2286,28 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
     Preset(
         name="lifegain",
         description=(
-            "Gains life OR triggers when you gain life (lifegain-matters) — "
-            "task #83 structural-view conversion: signal keys "
-            "`lifegain_makers` (a gain-life EFFECT) + `lifegain_matters` "
-            "(a your-lifegain PAYOFF, including the Secrets of Strixhaven "
-            "`Infusion` 'if you gained life this turn' idiom and a "
-            "recurring self-life-loss engine read as the same 'life as a "
-            "resource' archetype — Ad Nauseam, Phyrexian Arena cousins) "
-            "UNION the printed `Lifelink` keyword (a keyword-only lifelink "
-            "grant the effect lane doesn't independently derive). "
-            "Corpus diff vs the old regex (commander-legal, by oracle_id): "
-            "183 preset-only, ALL correctly shed — 173 are old-regex "
-            "reminder-text false positives (a Food/Clue/Ninjutsu token's "
-            "OWN 'You gain 3 life' explainer text, or a granted/modal "
-            "'lifelink' mention unrelated to the card's own effect) or "
-            "self-only 'this Aura has lifelink' static grants; the "
-            "remaining 10 (Armistice, Fiery Justice, Phelddagrif, ...) are "
-            "OPPONENT-directed lifegain (group-hug 'target opponent gains "
-            "N life') — a different scope than lifegain_makers' `you` "
-            "read, correctly excluded (the same kind of scope-shed the "
-            "removal preset applies elsewhere)."
+            "Gains life OR triggers when you gain life (lifegain-matters), "
+            "including lifelink and the Secrets of Strixhaven Infusion idiom. "
+            "Giving an opponent life (group hug) is not this theme."
+        ),
+        notes=(
+            "task #83 structural-view conversion: signal keys `lifegain_makers` "
+            "(a gain-life EFFECT) + `lifegain_matters` (a your-lifegain PAYOFF, "
+            "including the Secrets of Strixhaven `Infusion` 'if you gained life "
+            "this turn' idiom and a recurring self-life-loss engine read as the "
+            "same 'life as a resource' archetype — Ad Nauseam, Phyrexian Arena "
+            "cousins) UNION the printed `Lifelink` keyword (a keyword-only "
+            "lifelink grant the effect lane doesn't independently derive). Corpus "
+            "diff vs the old regex (commander-legal, by oracle_id): 183 "
+            "preset-only, ALL correctly shed — 173 are old-regex reminder-text "
+            "false positives (a Food/Clue/Ninjutsu token's OWN 'You gain 3 life' "
+            "explainer text, or a granted/modal 'lifelink' mention unrelated to "
+            "the card's own effect) or self-only 'this Aura has lifelink' static "
+            "grants; the remaining 10 (Armistice, Fiery Justice, Phelddagrif, "
+            "...) are OPPONENT-directed lifegain (group-hug 'target opponent "
+            "gains N life') — a different scope than lifegain_makers' `you` read, "
+            "correctly excluded (the same kind of scope-shed the removal preset "
+            "applies elsewhere)."
         ),
         keywords=("Lifelink",),
         signal_keys=("lifegain_makers", "lifegain_matters"),
@@ -2628,12 +2658,10 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
     Preset(
         name="graveyard-cast",
         description=(
-            "Umbrella for 'cast this card from the graveyard' keyword "
-            "mechanics: Flashback, Jump-start, Aftermath, Retrace, "
-            "Escape, Disturb, Mayhem. Graveyard-value payoff. The "
-            "narrower `flashback` preset still exists; use this one "
-            "when you want the full cast-from-graveyard archetype "
-            "density."
+            "Umbrella for 'cast this card from the graveyard' keyword mechanics: "
+            "Flashback, Jump-start, Aftermath, Retrace, Escape, Disturb, Mayhem. "
+            "Graveyard-value payoff. The narrower per-keyword presets still "
+            "exist; use this one for the full cast-from-graveyard archetype."
         ),
         keywords=(
             "Flashback",
@@ -2683,6 +2711,56 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
         ),
         should_not_match=("Lightning Bolt", "Counterspell"),
     ),
+    # Free casting: a spell cast without paying its mana cost — the oracle
+    # phrase (the ``free_cast`` structural view; phase carries no 'free'
+    # discriminator, so the phrase is the tell) UNION the keywords that cast
+    # for free by definition, Cascade (CR 702.85a) and Discover (CR 701.57) —
+    # the sanctioned keyword-array union (reanimate's Soulshift/Recover
+    # precedent). Cascade/Discover carriers never fire ``free_cast``
+    # (Bloodbraid Elf, Maelstrom Wanderer: their keyword reminder text is not
+    # the card's own effect), so the union is what makes them members.
+    Preset(
+        name="free-cast",
+        description=(
+            "Casts a spell without paying its mana cost (Omniscience, Fist of "
+            "Suns, Jodah, Archmage Eternal, Kari Zev's Expertise), plus the "
+            "keywords that cast for free: Cascade (CR 702.85a) and Discover "
+            "(CR 701.57)."
+        ),
+        keywords=("Cascade", "Discover"),
+        signal_keys=("free_cast",),
+        should_match=(
+            "Omniscience",
+            "Fist of Suns",
+            "Kari Zev's Expertise",
+            "Bloodbraid Elf",
+        ),
+        should_not_match=("Lightning Bolt", "Rampant Growth", "Sneak Attack"),
+    ),
+    # Cheating into play: a card put onto the battlefield from hand or library
+    # WITHOUT being cast — the ``cheat_into_play`` structural view, whose own
+    # carve-outs are the preset's edges: a land put is ramp (never a cheat),
+    # and the graveyard route is ``reanimate``'s (``creature_recursion``).
+    Preset(
+        name="cheat-into-play",
+        description=(
+            "Puts a card from your hand or library onto the battlefield "
+            "without casting it (Sneak Attack, Show and Tell, Elvish Piper, "
+            "Aether Vial, Kaalia of the Vast, Bribery). Ramp that puts a land "
+            "onto the battlefield is not this theme; the graveyard route is "
+            "the reanimate preset."
+        ),
+        signal_keys=("cheat_into_play",),
+        should_match=(
+            "Sneak Attack",
+            "Show and Tell",
+            "Elvish Piper",
+            "Aether Vial",
+            "Kaalia of the Vast",
+            "Bribery",
+        ),
+        should_not_match=("Rampant Growth", "Cultivate", "Lightning Bolt", "Reanimate"),
+    ),
     # ── Spell-copy family ──
     Preset(
         name="spell-copy",
@@ -2716,29 +2794,30 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
     Preset(
         name="edict",
         description=(
-            "Forced-sacrifice effects. Defender chooses which permanent to "
-            "sacrifice (a kind of removal that bypasses hexproof/"
-            "indestructible) — task #83 structural-view conversion: the "
-            "`edict_makers` signal key (a forced player-sacrifice of ANY "
-            "type, CR 701.21a) UNION the printed `Annihilator` keyword (a "
-            "forced-sacrifice-on-attack that the effect lane doesn't "
-            "independently derive). Recall 0.945 vs the old regex; 10 "
-            "preset-only, ALL the same named, deferred (not fixed here — a "
-            "lane change, out of scope for a view conversion) structural "
-            "gap: the sacrifice clause is embedded inside a CONDITIONAL / "
-            "MODAL / vote / dice-roll branch phase doesn't decorate as a "
-            "typed `edict_makers`-recognized effect at the unit's top "
-            "level — a Council's-dilemma vote (Capital Punishment, "
-            "Tyrant's Choice), an 'unless that player sacrifices' cost-"
-            "alternative (Demanding Dragon, Indulgent Tormentor), a "
-            "dice-roll modal (Earth-Cult Elemental, Myrkul's Edict), or an "
-            "ETB 'you may choose' branch (Lurking Spinecrawler). The same "
-            "root cause the extra-turns preset's deferred residue names "
-            "(a Time Warp effect nested inside a vote/dice/conditional "
-            "branch is likewise undecorated) — a shared, well-understood "
-            "crosswalk limitation, not several unrelated bugs. 10 cards of "
-            "183 (recall 0.945) — the view is still correct to ship; these "
-            "are the residual tail."
+            "Forced-sacrifice effects: the defender chooses which permanent to "
+            "sacrifice, a kind of removal that bypasses hexproof and "
+            "indestructible. Includes Annihilator."
+        ),
+        notes=(
+            "task #83 structural-view conversion: the `edict_makers` signal key "
+            "(a forced player-sacrifice of ANY type, CR 701.21a) UNION the "
+            "printed `Annihilator` keyword (a forced-sacrifice-on-attack that the "
+            "effect lane doesn't independently derive). Recall 0.945 vs the old "
+            "regex; 10 preset-only, ALL the same named, deferred (not fixed here "
+            "— a lane change, out of scope for a view conversion) structural gap: "
+            "the sacrifice clause is embedded inside a CONDITIONAL / MODAL / vote "
+            "/ dice-roll branch phase doesn't decorate as a typed "
+            "`edict_makers`-recognized effect at the unit's top level — a "
+            "Council's-dilemma vote (Capital Punishment, Tyrant's Choice), an "
+            "'unless that player sacrifices' cost-alternative (Demanding Dragon, "
+            "Indulgent Tormentor), a dice-roll modal (Earth-Cult Elemental, "
+            "Myrkul's Edict), or an ETB 'you may choose' branch (Lurking "
+            "Spinecrawler). The same root cause the extra-turns preset's deferred "
+            "residue names (a Time Warp effect nested inside a "
+            "vote/dice/conditional branch is likewise undecorated) — a shared, "
+            "well-understood crosswalk limitation, not several unrelated bugs. 10 "
+            "cards of 183 (recall 0.945) — the view is still correct to ship; "
+            "these are the residual tail."
         ),
         keywords=("Annihilator",),
         signal_keys=("edict_makers",),
@@ -2785,10 +2864,13 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
     Preset(
         name="land-edict",
         description=(
-            "Forced-sacrifice of a land. Includes mass LD like Wildfire, "
-            "plus Smallpox-style combined effects. Distinct from "
-            "``land_sacrifice_makers`` (a YOU-sac cost engine — Zuran "
-            "Orb): this is a FORCED sacrifice a caster inflicts."
+            "Forced-sacrifice of a land. Includes mass LD like Wildfire, plus "
+            "Smallpox-style combined effects. A land you sacrifice as your own "
+            "cost (Zuran Orb) is not this theme."
+        ),
+        notes=(
+            "Distinct from ``land_sacrifice_makers`` (a YOU-sac cost engine — "
+            "Zuran Orb): this is a FORCED sacrifice a caster inflicts."
         ),
         concept=_removal_edict_concept("Land", family="edict"),
         should_match=("Wildfire",),
@@ -2826,29 +2908,31 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
     Preset(
         name="land-animation",
         description=(
-            "Turns a land into a creature — task #83 structural-view "
-            "conversion: the concept is DELIBERATELY SPLIT across three "
-            "signal keys (see each lane's own exclusion comment): "
-            "`land_protection` (self-animating manlands — Mutavault, "
+            "Turns a land into a creature: manlands (Mutavault, Treetop Village, "
+            "the Restless cycle), animators, and the Awaken (CR 702.113) and "
+            "Earthbend (CR 701.66) keywords."
+        ),
+        notes=(
+            "task #83 structural-view conversion: the concept is DELIBERATELY "
+            "SPLIT across three signal keys (see each lane's own exclusion "
+            "comment): `land_protection` (self-animating manlands — Mutavault, "
             "Treetop Village, the Restless cycle — deliberately NOT in "
-            "land_creatures_matter; also carries reverse-animators like "
-            "Ashaya, hence prec ~0.66 for this composite) + "
-            "`land_creatures_matter` (anthem/maker land-creature builds) + "
-            "`earthbend_makers` (the Avatar-crossover Earthbend keyword, "
-            "CR 701.66, prec 1.00) UNION the printed `Earthbend` and "
-            "`Awaken` (CR 702.113 — turns a land you control into a "
-            "creature, the alternative-cost Battle for Zendikar mechanic; "
-            "the whole 15-card Awaken cycle was the entire preset-only "
-            "residue before this union) keywords. Recall 0.88 vs the old "
-            "regex; the remaining 3 preset-only (Gaea's Liege, Graceful "
-            "Antelope, Tide Shaper) are confirmed old-regex false "
-            "positives — each says '...until THIS CREATURE leaves the "
-            "battlefield' (a duration clause referencing the ABILITY's OWN "
-            "source, a creature), which the old regex's lazy "
-            "'land...becomes a[^.]*?creature' pattern matched even though "
-            "the land becomes a Forest/Island/Plains (a land TYPE change, "
-            "CR 305.1), never a creature. Signals correctly exclude these; "
-            "0 genuine losses."
+            "land_creatures_matter; also carries reverse-animators like Ashaya, "
+            "hence prec ~0.66 for this composite) + `land_creatures_matter` "
+            "(anthem/maker land-creature builds) + `earthbend_makers` (the "
+            "Avatar-crossover Earthbend keyword, CR 701.66, prec 1.00) UNION the "
+            "printed `Earthbend` and `Awaken` (CR 702.113 — turns a land you "
+            "control into a creature, the alternative-cost Battle for Zendikar "
+            "mechanic; the whole 15-card Awaken cycle was the entire preset-only "
+            "residue before this union) keywords. Recall 0.88 vs the old regex; "
+            "the remaining 3 preset-only (Gaea's Liege, Graceful Antelope, Tide "
+            "Shaper) are confirmed old-regex false positives — each says "
+            "'...until THIS CREATURE leaves the battlefield' (a duration clause "
+            "referencing the ABILITY's OWN source, a creature), which the old "
+            "regex's lazy 'land...becomes a[^.]*?creature' pattern matched even "
+            "though the land becomes a Forest/Island/Plains (a land TYPE change, "
+            "CR 305.1), never a creature. Signals correctly exclude these; 0 "
+            "genuine losses."
         ),
         keywords=("Earthbend", "Awaken"),
         signal_keys=(
@@ -2942,12 +3026,14 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
     Preset(
         name="extra-turns",
         description=(
-            "Take another turn after this one. Time Walk effects — the "
-            "pillar of Obeka / Narset / Sakashima extra-turns archetypes "
-            "(Time Walk, Temporal Manipulation, Nexus of Fate, "
-            "Expropriate, Temporal Trespass). Structural view (task #83/"
-            "#85): signal key `extra_turns` — an ExtraTurn effect, "
-            "regardless of who takes it (CR 500.7)."
+            "Take another turn after this one (CR 500.7). Time Walk effects — the "
+            "pillar of Obeka / Narset / Sakashima extra-turns archetypes (Time "
+            "Walk, Temporal Manipulation, Nexus of Fate, Expropriate, Temporal "
+            "Trespass)."
+        ),
+        notes=(
+            "Structural view (task #83/#85): signal key `extra_turns` — an "
+            "ExtraTurn effect, regardless of who takes it (CR 500.7)."
         ),
         signal_keys=("extra_turns",),
         should_match=("Time Walk", "Temporal Manipulation", "Nexus of Fate"),
@@ -2963,11 +3049,13 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
     Preset(
         name="extra-combats",
         description=(
-            "Additional combat phase (CR 505/506). Aggravated Assault, "
-            "Seize the Day, Waves of Aggression — the pillar of Aurelia / "
-            "Godo / Isshin commander archetypes and multi-combat 60-card "
-            "lists. Structural view (task #83): signal key `extra_combats` "
-            "— an AdditionalPhase effect whose phase is a combat phase (see "
+            "Additional combat phase (CR 506). Aggravated Assault, Seize the Day, "
+            "Waves of Aggression — the pillar of Aurelia / Godo / Isshin "
+            "commander archetypes and multi-combat 60-card lists."
+        ),
+        notes=(
+            "Structural view (task #83): signal key `extra_combats` — an "
+            "AdditionalPhase effect whose phase is a combat phase (see "
             "`_analysis.lanes._extra_combats`)."
         ),
         signal_keys=("extra_combats",),
@@ -2977,14 +3065,18 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
     Preset(
         name="extra-upkeeps",
         description=(
-            "Additional upkeep step. Paradox Haze and Obeka Splitter of "
-            "Seconds turn beginning-of-upkeep triggers into repeatable "
-            "engines — the core of upkeep-payoff archetypes. The "
-            "crosswalk `extra_upkeep` signal also folds in the wider "
-            "'additional beginning phase' idiom (Sphinx of the Second "
-            "Sun) — a beginning phase INCLUDES the upkeep step (CR 501.1), "
-            "so it's the same archetype under a broader templating "
-            "(task #83 structural-view conversion)."
+            "Additional upkeep step. Paradox Haze and Obeka, Splitter of Seconds "
+            "turn beginning-of-upkeep triggers into repeatable engines — the core "
+            "of upkeep-payoff archetypes. Also an additional beginning phase "
+            "(Sphinx of the Second Sun), which includes an upkeep step (CR "
+            "501.1)."
+        ),
+        notes=(
+            "The crosswalk `extra_upkeep` signal also folds in the wider "
+            "'additional beginning phase' idiom (Sphinx of the Second Sun) — a "
+            "beginning phase INCLUDES the upkeep step (CR 501.1), so it's the "
+            "same archetype under a broader templating (task #83 structural-view "
+            "conversion)."
         ),
         signal_keys=("extra_upkeep",),
         should_match=("Obeka, Splitter of Seconds", "Paradox Haze"),

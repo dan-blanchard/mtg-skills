@@ -21,6 +21,7 @@
   import CardTile from "./CardTile.svelte";
   import Mana from "./Mana.svelte";
   import FilterWidget from "./FilterWidget.svelte";
+  import PresetPicker from "./PresetPicker.svelte";
 
   const PIPS = ["W", "U", "B", "R", "G", "C"];
   const PAGE = 60;
@@ -54,8 +55,6 @@
   let includeUnreleased = false;
   let allPresets = [];
   let selectedPresets = new Set();
-  let presetsOpen = false;
-  let presetFilter = ""; // narrows the 138-preset list inside the dropdown (client-side)
   let advanced = false;
 
   // client-side facets (narrow the returned list without a round-trip)
@@ -187,10 +186,6 @@
     colors.has(c) ? colors.delete(c) : colors.add(c);
     colors = new Set(colors);
   }
-  function togglePreset(n) {
-    selectedPresets.has(n) ? selectedPresets.delete(n) : selectedPresets.add(n);
-    selectedPresets = new Set(selectedPresets);
-  }
   function clearName() {
     name = "";
     nameInput?.focus();
@@ -210,17 +205,6 @@
     facetRarity = "";
     facetOwned = false;
   }
-  // The 138-preset list, narrowed live by the in-dropdown filter (matches name OR
-  // description, so "sacrifice" surfaces edict/exploit presets by their blurb too).
-  $: filteredPresets = presetFilter.trim()
-    ? allPresets.filter((p) => {
-        const q = presetFilter.toLowerCase();
-        return (
-          p.name.toLowerCase().includes(q) ||
-          (p.description || "").toLowerCase().includes(q)
-        );
-      })
-    : allPresets;
 
   // Drop a card once the deck holds every copy it may (a singleton's one, a 4-of's
   // four, a basic's never — the row's served copy limit, the hub's own Find rule),
@@ -331,64 +315,7 @@
         >
         <div class="field">
           <span class="lbl">Theme presets</span>
-          {#if selectedPresets.size}
-            <div class="selchips">
-              {#each [...selectedPresets] as n (n)}
-                <button
-                  type="button"
-                  class="selchip"
-                  title="Remove {n}"
-                  on:click={() => togglePreset(n)}>{n} <em>✕</em></button
-                >
-              {/each}
-              <button
-                type="button"
-                class="clearpresets"
-                on:click={() => (selectedPresets = new Set())}>clear all</button
-              >
-            </div>
-          {/if}
-          <div class="presets">
-            <button
-              class="dropbtn"
-              type="button"
-              on:click={() => (presetsOpen = !presetsOpen)}
-            >
-              {selectedPresets.size
-                ? `${selectedPresets.size} selected — add more`
-                : "Choose theme presets"} ▾
-            </button>
-            {#if presetsOpen}
-              <div class="dropdown">
-                <input
-                  class="presearch"
-                  type="search"
-                  placeholder="Filter {allPresets.length} presets…"
-                  bind:value={presetFilter}
-                />
-                <div class="optlist">
-                  {#each filteredPresets as p (p.name)}
-                    <label class="opt" class:sel={selectedPresets.has(p.name)}>
-                      <input
-                        type="checkbox"
-                        checked={selectedPresets.has(p.name)}
-                        on:change={() => togglePreset(p.name)}
-                      />
-                      <span class="opt-text">
-                        <span class="opt-name">{p.name}</span>
-                        <span class="opt-desc">{p.description}</span>
-                      </span>
-                    </label>
-                  {/each}
-                  {#if !filteredPresets.length}
-                    <div class="opt-empty">
-                      No preset matches “{presetFilter}”.
-                    </div>
-                  {/if}
-                </div>
-              </div>
-            {/if}
-          </div>
+          <PresetPicker presets={allPresets} bind:selected={selectedPresets} />
         </div>
         {#if $hasCommander}
           <label class="check">
@@ -700,136 +627,6 @@
     font-size: 0.7rem;
   }
   /* selected presets surface as removable chips, visible without opening the list */
-  .selchips {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.3rem;
-    text-transform: none;
-    letter-spacing: 0;
-  }
-  .selchip {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.3rem;
-    font-size: 0.74rem;
-    color: var(--brass-bright);
-    background: rgba(200, 150, 75, 0.16);
-    border: 1px solid var(--brass);
-    border-radius: 999px;
-    padding: 0.12rem 0.55rem;
-    cursor: pointer;
-  }
-  .selchip em {
-    font-style: normal;
-    color: var(--parchment-dim);
-  }
-  .selchip:hover {
-    background: rgba(212, 69, 47, 0.25);
-    border-color: rgba(212, 69, 47, 0.6);
-    color: var(--parchment);
-  }
-  .clearpresets {
-    font-size: 0.72rem;
-    color: var(--muted);
-    background: none;
-    border: none;
-    text-decoration: underline;
-    cursor: pointer;
-    padding: 0.12rem 0.3rem;
-  }
-  .clearpresets:hover {
-    color: var(--parchment-dim);
-  }
-  .presets {
-    position: relative;
-  }
-  .dropbtn {
-    width: 100%;
-    text-align: left;
-    background: rgba(0, 0, 0, 0.3);
-    border: 1px solid var(--hairline-soft);
-    border-radius: var(--radius);
-    color: var(--parchment);
-    padding: 0.4rem 0.5rem;
-    font-size: 0.82rem;
-    text-transform: none;
-    letter-spacing: 0;
-  }
-  .dropdown {
-    position: absolute;
-    z-index: 30;
-    top: 110%;
-    left: 0;
-    right: 0;
-    background: linear-gradient(180deg, var(--panel-2), var(--panel));
-    border: 1px solid var(--hairline);
-    border-radius: var(--radius);
-    box-shadow: var(--shadow);
-    padding: 0.35rem;
-  }
-  /* search pinned above the scrolling list so 138 presets are findable, not scrolled */
-  .presearch {
-    width: 100%;
-    box-sizing: border-box;
-    background: rgba(0, 0, 0, 0.4);
-    border: 1px solid var(--hairline-soft);
-    border-radius: var(--radius);
-    color: var(--parchment);
-    padding: 0.4rem 0.5rem;
-    font-size: 0.82rem;
-    margin-bottom: 0.35rem;
-  }
-  .presearch:focus {
-    outline: none;
-    border-color: var(--brass);
-  }
-  .optlist {
-    max-height: 260px;
-    overflow-y: auto;
-  }
-  .opt {
-    display: flex;
-    flex-direction: row;
-    align-items: flex-start;
-    gap: 0.45rem;
-    padding: 0.3rem 0.35rem;
-    border-radius: var(--radius);
-    text-transform: none;
-    letter-spacing: 0;
-    color: var(--parchment);
-  }
-  .opt:hover {
-    background: rgba(255, 220, 160, 0.06);
-  }
-  .opt.sel {
-    background: rgba(200, 150, 75, 0.12);
-  }
-  .opt input {
-    width: auto;
-    margin-top: 0.18rem;
-  }
-  .opt-text {
-    display: flex;
-    flex-direction: column;
-    gap: 0.05rem;
-    min-width: 0;
-  }
-  .opt-name {
-    font-size: 0.82rem;
-    color: var(--parchment);
-  }
-  .opt-desc {
-    font-size: 0.7rem;
-    line-height: 1.25;
-    color: var(--muted);
-  }
-  .opt-empty {
-    padding: 0.5rem 0.4rem;
-    font-size: 0.78rem;
-    color: var(--muted);
-    text-transform: none;
-    letter-spacing: 0;
-  }
   /* focused-lanes echo */
   .focusbar {
     display: flex;

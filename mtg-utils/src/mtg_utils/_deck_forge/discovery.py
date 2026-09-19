@@ -499,15 +499,16 @@ def discover_commanders(
     *,
     sort: str = "support",
     colors: str | None = None,
-    theme: str | None = None,
+    themes: tuple[str, ...] = (),
     limit: int = 24,
 ) -> list[dict]:
     """Intent-ranked owned commanders from the active Collection slot (ADR-0018).
 
     ``support`` (default) ranks by breadth-down-weighted owned support; ``novelty``
     ranks by signal rarity, HARD-GATED to commanders you own some support for.
-    ``colors`` (a color-identity subset) and ``theme`` (a ``theme_presets`` lane) narrow
-    the pool. Never uses EDHREC popularity."""
+    ``colors`` (a color-identity subset) and ``themes`` (``theme_presets`` lanes — a
+    commander matching ANY of them is kept, the same OR-merge Find's presets use)
+    narrow the pool. Never uses EDHREC popularity."""
     if sort not in _DISCOVER_SORTS:
         sort = "support"
     coll = _resolved_collection(state)
@@ -519,8 +520,10 @@ def discover_commanders(
     if colors:
         allowed = set(colors.upper())
         records = [r for r in records if set(r.get("color_identity") or []) <= allowed]
-    if theme:
-        records = [r for r in records if theme_presets.matches(theme, r)]
+    if themes:
+        records = [
+            r for r in records if any(theme_presets.matches(t, r) for t in themes)
+        ]
     freq, total = _signal_freq(state) if sort == "novelty" else ({}, 0)
 
     results: list[dict] = []

@@ -16,12 +16,13 @@
   import { hoverPreview } from "../lib/hover.js";
   import { displayName } from "../lib/cards.js";
   import Mana from "./Mana.svelte";
+  import PresetPicker from "./PresetPicker.svelte";
 
   const PIPS = ["W", "U", "B", "R", "G", "C"];
 
   let sort = "support";
   let colors = new Set();
-  let theme = "";
+  let themes = new Set(); // build-around presets; a commander matching ANY is kept
   let presets = [];
   let results = [];
   // Best guess at the Collection slot the backend will read, before any response has
@@ -46,7 +47,7 @@
     const r = await api.discoverCommanders({
       sort,
       colors: colors.size ? [...colors].join("") : null,
-      theme: theme || null,
+      themes: [...themes],
       limit: 24,
     });
     loading = false;
@@ -67,7 +68,7 @@
   // mounted (SSE snapshots update the `deck` store out from under this component).
   $: sortSig = sort;
   $: colorSig = [...colors].sort().join("");
-  $: themeSig = theme;
+  $: themeSig = [...themes].sort().join(",");
   $: ctxSig = `${$deck.format}|${$deck.medium}`;
   let prevCtxSig;
   $: {
@@ -142,11 +143,13 @@
           >
         {/each}
       </div>
-      <select class="theme" bind:value={theme} title="Build-around theme">
-        <option value="">Any theme</option>
-        {#each presets as p (p.name)}<option value={p.name}>{p.name}</option
-          >{/each}
-      </select>
+      <div class="theme" title="Build-around themes">
+        <PresetPicker
+          {presets}
+          bind:selected={themes}
+          placeholder="Any theme"
+        />
+      </div>
     </div>
   </div>
 
@@ -302,12 +305,7 @@
   }
   .theme {
     flex: 1;
-    background: rgba(0, 0, 0, 0.3);
-    border: 1px solid var(--hairline-soft);
-    border-radius: var(--radius);
-    color: var(--parchment);
-    padding: 0.35rem 0.5rem;
-    font-size: 0.82rem;
+    min-width: 0;
   }
   .results {
     margin-top: 0.8rem;

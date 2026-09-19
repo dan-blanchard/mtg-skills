@@ -4327,6 +4327,220 @@
     "type_line": "Land"
    }
   },
+  "Aether Vial": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": {
+        "type": "Tap"
+       },
+       "description": "{T}: You may put a creature card with mana value equal to the number of charge counters on ~ from your hand onto the battlefield.",
+       "duration": null,
+       "effect": {
+        "destination": "Battlefield",
+        "enter_tapped": false,
+        "enter_transformed": false,
+        "enters_attacking": false,
+        "origin": "Hand",
+        "owner_library": false,
+        "target": {
+         "controller": "You",
+         "properties": [
+          {
+           "comparator": "EQ",
+           "type": "Cmc",
+           "value": {
+            "qty": {
+             "counter_type": "charge",
+             "scope": {
+              "type": "Source"
+             },
+             "type": "CountersOn"
+            },
+            "type": "Ref"
+           }
+          },
+          {
+           "type": "InZone",
+           "zone": "Hand"
+          }
+         ],
+         "type": "Typed",
+         "type_filters": [
+          "Creature"
+         ]
+        },
+        "type": "ChangeZone"
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "optional": true,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_choice_timing": "Resolution",
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Artifact"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 1,
+      "shards": [],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "0f1f4f24-f62b-4f52-8168-62b5b9971162",
+       "11bb73ca-0e3c-4fb6-becc-98c9924531b8",
+       "11e8d2fd-b132-4807-9410-8edeffa519ed",
+       "641c238d-e14a-41cc-bb5c-ad3993406d4b",
+       "6774c646-76d4-4991-a7f3-b753ef200ce5",
+       "93e26409-430b-419b-8cd2-1bce007f12d6",
+       "c14cdc38-dd46-495e-93bd-d2694b64d5ad",
+       "f6151f39-966e-4af6-a20a-d761781abed9",
+       "ff937493-c13c-48c3-a42f-7b15ee033759"
+      ]
+     },
+     "name": "Aether Vial",
+     "non_ability_text": null,
+     "oracle_text": "At the beginning of your upkeep, you may put a charge counter on this artifact.\n{T}: You may put a creature card with mana value equal to the number of charge counters on this artifact from your hand onto the battlefield.",
+     "power": null,
+     "printings": [
+      "2X2",
+      "DST",
+      "IMA",
+      "MB2",
+      "MMA",
+      "MPS",
+      "PLST",
+      "PPRO",
+      "PRM",
+      "SLD",
+      "TD0",
+      "V10"
+     ],
+     "rarities": [
+      "uncommon",
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2017-11-17",
+       "text": "If Aether Vial leaves the battlefield while its second ability is on the stack, use its last known number of charge counters to determine what you may put from your hand onto the battlefield."
+      },
+      {
+       "date": "2017-11-17",
+       "text": "If a card in a player's hand has {X} in its mana cost, X is considered to be 0."
+      }
+     ],
+     "scryfall_oracle_id": "fc148e1e-dff0-448e-9f16-625341754356",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": {
+        "type": "OnlyDuringYourTurn"
+       },
+       "damage_kind": "Any",
+       "description": "At the beginning of your upkeep, you may put a charge counter on ~.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "count": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "counter_type": "charge",
+         "target": {
+          "type": "SelfRef"
+         },
+         "type": "PutCounter"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": true,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "Phase",
+       "optional": true,
+       "origin": null,
+       "phase": "Upkeep",
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": null,
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 1.0,
+    "color_identity": [],
+    "colors": [],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{1}",
+    "name": "Aether Vial",
+    "oracle_id": "fc148e1e-dff0-448e-9f16-625341754356",
+    "oracle_text": "At the beginning of your upkeep, you may put a charge counter on this artifact.\n{T}: You may put a creature card with mana value equal to the number of charge counters on this artifact from your hand onto the battlefield.",
+    "type_line": "Artifact"
+   }
+  },
   "Aetherflux Reservoir": {
    "phase_records": [
     {
@@ -31289,6 +31503,191 @@
     "type_line": "Creature — Vampire"
    }
   },
+  "Bloodbraid Elf": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Elf",
+       "Berserker"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Green",
+      "Red"
+     ],
+     "color_override": [
+      "Green",
+      "Red"
+     ],
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [
+      "Haste",
+      "Cascade"
+     ],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 2,
+      "shards": [
+       "Red",
+       "Green"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "29b15ab8-c117-42b9-8177-df96153d6a38",
+       "33abc681-b82c-41fe-980a-f0ead136e28f",
+       "6031e3f0-0181-4785-9016-574823985a69",
+       "7ef67487-c8e5-49bb-b0f7-e073ff2e31f1",
+       "8174d8dc-ae0f-469f-a773-cb294540ea25",
+       "81c46232-bfd6-4661-953d-84f31ed94a9a",
+       "9445d57a-da77-4456-9e69-c898c4d57853",
+       "a646dbd4-07a3-44c5-ab24-2655c5fe9562",
+       "c2c5f917-e85c-42fb-b21a-e1a6c5f45726",
+       "e2f12f6f-9383-47e6-a44f-2834ad130e51"
+      ]
+     },
+     "name": "Bloodbraid Elf",
+     "non_ability_text": null,
+     "oracle_text": "Haste (This creature can attack and {T} as soon as it comes under your control.)\nCascade (When you cast this spell, exile cards from the top of your library until you exile a nonland card that costs less. You may cast it without paying its mana cost. Put the exiled cards on the bottom in a random order.)",
+     "power": {
+      "type": "Fixed",
+      "value": 3
+     },
+     "printings": [
+      "2X2",
+      "ARB",
+      "C16",
+      "CLB",
+      "EMA",
+      "F10",
+      "HA7",
+      "J25",
+      "M3C",
+      "PC2",
+      "PCA",
+      "PLST",
+      "PRM",
+      "SLC",
+      "TSR"
+     ],
+     "rarities": [
+      "uncommon",
+      "special"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2021-06-18",
+       "text": "A spell's mana value is determined only by its mana cost. Ignore any alternative costs, additional costs, cost increases, or cost reductions."
+      },
+      {
+       "date": "2021-06-18",
+       "text": "Cascade triggers when you cast the spell, meaning that it resolves before that spell. If you end up casting the exiled card, it will go on the stack above the spell with cascade."
+      },
+      {
+       "date": "2021-06-18",
+       "text": "Due to a 2021 rules change to cascade, not only do you stop exiling cards if you exile a nonland card with lesser mana value than the spell with cascade, but the resulting spell you cast must also have lesser mana value. Previously, in cases where a card's mana value differed from the resulting spell, such as with some modal double-faced cards or cards with an Adventure, you could cast a spell with a higher mana value than the exiled card."
+      },
+      {
+       "date": "2021-06-18",
+       "text": "If a spell with cascade is countered, the cascade ability will still resolve normally."
+      },
+      {
+       "date": "2021-06-18",
+       "text": "If the card has {X} in its mana cost, you must choose 0 as the value of X when casting it without paying its mana cost."
+      },
+      {
+       "date": "2021-06-18",
+       "text": "If you cast a card \"without paying its mana cost,\" you can't choose to cast it for any alternative costs. You can, however, pay additional costs. If the card has any mandatory additional costs, you must pay those to cast the card."
+      },
+      {
+       "date": "2021-06-18",
+       "text": "The mana value of a split card is determined by the combined mana cost of its two halves. If cascade allows you to cast a split card, you may cast either half but not both halves."
+      },
+      {
+       "date": "2021-06-18",
+       "text": "When the cascade ability resolves, you must exile cards. The only optional part of the ability is whether or not you cast the last card exiled."
+      },
+      {
+       "date": "2021-06-18",
+       "text": "You exile the cards face up. All players will be able to see them."
+      }
+     ],
+     "scryfall_oracle_id": "3f0c9466-5ab9-4205-a84f-b4b27b5a678e",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 2
+     },
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 4.0,
+    "color_identity": [
+     "G",
+     "R"
+    ],
+    "colors": [
+     "G",
+     "R"
+    ],
+    "keywords": [
+     "Cascade",
+     "Haste"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{2}{R}{G}",
+    "name": "Bloodbraid Elf",
+    "oracle_id": "3f0c9466-5ab9-4205-a84f-b4b27b5a678e",
+    "oracle_text": "Haste (This creature can attack and {T} as soon as it comes under your control.)\nCascade (When you cast this spell, exile cards from the top of your library until you exile a nonland card that costs less. You may cast it without paying its mana cost. Put the exiled cards on the bottom in a random order.)",
+    "power": "3",
+    "toughness": "2",
+    "type_line": "Creature — Elf Berserker"
+   }
+  },
   "Bloodghast": {
    "phase_records": [
     {
@@ -35621,6 +36020,209 @@
     "power": "3",
     "toughness": "3",
     "type_line": "Legendary Creature — Goblin Pirate"
+   }
+  },
+  "Bribery": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "Search target opponent's library for a creature card and put that card onto the battlefield under your control. Then that player shuffles.",
+       "duration": null,
+       "effect": {
+        "count": {
+         "type": "Fixed",
+         "value": 1
+        },
+        "filter": {
+         "controller": null,
+         "properties": [],
+         "type": "Typed",
+         "type_filters": [
+          "Creature"
+         ]
+        },
+        "reveal": false,
+        "target_player": {
+         "controller": "Opponent",
+         "properties": [],
+         "type": "Typed",
+         "type_filters": []
+        },
+        "type": "SearchLibrary"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "destination": "Battlefield",
+         "enter_tapped": false,
+         "enter_transformed": false,
+         "enters_attacking": false,
+         "enters_under": "You",
+         "origin": "Library",
+         "owner_library": false,
+         "target": {
+          "type": "Any"
+         },
+         "type": "ChangeZone"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": null,
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "target": {
+           "controller": "Opponent",
+           "properties": [],
+           "type": "Typed",
+           "type_filters": []
+          },
+          "type": "Shuffle"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": null,
+         "sub_link": "SequentialSibling",
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Sorcery"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Blue"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "premodern": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 3,
+      "shards": [
+       "Blue",
+       "Blue"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "49fd737a-d7da-421b-a741-d6d0d213299f",
+       "99c7c1d0-dc6b-413f-8346-54728a4c7b14",
+       "a70f54e4-3297-4bf4-8aa8-e4be4965e961",
+       "d820fed7-fbe8-4175-834a-33b6742481ea",
+       "e7b8a9a2-55d8-4cf8-9912-787bdbc90ebb",
+       "eb0cb4bc-c2de-4d4a-8daa-df68350239a9"
+      ]
+     },
+     "name": "Bribery",
+     "non_ability_text": null,
+     "oracle_text": "Search target opponent's library for a creature card and put that card onto the battlefield under your control. Then that player shuffles.",
+     "power": null,
+     "printings": [
+      "8ED",
+      "CMM",
+      "J13",
+      "MMQ",
+      "PRM",
+      "SLD",
+      "TLE"
+     ],
+     "rarities": [
+      "rare",
+      "mythic"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2004-10-04",
+       "text": "Because the \"search\" requires you to find a card with certain characteristics, you don't have to find the card if you don't want to."
+      },
+      {
+       "date": "2004-10-04",
+       "text": "You put the creature onto the battlefield, so you control it and any \"enters\" abilities it has."
+      }
+     ],
+     "scryfall_oracle_id": "6d194882-ca37-49bb-ac9f-a751c53850a8",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 5.0,
+    "color_identity": [
+     "U"
+    ],
+    "colors": [
+     "U"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{3}{U}{U}",
+    "name": "Bribery",
+    "oracle_id": "6d194882-ca37-49bb-ac9f-a751c53850a8",
+    "oracle_text": "Search target opponent's library for a creature card and put that card onto the battlefield under your control. Then that player shuffles.",
+    "type_line": "Sorcery"
    }
   },
   "Brigone, Soldier of Meletis": {
@@ -68426,6 +69028,187 @@
     "type_line": "Artifact — Equipment"
    }
   },
+  "Elvish Piper": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": {
+        "costs": [
+         {
+          "cost": {
+           "generic": 0,
+           "shards": [
+            "Green"
+           ],
+           "type": "Cost"
+          },
+          "type": "Mana"
+         },
+         {
+          "type": "Tap"
+         }
+        ],
+        "type": "Composite"
+       },
+       "description": "{G}, {T}: You may put a creature card from your hand onto the battlefield.",
+       "duration": null,
+       "effect": {
+        "destination": "Battlefield",
+        "enter_tapped": false,
+        "enter_transformed": false,
+        "enters_attacking": false,
+        "origin": "Hand",
+        "owner_library": false,
+        "target": {
+         "controller": "You",
+         "properties": [
+          {
+           "type": "InZone",
+           "zone": "Hand"
+          }
+         ],
+         "type": "Typed",
+         "type_filters": [
+          "Creature"
+         ]
+        },
+        "type": "ChangeZone"
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "optional": true,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_choice_timing": "Resolution",
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Elf",
+       "Shaman"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Green"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "premodern": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 3,
+      "shards": [
+       "Green"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "1a8e47b9-6735-4e46-b3fd-ac69edc39745",
+       "5666cb39-5fea-4eaa-a6da-1b2ffc5a3811",
+       "94cb4d52-0042-494d-8025-59c1eb0f90e0",
+       "e5535cb2-8cda-4eb7-b201-6528c686815c"
+      ]
+     },
+     "name": "Elvish Piper",
+     "non_ability_text": null,
+     "oracle_text": "{G}, {T}: You may put a creature card from your hand onto the battlefield.",
+     "power": {
+      "type": "Fixed",
+      "value": 1
+     },
+     "printings": [
+      "10E",
+      "7ED",
+      "8ED",
+      "9ED",
+      "A25",
+      "LTC",
+      "M10",
+      "UDS"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2007-05-01",
+       "text": "Putting the card onto the battlefield is optional. When the ability resolves, you can choose not to."
+      },
+      {
+       "date": "2009-10-01",
+       "text": "A \"creature card\" is any card with the type creature, even if it has other types such as artifact, enchantment, or land. Older cards of type summon are also creature cards."
+      }
+     ],
+     "scryfall_oracle_id": "872ef617-7cdb-4a7a-85f5-efc9e12bece5",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 1
+     },
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 4.0,
+    "color_identity": [
+     "G"
+    ],
+    "colors": [
+     "G"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{3}{G}",
+    "name": "Elvish Piper",
+    "oracle_id": "872ef617-7cdb-4a7a-85f5-efc9e12bece5",
+    "oracle_text": "{G}, {T}: You may put a creature card from your hand onto the battlefield.",
+    "power": "1",
+    "toughness": "1",
+    "type_line": "Creature — Elf Shaman"
+   }
+  },
   "Empty the Warrens": {
    "phase_records": [
     {
@@ -81605,6 +82388,167 @@
     "oracle_id": "f4944fde-2066-4aed-85c0-6e5e00a4bfe6",
     "oracle_text": "When Fires of Mount Doom enters, it deals 2 damage to target creature an opponent controls. Destroy all Equipment attached to that creature.\n{2}{R}: Exile the top card of your library. You may play that card this turn. When you play a card this way, Fires of Mount Doom deals 2 damage to each player.",
     "type_line": "Legendary Enchantment"
+   }
+  },
+  "Fist of Suns": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Artifact"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Black",
+      "Green",
+      "Red",
+      "Blue",
+      "White"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 3,
+      "shards": [],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "0a2b418b-4a1a-400b-896f-512130d4c1e7",
+       "2a499b65-8a7e-4fbc-a09b-826b8454d857",
+       "6c79912e-f858-44aa-8ff8-269edae06cc9"
+      ]
+     },
+     "name": "Fist of Suns",
+     "non_ability_text": null,
+     "oracle_text": "You may pay {W}{U}{B}{R}{G} rather than pay the mana cost for spells you cast.",
+     "power": null,
+     "printings": [
+      "5DN",
+      "C17",
+      "LCC",
+      "PLST"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2004-12-01",
+       "text": "Fist of Suns's ability is an alternative cost to cast a spell. You can't combine this with other alternative costs, such as flashback. You can pay additional costs, such as kicker, in addition to this alternative cost."
+      },
+      {
+       "date": "2004-12-01",
+       "text": "If you apply Fist of Suns's alternative cost to a spell with {X} in its mana cost, X is 0."
+      },
+      {
+       "date": "2004-12-01",
+       "text": "If you cast a spell for which mana of any color can be spent to cast it, you may cast it for Fist of Suns's alternative cost and still spend any color of mana to cover that cost."
+      },
+      {
+       "date": "2014-02-01",
+       "text": "If you pay {W}{U}{B}{R}{G} rather than pay the mana cost of a spell with {X} in its mana cost, the only legal choice for X is 0."
+      }
+     ],
+     "scryfall_oracle_id": "6fd5e591-fae8-4128-a4d3-a848c8a8ffda",
+     "static_abilities": [
+      {
+       "active_zones": [
+        "Battlefield"
+       ],
+       "affected": {
+        "controller": "You",
+        "properties": [],
+        "type": "Typed",
+        "type_filters": [
+         "Card"
+        ]
+       },
+       "affected_zone": null,
+       "characteristic_defining": false,
+       "condition": null,
+       "description": "You may pay {W}{U}{B}{R}{G} rather than pay the mana cost for spells you cast.",
+       "effect_zone": null,
+       "mode": {
+        "CastWithAlternativeCost": {
+         "cost": {
+          "cost": {
+           "generic": 0,
+           "shards": [
+            "White",
+            "Blue",
+            "Black",
+            "Red",
+            "Green"
+           ],
+           "type": "Cost"
+          },
+          "type": "Mana"
+         }
+        }
+       },
+       "modifications": []
+      }
+     ],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 3.0,
+    "color_identity": [
+     "B",
+     "G",
+     "R",
+     "U",
+     "W"
+    ],
+    "colors": [],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{3}",
+    "name": "Fist of Suns",
+    "oracle_id": "6fd5e591-fae8-4128-a4d3-a848c8a8ffda",
+    "oracle_text": "You may pay {W}{U}{B}{R}{G} rather than pay the mana cost for spells you cast.",
+    "type_line": "Artifact"
    }
   },
   "Flame Slash": {
@@ -116209,6 +117153,272 @@
     "type_line": "Legendary Creature — Elemental"
    }
   },
+  "Kaalia of the Vast": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "brawl_commander": true,
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Human",
+       "Cleric"
+      ],
+      "supertypes": [
+       "Legendary"
+      ]
+     },
+     "color_identity": [
+      "Black",
+      "Red",
+      "White"
+     ],
+     "color_override": [
+      "Black",
+      "Red",
+      "White"
+     ],
+     "defense": null,
+     "flavor_name": null,
+     "is_commander": true,
+     "keywords": [
+      "Flying"
+     ],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 1,
+      "shards": [
+       "Red",
+       "White",
+       "Black"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "0e42cd7b-8ce5-46a6-a44b-2b1dc8477d86",
+       "20094a0c-ea67-4c62-811a-5225f70d41f4",
+       "576a670d-4efd-498b-8c53-eda6e18868a4",
+       "5c509c36-43a8-454e-80fc-321f41981049",
+       "7782562f-cd13-4770-930c-95ad4263f24d",
+       "86f670f9-c5b7-4eb0-a7d0-d16513fadf74",
+       "93f6631f-f3a6-4d3c-8618-4b4ab4e82483",
+       "a0cc9eaf-c8d9-4da2-8fd8-8d423a02a3a8",
+       "e71c8c39-3fbb-4a42-9cf6-b3224f5a56fc",
+       "ef099f25-2b0b-4028-8490-fbc859e35f6c"
+      ]
+     },
+     "name": "Kaalia of the Vast",
+     "non_ability_text": null,
+     "oracle_text": "Flying\nWhenever Kaalia attacks an opponent, you may put an Angel, Demon, or Dragon creature card from your hand onto the battlefield tapped and attacking that opponent.",
+     "power": {
+      "type": "Fixed",
+      "value": 2
+     },
+     "printings": [
+      "2X2",
+      "2XM",
+      "CM1",
+      "CMA",
+      "CMD",
+      "MH3",
+      "OCMD",
+      "PMEI",
+      "PRM",
+      "PZ1",
+      "SLD"
+     ],
+     "rarities": [
+      "mythic"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2020-08-07",
+       "text": "Although the creature you put onto the battlefield is an attacking creature, it was never declared as an attacking creature. This means that abilities that trigger whenever a creature attacks won't trigger when it enters the battlefield attacking."
+      },
+      {
+       "date": "2020-08-07",
+       "text": "Any effects that say that the Angel, Demon, or Dragon creature can't attack (such as that of Propaganda or if the creature has defender) affect only the declaration of attackers. They won't stop the creature from entering the battlefield attacking."
+      },
+      {
+       "date": "2020-08-07",
+       "text": "If Kaalia attacks an opponent, the creature enters attacking that player even if Kaalia is somehow attacking a different player or planeswalker as its triggered ability resolves."
+      },
+      {
+       "date": "2020-08-07",
+       "text": "If the opponent Kaalia attacked is no longer in the game when its ability resolves, you may put an Angel, Demon, or Dragon creature card onto the battlefield tapped, but it won't be attacking anyone and it won't be an attacking creature."
+      },
+      {
+       "date": "2024-06-07",
+       "text": "Kaalia's ability doesn't trigger if it attacks a planeswalker or battle."
+      }
+     ],
+     "scryfall_oracle_id": "cb8d80c9-ed58-4f2d-aa8c-c383370c7f1a",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 2
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "Whenever ~ attacks an opponent, you may put an Angel, Demon, or Dragon creature card from your hand onto the battlefield tapped and attacking that opponent.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "destination": "Battlefield",
+         "enter_tapped": true,
+         "enter_transformed": false,
+         "enters_attacking": true,
+         "origin": "Hand",
+         "owner_library": false,
+         "target": {
+          "filters": [
+           {
+            "controller": "You",
+            "properties": [
+             {
+              "type": "InZone",
+              "zone": "Hand"
+             }
+            ],
+            "type": "Typed",
+            "type_filters": [
+             {
+              "Subtype": "Angel"
+             }
+            ]
+           },
+           {
+            "controller": "You",
+            "properties": [
+             {
+              "type": "InZone",
+              "zone": "Hand"
+             }
+            ],
+            "type": "Typed",
+            "type_filters": [
+             {
+              "Subtype": "Demon"
+             }
+            ]
+           },
+           {
+            "controller": "You",
+            "properties": [
+             {
+              "type": "InZone",
+              "zone": "Hand"
+             }
+            ],
+            "type": "Typed",
+            "type_filters": [
+             "Creature",
+             {
+              "Subtype": "Dragon"
+             }
+            ]
+           }
+          ],
+          "type": "Or"
+         },
+         "type": "ChangeZone"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": true,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_choice_timing": "Resolution",
+        "target_prompt": null
+       },
+       "mode": "Attacks",
+       "optional": true,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "type": "SelfRef"
+       },
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 4.0,
+    "color_identity": [
+     "B",
+     "R",
+     "W"
+    ],
+    "colors": [
+     "B",
+     "R",
+     "W"
+    ],
+    "keywords": [
+     "Flying"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{1}{R}{W}{B}",
+    "name": "Kaalia of the Vast",
+    "oracle_id": "cb8d80c9-ed58-4f2d-aa8c-c383370c7f1a",
+    "oracle_text": "Flying\nWhenever Kaalia attacks an opponent, you may put an Angel, Demon, or Dragon creature card from your hand onto the battlefield tapped and attacking that opponent.",
+    "power": "2",
+    "toughness": "2",
+    "type_line": "Legendary Creature — Human Cleric"
+   }
+  },
   "Kaervek the Merciless": {
    "phase_records": [
     {
@@ -117383,6 +118593,289 @@
     ],
     "toughness": "4",
     "type_line": "Creature — Human Druid"
+   }
+  },
+  "Kari Zev's Expertise": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "Gain control of target creature or Vehicle until end of turn. Untap it. It gains haste until end of turn.\nYou may cast a spell with mana value 2 or less from your hand without paying its mana cost.",
+       "duration": "UntilEndOfTurn",
+       "effect": {
+        "target": {
+         "filters": [
+          {
+           "controller": null,
+           "properties": [],
+           "type": "Typed",
+           "type_filters": [
+            "Creature"
+           ]
+          },
+          {
+           "controller": null,
+           "properties": [],
+           "type": "Typed",
+           "type_filters": [
+            {
+             "Subtype": "Vehicle"
+            }
+           ]
+          }
+         ],
+         "type": "Or"
+        },
+        "type": "GainControl"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "scope": {
+          "type": "Single"
+         },
+         "state": {
+          "type": "Untap"
+         },
+         "target": {
+          "type": "ParentTarget"
+         },
+         "type": "SetTapState"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": null,
+         "cost": null,
+         "description": null,
+         "duration": "UntilEndOfTurn",
+         "effect": {
+          "duration": "UntilEndOfTurn",
+          "static_abilities": [
+           {
+            "active_zones": [],
+            "affected": {
+             "type": "ParentTarget"
+            },
+            "affected_zone": null,
+            "characteristic_defining": false,
+            "condition": null,
+            "description": "gain haste",
+            "effect_zone": null,
+            "mode": "Continuous",
+            "modifications": [
+             {
+              "keyword": "Haste",
+              "type": "AddKeyword"
+             }
+            ]
+           }
+          ],
+          "target": {
+           "type": "ParentTarget"
+          },
+          "type": "GenericEffect"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": {
+          "condition": null,
+          "cost": null,
+          "description": null,
+          "duration": null,
+          "effect": {
+           "driver": "DuringResolution",
+           "mode": "Cast",
+           "target": {
+            "controller": "You",
+            "properties": [
+             {
+              "comparator": "LE",
+              "type": "Cmc",
+              "value": {
+               "type": "Fixed",
+               "value": 2
+              }
+             },
+             {
+              "type": "InZone",
+              "zone": "Hand"
+             }
+            ],
+            "type": "Typed",
+            "type_filters": [
+             "Card"
+            ]
+           },
+           "type": "CastFromZone",
+           "without_paying_mana_cost": true
+          },
+          "forward_result": false,
+          "kind": "Spell",
+          "optional": true,
+          "optional_targeting": false,
+          "sub_ability": null,
+          "sub_link": "SequentialSibling",
+          "target_choice_timing": "Resolution",
+          "target_prompt": null
+         },
+         "sub_link": "SequentialSibling",
+         "target_prompt": null
+        },
+        "sub_link": "SequentialSibling",
+        "target_prompt": null
+       },
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Sorcery"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Red"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 1,
+      "shards": [
+       "Red",
+       "Red"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "ab5c7400-6307-4c51-88b8-9c0232110714"
+      ]
+     },
+     "name": "Kari Zev's Expertise",
+     "non_ability_text": null,
+     "oracle_text": "Gain control of target creature or Vehicle until end of turn. Untap it. It gains haste until end of turn.\nYou may cast a spell with mana value 2 or less from your hand without paying its mana cost.",
+     "power": null,
+     "printings": [
+      "AER",
+      "KLR",
+      "PAER"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2017-02-09",
+       "text": "A card's mana value is determined solely by the mana symbols printed in its upper right corner. The mana value is the total amount of mana in that cost, regardless of color. For example, a card with mana cost {1}{U}{U} has mana value 3. Ignore any alternative costs, additional costs, cost increases, or cost reductions that could apply to it. A card with no mana cost has a mana value of 0."
+      },
+      {
+       "date": "2017-02-09",
+       "text": "Any triggered abilities that trigger while performing the Expertise spell's first effect won't be put onto the stack until after you're done casting your free spell. They're put onto the stack at the same time as any abilities that triggered while casting that spell regardless of the order in which those abilities triggered."
+      },
+      {
+       "date": "2017-02-09",
+       "text": "Effects that allow you to \"cast\" a card don't allow you to play a land card."
+      },
+      {
+       "date": "2017-02-09",
+       "text": "If the Expertise spell you cast has any targets, and those targets become illegal before the spell resolves, the spell doesn't resolve and none of its effects happen. You won't get to cast a free spell."
+      },
+      {
+       "date": "2017-02-09",
+       "text": "If the card has {X} in its mana cost, you must choose 0 as the value of X when casting it without paying its mana cost."
+      },
+      {
+       "date": "2017-02-09",
+       "text": "If you cast a card \"without paying its mana cost,\" you can't choose to cast it for any alternative costs, such as emerge costs. You can, however, pay additional costs. If the card has any mandatory additional costs, such as that of Cathartic Reunion, you must pay those to cast the card."
+      },
+      {
+       "date": "2017-02-09",
+       "text": "Kari Zev's Expertise can target any creature or Vehicle, even one that you already control or that is already untapped."
+      },
+      {
+       "date": "2017-02-09",
+       "text": "While you're casting your free spell, the Expertise spell is still on the stack. It will be put into its owner's graveyard after the free spell is cast. The free spell can't target the Expertise card in your graveyard. It can target the Expertise spell on the stack, but the Expertise spell will become an illegal target before the free spell resolves."
+      },
+      {
+       "date": "2017-04-18",
+       "text": "The mana value of a split card is determined by the combined mana cost of its two halves. If an expertise spell allows you to cast a split card, you may cast either half or, if that split card has fuse, both halves."
+      }
+     ],
+     "scryfall_oracle_id": "e0de0121-6185-45c5-9d88-a415b07347e0",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 3.0,
+    "color_identity": [
+     "R"
+    ],
+    "colors": [
+     "R"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{1}{R}{R}",
+    "name": "Kari Zev's Expertise",
+    "oracle_id": "e0de0121-6185-45c5-9d88-a415b07347e0",
+    "oracle_text": "Gain control of target creature or Vehicle until end of turn. Untap it. It gains haste until end of turn.\nYou may cast a spell with mana value 2 or less from your hand without paying its mana cost.",
+    "type_line": "Sorcery"
    }
   },
   "Karn's Bastion": {
@@ -186139,6 +187632,227 @@
     "power": "5",
     "toughness": "5",
     "type_line": "Legendary Creature — Human Rogue Villain"
+   }
+  },
+  "Show and Tell": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "Each player may put an artifact, creature, enchantment, or land card from their hand onto the battlefield.",
+       "duration": null,
+       "effect": {
+        "destination": "Battlefield",
+        "enter_tapped": false,
+        "enter_transformed": false,
+        "enters_attacking": false,
+        "origin": "Hand",
+        "owner_library": false,
+        "target": {
+         "filters": [
+          {
+           "controller": null,
+           "properties": [
+            {
+             "controller": "ScopedPlayer",
+             "type": "Owned"
+            },
+            {
+             "type": "InZone",
+             "zone": "Hand"
+            }
+           ],
+           "type": "Typed",
+           "type_filters": [
+            "Artifact"
+           ]
+          },
+          {
+           "controller": null,
+           "properties": [
+            {
+             "controller": "ScopedPlayer",
+             "type": "Owned"
+            },
+            {
+             "type": "InZone",
+             "zone": "Hand"
+            }
+           ],
+           "type": "Typed",
+           "type_filters": [
+            "Creature"
+           ]
+          },
+          {
+           "controller": null,
+           "properties": [
+            {
+             "controller": "ScopedPlayer",
+             "type": "Owned"
+            },
+            {
+             "type": "InZone",
+             "zone": "Hand"
+            }
+           ],
+           "type": "Typed",
+           "type_filters": [
+            "Enchantment"
+           ]
+          },
+          {
+           "controller": null,
+           "properties": [
+            {
+             "controller": "ScopedPlayer",
+             "type": "Owned"
+            },
+            {
+             "type": "InZone",
+             "zone": "Hand"
+            }
+           ],
+           "type": "Typed",
+           "type_filters": [
+            "Land"
+           ]
+          }
+         ],
+         "type": "Or"
+        },
+        "type": "ChangeZone"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": true,
+       "optional_targeting": false,
+       "player_scope": {
+        "type": "All"
+       },
+       "sub_ability": null,
+       "target_choice_timing": "Resolution",
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Sorcery"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Blue"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "banned",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "premodern": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 2,
+      "shards": [
+       "Blue"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "9858463e-0b80-44a2-80d5-e4250809e1f5",
+       "9c3e3c77-e6a6-4814-a2f5-0ae2d06e4b31",
+       "fa7b7897-36e0-415a-8bb7-602886164852"
+      ]
+     },
+     "name": "Show and Tell",
+     "non_ability_text": null,
+     "oracle_text": "Each player may put an artifact, creature, enchantment, or land card from their hand onto the battlefield.",
+     "power": null,
+     "printings": [
+      "CN2",
+      "J13",
+      "MAR",
+      "MB2",
+      "PRM",
+      "SPG",
+      "USG"
+     ],
+     "rarities": [
+      "rare",
+      "mythic"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2004-10-04",
+       "text": "If the cards being put onto the battlefield also require choices, those choices are made after all players choose their card. The active player makes choices for their card (if any), then the other players (if any) in turn order."
+      },
+      {
+       "date": "2004-10-04",
+       "text": "Players choose cards during resolution, not announcement."
+      },
+      {
+       "date": "2008-04-01",
+       "text": "The current player chooses first, then each other player chooses in turn order. A player does not have to reveal the chosen card, so long as it is clear *which* card was chosen. After all choices are made, the cards are put onto the battlefield simultaneously."
+      }
+     ],
+     "scryfall_oracle_id": "b83a3ba0-249e-4c39-bbf0-cb005413f7d2",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 3.0,
+    "color_identity": [
+     "U"
+    ],
+    "colors": [
+     "U"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "banned",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{2}{U}",
+    "name": "Show and Tell",
+    "oracle_id": "b83a3ba0-249e-4c39-bbf0-cb005413f7d2",
+    "oracle_text": "Each player may put an artifact, creature, enchantment, or land card from their hand onto the battlefield.",
+    "type_line": "Sorcery"
    }
   },
   "Shriekmaw": {

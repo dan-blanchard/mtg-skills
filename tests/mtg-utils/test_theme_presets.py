@@ -1289,6 +1289,16 @@ FIXTURE_CARDS: dict[str, dict] = {
             "battlefield under your control."
         ),
     },
+    "Gemrazer": {
+        "keywords": ["Mutate", "Reach", "Trample"],
+        "oracle_text": (
+            "Mutate {1}{G}{G} (If you cast this spell for its mutate cost, put it "
+            "over or under target non-Human creature you own. They mutate into the "
+            "creature on top plus all abilities from under it.)\nReach, trample\n"
+            "Whenever this creature mutates, destroy target artifact or enchantment "
+            "an opponent controls."
+        ),
+    },
 }
 
 

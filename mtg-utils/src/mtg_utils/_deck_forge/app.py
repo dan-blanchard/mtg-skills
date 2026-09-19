@@ -136,7 +136,7 @@ class ClearCollectionPayload(BaseModel):
 class DiscoverCommandersPayload(BaseModel):
     sort: str = "support"  # "support" (owned-support depth) | "novelty" (signal rarity)
     colors: str | None = None  # color-identity subset filter (e.g. "BG")
-    theme: str | None = None  # a theme_presets lane to require
+    themes: list[str] = []  # theme_presets lanes; a commander matching ANY is kept
     limit: int = 24
 
 
@@ -651,11 +651,12 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
         engine.check_commander_family(state)
         if not state.bulk_available:
             return _no_bulk()
-        # Validate the theme like the sibling slot/format guards (a clean 400, not a
+        # Validate the themes like the sibling slot/format guards (a clean 400, not a
         # 500): theme_presets.matches raises KeyError on an unknown preset name.
-        if payload.theme and payload.theme not in list_presets():
+        unknown = [t for t in payload.themes if t not in list_presets()]
+        if unknown:
             return JSONResponse(
-                {"error": f"unknown theme preset: {payload.theme!r}"}, status_code=400
+                {"error": f"unknown theme preset: {unknown[0]!r}"}, status_code=400
             )
         slot = engine.active_slot(state)
         # discover_commanders is heavy CPU (scores every owned commander).
@@ -668,7 +669,7 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
             state,
             sort=payload.sort,
             colors=payload.colors,
-            theme=payload.theme,
+            themes=tuple(payload.themes),
             limit=max(1, payload.limit),
         )
         fmt = state.session.fmt

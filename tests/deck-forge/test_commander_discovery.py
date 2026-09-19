@@ -241,8 +241,26 @@ def test_color_filter_narrows_the_pool():
 
 
 def test_theme_filter_keeps_only_matching_commanders():
-    res = _client().post("/api/commanders/discover", json={"theme": "lifegain"}).json()
+    res = (
+        _client().post("/api/commanders/discover", json={"themes": ["lifegain"]}).json()
+    )
     assert [r["name"] for r in res["results"]] == ["Lifelord"]
+
+
+def test_several_themes_keep_a_commander_matching_any(monkeypatch):
+    """The picker is Find's (a multiselect): adding a theme widens, as it does there."""
+    lanes = {("lifegain", "Lifelord"), ("tokens", "Tokenlord")}
+    monkeypatch.setattr(
+        theme_presets, "matches", lambda name, rec: (name, rec["name"]) in lanes
+    )
+    res = (
+        _client()
+        .post("/api/commanders/discover", json={"themes": ["lifegain", "tokens"]})
+        .json()
+    )
+    assert {r["name"] for r in res["results"]} == {"Lifelord", "Tokenlord"}
+    res = _client().post("/api/commanders/discover", json={"themes": ["tokens"]}).json()
+    assert {r["name"] for r in res["results"]} == {"Tokenlord"}
 
 
 def test_novelty_hard_gates_out_unsupported_commanders():
@@ -564,7 +582,7 @@ def test_unknown_theme_returns_400_not_500():
     # An unknown preset name is a clean 400 (like the slot/format guards), not an
     # opaque 500 from theme_presets.matches raising KeyError.
     r = _client().post(
-        "/api/commanders/discover", json={"theme": "not_a_real_preset_xyz"}
+        "/api/commanders/discover", json={"themes": ["lifegain", "not_a_real_xyz"]}
     )
     assert r.status_code == 400
 
