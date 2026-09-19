@@ -300,8 +300,9 @@ class TestByteEquivalenceAgainstRealSnapshot:
 
 
 def test_build_reports_progress_every_batch_and_at_the_end(monkeypatch):
-    """The meter's seam: ``(done, total)`` every PROGRESS_EVERY records and once
-    at the end, with the final call at (total, total)."""
+    """The meter's seam: ``(done, total)`` once at the start (so a reporter's clock
+    starts with the pass), every PROGRESS_EVERY records, and once at the end with
+    the final call at (total, total)."""
     monkeypatch.setattr(signals_index, "PROGRESS_EVERY", 2)
     records = [{"oracle_id": f"oid-{i}", "name": f"Card {i}"} for i in range(5)]
     monkeypatch.setattr(
@@ -311,7 +312,7 @@ def test_build_reports_progress_every_batch_and_at_the_end(monkeypatch):
     signals_index.build_signals_index(
         records, progress=lambda d, t: seen.append((d, t))
     )
-    assert seen == [(2, 5), (4, 5), (5, 5)]
+    assert seen == [(0, 5), (2, 5), (4, 5), (5, 5)]
 
 
 def test_the_installed_hook_is_the_default_reporter(monkeypatch, tmp_path):
@@ -327,4 +328,4 @@ def test_the_installed_hook_is_the_default_reporter(monkeypatch, tmp_path):
         signals_index.load_signals_index(bulk, [{"oracle_id": "x"}])
     finally:
         signals_index.set_progress_hook(None)
-    assert seen[-1] == (1, 1)
+    assert seen == [(0, 1), (1, 1)]

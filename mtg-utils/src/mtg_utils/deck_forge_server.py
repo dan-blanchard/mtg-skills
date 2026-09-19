@@ -21,9 +21,8 @@ from pathlib import Path
 import click
 from fastapi import FastAPI
 
-from mtg_utils._deck_forge import engine
-from mtg_utils._deck_forge.app import VERSION, build_app
-from mtg_utils._deck_forge.production import default_state
+from mtg_utils._deck_forge.app import VERSION, build_app, busy_reporter
+from mtg_utils._deck_forge.production import default_state, warm_signals_index
 
 __all__ = ["VERSION", "create_app", "main"]
 
@@ -37,7 +36,7 @@ def create_app(frontend_dist: Path | None = None) -> FastAPI:
     with a progress meter in the page rather than inside the first request."""
     state = default_state()
     app = build_app(state, frontend_dist=frontend_dist)
-    engine.warm_signals_index(state)
+    warm_signals_index(state, busy_reporter(state))
     return app
 
 

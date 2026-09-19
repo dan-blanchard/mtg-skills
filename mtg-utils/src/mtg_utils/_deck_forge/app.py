@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import functools
 import json
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Callable
 from pathlib import Path
 
 from fastapi import BackgroundTasks, FastAPI, Request, Response
@@ -21,7 +21,6 @@ from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from mtg_utils._analysis import signals_index
 from mtg_utils._deck_forge import collection, discovery, engine, views
 from mtg_utils._deck_forge.engine import DeckRuleError
 from mtg_utils._deck_forge.state import DeckSession, ForgeState
@@ -203,6 +202,21 @@ def _commit(
     return snap
 
 
+def busy_reporter(state: ForgeState) -> Callable[[int, int], None]:
+    """The transport side of the busy meter: the progress hook the one-time
+    signals-index build calls (from its own thread) — fold the step into the
+    state (``engine.record_busy``) and broadcast it to every open tab, the same
+    way ``_commit`` broadcasts a snapshot. The production entry installs it
+    (``signals_index.set_progress_hook``); ``build_app`` never touches that
+    process-wide hook, so a test's app is side-effect free."""
+
+    def report(done: int, total: int) -> None:
+        busy = engine.record_busy(state, done, total)
+        state.hub.publish_threadsafe(json.dumps({"busy": busy}))
+
+    return report
+
+
 def _find_params(payload: SearchPayload) -> engine.FindParams:
     """Adapt the transport ``SearchPayload`` to the engine's ``FindParams`` struct. The
     field mapping is the transport adapter's job, kept here so the engine's Find
@@ -241,8 +255,6 @@ def _no_bulk() -> JSONResponse:
 def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAPI:
     """Build the FastAPI app from an injected ``ForgeState``."""
     app = FastAPI(title="deck-forge", version=VERSION)
-    # The one-time signals-index build reports into THIS state (and its tabs).
-    signals_index.set_progress_hook(engine.signals_index_progress(state))
 
     @app.exception_handler(DeckRuleError)
     async def _deck_rule_error(_request: Request, exc: DeckRuleError) -> JSONResponse:

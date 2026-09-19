@@ -11,11 +11,12 @@ import functools
 import json
 import os
 import sys
+import threading
 import uuid
 from collections.abc import Callable, Mapping
 from pathlib import Path
 
-from mtg_utils import card_search, combo_search, mark_owned
+from mtg_utils import card_search, combo_search, mark_owned, theme_presets
 from mtg_utils._deck_forge import collection
 from mtg_utils._deck_forge.collection import CollectionStore
 from mtg_utils._deck_forge.persistence import BuildStore
@@ -28,6 +29,27 @@ from mtg_utils.hydrated_deck import HydratedDeck
 #: Commander Spellbook call otherwise. Bounded; the oldest entry goes first.
 _COMBO_MEMO: dict[str, dict] = {}
 _COMBO_MEMO_SIZE = 16
+
+
+def warm_signals_index(state: ForgeState, reporter: Callable[[int, int], None]) -> None:
+    """Launch-time process wiring for the one-time signals-index build: install
+    ``reporter`` as the build's progress hook (``signals_index.set_progress_hook``
+    — the deck-forge process has one state to report into), then seed the index
+    in a daemon thread so the build (or the sidecar load) runs while the builder
+    reads the page instead of inside their first Find or discovery request. A
+    request that needs the index meanwhile waits on this same build
+    (``theme_presets._SEED_LOCK``). No bulk: nothing to warm."""
+    from mtg_utils._analysis import signals_index
+
+    signals_index.set_progress_hook(reporter)
+    if not state.bulk_available or state.bulk_path is None:
+        return
+    threading.Thread(
+        target=theme_presets.seed_signal_key_index,
+        args=(state.bulk_path,),
+        name="signals-index-warm",
+        daemon=True,
+    ).start()
 
 
 def _combos(deck: dict, by_name: Mapping[str, dict]) -> dict:

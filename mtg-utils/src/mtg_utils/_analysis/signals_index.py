@@ -135,13 +135,17 @@ def set_progress_hook(hook: ProgressHook | None) -> None:
     _progress_hook = hook
 
 
+_stderr_decile_seen: list[int] = [-1]
+
+
 def _stderr_progress(done: int, total: int) -> None:
-    """The default reporter: one stderr line per ~10% so a terminal caller can
-    see the one-time pass moving."""
-    if not total:
+    """The default reporter: one stderr line each time the pass crosses a new
+    10%, so a terminal caller can see it moving."""
+    if not total or not done:
         return
-    step = max(1, total // 10)
-    if done % step < PROGRESS_EVERY or done == total:
+    decile = 10 * done // total
+    if decile > _stderr_decile_seen[0]:
+        _stderr_decile_seen[0] = decile if done < total else -1
         pct = 100 * done // total
         print(f"mtg-utils: signals index {pct}% ({done}/{total})", file=sys.stderr)
 
@@ -151,8 +155,9 @@ def build_signals_index(
 ) -> SignalsIndex:
     """oracle_id -> sorted idents, over EVERY record carrying an ``oracle_id``.
 
-    ``progress`` (optional) is told ``(done, total)`` every ``PROGRESS_EVERY``
-    records and once at the end — the meter a caller mid-request shows.
+    ``progress`` (optional) is told ``(done, total)`` once at the start (done 0),
+    every ``PROGRESS_EVERY`` records, and once at the end — the meter a caller
+    mid-request shows.
 
     One entry per distinct ``oracle_id`` — the first record seen wins; later
     printings of the same card share the oracle_id and produce byte-identical
@@ -168,6 +173,8 @@ def build_signals_index(
     total = len(records) if isinstance(records, Sized) else 0
     index: SignalsIndex = {}
     done = 0
+    if progress is not None:
+        progress(0, total)  # the start: a reporter's clock begins here, not 1000 in
     for rec in records:
         done += 1
         if progress is not None and done % PROGRESS_EVERY == 0:
