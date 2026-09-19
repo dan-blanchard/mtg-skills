@@ -27,3 +27,24 @@ def test_resume_or_new_starts_fresh_when_empty(tmp_path):
     session, _build_id, name = resume_or_new(BuildStore(tmp_path), "commander")
     assert name == "Untitled"
     assert session.to_deck_dict()["cards"] == []
+
+
+def test_combos_are_memoized_per_deck_content(monkeypatch):
+    """A Tune re-run on an unchanged deck (a rejected add) must not be a second live
+    Commander Spellbook call."""
+    from mtg_utils import combo_search
+    from mtg_utils._deck_forge import production
+
+    calls: list = []
+    monkeypatch.setattr(
+        combo_search, "combo_search", lambda hd: calls.append(hd) or {"combos": []}
+    )
+    monkeypatch.setattr(production, "_COMBO_MEMO", {})
+    deck = {"format": "commander", "commanders": [], "cards": [{"name": "Opt"}]}
+    by_name = {"Opt": {"name": "Opt", "type_line": "Instant"}}
+    assert production._combos(deck, by_name) == {"combos": []}
+    assert production._combos(dict(deck), by_name) == {"combos": []}
+    assert len(calls) == 1
+    other = {**deck, "cards": [{"name": "Opt"}, {"name": "Opt"}]}
+    production._combos(other, by_name)
+    assert len(calls) == 2

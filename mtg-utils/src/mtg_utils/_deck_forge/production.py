@@ -8,6 +8,7 @@ fail loudly with a "run download-mtgjson" message rather than silently returning
 from __future__ import annotations
 
 import functools
+import json
 import os
 import sys
 import uuid
@@ -22,12 +23,26 @@ from mtg_utils._deck_forge.state import DeckSession, ForgeState
 from mtg_utils.card_pool import CardPool, NoBulkError
 from mtg_utils.hydrated_deck import HydratedDeck
 
+#: The combo lookups this process has already made, by deck content — a Tune
+#: re-run on an unchanged deck (a rejected add, a changed budget) is a live
+#: Commander Spellbook call otherwise. Bounded; the oldest entry goes first.
+_COMBO_MEMO: dict[str, dict] = {}
+_COMBO_MEMO_SIZE = 16
+
 
 def _combos(deck: dict, by_name: Mapping[str, dict]) -> dict:
     # Build a HydratedDeck so combo_search can validate template requirements
     # (e.g. "a Persist Creature") against the deck — without records, near-miss
     # detection falls back to counting named cards only and over-reports near-misses.
-    return combo_search.combo_search(HydratedDeck.from_parsed(deck, by_name))
+    key = json.dumps(deck, sort_keys=True, default=str)
+    hit = _COMBO_MEMO.get(key)
+    if hit is not None:
+        return hit
+    result = combo_search.combo_search(HydratedDeck.from_parsed(deck, by_name))
+    if len(_COMBO_MEMO) >= _COMBO_MEMO_SIZE:
+        del _COMBO_MEMO[next(iter(_COMBO_MEMO))]
+    _COMBO_MEMO[key] = result
+    return result
 
 
 def _deck_forge_dir() -> Path:

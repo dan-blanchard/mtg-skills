@@ -287,6 +287,11 @@ def test_an_excluded_add_yields_its_slot_to_the_next_candidate():
     rejected = _swaps_for_issue_dicts(classes, [issue], ctx({"First Pick"}))
     assert [s["add"]["name"] for s in rejected["swaps"]] == ["Second Pick"]
     assert rejected["swaps"][0]["cut"] == plain["swaps"][0]["cut"]
+    # Both rejected: the issue yields nothing, and the note says the rejection is why.
+    none = _swaps_for_issue_dicts(classes, [issue], ctx({"First Pick", "Second Pick"}))
+    assert none["swaps"] == []
+    assert "No alternative to First Pick, Second Pick" in none["note"]
+    assert "curve: thin top-end" in none["note"]
 
 
 def test_role_over_trims_the_over_role_not_a_floor_role():

@@ -458,10 +458,15 @@ def propose_swaps(
     any other, and the add carries ``copy`` (the copy number it becomes). A cut
     removes ONE copy; a name may be cut as many times as it holds copies."""
     in_deck: dict[str, int] = {c.name: c.quantity for c in classes}
+    # The rejected adds the LAST find_add passed over — so an issue that then found
+    # nothing can say the rejection is why, instead of silently yielding its slot.
+    rejected_hits: list[str] = []
+    blocked_notes: list[str] = []
 
     def addable(card: dict) -> bool:
         name = card.get("name", "")
         if name in ctx.exclude:
+            rejected_hits.append(name)
             return False  # rejected by the builder: the next-ranked candidate instead
         return ctx.under_ceiling(card, in_deck.get(name, 0) + used_adds[name])
 
@@ -652,6 +657,7 @@ def propose_swaps(
         ranked = _ranked_pool(
             spec, synergy_first=synergy_first, nonland_only=nonland_only, limit=limit
         )
+        rejected_hits.clear()
         guard = role_fix and ctx.focus_result["verdict"] == "FOCUSED"
         fallback: tuple[dict, float] | None = None
         eligible: list[tuple[dict, float]] = []
@@ -727,6 +733,11 @@ def propose_swaps(
             }
         )
 
+    allow_buys = (
+        "set a wildcard budget to allow crafting"
+        if ctx.wildcard_budget is not None
+        else "set a Budget to allow buys"
+    )
     for issue in issues:
         if len(swaps) >= ctx.max_swaps:
             break
@@ -737,6 +748,7 @@ def propose_swaps(
         # nonland too — else a theme swap silently adds a value land (e.g. Fountainport
         # on the Aristocrats lane), shifting the land count a swap is meant to
         # preserve. The mana base is the land tooling's job, not Tune's.
+        swaps_for_issue = 0
         while len(swaps) < ctx.max_swaps:
             picked = find_add(
                 remedy.spec,
@@ -748,6 +760,12 @@ def propose_swaps(
                 role_fix=remedy.spine,
             )
             if picked is None:
+                if rejected_hits and not swaps_for_issue:
+                    names = ", ".join(dict.fromkeys(rejected_hits))
+                    blocked_notes.append(
+                        f'No alternative to {names} for "{issue.message}" — '
+                        f"{allow_buys}, or allow it again."
+                    )
                 break
             cut_entry = take_cut(remedy.cut_from)
             if cut_entry is None:
@@ -763,6 +781,7 @@ def propose_swaps(
                 cost,
                 off_avenue=off_avenue,
             )
+            swaps_for_issue += 1
             # One issue → one swap, except the dead-weight DRAIN: a deck can carry
             # several do-nothing cards, and it ranks first so the genuinely dead cards
             # go before any role trim churns a functional card.
@@ -842,11 +861,6 @@ def propose_swaps(
 
     digital = ctx.wildcard_budget is not None
     raise_budget = "raise your wildcard budget" if digital else "raise the budget"
-    allow_buys = (
-        "set a wildcard budget to allow crafting"
-        if digital
-        else "set a Budget to allow buys"
-    )
     note = None
     if ctx.fill_slots and fills_done < ctx.fill_slots:
         why = (
@@ -860,6 +874,8 @@ def propose_swaps(
             f"Proposed {len(swaps)} of {ctx.max_swaps} — no further actionable issues, "
             f"or out of safe cuts / affordable adds ({allow_buys})."
         )
+    if blocked_notes:
+        note = " ".join(([note] if note else []) + blocked_notes)
     return {
         "swaps": swaps,
         # `spent` is always a USD float (0.0 in digital); per-tier wildcards go in

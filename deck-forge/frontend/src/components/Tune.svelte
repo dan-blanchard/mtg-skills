@@ -32,6 +32,9 @@
   // The add being rejected right now (its row shows "finding an alternative…"
   // while the re-run sources the next candidate for that slot).
   let rejecting = "";
+  // The adds a reject's re-run brought in that the previous list lacked — the
+  // rows that answer "what replaced it" — tagged until the next plain run.
+  let fresh = new Set();
 
   const SHAPES = ["aggro", "midrange", "control", "combo"];
 
@@ -63,6 +66,7 @@
   async function run() {
     loading = true;
     error = "";
+    fresh = new Set();
     const body = {
       max_swaps: Number(maxSwaps) || 0,
       shape_override: shapeOverride || null,
@@ -103,8 +107,13 @@
     if (applying || rejecting) return;
     rejecting = s.add.name;
     rejectedAdds.update((set) => new Set([...set, s.add.name]));
+    const before = new Set(result.swaps.map((x) => x.add.name));
     try {
       await run();
+      if (result)
+        fresh = new Set(
+          result.swaps.map((x) => x.add.name).filter((n) => !before.has(n)),
+        );
     } finally {
       rejecting = "";
     }
@@ -496,7 +505,7 @@
           </button>
         </div>
         {#each result.swaps as s ((s.cut?.name ?? "") + "→" + s.add.name)}
-          <div class="swap">
+          <div class="swap" class:fresh={fresh.has(s.add.name)}>
             <div class="pair">
               <!-- A fill has no cut: it's a pure add into an open slot, shown as just "+ Card". -->
               {#if s.cut}
@@ -520,6 +529,12 @@
               {#if s.add.copy > 1}
                 <span class="tag" title="Which copy this add becomes"
                   >copy {s.add.copy}</span
+                >
+              {/if}
+              {#if fresh.has(s.add.name)}
+                <span
+                  class="tag new"
+                  title="Proposed in place of a rejected card">new</span
                 >
               {/if}
             </div>
@@ -898,6 +913,13 @@
   .why {
     font-size: 0.78rem;
     color: var(--parchment-dim);
+  }
+  .swap.fresh {
+    box-shadow: inset 0 0 0 1px var(--brass);
+  }
+  .tag.new {
+    color: var(--brass-bright);
+    border: 1px solid var(--brass);
   }
   .rejected {
     display: flex;
