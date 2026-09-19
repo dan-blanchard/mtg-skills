@@ -22,7 +22,7 @@
 
   let sort = "support";
   let colors = new Set();
-  let themes = new Set(); // build-around presets; a commander matching ANY is kept
+  let themes = new Set(); // build-around presets a commander must all match (as Find)
   let presets = [];
   let results = [];
   // Best guess at the Collection slot the backend will read, before any response has

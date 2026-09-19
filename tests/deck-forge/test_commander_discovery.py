@@ -247,20 +247,26 @@ def test_theme_filter_keeps_only_matching_commanders():
     assert [r["name"] for r in res["results"]] == ["Lifelord"]
 
 
-def test_several_themes_keep_a_commander_matching_any(monkeypatch):
-    """The picker is Find's (a multiselect): adding a theme widens, as it does there."""
-    lanes = {("lifegain", "Lifelord"), ("tokens", "Tokenlord")}
+def test_several_themes_keep_a_commander_matching_every_one(monkeypatch):
+    """The picker is Find's (a multiselect), and so is its meaning: presets
+    combine with AND (``card_search.filter_records``), so adding a theme narrows
+    to a commander that does all of them."""
+    lanes = {
+        ("lifegain", "Lifelord"),
+        ("tokens", "Lifelord"),
+        ("tokens", "Tokenlord"),
+    }
     monkeypatch.setattr(
         theme_presets, "matches", lambda name, rec: (name, rec["name"]) in lanes
     )
+    res = _client().post("/api/commanders/discover", json={"themes": ["tokens"]}).json()
+    assert {r["name"] for r in res["results"]} == {"Lifelord", "Tokenlord"}
     res = (
         _client()
         .post("/api/commanders/discover", json={"themes": ["lifegain", "tokens"]})
         .json()
     )
-    assert {r["name"] for r in res["results"]} == {"Lifelord", "Tokenlord"}
-    res = _client().post("/api/commanders/discover", json={"themes": ["tokens"]}).json()
-    assert {r["name"] for r in res["results"]} == {"Tokenlord"}
+    assert {r["name"] for r in res["results"]} == {"Lifelord"}
 
 
 def test_novelty_hard_gates_out_unsupported_commanders():

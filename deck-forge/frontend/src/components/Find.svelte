@@ -626,7 +626,6 @@
   .lbl {
     font-size: 0.7rem;
   }
-  /* selected presets surface as removable chips, visible without opening the list */
   /* focused-lanes echo */
   .focusbar {
     display: flex;

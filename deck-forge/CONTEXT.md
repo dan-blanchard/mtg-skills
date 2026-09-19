@@ -96,7 +96,7 @@ The optional per-(set, collector_number) layer under a Collection entry — nonf
 The fourth deck zone (`companion`, alongside commanders / cards / sideboard) holding at most one card with the companion ability (CR 103.2b). Excluded from deck-size math, slot budgets, curve/mana math, and the tuner's totals — but its deckbuilding condition IS audited against the starting deck including the commander (CR 702.139b, via `mtg_utils.companion`), and the card must still be format-legal.
 
 **Commander discovery**:
-The browser panel that surfaces commander-eligible cards from your active Collection slot, ranked to a stated intent rather than to popularity — a theme filter and a color filter narrow the owned pool, sorted by **Support depth** or **Novelty**. Never orders by community popularity.
+The browser panel that surfaces commander-eligible cards from your active Collection slot, ranked to a stated intent rather than to popularity — the theme picker (Find's preset picker, with Find's meaning: a commander must match every selected preset) and a color filter narrow the owned pool, sorted by **Support depth** or **Novelty**. Never orders by community popularity.
 
 **Discovery module** (`discovery.py`, ADR-0053):
 Commander discovery's implementation: the ranking (`discover_commanders`), the background `warm` a Collection import schedules, and the `DiscoveryCache` the `ForgeState` holds — the pool-density sweep and each Collection's served-name sets, locked, persisted to sidecars, and keyed by the Collection's own content so a changed Collection needs no invalidation.

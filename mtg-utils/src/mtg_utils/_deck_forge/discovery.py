@@ -507,8 +507,9 @@ def discover_commanders(
     ``support`` (default) ranks by breadth-down-weighted owned support; ``novelty``
     ranks by signal rarity, HARD-GATED to commanders you own some support for.
     ``colors`` (a color-identity subset) and ``themes`` (``theme_presets`` lanes — a
-    commander matching ANY of them is kept, the same OR-merge Find's presets use)
-    narrow the pool. Never uses EDHREC popularity."""
+    commander must match EVERY one, the same AND Find's preset picker applies:
+    "tokens" + "sacrifice-outlet" finds a commander that does both) narrow the
+    pool. Never uses EDHREC popularity."""
     if sort not in _DISCOVER_SORTS:
         sort = "support"
     coll = _resolved_collection(state)
@@ -522,7 +523,7 @@ def discover_commanders(
         records = [r for r in records if set(r.get("color_identity") or []) <= allowed]
     if themes:
         records = [
-            r for r in records if any(theme_presets.matches(t, r) for t in themes)
+            r for r in records if all(theme_presets.matches(t, r) for t in themes)
         ]
     freq, total = _signal_freq(state) if sort == "novelty" else ({}, 0)
 

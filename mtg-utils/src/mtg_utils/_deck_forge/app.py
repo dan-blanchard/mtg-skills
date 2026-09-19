@@ -136,7 +136,7 @@ class ClearCollectionPayload(BaseModel):
 class DiscoverCommandersPayload(BaseModel):
     sort: str = "support"  # "support" (owned-support depth) | "novelty" (signal rarity)
     colors: str | None = None  # color-identity subset filter (e.g. "BG")
-    themes: list[str] = []  # theme_presets lanes; a commander matching ANY is kept
+    themes: list[str] = []  # theme_presets lanes a commander must ALL match (as Find)
     limit: int = 24
 
 
