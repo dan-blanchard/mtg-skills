@@ -45360,6 +45360,211 @@
     "type_line": "Land"
    }
   },
+  "Blightsteel Colossus": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Artifact",
+       "Creature"
+      ],
+      "subtypes": [
+       "Phyrexian",
+       "Golem"
+      ],
+      "supertypes": []
+     },
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [
+      "Indestructible",
+      "Infect",
+      "Trample"
+     ],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 12,
+      "shards": [],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "0ccd5597-2d4e-4f3e-94b7-46783486853a",
+       "18adbda4-8d36-47cd-afbc-c785aaa8ed80",
+       "4d227cd3-ebfe-4dd3-929a-4f8ff7c8981e",
+       "56931f20-d99d-443c-8b01-ee3c3ffa643d",
+       "7928bb14-7631-4830-a756-26d1ea832ba2",
+       "9ca5273e-2d4d-4157-b3dd-69e375b0f434"
+      ]
+     },
+     "name": "Blightsteel Colossus",
+     "non_ability_text": null,
+     "oracle_text": "Trample, infect, indestructible\nIf Blightsteel Colossus would be put into a graveyard from anywhere, reveal Blightsteel Colossus and shuffle it into its owner's library instead.",
+     "power": {
+      "type": "Fixed",
+      "value": 11
+     },
+     "printings": [
+      "2XM",
+      "MBS",
+      "PLST",
+      "PRM",
+      "SLD"
+     ],
+     "rarities": [
+      "mythic"
+     ],
+     "replacements": [
+      {
+       "condition": null,
+       "description": "If ~ would be put into a graveyard from anywhere, reveal ~ and shuffle it into its owner's library instead.",
+       "destination_zone": "Graveyard",
+       "event": "Moved",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "destination": "Library",
+         "enter_tapped": false,
+         "enter_transformed": false,
+         "enters_attacking": false,
+         "origin": null,
+         "owner_library": false,
+         "target": {
+          "type": "SelfRef"
+         },
+         "type": "ChangeZone"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": null,
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "target": {
+           "type": "SelfRef"
+          },
+          "type": "Reveal"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": {
+          "condition": null,
+          "cost": null,
+          "description": null,
+          "duration": null,
+          "effect": {
+           "target": {
+            "type": "Owner"
+           },
+           "type": "Shuffle"
+          },
+          "forward_result": false,
+          "kind": "Spell",
+          "optional": false,
+          "optional_targeting": false,
+          "sub_ability": null,
+          "target_prompt": null
+         },
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "mode": {
+        "type": "Mandatory"
+       },
+       "valid_card": {
+        "type": "SelfRef"
+       }
+      }
+     ],
+     "rulings": [
+      {
+       "date": "2020-08-07",
+       "text": "A player who has ten or more poison counters loses the game. This is a state-based action."
+      },
+      {
+       "date": "2020-08-07",
+       "text": "Damage from a source with infect is damage in all respects. If the source with infect also has lifelink, damage dealt by that source also causes its controller to gain that much life. Damage from a source with infect can be prevented or redirected. Abilities that trigger on damage being dealt will trigger if a source with infect deals damage, if appropriate."
+      },
+      {
+       "date": "2020-08-07",
+       "text": "Damage that a creature with infect deals doesn't result in damage being marked on a creature or a player losing life. Instead, it results in that many -1/-1 counters being put on that creature or that many poison counters being given to that player. Damage dealt to planeswalkers still results in that planeswalker losing that many loyalty counters."
+      },
+      {
+       "date": "2020-08-07",
+       "text": "The -1/-1 counters remain on the creature indefinitely. They're not removed if the creature regenerates or the turn ends."
+      }
+     ],
+     "scryfall_oracle_id": "e80772e2-8623-4094-81a2-70828b2b151c",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 11
+     },
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 12.0,
+    "color_identity": [],
+    "colors": [],
+    "keywords": [
+     "Indestructible",
+     "Infect",
+     "Trample"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{12}",
+    "name": "Blightsteel Colossus",
+    "oracle_id": "e80772e2-8623-4094-81a2-70828b2b151c",
+    "oracle_text": "Trample, infect, indestructible\nIf Blightsteel Colossus would be put into a graveyard from anywhere, reveal Blightsteel Colossus and shuffle it into its owner's library instead.",
+    "power": "11",
+    "toughness": "11",
+    "type_line": "Artifact Creature — Phyrexian Golem"
+   }
+  },
   "Blim, Comedic Genius": {
    "phase_records": [
     {
@@ -152749,6 +152954,150 @@
     "type_line": "Sorcery"
    }
   },
+  "Hymn to Tourach": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "Target player discards two cards at random.",
+       "duration": null,
+       "effect": {
+        "count": {
+         "type": "Fixed",
+         "value": 2
+        },
+        "random": true,
+        "target": {
+         "type": "Player"
+        },
+        "type": "Discard"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Sorcery"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Black"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "pauper": "banned",
+      "paupercommander": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 0,
+      "shards": [
+       "Black",
+       "Black"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "01b8df75-fe70-4db0-9082-0b04d198f97b",
+       "094cadeb-c9b1-47cb-b4b8-0a85d14b9007",
+       "3faa8c5e-9e1b-4cee-b322-a033bf33dcbc",
+       "607fee04-2247-40c6-afaa-d7df694f7008",
+       "744d8398-297c-43e2-873c-ffd1df3ad624",
+       "9b404906-bdfc-4c6c-8daa-d4e7195d2072",
+       "a69c6efc-8d8c-4dc5-968a-29be6205e195",
+       "cbf78442-c80c-43d5-8898-20312eb7c9af",
+       "d6b51cfd-bfca-427c-83c2-b35ca7544f83",
+       "d9456bf8-e4eb-4979-b483-e6e9aab84f87"
+      ]
+     },
+     "name": "Hymn to Tourach",
+     "non_ability_text": null,
+     "oracle_text": "Target player discards two cards at random.",
+     "power": null,
+     "printings": [
+      "ATH",
+      "EMA",
+      "FEM",
+      "ME1",
+      "PLST",
+      "PRM",
+      "PTC",
+      "SLC",
+      "V13",
+      "VMA"
+     ],
+     "rarities": [
+      "common",
+      "uncommon"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "992d9a72-d34d-47d7-96fb-37f0efb515ef",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 2.0,
+    "color_identity": [
+     "B"
+    ],
+    "colors": [
+     "B"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "banned",
+     "paupercommander": "legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{B}{B}",
+    "name": "Hymn to Tourach",
+    "oracle_id": "992d9a72-d34d-47d7-96fb-37f0efb515ef",
+    "oracle_text": "Target player discards two cards at random.",
+    "type_line": "Sorcery"
+   }
+  },
   "Ian Chesterton": {
    "phase_records": [
     {
@@ -174113,6 +174462,138 @@
     "type_line": "Creature — Bird Advisor"
    }
   },
+  "Leeches": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "Target player loses all poison counters. ~ deals that much damage to that player.",
+       "duration": null,
+       "effect": {
+        "description": "lose all poison counters",
+        "name": "unparsed_verb_arguments",
+        "type": "Unimplemented"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "amount": {
+          "qty": {
+           "type": "EventContextAmount"
+          },
+          "type": "Ref"
+         },
+         "target": {
+          "type": "TriggeringPlayer"
+         },
+         "type": "DealDamage"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "sub_link": "SequentialSibling",
+        "target_prompt": null
+       },
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Sorcery"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "White"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "premodern": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 1,
+      "shards": [
+       "White",
+       "White"
+      ],
+      "type": "Cost"
+     },
+     "name": "Leeches",
+     "non_ability_text": null,
+     "oracle_text": "Target player loses all poison counters. Leeches deals that much damage to that player.",
+     "power": null,
+     "printings": [
+      "HML",
+      "ME4"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "0a265cb5-47c7-4e06-9030-602e17bedae5",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 3.0,
+    "color_identity": [
+     "W"
+    ],
+    "colors": [
+     "W"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{1}{W}{W}",
+    "name": "Leeches",
+    "oracle_id": "0a265cb5-47c7-4e06-9030-602e17bedae5",
+    "oracle_text": "Target player loses all poison counters. Leeches deals that much damage to that player.",
+    "type_line": "Sorcery"
+   }
+  },
   "Legion Loyalty": {
    "phase_records": [
     {
@@ -187414,6 +187895,157 @@
     "power": "2",
     "toughness": "3",
     "type_line": "Legendary Creature — Rat Rogue"
+   }
+  },
+  "Marsh Viper": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Snake"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Green"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "pauper": "legal",
+      "paupercommander": "legal",
+      "premodern": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 3,
+      "shards": [
+       "Green"
+      ],
+      "type": "Cost"
+     },
+     "name": "Marsh Viper",
+     "non_ability_text": null,
+     "oracle_text": "Whenever this creature deals damage to a player, that player gets two poison counters. (A player with ten or more poison counters loses the game.)",
+     "power": {
+      "type": "Fixed",
+      "value": 1
+     },
+     "printings": [
+      "4BB",
+      "4ED",
+      "5ED",
+      "DRK",
+      "REN"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "5249df56-7571-46c0-882e-cf88e452fb4d",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 2
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "Whenever ~ deals damage to a player, that player gets two poison counters.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "count": {
+          "type": "Fixed",
+          "value": 2
+         },
+         "counter_kind": "Poison",
+         "target": {
+          "type": "TriggeringPlayer"
+         },
+         "type": "GivePlayerCounter"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "DamageDone",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": null,
+       "valid_source": {
+        "type": "SelfRef"
+       },
+       "valid_target": {
+        "type": "Player"
+       }
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 4.0,
+    "color_identity": [
+     "G"
+    ],
+    "colors": [
+     "G"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "legal",
+     "paupercommander": "legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{3}{G}",
+    "name": "Marsh Viper",
+    "oracle_id": "5249df56-7571-46c0-882e-cf88e452fb4d",
+    "oracle_text": "Whenever this creature deals damage to a player, that player gets two poison counters. (A player with ten or more poison counters loses the game.)",
+    "power": "1",
+    "toughness": "2",
+    "type_line": "Creature — Snake"
    }
   },
   "Martyr's Bond": {
@@ -276256,6 +276888,237 @@
     "type_line": "Legendary Creature — God"
    }
   },
+  "The Seedcore": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": {
+        "type": "Tap"
+       },
+       "description": "{T}: Add {C}.",
+       "duration": null,
+       "effect": {
+        "produced": {
+         "count": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "type": "Colorless"
+        },
+        "type": "Mana"
+       },
+       "forward_result": false,
+       "is_mana_ability": true,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      },
+      {
+       "condition": null,
+       "cost": {
+        "type": "Tap"
+       },
+       "description": "{T}: Add one mana of any color. Spend this mana only to cast Phyrexian creature spells.",
+       "duration": null,
+       "effect": {
+        "produced": {
+         "color_options": [
+          "White",
+          "Blue",
+          "Black",
+          "Red",
+          "Green"
+         ],
+         "count": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "type": "AnyOneColor"
+        },
+        "restrictions": [
+         {
+          "SpellType": "Phyrexian Creature"
+         }
+        ],
+        "type": "Mana"
+       },
+       "forward_result": false,
+       "is_mana_ability": true,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      },
+      {
+       "activation_restrictions": [
+        {
+         "data": {
+          "condition": {
+           "count": 3,
+           "type": "OpponentPoisonAtLeast"
+          }
+         },
+         "type": "RequiresCondition"
+        }
+       ],
+       "condition": null,
+       "cost": {
+        "type": "Tap"
+       },
+       "description": "Corrupted — {T}: Target 1/1 creature gets +2/+1 until end of turn. Activate only if an opponent has three or more poison counters.",
+       "duration": "UntilEndOfTurn",
+       "effect": {
+        "power": {
+         "type": "Fixed",
+         "value": 2
+        },
+        "target": {
+         "controller": null,
+         "properties": [
+          {
+           "comparator": "EQ",
+           "scope": "Current",
+           "stat": "Power",
+           "type": "PtComparison",
+           "value": {
+            "type": "Fixed",
+            "value": 1
+           }
+          },
+          {
+           "comparator": "EQ",
+           "scope": "Current",
+           "stat": "Toughness",
+           "type": "PtComparison",
+           "value": {
+            "type": "Fixed",
+            "value": 1
+           }
+          }
+         ],
+         "type": "Typed",
+         "type_filters": [
+          "Creature"
+         ]
+        },
+        "toughness": {
+         "type": "Fixed",
+         "value": 1
+        },
+        "type": "Pump"
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Land"
+      ],
+      "subtypes": [
+       "Sphere"
+      ],
+      "supertypes": []
+     },
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "type": "NoCost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "29c91aad-bf33-448e-b122-65940fb2e33b",
+       "7e3e28ca-bd1a-46bf-8ce0-56807cbb41c6"
+      ]
+     },
+     "name": "The Seedcore",
+     "non_ability_text": null,
+     "oracle_text": "{T}: Add {C}.\n{T}: Add one mana of any color. Spend this mana only to cast Phyrexian creature spells.\nCorrupted — {T}: Target 1/1 creature gets +2/+1 until end of turn. Activate only if an opponent has three or more poison counters.",
+     "power": null,
+     "printings": [
+      "ONE",
+      "PONE"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "249fdd3e-376c-4ec2-a612-4353e0e61ee2",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 0.0,
+    "color_identity": [],
+    "colors": [],
+    "keywords": [
+     "Corrupted"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "",
+    "name": "The Seedcore",
+    "oracle_id": "249fdd3e-376c-4ec2-a612-4353e0e61ee2",
+    "oracle_text": "{T}: Add {C}.\n{T}: Add one mana of any color. Spend this mana only to cast Phyrexian creature spells.\nCorrupted — {T}: Target 1/1 creature gets +2/+1 until end of turn. Activate only if an opponent has three or more poison counters.",
+    "produced_mana": [
+     "B",
+     "C",
+     "G",
+     "R",
+     "U",
+     "W"
+    ],
+    "type_line": "Land — Sphere"
+   }
+  },
   "The Speed Demon": {
    "phase_records": [
     {
@@ -278174,6 +279037,203 @@
     "name": "Thought Erasure",
     "oracle_id": "4bae4e34-fcf4-4aee-8da2-5b3ee41a595a",
     "oracle_text": "Target opponent reveals their hand. You choose a nonland card from it. That player discards that card.\nSurveil 1. (Look at the top card of your library. You may put it into your graveyard.)",
+    "type_line": "Sorcery"
+   }
+  },
+  "Thoughtseize": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "Target player reveals their hand. You choose a nonland card from it. That player discards that card. You lose 2 life.",
+       "duration": null,
+       "effect": {
+        "card_filter": {
+         "controller": null,
+         "properties": [],
+         "type": "Typed",
+         "type_filters": [
+          {
+           "Non": "Land"
+          }
+         ]
+        },
+        "count": null,
+        "reveal": true,
+        "target": {
+         "type": "Player"
+        },
+        "type": "RevealHand"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "count": 1,
+         "target": {
+          "type": "ParentTarget"
+         },
+         "type": "DiscardCard"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": null,
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "amount": {
+           "type": "Fixed",
+           "value": 2
+          },
+          "target": {
+           "type": "Controller"
+          },
+          "type": "LoseLife"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": null,
+         "sub_link": "SequentialSibling",
+         "target_prompt": null
+        },
+        "sub_link": "SequentialSibling",
+        "target_prompt": null
+       },
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Sorcery"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Black"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 0,
+      "shards": [
+       "Black"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "1d1aebf2-dd21-48b4-868f-f8fb164dcaae",
+       "1ecc64b6-6f2c-4b20-aa80-54cc47382606",
+       "310a1c46-8331-4a09-9fcb-d942f8102364",
+       "3df8c148-e87d-4043-9d8b-ec72bf8b6d5d",
+       "5e85d5db-ced3-406d-90d2-e506a9332468",
+       "65b7275a-5305-42e6-b5c3-8b88568b4e28",
+       "95702503-8f2d-46c8-abdb-6edd6c431d19",
+       "b281a308-ab6b-47b6-bec7-632c9aaecede",
+       "e6e76c6b-9d60-4bc8-b88d-6c9c7fade9a6"
+      ]
+     },
+     "name": "Thoughtseize",
+     "non_ability_text": null,
+     "oracle_text": "Target player reveals their hand. You choose a nonland card from it. That player discards that card. You lose 2 life.",
+     "power": null,
+     "printings": [
+      "2XM",
+      "AKR",
+      "IMA",
+      "LRW",
+      "MP2",
+      "OTP",
+      "PRM",
+      "SLD",
+      "THS",
+      "TSR"
+     ],
+     "rarities": [
+      "rare",
+      "mythic",
+      "special"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2020-08-07",
+       "text": "You lose 2 life even if the target player has no nonland cards in their hand to discard."
+      }
+     ],
+     "scryfall_oracle_id": "edd8d1e8-be43-4c38-bb3a-83081fbaf0b5",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 1.0,
+    "color_identity": [
+     "B"
+    ],
+    "colors": [
+     "B"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "legal",
+     "predh": "legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{B}",
+    "name": "Thoughtseize",
+    "oracle_id": "edd8d1e8-be43-4c38-bb3a-83081fbaf0b5",
+    "oracle_text": "Target player reveals their hand. You choose a nonland card from it. That player discards that card. You lose 2 life.",
     "type_line": "Sorcery"
    }
   },

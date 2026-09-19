@@ -156,9 +156,10 @@ class Preset:
     against the committed real-card snapshot (``mtg_utils.testkit`` — a
     real Scryfall record, and for a structural arm real crosswalk trees;
     ``build-card-snapshot`` reads these names from the registry itself).
-    A ``should_not_match`` is a NEAR MISS — a card that grants, mentions or
-    resembles the theme without having it — never merely an unrelated
-    card (see ``test_theme_presets.py``).
+    ``should_not_match`` holds at least one NEAR MISS — a card that grants,
+    mentions or resembles the theme without having it; a generic unrelated
+    card (Lightning Bolt) may sit beside it but never stands alone (see
+    ``test_theme_presets.py``).
     """
 
     name: str
@@ -797,7 +798,7 @@ _KEYWORD_ABILITIES: tuple[Preset, ...] = (
         description="Card has dredge (BANNED in shared-library format).",
         keywords=("Dredge",),
         should_match=("Dakmor Salvage",),
-        should_not_match=("Lightning Bolt", "The Necrobloom", "Flame Jab"),
+        should_not_match=("Lightning Bolt", "The Necrobloom", "Stitcher's Supplier"),
     ),
     Preset(
         name="miracle",
@@ -844,14 +845,13 @@ _KEYWORD_ABILITIES: tuple[Preset, ...] = (
     Preset(
         name="poison",
         description=(
-            "Creature has poisonous — a TRIGGERED ability (CR 702.70a) that gives a "
-            "player N poison counters when it deals combat damage, IN ADDITION to "
-            "the normal damage. Unlike Infect it does not modify the damage and does "
-            "nothing to creatures (no -1/-1 counters)."
+            "Gives a player poison counters: poisonous (CR 702.70a), infect, toxic, "
+            "or a direct poison-counter effect — the poison archetype's makers. "
+            "Caring about poison counters without giving them is not this theme."
         ),
-        keywords=("Poisonous",),
-        should_match=(),
-        should_not_match=("Lightning Bolt", "Virulent Sliver", "Snake Cult Initiation"),
+        signal_keys=("poison_makers",),
+        should_match=("Marsh Viper", "Blightsteel Colossus", "Virulent Sliver"),
+        should_not_match=("Lightning Bolt", "The Seedcore", "Leeches"),
     ),
     Preset(
         name="delve",
@@ -1003,7 +1003,8 @@ _KEYWORD_ABILITIES: tuple[Preset, ...] = (
         name="exert",
         description=(
             "Creature you may exert as it attacks for a bonus; an exerted "
-            "permanent doesn't untap during your next untap step (CR 701.43a)."
+            "permanent doesn't untap during your next untap step (CR 701.43a, "
+            "701.43d)."
         ),
         keywords=("Exert",),
         should_match=("Glorybringer",),
@@ -1125,7 +1126,7 @@ _KEYWORD_ABILITIES: tuple[Preset, ...] = (
         description=(
             "Tap another untapped creature you control to put charge counters "
             "equal to its power on this permanent, at sorcery speed (CR "
-            "702.184a); its abilities unlock at counter thresholds."
+            "702.184a); its abilities unlock at counter thresholds (CR 721.2a)."
         ),
         keywords=("Station",),
         should_match=("Adagia, Windswept Bastion",),
@@ -2277,7 +2278,7 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
         name="discard",
         description="Forces a target player or opponent to discard cards.",
         signal_keys=("opponent_discard", "hand_disruption"),
-        should_match=(),  # fixture cards added if Thoughtseize etc. exist in test data
+        should_match=("Thoughtseize", "Hymn to Tourach"),
         should_not_match=("Lightning Bolt", "Faithless Looting", "Careful Study"),
     ),
     # Tutors — search your library for a card (task #83 structural-view

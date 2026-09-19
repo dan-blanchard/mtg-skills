@@ -24,7 +24,9 @@ Modes:
     ``test_signals`` usage: direct string-literal calls, parametrize columns
     that feed such a call through a bare variable, and ``_REAL_CASES`` name
     tables (usage-derived; the snapshot only holds cards a test actually asks
-    for).
+    for), plus every theme preset's ``should_match`` / ``should_not_match``
+    read from the registry itself (a preset fixture is proven against the
+    snapshot's real record, never hand-typed text).
   * ``--names "A,B"`` / ``--names-file PATH`` — an explicit name list (additive to the
     scan unless ``--no-scan``).
 
@@ -465,7 +467,9 @@ def main(argv: list[str] | None = None) -> int:
         "--names-file", default=None, help="File with one card name per line."
     )
     parser.add_argument(
-        "--no-scan", action="store_true", help="Skip the test-tree usage scan."
+        "--no-scan",
+        action="store_true",
+        help="Skip the test-tree usage scan and the preset-registry fixture read.",
     )
     parser.add_argument(
         "--out", default=None, help="Output path (default: the fixture)."
