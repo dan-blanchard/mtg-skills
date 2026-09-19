@@ -21,6 +21,7 @@ from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
+from mtg_utils._analysis import signals_index
 from mtg_utils._deck_forge import collection, discovery, engine, views
 from mtg_utils._deck_forge.engine import DeckRuleError
 from mtg_utils._deck_forge.state import DeckSession, ForgeState
@@ -240,6 +241,8 @@ def _no_bulk() -> JSONResponse:
 def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAPI:
     """Build the FastAPI app from an injected ``ForgeState``."""
     app = FastAPI(title="deck-forge", version=VERSION)
+    # The one-time signals-index build reports into THIS state (and its tabs).
+    signals_index.set_progress_hook(engine.signals_index_progress(state))
 
     @app.exception_handler(DeckRuleError)
     async def _deck_rule_error(_request: Request, exc: DeckRuleError) -> JSONResponse:

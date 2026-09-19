@@ -297,3 +297,34 @@ class TestByteEquivalenceAgainstRealSnapshot:
             assert set(index.get(oid, ())) == live, name
             checked += 1
         assert checked > 0
+
+
+def test_build_reports_progress_every_batch_and_at_the_end(monkeypatch):
+    """The meter's seam: ``(done, total)`` every PROGRESS_EVERY records and once
+    at the end, with the final call at (total, total)."""
+    monkeypatch.setattr(signals_index, "PROGRESS_EVERY", 2)
+    records = [{"oracle_id": f"oid-{i}", "name": f"Card {i}"} for i in range(5)]
+    monkeypatch.setattr(
+        "mtg_utils._analysis.signals.extract_signals", lambda _rec: [], raising=False
+    )
+    seen: list[tuple[int, int]] = []
+    signals_index.build_signals_index(
+        records, progress=lambda d, t: seen.append((d, t))
+    )
+    assert seen == [(2, 5), (4, 5), (5, 5)]
+
+
+def test_the_installed_hook_is_the_default_reporter(monkeypatch, tmp_path):
+    """``load_signals_index`` with no explicit progress uses the process hook the
+    hub installs (else the stderr default)."""
+    seen: list[tuple[int, int]] = []
+    signals_index.set_progress_hook(lambda d, t: seen.append((d, t)))
+    try:
+        bulk = tmp_path / "bulk.json"
+        bulk.write_text("[]", encoding="utf-8")
+        monkeypatch.setattr(signals_index, "_read_sidecar", lambda *_a, **_k: None)
+        monkeypatch.setattr(signals_index, "_write_sidecar", lambda *_a, **_k: None)
+        signals_index.load_signals_index(bulk, [{"oracle_id": "x"}])
+    finally:
+        signals_index.set_progress_hook(None)
+    assert seen[-1] == (1, 1)

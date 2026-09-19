@@ -78,6 +78,10 @@ export const agentBusy = writable(false);
 export const agentThinking = writable(false);
 export const agentReply = writable(null);
 export const buildId = writable(null);
+// The one long hub job in flight (the first-launch card-signal index build):
+// { job, label, done, total, eta_s } while it runs, null when idle. Arrives in
+// every snapshot and as its own SSE message as the build moves.
+export const busy = writable(null);
 // Adds the builder rejected in Tune (card names) — sent with every Tune run as
 // `exclude`, so a rejected card's slot is re-sourced from the next candidate. Per
 // build: cleared when the snapshot's build_id changes.
@@ -129,6 +133,7 @@ export function applySnapshot(snap) {
   if (snap.collection) collection.set(snap.collection);
   // wildcards is null for paper builds — set unconditionally (don't keep a stale value).
   if ("wildcards" in snap) wildcards.set(snap.wildcards);
+  if ("busy" in snap) busy.set(snap.busy);
   if (snap.build_id !== undefined) {
     if (get(buildId) !== snap.build_id) rejectedAdds.set(new Set());
     buildId.set(snap.build_id);

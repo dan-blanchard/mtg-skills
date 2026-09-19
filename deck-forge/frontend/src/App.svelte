@@ -8,6 +8,7 @@
   import DeckList from "./components/DeckList.svelte";
   import ForgeFriend from "./components/ForgeFriend.svelte";
   import StatusBar from "./components/StatusBar.svelte";
+  import BusyBar from "./components/BusyBar.svelte";
   import CardPreview from "./components/CardPreview.svelte";
   import ManaGateModal from "./components/ManaGateModal.svelte";
   import ImportDialog from "./components/ImportDialog.svelte";
@@ -59,6 +60,7 @@
 
 <div class="shell">
   <Header />
+  <BusyBar />
 
   <main class="bench" class:rail-collapsed={railCollapsed}>
     <section class="col find-col"><LeftTabs /></section>

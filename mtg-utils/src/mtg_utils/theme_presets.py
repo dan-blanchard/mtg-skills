@@ -103,6 +103,7 @@ public API (``Preset.matches`` / ``get_preset`` / ``matches`` /
 from __future__ import annotations
 
 import re
+import threading
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
@@ -296,6 +297,10 @@ def _signal_idents_for(card: dict) -> frozenset[str]:
 # ``_SIGNAL_KEY_INDEX`` this process — makes :func:`seed_signal_key_index`
 # a no-op on every call after the first for the same bulk file.
 _SEEDED_BULK_IDENTITIES: set[tuple[str, int, int]] = set()
+# One seed at a time: the hub warms the index in a background thread at launch,
+# and a request that needs it meanwhile waits for THAT build instead of starting
+# a second one.
+_SEED_LOCK = threading.Lock()
 
 
 def seed_signal_key_index(bulk_path: Path | None) -> bool:
@@ -335,15 +340,18 @@ def seed_signal_key_index(bulk_path: Path | None) -> bool:
 
     from mtg_utils._analysis.signals_index import load_signals_index
 
-    index = load_signals_index(path)
-    if index is None:
-        return False
-    for oid, idents in index.items():
-        _SIGNAL_KEY_INDEX.setdefault(
-            oid, frozenset(ident.split("|", 1)[0] for ident in idents)
-        )
-        _SIGNAL_IDENT_INDEX.setdefault(oid, frozenset(idents))
-    _SEEDED_BULK_IDENTITIES.add(identity)
+    with _SEED_LOCK:
+        if identity in _SEEDED_BULK_IDENTITIES:  # seeded while we waited
+            return True
+        index = load_signals_index(path)
+        if index is None:
+            return False
+        for oid, idents in index.items():
+            _SIGNAL_KEY_INDEX.setdefault(
+                oid, frozenset(ident.split("|", 1)[0] for ident in idents)
+            )
+            _SIGNAL_IDENT_INDEX.setdefault(oid, frozenset(idents))
+        _SEEDED_BULK_IDENTITIES.add(identity)
     return True
 
 

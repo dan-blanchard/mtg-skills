@@ -21,6 +21,7 @@ from pathlib import Path
 import click
 from fastapi import FastAPI
 
+from mtg_utils._deck_forge import engine
 from mtg_utils._deck_forge.app import VERSION, build_app
 from mtg_utils._deck_forge.production import default_state
 
@@ -31,8 +32,13 @@ DEFAULT_PORT = 8765
 
 
 def create_app(frontend_dist: Path | None = None) -> FastAPI:
-    """Build the production app (real bulk data when available)."""
-    return build_app(default_state(), frontend_dist=frontend_dist)
+    """Build the production app (real bulk data when available), and start the
+    signals-index warm in the background so a first launch's one-time build runs
+    with a progress meter in the page rather than inside the first request."""
+    state = default_state()
+    app = build_app(state, frontend_dist=frontend_dist)
+    engine.warm_signals_index(state)
+    return app
 
 
 @click.command()

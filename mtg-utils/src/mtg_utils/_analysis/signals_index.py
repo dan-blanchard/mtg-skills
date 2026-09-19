@@ -90,7 +90,7 @@ import hashlib
 import importlib.util
 import pickle
 import sys
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable, Sized
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -117,8 +117,42 @@ def _ident(sig: Signal) -> str:
     return f"{sig.key}|{sig.scope}|{sig.subject}"
 
 
-def build_signals_index(records: Iterable[dict]) -> SignalsIndex:
+#: ``progress(done, total)`` — called every :data:`PROGRESS_EVERY` records and once
+#: at the end, from whichever thread runs the build. ``total`` is the record count
+#: (0 when the iterable has no length).
+ProgressHook = Callable[[int, int], None]
+PROGRESS_EVERY = 1000
+_progress_hook: ProgressHook | None = None
+
+
+def set_progress_hook(hook: ProgressHook | None) -> None:
+    """Install the process-wide progress reporter the on-demand build calls
+    (``load_signals_index`` with no explicit ``progress``). The deck-forge hub
+    installs one that pushes the build's progress to the browser; a CLI keeps
+    the stderr default. One per process — the build is a process-wide,
+    one-time pass."""
+    global _progress_hook  # noqa: PLW0603 — the one process-wide reporter
+    _progress_hook = hook
+
+
+def _stderr_progress(done: int, total: int) -> None:
+    """The default reporter: one stderr line per ~10% so a terminal caller can
+    see the one-time pass moving."""
+    if not total:
+        return
+    step = max(1, total // 10)
+    if done % step < PROGRESS_EVERY or done == total:
+        pct = 100 * done // total
+        print(f"mtg-utils: signals index {pct}% ({done}/{total})", file=sys.stderr)
+
+
+def build_signals_index(
+    records: Iterable[dict], *, progress: ProgressHook | None = None
+) -> SignalsIndex:
     """oracle_id -> sorted idents, over EVERY record carrying an ``oracle_id``.
+
+    ``progress`` (optional) is told ``(done, total)`` every ``PROGRESS_EVERY``
+    records and once at the end — the meter a caller mid-request shows.
 
     One entry per distinct ``oracle_id`` — the first record seen wins; later
     printings of the same card share the oracle_id and produce byte-identical
@@ -131,13 +165,20 @@ def build_signals_index(records: Iterable[dict]) -> SignalsIndex:
     same artifact this module persists, over any record list it likes."""
     from mtg_utils._analysis.signals import extract_signals
 
+    total = len(records) if isinstance(records, Sized) else 0
     index: SignalsIndex = {}
+    done = 0
     for rec in records:
+        done += 1
+        if progress is not None and done % PROGRESS_EVERY == 0:
+            progress(done, total)
         oid = rec.get("oracle_id")
         if not oid or oid in index:
             continue
         sigs = extract_signals(rec)
         index[oid] = tuple(sorted(_ident(s) for s in sigs))
+    if progress is not None:
+        progress(done, total or done)
     return index
 
 
@@ -299,7 +340,10 @@ def _write_sidecar(
 
 
 def load_signals_index(
-    bulk_path: Path | None, records: list[dict] | None = None
+    bulk_path: Path | None,
+    records: list[dict] | None = None,
+    *,
+    progress: ProgressHook | None = None,
 ) -> SignalsIndex | None:
     """Return the oracle_id -> signal-ident index for *bulk_path*.
 
@@ -310,11 +354,13 @@ def load_signals_index(
 
     Builds the sidecar on first touch (a one-time whole-pool
     ``extract_signals`` pass — ~2-4 min over the full bulk — logged to
-    stderr so a caller mid-request isn't left wondering why it's slow) and
-    persists it; every subsequent call for the same bulk + source code is a
-    pickle deserialize. Pass *records* when the caller already holds the
-    loaded bulk list (``bulk_loader.load_bulk_cards`` is itself cached, so
-    omitting it just adds one cheap cache hit, never a re-parse)."""
+    stderr so a caller mid-request isn't left wondering why it's slow, with
+    ``progress`` — or the hook :func:`set_progress_hook` installed, or the stderr
+    default — told how far along it is) and persists it; every subsequent call
+    for the same bulk + source code is a pickle deserialize. Pass *records* when
+    the caller already holds the loaded bulk list (``bulk_loader.load_bulk_cards``
+    is itself cached, so omitting it just adds one cheap cache hit, never a
+    re-parse)."""
     if bulk_path is None:
         return None
     bulk_path = Path(bulk_path)
@@ -337,6 +383,8 @@ def load_signals_index(
         f"(one-time ~2-4 min pass; cached at {sidecar})...",
         file=sys.stderr,
     )
-    index = build_signals_index(records)
+    index = build_signals_index(
+        records, progress=progress or _progress_hook or _stderr_progress
+    )
     _write_sidecar(sidecar, index, content_hash, bulk_path)
     return index

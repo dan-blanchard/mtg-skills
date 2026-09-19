@@ -14,12 +14,15 @@ reads ``state`` at call time and can never go stale.
 from __future__ import annotations
 
 import functools
+import json
+import threading
+import time
 import uuid
 from collections.abc import Callable, Collection, Mapping
 from dataclasses import dataclass
 from pathlib import Path
 
-from mtg_utils import card_search, mark_owned, price_check
+from mtg_utils import card_search, mark_owned, price_check, theme_presets
 from mtg_utils._analysis import staples
 from mtg_utils._analysis.budgets import banded_slot_budgets, template_for
 from mtg_utils._analysis.ranking import rank_candidates
@@ -1213,6 +1216,62 @@ def undo_seed(state: ForgeState) -> None:
     state.seed_undo = None
 
 
+SIGNALS_INDEX_LABEL = "Building the card-signal index"
+
+
+def signals_index_progress(state: ForgeState) -> Callable[[int, int], None]:
+    """The hub's reporter for the one-time signals-index build (installed via
+    ``signals_index.set_progress_hook``): keeps ``state.busy`` current — done,
+    total, and a time-left estimate from the pace so far — and pushes it to every
+    open tab over SSE; clears it when the pass ends. Runs on the build's own
+    thread, so the push hops onto the loop (``publish_threadsafe``)."""
+    started: list[float] = []
+
+    def report(done: int, total: int) -> None:
+        now = time.monotonic()
+        if not started:
+            started.append(now)
+        elapsed = now - started[0]
+        finished = total and done >= total
+        eta = (
+            (elapsed / done) * (total - done)
+            if done and total and not finished
+            else None
+        )
+        state.busy = (
+            None
+            if finished
+            else {
+                "job": "signals-index",
+                "label": SIGNALS_INDEX_LABEL,
+                "done": done,
+                "total": total,
+                "eta_s": None if eta is None else round(eta),
+            }
+        )
+        state.hub.publish_threadsafe(json.dumps({"busy": state.busy}))
+
+    return report
+
+
+def warm_signals_index(state: ForgeState) -> threading.Thread | None:
+    """Start the signals-index seed in a daemon thread at launch, so the one-time
+    build (or the sidecar load) happens while the builder reads the page instead
+    of inside their first Find or discovery request. A request that needs the
+    index meanwhile waits on this same build (``theme_presets._SEED_LOCK``). None
+    without bulk."""
+    if not state.bulk_available or state.bulk_path is None:
+        return None
+    thread = threading.Thread(
+        target=theme_presets.seed_signal_key_index,
+        args=(state.bulk_path,),
+        name="signals-index-warm",
+        daemon=True,
+    )
+    thread.start()
+    return thread
+
+
 def tune_params(
     state: ForgeState,
     *,
@@ -1709,6 +1768,9 @@ def snapshot(state: ForgeState) -> dict:
     return {
         "build_id": state.build_id,
         "build_name": state.build_name,
+        # The long hub job in flight (the first-launch signals-index build), so a
+        # tab that opens mid-build shows the meter; None when idle.
+        "busy": state.busy,
         # The format table the SPA's pickers read (labels, media, size choices) — the
         # Format is the one authority; the SPA never mirrors it (ADR-0045).
         "format_options": format_options(),

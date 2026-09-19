@@ -238,3 +238,24 @@ def test_snapshot_bundles_deck_stats_mana():
     client = make_client()
     snap = client.get("/api/snapshot").json()
     assert set(snap) >= {"deck", "stats", "mana"}
+
+
+def test_snapshot_carries_the_busy_meter_and_the_reporter_drives_it():
+    """The first-launch signals-index build reports into the state: the snapshot
+    shows the job (done / total / time left) while it runs and null when idle."""
+    from mtg_utils._deck_forge import engine
+
+    client = make_client(session=DeckSession("commander"))
+    assert client.get("/api/snapshot").json()["busy"] is None
+    # Drive the reporter directly against a fresh state.
+    st = ForgeState(
+        by_name={}, search_fn=lambda **_: [], session=DeckSession("commander")
+    )
+    report = engine.signals_index_progress(st)
+    report(1000, 4000)
+    assert st.busy["done"] == 1000
+    assert st.busy["total"] == 4000
+    assert st.busy["label"] == engine.SIGNALS_INDEX_LABEL
+    assert "eta_s" in st.busy
+    report(4000, 4000)
+    assert st.busy is None
