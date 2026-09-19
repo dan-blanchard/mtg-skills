@@ -305,14 +305,29 @@ def _scan_names(test_dirs: list[Path]) -> set[str]:
     return names
 
 
+def _preset_fixture_names() -> set[str]:
+    """Every ``should_match`` / ``should_not_match`` name in the theme-preset
+    registry: a preset's fixtures are proven against the snapshot's REAL records
+    (keywords + oracle text as the bulk carries them, never hand-typed —
+    ``tests/mtg-utils/test_theme_presets.py``), so the registry is a name source
+    of its own — the AST scan cannot see a comprehension over imported data."""
+    from mtg_utils.theme_presets import PRESETS
+
+    return {
+        card
+        for preset in PRESETS.values()
+        for card in (*preset.should_match, *preset.should_not_match)
+    }
+
+
 def _existing_names(out_path: Path) -> set[str]:
     """Card names already committed in *out_path*, or empty if it doesn't
     exist / doesn't parse. The AST scan is necessarily incomplete — a table
-    built from a dynamic comprehension over imported registry data (e.g.
-    ``[card for name in PRESETS for card in PRESETS[name].should_match]``)
-    has no string literal for the scanner to find at all. Regenerating must
-    never silently drop a name the scan can't see; ``--prune`` opts into
-    that instead of it happening by accident."""
+    built from a dynamic comprehension over imported registry data has no
+    string literal for the scanner to find at all (the preset registry is
+    read directly, :func:`_preset_fixture_names`; any other such table is
+    not). Regenerating must never silently drop a name the scan can't see;
+    ``--prune`` opts into that instead of it happening by accident."""
     if not out_path.exists():
         return set()
     try:
@@ -478,6 +493,7 @@ def main(argv: list[str] | None = None) -> int:
         names |= _scan_names(
             [repo_root / "tests" / "deck-forge", repo_root / "tests" / "mtg-utils"]
         )
+        names |= _preset_fixture_names()
     if args.names:
         names |= {n.strip() for n in args.names.split(",") if n.strip()}
     if args.names_file:

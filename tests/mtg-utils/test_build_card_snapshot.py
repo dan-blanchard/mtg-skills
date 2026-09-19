@@ -240,6 +240,12 @@ def test_main_prune_drops_names_the_scan_no_longer_supplies(tmp_path):
             "mtg_utils.build_card_snapshot._scan_names",
             return_value={"Fresh Card"},
         ),
+        # The preset registry is a name source of its own; this test is about the
+        # scan's names, so give it nothing.
+        patch(
+            "mtg_utils.build_card_snapshot._preset_fixture_names",
+            return_value=set(),
+        ),
         patch(
             "mtg_utils.build_card_snapshot.build_snapshot",
             side_effect=fake_build_snapshot,

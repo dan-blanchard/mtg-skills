@@ -152,13 +152,13 @@ class Preset:
       every preset today.
 
     All six may be set; they combine with OR. ``should_match`` and
-    ``should_not_match`` are card-name fixtures used by the test suite —
-    for a preset with a non-empty ``signal_keys``/``concept``, the golden
-    fixture test routes these through ``mtg_utils.testkit`` (a real
-    Scryfall record + real crosswalk trees) instead of the inline
-    synthetic ``FIXTURE_CARDS`` dict, since the structural arms need a
-    real ``oracle_id`` to resolve anything (see
-    ``test_theme_presets.py``'s structural-view test class).
+    ``should_not_match`` are card-name fixtures the test suite proves
+    against the committed real-card snapshot (``mtg_utils.testkit`` — a
+    real Scryfall record, and for a structural arm real crosswalk trees;
+    ``build-card-snapshot`` reads these names from the registry itself).
+    A ``should_not_match`` is a NEAR MISS — a card that grants, mentions or
+    resembles the theme without having it — never merely an unrelated
+    card (see ``test_theme_presets.py``).
     """
 
     name: str
@@ -515,14 +515,19 @@ _EVERGREEN_KEYWORDS: tuple[Preset, ...] = (
         description="Creature has flying (evergreen).",
         keywords=("Flying",),
         should_match=("Serra Angel", "Baleful Strix"),
-        should_not_match=("Llanowar Elves", "Lightning Bolt"),
+        should_not_match=(
+            "Llanowar Elves",
+            "Lightning Bolt",
+            "Hangarback Walker",
+            "Ana Disciple",
+        ),
     ),
     Preset(
         name="vigilance",
         description="Creature has vigilance (evergreen).",
         keywords=("Vigilance",),
         should_match=("Serra Angel",),
-        should_not_match=("Llanowar Elves",),
+        should_not_match=("Llanowar Elves", "Honored Hierarch", "Reptil, Dinomorpher"),
     ),
     Preset(
         name="trample",
@@ -550,14 +555,18 @@ _EVERGREEN_KEYWORDS: tuple[Preset, ...] = (
         description="Creature has lifelink (evergreen).",
         keywords=("Lifelink",),
         should_match=("Tymna the Weaver",),
-        should_not_match=("Llanowar Elves",),
+        should_not_match=(
+            "Llanowar Elves",
+            "Assassin Initiate",
+            "Basri, Tomorrow's Champion",
+        ),
     ),
     Preset(
         name="first-strike",
         description="Creature has first strike (evergreen).",
         keywords=("First strike",),
         should_match=("White Knight",),
-        should_not_match=("Llanowar Elves",),
+        should_not_match=("Llanowar Elves", "Auriok Glaivemaster", "Enslaved Dwarf"),
     ),
     Preset(
         name="double-strike",
@@ -571,14 +580,14 @@ _EVERGREEN_KEYWORDS: tuple[Preset, ...] = (
         description="Creature has reach (evergreen).",
         keywords=("Reach",),
         should_match=("Giant Spider",),
-        should_not_match=("Lightning Bolt",),
+        should_not_match=("Lightning Bolt", "Cloud Sprite", "Hookblade Veteran"),
     ),
     Preset(
         name="menace",
         description="Creature has menace (evergreen).",
         keywords=("Menace",),
         should_match=("Obeka, Splitter of Seconds",),
-        should_not_match=("Llanowar Elves",),
+        should_not_match=("Llanowar Elves", "Frantic Scapegoat", "Goblin Blast-Runner"),
     ),
     Preset(
         name="defender",
@@ -592,21 +601,25 @@ _EVERGREEN_KEYWORDS: tuple[Preset, ...] = (
         description="Permanent has flash (evergreen).",
         keywords=("Flash",),
         should_match=("Snapcaster Mage", "Dictate of Erebos"),
-        should_not_match=("Lightning Bolt",),
+        should_not_match=("Lightning Bolt", "Rootwater Shaman", "Colossal Rattlewurm"),
     ),
     Preset(
         name="hexproof",
         description="Permanent has hexproof (evergreen).",
         keywords=("Hexproof",),
         should_match=("Invisible Stalker",),
-        should_not_match=("Lightning Bolt",),
+        should_not_match=("Lightning Bolt", "Basri, Tomorrow's Champion", "Kid Loki"),
     ),
     Preset(
         name="indestructible",
         description="Permanent has indestructible (evergreen).",
         keywords=("Indestructible",),
         should_match=("Darksteel Myr",),
-        should_not_match=("Lightning Bolt",),
+        should_not_match=(
+            "Lightning Bolt",
+            "Basri, Tomorrow's Champion",
+            "Dauntless Bodyguard",
+        ),
     ),
     Preset(
         name="ward",
@@ -614,15 +627,19 @@ _EVERGREEN_KEYWORDS: tuple[Preset, ...] = (
         keywords=("Ward",),
         # Note: Star Whale grants ward to OTHER creatures but doesn't have
         # it itself, so it isn't a valid fixture for this preset.
-        should_match=(),
-        should_not_match=("Lightning Bolt",),
+        should_match=("Armored Armadillo",),
+        should_not_match=("Lightning Bolt", "Forum Familiar", "K-9, Mark I"),
     ),
     Preset(
         name="protection",
         description="Permanent has protection from something (evergreen).",
         keywords=("Protection",),
         should_match=("White Knight",),
-        should_not_match=("Lightning Bolt",),
+        should_not_match=(
+            "Lightning Bolt",
+            "Alseid of Life's Bounty",
+            "Benevolent Bodyguard",
+        ),
     ),
 )
 
@@ -636,7 +653,13 @@ _KEYWORD_ABILITIES: tuple[Preset, ...] = (
         # Aang's Iceberg has Scry in its keywords array (its waterbend
         # ability scries), so it matches via the Scry keyword directly.
         should_match=("Preordain", "Omen of the Sun", "Magma Jet", "Aang's Iceberg"),
-        should_not_match=("Lightning Bolt",),
+        should_not_match=(
+            "Lightning Bolt",
+            "Arid Archway",
+            "Commercial District",
+            "Conduit Pylons",
+            "Elegant Parlor",
+        ),
     ),
     Preset(
         name="surveil",
@@ -653,70 +676,90 @@ _KEYWORD_ABILITIES: tuple[Preset, ...] = (
         description="Spell has cascade.",
         keywords=("Cascade",),
         should_match=("Bloodbraid Elf", "Shardless Agent"),
-        should_not_match=("Lightning Bolt",),
+        should_not_match=("Lightning Bolt", "Bloodbraid Marauder", "Flamekin Herald"),
     ),
     Preset(
         name="flashback",
         description="Spell has flashback.",
         keywords=("Flashback",),
         should_match=("Lingering Souls", "Faithless Looting", "Deep Analysis"),
-        should_not_match=("Lightning Bolt",),
+        should_not_match=("Lightning Bolt", "Archmage's Newt", "Rootcoil Creeper"),
     ),
     Preset(
         name="kicker",
         description="Spell has a kicker cost.",
         keywords=("Kicker",),
         should_match=("Gatekeeper of Malakir",),
-        should_not_match=("Lightning Bolt",),
+        should_not_match=(
+            "Lightning Bolt",
+            "Coralhelm Chronicler",
+            "Everflowing Chalice",
+        ),
     ),
     Preset(
         name="cycling",
         description="Card has cycling.",
         keywords=("Cycling",),
         should_match=("Ketria Triome",),
-        should_not_match=("Lightning Bolt",),
+        should_not_match=("Lightning Bolt", "Rhet-Tomb Mystic", "Jo Grant"),
     ),
     Preset(
         name="evoke",
         description="Creature has evoke.",
         keywords=("Evoke",),
         should_match=("Mulldrifter", "Fury"),
-        should_not_match=("Lightning Bolt",),
+        should_not_match=(
+            "Lightning Bolt",
+            "Ashling, the Limitless",
+            "Boseiju, Who Endures",
+        ),
     ),
     Preset(
         name="ninjutsu",
         description="Creature has ninjutsu.",
         keywords=("Ninjutsu",),
         should_match=("Fallen Shinobi",),
-        should_not_match=("Lightning Bolt",),
+        should_not_match=(
+            "Lightning Bolt",
+            "Satoru Umezawa",
+            "Yuriko, the Tiger's Shadow",
+        ),
     ),
     Preset(
         name="exalted",
         description="Permanent has exalted.",
         keywords=("Exalted",),
         should_match=("Noble Hierarch", "Qasali Pridemage"),
-        should_not_match=("Lightning Bolt",),
+        should_not_match=(
+            "Lightning Bolt",
+            "Merchant of Truth",
+            "Rashel, Fist of Torm",
+        ),
     ),
     Preset(
         name="prowess",
         description="Creature has prowess.",
         keywords=("Prowess",),
         should_match=("Monastery Swiftspear", "Abbot of Keral Keep"),
-        should_not_match=("Lightning Bolt",),
+        should_not_match=(
+            "Lightning Bolt",
+            "Triton Wavebreaker",
+            "Narset, Enlightened Exile",
+        ),
     ),
     Preset(
         name="revolt",
         description="Card cares about revolt.",
         keywords=("Revolt",),
         should_match=("Fatal Push",),
-        should_not_match=("Lightning Bolt",),
+        should_not_match=("Lightning Bolt", "Caravan Vigil", "Hunger of the Howlpack"),
     ),
     Preset(
         name="investigate",
         description="Card creates a Clue (investigate).",
         keywords=("Investigate",),
         should_match=("Thraben Inspector",),
-        should_not_match=("Lightning Bolt",),
+        should_not_match=("Lightning Bolt", "Dragon-Cursed Halls", "Fountainport"),
     ),
     Preset(
         name="landfall",
@@ -747,28 +790,36 @@ _KEYWORD_ABILITIES: tuple[Preset, ...] = (
         keywords=("Landfall",),
         signal_keys=("landfall",),
         should_match=("Courser of Kruphix", "Bloodghast"),
-        should_not_match=("Lightning Bolt",),
+        should_not_match=("Lightning Bolt", "Rampant Growth", "Sakura-Tribe Elder"),
     ),
     Preset(
         name="dredge",
         description="Card has dredge (BANNED in shared-library format).",
         keywords=("Dredge",),
-        should_match=(),
-        should_not_match=("Lightning Bolt",),
+        should_match=("Dakmor Salvage",),
+        should_not_match=("Lightning Bolt", "The Necrobloom", "Flame Jab"),
     ),
     Preset(
         name="miracle",
         description="Spell has miracle (BANNED in shared-library format).",
         keywords=("Miracle",),
-        should_match=(),
-        should_not_match=("Lightning Bolt",),
+        should_match=("Bonfire of the Damned",),
+        should_not_match=(
+            "Lightning Bolt",
+            "Aminatou, Veil Piercer",
+            "Lorehold, the Historian",
+        ),
     ),
     Preset(
         name="storm",
         description="Spell has storm.",
         keywords=("Storm",),
-        should_match=(),
-        should_not_match=("Lightning Bolt",),
+        should_match=("Flusterstorm",),
+        should_not_match=(
+            "Lightning Bolt",
+            "Storm, Force of Nature",
+            "Crackling Spellslinger",
+        ),
     ),
     Preset(
         name="infect",
@@ -780,15 +831,15 @@ _KEYWORD_ABILITIES: tuple[Preset, ...] = (
             "ON TOP of normal damage and never touch creatures."
         ),
         keywords=("Infect",),
-        should_match=(),
-        should_not_match=("Lightning Bolt",),
+        should_match=("Glistener Elf",),
+        should_not_match=("Lightning Bolt", "Vector Asp", "Melira, Sylvok Outcast"),
     ),
     Preset(
         name="toxic",
         description="Creature has toxic.",
         keywords=("Toxic",),
-        should_match=(),
-        should_not_match=("Lightning Bolt",),
+        should_match=("Bilious Skulldweller",),
+        should_not_match=("Lightning Bolt", "Mite Overseer", "Porcelain Zealot"),
     ),
     Preset(
         name="poison",
@@ -800,14 +851,18 @@ _KEYWORD_ABILITIES: tuple[Preset, ...] = (
         ),
         keywords=("Poisonous",),
         should_match=(),
-        should_not_match=("Lightning Bolt",),
+        should_not_match=("Lightning Bolt", "Virulent Sliver", "Snake Cult Initiation"),
     ),
     Preset(
         name="delve",
         description="Spell has delve.",
         keywords=("Delve",),
         should_match=("Murderous Cut",),
-        should_not_match=("Lightning Bolt",),
+        should_not_match=(
+            "Lightning Bolt",
+            "Teval, Arbiter of Virtue",
+            "Banquet Guests",
+        ),
     ),
     Preset(
         name="mill",
@@ -818,21 +873,21 @@ _KEYWORD_ABILITIES: tuple[Preset, ...] = (
         ),
         keywords=("Mill",),
         should_match=("Stitcher's Supplier",),
-        should_not_match=("Lightning Bolt",),
+        should_not_match=("Lightning Bolt", "Arid Archway", "Commercial District"),
     ),
     Preset(
         name="suspend",
         description="Card has suspend.",
         keywords=("Suspend",),
         should_match=("Star Whale", "Ancestral Vision"),
-        should_not_match=("Lightning Bolt",),
+        should_not_match=("Lightning Bolt", "Epochrasite", "Rory Williams"),
     ),
     Preset(
         name="undying",
         description="Creature has undying.",
         keywords=("Undying",),
-        should_match=(),
-        should_not_match=("Lightning Bolt",),
+        should_match=("Young Wolf",),
+        should_not_match=("Lightning Bolt", "Endling", "Mikaeus, the Unhallowed"),
     ),
     Preset(
         name="mutate",
@@ -842,21 +897,267 @@ _KEYWORD_ABILITIES: tuple[Preset, ...] = (
         ),
         keywords=("Mutate",),
         should_match=("Gemrazer",),
-        should_not_match=("Lightning Bolt",),
+        should_not_match=("Lightning Bolt", "Pollywog Symbiote", "Zoetic Cavern"),
+    ),
+    # Keyword batch (2026-09-19): the thematic keywords the bulk carries that had no
+    # preset — every description written from the keyword's own defining CR subrule,
+    # or for an ability word (CR 207.2c: no rules meaning of its own) from the
+    # convention its cards share.
+    Preset(
+        name="morph",
+        description=(
+            "Cast face down as a 2/2 creature for {3}, then turned face up any "
+            "time for its morph cost (CR 702.37a); megamorph also puts a +1/+1 "
+            "counter on it as it turns face up (CR 702.37b)."
+        ),
+        keywords=("Morph", "Megamorph"),
+        should_match=("Willbender", "Den Protector"),
+        should_not_match=("Lightning Bolt", "Backslide", "Exiled Doomsayer"),
+    ),
+    Preset(
+        name="disguise",
+        description=(
+            "Cast face down for {3} as a 2/2 creature with ward {2}, then turned "
+            "face up any time for its disguise cost (CR 702.168a)."
+        ),
+        keywords=("Disguise",),
+        should_match=("Alley Assailant",),
+        should_not_match=("Lightning Bolt", "Expose the Culprit", "Zoetic Cavern"),
+    ),
+    Preset(
+        name="bestow",
+        description=(
+            "Creature card that may instead be cast for its bestow cost as an "
+            "Aura (CR 702.103a); it becomes a creature again if it's not "
+            "attached."
+        ),
+        keywords=("Bestow",),
+        should_match=("Hopeful Eidolon",),
+        should_not_match=("Lightning Bolt", "Aboshan's Desire", "Air Bladder"),
+    ),
+    Preset(
+        name="delirium",
+        description=(
+            "Ability word (CR 207.2c): the card does more as long as there are "
+            "four or more card types among cards in your graveyard."
+        ),
+        keywords=("Delirium",),
+        should_match=("Grim Flayer",),
+        should_not_match=("Lightning Bolt", "Barbarian Ring", "Cabal Pit"),
+    ),
+    Preset(
+        name="threshold",
+        description=(
+            "Ability word (CR 207.2c): the card does more as long as there are "
+            "seven or more cards in your graveyard."
+        ),
+        keywords=("Threshold",),
+        should_match=("Werebear",),
+        should_not_match=("Lightning Bolt", "Shifting Woodland", "Crop Sigil"),
+    ),
+    Preset(
+        name="changeling",
+        description=("This card is every creature type (CR 702.73a)."),
+        keywords=("Changeling",),
+        should_match=("Mirror Entity",),
+        should_not_match=("Lightning Bolt", "Belonging", "Abundant Countryside"),
+    ),
+    Preset(
+        name="buyback",
+        description=(
+            "Instant or sorcery that may be cast for an additional buyback cost; "
+            "if it was paid, the spell returns to its owner's hand as it resolves "
+            "instead of going to the graveyard (CR 702.27a)."
+        ),
+        keywords=("Buyback",),
+        should_match=("Capsize",),
+        should_not_match=("Lightning Bolt", "Artful Dodge", "Bump in the Night"),
+    ),
+    Preset(
+        name="devoid",
+        description=("This card is colorless, whatever its mana cost (CR 702.114a)."),
+        keywords=("Devoid",),
+        should_match=("Eldrazi Skyspawner",),
+        should_not_match=(
+            "Lightning Bolt",
+            "Corrupted Crossroads",
+            "Cryptic Trilobite",
+        ),
+    ),
+    Preset(
+        name="daybound",
+        description=(
+            "Double-faced card with daybound on the front face and nightbound on "
+            "the back: it transforms as it becomes night, and transforms back as "
+            "it becomes day (CR 702.145b, 702.145e)."
+        ),
+        keywords=("Daybound", "Nightbound"),
+        should_match=("Arlinn, the Pack's Hope // Arlinn, the Moon's Fury",),
+        should_not_match=(
+            "Lightning Bolt",
+            "Balamb Garden, SeeD Academy // Balamb Garden, Airborne",
+            "Havengul Laboratory // Havengul Mystery",
+        ),
+    ),
+    Preset(
+        name="exert",
+        description=(
+            "Creature you may exert as it attacks for a bonus; an exerted "
+            "permanent doesn't untap during your next untap step (CR 701.43a)."
+        ),
+        keywords=("Exert",),
+        should_match=("Glorybringer",),
+        should_not_match=("Lightning Bolt", "Cinder Marsh", "Cloudcrest Lake"),
+    ),
+    Preset(
+        name="heroic",
+        description=(
+            "Ability word (CR 207.2c): triggers whenever you cast a spell that "
+            "targets this creature."
+        ),
+        keywords=("Heroic",),
+        should_match=("Phalanx Leader",),
+        should_not_match=("Lightning Bolt", "Monastery Swiftspear", "Soul-Scar Mage"),
+    ),
+    Preset(
+        name="raid",
+        description=(
+            "Ability word (CR 207.2c): the card does more if you attacked this turn."
+        ),
+        keywords=("Raid",),
+        should_match=("Mardu Heart-Piercer",),
+        should_not_match=(
+            "Lightning Bolt",
+            "Michelangelo, the Heart",
+            "Nightsquad Commando",
+        ),
+    ),
+    Preset(
+        name="constellation",
+        description=(
+            "Ability word (CR 207.2c): triggers whenever an enchantment enters "
+            "under your control."
+        ),
+        keywords=("Constellation",),
+        should_match=("Eidolon of Blossoms",),
+        should_not_match=(
+            "Lightning Bolt",
+            "Optimistic Scavenger",
+            "Scrabbling Skullcrab",
+        ),
+    ),
+    Preset(
+        name="metalcraft",
+        description=(
+            "Ability word (CR 207.2c): the card does more as long as you control "
+            "three or more artifacts."
+        ),
+        keywords=("Metalcraft",),
+        should_match=("Galvanic Blast",),
+        should_not_match=(
+            "Lightning Bolt",
+            "Inventors' Fair",
+            "Case of the Filched Falcon",
+        ),
+    ),
+    Preset(
+        name="channel",
+        description=(
+            "Ability word (CR 207.2c): pay a cost and discard this card from your "
+            "hand for an effect, instead of casting it."
+        ),
+        keywords=("Channel",),
+        should_match=("Action News Crew",),
+        should_not_match=("Lightning Bolt", "Ash Barrens", "Barren Moor"),
+    ),
+    Preset(
+        name="bushido",
+        description=(
+            "Bushido N: whenever this creature blocks or becomes blocked, it gets "
+            "+N/+N until end of turn (CR 702.45a)."
+        ),
+        keywords=("Bushido",),
+        should_match=("Konda, Lord of Eiganjo",),
+        should_not_match=(
+            "Lightning Bolt",
+            "Fumiko the Lowblood",
+            "Aisling Leprechaun",
+        ),
+    ),
+    Preset(
+        name="shadow",
+        description=(
+            "Can be blocked only by creatures with shadow, and can block only "
+            "creatures with shadow (CR 702.28b)."
+        ),
+        keywords=("Shadow",),
+        should_match=("Dauthi Voidwalker",),
+        should_not_match=("Lightning Bolt", "Aetherflame Wall", "Heartwood Dryad"),
+    ),
+    Preset(
+        name="landcycling",
+        description=(
+            "Typecycling for a land (CR 702.29e): pay the cost and discard this "
+            "card to search your library for a land card of the named type, such "
+            "as basic landcycling or plainscycling."
+        ),
+        keywords=("Landcycling", "Basic landcycling"),
+        should_match=("Ash Barrens", "Migratory Route"),
+        should_not_match=("Lightning Bolt", "Vedalken Aethermage", "Homing Sliver"),
+    ),
+    Preset(
+        name="craft",
+        description=(
+            "Craft with [materials]: at sorcery speed, exile this permanent plus "
+            "the named materials from among your permanents and graveyard to "
+            "return it to the battlefield transformed (CR 702.167a)."
+        ),
+        keywords=("Craft",),
+        should_match=("Altar of the Wretched // Wretched Bonemass",),
+        should_not_match=(
+            "Lightning Bolt",
+            "Balamb Garden, SeeD Academy // Balamb Garden, Airborne",
+            "Havengul Laboratory // Havengul Mystery",
+        ),
+    ),
+    Preset(
+        name="station",
+        description=(
+            "Tap another untapped creature you control to put charge counters "
+            "equal to its power on this permanent, at sorcery speed (CR "
+            "702.184a); its abilities unlock at counter thresholds."
+        ),
+        keywords=("Station",),
+        should_match=("Adagia, Windswept Bastion",),
+        should_not_match=("Lightning Bolt", "Astral Cornucopia", "Blast Zone"),
+    ),
+    Preset(
+        name="exhaust",
+        description=(
+            "Exhaust — an activated ability that can be activated only once (CR "
+            "702.177a)."
+        ),
+        keywords=("Exhaust",),
+        should_match=("Afterburner Expert",),
+        should_not_match=("Lightning Bolt", "Pit Automaton", "Adrenaline Jockey"),
     ),
     Preset(
         name="persist",
         description="Creature has persist.",
         keywords=("Persist",),
-        should_match=(),
-        should_not_match=("Lightning Bolt",),
+        should_match=("Lesser Masticore",),
+        should_not_match=(
+            "Lightning Bolt",
+            "Dusk Legion Sergeant",
+            "Rhys, the Evermore",
+        ),
     ),
     Preset(
         name="equip",
         description="Equipment with an equip cost.",
         keywords=("Equip",),
         should_match=("Skullclamp", "Helm of the Host"),
-        should_not_match=("Lightning Bolt",),
+        should_not_match=("Lightning Bolt", "Dan Lewis", "Iron Hills Blacksmith"),
     ),
     Preset(
         name="paradigm",
@@ -869,7 +1170,7 @@ _KEYWORD_ABILITIES: tuple[Preset, ...] = (
         ),
         keywords=("Paradigm",),
         should_match=("Improvisation Capstone",),
-        should_not_match=("Lightning Bolt",),
+        should_not_match=("Lightning Bolt", "Blossoming Calm", "Distortion Strike"),
     ),
     Preset(
         name="prepared",
@@ -884,7 +1185,11 @@ _KEYWORD_ABILITIES: tuple[Preset, ...] = (
         keywords=("Prepared",),
         layouts=("prepare",),
         should_match=("Scathing Shadelock // Venomous Words",),
-        should_not_match=("Lightning Bolt",),
+        should_not_match=(
+            "Lightning Bolt",
+            "Bofur, Reliable Guardian // Concerted Care",
+            "Elusive Otter // Grove's Bounty",
+        ),
     ),
     # ── Individual keyword presets (cast-later / graveyard-cast / spell-copy
     # / tokens / plus-one-counters / misc) ──
@@ -896,7 +1201,11 @@ _KEYWORD_ABILITIES: tuple[Preset, ...] = (
         ),
         keywords=("Foretell",),
         should_match=("Scorn Effigy",),
-        should_not_match=("Lightning Bolt",),
+        should_not_match=(
+            "Lightning Bolt",
+            "Dream Devourer",
+            "Bohn, Beguiling Balladeer",
+        ),
     ),
     Preset(
         name="plot",
@@ -906,7 +1215,7 @@ _KEYWORD_ABILITIES: tuple[Preset, ...] = (
         ),
         keywords=("Plot",),
         should_match=("Djinn of Fool's Fall",),
-        should_not_match=("Lightning Bolt",),
+        should_not_match=("Lightning Bolt", "Depart the Realm", "Dual Strike"),
     ),
     Preset(
         name="warp",
@@ -917,7 +1226,11 @@ _KEYWORD_ABILITIES: tuple[Preset, ...] = (
         ),
         keywords=("Warp",),
         should_match=("Voidcalled Devotee",),
-        should_not_match=("Lightning Bolt",),
+        should_not_match=(
+            "Lightning Bolt",
+            "Blade of the Swarm",
+            "Tannuk, Steadfast Second",
+        ),
     ),
     Preset(
         name="rebound",
@@ -928,7 +1241,11 @@ _KEYWORD_ABILITIES: tuple[Preset, ...] = (
         ),
         keywords=("Rebound",),
         should_match=("Unnatural Summons",),
-        should_not_match=("Lightning Bolt",),
+        should_not_match=(
+            "Lightning Bolt",
+            "Taigam, Ojutai Master",
+            "Narset Transcendent",
+        ),
     ),
     Preset(
         name="impending",
@@ -938,7 +1255,7 @@ _KEYWORD_ABILITIES: tuple[Preset, ...] = (
         ),
         keywords=("Impending",),
         should_match=("Lurker in the Deep",),
-        should_not_match=("Lightning Bolt",),
+        should_not_match=("Lightning Bolt", "Ancestral Vision", "Crashing Footfalls"),
     ),
     Preset(
         name="jump-start",
@@ -948,7 +1265,7 @@ _KEYWORD_ABILITIES: tuple[Preset, ...] = (
         ),
         keywords=("Jump-start",),
         should_match=("Surge of Acclaim",),
-        should_not_match=("Lightning Bolt",),
+        should_not_match=("Lightning Bolt", "Niv-Mizzet, Supreme", "Filigree Racer"),
     ),
     Preset(
         name="aftermath",
@@ -958,7 +1275,7 @@ _KEYWORD_ABILITIES: tuple[Preset, ...] = (
         ),
         keywords=("Aftermath",),
         should_match=("Appeal // Authority",),
-        should_not_match=("Lightning Bolt",),
+        should_not_match=("Lightning Bolt", "Incendiary", "Goblin Bomb"),
     ),
     Preset(
         name="retrace",
@@ -968,7 +1285,7 @@ _KEYWORD_ABILITIES: tuple[Preset, ...] = (
         ),
         keywords=("Retrace",),
         should_match=("Oona's Grace",),
-        should_not_match=("Lightning Bolt",),
+        should_not_match=("Lightning Bolt", "Six", "Deeproot Historian"),
     ),
     Preset(
         name="disturb",
@@ -978,7 +1295,7 @@ _KEYWORD_ABILITIES: tuple[Preset, ...] = (
         ),
         keywords=("Disturb",),
         should_match=("Baithook Angler // Hook-Haunt Drifter",),
-        should_not_match=("Lightning Bolt",),
+        should_not_match=("Lightning Bolt", "Shipwreck Sifters", "Phantom Carriage"),
     ),
     Preset(
         name="mayhem",
@@ -988,7 +1305,7 @@ _KEYWORD_ABILITIES: tuple[Preset, ...] = (
         ),
         keywords=("Mayhem",),
         should_match=("Spider-Islanders",),
-        should_not_match=("Lightning Bolt",),
+        should_not_match=("Lightning Bolt", "Artful Dodge", "Bump in the Night"),
     ),
     Preset(
         name="harmonize",
@@ -998,7 +1315,7 @@ _KEYWORD_ABILITIES: tuple[Preset, ...] = (
         ),
         keywords=("Harmonize",),
         should_match=("Ureni's Counsel",),
-        should_not_match=("Lightning Bolt",),
+        should_not_match=("Lightning Bolt", "Songcrafter Mage", "Artful Dodge"),
     ),
     Preset(
         name="casualty",
@@ -1008,7 +1325,11 @@ _KEYWORD_ABILITIES: tuple[Preset, ...] = (
         ),
         keywords=("Casualty",),
         should_match=("Cut of the Profits",),
-        should_not_match=("Lightning Bolt",),
+        should_not_match=(
+            "Lightning Bolt",
+            "Anhelo, the Painter",
+            "Ashad, the Lone Cyberman",
+        ),
     ),
     Preset(
         name="replicate",
@@ -1018,7 +1339,7 @@ _KEYWORD_ABILITIES: tuple[Preset, ...] = (
         ),
         keywords=("Replicate",),
         should_match=("Train of Thought",),
-        should_not_match=("Lightning Bolt",),
+        should_not_match=("Lightning Bolt", "Ian Chesterton", "Djinn Illuminatus"),
     ),
     Preset(
         name="cipher",
@@ -1029,7 +1350,7 @@ _KEYWORD_ABILITIES: tuple[Preset, ...] = (
         ),
         keywords=("Cipher",),
         should_match=("Last Thoughts",),
-        should_not_match=("Lightning Bolt",),
+        should_not_match=("Lightning Bolt", "Blossoming Calm", "Distortion Strike"),
     ),
     Preset(
         name="conspire",
@@ -1039,7 +1360,11 @@ _KEYWORD_ABILITIES: tuple[Preset, ...] = (
         ),
         keywords=("Conspire",),
         should_match=("Ghastly Discovery",),
-        should_not_match=("Lightning Bolt",),
+        should_not_match=(
+            "Lightning Bolt",
+            "Rassilon, the War President",
+            "Wort, the Raidmother",
+        ),
     ),
     Preset(
         name="demonstrate",
@@ -1049,7 +1374,11 @@ _KEYWORD_ABILITIES: tuple[Preset, ...] = (
         ),
         keywords=("Demonstrate",),
         should_match=("Incarnation Technique",),
-        should_not_match=("Lightning Bolt",),
+        should_not_match=(
+            "Lightning Bolt",
+            "Silverquill Lecturer",
+            "The Twelfth Doctor",
+        ),
     ),
     Preset(
         name="populate",
@@ -1058,7 +1387,11 @@ _KEYWORD_ABILITIES: tuple[Preset, ...] = (
         ),
         keywords=("Populate",),
         should_match=("Wake the Reflections",),
-        should_not_match=("Lightning Bolt",),
+        should_not_match=(
+            "Lightning Bolt",
+            "Adagia, Windswept Bastion",
+            "Lazotep Quarry",
+        ),
     ),
     Preset(
         name="amass",
@@ -1068,7 +1401,11 @@ _KEYWORD_ABILITIES: tuple[Preset, ...] = (
         ),
         keywords=("Amass",),
         should_match=("Gríma Wormtongue",),
-        should_not_match=("Lightning Bolt",),
+        should_not_match=(
+            "Lightning Bolt",
+            "Cradle of the Accursed",
+            "Dunes of the Dead",
+        ),
     ),
     Preset(
         name="offspring",
@@ -1078,7 +1415,7 @@ _KEYWORD_ABILITIES: tuple[Preset, ...] = (
         ),
         keywords=("Offspring",),
         should_match=("Fountainport Charmer",),
-        should_not_match=("Lightning Bolt",),
+        should_not_match=("Lightning Bolt", "Zinnia, Valley's Voice", "Full Flowering"),
     ),
     Preset(
         name="manifest",
@@ -1088,7 +1425,7 @@ _KEYWORD_ABILITIES: tuple[Preset, ...] = (
         ),
         keywords=("Manifest",),
         should_match=("Paranormal Analyst",),
-        should_not_match=("Lightning Bolt",),
+        should_not_match=("Lightning Bolt", "Zoetic Cavern", "Birchlore Rangers"),
     ),
     Preset(
         name="cloak",
@@ -1098,7 +1435,11 @@ _KEYWORD_ABILITIES: tuple[Preset, ...] = (
         ),
         keywords=("Cloak",),
         should_match=("Ransom Note",),
-        should_not_match=("Lightning Bolt",),
+        should_not_match=(
+            "Lightning Bolt",
+            "Omarthis, Ghostfire Initiate",
+            "Qarsi High Priest",
+        ),
     ),
     Preset(
         name="incubate",
@@ -1108,7 +1449,11 @@ _KEYWORD_ABILITIES: tuple[Preset, ...] = (
         ),
         keywords=("Incubate",),
         should_match=("Eyes of Gitaxias",),
-        should_not_match=("Lightning Bolt",),
+        should_not_match=(
+            "Lightning Bolt",
+            "Marionette Apprentice",
+            "Glint-Sleeve Artisan",
+        ),
     ),
     Preset(
         name="fabricate",
@@ -1118,7 +1463,7 @@ _KEYWORD_ABILITIES: tuple[Preset, ...] = (
         ),
         keywords=("Fabricate",),
         should_match=("Accomplished Automaton",),
-        should_not_match=("Lightning Bolt",),
+        should_not_match=("Lightning Bolt", "Ichor Drinker", "Progenitor Exarch"),
     ),
     Preset(
         name="afterlife",
@@ -1128,7 +1473,7 @@ _KEYWORD_ABILITIES: tuple[Preset, ...] = (
         ),
         keywords=("Afterlife",),
         should_match=("Debtors' Transport",),
-        should_not_match=("Lightning Bolt",),
+        should_not_match=("Lightning Bolt", "Afterlife Insurance", "Lesser Masticore"),
     ),
     Preset(
         name="mobilize",
@@ -1138,7 +1483,11 @@ _KEYWORD_ABILITIES: tuple[Preset, ...] = (
         ),
         keywords=("Mobilize",),
         should_match=("Dalkovan Outrider",),
-        should_not_match=("Lightning Bolt",),
+        should_not_match=(
+            "Lightning Bolt",
+            "Infantry Shield",
+            "Wyrm's Crossing Patrol",
+        ),
     ),
     Preset(
         name="encore",
@@ -1150,7 +1499,11 @@ _KEYWORD_ABILITIES: tuple[Preset, ...] = (
         ),
         keywords=("Encore",),
         should_match=("Broodmate Tyrant",),
-        should_not_match=("Lightning Bolt",),
+        should_not_match=(
+            "Lightning Bolt",
+            "Araumi of the Dead Tide",
+            "Graywater's Fixer",
+        ),
     ),
     Preset(
         name="myriad",
@@ -1160,7 +1513,11 @@ _KEYWORD_ABILITIES: tuple[Preset, ...] = (
         ),
         keywords=("Myriad",),
         should_match=("The Master, Multiplied",),
-        should_not_match=("Lightning Bolt",),
+        should_not_match=(
+            "Lightning Bolt",
+            "Ironwill Forger",
+            "Muddle, the Ever-Changing",
+        ),
     ),
     Preset(
         name="bolster",
@@ -1171,7 +1528,7 @@ _KEYWORD_ABILITIES: tuple[Preset, ...] = (
         ),
         keywords=("Bolster",),
         should_match=("Dromoka's Gift",),
-        should_not_match=("Lightning Bolt",),
+        should_not_match=("Lightning Bolt", "Blitzball Stadium", "The Crowd Goes Wild"),
     ),
     Preset(
         name="reinforce",
@@ -1181,7 +1538,11 @@ _KEYWORD_ABILITIES: tuple[Preset, ...] = (
         ),
         keywords=("Reinforce",),
         should_match=("Burrenton Bombardier",),
-        should_not_match=("Lightning Bolt",),
+        should_not_match=(
+            "Lightning Bolt",
+            "Abzan Advantage",
+            "Anafenza, Kin-Tree Spirit",
+        ),
     ),
     Preset(
         name="monstrosity",
@@ -1191,7 +1552,11 @@ _KEYWORD_ABILITIES: tuple[Preset, ...] = (
         ),
         keywords=("Monstrosity",),
         should_match=("Gluttonous Cyclops",),
-        should_not_match=("Lightning Bolt",),
+        should_not_match=(
+            "Lightning Bolt",
+            "Benthic Biomancer",
+            "Etherium Pteramander",
+        ),
     ),
     Preset(
         name="graft",
@@ -1201,7 +1566,7 @@ _KEYWORD_ABILITIES: tuple[Preset, ...] = (
         ),
         keywords=("Graft",),
         should_match=("Simic Initiate",),
-        should_not_match=("Lightning Bolt",),
+        should_not_match=("Lightning Bolt", "Power Depot", "Arcbound Javelineer"),
     ),
     Preset(
         name="outlast",
@@ -1211,7 +1576,11 @@ _KEYWORD_ABILITIES: tuple[Preset, ...] = (
         ),
         keywords=("Outlast",),
         should_match=("Disowned Ancestor",),
-        should_not_match=("Lightning Bolt",),
+        should_not_match=(
+            "Lightning Bolt",
+            "Benthic Biomancer",
+            "Etherium Pteramander",
+        ),
     ),
     Preset(
         name="renown",
@@ -1222,7 +1591,11 @@ _KEYWORD_ABILITIES: tuple[Preset, ...] = (
         ),
         keywords=("Renown",),
         should_match=("Knight of the Pilgrim's Road",),
-        should_not_match=("Lightning Bolt",),
+        should_not_match=(
+            "Lightning Bolt",
+            "Aragorn, Hornburg Hero",
+            "Hopeful Initiate",
+        ),
     ),
     Preset(
         name="evolve",
@@ -1233,7 +1606,7 @@ _KEYWORD_ABILITIES: tuple[Preset, ...] = (
         ),
         keywords=("Evolve",),
         should_match=("Adaptive Snapjaw",),
-        should_not_match=("Lightning Bolt",),
+        should_not_match=("Lightning Bolt", "Propagator Drone", "Llanowar Reborn"),
     ),
     Preset(
         name="adapt",
@@ -1244,7 +1617,7 @@ _KEYWORD_ABILITIES: tuple[Preset, ...] = (
         ),
         keywords=("Adapt",),
         should_match=("Skitter Eel",),
-        should_not_match=("Lightning Bolt",),
+        should_not_match=("Lightning Bolt", "Fleecemane Lion", "Sinuous Vermin"),
     ),
     Preset(
         name="modular",
@@ -1254,7 +1627,7 @@ _KEYWORD_ABILITIES: tuple[Preset, ...] = (
         ),
         keywords=("Modular",),
         should_match=("Arcbound Worker",),
-        should_not_match=("Lightning Bolt",),
+        should_not_match=("Lightning Bolt", "Llanowar Reborn", "Simic Initiate"),
     ),
     Preset(
         name="training",
@@ -1265,7 +1638,7 @@ _KEYWORD_ABILITIES: tuple[Preset, ...] = (
         ),
         keywords=("Training",),
         should_match=("Apprentice Sharpshooter",),
-        should_not_match=("Lightning Bolt",),
+        should_not_match=("Lightning Bolt", "Elder Arthur Maxson", "Warrior's Resolve"),
     ),
     Preset(
         name="support",
@@ -1275,7 +1648,7 @@ _KEYWORD_ABILITIES: tuple[Preset, ...] = (
         ),
         keywords=("Support",),
         should_match=("Lead by Example",),
-        should_not_match=("Lightning Bolt",),
+        should_not_match=("Lightning Bolt", "Guy in the Chair", "The Golden Throne"),
     ),
     Preset(
         name="tribute",
@@ -1285,7 +1658,7 @@ _KEYWORD_ABILITIES: tuple[Preset, ...] = (
         ),
         keywords=("Tribute",),
         should_match=("Snake of the Golden Grove",),
-        should_not_match=("Lightning Bolt",),
+        should_not_match=("Lightning Bolt", "Feasting Hobbit", "Gluttonous Slime"),
     ),
     Preset(
         name="endure",
@@ -1295,7 +1668,11 @@ _KEYWORD_ABILITIES: tuple[Preset, ...] = (
         ),
         keywords=("Endure",),
         should_match=("Amber-Plate Ainok",),
-        should_not_match=("Lightning Bolt",),
+        should_not_match=(
+            "Lightning Bolt",
+            "Abzan Advantage",
+            "Anafenza, Kin-Tree Spirit",
+        ),
     ),
     Preset(
         name="devour",
@@ -1306,7 +1683,7 @@ _KEYWORD_ABILITIES: tuple[Preset, ...] = (
         ),
         keywords=("Devour",),
         should_match=("Gorger Wurm",),
-        should_not_match=("Lightning Bolt",),
+        should_not_match=("Lightning Bolt", "Dragon Broodmother", "Sidisi's Faithful"),
     ),
     Preset(
         name="dethrone",
@@ -1316,7 +1693,7 @@ _KEYWORD_ABILITIES: tuple[Preset, ...] = (
         ),
         keywords=("Dethrone",),
         should_match=("Enraged Revolutionary",),
-        should_not_match=("Lightning Bolt",),
+        should_not_match=("Lightning Bolt", "Dack's Duplicate", "Cathedral of War"),
     ),
     Preset(
         name="earthbend",
@@ -1327,7 +1704,13 @@ _KEYWORD_ABILITIES: tuple[Preset, ...] = (
         ),
         keywords=("Earthbend",),
         should_match=("Toph, Greatest Earthbender",),
-        should_not_match=("Lightning Bolt",),
+        should_not_match=(
+            "Lightning Bolt",
+            "Mutavault",
+            "Airbender Ascension",
+            "Airbender's Reversal",
+            "Airbending Lesson",
+        ),
     ),
     Preset(
         name="wither",
@@ -1337,7 +1720,7 @@ _KEYWORD_ABILITIES: tuple[Preset, ...] = (
         ),
         keywords=("Wither",),
         should_match=("Harvest Gwyllion",),
-        should_not_match=("Lightning Bolt",),
+        should_not_match=("Lightning Bolt", "Fang Skulkin", "Woodlurker Mimic"),
     ),
     Preset(
         name="unearth",
@@ -1350,7 +1733,11 @@ _KEYWORD_ABILITIES: tuple[Preset, ...] = (
         ),
         keywords=("Unearth",),
         should_match=("Gixian Recycler",),
-        should_not_match=("Lightning Bolt",),
+        should_not_match=(
+            "Lightning Bolt",
+            "Mishra, Tamer of Mak Fawa",
+            "Solemn Doomguide",
+        ),
     ),
     Preset(
         name="exploit",
@@ -1361,7 +1748,11 @@ _KEYWORD_ABILITIES: tuple[Preset, ...] = (
         ),
         keywords=("Exploit",),
         should_match=("Sidisi's Faithful",),
-        should_not_match=("Lightning Bolt",),
+        should_not_match=(
+            "Lightning Bolt",
+            "Henry Wu, InGen Geneticist",
+            "Feasting Hobbit",
+        ),
     ),
     # crew/prototype/firebending are defined as standalone presets in
     # _FUNCTIONAL_PRESETS below (with richer descriptions + layout support).
@@ -1416,7 +1807,12 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
             "Abbot of Keral Keep",
             "Satyr Wayfinder",
         ),
-        should_not_match=("Lightning Bolt", "Llanowar Elves"),
+        should_not_match=(
+            "Lightning Bolt",
+            "Llanowar Elves",
+            "Divination",
+            "Sign in Blood",
+        ),
     ),
     # Self-mill (task #83 structural-view conversion). No candidate signal
     # KEY is precise enough on its own: mill_makers is keyword-only with
@@ -1511,7 +1907,12 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
         description="Counters a target spell (CR 701.6a — the stack counterspell).",
         signal_keys=("counter_control",),
         should_match=("Counterspell", "Mana Leak", "Remand", "Sinister Sabotage"),
-        should_not_match=("Lightning Bolt", "Llanowar Elves"),
+        should_not_match=(
+            "Lightning Bolt",
+            "Llanowar Elves",
+            "Vexing Shusher",
+            "Abrupt Decay",
+        ),
     ),
     # Creature/permanent removal (task #83/#86 structural-view conversion —
     # the LAST regex-bearing preset). ``signal_keys`` is the 9-key union
@@ -1877,7 +2278,7 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
         description="Forces a target player or opponent to discard cards.",
         signal_keys=("opponent_discard", "hand_disruption"),
         should_match=(),  # fixture cards added if Thoughtseize etc. exist in test data
-        should_not_match=("Lightning Bolt",),
+        should_not_match=("Lightning Bolt", "Faithless Looting", "Careful Study"),
     ),
     # Tutors — search your library for a card (task #83 structural-view
     # conversion). Signal key `tutor` (CR 701.23/701.23a — your-library
@@ -2013,7 +2414,7 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
             "Lingering Souls",
             "Angel of Sanctions",  # Embalm
         ),
-        should_not_match=("Lightning Bolt",),
+        should_not_match=("Lightning Bolt", "Anointed Procession", "Intangible Virtue"),
     ),
     # Sacrifice outlet / payoff (task #83 structural-view conversion). The
     # crosswalk `sacrifice_outlets` signal (see
@@ -2060,7 +2461,12 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
         ),
         signal_keys=("sacrifice_outlets",),
         should_match=("Viscera Seer", "Ashnod's Altar"),
-        should_not_match=("Lightning Bolt", "Llanowar Elves"),
+        should_not_match=(
+            "Lightning Bolt",
+            "Llanowar Elves",
+            "Diabolic Edict",
+            "Fleshbag Marauder",
+        ),
     ),
     # Burn: direct damage to creature or player (task #83 structural-view
     # conversion). Union of `direct_damage` (CR 120.1 — a DealDamage /
@@ -2089,7 +2495,12 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
         ),
         signal_keys=("direct_damage", "removal"),
         should_match=("Lightning Bolt",),
-        should_not_match=("Counterspell", "Llanowar Elves"),
+        should_not_match=(
+            "Counterspell",
+            "Llanowar Elves",
+            "Circle of Protection: Red",
+            "Healing Salve",
+        ),
     ),
     # Reanimate-to-battlefield: the classic "put target creature card from a
     # graveyard onto the battlefield" effect. Structural view (task #83):
@@ -2137,12 +2548,19 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
     Preset(
         name="reanimate",
         description=(
-            "Puts a creature card from a graveyard onto the battlefield "
-            "(reanimator-style, not just grave-to-hand)."
+            "Returns a creature card from a graveyard — to the battlefield "
+            "(Reanimate, Animate Dead) or to your hand (Gravedigger): creature "
+            "recursion. Any-card graveyard-to-hand (Regrowth) is the "
+            "graveyard-return preset."
         ),
         signal_keys=("creature_recursion", "reanimator"),
-        should_match=("Reanimate",),
-        should_not_match=("Lightning Bolt", "Counterspell", "Regrowth"),
+        should_match=("Reanimate", "Gravedigger"),
+        should_not_match=(
+            "Lightning Bolt",
+            "Counterspell",
+            "Regrowth",
+            "Eternal Witness",
+        ),
     ),
     # Graveyard-to-hand recursion (Eternal Witness-style). task #83
     # structural-view conversion: NOT ``signal_keys=("graveyard_makers",)``
@@ -2278,7 +2696,7 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
             "Rielle, the Everwise",
             "Truth or Consequences",  # draw_for_each-only residue
         ),
-        should_not_match=("Lightning Bolt", "Llanowar Elves"),
+        should_not_match=("Lightning Bolt", "Llanowar Elves", "Opt", "Preordain"),
     ),
     # Lifegain — gains life AS an effect, OR cares about gaining life as a
     # payoff (whenever-trigger). Typed broadly because lifegain as an
@@ -2312,7 +2730,12 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
         keywords=("Lifelink",),
         signal_keys=("lifegain_makers", "lifegain_matters"),
         should_match=("Thragtusk", "Lightning Helix", "Efflorescence"),
-        should_not_match=("Lightning Bolt", "Counterspell"),
+        should_not_match=(
+            "Lightning Bolt",
+            "Counterspell",
+            "Sign in Blood",
+            "Bitterblossom",
+        ),
     ),
     # +1/+1 counters — puts +1/+1 counters on a creature, OR cares about
     # creatures with +1/+1 counters. Covers the classic counters-matter
@@ -2528,7 +2951,7 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
         ),
         keywords=("Connive",),
         should_match=("Change of Plans",),
-        should_not_match=("Lightning Bolt",),
+        should_not_match=("Lightning Bolt", "Agna Qel'a", "Desolate Lighthouse"),
     ),
     # ── Cost-reduction via tapping (Convoke / Improvise / Waterbend) ──
     #
@@ -2543,8 +2966,8 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
             "cast a spell (CR 702.51)."
         ),
         keywords=("Convoke",),
-        should_match=(),
-        should_not_match=("Lightning Bolt",),
+        should_match=("Crowd's Favor",),
+        should_not_match=("Lightning Bolt", "Chief Engineer", "Party Thrasher"),
     ),
     Preset(
         name="improvise",
@@ -2554,8 +2977,12 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
             "of Convoke."
         ),
         keywords=("Improvise",),
-        should_match=(),
-        should_not_match=("Lightning Bolt",),
+        should_match=("Battle at the Bridge",),
+        should_not_match=(
+            "Lightning Bolt",
+            "The Fifteenth Doctor",
+            "Archway of Innovation",
+        ),
     ),
     Preset(
         name="waterbend",
@@ -2567,7 +2994,7 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
         ),
         keywords=("Waterbend",),
         should_match=("Aang's Iceberg",),
-        should_not_match=("Lightning Bolt",),
+        should_not_match=("Lightning Bolt", "Crowd's Favor", "Gather Courage"),
     ),
     # ── Airbend (Avatar crossover) ──
     #
@@ -2604,7 +3031,11 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
         ),
         keywords=("Proliferate",),
         should_match=("Contagion Clasp", "Atraxa, Praetors' Voice"),
-        should_not_match=("Lightning Bolt",),
+        should_not_match=(
+            "Lightning Bolt",
+            "Abzan Advantage",
+            "Anafenza, Kin-Tree Spirit",
+        ),
     ),
     # ── Goad (political / multiplayer) ──
     Preset(
@@ -2618,7 +3049,7 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
         ),
         keywords=("Goad",),
         should_match=("Disrupt Decorum",),
-        should_not_match=("Lightning Bolt",),
+        should_not_match=("Lightning Bolt", "Bloodshed Fever", "Crazed Goblin"),
     ),
     # ── Magecraft (Strixhaven spellslinger) ──
     Preset(
@@ -2631,7 +3062,7 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
         ),
         keywords=("Magecraft",),
         should_match=("Storm-Kiln Artist", "Archmage Emeritus"),
-        should_not_match=("Lightning Bolt",),
+        should_not_match=("Lightning Bolt", "Monastery Swiftspear", "Soul-Scar Mage"),
     ),
     # ── Opus (Secrets of Strixhaven big-spells trigger) ──
     Preset(
@@ -2709,7 +3140,12 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
             "Djinn of Fool's Fall",  # Plot
             "Voidcalled Devotee",  # Warp
         ),
-        should_not_match=("Lightning Bolt", "Counterspell"),
+        should_not_match=(
+            "Lightning Bolt",
+            "Counterspell",
+            "Dream Devourer",
+            "Epochrasite",
+        ),
     ),
     # Free casting: a spell cast without paying its mana cost — the oracle
     # phrase (the ``free_cast`` structural view; phase carries no 'free'
@@ -2788,7 +3224,12 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
             "Last Thoughts",  # Cipher
             "Improvisation Capstone",  # Paradigm
         ),
-        should_not_match=("Lightning Bolt", "Counterspell"),
+        should_not_match=(
+            "Lightning Bolt",
+            "Counterspell",
+            "Anhelo, the Painter",
+            "Ian Chesterton",
+        ),
     ),
     # ── Edict family (forced-sacrifice) ──
     Preset(
@@ -2859,7 +3300,7 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
         ),
         concept=_removal_edict_concept("Enchantment", family="edict"),
         should_match=("Dromoka's Command",),
-        should_not_match=("Lightning Bolt",),
+        should_not_match=("Lightning Bolt", "Diabolic Edict", "Naturalize"),
     ),
     Preset(
         name="land-edict",
@@ -2953,7 +3394,11 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
         ),
         keywords=("Crew",),
         should_match=("Unicycle",),
-        should_not_match=("Lightning Bolt",),
+        should_not_match=(
+            "Lightning Bolt",
+            "Kotori, Pilot Prodigy",
+            "Lita, Mechanical Engineer",
+        ),
     ),
     # ── Prototype (alt-cost smaller mode) ──
     Preset(
@@ -2967,7 +3412,7 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
         keywords=("Prototype",),
         layouts=("prototype",),
         should_match=("Blitz Automaton",),
-        should_not_match=("Lightning Bolt",),
+        should_not_match=("Lightning Bolt", "Blood Beckoning", "Bloodchief's Thirst"),
     ),
     # ── Firebending (combat-triggered red mana) ──
     #
@@ -2999,7 +3444,7 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
         keywords=("Firebending",),
         signal_keys=("firebending_makers", "firebending_matters"),
         should_match=("Mai and Zuko", "Sozin's Comet"),
-        should_not_match=("Lightning Bolt",),
+        should_not_match=("Lightning Bolt", "Neheb, the Eternal", "Rakdos Signet"),
     ),
     # ── Turn manipulation ──────────────────────────────────────────────
     # Extra-turn / extra-combat / extra-upkeep payoffs that commander
@@ -3037,7 +3482,12 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
         ),
         signal_keys=("extra_turns",),
         should_match=("Time Walk", "Temporal Manipulation", "Nexus of Fate"),
-        should_not_match=("Lightning Bolt", "Llanowar Elves"),
+        should_not_match=(
+            "Lightning Bolt",
+            "Llanowar Elves",
+            "Stranglehold",
+            "Sundial of the Infinite",
+        ),
     ),
     # Illusionist's Gambit fix (task #85, phase v0.23.0): the ``extra_combats``
     # signal now reads the ``illusionists_gambit_additional_combat_swallowed``
@@ -3080,7 +3530,12 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
         ),
         signal_keys=("extra_upkeep",),
         should_match=("Obeka, Splitter of Seconds", "Paradox Haze"),
-        should_not_match=("Lightning Bolt", "Llanowar Elves"),
+        should_not_match=(
+            "Lightning Bolt",
+            "Llanowar Elves",
+            "Phyrexian Arena",
+            "Howling Mine",
+        ),
     ),
     # ── Blink / ETB abuse ──────────────────────────────────────────────
     # Exile-then-return-to-battlefield cards that re-trigger enter-the-
