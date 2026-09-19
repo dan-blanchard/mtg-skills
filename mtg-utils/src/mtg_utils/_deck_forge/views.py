@@ -11,13 +11,14 @@ the deck / search / candidate / combo serializers had already drifted).
 from __future__ import annotations
 
 from collections.abc import Callable, Mapping
+from typing import Any
 
 from mtg_utils._analysis.signal_specs import spec_for
 from mtg_utils._analysis.signals import Signal
 from mtg_utils._deck_forge.images import image_urls
 from mtg_utils._deck_forge.state import ForgeState
 from mtg_utils.card_classify import get_mana_cost, get_oracle_text
-from mtg_utils.formats import FORMATS, Format
+from mtg_utils.formats import Format
 from mtg_utils.hydrated_deck import ZONES
 
 
@@ -113,12 +114,12 @@ def card_view(
     finish: str | None = None,
     owned_printing: bool | None = None,
     unreleased_ids: frozenset[str] = frozenset(),
-    copy_limit: Callable[[dict], int | None] | None = None,
+    copy_limit: int | object | None = _UNSET,
 ) -> dict:
     """A deck-zone card: name + quantity + an ``unknown`` flag + projection (when the
-    name resolves against the bulk index). ``copy_limit`` (the engine's ladder for
-    this build) adds ``copy_limit`` — how many copies the build may run, null for
-    unlimited — so the browser never re-derives the exemptions. ``owned_qty`` (when
+    name resolves against the bulk index). ``copy_limit`` (when given) is how many
+    copies the build may run, null for unlimited — served so the browser never
+    re-derives the exemptions. ``owned_qty`` (when
     set) marks the card as owned in the active Collection slot — DERIVED upstream,
     never stored (ADR-0018).
 
@@ -143,13 +144,13 @@ def card_view(
     record = by_name.get(name)
     if record is None:
         return {**base, "unknown": True}
-    view = {
+    view: dict[str, Any] = {
         **base,
         "unknown": False,
         **project(record, fmt, unreleased=record.get("oracle_id") in unreleased_ids),
     }
-    if copy_limit is not None:
-        view["copy_limit"] = copy_limit(record)
+    if copy_limit is not _UNSET:
+        view["copy_limit"] = copy_limit
     chosen = resolve_printing(printing_id) if printing_id and resolve_printing else None
     if chosen is not None:
         view["printing_id"] = printing_id
@@ -219,10 +220,12 @@ def deck_view(
     cards; absent → no ownership shown (no collection).
     ``printing_owned`` (name, printing_id → tri-state) resolves whether the card's
     effectively-chosen printing is owned at printing level (``engine.printing_owned``);
-    absent → the ``owned_printing`` field never renders."""
+    absent → the ``owned_printing`` field never renders. ``copy_limit`` (the
+    engine's ladder for this build) is applied per resolved row; absent → no
+    ``copy_limit`` field."""
     deck = state.session.to_deck_dict()
     by_name = state.by_name
-    fmt = FORMATS[deck["format"]]
+    fmt = state.session.fmt
     owned = owned or {}
     return {
         "format": fmt.name,
@@ -248,7 +251,11 @@ def deck_view(
                         if printing_owned
                         else None
                     ),
-                    copy_limit=copy_limit,
+                    copy_limit=(
+                        copy_limit(by_name[e["name"]])
+                        if copy_limit and e["name"] in by_name
+                        else _UNSET
+                    ),
                 )
                 for e in deck[zone]
             ]

@@ -55,16 +55,14 @@ class DeckSession:
         paper, Competitive Brawl always digital, Brawl / Historic Brawl honour the
         override and default to digital). Drives the active Collection slot and the
         cost mode (wildcards vs USD)."""
-        return FORMATS[self.format].resolve_medium(self._medium_override)
+        return self.fmt.resolve_medium(self._medium_override)
 
     @property
     def deck_size(self) -> int:
         """Effective deck size — the Format resolves the raw override under the
         effective medium (only paper Historic Brawl may choose 60 or 100; elsewhere the
         override lies dormant)."""
-        return FORMATS[self.format].resolve_deck_size(
-            self._deck_size_override, self.medium
-        )
+        return self.fmt.resolve_deck_size(self._deck_size_override, self.medium)
 
     @property
     def fmt(self) -> Format:

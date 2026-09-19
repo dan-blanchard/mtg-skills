@@ -200,15 +200,17 @@ def _is_basic(record: dict | None) -> bool:
 
 def owned_quantities(state: ForgeState) -> dict[str, int]:
     """Owned-copy map (deck card name → count) against the ACTIVE Collection slot only —
-    empty when that slot holds no imported Collection. Basic lands are excluded: owning
-    basics is assumed, so they never read as an un-owned 'miss' nor clutter the
-    readout. DERIVED fresh each call from the cached per-slot lookup; never stored."""
+    empty when that slot holds no imported Collection. The names are the deck's
+    (:func:`deck_names`: never an opened pool, whose cards are owned by definition).
+    Basic lands are excluded: owning basics is assumed, so they never read as an
+    un-owned 'miss' nor clutter the readout. DERIVED fresh each call from the cached
+    per-slot lookup; never stored."""
     idx = state.collection_index.get(active_slot(state))
     if not idx:
         return {}
     entries, lookup = idx
     out: dict[str, int] = {}
-    for name in state.session.card_names():
+    for name in sorted(deck_names(state)):
         if _is_basic(state.by_name.get(name)):
             continue
         qty = mark_owned.owned_quantity(name, entries, lookup)

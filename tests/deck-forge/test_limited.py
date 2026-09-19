@@ -428,3 +428,21 @@ def test_add_and_remove_are_engine_rules():
         engine.remove_card(state, "Bear", 1, zone="pool")  # the deck runs it
     engine.remove_card(state, "Troll", 1, zone="cards")
     assert state.session.quantities("sideboard") == {"Troll": 1}
+
+
+def test_ownership_reads_the_deck_and_never_the_pool():
+    """The Collection readout is "N of M owned" over the deck the builder runs; an
+    opened pool the player owns whole would otherwise make N exceed M."""
+    state = _state(pool=[("Bear", 2), ("Eagle", 1), ("Troll", 1)], cards=[("Bear", 2)])
+    state.session.set_medium("paper")
+    snap = (
+        _client(state)
+        .post(
+            "/api/collection/import",
+            json={"text": "4 Bear\n1 Eagle\n1 Troll\n", "slot": "paper"},
+        )
+        .json()
+    )
+    assert snap["collection"]["owned"] == 1
+    assert snap["collection"]["deck_total"] == 1
+    assert engine.owned_quantities(state) == {"Bear": 4}
