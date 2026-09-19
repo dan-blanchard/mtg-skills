@@ -73,8 +73,8 @@ size is its target; the 40-card floor is `deck_minimum`'s, as for constructed).
 **Consequences.** `Family` gains `limited`; `Format.max_copies`, `sideboard_size` and
 `legality_key` are Optional and every reader is None-safe (an unlimited copy count
 reads Infinity in the SPA). `filter_records` is the seam a second record-bounded
-search (a cube, a collection) can reuse. The seed replaces the main deck with no
-undo (a first draft); a paper sealed pool's printings are what was opened, so
+search (a cube, a collection) can reuse. The seed replaces the main deck and keeps
+what it replaced for one undo (a first draft, never a finished deck); a paper sealed pool's printings are what was opened, so
 `card-search --format sealed` is never Arena-gated. Non-goals: pack generation and
 draft simulation (cube-wizard's), a matchup model, ranking the colour pairs
 (enumerated on equal footing; the choice is the builder's).

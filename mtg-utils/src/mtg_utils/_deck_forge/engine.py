@@ -677,9 +677,11 @@ def set_format(state: ForgeState, fmt: str) -> None:
     now_pool = FORMATS[fmt].pool_bounded
     if was_pool and not now_pool:
         # The unused pool becomes a stored sideboard; the pool is emptied (a
-        # database-pooled format carries none — re-entering re-pools).
+        # database-pooled format carries none — re-entering re-pools), and a seed's
+        # undo goes with it (it held a deck drawn from that pool).
         session.replace_zone("sideboard", session.derived_sideboard())
         session.replace_zone("pool", {})
+        state.seed_undo = None
     session.format = fmt
     if now_pool and not was_pool:
         session.pool_everything()
@@ -1157,9 +1159,13 @@ def seed_build(state: ForgeState, colors: str) -> dict:
 
 
 def undo_seed(state: ForgeState) -> None:
-    """Put back the main deck the last seed replaced (one level; the pool is
-    untouched, so the restored deck is still drawn from it). Raises
-    ``DeckRuleError`` when there is nothing to undo."""
+    """Put back the main deck the last seed replaced — one level, quantities only
+    (a printing pinned on a replaced card is not restored), and whatever was
+    edited since the seed goes with it. The pool is untouched, so the restored deck
+    is still drawn from it. Raises ``DeckRuleError`` outside a pool-bounded build
+    or when there is nothing to undo."""
+    if not state.session.pool_bounded:
+        raise DeckRuleError("only a sealed / draft build has a seed to undo")
     if state.seed_undo is None:
         raise DeckRuleError("nothing to undo — no seed has replaced this deck")
     state.session.replace_zone("cards", state.seed_undo)

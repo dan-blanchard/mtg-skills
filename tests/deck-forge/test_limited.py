@@ -353,6 +353,16 @@ def test_seed_keeps_what_it_replaced_for_one_undo():
     assert client.post("/api/deck/seed/undo").status_code == 400
 
 
+def test_leaving_the_pool_bounded_family_drops_the_seed_undo():
+    state = _state(pool=[("Bear", 15), ("Troll", 8)], cards=[("Bear", 1)])
+    engine.seed_build(state, "G")
+    assert state.seed_undo == {"Bear": 1}
+    engine.set_format(state, "modern")
+    assert state.seed_undo is None
+    with pytest.raises(DeckRuleError, match="only a sealed / draft build"):
+        engine.undo_seed(state)
+
+
 def test_seed_builds_a_first_deck_from_the_pool_only():
     state = _state(
         pool=[("Bear", 15), ("Troll", 8), ("Eagle", 8), ("Pony", 6), ("Dragon", 4)]

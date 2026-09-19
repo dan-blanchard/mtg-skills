@@ -32,17 +32,18 @@
       sortDesc ? b[sortKey] - a[sortKey] : a[sortKey] - b[sortKey],
     );
 
-  // A seed REPLACES the main deck: when the deck already holds nonland cards the
-  // button asks once ("replace N?") before it fires; afterwards Undo puts the
-  // replaced deck back (one level, held by the hub until the next seed or build).
+  // A seed REPLACES the main deck: when the deck already holds cards beyond basics
+  // the button asks once ("replace N?") before it fires; afterwards Undo puts the
+  // replaced deck back — one level, quantities only, and any edit made since the
+  // seed goes with it (the hub holds it until the next seed or build switch).
   let seeding = "";
   let seedError = "";
   let armed = ""; // the pair whose "replace?" confirmation is showing
-  $: heldNonland = ($deck.cards || [])
+  $: heldNonbasic = ($deck.cards || [])
     .filter((c) => !/\bBasic Land\b/.test(c.type_line || ""))
     .reduce((n, c) => n + (c.quantity || 1), 0);
   async function seed(pair) {
-    if (heldNonland && armed !== pair) {
+    if (heldNonbasic && armed !== pair) {
       armed = pair;
       return;
     }
@@ -128,7 +129,7 @@
                 class="seedbtn"
                 class:armed={armed === r.pair}
                 title={armed === r.pair
-                  ? `Replace the ${heldNonland} nonland cards in the deck with a first 40 in these colours`
+                  ? `Replace the ${heldNonbasic} nonbasic cards in the deck with a first 40 in these colours`
                   : "Replace the deck with a first 40 in these colours, from the pool"}
                 disabled={!!seeding}
                 on:click={() => seed(r.pair)}
@@ -136,7 +137,7 @@
                 >{seeding === r.pair
                   ? "…"
                   : armed === r.pair
-                    ? `replace ${heldNonland}?`
+                    ? `replace ${heldNonbasic}?`
                     : "seed"}</button
               >
             </td>
@@ -145,8 +146,10 @@
       </tbody>
     </table>
     {#if $pool.seed_undo}
-      <button class="undobtn" on:click={undo}
-        >↶ Undo the seed — put the previous deck back</button
+      <button
+        class="undobtn"
+        title="One level: restores the replaced deck's cards and drops any edit made since the seed"
+        on:click={undo}>↶ Undo the seed — put the previous deck back</button
       >
     {/if}
     {#if seedError}<div class="err">{seedError}</div>{/if}

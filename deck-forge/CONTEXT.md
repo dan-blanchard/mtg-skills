@@ -23,7 +23,8 @@ and sideboard are drawn from plus basic lands (CR 100.2b). Imported from an Aren
 any zone, counted by no analysis. The Pool panel enumerates every colour pair it
 supports on equal footing (**Colour-pair enumeration**: playables, creatures,
 removal, evasion, power-4-plus bodies, rares — `set_scan.pool_color_pairs`) before
-any opinion is formed, and seeds a first 40 in a pair from the pool's own cards.
+any opinion is formed, and seeds a first 40 in a pair from the pool's own cards
+(replacing the main deck, with one undo held until the next seed or build switch).
 
 **Pool containment**:
 A pool-bounded build's legality: every copy in the deck is in the pool at that

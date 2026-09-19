@@ -51,6 +51,7 @@
     if (n === $deck.deck_size) return;
     const r = await api.setDeckSize(n);
     if (r.ok) applySnapshot(r.data);
+    else e.target.value = $deck.deck_size; // the deck kept its size; so does the box
   }
   // The picker groups by the served family (its label is served too — the Format
   // is the one authority, ADR-0045); the order is the table's.
