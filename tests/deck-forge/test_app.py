@@ -253,12 +253,12 @@ def test_snapshot_carries_the_busy_meter_and_the_reporter_drives_it():
         by_name={}, search_fn=lambda **_: [], session=DeckSession("commander")
     )
     report = busy_reporter(st)
-    report(0, 4000)
+    report("signals-index", engine.SIGNALS_INDEX_LABEL, 0, 4000)
     assert st.busy["done"] == 0
     assert st.busy["eta_s"] is None  # nothing to pace yet
-    report(1000, 4000)
+    report("signals-index", engine.SIGNALS_INDEX_LABEL, 1000, 4000)
     assert st.busy["total"] == 4000
     assert st.busy["label"] == engine.SIGNALS_INDEX_LABEL
     assert st.busy["eta_s"] is not None
-    report(4000, 4000)
+    report("signals-index", engine.SIGNALS_INDEX_LABEL, 4000, 4000)
     assert st.busy is None

@@ -48,3 +48,41 @@ def test_combos_are_memoized_per_deck_content(monkeypatch):
     other = {**deck, "cards": [{"name": "Opt"}, {"name": "Opt"}]}
     production._combos(other, by_name)
     assert len(calls) == 2
+
+
+def test_warm_at_launch_installs_the_reporter_and_chains_index_then_discovery(
+    monkeypatch, tmp_path
+):
+    from mtg_utils import theme_presets
+    from mtg_utils._analysis import signals_index
+    from mtg_utils._deck_forge import discovery, production
+    from mtg_utils._deck_forge.state import DeckSession, ForgeState
+
+    order: list = []
+    monkeypatch.setattr(
+        theme_presets, "seed_signal_key_index", lambda p: order.append(("seed", p))
+    )
+    monkeypatch.setattr(
+        discovery, "warm", lambda _st, slot, fmt=None: order.append(("warm", slot, fmt))
+    )
+    bulk = tmp_path / "bulk.json"
+    bulk.write_text("[]", encoding="utf-8")
+    state = ForgeState(
+        by_name={},
+        search_fn=lambda **_: [],
+        session=DeckSession("commander"),
+        bulk_available=True,
+        bulk_path=bulk,
+    )
+
+    def reporter(*_args: object) -> None:
+        return None
+
+    try:
+        thread = production.warm_at_launch(state, reporter)
+        assert thread is not None
+        thread.join(timeout=5)
+    finally:
+        signals_index.set_progress_hook(None)
+    assert state.report_busy is reporter
+    assert order == [("seed", bulk), ("warm", "paper", "commander")]

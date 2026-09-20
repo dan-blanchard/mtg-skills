@@ -691,3 +691,37 @@ def test_signal_freq_is_swept_once_per_format(monkeypatch):
     discovery._signal_freq(st)
     discovery._signal_freq(st)
     assert calls == ["Fake Commander"]  # second call served from the cache
+
+
+# ── The busy meter over a discovery pass ────────────────────────────────────
+
+
+def test_a_cold_discovery_pass_reports_each_commander_and_clears(monkeypatch):
+    """A sweep that runs longer than the report threshold shows the meter per
+    commander and clears it at the end; the reporter is the transport's, installed
+    on the state (None → silent)."""
+    monkeypatch.setattr(discovery, "_REPORT_AFTER_S", 0.0)
+    state = _state()
+    seen: list = []
+    state.report_busy = lambda job, label, done, total: seen.append(
+        (job, label, done, total)
+    )
+    res = _client_for(state).post("/api/commanders/discover", json={}).json()
+    assert res["results"]
+    assert seen[0][:2] == ("discovery", discovery.DISCOVERY_LABEL)
+    assert seen[-1] == ("discovery", discovery.DISCOVERY_LABEL, 3, 3)
+    assert all(t == 3 for _, _, _, t in seen)
+
+
+def test_a_warm_discovery_pass_never_flickers_the_meter():
+    """With every lane cached the pass finishes inside the threshold: no report."""
+    state = _state()
+    discovery.warm(state, "paper")
+    seen: list = []
+    state.report_busy = lambda *a: seen.append(a)
+    discovery.discover_commanders(state)
+    assert seen == []
+
+
+def _client_for(state):
+    return TestClient(build_app(state))

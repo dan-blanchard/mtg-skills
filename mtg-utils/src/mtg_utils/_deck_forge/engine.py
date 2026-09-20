@@ -1217,15 +1217,19 @@ def undo_seed(state: ForgeState) -> None:
 SIGNALS_INDEX_LABEL = "Building the card-signal index"
 
 
-def record_busy(state: ForgeState, done: int, total: int) -> dict | None:
-    """The state transition behind the busy meter: fold one progress report from
-    the one-time signals-index build into ``state.busy`` — done, total, and a
-    time-left estimate from the pace so far — and return it (None once the pass
-    has finished, which also clears it). Pure state; the transport adapter owns
-    the broadcast."""
+def record_busy(
+    state: ForgeState, job: str, label: str, done: int, total: int
+) -> dict | None:
+    """The state transition behind the busy meter: fold one progress report from a
+    long hub job (the one-time signals-index build; a cold commander-discovery
+    sweep) into ``state.busy`` — done, total, and a time-left estimate from the
+    pace so far — and return it (None once the job has finished, which also
+    clears it). A report for a different job than the one in flight starts that
+    job's clock afresh. Pure state; the transport adapter owns the broadcast."""
     now = time.monotonic()
     prior = state.busy
-    started = prior["started"] if prior and prior.get("started") else now
+    same = bool(prior) and prior.get("job") == job
+    started = prior["started"] if same and prior.get("started") else now
     finished = bool(total) and done >= total
     if finished:
         state.busy = None
@@ -1233,8 +1237,8 @@ def record_busy(state: ForgeState, done: int, total: int) -> dict | None:
     elapsed = now - started
     eta = (elapsed / done) * (total - done) if done and total else None
     state.busy = {
-        "job": "signals-index",
-        "label": SIGNALS_INDEX_LABEL,
+        "job": job,
+        "label": label,
         "done": done,
         "total": total,
         "eta_s": None if eta is None else round(eta),

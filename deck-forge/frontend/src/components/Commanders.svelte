@@ -15,6 +15,7 @@
   import { askForge } from "../lib/agent.js";
   import { hoverPreview } from "../lib/hover.js";
   import { displayName } from "../lib/cards.js";
+  import { busy } from "../lib/store.js";
   import Mana from "./Mana.svelte";
   import PresetPicker from "./PresetPicker.svelte";
 
@@ -158,7 +159,16 @@
       <div class="notice adderr">{addError}</div>
     {/if}
     {#if loading}
-      <div class="notice">Reading your {slotLabel(activeSlot)}…</div>
+      <!-- A cold sweep (first launch, a refreshed database) reports through the
+           busy meter; name it here too so this panel never reads as hung. -->
+      <div class="notice">
+        {#if $busy}
+          {$busy.label}: {$busy.done.toLocaleString()} / {$busy.total.toLocaleString()}
+          — see the progress bar above.
+        {:else}
+          Reading your {slotLabel(activeSlot)}…
+        {/if}
+      </div>
     {:else if error}
       <div class="notice">{error}</div>
     {:else if slotSize === 0}

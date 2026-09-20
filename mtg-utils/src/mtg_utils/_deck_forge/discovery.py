@@ -24,6 +24,7 @@ import functools
 import json
 import math
 import threading
+import time
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -469,6 +470,41 @@ def _novelty(record: dict, freq: dict, total: int) -> float:
 # ── Entry points ────────────────────────────────────────────────────────────────
 
 
+#: How long a discovery pass runs before it starts reporting: a warm pass (every
+#: lane cached) finishes in well under this and never shows the meter; a cold
+#: sweep (a fresh bulk, a changed serve definition) crosses it and reports each
+#: commander from then on.
+_REPORT_AFTER_S = 0.5
+DISCOVERY_LABEL = "Indexing your commanders' lanes"
+
+
+class _Progress:
+    """The busy meter for one discovery pass: ``tick(done)`` after each commander,
+    ``finish()`` at the end. Reports through ``state.report_busy`` (None → silent)
+    once the pass has run ``_REPORT_AFTER_S``, and clears the meter at the end
+    only if it ever showed it."""
+
+    def __init__(self, state: ForgeState, total: int) -> None:
+        self._report = state.report_busy
+        self._total = total
+        self._t0 = time.monotonic()
+        self._shown = False
+
+    def tick(self, done: int) -> None:
+        if self._report is None or self._total == 0:
+            return
+        if not self._shown and time.monotonic() - self._t0 < _REPORT_AFTER_S:
+            return
+        self._shown = True
+        self._report(
+            "discovery", DISCOVERY_LABEL, min(done, self._total - 1), self._total
+        )
+
+    def finish(self) -> None:
+        if self._shown and self._report is not None:
+            self._report("discovery", DISCOVERY_LABEL, self._total, self._total)
+
+
 def warm(state: ForgeState, slot: str, fmt: str | None = None) -> None:
     """Compute + persist BOTH discovery caches for ``slot``'s collection WITHOUT
     ranking, so the next discover is fast. Run in the background right after a
@@ -487,10 +523,14 @@ def warm(state: ForgeState, slot: str, fmt: str | None = None) -> None:
     if not coll:
         return
     run = _Pass(state, coll)
-    for rec in _owned_commanders(coll, fmt or state.session.format):
+    commanders = _owned_commanders(coll, fmt or state.session.format)
+    progress = _Progress(state, len(commanders))
+    for i, rec in enumerate(commanders):
         for _label, serve, key in _commander_lanes(rec):
             run.lane_density(key, serve)
             run.lane_serves(key, serve)
+        progress.tick(i + 1)
+    progress.finish()
     run.save()
 
 
@@ -528,7 +568,9 @@ def discover_commanders(
     freq, total = _signal_freq(state) if sort == "novelty" else ({}, 0)
 
     results: list[dict] = []
-    for rec in records:
+    progress = _Progress(state, len(records))
+    for i, rec in enumerate(records):
+        progress.tick(i)
         identity = set(rec.get("color_identity") or [])
         # Support is OTHER owned cards that feed the commander's lanes — the commander
         # itself is the build's centerpiece, not its own support, so exclude it (and it
@@ -566,5 +608,6 @@ def discover_commanders(
         results.sort(
             key=lambda r: (-r["support_depth"], -r["supported_lanes"], r["name"])
         )
+    progress.finish()
     run.save()
     return results[:limit]

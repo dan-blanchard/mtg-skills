@@ -202,16 +202,16 @@ def _commit(
     return snap
 
 
-def busy_reporter(state: ForgeState) -> Callable[[int, int], None]:
-    """The transport side of the busy meter: the progress hook the one-time
-    signals-index build calls (from its own thread) — fold the step into the
-    state (``engine.record_busy``) and broadcast it to every open tab, the same
-    way ``_commit`` broadcasts a snapshot. The production entry installs it
-    (``signals_index.set_progress_hook``); ``build_app`` never touches that
-    process-wide hook, so a test's app is side-effect free."""
+def busy_reporter(state: ForgeState) -> Callable[[str, str, int, int], None]:
+    """The transport side of the busy meter: what a long hub job calls (from its
+    own thread) as it moves — fold the step into the state (``engine.record_busy``)
+    and broadcast it to every open tab, the same way ``_commit`` broadcasts a
+    snapshot. The production entry installs it as ``state.report_busy`` and as the
+    signals-index build's process hook; ``build_app`` never touches either, so a
+    test's app is side-effect free."""
 
-    def report(done: int, total: int) -> None:
-        busy = engine.record_busy(state, done, total)
+    def report(job: str, label: str, done: int, total: int) -> None:
+        busy = engine.record_busy(state, job, label, done, total)
         state.hub.publish_threadsafe(json.dumps({"busy": busy}))
 
     return report

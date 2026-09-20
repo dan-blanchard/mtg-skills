@@ -345,6 +345,11 @@ class ForgeState:
     # worker thread running it, read into every snapshot, pushed over SSE as it
     # moves. Runtime only; never persisted.
     busy: dict | None = None
+    # ``report_busy(job, label, done, total)`` — the transport's reporter for a long
+    # job (installed by the production entry; None in tests / agent-less use, and
+    # a job just skips reporting). A worker thread calls it; it folds the step into
+    # ``busy`` and broadcasts it.
+    report_busy: Callable[[str, str, int, int], None] | None = None
     # Resolves a folded object's name → its card (ADR-0025): a commander's ventured
     # dungeon, whose oracle is appended to the commander's before signal extraction.
     # Dungeons are excluded from `by_name` (unaddable), so this is a separate raw-bulk

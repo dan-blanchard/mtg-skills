@@ -31,25 +31,39 @@ _COMBO_MEMO: dict[str, dict] = {}
 _COMBO_MEMO_SIZE = 16
 
 
-def warm_signals_index(state: ForgeState, reporter: Callable[[int, int], None]) -> None:
-    """Launch-time process wiring for the one-time signals-index build: install
-    ``reporter`` as the build's progress hook (``signals_index.set_progress_hook``
-    — the deck-forge process has one state to report into), then seed the index
-    in a daemon thread so the build (or the sidecar load) runs while the builder
-    reads the page instead of inside their first Find or discovery request. A
-    request that needs the index meanwhile waits on this same build
-    (``theme_presets._SEED_LOCK``). No bulk: nothing to warm."""
+def warm_at_launch(
+    state: ForgeState, reporter: Callable[[str, str, int, int], None]
+) -> threading.Thread | None:
+    """Launch-time process wiring for the hub's long jobs: install ``reporter`` as
+    ``state.report_busy`` and as the signals-index build's process hook
+    (``signals_index.set_progress_hook`` — the deck-forge process has one state to
+    report into), then run the warm chain in a daemon thread — the signals-index
+    seed (the one-time build, or the sidecar load), then the commander-discovery
+    caches for the active Collection slot — so both happen while the builder reads
+    the page instead of inside their first Find or Commanders request. A request
+    that needs the index meanwhile waits on the same build
+    (``theme_presets._SEED_LOCK``). No bulk: nothing to warm. Returns the thread
+    (None without bulk) so a caller can join it."""
     from mtg_utils._analysis import signals_index
+    from mtg_utils._deck_forge import discovery, engine
 
-    signals_index.set_progress_hook(reporter)
+    state.report_busy = reporter
+    signals_index.set_progress_hook(
+        functools.partial(reporter, "signals-index", engine.SIGNALS_INDEX_LABEL)
+    )
     if not state.bulk_available or state.bulk_path is None:
-        return
-    threading.Thread(
-        target=theme_presets.seed_signal_key_index,
-        args=(state.bulk_path,),
-        name="signals-index-warm",
-        daemon=True,
-    ).start()
+        return None
+
+    def chain() -> None:
+        theme_presets.seed_signal_key_index(state.bulk_path)
+        try:
+            discovery.warm(state, state.active_slot, fmt=state.session.format)
+        except Exception as exc:  # noqa: BLE001 — a warm is best effort, never fatal
+            print(f"deck-forge: discovery warm failed: {exc}", file=sys.stderr)
+
+    thread = threading.Thread(target=chain, name="deck-forge-warm", daemon=True)
+    thread.start()
+    return thread
 
 
 def _combos(deck: dict, by_name: Mapping[str, dict]) -> dict:

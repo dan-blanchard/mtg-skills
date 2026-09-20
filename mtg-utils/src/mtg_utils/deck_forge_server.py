@@ -22,7 +22,7 @@ import click
 from fastapi import FastAPI
 
 from mtg_utils._deck_forge.app import VERSION, build_app, busy_reporter
-from mtg_utils._deck_forge.production import default_state, warm_signals_index
+from mtg_utils._deck_forge.production import default_state, warm_at_launch
 
 __all__ = ["VERSION", "create_app", "main"]
 
@@ -32,11 +32,12 @@ DEFAULT_PORT = 8765
 
 def create_app(frontend_dist: Path | None = None) -> FastAPI:
     """Build the production app (real bulk data when available), and start the
-    signals-index warm in the background so a first launch's one-time build runs
-    with a progress meter in the page rather than inside the first request."""
+    launch warm (the signals index, then the commander-discovery caches) in the
+    background so a first launch's one-time passes run with a progress meter in
+    the page rather than inside the first request."""
     state = default_state()
     app = build_app(state, frontend_dist=frontend_dist)
-    warm_signals_index(state, busy_reporter(state))
+    warm_at_launch(state, busy_reporter(state))
     return app
 
 
