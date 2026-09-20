@@ -1,10 +1,32 @@
 <script>
-  // The progress meter for the hub's one long job — the first-launch card-signal
-  // index build (~2-4 min over the whole card database, cached afterwards). Find
-  // with a theme preset and commander discovery wait on it; without this the page
-  // just hangs on that first request. Fed by the `busy` store (snapshots + SSE).
+  // The progress meter for the hub's one long job in flight: the first-launch
+  // card-signal index build (~2-4 min over the whole card database, cached
+  // afterwards), or a cold commander-discovery sweep (every lane's pool density,
+  // recomputed after a database refresh or a change to the signal sources). Fed by
+  // the `busy` store (snapshots + SSE). What the count counts, and what waits on
+  // the job, follow the job id.
   import { busy } from "../lib/store.js";
 
+  const JOBS = [
+    {
+      prefix: "signals-index",
+      unit: "cards",
+      note:
+        "A one-time pass, cached for every later launch. Find with a theme preset " +
+        "and commander discovery wait on it; everything else works meanwhile.",
+    },
+    {
+      prefix: "discovery",
+      unit: "commanders",
+      note:
+        "Cached once done. The Commanders panel waits on it; everything else " +
+        "works meanwhile.",
+    },
+  ];
+  $: kind = JOBS.find((j) => ($busy?.job || "").startsWith(j.prefix)) ?? {
+    unit: "",
+    note: "",
+  };
   $: pct =
     $busy && $busy.total
       ? Math.min(100, Math.round((100 * $busy.done) / $busy.total))
@@ -30,10 +52,7 @@
     <div class="track" aria-hidden="true">
       <div class="fill" style="width: {pct}%"></div>
     </div>
-    <p class="note">
-      A one-time pass, cached for every later launch. Find with a theme preset
-      and commander discovery wait on it; everything else works meanwhile.
-    </p>
+    <p class="note">{kind.note}</p>
   </div>
 {/if}
 

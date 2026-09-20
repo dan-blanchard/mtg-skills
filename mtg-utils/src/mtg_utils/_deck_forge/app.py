@@ -211,8 +211,10 @@ def busy_reporter(state: ForgeState) -> Callable[[str, str, int, int], None]:
     test's app is side-effect free."""
 
     def report(job: str, label: str, done: int, total: int) -> None:
+        before = state.busy
         busy = engine.record_busy(state, job, label, done, total)
-        state.hub.publish_threadsafe(json.dumps({"busy": busy}))
+        if state.busy is not before:  # an ignored report (another job's) is silent
+            state.hub.publish_threadsafe(json.dumps({"busy": busy}))
 
     return report
 

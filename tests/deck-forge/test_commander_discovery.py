@@ -708,8 +708,10 @@ def test_a_cold_discovery_pass_reports_each_commander_and_clears(monkeypatch):
     )
     res = _client_for(state).post("/api/commanders/discover", json={}).json()
     assert res["results"]
-    assert seen[0][:2] == ("discovery", discovery.DISCOVERY_LABEL)
-    assert seen[-1] == ("discovery", discovery.DISCOVERY_LABEL, 3, 3)
+    jobs = {j for j, _, _, _ in seen}
+    assert len(jobs) == 1  # one pass, one job id
+    assert all(label == discovery.DISCOVERY_LABEL for _, label, _, _ in seen)
+    assert seen[-1][2:] == (3, 3)
     assert all(t == 3 for _, _, _, t in seen)
 
 

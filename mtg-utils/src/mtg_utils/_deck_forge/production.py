@@ -49,16 +49,23 @@ def warm_at_launch(
 
     state.report_busy = reporter
     signals_index.set_progress_hook(
-        functools.partial(reporter, "signals-index", engine.SIGNALS_INDEX_LABEL)
+        functools.partial(
+            reporter, engine.SIGNALS_INDEX_JOB, engine.SIGNALS_INDEX_LABEL
+        )
     )
     if not state.bulk_available or state.bulk_path is None:
         return None
 
     def chain() -> None:
-        theme_presets.seed_signal_key_index(state.bulk_path)
+        # Best effort, never fatal: a failure here costs the first request its
+        # head start, nothing more — say so and carry on to the next step.
+        try:
+            theme_presets.seed_signal_key_index(state.bulk_path)
+        except Exception as exc:  # noqa: BLE001
+            print(f"deck-forge: signals-index warm failed: {exc}", file=sys.stderr)
         try:
             discovery.warm(state, state.active_slot, fmt=state.session.format)
-        except Exception as exc:  # noqa: BLE001 — a warm is best effort, never fatal
+        except Exception as exc:  # noqa: BLE001
             print(f"deck-forge: discovery warm failed: {exc}", file=sys.stderr)
 
     thread = threading.Thread(target=chain, name="deck-forge-warm", daemon=True)

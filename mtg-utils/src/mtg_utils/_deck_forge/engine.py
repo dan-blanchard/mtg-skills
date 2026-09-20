@@ -1214,6 +1214,7 @@ def undo_seed(state: ForgeState) -> None:
     state.seed_undo = None
 
 
+SIGNALS_INDEX_JOB = "signals-index"
 SIGNALS_INDEX_LABEL = "Building the card-signal index"
 
 
@@ -1224,12 +1225,16 @@ def record_busy(
     long hub job (the one-time signals-index build; a cold commander-discovery
     sweep) into ``state.busy`` — done, total, and a time-left estimate from the
     pace so far — and return it (None once the job has finished, which also
-    clears it). A report for a different job than the one in flight starts that
-    job's clock afresh. Pure state; the transport adapter owns the broadcast."""
+    clears it). ONE meter, first job wins: while a job is in flight a report from
+    a different ``job`` id is ignored (``state.busy`` unchanged, returned as is),
+    so two concurrent passes (a launch warm and a foreground discover) can never
+    fight over the bar or clear each other's. Pure state; the transport adapter
+    owns the broadcast."""
     now = time.monotonic()
     prior = state.busy
-    same = bool(prior) and prior.get("job") == job
-    started = prior["started"] if same and prior.get("started") else now
+    if prior and prior.get("job") != job:
+        return prior  # another job holds the meter until it finishes
+    started = prior["started"] if prior and prior.get("started") else now
     finished = bool(total) and done >= total
     if finished:
         state.busy = None

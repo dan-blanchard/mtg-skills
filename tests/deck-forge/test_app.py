@@ -262,3 +262,23 @@ def test_snapshot_carries_the_busy_meter_and_the_reporter_drives_it():
     assert st.busy["eta_s"] is not None
     report("signals-index", engine.SIGNALS_INDEX_LABEL, 4000, 4000)
     assert st.busy is None
+
+
+def test_the_busy_meter_is_first_come_between_concurrent_jobs():
+    """Two passes in flight (a launch warm and a foreground discover) report as
+    different jobs: the second is ignored — never a jittery total, never one
+    clearing the other's bar — until the first finishes."""
+    from mtg_utils._deck_forge import engine
+
+    st = ForgeState(
+        by_name={}, search_fn=lambda **_: [], session=DeckSession("commander")
+    )
+    first = engine.record_busy(st, "discovery-a", "Indexing", 1, 10)
+    assert engine.record_busy(st, "discovery-b", "Indexing", 5, 6) is first
+    assert st.busy["job"] == "discovery-a"
+    assert engine.record_busy(st, "discovery-b", "Indexing", 6, 6) is first  # no clear
+    assert engine.record_busy(st, "discovery-a", "Indexing", 10, 10) is None
+    assert st.busy is None
+    assert (
+        engine.record_busy(st, "discovery-b", "Indexing", 3, 6)["job"] == "discovery-b"
+    )

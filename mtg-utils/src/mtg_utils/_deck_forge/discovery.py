@@ -25,6 +25,7 @@ import json
 import math
 import threading
 import time
+import uuid
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -482,27 +483,33 @@ class _Progress:
     """The busy meter for one discovery pass: ``tick(done)`` after each commander,
     ``finish()`` at the end. Reports through ``state.report_busy`` (None → silent)
     once the pass has run ``_REPORT_AFTER_S``, and clears the meter at the end
-    only if it ever showed it."""
+    only if it ever showed it. Each pass is its own job (a launch warm and a
+    foreground discover run concurrently by design — ADR-0053 — with different
+    totals), and the meter is first-come: the second pass's reports are ignored
+    until the first finishes, so neither can clear the other's bar."""
 
     def __init__(self, state: ForgeState, total: int) -> None:
         self._report = state.report_busy
+        self._job = f"discovery-{uuid.uuid4().hex[:8]}"
         self._total = total
         self._t0 = time.monotonic()
         self._shown = False
 
     def tick(self, done: int) -> None:
+        """``done`` commanders finished so far. Clamped one short of the total: only
+        ``finish`` may report the total, which is what clears the meter."""
         if self._report is None or self._total == 0:
             return
         if not self._shown and time.monotonic() - self._t0 < _REPORT_AFTER_S:
             return
         self._shown = True
         self._report(
-            "discovery", DISCOVERY_LABEL, min(done, self._total - 1), self._total
+            self._job, DISCOVERY_LABEL, min(done, self._total - 1), self._total
         )
 
     def finish(self) -> None:
         if self._shown and self._report is not None:
-            self._report("discovery", DISCOVERY_LABEL, self._total, self._total)
+            self._report(self._job, DISCOVERY_LABEL, self._total, self._total)
 
 
 def warm(state: ForgeState, slot: str, fmt: str | None = None) -> None:
@@ -570,7 +577,6 @@ def discover_commanders(
     results: list[dict] = []
     progress = _Progress(state, len(records))
     for i, rec in enumerate(records):
-        progress.tick(i)
         identity = set(rec.get("color_identity") or [])
         # Support is OTHER owned cards that feed the commander's lanes — the commander
         # itself is the build's centerpiece, not its own support, so exclude it (and it
@@ -595,6 +601,7 @@ def discover_commanders(
         if sort == "novelty":
             item["novelty"] = round(_novelty(rec, freq, total), 2)
         results.append(item)
+        progress.tick(i + 1)
 
     if sort == "novelty":
         # Hard support gate: only the buildable weird ones (own SOME support), then sort
