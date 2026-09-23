@@ -151,19 +151,17 @@ def _check_arena_wildcards(
 ) -> dict:
     """Build wildcard-based price result for Arena formats.
 
-    Applies two quantity-aware rules that the USD path also uses:
+    Applies Arena's quantity rules:
 
     1. **Playset shortfall.** For each deck slot, charge for
-       ``max(deck_qty - effective_owned, 0)`` copies. A Commander deck
-       running 17 Hare Apparent with 4 in the collection costs 13
-       wildcards, not 0.
+       ``max(deck_qty - effective_owned, 0)`` copies. A deck running 10
+       Persistent Petitioners with 2 in the collection costs 8 wildcards.
     2. **Arena 4-cap substitution.** Arena treats ownership of 4+
-       copies of a standard playset-capped card as infinite (you can
-       never legally need a 5th in a non-singleton format). This
-       substitution is suppressed for cards with an oracle exemption
-       (``exempt_from_4cap`` in the rarity index) — a deck can
-       legitimately want 17 Hare Apparent, so owning 4 does not grant
-       the remaining 13.
+       copies of a card as infinite — including "any number" / "up to N"
+       cards: owning 4 Hare Apparent fills all 17 slots of a Hare deck.
+    3. **Basic lands are free.** Arena gives every player unlimited Plains,
+       Island, Swamp, Mountain, Forest and Wastes (``free`` in the rarity
+       index), so they never cost a wildcard. Snow-Covered basics are collected.
 
     Cards absent from the Arena rarity index are reported in the
     separate ``illegal_or_missing`` list and contribute zero wildcards
@@ -203,12 +201,10 @@ def _check_arena_wildcards(
             continue
 
         rarity = entry["rarity"]
-        exempt = entry.get("exempt_from_4cap", False)
 
-        # Arena 4-cap: owning 4+ of a standard playset-capped card is
-        # effectively infinite supply. Exempt cards (any-number / up-to-N)
-        # get no such substitution — owned count is literal.
-        if not exempt and owned_qty >= 4:
+        # Arena 4-cap: owning 4+ copies of any card is effectively infinite
+        # supply, and the six basic lands are free.
+        if entry.get("free", False) or owned_qty >= 4:
             effective_owned = max(owned_qty, deck_qty)
         else:
             effective_owned = owned_qty

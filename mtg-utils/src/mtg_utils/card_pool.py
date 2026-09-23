@@ -28,7 +28,7 @@ from pathlib import Path
 
 from mtg_utils._name_index import NameIndex, build_name_index, keep_cheaper
 from mtg_utils.bulk_loader import bulk_mtime, default_bulk_path, load_bulk_cards
-from mtg_utils.card_classify import SKIP_LAYOUTS, has_copy_limit_exemption
+from mtg_utils.card_classify import BASIC_LAND_NAMES, SKIP_LAYOUTS
 from mtg_utils.formats import Format
 
 __all__ = ["CardPool", "NoBulkError", "is_game_card"]
@@ -105,7 +105,7 @@ def _rarity_value(card: dict) -> dict:
     rarity = card.get("rarity", "rare")
     return {
         "rarity": "rare" if rarity in ("special", "bonus") else rarity,
-        "exempt_from_4cap": has_copy_limit_exemption(card),
+        "free": card.get("name") in BASIC_LAND_NAMES,
     }
 
 
@@ -230,16 +230,16 @@ class CardPool:
         return self._by_id
 
     def rarity_index(self, fmt: Format, *, arena_only: bool = False) -> NameIndex:
-        """name -> ``{rarity, exempt_from_4cap}`` for Arena wildcard costing in *fmt*.
+        """name -> ``{rarity, free}`` for Arena wildcard costing in *fmt*.
 
         A card's wildcard cost is its LOWEST rarity among printings legal in *fmt*
         (``Format.is_legal``, which carries Competitive Brawl's ban override, so an
         owned, legal staple is never reported as illegal). *arena_only* restricts to
         printings that exist on Arena. Reprints in the digital-only draft sets (J21 /
         JMP / AJMP) carry limited-design rarities, so they defer to the real printing.
-        ``exempt_from_4cap`` is True for "any number of cards named X" cards, which
-        Arena's 4-copies-means-infinite substitution does not cover. Memoized per
-        (format, arena_only).
+        ``free`` marks the six basic lands Arena gives every player (Snow-Covered
+        basics are collected, so they are not free). Memoized per (format,
+        arena_only).
         """
         key = (fmt.name, arena_only)
         cached = self._rarity.get(key)

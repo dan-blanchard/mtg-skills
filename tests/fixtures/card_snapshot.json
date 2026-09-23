@@ -49196,7 +49196,7 @@
      "brawl": "legal",
      "commander": "legal",
      "duel": "legal",
-     "future": "not_legal",
+     "future": "legal",
      "gladiator": "legal",
      "historic": "legal",
      "legacy": "legal",
@@ -63943,7 +63943,7 @@
      "brawl": "legal",
      "commander": "legal",
      "duel": "legal",
-     "future": "not_legal",
+     "future": "legal",
      "gladiator": "legal",
      "historic": "legal",
      "legacy": "legal",
@@ -119089,6 +119089,918 @@
     "type_line": "Instant"
    }
   },
+  "Forest": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": {
+        "type": "Tap"
+       },
+       "description": null,
+       "duration": null,
+       "effect": {
+        "produced": {
+         "colors": [
+          "Green"
+         ],
+         "type": "Fixed"
+        },
+        "type": "Mana"
+       },
+       "forward_result": false,
+       "is_mana_ability": true,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Land"
+      ],
+      "subtypes": [
+       "Forest"
+      ],
+      "supertypes": [
+       "Basic"
+      ]
+     },
+     "color_identity": [
+      "Green"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pauper": "legal",
+      "paupercommander": "legal",
+      "pioneer": "legal",
+      "premodern": "legal",
+      "standard": "legal",
+      "standardbrawl": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "type": "NoCost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "0000419b-0bba-4488-8f7a-6194544ce91e",
+       "0031d026-9e9a-46f6-8204-1acfee8b8809",
+       "006e0990-0596-4537-aced-51ac499938af",
+       "00bbaefd-e7dc-4870-ad9c-e94e27de3860",
+       "00feb2af-b363-4377-98b1-6a07df7f1acd",
+       "0120879f-df13-4583-b260-0fc298518f16",
+       "0301f00e-481d-4dbc-8fda-528d9d4ba848",
+       "03be40e3-b7d7-43ee-a526-5d56fa429ffa",
+       "04c4a529-2345-412d-a2c6-7cd9499f031c",
+       "04db1116-3819-4a57-a001-dfa7578f0f12",
+       "04dcdbcd-2c5e-4733-a4c4-c5a345e9206a",
+       "0560b5ed-821a-479f-91fb-98ade4a8d470",
+       "05683891-cdd4-4401-b7d5-0ef17e79c699",
+       "060fa791-ccae-42df-b01c-2d4446d78422",
+       "07264de1-4322-4adb-8f08-c0aa236747c7",
+       "07531062-8a83-4716-8416-11565908143f",
+       "07eb0e22-1e19-46e0-913e-94ccbf858bb9",
+       "081c1f03-3251-42dc-b356-3454ebdabc2e",
+       "097f0f7a-0a2d-47bc-8c9c-aaad0a9d8f19",
+       "09b123bf-9e10-493a-818d-df5f2393159f",
+       "09bf63e1-fe77-4d5e-b557-13eecfbc42b4",
+       "0a45560e-ce25-45a5-aa43-aa33d1964cd8",
+       "0ae275b5-fdf8-4590-8848-432a06ce19bf",
+       "0cb7637e-785d-4716-ad06-9e786e037537",
+       "0d6250d3-728b-4412-8efc-911bb6f5e910",
+       "0da5fbc2-24ad-4520-a60a-436d3a485fec",
+       "0f341b39-ac40-436b-967c-568265354886",
+       "102c2350-4929-4c81-8823-4b3e62e22dd4",
+       "1069841a-0642-4fb6-b831-d45ff7fda3af",
+       "10b3dce8-9c28-41f6-823f-a7d64dd9e33a",
+       "10e2588b-7781-418c-abc8-08601fbb2336",
+       "117ab60a-b888-4585-b0c6-769d387069f7",
+       "11c7c34c-eb81-412e-9030-f048435cbfbc",
+       "11d5ee25-43d7-4930-90a2-ba74b9cc69c9",
+       "122b5548-5ff5-43e4-b799-75c709b1c32d",
+       "12495cfa-ab19-4e9e-a49e-a94499f664a2",
+       "12a035fe-8847-4678-84f7-01bac77ae011",
+       "1345293f-e71e-4754-bf88-b3c8b9824ab3",
+       "1428575c-f18e-41a0-b58a-259d2feafd06",
+       "146b803f-0455-497b-8362-03da2547070d",
+       "14c94463-31e8-4a2e-b879-d096a27cc60e",
+       "150d0710-9ecb-4187-a0f8-a70b330c8879",
+       "151fc328-0951-47fb-be07-dc4187a5c0be",
+       "15b3f35e-451e-4de6-a4f7-249287566964",
+       "1676702c-523a-4e57-9cb3-171405cab782",
+       "16f52885-1f01-4f06-90a8-1a0ecf291ab5",
+       "17393110-c57e-487b-b07e-dc21a164efa7",
+       "1813119b-8604-4cd2-b731-957b5f1bb4ea",
+       "1814fc7a-0f2a-407c-9d71-e7a7339ce82c",
+       "1841ca54-d7d5-4c02-9c8b-5f59dce33a6b",
+       "184a9654-ce17-4378-b52b-fb6efbbf042f",
+       "18f4e594-01e5-40ae-903c-f55aad740de0",
+       "1908f8d2-95df-44e3-8943-568c596cd8aa",
+       "192ac805-deb4-4275-8473-01b5abb7b385",
+       "1a13a86b-c4c5-4a7a-9e01-8669e9ed6557",
+       "1a181800-f5ef-4019-b93d-35d8f1dbf953",
+       "1a1b6004-6dda-4495-85f7-eb8fa29873e9",
+       "1a1b7277-0c09-42ab-aa6b-542a1e402580",
+       "1abe7f25-71c5-4fd2-8696-0a4ce8c4b0b6",
+       "1b20aa40-2b88-4cac-ad15-f730fde60643",
+       "1bd51a22-3e0d-4826-aab7-0adbfce4478a",
+       "1c01e4ce-5d77-4bbb-9df8-39cd3a2f9e6e",
+       "1c2ac08e-3810-46f4-94ab-8b32986f9185",
+       "1d416790-fca9-42ab-b211-bae68858a614",
+       "1d91255d-e3d1-412b-8031-994779372496",
+       "1db496f2-6b64-4d9c-baac-b3788c632629",
+       "2036f825-ef57-4a40-b45f-0668d9c8ec6a",
+       "207879b4-f92a-4331-88f3-05f532a8a8e8",
+       "208014f4-eed8-4856-a9d9-dbac10c4aa6a",
+       "21a19869-85a8-4334-af5e-8d38d08955da",
+       "22463284-2478-4b1e-9a37-6dd2383266cf",
+       "23c9425a-2093-40c1-b3a9-a882d80cf198",
+       "23e1c12f-6c6b-4e44-8fbc-e6703ffe2843",
+       "249104ba-65fc-42d6-ad8b-d97640545d89",
+       "24e71c1f-5ca9-450a-8a0f-39a03a275e97",
+       "253f6297-e76c-4003-8ddf-3fb5f2072384",
+       "279ebd05-229a-4a4a-a1c0-c5f24d16dee3",
+       "283d6124-1678-46b1-a12a-69644c689e29",
+       "2950dace-a653-47e4-a80a-a3de5db8d491",
+       "2968cde0-300e-4f59-859f-a7fc189f8943",
+       "2a0bc8e3-b106-43bb-acf6-885328d24a65",
+       "2a4c27b7-9695-479f-a5b6-bae63a76629e",
+       "2a7aba60-d300-4c33-9e1e-846d6167dc50",
+       "2a9e6cdc-f92f-497c-8cd9-b69586098512",
+       "2b101184-71b2-4400-a5dc-4113df5a4f12",
+       "2b86b3a4-981e-497a-b78b-30b2dbc5ea7a",
+       "2b90e88b-60a3-4d1d-bb8c-14633e5005a5",
+       "2c2fc9f7-21af-4416-abf5-6fcb4f543680",
+       "2c8c30af-055a-4921-99a8-f99c472c7315",
+       "2ccc7cf2-c9ed-4505-9341-7b8dcf10590f",
+       "2d3a6ecf-323d-4650-aabf-92995e3c72c6",
+       "2dbc8240-d0a1-439c-a909-95b937d70494",
+       "2e3019bf-c69e-4c61-b3d1-a8c4967031bb",
+       "2f5b488e-d725-4ef7-90f4-71091325c0b6",
+       "2f60db2d-7594-43af-8554-ba54e9023306",
+       "2fafd821-5bb3-4083-bf3b-ecc4cf6c7468",
+       "2fd47e30-2ab0-452d-ac51-fa182c2b00fc",
+       "2fdf7380-56cb-4d34-ad05-43029341a57a",
+       "3041d539-4f15-4836-a215-afa19a5cc23f",
+       "30c96a89-32e3-4412-9e79-51411362b9d5",
+       "314b835b-b03e-43fe-b924-67139e2f266a",
+       "3156ba12-cf21-48a5-aa08-74b447cafc2c",
+       "31d44ab0-ca04-4b92-bbfd-587640db5552",
+       "32636e80-9455-43c8-b55f-dfa2d7b7465b",
+       "3279314f-d639-4489-b2ab-3621bb3ca64b",
+       "329ae876-a7ed-43e4-9ed9-ac71191ba8d2",
+       "32af9f41-89e2-4e7a-9fec-fffe79cae077",
+       "32df22d3-9b65-4b43-80d9-e4c43575ec74",
+       "3394d804-c0e5-4901-a8ff-c1a765cc1e21",
+       "340238b7-60ce-48d1-bb73-2925df7853a3",
+       "341b05e6-93bb-4071-b8c6-1644f56e026d",
+       "34cc6a36-b551-40c7-b081-53beffbca235",
+       "34f9571c-b61c-4bc7-ac98-f6c80c47ea7d",
+       "34fa98a0-5dce-4914-a827-964c4a596ed5",
+       "35724a5c-e91a-4ff8-b404-057976a858c8",
+       "35e8b186-ea04-4895-b5b2-f02e9c848c97",
+       "36105ded-e343-4dca-84b5-afb1fd34e2da",
+       "36454f7f-0b60-451e-9b4f-2cb4c8ccc9c2",
+       "366105ea-c720-4524-8fc3-dbe82291e255",
+       "368be73f-24d2-44db-a55e-d04176db3142",
+       "3758e2e6-3147-4b4f-82a7-491c963c0fa8",
+       "37a8d9ff-291a-4862-b2e8-3db520cc9ae4",
+       "3812e162-3511-4988-b2a1-3bc6945ac45b",
+       "384cbc4a-c955-45df-98fd-d448e574c130",
+       "398ee871-7b30-4e8c-b0d0-b85e0a37d3b1",
+       "3a11f9c9-267a-4913-97f7-78c372fe211e",
+       "3a1e5ef3-790d-4f45-a264-157448bab2e8",
+       "3a7a2a54-47e1-4694-b4f6-b7d659bb2b1f",
+       "3a9ea6ee-0150-40f1-baa3-fe637128be2f",
+       "3b1153ac-e4de-43a4-ae39-ca22a4f571da",
+       "3b84ec1e-ccce-4b8b-9302-b26f84cfa469",
+       "3c5c5d09-6f93-44f5-894d-4c7be40bb006",
+       "3ca33d91-3c1a-4351-9d9d-d46a6e3de084",
+       "3cf23791-1b15-43ee-b81a-5fe068709bc1",
+       "3cfbcefd-8b2d-4b9e-a11a-18274c3a8dd2",
+       "3d08f6a6-316d-45d8-aabe-1760a20903ac",
+       "3d365b22-2304-4f20-86f9-9560f59546f1",
+       "3dc61690-30c6-4374-8777-e1802e9e164c",
+       "3e5342f9-3f91-48e4-bfd1-49fbf9ca89cf",
+       "3e574ee5-d33d-4054-9884-fdb5fe9d73bd",
+       "3ee0a9b2-5570-44f0-bc66-6ed7677ce2e2",
+       "3efeaa30-9db9-4e68-a658-9064d6e67516",
+       "3f7f206a-7b5e-4fd5-8c9e-d665ac3f7dea",
+       "4016e556-5597-440d-b737-b419acb4e44e",
+       "40a62202-82ef-48fc-a28d-ff37d1af4cbc",
+       "40d4cf1d-6101-40e7-8e0a-a6ad5bd5d3fc",
+       "4118a9af-0aa0-439e-a92e-39f7c04469b7",
+       "41f774cc-ac13-4bc6-967c-af09358a8da4",
+       "42154a89-c12a-48fa-8eb4-1185b5df1b38",
+       "42352899-f2f2-4dea-863b-8d685e63b454",
+       "42b8aa7c-0195-4ce9-9de4-4e6d780455aa",
+       "42d36c04-c238-412a-97de-63fc92840c1e",
+       "42efdb6a-1c54-497a-9058-af4256241649",
+       "439d196c-551e-4e38-8dbf-65b328d50df6",
+       "43b3be4a-973d-4aeb-a94e-37e2710ac178",
+       "43e7e6ec-9bfe-4062-a538-2a748d2eed1f",
+       "45adf695-69f3-4d71-a0dd-70d302e2a119",
+       "46196e8f-9339-4f00-b9cf-cab8f9abc80e",
+       "46c661a6-322a-4460-9d75-a2c95d1a49de",
+       "46e93212-da68-48f8-9aeb-ee5eb92e9a54",
+       "47c223fa-8173-4da2-abb0-753ffb4fc51c",
+       "47ccb7e9-3fb2-4460-b0c4-e07e3186ce66",
+       "47eb96ec-a417-4dbc-82d2-6317372dda11",
+       "48764854-d268-462d-a016-27329c8f062d",
+       "48811e13-5774-4da1-95ec-6ea5dc4976ad",
+       "491b26e4-1d52-457c-a00c-bdee127f8a97",
+       "4ae04d52-92c0-493a-b677-2aa9e79bd30a",
+       "4b535df5-f79c-4ab5-9b2f-cbbb5adad70a",
+       "4c08f11e-0f3f-464e-abe9-20f18de237d8",
+       "4dea3762-c6ae-4304-aee4-6c3f56685319",
+       "4e811a02-b749-4aed-ac7f-47957b770020",
+       "4ebd9027-5b48-42c0-9533-afe50bb101e6",
+       "4fa690e4-dbc8-4490-8958-6eb323a05daa",
+       "4fae200d-5757-4924-8cf4-ab2a5ef2ccc0",
+       "4fce7045-4572-4e9e-8853-2a5dcfc989ac",
+       "4fd257a5-439d-4ef8-9cc9-9741e99a04e3",
+       "5131ab8d-c884-4430-8059-9e3e1d16c747",
+       "51a55233-2e1a-4515-8fd1-354605c0c36b",
+       "52097f6a-58d3-4176-b3bf-dc94f44adf30",
+       "5257440c-ab4e-4b9e-a694-f7ff54feaa1b",
+       "52c21f91-6679-4adb-baf2-b06cf505150c",
+       "53f45c42-b2c7-4464-b708-d11c654a9ce7",
+       "543aeea7-23c1-4c7c-a377-f39c94846b5e",
+       "55b781ec-abed-41e1-85de-a60f6ac9e87e",
+       "55b9e2db-d37e-4a87-ae5a-88a8e45d7419",
+       "562b16ae-8ae7-4b2d-9098-bf3ff1429f7b",
+       "56835242-ce4b-433e-8c8b-a2749eab59de",
+       "56afe767-c967-4094-8d60-165bc7d11ab1",
+       "56caba21-b773-4245-b3f8-3ae62725c14f",
+       "5832fffe-1f69-44b7-832b-58f064753141",
+       "586ad230-fb4b-4b34-8d5c-633726496634",
+       "59f95235-3ca9-47d7-be6a-aebfb29fcbbd",
+       "5ab2fcc5-7207-4c53-aadc-4359d5abdebf",
+       "5ac2dbbc-8bf4-45fd-a5c1-7597c885fc6b",
+       "5b5277ee-f1e0-4777-9011-d7a23c855919",
+       "5c284c81-195b-49e5-bfdd-3e0447103469",
+       "5c6b733c-b67f-472b-aea3-c59e1f78dc55",
+       "5d206442-eb93-4dc8-ae59-5b72777c961e",
+       "5dda1113-352c-471a-a7e0-a9a3cb3f19c5",
+       "5f533364-0f91-4e49-aaeb-83c4c1f6d316",
+       "5f608a10-6bd4-4579-a08a-f7e2da383794",
+       "5fca5dbb-8d5e-4471-94f6-e0944cf60ed2",
+       "6194850b-d70a-4f3e-be3e-bfb23ce1170b",
+       "61d81153-4eca-4475-82dc-5d8bc1343432",
+       "62131862-1256-4082-a83d-a0048714acb1",
+       "633eb269-916e-4d79-821e-1f304283416c",
+       "642102a2-abde-4e76-a6d6-08f7befe1196",
+       "643dbf69-1e84-4037-b582-f825e4e6c78e",
+       "6472e2a6-287f-4e7c-ad85-1454e40d4a46",
+       "650e47f3-476f-4b32-b892-c1a01335d0fe",
+       "6527c8ce-4a63-45f2-ae8e-c651e8713716",
+       "657c597e-2a5a-4b6f-9a4e-e6df84e28ad9",
+       "659a7d45-af0d-4a4a-a878-e8e40b732bfa",
+       "65aa4dcf-6e3a-4381-b5f6-5056d741ff67",
+       "6714be9d-8ab0-426a-be2b-c0606306ba76",
+       "673141ec-826f-4132-8282-d499990495a7",
+       "6744c441-42b3-48b2-af06-1e27ec776d97",
+       "67becef5-cd70-4fe9-b8a3-1bff2ea04ab4",
+       "68d6d1f1-2a7c-41cb-82b6-020209aff5d6",
+       "69557258-2441-4ca5-993a-8d7afb51ad3d",
+       "6a0715a0-dce2-427d-964c-0e179309499d",
+       "6af0c659-f182-4ad4-bca7-e6c3377f808d",
+       "6b6a8792-2355-4948-9c19-68491888d73f",
+       "6c39da1f-64f0-45d7-8a50-092caf2ac8f8",
+       "6cb33c43-4f6e-4052-91f0-ca9bf8db5fec",
+       "6cb8f264-cc26-476e-a3b7-53638dce7395",
+       "6cdc5ca9-6d01-4ee3-8117-3c1e74320553",
+       "6d3a661e-d890-4211-bc9c-8266001ebfba",
+       "6efcdb56-3f56-46dc-9309-9f5be3100f32",
+       "6fb07e09-bff6-45fd-b408-fd957f69a994",
+       "7104a533-42df-4430-87dc-e0adeb7f2320",
+       "715c6de3-5f4a-483f-9b73-ddb23207c0f4",
+       "7193cf41-e5c1-4060-a3e3-89f4d71e323b",
+       "722111d4-99f4-463b-b232-96821c18f189",
+       "7272906c-14f2-4e06-bbea-b461369e151a",
+       "72d8d9bd-b8c0-4628-bb19-6867336df7a8",
+       "73626fd3-0339-4351-99fc-c0507c6bab05",
+       "73a0bbd4-a420-4a90-9f20-ec0ad7e97537",
+       "743f283c-8aae-44ab-b245-c239feb23c16",
+       "74ef8358-9812-4d40-9532-d667513d7701",
+       "75d5a81e-1efc-46f3-b169-0422cbc8cd5e",
+       "76349ec5-a7ad-45cf-a6b8-1f71d7e6f74d",
+       "76426cae-c1da-41f0-afe2-1c860b41dfc2",
+       "771e307c-b2e3-47ac-aac2-59f0c3542fa6",
+       "776470f5-3a47-475b-a599-cb5fee156593",
+       "777e868d-cb88-4b8e-99d1-12ff67f5eae2",
+       "782a3732-8577-4cfa-a2db-0f707735fa47",
+       "79053ce4-62d4-416c-b001-93740521fd07",
+       "790dcf48-ab51-4b10-9933-6b7e3baf0f52",
+       "794b8b40-8cab-413d-8638-011bf769f2e2",
+       "7974535c-d99b-4d69-a21d-63359e40d385",
+       "798b4f41-1e33-4da6-99c1-de926297c073",
+       "79a5c57d-aca1-4951-adb6-a2f508d43071",
+       "7a3b0668-0a4c-489f-aa2b-4faa8ef3e429",
+       "7a80d346-84e3-4eaf-9635-09da472475d8",
+       "7ac34881-de32-42c7-af60-f992638e1da2",
+       "7ae6380e-b1b6-4a5a-a8d9-7cdf8eab3557",
+       "7afdc917-ec37-4e03-853f-36cfe90053d9",
+       "7b042a72-c37a-487f-99cc-2c9d86b729c4",
+       "7b6c2532-be5a-4f1f-893c-36bcda2a699d",
+       "7bba93b9-5825-476e-afc9-325ad233bb4a",
+       "7c507a5b-f981-4881-8c51-6c5379dfea70",
+       "7ca91ba8-c08d-4239-b9f2-d6c960466456",
+       "7cc4d5d1-4471-43b0-877a-b3af0b8d67c6",
+       "7d727860-3573-4b5e-88d1-b226b85fc662",
+       "7d850739-d53e-48bc-8628-830aa74ab60c",
+       "7e33e540-2828-46ad-a441-366552843d9c",
+       "7e6151d4-5129-4631-84a1-5cffc551c1e9",
+       "7e703632-5ed0-4509-a12b-594269f865f1",
+       "7eef5e5c-27be-45f2-a9c8-4e0a65c984d4",
+       "7f087727-bbd5-4fb0-b604-82acffa02fea",
+       "80716ed1-8d0e-44e6-8b18-606e80d22181",
+       "8097c9ce-8fe9-4150-9810-52f6c92c6099",
+       "8100bceb-ffba-487a-bb45-4fe2a156a8dc",
+       "8126b842-ea58-4988-8b3f-0394cf766b91",
+       "815261f8-daaa-4d76-86d9-d2801eb3f1f7",
+       "818442df-fb81-4f1c-bcf2-fbd6b05912ed",
+       "8335b9f1-e726-423b-8ba7-6151448ab3fd",
+       "83caa371-9c1d-46c7-a7c9-abcaa71ebc57",
+       "845057a1-4da1-4a32-9bb2-bbf8502acd37",
+       "849969bd-60ec-4e91-9d14-3a50b0346ca9",
+       "84b87daf-c5e2-46fd-bb25-731e14fd3c8c",
+       "85a1b232-92ab-4829-9af3-26b280507dc0",
+       "88e1bf57-cb14-4dfe-abb1-d8ed9c051f1a",
+       "894f5b1f-be1f-43e0-800a-e4808c8f467a",
+       "8a73d19b-72e3-4944-ac20-5b4c7b54c2aa",
+       "8b712739-df44-4c23-b076-0fb778aa6dc4",
+       "8be6c40e-5669-417e-a655-b32b5f2bfd11",
+       "8c13cafb-3078-4856-a5b0-c38aace8a34a",
+       "8c48b157-1ecb-41e9-9697-7e2c75b22975",
+       "8c70181e-7b28-46b1-a51a-ba99e58e8566",
+       "8dd6cfef-6eac-4fa2-b9f3-808bd5502f27",
+       "8e17db23-a8ca-416e-b978-1eae852c6690",
+       "8e3e83d2-96ba-4d5c-a1ed-6c08a90b339c",
+       "8e9ac507-7c8f-431f-8d1a-220ceeacf871",
+       "8f0fa40d-c6a6-4e2a-9121-4ea6fc8ed5d5",
+       "909968b4-1b44-45af-8c24-ed477d039237",
+       "90db81be-753b-4d0e-9d66-9292364d2a60",
+       "913e6724-4860-4795-a079-f8141e25f225",
+       "91c4bd58-d32b-4d6b-b0e0-9be09c9e50dc",
+       "92af153b-5cc6-4130-8694-dcdb1fd45cdc",
+       "92c9e16d-525b-4ba9-890d-fa2719206ba0",
+       "92e67efe-cc8a-4132-9019-26ddfc72a735",
+       "92fa2676-1103-498c-a4f7-37a25e4a5643",
+       "93a889c2-9b8f-46cb-b2ed-c9c3d0336370",
+       "941546b8-8540-40dd-bacc-9b11f3d63033",
+       "977ec5e4-3b44-4359-9ab8-4e25e2a9ec86",
+       "97d3093b-4f83-41fb-9290-757a3b2fa468",
+       "98548336-f0f6-47ce-8ed6-977c8c8150af",
+       "990f4974-fcef-46d1-8baa-6a215f7f3292",
+       "99eb81c1-0607-456b-8030-e6110776e0e2",
+       "99fe8645-9bb9-40ce-aace-94c2942b3ff6",
+       "9a028172-c148-46fa-9afa-c5fdc7f9ba9e",
+       "9a667819-0b08-4044-b731-09d3bc41e2b9",
+       "9bac6e97-f2c6-444b-a811-66b30fafb744",
+       "9c0cd5d3-a53f-4241-b2d0-888e4c768ab3",
+       "9c348494-f60c-4bd1-9077-bff24f2e634b",
+       "9cbaa22a-d679-48ef-805a-d09d6f1091aa",
+       "9d12fcc7-93e4-4bc6-be4e-b383b0e75f7e",
+       "9d94fa1c-48d1-48bc-b725-5c11a158507b",
+       "9ef5814d-2535-4bb9-95f4-f7e547a211dc",
+       "9f104987-f678-4ba4-b7f5-69ae7fdc01a3",
+       "9f9e911e-7e12-4d99-806c-5cfba19ea8f3",
+       "9fc29dea-b48c-4363-8f17-da0413a49a92",
+       "9ff9fe02-124c-4d5c-8526-a763272e05f4",
+       "a06a2952-8a9a-4f9c-a113-c24144619781",
+       "a0d12fc5-c7bd-4734-9259-98fe65241f60",
+       "a1dff5ca-1589-4baa-8dd7-447e82e24dc3",
+       "a1f48b35-5fe1-4090-ae9d-11955ee8099b",
+       "a305e44f-4253-4754-b83f-1e34103d77b0",
+       "a49ff824-f9a6-457a-b1ff-c06b246d06d9",
+       "a4c99f1b-f304-42d5-bbea-32283b01d43b",
+       "a4df3e89-610c-4f42-a93a-e694342307cc",
+       "a5a56694-71fe-4174-8eea-5ab832d6caf6",
+       "a63eab07-46e5-4b75-954f-b5a9f1f451cd",
+       "a7279281-42d5-4226-b841-f1f4deff919b",
+       "a793d3b8-aa7a-4679-ae28-e0ca2f265b1f",
+       "a7cdabc9-39d6-4380-8e14-e7792d7463dd",
+       "a80ca452-06d2-44ba-9ef6-9fe4b7dd81dd",
+       "a90b184d-70ac-4e67-b09b-3f20da560687",
+       "a9305b9c-63af-49a3-97c2-0b3597555cc2",
+       "a940a241-4efd-42f7-a670-2c4fed4755bb",
+       "a9d61651-349e-40d0-a7c4-c9561e190405",
+       "aa35174e-c0c8-4643-bc32-9a7b7c7e7d00",
+       "aa36a925-9be7-45ba-bf55-30f9a25c09c1",
+       "aab1cc13-8959-4914-afe8-58daf9529f61",
+       "aad57826-fe67-4d8f-b22d-49078804ae1a",
+       "ab82f8e3-6f48-4974-bb5c-39feddc51344",
+       "ab8affbb-d2a2-436b-bbc2-9e8b6cf0d2c4",
+       "acc778ae-a2d0-493f-963d-e946bd7cacd9",
+       "ad8ff40e-2d40-4557-8209-d2c84eb4ccf2",
+       "ad96467f-b418-4030-9b1b-7e95d36dd154",
+       "ae21165c-cc6d-45cc-b5c1-97b73e85dddd",
+       "ae3eea1d-4d57-4aee-9ebe-a8eb594d319b",
+       "aea5c36b-c107-4daf-bedb-507b4cd64724",
+       "aec7e0c1-672f-4a79-97f8-b6d5ccb3355c",
+       "af042ca5-da40-498b-a7dc-87ab41863ddc",
+       "af8a605e-73a6-4666-ae08-ec6e9845e629",
+       "afa69d38-3344-425e-88ff-0155d8bfc1f0",
+       "b0b6e3d0-bbb0-4fa3-8c01-9e2926fed10f",
+       "b1f909e5-f993-467d-be46-10d8a67ee9f4",
+       "b275edcf-51dc-4dba-be25-875356a05074",
+       "b2f44732-17a2-4871-a968-53a32018ba8b",
+       "b3a37f57-5d3e-488e-a909-f53bd4c2576b",
+       "b3adc4ec-2e2d-443d-aac1-e1f1733dca92",
+       "b3ed8a17-ce32-4100-8ffc-fb8af1c35142",
+       "b43297de-7378-474f-a85f-910fa7cbb4f4",
+       "b460f5f7-c7c9-400c-8419-23d614f45bf9",
+       "b49e6028-cb92-4a8a-8e85-4c403f55f61c",
+       "b4dd7a8a-a560-481a-a16e-dc60cdb440bb",
+       "b4ee8330-f1bf-460b-9345-00d08665e9cf",
+       "b52ff177-bafe-4e0a-a6c3-2cf012b1319f",
+       "b548b48c-a004-4f17-90d6-1ef5b9769e38",
+       "b59a8070-3bbd-4b81-855c-1c31486ff496",
+       "b606f644-1728-4cb3-90ed-121838875de1",
+       "b6424d21-d852-4af5-96d7-cda2ba0e5912",
+       "b69adddd-3626-45d6-8100-26cf1f314d00",
+       "b6a46b11-3225-45aa-b54e-4d19d81b51cf",
+       "b6e049ae-bb12-41af-bbe4-ceded30bad67",
+       "b6ec4ded-7c8d-416a-9a12-3e5d6c91ac93",
+       "b70e30de-fc01-4512-b218-a1411cb50789",
+       "b7209ed0-c0ff-458f-8f79-259955d29e01",
+       "b742ffa7-915f-45ce-b3f2-8391723bb34c",
+       "b763764f-efb0-48c6-b353-1831164c2db5",
+       "b81b803f-e065-4f79-b5e4-e45fb1815443",
+       "b8a081ef-a2d4-4989-8b06-721f8b2c9798",
+       "b977e434-3540-42a2-9a1c-5433d36d09cd",
+       "b9be1afc-eb3d-46ba-a645-ab2f33264f36",
+       "ba2a4cbb-f325-4178-80db-7090f5672414",
+       "ba9f4afb-b884-4d63-9342-b6b938ea32a5",
+       "baad690f-4087-4ae9-8e32-9987d33c74ec",
+       "baf8a774-65f3-431e-b084-328ff1000895",
+       "bb0e5fc9-1b11-45c0-a0c7-668507cfabfb",
+       "bbbeb57d-5fa0-4ff7-b5e8-caafc139669b",
+       "bc476125-60d0-4a3a-bcf8-6e2e09d11179",
+       "bc9f3d1b-bb3a-4a78-9031-ed439212a48b",
+       "bdbce923-c05e-4554-8c4c-5c4e6d791856",
+       "bddc66f7-4e94-4857-ba7d-6b0083d0bfa0",
+       "be13351c-ca20-410c-8959-bbaa59816002",
+       "be4de4aa-721a-4d1f-aa7e-78beb1fe4681",
+       "be72862d-d71e-4b18-98a6-59019399f631",
+       "bf0b0bfa-5d1b-4783-b187-7aea8405e6bd",
+       "bf8bd63e-303e-402c-9ad2-4f6e55ed0e14",
+       "bfa98b17-c660-4cbf-a385-c2cb6a67254d",
+       "c086cb5e-3146-4a41-a471-fcbbf8fa4e09",
+       "c0e38987-e257-4da0-b270-bc48404947cd",
+       "c10cf58b-e01e-413e-979b-c6fe9e93100b",
+       "c1c2a41c-e974-4c14-8d01-d278ecdb31bc",
+       "c1e46627-3cf3-4aca-97ba-80f9e919608c",
+       "c1e70a49-ca99-416d-be0a-0a064da44b62",
+       "c318bae5-5d3f-4e91-adfe-13c182511ef7",
+       "c3e84b42-5423-4d4d-b8fc-cfbb2c53a4ca",
+       "c46df0e0-648d-4dc9-a2c7-ac96125ba77c",
+       "c4be31c4-9cb3-4a07-865b-5621127df660",
+       "c4fec728-8e3f-427d-81ab-e06114910223",
+       "c52038c8-5bba-4d8e-845f-30af44300acc",
+       "c53e6980-5d2f-42d2-a98e-49c9c8779dcb",
+       "c5c95d38-c135-4059-9379-051b2dd33f9c",
+       "c5cbd941-53ab-4b02-b96c-a9af7767e606",
+       "c6d6876e-7d83-44bd-b721-5070f4087325",
+       "c726424a-3336-4e15-9055-4a26371df361",
+       "c8179106-e5d7-457a-9250-70df980b38ce",
+       "c8c84076-d503-48df-9b6c-9d4a835501b6",
+       "c8f06046-45c4-424b-8846-e0cd152f84b9",
+       "c931df5b-650a-4640-b4fa-7c883db1aed9",
+       "c9421f47-6b69-4ac1-97e3-ca0f55cd4076",
+       "c9a8b574-280b-452a-98c9-cd775650d59c",
+       "c9d637ac-e0d3-4c62-9f00-08270f3c1e91",
+       "ca6a30d9-0cee-40d0-85b5-3b3d366de5c1",
+       "cadcd72e-90ca-4cfc-a181-742e35c4a8ed",
+       "cbe793e4-c034-4a22-929d-d743c0255bf1",
+       "cc1aebd0-9b96-4ff9-b3d0-888fec778898",
+       "cc485069-e081-4e83-bbad-d5faf7a5bd03",
+       "cc5e6286-2ceb-40eb-8998-7787dd02ace5",
+       "cc8d9951-2a9e-44a6-a572-309c855f3124",
+       "cdfeb531-daac-4d64-858f-6db7d82d2b93",
+       "cef7ba3a-0269-4a4b-8833-7e9e5f66013a",
+       "cf6a3ff8-5153-4616-9c3f-b71966754b52",
+       "cfff8acb-e330-4819-a7e4-eec27645cba2",
+       "d06fbe79-9a99-485a-b363-42b47c47a2ce",
+       "d17befb9-992d-4b30-a3fc-bbbf8839f6a9",
+       "d1d15705-981c-44db-9070-592dbeace299",
+       "d2196228-d6a4-4d9f-baf5-b7bfa3bb5ba6",
+       "d232fcc2-12f6-401a-b1aa-ddff11cb9378",
+       "d35801ab-e484-44cb-b9ec-80723cb25bc7",
+       "d4558304-7c17-4aa0-bd50-cdd95547f1a7",
+       "d65f7c03-647f-4e5a-98b1-1faa3d330e7b",
+       "d85892ae-dacd-4a55-a557-9db3c16017c7",
+       "d8ecd546-2638-4338-86b5-59ab3f1303a3",
+       "d93b2614-5b15-4705-8665-fb4677f1ac45",
+       "d949485e-5188-49f4-9d30-5e135532d445",
+       "d99d5685-538d-4e6a-809b-3ebeab634363",
+       "da462ed3-c8f5-409e-bdc8-53e36a4961dd",
+       "da9e7ddc-cf71-4751-b8cf-133077687946",
+       "daff5153-cdb8-4ed2-b17e-7ee2aa689da0",
+       "dc20a07e-5f92-49c2-9c97-d5eda536d3f6",
+       "dce15387-4114-4b3e-91aa-5b42b45c44ac",
+       "dcf26dff-a7f2-4873-99a6-e3cd6dfc1654",
+       "dd3cb353-050f-4eee-85bd-37bfd678446c",
+       "dd5acc74-456a-4299-8316-58c0ced0d628",
+       "dd98de13-d556-4cf3-99f3-d1c0db85cb3f",
+       "ddfcde62-1b20-48ce-8ba0-7929edcd26fc",
+       "ddfd1469-94b9-4964-ada6-4fb43b0b9282",
+       "de0c00b6-098b-4d0e-abd4-4e12db32e024",
+       "de0da109-d1fd-447f-9684-5425f5a7d22d",
+       "de3b7f6f-58ed-4d7c-84f8-79f7989649bf",
+       "dee4121a-cd1f-4124-8242-f0eae8ef6580",
+       "dfaf517f-86a1-45eb-bd71-e0bffb610396",
+       "dfba6253-3958-43fc-b132-34a1efa45268",
+       "e0230af7-0edf-4f76-af57-44cd4ebad552",
+       "e0486be6-fc22-41b1-a7f9-a0311866ceca",
+       "e0ce5575-2d62-43c9-9c4b-fca4aff6ae4d",
+       "e0e0ad7b-dcbd-4a9b-8691-6f171425fa0b",
+       "e160ed28-7752-486e-85bb-bbff03642c67",
+       "e2ef9b74-481b-424b-8e33-f0b910f66370",
+       "e36b8794-c117-4d3d-bcde-39a3ae436f1e",
+       "e3bc9d0c-0d86-44a4-a548-a2054361a4ed",
+       "e40144ed-fe92-4fc0-8f88-9be7ff3b7051",
+       "e43b0df9-317f-4c1c-a7e3-51e81acf3bf1",
+       "e4508384-7c5b-4189-80e6-1fc8a0fd4692",
+       "e4c83b60-3d49-4fdc-a6b7-06d1a0c4a126",
+       "e52fa771-eaff-48e0-8c23-d118dc4b3438",
+       "e5da22bf-bc8a-4810-b273-1e33a6b37323",
+       "e630a714-3c2a-4c0b-9ad5-a8d45fa0c01b",
+       "e6850740-6219-4f82-a705-2e7b20ede751",
+       "e6b72db4-03c0-43f9-9e9c-d49ac0ac7eb7",
+       "e6e08185-e901-4552-974d-a81766b4fa16",
+       "e7059825-0844-4271-89e8-645e2f515b59",
+       "e76f1045-8355-48a8-8e0d-eed17bf4ff6c",
+       "e7f57347-7206-4a2f-a41b-0612d456cd30",
+       "e84c0880-728d-4ac2-b685-4f18f66c24db",
+       "e84c1369-68a2-4e67-979f-64decb6133a1",
+       "e8760175-e9bb-4ef9-87ca-591d1edd5163",
+       "e8e9959a-b422-4906-8d35-8b05c5dd6de1",
+       "e955ba85-fbe5-41e1-acf4-edea058dd135",
+       "e99aacd5-c692-4de8-b565-d5092598295d",
+       "e9f26305-2f99-43f2-8059-9694ad89cec6",
+       "ea3cc8ba-ab54-46d3-9c3a-91678fd8d381",
+       "ea47bbb0-6d4e-4744-94f7-0763ddc4313d",
+       "eae0bd2b-6875-4823-b596-f5c7c0a0809e",
+       "eafbf7cc-f20c-49d3-85ff-406dd32f6444",
+       "eb61e54a-646b-4c0a-88fe-f55d514202aa",
+       "ec8de02c-7954-4424-8b95-a21d8e104bd4",
+       "ecd6d8fb-780c-446c-a8bf-93386b22fe95",
+       "ed189e2b-a4e5-493b-9085-a5aae892e5a8",
+       "ed22c591-19f4-4096-a08c-5523a26b307c",
+       "ed4addef-4649-401f-9810-c331ffeb8cf6",
+       "ed6ff6d7-b976-413b-b433-8ebd2f3c2a54",
+       "edb2bf35-efe6-4ad4-bf6e-55848ba71dfe",
+       "edc50993-1fd4-4dba-9d2f-ae7a18559829",
+       "ee05a26d-b872-4d49-9860-2fd982b3662f",
+       "ee1ebe0b-995f-4239-aad3-bfe471a88b6e",
+       "ee856e7a-37ee-435c-80e8-d0ac6f15892f",
+       "eea3cb6c-57b5-4ea5-8639-30d39962df2d",
+       "eeacc55d-d548-498a-8bc6-ac1ddcade841",
+       "ef37620d-4fa4-4d2f-a668-7b1e556b3b04",
+       "f0001e85-68ed-4a76-bcdb-dd57f507a6b6",
+       "f00849dd-c1ba-4171-a503-603fe77c0a43",
+       "f0c560c6-ac9f-40e9-bb23-d308a0123563",
+       "f0ca4b9f-4ee6-4ad8-a95f-326ada9de3cd",
+       "f13b34d7-e2a6-4cbc-9d5f-b6fe05a1c701",
+       "f1488e6b-f677-44c5-8ff3-6a2f9bdb28c2",
+       "f169dfb2-e4c8-46e9-8591-e51bb82da082",
+       "f2864a75-2945-4467-be00-3b4b71831f4f",
+       "f2bc8f49-6b8f-4466-908c-c6ff3e5c8c32",
+       "f30f54e8-eba3-4412-a805-3a834922c260",
+       "f373e6a7-319a-481b-8bf3-5f4e5d229456",
+       "f3ae3313-19c7-4a76-aea3-a19bacf5f6f8",
+       "f6302ae7-0947-4a8d-ace4-5e6741aea9ba",
+       "f6cc1b2e-945c-4d44-b973-3a299325e756",
+       "f6e1cd0b-1f50-4a56-b015-269e3a95051d",
+       "f754ff0d-fbbb-47d0-82d1-9eef034d602e",
+       "f791876a-f3fb-45b8-90a9-af846d8b8f74",
+       "f7cf3bbf-acc0-4fe7-a631-aca698190ce2",
+       "f7f865d8-fced-4763-b73e-fd40e9387e45",
+       "f8772631-d4a1-440d-ac89-ac6659bdc073",
+       "f8a0a7be-a72e-4eeb-82f8-c0eeb0e94148",
+       "f8f03bb2-313e-4688-945f-052eed678174",
+       "f8f694e1-f9c9-428e-a85c-d09b3474c79b",
+       "f9078bad-f202-469d-bdc0-359304f0b048",
+       "f954219a-fd4b-4fb1-945f-7950efc1d975",
+       "fb62605c-a58e-4e53-8336-b2bee316b5a6",
+       "fc141ede-0aec-48af-a24e-237fdc16cb7f",
+       "fd1b6c5c-4585-47c1-82eb-a324189f3ebd",
+       "fd638d4c-c064-44aa-9a9b-86c0dd1c4728",
+       "ff4c78b4-7178-4a60-ba22-086fb18146df"
+      ]
+     },
+     "name": "Forest",
+     "non_ability_text": null,
+     "oracle_text": "({T}: Add {G}.)",
+     "power": null,
+     "printings": [
+      "10E",
+      "2ED",
+      "2XM",
+      "30A",
+      "3ED",
+      "40K",
+      "4BB",
+      "4ED",
+      "5ED",
+      "6ED",
+      "7ED",
+      "8ED",
+      "9ED",
+      "ACR",
+      "AFR",
+      "AKH",
+      "AKR",
+      "ALA",
+      "ANA",
+      "ANB",
+      "ARC",
+      "ATH",
+      "AVR",
+      "BBD",
+      "BFZ",
+      "BLB",
+      "BRB",
+      "BRO",
+      "BTD",
+      "C13",
+      "C14",
+      "C15",
+      "C16",
+      "C17",
+      "C18",
+      "C19",
+      "CED",
+      "CEI",
+      "CHK",
+      "CLB",
+      "CLU",
+      "CM2",
+      "CMA",
+      "CMD",
+      "CMM",
+      "CMR",
+      "CST",
+      "DD1",
+      "DDD",
+      "DDE",
+      "DDG",
+      "DDH",
+      "DDJ",
+      "DDL",
+      "DDM",
+      "DDO",
+      "DDP",
+      "DDR",
+      "DDS",
+      "DDU",
+      "DFT",
+      "DKM",
+      "DMR",
+      "DMU",
+      "DOM",
+      "DPA",
+      "DSK",
+      "DTK",
+      "E01",
+      "ECL",
+      "ELD",
+      "EOE",
+      "EVG",
+      "FBB",
+      "FDN",
+      "FIC",
+      "FIN",
+      "FRA",
+      "FRF",
+      "G17",
+      "GK1",
+      "GK2",
+      "GN2",
+      "GN3",
+      "GNT",
+      "GRN",
+      "GS1",
+      "GVL",
+      "H09",
+      "HBG",
+      "HOB",
+      "HOP",
+      "HOU",
+      "ICE",
+      "IKO",
+      "INR",
+      "INV",
+      "ISD",
+      "ITP",
+      "J14",
+      "J22",
+      "J25",
+      "JMP",
+      "KHM",
+      "KLD",
+      "KLR",
+      "KTK",
+      "LCI",
+      "LEA",
+      "LEB",
+      "LRW",
+      "LTR",
+      "M10",
+      "M11",
+      "M12",
+      "M13",
+      "M14",
+      "M15",
+      "M19",
+      "M20",
+      "M21",
+      "MBS",
+      "ME1",
+      "ME3",
+      "MH2",
+      "MH3",
+      "MID",
+      "MIR",
+      "MKM",
+      "MMQ",
+      "MOM",
+      "MRD",
+      "MSH",
+      "NEO",
+      "NPH",
+      "ODY",
+      "OLEP",
+      "ONE",
+      "ONS",
+      "ORI",
+      "OTJ",
+      "P02",
+      "P23",
+      "PAL00",
+      "PAL01",
+      "PAL03",
+      "PAL04",
+      "PAL05",
+      "PAL06",
+      "PAL99",
+      "PALP",
+      "PANA",
+      "PARL",
+      "PC2",
+      "PCA",
+      "PELP",
+      "PF19",
+      "PF20",
+      "PGPX",
+      "PGRU",
+      "PIP",
+      "PL25",
+      "PLST",
+      "PMPS",
+      "PMPS06",
+      "PMPS07",
+      "PMPS08",
+      "PMPS09",
+      "PMPS10",
+      "PMPS11",
+      "POR",
+      "PPP1",
+      "PRM",
+      "PRW2",
+      "PRWK",
+      "PS11",
+      "PSAL",
+      "PSS2",
+      "PSS3",
+      "PSS4",
+      "PTC",
+      "PTK",
+      "PZ2",
+      "RAV",
+      "REX",
+      "RIX",
+      "RNA",
+      "ROE",
+      "RQS",
+      "RTR",
+      "S99",
+      "SCD",
+      "SHM",
+      "SIR",
+      "SLD",
+      "SLP",
+      "SNC",
+      "SOI",
+      "SOM",
+      "SOS",
+      "SPM",
+      "STX",
+      "SUM",
+      "TD0",
+      "TD2",
+      "TDM",
+      "THB",
+      "THS",
+      "TLA",
+      "TMP",
+      "TMT",
+      "TPR",
+      "TRK",
+      "TSP",
+      "UGL",
+      "UND",
+      "UNF",
+      "UNH",
+      "USG",
+      "UST",
+      "VOW",
+      "WAR",
+      "WC00",
+      "WC01",
+      "WC02",
+      "WC03",
+      "WC04",
+      "WC97",
+      "WC98",
+      "WC99",
+      "WHO",
+      "WOE",
+      "XANA",
+      "XLN",
+      "ZEN",
+      "ZNR"
+     ],
+     "rarities": [
+      "common",
+      "rare"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "b34bb2dc-c1af-4d77-b0b3-a0fb342a5fc6",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 0.0,
+    "color_identity": [
+     "G"
+    ],
+    "colors": [],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "legal",
+     "paupercommander": "legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "legal",
+     "premodern": "legal",
+     "standard": "legal",
+     "standardbrawl": "legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "",
+    "name": "Forest",
+    "oracle_id": "b34bb2dc-c1af-4d77-b0b3-a0fb342a5fc6",
+    "oracle_text": "({T}: Add {G}.)",
+    "produced_mana": [
+     "G"
+    ],
+    "type_line": "Basic Land — Forest"
+   }
+  },
   "Forsaken Monument": {
    "phase_records": [
     {
@@ -144055,6 +144967,217 @@
     "type_line": "Enchantment"
    }
   },
+  "Hare Apparent": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Rabbit",
+       "Noble"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "White"
+     ],
+     "color_override": null,
+     "deck_copy_limit": {
+      "type": "Unlimited"
+     },
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pauper": "legal",
+      "paupercommander": "legal",
+      "pioneer": "legal",
+      "standard": "legal",
+      "standardbrawl": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 1,
+      "shards": [
+       "White"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "related_token_ids": [
+       "9e6b66e9-f17f-5985-a9a9-30d0f919fe5b"
+      ],
+      "source_printing_ids": [
+       "9fc6f0e9-eb5f-4bc0-b3d7-756644b66d12"
+      ]
+     },
+     "name": "Hare Apparent",
+     "non_ability_text": null,
+     "oracle_text": "When this creature enters, create a number of 1/1 white Rabbit creature tokens equal to the number of other creatures you control named Hare Apparent.\nA deck can have any number of cards named Hare Apparent.",
+     "power": {
+      "type": "Fixed",
+      "value": 2
+     },
+     "printings": [
+      "FDN"
+     ],
+     "rarities": [
+      "common"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "3c1619bd-db5e-4df6-a196-0a9d62374f6d",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 2
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "When ~ enters, create a number of 1/1 white Rabbit creature tokens equal to the number of other creatures you control named Hare Apparent.",
+       "destination": "Battlefield",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "colors": [
+          "White"
+         ],
+         "count": {
+          "qty": {
+           "filter": {
+            "controller": "You",
+            "properties": [
+             {
+              "type": "Another"
+             },
+             {
+              "name": "Hare Apparent",
+              "type": "Named"
+             }
+            ],
+            "type": "Typed",
+            "type_filters": [
+             "Creature"
+            ]
+           },
+           "type": "ObjectCount"
+          },
+          "type": "Ref"
+         },
+         "enters_attacking": false,
+         "keywords": [],
+         "name": "Rabbit",
+         "owner": {
+          "type": "Controller"
+         },
+         "power": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "tapped": false,
+         "toughness": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "type": "Token",
+         "types": [
+          "Creature",
+          "Rabbit"
+         ]
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "ChangesZone",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "type": "SelfRef"
+       },
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "all_parts": [
+     {
+      "component": "token",
+      "id": "81de52ef-7515-4958-abea-fb8ebdcef93c",
+      "name": "Rabbit",
+      "oracle_id": "fee35fc4-a5b5-4c2c-8c6a-62dad166ea72",
+      "type_line": "Token Creature — Rabbit"
+     }
+    ],
+    "arena_available": true,
+    "cmc": 2.0,
+    "color_identity": [
+     "W"
+    ],
+    "colors": [
+     "W"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "legal",
+     "paupercommander": "legal",
+     "penny": "not_legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "legal",
+     "standardbrawl": "legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{1}{W}",
+    "name": "Hare Apparent",
+    "oracle_id": "3c1619bd-db5e-4df6-a196-0a9d62374f6d",
+    "oracle_text": "When this creature enters, create a number of 1/1 white Rabbit creature tokens equal to the number of other creatures you control named Hare Apparent.\nA deck can have any number of cards named Hare Apparent.",
+    "power": "2",
+    "toughness": "2",
+    "type_line": "Creature — Rabbit Noble"
+   }
+  },
   "Harmless Offering": {
    "phase_records": [
     {
@@ -153071,12 +154194,12 @@
     "layout": "normal",
     "legalities": {
      "alchemy": "not_legal",
-     "brawl": "not_legal",
+     "brawl": "legal",
      "commander": "legal",
      "duel": "legal",
      "future": "not_legal",
-     "gladiator": "not_legal",
-     "historic": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
      "legacy": "legal",
      "modern": "not_legal",
      "oathbreaker": "legal",
@@ -153088,7 +154211,7 @@
      "premodern": "not_legal",
      "standard": "not_legal",
      "standardbrawl": "not_legal",
-     "timeless": "not_legal",
+     "timeless": "legal",
      "vintage": "legal"
     },
     "mana_cost": "{B}{B}",
@@ -158076,7 +159199,7 @@
      "brawl": "legal",
      "commander": "legal",
      "duel": "legal",
-     "future": "not_legal",
+     "future": "legal",
      "gladiator": "legal",
      "historic": "legal",
      "legacy": "legal",
@@ -195518,7 +196641,7 @@
     "all_parts": [
      {
       "component": "token",
-      "id": "96ec91a9-659a-455f-98e0-cd30b6c6c2a4",
+      "id": "e9c68c64-f3b9-45b7-83d1-bd1439a49942",
       "name": "Phyrexian Mite",
       "oracle_id": "2667d723-01c8-4ea3-ac17-cedb3b842c3b",
       "type_line": "Token Artifact Creature — Phyrexian Mite"
@@ -202697,6 +203820,305 @@
     "power": "3",
     "toughness": "3",
     "type_line": "Legendary Creature — Dragon Knight"
+   }
+  },
+  "Nadu, Winged Wisdom": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "brawl_commander": true,
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Bird",
+       "Wizard"
+      ],
+      "supertypes": [
+       "Legendary"
+      ]
+     },
+     "color_identity": [
+      "Green",
+      "Blue"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "is_commander": true,
+     "keywords": [
+      "Flying"
+     ],
+     "legalities": {
+      "commander": "banned",
+      "duel": "banned",
+      "legacy": "banned",
+      "modern": "banned",
+      "oathbreaker": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 1,
+      "shards": [
+       "Green",
+       "Blue"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "8281df8a-2fde-454a-813c-d9f86bb35d36",
+       "94b67489-5eb0-4406-9bf3-27e50dc632eb",
+       "a3a7d66d-c602-46b2-8ec6-7116acbe8e3a"
+      ]
+     },
+     "name": "Nadu, Winged Wisdom",
+     "non_ability_text": null,
+     "oracle_text": "Flying\nCreatures you control have \"Whenever this creature becomes the target of a spell or ability, reveal the top card of your library. If it's a land card, put it onto the battlefield. Otherwise, put it into your hand. This ability triggers only twice each turn.\"",
+     "power": {
+      "type": "Fixed",
+      "value": 3
+     },
+     "printings": [
+      "MH3",
+      "PMH3"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2024-06-07",
+       "text": "If Nadu leaves the battlefield and returns to the battlefield in the same turn, or if Nadu leaves and another Nadu appears, the triggered ability granted by the new one is different than the triggered ability granted by the old one. The one granted by the new Nadu may trigger twice for each creature you control, even if the ability granted by the old Nadu already triggered twice for those creatures that turn. (Note that creatures you control won't have the ability granted by the old one anymore, and if you control multiple Nadus, you won't have the opportunity to take actions before the \"legend rule\" gets you down to one Nadu.)"
+      },
+      {
+       "date": "2024-06-07",
+       "text": "If Nadu leaves the battlefield while one or more triggered abilities generated by the ability it grants are still on the stack, those abilities will still resolve as normal."
+      },
+      {
+       "date": "2024-06-07",
+       "text": "If Nadu somehow enters the battlefield while a spell or ability that targets a creature you control is on the stack, the ability granted by Nadu won't trigger since that creature didn't have that ability when it became the target of that spell or ability."
+      },
+      {
+       "date": "2024-06-07",
+       "text": "If you somehow control more than one Nadu, each permanent you control will have that many instances of the granted ability. These abilities are not redundant. For example, if you control two Nadus and one becomes the target of a spell or ability, each of its granted abilities will trigger. If that same Nadu becomes the target of a spell or ability again later in the turn, each of its granted abilities will trigger again, as each of them have triggered only once so far this turn."
+      },
+      {
+       "date": "2024-06-07",
+       "text": "Nadu, Winged Wisdom's last ability grants a triggered ability to itself as well as other creatures you control."
+      },
+      {
+       "date": "2024-06-07",
+       "text": "The ability that Nadu grants to each creature you control functions independently for each creature. Specifically, the ability can trigger twice each turn for each creature you control, not just twice total."
+      }
+     ],
+     "scryfall_oracle_id": "0ff11a61-6fe3-4c70-aba8-417023a5e54e",
+     "static_abilities": [
+      {
+       "active_zones": [],
+       "affected": {
+        "controller": "You",
+        "properties": [],
+        "type": "Typed",
+        "type_filters": [
+         "Creature"
+        ]
+       },
+       "affected_zone": null,
+       "characteristic_defining": false,
+       "condition": null,
+       "description": "Creatures you control have \"Whenever ~ becomes the target of a spell or ability, reveal the top card of your library. If it's a land card, put it onto the battlefield. Otherwise, put it into your hand. This ability triggers only twice each turn.\"",
+       "effect_zone": null,
+       "mode": "Continuous",
+       "modifications": [
+        {
+         "trigger": {
+          "batched": false,
+          "condition": null,
+          "constraint": null,
+          "damage_kind": "Any",
+          "description": "Whenever ~ becomes the target of a spell or ability, reveal the top card of your library. If it's a land card, put it onto the battlefield. Otherwise, put it into your hand. This ability triggers only twice each turn.",
+          "destination": null,
+          "execute": {
+           "condition": null,
+           "cost": null,
+           "description": null,
+           "duration": null,
+           "effect": {
+            "count": 1,
+            "player": {
+             "type": "Controller"
+            },
+            "type": "RevealTop"
+           },
+           "forward_result": false,
+           "kind": "Spell",
+           "optional": false,
+           "optional_targeting": false,
+           "sub_ability": {
+            "condition": {
+             "card_types": [
+              "Land"
+             ],
+             "type": "RevealedHasCardType"
+            },
+            "cost": null,
+            "description": null,
+            "duration": null,
+            "effect": {
+             "destination": "Battlefield",
+             "enter_tapped": false,
+             "enter_transformed": false,
+             "enters_attacking": false,
+             "origin": null,
+             "owner_library": false,
+             "target": {
+              "type": "ParentTarget"
+             },
+             "type": "ChangeZone"
+            },
+            "else_ability": {
+             "condition": null,
+             "cost": null,
+             "description": null,
+             "duration": null,
+             "effect": {
+              "destination": "Hand",
+              "enter_tapped": false,
+              "enter_transformed": false,
+              "enters_attacking": false,
+              "origin": null,
+              "owner_library": false,
+              "target": {
+               "type": "ParentTarget"
+              },
+              "type": "ChangeZone"
+             },
+             "forward_result": false,
+             "kind": "Spell",
+             "optional": false,
+             "optional_targeting": false,
+             "sub_ability": {
+              "condition": null,
+              "cost": null,
+              "description": null,
+              "duration": null,
+              "effect": {
+               "description": "This ability triggers only twice each turn",
+               "name": "unrecognized_clause_head",
+               "type": "Unimplemented"
+              },
+              "forward_result": false,
+              "kind": "Spell",
+              "optional": false,
+              "optional_targeting": false,
+              "sub_ability": null,
+              "sub_link": "SequentialSibling",
+              "target_prompt": null
+             },
+             "target_prompt": null
+            },
+            "forward_result": false,
+            "kind": "Spell",
+            "optional": false,
+            "optional_targeting": false,
+            "sub_ability": {
+             "condition": null,
+             "cost": null,
+             "description": null,
+             "duration": null,
+             "effect": {
+              "description": "This ability triggers only twice each turn",
+              "name": "unrecognized_clause_head",
+              "type": "Unimplemented"
+             },
+             "forward_result": false,
+             "kind": "Spell",
+             "optional": false,
+             "optional_targeting": false,
+             "sub_ability": null,
+             "sub_link": "SequentialSibling",
+             "target_prompt": null
+            },
+            "sub_link": "SequentialSibling",
+            "target_prompt": null
+           },
+           "target_prompt": null
+          },
+          "mode": "BecomesTarget",
+          "optional": false,
+          "origin": null,
+          "phase": null,
+          "secondary": false,
+          "trigger_zones": [
+           "Battlefield"
+          ],
+          "valid_card": {
+           "type": "SelfRef"
+          },
+          "valid_source": null,
+          "valid_target": null
+         },
+         "type": "GrantTrigger"
+        }
+       ]
+      }
+     ],
+     "toughness": {
+      "type": "Fixed",
+      "value": 4
+     },
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 3.0,
+    "color_identity": [
+     "G",
+     "U"
+    ],
+    "colors": [
+     "G",
+     "U"
+    ],
+    "keywords": [
+     "Flying"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "banned",
+     "duel": "banned",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "not_legal",
+     "legacy": "banned",
+     "modern": "banned",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{1}{G}{U}",
+    "name": "Nadu, Winged Wisdom",
+    "oracle_id": "0ff11a61-6fe3-4c70-aba8-417023a5e54e",
+    "oracle_text": "Flying\nCreatures you control have \"Whenever this creature becomes the target of a spell or ability, reveal the top card of your library. If it's a land card, put it onto the battlefield. Otherwise, put it into your hand. This ability triggers only twice each turn.\"",
+    "power": "3",
+    "toughness": "4",
+    "type_line": "Legendary Creature — Bird Wizard"
    }
   },
   "Narset Transcendent": {
@@ -230401,6 +231823,212 @@
     "type_line": "Sorcery"
    }
   },
+  "Reckless Charge": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "Target creature gets +3/+0 and gains haste until end of turn.",
+       "duration": "UntilEndOfTurn",
+       "effect": {
+        "duration": "UntilEndOfTurn",
+        "static_abilities": [
+         {
+          "active_zones": [],
+          "affected": {
+           "type": "ParentTarget"
+          },
+          "affected_zone": null,
+          "characteristic_defining": false,
+          "condition": null,
+          "description": "get +3/+0 and gains haste",
+          "effect_zone": null,
+          "mode": "Continuous",
+          "modifications": [
+           {
+            "type": "AddPower",
+            "value": 3
+           },
+           {
+            "type": "AddToughness",
+            "value": 0
+           },
+           {
+            "keyword": "Haste",
+            "type": "AddKeyword"
+           }
+          ]
+         }
+        ],
+        "target": {
+         "controller": null,
+         "properties": [],
+         "type": "Typed",
+         "type_filters": [
+          "Creature"
+         ]
+        },
+        "type": "GenericEffect"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Sorcery"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Red"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [
+      {
+       "Flashback": {
+        "data": {
+         "generic": 2,
+         "shards": [
+          "Red"
+         ],
+         "type": "Cost"
+        },
+        "type": "Mana"
+       }
+      }
+     ],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pauper": "legal",
+      "paupercommander": "legal",
+      "premodern": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 0,
+      "shards": [
+       "Red"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "1754a8db-060e-470f-94c0-37f12d82978a",
+       "2b357221-cae0-48ef-aedc-2dbdb694e373",
+       "5bad216a-66d3-46a6-ba05-db7e082d0dc5",
+       "d9275605-15a0-4db6-bd7d-66755138e8d7"
+      ]
+     },
+     "name": "Reckless Charge",
+     "non_ability_text": null,
+     "oracle_text": "Target creature gets +3/+0 and gains haste until end of turn.\nFlashback {2}{R} (You may cast this card from your graveyard for its flashback cost. Then exile it.)",
+     "power": null,
+     "printings": [
+      "EMA",
+      "HOP",
+      "J21",
+      "MH1",
+      "ODY",
+      "PLST",
+      "UMA",
+      "VMA"
+     ],
+     "rarities": [
+      "common"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2021-03-19",
+       "text": "A spell cast using flashback will always be exiled afterward, whether it resolves, is countered, or leaves the stack in some other way."
+      },
+      {
+       "date": "2021-03-19",
+       "text": "If a card with flashback is put into your graveyard during your turn, you can cast it if it’s legal to do so before any other player can take any actions."
+      },
+      {
+       "date": "2021-03-19",
+       "text": "To determine the total cost of a spell, start with the mana cost or alternative cost (such as a flashback cost) you’re paying, add any cost increases, then apply any cost reductions. The mana value of the spell is determined only by its mana cost, no matter what the total cost to cast the spell was."
+      },
+      {
+       "date": "2021-03-19",
+       "text": "You can cast a spell using flashback even if it was somehow put into your graveyard without having been cast."
+      },
+      {
+       "date": "2021-03-19",
+       "text": "You must still follow any timing restrictions and permissions, including those based on the card’s type. For instance, you can cast a sorcery using flashback only when you could normally cast a sorcery."
+      },
+      {
+       "date": "2021-03-19",
+       "text": "“Flashback [cost]” means “You may cast this card from your graveyard by paying [cost] rather than paying its mana cost” and “If the flashback cost was paid, exile this card instead of putting it anywhere else any time it would leave the stack.”"
+      }
+     ],
+     "scryfall_oracle_id": "45bee121-0beb-4901-9473-20e4704ba6dc",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 1.0,
+    "color_identity": [
+     "R"
+    ],
+    "colors": [
+     "R"
+    ],
+    "keywords": [
+     "Flashback"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "legal",
+     "paupercommander": "legal",
+     "penny": "legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{R}",
+    "name": "Reckless Charge",
+    "oracle_id": "45bee121-0beb-4901-9473-20e4704ba6dc",
+    "oracle_text": "Target creature gets +3/+0 and gains haste until end of turn.\nFlashback {2}{R} (You may cast this card from your graveyard for its flashback cost. Then exile it.)",
+    "type_line": "Sorcery"
+   }
+  },
   "Reckless One": {
    "phase_records": [
     {
@@ -255306,6 +256934,178 @@
     "type_line": "Enchantment"
    }
   },
+  "Snow-Covered Forest": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": {
+        "type": "Tap"
+       },
+       "description": null,
+       "duration": null,
+       "effect": {
+        "produced": {
+         "colors": [
+          "Green"
+         ],
+         "type": "Fixed"
+        },
+        "type": "Mana"
+       },
+       "forward_result": false,
+       "is_mana_ability": true,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Land"
+      ],
+      "subtypes": [
+       "Forest"
+      ],
+      "supertypes": [
+       "Basic",
+       "Snow"
+      ]
+     },
+     "color_identity": [
+      "Green"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pauper": "legal",
+      "paupercommander": "legal",
+      "pioneer": "legal",
+      "premodern": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "type": "NoCost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "1c59fc48-704b-4187-b9d3-2a2cff6dd54b",
+       "2e9a891d-a2c6-418d-a6bd-be2353b3e980",
+       "3995734f-5fa2-4039-af64-0bca88741089",
+       "92195708-cc07-44bf-85d8-6c5d6f0d789e",
+       "af1d1476-7778-4743-804a-e3f497d38d77",
+       "ca17acea-f079-4e53-8176-a2f5c5c408a1",
+       "ce561d66-bdfd-408f-bf5b-49b4a53d3807",
+       "fe241460-f7c1-4ba8-a156-6720b494ac97"
+      ]
+     },
+     "name": "Snow-Covered Forest",
+     "non_ability_text": null,
+     "oracle_text": "({T}: Add {G}.)",
+     "power": null,
+     "printings": [
+      "ANA",
+      "CSP",
+      "ICE",
+      "KHM",
+      "MB2",
+      "ME2",
+      "MH1",
+      "PANA",
+      "SLD"
+     ],
+     "rarities": [
+      "common",
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2021-02-05",
+       "text": "In a Limited event (usually Booster Draft or Sealed Deck), you can't add basic snow lands to your card pool as you would other basic lands. You can play with basic snow lands only if you open them in your sealed deck or draft them."
+      },
+      {
+       "date": "2021-02-05",
+       "text": "Snow is a supertype, not a card type. It has no rules meaning or function by itself, but spells and abilities may refer to it."
+      },
+      {
+       "date": "2021-02-05",
+       "text": "Snow isn't a type of mana. If an effect says you may spend mana as though it were any type, you can't pay for {S} using mana that wasn't produced by a snow source."
+      },
+      {
+       "date": "2021-02-05",
+       "text": "Some cards have additional effects for each {S} spent to cast them. You can cast these spells even if you don't spend any snow mana to cast them; their additional effects simply won't do anything."
+      },
+      {
+       "date": "2021-02-05",
+       "text": "The Kaldheim set doesn't have any cards with mana costs that include {S}, but some previous sets do. If an effect says such a spell costs {1} less to cast, that reduction doesn't apply to any {S} costs. This is also true for activated abilities that include {S} in their activation costs and effects that reduce those costs."
+      },
+      {
+       "date": "2021-02-05",
+       "text": "The {S} symbol is a generic mana symbol. It represents a cost that can be paid by one mana that was produced by a snow source. That mana can be any color or colorless."
+      }
+     ],
+     "scryfall_oracle_id": "5f0d3be8-e63e-4ade-ae58-6b0c14f2ce6d",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 0.0,
+    "color_identity": [
+     "G"
+    ],
+    "colors": [],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "legal",
+     "paupercommander": "legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "legal",
+     "premodern": "legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "",
+    "name": "Snow-Covered Forest",
+    "oracle_id": "5f0d3be8-e63e-4ade-ae58-6b0c14f2ce6d",
+    "oracle_text": "({T}: Add {G}.)",
+    "produced_mana": [
+     "G"
+    ],
+    "type_line": "Basic Snow Land — Forest"
+   }
+  },
   "Sokka, Bold Boomeranger": {
    "phase_records": [
     {
@@ -274516,7 +276316,7 @@
      "brawl": "legal",
      "commander": "legal",
      "duel": "legal",
-     "future": "not_legal",
+     "future": "legal",
      "gladiator": "legal",
      "historic": "legal",
      "legacy": "legal",
@@ -280071,7 +281871,7 @@
      "brawl": "legal",
      "commander": "legal",
      "duel": "legal",
-     "future": "not_legal",
+     "future": "legal",
      "gladiator": "legal",
      "historic": "legal",
      "legacy": "legal",
@@ -290040,7 +291840,7 @@
       ],
       "mana_cost": "",
       "name": "The Initiative",
-      "oracle_text": "Whenever one or more creatures a player controls deal combat damage to you, that player takes the initiative.\nWhenever you take the initiative and at the beginning of your upkeep, venture into Undercity. (If you're in a dungeon, advance to the next room. If you're not, enter the Undercity. You can take the initiative even if you already have it.)",
+      "oracle_text": "Whenever one or more creatures a player controls deal combat damage to you, that player takes the initiative.\nWhenever you take the initiative and at the beginning of your upkeep, venture into Undercity. (If you're in a dungeon, advance to the next room. If you're not, enter Undercity. You can take the initiative even if you already have it.)",
       "type_line": "Card"
      }
     ],
@@ -291319,6 +293119,210 @@
     "name": "Unexplained Absence",
     "oracle_id": "71faaee5-70ff-449c-85c8-560eb189a0a7",
     "oracle_text": "For each player, exile up to one target nonland permanent that player controls. For each permanent exiled this way, its controller cloaks the top card of their library. (To cloak a card, put it onto the battlefield face down as a 2/2 creature with ward {2}. Turn it face up any time for its mana cost if it's a creature card.)",
+    "type_line": "Instant"
+   }
+  },
+  "Unholy Heat": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "~ deals 2 damage to target creature or planeswalker.",
+       "duration": null,
+       "effect": {
+        "amount": {
+         "type": "Fixed",
+         "value": 2
+        },
+        "target": {
+         "filters": [
+          {
+           "controller": null,
+           "properties": [],
+           "type": "Typed",
+           "type_filters": [
+            "Creature"
+           ]
+          },
+          {
+           "controller": null,
+           "properties": [],
+           "type": "Typed",
+           "type_filters": [
+            "Planeswalker"
+           ]
+          }
+         ],
+         "type": "Or"
+        },
+        "type": "DealDamage"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": {
+         "inner": {
+          "comparator": "GE",
+          "lhs": {
+           "qty": {
+            "source": {
+             "scope": "Controller",
+             "type": "Zone",
+             "zone": "Graveyard"
+            },
+            "type": "DistinctCardTypes"
+           },
+           "type": "Ref"
+          },
+          "rhs": {
+           "type": "Fixed",
+           "value": 4
+          },
+          "type": "QuantityCheck"
+         },
+         "type": "ConditionInstead"
+        },
+        "cost": null,
+        "description": "Delirium — ~ deals 6 damage instead if there are four or more card types among cards in your graveyard.",
+        "duration": null,
+        "effect": {
+         "amount": {
+          "type": "Fixed",
+          "value": 6
+         },
+         "target": {
+          "type": "ParentTarget"
+         },
+         "type": "DealDamage"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Instant"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Red"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pauper": "legal",
+      "paupercommander": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 0,
+      "shards": [
+       "Red"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "2b73d294-6ab1-4051-9b0f-d8e335d37674",
+       "4e879386-b1f8-4f2a-9820-6e1291746f88",
+       "7bb5a3ef-4ef9-455b-b797-783f845275af"
+      ]
+     },
+     "name": "Unholy Heat",
+     "non_ability_text": null,
+     "oracle_text": "Unholy Heat deals 2 damage to target creature or planeswalker.\nDelirium — Unholy Heat deals 6 damage instead if there are four or more card types among cards in your graveyard.",
+     "power": null,
+     "printings": [
+      "H2R",
+      "J21",
+      "MB2",
+      "MH2",
+      "OTC",
+      "SLP",
+      "SPG"
+     ],
+     "rarities": [
+      "common"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2021-06-18",
+       "text": "The card types that can appear in a graveyard are artifact, battle, creature, enchantment, instant, kindred, land, planeswalker, and sorcery. Legendary, basic, and snow are supertypes, not card types; Kavu and Equipment are subtypes, not card types."
+      },
+      {
+       "date": "2021-06-18",
+       "text": "Unholy Heat checks your graveyard as it resolves to determine if it deals 2 or 6 damage. At that time, Unholy Heat isn't in the graveyard yet."
+      }
+     ],
+     "scryfall_oracle_id": "b23cba46-6ed2-442d-bc39-7c4933f6b083",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 1.0,
+    "color_identity": [
+     "R"
+    ],
+    "colors": [
+     "R"
+    ],
+    "keywords": [
+     "Delirium"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "legal",
+     "paupercommander": "legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{R}",
+    "name": "Unholy Heat",
+    "oracle_id": "b23cba46-6ed2-442d-bc39-7c4933f6b083",
+    "oracle_text": "Unholy Heat deals 2 damage to target creature or planeswalker.\nDelirium — Unholy Heat deals 6 damage instead if there are four or more card types among cards in your graveyard.",
     "type_line": "Instant"
    }
   },
@@ -296646,12 +298650,12 @@
     "layout": "normal",
     "legalities": {
      "alchemy": "not_legal",
-     "brawl": "not_legal",
+     "brawl": "legal",
      "commander": "legal",
      "duel": "legal",
      "future": "not_legal",
-     "gladiator": "not_legal",
-     "historic": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
      "legacy": "legal",
      "modern": "legal",
      "oathbreaker": "legal",
@@ -296663,7 +298667,7 @@
      "premodern": "legal",
      "standard": "not_legal",
      "standardbrawl": "not_legal",
-     "timeless": "not_legal",
+     "timeless": "legal",
      "vintage": "legal"
     },
     "mana_cost": "{1}{W}{B}",

@@ -116,9 +116,9 @@ def test_snapshot_serves_the_format_table_the_spa_reads():
 
 # ── wildcard cost for digital builds ─────────────────────────────────────────
 _RARITY_INDEX = {
-    "shock": {"rarity": "uncommon", "exempt_from_4cap": False},
-    "thoughtseize": {"rarity": "rare", "exempt_from_4cap": False},
-    "sol ring": {"rarity": "uncommon", "exempt_from_4cap": False},
+    "shock": {"rarity": "uncommon", "free": False},
+    "thoughtseize": {"rarity": "rare", "free": False},
+    "sol ring": {"rarity": "uncommon", "free": False},
 }
 
 
@@ -180,7 +180,7 @@ def test_wildcard_cost_charges_the_companion():
     }
     state.rarity_index["historic_brawl"]["keruga, the macrosage"] = {
         "rarity": "rare",
-        "exempt_from_4cap": False,
+        "free": False,
     }
     state.session.add("Keruga, the Macrosage", zone="companion")
     wc = engine.wildcard_cost(state)

@@ -639,9 +639,9 @@ def _inject_free_basics(cards: list[dict]) -> list[dict]:
     regardless of what the collection source reported (the Decks
     reconstruction omits basics the user has never put in a deck,
     and the Untapped CSV reports true owned quantities rather than
-    Arena's unlimited grant). Injecting quantity 99 lets
-    ``price-check``'s Arena 4-cap substitution treat basics as
-    infinite supply. Snow basics are NOT injected — the user has
+    Arena's unlimited grant). Injecting quantity 99 records that grant
+    in the collection itself (``price-check`` also treats these six as
+    free). Snow basics are NOT injected — the user has
     to actually own those.
     """
     by_name = {entry["name"]: entry for entry in cards}

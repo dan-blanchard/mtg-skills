@@ -391,9 +391,9 @@ def _rarity_index(state: ForgeState) -> NameIndex | None:
 def wildcard_cost(state: ForgeState) -> dict | None:
     """Arena wildcard cost for a DIGITAL build — ``{mythic, rare, uncommon, common}``
     needed for cards NOT already owned in the active (arena) Collection slot, reusing
-    ``price_check``'s Arena costing (4-cap-exemption aware). ``None`` for paper builds
-    (USD cost) or with no bulk. Basic lands are stripped — Arena never charges wildcards
-    for them."""
+    ``price_check``'s Arena costing (4 owned copies = unlimited). ``None`` for paper
+    builds (USD cost) or with no bulk. Basic lands are stripped — Arena never charges
+    wildcards for them."""
     if is_paper(state) or state.bulk_path is None:
         return None
     if state.session.pool_bounded:

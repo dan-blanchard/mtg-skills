@@ -16,6 +16,7 @@ import pytest
 from mtg_utils.bulk_loader import clear_memory_cache
 from mtg_utils.card_pool import CardPool, NoBulkError, is_game_card
 from mtg_utils.formats import FORMATS
+from mtg_utils.testkit import test_card
 
 
 def _card(name: str, **extra) -> dict:
@@ -218,7 +219,7 @@ class TestRarityIndex:
         bulk_path.write_text(json.dumps(cards))
         index = CardPool.load(bulk_path).rarity_index(FORMATS["commander"])
         assert index["dual card"]["rarity"] == "uncommon"
-        assert index["dual card"]["exempt_from_4cap"] is False
+        assert index["dual card"]["free"] is False
 
     def test_filters_by_legality(self, tmp_path):
         cards = [
@@ -269,50 +270,21 @@ class TestRarityIndex:
         assert index["fire // ice"]["rarity"] == "uncommon"
         assert index["fire"]["rarity"] == "uncommon"
 
-    def test_exempt_from_4cap_for_any_number_cards(self, tmp_path):
-        """Cards with 'A deck can have any number of cards named X' oracle
-        text are flagged ``exempt_from_4cap=True`` so price-check can
-        suppress the Arena 4-cap substitution for them."""
+    def test_flags_the_free_basic_lands(self, tmp_path):
+        """The six basics Arena hands every player are flagged ``free`` so
+        price-check charges no wildcard for them. Snow-Covered basics are
+        collected like any card, so they are not."""
         cards = [
-            {
-                "name": "Hare Apparent",
-                "rarity": "common",
-                "legalities": {"commander": "legal"},
-                "oracle_text": (
-                    "When this creature enters, create a number of 1/1 white Rabbit creature tokens equal to the number of other creatures you control named Hare Apparent.\nA deck can have any number of cards named Hare Apparent."
-                ),
-            },
-            {
-                "name": "Regular Rare",
-                "rarity": "rare",
-                "legalities": {"commander": "legal"},
-                "oracle_text": "Draw a card.",
-            },
+            {**test_card("Forest"), "rarity": "common"},
+            {**test_card("Snow-Covered Forest"), "rarity": "common"},
+            {**test_card("Ash Barrens"), "rarity": "common"},
         ]
         bulk_path = tmp_path / "bulk.json"
         bulk_path.write_text(json.dumps(cards))
         index = CardPool.load(bulk_path).rarity_index(FORMATS["commander"])
-        assert index["hare apparent"]["exempt_from_4cap"] is True
-        assert index["regular rare"]["exempt_from_4cap"] is False
-
-    def test_exempt_from_4cap_for_up_to_n_cards(self, tmp_path):
-        """Cards with 'A deck can have up to N cards named X' oracle text
-        are also flagged exempt — a deck can legitimately want 7 Seven
-        Dwarves, so owning 4 is not infinite supply."""
-        cards = [
-            {
-                "name": "Seven Dwarves",
-                "rarity": "rare",
-                "legalities": {"commander": "legal"},
-                "oracle_text": (
-                    "This creature gets +1/+1 for each other creature named Seven Dwarves you control.\nA deck can have up to seven cards named Seven Dwarves."
-                ),
-            },
-        ]
-        bulk_path = tmp_path / "bulk.json"
-        bulk_path.write_text(json.dumps(cards))
-        index = CardPool.load(bulk_path).rarity_index(FORMATS["commander"])
-        assert index["seven dwarves"]["exempt_from_4cap"] is True
+        assert index["forest"]["free"] is True
+        assert index["snow-covered forest"]["free"] is False
+        assert index["ash barrens"]["free"] is False
 
     def test_skips_draft_set_reprints_for_arena(self, tmp_path):
         """J21/JMP/AJMP reprints have draft-format rarities that don't match

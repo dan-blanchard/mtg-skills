@@ -268,7 +268,7 @@ mark-owned <deck.json> <collection.json> [--bulk-data <bulk-data-path>]
 
 `mark-owned` also does front-face aliasing for DFC / split / adventure / modal cards: a deck that lists `"Fable of the Mirror-Breaker"` (front face only, common in Arena/Moxfield exports) matches a collection entry for `"Fable of the Mirror-Breaker // Reflection of Kiki-Jiki"` (Scryfall's canonical combined form) and vice versa. You do not need to normalize these by hand before calling `mark-owned`.
 
-**`price-check` honors deck quantity and owned quantity.** Paper (USD) mode charges `max(deck_qty - owned_qty, 0) * unit_price` per card. Arena wildcard mode applies the same shortfall math plus the Arena 4-cap substitution: owning >=4 of a standard playset-capped card grants effectively infinite supply, but this substitution is suppressed for cards with oracle exemptions (`A deck can have any number of cards named X`).
+**`price-check` honors deck quantity and owned quantity.** Paper (USD) mode charges `max(deck_qty - owned_qty, 0) * unit_price` per card. Arena wildcard mode applies the same shortfall math plus the Arena 4-cap substitution: owning >=4 copies of ANY card — including "any number" cards like Hare Apparent or Rat Colony — is unlimited supply. The six basic lands (Plains, Island, Swamp, Mountain, Forest, Wastes) are free; Snow-Covered basics are not.
 
 ### Decision Table
 

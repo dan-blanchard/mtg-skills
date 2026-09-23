@@ -7,6 +7,7 @@ import pytest
 from click.testing import CliRunner
 
 from mtg_utils.price_check import check_prices, main
+from mtg_utils.testkit import test_card
 
 
 class TestCheckPrices:
@@ -347,24 +348,11 @@ class TestArenaWildcardMode:
         assert result["cards"][0]["owned"] is True
         assert result["cards"][0]["wildcards_needed"] == 0
 
-    def test_arena_4cap_exempt_card_charges_literal_shortfall(self, tmp_path):
-        """For cards with oracle exemption (any-number / up-to-N), owning
-        4 does NOT grant infinite supply — a deck running 17 Hare
-        Apparent with 4 owned needs 13 wildcards."""
-        cards = [
-            {
-                "name": "Hare Apparent",
-                "rarity": "common",
-                "legalities": {"brawl": "legal"},
-                "games": ["arena"],
-                "prices": {},
-                "oracle_text": (
-                    "When this creature enters, create a number of 1/1 white Rabbit creature tokens equal to the number of other creatures you control named Hare Apparent.\nA deck can have any number of cards named Hare Apparent."
-                ),
-            },
-        ]
+    def test_arena_4cap_covers_any_number_cards(self, tmp_path):
+        """Arena's 4-copies-means-unlimited rule covers "any number" cards too:
+        owning 4 Hare Apparent lets a deck run 17 of them for 0 wildcards."""
         bulk_path = tmp_path / "bulk.json"
-        bulk_path.write_text(json.dumps(cards))
+        bulk_path.write_text(json.dumps([_arena_printing("Hare Apparent", "common")]))
 
         deck = {
             "format": "historic_brawl",
@@ -373,60 +361,15 @@ class TestArenaWildcardMode:
             "owned_cards": [{"name": "Hare Apparent", "quantity": 4}],
         }
         result = check_prices(deck, bulk_path=bulk_path)
-        assert result["wildcard_cost"]["common"] == 13
-        assert result["cards"][0]["owned"] is False
-        assert result["cards"][0]["wildcards_needed"] == 13
-
-    def test_arena_4cap_exempt_card_fully_owned(self, tmp_path):
-        """Exempt card where owned >= deck_qty: 0 wildcards."""
-        cards = [
-            {
-                "name": "Hare Apparent",
-                "rarity": "common",
-                "legalities": {"brawl": "legal"},
-                "games": ["arena"],
-                "prices": {},
-                "oracle_text": (
-                    "When this creature enters, create a number of 1/1 white Rabbit creature tokens equal to the number of other creatures you control named Hare Apparent.\nA deck can have any number of cards named Hare Apparent."
-                ),
-            },
-        ]
-        bulk_path = tmp_path / "bulk.json"
-        bulk_path.write_text(json.dumps(cards))
-
-        deck = {
-            "format": "historic_brawl",
-            "commanders": [],
-            "cards": [{"name": "Hare Apparent", "quantity": 7}],
-            "owned_cards": [{"name": "Hare Apparent", "quantity": 10}],
-        }
-        result = check_prices(deck, bulk_path=bulk_path)
         assert result["wildcard_cost"]["common"] == 0
         assert result["cards"][0]["owned"] is True
+        assert result["cards"][0]["wildcards_needed"] == 0
 
-    def test_arena_4cap_exempt_up_to_n_card(self, tmp_path):
-        """The "up to N" exemption variant (Seven Dwarves, Nazgul) must
-        also suppress the Arena 4-cap substitution: owning 4 Seven
-        Dwarves when the deck wants 7 should charge 3 wildcards, not 0.
-
-        The ``exempt_from_4cap`` flag on ``CardPool.rarity_index`` is
-        already unit-tested for the up-to-N oracle pattern; this test
-        closes the end-to-end loop through ``_check_arena_wildcards``.
-        """
-        cards = [
-            {
-                "name": "Seven Dwarves",
-                "rarity": "rare",
-                "legalities": {"historicbrawl": "legal", "brawl": "legal"},
-                "games": ["arena"],
-                "prices": {},
-                "oracle_text": (
-                    "This creature gets +1/+1 for each other creature named Seven Dwarves you control.\nA deck can have up to seven cards named Seven Dwarves."
-                ),
-            },
-        ]
+    def test_arena_4cap_covers_up_to_n_cards(self, tmp_path):
+        """The "up to N" variant (Seven Dwarves, Nazgul) is covered the same way:
+        owning 4 Seven Dwarves fills all 7 slots."""
         bulk_path = tmp_path / "bulk.json"
-        bulk_path.write_text(json.dumps(cards))
+        bulk_path.write_text(json.dumps([_arena_printing("Seven Dwarves", "common")]))
 
         deck = {
             "format": "historic_brawl",
@@ -435,15 +378,31 @@ class TestArenaWildcardMode:
             "owned_cards": [{"name": "Seven Dwarves", "quantity": 4}],
         }
         result = check_prices(deck, bulk_path=bulk_path)
-        assert result["wildcard_cost"]["rare"] == 3
-        assert result["cards"][0]["wildcards_needed"] == 3
-        assert result["cards"][0]["owned"] is False
+        assert result["wildcard_cost"]["common"] == 0
+        assert result["cards"][0]["wildcards_needed"] == 0
+
+    def test_arena_basic_lands_are_free(self, tmp_path):
+        """Arena gives every player unlimited basic lands: 32 unowned Forests
+        cost no wildcards and count as owned."""
+        bulk_path = tmp_path / "bulk.json"
+        bulk_path.write_text(json.dumps([_arena_printing("Forest", "common")]))
+
+        deck = {
+            "format": "historic_brawl",
+            "commanders": [],
+            "cards": [{"name": "Forest", "quantity": 32}],
+            "owned_cards": [],
+        }
+        result = check_prices(deck, bulk_path=bulk_path)
+        assert result["wildcard_cost"]["common"] == 0
+        assert result["cards"][0]["owned"] is True
+        assert result["cards"][0]["wildcards_needed"] == 0
+        assert result["owned_cards_count"] == 1
 
     def test_arena_partial_ownership_under_4cap(self, tmp_path):
-        """Owning 1-3 copies of a normal card does NOT trigger the 4-cap
-        substitution; the deck still needs wildcards for the shortfall.
-        (In singleton Historic Brawl with owned=1, this is the no-op
-        "fully owned" case, so construct a non-singleton deck.)"""
+        """Owning 1-3 copies does NOT trigger the 4-cap substitution; the deck
+        still needs wildcards for the shortfall. (An "any number" card, since
+        a singleton deck with owned=1 is the no-op "fully owned" case.)"""
         cards = [
             {
                 "name": "Persistent Petitioners",
@@ -798,3 +757,9 @@ def test_cube_json_prices_the_commander_pool_too(sample_bulk_data):
     }
     result = check_prices(cube, bulk_path=sample_bulk_data)
     assert {c["name"] for c in result["cards"]} == {"Sol Ring", "Lightning Bolt"}
+
+
+def _arena_printing(name: str, rarity: str) -> dict:
+    """The real card *name* (its record from the snapshot) as one Arena printing at
+    *rarity* — rarity and availability are per-printing facts the snapshot omits."""
+    return {**test_card(name), "rarity": rarity, "games": ["arena"], "prices": {}}
