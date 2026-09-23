@@ -186,6 +186,15 @@ class TestLegality:
         assert CB.legality(test_card("Oko, Thief of Crowns")) == "banned"
         assert CMD.legality(test_card("Oko, Thief of Crowns")) == "legal"
 
+    def test_paper_nadu_stays_banned_after_the_rebalance_reversion(self):
+        # Arena reverted every rebalanced card on 2026-09-22 and ordinary Brawl banned
+        # the paper Nadu, so the `brawl` key will read "banned" once the upstream data
+        # catches up. Competitive Brawl's override promotes `banned` to legal, so its
+        # own list has to name the paper card for Nadu to stay banned.
+        nadu = test_card("Nadu, Winged Wisdom")
+        reverted = {**nadu, "legalities": {**nadu["legalities"], "brawl": "banned"}}
+        assert CB.legality(reverted) == "banned"
+
     def test_restricted_and_banned_are_distinct_statuses(self):
         lotus = test_card("Black Lotus")
         assert FORMATS["vintage"].legality(lotus) == "restricted"

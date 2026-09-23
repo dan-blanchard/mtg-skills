@@ -186,11 +186,14 @@ Two things make it different from every other format here:
    Tutor, Fierce Guardianship, Ancient Tomb, Chrome Mox…), while **`not_legal` still
    fails** because it means the card isn't on Arena at all. The format's own ten-card ban
    list is enforced by name via `COMPETITIVE_BRAWL_BANNED`.
-2. **Rebalanced cards supersede their paper originals.** If a card has an Alchemy `A-`
-   version, only the rebalanced version is legal. This is a real trap: `Harald, King of
-   Skemfar` is on Arena but reports `not_legal`, because `A-Harald, King of Skemfar` is
-   the legal one. When a card you expect to be legal reports `not_legal`, check for an
-   `A-` variant before concluding it's unavailable.
+2. **Rebalanced cards were reverted on 2026-09-22.** Arena turned every Alchemy `A-`
+   rebalance of a paper card back into the paper printing, in every format. Until
+   Scryfall (and so MTGJSON) catches up, the card data still marks the paper original
+   `not_legal` and the `A-` version legal. `Harald, King of Skemfar` reports `not_legal`
+   and `A-Harald, King of Skemfar` reports legal, but on Arena you now play the paper
+   Harald. When a card reports `not_legal` and has an `A-` variant, treat the paper card
+   as the legal one and tell the user the tools are behind. Check the next
+   `download-mtgjson` to see whether the data has caught up.
 
 **Determining Arena availability generally:** a card is craftable iff its MTGJSON record
 has `arena` in `games`. Checking the legality key alone is not sufficient — `banned` and

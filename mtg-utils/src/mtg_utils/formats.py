@@ -84,14 +84,17 @@ class Game:
 # Brawl queue bans. MTGJSON/Scryfall publish no legality key for it, so legality runs
 # off the ``brawl`` key plus two overrides: ``banned`` under that key is legal here,
 # ``not_legal`` still is not (it means the card isn't in the Arena pool at all).
-# Canonical Scryfall names (``A-`` is the Alchemy-rebalanced printing).
+# Canonical Scryfall names. Arena reverted every rebalanced (``A-``) card to its paper
+# printing on 2026-09-22, so the list names the paper Nadu the reversion left banned.
 #
-# Source: https://mtg.wiki/page/Competitive_Brawl (banned list as of 2026-08).
+# Source: https://mtg.wiki/page/Competitive_Brawl (banned list as of 2026-08);
+# https://magic.wizards.com/en/news/mtg-arena/state-of-the-formats-2026 (no Competitive
+# Brawl change at the reversion).
 # Re-verify after each B&R announcement; this list is a point-in-time snapshot.
 COMPETITIVE_BRAWL_BANNED: frozenset[str] = frozenset(
     {
         "Ajani, Nacatl Pariah",
-        "A-Nadu, Winged Wisdom",
+        "Nadu, Winged Wisdom",
         "Lutri, the Spellchaser",
         "Oko, Thief of Crowns",
         "Old Stickfingers",
