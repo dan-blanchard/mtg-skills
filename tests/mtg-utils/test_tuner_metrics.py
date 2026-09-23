@@ -4,6 +4,7 @@ from mtg_utils._tuner.issues import Sourcing, top_issues
 from mtg_utils._tuner.metrics import _ir_wincon, _is_wincon_card
 from mtg_utils.card_ir import Ability, Card, Effect, Face
 from mtg_utils.formats import Game
+from mtg_utils.testkit import test_card
 
 
 def _top_issues_for(*, focus_r, template_r, **metrics):
@@ -46,59 +47,35 @@ def test_self_loss_drawback_is_not_a_wincon():
     # A self-loss drawback ("you lose the game") is the opposite of a finisher (CR 104.3e
     # — a player losing is a drawback to its controller). Pact of Negation is a free
     # counter, not a closer; the subjectless r"loses? the game" wrongly counted it.
-    pact = _card(
-        "Pact of Negation",
-        "Counter target spell. At the beginning of your next upkeep, pay {3}{U}{U}. "
-        "If you don't, you lose the game.",
-    )
+    pact = test_card("Pact of Negation")
     assert _is_wincon_card(pact) is False
 
 
 def test_platinum_angel_self_protection_is_not_a_wincon():
-    angel = _card(
-        "Platinum Angel",
-        "You can't lose the game and your opponents can't win the game.",
-        type_line="Artifact Creature — Angel",
-        power="4",
-    )
+    # Real Platinum Angel: a 4-power flier, below the 40-life evasive-body bar.
+    angel = test_card("Platinum Angel")
     assert _is_wincon_card(angel) is False
 
 
 def test_opponent_loses_the_game_is_a_wincon():
-    # A genuine alt-win makes an OPPONENT lose (CR 104.3e). Still detected.
-    lab = _card(
-        "Mortal Combat",
-        "At the beginning of your upkeep, if there are twenty or more creature cards "
-        "in your graveyard, target opponent loses the game.",
-        type_line="Enchantment",
-    )
-    assert _is_wincon_card(lab) is True
+    # A genuine alt-win makes an OPPONENT lose (CR 104.3e). Still detected. Door to
+    # Nothingness: "Target player loses the game." (Mortal Combat wins the game
+    # instead, the other pattern.)
+    door = test_card("Door to Nothingness")
+    assert _is_wincon_card(door) is True
 
 
 def test_scaling_group_drain_is_a_wincon():
     # Yuriko's printed base drain is the deck's archetypal finisher and was uncounted —
     # the pattern list had the burn analog ("damage to each opponent equal") but no
     # life-loss sibling. Not trigger-multiplication (no commander doubler involved).
-    yuriko = _card(
-        "Yuriko, the Tiger's Shadow",
-        "Whenever a Ninja you control deals combat damage to a player, reveal the top "
-        "card of your library and put that card into your hand. Each opponent loses "
-        "life equal to that card's mana value.",
-        type_line="Legendary Creature — Human Ninja",
-        power="1",
-    )
+    yuriko = test_card("Yuriko, the Tiger's Shadow")
     assert _is_wincon_card(yuriko) is True
 
 
 def test_small_fixed_pinger_is_not_a_group_drain_wincon():
     # A 1-life incidental drip is not a finisher — keep the drain pattern scaling-scoped.
-    blood_artist = _card(
-        "Blood Artist",
-        "Whenever Blood Artist or another creature dies, target player loses 1 life "
-        "and you gain 1 life.",
-        type_line="Creature — Vampire",
-        power="0",
-    )
+    blood_artist = test_card("Blood Artist")
     assert _is_wincon_card(blood_artist) is False
 
 
@@ -148,7 +125,7 @@ class TestClosersReadTheGame:
     finisher only against one opponent."""
 
     def test_evasive_body_threshold_scales_with_life(self):
-        flyer = _card("Serra Angel", "Flying, vigilance", "Creature — Angel", power=4)
+        flyer = test_card("Serra Angel")  # 4-power flier
         assert _is_wincon_card(flyer) is False  # 40 life: needs 6 power
         assert _is_wincon_card(flyer, game=DUEL_25) is True  # 25 life: 4 power
         five = _card("Big Flyer", "Flying", "Creature — Drake", power=5)
@@ -157,12 +134,8 @@ class TestClosersReadTheGame:
     def test_fixed_group_reach_scales_with_life(self):
         # 3 damage to each opponent is 7.5% of a Commander life total and 12% of a
         # Brawl one — a closer at 25, not at 40; 5 clears the 40-life bar.
-        three = _card(
-            "Fiery Confluence", "Fiery Confluence deals 3 damage to each opponent."
-        )
-        five = _card(
-            "Kaervek's Torch", "Kaervek's Torch deals 5 damage to each opponent."
-        )
+        three = test_card("Sizzle")  # "deals 3 damage to each opponent"
+        five = test_card("Breath of Malfegor")  # "deals 5 damage to each opponent"
         assert _is_wincon_card(three) is False
         assert _is_wincon_card(three, game=DUEL_25) is True
         assert _is_wincon_card(five) is True
@@ -171,30 +144,25 @@ class TestClosersReadTheGame:
         # A fixed bolt is removal, not a finisher, even one-on-one at 25 life —
         # otherwise every Lightning Bolt in an Arena Brawl deck would count. A
         # single hit that is the whole starting life is a closer one-on-one.
-        bolt = _card("Lightning Bolt", "Lightning Bolt deals 3 damage to any target.")
-        axe = _card("Lava Axe", "Lava Axe deals 5 damage to target player.")
-        reservoir = _card(
-            "Aetherflux Reservoir",
-            "Pay 50 life: Aetherflux Reservoir deals 50 damage to any target.",
-        )
+        bolt = test_card("Lightning Bolt")
+        axe = test_card("Lava Axe")  # 5 damage to target player
+        reservoir = test_card("Aetherflux Reservoir")  # 50 damage to any target
         assert _is_wincon_card(bolt, game=DUEL_25) is False
         assert _is_wincon_card(axe, game=DUEL_25) is False
         assert _is_wincon_card(reservoir, game=DUEL_25) is True
         assert _is_wincon_card(reservoir) is False  # single-target: not a pod closer
 
     def test_single_target_scaling_reach_counts_only_one_on_one(self):
-        fireball = _card("Fireball", "Fireball deals X damage to any target.")
-        drain = _card(
-            "Torment of Hailfire",
-            "Target opponent loses X life unless they sacrifice a permanent.",
-        )
-        assert _is_wincon_card(fireball) is False
-        assert _is_wincon_card(fireball, game=DUEL_25) is True
+        # Blaze: "deals X damage to any target" (Fireball divides its X among
+        # any number of targets, a different shape). Essence Harvest: "Target
+        # player loses X life".
+        blaze = test_card("Blaze")
+        drain = test_card("Essence Harvest")
+        assert _is_wincon_card(blaze) is False
+        assert _is_wincon_card(blaze, game=DUEL_25) is True
         assert _is_wincon_card(drain, game=DUEL_25) is True
         # Group scaling reach counts at any table (unchanged).
-        exsanguinate = _card(
-            "Exsanguinate", "Each opponent loses X life. You gain life equal to..."
-        )
+        exsanguinate = test_card("Exsanguinate")
         assert _is_wincon_card(exsanguinate) is True
 
     def test_closer_band_scales_with_life(self):

@@ -7,26 +7,22 @@ same signals; this gate measures the deck against a target the builder picked.
 """
 
 from mtg_utils._tuner.bracket import bracket_gate
+from mtg_utils.testkit import test_card
 
 
 def _gc(name):
+    # A fictional Game Changer: the axis counts the flag, not the card.
     return {"name": name, "game_changer": True, "oracle_text": "", "type_line": "X"}
 
 
-def _mld(name):
-    return {"name": name, "oracle_text": "Destroy all lands.", "type_line": "Sorcery"}
+def _real_gc(name):
+    # A real card from the testkit snapshot (ADR-0056) with its Game Changer flag
+    # overlaid — the snapshot doesn't carry ``game_changer``.
+    return {**test_card(name), "game_changer": True}
 
 
 def _plain(name):
     return {"name": name, "oracle_text": "Draw a card.", "type_line": "Sorcery"}
-
-
-def _extra_turn(name):
-    return {
-        "name": name,
-        "oracle_text": "Take an extra turn after this one.",
-        "type_line": "Sorcery",
-    }
 
 
 def test_winter_orb_untap_lock_is_mass_land_denial():
@@ -34,14 +30,7 @@ def test_winter_orb_untap_lock_is_mass_land_denial():
     # explicitly names, but the regex only matched "lands don't untap", missing the
     # "can't untap more than one land" templating — so a Winter Orb deck could PASS a
     # deterministic FAIL axis at bracket 2.
-    winter_orb = {
-        "name": "Winter Orb",
-        "type_line": "Artifact",
-        "oracle_text": (
-            "As long as Winter Orb is untapped, players can't untap more than one land "
-            "during their untap steps."
-        ),
-    }
+    winter_orb = test_card("Winter Orb")
     result = bracket_gate([winter_orb, _plain("x")], target_bracket=2)
     mld = [v for v in result["violations"] if v["axis"] == "mass_land_denial"]
     assert mld
@@ -69,11 +58,7 @@ def test_loses_the_game_two_card_combo_fails_below_bracket_three():
 def test_multi_extra_turn_card_detected_at_exhibition():
     # Time Stretch ("Take two extra turns after this one") is an extra-turn card, but the
     # regex only matched "an extra turn" — so a B1 deck could PASS holding it.
-    time_stretch = {
-        "name": "Time Stretch",
-        "type_line": "Sorcery",
-        "oracle_text": "Take two extra turns after this one.",
-    }
+    time_stretch = test_card("Time Stretch")
     result = bracket_gate([time_stretch, _plain("x")], target_bracket=1)
     ext = [v for v in result["violations"] if v["axis"] == "extra_turns"]
     assert ext
@@ -84,7 +69,9 @@ def test_multi_extra_turn_card_detected_at_exhibition():
 class TestGameChangersAxis:
     def test_game_changer_over_core_ceiling_fails(self):
         # Bracket 2 (Core) allows 0 Game Changers; one present is a FAIL naming it.
-        result = bracket_gate([_gc("Smothering Tithe"), _plain("x")], target_bracket=2)
+        result = bracket_gate(
+            [_real_gc("Smothering Tithe"), _plain("x")], target_bracket=2
+        )
         assert result["pass"] is False
         gc = [v for v in result["violations"] if v["axis"] == "game_changers"]
         assert len(gc) == 1
@@ -112,7 +99,7 @@ class TestGameChangersAxis:
 
 class TestMassLandDenialAxis:
     def test_mass_land_denial_fails_below_bracket_four(self):
-        result = bracket_gate([_mld("Armageddon"), _plain("x")], target_bracket=3)
+        result = bracket_gate([test_card("Armageddon"), _plain("x")], target_bracket=3)
         mld = [v for v in result["violations"] if v["axis"] == "mass_land_denial"]
         assert mld
         assert mld[0]["severity"] == "FAIL"
@@ -122,7 +109,7 @@ class TestMassLandDenialAxis:
 class TestExtraTurnsAxis:
     def test_extra_turn_fails_at_exhibition(self):
         # Bracket 1 disallows extra-turn cards entirely.
-        result = bracket_gate([_extra_turn("Time Warp"), _plain("x")], target_bracket=1)
+        result = bracket_gate([test_card("Time Warp"), _plain("x")], target_bracket=1)
         ext = [v for v in result["violations"] if v["axis"] == "extra_turns"]
         assert ext
         assert ext[0]["severity"] == "FAIL"
@@ -130,12 +117,12 @@ class TestExtraTurnsAxis:
 
     def test_single_extra_turn_passes_at_core(self):
         # Bracket 2 allows extra-turn cards in low quantity — one is fine.
-        result = bracket_gate([_extra_turn("Time Warp"), _plain("x")], target_bracket=2)
+        result = bracket_gate([test_card("Time Warp"), _plain("x")], target_bracket=2)
         assert not [v for v in result["violations"] if v["axis"] == "extra_turns"]
 
     def test_multiple_extra_turns_warn_at_core(self):
         # Several extra-turn cards is the "not low quantity / chained" risk → WARN.
-        loaded = [_extra_turn("Time Warp"), _extra_turn("Temporal Manipulation")]
+        loaded = [test_card("Time Warp"), test_card("Temporal Manipulation")]
         result = bracket_gate(loaded, target_bracket=2)
         ext = [v for v in result["violations"] if v["axis"] == "extra_turns"]
         assert ext
@@ -213,13 +200,15 @@ class TestTwoCardComboAxis:
 class TestUnconstrainedBrackets:
     def test_optimized_short_circuits_to_pass(self):
         # Bracket 4 is banned-list only — Game Changers + mass land denial are fine.
-        loaded = [_gc(f"G{i}") for i in range(6)] + [_mld("Armageddon")]
+        loaded = [_gc(f"G{i}") for i in range(6)] + [test_card("Armageddon")]
         result = bracket_gate(loaded, target_bracket=4)
         assert result["pass"] is True
         assert result["violations"] == []
 
     def test_cedh_short_circuits_to_pass(self):
-        result = bracket_gate([_gc("Mana Crypt"), _mld("Armageddon")], target_bracket=5)
+        result = bracket_gate(
+            [_real_gc("Mana Crypt"), test_card("Armageddon")], target_bracket=5
+        )
         assert result["pass"] is True
 
 
@@ -247,7 +236,9 @@ def test_gate_is_not_applicable_one_on_one():
     # Brackets are a Commander-pod concept: a one-on-one build (every Arena game,
     # Competitive Brawl) passes with the reason attached, whatever it runs.
     result = bracket_gate(
-        [_gc("Mana Crypt"), _mld("Armageddon")], target_bracket=1, multiplayer=False
+        [_real_gc("Mana Crypt"), test_card("Armageddon")],
+        target_bracket=1,
+        multiplayer=False,
     )
     assert result["pass"] is True
     assert result["violations"] == []

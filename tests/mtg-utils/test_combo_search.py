@@ -14,6 +14,7 @@ from mtg_utils.combo_search import (
     search_combos,
 )
 from mtg_utils.hydrated_deck import HydratedDeck
+from mtg_utils.testkit import test_card
 
 
 def _cs_hd(deck):
@@ -749,18 +750,10 @@ def _mock_combo_search(api_response, deck, *, hydrated=None):
         return combo_search(HydratedDeck.from_parsed(deck, records=hydrated))
 
 
-_PERSIST_CREATURE = {
-    "name": "Murderous Redcap",
-    "type_line": "Creature — Goblin Assassin",
-    "keywords": ["Persist"],
-    "oracle_text": "When this creature enters, it deals damage equal to its power to any target.\nPersist (When this creature dies, if it had no -1/-1 counters on it, return it to the battlefield under its owner's control with a -1/-1 counter on it.)",
-}
-_VANILLA = {
-    "name": "Grizzly Bears",
-    "type_line": "Creature — Bear",
-    "keywords": [],
-    "oracle_text": "",
-}
+# Real cards from the testkit snapshot (ADR-0056): the template matcher reads
+# the real keyword list and type line.
+_PERSIST_CREATURE = test_card("Murderous Redcap")
+_VANILLA = test_card("Grizzly Bears")
 _CMDR = {
     "name": "Cmdr",
     "type_line": "Legendary Creature — Elf",
@@ -837,19 +830,8 @@ class TestTemplateMatching:
         assert _unmet_templates(two, deck) == two
 
 
-_ASHNOD = {
-    "name": "Ashnod's Altar",
-    "type_line": "Artifact",
-    "keywords": [],
-    "oracle_text": "Sacrifice a creature: Add {C}{C}.",
-}
-_RHYTHM = {
-    "name": "Rhythm of the Wild",
-    "type_line": "Enchantment",
-    "keywords": [],
-    "oracle_text": "Creature spells you control can't be countered.\nNontoken "
-    "creatures you control have riot.",
-}
+_ASHNOD = test_card("Ashnod's Altar")
+_RHYTHM = test_card("Rhythm of the Wild")
 # An INCLUDED variant whose named `uses` are present but which also REQUIRES a persist
 # creature (a template). Spellbook returns it in `included` even when the template isn't
 # satisfied — the bug that listed an unassemblable combo as present.
@@ -922,12 +904,7 @@ class TestNearMissTemplateValidation:
 
     def test_template_near_miss_when_only_template_missing(self):
         # deck has Moritte but no persist creature → 1-template near-miss.
-        moritte = {
-            "name": "Moritte of the Frost",
-            "type_line": "Legendary Snow Creature — Shapeshifter",
-            "keywords": [],
-            "oracle_text": "Changeling (This card is every creature type.)\nYou may have Moritte enter as a copy of a permanent you control, except it's legendary and snow in addition to its other types and, if it's a creature, it enters with two additional +1/+1 counters on it and has changeling.",
-        }
+        moritte = test_card("Moritte of the Frost")
         result = _mock_combo_search(
             _API, _deck(["Moritte of the Frost"]), hydrated=[_CMDR, moritte]
         )

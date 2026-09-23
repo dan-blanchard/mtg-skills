@@ -9,141 +9,71 @@ from mtg_utils._custom_format._common import (
     classify_library_effect,
     precompute_metadata,
 )
-
-
-def _card(name, oracle, type_line="Instant"):
-    return {"name": name, "oracle_text": oracle, "type_line": type_line}
+from mtg_utils.testkit import test_card, test_card_ir
 
 
 class TestClassifyLibraryEffect:
+    # Real cards from the testkit snapshot (ADR-0056): the classifier reads
+    # each card's real oracle text.
     def test_scry_is_reorder(self):
-        c = _card("Opt", "Scry 1, then draw a card.")
-        assert classify_library_effect(c) == LibraryEffect.REORDER
+        assert classify_library_effect(test_card("Opt")) == LibraryEffect.REORDER
 
     def test_look_at_top_is_peek(self):
-        c = _card(
-            "Sensei's Divining Top", "Look at the top three cards of your library."
-        )
+        c = test_card("Sensei's Divining Top")
         assert classify_library_effect(c) == LibraryEffect.PEEK
 
     def test_surveil_is_discard(self):
-        c = _card(
-            "Consider",
-            "Look at the top card of your library. "
-            "You may put that card into your graveyard. Draw a card.",
-        )
+        # Consider's surveil reminder: "You may put it into your graveyard."
+        c = test_card("Consider")
         assert classify_library_effect(c) == LibraryEffect.DISCARD
 
     def test_surveil_keyword_is_discard(self):
-        c = _card("Discovery", "Surveil 2, then draw a card.")
+        # Notion Rain: "Surveil 2, then draw two cards." (Discovery // Dispersal
+        # is a split card; its text lives on its faces, not the top level.)
+        c = test_card("Notion Rain")
         assert classify_library_effect(c) == LibraryEffect.DISCARD
 
     def test_exile_top_is_exile(self):
-        c = _card(
-            "Dragon's Rage Channeler",
-            "When ~ enters, exile the top card of your library.",
-            type_line="Creature",
-        )
+        # "Whenever Bomat Courier attacks, exile the top card of your library
+        # face down." (Dragon's Rage Channeler surveils; it never exiles.)
+        c = test_card("Bomat Courier")
         assert classify_library_effect(c) == LibraryEffect.EXILE
 
     def test_mill_is_mill(self):
-        c = _card(
-            "Stitcher's Supplier",
-            "When ~ enters, mill three cards.",
-            type_line="Creature",
-        )
+        c = test_card("Stitcher's Supplier")
         assert classify_library_effect(c) == LibraryEffect.MILL
 
     def test_search_is_search(self):
-        c = _card(
-            "Demonic Tutor", "Search your library for a card and put it into your hand."
-        )
+        c = test_card("Demonic Tutor")
         assert classify_library_effect(c) == LibraryEffect.SEARCH
 
     def test_basic_creature_is_none(self):
-        c = _card(
-            "Goblin Guide",
-            "Whenever ~ attacks, defending player reveals the top card "
-            "of their library.",
-            type_line="Creature",
-        )
+        c = test_card("Goblin Guide")
         # "reveal the top card of their library" — that's a peek but on opponent's
         # library; in shared-library format there are no opponent libraries so
         # this should still classify as PEEK at the format-agnostic layer.
         assert classify_library_effect(c) == LibraryEffect.PEEK
 
     def test_counterspell_is_none(self):
-        c = _card("Counterspell", "Counter target spell.")
+        c = test_card("Counterspell")
         assert classify_library_effect(c) == LibraryEffect.NONE
 
     def test_basic_land_is_none(self):
-        c = _card("Mountain", "({T}: Add {R}.)", type_line="Basic Land — Mountain")
+        c = test_card("Mountain")
         assert classify_library_effect(c) == LibraryEffect.NONE
-
-
-def _hcard(
-    name,
-    *,
-    mana_cost="",
-    cmc=0,
-    type_line="Creature",
-    oracle="",
-    color_identity=(),
-    produced=(),
-):
-    return {
-        "name": name,
-        "mana_cost": mana_cost,
-        "cmc": cmc,
-        "type_line": type_line,
-        "oracle_text": oracle,
-        "color_identity": list(color_identity),
-        "produced_mana": list(produced),
-    }
 
 
 class TestPrecomputeMetadata:
     def test_classifies_each_card_and_tags_archetypes(self):
-        # The archetype-tagging demo card uses ``removal`` — task #86 flipped
-        # it (the last unconverted-regex built-in preset) to a structural
-        # (``signal_keys``) view, so its arm needs a real ``oracle_id`` to
-        # resolve, which a bare ``_hcard(...)`` dict never carries. Base the
-        # third card on ``testkit.test_card("Murder")`` (real oracle_id +
-        # oracle text) instead of a synthetic "Doom Blade" dict, and seed the
-        # crosswalk trees memo first — Mountain/Brainstorm stay synthetic
-        # (their assertions exercise ``classify_library_effect``, not a
-        # structural-view preset, so they need no oracle_id).
-        from mtg_utils import testkit
-
-        testkit.test_card_ir("Murder")  # seeds the crosswalk trees memo
-        murder = testkit.test_card("Murder")
+        # Real cards from the testkit snapshot (ADR-0056). The archetype-tagging
+        # demo card uses ``removal`` — a structural (``signal_keys``) view, so
+        # its arm needs Murder's real ``oracle_id`` and the crosswalk trees memo
+        # seeded first.
+        test_card_ir("Murder")  # seeds the crosswalk trees memo
         hydrated = [
-            _hcard(
-                "Mountain",
-                type_line="Basic Land — Mountain",
-                color_identity=["R"],
-                produced=["R"],
-            ),
-            _hcard(
-                "Brainstorm",
-                mana_cost="{U}",
-                cmc=1,
-                type_line="Instant",
-                oracle="Draw three cards, then put two cards from your hand "
-                "on top of your library in any order.",
-                color_identity=["U"],
-            ),
-            {
-                **_hcard(
-                    murder["name"],
-                    mana_cost=murder.get("mana_cost", ""),
-                    cmc=int(murder.get("cmc") or 0),
-                    type_line=murder["type_line"],
-                    oracle=murder["oracle_text"],
-                    color_identity=murder.get("color_identity", ()),
-                ),
-                "oracle_id": murder["oracle_id"],
-            },
+            test_card("Mountain"),
+            test_card("Brainstorm"),
+            test_card("Murder"),
         ]
         meta = precompute_metadata(hydrated, presets=["removal"])
         assert len(meta) == 3
@@ -168,7 +98,7 @@ class TestPrecomputeMetadata:
 
     def test_unknown_preset_raises(self):
         with pytest.raises(KeyError):
-            precompute_metadata([_hcard("Foo")], presets=["does-not-exist"])
+            precompute_metadata([{"name": "Foo"}], presets=["does-not-exist"])
 
 
 class TestParsePipCounts:
@@ -196,15 +126,7 @@ class TestParsePipCounts:
         assert parse_pip_counts("") == {}
 
     def test_metadata_carries_pip_counts(self):
-        hydrated = [
-            _hcard(
-                "Counterspell",
-                mana_cost="{U}{U}",
-                cmc=2,
-                type_line="Instant",
-                color_identity=["U"],
-            ),
-        ]
+        hydrated = [test_card("Counterspell")]
         meta = precompute_metadata(hydrated, presets=[])
         assert meta[0].pip_counts == (("U", 2),)
 

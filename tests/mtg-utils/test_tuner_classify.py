@@ -5,23 +5,12 @@ from mtg_utils._analysis.signals import rank_deck_signals, tribal_payoff_subject
 from mtg_utils._tuner.classify import FRINGE_RANK, classify_deck, is_fringe
 from mtg_utils.hydrated_deck import HydratedDeck
 
-KRENKO = {
-    "name": "Krenko, Mob Boss",
-    "type_line": "Legendary Creature — Goblin Warrior",
-    "oracle_text": (
-        "{T}: Create X 1/1 red Goblin creature tokens, where X is the number of Goblins you control."
-    ),
-    "cmc": 4.0,
-    "color_identity": ["R"],
-}
-RABBLEMASTER = {
-    "name": "Goblin Rabblemaster",
-    "type_line": "Creature — Goblin Warrior",
-    "oracle_text": (
-        "Other Goblin creatures you control attack each combat if able.\nAt the beginning of combat on your turn, create a 1/1 red Goblin creature token with haste.\nWhenever this creature attacks, it gets +1/+0 until end of turn for each other attacking Goblin."
-    ),
-    "cmc": 3.0,
-}
+# Real cards from the testkit snapshot (ADR-0056); each ``test_card_ir`` call
+# seeds the crosswalk trees memo so the signal path resolves in CI.
+testkit.test_card_ir("Krenko, Mob Boss")  # seeds the crosswalk trees memo
+KRENKO = testkit.test_card("Krenko, Mob Boss")
+testkit.test_card_ir("Goblin Rabblemaster")  # seeds the crosswalk trees memo
+RABBLEMASTER = testkit.test_card("Goblin Rabblemaster")
 # DUAL and MURDER need a REAL, crosswalk-resolvable oracle_id: ``role_of``
 # (roles.py) buckets "interaction" via ``get_preset("removal").matches``,
 # a structural (``signal_keys``) view since task #86 (the last regex-bearing
@@ -34,31 +23,18 @@ RABBLEMASTER = {
 # open, so it's genuinely dual-purpose in THIS deck, not just a stand-in.
 testkit.test_card_ir("Goblin Cratermaker")  # seeds the crosswalk trees memo
 DUAL = testkit.test_card("Goblin Cratermaker")
-RAMP_ROCK = {
-    "name": "Mind Stone",
-    "type_line": "Artifact",
-    "oracle_text": "{T}: Add {C}.\n{1}, {T}, Sacrifice this artifact: Draw a card.",
-    "produced_mana": ["C"],
-    "cmc": 2.0,
-}
+testkit.test_card_ir("Mind Stone")  # seeds the crosswalk trees memo
+RAMP_ROCK = testkit.test_card("Mind Stone")
 testkit.test_card_ir("Murder")  # seeds the crosswalk trees memo
 MURDER = testkit.test_card("Murder")
-testkit.test_card_ir("Krenko, Mob Boss")  # seeds the crosswalk trees memo
-KRENKO_REAL = testkit.test_card("Krenko, Mob Boss")
 testkit.test_card_ir("Galerider Sliver")  # seeds the crosswalk trees memo
 GALERIDER = testkit.test_card("Galerider Sliver")
-VANILLA = {
-    "name": "Hill Giant",
-    "type_line": "Creature — Giant",
-    "oracle_text": "",
-    "cmc": 4.0,
-}
-MOUNTAIN = {
-    "name": "Mountain",
-    "type_line": "Basic Land — Mountain",
-    "oracle_text": "({T}: Add {R}.)",
-    "cmc": 0.0,
-}
+# A real vanilla that serves nothing here: it emits no signal at all. (Hill
+# Giant opens its own "Giant tribal" avenue through the membership floor.)
+testkit.test_card_ir("Gloom Pangolin")  # seeds the crosswalk trees memo
+VANILLA = testkit.test_card("Gloom Pangolin")
+testkit.test_card_ir("Mountain")  # seeds the crosswalk trees memo
+MOUNTAIN = testkit.test_card("Mountain")
 
 _ALL = [KRENKO, RABBLEMASTER, DUAL, RAMP_ROCK, MURDER, VANILLA, MOUNTAIN]
 
@@ -82,7 +58,7 @@ def test_buckets():
     assert by_name["Mountain"].bucket == "land"
     assert by_name["Mind Stone"].bucket == "spine"  # ramp
     assert by_name["Murder"].bucket == "spine"  # interaction
-    assert by_name["Hill Giant"].bucket == "filler"  # serves nothing
+    assert by_name["Gloom Pangolin"].bucket == "filler"  # serves nothing
 
 
 def test_engine_card_serves_an_avenue():
@@ -108,13 +84,8 @@ def test_serving_protection_card_buckets_spine_not_engine():
     # docstring: "protection is conditional Spine (Tier-2), never filler").
     from mtg_utils._analysis.signals import Signal
 
-    heroic = {
-        "name": "Heroic Intervention",
-        "type_line": "Instant",
-        "oracle_text": "Permanents you control gain hexproof and indestructible until "
-        "end of turn.",
-        "cmc": 2.0,
-    }
+    testkit.test_card_ir("Heroic Intervention")  # seeds the crosswalk trees memo
+    heroic = testkit.test_card("Heroic Intervention")
     deck = {
         "format": "commander",
         "commanders": [{"name": "Krenko, Mob Boss", "quantity": 1}],
@@ -167,7 +138,7 @@ def test_tribal_payoff_subjects_excludes_commander_only_membership():
             {"name": "Murder", "quantity": 1},
         ],
     }
-    index = {c["name"]: c for c in [KRENKO_REAL, GALERIDER, MURDER]}
+    index = {c["name"]: c for c in [KRENKO, GALERIDER, MURDER]}
     hd = HydratedDeck.from_parsed(deck, by_name=index)
     payoffs = tribal_payoff_subjects(hd.records, {"Krenko, Mob Boss"})
     assert "Sliver" in payoffs
@@ -286,7 +257,7 @@ def test_tribal_payoff_subjects_ignores_the_membership_floor():
         "commanders": [{"name": "Krenko, Mob Boss", "quantity": 1}],
         "cards": [{"name": "Birds of Paradise", "quantity": 1}],
     }
-    index = {c["name"]: c for c in [KRENKO_REAL, bop]}
+    index = {c["name"]: c for c in [KRENKO, bop]}
     hd = HydratedDeck.from_parsed(deck, by_name=index)
     payoffs = tribal_payoff_subjects(hd.records, {"Krenko, Mob Boss"})
     assert "Bird" not in payoffs
@@ -308,7 +279,7 @@ def test_ranked_signals_and_payoffs_extracts_once_per_card(monkeypatch):
             {"name": "Murder", "quantity": 1},
         ],
     }
-    index = {c["name"]: c for c in [KRENKO_REAL, GALERIDER, MURDER]}
+    index = {c["name"]: c for c in [KRENKO, GALERIDER, MURDER]}
     hd = HydratedDeck.from_parsed(deck, by_name=index)
     expected_ranked = rank_deck_signals(hd.records, {"Krenko, Mob Boss"})
     expected_payoffs = tribal_payoff_subjects(hd.records, {"Krenko, Mob Boss"})

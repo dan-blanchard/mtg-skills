@@ -17,6 +17,7 @@ from mtg_utils._tuner.swaps import (
     cut_candidates,
     propose_swaps,
 )
+from mtg_utils.testkit import test_card
 from mtg_utils.theme_presets import get_preset
 
 # Issues are built THROUGH the interface: ``Sourcing.issue`` decides each remedy from
@@ -86,6 +87,22 @@ def _cc(
     )
 
 
+def _real_cc(name, bucket, roles=(), served=(), edhrec_rank=1000):
+    """A real card from the testkit snapshot (ADR-0056) as a ``CardClass``, with
+    only its per-printing EDHREC rank overlaid."""
+    record = {**test_card(name), "edhrec_rank": edhrec_rank}
+    return CardClass(
+        name=name,
+        bucket=bucket,
+        roles=tuple(roles),
+        served=tuple(served),
+        dual_purpose=(bucket == "spine" and bool(served)),
+        cmc=float(record.get("cmc") or 0.0),
+        record=record,
+        edhrec_rank=edhrec_rank,
+    )
+
+
 def _band(current, lo, hi, **extra):
     dev = current - hi if current > hi else (current - lo if current < lo else 0)
     return {
@@ -105,36 +122,11 @@ def test_is_fixing_counts_basic_land_fetch():
     # the color you need, and a multi-type land-name fetch grabs 2+ types. _is_fixing read
     # only produced_mana, so it protected a strictly-worse 2-color rock while cutting the
     # any-basic fetcher that fixes all of the deck's colors.
-    kodama = _cc(
-        "Kodama's Reach",
-        "spine",
-        roles=("ramp",),
-        oracle=(
-            "Search your library for up to two basic land cards, reveal those cards, "
-            "put one onto the battlefield tapped and the other into your hand, then "
-            "shuffle."
-        ),
-    )
-    farseek = _cc(
-        "Farseek",
-        "spine",
-        roles=("ramp",),
-        oracle=(
-            "Search your library for a Plains, Island, Swamp, or Mountain card, put it "
-            "onto the battlefield tapped, then shuffle."
-        ),
-    )
-    rampant = _cc(
-        "Rampant Growth",
-        "spine",
-        roles=("ramp",),
-        oracle=(
-            "Search your library for a basic land card, put it onto the battlefield "
-            "tapped, then shuffle."
-        ),
-    )
-    signet = _cc("Golgari Signet", "spine", roles=("ramp",), produced=["B", "G"])
-    sol_ring = _cc("Sol Ring", "spine", roles=("ramp",), produced=["C"])
+    kodama = _real_cc("Kodama's Reach", "spine", roles=("ramp",))
+    farseek = _real_cc("Farseek", "spine", roles=("ramp",))
+    rampant = _real_cc("Rampant Growth", "spine", roles=("ramp",))
+    signet = _real_cc("Golgari Signet", "spine", roles=("ramp",))
+    sol_ring = _real_cc("Sol Ring", "spine", roles=("ramp",))
     assert _is_fixing(kodama) is True
     assert _is_fixing(farseek) is True
     assert _is_fixing(rampant) is True
@@ -146,17 +138,8 @@ def test_over_band_ramp_cut_keeps_basic_land_fetch_over_colorless_rock():
     # ramp over by 1; the cut must trim the redundant colorless rock, not the basic-land
     # fetch that fixes the deck's colors. Kodama is the LEAST-played (rank 900 vs 40) so
     # without the fix the play-rate tiebreak cuts it first — _is_fixing must override that.
-    kodama = _cc(
-        "Kodama's Reach",
-        "spine",
-        roles=("ramp",),
-        edhrec_rank=900,
-        oracle="Search your library for up to two basic land cards, put one onto the "
-        "battlefield tapped and the other into your hand, then shuffle.",
-    )
-    mind_stone = _cc(
-        "Mind Stone", "spine", roles=("ramp",), edhrec_rank=40, produced=["C"]
-    )
+    kodama = _real_cc("Kodama's Reach", "spine", roles=("ramp",), edhrec_rank=900)
+    mind_stone = _real_cc("Mind Stone", "spine", roles=("ramp",), edhrec_rank=40)
     budgets = {"ramp": _band(2, 0, 1), "lands": _band(36, 36, 38)}
     cuts = cut_candidates(
         [kodama, mind_stone], budgets=budgets, focus_verdict="FOCUSED", stranded=set()
@@ -345,7 +328,7 @@ def test_role_over_trim_cuts_least_played_excess_not_a_staple():
     # the least-played card, never the staple — the pre-fix sort keyed on
     # served-count first, so it cut Sol Ring (0 avenues) over the fringe ramp.
     classes = [
-        _cc("Sol Ring", "spine", roles=["ramp"], served=(), cmc=1.0, edhrec_rank=1),
+        _real_cc("Sol Ring", "spine", roles=["ramp"], edhrec_rank=1),
         _cc(
             "Fringe Rock",
             "spine",
@@ -1205,14 +1188,7 @@ def test_propose_swaps_never_sources_a_grant_covered_role_short_issue():
         # Coverage is read off the budgets row below, never hand-set on the issue.
         "message": "card draw short by 10 — covered by Sliver Weftwinder",
     }
-    draw_spell = {
-        "name": "Faithless Looting",
-        "type_line": "Sorcery",
-        "oracle_text": "Draw two cards, then discard two cards.",
-        "cmc": 1.0,
-        "prices": {"usd": "0.50"},
-        "color_identity": ["R"],
-    }
+    draw_spell = {**test_card("Faithless Looting"), "prices": {"usd": "0.50"}}
     out = _swaps_for_issue_dicts(
         classes,
         [covered_issue],
@@ -1245,14 +1221,7 @@ def test_dead_weight_never_sources_a_grant_covered_role():
         _cc("Junk B", "filler", cmc=3.0),
     ]
     issue = {"kind": "dead_weight", "severity": 7, "count": 2, "message": "dead weight"}
-    draw_spell = {
-        "name": "Faithless Looting",
-        "type_line": "Sorcery",
-        "oracle_text": "Draw two cards, then discard two cards.",
-        "cmc": 1.0,
-        "prices": {"usd": "0.50"},
-        "color_identity": ["R"],
-    }
+    draw_spell = {**test_card("Faithless Looting"), "prices": {"usd": "0.50"}}
     out = _swaps_for_issue_dicts(
         classes,
         [issue],
@@ -1315,12 +1284,8 @@ def test_fill_pass_skips_a_grant_covered_role():
     # A grant-covered role must not get pure fill-adds either (ADR-0040 §1 stops
     # the swap engine end to end) — only the OTHER short role gets filled.
     interaction_spell = {
-        "name": "Swords to Plowshares",
-        "type_line": "Instant",
-        "oracle_text": "Exile target creature.",
-        "cmc": 1.0,
+        **test_card("Swords to Plowshares"),
         "prices": {"usd": "1.00"},
-        "color_identity": ["W"],
         "edhrec_rank": 50,
     }
     budgets = {

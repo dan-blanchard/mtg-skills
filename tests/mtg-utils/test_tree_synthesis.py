@@ -170,7 +170,6 @@ from mtg_utils._card_ir.mirror.generated import (
     T_effect__DestroyAll,
     T_effect__GenericEffect,
     T_effect__PutCounter,
-    T_effect__SetTapState,
     T_effect__Unimplemented,
     T_filters__StackSpell,
     T_filters__Typed,
@@ -179,12 +178,12 @@ from mtg_utils._card_ir.mirror.generated import (
     T_modifications__AddToughness,
     T_properties__HasColor,
     T_properties__Owned,
-    T_state__Tap,
     T_target__And,
     T_target__ParentTarget,
     T_target__Typed,
 )
 from mtg_utils._card_ir.mirror.runtime import MirrorVariant
+from mtg_utils.testkit import test_card, test_card_ir
 
 
 @functools.lru_cache(maxsize=1)
@@ -215,6 +214,17 @@ def build_tree(root: object, name: str) -> ConceptTree:
     from mtg_utils._card_ir.crosswalk import build_concept_tree
 
     return build_concept_tree(root, name=name)
+
+
+def _real_tree(name: str) -> ConceptTree:
+    """A real card's front-face ConceptTree from the testkit snapshot (ADR-0056):
+    phase's own parse, overlay-corrected, before the synthesis stage — the
+    tree the synth arms read in production (CI-safe: the snapshot's stored
+    phase records seed the trees memo)."""
+    from mtg_utils._card_ir.trees import trees_for
+
+    test_card_ir(name)  # seeds the crosswalk trees memo
+    return trees_for(test_card(name))[0]
 
 
 def _gap_tree(oracle: str) -> ConceptTree:
@@ -4852,14 +4862,7 @@ def test_ability_copy_synth_fires_on_ability_copier():
 def test_ability_copy_synth_fires_on_self_copy():
     """Chancellor of Tales: "Whenever you cast an Adventure spell, you may
     copy it." — the "you may copy it" self-copy idiom."""
-    tree = ConceptTree(
-        name="Chancellor of Tales",
-        oracle_id="x",
-        oracle=(
-            "Flying\nWhenever you cast an Adventure spell, you may copy it."
-            " You may choose new targets for the copy."
-        ),
-    )
+    tree = _real_tree("Chancellor of Tales")
     node = _arm_ability_copy(tree)
     assert node is not None
     assert node.concept == "synth_ability_copy"
@@ -4888,15 +4891,7 @@ def test_noncombat_damage_payoff_synth_fires_on_reflector():
     """Backfire: "Whenever enchanted creature deals damage to you, this Aura
     deals that much damage to that creature's controller." — the reflector
     idiom ("deals that much damage to … that creature")."""
-    tree = ConceptTree(
-        name="Backfire",
-        oracle_id="x",
-        oracle=(
-            "Enchant creature\nWhenever enchanted creature deals damage to"
-            " you, this Aura deals that much damage to that creature's"
-            " controller."
-        ),
-    )
+    tree = _real_tree("Backfire")
     node = _arm_noncombat_damage_payoff(tree)
     assert node is not None
     assert node.concept == "synth_noncombat_damage_payoff"
@@ -4966,14 +4961,7 @@ def test_unspent_mana_bucket_b_synth_mana_burst_rider():
     of turn, you don't lose this mana as steps and phases end." — the
     mana-burst-rider tail phase buries in an Unimplemented sub-ability of
     the attack trigger, a genuine gap."""
-    tree = ConceptTree(
-        name="Brazen Collector",
-        oracle_id="x",
-        oracle=(
-            "First strike\nWhenever this creature attacks, add {R}. Until"
-            " end of turn, you don't lose this mana as steps and phases end."
-        ),
-    )
+    tree = _real_tree("Brazen Collector")
     assert has_structural_unspent_mana(tree) is False
     node = _arm_unspent_mana(tree)
     assert node is not None
@@ -5013,16 +5001,7 @@ def test_kill_engine_bucket_b_synth_evil_twin_quoted_grant():
     """Evil Twin: the destroy ability lives inside a QUOTED granted ability
     folded into a ``clone`` Effect — no destroy ability of its own to walk,
     the ONE card phase can't structure at v0.9.0."""
-    tree = ConceptTree(
-        name="Evil Twin",
-        oracle_id="x",
-        oracle=(
-            "You may have this creature enter as a copy of any creature on"
-            ' the battlefield, except it has "{U}{B}, {T}: Destroy target'
-            ' creature with the same name as this creature."'
-        ),
-        card_types=("Creature",),
-    )
+    tree = _real_tree("Evil Twin")
     assert has_structural_kill_engine(tree) is False
     node = _arm_kill_engine(tree)
     assert node is not None
@@ -5078,15 +5057,7 @@ def test_big_hand_makers_bucket_b_synth_ancient_silver_dragon():
     """Ancient Silver Dragon: "You have no maximum hand size for the rest of
     the game." — a ONE-SHOT effect-granted no-max-hand-size the structural
     static-mode / ``no_max_handsize`` effect-concept walk doesn't reach."""
-    tree = ConceptTree(
-        name="Ancient Silver Dragon",
-        oracle_id="x",
-        oracle=(
-            "Flying\nWhenever this creature deals combat damage to a player,"
-            " roll a d20. Draw cards equal to the result. You have no"
-            " maximum hand size for the rest of the game."
-        ),
-    )
+    tree = _real_tree("Ancient Silver Dragon")
     assert has_structural_big_hand_makers(tree) is False
     node = _arm_big_hand_makers(tree)
     assert node is not None
@@ -5129,15 +5100,7 @@ def test_big_hand_matters_bucket_b_synth_castle_locthwain():
     """Castle Locthwain: "Draw a card, then you lose life equal to the
     number of cards in your hand." — a full-grip TEXT reference outside any
     QuantityComparison/dynamic-P/T node shape, a genuine gap."""
-    tree = ConceptTree(
-        name="Castle Locthwain",
-        oracle_id="x",
-        oracle=(
-            "This land enters tapped unless you control a Swamp.\n{T}: Add"
-            " {B}.\n{1}{B}{B}, {T}: Draw a card, then you lose life equal to"
-            " the number of cards in your hand."
-        ),
-    )
+    tree = _real_tree("Castle Locthwain")
     assert has_structural_big_hand_matters(tree) is False
     node = _arm_big_hand_matters(tree)
     assert node is not None
@@ -5212,7 +5175,7 @@ def test_firebending_matters_addkw_grant_is_structural():
         statics=(),
     )
     tree = ConceptTree(
-        name="Sozin's Comet",
+        name="X",
         oracle_id="x",
         oracle="Each creature you control gains firebending 5 until end of turn.",
         units=(unit,),
@@ -5226,12 +5189,7 @@ def test_firebending_matters_token_grant_bucket_b_gap():
     make_token spec's own printed body — phase emits no AddKeyword for a
     token's own ability, the genuine bucket-B tail (verified over the full
     commander-legal corpus: exactly 4 such cards)."""
-    tree = ConceptTree(
-        name="Fire Nation Attacks",
-        oracle_id="x",
-        oracle=("Create two 2/2 red Soldier creature tokens with firebending 1."),
-        units=(),
-    )
+    tree = _real_tree("Fire Nation Attacks")
     assert has_structural_firebending_grant(tree) is False
     node = _arm_firebending_matters(tree)
     assert node is not None
@@ -5244,16 +5202,7 @@ def test_firebending_matters_no_fire_on_self_name_reference():
     mechanic relevance); the narrower ``with firebending`` bucket-B anchor
     correctly sheds it (adjudicated over-fire, verified against the real
     corpus)."""
-    tree = ConceptTree(
-        name="Firebending Lesson",
-        oracle_id="x",
-        oracle=(
-            "Kicker {4}\nFirebending Lesson deals 2 damage to target"
-            " creature. If this spell was kicked, it deals 5 damage to"
-            " that creature instead."
-        ),
-        units=(),
-    )
+    tree = _real_tree("Firebending Lesson")
     assert has_structural_firebending_grant(tree) is False
     assert _arm_firebending_matters(tree) is None
 
@@ -5289,7 +5238,7 @@ def test_station_reference_structural_on_typed_spacecraft_filter():
         statics=(),
     )
     tree = ConceptTree(
-        name="Gravkill",
+        name="X",
         oracle_id="x",
         oracle="Exile target creature or Spacecraft.",
         units=(unit,),
@@ -5315,7 +5264,7 @@ def test_station_charge_structural_when_nested_in_putcounter_target():
         costs=(),
         statics=(),
     )
-    tree = ConceptTree(name="Drill Too Deep", oracle_id="x", oracle="x", units=(unit,))
+    tree = ConceptTree(name="X", oracle_id="x", oracle="x", units=(unit,))
     assert has_structural_station_charge(tree) is True
 
 
@@ -5353,9 +5302,7 @@ def test_station_charge_structural_when_sibling_condition_gated():
         costs=(),
         statics=(),
     )
-    tree = ConceptTree(
-        name="Systems Override", oracle_id="x", oracle="x", units=(unit,)
-    )
+    tree = ConceptTree(name="X", oracle_id="x", oracle="x", units=(unit,))
     assert has_structural_station_charge(tree) is True
 
 
@@ -5400,12 +5347,7 @@ def test_station_matters_bucket_b_enchant_target_gap():
     Spacecraft" restriction — phase drops the enchant-target subtype
     entirely (widens to bare ``Permanent``), the single-card bucket-B
     tail."""
-    tree = ConceptTree(
-        name="Tractor Beam",
-        oracle_id="x",
-        oracle="Enchant creature or Spacecraft",
-        units=(),
-    )
+    tree = _real_tree("Tractor Beam")
     assert has_structural_station_reference(tree) is False
     assert has_structural_station_charge(tree) is False
     node = _arm_station_matters(tree)
@@ -5465,37 +5407,15 @@ def test_sweep_kept_mirrors_end_to_end_fire_and_no_fire():
     ``_sweep_kept_mirrors``), not the arm in isolation."""
     from mtg_utils._analysis.lanes import _sweep_kept_mirrors
 
-    villainous = apply_tree_synthesis(
-        ConceptTree(
-            name="Davros, Dalek Creator",
-            oracle_id="x",
-            oracle=(
-                "Menace\nAt the beginning of your end step, create a 3/3"
-                " black Dalek artifact creature token with menace if an"
-                " opponent lost 3 or more life this turn. Then each"
-                " opponent who lost 3 or more life this turn faces a"
-                " villainous choice — You draw a card, or that player"
-                " discards a card."
-            ),
-        )
-    )
+    villainous = apply_tree_synthesis(_real_tree("Davros, Dalek Creator"))
     assert any(s.key == "villainous_choice" for s in _sweep_kept_mirrors(villainous))
 
-    timing = apply_tree_synthesis(
-        ConceptTree(
-            name="City of Solitude",
-            oracle_id="x",
-            oracle=(
-                "Players can cast spells and activate abilities only"
-                " during their own turns."
-            ),
-        )
-    )
+    timing = apply_tree_synthesis(_real_tree("City of Solitude"))
     timing_sigs = _sweep_kept_mirrors(timing)
     assert any(s.key == "timing_control" and s.scope == "any" for s in timing_sigs)
 
     unrelated = apply_tree_synthesis(
-        ConceptTree(name="Chaos Wand", oracle_id="x", oracle="Do something unrelated.")
+        ConceptTree(name="X", oracle_id="x", oracle="Do something unrelated.")
     )
     unrelated_keys = {s.key for s in _sweep_kept_mirrors(unrelated)}
     assert not unrelated_keys & {
@@ -5539,15 +5459,7 @@ def test_self_power_scale_fires_on_esper_sentinel():
     """Esper Sentinel's "pays {X}, where X is this creature's power" — the
     self-power-scaling cross-open (CR 122.1): such a commander wants +1/+1
     counter sources to pump its own power."""
-    tree = ConceptTree(
-        name="Esper Sentinel",
-        oracle_id="x",
-        oracle=(
-            "Whenever an opponent casts their first noncreature spell each"
-            " turn, draw a card unless that player pays {X}, where X is"
-            " this creature's power."
-        ),
-    )
+    tree = _real_tree("Esper Sentinel")
     node = _arm_self_power_scale(tree)
     assert node is not None
     assert node.concept == "synth_self_power_scale"
@@ -5650,20 +5562,9 @@ def test_miracle_grant_synth_registered():
 
 def test_miracle_grant_fires_on_folded_grant_residue():
     """Topdeck the Halls's "Decorated cards in your hand have miracle {S}"
-    — the folded-grant residue (CR 702.94) real oracle text, built by hand
-    since the card is not in the committed crosswalk fixture (it predates
-    v0.9.0's own parse of this exact grant shape in some builds)."""
-    tree = ConceptTree(
-        name="Topdeck the Halls",
-        oracle_id="x",
-        oracle=(
-            "Decorated cards in your hand have miracle {S}. (Decorated"
-            " cards include premiums, promos, and cards with alternate"
-            " frames or art.)\nAt the beginning of your upkeep, if you"
-            " control twelve or more decorated permanents, you win the"
-            " game."
-        ),
-    )
+    — the folded-grant residue (CR 702.94); the real tree from the testkit
+    snapshot."""
+    tree = _real_tree("Topdeck the Halls")
     node = _arm_miracle_grant(tree)
     assert node is not None
     assert node.concept == "synth_miracle_grant"
@@ -5689,22 +5590,11 @@ def test_snow_matters_synth_registered():
 
 def test_snow_matters_fires_on_draugr_necromancer():
     """Draugr Necromancer's "spend mana from snow sources" — the bare
-    "snow" word residue (CR 205.4), real oracle text built by hand (not in
-    the committed crosswalk fixture): no typed HasSupertype:Snow filter or
+    "snow" word residue (CR 205.4), the real tree from the testkit snapshot:
+    no typed HasSupertype:Snow filter or
     YouControlSnowPermanentCountAtLeast condition anywhere on the card, so
     the residue mirror is the sole producer."""
-    tree = ConceptTree(
-        name="Draugr Necromancer",
-        oracle_id="x",
-        oracle=(
-            "If a nontoken creature an opponent controls would die, exile"
-            " that card with an ice counter on it instead.\nYou may cast"
-            " spells from among cards in exile your opponents own with"
-            " ice counters on them, and you may spend mana from snow"
-            " sources as though it were mana of any color to cast those"
-            " spells."
-        ),
-    )
+    tree = _real_tree("Draugr Necromancer")
     node = _arm_snow_matters(tree)
     assert node is not None
     assert node.concept == "synth_snow_matters"
@@ -5763,15 +5653,8 @@ def test_type_change_fires_on_baneslayer_angel():
     """Baneslayer Angel's own "protection from Demons and from Dragons"
     keyword line — CR 702.16/613.1d — is a BEARER keyword, not an
     AddKeyword GRANT, so it carries no typed modification for the
-    structural read to see; real oracle text built by hand since the card
-    is not in the committed crosswalk fixture."""
-    tree = ConceptTree(
-        name="Baneslayer Angel",
-        oracle_id="x",
-        oracle=(
-            "Flying, first strike, lifelink, protection from Demons and from Dragons"
-        ),
-    )
+    structural read to see; the real tree from the testkit snapshot."""
+    tree = _real_tree("Baneslayer Angel")
     node = _arm_type_change(tree)
     assert node is not None
     assert node.concept == "synth_type_change"
@@ -5849,53 +5732,13 @@ def test_opponent_counter_grant_synth_registered():
 
 
 def test_opponent_counter_grant_fires_on_mind_spiral_cotap_anaphora():
-    """Mind Spiral-shaped: "tap target creature an opponent controls and
+    """Mind Spiral's gift rider: "tap target creature an opponent controls and
     put a stun counter on it" — phase loses BOTH the tap target's AND the
     counter's own target to ``ParentTarget`` (the pronoun "it"), so the
     per-unit structural join (raw="") can't see the opponent direction;
     only the whole-oracle anaphora-recovery scan (via the unit's own
-    ``description``) finds it. Hand-built (real corpus residue: Mind
-    Spiral, not in the committed crosswalk fixture) since the mechanism
-    needs actual typed place_counter/tap_untap effect nodes, not bare
-    oracle text."""
-    stun_counter = ConceptNode(
-        concept="place_counter",
-        node=T_effect__PutCounter(
-            count=T_count__Fixed(value=1),
-            counter_type="stun",
-            target=T_target__ParentTarget(),
-        ),
-        role="effect",
-        scope="you",
-        subject=(),
-        raw="",
-    )
-    tap_effect = ConceptNode(
-        concept="tap_untap",
-        node=T_effect__SetTapState(
-            scope="you", state=T_state__Tap(), target=T_target__ParentTarget()
-        ),
-        role="effect",
-        scope="you",
-        subject=(),
-        raw="",
-    )
-    unit = AbilityUnit(
-        origin="ability",
-        index=0,
-        node=SynthesizedNode(
-            arm_id="_test",
-            description=(
-                "tap target creature an opponent controls and put a stun counter on it"
-            ),
-        ),
-        kind="Spell",
-        trigger_event=None,
-        effects=(tap_effect, stun_counter),
-        costs=(),
-        statics=(),
-    )
-    tree = ConceptTree(name="Mind Spiral", oracle_id="x", oracle="x", units=(unit,))
+    ``description``) finds it. The real tree from the testkit snapshot."""
+    tree = _real_tree("Mind Spiral")
     assert not has_structural_opponent_counter_grant(tree)
     node = _arm_opponent_counter_grant(tree)
     assert node is not None
@@ -5927,42 +5770,12 @@ def test_cant_block_grant_synth_registered():
 
 
 def test_cant_block_grant_fires_on_sole_static_raw_residue():
-    """Immortal Obligation-shaped: a SOLE static ability whose own
-    ``description`` carries the full face text (the projection's
-    ``_fill_sole_empty``) — "that creature ... can't block creatures you
-    control" matches the per-unit raw marker with no typed CantBlock
-    static anywhere (``modifications=[]``); real oracle text built by
-    hand since the card is not in the committed crosswalk fixture."""
-    unit = AbilityUnit(
-        origin="static",
-        index=0,
-        node=S_static_abilities(
-            active_zones=[],
-            affected=None,
-            affected_zone=None,
-            characteristic_defining=False,
-            condition=None,
-            description=(
-                "Return target creature card from an opponent's graveyard"
-                " to the battlefield under their control with a duty"
-                " counter on it. For as long as that creature has a duty"
-                " counter on it, it is goaded, can't attack you or a"
-                " permanent you control, and can't block creatures you"
-                " control."
-            ),
-            effect_zone=None,
-            mode="Unrecognized",
-            modifications=[],
-        ),
-        kind="static",
-        trigger_event=None,
-        effects=(),
-        costs=(),
-        statics=(),
-    )
-    tree = ConceptTree(
-        name="Immortal Obligation", oracle_id="x", oracle="x", units=(unit,)
-    )
+    """Immortal Obligation: a SOLE static ability whose own ``description``
+    carries the full face text (the projection's ``_fill_sole_empty``) —
+    "that creature ... can't block creatures you control" matches the
+    per-unit raw marker with no typed CantBlock static anywhere. The real
+    tree from the testkit snapshot."""
+    tree = _real_tree("Immortal Obligation")
     assert not has_structural_cant_block_grant(tree)
     node = _arm_cant_block_grant(tree)
     assert node is not None

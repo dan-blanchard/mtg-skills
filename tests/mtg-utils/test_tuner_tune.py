@@ -4,78 +4,41 @@ import importlib
 
 import pytest
 
+from mtg_utils import testkit
 from mtg_utils._tuner import TuneParams, tune
 from mtg_utils.hydrated_deck import HydratedDeck
 
-KRENKO = {
-    "name": "Krenko, Mob Boss",
-    "type_line": "Legendary Creature — Goblin Warrior",
-    "oracle_text": "{T}: Create X 1/1 red Goblin creature tokens, where X is the number of Goblins you control.",
-    "cmc": 4.0,
-    "color_identity": ["R"],
-}
-RABBLE = {
-    "name": "Goblin Rabblemaster",
-    "type_line": "Creature — Goblin Warrior",
-    "oracle_text": "Other Goblin creatures you control attack each combat if able.\nAt the beginning of combat on your turn, create a 1/1 red Goblin creature token with haste.\nWhenever this creature attacks, it gets +1/+0 until end of turn for each other attacking Goblin.",
-    "cmc": 3.0,
-    "color_identity": ["R"],
-}
-WARCHIEF = {
-    "name": "Goblin Warchief",
-    "type_line": "Creature — Goblin Warrior",
-    "oracle_text": "Goblin spells you cast cost {1} less to cast. Goblins you control "
-    "have haste.",
-    "cmc": 3.0,
-    "color_identity": ["R"],
-}
-FILLER1 = {
-    "name": "Hill Giant",
-    "type_line": "Creature — Giant",
-    "oracle_text": "",
-    "cmc": 4.0,
-    "color_identity": ["R"],
-}
-FILLER2 = {
-    "name": "Lumbering Battlement",
-    "type_line": "Creature — Beast",
-    "oracle_text": "Vigilance\nWhen this creature enters, exile any number of other nontoken creatures you control until it leaves the battlefield.\nThis creature gets +2/+2 for each card exiled with it.",
-    "cmc": 6.0,
-    "color_identity": [],
-}
-MOUNTAIN = {
-    "name": "Mountain",
-    "type_line": "Basic Land — Mountain",
-    "oracle_text": "({T}: Add {R}.)",
-    "cmc": 0.0,
-    "color_identity": [],
-}
+# Real cards from the testkit snapshot (ADR-0056). ``test_card_ir`` seeds the
+# crosswalk trees memo so tune()'s signal path resolves each card in CI.
+testkit.test_card_ir("Krenko, Mob Boss")
+KRENKO = testkit.test_card("Krenko, Mob Boss")
+testkit.test_card_ir("Goblin Rabblemaster")
+RABBLE = testkit.test_card("Goblin Rabblemaster")
+testkit.test_card_ir("Goblin Warchief")
+WARCHIEF = testkit.test_card("Goblin Warchief")
+# The fillers are real cards that emit no signal, so they serve no avenue (a
+# vanilla Hill Giant opens its own "Giant tribal" avenue).
+testkit.test_card_ir("Gloom Pangolin")
+FILLER1 = testkit.test_card("Gloom Pangolin")
+testkit.test_card_ir("Palace Guard")
+FILLER2 = testkit.test_card("Palace Guard")
+testkit.test_card_ir("Mountain")
+MOUNTAIN = testkit.test_card("Mountain")
 
 _DECK_CARDS = [RABBLE, WARCHIEF, FILLER1, FILLER2, MOUNTAIN]
 _INDEX = {c["name"]: c for c in [KRENKO, *_DECK_CARDS]}
 
 
-def _priced(name, oracle, cmc, usd):
-    return {
-        "name": name,
-        "type_line": "Instant",
-        "oracle_text": oracle,
-        "cmc": cmc,
-        "color_identity": ["R"],
-        "prices": {"usd": usd},
-    }
+def _priced(name, usd):
+    """A real card (testkit snapshot, ADR-0056) with its per-printing price."""
+    return {**testkit.test_card(name), "prices": {"usd": usd}}
 
 
 # Canned search results keyed by the role preset the tuner asks for.
-_RAMP = [_priced("Burnished Hart", "{T}: Add {C}.", 3.0, "1.50")]
-_DRAW = [_priced("Faithless Looting", "Draw two cards.", 1.0, "0.50")]
-_INTERACTION = [
-    _priced(
-        "Lightning Bolt", "Lightning Bolt deals 3 damage to any target.", 1.0, "1.00"
-    ),
-    _priced("Abrade", "Destroy target artifact.", 2.0, "0.40"),
-]
-_WIPE = [_priced("Blasphemous Act", "Destroy all creatures.", 9.0, "2.00")]
+_RAMP = [_priced("Burnished Hart", "1.50")]
+_DRAW = [_priced("Faithless Looting", "0.50")]
+_INTERACTION = [_priced("Lightning Bolt", "1.00"), _priced("Abrade", "0.40")]
+_WIPE = [_priced("Blasphemous Act", "2.00")]
 
 
 def _fake_search(**kw):
@@ -119,7 +82,7 @@ def test_buckets_counted():
     counts = sc["counts"]
     assert counts.get("commander") == 1
     assert counts.get("land") == 1
-    assert counts.get("filler", 0) >= 1  # Hill Giant / Lumbering Battlement
+    assert counts.get("filler", 0) >= 1  # Gloom Pangolin / Palace Guard
 
 
 def test_swaps_propose_within_budget_and_pair_cut_with_add():
@@ -139,9 +102,7 @@ def test_swaps_propose_within_budget_and_pair_cut_with_add():
     # add must never inflate the total.
     assert out["spent"] == round(sum(s["add"]["cost"] for s in swaps), 2)
     # Cuts come from filler first (the deck's only safe cuts).
-    assert any(
-        s["cut"]["name"] in ("Hill Giant", "Lumbering Battlement") for s in swaps
-    )
+    assert any(s["cut"]["name"] in ("Gloom Pangolin", "Palace Guard") for s in swaps)
 
 
 def test_owned_only_default_is_zero_spend():
@@ -205,17 +166,7 @@ def test_fill_gap_counts_dfc_land_via_alias_not_name_set():
     # records (`hd.expanded`) instead of a raw name-set membership check.
     from mtg_utils._tuner.tune import _fill_gap
 
-    pathway = {
-        "name": "Cragcrown Pathway // Timbercrown Pathway",
-        "type_line": "Land // Land",
-        "oracle_text": "",
-        "cmc": 0.0,
-        "color_identity": ["R", "G"],
-        "card_faces": [
-            {"name": "Cragcrown Pathway", "type_line": "Land"},
-            {"name": "Timbercrown Pathway", "type_line": "Land"},
-        ],
-    }
+    pathway = testkit.test_card("Cragcrown Pathway // Timbercrown Pathway")
     index = {
         "Krenko, Mob Boss": KRENKO,
         "Cragcrown Pathway": pathway,  # keyed by the deck entry's front face
@@ -351,14 +302,7 @@ def test_wincon_at_floor_is_protected_from_cuts(captured_protected):
     # capturing the `protected` argument.
     captured = captured_protected
 
-    lab = {
-        "name": "Laboratory Maniac",
-        "type_line": "Creature — Human Wizard",
-        "oracle_text": "If you would draw a card while your library has no cards in it, "
-        "you win the game instead.",
-        "cmc": 3.0,
-        "color_identity": ["R"],
-    }
+    lab = testkit.test_card("Laboratory Maniac")
     index = {KRENKO["name"]: KRENKO, lab["name"]: lab, MOUNTAIN["name"]: MOUNTAIN}
     deck = {
         "format": "commander",
@@ -419,17 +363,9 @@ def test_grant_covered_commander_downgrades_card_draw_shortfall_to_advisory():
     # grants every Sliver a repeatable per-body draw trigger. The card_draw band
     # stays a literal count (the deck runs zero dedicated draw), but the shortfall
     # must read advisory — no swap should burn budget sourcing generic draw spells.
-    from mtg_utils import testkit
-
     testkit.test_card_ir("Sliver Weftwinder")  # seeds the crosswalk trees memo
     weftwinder = testkit.test_card("Sliver Weftwinder")
-    sliver_filler = {
-        "name": "Sentinel Sliver",
-        "type_line": "Creature — Sliver",
-        "oracle_text": "",
-        "cmc": 2.0,
-        "color_identity": ["W"],
-    }
+    sliver_filler = testkit.test_card("Sentinel Sliver")
     index = {
         weftwinder["name"]: weftwinder,
         sliver_filler["name"]: sliver_filler,
@@ -489,14 +425,7 @@ def test_lands_band_is_single_source_between_mana_and_template():
         "cmc": 2.0,
         "color_identity": ["G"],
     }
-    rock = {
-        "name": "Mind Stone",
-        "type_line": "Artifact",
-        "oracle_text": "{T}: Add {C}.",
-        "cmc": 2.0,
-        "color_identity": [],
-        "produced_mana": ["C"],
-    }
+    rock = testkit.test_card("Mind Stone")
     index = {boss["name"]: boss, rock["name"]: rock, MOUNTAIN["name"]: MOUNTAIN}
     deck = {
         "format": "commander",
@@ -517,8 +446,6 @@ def test_commander_closer_grant_counts_toward_win_conditions():
     # Verified-review Fix 5: a commander granting a closer-grade ability
     # (team double strike) was invisible to win_conditions before this fix —
     # classify_deck never computed grant_closer for the commander bucket.
-    from mtg_utils import testkit
-
     testkit.test_card_ir("Bonescythe Sliver")
     bone = testkit.test_card("Bonescythe Sliver")
     index = {bone["name"]: bone, MOUNTAIN["name"]: MOUNTAIN}
@@ -539,7 +466,7 @@ def test_combo_piece_protected_from_cuts():
     def combos_fn(_deck):
         return {
             "combos": [
-                {"cards": ["Hill Giant", "Krenko, Mob Boss"], "result": "Infinite"}
+                {"cards": ["Gloom Pangolin", "Krenko, Mob Boss"], "result": "Infinite"}
             ]
         }
 
@@ -549,8 +476,8 @@ def test_combo_piece_protected_from_cuts():
         params=TuneParams(max_swaps=3, budget=100.0, paper_only=True),
         combos_fn=combos_fn,
     )
-    cut_names = {s["cut"]["name"] for s in out["swaps"]}
-    assert "Hill Giant" not in cut_names
+    cut_names = {s["cut"]["name"] for s in out["swaps"] if s["cut"]}
+    assert "Gloom Pangolin" not in cut_names
 
 
 def _oversized_hd(over=3, deck_size=100, lands=38):
@@ -655,16 +582,11 @@ def test_size_cut_cards_excluded_from_regular_swap_cut_pool():
 
 
 def test_medium_threads_to_the_low_value_reads():
-    # ADR-0040 §4 (task #99): tune wires ir_for, so signals only resolve for
-    # real snapshot cards — the synthetic _hd() harness buckets everything
-    # filler and can't observe the low_value read. Real Krenko + Rabblemaster
-    # (both snapshot-resident, edhrec_rank=None in the minimal records) give
-    # one engine card: fringe-evidence on paper, no-data on digital. Proves
-    # TuneParams.medium reaches metrics.focus. Historic Brawl, because it is played
-    # in BOTH media — ``Format.game`` resolves an override the format cannot honour
+    # ADR-0040 §4 (task #99): real Krenko + Rabblemaster (edhrec_rank=None in
+    # the snapshot's minimal records) give one engine card: fringe-evidence on
+    # paper, no-data on digital. Proves TuneParams.medium reaches metrics.focus.
+    # Historic Brawl, because it is played in BOTH media — ``Format.game`` resolves an override the format cannot honour
     # (digital on Commander) back to the format's own medium.
-    from mtg_utils import testkit
-
     testkit.test_card_ir("Krenko, Mob Boss")  # seeds the crosswalk trees memo
     testkit.test_card_ir("Goblin Rabblemaster")
     index = {
@@ -826,8 +748,9 @@ def test_the_bracket_gate_reports_the_count_it_measured():
     from mtg_utils._tuner.bracket import bracket_gate
 
     records = [
-        {"name": "Rhystic Study", "game_changer": True},
-        {"name": "Forest", "type_line": "Basic Land — Forest"},
+        # The snapshot doesn't carry ``game_changer``; it is overlaid.
+        {**testkit.test_card("Rhystic Study"), "game_changer": True},
+        testkit.test_card("Forest"),
     ]
     gate = bracket_gate(records, 2)
     assert gate["ceilings"]["game_changers"] == 0
@@ -836,9 +759,7 @@ def test_the_bracket_gate_reports_the_count_it_measured():
 
 # ── the constructed family: 60-card norms, no Commander-only axes ─────────────
 
-BOLT = _priced(
-    "Lightning Bolt", "Lightning Bolt deals 3 damage to any target.", 1.0, "1.00"
-)
+BOLT = _priced("Lightning Bolt", "1.00")
 SIDEBOARD_FILLER = {
     "name": "Sideboard Filler",
     "type_line": "Creature — Ogre",
@@ -854,8 +775,8 @@ def _hd_modern(*, bolts=3, total=58, sideboard=()):
         ("Lightning Bolt", bolts),
         ("Goblin Rabblemaster", 4),
         ("Goblin Warchief", 4),
-        ("Hill Giant", 4),
-        ("Lumbering Battlement", 4),
+        ("Gloom Pangolin", 4),
+        ("Palace Guard", 4),
     ]
     lands = total - sum(q for _, q in nonland)
     deck = {
@@ -917,12 +838,20 @@ def test_constructed_counts_copies_not_names():
     assert sum(v for k, v in sc["counts"].items() if k != "land") == 5
 
 
+def _interaction_search(**_kw):
+    """Every search answers the two interaction spells. The real Bolts in the
+    60-card deck meet its interaction floor, so the adds come from the dead-weight
+    redeploy and the open-slot fill, whose theme searches ``_fake_search``
+    leaves empty."""
+    return list(_INTERACTION)
+
+
 def test_constructed_adds_another_copy_up_to_the_limit():
-    # 3 Bolts, interaction short → the fill adds the 4th Bolt (copy 4), and with 4
+    # 3 Bolts, 2 open slots → an add proposes the 4th Bolt (copy 4), and with 4
     # already in the deck the 5th is never proposed.
     three = tune(
         _hd_modern(bolts=3),
-        search_fn=_fake_search,
+        search_fn=_interaction_search,
         params=TuneParams(max_swaps=6, budget=100.0, paper_only=True),
     )
     adds = [s["add"] for s in three["swaps"]]
@@ -930,7 +859,7 @@ def test_constructed_adds_another_copy_up_to_the_limit():
     assert bolt["copy"] == 4
     four = tune(
         _hd_modern(bolts=4),
-        search_fn=_fake_search,
+        search_fn=_interaction_search,
         params=TuneParams(max_swaps=6, budget=100.0, paper_only=True),
     )
     assert all(s["add"]["name"] != "Lightning Bolt" for s in four["swaps"])
@@ -940,13 +869,13 @@ def test_constructed_adds_another_copy_up_to_the_limit():
 def test_constructed_cuts_one_copy_at_a_time():
     out = tune(
         _hd_modern(bolts=4),
-        search_fn=_fake_search,
+        search_fn=_interaction_search,
         params=TuneParams(max_swaps=3, budget=100.0, paper_only=True),
     )
     cuts = [s["cut"] for s in out["swaps"] if s["cut"]]
     assert cuts, "the four-of fillers are dead weight to swap out"
     assert all(c["quantity"] == 1 for c in cuts)
-    assert all(c["name"] in ("Hill Giant", "Lumbering Battlement") for c in cuts)
+    assert all(c["name"] in ("Gloom Pangolin", "Palace Guard") for c in cuts)
 
 
 def test_sideboard_never_counts_and_is_never_cut():
