@@ -6,6 +6,7 @@ from pathlib import Path
 from click.testing import CliRunner
 
 from mtg_utils.cube_legality_audit import cube_legality_audit, main
+from mtg_utils.testkit import test_card
 
 
 class TestRarityFilter:
@@ -87,16 +88,7 @@ class TestRarityFilter:
 class TestBanList:
     def test_unpowered_flags_power_nine(self, cube_hydrated):
         # Inject Black Lotus onto hydrated data so the name resolves.
-        lotus = {
-            "name": "Black Lotus",
-            "cmc": 0.0,
-            "type_line": "Artifact",
-            "oracle_text": "{T}, Sacrifice this artifact: Add three mana of any one color.",
-            "colors": [],
-            "color_identity": [],
-            "rarity": "special",
-            "legalities": {"vintage": "restricted"},
-        }
+        lotus = {**test_card("Black Lotus"), "rarity": "special"}
         cube = {
             "cube_format": "unpowered",
             "target_size": 1,
@@ -108,16 +100,7 @@ class TestBanList:
         assert any(v["card"] == "Black Lotus" for v in errors)
 
     def test_vintage_allows_power_nine(self, cube_hydrated):
-        lotus = {
-            "name": "Black Lotus",
-            "cmc": 0.0,
-            "type_line": "Artifact",
-            "oracle_text": "{T}, Sacrifice this artifact: Add three mana of any one color.",
-            "colors": [],
-            "color_identity": [],
-            "rarity": "special",
-            "legalities": {"vintage": "restricted"},
-        }
+        lotus = {**test_card("Black Lotus"), "rarity": "special"}
         cube = {
             "cube_format": "vintage",
             "target_size": 1,
@@ -132,17 +115,8 @@ class TestBanList:
 class TestLegalityKey:
     def test_modern_flags_illegal_card(self, cube_hydrated):
         """A card with legalities.modern != 'legal' gets an error."""
-        # Inject a "Mana Drain" style legacy-legal but modern-illegal card.
-        illegal_card = {
-            "name": "Mana Drain",
-            "cmc": 2.0,
-            "type_line": "Instant",
-            "oracle_text": "Counter target spell. At the beginning of your next main phase, add an amount of {C} equal to that spell's mana value.",
-            "colors": ["U"],
-            "color_identity": ["U"],
-            "rarity": "rare",
-            "legalities": {"modern": "not_legal", "legacy": "legal"},
-        }
+        # Inject Mana Drain: legacy-legal, never modern-legal.
+        illegal_card = {**test_card("Mana Drain"), "rarity": "rare"}
         cube = {
             "cube_format": "modern",
             "target_size": 1,

@@ -254,11 +254,8 @@ class TestMergeMemberPresets:
         testkit.test_card_ir("Stitcher's Supplier")
         self_mill_card = testkit.test_card("Stitcher's Supplier")
         # Neither — should NOT match the union.
-        bystander = {
-            "name": "Llanowar Elves",
-            "type_line": "Creature — Elf Druid",
-            "oracle_text": "{T}: Add {G}.",
-        }
+        testkit.test_card_ir("Llanowar Elves")
+        bystander = testkit.test_card("Llanowar Elves")
 
         # Sanity-check the constituents match individually.
         assert PRESETS["graveyard-return"].matches(graveyard_return_card)
@@ -314,11 +311,8 @@ class TestMergeMemberPresets:
         assert merged.matches(removal_card)
 
         # Neither arm fires on a bystander.
-        bystander = {
-            "name": "Llanowar Elves",
-            "type_line": "Creature — Elf Druid",
-            "oracle_text": "{T}: Add {G}.",
-        }
+        testkit.test_card_ir("Llanowar Elves")
+        bystander = testkit.test_card("Llanowar Elves")
         assert not merged.matches(bystander)
 
     def test_structural_preset_and_user_regex_coexist_in_one_cube(self):
@@ -354,17 +348,5 @@ class TestMergeMemberPresets:
         # The custom regex needs no oracle_id at all — it's a raw oracle-text
         # search, exactly like every OTHER user-supplied theme.
         burn_matcher = matcher_for("custom-burn", resolved)
-        assert burn_matcher(
-            {
-                "name": "Lightning Bolt",
-                "type_line": "Instant",
-                "oracle_text": "Lightning Bolt deals 3 damage to any target.",
-            }
-        )
-        assert not burn_matcher(
-            {
-                "name": "Llanowar Elves",
-                "type_line": "Creature — Elf Druid",
-                "oracle_text": "{T}: Add {G}.",
-            }
-        )
+        assert burn_matcher(testkit.test_card("Lightning Bolt"))
+        assert not burn_matcher(testkit.test_card("Llanowar Elves"))

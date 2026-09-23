@@ -7,6 +7,7 @@ from pathlib import Path
 import pytest
 from click.testing import CliRunner
 
+from mtg_utils import testkit
 from mtg_utils.archetype_audit import (
     _build_kindred_preset,
     _parse_rewrite_flag,
@@ -15,6 +16,13 @@ from mtg_utils.archetype_audit import (
     main,
 )
 from mtg_utils.theme_presets import Preset
+
+
+def _real(name: str) -> dict:
+    """The real card *name* from the testkit snapshot (ADR-0056), with its
+    crosswalk trees memo seeded so a structural preset resolves it in CI."""
+    testkit.test_card_ir(name)
+    return testkit.test_card(name)
 
 
 def _adhoc_preset(name: str, pattern: re.Pattern) -> Preset:
@@ -285,20 +293,8 @@ class TestKindredFactory:
             ],
         }
         hydrated = [
-            {
-                "name": "Llanowar Elves",
-                "type_line": "Creature — Elf Druid",
-                "oracle_text": "{T}: Add {G}.",
-                "keywords": [],
-                "color_identity": ["G"],
-            },
-            {
-                "name": "Lightning Bolt",
-                "type_line": "Instant",
-                "oracle_text": "Lightning Bolt deals 3 damage to any target.",
-                "keywords": [],
-                "color_identity": ["R"],
-            },
+            _real("Llanowar Elves"),
+            _real("Lightning Bolt"),
         ]
         cube_path.write_text(json.dumps(cube))
         hyd_path.write_text(json.dumps(hydrated))
@@ -353,20 +349,8 @@ class TestRewriteRule:
             ],
         }
         hydrated = [
-            {
-                "name": "Llanowar Elves",
-                "type_line": "Creature — Elf Druid",
-                "oracle_text": "{T}: Add {G}.",
-                "keywords": [],
-                "color_identity": ["G"],
-            },
-            {
-                "name": "Lightning Bolt",
-                "type_line": "Instant",
-                "oracle_text": "Lightning Bolt deals 3 damage to any target.",
-                "keywords": [],
-                "color_identity": ["R"],
-            },
+            _real("Llanowar Elves"),
+            _real("Lightning Bolt"),
         ]
         elf_name, elf_preset = _build_kindred_preset("Elf")
         drain_preset = _adhoc_preset(
@@ -403,13 +387,7 @@ class TestRewriteRule:
             "cards": [{"name": "Llanowar Elves", "quantity": 1}],
         }
         hydrated = [
-            {
-                "name": "Llanowar Elves",
-                "type_line": "Creature — Elf Druid",
-                "oracle_text": "{T}: Add {G}.",
-                "keywords": [],
-                "color_identity": ["G"],
-            },
+            _real("Llanowar Elves"),
         ]
         cube_path.write_text(json.dumps(cube))
         hyd_path.write_text(json.dumps(hydrated))
@@ -765,17 +743,7 @@ class TestFromCubeViaResolver:
             },
             "cards": [{"name": "Lightning Bolt", "quantity": 1}],
         }
-        hydrated = [
-            {
-                "name": "Lightning Bolt",
-                "type_line": "Instant",
-                "oracle_text": "Lightning Bolt deals 3 damage to any target.",
-                "color_identity": ["R"],
-                "mana_cost": "{R}",
-                "cmc": 1,
-                "produced_mana": [],
-            }
-        ]
+        hydrated = [_real("Lightning Bolt")]
         cube_path = tmp_path / "cube.json"
         hydrated_path = tmp_path / "hydrated.json"
         cube_path.write_text(_json.dumps(cube))
@@ -809,17 +777,7 @@ class TestFromCubeViaResolver:
             },
             "cards": [{"name": "Reanimate", "quantity": 1}],
         }
-        hydrated = [
-            {
-                "name": "Reanimate",
-                "type_line": "Sorcery",
-                "oracle_text": "Put target creature card from a graveyard onto the battlefield under your control. You lose life equal to that card's mana value.",
-                "color_identity": ["B"],
-                "mana_cost": "{B}",
-                "cmc": 1,
-                "produced_mana": [],
-            }
-        ]
+        hydrated = [_real("Reanimate")]
         cube_path = tmp_path / "cube.json"
         hydrated_path = tmp_path / "hydrated.json"
         cube_path.write_text(_json.dumps(cube))

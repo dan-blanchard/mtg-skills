@@ -403,18 +403,7 @@ class TestArenaWildcardMode:
         """Owning 1-3 copies does NOT trigger the 4-cap substitution; the deck
         still needs wildcards for the shortfall. (An "any number" card, since
         a singleton deck with owned=1 is the no-op "fully owned" case.)"""
-        cards = [
-            {
-                "name": "Persistent Petitioners",
-                "rarity": "common",
-                "legalities": {"brawl": "legal"},
-                "games": ["arena"],
-                "prices": {},
-                "oracle_text": (
-                    "{1}, {T}: Target player mills a card. (They put the top card of their library into their graveyard.)\nTap four untapped Advisors you control: Target player mills twelve cards.\nA deck can have any number of cards named Persistent Petitioners."
-                ),
-            },
-        ]
+        cards = [_arena_printing("Persistent Petitioners", "common")]
         bulk_path = tmp_path / "bulk.json"
         bulk_path.write_text(json.dumps(cards))
 

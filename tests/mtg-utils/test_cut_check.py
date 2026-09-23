@@ -17,6 +17,7 @@ from mtg_utils.cut_check import (
     render_text_report,
     run_cut_check,
 )
+from mtg_utils.testkit import test_card
 
 
 def _obeka_deck(tmp_path, cards):
@@ -790,71 +791,16 @@ class TestCiteRules:
 # Zone-granted activated abilities
 # ---------------------------------------------------------------------------
 
-# Real oracle text / type lines (verified against MTGJSON), not templated
-# stand-ins — a zone grant keys on the exact cost syntax, so a trimmed body
-# would test the fixture rather than the detector.
-_THRANDUIL = {
-    "name": "Thranduil, the Elvenking",
-    "type_line": "Legendary Creature — Elf Noble",
-    "oracle_text": (
-        "Thranduil has all activated abilities of all Elf cards in your "
-        "graveyard.\nWhenever another legendary Elf you control enters, draw "
-        "two cards, then discard a card."
-    ),
-}
-_OBEKA = {
-    "name": "Obeka, Splitter of Seconds",
-    "type_line": "Legendary Creature — Ogre Wizard",
-    "oracle_text": (
-        "Menace\nWhenever Obeka, Splitter of Seconds deals combat damage to a "
-        "player, you get that many additional upkeep steps after this phase."
-    ),
-}
-_PRIEST_OF_TITANIA = {
-    "name": "Priest of Titania",
-    "type_line": "Creature — Elf Druid",
-    "oracle_text": "{T}: Add {G} for each Elf on the battlefield.",
-}
-_IRON_SHIELD_ELF = {
-    "name": "Iron-Shield Elf",
-    "type_line": "Creature — Elf Warrior",
-    "oracle_text": (
-        "Discard a card: This creature gains indestructible until end of turn. "
-        'Tap it. (Damage and effects that say "destroy" don\'t destroy it. If '
-        "its toughness is 0 or less, it still dies.)"
-    ),
-}
-_LATHRIL = {
-    "name": "Lathril, Blade of the Elves",
-    "type_line": "Legendary Creature — Elf Noble",
-    "oracle_text": (
-        "Menace (This creature can't be blocked except by two or more "
-        "creatures.)\nWhenever Lathril deals combat damage to a player, create "
-        "that many 1/1 green Elf Warrior creature tokens.\n{T}, Tap ten "
-        "untapped Elves you control: Each opponent loses 10 life and you gain "
-        "10 life."
-    ),
-}
-_BLOODLINE_PRETENDER = {
-    "name": "Bloodline Pretender",
-    "type_line": "Artifact Creature — Shapeshifter",
-    "oracle_text": (
-        "Changeling (This card is every creature type.)\nAs this creature "
-        "enters, choose a creature type.\nWhenever another creature you "
-        "control of the chosen type enters, put a +1/+1 counter on this "
-        "creature."
-    ),
-}
-_DOOR_OF_DESTINIES = {
-    "name": "Door of Destinies",
-    "type_line": "Artifact",
-    "oracle_text": (
-        "As this artifact enters, choose a creature type.\nWhenever you cast a "
-        "spell of the chosen type, put a charge counter on this artifact.\n"
-        "Creatures you control of the chosen type get +1/+1 for each charge "
-        "counter on this artifact."
-    ),
-}
+# Real cards from the testkit snapshot (ADR-0056), not templated stand-ins — a
+# zone grant keys on the exact cost syntax, so a trimmed body would test the
+# fixture rather than the detector.
+_THRANDUIL = test_card("Thranduil, the Elvenking")
+_OBEKA = test_card("Obeka, Splitter of Seconds")
+_PRIEST_OF_TITANIA = test_card("Priest of Titania")
+_IRON_SHIELD_ELF = test_card("Iron-Shield Elf")
+_LATHRIL = test_card("Lathril, Blade of the Elves")
+_BLOODLINE_PRETENDER = test_card("Bloodline Pretender")
+_DOOR_OF_DESTINIES = test_card("Door of Destinies")
 
 
 class TestDetectZoneGrantedAbilities:

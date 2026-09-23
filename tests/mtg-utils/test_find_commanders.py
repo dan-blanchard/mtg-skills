@@ -19,6 +19,7 @@ from mtg_utils.find_commanders import (
 # find_commanders delegates name folding to the canonical normalizer; the index it
 # builds is keyed by it, so the tests assert against the same function.
 from mtg_utils.names import normalize_card_name as _normalize_name
+from mtg_utils.testkit import test_card
 
 
 def _card(
@@ -63,74 +64,28 @@ def _card(
     return card
 
 
+def _real(name, **per_printing):
+    """The real card *name* from the testkit snapshot (ADR-0056), with only the
+    per-printing facts a fixture varies overlaid. ``edhrec_rank`` rides as an
+    overlay too: the snapshot doesn't carry it."""
+    return {**test_card(name), **per_printing}
+
+
 @pytest.fixture
 def bulk_index():
     cards = [
-        _card(
-            "Korvold, Fae-Cursed King",
-            color_identity=["B", "G", "R"],
-            cmc=5.0,
-            edhrec_rank=2387,
-        ),
-        _card(
-            "Atraxa, Praetors' Voice",
-            color_identity=["B", "G", "U", "W"],
-            cmc=4.0,
-            edhrec_rank=200,
-        ),
-        _card(
-            "Faceless One",
-            type_line="Legendary Creature — Shapeshifter Adventurer",
-            color_identity=[],
-            cmc=2.0,
-            oracle_text="Choose a Background\nWhen Faceless One dies, draw a card.",
-        ),
-        _card(
-            "Hardy Outlander",
-            type_line="Legendary Enchantment — Background",
-            color_identity=["G"],
-            cmc=1.0,
-            oracle_text="Commander creatures you own have ward {2}.",
-        ),
-        _card(
-            "Teferi, Temporal Pilgrim",
-            type_line="Legendary Planeswalker — Teferi",
-            color_identity=["U", "W"],
-            cmc=5.0,
-            oracle_text="+1: Draw a card.",
-            legalities={
-                "commander": "not_legal",
-                "brawl": "legal",
-                "standardbrawl": "not_legal",
-            },
-        ),
-        _card(
-            "Lightning Bolt",
-            type_line="Instant",
-            color_identity=["R"],
-            cmc=1.0,
-            oracle_text="Lightning Bolt deals 3 damage to any target.",
-        ),
-        _card(
-            "Sol Ring",
-            type_line="Artifact",
-            color_identity=[],
-            cmc=1.0,
-            oracle_text="{T}: Add {C}{C}.",
-        ),
-        _card(
-            "Thrasios, Triton Hero",
-            color_identity=["G", "U"],
-            cmc=2.0,
-            oracle_text="{4}: Scry 1, then reveal the top card of your library.\nPartner",
-            edhrec_rank=850,
-        ),
-        _card(
-            "Pir, Imaginative Rascal",
-            color_identity=["G", "U"],
-            cmc=2.0,
-            oracle_text="If one or more counters would be placed on a permanent you control, that many plus one of those counters are placed on it instead.\nPartner with Toothy, Imaginary Friend",
-        ),
+        _real("Korvold, Fae-Cursed King", edhrec_rank=2387),
+        _real("Atraxa, Praetors' Voice", edhrec_rank=200),
+        # A legendary Background creature that itself says "Choose a Background".
+        _real("Faceless One"),
+        _real("Hardy Outlander"),
+        # A planeswalker with no "can be your commander" clause: Commander
+        # rejects it by type; Historic Brawl (legality key "brawl") takes it.
+        _real("Teferi, Temporal Pilgrim"),
+        _real("Lightning Bolt"),
+        _real("Sol Ring"),
+        _real("Thrasios, Triton Hero", edhrec_rank=850),
+        _real("Pir, Imaginative Rascal"),
     ]
     return {c["name"].lower(): c for c in cards}
 
@@ -529,80 +484,60 @@ class TestNameNormalization:
         assert _normalize_name("Sol Ring") == "sol ring"
 
     def test_mdfc_face_is_indexed(self, tmp_path: Path):
-        # A flip/meld card whose name has no " // " separator: the front-face
-        # name in card_faces[] must still be looked up successfully.
+        # A modal DFC: each face name in card_faces[] must still be looked up
+        # successfully, and resolve to the same record as the full name.
         bulk_path = tmp_path / "bulk.json"
         bulk_path.write_text(
             json.dumps(
                 [
-                    _card(
-                        "Bruna, the Fading Light // Brisela, Voice of Nightmares",
-                        card_faces=[
-                            {"name": "Bruna, the Fading Light"},
-                            {"name": "Brisela, Voice of Nightmares"},
-                        ],
-                    ),
+                    _real("Esika, God of the Tree // The Prismatic Bridge"),
                 ]
             )
         )
         index = CardPool.load(bulk_path).by_name
         # Both faces and the full name should resolve to the same card object.
-        assert index[_normalize_name("Bruna, the Fading Light")] is not None
-        assert index[_normalize_name("Brisela, Voice of Nightmares")] is not None
+        assert index[_normalize_name("Esika, God of the Tree")] is not None
+        assert index[_normalize_name("The Prismatic Bridge")] is not None
         assert (
-            index[_normalize_name("Bruna, the Fading Light")]
-            is index[_normalize_name("Brisela, Voice of Nightmares")]
+            index[_normalize_name("Esika, God of the Tree")]
+            is index[_normalize_name("The Prismatic Bridge")]
         )
 
     def test_mdfc_lookup_via_face_name_in_collection(self, tmp_path: Path):
-        # End-to-end: user's collection lists only the front face of a meld
-        # card. find-commanders must still recognize it as a candidate.
+        # End-to-end: user's collection lists only the front face of a modal
+        # DFC. find-commanders must still recognize it as a candidate.
         bulk_path = tmp_path / "bulk.json"
         bulk_path.write_text(
             json.dumps(
                 [
-                    _card(
-                        "Bruna, the Fading Light // Brisela, Voice of Nightmares",
-                        type_line="Legendary Creature — Angel",
-                        color_identity=["W"],
-                        cmc=7.0,
-                        card_faces=[
-                            {"name": "Bruna, the Fading Light"},
-                            {"name": "Brisela, Voice of Nightmares"},
-                        ],
-                    ),
+                    _real("Esika, God of the Tree // The Prismatic Bridge"),
                 ]
             )
         )
         bulk_index = CardPool.load(bulk_path).by_name
         parsed = {
             "commanders": [],
-            "cards": [{"name": "Bruna, the Fading Light", "quantity": 1}],
+            "cards": [{"name": "Esika, God of the Tree", "quantity": 1}],
         }
         result = find_commanders(parsed, bulk_index, format="commander")
         assert len(result) == 1
-        assert "Bruna" in result[0]["name"]
+        assert "Esika" in result[0]["name"]
 
     def test_diacritic_collection_lookup_end_to_end(self, tmp_path: Path):
-        # User has an ASCII-only "Lim-Dul's Vault" in their collection;
-        # bulk data has the canonical "Lim-Dûl's Vault". They must match.
+        # User has an ASCII-only "Lim-Dul the Necromancer" in their collection;
+        # bulk data has the canonical "Lim-Dûl the Necromancer". They must match.
         bulk_path = tmp_path / "bulk.json"
         bulk_path.write_text(
             json.dumps(
                 [
-                    _card(
-                        "Lim-Dûl's Vault",
-                        type_line="Legendary Creature — Human",
-                        color_identity=["B", "U"],
-                        cmc=2.0,
-                    ),
+                    _real("Lim-Dûl the Necromancer"),
                 ]
             )
         )
         bulk_index = CardPool.load(bulk_path).by_name
         parsed = {
             "commanders": [],
-            "cards": [{"name": "Lim-Dul's Vault", "quantity": 1}],
+            "cards": [{"name": "Lim-Dul the Necromancer", "quantity": 1}],
         }
         result = find_commanders(parsed, bulk_index, format="commander")
         assert len(result) == 1

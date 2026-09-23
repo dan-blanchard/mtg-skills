@@ -14,6 +14,7 @@ from mtg_utils.card_classify import (
     ramp_by_text,
     valid_partner_search,
 )
+from mtg_utils.testkit import test_card
 
 
 class TestIsLand:
@@ -160,134 +161,73 @@ class TestRampByText:
     def test_number_word_mana(self):
         # "Add three mana of any one color" (Gilded Lotus): no "{" / "one mana" after
         # "add" — the blind spot that made the text read disagree with the signal path.
-        card = {
-            "type_line": "Artifact",
-            "oracle_text": "{T}: Add three mana of any one color.",
-        }
+        card = test_card("Gilded Lotus")
         assert ramp_by_text(card) is True
 
     def test_sol_ring(self):
-        card = {
-            "type_line": "Artifact",
-            "oracle_text": "{T}: Add {C}{C}.",
-        }
+        card = test_card("Sol Ring")
         assert ramp_by_text(card) is True
 
     def test_sakura_tribe_elder(self):
-        card = {
-            "type_line": "Creature — Snake Shaman",
-            "oracle_text": "Sacrifice Sakura-Tribe Elder: Search your library for a basic land card, put that card onto the battlefield tapped, then shuffle.",
-        }
+        card = test_card("Sakura-Tribe Elder")
         assert ramp_by_text(card) is True
 
     def test_cultivate(self):
-        card = {
-            "type_line": "Sorcery",
-            "oracle_text": "Search your library for up to two basic land cards, reveal those cards, put one onto the battlefield tapped and the other into your hand, then shuffle.",
-        }
+        card = test_card("Cultivate")
         assert ramp_by_text(card) is True
 
     def test_ashnods_altar(self):
-        card = {
-            "type_line": "Artifact",
-            "oracle_text": "Sacrifice a creature: Add {C}{C}.",
-        }
+        card = test_card("Ashnod's Altar")
         assert ramp_by_text(card) is True
 
     def test_command_tower_not_ramp(self):
-        card = {
-            "type_line": "Land",
-            "oracle_text": "{T}: Add one mana of any color in your commander's color identity.",
-        }
+        card = test_card("Command Tower")
         assert ramp_by_text(card) is False
 
     def test_blood_artist_not_ramp(self):
-        card = {
-            "type_line": "Creature — Vampire",
-            "oracle_text": "Whenever Blood Artist or another creature dies, target player loses 1 life and you gain 1 life.",
-        }
+        card = test_card("Blood Artist")
         assert ramp_by_text(card) is False
 
     def test_birds_of_paradise(self):
-        card = {
-            "type_line": "Creature — Bird",
-            "oracle_text": "Flying\n{T}: Add one mana of any color.",
-        }
+        card = test_card("Birds of Paradise")
         assert ramp_by_text(card) is True
 
     def test_arcane_signet(self):
-        card = {
-            "type_line": "Artifact",
-            "oracle_text": "{T}: Add one mana of any color in your commander's color identity.",
-        }
+        card = test_card("Arcane Signet")
         assert ramp_by_text(card) is True
 
     def test_bloom_tender(self):
-        card = {
-            "type_line": "Creature — Elf Druid",
-            "oracle_text": "Vivid — {T}: For each color among permanents you control, add one mana of that color.",
-        }
+        card = test_card("Bloom Tender")
         assert ramp_by_text(card) is True
 
     def test_lotus_cobra(self):
-        card = {
-            "type_line": "Creature — Snake",
-            "oracle_text": "Landfall — Whenever a land you control enters, add one mana of any color.",
-        }
+        card = test_card("Lotus Cobra")
         assert ramp_by_text(card) is True
 
     def test_three_tree_city_land_not_ramp(self):
         """Lands that produce mana should not be classified as ramp."""
-        card = {
-            "type_line": "Legendary Land",
-            "oracle_text": "{T}: Add {C}.\n{2}, {T}: Choose a color. Add an amount of mana of that color equal to the number of creatures you control of the chosen type.",
-        }
+        card = test_card("Three Tree City")
         assert ramp_by_text(card) is False
 
     def test_an_offer_you_cant_refuse_not_ramp(self):
         """Opponent-directed Treasure is anti-ramp: the "Add one mana" lives only in the
         token reminder and the Treasures go to the countered spell's controller."""
-        card = {
-            "type_line": "Instant",
-            "oracle_text": (
-                "Counter target noncreature spell. Its controller creates two "
-                "Treasure tokens. (They're artifacts with \"{T}, Sacrifice this "
-                'token: Add one mana of any color.")'
-            ),
-        }
+        card = test_card("An Offer You Can't Refuse")
         assert ramp_by_text(card) is False
 
     def test_you_directed_treasure_is_ramp(self):
         """A Treasure-maker you keep (Dockside / Brass's Bounty) is ramp, even though the
         "Add one mana" is only in the token reminder text."""
-        card = {
-            "type_line": "Sorcery",
-            "oracle_text": (
-                "Create five Treasure tokens. (They're artifacts with "
-                '"{T}, Sacrifice this token: Add one mana of any color.")'
-            ),
-        }
+        card = test_card("Brass's Bounty")
         assert ramp_by_text(card) is True
 
     def test_typed_subtype_land_fetch_to_battlefield_is_ramp(self):
         # "Search your library for a Forest card ... onto the battlefield" is ramp, but
         # the raw "land" substring test missed it ("Forest card" has no "land"); Farseek
         # only passed because "Island" contains "land". Match the land by subtype name.
-        natures_lore = {
-            "type_line": "Sorcery",
-            "oracle_text": "Search your library for a Forest card, put that card onto "
-            "the battlefield, then shuffle.",
-        }
-        three_visits = {
-            "type_line": "Sorcery",
-            "oracle_text": "Search your library for a Forest card, put it onto the "
-            "battlefield, then shuffle.",
-        }
-        farseek = {
-            "type_line": "Sorcery",
-            "oracle_text": "Search your library for a Plains, Island, Swamp, or Mountain "
-            "card, put it onto the battlefield tapped, then shuffle.",
-        }
+        natures_lore = test_card("Nature's Lore")
+        three_visits = test_card("Three Visits")
+        farseek = test_card("Farseek")
         assert ramp_by_text(natures_lore) is True
         assert ramp_by_text(three_visits) is True
         assert ramp_by_text(farseek) is True
@@ -296,158 +236,88 @@ class TestRampByText:
         # A land TUTOR that puts the card into your hand (Moonsilver Key, Sylvan Scrying)
         # is not acceleration — it adds no mana and drops no land. The library-search
         # branch must require the fetched card to enter the battlefield.
-        moonsilver_key = {
-            "type_line": "Artifact",
-            "oracle_text": "{2}, {T}, Sacrifice Moonsilver Key: Search your library for "
-            "an artifact or land card, put it into your hand, then shuffle.",
-        }
+        moonsilver_key = test_card("Moonsilver Key")
         assert ramp_by_text(moonsilver_key) is False
 
     def test_conditional_mox_still_counts_as_ramp(self):
         """ramp_by_text counts a conditionally-gated rock the user chose to run (it DOES add
         mana directly). The tuner's separate reliable-ramp filter is what keeps it from
         being SUGGESTED into a deck that can't turn it on."""
-        card = {
-            "type_line": "Legendary Artifact",
-            "oracle_text": (
-                "Metalcraft — {T}: Add one mana of any color. Activate only if "
-                "you control three or more artifacts."
-            ),
-        }
+        card = test_card("Mox Opal")
         assert ramp_by_text(card) is True
 
     def test_variable_amount_mana_dork_is_ramp(self):
         """A dork that adds "an amount of {G}" (devotion/counter-scaled — Karametra's
         Acolyte, Marwyn) is ramp even though the mana symbol isn't adjacent to "Add"."""
-        karametra = {
-            "type_line": "Creature — Human Druid",
-            "oracle_text": (
-                "{T}: Add an amount of {G} equal to your devotion to green."
-            ),
-        }
+        karametra = test_card("Karametra's Acolyte")
         assert ramp_by_text(karametra) is True
 
     def test_mana_amplifier_is_ramp(self):
         """A mana AMPLIFIER ("add an additional {X}" per land tapped — Nirkana Revenant,
         Crypt Ghast, Caged Sun) ramps you even though the mana symbol isn't adjacent to
         "Add"; symmetric amplifiers still ramp the controller."""
-        nirkana = {
-            "type_line": "Creature — Vampire Shaman",
-            "oracle_text": (
-                "Deathtouch\nWhenever you tap a Swamp for mana, add an additional {B}."
-            ),
-        }
-        crypt_ghast = {
-            "type_line": "Creature — Spirit",
-            "oracle_text": (
-                "Extort\nWhenever you tap a Swamp for mana, add an additional {B}."
-            ),
-        }
+        nirkana = test_card("Nirkana Revenant")
+        crypt_ghast = test_card("Crypt Ghast")
         assert ramp_by_text(nirkana) is True
         assert ramp_by_text(crypt_ghast) is True
 
     def test_extra_land_and_land_from_hand_are_ramp(self):
         """Land-acceleration that adds no mana directly: extra land drops (Azusa) and
         putting a land from hand into play (Arboreal Grazer) both ramp via lands."""
-        azusa = {
-            "type_line": "Legendary Creature — Human Monk",
-            "oracle_text": "You may play two additional lands on each of your turns.",
-        }
-        grazer = {
-            "type_line": "Creature — Plant Beast",
-            "oracle_text": (
-                "Defender\nWhen this creature enters, you may put a land card from "
-                "your hand onto the battlefield."
-            ),
-        }
+        azusa = test_card("Azusa, Lost but Seeking")
+        grazer = test_card("Arboreal Grazer")
         assert ramp_by_text(azusa) is True
         assert ramp_by_text(grazer) is True
         # Over-fire guard: a plain beater that merely mentions "land" is not ramp.
-        beater = {
-            "type_line": "Creature — Beast",
-            "oracle_text": "When this creature dies, destroy target nonbasic land.",
-        }
+        beater = test_card("Ravenous Baboons")
         assert ramp_by_text(beater) is False
 
 
 class TestColorSources:
     def test_overgrown_tomb(self):
-        card = {
-            "type_line": "Land — Swamp Forest",
-            "oracle_text": "({T}: Add {B} or {G}.)\nAs Overgrown Tomb enters the battlefield, you may pay 2 life. If you don't, it enters tapped.",
-        }
+        card = test_card("Overgrown Tomb")
         assert color_sources(card) == {"B", "G"}
 
     def test_command_tower_any(self):
-        card = {
-            "type_line": "Land",
-            "oracle_text": "{T}: Add one mana of any color in your commander's color identity.",
-        }
+        card = test_card("Command Tower")
         assert color_sources(card) == {"any"}
 
     def test_sol_ring_colorless(self):
-        card = {
-            "type_line": "Artifact",
-            "oracle_text": "{T}: Add {C}{C}.",
-        }
+        card = test_card("Sol Ring")
         assert color_sources(card) == {"C"}
 
     def test_no_mana_production(self):
-        card = {
-            "type_line": "Creature — Vampire",
-            "oracle_text": "Whenever Blood Artist or another creature dies, target player loses 1 life and you gain 1 life.",
-        }
+        card = test_card("Blood Artist")
         assert color_sources(card) == set()
 
     def test_basic_plains(self):
-        card = {
-            "type_line": "Basic Land — Plains",
-            "oracle_text": "{T}: Add {W}.",
-        }
+        card = test_card("Plains")
         assert color_sources(card) == {"W"}
 
 
 class TestColorSourcesFetchLands:
     def test_polluted_delta(self):
-        card = {
-            "type_line": "Land",
-            "oracle_text": "{T}, Pay 1 life, Sacrifice this land: Search your library for an Island or Swamp card, put it onto the battlefield, then shuffle.",
-        }
+        card = test_card("Polluted Delta")
         assert color_sources(card) == {"U", "B"}
 
     def test_prismatic_vista(self):
-        card = {
-            "type_line": "Land",
-            "oracle_text": "{T}, Pay 1 life, Sacrifice this land: Search your library for a basic land card, put it onto the battlefield tapped, then shuffle.",
-        }
+        card = test_card("Prismatic Vista")
         assert color_sources(card) == {"any"}
 
     def test_verdant_catacombs(self):
-        card = {
-            "type_line": "Land",
-            "oracle_text": "{T}, Pay 1 life, Sacrifice this land: Search your library for a Swamp or Forest card, put it onto the battlefield, then shuffle.",
-        }
+        card = test_card("Verdant Catacombs")
         assert color_sources(card) == {"B", "G"}
 
     def test_flooded_strand(self):
-        card = {
-            "type_line": "Land",
-            "oracle_text": "{T}, Pay 1 life, Sacrifice this land: Search your library for a Plains or Island card, put it onto the battlefield, then shuffle.",
-        }
+        card = test_card("Flooded Strand")
         assert color_sources(card) == {"W", "U"}
 
     def test_fabled_passage(self):
-        card = {
-            "type_line": "Land",
-            "oracle_text": "{T}, Sacrifice this land: Search your library for a basic land card, put it onto the battlefield tapped, then shuffle. Then if you control four or more lands, untap that land.",
-        }
+        card = test_card("Fabled Passage")
         assert color_sources(card) == {"any"}
 
     def test_seething_landscape(self):
-        card = {
-            "type_line": "Land",
-            "oracle_text": "{T}: Add {C}.\n{T}, Sacrifice this land: Search your library for a basic Island, Swamp, or Mountain card, put it onto the battlefield tapped, then shuffle.",
-        }
+        card = test_card("Seething Landscape")
         assert color_sources(card) == {"U", "B", "R"}
 
     def test_basic_land_type_fetch(self):
@@ -499,7 +369,7 @@ class TestIsCommander:
     def test_can_be_your_commander_text(self):
         card = {
             "type_line": "Legendary Enchantment",
-            "oracle_text": "Leyline of the Guildpact can be your commander.",
+            "oracle_text": "This card can be your commander.",
         }
         result = is_commander(card)
         assert result == {"eligible": True, "requires_partner": False}
@@ -598,40 +468,24 @@ class TestClassifyCubeCategory:
     def test_dual_land_goes_to_land_bucket(self):
         """Dual lands that tap for mana are L, not F. Fixing is about multi-
         color sources that don't just tap for mana directly."""
-        card = {
-            "type_line": "Land — Swamp Forest",
-            "color_identity": ["B", "G"],
-            "oracle_text": "({T}: Add {B} or {G}.)\nAs Overgrown Tomb enters, you may pay 2 life. If you don't, it enters tapped.",
-        }
+        card = test_card("Overgrown Tomb")
         assert classify_cube_category(card) == "L"
 
     def test_command_tower_is_land(self):
         """Command Tower taps for mana of any color → L (mana-producing)."""
-        card = {
-            "type_line": "Land",
-            "color_identity": [],
-            "oracle_text": "{T}: Add one mana of any color in your commander's color identity.",
-        }
+        card = test_card("Command Tower")
         assert classify_cube_category(card) == "L"
 
     def test_evolving_wilds_is_fixing(self):
         """Evolving Wilds doesn't tap for mana — only sacrifices to fetch
         a basic. Per cube-utils, this is F (fixing)."""
-        card = {
-            "type_line": "Land",
-            "color_identity": [],
-            "oracle_text": "{T}, Sacrifice this land: Search your library for a basic land card, put that card onto the battlefield tapped, then shuffle.",
-        }
+        card = test_card("Evolving Wilds")
         assert classify_cube_category(card) == "F"
 
     def test_fetchland_is_fixing(self):
         """Fetch lands (Polluted Delta, Flooded Strand) don't tap for mana,
         only sacrifice to search → F."""
-        card = {
-            "type_line": "Land",
-            "color_identity": [],
-            "oracle_text": "{T}, Pay 1 life, Sacrifice this land: Search your library for a Plains or Island card, put it onto the battlefield, then shuffle.",
-        }
+        card = test_card("Flooded Strand")
         assert classify_cube_category(card) == "F"
 
     def test_colorless_land_is_land_bucket(self):
@@ -643,86 +497,52 @@ class TestClassifyCubeCategory:
         assert classify_cube_category(card) == "L"
 
     def test_basic_land_is_land_bucket(self):
-        """Basics have empty oracle text but produce mana via type line → L."""
-        card = {
-            "type_line": "Basic Land — Mountain",
-            "color_identity": ["R"],
-            "oracle_text": "",
-        }
+        """A basic with no oracle text still produces mana via its type line → L.
+        The real Mountain carries "({T}: Add {R}.)" reminder text; it is stripped
+        here so the type-line branch is what classifies it."""
+        card = {**test_card("Mountain"), "oracle_text": ""}
         assert classify_cube_category(card) == "L"
 
     def test_sol_ring_is_fixing(self):
         """Sol Ring: colorless artifact that produces mana → F (mana rock)."""
-        card = {
-            "type_line": "Artifact",
-            "color_identity": [],
-            "oracle_text": "{T}: Add {C}{C}.",
-        }
+        card = test_card("Sol Ring")
         assert classify_cube_category(card) == "F"
 
     def test_arcane_signet_is_fixing(self):
         """Arcane Signet: mana rock that produces any color → F."""
-        card = {
-            "type_line": "Artifact",
-            "color_identity": [],
-            "oracle_text": "{T}: Add one mana of any color in your commander's color identity.",
-        }
+        card = test_card("Arcane Signet")
         assert classify_cube_category(card) == "F"
 
     def test_cultivate_is_green(self):
         """Cultivate: green land-fetcher → G (slots into the green pack position)."""
-        card = {
-            "type_line": "Sorcery",
-            "color_identity": ["G"],
-            "oracle_text": "Search your library for up to two basic land cards, reveal those cards, put one onto the battlefield tapped and the other into your hand, then shuffle.",
-        }
+        card = test_card("Cultivate")
         assert classify_cube_category(card) == "G"
 
     def test_sakura_tribe_elder_is_green(self):
         """Sakura-Tribe Elder: green creature → G, not F."""
-        card = {
-            "type_line": "Creature — Snake Shaman",
-            "color_identity": ["G"],
-            "oracle_text": "Sacrifice Sakura-Tribe Elder: Search your library for a basic land card, put that card onto the battlefield tapped, then shuffle.",
-        }
+        card = test_card("Sakura-Tribe Elder")
         assert classify_cube_category(card) == "G"
 
     def test_birds_of_paradise_is_green(self):
         """Mana dork with color identity G → G slot. Each pack reserves one
         mono-color slot per color, and Birds helps drafters committing to G."""
-        card = {
-            "type_line": "Creature — Bird",
-            "color_identity": ["G"],
-            "oracle_text": "Flying\n{T}: Add one mana of any color.",
-        }
+        card = test_card("Birds of Paradise")
         assert classify_cube_category(card) == "G"
 
     def test_llanowar_elves_is_green(self):
         """Mono-G mana dork → G bucket, not F."""
-        card = {
-            "type_line": "Creature — Elf Druid",
-            "color_identity": ["G"],
-            "oracle_text": "{T}: Add {G}.",
-        }
+        card = test_card("Llanowar Elves")
         assert classify_cube_category(card) == "G"
 
     def test_wayfarers_bauble_is_fixing(self):
         """Colorless land-fetcher → F. No color identity, so no mono-color
         slot competes."""
-        card = {
-            "type_line": "Artifact",
-            "color_identity": [],
-            "oracle_text": "{2}, {T}, Sacrifice Wayfarer's Bauble: Search your library for a basic land card, put that card onto the battlefield tapped, then shuffle.",
-        }
+        card = test_card("Wayfarer's Bauble")
         assert classify_cube_category(card) == "F"
 
     def test_chromatic_lantern_is_fixing(self):
         """Colorless mana rock producing any color → F."""
-        card = {
-            "type_line": "Artifact",
-            "color_identity": [],
-            "oracle_text": 'Lands you control have "{T}: Add one mana of any color."\n{T}: Add one mana of any color.',
-        }
+        card = test_card("Chromatic Lantern")
         assert classify_cube_category(card) == "F"
 
     def test_multicolor_non_fixing(self):
@@ -738,7 +558,7 @@ class TestClassifyCubeCategory:
 class TestBuildCardLookup:
     def test_canonical_name(self):
         """Cards are indexed by their canonical name."""
-        hydrated = [{"name": "Lightning Bolt", "type_line": "Instant"}]
+        hydrated = [test_card("Lightning Bolt")]
         lookup = build_card_lookup(hydrated)
         assert "Lightning Bolt" in lookup
         assert lookup["Lightning Bolt"]["type_line"] == "Instant"
@@ -752,12 +572,7 @@ class TestBuildCardLookup:
         Mistgate Pathway". build_card_lookup must index both so downstream
         lookups hit regardless of which spelling the deck author used.
         """
-        hydrated = [
-            {
-                "name": "Hengegate Pathway // Mistgate Pathway",
-                "type_line": "Land // Land",
-            }
-        ]
+        hydrated = [test_card("Hengegate Pathway // Mistgate Pathway")]
         lookup = build_card_lookup(hydrated)
         assert "Hengegate Pathway // Mistgate Pathway" in lookup
         assert "Hengegate Pathway" in lookup
@@ -768,24 +583,13 @@ class TestBuildCardLookup:
 
     def test_dfc_front_face_matches_only_land_back(self):
         """Aliasing covers DFCs whose back face is a land (flex lands)."""
-        hydrated = [
-            {
-                "name": "Shatterskull Smashing // Shatterskull, the Hammer Pass",
-                "type_line": "Sorcery // Land",
-            }
-        ]
+        hydrated = [test_card("Shatterskull Smashing // Shatterskull, the Hammer Pass")]
         lookup = build_card_lookup(hydrated)
         assert "Shatterskull Smashing" in lookup
 
     def test_printed_name_alias(self):
         """Arena printed_name still resolves to the canonical card."""
-        hydrated = [
-            {
-                "name": "Masked Meower",
-                "printed_name": "Skittering Kitten",
-                "type_line": "Creature — Spider Cat Hero",
-            }
-        ]
+        hydrated = [{**test_card("Masked Meower"), "printed_name": "Skittering Kitten"}]
         lookup = build_card_lookup(hydrated)
         assert "Masked Meower" in lookup
         assert "Skittering Kitten" in lookup
@@ -797,11 +601,10 @@ class TestBuildCardLookup:
         or printed_name alias, A's entry must not be overwritten.
         """
         hydrated = [
+            # Machinery: a record whose canonical name collides with the real
+            # pathway's front-face alias (no real card does; the shape is the test).
             {"name": "Hengegate Pathway", "type_line": "Something Else"},
-            {
-                "name": "Hengegate Pathway // Mistgate Pathway",
-                "type_line": "Land // Land",
-            },
+            test_card("Hengegate Pathway // Mistgate Pathway"),
         ]
         lookup = build_card_lookup(hydrated)
         # First card's canonical entry is preserved despite the second
@@ -810,13 +613,13 @@ class TestBuildCardLookup:
 
     def test_none_entries_skipped(self):
         """Hydration misses (None entries) don't crash the builder."""
-        hydrated = [None, {"name": "Lightning Bolt", "type_line": "Instant"}]
+        hydrated = [None, test_card("Lightning Bolt")]
         lookup = build_card_lookup(hydrated)
         assert "Lightning Bolt" in lookup
 
     def test_non_dfc_not_aliased(self):
         """Names without ' // ' don't generate bogus front-face aliases."""
-        hydrated = [{"name": "Lightning Bolt", "type_line": "Instant"}]
+        hydrated = [test_card("Lightning Bolt")]
         lookup = build_card_lookup(hydrated)
         # Exactly one entry; no accidental aliasing.
         assert len(lookup) == 1
@@ -829,11 +632,7 @@ class TestPartnerAbility:
         return {"name": name, "type_line": type_line, "oracle_text": oracle}
 
     def test_plain_partner(self):
-        c = self._ce(
-            "Ishai",
-            "Legendary Creature — Bird Monk",
-            "Flying\nPartner (You can have two commanders if both have partner.)",
-        )
+        c = test_card("Ishai, Ojutai Dragonspeaker")
         assert partner_ability(c) == {"kind": "plain", "value": ""}
         s = valid_partner_search(c)
         assert "partner \\(you can have two commanders" in s["oracle"]
@@ -841,22 +640,14 @@ class TestPartnerAbility:
     def test_partner_with_named_card_only(self):
         # CR 702.124j: pairs ONLY with the named card, even though it also carries the
         # bare `partner` keyword — the specific variant must win.
-        c = self._ce(
-            "Krav, the Unredeemed",
-            "Legendary Creature — Demon",
-            "Partner with Regna, the Redeemer (When this creature enters, ...)\n{B}...",
-        )
+        c = test_card("Krav, the Unredeemed")
         pa = partner_ability(c)
         assert pa["kind"] == "with"
         assert pa["value"] == "Regna, the Redeemer"
         assert valid_partner_search(c)["name"] == "Regna, the Redeemer"
 
     def test_partner_group_same_group_only(self):
-        c = self._ce(
-            "Atreus, Impulsive Son",
-            "Legendary Creature — God Archer",
-            "Reach\nPartner—Father & son (You can have two commanders if both ...)",
-        )
+        c = test_card("Atreus, Impulsive Son")
         pa = partner_ability(c)
         assert pa["kind"] == "group"
         assert pa["value"] == "Father & son"
@@ -868,43 +659,27 @@ class TestPartnerAbility:
         )
 
     def test_choose_a_background_pairs_with_backgrounds(self):
-        c = self._ce(
-            "Wilson, Refined Grizzly",
-            "Legendary Creature — Bear",
-            "Vigilance, trample\nChoose a Background (You can have a Background ...)",
-        )
+        c = test_card("Wilson, Refined Grizzly")
         assert partner_ability(c)["kind"] == "choose_background"
         assert valid_partner_search(c)["card_type"] == "Background"
 
     def test_background_pairs_with_choosers(self):
-        c = self._ce(
-            "Far Traveler",
-            "Legendary Enchantment — Background",
-            "Commander creatures you own have ...",
-        )
+        c = test_card("Far Traveler")
         assert partner_ability(c)["kind"] == "background"
         assert "choose a background" in valid_partner_search(c)["oracle"]
 
     def test_doctors_companion_pairs_with_doctors(self):
-        c = self._ce(
-            "Rory Williams",
-            "Legendary Creature — Human",
-            "Doctor's companion (You can have two commanders if the other is ...)",
-        )
+        c = test_card("Sarah Jane Smith")
         assert partner_ability(c)["kind"] == "doctors_companion"
         assert valid_partner_search(c)["card_type"] == "Time Lord Doctor"
 
     def test_time_lord_doctor_pairs_with_companions(self):
-        c = self._ce(
-            "The Tenth Doctor",
-            "Legendary Creature — Time Lord Doctor",
-            "Whenever you attack, ...",
-        )
+        c = test_card("The Tenth Doctor")
         assert partner_ability(c)["kind"] == "doctor"
         assert "doctor's companion" in valid_partner_search(c)["oracle"]
 
     def test_no_partner_ability(self):
-        c = self._ce("Llanowar Elves", "Creature — Elf Druid", "{T}: Add {G}.")
+        c = test_card("Llanowar Elves")
         assert partner_ability(c)["kind"] is None
         assert valid_partner_search(c) is None
 
