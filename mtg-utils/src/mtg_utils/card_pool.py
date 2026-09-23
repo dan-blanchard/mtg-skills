@@ -27,9 +27,11 @@ from collections.abc import Callable
 from pathlib import Path
 
 from mtg_utils._name_index import NameIndex, build_name_index, keep_cheaper
+from mtg_utils.arena_card_db import find_card_db, primary_rarities
 from mtg_utils.bulk_loader import bulk_mtime, default_bulk_path, load_bulk_cards
 from mtg_utils.card_classify import BASIC_LAND_NAMES, SKIP_LAYOUTS
 from mtg_utils.formats import Format
+from mtg_utils.names import normalize_card_name
 
 __all__ = ["CardPool", "NoBulkError", "is_game_card"]
 
@@ -77,12 +79,6 @@ RARITY_ORDER = {
     "bonus": 2,
 }
 
-# Digital-only Arena draft sets whose rarities reflect limited design, not Arena
-# wildcard cost. Reprints in these sets are excluded from the Arena rarity index so
-# the "real" printing's rarity wins. E.g., Lightning Bolt is common in J21 (for draft)
-# but uncommon on Arena (STA/FCA — the actual wildcard cost).
-_DRAFT_RARITY_SETS = frozenset({"j21", "jmp", "ajmp"})
-
 
 def _keep_lowest_rarity(existing: dict, new: dict) -> dict:
     """Arena acquisition-cost reducer: a card's wildcard cost is the LOWEST rarity among
@@ -101,8 +97,15 @@ def _collector_key(card: dict) -> tuple[int, int, str]:
     return (0, int(digits), raw) if digits else (1, 0, raw)
 
 
-def _rarity_value(card: dict) -> dict:
-    rarity = card.get("rarity", "rare")
+def _rarity_value(card: dict, arena: dict[str, str]) -> dict:
+    """``{rarity, free}`` for *card*: Arena's own rarity when its card database lists
+    the card (by full name or front face), else this printing's."""
+    name = card.get("name", "")
+    rarity = arena.get(normalize_card_name(name)) or arena.get(
+        normalize_card_name(name.split(" // ")[0])
+    )
+    if rarity is None:
+        rarity = card.get("rarity", "rare")
     return {
         "rarity": "rare" if rarity in ("special", "bonus") else rarity,
         "free": card.get("name") in BASIC_LAND_NAMES,
@@ -137,7 +140,7 @@ class CardPool:
         self._path = path
         self._by_name: NameIndex | None = None
         self._by_id: dict[str, dict] | None = None
-        self._rarity: dict[tuple[str, bool], NameIndex] = {}
+        self._rarity: dict[tuple[str, bool, str | None, int], NameIndex] = {}
         self._unreleased: frozenset[str] | None = None
         self._aliases: dict[str, str] | None = None
         self._printings: tuple[dict[str, list[dict]], dict[str, dict]] | None = None
@@ -235,13 +238,16 @@ class CardPool:
         A card's wildcard cost is its LOWEST rarity among printings legal in *fmt*
         (``Format.is_legal``, which carries Competitive Brawl's ban override, so an
         owned, legal staple is never reported as illegal). *arena_only* restricts to
-        printings that exist on Arena. Reprints in the digital-only draft sets (J21 /
-        JMP / AJMP) carry limited-design rarities, so they defer to the real printing.
-        ``free`` marks the six basic lands Arena gives every player (Snow-Covered
-        basics are collected, so they are not free). Memoized per (format,
-        arena_only).
+        printings that exist on Arena, and lets the local Arena card database
+        (``arena_card_db``) decide the rarity of every card it lists: the lowest
+        rarity among the card's craftable (primary) printings, which MTGJSON cannot
+        see. ``free`` marks the six basic lands Arena gives every player
+        (Snow-Covered basics are collected, so they are not free). Memoized per
+        (format, arena_only, card database).
         """
-        key = (fmt.name, arena_only)
+        db = find_card_db() if arena_only else None
+        arena = primary_rarities(db) if db is not None else {}
+        key = (fmt.name, arena_only, str(db) if db else None, len(arena))
         cached = self._rarity.get(key)
         if cached is not None:
             return cached
@@ -249,18 +255,12 @@ class CardPool:
         def _legal(card: dict) -> bool:
             if card.get("layout") in SKIP_LAYOUTS or not fmt.is_legal(card):
                 return False
-            if arena_only and "arena" not in (card.get("games") or []):
-                return False
-            return not (
-                arena_only
-                and card.get("set", "") in _DRAFT_RARITY_SETS
-                and card.get("reprint", False)
-            )
+            return not arena_only or "arena" in (card.get("games") or [])
 
         index = build_name_index(
             self._cards,
             reduce=_keep_lowest_rarity,
-            value=_rarity_value,
+            value=lambda card: _rarity_value(card, arena),
             prefilter=_legal,
         )
         self._rarity[key] = index

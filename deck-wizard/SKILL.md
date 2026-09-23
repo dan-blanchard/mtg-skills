@@ -202,7 +202,7 @@ Re-verify it after each B&R announcement.
 
 ### Arena Rarity Warning
 
-The `rarity` field in the deck's hydrated sidecar is the **default Scryfall printing's rarity**, which drifts from Arena's actual wildcard cost. Always use `price-check --format <fmt> --bulk-data <path>` for Arena wildcard budgeting — it reports the lowest Arena-legal rarity per card by walking every Arena printing.
+The `rarity` field in the deck's hydrated sidecar is the **default Scryfall printing's rarity**, which drifts from Arena's actual wildcard cost. Always use `price-check --format <fmt> --bulk-data <path>` for Arena wildcard budgeting. When Arena is installed it reads the rarity straight from Arena's own card database (ADR-0057), the lowest rarity among the card's craftable printings, so it matches what Arena charges. Without Arena it falls back to MTGJSON's printings, which are wrong for about 35 cards, mostly Special Guests reprints that MTGJSON lists as mythic.
 
 ### Licensed IP Card Warning
 

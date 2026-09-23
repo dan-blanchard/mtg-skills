@@ -93,6 +93,7 @@ from pathlib import Path
 import click
 
 from mtg_utils._sidecar import atomic_write_json
+from mtg_utils.arena_card_db import player_log_path
 from mtg_utils.bulk_loader import load_bulk_cards
 from mtg_utils.formats import FORMATS
 
@@ -147,28 +148,12 @@ def _default_log_path() -> Path:
     players who run it under Wine/Proton need to supply ``--log-path``
     explicitly since we can't know where their Wine prefix lives.
     """
-    if sys.platform == "darwin":
-        return (
-            Path.home()
-            / "Library"
-            / "Logs"
-            / "Wizards Of The Coast"
-            / "MTGA"
-            / "Player.log"
-        )
+    path = player_log_path()
+    if path is not None:
+        return path
     if sys.platform == "win32":
-        user_profile = os.environ.get("USERPROFILE")
-        if not user_profile:
-            msg = "Could not determine %USERPROFILE% — pass --log-path explicitly."
-            raise click.UsageError(msg)
-        return (
-            Path(user_profile)
-            / "AppData"
-            / "LocalLow"
-            / "Wizards Of The Coast"
-            / "MTGA"
-            / "Player.log"
-        )
+        msg = "Could not determine %USERPROFILE% — pass --log-path explicitly."
+        raise click.UsageError(msg)
     msg = (
         f"Auto-detecting Player.log is not supported on {sys.platform!r} "
         f"(MTG Arena is Windows/macOS only). If you run MTGA under "

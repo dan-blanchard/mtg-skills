@@ -2,6 +2,7 @@
 
 import json
 import os
+import sqlite3
 import tempfile
 import textwrap
 import time
@@ -1162,3 +1163,36 @@ def real_cr_path() -> Path:
         tmp.replace(cache)
         os.utime(cache, None)
     return cache
+
+
+def make_arena_card_db(path: Path, printings: list[tuple]) -> Path:
+    """An Arena-shaped card database. Each printing is ``(title, rarity, primary)``
+    with optional ``is_token`` / ``is_rebalanced`` / ``formatted_title``; the title is
+    stored the way Arena stores it — a plain row (``Formatted`` 0) plus a formatted
+    row (``Formatted`` 1) that may carry markup."""
+    con = sqlite3.connect(path)
+    con.execute(
+        "CREATE TABLE Cards (GrpId INTEGER, TitleId INTEGER, Rarity INTEGER, "
+        "IsPrimaryCard INTEGER, IsToken INTEGER, IsRebalanced INTEGER)"
+    )
+    con.execute(
+        "CREATE TABLE Localizations_enUS (LocId INTEGER, Formatted INTEGER, Loc TEXT)"
+    )
+    for grp_id, printing in enumerate(printings, start=1):
+        title, rarity, primary, *rest = printing
+        is_token, is_rebalanced, formatted = [*rest, 0, 0, None][:3]
+        con.execute(
+            "INSERT INTO Cards VALUES (?, ?, ?, ?, ?, ?)",
+            (grp_id, grp_id, rarity, primary, is_token, is_rebalanced),
+        )
+        if title is not None:
+            con.execute(
+                "INSERT INTO Localizations_enUS VALUES (?, 0, ?)", (grp_id, title)
+            )
+        con.execute(
+            "INSERT INTO Localizations_enUS VALUES (?, 1, ?)",
+            (grp_id, formatted if formatted is not None else title),
+        )
+    con.commit()
+    con.close()
+    return path

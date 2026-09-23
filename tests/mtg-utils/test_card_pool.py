@@ -12,9 +12,12 @@ import json
 from pathlib import Path
 
 import pytest
+from conftest import make_arena_card_db
 
+from mtg_utils.arena_card_db import ENV_VAR
 from mtg_utils.bulk_loader import clear_memory_cache
 from mtg_utils.card_pool import CardPool, NoBulkError, is_game_card
+from mtg_utils.deck import split_type_line
 from mtg_utils.formats import FORMATS
 from mtg_utils.testkit import test_card
 
@@ -286,57 +289,116 @@ class TestRarityIndex:
         assert index["snow-covered forest"]["free"] is False
         assert index["ash barrens"]["free"] is False
 
-    def test_skips_draft_set_reprints_for_arena(self, tmp_path):
-        """J21/JMP/AJMP reprints have draft-format rarities that don't match
-        Arena wildcard cost.  A J21 common reprint should be excluded so the
-        real printing's uncommon rarity wins. Round-trips an MTGJSON fixture so
-        ``reprint`` is the adapter's own emission (from ``isReprint``) — a hand-built
-        Scryfall-shaped record hid that MTGJSON never carried the field."""
-
-        def printing(set_code, rarity, availability):
-            return {
-                "name": "Lightning Bolt",
-                "uuid": f"u-{set_code}",
-                "identifiers": {
-                    "scryfallOracleId": "oid-bolt",
-                    "scryfallId": f"s-{set_code}",
-                },
-                "type": "Instant",
-                "types": ["Instant"],
-                "manaValue": 1.0,
-                "colorIdentity": ["R"],
-                "layout": "normal",
-                "availability": availability,
-                "legalities": {"brawl": "Legal"},
-                "setCode": set_code,
-                "rarity": rarity,
-                "isReprint": True,
-            }
-
-        data = {
-            "data": {
-                "J21": {
-                    "code": "J21",
-                    "name": "Jumpstart: Historic Horizons",
-                    "type": "draft_innovation",
-                    "releaseDate": "2021-08-26",
-                    "cards": [printing("J21", "common", ["arena"])],
-                },
-                "STA": {
-                    "code": "STA",
-                    "name": "Strixhaven Mystical Archive",
-                    "type": "masterpiece",
-                    "releaseDate": "2021-04-23",
-                    "cards": [printing("STA", "uncommon", ["arena", "mtgo", "paper"])],
-                },
-            }
-        }
+    def test_draft_set_reprints_count_like_any_printing(self, tmp_path):
+        """Without Arena's card database, a J21 reprint is costed like any Arena
+        printing: 866 of Arena's 894 J21/JMP printings are craftable. Unholy Heat
+        costs a common through its J21 reprint, not the later Special Guests mythic."""
+        data = _mtgjson_sets(
+            _mtgjson_printing("Unholy Heat", "J21", "common", ["arena"]),
+            _mtgjson_printing("Unholy Heat", "SPG", "mythic", ["arena", "paper"]),
+        )
         bulk_path = tmp_path / "AllPrintings.json"
         bulk_path.write_text(json.dumps(data))
         index = CardPool.load(bulk_path).rarity_index(
-            FORMATS["historic_brawl"], arena_only=True
+            FORMATS["competitive_brawl"], arena_only=True
+        )
+        assert index["unholy heat"]["rarity"] == "common"
+
+    def test_arena_card_database_decides_the_rarity(self, tmp_path, monkeypatch):
+        """With Arena's card database present, a card it lists costs the lowest
+        rarity among its PRIMARY printings. Lightning Bolt's J21 common is not
+        primary on Arena, so Bolt costs an uncommon. A card the database doesn't
+        list keeps the MTGJSON answer."""
+        data = _mtgjson_sets(
+            _mtgjson_printing("Lightning Bolt", "J21", "common", ["arena"]),
+            _mtgjson_printing(
+                "Lightning Bolt", "STA", "uncommon", ["arena", "mtgo", "paper"]
+            ),
+            _mtgjson_printing("Reckless Charge", "J21", "common", ["arena"]),
+        )
+        bulk_path = tmp_path / "AllPrintings.json"
+        bulk_path.write_text(json.dumps(data))
+        db = make_arena_card_db(
+            tmp_path / "Raw_CardDatabase_x.mtga",
+            [
+                (test_card("Lightning Bolt")["name"], 2, 0),
+                (test_card("Lightning Bolt")["name"], 3, 1),
+            ],
+        )
+        monkeypatch.setenv(ENV_VAR, str(db))
+        index = CardPool.load(bulk_path).rarity_index(
+            FORMATS["competitive_brawl"], arena_only=True
         )
         assert index["lightning bolt"]["rarity"] == "uncommon"
+        assert index["reckless charge"]["rarity"] == "common"
+
+    def test_draft_set_reprint_is_the_fallback_when_it_is_the_only_arena_printing(
+        self, tmp_path
+    ):
+        """Reckless Charge exists on Arena only as its J21 reprint (its MH1 printing
+        is paper/MTGO). Deferring to a "real" printing needs one on Arena; with none,
+        the J21 printing IS the card's Arena cost, not a reason to report it missing."""
+        data = _mtgjson_sets(
+            _mtgjson_printing("Reckless Charge", "J21", "common", ["arena"]),
+            _mtgjson_printing(
+                "Reckless Charge", "MH1", "common", ["mtgo", "paper"], reprint=False
+            ),
+        )
+        bulk_path = tmp_path / "AllPrintings.json"
+        bulk_path.write_text(json.dumps(data))
+        index = CardPool.load(bulk_path).rarity_index(
+            FORMATS["competitive_brawl"], arena_only=True
+        )
+        assert index["reckless charge"]["rarity"] == "common"
+
+
+def _mtgjson_printing(
+    name: str,
+    set_code: str,
+    rarity: str,
+    availability: list[str],
+    *,
+    reprint: bool = True,
+) -> dict:
+    """One MTGJSON printing of the real card *name* (its card data from the snapshot);
+    only the per-printing fields — set, rarity, availability, reprint — are the test's."""
+    record = test_card(name)
+    types, _ = split_type_line(record["type_line"])
+    return {
+        "name": record["name"],
+        "uuid": f"u-{set_code}-{record['oracle_id']}",
+        "identifiers": {
+            "scryfallOracleId": record["oracle_id"],
+            "scryfallId": f"s-{set_code}-{record['oracle_id']}",
+        },
+        "type": record["type_line"],
+        "types": [t.title() for t in types],
+        "manaValue": record["cmc"],
+        "colorIdentity": record["color_identity"],
+        "layout": record["layout"],
+        "text": record["oracle_text"],
+        "availability": availability,
+        "legalities": {
+            fmt: status
+            for fmt, status in record["legalities"].items()
+            if status != "not_legal"
+        },
+        "setCode": set_code,
+        "rarity": rarity,
+        "isReprint": reprint,
+    }
+
+
+def _mtgjson_sets(*printings: dict) -> dict:
+    """An ``AllPrintings`` document holding *printings*, one set per set code."""
+    sets: dict[str, dict] = {}
+    for printing in printings:
+        code = printing["setCode"]
+        sets.setdefault(
+            code,
+            {"code": code, "name": code, "type": "expansion", "cards": []},
+        )["cards"].append(printing)
+    return {"data": sets}
 
 
 class TestRarityIndexFormatBanOverrides:
