@@ -16,6 +16,7 @@ from mtg_utils.scryfall_lookup import (
     lookup_single,
     main,
 )
+from mtg_utils.testkit import test_card
 
 
 class TestLookupSingle:
@@ -302,7 +303,7 @@ class TestRarityField:
     def test_lookup_keeps_rarity(self, tmp_path):
         bulk_path = tmp_path / "bulk.json"
         bulk_path.write_text(
-            json.dumps([{"name": "Sol Ring", "rarity": "uncommon", "prices": {}}])
+            json.dumps([{**test_card("Sol Ring"), "rarity": "uncommon", "prices": {}}])
         )
         result = lookup_single("Sol Ring", bulk_path=bulk_path)
         assert result["rarity"] == "uncommon"
@@ -313,13 +314,11 @@ class TestBulkIndexCheapestPrinting:
     def test_prefers_cheapest_printing(self, tmp_path):
         cards = [
             {
-                "name": "Steam Vents",
-                "legalities": {"commander": "legal"},
+                **test_card("Steam Vents"),
                 "prices": {"usd": "1300.00", "usd_foil": None},
             },
             {
-                "name": "Steam Vents",
-                "legalities": {"commander": "legal"},
+                **test_card("Steam Vents"),
                 "prices": {"usd": "13.00", "usd_foil": "20.00"},
             },
         ]
@@ -330,16 +329,8 @@ class TestBulkIndexCheapestPrinting:
 
     def test_prefers_priced_over_null(self, tmp_path):
         cards = [
-            {
-                "name": "Sol Ring",
-                "legalities": {"commander": "legal"},
-                "prices": {"usd": None, "usd_foil": None},
-            },
-            {
-                "name": "Sol Ring",
-                "legalities": {"commander": "legal"},
-                "prices": {"usd": "1.50", "usd_foil": "5.00"},
-            },
+            {**test_card("Sol Ring"), "prices": {"usd": None, "usd_foil": None}},
+            {**test_card("Sol Ring"), "prices": {"usd": "1.50", "usd_foil": "5.00"}},
         ]
         bulk_path = tmp_path / "bulk.json"
         bulk_path.write_text(json.dumps(cards))
@@ -369,16 +360,9 @@ class TestBulkIndexCheapestPrinting:
     def test_standalone_wins_front_face_key_over_split(self, tmp_path):
         """Looking up 'Bind' should return the standalone card, not 'Bind // Liberate'."""
         cards = [
-            {
-                "name": "Bind // Liberate",
-                "legalities": {"commander": "legal"},
-                "prices": {"usd": "0.50"},
-            },
-            {
-                "name": "Bind",
-                "legalities": {"commander": "legal"},
-                "prices": {"usd": "1.00"},
-            },
+            {**test_card("Bind // Liberate"), "prices": {"usd": "0.50"}},
+            # the real standalone Bind, a near miss on the split card's front face
+            {**test_card("Bind"), "prices": {"usd": "1.00"}},
         ]
         bulk_path = tmp_path / "bulk.json"
         bulk_path.write_text(json.dumps(cards))
@@ -389,11 +373,7 @@ class TestBulkIndexCheapestPrinting:
     def test_split_front_face_alias_when_no_standalone(self, tmp_path):
         """Looking up 'Fire' should return 'Fire // Ice' when no standalone 'Fire' exists."""
         cards = [
-            {
-                "name": "Fire // Ice",
-                "legalities": {"commander": "legal"},
-                "prices": {"usd": "0.25"},
-            },
+            {**test_card("Fire // Ice"), "prices": {"usd": "0.25"}},
         ]
         bulk_path = tmp_path / "bulk.json"
         bulk_path.write_text(json.dumps(cards))
@@ -539,13 +519,9 @@ class TestCLI:
 class TestBuildDigest:
     def test_classifies_types(self):
         results = [
-            {"name": "Forest", "type_line": "Basic Land — Forest", "cmc": 0},
-            {
-                "name": "Llanowar Elves",
-                "type_line": "Creature — Elf Druid",
-                "cmc": 1,
-            },
-            {"name": "Counterspell", "type_line": "Instant", "cmc": 2},
+            test_card("Forest"),
+            test_card("Llanowar Elves"),
+            test_card("Counterspell"),
         ]
         digest = build_digest(results, ["Forest", "Llanowar Elves", "Counterspell"])
         assert digest["categories"]["lands"] == 1
@@ -555,7 +531,7 @@ class TestBuildDigest:
 
     def test_missing_cards_populate_missing_list(self):
         results = [
-            {"name": "Forest", "type_line": "Basic Land — Forest", "cmc": 0},
+            test_card("Forest"),
             None,
         ]
         digest = build_digest(results, ["Forest", "Bogus"])
@@ -564,7 +540,7 @@ class TestBuildDigest:
 
     def test_avg_cmc_excludes_lands(self):
         results = [
-            {"name": "Forest", "type_line": "Basic Land — Forest", "cmc": 0},
+            test_card("Forest"),
             {"name": "Creature", "type_line": "Creature", "cmc": 4},
             {"name": "Instant", "type_line": "Instant", "cmc": 2},
         ]

@@ -44245,6 +44245,408 @@
     "type_line": "Creature — Phyrexian Insect"
    }
   },
+  "Bind": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "Counter target activated ability.\nDraw a card.",
+       "duration": null,
+       "effect": {
+        "target": {
+         "kind": "Activated",
+         "type": "StackAbility"
+        },
+        "type": "Counter"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "count": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "target": {
+          "type": "Controller"
+         },
+         "type": "Draw"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "sub_link": "SequentialSibling",
+        "target_prompt": null
+       },
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Instant"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Green"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "premodern": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 1,
+      "shards": [
+       "Green"
+      ],
+      "type": "Cost"
+     },
+     "name": "Bind",
+     "non_ability_text": null,
+     "oracle_text": "Counter target activated ability. (Mana abilities can't be targeted.)\nDraw a card.",
+     "power": null,
+     "printings": [
+      "INV"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2016-06-08",
+       "text": "Activated abilities contain a colon. They’re generally written “[Cost]: [Effect].” Some keywords are activated abilities and will have colons in their reminder text."
+      }
+     ],
+     "scryfall_oracle_id": "2b9557df-7158-4ada-be77-5c346851a568",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 2.0,
+    "color_identity": [
+     "G"
+    ],
+    "colors": [
+     "G"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{1}{G}",
+    "name": "Bind",
+    "oracle_id": "2b9557df-7158-4ada-be77-5c346851a568",
+    "oracle_text": "Counter target activated ability. (Mana abilities can't be targeted.)\nDraw a card.",
+    "type_line": "Instant"
+   }
+  },
+  "Bind // Liberate": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "Counter target activated ability.\nDraw a card.",
+       "duration": null,
+       "effect": {
+        "target": {
+         "kind": "Activated",
+         "type": "StackAbility"
+        },
+        "type": "Counter"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "count": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "target": {
+          "type": "Controller"
+         },
+         "type": "Draw"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "sub_link": "SequentialSibling",
+        "target_prompt": null
+       },
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Instant"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Green",
+      "White"
+     ],
+     "color_override": null,
+     "defense": null,
+     "face_index": 0,
+     "flavor_name": null,
+     "keywords": [],
+     "layout": "split",
+     "legalities": {},
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 1,
+      "shards": [
+       "Green"
+      ],
+      "type": "Cost"
+     },
+     "name": "Bind",
+     "non_ability_text": null,
+     "oracle_text": "Counter target activated ability. (Mana abilities can't be targeted.)\nDraw a card.",
+     "power": null,
+     "printings": [
+      "CMB1",
+      "CMB2"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "ff7c12dd-1a1a-417a-b08a-d1346430858e",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    },
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "Exile target creature you control. Return that card to the battlefield under its owner's control at the beginning of the next end step.",
+       "duration": null,
+       "effect": {
+        "destination": "Exile",
+        "enter_tapped": false,
+        "enter_transformed": false,
+        "enters_attacking": false,
+        "origin": null,
+        "owner_library": false,
+        "target": {
+         "controller": "You",
+         "properties": [],
+         "type": "Typed",
+         "type_filters": [
+          "Creature"
+         ]
+        },
+        "type": "ChangeZone"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "condition": {
+          "phase": "End",
+          "type": "AtNextPhase"
+         },
+         "effect": {
+          "condition": null,
+          "cost": null,
+          "description": null,
+          "duration": null,
+          "effect": {
+           "destination": "Battlefield",
+           "enter_tapped": false,
+           "enter_transformed": false,
+           "enters_attacking": false,
+           "origin": "Exile",
+           "owner_library": false,
+           "target": {
+            "type": "ParentTarget"
+           },
+           "type": "ChangeZone"
+          },
+          "forward_result": false,
+          "kind": "Spell",
+          "optional": false,
+          "optional_targeting": false,
+          "sub_ability": null,
+          "target_prompt": null
+         },
+         "type": "CreateDelayedTrigger",
+         "uses_tracked_set": false
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "sub_link": "SequentialSibling",
+        "target_prompt": null
+       },
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Instant"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Green",
+      "White"
+     ],
+     "color_override": null,
+     "defense": null,
+     "face_index": 1,
+     "flavor_name": null,
+     "keywords": [],
+     "layout": "split",
+     "legalities": {},
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 1,
+      "shards": [
+       "White"
+      ],
+      "type": "Cost"
+     },
+     "name": "Liberate",
+     "non_ability_text": null,
+     "oracle_text": "Exile target creature you control. Return that card to the battlefield under its owner's control at the beginning of the next end step.",
+     "power": null,
+     "printings": [
+      "CMB1",
+      "CMB2"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "ff7c12dd-1a1a-417a-b08a-d1346430858e",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "card_faces": [
+     {
+      "colors": [
+       "G"
+      ],
+      "keywords": [],
+      "mana_cost": "{1}{G}",
+      "name": "Bind",
+      "oracle_text": "Counter target activated ability. (Mana abilities can't be targeted.)\nDraw a card.",
+      "type_line": "Instant"
+     },
+     {
+      "colors": [
+       "W"
+      ],
+      "keywords": [],
+      "mana_cost": "{1}{W}",
+      "name": "Liberate",
+      "oracle_text": "Exile target creature you control. Return that card to the battlefield under its owner's control at the beginning of the next end step.",
+      "type_line": "Instant"
+     }
+    ],
+    "cmc": 4.0,
+    "color_identity": [
+     "G",
+     "W"
+    ],
+    "colors": [
+     "G",
+     "W"
+    ],
+    "keywords": [],
+    "layout": "split",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "not_legal",
+     "duel": "not_legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "not_legal",
+     "modern": "not_legal",
+     "oathbreaker": "not_legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "not_legal"
+    },
+    "mana_cost": "{1}{G} // {1}{W}",
+    "name": "Bind // Liberate",
+    "oracle_id": "ff7c12dd-1a1a-417a-b08a-d1346430858e",
+    "type_line": "Instant // Instant"
+   }
+  },
   "Birchlore Rangers": {
    "phase_records": [
     {
@@ -116578,6 +116980,199 @@
     "type_line": "Creature — Human Cleric"
    }
   },
+  "Explosive Vegetation": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "Search your library for up to two basic land cards, put them onto the battlefield tapped, then shuffle.",
+       "duration": null,
+       "effect": {
+        "count": {
+         "max": {
+          "type": "Fixed",
+          "value": 2
+         },
+         "type": "UpTo"
+        },
+        "filter": {
+         "controller": null,
+         "properties": [
+          {
+           "type": "HasSupertype",
+           "value": "Basic"
+          }
+         ],
+         "type": "Typed",
+         "type_filters": [
+          "Land"
+         ]
+        },
+        "reveal": false,
+        "type": "SearchLibrary"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "destination": "Battlefield",
+         "enter_tapped": true,
+         "enter_transformed": false,
+         "enters_attacking": false,
+         "origin": "Library",
+         "owner_library": false,
+         "target": {
+          "type": "Any"
+         },
+         "type": "ChangeZone"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": null,
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "target": {
+           "type": "Controller"
+          },
+          "type": "Shuffle"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": null,
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Sorcery"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Green"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "premodern": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 3,
+      "shards": [
+       "Green"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "015d9a5b-03a2-4341-90cc-e5be5b5fbc34",
+       "3f9d3ec9-49d2-4322-aeb1-522aac380fd3",
+       "6dc4351a-8cc9-4043-80b9-23794f576cbc",
+       "6f4e0026-1890-49e4-aa67-6a2029ffe934",
+       "88355a15-09fc-490c-8df3-e957bcf1702e",
+       "8de3fdf8-d55e-4ffc-8f8b-6314d4d467ce",
+       "ea73440b-a306-4425-84c0-5e18b6ec0516",
+       "f574a03a-c561-4eed-a053-564fcd0e8f6d"
+      ]
+     },
+     "name": "Explosive Vegetation",
+     "non_ability_text": null,
+     "oracle_text": "Search your library for up to two basic land cards, put them onto the battlefield tapped, then shuffle.",
+     "power": null,
+     "printings": [
+      "C18",
+      "CMD",
+      "CN2",
+      "DDO",
+      "DMC",
+      "DRC",
+      "DSC",
+      "DTK",
+      "HOP",
+      "ONS",
+      "PLST",
+      "TD0"
+     ],
+     "rarities": [
+      "uncommon"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "a0abd957-01a0-4aa9-8fc8-0e6840d21606",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 4.0,
+    "color_identity": [
+     "G"
+    ],
+    "colors": [
+     "G"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "legal",
+     "predh": "legal",
+     "premodern": "legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{3}{G}",
+    "name": "Explosive Vegetation",
+    "oracle_id": "a0abd957-01a0-4aa9-8fc8-0e6840d21606",
+    "oracle_text": "Search your library for up to two basic land cards, put them onto the battlefield tapped, then shuffle.",
+    "type_line": "Sorcery"
+   }
+  },
   "Expose the Culprit": {
    "phase_records": [
     {
@@ -163197,6 +163792,299 @@
     "type_line": "Artifact"
    }
   },
+  "Hobbit Hole": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": {
+        "costs": [
+         {
+          "type": "Tap"
+         },
+         {
+          "count": 1,
+          "target": {
+           "type": "SelfRef"
+          },
+          "type": "Sacrifice"
+         }
+        ],
+        "type": "Composite"
+       },
+       "description": "{T}, Sacrifice ~: Search your library for a basic land card, put it onto the battlefield tapped, then shuffle.",
+       "duration": null,
+       "effect": {
+        "count": {
+         "type": "Fixed",
+         "value": 1
+        },
+        "filter": {
+         "controller": null,
+         "properties": [
+          {
+           "type": "HasSupertype",
+           "value": "Basic"
+          }
+         ],
+         "type": "Typed",
+         "type_filters": [
+          "Land"
+         ]
+        },
+        "reveal": false,
+        "type": "SearchLibrary"
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "destination": "Battlefield",
+         "enter_tapped": true,
+         "enter_transformed": false,
+         "enters_attacking": false,
+         "origin": "Library",
+         "owner_library": false,
+         "target": {
+          "type": "Any"
+         },
+         "type": "ChangeZone"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": null,
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "target": {
+           "type": "Controller"
+          },
+          "type": "Shuffle"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": null,
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "target_prompt": null
+      },
+      {
+       "ability_tag": {
+        "type": "Cycling"
+       },
+       "activation_zone": "Hand",
+       "condition": null,
+       "consumes_source": true,
+       "cost": {
+        "costs": [
+         {
+          "cost": {
+           "generic": 4,
+           "shards": [],
+           "type": "Cost"
+          },
+          "type": "Mana"
+         },
+         {
+          "count": {
+           "type": "Fixed",
+           "value": 1
+          },
+          "filter": null,
+          "random": false,
+          "self_ref": true,
+          "type": "Discard"
+         }
+        ],
+        "type": "Composite"
+       },
+       "description": null,
+       "duration": null,
+       "effect": {
+        "count": {
+         "type": "Fixed",
+         "value": 1
+        },
+        "filter": {
+         "controller": null,
+         "properties": [],
+         "type": "Typed",
+         "type_filters": [
+          "Card",
+          {
+           "Subtype": "Halfling"
+          }
+         ]
+        },
+        "reveal": true,
+        "type": "SearchLibrary"
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "destination": "Hand",
+         "enter_tapped": false,
+         "enter_transformed": false,
+         "enters_attacking": false,
+         "origin": "Library",
+         "owner_library": false,
+         "target": {
+          "type": "Any"
+         },
+         "type": "ChangeZone"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": null,
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "target": {
+           "type": "Controller"
+          },
+          "type": "Shuffle"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": null,
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Land"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [
+      {
+       "Typecycling": {
+        "cost": {
+         "generic": 4,
+         "shards": [],
+         "type": "Cost"
+        },
+        "subtype": "Halfling"
+       }
+      }
+     ],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pauper": "legal",
+      "paupercommander": "legal",
+      "pioneer": "legal",
+      "standard": "legal",
+      "standardbrawl": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "type": "NoCost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "0365c439-30bf-4d32-a791-166751bdb996"
+      ]
+     },
+     "name": "Hobbit Hole",
+     "non_ability_text": null,
+     "oracle_text": "{T}, Sacrifice this land: Search your library for a basic land card, put it onto the battlefield tapped, then shuffle.\nHalflingcycling {4} ({4}, Discard this card: Search your library for a Halfling card, reveal it, put it into your hand, then shuffle.)",
+     "power": null,
+     "printings": [
+      "HOB"
+     ],
+     "rarities": [
+      "common"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "17492186-9814-4c41-8111-1f000a96c212",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 0.0,
+    "color_identity": [],
+    "colors": [],
+    "keywords": [
+     "Cycling",
+     "Halflingcycling"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "legal",
+     "paupercommander": "legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "legal",
+     "standardbrawl": "legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "",
+    "name": "Hobbit Hole",
+    "oracle_id": "17492186-9814-4c41-8111-1f000a96c212",
+    "oracle_text": "{T}, Sacrifice this land: Search your library for a basic land card, put it onto the battlefield tapped, then shuffle.\nHalflingcycling {4} ({4}, Discard this card: Search your library for a Halfling card, reveal it, put it into your hand, then shuffle.)",
+    "type_line": "Land"
+   }
+  },
   "Hold the Gates": {
    "phase_records": [
     {
@@ -167085,6 +167973,235 @@
     "oracle_id": "57c9ff89-dd30-467b-bb3e-499eeea8cb94",
     "oracle_text": "Search your library for an enchantment card, reveal it, put it into your hand, then shuffle.",
     "type_line": "Sorcery"
+   }
+  },
+  "Ignoble Hierarch": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": {
+        "type": "Tap"
+       },
+       "description": "{T}: Add {B}, {R}, or {G}.",
+       "duration": null,
+       "effect": {
+        "produced": {
+         "color_options": [
+          "Black",
+          "Red",
+          "Green"
+         ],
+         "count": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "type": "AnyOneColor"
+        },
+        "type": "Mana"
+       },
+       "forward_result": false,
+       "is_mana_ability": true,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Goblin",
+       "Shaman"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Black",
+      "Green",
+      "Red"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [
+      "Exalted"
+     ],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 0,
+      "shards": [
+       "Green"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "1b32b293-59a6-4d65-b8f3-b3ed7f8e39d0",
+       "3139cce8-3467-4c50-add2-5b78fb33b90a",
+       "9417f14c-a853-42c6-a992-29139484260a",
+       "aba51852-af8f-49d8-8fb6-22d52a1742b8",
+       "b99beb62-7c89-41e7-9ac2-c1722f679a2c",
+       "e802cfe1-45e0-47cd-8745-363ccc0f2af8",
+       "fc415011-9a26-4afc-9dda-11533a50ba96"
+      ]
+     },
+     "name": "Ignoble Hierarch",
+     "non_ability_text": null,
+     "oracle_text": "Exalted (Whenever a creature you control attacks alone, that creature gets +1/+1 until end of turn.)\n{T}: Add {B}, {R}, or {G}.",
+     "power": {
+      "type": "Fixed",
+      "value": 0
+     },
+     "printings": [
+      "AA2",
+      "ECC",
+      "M3C",
+      "MH2",
+      "PLST",
+      "PMH2",
+      "SLD"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2021-06-18",
+       "text": "A creature attacks alone if it's the only creature declared as an attacker during the declare attackers step (including creatures controlled by your teammates, if applicable). For example, exalted won't trigger if you attack with multiple creatures and all but one of them are removed from combat."
+      }
+     ],
+     "scryfall_oracle_id": "c8de43a3-ebd3-4000-b343-a6ffed11d34d",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 1
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": {
+        "condition": {
+         "minimum": 1,
+         "type": "MinCoAttackers"
+        },
+        "type": "Not"
+       },
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "CR 702.83a: Exalted — whenever a creature you control attacks alone, that creature gets +1/+1 until end of turn.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": "CR 702.83a: Exalted — +1/+1 until end of turn",
+        "duration": null,
+        "effect": {
+         "power": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "target": {
+          "type": "TriggeringSource"
+         },
+         "toughness": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "type": "Pump"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "Attacks",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [],
+       "valid_card": {
+        "controller": "You",
+        "properties": [],
+        "type": "Typed",
+        "type_filters": [
+         "Creature"
+        ]
+       },
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 1.0,
+    "color_identity": [
+     "B",
+     "G",
+     "R"
+    ],
+    "colors": [
+     "G"
+    ],
+    "keywords": [
+     "Exalted"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{G}",
+    "name": "Ignoble Hierarch",
+    "oracle_id": "c8de43a3-ebd3-4000-b343-a6ffed11d34d",
+    "oracle_text": "Exalted (Whenever a creature you control attacks alone, that creature gets +1/+1 until end of turn.)\n{T}: Add {B}, {R}, or {G}.",
+    "power": "0",
+    "produced_mana": [
+     "B",
+     "G",
+     "R"
+    ],
+    "toughness": "1",
+    "type_line": "Creature — Goblin Shaman"
    }
   },
   "Illusionist's Gambit": {
@@ -185763,6 +186880,285 @@
     "oracle_id": "40999aa6-6424-42e4-9d47-33bee6bbb886",
     "oracle_text": "Renown 1 (When this creature deals combat damage to a player, if it isn't renowned, put a +1/+1 counter on it and it becomes renowned.)",
     "power": "3",
+    "toughness": "2",
+    "type_line": "Creature — Human Knight"
+   }
+  },
+  "Knight of the Reliquary": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": {
+        "costs": [
+         {
+          "type": "Tap"
+         },
+         {
+          "count": 1,
+          "target": {
+           "filters": [
+            {
+             "controller": null,
+             "properties": [],
+             "type": "Typed",
+             "type_filters": [
+              {
+               "Subtype": "Forest"
+              }
+             ]
+            },
+            {
+             "controller": null,
+             "properties": [],
+             "type": "Typed",
+             "type_filters": [
+              {
+               "Subtype": "Plains"
+              }
+             ]
+            }
+           ],
+           "type": "Or"
+          },
+          "type": "Sacrifice"
+         }
+        ],
+        "type": "Composite"
+       },
+       "description": "{T}, Sacrifice a Forest or Plains: Search your library for a land card, put it onto the battlefield, then shuffle.",
+       "duration": null,
+       "effect": {
+        "count": {
+         "type": "Fixed",
+         "value": 1
+        },
+        "filter": {
+         "controller": null,
+         "properties": [],
+         "type": "Typed",
+         "type_filters": [
+          "Land"
+         ]
+        },
+        "reveal": false,
+        "type": "SearchLibrary"
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "destination": "Battlefield",
+         "enter_tapped": false,
+         "enter_transformed": false,
+         "enters_attacking": false,
+         "origin": "Library",
+         "owner_library": false,
+         "target": {
+          "type": "Any"
+         },
+         "type": "ChangeZone"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": null,
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "target": {
+           "type": "Controller"
+          },
+          "type": "Shuffle"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": null,
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Human",
+       "Knight"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Green",
+      "White"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 1,
+      "shards": [
+       "Green",
+       "White"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "205df311-a72d-40f1-b2ea-9b30274bc9bd",
+       "648da53a-5cce-4133-9779-62d18783dd67",
+       "76cde4a6-128d-447f-9659-ceb3b345ed33",
+       "ad8b8518-c09e-4cb7-95b2-08e4e370d89c",
+       "fcba497e-14de-4977-9e5a-0533b6b0de60"
+      ]
+     },
+     "name": "Knight of the Reliquary",
+     "non_ability_text": null,
+     "oracle_text": "This creature gets +1/+1 for each land card in your graveyard.\n{T}, Sacrifice a Forest or Plains: Search your library for a land card, put it onto the battlefield, then shuffle.",
+     "power": {
+      "type": "Fixed",
+      "value": 2
+     },
+     "printings": [
+      "CON",
+      "DDG",
+      "HA2",
+      "IMA",
+      "MMA",
+      "TSR"
+     ],
+     "rarities": [
+      "rare",
+      "mythic",
+      "special"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2021-03-19",
+       "text": "Knight of the Reliquary's first ability applies only while it's on the battlefield. In all other zones, it's a 2/2 creature."
+      }
+     ],
+     "scryfall_oracle_id": "393e5331-4456-4ba3-b410-bb630bb053db",
+     "static_abilities": [
+      {
+       "active_zones": [],
+       "affected": {
+        "type": "SelfRef"
+       },
+       "affected_zone": null,
+       "characteristic_defining": false,
+       "condition": null,
+       "description": "~ gets +1/+1 for each land card in your graveyard.",
+       "effect_zone": null,
+       "mode": "Continuous",
+       "modifications": [
+        {
+         "type": "AddDynamicPower",
+         "value": {
+          "qty": {
+           "card_types": [
+            "Land"
+           ],
+           "scope": "Controller",
+           "type": "ZoneCardCount",
+           "zone": "Graveyard"
+          },
+          "type": "Ref"
+         }
+        },
+        {
+         "type": "AddDynamicToughness",
+         "value": {
+          "qty": {
+           "card_types": [
+            "Land"
+           ],
+           "scope": "Controller",
+           "type": "ZoneCardCount",
+           "zone": "Graveyard"
+          },
+          "type": "Ref"
+         }
+        }
+       ]
+      }
+     ],
+     "toughness": {
+      "type": "Fixed",
+      "value": 2
+     },
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 3.0,
+    "color_identity": [
+     "G",
+     "W"
+    ],
+    "colors": [
+     "G",
+     "W"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{1}{G}{W}",
+    "name": "Knight of the Reliquary",
+    "oracle_id": "393e5331-4456-4ba3-b410-bb630bb053db",
+    "oracle_text": "This creature gets +1/+1 for each land card in your graveyard.\n{T}, Sacrifice a Forest or Plains: Search your library for a land card, put it onto the battlefield, then shuffle.",
+    "power": "2",
     "toughness": "2",
     "type_line": "Creature — Human Knight"
    }
@@ -213378,6 +214774,262 @@
     "oracle_id": "3a310554-3f69-4158-bb94-9d6965c7125a",
     "oracle_text": "When Minsc & Boo enters and at the beginning of your upkeep, you may create Boo, a legendary 1/1 red Hamster creature token with trample and haste.\n[+1]: Put three +1/+1 counters on up to one target creature with trample or haste.\n[−2]: Sacrifice a creature. When you do, Minsc & Boo deals X damage to any target, where X is that creature's power. If the sacrificed creature was a Hamster, draw X cards.\nMinsc & Boo, Timeless Heroes can be your commander.",
     "type_line": "Legendary Planeswalker — Minsc"
+   }
+  },
+  "Mirkwood": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": {
+        "type": "Tap"
+       },
+       "description": "{T}: Add {B} or {G}.",
+       "duration": null,
+       "effect": {
+        "produced": {
+         "color_options": [
+          "Black",
+          "Green"
+         ],
+         "count": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "type": "AnyOneColor"
+        },
+        "type": "Mana"
+       },
+       "forward_result": false,
+       "is_mana_ability": true,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      },
+      {
+       "activation_restrictions": [
+        {
+         "type": "AsSorcery"
+        }
+       ],
+       "condition": null,
+       "cost": {
+        "costs": [
+         {
+          "cost": {
+           "generic": 2,
+           "shards": [
+            "Black",
+            "Green"
+           ],
+           "type": "Cost"
+          },
+          "type": "Mana"
+         },
+         {
+          "type": "Tap"
+         },
+         {
+          "count": 1,
+          "target": {
+           "type": "SelfRef"
+          },
+          "type": "Sacrifice"
+         }
+        ],
+        "type": "Composite"
+       },
+       "description": "{2}{B}{G}, {T}, Sacrifice ~: Put two +1/+1 counters on target Bear, Spider, or Wolf you control. Activate only as a sorcery.",
+       "duration": null,
+       "effect": {
+        "count": {
+         "type": "Fixed",
+         "value": 2
+        },
+        "counter_type": "P1P1",
+        "target": {
+         "filters": [
+          {
+           "controller": "You",
+           "properties": [],
+           "type": "Typed",
+           "type_filters": [
+            {
+             "Subtype": "Bear"
+            }
+           ]
+          },
+          {
+           "controller": "You",
+           "properties": [],
+           "type": "Typed",
+           "type_filters": [
+            {
+             "Subtype": "Spider"
+            }
+           ]
+          },
+          {
+           "controller": "You",
+           "properties": [],
+           "type": "Typed",
+           "type_filters": [
+            {
+             "Subtype": "Wolf"
+            }
+           ]
+          }
+         ],
+         "type": "Or"
+        },
+        "type": "PutCounter"
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Land"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Black",
+      "Green"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pauper": "legal",
+      "paupercommander": "legal",
+      "pioneer": "legal",
+      "standard": "legal",
+      "standardbrawl": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "type": "NoCost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "612cf954-f86c-4629-99df-4874d56fded3"
+      ]
+     },
+     "name": "Mirkwood",
+     "non_ability_text": null,
+     "oracle_text": "This land enters tapped.\n{T}: Add {B} or {G}.\n{2}{B}{G}, {T}, Sacrifice this land: Put two +1/+1 counters on target Bear, Spider, or Wolf you control. Activate only as a sorcery.",
+     "power": null,
+     "printings": [
+      "HOB"
+     ],
+     "rarities": [
+      "common"
+     ],
+     "replacements": [
+      {
+       "condition": null,
+       "description": "~ enters tapped.",
+       "destination_zone": "Battlefield",
+       "event": "Moved",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "scope": {
+          "type": "Single"
+         },
+         "state": {
+          "type": "Tap"
+         },
+         "target": {
+          "type": "SelfRef"
+         },
+         "type": "SetTapState"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": {
+        "type": "Mandatory"
+       },
+       "valid_card": {
+        "type": "SelfRef"
+       }
+      }
+     ],
+     "scryfall_oracle_id": "cd49aa99-bf84-4edd-aecc-6dae78b73412",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 0.0,
+    "color_identity": [
+     "B",
+     "G"
+    ],
+    "colors": [],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "legal",
+     "paupercommander": "legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "legal",
+     "standardbrawl": "legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "",
+    "name": "Mirkwood",
+    "oracle_id": "cd49aa99-bf84-4edd-aecc-6dae78b73412",
+    "oracle_text": "This land enters tapped.\n{T}: Add {B} or {G}.\n{2}{B}{G}, {T}, Sacrifice this land: Put two +1/+1 counters on target Bear, Spider, or Wolf you control. Activate only as a sorcery.",
+    "produced_mana": [
+     "B",
+     "G"
+    ],
+    "type_line": "Land"
    }
   },
   "Mirri the Cursed": {
@@ -243012,6 +244664,236 @@
     ],
     "toughness": "4",
     "type_line": "Artifact Creature — Construct"
+   }
+  },
+  "Pitiless Plunderer": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Human",
+       "Pirate"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Black"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 3,
+      "shards": [
+       "Black"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "related_token_ids": [
+       "02de53f1-cef2-51b6-b98e-93dfed407d19",
+       "04632524-9fd9-5f3d-89ba-1b31400561f0",
+       "ab4fcb95-fd1f-522f-9ad6-7f7b7f12947d",
+       "b0e0f943-429b-5075-a61d-22338c7dfcf6",
+       "ce4fe62d-f077-54ec-83ec-f719fbf726a8",
+       "d71e6c2f-7c07-58e3-af7b-9b966f5c0403",
+       "f7e12dcc-910d-5b82-b637-0b972542ead5"
+      ],
+      "source_printing_ids": [
+       "47255b76-2c77-4e94-938d-b9d3497798ec",
+       "5b5cd187-857a-44dd-8595-a52857a0b753",
+       "64e2d58c-75a4-4448-8924-d92064786ce9",
+       "6a4b4679-6ca9-49e1-a7ee-2b7a30e3e06c",
+       "8ba8b02a-8a05-40cd-8b83-51fd0cc0a7a5",
+       "8cbd3935-f02e-4508-895e-4ca86b6f8723",
+       "9cb4869d-fadd-41ec-862e-eb391996145f",
+       "c87ebffe-5907-427b-9f9b-7c36a12b4a03"
+      ]
+     },
+     "name": "Pitiless Plunderer",
+     "non_ability_text": null,
+     "oracle_text": "Whenever another creature you control dies, create a Treasure token. (It's an artifact with \"{T}, Sacrifice this token: Add one mana of any color.\")",
+     "power": {
+      "type": "Fixed",
+      "value": 1
+     },
+     "printings": [
+      "FIC",
+      "J25",
+      "LCC",
+      "MB2",
+      "PIP",
+      "PLST",
+      "RIX",
+      "SLD",
+      "SPG"
+     ],
+     "rarities": [
+      "uncommon",
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2018-01-19",
+       "text": "If Pitiless Plunderer dies at the same time as one or more other creatures you control, its ability will still trigger for each of those other creatures."
+      }
+     ],
+     "scryfall_oracle_id": "a784481f-eccb-4112-bb38-04a659319660",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 4
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "Whenever another creature you control dies, create a Treasure token.",
+       "destination": "Graveyard",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "colors": [],
+         "count": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "enters_attacking": false,
+         "keywords": [],
+         "name": "Treasure",
+         "owner": {
+          "type": "Controller"
+         },
+         "power": {
+          "type": "Fixed",
+          "value": 0
+         },
+         "tapped": false,
+         "toughness": {
+          "type": "Fixed",
+          "value": 0
+         },
+         "type": "Token",
+         "types": [
+          "Artifact",
+          "Treasure"
+         ]
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "ChangesZone",
+       "optional": false,
+       "origin": "Battlefield",
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "controller": "You",
+        "properties": [
+         {
+          "type": "Another"
+         }
+        ],
+        "type": "Typed",
+        "type_filters": [
+         "Creature"
+        ]
+       },
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "all_parts": [
+     {
+      "component": "token",
+      "id": "649d42c1-a465-435e-8b67-e901ab9ad8ab",
+      "name": "Treasure",
+      "oracle_id": "3c549374-6c37-42e0-8d88-a8555d46732d",
+      "type_line": "Token Artifact — Treasure"
+     }
+    ],
+    "arena_available": true,
+    "cmc": 4.0,
+    "color_identity": [
+     "B"
+    ],
+    "colors": [
+     "B"
+    ],
+    "keywords": [
+     "Treasure"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{3}{B}",
+    "name": "Pitiless Plunderer",
+    "oracle_id": "a784481f-eccb-4112-bb38-04a659319660",
+    "oracle_text": "Whenever another creature you control dies, create a Treasure token. (It's an artifact with \"{T}, Sacrifice this token: Add one mana of any color.\")",
+    "power": "1",
+    "produced_mana": [
+     "B",
+     "G",
+     "R",
+     "U",
+     "W"
+    ],
+    "toughness": "4",
+    "type_line": "Creature — Human Pirate"
    }
   },
   "Plaguecrafter": {
@@ -282433,6 +284315,154 @@
     "type_line": "Legendary Creature — Sliver"
    }
   },
+  "Smash": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "Destroy target artifact.\nDraw a card.",
+       "duration": null,
+       "effect": {
+        "cant_regenerate": false,
+        "target": {
+         "controller": null,
+         "properties": [],
+         "type": "Typed",
+         "type_filters": [
+          "Artifact"
+         ]
+        },
+        "type": "Destroy"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "count": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "target": {
+          "type": "Controller"
+         },
+         "type": "Draw"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "sub_link": "SequentialSibling",
+        "target_prompt": null
+       },
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Instant"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Red"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pauper": "legal",
+      "paupercommander": "legal",
+      "premodern": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 2,
+      "shards": [
+       "Red"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "40c39852-efd3-4a25-b33b-3c13dad96e7d"
+      ]
+     },
+     "name": "Smash",
+     "non_ability_text": null,
+     "oracle_text": "Destroy target artifact.\nDraw a card.",
+     "power": null,
+     "printings": [
+      "10E",
+      "APC",
+      "RAV"
+     ],
+     "rarities": [
+      "common"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "1602f8c7-fe00-4bc9-b4fc-b26b7223ac75",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 3.0,
+    "color_identity": [
+     "R"
+    ],
+    "colors": [
+     "R"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "legal",
+     "paupercommander": "legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{2}{R}",
+    "name": "Smash",
+    "oracle_id": "1602f8c7-fe00-4bc9-b4fc-b26b7223ac75",
+    "oracle_text": "Destroy target artifact.\nDraw a card.",
+    "type_line": "Instant"
+   }
+  },
   "Smash to Smithereens": {
    "phase_records": [
     {
@@ -289858,6 +291888,244 @@
     "type_line": "Artifact"
    }
   },
+  "Steam Vents": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": {
+        "type": "Tap"
+       },
+       "description": null,
+       "duration": null,
+       "effect": {
+        "produced": {
+         "colors": [
+          "Blue"
+         ],
+         "type": "Fixed"
+        },
+        "type": "Mana"
+       },
+       "forward_result": false,
+       "is_mana_ability": true,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      },
+      {
+       "condition": null,
+       "cost": {
+        "type": "Tap"
+       },
+       "description": null,
+       "duration": null,
+       "effect": {
+        "produced": {
+         "colors": [
+          "Red"
+         ],
+         "type": "Fixed"
+        },
+        "type": "Mana"
+       },
+       "forward_result": false,
+       "is_mana_ability": true,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Land"
+      ],
+      "subtypes": [
+       "Island",
+       "Mountain"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Red",
+      "Blue"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "standard": "legal",
+      "standardbrawl": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "type": "NoCost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "4923062a-91d3-4132-b97c-42139d330d44",
+       "5575e0ad-a2f5-4e56-bf45-100001d2bdca",
+       "66d618f4-443c-4a6c-8cbd-5d4ea96b2cd4",
+       "a3f14044-9835-4d78-8c1a-adf6e2c67d85",
+       "a83903c7-fd51-4526-aed2-359e946fea36",
+       "af478684-ea34-4275-ab45-a9512aaa0758",
+       "b66daa94-d367-4812-9f18-f35378c1febb",
+       "b8ebe3cf-7143-453a-b0ef-2f5bdaac3185",
+       "be874189-b715-4e7c-85d7-e887328b9d3f",
+       "d516b248-c0be-4c49-83ab-393354c33563",
+       "de911c88-f5c8-4955-9fa5-1f28a9b17236",
+       "e8e9d4cd-f94a-416f-aaa1-0c60bdd58391",
+       "eb96c335-9ed3-4f7d-b07a-185ff4044976",
+       "f9c49e51-4589-4213-9cd9-ac4ac14c8f44"
+      ]
+     },
+     "name": "Steam Vents",
+     "non_ability_text": null,
+     "oracle_text": "({T}: Add {U} or {R}.)\nAs this land enters, you may pay 2 life. If you don't, it enters tapped.",
+     "power": null,
+     "printings": [
+      "CLU",
+      "ECL",
+      "EXP",
+      "GPT",
+      "GRN",
+      "PECL",
+      "PGRN",
+      "PRM",
+      "RTR",
+      "RVR",
+      "SLD",
+      "TRK",
+      "UNF"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [
+      {
+       "condition": null,
+       "description": "As ~ enters, you may pay 2 life. If you don't, it enters tapped.",
+       "destination_zone": "Battlefield",
+       "event": "Moved",
+       "execute": null,
+       "mode": {
+        "cost": {
+         "amount": {
+          "type": "Fixed",
+          "value": 2
+         },
+         "type": "PayLife"
+        },
+        "decline": {
+         "condition": null,
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "scope": {
+           "type": "Single"
+          },
+          "state": {
+           "type": "Tap"
+          },
+          "target": {
+           "type": "SelfRef"
+          },
+          "type": "SetTapState"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": null,
+         "target_prompt": null
+        },
+        "type": "MayCost"
+       },
+       "valid_card": {
+        "type": "SelfRef"
+       }
+      }
+     ],
+     "rulings": [
+      {
+       "date": "2018-10-05",
+       "text": "Unlike most dual lands, this land has two basic land types. It's not basic, so cards such as District Guide can't find it, but it does have the appropriate land types for effects such as that of Drowned Catacomb (from the Ixalan set)."
+      },
+      {
+       "date": "2025-11-17",
+       "text": "If an effect puts this land onto the battlefield tapped, you may pay 2 life, but it still enters tapped."
+      },
+      {
+       "date": "2025-11-17",
+       "text": "This land has two basic land types. It's not basic, so cards such as Tend the Sprigs can't find it, but it does have the appropriate land types for effects such as that of Kishla Village (from the Tarkir: Dragonstorm release)."
+      }
+     ],
+     "scryfall_oracle_id": "17039058-822d-409f-938c-b727a366ba63",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 0.0,
+    "color_identity": [
+     "R",
+     "U"
+    ],
+    "colors": [],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "legal",
+     "predh": "legal",
+     "premodern": "not_legal",
+     "standard": "legal",
+     "standardbrawl": "legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "",
+    "name": "Steam Vents",
+    "oracle_id": "17039058-822d-409f-938c-b727a366ba63",
+    "oracle_text": "({T}: Add {U} or {R}.)\nAs this land enters, you may pay 2 life. If you don't, it enters tapped.",
+    "produced_mana": [
+     "R",
+     "U"
+    ],
+    "type_line": "Land — Island Mountain"
+   }
+  },
   "Steel Overseer": {
    "phase_records": [
     {
@@ -294090,6 +296358,876 @@
     "oracle_id": "75f77d67-6702-4311-870c-0209d3a687b6",
     "oracle_text": "Choose one. If you have max speed, choose both instead.\n• Seek a card with start your engines!\n• Seek a nonland card.\nJump-start",
     "type_line": "Instant"
+   }
+  },
+  "Swamp": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": {
+        "type": "Tap"
+       },
+       "description": null,
+       "duration": null,
+       "effect": {
+        "produced": {
+         "colors": [
+          "Black"
+         ],
+         "type": "Fixed"
+        },
+        "type": "Mana"
+       },
+       "forward_result": false,
+       "is_mana_ability": true,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Land"
+      ],
+      "subtypes": [
+       "Swamp"
+      ],
+      "supertypes": [
+       "Basic"
+      ]
+     },
+     "color_identity": [
+      "Black"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pauper": "legal",
+      "paupercommander": "legal",
+      "pioneer": "legal",
+      "premodern": "legal",
+      "standard": "legal",
+      "standardbrawl": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "type": "NoCost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "004e232c-ea3d-4a8c-bf16-234ac09e4567",
+       "00daa026-aba3-421e-9eaa-aa5649b36eb2",
+       "013612b4-fed9-4112-8018-9267ae608fd7",
+       "01c46b9a-07ea-40ab-9a2b-5bee8e7d3496",
+       "0223cf7f-4c6e-487f-babb-a740a15e1f0c",
+       "02cb5cfd-018e-4c5e-bef1-166262aa5f1d",
+       "02dc1392-7701-4f3e-b5af-d8756bef6d07",
+       "02e71e69-ff6c-4821-81d3-e30931eb7bfe",
+       "0306607d-2a42-4008-ac84-8d3ed91fe3aa",
+       "03e82924-899c-47b4-862a-7a27a96e285a",
+       "040d064e-b023-4750-afeb-1f58e36bc4ab",
+       "04559991-3278-469f-b2be-07c3b27ad5a5",
+       "0520813a-fe20-4bde-8dc9-9a7add51c722",
+       "058ebefe-ad31-430b-b298-c9df929e03cc",
+       "05e8d2d8-2880-4c1a-97f3-ed3f206883bb",
+       "06017c14-2b8b-4840-be21-023602a3e8d8",
+       "06a570b2-bcab-4500-b790-252baaf1f6d8",
+       "06b5576e-968a-41b6-bc5c-a0ed6521d419",
+       "07504e2d-9d70-4957-bee6-abab92368a33",
+       "07a6df7a-a080-4aef-9a76-5b08bbc4e762",
+       "07ab266b-ad6a-422e-9277-27d9f48d2c29",
+       "084efea7-2a22-4cca-a1f9-b47aad2ebcac",
+       "085b4641-62fb-4820-aded-ccc9403d319e",
+       "0863a079-1cc2-4388-85bb-a24eae251e99",
+       "086468db-5ecb-4b57-90a8-041eff6faad8",
+       "08ec1e4f-e284-4216-a022-bd94c4dae02b",
+       "091e1917-6e93-4d36-8cc2-1b553aa92bc0",
+       "09af769d-a051-40d4-b203-7ec818c367ca",
+       "09d7e861-8dda-4073-bfd6-4ade3bca5cff",
+       "09eeb6aa-45ac-4a0e-bab2-1a004aac841f",
+       "0b3f0063-9a59-4ce1-90b5-e45921d5cc3c",
+       "0b8515d2-e8a4-45ab-b361-88eb4ec959bd",
+       "0be8241f-cfe9-4e48-8005-8bfcba92547a",
+       "0c70db5a-3d7f-4534-9e5a-01d510b8d62a",
+       "0cf904da-496c-4d88-a62b-c736ba895078",
+       "0d846729-deec-436f-af5c-08faf53ec36f",
+       "0e864369-2837-4487-8eee-0d643889d642",
+       "0eed3360-1634-4e60-b24d-4128c4896994",
+       "103538d1-1b8f-4b18-91ac-17975f353785",
+       "11093e3f-092e-49d9-aef9-b9855b040bf2",
+       "1176ebbf-4130-4e4e-ad49-65101a7357b4",
+       "11fd1aaf-b33d-4a27-8394-c0dadf889b1b",
+       "12681e76-6ffc-489e-8dcd-131a31170ced",
+       "132155ae-f7a4-4957-91cb-e51ff52716f9",
+       "13505c15-14e0-4200-82bd-fb9bce949e68",
+       "13964bf9-c391-438a-a28c-2a0716375e0c",
+       "13bd1c69-2561-4ff1-af00-bb519b3897c2",
+       "140ba675-3922-48cf-b6ec-8639267dcab8",
+       "15d6b53a-3b40-43be-ae35-c22a2a17a141",
+       "1660f317-d337-4c24-8523-613dc3072ca9",
+       "166fc328-20d1-4158-bcb6-3cebcf788ef5",
+       "1797d5c7-d3fa-4184-85ae-46db14ddf523",
+       "183acdf0-bd08-4598-966d-426dea71583d",
+       "184a196e-8604-49d2-a66a-6f7c0eafd5de",
+       "187e9fa1-6a50-4697-8645-fea4524e8dde",
+       "1967d4a8-6cc4-4a4d-9d24-93257de35e6d",
+       "19c03592-debd-4b4f-a5ea-a31ce63f5d23",
+       "19f62f5c-ddea-4564-bc47-5845ab15d8e2",
+       "1af26e12-8518-4b15-afcd-c44faaebb574",
+       "1b1d4996-ed4e-4818-a9ec-f5d8ee84ad26",
+       "1c590ebb-1e3a-4861-b8f2-aef9c4259efd",
+       "1c5d8a2c-b98a-4dae-8b89-4a2435fa7103",
+       "1c90f777-2f98-4010-80a3-5fe395747e5f",
+       "1ccdc3f2-0e3e-45b4-a141-2eb029275e9a",
+       "1cfcda3b-2bd2-4b54-959f-bf4b4f311f6b",
+       "1dd4d605-02a2-4183-b191-0bca8dfbf962",
+       "1e4ad69e-843c-4f33-be2f-711568f8aac7",
+       "1ee0be63-ec99-4291-b504-e17061c15a67",
+       "1f7cac8b-6609-42ac-a594-002068e02de4",
+       "204f051f-50a6-48fe-aa0e-04c513f1b3ed",
+       "20a28816-8e41-4c17-9478-2c85e13ee23b",
+       "20f26dde-d1a3-4d0f-9ed9-cfcd9e4ce01e",
+       "211b98e5-8ec2-4108-bacd-97e854a85b6f",
+       "214a9e76-b7fd-4cc9-89e7-104a71919a84",
+       "21900fe6-ae43-42af-a601-d70c25457239",
+       "21c39822-b53e-488b-b5df-c0ce325d9039",
+       "22b2ddff-46df-4c0c-9840-edf3d02586f0",
+       "2326267f-2412-4217-af73-f5392167a3a6",
+       "2333076d-db67-405a-9e76-27edfc591e02",
+       "237204ad-ab8a-496f-a093-48d00417350b",
+       "2380a8a1-474a-43f7-91db-68cfd7e0b790",
+       "239511f0-34b7-423c-b53b-1327d6b7da28",
+       "23c03147-e9ff-4a52-b579-12d259b4be23",
+       "23e8c5ea-12a2-44b6-a0b6-6c7cea1119f3",
+       "24eeb424-235d-4346-9355-57914e740ec6",
+       "25bcf9b0-ee35-4911-b515-7182e703beba",
+       "26142ae3-5aa1-4b9b-989a-21c0e4e5089d",
+       "2646cdba-bf2a-4eda-9d35-c15d1546b6ec",
+       "267d4321-4411-499c-a476-70c805abf02a",
+       "26c57bee-2810-467c-8ed7-6cecb5cbc379",
+       "2931ebfb-ee76-45f1-8b86-ea77775c323e",
+       "296d546a-7481-4cb9-9170-59402592507b",
+       "2a0fba6e-54d2-498c-83bc-41024307e608",
+       "2bfe9801-b683-45d9-924c-6734110816bf",
+       "2cce9570-e5d7-44e5-bc93-6d03dd1a3794",
+       "2cf4d911-6aad-4007-9735-40d125496aec",
+       "2d29e1c2-7afc-45d0-a1cf-78998dc416f7",
+       "2d49fc14-e848-4c44-a03c-6dfb83efed80",
+       "2d6df214-baa7-4de3-8333-d751c45873e0",
+       "2d8c3f29-121e-42d1-be21-29f403f97708",
+       "2e55a405-bf5b-4158-ba9a-239627ac9701",
+       "2ef981a9-303e-4313-9265-77cc60323091",
+       "2f4b9030-f04a-4f42-8dd8-2eae0ce7e420",
+       "2f8705f4-c569-4d5f-bfd5-f076fbc78440",
+       "2fe8fd6b-f6b0-442a-950e-65144a019b74",
+       "308809ad-c150-49b1-83e3-b78494156d7a",
+       "30b3d647-3546-4ade-b395-f2370750a7a6",
+       "30d7edb2-3bb4-4a0f-ad66-eef31cc8ed6b",
+       "3122fe7c-3121-43a6-a37c-3fd17bc93a4d",
+       "319bc1f0-ee42-44e5-b08b-735613ded2ba",
+       "32d5f86d-19c3-4a9a-956f-8c52cec5ba83",
+       "339c3f05-444c-4e0a-a556-fc09417ee984",
+       "34b5fe23-e909-422b-b5a9-74907739ca95",
+       "352a5dab-69e7-42f3-8be7-e1d2e8f456a9",
+       "352ff74f-6f32-4f1d-992c-b5708756a39b",
+       "357bde61-3a24-486f-ab35-8fa4d04515e8",
+       "359ca653-664b-4dfc-96cc-06bfb1b700a2",
+       "35fe42f9-dd55-4ca4-af0a-59ecdff0dba8",
+       "364ee0ec-4970-4a30-bf5b-b045a6122860",
+       "36aaa8d9-4b03-4dd2-9b3c-d8b3bf19da73",
+       "36af939c-11d9-43a5-bd69-c915a62e972b",
+       "376aea7a-6ebd-48fd-ac4f-a16b2e997dce",
+       "38625a65-868f-4cbf-a512-9142f1eddf4a",
+       "387ec72f-dd6b-4769-be3a-981d580715be",
+       "38fef662-993c-4522-8b3f-7c1d3bb1d946",
+       "39c6032a-8a2d-4718-b541-617777db6ec2",
+       "3a310639-99ca-4a7e-9f65-731779f3ea46",
+       "3b383b16-8128-4d9e-a0d0-9b8ccc9ad6df",
+       "3c51de66-a3ed-4ca9-befb-9813e96c4ade",
+       "3ce4394a-14c9-4a6e-898c-056108b16e09",
+       "3cea8d65-34ba-472e-b50e-da8bdbf54c7a",
+       "3dc20c2b-7344-43d1-8ea0-22bab837657e",
+       "3dd02eca-557a-4ed8-af50-994d16dfc7f3",
+       "3dd92a77-c852-410a-9ee9-abc01e9867a4",
+       "3e724e54-a622-4c77-8183-5a397a7c14a9",
+       "3f89288a-9958-45c6-9bd2-24e6b3935171",
+       "3ff995d3-e322-422c-9385-4d93152dc7c8",
+       "4031e5e4-e573-4130-8d20-4a606edef0a0",
+       "418335b2-398f-499e-92ad-8d21a5a5b69f",
+       "4187a894-1a26-43ec-8e38-5422ae7e6b9b",
+       "41aa58c2-eaf2-4b17-b014-afbba7199d4a",
+       "41c7688d-8155-45fd-83ba-ff9be4d414a3",
+       "42a1264f-bda3-45ac-b959-463c6e532fd3",
+       "430341f3-7dd5-4161-96a2-e76350699b66",
+       "4324380c-68b8-4955-ad92-76f921e6ffc1",
+       "43c8e72a-3305-41ee-b2e3-8099d4e91edb",
+       "442c806c-3af3-401e-8dc8-7be2ef441ba9",
+       "447f8dbc-2f09-4995-81e2-2dc1654031fd",
+       "44baaa0a-9951-4ee7-a9db-64f841bd1bd0",
+       "4510090f-b42d-4df1-af71-64a77dfbc1b2",
+       "453aa0d9-b535-4bd9-951c-4304773399b1",
+       "45991831-1018-4f98-a4ad-0998a9577d97",
+       "45cbe554-ffdc-4de6-bf27-57790b71effb",
+       "4650ebaf-8e9f-431c-998d-e0f426b24d41",
+       "46908606-f572-4b2d-9562-ed9c6f50f1ad",
+       "46a6375e-9477-4871-8a15-02439f3f6f34",
+       "46c86589-5e1f-42a8-8436-553265e4805b",
+       "46e0aaac-fc82-4ce9-87d1-8dead8ec29fd",
+       "4760cdcc-e973-439c-a74a-5cb73b4fa22f",
+       "47c4fa0e-cfd8-416a-8d88-9bd0791e7f5d",
+       "47f114dd-7954-4674-994f-d4b06288ce5b",
+       "485df5c7-5653-4bb2-ae0b-8ec83359f192",
+       "48621dca-9708-4688-a212-90b382bb4329",
+       "48f7492c-67f2-4ba3-848b-7a6a8df7e88b",
+       "490452a3-22fb-4c75-9bf2-5cd6d6719446",
+       "4a0e7a70-672e-400d-971b-63dd128f5229",
+       "4abfe418-15f8-46ce-9b39-fd5a38b25d12",
+       "4b0c331d-56c6-47d9-bd52-30a92b6415b3",
+       "4b8167f6-854f-40bc-bc86-6a6c915ae357",
+       "4bc918af-527c-46d7-861d-32e9150ed3df",
+       "4dab8252-5f15-4b83-a167-039ad64c95e4",
+       "4dbfdbdd-6322-4ea6-9680-d4e480d78437",
+       "4dc185cc-5b8e-43ea-aa75-94ddffb74ad0",
+       "4e321257-f494-49fc-a26f-3c65aa5b1377",
+       "4e74c620-a445-46a4-a1aa-b5b8ef657f18",
+       "4ebf5f38-527b-4f7d-9980-4aca116e5b88",
+       "4f3a387a-4bc1-4338-9d1e-0fbcb6f03b82",
+       "4f4f94cc-eb76-4fa6-b7d5-3cca73e8691a",
+       "4f799604-bbbf-4d57-83c8-13a0eafa974e",
+       "4f7d8adb-36b1-4f7b-b01d-e60c7bec79be",
+       "4f893107-84b0-4e3f-b1f5-b04632f192c5",
+       "50205489-2960-462c-a6cb-35a491dc54d5",
+       "50aa6685-48b5-44ac-9588-b94382957bb8",
+       "50bdea83-efb5-4371-8d25-5703c6efee65",
+       "51fe930f-2b5a-4b1e-9007-6ee74fb44715",
+       "5205f782-e6af-4152-a15f-080935017e4b",
+       "53002007-21ee-4953-9832-157968881b9e",
+       "5317d9a0-64f4-4b5f-ab1f-f1e0d91feaf2",
+       "537fb023-4352-406f-8435-51b37b99a6be",
+       "53d0a415-26b8-4ba2-9503-b4ee2b93617c",
+       "53f5c55d-09e5-49dd-906c-0f48a79b4c15",
+       "541cd2a1-034b-4f23-8468-40891ccff9fc",
+       "541e7f83-4a77-4544-ac4f-53b8c993724d",
+       "5452c8e4-3463-4ae3-a9d1-5947bea4684e",
+       "551eeb34-09d7-4d08-a0fa-dc313c946279",
+       "55fce17b-f57f-4863-bf74-71e45bec4040",
+       "5629fcbc-5003-4198-8bef-45845faba258",
+       "575fadbe-75a6-4183-be46-53de6af74790",
+       "5788684f-1339-4cb4-863a-a9883ccab79b",
+       "57da24a0-89a7-4756-b4ca-4dea132e8f67",
+       "57ef531e-2a8f-4d40-b509-92e3a86b2257",
+       "58496a56-437f-4204-9691-f63795e5cdab",
+       "58c4bbf1-2e52-4b43-ad35-9272b48d36a8",
+       "58c53fd4-032f-47a9-9f1f-4f6d3c907bd2",
+       "5a846f00-ccb9-4ee2-8358-7c7722258601",
+       "5b643680-4e28-4ae2-b4d6-609d2150a171",
+       "5bd7ee9b-1be6-44f7-8896-11c2f537a15e",
+       "5c2c9dc0-7f3a-4f3a-ba08-5c2f87e252bc",
+       "5c818f03-0e20-4ef4-bac7-11b2b7f41b5c",
+       "5cb03b18-d74c-4c89-9539-3549d2e8ff5f",
+       "5f1e5571-866b-4b19-b786-e57781353913",
+       "5f1ecc8a-4f83-46ce-80cc-acdff31d9ece",
+       "5f75f4aa-cede-452b-80c1-bd3b8221dbcb",
+       "5f917d8d-7037-4f11-91f6-1ef96b3541bb",
+       "6079aea9-145a-445d-a00f-1c0f4018a529",
+       "60b7c997-e520-4ff6-8b3b-705c2f12a9d4",
+       "6125ffe3-4e48-4e0f-8390-7462446fc8bf",
+       "62050e5d-50b3-4c4d-b8c7-b85ff20c4d71",
+       "62dbed02-6871-4830-8308-9f2f48e6730d",
+       "63803c6b-144c-4c11-b8c1-4a1861085ab7",
+       "63d11a38-3b0e-44d4-bf7d-28bed6303693",
+       "65422b02-47ee-4c68-ac27-81fa6368864e",
+       "66bb5192-58bc-4efe-a145-2e804fd3483d",
+       "674de0e1-be2d-4fda-8519-8775802a7b36",
+       "689cf978-7492-4bf9-9b20-a91c21008841",
+       "68c40a79-7213-42e2-b93e-d14f0cc5deef",
+       "69384f97-3333-4aa7-bc4f-928ba49a2c80",
+       "69eee76e-5714-4503-8170-3f551410abec",
+       "6aa4980a-dcd8-48e0-aca8-ef1590f51c10",
+       "6b65be65-d32e-42b5-98ee-d53556f17c29",
+       "6ba77dad-f157-4e31-9654-921967ea98c0",
+       "6be28351-642c-4ed1-9041-e99ecb79cba8",
+       "6bf5b682-6505-46ab-bf97-af26bda358ba",
+       "6c0ea7e6-0659-4944-a997-f46e00340542",
+       "6c5301f8-350a-4e26-8d97-0f643e5da7d6",
+       "6c8c3f0e-7af4-410b-a675-9ea84f51e812",
+       "6d2f6bcd-9360-4be8-b516-f1d0238df00b",
+       "6d4873cb-43ce-47b4-9d91-a8495a244c85",
+       "6ecb02b0-adb9-42b1-86b0-23eab29f5dda",
+       "6f23a73a-522b-40cf-a14b-ffdf47a24c01",
+       "6fae7689-a9df-4f69-8040-9fbe24f64838",
+       "70202db7-63f6-4ba7-a79e-1afc23d86e24",
+       "70d0ef58-c0b3-4bcd-b470-0cf41219a4e6",
+       "716460ce-2602-476c-aa53-40d1f22ea7c8",
+       "719b570c-1773-4a0c-8ea3-e75b1c14c35f",
+       "71d6c388-5da9-4c7a-907f-dfa7237e71aa",
+       "7232adef-c8eb-461f-b563-cb54cdeb22d5",
+       "72dbb928-fa14-4c91-b9d9-ed3787309fc9",
+       "736a0484-e091-4178-92c5-c517b0e92f3d",
+       "73e124b6-3af7-41c0-b829-ff85aa0c3782",
+       "74414c62-4b68-4e1b-9241-feff3231b9ee",
+       "7442c1c7-1c10-4387-92e6-4bdea263064f",
+       "745b1731-af31-44d2-ad50-b3e43b620913",
+       "74c16759-117f-4f17-baea-88b18d391c38",
+       "757d7085-fbd1-4343-b09a-5113d749c731",
+       "75ac1b9a-d919-4b4e-b80a-635de721fb67",
+       "76beef17-2beb-44a0-99a3-a8c4f4dd3d50",
+       "76f8def9-ee46-4abf-9059-7d1ec6f24951",
+       "77ba59d8-c13c-4966-845f-c090e9f061cb",
+       "7a2baa78-f161-4e09-9a30-74ca208d5163",
+       "7ace7e2d-17af-467d-a0fc-9af922189452",
+       "7b4ddbe5-1be4-47ee-b07a-74c8bec4d752",
+       "7c4291fe-eefc-4649-a768-568ae712fe01",
+       "7c6e2449-812a-494a-b99d-43b63d59c10d",
+       "7c71891b-9980-4b71-8301-e92288d33235",
+       "7cb90852-1a5c-4aff-9be2-d783990d2d41",
+       "7cd6becc-f06a-4fd3-8305-70604b92a187",
+       "7d3a6460-eb98-49ed-bdf9-dc97d970c706",
+       "7d790d45-12b5-463f-bb3a-eea3511c3c27",
+       "7d7c39aa-7bba-4156-b325-91b1369de6bc",
+       "7f61e5b1-8710-4150-8b10-92650d029ed3",
+       "801b419b-2a35-41e5-9439-a6e1d8a4c3c9",
+       "806d26a2-2f2a-4a77-b5bc-a6c97ba5db42",
+       "80906a47-ef4b-4e59-889c-946d40a79d94",
+       "81047292-e537-47b5-acfa-ed839707109c",
+       "81a8861a-ae60-4a1f-9b25-0bc080cfe3af",
+       "833f9340-4600-4e11-876b-93b80387c895",
+       "8394a4fc-809b-4586-88a4-1d3c2c3c84ef",
+       "83b16e93-ee53-4c1b-9dea-6db7977e9c2f",
+       "8430c66d-55ba-4fc9-9e18-0bba2e459222",
+       "843b35ec-7b59-4a22-8fee-2e876a02306b",
+       "847cac15-b404-4e0f-964e-7aee41c93346",
+       "85288987-6f3f-4b7b-9ecc-9393dd37f115",
+       "855c45a9-7031-407e-a6b6-80721b701fe7",
+       "85b37484-037a-497a-9820-97299d624daa",
+       "85c3d3a3-1199-4936-b5a6-4889072c7e64",
+       "8747d2d5-1977-4ab7-bd90-aa9a0ab25297",
+       "874f0f27-81a4-4853-aaa0-2c15e07c177e",
+       "87861e3c-d445-4452-b7e0-19b53e69b6e3",
+       "8808d9dd-70c0-46ff-bd9c-dd60240dd121",
+       "888cdb76-d365-41df-8b6a-378ac58ca8b2",
+       "89b84af6-8fa6-4224-9f51-0edf48358dcd",
+       "8b153bb8-f9d9-44dc-ae19-d0eb2ea26ba1",
+       "8ba9664e-b482-4ea4-8a84-fef817363e0f",
+       "8c63838a-49d0-4292-914c-6ae4506dcd3b",
+       "8d37e23b-7898-4b5d-b088-d4e54947f579",
+       "8e5eef83-a3d4-44c7-a6cb-7f6803825b9e",
+       "8f9dc477-a3e4-4fc0-af62-c8b8eb68d360",
+       "904b1621-17d3-4f02-b42c-cdf75425f037",
+       "91afb4f0-70ef-4539-9081-dc130c7c63f5",
+       "92d8ea25-dfed-4453-9e63-57339f948cac",
+       "92dec693-a086-4a6b-8af9-a67ee093719a",
+       "9364178a-1963-4665-b8c1-a5096ece07e2",
+       "93f6555b-426c-4eeb-96ea-ba3fafc96964",
+       "94cb941f-e3cf-45d2-9989-2a0a454d5497",
+       "959cb185-a280-493c-b85c-69b74e042c15",
+       "95a58ce4-e07f-4c9c-98ae-3173d6d63cc5",
+       "99e144bb-5350-40d5-8287-59468d2712c2",
+       "9a50165d-2ee4-4d7b-be20-d326b8bc0728",
+       "9a63a791-ad18-4d96-a0e7-e6b46cc3b4c6",
+       "9a63c166-93c2-4c56-a202-1f9dc40fd557",
+       "9b5f68bc-1842-4efd-b85a-d897cfd63bde",
+       "9b8728eb-ae5e-4ff6-8012-5e30d88a04db",
+       "9bf0df5b-ff45-4610-9c4b-355d670ef995",
+       "9df93f14-494f-4051-8a55-8d23eb2fc012",
+       "9e3b9156-4b50-4883-a76b-3a418b39e62d",
+       "9eaedaf2-a9a3-44c6-84c1-4cc2da1da459",
+       "9efeec59-1236-4d66-a4e0-16f1a1ce4274",
+       "9f3b5252-afab-4994-8303-3e0bee67b687",
+       "9f85076a-d15c-4fb3-ace9-2423149a9d92",
+       "9f9e61c0-b185-4704-913f-9284ed0ce250",
+       "a095fed4-0a2a-4092-b923-8f46c8ea22d8",
+       "a1973dcf-b22c-478a-b782-6d355cb74904",
+       "a1d2dedf-d0d8-42c5-a498-31e172a1b503",
+       "a1f8f29a-5771-4407-8a2b-cfeeeff04611",
+       "a20e773f-9220-4212-b39a-eaccb1c265c6",
+       "a22f49c5-1dcd-453c-b169-0b2519c44d0c",
+       "a37f8bb9-1d63-4f28-b15d-06f423785599",
+       "a48f0e9a-c2d9-4b7f-b1af-baad3e5c45e3",
+       "a5572582-07c0-49a1-9ccb-ca2b003d839b",
+       "a5734a18-9a64-430e-84cf-e495d9f6e45d",
+       "a5a14894-2936-4fc4-b6a5-f9c73c32b177",
+       "a63b7238-ebdc-4dd8-b799-1ca33c14163b",
+       "a7150a6e-240f-4628-acdc-153d404370ff",
+       "a7f56d20-16dc-4b7f-98bf-124817a83bae",
+       "a7fd3031-8284-4098-a5e6-2fdfc4362752",
+       "a825ac86-d642-42fd-b6aa-94aa804907d9",
+       "a834bc0c-2676-4901-a928-5de111b4eedc",
+       "a8594426-c965-4187-a72d-7582f21b0ea1",
+       "a88de1af-d97b-4228-85ff-41e484c18662",
+       "a8af7440-779d-4206-a543-a857292850b1",
+       "a9023215-035f-4f12-9f75-04b995b5d24a",
+       "a903c179-319b-40ff-9023-d583d53eca08",
+       "a9bb8c7b-88f3-4ce5-8b07-8f78aa5eb456",
+       "aa3eee77-3dc3-4438-a485-ba0fee6f5357",
+       "aa6b4b26-f5a1-4932-b1a8-afff458d206b",
+       "ab891f92-bd3c-4ef7-bfe2-855fb01f583e",
+       "ab950987-d88c-4326-98f4-1b1195788921",
+       "ac35ea80-deb6-480a-b5f7-b0b0bd4a5933",
+       "ac8546d1-bfea-4cf7-bfa1-48555ea81bd4",
+       "ac885eb7-9dae-4c48-b45c-97ef9c62c99e",
+       "acc5f835-1fda-4eff-9aeb-0394db8fcf60",
+       "ad4e701b-4a03-4c3d-9574-ca2f035a7a5c",
+       "aeccfafb-0b3e-4e22-8c5c-6d5a0f5896c5",
+       "af92ec23-a252-4ae2-98d7-0dce19d18e35",
+       "b0175a2a-db46-4d25-ab8e-feca7e565b8d",
+       "b0673fff-345d-4384-a63e-ace7740e20c3",
+       "b080a42a-03cd-400b-bc67-379d3a6e5c6b",
+       "b0caeb29-03ec-421c-b5c6-f66ae5ca542f",
+       "b0d5294d-8f26-47f9-90f2-c0eb095dbcfc",
+       "b1cbccfc-3585-4895-94d1-c3a67205e5fe",
+       "b22033bc-bbc7-420c-b7be-d6d5712fd5df",
+       "b31dbc7a-8d66-44bb-836a-c1ed95152b86",
+       "b4569823-af23-4eea-acc9-2a2c62bce3b0",
+       "b56d4e89-93aa-4b1e-84f6-8addef529a3f",
+       "b5f7cc91-e555-4f40-82db-12ffc74dfc6d",
+       "b63ffa5f-9bab-4c49-bd8f-aa7d970c25c4",
+       "b6566108-ccc7-4fac-b935-1eb212889543",
+       "b6787446-3a5b-4639-87f9-f605f59f4baf",
+       "b6ec5e94-acd6-481d-a5cb-0ca8628614b1",
+       "b6ed633b-6452-4a0c-b308-ac28ad438933",
+       "b7387103-1df1-4fd0-9e91-1544509792c7",
+       "b7d40417-124b-4231-92f8-c4a55729afdc",
+       "b8e58e37-6393-4e51-b129-849711e15335",
+       "b930f28b-0415-42db-9591-e688a2d6bcd5",
+       "b938ac10-bd0f-4ce3-a743-958d5beadf58",
+       "ba042d60-b1e8-44ad-9103-f40588a0b29c",
+       "ba8f5ba9-0d7f-42cb-b49e-9bddf69f4565",
+       "bb003613-75de-487d-99be-782fdde9b739",
+       "bbd9e399-74fb-4650-ad43-439d79dc31ed",
+       "bc6ec4ca-ab4c-4d5f-98df-aa166b60bb1d",
+       "bc9e2d99-a3ad-4bfb-a781-a8a9454085c9",
+       "bdd5a7f0-5ad3-44e8-a103-07739fd53630",
+       "be68e315-ffef-40a8-8a46-1c042b148c03",
+       "be73b50e-8230-41e5-8492-db8f749d00a4",
+       "be87de91-aa10-4ed8-83a2-261b4f57e7db",
+       "bfc9f472-c410-4595-b08d-87c115b9148d",
+       "c0408cbd-ac97-46d5-b2a9-594c8c078a75",
+       "c11d5d19-382f-4c63-b0bf-6a44fcd288b0",
+       "c12c03f3-4d4e-426a-92ed-e605d840fbd5",
+       "c14c3697-6a20-4387-a02d-377eb4a65281",
+       "c163a697-01ee-4a55-814f-b0ba79be3a7f",
+       "c1f11dc9-cedd-4691-9615-0ed65b5398ba",
+       "c29134a2-548b-4c80-8017-7e50a44c3585",
+       "c2c1107c-5026-416f-88d4-543c5df26ca7",
+       "c44092af-f1a0-4018-a77b-d9ef2a9579ca",
+       "c50b3d79-2361-4858-98b0-64d83c4f7f70",
+       "c5f590a3-9993-4ac4-a93c-1beb44eda17b",
+       "c617c618-8320-4f76-80a6-83581470dc13",
+       "c706106e-f556-4ba5-98f1-c5536eb9a0b0",
+       "c7827d75-eb0e-4ebf-876e-7a2f9e373fb3",
+       "c794f2c8-9c64-4b93-b7d9-3040f325d43c",
+       "c7f4498e-e753-418e-8db6-e11d2caac3b1",
+       "c808e2ea-ae28-47f3-9dec-5cfc94dae705",
+       "c823fae2-e5ff-4dee-be49-f32971c058d5",
+       "c8e3909e-e00a-4855-a0be-b1c538f89cb8",
+       "ca98a492-5c4e-4527-8c03-2ab2442ba7e1",
+       "ca9f9d83-17cc-4595-b032-0e326608247a",
+       "cabe866d-01c3-4ec5-9d41-70305208c2b1",
+       "cb5fabce-2488-470a-82ce-e40992657811",
+       "cbd95de0-702a-4b88-a1cc-981cf1d9673e",
+       "cd11fd2a-d872-4abc-ac2b-c0678c1be773",
+       "ce6966a1-cbf9-4ee9-9fa8-c72e0b1f24ff",
+       "cf253ee5-378b-4396-b826-4c0f2fae38a0",
+       "d03d40db-9754-4fa1-8023-e30dfef4b0d8",
+       "d0a801ba-ebf7-4b9e-98c2-db50448845b7",
+       "d0ddebc0-ce79-443e-b69f-6a38af2a4f0d",
+       "d134fdda-a3b7-4379-960a-8d1dd499f335",
+       "d284ddf5-a1cb-4073-a53e-e8ccaaded32c",
+       "d412d727-4fe8-4c21-a2cb-609395935dd8",
+       "d485c620-f1fb-4715-b7c5-d2d56588308d",
+       "d56b5831-e39a-4898-be06-b84f62d38456",
+       "d6d027bd-d8bf-4592-9ba9-ee4a917a1904",
+       "d7148e45-3163-4cf3-a729-600729f671a5",
+       "d72aa721-c20c-4306-aca9-dbf2e36d5ba7",
+       "d79f1754-9213-48e7-8186-46ef2fea1e52",
+       "d86cd8fb-4ba7-4311-b0f3-b06fa112eda5",
+       "d8a3e999-c75b-4be3-ae7f-ac5430b760b6",
+       "db0a4140-b500-45ef-a91d-91cc3c88bb69",
+       "db3c0baf-9b5c-44ff-86eb-ca0f24ab0fe1",
+       "db3f0816-76ea-40d6-935f-e3b1bdc4415b",
+       "db69a637-5770-4eea-9b04-c00e6f90a12a",
+       "dbeae38f-67e3-48fe-81ea-6af5db74cb28",
+       "dcdbc78a-7854-4a66-911f-a40b33e25f39",
+       "dcf4e561-d430-432e-8c65-a5a12616f552",
+       "dd391ae7-5414-4541-ab2a-f148f66dccc8",
+       "dda87be6-317e-4227-a96d-7742ac054d2e",
+       "de62de43-a74e-499f-8fe6-68a8a51078ce",
+       "de8e7cd9-354d-4b2e-9823-79d6e8eed7e4",
+       "e0866a19-429b-43e4-a4a1-338fe12ead42",
+       "e19e24a8-5a4f-4a2d-b8dd-eb92aac7be78",
+       "e1ae0b13-c9f6-4659-ba85-a87a81f6e730",
+       "e1d99025-46bc-4848-bcbc-bee858ed906c",
+       "e2029951-b0cb-4c09-8dc1-ec177e278877",
+       "e269461e-638f-433b-979b-820f87fb431a",
+       "e3133726-0eda-480c-9d67-64719cb77f1d",
+       "e32d2387-39d4-4aea-99eb-9f56a3d995c8",
+       "e35962e5-00ed-4a2c-a6e1-67373615178a",
+       "e43ac31a-942e-4871-be29-426e19e52701",
+       "e49a9a01-46fb-4e9d-8e7d-5f2c267ab1f9",
+       "e4e81c04-ad42-4676-a610-0733fdf7ca25",
+       "e4f184c5-4f3c-4aea-afa1-f0903d3cc71a",
+       "e54a44f2-70bf-4782-bd13-9d03e109d60d",
+       "e56cc977-6756-493b-a95d-9ab60ec16b72",
+       "e5976c0b-ce42-4057-a04c-bdb47ebc71f0",
+       "e59eff2f-2f15-4f70-90e5-759de12caf55",
+       "e809db1f-12d7-4556-bdd2-db832f991cd0",
+       "e8418418-10bb-48e1-83ed-0081390384b4",
+       "e969e168-e74c-4608-9fa0-a5660bf7fa02",
+       "e9ca6518-aa90-4614-86aa-b972f60cce49",
+       "ea640731-b367-4ece-934e-6d86634fc1c8",
+       "eb10bac7-f839-4a28-9a85-b7e8d98ca010",
+       "eb7dc259-9949-4673-a8f1-874396948392",
+       "ec08dcdb-7b8a-4ffd-b7d6-27e5961c1763",
+       "ec4d0d7a-0ab1-45c6-95a5-308b89e8d197",
+       "ed0b0b4f-2b31-4fe1-aedb-be9d34fce688",
+       "ee68f2cb-851b-4196-ac58-844d72628e6a",
+       "ef235170-8276-4ef0-bdfd-ba68d5b218ec",
+       "ef5cb444-7b48-40c8-a4d9-3fee37429513",
+       "ef713de6-daf5-45e4-b23b-19bfd6edce36",
+       "f0247757-74e0-4c26-9447-650398758a0d",
+       "f080e0af-cd86-488b-968e-e69b0fa0fe93",
+       "f097d952-b3c5-4cce-8ca3-36c1ab0cf538",
+       "f0b234d8-d6bb-48ec-8a4d-d8a570a69c62",
+       "f0bfdb9e-318f-4acd-9fbd-41b98a8875d6",
+       "f0de4ea5-77e6-474e-99f9-36192bbd37d5",
+       "f108b0fb-420a-422d-ae85-9a99c0f73169",
+       "f1b8c9a6-62eb-436e-9277-e2b8075d482d",
+       "f2a8d790-61e5-4b46-94b8-54ea68ed18ea",
+       "f2b55128-02a0-48be-8ae4-262d0b4f6d02",
+       "f32a6e87-a9fb-4bd8-a09d-b160aa302a2b",
+       "f3c850b9-d014-4cd1-8ffd-361ed4fe1e6d",
+       "f49d825e-0a51-43e8-9b5a-43a376b58d6f",
+       "f4d198b3-2ff5-484a-905f-c272de7c139d",
+       "f52b53b7-4a20-48eb-a0bd-4ddf40aae740",
+       "f57958e2-1e8f-48fa-816d-748ea2c7cb4e",
+       "f5a65d3b-83e7-4f32-89b3-d152e66f1868",
+       "f5a9f8ee-1416-4be8-9da1-f4546164c522",
+       "f5e672fc-673b-4476-b9cc-a395dc60b471",
+       "f5f4fbb8-c91a-4193-b6ef-0a3d4436caad",
+       "f626d1a6-84c8-452f-b3fe-976020fccb6e",
+       "f6497c73-4bbb-4923-8151-8234c98ca6d4",
+       "f66094ef-059b-4511-aa6e-835906736de4",
+       "f7adaa8f-18e8-4f26-9867-535b41884cff",
+       "f7cd375e-f41c-42b1-bbd4-36032d4fb92d",
+       "f9c5c795-5463-425b-9720-627004925e20",
+       "fa3b8665-31f2-4142-a076-54bccdaf5a15",
+       "faa54bef-c90e-4e9b-b94b-942ea829e0d2",
+       "fb6d08cf-a746-4147-91e3-180646de7158",
+       "fc4111be-6dae-4ca5-bd58-c1ce7cfa9cf6",
+       "fcd2ecdd-37ee-4351-833a-f4eac3c55eca",
+       "fcdfd30f-91f0-493c-92ac-b2e64eb08d89",
+       "fd7f974d-2634-4fc7-aa4e-bfeb6f3169ea",
+       "fd8897b2-0ef2-4812-9772-cd99c5ce5586",
+       "fda1dbfa-a57b-4aa8-9993-c8f97aec28bb",
+       "fdfebc79-5d84-4ce5-8bff-d09fe333f4a3",
+       "feb9faf5-8f7b-4d0d-a3ca-963832e7f711",
+       "ff6e4fd4-ca86-420b-b731-22d417a55b29"
+      ]
+     },
+     "name": "Swamp",
+     "non_ability_text": null,
+     "oracle_text": "({T}: Add {B}.)",
+     "power": null,
+     "printings": [
+      "10E",
+      "2ED",
+      "2XM",
+      "30A",
+      "3ED",
+      "40K",
+      "4BB",
+      "4ED",
+      "5ED",
+      "6ED",
+      "7ED",
+      "8ED",
+      "9ED",
+      "ACR",
+      "AFR",
+      "AKH",
+      "AKR",
+      "ALA",
+      "ANA",
+      "ANB",
+      "ARC",
+      "ATH",
+      "AVR",
+      "BBD",
+      "BFZ",
+      "BLB",
+      "BRB",
+      "BRC",
+      "BRO",
+      "BTD",
+      "C13",
+      "C14",
+      "C15",
+      "C16",
+      "C17",
+      "C18",
+      "C19",
+      "CED",
+      "CEI",
+      "CHK",
+      "CLB",
+      "CLU",
+      "CM2",
+      "CMA",
+      "CMD",
+      "CMM",
+      "CST",
+      "DDC",
+      "DDD",
+      "DDE",
+      "DDH",
+      "DDJ",
+      "DDK",
+      "DDM",
+      "DDN",
+      "DDP",
+      "DDQ",
+      "DDR",
+      "DFT",
+      "DKM",
+      "DMR",
+      "DMU",
+      "DOM",
+      "DPA",
+      "DSK",
+      "DTK",
+      "DVD",
+      "E01",
+      "ECL",
+      "ELD",
+      "EOE",
+      "FBB",
+      "FDN",
+      "FIC",
+      "FIN",
+      "FRA",
+      "FRF",
+      "G17",
+      "GK1",
+      "GK2",
+      "GN2",
+      "GN3",
+      "GNT",
+      "GRN",
+      "GVL",
+      "H09",
+      "HBG",
+      "HOB",
+      "HOP",
+      "HOU",
+      "ICE",
+      "IKO",
+      "INR",
+      "INV",
+      "ISD",
+      "ITP",
+      "J14",
+      "J22",
+      "J25",
+      "JMP",
+      "KHM",
+      "KLD",
+      "KLR",
+      "KTK",
+      "LCI",
+      "LEA",
+      "LEB",
+      "LRW",
+      "LTR",
+      "M10",
+      "M11",
+      "M12",
+      "M13",
+      "M14",
+      "M15",
+      "M19",
+      "M20",
+      "M21",
+      "MBS",
+      "MD1",
+      "ME1",
+      "ME3",
+      "MH2",
+      "MH3",
+      "MID",
+      "MIR",
+      "MKM",
+      "MMQ",
+      "MOM",
+      "MRD",
+      "MSH",
+      "NEO",
+      "NPH",
+      "ODY",
+      "OLEP",
+      "ONE",
+      "ONS",
+      "ORI",
+      "OTJ",
+      "P02",
+      "P23",
+      "PAL00",
+      "PAL01",
+      "PAL03",
+      "PAL04",
+      "PAL05",
+      "PAL06",
+      "PAL99",
+      "PALP",
+      "PANA",
+      "PARL",
+      "PC2",
+      "PCA",
+      "PD3",
+      "PELP",
+      "PF19",
+      "PF20",
+      "PGPX",
+      "PGRU",
+      "PHUK",
+      "PIP",
+      "PLST",
+      "PMPS",
+      "PMPS06",
+      "PMPS07",
+      "PMPS08",
+      "PMPS09",
+      "PMPS10",
+      "PMPS11",
+      "POR",
+      "PPP1",
+      "PRM",
+      "PRW2",
+      "PRWK",
+      "PS11",
+      "PSAL",
+      "PSS2",
+      "PSS3",
+      "PSS4",
+      "PTC",
+      "PTK",
+      "RAV",
+      "REX",
+      "RIX",
+      "RNA",
+      "ROE",
+      "RQS",
+      "RTR",
+      "S99",
+      "SCD",
+      "SHM",
+      "SIR",
+      "SLD",
+      "SLP",
+      "SNC",
+      "SOI",
+      "SOM",
+      "SOS",
+      "SPM",
+      "STX",
+      "SUM",
+      "TD0",
+      "TD2",
+      "TDM",
+      "THB",
+      "THS",
+      "TLA",
+      "TMP",
+      "TMT",
+      "TPR",
+      "TRK",
+      "TSP",
+      "UGL",
+      "UND",
+      "UNF",
+      "UNH",
+      "USG",
+      "UST",
+      "VOW",
+      "WAR",
+      "WC01",
+      "WC02",
+      "WC03",
+      "WC97",
+      "WC98",
+      "WC99",
+      "WHO",
+      "WOE",
+      "XANA",
+      "XLN",
+      "ZEN",
+      "ZNR"
+     ],
+     "rarities": [
+      "common",
+      "rare"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "56719f6a-1a6c-4c0a-8d21-18f7d7350b68",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 0.0,
+    "color_identity": [
+     "B"
+    ],
+    "colors": [],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "legal",
+     "paupercommander": "legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "legal",
+     "premodern": "legal",
+     "standard": "legal",
+     "standardbrawl": "legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "",
+    "name": "Swamp",
+    "oracle_id": "56719f6a-1a6c-4c0a-8d21-18f7d7350b68",
+    "oracle_text": "({T}: Add {B}.)",
+    "produced_mana": [
+     "B"
+    ],
+    "type_line": "Basic Land — Swamp"
    }
   },
   "Swords to Plowshares": {
@@ -336764,6 +339902,258 @@
     "power": "3",
     "toughness": "3",
     "type_line": "Creature — Human Soldier"
+   }
+  },
+  "Wood Elves": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Elf",
+       "Scout"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Green"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pauper": "legal",
+      "paupercommander": "legal",
+      "pioneer": "legal",
+      "premodern": "legal",
+      "standard": "legal",
+      "standardbrawl": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 2,
+      "shards": [
+       "Green"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "227746cb-8d9e-4f56-a19c-971a35f4cf20",
+       "2476e42b-b209-4207-8ed9-cb668f89b218",
+       "33ccc950-9bea-49d1-b992-98eebfbc9aa8",
+       "527cf39d-29d1-4c19-9c49-ebf611ca15d5",
+       "5edc7881-f947-4870-a3ac-c013d0f275f3",
+       "77f95da2-cbc4-4430-adb7-75f4c469d98e",
+       "7e6efd6b-6815-4308-9cca-948dd43a0424",
+       "83304fb9-a6b3-4cf8-b215-ebb46ef4508c",
+       "8ffe258a-e543-4e92-bb60-3a806d5c2306",
+       "b536948f-9a29-4811-a3b2-9d3f73117965",
+       "c0b26cdc-68fa-4cce-9165-46cc7d5b8cb0",
+       "d77fad7e-ae1f-45d2-aa0a-65a3591803d0",
+       "df965bc4-f443-417c-b0e5-2db080fbd427",
+       "f57bc802-2d5e-44cf-b701-405d5ea8fb80"
+      ]
+     },
+     "name": "Wood Elves",
+     "non_ability_text": null,
+     "oracle_text": "When this creature enters, search your library for a Forest card, put that card onto the battlefield, then shuffle.",
+     "power": {
+      "type": "Fixed",
+      "value": 1
+     },
+     "printings": [
+      "7ED",
+      "8ED",
+      "9ED",
+      "C14",
+      "C15",
+      "CMA",
+      "DCI",
+      "DD1",
+      "DDR",
+      "EVG",
+      "EXO",
+      "HOB",
+      "KHC",
+      "LTC",
+      "MOC",
+      "NCC",
+      "P30A",
+      "PLST",
+      "POR",
+      "PRM",
+      "PW26",
+      "S99",
+      "SLD",
+      "TD0"
+     ],
+     "rarities": [
+      "common",
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2004-10-04",
+       "text": "Because the \"search\" requires you to find a card with certain characteristics, you don't have to find the card if you don't want to."
+      }
+     ],
+     "scryfall_oracle_id": "8973bd99-20f8-4867-90ef-50392147ee1b",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 1
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "When ~ enters, search your library for a Forest card, put that card onto the battlefield, then shuffle.",
+       "destination": "Battlefield",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "count": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "filter": {
+          "controller": null,
+          "properties": [],
+          "type": "Typed",
+          "type_filters": [
+           "Land",
+           {
+            "Subtype": "Forest"
+           }
+          ]
+         },
+         "reveal": false,
+         "type": "SearchLibrary"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": null,
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "destination": "Battlefield",
+          "enter_tapped": false,
+          "enter_transformed": false,
+          "enters_attacking": false,
+          "origin": "Library",
+          "owner_library": false,
+          "target": {
+           "type": "Any"
+          },
+          "type": "ChangeZone"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": {
+          "condition": null,
+          "cost": null,
+          "description": null,
+          "duration": null,
+          "effect": {
+           "target": {
+            "type": "Controller"
+           },
+           "type": "Shuffle"
+          },
+          "forward_result": false,
+          "kind": "Spell",
+          "optional": false,
+          "optional_targeting": false,
+          "sub_ability": null,
+          "target_prompt": null
+         },
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "mode": "ChangesZone",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "type": "SelfRef"
+       },
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 3.0,
+    "color_identity": [
+     "G"
+    ],
+    "colors": [
+     "G"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "legal",
+     "paupercommander": "legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "legal",
+     "premodern": "legal",
+     "standard": "legal",
+     "standardbrawl": "legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{2}{G}",
+    "name": "Wood Elves",
+    "oracle_id": "8973bd99-20f8-4867-90ef-50392147ee1b",
+    "oracle_text": "When this creature enters, search your library for a Forest card, put that card onto the battlefield, then shuffle.",
+    "power": "1",
+    "toughness": "1",
+    "type_line": "Creature — Elf Scout"
    }
   },
   "Woodlurker Mimic": {

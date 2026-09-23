@@ -51,6 +51,7 @@ from mtg_utils._card_ir.overlay_corrections import (
     apply_overlay_corrections,
     l1_bytes,
 )
+from mtg_utils.testkit import test_card
 
 FIXTURE = "crosswalk_fixture_cards.json"
 
@@ -888,15 +889,7 @@ def test_blink_flicker_membership_floor_payoff_is_low_and_not_a_maker():
     )
 
     assert "blink_flicker" not in _keys("Mulldrifter")
-    record = {
-        "name": "Mulldrifter",
-        "oracle_text": (
-            "Flying\nWhen Mulldrifter enters the battlefield, draw two cards.\n"
-            "Evoke {2}{U}"
-        ),
-        "cmc": 5,
-        "keywords": ["Flying", "Evoke"],
-    }
+    record = test_card("Mulldrifter")
     out = []
     apply_membership_floor([_tree("Mulldrifter")], record, out, out.append)
     floor_sigs = [s for s in out if s.key == "blink_flicker"]
@@ -16624,16 +16617,7 @@ def test_cheat_from_top_scopes_target_owner_beneficiary_any():
     from mtg_utils._analysis.lanes import apply_membership_floor
 
     assert "cheat_from_top" not in _keys("Chaos Warp")
-    record = {
-        "name": "Chaos Warp",
-        "oracle_text": (
-            "The owner of target permanent shuffles it into their library, "
-            "then reveals the top card of their library. If it's a "
-            "permanent card, they put it onto the battlefield."
-        ),
-        "cmc": 3,
-        "keywords": [],
-    }
+    record = test_card("Chaos Warp")
     out = []
     apply_membership_floor([_tree("Chaos Warp")], record, out, out.append)
     floor_sigs = [s for s in out if s.key == "cheat_from_top"]

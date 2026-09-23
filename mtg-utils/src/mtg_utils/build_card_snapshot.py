@@ -356,7 +356,13 @@ def _index_by_name(bulk: list[dict], groups: dict[str, list[dict]]) -> dict[str,
         if " // " in nm:
             by_name[normalize_card_name(nm.split(" // ")[0])].append(c)
     resolved: dict[str, dict] = {}
-    for key, printings in by_name.items():
+    for key, printings_ in by_name.items():
+        # A standalone card whose name IS the key wins over a split card keyed
+        # here only by its front face ("Bind" vs "Bind // Liberate") — the same
+        # policy CardPool.by_name applies. Stable sort: order otherwise kept.
+        printings = sorted(
+            printings_, key=lambda c, k=key: normalize_card_name(c["name"]) != k
+        )
         pick = next((c for c in printings if c.get("oracle_id") in groups), None)
         if pick is None:
             # No printing has phase coverage — real for NON-PLAYABLE folded

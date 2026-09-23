@@ -101,19 +101,19 @@ def test_regen_crosswalk_fixture_swaps_records_by_oid_and_name_and_reports_holes
     fixture = {
         "phase_tag": "v0.66.0",
         "cards": {
-            "Sol Ring": _rec("Sol Ring", "oid-ring", "old text"),
+            "Test Relic": _rec("Test Relic", "oid-ring", "old text"),
             "Gone Card": _rec("Gone Card", "oid-gone", "old"),
         },
-        "scryfall_keywords": {"Sol Ring": []},
+        "scryfall_keywords": {"Test Relic": []},
         "text_only_faces": {"X // Y": {"_text_only_face": {}, "_oracle_id": "o"}},
     }
     card_data = {
-        "sol ring": _rec("Sol Ring", "oid-ring", "new text", abilities=[1]),
+        "test relic": _rec("Test Relic", "oid-ring", "new text", abilities=[1]),
         "impostor": _rec("Gone Card", "oid-other", "wrong card"),  # oid mismatch
     }
     out, missing = regen_crosswalk_fixture(fixture, card_data, "v0.70.0")
     assert out["phase_tag"] == "v0.70.0"
-    assert out["cards"]["Sol Ring"]["oracle_text"] == "new text"
+    assert out["cards"]["Test Relic"]["oracle_text"] == "new text"
     assert out["cards"]["Gone Card"]["oracle_text"] == "old"  # kept, not dropped
     assert missing == ["Gone Card"]
     assert out["scryfall_keywords"] == fixture["scryfall_keywords"]
@@ -152,11 +152,11 @@ def test_signal_diff_is_per_key_over_shared_oracle_ids():
         "o2": ("ramp|you|",),
         "new": ("y|you|",),
     }
-    names = {"o1": "Sol Ring", "o2": "Mana Vault"}
+    names = {"o1": "Test Relic", "o2": "Mana Vault"}
     diff = signal_diff(old, new, names)
     assert diff == [
-        KeyDiff(key="ramp", lost=("Sol Ring",), gained=()),
-        KeyDiff(key="lifegain", lost=(), gained=("Sol Ring",)),
+        KeyDiff(key="ramp", lost=("Test Relic",), gained=()),
+        KeyDiff(key="lifegain", lost=(), gained=("Test Relic",)),
     ]
 
 
@@ -198,7 +198,7 @@ def _fake_repo(tmp_path: Path) -> Path:
         json.dumps(
             {
                 "phase_tag": "v0.66.0",
-                "cards": {"Sol Ring": _rec("Sol Ring", "oid-ring", "old")},
+                "cards": {"Test Relic": _rec("Test Relic", "oid-ring", "old")},
                 "scryfall_keywords": {},
                 "text_only_faces": {},
             }
@@ -216,7 +216,7 @@ def test_dry_run_executes_every_step_in_order_and_writes_the_report(
     card_data.write_text(
         json.dumps(
             {
-                "sol ring": _rec("Sol Ring", "oid-ring", "New text.", abilities=[]),
+                "test relic": _rec("Test Relic", "oid-ring", "New text.", abilities=[]),
                 "fake": _rec("Fast", "oid-ring", "Wrong card text."),  # impostor
             }
         )
@@ -227,7 +227,7 @@ def test_dry_run_executes_every_step_in_order_and_writes_the_report(
             [
                 {
                     "oracle_id": "oid-ring",
-                    "name": "Sol Ring",
+                    "name": "Test Relic",
                     "oracle_text": "New text.",
                     "layout": "normal",
                 }
@@ -292,7 +292,7 @@ def test_dry_run_executes_every_step_in_order_and_writes_the_report(
     # step 5: fixture re-resolved
     fx = json.loads((repo / phase_bump.CROSSWALK_FIXTURE).read_text())
     assert fx["phase_tag"] == "v0.70.0"
-    assert fx["cards"]["Sol Ring"]["oracle_text"] == "New text."
+    assert fx["cards"]["Test Relic"]["oracle_text"] == "New text."
     # step 7: builders ran in order, old index copied aside
     modules = [c[2] for c in calls]
     assert modules == [

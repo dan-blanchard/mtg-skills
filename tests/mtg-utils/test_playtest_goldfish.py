@@ -23,6 +23,7 @@ from mtg_utils.playtest import (
     _unresolved_fetch_warnings,
     goldfish_main,
 )
+from mtg_utils.testkit import test_card
 
 
 def test_goldfish_help():
@@ -83,19 +84,13 @@ def _hydrated_card(name, mana_cost="", cmc=0, type_line="", oracle_text=""):
 
 def _simple_mono_red_deck():
     """20 Mountains + 40 cmc-1 red one-drops."""
-    cards = []
-    for _ in range(20):
-        cards.append(_hydrated_card("Mountain", type_line="Basic Land — Mountain"))
+    cards = [test_card("Mountain") for _ in range(20)]
     for i in range(40):
         cards.append(
             _hydrated_card(
                 f"OneDrop{i}", mana_cost="{R}", cmc=1, type_line="Creature — Goblin"
             )
         )
-    # Patch: produced_mana for Mountains
-    for c in cards:
-        if c["name"] == "Mountain":
-            c["produced_mana"] = ["R"]
     return cards
 
 
@@ -117,12 +112,7 @@ class TestSimulateGame:
 
     def test_color_screw_in_off_color_hand(self):
         # 20 Mountains + 40 blue one-drops — every turn is "color screwed"
-        deck = []
-        for _ in range(20):
-            deck.append(_hydrated_card("Mountain", type_line="Basic Land — Mountain"))
-        for c in deck:
-            if c["name"] == "Mountain":
-                c["produced_mana"] = ["R"]
+        deck = [test_card("Mountain") for _ in range(20)]
         for i in range(40):
             deck.append(
                 _hydrated_card(
@@ -191,27 +181,11 @@ class TestLandFetchMana:
 
     BASICS = frozenset({"B", "G"})
 
-    def _fetch_land(self, name="Hobbit Hole"):
-        return _hydrated_card(
-            name,
-            type_line="Land",
-            oracle_text=(
-                "{T}, Sacrifice this land: Search your library for a basic land "
-                "card, put it onto the battlefield tapped, then shuffle."
-            ),
-        )
+    def _fetch_land(self):
+        return test_card("Hobbit Hole")
 
     def _wood_elves(self):
-        return _hydrated_card(
-            "Wood Elves",
-            mana_cost="{2}{G}",
-            cmc=3,
-            type_line="Creature — Elf Scout",
-            oracle_text=(
-                "When this creature enters, search your library for a Forest "
-                "card, put that card onto the battlefield, then shuffle."
-            ),
-        )
+        return test_card("Wood Elves")
 
     def test_fetch_land_produces_deck_basic_colors(self):
         assert set(_land_produces(self._fetch_land(), self.BASICS)) == {"B", "G"}
@@ -244,30 +218,27 @@ class TestLandFetchMana:
 
     def test_search_to_hand_is_not_a_mana_source(self):
         # Only "onto the battlefield" yields mana now; a tutor-to-hand does not.
-        to_hand = _hydrated_card(
-            "Hobbit Hole",
-            type_line="Land",
-            oracle_text=(
-                "{T}, Sacrifice this land: Search your library for a basic land "
-                "card, reveal it, put it into your hand, then shuffle."
-            ),
-        )
+        # Ash Barrens's only basic-land search (basic landcycling) goes to hand,
+        # and its direct mana is colorless.
+        to_hand = test_card("Ash Barrens")
+        fetch = land_fetch_profile(to_hand, deck_basic_colors=self.BASICS)
+        assert fetch is not None
+        assert fetch.to_battlefield is False
         assert _land_produces(to_hand, self.BASICS) == []
 
     def test_direct_mana_still_wins(self):
-        dual = _hydrated_card("Mirkwood", type_line="Land")
-        dual["produced_mana"] = ["B", "G"]
+        dual = test_card("Mirkwood")
         assert set(_land_produces(dual, self.BASICS)) == {"B", "G"}
 
     def test_non_fetch_card_has_no_profile(self):
-        card = _hydrated_card("Forest", type_line="Basic Land — Forest")
+        card = test_card("Forest")
         assert land_fetch_profile(card, deck_basic_colors=self.BASICS) is None
 
     def test_deck_basic_colors_reads_type_lines(self):
         deck = [
-            _hydrated_card("Forest", type_line="Basic Land — Forest"),
-            _hydrated_card("Swamp", type_line="Basic Land — Swamp"),
-            _hydrated_card("Mirkwood", type_line="Land"),
+            test_card("Forest"),
+            test_card("Swamp"),
+            test_card("Mirkwood"),
         ]
         assert _deck_basic_colors(deck) == frozenset({"G", "B"})
 
@@ -285,23 +256,11 @@ class TestLandFetchCount:
     BASICS = frozenset({"G", "W"})
 
     def test_single_fetch_counts_one(self):
-        card = _hydrated_card(
-            "Rampant Growth",
-            oracle_text=(
-                "Search your library for a basic land card, put it onto the "
-                "battlefield tapped, then shuffle."
-            ),
-        )
+        card = test_card("Rampant Growth")
         assert land_fetch_profile(card, deck_basic_colors=self.BASICS).count == 1
 
     def test_up_to_two_counts_two(self):
-        card = _hydrated_card(
-            "Explosive Vegetation",
-            oracle_text=(
-                "Search your library for up to two basic land cards, put them "
-                "onto the battlefield tapped, then shuffle."
-            ),
-        )
+        card = test_card("Explosive Vegetation")
         assert land_fetch_profile(card, deck_basic_colors=self.BASICS).count == 2
 
     def test_tapped_scan_is_scoped_to_the_fetch_clause(self):
@@ -324,25 +283,14 @@ class TestLandFetchCount:
 
 class TestUnresolvedFetchWarning:
     def test_warns_when_deck_has_no_basics_to_find(self):
-        deck = [
-            _hydrated_card(
-                "Fabled Passage",
-                type_line="Land",
-                oracle_text=(
-                    "{T}, Sacrifice this land: Search your library for a basic "
-                    "land card, put it onto the battlefield tapped, then shuffle."
-                ),
-            )
-        ]
+        deck = [test_card("Fabled Passage")]
         warnings = _unresolved_fetch_warnings(deck)
         assert len(warnings) == 1
         assert "no basic lands" in warnings[0]
         assert "Fabled Passage" in warnings[0]
 
     def test_silent_when_basics_are_present(self):
-        forest = _hydrated_card("Forest", type_line="Basic Land — Forest")
-        forest["produced_mana"] = ["G"]
-        deck = [forest, _hydrated_card("Bear", type_line="Creature — Bear")]
+        deck = [test_card("Forest"), test_card("Grizzly Bears")]
         assert _unresolved_fetch_warnings(deck) == []
 
 
@@ -351,38 +299,16 @@ class TestLandFetchInSimulation:
     where the ``enters_tapped``-stored-in-``is_creature`` bug lived."""
 
     def _forest(self):
-        c = _hydrated_card("Forest", type_line="Basic Land — Forest")
-        c["produced_mana"] = ["G"]
-        return c
+        return test_card("Forest")
 
     def _swamp(self):
-        c = _hydrated_card("Swamp", type_line="Basic Land — Swamp")
-        c["produced_mana"] = ["B"]
-        return c
+        return test_card("Swamp")
 
     def _etb_fetcher(self):
-        return _hydrated_card(
-            "Wood Elves",
-            mana_cost="{2}{G}",
-            cmc=3,
-            type_line="Creature — Elf Scout",
-            oracle_text=(
-                "When this creature enters, search your library for a Forest "
-                "card, put that card onto the battlefield, then shuffle."
-            ),
-        )
+        return test_card("Wood Elves")
 
     def _activated_fetcher(self):
-        return _hydrated_card(
-            "Knight of the Reliquary",
-            mana_cost="{1}{G}{W}",
-            cmc=3,
-            type_line="Creature — Human Knight",
-            oracle_text=(
-                "{T}, Sacrifice a Forest or Plains: Search your library for a "
-                "land card, put it onto the battlefield, then shuffle."
-            ),
-        )
+        return test_card("Knight of the Reliquary")
 
     def test_etb_fetcher_moves_a_land_from_library_to_battlefield(self):
         deck = [self._etb_fetcher()] + [self._forest()] * 9
@@ -409,46 +335,26 @@ class TestLandFetchInSimulation:
 
 class TestManaAbilityProfile:
     def test_sol_ring_makes_two_colorless(self):
-        sol_ring = {
-            "produced_mana": ["C"],
-            "oracle_text": "{T}: Add {C}{C}.",
-            "type_line": "Artifact",
-        }
+        sol_ring = test_card("Sol Ring")
         assert _mana_ability_profile(sol_ring) == (2, frozenset())
 
     def test_any_color_dork(self):
-        birds = {
-            "produced_mana": ["W", "U", "B", "R", "G"],
-            "oracle_text": "Flying\n{T}: Add one mana of any color.",
-            "type_line": "Creature — Bird",
-        }
+        birds = test_card("Birds of Paradise")
         assert _mana_ability_profile(birds) == (1, frozenset("WUBRG"))
 
     def test_restricted_dork(self):
-        ignoble = {
-            "produced_mana": ["B", "R", "G"],
-            "oracle_text": "Exalted\n{T}: Add {B}, {R}, or {G}.",
-            "type_line": "Creature — Goblin Shaman",
-        }
+        ignoble = test_card("Ignoble Hierarch")
         assert _mana_ability_profile(ignoble) == (1, frozenset("BRG"))
 
     def test_non_source_returns_none(self):
-        bear = {"produced_mana": [], "oracle_text": "", "type_line": "Creature — Bear"}
+        bear = test_card("Grizzly Bears")
         assert _mana_ability_profile(bear) is None
 
     def test_token_maker_counted_as_one_per_turn(self):
         # Scryfall populates produced_mana on Treasure/token MAKERS (from the
         # token's ability), so we count them as a rough 1-mana/turn source. The
         # five-color list must yield ONE mana of any color per turn, NOT five.
-        plunderer = {
-            "produced_mana": ["B", "G", "R", "U", "W"],
-            "oracle_text": (
-                "Whenever another creature you control dies, create a Treasure "
-                "token. (It's an artifact with \"{T}, Sacrifice this token: Add "
-                'one mana of any color.")'
-            ),
-            "type_line": "Creature — Human Pirate",
-        }
+        plunderer = test_card("Pitiless Plunderer")
         amount, colors = _mana_ability_profile(plunderer)
         assert amount == 1  # one per turn, not five
         assert colors == frozenset("BGRUW")
@@ -459,19 +365,9 @@ class TestManaRocksCountTowardCasting:
         # Opening hand: 2 Mountains + Sol Ring + a 4-cmc spell. With Sol Ring's
         # +2, the 4-drop is castable on turn 2 (2 lands + Sol Ring = 4 mana) —
         # impossible from two lands alone. Proves rocks count as mana producers.
-        mountain = _hydrated_card("Mountain", type_line="Basic Land — Mountain")
-        mountain["produced_mana"] = ["R"]
-        sol_ring = _hydrated_card(
-            "Sol Ring",
-            mana_cost="{1}",
-            cmc=1,
-            type_line="Artifact",
-            oracle_text="{T}: Add {C}{C}.",
-        )
-        sol_ring["produced_mana"] = ["C"]
-        four_drop = _hydrated_card(
-            "Hill Giant", mana_cost="{3}{R}", cmc=4, type_line="Creature — Giant"
-        )
+        mountain = test_card("Mountain")
+        sol_ring = test_card("Sol Ring")
+        four_drop = test_card("Hill Giant")
         # hydrated[0,1]=Mountains, [2]=Sol Ring, [3]=four-drop, rest filler lands.
         deck = [
             dict(mountain),
@@ -537,11 +433,7 @@ class TestMulliganThreading:
         """
         # 60 cards: 30 forests + 30 five-drops — _keep_hand returns False for 7/6/5
         # because there are no nonland cards with cmc <= 3.
-        deck = []
-        for _ in range(30):
-            c = _hydrated_card("Forest", type_line="Basic Land — Forest")
-            c["produced_mana"] = ["G"]
-            deck.append(c)
+        deck = [test_card("Forest") for _ in range(30)]
         for i in range(30):
             deck.append(
                 _hydrated_card(
@@ -562,18 +454,7 @@ class TestMulliganThreading:
 class TestGoldfishCLI:
     def test_runs_against_minimal_deck(self, tmp_path):
         # Prepare a minimal hydrated input: 20 Mountain + 40 cmc-1 spell.
-        hydrated = []
-        for _ in range(20):
-            hydrated.append(
-                {
-                    "name": "Mountain",
-                    "type_line": "Basic Land — Mountain",
-                    "cmc": 0,
-                    "mana_cost": "",
-                    "oracle_text": "({T}: Add {R}.)",
-                    "produced_mana": ["R"],
-                }
-            )
+        hydrated = [test_card("Mountain") for _ in range(20)]
         for i in range(40):
             hydrated.append(
                 {

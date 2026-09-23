@@ -5,6 +5,7 @@ import json
 from click.testing import CliRunner
 
 from mtg_utils.card_summary import card_summary, main
+from mtg_utils.testkit import test_card
 
 
 class TestCardSummary:
@@ -47,13 +48,7 @@ class TestCardSummary:
     def test_filters_none_entries(self):
         hydrated = [
             None,
-            {
-                "name": "Sol Ring",
-                "mana_cost": "{1}",
-                "cmc": 1.0,
-                "type_line": "Artifact",
-                "oracle_text": "{T}: Add {C}{C}.",
-            },
+            test_card("Sol Ring"),
             None,
         ]
         output = card_summary(hydrated)
@@ -156,22 +151,7 @@ class TestSideboard:
             "cards": [{"name": "Sol Ring", "quantity": 1}],
             "sideboard": [{"name": "Smash", "quantity": 3}],
         }
-        hydrated = [
-            {
-                "name": "Sol Ring",
-                "mana_cost": "{1}",
-                "cmc": 1.0,
-                "type_line": "Artifact",
-                "oracle_text": "{T}: Add {C}{C}.",
-            },
-            {
-                "name": "Smash",
-                "mana_cost": "{1}{R}",
-                "cmc": 2.0,
-                "type_line": "Instant",
-                "oracle_text": "Destroy target artifact.\nDraw a card.",
-            },
-        ]
+        hydrated = [test_card("Sol Ring"), test_card("Smash")]
         deck_path, hydrated_path = self._write(tmp_path, deck, hydrated)
         runner = CliRunner()
         result = runner.invoke(

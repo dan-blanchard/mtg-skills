@@ -7,6 +7,7 @@ import json
 from click.testing import CliRunner
 
 from mtg_utils.playtest import gauntlet_main
+from mtg_utils.testkit import test_card
 
 
 def _build_cube(tmp_path):
@@ -38,25 +39,9 @@ def _build_cube(tmp_path):
                     "produced_mana": [],
                 }
             )
-    for basic, color in [
-        ("Plains", "W"),
-        ("Island", "U"),
-        ("Swamp", "B"),
-        ("Mountain", "R"),
-        ("Forest", "G"),
-    ]:
+    for basic in ("Plains", "Island", "Swamp", "Mountain", "Forest"):
         cube["cards"].append({"name": basic, "quantity": 30})
-        hydrated.append(
-            {
-                "name": basic,
-                "type_line": f"Basic Land — {basic}",
-                "oracle_text": "",
-                "mana_cost": "",
-                "cmc": 0,
-                "color_identity": [color],
-                "produced_mana": [color],
-            }
-        )
+        hydrated.append(test_card(basic))
 
     cube_path = tmp_path / "cube.json"
     hydrated_path = tmp_path / "hydrated.json"

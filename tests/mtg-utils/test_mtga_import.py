@@ -105,6 +105,10 @@ def _fake_bulk_cards(
 
     ``entries`` is a list of ``(arena_id, name, layout)`` tuples. If
     ``arena_id`` is None, the card has no arena_id (paper-only).
+
+    Index machinery only (ADR-0056): each record carries a name plus the
+    per-printing facts the importer reads (``arena_id``, ``layout``), and no
+    card facts — the importer never reads oracle text, types or legalities.
     """
     if entries is None:
         entries = [
@@ -117,8 +121,6 @@ def _fake_bulk_cards(
             "arena_id": arena_id,
             "name": name,
             "layout": layout or "normal",
-            "legalities": {"historic_brawl": "legal"},
-            "games": ["arena", "paper"],
         }
         for arena_id, name, layout in entries
     ]

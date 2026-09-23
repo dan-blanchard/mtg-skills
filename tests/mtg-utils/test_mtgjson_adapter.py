@@ -513,28 +513,29 @@ def test_produced_mana_omitted_when_empty():
 
 
 def test_meld_piece_emits_meld_result_all_part():
+    # Fictional meld pair (ADR-0056): only the piece → result wiring is under test.
     piece = {
-        "name": "Bruna // Brisela",
-        "faceName": "Bruna",
+        "name": "Meld Piece // Melded Whole",
+        "faceName": "Meld Piece",
         "layout": "meld",
-        "type": "Creature — Angel",
+        "type": "Creature — Test",
         "otherFaceIds": ["result"],
-        "uuid": "bruna",
+        "uuid": "piece",
         "identifiers": {"scryfallId": "bb22", "scryfallOracleId": "ob"},
     }
     result = {
-        "name": "Brisela, Voice of Nightmares",
-        "faceName": "Brisela",
+        "name": "Melded Whole",
+        "faceName": "Melded Whole",
         "layout": "meld",
-        "type": "Creature — Eldrazi Angel",
-        "otherFaceIds": ["bruna", "gisela"],
+        "type": "Creature — Test",
+        "otherFaceIds": ["piece", "other-piece"],
         "uuid": "result",
         "identifiers": {"scryfallId": "cc33", "scryfallOracleId": "obr"},
     }
     rec = adapter.translate_card([piece], card_by_uuid={"result": result})
     meld = [p for p in rec["all_parts"] if p["component"] == "meld_result"]
     assert len(meld) == 1
-    assert meld[0]["name"] == "Brisela"
+    assert meld[0]["name"] == "Melded Whole"
 
 
 # ── oracle-level legality aggregation ───────────────────────────────────────────
