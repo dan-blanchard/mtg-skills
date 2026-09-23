@@ -297,12 +297,13 @@ def _scan_names(test_dirs: list[Path]) -> set[str]:
     """Usage-derived names: direct ``test_card(...)`` literals, parametrize
     columns feeding a helper call, and every value in a ``_REAL_CASES`` key→name
     table. So adding a parametrize row (and re-running) grows the snapshot with
-    no external name list."""
+    no external name list. ``conftest.py`` modules are scanned too: a shared
+    fixture that builds real cards by name feeds the snapshot like a test does."""
     names: set[str] = set()
     for d in test_dirs:
         if not d.exists():
             continue
-        for py in d.rglob("test_*.py"):
+        for py in (*d.rglob("test_*.py"), *d.rglob("conftest.py")):
             names.update(_scan_module(py.read_text(encoding="utf-8")))
     return names
 

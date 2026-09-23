@@ -58,13 +58,13 @@ class TestLookupSingle:
         # card_faces. Projecting P/T without card_faces therefore left every MDFC
         # blind to size anyway, and killed playtest._card_pips's card_faces
         # fallback (its docstring exists to stop MDFC pools under-reporting screw).
-        result = lookup_single("Malakir Rebirth", bulk_path=sample_bulk_data)
+        result = lookup_single("Blackbloom Rogue", bulk_path=sample_bulk_data)
         assert result is not None
         assert "power" not in result, "top-level P/T is absent on an MDFC"
         faces = result["card_faces"]
         assert faces[0]["power"] == "2"
         assert faces[0]["toughness"] == "3"
-        assert faces[0]["mana_cost"] == "{B}"
+        assert faces[0]["mana_cost"] == "{2}{B}"
 
     def test_noncreature_has_no_power_or_toughness_keys(self, sample_bulk_data):
         # ONE record shape (ADR-0046): the bulk's own record, keys absent when the
@@ -460,7 +460,7 @@ class TestCLI:
         # produced_mana field survives the projection (regression: was being
         # stripped, which broke land-color detection in downstream tools).
         cmd_tower = next(c for c in cached if c["name"] == "Command Tower")
-        assert cmd_tower["produced_mana"] == ["W", "U", "B", "R", "G"]
+        assert cmd_tower["produced_mana"] == ["B", "G", "R", "U", "W"]
         sol_ring = next(c for c in cached if c["name"] == "Sol Ring")
         assert sol_ring["produced_mana"] == ["C"]
 

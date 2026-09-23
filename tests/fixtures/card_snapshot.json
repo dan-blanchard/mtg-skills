@@ -44383,6 +44383,350 @@
     "type_line": "Artifact"
    }
   },
+  "Blackbloom Rogue // Blackbloom Bog": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": {
+        "type": "Tap"
+       },
+       "description": "{T}: Add {B}.",
+       "duration": null,
+       "effect": {
+        "produced": {
+         "colors": [
+          "Black"
+         ],
+         "type": "Fixed"
+        },
+        "type": "Mana"
+       },
+       "forward_result": false,
+       "is_mana_ability": true,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Land"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Black"
+     ],
+     "color_override": null,
+     "defense": null,
+     "face_index": 1,
+     "flavor_name": null,
+     "keywords": [],
+     "layout": "modal_dfc",
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "type": "NoCost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "32779721-b021-4bd4-95d1-4a19b78d9faa"
+      ]
+     },
+     "name": "Blackbloom Bog",
+     "non_ability_text": null,
+     "oracle_text": "This land enters tapped.\n{T}: Add {B}.",
+     "power": null,
+     "printings": [
+      "PIO",
+      "ZNR"
+     ],
+     "rarities": [
+      "uncommon"
+     ],
+     "replacements": [
+      {
+       "condition": null,
+       "description": "~ enters tapped.",
+       "destination_zone": "Battlefield",
+       "event": "Moved",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "scope": {
+          "type": "Single"
+         },
+         "state": {
+          "type": "Tap"
+         },
+         "target": {
+          "type": "SelfRef"
+         },
+         "type": "SetTapState"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": {
+        "type": "Mandatory"
+       },
+       "valid_card": {
+        "type": "SelfRef"
+       }
+      }
+     ],
+     "scryfall_oracle_id": "34320ebf-da97-44a4-bbeb-a9da06548289",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    },
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Human",
+       "Rogue"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Black"
+     ],
+     "color_override": null,
+     "defense": null,
+     "face_index": 0,
+     "flavor_name": null,
+     "keywords": [
+      "Menace"
+     ],
+     "layout": "modal_dfc",
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 2,
+      "shards": [
+       "Black"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "32779721-b021-4bd4-95d1-4a19b78d9faa"
+      ]
+     },
+     "name": "Blackbloom Rogue",
+     "non_ability_text": null,
+     "oracle_text": "Menace (This creature can't be blocked except by two or more creatures.)\nThis creature gets +3/+0 as long as an opponent has eight or more cards in their graveyard.",
+     "power": {
+      "type": "Fixed",
+      "value": 2
+     },
+     "printings": [
+      "PIO",
+      "ZNR"
+     ],
+     "rarities": [
+      "uncommon"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2020-09-25",
+       "text": "A modal double-faced card can’t be transformed or be put onto the battlefield transformed. Ignore any instruction to transform a modal double-faced card or to put one onto the battlefield transformed."
+      },
+      {
+       "date": "2020-09-25",
+       "text": "An ability that offers a bonus if an opponent has eight or more cards in their graveyard won’t provide additional benefits if more than one opponent has eight or more cards in their graveyard. There are also no additional benefits no matter how many cards are in an opponent’s graveyard, as long as there are at least eight."
+      },
+      {
+       "date": "2020-09-25",
+       "text": "If an effect allows you to play a land or cast a spell from among a group of cards, you may play or cast a modal double-faced card with any face that fits the criteria of that effect."
+      },
+      {
+       "date": "2020-09-25",
+       "text": "If an effect allows you to play a specific modal double-faced card, you may cast it as a spell or play it as a land, as determined by which face you choose to play. If an effect allows you to cast (rather than “play”) a specific modal double-faced card, you can’t play it as a land."
+      },
+      {
+       "date": "2020-09-25",
+       "text": "If an effect instructs a player to choose a card name, the name of either face may be chosen. If that effect or a linked ability refers to a spell with the chosen name being cast and/or a land with the chosen name being played, it considers only the chosen name, not the other face’s name."
+      },
+      {
+       "date": "2020-09-25",
+       "text": "If an effect puts a double-faced card onto the battlefield, it enters with its front face up. If that front face can’t be put onto the battlefield, it doesn’t enter the battlefield."
+      },
+      {
+       "date": "2020-09-25",
+       "text": "In a multiplayer game, once an opponent leaves the game, they won’t be considered for such an effect, no matter how many cards they had in their graveyard before leaving the game."
+      },
+      {
+       "date": "2020-09-25",
+       "text": "In the Commander variant, a double-faced card’s color identity is determined by the mana costs and mana symbols in the rules text of both faces combined. If either face has a color indicator or basic land type, those are also considered."
+      },
+      {
+       "date": "2020-09-25",
+       "text": "The mana value of a modal double-faced card is based on the characteristics of the face that’s being considered. On the stack and battlefield, consider whichever face is up. In all other zones, consider only the front face. This is different than how the mana value of a transforming double-faced card is determined."
+      },
+      {
+       "date": "2020-09-25",
+       "text": "There is a single triangle icon in the top left corner of the front face. There is a double triangle icon in the top left corner of the back face."
+      },
+      {
+       "date": "2020-09-25",
+       "text": "To determine whether it is legal to play a modal double-faced card, consider only the characteristics of the face you’re playing and ignore the other face’s characteristics."
+      }
+     ],
+     "scryfall_oracle_id": "34320ebf-da97-44a4-bbeb-a9da06548289",
+     "static_abilities": [
+      {
+       "active_zones": [],
+       "affected": {
+        "type": "SelfRef"
+       },
+       "affected_zone": null,
+       "characteristic_defining": false,
+       "condition": {
+        "comparator": "GE",
+        "lhs": {
+         "qty": {
+          "player": {
+           "aggregate": "Max",
+           "type": "Opponent"
+          },
+          "type": "GraveyardSize"
+         },
+         "type": "Ref"
+        },
+        "rhs": {
+         "type": "Fixed",
+         "value": 8
+        },
+        "type": "QuantityComparison"
+       },
+       "description": "~ gets +3/+0 as long as an opponent has eight or more cards in their graveyard.",
+       "effect_zone": null,
+       "mode": "Continuous",
+       "modifications": [
+        {
+         "type": "AddPower",
+         "value": 3
+        },
+        {
+         "type": "AddToughness",
+         "value": 0
+        }
+       ]
+      }
+     ],
+     "toughness": {
+      "type": "Fixed",
+      "value": 3
+     },
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "card_faces": [
+     {
+      "colors": [
+       "B"
+      ],
+      "keywords": [
+       "Menace"
+      ],
+      "mana_cost": "{2}{B}",
+      "name": "Blackbloom Rogue",
+      "oracle_text": "Menace (This creature can't be blocked except by two or more creatures.)\nThis creature gets +3/+0 as long as an opponent has eight or more cards in their graveyard.",
+      "power": "2",
+      "toughness": "3",
+      "type_line": "Creature — Human Rogue"
+     },
+     {
+      "colors": [],
+      "keywords": [
+       "Menace"
+      ],
+      "mana_cost": "",
+      "name": "Blackbloom Bog",
+      "oracle_text": "This land enters tapped.\n{T}: Add {B}.",
+      "type_line": "Land"
+     }
+    ],
+    "cmc": 3.0,
+    "color_identity": [
+     "B"
+    ],
+    "keywords": [
+     "Menace"
+    ],
+    "layout": "modal_dfc",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "name": "Blackbloom Rogue // Blackbloom Bog",
+    "oracle_id": "34320ebf-da97-44a4-bbeb-a9da06548289",
+    "produced_mana": [
+     "B"
+    ],
+    "type_line": "Creature — Human Rogue // Land"
+   }
+  },
   "Blade Splicer": {
    "phase_records": [
     {
@@ -81969,6 +82313,208 @@
     "oracle_id": "c527eb80-ccac-40b8-8377-c31121613128",
     "oracle_text": "Each player discards all the cards in their hand, then draws that many cards minus one.",
     "type_line": "Sorcery"
+   }
+  },
+  "Dark Ritual": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "Add {B}{B}{B}.",
+       "duration": null,
+       "effect": {
+        "produced": {
+         "colors": [
+          "Black",
+          "Black",
+          "Black"
+         ],
+         "type": "Fixed"
+        },
+        "type": "Mana"
+       },
+       "forward_result": false,
+       "is_mana_ability": true,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Instant"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Black"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "banned",
+      "historic": "banned",
+      "legacy": "legal",
+      "oathbreaker": "banned",
+      "pauper": "legal",
+      "paupercommander": "legal",
+      "premodern": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 0,
+      "shards": [
+       "Black"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "11e12a84-e7be-4afc-a230-c2e644743fa8",
+       "16905bf2-7afe-468c-8ffd-d186a1f8819f",
+       "227f249f-a1da-4db0-a1a5-34378375fa8e",
+       "387b1238-7158-4d67-b98b-a3e224a9ed2b",
+       "43c636bd-9071-4212-8e2e-5d6c6f39f3d1",
+       "464127e8-9d82-44a3-95a3-6e7535e6fa2f",
+       "493a5ca7-5f90-4af4-b6db-43ae09a2f2c9",
+       "5f363f93-be79-46c6-9dee-987d31da157a",
+       "6e169f68-d336-429d-bdd0-f034a53391a3",
+       "7ecf65b4-11f7-4a18-833e-0f017ea98f94",
+       "8b1f1d56-6771-4e53-912e-a81620df505e",
+       "95f27eeb-6f14-4db3-adb9-9be5ed76b34b",
+       "a5dc69ff-b3d4-420e-858c-4880d852c415",
+       "c825f254-6f22-4610-85be-4d04275e6601",
+       "d0a9d3c2-2fa6-41d5-bec8-86c1714ebc1d",
+       "ed01a644-f25c-44ee-aa42-688203032798",
+       "eed6c473-bf79-46d0-adf1-a357ca98a9d6",
+       "ef9d3e48-85c2-4347-810f-a6a0725b288d",
+       "f556b9b8-6811-4328-9297-f1e7876c2d7d",
+       "f688acae-aba5-48fb-b69f-6f93549b4149",
+       "fc10a108-dd8f-4dd5-9189-27a009bad1e3",
+       "fdb2f93b-3278-4b42-9fde-163b735da738"
+      ]
+     },
+     "name": "Dark Ritual",
+     "non_ability_text": null,
+     "oracle_text": "Add {B}{B}{B}.",
+     "power": null,
+     "printings": [
+      "2ED",
+      "30A",
+      "3ED",
+      "40K",
+      "4BB",
+      "4ED",
+      "5ED",
+      "A25",
+      "BRB",
+      "BTD",
+      "CED",
+      "CEI",
+      "CST",
+      "DDC",
+      "DDE",
+      "DKM",
+      "DVD",
+      "FBB",
+      "FCA",
+      "G09",
+      "HOP",
+      "ICE",
+      "ITP",
+      "J21",
+      "LEA",
+      "LEB",
+      "MB2",
+      "ME4",
+      "MIR",
+      "MMQ",
+      "MP2",
+      "MSC",
+      "PLST",
+      "PMEI",
+      "PRM",
+      "PTC",
+      "RQS",
+      "SLD",
+      "SLP",
+      "SLZ",
+      "STA",
+      "SUM",
+      "TMC",
+      "TMP",
+      "TPR",
+      "USG",
+      "V13",
+      "VMA",
+      "WC01",
+      "WC99"
+     ],
+     "rarities": [
+      "common",
+      "uncommon",
+      "rare",
+      "mythic"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "53f7c868-b03e-4fc2-8dcf-a75bbfa3272b",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 1.0,
+    "color_identity": [
+     "B"
+    ],
+    "colors": [
+     "B"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "duel": "banned",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "banned",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "banned",
+     "pauper": "legal",
+     "paupercommander": "legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{B}",
+    "name": "Dark Ritual",
+    "oracle_id": "53f7c868-b03e-4fc2-8dcf-a75bbfa3272b",
+    "oracle_text": "Add {B}{B}{B}.",
+    "produced_mana": [
+     "B"
+    ],
+    "type_line": "Instant"
    }
   },
   "Darksteel Garrison": {
@@ -171686,6 +172232,292 @@
     "type_line": "Creature — Kor Soldier"
    }
   },
+  "Korvold, Fae-Cursed King": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "brawl_commander": true,
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Dragon",
+       "Noble"
+      ],
+      "supertypes": [
+       "Legendary"
+      ]
+     },
+     "color_identity": [
+      "Black",
+      "Green",
+      "Red"
+     ],
+     "color_override": [
+      "Black",
+      "Green",
+      "Red"
+     ],
+     "defense": null,
+     "flavor_name": null,
+     "is_commander": true,
+     "keywords": [
+      "Flying"
+     ],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 2,
+      "shards": [
+       "Black",
+       "Red",
+       "Green"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "18e2c910-6ada-41f6-b5ea-2dc25167666c",
+       "607c1793-8e5a-4ebf-87c6-7f9c99bbd29a",
+       "67629212-a080-4245-8d7d-20d38cc4ad87",
+       "92ea1575-eb64-43b5-b604-c6e23054f228",
+       "bbdd4bda-f91e-4ba2-8f06-6aa96c16acf5",
+       "db6630f0-3626-47f9-ba02-a77f83aa5b13",
+       "ef043a59-31d2-4f01-882d-139fd69c7b56"
+      ]
+     },
+     "name": "Korvold, Fae-Cursed King",
+     "non_ability_text": null,
+     "oracle_text": "Flying\nWhenever Korvold enters or attacks, sacrifice another permanent.\nWhenever you sacrifice a permanent, put a +1/+1 counter on Korvold and draw a card.",
+     "power": {
+      "type": "Fixed",
+      "value": 4
+     },
+     "printings": [
+      "ELD",
+      "EOC",
+      "PL24",
+      "PLST",
+      "SLD"
+     ],
+     "rarities": [
+      "mythic"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2019-10-04",
+       "text": "A legendary permanent that is put into a graveyard because of the \"legend rule\" isn't sacrificed."
+      },
+      {
+       "date": "2019-10-04",
+       "text": "If you sacrifice Korvold, its last ability triggers. You won't put a +1/+1 counter on anything, but you'll draw a card."
+      },
+      {
+       "date": "2019-10-04",
+       "text": "If you sacrifice a permanent as part of a spell or activated ability's cost, Korvold's last ability will resolve before that spell or ability."
+      },
+      {
+       "date": "2019-10-04",
+       "text": "If you somehow control no other permanents, you can attack with Korvold. You won't sacrifice anything, and there's no penalty for being unable to do so."
+      },
+      {
+       "date": "2019-10-04",
+       "text": "Korvold's last ability is a triggered ability, not an activated ability. It doesn't allow you to sacrifice a permanent whenever you want; rather, you need some other way of sacrificing permanents, such as Korvold's first triggered ability."
+      }
+     ],
+     "scryfall_oracle_id": "9ae669dd-7e60-4649-b96e-35da28be641a",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 4
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "Whenever ~ enters or attacks, sacrifice another permanent.",
+       "destination": "Battlefield",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "count": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "target": {
+          "controller": null,
+          "properties": [
+           {
+            "type": "Another"
+           }
+          ],
+          "type": "Typed",
+          "type_filters": [
+           "Permanent"
+          ]
+         },
+         "type": "Sacrifice"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "EntersOrAttacks",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "type": "SelfRef"
+       },
+       "valid_source": null,
+       "valid_target": null
+      },
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "Whenever you sacrifice a permanent, put a +1/+1 counter on ~ and draw a card.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "count": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "counter_type": "P1P1",
+         "target": {
+          "type": "SelfRef"
+         },
+         "type": "PutCounter"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": null,
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "count": {
+           "type": "Fixed",
+           "value": 1
+          },
+          "target": {
+           "type": "Controller"
+          },
+          "type": "Draw"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": null,
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "mode": "Sacrificed",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "controller": "You",
+        "properties": [],
+        "type": "Typed",
+        "type_filters": [
+         "Permanent"
+        ]
+       },
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 5.0,
+    "color_identity": [
+     "B",
+     "G",
+     "R"
+    ],
+    "colors": [
+     "B",
+     "G",
+     "R"
+    ],
+    "keywords": [
+     "Flying"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{2}{B}{R}{G}",
+    "name": "Korvold, Fae-Cursed King",
+    "oracle_id": "9ae669dd-7e60-4649-b96e-35da28be641a",
+    "oracle_text": "Flying\nWhenever Korvold enters or attacks, sacrifice another permanent.\nWhenever you sacrifice a permanent, put a +1/+1 counter on Korvold and draw a card.",
+    "power": "4",
+    "toughness": "4",
+    "type_line": "Legendary Creature — Dragon Noble"
+   }
+  },
   "Kothophed, Soul Hoarder": {
    "phase_records": [
     {
@@ -217083,6 +217915,248 @@
     "type_line": "Legendary Creature — Human Ninja"
    }
   },
+  "Overgrown Tomb": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": {
+        "type": "Tap"
+       },
+       "description": null,
+       "duration": null,
+       "effect": {
+        "produced": {
+         "colors": [
+          "Black"
+         ],
+         "type": "Fixed"
+        },
+        "type": "Mana"
+       },
+       "forward_result": false,
+       "is_mana_ability": true,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      },
+      {
+       "condition": null,
+       "cost": {
+        "type": "Tap"
+       },
+       "description": null,
+       "duration": null,
+       "effect": {
+        "produced": {
+         "colors": [
+          "Green"
+         ],
+         "type": "Fixed"
+        },
+        "type": "Mana"
+       },
+       "forward_result": false,
+       "is_mana_ability": true,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Land"
+      ],
+      "subtypes": [
+       "Swamp",
+       "Forest"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Black",
+      "Green"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "standard": "legal",
+      "standardbrawl": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "type": "NoCost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "0ff3028e-68c0-4b1a-af4b-22a33b9cf31b",
+       "15c1114f-5f7c-4ecf-8aac-e48853df008b",
+       "1c7d50d6-b63a-4d8c-88fa-1d78ae693a45",
+       "307fdde3-43f6-4d80-884a-4a85314ab8e4",
+       "45b92924-baa1-4c9b-9932-9a5eda8f3446",
+       "4a297ec1-0a7c-4f67-936b-d9227767e989",
+       "4fc75949-0bd1-4cd9-9e66-6624dcd41872",
+       "732fe13b-eddc-4e75-88f8-e079e30a7dc4",
+       "8315a5f0-d473-4566-9420-7f214b0c76e2",
+       "9a9c01c5-6bca-47ff-91a9-c20f301b2a96",
+       "ad7e18e2-c033-4b6c-86e8-d0e5cc824cfd",
+       "ba5de5eb-442d-48de-bb5a-e316ea44520d",
+       "e97cb934-fc79-4010-829f-bc9bb0ba7635",
+       "eff1f52c-5c43-4260-aaa0-6920846a191c"
+      ]
+     },
+     "name": "Overgrown Tomb",
+     "non_ability_text": null,
+     "oracle_text": "({T}: Add {B} or {G}.)\nAs this land enters, you may pay 2 life. If you don't, it enters tapped.",
+     "power": null,
+     "printings": [
+      "CLU",
+      "ECL",
+      "EXP",
+      "GRN",
+      "PECL",
+      "PGRN",
+      "PRM",
+      "RAV",
+      "RTR",
+      "RVR",
+      "SLD",
+      "TRK",
+      "UNF"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [
+      {
+       "condition": null,
+       "description": "As ~ enters, you may pay 2 life. If you don't, it enters tapped.",
+       "destination_zone": "Battlefield",
+       "event": "Moved",
+       "execute": null,
+       "mode": {
+        "cost": {
+         "amount": {
+          "type": "Fixed",
+          "value": 2
+         },
+         "type": "PayLife"
+        },
+        "decline": {
+         "condition": null,
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "scope": {
+           "type": "Single"
+          },
+          "state": {
+           "type": "Tap"
+          },
+          "target": {
+           "type": "SelfRef"
+          },
+          "type": "SetTapState"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": null,
+         "target_prompt": null
+        },
+        "type": "MayCost"
+       },
+       "valid_card": {
+        "type": "SelfRef"
+       }
+      }
+     ],
+     "rulings": [
+      {
+       "date": "2018-10-05",
+       "text": "If an effect puts this land onto the battlefield tapped, you may pay 2 life, but it still enters tapped."
+      },
+      {
+       "date": "2018-10-05",
+       "text": "Unlike most dual lands, this land has two basic land types. It's not basic, so cards such as District Guide can't find it, but it does have the appropriate land types for effects such as that of Drowned Catacomb (from the Ixalan set)."
+      },
+      {
+       "date": "2025-11-17",
+       "text": "If an effect puts this land onto the battlefield tapped, you may pay 2 life, but it still enters tapped."
+      },
+      {
+       "date": "2025-11-17",
+       "text": "This land has two basic land types. It's not basic, so cards such as Tend the Sprigs can't find it, but it does have the appropriate land types for effects such as that of Kishla Village (from the Tarkir: Dragonstorm release)."
+      }
+     ],
+     "scryfall_oracle_id": "975ec9a3-6f20-4177-8211-82526e092538",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 0.0,
+    "color_identity": [
+     "B",
+     "G"
+    ],
+    "colors": [],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "legal",
+     "premodern": "not_legal",
+     "standard": "legal",
+     "standardbrawl": "legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "",
+    "name": "Overgrown Tomb",
+    "oracle_id": "975ec9a3-6f20-4177-8211-82526e092538",
+    "oracle_text": "({T}: Add {B} or {G}.)\nAs this land enters, you may pay 2 life. If you don't, it enters tapped.",
+    "produced_mana": [
+     "B",
+     "G"
+    ],
+    "type_line": "Land — Swamp Forest"
+   }
+  },
   "Ozolith, the Shattered Spire": {
    "phase_records": [
     {
@@ -217588,6 +218662,187 @@
     "oracle_id": "5f5e0b10-c8cf-450c-bfd3-bcb0528ec330",
     "oracle_text": "Enchant creature\nEnchanted creature can't attack or block.",
     "type_line": "Enchantment — Aura"
+   }
+  },
+  "Panharmonicon": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Artifact"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 4,
+      "shards": [],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "15856326-d943-476a-9d31-898b9f990bb6",
+       "1d92b7dd-1f63-4f34-87ca-01a0eaa7b3a1",
+       "4d68b906-8d37-4952-82e7-faba4effcf22",
+       "7721abe9-79a1-4831-87f4-95184e9223c8",
+       "7e41465e-b702-4b69-8969-ca1da2ef07fa",
+       "823ea3ea-4ede-436d-a899-3e4a52dd56cd",
+       "998d0cc8-ca2a-41c3-ab65-d05c26ab8278",
+       "9c88ec62-c3c9-4bb8-99f6-04c7a9d65e45",
+       "9d7903ff-359b-49f5-8782-c9dd789c2da6",
+       "9e87c9d7-6494-4c66-b59e-b5a0416e1466",
+       "c23c801e-b429-45d3-896e-289ec0497db0",
+       "e8eff48e-6a3d-4c30-ba14-c6ccbc765ce0"
+      ]
+     },
+     "name": "Panharmonicon",
+     "non_ability_text": null,
+     "oracle_text": "If an artifact or creature entering causes a triggered ability of a permanent you control to trigger, that ability triggers an additional time.",
+     "power": null,
+     "printings": [
+      "2X2",
+      "DRC",
+      "J22",
+      "KLD",
+      "KLR",
+      "PIP",
+      "PKLD",
+      "PLST",
+      "PRM",
+      "SLD",
+      "TSR"
+     ],
+     "rarities": [
+      "rare",
+      "special"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2021-03-19",
+       "text": "Abilities that apply \"as [this artifact or creature] enters the battlefield,\" such as choosing a color with Gauntlet of Power, are also unaffected."
+      },
+      {
+       "date": "2021-03-19",
+       "text": "If a triggered ability is linked to a second ability, additional instances of that triggered ability are also linked to that second ability. If the second ability refers to \"the exiled card,\" it refers to all cards exiled by instances of the triggered ability."
+      },
+      {
+       "date": "2021-03-19",
+       "text": "If an artifact or creature entering the battlefield at the same time as Panharmonicon (including Panharmonicon itself) causes a triggered ability of a permanent you control to trigger, that ability triggers an additional time."
+      },
+      {
+       "date": "2021-03-19",
+       "text": "If you control two Panharmonicons, an artifact or creature entering the battlefield causes abilities to trigger three times, not four. A third Panharmonicon causes abilities to trigger four times, a fourth causes abilities to trigger five times, and so on."
+      },
+      {
+       "date": "2021-03-19",
+       "text": "In some cases involving linked abilities, an ability requires information about \"the exiled card.\" When this happens, the ability gets multiple answers. If these answers are being used to determine the value of a variable, the sum is used. For example, if Elite Arcanist's enters-the-battlefield ability triggers twice, two cards are exiled. The value of X in the activation cost of Elite Arcanist's other ability is the sum of the two cards' mana values. As the ability resolves, you create copies of both cards and can cast none, one, or both of the copies in any order."
+      },
+      {
+       "date": "2021-03-19",
+       "text": "Panharmonicon affects a permanent's own enters-the-battlefield triggered abilities as well as other triggered abilities that trigger when that permanent enters the battlefield. Such triggered abilities start with \"when\" or \"whenever.\""
+      },
+      {
+       "date": "2021-03-19",
+       "text": "Panharmonicon's effect doesn't copy the triggered ability; it just causes the ability to trigger twice. Any choices made as you put the ability onto the stack, such as modes and targets, are made separately for each instance of the ability. Any choices made on resolution, such as whether to put counters on a permanent, are also made individually."
+      },
+      {
+       "date": "2021-03-19",
+       "text": "Replacement effects are unaffected by Panharmonicon's ability. For example, a creature that enters the battlefield with one +1/+1 counter on it won't receive an additional +1/+1 counter."
+      },
+      {
+       "date": "2021-03-19",
+       "text": "You don't need to control the permanent entering the battlefield, only the permanent that has the triggered ability."
+      }
+     ],
+     "scryfall_oracle_id": "76678885-3674-443d-b9a2-2a460cf6aac0",
+     "static_abilities": [
+      {
+       "active_zones": [],
+       "affected": {
+        "controller": "You",
+        "properties": [],
+        "type": "Typed",
+        "type_filters": [
+         "Permanent"
+        ]
+       },
+       "affected_zone": null,
+       "characteristic_defining": false,
+       "condition": null,
+       "description": "If an artifact or creature entering causes a triggered ability of a permanent you control to trigger, that ability triggers an additional time.",
+       "effect_zone": null,
+       "mode": {
+        "DoubleTriggers": {
+         "cause": {
+          "EntersBattlefield": {
+           "core_types": [
+            "Artifact",
+            "Creature"
+           ]
+          }
+         }
+        }
+       },
+       "modifications": []
+      }
+     ],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 4.0,
+    "color_identity": [],
+    "colors": [],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{4}",
+    "name": "Panharmonicon",
+    "oracle_id": "76678885-3674-443d-b9a2-2a460cf6aac0",
+    "oracle_text": "If an artifact or creature entering causes a triggered ability of a permanent you control to trigger, that ability triggers an additional time.",
+    "type_line": "Artifact"
    }
   },
   "Paradox Haze": {
@@ -235776,6 +237031,204 @@
     "power": "0",
     "toughness": "3",
     "type_line": "Legendary Creature — Human Wizard"
+   }
+  },
+  "Rings of Brighthearth": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Artifact"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 3,
+      "shards": [],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "1dbc00c6-5df2-4953-95c2-6c79dc86f409",
+       "730d64cf-e71b-46dd-8e26-d2dec2608fc0",
+       "838ffc87-517a-4d94-8ce0-bc9ed01ecc52",
+       "851f0e08-2c39-4ce9-a181-e106ca9e5fc1",
+       "ee977d30-f37d-4879-be52-c57d50922465",
+       "fbfd3898-cb06-4bb9-9d52-b319e1fa2217"
+      ]
+     },
+     "name": "Rings of Brighthearth",
+     "non_ability_text": null,
+     "oracle_text": "Whenever you activate an ability, if it isn't a mana ability, you may pay {2}. If you do, copy that ability. You may choose new targets for the copy.",
+     "power": null,
+     "printings": [
+      "CMR",
+      "LRW",
+      "LTC",
+      "MPS",
+      "PRM"
+     ],
+     "rarities": [
+      "rare",
+      "mythic"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2020-11-10",
+       "text": "An activated mana ability is one that produces mana as it resolves, not one that costs mana to activate."
+      },
+      {
+       "date": "2020-11-10",
+       "text": "If paying the activation cost of the ability includes sacrificing Rings of Brighthearth, the ability won't be copied. At the time the ability is considered activated (after all costs are paid), Rings of Brighthearth is no longer on the battlefield."
+      },
+      {
+       "date": "2020-11-10",
+       "text": "If the ability has {X} in its cost, the copy uses the same value of X."
+      },
+      {
+       "date": "2020-11-10",
+       "text": "The copy will have the same targets as the ability it's copying unless you choose new ones. You may change any number of the targets, including all of them or none of them. If, for one of the targets, you can't choose a new legal target, then it remains unchanged (even if the current target is illegal)."
+      },
+      {
+       "date": "2020-11-10",
+       "text": "The triggered ability of Rings of Brighthearth and the copy it creates both resolve before the ability that caused it to trigger. They resolve even if that ability is countered."
+      },
+      {
+       "date": "2020-11-10",
+       "text": "You can't pay {2} more than once for each time the triggered ability of Rings of Brighthearth resolves."
+      }
+     ],
+     "scryfall_oracle_id": "bbf9494c-c4bb-4d36-98fe-8387846b342e",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": [
+      {
+       "batched": false,
+       "condition": {
+        "type": "ActivatedAbilityIsNonMana"
+       },
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "Whenever you activate an ability, if it isn't a mana ability, you may pay {2}. If you do, copy that ability. You may choose new targets for the copy.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "cost": {
+          "cost": {
+           "generic": 2,
+           "shards": [],
+           "type": "Cost"
+          },
+          "type": "Mana"
+         },
+         "payer": {
+          "type": "Controller"
+         },
+         "type": "PayCost"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": true,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": {
+          "signal": "OptionalEffectPerformed",
+          "type": "EffectOutcome"
+         },
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "retarget": {
+           "type": "MayChooseNewTargets"
+          },
+          "starting_loyalty_from_casualty_sacrifice": false,
+          "target": {
+           "type": "ParentTarget"
+          },
+          "type": "CopySpell"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": null,
+         "sub_link": "SequentialSibling",
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "mode": "AbilityActivated",
+       "optional": true,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": null,
+       "valid_source": null,
+       "valid_target": {
+        "type": "Controller"
+       }
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 3.0,
+    "color_identity": [],
+    "colors": [],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{3}",
+    "name": "Rings of Brighthearth",
+    "oracle_id": "bbf9494c-c4bb-4d36-98fe-8387846b342e",
+    "oracle_text": "Whenever you activate an ability, if it isn't a mana ability, you may pay {2}. If you do, copy that ability. You may choose new targets for the copy.",
+    "type_line": "Artifact"
    }
   },
   "Rishadan Pawnshop": {
@@ -281895,6 +283348,276 @@
     "power": "5",
     "toughness": "6",
     "type_line": "Legendary Creature — Elf Noble"
+   }
+  },
+  "Thrasios, Triton Hero": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": {
+        "cost": {
+         "generic": 4,
+         "shards": [],
+         "type": "Cost"
+        },
+        "type": "Mana"
+       },
+       "description": "{4}: Scry 1, then reveal the top card of your library. If it's a land card, put it onto the battlefield tapped. Otherwise, draw a card.",
+       "duration": null,
+       "effect": {
+        "count": {
+         "type": "Fixed",
+         "value": 1
+        },
+        "target": {
+         "type": "Controller"
+        },
+        "type": "Scry"
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "count": 1,
+         "player": {
+          "type": "Controller"
+         },
+         "type": "RevealTop"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": {
+          "card_types": [
+           "Land"
+          ],
+          "type": "RevealedHasCardType"
+         },
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "destination": "Battlefield",
+          "enter_tapped": true,
+          "enter_transformed": false,
+          "enters_attacking": false,
+          "origin": null,
+          "owner_library": false,
+          "target": {
+           "type": "ParentTarget"
+          },
+          "type": "ChangeZone"
+         },
+         "else_ability": {
+          "condition": null,
+          "cost": null,
+          "description": null,
+          "duration": null,
+          "effect": {
+           "count": {
+            "type": "Fixed",
+            "value": 1
+           },
+           "target": {
+            "type": "Controller"
+           },
+           "type": "Draw"
+          },
+          "forward_result": false,
+          "kind": "Activated",
+          "optional": false,
+          "optional_targeting": false,
+          "sub_ability": null,
+          "target_prompt": null
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": null,
+         "sub_link": "SequentialSibling",
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "target_prompt": null
+      }
+     ],
+     "brawl_commander": true,
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Merfolk",
+       "Wizard"
+      ],
+      "supertypes": [
+       "Legendary"
+      ]
+     },
+     "color_identity": [
+      "Green",
+      "Blue"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "is_commander": true,
+     "keywords": [
+      {
+       "Partner": {
+        "type": "Generic"
+       }
+      }
+     ],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 0,
+      "shards": [
+       "Green",
+       "Blue"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "21e27b91-c7f1-4709-aa0d-8b5d81b22a0a",
+       "845bf543-0367-4d2c-81ba-e424bfbfb7de"
+      ]
+     },
+     "name": "Thrasios, Triton Hero",
+     "non_ability_text": null,
+     "oracle_text": "{4}: Scry 1, then reveal the top card of your library. If it's a land card, put it onto the battlefield tapped. Otherwise, draw a card.\nPartner (You can have two commanders if both have partner.)",
+     "power": {
+      "type": "Fixed",
+      "value": 1
+     },
+     "printings": [
+      "C16",
+      "CMR",
+      "FCA",
+      "PRM",
+      "PZ2",
+      "SPG"
+     ],
+     "rarities": [
+      "rare",
+      "mythic"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2016-11-08",
+       "text": "No player may take another action while you're resolving the activated ability."
+      },
+      {
+       "date": "2020-11-10",
+       "text": "An effect that checks whether you control your commander is satisfied if you control one or both of your two commanders."
+      },
+      {
+       "date": "2020-11-10",
+       "text": "Both commanders start in the command zone, and the remaining 98 cards (or 58 cards in a Commander Draft game) of your deck are shuffled to become your library."
+      },
+      {
+       "date": "2020-11-10",
+       "text": "If something refers to your commander while you have two commanders, it refers to one of them of your choice. If you are instructed to perform an action on your commander (e.g. put it from the command zone into your hand due to Command Beacon), you choose one of your commanders at the time the effect happens."
+      },
+      {
+       "date": "2020-11-10",
+       "text": "If your Commander deck has two commanders, you can only include cards whose own color identities are also found in your commanders' combined color identities. If Falthis and Kediss are your commanders, your deck may contain cards with black and/or red in their color identity, but not cards with green, white, or blue."
+      },
+      {
+       "date": "2020-11-10",
+       "text": "Once the game begins, your two commanders are tracked separately. If you cast one, you won't have to pay an additional {2} the first time you cast the other. A player loses the game after having been dealt 21 damage from any one of them, not from both of them combined."
+      },
+      {
+       "date": "2020-11-10",
+       "text": "The nonland card you reveal will be the card you draw."
+      },
+      {
+       "date": "2020-11-10",
+       "text": "To have two commanders, both must have the partner ability as the game begins. Losing the ability during the game doesn't cause either to cease to be your commander."
+      },
+      {
+       "date": "2020-11-10",
+       "text": "You can choose two commanders with partner that are the same color or colors. In Commander Draft, you can even choose two of the same commander with partner if you drafted them. If you do this, make sure you keep the number of times you've cast each from the command zone clear for \"commander tax\" purposes."
+      }
+     ],
+     "scryfall_oracle_id": "3d867016-2601-4a37-a73d-308898d3bd37",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 3
+     },
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 2.0,
+    "color_identity": [
+     "G",
+     "U"
+    ],
+    "colors": [
+     "G",
+     "U"
+    ],
+    "keywords": [
+     "Partner",
+     "Scry"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{G}{U}",
+    "name": "Thrasios, Triton Hero",
+    "oracle_id": "3d867016-2601-4a37-a73d-308898d3bd37",
+    "oracle_text": "{4}: Scry 1, then reveal the top card of your library. If it's a land card, put it onto the battlefield tapped. Otherwise, draw a card.\nPartner (You can have two commanders if both have partner.)",
+    "power": "1",
+    "toughness": "3",
+    "type_line": "Legendary Creature — Merfolk Wizard"
    }
   },
   "Thrasta, Tempest's Roar": {

@@ -177,229 +177,116 @@ def partner_deck(tmp_path: Path) -> Path:
     return deck_path
 
 
+def _real(name: str, **per_printing) -> dict:
+    """The real card *name* from the testkit snapshot (ADR-0056), with only the
+    per-printing facts a fixture varies (id, prices, rarity, …) overlaid.
+
+    Also seeds the crosswalk trees memo for the card's real ``oracle_id`` from the
+    snapshot's stored phase records, so a structural-view preset or signal lane
+    resolves the card identically locally and in CI (no phase cache there)."""
+    from mtg_utils import testkit
+
+    testkit.test_card_ir(name)  # seeds the crosswalk trees memo
+    return {**testkit.test_card(name), **per_printing}
+
+
 @pytest.fixture
 def sample_bulk_data(tmp_path: Path) -> Path:
-    """Create a minimal Scryfall bulk data JSON for testing."""
+    """A minimal Scryfall-shaped bulk JSON of real cards (ADR-0056).
+
+    Card facts come from the testkit snapshot; only per-printing facts (``id``,
+    ``prices``) and the Scryfall-served flags the snapshot doesn't carry
+    (``game_changer``, ``edhrec_rank``) are written here.
+    """
     cards = [
+        _real(
+            "Korvold, Fae-Cursed King",
+            id="aaa-korvold",
+            prices={"usd": "3.50", "usd_foil": "7.00"},
+            game_changer=False,
+        ),
+        _real(
+            "Viscera Seer",
+            id="bbb-viscera",
+            prices={"usd": "0.50", "usd_foil": "2.00"},
+            game_changer=False,
+            edhrec_rank=253,
+        ),
+        _real(
+            "Blood Artist",
+            id="ccc-blood-artist",
+            prices={"usd": "1.00", "usd_foil": "3.00"},
+            game_changer=False,
+        ),
+        _real(
+            "Sol Ring",
+            id="ddd-sol-ring",
+            prices={"usd": "1.00", "usd_foil": "5.00"},
+            game_changer=False,
+        ),
+        _real(
+            "Command Tower",
+            id="eee-command-tower",
+            prices={"usd": "0.25", "usd_foil": "1.00"},
+            game_changer=False,
+        ),
+        _real(
+            "Sakura-Tribe Elder",
+            id="fff-sakura",
+            prices={"usd": "0.35", "usd_foil": "1.50"},
+            game_changer=False,
+        ),
+        _real(
+            "Deadly Rollick",
+            id="ggg-deadly-rollick",
+            prices={"usd": "8.00", "usd_foil": "12.00"},
+            game_changer=False,
+        ),
+        _real(
+            "Cultivate",
+            id="hhh-cultivate",
+            prices={"usd": "0.25", "usd_foil": "0.75"},
+            game_changer=False,
+        ),
+        _real(
+            "Ashnod's Altar",
+            id="iii-ashnods",
+            prices={"usd": "2.50", "usd_foil": "8.00"},
+            game_changer=False,
+        ),
+        _real(
+            "Dictate of Erebos",
+            id="jjj-dictate",
+            prices={"usd": "3.00", "usd_foil": "6.00"},
+            game_changer=False,
+        ),
+        _real(
+            "Overgrown Tomb",
+            id="kkk-overgrown",
+            prices={"usd": "9.00", "usd_foil": "15.00"},
+            game_changer=False,
+        ),
+        _real(
+            "Thrasios, Triton Hero",
+            id="lll-thrasios",
+            prices={"usd": "5.00", "usd_foil": "10.00"},
+            game_changer=False,
+        ),
+        _real(
+            "Tymna the Weaver",
+            id="mmm-tymna",
+            prices={"usd": "15.00", "usd_foil": "25.00"},
+            game_changer=False,
+        ),
+        _real(
+            "Fire // Ice",
+            id="nnn-fire-ice",
+            prices={"usd": "0.25", "usd_foil": "1.00"},
+            game_changer=False,
+        ),
         {
-            "id": "aaa-korvold",
-            "oracle_id": "orc-korvold",
-            "name": "Korvold, Fae-Cursed King",
-            "mana_cost": "{2}{B}{R}{G}",
-            "cmc": 5.0,
-            "type_line": "Legendary Creature — Dragon Noble",
-            "oracle_text": "Flying\nWhenever Korvold enters or attacks, sacrifice another permanent.\nWhenever you sacrifice a permanent, put a +1/+1 counter on Korvold and draw a card.",
-            "power": "4",
-            "toughness": "4",
-            "keywords": ["Flying"],
-            "colors": ["B", "G", "R"],
-            "color_identity": ["B", "G", "R"],
-            "legalities": {"commander": "legal"},
-            "prices": {"usd": "3.50", "usd_foil": "7.00"},
-            "game_changer": False,
-        },
-        {
-            "id": "bbb-viscera",
-            "oracle_id": "orc-viscera",
-            "name": "Viscera Seer",
-            "mana_cost": "{B}",
-            "cmc": 1.0,
-            "type_line": "Creature — Vampire Wizard",
-            "oracle_text": "Sacrifice a creature: Scry 1. (Look at the top card of your library. You may put that card on the bottom.)",
-            "power": "1",
-            "toughness": "1",
-            "keywords": [],
-            "colors": ["B"],
-            "color_identity": ["B"],
-            "legalities": {"commander": "legal"},
-            "prices": {"usd": "0.50", "usd_foil": "2.00"},
-            "game_changer": False,
-            "edhrec_rank": 253,
-        },
-        {
-            "id": "ccc-blood-artist",
-            "oracle_id": "orc-blood-artist",
-            "name": "Blood Artist",
-            "mana_cost": "{1}{B}",
-            "cmc": 2.0,
-            "type_line": "Creature — Vampire",
-            "oracle_text": "Whenever this creature or another creature dies, target player loses 1 life and you gain 1 life.",
-            "keywords": [],
-            "colors": ["B"],
-            "color_identity": ["B"],
-            "legalities": {"commander": "legal"},
-            "prices": {"usd": "1.00", "usd_foil": "3.00"},
-            "game_changer": False,
-        },
-        {
-            "id": "ddd-sol-ring",
-            "oracle_id": "orc-sol-ring",
-            "name": "Sol Ring",
-            "mana_cost": "{1}",
-            "cmc": 1.0,
-            "type_line": "Artifact",
-            "oracle_text": "{T}: Add {C}{C}.",
-            "keywords": [],
-            "colors": [],
-            "color_identity": [],
-            "produced_mana": ["C"],
-            "legalities": {"commander": "legal"},
-            "prices": {"usd": "1.00", "usd_foil": "5.00"},
-            "game_changer": False,
-        },
-        {
-            "id": "eee-command-tower",
-            "oracle_id": "orc-command-tower",
-            "name": "Command Tower",
-            "mana_cost": "",
-            "cmc": 0.0,
-            "type_line": "Land",
-            "oracle_text": "{T}: Add one mana of any color in your commander's color identity.",
-            "keywords": [],
-            "colors": [],
-            "color_identity": [],
-            "produced_mana": ["W", "U", "B", "R", "G"],
-            "legalities": {"commander": "legal"},
-            "prices": {"usd": "0.25", "usd_foil": "1.00"},
-            "game_changer": False,
-        },
-        {
-            "id": "fff-sakura",
-            "oracle_id": "orc-sakura",
-            "name": "Sakura-Tribe Elder",
-            "mana_cost": "{1}{G}",
-            "cmc": 2.0,
-            "type_line": "Creature — Snake Shaman",
-            "oracle_text": "Sacrifice this creature: Search your library for a basic land card, put that card onto the battlefield tapped, then shuffle.",
-            "keywords": [],
-            "colors": ["G"],
-            "color_identity": ["G"],
-            "legalities": {"commander": "legal"},
-            "prices": {"usd": "0.35", "usd_foil": "1.50"},
-            "game_changer": False,
-        },
-        {
-            "id": "ggg-deadly-rollick",
-            "oracle_id": "orc-deadly-rollick",
-            "name": "Deadly Rollick",
-            "mana_cost": "{3}{B}",
-            "cmc": 4.0,
-            "type_line": "Instant",
-            "oracle_text": "If you control a commander, you may cast this spell without paying its mana cost.\nExile target creature.",
-            "keywords": [],
-            "colors": ["B"],
-            "color_identity": ["B"],
-            "legalities": {"commander": "legal"},
-            "prices": {"usd": "8.00", "usd_foil": "12.00"},
-            "game_changer": False,
-        },
-        {
-            "id": "hhh-cultivate",
-            "oracle_id": "orc-cultivate",
-            "name": "Cultivate",
-            "mana_cost": "{2}{G}",
-            "cmc": 3.0,
-            "type_line": "Sorcery",
-            "oracle_text": "Search your library for up to two basic land cards, reveal those cards, put one onto the battlefield tapped and the other into your hand, then shuffle.",
-            "keywords": [],
-            "colors": ["G"],
-            "color_identity": ["G"],
-            "legalities": {"commander": "legal"},
-            "prices": {"usd": "0.25", "usd_foil": "0.75"},
-            "game_changer": False,
-        },
-        {
-            "id": "iii-ashnods",
-            "oracle_id": "orc-ashnods",
-            "name": "Ashnod's Altar",
-            "mana_cost": "{3}",
-            "cmc": 3.0,
-            "type_line": "Artifact",
-            "oracle_text": "Sacrifice a creature: Add {C}{C}.",
-            "keywords": [],
-            "colors": [],
-            "color_identity": [],
-            "legalities": {"commander": "legal"},
-            "prices": {"usd": "2.50", "usd_foil": "8.00"},
-            "game_changer": False,
-        },
-        {
-            "id": "jjj-dictate",
-            "oracle_id": "orc-dictate",
-            "name": "Dictate of Erebos",
-            "mana_cost": "{3}{B}{B}",
-            "cmc": 5.0,
-            "type_line": "Enchantment",
-            "oracle_text": "Flash\nWhenever a creature you control dies, each opponent sacrifices a creature of their choice.",
-            "keywords": ["Flash"],
-            "colors": ["B"],
-            "color_identity": ["B"],
-            "legalities": {"commander": "legal"},
-            "prices": {"usd": "3.00", "usd_foil": "6.00"},
-            "game_changer": False,
-        },
-        {
-            "id": "kkk-overgrown",
-            "oracle_id": "orc-overgrown",
-            "name": "Overgrown Tomb",
-            "mana_cost": "",
-            "cmc": 0.0,
-            "type_line": "Land — Swamp Forest",
-            "oracle_text": "({T}: Add {B} or {G}.)\nAs this land enters, you may pay 2 life. If you don't, it enters tapped.",
-            "keywords": [],
-            "colors": [],
-            "color_identity": ["B", "G"],
-            "legalities": {"commander": "legal"},
-            "prices": {"usd": "9.00", "usd_foil": "15.00"},
-            "game_changer": False,
-        },
-        {
-            "id": "lll-thrasios",
-            "oracle_id": "orc-thrasios",
-            "name": "Thrasios, Triton Hero",
-            "mana_cost": "{G}{U}",
-            "cmc": 2.0,
-            "type_line": "Legendary Creature — Merfolk Wizard",
-            "oracle_text": "{4}: Scry 1, then reveal the top card of your library. If it's a land card, put it onto the battlefield tapped. Otherwise, draw a card.\nPartner (You can have two commanders if both have partner.)",
-            "keywords": ["Partner"],
-            "colors": ["G", "U"],
-            "color_identity": ["G", "U"],
-            "legalities": {"commander": "legal"},
-            "prices": {"usd": "5.00", "usd_foil": "10.00"},
-            "game_changer": False,
-        },
-        {
-            "id": "mmm-tymna",
-            "oracle_id": "orc-tymna",
-            "name": "Tymna the Weaver",
-            "mana_cost": "{1}{W}{B}",
-            "cmc": 3.0,
-            "type_line": "Legendary Creature — Human Cleric",
-            "oracle_text": "Lifelink\nAt the beginning of each of your postcombat main phases, you may pay X life, where X is the number of opponents that were dealt combat damage this turn. If you do, draw X cards.\nPartner (You can have two commanders if both have partner.)",
-            "keywords": ["Lifelink", "Partner"],
-            "colors": ["B", "W"],
-            "color_identity": ["B", "W"],
-            "legalities": {"commander": "legal"},
-            "prices": {"usd": "15.00", "usd_foil": "25.00"},
-            "game_changer": False,
-        },
-        {
-            "id": "nnn-fire-ice",
-            "oracle_id": "orc-fire-ice",
-            "name": "Fire // Ice",
-            "mana_cost": "{1}{R} // {1}{U}",
-            "cmc": 4.0,
-            "type_line": "Instant // Instant",
-            "oracle_text": "Fire deals 2 damage divided as you choose among one or two targets.\n//\nTap target permanent.\nDraw a card.",
-            "keywords": [],
-            "colors": ["R", "U"],
-            "color_identity": ["R", "U"],
-            "legalities": {"commander": "legal"},
-            "prices": {"usd": "0.25", "usd_foil": "1.00"},
-            "game_changer": False,
-        },
-        {
-            # A big evasive body: exercises the tuner's
+            # Fictional machinery (ADR-0056 "synthetic records are for machinery
+            # only"): a big evasive body that exercises the tuner's
             # `is_creature(card) and card_pt_int(card) >= 6` wincon arm end-to-end
             # through hydration, rather than by patching power onto a small card.
             "id": "qqq-ancient-wyrm",
@@ -418,56 +305,22 @@ def sample_bulk_data(tmp_path: Path) -> Path:
             "prices": {"usd": "1.00", "usd_foil": "3.00"},
             "game_changer": False,
         },
-        {
-            # A modal DFC creature: Scryfall (and the MTGJSON adapter) put P/T,
-            # mana_cost and colors ONLY on card_faces for this layout, never at
-            # top level. Guards the card_faces projection in CARD_FIELDS.
-            "id": "ppp-agadeem",
-            "oracle_id": "orc-agadeem",
-            "name": "Malakir Rebirth // Malakir Mire",
-            "mana_cost": None,
-            "cmc": 2.0,
-            "type_line": "Instant // Land",
-            "oracle_text": "",
-            "layout": "modal_dfc",
-            "keywords": [],
-            "colors": ["B"],
-            "color_identity": ["B"],
-            "legalities": {"commander": "legal"},
-            "prices": {"usd": "2.00", "usd_foil": "5.00"},
-            "game_changer": False,
-            "card_faces": [
-                {
-                    "name": "Malakir Rebirth",
-                    "mana_cost": "{B}",
-                    "type_line": "Creature — Vampire",
-                    "oracle_text": "Flying",
-                    "power": "2",
-                    "toughness": "3",
-                },
-                {
-                    "name": "Malakir Mire",
-                    "mana_cost": "",
-                    "type_line": "Land",
-                    "oracle_text": "This land enters tapped.",
-                },
-            ],
-        },
-        {
-            "id": "ooo-rhystic",
-            "oracle_id": "orc-rhystic",
-            "name": "Rhystic Study",
-            "mana_cost": "{2}{U}",
-            "cmc": 3.0,
-            "type_line": "Enchantment",
-            "oracle_text": "Whenever an opponent casts a spell, you may draw a card unless that player pays {1}.",
-            "keywords": [],
-            "colors": ["U"],
-            "color_identity": ["U"],
-            "legalities": {"commander": "legal"},
-            "prices": {"usd": "8.00", "usd_foil": "40.00"},
-            "game_changer": True,
-        },
+        # A modal DFC with a creature front face: Scryfall (and the MTGJSON
+        # adapter) put P/T, mana_cost and colors ONLY on card_faces for this
+        # layout, never at top level. Guards the card_faces projection in
+        # CARD_FIELDS.
+        _real(
+            "Blackbloom Rogue // Blackbloom Bog",
+            id="ppp-blackbloom",
+            prices={"usd": "2.00", "usd_foil": "5.00"},
+            game_changer=False,
+        ),
+        _real(
+            "Rhystic Study",
+            id="ooo-rhystic",
+            prices={"usd": "8.00", "usd_foil": "40.00"},
+            game_changer=True,
+        ),
     ]
     bulk_path = tmp_path / "default-cards.json"
     bulk_path.write_text(json.dumps(cards))
@@ -482,132 +335,42 @@ def hydrated_cards(sample_bulk_data: Path) -> list[dict]:
 
 @pytest.fixture
 def cube_bulk_data(tmp_path: Path) -> Path:
-    """Extra cards for cube tests: a few duals, gold cards, rares for rarity
-    breakdown, and an uncommon creature commander for PDH-style tests.
+    """Extra real cards for cube tests: gold cards, rares for the rarity
+    breakdown, and legendary creatures for the commander pool.
 
     Tests combine this with sample_bulk_data entries via cube_hydrated fixture.
+    Rarity, id and prices are the per-printing overlays (ADR-0056).
     """
     cards = [
-        {
-            "id": "cbk-bolt",
-            "oracle_id": "orc-bolt",
-            "name": "Lightning Bolt",
-            "mana_cost": "{R}",
-            "cmc": 1.0,
-            "type_line": "Instant",
-            "oracle_text": "Lightning Bolt deals 3 damage to any target.",
-            "keywords": [],
-            "colors": ["R"],
-            "color_identity": ["R"],
-            "rarity": "common",
-            "legalities": {"modern": "legal", "legacy": "legal", "vintage": "legal"},
-            "prices": {"usd": "0.50"},
-        },
-        {
-            "id": "cbk-stp",
-            "oracle_id": "orc-stp",
-            "name": "Swords to Plowshares",
-            "mana_cost": "{W}",
-            "cmc": 1.0,
-            "type_line": "Instant",
-            "oracle_text": "Exile target creature. Its controller gains life equal to its power.",
-            "keywords": [],
-            "colors": ["W"],
-            "color_identity": ["W"],
-            "rarity": "uncommon",
-            "legalities": {"legacy": "legal", "vintage": "legal"},
-            "prices": {"usd": "1.50"},
-        },
-        {
-            "id": "cbk-counter",
-            "oracle_id": "orc-counter",
-            "name": "Counterspell",
-            "mana_cost": "{U}{U}",
-            "cmc": 2.0,
-            "type_line": "Instant",
-            "oracle_text": "Counter target spell.",
-            "keywords": [],
-            "colors": ["U"],
-            "color_identity": ["U"],
-            "rarity": "common",
-            "legalities": {"modern": "legal", "legacy": "legal"},
-            "prices": {"usd": "0.75"},
-        },
-        {
-            "id": "cbk-dark-rit",
-            "oracle_id": "orc-dark-rit",
-            "name": "Dark Ritual",
-            "mana_cost": "{B}",
-            "cmc": 1.0,
-            "type_line": "Instant",
-            "oracle_text": "Add {B}{B}{B}.",
-            "keywords": [],
-            "colors": ["B"],
-            "color_identity": ["B"],
-            "rarity": "common",
-            "legalities": {"legacy": "legal", "vintage": "legal"},
-            "prices": {"usd": "1.50"},
-        },
-        {
-            "id": "cbk-elves",
-            "oracle_id": "orc-elves",
-            "name": "Llanowar Elves",
-            "mana_cost": "{G}",
-            "cmc": 1.0,
-            "type_line": "Creature — Elf Druid",
-            "oracle_text": "{T}: Add {G}.",
-            "keywords": [],
-            "colors": ["G"],
-            "color_identity": ["G"],
-            "rarity": "common",
-            "legalities": {"modern": "legal", "legacy": "legal"},
-            "prices": {"usd": "0.25"},
-        },
-        {
-            "id": "cbk-atraxa",
-            "oracle_id": "orc-atraxa",
-            "name": "Atraxa, Praetors' Voice",
-            "mana_cost": "{G}{W}{U}{B}",
-            "cmc": 4.0,
-            "type_line": "Legendary Creature — Phyrexian Angel Horror",
-            "oracle_text": "Flying, vigilance, deathtouch, lifelink\nAt the beginning of your end step, proliferate. (Choose any number of permanents and/or players, then give each another counter of each kind already there.)",
-            "keywords": ["Flying", "Vigilance", "Deathtouch", "Lifelink"],
-            "colors": ["B", "G", "U", "W"],
-            "color_identity": ["B", "G", "U", "W"],
-            "rarity": "mythic",
-            "legalities": {"commander": "legal"},
-            "prices": {"usd": "20.00"},
-        },
-        {
-            "id": "cbk-tuvasa",
-            "oracle_id": "orc-tuvasa",
-            "name": "Tuvasa the Sunlit",
-            "mana_cost": "{G}{W}{U}",
-            "cmc": 3.0,
-            "type_line": "Legendary Creature — Merfolk Shaman",
-            "oracle_text": "Tuvasa gets +1/+1 for each enchantment you control.\nWhenever you cast your first enchantment spell each turn, draw a card.",
-            "keywords": [],
-            "colors": ["G", "U", "W"],
-            "color_identity": ["G", "U", "W"],
-            "rarity": "mythic",
-            "legalities": {"commander": "legal"},
-            "prices": {"usd": "3.00"},
-        },
-        {
-            "id": "cbk-wildfire",
-            "oracle_id": "orc-wildfire",
-            "name": "Wildfire",
-            "mana_cost": "{4}{R}{R}",
-            "cmc": 6.0,
-            "type_line": "Sorcery",
-            "oracle_text": "Each player sacrifices four lands of their choice. Wildfire deals 4 damage to each creature.",
-            "keywords": [],
-            "colors": ["R"],
-            "color_identity": ["R"],
-            "rarity": "rare",
-            "legalities": {"legacy": "legal", "vintage": "legal"},
-            "prices": {"usd": "2.00"},
-        },
+        _real("Lightning Bolt", id="cbk-bolt", rarity="common", prices={"usd": "0.50"}),
+        _real(
+            "Swords to Plowshares",
+            id="cbk-stp",
+            rarity="uncommon",
+            prices={"usd": "1.50"},
+        ),
+        _real(
+            "Counterspell", id="cbk-counter", rarity="common", prices={"usd": "0.75"}
+        ),
+        _real(
+            "Dark Ritual", id="cbk-dark-rit", rarity="common", prices={"usd": "1.50"}
+        ),
+        _real(
+            "Llanowar Elves", id="cbk-elves", rarity="common", prices={"usd": "0.25"}
+        ),
+        _real(
+            "Atraxa, Praetors' Voice",
+            id="cbk-atraxa",
+            rarity="mythic",
+            prices={"usd": "20.00"},
+        ),
+        _real(
+            "Tuvasa the Sunlit",
+            id="cbk-tuvasa",
+            rarity="mythic",
+            prices={"usd": "3.00"},
+        ),
+        _real("Wildfire", id="cbk-wildfire", rarity="rare", prices={"usd": "2.00"}),
     ]
     bulk_path = tmp_path / "cube-cards.json"
     bulk_path.write_text(json.dumps(cards))
@@ -622,41 +385,17 @@ def cube_hydrated(sample_bulk_data: Path, cube_bulk_data: Path) -> list[dict]:
     return [*deck_cards, *cube_cards]
 
 
-# Cards ``cube_hydrated`` carries with a FAKE ``oracle_id`` (``orc-bolt`` etc.)
-# whose real production oracle_id the ``removal`` structural-view preset
-# (task #86 — the last regex-bearing built-in preset, flipped) needs to
-# resolve anything. Swapped in by ``cube_hydrated_real_removal`` below.
-_REAL_OID_OVERRIDES = (
-    "Lightning Bolt",
-    "Swords to Plowshares",
-    "Counterspell",
-    "Deadly Rollick",
-    "Fire // Ice",
-)
-
-
 @pytest.fixture
 def cube_hydrated_real_removal(cube_hydrated: list[dict]) -> list[dict]:
-    """``cube_hydrated`` with a few cards' synthetic ``oracle_id`` swapped for
-    their REAL production ``oracle_id`` (and the crosswalk trees pre-seeded
-    from the committed testkit snapshot — no phase cache / network needed).
+    """``cube_hydrated`` for the tests that exercise the structural-view
+    ``removal`` preset, which never matches a card whose ``oracle_id`` doesn't
+    resolve against the crosswalk (see ``theme_presets.py``'s "Structural views"
+    module-docstring section).
 
-    Only for tests that exercise the (now structural-view) ``removal``
-    preset, which — like every other ``signal_keys``-bearing preset — never
-    matches a card whose ``oracle_id`` doesn't resolve against the crosswalk
-    (see ``theme_presets.py``'s "Structural views" module-docstring section).
-    Every other ``cube_hydrated`` consumer is unaffected: this is a NEW
-    fixture, not a mutation of the shared one.
+    Every real card in ``cube_hydrated`` now carries its real ``oracle_id`` and
+    has its crosswalk trees seeded from the testkit snapshot (``_real``), so this
+    is the same list; the name stays for the tests that ask for it.
     """
-    from mtg_utils import testkit
-
-    by_name = {c["name"]: c for c in cube_hydrated}
-    for name in _REAL_OID_OVERRIDES:
-        card = by_name.get(name)
-        if card is None:
-            continue
-        testkit.test_card_ir(name)  # seeds the crosswalk trees memo
-        card["oracle_id"] = testkit.test_card(name)["oracle_id"]
     return cube_hydrated
 
 
@@ -769,83 +508,27 @@ def sample_edhrec_response() -> dict:
 
 @pytest.fixture
 def alt_cost_cards():
-    """Cards with various alternative casting costs."""
+    """Real cards with various alternative casting costs (ADR-0056)."""
     return [
-        {
-            "name": "Star Whale",
-            "cmc": 8.0,
-            "type_line": "Creature — Alien Whale",
-            "oracle_text": "Flying, vigilance\nOther creatures you control have ward {2}.\nSuspend 6—{1}{U} (Rather than cast this card from your hand, you may pay {1}{U} and exile it with six time counters on it. At the beginning of your upkeep, remove a time counter. When the last is removed, you may cast it without paying its mana cost. It has haste.)",
-            "mana_cost": "{6}{U}{U}",
-            "keywords": ["Flying", "Vigilance", "Ward", "Suspend"],
-        },
-        {
-            "name": "Ancestral Vision",
-            "cmc": 0.0,
-            "type_line": "Sorcery",
-            "oracle_text": "Suspend 4—{U} (Rather than cast this card from your hand, pay {U} and exile it with four time counters on it. At the beginning of your upkeep, remove a time counter. When the last is removed, you may cast it without paying its mana cost.)\nTarget player draws three cards.",
-            "mana_cost": "",
-            "keywords": ["Suspend"],
-        },
-        {
-            "name": "Fury",
-            "cmc": 5.0,
-            "type_line": "Creature — Elemental Incarnation",
-            "oracle_text": "Double strike\nWhen this creature enters, it deals 4 damage divided as you choose among any number of target creatures and/or planeswalkers.\nEvoke—Exile a red card from your hand.",
-            "mana_cost": "{3}{R}{R}",
-            "keywords": ["Double strike", "Evoke"],
-        },
-        {
-            "name": "Goldvein Hydra",
-            "cmc": 1.0,
-            "type_line": "Creature — Hydra",
-            "oracle_text": "Vigilance, trample, haste\nThis creature enters with X +1/+1 counters on it.\nWhen this creature dies, create a number of tapped Treasure tokens equal to its power.",
-            "mana_cost": "{X}{G}",
-            "keywords": ["Trample"],
-        },
-        {
-            "name": "Sol Ring",
-            "cmc": 1.0,
-            "type_line": "Artifact",
-            "oracle_text": "{T}: Add {C}{C}.",
-            "mana_cost": "{1}",
-            "keywords": [],
-        },
-        {
-            "name": "Command Tower",
-            "cmc": 0.0,
-            "type_line": "Land",
-            "oracle_text": "{T}: Add one mana of any color in your commander's color identity.",
-            "mana_cost": "",
-            "keywords": [],
-        },
-        {
-            "name": "Murderous Cut",
-            "cmc": 5.0,
-            "type_line": "Instant",
-            "oracle_text": "Delve (Each card you exile from your graveyard while casting this spell pays for {1}.)\nDestroy target creature.",
-            "mana_cost": "{4}{B}",
-            "keywords": ["Delve"],
-        },
+        _real("Star Whale"),
+        _real("Ancestral Vision"),
+        _real("Fury"),
+        _real("Goldvein Hydra"),
+        _real("Sol Ring"),
+        _real("Command Tower"),
+        _real("Murderous Cut"),
     ]
 
 
 @pytest.fixture
 def trigger_test_cards() -> list[dict]:
-    """Cards with known trigger types and numeric values for cut-check testing."""
+    """Cards with known trigger types and numeric values for cut-check testing.
+
+    Real cards come from the testkit snapshot with a ``prices`` overlay
+    (ADR-0056); the fictionally named records are machinery for trigger shapes.
+    """
     return [
-        {
-            "name": "Obeka, Splitter of Seconds",
-            "mana_cost": "{1}{U}{B}{R}",
-            "cmc": 4.0,
-            "type_line": "Legendary Creature — Ogre Warlock",
-            "oracle_text": "Menace\nWhenever Obeka deals combat damage to a player, you get that many additional upkeep steps after this phase.",
-            "keywords": ["Menace"],
-            "colors": ["B", "R", "U"],
-            "color_identity": ["B", "R", "U"],
-            "prices": {"usd": "1.00"},
-            "legalities": {"commander": "legal"},
-        },
+        _real("Obeka, Splitter of Seconds", prices={"usd": "1.00"}),
         {
             "name": "Upkeep Drainer",
             "mana_cost": "{1}{B}",
@@ -930,78 +613,12 @@ def trigger_test_cards() -> list[dict]:
             "prices": {"usd": "0.50"},
             "legalities": {"commander": "legal"},
         },
-        {
-            "name": "Helm of the Host",
-            "mana_cost": "{4}",
-            "cmc": 4.0,
-            "type_line": "Legendary Artifact — Equipment",
-            "oracle_text": "At the beginning of combat on your turn, create a token that's a copy of equipped creature, except the token isn't legendary. That token gains haste.\nEquip {5}",
-            "keywords": ["Equip"],
-            "colors": [],
-            "color_identity": [],
-            "prices": {"usd": "7.00"},
-            "legalities": {"commander": "legal"},
-        },
-        {
-            "name": "Spark Double",
-            "mana_cost": "{3}{U}",
-            "cmc": 4.0,
-            "type_line": "Creature — Illusion",
-            "oracle_text": "You may have this creature enter as a copy of a creature or planeswalker you control, except it enters with an additional +1/+1 counter on it if it's a creature, it enters with an additional loyalty counter on it if it's a planeswalker, and it isn't legendary.",
-            "keywords": [],
-            "colors": ["U"],
-            "color_identity": ["U"],
-            "prices": {"usd": "3.00"},
-            "legalities": {"commander": "legal"},
-        },
-        {
-            "name": "Strionic Resonator",
-            "mana_cost": "{2}",
-            "cmc": 2.0,
-            "type_line": "Artifact",
-            "oracle_text": '{2}, {T}: Copy target triggered ability you control. You may choose new targets for the copy. (A triggered ability uses the words "when," "whenever," or "at.")',
-            "keywords": [],
-            "colors": [],
-            "color_identity": [],
-            "prices": {"usd": "1.50"},
-            "legalities": {"commander": "legal"},
-        },
-        {
-            "name": "Panharmonicon",
-            "mana_cost": "{4}",
-            "cmc": 4.0,
-            "type_line": "Artifact",
-            "oracle_text": "If an artifact or creature entering causes a triggered ability of a permanent you control to trigger, that ability triggers an additional time.",
-            "keywords": [],
-            "colors": [],
-            "color_identity": [],
-            "prices": {"usd": "5.00"},
-            "legalities": {"commander": "legal"},
-        },
-        {
-            "name": "Rings of Brighthearth",
-            "mana_cost": "{3}",
-            "cmc": 3.0,
-            "type_line": "Artifact",
-            "oracle_text": "Whenever you activate an ability, if it isn't a mana ability, you may pay {2}. If you do, copy that ability. You may choose new targets for the copy.",
-            "keywords": [],
-            "colors": [],
-            "color_identity": [],
-            "prices": {"usd": "4.00"},
-            "legalities": {"commander": "legal"},
-        },
-        {
-            "name": "Counterspell",
-            "mana_cost": "{U}{U}",
-            "cmc": 2.0,
-            "type_line": "Instant",
-            "oracle_text": "Counter target spell.",
-            "keywords": [],
-            "colors": ["U"],
-            "color_identity": ["U"],
-            "prices": {"usd": "0.50"},
-            "legalities": {"commander": "legal"},
-        },
+        _real("Helm of the Host", prices={"usd": "7.00"}),
+        _real("Spark Double", prices={"usd": "3.00"}),
+        _real("Strionic Resonator", prices={"usd": "1.50"}),
+        _real("Panharmonicon", prices={"usd": "5.00"}),
+        _real("Rings of Brighthearth", prices={"usd": "4.00"}),
+        _real("Counterspell", prices={"usd": "0.50"}),
     ]
 
 

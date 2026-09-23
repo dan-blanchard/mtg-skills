@@ -20,11 +20,12 @@ class TestRarityFilter:
             "total_cards": 2,
         }
         result = cube_legality_audit(cube, cube_hydrated)
-        # Pauper uses Scryfall's `legalities.pauper`; fixture cards don't have
-        # pauper legality populated, so they get warns (not errors).
-        assert result["warn_count"] >= 1
-        names = {v["card"] for v in result["violations"]}
-        assert "Wildfire" in names or "Lightning Bolt" in names
+        # Pauper uses Scryfall's `legalities.pauper`: the real records carry it,
+        # so the rare Wildfire (not_legal) is an error and the common Lightning
+        # Bolt (legal) is clean. The missing-legality warn path is
+        # test_missing_legality_is_warn_not_error.
+        flagged = {v["card"]: v["severity"] for v in result["violations"]}
+        assert flagged == {"Wildfire": "error"}
 
     def test_pauper_uses_scryfall_legality_when_available(self, cube_hydrated):
         """When a card has `legalities.pauper == 'legal'`, no violation."""
