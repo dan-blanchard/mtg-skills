@@ -9,24 +9,10 @@ from click.testing import CliRunner
 
 from mtg_utils import combo_search
 from mtg_utils.deck_tune import main as deck_tune_main
+from mtg_utils.testkit import test_card
 
-KRENKO = {
-    "name": "Krenko, Mob Boss",
-    "type_line": "Legendary Creature — Goblin Warrior",
-    "cmc": 4.0,
-    "color_identity": ["R"],
-    "oracle_text": "{T}: Create X 1/1 red Goblin creature tokens.",
-    "legalities": {"commander": "legal"},
-}
-MOUNTAIN = {
-    "name": "Mountain",
-    "type_line": "Basic Land — Mountain",
-    "cmc": 0.0,
-    "color_identity": ["R"],
-    "oracle_text": "",
-    "produced_mana": ["R"],
-    "legalities": {"commander": "legal"},
-}
+KRENKO = test_card("Krenko, Mob Boss")
+MOUNTAIN = test_card("Mountain")
 HYDRATED = [KRENKO, MOUNTAIN]
 COMMANDER_DECK = {
     "format": "commander",

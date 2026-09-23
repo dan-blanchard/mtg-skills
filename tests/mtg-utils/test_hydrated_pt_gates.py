@@ -11,10 +11,13 @@ Those gates were therefore dead in production while passing their own unit tests
 asserting the classifiers against records that have actually been through hydration.
 """
 
+import json
+
 from mtg_utils._analysis.text_reads import _VOLTRON_TOKEN_MAKE_RE  # noqa: F401
 from mtg_utils._tuner.metrics import _is_wincon_card
 from mtg_utils.card_classify import card_pt_int
 from mtg_utils.scryfall_lookup import lookup_single
+from mtg_utils.testkit import test_card
 
 
 def _hydrate(name, bulk):
@@ -54,8 +57,16 @@ class TestWinconGateOnHydratedInput:
         assert card_pt_int(korvold) == 4
         assert _is_wincon_card(korvold) is False
 
-    def test_big_creature_without_evasion_is_not_a_wincon(self, sample_bulk_data):
-        ground = dict(_hydrate("Ancient Wyrm", sample_bulk_data))
-        ground["oracle_text"] = "Vanilla beater."
-        ground["keywords"] = []
+    def test_big_creature_without_evasion_is_not_a_wincon(self, tmp_path):
+        # A real near miss: Craw Wurm is a 6/4 with no rules text — past the
+        # power floor, but nothing evasive. Only per-printing facts are overlaid.
+        bulk = tmp_path / "bulk.json"
+        wurm_printing = {
+            **test_card("Craw Wurm"),
+            "id": "rrr-craw-wurm",
+            "prices": {"usd": "0.10", "usd_foil": None},
+        }
+        bulk.write_text(json.dumps([wurm_printing]), encoding="utf-8")
+        ground = _hydrate("Craw Wurm", bulk)
+        assert card_pt_int(ground) == 6
         assert _is_wincon_card(ground) is False

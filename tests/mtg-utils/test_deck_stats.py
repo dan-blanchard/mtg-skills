@@ -12,6 +12,7 @@ from mtg_utils.deck_stats import (
 )
 from mtg_utils.hydrated_deck import HydratedDeck
 from mtg_utils.parse_deck import parse_deck
+from mtg_utils.testkit import test_card
 
 
 def _hd(deck, hydrated):
@@ -20,11 +21,8 @@ def _hd(deck, hydrated):
 
 
 def _gc(name):
+    """A fictional game changer (machinery: only the flag is read)."""
     return {"name": name, "game_changer": True, "oracle_text": "", "type_line": "X"}
-
-
-def _mld(name):
-    return {"name": name, "oracle_text": "Destroy all lands.", "type_line": "Sorcery"}
 
 
 def _plain(name):
@@ -41,7 +39,9 @@ class TestDetectBracket:
         assert b["name"] == "Core"
 
     def test_one_game_changer_is_upgraded(self):
-        b = detect_bracket([_gc("Smothering Tithe"), _plain("x")], 3.0)
+        # game_changer is a Scryfall-served flag the snapshot doesn't carry.
+        tithe = {**test_card("Smothering Tithe"), "game_changer": True}
+        b = detect_bracket([tithe, _plain("x")], 3.0)
         assert b["bracket"] == 3
         assert "Smothering Tithe" in b["game_changers"]
 
@@ -50,7 +50,7 @@ class TestDetectBracket:
         assert b["bracket"] == 4
 
     def test_mass_land_denial_is_optimized(self):
-        b = detect_bracket([_mld("Armageddon"), _plain("x")], 3.0)
+        b = detect_bracket([test_card("Armageddon"), _plain("x")], 3.0)
         assert b["bracket"] == 4
         assert "Armageddon" in b["mass_land_denial"]
 
@@ -180,14 +180,14 @@ class TestSideboardStats:
             "commanders": [],
             "cards": [{"name": "Lightning Bolt", "quantity": 4}],
             "sideboard": [
-                {"name": "Smash", "quantity": 3},
-                {"name": "Bolt", "quantity": 2},
+                {"name": "Two-Drop Trick", "quantity": 3},
+                {"name": "One-Drop Trick", "quantity": 2},
             ],
         }
         hydrated = [
-            {"name": "Lightning Bolt", "cmc": 1.0, "type_line": "Instant"},
-            {"name": "Smash", "cmc": 2.0, "type_line": "Instant"},
-            {"name": "Bolt", "cmc": 1.0, "type_line": "Instant"},
+            test_card("Lightning Bolt"),
+            {"name": "Two-Drop Trick", "cmc": 2.0, "type_line": "Instant"},
+            {"name": "One-Drop Trick", "cmc": 1.0, "type_line": "Instant"},
         ]
         result = deck_stats(_hd(deck, hydrated))
         assert result["sideboard_total"] == 5
@@ -200,7 +200,7 @@ class TestSideboardStats:
             "sideboard": [],
         }
         hydrated = [
-            {"name": "Lightning Bolt", "cmc": 1.0, "type_line": "Instant"},
+            test_card("Lightning Bolt"),
         ]
         result = deck_stats(_hd(deck, hydrated))
         assert "sideboard_total" not in result
@@ -211,7 +211,7 @@ class TestSideboardStats:
             "cards": [{"name": "Lightning Bolt", "quantity": 4}],
         }
         hydrated = [
-            {"name": "Lightning Bolt", "cmc": 1.0, "type_line": "Instant"},
+            test_card("Lightning Bolt"),
         ]
         result = deck_stats(_hd(deck, hydrated))
         assert "sideboard_total" not in result
@@ -219,12 +219,12 @@ class TestSideboardStats:
     def test_sideboard_text_report(self):
         deck = {
             "commanders": [],
-            "cards": [{"name": "Bolt", "quantity": 4}],
-            "sideboard": [{"name": "Smash", "quantity": 3}],
+            "cards": [{"name": "One-Drop Trick", "quantity": 4}],
+            "sideboard": [{"name": "Two-Drop Trick", "quantity": 3}],
         }
         hydrated = [
-            {"name": "Bolt", "cmc": 1.0, "type_line": "Instant"},
-            {"name": "Smash", "cmc": 2.0, "type_line": "Instant"},
+            {"name": "One-Drop Trick", "cmc": 1.0, "type_line": "Instant"},
+            {"name": "Two-Drop Trick", "cmc": 2.0, "type_line": "Instant"},
         ]
         result = deck_stats(_hd(deck, hydrated))
         report = render_text_report(result)

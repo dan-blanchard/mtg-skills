@@ -14,44 +14,20 @@ import pytest
 
 from mtg_utils.card_pool import NoBulkError
 from mtg_utils.hydrated_deck import HYDRATED_VERSION, HydratedDeck, sidecar_path
+from mtg_utils.testkit import test_card
 
-# --- fixtures: real-shaped Scryfall records + a deck dict -----------------------
+# --- fixtures: real cards from the testkit snapshot (ADR-0056) + a deck dict -----
+# Only the per-printing ``prices`` are overlaid; every card fact is the real record.
 
-SOL_RING = {
-    "name": "Sol Ring",
-    "type_line": "Artifact",
-    "cmc": 1.0,
-    "color_identity": [],
-    "prices": {"usd": "1.50"},
-}
-LLANOWAR = {
-    "name": "Llanowar Elves",
-    "type_line": "Creature — Elf Druid",
-    "cmc": 1.0,
-    "color_identity": ["G"],
-    "prices": {"usd": "0.25"},
-}
-FOREST = {
-    "name": "Forest",
-    "type_line": "Basic Land — Forest",
-    "cmc": 0.0,
-    "color_identity": ["G"],
-    "prices": {"usd": "0.10"},
-}
-PATHWAY = {  # a DFC: deck lists the front face only
-    "name": "Branchloft Pathway // Boulderloft Pathway",
-    "type_line": "Land // Land",
-    "cmc": 0.0,
-    "color_identity": ["G", "W"],
+SOL_RING = {**test_card("Sol Ring"), "prices": {"usd": "1.50"}}
+LLANOWAR = {**test_card("Llanowar Elves"), "prices": {"usd": "0.25"}}
+FOREST = {**test_card("Forest"), "prices": {"usd": "0.10"}}
+# a DFC: deck lists the front face only
+PATHWAY = {
+    **test_card("Branchloft Pathway // Boulderloft Pathway"),
     "prices": {"usd": "3.00"},
 }
-COMMANDER = {
-    "name": "Marwyn, the Nurturer",
-    "type_line": "Legendary Creature — Elf Druid",
-    "cmc": 3.0,
-    "color_identity": ["G"],
-    "prices": {"usd": "2.00"},
-}
+COMMANDER = {**test_card("Marwyn, the Nurturer"), "prices": {"usd": "2.00"}}
 
 BY_NAME = {
     "Sol Ring": SOL_RING,
@@ -278,7 +254,7 @@ def _write_deck(tmp_path, deck=None, name="deck.json"):
 def _pool():
     from mtg_utils.card_pool import CardPool
 
-    records = [dict(r, layout="normal") for r in BY_NAME.values()]
+    records = list(BY_NAME.values())
     return CardPool.from_cards(records)
 
 
@@ -396,9 +372,7 @@ def test_acquire_without_bulk_reads_a_sidecar_of_this_deck(tmp_path, monkeypatch
 
 def test_acquire_loads_the_pool_from_bulk_path(tmp_path):
     bulk = tmp_path / "bulk.json"
-    bulk.write_text(
-        json.dumps([dict(r, layout="normal") for r in BY_NAME.values()]), "utf-8"
-    )
+    bulk.write_text(json.dumps(list(BY_NAME.values())), "utf-8")
     deck_path = _write_deck(tmp_path)
     hd = HydratedDeck.acquire(deck_path, bulk_path=bulk, fetch=_no_fetch)
     assert hd.by_name.get("Sol Ring") is not None

@@ -12,6 +12,7 @@ from mtg_utils._gauntlet_build import (
     infer_curve_target,
     score_card,
 )
+from mtg_utils.testkit import test_card
 
 
 def _card(
@@ -122,13 +123,7 @@ class TestInferCurveTarget:
 
 class TestScoreCardThemeBased:
     def test_lands_score_zero(self):
-        land = {
-            "name": "Mountain",
-            "cmc": 0,
-            "color_identity": ["R"],
-            "type_line": "Basic Land — Mountain",
-            "oracle_text": "({T}: Add {R}.)",
-        }
+        land = test_card("Mountain")
         s = score_card(land, colors={"R"}, matchers=[_matches_text("anything")])
         assert s == 0.0
 

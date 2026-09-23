@@ -10894,6 +10894,155 @@
     "type_line": "Legendary Creature — Kor Soldier Ally"
    }
   },
+  "Akroma, Angel of Wrath": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "brawl_commander": true,
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Angel"
+      ],
+      "supertypes": [
+       "Legendary"
+      ]
+     },
+     "color_identity": [
+      "White"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "is_commander": true,
+     "keywords": [
+      "FirstStrike",
+      "Flying",
+      "Haste",
+      "Trample",
+      "Vigilance",
+      {
+       "Protection": {
+        "Color": "Black"
+       }
+      },
+      {
+       "Protection": {
+        "Color": "Red"
+       }
+      }
+     ],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "premodern": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 5,
+      "shards": [
+       "White",
+       "White",
+       "White"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "2886a989-5572-4ca0-a77b-e534d7934336",
+       "6c8cc721-7a7e-4cda-817e-30e5e6cb4929",
+       "70208c1f-56d4-4509-9d55-71e039236aa4",
+       "bf1ef8ec-d915-41f2-b087-3d6d82e3db85",
+       "ce9049ad-2bcd-4b5e-b09c-06424cf76cdc",
+       "cf75f895-3481-4c21-a85f-c819613bccc3"
+      ]
+     },
+     "name": "Akroma, Angel of Wrath",
+     "non_ability_text": null,
+     "oracle_text": "Flying, first strike, vigilance, trample, haste, protection from black and from red",
+     "power": {
+      "type": "Fixed",
+      "value": 6
+     },
+     "printings": [
+      "A25",
+      "C20",
+      "DDC",
+      "DVD",
+      "LGN",
+      "PLST",
+      "SLD",
+      "TSB",
+      "V15"
+     ],
+     "rarities": [
+      "mythic"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "107f204c-9fd3-490d-8887-be63d14fc6a4",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 6
+     },
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 8.0,
+    "color_identity": [
+     "W"
+    ],
+    "colors": [
+     "W"
+    ],
+    "keywords": [
+     "First strike",
+     "Flying",
+     "Haste",
+     "Protection",
+     "Trample",
+     "Vigilance"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{5}{W}{W}{W}",
+    "name": "Akroma, Angel of Wrath",
+    "oracle_id": "107f204c-9fd3-490d-8887-be63d14fc6a4",
+    "oracle_text": "Flying, first strike, vigilance, trample, haste, protection from black and from red",
+    "power": "6",
+    "toughness": "6",
+    "type_line": "Legendary Creature — Angel"
+   }
+  },
   "Akuta, Born of Ash": {
    "phase_records": [
     {
@@ -55659,6 +55808,279 @@
     "type_line": "Creature — Elf Warrior"
    }
   },
+  "Branchloft Pathway // Boulderloft Pathway": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": {
+        "type": "Tap"
+       },
+       "description": "{T}: Add {W}.",
+       "duration": null,
+       "effect": {
+        "produced": {
+         "colors": [
+          "White"
+         ],
+         "type": "Fixed"
+        },
+        "type": "Mana"
+       },
+       "forward_result": false,
+       "is_mana_ability": true,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Land"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Green",
+      "White"
+     ],
+     "color_override": null,
+     "defense": null,
+     "face_index": 1,
+     "flavor_name": null,
+     "keywords": [],
+     "layout": "modal_dfc",
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "type": "NoCost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "0511e232-2a72-40f5-a400-4f7ebc442d17",
+       "655724d5-ee5f-49f5-92d3-7186ed2789d8",
+       "738ebafa-04be-4ba9-ae65-5f85e00c645a"
+      ]
+     },
+     "name": "Boulderloft Pathway",
+     "non_ability_text": null,
+     "oracle_text": "{T}: Add {W}.",
+     "power": null,
+     "printings": [
+      "PLST",
+      "PRM",
+      "PZNR",
+      "SLU",
+      "ZNR"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "7c304547-a4b1-46c9-baed-16d2bfbe16eb",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    },
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": {
+        "type": "Tap"
+       },
+       "description": "{T}: Add {G}.",
+       "duration": null,
+       "effect": {
+        "produced": {
+         "colors": [
+          "Green"
+         ],
+         "type": "Fixed"
+        },
+        "type": "Mana"
+       },
+       "forward_result": false,
+       "is_mana_ability": true,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Land"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Green",
+      "White"
+     ],
+     "color_override": null,
+     "defense": null,
+     "face_index": 0,
+     "flavor_name": null,
+     "keywords": [],
+     "layout": "modal_dfc",
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "type": "NoCost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "0511e232-2a72-40f5-a400-4f7ebc442d17",
+       "655724d5-ee5f-49f5-92d3-7186ed2789d8",
+       "738ebafa-04be-4ba9-ae65-5f85e00c645a"
+      ]
+     },
+     "name": "Branchloft Pathway",
+     "non_ability_text": null,
+     "oracle_text": "{T}: Add {G}.",
+     "power": null,
+     "printings": [
+      "PLST",
+      "PRM",
+      "PZNR",
+      "SLU",
+      "ZNR"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2020-09-25",
+       "text": "A modal double-faced card can't be transformed or be put onto the battlefield transformed. Ignore any instruction to transform a modal double-faced card or to put one onto the battlefield transformed."
+      },
+      {
+       "date": "2020-09-25",
+       "text": "If an effect allows you to play a land or cast a spell from among a group of cards, you may play or cast a modal double-faced card with any face that fits the criteria of that effect."
+      },
+      {
+       "date": "2020-09-25",
+       "text": "If an effect allows you to play a specific modal double-faced card, you may cast it as a spell or play it as a land, as determined by which face you choose to play. If an effect allows you to cast (rather than \"play\") a specific modal double-faced card, you can't play it as a land."
+      },
+      {
+       "date": "2020-09-25",
+       "text": "If an effect instructs a player to choose a card name, the name of either face may be chosen. If that effect or a linked ability refers to a spell with the chosen name being cast and/or a land with the chosen name being played, it considers only the chosen name, not the other face's name."
+      },
+      {
+       "date": "2020-09-25",
+       "text": "If an effect puts a double-faced card onto the battlefield, it enters with its front face up. If that front face can't be put onto the battlefield, it doesn't enter the battlefield."
+      },
+      {
+       "date": "2020-09-25",
+       "text": "In the Commander variant, a double-faced card's color identity is determined by the mana costs and mana symbols in the rules text of both faces combined. If either face has a color indicator or basic land type, those are also considered."
+      },
+      {
+       "date": "2020-09-25",
+       "text": "The mana value of a modal double-faced card is based on the characteristics of the face that's being considered. On the stack and battlefield, consider whichever face is up. In all other zones, consider only the front face. This is different than how the mana value of a transforming double-faced card is determined."
+      },
+      {
+       "date": "2020-09-25",
+       "text": "There is a single triangle icon in the top left corner of the front face. There is a double triangle icon in the top left corner of the back face."
+      },
+      {
+       "date": "2020-09-25",
+       "text": "To determine whether it is legal to play a modal double-faced card, consider only the characteristics of the face you're playing and ignore the other face's characteristics."
+      }
+     ],
+     "scryfall_oracle_id": "7c304547-a4b1-46c9-baed-16d2bfbe16eb",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "card_faces": [
+     {
+      "colors": [],
+      "keywords": [],
+      "mana_cost": "",
+      "name": "Branchloft Pathway",
+      "oracle_text": "{T}: Add {G}.",
+      "type_line": "Land"
+     },
+     {
+      "colors": [],
+      "keywords": [],
+      "mana_cost": "",
+      "name": "Boulderloft Pathway",
+      "oracle_text": "{T}: Add {W}.",
+      "type_line": "Land"
+     }
+    ],
+    "cmc": 0.0,
+    "color_identity": [
+     "G",
+     "W"
+    ],
+    "keywords": [],
+    "layout": "modal_dfc",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "name": "Branchloft Pathway // Boulderloft Pathway",
+    "oracle_id": "7c304547-a4b1-46c9-baed-16d2bfbe16eb",
+    "produced_mana": [
+     "G",
+     "W"
+    ],
+    "type_line": "Land // Land"
+   }
+  },
   "Brass's Bounty": {
    "phase_records": [
     {
@@ -81953,6 +82375,134 @@
     "oracle_id": "2b166d97-c2c1-4642-b151-9bb1ad32e362",
     "oracle_text": "Suspend 4—{G} (Rather than cast this card from your hand, pay {G} and exile it with four time counters on it. At the beginning of your upkeep, remove a time counter. When the last is removed, you may cast it without paying its mana cost.)\nCreate two 4/4 green Rhino creature tokens with trample.",
     "type_line": "Sorcery"
+   }
+  },
+  "Craw Wurm": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Wurm"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Green"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pauper": "legal",
+      "paupercommander": "legal",
+      "premodern": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 4,
+      "shards": [
+       "Green",
+       "Green"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "3875f73d-6108-488b-bd34-4cf2c23ce6b3",
+       "a806771e-ea1b-495e-b01f-56bc9f4bc36a",
+       "da6b8e11-b799-4235-bd8f-c4b55946c769",
+       "ef7d8c0d-4fbb-4c66-908b-7828b44ab6b9"
+      ]
+     },
+     "name": "Craw Wurm",
+     "non_ability_text": null,
+     "oracle_text": null,
+     "power": {
+      "type": "Fixed",
+      "value": 6
+     },
+     "printings": [
+      "10E",
+      "2ED",
+      "30A",
+      "3ED",
+      "4BB",
+      "4ED",
+      "5ED",
+      "8ED",
+      "9ED",
+      "CED",
+      "CEI",
+      "FBB",
+      "LEA",
+      "LEB",
+      "M10",
+      "SUM"
+     ],
+     "rarities": [
+      "common"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "6a462a69-3e42-41de-a3aa-a488d9f38d69",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 4
+     },
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 6.0,
+    "color_identity": [
+     "G"
+    ],
+    "colors": [
+     "G"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "legal",
+     "paupercommander": "legal",
+     "penny": "legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{4}{G}{G}",
+    "name": "Craw Wurm",
+    "oracle_id": "6a462a69-3e42-41de-a3aa-a488d9f38d69",
+    "oracle_text": "",
+    "power": "6",
+    "toughness": "4",
+    "type_line": "Creature — Wurm"
    }
   },
   "Crazed Goblin": {
@@ -227913,6 +228463,166 @@
     "type_line": "Legendary Creature — Dragon Avatar"
    }
   },
+  "No Mercy": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Enchantment"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Black"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "premodern": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 2,
+      "shards": [
+       "Black",
+       "Black"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "63c5e1dd-2fe6-4734-8406-7bcdf17aa60c",
+       "7295eb82-8785-4a5f-ba64-0a0b5cb77d3f",
+       "c2598da4-0764-440a-9e9d-0161e68667fb"
+      ]
+     },
+     "name": "No Mercy",
+     "non_ability_text": null,
+     "oracle_text": "Whenever a creature deals damage to you, destroy it.",
+     "power": null,
+     "printings": [
+      "DMR",
+      "MAR",
+      "MP2",
+      "P22",
+      "ULG"
+     ],
+     "rarities": [
+      "mythic"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2022-12-08",
+       "text": "No Mercy’s ability triggers whenever any creature, including creatures you control, deals damage to you, not only combat damage."
+      }
+     ],
+     "scryfall_oracle_id": "b9538d53-480b-481a-abbf-83ab17e1a45b",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "Whenever a creature deals damage to you, destroy it.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "cant_regenerate": false,
+         "target": {
+          "type": "TriggeringSource"
+         },
+         "type": "Destroy"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "DamageDone",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": null,
+       "valid_source": {
+        "controller": null,
+        "properties": [],
+        "type": "Typed",
+        "type_filters": [
+         "Creature"
+        ]
+       },
+       "valid_target": {
+        "type": "Controller"
+       }
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 4.0,
+    "color_identity": [
+     "B"
+    ],
+    "colors": [
+     "B"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{2}{B}{B}",
+    "name": "No Mercy",
+    "oracle_id": "b9538d53-480b-481a-abbf-83ab17e1a45b",
+    "oracle_text": "Whenever a creature deals damage to you, destroy it.",
+    "type_line": "Enchantment"
+   }
+  },
   "Noble Hierarch": {
    "phase_records": [
     {
@@ -295591,6 +296301,169 @@
     "power": "3",
     "toughness": "4",
     "type_line": "Legendary Creature — Human Monk"
+   }
+  },
+  "Tainted Pact": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "Exile the top card of your library. You may put that card into your hand unless it has the same name as another card exiled this way. Repeat this process until you put a card into your hand or you exile two cards with the same name, whichever comes first.",
+       "duration": null,
+       "effect": {
+        "count": {
+         "type": "Fixed",
+         "value": 1
+        },
+        "player": {
+         "type": "Controller"
+        },
+        "position": {
+         "type": "Top"
+        },
+        "type": "ExileTop"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "repeat_until": {
+        "data": {
+         "stop_on_duplicate_exiled_names": true,
+         "stop_on_put_to_hand": true
+        },
+        "type": "UntilStopConditions"
+       },
+       "sub_ability": {
+        "condition": {
+         "condition": {
+          "target": {
+           "type": "ParentTarget"
+          },
+          "type": "TargetSharesNameWithOtherExiledThisWay"
+         },
+         "type": "Not"
+        },
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "destination": "Hand",
+         "enter_tapped": false,
+         "enter_transformed": false,
+         "enters_attacking": false,
+         "origin": null,
+         "owner_library": false,
+         "target": {
+          "type": "ParentTarget"
+         },
+         "type": "ChangeZone"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": true,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "sub_link": "SequentialSibling",
+        "target_prompt": null
+       },
+       "target_prompt": null
+      }
+     ],
+     "bracket_signals": {
+      "efficient_tutor": true,
+      "extra_turn": false,
+      "game_changer": false,
+      "mass_land_denial": false
+     },
+     "card_type": {
+      "core_types": [
+       "Instant"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Black"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "banned",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "premodern": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 1,
+      "shards": [
+       "Black"
+      ],
+      "type": "Cost"
+     },
+     "name": "Tainted Pact",
+     "non_ability_text": null,
+     "oracle_text": "Exile the top card of your library. You may put that card into your hand unless it has the same name as another card exiled this way. Repeat this process until you put a card into your hand or you exile two cards with the same name, whichever comes first.",
+     "power": null,
+     "printings": [
+      "ODY",
+      "STA"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "1a85ba2b-ae10-4917-954a-7709b75a9740",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 2.0,
+    "color_identity": [
+     "B"
+    ],
+    "colors": [
+     "B"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "banned",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{1}{B}",
+    "name": "Tainted Pact",
+    "oracle_id": "1a85ba2b-ae10-4917-954a-7709b75a9740",
+    "oracle_text": "Exile the top card of your library. You may put that card into your hand unless it has the same name as another card exiled this way. Repeat this process until you put a card into your hand or you exile two cards with the same name, whichever comes first.",
+    "type_line": "Instant"
    }
   },
   "Tallowisp": {

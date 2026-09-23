@@ -462,15 +462,10 @@ class TestArenaIllegalOrMissing:
         return bulk_path
 
     def test_illegal_card_goes_to_illegal_or_missing(self, tmp_path):
-        # Sol Ring is only Commander-legal; not in the Brawl rarity index.
+        # Sol Ring is only Commander-legal (brawl: not_legal); not in the Brawl
+        # rarity index.
         bulk = [
-            {
-                "name": "Sol Ring",
-                "rarity": "uncommon",
-                "legalities": {"commander": "legal", "brawl": "not_legal"},
-                "games": ["arena"],
-                "prices": {},
-            },
+            _arena_printing("Sol Ring", "uncommon"),
         ]
         bulk_path = self._bulk_with(tmp_path, bulk)
 
@@ -486,20 +481,8 @@ class TestArenaIllegalOrMissing:
     def test_illegal_card_not_counted_in_wildcards(self, tmp_path):
         """A banned card must not inflate the rare wildcard count."""
         bulk = [
-            {
-                "name": "Sol Ring",
-                "rarity": "uncommon",
-                "legalities": {"commander": "legal", "brawl": "not_legal"},
-                "games": ["arena"],
-                "prices": {},
-            },
-            {
-                "name": "Cultivate",
-                "rarity": "common",
-                "legalities": {"brawl": "legal"},
-                "games": ["arena"],
-                "prices": {},
-            },
+            _arena_printing("Sol Ring", "uncommon"),
+            _arena_printing("Cultivate", "common"),
         ]
         bulk_path = self._bulk_with(tmp_path, bulk)
 
@@ -515,13 +498,7 @@ class TestArenaIllegalOrMissing:
 
     def test_illegal_card_entry_marked_not_legal(self, tmp_path):
         bulk = [
-            {
-                "name": "Sol Ring",
-                "rarity": "uncommon",
-                "legalities": {"commander": "legal", "brawl": "not_legal"},
-                "games": ["arena"],
-                "prices": {},
-            },
+            _arena_printing("Sol Ring", "uncommon"),
         ]
         bulk_path = self._bulk_with(tmp_path, bulk)
 
@@ -538,13 +515,7 @@ class TestArenaIllegalOrMissing:
         from mtg_utils.price_check import render_text_report
 
         bulk = [
-            {
-                "name": "Sol Ring",
-                "rarity": "uncommon",
-                "legalities": {"brawl": "not_legal"},
-                "games": ["arena"],
-                "prices": {},
-            },
+            _arena_printing("Sol Ring", "uncommon"),
         ]
         bulk_path = self._bulk_with(tmp_path, bulk)
 
@@ -567,21 +538,11 @@ class TestCompetitiveBrawlBanOverrides:
     format's own by-name bans."""
 
     def _bulk(self, tmp_path):
+        # Both are banned under the ``brawl`` key and printed on Arena; only Oko
+        # is on Competitive Brawl's own by-name list.
         cards = [
-            {
-                "name": "Force of Will",
-                "rarity": "mythic",
-                "legalities": {"brawl": "banned"},
-                "games": ["arena"],
-                "prices": {},
-            },
-            {
-                "name": "Oko, Thief of Crowns",
-                "rarity": "mythic",
-                "legalities": {"brawl": "banned"},
-                "games": ["arena"],
-                "prices": {},
-            },
+            _arena_printing("Tainted Pact", "mythic"),
+            _arena_printing("Oko, Thief of Crowns", "mythic"),
         ]
         bulk_path = tmp_path / "bulk.json"
         bulk_path.write_text(json.dumps(cards))
@@ -591,7 +552,7 @@ class TestCompetitiveBrawlBanOverrides:
         deck = {
             "format": "competitive_brawl",
             "commanders": [],
-            "cards": [{"name": "Force of Will", "quantity": 1}],
+            "cards": [{"name": "Tainted Pact", "quantity": 1}],
             "owned_cards": [],
         }
         result = check_prices(deck, bulk_path=self._bulk(tmp_path))
@@ -603,11 +564,11 @@ class TestCompetitiveBrawlBanOverrides:
         deck = {
             "format": "historic_brawl",
             "commanders": [],
-            "cards": [{"name": "Force of Will", "quantity": 1}],
+            "cards": [{"name": "Tainted Pact", "quantity": 1}],
             "owned_cards": [],
         }
         result = check_prices(deck, bulk_path=self._bulk(tmp_path))
-        assert [e["name"] for e in result["illegal_or_missing"]] == ["Force of Will"]
+        assert [e["name"] for e in result["illegal_or_missing"]] == ["Tainted Pact"]
 
     def test_format_own_ban_list_still_enforced(self, tmp_path):
         deck = {

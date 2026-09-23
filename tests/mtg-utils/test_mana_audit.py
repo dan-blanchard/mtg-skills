@@ -22,6 +22,7 @@ from mtg_utils.mana_audit import (
     render_text_report,
 )
 from mtg_utils.parse_deck import parse_deck
+from mtg_utils.testkit import test_card
 
 
 def _hd(deck, hydrated):
@@ -31,16 +32,13 @@ def _hd(deck, hydrated):
 class TestPipDemandFaces:
     def test_counts_mdfc_face_pips(self):
         # Modal DFCs carry no top-level mana_cost; pips live on card_faces and must
-        # not be silently dropped.
-        mdfc = {
-            "name": "Malakir Rebirth // Malakir Mire",
-            "mana_cost": None,
-            "card_faces": [{"mana_cost": "{2}{B}"}, {"mana_cost": ""}],
-        }
+        # not be silently dropped. Blackbloom Rogue is {2}{B}; its land back is free.
+        mdfc = test_card("Blackbloom Rogue // Blackbloom Bog")
+        assert mdfc.get("mana_cost") is None
         assert pip_demand([mdfc]) == {"B": 1}
 
     def test_normal_card_still_uses_top_level_cost(self):
-        card = {"name": "Lightning Helix", "mana_cost": "{R}{W}"}
+        card = test_card("Lightning Helix")
         assert pip_demand([card]) == {"R": 1, "W": 1}
 
 
@@ -190,10 +188,7 @@ class TestCommanderReadout:
 
 class TestPipDemand:
     def test_counts_colored_pips(self):
-        cards = [
-            {"mana_cost": "{U}{U}"},  # Counterspell
-            {"mana_cost": "{2}{B}{B}"},  # No Mercy
-        ]
+        cards = [test_card("Counterspell"), test_card("No Mercy")]
         result = pip_demand(cards)
         assert result == {"B": 2, "U": 2}
 
@@ -321,9 +316,10 @@ class TestManaAudit:
 def _benchmark_deck(*, land_count, ramp_count=12):
     """ADR-0041 benchmark shape: 5-color, CMC-5 commander, N ramp pieces,
     land_count copies of one land (a real deck would vary basics/nonbasics;
-    land count is all this audit cares about)."""
+    land count is all this audit cares about). The commander is fictional
+    machinery: the benchmark needs a 5-color, CMC-5 commander with no text."""
     commander = {
-        "name": "Bennie Bracks, Zoologist",
+        "name": "Benchmark Commander",
         "cmc": 5.0,
         "type_line": "Legendary Creature — Human Advisor",
         "mana_cost": "{W}{U}{B}{R}{G}",
@@ -340,15 +336,7 @@ def _benchmark_deck(*, land_count, ramp_count=12):
         }
         for i in range(ramp_count)
     ]
-    land = {
-        "name": "Command Tower",
-        "cmc": 0.0,
-        "type_line": "Land",
-        "oracle_text": (
-            "({T}: Add one mana of any color in your commander's color identity.)"
-        ),
-        "keywords": [],
-    }
+    land = test_card("Command Tower")
     deck = {
         "format": "commander",
         "commanders": [{"name": commander["name"], "quantity": 1}],
@@ -488,25 +476,12 @@ class TestManaAuditWithFormat:
         deck = {
             "format": "brawl",
             "deck_size": 60,
-            "commanders": [{"name": "Korvold", "quantity": 1}],
+            "commanders": [{"name": "Korvold, Fae-Cursed King", "quantity": 1}],
             "cards": [{"name": "Mountain", "quantity": 22}],
         }
         hydrated = [
-            {
-                "name": "Korvold",
-                "cmc": 5,
-                "type_line": "Legendary Creature",
-                "mana_cost": "{2}{B}{R}{G}",
-                "keywords": [],
-                "color_identity": ["B", "R", "G"],
-            },
-            {
-                "name": "Mountain",
-                "cmc": 0,
-                "type_line": "Basic Land — Mountain",
-                "oracle_text": "({T}: Add {R}.)",
-                "keywords": [],
-            },
+            test_card("Korvold, Fae-Cursed King"),
+            test_card("Mountain"),
         ]
         result = mana_audit(_hd(deck, hydrated))
         assert result["land_count"] == 22
@@ -517,25 +492,12 @@ class TestManaAuditWithFormat:
 class TestCompareLabels:
     def test_uses_primary_comparison_keys(self, tmp_path):
         deck = {
-            "commanders": [{"name": "Korvold", "quantity": 1}],
+            "commanders": [{"name": "Korvold, Fae-Cursed King", "quantity": 1}],
             "cards": [{"name": "Mountain", "quantity": 37}],
         }
         hydrated = [
-            {
-                "name": "Korvold",
-                "cmc": 5,
-                "type_line": "Legendary Creature",
-                "mana_cost": "{2}{B}{R}{G}",
-                "keywords": [],
-                "color_identity": ["B", "R", "G"],
-            },
-            {
-                "name": "Mountain",
-                "cmc": 0,
-                "type_line": "Basic Land — Mountain",
-                "oracle_text": "({T}: Add {R}.)",
-                "keywords": [],
-            },
+            test_card("Korvold, Fae-Cursed King"),
+            test_card("Mountain"),
         ]
         deck_path = tmp_path / "deck.json"
         deck_path.write_text(json.dumps(deck))
@@ -569,25 +531,12 @@ class TestCompareLabels:
 
     def test_includes_source_filenames(self, tmp_path):
         deck = {
-            "commanders": [{"name": "Korvold", "quantity": 1}],
+            "commanders": [{"name": "Korvold, Fae-Cursed King", "quantity": 1}],
             "cards": [{"name": "Mountain", "quantity": 37}],
         }
         hydrated = [
-            {
-                "name": "Korvold",
-                "cmc": 5,
-                "type_line": "Legendary Creature",
-                "mana_cost": "{2}{B}{R}{G}",
-                "keywords": [],
-                "color_identity": ["B", "R", "G"],
-            },
-            {
-                "name": "Mountain",
-                "cmc": 0,
-                "type_line": "Basic Land — Mountain",
-                "oracle_text": "({T}: Add {R}.)",
-                "keywords": [],
-            },
+            test_card("Korvold, Fae-Cursed King"),
+            test_card("Mountain"),
         ]
         deck_path = tmp_path / "primary.json"
         deck_path.write_text(json.dumps(deck))
@@ -685,22 +634,8 @@ class TestConstructedManaAudit:
             ],
         }
         hydrated = [
-            {
-                "name": "Lightning Bolt",
-                "cmc": 1.0,
-                "mana_cost": "{R}",
-                "type_line": "Instant",
-                "keywords": [],
-                "oracle_text": "Lightning Bolt deals 3 damage to any target.",
-            },
-            {
-                "name": "Mountain",
-                "cmc": 0.0,
-                "mana_cost": "",
-                "type_line": "Basic Land — Mountain",
-                "keywords": [],
-                "oracle_text": "({T}: Add {R}.)",
-            },
+            test_card("Lightning Bolt"),
+            test_card("Mountain"),
         ]
         result = mana_audit(_hd(deck, hydrated))
         assert "constructed_land_target" in result
@@ -717,22 +652,8 @@ class TestConstructedManaAudit:
             "sideboard": [{"name": "Island", "quantity": 5}],
         }
         hydrated = [
-            {
-                "name": "Mountain",
-                "cmc": 0.0,
-                "mana_cost": "",
-                "type_line": "Basic Land — Mountain",
-                "keywords": [],
-                "oracle_text": "({T}: Add {R}.)",
-            },
-            {
-                "name": "Island",
-                "cmc": 0.0,
-                "mana_cost": "",
-                "type_line": "Basic Land — Island",
-                "keywords": [],
-                "oracle_text": "({T}: Add {U}.)",
-            },
+            test_card("Mountain"),
+            test_card("Island"),
         ]
         result = mana_audit(_hd(deck, hydrated))
         assert result["land_count"] == 22  # sideboard Island not counted
@@ -815,13 +736,7 @@ def _limited_deck(land_count: int, fmt: str = "timeless", cmc: float = 3.0):
         }
         for i in range(23)
     ]
-    plains = {
-        "name": "Plains",
-        "cmc": 0.0,
-        "type_line": "Basic Land — Plains",
-        "oracle_text": "({T}: Add {W}.)",
-        "keywords": [],
-    }
+    plains = test_card("Plains")
     deck = {
         "format": fmt,
         "deck_size": 40,

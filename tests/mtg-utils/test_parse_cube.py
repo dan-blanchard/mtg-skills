@@ -8,6 +8,26 @@ import pytest
 from click.testing import CliRunner
 
 from mtg_utils.parse_cube import main, parse_cube
+from mtg_utils.testkit import test_card
+
+
+def _details(name: str) -> dict:
+    """The CubeCobra ``details`` block for the real card *name*: its name and
+    type line come from the testkit snapshot (ADR-0056), never typed in."""
+    rec = test_card(name)
+    return {"name": rec["name"], "type_line": rec["type_line"]}
+
+
+def _v2_card(name: str) -> dict:
+    """A CubeCobra v2 mainboard entry's card fields for the real card *name*
+    (CubeCobra serializes ``cmc`` as a string)."""
+    rec = test_card(name)
+    return {
+        "name": rec["name"],
+        "cmc": str(int(rec["cmc"])),
+        "type_line": rec["type_line"],
+        "colors": rec["colors"],
+    }
 
 
 @pytest.fixture
@@ -57,19 +77,13 @@ def cubecobra_json_file(tmp_path: Path) -> Path:
                 "mainboard": [
                     {
                         "cardID": "abc-123",
-                        "details": {
-                            "name": "Lightning Bolt",
-                            "type_line": "Instant",
-                        },
+                        "details": _details("Lightning Bolt"),
                         "tags": ["burn"],
-                        "cmc": 1,
+                        "cmc": int(test_card("Lightning Bolt")["cmc"]),
                     },
                     {
                         "cardID": "def-456",
-                        "details": {
-                            "name": "Bloodghast",
-                            "type_line": "Creature — Vampire Spirit",
-                        },
+                        "details": _details("Bloodghast"),
                         "tags": ["reanimator"],
                     },
                 ],
@@ -95,29 +109,21 @@ def cubecobra_v2_json_file(tmp_path: Path) -> Path:
                     "mainboard": [
                         {
                             "cardID": "abc-123",
-                            "name": "Lightning Bolt",
-                            "cmc": "1",
-                            "type_line": "Instant",
-                            "colors": ["R"],
+                            **_v2_card("Lightning Bolt"),
                             "tags": ["burn"],
                             "colorCategory": None,
                             "details": {
-                                "name": "Lightning Bolt",
-                                "type_line": "Instant",
+                                **_details("Lightning Bolt"),
                                 "scryfall_id": "abc-123",
                             },
                         },
                         {
                             "cardID": "def-456",
-                            "name": "Bloodghast",
-                            "cmc": "2",
-                            "type_line": "Creature — Vampire Spirit",
-                            "colors": ["B"],
+                            **_v2_card("Bloodghast"),
                             "tags": [],
                             "colorCategory": "Black",
                             "details": {
-                                "name": "Bloodghast",
-                                "type_line": "Creature — Vampire Spirit",
+                                **_details("Bloodghast"),
                                 "scryfall_id": "def-456",
                             },
                         },
@@ -267,23 +273,13 @@ class TestParseCubecobraV2JSON:
                         "mainboard": [
                             {
                                 "cardID": "atraxa-id",
-                                "name": "Atraxa, Praetors' Voice",
-                                "type_line": "Legendary Creature — Phyrexian Angel Horror",
-                                "colors": ["W", "U", "B", "G"],
-                                "details": {
-                                    "name": "Atraxa, Praetors' Voice",
-                                    "type_line": "Legendary Creature — Phyrexian Angel Horror",
-                                },
+                                **_v2_card("Atraxa, Praetors' Voice"),
+                                "details": _details("Atraxa, Praetors' Voice"),
                             },
                             {
                                 "cardID": "bolt-id",
-                                "name": "Lightning Bolt",
-                                "type_line": "Instant",
-                                "colors": ["R"],
-                                "details": {
-                                    "name": "Lightning Bolt",
-                                    "type_line": "Instant",
-                                },
+                                **_v2_card("Lightning Bolt"),
+                                "details": _details("Lightning Bolt"),
                             },
                         ],
                         "maybeboard": [],
