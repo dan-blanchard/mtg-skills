@@ -32,6 +32,15 @@ varies is written by hand.
   a malformed bulk. It uses an obviously fictional name ("Card A", "Dual Print Card") and
   never paraphrases a real card's text. If the assertion depends on what a real card
   does, it is not machinery.
+- **Data mirrored from phase is exempt.** A test over phase's own data files (the
+  `known-tokens.toml` entries `test_known_tokens.py` mirrors) may write that data by
+  hand. It is phase's record, not a card's, and the snapshot doesn't carry it.
+- **One store of real cards.** `tests/fixtures/crosswalk_fixture_cards.json` (the
+  crosswalk and tree-synthesis suites' own real-cards-by-name file) merges into the
+  snapshot, so every real card a test reads comes from `testkit`.
+- **A test of a missing field strips it from the real record.** For example, the budget and
+  ranking tests that exercise the text-only fallback take `test_card(name)` and drop
+  `oracle_id`, with a comment saying why. They don't hand-type a record that lacks it.
 - **Negatives are real near misses.** A `should_not_match` or "does not fire" case is a
   real card that resembles the thing without being it, not a generic stand-in.
 
