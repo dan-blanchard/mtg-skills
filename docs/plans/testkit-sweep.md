@@ -1,5 +1,11 @@
 # ADR-0056 sweep: which tests still hand-build card data
 
+**Status: complete (2026-09-23).** Batches 0–10 landed. Batch 10 merged
+`crosswalk_fixture_cards.json` into the card snapshot: its readers take
+`testkit.test_phase_records(name)` (the stored raw phase face records) and
+`test_card(name)`, the fixture file is gone, and `bump-phase-pin` lost its
+crosswalk-fixture step. The table below is the original survey, kept as the record.
+
 Read-only survey (no test files edited). Scope: every file under `tests/` that
 hand-builds a dict/kwargs carrying `oracle_text`, `type_line`, `keywords`,
 `mana_cost`, `power`/`toughness`, `legalities`, or runs a `_card(...)`-style
@@ -184,6 +190,10 @@ Also: `test_price_check.py` still hand-types Persistent Petitioners (goes in Bat
 
 **Batch 10 — merge `tests/fixtures/crosswalk_fixture_cards.json` into the snapshot.**
 Point `test_crosswalk.py` / `test_tree_synthesis.py` at `testkit`; delete the fixture file.
+*Done:* every reader (also `test_bridge_ledger`, `test_recovery`, `test_dropped_clauses`,
+`test_crosswalk_sidecar_build`, `test_fixture_freshness`, `test_phase_bump`,
+`test_crosswalk_seam`, `test_signals_floor`, `test_known_tokens`,
+`test_ensure_card_ir`, and `phase_bump`'s step 5) moved to the snapshot.
 
 ## Proposed batches (~10 files each, no file in two batches)
 

@@ -11,13 +11,14 @@ keeps every bridge visible until it retires:
 * ``match`` goes False while ``gap`` still holds → the diagnostic/text shape
   changed under the pattern (pattern rot) → fix the read, don't widen it.
 
-Runs CI-safe off the committed ``crosswalk_fixture_cards.json`` slice, like
-``test_crosswalk.py``. A pin whose face has no phase record at all (a
-``missing_face`` bridge) lives in the fixture's ``text_only_faces`` section
-instead of ``cards`` (ADR-0039 W7) — see :func:`_tree`.
+Runs CI-safe off the committed card snapshot's phase records
+(``testkit.test_phase_records``), like ``test_crosswalk.py``; the builder
+reads every pin straight from the ledger, so each is in the snapshot. A pin
+whose face has no phase record at all (a ``missing_face`` bridge) is built
+through the production W2c text-only path off the card's real bulk face
+(ADR-0039 W7) — see :func:`_tree`.
 """
 
-import json
 from functools import lru_cache
 from pathlib import Path
 
@@ -26,17 +27,18 @@ import pytest
 from mtg_utils._analysis.bridge_ledger import BRIDGE_KINDS, BRIDGES
 from mtg_utils._card_ir.crosswalk import ConceptTree, build_concept_tree
 from mtg_utils._card_ir.mirror import strict_load_card
-from mtg_utils._card_ir.mirror.build import fixtures_dir, load_committed_schema
+from mtg_utils._card_ir.mirror.build import load_committed_schema
+from mtg_utils._card_ir.trees import _text_only_trees
+from mtg_utils.testkit import test_card, test_phase_records
 
-FIXTURE = "crosswalk_fixture_cards.json"
-
-
-@lru_cache(maxsize=1)
-def _fixture() -> dict:
-    path = fixtures_dir() / FIXTURE
-    if not path.exists():
-        pytest.skip(f"{FIXTURE} not present")
-    return json.loads(Path(path).read_text())
+# ADR-0039 W7: the pins whose face has NO phase record at all (the missing_face
+# kind), each mapped to that face — Insult // Injury's and Driven // Despair's
+# Aftermath back halves, and the Tomb of Annihilation dungeon phase never parses.
+_MISSING_FACE_PINS = {
+    "Insult // Injury": "Injury",
+    "Driven // Despair": "Despair",
+    "Tomb of Annihilation": "Tomb of Annihilation",
+}
 
 
 @lru_cache(maxsize=1)
@@ -45,25 +47,22 @@ def _schema():
 
 
 def _tree(name: str) -> ConceptTree:
-    # ADR-0039 W7: a bridge pin whose face has NO phase record at all (the
-    # missing_face kind — Insult // Injury's Aftermath back half) lives in
-    # the fixture's separate ``text_only_faces`` section instead of
-    # ``cards`` (a real ``strict_load_card``-able record would misrepresent
-    # the shape — there is nothing for phase to have emitted). Build it via
-    # the SAME W2c text-only path production uses.
-    text_only_faces = _fixture().get("text_only_faces", {})
-    if name in text_only_faces:
-        from mtg_utils._card_ir.trees import _text_only_tree
-
-        entry = text_only_faces[name]
-        tree = _text_only_tree(
-            entry["_text_only_face"], {}, oracle_id=entry["_oracle_id"]
-        )
-        assert tree is not None
+    # A missing-face pin has no ``strict_load_card``-able record (a real record
+    # would misrepresent the shape — there is nothing for phase to have
+    # emitted). Build it via the SAME W2c text-only path production uses, off
+    # the card's real bulk face.
+    record = test_card(name)
+    records = test_phase_records(name)
+    if name in _MISSING_FACE_PINS:
+        trees = _text_only_trees(record, tuple(records), oracle_id=record["oracle_id"])
+        (tree,) = (t for t in trees if t.name == _MISSING_FACE_PINS[name])
         return tree
-    rec = _fixture()["cards"][name]
-    root = strict_load_card(rec, _schema(), name=name)
-    return build_concept_tree(root, name=name)
+    rec = next(
+        (r for r in records if r["name"] == name),
+        next(r for r in records if r["name"] == name.split(" // ", maxsplit=1)[0]),
+    )
+    root = strict_load_card(rec, _schema(), name=rec["name"])
+    return build_concept_tree(root, name=rec["name"])
 
 
 _PIN_CASES = [(b, pin) for b in BRIDGES.values() for pin in b.pins]
@@ -90,10 +89,8 @@ def test_bridge_still_needed_and_serving(bridge, pin):
 
 def test_ledger_hygiene():
     """Every row is complete: a named retirement path, an authored census,
-    at least one fixture-resident pin, a known kind, and an id key that
+    at least one pin that resolves to a real card face, a known kind, and an id key that
     matches the row."""
-    cards = _fixture()["cards"]
-    text_only_faces = _fixture().get("text_only_faces", {})
     for bridge_id, b in BRIDGES.items():
         assert bridge_id == b.bridge_id
         assert b.kind in BRIDGE_KINDS, f"{bridge_id}: unknown kind {b.kind!r}"
@@ -101,9 +98,7 @@ def test_ledger_hygiene():
         assert b.census.strip(), f"{bridge_id}: empty census"
         assert b.pins, f"{bridge_id}: no convergence pins"
         for pin in b.pins:
-            assert pin in cards or pin in text_only_faces, (
-                f"{bridge_id}: pin {pin!r} not in fixture"
-            )
+            assert _tree(pin) is not None, f"{bridge_id}: pin {pin!r} has no tree"
 
 
 # ── ADR-0048: the row owns its emission; no lane names a bridge ──────────────────

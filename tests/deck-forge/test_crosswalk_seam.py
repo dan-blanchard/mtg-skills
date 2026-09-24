@@ -11,14 +11,12 @@ the ``ir_for`` / ``trees_for`` the concept-tree resolver/B resolvers, the hybrid
 dispatch, the residual-empty key partition, and the DFC face-union. The
 membership-floor behavior pins moved to ``test_signals_floor.py`` in the same
 step (named for what they test). CI-safe: the concept trees come from the
-committed ``crosswalk_fixture_cards.json`` phase records and the committed card
-snapshot (``mtg_utils.testkit``) + the committed mirror schema — no bulk /
-sidecar / phase / network.
+committed card snapshot's phase records (``mtg_utils.testkit``) + the committed
+mirror schema — no bulk / sidecar / phase / network.
 """
 
 from __future__ import annotations
 
-import json
 from collections.abc import Callable
 from functools import lru_cache
 
@@ -36,11 +34,9 @@ from mtg_utils._card_ir import compat_lookup as il
 from mtg_utils._card_ir import trees as ct
 from mtg_utils._card_ir.crosswalk import build_concept_tree
 from mtg_utils._card_ir.mirror import strict_load_card
-from mtg_utils._card_ir.mirror.build import fixtures_dir, load_committed_schema
+from mtg_utils._card_ir.mirror.build import load_committed_schema
 from mtg_utils.card_ir import Card, Face
-from mtg_utils.testkit import _entry, test_card
-
-FIXTURE = "crosswalk_fixture_cards.json"
+from mtg_utils.testkit import test_card, test_phase_records
 
 
 def _returns(value: object) -> Callable[..., object]:
@@ -50,14 +46,6 @@ def _returns(value: object) -> Callable[..., object]:
         return value
 
     return _fn
-
-
-@lru_cache(maxsize=1)
-def _fixture_records() -> list[dict]:
-    path = fixtures_dir() / FIXTURE
-    if not path.exists():
-        pytest.skip(f"{FIXTURE} not present")
-    return list(json.loads(path.read_text())["cards"].values())
 
 
 @lru_cache(maxsize=1)
@@ -75,7 +63,7 @@ def _tree_for_record(rec: dict):
 
 def _ported_phase_records() -> list[dict]:
     """Goblin Rabblemaster's stored phase records (the snapshot's raw phase input)."""
-    return _entry("Goblin Rabblemaster")["phase_records"]
+    return test_phase_records("Goblin Rabblemaster")
 
 
 @lru_cache(maxsize=1)
@@ -163,10 +151,8 @@ def test_trees_for_returns_every_face_for_a_dfc(monkeypatch):
     records (a DFC); ``trees_for`` must return BOTH, not first-record-wins — the
     task #74 bug (a first-record-wins index dropped whichever face iterated second,
     silently starving any lane whose only node lives on that face)."""
-    recs = tuple(
-        r for r in _fixture_records() if r.get("scryfall_oracle_id") == _AANG_OID
-    )
-    assert len(recs) == 2, "fixture must carry both Avatar Aang faces"
+    recs = tuple(test_phase_records("Avatar Aang // Aang, Master of Elements"))
+    assert len(recs) == 2, "the snapshot must carry both Avatar Aang faces"
     monkeypatch.setattr(ct, "_phase_record_index", _returns({_AANG_OID: recs}))
     monkeypatch.setattr(ct, "_committed_schema", _returns(_schema()))
     trees = ct.trees_for({"oracle_id": _AANG_OID})
@@ -209,9 +195,7 @@ def test_text_only_tree_added_for_a_phase_missing_face(monkeypatch):
     """A bulk face with no name-matched phase record among the oid's group
     becomes an extra zero-unit ConceptTree carrying its own bulk oracle
     text, ONLY when the caller supplies ``bulk=``."""
-    rec = next(
-        r for r in _fixture_records() if r.get("name") == '"Name Sticker" Goblin'
-    )
+    (rec,) = test_phase_records('"Name Sticker" Goblin')
     oid = rec["scryfall_oracle_id"]
     monkeypatch.setattr(ct, "_phase_record_index", _returns({oid: (rec,)}))
     monkeypatch.setattr(ct, "_committed_schema", _returns(_schema()))
@@ -248,9 +232,7 @@ def test_text_only_tree_added_for_a_phase_missing_face(monkeypatch):
 def test_vanilla_single_face_bulk_yields_no_text_only_tree(monkeypatch):
     """A ``bulk`` record with no (or a single) ``card_faces`` entry never
     synthesizes a text-only tree — the ``len(faces) != 2`` gate."""
-    rec = next(
-        r for r in _fixture_records() if r.get("name") == '"Name Sticker" Goblin'
-    )
+    (rec,) = test_phase_records('"Name Sticker" Goblin')
     oid = rec["scryfall_oracle_id"]
     monkeypatch.setattr(ct, "_phase_record_index", _returns({oid: (rec,)}))
     monkeypatch.setattr(ct, "_committed_schema", _returns(_schema()))
@@ -262,9 +244,7 @@ def test_vanilla_single_face_bulk_yields_no_text_only_tree(monkeypatch):
 def test_empty_oracle_phase_missing_face_yields_no_tree(monkeypatch):
     """A phase-missing face with blank ``oracle_text`` carries nothing to
     read, so it is skipped rather than synthesizing an empty tree."""
-    rec = next(
-        r for r in _fixture_records() if r.get("name") == '"Name Sticker" Goblin'
-    )
+    (rec,) = test_phase_records('"Name Sticker" Goblin')
     oid = rec["scryfall_oracle_id"]
     monkeypatch.setattr(ct, "_phase_record_index", _returns({oid: (rec,)}))
     monkeypatch.setattr(ct, "_committed_schema", _returns(_schema()))
@@ -284,9 +264,7 @@ def test_three_way_split_excluded_from_text_only_synthesis(monkeypatch):
     two faces on a split/aftermath/adventure/transform/modal_dfc card, so
     ``len(card_faces) != 2`` is the defer-not-hack gate (see the module
     comment above ``_TEXT_ONLY_EXCLUDED_LAYOUTS`` in ``_ir_lookup``)."""
-    rec = next(
-        r for r in _fixture_records() if r.get("name") == '"Name Sticker" Goblin'
-    )
+    (rec,) = test_phase_records('"Name Sticker" Goblin')
     oid = rec["scryfall_oracle_id"]
     monkeypatch.setattr(ct, "_phase_record_index", _returns({oid: (rec,)}))
     monkeypatch.setattr(ct, "_committed_schema", _returns(_schema()))
@@ -317,9 +295,7 @@ def test_avatar_aang_union_fires_all_four_bend_keys(monkeypatch):
     silently drop them. The union of both faces' trees must fire all three bend
     lanes plus the keyword-sourced firebending_makers — the whole card's bend
     profile, regardless of which face happened to be read first."""
-    recs = tuple(
-        r for r in _fixture_records() if r.get("scryfall_oracle_id") == _AANG_OID
-    )
+    recs = tuple(test_phase_records("Avatar Aang // Aang, Master of Elements"))
     bulk = test_card("Avatar Aang // Aang, Master of Elements")
     assert bulk["oracle_id"] == _AANG_OID
     monkeypatch.setattr(ct, "_phase_record_index", _returns({_AANG_OID: recs}))

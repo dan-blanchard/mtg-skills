@@ -20,7 +20,6 @@ from mtg_utils.phase_bump import (
     graduation_rows,
     impostor_census,
     parse_effect_enum,
-    regen_crosswalk_fixture,
     render_variants,
     render_zero_instance,
     rewrite_between_markers,
@@ -97,29 +96,6 @@ def _rec(name, oid, text, **extra):
     return {"name": name, "scryfall_oracle_id": oid, "oracle_text": text, **extra}
 
 
-def test_regen_crosswalk_fixture_swaps_records_by_oid_and_name_and_reports_holes():
-    fixture = {
-        "phase_tag": "v0.66.0",
-        "cards": {
-            "Test Relic": _rec("Test Relic", "oid-ring", "old text"),
-            "Gone Card": _rec("Gone Card", "oid-gone", "old"),
-        },
-        "scryfall_keywords": {"Test Relic": []},
-        "text_only_faces": {"X // Y": {"_text_only_face": {}, "_oracle_id": "o"}},
-    }
-    card_data = {
-        "test relic": _rec("Test Relic", "oid-ring", "new text", abilities=[1]),
-        "impostor": _rec("Gone Card", "oid-other", "wrong card"),  # oid mismatch
-    }
-    out, missing = regen_crosswalk_fixture(fixture, card_data, "v0.70.0")
-    assert out["phase_tag"] == "v0.70.0"
-    assert out["cards"]["Test Relic"]["oracle_text"] == "new text"
-    assert out["cards"]["Gone Card"]["oracle_text"] == "old"  # kept, not dropped
-    assert missing == ["Gone Card"]
-    assert out["scryfall_keywords"] == fixture["scryfall_keywords"]
-    assert out["text_only_faces"] == fixture["text_only_faces"]
-
-
 def test_impostor_census_flags_text_that_matches_no_bulk_face():
     bulk = [
         {"oracle_id": "oid-a", "name": "Card A", "oracle_text": "Draw a card."},
@@ -193,16 +169,6 @@ def _fake_repo(tmp_path: Path) -> Path:
         f"{phase_bump.ZERO_BEGIN}\n"
         'ZERO_INSTANCE_EFFECTS: frozenset[str] = frozenset(\n    {\n        "Old",\n    }\n)\n'
         f"{phase_bump.ZERO_END}\n"
-    )
-    (repo / phase_bump.CROSSWALK_FIXTURE).write_text(
-        json.dumps(
-            {
-                "phase_tag": "v0.66.0",
-                "cards": {"Test Relic": _rec("Test Relic", "oid-ring", "old")},
-                "scryfall_keywords": {},
-                "text_only_faces": {},
-            }
-        )
     )
     (repo / phase_bump.BRIDGE_LEDGER_TEST).write_text("")
     return repo
@@ -289,11 +255,7 @@ def test_dry_run_executes_every_step_in_order_and_writes_the_report(
     # step 4: zero-instance from the population zeros (Draw has 0; unseen = 0)
     assert '"Draw",\n' in variants.split(phase_bump.ZERO_BEGIN)[1]
     assert '"StartYourEngines"' not in variants.split(phase_bump.ZERO_BEGIN)[1]
-    # step 5: fixture re-resolved
-    fx = json.loads((repo / phase_bump.CROSSWALK_FIXTURE).read_text())
-    assert fx["phase_tag"] == "v0.70.0"
-    assert fx["cards"]["Test Relic"]["oracle_text"] == "New text."
-    # step 7: builders ran in order, old index copied aside
+    # step 6: builders ran in order, old index copied aside
     modules = [c[2] for c in calls]
     assert modules == [
         "mtg_utils.card_ir_substrate_build",
@@ -330,13 +292,13 @@ def test_from_step_skips_earlier_steps(tmp_path, monkeypatch):
         card_data_path=lambda: pytest.fail("step 3 must not run"),
         bulk_path=None,
     )
-    run(ctx, from_step=9, echo=lambda _s: None)
+    run(ctx, from_step=8, echo=lambda _s: None)
     assert (repo / phase_bump.PIN_FILE).read_text() == 'PHASE_TAG = "v0.66.0"\n'
     assert [c[2] for c in calls] == ["pytest"]
 
 
 def test_rebuild_resume_keeps_the_first_runs_pre_bump_index(tmp_path):
-    # --from-step 7 after a failure: the on-disk index is already rebuilt, so the
+    # --from-step 6 after a failure: the on-disk index is already rebuilt, so the
     # copy the first run took must survive or the signal diff compares new to new.
     repo = _fake_repo(tmp_path)
     bulk = tmp_path / "bulk.json"
@@ -387,7 +349,7 @@ def test_main_resumes_from_the_marker_not_the_rewritten_pin(tmp_path, monkeypatc
         return report_dir / "report.md"
 
     monkeypatch.setattr(phase_bump, "run", fake_run)
-    result = CliRunner().invoke(phase_bump.main, ["v0.70.0", "--from-step", "9"])
+    result = CliRunner().invoke(phase_bump.main, ["v0.70.0", "--from-step", "8"])
     assert result.exit_code == 0, result.output
     assert seen == {"old": "v0.66.0", "new": "v0.70.0"}
 

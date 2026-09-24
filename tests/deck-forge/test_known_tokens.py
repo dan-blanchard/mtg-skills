@@ -15,8 +15,8 @@ this up for free.
 Unit tests below monkeypatch ``_known_tokens_index`` directly (a small literal
 dict) — no real toml, no network, fully deterministic. The two integration
 tests at the bottom run the REAL committed mirror schema against the two
-representative real cards pinned in ``crosswalk_fixture_cards.json``
-(Michelangelo, Weirdness to 11 / Cut In) and assert the production
+representative real cards' phase records from the card snapshot
+(``testkit.test_phase_records``: Michelangelo, Weirdness to 11 / Cut In) and assert the production
 ``extract_crosswalk_signals`` path actually fires ``plus_one_makers`` off the
 synthesized token tree — plus a THIRD pinned card, Ozox, the Clattering King,
 whose Jumblebones token is fully ad-hoc (no known-tokens.toml join at all,
@@ -27,7 +27,6 @@ zero code from this task — a regression pin for that finding.
 
 from __future__ import annotations
 
-import json
 from functools import lru_cache
 
 import pytest
@@ -40,10 +39,9 @@ from mtg_utils._analysis.tree_synthesis import apply_tree_synthesis
 from mtg_utils._card_ir import trees as il
 from mtg_utils._card_ir.crosswalk import build_concept_tree
 from mtg_utils._card_ir.mirror import strict_load_card
-from mtg_utils._card_ir.mirror.build import fixtures_dir, load_committed_schema
+from mtg_utils._card_ir.mirror.build import load_committed_schema
 from mtg_utils._card_ir.overlay_corrections import apply_overlay_corrections
-
-FIXTURE = "crosswalk_fixture_cards.json"
+from mtg_utils.testkit import test_phase_records
 
 _MUTAGEN_ID = "mutagen-test-id"
 _MUTAGEN_ENTRY = {
@@ -208,15 +206,12 @@ def test_dedupes_repeated_matches_within_one_rec(monkeypatch):
     assert len(trees) == 1
 
 
-# ── integration: real fixture cards through the whole pipeline ─────────────
+# ── integration: real snapshot cards through the whole pipeline ────────────
 
 
-@lru_cache(maxsize=1)
-def _fixture_records() -> dict[str, dict]:
-    path = fixtures_dir() / FIXTURE
-    if not path.exists():
-        pytest.skip(f"{FIXTURE} not present")
-    return json.loads(path.read_text())["cards"]
+def _record(name: str) -> dict:
+    """*name*'s own raw phase face record from the card snapshot."""
+    return next(r for r in test_phase_records(name) if r["name"] == name)
 
 
 @lru_cache(maxsize=1)
@@ -246,13 +241,13 @@ def _signals_for(rec: dict, entry: dict, monkeypatch: pytest.MonkeyPatch) -> lis
 
 
 def test_michelangelo_mutagen_cycle_fires_plus_one_makers(monkeypatch):
-    rec = _fixture_records()["Michelangelo, Weirdness to 11"]
+    rec = _record("Michelangelo, Weirdness to 11")
     keys = {s.key for s in _signals_for(rec, _MUTAGEN_ENTRY, monkeypatch)}
     assert "plus_one_makers" in keys
 
 
 def test_cut_in_young_hero_cycle_fires_plus_one_makers(monkeypatch):
-    rec = _fixture_records()["Cut In"]
+    rec = _record("Cut In")
     keys = {s.key for s in _signals_for(rec, _YOUNG_HERO_ENTRY, monkeypatch)}
     assert "plus_one_makers" in keys
 
@@ -266,7 +261,7 @@ def test_ozox_jumblebones_graveyard_return_needs_no_known_tokens_work():
     descent already reaches the nested GrantTrigger's ChangeZone. Pinned as
     a regression: a future change to that generic walk must not silently
     stop reaching a Token's own static_abilities."""
-    rec = _fixture_records()["Ozox, the Clattering King"]
+    rec = _record("Ozox, the Clattering King")
     assert (rec.get("metadata") or {}).get("related_token_ids") in (None, [])
     tree = build_concept_tree(
         strict_load_card(rec, _schema(), name=rec["name"]),
@@ -365,7 +360,7 @@ _SPELLGORGER_ENTRY = {
 def test_cursed_courtier_cursed_role_fires_single_target_neutralize(monkeypatch):
     """Cursed (CR 111.10j) opens the new single_target_neutralize lane via
     the synth_single_target_neutralize marker."""
-    rec = _fixture_records()["Cursed Courtier"]
+    rec = _record("Cursed Courtier")
     keys = {s.key for s in _signals_for(rec, _CURSED_ENTRY, monkeypatch)}
     assert "single_target_neutralize" in keys
 
@@ -373,7 +368,7 @@ def test_cursed_courtier_cursed_role_fires_single_target_neutralize(monkeypatch)
 def test_charmed_clothier_royal_role_fires_protection_grant(monkeypatch):
     """Royal (CR 111.10m) — ward {1} is the suit-up protective grant
     (CR 702.21a), the same key a real ward Aura fires."""
-    rec = _fixture_records()["Charmed Clothier"]
+    rec = _record("Charmed Clothier")
     keys = {s.key for s in _signals_for(rec, _ROYAL_ENTRY, monkeypatch)}
     assert "protection_grant" in keys
 
@@ -381,7 +376,7 @@ def test_charmed_clothier_royal_role_fires_protection_grant(monkeypatch):
 def test_spellbook_vendor_sorcerer_role_fires_topdeck_selection(monkeypatch):
     """Sorcerer (CR 111.10n) — the granted attack-scry is own-library
     curation (CR 701.22a), read via the synth_topdeck_selection marker."""
-    rec = _fixture_records()["Spellbook Vendor"]
+    rec = _record("Spellbook Vendor")
     keys = {s.key for s in _signals_for(rec, _SORCERER_ENTRY, monkeypatch)}
     assert "topdeck_selection" in keys
 
@@ -391,7 +386,7 @@ def test_monstrous_rage_monster_role_stays_out_of_keyword_grant_keys(monkeypatch
     name is absent from _KNOWN_TOKEN_WIRED_DISPLAY_NAMES, so even with the
     toml entry present no tree is appended — a Role token must not fire a
     key the real Rancor-class trample Auras don't."""
-    rec = _fixture_records()["Monstrous Rage"]
+    rec = _record("Monstrous Rage")
     keys = {s.key for s in _signals_for(rec, _MONSTER_ENTRY, monkeypatch)}
     assert "protection_grant" not in keys
     assert "keyword_grant_target" not in keys
@@ -402,7 +397,7 @@ def test_niko_aris_shard_fires_topdeck_selection(monkeypatch):
     topdeck_selection (CR 701.22a). The draw half is a per-token one-shot
     cantrip, which this system deliberately never tags with a draw-doer
     key (Opt fires none)."""
-    rec = _fixture_records()["Niko Aris"]
+    rec = _record("Niko Aris")
     keys = {s.key for s in _signals_for(rec, _SHARD_ENTRY, monkeypatch)}
     assert "topdeck_selection" in keys
 
@@ -410,7 +405,7 @@ def test_niko_aris_shard_fires_topdeck_selection(monkeypatch):
 def test_mages_attendant_wizard_fires_counter_control(monkeypatch):
     """The Wizard token's sac-to-Counter (CR 701.6a) emits the REAL
     counter_spell concept — _counter_control reads it with no lane edit."""
-    rec = _fixture_records()["Mage's Attendant"]
+    rec = _record("Mage's Attendant")
     keys = {s.key for s in _signals_for(rec, _WIZARD_ENTRY, monkeypatch)}
     assert "counter_control" in keys
 
@@ -419,7 +414,7 @@ def test_scriv_contract_fires_lifeloss_makers_opponents(monkeypatch):
     """The Contract Aura's 'Otherwise, its controller loses 2 life' rides
     the existing synth_lifeloss_makers_opponents marker read (the Wicked
     precedent) — Scriv attaches it to a creature an opponent controls."""
-    rec = _fixture_records()["Scriv, the Obligator"]
+    rec = _record("Scriv, the Obligator")
     idents = {(s.key, s.scope) for s in _signals_for(rec, _CONTRACT_ENTRY, monkeypatch)}
     assert ("lifeloss_makers", "opponents") in idents
 
@@ -428,6 +423,6 @@ def test_ral_implicit_maze_spellgorger_fires_spellcast_matters(monkeypatch):
     """Spellgorger Weird's 'Whenever you cast a noncreature spell...' rides
     the PRE-EXISTING _arm_spellcast_matters bucket-B arm — allowlist-only
     wiring, zero new arm code."""
-    rec = _fixture_records()["Ral and the Implicit Maze"]
+    rec = _record("Ral and the Implicit Maze")
     keys = {s.key for s in _signals_for(rec, _SPELLGORGER_ENTRY, monkeypatch)}
     assert "spellcast_matters" in keys

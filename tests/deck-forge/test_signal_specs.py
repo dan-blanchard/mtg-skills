@@ -1015,16 +1015,11 @@ def test_pillowfort_and_tax_feed_stax():
 
 def test_power_matters_credits_threshold_payoffs():
     # power_matters should credit the PAYOFFS that key on power thresholds (Garruk's
-    # Uprising, ferocious dorks), not only the big bodies themselves.
+    # Uprising, ferocious dorks like Whisperer of the Wilds), not only the big
+    # bodies themselves.
     sig = _sig("power_matters", "you")
-    for o in [
-        "If you control a creature with power 4 or greater, draw a card.",
-        "Ferocious — {T}: Add {G}{G}.",
-    ]:
-        assert (
-            serves({"name": "x", "type_line": "Enchantment", "oracle_text": o}, sig)
-            is True
-        )
+    for n in ("Garruk's Uprising", "Whisperer of the Wilds"):
+        assert serves(_card(n), sig) is True, n
 
 
 def test_being_an_artifact_or_enchantment_by_type_is_on_theme():

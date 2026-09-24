@@ -21,12 +21,13 @@ expanded rather than a lossy slice silently shipped.
 
 Modes:
   * default — AST-scan the test tree for ``test_card`` / ``test_card_ir`` /
-    ``test_signals`` usage: direct string-literal calls, parametrize columns
-    that feed such a call through a bare variable, and ``_REAL_CASES`` name
-    tables (usage-derived; the snapshot only holds cards a test actually asks
-    for), plus every theme preset's ``should_match`` / ``should_not_match``
-    read from the registry itself (a preset fixture is proven against the
-    snapshot's real record, never hand-typed text).
+    ``test_signals`` / ``test_phase_records`` usage: direct string-literal calls,
+    parametrize columns that feed such a call through a bare variable, and
+    ``_REAL_CASES`` name tables (usage-derived; the snapshot only holds cards a
+    test actually asks for), plus every theme preset's ``should_match`` /
+    ``should_not_match`` read from the registry itself (a preset fixture is
+    proven against the snapshot's real record, never hand-typed text) and every
+    ledgered bridge's pin.
   * ``--names "A,B"`` / ``--names-file PATH`` — an explicit name list (additive to the
     scan unless ``--no-scan``).
 
@@ -86,7 +87,7 @@ _FACE_FIELDS = (
     "colors",
 )
 
-# The snapshot-feeding core: the three testkit entry points. Per-suite wrappers
+# The snapshot-feeding core: the four testkit entry points. Per-suite wrappers
 # that forward a card name into them (``_ks_real("Atraxa, …")``, ``_keys(…)`` —
 # the name literal sits on the wrapper, not on ``test_signals``) are DERIVED per
 # module by ``_local_wrappers``, never hand-listed: a hardcoded wrapper list
@@ -95,7 +96,9 @@ _FACE_FIELDS = (
 # The scan is AST-based (see ``_scan_module``), so apostrophes in names,
 # comments mentioning ``test_card("…")``, and parametrize tables all behave
 # correctly — a regex scan mis-handled all three.
-_CORE_HELPERS = frozenset({"test_card", "test_card_ir", "test_signals"})
+_CORE_HELPERS = frozenset(
+    {"test_card", "test_card_ir", "test_signals", "test_phase_records"}
+)
 
 
 def _call_name(call: ast.Call) -> str | None:
@@ -176,10 +179,19 @@ def _parametrize_argnames(node: ast.expr) -> list[str]:
     return []
 
 
+def _literal_or_none(node: ast.expr) -> object:
+    try:
+        return ast.literal_eval(node)
+    except ValueError:
+        return None
+
+
 def _parametrize_rows(node: ast.expr) -> list[tuple]:
-    """The literal rows of a ``parametrize`` argvalues list, each normalized to a
-    tuple (scalars become 1-tuples; ``pytest.param(...)`` rows contribute their
-    positional args; non-literal rows are skipped)."""
+    """The rows of a ``parametrize`` argvalues list, each normalized to a tuple
+    (scalars become 1-tuples; ``pytest.param(...)`` rows contribute their
+    positional args). A cell that isn't a literal — a predicate passed beside the
+    card name, ``("Xathrid Demon", has_selfloss_engine)`` — reads as ``None``, so
+    the row's literal name column is still harvested."""
     if not isinstance(node, (ast.Tuple, ast.List)):
         return []
     rows: list[tuple] = []
@@ -191,11 +203,10 @@ def _parametrize_rows(node: ast.expr) -> list[tuple]:
             and elt.func.attr == "param"
         ):
             target = ast.Tuple(elts=list(elt.args), ctx=ast.Load())
-        try:
-            value = ast.literal_eval(target)
-        except ValueError:
-            continue
-        rows.append(value if isinstance(value, tuple) else (value,))
+        if isinstance(target, ast.Tuple):
+            rows.append(tuple(_literal_or_none(e) for e in target.elts))
+        else:
+            rows.append((_literal_or_none(target),))
     return rows
 
 
@@ -323,6 +334,15 @@ def _preset_fixture_names() -> set[str]:
     }
 
 
+def _bridge_pin_names() -> set[str]:
+    """Every ledgered bridge's convergence pin (ADR-0048): ``test_bridge_ledger``
+    parametrizes over the ledger itself, so — like the preset registry — the
+    ledger is a name source the AST scan cannot see."""
+    from mtg_utils._analysis.bridge_ledger import BRIDGES
+
+    return {pin for bridge in BRIDGES.values() for pin in bridge.pins}
+
+
 def _existing_names(out_path: Path) -> set[str]:
     """Card names already committed in *out_path*, or empty if it doesn't
     exist / doesn't parse. The AST scan is necessarily incomplete — a table
@@ -345,24 +365,33 @@ def _existing_names(out_path: Path) -> set[str]:
 
 def _index_by_name(bulk: list[dict], groups: dict[str, list[dict]]) -> dict[str, dict]:
     """normalized name → the GAMEPLAY printing (oracle_id has >=1 phase face
-    record; DFC front faces keyed too; art_series / reversible dups are skipped
-    because their oracle_id is absent from phase's card-data.json)."""
-    by_name: dict[str, list[dict]] = defaultdict(list)
+    record; a multi-face card is keyed by every face name too; art_series /
+    reversible dups are skipped because their oracle_id is absent from phase's
+    card-data.json).
+
+    A back face is keyed so a test of that face's own phase record can name it
+    (``test_phase_records("Howlpack Alpha")`` → Mayor of Avabruck, whose two
+    records the test picks the face from) — the crosswalk suites address faces
+    that way. Without the key, a back-face name fell through to whatever other
+    record shared it: Krallenhorde Howler resolved to its art-series card."""
+    by_name: dict[str, list[tuple[int, dict]]] = defaultdict(list)
     for c in bulk:
         nm = c.get("name")
         if not nm:
             continue
-        by_name[normalize_card_name(nm)].append(c)
+        by_name[normalize_card_name(nm)].append((0, c))
         if " // " in nm:
-            by_name[normalize_card_name(nm.split(" // ")[0])].append(c)
+            front, *rest = nm.split(" // ")
+            by_name[normalize_card_name(front)].append((1, c))
+            for face in rest:
+                by_name[normalize_card_name(face)].append((2, c))
     resolved: dict[str, dict] = {}
-    for key, printings_ in by_name.items():
+    for key, ranked in by_name.items():
         # A standalone card whose name IS the key wins over a split card keyed
         # here only by its front face ("Bind" vs "Bind // Liberate") — the same
-        # policy CardPool.by_name applies. Stable sort: order otherwise kept.
-        printings = sorted(
-            printings_, key=lambda c, k=key: normalize_card_name(c["name"]) != k
-        )
+        # policy CardPool.by_name applies — and a front face wins over a back
+        # face. Stable sort: order otherwise kept.
+        printings = [c for _rank, c in sorted(ranked, key=lambda rc: rc[0])]
         pick = next((c for c in printings if c.get("oracle_id") in groups), None)
         if pick is None:
             # No printing has phase coverage — real for NON-PLAYABLE folded
@@ -476,7 +505,10 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--no-scan",
         action="store_true",
-        help="Skip the test-tree usage scan and the preset-registry fixture read.",
+        help=(
+            "Skip the test-tree usage scan and the preset-registry / bridge-"
+            "ledger name reads."
+        ),
     )
     parser.add_argument(
         "--out", default=None, help="Output path (default: the fixture)."
@@ -505,6 +537,7 @@ def main(argv: list[str] | None = None) -> int:
             [repo_root / "tests" / "deck-forge", repo_root / "tests" / "mtg-utils"]
         )
         names |= _preset_fixture_names()
+        names |= _bridge_pin_names()
     if args.names:
         names |= {n.strip() for n in args.names.split(",") if n.strip()}
     if args.names_file:

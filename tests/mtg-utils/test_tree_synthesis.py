@@ -9,7 +9,6 @@ catches a phase-node mutation/removal after a legal synthetic addition.
 
 from __future__ import annotations
 
-import functools
 from dataclasses import replace
 
 import pytest
@@ -183,31 +182,23 @@ from mtg_utils._card_ir.mirror.generated import (
     T_target__Typed,
 )
 from mtg_utils._card_ir.mirror.runtime import MirrorVariant
-from mtg_utils.testkit import test_card, test_card_ir
-
-
-@functools.lru_cache(maxsize=1)
-def _fixture_cards() -> dict[str, dict]:
-    """The committed fixture payload, parsed once per run (read-only)."""
-    import json
-    from pathlib import Path
-
-    from mtg_utils._card_ir.mirror.build import fixtures_dir
-
-    path = fixtures_dir() / "crosswalk_fixture_cards.json"
-    if not path.exists():
-        pytest.skip("crosswalk_fixture_cards.json not present")
-    return json.loads(Path(path).read_text())["cards"]
+from mtg_utils.testkit import test_card, test_card_ir, test_phase_records
 
 
 def _fixture_tree(name: str) -> ConceptTree:
-    """Build one committed-fixture card's ConceptTree (CI-safe: no phase/network)."""
+    """One real card face's RAW ConceptTree from its snapshot phase record — the
+    face named *name*, else the front face of an ``"A // B"`` name (CI-safe: no
+    phase/network)."""
     from mtg_utils._card_ir.mirror import strict_load_card
     from mtg_utils._card_ir.mirror.build import load_committed_schema
 
-    rec = _fixture_cards()[name]
-    root = strict_load_card(rec, load_committed_schema(), name=name)
-    return build_tree(root, name)
+    records = test_phase_records(name)
+    rec = next(
+        (r for r in records if r["name"] == name),
+        next(r for r in records if r["name"] == name.split(" // ", maxsplit=1)[0]),
+    )
+    root = strict_load_card(rec, load_committed_schema(), name=rec["name"])
+    return build_tree(root, rec["name"])
 
 
 def build_tree(root: object, name: str) -> ConceptTree:
@@ -2628,14 +2619,8 @@ def test_superfriends_lane_reads_synth_node_end_to_end():
 
 
 def _evasion_kw(name: str) -> frozenset[str]:
-    import json
-    from pathlib import Path
-
-    from mtg_utils._card_ir.mirror.build import fixtures_dir
-
-    path = fixtures_dir() / "crosswalk_fixture_cards.json"
-    fix = json.loads(Path(path).read_text())
-    return frozenset(fix.get("scryfall_keywords", {}).get(name, ()))
+    """The card's real Scryfall keyword array, off its snapshot record."""
+    return frozenset(test_card(name).get("keywords") or ())
 
 
 def _evasion_lane_fires(name: str) -> bool:

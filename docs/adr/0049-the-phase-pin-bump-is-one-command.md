@@ -26,6 +26,10 @@ order and stops at the first failure; `--from-step N` resumes.
    or silent.
 9. Run the bridge ledger test and collect its RETIRE-READY rows.
 
+**Amended (ADR-0056).** Step 5 is gone. The crosswalk fixture merged into the card
+snapshot, which the rebuild step already regenerates; the snapshot builder's summary,
+unresolved names included, goes into the report's notes. Steps 6–9 are now 5–8.
+
 The two rosters in `variants.py` are generated blocks between marker comments, edited
 only by the CLI. Downstream builders run as subprocesses of the same interpreter so
 they import the edited pin; the process sets `_phase.PHASE_TAG` only for its own

@@ -220,18 +220,14 @@ def test_skip_makes_an_arm_a_noop():
 
 
 def _fixture_tree(name: str):
-    """Build one committed-fixture card's ConceptTree (CI-safe: no phase/network)."""
-    import json
-    from pathlib import Path
-
+    """Build one real card's RAW ConceptTree from its snapshot phase record
+    (CI-safe: no phase/network)."""
     from mtg_utils._card_ir.crosswalk import build_concept_tree
     from mtg_utils._card_ir.mirror import strict_load_card
-    from mtg_utils._card_ir.mirror.build import fixtures_dir, load_committed_schema
+    from mtg_utils._card_ir.mirror.build import load_committed_schema
+    from mtg_utils.testkit import test_phase_records
 
-    path = fixtures_dir() / "crosswalk_fixture_cards.json"
-    if not path.exists():
-        pytest.skip("crosswalk_fixture_cards.json not present")
-    rec = json.loads(Path(path).read_text())["cards"][name]
+    rec = next(r for r in test_phase_records(name) if r["name"] == name)
     root = strict_load_card(rec, load_committed_schema(), name=name)
     return build_concept_tree(root, name=name)
 

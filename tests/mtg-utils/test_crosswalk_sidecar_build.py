@@ -1,8 +1,9 @@
 """ADR-0035 Stage-3a Step-1 — the crosswalk-backed sidecar builder + loader.
 
-CI-safe: builds the sidecar from the committed ``crosswalk_fixture_cards.json``
-phase records (an explicit ``card_data_path`` so ``ensure_card_data`` never runs),
-then round-trips it through ``load_crosswalk_card_ir``. No bulk / network / cargo.
+CI-safe: builds the sidecar from real cards' phase records out of the committed
+card snapshot (``testkit.test_phase_records``; an explicit ``card_data_path`` so
+``ensure_card_data`` never runs), then round-trips it through
+``load_crosswalk_card_ir``. No bulk / network / cargo.
 """
 
 from __future__ import annotations
@@ -16,18 +17,23 @@ from mtg_utils._card_ir.load import (
     CROSSWALK_SIDECAR_VERSION,
     load_crosswalk_card_ir,
 )
-from mtg_utils._card_ir.mirror.build import fixtures_dir
 from mtg_utils.card_ir import Card
-
-FIXTURE = "crosswalk_fixture_cards.json"
+from mtg_utils.testkit import test_phase_records
 
 
 @pytest.fixture
 def card_data_file(tmp_path):
-    path = fixtures_dir() / FIXTURE
-    if not path.exists():
-        pytest.skip(f"{FIXTURE} not present")
-    records = list(json.loads(path.read_text())["cards"].values())
+    """A small phase ``card-data.json``: a vanilla creature, a mana creature, a
+    token maker, a DFC (two faces, one oracle_id) and a split card."""
+    records: list[dict] = []
+    for name in (
+        "Grizzly Bears",
+        "Llanowar Elves",
+        "Krenko, Mob Boss",
+        "Avatar Aang // Aang, Master of Elements",
+        "Fire // Ice",
+    ):
+        records.extend(test_phase_records(name))
     cdp = tmp_path / "card-data.json"
     cdp.write_text(json.dumps(records))
     return cdp

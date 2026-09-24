@@ -19,6 +19,11 @@ both halves of the production call:
     a test asserts what production actually emits. Pre-seeds
     ``_ir_lookup``'s trees memo from the same stored records (:func:`_seed_trees`), so
     the structural merge runs for real in CI — no phase cache, no network.
+  * :func:`test_phase_records` — the stored raw phase face records themselves, for a
+    test of the layer BELOW the trees (strict-load, the concept overlay, the
+    correction / recovery stages, the sidecar builder). The one store of real phase
+    records: the crosswalk suites' own ``crosswalk_fixture_cards.json`` merged in
+    here (ADR-0056).
 
 (``test_legacy_card_ir`` — the LEGACY ``project_card`` IR — died with the
 builder in ADR-0039 task #80 step 7.)
@@ -43,6 +48,7 @@ agnostic Scryfall re-source is signal-identical).
 
 from __future__ import annotations
 
+import copy
 import json
 import os
 from functools import lru_cache
@@ -115,13 +121,27 @@ def _schema() -> MirrorSchema:
     return load_committed_schema()
 
 
+@lru_cache(maxsize=1)
+def _by_printed_name() -> dict[str, str]:
+    """A stored card's full printed name → its snapshot key, for the few keys a
+    test wrote as a face or an unaccented name (``"Commit"`` for ``Commit //
+    Memory``, ``"Cirdan the Shipwright"``) — so a corpus sweep that iterates
+    :func:`snapshot_records` can look each record up by its own ``name``."""
+    return {
+        entry["scryfall"].get("name") or key: key
+        for key, entry in _snapshot()["cards"].items()
+    }
+
+
 def _entry(name: str) -> dict[str, Any]:
     cards = _snapshot()["cards"]
     entry = cards.get(name)
+    if entry is None and name in _by_printed_name():
+        entry = cards[_by_printed_name()[name]]
     if entry is None:
         raise KeyError(
             f"{name!r} is not in the card snapshot. Add it via `build-card-snapshot` "
-            "(it scans the tests for test_card/test_card_ir/test_signals literals)."
+            "(it scans the tests for testkit-helper literals)."
         )
     return entry
 
@@ -181,6 +201,22 @@ def _compat_card_ir(name: str) -> Card:
     return card if card is not None else Card(oracle_id=oid, name=name, faces=())
 
 
+def test_phase_records(name: str) -> list[dict[str, Any]]:
+    """The raw phase face records the snapshot stores for *name* — phase's own
+    ``card-data.json`` parse, one record per face phase emits (a DFC / split card
+    has two, an Aftermath back half none; a folded object such as a dungeon has
+    none at all), in stored order. Deep copies, safe to mutate.
+
+    For a test of the layer below the concept trees — ``strict_load_card``,
+    ``build_concept_tree``, the correction / recovery stages, the sidecar and
+    ``trees_for`` resolvers — that needs the INPUT production reads, not the trees
+    or signals built from it. *name* is a snapshot key (the name a test asks for;
+    a back-face name resolves to its card, so ``"Howlpack Alpha"`` returns both
+    Mayor of Avabruck faces) or a stored card's full printed name. Picking the
+    face is the caller's job: match on each record's ``name``."""
+    return copy.deepcopy(_entry(name)["phase_records"])
+
+
 def test_signals(name: str) -> list:
     """``extract_signals(test_card(name), test_card_ir(name))`` — exactly what
     production emits for *name* (real Scryfall record, real Card IR, real concept
@@ -195,5 +231,5 @@ def test_signals(name: str) -> list:
 # prefix (chosen so a fixture reads ``test_card("Sol Ring")``). ``__test__ = False`` is
 # pytest's documented opt-out and travels with the function when imported into a test
 # module. Set via ``setattr`` (the attribute isn't declared on the function type).
-for _helper in (test_card, test_card_ir, test_signals):
+for _helper in (test_card, test_card_ir, test_signals, test_phase_records):
     setattr(_helper, "__test__", False)  # noqa: B010 — dynamic set dodges ty's undeclared-attr check

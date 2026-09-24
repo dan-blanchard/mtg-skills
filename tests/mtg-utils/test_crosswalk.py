@@ -1,11 +1,12 @@
 """Stage-2 gate for the Layer-2 concept overlay + first concept batch (ADR-0035).
 
 The crosswalk is ADDITIVE — nothing in production reads it; these tests are the
-shipped deliverable. They run CI-safe off two committed fixtures
-(``crosswalk_fixture_cards.json`` = a curated slice of phase ``card-data.json``
-records, ``phase_mirror_schema.json`` = the generated mirror schema): strict-load
-each record → build the concept overlay → derive the ported Signals — with **no**
-bulk / sidecar / phase / network.
+shipped deliverable. They run CI-safe off the committed card snapshot (each card's
+raw phase ``card-data.json`` face records, served by ``testkit.test_phase_records``
+— ADR-0056 merged the suite's own ``crosswalk_fixture_cards.json`` into it) and the
+committed mirror schema (``phase_mirror_schema.json``): strict-load each record →
+build the concept overlay → derive the ported Signals — with **no** bulk / sidecar /
+phase / network.
 
 The baked granularity fixtures are load-bearing: a flat-overlay regression (one
 that collapsed the per-ability / whole-card join structure) fails these loud.
@@ -23,10 +24,8 @@ that collapsed the per-ability / whole-card join structure) fails these loud.
 
 from __future__ import annotations
 
-import json
 from dataclasses import replace
 from functools import lru_cache
-from pathlib import Path
 
 import pytest
 
@@ -42,7 +41,7 @@ from mtg_utils._card_ir.crosswalk import (
     build_concept_tree,
 )
 from mtg_utils._card_ir.mirror import strict_load_card
-from mtg_utils._card_ir.mirror.build import fixtures_dir, load_committed_schema
+from mtg_utils._card_ir.mirror.build import load_committed_schema
 from mtg_utils._card_ir.overlay_corrections import (
     SubstratePurityError,
     _assert_substrate_pure,
@@ -51,31 +50,32 @@ from mtg_utils._card_ir.overlay_corrections import (
     apply_overlay_corrections,
     l1_bytes,
 )
-from mtg_utils.testkit import test_card
-
-FIXTURE = "crosswalk_fixture_cards.json"
-
-
-@lru_cache(maxsize=1)
-def _fixture() -> dict:
-    path = fixtures_dir() / FIXTURE
-    if not path.exists():
-        pytest.skip(f"{FIXTURE} not present")
-    return json.loads(Path(path).read_text())
+from mtg_utils._card_ir.trees import _text_only_trees
+from mtg_utils.testkit import snapshot_records, test_card, test_phase_records
 
 
-def _cards() -> dict[str, dict]:
-    return _fixture()["cards"]
+def _record(name: str, face: str | None = None) -> dict:
+    """The raw phase face record a test reads for *name*: the record for *face*
+    when given, else the record named *name* (a single-face card, or one face of
+    a multi-face card named by that face — ``"Howlpack Alpha"``), else the front
+    face of an ``"A // B"`` name. *face* is for a back face whose own name is
+    another real card's (``Yavimaya Bloomsage // Channel``'s "Channel")."""
+    records = test_phase_records(name)
+    for want in (face or name, name.split(" // ", maxsplit=1)[0]):
+        for rec in records:
+            if rec.get("name") == want:
+                return rec
+    raise KeyError(f"no phase record for face {face or name!r} of {name!r}")
 
 
 def _kw(name: str) -> frozenset[str]:
     """The card's real Scryfall keyword array (the mill_makers field-lookup source).
 
-    Not in the phase typed substrate (phase carries no ``Mill`` keyword), so the
-    fixture stores it alongside the phase records — the shadow diff reads the same
-    array off the bulk record. Absent == no keywords.
+    Not in the phase typed substrate (phase carries no ``Mill`` keyword), so it
+    comes off the card's snapshot record — the same array production reads off
+    the bulk record. Absent == no keywords.
     """
-    return frozenset(_fixture().get("scryfall_keywords", {}).get(name, ()))
+    return frozenset(test_card(name).get("keywords") or ())
 
 
 @lru_cache(maxsize=1)
@@ -83,31 +83,51 @@ def _schema():
     return load_committed_schema()
 
 
-def _raw_tree(name: str) -> ConceptTree:
+def _raw_tree(name: str, face: str | None = None) -> ConceptTree:
     """The RAW overlay tree (no corrections, no synthesis) — for the tests OF the
     correction stage itself."""
-    rec = _cards()[name]
-    root = strict_load_card(rec, _schema(), name=name)
-    return build_concept_tree(root, name=name)
+    rec = _record(name, face)
+    root = strict_load_card(rec, _schema(), name=rec["name"])
+    return build_concept_tree(root, name=rec["name"])
 
 
-def _tree(name: str) -> ConceptTree:
-    """The SIGNAL tree for a fixture card (ADR-0047: corrections + synthesis applied
+def _tree(name: str, face: str | None = None) -> ConceptTree:
+    """The SIGNAL tree for a card's face (ADR-0047: corrections + synthesis applied
     once, at the seam the lanes read — a lane never re-applies a stage)."""
-    rec = _cards()[name]
-    root = strict_load_card(rec, _schema(), name=name)
-    return as_signal_tree(build_concept_tree(root, name=name))
+    return as_signal_tree(_raw_tree(name, face))
 
 
-def _idents(name: str) -> set[tuple[str, str, str]]:
+def _idents(name: str, face: str | None = None) -> set[tuple[str, str, str]]:
     return {
         (s.key, s.scope, s.subject)
-        for s in extract_crosswalk_signals(_tree(name), keywords=_kw(name))
+        for s in extract_crosswalk_signals(_tree(name, face), keywords=_kw(name))
     }
 
 
-def _keys(name: str) -> set[str]:
-    return {k for k, _s, _su in _idents(name)}
+def _keys(name: str, face: str | None = None) -> set[str]:
+    return {k for k, _s, _su in _idents(name, face)}
+
+
+def _text_only_face_tree(name: str, face: str) -> ConceptTree:
+    """The W2c text-only tree production builds for *name*'s phase-missing *face*
+    (an Aftermath back half phase never emits a record for): the real card's
+    bulk face through ``_text_only_trees``, against the real phase records — so
+    the face text, mana cost and oracle_id are the card's, never typed in."""
+    record = test_card(name)
+    trees = _text_only_trees(
+        record, tuple(test_phase_records(name)), oracle_id=record["oracle_id"]
+    )
+    (tree,) = (t for t in trees if t.name == face)
+    return tree
+
+
+def _corpus() -> list[tuple[str, dict]]:
+    """Every raw phase face record in the snapshot, with its card's name."""
+    return [
+        (record["name"], rec)
+        for record in snapshot_records()
+        for rec in test_phase_records(record["name"])
+    ]
 
 
 # ── framework: tree-preserving overlay + lossless "other" ─────────────────────
@@ -123,7 +143,7 @@ def test_overlay_is_tree_preserving_with_typed_units():
         # the unit carries the verbatim typed node (round-trips losslessly)
         assert (
             unit.node.to_dict()
-            == _cards()["Krenko, Mob Boss"][
+            == _record("Krenko, Mob Boss")[
                 {
                     "ability": "abilities",
                     "trigger": "triggers",
@@ -1051,7 +1071,18 @@ def test_keyword_effect_unit_origin_braid_of_fire():
     assert bridge_fires("ramp_dropped_add_mana_clause", tree) is False
 
 
-def test_keyword_effect_unit_origin_corpus_census():
+@pytest.mark.parametrize(
+    ("name", "kind", "concept"),
+    [
+        ("Aboroth", "PutCounter", "place_counter"),
+        ("Braid of Fire", "Mana", "ramp"),
+        ("Infernal Darkness", "PayCost", OTHER),
+        ("Karplusan Minotaur", "FlipCoin", "flip_coin"),
+        ("Psychic Vortex", "Draw", "draw"),
+        ("Sheltering Ancient", "PutCounter", "place_counter"),
+    ],
+)
+def test_keyword_effect_unit_origin_corpus_census(name, kind, concept):
     """v0.23.0's full ``EffectCost``-keyword census (task #87, corpus
     swept): exactly 9 commander-legal cards, all ``CumulativeUpkeep``.
     Every one of them now carries a ``"keyword"``-origin unit (no arm
@@ -1062,20 +1093,11 @@ def test_keyword_effect_unit_origin_corpus_census():
     Leshrac: GainControl; Infernal Darkness: PayCost; Jötun Grunt:
     PutAtLibraryPosition; Karplusan Minotaur: FlipCoin; Psychic Vortex:
     Draw; Varchild's War-Riders: Token)."""
-    census = {
-        "Aboroth": ("PutCounter", "place_counter"),
-        "Braid of Fire": ("Mana", "ramp"),
-        "Infernal Darkness": ("PayCost", OTHER),
-        "Karplusan Minotaur": ("FlipCoin", "flip_coin"),
-        "Psychic Vortex": ("Draw", "draw"),
-        "Sheltering Ancient": ("PutCounter", "place_counter"),
-    }
-    for name, (kind, concept) in census.items():
-        tree = _tree(name)
-        kw_units = [u for u in tree.units if u.origin == "keyword"]
-        assert len(kw_units) == 1, name
-        assert kw_units[0].kind == kind, name
-        assert [c.concept for c in kw_units[0].effects] == [concept], name
+    tree = _tree(name)
+    kw_units = [u for u in tree.units if u.origin == "keyword"]
+    assert len(kw_units) == 1, name
+    assert kw_units[0].kind == kind, name
+    assert [c.concept for c in kw_units[0].effects] == [concept], name
 
 
 def test_keyword_effect_unit_secondary_gains_adjudicated():
@@ -1418,7 +1440,7 @@ def test_sacrifice_outlets_ward_cost_excluded():
         "Phyrexian Obliterator",  # "that source's controller sacrifices"
         "Fade Away",  # "for each creature, its controller sacrifices"
         "Maarika, Brutal Gladiator",  # "that creature's controller sacrifices"
-        "Vengeful Strangler // Strangling Grasp",  # enchanted permanent's controller
+        "Strangling Grasp",  # enchanted permanent's controller (Vengeful Strangler)
     ],
 )
 def test_sacrifice_outlets_parent_target_controller_ambiguous_fires(name):
@@ -2782,7 +2804,7 @@ def test_voltron_makers_recovered_mechanisms(name):
     the unattach-maker / sibling-gear-attach / reanimate-with-attach /
     becomes-attached / Unimplemented-residue mechanisms the base structural
     gate above misses. Verified against the real Card IR this session; each
-    card's phase record is pinned in ``crosswalk_fixture_cards.json``."""
+    card's phase records are stored in the card snapshot."""
     assert ("voltron_makers", "you", "") in _idents(name)
 
 
@@ -2906,7 +2928,7 @@ def test_voltron_matters_recovered_mechanisms(name):
     reduction, SourceIsEquipped condition, trigger-condition-filter,
     ability cost_reduction, bare-count-scaling, and Unrecognized-residue /
     static-affected mechanisms the base structural gate misses. Each card's
-    phase record is pinned in ``crosswalk_fixture_cards.json``."""
+    phase records are stored in the card snapshot."""
     assert ("voltron_matters", "you", "") in _idents(name)
 
 
@@ -3808,7 +3830,9 @@ def test_lifeloss_makers_ramp_exclusion_channel_face():
     pay 1 life. If you do, add {C}." — is itself a mana ability (a
     painland shape), excluded by the same non-ramp gate that protects
     Horizon Canopy."""
-    assert "lifeloss_makers" not in _keys("Yavimaya Bloomsage // Channel")
+    assert "lifeloss_makers" not in _keys(
+        "Yavimaya Bloomsage // Channel", face="Channel"
+    )
 
 
 def test_lifeloss_makers_scriv_token_attach_opponent_bleed_excluded():
@@ -4027,21 +4051,7 @@ def test_lure_makers_fires_on_the_lead_text_only_face_tree():
     via the production constructor and assert the ``_LURE_ABLE`` idiom reads
     it — "all creatures able to block ... do so" is a blocking requirement
     (CR 509.1c: "effects that say a creature must block")."""
-    from mtg_utils._card_ir.trees import _text_only_tree
-
-    face = {
-        "name": "Lead",
-        "mana_cost": "{3}{G}",
-        "type_line": "Sorcery",
-        "oracle_text": (
-            "Aftermath (Cast this spell only from your graveyard. "
-            "Then exile it.)\n"
-            "All creatures able to block target creature this turn do so."
-        ),
-    }
-    tree = _text_only_tree(
-        face, {"cmc": 6.0}, oracle_id="7ebde396-6672-491a-a6ce-1de49b12379b"
-    )
+    tree = _text_only_face_tree("Destined // Lead", "Lead")
     assert tree is not None
     assert tree.units == ()  # zero typed substrate — text idioms only
     idents = {
@@ -4674,7 +4684,7 @@ def test_convert_adapt_self_counter_grow_np_counters():
     adapt (CR 701.46a — a genuine self +1/+1 grow) is dropped WHOLE (no
     node, no Unimplemented residue), so the ``convert_adapt_self_counter_
     grow`` tree_synthesis arm re-derives it via the existing
-    ``synth_self_counter_grow`` marker. The fixture keys the back face by
+    ``synth_self_counter_grow`` marker. The test names the back face by
     its single-face name, matching phase's own card-data indexing (the
     Grizzled Angler DFC precedent). The adapt_matters lane's literal
     "adapt N" keyword-invocation veto keeps the card OUT of the enabler
@@ -5367,9 +5377,9 @@ def test_colorless_matters_reference_idiom_synthesis():
     covers never doubles. Grizzled Angler // Grisly Anglerfish's front
     face ("if there is a colorless creature card in your graveyard,
     transform this creature") is the DFC case — the synthesis arm reads
-    THIS face's own ``tree.oracle`` (fixture keyed by the single-face
-    name, matching how phase's own card-data.json stores DFC faces as
-    separate records). CR 105.2c."""
+    THIS face's own ``tree.oracle`` (the test names the single face,
+    matching how phase's own card-data.json stores DFC faces as separate
+    records). CR 105.2c."""
     assert ("colorless_matters", "you", "") in _idents("Herald of Kozilek")
     assert ("colorless_matters", "you", "") in _idents("Grizzled Angler")
 
@@ -5751,7 +5761,7 @@ def test_opponent_discard_sibling_reveal_backref_rise_fall():
     random from their hand, then discards each nonland card revealed
     this way.") is the SAME recovered-discard-with-sibling-reveal shape
     as Nebuchadnezzar/Hint of Insanity, on a genuinely SEPARATE per-face
-    phase record (fixture keyed "Fall", not the combined card name) — a
+    phase record (the test names the "Fall" face, not the whole card) — a
     beyond-legacy recall gain (the split-card legacy IR doesn't reach
     this face at all), adjudicated genuine per the ADR-0038 recall-
     completion note (role-aware: a real payoff arm, not a conflation)."""
@@ -5784,21 +5794,7 @@ def test_opponent_discard_text_only_face_tree_oblivion():
     reference into a GRANTED trigger's quoted text with no "opponent"/
     "target player"/"each player" anchor at all) is correctly NOT
     matched — a genuinely un-closed gap, not force-fit this session."""
-    from mtg_utils._card_ir.trees import _text_only_tree
-
-    face = {
-        "name": "Oblivion",
-        "mana_cost": "{4}{B}",
-        "type_line": "Sorcery",
-        "oracle_text": (
-            "Aftermath (Cast this spell only from your graveyard. "
-            "Then exile it.)\n"
-            "Target opponent discards two cards."
-        ),
-    }
-    tree = _text_only_tree(
-        face, {"cmc": 7.0}, oracle_id="8fe7436b-2467-486e-8a2d-7cbf21a65da9"
-    )
+    tree = _text_only_face_tree("Consign // Oblivion", "Oblivion")
     assert tree is not None
     assert tree.units == ()  # zero typed substrate — text idioms only
     idents = {
@@ -6071,25 +6067,10 @@ def test_opponent_discard_driven_despair_missing_face_bridge():
     no "target opponent"/"target player"/"each player" anchor the
     pre-existing text-only sweep requires — served by this bridge
     instead. Built via the W2c text-only path directly (not ``_idents``'s
-    ``cards``-dict lookup) mirroring
+    phase-record lookup) mirroring
     :func:`test_opponent_discard_text_only_face_tree_oblivion` — this
-    face has no phase record for the fixture's ``cards`` dict to carry at
-    all."""
-    from mtg_utils._card_ir.trees import _text_only_tree
-
-    face = {
-        "name": "Despair",
-        "mana_cost": "{1}{B}",
-        "type_line": "Sorcery",
-        "oracle_text": (
-            "Aftermath (Cast this spell only from your graveyard. "
-            "Then exile it.)\n"
-            "Until end of turn, creatures you control gain menace and "
-            '"Whenever this creature deals combat damage to a player, '
-            'that player discards a card."'
-        ),
-    }
-    tree = _text_only_tree(face, {}, oracle_id="87fca901-678d-4c9a-be4a-9dce2a53074b")
+    face has no phase record to look up at all."""
+    tree = _text_only_face_tree("Driven // Despair", "Despair")
     assert tree is not None
     idents = {
         (s.key, s.scope, s.subject)
@@ -6852,22 +6833,7 @@ def test_draw_for_each_fires_on_text_only_face_tree():
     trusted as a fallback when a typed Draw node's wrapper carries no
     grounding raw — runs over the whole (units-empty) face text instead.
     CR 121.1/107.3."""
-    from mtg_utils._card_ir.trees import _text_only_tree
-
-    face = {
-        "name": "Feed",
-        "mana_cost": "{2}{G}",
-        "type_line": "Sorcery",
-        "oracle_text": (
-            "Aftermath (Cast this spell only from your graveyard. "
-            "Then exile it.)\n"
-            "Draw a card for each creature you control with power 3 "
-            "or greater."
-        ),
-    }
-    tree = _text_only_tree(
-        face, {"cmc": 5.0}, oracle_id="1b6c1f5d-2b1e-4f3a-9c1e-9f6b8e3d2a11"
-    )
+    tree = _text_only_face_tree("Mouth // Feed", "Feed")
     assert tree is not None
     assert tree.units == ()  # zero typed substrate — text idioms only
     idents = {
@@ -7364,8 +7330,8 @@ def test_scaling_pump_recovered_dynamic_shapes(name):
     """ADR-0038 W3 batch 3 (CR 107.3 / 613.4c): scaling_pump recovers the
     Aggregate/Sum/GrantAbility-nested/degraded-literal dynamic P/T shapes
     the base ``ref_count_qty``/tag-set gate missed. Verified against the
-    real Card IR this session; each card's phase record is pinned in
-    ``crosswalk_fixture_cards.json``."""
+    real Card IR this session; each card's phase records are stored in
+    the card snapshot."""
     assert ("scaling_pump", "you", "") in _idents(name)
 
 
@@ -9704,9 +9670,7 @@ def test_cheat_into_play_land_only_carve_out_rona():
     (None isn't a trusted producer here) AND, even if trusted, the SAME
     Land-only condition the main arm's carve-out already excludes (CR
     305.1)."""
-    assert "cheat_into_play" not in _keys(
-        "Rona, Herald of Invasion // Rona, Tolarian Obliterator"
-    )
+    assert "cheat_into_play" not in _keys("Rona, Tolarian Obliterator")
 
 
 @pytest.mark.parametrize(
@@ -10288,8 +10252,8 @@ def test_team_evasion_grant_broader_kept_mirror(name):
     the tribal/color/core-type/power/equipped/one-shot/can't-be-blocked
     forms the narrow structural gate above deliberately excludes (that gate
     stays scoped to the fully-generic continuous team anthem). Verified
-    against the real Card IR this session; each card's phase record is
-    pinned in ``crosswalk_fixture_cards.json``."""
+    against the real Card IR this session; each card's phase records
+    are stored in the card snapshot."""
     assert ("team_evasion_grant", "you", "") in _idents(name)
 
 
@@ -14916,29 +14880,35 @@ def test_gain_control_exchange_control(name):
 
 
 def test_fixture_corpus_emits_only_manifest_served_keys():
-    """Every key the lanes emit over the fixture corpus is manifest-served.
+    """Every key the lanes emit over the snapshot's phase records is manifest-served.
 
     NOT tautological (ADR-0014): the strangler-era in-extractor filter that
     once made this assertion unfalsifiable was deleted 2026-07-25 — the lanes
     now emit whatever they produce, so this is a live drift guard (the
     snapshot-corpus twin lives in test_signal_keys_real_cards.py)."""
-    for name in _cards():
-        assert _keys(name) <= SERVED_SIGNAL_KEYS
+    for card, rec in _corpus():
+        root = strict_load_card(rec, _schema(), name=rec["name"])
+        tree = as_signal_tree(build_concept_tree(root, name=rec["name"]))
+        keys = {s.key for s in extract_crosswalk_signals(tree, keywords=_kw(card))}
+        assert keys <= SERVED_SIGNAL_KEYS, rec["name"]
 
 
 # ── ADR-0035 Stage-3b (b) — overlay-correction stage + substrate-purity ───────
 
 
 def test_overlay_stage_never_writes_into_the_l1_substrate():
-    """The substrate-purity invariant over the WHOLE fixture: the overlay stage
+    """The substrate-purity invariant over the WHOLE snapshot: the overlay stage
     decorates the Layer-2 concept overlay and leaves every Layer-1 phase-mirror
     node byte-identical AND the same object.
 
     This is the load-bearing safety property (ADR-0035): a correction that leaked
     into the frozen substrate — or swapped a mirror node for a rebuilt one — fails
     here loud, per card."""
-    for name in _cards():
-        tree = _raw_tree(name)
+    for _card, rec in _corpus():
+        name = rec["name"]
+        tree = build_concept_tree(
+            strict_load_card(rec, _schema(), name=name), name=name
+        )
         before_bytes = l1_bytes(tree)
         before_ids = [id(n) for n in _l1_nodes(tree)]
         corrected = apply_overlay_corrections(tree)
@@ -15970,7 +15940,7 @@ def test_direct_damage_bridge_avatar_aang_conjunction_tail_drop():
     ``SequentialSibling`` conjunction (gain life, draw, put counters, deal
     damage) terminates after the FOURTH effect — the fifth conjunct "he
     deals 4 damage to each opponent" carries no node (CR 120.1). Pinned via
-    the transformed back face's own fixture key ("Aang, Master of
+    the transformed back face's own name ("Aang, Master of
     Elements") — the front face ("Avatar Aang") carries neither this
     trigger nor the damage clause."""
     assert ("direct_damage", "you", "") in _idents("Aang, Master of Elements")
@@ -15983,22 +15953,7 @@ def test_direct_damage_bridge_insult_injury_aftermath_face_unparsed():
     ``ConceptTree`` — neither phase's own parse nor the W2c text-only
     fallback structures this face at all (the ``lure_makers`` "Lead"
     precedent's zero-typed-substrate shape, CR 120.1)."""
-    from mtg_utils._card_ir.trees import _text_only_tree
-
-    face = {
-        "name": "Injury",
-        "mana_cost": "{2}{R}",
-        "type_line": "Sorcery",
-        "oracle_text": (
-            "Aftermath (Cast this spell only from your graveyard. "
-            "Then exile it.)\n"
-            "Injury deals 2 damage to target creature and 2 damage to "
-            "target player or planeswalker."
-        ),
-    }
-    tree = _text_only_tree(
-        face, {"cmc": 3.0}, oracle_id="47543892-4d60-4c6b-a6a4-69b9172af01e"
-    )
+    tree = _text_only_face_tree("Insult // Injury", "Injury")
     assert tree is not None
     assert tree.units == ()  # zero typed substrate — text idioms only
     idents = {

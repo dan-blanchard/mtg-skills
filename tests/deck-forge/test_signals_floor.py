@@ -19,16 +19,15 @@ projection gone the comparison has no subject) and the per-pin
 verbatim below, with its original adjudication docstring). The DFC
 floor-to-merge pins at the bottom run the REAL production ``test_signals``.
 
-CI-safe: single-face cases come from the committed
-``crosswalk_fixture_cards.json`` phase records + the committed mirror schema;
-the DFC multi-face pins use the committed ``mtg_utils.testkit`` card snapshot
-(which stores TWO phase records sharing one oracle_id, keyed by name, for
-exactly this purpose) — no bulk / sidecar / phase / network.
+CI-safe: every case comes from the committed ``mtg_utils.testkit`` card
+snapshot — single-face cases from one card's stored phase record
+(``test_phase_records``) + the committed mirror schema, the DFC multi-face pins
+from the production ``test_signals`` over both stored faces — no bulk / sidecar
+/ phase / network.
 """
 
 from __future__ import annotations
 
-import json
 from collections.abc import Callable
 from functools import lru_cache
 
@@ -45,10 +44,8 @@ from mtg_utils._card_ir import compat_lookup as il
 from mtg_utils._card_ir import trees
 from mtg_utils._card_ir.crosswalk import build_concept_tree
 from mtg_utils._card_ir.mirror import strict_load_card
-from mtg_utils._card_ir.mirror.build import fixtures_dir, load_committed_schema
-from mtg_utils.testkit import test_signals
-
-FIXTURE = "crosswalk_fixture_cards.json"
+from mtg_utils._card_ir.mirror.build import load_committed_schema
+from mtg_utils.testkit import test_phase_records, test_signals
 
 
 def _returns(value: object) -> Callable[..., object]:
@@ -58,14 +55,6 @@ def _returns(value: object) -> Callable[..., object]:
         return value
 
     return _fn
-
-
-@lru_cache(maxsize=1)
-def _fixture_records() -> list[dict]:
-    path = fixtures_dir() / FIXTURE
-    if not path.exists():
-        pytest.skip(f"{FIXTURE} not present")
-    return list(json.loads(path.read_text())["cards"].values())
 
 
 @lru_cache(maxsize=1)
@@ -79,17 +68,6 @@ def _clean_caches():
     il.clear_caches()
     yield
     il.clear_caches()
-
-
-@lru_cache(maxsize=1)
-def _faces_by_oid() -> dict[str, list[dict]]:
-    """Fixture phase face-records grouped by oracle_id."""
-    out: dict[str, list[dict]] = {}
-    for rec in _fixture_records():
-        oid = rec.get("scryfall_oracle_id")
-        if oid:
-            out.setdefault(oid, []).append(rec)
-    return out
 
 
 def _floor_case(oid: str, faces: list[dict]):
@@ -129,12 +107,10 @@ def _hybrid_idents(monkeypatch, bulk, tree, *, include: bool):
 
 
 def _floor_case_for(name: str):
-    """A single named fixture card's floor case (see :func:`_floor_case`), or
-    ``None`` if the card isn't present / drifts."""
-    for oid, faces in _faces_by_oid().items():
-        if faces and faces[0].get("name") == name:
-            return _floor_case(oid, faces)
-    return None
+    """A single named card's floor case (see :func:`_floor_case`) over its own
+    snapshot phase record, or ``None`` if the record drifts."""
+    rec = next(r for r in test_phase_records(name) if r["name"] == name)
+    return _floor_case(rec["scryfall_oracle_id"], [rec])
 
 
 # ── ADR-0039 task #80 step 3 — the membership floor's rewired detectors ──────
@@ -158,7 +134,7 @@ def test_land_destruction_promoted_floor(monkeypatch):
     ``include_membership=False`` (the 99-card candidate-mode gate)."""
     built = _floor_case_for("Goblin Settler")
     if built is None:
-        pytest.skip("Goblin Settler fixture record drifts")
+        pytest.skip("Goblin Settler phase record drifts")
     bulk, tree = built
     on_cmd = _hybrid_idents(monkeypatch, bulk, tree, include=True)
     assert ("land_destruction", "you", "") in on_cmd
@@ -174,7 +150,7 @@ def test_big_mana_promoted_floor(monkeypatch):
     ``include_membership=True`` on the crosswalk hybrid path."""
     built = _floor_case_for("Sol Ring")
     if built is None:
-        pytest.skip("Sol Ring fixture record drifts")
+        pytest.skip("Sol Ring phase record drifts")
     bulk, tree = built
     on_cmd = _hybrid_idents(monkeypatch, bulk, tree, include=True)
     assert ("big_mana", "you", "") in on_cmd
@@ -188,7 +164,7 @@ def test_is_big_mana_tree_direct_ramp_effect():
     projection (that comparison arm died with project_card, step 7)."""
     built = _floor_case_for("Sol Ring")
     if built is None:
-        pytest.skip("Sol Ring fixture record drifts")
+        pytest.skip("Sol Ring phase record drifts")
     _bulk, tree = built
     assert _is_big_mana_tree(tree) is True
 
@@ -205,7 +181,7 @@ def test_is_big_mana_tree_granted_mana_ability():
     step 7)."""
     built = _floor_case_for("Discreet Retreat")
     if built is None:
-        pytest.skip("Discreet Retreat fixture record drifts")
+        pytest.skip("Discreet Retreat phase record drifts")
     _bulk, tree = built
     assert not tree.effect_concepts("ramp")
     assert _is_big_mana_tree(tree) is True
@@ -224,7 +200,7 @@ def test_is_big_mana_tree_returnasaura_granted_mana_gain():
     project_card, step 7)."""
     built = _floor_case_for("Harold and Bob, First Numens")
     if built is None:
-        pytest.skip("Harold and Bob, First Numens fixture record drifts")
+        pytest.skip("Harold and Bob, First Numens phase record drifts")
     _bulk, tree = built
     assert _is_big_mana_tree(tree) is True
 
@@ -236,7 +212,7 @@ def test_is_big_mana_tree_single_mana_dork_negative():
     comparison arm died with project_card, step 7)."""
     built = _floor_case_for("Llanowar Elves")
     if built is None:
-        pytest.skip("Llanowar Elves fixture record drifts")
+        pytest.skip("Llanowar Elves phase record drifts")
     _bulk, tree = built
     assert _is_big_mana_tree(tree) is False
 
@@ -253,13 +229,13 @@ def test_floor_kill_engine_reads_tree_directly():
     with project_card, step 7)."""
     built = _floor_case_for("Visara the Dreadful")
     if built is None:
-        pytest.skip("Visara the Dreadful fixture record drifts")
+        pytest.skip("Visara the Dreadful phase record drifts")
     _bulk, tree = built
     assert has_structural_kill_engine(tree) is True
 
     built = _floor_case_for("Llanowar Elves")
     if built is None:
-        pytest.skip("Llanowar Elves fixture record drifts")
+        pytest.skip("Llanowar Elves phase record drifts")
     _bulk, tree = built
     assert has_structural_kill_engine(tree) is False
 
@@ -276,13 +252,13 @@ def test_floor_token_maker_subjects_directed_raw_mirror():
     per-concept raw mirror."""
     built = _floor_case_for("Death by Dragons")
     if built is None:
-        pytest.skip("Death by Dragons fixture record drifts")
+        pytest.skip("Death by Dragons phase record drifts")
     _bulk, tree = built
     assert "Dragon" in _floor_token_maker_subjects(tree, CREATURE_SUBTYPES)
 
     built = _floor_case_for("Soul of Emancipation")
     if built is None:
-        pytest.skip("Soul of Emancipation fixture record drifts")
+        pytest.skip("Soul of Emancipation phase record drifts")
     _bulk, tree = built
     assert "Angel" in _floor_token_maker_subjects(tree, CREATURE_SUBTYPES)
 
@@ -293,7 +269,7 @@ def test_floor_token_maker_subjects_structural_no_mirror_needed():
     directly — no raw-mirror fallback needed."""
     built = _floor_case_for("Krenko, Mob Boss")
     if built is None:
-        pytest.skip("Krenko, Mob Boss fixture record drifts")
+        pytest.skip("Krenko, Mob Boss phase record drifts")
     _bulk, tree = built
     assert "Goblin" in _floor_token_maker_subjects(tree, CREATURE_SUBTYPES)
 
@@ -305,7 +281,7 @@ def test_floor_token_maker_subjects_no_maker_negative():
     step 7)."""
     built = _floor_case_for("Llanowar Elves")
     if built is None:
-        pytest.skip("Llanowar Elves fixture record drifts")
+        pytest.skip("Llanowar Elves phase record drifts")
     _bulk, tree = built
     assert _floor_token_maker_subjects(tree, CREATURE_SUBTYPES) == set()
 
@@ -323,7 +299,7 @@ def test_type_matters_go_wide_arm_vi_dropped_in_commander_mode(monkeypatch):
     regardless (CR 205.3/702.23)."""
     built = _floor_case_for("Elvish Berserker")
     if built is None:
-        pytest.skip("Elvish Berserker fixture record drifts")
+        pytest.skip("Elvish Berserker phase record drifts")
     bulk, tree = built
     on_cmd = _hybrid_idents(monkeypatch, bulk, tree, include=True)
     assert ("type_matters", "you", "Elf") in on_cmd
@@ -337,11 +313,9 @@ def test_type_matters_go_wide_arm_vi_dropped_in_commander_mode(monkeypatch):
 # documented, accepted gap — see ``crosswalk_signals._floor_token_maker_subjects``'s
 # docstring at the time). Moving the floor to run ONCE per card, over every face's
 # tree together (``crosswalk_signals.apply_membership_floor``, called from
-# ``signals.extract_signals``), closes it. These pins use the committed
-# ``mtg_utils.testkit`` card snapshot (not ``crosswalk_fixture_cards.json`` — the
-# DFC pins need TWO phase records sharing one oracle_id, keyed by name, which the
-# testkit snapshot already stores for exactly this purpose) and run the REAL
-# production ``test_signals`` — no fixture indirection.
+# ``signals.extract_signals``), closes it. These pins run the REAL production
+# ``test_signals`` over both of the card's stored phase records (TWO records
+# sharing one oracle_id) — no single-record indirection.
 
 
 def test_dfc_floor_flaxen_intruder_gains_class_tribe():
@@ -406,7 +380,7 @@ def test_voltron_commander_damage_tell_silenced_by_mass_removal_plan(
     membership loss adjudicated correct, not a regression."""
     built = _floor_case_for("Cataclysmic Gearhulk")
     if built is None:
-        pytest.skip("Cataclysmic Gearhulk fixture record drifts")
+        pytest.skip("Cataclysmic Gearhulk phase record drifts")
     bulk, tree = built
     bulk = dict(bulk, power="4", toughness="5", keywords=["Vigilance"])
     idents = _hybrid_idents(monkeypatch, bulk, tree, include=True)
@@ -445,7 +419,7 @@ def test_voltron_fallback_silenced_by_v23_parse_gains(
     adjudicated correct, not a regression."""
     built = _floor_case_for(name)
     if built is None:
-        pytest.skip(f"{name} fixture record drifts")
+        pytest.skip(f"{name} phase record drifts")
     bulk, tree = built
     bulk = dict(bulk, power=power, toughness=toughness, keywords=keywords)
     idents = _hybrid_idents(monkeypatch, bulk, tree, include=True)

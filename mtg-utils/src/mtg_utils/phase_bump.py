@@ -15,11 +15,14 @@ Steps:
   2 variants            EFFECT_VARIANTS from phase's ``ability.rs`` at the tag
   3 card-data           fetch + cache card-data.json for the tag
   4 substrate           build-card-ir-substrate; ZERO_INSTANCE_EFFECTS from the zeros
-  5 crosswalk-fixture   rewrite tests/fixtures/crosswalk_fixture_cards.json
-  6 impostor-census     card-data records whose text matches no bulk face
-  7 rebuild             copy the signals .pkl aside; snapshot, sidecar, signals index
-  8 signal-diff         old vs new signals index, per key
-  9 graduation          test_bridge_ledger.py RETIRE-READY rows
+  5 impostor-census     card-data records whose text matches no bulk face
+  6 rebuild             copy the signals .pkl aside; snapshot, sidecar, signals index
+  7 signal-diff         old vs new signals index, per key
+  8 graduation          test_bridge_ledger.py RETIRE-READY rows
+
+(The crosswalk suites' own fixture — step 5 until ADR-0056 merged it into the card
+snapshot — is re-resolved by step 6's ``build-card-snapshot`` with everything else;
+the builder's summary, unresolved names included, lands in the report's notes.)
 
 Downstream builders run as subprocesses of the SAME interpreter, so they import the
 freshly edited pin; this process only sets ``_phase.PHASE_TAG`` for its own fetches.
@@ -61,7 +64,6 @@ PIN_MENTION_FILES = (
     Path("tests/mtg-utils/test_phase_wrapper.py"),
 )
 FIXTURES = Path("tests/fixtures")
-CROSSWALK_FIXTURE = FIXTURES / "crosswalk_fixture_cards.json"
 POPULATION_FIXTURE = FIXTURES / "phase_variant_population.json"
 BRIDGE_LEDGER_TEST = Path("tests/mtg-utils/test_bridge_ledger.py")
 
@@ -157,38 +159,6 @@ def card_data_records(data: object) -> list[dict]:
     if isinstance(data, list):
         return [r for r in data if isinstance(r, dict)]
     return []
-
-
-def regen_crosswalk_fixture(
-    fixture: dict, card_data: object, new_tag: str
-) -> tuple[dict, list[str]]:
-    """Rewrite each ``cards`` entry (a raw phase face record keyed by the bulk pin
-    name) with the same card's record from the new card-data — matched by the
-    record's ``scryfall_oracle_id`` AND casefolded name, so a renamed or re-keyed
-    record never silently swaps in a different card. ``scryfall_keywords`` and
-    ``text_only_faces`` are kept verbatim (they come from the bulk, not phase).
-    Returns the new fixture and the names that had NO matching record (kept as
-    they were, and reported — a coverage hole to triage, never a silent drop)."""
-    by_key: dict[tuple[str, str], dict] = {}
-    for rec in card_data_records(card_data):
-        oid = rec.get("scryfall_oracle_id") or ""
-        nm = (rec.get("name") or "").casefold()
-        if oid and nm:
-            by_key.setdefault((oid, nm), rec)  # first record wins, deterministic
-    out_cards: dict[str, dict] = {}
-    missing: list[str] = []
-    for pin_name, old in fixture["cards"].items():
-        key = (old.get("scryfall_oracle_id") or "", (old.get("name") or "").casefold())
-        new = by_key.get(key)
-        if new is None:
-            missing.append(pin_name)
-            out_cards[pin_name] = old
-        else:
-            out_cards[pin_name] = new
-    new_fixture = dict(fixture)
-    new_fixture["phase_tag"] = new_tag
-    new_fixture["cards"] = out_cards
-    return new_fixture, missing
 
 
 @dataclass(frozen=True)
@@ -299,7 +269,6 @@ def render_report(
     variants_before: int,
     variants_after: int,
     zero_instance: Sequence[str],
-    fixture_missing: Sequence[str],
     census: Sequence[ImpostorRow],
     diff: Sequence[KeyDiff],
     residue_backed: Mapping[str, Sequence[str]],
@@ -313,17 +282,8 @@ def render_report(
         f"- EFFECT_VARIANTS: {variants_before} → {variants_after}",
         f"- ZERO_INSTANCE_EFFECTS: {len(zero_instance)} ({', '.join(zero_instance)})",
         "",
-        "## Crosswalk fixture",
+        "## Impostor census (report only — never auto-applied)",
     ]
-    if fixture_missing:
-        lines.append(
-            f"- {len(fixture_missing)} pinned card(s) have NO record at {new_tag} "
-            "(old record kept; a coverage hole to triage):"
-        )
-        lines.extend(f"  - {n}" for n in fixture_missing)
-    else:
-        lines.append("- every pinned card re-resolved")
-    lines += ["", "## Impostor census (report only — never auto-applied)"]
     if census:
         lines.append(
             f"- {len(census)} record(s) whose text matches no bulk face for their "
@@ -387,7 +347,6 @@ class BumpContext:
     variants_before: int = 0
     variants_after: int = 0
     zero_instance: tuple[str, ...] = ()
-    fixture_missing: tuple[str, ...] = ()
     census: tuple[ImpostorRow, ...] = ()
     diff: tuple[KeyDiff, ...] = ()
     residue_backed: dict[str, tuple[str, ...]] = field(default_factory=dict)
@@ -429,10 +388,11 @@ def step_card_data(ctx: BumpContext) -> None:
     ctx.notes.append(f"card-data for {ctx.new_tag}: {path}")
 
 
-def _run(ctx: BumpContext, *argv: str) -> None:
+def _run(ctx: BumpContext, *argv: str) -> str:
     proc = ctx.runner([sys.executable, "-m", *argv])
     if proc.returncode != 0:
         raise RuntimeError(f"`{' '.join(argv)}` failed:\n{proc.stdout}\n{proc.stderr}")
+    return proc.stdout or ""
 
 
 def step_substrate(ctx: BumpContext) -> None:
@@ -454,18 +414,6 @@ def parse_effect_enum_from_variants(variants_source: str) -> tuple[str, ...]:
     e = variants_source.index(VARIANTS_END, b)
     block = variants_source[b:e]
     return tuple(re.findall(r'^    "([A-Za-z0-9_]+)",$', block, re.MULTILINE))
-
-
-def step_crosswalk_fixture(ctx: BumpContext) -> None:
-    fixture = json.loads(_read(ctx, CROSSWALK_FIXTURE))
-    card_data = json.loads(ctx.card_data_path().read_text(encoding="utf-8"))
-    new_fixture, missing = regen_crosswalk_fixture(fixture, card_data, ctx.new_tag)
-    _write(
-        ctx,
-        CROSSWALK_FIXTURE,
-        json.dumps(new_fixture, indent=1, ensure_ascii=False) + "\n",
-    )
-    ctx.fixture_missing = tuple(missing)
 
 
 def _bulk_records(ctx: BumpContext) -> list[dict]:
@@ -500,7 +448,10 @@ def step_rebuild(ctx: BumpContext) -> None:
         ctx.notes.append(f"old signals index copied to {ctx.report_dir}")
     else:
         ctx.notes.append("no prior signals index found — the signal diff is skipped")
-    _run(ctx, "mtg_utils.build_card_snapshot")
+    snapshot = _run(ctx, "mtg_utils.build_card_snapshot").strip()
+    if snapshot:
+        # Unresolved names and text-only cards are coverage holes to triage.
+        ctx.notes.append(f"card snapshot: {snapshot}")
     _run(ctx, "mtg_utils.card_ir_crosswalk_build")
     _run(ctx, "mtg_utils.signals_index_build")
     if ctx.install_phase:
@@ -551,7 +502,6 @@ STEPS: tuple[tuple[str, Callable[[BumpContext], None]], ...] = (
     ("variants", step_variants),
     ("card-data", step_card_data),
     ("substrate", step_substrate),
-    ("crosswalk-fixture", step_crosswalk_fixture),
     ("impostor-census", step_impostor_census),
     ("rebuild", step_rebuild),
     ("signal-diff", step_signal_diff),
@@ -600,7 +550,6 @@ def run(ctx: BumpContext, *, from_step: int = 1, echo: Callable[[str], None]) ->
             variants_before=ctx.variants_before,
             variants_after=ctx.variants_after,
             zero_instance=ctx.zero_instance,
-            fixture_missing=ctx.fixture_missing,
             census=ctx.census,
             diff=ctx.diff,
             residue_backed=ctx.residue_backed,
