@@ -4,6 +4,7 @@ Headline guard: a card that feeds an *opponents'-graveyard* signal must mill
 opponents, not yourself. Self-mill must NOT register as serving it.
 """
 
+import dataclasses
 import re
 
 import pytest
@@ -25,6 +26,14 @@ def _sig(key, scope="you"):
     return Signal(key=key, scope=scope, subject="", text="", source="cmd")
 
 
+def _card(name):
+    """The real snapshot record for *name* (ADR-0056), with its crosswalk trees
+    memo seeded first — so a serve's structural ``signal_idents`` arm reads the
+    card's real idents in CI exactly as it does locally (no phase cache)."""
+    test_card_ir(name)
+    return test_card(name)
+
+
 def test_serve_all_of_requires_every_subserve():
     # AND-composition: a Serve with `all_of` matches only when EVERY sub-serve matches
     # (each sub-serve is itself an OR-of-dimensions). Lets us express "dies-value AND
@@ -35,24 +44,10 @@ def test_serve_all_of_requires_every_subserve():
             Serve(cmc_min=5),
         )
     )
-    kokusho = {
-        "name": "Kokusho",
-        "type_line": "Legendary Creature — Dragon Spirit",
-        "cmc": 6.0,
-        "oracle_text": "When Kokusho dies, each opponent loses 5 life.",
-    }
-    young_wolf = {  # has a dies trigger but cmc 1 — not a clone bomb
-        "name": "Young Wolf",
-        "type_line": "Creature — Wolf",
-        "cmc": 1.0,
-        "oracle_text": "Undying\nWhen Young Wolf dies, return it...",
-    }
-    big_vanilla = {  # cmc>=5 but no dies trigger
-        "name": "Big Dumb",
-        "type_line": "Creature — Beast",
-        "cmc": 7.0,
-        "oracle_text": "",
-    }
+    kokusho = _card("Kokusho, the Evening Star")
+    # Has a dies trigger (undying's reminder text) but cmc 1 — not a clone bomb.
+    young_wolf = _card("Young Wolf")
+    big_vanilla = _card("Craw Wurm")  # cmc>=5 but no dies trigger
     assert big_dies.matches(kokusho) is True
     assert big_dies.matches(young_wolf) is False
     assert big_dies.matches(big_vanilla) is False
@@ -88,30 +83,12 @@ def test_stax_serves_nonbasic_land_hate():
     # Earth, Price of Progress). The serve had "nonbasic ... enters tapped" / "don't
     # untap" but missed "are Mountains" / "taps a nonbasic land" / "number of nonbasic".
     sig = _sig("stax_taxes", "opponents")
-    magus = {
-        "name": "Magus of the Moon",
-        "type_line": "Creature — Human Wizard",
-        "oracle_text": "Nonbasic lands are Mountains.",
-    }
-    burning = {
-        "name": "Burning Earth",
-        "type_line": "Enchantment",
-        "oracle_text": (
-            "Whenever a player taps a nonbasic land for mana, Burning Earth deals 1 "
-            "damage to that player."
-        ),
-    }
+    magus = _card("Magus of the Moon")
+    burning = _card("Burning Earth")
     assert _lane_covers(magus, sig) is True
     assert _lane_covers(burning, sig) is True
     # Over-fire guard: a basic-land ramp spell is not land-denial stax.
-    ramp = {
-        "name": "Rampant Growth",
-        "type_line": "Sorcery",
-        "oracle_text": (
-            "Search your library for a basic land card, put it onto the battlefield "
-            "tapped, then shuffle."
-        ),
-    }
+    ramp = _card("Rampant Growth")
     assert _lane_covers(ramp, sig) is False
 
 
@@ -122,22 +99,11 @@ def test_stax_serves_opponent_skip_step_imposition():
     # opponent/that-player/the-player skip branch must catch it. Without it Fatespinner
     # served nothing -> filler -> the spread_thin pass cut the deck's stax piece.
     sig = _sig("stax_taxes", "opponents")
-    fatespinner = {
-        "name": "Fatespinner",
-        "type_line": "Creature — Human Wizard",
-        "oracle_text": (
-            "At the beginning of each opponent's upkeep, that player chooses draw "
-            "step, main phase, or combat phase. The player skips each instance of the "
-            "chosen step or phase this turn."
-        ),
-    }
+    fatespinner = _card("Fatespinner")
     assert _lane_covers(fatespinner, sig) is True
-    # Over-fire guard: a SELF skip-step drawback ("skip your ...") is not stax.
-    drawback = {
-        "name": "Self Drawback",
-        "type_line": "Enchantment",
-        "oracle_text": "At the beginning of your draw step, you skip your draw step.",
-    }
+    # Over-fire guard: a SELF skip-step drawback ("skip your ...") is not stax —
+    # Necropotence skips its own controller's draw step.
+    drawback = _card("Necropotence")
     assert _lane_covers(drawback, sig) is False
 
 
@@ -146,28 +112,9 @@ def test_free_creature_payoff_serves_only_zero_cost_creatures():
     # not 0-cost mana rocks (Lotus Petal is {0} but not a creature) and not normal-cost
     # creatures. The serve ANDs mana_cost {0} with a creature type. Real oracle.
     sig = _sig("free_creature_payoff", "you")
-    ornithopter = {
-        "name": "Ornithopter",
-        "type_line": "Artifact Creature — Thopter",
-        "mana_cost": "{0}",
-        "power": "0",
-        "toughness": "2",
-        "oracle_text": "Flying",
-    }
-    lotus_petal = {
-        "name": "Lotus Petal",
-        "type_line": "Artifact",
-        "mana_cost": "{0}",
-        "oracle_text": "{T}, Sacrifice this artifact: Add one mana of any color.",
-    }
-    grizzly_bears = {
-        "name": "Grizzly Bears",
-        "type_line": "Creature — Bear",
-        "mana_cost": "{1}{G}",
-        "power": "2",
-        "toughness": "2",
-        "oracle_text": "",
-    }
+    ornithopter = _card("Ornithopter")
+    lotus_petal = _card("Lotus Petal")
+    grizzly_bears = _card("Grizzly Bears")
     assert serves(ornithopter, sig) is True  # 0-cost creature
     assert serves(lotus_petal, sig) is False  # 0-cost, but not a creature
     assert serves(grizzly_bears, sig) is False  # creature, but not 0-cost
@@ -180,53 +127,16 @@ def test_mass_death_payoff_serves_board_wipes_and_mass_reanimation():
     # ("return ... all ... cards ... graveyard ... to the battlefield" — Storm of Souls,
     # Faith's Reward) refills the board after. Real oracle.
     sig = _sig("mass_death_payoff", "you")
-    wipes_and_reanim = [
-        (
-            "Wrath of God",
-            "Sorcery",
-            "{2}{W}{W}",
-            "Destroy all creatures. They can't be regenerated.",
-        ),
-        (
-            "Blasphemous Act",
-            "Sorcery",
-            "{8}{R}",
-            (
-                "This spell costs {1} less to cast for each creature on the battlefield.\n"
-                "Blasphemous Act deals 13 damage to each creature."
-            ),
-        ),
-        (
-            "Storm of Souls",
-            "Sorcery",
-            "{4}{W}{W}",
-            (
-                "Return all creature cards from your graveyard to the battlefield. Each of "
-                "them is a 1/1 Spirit with flying in addition to its other types. Exile "
-                "Storm of Souls."
-            ),
-        ),
-        (
-            "Faith's Reward",
-            "Instant",
-            "{3}{W}",
-            (
-                "Return to the battlefield all permanent cards in your graveyard that were "
-                "put there from the battlefield this turn."
-            ),
-        ),
-    ]
-    for name, tl, mc, otext in wipes_and_reanim:
-        card = {"name": name, "type_line": tl, "mana_cost": mc, "oracle_text": otext}
-        assert serves(card, sig) is True, name
+    for name in (
+        "Wrath of God",
+        "Blasphemous Act",
+        "Storm of Souls",
+        "Faith's Reward",
+    ):
+        assert serves(_card(name), sig) is True, name
     # NOT single-target reanimation — Raise Dead returns ONE creature to hand; that's
     # the reanimator lane, not refilling a wiped board. Real oracle.
-    raise_dead = {
-        "name": "Raise Dead",
-        "type_line": "Sorcery",
-        "mana_cost": "{B}",
-        "oracle_text": "Return target creature card from your graveyard to your hand.",
-    }
+    raise_dead = _card("Raise Dead")
     assert serves(raise_dead, sig) is False
 
 
@@ -235,34 +145,11 @@ def test_land_protection_serves_indestructible_and_untargetable_lands():
     # Eternal ("All lands have indestructible") and Tomik ("Lands … can't be the targets
     # of … your opponents"). A mana dork is not land protection. Real oracle.
     sig = _sig("land_protection", "you")
-    terra_eternal = {
-        "name": "Terra Eternal",
-        "type_line": "Enchantment",
-        "mana_cost": "{2}{W}",
-        "oracle_text": "All lands have indestructible.",
-    }
-    tomik = {
-        "name": "Tomik, Distinguished Advokist",
-        "type_line": "Legendary Creature — Human Advisor",
-        "mana_cost": "{W}{W}",
-        "power": "2",
-        "toughness": "3",
-        "oracle_text": (
-            "Flying\nLands on the battlefield and land cards in graveyards can't be the "
-            "targets of spells or abilities your opponents control.\nYour opponents "
-            "can't play land cards from graveyards."
-        ),
-    }
+    terra_eternal = _card("Terra Eternal")
+    tomik = _card("Tomik, Distinguished Advokist")
     assert serves(terra_eternal, sig) is True
     assert serves(tomik, sig) is True
-    llanowar_elves = {
-        "name": "Llanowar Elves",
-        "type_line": "Creature — Elf Druid",
-        "mana_cost": "{G}",
-        "power": "1",
-        "toughness": "1",
-        "oracle_text": "{T}: Add {G}.",
-    }
+    llanowar_elves = _card("Llanowar Elves")
     assert serves(llanowar_elves, sig) is False
 
 
@@ -271,39 +158,11 @@ def test_entered_attacker_serves_etb_pump_and_haste():
     # once. Primal Forcemage (+3/+3 on enter) and Ogre Battledriver (+2/+0 and haste on
     # enter) feed it; Impact Tremors (ETB-ping, no pump/haste) does not. Real oracle.
     sig = _sig("entered_attacker", "you")
-    primal_forcemage = {
-        "name": "Primal Forcemage",
-        "type_line": "Creature — Elf Shaman",
-        "mana_cost": "{2}{G}",
-        "power": "2",
-        "toughness": "2",
-        "oracle_text": (
-            "Whenever another creature you control enters, that creature gets +3/+3 "
-            "until end of turn."
-        ),
-    }
-    ogre_battledriver = {
-        "name": "Ogre Battledriver",
-        "type_line": "Creature — Ogre Warrior",
-        "mana_cost": "{2}{R}{R}",
-        "power": "3",
-        "toughness": "3",
-        "oracle_text": (
-            "Whenever another creature you control enters, that creature gets +2/+0 and "
-            "gains haste until end of turn. (It can attack and {T} this turn.)"
-        ),
-    }
+    primal_forcemage = _card("Primal Forcemage")
+    ogre_battledriver = _card("Ogre Battledriver")
     assert serves(primal_forcemage, sig) is True
     assert serves(ogre_battledriver, sig) is True
-    impact_tremors = {
-        "name": "Impact Tremors",
-        "type_line": "Enchantment",
-        "mana_cost": "{1}{R}",
-        "oracle_text": (
-            "Whenever a creature you control enters, this enchantment deals 1 damage to "
-            "each opponent."
-        ),
-    }
+    impact_tremors = _card("Impact Tremors")
     assert serves(impact_tremors, sig) is False
 
 
@@ -312,34 +171,11 @@ def test_target_redirect_serves_spell_redirect():
     # ability to this creature") and Misdirection ("change the target of target spell").
     # A burn spell is not. Real oracle.
     sig = _sig("target_redirect", "you")
-    spellskite = {
-        "name": "Spellskite",
-        "type_line": "Artifact Creature — Phyrexian Horror",
-        "mana_cost": "{2}",
-        "power": "0",
-        "toughness": "4",
-        "oracle_text": (
-            "{U/P}: Change a target of target spell or ability to this creature. ({U/P} "
-            "can be paid with either {U} or 2 life.)"
-        ),
-    }
-    misdirection = {
-        "name": "Misdirection",
-        "type_line": "Instant",
-        "mana_cost": "{3}{U}{U}",
-        "oracle_text": (
-            "You may exile a blue card from your hand rather than pay this spell's mana "
-            "cost.\nChange the target of target spell with a single target."
-        ),
-    }
+    spellskite = _card("Spellskite")
+    misdirection = _card("Misdirection")
     assert serves(spellskite, sig) is True
     assert serves(misdirection, sig) is True
-    lightning_bolt = {
-        "name": "Lightning Bolt",
-        "type_line": "Instant",
-        "mana_cost": "{R}",
-        "oracle_text": "Lightning Bolt deals 3 damage to any target.",
-    }
+    lightning_bolt = _card("Lightning Bolt")
     assert serves(lightning_bolt, sig) is False
 
 
@@ -347,40 +183,12 @@ def test_free_spell_storm_serves_zero_cost_nonland_spells():
     # Thrasta wants free spells to chain: Lotus Petal and Memnite (both {0} nonland). A
     # 1-cmc creature isn't free; a 0-mv basic land isn't a spell cast. Real oracle.
     sig = _sig("free_spell_storm", "you")
-    lotus_petal = {
-        "name": "Lotus Petal",
-        "type_line": "Artifact",
-        "mana_cost": "{0}",
-        "cmc": 0.0,
-        "oracle_text": "{T}, Sacrifice this artifact: Add one mana of any color.",
-    }
-    memnite = {
-        "name": "Memnite",
-        "type_line": "Artifact Creature — Construct",
-        "mana_cost": "{0}",
-        "cmc": 0.0,
-        "power": "1",
-        "toughness": "1",
-        "oracle_text": "",
-    }
+    lotus_petal = _card("Lotus Petal")
+    memnite = _card("Memnite")
     assert serves(lotus_petal, sig) is True
     assert serves(memnite, sig) is True
-    llanowar_elves = {
-        "name": "Llanowar Elves",
-        "type_line": "Creature — Elf Druid",
-        "mana_cost": "{G}",
-        "cmc": 1.0,
-        "power": "1",
-        "toughness": "1",
-        "oracle_text": "{T}: Add {G}.",
-    }
-    forest = {
-        "name": "Forest",
-        "type_line": "Basic Land — Forest",
-        "mana_cost": "",
-        "cmc": 0.0,
-        "oracle_text": "({T}: Add {G}.)",
-    }
+    llanowar_elves = _card("Llanowar Elves")
+    forest = _card("Forest")
     assert serves(llanowar_elves, sig) is False  # not free
     assert serves(forest, sig) is False  # 0-mv but a land, not a spell
 
@@ -389,22 +197,8 @@ def test_scavenge_fuel_serves_high_power_creatures():
     # Varolz wants high-power creatures (scavenge = +1/+1 counters equal to power). Force
     # of Savagery (8/0) feeds it; a 2/2 bear does not. Real oracle.
     sig = _sig("scavenge_fuel", "you")
-    force_of_savagery = {
-        "name": "Force of Savagery",
-        "type_line": "Creature — Elemental",
-        "mana_cost": "{G}{G}{G}",
-        "power": "8",
-        "toughness": "0",
-        "oracle_text": "Trample",
-    }
-    grizzly = {
-        "name": "Grizzly Bears",
-        "type_line": "Creature — Bear",
-        "mana_cost": "{1}{G}",
-        "power": "2",
-        "toughness": "2",
-        "oracle_text": "",
-    }
+    force_of_savagery = _card("Force of Savagery")
+    grizzly = _card("Grizzly Bears")
     assert serves(force_of_savagery, sig) is True
     assert serves(grizzly, sig) is False
 
@@ -414,37 +208,11 @@ def test_land_exchange_serves_land_swap():
     # control of target land you control and target land an opponent controls"). A plain
     # ramp spell is not. Real oracle.
     sig = _sig("land_exchange", "you")
-    political_trickery = {
-        "name": "Political Trickery",
-        "type_line": "Sorcery",
-        "mana_cost": "{2}{U}",
-        "oracle_text": (
-            "Exchange control of target land you control and target land an opponent "
-            "controls. (This effect lasts indefinitely.)"
-        ),
-    }
-    vedalken_plotter = {
-        "name": "Vedalken Plotter",
-        "type_line": "Creature — Vedalken Wizard",
-        "mana_cost": "{2}{U}",
-        "power": "2",
-        "toughness": "2",
-        "oracle_text": (
-            "When this creature enters, exchange control of target land you control and "
-            "target land an opponent controls."
-        ),
-    }
+    political_trickery = _card("Political Trickery")
+    vedalken_plotter = _card("Vedalken Plotter")
     assert serves(political_trickery, sig) is True
     assert serves(vedalken_plotter, sig) is True
-    rampant_growth = {
-        "name": "Rampant Growth",
-        "type_line": "Sorcery",
-        "mana_cost": "{1}{G}",
-        "oracle_text": (
-            "Search your library for a basic land card, put that card onto the "
-            "battlefield tapped, then shuffle."
-        ),
-    }
+    rampant_growth = _card("Rampant Growth")
     assert serves(rampant_growth, sig) is False
 
 
@@ -453,38 +221,11 @@ def test_life_payment_insurance_serves_dont_lose_at_zero():
     # having 0 or less life") and Angel's Grace ("you can't lose the game this turn"). A
     # mana dork is not insurance. Real oracle.
     sig = _sig("life_payment_insurance", "you")
-    phyrexian_unlife = {
-        "name": "Phyrexian Unlife",
-        "type_line": "Enchantment",
-        "mana_cost": "{2}{W}",
-        "oracle_text": (
-            "You don't lose the game for having 0 or less life.\nAs long as you have 0 "
-            "or less life, all damage is dealt to you as though its source had infect. "
-            "(Damage is dealt to you in the form of poison counters.)"
-        ),
-    }
-    angels_grace = {
-        "name": "Angel's Grace",
-        "type_line": "Instant",
-        "mana_cost": "{W}",
-        "oracle_text": (
-            "Split second (As long as this spell is on the stack, players can't cast "
-            "spells or activate abilities that aren't mana abilities.)\nYou can't lose "
-            "the game this turn and your opponents can't win the game this turn. Until "
-            "end of turn, damage that would reduce your life total to less than 1 "
-            "reduces it to 1 instead."
-        ),
-    }
+    phyrexian_unlife = _card("Phyrexian Unlife")
+    angels_grace = _card("Angel's Grace")
     assert serves(phyrexian_unlife, sig) is True
     assert serves(angels_grace, sig) is True
-    llanowar_elves = {
-        "name": "Llanowar Elves",
-        "type_line": "Creature — Elf Druid",
-        "mana_cost": "{G}",
-        "power": "1",
-        "toughness": "1",
-        "oracle_text": "{T}: Add {G}.",
-    }
+    llanowar_elves = _card("Llanowar Elves")
     assert serves(llanowar_elves, sig) is False
 
 
@@ -493,38 +234,11 @@ def test_target_own_payoff_serves_free_self_targeting():
     # dealt to target creature you control") triggers airbend on demand. A vanilla bear
     # is not a self-targeter. Real oracle.
     sig = _sig("target_own_payoff", "you")
-    nomads_en_kor = {
-        "name": "Nomads en-Kor",
-        "type_line": "Creature — Kor Nomad Soldier",
-        "mana_cost": "{W}",
-        "power": "1",
-        "toughness": "1",
-        "oracle_text": (
-            "{0}: The next 1 damage that would be dealt to this creature this turn is "
-            "dealt to target creature you control instead."
-        ),
-    }
-    warrior_en_kor = {
-        "name": "Warrior en-Kor",
-        "type_line": "Creature — Kor Warrior Knight",
-        "mana_cost": "{W}{W}",
-        "power": "2",
-        "toughness": "2",
-        "oracle_text": (
-            "{0}: The next 1 damage that would be dealt to this creature this turn is "
-            "dealt to target creature you control instead."
-        ),
-    }
+    nomads_en_kor = _card("Nomads en-Kor")
+    warrior_en_kor = _card("Warrior en-Kor")
     assert serves(nomads_en_kor, sig) is True
     assert serves(warrior_en_kor, sig) is True
-    grizzly = {
-        "name": "Grizzly Bears",
-        "type_line": "Creature — Bear",
-        "mana_cost": "{1}{G}",
-        "power": "2",
-        "toughness": "2",
-        "oracle_text": "",
-    }
+    grizzly = _card("Grizzly Bears")
     assert serves(grizzly, sig) is False
 
 
@@ -534,43 +248,11 @@ def test_multicolor_matters_serves_payoffs_not_every_gold_card():
     # multicolor payoff (Soulherder) is not credited — that would be the whole deck. Real
     # oracle.
     sig = _sig("multicolor_matters", "you")
-    rokiric = {
-        "name": "General Ferrous Rokiric",
-        "type_line": "Legendary Creature — Human Soldier",
-        "mana_cost": "{1}{R}{W}",
-        "power": "3",
-        "toughness": "1",
-        "oracle_text": (
-            "Hexproof from monocolored\nWhenever you cast a multicolored spell, create a "
-            "4/4 red and white Golem artifact creature token."
-        ),
-    }
-    bring_to_light = {
-        "name": "Bring to Light",
-        "type_line": "Sorcery",
-        "mana_cost": "{3}{G}{U}",
-        "oracle_text": (
-            "Converge — Search your library for a creature, instant, or sorcery card "
-            "with mana value less than or equal to the number of colors of mana spent "
-            "to cast this spell, exile that card, then shuffle. You may cast that card "
-            "without paying its mana cost."
-        ),
-    }
+    rokiric = _card("General Ferrous Rokiric")
+    bring_to_light = _card("Bring to Light")
     assert serves(rokiric, sig) is True
     assert serves(bring_to_light, sig) is True
-    soulherder = {
-        "name": "Soulherder",
-        "type_line": "Creature — Spirit",
-        "mana_cost": "{1}{W}{U}",
-        "power": "1",
-        "toughness": "1",
-        "oracle_text": (
-            "Whenever a creature is exiled from the battlefield, put a +1/+1 counter on "
-            "this creature.\nAt the beginning of your end step, you may exile another "
-            "target creature you control, then return it to the battlefield under its "
-            "owner's control."
-        ),
-    }
+    soulherder = _card("Soulherder")
     assert serves(soulherder, sig) is False
 
 
@@ -578,34 +260,11 @@ def test_land_denial_serves_symmetric_land_punishers():
     # Taniwha wants symmetric land-bounce/sac stax: Mana Breach and Overburden ("that
     # player returns a land they control"). A mana dork is not land denial. Real oracle.
     sig = _sig("land_denial", "you")
-    mana_breach = {
-        "name": "Mana Breach",
-        "type_line": "Enchantment",
-        "mana_cost": "{2}{U}",
-        "oracle_text": (
-            "Whenever a player casts a spell, that player returns a land they control "
-            "to its owner's hand."
-        ),
-    }
-    overburden = {
-        "name": "Overburden",
-        "type_line": "Enchantment",
-        "mana_cost": "{1}{U}",
-        "oracle_text": (
-            "Whenever a player puts a nontoken creature onto the battlefield, that "
-            "player returns a land they control to its owner's hand."
-        ),
-    }
+    mana_breach = _card("Mana Breach")
+    overburden = _card("Overburden")
     assert serves(mana_breach, sig) is True
     assert serves(overburden, sig) is True
-    llanowar_elves = {
-        "name": "Llanowar Elves",
-        "type_line": "Creature — Elf Druid",
-        "mana_cost": "{G}",
-        "power": "1",
-        "toughness": "1",
-        "oracle_text": "{T}: Add {G}.",
-    }
+    llanowar_elves = _card("Llanowar Elves")
     assert serves(llanowar_elves, sig) is False
 
 
@@ -614,41 +273,13 @@ def test_lose_unless_hand_serves_drawback_negation():
     # to hand), Platinum Angel ("can't lose the game"), Torpor Orb (ETBs don't trigger,
     # silencing the lose-trigger). A burn spell does not. Real oracle.
     sig = _sig("lose_unless_hand", "you")
-    netherborn_altar = {
-        "name": "Netherborn Altar",
-        "type_line": "Artifact",
-        "mana_cost": "{1}{B}",
-        "oracle_text": (
-            "{T}, Put a soul counter on this artifact: Put your commander into your hand "
-            "from the command zone. Then you lose 3 life for each soul counter on this "
-            "artifact."
-        ),
-    }
-    platinum_angel = {
-        "name": "Platinum Angel",
-        "type_line": "Artifact Creature — Angel",
-        "mana_cost": "{7}",
-        "power": "4",
-        "toughness": "4",
-        "oracle_text": (
-            "Flying\nYou can't lose the game and your opponents can't win the game."
-        ),
-    }
-    torpor_orb = {
-        "name": "Torpor Orb",
-        "type_line": "Artifact",
-        "mana_cost": "{2}",
-        "oracle_text": "Creatures entering don't cause abilities to trigger.",
-    }
+    netherborn_altar = _card("Netherborn Altar")
+    platinum_angel = _card("Platinum Angel")
+    torpor_orb = _card("Torpor Orb")
     assert serves(netherborn_altar, sig) is True
     assert serves(platinum_angel, sig) is True
     assert serves(torpor_orb, sig) is True
-    lightning_bolt = {
-        "name": "Lightning Bolt",
-        "type_line": "Instant",
-        "mana_cost": "{R}",
-        "oracle_text": "Lightning Bolt deals 3 damage to any target.",
-    }
+    lightning_bolt = _card("Lightning Bolt")
     assert serves(lightning_bolt, sig) is False
 
 
@@ -657,34 +288,14 @@ def test_speed_matters_serves_cheap_unblockable_only():
     # (speed_makers) — advancing speed by chipping life is a maker-side avenue.
     # Vnwxt's speed ramps when an opponent loses life, so it wants CHEAP unblockable
     # creatures that connect early (Slither Blade, {U}). The cmc_max gate excludes an
-    # expensive unblockable (Bubbling Beebles, mv 5) — that's not the early-pressure
+    # expensive unblockable (Tidal Kraken, mv 8) — that's not the early-pressure
     # package. Rides a sub-avenue, so check _lane_covers. Real oracle.
     sig = _sig("speed_makers", "you")
-    slither_blade = {
-        "name": "Slither Blade",
-        "type_line": "Creature — Snake Rogue",
-        "mana_cost": "{U}",
-        "cmc": 1.0,
-        "power": "2",
-        "toughness": "1",
-        "oracle_text": "This creature can't be blocked.",
-    }
-    bubbling_beebles = {
-        "name": "Bubbling Beebles",
-        "type_line": "Creature — Beeble",
-        "mana_cost": "{4}{U}",
-        "cmc": 5.0,
-        "power": "3",
-        "toughness": "3",
-        "oracle_text": (
-            "Bubbling Beebles can't be blocked as long as your opponents control an "
-            "artifact or enchantment."
-        ),
-    }
+    slither_blade = _card("Slither Blade")
     assert _lane_covers(slither_blade, sig) is True
-    # Expensive unblockable is not the cheap early-pressure package (cmc gate).
-    big_unblockable = dict(bubbling_beebles)
-    big_unblockable["oracle_text"] = "This creature can't be blocked."
+    # Expensive unblockable is not the cheap early-pressure package (cmc gate):
+    # Tidal Kraken's text is Slither Blade's word for word, only the mv differs.
+    big_unblockable = _card("Tidal Kraken")
     assert _lane_covers(big_unblockable, sig) is False
 
 
@@ -694,14 +305,7 @@ def test_timing_control_serves_cast_and_activate_lock():
     # only during their own turns") — the timing_control regex required "spells only"
     # contiguously and missed the "and activate abilities" variant. Real oracle.
     sig = _sig("timing_control", "opponents")
-    city_of_solitude = {
-        "name": "City of Solitude",
-        "type_line": "Enchantment",
-        "mana_cost": "{2}{G}",
-        "oracle_text": (
-            "Players can cast spells and activate abilities only during their own turns."
-        ),
-    }
+    city_of_solitude = _card("City of Solitude")
     assert serves(city_of_solitude, sig) is True
 
 
@@ -711,33 +315,11 @@ def test_damage_prevention_serves_block_any_number_and_redirect_soak():
     # soak (Pariah) into a hard lock — block/soak everything, then prevent it. These ride
     # a sub-avenue, so check _lane_covers. Real oracle.
     sig = _sig("damage_prevention", "you")
-    palace_guard = {
-        "name": "Palace Guard",
-        "type_line": "Creature — Human Soldier",
-        "mana_cost": "{2}{W}",
-        "power": "1",
-        "toughness": "4",
-        "oracle_text": "This creature can block any number of creatures.",
-    }
-    pariah = {
-        "name": "Pariah",
-        "type_line": "Enchantment — Aura",
-        "mana_cost": "{2}{W}",
-        "oracle_text": (
-            "Enchant creature\nAll damage that would be dealt to you is dealt to "
-            "enchanted creature instead."
-        ),
-    }
+    palace_guard = _card("Palace Guard")
+    pariah = _card("Pariah")
     assert _lane_covers(palace_guard, sig) is True
     assert _lane_covers(pariah, sig) is True
-    grizzly = {
-        "name": "Grizzly Bears",
-        "type_line": "Creature — Bear",
-        "mana_cost": "{1}{G}",
-        "power": "2",
-        "toughness": "2",
-        "oracle_text": "",
-    }
+    grizzly = _card("Grizzly Bears")
     assert _lane_covers(grizzly, sig) is False
 
 
@@ -746,41 +328,11 @@ def test_island_matters_serves_island_makers():
     # Islands) and Stormtide Leviathan ("All lands are Islands") feed it; a mana dork
     # does not. Real oracle.
     sig = _sig("island_matters", "you")
-    quicksilver_fountain = {
-        "name": "Quicksilver Fountain",
-        "type_line": "Artifact",
-        "mana_cost": "{3}",
-        "oracle_text": (
-            "At the beginning of each player's upkeep, that player puts a flood counter "
-            "on target non-Island land they control of their choice. That land is an "
-            "Island for as long as it has a flood counter on it.\nAt the beginning of "
-            "each end step, if all lands on the battlefield are Islands, remove all "
-            "flood counters from them."
-        ),
-    }
-    stormtide_leviathan = {
-        "name": "Stormtide Leviathan",
-        "type_line": "Creature — Leviathan",
-        "mana_cost": "{5}{U}{U}{U}",
-        "power": "8",
-        "toughness": "8",
-        "keywords": ["Landwalk", "Islandwalk"],
-        "oracle_text": (
-            "Islandwalk (This creature can't be blocked as long as defending player "
-            "controls an Island.)\nAll lands are Islands in addition to their other "
-            "types.\nCreatures without flying or islandwalk can't attack."
-        ),
-    }
+    quicksilver_fountain = _card("Quicksilver Fountain")
+    stormtide_leviathan = _card("Stormtide Leviathan")
     assert serves(quicksilver_fountain, sig) is True
     assert serves(stormtide_leviathan, sig) is True
-    llanowar_elves = {
-        "name": "Llanowar Elves",
-        "type_line": "Creature — Elf Druid",
-        "mana_cost": "{G}",
-        "power": "1",
-        "toughness": "1",
-        "oracle_text": "{T}: Add {G}.",
-    }
+    llanowar_elves = _card("Llanowar Elves")
     assert serves(llanowar_elves, sig) is False
 
 
@@ -789,33 +341,11 @@ def test_tap_down_blockers_serves_opponent_tappers():
     # all creatures target player controls") and Blustersquall ("Tap target creature you
     # don't control") feed it; a burn spell does not. Real oracle.
     sig = _sig("tap_down_blockers", "you")
-    sleep = {
-        "name": "Sleep",
-        "type_line": "Sorcery",
-        "mana_cost": "{2}{U}{U}",
-        "oracle_text": (
-            "Tap all creatures target player controls. Those creatures don't untap "
-            "during that player's next untap step."
-        ),
-    }
-    blustersquall = {
-        "name": "Blustersquall",
-        "type_line": "Instant",
-        "mana_cost": "{U}",
-        "oracle_text": (
-            "Tap target creature you don't control.\nOverload {3}{U} (You may cast this "
-            'spell for its overload cost. If you do, change "target" in its text to '
-            '"each.")'
-        ),
-    }
+    sleep = _card("Sleep")
+    blustersquall = _card("Blustersquall")
     assert serves(sleep, sig) is True
     assert serves(blustersquall, sig) is True
-    lightning_bolt = {
-        "name": "Lightning Bolt",
-        "type_line": "Instant",
-        "mana_cost": "{R}",
-        "oracle_text": "Lightning Bolt deals 3 damage to any target.",
-    }
+    lightning_bolt = _card("Lightning Bolt")
     assert serves(lightning_bolt, sig) is False
 
 
@@ -826,31 +356,12 @@ def test_per_target_payoff_serves_variable_target_spells():
     # premium; a single-target removal (Doom Blade) gives only {1} off and isn't the
     # payoff. Real oracle.
     sig = _sig("per_target_payoff", "you")
-    aurelias_fury = {
-        "name": "Aurelia's Fury",
-        "type_line": "Instant",
-        "mana_cost": "{X}{R}{W}",
-        "oracle_text": (
-            "Aurelia's Fury deals X damage divided as you choose among any number of "
-            "targets. Tap each creature dealt damage this way. Players dealt damage this "
-            "way can't cast noncreature spells this turn."
-        ),
-    }
-    distorting_wake = {
-        "name": "Distorting Wake",
-        "type_line": "Sorcery",
-        "mana_cost": "{X}{U}{U}{U}",
-        "oracle_text": "Return X target nonland permanents to their owners' hands.",
-    }
+    aurelias_fury = _card("Aurelia's Fury")
+    distorting_wake = _card("Distorting Wake")
     assert serves(aurelias_fury, sig) is True
     assert serves(distorting_wake, sig) is True
     # Single-target removal is only a {1} discount — not the multi-target payoff.
-    doom_blade = {
-        "name": "Doom Blade",
-        "type_line": "Instant",
-        "mana_cost": "{1}{B}",
-        "oracle_text": "Destroy target nonblack creature.",
-    }
+    doom_blade = _card("Doom Blade")
     assert serves(doom_blade, sig) is False
 
 
@@ -861,51 +372,15 @@ def test_ability_strip_payoff_serves_big_drawback_creatures():
     # vanilla beater (Colossal Dreadmaw — no drawback) and a small drawback creature
     # (Scarred Puma — power 2) are both excluded. Real oracle.
     sig = _sig("ability_strip_payoff", "you")
-    rotting_regisaur = {
-        "name": "Rotting Regisaur",
-        "type_line": "Creature — Zombie Dinosaur",
-        "mana_cost": "{2}{B}",
-        "power": "7",
-        "toughness": "6",
-        "oracle_text": "At the beginning of your upkeep, discard a card.",
-    }
-    nyxathid = {
-        "name": "Nyxathid",
-        "type_line": "Creature — Elemental",
-        "mana_cost": "{1}{B}{B}",
-        "power": "7",
-        "toughness": "7",
-        "oracle_text": (
-            "As this creature enters, choose an opponent.\nThis creature gets -1/-1 for "
-            "each card in the chosen player's hand."
-        ),
-    }
+    rotting_regisaur = _card("Rotting Regisaur")
+    nyxathid = _card("Nyxathid")
     assert serves(rotting_regisaur, sig) is True
     assert serves(nyxathid, sig) is True
     # Big body, no drawback to strip → not the payoff.
-    colossal_dreadmaw = {
-        "name": "Colossal Dreadmaw",
-        "type_line": "Creature — Dinosaur",
-        "mana_cost": "{4}{G}{G}",
-        "power": "6",
-        "toughness": "6",
-        "oracle_text": (
-            "Trample (This creature can deal excess combat damage to the player or "
-            "planeswalker it's attacking.)"
-        ),
-    }
+    colossal_dreadmaw = _card("Colossal Dreadmaw")
     assert serves(colossal_dreadmaw, sig) is False
     # Crippling drawback but too small to be worth stripping + buffing.
-    scarred_puma = {
-        "name": "Scarred Puma",
-        "type_line": "Creature — Cat",
-        "mana_cost": "{B}",
-        "power": "2",
-        "toughness": "1",
-        "oracle_text": (
-            "This creature can't attack unless a black or green creature is attacking."
-        ),
-    }
+    scarred_puma = _card("Scarred Puma")
     assert serves(scarred_puma, sig) is False
 
 
@@ -914,33 +389,11 @@ def test_arcane_matters_serves_arcane_subtype_spells():
     # Procession (Sorcery — Arcane) and Psychic Puppetry (Instant — Arcane) feed it; a
     # plain non-Arcane instant (Lightning Bolt) does not. Real oracle.
     sig = _sig("arcane_matters", "you")
-    eerie = {
-        "name": "Eerie Procession",
-        "type_line": "Sorcery — Arcane",
-        "mana_cost": "{2}{U}",
-        "oracle_text": (
-            "Search your library for an Arcane card, reveal that card, put it into your "
-            "hand, then shuffle."
-        ),
-    }
-    psychic_puppetry = {
-        "name": "Psychic Puppetry",
-        "type_line": "Instant — Arcane",
-        "mana_cost": "{1}{U}",
-        "oracle_text": (
-            "You may tap or untap target permanent.\nSplice onto Arcane {U} (As you cast "
-            "an Arcane spell, you may reveal this card from your hand and pay its splice "
-            "cost. If you do, add this card's effects to that spell.)"
-        ),
-    }
+    eerie = _card("Eerie Procession")
+    psychic_puppetry = _card("Psychic Puppetry")
     assert serves(eerie, sig) is True
     assert serves(psychic_puppetry, sig) is True
-    lightning_bolt = {
-        "name": "Lightning Bolt",
-        "type_line": "Instant",
-        "mana_cost": "{R}",
-        "oracle_text": "Lightning Bolt deals 3 damage to any target.",
-    }
+    lightning_bolt = _card("Lightning Bolt")
     assert serves(lightning_bolt, sig) is False
 
 
@@ -977,41 +430,11 @@ def test_enlist_matters_serves_enlisters_and_stayback_fodder():
     # unless an opponent has 8+ graveyard cards) is ideal — tap it for 6 power. A vanilla
     # bear is neither. Real oracle.
     sig = _sig("has_enlist", "you")
-    benalish = {
-        "name": "Benalish Faithbonder",
-        "type_line": "Creature — Human Cleric",
-        "mana_cost": "{1}{W}",
-        "power": "1",
-        "toughness": "3",
-        "keywords": ["Vigilance", "Enlist"],
-        "oracle_text": (
-            "Vigilance\nEnlist (As this creature attacks, you may tap a nonattacking "
-            "creature you control without summoning sickness. When you do, add its power "
-            "to this creature's until end of turn.)"
-        ),
-    }
-    relic_golem = {
-        "name": "Relic Golem",
-        "type_line": "Artifact Creature — Golem",
-        "mana_cost": "{3}",
-        "power": "6",
-        "toughness": "6",
-        "oracle_text": (
-            "This creature can't attack or block unless an opponent has eight or more "
-            "cards in their graveyard.\n{2}, {T}: Target player mills two cards. (They "
-            "put the top two cards of their library into their graveyard.)"
-        ),
-    }
+    benalish = _card("Benalish Faithbonder")
+    relic_golem = _card("Relic Golem")
     assert serves(benalish, sig) is True  # enlist creature (keyword)
     assert _lane_covers(relic_golem, sig) is True  # stay-back fodder (sub-avenue)
-    grizzly = {
-        "name": "Grizzly Bears",
-        "type_line": "Creature — Bear",
-        "mana_cost": "{1}{G}",
-        "power": "2",
-        "toughness": "2",
-        "oracle_text": "",
-    }
+    grizzly = _card("Grizzly Bears")
     assert _lane_covers(grizzly, sig) is False
 
 
@@ -1020,28 +443,11 @@ def test_power_tap_engine_serves_untap_effects():
     # ("Untap it.") and Kiora's Follower ("Untap another target permanent.") feed it; a
     # burn spell (Lightning Bolt) does not. Real oracle.
     sig = _sig("power_tap_engine", "you")
-    witchs_web = {
-        "name": "Witch's Web",
-        "type_line": "Instant",
-        "mana_cost": "{1}{G}",
-        "oracle_text": "Target creature gets +3/+3 and gains reach until end of turn. Untap it.",
-    }
-    kioras_follower = {
-        "name": "Kiora's Follower",
-        "type_line": "Creature — Merfolk",
-        "mana_cost": "{G}{U}",
-        "power": "2",
-        "toughness": "2",
-        "oracle_text": "{T}: Untap another target permanent.",
-    }
+    witchs_web = _card("Witch's Web")
+    kioras_follower = _card("Kiora's Follower")
     assert serves(witchs_web, sig) is True
     assert serves(kioras_follower, sig) is True
-    lightning_bolt = {
-        "name": "Lightning Bolt",
-        "type_line": "Instant",
-        "mana_cost": "{R}",
-        "oracle_text": "Lightning Bolt deals 3 damage to any target.",
-    }
+    lightning_bolt = _card("Lightning Bolt")
     assert serves(lightning_bolt, sig) is False
 
 
@@ -1049,27 +455,8 @@ def test_exert_matters_serves_exert_creatures():
     # A pseudo-vigilance commander (Johan) wants exert creatures — Champion of Rhonas
     # (Exert keyword). A vanilla creature is not served. Real oracle.
     sig = _sig("exert_matters", "you")
-    champion = {
-        "name": "Champion of Rhonas",
-        "type_line": "Creature — Jackal Warrior",
-        "mana_cost": "{3}{G}",
-        "power": "3",
-        "toughness": "3",
-        "keywords": ["Exert"],
-        "oracle_text": (
-            "You may exert this creature as it attacks. When you do, you may put a "
-            "creature card from your hand onto the battlefield. (An exerted creature "
-            "won't untap during your next untap step.)"
-        ),
-    }
-    grizzly = {
-        "name": "Grizzly Bears",
-        "type_line": "Creature — Bear",
-        "mana_cost": "{1}{G}",
-        "power": "2",
-        "toughness": "2",
-        "oracle_text": "",
-    }
+    champion = _card("Champion of Rhonas")
+    grizzly = _card("Grizzly Bears")
     assert serves(champion, sig) is True
     assert serves(grizzly, sig) is False
 
@@ -1081,38 +468,11 @@ def test_type_change_serves_type_changers_not_tribal_anthems():
     # that merely "choose a creature type" then buffs your own board (Icon of Ancestry)
     # is NOT a changer. Real oracle.
     sig = _sig("type_change", "you")
-    standardize = {
-        "name": "Standardize",
-        "type_line": "Instant",
-        "mana_cost": "{U}{U}",
-        "oracle_text": (
-            "Choose a creature type other than Wall. Each creature becomes that type "
-            "until end of turn."
-        ),
-    }
-    unnatural_selection = {
-        "name": "Unnatural Selection",
-        "type_line": "Enchantment",
-        "mana_cost": "{1}{U}",
-        "oracle_text": (
-            "{1}: Choose a creature type other than Wall. Target creature becomes that "
-            "type until end of turn."
-        ),
-    }
+    standardize = _card("Standardize")
+    unnatural_selection = _card("Unnatural Selection")
     assert serves(standardize, sig) is True
     assert serves(unnatural_selection, sig) is True
-    icon_of_ancestry = {
-        "name": "Icon of Ancestry",
-        "type_line": "Artifact",
-        "mana_cost": "{3}",
-        "oracle_text": (
-            "As this artifact enters, choose a creature type.\nCreatures you control of "
-            "the chosen type get +1/+1.\n{3}, {T}: Look at the top three cards of your "
-            "library. You may reveal a creature card of the chosen type from among them "
-            "and put it into your hand. Put the rest on the bottom of your library in a "
-            "random order."
-        ),
-    }
+    icon_of_ancestry = _card("Icon of Ancestry")
     assert serves(icon_of_ancestry, sig) is False
 
 
@@ -1123,22 +483,8 @@ def test_recast_etb_serves_aggressive_etb_not_activated_drain():
     # Each opponent loses 2 life"), not an enter-trigger, so recasting it does nothing.
     # Real oracle.
     sig = _sig("recast_etb", "you")
-    virus_beetle = {
-        "name": "Virus Beetle",
-        "type_line": "Artifact Creature — Insect",
-        "mana_cost": "{1}{B}",
-        "power": "1",
-        "toughness": "1",
-        "oracle_text": "When this creature enters, each opponent discards a card.",
-    }
-    engine_rat = {
-        "name": "Engine Rat",
-        "type_line": "Creature — Zombie Rat",
-        "mana_cost": "{B}",
-        "power": "1",
-        "toughness": "1",
-        "oracle_text": "Deathtouch\n{5}{B}: Each opponent loses 2 life.",
-    }
+    virus_beetle = _card("Virus Beetle")
+    engine_rat = _card("Engine Rat")
     assert serves(virus_beetle, sig) is True
     assert serves(engine_rat, sig) is False
 
@@ -1152,38 +498,12 @@ def test_damage_redirect_serves_creature_dealt_damage_payoffs():
     # original creature is never dealt the redirected damage, so its trigger can't fire.
     # Real oracle.
     sig = _sig("damage_redirect", "you")
-    rite_of_passage = {
-        "name": "Rite of Passage",
-        "type_line": "Enchantment",
-        "mana_cost": "{2}{G}",
-        "oracle_text": (
-            "Whenever a creature you control is dealt damage, put a +1/+1 counter on "
-            "it. (It must survive the damage to get the counter.)"
-        ),
-    }
-    druids_call = {
-        "name": "Druid's Call",
-        "type_line": "Enchantment — Aura",
-        "mana_cost": "{1}{G}",
-        "oracle_text": (
-            "Enchant creature\nWhenever enchanted creature is dealt damage, its "
-            "controller creates that many 1/1 green Squirrel creature tokens."
-        ),
-    }
+    rite_of_passage = _card("Rite of Passage")
+    druids_call = _card("Druid's Call")
     assert serves(rite_of_passage, sig) is True
     assert serves(druids_call, sig) is True
     # Generic enrage targets ITSELF, which never receives the redirected damage.
-    siegehorn = {
-        "name": "Siegehorn Ceratops",
-        "type_line": "Creature — Dinosaur",
-        "mana_cost": "{G}{W}",
-        "power": "2",
-        "toughness": "2",
-        "oracle_text": (
-            "Enrage — Whenever this creature is dealt damage, put two +1/+1 counters on "
-            "it. (It must survive the damage to get the counters.)"
-        ),
-    }
+    siegehorn = _card("Siegehorn Ceratops")
     assert serves(siegehorn, sig) is False
 
 
@@ -1193,31 +513,9 @@ def test_outlaw_matters_serves_token_makers_and_recursion():
     # that ARE outlaws. The serve had only the type-line gate + "outlaws you control".
     # Real oracle.
     sig = _sig("outlaw_matters", "you")
-    brimstone_roundup = {
-        "name": "Brimstone Roundup",
-        "type_line": "Enchantment",
-        "oracle_text": (
-            "Whenever you cast your second spell each turn, create a 1/1 red Mercenary "
-            'creature token with "{T}: Target creature you control gets +1/+0 until '
-            'end of turn. Activate only as a sorcery."\nPlot {2}{R} (You may pay {2}{R} '
-            "and exile this card from your hand. Cast it as a sorcery on a later turn "
-            "without paying its mana cost. Plot only as a sorcery.)"
-        ),
-    }
-    back_in_town = {
-        "name": "Back in Town",
-        "type_line": "Sorcery",
-        "oracle_text": (
-            "Return X target outlaw creature cards from your graveyard to the "
-            "battlefield. (Assassins, Mercenaries, Pirates, Rogues, and Warlocks are "
-            "outlaws.)"
-        ),
-    }
-    raise_the_alarm = {
-        "name": "Raise the Alarm",
-        "type_line": "Instant",
-        "oracle_text": "Create two 1/1 white Soldier creature tokens.",
-    }
+    brimstone_roundup = _card("Brimstone Roundup")
+    back_in_town = _card("Back in Town")
+    raise_the_alarm = _card("Raise the Alarm")
     assert serves(brimstone_roundup, sig) is True  # makes Mercenary tokens
     assert serves(back_in_town, sig) is True  # returns outlaw creature cards
     assert serves(raise_the_alarm, sig) is False  # non-outlaw (Soldier) tokens
@@ -1230,32 +528,9 @@ def test_opponent_exile_serves_the_exile_enablers():
     # opponent_exile_matters payoff lane keeps the "opponents own in exile" reference
     # counters. The enablers serve from the makers spec. Real oracle.
     sig = _sig("opponent_exile_makers", "opponents")
-    leyline_of_the_void = {
-        "name": "Leyline of the Void",
-        "type_line": "Enchantment",
-        "oracle_text": (
-            "If this card is in your opening hand, you may begin the game with it on "
-            "the battlefield.\nIf a card would be put into an opponent's graveyard from "
-            "anywhere, exile it instead."
-        ),
-    }
-    ashiok_dream_render = {
-        "name": "Ashiok, Dream Render",
-        "type_line": "Legendary Planeswalker — Ashiok",
-        "oracle_text": (
-            "Spells and abilities your opponents control can't cause their controller "
-            "to search their library.\n−1: Target player mills four cards. Then exile "
-            "each opponent's graveyard."
-        ),
-    }
-    deep_analysis = {  # flashback exiles ITSELF from YOUR graveyard — not opponents'
-        "name": "Deep Analysis",
-        "type_line": "Sorcery",
-        "oracle_text": (
-            "Target player draws two cards.\nFlashback—{1}{U}, Pay 3 life. (You may "
-            "cast this card from your graveyard for its flashback cost. Then exile it.)"
-        ),
-    }
+    leyline_of_the_void = _card("Leyline of the Void")
+    ashiok_dream_render = _card("Ashiok, Dream Render")
+    deep_analysis = _card("Deep Analysis")
     assert serves(leyline_of_the_void, sig) is True  # exile-instead-of-GY enabler
     assert serves(ashiok_dream_render, sig) is True  # exile each opponent's graveyard
     assert serves(deep_analysis, sig) is False  # exiles your own card, not opponents'
@@ -1268,44 +543,10 @@ def test_cast_from_exile_serves_suspend_foretell_rebound():
     # "plot" + cast-from-exile prose, so the other keywords were missed. Authoritative
     # Scryfall keywords array (not regex-guessed from prose). Real oracle.
     sig = _sig("cast_from_exile", "you")
-    profane_tutor = {
-        "name": "Profane Tutor",
-        "type_line": "Sorcery",
-        "keywords": ["Suspend"],
-        "oracle_text": (
-            "Suspend 2—{1}{B} (Rather than cast this card from your hand, pay {1}{B} and "
-            "exile it with two time counters on it. At the beginning of your upkeep, "
-            "remove a time counter. When the last is removed, you may cast it without "
-            "paying its mana cost.)\nSearch your library for a card, put that card into "
-            "your hand, then shuffle."
-        ),
-    }
-    behold_the_multiverse = {
-        "name": "Behold the Multiverse",
-        "type_line": "Instant",
-        "keywords": ["Foretell", "Scry"],
-        "oracle_text": (
-            "Scry 2, then draw two cards.\nForetell {1}{U} (During your turn, you may "
-            "pay {2} and exile this card from your hand face down. Cast it on a later "
-            "turn for its foretell cost.)"
-        ),
-    }
-    staggershock = {
-        "name": "Staggershock",
-        "type_line": "Instant",
-        "keywords": ["Rebound"],
-        "oracle_text": (
-            "Staggershock deals 2 damage to any target.\nRebound (If you cast this spell "
-            "from your hand, exile it as it resolves. At the beginning of your next "
-            "upkeep, you may cast this card from exile without paying its mana cost.)"
-        ),
-    }
-    lightning_bolt = {  # plain burn, no cast-from-exile keyword
-        "name": "Lightning Bolt",
-        "type_line": "Instant",
-        "keywords": [],
-        "oracle_text": "Lightning Bolt deals 3 damage to any target.",
-    }
+    profane_tutor = _card("Profane Tutor")
+    behold_the_multiverse = _card("Behold the Multiverse")
+    staggershock = _card("Staggershock")
+    lightning_bolt = _card("Lightning Bolt")
     assert serves(profane_tutor, sig) is True  # Suspend
     assert serves(behold_the_multiverse, sig) is True  # Foretell
     assert serves(staggershock, sig) is True  # Rebound
@@ -1318,36 +559,9 @@ def test_keyword_soup_serves_keyword_dense_creatures():
     # keyword-count serve that 'keyword_soup_makers' (Odric) already had — so keyword-
     # dense creatures weren't served. Real oracle.
     sig = _sig("keyword_soup", "you")
-    venomthrope = {
-        "name": "Venomthrope",
-        "type_line": "Creature — Tyranid",
-        "mana_cost": "{1}{G}{U}",
-        "power": "2",
-        "toughness": "2",
-        "keywords": ["Deathtouch", "Flying", "Hexproof"],
-        "oracle_text": "Flying, deathtouch, hexproof",
-    }
-    stonecoil_serpent = {
-        "name": "Stonecoil Serpent",
-        "type_line": "Artifact Creature — Snake",
-        "mana_cost": "{X}",
-        "power": "0",
-        "toughness": "0",
-        "keywords": ["Reach", "Protection", "Trample"],
-        "oracle_text": (
-            "Reach, trample, protection from multicolored\nThis creature enters with X "
-            "+1/+1 counters on it."
-        ),
-    }
-    grizzly_bears = {
-        "name": "Grizzly Bears",
-        "type_line": "Creature — Bear",
-        "mana_cost": "{1}{G}",
-        "power": "2",
-        "toughness": "2",
-        "keywords": [],
-        "oracle_text": "",
-    }
+    venomthrope = _card("Venomthrope")
+    stonecoil_serpent = _card("Stonecoil Serpent")
+    grizzly_bears = _card("Grizzly Bears")
     assert serves(venomthrope, sig) is True  # 3 evergreen keywords
     assert serves(stonecoil_serpent, sig) is True  # 3 evergreen keywords
     assert serves(grizzly_bears, sig) is False  # no keywords
@@ -1359,30 +573,10 @@ def test_color_hoser_serves_anti_color_hate():
     # changers. Those decks want anti-color HATE — "[color] creatures can't attack",
     # "protection from [color]", "destroy all [color] creatures". Real oracle.
     sig = _sig("color_hoser", "you")
-    light_of_day = {
-        "name": "Light of Day",
-        "type_line": "Enchantment",
-        "mana_cost": "{3}{W}",
-        "oracle_text": "Black creatures can't attack or block.",
-    }
-    absolute_grace = {
-        "name": "Absolute Grace",
-        "type_line": "Enchantment",
-        "mana_cost": "{1}{W}",
-        "oracle_text": "All creatures have protection from black.",
-    }
-    perish = {
-        "name": "Perish",
-        "type_line": "Sorcery",
-        "mana_cost": "{2}{B}",
-        "oracle_text": "Destroy all green creatures. They can't be regenerated.",
-    }
-    wrath_of_god = {  # colorless mass removal — not anti-color hate
-        "name": "Wrath of God",
-        "type_line": "Sorcery",
-        "mana_cost": "{2}{W}{W}",
-        "oracle_text": "Destroy all creatures. They can't be regenerated.",
-    }
+    light_of_day = _card("Light of Day")
+    absolute_grace = _card("Absolute Grace")
+    perish = _card("Perish")
+    wrath_of_god = _card("Wrath of God")
     assert serves(light_of_day, sig) is True  # [color] creatures can't attack/block
     assert serves(absolute_grace, sig) is True  # protection from [color]
     assert serves(perish, sig) is True  # destroy all [color] creatures
@@ -1396,37 +590,10 @@ def test_color_change_serves_color_conditional_payoffs():
     # characteristic (CR 105 / 613 layer 5, confirmed via rules-lawyer), so this is a real
     # mechanical synergy. The serve only credited other color-CHANGERS. Real oracle.
     sig = _sig("color_change", "you")
-    hibernation = {
-        "name": "Hibernation",
-        "type_line": "Instant",
-        "mana_cost": "{2}{U}",
-        "oracle_text": "Return all green permanents to their owners' hands.",
-    }
-    wash_out = {
-        "name": "Wash Out",
-        "type_line": "Sorcery",
-        "mana_cost": "{3}{U}",
-        "oracle_text": (
-            "Return all permanents of the color of your choice to their owners' hands."
-        ),
-    }
-    llawan = {
-        "name": "Llawan, Cephalid Empress",
-        "type_line": "Legendary Creature — Octopus Noble",
-        "mana_cost": "{3}{U}",
-        "power": "2",
-        "toughness": "3",
-        "oracle_text": (
-            "When Llawan enters, return all blue creatures your opponents control to "
-            "their owners' hands.\nYour opponents can't cast blue creature spells."
-        ),
-    }
-    wrath_of_god = {  # colorless mass removal — not a color-conditional payoff
-        "name": "Wrath of God",
-        "type_line": "Sorcery",
-        "mana_cost": "{2}{W}{W}",
-        "oracle_text": "Destroy all creatures. They can't be regenerated.",
-    }
+    hibernation = _card("Hibernation")
+    wash_out = _card("Wash Out")
+    llawan = _card("Llawan, Cephalid Empress")
+    wrath_of_god = _card("Wrath of God")
     assert serves(hibernation, sig) is True  # return all GREEN permanents
     assert serves(wash_out, sig) is True  # return all permanents of the color
     assert serves(llawan, sig) is True  # return all BLUE creatures
@@ -1439,33 +606,9 @@ def test_lifeloss_drain_serves_damage_to_opponents():
     # (Ob Nixilis, Rakdos, Valgavoth) wants them. The serve had only direct "loses life"
     # prose. A creature-only ping (removal) stays out. Real oracle.
     sig = _sig("lifeloss_matters", "opponents")
-    kessig_flamebreather = {
-        "name": "Kessig Flamebreather",
-        "type_line": "Creature — Human Shaman",
-        "mana_cost": "{1}{R}",
-        "power": "1",
-        "toughness": "3",
-        "oracle_text": (
-            "Whenever you cast a noncreature spell, this creature deals 1 damage to "
-            "each opponent."
-        ),
-    }
-    sulfuric_vortex = {  # symmetric group-slug — "deals 2 damage to that player"
-        "name": "Sulfuric Vortex",
-        "type_line": "Enchantment",
-        "mana_cost": "{1}{R}{R}",
-        "oracle_text": (
-            "At the beginning of each player's upkeep, this enchantment deals 2 damage "
-            "to that player.\nIf a player would gain life, that player gains no life "
-            "instead."
-        ),
-    }
-    flame_slash = {  # creature-only removal — not opponent life loss
-        "name": "Flame Slash",
-        "type_line": "Sorcery",
-        "mana_cost": "{R}",
-        "oracle_text": "Flame Slash deals 4 damage to target creature.",
-    }
+    kessig_flamebreather = _card("Kessig Flamebreather")
+    sulfuric_vortex = _card("Sulfuric Vortex")
+    flame_slash = _card("Flame Slash")
     assert serves(kessig_flamebreather, sig) is True  # damage to each opponent = drain
     assert serves(sulfuric_vortex, sig) is True  # group-slug "that player" = drain
     assert serves(flame_slash, sig) is False  # creature-only, no opponent life loss
@@ -1476,29 +619,8 @@ def test_token_maker_serves_offspring_keyword():
     # lives in the reminder text deck-forge strips, so it needs the authoritative Scryfall
     # keyword. A go-wide / token deck wants the extra body. (phase_crosscheck-surfaced.)
     sig = _sig("token_maker", "you")
-    prosperous_bandit = {
-        "name": "Prosperous Bandit",
-        "type_line": "Creature — Raccoon Rogue",
-        "mana_cost": "{2}{R}",
-        "power": "2",
-        "toughness": "2",
-        "keywords": ["Offspring", "First strike", "Treasure"],
-        "oracle_text": (
-            "Offspring {1} (You may pay an additional {1} as you cast this spell. If you "
-            "do, when this creature enters, create a 1/1 token copy of it.)\nFirst "
-            "strike\nWhenever this creature deals combat damage to a player, create that "
-            "many tapped Treasure tokens."
-        ),
-    }
-    grizzly_bears = {  # plain creature, no Offspring / token-making
-        "name": "Grizzly Bears",
-        "type_line": "Creature — Bear",
-        "mana_cost": "{1}{G}",
-        "power": "2",
-        "toughness": "2",
-        "keywords": [],
-        "oracle_text": "",
-    }
+    prosperous_bandit = _card("Prosperous Bandit")
+    grizzly_bears = _card("Grizzly Bears")
     assert serves(prosperous_bandit, sig) is True  # Offspring = makes a token copy
     assert serves(grizzly_bears, sig) is False
 
@@ -1509,44 +631,20 @@ def test_discard_matters_serves_self_discard_outlets():
     # as a cost (Turbulent Dreams, Firestorm). The serve only had loot ("discard a/two:")
     # and "draw then discard". Real oracle.
     sig = _sig("discard_matters", "you")
-    tolarian = {
-        "name": "Tolarian Winds",
-        "type_line": "Sorcery",
-        "oracle_text": "Discard all the cards in your hand, then draw that many cards.",
-    }
-    firestorm = {
-        "name": "Firestorm",
-        "type_line": "Instant",
-        "oracle_text": (
-            "As an additional cost to cast this spell, discard X cards.\n"
-            "Firestorm deals X damage to each of X target creatures and/or players."
-        ),
-    }
+    tolarian = _card("Tolarian Winds")
+    firestorm = _card("Firestorm")
     assert _lane_covers(tolarian, sig) is True
     assert _lane_covers(firestorm, sig) is True
     # Over-fire guard: forcing an OPPONENT to discard is hand-attack, not a self-outlet.
-    opp_discard = {
-        "name": "Mind Rot",
-        "type_line": "Sorcery",
-        "oracle_text": "Target player discards two cards.",
-    }
+    opp_discard = _card("Mind Rot")
     assert _lane_covers(opp_discard, sig) is False
 
 
-SELF_MILL = {
-    "name": "Self Mill",
-    "oracle_text": "Put the top four cards of your library into your graveyard.",
-}
-OPPONENT_MILL = {
-    "name": "Maddening Cacophony",
-    "oracle_text": "Kicker {3}{U}\nEach opponent mills eight cards. If this spell was kicked, instead each opponent mills half their library, rounded up.",
-}
-TOKEN_MAKER = {
-    "name": "Token Maker",
-    "oracle_text": "Create three 1/1 white Soldier creature tokens.",
-}
-BURN = {"name": "Bolt", "oracle_text": "Bolt deals 3 damage to any target."}
-LIFEGAIN = {"name": "Healer", "oracle_text": "You gain 4 life."}
+SELF_MILL = _card("Stitcher's Supplier")
+OPPONENT_MILL = _card("Maddening Cacophony")
+TOKEN_MAKER = _card("Raise the Alarm")
+BURN = _card("Lightning Bolt")
+LIFEGAIN = _card("Sacred Nectar")
 
 
 def test_opponents_graveyard_signal_served_by_opponent_mill_not_self_mill():
@@ -1562,25 +660,8 @@ def test_opponents_graveyard_serves_symmetric_mill_and_their_graveyard_reanimati
     # player's graveyard. Put those onto the battlefield"). Breach the Multiverse does
     # both. Real oracle.
     sig = _sig("graveyard_matters", "opponents")
-    breach = {
-        "name": "Breach the Multiverse",
-        "type_line": "Sorcery",
-        "oracle_text": (
-            "Each player mills ten cards. For each player, choose a creature or "
-            "planeswalker card in that player's graveyard. Put those cards onto the "
-            "battlefield under your control. Then each creature you control becomes a "
-            "Phyrexian in addition to its other types."
-        ),
-    }
-    sepulchral = {
-        "name": "Sepulchral Primordial",
-        "type_line": "Creature — Avatar",
-        "oracle_text": (
-            "Intimidate\nWhen this creature enters, for each opponent, you may put up "
-            "to one target creature card from that player's graveyard onto the "
-            "battlefield under your control."
-        ),
-    }
+    breach = _card("Breach the Multiverse")
+    sepulchral = _card("Sepulchral Primordial")
     assert serves(breach, sig) is True
     assert serves(sepulchral, sig) is True
     # Over-fire guard: pure self-mill (fills only YOUR graveyard) is not this lane.
@@ -1598,30 +679,12 @@ def test_combat_damage_to_opp_serves_damage_amplifiers():
     # Gratuitous Violence doubles creature damage. They sit in lifeloss_matters, a
     # sibling lane the combat-damage commander never opened. Real oracle.
     sig = _sig("combat_damage_to_opp", "opponents")
-    wound_reflection = {
-        "name": "Wound Reflection",
-        "type_line": "Enchantment",
-        "oracle_text": (
-            "At the beginning of each end step, each opponent loses life equal to the "
-            "life they lost this turn. (Damage causes loss of life.)"
-        ),
-    }
-    gratuitous = {
-        "name": "Gratuitous Violence",
-        "type_line": "Enchantment",
-        "oracle_text": (
-            "If a creature you control would deal damage to a permanent or player, it "
-            "deals double that damage to that permanent or player instead."
-        ),
-    }
+    wound_reflection = _card("Wound Reflection")
+    gratuitous = _card("Gratuitous Violence")
     assert _lane_covers(wound_reflection, sig) is True
     assert _lane_covers(gratuitous, sig) is True
     # Over-fire guard: a plain lifegain spell is not a damage amplifier.
-    lifegain = {
-        "name": "Healing Salve",
-        "type_line": "Instant",
-        "oracle_text": "You gain 3 life.",
-    }
+    lifegain = _card("Healing Salve")
     assert _lane_covers(lifegain, sig) is False
 
 
@@ -1632,43 +695,12 @@ def test_clone_serves_high_value_dies_trigger_creatures():
     # cmc 5-6). The serve needs "self-dies VALUE trigger AND mana value >= 5" — an AND
     # the flat OR-Serve couldn't express. Real oracle.
     sig = _sig("clone_makers", "you")
-    kokusho = {
-        "name": "Kokusho, the Evening Star",
-        "type_line": "Legendary Creature — Dragon Spirit",
-        "cmc": 6.0,
-        "power": "5",
-        "oracle_text": (
-            "Flying\nWhen Kokusho, the Evening Star dies, each opponent loses 5 life "
-            "and you gain life equal to the life lost this way."
-        ),
-    }
-    junji = {
-        "name": "Junji, the Midnight Sky",
-        "type_line": "Legendary Creature — Dragon Spirit",
-        "cmc": 5.0,
-        "power": "4",
-        "oracle_text": (
-            "Flying, menace\nWhen Junji, the Midnight Sky dies, choose one —\n"
-            "• Each opponent discards a card and loses 2 life.\n"
-            "• Put target non-Dragon creature card from a graveyard onto the "
-            "battlefield under your control. It's a Zombie in addition to its other "
-            "types."
-        ),
-    }
+    kokusho = _card("Kokusho, the Evening Star")
+    junji = _card("Junji, the Midnight Sky")
     assert _lane_covers(kokusho, sig) is True
     assert _lane_covers(junji, sig) is True
     # Over-fire guard: a cmc-1 undying body has a dies trigger but is NOT a clone bomb.
-    young_wolf = {
-        "name": "Young Wolf",
-        "type_line": "Creature — Wolf",
-        "cmc": 1.0,
-        "power": "1",
-        "oracle_text": (
-            "Undying (When this creature dies, if it had no +1/+1 counters on it, "
-            "return it to the battlefield under its owner's control with a +1/+1 "
-            "counter on it.)"
-        ),
-    }
+    young_wolf = _card("Young Wolf")
     assert _lane_covers(young_wolf, sig) is False
 
 
@@ -1677,46 +709,20 @@ def test_ninjutsu_lane_serves_ninja_creatures():
     # the ninjutsu payoff swapped in via an unblocked attacker — not just the evasion
     # carriers. The lane served evasion keywords but not the ninjutsu keyword. Real card.
     sig = _sig("has_ninjutsu", "you")
-    satoru = {
-        "name": "Satoru Umezawa",
-        "type_line": "Legendary Creature — Human Ninja",
-        "keywords": ["Ninjutsu"],
-        "oracle_text": (
-            "Whenever you activate a ninjutsu ability, look at the top three cards of "
-            "your library. Put one of them into your hand.\nEach creature card in your "
-            "hand has ninjutsu {1}{U}{B}."
-        ),
-    }
-    silver_fur = {
-        "name": "Silver-Fur Master",
-        "type_line": "Creature — Rat Ninja",
-        "keywords": ["Ninjutsu"],
-        "oracle_text": (
-            "Ninjutsu {U}{B}\nThe first ninjutsu ability you activate each turn costs "
-            '{1} less to activate.\nNinja creatures you control have "Ninjutsu {U}{B}."'
-        ),
-    }
-    assert _lane_covers(satoru, sig) is True
+    # Satoru himself carries no Ninjutsu keyword (he GRANTS ninjutsu to cards in
+    # hand), so the keyword branch is exercised by a real ninjutsu Ninja.
+    deep_hours = _card("Ninja of the Deep Hours")
+    silver_fur = _card("Silver-Fur Master")
+    assert _lane_covers(deep_hours, sig) is True
     assert _lane_covers(silver_fur, sig) is True
     # Commander ninjutsu is a ninjutsu variant (CR 702.49d): Yuriko — the canonical
     # ninjutsu commander — carries only the "Commander ninjutsu" keyword, so the lane
     # missed her and commander_fit then mis-flagged the deck "built for a different
     # commander". The serve must credit the variant.
-    yuriko = {
-        "name": "Yuriko, the Tiger's Shadow",
-        "type_line": "Legendary Creature — Human Ninja",
-        "keywords": ["Commander ninjutsu"],
-        "oracle_text": (
-            "Commander ninjutsu {U}{B} (Return an unblocked attacker you control to "
-            "hand: Put this card onto the battlefield from the command zone tapped and "
-            "attacking.)\nWhenever a Ninja you control deals combat damage to a player, "
-            "reveal the top card of your library and put that card into your hand. Each "
-            "opponent loses life equal to that card's mana value."
-        ),
-    }
+    yuriko = _card("Yuriko, the Tiger's Shadow")
     assert _lane_covers(yuriko, sig) is True
     # Over-fire guard: a vanilla creature is not a ninjutsu card.
-    bear = {"name": "Grizzly Bears", "type_line": "Creature — Bear", "oracle_text": ""}
+    bear = _card("Grizzly Bears")
     assert _lane_covers(bear, sig) is False
 
 
@@ -1725,37 +731,15 @@ def test_aristocrats_lanes_serve_death_doublers_and_dies_return_grants():
     # — the deaths-Panharmonicon) and dies-return GRANTERS (Feign Death, Supernatural
     # Stamina — loop a key creature with a sac outlet). death/sacrifice served neither.
     # Real oracle.
-    drivnod = {
-        "name": "Drivnod, Carnage Dominus",
-        "type_line": "Legendary Creature — Phyrexian Horror",
-        "oracle_text": (
-            "If a creature dying causes a triggered ability of a permanent you control "
-            "to trigger, that ability triggers an additional time."
-        ),
-    }
-    feign_death = {
-        "name": "Feign Death",
-        "type_line": "Instant",
-        "oracle_text": (
-            'Until end of turn, target creature gains "When this creature dies, '
-            "return it to the battlefield tapped under its owner's control with a "
-            '+1/+1 counter on it."'
-        ),
-    }
+    drivnod = _card("Drivnod, Carnage Dominus")
+    feign_death = _card("Feign Death")
     for key, scope in (("death_matters", "any"), ("sacrifice_outlets", "you")):
         sig = _sig(key, scope)
         assert _lane_covers(drivnod, sig) is True, key
         assert _lane_covers(feign_death, sig) is True, key
     # Over-fire guard: an ETB-trigger doubler (Panharmonicon) is NOT a DEATH-trigger
     # doubler — the death-doubler branch must require "creature dying", not "entering".
-    panharmonicon = {
-        "name": "Panharmonicon",
-        "type_line": "Artifact",
-        "oracle_text": (
-            "If an artifact or creature entering causes a triggered ability of a "
-            "permanent you control to trigger, that ability triggers an additional time."
-        ),
-    }
+    panharmonicon = _card("Panharmonicon")
     assert _lane_covers(panharmonicon, _sig("death_matters", "any")) is False
 
 
@@ -1766,22 +750,8 @@ def test_blink_serves_self_bounce_recast_engines():
     # creature you control" wording (Jeskai Barricade), and blink_flicker lacked the
     # self-bounce extra. Real oracle.
     sig = _sig("blink_flicker", "you")
-    jeskai = {
-        "name": "Jeskai Barricade",
-        "type_line": "Creature — Wall",
-        "oracle_text": (
-            "Flash\nDefender\nWhen this creature enters, you may return another target "
-            "creature you control to its owner's hand."
-        ),
-    }
-    whitemane = {
-        "name": "Whitemane Lion",
-        "type_line": "Creature — Cat",
-        "oracle_text": (
-            "Flash\nWhen this creature enters, return a creature you control to its "
-            "owner's hand."
-        ),
-    }
+    jeskai = _card("Jeskai Barricade")
+    whitemane = _card("Whitemane Lion")
     assert _lane_covers(jeskai, sig) is True
     assert _lane_covers(whitemane, sig) is True
 
@@ -1823,23 +793,9 @@ def test_unknown_signal_has_no_spec_and_serves_false():
 # The avenue must surface the two enabler families that trigger the payoff:
 # reanimation effects (a creature enters from a graveyard) and cast-from-graveyard
 # creatures (escape/disturb). Self-mill alone is FUEL, not a reanimator enabler.
-REANIMATION_SPELL = {
-    "name": "Animate Dead-like",
-    "oracle_text": "Return target creature card from your graveyard to the battlefield.",
-}
-ESCAPE_CREATURE = {
-    "name": "Woe Strider-like",
-    "type_line": "Creature — Horror",
-    "oracle_text": (
-        "Sacrifice another creature: Scry 1.\n"
-        "Escape—{3}{B}{B}, Exile four other cards from your graveyard."
-    ),
-    "keywords": ["Escape"],
-}
-GRAVEYARD_RETURN = {
-    "name": "Regrowth",
-    "oracle_text": "Return target card from your graveyard to your hand.",
-}
+REANIMATION_SPELL = _card("Zombify")
+ESCAPE_CREATURE = _card("Woe Strider")
+GRAVEYARD_RETURN = _card("Regrowth")
 
 
 def test_reanimator_served_by_reanimation_and_escape():
@@ -1856,18 +812,8 @@ def test_reanimator_credits_persist_and_undying():
     # CR 702.79 / 702.93: persist & undying return the creature FROM THE GRAVEYARD to
     # the battlefield, so it re-enters from a graveyard — a reanimator payoff fires.
     sig = _sig("reanimator", "you")
-    persist = {
-        "name": "Murderous Redcap",
-        "type_line": "Creature — Goblin Assassin",
-        "oracle_text": "When this creature enters, it deals damage equal to its power to any target.\nPersist (When this creature dies, if it had no -1/-1 counters on it, return it to the battlefield under its owner's control with a -1/-1 counter on it.)",
-        "keywords": ["Persist"],
-    }
-    undying = {
-        "name": "Geralf's Messenger",
-        "type_line": "Creature — Zombie",
-        "oracle_text": "This creature enters tapped.\nWhen this creature enters, target opponent loses 2 life.\nUndying (When this creature dies, if it had no +1/+1 counters on it, return it to the battlefield under its owner's control with a +1/+1 counter on it.)",
-        "keywords": ["Undying"],
-    }
+    persist = _card("Murderous Redcap")
+    undying = _card("Geralf's Messenger")
     assert serves(persist, sig) is True
     assert serves(undying, sig) is True
 
@@ -1884,22 +830,8 @@ def test_reanimator_spec_searches_with_a_discriminator():
 
 
 # --- aristocrats death-drain payoff (Blood Artist / Zulaport) -------------------
-BLOOD_ARTIST = {
-    "name": "Blood Artist",
-    "type_line": "Creature — Vampire",
-    "oracle_text": (
-        "Whenever this creature or another creature dies, target player loses 1 life "
-        "and you gain 1 life."
-    ),
-}
-ZULAPORT = {
-    "name": "Zulaport Cutthroat",
-    "type_line": "Creature — Human Rogue Ally",
-    "oracle_text": (
-        "Whenever this creature or another creature you control dies, each opponent "
-        "loses 1 life and you gain 1 life."
-    ),
-}
+BLOOD_ARTIST = _card("Blood Artist")
+ZULAPORT = _card("Zulaport Cutthroat")
 
 
 def test_death_drain_served_by_both_aristocrats_and_sacrifice_lanes():
@@ -1916,21 +848,9 @@ def test_sacrifice_lane_does_not_serve_plain_lifegain():
 
 
 # --- landfall: payoffs + extra lands + lands-from-graveyard ---------------------
-LANDFALL_PAYOFF = {
-    "name": "Lotus Cobra",
-    "type_line": "Creature — Snake",
-    "oracle_text": "Landfall — Whenever a land you control enters, add one mana of any color.",
-}
-EXTRA_LANDS = {
-    "name": "Azusa, Lost but Seeking",
-    "type_line": "Legendary Creature — Human Monk",
-    "oracle_text": "You may play two additional lands on each of your turns.",
-}
-LANDS_FROM_GRAVE = {
-    "name": "Ramunap Excavator",
-    "type_line": "Creature — Snake Cleric",
-    "oracle_text": "You may play lands from your graveyard.",
-}
+LANDFALL_PAYOFF = _card("Lotus Cobra")
+EXTRA_LANDS = _card("Azusa, Lost but Seeking")
+LANDS_FROM_GRAVE = _card("Ramunap Excavator")
 
 
 def test_landfall_serves_payoffs_extra_lands_and_recursion():
@@ -1945,24 +865,9 @@ def test_landfall_does_not_serve_unrelated_burn():
 
 
 # --- blink: the lane must surface ETB-value creatures + ETB-trigger doublers ----
-ETB_VALUE_CREATURE = {
-    "name": "Mulldrifter",
-    "type_line": "Creature — Elemental",
-    "oracle_text": "Flying\nWhen this creature enters, draw two cards.\nEvoke {2}{U} (You may cast this spell for its evoke cost. If you do, it's sacrificed when it enters.)",
-}
-ETB_DOUBLER = {
-    "name": "Panharmonicon",
-    "type_line": "Artifact",
-    "oracle_text": (
-        "If an artifact or creature entering causes a triggered ability of a permanent "
-        "you control to trigger, that ability triggers an additional time."
-    ),
-}
-FLICKER_EFFECT = {
-    "name": "Ephemerate",
-    "type_line": "Instant",
-    "oracle_text": "Exile target creature you control, then return it to the battlefield under its owner's control.\nRebound (If you cast this spell from your hand, exile it as it resolves. At the beginning of your next upkeep, you may cast this card from exile without paying its mana cost.)",
-}
+ETB_VALUE_CREATURE = _card("Mulldrifter")
+ETB_DOUBLER = _card("Panharmonicon")
+FLICKER_EFFECT = _card("Ephemerate")
 
 
 def test_blink_lane_surfaces_targets_and_doublers_not_just_flicker():
@@ -1973,30 +878,13 @@ def test_blink_lane_surfaces_targets_and_doublers_not_just_flicker():
 
 
 def test_blink_lane_does_not_surface_vanilla_creature():
-    vanilla = {
-        "name": "Grizzly Bears",
-        "type_line": "Creature — Bear",
-        "oracle_text": "",
-    }
+    vanilla = _card("Grizzly Bears")
     assert _lane_covers(vanilla, _sig("blink_flicker", "you")) is False
 
 
 # --- counter doublers must surface across every counter lane -------------------
-DOUBLING_SEASON = {
-    "name": "Doubling Season",
-    "type_line": "Enchantment",
-    "oracle_text": (
-        "If an effect would create one or more tokens under your control, it creates twice that many of those tokens instead.\nIf an effect would put one or more counters on a permanent you control, it puts twice that many of those counters on that permanent instead."
-    ),
-}
-HARDENED_SCALES = {
-    "name": "Hardened Scales",
-    "type_line": "Enchantment",
-    "oracle_text": (
-        "If one or more +1/+1 counters would be put on a creature you control, that "
-        "many plus one +1/+1 counters are put on it instead."
-    ),
-}
+DOUBLING_SEASON = _card("Doubling Season")
+HARDENED_SCALES = _card("Hardened Scales")
 COUNTER_LANES = [
     ("plus_one_matters", "any"),
     ("proliferate_matters", "you"),
@@ -2018,26 +906,14 @@ def test_counter_doublers_surface_across_every_counter_lane():
 def test_self_growth_lane_surfaces_counter_placement_support():
     # A self-growth counters commander (Skullbriar) wants +1/+1 counter placement, not
     # just doublers.
-    placement = {
-        "name": "Unexpected Fangs",
-        "type_line": "Instant",
-        "oracle_text": "Put a +1/+1 counter and a lifelink counter on target creature.",
-    }
+    placement = _card("Unexpected Fangs")
     assert _lane_covers(placement, _sig("self_counter_grow", "you")) is True
 
 
 def test_combat_lane_credits_single_creature_attack_triggers():
     sig = _sig("attack_matters", "you")
-    aggro = {
-        "name": "Vicious Conquistador",
-        "type_line": "Creature — Vampire Soldier",
-        "oracle_text": "Whenever this creature attacks, each opponent loses 1 life.",
-    }
-    defensive = {
-        "name": "Wall of Defense",
-        "type_line": "Creature — Wall",
-        "oracle_text": "Whenever a creature attacks you, you gain 1 life.",
-    }
+    aggro = _card("Vicious Conquistador")
+    defensive = _card("Isperia, Supreme Judge")
     assert serves(aggro, sig) is True
     assert serves(defensive, sig) is False  # "attacks you" is not an aggro payoff
 
@@ -2072,16 +948,8 @@ def test_vehicles_lane_opens_for_granter_and_credits_support():
         k == "vehicles_matter"
         for k, _ in {(s.key, s.scope) for s in test_signals("Captain Rex Nebula")}
     )
-    oviya = {
-        "name": "Oviya, Automech Artisan",
-        "type_line": "Legendary Creature — Human Artificer",
-        "oracle_text": "Each creature that's attacking one of your opponents has trample.\n{G}, {T}: You may put a creature or Vehicle card from your hand onto the battlefield. If you put an artifact onto the battlefield this way, put two +1/+1 counters on it.",
-    }
-    stablemaster = {
-        "name": "Intrepid Stablemaster",
-        "type_line": "Creature — Human Scout",
-        "oracle_text": "Reach\n{T}: Add {G}.\n{T}: Add two mana of any one color. Spend this mana only to cast Mount or Vehicle spells.",
-    }
+    oviya = _card("Oviya, Automech Artisan")
+    stablemaster = _card("Intrepid Stablemaster")
     assert serves(oviya, _sig("vehicles_matter", "you")) is True
     assert serves(stablemaster, _sig("vehicles_matter", "you")) is True
 
@@ -2089,23 +957,8 @@ def test_vehicles_lane_opens_for_granter_and_credits_support():
 def test_become_a_type_cards_match_the_type_lane():
     # "Become"/"are" TYPE granters belong in that type's deck: artifact-makers in
     # artifact decks, tribal type-granters in that tribe's deck.
-    artifact_makers = [
-        (
-            "Mycosynth Lattice",
-            "All permanents are artifacts in addition to their other types.",
-        ),
-        (
-            "Liquimetal Coating",
-            "{T}: Target nonland permanent becomes an artifact in addition to its other types.",
-        ),
-        (
-            "March of the Machines",
-            "Each noncreature artifact is an artifact creature with power and toughness each equal to its mana value.",
-        ),
-    ]
-    for n, o in artifact_makers:
-        card = {"name": n, "type_line": "Artifact", "oracle_text": o}
-        assert serves(card, _sig("artifacts_matter", "you")) is True, n
+    for n in ("Mycosynth Lattice", "Liquimetal Coating", "March of the Machines"):
+        assert serves(_card(n), _sig("artifacts_matter", "you")) is True, n
     # Type-AGNOSTIC tribal enablers (Xenograft, Arcane Adaptation) GRANT the chosen type
     # to your board — they grow the tribe, so they're credited to EVERY tribe, but via the
     # dedicated "enabler" sub-avenue, NOT as a payoff or a tribe member (B1).
@@ -2113,20 +966,17 @@ def test_become_a_type_cards_match_the_type_lane():
         key="type_matters", scope="you", subject="Goblin", text="", source="c"
     )
     goblin_payoff = spec_for(goblin).extras[0]  # the "Goblin payoffs" sub-avenue
-    tribal_enablers = [
-        (
-            "Xenograft",
-            "As Xenograft enters, choose a creature type. Each creature you control is the chosen type in addition to its other types.",
-        ),
-        (
-            "Arcane Adaptation",
-            "As this enters, choose a creature type. Other creatures you control are the chosen type in addition to their other types.",
-        ),
-    ]
-    for n, o in tribal_enablers:
-        card = {"name": n, "type_line": "Enchantment", "oracle_text": o}
+    # B1 keeps granters out of the main serve's BODY arms (type line / oracle); the
+    # ADR-0040 structural arm then credits them at the serve level by their own
+    # type_changers idents — a hand-typed record (no oracle_id) never reached that
+    # arm, so the real card pins both halves.
+    main = spec_for(goblin).serve
+    body_arms = dataclasses.replace(main, signal_idents=frozenset())
+    for n in ("Xenograft", "Arcane Adaptation"):
+        card = _card(n)
         assert _lane_covers(card, goblin) is True, n  # surfaced via the enabler lane
-        assert spec_for(goblin).serve.matches(card) is False, n  # not a tribe member
+        assert body_arms.matches(card) is False, n  # not a tribe member (B1)
+        assert main.matches(card) is True, n  # credited structurally (ADR-0040)
         payoff_serve = goblin_payoff.serve or serve_from_dict(goblin_payoff.search)
         assert payoff_serve.matches(card) is False, n  # and NOT a payoff
 
@@ -2136,40 +986,15 @@ def test_grant_become_credited_for_clone_enchantment_food():
     # creature"), an enchantment-grant ("are enchantments in addition"), and a Food-grant
     # ("are Foods in addition") must hit their lanes (main serve or a sub-avenue).
     cases = [
-        (
-            "clone_makers",
-            "Clone",
-            "You may have Clone enter the battlefield as a copy of any creature on the battlefield.",
-        ),
-        (
-            "enchantments_matter",
-            "Enchanted Evening",
-            "All permanents are enchantments in addition to their other types.",
-        ),
-        (
-            "food_matters",
-            "The Food Court",
-            "Artifacts are Foods in addition to their other types.",
-        ),
-        (
-            "domain_matters",
-            "Prismatic Omen",
-            "Lands you control are every basic land type in addition to their other types.",
-        ),
-        (
-            "color_change",
-            "Painter's Servant",
-            "As this creature enters, choose a color. All cards that aren't on the battlefield, spells, and permanents are the chosen color.",
-        ),
-        (
-            "color_change",
-            "Indigo Faerie",
-            "{U}: Target permanent becomes blue in addition to its other colors.",
-        ),
+        ("clone_makers", _card("Clone")),
+        ("enchantments_matter", _card("Enchanted Evening")),
+        ("food_matters", _card("The Food Court")),
+        ("domain_matters", _card("Prismatic Omen")),
+        ("color_change", _card("Painter's Servant")),
+        ("color_change", _card("Indigo Faerie")),
     ]
-    for key, name, oracle in cases:
-        card = {"name": name, "type_line": "Enchantment", "oracle_text": oracle}
-        assert _lane_covers(card, _sig(key, "you")) is True, key
+    for key, card in cases:
+        assert _lane_covers(card, _sig(key, "you")) is True, (key, card["name"])
 
 
 def test_edicts_and_third_person_sac_feed_aristocrats():
@@ -2177,34 +1002,15 @@ def test_edicts_and_third_person_sac_feed_aristocrats():
     # are the aristocrats sac package; the serve matched only "sacrifice a", not the
     # 3rd-person "sacrifices a".
     for key, scope in [("sacrifice_outlets", "you"), ("death_matters", "any")]:
-        for n, o in [
-            (
-                "Plaguecrafter",
-                "When this enters, each player sacrifices a creature or planeswalker.",
-            ),
-            (
-                "Fleshbag Marauder",
-                "When this enters, each player sacrifices a creature.",
-            ),
-        ]:
-            card = {"name": n, "type_line": "Creature", "oracle_text": o}
+        for n in ("Plaguecrafter", "Fleshbag Marauder"):
+            card = _card(n)
             assert _lane_covers(card, _sig(key, scope)), (key, n)
 
 
 def test_pillowfort_and_tax_feed_stax():
     sig = _sig("stax_taxes", "opponents")
-    for n, o in [
-        (
-            "Ghostly Prison",
-            "Creatures can't attack you unless their controller pays {2} for each creature.",
-        ),
-        (
-            "Smothering Tithe",
-            "Whenever an opponent draws a card, that player may pay {2}. If they don't, you create a Treasure token.",
-        ),
-    ]:
-        card = {"name": n, "type_line": "Enchantment", "oracle_text": o}
-        assert _lane_covers(card, sig), n
+    for n in ("Ghostly Prison", "Smothering Tithe"):
+        assert _lane_covers(_card(n), sig), n
 
 
 def test_power_matters_credits_threshold_payoffs():
@@ -2227,22 +1033,10 @@ def test_being_an_artifact_or_enchantment_by_type_is_on_theme():
     # even with no "artifact"/"enchantment" oracle text. EDHREC synergy proves it —
     # artifact lands / rocks are disproportionately in artifact decks.
     art = _sig("artifacts_matter", "you")
-    for n, tl, o in [
-        ("Seat of the Synod", "Artifact Land", "{T}: Add {U}."),
-        ("Mind Stone", "Artifact", "{T}: Add {C}. {1}, {T}, Sacrifice: Draw a card."),
-        (
-            "Solemn Simulacrum",
-            "Artifact Creature — Golem",
-            "When this enters, search your library for a basic land card.",
-        ),
-    ]:
-        assert serves({"name": n, "type_line": tl, "oracle_text": o}, art) is True, n
+    for n in ("Seat of the Synod", "Mind Stone", "Solemn Simulacrum"):
+        assert serves(_card(n), art) is True, n
     ench = _sig("enchantments_matter", "you")
-    spirited = {
-        "name": "Spirited Companion",
-        "type_line": "Enchantment Creature — Dog",
-        "oracle_text": "When this creature enters, draw a card.",
-    }
+    spirited = _card("Spirited Companion")
     assert serves(spirited, ench) is True
 
 
@@ -2280,62 +1074,57 @@ def test_enchantment_subtypes_count_as_enchantments():
 def test_enchantment_token_makers_are_enchantments():
     # Role (Aura Role) and Shard tokens are enchantment tokens, so their makers make
     # enchantments — constellation / enchantment-count fuel.
+    # Cursed Courtier is a real Role maker; the other two are fictional clause
+    # probes for the Shard / Aura-token wordings.
     makers = [
-        (
-            "Cursed Courtier",
-            "When this creature enters, create a Cursed Role token attached to it.",
-        ),
-        ("Shard Maker", "Create a Shard token."),
-        (
-            "Aura Token Maker",
-            "Create a white Aura enchantment token with enchant creature and totem armor.",
-        ),
+        _card("Cursed Courtier"),
+        {
+            "name": "Shard Maker",
+            "type_line": "Enchantment",
+            "oracle_text": "Create a Shard token.",
+        },
+        {
+            "name": "Aura Token Maker",
+            "type_line": "Enchantment",
+            "oracle_text": (
+                "Create a white Aura enchantment token with enchant creature and "
+                "totem armor."
+            ),
+        },
     ]
-    for n, o in makers:
-        card = {"name": n, "type_line": "Enchantment", "oracle_text": o}
-        assert serves(card, _sig("enchantments_matter", "you")) is True, n
+    for card in makers:
+        assert serves(card, _sig("enchantments_matter", "you")) is True, card["name"]
 
 
 def test_artifact_token_makers_are_artifacts():
     # Treasure/Food/Clue/Blood/Gold/Map/Powerstone tokens ARE artifact tokens, so a
     # maker of them makes an artifact — affinity/metalcraft/artifact-count fuel.
+    # Three real makers; "Powerstone Maker" is a fictional clause probe.
     makers = [
-        (
-            "Smothering Tithe",
-            "Whenever an opponent draws a card, … create a Treasure token.",
-        ),
-        ("Witch's Oven", "{T}, Sacrifice a creature: Create a Food token …"),
-        ("Tireless Tracker", "Whenever a land you control enters, investigate."),
-        ("Powerstone Maker", "When this enters, create a tapped Powerstone token."),
+        _card("Smothering Tithe"),
+        _card("Witch's Oven"),
+        _card("Tireless Tracker"),
+        {
+            "name": "Powerstone Maker",
+            "type_line": "Artifact",
+            "oracle_text": "When this enters, create a tapped Powerstone token.",
+        },
     ]
-    for n, o in makers:
-        card = {"name": n, "type_line": "Artifact", "oracle_text": o}
-        assert serves(card, _sig("artifacts_matter", "you")) is True, n
+    for card in makers:
+        assert serves(card, _sig("artifacts_matter", "you")) is True, card["name"]
 
 
 def test_theme_cost_reducers_are_credited():
     # A spell-type cost reducer is prime synergy for that theme's deck.
-    etherium = {
-        "name": "Etherium Sculptor",
-        "type_line": "Artifact Creature — Vedalken Artificer",
-        "oracle_text": "Artifact spells you cast cost {1} less to cast.",
-    }
-    electromancer = {
-        "name": "Goblin Electromancer",
-        "type_line": "Creature — Goblin Wizard",
-        "oracle_text": "Instant and sorcery spells you cast cost {1} less to cast.",
-    }
+    etherium = _card("Etherium Sculptor")
+    electromancer = _card("Goblin Electromancer")
     assert serves(etherium, _sig("artifacts_matter", "you")) is True
     assert serves(electromancer, _sig("spellcast_matters", "you")) is True
     assert serves(electromancer, _sig("magecraft_matters", "you")) is True
 
 
 def test_aristocrats_lane_surfaces_board_wipes():
-    wrath = {
-        "name": "Wrath of God",
-        "type_line": "Sorcery",
-        "oracle_text": "Destroy all creatures. They can't be regenerated.",
-    }
+    wrath = _card("Wrath of God")
     assert _lane_covers(wrath, _sig("death_matters", "any")) is True
     assert _lane_covers(wrath, _sig("sacrifice_outlets", "you")) is True
 
@@ -2354,555 +1143,67 @@ def test_keyword_counter_cards_surface_across_counter_lanes():
 
 # --- land-creatures theme (the Jyoti case) -------------------------------------
 
-LAND_CREATURE_PAYOFF = {
-    "name": "Sylvan Advocate",
-    "type_line": "Creature — Elf Druid Ally",
-    "oracle_text": (
-        "Vigilance\nAs long as you control six or more lands, this creature "
-        "and land creatures you control get +2/+2."
-    ),
-}
-PLANT_MAKER = {
-    "name": "Avenger of Zendikar",
-    "type_line": "Creature — Elemental",
-    "oracle_text": (
-        "When this creature enters, create a 0/1 green Plant creature token for each land you control.\nLandfall — Whenever a land you control enters, you may put a +1/+1 counter on each Plant creature you control."
-    ),
-}
-CLONE = {
-    "name": "Silent Hallcreeper",
-    "type_line": "Enchantment Creature — Horror",
-    "oracle_text": "This creature can't be blocked.\nWhenever this creature deals combat damage to a player, choose one that hasn't been chosen —\n• Put two +1/+1 counters on this creature.\n• Draw a card.\n• This creature becomes a copy of another target creature you control.",
-}
-MANLAND = {
-    "name": "Mishra's Factory",
-    "type_line": "Land",
-    "oracle_text": (
-        "{T}: Add {C}.\n{1}: This land becomes a 2/2 Assembly-Worker artifact creature until end of turn. It's still a land.\n{T}: Target Assembly-Worker creature gets +1/+1 until end of turn."
-    ),
-}
+LAND_CREATURE_PAYOFF = _card("Sylvan Advocate")
+PLANT_MAKER = _card("Avenger of Zendikar")
+CLONE = _card("Silent Hallcreeper")
+MANLAND = _card("Mishra's Factory")
 # A transform DFC whose FRONT is a Saga and BACK is a Land. Not a manland: the
 # "becomes a … creature" text animates an OPPONENT's artifact (Saga chapter I),
 # and "Land" appears only via the back face. The card enters as the Saga, so its
 # deckbuilding type is the front face — it must not be served as a creature-land.
-JURASSIC_PARK = {
-    "name": "Welcome to . . . // Jurassic Park",
-    "layout": "transform",
-    "type_line": "Enchantment — Saga // Legendary Land",
-    "card_faces": [
-        {
-            "name": "Welcome to . . .",
-            "type_line": "Enchantment — Saga",
-            "oracle_text": (
-                "(As this Saga enters and after your draw step, add a lore counter.)\n"
-                "I — For each opponent, up to one target noncreature artifact they "
-                "control becomes a 0/4 Wall artifact creature with defender for as long "
-                "as you control this Saga.\n"
-                "II — Create a 3/3 green Dinosaur creature token with trample. It gains "
-                "haste until end of turn.\n"
-                "III — Destroy all Walls. Exile this Saga, then return it to the "
-                "battlefield transformed under your control."
-            ),
-        },
-        {
-            "name": "Jurassic Park",
-            "type_line": "Legendary Land",
-            "oracle_text": (
-                "(Transforms from Welcome to ....)\n"
-                "Each Dinosaur card in your graveyard has escape. The escape cost is "
-                "equal to the card's mana cost plus exile three other cards from your "
-                "graveyard. (You may cast cards from your graveyard for their escape "
-                "cost.)\n"
-                "{T}: Add {G} for each Dinosaur you control."
-            ),
-        },
-    ],
-}
-LIFE_AND_LIMB = {
-    "name": "Life and Limb",
-    "type_line": "Enchantment",
-    "oracle_text": (
-        "All Forests and all Saprolings are 1/1 green Saproling creatures and "
-        "Forest lands in addition to their other types. (They're affected by "
-        "summoning sickness.)"
-    ),
-}
-EMBODIMENT_OF_INSIGHT = {
-    "name": "Embodiment of Insight",
-    "type_line": "Creature — Elemental",
-    "power": "4",
-    "toughness": "4",
-    "keywords": ["Vigilance", "Landfall"],
-    "oracle_text": (
-        "Vigilance\nLand creatures you control have vigilance.\nLandfall — "
-        "Whenever a land you control enters, you may have target land you "
-        "control become a 3/3 Elemental creature with haste until end of turn. "
-        "It's still a land."
-    ),
-}
-QUIRION_RANGER = {
-    "name": "Quirion Ranger",
-    "type_line": "Creature — Elf Ranger",
-    "power": "1",
-    "toughness": "1",
-    "keywords": [],
-    "oracle_text": (
-        "Return a Forest you control to its owner's hand: Untap target creature. "
-        "Activate only once each turn."
-    ),
-}
-SCRYB_RANGER = {
-    "name": "Scryb Ranger",
-    "type_line": "Creature — Faerie Ranger",
-    "power": "1",
-    "toughness": "1",
-    "keywords": ["Flying", "Protection", "Flash"],
-    "oracle_text": (
-        "Flash\nFlying, protection from blue\nReturn a Forest you control to its "
-        "owner's hand: Untap target creature. Activate only once each turn."
-    ),
-}
-OBORO_BREEZECALLER = {
-    "name": "Oboro Breezecaller",
-    "type_line": "Creature — Moonfolk Wizard",
-    "power": "1",
-    "toughness": "1",
-    "keywords": ["Flying"],
-    "oracle_text": (
-        "Flying\n{2}, Return a land you control to its owner's hand: Untap target land."
-    ),
-}
-SEEKER_OF_SKYBREAK = {
-    "name": "Seeker of Skybreak",
-    "type_line": "Creature — Elf",
-    "power": "2",
-    "toughness": "1",
-    "keywords": [],
-    "oracle_text": "{T}: Untap target creature.",
-}
-BASILISK_COLLAR = {
-    "name": "Basilisk Collar",
-    "type_line": "Artifact — Equipment",
-    "keywords": ["Equip"],
-    "oracle_text": (
-        "Equipped creature has deathtouch and lifelink. (Any amount of damage it "
-        "deals to a creature is enough to destroy it. Damage dealt by this creature "
-        "also causes you to gain that much life.)\nEquip {2} ({2}: Attach to target "
-        "creature you control. Equip only as a sorcery.)"
-    ),
-}
-BONESPLITTER = {
-    "name": "Bonesplitter",
-    "type_line": "Artifact — Equipment",
-    "keywords": ["Equip"],
-    "oracle_text": "Equipped creature gets +2/+0.\nEquip {1}",
-}
-CRUCIBLE_OF_WORLDS = {
-    "name": "Crucible of Worlds",
-    "type_line": "Artifact",
-    "keywords": [],
-    "oracle_text": "You may play lands from your graveyard.",
-}
-DINGUS_EGG = {
-    "name": "Dingus Egg",
-    "type_line": "Artifact",
-    "keywords": [],
-    "oracle_text": (
-        "Whenever a land is put into a graveyard from the battlefield, this "
-        "artifact deals 2 damage to that land's controller."
-    ),
-}
-PRICE_OF_GLORY = {
-    "name": "Price of Glory",
-    "type_line": "Enchantment",
-    "keywords": [],
-    "oracle_text": (
-        "Whenever a player taps a land for mana, if it's not that player's turn, "
-        "destroy that land."
-    ),
-}
-HAUNTED_CROSSROADS = {
-    "name": "Haunted Crossroads",
-    "type_line": "Enchantment",
-    "keywords": [],
-    "oracle_text": "{B}: Put target creature card from your graveyard on top of your library.",
-}
-HUA_TUO = {
-    "name": "Hua Tuo, Honored Physician",
-    "type_line": "Legendary Creature — Human",
-    "power": "1",
-    "toughness": "2",
-    "keywords": [],
-    "oracle_text": "{T}: Put target creature card from your graveyard on top of your library. Activate only during your turn, before attackers are declared.",
-}
-REANIMATE = {
-    "name": "Reanimate",
-    "type_line": "Sorcery",
-    "keywords": [],
-    "oracle_text": (
-        "Put target creature card from a graveyard onto the battlefield under your "
-        "control. You lose life equal to that card's mana value."
-    ),
-}
-NAVIGATORS_COMPASS = {
-    "name": "Navigator's Compass",
-    "type_line": "Artifact",
-    "keywords": [],
-    "oracle_text": (
-        "When this artifact enters, you gain 3 life.\n{T}: Until end of turn, "
-        "target land you control becomes the basic land type of your choice in "
-        "addition to its other types."
-    ),
-}
-PRISMATIC_OMEN = {
-    "name": "Prismatic Omen",
-    "type_line": "Enchantment",
-    "keywords": [],
-    "oracle_text": (
-        "Lands you control are every basic land type in addition to their other types."
-    ),
-}
-REEF_SHAMAN = {
-    "name": "Reef Shaman",
-    "type_line": "Creature — Merfolk Shaman",
-    "power": "0",
-    "toughness": "2",
-    "keywords": [],
-    "oracle_text": "{T}: Target land becomes the basic land type of your choice until end of turn.",
-}
-BLOOD_MOON = {
-    "name": "Blood Moon",
-    "type_line": "Enchantment",
-    "keywords": [],
-    "oracle_text": "Nonbasic lands are Mountains.",
-}
-VICIOUS_SHADOWS = {
-    "name": "Vicious Shadows",
-    "type_line": "Enchantment",
-    "keywords": [],
-    "oracle_text": (
-        "Whenever a creature dies, you may have this enchantment deal damage to "
-        "target player equal to the number of cards in that player's hand."
-    ),
-}
-BLOOD_ARTIST = {
-    "name": "Blood Artist",
-    "type_line": "Creature — Vampire",
-    "power": "0",
-    "toughness": "1",
-    "keywords": [],
-    "oracle_text": (
-        "Whenever this creature or another creature dies, target player loses 1 "
-        "life and you gain 1 life."
-    ),
-}
-MURDER = {
-    "name": "Murder",
-    "type_line": "Instant",
-    "keywords": [],
-    "oracle_text": "Destroy target creature.",
-}
-THE_OZOLITH = {
-    "name": "The Ozolith",
-    "type_line": "Legendary Artifact",
-    "keywords": [],
-    "oracle_text": (
-        "Whenever a creature you control leaves the battlefield, if it had counters "
-        "on it, put those counters on The Ozolith.\nAt the beginning of combat on "
-        "your turn, if The Ozolith has counters on it, you may move all counters "
-        "from The Ozolith onto target creature."
-    ),
-}
-RESOURCEFUL_DEFENSE = {
-    "name": "Resourceful Defense",
-    "type_line": "Enchantment",
-    "keywords": [],
-    "oracle_text": (
-        "Whenever a permanent you control leaves the battlefield, if it had counters "
-        "on it, put those counters on target permanent you control.\n{4}{W}: Move "
-        "any number of counters from target permanent you control onto a second "
-        "target permanent you control."
-    ),
-}
-AETHER_SNAP = {
-    "name": "Aether Snap",
-    "type_line": "Sorcery",
-    "keywords": [],
-    "oracle_text": "Remove all counters from all permanents and exile all tokens.",
-}
-TAINTED_STRIKE = {
-    "name": "Tainted Strike",
-    "type_line": "Instant",
-    "keywords": [],
-    "oracle_text": (
-        "Target creature gets +1/+0 and gains infect until end of turn. (It deals "
-        "damage to creatures in the form of -1/-1 counters and to players in the "
-        "form of poison counters.)"
-    ),
-}
-TEMUR_BATTLE_RAGE = {
-    "name": "Temur Battle Rage",
-    "type_line": "Instant",
-    "keywords": ["Ferocious"],
-    "oracle_text": (
-        "Target creature gains double strike until end of turn.\nFerocious — That "
-        "creature also gains trample until end of turn if you control a creature "
-        "with power 4 or greater."
-    ),
-}
-GRAFTED_EXOSKELETON = {
-    "name": "Grafted Exoskeleton",
-    "type_line": "Artifact — Equipment",
-    "keywords": ["Equip"],
-    "oracle_text": (
-        "Equipped creature gets +2/+2 and has infect. (It deals damage to creatures "
-        "in the form of -1/-1 counters and to players in the form of poison "
-        "counters.)\nEquip {2}"
-    ),
-}
-BOROS_SWIFTBLADE = {
-    "name": "Boros Swiftblade",
-    "type_line": "Creature — Human Soldier",
-    "power": "1",
-    "toughness": "2",
-    "keywords": ["Double strike"],
-    "oracle_text": "Double strike",
-}
-ORNITHOPTER = {
-    "name": "Ornithopter",
-    "type_line": "Artifact Creature — Thopter",
-    "mana_cost": "{0}",
-    "power": "0",
-    "toughness": "2",
-    "cmc": 0.0,
-    "keywords": ["Flying"],
-    "oracle_text": "Flying",
-}
-WELDING_JAR = {
-    "name": "Welding Jar",
-    "type_line": "Artifact",
-    "mana_cost": "{0}",
-    "cmc": 0.0,
-    "keywords": [],
-    "oracle_text": "Sacrifice this artifact: Regenerate target artifact.",
-}
-SOL_RING = {
-    "name": "Sol Ring",
-    "type_line": "Artifact",
-    "mana_cost": "{1}",
-    "cmc": 1.0,
-    "keywords": [],
-    "oracle_text": "{T}: Add {C}{C}.",
-}
-AVEN_MINDCENSOR = {
-    "name": "Aven Mindcensor",
-    "type_line": "Creature — Bird Wizard",
-    "power": "2",
-    "toughness": "1",
-    "cmc": 3.0,
-    "keywords": ["Flying", "Flash"],
-    "oracle_text": (
-        "Flash\nFlying\nIf an opponent would search a library, that player searches "
-        "the top four cards of that library instead."
-    ),
-}
-ARCHON_OF_EMERIA = {
-    "name": "Archon of Emeria",
-    "type_line": "Creature — Archon",
-    "power": "2",
-    "toughness": "3",
-    "cmc": 3.0,
-    "keywords": ["Flying"],
-    "oracle_text": (
-        "Flying\nEach player can't cast more than one spell each turn.\nNonbasic "
-        "lands your opponents control enter tapped."
-    ),
-}
-LLANOWAR_ELVES = {
-    "name": "Llanowar Elves",
-    "type_line": "Creature — Elf Druid",
-    "power": "1",
-    "toughness": "1",
-    "cmc": 1.0,
-    "keywords": [],
-    "oracle_text": "{T}: Add {G}.",
-}
-PUCAS_MISCHIEF = {
-    "name": "Puca's Mischief",
-    "type_line": "Enchantment",
-    "keywords": [],
-    "oracle_text": (
-        "At the beginning of your upkeep, you may exchange control of target nonland "
-        "permanent you control and target nonland permanent an opponent controls with "
-        "equal or lesser mana value."
-    ),
-}
-PERPLEXING_CHIMERA = {
-    "name": "Perplexing Chimera",
-    "type_line": "Enchantment Creature — Chimera",
-    "power": "3",
-    "toughness": "3",
-    "keywords": [],
-    "oracle_text": (
-        "Whenever an opponent casts a spell, you may exchange control of this creature "
-        "and that spell. If you do, you may choose new targets for the spell. (If the "
-        "spell becomes a permanent, you control that permanent.)"
-    ),
-}
-SPAWNBROKER = {
-    "name": "Spawnbroker",
-    "type_line": "Creature — Human Wizard",
-    "power": "1",
-    "toughness": "1",
-    "keywords": [],
-    "oracle_text": (
-        "When this creature enters, you may exchange control of target creature you "
-        "control and target creature with power less than or equal to that creature's "
-        "power an opponent controls."
-    ),
-}
-SOWER_OF_TEMPTATION = {
-    "name": "Sower of Temptation",
-    "type_line": "Creature — Faerie Wizard",
-    "power": "2",
-    "toughness": "2",
-    "keywords": ["Flying"],
-    "oracle_text": (
-        "Flying\nWhen this creature enters, gain control of target creature for as "
-        "long as this creature remains on the battlefield."
-    ),
-}
-ROIL_ELEMENTAL = {
-    "name": "Roil Elemental",
-    "type_line": "Creature — Elemental",
-    "power": "3",
-    "toughness": "2",
-    "keywords": ["Landfall", "Flying"],
-    "oracle_text": (
-        "Flying\nLandfall — Whenever a land you control enters, you may gain control "
-        "of target creature for as long as you control this creature."
-    ),
-}
-EMPRESS_GALINA = {
-    "name": "Empress Galina",
-    "type_line": "Legendary Creature — Merfolk Noble",
-    "power": "1",
-    "toughness": "3",
-    "keywords": [],
-    "oracle_text": (
-        "{U}{U}, {T}: Gain control of target legendary permanent. (This effect lasts "
-        "indefinitely.)"
-    ),
-}
-ACT_OF_TREASON = {
-    "name": "Act of Treason",
-    "type_line": "Sorcery",
-    "keywords": [],
-    "oracle_text": (
-        "Gain control of target creature until end of turn. Untap that creature. It "
-        "gains haste until end of turn. (It can attack and {T} this turn.)"
-    ),
-}
-FIREBALL = {
-    "name": "Fireball",
-    "type_line": "Sorcery",
-    "mana_cost": "{X}{R}",
-    "keywords": [],
-    "oracle_text": (
-        "This spell costs {1} more to cast for each target beyond the first.\nFireball "
-        "deals X damage divided evenly, rounded down, among any number of targets."
-    ),
-}
-CRACKLE_WITH_POWER = {
-    "name": "Crackle with Power",
-    "type_line": "Sorcery",
-    "mana_cost": "{X}{X}{X}{R}{R}",
-    "keywords": [],
-    "oracle_text": "Crackle with Power deals five times X damage to each of up to X targets.",
-}
-JAYAS_INFERNO = {
-    "name": "Jaya's Immolating Inferno",
-    "type_line": "Legendary Sorcery",
-    "mana_cost": "{X}{R}{R}",
-    "keywords": [],
-    "oracle_text": (
-        "(You may cast a legendary sorcery only if you control a legendary creature or "
-        "planeswalker.)\nJaya's Immolating Inferno deals X damage to each of up to "
-        "three targets."
-    ),
-}
-LIGHTNING_BOLT = {
-    "name": "Lightning Bolt",
-    "type_line": "Instant",
-    "mana_cost": "{R}",
-    "keywords": [],
-    "oracle_text": "Lightning Bolt deals 3 damage to any target.",
-}
-MANA_FLARE = {
-    "name": "Mana Flare",
-    "type_line": "Enchantment",
-    "mana_cost": "{2}{R}",
-    "keywords": [],
-    "oracle_text": (
-        "Whenever a player taps a land for mana, that player adds one mana of any type "
-        "that land produced."
-    ),
-}
-FIELD_OF_DREAMS = {
-    "name": "Field of Dreams",
-    "type_line": "World Enchantment",
-    "keywords": [],
-    "oracle_text": "Players play with the top card of their libraries revealed.",
-}
-WIZENED_SNITCHES = {
-    "name": "Wizened Snitches",
-    "type_line": "Creature — Faerie Rogue",
-    "power": "1",
-    "toughness": "3",
-    "keywords": ["Flying"],
-    "oracle_text": "Flying\nPlayers play with the top card of their libraries revealed.",
-}
-PSYCHIC_SURGERY = {
-    "name": "Psychic Surgery",
-    "type_line": "Enchantment",
-    "keywords": [],
-    "oracle_text": (
-        "Whenever an opponent shuffles their library, you may look at the top two cards "
-        "of that library. You may exile one of those cards. Then put the rest on top of "
-        "that library in any order."
-    ),
-}
-CAVERN_HARPY = {
-    "name": "Cavern Harpy",
-    "type_line": "Creature — Harpy Beast",
-    "power": "2",
-    "toughness": "1",
-    "keywords": ["Flying"],
-    "oracle_text": (
-        "Flying\nWhen this creature enters, return a blue or black creature you control "
-        "to its owner's hand.\nPay 1 life: Return this creature to its owner's hand."
-    ),
-}
-WHITEMANE_LION = {
-    "name": "Whitemane Lion",
-    "type_line": "Creature — Cat",
-    "power": "2",
-    "toughness": "2",
-    "keywords": ["Flash"],
-    "oracle_text": (
-        "Flash\nWhen this creature enters, return a creature you control to its owner's "
-        "hand."
-    ),
-}
-RUN_AWAY_TOGETHER = {
-    "name": "Run Away Together",
-    "type_line": "Instant",
-    "keywords": [],
-    "oracle_text": (
-        "Choose two target creatures controlled by different players. Return those "
-        "creatures to their owners' hands."
-    ),
-}
+JURASSIC_PARK = _card("Welcome to . . . // Jurassic Park")
+LIFE_AND_LIMB = _card("Life and Limb")
+EMBODIMENT_OF_INSIGHT = _card("Embodiment of Insight")
+QUIRION_RANGER = _card("Quirion Ranger")
+SCRYB_RANGER = _card("Scryb Ranger")
+OBORO_BREEZECALLER = _card("Oboro Breezecaller")
+SEEKER_OF_SKYBREAK = _card("Seeker of Skybreak")
+BASILISK_COLLAR = _card("Basilisk Collar")
+BONESPLITTER = _card("Bonesplitter")
+CRUCIBLE_OF_WORLDS = _card("Crucible of Worlds")
+DINGUS_EGG = _card("Dingus Egg")
+PRICE_OF_GLORY = _card("Price of Glory")
+HAUNTED_CROSSROADS = _card("Haunted Crossroads")
+HUA_TUO = _card("Hua Tuo, Honored Physician")
+REANIMATE = _card("Reanimate")
+NAVIGATORS_COMPASS = _card("Navigator's Compass")
+PRISMATIC_OMEN = _card("Prismatic Omen")
+REEF_SHAMAN = _card("Reef Shaman")
+BLOOD_MOON = _card("Blood Moon")
+VICIOUS_SHADOWS = _card("Vicious Shadows")
+BLOOD_ARTIST = _card("Blood Artist")
+MURDER = _card("Murder")
+THE_OZOLITH = _card("The Ozolith")
+RESOURCEFUL_DEFENSE = _card("Resourceful Defense")
+AETHER_SNAP = _card("Aether Snap")
+TAINTED_STRIKE = _card("Tainted Strike")
+TEMUR_BATTLE_RAGE = _card("Temur Battle Rage")
+GRAFTED_EXOSKELETON = _card("Grafted Exoskeleton")
+BOROS_SWIFTBLADE = _card("Boros Swiftblade")
+ORNITHOPTER = _card("Ornithopter")
+WELDING_JAR = _card("Welding Jar")
+SOL_RING = _card("Sol Ring")
+AVEN_MINDCENSOR = _card("Aven Mindcensor")
+ARCHON_OF_EMERIA = _card("Archon of Emeria")
+LLANOWAR_ELVES = _card("Llanowar Elves")
+PUCAS_MISCHIEF = _card("Puca's Mischief")
+PERPLEXING_CHIMERA = _card("Perplexing Chimera")
+SPAWNBROKER = _card("Spawnbroker")
+SOWER_OF_TEMPTATION = _card("Sower of Temptation")
+ROIL_ELEMENTAL = _card("Roil Elemental")
+EMPRESS_GALINA = _card("Empress Galina")
+ACT_OF_TREASON = _card("Act of Treason")
+FIREBALL = _card("Fireball")
+CRACKLE_WITH_POWER = _card("Crackle with Power")
+JAYAS_INFERNO = _card("Jaya's Immolating Inferno")
+LIGHTNING_BOLT = _card("Lightning Bolt")
+MANA_FLARE = _card("Mana Flare")
+FIELD_OF_DREAMS = _card("Field of Dreams")
+WIZENED_SNITCHES = _card("Wizened Snitches")
+PSYCHIC_SURGERY = _card("Psychic Surgery")
+CAVERN_HARPY = _card("Cavern Harpy")
+WHITEMANE_LION = _card("Whitemane Lion")
+RUN_AWAY_TOGETHER = _card("Run Away Together")
 
 
 def test_land_creatures_spec_exists_with_extra_avenues():
@@ -2941,11 +1242,8 @@ def test_subject_spec_built_for_tribal_signal():
 
 def test_subject_spec_serve_matches_subject_reference():
     sig = _sig_sub("type_matters", "Goblin")
-    lord = {
-        "oracle_text": "Other Goblins you control get +1/+1.",
-        "type_line": "Creature — Goblin",
-    }
-    off = {"oracle_text": "Draw a card.", "type_line": "Sorcery"}
+    lord = _card("Goblin Trashmaster")
+    off = _card("Reach Through Mists")
     assert serves(lord, sig) is True
     assert serves(off, sig) is False
 
@@ -3330,95 +1628,41 @@ class TestSpellslingerServe:
     SLINGER = _sig("spellcast_matters", "you")
 
     def test_value_permanent_that_draws_does_not_serve(self):
-        rhystic = {
-            "name": "Rhystic Study",
-            "type_line": "Enchantment",
-            "oracle_text": (
-                "Whenever an opponent casts a spell, you may draw a card unless that "
-                "player pays {1}."
-            ),
-        }
+        rhystic = _card("Rhystic Study")
         assert serves(rhystic, self.SLINGER) is False
 
     def test_opponent_cast_drawer_does_not_serve(self):
         # Esper Sentinel: "opponent casts … noncreature spell" — the "you cast" gate
         # must reject it (it's an opponents-cast payoff, not a spellslinger enabler).
-        esper = {
-            "name": "Esper Sentinel",
-            "type_line": "Artifact Creature — Human Soldier",
-            "oracle_text": (
-                "Whenever an opponent casts their first noncreature spell each turn, "
-                "draw a card unless that player pays {X}, where X is this creature's "
-                "power."
-            ),
-            "keywords": [],
-        }
+        esper = _card("Esper Sentinel")
         assert serves(esper, self.SLINGER) is False
 
     def test_equipment_that_draws_does_not_serve(self):
-        sword = {
-            "name": "Sword of Fire and Ice",
-            "type_line": "Artifact — Equipment",
-            "oracle_text": (
-                "Equipped creature gets +2/+2 and has protection from red and from blue.\nWhenever equipped creature deals combat damage to a player, this Equipment deals 2 damage to any target and you draw a card.\nEquip {2}"
-            ),
-            "keywords": ["Equip"],
-        }
+        sword = _card("Sword of Fire and Ice")
         assert serves(sword, self.SLINGER) is False
 
     def test_coinflip_value_creature_does_not_serve(self):
         # Zndrsplt: draws on a won coin flip, never on YOUR cast — the canonical FP.
-        zndrsplt = {
-            "name": "Zndrsplt, Eye of Wisdom",
-            "type_line": "Legendary Creature — Homunculus",
-            "oracle_text": (
-                "Partner with Okaun, Eye of Chaos (When this creature enters, target player may put Okaun into their hand from their library, then shuffle.)\nAt the beginning of combat on your turn, flip a coin until you lose a flip.\nWhenever a player wins a coin flip, draw a card."
-            ),
-            "keywords": ["Partner"],
-        }
+        zndrsplt = _card("Zndrsplt, Eye of Wisdom")
         assert serves(zndrsplt, self.SLINGER) is False
 
     def test_instant_cantrip_serves(self):
-        opt = {
-            "name": "Opt",
-            "type_line": "Instant",
-            "oracle_text": "Scry 1. (Look at the top card of your library. You may put that card on the bottom.)\nDraw a card.",
-        }
+        opt = _card("Opt")
         assert serves(opt, self.SLINGER) is True
 
     def test_prowess_creature_serves_via_keyword(self):
-        swiftspear = {
-            "name": "Monastery Swiftspear",
-            "type_line": "Creature — Human Monk",
-            "oracle_text": "Haste\nProwess (Whenever you cast a noncreature spell, this creature gets +1/+1 until end of turn.)",
-            "keywords": ["Prowess", "Haste"],
-        }
+        swiftspear = _card("Monastery Swiftspear")
         assert serves(swiftspear, self.SLINGER) is True
 
     def test_cast_trigger_payoff_serves_via_oracle(self):
         # Young Pyromancer: a payoff with NO prowess keyword and not itself an
         # instant/sorcery — caught by the "whenever you cast an instant or sorcery"
         # oracle branch.
-        pyromancer = {
-            "name": "Young Pyromancer",
-            "type_line": "Creature — Human Shaman",
-            "oracle_text": (
-                "Whenever you cast an instant or sorcery spell, create a 1/1 red "
-                "Elemental creature token."
-            ),
-            "keywords": [],
-        }
+        pyromancer = _card("Young Pyromancer")
         assert serves(pyromancer, self.SLINGER) is True
 
     def test_magecraft_payoff_serves_via_oracle(self):
-        storm_kiln = {
-            "name": "Storm-Kiln Artist",
-            "type_line": "Creature — Dwarf Shaman",
-            "oracle_text": (
-                'This creature gets +1/+0 for each artifact you control.\nMagecraft — Whenever you cast or copy an instant or sorcery spell, create a Treasure token. (It\'s an artifact with "{T}, Sacrifice this token: Add one mana of any color.")'
-            ),
-            "keywords": ["Treasure", "Magecraft"],
-        }
+        storm_kiln = _card("Storm-Kiln Artist")
         assert serves(storm_kiln, self.SLINGER) is True
 
     def test_avenue_classifies_by_structured_serve_not_draw(self):
@@ -3440,22 +1684,9 @@ class TestSpellslingerServe:
                 score_candidate(card, active_signals=[], avenues=[avenue])["served"]
             )
 
-        opt = {
-            "name": "Opt",
-            "type_line": "Instant",
-            "oracle_text": "Scry 1. (Look at the top card of your library. You may put that card on the bottom.)\nDraw a card.",
-        }
-        swiftspear = {
-            "name": "Monastery Swiftspear",
-            "type_line": "Creature — Human Monk",
-            "oracle_text": "Haste\nProwess (Whenever you cast a noncreature spell, this creature gets +1/+1 until end of turn.)",
-            "keywords": ["Prowess"],
-        }
-        rhystic = {
-            "name": "Rhystic Study",
-            "type_line": "Enchantment",
-            "oracle_text": "Whenever an opponent casts a spell, you may draw a card unless that player pays {1}.",
-        }
+        opt = _card("Opt")
+        swiftspear = _card("Monastery Swiftspear")
+        rhystic = _card("Rhystic Study")
         assert "Spellslinger" in served(opt)  # by type
         assert "Spellslinger" in served(swiftspear)  # by keyword
         assert "Spellslinger" not in served(rhystic)  # value permanent excluded
@@ -3472,35 +1703,15 @@ class TestMagecraftServe:
     def test_protective_land_does_not_serve(self):
         # Boseiju mentions "instant or sorcery" but only to protect a spell — not a
         # spellslinger payoff. The old bare 'instant or sorcery' serve branch caught it.
-        boseiju = {
-            "name": "Boseiju, Who Shelters All",
-            "type_line": "Legendary Land",
-            "oracle_text": (
-                "Boseiju enters tapped.\n{T}, Pay 2 life: Add {C}. If that mana is "
-                "spent on an instant or sorcery spell, that spell can't be countered."
-            ),
-            "keywords": [],
-        }
+        boseiju = _card("Boseiju, Who Shelters All")
         assert serves(boseiju, self.MAGE) is False
 
     def test_cast_trigger_payoff_serves(self):
-        murmuring = {
-            "name": "Murmuring Mystic",
-            "type_line": "Creature — Human Wizard",
-            "oracle_text": (
-                "Whenever you cast an instant or sorcery spell, create a 1/1 blue Bird "
-                "Illusion creature token with flying."
-            ),
-            "keywords": [],
-        }
+        murmuring = _card("Murmuring Mystic")
         assert serves(murmuring, self.MAGE) is True
 
     def test_instant_serves_by_type(self):
-        opt = {
-            "name": "Opt",
-            "type_line": "Instant",
-            "oracle_text": "Scry 1. (Look at the top card of your library. You may put that card on the bottom.)\nDraw a card.",
-        }
+        opt = _card("Opt")
         assert serves(opt, self.MAGE) is True
 
     def test_avenue_does_not_credit_value_permanent(self):
@@ -3508,11 +1719,7 @@ class TestMagecraftServe:
 
         spec = spec_for(self.MAGE)
         avenue = engine_avenue(spec)
-        rhystic = {
-            "name": "Rhystic Study",
-            "type_line": "Enchantment",
-            "oracle_text": "Whenever an opponent casts a spell, you may draw a card unless that player pays {1}.",
-        }
+        rhystic = _card("Rhystic Study")
         served = set(
             score_candidate(rhystic, active_signals=[], avenues=[avenue])["served"]
         )
@@ -3540,23 +1747,14 @@ class TestSecondSpellSearch:
 
         spec = spec_for(self.SIG)
         avenue = engine_avenue(spec)
-        rhystic = {
-            "name": "Rhystic Study",
-            "type_line": "Enchantment",
-            "oracle_text": "Whenever an opponent casts a spell, you may draw a card unless that player pays {1}.",
-        }
+        rhystic = _card("Rhystic Study")
         served = set(
             score_candidate(rhystic, active_signals=[], avenues=[avenue])["served"]
         )
         assert spec.label not in served
 
     def test_serve_matches_a_real_second_spell_payoff(self):
-        payoff = {
-            "type_line": "Creature — Human Wizard",
-            "oracle_text": (
-                "Whenever you cast your second spell each turn, draw a card."
-            ),
-        }
+        payoff = _card("Jori En, Ruin Diver")
         assert serves(payoff, self.SIG) is True
 
 
@@ -3605,22 +1803,10 @@ class TestStructuredServeFixes:
         keeps Phyrexian Arena (recurring) and Blue Sun's Zenith (X cards) but drops a
         one-shot instant draw (Remand) and a death-triggered single draw (Solemn)."""
         sig = _sig("card_draw_engine", "you")
-        phyrexian_arena = {
-            "type_line": "Enchantment",
-            "oracle_text": "At the beginning of your upkeep, you draw a card and you lose 1 life.",
-        }
-        blue_suns = {
-            "type_line": "Instant",
-            "oracle_text": "Draw X cards. Put Blue Sun's Zenith into its owner's library third from the top.",
-        }
-        remand = {
-            "type_line": "Instant",
-            "oracle_text": "Counter target spell. If that spell is countered this way, put it into its owner's hand instead. Draw a card.",
-        }
-        solemn = {
-            "type_line": "Artifact Creature — Golem",
-            "oracle_text": "When this creature dies, you may draw a card.",
-        }
+        phyrexian_arena = _card("Phyrexian Arena")
+        blue_suns = _card("Blue Sun's Zenith")
+        remand = _card("Remand")
+        solemn = _card("Solemn Simulacrum")
         assert serves(phyrexian_arena, sig) is True
         assert serves(blue_suns, sig) is True
         assert serves(remand, sig) is False
@@ -3632,31 +1818,10 @@ class TestStructuredServeFixes:
         Gate on the keywords[] field instead; a card that GRANTS lifelink to the team
         still serves via an oracle grant-branch."""
         sig = _sig("lifegain_matters", "you")
-        soul_warden = {
-            "type_line": "Creature — Human Cleric",
-            "oracle_text": "Whenever another creature enters, you gain 1 life.",
-            "keywords": [],
-        }
-        baneslayer = {
-            "type_line": "Creature — Angel",
-            "oracle_text": "Flying, first strike, lifelink, protection from Demons and from Dragons",
-            "keywords": ["Flying", "First strike", "Lifelink"],
-        }
-        whip = {
-            "type_line": "Legendary Enchantment Artifact",
-            "oracle_text": "Creatures you control have lifelink.",
-            "keywords": [],
-        }
-        crystalline_giant = {
-            "type_line": "Artifact Creature — Giant",
-            "oracle_text": (
-                "At the beginning of combat on your turn, choose a kind of counter at "
-                "random that this creature doesn't have on it from among flying, first "
-                "strike, deathtouch, hexproof, lifelink, menace, reach, trample, and "
-                "vigilance, then put a counter of that kind on this creature."
-            ),
-            "keywords": [],
-        }
+        soul_warden = _card("Soul Warden")
+        baneslayer = _card("Baneslayer Angel")
+        whip = _card("Whip of Erebos")
+        crystalline_giant = _card("Crystalline Giant")
         assert serves(soul_warden, sig) is True  # gains life
         assert serves(baneslayer, sig) is True  # lifelink keyword
         assert serves(whip, sig) is True  # grants lifelink to the team
@@ -3667,21 +1832,9 @@ class TestStructuredServeFixes:
         that matched any creature mentioning equipment/attacks (~1104). The avenue is
         Equipment-for-a-dasher: gate on the Equipment TYPE and the dash KEYWORD."""
         sig = _sig("has_dash", "you")
-        skullclamp = {
-            "type_line": "Artifact — Equipment",
-            "oracle_text": "Equipped creature gets +1/-1.\nWhenever equipped creature dies, draw two cards.\nEquip {1}",
-            "keywords": ["Equip"],
-        }
-        mangara = {
-            "type_line": "Legendary Creature — Human Cleric",
-            "oracle_text": "Lifelink\nWhenever an opponent attacks with creatures, draw a card.",
-            "keywords": ["Lifelink"],
-        }
-        elder_gargaroth = {
-            "type_line": "Creature — Beast",
-            "oracle_text": "Vigilance, reach, trample\nWhenever this creature attacks or blocks, choose one.",
-            "keywords": ["Vigilance", "Reach", "Trample"],
-        }
+        skullclamp = _card("Skullclamp")
+        mangara = _card("Mangara, the Diplomat")
+        elder_gargaroth = _card("Elder Gargaroth")
         assert serves(skullclamp, sig) is True  # Equipment type
         assert serves(mangara, sig) is False  # not equipment, no dash
         assert serves(elder_gargaroth, sig) is False  # "attacks" no longer triggers
@@ -3692,28 +1845,9 @@ class TestStructuredServeFixes:
         damage … this creature enters') and MISSED the real punisher ('a creature an
         opponent controls enters'). A near-total inversion."""
         sig = _sig("creature_etb", "opponents")
-        suture_priest = {
-            "type_line": "Creature — Phyrexian Cleric",
-            "oracle_text": (
-                "Whenever another creature you control enters, you may gain 1 life.\n"
-                "Whenever a creature an opponent controls enters, you may have that "
-                "player lose 1 life."
-            ),
-        }
-        authority = {
-            "type_line": "Enchantment",
-            "oracle_text": (
-                "Creatures your opponents control enter tapped.\nWhenever a creature "
-                "an opponent controls enters, you gain 1 life."
-            ),
-        }
-        bloodthirst = {
-            "type_line": "Creature — Vampire Warrior",
-            "oracle_text": (
-                "Bloodthirst 2 (If an opponent was dealt damage this turn, this "
-                "creature enters with two +1/+1 counters on it.)"
-            ),
-        }
+        suture_priest = _card("Suture Priest")
+        authority = _card("Authority of the Consuls")
+        bloodthirst = _card("Stormblood Berserker")
         assert serves(suture_priest, sig) is True
         assert serves(authority, sig) is True
         assert serves(bloodthirst, sig) is False
@@ -3723,14 +1857,8 @@ class TestStructuredServeFixes:
         'opponent' next to 'loses', so it MISSED the keystone aristocrats drains that
         read 'target player loses N life' (Blood Artist, Zulaport Cutthroat)."""
         sig = _sig("lifeloss_matters", "opponents")
-        blood_artist = {
-            "type_line": "Creature — Vampire",
-            "oracle_text": "Whenever this creature or another creature dies, target player loses 1 life and you gain 1 life.",
-        }
-        zulaport = {
-            "type_line": "Creature — Human Cleric",
-            "oracle_text": "Whenever this creature or another creature you control dies, each opponent loses 1 life and you gain 1 life.",
-        }
+        blood_artist = _card("Blood Artist")
+        zulaport = _card("Zulaport Cutthroat")
         assert serves(blood_artist, sig) is True
         assert serves(zulaport, sig) is True
 

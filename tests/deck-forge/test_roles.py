@@ -10,6 +10,7 @@ import pytest
 
 from mtg_utils._analysis.roles import is_ramp, role_of
 from mtg_utils._tuner.issues import ROLE_SEARCH, _reliable_ramp
+from mtg_utils.card_classify import is_land
 from mtg_utils.testkit import snapshot_records, test_card, test_signals
 from mtg_utils.theme_presets import get_preset, has_signal_coverage
 
@@ -117,7 +118,9 @@ def test_the_tuner_ramp_search_page_is_nonland_ramp():
     preset = get_preset("ramp")
     hits = [r for r in snapshot_records() if preset.matches(r)]
     assert hits
-    assert not [r["name"] for r in hits if "Land" in (r.get("type_line") or "")]
+    # The tuner's gate is ``is_land`` (the FRONT face): a Saga // Land DFC such as
+    # Welcome to . . . // Jurassic Park is a nonland card the tuner may source.
+    assert not [r["name"] for r in hits if is_land(r)]
     # The precision filter only ever removes a conditionally-gated rock.
     dropped = [r["name"] for r in hits if not _reliable_ramp(r)]
     assert all("only if you control" in test_card(n)["oracle_text"] for n in dropped)
