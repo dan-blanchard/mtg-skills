@@ -6,6 +6,7 @@ from fastapi.testclient import TestClient
 
 from mtg_utils._deck_forge.app import build_app
 from mtg_utils._deck_forge.state import DeckSession, ForgeState
+from mtg_utils.testkit import test_card
 
 
 def _card(name, type_line, *, cmc=2.0, cost="{1}{G}", pt=None):
@@ -31,17 +32,9 @@ IDX = {
         cost="{2}{G}{G}",
         pt=("4", "4"),
     ),
-    "Grizzly Bears": _card("Grizzly Bears", "Creature — Bear", pt=("2", "2")),
-    "Giant Growth": _card("Giant Growth", "Instant", cmc=1, cost="{G}"),
-    "Forest": {
-        "name": "Forest",
-        "type_line": "Basic Land — Forest",
-        "cmc": 0.0,
-        "mana_cost": "",
-        "color_identity": [],
-        "oracle_text": "({T}: Add {G}.)",
-        "keywords": [],
-    },
+    "Grizzly Bears": test_card("Grizzly Bears"),
+    "Giant Growth": test_card("Giant Growth"),
+    "Forest": test_card("Forest"),
 }
 
 

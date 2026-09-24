@@ -12,6 +12,7 @@ from mtg_utils._deck_forge import engine
 from mtg_utils._deck_forge.app import build_app
 from mtg_utils._deck_forge.engine import DeckRuleError
 from mtg_utils._deck_forge.state import DeckSession, ForgeState
+from mtg_utils.testkit import test_card
 
 
 def _rec(name, type_line, cmc, colors, *, rarity="common", keywords=(), power=None):
@@ -37,12 +38,24 @@ def _rec(name, type_line, cmc, colors, *, rarity="common", keywords=(), power=No
     return rec
 
 
+def _basic(name):
+    # A real basic land, with this pool's printing facts overlaid.
+    return {
+        **test_card(name),
+        "id": f"id-{name}",
+        "rarity": "common",
+        "set": "hob",
+        "collector_number": name[:3],
+        "prices": {"usd": "0.10"},
+    }
+
+
 BEAR = _rec("Bear", "Creature — Bear", 2, ["G"], power=2)
 EAGLE = _rec("Eagle", "Creature — Bird", 3, ["W"], keywords=["Flying"], power=3)
 TROLL = _rec("Troll", "Creature — Troll", 5, ["G"], rarity="rare", power=6)
 PONY = _rec("Pony", "Creature — Horse", 1, ["W"], power=1)
-FOREST = _rec("Forest", "Basic Land — Forest", 0, [])
-PLAINS = _rec("Plains", "Basic Land — Plains", 0, [])
+FOREST = _basic("Forest")
+PLAINS = _basic("Plains")
 OFF_POOL = _rec("Dragon", "Creature — Dragon", 6, ["R"], rarity="mythic", power=6)
 INDEX = {c["name"]: c for c in (BEAR, EAGLE, TROLL, PONY, FOREST, PLAINS, OFF_POOL)}
 

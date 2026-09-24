@@ -6,17 +6,9 @@ from fastapi.testclient import TestClient
 
 from mtg_utils._deck_forge.app import build_app
 from mtg_utils._deck_forge.state import DeckSession, ForgeState
+from mtg_utils.testkit import test_card
 
-SOL_RING = {
-    "name": "Sol Ring",
-    "type_line": "Artifact",
-    "cmc": 1.0,
-    "mana_cost": "{1}",
-    "color_identity": [],
-    "oracle_text": "{T}: Add {C}{C}.",
-    "prices": {"usd": "1.50"},
-    "legalities": {"commander": "legal"},
-}
+SOL_RING = {**test_card("Sol Ring"), "prices": {"usd": "1.50"}}
 
 PLAIN = "1 Sol Ring\n1 Llanowar Elves\n1 Arcane Signet\n"
 WITH_COMMANDER = (

@@ -11,12 +11,13 @@ from mtg_utils._deck_forge.app import build_app
 from mtg_utils._deck_forge.collection import CollectionStore
 from mtg_utils._deck_forge.state import DeckSession, ForgeState
 from mtg_utils.parse_deck import parse_deck_text
+from mtg_utils.testkit import test_card
 
 
 def _printing(set_code, collector, usd, released, finishes=("nonfoil",), **prices):
+    # The real Sol Ring, with this printing's own facts overlaid.
     return {
-        "name": "Sol Ring",
-        "oracle_id": "oid-sol-ring",
+        **test_card("Sol Ring"),
         "id": f"id-{set_code}",
         "set": set_code.lower(),
         "set_name": f"{set_code} set",
@@ -26,13 +27,6 @@ def _printing(set_code, collector, usd, released, finishes=("nonfoil",), **price
         "finishes": list(finishes),
         "prices": {"usd": usd, **prices},
         "image_uris": {"small": f"https://img/{set_code}/small.jpg"},
-        "type_line": "Artifact",
-        "cmc": 1.0,
-        "color_identity": [],
-        "oracle_text": "{T}: Add {C}{C}.",
-        "mana_cost": "{1}",
-        "legalities": {"commander": "legal"},
-        "keywords": [],
     }
 
 
@@ -43,18 +37,13 @@ PREMIUM = _printing(
 NEWEST = _printing("otj", "451", "4.00", "2024-04-19", finishes=("nonfoil", "etched"))
 
 CULTIVATE = {
-    "name": "Cultivate",
-    "oracle_id": "oid-cultivate",
+    **test_card("Cultivate"),
     "id": "id-cultivate",
     "set": "m21",
     "collector_number": "177",
-    "type_line": "Sorcery",
-    "cmc": 3.0,
-    "color_identity": ["G"],
-    "oracle_text": "",
     "prices": {"usd": "1.00"},
-    "legalities": {"commander": "legal"},
 }
+SOL_RING_OID = CHEAP["oracle_id"]
 
 
 def _state():
@@ -64,8 +53,8 @@ def _state():
         session=DeckSession("commander"),
         bulk_available=True,
         printings_by_oracle={
-            "oid-sol-ring": [NEWEST, PREMIUM, CHEAP],  # newest first
-            "oid-cultivate": [CULTIVATE],
+            SOL_RING_OID: [NEWEST, PREMIUM, CHEAP],  # newest first
+            CULTIVATE["oracle_id"]: [CULTIVATE],
         },
         printing_by_id={
             "id-lea": CHEAP,

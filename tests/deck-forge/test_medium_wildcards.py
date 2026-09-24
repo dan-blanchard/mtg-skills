@@ -9,6 +9,7 @@ from fastapi.testclient import TestClient
 from mtg_utils._deck_forge import engine
 from mtg_utils._deck_forge.app import build_app
 from mtg_utils._deck_forge.state import DeckSession, ForgeState
+from mtg_utils.testkit import test_card
 
 
 def _state(fmt="historic_brawl"):
@@ -124,13 +125,9 @@ _RARITY_INDEX = {
 
 def _digital_state():
     by_name = {
-        "Shock": {"name": "Shock", "type_line": "Instant", "color_identity": ["R"]},
-        "Thoughtseize": {
-            "name": "Thoughtseize",
-            "type_line": "Sorcery",
-            "color_identity": ["B"],
-        },
-        "Mountain": {"name": "Mountain", "type_line": "Basic Land — Mountain"},
+        "Shock": test_card("Shock"),
+        "Thoughtseize": test_card("Thoughtseize"),
+        "Mountain": test_card("Mountain"),
     }
     state = ForgeState(
         by_name=by_name,
@@ -171,13 +168,7 @@ def test_wildcard_cost_charges_the_companion():
     # On Arena the companion is a sideboard card you must own (a Historic build's
     # Yorion is crafted like any other), so it costs wildcards.
     state = _digital_state()
-    state.by_name["Keruga, the Macrosage"] = {
-        "name": "Keruga, the Macrosage",
-        "type_line": "Legendary Creature — Dinosaur Hippo",
-        "color_identity": ["G", "U"],
-        "keywords": ["Companion"],
-        "oracle_text": "Companion — Each nonland card in your starting deck has mana value 3 or greater.",
-    }
+    state.by_name["Keruga, the Macrosage"] = test_card("Keruga, the Macrosage")
     state.rarity_index["historic_brawl"]["keruga, the macrosage"] = {
         "rarity": "rare",
         "free": False,

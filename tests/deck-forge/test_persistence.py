@@ -5,6 +5,7 @@ from fastapi.testclient import TestClient
 from mtg_utils._deck_forge.app import build_app
 from mtg_utils._deck_forge.persistence import BuildStore
 from mtg_utils._deck_forge.state import DeckSession, ForgeState
+from mtg_utils.testkit import test_card
 
 DECK = {
     "format": "commander",
@@ -56,7 +57,7 @@ def _client(tmp_path):
 
 def test_autosave_persists_on_add(tmp_path):
     state = ForgeState(
-        by_name={"Forest": {"name": "Forest", "type_line": "Basic Land — Forest"}},
+        by_name={"Forest": test_card("Forest")},
         search_fn=lambda **_: [],
         session=DeckSession("commander"),
         store=BuildStore(tmp_path),

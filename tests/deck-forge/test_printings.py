@@ -5,12 +5,13 @@ from fastapi.testclient import TestClient
 
 from mtg_utils._deck_forge.app import build_app
 from mtg_utils._deck_forge.state import DeckSession, ForgeState
+from mtg_utils.testkit import test_card
 
 
 def _printing(set_code, collector, usd, released):
+    # The real Sol Ring, with this printing's own facts overlaid.
     return {
-        "name": "Sol Ring",
-        "oracle_id": "oid-sol-ring",
+        **test_card("Sol Ring"),
         "id": f"id-{set_code}",
         "set": set_code,
         "set_name": f"{set_code} set",
@@ -23,17 +24,11 @@ def _printing(set_code, collector, usd, released):
             "small": f"https://img/{set_code}/small.jpg",
             "normal": f"https://img/{set_code}/normal.jpg",
         },
-        "type_line": "Artifact",
-        "cmc": 1.0,
-        "color_identity": [],
-        "oracle_text": "{T}: Add {C}{C}.",
-        "mana_cost": "{1}",
-        "legalities": {"commander": "legal"},
-        "keywords": [],
     }
 
 
 CHEAP = _printing("LEA", "1", "2.00", "1993-08-05")
+SOL_RING_OID = CHEAP["oracle_id"]
 PREMIUM = _printing("C21", "263", "5.00", "2021-04-23")
 
 
@@ -43,7 +38,7 @@ def _state():
         search_fn=lambda **_: [],
         session=DeckSession("commander"),
         bulk_available=True,
-        printings_by_oracle={"oid-sol-ring": [PREMIUM, CHEAP]},
+        printings_by_oracle={SOL_RING_OID: [PREMIUM, CHEAP]},
         printing_by_id={"id-LEA": CHEAP, "id-C21": PREMIUM},
     )
 
