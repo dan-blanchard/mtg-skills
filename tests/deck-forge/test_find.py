@@ -11,6 +11,7 @@ from fastapi.testclient import TestClient
 from mtg_utils._deck_forge import engine
 from mtg_utils._deck_forge.app import build_app
 from mtg_utils._deck_forge.state import DeckSession, ForgeState
+from mtg_utils.testkit import test_card
 
 # A tiny searchable catalog. "Both" serves both lanes (sacrifice AND make a token).
 CATALOG = [
@@ -126,12 +127,7 @@ def test_no_focus_no_filter_returns_nothing():
 # /api/find is now the single card-finding endpoint (ADR-0015 / ADR-0021).
 
 LLANOWAR = {
-    "name": "Llanowar Elves",
-    "type_line": "Creature — Elf Druid",
-    "mana_cost": "{G}",
-    "cmc": 1.0,
-    "color_identity": ["G"],
-    "oracle_text": "{T}: Add {G}.",
+    **test_card("Llanowar Elves"),
     "rarity": "common",
     "prices": {"usd": "0.15"},
     "image_uris": {"normal": "https://img/elf-normal.jpg"},
@@ -211,10 +207,12 @@ def test_owned_candidate_carries_ownership_keys():
 # search_fn kwargs), and results have to be BADGED — a pre-release card sitting
 # unmarked next to legal ones is the failure mode worth testing for.
 
+# A fictional card: the snapshot can never hold an unreleased card (a real one
+# eventually releases), so the pre-release shape is machinery here.
 _PRE = {
-    "name": "Belladonna Took",
-    "oracle_text": "Whenever a token you control enters, you gain 1 life.",
-    "type_line": "Legendary Creature — Halfling Citizen",
+    "name": "Unreleased Test Card",
+    "oracle_text": "Test text.",
+    "type_line": "Legendary Creature — Test",
     "cmc": 2.0,
     "mana_cost": "{1}{W}",
     "color_identity": ["W"],
@@ -245,7 +243,7 @@ def _capturing_client(*, unreleased_ids=frozenset()):
 
 def test_include_unreleased_defaults_to_false_on_the_wire():
     client, seen = _capturing_client()
-    client.post("/api/find", json={"name": "Belladonna", "limit": 25})
+    client.post("/api/find", json={"name": "Unreleased", "limit": 25})
     assert seen["include_unreleased"] is False
 
 
@@ -253,17 +251,17 @@ def test_include_unreleased_reaches_the_search_seam():
     client, seen = _capturing_client()
     res = client.post(
         "/api/find",
-        json={"name": "Belladonna", "include_unreleased": True, "limit": 25},
+        json={"name": "Unreleased", "include_unreleased": True, "limit": 25},
     ).json()["results"]
     assert seen["include_unreleased"] is True
-    assert _names(res) == ["Belladonna Took"]
+    assert _names(res) == ["Unreleased Test Card"]
 
 
 def test_unreleased_results_are_badged():
     client, _ = _capturing_client(unreleased_ids=frozenset({"oid-pre"}))
     res = client.post(
         "/api/find",
-        json={"name": "Belladonna", "include_unreleased": True, "limit": 25},
+        json={"name": "Unreleased", "include_unreleased": True, "limit": 25},
     ).json()["results"]
     assert res[0]["unreleased"] is True
     assert res[0]["released_at"] == "2026-08-14"
@@ -275,7 +273,7 @@ def test_released_results_carry_no_badge_key():
     client, _ = _capturing_client(unreleased_ids=frozenset())
     res = client.post(
         "/api/find",
-        json={"name": "Belladonna", "include_unreleased": True, "limit": 25},
+        json={"name": "Unreleased", "include_unreleased": True, "limit": 25},
     ).json()["results"]
     assert "unreleased" not in res[0]
 

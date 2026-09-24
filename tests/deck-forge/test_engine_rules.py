@@ -12,6 +12,7 @@ from mtg_utils._deck_forge import engine, views
 from mtg_utils._deck_forge.engine import DeckRuleError
 from mtg_utils._deck_forge.state import DeckSession, ForgeState
 from mtg_utils.formats import FORMATS
+from mtg_utils.testkit import test_card
 
 COMMANDER = {
     "name": "WU Captain",
@@ -25,29 +26,10 @@ COMMANDER = {
     "legalities": {"commander": "legal"},
     "prices": {"usd": "1.00"},
 }
-LURRUS = {
-    "name": "Lurrus of the Dream-Den",
-    "oracle_id": "oid-lurrus",
-    "type_line": "Legendary Creature — Cat Nightmare",
-    "cmc": 3.0,
-    "color_identity": ["W", "B"],
-    "keywords": ["Companion", "Lifelink"],
-    "oracle_text": (
-        "Companion — Each permanent card in your starting deck has mana value 2 or "
-        "less.\nLifelink"
-    ),
-    "legalities": {"commander": "legal"},
-}
+LURRUS = test_card("Lurrus of the Dream-Den")
 SOL_RING = {
-    "name": "Sol Ring",
+    **test_card("Sol Ring"),
     "id": "id-CHEAP",
-    "oracle_id": "oid-sol-ring",
-    "type_line": "Artifact",
-    "cmc": 1.0,
-    "color_identity": [],
-    "oracle_text": "{T}: Add {C}{C}.",
-    "produced_mana": ["C"],
-    "legalities": {"commander": "legal"},
     "prices": {"usd": "1.00"},
     "set": "cmr",
     "collector_number": "1",
@@ -63,22 +45,7 @@ SOL_RING_PREMIUM = {
     "finishes": ["nonfoil", "foil"],
     "prices": {"usd": "5.00", "usd_foil": "9.00"},
 }
-
-
-def _basic(name: str, color: str) -> dict:
-    return {
-        "name": name,
-        "oracle_id": f"oid-{name.lower()}",
-        "type_line": f"Basic Land — {name}",
-        "cmc": 0.0,
-        "color_identity": [],
-        "produced_mana": [color],
-        "oracle_text": f"({{T}}: Add {{{color}}}.)",
-        "legalities": {"commander": "legal"},
-    }
-
-
-BASICS = {n: _basic(n, c) for n, c in (("Plains", "W"), ("Island", "U"))}
+BASICS = {"Plains": test_card("Plains"), "Island": test_card("Island")}
 
 
 def _state(
@@ -97,7 +64,7 @@ def _state(
         search_fn=lambda **_: [],
         session=session,
         bulk_available=True,
-        printings_by_oracle={"oid-sol-ring": [SOL_RING_PREMIUM, SOL_RING]},
+        printings_by_oracle={SOL_RING["oracle_id"]: [SOL_RING_PREMIUM, SOL_RING]},
         printing_by_id={"id-C21": SOL_RING_PREMIUM, "id-CHEAP": SOL_RING},
     )
 

@@ -8,25 +8,18 @@ from mtg_utils._deck_forge import collection, discovery, engine
 from mtg_utils._deck_forge.app import build_app
 from mtg_utils._deck_forge.collection import CollectionStore
 from mtg_utils._deck_forge.state import DeckSession, ForgeState
+from mtg_utils.testkit import test_card
 
 
-def _rec(name, type_line, ci):
-    return {
-        "name": name,
-        "type_line": type_line,
-        "cmc": 1.0,
-        "color_identity": ci,
-        "oracle_text": "",
-        "prices": {"usd": "1"},
-        "legalities": {"commander": "legal", "brawl": "legal"},
-    }
+def _rec(name):
+    return {**test_card(name), "prices": {"usd": "1"}}
 
 
 BY_NAME = {
-    "Sol Ring": _rec("Sol Ring", "Artifact", []),
-    "Cultivate": _rec("Cultivate", "Sorcery", ["G"]),
-    "Llanowar Elves": _rec("Llanowar Elves", "Creature — Elf Druid", ["G"]),
-    "Forest": _rec("Forest", "Basic Land — Forest", ["G"]),
+    "Sol Ring": _rec("Sol Ring"),
+    "Cultivate": _rec("Cultivate"),
+    "Llanowar Elves": _rec("Llanowar Elves"),
+    "Forest": _rec("Forest"),
 }
 PAPER = "10 Sol Ring\n2 Cultivate\n20 Forest\n"
 
@@ -135,7 +128,7 @@ def test_arena_flavor_name_alias_matches_ownership():
     # canonical name; the Arena collection lists the flavor/printed name — they must match.
     from mtg_utils.names import normalize_card_name
 
-    by_name = {"Masked Meower": _rec("Masked Meower", "Creature — Cat", ["W"])}
+    by_name = {"Masked Meower": _rec("Masked Meower")}
     session = DeckSession("historic_brawl")  # → active slot is arena
     session.add("Masked Meower")
     state = ForgeState(
@@ -157,8 +150,8 @@ def test_arena_flavor_name_alias_matches_ownership():
 def test_find_candidates_carry_the_owned_flag():
     # The "Owned only" Find facet filters on this wire field (candidate.owned).
     by_name = {
-        "Sol Ring": _rec("Sol Ring", "Artifact", []),
-        "Llanowar Elves": _rec("Llanowar Elves", "Creature — Elf", ["G"]),
+        "Sol Ring": _rec("Sol Ring"),
+        "Llanowar Elves": _rec("Llanowar Elves"),
     }
     state = ForgeState(
         by_name=by_name,
@@ -182,10 +175,8 @@ def test_quantity_zero_rows_are_excluded_everywhere():
     # They must not count toward the collection size, ownership, or commander discovery
     # (mirrors find-commanders / mark-owned --min-quantity 1).
     by_name = {
-        "Sol Ring": _rec("Sol Ring", "Artifact", []),
-        "Ghave, Guru of Spores": _rec(
-            "Ghave, Guru of Spores", "Legendary Creature — Fungus Shaman", ["B", "G"]
-        ),
+        "Sol Ring": _rec("Sol Ring"),
+        "Ghave, Guru of Spores": _rec("Ghave, Guru of Spores"),
     }
     session = DeckSession("commander")
     session.add("Sol Ring")

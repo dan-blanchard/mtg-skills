@@ -7867,6 +7867,343 @@
     "type_line": "Instant"
    }
   },
+  "Agadeem's Awakening // Agadeem, the Undercrypt": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "Return from your graveyard to the battlefield any number of target creature cards that each have a different mana value X or less.",
+       "duration": null,
+       "effect": {
+        "destination": "Battlefield",
+        "enter_tapped": false,
+        "enter_transformed": false,
+        "enters_attacking": false,
+        "origin": "Graveyard",
+        "owner_library": false,
+        "target": {
+         "controller": "You",
+         "properties": [
+          {
+           "type": "InZone",
+           "zone": "Graveyard"
+          }
+         ],
+         "type": "Typed",
+         "type_filters": []
+        },
+        "type": "ChangeZone"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Sorcery"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Black"
+     ],
+     "color_override": null,
+     "defense": null,
+     "face_index": 0,
+     "flavor_name": null,
+     "keywords": [],
+     "layout": "modal_dfc",
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 0,
+      "shards": [
+       "X",
+       "Black",
+       "Black",
+       "Black"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "499c2b20-e83e-40ff-919e-1d134ad50c0a",
+       "67f4c93b-080c-4196-b095-6a120a221988"
+      ]
+     },
+     "name": "Agadeem's Awakening",
+     "non_ability_text": null,
+     "oracle_text": "Return from your graveyard to the battlefield any number of target creature cards that each have a different mana value X or less.",
+     "power": null,
+     "printings": [
+      "PRM",
+      "PZNR",
+      "ZNR"
+     ],
+     "rarities": [
+      "mythic"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2020-09-25",
+       "text": "A modal double-faced card can't be transformed or be put onto the battlefield transformed. Ignore any instruction to transform a modal double-faced card or to put one onto the battlefield transformed."
+      },
+      {
+       "date": "2020-09-25",
+       "text": "For example, if X is 3, you may target up to four creature cards: one with mana value 3, one with mana value 2, one with mana value 1, and one with mana value 0."
+      },
+      {
+       "date": "2020-09-25",
+       "text": "If X is 0 for Agadeem's Awakening, you can target one creature card with mana value 0."
+      },
+      {
+       "date": "2020-09-25",
+       "text": "If a card in a player's graveyard has {X} in its mana cost, X is considered to be 0 for that card."
+      },
+      {
+       "date": "2020-09-25",
+       "text": "If an effect allows you to play a land or cast a spell from among a group of cards, you may play or cast a modal double-faced card with any face that fits the criteria of that effect."
+      },
+      {
+       "date": "2020-09-25",
+       "text": "If an effect allows you to play a specific modal double-faced card, you may cast it as a spell or play it as a land, as determined by which face you choose to play. If an effect allows you to cast (rather than \"play\") a specific modal double-faced card, you can't play it as a land."
+      },
+      {
+       "date": "2020-09-25",
+       "text": "If an effect instructs a player to choose a card name, the name of either face may be chosen. If that effect or a linked ability refers to a spell with the chosen name being cast and/or a land with the chosen name being played, it considers only the chosen name, not the other face's name."
+      },
+      {
+       "date": "2020-09-25",
+       "text": "If an effect puts a double-faced card onto the battlefield, it enters with its front face up. If that front face can't be put onto the battlefield, it doesn't enter the battlefield."
+      },
+      {
+       "date": "2020-09-25",
+       "text": "In the Commander variant, a double-faced card's color identity is determined by the mana costs and mana symbols in the rules text of both faces combined. If either face has a color indicator or basic land type, those are also considered."
+      },
+      {
+       "date": "2020-09-25",
+       "text": "The mana value of a modal double-faced card is based on the characteristics of the face that's being considered. On the stack and battlefield, consider whichever face is up. In all other zones, consider only the front face. This is different than how the mana value of a transforming double-faced card is determined."
+      },
+      {
+       "date": "2020-09-25",
+       "text": "There is a single triangle icon in the top left corner of the front face. There is a double triangle icon in the top left corner of the back face."
+      },
+      {
+       "date": "2020-09-25",
+       "text": "To determine whether it is legal to play a modal double-faced card, consider only the characteristics of the face you're playing and ignore the other face's characteristics."
+      }
+     ],
+     "scryfall_oracle_id": "562d71b9-1646-474e-9293-55da6947a758",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    },
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": {
+        "type": "Tap"
+       },
+       "description": "{T}: Add {B}.",
+       "duration": null,
+       "effect": {
+        "produced": {
+         "colors": [
+          "Black"
+         ],
+         "type": "Fixed"
+        },
+        "type": "Mana"
+       },
+       "forward_result": false,
+       "is_mana_ability": true,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Land"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Black"
+     ],
+     "color_override": null,
+     "defense": null,
+     "face_index": 1,
+     "flavor_name": null,
+     "keywords": [],
+     "layout": "modal_dfc",
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "type": "NoCost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "499c2b20-e83e-40ff-919e-1d134ad50c0a",
+       "67f4c93b-080c-4196-b095-6a120a221988"
+      ]
+     },
+     "name": "Agadeem, the Undercrypt",
+     "non_ability_text": null,
+     "oracle_text": "As this land enters, you may pay 3 life. If you don't, it enters tapped.\n{T}: Add {B}.",
+     "power": null,
+     "printings": [
+      "PRM",
+      "PZNR",
+      "ZNR"
+     ],
+     "rarities": [
+      "mythic"
+     ],
+     "replacements": [
+      {
+       "condition": null,
+       "description": "As ~ enters, you may pay 3 life. If you don't, it enters tapped.",
+       "destination_zone": "Battlefield",
+       "event": "Moved",
+       "execute": null,
+       "mode": {
+        "cost": {
+         "amount": {
+          "type": "Fixed",
+          "value": 3
+         },
+         "type": "PayLife"
+        },
+        "decline": {
+         "condition": null,
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "scope": {
+           "type": "Single"
+          },
+          "state": {
+           "type": "Tap"
+          },
+          "target": {
+           "type": "SelfRef"
+          },
+          "type": "SetTapState"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": null,
+         "target_prompt": null
+        },
+        "type": "MayCost"
+       },
+       "valid_card": {
+        "type": "SelfRef"
+       }
+      }
+     ],
+     "scryfall_oracle_id": "562d71b9-1646-474e-9293-55da6947a758",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "card_faces": [
+     {
+      "colors": [
+       "B"
+      ],
+      "keywords": [],
+      "mana_cost": "{X}{B}{B}{B}",
+      "name": "Agadeem's Awakening",
+      "oracle_text": "Return from your graveyard to the battlefield any number of target creature cards that each have a different mana value X or less.",
+      "type_line": "Sorcery"
+     },
+     {
+      "colors": [],
+      "keywords": [],
+      "mana_cost": "",
+      "name": "Agadeem, the Undercrypt",
+      "oracle_text": "As this land enters, you may pay 3 life. If you don't, it enters tapped.\n{T}: Add {B}.",
+      "type_line": "Land"
+     }
+    ],
+    "cmc": 3.0,
+    "color_identity": [
+     "B"
+    ],
+    "keywords": [],
+    "layout": "modal_dfc",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "name": "Agadeem's Awakening // Agadeem, the Undercrypt",
+    "oracle_id": "562d71b9-1646-474e-9293-55da6947a758",
+    "produced_mana": [
+     "B"
+    ],
+    "type_line": "Sorcery // Land"
+   }
+  },
   "Agency Coroner": {
    "phase_records": [
     {
@@ -74327,6 +74664,426 @@
     "type_line": "Creature — Human Wizard"
    }
   },
+  "Civilized Scholar // Homicidal Brute": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": {
+        "type": "Tap"
+       },
+       "description": "{T}: Draw a card, then discard a card. If a creature card is discarded this way, untap ~, then transform it.",
+       "duration": null,
+       "effect": {
+        "count": {
+         "type": "Fixed",
+         "value": 1
+        },
+        "target": {
+         "type": "Controller"
+        },
+        "type": "Draw"
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "count": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "target": {
+          "type": "Controller"
+         },
+         "type": "Discard"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": {
+          "filter": {
+           "controller": null,
+           "properties": [],
+           "type": "Typed",
+           "type_filters": [
+            "Creature"
+           ]
+          },
+          "type": "ZoneChangedThisWay"
+         },
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "scope": {
+           "type": "Single"
+          },
+          "state": {
+           "type": "Untap"
+          },
+          "target": {
+           "type": "SelfRef"
+          },
+          "type": "SetTapState"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": {
+          "condition": {
+           "filter": {
+            "controller": null,
+            "properties": [],
+            "type": "Typed",
+            "type_filters": [
+             "Creature"
+            ]
+           },
+           "type": "ZoneChangedThisWay"
+          },
+          "cost": null,
+          "description": null,
+          "duration": null,
+          "effect": {
+           "scope": {
+            "type": "Single"
+           },
+           "target": {
+            "type": "ParentTarget"
+           },
+           "type": "Transform"
+          },
+          "forward_result": false,
+          "kind": "Spell",
+          "optional": false,
+          "optional_targeting": false,
+          "sub_ability": null,
+          "target_prompt": null
+         },
+         "sub_link": "SequentialSibling",
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Human",
+       "Advisor"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Red",
+      "Blue"
+     ],
+     "color_override": null,
+     "defense": null,
+     "face_index": 0,
+     "flavor_name": null,
+     "keywords": [],
+     "layout": "transform",
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 2,
+      "shards": [
+       "Blue"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "7bf864db-4754-433d-9d77-6695f78f6c09"
+      ]
+     },
+     "name": "Civilized Scholar",
+     "non_ability_text": null,
+     "oracle_text": "{T}: Draw a card, then discard a card. If a creature card is discarded this way, untap this creature, then transform it.",
+     "power": {
+      "type": "Fixed",
+      "value": 0
+     },
+     "printings": [
+      "ISD"
+     ],
+     "rarities": [
+      "uncommon"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2011-09-22",
+       "text": "If Civilized Scholar attacks, and later in the turn (but before the beginning of your end step), it transforms, Homicidal Brute's last ability won't trigger. This is because the creature attacked that turn, even if had its other face up at the time."
+      },
+      {
+       "date": "2011-09-22",
+       "text": "You don't have priority between untapping Civilized Scholar and transforming it. You can't activate the draw-and-discard ability again, for example."
+      },
+      {
+       "date": "2011-09-22",
+       "text": "You'll tap and transform Homicidal Brute even if it couldn't attack."
+      }
+     ],
+     "scryfall_oracle_id": "8662c9be-2244-4ea3-bf80-31a117f40a59",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 1
+     },
+     "triggers": []
+    },
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Human",
+       "Mutant"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Red",
+      "Blue"
+     ],
+     "color_override": [
+      "Red"
+     ],
+     "defense": null,
+     "face_index": 1,
+     "flavor_name": null,
+     "keywords": [],
+     "layout": "transform",
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "type": "NoCost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "7bf864db-4754-433d-9d77-6695f78f6c09"
+      ]
+     },
+     "name": "Homicidal Brute",
+     "non_ability_text": null,
+     "oracle_text": "At the beginning of your end step, if this creature didn't attack this turn, tap this creature, then transform it.",
+     "power": {
+      "type": "Fixed",
+      "value": 5
+     },
+     "printings": [
+      "ISD"
+     ],
+     "rarities": [
+      "uncommon"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "8662c9be-2244-4ea3-bf80-31a117f40a59",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 1
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": {
+        "comparator": "EQ",
+        "lhs": {
+         "qty": {
+          "filter": {
+           "filters": [
+            {
+             "type": "SelfRef"
+            },
+            {
+             "controller": null,
+             "properties": [
+              {
+               "type": "AttackedThisTurn"
+              }
+             ],
+             "type": "Typed",
+             "type_filters": []
+            }
+           ],
+           "type": "And"
+          },
+          "type": "ObjectCount"
+         },
+         "type": "Ref"
+        },
+        "rhs": {
+         "type": "Fixed",
+         "value": 0
+        },
+        "type": "QuantityComparison"
+       },
+       "constraint": {
+        "type": "OnlyDuringYourTurn"
+       },
+       "damage_kind": "Any",
+       "description": "At the beginning of your end step, if ~ didn't attack this turn, tap ~, then transform it.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "scope": {
+          "type": "Single"
+         },
+         "state": {
+          "type": "Tap"
+         },
+         "target": {
+          "type": "SelfRef"
+         },
+         "type": "SetTapState"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": null,
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "scope": {
+           "type": "Single"
+          },
+          "target": {
+           "type": "ParentTarget"
+          },
+          "type": "Transform"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": null,
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "mode": "Phase",
+       "optional": false,
+       "origin": null,
+       "phase": "End",
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": null,
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "card_faces": [
+     {
+      "colors": [
+       "U"
+      ],
+      "keywords": [
+       "Transform"
+      ],
+      "mana_cost": "{2}{U}",
+      "name": "Civilized Scholar",
+      "oracle_text": "{T}: Draw a card, then discard a card. If a creature card is discarded this way, untap this creature, then transform it.",
+      "power": "0",
+      "toughness": "1",
+      "type_line": "Creature — Human Advisor"
+     },
+     {
+      "colors": [
+       "R"
+      ],
+      "keywords": [
+       "Transform"
+      ],
+      "mana_cost": "",
+      "name": "Homicidal Brute",
+      "oracle_text": "At the beginning of your end step, if this creature didn't attack this turn, tap this creature, then transform it.",
+      "power": "5",
+      "toughness": "1",
+      "type_line": "Creature — Human Mutant"
+     }
+    ],
+    "cmc": 3.0,
+    "color_identity": [
+     "R",
+     "U"
+    ],
+    "keywords": [
+     "Transform"
+    ],
+    "layout": "transform",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "name": "Civilized Scholar // Homicidal Brute",
+    "oracle_id": "8662c9be-2244-4ea3-bf80-31a117f40a59",
+    "type_line": "Creature — Human Advisor // Creature — Human Mutant"
+   }
+  },
   "Claim // Fame": {
    "phase_records": [
     {
@@ -139853,6 +140610,314 @@
     "oracle_id": "1ca875f0-50a7-4332-8643-c2b4bbda18b1",
     "oracle_text": "Draw two cards, then discard a card.\nConspire (As you cast this spell, you may tap two untapped creatures you control that share a color with it. When you do, copy it.)",
     "type_line": "Sorcery"
+   }
+  },
+  "Ghave, Guru of Spores": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": {
+        "costs": [
+         {
+          "cost": {
+           "generic": 1,
+           "shards": [],
+           "type": "Cost"
+          },
+          "type": "Mana"
+         },
+         {
+          "count": 1,
+          "counter_type": {
+           "data": "P1P1",
+           "type": "OfType"
+          },
+          "selection": "SingleObject",
+          "target": {
+           "controller": "You",
+           "properties": [],
+           "type": "Typed",
+           "type_filters": [
+            "Creature"
+           ]
+          },
+          "type": "RemoveCounter"
+         }
+        ],
+        "type": "Composite"
+       },
+       "description": "{1}, Remove a +1/+1 counter from a creature you control: Create a 1/1 green Saproling creature token.",
+       "duration": null,
+       "effect": {
+        "colors": [
+         "Green"
+        ],
+        "count": {
+         "type": "Fixed",
+         "value": 1
+        },
+        "enters_attacking": false,
+        "keywords": [],
+        "name": "Saproling",
+        "owner": {
+         "type": "Controller"
+        },
+        "power": {
+         "type": "Fixed",
+         "value": 1
+        },
+        "tapped": false,
+        "toughness": {
+         "type": "Fixed",
+         "value": 1
+        },
+        "type": "Token",
+        "types": [
+         "Creature",
+         "Saproling"
+        ]
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      },
+      {
+       "condition": null,
+       "cost": {
+        "costs": [
+         {
+          "cost": {
+           "generic": 1,
+           "shards": [],
+           "type": "Cost"
+          },
+          "type": "Mana"
+         },
+         {
+          "count": 1,
+          "target": {
+           "controller": null,
+           "properties": [],
+           "type": "Typed",
+           "type_filters": [
+            "Creature"
+           ]
+          },
+          "type": "Sacrifice"
+         }
+        ],
+        "type": "Composite"
+       },
+       "description": "{1}, Sacrifice a creature: Put a +1/+1 counter on target creature.",
+       "duration": null,
+       "effect": {
+        "count": {
+         "type": "Fixed",
+         "value": 1
+        },
+        "counter_type": "P1P1",
+        "target": {
+         "controller": null,
+         "properties": [],
+         "type": "Typed",
+         "type_filters": [
+          "Creature"
+         ]
+        },
+        "type": "PutCounter"
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "brawl_commander": true,
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Fungus",
+       "Shaman"
+      ],
+      "supertypes": [
+       "Legendary"
+      ]
+     },
+     "color_identity": [
+      "Black",
+      "Green",
+      "White"
+     ],
+     "color_override": [
+      "Black",
+      "Green",
+      "White"
+     ],
+     "defense": null,
+     "flavor_name": null,
+     "is_commander": true,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 2,
+      "shards": [
+       "White",
+       "Black",
+       "Green"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "related_token_ids": [
+       "993318ee-4e8f-58a6-b55f-894b9310a3d9",
+       "b04a8173-24b6-577f-a150-cd7e51791c04",
+       "b97a960d-5d34-5fd0-a94c-af7bb41c3edb",
+       "dc6b409b-79e0-5103-9e78-2bf1c9a3deac"
+      ],
+      "source_printing_ids": [
+       "03cb1519-1cab-4c59-9cf9-d5c44074bbce",
+       "11590bf6-184e-4134-b1f6-7b8de5a23564",
+       "31317da6-83e1-4548-9c10-7f8da9fe2acd",
+       "3ca4df5e-14b3-42ed-89dd-d87450cc78f2",
+       "817f782f-7e62-44b3-9bb2-3a57d34dfe67",
+       "c2be0e99-cf43-423f-974f-02e3313b3aa9"
+      ]
+     },
+     "name": "Ghave, Guru of Spores",
+     "non_ability_text": null,
+     "oracle_text": "Ghave enters with five +1/+1 counters on it.\n{1}, Remove a +1/+1 counter from a creature you control: Create a 1/1 green Saproling creature token.\n{1}, Sacrifice a creature: Put a +1/+1 counter on target creature.",
+     "power": {
+      "type": "Fixed",
+      "value": 0
+     },
+     "printings": [
+      "2X2",
+      "C16",
+      "CM2",
+      "CMD",
+      "OCMD",
+      "PLST",
+      "PZ1",
+      "SLD"
+     ],
+     "rarities": [
+      "mythic"
+     ],
+     "replacements": [
+      {
+       "condition": null,
+       "description": "~ enters with five +1/+1 counters on it.",
+       "destination_zone": "Battlefield",
+       "event": "Moved",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "count": {
+          "type": "Fixed",
+          "value": 5
+         },
+         "counter_type": "P1P1",
+         "target": {
+          "type": "SelfRef"
+         },
+         "type": "PutCounter"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": {
+        "type": "Mandatory"
+       },
+       "valid_card": {
+        "type": "SelfRef"
+       }
+      }
+     ],
+     "scryfall_oracle_id": "e579a72f-4933-40fe-9e57-96f8d65370bc",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 0
+     },
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "all_parts": [
+     {
+      "component": "token",
+      "id": "698d48fa-d6c1-44b9-8aa2-bb03e0e53788",
+      "name": "Saproling",
+      "oracle_id": "2b7dba01-b08c-4218-9fc1-da55559d9155",
+      "type_line": "Token Creature — Saproling"
+     }
+    ],
+    "arena_available": false,
+    "cmc": 5.0,
+    "color_identity": [
+     "B",
+     "G",
+     "W"
+    ],
+    "colors": [
+     "B",
+     "G",
+     "W"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{2}{W}{B}{G}",
+    "name": "Ghave, Guru of Spores",
+    "oracle_id": "e579a72f-4933-40fe-9e57-96f8d65370bc",
+    "oracle_text": "Ghave enters with five +1/+1 counters on it.\n{1}, Remove a +1/+1 counter from a creature you control: Create a 1/1 green Saproling creature token.\n{1}, Sacrifice a creature: Put a +1/+1 counter on target creature.",
+    "power": "0",
+    "toughness": "0",
+    "type_line": "Legendary Creature — Fungus Shaman"
    }
   },
   "Ghired, Conclave Exile": {

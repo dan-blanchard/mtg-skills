@@ -20,27 +20,10 @@ from mtg_utils._deck_forge.app import build_app
 from mtg_utils._deck_forge.events import EventHub
 from mtg_utils._deck_forge.persistence import BuildStore
 from mtg_utils._deck_forge.state import DeckSession, ForgeState
+from mtg_utils.testkit import test_card
 
-FOREST = {
-    "name": "Forest",
-    "oracle_id": "oid-forest",
-    "type_line": "Basic Land — Forest",
-    "cmc": 0.0,
-    "color_identity": ["G"],
-    "oracle_text": "({T}: Add {G}.)",
-    "produced_mana": ["G"],
-    "legalities": {"commander": "legal", "brawl": "legal", "standardbrawl": "legal"},
-}
-ELVES = {
-    "name": "Llanowar Elves",
-    "oracle_id": "oid-elves",
-    "type_line": "Creature — Elf Druid",
-    "mana_cost": "{G}",
-    "cmc": 1.0,
-    "color_identity": ["G"],
-    "oracle_text": "{T}: Add {G}.",
-    "legalities": {"commander": "legal", "brawl": "legal", "standardbrawl": "legal"},
-}
+FOREST = test_card("Forest")
+ELVES = test_card("Llanowar Elves")
 INDEX = {c["name"]: c for c in (FOREST, ELVES)}
 SAVED_DECK = {
     "format": "commander",

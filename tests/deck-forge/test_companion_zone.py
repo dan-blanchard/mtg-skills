@@ -13,69 +13,14 @@ from mtg_utils._deck_forge import engine
 from mtg_utils._deck_forge.app import build_app
 from mtg_utils._deck_forge.state import DeckSession, ForgeState
 from mtg_utils.parse_deck import parse_deck_text
+from mtg_utils.testkit import test_card
 
-KERUGA = {
-    "name": "Keruga, the Macrosage",
-    "type_line": "Legendary Creature — Dinosaur Hippo",
-    "cmc": 5.0,
-    "mana_cost": "{3}{G}{U}",
-    "color_identity": ["G", "U"],
-    "oracle_text": (
-        "Companion — Your starting deck contains only cards with mana value 3 "
-        "or greater and land cards.\nWhen Keruga, the Macrosage enters, draw a "
-        "card for each other permanent you control with mana value 3 or greater."
-    ),
-    "keywords": ["Companion"],
-    "legalities": {"commander": "legal"},
-}
-YORION = {
-    "name": "Yorion, Sky Nomad",
-    "type_line": "Legendary Creature — Bird Serpent",
-    "cmc": 4.0,
-    "mana_cost": "{3}{W/U}",
-    "color_identity": ["W", "U"],
-    "oracle_text": (
-        "Companion — Your starting deck contains at least twenty cards more "
-        "than the minimum deck size.\nWhen Yorion enters, exile any number of "
-        "other nonland permanents you own and control. Return them at the "
-        "beginning of the next end step."
-    ),
-    "keywords": ["Companion"],
-    "legalities": {"commander": "legal"},
-}
-ATRAXA = {
-    "name": "Atraxa, Praetors' Voice",
-    "type_line": "Legendary Creature — Phyrexian Angel Horror",
-    "cmc": 4.0,
-    "color_identity": ["W", "U", "B", "G"],
-    "oracle_text": "Flying, vigilance, deathtouch, lifelink",
-    "legalities": {"commander": "legal"},
-}
-SOL_RING = {
-    "name": "Sol Ring",
-    "type_line": "Artifact",
-    "cmc": 1.0,
-    "mana_cost": "{1}",
-    "color_identity": [],
-    "oracle_text": "{T}: Add {C}{C}.",
-    "legalities": {"commander": "legal"},
-}
-FOREST = {
-    "name": "Forest",
-    "type_line": "Basic Land — Forest",
-    "cmc": 0.0,
-    "color_identity": ["G"],
-    "oracle_text": "({T}: Add {G}.)",
-    "legalities": {"commander": "legal"},
-}
-HILL_GIANT = {
-    "name": "Hill Giant",
-    "type_line": "Creature — Giant",
-    "cmc": 4.0,
-    "color_identity": ["R"],
-    "oracle_text": "",
-    "legalities": {"commander": "legal"},
-}
+KERUGA = test_card("Keruga, the Macrosage")
+YORION = test_card("Yorion, Sky Nomad")
+ATRAXA = test_card("Atraxa, Praetors' Voice")
+SOL_RING = test_card("Sol Ring")
+FOREST = test_card("Forest")
+HILL_GIANT = test_card("Hill Giant")
 INDEX = {c["name"]: c for c in (KERUGA, YORION, ATRAXA, SOL_RING, FOREST, HILL_GIANT)}
 
 

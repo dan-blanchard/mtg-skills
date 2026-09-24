@@ -7,30 +7,11 @@ partner-slot scoping, the snapshot composition) are now testable through a plain
 
 from mtg_utils._deck_forge import engine
 from mtg_utils._deck_forge.state import DeckSession, ForgeState
+from mtg_utils.testkit import test_card
 
-ISHAI = {
-    "name": "Ishai, Ojutai Dragonspeaker",
-    "type_line": "Legendary Creature — Bird Monk",
-    "cmc": 2.0,
-    "color_identity": ["W", "U"],
-    "oracle_text": "Flying\nWhenever an opponent casts a spell, put a +1/+1 counter on Ishai.\nPartner (You can have two commanders if both have partner.)",
-    "legalities": {"commander": "legal"},
-}
-ATRAXA = {
-    "name": "Atraxa, Praetors' Voice",
-    "type_line": "Legendary Creature — Phyrexian Angel Horror",
-    "cmc": 4.0,
-    "color_identity": ["W", "U", "B", "G"],
-    "oracle_text": "Flying, vigilance, deathtouch, lifelink\nAt the beginning of your end step, proliferate. (Choose any number of permanents and/or players, then give each another counter of each kind already there.)",
-    "legalities": {"commander": "legal"},
-}
-FOREST = {
-    "name": "Forest",
-    "type_line": "Basic Land — Forest",
-    "cmc": 0.0,
-    "color_identity": ["G"],
-    "oracle_text": "({T}: Add {G}.)",
-}
+ISHAI = test_card("Ishai, Ojutai Dragonspeaker")
+ATRAXA = test_card("Atraxa, Praetors' Voice")
+FOREST = test_card("Forest")
 INDEX = {c["name"]: c for c in (ISHAI, ATRAXA, FOREST)}
 
 

@@ -11,77 +11,15 @@ from mtg_utils._deck_forge import engine
 from mtg_utils._deck_forge.app import build_app
 from mtg_utils._deck_forge.engine import DeckRuleError
 from mtg_utils._deck_forge.state import DeckSession, ForgeState
+from mtg_utils.testkit import test_card
 
-MOUNTAIN = {
-    "name": "Mountain",
-    "type_line": "Basic Land — Mountain",
-    "cmc": 0.0,
-    "colors": [],
-    "color_identity": ["R"],
-    "oracle_text": "({T}: Add {R}.)",
-    "produced_mana": ["R"],
-    "legalities": {"modern": "legal", "standard": "legal", "commander": "legal"},
-}
-BOLT = {
-    "name": "Lightning Bolt",
-    "type_line": "Instant",
-    "cmc": 1.0,
-    "colors": ["R"],
-    "color_identity": ["R"],
-    "oracle_text": "Lightning Bolt deals 3 damage to any target.",
-    "legalities": {"modern": "legal", "commander": "legal"},
-}
-BLACK_LOTUS = {
-    "name": "Black Lotus",
-    "type_line": "Artifact",
-    "cmc": 0.0,
-    "colors": [],
-    "color_identity": [],
-    "oracle_text": "{T}, Sacrifice Black Lotus: Add three mana of any one color.",
-    "legalities": {"vintage": "restricted", "commander": "banned"},
-}
-KERUGA = {
-    "name": "Keruga, the Macrosage",
-    "type_line": "Legendary Creature — Dinosaur Hippo",
-    "cmc": 5.0,
-    "colors": ["G", "U"],
-    "color_identity": ["G", "U"],
-    "oracle_text": (
-        "Companion — Each nonland card in your starting deck has mana value 3 or "
-        "greater.\nWhen Keruga, the Macrosage enters, draw a card for each other "
-        "permanent you control with mana value 3 or greater."
-    ),
-    "keywords": ["Companion"],
-    "legalities": {"modern": "legal", "commander": "legal"},
-}
-ISLAND = {
-    "name": "Island",
-    "type_line": "Basic Land — Island",
-    "cmc": 0.0,
-    "colors": [],
-    "color_identity": ["U"],
-    "oracle_text": "({T}: Add {U}.)",
-    "produced_mana": ["U"],
-    "legalities": {"modern": "legal", "standard": "legal", "commander": "legal"},
-}
-COUNTERSPELL = {
-    "name": "Counterspell",
-    "type_line": "Instant",
-    "cmc": 2.0,
-    "colors": ["U"],
-    "color_identity": ["U"],
-    "oracle_text": "Counter target spell.",
-    "legalities": {"modern": "legal", "commander": "legal"},
-}
-RAGAVAN = {
-    "name": "Ragavan, Nimble Pilferer",
-    "type_line": "Legendary Creature — Monkey Pirate",
-    "cmc": 1.0,
-    "colors": ["R"],
-    "color_identity": ["R"],
-    "oracle_text": "Dash {1}{R}",
-    "legalities": {"modern": "legal", "commander": "legal"},
-}
+MOUNTAIN = test_card("Mountain")
+BOLT = test_card("Lightning Bolt")
+BLACK_LOTUS = test_card("Black Lotus")
+KERUGA = test_card("Keruga, the Macrosage")
+ISLAND = test_card("Island")
+COUNTERSPELL = test_card("Counterspell")
+RAGAVAN = test_card("Ragavan, Nimble Pilferer")
 INDEX = {
     c["name"]: c
     for c in (MOUNTAIN, BOLT, BLACK_LOTUS, KERUGA, ISLAND, COUNTERSPELL, RAGAVAN)
@@ -329,36 +267,19 @@ def test_deck_colors_are_castable_for_constructed_and_identity_for_commander():
 
 def test_deck_colors_read_a_transform_front_and_an_mdfc_spell_face():
     state = _state("modern")
-    state.by_name["Delver"] = {
-        "name": "Delver of Secrets // Insectile Aberration",
-        "type_line": "Creature — Human Wizard // Creature — Human Insect",
-        "layout": "transform",
-        "colors": [],
-        "card_faces": [{"colors": ["U"]}, {"colors": ["B"]}],  # a made-up back
-        "color_identity": ["U", "B"],
-    }
-    state.by_name["Awakening"] = {
-        "name": "Agadeem's Awakening // Agadeem, the Undercrypt",
-        "type_line": "Sorcery // Land",
-        "layout": "modal_dfc",
-        "colors": [],
-        "card_faces": [
-            {"type_line": "Sorcery", "colors": ["G"]},
-            {"type_line": "Land", "colors": []},
-        ],
-        "color_identity": ["G"],
-    }
-    state.by_name["Pathway"] = {
-        "name": "Cragcrown Pathway // Timbercrown Pathway",
-        "type_line": "Land // Land",
-        "layout": "modal_dfc",
-        "colors": [],
-        "card_faces": [{"type_line": "Land"}, {"type_line": "Land"}],
-        "color_identity": ["R", "G"],
-    }
-    for name in ("Delver", "Awakening", "Pathway"):
+    # A transform card whose back is a different colour (Homicidal Brute is red),
+    # an MDFC whose spell face is black, and an MDFC land pair (colourless faces).
+    scholar = "Civilized Scholar // Homicidal Brute"
+    awakening = "Agadeem's Awakening // Agadeem, the Undercrypt"
+    pathway = "Cragcrown Pathway // Timbercrown Pathway"
+    state.by_name[scholar] = test_card("Civilized Scholar // Homicidal Brute")
+    state.by_name[awakening] = test_card(
+        "Agadeem's Awakening // Agadeem, the Undercrypt"
+    )
+    state.by_name[pathway] = test_card("Cragcrown Pathway // Timbercrown Pathway")
+    for name in (scholar, awakening, pathway):
         state.session.add(name, 1)
-    assert engine.deck_colors(state) == "GU"  # never the transform back's B
+    assert engine.deck_colors(state) == "BU"  # never the transform back's R
 
 
 def test_finalize_override_reports_overridden_only_when_it_lifted_the_gate():

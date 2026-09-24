@@ -3,22 +3,13 @@
 from fastapi.testclient import TestClient
 
 from mtg_utils._card_ir import compat_lookup as _ir_lookup
-from mtg_utils._card_ir import trees
-from mtg_utils._card_ir.crosswalk import ConceptTree
 from mtg_utils._deck_forge.app import build_app
 from mtg_utils._deck_forge.events import EventHub
 from mtg_utils._deck_forge.state import DeckSession, ForgeState
-from mtg_utils.card_ir import Card, Face
-from mtg_utils.deck import split_type_line
+from mtg_utils.testkit import test_card, test_card_ir
 
 LLANOWAR = {
-    "name": "Llanowar Elves",
-    "type_line": "Creature — Elf Druid",
-    "mana_cost": "{G}",
-    "cmc": 1.0,
-    "color_identity": ["G"],
-    "produced_mana": ["G"],
-    "oracle_text": "{T}: Add {G}.",
+    **test_card("Llanowar Elves"),
     "rarity": "common",
     "prices": {"usd": "0.15"},
     "image_uris": {
@@ -27,25 +18,9 @@ LLANOWAR = {
         "art_crop": "https://img/elf-art.jpg",
     },
 }
-FOREST = {
-    "name": "Forest",
-    "type_line": "Basic Land — Forest",
-    "mana_cost": "",
-    "cmc": 0.0,
-    "color_identity": ["G"],
-    "produced_mana": ["G"],
-    "oracle_text": "({T}: Add {G}.)",
-    "rarity": "common",
-    "prices": {"usd": "0.05"},
-}
+FOREST = {**test_card("Forest"), "rarity": "common", "prices": {"usd": "0.05"}}
 ATRAXA = {
-    "name": "Atraxa, Praetors' Voice",
-    "type_line": "Legendary Creature — Phyrexian Angel Horror",
-    "legalities": {"commander": "legal", "brawl": "legal", "standardbrawl": "legal"},
-    "mana_cost": "{G}{W}{U}{B}",
-    "cmc": 4.0,
-    "color_identity": ["W", "U", "B", "G"],
-    "oracle_text": "Flying, vigilance, deathtouch, lifelink\nAt the beginning of your end step, proliferate. (Choose any number of permanents and/or players, then give each another counter of each kind already there.)",
+    **test_card("Atraxa, Praetors' Voice"),
     "rarity": "mythic",
     "prices": {"usd": "12.00"},
 }
@@ -62,19 +37,9 @@ PLANESWALKER = {
     "legalities": {"commander": "legal", "brawl": "legal", "standardbrawl": "legal"},
 }
 
-ISHAI = {
-    "name": "Ishai, Ojutai Dragonspeaker",
-    # ADR-0027 t2b4a-B: partner_background is IR-served from the Scryfall `Partner`
-    # keyword array, so the partner fixture carries the keyword + an oracle_id.
-    "oracle_id": "oid-ishai",
-    "type_line": "Legendary Creature — Bird Monk",
-    "mana_cost": "{W}{U}",
-    "cmc": 2.0,
-    "color_identity": ["W", "U"],
-    "oracle_text": "Flying\nWhenever an opponent casts a spell, put a +1/+1 counter on Ishai.\nPartner (You can have two commanders if both have partner.)",
-    "legalities": {"commander": "legal"},
-    "keywords": ["Flying", "Partner"],
-}
+# ADR-0027 t2b4a-B: partner_background is IR-served from the Scryfall `Partner`
+# keyword array — the real record carries the keyword and its oracle_id.
+ISHAI = test_card("Ishai, Ojutai Dragonspeaker")
 
 INDEX = {c["name"]: c for c in (LLANOWAR, FOREST, ATRAXA, PLANESWALKER, ISHAI)}
 
@@ -128,7 +93,7 @@ _FOREST_VIEW = {
     "images": None,
     "game_changer": None,
     "can_be_commander": False,
-    "layout": "",
+    "layout": "normal",
     "unknown": False,
     "copy_limit": None,  # a basic land: unlimited (CR 100.2a)
 }
@@ -162,37 +127,13 @@ def test_set_format_changes_format_and_rejects_unknown():
 def test_partner_avenue_filters_to_valid_partners(monkeypatch):
     # One commander with plain Partner → the avenue searches for legal partners
     # (color-agnostic), not the generic "any partner/background card".
-    # ADR-0027 t2b4a-B: partner_background is IR-served, so wire a non-None IR for
-    # Ishai's oracle_id (the hybrid path reads the record's keywords + needs an IR).
-    ishai_index = {
-        "oid-ishai": Card(
-            oracle_id="oid-ishai",
-            name="Ishai",
-            faces=(Face(name="Ishai", abilities=()),),
-        )
-    }
-    monkeypatch.setattr(_ir_lookup, "_crosswalk_index", lambda: ishai_index)
-    # ADR-0039 task #80 step 6: extract_signals is now crosswalk-only —
-    # partner_background is a keyword-field lookup (no typed substrate needed),
-    # so a zero-unit text-only tree (the same shape _ir_lookup's own W2c
-    # phase-missing-face synthesis produces) is enough.
-    type_words, sub_words = split_type_line(ISHAI["type_line"])
-    ishai_tree = ConceptTree(
-        name=ISHAI["name"],
-        oracle_id=ISHAI["oracle_id"],
-        units=(),
-        card_types=tuple(w.capitalize() for w in type_words if w != "legendary"),
-        card_subtypes=tuple(w.capitalize() for w in sub_words),
-        card_supertypes=("Legendary",) if "legendary" in type_words else (),
-        cmc=int(ISHAI["cmc"]),
-        oracle=ISHAI["oracle_text"],
-    )
+    # ADR-0027 t2b4a-B: partner_background is IR-served, so wire Ishai's REAL IR
+    # into the crosswalk index (the hybrid path reads the record's keywords + needs
+    # an IR). test_card_ir also seeds the concept-tree memo from the snapshot's
+    # stored phase records, so the engine's own trees_for finds Ishai's real tree.
+    ishai_ir = test_card_ir("Ishai, Ojutai Dragonspeaker")
     monkeypatch.setattr(
-        trees,
-        "trees_for",
-        lambda card, bulk=None, **_kw: (  # noqa: ARG005
-            (ishai_tree,) if card.get("oracle_id") == "oid-ishai" else ()
-        ),
+        _ir_lookup, "_crosswalk_index", lambda: {ishai_ir.oracle_id: ishai_ir}
     )
     session = DeckSession("commander")
     session.add("Ishai, Ojutai Dragonspeaker", zone="commanders")
