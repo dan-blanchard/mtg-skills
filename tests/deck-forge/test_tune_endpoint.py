@@ -4,6 +4,7 @@ from fastapi.testclient import TestClient
 
 from mtg_utils._deck_forge.app import build_app
 from mtg_utils._deck_forge.state import DeckSession, ForgeState
+from mtg_utils.testkit import test_card
 
 CMD = {
     "name": "Goblin Boss",
@@ -13,45 +14,11 @@ CMD = {
     "oracle_text": "{T}: Create a 1/1 red Goblin creature token.",
     "prices": {"usd": "5.00"},
 }
-RABBLE = {
-    "name": "Goblin Rabblemaster",
-    "type_line": "Creature — Goblin Warrior",
-    "cmc": 3.0,
-    "color_identity": ["R"],
-    "oracle_text": "Other Goblin creatures you control attack each combat if able.\nAt the beginning of combat on your turn, create a 1/1 red Goblin creature token with haste.\nWhenever this creature attacks, it gets +1/+0 until end of turn for each other attacking Goblin.",
-    "prices": {"usd": "2.00"},
-}
-FILLER = {
-    "name": "Hill Giant",
-    "type_line": "Creature — Giant",
-    "cmc": 4.0,
-    "color_identity": ["R"],
-    "oracle_text": "",
-    "prices": {"usd": "0.10"},
-}
-MOUNTAIN = {
-    "name": "Mountain",
-    "type_line": "Basic Land — Mountain",
-    "cmc": 0.0,
-    "color_identity": [],
-    "oracle_text": "({T}: Add {R}.)",
-}
-BOLT = {
-    "name": "Lightning Bolt",
-    "type_line": "Instant",
-    "cmc": 1.0,
-    "color_identity": ["R"],
-    "oracle_text": "Lightning Bolt deals 3 damage to any target.",
-    "prices": {"usd": "1.00"},
-}
-SHOCK = {
-    "name": "Shock",
-    "type_line": "Instant",
-    "cmc": 1.0,
-    "color_identity": ["R"],
-    "oracle_text": "Shock deals 2 damage to any target.",
-    "prices": {"usd": "0.50"},
-}
+RABBLE = {**test_card("Goblin Rabblemaster"), "prices": {"usd": "2.00"}}
+FILLER = {**test_card("Hill Giant"), "prices": {"usd": "0.10"}}
+MOUNTAIN = test_card("Mountain")
+BOLT = {**test_card("Lightning Bolt"), "prices": {"usd": "1.00"}}
+SHOCK = {**test_card("Shock"), "prices": {"usd": "0.50"}}
 INDEX = {c["name"]: c for c in (CMD, RABBLE, FILLER, MOUNTAIN, BOLT, SHOCK)}
 
 

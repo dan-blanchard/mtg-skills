@@ -6,39 +6,27 @@ These pin the four card-view shapes the SPA consumes, all built on one ``project
 from mtg_utils._deck_forge import views
 from mtg_utils._deck_forge.state import DeckSession, ForgeState
 from mtg_utils.formats import FORMATS
+from mtg_utils.testkit import test_card
 
-ATRAXA = {
-    "name": "Atraxa, Praetors' Voice",
-    "type_line": "Legendary Creature — Phyrexian Angel Horror",
-    "cmc": 4.0,
-    "legalities": {"commander": "legal", "brawl": "legal", "standardbrawl": "legal"},
-    "color_identity": ["W", "U", "B", "G"],
-    "oracle_text": "Flying, vigilance, deathtouch, lifelink\nAt the beginning of your end step, proliferate. (Choose any number of permanents and/or players, then give each another counter of each kind already there.)",
-}
-FOREST = {
-    "name": "Forest",
-    "type_line": "Basic Land — Forest",
-    "cmc": 0.0,
-    "color_identity": ["G"],
-    "oracle_text": "({T}: Add {G}.)",
-    "layout": "normal",
-}
+ATRAXA = test_card("Atraxa, Praetors' Voice")
+FOREST = test_card("Forest")
 # A transform DFC (Saga -> creature): the top-level mana_cost is absent and
 # oracle_text empty — both live on card_faces, with the back face costless.
-RISE_OF_SOZIN = {
-    "name": "The Rise of Sozin // Fire Lord Sozin",
+# Fictional: the test is about the face-folding shape, not any real card.
+TEST_SAGA_DFC = {
+    "name": "Test Saga // Test Saga Lord",
     "layout": "transform",
     "cmc": 6.0,
     "color_identity": ["B", "R"],
     "card_faces": [
         {
-            "name": "The Rise of Sozin",
+            "name": "Test Saga",
             "mana_cost": "{4}{B}{B}",
             "type_line": "Enchantment — Saga",
             "oracle_text": "Draw a card.",
         },
         {
-            "name": "Fire Lord Sozin",
+            "name": "Test Saga Lord",
             "mana_cost": "",
             "type_line": "Legendary Creature — Human Noble",
             "oracle_text": "Haste",
@@ -48,7 +36,7 @@ RISE_OF_SOZIN = {
 
 
 def test_project_folds_dfc_mana_cost_and_oracle_from_faces():
-    p = views.project(RISE_OF_SOZIN, FORMATS["commander"])
+    p = views.project(TEST_SAGA_DFC, FORMATS["commander"])
     # front-face cost surfaces (back face is costless), not the empty/absent top level
     assert p["mana_cost"] == "{4}{B}{B}"
     # both faces' oracle text folds in (was blank for DFCs before)
@@ -124,8 +112,9 @@ def test_deck_view_shape():
 # the record's own released_at, because search dedups to the CHEAPEST printing — which
 # for a reprint can itself be future-dated. These pin that contract.
 
+# An unreleased card can't be in the snapshot, so this one is fictional.
 PRE_RELEASE = {
-    "name": "Belladonna Took",
+    "name": "Unreleased Test Card",
     "type_line": "Legendary Creature — Halfling Citizen",
     "cmc": 2.0,
     "color_identity": ["W"],
@@ -135,15 +124,7 @@ PRE_RELEASE = {
 }
 # A legal reprint whose cheapest printing happens to be in a future set — the exact
 # shape that a naive `released_at > today` badge would mislabel.
-FUTURE_REPRINT = {
-    "name": "Settle the Wreckage",
-    "type_line": "Instant",
-    "cmc": 4.0,
-    "color_identity": ["W"],
-    "oracle_text": "Exile all attacking creatures target player controls.",
-    "oracle_id": "oid-reprint",
-    "released_at": "2026-08-14",
-}
+FUTURE_REPRINT = {**test_card("Settle the Wreckage"), "released_at": "2026-08-14"}
 
 
 def test_project_omits_the_badge_by_default():
@@ -162,9 +143,12 @@ def test_future_dated_reprint_is_not_badged():
 
 
 def test_card_view_badges_from_the_oracle_id_set():
-    by_name = {"Belladonna Took": PRE_RELEASE, "Settle the Wreckage": FUTURE_REPRINT}
+    by_name = {
+        "Unreleased Test Card": PRE_RELEASE,
+        "Settle the Wreckage": FUTURE_REPRINT,
+    }
     pre = views.card_view(
-        "Belladonna Took",
+        "Unreleased Test Card",
         1,
         by_name,
         FORMATS["commander"],
@@ -182,6 +166,6 @@ def test_card_view_badges_from_the_oracle_id_set():
 
 
 def test_card_view_defaults_to_no_badge():
-    by_name = {"Belladonna Took": PRE_RELEASE}
-    view = views.card_view("Belladonna Took", 1, by_name, FORMATS["commander"])
+    by_name = {"Unreleased Test Card": PRE_RELEASE}
+    view = views.card_view("Unreleased Test Card", 1, by_name, FORMATS["commander"])
     assert "unreleased" not in view

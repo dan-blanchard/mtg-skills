@@ -4,6 +4,7 @@ from fastapi.testclient import TestClient
 
 from mtg_utils._deck_forge.app import build_app
 from mtg_utils._deck_forge.state import DeckSession, ForgeState
+from mtg_utils.testkit import test_card
 
 CMD = {
     "name": "Cmdr",
@@ -21,22 +22,8 @@ BANNED = {
     "oracle_text": "Do a banned thing.",
     "legalities": {"commander": "banned"},
 }
-FOREST = {
-    "name": "Forest",
-    "type_line": "Basic Land — Forest",
-    "cmc": 0.0,
-    "color_identity": ["G"],
-    "oracle_text": "({T}: Add {G}.)",
-    "legalities": {"commander": "legal"},
-}
-CANTRIP = {
-    "name": "Opt",
-    "type_line": "Instant",
-    "cmc": 1.0,
-    "color_identity": ["U"],
-    "oracle_text": "Scry 1. (Look at the top card of your library. You may put that card on the bottom.)\nDraw a card.",
-    "legalities": {"commander": "legal"},
-}
+FOREST = test_card("Forest")
+CANTRIP = test_card("Opt")
 INDEX = {c["name"]: c for c in (CMD, BANNED, FOREST, CANTRIP)}
 
 

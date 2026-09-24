@@ -9,7 +9,7 @@ from mtg_utils._deck_forge.app import build_app
 from mtg_utils._deck_forge.state import DeckSession, ForgeState
 from mtg_utils.card_ir import Card, Face
 from mtg_utils.deck import split_type_line
-from mtg_utils.testkit import _seed_trees, test_card_ir
+from mtg_utils.testkit import _seed_trees, test_card, test_card_ir
 
 # ADR-0039 task #80 step 6: extract_signals is now crosswalk-only, so an
 # engine-level test needs a resolvable concept tree (the concept-tree resolver), not just a
@@ -211,18 +211,8 @@ def test_agent_avenue_can_be_removed():
 # ADR-0027 / #25: land_creatures_matter is IR-served. Jyoti is a REAL card whose
 # real projected IR makes a Land+Creature token and anthems land creatures, so the
 # engine reads the real Card IR (joined by the real oracle_id) — no hand-built mirror.
-# A rich Scryfall record (color_identity/cmc/prices the minimal snapshot drops) is
-# layered over the real oracle_id so the engine sees both halves the way production does.
-JYOTI = {
-    "name": "Jyoti, Moag Ancient",
-    "type_line": "Legendary Creature — Elemental",
-    "cmc": 4.0,
-    "color_identity": ["G", "U"],
-    "oracle_text": (
-        "When Jyoti enters, create a 1/1 green Forest Dryad land creature token for each time you've cast your commander from the command zone this game. (They're affected by summoning sickness.)\nAt the beginning of each combat, land creatures you control get +X/+X until end of turn, where X is Jyoti's power."
-    ),
-    "prices": {"usd": "0.21"},
-}
+# The real record comes from the snapshot by name; only its price is overlaid.
+JYOTI = {**test_card("Jyoti, Moag Ancient"), "prices": {"usd": "0.21"}}
 
 
 def _jyoti_client(monkeypatch):
@@ -235,11 +225,10 @@ def _jyoti_client(monkeypatch):
     # so the engine's own (real, unmonkeypatched) trees_for finds it.
     _seed_trees("Jyoti, Moag Ancient")
     _wire_ir(monkeypatch, {jyoti_ir.oracle_id: jyoti_ir})
-    record = dict(JYOTI, oracle_id=jyoti_ir.oracle_id)
     session = DeckSession("commander")
     session.add("Jyoti, Moag Ancient", zone="commanders")
     state = ForgeState(
-        by_name={"Jyoti, Moag Ancient": record},
+        by_name={"Jyoti, Moag Ancient": JYOTI},
         search_fn=lambda **_: [],
         session=session,
         bulk_available=True,

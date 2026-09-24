@@ -11,8 +11,9 @@ the ``ir_for`` / ``trees_for`` the concept-tree resolver/B resolvers, the hybrid
 dispatch, the residual-empty key partition, and the DFC face-union. The
 membership-floor behavior pins moved to ``test_signals_floor.py`` in the same
 step (named for what they test). CI-safe: the concept trees come from the
-committed ``crosswalk_fixture_cards.json`` phase records + the committed mirror
-schema — no bulk / sidecar / phase / network.
+committed ``crosswalk_fixture_cards.json`` phase records and the committed card
+snapshot (``mtg_utils.testkit``) + the committed mirror schema — no bulk /
+sidecar / phase / network.
 """
 
 from __future__ import annotations
@@ -37,6 +38,7 @@ from mtg_utils._card_ir.crosswalk import build_concept_tree
 from mtg_utils._card_ir.mirror import strict_load_card
 from mtg_utils._card_ir.mirror.build import fixtures_dir, load_committed_schema
 from mtg_utils.card_ir import Card, Face
+from mtg_utils.testkit import _entry, test_card
 
 FIXTURE = "crosswalk_fixture_cards.json"
 
@@ -71,34 +73,25 @@ def _tree_for_record(rec: dict):
     )
 
 
-def _bulk(rec: dict) -> dict:
-    """A minimal Scryfall-shaped record joined to a phase record by oracle_id."""
-    return {
-        "oracle_id": rec.get("scryfall_oracle_id") or "",
-        "name": rec.get("name") or "",
-        "oracle_text": rec.get("oracle_text") or "",
-        "type_line": "Legendary Creature — Human",
-        "keywords": [],
-    }
+def _ported_phase_records() -> list[dict]:
+    """Goblin Rabblemaster's stored phase records (the snapshot's raw phase input)."""
+    return _entry("Goblin Rabblemaster")["phase_records"]
 
 
 @lru_cache(maxsize=1)
 def _ported_case() -> tuple[dict, object, str]:
-    """A fixture card whose crosswalk fires at least one PORTED key: return
-    (bulk_record, concept_tree, one_ported_key)."""
-    for rec in _fixture_records():
-        oid = rec.get("scryfall_oracle_id")
-        if not oid:
-            continue
-        try:
-            tree = _tree_for_record(rec)
-        except Exception:  # noqa: BLE001 — skip drift/odd cards in the search
-            continue
-        sigs = extract_crosswalk_signals(tree, keywords=frozenset())
-        ported = [s.key for s in sigs if s.key in SERVED_SIGNAL_KEYS]
-        if ported:
-            return _bulk(rec), tree, ported[0]
-    pytest.skip("no PORTED-firing card found in fixture")
+    """A real card whose crosswalk fires at least one PORTED key: return
+    (bulk_record, concept_tree, one_ported_key). Goblin Rabblemaster fires
+    token_maker (among others) from its combat trigger; its bulk record is the
+    real one from the snapshot (ADR-0056), not a type line bolted onto a
+    searched-for record."""
+    bulk = test_card("Goblin Rabblemaster")
+    (rec,) = _ported_phase_records()
+    tree = _tree_for_record(rec)
+    sigs = extract_crosswalk_signals(tree, keywords=frozenset())
+    ported = [s.key for s in sigs if s.key in SERVED_SIGNAL_KEYS]
+    assert ported, "Goblin Rabblemaster no longer fires a PORTED key"
+    return bulk, tree, ported[0]
 
 
 @pytest.fixture(autouse=True)
@@ -148,8 +141,8 @@ def test_trees_for_none_without_oracle_id():
 def test_trees_for_builds_and_memoizes(monkeypatch):
     bulk, _tree, _key = _ported_case()
     oid = bulk["oracle_id"]
-    # Feed the resolver our fixture record + schema directly.
-    rec = next(r for r in _fixture_records() if r.get("scryfall_oracle_id") == oid)
+    # Feed the resolver the card's stored phase record + schema directly.
+    (rec,) = _ported_phase_records()
     monkeypatch.setattr(ct, "_phase_record_index", _returns({oid: (rec,)}))
     monkeypatch.setattr(ct, "_committed_schema", _returns(_schema()))
     got = ct.trees_for(bulk)
@@ -327,13 +320,8 @@ def test_avatar_aang_union_fires_all_four_bend_keys(monkeypatch):
     recs = tuple(
         r for r in _fixture_records() if r.get("scryfall_oracle_id") == _AANG_OID
     )
-    bulk = {
-        "oracle_id": _AANG_OID,
-        "name": "Avatar Aang // Aang, Master of Elements",
-        "oracle_text": "\n".join(r.get("oracle_text") or "" for r in recs),
-        "type_line": "Legendary Creature — Human Avatar Ally",
-        "keywords": ["Flying", "Firebending"],
-    }
+    bulk = test_card("Avatar Aang // Aang, Master of Elements")
+    assert bulk["oracle_id"] == _AANG_OID
     monkeypatch.setattr(ct, "_phase_record_index", _returns({_AANG_OID: recs}))
     monkeypatch.setattr(ct, "_committed_schema", _returns(_schema()))
     keys = {s.key for s in extract_signals(bulk)}
@@ -344,8 +332,6 @@ def test_avatar_aang_regression_no_fire_control(monkeypatch):
     """A no-bend card stays silent on all four keys through the same union path —
     the fix doesn't turn the bend lanes into a blanket floor."""
     bulk, tree, _key = _ported_case()
-    if tree.oracle_id == _AANG_OID:
-        pytest.skip("ported-case card is Avatar Aang itself")
     monkeypatch.setattr(ct, "trees_for", _returns((tree,)))
     keys = {s.key for s in extract_signals(bulk)}
     assert not (_BEND_KEYS & keys)

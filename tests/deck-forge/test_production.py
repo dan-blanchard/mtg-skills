@@ -3,6 +3,7 @@ is the ``CardPool``'s (ADR-0046), tested in tests/mtg-utils/test_card_pool.py.""
 
 from mtg_utils._deck_forge.persistence import BuildStore
 from mtg_utils._deck_forge.production import resume_or_new
+from mtg_utils.testkit import test_card
 
 
 def test_resume_or_new_resumes_latest(tmp_path):
@@ -41,7 +42,7 @@ def test_combos_are_memoized_per_deck_content(monkeypatch):
     )
     monkeypatch.setattr(production, "_COMBO_MEMO", {})
     deck = {"format": "commander", "commanders": [], "cards": [{"name": "Opt"}]}
-    by_name = {"Opt": {"name": "Opt", "type_line": "Instant"}}
+    by_name = {"Opt": test_card("Opt")}
     assert production._combos(deck, by_name) == {"combos": []}
     assert production._combos(dict(deck), by_name) == {"combos": []}
     assert len(calls) == 1

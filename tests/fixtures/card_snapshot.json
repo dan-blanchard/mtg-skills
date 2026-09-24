@@ -274934,6 +274934,251 @@
     "type_line": "Creature — Angel"
    }
   },
+  "Settle the Wreckage": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "Exile all attacking creatures target player controls. That player may search their library for that many basic land cards, put those cards onto the battlefield tapped, then shuffle.",
+       "duration": null,
+       "effect": {
+        "destination": "Exile",
+        "origin": null,
+        "target": {
+         "controller": "TargetPlayer",
+         "properties": [
+          {
+           "type": "Attacking"
+          }
+         ],
+         "type": "Typed",
+         "type_filters": [
+          "Creature"
+         ]
+        },
+        "type": "ChangeZoneAll"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "count": {
+          "qty": {
+           "type": "EventContextAmount"
+          },
+          "type": "Ref"
+         },
+         "filter": {
+          "controller": null,
+          "properties": [
+           {
+            "type": "HasSupertype",
+            "value": "Basic"
+           }
+          ],
+          "type": "Typed",
+          "type_filters": [
+           "Land"
+          ]
+         },
+         "reveal": false,
+         "target_player": {
+          "type": "ParentTargetController"
+         },
+         "type": "SearchLibrary"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": true,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": null,
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "destination": "Battlefield",
+          "enter_tapped": true,
+          "enter_transformed": false,
+          "enters_attacking": false,
+          "origin": "Library",
+          "owner_library": false,
+          "target": {
+           "type": "Any"
+          },
+          "type": "ChangeZone"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": {
+          "condition": null,
+          "cost": null,
+          "description": null,
+          "duration": null,
+          "effect": {
+           "target": {
+            "type": "ParentTargetController"
+           },
+           "type": "Shuffle"
+          },
+          "forward_result": false,
+          "kind": "Spell",
+          "optional": false,
+          "optional_targeting": false,
+          "sub_ability": null,
+          "target_prompt": null
+         },
+         "target_prompt": null
+        },
+        "sub_link": "SequentialSibling",
+        "target_prompt": null
+       },
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Instant"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "White"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "standard": "legal",
+      "standardbrawl": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 2,
+      "shards": [
+       "White",
+       "White"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "31a7a5e2-4cb8-48fc-8351-18344b4a7560",
+       "6220e301-b60f-4a3f-9d6d-14c7a8c01ec9",
+       "9cbd346e-098a-4cf6-a72f-468376fd2e8f",
+       "a132a86d-1df2-42d1-a410-2a8479c84a55",
+       "ff3a48ee-27c6-45de-8252-5f488bc05e66"
+      ]
+     },
+     "name": "Settle the Wreckage",
+     "non_ability_text": null,
+     "oracle_text": "Exile all attacking creatures target player controls. That player may search their library for that many basic land cards, put those cards onto the battlefield tapped, then shuffle.",
+     "power": null,
+     "printings": [
+      "HOB",
+      "PLST",
+      "PXLN",
+      "SLD",
+      "XLN"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2017-09-29",
+       "text": "Settle the Wreckage targets only the player. Creatures with hexproof that player controls will be exiled as this spell resolves."
+      },
+      {
+       "date": "2017-09-29",
+       "text": "That player can find fewer basic land cards than the number of exiled creatures, whether because they want to or because they don't have that many basic land cards left."
+      },
+      {
+       "date": "2017-09-29",
+       "text": "The number of lands that player may find is the number of attacking creatures that were exiled, even if some of those creatures were tokens, weren't creature cards, or didn't end up in exile (most likely because one was that player's commander in the Commander variant)."
+      },
+      {
+       "date": "2026-06-29",
+       "text": "Settle the Wreckage targets only the player. Attacking creatures with hexproof that player controls will be exiled as this spell resolves."
+      },
+      {
+       "date": "2026-06-29",
+       "text": "That player can find fewer basic land cards than the number of exiled creatures, whether because they want to or because they don't have that many basic land cards left."
+      },
+      {
+       "date": "2026-06-29",
+       "text": "The number of lands that player may find is the number of attacking creatures that were exiled, even if some of those creatures were tokens, weren't creature cards, or didn't end up in exile (most likely because one was that player's commander in the Commander variant)."
+      }
+     ],
+     "scryfall_oracle_id": "2a2ea189-b663-4f4a-bb23-ff7a4af25f71",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 4.0,
+    "color_identity": [
+     "W"
+    ],
+    "colors": [
+     "W"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "duel": "legal",
+     "future": "legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "legal",
+     "standardbrawl": "legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{2}{W}{W}",
+    "name": "Settle the Wreckage",
+    "oracle_id": "2a2ea189-b663-4f4a-bb23-ff7a4af25f71",
+    "oracle_text": "Exile all attacking creatures target player controls. That player may search their library for that many basic land cards, put those cards onto the battlefield tapped, then shuffle.",
+    "type_line": "Instant"
+   }
+  },
   "Seven Dwarves": {
    "phase_records": [
     {
