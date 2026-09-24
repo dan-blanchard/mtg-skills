@@ -12,17 +12,19 @@ from mtg_utils._analysis.roles import _ir_board_wipe, _ir_draws, protects, role_
 from mtg_utils.card_ir import Ability, Card, Effect, Face, Filter, Quantity
 from mtg_utils.testkit import test_card, test_card_ir
 
-FOREST = {
-    "name": "Forest",
-    "type_line": "Basic Land — Forest",
-    "oracle_text": "({T}: Add {G}.)",
-}
-LLANOWAR = {
-    "name": "Llanowar Elves",
-    "type_line": "Creature — Elf Druid",
-    "oracle_text": "{T}: Add {G}.",
-    "produced_mana": ["G"],
-}
+
+def _text_only(name):
+    """The real record for *name* with its ``oracle_id`` stripped (ADR-0056's
+    missing-field rule). ``role_of`` / ``protects`` read a card with no
+    ``oracle_id`` through the oracle-text fallback, not the signal path; these
+    fixtures pin that fallback, so they must not resolve a concept tree."""
+    record = test_card(name)
+    record.pop("oracle_id", None)
+    return record
+
+
+FOREST = _text_only("Forest")
+LLANOWAR = _text_only("Llanowar Elves")
 # task #86: `removal` (the last regex-bearing built-in preset) flipped to a
 # structural (signal_keys) view — needs a real oracle_id to resolve, same as
 # `board-wipe`/WRATH below. `counterspell` was already structural (task #83).
@@ -30,11 +32,6 @@ test_card_ir("Murder")
 MURDER = test_card("Murder")
 test_card_ir("Counterspell")
 COUNTERSPELL = test_card("Counterspell")
-DIVINATION = {
-    "name": "Divination",
-    "type_line": "Sorcery",
-    "oracle_text": "Draw two cards.",
-}
 # task #83: board-wipe is now a structural view over the crosswalk `mass_removal`
 # signal (theme_presets.py), which needs a real `oracle_id` to resolve (see
 # `_signal_keys_for`) — a hand-typed dict with no oracle_id can no longer be
@@ -43,29 +40,14 @@ DIVINATION = {
 # committed snapshot) before pulling the real minimal Scryfall record.
 test_card_ir("Wrath of God")
 WRATH = test_card("Wrath of God")
-FLESHBAG = {
-    "name": "Fleshbag Marauder",
-    "type_line": "Creature — Zombie Warrior",
-    "oracle_text": (
-        "When this creature enters, each player sacrifices a creature of their choice."
-    ),
-    # creature-edict is a task #83 structural view (concept-only, no regex
-    # arm left) — it needs a real oracle_id to resolve the crosswalk tree.
-    "oracle_id": "4b1bf05e-753e-4350-a913-894cf3cecc0c",
-}
+# creature-edict is a task #83 structural view (concept-only, no regex arm
+# left), so Fleshbag keeps its real oracle_id to resolve the crosswalk tree.
+FLESHBAG = test_card("Fleshbag Marauder")
 # Over-fire guard: a creature whose OWN "can't attack or block" is a drawback (keyed on
 # "This creature", not "Enchanted creature") is not removal.
-LUPINE = {
-    "name": "Lupine Prototype",
-    "type_line": "Artifact Creature — Wolf Construct",
-    "oracle_text": "This creature can't attack or block unless a player has no cards in hand.",
-}
+LUPINE = _text_only("Lupine Prototype")
 # Over-fire guard: sacrifice as an activated COST (you choose to pay) is not an edict.
-VISCERA = {
-    "name": "Viscera Seer",
-    "type_line": "Creature — Vampire Wizard",
-    "oracle_text": "Sacrifice a creature: Scry 1.",
-}
+VISCERA = _text_only("Viscera Seer")
 
 
 # The flat Command Zone lands row, for tests that only read other roles.
@@ -158,28 +140,9 @@ def test_interaction_excludes_infect_creatures_and_graveyard_recursion():
     # a static combat ability, not spot removal); (2) the removal/bounce "return target
     # permanent ... hand" regexes matched graveyard recursion ("return target permanent
     # CARD from your graveyard"). Both must be excluded.
-    blighted_agent = {
-        "name": "Blighted Agent",
-        "type_line": "Creature — Human Rogue",
-        "oracle_text": "Infect (This creature deals damage to creatures in the form of "
-        "-1/-1 counters and to players in the form of poison counters.)\n"
-        "Blighted Agent can't be blocked.",
-        "keywords": ["Infect"],
-    }
-    swarmlord = {
-        "name": "Phyrexian Swarmlord",
-        "type_line": "Creature — Phyrexian Insect",
-        "oracle_text": "Infect\nAt the beginning of your upkeep, create a 1/1 green and "
-        "black Insect creature token with infect for each poison counter your opponents "
-        "have.",
-        "keywords": ["Infect"],
-    }
-    unnatural_restoration = {
-        "name": "Unnatural Restoration",
-        "type_line": "Instant",
-        "oracle_text": "Return target permanent card from your graveyard to your hand.",
-        "keywords": [],
-    }
+    blighted_agent = _text_only("Blighted Agent")
+    swarmlord = _text_only("Phyrexian Swarmlord")
+    unnatural_restoration = _text_only("Unnatural Restoration")
     assert "interaction" not in role_of(blighted_agent)
     assert "interaction" not in role_of(swarmlord)
     assert "interaction" not in role_of(unnatural_restoration)
@@ -203,39 +166,17 @@ def test_protection_is_advisory_not_a_counted_role():
 
 def test_protection_requires_granting_not_a_self_keyword():
     # A permanent that is merely indestructible/hexproof itself protects only itself.
-    self_indestructible = {
-        "name": "Darksteel Reactor",
-        "type_line": "Artifact",
-        "oracle_text": 'Indestructible (Effects that say "destroy" don\'t destroy this artifact.)\nAt the beginning of your upkeep, you may put a charge counter on this artifact.\nWhen this artifact has twenty or more charge counters on it, you win the game.',
-        "keywords": ["Indestructible"],
-    }
-    self_hexproof = {
-        "name": "Carnage Tyrant",
-        "type_line": "Creature — Dinosaur",
-        "oracle_text": "This spell can't be countered.\nTrample, hexproof",
-        "keywords": ["Trample", "Hexproof"],
-    }
+    self_indestructible = _text_only("Darksteel Reactor")
+    self_hexproof = _text_only("Carnage Tyrant")
     assert protects(self_indestructible) is False
     assert protects(self_hexproof) is False
     # Granting a protective quality to ANOTHER permanent does count.
-    grants = {
-        "name": "Swiftfoot Boots",
-        "type_line": "Artifact — Equipment",
-        "oracle_text": "Equipped creature has hexproof and haste. (It can't be the target of spells or abilities your opponents control. It can attack and {T} no matter when it came under your control.)\nEquip {1} ({1}: Attach to target creature you control. Equip only as a sorcery.)",
-    }
-    save = {
-        "name": "Boros Charm",
-        "type_line": "Instant",
-        "oracle_text": "Choose one —\n• Boros Charm deals 4 damage to target player or planeswalker.\n• Permanents you control gain indestructible until end of turn.\n• Target creature gains double strike until end of turn.",
-    }
+    grants = _text_only("Swiftfoot Boots")
+    save = _text_only("Boros Charm")
     assert protects(grants) is True
     assert protects(save) is True
     # Pillow-fort / attack-deterrent effects protect YOU the player.
-    pillow = {
-        "name": "Ghostly Prison",
-        "type_line": "Enchantment",
-        "oracle_text": "Creatures can't attack you unless their controller pays {2} for each creature they control that's attacking you.",
-    }
+    pillow = _text_only("Ghostly Prison")
     assert protects(pillow) is True
 
 
@@ -246,65 +187,24 @@ def test_protection_recognizes_redirect_and_totem_armor():
     # were missed, so Misdirection/Deflecting Swat/Umbra Mystic bucketed filler and the
     # tuner proposed cutting them "serves no avenue (filler)". They must read as
     # protection (spine), never filler.
-    misdirection = {
-        "name": "Misdirection",
-        "type_line": "Instant",
-        "oracle_text": (
-            "You may exile a blue card from your hand rather than pay this spell's "
-            "mana cost.\nChange the target of target spell with a single target."
-        ),
-    }
-    deflecting_swat = {
-        "name": "Deflecting Swat",
-        "type_line": "Instant",
-        "oracle_text": (
-            "If you control a commander, you may cast this spell without paying its "
-            "mana cost.\nYou may choose new targets for target spell or ability."
-        ),
-    }
-    umbra_mystic = {
-        "name": "Umbra Mystic",
-        "type_line": "Creature — Elf Mystic",
-        "oracle_text": (
-            "Auras attached to permanents you control have totem armor. (If such a "
-            "permanent would be destroyed, instead remove all damage from it and "
-            "destroy that Aura.)"
-        ),
-    }
+    misdirection = _text_only("Misdirection")
+    deflecting_swat = _text_only("Deflecting Swat")
+    umbra_mystic = _text_only("Umbra Mystic")
     assert protects(misdirection) is True
     assert protects(deflecting_swat) is True
     assert protects(umbra_mystic) is True
     # Over-fire guard: a copy spell redirects "the copy", not an answer — not protection.
-    twincast = {
-        "name": "Twincast",
-        "type_line": "Instant",
-        "oracle_text": (
-            "Copy target instant or sorcery spell. You may choose new targets for "
-            "the copy."
-        ),
-    }
+    twincast = _text_only("Twincast")
     assert protects(twincast) is False
 
 
 def test_protection_excludes_self_only_saves():
     # A creature that only phases/regenerates ITSELF is self-protection — doesn't count.
-    self_phase = {
-        "name": "Frenetic Efreet",
-        "type_line": "Creature — Efreet",
-        "oracle_text": "Flying\n{0}: Flip a coin. If you win the flip, this creature phases out. If you lose the flip, sacrifice this creature. (While it's phased out, it's treated as though it doesn't exist. It phases in before you untap during your next untap step.)",
-    }
+    self_phase = _text_only("Frenetic Efreet")
     assert protects(self_phase) is False
     # Saving / shielding OTHERS still counts.
-    fog = {
-        "name": "Fog",
-        "type_line": "Instant",
-        "oracle_text": "Prevent all combat damage that would be dealt this turn.",
-    }
-    save_target = {
-        "name": "Sejiri Refuge Save",
-        "type_line": "Instant",
-        "oracle_text": "Regenerate target creature you control.",
-    }
+    fog = _text_only("Fog")
+    save_target = _text_only("Regenerate")
     assert protects(fog) is True
     assert protects(save_target) is True
 
@@ -361,8 +261,8 @@ def test_shape_scales_control_interaction_up():
 
 # ── card_draw via Card IR (ADR-0027, A3) ─────────────────────────────────────
 # role_of resolves card_draw from the candidate's IR ``draw`` category when present
-# (the dict fixtures above carry no oracle_id, so they exercise the preset
-# fallback). These exercise the structured ``_ir_draws`` classifier directly.
+# (the ``_text_only`` fixtures above carry no oracle_id, so they exercise the
+# preset fallback). These exercise the structured ``_ir_draws`` classifier directly.
 
 
 def _ir(*abilities: Ability) -> Card:
@@ -657,7 +557,7 @@ def test_ir_redirect_is_structural():
     # phase parses redirect answers (Misdirection, Deflecting Swat) as cat=redirect, so
     # protects() reads that structurally instead of the "change the target / choose new
     # targets" regex (kept as the no-IR fallback — Misdirection/Deflecting Swat have no
-    # oracle_id in the test record, so the regex still covers the inline-dict test above).
+    # oracle_id in the ``_text_only`` record, so the regex still covers the test above).
     from mtg_utils._analysis.roles import _ir_redirect
 
     assert _ir_redirect(_ir_effect(category="redirect")) is True

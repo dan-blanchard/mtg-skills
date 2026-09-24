@@ -6,13 +6,9 @@ audit (the "existing avenue catches 0/N" disjointness proofs are pinned as tests
 
 Tests run the REAL projected Card IR for each named commander/payoff via
 ``mtg_utils.testkit`` (``test_signals`` = production ``extract_signals`` over the
-real Scryfall record + real sidecar IR; ``test_card`` = the real minimal record). A
-handful of pins use a thin synthetic builder where the assertion is a placeholder /
-logic probe (a made-up "<Type> Lord", a forced negative, a future-shape pin) with no
-real card to look up.
+real Scryfall record + real sidecar IR; ``test_card`` = the real minimal record).
+Every negative is a real near miss (ADR-0056).
 """
-
-from typing import ClassVar
 
 from mtg_utils._analysis.signal_specs import serves, spec_for
 from mtg_utils._analysis.signals import Signal
@@ -127,14 +123,9 @@ class TestAttackTriggerPayoffs:
 
     def test_opponent_attack_not_served(self):
         # "whenever a creature attacks YOU" is a defensive trigger, not a payoff.
-        assert not serves(
-            {
-                "name": "Defensive Wall",
-                "type_line": "Creature — Wall",
-                "oracle_text": "Whenever a creature attacks you, you gain 1 life.",
-            },
-            self.SIG,
-        )
+        # Isperia, Supreme Judge is the near miss: an attack trigger, but on the
+        # creatures attacking you.
+        assert not serves(test_card("Isperia, Supreme Judge"), self.SIG)
 
 
 # ── Batch B: structured keyword[] avenues ────────────────────────────────────
@@ -153,15 +144,7 @@ class TestMadnessMatters:
         assert serves(test_card("Asylum Visitor"), _sig("madness_matters", "you"))
 
     def test_non_madness_not_served(self):
-        assert not serves(
-            {
-                "name": "Grizzly Bears",
-                "type_line": "Creature — Bear",
-                "oracle_text": "",
-                "keywords": [],
-            },
-            _sig("madness_matters", "you"),
-        )
+        assert not serves(test_card("Grizzly Bears"), _sig("madness_matters", "you"))
 
 
 class TestSpeedMatters:
@@ -390,25 +373,21 @@ class TestSagaMatters:
     retriggers / lore counters; enchantments_matter serves Sagas as enchantments but
     catches only 1/14 chapter-retrigger payoffs."""
 
-    # Placeholder lord — a generic "lore counters on a Saga" payoff with no clean
-    # single real card; used only by the serves()-classify test below (a pure
-    # oracle-text match, no extraction). The EXTRACTION side of this claim (a
+    # The lore-counter payoff is Sigurd, Jarl of Ravensthorpe ("Whenever you put a
+    # lore counter on a Saga you control, …"), used by the serves()-classify test
+    # below (a pure oracle-text match, no extraction). The EXTRACTION side of this claim (a
     # dropped-static `saga` marker opening saga_matters on a lore-counter
     # static/reference) is already proven on real cards (Keldon Warcaller,
     # Satsuki, Barbara Wright, negative on An Unearthly Child / History of
     # Benalia / Search for Glory) by
     # tests/mtg-utils/test_crosswalk.py::test_saga_matters_lore_and_saga_reference_arms
     # — not duplicated here.
-    LORD: ClassVar[dict] = {
-        "name": "Test Saga Lord",
-        "type_line": "Legendary Creature — Avatar",
-        "oracle_text": "Sagas you control have read ahead.\nWhenever you put one or more lore counters on a Saga, draw a card.",
-    }
-
     def test_saga_search_is_subtype_and_serves(self):
         spec = spec_for(_sig("saga_matters", "you"))
         assert spec.search == {"card_type": "Saga"}
-        assert serves(self.LORD, _sig("saga_matters", "you"))
+        assert serves(
+            test_card("Sigurd, Jarl of Ravensthorpe"), _sig("saga_matters", "you")
+        )
         # a real Saga enabler is served via its subtype
         assert serves(test_card("Fall of the Thran"), _sig("saga_matters", "you"))
 
@@ -460,13 +439,9 @@ class TestChangelingTribalEnabler:
         )
 
     def test_unrelated_creature_not_served_as_tribe(self):
-        bear = {
-            "name": "Grizzly Bears",
-            "type_line": "Creature — Bear",
-            "oracle_text": "",
-            "keywords": [],
-        }
-        assert not serves(bear, _sig("type_matters", "you", "Goblin"))
+        assert not serves(
+            test_card("Grizzly Bears"), _sig("type_matters", "you", "Goblin")
+        )
 
 
 class TestParadoxPayoffs:
@@ -514,13 +489,11 @@ class TestLostLifeThresholdWiden:
         )
 
     def test_self_lost_life_not_served(self):
-        # "if you lost life this turn" is a self-payoff, not an opponents-drain payoff.
-        ludevic = {
-            "name": "Self Lifeloss",
-            "type_line": "Enchantment",
-            "oracle_text": "At the beginning of your upkeep, if you lost life this turn, draw a card.",
-        }
-        assert not serves(ludevic, _sig("lifeloss_matters", "opponents"))
+        # "if you've lost life this turn" is a self-payoff, not an opponents-drain
+        # payoff. Essence Channeler is the near miss: the same threshold, on you.
+        assert not serves(
+            test_card("Essence Channeler"), _sig("lifeloss_matters", "opponents")
+        )
 
 
 class TestCasualtyRouting:

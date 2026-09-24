@@ -9,7 +9,17 @@ from mtg_utils._analysis.ranking import (
 )
 from mtg_utils._analysis.signals import Signal
 from mtg_utils.card_ir import Ability, Card, Effect, Face, Filter, Trigger
-from mtg_utils.testkit import test_card_ir
+from mtg_utils.testkit import test_card, test_card_ir
+
+
+def _text_only(name: str) -> dict:
+    """The real record for *name* with its ``oracle_id`` stripped (ADR-0056's
+    missing-field rule). With no ``oracle_id`` the ranking join resolves no Card
+    IR, so these fixtures exercise the regex clause-role fallback
+    (``ir is None``); the IR tests below inject the real IR explicitly."""
+    record = test_card(name)
+    record.pop("oracle_id", None)
+    return record
 
 
 # ── Depth-over-breadth synergy (synergy_score) ───────────────────────────────
@@ -45,60 +55,12 @@ _ARI_FOCUS = {
     "stranded": {"Edicts / forced sacrifice", "Token doubling"},
 }
 
-# Real card props (full oracle text — fixtures must embed real cards).
-_BASTION = {
-    "name": "Bastion of Remembrance",
-    "type_line": "Enchantment",
-    "cmc": 3.0,
-    "oracle_text": (
-        "When this enchantment enters, create a 1/1 white Human Soldier "
-        "creature token.\nWhenever a creature you control dies, each opponent "
-        "loses 1 life and you gain 1 life."
-    ),
-    "prices": {"usd": "1.50"},
-}
-_BLOOD_ARTIST = {
-    "name": "Blood Artist",
-    "type_line": "Creature — Vampire",
-    "cmc": 2.0,
-    "oracle_text": (
-        "Whenever this creature or another creature dies, target player loses "
-        "1 life and you gain 1 life."
-    ),
-    "prices": {"usd": "2.00"},
-}
-_MIDNIGHT_REAPER = {
-    "name": "Midnight Reaper",
-    "type_line": "Creature — Zombie Knight",
-    "cmc": 3.0,
-    "oracle_text": (
-        "Whenever a nontoken creature you control dies, this creature deals 1 "
-        "damage to you and you draw a card."
-    ),
-    "prices": {"usd": "2.00"},
-}
-_ELVEN_BOW = {
-    "name": "Elven Bow",
-    "type_line": "Artifact — Equipment",
-    "cmc": 1.0,
-    "oracle_text": (
-        "When this Equipment enters, you may pay {2}. If you do, create a 1/1 "
-        "green Elf Warrior creature token, then attach this Equipment to it.\n"
-        "Equipped creature gets +1/+2 and has reach.\nEquip {3}"
-    ),
-    "prices": {"usd": "0.20"},
-}
-_FLAYER_HUSK = {
-    "name": "Flayer Husk",
-    "type_line": "Artifact — Equipment",
-    "cmc": 1.0,
-    "oracle_text": (
-        "Living weapon (When this Equipment enters, create a 0/0 black "
-        "Phyrexian Germ creature token, then attach this to it.)\nEquipped "
-        "creature gets +1/+1.\nEquip {2}"
-    ),
-    "prices": {"usd": "0.30"},
-}
+# Real cards by name (ADR-0056); only the per-printing price is overlaid.
+_BASTION = {**_text_only("Bastion of Remembrance"), "prices": {"usd": "1.50"}}
+_BLOOD_ARTIST = {**_text_only("Blood Artist"), "prices": {"usd": "2.00"}}
+_MIDNIGHT_REAPER = {**_text_only("Midnight Reaper"), "prices": {"usd": "2.00"}}
+_ELVEN_BOW = {**_text_only("Elven Bow"), "prices": {"usd": "0.20"}}
+_FLAYER_HUSK = {**_text_only("Flayer Husk"), "prices": {"usd": "0.30"}}
 
 
 def _score(card: dict) -> float:
@@ -157,29 +119,8 @@ def test_synergy_score_is_deck_relative():
 
 
 # ── Quality frontier: activated payoffs + unmet tribal gates ─────────────────
-_WALKING_BALLISTA = {
-    "name": "Walking Ballista",
-    "type_line": "Artifact Creature — Construct",
-    "cmc": 0.0,
-    "oracle_text": (
-        "This creature enters with X +1/+1 counters on it.\n{4}: Put a +1/+1 "
-        "counter on this creature.\nRemove a +1/+1 counter from this creature: "
-        "It deals 1 damage to any target."
-    ),
-    "prices": {"usd": "7.50"},
-}
-_HIRED_CLAW = {
-    "name": "Hired Claw",
-    "type_line": "Creature — Lizard Mercenary",
-    "cmc": 1.0,
-    "oracle_text": (
-        "Whenever you attack with one or more Lizards, this creature deals 1 "
-        "damage to target opponent.\n{1}{R}: Put a +1/+1 counter on this "
-        "creature. Activate only if an opponent lost life this turn and only "
-        "once each turn."
-    ),
-    "prices": {"usd": "0.70"},
-}
+_WALKING_BALLISTA = {**_text_only("Walking Ballista"), "prices": {"usd": "7.50"}}
+_HIRED_CLAW = {**_text_only("Hired Claw"), "prices": {"usd": "0.70"}}
 _BURN_SIGNALS = [
     _sig("direct_damage", "you"),
     _sig("attack_matters", "you"),
@@ -288,48 +229,10 @@ _KRENKO_FOCUS = {
 # Real cards (full oracle text). Siege-Gang Lieutenant: ONE payoff clause
 # serving seven lanes (sac-outlet pinger tribal piece) + a wide token clause.
 # Fires of Mount Doom: four stacked narrow payoff clauses (the text wall).
-_SIEGE_GANG_LT = {
-    "name": "Siege-Gang Lieutenant",
-    "type_line": "Creature — Goblin",
-    "cmc": 4.0,
-    "oracle_text": (
-        "Lieutenant — At the beginning of combat on your turn, if you control "
-        "your commander, create two 1/1 red Goblin creature tokens. Those "
-        "tokens gain haste until end of turn.\n{2}, Sacrifice a Goblin: This "
-        "creature deals 1 damage to any target."
-    ),
-    "prices": {"usd": "2.88"},
-}
-_FIRES_OF_MOUNT_DOOM = {
-    "name": "Fires of Mount Doom",
-    "type_line": "Legendary Enchantment",
-    "cmc": 3.0,
-    "oracle_text": (
-        "When Fires of Mount Doom enters, it deals 2 damage to target creature "
-        "an opponent controls. Destroy all Equipment attached to that "
-        "creature.\n{2}{R}: Exile the top card of your library. You may play "
-        "that card this turn. When you play a card this way, Fires of Mount "
-        "Doom deals 2 damage to each player."
-    ),
-    "prices": {"usd": "1.88"},
-}
-_EMPTY_THE_WARRENS = {
-    "name": "Empty the Warrens",
-    "type_line": "Sorcery",
-    "cmc": 4.0,
-    "oracle_text": (
-        "Create two 1/1 red Goblin creature tokens.\nStorm (When you cast "
-        "this spell, copy it for each spell cast before it this turn.)"
-    ),
-    "prices": {"usd": "0.19"},
-}
-_ASHNODS_ALTAR = {
-    "name": "Ashnod's Altar",
-    "type_line": "Artifact",
-    "cmc": 3.0,
-    "oracle_text": "Sacrifice a creature: Add {C}{C}.",
-    "prices": {"usd": "14.38"},
-}
+_SIEGE_GANG_LT = {**_text_only("Siege-Gang Lieutenant"), "prices": {"usd": "2.88"}}
+_FIRES_OF_MOUNT_DOOM = {**_text_only("Fires of Mount Doom"), "prices": {"usd": "1.88"}}
+_EMPTY_THE_WARRENS = {**_text_only("Empty the Warrens"), "prices": {"usd": "0.19"}}
+_ASHNODS_ALTAR = {**_text_only("Ashnod's Altar"), "prices": {"usd": "14.38"}}
 
 
 def _krenko_sc(card: dict) -> dict:
@@ -453,20 +356,8 @@ def test_avenue_card_type_constraint_excludes_wrong_types():
             "search": {"card_type": "Land", "oracle": "becomes a .*creature"},
         }
     ]
-    manland = {
-        "name": "Mishra's Factory",
-        "type_line": "Land",
-        "cmc": 0.0,
-        "oracle_text": "{T}: Add {C}.\n{1}: This land becomes a 2/2 Assembly-Worker artifact creature until end of turn. It's still a land.\n{T}: Target Assembly-Worker creature gets +1/+1 until end of turn.",
-        "prices": {"usd": "1"},
-    }
-    clone = {
-        "name": "Silent Hallcreeper",
-        "type_line": "Enchantment Creature — Horror",
-        "cmc": 5.0,
-        "oracle_text": "This creature can't be blocked.\nWhenever this creature deals combat damage to a player, choose one that hasn't been chosen —\n• Put two +1/+1 counters on this creature.\n• Draw a card.\n• This creature becomes a copy of another target creature you control.",
-        "prices": {"usd": "1"},
-    }
+    manland = {**_text_only("Mishra's Factory"), "prices": {"usd": "1"}}
+    clone = {**_text_only("Silent Hallcreeper"), "prices": {"usd": "1"}}
     assert (
         "Creature-lands"
         in score_candidate(manland, active_signals=[], avenues=avenues)["served"]
@@ -542,8 +433,8 @@ def test_partner_widening_synergy_breaks_ties_within_a_widening_tier():
 
 
 # ── Card IR role clustering (ADR-0027, A3) ───────────────────────────────────
-# The synthetic dict fixtures above carry no oracle_id, so they exercise the
-# regex fallback (``ir is None``). These tests exercise the IR path by injecting a
+# The ``_text_only`` and synthetic fixtures above carry no oracle_id, so they
+# exercise the regex fallback (``ir is None``). These tests exercise the IR path by injecting a
 # constructed ``Card`` IR via ``_ir_resolved`` — the same join ``rank_candidates``
 # does by oracle_id at runtime. They assert the structured classifier mirrors the
 # regex tiers where both agree, and is strictly MORE accurate where the regex

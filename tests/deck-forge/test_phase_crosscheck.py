@@ -28,7 +28,7 @@ from mtg_utils.testkit import test_card, test_signals
 
 def test_phase_tags_collects_effect_kind_from_ability():
     record = {
-        "name": "Elvish Mystic",
+        "name": "Mana Tap Probe",
         "oracle_text": "{T}: Add {G}.",
         "abilities": [{"kind": "Mana", "effect": {"type": "Mana", "value": {}}}],
     }

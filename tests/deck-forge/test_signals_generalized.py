@@ -724,17 +724,11 @@ def test_self_etb_variable_damage_opens_flicker_and_clone():
     # membership cross-open rewards. The value-verb matching lives in
     # ``text_reads._self_etb_value`` (still consumed by the production membership
     # floor); probe the helper directly. Real oracle text.
-    dong_zhou_text = (
-        "When Dong Zhou enters, target creature an opponent controls deals "
-        "damage equal to its power to that player."
-    )
+    dong_zhou_text = test_card("Dong Zhou, the Tyrant")["oracle_text"]
     assert _self_etb_value(dong_zhou_text, "Dong Zhou, the Tyrant")
     # Over-fire guard: an exile-removal ETB (Banisher Priest) is NOT a flicker
     # payoff — damage/value verbs qualify, "exile target" does not (O-Ring rule).
-    banisher_text = (
-        "When this creature enters, exile target creature an opponent controls "
-        "until this creature leaves the battlefield."
-    )
+    banisher_text = test_card("Banisher Priest")["oracle_text"]
     assert _self_etb_value(banisher_text, "Banisher Priest") is None
 
 
@@ -821,13 +815,7 @@ def test_self_recurring_commander_opens_voltron():
     assert "voltron_matters" in _keys_real("Akuta, Born of Ash")
     # Self-scoped: a reanimation spell returning ANOTHER creature is not the resilience
     # tell — the helper must not match it.
-    assert (
-        _voltron_self_recurs(
-            "Return target creature card from your graveyard to the battlefield.",
-            "Reanimator",
-        )
-        is False
-    )
+    assert _voltron_self_recurs(test_card("Zombify")["oracle_text"], "Zombify") is False
 
 
 def test_creatures_are_lands_is_not_untap_engine():
@@ -904,25 +892,8 @@ def test_self_double_strike_beater_opens_voltron():
     # voltron override); probe it helper-level. A double-strike TOKEN go-wide engine
     # (Oketra: makes Warriors, power 3) is excluded by BOTH the power>=4 and
     # no-token gates — the documented over-fire class stays out. Real oracle.
-    sabin = {
-        "name": "Sabin, Master Monk",
-        "type_line": "Legendary Creature — Human Noble Monk",
-        "power": "4",
-        "toughness": "3",
-        "keywords": ["Blitz", "Double strike"],
-        "oracle_text": (
-            "Double strike\nBlitz—{2}{R}{R}, Discard a card. (If you cast this spell "
-            'for its blitz cost, it gains haste and "When this creature dies, draw a '
-            'card." Sacrifice it at the beginning of the next end step.)\nYou may '
-            "cast this card from your graveyard using its blitz ability."
-        ),
-    }
-    oketra = {
-        "name": "Oketra the True",
-        "power": "3",
-        "keywords": ["Indestructible", "Double strike"],
-        "oracle_text": "{3}{W}: Create a 1/1 white Warrior creature token with vigilance.",
-    }
+    sabin = test_card("Sabin, Master Monk")
+    oketra = test_card("Oketra the True")
     assert _voltron_double_strike_beater(oketra, oketra["oracle_text"]) is False
     assert _voltron_double_strike_beater(sabin, sabin["oracle_text"]) is True
 
@@ -932,10 +903,7 @@ def test_self_death_variable_damage_opens_payoff_and_clone():
     # damage ("deals damage equal to its power") is a value death trigger worth
     # re-firing. The name-aware value matching lives in ``text_reads._self_dies_value``
     # (still consumed by the production membership floor); probe it directly.
-    orca_text = (
-        "When Orca dies, it deals damage equal to its power divided as you choose "
-        "among any number of targets."
-    )
+    orca_text = test_card("Orca, Siege Demon")["oracle_text"]
     assert _self_dies_value(orca_text, "Orca, Siege Demon")
     # Over-fire guard: a "deals damage equal to" clause NOT on a death trigger (a
     # combat trigger) must not open the death payoff.
@@ -1116,28 +1084,9 @@ def test_color_hoser_opens_and_serves_color_change_toolbox():
     sp = spec_for(
         Signal(key="color_hoser", scope="you", subject="", text="", source="")
     )
-    painters = {
-        "name": "Painter's Servant",
-        "type_line": "Artifact Creature — Scarecrow",
-        "oracle_text": (
-            "As this creature enters, choose a color.\nAll cards that aren't on the "
-            "battlefield, spells, and permanents are the chosen color in addition to "
-            "their other colors."
-        ),
-    }
-    sleight = {
-        "name": "Sleight of Mind",
-        "type_line": "Instant",
-        "oracle_text": (
-            "Change the text of target spell or permanent by replacing all instances "
-            "of one color word with another."
-        ),
-    }
-    bad_moon = {
-        "name": "Bad Moon",
-        "type_line": "Enchantment",
-        "oracle_text": "Black creatures get +1/+1.",
-    }
+    painters = test_card("Painter's Servant")
+    sleight = test_card("Sleight of Mind")
+    bad_moon = test_card("Bad Moon")
     assert sp.serve.matches(painters)
     assert sp.serve.matches(sleight)
     assert not sp.serve.matches(bad_moon)
@@ -1150,20 +1099,9 @@ def test_extra_combat_served_by_combat_signals():
     from mtg_utils._analysis.signal_specs import serve_from_dict, spec_for
     from mtg_utils._analysis.signals import Signal
 
-    relentless = {
-        "name": "Relentless Assault",
-        "type_line": "Sorcery",
-        "oracle_text": (
-            "Untap all creatures that attacked this turn. After this main phase, there "
-            "is an additional combat phase followed by an additional main phase."
-        ),
-    }
+    relentless = test_card("Relentless Assault")
     # Over-fire guard: burn is not an extra-combat enabler.
-    bolt = {
-        "name": "Lightning Bolt",
-        "type_line": "Instant",
-        "oracle_text": "Lightning Bolt deals 3 damage to any target.",
-    }
+    bolt = test_card("Lightning Bolt")
     for key, scope in [
         ("combat_damage_matters", "opponents"),
         ("combat_damage_to_opp", "opponents"),
@@ -1188,14 +1126,7 @@ def test_group_mana_serves_symmetric_mana():
     from mtg_utils._analysis.signal_specs import serve_from_dict, spec_for
     from mtg_utils._analysis.signals import Signal
 
-    mana_flare = {
-        "name": "Mana Flare",
-        "type_line": "Enchantment",
-        "oracle_text": (
-            "Whenever a player taps a land for mana, that player adds an additional one "
-            "mana of any type that land produced."
-        ),
-    }
+    mana_flare = test_card("Mana Flare")
     sp = spec_for(
         Signal(key="group_mana", scope="each", subject="", text="", source="")
     )
@@ -1207,11 +1138,7 @@ def test_group_mana_serves_symmetric_mana():
 
     assert cov(mana_flare)
     # Over-fire guard: a one-sided mana dork is not symmetric group mana.
-    llan = {
-        "name": "Llanowar Elves",
-        "type_line": "Creature — Elf Druid",
-        "oracle_text": "{T}: Add {G}.",
-    }
+    llan = test_card("Llanowar Elves")
     assert not cov(llan)
 
 
@@ -1247,15 +1174,7 @@ def test_amass_cards_served_by_tokens_matter():
     from mtg_utils._analysis.signal_specs import serve_from_dict, spec_for
     from mtg_utils._analysis.signals import Signal
 
-    crebain = {
-        "name": "Dunland Crebain",
-        "type_line": "Creature — Bird Horror",
-        "oracle_text": (
-            "Flying\nWhen this creature enters, amass Orcs 2. (Put two +1/+1 counters on "
-            "an Army you control. It's also an Orc. If you don't control an Army, create "
-            "a 0/0 black Orc Army creature token first.)"
-        ),
-    }
+    crebain = test_card("Dunland Crebain")
     sp = spec_for(
         Signal(key="tokens_matter", scope="you", subject="", text="", source="")
     )
@@ -1267,7 +1186,7 @@ def test_amass_cards_served_by_tokens_matter():
 
     assert cov(crebain)
     # Over-fire guard: a vanilla creature is not a token maker.
-    bears = {"name": "Grizzly Bears", "type_line": "Creature — Bear", "oracle_text": ""}
+    bears = test_card("Grizzly Bears")
     assert not cov(bears)
 
 
@@ -1507,10 +1426,7 @@ def test_self_reference_resolves_any_scope_to_you_high_confidence():
     # attack_matters migrated to the Card IR, so its emission no longer carries the
     # resolved scope — but `_resolve_scope` (which `_attack_matters_is_plan` and every
     # surviving baseline detector still use) is exercised directly here.
-    clause = (
-        "Whenever Krenko attacks, put a +1/+1 counter on it, then create a number "
-        "of 1/1 red Goblin creature tokens equal to Krenko's power."
-    )
+    clause = test_card("Krenko, Tin Street Kingpin")["oracle_text"]
     scope, conf = _resolve_scope(
         clause, clause.lower(), _scope(clause.lower()), "Krenko, Tin Street Kingpin"
     )
@@ -1546,10 +1462,7 @@ def test_narrow_tinybones_rule_is_high_confidence():
     # ADR-0027 v29: graveyard_matters migrated to the IR. The narrow Tinybones rule
     # (combat-damage-to-a-player + that-player's-zone → opponents, HIGH confidence) is
     # `_tinybones_scope`, applied per-clause; assert it directly + via the hybrid path.
-    clause = (
-        "Whenever Tinybones deals combat damage to a player, you may cast target "
-        "nonland permanent card from that player's graveyard."
-    )
+    clause = test_card("Tinybones, the Pickpocket")["oracle_text"]
     assert _tinybones_scope(clause) == "opponents"
     s = next(
         sig
@@ -1647,25 +1560,17 @@ def test_creature_recursion_opens_and_self_sac_creatures_serve_it():
             (ex.serve or serve_from_dict(ex.search)).matches(card) for ex in sp.extras
         )
 
-    spore_frog = {
-        "name": "Spore Frog",
-        "type_line": "Creature — Frog",
-        "oracle_text": "Sacrifice this creature: Prevent all combat damage that would be dealt this turn.",
-    }
+    spore_frog = test_card("Spore Frog")
     assert lane_covers(spore_frog, "creature_recursion") is True
     # Over-fire guard: a vanilla creature is not loop fuel.
-    bear = {"name": "Grizzly Bears", "type_line": "Creature — Bear", "oracle_text": ""}
+    bear = test_card("Grizzly Bears")
     assert lane_covers(bear, "creature_recursion") is False
 
 
 def test_self_etb_value_matches_whenever_and_plural_enter():
     # ``_self_etb_value`` (production membership-floor input) must match "WHENEVER ~
     # enters" (Roxanne) — the old detector keyed on "\bwhen " only. Real oracle.
-    roxanne_text = (
-        "Whenever Roxanne enters or attacks, create a tapped colorless artifact "
-        'token named Meteorite with "When this token enters, it deals 2 damage '
-        'to any target" and "{T}: Add one mana of any color."'
-    )
+    roxanne_text = test_card("Roxanne, Starfall Savant")["oracle_text"]
     assert _self_etb_value(roxanne_text, "Roxanne, Starfall Savant")
 
 
@@ -1675,22 +1580,12 @@ def test_self_etb_value_resolves_short_name_not_just_first_token():
     # "When Spider-Byte enters" / "When Donnie & April enter" / "When Black Cat
     # enters" must all match ``_self_etb_value`` (production membership-floor
     # input). Real oracle text.
-    assert _self_etb_value(
-        "When Spider-Byte enters, return up to one target nonland permanent to "
-        "its owner's hand.",
+    for name in (
         "Spider-Byte, Web Warden",
-    )
-    assert _self_etb_value(
-        "When Donnie & April enter, choose one or both. Each mode must target a "
-        "different player.",
         "Donnie & April, Adorkable Duo",
-    )
-    assert _self_etb_value(
-        "When Black Cat enters, look at the top nine cards of target opponent's "
-        "library, exile two of them face down, then put the rest on the bottom of "
-        "their library in a random order.",
         "Black Cat, Cunning Thief",
-    )
+    ):
+        assert _self_etb_value(test_card(name)["oracle_text"], name), name
 
 
 def test_self_dies_value_resolves_short_name_for_clone():
@@ -1764,9 +1659,7 @@ def test_voltron_override_opens_for_likely_voltron_commanders():
     )
     assert (
         _voltron_self_unblockable(
-            "Whenever you cast a noncreature spell, target creature you control can't be "
-            "blocked this turn.",
-            "Bria, Riptide Rogue",
+            test_card("Bria, Riptide Rogue")["oracle_text"], "Bria, Riptide Rogue"
         )
         is False
     )
@@ -1774,9 +1667,7 @@ def test_voltron_override_opens_for_likely_voltron_commanders():
     # reminders) does — this is what isolates (F) from the power>=2 path-B fallback.
     assert (
         _voltron_self_unblockable(
-            "Tromokratis can't be blocked unless all creatures defending player controls "
-            "block it.",
-            "Tromokratis",
+            test_card("Tromokratis")["oracle_text"], "Tromokratis"
         )
         is True
     )
@@ -1820,31 +1711,9 @@ def test_sea_monster_tribal_group_covers_all_four_types():
         )
 
     # other group members by type-line (no oracle tribal text)
-    tromokratis = {
-        "name": "Tromokratis",
-        "type_line": "Legendary Creature — Kraken",
-        "oracle_text": (
-            "Tromokratis has hexproof unless it's attacking or blocking.\n"
-            "Tromokratis can't be blocked unless all creatures defending player "
-            "controls block it."
-        ),
-    }
-    stormtide = {
-        "name": "Stormtide Leviathan",
-        "type_line": "Creature — Leviathan",
-        "oracle_text": (
-            "Islandwalk\nAll lands are Islands in addition to their other types.\n"
-            "Creatures without flying or islandwalk can't attack."
-        ),
-    }
-    whelming = {
-        "name": "Whelming Wave",
-        "type_line": "Sorcery",
-        "oracle_text": (
-            "Return all creatures to their owners' hands except for Krakens, "
-            "Leviathans, Octopuses, and Serpents."
-        ),
-    }
+    tromokratis = test_card("Tromokratis")
+    stormtide = test_card("Stormtide Leviathan")
+    whelming = test_card("Whelming Wave")
     assert covers(tromokratis)  # Kraken body, no oracle tribal text
     assert covers(stormtide)  # Leviathan body
     assert covers(whelming)  # group-naming payoff (Sorcery, no creature type)
@@ -1876,33 +1745,13 @@ def test_kazuul_defending_player_opens_goad_and_force_attack_serves():
             (ex.serve or serve_from_dict(ex.search)).matches(card) for ex in sp.extras
         )
 
-    diplomats = {
-        "name": "Goblin Diplomats",
-        "type_line": "Creature — Goblin",
-        "oracle_text": "{T}: Each creature attacks this turn if able.",
-    }
-    warstoll = {
-        "name": "War's Toll",
-        "type_line": "Enchantment",
-        "oracle_text": (
-            "Whenever an opponent taps a land for mana, tap all lands that player "
-            "controls.\n"
-            "If a creature an opponent controls attacks, all creatures that opponent "
-            "controls attack if able."
-        ),
-    }
+    diplomats = test_card("Goblin Diplomats")
+    warstoll = test_card("War's Toll")
     assert lane_covers(diplomats, "goad_makers", "opponents") is True
     assert lane_covers(warstoll, "goad_makers", "opponents") is True
     # Over-fire guard: a SELF forced-attack drawback (Juggernaut) is an aggressive
     # beater, not a force-the-table effect.
-    juggernaut = {
-        "name": "Juggernaut",
-        "type_line": "Artifact Creature — Juggernaut",
-        "oracle_text": (
-            "This creature attacks each combat if able.\n"
-            "This creature can't be blocked by Walls."
-        ),
-    }
+    juggernaut = test_card("Juggernaut")
     assert lane_covers(juggernaut, "goad_makers", "opponents") is False
 
 
@@ -1924,30 +1773,15 @@ def test_low_power_matters_opens_and_serves():
             (ex.serve or serve_from_dict(ex.search)).matches(card) for ex in sp.extras
         )
 
-    raid = {
-        "name": "Raid Bombardment",
-        "type_line": "Enchantment",
-        "oracle_text": (
-            "Whenever a creature you control with power 2 or less attacks, this "
-            "enchantment deals 1 damage to the player or planeswalker that creature "
-            "is attacking."
-        ),
-    }
+    raid = test_card("Raid Bombardment")
     assert lane_covers(raid, "low_power_matters") is True
     # Over-fire guard 1: removal targeting a small creature is not a payoff for YOUR
-    # small creatures ("target", not "you control").
-    removal = {
-        "name": "Disfigure-like",
-        "type_line": "Instant",
-        "oracle_text": "Destroy target creature with power 2 or less.",
-    }
+    # small creatures ("target", not "you control"). Cruel Cut is the near miss:
+    # the same "power 2 or less" words on a removal spell.
+    removal = test_card("Cruel Cut")
     assert lane_covers(removal, "low_power_matters") is False
     # Over-fire guard 2: a vanilla small body is not on-theme fodder.
-    bears = {
-        "name": "Grizzly Bears",
-        "type_line": "Creature — Bear",
-        "oracle_text": "",
-    }
+    bears = test_card("Grizzly Bears")
     assert lane_covers(bears, "low_power_matters") is False
 
 
@@ -1969,30 +1803,13 @@ def test_gowide_package_creature_scoped_and_count_scaler_opens_it():
             (ex.serve or serve_from_dict(ex.search)).matches(card) for ex in sp.extras
         )
 
-    battle_screech = {
-        "name": "Battle Screech",
-        "type_line": "Sorcery",
-        "oracle_text": "Create two 1/1 white Bird creature tokens with flying.",
-    }
-    rootborn = {
-        "name": "Rootborn Defenses",
-        "type_line": "Instant",
-        "oracle_text": (
-            "Populate. Creatures you control gain indestructible until end of turn."
-        ),
-    }
+    battle_screech = test_card("Battle Screech")
+    rootborn = test_card("Rootborn Defenses")
     assert lane_covers(battle_screech) is True  # mass creature-token maker
     assert lane_covers(rootborn) is True  # team protection
     # Creature-scoping guard: a Treasure maker makes NON-creature tokens — it
     # doesn't go wide and must NOT be in the go-wide package.
-    tithe = {
-        "name": "Smothering Tithe",
-        "type_line": "Enchantment",
-        "oracle_text": (
-            "Whenever an opponent draws a card, that player may pay {2}. If they don't, "
-            "you create a Treasure token."
-        ),
-    }
+    tithe = test_card("Smothering Tithe")
     assert lane_covers(tithe) is False
 
 
@@ -2011,26 +1828,11 @@ def test_tokens_matter_serves_mobilize_swarm():
             (ex.serve or serve_from_dict(ex.search)).matches(card) for ex in sp.extras
         )
 
-    packbeasts = {
-        "name": "Dalkovan Packbeasts",
-        "type_line": "Creature — Ox",
-        "keywords": ["Mobilize", "Vigilance"],
-        "oracle_text": (
-            "Vigilance\n"
-            "Mobilize 3 (Whenever this creature attacks, create three tapped and "
-            "attacking 1/1 red Warrior creature tokens. Sacrifice them at the beginning "
-            "of the next end step.)"
-        ),
-    }
+    packbeasts = test_card("Dalkovan Packbeasts")
     assert lane_covers(packbeasts, "tokens_matter", "you") is True
     # Over-fire guard: a plain creature with no token-making and no mobilize keyword is
     # not credited.
-    bear = {
-        "name": "Grizzly Bears",
-        "type_line": "Creature — Bear",
-        "keywords": [],
-        "oracle_text": "",
-    }
+    bear = test_card("Grizzly Bears")
     assert lane_covers(bear, "tokens_matter", "you") is False
 
 
@@ -2050,19 +1852,13 @@ def test_cost_reduction_serves_stacking_reducers():
             (ex.serve or serve_from_dict(ex.search)).matches(card) for ex in sp.extras
         )
 
-    etherium = {
-        "name": "Etherium Sculptor",
-        "type_line": "Artifact Creature — Vedalken Artificer",
-        "oracle_text": "Artifact spells you cast cost {1} less to cast.",
-    }
+    etherium = test_card("Etherium Sculptor")
     assert lane_covers(etherium, "cost_reduction", "you") is True
     # Over-fire guard (isolates the reducer extra): a SELF-only "this spell costs
-    # {2} less" is not a stacking reducer — the plural "spells" anchor keeps it out.
-    self_only = {
-        "name": "Self Discounter",
-        "type_line": "Creature — Beast",
-        "oracle_text": "This spell costs {2} less to cast.",
-    }
+    # {3} less" (Bone Picker) is not a stacking reducer — the plural "spells"
+    # anchor keeps it out. (Ghalta's {X} and 12 mana value hit the main serve's
+    # X-spell / expensive-bomb arms, so it can't isolate the extra.)
+    self_only = test_card("Bone Picker")
     assert lane_covers(self_only, "cost_reduction", "you") is False
 
 
@@ -2087,25 +1883,11 @@ def test_token_maker_serves_token_aristocrats_drain():
             (ex.serve or serve_from_dict(ex.search)).matches(card) for ex in sp.extras
         )
 
-    mirkwood = {
-        "name": "Mirkwood Bats",
-        "type_line": "Creature — Bat",
-        "oracle_text": (
-            "Flying\n"
-            "Whenever you create or sacrifice a token, each opponent loses 1 life."
-        ),
-    }
+    mirkwood = test_card("Mirkwood Bats")
     assert covers(mirkwood) is True
     # Over-fire guard: generic "whenever a creature dies" drain is NOT
     # token-specific — it belongs to the death/aristocrats lanes.
-    blood_artist = {
-        "name": "Blood Artist",
-        "type_line": "Creature — Vampire",
-        "oracle_text": (
-            "Whenever this creature or another creature dies, target player loses 1 "
-            "life and you gain 1 life."
-        ),
-    }
+    blood_artist = test_card("Blood Artist")
     assert covers(blood_artist) is False
 
 
@@ -2132,26 +1914,11 @@ def test_celebration_archetype_opens_and_serves():
             (ex.serve or serve_from_dict(ex.search)).matches(card) for ex in sp.extras
         )
 
-    grand_ball_guest = {
-        "name": "Grand Ball Guest",
-        "type_line": "Creature — Human Peasant",
-        "oracle_text": (
-            "Celebration — This creature gets +1/+1 and has trample as long as two "
-            "or more nonland permanents entered the battlefield under your control "
-            "this turn."
-        ),
-    }
+    grand_ball_guest = test_card("Grand Ball Guest")
     assert lane_covers(grand_ball_guest, "celebration_matters") is True
     # Over-fire guard: a generic go-wide payoff that doesn't carry the Celebration
     # phrase is not a Celebration card.
-    impact = {
-        "name": "Impact Tremors",
-        "type_line": "Enchantment",
-        "oracle_text": (
-            "Whenever a creature you control enters, Impact Tremors deals 1 damage "
-            "to each opponent."
-        ),
-    }
+    impact = test_card("Impact Tremors")
     assert lane_covers(impact, "celebration_matters") is False
 
 
@@ -2171,24 +1938,11 @@ def test_lands_matter_serves_creature_pump_by_basic():
             (ex.serve or serve_from_dict(ex.search)).matches(card) for ex in sp.extras
         )
 
-    primal_bellow = {
-        "name": "Primal Bellow",
-        "type_line": "Instant",
-        "oracle_text": (
-            "Target creature gets +1/+1 until end of turn for each Forest you control."
-        ),
-    }
+    primal_bellow = test_card("Primal Bellow")
     assert lane_covers(primal_bellow, "lands_matter") is True
     # Over-fire guard: pump that scales off your OPPONENTS' basics is not your
     # lands-matter payoff.
-    crusading_knight = {
-        "name": "Crusading Knight",
-        "type_line": "Creature — Human Knight",
-        "oracle_text": (
-            "Protection from black\n"
-            "Crusading Knight gets +1/+1 for each Swamp your opponents control."
-        ),
-    }
+    crusading_knight = test_card("Crusading Knight")
     assert lane_covers(crusading_knight, "lands_matter") is False
 
 
@@ -2208,25 +1962,11 @@ def test_tapped_creatures_matter_opens_and_serves():
             (ex.serve or serve_from_dict(ex.search)).matches(card) for ex in sp.extras
         )
 
-    throne = {
-        "name": "Throne of the God-Pharaoh",
-        "type_line": "Legendary Artifact",
-        "oracle_text": (
-            "At the beginning of your end step, each opponent loses life equal to "
-            "the number of tapped creatures you control."
-        ),
-    }
+    throne = test_card("Throne of the God-Pharaoh")
     assert lane_covers(throne, "tapped_matters") is True
     # Over-fire guard: a convoke / tap-as-cost card taps UNtapped creatures — the
     # word boundary on \btapped must keep it out of the lane.
-    devout = {
-        "name": "Devout Invocation",
-        "type_line": "Sorcery",
-        "oracle_text": (
-            "Tap any number of untapped creatures you control. Create a 4/4 white "
-            "Angel creature token for each creature tapped this way."
-        ),
-    }
+    devout = test_card("Devout Invocation")
     assert lane_covers(devout, "tapped_matters") is False
 
 
@@ -2246,16 +1986,7 @@ def test_tapped_threshold_and_count_open_and_serve():
             (ex.serve or serve_from_dict(ex.search)).matches(card) for ex in sp.extras
         )
 
-    dawnstrike = {
-        "name": "Dawnstrike Vanguard",
-        "type_line": "Creature — Human Knight",
-        "oracle_text": (
-            "Lifelink\n"
-            "At the beginning of your end step, if you control two or more tapped "
-            "creatures, put a +1/+1 counter on each creature you control other than "
-            "this creature."
-        ),
-    }
+    dawnstrike = test_card("Dawnstrike Vanguard")
     assert lane_covers(dawnstrike, "tapped_matters") is True
 
 
@@ -2336,21 +2067,8 @@ def test_discard_matters_payoff_opens_opponent_discard():
             (ex.serve or serve_from_dict(ex.search)).matches(card) for ex in sp.extras
         )
 
-    megrim = {
-        "name": "Megrim",
-        "type_line": "Enchantment",
-        "oracle_text": (
-            "Whenever an opponent discards a card, Megrim deals 2 damage to that player."
-        ),
-    }
-    bottomless = {
-        "name": "Bottomless Pit",
-        "type_line": "Enchantment",
-        "oracle_text": (
-            "At the beginning of each player's upkeep, that player discards a card at "
-            "random."
-        ),
-    }
+    megrim = test_card("Megrim")
+    bottomless = test_card("Bottomless Pit")
     assert lane_covers(megrim, "opponent_discard", "opponents") is True
     assert lane_covers(bottomless, "opponent_discard", "opponents") is True
 
@@ -2441,27 +2159,11 @@ def test_opponent_reveal_mill_served_by_graveyard_opponents():
             (ex.serve or serve_from_dict(ex.search)).matches(card) for ex in sp.extras
         )
 
-    mind_funeral = {
-        "name": "Mind Funeral",
-        "type_line": "Sorcery",
-        "oracle_text": (
-            "Target opponent reveals cards from the top of their library until four "
-            "land cards are revealed. That player puts all cards revealed this way "
-            "into their graveyard."
-        ),
-    }
+    mind_funeral = test_card("Mind Funeral")
     assert lane_covers(mind_funeral, "graveyard_matters", "opponents") is True
     # Over-fire guard: a SELF-mill card reveals from YOUR library into YOUR graveyard —
     # the "their/that player's library" anchor must keep it out of the opponents lane.
-    avenging = {
-        "name": "Avenging Druid",
-        "type_line": "Creature — Human Druid",
-        "oracle_text": (
-            "Whenever this creature deals damage to an opponent, you may reveal cards "
-            "from the top of your library until you reveal a land card, put that card "
-            "onto the battlefield, then put the rest into your graveyard."
-        ),
-    }
+    avenging = test_card("Avenging Druid")
     assert lane_covers(avenging, "graveyard_matters", "opponents") is False
 
 
@@ -2491,18 +2193,10 @@ def test_land_sacrifice_matters_opens_and_serves():
             (ex.serve or serve_from_dict(ex.search)).matches(card) for ex in sp.extras
         )
 
-    zuran_orb = {
-        "name": "Zuran Orb",
-        "type_line": "Artifact",
-        "oracle_text": "Sacrifice a land: You gain 2 life.",
-    }
+    zuran_orb = test_card("Zuran Orb")
     assert lane_covers(zuran_orb, "land_sacrifice_matters") is True
     # Over-fire guard: a CREATURE-sacrifice outlet is aristocrats, not land sacrifice.
-    viscera = {
-        "name": "Viscera Seer",
-        "type_line": "Creature — Vampire Wizard",
-        "oracle_text": "Sacrifice a creature: Scry 1.",
-    }
+    viscera = test_card("Viscera Seer")
     assert lane_covers(viscera, "land_sacrifice_matters") is False
 
 
@@ -2541,22 +2235,12 @@ def test_gain_control_serve_catches_that_them_those():
             (ex.serve or serve_from_dict(ex.search)).matches(card) for ex in sp.extras
         )
 
-    treasure_nabber = {
-        "name": "Treasure Nabber",
-        "type_line": "Creature — Goblin Rogue",
-        "oracle_text": (
-            "Whenever an opponent taps an artifact for mana, gain control of that "
-            "artifact until the end of your next turn."
-        ),
-    }
+    treasure_nabber = test_card("Treasure Nabber")
     assert lane_covers(treasure_nabber, "gain_control") is True
     # Over-fire guard: DONATING control to an opponent is the opposite of theft and is
-    # vetoed by serve_not.
-    donate = {
-        "name": "Generic Donate",
-        "type_line": "Sorcery",
-        "oracle_text": "Target opponent gains control of that creature.",
-    }
+    # vetoed by serve_not. Harmless Offering is the near miss: a control-change
+    # spell pointed the other way.
+    donate = test_card("Harmless Offering")
     assert lane_covers(donate, "gain_control") is False
 
 
@@ -2577,26 +2261,11 @@ def test_debuff_serves_opponent_mass_shrink():
             (ex.serve or serve_from_dict(ex.search)).matches(card) for ex in sp.extras
         )
 
-    mass_diminish = {
-        "name": "Mass Diminish",
-        "type_line": "Sorcery",
-        "oracle_text": (
-            "Until your next turn, creatures target player controls have base power "
-            "and toughness 1/1."
-        ),
-    }
+    mass_diminish = test_card("Mass Diminish")
     assert lane_covers(mass_diminish, "debuff_makers", "any") is True
     # Over-fire guard: setting YOUR creatures' base P/T (Mirror Entity pump) is NOT a
     # debuff — the opponent-controls anchor must keep it out.
-    mirror = {
-        "name": "Mirror Entity",
-        "type_line": "Creature — Shapeshifter",
-        "oracle_text": (
-            "Changeling\n"
-            "{X}: Until end of turn, creatures you control have base power and "
-            "toughness X/X and gain all creature types."
-        ),
-    }
+    mirror = test_card("Mirror Entity")
     assert lane_covers(mirror, "debuff_makers", "any") is False
 
 
@@ -2714,20 +2383,10 @@ def test_keyword_soup_commander_opens_and_serves_multi_keyword_creatures():
             (ex.serve or serve_from_dict(ex.search)).matches(card) for ex in sp.extras
         )
 
-    aerial = {
-        "name": "Aerial Responder",
-        "type_line": "Creature — Dwarf Soldier",
-        "oracle_text": "Flying, vigilance, lifelink",
-        "keywords": ["Flying", "Lifelink", "Vigilance"],
-    }
+    aerial = test_card("Aerial Responder")
     assert lane_covers(aerial, "keyword_soup_makers") is True
     # Over-fire guard: a one-keyword creature is not a multi-keyword body.
-    sprite = {
-        "name": "Scryb Sprite",
-        "type_line": "Creature — Faerie",
-        "oracle_text": "Flying",
-        "keywords": ["Flying"],
-    }
+    sprite = test_card("Scryb Sprites")
     assert lane_covers(sprite, "keyword_soup_makers") is False
 
 
@@ -2747,33 +2406,14 @@ def test_combat_damage_serves_double_strike_granters():
             (ex.serve or serve_from_dict(ex.search)).matches(card) for ex in sp.extras
         )
 
-    duelist = {
-        "name": "Duelist's Heritage",
-        "type_line": "Enchantment",
-        "oracle_text": (
-            "At the beginning of combat on your turn, choose target attacking "
-            "creature. It gains double strike until end of turn."
-        ),
-    }
+    duelist = test_card("Duelist's Heritage")
     assert lane_covers(duelist, "combat_damage_to_opp", "opponents") is True
     # Over-fire guard: a bare vanilla double-striker (the keyword on its own body, no
     # grant) is just a body, not an amplifier — it must NOT match the amplifier extra.
-    vanilla_ds = {
-        "name": "Vanilla Double Striker",
-        "type_line": "Creature — Human Warrior",
-        "oracle_text": "Double strike",
-        "keywords": ["Double strike"],
-    }
+    # Fencing Ace is exactly that: a 1/1 with double strike and nothing else.
+    vanilla_ds = test_card("Fencing Ace")
     assert lane_covers(vanilla_ds, "combat_damage_to_opp", "opponents") is False
     # Whole-table amplifier (Kediss): "deals that much damage to each other opponent"
     # copies your combat damage onto every opponent — also an amplifier. Real oracle.
-    kediss = {
-        "name": "Kediss, Emberclaw Familiar",
-        "type_line": "Legendary Creature — Elemental Lizard",
-        "oracle_text": (
-            "Whenever a commander you control deals combat damage to an opponent, it "
-            "deals that much damage to each other opponent.\n"
-            "Partner (You can have two commanders if both have partner.)"
-        ),
-    }
+    kediss = test_card("Kediss, Emberclaw Familiar")
     assert lane_covers(kediss, "combat_damage_to_opp", "opponents") is True

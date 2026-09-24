@@ -14,7 +14,7 @@ extraction alone doesn't cover.
 
 from mtg_utils._analysis.signal_specs import serves, spec_for
 from mtg_utils._analysis.signals import Signal
-from mtg_utils.testkit import test_signals
+from mtg_utils.testkit import test_card, test_signals
 
 # Card names referenced through the real-card helper below. This table feeds the
 # `build-card-snapshot` usage scanner (it parses `_REAL_CASES` dict VALUES, which
@@ -174,16 +174,9 @@ def test_meld_pair_serves_only_its_partner():
         s for s in test_signals("Bruna, the Fading Light") if s.key == "meld_pair"
     )
     assert sig.subject == "Bruna, the Fading Light"  # subject is THIS card's name
-    partner = {
-        "name": "Gisela, the Broken Blade",
-        "oracle_text": (
-            "At the beginning of your end step, if you both own and control "
-            "Gisela, the Broken Blade and a creature named Bruna, the Fading "
-            "Light, exile them, then meld them into Brisela, Voice of "
-            "Nightmares."
-        ),
-    }
-    unrelated = {"name": "Other Meld", "oracle_text": "(Melds with Someone Else.)"}
+    partner = test_card("Gisela, the Broken Blade")
+    # The near miss: a real meld half whose partner is a different card.
+    unrelated = test_card("Hanweir Garrison")
     assert serves(partner, sig) is True  # the partner names this card
     assert serves(unrelated, sig) is False  # not every meld half
 

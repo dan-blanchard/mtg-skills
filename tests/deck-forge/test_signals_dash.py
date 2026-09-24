@@ -14,7 +14,7 @@ that parametrized test doesn't cover.
 
 from mtg_utils._analysis.signal_specs import serves, spec_for
 from mtg_utils._analysis.signals import Signal
-from mtg_utils.testkit import test_signals
+from mtg_utils.testkit import test_card, test_signals
 
 
 def test_dash_scope_is_you():
@@ -30,8 +30,7 @@ def test_dash_spec_targets_equipment_not_auras():
     sig = Signal("has_dash", "you", "", "", "Zurgo Bellstriker")
     assert spec_for(sig) is not None
     # Equipment serves it (persists across the Dash bounce)…
-    assert serves({"oracle_text": "Equipped creature gets +2/+2. Equip {2}"}, sig)
-    # …an Aura does NOT (it dies when Zurgo returns to hand, CR 704.5m).
-    assert not serves(
-        {"oracle_text": "Enchant creature. Enchanted creature gets +2/+2."}, sig
-    )
+    assert serves(test_card("Bonesplitter"), sig)
+    # …an Aura does NOT (it dies when Zurgo returns to hand, CR 704.5m). Rancor is
+    # the near miss: the same +2/+0 buff, but an Aura.
+    assert not serves(test_card("Rancor"), sig)
