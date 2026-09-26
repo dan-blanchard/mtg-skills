@@ -148,7 +148,7 @@ def test_missing_sidecar_falls_back_to_json(bulk_path: Path):
     assert sidecar.exists()
 
 
-def test_version_mismatch_triggers_rebuild(bulk_path: Path):
+def test_version_mismatch_triggers_rebuild(bulk_path: Path, capsys):
     sidecar = _sidecar_path(bulk_path)
     # Hand-write a sidecar with a wrong version
     with sidecar.open("wb") as f:
@@ -165,6 +165,11 @@ def test_version_mismatch_triggers_rebuild(bulk_path: Path):
     # Bogus version is rejected — we should see the real JSON contents
     assert len(cards) == 2
     assert cards[0]["name"] == "Sol Ring"
+    # The rebuild says so, once (an upgrade that bumps SIDECAR_VERSION is otherwise a
+    # silent minute-long pause).
+    assert "one-time rebuild" in capsys.readouterr().err
+    load_bulk_cards(bulk_path)
+    assert "one-time rebuild" not in capsys.readouterr().err
 
 
 def test_corrupt_sidecar_falls_back_to_json(bulk_path: Path):

@@ -183,6 +183,29 @@ def test_translate_single_face_core_fields():
     assert rec["types"] == ["Sorcery"]
 
 
+def test_translate_carries_printing_style():
+    """A printing's style (what makes a basic land printing special: full-art,
+    borderless, a special frame, a promo) rides onto the record."""
+    plain = adapter.translate_card([_sunfall()])
+    assert plain["full_art"] is False
+    assert plain["frame_effects"] == []
+    assert plain["promo"] is False
+    styled = {
+        **_sunfall(),
+        "isFullArt": True,
+        "borderColor": "borderless",
+        "frameEffects": ["showcase"],
+        "isPromo": True,
+        "promoTypes": ["boosterfun"],
+    }
+    rec = adapter.translate_card([styled])
+    assert rec["full_art"] is True
+    assert rec["border_color"] == "borderless"
+    assert rec["frame_effects"] == ["showcase"]
+    assert rec["promo"] is True
+    assert rec["promo_types"] == ["boosterfun"]
+
+
 def test_translate_single_face_has_image_uris():
     rec = adapter.translate_card([_sunfall()])
     assert rec["image_uris"]["normal"].startswith(

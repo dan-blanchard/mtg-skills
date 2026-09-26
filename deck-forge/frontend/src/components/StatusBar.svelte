@@ -4,7 +4,6 @@
   //   summary  — read-only deck numbers (cards · curve · counts · colors · price · bracket)
   //   health   — land pill (CLICK → Mana Gate modal), budgets + warnings (HOVER → popover)
   //   link     — the two genuinely-distinct status dots: ● Hub (SSE) and ● Session (agent)
-  import { isBasicLand } from "../lib/cards.js";
   import {
     stats,
     mana,
@@ -31,6 +30,7 @@
     WC_TIERS,
     bucketCurve,
     CURVE_BUCKETS,
+    copiesShort,
   } from "../lib/mana.js";
   import Mana from "./Mana.svelte";
   import Budgets from "./Budgets.svelte";
@@ -62,15 +62,13 @@
     (sum, c) => sum + (priceOf(c) ?? 0) * (c.quantity || 1),
     0,
   );
-  // How much of the estimate is cards you DON'T already own (the spend to acquire the
-  // deck). Only meaningful when a Collection is loaded for the active slot; basics are
-  // excluded (assumed owned, matching the owned readout). Owned-ness is the derived flag.
+  // How much of the estimate is copies you DON'T already own (the spend to acquire the
+  // deck). Only meaningful when a Collection is loaded for the active slot. Each row's
+  // served shortfall (copiesShort) already applies the ownership rule, basics included.
   $: collectionLoaded =
     $collection && ($collection.slots?.[$collection.active_slot] || 0) > 0;
-  const isBasic = isBasicLand;
   $: unownedTotal = [...$deck.commanders, ...$deck.cards].reduce(
-    (sum, c) =>
-      c.owned || isBasic(c) ? sum : sum + (priceOf(c) ?? 0) * (c.quantity || 1),
+    (sum, c) => sum + (priceOf(c) ?? 0) * (copiesShort(c) ?? 0),
     0,
   );
   // Slot budgets met / tracked, for the compact chip (full bars live in the popover).

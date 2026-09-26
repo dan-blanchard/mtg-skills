@@ -129,6 +129,23 @@ class TestResolveInput:
         # Sol Ring: 1 needed - 1 owned = 0 → dropped. Counterspell: 2 - 1 = 1.
         assert cards == [NeededCard(card_name="Counterspell", qty=1)]
 
+    def test_collection_subtraction_follows_the_ownership_rule(self, tmp_path):
+        # Paper: basic lands are owned with no collection row, so a collection
+        # subtraction leaves none to buy; Snow-Covered basics are ordinary cards.
+        deck = {
+            "cards": [
+                {"name": "Forest", "qty": 12},
+                {"name": "Snow-Covered Forest", "qty": 2},
+            ],
+        }
+        deck_path = _write(tmp_path, "deck.json", json.dumps(deck))
+        coll_path = _write(tmp_path, "coll.json", json.dumps({}))
+        cards, basics = resolve_input(
+            deck_path, collection_path=coll_path, include_basics=True
+        )
+        assert cards == [NeededCard(card_name="Snow-Covered Forest", qty=2)]
+        assert basics == {}
+
     def test_collection_subtraction_normalizes_names(self, tmp_path):
         """Arena exports strip diacritics; bulk data preserves them. Both
         sides must go through normalize_card_name so subtraction lines up.

@@ -151,6 +151,46 @@ def test_card(name: str) -> dict[str, Any]:
     return dict(_entry(name)["scryfall"])
 
 
+#: A printing's style facts with nothing special about it (per-printing: the snapshot
+#: stores gameplay facts only). ``test_printing`` overlays these, then the caller's.
+_PLAIN_PRINTING = {
+    "full_art": False,
+    "border_color": "black",
+    "frame_effects": [],
+    "promo": False,
+    "promo_types": [],
+}
+
+
+def test_printing(
+    name: str, set_code: str, collector_number: str, **style: object
+) -> dict[str, Any]:
+    """*name*'s real record as one printing: ``set`` / ``collector_number`` / ``id``
+    and a plain style, overlaid with *style* (``full_art=True``, ``promo_types=[…]``,
+    …) — per-printing facts the snapshot omits (ADR-0056)."""
+    return {
+        **test_card(name),
+        **_PLAIN_PRINTING,
+        "id": f"{set_code}-{collector_number}",
+        "set": set_code,
+        "collector_number": collector_number,
+        **style,
+    }
+
+
+def printing_row(
+    set_code: str, collector_number: str, *, quantity: int = 0, foil_quantity: int = 0
+) -> dict[str, Any]:
+    """One collection ``printings`` row (``ownership.entry_printing_rows``'s stored
+    shape): copies of a printing a collection holds."""
+    return {
+        "set": set_code,
+        "collector_number": collector_number,
+        "quantity": quantity,
+        "foil_quantity": foil_quantity,
+    }
+
+
 def snapshot_records() -> list[dict[str, Any]]:
     """Every snapshot card's minimal Scryfall record, with the crosswalk
     trees memo pre-seeded for each — a CI-usable ~900-card POOL for
@@ -231,5 +271,11 @@ def test_signals(name: str) -> list:
 # prefix (chosen so a fixture reads ``test_card("Sol Ring")``). ``__test__ = False`` is
 # pytest's documented opt-out and travels with the function when imported into a test
 # module. Set via ``setattr`` (the attribute isn't declared on the function type).
-for _helper in (test_card, test_card_ir, test_signals, test_phase_records):
+for _helper in (
+    test_card,
+    test_card_ir,
+    test_signals,
+    test_phase_records,
+    test_printing,
+):
     setattr(_helper, "__test__", False)  # noqa: B010 — dynamic set dodges ty's undeclared-attr check

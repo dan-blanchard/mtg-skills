@@ -205,7 +205,7 @@ Re-verify it after each B&R announcement.
 
 ### Arena Rarity Warning
 
-The `rarity` field in the deck's hydrated sidecar is the **default Scryfall printing's rarity**, which drifts from Arena's actual wildcard cost. Always use `price-check --format <fmt> --bulk-data <path>` for Arena wildcard budgeting. When Arena is installed it reads the rarity straight from Arena's own card database (ADR-0057), the lowest rarity among the card's craftable printings, so it matches what Arena charges. Without Arena it falls back to MTGJSON's printings, which are wrong for about 35 cards, mostly Special Guests reprints that MTGJSON lists as mythic.
+The `rarity` field in the deck's hydrated sidecar is the **default Scryfall printing's rarity**, which drifts from Arena's actual wildcard cost. Always use `price-check --format <fmt> --medium digital --bulk-data <path>` for Arena wildcard budgeting. The medium, not the format, picks wildcards vs USD: Arena-only formats (Brawl, Historic Brawl, Alchemy, Historic, Timeless) are digital anyway, but Standard and Pioneer default to paper, so an Arena build of those needs `--medium digital` (or `"medium": "digital"` in the deck JSON). When Arena is installed it reads the rarity straight from Arena's own card database (ADR-0057), the lowest rarity among the card's craftable printings, so it matches what Arena charges. Without Arena it falls back to MTGJSON's printings, which are wrong for about 35 cards, mostly Special Guests reprints that MTGJSON lists as mythic.
 
 ### Licensed IP Card Warning
 
@@ -271,7 +271,7 @@ mark-owned <deck.json> <collection.json> [--bulk-data <bulk-data-path>]
 
 `mark-owned` also does front-face aliasing for DFC / split / adventure / modal cards: a deck that lists `"Fable of the Mirror-Breaker"` (front face only, common in Arena/Moxfield exports) matches a collection entry for `"Fable of the Mirror-Breaker // Reflection of Kiki-Jiki"` (Scryfall's canonical combined form) and vice versa. You do not need to normalize these by hand before calling `mark-owned`.
 
-**`price-check` honors deck quantity and owned quantity.** Paper (USD) mode charges `max(deck_qty - owned_qty, 0) * unit_price` per card. Arena wildcard mode applies the same shortfall math plus the Arena 4-cap substitution: owning >=4 copies of ANY card — including "any number" cards like Hare Apparent or Rat Colony — is unlimited supply. The six basic lands (Plains, Island, Swamp, Mountain, Forest, Wastes) are free; Snow-Covered basics are not.
+**Ownership rule — follow it whenever you count copies or wildcards.** Basic lands (Plains, Island, Swamp, Mountain, Forest, Wastes) count as owned in any quantity. On Arena that has no exception (basic styles are cosmetic). In paper the exception is a deck that asks for a special printing — foil or etched, full-art, borderless, a showcase or other special frame, a promo — which is owned only if the collection holds that exact printing (a collection that lists basics by name only, or not at all, doesn't); a plain set pin like "Forest (M21) 274" stays owned. Snow-Covered basics are different cards, collected like any other. On Arena, owning four copies of a card covers any quantity: four Hare Apparent or Rat Colony ("any number") fill every slot, four Seven Dwarves ("up to seven") fill seven — but three owned is three copies. Otherwise, in either medium, you have what you own. The tools already apply this through one function (`Format.copies_short`): `price-check` (USD shortfall in paper, wildcards on Arena), `deck-tune`'s purse (each added copy is free only if the collection covers that copy), and deck-forge's cost readouts. When you reason by hand — "can they build this?", "how many wildcards?" — apply the same rule, not a raw owned-vs-needed comparison.
 
 ### Decision Table
 
@@ -295,14 +295,14 @@ mark-owned <deck.json> <collection.json> [--bulk-data <bulk-data-path>]
 | Check mana base health | `mana-audit <deck.json> [--bulk-data <path>]` |
 | Compare mana before/after | `mana-audit <deck.json> --compare <new-deck.json> [--bulk-data <path>]` |
 | Price check (paper) | `price-check <deck.json> --bulk-data <path>` |
-| Price check (Arena wildcards) | `price-check <deck.json> --format <fmt> --bulk-data <path>` |
+| Price check (Arena wildcards) | `price-check <deck.json> --format <fmt> --medium digital --bulk-data <path>` |
 | Apply mainboard + sideboard changes | `build-deck <deck.json> --cuts <c.json> --adds <a.json> --sideboard-cuts <sc.json> --sideboard-adds <sa.json> [--bulk-data <path>] [--output-dir <dir>]` (writes `new-deck.json` + its own `new-deck.hydrated.json` sidecar) |
 | Compare deck versions | `deck-diff <old-deck.json> <new-deck.json> [--bulk-data <path>]` |
 | Export for import | `export-deck <deck.json>` (auto-picks Arena section headers for Arena formats; `--style moxfield\|arena` to force) |
 | Mark owned cards from collection | `mark-owned <deck.json> <collection.csv> [--bulk-data <path>]` |
 | Know which deck cards I own and how many | `mark-owned <deck.json> <collection.json> [--output PATH] [--bulk-data <path>]` |
-| Plan wildcard spend / get per-card or aggregate Arena rarity | `price-check <deck.json> --format <fmt> --bulk-data <path>` |
-| Get a card's Arena-lowest rarity | `price-check --format <fmt>` (never the deck's hydrated sidecar `rarity` field) |
+| Plan wildcard spend / get per-card or aggregate Arena rarity | `price-check <deck.json> --format <fmt> --medium digital --bulk-data <path>` |
+| Get a card's Arena-lowest rarity | `price-check --format <fmt> --medium digital` (never the deck's hydrated sidecar `rarity` field) |
 | Find owned, legal, commander-eligible cards from a collection | `find-commanders <collection.json> --format <fmt> --bulk-data <path> --output <working-dir>/.cache/candidates.json` |
 | Research metagame/strategy | WebSearch + WebFetch (or `web-fetch` script) |
 | Run the self-grill (Step 8 hard gate) | Two parallel `Agent` calls with `subagent_type: "general-purpose"` |
@@ -361,6 +361,7 @@ If the user has an Arena collection:
 1. Ask for Untapped.gg CSV export first (most reliable source)
 2. `mark-owned <deck.json> <collection.csv> --bulk-data <path>` to populate `owned_cards` (accepts both CSV and parsed-deck JSON)
 3. Use `mtga-import` only for extracting wildcard counts, not collection data
+4. Count what the collection covers by the ownership rule (Tooling Notes): four owned copies cover any quantity, basic lands are owned unless a paper deck asks for a special printing
 
 Always pass `--bulk-data` for Arena collections (see Tooling Notes > Populating `owned_cards` for details on aliasing).
 
@@ -925,7 +926,7 @@ Checks: format legality, copy limits (singleton for Commander/Brawl; 4-of rule +
 price-check <deck.json> --budget <budget> --bulk-data <path>
 
 # Arena
-price-check <deck.json> --format <fmt> --bulk-data <path>
+price-check <deck.json> --format <fmt> --medium digital --bulk-data <path>
 ```
 
 If over budget, substitute expensive cards with budget alternatives. Re-run after changes. For Arena, "most expensive" means highest rarity — swap rare cards for uncommon alternatives. Watch the `illegal_or_missing` warning line for cards that escaped the legality audit.
@@ -1560,7 +1561,7 @@ Concrete miss this gate exists to prevent (session 0a340f10): the Proposer recom
 ### Price Check on Additions
 
 ```
-price-check /tmp/adds.json --bulk-data <path> [--format <fmt>] [--budget <budget>]
+price-check /tmp/adds.json --bulk-data <path> [--format <fmt>] [--medium digital] [--budget <budget>]
 ```
 
 For Arena formats, use `--format <fmt>` to get wildcard costs. If any single card or the total exceeds budget, find cheaper alternatives before proceeding. Do not send cards to the self-grill that the user cannot afford.
@@ -1823,7 +1824,7 @@ price-check <new-deck.json> --bulk-data <path>
 
 For Arena:
 ```
-price-check <new-deck.json> --format <fmt> --bulk-data <path>
+price-check <new-deck.json> --format <fmt> --medium digital --bulk-data <path>
 ```
 
 ### Final Budget Summary
@@ -1993,7 +1994,7 @@ See `proxy-printer/SKILL.md` for layout details and catalog setup.
 | "This deck just came from the builder, the self-grill is overkill" | The builder runs no adversarial review. A fresh skeleton is the highest-leverage moment for a challenger pass. |
 | "I'll dispatch the agents next turn / after the user confirms" | No. Step 8 must complete before Step 9. |
 | "I'll bundle the Step 9 proposal and the Step 11 AskUserQuestion in one message" | No. `AskUserQuestion` renders option chips before the surrounding markdown commits, so bundling means the user approves blind. Write Step 9's proposal FIRST as its own turn. |
-| "I'll trust the `rarity` field from the deck's hydrated sidecar for Arena budgeting" | No. That field is the Scryfall "default" printing's rarity. Use `price-check --format <fmt>` for Arena rarity. |
+| "I'll trust the `rarity` field from the deck's hydrated sidecar for Arena budgeting" | No. That field is the Scryfall "default" printing's rarity. Use `price-check --format <fmt> --medium digital` for Arena rarity. |
 | "I'll check combos in the deck but skip the near-miss partner scan when proposing cuts" | No. A near-miss combo is `<missing> + <partner1> + <partner2> = <result>`. Your cut list may silently target a `partner`. Check every proposed cut against Step 5 near-miss partner slots. |
 | "I'll just Write over `/tmp/cuts.json` and run cut-check in the same message" | No. The first `Write` to an existing `/tmp` path from a prior session fails, but the parallel Bash call runs against stale content. |
 | "I'll write a quick `python3 -c` to count / filter / extract" | Check the decision table first. Almost every common task is covered by an existing script. |
@@ -2041,7 +2042,7 @@ See `proxy-printer/SKILL.md` for layout details and catalog setup.
 - `combo-discover [--card "<name>"] [--result "<outcome>"] [--color-identity CI] [--format FORMAT] [--arena-only] [--paper-only] [--bulk-data PATH] [--output PATH]` — Discover combos by outcome or card
 - `legality-audit <deck.json> [--bulk-data <path>] [--output PATH] [--cite-rules/--no-cite-rules] [--rules-file <path>]` — Check legality, copy limits, sideboard size, deck minimum, color identity
 - `mana-audit <deck.json> [--compare <new-deck.json>] [--bulk-data <path>] [--output PATH]` — Mana base audit (Burgess/Karsten for commander, constructed formula for 60-card)
-- `price-check <deck.json> [--format <fmt>] --bulk-data <path> [--budget <N>] [--output PATH]` — Budget check. For Arena formats, reports wildcard costs by rarity.
+- `price-check <deck.json> [--format <fmt>] [--medium paper|digital] --bulk-data <path> [--budget <N>] [--output PATH]` — Budget check. The medium picks the mode: digital (Arena) reports wildcard costs by rarity, paper reports USD. Default: the deck JSON's `medium`, else the format's (Standard and Pioneer default to paper).
 - `deck-stats <deck.json> [--bulk-data <path>] [--output PATH]` — Deck statistics
 - `deck-signals <deck.json> [--bulk-data <path>] [--json]` — The deck's signal lanes (what the commander's oracle text cares about), via the deck-forge detector. Deterministic.
 - `slot-budgets <deck.json> [--bulk-data <path>] [--shape aggro|midrange|control|combo] [--json]` — Role-density bands (lands/ramp/card_draw/interaction/board_wipe) vs the template. Deck size comes from the deck JSON. Deterministic.

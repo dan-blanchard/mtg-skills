@@ -7,7 +7,7 @@ import pytest
 from click.testing import CliRunner
 
 from mtg_utils.price_check import check_prices, main
-from mtg_utils.testkit import test_card
+from mtg_utils.testkit import printing_row, test_card, test_printing
 
 
 class TestCheckPrices:
@@ -399,6 +399,22 @@ class TestArenaWildcardMode:
         assert result["cards"][0]["wildcards_needed"] == 0
         assert result["owned_cards_count"] == 1
 
+    def test_arena_snow_basics_are_collected_not_free(self, tmp_path):
+        """Only the six basic land types are free on Arena: Snow-Covered basics are
+        collected like any card, so unowned ones cost wildcards."""
+        bulk_path = tmp_path / "bulk.json"
+        bulk_path.write_text(
+            json.dumps([_arena_printing("Snow-Covered Forest", "common")])
+        )
+        deck = {
+            "format": "historic_brawl",
+            "commanders": [],
+            "cards": [{"name": "Snow-Covered Forest", "quantity": 2}],
+            "owned_cards": [],
+        }
+        result = check_prices(deck, bulk_path=bulk_path)
+        assert result["wildcard_cost"]["common"] == 2
+
     def test_arena_partial_ownership_under_4cap(self, tmp_path):
         """Owning 1-3 copies does NOT trigger the 4-cap substitution; the deck
         still needs wildcards for the shortfall. (An "any number" card, since
@@ -713,3 +729,168 @@ def _arena_printing(name: str, rarity: str) -> dict:
     """The real card *name* (its record from the snapshot) as one Arena printing at
     *rarity* — rarity and availability are per-printing facts the snapshot omits."""
     return {**test_card(name), "rarity": rarity, "games": ["arena"], "prices": {}}
+
+
+# ── Basic lands: owned in any medium; a SPECIAL printing is owned in paper only if
+# the collection holds that exact printing ──
+
+_M21 = test_printing("Forest", "m21", "274", prices={"usd": "0.10"})
+_ZNR_FULL_ART = test_printing(
+    "Forest",
+    "znr",
+    "278",
+    full_art=True,
+    frame_effects=["fullart"],
+    prices={"usd": "0.10"},
+)
+_LTR = test_printing(
+    "Forest", "ltr", "270", promo_types=["universesbeyond"], prices={"usd": "0.10"}
+)
+# The collection holds thirty plain Forests of another printing.
+_OTHER = printing_row("dmu", "277", quantity=30)
+
+
+def _paper(tmp_path, entry, owned):
+    """Copies of ``entry`` a paper check says to buy, with bulk printing records."""
+    bulk_path = tmp_path / "bulk.json"
+    bulk_path.write_text(json.dumps([_M21, _ZNR_FULL_ART, _LTR]))
+    deck = {"cards": [entry], "owned_cards": owned}
+    return check_prices(deck, bulk_path=bulk_path)["cards"][0]["copies_needed"]
+
+
+def _forests(*rows):
+    return [{"name": "Forest", "quantity": 30, "printings": list(rows)}]
+
+
+def _pin(set_code, number, **extra):
+    return {
+        "name": "Forest",
+        "quantity": 2,
+        "set": set_code,
+        "collector_number": number,
+        **extra,
+    }
+
+
+class TestBasicLandOwnership:
+    def test_unlisted_basics_are_owned_in_paper(self, tmp_path):
+        assert _paper(tmp_path, {"name": "Forest", "quantity": 20}, []) == 0
+
+    def test_plain_printing_pins_stay_owned_in_paper(self, tmp_path):
+        # "Forest (M21) 274" from an export, and a Universes Beyond basic: neither is
+        # special, so the collection lacking that exact printing doesn't matter.
+        assert _paper(tmp_path, _pin("M21", "274"), _forests(_OTHER)) == 0
+        assert _paper(tmp_path, _pin("LTR", "270"), _forests(_OTHER)) == 0
+
+    def test_a_special_pin_is_short_unless_that_printing_is_held(self, tmp_path):
+        full_art = _pin("ZNR", "278")
+        assert _paper(tmp_path, full_art, []) == 2  # no collection rows at all
+        name_only = [{"name": "Forest", "quantity": 20}]
+        assert _paper(tmp_path, full_art, name_only) == 2  # no printing detail
+        assert _paper(tmp_path, full_art, _forests(_OTHER)) == 2  # another printing
+        held = printing_row("znr", "278", quantity=2)
+        assert _paper(tmp_path, full_art, _forests(_OTHER, held)) == 0
+
+    def test_a_foil_pin_is_covered_only_by_foil_copies(self, tmp_path):
+        foil = _pin("M21", "274", finish="foil")
+        assert _paper(tmp_path, foil, []) == 2
+        nonfoil_held = printing_row("m21", "274", quantity=2)
+        assert _paper(tmp_path, foil, _forests(nonfoil_held)) == 2
+        foil_held = printing_row("m21", "274", foil_quantity=2)
+        assert _paper(tmp_path, foil, _forests(foil_held)) == 0
+
+    def test_any_forest_style_is_free_on_arena(self, tmp_path):
+        bulk_path = tmp_path / "bulk.json"
+        bulk_path.write_text(json.dumps([_arena_printing("Forest", "common")]))
+        for entry in (
+            {"name": "Forest", "quantity": 2},
+            _pin("ZNR", "278", finish="foil"),
+        ):
+            deck = {"format": "historic_brawl", "cards": [entry], "owned_cards": []}
+            result = check_prices(deck, bulk_path=bulk_path)
+            assert result["cards"][0]["wildcards_needed"] == 0
+
+    def test_snow_covered_basics_are_ordinary_cards(self, tmp_path):
+        snow = {"name": "Snow-Covered Forest", "quantity": 2}
+        records = {"Snow-Covered Forest": test_card("Snow-Covered Forest")}
+        with patch("mtg_utils.price_check.lookup_single") as mock_lookup:
+            mock_lookup.side_effect = lambda name, **_kw: records.get(name)
+            paper = check_prices({"cards": [snow], "owned_cards": []})
+        assert paper["cards"][0]["copies_needed"] == 2
+        bulk_path = tmp_path / "bulk.json"
+        bulk_path.write_text(
+            json.dumps([_arena_printing("Snow-Covered Forest", "common")])
+        )
+        arena = check_prices(
+            {"format": "historic_brawl", "cards": [snow], "owned_cards": []},
+            bulk_path=bulk_path,
+        )
+        assert arena["cards"][0]["wildcards_needed"] == 2
+
+
+class TestMediumDecidesCostMode:
+    """The medium, not the format's Arena flag, picks wildcards vs USD (ADR-0052):
+    Standard and Pioneer run on both media and default to paper, so an Arena build
+    says so with ``--medium digital`` or a deck ``medium``."""
+
+    def test_standard_defaults_to_paper_usd(self, sample_bulk_data):
+        result = check_prices(
+            ["Lightning Bolt"], bulk_path=sample_bulk_data, format="standard"
+        )
+        assert "total_cost" in result
+        assert "wildcard_cost" not in result
+
+    def test_medium_override_prices_standard_in_wildcards(self, sample_bulk_data):
+        result = check_prices(
+            ["Lightning Bolt"],
+            bulk_path=sample_bulk_data,
+            format="standard",
+            medium="digital",
+        )
+        assert "wildcard_cost" in result
+        assert "total_cost" not in result
+
+    def test_deck_medium_prices_standard_in_wildcards(self, sample_bulk_data):
+        deck = {
+            "format": "standard",
+            "medium": "digital",
+            "cards": [{"name": "Lightning Bolt", "quantity": 1}],
+        }
+        result = check_prices(deck, bulk_path=sample_bulk_data)
+        assert "wildcard_cost" in result
+
+    def test_override_a_format_cannot_honour_falls_back(self, sample_bulk_data):
+        # Commander is paper-only: a digital override is ignored, not raised.
+        result = check_prices(
+            ["Sol Ring"],
+            bulk_path=sample_bulk_data,
+            format="commander",
+            medium="digital",
+        )
+        assert "total_cost" in result
+
+    def test_cli_medium_flag(self, sample_bulk_data, tmp_path):
+        deck_path = tmp_path / "deck.json"
+        deck_path.write_text(
+            json.dumps(
+                {
+                    "format": "standard",
+                    "cards": [{"name": "Lightning Bolt", "quantity": 1}],
+                }
+            )
+        )
+        out = tmp_path / "out.json"
+        args = [
+            str(deck_path),
+            "--bulk-data",
+            str(sample_bulk_data),
+            "--output",
+            str(out),
+        ]
+        runner = CliRunner()
+        paper = runner.invoke(main, args)
+        assert paper.exit_code == 0, paper.output
+        assert "total_cost" in json.loads(out.read_text())
+        digital = runner.invoke(main, [*args, "--medium", "digital"])
+        assert digital.exit_code == 0, digital.output
+        assert "wildcard_cost" in json.loads(out.read_text())

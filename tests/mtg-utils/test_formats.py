@@ -22,9 +22,10 @@ from mtg_utils.formats import (
     family_size_choices,
     format_options,
     get_format,
+    is_special_basic_request,
     medium_is_digital,
 )
-from mtg_utils.testkit import test_card
+from mtg_utils.testkit import test_card, test_printing
 
 HB = FORMATS["historic_brawl"]
 CB = FORMATS["competitive_brawl"]
@@ -375,6 +376,39 @@ class TestMediumAndSize:
         assert Format.cost_mode("digital") == "wildcards"
         assert Format.cost_mode("paper") == "usd"
 
+    def test_arena_playset_covers_any_quantity_of_an_any_number_card(self):
+        # Four Hare Apparent ("any number") fill all seventeen slots on Arena; paper
+        # buys the thirteen it lacks.
+        assert Format.copies_short("digital", "Hare Apparent", 17, 4) == 0
+        assert Format.copies_short("paper", "Hare Apparent", 17, 4) == 13
+
+    def test_arena_playset_covers_an_up_to_n_card(self):
+        assert Format.copies_short("digital", "Seven Dwarves", 7, 4) == 0
+        assert Format.copies_short("paper", "Seven Dwarves", 7, 4) == 3
+
+    def test_below_a_playset_arena_covers_only_what_you_own(self):
+        # The near miss: three Hare Apparent are three copies, not a playset.
+        assert Format.copies_short("digital", "Hare Apparent", 17, 3) == 14
+        # A four-of with three owned is one short in either medium.
+        assert Format.copies_short("digital", "Lightning Bolt", 4, 3) == 1
+        assert Format.copies_short("paper", "Lightning Bolt", 4, 3) == 1
+
+    def test_basics_are_owned_in_every_medium(self):
+        for medium in ("paper", "digital"):
+            assert Format.copies_short(medium, "Forest", 20, 0) == 0
+            assert Format.copies_short(medium, "Wastes", 3, 0) == 0
+            # Snow-Covered basics are different cards, collected like any other.
+            assert Format.copies_short(medium, "Snow-Covered Forest", 2, 0) == 2
+
+    def test_a_special_basic_printing_counts_only_its_own_copies_in_paper(self):
+        # requested_owned: copies of the special printing the entry asks for.
+        assert Format.copies_short("paper", "Forest", 2, 30, requested_owned=0) == 2
+        assert Format.copies_short("paper", "Forest", 2, 30, requested_owned=2) == 0
+        # Arena's basic styles are cosmetic: any Forest is free.
+        assert Format.copies_short("digital", "Forest", 2, 0, requested_owned=0) == 0
+        # The request matters only for a basic land type.
+        assert Format.copies_short("paper", "Opt", 1, 1, requested_owned=0) == 0
+
     def test_paper_only_follows_the_medium_not_is_arena(self):
         # The search pool is the MEDIUM's: a paper Historic Brawl table buys paper
         # printings even though the format `is_arena`.
@@ -411,6 +445,50 @@ class TestMediumAndSize:
 
 
 # ---------- for_deck ----------
+
+
+class TestSpecialBasicRequest:
+    def test_a_plain_set_pin_is_not_special(self):
+        # "Forest (M21) 274" from an export.
+        m21 = test_printing("Forest", "m21", "274")
+        assert not is_special_basic_request("Forest", {}, m21)
+        assert not is_special_basic_request("Forest", {"finish": "nonfoil"}, None)
+
+    def test_product_and_distribution_tags_are_not_special(self):
+        # Near misses: ordinary black-bordered basics MTGJSON tags with where they
+        # were sold — they must stay owned in paper.
+        for set_code, number, tags in (
+            ("ltr", "270", ["universesbeyond"]),
+            ("fdn", "280", ["beginnerbox", "startercollection"]),
+            ("mh3", "318", ["bundle"]),
+        ):
+            plain = test_printing("Forest", set_code, number, promo_types=tags)
+            assert not is_special_basic_request("Forest", {}, plain), set_code
+
+    def test_a_foil_or_etched_finish_is_special(self):
+        assert is_special_basic_request("Forest", {"finish": "foil"}, None)
+        m21 = test_printing("Forest", "m21", "274")
+        assert is_special_basic_request("Forest", {"finish": "etched"}, m21)
+
+    def test_a_visually_special_printing_is_special(self):
+        for style in (
+            {"full_art": True},
+            {"border_color": "borderless"},
+            {"frame_effects": ["showcase"]},
+            {"frame_effects": ["extendedart"]},
+            {"promo": True},
+            {"promo_types": ["boosterfun"]},
+            {"promo_types": ["surgefoil"]},
+        ):
+            printing = test_printing("Forest", "xxx", "1", **style)
+            assert is_special_basic_request("Forest", {}, printing), style
+
+    def test_only_a_basic_land_type_qualifies(self):
+        # Snow-Covered Forest is its own card; a foil one is just a foil card.
+        snow = test_printing("Snow-Covered Forest", "khm", "285", full_art=True)
+        assert not is_special_basic_request(
+            "Snow-Covered Forest", {"finish": "foil"}, snow
+        )
 
 
 class TestForDeck:

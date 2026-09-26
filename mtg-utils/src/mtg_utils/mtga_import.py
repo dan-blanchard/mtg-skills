@@ -69,12 +69,10 @@ Arena-id resolution notes:
   cleanest way to handle the newest Alchemy / Universes Beyond sets
   where Scryfall's ``arena_id`` field is still null because the
   upstream ingestion hasn't caught up yet.
-- Arena grants unlimited copies of the six "free" basic land types
-  (``Island``, ``Mountain``, ``Plains``, ``Forest``, ``Swamp``, ``Wastes``),
-  so the importer unconditionally injects them at quantity 99 regardless
-  of what the collection source reported. Snow-covered basics are
-  collected normally and are not injected — if the user owns them, they
-  come through via arena-id resolution.
+- Arena grants unlimited copies of the six basic land types; the importer
+  records nothing for them, because the ownership rule (``Format.coverage``,
+  ADR-0058) already counts them as owned. Snow-Covered basics are collected
+  normally and come through via arena-id resolution.
 """
 
 from __future__ import annotations
@@ -95,7 +93,7 @@ import click
 from mtg_utils._sidecar import atomic_write_json
 from mtg_utils.arena_card_db import player_log_path
 from mtg_utils.bulk_loader import load_bulk_cards
-from mtg_utils.formats import FORMATS
+from mtg_utils.formats import ARENA_PLAYSET, FORMATS
 
 # The exact anchor string that marks a login-time API response in the
 # Arena log. The StartHook response carries ``InventoryInfo`` (wildcards
@@ -109,21 +107,10 @@ _UNITY_LOG_PREFIX = re.compile(
     r"\[UnityCrossThreadLogger\]\s*(\d+/\d+/\d+\s+\d+:\d+:\d+\s+[AP]M)",
 )
 
-# The six basic land types that Arena grants in unlimited quantities.
-# Snow basics are NOT in this list — they are collected normally on
-# Arena and only appear in the output when the log reports them.
-_FREE_BASICS = ("Island", "Mountain", "Plains", "Forest", "Swamp", "Wastes")
-
-# Arena's deckbuilding cap on per-card copies. Any card can be placed
-# in a deck at most 4 times (except for basic lands and the
-# "any number allowed" cards like Hare Apparent, Persistent Petitioners,
-# Shadowborn Apostle, Relentless Rats, Rat Colony, Seven Dwarves).
-# Arena's internal ownership model also caps at 4 per oracle card —
-# once you own 4 physical copies from any combination of printings,
-# additional acquisitions don't give you more usable copies. Used by
-# ``_resolve_collection`` when aggregating per-printing counts up to
-# per-oracle-name totals.
-_ARENA_PLAYSET_CAP = 4
+# Per-printing counts aggregate up to per-name totals capped at
+# ``formats.ARENA_PLAYSET``: once you own four copies from any mix of printings,
+# more give you no more usable copies (``Format.coverage`` owns what four means
+# for a deck).
 
 # Freshness thresholds. These are nudges, not gates — the importer
 # still emits its output when a warning fires. The 48h mtime window is
@@ -562,7 +549,7 @@ def _resolve_collection(
 
     1. Sum quantities across every arena_id that resolves to the
        same oracle name.
-    2. Cap the total at ``_ARENA_PLAYSET_CAP`` (4). Acquiring
+    2. Cap the total at ``ARENA_PLAYSET`` (4). Acquiring
        beyond 4 total is possible in Arena (pack rewards can push
        you past the cap) but not useful for deckbuilding.
 
@@ -594,7 +581,7 @@ def _resolve_collection(
                 set_code = entry.get("set")
                 collector = entry.get("collector_number")
             prior = totals.get(name, 0)
-            totals[name] = min(prior + count, _ARENA_PLAYSET_CAP)
+            totals[name] = min(prior + count, ARENA_PLAYSET)
             if set_code and collector:
                 bucket = printings.setdefault(name, {})
                 key = (set_code, collector)
@@ -615,28 +602,6 @@ def _resolve_collection(
             ]
         cards.append(card)
     return cards, unresolved
-
-
-def _inject_free_basics(cards: list[dict]) -> list[dict]:
-    """Ensure every free basic land appears with quantity ≥ 99.
-
-    Arena grants unlimited basics, so the user effectively owns them
-    regardless of what the collection source reported (the Decks
-    reconstruction omits basics the user has never put in a deck,
-    and the Untapped CSV reports true owned quantities rather than
-    Arena's unlimited grant). Injecting quantity 99 records that grant
-    in the collection itself (``price-check`` also treats these six as
-    free). Snow basics are NOT injected — the user has
-    to actually own those.
-    """
-    by_name = {entry["name"]: entry for entry in cards}
-    for basic in _FREE_BASICS:
-        existing = by_name.get(basic)
-        if existing is None:
-            by_name[basic] = {"name": basic, "quantity": 99}
-        else:
-            existing["quantity"] = max(int(existing["quantity"]), 99)
-    return sorted(by_name.values(), key=lambda entry: entry["name"].lower())
 
 
 def _extract_wildcards(inventory: dict) -> dict[str, int]:
@@ -1100,9 +1065,10 @@ def main(
         resolved_cards = []
         unresolved_ids = []
 
-    # Inject free basics.
-    cards_with_basics = _inject_free_basics(resolved_cards)
-    collection_json = _build_collection_json(cards_with_basics, format=format_)
+    # Basic lands are not injected: the ownership rule (``Format.coverage``) already
+    # treats Arena's free basics as owned, so collection.json lists only what the
+    # log or CSV reported.
+    collection_json = _build_collection_json(resolved_cards, format=format_)
 
     # Wildcards output (only when InventoryInfo was found).
     wildcards_path = output_dir / "wildcards.json"

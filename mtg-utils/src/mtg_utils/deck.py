@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import re
 from collections import Counter
+from collections.abc import Mapping
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -91,6 +92,22 @@ def hydrate(card: dict) -> dict:
     if faces and not out.get("type_line"):
         out["type_line"] = " // ".join(f.get("type_line") or "" for f in faces)
     return out
+
+
+#: The zones whose cards a builder must own to play the deck: the commanders, the
+#: main deck, the sideboard and the companion (never an opened pool).
+OWNED_ZONES: tuple[str, ...] = ("commanders", "cards", "sideboard", "companion")
+
+
+def deck_entries(deck: Mapping, zones: tuple[str, ...] = OWNED_ZONES) -> list[dict]:
+    """Every well-formed entry (a dict with a string ``name``) in ``zones``, in zone
+    then deck order — the one walk the ownership readers share."""
+    return [
+        entry
+        for zone in zones
+        for entry in deck.get(zone) or []
+        if isinstance(entry, dict) and isinstance(entry.get("name"), str)
+    ]
 
 
 def walk_cards(

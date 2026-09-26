@@ -287,3 +287,28 @@ def test_include_unreleased_alone_does_not_dump_the_vault():
     ).json()["results"]
     assert res == []
     assert seen == {}  # search_fn never called
+
+
+def test_find_serves_each_candidates_shortfall_by_the_ownership_rule():
+    # The browser never derives ownership: each result carries what adding one copy
+    # costs — one with no collection, none once the Arena slot holds a playset.
+    hare = {**test_card("Hare Apparent"), "prices": {"usd": "0.10"}}
+    state = ForgeState(
+        by_name={},
+        search_fn=lambda **_: [hare],
+        session=DeckSession("historic_brawl"),  # digital
+        bulk_available=True,
+    )
+    client = TestClient(build_app(state))
+
+    def short():
+        (row,) = client.post("/api/find", json={"name": "Hare", "limit": 5}).json()[
+            "results"
+        ]
+        return row["copies_short"]
+
+    assert short() == 1  # no collection: one copy to acquire
+    engine.set_collection(
+        state, "arena", {"cards": [{"name": "Hare Apparent", "quantity": 4}]}
+    )
+    assert short() == 0

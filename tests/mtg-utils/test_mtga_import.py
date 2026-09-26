@@ -45,7 +45,6 @@ from mtg_utils.mtga_import import (
     _collection_from_decks,
     _default_log_path,
     _extract_wildcards,
-    _inject_free_basics,
     _load_untapped_csv,
     _parse_timestamp_prefix,
     _resolve_collection,
@@ -491,8 +490,8 @@ class TestArenaIdIndexPrintings:
         assert by_name["Sol Ring"]["printings"] == [
             {"set": "khm", "collector_number": "263", "quantity": 2, "foil_quantity": 0}
         ]
-        # Injected basics carry no printing detail (they're synthesized).
-        assert "printings" not in by_name["Island"]
+        # Basics aren't synthesized: the ownership rule covers them (ADR-0058).
+        assert "Island" not in by_name
 
     def _run(self, tmp_path, output_dir, *extra):
         log_path = tmp_path / "Player.log"
@@ -731,39 +730,6 @@ class TestResolveCollection:
         assert cards == [{"name": "Sol Ring", "quantity": 2}]
 
 
-class TestBasicInject:
-    def test_all_six_basics_injected_when_absent(self):
-        cards = _inject_free_basics([])
-        names = {c["name"] for c in cards}
-        assert names == {"Island", "Mountain", "Plains", "Forest", "Swamp", "Wastes"}
-        assert all(c["quantity"] == 99 for c in cards)
-
-    def test_existing_basics_bumped_to_at_least_99(self):
-        cards = _inject_free_basics(
-            [
-                {"name": "Island", "quantity": 4},
-                {"name": "Mountain", "quantity": 150},
-            ],
-        )
-        by_name = {c["name"]: c["quantity"] for c in cards}
-        assert by_name["Island"] == 99  # bumped up
-        assert by_name["Mountain"] == 150  # preserved because higher
-
-    def test_snow_basics_are_not_injected(self):
-        """Snow basics are collected normally on Arena — the importer
-        must not synthesize entries for them."""
-        cards = _inject_free_basics([])
-        names = {c["name"] for c in cards}
-        assert "Snow-Covered Island" not in names
-        assert "Snow-Covered Mountain" not in names
-
-    def test_non_basic_cards_are_preserved(self):
-        cards = _inject_free_basics([{"name": "Sol Ring", "quantity": 1}])
-        by_name = {c["name"]: c["quantity"] for c in cards}
-        assert by_name["Sol Ring"] == 1
-        assert by_name["Island"] == 99
-
-
 class TestWildcardsExtraction:
     """The real MTGA log field names are ``WildCardMythics`` etc.,
     NOT ``wcMythic``. See the module docstring of mtga_import for why
@@ -900,10 +866,7 @@ class TestEndToEndMarkOwned:
             {"100": 4, "200": 2},
             {100: ["Sheoldred, the Apocalypse"], 200: ["Sol Ring"]},
         )
-        collection = _build_collection_json(
-            _inject_free_basics(cards),
-            format="historic_brawl",
-        )
+        collection = _build_collection_json(cards, format="historic_brawl")
         deck = {
             "commanders": [{"name": "Sheoldred, the Apocalypse", "quantity": 1}],
             "cards": [
@@ -916,7 +879,8 @@ class TestEndToEndMarkOwned:
         owned_names = {e["name"] for e in marked["owned_cards"]}
         assert "Sheoldred, the Apocalypse" in owned_names
         assert "Sol Ring" in owned_names
-        assert "Island" in owned_names  # basics injected with qty 99
+        # Basics aren't recorded: the ownership rule covers them (ADR-0058).
+        assert "Island" not in owned_names
         assert "Unowned Card" not in owned_names
 
 
@@ -1155,13 +1119,12 @@ class TestCLI:
         assert wildcards_path.exists()
 
         collection = json.loads(collection_path.read_text())
-        # Three resolved cards + 6 injected basics.
+        # The three resolved cards; basics aren't synthesized (ADR-0058).
         names = {c["name"] for c in collection["cards"]}
         assert "Sheoldred, the Apocalypse" in names
         assert "Sol Ring" in names
         assert "Lightning Bolt" in names
-        for basic in ("Island", "Mountain", "Plains", "Forest", "Swamp", "Wastes"):
-            assert basic in names
+        assert "Island" not in names
 
         # Quantities should reflect the max-across-zones reduction:
         # cardId 100 → Sheoldred at qty 4, cardId 200 → Sol Ring at qty 2,
@@ -1249,9 +1212,8 @@ class TestCLI:
         assert by_name["Untapped Only Card"] == 2
         # Not-owned row should not appear in collection output.
         assert "Not Owned" not in by_name
-        # Basics should still be injected.
-        for basic in ("Island", "Mountain", "Plains", "Forest", "Swamp", "Wastes"):
-            assert basic in by_name
+        # Basics aren't synthesized (the ownership rule covers them, ADR-0058).
+        assert "Island" not in by_name
 
     def test_collection_source_untapped_csv_requires_csv_path(self, tmp_path):
         """Selecting untapped-csv without passing --untapped-csv

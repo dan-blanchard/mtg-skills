@@ -30,7 +30,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass, field, replace
 from typing import Literal
 
-from mtg_utils.card_classify import is_commander
+from mtg_utils.card_classify import BASIC_LAND_NAMES, is_commander
 from mtg_utils.names import normalize_card_name
 
 Legality = Literal["legal", "restricted", "banned", "not_legal", "unreleased"]
@@ -59,9 +59,88 @@ FAMILY_LABELS: dict[str, str] = {
 }
 
 
+#: The two media, named once.
+PAPER: Medium = "paper"
+DIGITAL: Medium = "digital"
+
+
 def medium_is_digital(medium: str) -> bool:
     """The one place "is this an Arena game?" is decided from a medium string."""
-    return medium == "digital"
+    return medium == DIGITAL
+
+
+#: Owned copies that cover any quantity of a card on Arena (``Format.coverage``).
+ARENA_PLAYSET = 4
+#: Finishes that count as foil: a foil or etched request (etched is a foil treatment)
+#: and a collection's foil copies alike.
+FOIL_FINISHES = frozenset({"foil", "etched"})
+#: Frame effects that make a basic land printing visually special (MTGJSON's
+#: ``frameEffects``); an ordinary frame carries none of these.
+_SPECIAL_FRAME_EFFECTS = frozenset(
+    {"showcase", "extendedart", "fullart", "inverted", "etched", "shatteredglass"}
+)
+#: MTGJSON ``promoTypes`` that mark a visually different basic land printing, checked
+#: against every basic land printing in the bulk (2026-09-26). ``boosterfun`` is
+#: Wizards' Booster Fun label for alternate frames and art (retro frames, showcase
+#: art); the rest name a distinct foil treatment the printing only exists in, or
+#: alternate art (``schinesealtart``). Deliberately NOT here: distribution and product
+#: tags that ride on ordinary black-bordered basics — ``universesbeyond``,
+#: ``mediainsert``, ``bundle``, ``startercollection``, ``beginnerbox``, ``instore``,
+#: ``giftbox``, ``arenaleague`` and the like (a true promo printing is caught by
+#: ``promo`` itself).
+_SPECIAL_PROMO_TYPES = frozenset(
+    {
+        "boosterfun",
+        "schinesealtart",
+        "galaxyfoil",
+        "surgefoil",
+        "ripplefoil",
+        "raisedfoil",
+        "oilslick",
+        "rainbowfoil",
+        "dazzlefoil",
+        "chocobotrackfoil",
+        "firstplacefoil",
+    }
+)
+
+
+def is_special_basic_request(
+    name: str, request: Mapping, printing: Mapping | None
+) -> bool:
+    """Whether a deck entry for ``name`` asks for a SPECIAL printing of a basic land
+    type — the one case a paper collection's copies of that printing matter
+    (``Format.coverage``). ``request`` is the entry's printing keys (a ``finish``);
+    ``printing`` is the requested printing's own record, or None when the entry pins
+    none. Special means a foil or etched finish, or a visually special printing:
+    full-art, borderless, a showcase / extended-art / other special frame
+    (:data:`_SPECIAL_FRAME_EFFECTS`), a promo, or a visual promo type
+    (:data:`_SPECIAL_PROMO_TYPES`). A plain set / collector pin ("Forest (M21) 274"
+    from an export, a Universes Beyond or bundle basic) is not."""
+    if name not in BASIC_LAND_NAMES:
+        return False
+    if request.get("finish") in FOIL_FINISHES:
+        return True
+    if printing is None:
+        return False
+    return bool(
+        printing.get("full_art")
+        or printing.get("border_color") == "borderless"
+        or _SPECIAL_FRAME_EFFECTS.intersection(printing.get("frame_effects") or ())
+        or printing.get("promo")
+        or _SPECIAL_PROMO_TYPES.intersection(printing.get("promo_types") or ())
+    )
+
+
+@dataclass(frozen=True, slots=True)
+class Coverage:
+    """How far a collection covers a deck entry (``Format.coverage``): the copies
+    still to acquire, and why a covered entry is covered — ``"free"`` (a basic land,
+    owned with no collection at all) or ``"owned"`` (the collection's copies);
+    ``None`` while any copy is short."""
+
+    short: int
+    covered_by: Literal["free", "owned"] | None
 
 
 @dataclass(frozen=True, slots=True)
@@ -299,6 +378,59 @@ class Format:
     def cost_mode(medium: str) -> CostMode:
         """What a card costs to acquire in ``medium``: Arena wildcards or paper USD."""
         return "wildcards" if medium_is_digital(medium) else "usd"
+
+    @staticmethod
+    def coverage(
+        medium: str,
+        name: str,
+        needed: int,
+        owned: int,
+        *,
+        requested_owned: int | None = None,
+    ) -> Coverage:
+        """How far a collection holding ``owned`` copies of ``name`` covers a deck
+        running ``needed`` of them — the copies still to acquire and, when none are,
+        whether the entry is free or owned.
+
+        The ONE owner of the ownership rule — every wildcard cost, shortfall, owned
+        flag and "owned = free" read asks it (ADR-0058):
+
+        * The six basic land types (``card_classify.BASIC_LAND_NAMES``) are free in
+          any quantity. On Arena that has no exception (basic styles are cosmetic).
+          In paper the exception is a deck entry asking for a SPECIAL printing
+          (:func:`is_special_basic_request`): only that exact printing counts, and
+          ``requested_owned`` is how many of it the collection holds
+          (``ownership.requested_printing_owned``; ``None`` for an ordinary request).
+          Snow-Covered basics are different cards, not printings of a basic land
+          type, so they are collected like any card.
+        * On Arena, owning :data:`ARENA_PLAYSET` copies of a card covers any quantity
+          (a rule of the MTG Arena client, not the Comprehensive Rules). It only
+          changes anything for a card a deck may run more than four of: four Hare
+          Apparent ("any number") fill seventeen slots, four Seven Dwarves ("up to
+          seven") fill seven.
+        * Otherwise you have what you own."""
+        if name in BASIC_LAND_NAMES:
+            if medium_is_digital(medium) or requested_owned is None:
+                return Coverage(0, "free")
+            owned = requested_owned
+        if medium_is_digital(medium) and owned >= ARENA_PLAYSET:
+            return Coverage(0, "owned")
+        short = max(needed - owned, 0)
+        return Coverage(short, "owned" if short == 0 else None)
+
+    @staticmethod
+    def copies_short(
+        medium: str,
+        name: str,
+        needed: int,
+        owned: int,
+        *,
+        requested_owned: int | None = None,
+    ) -> int:
+        """Copies of ``name`` still to acquire — :meth:`coverage`'s ``short``."""
+        return Format.coverage(
+            medium, name, needed, owned, requested_owned=requested_owned
+        ).short
 
     # --- size ---------------------------------------------------------------------
 

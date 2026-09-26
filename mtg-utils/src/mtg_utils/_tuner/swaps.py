@@ -14,6 +14,7 @@ import re
 from collections import Counter
 from collections.abc import Callable, Collection, Mapping, Sequence
 from dataclasses import dataclass
+from typing import Protocol
 
 from mtg_utils._analysis.budgets import COMMANDER_TEMPLATE, Template
 from mtg_utils._analysis.ranking import rank_candidates
@@ -34,6 +35,7 @@ from mtg_utils.card_classify import (
     is_land,
 )
 from mtg_utils.deck import split_type_line
+from mtg_utils.formats import Coverage, Format
 
 # Worst-possible play-rate sentinel (an unranked card sorts last on the quality axis).
 _UNPLAYED = 10**9
@@ -247,19 +249,32 @@ def size_cuts(
 _WC_TIERS: tuple[str, ...] = ("mythic", "rare", "uncommon", "common")
 
 
+class _Purse(Protocol):
+    """An acquisition budget, probed read-only then charged on commit. It prices only
+    copies the collection does NOT cover — the caller decides coverage once, by
+    ``Format.copies_short`` — and each purse reads what it needs from the record."""
+
+    def acquire_cost(self, record: dict) -> float | None:
+        """The cost of one uncovered copy, or None when unaffordable."""
+
+    def charge(self, record: dict, cost: float) -> None: ...
+
+    @property
+    def usd_spent(self) -> float: ...
+
+    @property
+    def wildcards_spent(self) -> dict[str, int] | None: ...
+
+
 class _UsdLedger:
-    """Paper acquisition budget: a single USD pool. Owned = free; a no-listing card is
-    never free (treated as scarce); ``budget is None`` is the owned-only pass."""
+    """Paper acquisition budget: a single USD pool. A no-listing card is never free
+    (treated as scarce); ``budget is None`` is the owned-only pass."""
 
     def __init__(self, budget: float | None) -> None:
         self.budget = budget
         self.spent = 0.0
 
-    def acquire_cost(self, record: dict, owned: Mapping[str, int]) -> float | None:
-        """The card's USD cost, or None when unaffordable. Read-only (the caller charges
-        on commit) so probing many candidates can't inflate the running total."""
-        if owned.get(record.get("name", ""), 0) >= 1:
-            return 0.0
+    def acquire_cost(self, record: dict) -> float | None:
         price = extract_price(record)
         if price is None:  # no-listing: never $0
             return None
@@ -267,7 +282,7 @@ class _UsdLedger:
             return None
         return price if self.spent + price <= self.budget else None
 
-    def charge(self, record: dict, owned: Mapping[str, int], cost: float) -> None:
+    def charge(self, record: dict, cost: float) -> None:
         self.spent += cost
 
     @property
@@ -280,29 +295,23 @@ class _UsdLedger:
 
 
 class _WildcardLedger:
-    """Digital (Arena) acquisition budget: four per-rarity wildcard pools. A card costs
-    ONE wildcard of its rarity; owned cards and basic lands are free. Wildcards are NOT
-    interchangeable, so each tier is gated independently — an all-zero budget is the
-    owned-only pass. The swap's USD ``cost`` is 0.0 (the UI costs by rarity); ``total``
-    is the per-tier wildcards spent."""
+    """Digital (Arena) acquisition budget: four per-rarity wildcard pools. An uncovered
+    copy costs ONE wildcard of its rarity. Wildcards are NOT interchangeable, so each
+    tier is gated independently — an all-zero budget is the owned-only pass. The
+    swap's USD ``cost`` is 0.0 (the UI costs by rarity); ``total`` is the per-tier
+    wildcards spent."""
 
     def __init__(self, budget: Mapping[str, int]) -> None:
         self.remaining = {t: int(budget.get(t, 0)) for t in _WC_TIERS}
         self.spent = dict.fromkeys(_WC_TIERS, 0)
 
-    def acquire_cost(self, record: dict, owned: Mapping[str, int]) -> float | None:
-        """0.0 when the card is craftable within the remaining wildcard budget for its
-        rarity (or free: owned / basic), else None. Read-only — commit charges."""
-        if owned.get(record.get("name", ""), 0) >= 1 or is_basic_land(record):
-            return 0.0
+    def acquire_cost(self, record: dict) -> float | None:
         rarity = record.get("rarity")
         if rarity not in self.remaining or self.remaining[rarity] <= 0:
             return None
         return 0.0
 
-    def charge(self, record: dict, owned: Mapping[str, int], cost: float) -> None:
-        if owned.get(record.get("name", ""), 0) >= 1 or is_basic_land(record):
-            return
+    def charge(self, record: dict, cost: float) -> None:
         rarity = record.get("rarity")
         if rarity in self.remaining:
             self.remaining[rarity] -= 1
@@ -523,9 +532,21 @@ def propose_swaps(
         return None
 
     used_adds: Counter[str] = Counter()
+
+    def coverage(card: dict) -> Coverage:
+        """How far the collection covers the copy an add of ``card`` would become —
+        ``Format.coverage`` for this build's medium, decided here once so the purse
+        prices only uncovered copies and the swap's ``owned`` agrees with it."""
+        name = card.get("name", "")
+        copy = in_deck.get(name, 0) + used_adds[name] + 1
+        return Format.coverage(ctx.medium, name, copy, ctx.owned.get(name, 0))
+
+    def acquire_cost(card: dict) -> float | None:
+        return 0.0 if coverage(card).short == 0 else ledger.acquire_cost(card)
+
     game_changers = _GameChangerRoom(ctx.game_changer_room)
     swaps: list[dict] = []
-    ledger: _UsdLedger | _WildcardLedger = (
+    ledger: _Purse = (
         _WildcardLedger(ctx.wildcard_budget)
         if ctx.wildcard_budget is not None
         else _UsdLedger(ctx.budget)
@@ -666,7 +687,7 @@ def propose_swaps(
                 continue
             if not game_changers.allows(card):
                 continue  # ADR-0030: never propose an add past the bracket's ceiling
-            cost = ledger.acquire_cost(card, ctx.owned)
+            cost = acquire_cost(card)
             if cost is None:
                 continue
             if role_of(card) & full_roles:
@@ -697,7 +718,9 @@ def propose_swaps(
     ) -> None:
         # Charge only now that the swap is finalized (find_add probed read-only, so an
         # unpaired add never consumed budget — USD dollars or a wildcard, by mode).
-        ledger.charge(add_card, ctx.owned, cost)
+        covered_by = coverage(add_card).covered_by
+        if covered_by is None:
+            ledger.charge(add_card, cost)
         game_changers.charge(add_card, cut)
         if cut is not None:
             used_cuts[cut.name] += 1
@@ -725,7 +748,9 @@ def propose_swaps(
                     # "go to four" reads as copy 4).
                     "copy": copy_no,
                     "cost": cost,
-                    "owned": ctx.owned.get(add_card.get("name", ""), 0) >= 1,
+                    # Covered by the collection's copies (the purse charged nothing;
+                    # a free basic land is free, not owned).
+                    "owned": covered_by == "owned",
                     # Rarity rides along so a digital build can show the add's wildcard
                     # cost (one wildcard of its rarity) without a second card lookup.
                     "rarity": add_card.get("rarity", ""),

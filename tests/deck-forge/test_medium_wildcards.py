@@ -9,7 +9,7 @@ from fastapi.testclient import TestClient
 from mtg_utils._deck_forge import engine
 from mtg_utils._deck_forge.app import build_app
 from mtg_utils._deck_forge.state import DeckSession, ForgeState
-from mtg_utils.testkit import test_card
+from mtg_utils.testkit import printing_row, test_card, test_printing
 
 
 def _state(fmt="historic_brawl"):
@@ -117,9 +117,9 @@ def test_snapshot_serves_the_format_table_the_spa_reads():
 
 # ── wildcard cost for digital builds ─────────────────────────────────────────
 _RARITY_INDEX = {
-    "shock": {"rarity": "uncommon", "free": False},
-    "thoughtseize": {"rarity": "rare", "free": False},
-    "sol ring": {"rarity": "uncommon", "free": False},
+    "shock": {"rarity": "uncommon"},
+    "thoughtseize": {"rarity": "rare"},
+    "sol ring": {"rarity": "uncommon"},
 }
 
 
@@ -169,10 +169,7 @@ def test_wildcard_cost_charges_the_companion():
     # Yorion is crafted like any other), so it costs wildcards.
     state = _digital_state()
     state.by_name["Keruga, the Macrosage"] = test_card("Keruga, the Macrosage")
-    state.rarity_index["historic_brawl"]["keruga, the macrosage"] = {
-        "rarity": "rare",
-        "free": False,
-    }
+    state.rarity_index["historic_brawl"]["keruga, the macrosage"] = {"rarity": "rare"}
     state.session.add("Keruga, the Macrosage", zone="companion")
     wc = engine.wildcard_cost(state)
     assert wc == {"mythic": 0, "rare": 2, "uncommon": 1, "common": 0}
@@ -194,3 +191,148 @@ def test_snapshot_exposes_wildcards_only_when_digital():
     }
     state.session.set_medium("paper")
     assert engine.snapshot(state)["wildcards"] is None
+
+
+# ── Ownership: every readout sums the served per-card shortfall ──────────────
+def _hare_state(owned, medium="digital"):
+    """A Hare Apparent build (17 copies — an "any number" card) against a collection
+    holding ``owned`` of them."""
+    from pathlib import Path
+
+    state = ForgeState(
+        by_name={"Hare Apparent": test_card("Hare Apparent")},
+        search_fn=lambda **_: [],
+        session=DeckSession("historic_brawl"),
+        bulk_available=True,
+    )
+    state.session.set_medium(medium)
+    state.bulk_path = Path("/dev/null")
+    state.rarity_index["historic_brawl"] = {"hare apparent": {"rarity": "common"}}
+    state.session.add("Hare Apparent", 17)
+    slot = "arena" if medium == "digital" else "paper"
+    engine.set_collection(
+        state, slot, {"cards": [{"name": "Hare Apparent", "quantity": owned}]}
+    )
+    return state
+
+
+def _served_short(state):
+    client = TestClient(build_app(state))
+    (row,) = client.get("/api/deck").json()["deck"]["cards"]
+    return row["copies_short"]
+
+
+def test_an_arena_playset_covers_every_copy_of_an_any_number_card():
+    state = _hare_state(4)
+    assert _served_short(state) == 0
+    assert engine.wildcard_cost(state) == {
+        "mythic": 0,
+        "rare": 0,
+        "uncommon": 0,
+        "common": 0,
+    }
+
+
+def test_three_owned_on_arena_is_three_copies_not_a_playset():
+    state = _hare_state(3)
+    assert _served_short(state) == 14
+    assert engine.wildcard_cost(state)["common"] == 14
+
+
+def test_paper_has_no_playset_rule():
+    assert _served_short(_hare_state(4, medium="paper")) == 13
+
+
+def test_served_shortfall_matches_the_footer_total():
+    # The footer total and the per-row shortfall come from the same rule, so the
+    # browser's per-group sums can't disagree with it.
+    state = _digital_state()
+    engine.set_collection(
+        state, "arena", {"cards": [{"name": "Thoughtseize", "quantity": 1}]}
+    )
+    rows = engine.snapshot(state)["deck"]["cards"]
+    short = {r["name"]: r["copies_short"] for r in rows}
+    assert short == {"Shock": 1, "Thoughtseize": 0, "Mountain": 0}
+
+
+# ── Basic lands: owned in every medium; a SPECIAL pinned printing is owned in paper
+# only if the collection holds that exact printing ──
+_PRINTINGS = {
+    p["id"]: p
+    for p in (
+        test_printing("Forest", "m21", "274"),
+        test_printing("Forest", "znr", "278", full_art=True, frame_effects=["fullart"]),
+    )
+}
+_OTHER = printing_row("dmu", "277", quantity=30)
+
+
+def _forest_state(medium, *, pin=None, finish=None, pile=None):
+    state = ForgeState(
+        by_name={
+            "Forest": test_card("Forest"),
+            "Snow-Covered Forest": test_card("Snow-Covered Forest"),
+        },
+        search_fn=lambda **_: [],
+        session=DeckSession("historic_brawl"),
+        bulk_available=True,
+    )
+    state.session.set_medium(medium)
+    state.printing_by_id = dict(_PRINTINGS)
+    state.session.add("Forest", 2)
+    state.session.add("Snow-Covered Forest", 2)
+    if pin:
+        state.session.set_printing("Forest", pin, finish=finish)
+    slot = "arena" if medium == "digital" else "paper"
+    if pile is None:
+        pile = {"cards": [{"name": "Forest", "quantity": 30, "printings": [_OTHER]}]}
+    engine.set_collection(state, slot, pile)
+    return state
+
+
+def _shorts(state):
+    rows = engine.snapshot(state)["deck"]["cards"]
+    return {r["name"]: r["copies_short"] for r in rows}
+
+
+def test_unlisted_basics_are_free_and_snow_basics_are_not():
+    for medium in ("paper", "digital"):
+        state = _forest_state(medium)
+        assert _shorts(state) == {"Forest": 0, "Snow-Covered Forest": 2}
+        rows = {r["name"]: r for r in engine.snapshot(state)["deck"]["cards"]}
+        assert rows["Forest"]["covered_by"] == "free"
+        assert "owned" not in rows["Forest"]  # free, not owned
+
+
+def test_a_plain_printing_pin_stays_owned_in_paper():
+    assert _shorts(_forest_state("paper", pin="m21-274"))["Forest"] == 0
+
+
+def test_a_special_pin_is_short_unless_that_printing_is_held():
+    empty = {"cards": []}
+    assert _shorts(_forest_state("paper", pin="znr-278", pile=empty))["Forest"] == 2
+    name_only = {"cards": [{"name": "Forest", "quantity": 20}]}
+    state = _forest_state("paper", pin="znr-278", pile=name_only)
+    assert _shorts(state)["Forest"] == 2
+    foil = _forest_state("paper", pin="m21-274", finish="foil", pile=empty)
+    assert _shorts(foil)["Forest"] == 2
+    held = printing_row("znr", "278", quantity=2)
+    pile = {"cards": [{"name": "Forest", "quantity": 32, "printings": [_OTHER, held]}]}
+    assert _shorts(_forest_state("paper", pin="znr-278", pile=pile))["Forest"] == 0
+
+
+def test_any_forest_style_is_free_on_arena():
+    for pin, finish in (("znr-278", None), ("m21-274", "foil")):
+        state = _forest_state("digital", pin=pin, finish=finish, pile={"cards": []})
+        assert _shorts(state)["Forest"] == 0
+
+
+def test_seventeen_hare_apparent_with_one_owned_is_not_owned():
+    # The owned tick and "N of M owned" mean "covered", not "owned at all".
+    state = _hare_state(1, medium="paper")
+    (row,) = engine.snapshot(state)["deck"]["cards"]
+    assert row["copies_short"] == 16
+    assert "owned" not in row
+    assert engine.snapshot(state)["collection"]["owned"] == 0
+    covered = _hare_state(17, medium="paper")
+    assert engine.snapshot(covered)["collection"]["owned"] == 1

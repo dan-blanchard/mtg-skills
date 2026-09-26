@@ -29,7 +29,7 @@ from pathlib import Path
 from mtg_utils._name_index import NameIndex, build_name_index, keep_cheaper
 from mtg_utils.arena_card_db import find_card_db, primary_rarities
 from mtg_utils.bulk_loader import bulk_mtime, default_bulk_path, load_bulk_cards
-from mtg_utils.card_classify import BASIC_LAND_NAMES, SKIP_LAYOUTS
+from mtg_utils.card_classify import SKIP_LAYOUTS
 from mtg_utils.formats import Format
 from mtg_utils.names import normalize_card_name
 
@@ -98,7 +98,7 @@ def _collector_key(card: dict) -> tuple[int, int, str]:
 
 
 def _rarity_value(card: dict, arena: dict[str, str]) -> dict:
-    """``{rarity, free}`` for *card*: Arena's own rarity when its card database lists
+    """``{rarity}`` for *card*: Arena's own rarity when its card database lists
     the card (by full name or front face), else this printing's."""
     name = card.get("name", "")
     rarity = arena.get(normalize_card_name(name)) or arena.get(
@@ -106,10 +106,23 @@ def _rarity_value(card: dict, arena: dict[str, str]) -> dict:
     )
     if rarity is None:
         rarity = card.get("rarity", "rare")
-    return {
-        "rarity": "rare" if rarity in ("special", "bonus") else rarity,
-        "free": card.get("name") in BASIC_LAND_NAMES,
-    }
+    return {"rarity": "rare" if rarity in ("special", "bonus") else rarity}
+
+
+def find_printing(printings: list[dict], set_code: str, collector: str) -> dict | None:
+    """The printing among ``printings`` at (``set_code``, ``collector``) — set code
+    case-insensitively, collector number as an exact string — or None."""
+    set_code = (set_code or "").lower()
+    collector = str(collector or "")
+    return next(
+        (
+            p
+            for p in printings
+            if (p.get("set") or "").lower() == set_code
+            and str(p.get("collector_number") or "") == collector
+        ),
+        None,
+    )
 
 
 # One pool per (bulk path, sidecar mtime) per process: the record list is already
@@ -233,7 +246,7 @@ class CardPool:
         return self._by_id
 
     def rarity_index(self, fmt: Format, *, arena_only: bool = False) -> NameIndex:
-        """name -> ``{rarity, free}`` for Arena wildcard costing in *fmt*.
+        """name -> ``{rarity}`` for Arena wildcard costing in *fmt*.
 
         A card's wildcard cost is its LOWEST rarity among printings legal in *fmt*
         (``Format.is_legal``, which carries Competitive Brawl's ban override, so an
@@ -241,9 +254,9 @@ class CardPool:
         printings that exist on Arena, and lets the local Arena card database
         (``arena_card_db``) decide the rarity of every card it lists: the lowest
         rarity among the card's craftable (primary) printings, which MTGJSON cannot
-        see. ``free`` marks the six basic lands Arena gives every player
-        (Snow-Covered basics are collected, so they are not free). Memoized per
-        (format, arena_only, card database).
+        see. Whether a copy costs anything at all is ``Format.copies_short``'s call
+        (basic lands, owned copies). Memoized per (format, arena_only, card
+        database).
         """
         db = find_card_db() if arena_only else None
         arena = primary_rarities(db) if db is not None else {}
@@ -339,6 +352,14 @@ class CardPool:
                 prints.sort(key=lambda r: r.get("released_at") or "", reverse=True)
             self._printings = (by_oracle, by_id)
         return self._printings
+
+    def printing_at(self, name: str, set_code: str, collector: str) -> dict | None:
+        """The printing of card ``name`` at (``set_code``, ``collector``), or None."""
+        record = self.by_name.get(name)
+        oracle_id = record.get("oracle_id") if record else None
+        return find_printing(
+            self.printings_by_oracle.get(oracle_id or "", []), set_code, collector
+        )
 
     def resolve_object(self, name: str) -> dict | None:
         """A *folded object* (ADR-0025) by name: the Dungeon a commander ventures

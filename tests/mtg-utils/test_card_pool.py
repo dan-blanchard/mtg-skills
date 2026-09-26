@@ -222,7 +222,6 @@ class TestRarityIndex:
         bulk_path.write_text(json.dumps(cards))
         index = CardPool.load(bulk_path).rarity_index(FORMATS["commander"])
         assert index["dual card"]["rarity"] == "uncommon"
-        assert index["dual card"]["free"] is False
 
     def test_filters_by_legality(self, tmp_path):
         cards = [
@@ -272,22 +271,6 @@ class TestRarityIndex:
         index = CardPool.load(bulk_path).rarity_index(FORMATS["commander"])
         assert index["fire // ice"]["rarity"] == "uncommon"
         assert index["fire"]["rarity"] == "uncommon"
-
-    def test_flags_the_free_basic_lands(self, tmp_path):
-        """The six basics Arena hands every player are flagged ``free`` so
-        price-check charges no wildcard for them. Snow-Covered basics are
-        collected like any card, so they are not."""
-        cards = [
-            {**test_card("Forest"), "rarity": "common"},
-            {**test_card("Snow-Covered Forest"), "rarity": "common"},
-            {**test_card("Ash Barrens"), "rarity": "common"},
-        ]
-        bulk_path = tmp_path / "bulk.json"
-        bulk_path.write_text(json.dumps(cards))
-        index = CardPool.load(bulk_path).rarity_index(FORMATS["commander"])
-        assert index["forest"]["free"] is True
-        assert index["snow-covered forest"]["free"] is False
-        assert index["ash barrens"]["free"] is False
 
     def test_draft_set_reprints_count_like_any_printing(self, tmp_path):
         """Without Arena's card database, a J21 reprint is costed like any Arena

@@ -303,6 +303,13 @@ def translate_card(
             else "arena" in (front.get("availability") or [])
         ),
         "finishes": front.get("finishes") or [],
+        # Printing style — what makes a printing a special one (a full-art or
+        # showcase basic; ``formats.is_special_basic_request``).
+        "full_art": bool(front.get("isFullArt")),
+        "border_color": front.get("borderColor"),
+        "frame_effects": front.get("frameEffects") or [],
+        "promo": bool(front.get("isPromo")),
+        "promo_types": front.get("promoTypes") or [],
         "game_changer": bool(front.get("isGameChanger")),
         # Pre-split arrays — new, used to harden the _subtypes precision gate.
         "types": front.get("types") or [],

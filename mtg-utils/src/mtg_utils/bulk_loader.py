@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import json
 import os
+import sys
 from pathlib import Path
 
 from mtg_utils._sidecar import load_pickle_sidecar, write_pickle_sidecar
@@ -31,8 +32,10 @@ from mtg_utils._sidecar import load_pickle_sidecar, write_pickle_sidecar
 # rejected and rebuilt. v2: records are MTGJSON-sourced (adapter-translated to the
 # Scryfall shape, with new types/subtypes/supertypes arrays). v3: records carry
 # ``arena_available`` (oracle-level) and ``reprint``; legalities are no longer rewritten
-# by the retired adapter Arena gate (``formats.Format.legality`` gates instead).
-SIDECAR_VERSION = 3
+# by the retired adapter Arena gate (``formats.Format.legality`` gates instead). v4:
+# records carry printing style (``full_art`` / ``border_color`` / ``frame_effects`` /
+# ``promo`` / ``promo_types``) for the special-basic-printing rule (ADR-0058).
+SIDECAR_VERSION = 4
 SIDECAR_SUFFIX = ".idx.pkl"
 
 
@@ -125,12 +128,31 @@ def load_bulk_cards(bulk_path: Path) -> list[dict]:
         sidecar,
         version_tag=SIDECAR_VERSION,
         value_key="cards",
-        build_fn=lambda: _read_source(bulk_path),
+        build_fn=(
+            (lambda: _rebuild_notice(bulk_path))
+            if sidecar.exists()
+            else (lambda: _read_source(bulk_path))
+        ),
         source_mtime=_source_mtime(bulk_path),
         validate=lambda v: isinstance(v, list),
     )
     _MEM_CACHE[key] = (bulk_mtime(bulk_path), cards)
     return cards
+
+
+def _rebuild_notice(bulk_path: Path) -> list[dict]:
+    """Rebuild a stale or outdated card index, saying so on stderr: replacing an
+    existing index takes a minute and would otherwise pause silently — once after an
+    upgrade changes the record shape (``SIDECAR_VERSION``), or when the card data
+    changed without ``download-mtgjson`` rebuilding the index eagerly. (A first build
+    is ``download-mtgjson``'s, which reports its own progress.)"""
+    print(
+        f"Building the card index from {bulk_path.name} — a one-time rebuild after a "
+        "card-data download or an mtg-skills update; this takes about a minute.",
+        file=sys.stderr,
+        flush=True,
+    )
+    return _read_source(bulk_path)
 
 
 def build_sidecar(bulk_path: Path) -> Path:

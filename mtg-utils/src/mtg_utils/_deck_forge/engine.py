@@ -20,7 +20,7 @@ from collections.abc import Callable, Collection, Mapping
 from dataclasses import dataclass
 from pathlib import Path
 
-from mtg_utils import card_search, mark_owned, price_check
+from mtg_utils import card_search, mark_owned, ownership
 from mtg_utils._analysis import staples
 from mtg_utils._analysis.budgets import banded_slot_budgets, template_for
 from mtg_utils._analysis.ranking import rank_candidates
@@ -50,10 +50,17 @@ from mtg_utils.card_classify import (
     is_land,
     valid_partner_search,
 )
-from mtg_utils.card_pool import CardPool
+from mtg_utils.card_pool import CardPool, find_printing
 from mtg_utils.companion import is_companion
+from mtg_utils.deck import deck_entries
 from mtg_utils.deck_stats import deck_stats, detect_bracket
-from mtg_utils.formats import FORMATS, family_size_choices, format_options
+from mtg_utils.formats import (
+    FORMATS,
+    Coverage,
+    Format,
+    family_size_choices,
+    format_options,
+)
 from mtg_utils.hydrated_deck import ZONES, HydratedDeck
 from mtg_utils.legality_audit import card_copy_limit, legality_audit
 from mtg_utils.mana_audit import (
@@ -252,6 +259,42 @@ def owned_of(state: ForgeState, name: str) -> int | None:
     return mark_owned.owned_quantity(name, entries, lookup)
 
 
+def coverage(state: ForgeState, owned: Mapping[str, int], entry: Mapping) -> Coverage:
+    """How far the active Collection slot covers a deck entry (``{name, quantity}``,
+    plus its ``printing_id`` / ``finish`` pins), given ``owned`` (name → owned copies,
+    :func:`owned_quantities`): ``Format.coverage`` for the build's medium, served per
+    row so every readout — the footer total, the per-group subtotals, each row's label,
+    the owned tick, the "N of M owned" count, the Owned-only facet — reads it and the
+    browser derives nothing. In paper a pinned printing or finish is the entry's
+    printing request (only a special basic printing counts,
+    ``ownership.requested_printing_owned``). An opened pool is owned outright."""
+    if state.session.pool_bounded:
+        return Coverage(0, "owned")
+    name = entry["name"]
+    requested = None
+    printing_id = entry.get("printing_id")
+    if is_paper(state) and (printing_id or entry.get("finish")):
+        record = state.printing_by_id.get(printing_id) if printing_id else None
+        requested = ownership.requested_printing_owned(
+            name, entry, record, owned_printing_detail(state, name)
+        )
+    return Format.coverage(
+        state.session.medium,
+        name,
+        entry["quantity"],
+        owned.get(name, 0),
+        requested_owned=requested,
+    )
+
+
+def candidate_coverage(state: ForgeState, name: str) -> Coverage:
+    """How far the active Collection slot covers adding one copy of ``name`` — for a
+    card shown outside the deck (a Find result, a combo piece) — by :func:`coverage`."""
+    return coverage(
+        state, {name: owned_of(state, name) or 0}, {"name": name, "quantity": 1}
+    )
+
+
 def set_collection(state: ForgeState, slot: str, pile: dict) -> None:
     """Load a parsed Collection ``pile`` into ``slot``: cache its precomputed ownership
     lookup (so snapshots stay O(deck size)) and persist. The single mutation point for a
@@ -263,7 +306,7 @@ def set_collection(state: ForgeState, slot: str, pile: dict) -> None:
     )
     # Per-printing detail (set/collector/foil), for entries that carry it — sparse,
     # so a plain name-only pile yields an empty index (tri-state: printing unknown).
-    state.collection_printings[slot] = collection.printing_index(pile)
+    state.collection_printings[slot] = ownership.printing_index(pile)
     if state.collection_store is not None:
         state.collection_store.save(state.collections)
 
@@ -339,14 +382,8 @@ def pin_imported_printings(
                 continue
             record = state.by_name.get(name)
             oracle_id = record.get("oracle_id") if record else None
-            match = next(
-                (
-                    p
-                    for p in state.printings_by_oracle.get(oracle_id or "", [])
-                    if (p.get("set") or "").lower() == set_code
-                    and str(p.get("collector_number") or "") == collector
-                ),
-                None,
+            match = find_printing(
+                state.printings_by_oracle.get(oracle_id or "", []), set_code, collector
             )
             if match is None:
                 continue
@@ -358,18 +395,25 @@ def pin_imported_printings(
             session.set_printing(name, match.get("id"), zone=zone, finish=finish)
 
 
-def collection_summary(state: ForgeState, owned: dict[str, int]) -> dict:
+def collection_summary(state: ForgeState, owned: Mapping[str, int]) -> dict:
     """The Collection readout the SPA renders: which slot is active, each slot's size,
-    and the deck's owned count vs its non-basic distinct total (the 'N of M owned')."""
-    deck_total = sum(
-        1 for n in deck_names(state) if not _is_basic(state.by_name.get(n))
-    )
+    and the 'N of M owned' count — of the deck's distinct cards that aren't free (a
+    basic land), how many the collection covers (:func:`coverage`). Seventeen Hare
+    Apparent with one owned is not owned."""
+    by_name = {e["name"]: coverage(state, owned, e) for e in _deck_rows(state)}
     return {
         "active_slot": active_slot(state),
         "slots": collection.slot_sizes(state.collections),
-        "owned": len(owned),
-        "deck_total": deck_total,
+        "owned": sum(1 for c in by_name.values() if c.covered_by == "owned"),
+        "deck_total": sum(1 for c in by_name.values() if c.covered_by != "free"),
     }
+
+
+def _deck_rows(state: ForgeState) -> list[dict]:
+    """The build's deck entries — commanders, the built zones and the companion, never
+    an opened pool (:func:`deck_names`' zones) — with their printing pins."""
+    zones = ("commanders", *built_zones(state), "companion")
+    return deck_entries(state.session.to_deck_dict(), zones)
 
 
 def _rarity_index(state: ForgeState) -> NameIndex | None:
@@ -389,11 +433,10 @@ def _rarity_index(state: ForgeState) -> NameIndex | None:
 
 
 def wildcard_cost(state: ForgeState) -> dict | None:
-    """Arena wildcard cost for a DIGITAL build — ``{mythic, rare, uncommon, common}``
-    needed for cards NOT already owned in the active (arena) Collection slot, reusing
-    ``price_check``'s Arena costing (4 owned copies = unlimited). ``None`` for paper
-    builds (USD cost) or with no bulk. Basic lands are stripped — Arena never charges
-    wildcards for them."""
+    """Arena wildcard cost for a DIGITAL build — ``{mythic, rare, uncommon, common}``:
+    each deck row's served shortfall (:func:`coverage`), summed by its Arena rarity,
+    so the footer total is exactly the sum of the rows. ``None`` for paper builds
+    (USD cost), an opened pool (owned outright) or with no bulk."""
     if is_paper(state) or state.bulk_path is None:
         return None
     if state.session.pool_bounded:
@@ -401,23 +444,18 @@ def wildcard_cost(state: ForgeState) -> dict | None:
     rarity_index = _rarity_index(state)
     if not rarity_index:
         return None
-    deck = state.session.to_deck_dict()
-    no_basics = dict(deck)
-    # Every zone costs, the companion included: on Arena it is a sideboard card you
-    # must own (a Historic / Timeless build's Yorion is crafted like any other).
-    for zone in ("commanders", "cards", "sideboard", "companion"):
-        if zone in deck:
-            no_basics[zone] = [
-                e
-                for e in (deck.get(zone) or [])
-                if not _is_basic(state.by_name.get(e["name"]))
-            ]
-    owned = owned_quantities(state)  # deck cards owned in the active slot (basics-free)
-    owned_cards = [{"name": n, "quantity": q} for n, q in owned.items()]
-    result = price_check.arena_wildcard_cost(
-        no_basics, rarity_index, owned_cards=owned_cards
-    )
-    return result["wildcard_cost"]
+    owned = owned_quantities(state)
+    totals = {"mythic": 0, "rare": 0, "uncommon": 0, "common": 0}
+    # Every row costs, the companion included: on Arena it is a sideboard card you
+    # must own (a Historic / Timeless build's Yorion is crafted like any other). A card
+    # absent from the Arena rarity index (not on Arena) costs nothing we can price.
+    for entry in _deck_rows(state):
+        listed = rarity_index.get(entry["name"].lower())
+        if listed is not None:
+            rarity = listed["rarity"]
+            short = coverage(state, owned, entry).short
+            totals[rarity] = totals.get(rarity, 0) + short
+    return totals
 
 
 # Commander discovery (ADR-0018). "Best" is intent-driven, never EDHREC popularity:
@@ -1759,6 +1797,7 @@ def snapshot(state: ForgeState) -> dict:
             owned,
             functools.partial(printing_owned, state),
             functools.partial(copy_limit, state),
+            functools.partial(coverage, state, owned),
         ),
         "stats": stats,
         # Commander brackets are WotC's multiplayer-Commander system: a constructed

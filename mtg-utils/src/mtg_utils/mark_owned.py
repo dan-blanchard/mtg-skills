@@ -24,6 +24,7 @@ from mtg_utils._name_index import alias_keys
 from mtg_utils._sidecar import atomic_write_json
 from mtg_utils.deck import collect_card_entries
 from mtg_utils.names import build_name_alias_map
+from mtg_utils.ownership import printing_index, printing_rows
 
 
 def _collect_entries(
@@ -325,6 +326,7 @@ def _mark_owned_with_count(
     is a thin wrapper that drops the count.
     """
     collection_entries = _collect_entries(collection, sum_duplicates=True)
+    printings = printing_index(collection)
     deck_entries = _collect_entries(deck, sum_duplicates=False)
     coll_lookup = _build_alias_lookup(collection_entries, name_aliases=name_aliases)
     owned: list[dict] = []
@@ -336,5 +338,10 @@ def _mark_owned_with_count(
         if coll_qty < 1:
             continue
         original_name, _deck_qty = deck_entries[deck_key]
-        owned.append({"name": original_name, "quantity": coll_qty})
+        row: dict = {"name": original_name, "quantity": coll_qty}
+        # The collection's per-printing detail rides along, so a deck entry asking
+        # for a specific printing (a full-art or foil basic) is judged against it.
+        if detail := printings.get(coll_primary_key):
+            row["printings"] = printing_rows(detail)
+        owned.append(row)
     return {**deck, "owned_cards": owned}, len(deck_entries)

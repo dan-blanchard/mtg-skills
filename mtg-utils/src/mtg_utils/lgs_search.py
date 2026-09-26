@@ -15,14 +15,12 @@ from typing import TYPE_CHECKING, Literal, TypedDict, cast
 
 from mtg_utils._sidecar import atomic_write_json
 from mtg_utils._stores._common import Line, Listing
+from mtg_utils.card_classify import BASIC_LAND_NAMES
+from mtg_utils.formats import PAPER, Format
 from mtg_utils.names import normalize_card_name
 
 if TYPE_CHECKING:
     from playwright.sync_api import Page
-
-BASIC_LAND_NAMES = frozenset(
-    {"Plains", "Island", "Swamp", "Mountain", "Forest", "Wastes"},
-)
 
 
 class NeededCard(TypedDict):
@@ -93,9 +91,11 @@ def _subtract_collection(
     cards: list[NeededCard],
     collection_path: Path,
 ) -> list[NeededCard]:
-    """Subtract owned copies. Names are normalized via `normalize_card_name`
-    on both sides so Arena-aliased exports (which strip diacritics) line up
-    with bulk-data canonical spellings.
+    """Subtract owned copies by the paper ownership rule (``Format.copies_short``,
+    ADR-0058): basic lands are owned, everything else needs what the collection
+    lacks. Names are normalized via `normalize_card_name` on both sides so
+    Arena-aliased exports (which strip diacritics) line up with bulk-data canonical
+    spellings.
     """
     coll = json.loads(collection_path.read_text(encoding="utf-8"))
     raw_owned: dict[str, int] = {}
@@ -113,7 +113,12 @@ def _subtract_collection(
         owned[key] = owned.get(key, 0) + qty
     result: list[NeededCard] = []
     for c in cards:
-        remaining = c["qty"] - owned.get(normalize_card_name(c["card_name"]), 0)
+        remaining = Format.copies_short(
+            PAPER,
+            c["card_name"],
+            c["qty"],
+            owned.get(normalize_card_name(c["card_name"]), 0),
+        )
         if remaining > 0:
             result.append(NeededCard(card_name=c["card_name"], qty=remaining))
     return result

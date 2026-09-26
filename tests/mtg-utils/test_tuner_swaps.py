@@ -1376,3 +1376,69 @@ def test_a_deck_over_the_ceiling_cannot_cut_its_way_into_a_new_game_changer():
     # One under after the cut (room 0 → 1)… but the add is picked BEFORE the cut is
     # secured, so a swap never spends room its own cut would free.
     assert _gc_scenario(0, cut_is_game_changer=True) == ["Plain Protection"]
+
+
+# ── Ownership: each added copy is free only when Format.copies_short covers it ───
+
+
+def _fill(owned, *, wildcard_budget=None, budget=None, slots=4):
+    """Pure fill adds of one candidate — Swords to Plowshares, a four-of here — into
+    ``slots`` open slots of a constructed build short on interaction."""
+    candidate = {
+        **test_card("Swords to Plowshares"),
+        "rarity": "uncommon",
+        "prices": {"usd": "1.00"},
+        "edhrec_rank": 50,
+    }
+    out = _swaps_for_issue_dicts(
+        [_cc("Filler", "filler", cmc=3.0)],
+        [],
+        SwapContext(
+            budgets={"interaction": _band(0, 10, 12)},
+            focus_result=_focus(),
+            deck_signals=[],
+            search_fn=lambda **_: [candidate],
+            identity="W",
+            fmt="historic",
+            paper_only=wildcard_budget is None,
+            owned=owned,
+            budget=budget,
+            max_swaps=50,
+            top_heavy=False,
+            fill_slots=slots,
+            wildcard_budget=wildcard_budget,
+            medium="paper" if wildcard_budget is None else "digital",
+            max_copies=4,
+        ),
+    )
+    return [s for s in out["swaps"] if s["cut"] is None]
+
+
+_NO_WILDCARDS = {"mythic": 0, "rare": 0, "uncommon": 0, "common": 0}
+
+
+def test_owned_covers_only_the_copies_you_own():
+    # One owned copy pays for the first add only; the second copy is a wildcard (none
+    # left) or a purchase (owned-only pass), so the fill stops at one.
+    assert len(_fill({"Swords to Plowshares": 1}, wildcard_budget=_NO_WILDCARDS)) == 1
+    assert len(_fill({"Swords to Plowshares": 2})) == 2
+
+
+def test_an_arena_playset_covers_every_copy():
+    fills = _fill({"Swords to Plowshares": 4}, wildcard_budget=_NO_WILDCARDS)
+    assert len(fills) == 4
+
+
+def test_a_crafted_copy_never_reads_as_owned():
+    # Two owned, two crafted: the swap's ``owned`` follows the same coverage the purse
+    # charged, so the third and fourth copies say "not owned" (they cost a wildcard).
+    fills = _fill(
+        {"Swords to Plowshares": 2},
+        wildcard_budget={**_NO_WILDCARDS, "uncommon": 2},
+    )
+    assert [(f["add"]["copy"], f["add"]["owned"]) for f in fills] == [
+        (1, True),
+        (2, True),
+        (3, False),
+        (4, False),
+    ]

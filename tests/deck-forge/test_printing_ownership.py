@@ -6,7 +6,8 @@ POST /api/deck/printing, foil price display, export round-trip, and old-format
 
 from fastapi.testclient import TestClient
 
-from mtg_utils._deck_forge import collection, engine
+from mtg_utils import ownership
+from mtg_utils._deck_forge import engine
 from mtg_utils._deck_forge.app import build_app
 from mtg_utils._deck_forge.collection import CollectionStore
 from mtg_utils._deck_forge.state import DeckSession, ForgeState
@@ -133,7 +134,7 @@ def test_printings_unowned_card_envelope():
 
 def test_etched_finish_counts_as_foil_in_printing_detail():
     # A flat parse_deck-style entry with finish "etched" lands in the foil bucket.
-    idx = collection.printing_index(
+    idx = ownership.printing_index(
         {
             "cards": [
                 {
@@ -203,7 +204,7 @@ def test_old_format_collection_json_loads_name_only(tmp_path):
     store.save({"paper": {"cards": [{"name": "Sol Ring", "quantity": 2}]}})
     collections, index = _load_collections(store)
     printings = {
-        slot: collection.printing_index(pile) for slot, pile in collections.items()
+        slot: ownership.printing_index(pile) for slot, pile in collections.items()
     }
     assert printings == {"paper": {}}  # no detail — and no crash
 

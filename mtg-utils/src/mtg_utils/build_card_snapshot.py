@@ -97,7 +97,7 @@ _FACE_FIELDS = (
 # comments mentioning ``test_card("…")``, and parametrize tables all behave
 # correctly — a regex scan mis-handled all three.
 _CORE_HELPERS = frozenset(
-    {"test_card", "test_card_ir", "test_signals", "test_phase_records"}
+    {"test_card", "test_card_ir", "test_signals", "test_phase_records", "test_printing"}
 )
 
 

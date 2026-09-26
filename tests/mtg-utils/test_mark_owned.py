@@ -517,3 +517,32 @@ class TestNameAliasMatching:
         }
         result = mark_owned(deck, collection, name_aliases=None)
         assert len(result["owned_cards"]) == 1
+
+
+def test_owned_rows_carry_the_collections_printing_detail():
+    """A collection line's set / collector / finish rides along on the owned row, so
+    price-check can judge a deck entry that asks for a specific printing (a foil
+    full-art basic). Rows without detail stay name-only."""
+    deck = {
+        "cards": [{"name": "Forest", "quantity": 2}, {"name": "Opt", "quantity": 1}]
+    }
+    collection = {
+        "cards": [
+            {"name": "Forest", "quantity": 30, "set": "M21", "collector_number": "274"},
+            {
+                "name": "Forest",
+                "quantity": 2,
+                "set": "UNF",
+                "collector_number": "235",
+                "finish": "foil",
+            },
+            {"name": "Opt", "quantity": 4},
+        ]
+    }
+    rows = {r["name"]: r for r in mark_owned(deck, collection)["owned_cards"]}
+    assert rows["Forest"]["quantity"] == 32
+    assert rows["Forest"]["printings"] == [
+        {"set": "m21", "collector_number": "274", "quantity": 30, "foil_quantity": 0},
+        {"set": "unf", "collector_number": "235", "quantity": 0, "foil_quantity": 2},
+    ]
+    assert "printings" not in rows["Opt"]

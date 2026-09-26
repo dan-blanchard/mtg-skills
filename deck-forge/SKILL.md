@@ -172,6 +172,16 @@ loop answers — you don't drive it from this session.
   from there. Scan the SET (the Pool tab's set-code box, or `set-scan --set CODE`)
   for the threats and answers opponents draw from — never judge a removal spell
   against the 60 cards the user opened.
+- **Ownership:** basic lands count as owned in any quantity — on Arena always (basic
+  styles are cosmetic); in paper unless the deck pins a special printing (foil or
+  etched, full-art, borderless, a showcase or other special frame, a promo), which is
+  owned only if the collection holds that exact printing. A plain set pin stays owned. Snow-Covered basics are
+  different cards, collected like any other. On Arena, four owned copies of a card
+  cover any quantity — four Hare Apparent fill seventeen slots, four Seven Dwarves
+  fill seven — but three owned is three copies. Otherwise you have what you own. The
+  hub already applies this to every cost readout, each card's served shortfall and
+  Tune's purse (`Format.copies_short`); apply the same rule whenever you reason about
+  what the user can build from their collection or what it would cost.
 - **Tune existing:** `parse-deck` the user's list, then load it.
 
 Once a commander is set, the backend extracts its scoped **signals** automatically and

@@ -18,7 +18,7 @@ from mtg_utils._analysis.signals import Signal
 from mtg_utils._deck_forge.images import image_urls
 from mtg_utils._deck_forge.state import ForgeState
 from mtg_utils.card_classify import get_mana_cost, get_oracle_text
-from mtg_utils.formats import Format
+from mtg_utils.formats import Coverage, Format
 from mtg_utils.hydrated_deck import ZONES
 
 
@@ -102,6 +102,24 @@ def result_view(
 _FINISH_PRICE_KEYS = {"foil": "usd_foil", "etched": "usd_etched"}
 
 
+def _coverage_fields(coverage: Coverage | None) -> dict:
+    """The served ownership of a card (ADR-0058; ``Format.coverage``, applied
+    upstream): ``copies_short`` — copies still to acquire, what the browser's
+    wildcard and unowned-USD readouts sum; ``covered_by`` — ``"free"`` (a basic
+    land), ``"owned"`` (the collection covers every copy) or null; and ``owned``
+    (only when covered by the collection) — the owned tick and the Owned-only facet.
+    Nothing when no coverage is given."""
+    if coverage is None:
+        return {}
+    fields: dict = {
+        "copies_short": coverage.short,
+        "covered_by": coverage.covered_by,
+    }
+    if coverage.covered_by == "owned":
+        fields["owned"] = True
+    return fields
+
+
 def card_view(
     name: str,
     qty: int,
@@ -115,13 +133,15 @@ def card_view(
     owned_printing: bool | None = None,
     unreleased_ids: frozenset[str] = frozenset(),
     copy_limit: int | object | None = _UNSET,
+    coverage: Coverage | None = None,
 ) -> dict:
     """A deck-zone card: name + quantity + an ``unknown`` flag + projection (when the
     name resolves against the bulk index). ``copy_limit`` (when given) is how many
     copies the build may run, null for unlimited — served so the browser never
-    re-derives the exemptions. ``owned_qty`` (when
-    set) marks the card as owned in the active Collection slot — DERIVED upstream,
-    never stored (ADR-0018).
+    re-derives the exemptions. ``owned_qty`` (when set) is the copies the active
+    Collection slot holds — DERIVED upstream, never stored (ADR-0018). ``coverage``
+    (when given, ``engine.coverage``) serves :func:`_coverage_fields`: whether the
+    collection covers every copy the deck runs.
 
     When ``printing_id`` names a chosen printing (and ``resolve_printing`` can find it),
     the card's image / prices / set are overridden to it — the gameplay fields (type,
@@ -135,8 +155,8 @@ def card_view(
     for this name."""
     base: dict = {"name": name, "quantity": qty}
     if owned_qty is not None:
-        base["owned"] = True
         base["owned_qty"] = owned_qty
+    base.update(_coverage_fields(coverage))
     if owned_printing is not None:
         base["owned_printing"] = owned_printing
     if finish:
@@ -178,12 +198,15 @@ def candidate_view(
     owned_qty: int | None = None,
     unreleased: bool = False,
     copy_limit: int | object | None = _UNSET,
+    coverage: Coverage | None = None,
 ) -> dict:
     """A ranked candidate — a ``rank_candidates`` row ``{"card", "score"}`` — as
-    name + projection + score. ``owned_qty`` (when set) marks it owned in the active
-    Collection slot (ADR-0018), mirroring ``card_view``; absent → no ownership keys, so
-    the wire shape stays byte-compatible for a no-collection request. ``copy_limit``
-    (when given) is the copies this build may run, null for unlimited."""
+    name + projection + score. ``owned_qty`` (when set) is the copies the active
+    Collection slot holds (ADR-0018). ``copy_limit`` (when given) is the copies this
+    build may run, null for unlimited.
+    ``coverage`` (when given, ``engine.candidate_coverage``) is how far the
+    Collection covers adding one copy, served as :func:`_coverage_fields` so the
+    browser never derives ownership."""
     card = row["card"]
     view = {
         "name": card.get("name", ""),
@@ -191,20 +214,27 @@ def candidate_view(
         "score": row["score"],
     }
     if owned_qty is not None:
-        view["owned"] = True
         view["owned_qty"] = owned_qty
+    view.update(_coverage_fields(coverage))
     if copy_limit is not _UNSET:
         view["copy_limit"] = copy_limit
     return view
 
 
 def combo_card_view(
-    name: str, record: dict | None, *, in_deck: bool, fmt: Format
+    name: str,
+    record: dict | None,
+    *,
+    in_deck: bool,
+    fmt: Format,
+    coverage: Coverage | None = None,
 ) -> dict:
-    """A combo piece: name + an ``in_deck`` flag + projection when the card is known."""
+    """A combo piece: name + an ``in_deck`` flag + projection when the card is known,
+    plus its ownership (:func:`_coverage_fields`, adding one copy) when given."""
     view = {"name": name, "in_deck": in_deck}
     if record is not None:
         view.update(project(record, fmt))
+    view.update(_coverage_fields(coverage))
     return view
 
 
@@ -213,16 +243,18 @@ def deck_view(
     owned: dict[str, int] | None = None,
     printing_owned: Callable[[str, str | None], bool | None] | None = None,
     copy_limit: Callable[[dict], int | None] | None = None,
+    coverage: Callable[[dict], Coverage] | None = None,
 ) -> dict:
     """The serialized deck: ``{format, commanders[], cards[], sideboard[],
     companion[], pool[]}``, each zone a list of ``card_view`` dicts. ``owned``
-    (deck card name → owned count in the active Collection slot) marks owned
-    cards; absent → no ownership shown (no collection).
+    (deck card name → owned count in the active Collection slot) serves each row's
+    ``owned_qty``; absent → none shown (no collection).
     ``printing_owned`` (name, printing_id → tri-state) resolves whether the card's
     effectively-chosen printing is owned at printing level (``engine.printing_owned``);
     absent → the ``owned_printing`` field never renders. ``copy_limit`` (the
     engine's ladder for this build) is applied per resolved row; absent → no
-    ``copy_limit`` field."""
+    ``copy_limit`` field. ``coverage`` (a deck entry → its ``Coverage``,
+    ``engine.coverage``) serves each row's ownership fields; absent → none."""
     deck = state.session.to_deck_dict()
     by_name = state.by_name
     fmt = state.session.fmt
@@ -256,6 +288,7 @@ def deck_view(
                         if copy_limit and e["name"] in by_name
                         else _UNSET
                     ),
+                    coverage=coverage(e) if coverage else None,
                 )
                 for e in deck[zone]
             ]
@@ -290,16 +323,27 @@ def commander_view(row: dict, fmt: Format) -> dict:
 
 
 def enrich_combos(
-    result: dict, by_name: Mapping[str, dict], *, in_deck: set[str], fmt: Format
+    result: dict,
+    by_name: Mapping[str, dict],
+    *,
+    in_deck: set[str],
+    fmt: Format,
+    coverage: Callable[[str], Coverage] | None = None,
 ) -> dict:
     """Attach ``card_views`` (image / type / price + an ``in_deck`` flag) to every
     combo and near-miss in a combo-search result, so the SPA renders them as the same
-    CardTiles as search. Mutates and returns *result*."""
+    CardTiles as search. ``coverage`` (name → how far the Collection covers adding
+    one copy, ``engine.candidate_coverage``) serves each piece's ownership. Mutates
+    and returns *result*."""
     for group in ("combos", "near_misses"):
         for combo in result.get(group) or []:
             combo["card_views"] = [
                 combo_card_view(
-                    name, by_name.get(name), in_deck=name in in_deck, fmt=fmt
+                    name,
+                    by_name.get(name),
+                    in_deck=name in in_deck,
+                    fmt=fmt,
+                    coverage=coverage(name) if coverage else None,
                 )
                 for name in (combo.get("cards") or [])
             ]

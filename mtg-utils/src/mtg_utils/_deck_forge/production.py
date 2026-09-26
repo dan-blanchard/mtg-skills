@@ -16,7 +16,7 @@ import uuid
 from collections.abc import Callable, Mapping
 from pathlib import Path
 
-from mtg_utils import card_search, combo_search, mark_owned, theme_presets
+from mtg_utils import card_search, combo_search, mark_owned, ownership, theme_presets
 from mtg_utils._deck_forge import collection
 from mtg_utils._deck_forge.collection import CollectionStore
 from mtg_utils._deck_forge.persistence import BuildStore
@@ -272,7 +272,7 @@ def default_state(fmt: str = "commander") -> ForgeState:
     # collection.json saved before printing-awareness — simply contribute nothing,
     # so old files load as name-only ownership with no printing marks.
     collection_printings = {
-        slot: collection.printing_index(pile) for slot, pile in collections.items()
+        slot: ownership.printing_index(pile) for slot, pile in collections.items()
     }
 
     return ForgeState(

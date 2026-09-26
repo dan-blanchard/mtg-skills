@@ -269,12 +269,14 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
 
     @app.get("/api/deck")
     async def deck() -> dict:
+        owned = engine.owned_quantities(state)
         return {
             "deck": views.deck_view(
                 state,
-                engine.owned_quantities(state),
+                owned,
                 functools.partial(engine.printing_owned, state),
                 functools.partial(engine.copy_limit, state),
+                functools.partial(engine.coverage, state, owned),
             )
         }
 
@@ -752,6 +754,7 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
             engine.find_candidates, state, _find_params(payload)
         )
         fmt = state.session.fmt
+
         results = [
             views.candidate_view(
                 row,
@@ -759,6 +762,7 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
                 owned_qty=engine.owned_of(state, row["card"].get("name", "")),
                 unreleased=row["card"].get("oracle_id") in state.unreleased_ids,
                 copy_limit=engine.copy_limit(state, row["card"]),
+                coverage=engine.candidate_coverage(state, row["card"].get("name", "")),
             )
             for row in page.rows
         ]
@@ -884,6 +888,7 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
             state.by_name,
             in_deck=engine.deck_names(state),
             fmt=state.session.fmt,
+            coverage=functools.partial(engine.candidate_coverage, state),
         )
 
     _register_frontend(app, frontend_dist)

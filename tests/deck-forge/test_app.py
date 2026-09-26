@@ -77,8 +77,15 @@ def test_remove_card():
     client = make_client(session=session)
     resp = client.post("/api/deck/remove", json={"name": "Forest", "qty": 1})
     assert resp.status_code == 200
+    # A paper build's basics are assumed owned, so the served shortfall is 0.
     assert resp.json()["deck"]["cards"] == [
-        {"name": "Forest", "quantity": 1, **_FOREST_VIEW}
+        {
+            "name": "Forest",
+            "quantity": 1,
+            "copies_short": 0,
+            "covered_by": "free",
+            **_FOREST_VIEW,
+        }
     ]
 
 

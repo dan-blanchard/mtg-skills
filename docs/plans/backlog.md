@@ -30,7 +30,6 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   an exact-name price lookup may price an MDFC front face at 0.0 (unverified).
 - **One Storefront browser session.** `open_handoff` / `open_login` are repeated
   across eight adapters.
-- **The snapshot should serve the cost readout.** The SPA re-derives wildcard totals.
 - Speculative: `playtest.py`'s mode functions; copies of the Scryfall client policy.
 
 **Known lane recall gaps (surfaced by ADR-0051; a lane fix repairs every consumer)**

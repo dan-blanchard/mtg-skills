@@ -50,44 +50,49 @@ const WC_WORD = {
   common: "common",
 };
 
-export function isBasicLand(card) {
-  return /\bBasic Land\b/.test(card?.type_line || "");
+// Copies of a card still to acquire: the hub's served `copies_short` (deck rows, Find
+// results and combo pieces all carry it; the ownership rule is applied there and never
+// re-derived here). null when a row wasn't served one — the cost is unknown.
+export function copiesShort(card) {
+  return card?.copies_short ?? null;
 }
 
-// Per-card Arena cost for a digital build → { text, cls, title } for display.
-// Owned cards and basics are free; everything else is one wildcard of its rarity.
+// Per-card Arena cost for a digital build → { text, cls, title } for display, read
+// from the served `copies_short` / `covered_by` (free basic, owned, or each copy short
+// costs one wildcard of its rarity).
 // `cls` is a .wc-* class suffix (owned | free | mythic | rare | uncommon | common).
 export function wildcardLabel(card) {
-  if (card?.owned)
-    return {
-      text: "owned",
-      cls: "owned",
-      title: "Already in your Arena collection",
-    };
-  if (isBasicLand(card))
+  const short = copiesShort(card);
+  if (short === null)
+    return { text: "—", cls: "unknown", title: "Cost unknown" };
+  if (card.covered_by === "free")
     return {
       text: "free",
       cls: "free",
       title: "Basic land — no wildcard needed",
     };
+  if (short === 0)
+    return {
+      text: "owned",
+      cls: "owned",
+      title: "Your collection covers every copy",
+    };
   const letter = WC_LETTER[card?.rarity];
   if (!letter) return { text: "—", cls: "unknown", title: "Rarity unknown" };
+  const word = WC_WORD[card.rarity];
   return {
-    text: letter,
+    text: short > 1 ? `${letter}×${short}` : letter,
     cls: card.rarity,
-    title: `1 ${WC_WORD[card.rarity]} wildcard`,
+    title: `${short} ${word} wildcard${short > 1 ? "s" : ""}`,
   };
 }
 
-// Wildcards needed across a list of deck cards, by tier — owned cards and basics are
-// free, so they don't count. Singleton Commander-family formats are one copy each, so a
-// card contributes exactly one wildcard of its rarity. Mirrors the backend wildcard_cost
-// definition the footer's $wildcards aggregate uses, but per-group (Command Zone / Deck).
+// Wildcards needed across a list of deck cards, by tier: the sum of each card's served
+// shortfall — the same numbers the footer's $wildcards total is built from, per group.
 export function wildcardTotals(cards) {
   const out = { mythic: 0, rare: 0, uncommon: 0, common: 0 };
   for (const c of cards || []) {
-    if (c.owned || isBasicLand(c)) continue;
-    if (c.rarity in out) out[c.rarity] += c.quantity || 1;
+    if (c.rarity in out) out[c.rarity] += copiesShort(c) ?? 0;
   }
   return out;
 }
