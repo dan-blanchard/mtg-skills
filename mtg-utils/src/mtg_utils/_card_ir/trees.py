@@ -752,6 +752,13 @@ def seed_trees(oid: str, trees: tuple[ConceptTree, ...]) -> None:
     _TREES_MEMO[oid] = trees
 
 
+def has_memoized_trees(oid: str) -> bool:
+    """Whether the trees memo holds non-empty trees for ``oid`` (testkit only: a
+    seed is skipped when real trees are already there; an empty entry, memoized
+    when no phase data was available, is re-seeded)."""
+    return bool(_TREES_MEMO.get(oid))
+
+
 def trees_for(
     card: dict,
     bulk: dict | None = None,

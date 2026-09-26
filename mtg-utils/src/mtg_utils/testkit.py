@@ -58,10 +58,11 @@ from typing import TYPE_CHECKING, Any
 from mtg_utils._card_ir.compat import compat_card_from_records
 from mtg_utils._card_ir.load import CROSSWALK_SIDECAR_VERSION
 from mtg_utils._card_ir.mirror.build import load_committed_schema
-from mtg_utils._card_ir.trees import build_trees, seed_trees
+from mtg_utils._card_ir.trees import build_trees, has_memoized_trees, seed_trees
 from mtg_utils._phase import PHASE_TAG
 from mtg_utils.card_ir import Card
 from mtg_utils.ownership import printing_rows
+from mtg_utils.theme_presets import forget_signal_keys
 
 if TYPE_CHECKING:
     from mtg_utils._card_ir.mirror.schema import MirrorSchema
@@ -148,7 +149,13 @@ def _entry(name: str) -> dict[str, Any]:
 
 
 def test_card(name: str) -> dict[str, Any]:
-    """The minimal Scryfall record for *name* (a copy — safe for callers to mutate)."""
+    """The minimal Scryfall record for *name* (a copy — safe for callers to mutate).
+
+    Seeds *name*'s concept trees first, like every accessor here: a real card handed
+    to production code (the hub, the tuner, a role read) must see the trees it would
+    in production, in CI too. Otherwise the first signal read in a process with no
+    phase cache memoizes an empty answer that no later seed would correct."""
+    _seed_trees(name)
     return dict(_entry(name)["scryfall"])
 
 
@@ -210,10 +217,12 @@ def _seed_trees(name: str) -> None:
     the IR always warms the SAME oracle_id's trees first."""
     entry = _entry(name)
     oid = entry["scryfall"].get("oracle_id") or ""
-    if not oid:
-        return
+    if not oid or has_memoized_trees(oid):
+        return  # already seeded (building trees is the costly part)
     trees = build_trees(oid, entry["phase_records"], bulk=entry["scryfall"])
     seed_trees(oid, trees)
+    # Signal keys read before this seed (from no trees) must not outlive it.
+    forget_signal_keys(oid)
 
 
 def test_card_ir(name: str) -> Card:

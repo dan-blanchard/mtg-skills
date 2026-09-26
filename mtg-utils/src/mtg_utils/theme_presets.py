@@ -293,6 +293,17 @@ def _signal_idents_for(card: dict) -> frozenset[str]:
     return idents
 
 
+def forget_signal_keys(oid: str) -> None:
+    """Drop ``oid``'s memoized keys and idents, so the next read recomputes them.
+
+    For a caller that replaces the card's concept trees after they may have been
+    read (the testkit seeding real trees in a process with no phase cache): the
+    two memos above key on ``oracle_id`` alone, so without this a keyset computed
+    before the seed (empty, when no trees were available yet) outlives it."""
+    _SIGNAL_KEY_INDEX.pop(oid, None)
+    _SIGNAL_IDENT_INDEX.pop(oid, None)
+
+
 # Bulk-file identities (path, mtime_ns, size) already merged into
 # ``_SIGNAL_KEY_INDEX`` this process — makes :func:`seed_signal_key_index`
 # a no-op on every call after the first for the same bulk file.

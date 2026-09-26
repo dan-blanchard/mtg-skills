@@ -132,3 +132,18 @@ def test_the_tuner_ramp_search_page_is_nonland_ramp():
 def test_multi_land_fetch_is_ramp(name):
     # "up to two Forest cards" — the text read's fetch pattern never matched it.
     assert is_ramp(_real(name))
+
+
+def test_a_seed_outlives_signal_keys_read_without_trees(monkeypatch):
+    """CI order bug: with no phase cache, a card read before any test seeded its
+    trees memoizes empty trees and an empty signal-key set; a later ``test_card``
+    must re-seed the real trees and drop the stale keys, or Cultivate stops being
+    ramp for the rest of the process (main's CI failure before this fix)."""
+    from mtg_utils import theme_presets
+    from mtg_utils._card_ir import trees
+
+    oid = test_card("Cultivate")["oracle_id"]
+    monkeypatch.setitem(trees._TREES_MEMO, oid, ())  # read with no phase data
+    monkeypatch.setitem(theme_presets._SIGNAL_KEY_INDEX, oid, frozenset())
+    # The failing test's own path: seed the real trees, then read the role.
+    assert is_ramp(_real("Cultivate"))
