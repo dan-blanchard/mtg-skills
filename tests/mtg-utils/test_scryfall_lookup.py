@@ -274,14 +274,14 @@ class TestLookupBatchDeckJSON:
             "name": "Test Cube",
             "cards": [{"name": "Sol Ring", "quantity": 1}],
             # a commander / PDH cube's commanders live in their own pool
-            "commander_pool": [{"name": "Lightning Bolt", "quantity": 1}],
+            "commander_pool": [{"name": "Thrasios, Triton Hero", "quantity": 1}],
         }
         batch_path = tmp_path / "cube.json"
         batch_path.write_text(json.dumps(cube))
         results, _cache, names = lookup_cards(
             batch_path, bulk_path=sample_bulk_data, cache_dir=tmp_path / "cache"
         )
-        assert names == ["Sol Ring", "Lightning Bolt"]
+        assert names == ["Sol Ring", "Thrasios, Triton Hero"]
         assert results[0] is not None
         assert results[0]["name"] == "Sol Ring"
 

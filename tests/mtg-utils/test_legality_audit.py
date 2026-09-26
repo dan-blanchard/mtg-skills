@@ -79,6 +79,16 @@ def jinnie() -> dict:
     return _real("Jinnie Fay, Jetmir's Second")
 
 
+def bulk_for_cli(records: list[dict]) -> list[dict]:
+    """*records* as a CLI test's ``--bulk-data`` file, plus the Wastes that
+    :func:`deck` pads with: the in-memory checks skip the un-hydrated padding, but a
+    CLI acquires every name the deck lists, and a name the file lacks would fall
+    back to Scryfall's API (tests make no network calls)."""
+    if any(r.get("name") == "Wastes" for r in records):
+        return records
+    return [*records, _real("Wastes")]
+
+
 # ---------- Format legality checks ----------
 
 
@@ -555,7 +565,7 @@ class TestCLI:
         deck_path = tmp_path / "deck.json"
         hydrated_path = tmp_path / "hydrated.json"
         deck_path.write_text(json.dumps(deck_data))
-        hydrated_path.write_text(json.dumps(hydrated_data))
+        hydrated_path.write_text(json.dumps(bulk_for_cli(hydrated_data)))
         return deck_path, hydrated_path
 
     def test_cli_pass(self, tmp_path: Path):
@@ -640,7 +650,7 @@ class TestCiteRules:
         deck_path = tmp_path / "deck.json"
         hydrated_path = tmp_path / "hydrated.json"
         deck_path.write_text(json.dumps(deck_data))
-        hydrated_path.write_text(json.dumps(hydrated_data))
+        hydrated_path.write_text(json.dumps(bulk_for_cli(hydrated_data)))
         return deck_path, hydrated_path
 
     def _write_rules(self, tmp_path):
@@ -950,7 +960,9 @@ class TestCompanionCiteRules:
         deck_path = tmp_path / "deck.json"
         hydrated_path = tmp_path / "hydrated.json"
         deck_path.write_text(json.dumps(d))
-        hydrated_path.write_text(json.dumps([commander, sol_ring, keruga]))
+        hydrated_path.write_text(
+            json.dumps(bulk_for_cli([commander, sol_ring, keruga]))
+        )
 
         runner = CliRunner()
         result = runner.invoke(

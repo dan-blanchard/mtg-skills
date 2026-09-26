@@ -719,10 +719,10 @@ def test_cube_json_prices_the_commander_pool_too(sample_bulk_data):
     # commander / PDH cube's commanders sit in ``commander_pool``, not ``cards``.
     cube = {
         "cards": [{"name": "Sol Ring", "quantity": 1}],
-        "commander_pool": [{"name": "Lightning Bolt", "quantity": 1}],
+        "commander_pool": [{"name": "Thrasios, Triton Hero", "quantity": 1}],
     }
     result = check_prices(cube, bulk_path=sample_bulk_data)
-    assert {c["name"] for c in result["cards"]} == {"Sol Ring", "Lightning Bolt"}
+    assert {c["name"] for c in result["cards"]} == {"Sol Ring", "Thrasios, Triton Hero"}
 
 
 def _arena_printing(name: str, rarity: str) -> dict:
@@ -837,7 +837,14 @@ class TestBasicLandOwnership:
 
     def test_snow_covered_basics_are_ordinary_cards(self, tmp_path):
         snow = {"name": "Snow-Covered Forest", "quantity": 2}
-        records = {"Snow-Covered Forest": test_card("Snow-Covered Forest")}
+        # A price is a per-printing fact the snapshot omits; without one, paper
+        # pricing would fall back to Scryfall's API.
+        records = {
+            "Snow-Covered Forest": {
+                **test_card("Snow-Covered Forest"),
+                "prices": {"usd": "0.25"},
+            }
+        }
         with patch("mtg_utils.price_check.lookup_single") as mock_lookup:
             mock_lookup.side_effect = lambda name, **_kw: records.get(name)
             paper = check_prices({"cards": [snow], "owned_cards": []})
@@ -860,14 +867,14 @@ class TestMediumDecidesCostMode:
 
     def test_standard_defaults_to_paper_usd(self, sample_bulk_data):
         result = check_prices(
-            ["Lightning Bolt"], bulk_path=sample_bulk_data, format="standard"
+            ["Viscera Seer"], bulk_path=sample_bulk_data, format="standard"
         )
         assert "total_cost" in result
         assert "wildcard_cost" not in result
 
     def test_medium_override_prices_standard_in_wildcards(self, sample_bulk_data):
         result = check_prices(
-            ["Lightning Bolt"],
+            ["Viscera Seer"],
             bulk_path=sample_bulk_data,
             format="standard",
             medium="digital",
@@ -879,7 +886,7 @@ class TestMediumDecidesCostMode:
         deck = {
             "format": "standard",
             "medium": "digital",
-            "cards": [{"name": "Lightning Bolt", "quantity": 1}],
+            "cards": [{"name": "Viscera Seer", "quantity": 1}],
         }
         result = check_prices(deck, bulk_path=sample_bulk_data)
         assert "wildcard_cost" in result
@@ -900,7 +907,7 @@ class TestMediumDecidesCostMode:
             json.dumps(
                 {
                     "format": "standard",
-                    "cards": [{"name": "Lightning Bolt", "quantity": 1}],
+                    "cards": [{"name": "Viscera Seer", "quantity": 1}],
                 }
             )
         )

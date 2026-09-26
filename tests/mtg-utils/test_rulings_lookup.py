@@ -276,7 +276,7 @@ class TestLookupRulings:
         def _fake_load(_path):
             nonlocal load_count
             load_count += 1
-            return SimpleNamespace(by_name={"test relic": _FAKE_CARD})
+            return SimpleNamespace(by_name={"Test Relic": _FAKE_CARD})
 
         with (
             patch("mtg_utils.card_pool.CardPool.load", _fake_load),
