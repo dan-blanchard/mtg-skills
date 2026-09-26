@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import re
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from typing import NamedTuple
 
 from mtg_utils._name_index import NameIndex, build_name_index
@@ -135,7 +135,7 @@ def extract_price(card: dict | None) -> float | None:
 FINISH_PRICE_KEYS: dict[str, str] = {"foil": "usd_foil", "etched": "usd_etched"}
 
 
-def finish_price(card: dict | None, finish: str | None) -> float | None:
+def finish_price(card: Mapping | None, finish: str | None) -> float | None:
     """*card*'s USD price in *finish* — ``usd_foil`` / ``usd_etched`` for a foil or
     etched finish, ``usd`` otherwise — or None when that price isn't listed."""
     if card is None:
