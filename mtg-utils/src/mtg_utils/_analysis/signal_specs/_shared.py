@@ -158,9 +158,7 @@ class Serve:
             card_kw = {k.lower() for k in (card.get("keywords") or [])}
             if card_kw & self.keywords:
                 return True
-        if self.mana_cost is not None and self.mana_cost.search(
-            card.get("mana_cost") or ""
-        ):
+        if self.mana_cost is not None and self.mana_cost.search(_printed_costs(card)):
             return True
         if self.cmc_min is not None and (card.get("cmc") or 0) >= self.cmc_min:
             return True
@@ -283,6 +281,16 @@ class Serve:
             or self.not_oracle is not None
             or bool(self.all_of)
         )
+
+
+def _printed_costs(card: dict) -> str:
+    """Every printed mana cost on *card*: the top-level cost plus each face's, since a
+    multi-face card (Agadeem's Awakening, a prepare card) carries its cost on the
+    faces and leaves the top-level ``mana_cost`` empty."""
+    faces = card.get("card_faces") or ()
+    return " ".join(
+        [card.get("mana_cost") or "", *(f.get("mana_cost") or "" for f in faces)]
+    )
 
 
 def _max_color_pips(mana_cost: str) -> int:

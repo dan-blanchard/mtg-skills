@@ -131,8 +131,13 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
         "expensive bombs and X-spells that exploit the discount, plus more cost "
         "reducers to stack the discount",
         {"oracle": r"\{x\}|with mana value"},
-        r"\{x\}|\bstorm\b",
+        r"\bstorm\b",
         serve_cmc_min=7,
+        # X-spells by their printed MANA COST, as xspell_matters reads them: the old
+        # oracle "{x}" arm caught 32 of 567 X-cost spells (Torment of Hailfire's text
+        # says "X times", never "{X}") and credited 318 cards whose {X} is an
+        # activated-ability cost a spell-cost reducer never discounts.
+        serve_mana_cost=r"\{X\}",
         extras=(_COST_REDUCER_EXTRA,),
     ),
     # Cast-from-exile MATTERS: payoffs + explicit "cast/play from exile" enablers (plot,

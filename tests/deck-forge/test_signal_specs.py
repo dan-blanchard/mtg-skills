@@ -2028,13 +2028,22 @@ class TestStructuredServeExtension:
 
     def test_cost_reduction_serves_x_spells_and_expensive_bombs(self):
         sig = _sig("cost_reduction", "you")
-        # Devil's Play, not Torment of Hailfire: the serve reads {X} in the oracle
-        # text, and Torment's real text says "X times" with no {X} symbol.
+        # X-spells by mana cost: Torment of Hailfire's text never prints {X} ("X
+        # times"), so an oracle read missed it; an {X} ACTIVATED cost (Chimeric
+        # Staff) is not a spell a cost reducer discounts.
+        torment = _card("Torment of Hailfire")
         devils_play = _card("Devil's Play")
+        chimeric_staff = _card("Chimeric Staff")
         emrakul = _card("Emrakul, the Aeons Torn")
         disdainful = _card("Disdainful Stroke")
         sun_titan = _card("Sun Titan")
+        assert serves(torment, sig) is True  # X spell, no {X} in its text
         assert serves(devils_play, sig) is True  # X spell
+        assert serves(chimeric_staff, sig) is False  # {X} activated ability only
+        # an MDFC's {X} cost lives on its face; the top-level mana_cost is empty
+        agadeem = _card("Agadeem's Awakening // Agadeem, the Undercrypt")
+        assert serves(agadeem, sig) is True
+        assert serves(agadeem, _sig("xspell_matters", "you")) is True
         assert serves(emrakul, sig) is True  # expensive bomb (cmc>=7)
         assert serves(disdainful, sig) is False  # "mana value 4" no longer matches
         assert serves(sun_titan, sig) is False  # cmc 6 below the bomb threshold
