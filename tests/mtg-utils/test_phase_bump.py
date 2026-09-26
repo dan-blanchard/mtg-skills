@@ -601,6 +601,9 @@ def test_dry_run_executes_every_step_in_order_and_writes_the_report(
 def test_from_step_skips_earlier_steps(tmp_path, monkeypatch):
     repo = _fake_repo(tmp_path)
     monkeypatch.setattr(_phase, "PHASE_TAG", "v0.66.0")
+    # Step 8's bridge reach reads the corpus; this test is about step skipping, so
+    # it runs over no cards rather than whatever bulk the machine happens to have.
+    monkeypatch.setattr(phase_bump, "_bulk_records", lambda _ctx: [])
     calls: list[list[str]] = []
     ctx = BumpContext(
         repo=repo,
