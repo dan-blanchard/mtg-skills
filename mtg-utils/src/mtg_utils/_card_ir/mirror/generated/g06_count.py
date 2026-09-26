@@ -23,7 +23,7 @@ from mtg_utils._card_ir.mirror.runtime import (
 )
 
 if TYPE_CHECKING:
-    from mtg_utils._card_ir.mirror.generated.g02_modifycost import (
+    from mtg_utils._card_ir.mirror.generated.g02_modifyactivationlimi import (
         U_ability_tag,
         U_activation_restrictions,
     )
@@ -51,19 +51,19 @@ if TYPE_CHECKING:
         U_filters,
         U_inner,
     )
-    from mtg_utils._card_ir.mirror.generated.g09_kind import (
+    from mtg_utils._card_ir.mirror.generated.g09_keeper_constraint import (
         S_multi_target,
-        S_outcome_template,
         U_left,
         U_max,
         U_modifications,
     )
-    from mtg_utils._card_ir.mirror.generated.g10_owner import (
+    from mtg_utils._card_ir.mirror.generated.g10_origin import (
+        S_outcome_template,
         U_player,
         U_player_scope,
         U_position,
     )
-    from mtg_utils._card_ir.mirror.generated.g11_properties import (
+    from mtg_utils._card_ir.mirror.generated.g11_prop import (
         U_properties,
     )
     from mtg_utils._card_ir.mirror.generated.g12_qty import (
@@ -146,6 +146,7 @@ class S_definition(TypedMirrorNode):
     active_zones: list[object] = MISSING
     affected: U_affected | None = MISSING
     affected_zone: None = MISSING
+    attack_defended: str = MISSING
     characteristic_defining: bool = MISSING
     cost: U_cost | None = MISSING
     cost_reduction: S_cost_reduction = MISSING

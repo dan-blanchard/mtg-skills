@@ -1122,6 +1122,64 @@ def _power_double(tree: ConceptTree) -> list[Signal]:
     return []
 
 
+_TRACKED_SET_PRODUCER_TAGS: frozenset[str] = frozenset({"Token", "CopyTokenOf"})
+
+# The mass effects — each acts on EVERY object its filter matches, never on a
+# chosen target (every ``*All`` Effect variant phase declares, v0.94.0), so a
+# "those creatures" after one names a board filter, not the chain's targets.
+_MASS_EFFECT_TAGS: frozenset[str] = frozenset(
+    {
+        "BounceAll",
+        "ChangeZoneAll",
+        "CounterAll",
+        "DamageAll",
+        "DestroyAll",
+        "DoublePTAll",
+        "ExploreAll",
+        "GainControlAll",
+        "GoadAll",
+        "PumpAll",
+        "PutCounterAll",
+        "UnattachAll",
+    }
+)
+
+
+_THREAD_ENDING_TAGS: frozenset[str] = _TRACKED_SET_PRODUCER_TAGS | _MASS_EFFECT_TAGS
+
+
+def _ends_target_thread(eff: TypedMirrorNode) -> bool:
+    """A token producer or a mass effect ends the chosen-target thread."""
+    return tag_of(eff) in _THREAD_ENDING_TAGS
+
+
+def _iter_tracked_set_target_grants(
+    ability_like: object,
+) -> Iterator[tuple[object, TypedMirrorNode]]:
+    """``(threaded_target_filter, AddKeyword_mod)`` pairs for a keyword grant
+    whose nested static's ``affected`` is ``TrackedSet`` — "those creatures
+    gain X" back-referencing the chain's own TARGETS.
+
+    phase v0.94.0 parses Arm the Cathars ("target creature gets +3/+3, up to
+    one other target creature gets +2/+2, … Those creatures gain vigilance")
+    as a Pump chain ending in a ``GenericEffect`` whose static is
+    ``TrackedSet``-affected; v0.86.0 wrote ``ParentTarget``, which
+    :func:`iter_single_target_grants` threads. Same thread
+    (:func:`iter_threaded_target_statics`), but a token producer or a mass
+    effect ends it (:func:`_ends_target_thread`) — "create a token. It gains
+    haste" tracks the made token, and "put a +1/+1 counter on each creature
+    you control. Those creatures gain vigilance" (Ajani Goldmane, a
+    ``PutCounterAll``) tracks a board filter, never a chosen target.
+    CR 115.1 / 613.1f.
+    """
+    for tracked, st in iter_threaded_target_statics(
+        ability_like, affected_tag="TrackedSet", resets_thread=_ends_target_thread
+    ):
+        for mod in getattr(st, "modifications", None) or ():
+            if tag_of(mod) == "AddKeyword":
+                yield tracked, mod
+
+
 def _keyword_grant_lanes(tree: ConceptTree) -> list[Signal]:
     """The AddKeyword mod-site cluster (CR 613.1f layer 6) — one shared walk,
     per-ability aggregation (granularity b), direction gates per checklist #6
@@ -1185,6 +1243,7 @@ def _keyword_grant_lanes(tree: ConceptTree) -> list[Signal]:
             # target) — this was a caller-side origin gate, not a missing
             # accessor. CR 613.1f (layer 6, ability-adding effects).
             grants.extend(iter_single_target_grants(unit.node))
+            grants.extend(_iter_tracked_set_target_grants(unit.node))
         for resolved, mod in grants:
             if "Creature" not in filter_core_types(resolved):
                 continue  # the live creature-core gate (no tribal/permanent)

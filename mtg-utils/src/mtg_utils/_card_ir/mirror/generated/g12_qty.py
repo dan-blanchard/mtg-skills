@@ -38,13 +38,13 @@ if TYPE_CHECKING:
         U_filter,
         U_inner,
     )
-    from mtg_utils._card_ir.mirror.generated.g09_kind import (
+    from mtg_utils._card_ir.mirror.generated.g09_keeper_constraint import (
         U_metric,
     )
-    from mtg_utils._card_ir.mirror.generated.g10_owner import (
+    from mtg_utils._card_ir.mirror.generated.g10_origin import (
         U_player,
     )
-    from mtg_utils._card_ir.mirror.generated.g11_properties import (
+    from mtg_utils._card_ir.mirror.generated.g11_prop import (
         U_properties,
     )
     from mtg_utils._card_ir.mirror.generated.g13_reference import (

@@ -23,7 +23,7 @@ from mtg_utils._card_ir.mirror.runtime import (
 )
 
 if TYPE_CHECKING:
-    from mtg_utils._card_ir.mirror.generated.g02_modifycost import (
+    from mtg_utils._card_ir.mirror.generated.g02_modifyactivationlimi import (
         S_abilities,
         U_additional_filter,
     )
@@ -46,12 +46,12 @@ if TYPE_CHECKING:
         U_filter,
         U_inner,
     )
-    from mtg_utils._card_ir.mirror.generated.g09_kind import (
+    from mtg_utils._card_ir.mirror.generated.g09_keeper_constraint import (
         S_or_trigger,
         U_lhs,
-        U_origin_constraint,
     )
-    from mtg_utils._card_ir.mirror.generated.g10_owner import (
+    from mtg_utils._card_ir.mirror.generated.g10_origin import (
+        U_origin_constraint,
         U_player,
         U_player_scope,
     )
@@ -221,6 +221,7 @@ class T_condition__And(TypedMirrorNode):
 @dataclass(frozen=True)
 class T_condition__AnyPlayerAttackedYouLastTurn(TypedMirrorNode):
     _tag: ClassVar[str | None] = "AnyPlayerAttackedYouLastTurn"
+    scope: str = MISSING
 
 
 @dataclass(frozen=True)

@@ -57,6 +57,10 @@ def test_self_etb_payload_emission(name, expected):
         # Not recast engines.
         ("Krenko, Mob Boss", False),
         ("Talrand, Sky Summoner", False),
+        # A graveyard-cast permission over instants/sorceries only re-delivers
+        # spells, never a permanent (CR 110.4a) — arm 1's near misses.
+        ("Maestros Ascendancy", False),
+        ("Kess, Dissident Mage", False),
     ],
 )
 def test_permanent_recast_emission(name, expected):

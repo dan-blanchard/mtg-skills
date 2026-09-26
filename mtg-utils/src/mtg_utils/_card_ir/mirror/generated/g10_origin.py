@@ -4,7 +4,7 @@ Codegen'd from ``tests/fixtures/phase_mirror_schema.json`` by
 ``mtg_utils._card_ir.mirror.codegen`` (run via ``build-card-ir-substrate``).
 
 Part of the generated typed-mirror package (see this directory's
-``__init__.py``). This module holds content keys ``owner`` .. ``prop`` (21
+``__init__.py``). This module holds content keys ``origin`` .. ``profile`` (23
 keys).
 
 Class naming: ``S_<ckey>`` for a struct shape, ``T_<ckey>__<tag>`` for a tagged
@@ -24,10 +24,10 @@ from mtg_utils._card_ir.mirror.runtime import (
 
 if TYPE_CHECKING:
     from mtg_utils._card_ir.mirror.generated.g03_additional_modificat import (
+        S_cast_cost_modifier,
         U_alt_ability_cost,
         U_attr,
         U_card_filter,
-        U_cast_cost_raise,
     )
     from mtg_utils._card_ir.mirror.generated.g04_choose_scope import (
         U_colors,
@@ -36,27 +36,29 @@ if TYPE_CHECKING:
         U_cost,
     )
     from mtg_utils._card_ir.mirror.generated.g06_count import (
+        S_data,
         U_count,
+        U_data,
         U_depth,
     )
     from mtg_utils._card_ir.mirror.generated.g07_effect import (
         U_effect,
     )
     from mtg_utils._card_ir.mirror.generated.g08_else_ability import (
+        S_gap,
         U_exclude,
         U_filter,
         U_invalidation,
     )
-    from mtg_utils._card_ir.mirror.generated.g09_kind import (
+    from mtg_utils._card_ir.mirror.generated.g09_keeper_constraint import (
         S_multi_target,
         U_land_filter,
         U_lhs,
     )
-    from mtg_utils._card_ir.mirror.generated.g11_properties import (
+    from mtg_utils._card_ir.mirror.generated.g11_prop import (
         U_properties,
     )
     from mtg_utils._card_ir.mirror.generated.g13_reference import (
-        U_reference,
         U_relation,
         U_rhs,
         U_scope,
@@ -70,6 +72,21 @@ if TYPE_CHECKING:
 
 
 # --- struct shapes (untagged records, one per content_key) ---
+
+
+@dataclass(frozen=True)
+class S_outcome_template(TypedMirrorNode):
+    condition: None
+    cost: None
+    description: None
+    duration: None
+    effect: U_effect
+    forward_result: bool
+    kind: str
+    optional: bool
+    optional_targeting: bool
+    sub_ability: None
+    target_prompt: None
 
 
 @dataclass(frozen=True)
@@ -100,6 +117,30 @@ class S_profile(TypedMirrorNode):
 
 
 # --- tagged shapes (discriminated enum nodes) ---
+
+
+@dataclass(frozen=True)
+class T_origin__Equals(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "Equals"
+    data: str
+
+
+@dataclass(frozen=True)
+class T_origin__NotEquals(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "NotEquals"
+    data: str
+
+
+@dataclass(frozen=True)
+class T_origin__OneOf(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "OneOf"
+    data: list[U_data | S_data | MirrorVariant]
+
+
+@dataclass(frozen=True)
+class T_origin_constraint__Equals(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "Equals"
+    data: str
 
 
 @dataclass(frozen=True)
@@ -180,6 +221,7 @@ class T_parse_warnings__SwallowedClause(TypedMirrorNode):
     detector: str
     line_index: int
     unit_span: S_unit_span
+    gap: S_gap = MISSING
     items: list[object] = MISSING
 
 
@@ -315,7 +357,7 @@ class T_permission__PlayFromExile(TypedMirrorNode):
     granted_to: int
     alt_ability_cost: U_alt_ability_cost = MISSING
     card_filter: U_card_filter = MISSING
-    cast_cost_raise: U_cast_cost_raise = MISSING
+    cast_cost_modifier: S_cast_cost_modifier = MISSING
     frequency: str = MISSING
     invalidation: U_invalidation = MISSING
     land_enter_tapped: str = MISSING
@@ -784,57 +826,10 @@ class T_produced__TriggerEventManaType(TypedMirrorNode):
     _tag: ClassVar[str | None] = "TriggerEventManaType"
 
 
-@dataclass(frozen=True)
-class T_prop__Another(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "Another"
-
-
-@dataclass(frozen=True)
-class T_prop__AttackedThisTurn(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "AttackedThisTurn"
-
-
-@dataclass(frozen=True)
-class T_prop__EnchantedBy(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "EnchantedBy"
-
-
-@dataclass(frozen=True)
-class T_prop__EnteredThisTurn(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "EnteredThisTurn"
-
-
-@dataclass(frozen=True)
-class T_prop__HasAttachment(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "HasAttachment"
-    kind: str
-
-
-@dataclass(frozen=True)
-class T_prop__InTrackedSet(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "InTrackedSet"
-    id: int
-
-
-@dataclass(frozen=True)
-class T_prop__SameName(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "SameName"
-
-
-@dataclass(frozen=True)
-class T_prop__SharesQuality(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "SharesQuality"
-    quality: str
-    reference: U_reference
-
-
-@dataclass(frozen=True)
-class T_prop__WasPlayed(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "WasPlayed"
-
-
 # --- discriminated-union aliases (one per tagged content_key) ---
 
+type U_origin = T_origin__Equals | T_origin__NotEquals | T_origin__OneOf
+type U_origin_constraint = T_origin_constraint__Equals
 type U_owner = (
     T_owner__AttachedTo
     | T_owner__Controller
@@ -965,15 +960,4 @@ type U_produced = (
     | T_produced__NotedType
     | T_produced__OpponentLandColors
     | T_produced__TriggerEventManaType
-)
-type U_prop = (
-    T_prop__Another
-    | T_prop__AttackedThisTurn
-    | T_prop__EnchantedBy
-    | T_prop__EnteredThisTurn
-    | T_prop__HasAttachment
-    | T_prop__InTrackedSet
-    | T_prop__SameName
-    | T_prop__SharesQuality
-    | T_prop__WasPlayed
 )

@@ -939,6 +939,28 @@ def test_lifegain_broadened_draw_bleed_recovered(name):
     assert any(s.key == "lifegain_matters" for s in _lifegain_matters(tree))
 
 
+@pytest.mark.parametrize(
+    ("name", "expected"),
+    [
+        # "you draw a card and lose 1 life" — one "you" governs both verbs; phase
+        # carries NO recipient on the LoseLife, which rides the Controller Draw's
+        # sub_ability.
+        ("Agent Venom", True),
+        ("Doctor Doom", True),
+        # Near misses: the same bare-recipient LoseLife beside a Controller Draw,
+        # but the loss comes FIRST and belongs to another player ("that player
+        # loses 2 life and you draw a card") — a directed loss, not a bleed.
+        ("Braids, Arisen Nightmare", False),
+        ("Talion, the Kindly Lord", False),
+    ],
+)
+def test_draw_bleed_bare_recipient_compound_predicate(name, expected):
+    """phase v0.94.0 dropped the explicit ``Controller`` recipient from the
+    errata'd "you draw N and lose M life" wording; the self-loss read takes it from
+    the Draw the loss is chained under, never from a bare missing recipient."""
+    assert has_trigger_draw_bleed(_fixture_tree(name)) is expected
+
+
 # ── arm: spellcast_matters (ADR-0036 fold) ────────────────────────────────────
 # The you-cast (Spellslinger) payoff, CR 601.2/603.2. Two Tier-1 arms: a phase
 # typed/untyped you-cast trigger (has_structural_spellcast) and the bucket-B
@@ -5461,6 +5483,16 @@ def test_self_power_scale_gap_gated_when_structural_present():
 
 def test_self_power_scale_no_fire_on_unrelated_card():
     assert _arm_self_power_scale(_fixture_tree("Llanowar Elves")) is None
+
+
+@pytest.mark.parametrize("name", ["Exuberant Wolfbear", "Galion, Elvenking's Butler"])
+def test_self_power_scale_skips_base_pt_copy(name):
+    """Exuberant Wolfbear's "have the base power and toughness of target Human
+    you control become equal to this creature's power and toughness" copies its P/T
+    onto ANOTHER creature — a layer-7b set (CR 613.4b), base_pt_set's
+    country. No counter is placed, removed, or referenced, so the
+    self-power-scale cross-open stays shut."""
+    assert _arm_self_power_scale(_real_tree(name)) is None
 
 
 def test_token_subtype_own_ref_synth_registered():

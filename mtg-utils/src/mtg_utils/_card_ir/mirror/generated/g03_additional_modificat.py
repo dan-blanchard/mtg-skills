@@ -5,7 +5,7 @@ Codegen'd from ``tests/fixtures/phase_mirror_schema.json`` by
 
 Part of the generated typed-mirror package (see this directory's
 ``__init__.py``). This module holds content keys ``additional_modifications``
-.. ``choose_filter`` (30 keys).
+.. ``choose_filter`` (31 keys).
 
 Class naming: ``S_<ckey>`` for a struct shape, ``T_<ckey>__<tag>`` for a tagged
 shape, ``U_<ckey>`` for the union of all tagged shapes at one content_key.
@@ -47,14 +47,14 @@ if TYPE_CHECKING:
         U_inner,
         U_iteration_kind_binding,
     )
-    from mtg_utils._card_ir.mirror.generated.g09_kind import (
+    from mtg_utils._card_ir.mirror.generated.g09_keeper_constraint import (
         U_left,
     )
-    from mtg_utils._card_ir.mirror.generated.g10_owner import (
+    from mtg_utils._card_ir.mirror.generated.g10_origin import (
         U_player,
         U_player_scope,
     )
-    from mtg_utils._card_ir.mirror.generated.g11_properties import (
+    from mtg_utils._card_ir.mirror.generated.g11_prop import (
         U_properties,
     )
     from mtg_utils._card_ir.mirror.generated.g12_qty import (
@@ -86,6 +86,11 @@ class S_additional_token_spec(TypedMirrorNode):
     source_id: int
     static_abilities: list[S_static_abilities]
     tapped: bool
+
+
+@dataclass(frozen=True)
+class S_at_resolution(TypedMirrorNode):
+    pass
 
 
 @dataclass(frozen=True)
@@ -131,6 +136,12 @@ class S_cards(TypedMirrorNode):
     count: U_count
     duplicate_of: U_duplicate_of = MISSING
     name: str = MISSING
+
+
+@dataclass(frozen=True)
+class S_cast_cost_modifier(TypedMirrorNode):
+    amount: U_amount
+    mode: str
 
 
 @dataclass(frozen=True)
@@ -563,11 +574,6 @@ class T_attach_to__Typed(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
-class T_attachment__Any(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "Any"
-
-
-@dataclass(frozen=True)
 class T_attachment__LastCreated(TypedMirrorNode):
     _tag: ClassVar[str | None] = "LastCreated"
 
@@ -782,13 +788,6 @@ class T_card_filter__Typed(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
-class T_cast_cost_raise__Cost(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "Cost"
-    generic: int
-    shards: list[object]
-
-
-@dataclass(frozen=True)
 class T_casting_restrictions__AfterBlockersDeclared(TypedMirrorNode):
     _tag: ClassVar[str | None] = "AfterBlockersDeclared"
 
@@ -953,8 +952,7 @@ type U_amount_dynamic = T_amount_dynamic__Ref
 type U_announced_x = T_announced_x__Offset | T_announced_x__Ref
 type U_attach_to = T_attach_to__ParentTarget | T_attach_to__Typed
 type U_attachment = (
-    T_attachment__Any
-    | T_attachment__LastCreated
+    T_attachment__LastCreated
     | T_attachment__Or
     | T_attachment__ParentTarget
     | T_attachment__ParentTargetSlot
@@ -992,7 +990,6 @@ type U_cap = T_cap__OnlyOnceEachTurn
 type U_card_filter = (
     T_card_filter__Any | T_card_filter__None | T_card_filter__Or | T_card_filter__Typed
 )
-type U_cast_cost_raise = T_cast_cost_raise__Cost
 type U_casting_restrictions = (
     T_casting_restrictions__AfterBlockersDeclared
     | T_casting_restrictions__AfterCombat

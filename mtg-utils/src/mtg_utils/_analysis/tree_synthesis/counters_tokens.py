@@ -33,6 +33,7 @@ from mtg_utils._card_ir.crosswalk import (
     distribute_counter_kind,
     filter_controller,
     tag_of,
+    walk_effects_with_else,
 )
 
 # ── token_maker_type_subject structural read + bucket-B (ADR-0036/0037 ───────
@@ -341,14 +342,22 @@ _SELF_GROW_ACTION_TAGS: frozenset[str] = frozenset({"Adapt", "Monstrosity", "Ren
 
 def has_structural_self_counter_grow(tree: ConceptTree) -> bool:
     """A CR 122.1 self-anchored +1/+1 grow, or an Adapt/Monstrosity/Renown
-    keyword action, phase types directly."""
+    keyword action, phase types directly.
+
+    phase v0.94.0 moved an "Otherwise, put a +1/+1 counter on ~" branch onto
+    the conditional's ``else_ability`` (Shelinda, Yevon Acolyte), which the
+    unit's effect chain never walks — so that branch is read too.
+    """
     for unit in tree.units:
-        for c in unit.effect_concepts("place_counter"):
-            if tag_of(c.node) != "PutCounter":
+        for node in (
+            *(c.node for c in unit.effect_concepts("place_counter")),
+            *(c.node for c in walk_effects_with_else(unit.node)),
+        ):
+            if tag_of(node) != "PutCounter":
                 continue
-            if counter_kind(c.node) != "P1P1":
+            if counter_kind(node) != "P1P1":
                 continue
-            if tag_of(getattr(c.node, "target", None)) != "SelfRef":
+            if tag_of(getattr(node, "target", None)) != "SelfRef":
                 continue
             if unit.origin == "replacement":
                 if tag_of(getattr(unit.node, "valid_card", None)) != "SelfRef":
@@ -415,8 +424,17 @@ def _arm_self_power_scale(tree: ConceptTree) -> ConceptNode | None:
         return None
     if _matches_self_counter_grow_idiom(tree.oracle or ""):
         return None
-    oracle = tree.oracle or ""
-    if not self_power_scale_match(_REMINDER.sub(" ", oracle), tree.name):
+    # A clause that sets ANOTHER creature's BASE power/toughness to this one's
+    # ("have the base power and toughness of target Human you control become
+    # equal to this creature's power and toughness" — Exuberant Wolfbear,
+    # Galion) is a layer-7b P/T copy (CR 613.4b), base_pt_set's country — it
+    # places, removes, and references no counter, so it opens nothing here.
+    oracle = ". ".join(
+        cl
+        for cl in clauses(_REMINDER.sub(" ", tree.oracle or ""))
+        if "base power" not in cl.lower()
+    )
+    if not self_power_scale_match(oracle, tree.name):
         return None
     return _synthetic_concept(
         arm_id="self_power_scale",

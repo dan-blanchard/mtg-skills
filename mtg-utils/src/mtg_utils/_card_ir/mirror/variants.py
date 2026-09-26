@@ -237,6 +237,7 @@ EFFECT_VARIANTS: tuple[str, ...] = (
     "RuntimeHandled",
     "Incubate",
     "Amass",
+    "EmpowerJace",
     "Monstrosity",
     "Specialize",
     "Renown",

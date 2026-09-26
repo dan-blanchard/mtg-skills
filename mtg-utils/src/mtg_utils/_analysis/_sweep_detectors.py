@@ -815,12 +815,15 @@ GAIN_CONTROL_REGEX = "gain control of"
 # Both arms are clause-local (no `[^.]` crossing a sentence), so the full-text mirror ==
 # the deleted per-clause union (commander-legal: regex==mirror, 0 lost, 0 over-fire).
 # The serve stays hand-registered in signal_specs.py (high-toughness / Defender bodies).
-# CR 510.1c / 122 / 604.3.
+# CR 510.1c / 122 / 604.3. The `equal to … toughness` arm skips "become(s) equal
+# to": a base-P/T set (Shape Stealer, Halfdane, Ambassador Blorpityblorpboop) is
+# layer 7b (CR 613.4b), not toughness read as a value — the same exclusion as
+# TOUGHNESS_VALUE_REGEX below, so the serve and the lane agree.
 TOUGHNESS_COMBAT_REGEX = (
     r"assigns? combat damage equal to its (?:toughness|mana value) "
     r"rather than its power|deals damage equal to its toughness"
     r"|\bx (?:is|equals?) [^.]{0,40}\btoughness\b"
-    r"|equal to [^.]{0,40}\btoughness\b(?! are each)"
+    r"|(?<!\bbecome )(?<!\bbecomes )equal to [^.]{0,40}\btoughness\b(?! are each)"
 )
 # ADR-0027 C14 — the NARROWED toughness-as-VALUE residue mirror. The combat-REDIRECT
 # alternative ("assigns combat damage equal to its toughness rather than its power") is
@@ -836,10 +839,16 @@ TOUGHNESS_COMBAT_REGEX = (
 # vestigial mana-value alternatives are dropped; the `equal to … toughness` arm still
 # incidentally matches the redirect phrase, but those fire structurally and the mirror is
 # a harmless dedup backstop. Both value arms are clause-local. CR 119.3 / 604.3.
+# A base-P/T COPY ("base power and toughness become equal to that creature's power
+# and toughness" — Shape Stealer, Halfdane; the v0.94.0 Oracle wording) is a layer-7b
+# set (CR 613.4b), not toughness read as a value, so "become(s) equal to … toughness"
+# is excluded whole. A lone "base toughness becomes equal to …" is the same 7b set
+# (Ambassador Blorpityblorpboop, the only such card at v0.94.0), so no
+# "becomes equal to" form stays.
 TOUGHNESS_VALUE_REGEX = (
     r"deals damage equal to its toughness"
     r"|\bx (?:is|equals?) [^.]{0,40}\btoughness\b"
-    r"|equal to [^.]{0,40}\btoughness\b(?! are each)"
+    r"|(?<!\bbecome )(?<!\bbecomes )equal to [^.]{0,40}\btoughness\b(?! are each)"
 )
 # ADR-0027 β: ltb_matters (leaves-the-battlefield payoffs — sacrifice/blink/bounce
 # fodder to trigger a permanent leaving) migrated to the Card IR. The deleted

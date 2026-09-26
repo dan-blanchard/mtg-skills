@@ -23,7 +23,7 @@ from mtg_utils._card_ir.mirror.runtime import (
 )
 
 if TYPE_CHECKING:
-    from mtg_utils._card_ir.mirror.generated.g02_modifycost import (
+    from mtg_utils._card_ir.mirror.generated.g02_modifyactivationlimi import (
         U_activity,
     )
     from mtg_utils._card_ir.mirror.generated.g03_additional_modificat import (
@@ -57,19 +57,19 @@ if TYPE_CHECKING:
         U_inner,
         U_journal,
     )
-    from mtg_utils._card_ir.mirror.generated.g09_kind import (
+    from mtg_utils._card_ir.mirror.generated.g09_keeper_constraint import (
         U_left,
         U_mana_modification,
         U_mana_replacement_scope,
         U_mode,
         U_modifications,
     )
-    from mtg_utils._card_ir.mirror.generated.g10_owner import (
+    from mtg_utils._card_ir.mirror.generated.g10_origin import (
         U_owner,
         U_per_player_condition,
         U_power,
     )
-    from mtg_utils._card_ir.mirror.generated.g11_properties import (
+    from mtg_utils._card_ir.mirror.generated.g11_prop import (
         U_properties,
     )
     from mtg_utils._card_ir.mirror.generated.g12_qty import (
@@ -668,11 +668,6 @@ class T_source__AttachedTo(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
-class T_source__ChosenCard(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "ChosenCard"
-
-
-@dataclass(frozen=True)
 class T_source__ExiledBySource(TypedMirrorNode):
     _tag: ClassVar[str | None] = "ExiledBySource"
 
@@ -979,7 +974,6 @@ type U_source = (
     | T_source__Any
     | T_source__AnyOf
     | T_source__AttachedTo
-    | T_source__ChosenCard
     | T_source__ExiledBySource
     | T_source__Objects
     | T_source__Or

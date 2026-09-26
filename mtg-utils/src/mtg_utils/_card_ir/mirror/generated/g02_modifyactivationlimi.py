@@ -4,8 +4,8 @@ Codegen'd from ``tests/fixtures/phase_mirror_schema.json`` by
 ``mtg_utils._card_ir.mirror.codegen`` (run via ``build-card-ir-substrate``).
 
 Part of the generated typed-mirror package (see this directory's
-``__init__.py``). This module holds content keys ``ModifyCost`` ..
-``additional_filter`` (64 keys).
+``__init__.py``). This module holds content keys ``ModifyActivationLimit`` ..
+``additional_filter`` (65 keys).
 
 Class naming: ``S_<ckey>`` for a struct shape, ``T_<ckey>__<tag>`` for a tagged
 shape, ``U_<ckey>`` for the union of all tagged shapes at one content_key.
@@ -50,18 +50,18 @@ if TYPE_CHECKING:
         U_filter,
         U_filters,
     )
-    from mtg_utils._card_ir.mirror.generated.g09_kind import (
+    from mtg_utils._card_ir.mirror.generated.g09_keeper_constraint import (
         S_modal,
         S_mode_abilities,
         S_multi_target,
         U_land_filter,
         U_only_tag,
     )
-    from mtg_utils._card_ir.mirror.generated.g10_owner import (
+    from mtg_utils._card_ir.mirror.generated.g10_origin import (
         U_player,
         U_player_scope,
     )
-    from mtg_utils._card_ir.mirror.generated.g11_properties import (
+    from mtg_utils._card_ir.mirror.generated.g11_prop import (
         U_properties,
     )
     from mtg_utils._card_ir.mirror.generated.g13_reference import (
@@ -88,11 +88,18 @@ if TYPE_CHECKING:
 
 
 @dataclass(frozen=True)
+class S_ModifyActivationLimit(TypedMirrorNode):
+    keyword: str
+    new_limit: int
+
+
+@dataclass(frozen=True)
 class S_ModifyCost(TypedMirrorNode):
     amount: U_amount
     mode: str
     spell_filter: U_spell_filter | None
     dynamic_count: U_dynamic_count = MISSING
+    reach: str = MISSING
 
 
 @dataclass(frozen=True)
@@ -413,11 +420,6 @@ class T_Prowl__Cost(TypedMirrorNode):
     _tag: ClassVar[str | None] = "Cost"
     generic: int
     shards: list[object]
-
-
-@dataclass(frozen=True)
-class T_Quality__Any(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "Any"
 
 
 @dataclass(frozen=True)
@@ -877,7 +879,7 @@ type U_Partner = (
 )
 type U_Plot = T_Plot__Cost
 type U_Prowl = T_Prowl__Cost
-type U_Quality = T_Quality__Any | T_Quality__Or | T_Quality__Typed
+type U_Quality = T_Quality__Or | T_Quality__Typed
 type U_Reconfigure = T_Reconfigure__Cost
 type U_Recover = T_Recover__Cost
 type U_Replicate = T_Replicate__Cost | T_Replicate__SelfManaCost

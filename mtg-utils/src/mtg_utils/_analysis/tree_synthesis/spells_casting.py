@@ -232,13 +232,19 @@ def _arm_spellcast_matters(tree: ConceptTree) -> ConceptNode | None:
     )
 
 
+_NONPERMANENT_CORES = frozenset({"Instant", "Sorcery"})
+
+
 def has_permanent_recast(tree: ConceptTree) -> bool:
     """A REPEATABLE engine that re-delivers your own permanents to a
     castable/battlefield zone — the recast-loop pair row's ANCHOR class
     (iteration-3). Three structural arms, probed 2026-07-18:
 
     * the graveyard-cast permission static (``static_mode_tag`` ==
-      ``GraveyardCastPermission`` — Muldrotha's per-type play-from-yard);
+      ``GraveyardCastPermission`` — Muldrotha's per-type play-from-yard),
+      unless its ``affected`` filter names only nonpermanent types
+      (Maestros Ascendancy / Kess's instant-or-sorcery flashback — those
+      re-deliver spells, never a permanent; CR 110.4a);
     * a trigger whose ``ChangeZone`` puts a graveyard card onto the
       battlefield (destination ``Battlefield`` + an ``InZone(Graveyard)``
       target filter in the unit subtree — Meren's end-step reanimate,
@@ -250,7 +256,9 @@ def has_permanent_recast(tree: ConceptTree) -> bool:
         if unit.origin == "static" and (
             static_mode_tag(unit.node) == "GraveyardCastPermission"
         ):
-            return True
+            cores = set(filter_core_types(getattr(unit.node, "affected", None)))
+            if not cores or not cores <= _NONPERMANENT_CORES:
+                return True
         if unit.origin == "trigger":
             for c in unit.effects:
                 if (

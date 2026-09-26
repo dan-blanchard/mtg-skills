@@ -4,7 +4,7 @@ Codegen'd from ``tests/fixtures/phase_mirror_schema.json`` by
 ``mtg_utils._card_ir.mirror.codegen`` (run via ``build-card-ir-substrate``).
 
 Part of the generated typed-mirror package (see this directory's
-``__init__.py``). This module holds content keys ``properties`` .. ``props`` (2
+``__init__.py``). This module holds content keys ``prop`` .. ``props`` (3
 keys).
 
 Class naming: ``S_<ckey>`` for a struct shape, ``T_<ckey>__<tag>`` for a tagged
@@ -33,10 +33,9 @@ if TYPE_CHECKING:
     from mtg_utils._card_ir.mirror.generated.g08_else_ability import (
         U_filter,
     )
-    from mtg_utils._card_ir.mirror.generated.g10_owner import (
+    from mtg_utils._card_ir.mirror.generated.g10_origin import (
         U_parity,
         U_player,
-        U_prop,
     )
     from mtg_utils._card_ir.mirror.generated.g12_qty import (
         U_recipient,
@@ -51,6 +50,62 @@ if TYPE_CHECKING:
 
 
 # --- tagged shapes (discriminated enum nodes) ---
+
+
+@dataclass(frozen=True)
+class T_prop__Another(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "Another"
+
+
+@dataclass(frozen=True)
+class T_prop__AttackedThisTurn(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "AttackedThisTurn"
+
+
+@dataclass(frozen=True)
+class T_prop__EnchantedBy(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "EnchantedBy"
+
+
+@dataclass(frozen=True)
+class T_prop__EnteredThisTurn(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "EnteredThisTurn"
+
+
+@dataclass(frozen=True)
+class T_prop__HasAttachment(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "HasAttachment"
+    kind: str
+
+
+@dataclass(frozen=True)
+class T_prop__InTrackedSet(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "InTrackedSet"
+    id: int
+
+
+@dataclass(frozen=True)
+class T_prop__SameName(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "SameName"
+
+
+@dataclass(frozen=True)
+class T_prop__SharesQuality(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "SharesQuality"
+    quality: str
+    reference: U_reference
+
+
+@dataclass(frozen=True)
+class T_prop__WasPlayed(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "WasPlayed"
+
+
+@dataclass(frozen=True)
+class T_prop__ZoneChangedThisTurn(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "ZoneChangedThisTurn"
+    from_: str = field(metadata={"json": "from"})
+    to: str
 
 
 @dataclass(frozen=True)
@@ -590,8 +645,8 @@ class T_properties__WithoutKeywordKind(TypedMirrorNode):
 @dataclass(frozen=True)
 class T_properties__ZoneChangedThisTurn(TypedMirrorNode):
     _tag: ClassVar[str | None] = "ZoneChangedThisTurn"
-    from_: str = field(metadata={"json": "from"})
     to: str
+    from_: str = field(default=MISSING, metadata={"json": "from"})
 
 
 @dataclass(frozen=True)
@@ -628,6 +683,18 @@ class T_props__PtComparison(TypedMirrorNode):
 
 # --- discriminated-union aliases (one per tagged content_key) ---
 
+type U_prop = (
+    T_prop__Another
+    | T_prop__AttackedThisTurn
+    | T_prop__EnchantedBy
+    | T_prop__EnteredThisTurn
+    | T_prop__HasAttachment
+    | T_prop__InTrackedSet
+    | T_prop__SameName
+    | T_prop__SharesQuality
+    | T_prop__WasPlayed
+    | T_prop__ZoneChangedThisTurn
+)
 type U_properties = (
     T_properties__Another
     | T_properties__AnyOf

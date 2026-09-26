@@ -23,7 +23,7 @@ from mtg_utils._card_ir.mirror.runtime import (
 )
 
 if TYPE_CHECKING:
-    from mtg_utils._card_ir.mirror.generated.g02_modifycost import (
+    from mtg_utils._card_ir.mirror.generated.g02_modifyactivationlimi import (
         U_ability_tag,
         U_activation_restrictions,
     )
@@ -56,21 +56,22 @@ if TYPE_CHECKING:
         U_filters,
         U_inner,
     )
-    from mtg_utils._card_ir.mirror.generated.g09_kind import (
+    from mtg_utils._card_ir.mirror.generated.g09_keeper_constraint import (
         S_modal,
         S_mode_abilities,
         S_multi_target,
         U_left,
         U_lhs,
         U_mana_ability_produced,
-        U_origin,
+        U_optional_player,
     )
-    from mtg_utils._card_ir.mirror.generated.g10_owner import (
+    from mtg_utils._card_ir.mirror.generated.g10_origin import (
+        U_origin,
         U_payer,
         U_player,
         U_player_scope,
     )
-    from mtg_utils._card_ir.mirror.generated.g11_properties import (
+    from mtg_utils._card_ir.mirror.generated.g11_prop import (
         U_properties,
     )
     from mtg_utils._card_ir.mirror.generated.g12_qty import (
@@ -106,11 +107,13 @@ class S_sub_ability(TypedMirrorNode):
     announced_x: U_announced_x = MISSING
     distribute: U_distribute = MISSING
     else_ability: S_else_ability = MISSING
+    face_down_in_exile: bool = MISSING
     is_mana_ability: bool = MISSING
     modal: S_modal = MISSING
     mode_abilities: list[S_mode_abilities] = MISSING
     multi_target: S_multi_target = MISSING
     optional_for: str = MISSING
+    optional_player: U_optional_player = MISSING
     player_scope: U_player_scope = MISSING
     repeat_for: U_repeat_for = MISSING
     sibling_condition: str = MISSING
@@ -829,6 +832,11 @@ class T_valid_card__AttachedTo(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class T_valid_card__ChosenCard(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "ChosenCard"
+
+
+@dataclass(frozen=True)
 class T_valid_card__Or(TypedMirrorNode):
     _tag: ClassVar[str | None] = "Or"
     filters: list[U_filters]
@@ -1165,6 +1173,7 @@ type U_valid_card = (
     T_valid_card__And
     | T_valid_card__Any
     | T_valid_card__AttachedTo
+    | T_valid_card__ChosenCard
     | T_valid_card__Or
     | T_valid_card__ParentTarget
     | T_valid_card__ParentTargetSlot

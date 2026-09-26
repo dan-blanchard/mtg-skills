@@ -6,6 +6,7 @@ from __future__ import annotations
 import json
 import pickle
 import subprocess
+import sys
 from pathlib import Path
 
 import click
@@ -86,10 +87,33 @@ def test_parse_effect_enum_matches_the_committed_roster_shape():
     assert rewritten == text
 
 
-def test_rewrite_pin_counts_occurrences():
-    text, n = rewrite_pin('PHASE_TAG = "v0.66.0"  # v0.66.0', "v0.66.0", "v0.70.0")
-    assert n == 2
-    assert text == 'PHASE_TAG = "v0.70.0"  # v0.70.0'
+def test_rewrite_pin_rewrites_every_live_site():
+    text = (
+        'PHASE_TAG: str = "v0.66.0"  # rewritten by `bump-phase-pin`\n'
+        'assert _phase.PHASE_TAG == "v0.66.0"\n'
+        "pin (currently v0.66.0, governing …) and (currently `v0.66.0`).\n"
+    )
+    rewritten, n = rewrite_pin(text, "v0.66.0", "v0.70.0")
+    assert n == 4
+    assert "v0.66.0" not in rewritten
+
+
+def test_rewrite_pin_keeps_dated_history_mentions():
+    """A mention of the old tag that is NOT a live pin site is history
+    ("the v0.66.0 pin bump found …") and survives the bump — the blanket
+    replace this rule replaced rewrote such comments into falsehoods."""
+    history = "# the v0.66.0 pin bump found the cache still at v0.45.0\n"
+    text = 'PHASE_TAG: str = "v0.66.0"\n' + history
+    rewritten, n = rewrite_pin(text, "v0.66.0", "v0.70.0")
+    assert n == 1
+    assert rewritten == 'PHASE_TAG: str = "v0.70.0"\n' + history
+
+
+def test_rewrite_pin_never_matches_a_longer_tag():
+    text = 'PHASE_TAG: str = "v0.66.01"\n(currently v0.66.0.)'
+    rewritten, n = rewrite_pin(text, "v0.66.0", "v0.70.0")
+    assert n == 1
+    assert rewritten == 'PHASE_TAG: str = "v0.66.01"\n(currently v0.70.0.)'
 
 
 def _rec(name, oid, text, **extra):
@@ -148,6 +172,42 @@ E   other_bridge: pattern rot — the gap still holds
     )
 
 
+def test_graduation_rows_reads_a_retirement_canary_name():
+    """A canary names its workaround, not a bridge id — the leading underscore
+    and the ``AssertionError:`` prefix must not truncate or shift the name."""
+    out = (
+        "FAILED tests/mtg-utils/test_crosswalk.py::test_generator_servant_split_"
+        "rider_canary - AssertionError: _grants_only_to_self: RETIRE-READY — phase\n"
+        "E       AssertionError: _grants_only_to_self: RETIRE-READY — phase no\n"
+    )
+    assert graduation_rows(out) == ("_grants_only_to_self",)
+
+
+def test_the_canary_marker_selects_the_generator_servant_canary():
+    """The marker the graduation step selects by is registered and applied — a
+    renamed marker would silently select nothing and hide every canary."""
+    root = Path(__file__).resolve().parents[2]
+    proc = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "pytest",
+            str(root / phase_bump.CANARY_TESTS),
+            "-m",
+            phase_bump.CANARY_MARKER,
+            "--collect-only",
+            "-q",
+            "--strict-markers",
+            "-p",
+            "no:cacheprovider",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert "test_generator_servant_split_rider_canary" in proc.stdout, proc.stdout
+
+
 # ── the orchestration, dry-run over a fake repo ────────────────────────────────
 
 
@@ -157,7 +217,9 @@ def _fake_repo(tmp_path: Path) -> Path:
     (repo / "tests/fixtures").mkdir(parents=True)
     (repo / "tests/mtg-utils").mkdir(parents=True)
     (repo / phase_bump.PIN_FILE).write_text('PHASE_TAG = "v0.66.0"\n')
-    (repo / "CLAUDE.md").write_text("pin (currently v0.66.0) and again v0.66.0\n")
+    (repo / "CLAUDE.md").write_text(
+        "pin (currently v0.66.0); the v0.66.0 bump found a stale cache\n"
+    )
     (repo / "tests/mtg-utils/test_phase_wrapper.py").write_text(
         'assert _phase.PHASE_TAG == "v0.66.0"\n'
     )
@@ -218,7 +280,12 @@ def test_dry_run_executes_every_step_in_order_and_writes_the_report(
                 pickle.dumps({"version": 1, "index": {"oid-ring": ("draw|you|",)}})
             )
         stdout = ""
-        if module == "pytest":
+        if module == "pytest" and "-m" in argv[3:]:  # the retirement canaries
+            stdout = (
+                "FAILED tests/mtg-utils/test_crosswalk.py::test_x_canary - "
+                "AssertionError: _grants_only_to_self: RETIRE-READY — phase no\n"
+            )
+        elif module == "pytest":  # the ledger file
             stdout = "E  degavolver_kicker_paylife_regen: RETIRE-READY — the typed\n"
         return subprocess.CompletedProcess(argv, 0, stdout=stdout, stderr="")
 
@@ -245,7 +312,10 @@ def test_dry_run_executes_every_step_in_order_and_writes_the_report(
     assert [e.split("] ", 1)[1] for e in echoed] == [name for name, _ in STEPS]
     # step 1: every pin mention rewritten, and this process's own pin moved
     assert (repo / phase_bump.PIN_FILE).read_text() == 'PHASE_TAG = "v0.70.0"\n'
-    assert "v0.66.0" not in (repo / "CLAUDE.md").read_text()
+    # …only at the live sites: the dated history mention survives
+    assert (repo / "CLAUDE.md").read_text() == (
+        "pin (currently v0.70.0); the v0.66.0 bump found a stale cache\n"
+    )
     assert _phase.PHASE_TAG == "v0.70.0"
     # step 2: roster from ability.rs at the new tag
     assert fetched == [f"{phase_bump.PHASE_RAW}/v0.70.0/{phase_bump.ABILITY_RS}"]
@@ -262,7 +332,8 @@ def test_dry_run_executes_every_step_in_order_and_writes_the_report(
         "mtg_utils.build_card_snapshot",
         "mtg_utils.card_ir_crosswalk_build",
         "mtg_utils.signals_index_build",
-        "pytest",
+        "pytest",  # step 8: the ledger file
+        "pytest",  # step 8: the retirement canaries
     ]
     assert (tmp_path / "report" / "signals-v0.66.0.pkl").exists()
     # the old tag is recorded before step 1 rewrites the pin, for --from-step
@@ -273,6 +344,16 @@ def test_dry_run_executes_every_step_in_order_and_writes_the_report(
     assert "### ramp  (lost 1, gained 0)" in text
     assert "### draw  (lost 0, gained 1)" in text
     assert "- degavolver_kicker_paylife_regen" in text
+    # step 8 runs the ledger file, then the marker-selected canaries, and both
+    # runs' RETIRE-READY names land in the graduation list
+    pytest_runs = [c for c in calls if c[1:3] == ["-m", "pytest"]]
+    assert pytest_runs[-2][-1] == str(repo / phase_bump.BRIDGE_LEDGER_TEST)
+    assert pytest_runs[-1][-3:] == [
+        str(repo / phase_bump.CANARY_TESTS),
+        "-m",
+        phase_bump.CANARY_MARKER,
+    ]
+    assert "- _grants_only_to_self" in text
 
 
 def test_from_step_skips_earlier_steps(tmp_path, monkeypatch):
@@ -294,7 +375,7 @@ def test_from_step_skips_earlier_steps(tmp_path, monkeypatch):
     )
     run(ctx, from_step=8, echo=lambda _s: None)
     assert (repo / phase_bump.PIN_FILE).read_text() == 'PHASE_TAG = "v0.66.0"\n'
-    assert [c[2] for c in calls] == ["pytest"]
+    assert [c[2] for c in calls] == ["pytest", "pytest"]  # ledger + canaries
 
 
 def test_rebuild_resume_keeps_the_first_runs_pre_bump_index(tmp_path):

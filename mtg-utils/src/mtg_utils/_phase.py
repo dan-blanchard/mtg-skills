@@ -24,7 +24,7 @@ from mtg_utils._http import urllib_get
 # specifically rather than the generic Scryfall/EDHREC/Spellbook UA.
 _USER_AGENT = "mtg-skills/_phase"
 
-PHASE_TAG: str = "v0.86.0"  # rewritten by `bump-phase-pin` (ADR-0049)
+PHASE_TAG: str = "v0.94.0"  # rewritten by `bump-phase-pin` (ADR-0049)
 PHASE_REPO = "https://github.com/phase-rs/phase"
 
 # Since v0.32.0 releases ship no server tarball; instead a small manifest
@@ -327,7 +327,7 @@ def install_phase() -> None:
         )
     elif _checked_out_tag(repo) != PHASE_TAG:
         # A clone from an EARLIER pin: move it to the pinned tag rather than
-        # rebuilding stale sources (the v0.86.0 pin bump found the cache still
+        # rebuilding stale sources (the v0.66.0 pin bump found the cache still
         # at v0.45.0 — nothing re-cloned because the directory existed). A
         # shallow fetch of just the tag keeps the clone small; ``checkout``
         # restores a pristine ai_duel.rs, so the matchup-files patch below
@@ -384,34 +384,46 @@ def _card_data_path() -> Path:
 
 
 # Known-bad card-data records: phase stamps a DIFFERENT card's parse with this
-# oracle_id. The only member at v0.86.0 (re-censused 2026-08-29 at the pin
-# bump; 1 true impostor, zero errata-drift flags — the v0.45.0 census's 2
-# errata-drift records no longer flag): bulk
-# carries TWO distinct cards named "Fast // Furious" — 62411ced
-# (J21/MH2, commander-legal, discard-draw / damage) and 298a6369 (playtest,
-# not_legal, haste-unblockable / Fuse) — and phase's name-keyed corpus
-# mis-joins the two. Through v0.45.0 it emitted the PLAYTEST card's "Fast"
-# half stamped with the LEGAL card's oracle_id; since v0.86.0 the join runs
-# the OTHER way: the LEGAL card's "Fast" half ("Discard a card, then draw two
-# cards.") is stamped with the PLAYTEST oracle_id (and the legal card has no
-# record of its own at all — a plain coverage hole, not an impostor). The
-# v0.45.0 entry self-retired exactly as designed and is replaced below.
+# oracle_id. Bulk carries TWO distinct cards named "Fast // Furious" —
+# 62411ced (J21/MH2, commander-legal, discard-draw / damage) and 298a6369
+# (playtest, not_legal, haste-unblockable / Fuse) — and phase's name-keyed
+# corpus mis-joins the two; the direction has flipped across pins:
+#   - through v0.45.0: the PLAYTEST card's "Fast" half stamped with the LEGAL
+#     card's oracle_id;
+#   - v0.66.0 (re-censused 2026-08-29): the other way — the LEGAL card's "Fast"
+#     half stamped with the PLAYTEST oracle_id, the legal card with no record
+#     of its own;
+#   - by v0.86.0, and at v0.94.0 (re-censused 2026-09-26): back to the
+#     v0.45.0 direction — the legal card's own "Fast" record is correct under
+#     62411ced, and a SECOND 62411ced record ("fast [62411ced-…]") carries the
+#     playtest card's text; the playtest card has no record of its own (a
+#     plain coverage hole for a not_legal card, not an impostor). The v0.66.0
+#     entry went dead at the v0.86.0 bump unnoticed (it matched nothing, so it
+#     was a no-op) and is replaced below.
 # Keyed by (scryfall_oracle_id, exact oracle_text) so the entry self-retires
-# the moment upstream fixes the join (nothing matches → no-op). A general
-# text-mismatch gate was rejected: the v0.23.0 census found 8 other phase
-# records whose text differed from bulk only by oracle-errata drift (same
-# card, retemplated wording — e.g. Thran Turbine, Elven Farsight) that such a
-# gate would wrongly drop. Census procedure: join every card-data record to
-# bulk by scryfall_oracle_id and flag records whose oracle_text matches NO
-# bulk face text for that oracle_id (v0.23.0: 9 flagged = 8 errata-drift +
+# the moment upstream fixes the join (nothing matches → no-op); a dead entry
+# is REPLACED, never kept beside the live one. A general text-mismatch gate
+# was rejected: the v0.23.0 census found 8 other phase records whose text
+# differed from bulk only by oracle-errata drift (same card, retemplated
+# wording — e.g. Thran Turbine, Elven Farsight) that such a gate would wrongly
+# drop. Census procedure (``bump-phase-pin`` step 5): join every card-data
+# record to bulk by scryfall_oracle_id and flag records whose oracle_text
+# matches NO bulk face text for that oracle_id, then read each row — only a
+# different card's text is an impostor (v0.23.0: 9 flagged = 8 errata-drift +
 # Fast; v0.35.2: exactly 1 flagged = Fast — the weekly MTGJSON refresh phase
-# runs since v0.32.0 cleaned up the errata drift, the impostor join remains;
-# v0.86.0: exactly 1 flagged = the flipped Fast join).
+# runs since v0.32.0 cleaned up the errata drift; v0.66.0: exactly 1 flagged =
+# the flipped Fast join; v0.94.0: 52 flagged = 51 errata-drift, phase's
+# MTGJSON a few days newer than the bulk's retemplating, + Fast).
 _IMPOSTOR_RECORDS: frozenset[tuple[str, str]] = frozenset(
     {
         (
-            "298a6369-1c1f-4d75-aa97-69c56323c122",
-            "Discard a card, then draw two cards.",
+            "62411ced-843e-4b63-bdf6-dafb2ac27047",
+            (
+                "Target creature gains haste until end of turn. It can't be "
+                "blocked this turn except by Vehicles or by creatures with "
+                "haste.\nFuse (You may cast one or both halves of this card "
+                "from your hand.)"
+            ),
         ),
     }
 )

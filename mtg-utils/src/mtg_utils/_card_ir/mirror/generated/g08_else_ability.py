@@ -5,7 +5,7 @@ Codegen'd from ``tests/fixtures/phase_mirror_schema.json`` by
 
 Part of the generated typed-mirror package (see this directory's
 ``__init__.py``). This module holds content keys ``else_ability`` ..
-``kept_destination_if`` (33 keys).
+``keep_on_top`` (33 keys).
 
 Class naming: ``S_<ckey>`` for a struct shape, ``T_<ckey>__<tag>`` for a tagged
 shape, ``U_<ckey>`` for the union of all tagged shapes at one content_key.
@@ -23,7 +23,7 @@ from mtg_utils._card_ir.mirror.runtime import (
 )
 
 if TYPE_CHECKING:
-    from mtg_utils._card_ir.mirror.generated.g02_modifycost import (
+    from mtg_utils._card_ir.mirror.generated.g02_modifyactivationlimi import (
         U_ability_tag,
     )
     from mtg_utils._card_ir.mirror.generated.g03_additional_modificat import (
@@ -45,18 +45,18 @@ if TYPE_CHECKING:
     from mtg_utils._card_ir.mirror.generated.g07_effect import (
         U_effect,
     )
-    from mtg_utils._card_ir.mirror.generated.g09_kind import (
+    from mtg_utils._card_ir.mirror.generated.g09_keeper_constraint import (
         S_modal,
         S_mode_abilities,
         S_multi_target,
         U_lhs,
         U_optional_player,
     )
-    from mtg_utils._card_ir.mirror.generated.g10_owner import (
+    from mtg_utils._card_ir.mirror.generated.g10_origin import (
         U_player,
         U_player_scope,
     )
-    from mtg_utils._card_ir.mirror.generated.g11_properties import (
+    from mtg_utils._card_ir.mirror.generated.g11_prop import (
         U_properties,
     )
     from mtg_utils._card_ir.mirror.generated.g12_qty import (
@@ -77,6 +77,7 @@ if TYPE_CHECKING:
         U_target_chooser,
         U_target_constraints,
         U_target_selection_mode,
+        U_valid_card,
         U_value,
     )
 
@@ -98,6 +99,7 @@ class S_else_ability(TypedMirrorNode):
     sub_ability: S_sub_ability | None
     target_prompt: None
     multi_target: S_multi_target = MISSING
+    optional_player: U_optional_player = MISSING
     player_scope: U_player_scope = MISSING
     sub_link: str = MISSING
     target_choice_timing: str = MISSING
@@ -114,6 +116,26 @@ class S_ensure_token_specs(TypedMirrorNode):
     source_id: int
     static_abilities: list[S_static_abilities]
     tapped: bool
+
+
+@dataclass(frozen=True)
+class S_event(TypedMirrorNode):
+    batched: bool
+    condition: None
+    constraint: None
+    damage_kind: str
+    description: None
+    destination: None
+    execute: None
+    mode: str
+    optional: bool
+    origin: None
+    phase: None
+    secondary: bool
+    trigger_zones: list[object]
+    valid_card: U_valid_card
+    valid_source: None
+    valid_target: None
 
 
 @dataclass(frozen=True)
@@ -170,6 +192,14 @@ class S_filter(TypedMirrorNode):
     controller: str
     properties: list[U_properties]
     type_filters: list[MirrorVariant]
+
+
+@dataclass(frozen=True)
+class S_gap(TypedMirrorNode):
+    kind: str
+    antecedent: str = MISSING
+    guard: str = MISSING
+    operand: str = MISSING
 
 
 # --- tagged shapes (discriminated enum nodes) ---
@@ -264,11 +294,6 @@ class T_exclude__TriggeringPlayer(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
-class T_expiry__EndOfCombat(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "EndOfCombat"
-
-
-@dataclass(frozen=True)
 class T_expiry__EndOfTurn(TypedMirrorNode):
     _tag: ClassVar[str | None] = "EndOfTurn"
 
@@ -330,6 +355,11 @@ class T_filter__Any(TypedMirrorNode):
 @dataclass(frozen=True)
 class T_filter__AttachedTo(TypedMirrorNode):
     _tag: ClassVar[str | None] = "AttachedTo"
+
+
+@dataclass(frozen=True)
+class T_filter__ChosenCard(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "ChosenCard"
 
 
 @dataclass(frozen=True)
@@ -493,6 +523,11 @@ class T_filters__Any(TypedMirrorNode):
 @dataclass(frozen=True)
 class T_filters__AttachedTo(TypedMirrorNode):
     _tag: ClassVar[str | None] = "AttachedTo"
+
+
+@dataclass(frozen=True)
+class T_filters__ChosenCard(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "ChosenCard"
 
 
 @dataclass(frozen=True)
@@ -849,20 +884,6 @@ class T_keep_on_top__Fixed(TypedMirrorNode):
     value: int
 
 
-@dataclass(frozen=True)
-class T_keeper_constraint__exact_count(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "exact_count"
-    count: U_count
-
-
-@dataclass(frozen=True)
-class T_kept_destination_if__Typed(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "Typed"
-    controller: None
-    properties: list[U_properties]
-    type_filters: list[MirrorVariant]
-
-
 # --- discriminated-union aliases (one per tagged content_key) ---
 
 type U_enchant_filter = T_enchant_filter__Typed
@@ -882,9 +903,7 @@ type U_exclude = (
     | T_exclude__ParentObjectTargetController
     | T_exclude__TriggeringPlayer
 )
-type U_expiry = (
-    T_expiry__EndOfCombat | T_expiry__EndOfTurn | T_expiry__UntilHostLeavesPlay
-)
+type U_expiry = T_expiry__EndOfTurn | T_expiry__UntilHostLeavesPlay
 type U_exponent = T_exponent__Ref
 type U_exprs = T_exprs__Fixed | T_exprs__Multiply | T_exprs__Ref
 type U_extra_source = T_extra_source__Typed
@@ -893,6 +912,7 @@ type U_filter = (
     | T_filter__And
     | T_filter__Any
     | T_filter__AttachedTo
+    | T_filter__ChosenCard
     | T_filter__Controller
     | T_filter__ControlsCount
     | T_filter__ExiledBySource
@@ -922,6 +942,7 @@ type U_filters = (
     T_filters__And
     | T_filters__Any
     | T_filters__AttachedTo
+    | T_filters__ChosenCard
     | T_filters__Controller
     | T_filters__ExiledBySource
     | T_filters__HasChosenName
@@ -983,5 +1004,3 @@ type U_iteration_kind_binding = T_iteration_kind_binding__RebindToIteratedKind
 type U_journal = T_journal__SpellsCast
 type U_keep_count_expr = T_keep_count_expr__Ref
 type U_keep_on_top = T_keep_on_top__Fixed
-type U_keeper_constraint = T_keeper_constraint__exact_count
-type U_kept_destination_if = T_kept_destination_if__Typed

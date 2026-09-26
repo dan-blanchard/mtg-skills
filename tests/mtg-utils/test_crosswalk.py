@@ -598,7 +598,7 @@ def test_token_maker_directed_controller_grant_shed():
     ("name", "should_fire"),
     [
         ("The Locust God", True),  # "whenever you draw a card" — Drawn trigger
-        ("A-Orcish Bowmasters", False),  # opponent-draw punisher — not draw_matters
+        ("Orcish Bowmasters", False),  # opponent-draw punisher — not draw_matters
         ("Mulldrifter", False),  # self-ETB value, no draw trigger
     ],
 )
@@ -2846,7 +2846,10 @@ def test_voltron_makers_sheds_no_attach_action(name):
         # equipment/aura" branch requires the literal word "attach"
         # immediately, which "you may return target Equipment card... If
         # you do, you may attach it" does not satisfy at the right
-        # position).
+        # position). Since phase v0.94.0 Fumble's "attach them to another
+        # creature" is an Unimplemented plural_attachment_anaphor residue, so
+        # the ledger row fumble_plural_attachment_anaphor serves it until
+        # phase types the Attach again (this stays the membership pin).
         "Fumble",
         "Auriok Survivors",
     ],
@@ -10156,6 +10159,17 @@ def test_keyword_grant_target_trigger_threaded_target():
     assert ("keyword_grant_target", "you", "") in _idents("Conquering Manticore")
 
 
+def test_keyword_grant_target_tracked_set_of_targets():
+    """phase v0.94.0: "target creature gets +3/+3, up to one other target
+    creature gets +2/+2, … Those creatures gain vigilance" (Arm the Cathars)
+    parses the grant's static as ``TrackedSet``-affected, not
+    ``ParentTarget`` — the targets thread through the Pump chain. A
+    ``PutCounterAll`` board filter feeding the same "those creatures" static
+    (Ajani Goldmane's -1 loyalty ability) is no target, so it stays out. CR 115.1 / 613.1f."""
+    assert ("keyword_grant_target", "you", "") in _idents("Arm the Cathars")
+    assert "keyword_grant_target" not in _keys("Ajani Goldmane")
+
+
 @pytest.mark.parametrize(
     "name", ["Chariot of the Sun", "Infuse with Vitality", "Balloon Stand"]
 )
@@ -12215,6 +12229,38 @@ def test_damage_prevention_shield_excludes_offensive_curse():
     assert ("damage_prevention", "you", "") in _idents("Pariah")
 
 
+@pytest.mark.parametrize(
+    "name",
+    [
+        # phase v0.94.0 fails these static CR 615.1a prevention lines it
+        # structured through v0.86.0 as Prevention replacements; the ledger
+        # rows damage_prevention_replacement_parse_failure (the four
+        # replacement_structure residues + Silhouette's unparsed_replacement)
+        # and camel_attacking_prevention_empty_static (a hollow static) keep
+        # them served until phase restores the structure. The MEMBERSHIP pin:
+        # test_bridge_ledger pins the rows' mechanism, and when they graduate
+        # that goes while this stays (the graduation rule).
+        "Light of Sanction",
+        "Well-Laid Plans",
+        "Ironscale Hydra",
+        "Hyperion, Supreme Hero",
+        "Silhouette",
+        "Camel",
+    ],
+)
+def test_damage_prevention_v094_parse_failures_stay_served(name):
+    assert ("damage_prevention", "you", "") in _idents(name)
+
+
+@pytest.mark.parametrize("name", ["Phyrexian Vindicator", "Stuffy Doll Avatar"])
+def test_damage_prevention_bridge_skips_prevent_and_reflect(name):
+    """The near miss: the same failed-replacement residue on a prevent-and-
+    reflect card ("When damage is prevented this way, …") — never a
+    damage_prevention member (Vindicator is damage_redirect's), so the bridge
+    stays out."""
+    assert "damage_prevention" not in _keys(name)
+
+
 def test_opponent_cast_matters_spell_cast_or_copy_mode():
     """Follow-up (e): the batched ``SpellCastOrCopy`` mode joins the read —
     Mage Hunter's opponent-scoped valid_target fires; the Controller-scoped
@@ -13685,6 +13731,18 @@ def test_self_counter_grow_selfref_and_keyword_actions():
     assert "self_counter_grow" not in _keys("Giant Growth")
 
 
+def test_self_counter_grow_reads_otherwise_branch():
+    """phase v0.94.0 carries "put a +1/+1 counter on that creature if its
+    power is less than Shelinda's power. Otherwise, put a +1/+1 counter on
+    Shelinda" as a conditional whose ``else_ability`` holds the
+    PutCounter{P1P1, SelfRef} — the effect chain never walks that branch, so
+    the structural read does. CR 122.1. The near miss: Tribute to the World
+    Tree's "Otherwise, put two +1/+1 counters on it" rides the same
+    ``else_ability`` shape but grows the ENTERING creature, never itself."""
+    assert ("self_counter_grow", "you", "") in _idents("Shelinda, Yevon Acolyte")
+    assert "self_counter_grow" not in _keys("Tribute to the World Tree")
+
+
 def test_flash_matters_opponent_turn_cast_payoff_mirror():
     """CR 702.8a, ADR-0034 branch B: the opponent-turn cast payoff fires
     (Faerie Tauntings; Alela's "first spell during each opponent's turn" —
@@ -13725,6 +13783,40 @@ def test_activated_ability_cost_census():
         "Generator Servant",
     ):
         assert "activated_ability" not in _keys(name), name
+
+
+@pytest.mark.retirement_canary
+def test_generator_servant_split_rider_canary():
+    """Retirement canary for ``lanes.removal_tutors._grants_only_to_self``, a
+    phase-misparse workaround rather than a ledgered bridge (it suppresses a
+    fire instead of recovering one, so it has no ADR-0048 row to self-retire).
+    Phase v0.94.0 splits Generator Servant's "if any of that mana is spent on
+    a creature spell, it gains haste" rider out of the Mana effect's
+    ``grants`` into a sibling ``GenericEffect`` granting Haste to ``SelfRef``
+    — the source the ability's own cost sacrificed (CR 400.7). When phase
+    folds the rider back, the shape is gone: this fails RETIRE-READY, and
+    the helper, its call site and this canary go (the Generator Servant
+    negative in :func:`test_activated_ability_cost_census` stays)."""
+    (ability,) = test_phase_records("Generator Servant")[0]["abilities"]
+    sacrifices_self = any(
+        c.get("type") == "Sacrifice"
+        and (c.get("target") or {}).get("type") == "SelfRef"
+        for c in (ability.get("cost") or {}).get("costs") or []
+    )
+    rider = (ability.get("sub_ability") or {}).get("effect") or {}
+    statics = rider.get("static_abilities") or []
+    still_split = (
+        sacrifices_self
+        and rider.get("type") == "GenericEffect"
+        and bool(statics)
+        and all((st.get("affected") or {}).get("type") == "SelfRef" for st in statics)
+    )
+    assert still_split, (
+        "_grants_only_to_self: RETIRE-READY — phase no longer splits Generator "
+        "Servant's spend rider into a SelfRef GenericEffect. Delete "
+        "_grants_only_to_self and its call in _activated_ability "
+        "(lanes/removal_tutors.py) and this canary; keep the census negative."
+    )
 
 
 def test_mass_death_payoff_aggregate_head_only():
@@ -14442,6 +14534,26 @@ def test_toughness_combat_structural_and_value_residue():
     assert ("toughness_combat", "you", "") in _idents("Angelic Chorus")
     assert ("toughness_combat", "you", "") in _idents("Assault Formation")
     assert "toughness_combat" not in _keys("Master of Cruelties")
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Shape Stealer",
+        "Eldrazi Mimic",
+        "Exuberant Wolfbear",
+        "Halfdane",
+        "Ambassador Blorpityblorpboop",  # base toughness alone, set to a sum
+    ],
+)
+def test_toughness_combat_base_pt_copy_is_not_a_value_read(name):
+    """CR 613.4b: "base power and toughness become equal to <X>'s power and
+    toughness" is a layer-7b P/T copy, not toughness read as a value — the
+    v0.94.0 Oracle wording ("become equal to", was "change … to") must not
+    trip the residue mirror's ``equal to … toughness`` arm. A lone "base
+    toughness become equal to …" (Ambassador Blorpityblorpboop) is the same
+    7b set."""
+    assert "toughness_combat" not in _keys(name)
 
 
 def test_typed_anthem_multi_structural_and_color_gate():
@@ -15234,21 +15346,21 @@ def test_graveyard_matters_modifycost_morbid_excluded():
     assert "graveyard_matters" not in _keys("Bone Picker")
 
 
-def test_graveyard_matters_canattackwithdefender_via_marker_only():
-    """Expedition Lookout's ``CanAttackWithDefender`` condition
-    (GraveyardSize, player=Opponent) is excluded from the CONDITION-GATE
-    arm (the old IR this lane mirrors never builds an ``Ability``/
-    ``.condition`` object for that static-mode there), but the SEPARATE
-    ``_graveyard_count_markers`` deep-scan fallback below reaches the SAME
-    node via a raw whole-record walk that legacy's own marker producer
-    ALSO performs regardless of ability kind — confirmed against a direct
-    ``extract_signals_ir`` run: legacy DOES fire
-    ``('graveyard_matters', 'opponents')`` for this card, via its
-    ``board_count`` marker (scope='opp'), never a forced 'you' (CR
-    400.7)."""
+def test_graveyard_matters_gated_evasion_split_reads_like_phantasm():
+    """Expedition Lookout's "can attack as though it didn't have defender
+    and it can't be blocked" is TWO statics since phase v0.94.0 — a
+    ``CanAttackWithDefender`` and a sibling ``CantBeBlocked``, each gated
+    on the same GraveyardSize(player=Opponent) condition. The
+    ``CanAttackWithDefender`` half stays excluded from the CONDITION-GATE
+    arm (the old IR's blind spot for that static-mode), but the
+    ``CantBeBlocked`` half is an ordinary gated static — the Jace's
+    Phantasm class: the field's own 'opponents' scope plus the arm's
+    forced 'you'. (Through v0.86.0 phase folded both halves into the one
+    ``CanAttackWithDefender`` static, so only the deep-scan fallback
+    reached the count and fired 'opponents' alone.)"""
     idents = _idents("Expedition Lookout")
     assert ("graveyard_matters", "opponents", "") in idents
-    assert ("graveyard_matters", "you", "") not in idents
+    assert ("graveyard_matters", "you", "") in idents
 
 
 # ── ADR-0038 W6 endgame: graveyard_matters landfall (31 -> 0 live_only) ─────
@@ -17261,6 +17373,9 @@ def test_damage_for_each_excludes(name):
         "Razia's Purification",
         "Covetous Elegy",
         "Slaughter the Strong",
+        # Graduated off the keep_n_wrath_unimplemented_choose bridge at phase
+        # v0.94.0: a first-class ChooseAndSacrificeRest node now.
+        "Promise of Loyalty",
     ],
 )
 def test_keep_n_wrath_fires_each(name):
@@ -17272,7 +17387,24 @@ def test_keep_n_wrath_one_sided_opponents():
     # untouched — the trigger's OnlyDuringOpponentsTurn constraint carries
     # the scope (Archfiend of Depravity).
     assert ("keep_n_wrath", "opponents", "") in _idents("Archfiend of Depravity")
-    assert ("keep_n_wrath", "opponents", "") in _idents("No One Will Hear Your Cries")
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        # phase v0.94.0 moved this onto ChooseAndSacrificeRest; the Opponent
+        # player_scope rides the owning wrapper, not the node.
+        "No One Will Hear Your Cries",
+        # The -9 / -4 loyalty abilities carried an Opponent player_scope all along, but the
+        # ChooseAndSacrificeRest arm used to fire "each" unconditionally.
+        "Liliana, Dreadhorde General",
+        "Ajani, Nacatl Avenger",
+    ],
+)
+def test_keep_n_wrath_choose_and_sacrifice_rest_one_sided(name):
+    idents = _idents(name)
+    assert ("keep_n_wrath", "opponents", "") in idents
+    assert ("keep_n_wrath", "each", "") not in idents
 
 
 def test_keep_n_wrath_bridge_serves_unimplemented_choose_members():

@@ -21,12 +21,14 @@ from mtg_utils._analysis.tree_synthesis._shared import (
     _synthetic_concept,
 )
 from mtg_utils._card_ir.crosswalk import (
+    AbilityUnit,
     ConceptNode,
     ConceptTree,
     amount_factor,
     amount_is_scaling,
     change_zone_dirs,
     cost_has_paylife,
+    effect_owner_player_scope,
     explicit_recipient_scope,
     iter_condition_sites,
     iter_typed_nodes,
@@ -499,8 +501,40 @@ def has_trigger_draw_bleed(tree: ConceptTree) -> bool:
         if not unit.trigger_event or not unit.has_effect("draw"):
             continue
         for c in unit.effect_concepts("lose_life"):
-            if explicit_recipient_scope(c.node) == "you":
+            if _is_self_lifeloss(unit, c.node):
                 return True
+    return False
+
+
+def _is_self_lifeloss(unit: AbilityUnit, node: TypedMirrorNode) -> bool:
+    """Whether a ``lose_life`` node is the CONTROLLER's own loss (CR 119.3).
+
+    An explicit recipient decides it (``Controller`` → self). A node with NO
+    recipient is NOT self by default — phase leaves the recipient off "that
+    player / its controller / target player loses N life" too, resolving it
+    from the chain's target — with ONE exception: the compound predicate "you
+    draw N cards and lose M life", where the loss is the ``sub_ability`` of a
+    ``Draw`` aimed at the controller and one "you" governs both verbs. phase
+    v0.94.0 dropped the explicit ``Controller`` from exactly that errata'd
+    wording (Phyrexian Arena, Graveborn Muse, Undead Augur). The reverse order
+    ("that player loses 2 life and you draw a card" — Talion, Tomik) is a
+    directed loss and stays out, as does a wrapper that names its own actor.
+    """
+    scope = explicit_recipient_scope(node)
+    if scope is not None:
+        return scope == "you"
+    root = unit.node
+    if effect_owner_player_scope(root, node) is not None:
+        return False
+    for w in iter_typed_nodes(root):
+        draw = getattr(w, "effect", MISSING)
+        sub = getattr(w, "sub_ability", MISSING)
+        if (
+            tag_of(draw) == "Draw"
+            and getattr(sub, "effect", MISSING) is node
+            and explicit_recipient_scope(draw) == "you"
+        ):
+            return True
     return False
 
 
@@ -514,7 +548,7 @@ def has_selfloss_engine(tree: ConceptTree) -> bool:
     """
     for unit in tree.units:
         for c in unit.effect_concepts("lose_life"):
-            if explicit_recipient_scope(c.node) != "you":
+            if not _is_self_lifeloss(unit, c.node):
                 continue
             up = getattr(getattr(unit, "node", None), "phase", None) == "Upkeep"
             if amount_is_scaling(c.node) or (up and amount_factor(c.node) >= 2):

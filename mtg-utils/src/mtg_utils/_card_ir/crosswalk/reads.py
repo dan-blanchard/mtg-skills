@@ -16,7 +16,7 @@ three classes are inert strings under ``from __future__ import annotations``
 
 from __future__ import annotations
 
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from dataclasses import fields
 from typing import TYPE_CHECKING, Any
 
@@ -2723,10 +2723,13 @@ def mana_restricted_to_multicolored(node: object) -> bool:
 
 def iter_threaded_target_statics(
     ability_like: object,
+    *,
+    affected_tag: str = "ParentTarget",
+    resets_thread: Callable[[TypedMirrorNode], bool] | None = None,
 ) -> Iterator[tuple[object, TypedMirrorNode]]:
     """``(resolved_target_filter, static_def)`` pairs for every
-    ``ParentTarget``-affected nested static in one ability/trigger chain, the
-    target THREADED through the chain.
+    ``affected_tag``-affected (default ``ParentTarget``) nested static in one
+    ability/trigger chain, the target THREADED through the chain.
 
     Mirrors the live v14 tracked-target walk over the typed substrate: phase
     parses "target creature gains <kw> / becomes a 1/1" as a ``GenericEffect``
@@ -2737,6 +2740,13 @@ def iter_threaded_target_statics(
     High; Cyclone Sire's land animate), resolved by threading the most recent
     non-ParentTarget filter through the ``effect`` / ``sub_ability`` /
     ``execute`` chain. Callers apply their own gates on the resolved filter.
+
+    ``affected_tag="TrackedSet"`` reads the plural back-reference instead —
+    "those creatures gain X" over the chain's own targets (phase v0.94.0's
+    Arm the Cathars). ``resets_thread`` names the effects that END the thread
+    (the caller's call: e.g. a token producer or a mass effect, after which
+    "it" / "those" no longer names a chosen target); such an effect clears
+    the tracked target instead of supplying one.
     """
     tracked: object | None = None
     seen: set[int] = set()
@@ -2753,13 +2763,15 @@ def iter_threaded_target_statics(
         if isinstance(eff, TypedMirrorNode) and id(eff) not in seen:
             seen.add(id(eff))
             tgt = getattr(eff, "target", MISSING)
-            if _present(tgt) and tag_of(tgt) in ("Typed", "Or", "And"):
+            if resets_thread is not None and resets_thread(eff):
+                tracked = None
+            elif _present(tgt) and tag_of(tgt) in ("Typed", "Or", "And"):
                 tracked = tgt
             if tag_of(eff) == "GenericEffect" and tracked is not None:
                 nested = getattr(eff, "static_abilities", MISSING)
                 sts = nested if _present(nested) and isinstance(nested, list) else []
                 for st in sts:
-                    if tag_of(getattr(st, "affected", None)) == "ParentTarget":
+                    if tag_of(getattr(st, "affected", None)) == affected_tag:
                         yield tracked, st
             sub2 = getattr(eff, "sub_ability", MISSING)
             if isinstance(sub2, TypedMirrorNode):

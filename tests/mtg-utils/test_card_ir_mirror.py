@@ -166,8 +166,8 @@ def _find_required(record, schema):
 
 def test_effect_roster_shape():
     # v0.66.0: 228 + NoteManaSpent + ReproduceEventCounters + RevealChosenNumbers
-    # + CompletePlayerAction; v0.86.0: + OpenBoosterPack
-    assert len(EFFECT_VARIANTS) == 233
+    # + CompletePlayerAction; v0.86.0: + OpenBoosterPack; v0.94.0: + EmpowerJace
+    assert len(EFFECT_VARIANTS) == 234
     # 19 + CompletePlayerAction (declared in v0.66.0's enum, zero corpus nodes)
     assert len(ZERO_INSTANCE_EFFECTS) == 20
     assert set(EFFECT_VARIANTS) >= ZERO_INSTANCE_EFFECTS
@@ -315,14 +315,15 @@ def test_losslessness_roundtrip_full_corpus():
 def test_variant_population_committed_fixture():
     pop = _fixture(POPULATION_FIXTURE)
     population = pop["population"]
-    # v0.66.0: 228 + the four v0.66.0 arrivals; v0.86.0: + OpenBoosterPack (see
-    # test_effect_roster_shape)
-    assert len(population) == 233
+    # v0.66.0: 228 + the four v0.66.0 arrivals; v0.86.0: + OpenBoosterPack;
+    # v0.94.0: + EmpowerJace (see test_effect_roster_shape)
+    assert len(population) == 234
     zeros = {n for n, c in population.items() if c == 0}
     assert zeros == set(ZERO_INSTANCE_EFFECTS)
     # 209 + NoteManaSpent + ReproduceEventCounters + RevealChosenNumbers
-    # (CompletePlayerAction is zero-instance); v0.86.0: + OpenBoosterPack
-    assert pop["distinct_variants_observed"] == 213
+    # (CompletePlayerAction is zero-instance); v0.86.0: + OpenBoosterPack;
+    # v0.94.0: + EmpowerJace
+    assert pop["distinct_variants_observed"] == 214
     assert pop["zero_instance_variants"] == 20
     assert pop["total_effect_nodes"] == sum(population.values())
     # the name grep must not have drifted from phase's enum
@@ -379,9 +380,9 @@ def test_generated_classes_dispatch_table():
     for ckey in schema.structs:
         assert ckey in GENERATED_BY_CKEY, f"struct {ckey!r} has no generated class"
         assert issubclass(GENERATED_BY_CKEY[ckey], TypedMirrorNode)
-    # the headline coverage number: v0.86.0 = 1750 tagged + 119 struct = 1869 classes
-    # (v0.66.0: 1714 + 115 = 1829)
-    assert len(GENERATED_BY_KEY) + len(GENERATED_BY_CKEY) == 1869
+    # the headline coverage number: v0.94.0 = 1753 tagged + 125 struct = 1878 classes
+    # (v0.66.0: 1714 + 115 = 1829; v0.86.0: 1750 + 119 = 1869)
+    assert len(GENERATED_BY_KEY) + len(GENERATED_BY_CKEY) == 1878
 
 
 def test_typed_instances_no_fallback_samples():

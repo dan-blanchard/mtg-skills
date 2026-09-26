@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from mtg_utils._analysis import signal_keys
 from mtg_utils._analysis._subtypes import CREATURE_SUBTYPES
 from mtg_utils._analysis.bridge_ledger import (
-    KEEP_N_CHOOSE_TYPES,
+    keep_n_casr_reads,
     keep_n_shape_b_reads,
 )
 from mtg_utils._analysis.lanes._shared import (
@@ -1622,8 +1622,8 @@ def _damage_for_each(tree: ConceptTree) -> list[Signal]:
 
 
 # ── task B-3: keep_n_wrath — choose-N-keep-the-rest board resets ─────────────
-# The core-type gate and the Shape-B chain walk live in bridge_ledger
-# (KEEP_N_CHOOSE_TYPES / keep_n_shape_b_reads) — one home for the lane AND
+# The core-type gate and both shape walks live in bridge_ledger
+# (keep_n_casr_reads / keep_n_shape_b_reads) — one home for the lane AND
 # the bridge's gap (verified-review F1/F9).
 
 
@@ -1672,13 +1672,7 @@ def _keep_n_wrath(tree: ConceptTree) -> list[Signal]:
             seen.add(scope)
             out.append(Signal("keep_n_wrath", scope, "", raw, tree.name, "high"))
 
-    for unit in tree.units:
-        for c in unit.effects:
-            if tag_of(c.node) == "ChooseAndSacrificeRest":
-                sac_filter = getattr(c.node, "sacrifice_filter", None)
-                if set(filter_core_types(sac_filter)) & KEEP_N_CHOOSE_TYPES:
-                    push("each", c.raw or "")
-    for scope, raw in keep_n_shape_b_reads(tree):
+    for scope, raw in (*keep_n_casr_reads(tree), *keep_n_shape_b_reads(tree)):
         push(scope, raw)
     return out
 

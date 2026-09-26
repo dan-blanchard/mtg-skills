@@ -1,5 +1,5 @@
 {
-  "phase_tag": "v0.86.0",
+  "phase_tag": "v0.94.0",
   "schema_version": 1,
   "cards": {
     "\"Ach! Hans, Run!\"": {
@@ -1117,7 +1117,11 @@
           },
           "items": [
             0
-          ]
+          ],
+          "gap": {
+            "kind": "unparsed_quantity",
+            "operand": "the life total of target opponent"
+          }
         }
       ],
       "legalities": {},
@@ -1323,15 +1327,10 @@
         "uncommon"
       ]
     },
-    "A-Alrund, God of the Cosmos": {
-      "name": "A-Alrund, God of the Cosmos",
+    "Aang and La, Ocean's Fury": {
+      "name": "Aang and La, Ocean's Fury",
       "mana_cost": {
-        "type": "Cost",
-        "shards": [
-          "Blue",
-          "Blue"
-        ],
-        "generic": 3
+        "type": "NoCost"
       },
       "card_type": {
         "supertypes": [
@@ -1341,125 +1340,56 @@
           "Creature"
         ],
         "subtypes": [
-          "God"
+          "Avatar",
+          "Spirit",
+          "Ally"
         ]
       },
       "power": {
         "type": "Fixed",
-        "value": 1
+        "value": 5
       },
       "toughness": {
         "type": "Fixed",
-        "value": 1
+        "value": 5
       },
       "loyalty": null,
       "defense": null,
-      "oracle_text": "Alrund gets +1/+1 for each card in your hand and each foretold card you own in exile.\nAt the beginning of your end step, choose a card type, then reveal the top three cards of your library. Put all cards of the chosen type revealed this way into your hand and the rest on the bottom of your library in any order.",
+      "oracle_text": "Reach, trample\nWhenever Aang and La attack, put a +1/+1 counter on each tapped creature you control.",
       "non_ability_text": null,
       "flavor_name": null,
-      "keywords": [],
+      "keywords": [
+        "Reach",
+        "Trample"
+      ],
       "abilities": [],
       "triggers": [
         {
-          "mode": "Phase",
+          "mode": "Attacks",
           "execute": {
             "kind": "Spell",
             "effect": {
-              "type": "Choose",
-              "choice_type": "CardType",
-              "persist": true
+              "type": "PutCounterAll",
+              "counter_type": "P1P1",
+              "count": {
+                "type": "Fixed",
+                "value": 1
+              },
+              "target": {
+                "type": "Typed",
+                "type_filters": [
+                  "Creature"
+                ],
+                "controller": "You",
+                "properties": [
+                  {
+                    "type": "Tapped"
+                  }
+                ]
+              }
             },
             "cost": null,
-            "sub_ability": {
-              "kind": "Spell",
-              "effect": {
-                "type": "RevealTop",
-                "player": {
-                  "type": "Controller"
-                },
-                "count": 3
-              },
-              "cost": null,
-              "sub_ability": {
-                "kind": "Spell",
-                "effect": {
-                  "type": "ChangeZoneAll",
-                  "origin": null,
-                  "destination": "Hand",
-                  "target": {
-                    "type": "TrackedSetFiltered",
-                    "id": 0,
-                    "filter": {
-                      "type": "Typed",
-                      "type_filters": [
-                        "Card"
-                      ],
-                      "controller": null,
-                      "properties": [
-                        {
-                          "type": "IsChosenCardType"
-                        }
-                      ]
-                    }
-                  }
-                },
-                "cost": null,
-                "sub_ability": {
-                  "kind": "Spell",
-                  "effect": {
-                    "type": "ChangeZoneAll",
-                    "origin": null,
-                    "destination": "Library",
-                    "target": {
-                      "type": "TrackedSetFiltered",
-                      "id": 0,
-                      "filter": {
-                        "type": "Not",
-                        "filter": {
-                          "type": "Typed",
-                          "type_filters": [
-                            "Card"
-                          ],
-                          "controller": null,
-                          "properties": [
-                            {
-                              "type": "IsChosenCardType"
-                            }
-                          ]
-                        }
-                      }
-                    },
-                    "library_position": {
-                      "type": "Bottom"
-                    }
-                  },
-                  "cost": null,
-                  "sub_ability": null,
-                  "duration": null,
-                  "description": null,
-                  "target_prompt": null,
-                  "condition": null,
-                  "optional_targeting": false,
-                  "optional": false,
-                  "forward_result": false
-                },
-                "duration": null,
-                "description": null,
-                "target_prompt": null,
-                "condition": null,
-                "optional_targeting": false,
-                "optional": false,
-                "forward_result": false,
-                "sub_link": "SequentialSibling"
-              },
-              "duration": null,
-              "description": null,
-              "target_prompt": null,
-              "condition": null,
-              "optional_targeting": false,
-              "optional": false,
-              "forward_result": false
-            },
+            "sub_ability": null,
             "duration": null,
             "description": null,
             "target_prompt": null,
@@ -1468,164 +1398,326 @@
             "optional": false,
             "forward_result": false
           },
-          "valid_card": null,
+          "valid_card": {
+            "type": "SelfRef"
+          },
           "origin": null,
           "destination": null,
           "trigger_zones": [
             "Battlefield"
           ],
-          "phase": "End",
+          "phase": null,
           "optional": false,
           "damage_kind": "Any",
           "secondary": false,
           "valid_target": null,
           "valid_source": null,
-          "description": "At the beginning of your end step, choose a card type, then reveal the top three cards of your library. Put all cards of the chosen type revealed this way into your hand and the rest on the bottom of your library in any order.",
-          "constraint": {
-            "type": "OnlyDuringYourTurn"
-          },
+          "description": "Whenever ~ attack, put a +1/+1 counter on each tapped creature you control.",
+          "constraint": null,
           "condition": null,
           "batched": false
         }
       ],
-      "static_abilities": [
-        {
-          "mode": "Continuous",
-          "affected": {
-            "type": "SelfRef"
-          },
-          "modifications": [
-            {
-              "type": "AddDynamicPower",
-              "value": {
-                "type": "Sum",
-                "exprs": [
-                  {
-                    "type": "Ref",
-                    "qty": {
-                      "type": "ZoneCardCount",
-                      "zone": "Hand",
-                      "card_types": [],
-                      "scope": "Controller"
-                    }
-                  },
-                  {
-                    "type": "Ref",
-                    "qty": {
-                      "type": "ObjectCount",
-                      "filter": {
-                        "type": "Typed",
-                        "type_filters": [
-                          "Card"
-                        ],
-                        "controller": null,
-                        "properties": [
-                          {
-                            "type": "Foretold"
-                          },
-                          {
-                            "type": "Owned",
-                            "controller": "You"
-                          },
-                          {
-                            "type": "InZone",
-                            "zone": "Exile"
-                          }
-                        ]
-                      }
-                    }
-                  }
-                ]
-              }
-            },
-            {
-              "type": "AddDynamicToughness",
-              "value": {
-                "type": "Sum",
-                "exprs": [
-                  {
-                    "type": "Ref",
-                    "qty": {
-                      "type": "ZoneCardCount",
-                      "zone": "Hand",
-                      "card_types": [],
-                      "scope": "Controller"
-                    }
-                  },
-                  {
-                    "type": "Ref",
-                    "qty": {
-                      "type": "ObjectCount",
-                      "filter": {
-                        "type": "Typed",
-                        "type_filters": [
-                          "Card"
-                        ],
-                        "controller": null,
-                        "properties": [
-                          {
-                            "type": "Foretold"
-                          },
-                          {
-                            "type": "Owned",
-                            "controller": "You"
-                          },
-                          {
-                            "type": "InZone",
-                            "zone": "Exile"
-                          }
-                        ]
-                      }
-                    }
-                  }
-                ]
-              }
-            }
-          ],
-          "condition": null,
-          "affected_zone": null,
-          "effect_zone": null,
-          "active_zones": [],
-          "characteristic_defining": false,
-          "description": "~ gets +1/+1 for each card in your hand and each foretold card you own in exile."
-        }
-      ],
+      "static_abilities": [],
       "replacements": [],
       "color_override": null,
       "color_identity": [
-        "Blue"
+        "Blue",
+        "White"
       ],
-      "scryfall_oracle_id": "2d6186a6-5236-4fb9-bcb6-f6825b148886",
+      "scryfall_oracle_id": "cbf09050-39d0-463b-96db-9e22011ae0d8",
       "brawl_commander": true,
       "is_commander": true,
       "metadata": {
         "source_printing_ids": [
-          "b443504e-1b25-4565-bad7-2575826c7bb9"
+          "077a1ad2-6317-4271-b86c-cc999776251d",
+          "372afa84-9ca9-46e6-8643-e16249505c59",
+          "82866a0e-485a-4f7e-8c49-f7d9ff3f4ad4",
+          "de89fec4-f5c8-4513-8504-ac9bafb44054"
         ]
       },
       "legalities": {
         "brawl": "legal",
-        "historic": "legal"
+        "commander": "legal",
+        "duel": "legal",
+        "historic": "legal",
+        "legacy": "legal",
+        "modern": "legal",
+        "oathbreaker": "legal",
+        "pioneer": "legal",
+        "standard": "legal",
+        "standardbrawl": "legal",
+        "timeless": "legal",
+        "vintage": "legal"
       },
-      "layout": "modal_dfc",
-      "face_index": 0,
+      "layout": "transform",
+      "face_index": 1,
       "printings": [
-        "KHM"
+        "PTLA",
+        "TLA"
       ],
       "rarities": [
-        "mythic"
+        "rare"
       ]
     },
-    "A-Cabaretti Charm": {
-      "name": "A-Cabaretti Charm",
+    "Abian, Luvion Usurper": {
+      "name": "Abian, Luvion Usurper",
       "mana_cost": {
         "type": "Cost",
         "shards": [
           "Red",
-          "Green",
-          "White"
+          "Green"
         ],
-        "generic": 0
+        "generic": 5
+      },
+      "card_type": {
+        "supertypes": [
+          "Legendary"
+        ],
+        "core_types": [
+          "Planeswalker"
+        ],
+        "subtypes": [
+          "Abian"
+        ]
+      },
+      "power": null,
+      "toughness": null,
+      "loyalty": "5",
+      "defense": null,
+      "oracle_text": "As Abian, Luvion Usurper enters, you become Abian. (Your life total becomes equal to their loyalty. You can activate the loyalty abilities by spending or gaining life.)\n[+3]: Discard your hand, then draw cards equal to the greatest power among creatures you control.\n[+1]: Create a 3/2 red and green Spirit creature token.\n[−X]: You deal X damage to any target.",
+      "non_ability_text": null,
+      "flavor_name": null,
+      "keywords": [],
+      "abilities": [
+        {
+          "kind": "Spell",
+          "effect": {
+            "type": "Unimplemented",
+            "name": "unknown",
+            "description": "As ~ enters, you become ~."
+          },
+          "cost": null,
+          "sub_ability": null,
+          "duration": null,
+          "description": "As ~ enters, you become ~.",
+          "target_prompt": null,
+          "condition": null,
+          "optional_targeting": false,
+          "optional": false,
+          "forward_result": false
+        },
+        {
+          "kind": "Activated",
+          "effect": {
+            "type": "Discard",
+            "count": {
+              "type": "Ref",
+              "qty": {
+                "type": "HandSize",
+                "player": {
+                  "type": "Controller"
+                }
+              }
+            },
+            "target": {
+              "type": "Controller"
+            }
+          },
+          "cost": {
+            "type": "Loyalty",
+            "amount": 3
+          },
+          "sub_ability": {
+            "kind": "Spell",
+            "effect": {
+              "type": "Draw",
+              "count": {
+                "type": "Ref",
+                "qty": {
+                  "type": "PropertyAggregate",
+                  "function": "Max",
+                  "property": "Power",
+                  "source": {
+                    "type": "Objects",
+                    "filter": {
+                      "type": "Typed",
+                      "type_filters": [
+                        "Creature"
+                      ],
+                      "controller": "You",
+                      "properties": []
+                    }
+                  }
+                }
+              },
+              "target": {
+                "type": "Controller"
+              }
+            },
+            "cost": null,
+            "sub_ability": null,
+            "duration": null,
+            "description": null,
+            "target_prompt": null,
+            "condition": null,
+            "optional_targeting": false,
+            "optional": false,
+            "forward_result": false
+          },
+          "duration": null,
+          "description": "[+3]: Discard your hand, then draw cards equal to the greatest power among creatures you control.",
+          "target_prompt": null,
+          "activation_restrictions": [
+            {
+              "type": "AsSorcery"
+            }
+          ],
+          "condition": null,
+          "optional_targeting": false,
+          "optional": false,
+          "forward_result": false
+        },
+        {
+          "kind": "Activated",
+          "effect": {
+            "type": "Token",
+            "name": "Spirit",
+            "power": {
+              "type": "Fixed",
+              "value": 3
+            },
+            "toughness": {
+              "type": "Fixed",
+              "value": 2
+            },
+            "types": [
+              "Creature",
+              "Spirit"
+            ],
+            "colors": [
+              "Red",
+              "Green"
+            ],
+            "keywords": [],
+            "tapped": false,
+            "count": {
+              "type": "Fixed",
+              "value": 1
+            },
+            "owner": {
+              "type": "Controller"
+            },
+            "enters_attacking": false
+          },
+          "cost": {
+            "type": "Loyalty",
+            "amount": 1
+          },
+          "sub_ability": null,
+          "duration": null,
+          "description": "[+1]: Create a 3/2 red and green Spirit creature token.",
+          "target_prompt": null,
+          "activation_restrictions": [
+            {
+              "type": "AsSorcery"
+            }
+          ],
+          "condition": null,
+          "optional_targeting": false,
+          "optional": false,
+          "forward_result": false
+        },
+        {
+          "kind": "Activated",
+          "effect": {
+            "type": "DealDamage",
+            "amount": {
+              "type": "Ref",
+              "qty": {
+                "type": "Variable",
+                "name": "X"
+              }
+            },
+            "target": {
+              "type": "Any"
+            }
+          },
+          "cost": {
+            "type": "RemoveCounter",
+            "count": 4294967295,
+            "counter_type": {
+              "type": "OfType",
+              "data": "loyalty"
+            },
+            "target": null,
+            "selection": "SingleObject"
+          },
+          "sub_ability": null,
+          "duration": null,
+          "description": "[−X]: You deal X damage to any target.",
+          "target_prompt": null,
+          "activation_restrictions": [
+            {
+              "type": "AsSorcery"
+            }
+          ],
+          "condition": null,
+          "optional_targeting": false,
+          "optional": false,
+          "forward_result": false
+        }
+      ],
+      "triggers": [],
+      "static_abilities": [],
+      "replacements": [],
+      "color_override": [
+        "Green",
+        "Red"
+      ],
+      "color_identity": [
+        "Green",
+        "Red"
+      ],
+      "scryfall_oracle_id": "2df37779-2ec0-48ac-8be9-5d3b0e9679e6",
+      "brawl_commander": true,
+      "is_oathbreaker": true,
+      "legalities": {},
+      "printings": [
+        "CMB1",
+        "CMB2"
+      ],
+      "rulings": [
+        {
+          "date": "2019-11-12",
+          "text": "If an effect adds or removes loyalty counters from Abian, you also gain or lose that much life. Similarly, if an effect causes you to gain or lose life, that many loyalty counters are put on or removed from Abian."
+        },
+        {
+          "date": "2019-11-12",
+          "text": "If an effect causes you to leave the battlefield, you resume being just a player. Your life total doesn't change. The Abian card that represented you moves to the appropriate zone."
+        },
+        {
+          "date": "2019-11-12",
+          "text": "If you control Abian but haven't become Abian, its loyalty abilities function as normal, drawing from its loyalty counters and not your life. Its last ability causes you, the player, to deal damage, although the source of the ability is Abian."
+        },
+        {
+          "date": "2019-11-12",
+          "text": "To activate your last ability, you can't pay more life than you have."
+        },
+        {
+          "date": "2019-11-12",
+          "text": "While Abian is on the battlefield, you're both a player and a permanent. You're a legendary planeswalker that's red and green."
+        }
+      ]
+    },
+    "Abrade": {
+      "name": "Abrade",
+      "mana_cost": {
+        "type": "Cost",
+        "shards": [
+          "Red"
+        ],
+        "generic": 1
       },
       "card_type": {
         "supertypes": [],
@@ -1638,7 +1730,7 @@
       "toughness": null,
       "loyalty": null,
       "defense": null,
-      "oracle_text": "Choose one —\n• Cabaretti Charm deals damage equal to twice the number of creatures you control to target creature or planeswalker.\n• Creatures you control get +1/+1 and gain trample until end of turn.\n• Create two 1/1 green and white Citizen creature tokens.",
+      "oracle_text": "Choose one —\n• Abrade deals 3 damage to target creature.\n• Destroy target artifact.",
       "non_ability_text": null,
       "flavor_name": null,
       "keywords": [],
@@ -1648,405 +1740,47 @@
           "effect": {
             "type": "DealDamage",
             "amount": {
-              "type": "Multiply",
-              "factor": 2,
-              "inner": {
-                "type": "Ref",
-                "qty": {
-                  "type": "ObjectCount",
-                  "filter": {
-                    "type": "Typed",
-                    "type_filters": [
-                      "Creature"
-                    ],
-                    "controller": "You",
-                    "properties": []
-                  }
-                }
-              }
+              "type": "Fixed",
+              "value": 3
             },
             "target": {
-              "type": "Or",
-              "filters": [
-                {
-                  "type": "Typed",
-                  "type_filters": [
-                    "Creature"
-                  ],
-                  "controller": null,
-                  "properties": []
-                },
-                {
-                  "type": "Typed",
-                  "type_filters": [
-                    "Planeswalker"
-                  ],
-                  "controller": null,
-                  "properties": []
-                }
-              ]
-            }
-          },
-          "cost": null,
-          "sub_ability": null,
-          "duration": null,
-          "description": null,
-          "target_prompt": null,
-          "condition": null,
-          "optional_targeting": false,
-          "optional": false,
-          "forward_result": false
-        },
-        {
-          "kind": "Spell",
-          "effect": {
-            "type": "GenericEffect",
-            "static_abilities": [
-              {
-                "mode": "Continuous",
-                "affected": {
-                  "type": "Typed",
-                  "type_filters": [
-                    "Creature"
-                  ],
-                  "controller": "You",
-                  "properties": []
-                },
-                "modifications": [
-                  {
-                    "type": "AddPower",
-                    "value": 1
-                  },
-                  {
-                    "type": "AddToughness",
-                    "value": 1
-                  },
-                  {
-                    "type": "AddKeyword",
-                    "keyword": "Trample"
-                  }
-                ],
-                "condition": null,
-                "affected_zone": null,
-                "effect_zone": null,
-                "active_zones": [],
-                "characteristic_defining": false,
-                "description": "get +1/+1 and gain trample"
-              }
-            ],
-            "duration": "UntilEndOfTurn",
-            "target": null
-          },
-          "cost": null,
-          "sub_ability": null,
-          "duration": "UntilEndOfTurn",
-          "description": null,
-          "target_prompt": null,
-          "condition": null,
-          "optional_targeting": false,
-          "optional": false,
-          "forward_result": false
-        },
-        {
-          "kind": "Spell",
-          "effect": {
-            "type": "Token",
-            "name": "Citizen",
-            "power": {
-              "type": "Fixed",
-              "value": 1
-            },
-            "toughness": {
-              "type": "Fixed",
-              "value": 1
-            },
-            "types": [
-              "Creature",
-              "Citizen"
-            ],
-            "colors": [
-              "Green",
-              "White"
-            ],
-            "keywords": [],
-            "tapped": false,
-            "count": {
-              "type": "Fixed",
-              "value": 2
-            },
-            "owner": {
-              "type": "Controller"
-            },
-            "enters_attacking": false
-          },
-          "cost": null,
-          "sub_ability": null,
-          "duration": null,
-          "description": null,
-          "target_prompt": null,
-          "condition": null,
-          "optional_targeting": false,
-          "optional": false,
-          "forward_result": false
-        }
-      ],
-      "triggers": [],
-      "static_abilities": [],
-      "replacements": [],
-      "color_override": [
-        "Green",
-        "Red",
-        "White"
-      ],
-      "color_identity": [
-        "Green",
-        "Red",
-        "White"
-      ],
-      "scryfall_oracle_id": "71b3e813-7205-43e5-8411-7945191c766f",
-      "modal": {
-        "min_choices": 1,
-        "max_choices": 1,
-        "mode_count": 3,
-        "mode_descriptions": [
-          "~ deals damage equal to twice the number of creatures you control to target creature or planeswalker.",
-          "Creatures you control get +1/+1 and gain trample until end of turn.",
-          "Create two 1/1 green and white Citizen creature tokens."
-        ],
-        "allow_repeat_modes": false,
-        "chooser": {
-          "type": "Controller"
-        }
-      },
-      "metadata": {
-        "source_printing_ids": [
-          "94e82413-9736-4013-a39a-5498c1c85bba"
-        ]
-      },
-      "legalities": {
-        "brawl": "legal",
-        "historic": "legal"
-      },
-      "printings": [
-        "SNC"
-      ],
-      "rarities": [
-        "uncommon"
-      ]
-    },
-    "A-Ellywick Tumblestrum": {
-      "name": "A-Ellywick Tumblestrum",
-      "mana_cost": {
-        "type": "Cost",
-        "shards": [
-          "Green",
-          "Green"
-        ],
-        "generic": 2
-      },
-      "card_type": {
-        "supertypes": [
-          "Legendary"
-        ],
-        "core_types": [
-          "Planeswalker"
-        ],
-        "subtypes": [
-          "Ellywick"
-        ]
-      },
-      "power": null,
-      "toughness": null,
-      "loyalty": "4",
-      "defense": null,
-      "oracle_text": "[+1]: Venture into the dungeon. (Enter the first room or advance to the next room.)\n[−2]: Look at the top six cards of your library. You may reveal a creature card from among them and put it into your hand. If it's legendary, you gain 3 life. Put the rest on the bottom of your library in a random order.\n[−6]: You get an emblem with \"Creatures you control have trample and haste and get +2/+2 for each differently named dungeon you've completed.\"",
-      "non_ability_text": null,
-      "flavor_name": null,
-      "keywords": [],
-      "abilities": [
-        {
-          "kind": "Activated",
-          "effect": {
-            "type": "VentureIntoDungeon"
-          },
-          "cost": {
-            "type": "Loyalty",
-            "amount": 1
-          },
-          "sub_ability": null,
-          "duration": null,
-          "description": "[+1]: Venture into the dungeon.",
-          "target_prompt": null,
-          "activation_restrictions": [
-            {
-              "type": "AsSorcery"
-            }
-          ],
-          "condition": null,
-          "optional_targeting": false,
-          "optional": false,
-          "forward_result": false
-        },
-        {
-          "kind": "Activated",
-          "effect": {
-            "type": "Dig",
-            "player": {
-              "type": "Controller"
-            },
-            "count": {
-              "type": "Fixed",
-              "value": 6
-            },
-            "destination": "Hand",
-            "keep_count": 1,
-            "up_to": true,
-            "filter": {
               "type": "Typed",
               "type_filters": [
                 "Creature"
               ],
               "controller": null,
               "properties": []
-            },
-            "rest_destination": null,
-            "reveal": true,
-            "enter_tapped": false,
-            "enters_attacking": false
-          },
-          "cost": {
-            "type": "Loyalty",
-            "amount": -2
-          },
-          "sub_ability": {
-            "kind": "Spell",
-            "effect": {
-              "type": "GainLife",
-              "amount": {
-                "type": "Fixed",
-                "value": 3
-              }
-            },
-            "cost": null,
-            "sub_ability": {
-              "kind": "Spell",
-              "effect": {
-                "type": "PutAtLibraryPosition",
-                "target": {
-                  "type": "TrackedSet",
-                  "id": 0
-                },
-                "count": {
-                  "type": "Fixed",
-                  "value": 1
-                },
-                "position": {
-                  "type": "Bottom"
-                }
-              },
-              "cost": null,
-              "sub_ability": null,
-              "duration": null,
-              "description": null,
-              "target_prompt": null,
-              "condition": null,
-              "optional_targeting": false,
-              "optional": false,
-              "forward_result": false,
-              "sub_link": "SequentialSibling"
-            },
-            "duration": null,
-            "description": null,
-            "target_prompt": null,
-            "condition": {
-              "type": "TargetMatchesFilter",
-              "filter": {
-                "type": "Typed",
-                "type_filters": [],
-                "controller": null,
-                "properties": [
-                  {
-                    "type": "HasSupertype",
-                    "value": "Legendary"
-                  }
-                ]
-              },
-              "use_lki": false
-            },
-            "optional_targeting": false,
-            "optional": false,
-            "forward_result": false,
-            "sub_link": "SequentialSibling"
-          },
-          "duration": null,
-          "description": "[−2]: Look at the top six cards of your library. You may reveal a creature card from among them and put it into your hand. If it's legendary, you gain 3 life. Put the rest on the bottom of your library in a random order.",
-          "target_prompt": null,
-          "activation_restrictions": [
-            {
-              "type": "AsSorcery"
             }
-          ],
+          },
+          "cost": null,
+          "sub_ability": null,
+          "duration": null,
+          "description": null,
+          "target_prompt": null,
           "condition": null,
           "optional_targeting": false,
           "optional": false,
           "forward_result": false
         },
         {
-          "kind": "Activated",
+          "kind": "Spell",
           "effect": {
-            "type": "CreateEmblem",
-            "statics": [
-              {
-                "mode": "Continuous",
-                "affected": {
-                  "type": "Typed",
-                  "type_filters": [
-                    "Creature"
-                  ],
-                  "controller": "You",
-                  "properties": []
-                },
-                "modifications": [
-                  {
-                    "type": "AddPower",
-                    "value": 2
-                  },
-                  {
-                    "type": "AddToughness",
-                    "value": 2
-                  },
-                  {
-                    "type": "AddKeyword",
-                    "keyword": "Trample"
-                  },
-                  {
-                    "type": "AddKeyword",
-                    "keyword": "Haste"
-                  }
-                ],
-                "condition": null,
-                "affected_zone": null,
-                "effect_zone": null,
-                "active_zones": [],
-                "characteristic_defining": false,
-                "description": "Creatures you control have trample and haste and get +2/+2 for each differently named dungeon you've completed"
-              }
-            ],
-            "triggers": []
+            "type": "Destroy",
+            "target": {
+              "type": "Typed",
+              "type_filters": [
+                "Artifact"
+              ],
+              "controller": null,
+              "properties": []
+            },
+            "cant_regenerate": false
           },
-          "cost": {
-            "type": "Loyalty",
-            "amount": -6
-          },
+          "cost": null,
           "sub_ability": null,
           "duration": null,
-          "description": "[−6]: You get an emblem with \"Creatures you control have trample and haste and get +2/+2 for each differently named dungeon you've completed.\"",
+          "description": null,
           "target_prompt": null,
-          "activation_restrictions": [
-            {
-              "type": "AsSorcery"
-            }
-          ],
           "condition": null,
           "optional_targeting": false,
           "optional": false,
@@ -2058,44 +1792,93 @@
       "replacements": [],
       "color_override": null,
       "color_identity": [
-        "Green"
+        "Red"
       ],
-      "scryfall_oracle_id": "fbd5f5ed-cdd9-4cf7-a66f-788d63151a05",
-      "brawl_commander": true,
-      "is_oathbreaker": true,
-      "parse_warnings": [
-        {
-          "type": "SwallowedClause",
-          "detector": "DynamicQty",
-          "description": "[−6]: You get an emblem with \"Creatures you control have trample and haste and get +2/+2 for each differently named dungeon you've complet",
-          "line_index": 2,
-          "unit_span": {
-            "first_line": 2,
-            "last_line": 2,
-            "start_byte": 307,
-            "end_byte": 451,
-            "precision": "Exact",
-            "ordinal_within_span": 0
-          },
-          "items": [
-            2
-          ]
+      "scryfall_oracle_id": "f9db72dc-9a5b-48a4-a86e-7464d9a2166a",
+      "modal": {
+        "min_choices": 1,
+        "max_choices": 1,
+        "mode_count": 2,
+        "mode_descriptions": [
+          "~ deals 3 damage to target creature.",
+          "Destroy target artifact."
+        ],
+        "allow_repeat_modes": false,
+        "chooser": {
+          "type": "Controller"
         }
-      ],
+      },
       "metadata": {
         "source_printing_ids": [
-          "49215be1-88ed-4302-a708-99496d90d175"
+          "1add1757-c1f8-448a-b279-c6940fb7ad5f",
+          "24da9431-7e52-44f5-bc18-2f2d8a4ca81e",
+          "25a6e1bb-c751-447c-be69-e03692568678",
+          "31af49a8-e655-4670-b035-58171a6a57b9",
+          "47f39b5e-2e85-4f31-bbab-0b0bf58f701d",
+          "4c2a1b4e-858c-47a3-be89-9275e48d5475",
+          "4f984662-8fe0-42eb-8031-89c80315dede",
+          "548947dc-a5ca-43b5-9531-bcef20fa4ae5",
+          "59f501f5-2bf4-40a5-8ac5-bff8a64b6762",
+          "61ada5ce-3a58-4da9-aff2-93a61411dd64",
+          "6c762283-0a35-42d7-8c28-3b349e56789a",
+          "6d7c1ad4-5bbf-4d84-8494-953e95ed2717",
+          "778fad36-28d5-488b-bc7a-e60c8646bdc2",
+          "7b0d67b1-e7ae-4ec9-b135-8ff10b46e92b",
+          "7edf88fb-a4ba-40d4-af93-81ffbeedb29c",
+          "84319dfb-eaf7-4b98-8c4f-30f5e779591b",
+          "a0e47d11-cb21-402b-a39e-588a94cc57b4",
+          "aa74ab7c-b9de-47ab-83ea-2b98738838c7",
+          "c1466ae6-9dbc-4ead-844b-9b1ba7274baf",
+          "c1d9e279-61c1-4567-9f54-50a7138fb36d",
+          "cccbc616-5592-4051-a066-a325209f349e",
+          "d27d5b87-6dfc-4b99-822b-f6f8489ad275",
+          "fee393c7-1868-4d11-93c3-3d143e0c8dd9"
         ]
       },
       "legalities": {
         "brawl": "legal",
-        "historic": "legal"
+        "commander": "legal",
+        "duel": "legal",
+        "historic": "legal",
+        "legacy": "legal",
+        "modern": "legal",
+        "oathbreaker": "legal",
+        "pauper": "legal",
+        "paupercommander": "legal",
+        "pioneer": "legal",
+        "standard": "legal",
+        "standardbrawl": "legal",
+        "timeless": "legal",
+        "vintage": "legal"
       },
       "printings": [
-        "AFR"
+        "2XM",
+        "AKR",
+        "BLC",
+        "BRC",
+        "CMM",
+        "CMR",
+        "DBL",
+        "FDC",
+        "FDN",
+        "GN3",
+        "HOU",
+        "INR",
+        "LCI",
+        "PHOU",
+        "PLST",
+        "PRM",
+        "SCD",
+        "SLD",
+        "SOA",
+        "SOC",
+        "TDC",
+        "VOW"
       ],
       "rarities": [
-        "mythic"
+        "common",
+        "uncommon",
+        "rare"
       ]
     }
   }

@@ -14,7 +14,9 @@ seeding fix landed. The 2026-09-12 architecture review listed scripting the bump
 **Decision.** `bump-phase-pin <tag>` (`mtg_utils.phase_bump`) runs the recipe in
 order and stops at the first failure; `--from-step N` resumes.
 
-1. Rewrite `PHASE_TAG`, the CLAUDE.md mentions and the pin test.
+1. Rewrite the live pin sites — `PHASE_TAG`, CLAUDE.md's "currently vX" mentions
+   and the pin test. A dated history mention of the old tag ("the v0.66.0 pin bump
+   found …") is left alone.
 2. Fetch `ability.rs` at the tag and rewrite `EFFECT_VARIANTS` (order preserved).
 3. Fetch and cache card-data for the tag.
 4. Build the substrate; rewrite `ZERO_INSTANCE_EFFECTS` from the population zeros.
@@ -24,7 +26,9 @@ order and stops at the first failure; `--from-step N` resumes.
 7. Copy the old signals index aside; build snapshot, sidecar, signals index.
 8. Signal diff per key, each lost card marked residue-backed (a bridge candidate)
    or silent.
-9. Run the bridge ledger test and collect its RETIRE-READY rows.
+9. Run the bridge ledger test, then every `@pytest.mark.retirement_canary` test
+   (a canary guards a phase-misparse workaround that has no ledger row), and
+   collect both runs' RETIRE-READY rows.
 
 **Amended (ADR-0056).** Step 5 is gone. The crosswalk fixture merged into the card
 snapshot, which the rebuild step already regenerates; the snapshot builder's summary,

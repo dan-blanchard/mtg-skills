@@ -8,17 +8,20 @@ the first failure; ``--from-step N`` resumes. Every judgment call stays human: t
 script edits the pin and the generated rosters, regenerates every artifact that has a
 builder, and writes ONE markdown report — the impostor census, the per-key signal
 diff (lost idents split into residue-backed, i.e. bridgeable, vs silent), and the
-ledger's RETIRE-READY rows — for the triage that follows.
+ledger's and the retirement canaries' RETIRE-READY rows — for the triage that
+follows.
 
 Steps:
-  1 pin                 PHASE_TAG, the CLAUDE.md mentions, the pin test
+  1 pin                 PHASE_TAG, CLAUDE.md's "currently" mentions, the pin test
+                        (live sites only — dated history mentions are kept)
   2 variants            EFFECT_VARIANTS from phase's ``ability.rs`` at the tag
   3 card-data           fetch + cache card-data.json for the tag
   4 substrate           build-card-ir-substrate; ZERO_INSTANCE_EFFECTS from the zeros
   5 impostor-census     card-data records whose text matches no bulk face
   6 rebuild             copy the signals .pkl aside; snapshot, sidecar, signals index
   7 signal-diff         old vs new signals index, per key
-  8 graduation          test_bridge_ledger.py RETIRE-READY rows
+  8 graduation          RETIRE-READY rows: test_bridge_ledger.py + every
+                        ``retirement_canary``-marked test
 
 (The crosswalk suites' own fixture — step 5 until ADR-0056 merged it into the card
 snapshot — is re-resolved by step 6's ``build-card-snapshot`` with everything else;
@@ -66,6 +69,13 @@ PIN_MENTION_FILES = (
 FIXTURES = Path("tests/fixtures")
 POPULATION_FIXTURE = FIXTURES / "phase_variant_population.json"
 BRIDGE_LEDGER_TEST = Path("tests/mtg-utils/test_bridge_ledger.py")
+# A retirement canary guards a phase-misparse workaround that is NOT a ledger
+# row (it suppresses a fire rather than recovering one, so no ADR-0048 gap
+# retires it): it fails "<name>: RETIRE-READY — …" once the misparse is gone.
+# Marked ``@pytest.mark.retirement_canary`` (registered in tests/conftest.py)
+# and selected by marker, so a new canary needs no edit here.
+CANARY_TESTS = Path("tests/mtg-utils")
+CANARY_MARKER = "retirement_canary"
 
 
 # ── pure pieces ─────────────────────────────────────────────────────────────────
@@ -147,9 +157,21 @@ def render_zero_instance(names: Iterable[str]) -> str:
     )
 
 
+# A LIVE pin site — the only tag mentions a bump rewrites — is the tag right
+# after ``PHASE_TAG: str = "`` (the pin), ``PHASE_TAG == "`` (the pin test), or
+# ``currently `` / ``currently ``\` (CLAUDE.md's "currently vX" mentions). Any
+# other mention of the old tag is dated history ("the v0.66.0 pin bump found
+# …") and must survive the bump untouched; a blanket replace rewrote those into
+# falsehoods across three bumps.
+_LIVE_PIN_PREFIX = r'(PHASE_TAG(?:: str)? ==? "|\bcurrently `?)'
+
+
 def rewrite_pin(text: str, old_tag: str, new_tag: str) -> tuple[str, int]:
-    """Replace every exact ``old_tag`` occurrence; returns (text, count)."""
-    return text.replace(old_tag, new_tag), text.count(old_tag)
+    """Rewrite ``old_tag`` at the live pin sites only (see ``_LIVE_PIN_PREFIX``);
+    returns (text, count). A tag that merely extends ``old_tag`` (v0.94.0 vs
+    v0.94.01) never matches."""
+    rx = re.compile(_LIVE_PIN_PREFIX + re.escape(old_tag) + r"(?!\.?\d)")
+    return rx.subn(lambda m: m.group(1) + new_tag, text)
 
 
 def card_data_records(data: object) -> list[dict]:
@@ -256,8 +278,9 @@ RETIRE_READY = re.compile(r"^(?:FAILED\s+\S+::)?.*?(\w+): RETIRE-READY", re.MULT
 
 
 def graduation_rows(pytest_output: str) -> tuple[str, ...]:
-    """The bridge ids ``test_bridge_ledger.py`` reports RETIRE-READY (their gap
-    closed) — the graduation list a bump hands to the human."""
+    """The names reported RETIRE-READY — bridge ids from ``test_bridge_ledger.py``
+    (their gap closed) and workaround names from the retirement canaries (their
+    misparse gone) — the graduation list a bump hands to the human."""
     ids = {m.group(1) for m in RETIRE_READY.finditer(pytest_output)}
     return tuple(sorted(ids))
 
@@ -313,11 +336,11 @@ def render_report(
             lines.append(f"- gained: {n}")
         if len(d.gained) > 25:
             lines.append(f"- gained: … {len(d.gained) - 25} more")
-    lines += ["", "## Bridge graduation (RETIRE-READY rows)"]
+    lines += ["", "## Graduation (RETIRE-READY bridges + retirement canaries)"]
     if graduation:
         lines.extend(f"- {b}" for b in graduation)
     else:
-        lines.append("- none — every bridge's gap still holds")
+        lines.append("- none — every bridge's gap and canary's misparse still hold")
     if notes:
         lines += ["", "## Notes", *[f"- {n}" for n in notes]]
     return "\n".join(lines) + "\n"
@@ -491,10 +514,17 @@ def step_signal_diff(ctx: BumpContext) -> None:
 
 
 def step_graduation(ctx: BumpContext) -> None:
-    proc = ctx.runner(
-        [sys.executable, "-m", "pytest", str(ctx.repo / BRIDGE_LEDGER_TEST), "-q"]
-    )
-    ctx.graduation = graduation_rows((proc.stdout or "") + (proc.stderr or ""))
+    # Two runs, because ``-m`` filters every collected item: the whole ledger
+    # file, then only the marker-selected canaries. Their outputs are read as one.
+    pytest = [sys.executable, "-m", "pytest", "-q"]
+    out = ""
+    for argv in (
+        [*pytest, str(ctx.repo / BRIDGE_LEDGER_TEST)],
+        [*pytest, str(ctx.repo / CANARY_TESTS), "-m", CANARY_MARKER],
+    ):
+        proc = ctx.runner(argv)
+        out += (proc.stdout or "") + (proc.stderr or "")
+    ctx.graduation = graduation_rows(out)
 
 
 STEPS: tuple[tuple[str, Callable[[BumpContext], None]], ...] = (

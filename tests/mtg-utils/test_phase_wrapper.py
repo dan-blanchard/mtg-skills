@@ -65,7 +65,7 @@ def _fake_card_data_fetch(payload: bytes, **manifest_kwargs) -> _FakeUrlopen:
 
 class TestPhaseTag:
     def test_phase_tag_is_pinned(self):
-        assert _phase.PHASE_TAG == "v0.86.0"
+        assert _phase.PHASE_TAG == "v0.94.0"
 
 
 class TestCacheLayout:
@@ -170,7 +170,7 @@ class TestInstall:
         self, monkeypatch, tmp_path, checked_out, expect_move
     ):
         """An existing clone (the directory the first install left behind) is
-        NOT a clone at the pinned tag: the v0.86.0 pin bump found the cache
+        NOT a clone at the pinned tag: the v0.66.0 pin bump found the cache
         still checked out at v0.45.0 because ``install_phase`` only ever
         cloned when the directory was absent. A stale clone must be fetched
         + checked out at ``PHASE_TAG`` before the cargo build; a clone

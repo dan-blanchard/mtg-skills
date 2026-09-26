@@ -86,7 +86,10 @@ phase record behind it at all).
 A clause phase parsed AROUND: the card's tree exists, but this clause left no
 node at all — not even an Unimplemented residue — so it survives only in the
 oracle text. The third residue class (after Unimplemented residue and the
-missing face), and the one bucket-(c) synthesis exists for.
+missing face), and the one bucket-(c) synthesis exists for. A clause phase
+built a HOLLOW static def for (`affected: SelfRef`, an empty `modifications`
+list, the line kept in the def's `description` — `ConceptTree.hollow_statics`)
+is not dropped: phase tried and failed, an upstream parse failure.
 _Avoid_: "parser failure" (phase didn't fail; it silently omitted),
 "parser-blocked" (the text is still reachable — nothing blocks reading it).
 
@@ -105,7 +108,9 @@ named grammar TODO or upstream report), and self-retiring (the gap-gate
 stands it down the moment structure arrives; the convergence check makes any
 laggard visible). Since ADR-0048 the row also owns its emission (key + scope):
 one `bridge_signals` lane fires every row, no lane names a bridge id, and
-retiring a bridge is deleting its row. Same matching technology as a regex
+retiring a bridge is deleting its row. A bridge restores prior serving only —
+what the legacy IR served, or what an upstream phase regression took away at
+a bump — never beyond-prior breadth. Same matching technology as a regex
 detector; opposite scope and lifecycle.
 _Avoid_: "regex bridge" (the retired per-key marker pattern), "fallback"
 (hides that each instance is enumerated, pinned, and scheduled to die).
@@ -140,11 +145,14 @@ does it, once), "synthesized tree" for a text-only face tree.
 **Gap predicate**:
 The read a gap-gated arm (a recovery row, a synthesis arm, a ledgered bridge, a
 membership-floor mirror) makes to decide the substrate lacks the structure it would
-otherwise read from text — one of the six presence reads `ConceptTree` owns
+otherwise read from text — one of the presence reads `ConceptTree` owns
 (`has_typed` / `has_concept` / `has_static_mode` / `has_trigger` / `has_residue` /
-`is_text_only`, over `iter_typed`; ADR-0047). A gate composes them; it never re-walks
-the tree in its own idiom, so "the tree already carries X" means the same thing in
-every tier.
+`is_text_only`, over `iter_typed`; ADR-0047), or the residue text they expose
+(`residues`, and `hollow_statics` for a static def phase built but left empty). A
+gate composes them; it never re-walks the tree in its own idiom, so "the tree
+already carries X" means the same thing in every tier. A text bridge's gap keys on
+the residue that carries ITS clause, so a phase fix to that line reads as
+RETIRE-READY even when unrelated residue stays behind.
 _Avoid_: a per-arm `for unit in tree.units: for n in iter_typed_nodes(unit.node)` walk
 (the retired idiom), "fallback condition" (a gate is a structural fact, not a default).
 

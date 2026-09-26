@@ -44,21 +44,29 @@ def test_dfc_faces_grouped_by_oracle_id():
 
 def test_impostor_record_dropped_at_the_grouping_seam():
     """Task #78: bulk holds two distinct cards named "Fast // Furious" (the
-    commander-LEGAL discard-draw J21/MH2 card and a not_legal PLAYTEST
-    haste/unblockable Fuse card) and phase's name-keyed corpus mis-joins
-    them. Through v0.45.0 the PLAYTEST "Fast" half was stamped with the LEGAL
-    oracle_id; since the v0.66.0 pin the join runs the other way — the LEGAL
-    card's "Fast" half is stamped with the PLAYTEST oracle_id (and the legal
-    card carries no record of its own). Either way a naive oracle_id join
-    would serve one card's parse off the other. ``_group_by_oracle_id`` must
-    drop the known impostor record (keyed by oracle_id + exact oracle_text,
-    so the entry self-retires when upstream fixes the join — exactly what
-    happened to the v0.45.0 entry at the v0.66.0 bump) while keeping the
-    real half untouched."""
-    oid = "298a6369-1c1f-4d75-aa97-69c56323c122"  # the PLAYTEST card
+    commander-LEGAL discard-draw J21/MH2 card, 62411ced, and a not_legal
+    PLAYTEST haste/unblockable Fuse card, 298a6369) and phase's name-keyed
+    corpus mis-joins them. The direction has flipped across pins (see
+    ``_phase._IMPOSTOR_RECORDS``); at v0.94.0 the legal card's own "Fast"
+    record is correct and a SECOND record stamped with the legal oracle_id
+    carries the PLAYTEST card's text. A naive oracle_id join would serve the
+    playtest parse off the legal card. ``_group_by_oracle_id`` must drop the
+    known impostor (keyed by oracle_id + exact oracle_text, so the entry
+    self-retires when upstream fixes the join) while keeping the real half
+    untouched. The texts are the impostor KEY itself — a fact about phase's
+    records, which the snapshot never stores (the seam drops it) — so they
+    are written here, not taken from testkit."""
+    legal = "62411ced-843e-4b63-bdf6-dafb2ac27047"
+    playtest = "298a6369-1c1f-4d75-aa97-69c56323c122"
     real = {
         "name": "Fast",
-        "scryfall_oracle_id": oid,
+        "scryfall_oracle_id": legal,
+        "card_type": {},
+        "oracle_text": "Discard a card, then draw two cards.",
+    }
+    impostor = {  # the PLAYTEST card's half, mis-stamped with the legal oid
+        "name": "Fast",
+        "scryfall_oracle_id": legal,
         "card_type": {},
         "oracle_text": (
             "Target creature gains haste until end of turn. It can't be "
@@ -67,20 +75,13 @@ def test_impostor_record_dropped_at_the_grouping_seam():
             "from your hand.)"
         ),
     }
-    impostor = {  # the LEGAL card's half, mis-stamped with the playtest oid
-        "name": "Fast",
-        "scryfall_oracle_id": oid,
-        "card_type": {},
-        "oracle_text": "Discard a card, then draw two cards.",
-    }
-    groups = _group_by_oracle_id({"fast": real, "fast-impostor": impostor})
-    assert [r["name"] for r in groups[oid]] == ["Fast"]  # the impostor never joins
-    assert groups[oid][0]["oracle_text"] == real["oracle_text"]
-    # the same text under a DIFFERENT oracle_id is NOT an impostor — the key
-    # is the (oid, text) pair, never the text alone (the legal card's OWN
-    # oracle_id, 62411ced, carrying its own text is exactly the fixed join)
+    groups = _group_by_oracle_id(
+        {"fast": real, "fast [62411ced-843e-4b63-bdf6-dafb2ac27047]": impostor}
+    )
+    assert [r["oracle_text"] for r in groups[legal]] == [real["oracle_text"]]
+    # the same text under its OWN oracle_id is NOT an impostor — the key is
+    # the (oid, text) pair, never the text alone (the playtest card carrying
+    # its own text is exactly the fixed join)
     assert is_impostor_record(impostor)
     assert not is_impostor_record(real)
-    assert not is_impostor_record(
-        {**impostor, "scryfall_oracle_id": "62411ced-843e-4b63-bdf6-dafb2ac27047"}
-    )
+    assert not is_impostor_record({**impostor, "scryfall_oracle_id": playtest})

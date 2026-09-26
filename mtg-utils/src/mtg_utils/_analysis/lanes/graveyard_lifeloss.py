@@ -1078,6 +1078,11 @@ def _graveyard_matters(tree: ConceptTree) -> list[Signal]:
         # Avatar of Woe's ModifyCost gate over a LITERAL graveyard-count
         # ("ten or more creature cards total in all graveyards") resolves
         # 'you' (not 'opponents') through that identical deep-scan arm.
+        # Since phase v0.94.0 Expedition Lookout's "and it can't be
+        # blocked" half is its OWN sibling ``CantBeBlocked`` static under
+        # the same condition — an ordinary gated static this arm reads
+        # (Jace's Phantasm class: 'you' + 'opponents'); only the
+        # ``CanAttackWithDefender`` half stays excluded.
         if unit.origin != "replacement" and static_mode_tag(node) not in (
             "ModifyCost",
             "CanAttackWithDefender",

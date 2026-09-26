@@ -22,13 +22,14 @@ from mtg_utils._card_ir.mirror.runtime import (
 )
 
 if TYPE_CHECKING:
-    from mtg_utils._card_ir.mirror.generated.g02_modifycost import (
+    from mtg_utils._card_ir.mirror.generated.g02_modifyactivationlimi import (
         U_action,
         U_additional_cost,
     )
     from mtg_utils._card_ir.mirror.generated.g03_additional_modificat import (
         S_branches,
         S_cards,
+        S_cast_cost_modifier,
         U_additional_modifications,
         U_alt_ability_cost,
         U_amount,
@@ -78,14 +79,15 @@ if TYPE_CHECKING:
         U_host,
         U_keep_count_expr,
         U_keep_on_top,
-        U_keeper_constraint,
-        U_kept_destination_if,
     )
-    from mtg_utils._card_ir.mirror.generated.g09_kind import (
+    from mtg_utils._card_ir.mirror.generated.g09_keeper_constraint import (
+        S_keeper_counter,
         S_lose_effect,
         S_modification,
         S_multi_target,
         S_on_decline,
+        U_keeper_constraint,
+        U_kept_destination_if,
         U_kind,
         U_library_players,
         U_library_position,
@@ -102,7 +104,7 @@ if TYPE_CHECKING:
         U_op,
         U_optional_player,
     )
-    from mtg_utils._card_ir.mirror.generated.g10_owner import (
+    from mtg_utils._card_ir.mirror.generated.g10_origin import (
         S_per_choice_effect,
         S_profile,
         U_owner,
@@ -295,6 +297,7 @@ class T_effect__Attach(TypedMirrorNode):
     _tag: ClassVar[str | None] = "Attach"
     target: U_target
     attachment: U_attachment = MISSING
+    selection: MirrorVariant = MISSING
 
 
 @dataclass(frozen=True)
@@ -387,6 +390,7 @@ class T_effect__CastFromZone(TypedMirrorNode):
     without_paying_mana_cost: bool
     additional_cost: U_additional_cost = MISSING
     alt_ability_cost: U_alt_ability_cost = MISSING
+    cast_cost_modifier: S_cast_cost_modifier = MISSING
     cast_transformed: bool = MISSING
     constraint: U_constraint = MISSING
     driver: str | MirrorVariant = MISSING
@@ -465,6 +469,7 @@ class T_effect__ChooseAndSacrificeRest(TypedMirrorNode):
     chooser_scope: str
     sacrifice_filter: U_sacrifice_filter
     keeper_constraint: U_keeper_constraint = MISSING
+    keeper_counter: S_keeper_counter = MISSING
     total_power_cap: U_total_power_cap = MISSING
 
 
@@ -829,6 +834,12 @@ class T_effect__EachSourceDealsDamage(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class T_effect__EmpowerJace(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "EmpowerJace"
+    count: U_count
+
+
+@dataclass(frozen=True)
 class T_effect__Encore(TypedMirrorNode):
     _tag: ClassVar[str | None] = "Encore"
 
@@ -896,6 +907,7 @@ class T_effect__ExileTop(TypedMirrorNode):
     count: U_count
     player: U_player
     position: U_position
+    actor: str = MISSING
     face_down: bool = MISSING
 
 
@@ -1886,6 +1898,7 @@ type U_effect = (
     | T_effect__EachDealsDamageEqualToPower
     | T_effect__EachPlayerCopyChosen
     | T_effect__EachSourceDealsDamage
+    | T_effect__EmpowerJace
     | T_effect__Encore
     | T_effect__EndCombatPhase
     | T_effect__EndTheTurn

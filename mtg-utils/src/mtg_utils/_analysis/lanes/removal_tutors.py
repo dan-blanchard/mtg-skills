@@ -1575,9 +1575,40 @@ def _activated_ability(tree: ConceptTree) -> list[Signal]:
                 genmana = True
         if not (tapish or (genmana and not (tags & _AA_EXTRA_COST_TAGS))):
             continue
-        if any(c.concept not in _ACTIVATED_ABILITY_DROP_EFFECTS for c in unit.effects):
+        self_sacrificed = any(
+            tag_of(leaf) == "Sacrifice"
+            and tag_of(getattr(leaf, "target", None)) == "SelfRef"
+            for leaf in leaves
+        )
+        if any(
+            c.concept not in _ACTIVATED_ABILITY_DROP_EFFECTS
+            and not (self_sacrificed and _grants_only_to_self(c.node))
+            for c in unit.effects
+        ):
             return [Signal("activated_ability", "you", "", "", tree.name, "high")]
     return []
+
+
+def _grants_only_to_self(node: object) -> bool:
+    """A ``GenericEffect`` whose every continuous grant affects ``SelfRef`` —
+    a dead effect when the ability's own cost sacrificed that source: the
+    source is a new object in the graveyard with no relation to the permanent
+    the grant names (CR 400.7), so the grant applies to nothing. Phase
+    v0.94.0 lands Generator Servant's spend rider ("if any of that mana is
+    spent on a creature spell, it gains haste") in exactly this shape — the
+    condition swallowed, the haste misassigned to the sacrificed Servant —
+    and that dead grant must not lift a mana ability (CR 605.1a) into the
+    value-engine census. Corpus census at v0.94.0: 1 card. A misparse
+    workaround, not a ledgered bridge: its retirement canary is
+    ``test_generator_servant_split_rider_canary`` (tests/mtg-utils/
+    test_crosswalk.py), which fails RETIRE-READY once phase folds the rider
+    back into the Mana effect's ``grants``."""
+    if tag_of(node) != "GenericEffect":
+        return False
+    statics = getattr(node, "static_abilities", None) or []
+    return bool(statics) and all(
+        tag_of(getattr(s, "affected", None)) == "SelfRef" for s in statics
+    )
 
 
 def _mass_death_payoff(tree: ConceptTree) -> list[Signal]:

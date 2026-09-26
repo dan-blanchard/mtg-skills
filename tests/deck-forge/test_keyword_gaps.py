@@ -279,6 +279,11 @@ class TestKickedSpellMatters:
         # kicked_spell_matters on the real IR, not the deleted regex path.
         assert "kicked_spell_matters" in _hyb("Verazol, the Split Current")
 
+    def test_kicked_self_condition_gendered_pronoun(self):
+        # A kicker creature's own "if he was kicked" ETB condition (Josu Vess's
+        # Oracle text names the character "he", not "it") — CR 702.33d.
+        assert "kicked_spell_matters" in _hyb("Josu Vess, Lich Knight")
+
     def test_kicked_payoff_served_not_spellcast(self):
         sig = _sig("kicked_spell_matters", "you")
         assert serves(test_card("Verazol, the Split Current"), sig)

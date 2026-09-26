@@ -4,8 +4,8 @@ Codegen'd from ``tests/fixtures/phase_mirror_schema.json`` by
 ``mtg_utils._card_ir.mirror.codegen`` (run via ``build-card-ir-substrate``).
 
 Part of the generated typed-mirror package (see this directory's
-``__init__.py``). This module holds content keys ``<root>`` ..
-``ModifyActivationLimit`` (73 keys).
+``__init__.py``). This module holds content keys ``<root>`` .. ``Mobilize`` (73
+keys).
 
 Class naming: ``S_<ckey>`` for a struct shape, ``T_<ckey>__<tag>`` for a tagged
 shape, ``U_<ckey>`` for the union of all tagged shapes at one content_key.
@@ -23,7 +23,7 @@ from mtg_utils._card_ir.mirror.runtime import (
 )
 
 if TYPE_CHECKING:
-    from mtg_utils._card_ir.mirror.generated.g02_modifycost import (
+    from mtg_utils._card_ir.mirror.generated.g02_modifyactivationlimi import (
         S_abilities,
         U_additional_cost,
     )
@@ -54,20 +54,21 @@ if TYPE_CHECKING:
         U_filter,
         U_filters,
     )
-    from mtg_utils._card_ir.mirror.generated.g09_kind import (
+    from mtg_utils._card_ir.mirror.generated.g09_keeper_constraint import (
         S_legalities,
         S_metadata,
         S_modal,
+        U_keyword,
         U_mana_cost,
         U_mana_reduction,
         U_materials,
         U_once_per_turn,
     )
-    from mtg_utils._card_ir.mirror.generated.g10_owner import (
+    from mtg_utils._card_ir.mirror.generated.g10_origin import (
         U_parse_warnings,
         U_power,
     )
-    from mtg_utils._card_ir.mirror.generated.g11_properties import (
+    from mtg_utils._card_ir.mirror.generated.g11_prop import (
         U_properties,
     )
     from mtg_utils._card_ir.mirror.generated.g12_qty import (
@@ -135,6 +136,12 @@ class S_Root(TypedMirrorNode):
     rulings: list[S_rulings] = MISSING
     solve_condition: U_solve_condition = MISSING
     strive_cost: U_strive_cost = MISSING
+
+
+@dataclass(frozen=True)
+class S_ActivateAsInstant(TypedMirrorNode):
+    cost_category: str
+    keyword: U_keyword
 
 
 @dataclass(frozen=True)
@@ -247,6 +254,7 @@ class S_DefilerCostReduction(TypedMirrorNode):
     color: str
     life_cost: int
     mana_reduction: U_mana_reduction
+    reach: str
 
 
 @dataclass(frozen=True)
@@ -289,6 +297,7 @@ class S_ExileCastPermission(TypedMirrorNode):
     timing: str
     enters_with_counter: str = MISSING
     extra_cost: S_extra_cost = MISSING
+    grantee: str = MISSING
     grants_flash: bool = MISSING
     mana_spend_permission: str = MISSING
 
@@ -342,12 +351,6 @@ class S_MaxAttackersEachCombat(TypedMirrorNode):
 class S_MaxUntapPerType(TypedMirrorNode):
     filter: U_filter
     max: int
-
-
-@dataclass(frozen=True)
-class S_ModifyActivationLimit(TypedMirrorNode):
-    keyword: str
-    new_limit: int
 
 
 # --- tagged shapes (discriminated enum nodes) ---

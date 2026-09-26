@@ -2685,6 +2685,18 @@ def test_toughness_combat_credits_big_butts_and_walls():
     assert not _lane_covers(small, sig)
 
 
+def test_toughness_combat_serve_skips_base_pt_set():
+    """The serve's oracle arm reads toughness as a VALUE ("deals damage equal to
+    its toughness"), never a base-P/T set: Ambassador Blorpityblorpboop's "base
+    toughness become equal to those stickers' total toughness" is layer 7b
+    (CR 613.4b), and its 3/3 body clears neither the toughness>=4 floor nor the
+    butt stat line — so it isn't served. Doran (the value read, on a 0/5)
+    still is."""
+    sig = _sig("toughness_combat")
+    assert not _lane_covers(_card("Ambassador Blorpityblorpboop"), sig)
+    assert _lane_covers(_card("Doran, the Siege Tower"), sig)
+
+
 def test_clone_credits_big_creatures_worth_copying():
     """The clone blurb promises 'strong creatures worth copying' — deliver it: Etali (a
     6/6 bomb) is a top clone/token-copy target, not just the clone effects themselves."""

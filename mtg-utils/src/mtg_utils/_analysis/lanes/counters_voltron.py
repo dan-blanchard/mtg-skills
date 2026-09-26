@@ -212,9 +212,12 @@ def _excess_damage(tree: ConceptTree) -> list[Signal]:
 # "whenever you cast a kicked spell" trigger's "kicked" qualifier nor the
 # "if it was kicked" ETB condition as a structured field (CR 702.33f names
 # the exact "if it was kicked" phrasing as reminder-text-only), so the
-# byte-identical deleted ``_HAND_FLOOR`` regex is the only tell.
+# byte-identical deleted ``_HAND_FLOOR`` regex is the only tell. The pronoun
+# alternation takes the gendered forms Oracle uses for a named character —
+# phase v0.94.0's Josu Vess, Lich Knight reads "if he was kicked" (CR 702.33d).
 _KICKED_SPELL_KEPT_RX = re.compile(
-    r"whenever you cast a kicked spell|if (?:that|it) (?:spell )?was kicked",
+    r"whenever you cast a kicked spell"
+    r"|if (?:that|it|he|she) (?:spell )?was kicked",
     re.IGNORECASE,
 )
 

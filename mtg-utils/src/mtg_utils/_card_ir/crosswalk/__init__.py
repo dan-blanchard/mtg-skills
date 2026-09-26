@@ -38,6 +38,7 @@ from mtg_utils._card_ir.crosswalk.core import (
     is_dies_return_trigger,
     iter_nested_granted_effect_concepts,
     iter_nested_token_effects,
+    walk_effects_with_else,
 )
 from mtg_utils._card_ir.crosswalk.reads import (
     _CHOSEN_PLAYER_TARGETS,
@@ -405,5 +406,6 @@ __all__ = [
     "trigger_subject",
     "trigger_subject_scope",
     "trigger_turn_constraint",
+    "walk_effects_with_else",
     "zone_change_count_reads",
 ]

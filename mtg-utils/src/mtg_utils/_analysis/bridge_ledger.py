@@ -35,9 +35,12 @@ mechanism pin structural, keep the membership pin — the graduation rule) and
 ``match`` still hits (pattern rot fails loudly). Laggards stay visible at
 every fixture regen; nothing retires silently.
 
-Bridges mirror LEGACY's serving only — beyond-legacy breadth is the typed
-substrate's job. A bridge that "could also" open a sibling lane records that
-as a note for the grammar sprint instead of widening its own read.
+Bridges restore prior serving only — the serving the legacy IR gave (the
+ADR-0039 deletion's laggards) or the serving an upstream phase regression
+took away (a bump's parse failure, bridged until the next bump restores it).
+Beyond-prior breadth is the typed substrate's job. A bridge that "could also"
+open a sibling lane records that as a note for the grammar sprint instead of
+widening its own read.
 """
 
 from __future__ import annotations
@@ -53,6 +56,7 @@ from mtg_utils._analysis.signal_base import Signal
 from mtg_utils._card_ir.crosswalk import (
     ARTIFACT_TOKEN_SUBTYPES,
     DAMAGE_EFFECT_TAGS,
+    _filter_type_words,
     aggregate_filter,
     damage_recipient,
     effect_filter,
@@ -72,13 +76,14 @@ from mtg_utils._card_ir.crosswalk import (
 from mtg_utils._card_ir.mirror.runtime import MISSING
 
 if TYPE_CHECKING:  # pragma: no cover
-    from mtg_utils._card_ir.crosswalk import ConceptTree
+    from mtg_utils._card_ir.crosswalk import AbilityUnit, ConceptTree
 
 
 # The four residue classes a bridge may serve (mtg-utils/CONTEXT.md):
 # a grammar straggler (our clause grammar's frontier), a dropped clause
 # (phase emits nothing), a missing face (W2c text-only tree), an upstream
-# parse failure (phase tried and failed — diagnostic residue preserved).
+# parse failure (phase tried and failed — the line preserved in an
+# ``Unimplemented`` residue or in a hollow static def's ``description``).
 BRIDGE_KINDS = frozenset(
     {
         "grammar_straggler",
@@ -1556,13 +1561,25 @@ def _moku_haste_grant_match(tree: ConceptTree) -> bool:
     return _moku_haste_grant_gap(tree)
 
 
+def _hollow_static_says(tree: ConceptTree, rx: re.Pattern[str]) -> bool:
+    """The gap every hollow-static bridge shares: one of phase's hollow static
+    defs (:meth:`ConceptTree.hollow_statics` — ``affected: SelfRef``, an EMPTY
+    ``modifications`` list) carries the clause in its ``description``. Keyed on
+    the clause itself, so the gap goes False — RETIRE-READY, not pattern rot —
+    the moment phase structures THAT line, whatever else stays hollow."""
+    return any(rx.search(d) for d in tree.hollow_statics())
+
+
+def _oracle_says(tree: ConceptTree, rx: re.Pattern[str]) -> bool:
+    return bool(rx.search(tree.oracle or ""))
+
+
 # (7) Siege Behemoth's "As long as this creature is attacking, FOR EACH
 # CREATURE YOU CONTROL, you may have that creature assign its combat
 # damage as though it weren't blocked" (CR 509.1h-adjacent unblocked-
-# damage-assignment permission) — the static DEF exists (``affected``/
-# ``modifications`` field pair present) but ``affected`` is ``SelfRef``
-# and ``modifications`` is an EMPTY list; the whole per-creature grant
-# lives only in the def's own ``description`` and an ``Unrecognized``
+# damage-assignment permission) — a hollow static def: ``affected`` is
+# ``SelfRef`` and ``modifications`` is an EMPTY list; the whole per-creature
+# grant lives only in the def's own ``description`` and an ``Unrecognized``
 # condition text, never a typed mode or modification.
 _SIEGE_BEHEMOTH_RX = re.compile(
     r"for each creature you control, you may have that creature assign "
@@ -1572,19 +1589,11 @@ _SIEGE_BEHEMOTH_RX = re.compile(
 
 
 def _siege_behemoth_gap(tree: ConceptTree) -> bool:
-    for unit in tree.units:
-        for sdef in iter_static_defs(unit.node):
-            if tag_of(getattr(sdef, "affected", None)) != "SelfRef":
-                continue
-            if getattr(sdef, "modifications", None):
-                continue
-            if _SIEGE_BEHEMOTH_RX.search(getattr(sdef, "description", "") or ""):
-                return True
-    return False
+    return _hollow_static_says(tree, _SIEGE_BEHEMOTH_RX)
 
 
 def _siege_behemoth_match(tree: ConceptTree) -> bool:
-    return _siege_behemoth_gap(tree)
+    return _oracle_says(tree, _SIEGE_BEHEMOTH_RX)
 
 
 # (8) Illusionist's Gambit → extra_combats. "Remove all attacking creatures
@@ -1603,19 +1612,11 @@ _ILLUSIONISTS_GAMBIT_RX = re.compile(
 
 
 def _illusionists_gambit_gap(tree: ConceptTree) -> bool:
-    for unit in tree.units:
-        for sdef in iter_static_defs(unit.node):
-            if tag_of(getattr(sdef, "affected", None)) != "SelfRef":
-                continue
-            if getattr(sdef, "modifications", None):
-                continue
-            if _ILLUSIONISTS_GAMBIT_RX.search(getattr(sdef, "description", "") or ""):
-                return True
-    return False
+    return _hollow_static_says(tree, _ILLUSIONISTS_GAMBIT_RX)
 
 
 def _illusionists_gambit_match(tree: ConceptTree) -> bool:
-    return _illusionists_gambit_gap(tree)
+    return _oracle_says(tree, _ILLUSIONISTS_GAMBIT_RX)
 
 
 # ── task B-3: keep_n_wrath — the Shape-B walk + Unimplemented-choose bridge ──
@@ -1638,6 +1639,39 @@ _KNW_LAND_CHOOSE_RX = re.compile(
 KEEP_N_CHOOSE_TYPES = frozenset(
     {"Creature", "Permanent", "Planeswalker", "Artifact", "Enchantment"}
 )
+
+
+def _knw_one_sided(unit: AbilityUnit, effect_node: object) -> bool:
+    """The keep-N reaches only opponents: the owning wrapper's ``player_scope``
+    is Opponent ("each opponent chooses …"), or the trigger fires only during
+    an opponent's turn ("that player chooses …" — Archfiend of Depravity)."""
+    return effect_owner_player_scope(unit.node, effect_node) == "Opponent" or (
+        unit.origin == "trigger"
+        and trigger_turn_constraint(unit.node) == "OnlyDuringOpponentsTurn"
+    )
+
+
+def keep_n_casr_reads(tree: ConceptTree) -> list[tuple[str, str]]:
+    """(scope, raw) per first-class ``ChooseAndSacrificeRest`` node whose
+    ``sacrifice_filter`` core is in ``KEEP_N_CHOOSE_TYPES`` (Cataclysm class).
+    Both chooser_scope values fire (Tragic Arrogance's you-pick-for-all resets
+    every board too). Scope "opponents" when the owning wrapper is scoped to
+    opponents — phase v0.94.0 moved No One Will Hear Your Cries onto this node
+    with ``player_scope: Opponent`` (Liliana, Dreadhorde General's -9 and
+    Ajani, Nacatl Avenger's -4 carried it all along); "each" otherwise."""
+    out: list[tuple[str, str]] = []
+    for unit in tree.units:
+        for c in unit.effects:
+            if tag_of(c.node) != "ChooseAndSacrificeRest":
+                continue
+            # Type WORDS, not bare core types: Single Combat's filter is
+            # {AnyOf: [Creature, Planeswalker]}, which filter_core_types skips.
+            sac_filter = getattr(c.node, "sacrifice_filter", None)
+            if not set(_filter_type_words(sac_filter)) & KEEP_N_CHOOSE_TYPES:
+                continue
+            scope = "opponents" if _knw_one_sided(unit, c.node) else "each"
+            out.append((scope, c.raw or ""))
+    return out
 
 
 def keep_n_shape_b_reads(tree: ConceptTree) -> list[tuple[str, str]]:
@@ -1664,14 +1698,7 @@ def keep_n_shape_b_reads(tree: ConceptTree) -> list[tuple[str, str]]:
                 owner = effect_owner_player_scope(unit.node, c.node)
                 if ctrl == "ScopedPlayer" and owner == "All":
                     pending = "each"
-                elif ctrl == "You" and (
-                    owner == "Opponent"
-                    or (
-                        unit.origin == "trigger"
-                        and trigger_turn_constraint(unit.node)
-                        == "OnlyDuringOpponentsTurn"
-                    )
-                ):
+                elif ctrl == "You" and _knw_one_sided(unit, c.node):
                     pending = "opponents"
                 continue
             if (
@@ -1685,7 +1712,7 @@ def keep_n_shape_b_reads(tree: ConceptTree) -> list[tuple[str, str]]:
 
 
 def _knw_gap(tree: ConceptTree) -> bool:
-    return not keep_n_shape_b_reads(tree)
+    return not (keep_n_casr_reads(tree) or keep_n_shape_b_reads(tree))
 
 
 def _knw_match(tree: ConceptTree) -> bool:
@@ -1927,6 +1954,86 @@ def _each_player_loses_match(tree: ConceptTree) -> bool:
     return bool(_EACH_PLAYER_LOSES_RX.search(tree.oracle or ""))
 
 
+# ── phase v0.94.0 regressions (2026-09-26) ──────────────────────────────────────
+# (1) damage_prevention — through v0.86.0 phase structured a static CR 615.1
+# prevention line ("Prevent all damage that would be dealt to …", "… prevent
+# that damage", "… prevent all but 1 of that damage") as a ``DamageDone``
+# REPLACEMENT with ``shield_kind {Prevention}``, which the bucket-B
+# ``synth_damage_prevention`` arm reads. v0.94.0's replacement parser
+# recognizes the line and then fails it: the replacement is gone and the WHOLE
+# line survives only as an ``Unimplemented`` residue — ``replacement_structure``
+# ("Replacement pattern matched but line failed replacement parser: <line>";
+# Light of Sanction, Well-Laid Plans, Ironscale Hydra, Hyperion) or, inside a
+# "Choose target creature." chain, ``unparsed_replacement`` (Silhouette). The
+# match is the CR 615.1a "prevent" verb over those residues' text. A
+# prevent-and-reflect card ("When damage is prevented this way, …" — Phyrexian
+# Vindicator, Stuffy Doll Avatar) carries the same residues but was never a
+# member (Vindicator is damage_redirect's), so it stays out: a bridge restores
+# the serving the regression took, never more. The gap keys on a residue that
+# carries the prevention clause itself, so an unrelated residue of the same
+# name left behind never masks a phase fix (RETIRE-READY, not pattern rot).
+_PREVENTION_RESIDUE_NAMES = ("replacement_structure", "unparsed_replacement")
+_PREVENTION_SHIELD_RX = re.compile(
+    r"\bprevent (?:all (?:but \d+ of )?(?:that )?damage|that damage)\b",
+    re.IGNORECASE,
+)
+_PREVENTED_THIS_WAY_RX = re.compile(r"\bprevented this way\b", re.IGNORECASE)
+
+
+def _prevention_residue_descs(tree: ConceptTree) -> Iterator[str]:
+    for name in _PREVENTION_RESIDUE_NAMES:
+        yield from tree.residues(name)
+
+
+def _prevention_parse_failure_gap(tree: ConceptTree) -> bool:
+    return any(_PREVENTION_SHIELD_RX.search(d) for d in _prevention_residue_descs(tree))
+
+
+def _prevention_parse_failure_match(tree: ConceptTree) -> bool:
+    return _oracle_says(tree, _PREVENTION_SHIELD_RX) and not _oracle_says(
+        tree, _PREVENTED_THIS_WAY_RX
+    )
+
+
+# (2) Camel → damage_prevention. "As long as this creature is attacking,
+# prevent all damage Deserts would deal to this creature and to creatures
+# banded with this creature" (CR 615.1a) — v0.86.0 parsed it as a Prevention
+# replacement; v0.94.0 leaves a hollow static def (``affected: SelfRef``, a
+# ``SourceIsAttacking`` condition and an EMPTY ``modifications`` list), the
+# prevention living only in the def's own ``description`` (the Siege Behemoth
+# / Illusionist's Gambit shape above — no residue node to key on).
+def _prevention_empty_static_gap(tree: ConceptTree) -> bool:
+    return _hollow_static_says(tree, _PREVENTION_SHIELD_RX)
+
+
+def _prevention_empty_static_match(tree: ConceptTree) -> bool:
+    return _oracle_says(tree, _PREVENTION_SHIELD_RX)
+
+
+# (3) Fumble → voltron_makers. "Gain control of all Auras and Equipment that
+# were attached to it, then attach them to another creature" (CR 701.3a) —
+# v0.86.0 parsed the tail as an ``Attach`` (attachment ParentTarget, target
+# another creature) the lane's sibling-gear arm read; v0.94.0 parks it as
+# ``Unimplemented(name='plural_attachment_anaphor')`` "attach them to another
+# creature". The residue names no gear, so the match takes the gear from the
+# sibling ``GainControlAll``'s own Aura/Equipment filter (structural). Helm of
+# Kaldra carries the same residue ("Attach those Equipment to it") but no
+# GainControlAll — the lane's Unimplemented-attach-gear arm already serves it.
+def _plural_attach_anaphor_gap(tree: ConceptTree) -> bool:
+    return tree.has_residue("plural_attachment_anaphor")
+
+
+def _plural_attach_anaphor_match(tree: ConceptTree) -> bool:
+    if not _plural_attach_anaphor_gap(tree):
+        return False
+    return any(
+        tag_of(n) == "GainControlAll"
+        and {s.lower() for s in filter_subtypes(getattr(n, "target", None))}
+        & _VOLTRON_SUBTYPES
+        for n in tree.iter_typed()
+    )
+
+
 BRIDGES: dict[str, Bridge] = {
     b.bridge_id: b
     for b in (
@@ -1982,8 +2089,8 @@ BRIDGES: dict[str, Bridge] = {
                 "point _keep_n_wrath's Shape-B chain reads it structurally "
                 "(the gap stands this row down per-card the moment the "
                 "chain lands). Promise of Loyalty's vow-counter variant "
-                "(upstream_parse_failure class: only its CantAttack static "
-                "survives) rides the same row via the oracle match."
+                "graduated at phase v0.94.0 (a first-class "
+                "ChooseAndSacrificeRest node, read by keep_n_casr_reads)."
             ),
             census=(
                 "4 fire / whole pool (Duneblast 'Choose creature', Stick "
@@ -1993,13 +2100,18 @@ BRIDGES: dict[str, Bridge] = {
                 "'Choose a creature at random' — a random keep protects "
                 "nothing; Balance + Limited Resources — lands-choose rest "
                 "clauses, mass land denial per the KEEP_N_CHOOSE_TYPES "
-                "gate, verified-review F1), phase v0.23.0, 2026-07-16"
+                "gate, verified-review F1), phase v0.23.0, 2026-07-16; "
+                "4 fire at phase v0.94.0 (Duneblast, Stick Together, Mount "
+                "Doom, Balancing Act — 'chooses a number of permanents … "
+                "then sacrifices the rest' is a Sacrifice with no choose "
+                "node); Promise of Loyalty and Single Combat read "
+                "structurally via keep_n_casr_reads, Limited Resources is a "
+                "Land-gated ChooseAndSacrificeRest, 2026-09-26"
             ),
             pins=(
                 "Duneblast",
                 "Stick Together",
                 "Mount Doom",
-                "Promise of Loyalty",
             ),
             gap=_knw_gap,
             match=_knw_match,
@@ -3167,7 +3279,7 @@ BRIDGES: dict[str, Bridge] = {
         Bridge(
             bridge_id="siege_behemoth_unblocked_assign_empty_mods",
             key="creatures_matter",
-            kind="dropped_clause",
+            kind="upstream_parse_failure",
             todo=(
                 "upstream phase-rs report candidate (Dan posts): the "
                 "static def for 'for each creature you control, you may "
@@ -3380,6 +3492,80 @@ BRIDGES: dict[str, Bridge] = {
             pins=("Tomb of Annihilation",),
             gap=_text_only_tree_gap,
             match=_each_player_loses_match,
+        ),
+        Bridge(
+            bridge_id="damage_prevention_replacement_parse_failure",
+            key="damage_prevention",
+            kind="upstream_parse_failure",
+            todo=(
+                "upstream phase-rs regression (v0.86.0 → v0.94.0, report "
+                "candidate — Dan posts): the replacement parser fails static "
+                "'prevent all / that / all but N of that damage' lines it "
+                "structured through v0.86.0 as DamageDone replacements with "
+                "shield_kind Prevention — retires on the phase bump that "
+                "restores them (the synth_damage_prevention arm reads the "
+                "replacement again and the residue goes away)"
+            ),
+            census=(
+                "5 hits / 7 Unimplemented residues of the two names whose "
+                "text says 'prevent', corpus-wide (Light of Sanction, "
+                "Well-Laid Plans, Ironscale Hydra, Hyperion, Supreme Hero, "
+                "Silhouette — exactly the v0.86.0 members lost; Phyrexian "
+                "Vindicator + Stuffy Doll Avatar vetoed as prevent-and-"
+                "reflect), MTGJSON 2026-09-22 @ phase v0.94.0, 2026-09-26"
+            ),
+            pins=(
+                "Light of Sanction",
+                "Well-Laid Plans",
+                "Ironscale Hydra",
+                "Hyperion, Supreme Hero",
+                "Silhouette",
+            ),
+            gap=_prevention_parse_failure_gap,
+            match=_prevention_parse_failure_match,
+        ),
+        Bridge(
+            bridge_id="camel_attacking_prevention_empty_static",
+            key="damage_prevention",
+            kind="upstream_parse_failure",
+            todo=(
+                "upstream phase-rs regression (v0.86.0 → v0.94.0, report "
+                "candidate — Dan posts): Camel's 'as long as this creature "
+                "is attacking, prevent all damage Deserts would deal to …' "
+                "line became a SelfRef static def with an empty "
+                "modifications list (a Prevention replacement through "
+                "v0.86.0) — retires on the phase bump that structures it "
+                "again (the def gains a modification or leaves the tree)"
+            ),
+            census=(
+                "1 hit / every static def corpus-wide with empty "
+                "modifications and 'prevent' text (Camel alone), MTGJSON "
+                "2026-09-22 @ phase v0.94.0, 2026-09-26"
+            ),
+            pins=("Camel",),
+            gap=_prevention_empty_static_gap,
+            match=_prevention_empty_static_match,
+        ),
+        Bridge(
+            bridge_id="fumble_plural_attachment_anaphor",
+            key="voltron_makers",
+            kind="upstream_parse_failure",
+            todo=(
+                "upstream phase-rs regression (v0.86.0 → v0.94.0, report "
+                "candidate — Dan posts): 'then attach them to another "
+                "creature' became Unimplemented(plural_attachment_anaphor) "
+                "where v0.86.0 emitted an Attach (attachment ParentTarget) — "
+                "retires on the phase bump that resolves the plural anaphor "
+                "to a typed Attach/AttachAll the lane's gear-attach arms read"
+            ),
+            census=(
+                "1 hit / 2 plural_attachment_anaphor residues corpus-wide "
+                "(Fumble; Helm of Kaldra has no GainControlAll and is served "
+                "by the lane), MTGJSON 2026-09-22 @ phase v0.94.0, 2026-09-26"
+            ),
+            pins=("Fumble",),
+            gap=_plural_attach_anaphor_gap,
+            match=_plural_attach_anaphor_match,
         ),
     )
 }

@@ -4,8 +4,8 @@ Codegen'd from ``tests/fixtures/phase_mirror_schema.json`` by
 ``mtg_utils._card_ir.mirror.codegen`` (run via ``build-card-ir-substrate``).
 
 Part of the generated typed-mirror package (see this directory's
-``__init__.py``). This module holds content keys ``kind`` ..
-``outcome_template`` (43 keys).
+``__init__.py``). This module holds content keys ``keeper_constraint`` ..
+``or_trigger`` (44 keys).
 
 Class naming: ``S_<ckey>`` for a struct shape, ``T_<ckey>__<tag>`` for a tagged
 shape, ``U_<ckey>`` for the union of all tagged shapes at one content_key.
@@ -37,10 +37,9 @@ if TYPE_CHECKING:
         U_cost,
     )
     from mtg_utils._card_ir.mirror.generated.g06_count import (
-        S_data,
         S_decline,
         S_definition,
-        U_data,
+        U_count,
         U_dynamic_max_choices,
     )
     from mtg_utils._card_ir.mirror.generated.g07_effect import (
@@ -52,10 +51,10 @@ if TYPE_CHECKING:
         U_filters,
         U_inner,
     )
-    from mtg_utils._card_ir.mirror.generated.g10_owner import (
+    from mtg_utils._card_ir.mirror.generated.g10_origin import (
         U_player_scope,
     )
-    from mtg_utils._card_ir.mirror.generated.g11_properties import (
+    from mtg_utils._card_ir.mirror.generated.g11_prop import (
         U_properties,
     )
     from mtg_utils._card_ir.mirror.generated.g12_qty import (
@@ -81,6 +80,12 @@ if TYPE_CHECKING:
 
 
 # --- struct shapes (untagged records, one per content_key) ---
+
+
+@dataclass(frozen=True)
+class S_keeper_counter(TypedMirrorNode):
+    count: U_count
+    counter_type: str
 
 
 @dataclass(frozen=True)
@@ -218,22 +223,26 @@ class S_or_trigger(TypedMirrorNode):
     valid_target: U_valid_target | None
 
 
-@dataclass(frozen=True)
-class S_outcome_template(TypedMirrorNode):
-    condition: None
-    cost: None
-    description: None
-    duration: None
-    effect: U_effect
-    forward_result: bool
-    kind: str
-    optional: bool
-    optional_targeting: bool
-    sub_ability: None
-    target_prompt: None
-
-
 # --- tagged shapes (discriminated enum nodes) ---
+
+
+@dataclass(frozen=True)
+class T_keeper_constraint__exact_count(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "exact_count"
+    count: U_count
+
+
+@dataclass(frozen=True)
+class T_kept_destination_if__Typed(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "Typed"
+    controller: None
+    properties: list[U_properties]
+    type_filters: list[MirrorVariant]
+
+
+@dataclass(frozen=True)
+class T_keyword__Equip(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "Equip"
 
 
 @dataclass(frozen=True)
@@ -846,8 +855,18 @@ class T_op__Unlock(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class T_optional_player__DefendingPlayer(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "DefendingPlayer"
+
+
+@dataclass(frozen=True)
 class T_optional_player__ParentTargetController(TypedMirrorNode):
     _tag: ClassVar[str | None] = "ParentTargetController"
+
+
+@dataclass(frozen=True)
+class T_optional_player__ScopedPlayer(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "ScopedPlayer"
 
 
 @dataclass(frozen=True)
@@ -855,32 +874,11 @@ class T_optional_player__TriggeringPlayer(TypedMirrorNode):
     _tag: ClassVar[str | None] = "TriggeringPlayer"
 
 
-@dataclass(frozen=True)
-class T_origin__Equals(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "Equals"
-    data: str
-
-
-@dataclass(frozen=True)
-class T_origin__NotEquals(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "NotEquals"
-    data: str
-
-
-@dataclass(frozen=True)
-class T_origin__OneOf(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "OneOf"
-    data: list[U_data | S_data | MirrorVariant]
-
-
-@dataclass(frozen=True)
-class T_origin_constraint__Equals(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "Equals"
-    data: str
-
-
 # --- discriminated-union aliases (one per tagged content_key) ---
 
+type U_keeper_constraint = T_keeper_constraint__exact_count
+type U_kept_destination_if = T_kept_destination_if__Typed
+type U_keyword = T_keyword__Equip
 type U_kind = (
     T_kind__Card
     | T_kind__ExtraTurn
@@ -985,7 +983,8 @@ type U_once_per_turn = T_once_per_turn__OnlyOnceEachTurn
 type U_only_tag = T_only_tag__PowerUp
 type U_op = T_op__LockOrUnlock | T_op__Unlock
 type U_optional_player = (
-    T_optional_player__ParentTargetController | T_optional_player__TriggeringPlayer
+    T_optional_player__DefendingPlayer
+    | T_optional_player__ParentTargetController
+    | T_optional_player__ScopedPlayer
+    | T_optional_player__TriggeringPlayer
 )
-type U_origin = T_origin__Equals | T_origin__NotEquals | T_origin__OneOf
-type U_origin_constraint = T_origin_constraint__Equals

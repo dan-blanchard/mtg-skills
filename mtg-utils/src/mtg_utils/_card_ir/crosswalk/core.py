@@ -53,6 +53,7 @@ from mtg_utils._card_ir.crosswalk.reads import (
     _trigger_event,
     filter_core_types,
     iter_nested_granted_bodies,
+    iter_static_defs,
     iter_typed_nodes,
     residue_is,
     static_mode_tag,
@@ -554,6 +555,22 @@ class ConceptTree:
         """Whether phase left ANY ``Unimplemented`` residue (of ``name``)."""
         return next(self.residues(name), None) is not None
 
+    def hollow_statics(self) -> Iterator[str]:
+        """The descriptions of phase's HOLLOW static defs — a static ability def
+        phase built (``affected: SelfRef``) but left with an EMPTY
+        ``modifications`` list, so the clause survives only in the def's own
+        ``description`` (Siege Behemoth, Illusionist's Gambit; Camel since
+        v0.94.0). The static-side sibling of :meth:`residues`: no
+        ``Unimplemented`` node marks this gap, so a gap-gated text bridge keys
+        on the hollow def instead."""
+        for unit in self.units:
+            for sdef in iter_static_defs(unit.node):
+                if tag_of(getattr(sdef, "affected", None)) != "SelfRef":
+                    continue
+                if getattr(sdef, "modifications", None):
+                    continue
+                yield getattr(sdef, "description", "") or ""
+
     @property
     def is_text_only(self) -> bool:
         """Whether the card carries NO phase-parsed unit at all — a text-only face
@@ -703,7 +720,9 @@ def is_dies_return_trigger(trig: object) -> bool:
         if tag_of(cn.node) == "CreateDelayedTrigger":
             delayed_ids.update(id(x.node) for x in _walk_effect_chain(cn.node))
     producer_seen = False
-    for cn in _walk_effect_chain(execute):
+    # The else branch is walked after the main branch's subtree, so any
+    # producer there still gates it (Bogardan Phoenix's return) — conservative.
+    for cn in walk_effects_with_else(execute):
         node = cn.node
         tag = tag_of(node)
         if tag in _CARD_PRODUCER_TAGS:
@@ -729,6 +748,23 @@ def is_dies_return_trigger(trig: object) -> bool:
             continue  # hot-potato — the return goes to the CHOSEN player
         return True
     return False
+
+
+_WITH_ELSE_FIELDS: tuple[str, ...] = (*_EFFECT_CHILD_FIELDS, "else_ability")
+
+
+def walk_effects_with_else(ability_like: TypedMirrorNode) -> Iterator[ConceptNode]:
+    """:func:`_walk_effect_chain`, also descending ``else_ability`` branches.
+
+    phase v0.94.0 moved "Otherwise, …" clauses onto a conditional's
+    ``else_ability`` (Bogardan Phoenix's "Otherwise, return it to the
+    battlefield"; Shelinda's "Otherwise, put a +1/+1 counter on Shelinda").
+    ``_EFFECT_CHILD_FIELDS`` deliberately never walks ``else_ability`` — most
+    consumers want the main branch only — so a read that wants the other
+    branch too opts in here. Depth-first: a node's else branch is walked
+    after its main-branch subtree.
+    """
+    yield from _walk_effects(ability_like, 0, set(), _WITH_ELSE_FIELDS)
 
 
 # ── overlay construction ──────────────────────────────────────────────────────
@@ -766,7 +802,12 @@ def _walk_effect_chain(ability_like: TypedMirrorNode) -> Iterator[ConceptNode]:
     yield from _walk_effects(ability_like, 0, set())
 
 
-def _walk_effects(node: object, depth: int, seen: set[int]) -> Iterator[ConceptNode]:
+def _walk_effects(
+    node: object,
+    depth: int,
+    seen: set[int],
+    fields: tuple[str, ...] = _EFFECT_CHILD_FIELDS,
+) -> Iterator[ConceptNode]:
     if depth > 40 or not isinstance(node, TypedMirrorNode):
         return
     if id(node) in seen:
@@ -777,15 +818,15 @@ def _walk_effects(node: object, depth: int, seen: set[int]) -> Iterator[ConceptN
         cn = _decorate_effect(node, "effect")
         if cn is not None:
             yield cn
-    for fname in _EFFECT_CHILD_FIELDS:
+    for fname in fields:
         child = getattr(node, fname, MISSING)
         if isinstance(child, TypedMirrorNode):
-            yield from _walk_effects(child, depth + 1, seen)
+            yield from _walk_effects(child, depth + 1, seen, fields)
     modes = getattr(node, "mode_abilities", MISSING)
     if _present(modes) and isinstance(modes, list):
         for m in modes:
             if isinstance(m, TypedMirrorNode):
-                yield from _walk_effects(m, depth + 1, seen)
+                yield from _walk_effects(m, depth + 1, seen, fields)
 
 
 def _player_scope_tag(ps: object) -> str | None:
