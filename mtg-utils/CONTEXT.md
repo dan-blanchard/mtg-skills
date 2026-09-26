@@ -256,6 +256,34 @@ _Avoid_: "the game the deck plays" as loose prose (that is this term), "format" 
 this (a format has several games — paper Historic Brawl at a 30-life table and Arena
 Historic Brawl at 25 one-on-one are one format, two games).
 
+**Ownership** (ADR-0058):
+How many copies of a card a collection can put in a deck — a medium rule with one
+owner, `Format.coverage(medium, name, needed, owned, *, requested_owned)`. Paper: you
+have what you own. Arena: owning four copies covers any quantity (the client's
+playset rule). In both, the six basic land types are free — except, in paper, a
+**special printing request**. Every wildcard cost, shortfall, owned flag and "N of M
+owned" readout asks the owner; nothing compares owned to needed (or to four) itself.
+_Avoid_: "owned" for "holds at least one copy" (a deck running 17 Hare Apparent with
+one owned is not owned); a per-reader basics filter (the owner decides basics).
+
+**Coverage** (`Format.coverage` → `Coverage`):
+The owner's answer for one deck entry: `short`, the copies still to acquire
+(`Format.copies_short` is this view), and `covered_by` — `"free"` (a basic land),
+`"owned"` (the collection's copies cover every one) or null while any copy is short.
+Readers sum `short` and branch on `covered_by`; "free" is never "owned".
+
+**Special printing request**:
+A paper deck entry asking for a visually special printing of a basic land type:
+a foil or etched finish, full-art, borderless, a showcase or other special frame, a
+promo, or a visual promo type (`formats.is_special_basic_request`, judged from the
+requested printing's own record). Only that exact printing covers it
+(`ownership.requested_printing_owned` → `requested_owned`), so a collection that lists
+basics by name only, or not at all, holds none of it. A plain set / collector pin is
+not special; Snow-Covered basics are different cards, never a basic's printing; on
+Arena no basic request is special (styles are cosmetic).
+_Avoid_: treating any set pin as a request; distribution promo tags
+(`universesbeyond`, `bundle`) as special.
+
 ### Deck acquisition
 
 **Card pool**:

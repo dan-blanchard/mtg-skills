@@ -28,7 +28,7 @@ from pathlib import Path
 
 import click
 
-from mtg_utils.formats import FORMATS, Format, get_format
+from mtg_utils.formats import FOIL_FINISHES, FORMATS, Format, get_format
 
 
 def _detect_format(content: str) -> str:
@@ -209,7 +209,7 @@ def parse_csv(content: str) -> dict:
         if collector:
             entry["collector_number"] = collector
         finish = _csv_field(row, ("foil", "finish"))
-        if finish and finish.lower() in ("foil", "etched"):
+        if finish and finish.lower() in FOIL_FINISHES:
             entry["finish"] = finish.lower()
 
         cards.append(entry)

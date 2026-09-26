@@ -336,3 +336,13 @@ def test_seventeen_hare_apparent_with_one_owned_is_not_owned():
     assert engine.snapshot(state)["collection"]["owned"] == 0
     covered = _hare_state(17, medium="paper")
     assert engine.snapshot(covered)["collection"]["owned"] == 1
+
+
+def test_owned_snow_covered_basics_cover_the_deck_and_reach_the_tuner():
+    # Snow-Covered Forest is an ordinary collected card: four owned cover the
+    # deck's two in both media, and the tuner's purse sees them too.
+    pile = {"cards": [{"name": "Snow-Covered Forest", "quantity": 4}]}
+    for medium in ("paper", "digital"):
+        state = _forest_state(medium, pile=pile)
+        assert _shorts(state)["Snow-Covered Forest"] == 0
+        assert engine.owned_collection(state)["Snow-Covered Forest"] == 4

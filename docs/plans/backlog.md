@@ -19,6 +19,10 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   fires are lost (`suspect_matters` ×2, `exile_removal`).
 - **`named_synergy_overloaded_named_node`'s gap is the constant `True`**, so that
   bridge row can never retire itself.
+- **Roster counts are still hand-bumped.** Every pin bump edits the hard-coded counts
+  in `tests/mtg-utils/test_card_ir_mirror.py` (Effect roster length,
+  `distinct_variants_observed`, tagged + struct mirror classes) by hand;
+  `bump-phase-pin` could derive and rewrite them like the rosters themselves.
 - **Raw walks left in bridge-ledger matches.** The purity rule covers gaps only; the
   Ceremonial Knife `GrantTrigger` walk and `_blood_sacrificed_trigger_match` still
   walk nodes directly.

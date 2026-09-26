@@ -546,3 +546,45 @@ def test_owned_rows_carry_the_collections_printing_detail():
         {"set": "unf", "collector_number": "235", "quantity": 0, "foil_quantity": 2},
     ]
     assert "printings" not in rows["Opt"]
+
+
+def _summary(tmp_path, deck, collection):
+    deck_path = tmp_path / "deck.json"
+    coll_path = tmp_path / "collection.json"
+    deck_path.write_text(json.dumps(deck))
+    coll_path.write_text(json.dumps(collection))
+    result = CliRunner().invoke(
+        main, [str(deck_path), str(coll_path), "--output", str(tmp_path / "o.json")]
+    )
+    assert result.exit_code == 0, result.output
+    return result.output
+
+
+def test_summary_counts_covered_cards_by_the_ownership_rule(tmp_path):
+    """The "N of M owned" summary follows ``Format.coverage``: basic lands are free
+    and not counted, and a card is owned only when every copy is covered."""
+    deck = {
+        "format": "commander",
+        "cards": [
+            {"name": "Hare Apparent", "quantity": 17},
+            {"name": "Sol Ring", "quantity": 1},
+            {"name": "Forest", "quantity": 20},
+        ],
+    }
+    collection = {
+        "cards": [
+            {"name": "Hare Apparent", "quantity": 1},
+            {"name": "Sol Ring", "quantity": 1},
+        ]
+    }
+    # Paper: 1 Hare Apparent of 17 isn't owned; the Forests are free.
+    assert "1 of 2 unique deck cards owned" in _summary(tmp_path, deck, collection)
+
+
+def test_summary_applies_the_arena_playset_rule(tmp_path):
+    deck = {
+        "format": "historic_brawl",  # digital by default
+        "cards": [{"name": "Hare Apparent", "quantity": 17}],
+    }
+    collection = {"cards": [{"name": "Hare Apparent", "quantity": 4}]}
+    assert "1 of 1 unique deck cards owned" in _summary(tmp_path, deck, collection)

@@ -145,10 +145,17 @@ def resolve_input(
         raw = _read_deck_json(input_path)
     else:
         raw = _read_text_list(input_path)
+    if include_basics:
+        # The flag wins: basics stay on the list to buy even when the collection
+        # covers them (the ownership rule counts them as owned), so only the rest
+        # is subtracted.
+        if collection_path:
+            basics_kept = [c for c in raw if c["card_name"] in BASIC_LAND_NAMES]
+            rest = [c for c in raw if c["card_name"] not in BASIC_LAND_NAMES]
+            raw = basics_kept + _subtract_collection(rest, collection_path)
+        return raw, {}
     if collection_path:
         raw = _subtract_collection(raw, collection_path)
-    if include_basics:
-        return raw, {}
     basics: dict[str, int] = {}
     cards: list[NeededCard] = []
     for c in raw:

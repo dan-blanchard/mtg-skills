@@ -61,6 +61,7 @@ from mtg_utils._card_ir.mirror.build import load_committed_schema
 from mtg_utils._card_ir.trees import build_trees, seed_trees
 from mtg_utils._phase import PHASE_TAG
 from mtg_utils.card_ir import Card
+from mtg_utils.ownership import printing_rows
 
 if TYPE_CHECKING:
     from mtg_utils._card_ir.mirror.schema import MirrorSchema
@@ -181,14 +182,10 @@ def test_printing(
 def printing_row(
     set_code: str, collector_number: str, *, quantity: int = 0, foil_quantity: int = 0
 ) -> dict[str, Any]:
-    """One collection ``printings`` row (``ownership.entry_printing_rows``'s stored
-    shape): copies of a printing a collection holds."""
-    return {
-        "set": set_code,
-        "collector_number": collector_number,
-        "quantity": quantity,
-        "foil_quantity": foil_quantity,
-    }
+    """One collection ``printings`` row — ``ownership.printing_rows``'s stored shape —
+    for copies of a printing a collection holds."""
+    (row,) = printing_rows({(set_code, collector_number): (quantity, foil_quantity)})
+    return row
 
 
 def snapshot_records() -> list[dict[str, Any]]:

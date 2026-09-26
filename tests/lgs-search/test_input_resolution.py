@@ -141,9 +141,26 @@ class TestResolveInput:
         deck_path = _write(tmp_path, "deck.json", json.dumps(deck))
         coll_path = _write(tmp_path, "coll.json", json.dumps({}))
         cards, basics = resolve_input(
-            deck_path, collection_path=coll_path, include_basics=True
+            deck_path, collection_path=coll_path, include_basics=False
         )
         assert cards == [NeededCard(card_name="Snow-Covered Forest", qty=2)]
+        assert basics == {}
+
+    def test_include_basics_keeps_basics_to_buy_under_a_collection(self, tmp_path):
+        # --include-basics wins: the basics stay on the list even though the
+        # collection (by the ownership rule) covers them.
+        deck = {
+            "cards": [
+                {"name": "Forest", "qty": 12},
+                {"name": "Sol Ring", "qty": 1},
+            ],
+        }
+        deck_path = _write(tmp_path, "deck.json", json.dumps(deck))
+        coll_path = _write(tmp_path, "coll.json", json.dumps({"Sol Ring": 1}))
+        cards, basics = resolve_input(
+            deck_path, collection_path=coll_path, include_basics=True
+        )
+        assert cards == [NeededCard(card_name="Forest", qty=12)]
         assert basics == {}
 
     def test_collection_subtraction_normalizes_names(self, tmp_path):

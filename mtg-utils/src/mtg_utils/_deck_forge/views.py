@@ -17,7 +17,11 @@ from mtg_utils._analysis.signal_specs import spec_for
 from mtg_utils._analysis.signals import Signal
 from mtg_utils._deck_forge.images import image_urls
 from mtg_utils._deck_forge.state import ForgeState
-from mtg_utils.card_classify import get_mana_cost, get_oracle_text
+from mtg_utils.card_classify import (
+    FINISH_PRICE_KEYS,
+    get_mana_cost,
+    get_oracle_text,
+)
 from mtg_utils.formats import Coverage, Format
 from mtg_utils.hydrated_deck import ZONES
 
@@ -99,9 +103,6 @@ def result_view(
     return view
 
 
-_FINISH_PRICE_KEYS = {"foil": "usd_foil", "etched": "usd_etched"}
-
-
 def _coverage_fields(coverage: Coverage | None) -> dict:
     """The served ownership of a card (ADR-0058; ``Format.coverage``, applied
     upstream): ``copies_short`` — copies still to acquire, what the browser's
@@ -181,7 +182,7 @@ def card_view(
         imgs = image_urls(chosen)
         if imgs:
             view["images"] = imgs
-    price_key = _FINISH_PRICE_KEYS.get(finish or "")
+    price_key = FINISH_PRICE_KEYS.get(finish or "")
     if price_key:
         prices = view.get("prices") or {}
         view["prices"] = {

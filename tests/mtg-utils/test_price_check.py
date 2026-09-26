@@ -734,14 +734,18 @@ def _arena_printing(name: str, rarity: str) -> dict:
 # ── Basic lands: owned in any medium; a SPECIAL printing is owned in paper only if
 # the collection holds that exact printing ──
 
-_M21 = test_printing("Forest", "m21", "274", prices={"usd": "0.10"})
+_M21 = test_printing("Forest", "m21", "274", prices={"usd": "0.10", "usd_foil": "0.75"})
 _ZNR_FULL_ART = test_printing(
     "Forest",
     "znr",
     "278",
     full_art=True,
     frame_effects=["fullart"],
-    prices={"usd": "0.10"},
+    prices={"usd": "0.90", "usd_foil": "3.00"},
+)
+# A special printing with no listed price.
+_UNPRICED_SHOWCASE = test_printing(
+    "Forest", "m21", "313", frame_effects=["showcase"], prices={}
 )
 _LTR = test_printing(
     "Forest", "ltr", "270", promo_types=["universesbeyond"], prices={"usd": "0.10"}
@@ -753,9 +757,15 @@ _OTHER = printing_row("dmu", "277", quantity=30)
 def _paper(tmp_path, entry, owned):
     """Copies of ``entry`` a paper check says to buy, with bulk printing records."""
     bulk_path = tmp_path / "bulk.json"
-    bulk_path.write_text(json.dumps([_M21, _ZNR_FULL_ART, _LTR]))
+    bulk_path.write_text(json.dumps([_M21, _ZNR_FULL_ART, _LTR, _UNPRICED_SHOWCASE]))
     deck = {"cards": [entry], "owned_cards": owned}
     return check_prices(deck, bulk_path=bulk_path)["cards"][0]["copies_needed"]
+
+
+def _paper_row(tmp_path, entry):
+    bulk_path = tmp_path / "bulk.json"
+    bulk_path.write_text(json.dumps([_M21, _ZNR_FULL_ART, _LTR, _UNPRICED_SHOWCASE]))
+    return check_prices({"cards": [entry], "owned_cards": []}, bulk_path=bulk_path)
 
 
 def _forests(*rows):
@@ -798,6 +808,21 @@ class TestBasicLandOwnership:
         assert _paper(tmp_path, foil, _forests(nonfoil_held)) == 2
         foil_held = printing_row("m21", "274", foil_quantity=2)
         assert _paper(tmp_path, foil, _forests(foil_held)) == 0
+
+    def test_a_special_request_is_priced_at_that_printing(self, tmp_path):
+        # Twenty unowned full-art ZNR Forests cost the ZNR price, not the cheapest
+        # Forest's; a foil request costs the foil price.
+        full_art = {**_pin("ZNR", "278"), "quantity": 20}
+        assert _paper_row(tmp_path, full_art)["total_cost"] == 18.0
+        foil = {**_pin("M21", "274", finish="foil"), "quantity": 20}
+        assert _paper_row(tmp_path, foil)["total_cost"] == 15.0
+
+    def test_an_unpriced_special_printing_falls_back_and_says_so(self, tmp_path):
+        result = _paper_row(tmp_path, _pin("M21", "313"))
+        row = result["cards"][0]
+        assert row["copies_needed"] == 2
+        assert row["price_usd"] == 0.10  # the cheapest printing's
+        assert "no listed price" in row["price_note"]
 
     def test_any_forest_style_is_free_on_arena(self, tmp_path):
         bulk_path = tmp_path / "bulk.json"

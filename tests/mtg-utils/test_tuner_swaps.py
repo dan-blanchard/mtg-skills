@@ -1436,9 +1436,13 @@ def test_a_crafted_copy_never_reads_as_owned():
         {"Swords to Plowshares": 2},
         wildcard_budget={**_NO_WILDCARDS, "uncommon": 2},
     )
-    assert [(f["add"]["copy"], f["add"]["owned"]) for f in fills] == [
-        (1, True),
-        (2, True),
-        (3, False),
-        (4, False),
+    assert [
+        (f["add"]["copy"], f["add"]["owned"], f["add"]["covered_by"]) for f in fills
+    ] == [
+        (1, True, "owned"),
+        (2, True, "owned"),
+        (3, False, None),
+        (4, False, None),
     ]
+    # Each add serves its shortfall (the copy it costs), which the UI sums.
+    assert [f["add"]["copies_short"] for f in fills] == [0, 0, 1, 1]

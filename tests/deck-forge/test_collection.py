@@ -105,12 +105,14 @@ def test_owned_collection_surfaces_cards_not_in_the_deck():
                     "name": "Kodama's Reach",
                     "quantity": 1,
                 },  # NOT in the deck (candidate)
-                {"name": "Forest", "quantity": 30},  # basic — excluded
+                {"name": "Forest", "quantity": 30},
             ]
         },
     )
     owned = engine.owned_collection(state)
-    assert owned == {"Cultivate": 1, "Kodama's Reach": 1}  # whole slot, basics dropped
+    # The whole slot, basic lands included: whether a basic counts is the
+    # ownership rule's call (Format.coverage), not this reader's.
+    assert owned == {"Cultivate": 1, "Kodama's Reach": 1, "Forest": 30}
     # The deck-scoped map can't see the candidate — the bug this function fixes.
     assert "Kodama's Reach" not in engine.owned_quantities(state)
 

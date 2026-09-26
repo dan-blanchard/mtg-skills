@@ -215,13 +215,16 @@
   const pct = (x) => Math.round((x || 0) * 100);
   const WC_LETTER = { mythic: "M", rare: "R", uncommon: "U", common: "C" };
 
-  // Cost tag for a swap/commander entry. Paper: owned / free / $X. Digital: owned, or
-  // the wildcard the unowned card costs ("1R") — rarity rides the swap add (backend), or
-  // the resolved card as a fallback. `digital` and `resolvedCard` are passed in (not
-  // closed over) so the {costTag(...)} markup expression tracks them as dependencies and
-  // re-renders when the medium toggles — Svelte doesn't trace a function body's reads.
+  // Cost tag for a swap/commander entry. A swap add carries the backend's coverage
+  // (`covered_by` "free" / "owned", and `copies_short`); a commander suggestion carries
+  // `owned`. Paper: free / owned / $X. Digital: free / owned, or the wildcard the add
+  // costs ("1R") — rarity rides the swap add (backend), or the resolved card as a
+  // fallback. `digital` and `resolvedCard` are passed in (not closed over) so the
+  // {costTag(...)} markup expression tracks them as dependencies and re-renders when
+  // the medium toggles — Svelte doesn't trace a function body's reads.
   function costTag(entry, digital, resolvedCard) {
-    if (entry.owned) return "owned";
+    if (entry.covered_by === "free") return "free";
+    if (entry.covered_by === "owned" || entry.owned) return "owned";
     if (digital) {
       // || not ??: the backend sends "" (not null) for a missing rarity, and no valid
       // rarity is ever falsy — so empty-string must also fall through to the resolved card.
@@ -233,13 +236,13 @@
     return entry.cost === 0 ? "free" : `$${entry.cost}`;
   }
 
-  // Wildcards the swaps STILL in the list cost, by tier (digital only) — one wildcard
-  // per unowned add of its rarity. Recomputed from the rows (each carries rarity +
-  // owned, from the backend) so the total stays in sync when a single Apply removes one,
-  // rather than reading the backend's now-stale full-batch wildcards_spent.
+  // Wildcards the swaps STILL in the list cost, by tier (digital only) — each add's
+  // served `copies_short` of its rarity. Summed from the rows so the total stays in
+  // sync when a single Apply removes one, rather than reading the backend's now-stale
+  // full-batch wildcards_spent.
   $: wcSpend = (result?.swaps ?? []).reduce(
     (t, s) => {
-      if (!s.add.owned && s.add.rarity in t) t[s.add.rarity] += 1;
+      if (s.add.rarity in t) t[s.add.rarity] += s.add.copies_short ?? 0;
       return t;
     },
     { mythic: 0, rare: 0, uncommon: 0, common: 0 },

@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 import time
-from collections.abc import Callable
 from pathlib import Path
 
 import click
@@ -13,13 +12,20 @@ import requests
 from mtg_utils._http import USER_AGENT
 from mtg_utils._name_index import NameIndex
 from mtg_utils._sidecar import atomic_write_json, sha_keyed_path
-from mtg_utils.card_classify import extract_price
+from mtg_utils.card_classify import extract_price, finish_price
 from mtg_utils.card_pool import CardPool, NoBulkError
 from mtg_utils.deck import OWNED_ZONES, deck_entries
 from mtg_utils.deck_cli import bulk_data_option
-from mtg_utils.formats import DIGITAL, FORMATS, PAPER, Format, get_format
+from mtg_utils.formats import (
+    DIGITAL,
+    FORMATS,
+    PAPER,
+    Format,
+    get_format,
+    resolve_deck_medium,
+)
 from mtg_utils.names import normalize_card_name
-from mtg_utils.ownership import printing_index, requested_printing_owned
+from mtg_utils.ownership import printing_index, special_requests
 from mtg_utils.scryfall_lookup import (
     RATE_LIMIT_DELAY,
     SCRYFALL_NAMED_URL,
@@ -30,7 +36,8 @@ _extract_price = extract_price
 
 
 def _normalize_owned_cards(entries: list) -> dict[str, int]:
-    """Return ``lowercased_name -> owned_quantity`` from an ``owned_cards`` list.
+    """Return ``normalized name -> owned_quantity`` from an ``owned_cards`` list
+    (``names.normalize_card_name``, the ownership path's one folding).
 
     ``owned_cards`` is a list of ``{"name": str, "quantity": int}`` dicts,
     matching the shape of the sibling ``cards`` and ``commanders`` fields
@@ -56,7 +63,7 @@ def _normalize_owned_cards(entries: list) -> dict[str, int]:
             qty = 1
         if qty < 1:
             continue
-        key = name.lower()
+        key = normalize_card_name(name)
         owned[key] = owned.get(key, 0) + qty
     return owned
 
@@ -131,38 +138,6 @@ def _extract_deck_entries(names_or_deck: list | dict) -> list[tuple[str, int]]:
     return pairs
 
 
-def _requested_owned(
-    deck: dict,
-    owned_cards: list,
-    printing_at: Callable[[str, str, str], dict | None] | None,
-) -> dict[str, int]:
-    """name → copies of the special printing a paper deck entry asks for that
-    ``owned_cards`` holds — a foil or visually special basic land
-    (``ownership.requested_printing_owned``), judged against the collection's
-    printing detail (``mark-owned`` attaches it). ``printing_at`` resolves an entry's
-    set / collector pin to its printing record (None without card data: only a foil
-    finish can mark a request special then). Every other name is absent, which
-    ``Format.coverage`` reads as an ordinary request."""
-    detail = printing_index({"cards": owned_cards})
-    out: dict[str, int] = {}
-    for entry in deck_entries(deck, _PRICED_ZONES):
-        name = entry["name"]
-        if name in out:
-            continue
-        set_code, collector = entry.get("set"), entry.get("collector_number")
-        printing = (
-            printing_at(name, set_code, collector)
-            if printing_at and set_code and collector
-            else None
-        )
-        held = requested_printing_owned(
-            name, entry, printing, detail.get(normalize_card_name(name))
-        )
-        if held is not None:
-            out[name] = held
-    return out
-
-
 def _api_price_lookup(name: str) -> float | None:
     """Fall back to Scryfall API for price when bulk data has null."""
     session = requests.Session()
@@ -183,7 +158,6 @@ def _check_arena_wildcards(
     entries: list[tuple[str, int]],
     owned_map: dict[str, int],
     rarity_index: NameIndex,
-    medium: str,
 ) -> dict:
     """Build wildcard-based price result for Arena formats.
 
@@ -204,10 +178,9 @@ def _check_arena_wildcards(
     illegal_or_missing: list[dict] = []
 
     for name, deck_qty in entries:
-        key = name.lower()
-        owned_qty = owned_map.get(key, 0)
-        entry = rarity_index.get(key)
-        need = Format.copies_short(medium, name, deck_qty, owned_qty)
+        owned_qty = owned_map.get(normalize_card_name(name), 0)
+        entry = rarity_index.get(name)
+        need = Format.copies_short(DIGITAL, name, deck_qty, owned_qty)
 
         if entry is None:
             # Not in the format-filtered Arena rarity index — illegal or
@@ -305,22 +278,27 @@ def check_prices(
         owned_map = _normalize_owned_cards(owned_cards)
 
     fmt = get_format(format) if format is not None else None
-    medium = resolve_price_medium(fmt, names_or_deck, medium)
+    medium = resolve_deck_medium(fmt, names_or_deck, medium)
     if (
         fmt is not None
         and Format.cost_mode(medium) == "wildcards"
         and bulk_path is not None
     ):
         rarity_index = CardPool.load(bulk_path).rarity_index(fmt, arena_only=True)
-        return _check_arena_wildcards(entries, owned_map, rarity_index, medium)
+        return _check_arena_wildcards(entries, owned_map, rarity_index)
 
     # USD price mode: each slot charges the copies the paper ownership rule leaves
     # short (``Format.copies_short``) — 17 Hare Apparent with 4 owned buys 13; basic
     # lands are owned unless the deck asks for a special printing of one.
     pool = CardPool.load(bulk_path) if bulk_path else None
     bulk_index = pool.by_name if pool else None
-    requested = (
-        _requested_owned(names_or_deck, owned_cards, pool.printing_at if pool else None)
+    specials = (
+        special_requests(
+            names_or_deck,
+            printing_index({"cards": owned_cards}),
+            pool.printing_at if pool else None,
+            _PRICED_ZONES,
+        )
         if isinstance(names_or_deck, dict)
         else {}
     )
@@ -334,10 +312,23 @@ def check_prices(
         price = _extract_price(card)
         if price is None and card is not None:
             price = _api_price_lookup(name)
+        special = specials.get(name)
+        note = None
+        if special is not None:
+            # A special basic printing costs what THAT printing costs, in its finish.
+            requested_price = finish_price(special.printing or card, special.finish)
+            if requested_price is not None:
+                price = requested_price
+            else:
+                note = "requested printing has no listed price; priced at the cheapest"
 
-        owned_qty = owned_map.get(name.lower(), 0)
+        owned_qty = owned_map.get(normalize_card_name(name), 0)
         need = Format.copies_short(
-            medium, name, deck_qty, owned_qty, requested_owned=requested.get(name)
+            medium,
+            name,
+            deck_qty,
+            owned_qty,
+            requested_owned=special.held if special else None,
         )
         fully_owned = need == 0
         if fully_owned:
@@ -356,6 +347,7 @@ def check_prices(
                 "owned_quantity": owned_qty,
                 "copies_needed": need,
                 "running_total": round(total_cost, 2),
+                **({"price_note": note} if note else {}),
             }
         )
 
@@ -438,20 +430,6 @@ def render_text_report(result: dict) -> str:
     return "\n".join(lines) + "\n"
 
 
-def resolve_price_medium(
-    fmt: Format | None, names_or_deck: list[str] | dict, override: str | None
-) -> str:
-    """The medium a price check runs in, which decides its cost mode (ADR-0052):
-    the explicit override, else the deck JSON's own ``medium``, resolved by the
-    Format (an override it can't honour falls back to its default); an unformatted
-    list is paper."""
-    if fmt is None:
-        return PAPER
-    if override is None and isinstance(names_or_deck, dict):
-        override = names_or_deck.get("medium")
-    return fmt.resolve_medium(override)
-
-
 def _default_output_path(
     content: str,
     budget: float | None,
@@ -509,7 +487,7 @@ def main(
         raw.get("format") if isinstance(raw, dict) else None
     )
     fmt = FORMATS.get(effective_format) if effective_format else None
-    effective_medium = resolve_price_medium(fmt, raw, medium)
+    effective_medium = resolve_deck_medium(fmt, raw, medium)
     try:
         bulk_path: Path | None = CardPool.resolve_path(bulk_data)
     except NoBulkError as exc:

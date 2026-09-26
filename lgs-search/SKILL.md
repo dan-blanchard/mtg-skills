@@ -151,7 +151,8 @@ launched on the cart URL using the store's persistent profile. The
 user reviews and checks out manually. Pass `--no-handoff` to skip.
 
 `--collection` subtracts what you own by the paper ownership rule (ADR-0058):
-basic lands count as owned, so they're never bought.
+basic lands count as owned, so they drop off the list — unless you pass
+`--include-basics`, which keeps them on the list to buy whatever the collection holds.
 
 ## Flag reference
 

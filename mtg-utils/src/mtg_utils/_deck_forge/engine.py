@@ -50,11 +50,12 @@ from mtg_utils.card_classify import (
     is_land,
     valid_partner_search,
 )
-from mtg_utils.card_pool import CardPool, find_printing
+from mtg_utils.card_pool import CardPool, printing_of
 from mtg_utils.companion import is_companion
 from mtg_utils.deck import deck_entries
 from mtg_utils.deck_stats import deck_stats, detect_bracket
 from mtg_utils.formats import (
+    FOIL_FINISHES,
     FORMATS,
     Coverage,
     Format,
@@ -210,17 +211,16 @@ def owned_quantities(state: ForgeState) -> dict[str, int]:
     """Owned-copy map (deck card name → count) against the ACTIVE Collection slot only —
     empty when that slot holds no imported Collection. The names are the deck's
     (:func:`deck_names`: never an opened pool, whose cards are owned by definition).
-    Basic lands are excluded: owning basics is assumed, so they never read as an
-    un-owned 'miss' nor clutter the readout. DERIVED fresh each call from the cached
-    per-slot lookup; never stored."""
+    Every card is read, basic lands included: whether a basic counts as owned is
+    ``Format.coverage``'s call (the six basic land types are free; Snow-Covered basics
+    are collected like any card). DERIVED fresh each call from the cached per-slot
+    lookup; never stored."""
     idx = state.collection_index.get(active_slot(state))
     if not idx:
         return {}
     entries, lookup = idx
     out: dict[str, int] = {}
     for name in sorted(deck_names(state)):
-        if _is_basic(state.by_name.get(name)):
-            continue
         qty = mark_owned.owned_quantity(name, entries, lookup)
         if qty is not None:
             out[name] = qty
@@ -228,24 +228,21 @@ def owned_quantities(state: ForgeState) -> dict[str, int]:
 
 
 def owned_collection(state: ForgeState) -> dict[str, int]:
-    """EVERY owned card in the active Collection slot (name -> copies), basics excluded.
+    """EVERY owned card in the active Collection slot (name -> copies).
 
     Distinct from :func:`owned_quantities`, which is deck-scoped (the "X of Y owned"
     readout). The tuner judges *candidate* adds — cards NOT yet in the deck — so a
     deck-scoped map makes every candidate read as un-owned: at a zero wildcard budget
     nothing would be affordable (no owned-card fills), and owned-but-not-in-deck cards
     would wrongly burn budget. This whole-slot map lets the tuner treat any owned
-    candidate as free. Keyed by the collection's own names (canonical for Untapped/Arena
-    and Moxfield exports), which match the canonical names ``card_search`` returns."""
+    candidate as free (``Format.coverage`` decides basics). Keyed by the collection's
+    own names (canonical for Untapped/Arena and Moxfield exports), which match the
+    canonical names ``card_search`` returns."""
     idx = state.collection_index.get(active_slot(state))
     if not idx:
         return {}
     entries, _lookup = idx
-    return {
-        name: qty
-        for name, qty in entries.values()
-        if qty >= 1 and not _is_basic(state.by_name.get(name))
-    }
+    return {name: qty for name, qty in entries.values() if qty >= 1}
 
 
 def owned_of(state: ForgeState, name: str) -> int | None:
@@ -380,15 +377,13 @@ def pin_imported_printings(
             collector = str(entry.get("collector_number") or "")
             if not (name and set_code and collector):
                 continue
-            record = state.by_name.get(name)
-            oracle_id = record.get("oracle_id") if record else None
-            match = find_printing(
-                state.printings_by_oracle.get(oracle_id or "", []), set_code, collector
+            match = printing_of(
+                state.by_name, state.printings_by_oracle, name, set_code, collector
             )
             if match is None:
                 continue
             finish = entry.get("finish")
-            if finish not in ("foil", "etched") or finish not in (
+            if finish not in FOIL_FINISHES or finish not in (
                 match.get("finishes") or []
             ):
                 finish = None
@@ -401,11 +396,12 @@ def collection_summary(state: ForgeState, owned: Mapping[str, int]) -> dict:
     basic land), how many the collection covers (:func:`coverage`). Seventeen Hare
     Apparent with one owned is not owned."""
     by_name = {e["name"]: coverage(state, owned, e) for e in _deck_rows(state)}
+    covered, total = ownership.covered_count(by_name.values())
     return {
         "active_slot": active_slot(state),
         "slots": collection.slot_sizes(state.collections),
-        "owned": sum(1 for c in by_name.values() if c.covered_by == "owned"),
-        "deck_total": sum(1 for c in by_name.values() if c.covered_by != "free"),
+        "owned": covered,
+        "deck_total": total,
     }
 
 
@@ -1107,9 +1103,7 @@ def choose_printing(
     if finish is not None:
         if chosen is None:
             raise DeckRuleError("finish requires a chosen printing")
-        if finish not in ("foil", "etched") or finish not in (
-            chosen.get("finishes") or []
-        ):
+        if finish not in FOIL_FINISHES or finish not in (chosen.get("finishes") or []):
             raise DeckRuleError(f"printing {printing_id!r} has no {finish!r} finish")
     state.session.set_printing(name, printing_id, zone=zone, finish=finish)
 

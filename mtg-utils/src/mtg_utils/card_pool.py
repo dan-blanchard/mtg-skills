@@ -23,7 +23,7 @@ reachable by printing id (``by_id``), which proxies need for ``all_parts``.
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from pathlib import Path
 
 from mtg_utils._name_index import NameIndex, build_name_index, keep_cheaper
@@ -122,6 +122,23 @@ def find_printing(printings: list[dict], set_code: str, collector: str) -> dict 
             and str(p.get("collector_number") or "") == collector
         ),
         None,
+    )
+
+
+def printing_of(
+    by_name: Mapping[str, dict],
+    printings_by_oracle: Mapping[str, list[dict]],
+    name: str,
+    set_code: str,
+    collector: str,
+) -> dict | None:
+    """The printing of card ``name`` at (``set_code``, ``collector``) over a name
+    index and its printings-by-oracle index — ``CardPool.printing_at``'s lookup, for a
+    caller holding its own copies of those indexes (the deck-forge hub)."""
+    record = by_name.get(name)
+    oracle_id = record.get("oracle_id") if record else None
+    return find_printing(
+        printings_by_oracle.get(oracle_id or "", []), set_code, collector
     )
 
 
@@ -355,10 +372,8 @@ class CardPool:
 
     def printing_at(self, name: str, set_code: str, collector: str) -> dict | None:
         """The printing of card ``name`` at (``set_code``, ``collector``), or None."""
-        record = self.by_name.get(name)
-        oracle_id = record.get("oracle_id") if record else None
-        return find_printing(
-            self.printings_by_oracle.get(oracle_id or "", []), set_code, collector
+        return printing_of(
+            self.by_name, self.printings_by_oracle, name, set_code, collector
         )
 
     def resolve_object(self, name: str) -> dict | None:

@@ -131,6 +131,19 @@ def extract_price(card: dict | None) -> float | None:
     return None
 
 
+#: The price key for a finish (foil / etched); the nonfoil price is ``usd``.
+FINISH_PRICE_KEYS: dict[str, str] = {"foil": "usd_foil", "etched": "usd_etched"}
+
+
+def finish_price(card: dict | None, finish: str | None) -> float | None:
+    """*card*'s USD price in *finish* — ``usd_foil`` / ``usd_etched`` for a foil or
+    etched finish, ``usd`` otherwise — or None when that price isn't listed."""
+    if card is None:
+        return None
+    value = (card.get("prices") or {}).get(FINISH_PRICE_KEYS.get(finish or "", "usd"))
+    return float(value) if value is not None else None
+
+
 def build_card_lookup(hydrated: Sequence[dict | None]) -> NameIndex:
     """Build a folding name -> card index from a hydrated (resolved-records) list.
 

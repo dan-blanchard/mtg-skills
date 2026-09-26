@@ -69,6 +69,20 @@ def medium_is_digital(medium: str) -> bool:
     return medium == DIGITAL
 
 
+def resolve_deck_medium(
+    fmt: Format | None, deck: object, override: str | None = None
+) -> str:
+    """The medium a deck (or card list) is judged in — its cost mode and what owning
+    a card means (ADR-0052, ADR-0058): the explicit override, else a deck JSON's own
+    ``medium``, resolved by the Format (an override it can't honour falls back to its
+    default); an unformatted list is paper."""
+    if fmt is None:
+        return PAPER
+    if override is None and isinstance(deck, dict):
+        override = deck.get("medium")
+    return fmt.resolve_medium(override)
+
+
 #: Owned copies that cover any quantity of a card on Arena (``Format.coverage``).
 ARENA_PLAYSET = 4
 #: Finishes that count as foil: a foil or etched request (etched is a foil treatment)

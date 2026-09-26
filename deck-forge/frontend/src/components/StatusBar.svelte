@@ -147,7 +147,7 @@
         {#if collectionLoaded}
           <span
             class="unowned"
-            title="Estimated cost of cards not in your {$collection.active_slot} collection (basics excluded)"
+            title="Estimated cost of the copies your {$collection.active_slot} collection doesn't cover (basic lands are free unless you picked a special printing)"
             >(${unownedTotal.toFixed(0)} unowned)</span
           >
         {/if}

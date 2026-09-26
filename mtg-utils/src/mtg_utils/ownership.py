@@ -9,9 +9,11 @@ module only reads collection piles and deck entries into its inputs.
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Callable, Iterable, Mapping
+from dataclasses import dataclass
 
-from mtg_utils.formats import FOIL_FINISHES, is_special_basic_request
+from mtg_utils.deck import OWNED_ZONES, deck_entries
+from mtg_utils.formats import FOIL_FINISHES, Coverage, is_special_basic_request
 from mtg_utils.names import normalize_card_name
 
 #: One card's per-printing owned copies: ``{(set, collector): (nonfoil, foil)}``.
@@ -141,3 +143,54 @@ def requested_printing_owned(
         for (s, c), (nonfoil, foil_qty) in (detail or {}).items()
         if not pinned or (s, c) == (set_code, collector)
     )
+
+
+@dataclass(frozen=True, slots=True)
+class SpecialRequest:
+    """A deck entry's SPECIAL basic printing request (``requested_printing_owned``):
+    the copies of it a collection holds, the requested printing's own record (None
+    for a finish-only request), and the finish asked for."""
+
+    held: int
+    printing: Mapping | None
+    finish: str | None
+
+
+def special_requests(
+    deck: Mapping,
+    detail_by_name: Mapping[str, PrintingDetail],
+    printing_at: Callable[[str, str, str], Mapping | None] | None,
+    zones: tuple[str, ...] = OWNED_ZONES,
+) -> dict[str, SpecialRequest]:
+    """name → :class:`SpecialRequest` for each deck entry (in ``zones``) asking for a
+    special basic printing. ``detail_by_name`` is a collection's per-printing detail
+    (:func:`printing_index`); ``printing_at`` resolves an entry's set / collector pin
+    to its printing record (``CardPool.printing_at``; None without card data, when
+    only a foil finish can mark a request special). Every other name is absent —
+    ``Format.coverage`` reads it as an ordinary request. The one reader
+    ``price-check`` and ``mark-owned`` share."""
+    out: dict[str, SpecialRequest] = {}
+    for entry in deck_entries(deck, zones):
+        name = entry["name"]
+        if name in out:
+            continue
+        set_code, collector = entry.get("set"), entry.get("collector_number")
+        printing = (
+            printing_at(name, set_code, collector)
+            if printing_at and set_code and collector
+            else None
+        )
+        held = requested_printing_owned(
+            name, entry, printing, detail_by_name.get(normalize_card_name(name))
+        )
+        if held is not None:
+            out[name] = SpecialRequest(held, printing, entry.get("finish"))
+    return out
+
+
+def covered_count(coverages: Iterable[Coverage]) -> tuple[int, int]:
+    """The "N of M owned" readout over a deck's distinct cards: N covered by the
+    collection's copies, of the M that aren't free (basic lands)."""
+    items = list(coverages)
+    owned = sum(1 for c in items if c.covered_by == "owned")
+    return owned, sum(1 for c in items if c.covered_by != "free")

@@ -45,17 +45,26 @@ bulk sidecar v4, announced on stderr as a one-time rebuild).
 
 Every reader goes through the owner:
 
-- `price-check`: the medium is the Format's (`resolve_medium`, then `cost_mode` picks
-  wildcards or USD); a paper deck line's set / collector pin resolves to its printing
-  through `CardPool.printing_at`.
+- `price-check`: the medium is the deck's (`formats.resolve_deck_medium`, then
+  `cost_mode` picks wildcards or USD); a paper deck line's set / collector pin resolves
+  to its printing through `CardPool.printing_at`, and a special request is priced at
+  that printing's own price in the requested finish (the cheapest printing only when it
+  has none, noted on the row).
+- `mark-owned`: its "N of M owned" summary counts covered cards in the deck's medium
+  (`ownership.covered_count`, the count the hub uses too).
 - the tuner: `propose_swaps` decides coverage once per added copy; the purse prices
-  only uncovered copies, and the swap's `owned` is that same decision.
+  only uncovered copies, and each swap add serves that decision (`covered_by`,
+  `copies_short`, `owned`), which the Tune panel reads.
 - deck-forge: `engine.coverage` serves each deck row's `copies_short`, `covered_by` and
   `owned` flag (a paper row's pinned printing and finish are its request);
   `engine.candidate_coverage` serves Find results and combo pieces (one copy to add);
   the footer's wildcard total and the "N of M owned" count are sums of the rows; the
   browser only reads what it is served.
-- `lgs-search`: collection subtraction is paper `copies_short`.
+- `lgs-search`: collection subtraction is paper `copies_short`; `--include-basics`
+  keeps basics on the list to buy whatever the collection covers.
+- The hub's owned-count readers (`owned_quantities`, `owned_collection`) read every
+  card, basics included: filtering basics there would also drop Snow-Covered basics,
+  which are ordinary cards. Only the owner decides basics.
 
 `mtga-import` no longer writes basic lands into `collection.json` at quantity 99, and
 the Arena rarity index no longer carries a `free` flag: the owner is the one encoding

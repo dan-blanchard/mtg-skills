@@ -718,8 +718,8 @@ def propose_swaps(
     ) -> None:
         # Charge only now that the swap is finalized (find_add probed read-only, so an
         # unpaired add never consumed budget — USD dollars or a wildcard, by mode).
-        covered_by = coverage(add_card).covered_by
-        if covered_by is None:
+        cover = coverage(add_card)
+        if cover.covered_by is None:
             ledger.charge(add_card, cost)
         game_changers.charge(add_card, cut)
         if cut is not None:
@@ -748,9 +748,12 @@ def propose_swaps(
                     # "go to four" reads as copy 4).
                     "copy": copy_no,
                     "cost": cost,
-                    # Covered by the collection's copies (the purse charged nothing;
-                    # a free basic land is free, not owned).
-                    "owned": covered_by == "owned",
+                    # The coverage decision the purse charged by, served so the UI
+                    # derives nothing: copies this add leaves to acquire (0 or 1),
+                    # and "free" (a basic land) / "owned" (the collection's copies).
+                    "copies_short": 0 if cover.covered_by else 1,
+                    "covered_by": cover.covered_by,
+                    "owned": cover.covered_by == "owned",
                     # Rarity rides along so a digital build can show the add's wildcard
                     # cost (one wildcard of its rarity) without a second card lookup.
                     "rarity": add_card.get("rarity", ""),
