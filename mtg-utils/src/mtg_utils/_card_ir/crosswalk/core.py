@@ -394,6 +394,16 @@ class AbilityUnit:
         """Whether THIS unit has a role=effect concept-node named ``concept``."""
         return any(c.concept == concept for c in self.effects)
 
+    def iter_typed(self) -> Iterator[TypedMirrorNode]:
+        """Every typed mirror node under THIS unit — the per-unit deep walk, for
+        a gate that must read a node against its own unit (its root, origin)."""
+        yield from iter_typed_nodes(self.node)
+
+    def static_defs(self) -> Iterator[TypedMirrorNode]:
+        """Every static-ability def under THIS unit (the unit node itself when it
+        is one, plus the defs nested in a granted/emblem static list)."""
+        yield from iter_static_defs(self.node)
+
 
 @dataclass(frozen=True)
 class ConceptTree:
@@ -497,10 +507,21 @@ class ConceptTree:
     # synthesis arm, a ledgered bridge or a lane asks is one of these reads. A gate
     # composes them; it never re-walks the tree in its own idiom.
 
+    def iter_units(self, *origins: str) -> Iterator[AbilityUnit]:
+        """The card's ability units, optionally only those whose ``origin`` is
+        one of ``origins`` — the unit-context read. A gate that must judge a node
+        against its own unit (a trigger's mode and condition, a static's mode
+        fields, an effect's owning wrapper) takes the unit from here and reads it
+        through the unit's own presence reads (:meth:`AbilityUnit.iter_typed`,
+        :meth:`AbilityUnit.static_defs`, ``effects``), never a raw walk."""
+        for unit in self.units:
+            if not origins or unit.origin in origins:
+                yield unit
+
     def iter_typed(self) -> Iterator[TypedMirrorNode]:
         """Every typed mirror node under every unit — the whole-card deep walk."""
         for unit in self.units:
-            yield from iter_typed_nodes(unit.node)
+            yield from unit.iter_typed()
 
     def has_typed(self, *tags: str) -> bool:
         """Whether ANY typed node anywhere in the card carries one of ``tags``."""
@@ -555,6 +576,21 @@ class ConceptTree:
         """Whether phase left ANY ``Unimplemented`` residue (of ``name``)."""
         return next(self.residues(name), None) is not None
 
+    def effect_residues(self, name: str | None = None) -> Iterator[str]:
+        """The descriptions of the ``Unimplemented`` residues sitting in an
+        ability's EFFECT position (a unit's ``effects`` chain), optionally only
+        those whose phase ``name`` is ``name``. The narrower sibling of
+        :meth:`residues` for a clause phase parks as a resolved effect: a
+        cost, trigger-condition or static residue elsewhere on the card never
+        counts."""
+        for unit in self.units:
+            for c in unit.effects:
+                if tag_of(c.node) != "Unimplemented":
+                    continue
+                if name is not None and not residue_is(c.node, name):
+                    continue
+                yield getattr(c.node, "description", "") or ""
+
     def hollow_statics(self) -> Iterator[str]:
         """The descriptions of phase's HOLLOW static defs — a static ability def
         phase built (``affected: SelfRef``) but left with an EMPTY
@@ -564,7 +600,7 @@ class ConceptTree:
         ``Unimplemented`` node marks this gap, so a gap-gated text bridge keys
         on the hollow def instead."""
         for unit in self.units:
-            for sdef in iter_static_defs(unit.node):
+            for sdef in unit.static_defs():
                 if tag_of(getattr(sdef, "affected", None)) != "SelfRef":
                     continue
                 if getattr(sdef, "modifications", None):

@@ -46,7 +46,7 @@ widening its own read.
 from __future__ import annotations
 
 import re
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Iterable, Iterator
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
@@ -67,7 +67,6 @@ from mtg_utils._card_ir.crosswalk import (
     filter_inzone_zones,
     filter_subtypes,
     iter_cost_leaves,
-    iter_static_defs,
     iter_typed_nodes,
     static_mode_field,
     tag_of,
@@ -81,9 +80,11 @@ if TYPE_CHECKING:  # pragma: no cover
 
 # The four residue classes a bridge may serve (mtg-utils/CONTEXT.md):
 # a grammar straggler (our clause grammar's frontier), a dropped clause
-# (phase emits nothing), a missing face (W2c text-only tree), an upstream
-# parse failure (phase tried and failed — the line preserved in an
-# ``Unimplemented`` residue or in a hollow static def's ``description``).
+# (phase emits nothing for the clause), a missing face (W2c text-only tree),
+# an upstream parse failure (phase tried and failed — the line preserved in an
+# ``Unimplemented`` residue or in a hollow static def's ``description``, or
+# emitted as a WRONG typed node: a misparse). ``test_bridge_ledger`` checks
+# each row's kind against its pins' evidence where the kind is checkable.
 BRIDGE_KINDS = frozenset(
     {
         "grammar_straggler",
@@ -151,6 +152,14 @@ _DEGAVOLVER_RX = re.compile(
 )
 
 
+def _says(rx: re.Pattern[str], texts: Iterable[str]) -> bool:
+    """Whether any of ``texts`` — the residue / hollow-static descriptions a
+    presence read returned — says ``rx``. The shape every text bridge's gap and
+    match share: the gap asks it of the residue carrying the row's own clause,
+    the match of the text that residue preserves."""
+    return any(rx.search(t) for t in texts)
+
+
 def _degavolver_gap(tree: ConceptTree) -> bool:
     return all(tag_of(n) not in ("PayLife", "GrantAbility") for n in tree.iter_typed())
 
@@ -183,11 +192,13 @@ def _unless_clause_failure_descs(tree: ConceptTree) -> Iterator[str]:
 
 
 def _withercrown_gap(tree: ConceptTree) -> bool:
-    return tree.has_residue("Unsupported unless clause")
+    # Keyed on the residue carrying THIS clause (CONTEXT.md "Gap predicate"), so a
+    # phase fix to it reads RETIRE-READY even if another unless-clause stays parked.
+    return _says(_WITHERCROWN_RX, _unless_clause_failure_descs(tree))
 
 
 def _withercrown_match(tree: ConceptTree) -> bool:
-    return any(_WITHERCROWN_RX.search(d) for d in _unless_clause_failure_descs(tree))
+    return _says(_WITHERCROWN_RX, _unless_clause_failure_descs(tree))
 
 
 # ── Night Shift of the Living Dead → lifeloss_makers ─────────────────────────
@@ -208,19 +219,13 @@ _NIGHT_SHIFT_RX = re.compile(
 )
 
 
-def _unimplemented_effect_descs(tree: ConceptTree) -> Iterator[str]:
-    for unit in tree.units:
-        for cn in unit.effects:
-            if tag_of(cn.node) == "Unimplemented":
-                yield getattr(cn.node, "description", "") or ""
-
-
 def _night_shift_gap(tree: ConceptTree) -> bool:
-    return any(True for _ in _unimplemented_effect_descs(tree))
+    # The residue carrying THIS clause, over the ``residues`` presence read.
+    return _says(_NIGHT_SHIFT_RX, tree.residues())
 
 
 def _night_shift_match(tree: ConceptTree) -> bool:
-    return any(_NIGHT_SHIFT_RX.search(d) for d in _unimplemented_effect_descs(tree))
+    return _says(_NIGHT_SHIFT_RX, tree.effect_residues())
 
 
 # ── Zuko, Conflicted → lifeloss_makers ───────────────────────────────────────
@@ -486,8 +491,8 @@ def _cheat_modal_unsupported_match(tree: ConceptTree) -> bool:
 # ``_no_typed_sacrifice_node`` precedent, same shared-broad-gap /
 # narrow-per-bridge-match shape.
 def _no_player_reaching_damage_node(tree: ConceptTree) -> bool:
-    for unit in tree.units:
-        for n in iter_typed_nodes(unit.node):
+    for unit in tree.iter_units():
+        for n in unit.iter_typed():
             if tag_of(n) in DAMAGE_EFFECT_TAGS and effect_reaches_player(n, unit.node):
                 return False
     return True
@@ -684,7 +689,7 @@ def _kicker_ptplayer_match(tree: ConceptTree) -> bool:
 # 31,622 commander-legal cards) — no blast-radius slop.
 def _unimplemented_descs_anywhere(tree: ConceptTree) -> Iterator[str]:
     """Every ``Unimplemented`` node's description reachable ANYWHERE in the
-    tree (unlike :func:`_unimplemented_effect_descs`, this is NOT scoped to
+    tree (unlike :meth:`ConceptTree.effect_residues`, this is NOT scoped to
     ``unit.effects`` — a base_pt_set residue can be nested under a STATIC
     unit or a granted-ability chain, outside ``apply_unimplemented_
     recovery``'s scan scope, per the mtg-utils/CONTEXT.md landmine)."""
@@ -709,9 +714,7 @@ _BASE_PT_TK_ANIMATE_RX = re.compile(
 
 
 def _base_pt_tk_animate_match(tree: ConceptTree) -> bool:
-    return any(
-        _BASE_PT_TK_ANIMATE_RX.search(d) for d in _unimplemented_descs_anywhere(tree)
-    )
+    return _says(_BASE_PT_TK_ANIMATE_RX, _unimplemented_descs_anywhere(tree))
 
 
 # (5) RETIRED at the v0.86.0 pin bump: the DYNAMIC "base power and toughness each
@@ -801,7 +804,7 @@ def _no_control_change_node(tree: ConceptTree) -> bool:
 
 
 def _donate_superlative_match(tree: ConceptTree) -> bool:
-    return any(_DONATE_SUPERLATIVE_RX.search(d) for d in _unbound_subject_descs(tree))
+    return _says(_DONATE_SUPERLATIVE_RX, _unbound_subject_descs(tree))
 
 
 # RETIRED at the v0.86.0 pin bump: phase binds "this emblem" as the damage source
@@ -850,7 +853,7 @@ def _no_creature_reaching_damage_node(tree: ConceptTree) -> bool:
 
 
 def _each_source_rider_match(tree: ConceptTree) -> bool:
-    return any(_EACH_SOURCE_RIDER_RX.search(d) for d in _each_source_rider_descs(tree))
+    return _says(_EACH_SOURCE_RIDER_RX, _each_source_rider_descs(tree))
 
 
 # ── The scaling/restricted/note-type "Add mana" residue class → ramp ────────
@@ -959,11 +962,12 @@ _MAIRSIL_REX_RX = re.compile(
 
 
 def _mairsil_rex_gap(tree: ConceptTree) -> bool:
-    return tree.has_residue("static_structure")
+    # The static_structure residue carrying THIS clause, not any static failure.
+    return _says(_MAIRSIL_REX_RX, _static_parse_failure_descs(tree))
 
 
 def _mairsil_rex_match(tree: ConceptTree) -> bool:
-    return any(_MAIRSIL_REX_RX.search(d) for d in _static_parse_failure_descs(tree))
+    return _says(_MAIRSIL_REX_RX, _static_parse_failure_descs(tree))
 
 
 # (2) Grolnok, the Omnivore — "You may play lands and cast spells from among
@@ -985,11 +989,12 @@ _GROLNOK_RX = re.compile(
 
 
 def _grolnok_gap(tree: ConceptTree) -> bool:
-    return tree.has_residue("effect_structure")
+    # The effect_structure residue carrying THIS clause, not any effect failure.
+    return _says(_GROLNOK_RX, _effect_structure_descs(tree))
 
 
 def _grolnok_match(tree: ConceptTree) -> bool:
-    return any(_GROLNOK_RX.search(d) for d in _effect_structure_descs(tree))
+    return _says(_GROLNOK_RX, _effect_structure_descs(tree))
 
 
 # (3) Candlekeep Inspiration — "Until end of turn, creatures you control
@@ -1014,7 +1019,7 @@ def _candlekeep_gap(tree: ConceptTree) -> bool:
 
 
 def _candlekeep_match(tree: ConceptTree) -> bool:
-    return any(_CANDLEKEEP_RX.search(d) for d in _creatures_unimpl_descs(tree))
+    return _says(_CANDLEKEEP_RX, _creatures_unimpl_descs(tree))
 
 
 # (4) Close Encounter — "As an additional cost to cast this spell, choose a
@@ -1029,15 +1034,13 @@ _CLOSE_ENCOUNTER_RX = re.compile(
 
 
 def _close_encounter_gap(tree: ConceptTree) -> bool:
-    for unit in tree.units:
-        if unit.costs:
-            return False
-        for n in iter_typed_nodes(unit.node):
-            if "Exile" in filter_inzone_zones(getattr(n, "filter", None)):
-                return False
-            if "Exile" in filter_inzone_zones(getattr(n, "target", None)):
-                return False
-    return True
+    if any(c.role == "cost" for c in tree.iter_concepts()):
+        return False
+    return not any(
+        "Exile" in filter_inzone_zones(getattr(n, "filter", None))
+        or "Exile" in filter_inzone_zones(getattr(n, "target", None))
+        for n in tree.iter_typed()
+    )
 
 
 def _close_encounter_match(tree: ConceptTree) -> bool:
@@ -1121,9 +1124,7 @@ def _voltron_scaling_match(tree: ConceptTree) -> bool:
 # condition on any other trigger. Anchored to the SPECIFIC trigger node
 # (mode='Taps', condition is None) rather than a whole-card scan.
 def _warchanter_condition_gap(tree: ConceptTree) -> bool:
-    for unit in tree.units:
-        if unit.origin != "trigger":
-            continue
+    for unit in tree.iter_units("trigger"):
         if getattr(unit.node, "mode", None) != "Taps":
             continue
         if getattr(unit.node, "condition", None) is None:
@@ -1132,9 +1133,7 @@ def _warchanter_condition_gap(tree: ConceptTree) -> bool:
 
 
 def _warchanter_condition_match(tree: ConceptTree) -> bool:
-    for unit in tree.units:
-        if unit.origin != "trigger":
-            continue
+    for unit in tree.iter_units("trigger"):
         if getattr(unit.node, "mode", None) != "Taps":
             continue
         desc = (getattr(unit.node, "description", "") or "").lower()
@@ -1159,28 +1158,24 @@ _FORGE_ANEW_RX = re.compile(r"pay \{0\} rather than pay the equip cost", re.IGNO
 
 def _forge_anew_paycost_unlinked_gap(tree: ConceptTree) -> bool:
     """A ``PayCost({0})`` node exists but no equip-keyword
-    ``ReduceAbilityCost`` tag reaches the same unit — the alternative-
+    ``ReduceAbilityCost`` tag appears anywhere on the card — the alternative-
     payment clause is structurally unlinked from the equip ability it
-    modifies. Self-retires once phase ties the two together."""
-    for unit in tree.units:
-        has_paycost_zero = False
-        has_equip_link = False
-        for n in iter_typed_nodes(unit.node):
-            if tag_of(n) == "PayCost":
-                cost = getattr(n, "cost", None)
-                mana_cost = getattr(cost, "cost", None)
-                if getattr(mana_cost, "generic", None) == 0 and not getattr(
-                    mana_cost, "shards", None
-                ):
-                    has_paycost_zero = True
-            if (
-                tag_of(n) == "ReduceAbilityCost"
-                and str(getattr(n, "keyword", "")).lower() == "equip"
+    modifies. Self-retires once phase ties the two together (a whole-card
+    presence read over ``iter_typed``, never a per-unit walk)."""
+    has_paycost_zero = has_equip_link = False
+    for n in tree.iter_typed():
+        if tag_of(n) == "PayCost":
+            mana_cost = getattr(getattr(n, "cost", None), "cost", None)
+            if getattr(mana_cost, "generic", None) == 0 and not getattr(
+                mana_cost, "shards", None
             ):
-                has_equip_link = True
-        if has_paycost_zero and not has_equip_link:
-            return True
-    return False
+                has_paycost_zero = True
+        if (
+            tag_of(n) == "ReduceAbilityCost"
+            and str(getattr(n, "keyword", "")).lower() == "equip"
+        ):
+            has_equip_link = True
+    return has_paycost_zero and not has_equip_link
 
 
 def _forge_anew_match(tree: ConceptTree) -> bool:
@@ -1217,13 +1212,12 @@ _OPP_DISCARD_UNLESS_RX = re.compile(
 
 
 def _opp_discard_unless_match(tree: ConceptTree) -> bool:
-    return any(
-        _OPP_DISCARD_UNLESS_RX.search(d) for d in _unless_clause_failure_descs(tree)
-    )
+    return _says(_OPP_DISCARD_UNLESS_RX, _unless_clause_failure_descs(tree))
 
 
 def _opp_discard_unless_gap(tree: ConceptTree) -> bool:
-    return tree.has_residue("Unsupported unless clause")
+    # The unless-clause residue carrying THIS discard clause, not any unless-clause.
+    return _says(_OPP_DISCARD_UNLESS_RX, _unless_clause_failure_descs(tree))
 
 
 # Yawgmoth Merfolk Soul's Unfinity Stickers "{TK}{TK} — When ~ leaves the
@@ -1251,9 +1245,7 @@ def _yawgmoth_tk_discard_gap(tree: ConceptTree) -> bool:
 
 
 def _yawgmoth_tk_discard_match(tree: ConceptTree) -> bool:
-    return any(
-        _YAWGMOTH_TK_DISCARD_RX.search(d) for d in _yawgmoth_tk_discard_descs(tree)
-    )
+    return _says(_YAWGMOTH_TK_DISCARD_RX, _yawgmoth_tk_discard_descs(tree))
 
 
 # ``_no_typed_discard_node`` — the shared gap for the two dropped-clause
@@ -1345,11 +1337,12 @@ _ROCK_HYDRA_RX = re.compile(r"if it has a \+1/\+1 counter on it", re.IGNORECASE)
 
 
 def _rock_hydra_gap(tree: ConceptTree) -> bool:
-    return tree.has_residue("static_structure")
+    # The static_structure residue carrying THIS clause, not any static failure.
+    return _says(_ROCK_HYDRA_RX, _static_parse_failure_descs(tree))
 
 
 def _rock_hydra_match(tree: ConceptTree) -> bool:
-    return any(_ROCK_HYDRA_RX.search(d) for d in _static_parse_failure_descs(tree))
+    return _says(_ROCK_HYDRA_RX, _static_parse_failure_descs(tree))
 
 
 # ── Hierophant Bio-Titan → plus_one_matters ──────────────────────────────────
@@ -1368,9 +1361,7 @@ _HIEROPHANT_RX = re.compile(r"\+1/\+1 counters?", re.IGNORECASE)
 
 
 def _hierophant_modifycost_descs(tree: ConceptTree) -> Iterator[str]:
-    for unit in tree.units:
-        if unit.origin != "static":
-            continue
+    for unit in tree.iter_units("static"):
         dyn = static_mode_field(unit.node, "dynamic_count")
         if tag_of(dyn) == "PreviousEffectAmount":
             yield getattr(unit.node, "description", "") or ""
@@ -1381,7 +1372,7 @@ def _hierophant_gap(tree: ConceptTree) -> bool:
 
 
 def _hierophant_match(tree: ConceptTree) -> bool:
-    return any(_HIEROPHANT_RX.search(d) for d in _hierophant_modifycost_descs(tree))
+    return _says(_HIEROPHANT_RX, _hierophant_modifycost_descs(tree))
 
 
 # ── named_synergy (ADR-0039 W8, the KEPT-twelve wave) ────────────────────────
@@ -1548,8 +1539,8 @@ _MOKU_HASTE_GRANT_RX = re.compile(
 
 
 def _moku_haste_grant_gap(tree: ConceptTree) -> bool:
-    for unit in tree.units:
-        for sdef in iter_static_defs(unit.node):
+    for unit in tree.iter_units():
+        for sdef in unit.static_defs():
             if tag_of(getattr(sdef, "affected", None)) != "SelfRef":
                 continue
             if _MOKU_HASTE_GRANT_RX.search(getattr(sdef, "description", "") or ""):
@@ -1567,7 +1558,7 @@ def _hollow_static_says(tree: ConceptTree, rx: re.Pattern[str]) -> bool:
     ``modifications`` list) carries the clause in its ``description``. Keyed on
     the clause itself, so the gap goes False — RETIRE-READY, not pattern rot —
     the moment phase structures THAT line, whatever else stays hollow."""
-    return any(rx.search(d) for d in tree.hollow_statics())
+    return _says(rx, tree.hollow_statics())
 
 
 def _oracle_says(tree: ConceptTree, rx: re.Pattern[str]) -> bool:
@@ -1660,7 +1651,7 @@ def keep_n_casr_reads(tree: ConceptTree) -> list[tuple[str, str]]:
     with ``player_scope: Opponent`` (Liliana, Dreadhorde General's -9 and
     Ajani, Nacatl Avenger's -4 carried it all along); "each" otherwise."""
     out: list[tuple[str, str]] = []
-    for unit in tree.units:
+    for unit in tree.iter_units():
         for c in unit.effects:
             if tag_of(c.node) != "ChooseAndSacrificeRest":
                 continue
@@ -1683,7 +1674,7 @@ def keep_n_shape_b_reads(tree: ConceptTree) -> list[tuple[str, str]]:
     All → "each"; You under an Opponent player_scope or an
     OnlyDuringOpponentsTurn trigger → "opponents")."""
     out: list[tuple[str, str]] = []
-    for unit in tree.units:
+    for unit in tree.iter_units():
         pending: str | None = None
         for c in unit.effects:
             t = tag_of(c.node)
@@ -1732,17 +1723,15 @@ _COMBAT_CHOICE_RX = re.compile(
 
 
 def _combat_choice_gap(tree: ConceptTree) -> bool:
-    """The choose-clause is still parked as Unimplemented residue with a bare
-    "choose" verb — goes False when a phase bump lands a typed choose-
-    attackers/choose-blockers effect node (the residue then disappears)."""
-    return any(
-        re.search(r"\bchoose\b", d, re.IGNORECASE)
-        for d in _unimplemented_effect_descs(tree)
-    )
+    """The choose-attackers/blockers clause itself is still parked as an
+    effect-position residue — goes False when a phase bump lands a typed
+    choose-attackers/choose-blockers effect node for THAT clause, even if an
+    unrelated "choose" line stays parked (Berserker's Frenzy parks two)."""
+    return _says(_COMBAT_CHOICE_RX, tree.effect_residues())
 
 
 def _combat_choice_match(tree: ConceptTree) -> bool:
-    return any(_COMBAT_CHOICE_RX.search(d) for d in _unimplemented_effect_descs(tree))
+    return _oracle_says(tree, _COMBAT_CHOICE_RX)
 
 
 # ── artifacts_matter — the reflexive-payment regression (v0.35.2 bump) ───────
@@ -1836,9 +1825,7 @@ def _choice_list_blood_match(tree: ConceptTree) -> bool:
     # Unimplemented('create') residue (see the section comment above).
     if _choice_branch_makes_token(tree, "Blood"):
         return True
-    return any(
-        _CREATE_X_BLOOD_RX.search(d) for d in _unimplemented_descs_anywhere(tree)
-    )
+    return _says(_CREATE_X_BLOOD_RX, _unimplemented_descs_anywhere(tree))
 
 
 def _choice_list_clue_gap(tree: ConceptTree) -> bool:
@@ -1891,17 +1878,14 @@ def _blood_matters_structural_gap(tree: ConceptTree) -> bool:
     structural reads (a Blood-subtyped sacrifice EFFECT, a Blood-subtyped
     ``Sacrifice`` cost leaf, a ``synth_token_subtype_own_ref`` Blood marker)
     finds anything on this tree."""
-    for unit in tree.units:
-        for c in unit.effects:
-            if c.concept == "sacrifice" and "blood" in {
-                s.lower() for s in filter_subtypes(effect_filter(c.node))
-            }:
-                return False
-        for leaf in iter_cost_leaves(getattr(unit.node, "cost", None)):
-            if tag_of(leaf) == "Sacrifice" and "blood" in {
-                s.lower() for s in filter_subtypes(getattr(leaf, "target", None))
-            }:
-                return False
+    for c in tree.effect_concepts("sacrifice"):
+        if "blood" in {s.lower() for s in filter_subtypes(effect_filter(c.node))}:
+            return False
+    for n in tree.iter_typed():  # every Sacrifice leaf, activation costs included
+        if tag_of(n) == "Sacrifice" and "blood" in {
+            s.lower() for s in filter_subtypes(getattr(n, "target", None))
+        }:
+            return False
     for c in tree.iter_concepts():
         if c.concept == "synth_token_subtype_own_ref" and any(
             s.lower() == "blood" for s in c.subject
@@ -1947,7 +1931,7 @@ def _text_only_tree_gap(tree: ConceptTree) -> bool:
     carry no typed ``LoseLife`` either, so they don't count as coverage).
     Goes False the moment phase covers the object (its tree then carries a
     real-origin unit, and the typed LoseLife reads own it)."""
-    return all(unit.origin == "synth" for unit in tree.units)
+    return tree.is_text_only
 
 
 def _each_player_loses_match(tree: ConceptTree) -> bool:
@@ -1986,7 +1970,7 @@ def _prevention_residue_descs(tree: ConceptTree) -> Iterator[str]:
 
 
 def _prevention_parse_failure_gap(tree: ConceptTree) -> bool:
-    return any(_PREVENTION_SHIELD_RX.search(d) for d in _prevention_residue_descs(tree))
+    return _says(_PREVENTION_SHIELD_RX, _prevention_residue_descs(tree))
 
 
 def _prevention_parse_failure_match(tree: ConceptTree) -> bool:
@@ -2019,8 +2003,13 @@ def _prevention_empty_static_match(tree: ConceptTree) -> bool:
 # sibling ``GainControlAll``'s own Aura/Equipment filter (structural). Helm of
 # Kaldra carries the same residue ("Attach those Equipment to it") but no
 # GainControlAll — the lane's Unimplemented-attach-gear arm already serves it.
+_ATTACH_ANAPHOR_RX = re.compile(r"\battach them to another creature\b", re.IGNORECASE)
+
+
 def _plural_attach_anaphor_gap(tree: ConceptTree) -> bool:
-    return tree.has_residue("plural_attachment_anaphor")
+    # The anaphor residue carrying THIS "attach them" clause (CONTEXT.md "Gap
+    # predicate"), so a phase fix to it reads RETIRE-READY on its own.
+    return _says(_ATTACH_ANAPHOR_RX, tree.residues("plural_attachment_anaphor"))
 
 
 def _plural_attach_anaphor_match(tree: ConceptTree) -> bool:
@@ -2209,11 +2198,17 @@ BRIDGES: dict[str, Bridge] = {
         Bridge(
             bridge_id="keyword_dropped_paylife",
             key="lifeloss_makers",
-            kind="dropped_clause",
+            # Filed dropped_clause at v0.20.0, when the keyword left no node at all;
+            # by v0.94.0 phase parks the whole keyword line ("Warp—{B}, Pay 2
+            # life.") as an Unimplemented(name='unknown') residue — phase tried and
+            # failed, so the kind follows the evidence (test_bridge_ledger's
+            # kind↔evidence check). The id keeps its history.
+            kind="upstream_parse_failure",
             todo=(
                 "upstream phase-rs report candidate (Dan posts): the "
-                "Warp / Blitz / Morph keyword grammar drops a life-cost "
-                "variant WHOLESALE (no keyword entry at all, unlike "
+                "Warp / Blitz / Morph keyword grammar fails a life-cost "
+                "variant (v0.20.0: no keyword entry at all; v0.94.0: the "
+                "line parked as an Unimplemented residue — unlike "
                 "Flashback's Composite/PayLife structure) — retires on a "
                 "phase bump that parses these keywords' own cost payload"
             ),
@@ -2640,7 +2635,9 @@ BRIDGES: dict[str, Bridge] = {
             bridge_id="base_pt_becomecopy_no_pt_override",
             key="base_pt_set",
             scope="any",
-            kind="upstream_parse_failure",
+            # The override drops with ZERO trace (no field, no residue): a dropped
+            # clause, not a parse failure (CONTEXT.md; the kind↔evidence check).
+            kind="dropped_clause",
             todo=(
                 "upstream phase-rs report candidate (Dan posts): a "
                 "BecomeCopy 'except it's N/N' fixed P/T override drops "
@@ -3167,7 +3164,9 @@ BRIDGES: dict[str, Bridge] = {
         Bridge(
             bridge_id="named_synergy_overloaded_named_node",
             key="named_synergy",
-            kind="upstream_parse_failure",
+            # Our Named-context classifier's frontier, not phase's (the todo: "NOT a
+            # phase grammar gap") — a straggler, whatever residue some pins carry.
+            kind="grammar_straggler",
             todo=(
                 "dedicated Named-context classifier (confirmed NOT a "
                 "grammar-sprint task #82 arm — task #82 tried the "
@@ -3256,7 +3255,9 @@ BRIDGES: dict[str, Bridge] = {
         Bridge(
             bridge_id="moku_haste_grant_misscoped_selfref",
             key="creatures_matter",
-            kind="dropped_clause",
+            # A misparse — the grant survives on a mis-scoped def ("not dropped
+            # outright"), so phase tried and failed; never a dropped clause.
+            kind="upstream_parse_failure",
             todo=(
                 "upstream phase-rs report candidate (Dan posts): a "
                 "static def folds 'Moku gets +2/+1 AND creatures you "

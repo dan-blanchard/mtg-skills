@@ -16,18 +16,44 @@ from click.testing import CliRunner
 from mtg_utils import _phase, phase_bump
 from mtg_utils.phase_bump import (
     STEPS,
+    BridgeReach,
     BumpContext,
+    CardFacts,
     KeyDiff,
+    LossBucket,
+    ReportData,
+    bridge_reach,
+    card_facts,
+    classify_loss,
+    dead_bridges,
+    dead_impostor_rows,
+    gain_needs_check,
     graduation_rows,
     impostor_census,
+    narrow_gap_breadth,
     parse_effect_enum,
+    pinned_by,
+    render_bridge_reach,
+    render_census,
+    render_gains_to_check,
+    render_graduation,
+    render_needs_verdict,
+    render_report,
+    render_signal_diff,
     render_variants,
     render_zero_instance,
     rewrite_between_markers,
     rewrite_pin,
     run,
     signal_diff,
+    triage,
+    wide_gaps,
 )
+
+PINNED = LossBucket.PINNED
+DROPPED_UPSTREAM = LossBucket.DROPPED_UPSTREAM
+VARIANT_CHURN = LossBucket.VARIANT_CHURN
+NEEDS_VERDICT = LossBucket.NEEDS_VERDICT
 
 ABILITY_RS = """
 pub enum EffectTarget { Single, All }
@@ -143,6 +169,216 @@ def test_impostor_census_flags_text_that_matches_no_bulk_face():
         ("oid-a", "Discard a card, then draw two cards.")
     ]
     assert rows[0].bulk_names == ("Card A",)
+
+
+def test_impostor_census_names_the_card_whose_text_a_record_carries():
+    """A flagged record whose text IS another oracle_id's face text is a likely
+    impostor (the Fast // Furious mis-join), sorted first and naming that card;
+    a text no card carries is errata drift."""
+    bulk = [
+        {"oracle_id": "oid-legal", "name": "Test Blade", "oracle_text": "Draw two."},
+        {
+            "oracle_id": "oid-play",
+            "name": "Test Blade // Test Sheath",
+            "card_faces": [{"oracle_text": "Haste."}, {"oracle_text": "Trample."}],
+        },
+        {"oracle_id": "oid-drift", "name": "Test Relic", "oracle_text": "Old words."},
+    ]
+    card_data = [
+        _rec("Test Relic", "oid-drift", "New words."),  # retemplated: drift
+        _rec("Test Blade", "oid-legal", "Haste."),  # another card's face text
+    ]
+    rows = impostor_census(card_data, bulk)
+    assert [r.record_name for r in rows] == ["Test Blade", "Test Relic"]
+    assert rows[0].likely_impostor
+    assert rows[0].needs_decision
+    assert rows[0].text_owners == ("Test Blade // Test Sheath (oid-play)",)
+    assert not rows[1].likely_impostor
+
+
+def test_impostor_census_marks_an_already_recorded_impostor():
+    """A row already in _IMPOSTOR_RECORDS needs no decision: it sorts after a new
+    likely impostor and says so, instead of re-asking every bump."""
+    bulk = [
+        {"oracle_id": "oid-legal", "name": "Test Blade", "oracle_text": "Draw two."},
+        {"oracle_id": "oid-play", "name": "Test Sheath", "oracle_text": "Haste."},
+        {"oracle_id": "oid-relic", "name": "Test Relic", "oracle_text": "Draw one."},
+    ]
+    card_data = [
+        _rec("Test Blade", "oid-legal", "Haste."),  # known impostor
+        _rec("Test Relic", "oid-relic", "Draw two."),  # new impostor
+    ]
+    rows = impostor_census(card_data, bulk, {("oid-legal", "Haste.")})
+    assert [r.record_name for r in rows] == ["Test Relic", "Test Blade"]
+    assert rows[0].needs_decision
+    assert rows[1].already_recorded
+    assert rows[1].likely_impostor
+    assert not rows[1].needs_decision
+    text = "\n".join(render_census(rows, ()))
+    assert "2 LIKELY IMPOSTOR (1 already recorded)" in text
+    assert "already in `_IMPOSTOR_RECORDS` — no decision needed" in text
+
+
+def test_dead_impostor_rows_reads_the_raw_records():
+    card_data = {
+        "a": _rec("Test Blade", "oid-legal", "Haste."),
+        "b": _rec("Test Relic", "oid-drift", "New words."),
+    }
+    live = ("oid-legal", "Haste.")
+    dead = ("oid-play", "Draw two.")  # the join flipped: no record carries it
+    assert dead_impostor_rows(card_data, {live, dead}) == (dead,)
+
+
+def _facts(oids, *, old: bool, new: bool) -> CardFacts:
+    return CardFacts(oracle_ids=oids, in_old_card_data=old, in_new_card_data=new)
+
+
+def test_card_facts_aggregates_every_oracle_id_under_a_name():
+    names = {"o1": "Test Relic", "o2": "Test Variant", "o3": "Test Variant"}
+    facts = card_facts(names, {"o1", "o2"}, {"o2"})
+    assert facts["Test Relic"] == _facts(("o1",), old=True, new=False)
+    assert facts["Test Variant"] == _facts(("o2", "o3"), old=True, new=True)
+
+
+def test_classify_loss_buckets_in_priority_order():
+    pins = {"Test Blade": ("tests/x.py",), "Back Half": ("tests/y.py",)}
+    single = _facts(("o1",), old=True, new=True)
+    gone = _facts(("o1",), old=True, new=False)
+    variants = _facts(("o1", "o2"), old=True, new=True)
+    # a pin wins over every other fact, and a face name pins the whole card
+    assert classify_loss("Test Blade", gone, pins) == PINNED
+    assert classify_loss("Front Half // Back Half", single, pins) == PINNED
+    assert pinned_by("Front Half // Back Half", pins) == ("tests/y.py",)
+    assert classify_loss("Test Relic", gone, pins) == DROPPED_UPSTREAM
+    # variant churn only when the signal MOVED: the name also gained the key
+    assert classify_loss("Test Relic", variants, pins, {"Test Relic"}) == VARIANT_CHURN
+    assert classify_loss("Test Relic", variants, pins) == NEEDS_VERDICT
+    # a single card losing and gaining one key is a scope change, not churn
+    assert classify_loss("Test Relic", single, pins, {"Test Relic"}) == NEEDS_VERDICT
+    assert classify_loss("Test Relic", None, pins) == NEEDS_VERDICT
+
+
+def test_gain_needs_check_on_every_card_parsed_at_both_tags():
+    n = "Test Relic"
+    assert gain_needs_check(n, _facts(("o1",), old=True, new=True))
+    newly = _facts(("o1",), old=False, new=True)
+    assert not gain_needs_check(n, newly)
+    variants = _facts(("o1", "o2"), old=True, new=True)
+    assert not gain_needs_check(n, variants, {n})  # moved between variants
+    assert gain_needs_check(n, variants)  # a variant gain nothing lost: check it
+    assert not gain_needs_check(n, None)
+
+
+class _Tree:
+    def __init__(self, name: str, *, residue: bool, says: bool) -> None:
+        self.name, self.residue, self.says = name, residue, says
+
+
+class _Row:
+    def __init__(self, gap, match) -> None:
+        self.gap, self.match = gap, match
+
+
+def test_bridge_reach_counts_fires_and_gap_only_cards():
+    trees = [
+        _Tree("Test Pin", residue=True, says=True),
+        _Tree("Test Near Miss", residue=True, says=False),
+        _Tree("Test Plain", residue=False, says=False),
+    ]
+    rows = {
+        "narrow_row": _Row(lambda t: t.residue, lambda t: t.says),
+        "dead_row": _Row(lambda t: t.residue, lambda _t: False),
+    }
+    reach = bridge_reach(rows, trees)
+    assert reach == [
+        BridgeReach("narrow_row", 1, 2, ("Test Near Miss",)),
+        BridgeReach("dead_row", 0, 2, ("Test Pin", "Test Near Miss")),
+    ]
+    assert dead_bridges(reach) == ("dead_row",)
+
+
+def test_narrow_gap_breadth_skips_absence_gaps():
+    """A gap true on most of the corpus gates on the ABSENCE of a structure: its
+    breadth is by design and never listed; a narrow residue gap is."""
+    narrow = BridgeReach("narrow_row", 1, 3, ("Test Near Miss",))
+    universal = BridgeReach("absence_row", 1, 90, ("Test Plain",))
+    exact = BridgeReach("exact_row", 2, 2, ())
+    assert narrow_gap_breadth([universal, exact, narrow], corpus=100) == [narrow]
+    # a wide (absence-read) gap is never sampled but always summarised
+    assert wide_gaps([universal, exact, narrow], corpus=100) == [universal]
+    lines = render_bridge_reach([universal, exact, narrow], 100)
+    assert "  - absence_row: gap 90, fires 1" in lines
+
+
+def test_render_report_asks_for_a_verdict_on_every_unexplained_loss():
+    facts = {
+        "Test Relic": _facts(("o1",), old=True, new=True),
+        "A-Test Relic": _facts(("o2",), old=True, new=False),
+        "Test Blade": _facts(("o3",), old=True, new=True),
+    }
+    text = render_report(
+        ReportData(
+            old_tag="v0.1.0",
+            new_tag="v0.2.0",
+            variants_before=1,
+            variants_after=1,
+            diff=(
+                KeyDiff(
+                    "ramp",
+                    lost=("A-Test Relic", "Test Blade", "Test Relic"),
+                    gained=("Test Relic",),
+                ),
+            ),
+            residue_backed={"ramp": ("Test Relic",)},
+            dead_impostors=(("oid-x", "Old text."),),
+            facts=facts,
+            pins={"Test Blade": ("tests/x.py",)},
+            reach=(BridgeReach("dead_row", 0, 0, ()),),
+            corpus=10,
+        )
+    )
+    assert "- lost (dropped upstream): 1" in text
+    assert "A-Test Relic" not in text.split("## Needs a verdict")[1]
+    verdicts = text.split("## Needs a verdict")[1].split("## Gains to check")[0]
+    assert f"- [{PINNED.label}] ramp: Test Blade" in verdicts
+    assert f"- [{NEEDS_VERDICT.label}, residue-backed] ramp: Test Relic" in verdicts
+    assert "- ramp: Test Relic" in text.split("## Gains to check")[1]
+    assert "DEAD `_IMPOSTOR_RECORDS` row: `oid-x`" in text
+    assert "- DEAD — fires on no card: dead_row" in text
+
+
+def test_triage_classifies_each_card_once_per_key():
+    facts = {
+        "Test Variant": _facts(("o1", "o2"), old=True, new=True),
+        "Test Lone Variant": _facts(("o3", "o4"), old=True, new=True),
+    }
+    [t] = triage(
+        [
+            KeyDiff(
+                "ramp",
+                lost=("Test Lone Variant", "Test Variant"),
+                gained=("Test Variant",),
+            )
+        ],
+        {},
+        facts,
+        {},
+    )
+    assert t.collapsed[VARIANT_CHURN] == ("Test Variant",)
+    assert [v.card for v in t.verdicts] == ["Test Lone Variant"]
+    assert t.gains == (("Test Variant", False),)
+
+
+def test_section_renderers_say_none_when_empty():
+    assert render_census((), ())[1:] == [
+        "- none flagged",
+        "- every `_IMPOSTOR_RECORDS` row still matches a record",
+    ]
+    assert render_needs_verdict([])[-1] == "- none"
+    assert render_gains_to_check([])[-1] == "- none"
+    assert render_graduation(())[-1].startswith("- none")
+    assert render_bridge_reach((), 0) == []
+    assert render_signal_diff([])[1].startswith("- 0 losses / 0 gains")
 
 
 def test_signal_diff_is_per_key_over_shared_oracle_ids():
@@ -354,6 +590,12 @@ def test_dry_run_executes_every_step_in_order_and_writes_the_report(
         phase_bump.CANARY_MARKER,
     ]
     assert "- _grants_only_to_self" in text
+    # the triage sections: every loss bucketed, the reach pass over the corpus
+    assert "## Needs a verdict" in text
+    assert "## Gains to check" in text
+    assert "## Bridge reach" in text
+    # the fake card-data carries none of the real table's rows: each reads DEAD
+    assert "DEAD `_IMPOSTOR_RECORDS` row" in text
 
 
 def test_from_step_skips_earlier_steps(tmp_path, monkeypatch):
@@ -402,7 +644,7 @@ def test_rebuild_resume_keeps_the_first_runs_pre_bump_index(tmp_path):
     )
     phase_bump.step_rebuild(ctx)
     assert pickle.loads(old_copy.read_bytes())["index"] == {"oid": ("ramp|you|",)}
-    assert any("already copied" in n for n in ctx.notes)
+    assert any("already copied" in n for n in ctx.report.notes)
 
 
 def test_resume_old_tag_without_a_marker_is_an_actionable_error(tmp_path):

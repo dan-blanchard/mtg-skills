@@ -86,3 +86,24 @@ per commander (one hook-writer + three refuters each) to stay within sane
 agent budgets.
 
 *Amended 2026-07-18; original decision revised in place.*
+
+**Amended (terminal state, 2026-07-24).** The program ended here; any future attempt
+starts from this record and the instrument, not from scratch.
+
+- A pairs plateau was declared at 24 committed ledger rows: precision 0.940, drift
+  trail r@250 from 7.1% to 15.4%.
+- Rate v2 was terminated after both slices were measured and rejected: S1 permutation
+  +0.000, S2 discounts −0.053 on held-out data. Its code stays committed and off by
+  default.
+- What shipped for good: the v1 rate-multiplier disarm (rate is a readout only, and CI
+  asserts sort invariance), a total sort order, the provenance seam, and the ordering
+  instrument plus the 380-verdict ledger under `docs/adr/assets/0043-instrument/`.
+- Headroom nobody has claimed: ordering within a class sits at 0.464, a coin flip.
+- Parked: `topdeck_setter`, Mob Justice's `damage_for_each` subject, enchantment
+  class density.
+
+Crowd recall survives only as a drift indicator: a 20-commander EDHREC study (average
+decks from `https://json.edhrec.com/pages/average-decks/<slug>.json`, whose "deck"
+field has `N ` count prefixes, plus commander-page cardlists with synergy ≥ 0.10 as
+targets) ranks the in-identity, commander-legal nonland pool through `deck_rank`'s
+plumbing and measures recall@100/@250 of the out-of-deck targets.

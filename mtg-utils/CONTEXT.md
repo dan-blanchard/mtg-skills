@@ -89,7 +89,9 @@ oracle text. The third residue class (after Unimplemented residue and the
 missing face), and the one bucket-(c) synthesis exists for. A clause phase
 built a HOLLOW static def for (`affected: SelfRef`, an empty `modifications`
 list, the line kept in the def's `description` — `ConceptTree.hollow_statics`)
-is not dropped: phase tried and failed, an upstream parse failure.
+is not dropped: phase tried and failed, an upstream parse failure. Neither is a
+MISPARSE — a clause phase emitted as a wrong typed node (a mis-scoped grant, a
+defaulted destination): phase tried and failed there too.
 _Avoid_: "parser failure" (phase didn't fail; it silently omitted),
 "parser-blocked" (the text is still reachable — nothing blocks reading it).
 
@@ -101,17 +103,30 @@ gap-gate finds structure and stands down.
 _Avoid_: "unparseable" (only unparsed-so-far), "blocked" (nothing waits on
 anyone else — the verb is ours to write).
 
-**Ledgered bridge**:
-A corpus-bounded text read serving an enumerated straggler set: gap-gated (it
-runs only where the tree provably lacks the clause), ledgered (each ties to a
-named grammar TODO or upstream report), and self-retiring (the gap-gate
-stands it down the moment structure arrives; the convergence check makes any
-laggard visible). Since ADR-0048 the row also owns its emission (key + scope):
-one `bridge_signals` lane fires every row, no lane names a bridge id, and
-retiring a bridge is deleting its row. A bridge restores prior serving only —
-what the legacy IR served, or what an upstream phase regression took away at
-a bump — never beyond-prior breadth. Same matching technology as a regex
-detector; opposite scope and lifecycle.
+**Ledgered bridge**: A corpus-bounded text read serving an enumerated straggler
+set: gap-gated (it runs only where the tree provably lacks the clause), ledgered
+(each ties to a named grammar TODO or upstream report), and self-retiring (the
+gap-gate stands it down the moment structure arrives; the convergence check
+makes any laggard visible). Since ADR-0048 the row also owns its emission (key +
+scope): one `bridge_signals` lane fires every row, no lane names a bridge id,
+and retiring a bridge is deleting its row. A bridge restores prior serving only
+— what the legacy IR served, or what an upstream phase regression took away at a
+bump — never beyond-prior breadth. Same matching technology as a regex detector;
+opposite scope and lifecycle. A row's KIND names what phase left for its clause
+— a missing face (a text-only tree), a dropped clause (no node), an upstream
+parse failure (a residue, a hollow static, an `Unrecognized` node's text, or a
+misparse) or a straggler (our grammar's frontier) — and `test_bridge_ledger`
+checks the kind against every pin's evidence: a dropped clause's pin may carry
+no parked text that states the clause, a parse failure's must (unless the row is
+a listed misparse). A row whose match reads structure rather than the clause's
+words can't be judged by text, so it is listed as structure-matched and judged
+structurally instead (a dropped clause's gap keys on no residue text; a parse
+failure's does), and a listing goes stale the moment text can locate the clause.
+A kind goes stale when a bump changes what phase leaves (Warp's pay-life
+keyword: dropped at v0.20.0, a residue by v0.94.0). The ledger is not the only
+home for a phase workaround: every workaround for a phase misparse is either a
+ledger row or carries a `retirement_canary` test that fails RETIRE-READY when
+phase fixes the parse, so none outlives its cause unseen.
 _Avoid_: "regex bridge" (the retired per-key marker pattern), "fallback"
 (hides that each instance is enumerated, pinned, and scheduled to die).
 
@@ -145,14 +160,24 @@ does it, once), "synthesized tree" for a text-only face tree.
 **Gap predicate**:
 The read a gap-gated arm (a recovery row, a synthesis arm, a ledgered bridge, a
 membership-floor mirror) makes to decide the substrate lacks the structure it would
-otherwise read from text — one of the presence reads `ConceptTree` owns
-(`has_typed` / `has_concept` / `has_static_mode` / `has_trigger` / `has_residue` /
+otherwise read from text — one of the presence reads `ConceptTree` owns (`has_typed`
+/ `has_concept` / `has_static_mode` / `has_trigger` / `has_residue` /
 `is_text_only`, over `iter_typed`; ADR-0047), or the residue text they expose
-(`residues`, and `hollow_statics` for a static def phase built but left empty). A
-gate composes them; it never re-walks the tree in its own idiom, so "the tree
-already carries X" means the same thing in every tier. A text bridge's gap keys on
-the residue that carries ITS clause, so a phase fix to that line reads as
-RETIRE-READY even when unrelated residue stays behind.
+(`residues`; `effect_residues` for a residue in an ability's effect position; and
+`hollow_statics` for a static def phase built but left empty). A gate that must
+judge a node against its own ability unit (a trigger's mode and condition, a
+static's mode fields, an effect's owning wrapper) takes the unit from
+`iter_units(*origins)` and reads it through the unit's own `iter_typed` /
+`static_defs` / `effects`. A gate composes them; it never re-walks the tree in its
+own idiom, so "the tree already carries X" means the same thing in every tier. A
+text bridge's gap keys on the residue that carries ITS clause, so a phase fix to
+that line reads as RETIRE-READY even when unrelated residue stays behind. Both rules
+are checked for every ledger row (`test_bridge_ledger`): a gap's source, followed
+through its module-local helpers, may not touch `.units`, `iter_typed_nodes` or
+`iter_static_defs`, with no exemptions (a gap needing context the reads don't expose
+gets a new presence read); and a gap that reads residue text must go False once the
+pin's own clause is fixed while an unrelated line of the same residue class stays
+parked.
 _Avoid_: a per-arm `for unit in tree.units: for n in iter_typed_nodes(unit.node)` walk
 (the retired idiom), "fallback condition" (a gate is a structural fact, not a default).
 

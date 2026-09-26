@@ -41,6 +41,24 @@ fetches. The output is one markdown report under
 `$MTG_SKILLS_CACHE_DIR/phase-bump/<tag>/`. Every judgment call stays human: the script
 never edits `_IMPOSTOR_RECORDS`, a lane, or a bridge row.
 
+**Amended (the v0.94.0 review).** The v0.94.0 triage was done by eye and missed a
+real impostor (the Fast // Furious join had flipped back at v0.86.0, leaving the only
+`_IMPOSTOR_RECORDS` row dead), called a pinned loss a false positive until its test
+failed, and left losses unexplained in the commit. Decision: the report pre-sorts
+everything data can decide, so the human judges only the rest. It classifies each
+impostor-census row (marking the ones already recorded) and flags dead
+`_IMPOSTOR_RECORDS` rows; puts every lost card in
+one bucket, collapsing the ones that need no verdict; tags gains on already-parsed
+cards; lists every loss that still needs a verdict; and measures every bridge row's
+corpus reach. A strict "gap ⊆ match" check was rejected: a well-keyed gap still
+holds on near misses, so breadth is reported, never failed.
+
+The human decides which new LIKELY IMPOSTOR rows enter `_IMPOSTOR_RECORDS` (and what
+replaces a DEAD row), a verdict for each "Needs a verdict" line (answered in the
+bump's commit message), whether each "Gains to check" line is a false positive, and
+what to do with a DEAD bridge row. The bucket definitions and how to make each call
+live in the triage guide, `docs/phase-pin-bump.md`.
+
 **Considered and rejected.** Three small CLIs for the unscripted steps only (the
 ordering stays in a memory note); loading the rosters from a JSON fixture at import
 (no source edits, but the roster leaves the code and every import pays a read);

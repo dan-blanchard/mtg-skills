@@ -14,7 +14,7 @@ uv run ruff check src/ ../tests/mtg-utils/  # Lint
 uv run ruff format src/ ../tests/mtg-utils/  # Format
 uv run download-mtgjson              # Card-data source: MTGJSON AllPrintings + AllPricesToday (ADR-0033; ~609MB; first-run only)
 uv run build-card-snapshot           # Regen the committed test card snapshot (gated; needs local MTGJSON bulk + phase card-data — auto-fetched via the phase release-server manifest, no cargo; NEVER CI)
-uv run bump-phase-pin <tag>          # The scripted phase-rs pin bump (ADR-0049): edits PHASE_TAG + the generated Effect rosters, regenerates substrate / fixtures / snapshot / sidecar / signals index, writes one triage report; --from-step N resumes; NEVER CI
+uv run bump-phase-pin <tag>          # The scripted phase-rs pin bump (ADR-0049): edits PHASE_TAG + the generated Effect rosters, regenerates substrate / fixtures / snapshot / sidecar / signals index, writes one triage report (work it with docs/phase-pin-bump.md); --from-step N resumes; NEVER CI
 ```
 
 ### deck-wizard
@@ -94,6 +94,19 @@ uv run pytest -k "moxfield and sideboard" ../tests/mtg-utils/ -v  # filter
 - All eight `pyproject.toml` files use `uv` as the install/runtime driver.
 - CI (`.github/workflows/ci.yml`) runs the exact commands listed above — it is the authoritative source of truth for which invocations must pass.
 
+## Working conventions
+
+- **Ground rules claims in the rules, not memory: use the rules-lawyer skill.** Any rules-boundary decision (is X ramp, a blink, an edict, a sacrifice outlet?), any claim about how a specific card behaves, and any CR number written into code, comments, tests, ADRs or commit messages goes through `/rules-lawyer` or its CLIs first. The skill checks both sources: the Comprehensive Rules (statute) and the per-card rulings MTGJSON ships (case law).
+  - For a claim about a named card, run `rulings-lookup --card "<name>"` first, then resolve any CR numbers its rulings cite with `rules-lookup --rule <n>`.
+  - For a bare rule number, `rules-lookup --rule <n>` (or `--grep`) is enough; batch the lookups.
+  - For interactions, layers or timing, invoke the skill itself, which escalates past a single lookup.
+
+  Cite what the CLI returned, and check your *description* of what a rule or keyword does against its text, not just the number. Write from the defining subrule (`rules-lookup --rule 702.NNa`). An ability word has no rules text of its own (CR 207.2c), so describe it from what its cards share. When the rule text doesn't support the claim, call it the lane's own decision instead of borrowing a rule number. Numbers recalled from memory are often wrong. Tell parallel agents the same, and spot-check their citations.
+- **Review before committing.** For a change built by several parallel agents, or one touching many signal lanes, run `/simplify` over the combined diff, then `/code-review` against the uncommitted tree, fix, and only then commit. A review after the commit means an amend and a second pass.
+- **Extend the shared walks; don't clone them.** A read over phase's Card IR first checks `_card_ir/crosswalk/` (`reads.py`, `core.py`) for an existing walk and parameterises it, rather than writing a lane-local copy. When briefing parallel agents, say so explicitly: each one can't see the helpers the others are writing.
+- **Check the backlog before proposing work.** `docs/plans/backlog.md` lists open follow-ups and the verdicts past reviews already reached ("don't re-suggest"). Add what you find but don't finish; delete an entry when it ships.
+- **Every phase-misparse workaround can retire itself.** It is either a bridge-ledger row (ADR-0048) or code guarded by a `retirement_canary`-marked test that fails once phase fixes the parse. `bump-phase-pin`'s graduation step runs both.
+
 ## Architecture
 
 Mono-repo for MTG-related Claude Code skills. Each skill lives in its own directory matching the `name` field in its SKILL.md frontmatter.
@@ -124,7 +137,7 @@ Shared Python package (`mtg_utils`). 40 CLI script modules (26 deck + 9 cube + 3
 - **`price_check.py`** — Price validation against budget using Scryfall bulk data with API fallback.
 - **`combo_search.py`** — Commander Spellbook API wrapper: `combo-search` for deck combo detection and near-miss identification; `combo-discover` for discovering combos by outcome, card name, or color identity.
 - **`export_deck.py`** — Export parsed deck JSON to import text (`N CardName` lines) with sideboard and companion sections. `--style auto|moxfield|arena` (default `auto`): Arena formats (per `FORMATS[fmt].is_arena`) get Arena's `Commander` / `Companion` / `Deck` / `Sideboard` section headers, which Arena's importer needs to zone the commander and Moxfield also reads; paper formats get bare Moxfield lines.
-- **`card_search.py`** — Search Scryfall bulk data with filters: color identity, oracle text regex, type, CMC range, price range, `--set` (one set's printings). `filter_records` is the ONE filter implementation over an explicit record list (`search_cards` runs it after its bulk scan; a pool-bounded deck-forge build runs it over its opened pool). Compact table or JSON output. Applies a **commander-legality filter by default** (not only under `--format`), so cards from spoiled-but-unreleased sets — which MTGJSON marks `not_legal` in every format until release day — are hidden; `--include-unreleased` admits exactly those (via `unreleased_oracle_ids`, which requires EVERY printing to be future-dated, so an always-illegal card reprinted into a future set stays out). Banned/restricted and never-legal cards are unaffected.
+- **`card_search.py`** — Search Scryfall bulk data with filters: color identity, oracle text regex, type, CMC range, price range, `--set` (one set's printings). `filter_records` is the ONE filter implementation over an explicit record list (`search_cards` runs it after its bulk scan; a pool-bounded deck-forge build runs it over its opened pool). Compact table or JSON output. Applies a **commander-legality filter by default** (not only under `--format`), so cards from spoiled-but-unreleased sets — which MTGJSON marks `not_legal` in every format until release day — are hidden (their reprints stay visible, since `_mtgjson/adapter.py` takes the most permissive legality across printings, so a half-visible new set is not a corrupt download; after downloading a just-spoiled set, check its `releaseDate` and say the new cards appear once a `download-mtgjson` runs after that date, rather than loosening the filter); `--include-unreleased` admits exactly those (via `unreleased_oracle_ids`, which requires EVERY printing to be future-dated, so an always-illegal card reprinted into a future set stays out). Banned/restricted and never-legal cards are unaffected.
 - **`legality_audit.py`** — Format legality, copy limits (`card_copy_limit` is the one exemption ladder the hub reads too), sideboard size, Vintage restricted-list, pool containment for a limited deck (`check_pool_containment`, CR 100.2b), and companion audit via `mtg_utils.companion`, wired into `--cite-rules`.
 - **`set_scan.py`** — The two limited readouts (ADR-0055), pure and agent-free: `set-scan --set CODE` (what a set holds — removal by rarity, sweepers, evasion, the biggest bodies, the curve; over `CardPool.set_records`) and `pool-colors <deck.json>` (every mono colour and colour pair an opened pool supports on equal footing). Roles via `_analysis.roles`; evasion via `card_classify.EVASION_KEYWORDS`.
 - **`find_commanders.py`** — Search owned collection for commander-eligible cards.

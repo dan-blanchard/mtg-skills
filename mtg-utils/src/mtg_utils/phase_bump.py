@@ -4,12 +4,13 @@ spike, ADR-0049).
 A pin bump used to be a ~47-file change with three steps that lived only in a memory
 note (the crosswalk fixture had no writer, the impostor census and the corpus signal
 diff were re-derived by hand). This CLI runs the whole recipe in order and stops at
-the first failure; ``--from-step N`` resumes. Every judgment call stays human: the
-script edits the pin and the generated rosters, regenerates every artifact that has a
-builder, and writes ONE markdown report — the impostor census, the per-key signal
-diff (lost idents split into residue-backed, i.e. bridgeable, vs silent), and the
-ledger's and the retirement canaries' RETIRE-READY rows — for the triage that
-follows.
+the first failure; ``--from-step N`` resumes. The script edits the pin and the
+generated rosters, regenerates every artifact that has a builder, and writes ONE
+markdown report that pre-sorts the triage: the impostor census (each row classified,
+plus dead ``_IMPOSTOR_RECORDS`` rows), the per-key signal diff (every loss bucketed,
+gains on already-parsed cards tagged), the losses still needing a verdict, the
+RETIRE-READY rows, and every bridge row's corpus reach. How a person works the report
+is ``docs/phase-pin-bump.md``.
 
 Steps:
   1 pin                 PHASE_TAG, CLAUDE.md's "currently" mentions, the pin test
@@ -17,11 +18,13 @@ Steps:
   2 variants            EFFECT_VARIANTS from phase's ``ability.rs`` at the tag
   3 card-data           fetch + cache card-data.json for the tag
   4 substrate           build-card-ir-substrate; ZERO_INSTANCE_EFFECTS from the zeros
-  5 impostor-census     card-data records whose text matches no bulk face
+  5 impostor-census     card-data records whose text matches no bulk face, each
+                        classified; dead ``_IMPOSTOR_RECORDS`` rows
   6 rebuild             copy the signals .pkl aside; snapshot, sidecar, signals index
-  7 signal-diff         old vs new signals index, per key
+  7 signal-diff         old vs new signals index, per key; losses bucketed, gains
+                        tagged (reads the old tag's cached card-data + the tests)
   8 graduation          RETIRE-READY rows: test_bridge_ledger.py + every
-                        ``retirement_canary``-marked test
+                        ``retirement_canary``-marked test; bridge corpus reach
 
 (The crosswalk suites' own fixture — step 5 until ADR-0056 merged it into the card
 snapshot — is re-resolved by step 6's ``build-card-snapshot`` with everything else;
@@ -42,14 +45,21 @@ import re
 import shutil
 import subprocess
 import sys
-from collections.abc import Callable, Iterable, Mapping, Sequence
+import time
+from collections.abc import Callable, Collection, Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
+from enum import Enum
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import click
 
 from mtg_utils import _phase
 from mtg_utils.deck_cli import bulk_data_option
+
+if TYPE_CHECKING:
+    from mtg_utils._analysis.bridge_ledger import Bridge
+    from mtg_utils._card_ir.trees import ConceptTree
 
 PHASE_RAW = "https://raw.githubusercontent.com/phase-rs/phase"
 ABILITY_RS = "crates/engine/src/types/ability.rs"
@@ -189,30 +199,54 @@ class ImpostorRow:
     record_name: str
     record_text: str
     bulk_names: tuple[str, ...]  # the bulk card(s) carrying this oracle_id
+    # The OTHER bulk card(s) whose face text this record's text is — non-empty
+    # means a different card's text stamped with this oracle_id: a likely
+    # impostor. Empty means no card carries the text: errata drift.
+    text_owners: tuple[str, ...] = ()
+    # The row is already in ``_phase._IMPOSTOR_RECORDS``: dropped at ingestion,
+    # so it needs no decision — only a new likely impostor does.
+    already_recorded: bool = False
+
+    @property
+    def likely_impostor(self) -> bool:
+        return bool(self.text_owners)
+
+    @property
+    def needs_decision(self) -> bool:
+        return self.likely_impostor and not self.already_recorded
 
 
 def impostor_census(
-    card_data: object, bulk_records: Iterable[Mapping]
+    card_data: object,
+    bulk_records: Iterable[Mapping],
+    recorded: Iterable[tuple[str, str]] = (),
 ) -> list[ImpostorRow]:
     """card-data records whose ``oracle_text`` matches NO face text of the bulk card
     sharing their ``scryfall_oracle_id`` — the join phase's name-keyed corpus can
-    get wrong (the Fast // Furious mis-join). Report-only: the v0.23.0 census found
-    8 errata-drift false positives, so a human decides what enters
-    ``_phase._IMPOSTOR_RECORDS``. Records whose oracle_id is absent from the bulk
+    get wrong (the Fast // Furious mis-join). Each row names ``text_owners``: the
+    other oracle_ids whose face text the record's text IS (non-empty = a likely
+    impostor; empty = errata drift), and whether its ``(oracle_id, text)`` is
+    already one of the ``recorded`` impostor rows. Sorted: likely impostors
+    needing a decision, then already-recorded ones, then errata drift.
+    Report-only; never applied. Records whose oracle_id is absent from the bulk
     are not flagged (nothing to compare against)."""
+    known = set(recorded)
     faces: dict[str, set[str]] = {}
     names: dict[str, set[str]] = {}
+    owners: dict[str, set[str]] = {}  # normalized face text -> oracle_ids
     for rec in bulk_records:
         oid = rec.get("oracle_id") or ""
         if not oid:
             continue
         texts = faces.setdefault(oid, set())
         names.setdefault(oid, set()).add(rec.get("name") or "")
-        if rec.get("oracle_text"):
-            texts.add(_norm(rec["oracle_text"]))
-        for face in rec.get("card_faces") or []:
-            if face.get("oracle_text"):
-                texts.add(_norm(face["oracle_text"]))
+        face_texts = [rec.get("oracle_text")] + [
+            f.get("oracle_text") for f in rec.get("card_faces") or []
+        ]
+        for t in face_texts:
+            if t:
+                texts.add(_norm(t))
+                owners.setdefault(_norm(t), set()).add(oid)
     rows: list[ImpostorRow] = []
     for rec in card_data_records(card_data):
         oid = rec.get("scryfall_oracle_id") or ""
@@ -220,16 +254,42 @@ def impostor_census(
         if not oid or oid not in faces or not text:
             continue
         if _norm(text) not in faces[oid]:
+            others = sorted(owners.get(_norm(text), set()) - {oid})
             rows.append(
                 ImpostorRow(
                     oracle_id=oid,
                     record_name=rec.get("name") or "",
                     record_text=text,
                     bulk_names=tuple(sorted(names[oid])),
+                    text_owners=tuple(
+                        f"{n} ({o})" for o in others for n in sorted(names[o])
+                    ),
+                    already_recorded=(oid, text) in known,
                 )
             )
-    rows.sort(key=lambda r: (r.record_name, r.oracle_id))
+    rows.sort(
+        key=lambda r: (
+            not r.needs_decision,
+            not r.likely_impostor,
+            r.record_name,
+            r.oracle_id,
+        )
+    )
     return rows
+
+
+def dead_impostor_rows(
+    card_data: object, impostor_records: Iterable[tuple[str, str]]
+) -> tuple[tuple[str, str], ...]:
+    """The ``_phase._IMPOSTOR_RECORDS`` rows no RAW card-data record carries (a
+    ``(oracle_id, exact text)`` row goes dead when upstream fixes or flips the
+    join). Reads the raw records: the grouping seam drops impostors, so it cannot
+    see them."""
+    carried = {
+        (r.get("scryfall_oracle_id") or "", r.get("oracle_text") or "")
+        for r in card_data_records(card_data)
+    }
+    return tuple(sorted(row for row in impostor_records if row not in carried))
 
 
 def _norm(text: str) -> str:
@@ -274,6 +334,232 @@ def signal_diff(
     return out
 
 
+@dataclass(frozen=True)
+class CardFacts:
+    """What the triage needs to know about one card name the diff reports."""
+
+    oracle_ids: tuple[str, ...]  # every bulk oracle_id with this name
+    in_old_card_data: bool  # any of them had a phase record at the old tag
+    in_new_card_data: bool  # …at the new tag
+
+    def moved_between_variants(self, name: str, moved: Collection[str]) -> bool:
+        """The key's change on this name is a signal moving to a sibling printing:
+        several oracle_ids share the name, and the name both lost and gained the
+        key (``moved``)."""
+        return len(self.oracle_ids) > 1 and name in moved
+
+
+class LossBucket(Enum):
+    """A lost card's bucket, in priority order — the first that applies wins.
+    The value is the report's display label."""
+
+    PINNED = "PINNED — the test suite decides"
+    DROPPED_UPSTREAM = "dropped upstream"
+    VARIANT_CHURN = "variant churn"
+    NEEDS_VERDICT = "needs verdict"
+
+    @property
+    def label(self) -> str:
+        return self.value
+
+
+# Collapsed to a count per key in the report: no human verdict needed.
+COLLAPSED_BUCKETS = (LossBucket.DROPPED_UPSTREAM, LossBucket.VARIANT_CHURN)
+
+
+def card_facts(
+    names_by_oid: Mapping[str, str],
+    old_card_data_oids: Iterable[str],
+    new_card_data_oids: Iterable[str],
+) -> dict[str, CardFacts]:
+    """Per card NAME (the diff's unit), the facts :func:`classify_loss` and
+    :func:`gain_needs_check` read."""
+    old_cd, new_cd = set(old_card_data_oids), set(new_card_data_oids)
+    by_name: dict[str, list[str]] = {}
+    for oid, name in names_by_oid.items():
+        by_name.setdefault(name, []).append(oid)
+    return {
+        name: CardFacts(
+            oracle_ids=tuple(sorted(oids)),
+            in_old_card_data=any(o in old_cd for o in oids),
+            in_new_card_data=any(o in new_cd for o in oids),
+        )
+        for name, oids in by_name.items()
+    }
+
+
+def pinned_by(name: str, pins: Mapping[str, Sequence[str]]) -> tuple[str, ...]:
+    """The test sources pinning ``name`` — by full name or by any face of an
+    ``A // B`` name (a test pins "Ajani, Nacatl Avenger", the diff reports the
+    whole card)."""
+    hits: set[str] = set()
+    for n in (name, *name.split(" // ")):
+        hits.update(pins.get(n, ()))
+    return tuple(sorted(hits))
+
+
+def classify_loss(
+    name: str,
+    facts: CardFacts | None,
+    pins: Mapping[str, Sequence[str]],
+    moved: Collection[str] = frozenset(),
+) -> LossBucket:
+    """A lost card's bucket, the first that applies: PINNED (a test, preset fixture
+    or ledger pin names the card), DROPPED_UPSTREAM (a phase record at the old
+    tag, none at the new), VARIANT_CHURN (:meth:`CardFacts.moved_between_variants`),
+    else NEEDS_VERDICT."""
+    if pinned_by(name, pins):
+        return LossBucket.PINNED
+    if facts is not None:
+        if facts.in_old_card_data and not facts.in_new_card_data:
+            return LossBucket.DROPPED_UPSTREAM
+        if facts.moved_between_variants(name, moved):
+            return LossBucket.VARIANT_CHURN
+    return LossBucket.NEEDS_VERDICT
+
+
+def gain_needs_check(
+    name: str, facts: CardFacts | None, moved: Collection[str] = frozenset()
+) -> bool:
+    """True when a gain is on an already-parsed card — a phase record at both
+    tags — unless the signal only moved between variants
+    (:meth:`CardFacts.moved_between_variants`)."""
+    return (
+        facts is not None
+        and facts.in_old_card_data
+        and facts.in_new_card_data
+        and not facts.moved_between_variants(name, moved)
+    )
+
+
+@dataclass(frozen=True)
+class LossVerdict:
+    """A loss the report can't settle: PINNED or NEEDS_VERDICT."""
+
+    card: str
+    key: str
+    bucket: LossBucket
+    sources: tuple[str, ...]  # the pinning test sources (PINNED only)
+    residue_backed: bool
+
+
+@dataclass(frozen=True)
+class KeyTriage:
+    """One key's diff, every loss and gain classified exactly once."""
+
+    key: str
+    lost: int
+    gained: int
+    verdicts: tuple[LossVerdict, ...]
+    collapsed: Mapping[LossBucket, tuple[str, ...]]  # COLLAPSED_BUCKETS -> cards
+    gains: tuple[tuple[str, bool], ...]  # (card, check?), checks first
+
+
+def triage(
+    diff: Sequence[KeyDiff],
+    residue_backed: Mapping[str, Sequence[str]],
+    facts: Mapping[str, CardFacts],
+    pins: Mapping[str, Sequence[str]],
+) -> list[KeyTriage]:
+    """Classify every loss (:func:`classify_loss`) and gain
+    (:func:`gain_needs_check`) of every key, in diff order."""
+    out: list[KeyTriage] = []
+    for d in diff:
+        moved = set(d.lost) & set(d.gained)
+        backed = set(residue_backed.get(d.key, ()))
+        verdicts: list[LossVerdict] = []
+        collapsed: dict[LossBucket, list[str]] = {b: [] for b in COLLAPSED_BUCKETS}
+        for n in d.lost:
+            bucket = classify_loss(n, facts.get(n), pins, moved)
+            if bucket in collapsed:
+                collapsed[bucket].append(n)
+            else:
+                verdicts.append(
+                    LossVerdict(n, d.key, bucket, pinned_by(n, pins), n in backed)
+                )
+        gains = [(n, gain_needs_check(n, facts.get(n), moved)) for n in d.gained]
+        gains.sort(key=lambda g: not g[1])
+        out.append(
+            KeyTriage(
+                key=d.key,
+                lost=len(d.lost),
+                gained=len(d.gained),
+                verdicts=tuple(verdicts),
+                collapsed={b: tuple(ns) for b, ns in collapsed.items()},
+                gains=tuple(gains),
+            )
+        )
+    return out
+
+
+@dataclass(frozen=True)
+class BridgeReach:
+    """One ledger row's corpus-wide reach: where it fires, and where only its
+    gap holds (the row would fire if the text matched)."""
+
+    bridge_id: str
+    fires: int
+    gap_hits: int
+    gap_only_samples: tuple[str, ...]
+
+    @property
+    def gap_only(self) -> int:
+        return self.gap_hits - self.fires
+
+
+# A gap true on more than this share of the corpus gates on the ABSENCE of a
+# structure (the usual shape: "no typed sacrifice node") or on a residue KIND
+# that is everywhere; it retires when the pin grows that structure, so its
+# gap-only cards are not sampled — the row gets one summary line instead.
+NARROW_GAP_SHARE = 0.05
+
+
+def bridge_reach(
+    bridges: Mapping[str, Bridge],
+    trees: Iterable[ConceptTree],
+    *,
+    samples: int = 5,
+) -> list[BridgeReach]:
+    """Evaluate every row's ``gap`` and ``match`` over ``trees`` (the corpus's
+    signal trees, the shape bridges fire on in production). Rows keep ledger
+    order."""
+    fires = dict.fromkeys(bridges, 0)
+    gap_hits = dict.fromkeys(bridges, 0)
+    only: dict[str, list[str]] = {b: [] for b in bridges}
+    for tree in trees:
+        for bid, row in bridges.items():
+            if not row.gap(tree):
+                continue
+            gap_hits[bid] += 1
+            if row.match(tree):
+                fires[bid] += 1
+            elif len(only[bid]) < samples:
+                only[bid].append(tree.name)
+    return [BridgeReach(b, fires[b], gap_hits[b], tuple(only[b])) for b in bridges]
+
+
+def dead_bridges(reach: Sequence[BridgeReach]) -> tuple[str, ...]:
+    """Rows that fire on no card in the corpus: they serve nothing (a stale pin,
+    or a gap/match pair that drifted apart) — a hard finding."""
+    return tuple(r.bridge_id for r in reach if r.fires == 0)
+
+
+def narrow_gap_breadth(reach: Sequence[BridgeReach], corpus: int) -> list[BridgeReach]:
+    """Rows whose gap is NARROW (true on at most ``NARROW_GAP_SHARE`` of the
+    corpus — a residue or hollow-static read) yet holds on cards the match
+    doesn't, widest first. Informational: a gap-only card is usually a near miss
+    (Phyrexian Vindicator beside the prevention row)."""
+    rows = [r for r in reach if r.gap_only and r.gap_hits <= NARROW_GAP_SHARE * corpus]
+    return sorted(rows, key=lambda r: -r.gap_only)
+
+
+def wide_gaps(reach: Sequence[BridgeReach], corpus: int) -> list[BridgeReach]:
+    """Rows whose gap holds on more than ``NARROW_GAP_SHARE`` of the corpus — an
+    absence read — widest first. Summarised, never sampled, so no row is hidden."""
+    rows = [r for r in reach if r.gap_hits > NARROW_GAP_SHARE * corpus]
+    return sorted(rows, key=lambda r: -r.gap_hits)
+
+
 RETIRE_READY = re.compile(r"^(?:FAILED\s+\S+::)?.*?(\w+): RETIRE-READY", re.MULTILINE)
 
 
@@ -285,65 +571,185 @@ def graduation_rows(pytest_output: str) -> tuple[str, ...]:
     return tuple(sorted(ids))
 
 
-def render_report(
-    *,
-    old_tag: str,
-    new_tag: str,
-    variants_before: int,
-    variants_after: int,
-    zero_instance: Sequence[str],
-    census: Sequence[ImpostorRow],
-    diff: Sequence[KeyDiff],
-    residue_backed: Mapping[str, Sequence[str]],
-    graduation: Sequence[str],
-    notes: Sequence[str],
-) -> str:
-    lines = [
-        f"# phase pin bump {old_tag} → {new_tag}",
-        "",
+# ── report sections: each returns its lines, render_report concatenates ─────────
+
+GAINS_SHOWN = 25  # per key; the rest are counted
+
+
+def render_rosters(
+    variants_before: int, variants_after: int, zero_instance: Sequence[str]
+) -> list[str]:
+    return [
         "## Rosters",
         f"- EFFECT_VARIANTS: {variants_before} → {variants_after}",
         f"- ZERO_INSTANCE_EFFECTS: {len(zero_instance)} ({', '.join(zero_instance)})",
-        "",
-        "## Impostor census (report only — never auto-applied)",
     ]
+
+
+def render_census(
+    census: Sequence[ImpostorRow], dead_impostors: Sequence[tuple[str, str]]
+) -> list[str]:
+    lines = ["## Impostor census (report only — never auto-applied)"]
     if census:
+        n_imp = sum(r.likely_impostor for r in census)
+        n_known = sum(r.likely_impostor and r.already_recorded for r in census)
         lines.append(
             f"- {len(census)} record(s) whose text matches no bulk face for their "
-            "oracle_id. Errata drift is NOT an impostor; a different card's text is."
+            f"oracle_id: {n_imp} LIKELY IMPOSTOR ({n_known} already recorded), "
+            f"{len(census) - n_imp} errata drift."
         )
         for r in census:
+            if not r.likely_impostor:
+                verdict = "errata drift"
+            elif r.already_recorded:
+                verdict = (
+                    "LIKELY IMPOSTOR, already in `_IMPOSTOR_RECORDS` — no decision "
+                    f"needed; the text of {'; '.join(r.text_owners)}"
+                )
+            else:
+                verdict = f"LIKELY IMPOSTOR — the text of {'; '.join(r.text_owners)}"
             lines.append(
-                f"  - `{r.oracle_id}` record {r.record_name!r} (bulk: "
+                f"  - [{verdict}] `{r.oracle_id}` record {r.record_name!r} (bulk: "
                 f"{', '.join(r.bulk_names)}): {r.record_text[:160]!r}"
             )
     else:
         lines.append("- none flagged")
-    lines += ["", "## Signal diff (per key; cards present in both indexes)"]
-    total_lost = sum(len(d.lost) for d in diff)
-    total_gained = sum(len(d.gained) for d in diff)
-    lines.append(
-        f"- {total_lost} losses / {total_gained} gains across {len(diff)} keys"
-    )
-    for d in diff:
-        lines.append(f"### {d.key}  (lost {len(d.lost)}, gained {len(d.gained)})")
-        if d.lost:
-            backed = set(residue_backed.get(d.key, ()))
-            for n in d.lost:
-                tag = "residue-backed → bridge candidate" if n in backed else "silent"
-                lines.append(f"- lost: {n}  [{tag}]")
-        for n in d.gained[:25]:
-            lines.append(f"- gained: {n}")
-        if len(d.gained) > 25:
-            lines.append(f"- gained: … {len(d.gained) - 25} more")
-    lines += ["", "## Graduation (RETIRE-READY bridges + retirement canaries)"]
-    if graduation:
-        lines.extend(f"- {b}" for b in graduation)
+    if dead_impostors:
+        lines.extend(
+            f"- DEAD `_IMPOSTOR_RECORDS` row: `{oid}` {text[:80]!r} — no record "
+            "carries it"
+            for oid, text in dead_impostors
+        )
     else:
-        lines.append("- none — every bridge's gap and canary's misparse still hold")
-    if notes:
-        lines += ["", "## Notes", *[f"- {n}" for n in notes]]
-    return "\n".join(lines) + "\n"
+        lines.append("- every `_IMPOSTOR_RECORDS` row still matches a record")
+    return lines
+
+
+def render_signal_diff(triaged: Sequence[KeyTriage]) -> list[str]:
+    lost = sum(t.lost for t in triaged)
+    gained = sum(t.gained for t in triaged)
+    lines = [
+        "## Signal diff (per key; cards present in both indexes)",
+        (
+            f"- {lost} losses / {gained} gains across {len(triaged)} keys. Losses "
+            f"are bucketed: {' / '.join(b.label for b in LossBucket)}; gains "
+            "tagged [check] were on already-parsed cards."
+        ),
+    ]
+    for t in triaged:
+        lines.append(f"### {t.key}  (lost {t.lost}, gained {t.gained})")
+        for v in t.verdicts:
+            where = f" ({', '.join(v.sources)})" if v.sources else ""
+            tag = "residue-backed → bridge candidate" if v.residue_backed else "silent"
+            lines.append(f"- lost: {v.card}  [{v.bucket.label}{where}; {tag}]")
+        for bucket, names in t.collapsed.items():
+            if names:
+                lines.append(
+                    f"- lost ({bucket.label}): {len(names)}  <details><summary>cards"
+                    f"</summary>{', '.join(names)}</details>"
+                )
+        for n, check in t.gains[:GAINS_SHOWN]:
+            lines.append(f"- gained: {n}{'  [check]' if check else ''}")
+        if len(t.gains) > GAINS_SHOWN:
+            lines.append(f"- gained: … {len(t.gains) - GAINS_SHOWN} more")
+    return lines
+
+
+def render_needs_verdict(triaged: Sequence[KeyTriage]) -> list[str]:
+    lines = ["## Needs a verdict (answer each in the bump's commit message)"]
+    verdicts = sorted(
+        (v for t in triaged for v in t.verdicts),
+        key=lambda v: (v.bucket is not LossBucket.PINNED, v.key, v.card),
+    )
+    for v in verdicts:
+        residue = ", residue-backed" if v.residue_backed else ""
+        lines.append(f"- [{v.bucket.label}{residue}] {v.key}: {v.card}")
+    return lines if verdicts else [*lines, "- none"]
+
+
+def render_gains_to_check(triaged: Sequence[KeyTriage]) -> list[str]:
+    lines = ["## Gains to check (already-parsed cards — false positive?)"]
+    checks = [(t.key, n) for t in triaged for n, check in t.gains if check]
+    lines.extend(f"- {key}: {n}" for key, n in sorted(checks, key=lambda c: c[0]))
+    return lines if checks else [*lines, "- none"]
+
+
+def render_graduation(graduation: Sequence[str]) -> list[str]:
+    lines = ["## Graduation (RETIRE-READY bridges + retirement canaries)"]
+    if graduation:
+        return [*lines, *(f"- {b}" for b in graduation)]
+    return [*lines, "- none — every bridge's gap and canary's misparse still hold"]
+
+
+def render_bridge_reach(reach: Sequence[BridgeReach], corpus: int) -> list[str]:
+    if not reach:
+        return []
+    lines = [f"## Bridge reach ({len(reach)} rows over {corpus} trees)"]
+    dead = dead_bridges(reach)
+    if dead:
+        lines.extend(f"- DEAD — fires on no card: {b}" for b in dead)
+    else:
+        lines.append("- every row fires on at least one card")
+    narrow = narrow_gap_breadth(reach, corpus)
+    if narrow:
+        lines.append(
+            "- narrow gaps that also hold where the text doesn't match (informational):"
+        )
+        lines.extend(
+            f"  - {r.bridge_id}: gap {r.gap_hits}, fires {r.fires} "
+            f"(e.g. {', '.join(r.gap_only_samples)})"
+            for r in narrow
+        )
+    wide = wide_gaps(reach, corpus)
+    if wide:
+        lines.append(
+            "- wide gaps (absence reads, true on more than "
+            f"{NARROW_GAP_SHARE:.0%} of the corpus; not sampled):"
+        )
+        lines.extend(
+            f"  - {r.bridge_id}: gap {r.gap_hits}, fires {r.fires}" for r in wide
+        )
+    return lines
+
+
+@dataclass
+class ReportData:
+    """Everything the report renders — the steps fill it in, :func:`render_report`
+    reads it once."""
+
+    old_tag: str
+    new_tag: str
+    notes: list[str] = field(default_factory=list)
+    variants_before: int = 0
+    variants_after: int = 0
+    zero_instance: tuple[str, ...] = ()
+    census: tuple[ImpostorRow, ...] = ()
+    dead_impostors: tuple[tuple[str, str], ...] = ()
+    diff: tuple[KeyDiff, ...] = ()
+    residue_backed: Mapping[str, Sequence[str]] = field(default_factory=dict)
+    facts: Mapping[str, CardFacts] = field(default_factory=dict)
+    pins: Mapping[str, Sequence[str]] = field(default_factory=dict)
+    graduation: tuple[str, ...] = ()
+    reach: tuple[BridgeReach, ...] = ()
+    corpus: int = 0
+
+
+def render_report(data: ReportData) -> str:
+    """The bump's triage report: one section per helper above, in the order a
+    human works them (``docs/phase-pin-bump.md``)."""
+    triaged = triage(data.diff, data.residue_backed, data.facts, data.pins)
+    sections = [
+        [f"# phase pin bump {data.old_tag} → {data.new_tag}"],
+        render_rosters(data.variants_before, data.variants_after, data.zero_instance),
+        render_census(data.census, data.dead_impostors),
+        render_signal_diff(triaged),
+        render_needs_verdict(triaged),
+        render_gains_to_check(triaged),
+        render_graduation(data.graduation),
+        render_bridge_reach(data.reach, data.corpus),
+        ["## Notes", *(f"- {n}" for n in data.notes)] if data.notes else [],
+    ]
+    return "\n\n".join("\n".join(s) for s in sections if s) + "\n"
 
 
 # ── orchestration ───────────────────────────────────────────────────────────────
@@ -366,14 +772,15 @@ class BumpContext:
     card_data_path: Callable[[], Path]
     bulk_path: Path | None
     install_phase: bool = False
-    notes: list[str] = field(default_factory=list)
-    variants_before: int = 0
-    variants_after: int = 0
-    zero_instance: tuple[str, ...] = ()
-    census: tuple[ImpostorRow, ...] = ()
-    diff: tuple[KeyDiff, ...] = ()
-    residue_backed: dict[str, tuple[str, ...]] = field(default_factory=dict)
-    graduation: tuple[str, ...] = ()
+    report: ReportData = field(init=False)
+
+    def __post_init__(self) -> None:
+        self.report = ReportData(self.old_tag, self.new_tag)
+
+    def old_card_data_path(self) -> Path:
+        """The old tag's cached card-data, beside the new one (phase caches one
+        file per tag) — absent when the old tag was never fetched here."""
+        return self.card_data_path().with_name(f"card-data-{self.old_tag}.json")
 
 
 def _read(ctx: BumpContext, rel: Path) -> str:
@@ -390,7 +797,7 @@ def step_pin(ctx: BumpContext) -> None:
         if n == 0:
             raise RuntimeError(f"{rel}: the old tag {ctx.old_tag!r} does not appear")
         _write(ctx, rel, text)
-        ctx.notes.append(f"{rel}: {n} tag mention(s) rewritten")
+        ctx.report.notes.append(f"{rel}: {n} tag mention(s) rewritten")
     _phase.PHASE_TAG = ctx.new_tag  # this process's own fetches read the attribute
 
 
@@ -398,17 +805,17 @@ def step_variants(ctx: BumpContext) -> None:
     url = f"{PHASE_RAW}/{ctx.new_tag}/{ABILITY_RS}"
     names = parse_effect_enum(ctx.fetch(url).decode("utf-8"))
     text = _read(ctx, VARIANTS_FILE)
-    ctx.variants_before = len(parse_effect_enum_from_variants(text))
+    ctx.report.variants_before = len(parse_effect_enum_from_variants(text))
     text = rewrite_between_markers(
         text, VARIANTS_BEGIN, VARIANTS_END, render_variants(names)
     )
     _write(ctx, VARIANTS_FILE, text)
-    ctx.variants_after = len(names)
+    ctx.report.variants_after = len(names)
 
 
 def step_card_data(ctx: BumpContext) -> None:
     path = ctx.card_data_path()
-    ctx.notes.append(f"card-data for {ctx.new_tag}: {path}")
+    ctx.report.notes.append(f"card-data for {ctx.new_tag}: {path}")
 
 
 def _run(ctx: BumpContext, *argv: str) -> str:
@@ -428,7 +835,7 @@ def step_substrate(ctx: BumpContext) -> None:
         _read(ctx, VARIANTS_FILE), ZERO_BEGIN, ZERO_END, render_zero_instance(zeros)
     )
     _write(ctx, VARIANTS_FILE, text)
-    ctx.zero_instance = tuple(sorted(zeros))
+    ctx.report.zero_instance = tuple(sorted(zeros))
 
 
 def parse_effect_enum_from_variants(variants_source: str) -> tuple[str, ...]:
@@ -447,7 +854,21 @@ def _bulk_records(ctx: BumpContext) -> list[dict]:
 
 def step_impostor_census(ctx: BumpContext) -> None:
     card_data = json.loads(ctx.card_data_path().read_text(encoding="utf-8"))
-    ctx.census = tuple(impostor_census(card_data, _bulk_records(ctx)))
+    # The table the census exists to maintain — read, never written, here.
+    rows = _phase._IMPOSTOR_RECORDS  # noqa: SLF001
+    ctx.report.census = tuple(impostor_census(card_data, _bulk_records(ctx), rows))
+    ctx.report.dead_impostors = dead_impostor_rows(card_data, rows)
+
+
+def _card_data_oids(path: Path) -> set[str]:
+    if not path.exists():
+        return set()
+    data = json.loads(path.read_text(encoding="utf-8"))
+    return {
+        r["scryfall_oracle_id"]
+        for r in card_data_records(data)
+        if r.get("scryfall_oracle_id")
+    }
 
 
 def _signals_pkl(ctx: BumpContext) -> Path | None:
@@ -464,22 +885,24 @@ def step_rebuild(ctx: BumpContext) -> None:
     if old_copy.exists():
         # A resume at this step: the index on disk is already the rebuilt one, so
         # the copy the first run took is the only pre-bump baseline there is.
-        ctx.notes.append(f"old signals index already copied to {ctx.report_dir}")
+        ctx.report.notes.append(f"old signals index already copied to {ctx.report_dir}")
     elif pkl is not None and pkl.exists():
         ctx.report_dir.mkdir(parents=True, exist_ok=True)
         shutil.copy2(pkl, old_copy)
-        ctx.notes.append(f"old signals index copied to {ctx.report_dir}")
+        ctx.report.notes.append(f"old signals index copied to {ctx.report_dir}")
     else:
-        ctx.notes.append("no prior signals index found — the signal diff is skipped")
+        ctx.report.notes.append(
+            "no prior signals index found — the signal diff is skipped"
+        )
     snapshot = _run(ctx, "mtg_utils.build_card_snapshot").strip()
     if snapshot:
         # Unresolved names and text-only cards are coverage holes to triage.
-        ctx.notes.append(f"card snapshot: {snapshot}")
+        ctx.report.notes.append(f"card snapshot: {snapshot}")
     _run(ctx, "mtg_utils.card_ir_crosswalk_build")
     _run(ctx, "mtg_utils.signals_index_build")
     if ctx.install_phase:
         _phase.install_phase()  # moves the cached clone to the (already set) new tag
-        ctx.notes.append("phase clone moved to the new tag and rebuilt")
+        ctx.report.notes.append("phase clone moved to the new tag and rebuilt")
 
 
 def _load_index(path: Path) -> dict[str, tuple[str, ...]]:
@@ -496,21 +919,38 @@ def step_signal_diff(ctx: BumpContext) -> None:
     bulk = _bulk_records(ctx)
     names = {r["oracle_id"]: r.get("name", "") for r in bulk if r.get("oracle_id")}
     diff = signal_diff(_load_index(old_pkl), _load_index(new_pkl), names)
-    ctx.diff = tuple(diff)
-    # Which losses still have a residue the tree carries? Those are bridge material.
-    from mtg_utils._card_ir.trees import trees_for
+    ctx.report.diff = tuple(diff)
+    ctx.report.facts = card_facts(
+        names,
+        _card_data_oids(ctx.old_card_data_path()),
+        _card_data_oids(ctx.card_data_path()),
+    )
+    from mtg_utils.build_card_snapshot import scan_test_usage
 
+    ctx.report.pins = scan_test_usage(ctx.repo)
+    # Which losses still have a residue the tree carries? Those are bridge material.
     by_name = {r.get("name", ""): r for r in bulk if r.get("oracle_id")}
     backed: dict[str, tuple[str, ...]] = {}
     for d in diff:
         hits = []
         for n in d.lost:
             rec = by_name.get(n)
-            if rec and any(t.has_residue() for t in trees_for(rec)):
+            if rec and any(t.has_residue() for t in _corpus_trees(rec)):
                 hits.append(n)
         if hits:
             backed[d.key] = tuple(hits)
-    ctx.residue_backed = backed
+    ctx.report.residue_backed = backed
+
+
+def _corpus_trees(rec: dict) -> tuple:
+    """A bulk record's trees as production fires bridges on them: the signal
+    trees with the bulk threaded (so a phase-missing face gets its W2c text-only
+    tree) and ``text_only_fallback`` on, which serves phase's trees when it covers
+    the card and full text-only trees only for a wholly phase-uncovered folded
+    object (ADR-0025) — the reach of every missing_face row."""
+    from mtg_utils._analysis.signal_trees import signal_trees_for
+
+    return signal_trees_for(rec, bulk=rec, text_only_fallback=True)
 
 
 def step_graduation(ctx: BumpContext) -> None:
@@ -524,7 +964,25 @@ def step_graduation(ctx: BumpContext) -> None:
     ):
         proc = ctx.runner(argv)
         out += (proc.stdout or "") + (proc.stderr or "")
-    ctx.graduation = graduation_rows(out)
+    ctx.report.graduation = graduation_rows(out)
+    # Every row's corpus reach: a row that fires nowhere, or a narrow gap that
+    # outruns its match, is a retirement that won't read RETIRE-READY.
+    from mtg_utils._analysis.bridge_ledger import BRIDGES
+
+    started = time.monotonic()
+    seen: set[str] = set()
+    trees: list = []
+    for rec in _bulk_records(ctx):
+        oid = rec.get("oracle_id")
+        if oid and oid not in seen:
+            seen.add(oid)
+            trees.extend(_corpus_trees(rec))
+    ctx.report.reach = tuple(bridge_reach(BRIDGES, trees))
+    ctx.report.corpus = len(trees)
+    ctx.report.notes.append(
+        f"bridge reach: {len(BRIDGES)} rows over {len(trees)} trees in "
+        f"{time.monotonic() - started:.1f}s"
+    )
 
 
 STEPS: tuple[tuple[str, Callable[[BumpContext], None]], ...] = (
@@ -573,21 +1031,7 @@ def run(ctx: BumpContext, *, from_step: int = 1, echo: Callable[[str], None]) ->
         fn(ctx)
     ctx.report_dir.mkdir(parents=True, exist_ok=True)
     report = ctx.report_dir / "report.md"
-    report.write_text(
-        render_report(
-            old_tag=ctx.old_tag,
-            new_tag=ctx.new_tag,
-            variants_before=ctx.variants_before,
-            variants_after=ctx.variants_after,
-            zero_instance=ctx.zero_instance,
-            census=ctx.census,
-            diff=ctx.diff,
-            residue_backed=ctx.residue_backed,
-            graduation=ctx.graduation,
-            notes=ctx.notes,
-        ),
-        encoding="utf-8",
-    )
+    report.write_text(render_report(ctx.report), encoding="utf-8")
     return report
 
 

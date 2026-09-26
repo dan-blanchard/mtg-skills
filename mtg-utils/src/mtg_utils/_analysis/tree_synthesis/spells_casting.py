@@ -244,7 +244,12 @@ def has_permanent_recast(tree: ConceptTree) -> bool:
       ``GraveyardCastPermission`` — Muldrotha's per-type play-from-yard),
       unless its ``affected`` filter names only nonpermanent types
       (Maestros Ascendancy / Kess's instant-or-sorcery flashback — those
-      re-deliver spells, never a permanent; CR 110.4a);
+      re-deliver spells, never a permanent; CR 110.4a). An Adventure cast
+      this way does leave its creature castable from exile afterwards
+      (CR 715.3d; Maestros Ascendancy's own ruling), but that's the
+      Adventure card's normal two-part lifecycle, like a card with two
+      castable faces, not a permanent being recast from the graveyard;
+      by design it stays out;
     * a trigger whose ``ChangeZone`` puts a graveyard card onto the
       battlefield (destination ``Battlefield`` + an ``InZone(Graveyard)``
       target filter in the unit subtree — Meren's end-step reanimate,

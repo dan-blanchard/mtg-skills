@@ -82,3 +82,10 @@ additive. The companion is priced like any other card the deck runs (its wildcar
 / USD cost counts): it is a card the builder must own to play, which is the reading
 the cost readouts exist for. Non-goals: sideboard proposals, a matchup or metagame
 model, bracket-scaled bands (ADR-0024 stands).
+
+**Amended (the 2026-09-19 whole-change review).** Two departures from the build plan
+were reviewed and accepted as shipped. `mtga-import --format` offers every
+Arena-playable format (the Format's Arena flag, sealed and draft included), not every
+format: a paper-only format is not a choice for an Arena collection. `win_conditions`
+keeps a defaulted `game` parameter rather than a required one: the tuner passes the
+resolved medium's game, and a direct caller gets the paper reading.

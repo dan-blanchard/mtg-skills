@@ -304,19 +304,51 @@ def _minimal(card: dict) -> dict:
     return out
 
 
-def _scan_names(test_dirs: list[Path]) -> set[str]:
-    """Usage-derived names: direct ``test_card(...)`` literals, parametrize
-    columns feeding a helper call, and every value in a ``_REAL_CASES`` key→name
-    table. So adding a parametrize row (and re-running) grows the snapshot with
-    no external name list. ``conftest.py`` modules are scanned too: a shared
-    fixture that builds real cards by name feeds the snapshot like a test does."""
-    names: set[str] = set()
-    for d in test_dirs:
+# The test trees the usage scan reads, relative to the repo root.
+TEST_DIRS = ("tests/deck-forge", "tests/mtg-utils")
+# Source labels for the two name sources the AST scan cannot see.
+PRESET_SOURCE = "theme_presets (fixture)"
+LEDGER_SOURCE = "bridge_ledger (pin)"
+
+
+def usage_scan_dirs(repo_root: Path) -> list[Path]:
+    """The :data:`TEST_DIRS` under ``repo_root`` (named so pytest never collects
+    it: a ``test_``-prefixed function imported into a test module would be)."""
+    return [repo_root / d for d in TEST_DIRS]
+
+
+def _test_file_usage(dirs: list[Path]) -> dict[str, set[Path]]:
+    """Usage-derived names, each with the test modules that ask for it: direct
+    ``test_card(...)`` literals, parametrize columns feeding a helper call, and
+    every value in a ``_REAL_CASES`` key→name table. So adding a parametrize row
+    (and re-running) grows the snapshot with no external name list.
+    ``conftest.py`` modules are scanned too: a shared fixture that builds real
+    cards by name feeds the snapshot like a test does."""
+    usage: dict[str, set[Path]] = {}
+    for d in dirs:
         if not d.exists():
             continue
         for py in (*d.rglob("test_*.py"), *d.rglob("conftest.py")):
-            names.update(_scan_module(py.read_text(encoding="utf-8")))
-    return names
+            for name in _scan_module(py.read_text(encoding="utf-8")):
+                usage.setdefault(name, set()).add(py)
+    return usage
+
+
+def scan_test_usage(repo_root: Path) -> dict[str, tuple[str, ...]]:
+    """Every card name the snapshot is derived from → where it comes from: the
+    test modules that name it (repo-relative paths), :data:`PRESET_SOURCE` for a
+    theme-preset fixture, :data:`LEDGER_SOURCE` for a bridge-ledger pin.
+    ``main`` snapshots exactly these names and ``bump-phase-pin`` reads their
+    provenance — so "a test names this card" means one thing to both."""
+    usage: dict[str, set[str]] = {
+        name: {str(p.relative_to(repo_root)) for p in paths}
+        for name, paths in _test_file_usage(usage_scan_dirs(repo_root)).items()
+    }
+    for name in _preset_fixture_names():
+        usage.setdefault(name, set()).add(PRESET_SOURCE)
+    for name in _bridge_pin_names():
+        usage.setdefault(name, set()).add(LEDGER_SOURCE)
+    return {name: tuple(sorted(srcs)) for name, srcs in usage.items()}
 
 
 def _preset_fixture_names() -> set[str]:
@@ -533,11 +565,7 @@ def main(argv: list[str] | None = None) -> int:
 
     names: set[str] = set()
     if not args.no_scan:
-        names |= _scan_names(
-            [repo_root / "tests" / "deck-forge", repo_root / "tests" / "mtg-utils"]
-        )
-        names |= _preset_fixture_names()
-        names |= _bridge_pin_names()
+        names |= set(scan_test_usage(repo_root))
     if args.names:
         names |= {n.strip() for n in args.names.split(",") if n.strip()}
     if args.names_file:

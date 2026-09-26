@@ -42,7 +42,11 @@ varies is written by hand.
   ranking tests that exercise the text-only fallback take `test_card(name)` and drop
   `oracle_id`, with a comment saying why. They don't hand-type a record that lacks it.
 - **Negatives are real near misses.** A `should_not_match` or "does not fire" case is a
-  real card that resembles the thing without being it, not a generic stand-in.
+  real card that resembles the thing without being it, not a generic stand-in:
+  Lightning Bolt proves nothing about a creature keyword. Pick a card that grants,
+  mentions or resembles the theme without having it. Find one by running the live
+  matcher over the bulk, with the card's own name stripped from its text (so a
+  self-reference isn't a mention) and joke sets (`set_type == "funny"`) skipped.
 
 **Consequences.** Card-data drift fails loudly: the snapshot's `phase_tag` /
 `crosswalk_sidecar_version` guard, plus a rebuild that shows exactly which records

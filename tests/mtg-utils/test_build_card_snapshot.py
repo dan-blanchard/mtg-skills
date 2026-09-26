@@ -5,10 +5,13 @@ from unittest.mock import patch
 
 from mtg_utils._analysis.bridge_ledger import BRIDGES
 from mtg_utils.build_card_snapshot import (
+    LEDGER_SOURCE,
+    PRESET_SOURCE,
     _existing_names,
     _index_by_name,
     _scan_module,
     main,
+    scan_test_usage,
 )
 
 # NB: the module under scan is a STRING — the test_card(...) calls inside it are
@@ -219,8 +222,8 @@ def test_main_carries_forward_a_name_only_the_snapshot_knows(tmp_path):
 
     with (
         patch(
-            "mtg_utils.build_card_snapshot._scan_names",
-            return_value={"Newly Scanned Card"},
+            "mtg_utils.build_card_snapshot._test_file_usage",
+            return_value={"Newly Scanned Card": set()},
         ),
         patch(
             "mtg_utils.build_card_snapshot.build_snapshot",
@@ -253,8 +256,8 @@ def test_main_prune_drops_names_the_scan_no_longer_supplies(tmp_path):
 
     with (
         patch(
-            "mtg_utils.build_card_snapshot._scan_names",
-            return_value={"Fresh Card"},
+            "mtg_utils.build_card_snapshot._test_file_usage",
+            return_value={"Fresh Card": set()},
         ),
         # The preset registry is a name source of its own; this test is about the
         # scan's names, so give it nothing.
@@ -296,7 +299,7 @@ def test_main_reads_every_bridge_ledger_pin(tmp_path):
         }
 
     with (
-        patch("mtg_utils.build_card_snapshot._scan_names", return_value=set()),
+        patch("mtg_utils.build_card_snapshot._test_file_usage", return_value={}),
         patch(
             "mtg_utils.build_card_snapshot._preset_fixture_names",
             return_value=set(),
@@ -309,6 +312,33 @@ def test_main_reads_every_bridge_ledger_pin(tmp_path):
         assert main(["--out", str(out_path)]) == 0
 
     assert captured["names"] == {pin for b in BRIDGES.values() for pin in b.pins}
+
+
+def test_scan_test_usage_names_every_source_of_a_card(tmp_path):
+    """The bump's "PINNED" bucket reads the same scan the snapshot is built
+    from, with provenance: the test modules, a preset fixture, a ledger pin."""
+    tests = tmp_path / "tests" / "mtg-utils"
+    tests.mkdir(parents=True)
+    (tests / "test_a.py").write_text(
+        'def test_x():\n    assert test_card("Test Relic")\n'
+    )
+    (tests / "conftest.py").write_text('CARD = test_card("Test Blade")\n')
+    with (
+        patch(
+            "mtg_utils.build_card_snapshot._preset_fixture_names",
+            return_value={"Test Relic"},
+        ),
+        patch(
+            "mtg_utils.build_card_snapshot._bridge_pin_names",
+            return_value={"Test Pin"},
+        ),
+    ):
+        usage = scan_test_usage(tmp_path)
+    assert usage == {
+        "Test Relic": ("tests/mtg-utils/test_a.py", PRESET_SOURCE),
+        "Test Blade": ("tests/mtg-utils/conftest.py",),
+        "Test Pin": (LEDGER_SOURCE,),
+    }
 
 
 # Machinery records: the index's name policy, not any real card's data.
