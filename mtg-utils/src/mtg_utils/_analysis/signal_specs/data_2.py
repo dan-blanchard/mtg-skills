@@ -35,6 +35,7 @@ from ._shared import (
     _PARADOX_PAYOFF_EXTRA,
     _PILLOWFORT_EXTRA,
     _PUMP_EXTRA,
+    _SELF_IMPULSE_VETO,
     _STEAL_CAST_ORACLE,
     _SYM_MANA_EXTRA,
     _THEFT_SWEEP_REGEX,
@@ -217,6 +218,7 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
         + _OPP_LIBRARY_THEFT_ORACLE
         + r"|"
         + _STEAL_CAST_ORACLE,
+        serve_not=_SELF_IMPULSE_VETO,
     ),
     # _matters sweep (ADR-0034): the WANTS side of the theft split. wants_theft fires
     # (LOW) when the commander itself rewards casting what you don't own (a don't-own
@@ -233,6 +235,7 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
         + _OPP_LIBRARY_THEFT_ORACLE
         + r"|"
         + _STEAL_CAST_ORACLE,
+        serve_not=_SELF_IMPULSE_VETO,
     ),
     # ADR-0027: void_warp_matters migrated to the Card IR (its SWEEP_DETECTORS row is
     # deleted, so the sweep auto-register loop no longer builds this spec). The serve

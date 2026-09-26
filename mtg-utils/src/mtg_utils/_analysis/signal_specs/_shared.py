@@ -1455,6 +1455,13 @@ _STEAL_CAST_ORACLE = (
     r"(?:that (?:card|spell)|it|them|those cards?)[^.]*?"
     r"for as long as (?:it|they) remains? exiled"
 )
+# Self-impulse veto for the theft lanes: _STEAL_CAST_ORACLE is not opponent-anchored
+# (Hostage Taker's "another target artifact or creature" never names an opponent), so
+# a self-impulse engine worded "exile the top card of YOUR library. You may play that
+# card for as long as it remains exiled" (Valakut Exploration, Rassilon) matched it.
+# Vetoing the own-library exile clause keeps every opponent-theft card (2 of 128
+# theft-arm matches in the bulk are vetoed, both self-impulse).
+_SELF_IMPULSE_VETO = r"(?:exile|reveal)s? the top (?:\w+ |\d+ )?cards? of your library"
 # Opponent-library theft: dig into a specific opponent's library (Gonti, Black Cat,
 # Thief of Sanity, Lord of the Void). Opponent-anchored so a SELF-impulse engine
 # (Valakut Exploration — "exile the top card of YOUR library") never reads as theft.
@@ -1686,6 +1693,19 @@ _LURE_EXTRA = SubAvenue(
 _CHOSEN_TYPE_IDENTS = frozenset(
     {"chosen_type_matters|you|", "chosen_type_matters|each|"}
 )
+
+
+def _chosen_type_named_idents(subjects: tuple[str, ...]) -> frozenset[str]:
+    """The chosen_type_matters idents a RESTRICTED chooser emits for *subjects*
+    (Dawn-Blessed Pennant → ``chosen_type_matters|you|Goblin``): a tribe serve
+    credits the wildcard ``_CHOSEN_TYPE_IDENTS`` plus its own named ones."""
+    return frozenset(
+        f"chosen_type_matters|{scope}|{subject}"
+        for scope in ("you", "each")
+        for subject in subjects
+    )
+
+
 _CHOSEN_TYPE_ORACLE = r"choose a (?:creature|kindred) type"
 # The redirect-instrument idiom set (task B-4), shared by the target_redirect
 # payoff spec and the spell_redirect doer spec — one home (verified-review

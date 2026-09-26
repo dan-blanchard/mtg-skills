@@ -30,6 +30,7 @@ from ._shared import (
     Serve,
     SignalSpec,
     SubAvenue,
+    _chosen_type_named_idents,
     _spec,
 )
 from .data_1 import SPECS_1
@@ -114,7 +115,7 @@ def _payoff_extra(subj: str, esc: str) -> SubAvenue:
             # credits PUNISHER choosers (Engineered Plague) — retire the text
             # arm onto this ident once the one-shot chooser classes (Distant
             # Melody, Cavern of Souls) get structural arms of their own.
-            signal_idents=_CHOSEN_TYPE_IDENTS,
+            signal_idents=_CHOSEN_TYPE_IDENTS | _chosen_type_named_idents((subj,)),
             not_oracle=re.compile(_GRANT_VETO, _IC),
         ),
     )
@@ -324,7 +325,7 @@ def _subject_spec(signal: Signal) -> SignalSpec:
                 _type_changer_idents(tuple(members)) if is_type_tribal else frozenset()
             )
             | (
-                _CHOSEN_TYPE_IDENTS
+                _CHOSEN_TYPE_IDENTS | _chosen_type_named_idents(tuple(members))
                 if signal.key == signal_keys.TYPE_MATTERS
                 else frozenset()
             ),

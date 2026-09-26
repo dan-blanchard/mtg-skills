@@ -3069,22 +3069,13 @@ def test_tribal_enabler_vs_payoff_and_restricted_list():
     # is every creature type" reminder must not flood the enabler lane.
     assert enabler_serves(changeling, scarecrow) is False
     assert _lane_covers(changeling, scarecrow) is True  # still a Scarecrow body
-    # Restricted payoff: a named tribe (Goblin) counts. That an unlisted one
-    # (Scarecrow) does not is pinned, strict-xfail, in the test below.
+    # Restricted payoff: a named tribe (Goblin) counts; an unlisted one (Scarecrow)
+    # does not — pinned in the test below.
     assert payoff_serves(dawn, goblin) is True
     # Open type-of-choice payoff works for ANY tribe, including Scarecrow.
     assert payoff_serves(door, scarecrow) is True
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason=(
-        "Production gap: the chosen_type_matters lane (485fd102) emits for "
-        "Dawn-Blessed Pennant, and the tribal serves credit that ident for ANY "
-        "tribe, though the Pennant can only choose from its printed list. The "
-        "hand-typed record had no oracle_id, so the structural arm never ran."
-    ),
-)
 def test_restricted_type_choice_payoff_skips_unlisted_tribes():
     """B1: a RESTRICTED type-of-choice payoff (Dawn-Blessed Pennant, "choose Elf,
     Goblin, …") never counts for an unlisted tribe (Scarecrow) — no Scarecrow hook
@@ -3094,6 +3085,38 @@ def test_restricted_type_choice_payoff_skips_unlisted_tribes():
     dawn = _card("Dawn-Blessed Pennant")
     assert (payoffs.serve or serve_from_dict(payoffs.search)).matches(dawn) is False
     assert _lane_covers(dawn, scarecrow) is False
+
+
+def test_restricted_chooser_emits_its_listed_types_not_the_wildcard():
+    """The chosen_type_matters lane emits a RESTRICTED chooser's printed options as
+    subjects (so only those tribes' serves credit it) and the wildcard ``""`` only
+    for an open choice."""
+    from mtg_utils._analysis.lanes.core_makers import _chosen_type_matters
+    from mtg_utils._card_ir.trees import trees_for
+
+    def subjects(name):
+        _card(name)  # seeds the concept tree from the snapshot
+        trees = trees_for(test_card(name))
+        trees = trees if isinstance(trees, (list, tuple)) else [trees]
+        return {s.subject for t in trees for s in _chosen_type_matters(t)}
+
+    assert subjects("Dawn-Blessed Pennant") == {
+        "Elemental",
+        "Elf",
+        "Faerie",
+        "Giant",
+        "Goblin",
+        "Kithkin",
+        "Merfolk",
+        "Treefolk",
+    }
+    assert subjects("Door of Destinies") == {""}
+    goblin = _sig_sub("type_matters", "Goblin")
+    payoffs = spec_for(goblin).extras[0]
+    dawn = _card("Dawn-Blessed Pennant")
+    # credited structurally for a LISTED tribe, text arm removed
+    no_text = dataclasses.replace(payoffs.serve, oracle=None)
+    assert no_text.matches(dawn) is True
 
 
 def test_activated_ability_lane_serves_costly_activated_creatures():
@@ -3527,19 +3550,15 @@ def test_theft_makers_serves_opponent_library_theft_not_self_impulse():
     assert _lane_covers(_card("Light Up the Stage"), sig) is False
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason=(
-        "Production gap: theft_makers ORs in _STEAL_CAST_ORACLE, which is not "
-        "opponent-anchored, and Valakut Exploration's current Oracle text ('You "
-        "may play that card for as long as it remains exiled') matches it. The "
-        "hand-typed record carried the old wording, which did not."
-    ),
-)
-def test_theft_makers_never_serves_valakut_self_impulse():
-    # Valakut Exploration impulses YOUR OWN library and must NOT register as theft
-    # (_OPP_LIBRARY_THEFT_ORACLE's own comment names it).
-    assert _lane_covers(VALAKUT_EXPLORATION, _sig("theft_makers", "opponents")) is False
+def test_theft_makers_never_serves_self_impulse():
+    # Valakut Exploration and Rassilon impulse YOUR OWN library ("exile the top card
+    # of your library. You may play that card for as long as it remains exiled") and
+    # must NOT register as theft; the self-impulse veto keeps them out while the
+    # un-anchored steal-cast arm still credits Hostage Taker.
+    for sig in (_sig("theft_makers", "opponents"), _sig("wants_theft", "opponents")):
+        assert _lane_covers(VALAKUT_EXPLORATION, sig) is False, sig.key
+        assert _lane_covers(_card("Rassilon, the War President"), sig) is False, sig.key
+        assert _lane_covers(HOSTAGE_TAKER, sig) is True, sig.key
 
 
 # ── creatures_matter serves creature cost-reducers + board-scaled payoffs ────────

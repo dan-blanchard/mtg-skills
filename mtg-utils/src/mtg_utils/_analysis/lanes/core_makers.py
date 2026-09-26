@@ -1433,6 +1433,26 @@ def _chosen_type_serve_statics(tree: ConceptTree) -> list[tuple[str, str]]:
     return out
 
 
+def _chosen_type_options(tree: ConceptTree) -> tuple[str, ...] | None:
+    """The creature types a RESTRICTED chooser may pick (Dawn-Blessed Pennant:
+    "choose Elemental, Elf, …, or Treefolk"), read from the ``Choose`` effect's
+    ``CreatureType`` options; ``None`` for an open choice ("choose a creature
+    type": Door of Destinies) or when no restricted Choose is present."""
+    options: list[str] = []
+    for unit in tree.units:
+        for eff in getattr(unit, "effects", None) or ():
+            choice = getattr(getattr(eff, "node", None), "choice_type", None)
+            if choice is None:
+                continue
+            if getattr(choice, "key", None) != "CreatureType":
+                continue
+            listed = getattr(getattr(choice, "inner", None), "inner", None)
+            if not isinstance(listed, list) or not listed:
+                return None  # an open chosen type: the wildcard serves every tribe
+            options.extend(str(t) for t in listed)
+    return tuple(dict.fromkeys(options)) or None
+
+
 def _chosen_type_matters(tree: ConceptTree) -> list[Signal]:
     """chosen_type_matters — wildcard tribal payoffs (task B-1, 2026-07-16
     study: 7 adjudicated extraction gaps).
@@ -1465,14 +1485,24 @@ def _chosen_type_matters(tree: ConceptTree) -> list[Signal]:
 
     One-shot chosen-type value (Distant Melody), chosen-type mana
     (Cavern of Souls), and replacement payoffs (Metallic Mimic) are known
-    not-served-yet classes — recorded for a v2 arm, not dismissed."""
+    not-served-yet classes — recorded for a v2 arm, not dismissed.
+
+    A RESTRICTED chooser (Dawn-Blessed Pennant picks from eight printed types)
+    serves only those tribes, so it emits one signal per listed type instead of
+    the wildcard ``""`` — a Scarecrow deck never reads it as a payoff."""
     out: list[Signal] = []
-    seen: set[str] = set()
+    seen: set[tuple[str, str]] = set()
+    subjects = _chosen_type_options(tree) or ("",)
 
     def push(scope: str, raw: str) -> None:
-        if scope not in seen:
-            seen.add(scope)
-            out.append(Signal("chosen_type_matters", scope, "", raw, tree.name, "high"))
+        for subject in subjects:
+            if (scope, subject) not in seen:
+                seen.add((scope, subject))
+                out.append(
+                    Signal(
+                        "chosen_type_matters", scope, subject, raw, tree.name, "high"
+                    )
+                )
 
     for scope, raw in _chosen_type_serve_statics(tree):
         push(scope, raw)
