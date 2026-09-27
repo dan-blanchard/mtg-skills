@@ -62,6 +62,9 @@ class TestGauntletCLI:
                 "wins_p1": 8,
                 "draws": 0,
                 "games": 20,
+                "games_completed": 20,
+                "games_requested": 20,
+                "timed_out": False,
                 "avg_turns": 6.5,
                 "avg_duration_ms": 1200,
             }
@@ -103,3 +106,59 @@ class TestGauntletCLI:
         # Each cell has wins_a, wins_b, draws.
         for pair in env["results"]["pairs"]:
             assert {"a", "b", "wins_a", "wins_b", "draws"}.issubset(pair.keys())
+
+    def test_timed_out_pairs_are_rated_over_finished_games_and_marked(
+        self, tmp_path, monkeypatch
+    ):
+        cube_path, hydrated_path = _build_cube(tmp_path)
+        calls = {"n": 0}
+
+        def fake_run_duel(*_a, **kw):
+            calls["n"] += 1
+            done = {1: 10, 2: 0}.get(calls["n"], kw["games"])  # pair 1 partial, 2 none
+            return {
+                "status": "timeout" if done < kw["games"] else "ok",
+                "wins_p0": done // 2,
+                "wins_p1": done - done // 2,
+                "draws": 0,
+                "games": done,
+                "games_completed": done,
+                "games_requested": kw["games"],
+                "timed_out": done < kw["games"],
+                "avg_turns": 6.0,
+                "avg_duration_ms": 1000,
+            }
+
+        monkeypatch.setattr("mtg_utils._phase.run_duel", fake_run_duel)
+        monkeypatch.setattr(
+            "mtg_utils._phase.coverage_report",
+            lambda names, **_kw: {
+                "status": "full",
+                "supported_pct": 1.0,
+                "missing": [],
+                "requested": len(names),
+                "supported": len(names),
+            },
+        )
+        out_path = tmp_path / "gauntlet.json"
+        result = CliRunner().invoke(
+            gauntlet_main,
+            [
+                str(cube_path),
+                "--hydrated",
+                str(hydrated_path),
+                "--games-per-pair",
+                "20",
+                "--output",
+                str(out_path),
+            ],
+        )
+        assert result.exit_code == 0, result.output
+        pairs = json.loads(out_path.read_text())["results"]["pairs"]
+        assert (pairs[0]["games"], pairs[0]["games_requested"]) == (10, 20)
+        assert pairs[0]["timed_out"] is True
+        assert "50%*" in result.output  # partial sample, marked
+        assert "t/o" in result.output  # nothing finished
+        assert "2 pair(s) timed out" in result.output
+        assert "(10/20)" in result.output
+        assert "(0/20)" in result.output

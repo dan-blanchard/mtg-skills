@@ -8,11 +8,14 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 import os
+import random
 import re
 import shutil
 import subprocess
 import tempfile
+import time
 import urllib.error
 from functools import lru_cache
 from pathlib import Path
@@ -660,69 +663,24 @@ def to_phase_deck(deck: dict, *, label: str) -> dict:
     return payload
 
 
-def run_duel(
-    deck_a_path: Path,
-    deck_b_path: Path,
-    *,
-    games: int,
-    seed: int | None,
-    format_: str,  # noqa: ARG001 — phase infers format from deck JSON; kept for call-site symmetry
-    difficulty: str = "Medium",
-    timeout_s: int,
-) -> dict:
-    """Run an ``ai-duel`` batch and return parsed results.
+#: ai-duel prints a batch's summary only when the whole batch ends, so a batch killed
+#: at the timeout reports nothing. :func:`run_duel` therefore runs it as consecutive
+#: chunks: a timeout loses only the chunk in flight. About ten chunks per run, at
+#: least ``_DUEL_MIN_CHUNK`` games each so the per-process start-up (loading
+#: card-data) stays a small share of the time.
+_DUEL_CHUNKS = 10
+_DUEL_MIN_CHUNK = 10
 
-    Returned dict contains: ``wins_p0``, ``wins_p1``, ``draws``,
-    ``avg_turns``, ``avg_duration_ms``, ``games``, ``status`` (``ok`` or
-    ``timeout``).
+#: Tests replace this to drive the time budget without sleeping.
+_monotonic = time.monotonic
 
-    v0.8.0 model: ``ai-duel <data-root> --matchup-files <a> <b> --batch N`` (the
-    ``--matchup-files`` flag is re-grafted by :func:`_apply_duel_files_patch` at
-    install — stock v0.8.0 only resolves built-in matchups). The batch summary is
-    printed to STDERR (no ``--output`` JSON), so we parse it. ``format_`` is unused
-    (phase reads the format from the deck JSON), kept for call-site symmetry.
-    """
-    binary = find_binary("ai-duel")
-    data_root = _binary_data_root()
-    if not (data_root / "card-data.json").exists():
-        raise PhaseNotInstalledError(
-            f"phase card-data.json not found at {data_root / 'card-data.json'}. "
-            "Run `playtest-install-phase`.",
-        )
-    cmd = [
-        str(binary),
-        str(data_root),
-        "--matchup-files",
-        str(deck_a_path),
-        str(deck_b_path),
-        "--batch",
-        str(games),
-        "--difficulty",
-        difficulty,
-    ]
-    if seed is not None:
-        cmd += ["--seed", str(seed)]
-    try:
-        proc = subprocess.run(
-            cmd, check=True, timeout=timeout_s, capture_output=True, text=True
-        )
-    except subprocess.TimeoutExpired:
-        return {
-            "status": "timeout",
-            "wins_p0": 0,
-            "wins_p1": 0,
-            "draws": 0,
-            "games": 0,
-            "avg_turns": 0.0,
-            "avg_duration_ms": 0,
-        }
-    except subprocess.CalledProcessError as exc:
-        raise PhaseRuntimeError(
-            f"phase ai-duel exited with code {exc.returncode}",
-            stderr=exc.stderr or "",
-        ) from exc
 
-    out = proc.stderr or ""  # ai-duel prints the batch summary to stderr
+def _duel_chunk_size(games: int) -> int:
+    return max(_DUEL_MIN_CHUNK, math.ceil(games / _DUEL_CHUNKS))
+
+
+def _parse_duel_summary(out: str) -> dict:
+    """One batch's stderr summary: win / draw counts and per-game averages."""
 
     def _int(pat: str) -> int:
         m = re.search(pat, out)
@@ -733,13 +691,109 @@ def run_duel(
         return float(m.group(1)) if m else 0.0
 
     return {
-        "status": "ok",
         "wins_p0": _int(r"P0 \(.*?\) wins:\s*(\d+)"),
         "wins_p1": _int(r"P1 \(.*?\) wins:\s*(\d+)"),
         "draws": _int(r"Draws/aborted:\s*(\d+)"),
-        "games": games,
         "avg_turns": _float(r"Avg turns:\s*([\d.]+)"),
-        "avg_duration_ms": _int(r"Avg duration:\s*(\d+)ms"),
+        "avg_duration_ms": _float(r"Avg duration:\s*([\d.]+)ms"),
+    }
+
+
+def run_duel(
+    deck_a_path: Path,
+    deck_b_path: Path,
+    *,
+    games: int,
+    seed: int | None,
+    format_: str,  # noqa: ARG001 — phase infers format from deck JSON; kept for call-site symmetry
+    difficulty: str = "Medium",
+    timeout_s: int,
+) -> dict:
+    """Run an ``ai-duel`` batch within ``timeout_s`` seconds and return its results.
+
+    Returned dict: ``wins_p0``, ``wins_p1``, ``draws``, ``avg_turns``,
+    ``avg_duration_ms`` (over the games that finished), ``games`` (= games
+    completed), ``games_completed``, ``games_requested``, ``timed_out``, ``seed``
+    (the base seed used), and ``status`` (``ok``, or ``timeout`` when the budget ran
+    out before every game finished).
+
+    v0.8.0 model: ``ai-duel <data-root> --matchup-files <a> <b> --batch N`` (the
+    ``--matchup-files`` flag is re-grafted by :func:`_apply_duel_files_patch` at
+    install — stock v0.8.0 only resolves built-in matchups). The batch summary is
+    printed to STDERR only when the batch ends (no per-game lines, no ``--output``
+    JSON), so the games run as consecutive chunks (:data:`_DUEL_CHUNKS`) and a
+    timeout keeps every chunk that finished. ai-duel seeds game ``i`` of a batch
+    ``seed + i``, so a chunk starting at game ``k`` runs with ``--seed seed + k``:
+    a chunked run plays exactly the games one batch would, and a seeded run stays
+    reproducible. With no seed, one is drawn here so the chunks don't overlap.
+    ``format_`` is unused (phase reads the format from the deck JSON), kept for
+    call-site symmetry.
+    """
+    binary = find_binary("ai-duel")
+    data_root = _binary_data_root()
+    if not (data_root / "card-data.json").exists():
+        raise PhaseNotInstalledError(
+            f"phase card-data.json not found at {data_root / 'card-data.json'}. "
+            "Run `playtest-install-phase`.",
+        )
+    if seed is None:
+        seed = random.SystemRandom().randrange(2**31)
+    chunk = _duel_chunk_size(games)
+    deadline = _monotonic() + timeout_s
+    wins_p0 = wins_p1 = draws = completed = 0
+    turns_total = duration_total = 0.0
+    timed_out = False
+    while completed < games:
+        remaining = deadline - _monotonic()
+        if remaining <= 0:
+            timed_out = True
+            break
+        n = min(chunk, games - completed)
+        cmd = [
+            str(binary),
+            str(data_root),
+            "--matchup-files",
+            str(deck_a_path),
+            str(deck_b_path),
+            "--batch",
+            str(n),
+            "--difficulty",
+            difficulty,
+            "--seed",
+            str(seed + completed),
+        ]
+        try:
+            proc = subprocess.run(
+                cmd, check=True, timeout=remaining, capture_output=True, text=True
+            )
+        except subprocess.TimeoutExpired:
+            timed_out = True
+            break
+        except subprocess.CalledProcessError as exc:
+            raise PhaseRuntimeError(
+                f"phase ai-duel exited with code {exc.returncode}",
+                stderr=exc.stderr or "",
+            ) from exc
+        batch = _parse_duel_summary(proc.stderr or "")  # summary is on stderr
+        wins_p0 += batch["wins_p0"]
+        wins_p1 += batch["wins_p1"]
+        draws += batch["draws"]
+        turns_total += batch["avg_turns"] * n
+        duration_total += batch["avg_duration_ms"] * n
+        completed += n
+
+    return {
+        "status": "timeout" if timed_out else "ok",
+        "wins_p0": wins_p0,
+        "wins_p1": wins_p1,
+        "draws": draws,
+        "games": completed,
+        "games_completed": completed,
+        "games_requested": games,
+        "timed_out": timed_out,
+        "seed": seed,
+        "avg_turns": round(turns_total / completed, 2) if completed else 0.0,
+        "avg_duration_ms": round(duration_total / completed) if completed else 0,
     }
 
 

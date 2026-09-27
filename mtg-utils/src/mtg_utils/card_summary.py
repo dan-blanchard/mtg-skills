@@ -13,6 +13,27 @@ from mtg_utils.deck_cli import acquire_for_cli, bulk_data_option
 from mtg_utils.hydrated_deck import records_from_file
 
 
+def _face_stats(card: dict) -> str:
+    """One face's printed stats: power/toughness, else loyalty, else defense."""
+    if card.get("power") is not None and card.get("toughness") is not None:
+        return f"{card['power']}/{card['toughness']}"
+    if card.get("loyalty") is not None:
+        return f"Loyalty {card['loyalty']}"
+    if card.get("defense") is not None:
+        return f"Defense {card['defense']}"
+    return ""
+
+
+def card_stats(card: dict) -> str:
+    """A card's stats for the table: the top-level record's when it carries them (an
+    adventure's creature), else each face's joined by `` // `` (a transforming or
+    modal card carries its stats on the faces; a face without any shows ``—``)."""
+    if top := _face_stats(card):
+        return top
+    faces = [_face_stats(face) for face in card.get("card_faces") or []]
+    return " // ".join(f or "—" for f in faces) if any(faces) else ""
+
+
 def card_summary(
     hydrated: Sequence[dict | None],
     *,
@@ -35,7 +56,7 @@ def card_summary(
         return "No cards match the given filters."
 
     # Build table rows
-    headers = ["Name", "Cost", "CMC", "Type", "Oracle Text"]
+    headers = ["Name", "Cost", "CMC", "Type", "Stats", "Oracle Text"]
     rows: list[list[str]] = []
     for card in cards:
         oracle = get_oracle_text(card)
@@ -49,6 +70,7 @@ def card_summary(
                 card.get("mana_cost", "") or "",
                 str(card.get("cmc", 0.0)),
                 card.get("type_line", ""),
+                card_stats(card),
                 oracle,
             ]
         )

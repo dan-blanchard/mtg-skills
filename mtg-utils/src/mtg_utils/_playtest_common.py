@@ -124,15 +124,21 @@ def render_gauntlet_markdown(env: dict) -> str:
     archetypes = r["archetypes"]
     pairs = r["pairs"]
 
-    # Build a square dict[a][b] = wins_a / games for quick lookup.
+    # Build a square dict[a][b] = wins_a / games for quick lookup. A pair that timed
+    # out is rated over the games it finished, marked "*", or "t/o" with none.
     cells: dict[str, dict[str, str]] = {
         a: dict.fromkeys(archetypes, "—") for a in archetypes
     }
+    any_timed_out = False
     for p in pairs:
         a, b = p["a"], p["b"]
+        mark = "*" if p.get("timed_out") else ""
+        any_timed_out = any_timed_out or bool(mark)
         if p["games"]:
-            cells[a][b] = f"{p['wins_a'] / p['games'] * 100:.0f}%"
-            cells[b][a] = f"{p['wins_b'] / p['games'] * 100:.0f}%"
+            cells[a][b] = f"{p['wins_a'] / p['games'] * 100:.0f}%{mark}"
+            cells[b][a] = f"{p['wins_b'] / p['games'] * 100:.0f}%{mark}"
+        elif mark:
+            cells[a][b] = cells[b][a] = "t/o"
 
     name_w = max(len(a) for a in archetypes) if archetypes else 4
     cell_w = 8
@@ -150,6 +156,14 @@ def render_gauntlet_markdown(env: dict) -> str:
             row += cells[a][b].ljust(cell_w)
         lines.append(row)
     lines.append("```")
+    if any_timed_out:
+        lines += [
+            "",
+            (
+                "`*` the pair timed out: the rate covers only the games that "
+                "finished; `t/o` none finished."
+            ),
+        ]
 
     lines += render_warnings(env)
     return "\n".join(lines) + "\n"
@@ -158,14 +172,20 @@ def render_gauntlet_markdown(env: dict) -> str:
 def render_match_markdown(env: dict) -> str:
     """Render a phase match result envelope as a human-readable markdown report."""
     r = env["results"]
-    games = r["games"]
+    games = r["games"]  # the games that finished
+    requested = r.get("games_requested", games)
 
     def pct(n: int) -> str:
         return f"{n / games * 100:.1f}%" if games else "n/a"
 
+    heading = (
+        f"## Results ({games} of {requested} games completed — timed out)"
+        if r.get("timed_out")
+        else f"## Results ({games} games)"
+    )
     lines = [
         *render_envelope_header(env, title="Match report"),
-        f"## Results ({games} games)",
+        heading,
         "",
         f"- P0 wins: **{r['wins_p0']}** ({pct(r['wins_p0'])})",
         f"- P1 wins: **{r['wins_p1']}** ({pct(r['wins_p1'])})",

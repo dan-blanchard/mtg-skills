@@ -796,8 +796,8 @@ def _chown_outputs_to_sudo_user(*paths: Path | None) -> None:
     "bulk_path",
     type=click.Path(exists=True, dir_okay=False, path_type=Path),
     required=True,
-    help="Path to Scryfall default-cards.json (required — used to "
-    "resolve Arena card IDs to card names).",
+    help="Card-data bulk: MTGJSON AllPrintings.json from download-mtgjson "
+    "(required — used to resolve Arena card IDs to card names).",
 )
 @click.option(
     "--log-path",

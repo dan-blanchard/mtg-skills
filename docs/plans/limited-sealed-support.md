@@ -9,9 +9,15 @@ A 40-card limited deck silently falls through to the constructed branch of every
 gate, and three separate mana/stat models return values that are not merely
 imprecise but *inverted* — they rank a better manabase lower.
 
+**Status (re-verified 2026-09-27 against main).** Every item below is fixed; each
+section's status line names the commit. Kept as the record of what the limited path
+needed and why.
+
 ---
 
 ## P0 — `scryfall-lookup` strips power/toughness from every hydrated card
+
+**Status: fixed** in 5774dd94 (ADR-0046: hydration serves the full record, the `CARD_FIELDS` whitelist is gone); pinned by `test_lookup_preserves_power_and_toughness`.
 
 **Where:** `scryfall_lookup.py:26` — the `CARD_FIELDS` whitelist.
 
@@ -35,6 +41,8 @@ excluded with a reason.
 ---
 
 ## P1 — The goldfish mana model mis-ranks decks that fix their mana
+
+**Status: fixed** in d0d7ea02: fetch lands and land-fetching creatures resolve through `card_classify.land_fetch_profile`, entering tapped where their text says so. Fix point 4 (a warning) became unnecessary once the model sees fetches.
 
 **Where:** `playtest.py:130` (`_land_produces`), `playtest.py:302`
 (`_sources_available`), `playtest.py:234` (`_is_color_screwed`).
@@ -90,6 +98,8 @@ number looked authoritative.
 
 ## P2 — No limited format exists, so every gate uses the wrong rules
 
+**Status: fixed** in b6da7c27: `sealed` / `draft` formats (ADR-0055).
+
 **Done (ADR-0055):** `sealed` / `draft` are the `limited` family — 40-card minimum, no
 copy limit, no sideboard cap, legality = pool containment (`check_pool_containment`
 over the `pool` zone; no `--pool` flag needed, the pool rides inside the deck JSON).
@@ -119,6 +129,8 @@ maindeck card is available in the pool at the required quantity.
 
 ## P2 — `mana-audit` returns FAIL for a correct limited manabase
 
+**Status: fixed** in 2cae6bba: a 17-land 40-card deck reads PASS.
+
 **Done (ADR-0055):** `limited_land_target` — 17 per 40, a 16–18 band — dispatched
 for the limited family.
 
@@ -140,6 +152,8 @@ Burgess vs constructed.
 
 ## P3 — `deck-stats` reports no-mana lands as `any`-color sources
 
+**Status: fixed** in d0d7ea02 (with P1): fetch lands report in their own bucket (`B=8, G=8, fetch=3`).
+
 **Where:** `deck_stats.py` colour-source counting.
 
 Reported `Color sources: B=8, G=10, any=2` for a deck whose two "any" lands
@@ -151,6 +165,8 @@ distinct `fetch=N` bucket so the number is not silently wrong.
 
 ## P3 — `card-summary` has no power/toughness column
 
+**Status: fixed**: a `Stats` column shows power/toughness, a planeswalker's loyalty and a battle's defense, per face for multi-face cards.
+
 **Where:** `card_summary.py:36` — `headers = ["Name", "Cost", "CMC", "Type", "Oracle Text"]`.
 
 Blocked on P0. Once P/T survives hydration, add a `P/T` column (and prefer it over
@@ -160,6 +176,8 @@ most.
 ---
 
 ## P3 — `playtest-match` discards all completed games on timeout
+
+**Status: fixed**: `run_duel` runs the batch in seeded chunks (the same games one batch would play), so a timeout keeps every finished chunk and reports `games_completed` / `games_requested` / `timed_out`; `--timeout-s` defaults to 10 s per game with a 600 s floor.
 
 **Where:** `playtest.py`, phase batch runner; `--timeout-s` default 600.
 
@@ -176,6 +194,8 @@ proportional to `--games`.
 ---
 
 ## P4 — `deck-wizard` SKILL.md has no limited path
+
+**Status: fixed** in c3913446: deck-wizard Path C.
 
 **Done (ADR-0055):** Phase 1, Path C (parse the pool, `pool-colors`, `set-scan`,
 build and compare, `legality-audit`, the limited band); deck-forge builds the same
@@ -201,6 +221,8 @@ the deck is **built from a fixed pool**, and the whole Commander-family spine
 
 ## P4 — Add a `set-scan` capability
 
+**Status: fixed** in 9bfb16ce: `set-scan` / `pool-colors` (ADR-0055).
+
 **Done (ADR-0055):** `set-scan --set CODE` and `GET /api/set-scan` (the Pool tab).
 
 Every threat assessment this session was initially made against the *player's
@@ -217,6 +239,8 @@ limited path.
 ---
 
 ## P4 — Process: the self-grill cannot arbitrate archetype choice
+
+**Status: fixed** in c3913446: the limited path ranks every viable colour pair before the self-grill.
 
 **Done (ADR-0055):** Path C's Step 8 prompt ranks every viable pair from the
 `pool-colors` table with no candidate named.

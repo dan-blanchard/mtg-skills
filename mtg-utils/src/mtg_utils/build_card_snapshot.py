@@ -67,6 +67,8 @@ _SCRY_FIELDS = (
     "cmc",
     "power",
     "toughness",
+    "loyalty",
+    "defense",
     "produced_mana",
     "color_identity",
     "colors",
@@ -83,6 +85,8 @@ _FACE_FIELDS = (
     "mana_cost",
     "power",
     "toughness",
+    "loyalty",
+    "defense",
     "keywords",
     "colors",
 )

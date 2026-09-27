@@ -160,3 +160,35 @@ class TestSideboard:
         assert result.exit_code == 0, result.output
         assert "Smash" in result.output
         assert "Sol Ring" not in result.output
+
+
+class TestStatsColumn:
+    """A Stats column (limited P3): creature size is the stat that matters most in
+    limited, so the table shows power/toughness, a planeswalker's loyalty and a
+    battle's defense — per face for a multi-face card."""
+
+    def _row(self, name: str) -> str:
+        table = card_summary([test_card(name)])
+        header, _rule, row = table.splitlines()
+        assert "Stats" in header
+        return row
+
+    def test_creature_power_and_toughness(self):
+        assert " 2/2 " in self._row("Grizzly Bears")
+
+    def test_characteristic_defining_stats_keep_their_stars(self):
+        assert " */1+* " in self._row("Tarmogoyf")
+
+    def test_planeswalker_loyalty(self):
+        assert " Loyalty 3 " in self._row("Liliana of the Veil")
+
+    def test_adventure_creature_shows_its_creature_face(self):
+        assert " 3/1 " in self._row("Brazen Borrower")
+
+    def test_battle_defense_and_back_face_size(self):
+        assert " Defense 3 // 4/4 " in self._row("Invasion of Zendikar")
+
+    def test_noncreature_has_an_empty_cell(self):
+        # Near miss: an artifact that makes mana, no stats at all.
+        row = self._row("Sol Ring")
+        assert "/" not in row.split("|")[4]

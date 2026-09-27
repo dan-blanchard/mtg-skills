@@ -382,64 +382,156 @@ class TestDeckConversion:
         assert "Krenko, Mob Boss" in names
 
 
+def _duel_summary(n: int) -> str:
+    """ai-duel's stderr batch summary for an ``n``-game batch: P0 wins half (rounded
+    down), P1 all but one of the rest, one draw."""
+    p0 = n // 2
+    p1 = max(n - p0 - 1, 0)
+    draws = n - p0 - p1
+    return (
+        f"\nResults ({n} games, seed: 0, difficulty: Medium, matchup: files):\n"
+        f"  P0 (A) wins:   {p0} (0.0%)\n"
+        f"  P1 (B) wins:   {p1} (0.0%)\n"
+        f"  Draws/aborted:    {draws} (0.0%)\n"
+        "  Avg turns: 7.0\n"
+        "  Avg duration: 2000ms\n"
+    )
+
+
+@pytest.fixture
+def duel_env(monkeypatch, tmp_path):
+    """A fake ai-duel install plus two deck files; returns ``(deck_a, deck_b)``."""
+    bin_path = tmp_path / "ai-duel"
+    bin_path.write_text("#!/bin/sh\n")
+    bin_path.chmod(0o755)
+    monkeypatch.setenv("MTG_SKILLS_PHASE_BIN", str(bin_path))
+    # v0.8.0: ai-duel reads <data-root>/card-data.json + prints to stderr.
+    root = tmp_path / "root"
+    root.mkdir()
+    (root / "card-data.json").write_text("{}")
+    monkeypatch.setattr(_phase, "_binary_data_root", lambda: root)
+    deck_a = tmp_path / "a.json"
+    deck_b = tmp_path / "b.json"
+    deck_a.write_text(json.dumps({"name": "A", "format": "modern", "main": []}))
+    deck_b.write_text(json.dumps({"name": "B", "format": "modern", "main": []}))
+    return deck_a, deck_b
+
+
+def _fake_ai_duel(calls: list, *, timeout_on: int | None = None):
+    """A ``subprocess.run`` stand-in answering each ``--batch n`` with a summary;
+    call number ``timeout_on`` (0-based) times out instead."""
+
+    def fake_run(cmd, **kwargs):
+        calls.append((cmd, kwargs))
+        if timeout_on is not None and len(calls) - 1 == timeout_on:
+            raise subprocess.TimeoutExpired(cmd, kwargs.get("timeout"))
+        r = MagicMock()
+        r.returncode = 0
+        r.stderr = _duel_summary(int(cmd[cmd.index("--batch") + 1]))
+        return r
+
+    return fake_run
+
+
+def _arg(cmd: list[str], flag: str) -> str:
+    return cmd[cmd.index(flag) + 1]
+
+
 class TestRunDuel:
-    def test_run_duel_invokes_binary_with_args(self, monkeypatch, tmp_path):
-        bin_path = tmp_path / "ai-duel"
-        bin_path.write_text("#!/bin/sh\n")
-        bin_path.chmod(0o755)
-        monkeypatch.setenv("MTG_SKILLS_PHASE_BIN", str(bin_path))
-
-        # v0.8.0: ai-duel reads <data-root>/card-data.json + prints to stderr.
-        root = tmp_path / "root"
-        root.mkdir()
-        (root / "card-data.json").write_text("{}")
-        monkeypatch.setattr(_phase, "_binary_data_root", lambda: root)
-
-        captured = {}
-
-        def fake_run(cmd, **_kwargs):
-            captured["cmd"] = cmd
-            r = MagicMock()
-            r.returncode = 0
-            r.stderr = (
-                "\nResults (50 games, seed: 42, difficulty: Medium, "
-                "matchup: matchup-files):\n"
-                "  P0 (A) wins:   28 (56.0%)\n"
-                "  P1 (B) wins:   18 (36.0%)\n"
-                "  Draws/aborted:    4 (8.0%)\n"
-                "  Avg turns: 7.2\n"
-                "  Avg duration: 2100ms\n"
-            )
-            return r
-
-        monkeypatch.setattr("subprocess.run", fake_run)
-
-        deck_a = tmp_path / "a.json"
-        deck_b = tmp_path / "b.json"
-        deck_a.write_text(json.dumps({"name": "A", "format": "modern", "main": []}))
-        deck_b.write_text(json.dumps({"name": "B", "format": "modern", "main": []}))
+    def test_runs_the_batch_in_chunks_and_aggregates(self, monkeypatch, duel_env):
+        a, b = duel_env
+        calls: list = []
+        monkeypatch.setattr("subprocess.run", _fake_ai_duel(calls))
 
         result = _phase.run_duel(
-            deck_a,
-            deck_b,
-            games=50,
-            seed=42,
-            format_="modern",
-            timeout_s=300,
+            a, b, games=50, seed=42, format_="modern", timeout_s=300
         )
 
-        assert result["wins_p0"] == 28
-        assert result["wins_p1"] == 18
-        assert result["draws"] == 4
-        assert result["avg_turns"] == 7.2
-        assert result["avg_duration_ms"] == 2100
-        assert result["games"] == 50
-        assert "--matchup-files" in captured["cmd"]
-        assert str(root) in captured["cmd"]  # data-root positional
-        assert "--batch" in captured["cmd"]
-        assert "50" in captured["cmd"]
-        assert "--seed" in captured["cmd"]
-        assert "42" in captured["cmd"]
+        # 50 games → chunks of 10 (the minimum chunk size).
+        assert [int(_arg(c, "--batch")) for c, _ in calls] == [10] * 5
+        cmd = calls[0][0]
+        assert "--matchup-files" in cmd
+        assert str(_phase._binary_data_root()) in cmd  # data-root positional
+        assert result["wins_p0"] == 25  # 5 x 5
+        assert result["wins_p1"] == 20  # 5 x 4
+        assert result["draws"] == 5
+        assert result["avg_turns"] == 7.0
+        assert result["avg_duration_ms"] == 2000
+        assert result["games"] == result["games_completed"] == 50
+        assert result["games_requested"] == 50
+        assert result["timed_out"] is False
+        assert result["status"] == "ok"
+
+    def test_chunk_seeds_replay_a_single_batch(self, monkeypatch, duel_env):
+        # ai-duel seeds game i of a batch seed + i, so chunk k starts at seed + its
+        # first game's index: the chunked run plays exactly the games one batch would.
+        a, b = duel_env
+        calls: list = []
+        monkeypatch.setattr("subprocess.run", _fake_ai_duel(calls))
+        _phase.run_duel(a, b, games=25, seed=100, format_="modern", timeout_s=300)
+        assert [
+            (int(_arg(c, "--seed")), int(_arg(c, "--batch"))) for c, _ in calls
+        ] == [
+            (100, 10),
+            (110, 10),
+            (120, 5),
+        ]
+
+    def test_no_seed_draws_one_so_chunks_do_not_overlap(self, monkeypatch, duel_env):
+        a, b = duel_env
+        calls: list = []
+        monkeypatch.setattr("subprocess.run", _fake_ai_duel(calls))
+        result = _phase.run_duel(
+            a, b, games=30, seed=None, format_="modern", timeout_s=300
+        )
+        seeds = [int(_arg(c, "--seed")) for c, _ in calls]
+        assert seeds == [result["seed"], result["seed"] + 10, result["seed"] + 20]
+
+    def test_timeout_keeps_the_chunks_that_finished(self, monkeypatch, duel_env):
+        a, b = duel_env
+        calls: list = []
+        monkeypatch.setattr("subprocess.run", _fake_ai_duel(calls, timeout_on=2))
+
+        result = _phase.run_duel(
+            a, b, games=50, seed=0, format_="modern", timeout_s=300
+        )
+
+        assert result["games_completed"] == result["games"] == 20
+        assert result["games_requested"] == 50
+        assert result["timed_out"] is True
+        assert result["status"] == "timeout"
+        assert result["wins_p0"] == 10
+        assert result["draws"] == 2
+        assert result["avg_turns"] == 7.0
+
+    def test_timeout_before_any_game_reports_none(self, monkeypatch, duel_env):
+        a, b = duel_env
+        calls: list = []
+        monkeypatch.setattr("subprocess.run", _fake_ai_duel(calls, timeout_on=0))
+        result = _phase.run_duel(
+            a, b, games=50, seed=0, format_="modern", timeout_s=300
+        )
+        assert result["games_completed"] == 0
+        assert result["timed_out"] is True
+        assert result["avg_turns"] == 0.0
+        assert result["avg_duration_ms"] == 0
+
+    def test_each_chunk_gets_only_the_budget_left(self, monkeypatch, duel_env):
+        # The budget covers the whole run: each chunk's timeout is what remains, and
+        # once it's spent no further chunk starts.
+        a, b = duel_env
+        clock = iter([0.0, 0.0, 120.0, 250.0, 301.0])
+        monkeypatch.setattr(_phase, "_monotonic", lambda: next(clock))
+        calls: list = []
+        monkeypatch.setattr("subprocess.run", _fake_ai_duel(calls))
+
+        result = _phase.run_duel(
+            a, b, games=50, seed=0, format_="modern", timeout_s=300
+        )
+
+        assert [kw["timeout"] for _, kw in calls] == [300.0, 180.0, 50.0]
+        assert result["games_completed"] == 30
+        assert result["timed_out"] is True
 
 
 class TestDeckConversionPassthrough:
