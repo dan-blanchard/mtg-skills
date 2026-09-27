@@ -5,6 +5,7 @@ crosswalk_signals.py)."""
 from __future__ import annotations
 
 import re
+from collections.abc import Iterator
 
 from mtg_utils._analysis import signal_keys
 from mtg_utils._analysis._subtypes import LAND_SUBTYPES
@@ -12,8 +13,10 @@ from mtg_utils._analysis.lanes._shared import (
     _PERMANENT_TYPES,
     _RETURN_TARGET_TAGS,
     _negative_pt_field,
+    _root_target_filter,
     _site_raw,
     _tuck_preceded_by_selection,
+    sacrifice_actor_scope,
 )
 from mtg_utils._analysis.signal_base import Signal
 from mtg_utils._analysis.text_reads import (
@@ -48,9 +51,11 @@ from mtg_utils._analysis.tree_synthesis import (
 )
 from mtg_utils._card_ir.crosswalk import (
     AbilityUnit,
+    ConceptNode,
     ConceptTree,
     cast_with_keyword_name,
     change_zone_dirs,
+    counter_kind,
     damage_recipient,
     effect_filter,
     filter_controller,
@@ -66,6 +71,8 @@ from mtg_utils._card_ir.crosswalk import (
     iter_static_defs,
     iter_typed_nodes,
     mod_keyword_name,
+    mod_value,
+    recipient_tag,
     static_mode_field,
     static_mode_tag,
     tag_of,
@@ -895,6 +902,10 @@ def _removal(tree: ConceptTree) -> list[Signal]:
 # system).
 
 
+_ANY: frozenset[str] = frozenset({"Any"})
+_CREATURE: frozenset[str] = frozenset({"Creature"})
+
+
 def _perm_answer_types(filt: object) -> frozenset[str]:
     """A target/sacrifice FILTER's permanent-type answer set (CR 109.3): the
     bare core-type word(s) (:func:`filter_core_types`), or the synthetic
@@ -917,8 +928,57 @@ def _perm_answer_types(filt: object) -> frozenset[str]:
     return frozenset()
 
 
-def _removal_answer_types(tree: ConceptTree) -> frozenset[str]:
-    """Every permanent-type "answer" a REMOVAL effect (destroy/exile/burn/
+def _soft_answer_types(c: ConceptNode) -> frozenset[str] | None:
+    """The answer types of a SOFT-removal effect aimed at a permanent the caster
+    doesn't control — a filter not controlled by ``You`` and not the card
+    itself — or ``None`` when ``c`` isn't one:
+
+    * a bounce to hand (Unsummon, The Theorist's -2; CR 400.7 — it comes back a
+      new object);
+    * a base power/toughness SET to toughness 1 or less (Multiply by Zero's 0/0,
+      Perfected Theory's 1/1 mode — not its 4/5 mode; CR 613.4b, 704.5f);
+    * -1/-1 counters placed on it (Hapatra, the Desert Fang; CR 122.1a).
+    """
+    filt = effect_filter(c.node)
+    if filter_controller(filt) == "You" or recipient_tag(c.node) == "SelfRef":
+        return None
+    if c.concept == "bounce":
+        return _perm_answer_types(filt)
+    if c.concept == "place_counter" and counter_kind(c.node).upper() == "M1M1":
+        return _perm_answer_types(filt)
+    if tag_of(c.node) == "GenericEffect" and any(
+        tag_of(m) == "SetToughness" and (v := mod_value(m)) is not None and v <= 1
+        for _, m in iter_mod_sites(c.node)
+    ):
+        return _perm_answer_types(filt)
+    return None
+
+
+def _tuck_filter(unit: AbilityUnit, node: TypedMirrorNode, *, soft: bool) -> object:
+    """A tuck effect's object filter. In ``soft`` mode a ``ParentTarget`` tuck
+    (Clash of Elements: "choose target… its owner puts it on top or bottom")
+    resolves to the ability's earlier chosen target."""
+    sub = effect_filter(node)
+    if soft and tag_of(sub) == "ParentTarget":
+        sub = _root_target_filter(unit) or sub
+    return sub
+
+
+def _removal_answers(
+    tree: ConceptTree, *, soft: bool = False
+) -> Iterator[tuple[ConceptNode, frozenset[str]]]:
+    """Each REMOVAL effect in TREE with its permanent-type "answer" set (see
+    :func:`_removal_answer_types`, the union every type-scoped preset reads).
+    A caller that needs the effect itself (its filter's mana-value floor, its
+    recipient — ``twohg_scan``'s removal reach) walks this instead.
+
+    ``soft`` (opt-in; every preset keeps the default) also yields the soft
+    removal :func:`_soft_answer_types` reads, and resolves a tuck whose target
+    is a ``ParentTarget`` back-reference through the chain's root target
+    (:func:`_root_target_filter` — Clash of Elements' "choose target nonland
+    permanent … put it on the top of their library").
+
+    Every permanent-type "answer" a REMOVAL effect (destroy/exile/burn/
     fight/shrink — never a forced sacrifice, see :func:`_edict_answer_types`
     for that shape) in TREE can give — the UNION of :func:`_perm_answer_types`
     over every matching target filter, plus the synthetic ``Any`` member for
@@ -973,7 +1033,6 @@ def _removal_answer_types(tree: ConceptTree) -> frozenset[str]:
     ``removal`` membership from the granted descent always answers its
     permanent type too (Arc Spitter -> {Creature}).
     """
-    out: set[str] = set()
     for unit in tree.units:
         effects = unit.effects
         for idx, c in enumerate(effects):
@@ -984,10 +1043,9 @@ def _removal_answer_types(tree: ConceptTree) -> frozenset[str]:
                     bridged = _qualified_destroy_target_type(desc)
                     if bridged:
                         types = frozenset({bridged})
-                out |= types
+                yield c, types
             elif c.concept == "deal_damage":
-                types = _perm_answer_types(effect_filter(c.node))
-                out |= types or {"Any"}
+                yield c, _perm_answer_types(effect_filter(c.node)) or _ANY
             elif c.concept == "fight" or (
                 c.concept == "pump"
                 and (
@@ -995,7 +1053,7 @@ def _removal_answer_types(tree: ConceptTree) -> frozenset[str]:
                     or _negative_pt_field(c.node, "toughness")
                 )
             ):
-                out.add("Creature")
+                yield c, _CREATURE
             elif c.concept == "put_library_position":
                 if tag_of(c.node) not in (
                     "PutAtLibraryPosition",
@@ -1004,14 +1062,18 @@ def _removal_answer_types(tree: ConceptTree) -> frozenset[str]:
                     continue
                 if _tuck_preceded_by_selection(effects, idx):
                     continue  # card-selection idiom, not removal (#88)
-                sub = effect_filter(c.node)
+                sub = _tuck_filter(unit, c.node, soft=soft)
                 if filter_controller(sub) == "You" or (
                     filter_owned_controller(sub) in ("You", "ScopedPlayer")
                 ):
                     continue  # self-only tuck utility, not removal (#88)
                 if set(filter_inzone_zones(sub)) & {"Graveyard", "Hand"}:
                     continue  # card-flow, never on the battlefield
-                out |= _perm_answer_types(sub)
+                yield c, _perm_answer_types(sub)
+            elif soft:
+                types = _soft_answer_types(c)
+                if types is not None:
+                    yield c, types
         czs = unit.effect_concepts("change_zone")
         sib_return = any(
             change_zone_dirs(s.node)[1] == "Battlefield"
@@ -1033,8 +1095,9 @@ def _removal_answer_types(tree: ConceptTree) -> frozenset[str]:
                     continue  # GY-hate / cage setup (CR 406.2), not removal
                 if sib_return or sib_clone:
                     continue
-                out |= _perm_answer_types(sub)
+                yield c, _perm_answer_types(sub)
             elif dest == "Library":
+                sub = _tuck_filter(unit, c.node, soft=soft)
                 idx = next((i for i, e in enumerate(effects) if e is c), None)
                 if idx is not None and _tuck_preceded_by_selection(effects, idx):
                     continue  # card-selection idiom, not removal (#88)
@@ -1046,49 +1109,88 @@ def _removal_answer_types(tree: ConceptTree) -> frozenset[str]:
                     set(filter_inzone_zones(sub)) & {"Graveyard", "Hand"}
                 ):
                     continue  # card-flow, never on the battlefield
-                out |= _perm_answer_types(sub)
+                yield c, _perm_answer_types(sub)
     for unit in tree.units:
         for c in iter_nested_granted_effect_concepts(unit.node):
             if c.concept == "destroy":
-                out |= _perm_answer_types(effect_filter(c.node))
+                yield c, _perm_answer_types(effect_filter(c.node))
             elif c.concept == "deal_damage":
-                out |= _perm_answer_types(effect_filter(c.node)) or {"Any"}
-    return frozenset(out)
+                yield c, _perm_answer_types(effect_filter(c.node)) or _ANY
+
+
+def _removal_answer_types(tree: ConceptTree) -> frozenset[str]:
+    """Every permanent-type "answer" TREE's removal can give — the UNION of
+    :func:`_removal_answers` (whose docstring holds the shapes it reads)."""
+    return frozenset().union(*(types for _, types in _removal_answers(tree)))
+
+
+def _edict_answers(
+    tree: ConceptTree, *, forced_only: bool = False
+) -> Iterator[tuple[ConceptNode, frozenset[str]]]:
+    """Each ``sacrifice`` effect in TREE with its sacrificed filter's
+    :func:`_perm_answer_types` (the SAME shape ``_edict_makers`` reads for
+    its own key).
+
+    By default a type-scoped view only asks WHAT gets sacrificed, not WHO is
+    forced (no actor-scope gate). ``forced_only`` keeps only a sacrifice
+    another player is forced to make — :func:`sacrifice_actor_scope`, the
+    actor read ``edict_makers`` scopes by — so a "you may sacrifice a creature
+    or planeswalker" choice (Winter, Tormented Loner) drops out.
+    """
+    if not forced_only:
+        for c in tree.iter_concepts():
+            if c.role == "effect" and c.concept == "sacrifice":
+                yield c, _perm_answer_types(effect_filter(c.node))
+        return
+    for unit in tree.units:
+        for c in unit.effects:
+            if c.concept == "sacrifice" and sacrifice_actor_scope(unit, c.node):
+                yield c, _perm_answer_types(effect_filter(c.node))
 
 
 def _edict_answer_types(tree: ConceptTree) -> frozenset[str]:
     """Every permanent-type "answer" a forced-sacrifice (edict, CR 701.21a)
-    effect in TREE can give — the UNION of :func:`_perm_answer_types` over
-    every ``sacrifice`` concept node's sacrificed filter (the SAME shape
-    ``_edict_makers`` reads for its own key), unfiltered — a type-scoped
-    view only asks WHAT gets sacrificed, not WHO is forced (no actor-scope
-    gate). Deliberately SEPARATE from :func:`_removal_answer_types`: a
-    destroy/exile/damage effect is never an edict (Armageddon's "destroy
-    all lands" must not satisfy a land-EDICT view — CR 701.8 vs 701.21a are
+    effect in TREE can give — the UNION of :func:`_edict_answers`, no
+    actor-scope gate. Deliberately SEPARATE from :func:`_removal_answer_types`:
+    a destroy/exile/damage effect is never an edict (Armageddon's "destroy all
+    lands" must not satisfy a land-EDICT view — CR 701.8 vs 701.21a are
     distinct zone-change verbs).
     """
-    out: set[str] = set()
-    for c in tree.iter_concepts():
-        if c.role == "effect" and c.concept == "sacrifice":
-            out |= _perm_answer_types(effect_filter(c.node))
-    return frozenset(out)
+    return frozenset().union(*(types for _, types in _edict_answers(tree)))
 
 
-def _removal_edict_types_for(card: dict, family: str) -> frozenset[str]:
-    """CARD's UNION answer types across every face, for FAMILY ("removal" ->
-    :func:`_removal_answer_types`; "edict" -> :func:`_edict_answer_types`).
-    ``trees_for`` (the per-oracle_id tree resolution) already memoizes the
-    expensive part — see ``theme_presets._signal_keys_for``'s docstring for
-    the two-layer memo this seam piggybacks on — so no separate cache is
-    needed here.
+def removal_edict_answers(
+    card: dict,
+    family: str = "removal",
+    *,
+    forced_only: bool = False,
+    soft: bool = False,
+) -> list[tuple[ConceptNode, frozenset[str]]]:
+    """CARD's removal (FAMILY="removal" -> :func:`_removal_answers`, with its
+    ``soft`` opt-in) or forced-sacrifice (FAMILY="edict" ->
+    :func:`_edict_answers`, with its ``forced_only`` gate) effects across every
+    face, each with its answer types. ``trees_for`` (the per-oracle_id tree
+    resolution) already memoizes the expensive part — see
+    ``theme_presets._signal_keys_for``'s docstring for the two-layer memo this
+    seam piggybacks on — so no separate cache is needed here.
     """
     from mtg_utils._card_ir.trees import trees_for
 
-    walk = _removal_answer_types if family == "removal" else _edict_answer_types
-    out: set[str] = set()
+    out: list[tuple[ConceptNode, frozenset[str]]] = []
     for tree in trees_for(card, bulk=card):
-        out |= walk(tree)
-    return frozenset(out)
+        if family == "removal":
+            out.extend(_removal_answers(tree, soft=soft))
+        else:
+            out.extend(_edict_answers(tree, forced_only=forced_only))
+    return out
+
+
+def _removal_edict_types_for(card: dict, family: str) -> frozenset[str]:
+    """CARD's UNION answer types across every face, for FAMILY (see
+    :func:`removal_edict_answers`)."""
+    return frozenset().union(
+        *(types for _, types in removal_edict_answers(card, family))
+    )
 
 
 def removal_edict_targets_type(

@@ -119,6 +119,33 @@ def atomic_write_json(path: Path, data: object) -> None:
         raise
 
 
+def atomic_write_bytes(path: Path, data: bytes) -> None:
+    """Write *data* to *path* via a temp file plus atomic rename.
+
+    The bytes counterpart of :func:`atomic_write_json`, with the same guarantees:
+    the parent directory is created if missing, a reader never observes a
+    half-written file, and on any failure the temp file is removed (it is created
+    with ``delete=False``, so it would otherwise be orphaned) and the error
+    re-raised.
+    """
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = tempfile.NamedTemporaryFile(  # noqa: SIM115 — closed by the with below
+        mode="wb",
+        dir=str(path.parent),
+        prefix=f".{path.name}.",
+        suffix=".tmp",
+        delete=False,
+    )
+    tmp_path = Path(tmp.name)
+    try:
+        with tmp:
+            tmp.write(data)
+        tmp_path.replace(path)
+    except BaseException:
+        tmp_path.unlink(missing_ok=True)
+        raise
+
+
 def write_pickle_sidecar[T](
     sidecar_path: Path,
     *,

@@ -70,6 +70,15 @@ def residue_is(node: object, name: str) -> bool:
 # order; the first present one decides scope.
 _SCOPE_FIELDS = ("target", "player", "owner", "recipient", "valid_target")
 
+# The player-reference tags naming the opponents, and every player, on a
+# recipient or a wrapper's ``player_scope``. A ``player_scope`` may also read
+# ``All`` (Garruk, Veiled Butcher's -2), which only :func:`effect_player_reach`
+# accepts.
+_OPPONENT_ACTOR_TAGS: frozenset[str] = frozenset(
+    {"Opponent", "Opponents", "EachOpponent"}
+)
+_EACH_ACTOR_TAGS: frozenset[str] = frozenset({"Each", "AllPlayers", "EachPlayer"})
+
 
 def _unwrap_role_target(sub: object) -> object:
     """A scope field's effective player node.
@@ -104,9 +113,9 @@ def _scope_from_player_node(node: object) -> str | None:
     t = tag_of(node)
     if t in ("Controller", "SelfRef", "You"):
         return "you"
-    if t in ("Opponent", "Opponents", "EachOpponent"):
+    if t in _OPPONENT_ACTOR_TAGS:
         return "opponents"
-    if t in ("Each", "AllPlayers", "EachPlayer"):
+    if t in _EACH_ACTOR_TAGS:
         return "each"
     # A chosen/targeted player (``ParentTarget`` / ``Player`` / ``Any``) is NOT a
     # self resource — "target player draws, then discards" is a targeted effect,
@@ -243,15 +252,10 @@ def lifeloss_recipient_is_degraded_typed(node: TypedMirrorNode) -> bool:
 # (``_DIRECTED_PLAYER_TAGS``) and :func:`discard_recipient_scope`
 # (``_DISCARD_OPP_TAGS``, defined further below), plus the explicit
 # opponent/defending-player tags (CR 506.2 — the b11 tap_down precedent).
-_DETRIMENT_DIRECTED_TAGS: frozenset[str] = _DIRECTED_PLAYER_TAGS | frozenset(
-    {
-        "Opponent",
-        "Opponents",
-        "EachOpponent",
-        "DefendingPlayer",
-        "TargetPlayer",
-        "TargetOpponent",
-    }
+_DETRIMENT_DIRECTED_TAGS: frozenset[str] = (
+    _DIRECTED_PLAYER_TAGS
+    | _OPPONENT_ACTOR_TAGS
+    | frozenset({"DefendingPlayer", "TargetPlayer", "TargetOpponent"})
 )
 
 
@@ -335,6 +339,53 @@ def trigger_turn_constraint(trig: TypedMirrorNode) -> str | None:
     a symmetric each-player wrath from an opponent-only edict (CR 701.21a).
     """
     return trigger_constraint_tag(trig)
+
+
+def trigger_phase(trig: TypedMirrorNode) -> str | None:
+    """The step / phase a phase-trigger fires at the beginning of (``"Upkeep"`` /
+    ``"Draw"`` / ``"BeginCombat"`` / ``"End"`` …), or ``None`` for any other
+    trigger. phase carries it as a bare string on the trigger's ``phase`` field
+    beside ``mode: "Phase"`` (the ``trigger_event == "phase"`` units)."""
+    p = getattr(trig, "phase", MISSING)
+    return p if isinstance(p, str) else None
+
+
+def scoped_player_scope(unit: AbilityUnit | None) -> str | None:
+    """Resolve a ``ScopedPlayer`` reference ("that player") to a lane scope via the
+    owning trigger's turn constraint (CR 701.21a for the edict case).
+
+    phase tags a triggered "that player sacrifices / draws / is dealt damage" with
+    ``ScopedPlayer`` — the scoped player is whoever the trigger references, which
+    the constraint disambiguates: ``OnlyDuringOpponentsTurn`` (Sheoldred — "each
+    opponent's upkeep") → opponents; no constraint (Braids, Cabal Minion;
+    Smokestack — "each player's upkeep, that player sacrifices") → each, a
+    SYMMETRIC self-inclusive effect that hits YOU too; ``OnlyDuringYourTurn`` (a
+    "your upkeep, you sacrifice" self-sac) → ``None``. A non-trigger ScopedPlayer
+    keeps the opponent default.
+    """
+    if unit is None or getattr(unit, "origin", None) != "trigger":
+        return "opponents"
+    c = trigger_turn_constraint(unit.node)
+    if c == "OnlyDuringOpponentsTurn":
+        return "opponents"
+    if c == "OnlyDuringYourTurn":
+        return None
+    return "each"
+
+
+def refers_to_scoped_player(node: object) -> bool:
+    """Whether anything under ``node`` (a trigger unit's node: its condition,
+    effect chain and operands) refers to the trigger's ``ScopedPlayer`` — "that
+    player" / "that opponent" bound by an "each player's / each opponent's
+    [step]" trigger. A deep walk, so an intervening-if on the scoped player
+    (Lavaborn Muse: "if that player has two or fewer cards in hand") counts, as
+    does a filter controlled by them (Braids: "that player sacrifices"). CR
+    805.4d keys a Two-Headed Giant step trigger's per-player firing on exactly
+    this reference."""
+    return any(
+        tag_of(n) == "ScopedPlayer" or getattr(n, "controller", None) == "ScopedPlayer"
+        for n in _iter_typed_nodes(node)
+    )
 
 
 def trigger_damage_kind(trig: TypedMirrorNode) -> str:
@@ -936,6 +987,39 @@ def filter_controller(filt: object) -> str | None:
     return None
 
 
+def filter_mana_value_floor(filt: object) -> int | None:
+    """The lowest mana value a typed filter admits, from its ``Cmc`` ``GE`` / ``GT``
+    predicates ("target creature or planeswalker with mana value 3 or greater" —
+    Your Fate Ends Here → 3), or ``None`` when it sets no floor. An ``Or`` floors
+    at its lowest arm (any arm without a floor → ``None``); an ``And`` at its
+    highest. A ceiling (``LE`` — Solitary Cell's "3 or less") is not a floor."""
+    t = tag_of(filt)
+    if t == "Typed":
+        floors: list[int] = []
+        for prop in getattr(filt, "properties", ()) or ():
+            if tag_of(prop) != "Cmc":
+                continue
+            value = getattr(prop, "value", None)
+            n = getattr(value, "value", None) if tag_of(value) == "Fixed" else None
+            if not isinstance(n, int):
+                continue
+            comparator = getattr(prop, "comparator", None)
+            if comparator == "GE":
+                floors.append(n)
+            elif comparator == "GT":
+                floors.append(n + 1)
+        return max(floors) if floors else None
+    if t in ("Or", "And"):
+        arms = [filter_mana_value_floor(s) for s in getattr(filt, "filters", ()) or ()]
+        if not arms:
+            return None
+        if t == "Or":
+            return None if None in arms else min(a for a in arms if a is not None)
+        present = [a for a in arms if a is not None]
+        return max(present) if present else None
+    return None
+
+
 def filter_core_types(filt: object) -> tuple[str, ...]:
     """The CORE card-type words of a typed filter (bare strings — ``Creature`` /
     ``Artifact`` / ``Permanent``), EXCLUDING subtype / ``Non`` / ``AnyOf`` wrappers.
@@ -1178,21 +1262,17 @@ def count_operand_qty(node: TypedMirrorNode) -> object | None:
 # player ("target player / opponent discards" — Mind Rot, Stupor), or an explicit
 # opponent. A you/controller recipient is a self-loot (the ported ``discard_makers``
 # lane), not this hand-attack.
-_DISCARD_OPP_TAGS: frozenset[str] = frozenset(
+_DISCARD_OPP_TAGS: frozenset[str] = _OPPONENT_ACTOR_TAGS | frozenset(
     {
         "Player",
         "Target",
         "ParentTarget",
         "Any",
-        "Opponent",
-        "Opponents",
-        "EachOpponent",
         "TargetPlayer",
         "TriggeringPlayer",
         "ParentTargetController",
     }
 )
-_DISCARD_EACH_TAGS: frozenset[str] = frozenset({"Each", "AllPlayers", "EachPlayer"})
 
 
 def recipient_tag(node: TypedMirrorNode) -> str | None:
@@ -1286,7 +1366,7 @@ def discard_recipient_scope(node: TypedMirrorNode) -> str | None:
         if not _present(sub) or tag_of(sub) is None:
             continue
         t = tag_of(sub)
-        if t in _DISCARD_EACH_TAGS:
+        if t in _EACH_ACTOR_TAGS:
             return "each"
         if t in _DISCARD_OPP_TAGS:
             return "opponents"
@@ -1527,17 +1607,10 @@ def damage_recipient_is_player(vt: object) -> bool:
     reference — Coastal Piracy's "an opponent") IS a reachable player.
     """
     t = tag_of(vt)
-    if t in (
-        "Player",
-        "Any",
-        "Target",
-        "ParentTarget",
-        "Opponent",
-        "Opponents",
-        "EachOpponent",
-        "Each",
-        "AllPlayers",
-        "EachPlayer",
+    if (
+        t in _OPPONENT_ACTOR_TAGS
+        or t in _EACH_ACTOR_TAGS
+        or t in ("Player", "Any", "Target", "ParentTarget")
     ):
         return True
     if t == "Typed":
@@ -2561,7 +2634,7 @@ def is_opponent_cast_trigger_def(trig: object) -> bool:
     if _trigger_event(trig) not in ("cast_spell", "spellcastorcopy"):
         return False
     vt = getattr(trig, "valid_target", None)
-    return tag_of(vt) in ("Opponent", "Opponents", "EachOpponent") or (
+    return tag_of(vt) in _OPPONENT_ACTOR_TAGS or (
         tag_of(vt) == "Typed" and filter_controller(vt) == "Opponent"
     )
 
@@ -3081,6 +3154,15 @@ def node_duration(node: object) -> str | None:
     return None
 
 
+def _player_scope_tag(ps: object) -> str | None:
+    """The actor tag of a ``player_scope`` value (tagged node / variant / string)."""
+    if isinstance(ps, TypedMirrorNode):
+        return tag_of(ps)
+    if isinstance(ps, MirrorVariant):
+        return ps.key
+    return ps if isinstance(ps, str) else None
+
+
 def _find_owner_wrapper(
     node: object, target: object, depth: int, seen: set[int]
 ) -> TypedMirrorNode | None:
@@ -3157,6 +3239,85 @@ def effect_owner_duration(root: object, effect_node: object) -> str | None:
     """
     owner = _find_owner_wrapper(root, effect_node, 0, set())
     return node_duration(owner) if owner is not None else None
+
+
+# A chosen player the caster may aim anywhere — at an opponent, themself or
+# (in Two-Headed Giant) their teammate. ``TargetOpponent`` is deliberately
+# absent: "target opponent" can't be pointed at a teammate.
+_TARGET_PLAYER_TAGS = frozenset({"Player", "TargetPlayer"})
+# The mass/symmetric effect tags: "all"/"each" names no single chosen object
+# (the lanes read these through ``_analysis/lanes/_shared.py``).
+MASS_EFFECT_TAGS: frozenset[str] = frozenset(
+    {"DestroyAll", "ChangeZoneAll", "PutCounterAll", "DamageAll", "DamageEachPlayer"}
+)
+# The mass-effect tags whose object filter's controller decides who is hit —
+# :data:`MASS_EFFECT_TAGS` plus ``PumpAll`` ("creatures your opponents control
+# get -2/-2"; "all creatures get -3/-3").
+_MASS_REACH_TAGS = MASS_EFFECT_TAGS | {"PumpAll"}
+
+
+def effect_player_reach(root: object, effect_node: TypedMirrorNode) -> str | None:
+    """WHICH players an effect reaches, read from the structure around it:
+    ``"per_opponent"`` (a "for each opponent, <targeted effect>" loop),
+    ``"opponents"`` (each opponent / your opponents' permanents), ``"each"``
+    (each player / every permanent), ``"target"`` (a player the caster chooses),
+    ``"scoped"`` (a trigger's "that player" — resolve with
+    :func:`scoped_player_scope`), or ``None`` (you, or no player reach).
+
+    The concept node's own ``scope`` is unreliable for this question (Rank Rat's
+    discard and Gray Merchant's drain read "you"; Murder reads "each"), so the
+    read checks, in order: the owner wrapper's per-opponent ``multi_target``
+    (:func:`effect_owner_targets_per_opponent` — first, because the loop's
+    bound player reads ``TargetPlayer``); the owner wrapper's ``player_scope``
+    (Rank Rat → Opponent, Garruk's -2 → All); a ``player_filter`` (Pestilence
+    All, Witty Roastmaster Opponent); the recipient (target player / scoped
+    player); an object filter controlled by a target or scoped player (Twisted
+    Fates' "each creature target player controls", Face Yourself's
+    ``source_filter``, Braids); and, for a mass effect only, its object
+    filter's controller (Wrath of God → each; Massacre Wurm → opponents).
+    phase can't yet tell "each other player" from "each opponent" — both are
+    ``player_scope: Opponent`` (Grave Pact, Syphon Mind)."""
+    if effect_owner_targets_per_opponent(root, effect_node):
+        return "per_opponent"
+    owner = _find_owner_wrapper(root, effect_node, 0, set())
+    actor = (
+        _player_scope_tag(getattr(owner, "player_scope", MISSING))
+        if owner is not None
+        else None
+    )
+    if actor in _OPPONENT_ACTOR_TAGS:
+        return "opponents"
+    if actor in _EACH_ACTOR_TAGS or actor == "All":
+        return "each"
+    pf = player_filter_tag(effect_node)
+    if pf == "All":
+        return "each"
+    if pf == "Opponent":
+        return "opponents"
+    rt = recipient_tag(effect_node)
+    if rt in _TARGET_PLAYER_TAGS:
+        return "target"
+    if rt == "ScopedPlayer":
+        return "scoped"
+    filt = effect_filter(effect_node)
+    for f in (filt, getattr(effect_node, "source_filter", None)):
+        ctrl = filter_controller(f)
+        if ctrl == "ScopedPlayer":
+            return "scoped"
+        if ctrl in _TARGET_PLAYER_TAGS:
+            return "target"
+    # Phase-misparse workaround: phase v0.94.0 parses Predictive Preparations'
+    # "each of one or two target creatures" as a ``PutCounterAll`` over a
+    # typeless filter, which would read as every permanent. Retire the
+    # ``filter_core_types`` condition when test_typeless_mass_filter_canary
+    # fails RETIRE-READY.
+    if tag_of(effect_node) in _MASS_REACH_TAGS and filter_core_types(filt):
+        ctrl = filter_controller(filt)
+        if ctrl is None:
+            return "each"
+        if ctrl in _OPPONENT_ACTOR_TAGS:
+            return "opponents"
+    return None
 
 
 def reveal_until_player(node: TypedMirrorNode) -> str | None:

@@ -15,13 +15,13 @@ from typing import Any
 
 from mtg_utils._analysis.signal_specs import spec_for
 from mtg_utils._analysis.signals import Signal
-from mtg_utils._deck_forge.images import image_urls
 from mtg_utils._deck_forge.state import ForgeState
 from mtg_utils.card_classify import (
     FINISH_PRICE_KEYS,
     get_mana_cost,
     get_oracle_text,
 )
+from mtg_utils.card_images import image_urls
 from mtg_utils.formats import Coverage, Format
 from mtg_utils.hydrated_deck import ZONES
 

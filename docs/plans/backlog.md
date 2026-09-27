@@ -6,6 +6,33 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
 
 ## Open
 
+**From the twohg-guide skill (2026-09-27)**
+
+- **The edict presets match sacrifices you make yourself.** `removal_tutors.
+  _edict_answer_types` applies no actor gate, so `creature-edict` /
+  `planeswalker-edict` fire on Winter, Tormented Loner and Mycoloth ("you may
+  sacrifice…"). `edict_makers` already has the right actor read; gate the removal walk
+  on the same predicate (twohg_scan now calls it) and re-check the preset real-card tests.
+- **`role_of` has no removal fallback for a set phase hasn't parsed.** The removal
+  preset reads signal keys only, so on a set newer than `PHASE_TAG` `set-scan` reports
+  no removal while `twohg-scan`'s text path finds it. Move a removal text degrade into
+  `roles` beside `ramp_by_text` so both readouts share it.
+- **About eight copies of the cache-root lookup** (`$MTG_SKILLS_CACHE_DIR` else
+  `~/.cache/mtg-skills`: bulk_loader, _phase, proxy_print, download_mtgjson,
+  _deck_forge/production, _stores/_common, …). `_http.cache_root()` now exists; migrate
+  the rest to it.
+- **phase tags "each other player" as `Opponent`.** Grave Pact and Syphon Mind carry
+  `player_scope: Opponent`, which only differs from "each opponent" in team formats
+  (it includes your teammate). phase doesn't support team formats yet, so this isn't
+  reported upstream for now. `twohg_scan` vetoes it with an oracle-text check guarded by
+  a `retirement_canary` test; delete the veto when the canary fails.
+- **`twohg-scan --shadow`.** Listing IR-vs-text disagreements (information only, never
+  merged) would calibrate the text fallback and surface phase misparses. Deferred until
+  a set arrives that phase hasn't parsed. Baseline from FRA with the IR stripped: the
+  text path misses Tomik, Izzet Sparkmage (a damage *replacement*, not an "each
+  opponent" clause), reads Cruel Calculations as target-player (phase drops its player
+  target), and differs on removal reach for about 18 cards.
+
 **From the phase v0.94.0 bump (2026-09-26)**
 
 - **d20 roll tables.** Phase now parses them into `results[]` rows, which the shared

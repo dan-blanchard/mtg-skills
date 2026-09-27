@@ -11,7 +11,7 @@ jobs:
       # mtg-utils tests. Run from mtg-utils so the shared ruff config + the
       # `../tests/*` per-file-ignores in its pyproject.toml resolve.
       #
-      # RUFF IS PINNED (ruff==0.16.2), identically in all eight pyproject.toml
+      # RUFF IS PINNED (ruff==0.16.2), identically in all nine pyproject.toml
       # files — the opposite of the ty policy below, and deliberately so. These two
       # steps lint the whole repo with MTG-UTILS' ruff, but each skill has its own
       # venv and lockfile, so an unpinned floor previously let the eight drift
@@ -35,7 +35,7 @@ jobs:
       # cosmetic: content keys are case-sensitive, CapWords folding is not, and
       # renaming collapses `Filter`/`Typed` and `filter`/`Typed` onto one class.
       #
-      # To bump: change the pin in all eight, `uv lock` each, then `ruff check` and
+      # To bump: change the pin in all nine, `uv lock` each, then `ruff check` and
       # `ruff format` from mtg-utils and triage whatever new rules fire — all in one
       # commit, so the version and the code it demands never disagree on main.
       - run: cd mtg-utils && uv run ruff check src/ ../tests/
@@ -50,6 +50,8 @@ jobs:
       - run: cd deck-strat && uv sync && uv run pytest ../tests/deck-strat/ -v
       - run: cd lgs-search && uv sync && uv run pytest ../tests/lgs-search/ -v
       - run: cd deck-forge && uv sync && uv run pytest ../tests/deck-forge/ -v
+      - run: cd proxy-printer && uv sync && uv run pytest ../tests/proxy-printer/ -v
+      - run: cd twohg-guide && uv sync && uv run pytest ../tests/twohg-guide/ -v
 
   # deck-forge commits its built SPA (D11: end-users run with no Node toolchain).
   # This guard fails if the committed dist/ is stale relative to the frontend source

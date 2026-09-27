@@ -34,9 +34,13 @@ Generate a **Strategy Guide** for a finished Commander, Brawl, or Historic Brawl
 
 Render printable PDF proxies from a parsed deck JSON. `proxy-print --kind cards` emits one proxy per copy of every card in the deck; `proxy-print --kind tokens` emits one proxy per distinct token kind those cards produce (deduped by Scryfall `oracle_id`). Both modes share one render template — name banner / ASCII art / type banner / oracle text / P/T — with art keyed by card subtype from a hand-curated local catalog plus an optional attributed catalog populated by `fetch-art` (mines asciiart.eu + asciiart.website). Callable standalone or at the end of a deck-wizard / cube-wizard build session.
 
+### twohg-guide
+
+Build a **Two-Headed Giant prerelease cheat sheet** for a new set: what's winning (Untapped.gg Arena Early Access stats merged with paper prerelease reports from saved Reddit threads), team pairings, every card that hits twice against two opponents, the symmetric effects that also hit your partner, the 2HG rules that change games (with Comprehensive Rules citations), bombs and removal (your pile and theirs), and a build-hour checklist. Published as a private claude.ai page where hovering a card name shows the card.
+
 ## Tooling
 
-Both skills share CLI scripts via the `mtg_utils` package (`mtg-utils/`).
+All skills share CLI scripts via the `mtg_utils` package (`mtg-utils/`).
 
 ### Deck tooling
 
@@ -68,6 +72,13 @@ Both skills share CLI scripts via the `mtg_utils` package (`mtg-utils/`).
 - **cube-diff** — Compare two cube revisions with optional balance-metric deltas
 - **pack-simulate** — Seeded pack generation (sizes 9/11/15) with configurable slot templates; optional dedicated commander packs
 - **export-cube** — Export canonical cube JSON to CubeCobra-compatible CSV (for the "Replace with CSV Import" round-trip) or plain text
+
+### 2HG guide tooling
+
+- **twohg-scan** — Classify a set's cards for Two-Headed Giant: ×2 cards, partner hits, per-head vs once-per-step triggers (CR 805.4d), removal that can hit planeswalkers
+- **limited-stats** — Untapped.gg MTGA limited stats: colour-pair win rates, best commons, bomb candidates, underperformers
+- **thread-extract** — Turn a browser-saved Reddit thread into comments and deck-photo paths
+- **guide-card-hovers / twohg-template** — The cheat-sheet template, and card-image hovers for a finished sheet
 
 ## Supported Deck Formats
 

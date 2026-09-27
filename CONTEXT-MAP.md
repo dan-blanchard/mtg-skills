@@ -1,8 +1,9 @@
 # Context Map
 
-This monorepo hosts seven MTG skills; each is its own bounded context
-with its own vocabulary. Architecture work should ground in the
-relevant context and only edit terms inside it.
+This monorepo hosts eight MTG skills plus the shared mtg-utils
+package; each is its own bounded context with its own vocabulary.
+Architecture work should ground in the relevant context and only
+edit terms inside it.
 
 ## Contexts
 
@@ -25,6 +26,10 @@ relevant context and only edit terms inside it.
   gate / HydratedDeck vocabulary, plus the deterministic Tune
   vocabulary (Spine / Engine card / Filler / Shape / Efficiency /
   Focus / Template deviation / Commander fit).
+- [twohg-guide](./twohg-guide/CONTEXT.md) — Two-Headed Giant
+  prerelease cheat sheets for one set. Owns the head / ×2 card /
+  partner hit / step trigger / bomb / pile vocabulary; reads cards
+  through mtg-utils' Card IR and checks rules through rules-lawyer.
 - [mtg-utils](./mtg-utils/CONTEXT.md) — the shared `mtg_utils`
   package. Owns the Card IR vocabulary (Concept overlay / Substrate
   purity / Recovery stage / Re-decoration / Clause grammar / Token

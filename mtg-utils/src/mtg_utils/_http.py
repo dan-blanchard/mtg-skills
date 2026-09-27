@@ -21,15 +21,25 @@ to GitHub) — a shared default doesn't mean every caller must use it.
 
 from __future__ import annotations
 
+import os
 import subprocess
 import time
 import urllib.request
-from typing import TYPE_CHECKING, Protocol
+from pathlib import Path
+from typing import Protocol
 
 import requests
 
-if TYPE_CHECKING:
-    from pathlib import Path
+# --- Cache root ----------------------------------------------------------------
+
+
+def cache_root() -> Path:
+    """The shared on-disk cache root: ``$MTG_SKILLS_CACHE_DIR`` when set (and
+    non-empty), else ``~/.cache/mtg-skills``. Each consumer keeps its own
+    subdirectory under it (``untapped/``, ``card-images/``, …)."""
+    base = os.environ.get("MTG_SKILLS_CACHE_DIR")
+    return Path(base) if base else Path.home() / ".cache" / "mtg-skills"
+
 
 # --- User agent --------------------------------------------------------------
 

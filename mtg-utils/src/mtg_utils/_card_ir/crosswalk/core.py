@@ -48,6 +48,7 @@ from mtg_utils._card_ir.crosswalk.reads import (
     _filter_type_words,
     _iter_typed_nodes,
     _node_raw,
+    _player_scope_tag,
     _present,
     _scope_from_player_node,
     _trigger_event,
@@ -863,15 +864,6 @@ def _walk_effects(
         for m in modes:
             if isinstance(m, TypedMirrorNode):
                 yield from _walk_effects(m, depth + 1, seen, fields)
-
-
-def _player_scope_tag(ps: object) -> str | None:
-    """The actor tag of a ``player_scope`` value (tagged node / variant / string)."""
-    if isinstance(ps, TypedMirrorNode):
-        return tag_of(ps)
-    if isinstance(ps, MirrorVariant):
-        return ps.key
-    return ps if isinstance(ps, str) else None
 
 
 def _find_owner_scope(

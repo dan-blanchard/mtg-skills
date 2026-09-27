@@ -51,8 +51,8 @@ testpaths = ["../tests/deck-forge"]
 
 [dependency-groups]
 # httpx2 (not httpx): Starlette 1.x's TestClient prefers httpx2 and deprecates httpx.
-# ruff is pinned exactly and identically in all eight pyproject.toml files — see
-# mtg-utils/pyproject.toml for why. Bump deliberately, in all eight at once.
+# ruff is pinned exactly and identically in all nine pyproject.toml files — see
+# mtg-utils/pyproject.toml for why. Bump deliberately, in all nine at once.
 dev = ["pytest>=9.0.2", "ruff==0.16.2", "httpx2"]
 
 [tool.ruff.lint]

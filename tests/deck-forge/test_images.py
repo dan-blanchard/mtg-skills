@@ -1,6 +1,6 @@
 """Tests for Scryfall image-URL extraction (deck-forge)."""
 
-from mtg_utils._deck_forge.images import image_urls
+from mtg_utils.card_images import image_urls
 
 
 def test_normal_card_returns_small_normal_art_crop():

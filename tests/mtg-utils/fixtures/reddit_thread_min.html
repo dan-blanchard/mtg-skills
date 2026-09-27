@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<!-- A hand-written, minimal imitation of a browser-saved new-Reddit ("shreddit")
+     comments page, for tests/mtg-utils/test_thread_extract.py. Every user name and
+     every line of text is fictional. -->
+<html lang="en-US">
+<head><title>Went 9-0 at the Fictional Open : r/examplelimited</title></head>
+<body>
+<shreddit-app>
+<header><img alt="Reddit logo" src="./reddit_thread_min_files/header-mark.png"></header>
+<div class="main-container">
+<main>
+<shreddit-post view-context="CommentsPage" post-title="Went 9-0 at the Fictional Open" author="fictional_op" created-timestamp="2026-09-26T16:00:00.000000+0000" subreddit-prefixed-name="r/examplelimited" score="42" comment-count="9" id="t3_fake01">
+  <span slot="authorName">fictional_op</span>
+  <div slot="credit-bar">Upvote 42 Downvote Share</div>
+  <h1 slot="title">Went 9-0 at the Fictional Open</h1>
+  <div slot="post-media-container">
+    <img alt="deck photo" src="./reddit_thread_min_files/post-photo.jpeg">
+  </div>
+  <shreddit-post-text-body slot="text-body"><template shadowrootmode="open"><slot name="text-body"></slot></template>
+    <div slot="text-body">
+      <div id="t3_fake01-post-rtjson-content">
+        <p>
+          My pool was mostly
+          blue removal.
+        </p><ul>
+          <li><p>Two copies of Imaginary Bolt</p></li>
+          <li><p>One Pretend Dragon</p></li>
+        </ul>
+      </div>
+    </div>
+  </shreddit-post-text-body>
+</shreddit-post>
+
+<shreddit-comments-page-ad>
+  <div id="ad-format-content">
+    <p>Try ZapCola, the drink of champions!</p>
+    <img alt="ad" src="./reddit_thread_min_files/ad-thumb.jpg">
+  </div>
+</shreddit-comments-page-ad>
+
+<shreddit-comment-tree id="comment-tree" totalcomments="9">
+  <shreddit-comment-tree-ad>
+  <shreddit-comment author="fictional_alice" depth="0" created="2026-09-26T17:00:00.000000+0000" thingid="t1_a1">
+    <div slot="commentAvatar"><img alt="" src="./reddit_thread_min_files/alice-avatar.png"></div>
+    <div slot="commentMeta">
+      <a href="/user/fictional_alice/">fictional_alice</a> <span>&bull;</span>
+      <faceplate-timeago><time datetime="2026-09-26T17:00:00.000Z">3h ago</time></faceplate-timeago>
+    </div>
+    <div slot="comment" id="t1_a1-comment-rtjson-content">
+      <div id="t1_a1-post-rtjson-content"><p>Congrats! The [[Pretend Dragon]] is a bomb.</p><p>Second paragraph<br>with a line break.</p></div>
+    </div>
+    <shreddit-comment-action-row slot="actionRow">Upvote Downvote Reply Award Share</shreddit-comment-action-row>
+
+    <shreddit-comment author="mtgcf" depth="1" parentid="t1_a1" created="2026-09-26T17:00:05.000000+0000" thingid="t1_b1" slot="children-t1_a1-0">
+      <div slot="commentMeta"><faceplate-timeago><time>3h ago</time></faceplate-timeago></div>
+      <div slot="comment"><div><p>
+        <a href="https://cards.scryfall.io/normal/front/0/0/00000000-0000-0000-0000-000000000000.jpg">Pretend Dragon</a> - <a href="https://gatherer.wizards.com/search?searchTerm=Pretend%20Dragon">(G)</a> <a href="https://scryfall.com/card/zzz/1/pretend-dragon">(SF)</a>
+      </p></div></div>
+      <shreddit-comment-action-row slot="actionRow">Reply Share</shreddit-comment-action-row>
+    </shreddit-comment>
+
+    <shreddit-comment author="fictional_bob" depth="1" parentid="t1_a1" created="2026-09-26T18:00:00.000000+0000" thingid="t1_c1" slot="children-t1_a1-1">
+      <div slot="commentMeta"><faceplate-timeago><time>2h ago</time></faceplate-timeago></div>
+      <div slot="comment"><div>
+        <p>Here is my pool:</p>
+        <figure><a href="./reddit_thread_min_files/bob-pool.jpeg"><img alt="Comment Image" src="./reddit_thread_min_files/bob-pool.jpeg"></a></figure>
+      </div></div>
+      <shreddit-comment-action-row slot="actionRow">Reply Share</shreddit-comment-action-row>
+
+      <shreddit-comment author="fictional_alice" depth="2" parentid="t1_c1" created="2026-09-26T19:00:00.000000+0000" thingid="t1_d1" slot="children-t1_c1-0">
+        <div slot="commentMeta"><faceplate-timeago><time>1h ago</time></faceplate-timeago></div>
+        <div slot="comment"><div><p>Nice pull.</p></div></div>
+        <shreddit-comment-action-row slot="actionRow">Reply Share</shreddit-comment-action-row>
+      </shreddit-comment>
+      <faceplate-partial class="more-comments-partial" slot="children" src="/svc/shreddit/more-comments/r/examplelimited/t3_fake01">
+        <button type="button"><faceplate-number number="2">2</faceplate-number> more replies</button>
+      </faceplate-partial>
+    </shreddit-comment>
+  </shreddit-comment>
+  </shreddit-comment-tree-ad>
+
+  <shreddit-comment-tree-ads>
+    <div>Promoted: fictional_brand wants you to buy SuperWidget</div>
+  </shreddit-comment-tree-ads>
+
+  <shreddit-comment-tree-ad>
+  <shreddit-comment author="fictional_carol" depth="0" created="2026-09-26T20:00:00.000000+0000" thingid="t1_e1" collapsed="">
+    <div slot="commentMeta"><faceplate-timeago><time>30m ago</time></faceplate-timeago></div>
+    <div slot="comment"><div><p>Low-score take that the page shows collapsed.</p></div></div>
+  </shreddit-comment>
+  </shreddit-comment-tree-ad>
+
+  <shreddit-comment-tree-ad>
+  <shreddit-comment author="fictional_linkbot" depth="0" created="2026-09-26T20:30:00.000000+0000" thingid="t1_f1">
+    <div slot="commentMeta"><faceplate-timeago><time>10m ago</time></faceplate-timeago></div>
+    <div slot="comment"><div><p>All cards<br>
+      <a href="https://scryfall.com/card/zzz/2/imaginary-bolt">Imaginary Bolt</a> - <a href="https://gatherer.wizards.com/search?searchTerm=Imaginary%20Bolt">(G)</a><br>
+      <a href="https://scryfall.com/card/zzz/1/pretend-dragon">Pretend Dragon</a> - <a href="https://gatherer.wizards.com/search?searchTerm=Pretend%20Dragon">(G)</a>
+    </p></div></div>
+  </shreddit-comment>
+  </shreddit-comment-tree-ad>
+</shreddit-comment-tree>
+</main>
+<aside>
+  <img alt="community icon" src="./reddit_thread_min_files/sidebar-art.png">
+  <shreddit-sidebar-ad><img alt="ad" src="./reddit_thread_min_files/sidebar-ad.jpg"></shreddit-sidebar-ad>
+</aside>
+</div>
+</shreddit-app>
+</body>
+</html>

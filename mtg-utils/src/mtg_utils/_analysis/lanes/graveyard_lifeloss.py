@@ -17,6 +17,7 @@ from mtg_utils._analysis.lanes._shared import (
     _negative_pt_field,
     _unknown_mode_combat_damage_to_player,
     _whole_card_maker,
+    sacrifice_actor_scope,
 )
 from mtg_utils._analysis.signal_base import (
     Signal,
@@ -1726,83 +1727,6 @@ def _lifeloss_matters(tree: ConceptTree) -> list[Signal]:
     return []
 
 
-def _edict_scope(owner_tag: str | None) -> str:
-    """An edict actor tag → lane scope (CR 701.21a). An opponent actor → opponents; a
-    symmetric each-player actor → each (mirrors ``_ir_scope`` opp/each)."""
-    if owner_tag in ("Opponent", "Opponents", "EachOpponent"):
-        return "opponents"
-    return "each"
-
-
-def _scoped_player_scope(unit: AbilityUnit | None) -> str | None:
-    """Resolve a ``ScopedPlayer`` sacrifice controller to a lane scope via the owning
-    trigger's turn constraint (CR 701.21a).
-
-    phase tags a triggered "that player sacrifices" edict ``controller: ScopedPlayer``
-    — the scoped player is whoever the trigger references, which the constraint
-    disambiguates: ``OnlyDuringOpponentsTurn`` (Sheoldred — "each opponent's upkeep")
-    → opponents; no constraint (Braids, Cabal Minion; Smokestack — "each player's
-    upkeep, that player sacrifices") → each, a SYMMETRIC self-inclusive wrath that
-    hits YOU too (matching the live edict_makers /each scope, NOT a clean opponent
-    edict); ``OnlyDuringYourTurn`` (a "your upkeep, you sacrifice" self-sac) → ``None``
-    (a you-sac, not an edict). A non-trigger ScopedPlayer keeps the opponent default.
-    """
-    if unit is None or getattr(unit, "origin", None) != "trigger":
-        return "opponents"
-    c = trigger_turn_constraint(unit.node)
-    if c == "OnlyDuringOpponentsTurn":
-        return "opponents"
-    if c == "OnlyDuringYourTurn":
-        return None
-    return "each"
-
-
-def _sac_actor_scope(
-    node: TypedMirrorNode, unit: AbilityUnit | None = None
-) -> str | None:
-    """The edict scope of a ``Sacrifice`` effect from its sacrificed filter's
-    CONTROLLER (CR 701.21a — a player only sacrifices a permanent THEY control, so the
-    controller IS the forced actor). An opponent / target-player controller →
-    opponents; an each/all-player controller → each; a ``ScopedPlayer`` ("that player
-    sacrifices") resolves by the trigger's turn constraint
-    (:func:`_scoped_player_scope`) so a symmetric each-player upkeep edict (Braids,
-    Smokestack) scopes /each, not /opponents; a ``You`` controller (a you-sac outlet —
-    Mycoloth) or none (an unscoped/bare-self sac) → ``None`` (not an edict via this
-    arm).
-
-    b3 recall — two more forced-actor controllers, both gated on a TRIGGER origin
-    (the adjudicated "trigger-wrapped true edict" the direct opp/each arm misses):
-    ``DefendingPlayer`` (Annihilator N — CR 702.85a, the defending player
-    sacrifices N permanents of their choice: Breaker of Creation, Artisan of
-    Kozilek) → opponents; ``ParentTargetController`` ("that [dying creature]'s
-    controller sacrifices …" — Burning Sands) → each, matching the live IR scope
-    (symmetric across whoever's permanent left). The trigger gate excludes an
-    activated/spell OPTIONAL "may sacrifice a land" downside (Chain of Vapor —
-    ParentTargetController, an optional bounce rider, not an edict)."""
-    ctrl = filter_controller(effect_filter(node))
-    if ctrl == "ScopedPlayer":
-        return _scoped_player_scope(unit)
-    # phase v0.86.0: "target opponent" is its own ``TargetOpponent`` tag (283 → 285
-    # TargetPlayer, 38 → 83 TargetOpponent across the card-data) — the same forced
-    # actor as before, one tag narrower.
-    if ctrl in (
-        "Opponent",
-        "Opponents",
-        "EachOpponent",
-        "TargetPlayer",
-        "TargetOpponent",
-    ):
-        return "opponents"
-    if ctrl in ("All", "EachPlayer", "Each"):
-        return "each"
-    if unit is not None and getattr(unit, "origin", None) == "trigger":
-        if ctrl == "DefendingPlayer":
-            return "opponents"
-        if ctrl in ("ParentTargetController", "EventTargetController"):
-            return "each"
-    return None
-
-
 def _edict_makers(tree: ConceptTree) -> list[Signal]:
     """edict_makers — a FORCED player sacrifice (CR 701.21a / 800.4a). The INVERSE of
     the ``sacrifice_outlets`` you-sac gate. Two structural tells, each reading the
@@ -1842,11 +1766,7 @@ def _edict_makers(tree: ConceptTree) -> list[Signal]:
             # the shape; firing edict_makers here poisoned both reads.
             if tag_of(getattr(c.node, "target", None)) == "TrackedSet":
                 continue
-            owner = effect_owner_player_scope(getattr(unit, "node", None), c.node)
-            if owner in _EDICT_ACTORS:
-                fire(_edict_scope(owner), c.raw)
-            else:
-                fire(_sac_actor_scope(c.node, unit), c.raw)
+            fire(sacrifice_actor_scope(unit, c.node), c.raw)
     return out
 
 

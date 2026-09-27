@@ -42,3 +42,21 @@ def _no_network(monkeypatch):
     fixture miss) otherwise passes while the service answers and fails CI when it
     rate-limits; refusing name resolution makes it fail loudly everywhere."""
     monkeypatch.setattr(socket, "getaddrinfo", _no_network_getaddrinfo)
+
+
+@pytest.fixture(autouse=True)
+def _known_tokens_cached_only(request, monkeypatch):
+    """``_phase.ensure_known_tokens`` fetches phase's known-tokens.toml on a cold
+    cache. In tests it answers from the cache or ``None`` (its offline contract, so
+    the Card IR falls back to the committed subset) instead of reaching the
+    network guard above. Here rather than in tests/mtg-utils/conftest.py because
+    every skill's suite builds Card IR through ``mtg_utils.testkit``.
+    ``test_phase_wrapper`` owns the real download tests (urllib mocked)."""
+    if request.module.__name__ == "test_phase_wrapper":
+        return
+    from mtg_utils import _phase
+
+    cached = _phase._known_tokens_path()
+    monkeypatch.setattr(
+        _phase, "ensure_known_tokens", lambda: cached if cached.exists() else None
+    )

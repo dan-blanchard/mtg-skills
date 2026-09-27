@@ -1,0 +1,289 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{SET_NAME}} 2HG</title>
+<!--
+  Two-Headed Giant prerelease cheat sheet: the blank page `twohg-template` writes.
+  Fill each <section> below (the comment inside says what goes there), keep the
+  section order, and delete these guidance comments when done. Wrap card names in
+  <span class="card">…</span>; `guide-card-hovers` finds every set card name in the
+  .cols text, downloads the images and fills the hover script's CARDS map below.
+  Classes: .card (a card name) · .cost (a mana cost, e.g. {2}{B}) · .x2 (the doubled
+  effect) · .cr (a CR number) · .num (a win rate or count) · .pip.W/.U/.B/.R/.G
+  (a color pip) · .pair (two pips kept together) · .tag (small caps note in an h2)
+  · .muted · .warn · .note · .tbl + table, td.r (the rarity column).
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,500;6..72,650&family=IBM+Plex+Sans:ital,wght@0,400;0,600;0,700;1,400&family=IBM+Plex+Mono:wght@500;700&display=swap">
+<style>
+  :root {
+    --paper: #F2F1F6; --raised: #FBFAFD; --ink: #1D1B2A; --ink-soft: #56526B;
+    --line: #D6D2E4; --accent: #4A3AA8; --x2: #B4362B; --cite: #1F6F6A;
+    --warn-wash: #F6E4E0; --note-wash: #E9E6F4;
+    --serif: "Newsreader", "Iowan Old Style", Palatino, Georgia, serif;
+    --sans: "IBM Plex Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --paper: #121119; --raised: #1A1824; --ink: #E7E4F3; --ink-soft: #A39FBA;
+      --line: #2D2A3C; --accent: #A99BF2; --x2: #F0806B; --cite: #63C2B7;
+      --warn-wash: #33201D; --note-wash: #1F1C2C;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --paper: #121119; --raised: #1A1824; --ink: #E7E4F3; --ink-soft: #A39FBA;
+    --line: #2D2A3C; --accent: #A99BF2; --x2: #F0806B; --cite: #63C2B7;
+    --warn-wash: #33201D; --note-wash: #1F1C2C;
+  }
+  * { box-sizing: border-box; }
+  body { background: var(--paper); color: var(--ink); font-family: var(--sans); font-size: 13px; line-height: 1.4; margin: 0; }
+  .sheet { max-width: 64rem; margin: 0 auto; padding: 1.25rem 16px 2rem; }
+  header { margin-bottom: .9rem; }
+  .eyebrow { font-size: .68rem; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--accent); margin: 0 0 .2rem; }
+  h1 { font-family: var(--serif); font-size: 1.55rem; font-weight: 650; margin: 0; line-height: 1.15; text-wrap: balance; }
+  header .sub { color: var(--ink-soft); font-size: .8rem; margin: .3rem 0 0; }
+  .fracture { display: block; width: 100%; height: 10px; margin-top: .55rem; color: var(--accent); }
+  .cols { column-count: 2; column-gap: 1.6rem; }
+  @media (max-width: 760px) { .cols { column-count: 1; } }
+  section { break-inside: avoid; margin-bottom: 1rem; }
+  h2 { font-family: var(--serif); font-size: 1.02rem; font-weight: 650; margin: 0 0 .3rem; padding-bottom: .15rem; border-bottom: 1px solid var(--line); text-wrap: balance; }
+  h2 .tag { font-family: var(--sans); font-size: .6rem; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; color: var(--cite); margin-left: .35rem; }
+  p { margin: .3rem 0; }
+  ul { margin: 0; padding-left: 1.05rem; }
+  li { margin: .2rem 0; }
+  .card { font-family: var(--serif); font-weight: 650; font-size: 1.04em; }
+  .cost { font-family: var(--mono); font-size: .82em; color: var(--ink-soft); white-space: nowrap; }
+  .x2 { font-family: var(--mono); font-weight: 700; color: var(--x2); white-space: nowrap; }
+  .cr { font-family: var(--mono); font-size: .84em; font-weight: 700; color: var(--cite); white-space: nowrap; }
+  .num { font-family: var(--mono); font-size: .86em; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .muted { color: var(--ink-soft); }
+  .pip { display: inline-flex; align-items: center; justify-content: center; width: 1.15em; height: 1.15em; border-radius: 50%;
+    font-size: .7em; font-weight: 700; color: #1F1D18; border: 1px solid rgba(0,0,0,.35); vertical-align: -.12em; font-family: var(--sans); }
+  .pip.W { background: #F2ECCE; } .pip.U { background: #AFC9E3; } .pip.B { background: #A69F97; }
+  .pip.R { background: #E29A79; } .pip.G { background: #A9C29A; }
+  .pair { white-space: nowrap; }
+  .rankline { font-family: var(--serif); font-weight: 650; font-size: .98rem; margin: .15rem 0 .35rem; line-height: 1.7; }
+  .rankline .gt { color: var(--ink-soft); font-weight: 500; margin: 0 .15rem; }
+  .warn { background: var(--warn-wash); border-left: 3px solid var(--x2); padding: .45rem .6rem; border-radius: 2px; margin: .4rem 0; }
+  .note { background: var(--note-wash); padding: .45rem .6rem; border-radius: 2px; margin: .4rem 0; font-size: .92em; }
+  .tbl { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; }
+  td { padding: .2rem .45rem .2rem 0; vertical-align: top; border-bottom: 1px solid var(--line); }
+  tr:last-child td { border-bottom: none; }
+  td.r { white-space: nowrap; font-family: var(--mono); font-size: .75em; color: var(--ink-soft); padding-top: .32rem; }
+  a { color: var(--accent); }
+  a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  footer { margin-top: 1.2rem; padding-top: .6rem; border-top: 1px solid var(--line); font-size: .78rem; color: var(--ink-soft); }
+  footer p { margin: .25rem 0; overflow-wrap: anywhere; }
+  @media print {
+    body { font-size: 9.5pt; background: #fff; color: #000; }
+    .sheet { max-width: none; padding: 0; }
+    .cols { column-count: 2; }
+    a { color: inherit; text-decoration: none; }
+  }
+  .cn { text-decoration: underline dotted; text-decoration-color: var(--accent); text-underline-offset: 2px; cursor: zoom-in; }
+  .cn:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; border-radius: 2px; }
+  .card-pop { position: fixed; z-index: 50; width: min(280px, 72vw); aspect-ratio: 488 / 680; pointer-events: none;
+    border-radius: 4.75% / 3.5%; overflow: hidden; box-shadow: 0 12px 36px rgba(0,0,0,.45); background: #111; }
+  .card-pop img { display: block; width: 100%; height: 100%; }
+  @media (prefers-reduced-motion: no-preference) { .card-pop { animation: pop-in .1s ease both; } @keyframes pop-in { from { opacity: 0; } } }
+  @media print { .card-pop { display: none; } .cn { text-decoration: none; } }
+</style>
+</head>
+<body>
+
+<div class="sheet">
+<header>
+  <p class="eyebrow">Two-Headed Giant Sealed · Prerelease · {{DATE}}</p>
+  <h1>{{SET_NAME}} — 2HG Cheat Sheet</h1>
+  <p class="sub"><!-- One line: shared 30 life, "each opponent" hits both heads (CR 102.3, 810.9), and what the guide is built on (how many prerelease reports, which win-rate data, which guides). --></p>
+  <svg class="fracture" viewBox="0 0 1000 10" preserveAspectRatio="none" aria-hidden="true"><polyline points="0,5 140,5 162,1 181,9 196,3 214,5 520,5 536,9 549,2 566,7 578,5 1000,5" fill="none" stroke="currentColor" stroke-width="1.5" vector-effect="non-scaling-stroke"/></svg>
+</header>
+
+<div class="cols">
+
+<section id="winning">
+  <h2>What's winning <span class="tag"><!-- the evidence base, e.g. "Arena Early Access + ~50 prerelease reports" --></span></h2>
+  <!-- A <ul> of findings, each led by a bold claim and backed by evidence: color pairs
+       with their Arena win rate (<span class="num">) and paper records (3-0, 4-0 …),
+       splash/3-color results, the deepest color at common, overperforming commons and
+       uncommons (quote the reports in <i>), and the only 2HG-specific reports. Close
+       with a .muted line naming where the win rates and records come from. -->
+</section>
+
+<section id="pairing">
+  <h2>Team pairing <span class="tag"><!-- the product, e.g. "two kits = 12 boosters" --></span></h2>
+  <!-- A <ul>: how many packs the team opens and what that means per deck; the default
+       color split between the two decks and why; a ranked list of pairings (1., 2.,
+       3., fallback) with the reason for each; "both decks must work alone"; the set's
+       fixing (common dual-ish lands, landcyclers, treasure-like tokens). -->
+</section>
+
+<section id="x2">
+  <h2>The ×2 cards <span class="tag">each opponent = both heads</span></h2>
+  <!-- The ×2 cards (twohg-scan's `doubles`): effects that apply once per opponent —
+       "each opponent", "for each opponent", "your opponents control", "whenever an
+       opponent…" — sorted C, U, R, M. ("Each player" effects are partner hits and go in
+       Downgrades & gotchas.) One row per card:
+       <tr><td class="r">C</td><td><span class="card">Name</span> <span class="cost">{1}{B}</span> — what it does, <span class="x2">the doubled amount</span></td></tr>
+       Check every doubling claim against the card text; cite CR 102.3 for why both heads
+       count and CR 810.9 only for damage and life. -->
+  <div class="tbl"><table>
+  </table></div>
+  <!-- A .muted paragraph: "Also bigger here" (cards that scale with opponent count
+       without being ×2) and "Not doubled" (per-step triggers that fire once, CR 805.4d). -->
+</section>
+
+<section id="gotchas">
+  <h2>Downgrades &amp; gotchas</h2>
+  <!-- A <ul>: symmetric wipes and "each player" effects that hit your partner too;
+       "target opponent" / "target player" cards that don't double (or can target your
+       partner); set-mechanic interactions that change in 2HG. One line each, the
+       affected card names in <span class="card">. -->
+</section>
+
+<section id="rules">
+  <h2>Rules that win games</h2>
+  <!-- A <ul> of the 2HG rules that decide games, each led by its CR number from
+       `rules-lookup` (never from memory): <li><span class="cr">810.9</span> …</li>.
+       Typical: 102.3 + 810.9 (each opponent; 810.9 for damage and life), 805.4d (per-step triggers), 805.10d
+       (combined blocks), 805.10b (attack a head or a planeswalker), 810.8a (decking),
+       810.6 (first team skips its draw), 810.5 (open hands), 805.8 (extra turns). -->
+</section>
+
+<section id="bombs">
+  <h2>Bombs <span class="tag">your pile · their threats</span></h2>
+  <!-- A .muted line defining "bomb" and the win-rate notation. Then a table with one
+       row per color and color pair (pips in the first cell); each entry is a card with
+       its evidence — Arena win rate when drawn (<span class="num">), paper reports,
+       reviewer quotes — and one clause on how to play it or play around it. Mark ×2
+       cards. A closing .muted line: hyped cards that did NOT perform. -->
+  <div class="tbl"><table>
+  </table></div>
+</section>
+
+<section id="removal">
+  <h2>Removal <span class="tag">your pile · their answers</span></h2>
+  <!-- A .muted line: pull every playable one and split them between the two decks;
+       the other team draws from the same list. Then a table, one row per color: each
+       spell in <b> with its cost and what it kills (toughness / mana value limits,
+       instant or sorcery). Then the split, as a .muted paragraph:
+       <b>Can hit a planeswalker:</b> … <b>Creatures only:</b> … plus one line on
+       which toughness dodges which spell. -->
+  <div class="tbl"><table>
+  </table></div>
+</section>
+
+<section id="checklist">
+  <h2>Build hour checklist</h2>
+  <!-- A <ul> in the order the team works at the table: confirm the product and match
+       format → pull piles (removal → bombs → ×2 cards → fixing) → set the color split
+       → splash and land counts → the 2HG grade adjustments → the die roll (draw or
+       play) → in-game reminders. -->
+</section>
+
+</div>
+
+<footer id="sources">
+  <!-- <p><b>Sources.</b> Every source with a link: the Reddit threads (and the date read),
+       win-rate data (which queue, which dates), set guides, the official release notes
+       and 2HG product news, the Comprehensive Rules version used via rules-lookup, and
+       "Card images from Scryfall; card art and text © Wizards of the Coast."</p> -->
+</footer>
+</div>
+
+<script>
+(() => {
+  const CARDS = {};
+  const names = Object.keys(CARDS).sort((a, b) => b.length - a.length);
+  if (!names.length) return; // an empty map: nothing to mark (and an empty regex would never advance)
+  const esc = (t) => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const re = new RegExp("(?<![\\w'])(" + names.map(esc).join("|") + ")(?![\\w'])", "g");
+
+  // Mark every card name in the guide's text (not links, not headings).
+  const root = document.querySelector(".cols");
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+    acceptNode: (n) => n.parentElement.closest("a, .cn, h2, script, style") ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT,
+  });
+  const nodes = [];
+  while (walker.nextNode()) nodes.push(walker.currentNode);
+  for (const node of nodes) {
+    const text = node.nodeValue;
+    re.lastIndex = 0;
+    if (!re.test(text)) continue;
+    re.lastIndex = 0;
+    const frag = document.createDocumentFragment();
+    let last = 0, m;
+    while ((m = re.exec(text))) {
+      if (m.index > last) frag.append(text.slice(last, m.index));
+      const span = document.createElement("span");
+      span.className = "cn";
+      span.tabIndex = 0;
+      span.dataset.img = CARDS[m[1]];
+      span.textContent = m[1];
+      frag.append(span);
+      last = m.index + m[1].length;
+    }
+    if (last < text.length) frag.append(text.slice(last));
+    node.replaceWith(frag);
+  }
+
+  // One floating preview, placed beside the hovered name like deck-forge's.
+  const pop = document.createElement("div");
+  pop.className = "card-pop";
+  pop.hidden = true;
+  const img = document.createElement("img");
+  img.alt = "";
+  pop.append(img);
+  document.body.append(pop);
+  let current = null;
+
+  function show(el) {
+    current = el;
+    img.src = el.dataset.img;
+    img.alt = el.textContent;
+    pop.hidden = false;
+    const r = el.getBoundingClientRect();
+    const w = pop.offsetWidth, h = pop.offsetHeight, gap = 12;
+    const vw = window.innerWidth, vh = window.innerHeight;
+    let x = r.right + gap;
+    if (x + w > vw - 8) {
+      const left = r.left - w - gap;
+      x = left >= 8 ? left : Math.max(8, (vw - w) / 2);
+    }
+    let y = r.top + r.height / 2 - h / 2;
+    y = Math.max(8, Math.min(y, vh - h - 8));
+    pop.style.left = x + "px";
+    pop.style.top = y + "px";
+  }
+  function hide() { current = null; pop.hidden = true; }
+
+  const hoverable = window.matchMedia("(hover: hover)").matches;
+  root.addEventListener("mouseover", (e) => {
+    const el = e.target.closest(".cn");
+    if (hoverable && el && el !== current) show(el);
+  });
+  root.addEventListener("mouseout", (e) => {
+    const el = e.target.closest(".cn");
+    if (hoverable && el && !el.contains(e.relatedTarget)) hide();
+  });
+  root.addEventListener("focusin", (e) => { if (e.target.classList.contains("cn")) show(e.target); });
+  root.addEventListener("focusout", (e) => { if (e.target.classList.contains("cn")) hide(); });
+  // Touch: tap a name to show its card, tap it again (or anywhere else) to hide.
+  document.addEventListener("click", (e) => {
+    if (hoverable) return;
+    const el = e.target.closest(".cn");
+    if (el && el !== current) show(el); else hide();
+  });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") hide(); });
+  window.addEventListener("scroll", () => { if (!hoverable) hide(); }, { passive: true });
+})();
+</script>
+</body>
+</html>

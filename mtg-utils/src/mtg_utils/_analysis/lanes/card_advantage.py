@@ -58,6 +58,7 @@ from mtg_utils._card_ir.crosswalk import (
     reveal_until_player,
     static_mode_tag,
     tag_of,
+    trigger_phase,
     trigger_scope,
     trigger_subject,
     trigger_subject_scope,
@@ -1602,7 +1603,7 @@ def _combat_buff_engine(tree: ConceptTree) -> list[Signal]:
     for unit in tree.units:
         ev = unit.trigger_event
         combat = ev in _COMBAT_BUFF_EVENTS or (
-            ev == "phase" and getattr(unit.node, "phase", None) == "BeginCombat"
+            ev == "phase" and trigger_phase(unit.node) == "BeginCombat"
         )
         if not combat:
             continue

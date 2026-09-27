@@ -8,9 +8,11 @@ from collections.abc import Sequence
 
 from mtg_utils._analysis.signal_base import Signal
 from mtg_utils._card_ir.crosswalk import (
+    MASS_EFFECT_TAGS,
     AbilityUnit,
     ConceptNode,
     ConceptTree,
+    effect_filter,
     effect_owner_player_scope,
     filter_controller,
     filter_core_types,
@@ -18,6 +20,7 @@ from mtg_utils._card_ir.crosswalk import (
     filter_owned_controller,
     filter_predicates,
     filter_subtypes,
+    scoped_player_scope,
     tag_of,
     trigger_scope,
     trigger_subject_scope,
@@ -300,6 +303,78 @@ _EDICT_ACTORS: frozenset[str] = frozenset(
 )
 
 
+def _edict_scope(owner_tag: str | None) -> str:
+    """An edict actor tag → lane scope (CR 701.21a). An opponent actor → opponents; a
+    symmetric each-player actor → each (mirrors ``_ir_scope`` opp/each)."""
+    if owner_tag in ("Opponent", "Opponents", "EachOpponent"):
+        return "opponents"
+    return "each"
+
+
+def _sac_actor_scope(
+    node: TypedMirrorNode, unit: AbilityUnit | None = None
+) -> str | None:
+    """The edict scope of a ``Sacrifice`` effect from its sacrificed filter's
+    CONTROLLER (CR 701.21a — a player only sacrifices a permanent THEY control, so the
+    controller IS the forced actor). An opponent / target-player controller →
+    opponents; an each/all-player controller → each; a ``ScopedPlayer`` ("that player
+    sacrifices") resolves by the trigger's turn constraint
+    (:func:`scoped_player_scope`) so a symmetric each-player upkeep edict (Braids,
+    Smokestack) scopes /each, not /opponents; a ``You`` controller (a you-sac outlet —
+    Mycoloth) or none (an unscoped/bare-self sac) → ``None`` (not an edict via this
+    arm).
+
+    b3 recall — two more forced-actor controllers, both gated on a TRIGGER origin
+    (the adjudicated "trigger-wrapped true edict" the direct opp/each arm misses):
+    ``DefendingPlayer`` (Annihilator N — CR 702.85a, the defending player
+    sacrifices N permanents of their choice: Breaker of Creation, Artisan of
+    Kozilek) → opponents; ``ParentTargetController`` ("that [dying creature]'s
+    controller sacrifices …" — Burning Sands) → each, matching the live IR scope
+    (symmetric across whoever's permanent left). The trigger gate excludes an
+    activated/spell OPTIONAL "may sacrifice a land" downside (Chain of Vapor —
+    ParentTargetController, an optional bounce rider, not an edict)."""
+    ctrl = filter_controller(effect_filter(node))
+    if ctrl == "ScopedPlayer":
+        return scoped_player_scope(unit)
+    # phase v0.86.0: "target opponent" is its own ``TargetOpponent`` tag (283 → 285
+    # TargetPlayer, 38 → 83 TargetOpponent across the card-data) — the same forced
+    # actor as before, one tag narrower.
+    if ctrl in (
+        "Opponent",
+        "Opponents",
+        "EachOpponent",
+        "TargetPlayer",
+        "TargetOpponent",
+    ):
+        return "opponents"
+    if ctrl in ("All", "EachPlayer", "Each"):
+        return "each"
+    if unit is not None and getattr(unit, "origin", None) == "trigger":
+        if ctrl == "DefendingPlayer":
+            return "opponents"
+        if ctrl in ("ParentTargetController", "EventTargetController"):
+            return "each"
+    return None
+
+
+def sacrifice_actor_scope(unit: AbilityUnit, node: TypedMirrorNode) -> str | None:
+    """WHO a ``Sacrifice`` effect forces to sacrifice (CR 701.21a: a player only
+    sacrifices a permanent they control) — ``"opponents"``, ``"each"`` (every
+    player, you included — Braids, Smokestack), or ``None`` (you: a you-sac outlet
+    or a "you may sacrifice" choice — Mycoloth, Winter, Tormented Loner).
+
+    The owning wrapper's ``player_scope`` decides first (:data:`_EDICT_ACTORS` —
+    Grave Pact's wrapper says ``Opponent`` while its sacrificed filter is mislabeled
+    ``controller: You``); otherwise the sacrificed filter's controller
+    (:func:`_sac_actor_scope`). The one actor read ``edict_makers`` scopes by and
+    the forced-only edict walk (``removal_tutors.removal_edict_answers``) gates on.
+    """
+    owner = effect_owner_player_scope(getattr(unit, "node", None), node)
+    if owner in _EDICT_ACTORS:
+        return _edict_scope(owner)
+    return _sac_actor_scope(node, unit)
+
+
 def _sac_is_edict(unit: AbilityUnit, sac_node: TypedMirrorNode) -> bool:
     """Whether a ``Sacrifice`` EFFECT is an EDICT (someone ELSE sacrifices their own).
 
@@ -421,9 +496,6 @@ def _is_generic_creature_filter(filt: object) -> bool:
 # (Beacon of Immortality, Blitz Hellion, Cerulean Sphinx, …) whose ONLY
 # ParentTargetOwner-tagged effect is an ``Shuffle``/``other`` concept no
 # lane reads for scope at all — genuinely no bug, nothing to fix.
-_MASS_EFFECT_TAGS: frozenset[str] = frozenset(
-    {"DestroyAll", "ChangeZoneAll", "PutCounterAll", "DamageAll", "DamageEachPlayer"}
-)
 _TARGET_OWNER_BACKREF_TAGS: frozenset[str] = frozenset(
     {
         "ParentTarget",
@@ -453,7 +525,7 @@ _TARGET_OWNER_BACKREF_TAGS: frozenset[str] = frozenset(
 def _root_target_filter(unit: AbilityUnit) -> object | None:
     """The FIRST real object-filter target in ``unit``'s effect chain — the
     object ``ParentTarget``/``ParentTargetOwner`` resolve through — skipping
-    a mass/symmetric effect (:data:`_MASS_EFFECT_TAGS`, CR 601.2c: "all"/
+    a mass/symmetric effect (:data:`MASS_EFFECT_TAGS`, CR 601.2c: "all"/
     "each" names no single chosen object, so a later back-reference in the
     SAME chain can't mean IT) and any back-reference tag
     (:data:`_TARGET_OWNER_BACKREF_TAGS`). ``None`` when no unit effect names
@@ -461,7 +533,7 @@ def _root_target_filter(unit: AbilityUnit) -> object | None:
     Phantasm's "this creature's owner shuffles IT into their library" — the
     SAME card, never a variable target)."""
     for c in unit.effects:
-        if tag_of(c.node) in _MASS_EFFECT_TAGS:
+        if tag_of(c.node) in MASS_EFFECT_TAGS:
             continue
         tgt = getattr(c.node, "target", None)
         if tgt is None:

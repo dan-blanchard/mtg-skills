@@ -66,6 +66,12 @@ playtest-custom-format = "mtg_utils.playtest:custom_format_main"
 # Proxy printer
 proxy-print = "mtg_utils.proxy_print:main"
 fetch-art = "mtg_utils.art_fetcher:main"
+# 2HG prerelease guide
+twohg-scan = "mtg_utils.twohg_scan:main"
+limited-stats = "mtg_utils.limited_stats:main"
+thread-extract = "mtg_utils.thread_extract:main"
+guide-card-hovers = "mtg_utils.guide_card_hovers:main"
+twohg-template = "mtg_utils.guide_card_hovers:template_main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
@@ -74,6 +80,7 @@ where = ["src"]
 "mtg_utils.data" = ["*.txt", "*.toml"]
 "mtg_utils.data.gauntlets" = ["*.json"]
 "mtg_utils.data.card_art" = ["*.txt"]
+"mtg_utils.data.twohg" = ["*.html"]
 
 [tool.pytest.ini_options]
 testpaths = ["../tests/mtg-utils"]
@@ -81,14 +88,14 @@ testpaths = ["../tests/mtg-utils"]
 [dependency-groups]
 dev = [
     "pytest>=9.0.2",
-    # Pinned exactly, and identically across all eight pyproject.toml files: CI
+    # Pinned exactly, and identically across all nine pyproject.toml files: CI
     # lints/formats the WHOLE repo with mtg-utils' ruff, so a skill resolving a
     # different version formats code CI then rejects. `>=` previously let the eight
     # lockfiles drift across six versions. It also matters that `select = ["ALL"]`
     # below opts into EVERY rule, so each ruff release auto-enables new ones — the
     # 0.15 -> 0.16 bump added five (CPY001/RUF036/ISC004/PLR0917/FURB192). An
     # unpinned resolver bump therefore fails CI with no code change to blame. Bump
-    # deliberately, in all eight at once, and triage the new rules — ignore-list or
+    # deliberately, in all nine at once, and triage the new rules — ignore-list or
     # fix — in that same commit.
     "ruff==0.16.2",
     # deck-forge's server deps live in deck-forge/pyproject.toml, but the server
