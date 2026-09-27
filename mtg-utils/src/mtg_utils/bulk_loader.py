@@ -34,8 +34,10 @@ from mtg_utils._sidecar import load_pickle_sidecar, write_pickle_sidecar
 # ``arena_available`` (oracle-level) and ``reprint``; legalities are no longer rewritten
 # by the retired adapter Arena gate (``formats.Format.legality`` gates instead). v4:
 # records carry printing style (``full_art`` / ``border_color`` / ``frame_effects`` /
-# ``promo`` / ``promo_types``) for the special-basic-printing rule (ADR-0058).
-SIDECAR_VERSION = 4
+# ``promo`` / ``promo_types``) for the special-basic-printing rule (ADR-0058). v5:
+# records carry ``arena_id`` (MTGJSON ``identifiers.mtgArenaId``), which mtga-import
+# resolves Player.log card ids through (``CardPool.by_arena_id``).
+SIDECAR_VERSION = 5
 SIDECAR_SUFFIX = ".idx.pkl"
 
 

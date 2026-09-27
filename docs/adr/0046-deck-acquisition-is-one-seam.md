@@ -73,3 +73,14 @@ index fields onto `state.pool` now (a large hub diff while the CLI side is also 
 **Amends.** ADR-0012's construction adapters are now `acquire` / `from_session` /
 `from_parsed` (`from_paths` retired). ADR-0005's `scryfall_lookup` carve-out is now the
 `fetch_card` seam `acquire` calls; nothing else changes.
+
+**Amended (2026-09-27).** Two bulk readers still went around the pool and are now
+routed through it. lgs-search's spill-check price proxy matched a card's exact full
+name, so a two-faced card named by its front face ("Brazen Borrower") priced at
+$0.00; it now resolves names through `by_name` and prices every printing via
+`printings_by_oracle`, and its legacy `default-cards*.json` locator is gone
+(`CardPool.resolve_path` is the one lookup). mtga-import built its own Arena-id
+index over `load_bulk_cards`, which resolved nothing once the card data became
+MTGJSON, because the adapter dropped `identifiers.mtgArenaId`. The adapter now
+carries it as `arena_id` (bulk sidecar v5), and the pool owns the index:
+`CardPool.by_arena_id`.

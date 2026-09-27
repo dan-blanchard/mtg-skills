@@ -36,8 +36,10 @@ import pytest
 from click.testing import CliRunner
 
 from mtg_utils import mtga_import
+from mtg_utils.card_pool import CardPool
 from mtg_utils.mark_owned import mark_owned
 from mtg_utils.mtga_import import (
+    _build_arena_id_index,
     _build_collection_json,
     _build_wildcards_json,
     _check_bulk_freshness,
@@ -49,6 +51,7 @@ from mtg_utils.mtga_import import (
     _parse_timestamp_prefix,
     _resolve_collection,
     _scan_log,
+    arena_id_index,
     main,
 )
 
@@ -566,19 +569,11 @@ class TestArenaIdIndexPrintings:
 
 
 def _build_arena_id_index_from_list(cards: list[dict]) -> dict[int, list[str]]:
-    """Helper that mimics _build_arena_id_index without touching disk."""
-    index: dict[int, list[str]] = {}
-    for card in cards:
-        arena_id = card.get("arena_id")
-        if not isinstance(arena_id, int):
-            continue
-        name = card.get("name")
-        if not isinstance(name, str) or not name:
-            continue
-        bucket = index.setdefault(arena_id, [])
-        if name not in bucket:
-            bucket.append(name)
-    return index
+    """The production :func:`arena_id_index` over an in-memory pool, as names."""
+    return {
+        arena_id: [entry["name"] for entry in entries]
+        for arena_id, entries in arena_id_index(CardPool.from_cards(cards)).items()
+    }
 
 
 class TestResolveCollection:
@@ -1419,3 +1414,23 @@ class TestCLI:
         collection = json.loads((output_dir / "collection.json").read_text())
         names = {c["name"] for c in collection["cards"]}
         assert "Sheoldred, the Apocalypse" in names
+
+
+def test_arena_ids_resolve_against_the_mtgjson_bulk(tmp_path):
+    """The card data of record is MTGJSON (ADR-0033): a Player.log id must resolve
+    through a real ``AllPrintings`` file, not only a Scryfall-shaped one. It
+    resolved nothing while the adapter dropped ``mtgArenaId``."""
+    from mtg_utils.testkit import mtgjson_printing, mtgjson_sets
+
+    bulk_path = tmp_path / "AllPrintings.json"
+    bulk_path.write_text(
+        json.dumps(
+            mtgjson_sets(
+                mtgjson_printing(
+                    "Lightning Bolt", "J21", "uncommon", ["arena"], arena_id=72104
+                ),
+            )
+        )
+    )
+    index = _build_arena_id_index(bulk_path)
+    assert [entry["name"] for entry in index[72104]] == ["Lightning Bolt"]

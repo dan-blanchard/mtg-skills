@@ -154,6 +154,7 @@ class CardPool:
 
     __slots__ = (
         "_aliases",
+        "_by_arena_id",
         "_by_id",
         "_by_name",
         "_cards",
@@ -170,6 +171,7 @@ class CardPool:
         self._path = path
         self._by_name: NameIndex | None = None
         self._by_id: dict[str, dict] | None = None
+        self._by_arena_id: dict[int, list[dict]] | None = None
         self._rarity: dict[tuple[str, bool, str | None, int], NameIndex] = {}
         self._unreleased: frozenset[str] | None = None
         self._aliases: dict[str, str] | None = None
@@ -261,6 +263,20 @@ class CardPool:
         if self._by_id is None:
             self._by_id = {c["id"]: c for c in self._cards if c.get("id")}
         return self._by_id
+
+    @property
+    def by_arena_id(self) -> dict[int, list[dict]]:
+        """Arena card id -> every record carrying it, in bulk order (mtga-import
+        resolves a Player.log card id through it). A list because two names can
+        share an id (an Alchemy rebalance with its paper original)."""
+        if self._by_arena_id is None:
+            index: dict[int, list[dict]] = {}
+            for card in self._cards:
+                arena_id = card.get("arena_id")
+                if isinstance(arena_id, int):
+                    index.setdefault(arena_id, []).append(card)
+            self._by_arena_id = index
+        return self._by_arena_id
 
     def rarity_index(self, fmt: Format, *, arena_only: bool = False) -> NameIndex:
         """name -> ``{rarity}`` for Arena wildcard costing in *fmt*.

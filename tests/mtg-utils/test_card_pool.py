@@ -17,9 +17,8 @@ from conftest import make_arena_card_db
 from mtg_utils.arena_card_db import ENV_VAR
 from mtg_utils.bulk_loader import clear_memory_cache
 from mtg_utils.card_pool import CardPool, NoBulkError, is_game_card
-from mtg_utils.deck import split_type_line
 from mtg_utils.formats import FORMATS
-from mtg_utils.testkit import test_card
+from mtg_utils.testkit import mtgjson_printing, mtgjson_sets, test_card
 
 
 def _card(name: str, **extra) -> dict:
@@ -276,9 +275,9 @@ class TestRarityIndex:
         """Without Arena's card database, a J21 reprint is costed like any Arena
         printing: 866 of Arena's 894 J21/JMP printings are craftable. Unholy Heat
         costs a common through its J21 reprint, not the later Special Guests mythic."""
-        data = _mtgjson_sets(
-            _mtgjson_printing("Unholy Heat", "J21", "common", ["arena"]),
-            _mtgjson_printing("Unholy Heat", "SPG", "mythic", ["arena", "paper"]),
+        data = mtgjson_sets(
+            mtgjson_printing("Unholy Heat", "J21", "common", ["arena"]),
+            mtgjson_printing("Unholy Heat", "SPG", "mythic", ["arena", "paper"]),
         )
         bulk_path = tmp_path / "AllPrintings.json"
         bulk_path.write_text(json.dumps(data))
@@ -292,12 +291,12 @@ class TestRarityIndex:
         rarity among its PRIMARY printings. Lightning Bolt's J21 common is not
         primary on Arena, so Bolt costs an uncommon. A card the database doesn't
         list keeps the MTGJSON answer."""
-        data = _mtgjson_sets(
-            _mtgjson_printing("Lightning Bolt", "J21", "common", ["arena"]),
-            _mtgjson_printing(
+        data = mtgjson_sets(
+            mtgjson_printing("Lightning Bolt", "J21", "common", ["arena"]),
+            mtgjson_printing(
                 "Lightning Bolt", "STA", "uncommon", ["arena", "mtgo", "paper"]
             ),
-            _mtgjson_printing("Reckless Charge", "J21", "common", ["arena"]),
+            mtgjson_printing("Reckless Charge", "J21", "common", ["arena"]),
         )
         bulk_path = tmp_path / "AllPrintings.json"
         bulk_path.write_text(json.dumps(data))
@@ -321,9 +320,9 @@ class TestRarityIndex:
         """Reckless Charge exists on Arena only as its J21 reprint (its MH1 printing
         is paper/MTGO). Deferring to a "real" printing needs one on Arena; with none,
         the J21 printing IS the card's Arena cost, not a reason to report it missing."""
-        data = _mtgjson_sets(
-            _mtgjson_printing("Reckless Charge", "J21", "common", ["arena"]),
-            _mtgjson_printing(
+        data = mtgjson_sets(
+            mtgjson_printing("Reckless Charge", "J21", "common", ["arena"]),
+            mtgjson_printing(
                 "Reckless Charge", "MH1", "common", ["mtgo", "paper"], reprint=False
             ),
         )
@@ -333,55 +332,6 @@ class TestRarityIndex:
             FORMATS["competitive_brawl"], arena_only=True
         )
         assert index["reckless charge"]["rarity"] == "common"
-
-
-def _mtgjson_printing(
-    name: str,
-    set_code: str,
-    rarity: str,
-    availability: list[str],
-    *,
-    reprint: bool = True,
-) -> dict:
-    """One MTGJSON printing of the real card *name* (its card data from the snapshot);
-    only the per-printing fields — set, rarity, availability, reprint — are the test's."""
-    record = test_card(name)
-    types, _ = split_type_line(record["type_line"])
-    return {
-        "name": record["name"],
-        "uuid": f"u-{set_code}-{record['oracle_id']}",
-        "identifiers": {
-            "scryfallOracleId": record["oracle_id"],
-            "scryfallId": f"s-{set_code}-{record['oracle_id']}",
-        },
-        "type": record["type_line"],
-        "types": [t.title() for t in types],
-        "manaValue": record["cmc"],
-        "colorIdentity": record["color_identity"],
-        "layout": record["layout"],
-        "text": record["oracle_text"],
-        "availability": availability,
-        "legalities": {
-            fmt: status
-            for fmt, status in record["legalities"].items()
-            if status != "not_legal"
-        },
-        "setCode": set_code,
-        "rarity": rarity,
-        "isReprint": reprint,
-    }
-
-
-def _mtgjson_sets(*printings: dict) -> dict:
-    """An ``AllPrintings`` document holding *printings*, one set per set code."""
-    sets: dict[str, dict] = {}
-    for printing in printings:
-        code = printing["setCode"]
-        sets.setdefault(
-            code,
-            {"code": code, "name": code, "type": "expansion", "cards": []},
-        )["cards"].append(printing)
-    return {"data": sets}
 
 
 class TestRarityIndexFormatBanOverrides:
@@ -467,3 +417,23 @@ def test_set_records_collector_order_reads_digits_then_the_raw_string():
         key=lambda n: _collector_key({"collector_number": n}),
     )
     assert order == ["3", "12", "12a", "100", "A-123", "★"]
+
+
+class TestByArenaId:
+    """``by_arena_id``: an Arena card id -> every printing carrying it, built through
+    the real MTGJSON adapter (mtga-import resolves Player.log ids through it)."""
+
+    def test_arena_ids_index_their_printings(self, tmp_path):
+        data = mtgjson_sets(
+            mtgjson_printing(
+                "Lightning Bolt", "J21", "uncommon", ["arena"], arena_id=72104
+            ),
+            mtgjson_printing("Lightning Bolt", "A25", "uncommon", ["paper"]),
+            mtgjson_printing("Sol Ring", "C21", "uncommon", ["paper"]),
+        )
+        bulk_path = tmp_path / "AllPrintings.json"
+        bulk_path.write_text(json.dumps(data))
+        index = CardPool.load(bulk_path).by_arena_id
+        assert list(index) == [72104]
+        (bolt,) = index[72104]
+        assert (bolt["name"], bolt["set"]) == ("Lightning Bolt", "j21")

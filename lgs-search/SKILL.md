@@ -89,19 +89,21 @@ For each card:
   full quantity. Residual goes online.
 
 The online price proxy is the **cheapest non-foil non-digital USD
-across all printings** of each card (from Scryfall bulk data), not
-the default printing's USD. Default-printing prices often miss cheap
+across all printings** of each card (from the MTGJSON card data,
+through the shared card pool, so a two-faced card named by its front
+face — "Brazen Borrower" — is priced too), not the default printing's
+USD. Default-printing prices often miss cheap
 reprints (e.g. Beast Within's default has no `usd`, but its cheap
 reprint is $0.50; Kessig Wolf Run's default is ~$15, cheapest
 reprint $0.30). Without bulk data the proxy is 0.0 — the spill check
 goes silent and every in-stock LGS listing wins, even when MP/TCG
 would be 5-30x cheaper.
 
-The orchestrator **auto-detects** `default-cards.json` on startup
-(searches `$MTG_SKILLS_BULK_DATA`, `$MTG_SKILLS_CACHE_DIR`,
-`~/.cache/mtg-skills/`, `$CWD`, `$CWD/.cache`, plus parents up two
-levels). When nothing is found, it prints a loud warning explaining
-the silent-no-spill failure mode and pointing at `download-mtgjson`.
+The orchestrator **auto-detects** the MTGJSON card data that
+`download-mtgjson` writes (under `$MTG_SKILLS_CACHE_DIR` or
+`~/.cache/mtg-skills/`), the same lookup every other tool uses. When
+nothing is found, it prints a loud warning explaining the
+silent-no-spill failure mode and pointing at `download-mtgjson`.
 Don't pass `--bulk-data` unless you need a specific path.
 
 ### Phase 4 — Online optimize

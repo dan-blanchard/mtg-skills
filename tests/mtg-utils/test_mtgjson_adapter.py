@@ -740,3 +740,15 @@ def test_source_files_lists_printings_then_prices(tmp_path):
     assert source_files(printings) == [printings, tmp_path / ALLPRICES_NAME]
     # ...and download fetches exactly those names — one home, so they can't drift.
     assert MTGJSON_FILES == (ALLPRINTINGS_NAME, ALLPRICES_NAME)
+
+
+def test_translate_carries_the_arena_id_as_an_int():
+    """MTGJSON keeps a printing's Arena id at ``identifiers.mtgArenaId`` as a string;
+    the record carries it as Scryfall does, an int, so mtga-import can resolve a
+    Player.log card id. A printing Arena doesn't have carries None."""
+    on_arena = {
+        **_sunfall(),
+        "identifiers": {**_sunfall()["identifiers"], "mtgArenaId": "84516"},
+    }
+    assert adapter.translate_card([on_arena])["arena_id"] == 84516
+    assert adapter.translate_card([_sunfall()])["arena_id"] is None

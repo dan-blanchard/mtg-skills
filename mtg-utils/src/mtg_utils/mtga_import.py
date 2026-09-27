@@ -92,7 +92,7 @@ import click
 
 from mtg_utils._sidecar import atomic_write_json
 from mtg_utils.arena_card_db import player_log_path
-from mtg_utils.bulk_loader import load_bulk_cards
+from mtg_utils.card_pool import CardPool
 from mtg_utils.formats import ARENA_PLAYSET, FORMATS
 
 # The exact anchor string that marks a login-time API response in the
@@ -392,7 +392,13 @@ def _collection_from_decks(decks: dict | None) -> dict[str, int]:
 
 
 def _build_arena_id_index(bulk_path: Path) -> dict[int, list[dict]]:
-    """Return ``{arena_id: [{name, set, collector_number}, ...]}`` from bulk data.
+    """:func:`arena_id_index` over the card pool at *bulk_path* (ADR-0046)."""
+    return arena_id_index(CardPool.load(bulk_path))
+
+
+def arena_id_index(pool: CardPool) -> dict[int, list[dict]]:
+    """Return ``{arena_id: [{name, set, collector_number}, ...]}`` from the pool's
+    ``by_arena_id`` index.
 
     An Arena id can map to multiple card names when an Alchemy rebalance
     shares its id with the paper version (``A-Teferi, Time Raveler`` /
@@ -400,36 +406,35 @@ def _build_arena_id_index(bulk_path: Path) -> dict[int, list[dict]]:
     importer can emit all variants — in Historic Brawl, both forms are
     legal unless explicitly banned, and the user can choose either.
 
-    Each entry also carries the bulk printing's ``set`` (lowercase) and
+    Each entry also carries the printing's ``set`` (lowercase) and
     ``collector_number`` (string) — ``None`` when the record lacks them —
     so ``_resolve_collection`` can retain per-printing quantities instead
     of collapsing them into the name-level total. Names are deduplicated
-    (two Scryfall printings of the same card can share an id) while
-    preserving first-seen order.
+    (two printings of the same card can share an id) while preserving
+    first-seen order.
     """
-    cards = load_bulk_cards(bulk_path)
     index: dict[int, list[dict]] = {}
-    for card in cards:
-        arena_id = card.get("arena_id")
-        if not isinstance(arena_id, int):
-            continue
-        name = card.get("name")
-        if not isinstance(name, str) or not name:
-            continue
-        bucket = index.setdefault(arena_id, [])
-        if any(entry["name"] == name for entry in bucket):
-            continue
-        set_code = card.get("set")
-        collector = card.get("collector_number")
-        bucket.append(
-            {
-                "name": name,
-                "set": set_code.lower() if isinstance(set_code, str) else None,
-                "collector_number": (
-                    str(collector) if collector not in (None, "") else None
-                ),
-            },
-        )
+    for arena_id, cards in pool.by_arena_id.items():
+        bucket: list[dict] = []
+        for card in cards:
+            name = card.get("name")
+            if not isinstance(name, str) or not name:
+                continue
+            if any(entry["name"] == name for entry in bucket):
+                continue
+            set_code = card.get("set")
+            collector = card.get("collector_number")
+            bucket.append(
+                {
+                    "name": name,
+                    "set": set_code.lower() if isinstance(set_code, str) else None,
+                    "collector_number": (
+                        str(collector) if collector not in (None, "") else None
+                    ),
+                },
+            )
+        if bucket:
+            index[arena_id] = bucket
     return index
 
 
@@ -631,8 +636,8 @@ def _check_bulk_freshness(bulk_path: Path) -> str | None:
     """Return a WARN message if bulk data is older than ``_BULK_STALE_HOURS``.
 
     Returns ``None`` when the bulk data is fresh enough. Missing/unreadable
-    files are handled by the caller — ``load_bulk_cards`` will raise its
-    own clear error in that case.
+    files are handled by the caller — ``CardPool.load`` raises its own clear
+    error in that case.
     """
     try:
         mtime = bulk_path.stat().st_mtime

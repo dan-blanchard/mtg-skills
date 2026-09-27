@@ -101,7 +101,14 @@ _FACE_FIELDS = (
 # comments mentioning ``test_card("…")``, and parametrize tables all behave
 # correctly — a regex scan mis-handled all three.
 _CORE_HELPERS = frozenset(
-    {"test_card", "test_card_ir", "test_signals", "test_phase_records", "test_printing"}
+    {
+        "test_card",
+        "test_card_ir",
+        "test_signals",
+        "test_phase_records",
+        "test_printing",
+        "mtgjson_printing",
+    }
 )
 
 
@@ -309,7 +316,9 @@ def _minimal(card: dict) -> dict:
 
 
 # The test trees the usage scan reads, relative to the repo root.
-TEST_DIRS = ("tests/deck-forge", "tests/mtg-utils")
+# Every skill's tests: ADR-0056 applies to all of them, so a real card any test
+# names must be captured, not only deck-forge's and mtg-utils'.
+TEST_DIRS = ("tests",)
 # Source labels for the two name sources the AST scan cannot see.
 PRESET_SOURCE = "theme_presets (fixture)"
 LEDGER_SOURCE = "bridge_ledger (pin)"

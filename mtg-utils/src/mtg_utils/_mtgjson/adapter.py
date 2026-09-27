@@ -157,6 +157,15 @@ def prices(uuid: str | None, price_index: dict) -> dict:
     return {k: v for k, v in out.items() if v is not None}
 
 
+def _arena_id(raw: str | int | None) -> int | None:
+    """MTGJSON's ``mtgArenaId`` (a string) as Scryfall's ``arena_id`` (an int), or
+    None for a printing Arena doesn't have."""
+    try:
+        return int(raw) if raw not in (None, "") else None
+    except (TypeError, ValueError):
+        return None
+
+
 def _part(component: str, rec: dict, *, prefer_face: bool = False) -> dict:
     ids = rec.get("identifiers") or {}
     # Tokens use the combined name ("Incubator // Phyrexian" for a DFC token, matching
@@ -283,6 +292,7 @@ def translate_card(
     rec: dict = {
         "oracle_id": oracle_id,
         "id": ids.get("scryfallId"),
+        "arena_id": _arena_id(ids.get("mtgArenaId")),
         "name": name,
         "type_line": " // ".join(f.get("type", "") or "" for f in faces),
         # Scryfall cmc is always a float (0.0 for lands/tokens); MTGJSON omits manaValue

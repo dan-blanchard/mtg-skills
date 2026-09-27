@@ -61,6 +61,7 @@ from mtg_utils._card_ir.mirror.build import load_committed_schema
 from mtg_utils._card_ir.trees import build_trees, has_memoized_trees, seed_trees
 from mtg_utils._phase import PHASE_TAG
 from mtg_utils.card_ir import Card
+from mtg_utils.deck import split_type_line
 from mtg_utils.ownership import printing_rows
 from mtg_utils.theme_presets import forget_signal_keys
 
@@ -193,6 +194,61 @@ def printing_row(
     for copies of a printing a collection holds."""
     (row,) = printing_rows({(set_code, collector_number): (quantity, foil_quantity)})
     return row
+
+
+def mtgjson_printing(
+    name: str,
+    set_code: str,
+    rarity: str,
+    availability: list[str],
+    *,
+    reprint: bool = True,
+    arena_id: int | None = None,
+) -> dict[str, Any]:
+    """One MTGJSON ``AllPrintings`` printing of the real card *name* (its card data
+    from the snapshot); only the per-printing fields — set, rarity, availability,
+    reprint, Arena id — are the test's. For a test that must run the real MTGJSON
+    adapter (a whole-file :func:`mtgjson_sets` document loaded by ``CardPool``)."""
+    record = test_card(name)
+    types, _ = split_type_line(record["type_line"])
+    identifiers = {
+        "scryfallOracleId": record["oracle_id"],
+        "scryfallId": f"s-{set_code}-{record['oracle_id']}",
+    }
+    if arena_id is not None:
+        identifiers["mtgArenaId"] = str(arena_id)  # MTGJSON stores it as a string
+    return {
+        "name": record["name"],
+        "uuid": f"u-{set_code}-{record['oracle_id']}",
+        "identifiers": identifiers,
+        "type": record["type_line"],
+        "types": [t.title() for t in types],
+        "manaValue": record["cmc"],
+        "colorIdentity": record["color_identity"],
+        "layout": record["layout"],
+        "text": record["oracle_text"],
+        "availability": availability,
+        "legalities": {
+            fmt: status
+            for fmt, status in record["legalities"].items()
+            if status != "not_legal"
+        },
+        "setCode": set_code,
+        "rarity": rarity,
+        "isReprint": reprint,
+    }
+
+
+def mtgjson_sets(*printings: dict[str, Any]) -> dict[str, Any]:
+    """An ``AllPrintings`` document holding *printings*, one set per set code."""
+    sets: dict[str, dict[str, Any]] = {}
+    for printing in printings:
+        code = printing["setCode"]
+        sets.setdefault(
+            code,
+            {"code": code, "name": code, "type": "expansion", "cards": []},
+        )["cards"].append(printing)
+    return {"data": sets}
 
 
 def snapshot_records() -> list[dict[str, Any]]:

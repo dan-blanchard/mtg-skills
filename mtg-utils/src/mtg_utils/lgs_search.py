@@ -16,6 +16,7 @@ from typing import TYPE_CHECKING, Literal, TypedDict, cast
 from mtg_utils._sidecar import atomic_write_json
 from mtg_utils._stores._common import Line, Listing
 from mtg_utils.card_classify import BASIC_LAND_NAMES
+from mtg_utils.card_pool import CardPool, NoBulkError
 from mtg_utils.formats import PAPER, Format
 from mtg_utils.names import normalize_card_name
 
@@ -853,95 +854,8 @@ def _playwright_pages(
                     ctx.close()
 
 
-import os  # noqa: E402
-
-
-def _locate_bulk_data() -> Path | None:
-    """Find card-data bulk in common locations, MTGJSON first.
-
-    The spill check needs this file to compute cheapest-printing USD; without
-    it the proxy is 0.0 for every card and ALL cards stay at LGS (silent
-    no-spill) — verified live on a 31-card run that overpaid ~$43 because
-    `--bulk-data` wasn't passed.
-
-    Search order (first hit wins):
-
-      1. ``$MTG_SKILLS_BULK_DATA`` (explicit override, full path)
-      2. ``bulk_loader.default_bulk_path()`` — MTGJSON ``AllPrintings.json``
-         (ADR-0033, the card-data source of record; ``download-mtgjson``
-         writes it under ``$MTG_SKILLS_CACHE_DIR/mtgjson/`` or
-         ``~/.cache/mtg-skills/mtgjson/``). ``load_bulk_cards`` (used by
-         :func:`_scryfall_usd_lookup`) translates it to the same
-         Scryfall-shaped records the legacy fallback below reads, so this
-         is a strict upgrade, not a different shape.
-      3. Legacy Scryfall bulk fallback, for anyone still holding a
-         pre-ADR-0033 dump (the deleted ``download-bulk`` command's
-         output): newest ``default-cards*.json`` under
-         ``$MTG_SKILLS_CACHE_DIR``, ``~/.cache/mtg-skills/``, ``$CWD``,
-         ``$CWD/.cache``, or a couple of parent dirs of ``$CWD`` (some
-         users keep dated copies, e.g.
-         default-cards-20260214220913.json).
-
-    Returns the Path of the resolved hit, or None if nothing is found.
-    Caller is expected to print a loud warning when None.
-    """
-    explicit = os.environ.get("MTG_SKILLS_BULK_DATA")
-    if explicit:
-        p = Path(explicit).expanduser()
-        if p.exists():
-            return p
-
-    from mtg_utils.bulk_loader import default_bulk_path
-
-    mtgjson_path = default_bulk_path()
-    if mtgjson_path is not None:
-        return mtgjson_path
-
-    cache_env = os.environ.get("MTG_SKILLS_CACHE_DIR")
-    candidates_dirs: list[Path] = []
-    if cache_env:
-        candidates_dirs.append(Path(cache_env))
-    candidates_dirs += [
-        Path.home() / ".cache" / "mtg-skills",
-        Path.cwd(),
-        Path.cwd() / ".cache",
-    ]
-    # Also walk a few parents of cwd looking for an in-repo .cache; common
-    # case is invoking the skill from a subdirectory of the repo where
-    # download-mtgjson was run at the repo root.
-    cwd = Path.cwd()
-    for parent in (cwd.parent, cwd.parent.parent):
-        if parent != cwd:
-            candidates_dirs.append(parent)
-            candidates_dirs.append(parent / ".cache")
-
-    seen: set[Path] = set()
-    matches: list[Path] = []
-    for d in candidates_dirs:
-        if d in seen:
-            continue
-        seen.add(d)
-        if not d.exists():
-            continue
-        # Exact name first, then dated variants.
-        exact = d / "default-cards.json"
-        if exact.exists():
-            matches.append(exact)
-        try:
-            for p in d.glob("default-cards*.json"):
-                if p != exact:
-                    matches.append(p)
-        except OSError:
-            continue
-
-    if not matches:
-        return None
-    # Newest wins so dated dumps don't shadow a fresh-named file.
-    return max(matches, key=lambda p: p.stat().st_mtime)
-
-
-def _scryfall_usd_lookup(bulk_path: Path | None, names: list[str]) -> dict[str, float]:
-    """Cheapest non-foil non-digital USD across ALL printings of each name.
+def _cheapest_usd(pool: CardPool | None, names: list[str]) -> dict[str, float]:
+    """Cheapest non-foil paper USD across ALL printings of each name.
 
     Used as the "online proxy" in the spill check (`_spill_triggered`). Uses
     the cheapest printing — not the default printing — because online
@@ -953,47 +867,65 @@ def _scryfall_usd_lookup(bulk_path: Path | None, names: list[str]) -> dict[str, 
       * is the original expensive run, masking cheap reprints (e.g. Kessig
         Wolf Run: default ~$15, cheapest reprint $0.30).
 
-    Returns 0.0 for unknown / unpriced cards; the allocator treats 0.0 as
-    "no signal" and won't spill on it.
-    """
-    if bulk_path is None or not bulk_path.exists():
-        return dict.fromkeys(names, 0.0)
-    try:
-        from mtg_utils.bulk_loader import load_bulk_cards
+    Names resolve through the card pool (ADR-0046), so a deck list's
+    front-face name ("Brazen Borrower") finds its two-faced card
+    ("Brazen Borrower // Petty Theft"), and every printing of that card is
+    priced. Digital-only printings (Arena, MTGO) are skipped: not buyable at
+    TCG / MP. ``usd_foil`` is excluded so ``allow_foil=False`` stays the
+    proxy's mode; ``usd_etched`` counts (an etched-only card's only price).
 
-        data = load_bulk_cards(bulk_path)
-    except (ValueError, OSError):
-        return dict.fromkeys(names, 0.0)
-    if not isinstance(data, list):
-        return dict.fromkeys(names, 0.0)
-    name_set = set(names)
-    min_by_name: dict[str, float] = {}
-    for row in data:
-        if not isinstance(row, dict):
-            continue
-        n = row.get("name")
-        if n not in name_set:
-            continue
-        if row.get("digital"):
-            continue
-        # Non-foil cardstock: the cheapest of usd/usd_etched is what a buyer
-        # would actually pay; usd_foil is excluded so allow_foil=False
-        # remains the proxy's default mode.
-        prices = row.get("prices") or {}
-        for key in ("usd", "usd_etched"):
-            raw = prices.get(key)
-            if not raw:
-                continue
-            try:
-                price = float(raw)
-            except (TypeError, ValueError):
-                continue
-            if price <= 0:
-                continue
-            cur = min_by_name.get(n)
-            if cur is None or price < cur:
-                min_by_name[n] = price
-    return {name: min_by_name.get(name, 0.0) for name in names}
+    Returns 0.0 for unknown / unpriced cards, and for every card when there
+    is no pool; the allocator treats 0.0 as "no signal" and won't spill on it.
+    """
+    out = dict.fromkeys(names, 0.0)
+    if pool is None:
+        return out
+    for name in names:
+        card = pool.by_name.get(name)
+        oracle_id = card.get("oracle_id") if card else None
+        printings = pool.printings_by_oracle.get(oracle_id, []) if oracle_id else []
+        prices = [
+            price
+            for printing in printings
+            if not printing.get("digital")
+            for key in ("usd", "usd_etched")
+            if (price := _positive_price((printing.get("prices") or {}).get(key)))
+        ]
+        if prices:
+            out[name] = min(prices)
+    return out
+
+
+def _positive_price(raw: str | float | None) -> float | None:
+    """A listed price as a float, or None when it is missing, malformed or zero."""
+    if not raw:
+        return None
+    try:
+        price = float(raw)
+    except (TypeError, ValueError):
+        return None
+    return price if price > 0 else None
+
+
+def _load_pool(bulk_data: Path | None) -> CardPool | None:
+    """The card pool for the spill check's price proxy: *bulk_data* when passed,
+    else the auto-discovered MTGJSON bulk (``CardPool.resolve_path``). Without
+    it the proxy is 0.0 for every card and ALL cards stay at LGS (silent
+    no-spill), verified live on a 31-card run that overpaid ~$43 — so a
+    missing bulk warns loudly instead of failing the run."""
+    try:
+        pool = CardPool.load(bulk_data)
+    except NoBulkError as exc:
+        click.echo(
+            f"WARNING: {exc} Without it the spill check has no online-price "
+            "signal: every in-stock LGS listing wins, and you may overpay by "
+            "5-30x on cards with cheap reprints.",
+            err=True,
+        )
+        return None
+    if bulk_data is None:
+        click.echo(f"Auto-detected card data: {pool.path}", err=True)
+    return pool
 
 
 def _render_summary(
@@ -1111,31 +1043,7 @@ def _run_orchestrator(
         include_basics=include_basics,
     )
     names = [c["card_name"] for c in cards]
-    # Auto-detect bulk data when not explicitly passed. Without it, the
-    # cheapest-printing proxy is 0.0 for every card and the spill check
-    # has no signal — every card stays at LGS, including ones that are
-    # 5-30x cheaper online. Loud warning when nothing's found so the
-    # silent-no-spill failure mode of an earlier run can't recur.
-    if bulk_data is None:
-        bulk_data = _locate_bulk_data()
-        if bulk_data is not None:
-            click.echo(
-                f"Auto-detected bulk data: {bulk_data}",
-                err=True,
-            )
-        else:
-            click.echo(
-                "WARNING: no Scryfall bulk data found in any of "
-                "$MTG_SKILLS_BULK_DATA, $MTG_SKILLS_CACHE_DIR, "
-                "~/.cache/mtg-skills/, $CWD, or $CWD/.cache. The spill "
-                "check will have no online-price signal — every "
-                "in-stock LGS listing will win and you may overpay "
-                "by 5-30x on cards with cheap reprints. Run "
-                "`download-mtgjson` (or pass --bulk-data) before re-running "
-                "for accurate allocation.",
-                err=True,
-            )
-    usd_lookup = _scryfall_usd_lookup(bulk_data, names)
+    usd_lookup = _cheapest_usd(_load_pool(bulk_data), names)
 
     prefs: SearchPrefs = {
         "max_condition": condition,
