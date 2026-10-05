@@ -187,6 +187,23 @@ def owned_quantity(
     return qty if qty >= 1 else None
 
 
+def load_collection(path: Path) -> dict:
+    """A collection file as a parsed deck: parsed-deck JSON, or a CSV export
+    (Untapped.gg, Moxfield) when the file isn't JSON."""
+    text = path.read_text(encoding="utf-8")
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        from mtg_utils.parse_deck import parse_csv
+
+        parsed = parse_csv(text)
+        return {
+            "commanders": parsed.get("commanders", []),
+            "cards": parsed.get("cards", []),
+            "sideboard": parsed.get("sideboard", []),
+        }
+
+
 def mark_owned(
     deck: dict,
     collection: dict,
@@ -307,28 +324,13 @@ def main(
         click.echo(f"mark-owned: invalid deck JSON — {exc}", err=True)
         sys.exit(1)
 
-    # Accept either parsed-deck JSON or CSV (e.g., Untapped.gg export)
-    # for the collection. Auto-detect by trying JSON first; if that fails,
-    # try CSV parsing.
-    collection_text = collection_path.read_text(encoding="utf-8")
-    try:
-        collection = json.loads(collection_text)
-    except json.JSONDecodeError:
-        from mtg_utils.parse_deck import parse_csv
-
-        parsed = parse_csv(collection_text)
-        collection = {
-            "commanders": parsed.get("commanders", []),
-            "cards": parsed.get("cards", []),
-            "sideboard": parsed.get("sideboard", []),
-        }
-        if not collection["cards"]:
-            click.echo(
-                "mark-owned: WARNING — collection file is not valid JSON "
-                "and CSV parsing found 0 cards. Check that the file is an "
-                "Untapped.gg CSV export or a parsed-deck JSON.",
-                err=True,
-            )
+    collection = load_collection(collection_path)
+    if not collection.get("cards"):
+        click.echo(
+            "mark-owned: WARNING — the collection has 0 cards. Check that the "
+            "file is an Untapped.gg CSV export or a parsed-deck JSON.",
+            err=True,
+        )
 
     name_aliases = None
     if bulk_data:

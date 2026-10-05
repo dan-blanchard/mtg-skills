@@ -17,7 +17,7 @@ from mtg_utils.names import normalize_card_name
 from mtg_utils.scryfall_lookup import lookup_single
 
 
-def _normalize_entry(entry: str | dict) -> dict:
+def normalize_entry(entry: str | dict) -> dict:
     """Normalize a cut/add entry to {"name": str, "quantity": int}."""
     if isinstance(entry, str):
         return {"name": entry, "quantity": 1}
@@ -96,8 +96,8 @@ def build_deck(
     """
     new_deck = copy.deepcopy(deck)
 
-    cuts = [_normalize_entry(c) for c in cuts]
-    adds = [_normalize_entry(a) for a in adds]
+    cuts = [normalize_entry(c) for c in cuts]
+    adds = [normalize_entry(a) for a in adds]
 
     # Apply mainboard cuts and adds
     cards = new_deck.get("cards", [])
@@ -111,11 +111,11 @@ def build_deck(
         if sideboard_cuts:
             sb_unmatched = _apply_cuts(
                 sb,
-                [_normalize_entry(c) for c in sideboard_cuts],
+                [normalize_entry(c) for c in sideboard_cuts],
             )
             unmatched_cuts.extend(f"(sideboard) {n}" for n in sb_unmatched)
         if sideboard_adds:
-            _apply_adds(sb, [_normalize_entry(a) for a in sideboard_adds])
+            _apply_adds(sb, [normalize_entry(a) for a in sideboard_adds])
         new_deck["sideboard"] = sb
 
     # Recompute the persisted totals so the returned ``.deck`` is final. This used to
@@ -137,6 +137,26 @@ def build_deck(
         records_in.extend(extra_hydrated)
     hd = HydratedDeck.from_parsed(new_deck, by_name=build_card_lookup(records_in))
     return hd, unmatched_cuts
+
+
+def lookup_missing_adds(
+    adds: list[dict], hydrated: list[dict | None], bulk_path: Path | None
+) -> list[dict]:
+    """Records for the added cards the deck doesn't already hold, looked up once
+    each; a name nothing resolves is warned on stderr and left out."""
+    known = {c["name"] for c in hydrated if c}
+    found: list[dict] = []
+    for add in adds:
+        name = add["name"]
+        if name in known:
+            continue
+        card = lookup_single(name, bulk_path=bulk_path)
+        if card:
+            found.append(card)
+            known.add(name)
+        else:
+            click.echo(f"Warning: card not found in Scryfall: {name}", err=True)
+    return found
 
 
 def _count_total(deck: dict) -> tuple[int, int]:
@@ -198,9 +218,9 @@ def main(
     hydrated: list[dict | None] = list(hd_in.records)
 
     raw_cuts = json.loads(cuts_json.read_text(encoding="utf-8")) if cuts_json else []
-    cuts: list[dict] = [_normalize_entry(c) for c in raw_cuts]
+    cuts: list[dict] = [normalize_entry(c) for c in raw_cuts]
     raw_adds = json.loads(adds_json.read_text(encoding="utf-8")) if adds_json else []
-    adds: list[dict] = [_normalize_entry(a) for a in raw_adds]
+    adds: list[dict] = [normalize_entry(a) for a in raw_adds]
 
     raw_sb_cuts = (
         json.loads(sb_cuts_json.read_text(encoding="utf-8")) if sb_cuts_json else None
@@ -209,21 +229,10 @@ def main(
         json.loads(sb_adds_json.read_text(encoding="utf-8")) if sb_adds_json else None
     )
 
-    # Look up any added cards not already in hydrated
-    hydrated_names = {c["name"] for c in hydrated if c}
-    extra_hydrated: list[dict] = []
     all_adds = list(adds)
     if raw_sb_adds:
-        all_adds.extend(_normalize_entry(a) for a in raw_sb_adds)
-    for add in all_adds:
-        name = add["name"]
-        if name not in hydrated_names:
-            card = lookup_single(name, bulk_path=bulk_path)
-            if card:
-                extra_hydrated.append(card)
-                hydrated_names.add(name)
-            else:
-                click.echo(f"Warning: card not found in Scryfall: {name}", err=True)
+        all_adds.extend(normalize_entry(a) for a in raw_sb_adds)
+    extra_hydrated = lookup_missing_adds(all_adds, hydrated, bulk_path)
 
     hd, unmatched_cuts = build_deck(
         deck,

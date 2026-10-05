@@ -939,7 +939,7 @@ def main(
     # so a single ``cuts.json`` can be shared with build-deck without rewriting.
     # Quantity is irrelevant for mechanical analysis (each card's text is the
     # same regardless of how many copies are cut), so we only need the names.
-    # Reject malformed entries hard — symmetric with ``build_deck._normalize_entry``.
+    # Reject malformed entries hard — symmetric with ``build_deck.normalize_entry``.
     # Asymmetric error policy (cut-check warns, build-deck raises) would let the
     # user trust a partial cut-check report, then surprise them with a hard error
     # from build-deck on the same input file.
