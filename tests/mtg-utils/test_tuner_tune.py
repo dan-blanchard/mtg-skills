@@ -324,6 +324,45 @@ def test_wincon_at_floor_is_protected_from_cuts(captured_protected):
     assert "Laboratory Maniac" in captured["protected"]
 
 
+def test_commander_multiplier_is_protected_from_cuts(captured_protected):
+    # cut_check's COMMANDER_MULTIPLICATION class reaches the proposer: Roaming Throne
+    # doubles Omnath's landfall trigger, so it's never a cut and the scorecard says why.
+    omnath = testkit.test_card("Omnath, Locus of the Void")
+    throne = testkit.test_card("Roaming Throne")
+    index = {c["name"]: c for c in (omnath, throne, MOUNTAIN)}
+    deck = {
+        "format": "commander",
+        "deck_size": 100,
+        "commanders": [{"name": omnath["name"], "quantity": 1}],
+        "cards": [
+            {"name": throne["name"], "quantity": 1},
+            {"name": "Mountain", "quantity": 1},
+        ],
+    }
+    hd = HydratedDeck.from_parsed(deck, by_name=index)
+    out = tune(hd, search_fn=_fake_search, params=TuneParams(max_swaps=5, budget=100.0))
+    assert "Roaming Throne" in out["scorecard"]["commander_multipliers"]
+    assert "Roaming Throne" in captured_protected["protected"]
+
+
+def test_dead_ramp_fills_no_ramp_slot():
+    # Arcane Signet makes no mana under a colorless commander (its ruling), so in an
+    # Omnath deck only Mind Stone fills the ramp row.
+    names = ("Omnath, Locus of the Void", "Arcane Signet", "Mind Stone")
+    for name in names:
+        testkit.test_card_ir(name)
+    index = {n: testkit.test_card(n) for n in names} | {"Mountain": MOUNTAIN}
+    deck = {
+        "format": "commander",
+        "deck_size": 100,
+        "commanders": [{"name": names[0], "quantity": 1}],
+        "cards": [{"name": n, "quantity": 1} for n in (*names[1:], "Mountain")],
+    }
+    hd = HydratedDeck.from_parsed(deck, by_name=index)
+    sc = tune(hd, search_fn=_fake_search, params=TuneParams())["scorecard"]
+    assert sc["template"]["budgets"]["ramp"]["current"] == 1
+
+
 def test_scorecard_surfaces_curve_histogram():
     sc = tune(_hd(), search_fn=_fake_search, params=TuneParams())["scorecard"]
     assert "curve" in sc
@@ -930,3 +969,89 @@ def test_calibration_base_size_is_the_templates():
 
     for family, cal in CALIBRATIONS.items():
         assert cal.base_size == template_for(family).base_size
+
+
+_NEAR_MISSES = {
+    "combos": [],
+    "near_misses": [
+        {
+            "cards": ["Painter's Servant", "Grindstone"],
+            "result": ["Infinite mill"],
+            "missing_card": "Grindstone",
+        },
+        {
+            "cards": ["Krenko, Mob Boss", "Goblin Warchief"],
+            "result": ["Extra goblins"],
+            "missing_card": "Goblin Warchief",
+        },
+    ],
+}
+
+
+def test_low_bracket_drops_game_winning_near_misses():
+    from mtg_utils._tuner.bracket import suggestable_near_misses as keep
+
+    assert len(keep(_NEAR_MISSES, None)) == 2
+    assert len(keep(_NEAR_MISSES, 3)) == 2
+    assert [n["missing_card"] for n in keep(_NEAR_MISSES, 2)] == ["Goblin Warchief"]
+
+
+def test_a_near_miss_completion_is_proposed_as_an_add():
+    def search(**kw):
+        if kw.get("name") == "Grindstone":
+            return [_priced("Grindstone", "1.00")]
+        return _fake_search(**kw)
+
+    out = tune(
+        _hd(),
+        search_fn=search,
+        combos_fn=lambda _deck: _NEAR_MISSES,
+        params=TuneParams(max_swaps=5, budget=100.0),
+    )
+    kinds = {i["kind"] for i in out["scorecard"]["top_issues"]}
+    assert "near_miss_combo" in kinds
+    assert "Grindstone" in {s["add"]["name"] for s in out["swaps"]}
+
+
+def test_playrate_condemns_only_in_multiplayer_commander():
+    from mtg_utils._tuner.calibration import COMMANDER, CONSTRUCTED
+
+    assert COMMANDER.playrate_condemns(multiplayer=True)
+    # EDHREC is multiplayer paper EDH: a one-on-one game's narrow tools rank fringe
+    # there for reasons that don't apply.
+    assert not COMMANDER.playrate_condemns(multiplayer=False)
+    assert not CONSTRUCTED.playrate_condemns(multiplayer=True)
+
+
+@pytest.fixture
+def captured_ctx(monkeypatch):
+    """Spy on the SwapContext tune() hands the swap proposer."""
+    tune_mod = importlib.import_module("mtg_utils._tuner.tune")
+    captured: dict = {}
+    real_propose = tune_mod.swaps_mod.propose_swaps
+
+    def spy(classes, issues, ctx):
+        captured["ctx"] = ctx
+        return real_propose(classes, issues, ctx)
+
+    monkeypatch.setattr(tune_mod.swaps_mod, "propose_swaps", spy)
+    return captured
+
+
+@pytest.mark.parametrize(
+    ("fmt", "condemns"), [("commander", True), ("competitive_brawl", False)]
+)
+def test_one_on_one_formats_never_condemn_by_play_rate(captured_ctx, fmt, condemns):
+    hd = HydratedDeck.from_parsed(
+        {
+            "format": fmt,
+            "deck_size": 100,
+            "commanders": [{"name": "Krenko, Mob Boss", "quantity": 1}],
+            "cards": [{"name": c["name"], "quantity": 1} for c in _DECK_CARDS],
+        },
+        by_name=_INDEX,
+    )
+    tune(hd, search_fn=_fake_search, params=TuneParams(max_swaps=1, budget=10.0))
+    ctx = captured_ctx["ctx"]
+    assert ctx.playrate_condemns is condemns
+    assert ctx.playrate is True  # the add tiebreak still reads play-rate

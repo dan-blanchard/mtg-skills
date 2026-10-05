@@ -45,6 +45,7 @@ def main(
         deck_size=deck_size,
         shape=shape,
         template=template_for(hd.format.family),
+        deck_mana=hd.deck_mana,
     )
     if as_json:
         click.echo(json.dumps(budgets, indent=2))

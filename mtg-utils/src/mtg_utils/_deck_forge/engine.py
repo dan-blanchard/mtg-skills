@@ -1644,6 +1644,7 @@ def find_candidates(state: ForgeState, params: FindParams) -> CandidatePage:
             avenues=avs,
             widening_base=widening_base,
             rank_by="fit",
+            deck_mana=hd.deck_mana,
         )
     elif has_user_filters(params):
         records = search(
@@ -1670,7 +1671,12 @@ def find_candidates(state: ForgeState, params: FindParams) -> CandidatePage:
             offset=0,
         )
         cands = [c for c in records if not at_copy_limit(state, c)]
-        ranked = rank_candidates(cands, active_signals=sigs, avenues=all_avenues)
+        ranked = rank_candidates(
+            cands,
+            active_signals=sigs,
+            avenues=all_avenues,
+            deck_mana=hd.deck_mana,
+        )
     else:
         ranked = []
 
@@ -1765,6 +1771,7 @@ def budgets(state: ForgeState) -> dict:
         mana_audit(hd)["land_band"],
         deck_size=state.session.deck_size,
         template=template_for(hd.format.family),
+        deck_mana=hd.deck_mana,
     )
 
 
@@ -1809,6 +1816,7 @@ def snapshot(state: ForgeState) -> dict:
             mana["land_band"],
             deck_size=state.session.deck_size,
             template=template_for(fmt.family),
+            deck_mana=hd.deck_mana,
         ),
         # The counted deck (commanders + main deck): a sideboard or an opened pool
         # never shapes the avenues.

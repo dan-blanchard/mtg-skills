@@ -40,6 +40,8 @@ from mtg_utils.names import slug as slug  # noqa: PLC0414 (re-export; home is na
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterable
 
+    from mtg_utils._analysis.roles import DeckMana
+
 
 # Card-type words used as fallback art keys after subtypes miss; also
 # part of the keyword filter that decides which asciiart.website tags
@@ -210,6 +212,8 @@ def load_bulk_indexes(bulk_path: Path) -> tuple[NameIndex, dict[str, dict]]:
 
 def accumulate_deck_metrics(
     pairs: Iterable[tuple[int, dict | None]],
+    *,
+    deck_mana: DeckMana | None = None,
 ) -> dict:
     """Single-pass deck metrics over ``(quantity, card-record-or-None)`` pairs.
 
@@ -217,7 +221,8 @@ def accumulate_deck_metrics(
     creature / ramp / game-changer counts, CMC curve, color sources, and the
     nonland-CMC average). Returns raw values — Counters and an unrounded
     ``avg_cmc`` — so each caller formats as it needs. A ``None`` record (an
-    un-hydratable name) counts toward ``total`` only.
+    un-hydratable name) counts toward ``total`` only. Ramp is judged under
+    ``deck_mana`` (``hd.deck_mana``): a rock whose mana is dead for it isn't ramp.
     """
     # Lazy: this module is also proxy-print's / fetch-art's deck walk, which must not
     # pay for the analysis stack on import.
@@ -240,7 +245,7 @@ def accumulate_deck_metrics(
             curve[int(cmc)] += qty
         if is_creature(card):
             creature_count += qty
-        if is_ramp(card):
+        if is_ramp(card, deck_mana=deck_mana):
             ramp_count += qty
         if card.get("game_changer"):
             game_changer_count += qty

@@ -18,12 +18,13 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from mtg_utils._analysis.roles import is_ramp
+from mtg_utils._analysis.roles import DeckMana, is_ramp
 from mtg_utils._analysis.signal_specs import spec_for
 from mtg_utils.card_classify import get_oracle_text
+from mtg_utils.combo_search import is_game_winning
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping
+    from collections.abc import Mapping, Sequence
 
 # The mana ability of these rocks is gated on board state a deck may not have (Mox Opal
 # wants metalcraft, Mox Jasper a Dragon: "Activate only if you control …") — so they
@@ -33,12 +34,16 @@ if TYPE_CHECKING:
 _RAMP_CONDITIONAL = "only if you control"
 
 
-def _reliable_ramp(card: dict) -> bool:
+def _reliable_ramp(card: dict, *, deck_mana: DeckMana | None = None) -> bool:
     """Ramp the tuner will SOURCE: a genuine producer (``roles.is_ramp`` — which already
-    rejects mana an opponent receives, like An Offer You Can't Refuse's Treasures)
-    whose ability isn't conditionally gated. The deck's existing conditional rocks still
-    COUNT as ramp, but the tuner won't suggest one the deck can't reliably turn on."""
-    return is_ramp(card) and _RAMP_CONDITIONAL not in get_oracle_text(card).lower()
+    rejects mana an opponent receives, like An Offer You Can't Refuse's Treasures, and
+    under ``commander`` mana the deck can't use) whose ability isn't conditionally
+    gated. The deck's existing conditional rocks still COUNT as ramp, but the tuner
+    won't suggest one the deck can't reliably turn on."""
+    return (
+        is_ramp(card, deck_mana=deck_mana)
+        and _RAMP_CONDITIONAL not in get_oracle_text(card).lower()
+    )
 
 
 ROLE_SEARCH: dict[str, dict] = {
@@ -269,6 +274,9 @@ class Sourcing:
             if spec is None:
                 spec = self.main_avenue()
             return Remedy(spec, cut_from=cut_over(role or ""))
+        if kind == "near_miss_combo":
+            # One named card completes a combo: search for exactly that card.
+            return Remedy({"name": label}) if label else None
         if kind == "efficiency":
             # A curve problem is fixed by adding a synergistic card at the missing CMC
             # band (a thin top-end wants a 6+ MV finisher on the main theme, etc.).
@@ -322,9 +330,12 @@ def top_issues(
     protection_r: dict,
     commander_r: dict | None,
     sourcing: Sourcing,
+    near_misses: Sequence[Mapping] = (),
 ) -> list[Issue]:
     """Rank the scorecard's findings by severity, each with its remedy decided.
-    ``commander_r`` is None outside the Commander family (no commander to misfit)."""
+    ``commander_r`` is None outside the Commander family (no commander to misfit).
+    ``near_misses`` are combo-search's one-card-away combos the deck may complete
+    (``tune`` drops the game-winning ones a low target bracket forbids)."""
     issues: list[Issue] = []
 
     def row_name(role: str, b: dict) -> str:
@@ -446,6 +457,24 @@ def top_issues(
                 subkind=efficiency_r["verdict"],
                 severity=3,
                 message=f"curve: {efficiency_r['verdict']}",
+            )
+        )
+
+    for near in near_misses:
+        missing = near.get("missing_card")
+        if not missing:
+            continue  # a missing generic requirement isn't one card to add
+        others = [c for c in near.get("cards") or [] if c != missing]
+        result = ", ".join(near.get("result") or []) or "a combo"
+        issues.append(
+            sourcing.issue(
+                "near_miss_combo",
+                label=missing,
+                # One card that completes a game-winning line is about the best
+                # single swap there is: it ranks above dead weight (7-10), so its cut
+                # comes from the filler first. A value line is a nudge.
+                severity=9 if is_game_winning(near) else 2,
+                message=f"{missing} completes {' + '.join(others)} → {result}",
             )
         )
 

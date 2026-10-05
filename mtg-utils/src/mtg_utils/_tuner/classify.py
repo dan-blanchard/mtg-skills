@@ -12,8 +12,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from mtg_utils._analysis.costs import effective_mana_value
 from mtg_utils._analysis.ranking import score_candidate
-from mtg_utils._analysis.roles import protects, role_of
+from mtg_utils._analysis.roles import DeckMana, protects, role_of
 from mtg_utils.card_classify import is_land
 from mtg_utils.formats import medium_is_digital
 from mtg_utils.hydrated_deck import HydratedDeck
@@ -50,6 +51,9 @@ class CardClass:
     roles: tuple[str, ...]  # template roles filled (sorted)
     served: tuple[str, ...]  # avenue labels this card serves (deduped)
     dual_purpose: bool  # Spine AND serves an avenue (a "win-win" card)
+    # The mana the deck pays to cast it on curve: printed mana value, or a cheaper
+    # unconditional alternative cost (``_analysis.costs.effective_mana_value``: warp,
+    # evoke…).
     cmc: float
     record: dict
     edhrec_rank: int | None = None  # play-rate rank; lower=more played, None=unplayed
@@ -103,9 +107,13 @@ def classify_deck(
     commander_names: set[str],
     *,
     zones: tuple[str, ...] = ("commanders", "cards"),
+    deck_mana: DeckMana | None = None,
 ) -> list[CardClass]:
     """Classify every distinct card in ``zones`` (one record per name, quantities
     summed — the counted deck: commanders + main deck, never the sideboard).
+
+    ``deck_mana`` (``hd.deck_mana``) is the deck context the ramp role reads: a
+    rock whose mana is dead under this commander fills no ramp slot.
 
     ``served`` is the set of avenue labels the card feeds — the same
     ``score_candidate`` machinery the Find ranker uses, so a card's tuner
@@ -118,7 +126,7 @@ def classify_deck(
     out: list[CardClass] = []
     for rec, quantity in hd.deck_quantities(zones=zones):
         name = rec.get("name", "")
-        roles = role_of(rec)
+        roles = role_of(rec, deck_mana=deck_mana)
         served = tuple(score_candidate(rec, active_signals=deck_signals)["served"])
         if name in commander_names:
             bucket = "commander"
@@ -159,7 +167,7 @@ def classify_deck(
                 roles=tuple(sorted(roles)),
                 served=served,
                 dual_purpose=(bucket == "spine" and bool(served)),
-                cmc=float(rec.get("cmc", 0.0) or 0.0),
+                cmc=effective_mana_value(rec),
                 record=rec,
                 edhrec_rank=rec.get("edhrec_rank"),
                 grant_grade=grade,

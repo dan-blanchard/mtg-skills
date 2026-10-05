@@ -18,7 +18,7 @@ from __future__ import annotations
 
 from collections.abc import Callable, Iterator
 from dataclasses import fields
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, NamedTuple
 
 from mtg_utils._card_ir.mirror.runtime import (
     MISSING,
@@ -414,6 +414,203 @@ def mana_restrictions(node: TypedMirrorNode) -> tuple[str, ...]:
     if _present(rs) and isinstance(rs, (list, tuple)):
         return tuple(r for r in rs if isinstance(r, str))
     return ()
+
+
+def mana_spell_type_restriction(node: TypedMirrorNode) -> str:
+    """The spell type a ``Mana`` effect's mana is limited to (CR 106.6), or ``""``.
+
+    phase carries the typed restrictions as variants beside the string ones
+    :func:`mana_restrictions` reads: ``SpellTypeOrAbilityActivation`` with a
+    ``spell_type`` ("Artifact": The Mightstone and Weakstone's "can't be spent to
+    cast nonartifact spells"; "Colorless Eldrazi": Eldrazi Temple), and
+    ``SpellType`` with a bare string ("Multicolored": Pillar of the Paruns).
+    """
+    rs = getattr(node, "restrictions", MISSING)
+    if not (_present(rs) and isinstance(rs, (list, tuple))):
+        return ""
+    for r in rs:
+        if not isinstance(r, MirrorVariant):
+            continue
+        if r.key == "SpellTypeOrAbilityActivation":
+            spell_type = getattr(r.inner, "spell_type", None)
+        elif r.key == "SpellType":
+            spell_type = r.inner
+        else:
+            continue
+        if isinstance(spell_type, str) and spell_type:
+            return spell_type
+    return ""
+
+
+def cost_mana_value(cost: object) -> int | None:
+    """Mana value (CR 202.3) of a phase ``Cost`` node: its ``generic`` plus one per
+    shard, an ``X`` shard counting 0 (CR 202.3e). ``None`` for anything else."""
+    if tag_of(cost) != "Cost":
+        return None
+    generic = getattr(cost, "generic", MISSING)
+    shards = getattr(cost, "shards", MISSING)
+    if not (isinstance(generic, int) and isinstance(shards, (list, tuple))):
+        return None
+    return generic + sum(1 for s in shards if s != "X")
+
+
+def _composite_mana_value(cost: object) -> int | None:
+    """The mana part of a ``Composite`` cost whose other parts are life payments —
+    Infestation's "Evoke—{1}{B}{B}, Pay 3 life" — or ``None`` when any part is
+    neither (an exile or sacrifice is a condition a deck can't always meet)."""
+    parts = getattr(cost, "costs", MISSING)
+    if tag_of(cost) != "Composite" or not isinstance(parts, (list, tuple)):
+        return None
+    total = 0
+    for part in parts:
+        tag = tag_of(part)
+        if tag == "Mana":
+            mv = cost_mana_value(getattr(part, "cost", MISSING))
+            if mv is None:
+                return None
+            total += mv
+        elif tag != "PayLife":
+            return None
+    return total
+
+
+# The keywords that cast the card itself, from hand, for a different payment that
+# takes effect now — the cost a deck plays the card for on curve. Evoke (CR 702.74a),
+# dash (702.109a), blitz (702.152a), warp (702.185a) and impending (702.176a) are paid
+# instead of the mana cost; prototype (702.160a) casts it with an alternative set of
+# characteristics, mana cost included. Suspend and plot are not here: their payment
+# exiles the card to cast it on a later turn.
+CURVE_COST_KEYWORDS = frozenset(
+    {"Warp", "Evoke", "Dash", "Blitz", "Prototype", "Impending"}
+)
+
+
+def keyword_curve_cost(keyword: object) -> int | None:
+    """The mana value of a :data:`CURVE_COST_KEYWORDS` keyword's cost, or ``None``.
+
+    Warp / Dash / Blitz carry the ``Cost`` itself; Prototype and Impending a
+    ``cost`` field; Evoke a ``Mana`` wrapper, or a ``NonMana`` one whose cost is a
+    mana-and-life ``Composite`` (Infestation). Fury's "Exile a red card from your
+    hand" has no mana cost to plan on."""
+    if not isinstance(keyword, MirrorVariant) or keyword.key not in CURVE_COST_KEYWORDS:
+        return None
+    inner = keyword.inner
+    if keyword.key in ("Prototype", "Impending"):
+        return cost_mana_value(getattr(inner, "cost", MISSING))
+    if keyword.key == "Evoke":
+        data = getattr(inner, "data", MISSING)
+        if tag_of(inner) == "Mana":
+            return cost_mana_value(data)
+        return _composite_mana_value(data)
+    return cost_mana_value(inner)
+
+
+class ObjectFacts(NamedTuple):
+    """What a card IS, for asking whether a filter can describe it: its own core
+    types, subtypes and supertypes (phase's capitalized words) and its colors
+    (``W``/``U``/``B``/``R``/``G``). Built from a card's trees by
+    ``_card_ir.trees.object_facts``."""
+
+    types: frozenset[str]
+    subtypes: frozenset[str]
+    supertypes: frozenset[str]
+    colors: frozenset[str]
+
+
+def filter_admits(filt: object, facts: ObjectFacts) -> bool | None:
+    """Whether a phase object filter can describe the card ``facts`` describes.
+
+    Reads the type words (``Permanent`` and ``Card`` admit any type), subtypes, the
+    supertype / token / colorless properties, and recurses ``Or`` (any) / ``And``
+    (all). ``SelfRef`` (the filter's own card) is ``False``. ``None`` when the filter
+    is a reference this read can't resolve (``ParentTarget``, ``AttachedTo``, …) —
+    the caller resolves those against their own context."""
+    tag = tag_of(filt)
+    if tag == "SelfRef":
+        return False
+    if tag == "StackSpell":
+        return True  # "a spell" — the And beside it carries the constraint
+    if tag in ("Or", "And"):
+        answers = [filter_admits(f, facts) for f in getattr(filt, "filters", ()) or ()]
+        if not answers or None in answers:
+            return None
+        return any(answers) if tag == "Or" else all(answers)
+    if tag != "Typed":
+        return None
+    cores = set(filter_core_types(filt))
+    if cores and not ({"Permanent", "Card"} & cores or cores & facts.types):
+        return False
+    subtypes = set(filter_subtypes(filt))
+    if subtypes and not subtypes & facts.subtypes:
+        return False
+    for prop in getattr(filt, "properties", ()) or ():
+        ptag = tag_of(prop)
+        value = getattr(prop, "value", MISSING)
+        if ptag == "Token":
+            return False  # a card is never a token
+        if ptag == "HasSupertype" and value not in facts.supertypes:
+            return False
+        if ptag == "NotSupertype" and value in facts.supertypes:
+            return False
+        if (
+            ptag == "ColorCount"
+            and getattr(prop, "comparator", MISSING) == "EQ"
+            and getattr(prop, "count", MISSING) == 0
+            and facts.colors
+        ):
+            return False  # "colorless" (CR 105.2c)
+    return True
+
+
+def copied_ability_kind(node: object) -> str | None:
+    """Which abilities a ``CopySpell`` of a ``StackAbility`` copies (CR 707.10):
+    ``"Triggered"`` (Strionic Resonator: "Copy target triggered ability you
+    control"), ``"Activated"``, or ``"Any"`` when the target names no kind
+    (Lithoform Engine: "Copy target activated or triggered ability"). ``None`` for
+    anything else — a spell copier (Twincast) copies no ability."""
+    if tag_of(node) != "CopySpell":
+        return None
+    target = getattr(node, "target", MISSING)
+    if tag_of(target) != "StackAbility":
+        return None
+    kind = getattr(target, "kind", MISSING)
+    return kind if isinstance(kind, str) else "Any"
+
+
+def double_triggers_cause(node: object) -> tuple[str, tuple[str, ...]] | None:
+    """The cause a ``DoubleTriggers`` static scopes its doubling to, or ``None``.
+
+    ``("Any", ())`` doubles every trigger of the affected permanents (Roaming
+    Throne, Echoes of Eternity); ``("EntersBattlefield", core types)`` only those an
+    entering object of those types causes (Panharmonicon: Artifact, Creature;
+    Ancient Greenwarden: Land); ``("CreatureDying", ())`` (Teysa Karlov) and
+    ``("CreatureAttacking", ())`` (Isshin) the dying / attacking ones."""
+    if static_mode_tag(node) != "DoubleTriggers":
+        return None
+    cause = static_mode_field(node, "cause")
+    if isinstance(cause, str):
+        return cause, ()
+    if isinstance(cause, MirrorVariant):
+        inner = cause.inner
+        types = inner.inner if isinstance(inner, MirrorVariant) else inner
+        if not isinstance(types, (list, tuple)):
+            types = ()
+        return cause.key, tuple(t for t in types if isinstance(t, str))
+    return None
+
+
+def produced_kind(node: TypedMirrorNode) -> str:
+    """The tag of a ``Mana`` effect's ``produced`` spec, or ``""`` when absent.
+
+    ``Colorless`` / ``AnyOneColor`` / ``ChosenColor`` / ``OpponentLandColors``, and
+    the deck-colored kinds: ``AnyInCommandersColorIdentity`` (Arcane Signet),
+    ``AnyOneColorAmongPermanents`` (Mox Amber), ``ChoiceAmongExiledColors``
+    (Chrome Mox).
+    """
+    p = getattr(node, "produced", MISSING)
+    if not _present(p):
+        return ""
+    return tag_of(p) or ""
 
 
 # phase v0.66.0 pin bump: the per-source batch damage effect. "Each <X> you
@@ -2777,20 +2974,14 @@ def is_damage_reflect_trigger_def(node: object) -> bool:
 
 
 def mana_restricted_to_multicolored(node: object) -> bool:
-    """Whether a ``Mana`` effect's ``restrictions`` carry a
-    ``SpellType: Multicolored`` entry (CR 105.2c) — "Spend this mana only
-    to cast a multicolored spell" (Obsidian Obelisk, Pillar of the
-    Paruns)."""
-    if tag_of(node) != "Mana":
-        return False
-    restrictions = getattr(node, "restrictions", MISSING)
-    if not (_present(restrictions) and isinstance(restrictions, list)):
-        return False
-    return any(
-        isinstance(r, MirrorVariant)
-        and r.key == "SpellType"
-        and r.inner == "Multicolored"
-        for r in restrictions
+    """Whether a ``Mana`` effect's mana is restricted to multicolored spells (CR
+    105.2b) — "Spend this mana only to cast a multicolored spell" (Obsidian Obelisk,
+    Pillar of the Paruns): :func:`mana_spell_type_restriction` reads ``SpellType:
+    Multicolored``."""
+    return (
+        tag_of(node) == "Mana"
+        and isinstance(node, TypedMirrorNode)
+        and mana_spell_type_restriction(node) == "Multicolored"
     )
 
 

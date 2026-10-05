@@ -34,12 +34,15 @@ import json
 import os
 from collections.abc import Callable, Iterator, Mapping
 from pathlib import Path
-from typing import Protocol
+from typing import TYPE_CHECKING, Protocol
 
 from mtg_utils._sidecar import atomic_write_json
 from mtg_utils.card_classify import build_card_lookup
 from mtg_utils.card_pool import CardPool, NoBulkError
 from mtg_utils.formats import Format
+
+if TYPE_CHECKING:
+    from mtg_utils._analysis.roles import DeckMana
 
 # Bump when the sidecar payload shape (or the record shape it stores) changes, so an
 # old sidecar is rebuilt instead of read. v1: full adapter records, all four zones.
@@ -157,7 +160,7 @@ def _has_stub(records: list[dict | None]) -> bool:
 class HydratedDeck:
     """An immutable deck + its joined Scryfall records (see module docstring)."""
 
-    __slots__ = ("_by_name", "_deck", "_format", "_records")
+    __slots__ = ("_by_name", "_deck", "_deck_mana", "_format", "_records")
 
     def __init__(self, deck: dict, records: list[dict]) -> None:
         """Internal. Use ``acquire`` / ``from_session`` / ``from_parsed``.
@@ -170,6 +173,7 @@ class HydratedDeck:
         self._records = records
         self._by_name = build_card_lookup(records)
         self._format = Format.for_deck(deck)
+        self._deck_mana: DeckMana | None = None
 
     # --- constructors ----------------------------------------------------------
 
@@ -402,6 +406,22 @@ class HydratedDeck:
         """The deck's ``Format`` with its own ``deck_size`` applied — every analysis
         reads legality / size / family from here, never from the raw dict."""
         return self._format
+
+    @property
+    def deck_mana(self) -> DeckMana:
+        """What this deck can do with the mana a source makes — its commanders and
+        its nonland cards: the context every ramp count reads (``roles.is_ramp``'s
+        ``deck_mana``)."""
+        if self._deck_mana is None:
+            # Lazy: the analysis stack sits above this module.
+            from mtg_utils._analysis.roles import DeckMana
+            from mtg_utils.card_classify import is_land
+
+            self._deck_mana = DeckMana.of(
+                self.expanded(zones=("commanders",)),
+                [(r, q) for r, q in self.deck_quantities() if not is_land(r)],
+            )
+        return self._deck_mana
 
     @property
     def commanders(self) -> list[dict]:

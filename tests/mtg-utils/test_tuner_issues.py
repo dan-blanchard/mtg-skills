@@ -32,6 +32,14 @@ def _focus(viable=(), emerging=(), stranded=(), verdict="FOCUSED", **extra):
     }
 
 
+# combo-search's near-miss shape: one named card short of a Spellbook combo.
+_NEAR_MISS = {
+    "cards": ["Painter's Servant", "Grindstone"],
+    "result": ["Infinite mill"],
+    "missing_card": "Grindstone",
+}
+
+
 def _every_issue():
     """One scorecard that trips every kind ``top_issues`` can emit."""
     budgets = {
@@ -62,6 +70,7 @@ def _every_issue():
         protection_r={"status": "low", "count": 0, "target": 3},
         commander_r={"misfit": True, "serves_viable": [], "viable_count": 1},
         sourcing=Sourcing(focus_r, [], budgets),
+        near_misses=[_NEAR_MISS],
     )
 
 
@@ -78,6 +87,7 @@ def test_every_emitted_kind_has_a_decided_remedy():
         "protection_short",
         "efficiency",
         "commander_misfit",
+        "near_miss_combo",
     }
     # No swap fixes a commander or a plan — and nothing else is silently unsourced
     # just because a kind was added without a branch.
@@ -105,6 +115,11 @@ def test_every_emitted_kind_has_a_decided_remedy():
     )
     # A curve fix asks for the missing CMC band.
     assert issues["efficiency"].remedy.spec.get("cmc_min") == 6
+    # A near-miss asks for exactly its missing card.
+    near = issues["near_miss_combo"]
+    assert near.remedy.spec == {"name": "Grindstone"}
+    assert near.label == "Grindstone"
+    assert near.severity == 9  # game-winning: above dead weight
 
 
 def test_issues_are_ranked_by_severity():
@@ -190,3 +205,18 @@ def test_short_roles_are_worst_first():
         {"ramp": _band(8, 10, 12), "card_draw": _band(2, 10, 12)},
     )
     assert sourcing.short_roles() == ["card_draw", "ramp"]
+
+
+def test_a_near_miss_short_a_generic_requirement_sources_nothing():
+    """A missing template ("a Persist creature") isn't one card to add."""
+    issues = top_issues(
+        efficiency_r={"verdict": "ok"},
+        focus_r=_focus(),
+        template_r={"short": {}, "over": {}},
+        wincons_r={"status": "ok"},
+        protection_r={"status": "ok"},
+        commander_r=None,
+        sourcing=Sourcing(_focus(), [], {}),
+        near_misses=[{"cards": ["A"], "result": ["x"], "missing_template": "B"}],
+    )
+    assert not [i for i in issues if i.kind == "near_miss_combo"]

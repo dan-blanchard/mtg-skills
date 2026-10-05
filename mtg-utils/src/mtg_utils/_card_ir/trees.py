@@ -40,6 +40,7 @@ if TYPE_CHECKING:
     from collections.abc import Iterator, Sequence
 
     from mtg_utils._card_ir.crosswalk import ConceptTree
+    from mtg_utils._card_ir.crosswalk.reads import ObjectFacts
     from mtg_utils._card_ir.mirror.schema import MirrorSchema
 
 
@@ -144,7 +145,7 @@ def _face_key(name: str | None) -> str:
     return (name or "").strip().casefold()
 
 
-def _face_cmc(mana_cost: str) -> int | None:
+def mana_value_of_cost(mana_cost: str) -> int | None:
     """Mana value (CR 202.3) of one face's ``mana_cost`` string, or ``None``
     for an empty string (the caller falls back to the record ``cmc``). A
     generic symbol adds its number; ``X``/``Y``/``Z`` add 0 (CR 107.3c); a
@@ -216,7 +217,7 @@ def _text_only_tree(face: dict, bulk: dict, *, oracle_id: str) -> ConceptTree | 
         w.capitalize() for w in type_words if w not in CARD_TYPE_WORDS
     )
     card_subtypes = tuple(w.capitalize() for w in sub_words)
-    cmc = _face_cmc(face.get("mana_cost") or "")
+    cmc = mana_value_of_cost(face.get("mana_cost") or "")
     if cmc is None:
         cmc = int(bulk.get("cmc") or 0)
     return ConceptTree(
@@ -855,3 +856,18 @@ def trees_for(
     out = build_trees(oid, recs, bulk=bulk)
     _TREES_MEMO[oid] = out
     return out
+
+
+def object_facts(card: dict) -> ObjectFacts:
+    """The card's own types, subtypes and supertypes off its corrected trees (every
+    face), and its colors off the record — what ``reads.filter_admits`` asks of an
+    object."""
+    from mtg_utils._card_ir.crosswalk.reads import ObjectFacts
+
+    trees = trees_for(dict(card))
+    return ObjectFacts(
+        types=frozenset(t for tree in trees for t in tree.card_types),
+        subtypes=frozenset(t for tree in trees for t in tree.card_subtypes),
+        supertypes=frozenset(t for tree in trees for t in tree.card_supertypes),
+        colors=frozenset(card.get("colors") or ()),
+    )

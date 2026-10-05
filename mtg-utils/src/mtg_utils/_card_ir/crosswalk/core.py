@@ -56,6 +56,7 @@ from mtg_utils._card_ir.crosswalk.reads import (
     iter_nested_granted_bodies,
     iter_static_defs,
     iter_typed_nodes,
+    keyword_curve_cost,
     residue_is,
     static_mode_tag,
     tag_of,
@@ -478,6 +479,11 @@ class ConceptTree:
     # Aura with a non-Enchant-typed keyword predicate this narrow read
     # doesn't resolve.
     card_enchant_core_types: tuple[str, ...] = ()
+    # The mana values of the card's own unconditional alternative casting costs
+    # (``reads.CURVE_COST_KEYWORDS`` — warp, evoke, dash, blitz, prototype, plot,
+    # suspend), read off ``root.keywords`` like ``card_enchant_core_types``: the
+    # cost a deck can plan its curve on when it's below the printed mana value.
+    card_curve_costs: tuple[int, ...] = ()
 
     def is_type(self, core: str) -> bool:
         """Whether the card itself has core type ``core`` (Creature / Land / …).
@@ -1251,6 +1257,11 @@ def build_concept_tree(
             if isinstance(kw, MirrorVariant) and kw.key == "Enchant":
                 card_enchant_core_types = filter_core_types(kw.inner)
                 break
+    card_curve_costs = tuple(
+        cost
+        for kw in (kws_root if isinstance(kws_root, list) else ())
+        if (cost := keyword_curve_cost(kw)) is not None
+    )
     # ADR-0039 grammar sprint (task #82): a modal SPELL's card-root
     # ``modal.mode_descriptions`` (CR 700.2), positionally paired with
     # ``root.abilities`` (Fatal Lore, Season of the Burrow) — see the
@@ -1471,6 +1482,7 @@ def build_concept_tree(
         many_copies=many_copies,
         card_modal_mode_descriptions=card_modal_mode_descriptions,
         card_enchant_core_types=card_enchant_core_types,
+        card_curve_costs=card_curve_costs,
     )
     # ADR-0038 — substrate-wide Unimplemented recovery runs INSIDE the tree
     # build so every consumer (signal lanes, compat projection, convergence +

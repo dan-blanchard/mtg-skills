@@ -18,7 +18,7 @@ from typing import Protocol
 
 from mtg_utils._analysis.budgets import COMMANDER_TEMPLATE, Template
 from mtg_utils._analysis.ranking import rank_candidates
-from mtg_utils._analysis.roles import role_of
+from mtg_utils._analysis.roles import DeckMana, role_of
 from mtg_utils._tuner.classify import CardClass
 from mtg_utils._tuner.issues import (
     CUT_FILLER,
@@ -206,6 +206,7 @@ def size_cuts(
     protected: Collection[str] = (),
     medium: str = "paper",
     eligible: Collection[str] | None = None,
+    playrate_condemns: bool = True,
 ) -> list[dict]:
     """Legality-driven cuts for an OVER-sized deck: up to ``overflow`` proposals.
 
@@ -230,6 +231,7 @@ def size_cuts(
         stranded=stranded,
         protected=protected,
         medium=medium,
+        playrate=playrate_condemns,
     ):
         if len(out) >= overflow:
             break
@@ -371,7 +373,7 @@ def _run_search(
         exact_colors=False,
         oracle=spec.get("oracle"),
         card_type=spec.get("card_type"),
-        name=None,
+        name=spec.get("name"),
         cmc_min=spec.get("cmc_min"),
         cmc_max=cmc_max,
         price_min=None,
@@ -428,11 +430,17 @@ class SwapContext:
     max_copies: int | None = 1
     available: Mapping[str, int] | None = None
     #: Whether edhrec play-rate is a meaningful quality read for this deck (the
-    #: family's ``Calibration.playrate_meaningful``).
+    #: family's ``Calibration.playrate_meaningful``): the tiebreak between adds.
     playrate: bool = True
+    #: Whether a fringe play-rate may mark a card a cut target
+    #: (``Calibration.playrate_condemns`` — never in a one-on-one game).
+    playrate_condemns: bool = True
     #: Adds the builder rejected — never sourced, on any path (the issue loop, the
     #: dead-weight drain, the fill pass all pick through ``addable``).
     exclude: Collection[str] = ()
+    #: The deck context ramp is judged in (``hd.deck_mana``): a rock whose mana
+    #: is dead under this commander is never sourced as ramp.
+    deck_mana: DeckMana | None = None
 
     def copy_ceiling(self, record: dict) -> int | None:
         """How many copies of this card the build may run: the copy limit, bounded
@@ -507,7 +515,7 @@ def propose_swaps(
         protected=ctx.protected,
         medium=ctx.medium,
         template=ctx.template,
-        playrate=ctx.playrate,
+        playrate=ctx.playrate_condemns,
     )
     # Route cuts into the pools a Remedy names: an over-band trim cuts from THAT over
     # role (``over:<role>``); everything else is the generic pool (filler, low-value,
@@ -587,9 +595,11 @@ def propose_swaps(
         ]
         if nonland_only:
             pool = [c for c in pool if not is_land(c)]
+        if spec.get("name"):  # a named-card remedy wants that card, not a substring hit
+            pool = [c for c in pool if c.get("name") == spec["name"]]
         spec_filter = spec.get("_filter")
         if spec_filter is not None:  # tuner-side precision pass (e.g. reliable-ramp)
-            pool = [c for c in pool if spec_filter(c)]
+            pool = [c for c in pool if spec_filter(c, deck_mana=ctx.deck_mana)]
         if synergy_first:
             # Synergy DEPTH first (synergy_score, deck-relative — a real payoff for
             # the deck's themes beats a box-ticker grazing many incidental lanes),
@@ -601,6 +611,7 @@ def propose_swaps(
                 active_signals=ctx.deck_signals,
                 focus_sets=focus_sets,
                 deck_tribes=deck_tribes,
+                deck_mana=ctx.deck_mana,
             )
             ranked = [
                 r["card"]
@@ -639,6 +650,7 @@ def propose_swaps(
             active_signals=ctx.deck_signals,
             focus_sets=focus_sets,
             deck_tribes=deck_tribes,
+            deck_mana=ctx.deck_mana,
         )
         return {
             r["card"].get("name", "")
@@ -690,7 +702,7 @@ def propose_swaps(
             cost = acquire_cost(card)
             if cost is None:
                 continue
-            if role_of(card) & full_roles:
+            if role_of(card, deck_mana=ctx.deck_mana) & full_roles:
                 fallback = fallback or (card, cost)  # keep the best overshooting option
                 continue
             if not guard:

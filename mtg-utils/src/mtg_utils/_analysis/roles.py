@@ -21,12 +21,26 @@ cube pool run with no card-data) answers ramp from
 from __future__ import annotations
 
 import re
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
+from dataclasses import dataclass, field
+from typing import TYPE_CHECKING
 
+from mtg_utils._analysis._subtypes import CREATURE_SUBTYPES, LAND_SUBTYPES
+from mtg_utils._analysis.tree_synthesis.mechanics_misc import OUTLAW_SUBTYPES
 from mtg_utils._card_ir.compat_lookup import ir_for
+from mtg_utils._card_ir.crosswalk.reads import (
+    ObjectFacts,
+    mana_spell_type_restriction,
+    produced_kind,
+    tag_of,
+)
+from mtg_utils._card_ir.trees import object_facts, trees_for
 from mtg_utils.card_classify import get_oracle_text, is_land, ramp_by_text
 from mtg_utils.card_ir import Card
 from mtg_utils.theme_presets import get_preset, has_signal_coverage
+
+if TYPE_CHECKING:
+    from mtg_utils._card_ir.mirror.runtime import TypedMirrorNode
 
 # Targeted removal + counterspells fold together into one `interaction` role (ADR-0024).
 # creature-edict (forced sacrifice — Diabolic Edict, Fleshbag) is removal that bypasses
@@ -109,6 +123,175 @@ def _matches_preset(card: dict, name: str) -> bool:
 
 def _matches_any(card: dict, names: Sequence[str]) -> bool:
     return any(_matches_preset(card, name) for name in names)
+
+
+# Mana whose colors come from the deck itself, so a colorless deck gets none — each
+# per its rulings. Arcane Signet / Commander's Sphere: "If your commander is a card
+# that has no colors in its color identity, [it] produces no mana. It doesn't produce
+# {C}." Mox Amber: "If your legendary creatures and legendary planeswalkers are all
+# colorless, you can activate Mox Amber's ability, but you won't add any mana."
+# Chrome Mox: if "the exiled card is colorless", it "can't add mana" — and under a
+# colorless commander every card the deck can exile is.
+_DECK_COLORED_MANA = frozenset(
+    {
+        "AnyInCommandersColorIdentity",
+        "AnyOneColorAmongPermanents",
+        "ChoiceAmongExiledColors",
+    }
+)
+
+
+# Words phase's spell-type restrictions use (CR 106.6) that aren't a subtype.
+_CARD_TYPE_WORDS = frozenset(
+    {
+        "artifact",
+        "battle",
+        "creature",
+        "enchantment",
+        "instant",
+        "kindred",
+        "land",
+        "planeswalker",
+        "sorcery",
+    }
+)
+_SUPERTYPE_WORDS = frozenset({"basic", "legendary", "snow", "world"})
+# Lowercase subtype vocabulary: a word outside every known list is never condemned.
+_SUBTYPE_WORDS = frozenset(t.lower() for t in (*CREATURE_SUBTYPES, *LAND_SUBTYPES))
+_OUTLAWS = frozenset(t.lower() for t in OUTLAW_SUBTYPES)
+
+
+def _restriction_word_admits(word: str, facts: ObjectFacts) -> bool | None:
+    """One word of a spell-type restriction against an object; ``None`` for a word
+    this read doesn't know."""
+    if word.startswith("non") and len(word) > 3:
+        inner = _restriction_word_admits(word[3:], facts)
+        return None if inner is None else not inner
+    if word == "colorless":
+        return not facts.colors
+    if word == "multicolored":
+        return len(facts.colors) >= 2
+    if word == "outlaw":  # CR 700.12
+        return bool({t.lower() for t in facts.subtypes} & _OUTLAWS)
+    if word in _CARD_TYPE_WORDS:
+        return word in {t.lower() for t in facts.types}
+    if word in _SUPERTYPE_WORDS:
+        return word in {t.lower() for t in facts.supertypes}
+    if word in _SUBTYPE_WORDS:
+        return word in {t.lower() for t in facts.subtypes}
+    return None
+
+
+def _restriction_admits(spell_type: str, facts: ObjectFacts) -> bool:
+    """Whether phase's spell-type restriction lets its mana cast the object (CR
+    106.6). A list ("Instant, Sorcery, Demon, and Spirit"; "Vampire, Cleric,
+    And/or Demon") admits what any entry admits; an entry's words all must match
+    ("Colorless Eldrazi"). An entry with a word this read doesn't know admits:
+    restricted mana is never condemned on vocabulary alone."""
+    text = spell_type.lower()
+    for joiner in (" and/or ", " and ", " or "):
+        text = text.replace(joiner, ",")
+    for entry in (e.split() for e in text.split(",")):
+        if not entry:
+            continue
+        answers = [_restriction_word_admits(w, facts) for w in entry]
+        if None in answers or all(answers):
+            return True
+    return False
+
+
+# The share of the deck's nonland cards a restricted source must be able to pay for
+# to count as ramp when it can't cast a commander (2026-10-05): a third, so the
+# deck usually holds something to spend it on.
+_RESTRICTED_MANA_SHARE = 1 / 3
+
+
+@dataclass(frozen=True)
+class DeckMana:
+    """What a deck can do with the mana a source makes: the deck context that makes
+    a mana source live or dead (:func:`is_ramp`'s ``deck_mana``).
+
+    A mana source is dead when the deck can't use what it makes: deck-colored mana
+    under a colorless commander, or mana restricted to a spell type that neither a
+    commander nor a third of the deck's nonland cards satisfies (The Mightstone and
+    Weakstone's artifact-only mana is ramp in an artifact deck, whatever its
+    commander).
+    """
+
+    #: The commanders' combined color identity; ``None`` without a commander.
+    identity: frozenset[str] | None
+    commanders: tuple[ObjectFacts, ...]
+    #: The deck's nonland cards (commanders included) with their copies.
+    spells: tuple[tuple[ObjectFacts, int], ...]
+    # oracle_id -> dead-mana reason (or None), and spell type -> whether the deck can
+    # spend it, so a card searched, ranked and counted in one pass is read once.
+    _dead: dict[str, str | None] = field(
+        default_factory=dict, compare=False, repr=False
+    )
+    _usable: dict[str, bool] = field(default_factory=dict, compare=False, repr=False)
+
+    @classmethod
+    def of(
+        cls,
+        commanders: Sequence[Mapping | None],
+        spells: Sequence[tuple[Mapping, int]] = (),
+    ) -> DeckMana:
+        """The context for a deck's commander records and its nonland cards."""
+        recs = [c for c in commanders if c]
+        identity = (
+            frozenset(color for c in recs for color in c.get("color_identity") or ())
+            if recs
+            else None
+        )
+        return cls(
+            identity=identity,
+            commanders=tuple(object_facts(dict(c)) for c in recs),
+            spells=tuple((object_facts(dict(r)), q) for r, q in spells),
+        )
+
+    def dead_mana(self, card: Mapping) -> str | None:
+        """Why the card's mana does nothing for this deck, or ``None`` when it's
+        usable. Dead only when EVERY mana ability is (Eldrazi Temple's plain {C}
+        keeps it live); a card phase hasn't parsed is never condemned."""
+        key = card.get("oracle_id") or card.get("name") or ""
+        if key not in self._dead:
+            self._dead[key] = self._first_dead_reason(card)
+        return self._dead[key]
+
+    def _first_dead_reason(self, card: Mapping) -> str | None:
+        first: str | None = None
+        for tree in trees_for(dict(card)):
+            for unit in tree.units:
+                for node in unit.iter_typed():
+                    if tag_of(node) != "Mana":
+                        continue
+                    reason = self._dead_reason(node)
+                    if reason is None:
+                        return None
+                    first = first or reason
+        return first
+
+    def _dead_reason(self, node: TypedMirrorNode) -> str | None:
+        if produced_kind(node) in _DECK_COLORED_MANA and self.identity == frozenset():
+            return "makes no mana under a colorless commander"
+        spell_type = mana_spell_type_restriction(node)
+        if spell_type and not self._can_spend(spell_type):
+            return (
+                f"its mana can only cast {spell_type.lower()} spells, and neither a "
+                "commander nor a third of the deck is one"
+            )
+        return None
+
+    def _can_spend(self, spell_type: str) -> bool:
+        if spell_type not in self._usable:
+            total = sum(q for _, q in self.spells)
+            usable = sum(
+                q for f, q in self.spells if _restriction_admits(spell_type, f)
+            )
+            self._usable[spell_type] = any(
+                _restriction_admits(spell_type, c) for c in self.commanders
+            ) or (total > 0 and usable / total >= _RESTRICTED_MANA_SHARE)
+        return self._usable[spell_type]
 
 
 def _ir_draws(ir: Card) -> bool:
@@ -237,7 +420,7 @@ def _ir_recursion_only(ir: Card) -> bool:
     return saw_gy_bounce
 
 
-def is_ramp(card: dict) -> bool:
+def is_ramp(card: dict, *, deck_mana: DeckMana | None = None) -> bool:
     """Does this NONLAND card accelerate your mana — the template's ``ramp`` role?
 
     THE ramp answer (ADR-0051): the ``ramp`` preset, a view over the signal path
@@ -248,19 +431,27 @@ def is_ramp(card: dict) -> bool:
     A card the signal path cannot see at all (``has_signal_coverage`` false: no
     ``oracle_id``, no phase parse, no card-data) degrades to
     ``card_classify.ramp_by_text`` — the ONE surviving text read, so a no-sidecar
-    ``deck-stats`` / cube goldfish still counts its rocks."""
+    ``deck-stats`` / cube goldfish still counts its rocks.
+
+    ``deck_mana`` is the deck context: with it, a source whose mana is dead for this
+    deck (:meth:`DeckMana.dead_mana`: Arcane Signet under a colorless commander) is
+    not ramp. Without it the answer is the card's alone."""
     if is_land(card):
         return False
-    if not has_signal_coverage(card):
-        return ramp_by_text(card)
-    return _matches_preset(card, "ramp")
+    ramp = (
+        ramp_by_text(card)
+        if not has_signal_coverage(card)
+        else _matches_preset(card, "ramp")
+    )
+    return ramp and (deck_mana is None or deck_mana.dead_mana(card) is None)
 
 
-def role_of(card: dict) -> set[str]:
+def role_of(card: dict, *, deck_mana: DeckMana | None = None) -> set[str]:
     """Hard-counted template roles a card fills (a card may fill several).
 
     ``lands`` reads the type line; ``ramp`` is :func:`is_ramp` (the ``ramp`` preset,
-    with the text degrade for a card the signal path can't see). ``card_draw`` and
+    with the text degrade for a card the signal path can't see, and ``deck_mana``'s
+    dead-mana veto when the deck context is given). ``card_draw`` and
     ``board_wipe`` read the candidate's Card IR when available (the ``draw`` category;
     the ``counter_kind="all"`` mass-removal marker), degrading to the curated presets
     when the card has no IR. The regex preset ALSO runs for ``board_wipe``: it still
@@ -288,7 +479,7 @@ def role_of(card: dict) -> set[str]:
     ir = ir_for(card)
     if is_land(card):
         roles.add("lands")
-    elif is_ramp(card):
+    elif is_ramp(card, deck_mana=deck_mana):
         roles.add("ramp")
     draws = (
         (ir is not None and _ir_draws(ir))

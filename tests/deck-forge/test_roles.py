@@ -8,7 +8,8 @@ Real snapshot cards throughout (``mtg_utils.testkit``) — the production
 
 import pytest
 
-from mtg_utils._analysis.roles import is_ramp, role_of
+from mtg_utils._analysis.roles import DeckMana, _restriction_admits, is_ramp, role_of
+from mtg_utils._card_ir.crosswalk.reads import ObjectFacts
 from mtg_utils._tuner.issues import ROLE_SEARCH, _reliable_ramp
 from mtg_utils.card_classify import get_oracle_text, is_land
 from mtg_utils.testkit import snapshot_records, test_card, test_signals
@@ -147,3 +148,102 @@ def test_a_seed_outlives_signal_keys_read_without_trees(monkeypatch):
     monkeypatch.setitem(theme_presets._SIGNAL_KEY_INDEX, oid, frozenset())
     # The failing test's own path: seed the real trees, then read the role.
     assert is_ramp(_real("Cultivate"))
+
+
+# --- The deck context: mana the deck can't use isn't ramp ------------------------
+
+
+def _deck(commander: str | None, *spells: str) -> DeckMana:
+    """A deck's mana context: its commander and its nonland cards (one copy each)."""
+    return DeckMana.of(
+        [_real(commander)] if commander else [],
+        [(_real(name), 1) for name in spells],
+    )
+
+
+_OMNATH = "Omnath, Locus of the Void"  # colorless identity, a creature
+_KRENKO = "Krenko, Mob Boss"  # mono-red, a creature
+_MEMNARCH = "Memnarch"  # colorless, an artifact creature
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        # Its ruling: under a colorless commander it "produces no mana. It doesn't
+        # produce {C}." (Commander's Sphere's ruling says the same.)
+        "Arcane Signet",
+        "Commander's Sphere",
+        # Ruling: "If your legendary creatures and legendary planeswalkers are all
+        # colorless, ... you won't add any mana."
+        "Mox Amber",
+        # Ruling: if "the exiled card is colorless", it "can't add mana".
+        "Chrome Mox",
+    ],
+)
+def test_deck_colored_mana_is_dead_under_a_colorless_commander(name):
+    card = _real(name)
+    assert is_ramp(card)  # the card alone is ramp
+    assert not is_ramp(card, deck_mana=_deck(_OMNATH))
+    assert is_ramp(card, deck_mana=_deck(_KRENKO))
+
+
+@pytest.mark.parametrize("name", ["Mox Opal", "Mind Stone", "Sol Ring"])
+def test_colorless_or_any_color_mana_stays_ramp_under_a_colorless_commander(name):
+    assert is_ramp(_real(name), deck_mana=_deck(_OMNATH))
+
+
+def test_artifact_only_mana_is_ramp_where_the_deck_can_spend_it():
+    """The Mightstone and Weakstone's {C}{C} "can't be spent to cast nonartifact
+    spells" (CR 106.6). It's ramp when it can cast the commander or a third of the
+    deck — an artifact deck under a creature commander included."""
+    stone = _real("The Mightstone and Weakstone")
+    assert is_ramp(stone, deck_mana=_deck(_MEMNARCH))
+    assert not is_ramp(stone, deck_mana=_deck(_OMNATH, "Lightning Bolt", "Cultivate"))
+    artifacts = _deck(_OMNATH, "Sol Ring", "Mind Stone", "Lightning Bolt")
+    assert is_ramp(stone, deck_mana=artifacts)
+    assert "card_draw" in role_of(stone, deck_mana=_deck(_OMNATH))
+
+
+def test_one_usable_mana_ability_keeps_a_source_live():
+    """Eldrazi Temple's {C}{C} is Eldrazi-only, but its plain {C} works for anyone."""
+    assert _deck(_OMNATH).dead_mana(_real("Eldrazi Temple")) is None
+
+
+@pytest.mark.parametrize(
+    ("restriction", "subtypes", "admits"),
+    [
+        ("Instant, Sorcery, Demon, and Spirit", {"Spirit"}, True),
+        ("Vampire, Cleric, And/or Demon", {"Cleric"}, True),
+        ("Vampire, Cleric, And/or Demon", {"Goblin"}, False),
+        ("Outlaw", {"Pirate"}, True),  # CR 700.12
+        ("Colorless Eldrazi", {"Goblin"}, False),
+        ("Unrecognizedword", set(), True),  # never condemned on vocabulary alone
+    ],
+)
+def test_spell_type_restrictions_read_their_lists(restriction, subtypes, admits):
+    facts = ObjectFacts(
+        types=frozenset({"Creature"}),
+        subtypes=frozenset(subtypes),
+        supertypes=frozenset(),
+        colors=frozenset({"B"}),
+    )
+    assert _restriction_admits(restriction, facts) is admits
+
+
+def test_noncreature_restriction_admits_a_planeswalker():
+    facts = ObjectFacts(
+        types=frozenset({"Planeswalker"}),
+        subtypes=frozenset(),
+        supertypes=frozenset({"Legendary"}),
+        colors=frozenset({"B", "G"}),
+    )
+    assert _restriction_admits("Noncreature", facts)
+
+
+def test_without_a_commander_deck_colored_mana_is_untouched():
+    assert is_ramp(_real("Arcane Signet"), deck_mana=_deck(None, "Sol Ring"))
+
+
+def test_the_tuner_never_sources_dead_ramp():
+    assert not _reliable_ramp(_real("Arcane Signet"), deck_mana=_deck(_OMNATH))
+    assert _reliable_ramp(_real("Arcane Signet"), deck_mana=_deck(_KRENKO))

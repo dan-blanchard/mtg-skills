@@ -7,20 +7,22 @@ the same way.
 
 from __future__ import annotations
 
+from collections import Counter
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 
 from mtg_utils._analysis.budgets import banded_slot_budgets, template_for
+from mtg_utils._analysis.multipliers import commander_multipliers
 from mtg_utils._analysis.signals import ranked_signals_and_payoffs
 from mtg_utils._tuner import commander_fit, grant_coverage, metrics
 from mtg_utils._tuner import swaps as swaps_mod
-from mtg_utils._tuner.bracket import bracket_gate
+from mtg_utils._tuner.bracket import bracket_gate, suggestable_near_misses
 from mtg_utils._tuner.calibration import calibration_for
 from mtg_utils._tuner.classify import CardClass, classify_deck
 from mtg_utils._tuner.issues import Sourcing, top_issues
 from mtg_utils._tuner.shape import infer_shape
 from mtg_utils.card_classify import is_land
-from mtg_utils.deck_stats import deck_stats
+from mtg_utils.combo_search import combos_or_none
 from mtg_utils.formats import Format
 from mtg_utils.hydrated_deck import HydratedDeck
 from mtg_utils.mana_audit import mana_audit
@@ -145,18 +147,6 @@ def _focus_public(focus_r: dict) -> dict:
     return {k: v for k, v in focus_r.items() if not k.startswith("_")}
 
 
-def _safe_combos(combos_fn: Callable[[dict], dict] | None, deck: dict) -> dict | None:
-    """Combos feed win-con detection but ride a network call (Commander Spellbook). On
-    any failure, degrade to heuristic-only win-cons rather than failing the whole Tune —
-    the deterministic diagnosis must never depend on an external service."""
-    if combos_fn is None:
-        return None
-    try:
-        return combos_fn(deck)
-    except Exception:  # noqa: BLE001 — any combos failure degrades, never breaks Tune
-        return None
-
-
 def tune(
     hd: HydratedDeck,
     *,
@@ -224,10 +214,8 @@ def tune(
     overflow = max(0, total - deck_size) if exact else 0
     shortfall = max(0, deck_size - total)
 
-    stats = deck_stats(hd)
-    avg_cmc = stats.get("avg_cmc", 0.0)
     mana = mana_audit(hd)
-    combos = _safe_combos(combos_fn, deck)
+    combos = combos_or_none(combos_fn, deck)
     combo_count = len((combos or {}).get("combos") or [])
     # Cards in a combo line are protected from the cut proposer (ADR-0029): the
     # deterministic core must not quietly cut a combo piece.
@@ -245,7 +233,17 @@ def tune(
     deck_signals, payoff_subjects = ranked_signals_and_payoffs(
         hd.deck_records(), commander_names, resolve_object=resolve_object
     )
-    classes = classify_deck(hd, deck_signals, commander_names)
+    deck_mana = hd.deck_mana
+    classes = classify_deck(hd, deck_signals, commander_names, deck_mana=deck_mana)
+    # The curve the deck actually plays: each nonland at its effective cost (a warp or
+    # evoke card at the cheaper cost), so shape and efficiency read the real speed.
+    nonland = [c for c in classes if c.bucket != "land"]
+    avg_cmc = sum(c.cmc * c.quantity for c in nonland) / max(
+        1, sum(c.quantity for c in nonland)
+    )
+    curve: Counter[int] = Counter()
+    for c in nonland:
+        curve[int(c.cmc)] += c.quantity
 
     shape_r = infer_shape(
         classes,
@@ -264,6 +262,7 @@ def tune(
         deck_size=deck_size,
         shape=shape,
         template=template,
+        deck_mana=deck_mana,
     )
     # ADR-0040 §1 (Grant-covered role, deck-forge CONTEXT.md): does a commander's
     # own ability GRANT structurally cover a short Spine role for every recipient
@@ -277,6 +276,8 @@ def tune(
             if band is not None and band["deviation"] < 0:
                 band["grant_covered"] = True
                 band["grant_covered_by"] = name
+    # Whether a fringe play-rate may mark a card low-value (never one-on-one).
+    condemns = cal.playrate_condemns(multiplayer=game.multiplayer)
     eff = metrics.efficiency(
         classes, shape=shape, avg_cmc=avg_cmc, deck_size=deck_size, cal=cal
     )
@@ -287,6 +288,7 @@ def tune(
         medium=game.medium,
         tribal_payoff_subjects=payoff_subjects,
         cal=cal,
+        playrate_condemns=condemns,
     )
     tmpl = metrics.template_deviation(budgets)
     wins = metrics.win_conditions(
@@ -311,6 +313,7 @@ def tune(
         protection_r=prot,
         commander_r=cfit,
         sourcing=Sourcing(foc, deck_signals, budgets),
+        near_misses=suggestable_near_misses(combos, params.target_bracket),
     )
 
     # ADR-0030: a target-bracket constraint gate, only when a target was chosen —
@@ -324,6 +327,18 @@ def tune(
         )
         if params.target_bracket is not None and cal.commander_axes
         else None
+    )
+
+    # The cut checklist's near-untouchables: cards that copy the commander, double or
+    # copy an ability it has, or lend it activated abilities from another zone. The
+    # proposer never cuts one (the same protection combo pieces get).
+    multipliers = (
+        commander_multipliers(
+            [c.record for c in classes if c.bucket != "commander"],
+            [c.record for c in classes if c.bucket == "commander"],
+        )
+        if cal.commander_axes
+        else {}
     )
 
     scorecard = {
@@ -356,9 +371,10 @@ def tune(
         # to the agent — full mana audit (not just the land count), the curve histogram,
         # and the combo list (not just a tally).
         "mana": mana,
-        "curve": stats.get("curve") or {},
+        "curve": dict(sorted(curve.items())),
         "combos": combos or {"combos": []},
         "bracket": bracket,
+        "commander_multipliers": multipliers,
     }
 
     # Win-con floor protection (ADR-0029, sibling to combo-piece protection): at/below
@@ -371,7 +387,7 @@ def tune(
         if wins["count"] <= wins["target"][0]
         else set()
     )
-    protected = combo_pieces | wincon_protect
+    protected = combo_pieces | wincon_protect | set(multipliers)
 
     # Over-legal-size cuts (legality-driven, so NOT gated on max_swaps — even a
     # max_swaps=0 scorecard run reports them): exactly `overflow` proposals (or
@@ -396,6 +412,7 @@ def tune(
             message=f"deck is {overflow} over {legal} — cut",
             protected=protected,
             medium=game.medium,
+            playrate_condemns=condemns,
             # Maindeck-only: cutting a sideboard card wouldn't shrink the total.
             eligible={r.get("name", "") for r in hd.expanded(zones=("cards",))},
         )
@@ -430,7 +447,9 @@ def tune(
             max_copies=hd.format.max_copies,
             available=pool,
             playrate=cal.playrate_meaningful,
+            playrate_condemns=condemns,
             exclude=params.exclude,
+            deck_mana=deck_mana,
         )
         swaps_out = swaps_mod.propose_swaps(classes, issues, swap_ctx)
         # The fill pass deliberately skips lands; flag any mana-base shortfall so the

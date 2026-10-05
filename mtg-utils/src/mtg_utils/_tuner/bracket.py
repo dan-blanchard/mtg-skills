@@ -14,11 +14,12 @@ detection are reused from ``deck_stats.detect_bracket`` (Game Changers via Scryf
 from __future__ import annotations
 
 import re
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 
 from mtg_utils._card_ir.compat_lookup import ir_for
 from mtg_utils.card_classify import get_oracle_text
 from mtg_utils.card_ir import Card
+from mtg_utils.combo_search import is_game_winning
 from mtg_utils.deck_stats import detect_bracket
 
 # Game-Changers count ceiling per target bracket. Brackets 4 (Optimized) and 5 (cEDH)
@@ -64,21 +65,21 @@ def _extra_turn_cards(records: Sequence[dict | None]) -> list[str]:
     return sorted({c["name"] for c in records if c and _has_extra_turn(c)})
 
 
-def _is_infinite(result: str | list | None) -> bool:
-    # combo_search emits `result` as a LIST of feature strings (the real Commander
-    # Spellbook shape); a few synthetic call sites still pass a bare string. Normalize
-    # both the same way combo_search itself joins the list (line 317) before matching.
-    if isinstance(result, list):
-        result = " ".join(str(r) for r in result)
-    t = (result or "").lower()
-    return (
-        "infinite" in t
-        or "win the game" in t
-        or "wins the game" in t
-        # Loss-side kills are equally game-ending (Each opponent loses the game).
-        or "lose the game" in t
-        or "loses the game" in t
-    )
+# Intentional two-card infinite combos are disallowed below bracket 3 (WotC's
+# Commander Brackets; the gate's two_card_combo axis below).
+TWO_CARD_COMBOS_FROM = 3
+
+
+def suggestable_near_misses(
+    combos: Mapping | None, target_bracket: int | None
+) -> list[dict]:
+    """combo-search's near-misses the tuner may complete. Below
+    :data:`TWO_CARD_COMBOS_FROM` a game-winning line is off the table: this gate
+    fails the combo it would build."""
+    near = list((combos or {}).get("near_misses") or [])
+    if target_bracket is not None and target_bracket < TWO_CARD_COMBOS_FROM:
+        near = [n for n in near if not is_game_winning(n)]
+    return near
 
 
 def _two_card_infinite_combos(combos: dict | None) -> list[list[str]]:
@@ -88,7 +89,7 @@ def _two_card_infinite_combos(combos: dict | None) -> list[list[str]]:
     out: list[list[str]] = []
     for combo in combos.get("combos") or []:
         cards = combo.get("cards") or []
-        if len(cards) == 2 and _is_infinite(combo.get("result")):
+        if len(cards) == 2 and is_game_winning(combo):
             out.append(list(cards))
     return out
 
@@ -205,7 +206,7 @@ def bracket_gate(
         )
 
     for combo_cards in _two_card_infinite_combos(combos):
-        if target_bracket in (1, 2):
+        if target_bracket < TWO_CARD_COMBOS_FROM:
             violations.append(
                 {
                     "axis": "two_card_combo",

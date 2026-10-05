@@ -33,7 +33,7 @@ from collections.abc import Callable, Mapping, Sequence
 
 from mtg_utils._analysis.pair_reads import PairContext, pair_score
 from mtg_utils._analysis.rate import RateIndex, rate_for
-from mtg_utils._analysis.roles import is_ramp, role_of
+from mtg_utils._analysis.roles import DeckMana, is_ramp, role_of
 from mtg_utils._analysis.signal_specs import serve_from_dict, spec_for
 from mtg_utils._analysis.signals import clauses
 from mtg_utils._card_ir.compat_lookup import ir_for
@@ -412,7 +412,7 @@ def _prominence(label: str, focus_sets: Mapping[str, set] | None) -> float:
     return _PROM_DEFAULT
 
 
-def _structural_floor(card: dict) -> dict:
+def _structural_floor(card: dict, deck_mana: DeckMana | None = None) -> dict:
     """The out-of-synergy quality axis: a card can be load-bearing (fixing, ramp,
     tutor, finisher) while serving few THEME lanes. The cut side reads this so a
     premium dork like Birds of Paradise isn't trimmed as "low synergy"."""
@@ -421,7 +421,7 @@ def _structural_floor(card: dict) -> dict:
     oracle = (get_oracle_text(card) or "").lower()
     return {
         "is_fixing": len(colors) >= 2,
-        "is_ramp": is_ramp(card),
+        "is_ramp": is_ramp(card, deck_mana=deck_mana),
         "is_tutor": "search your library" in oracle,
         "cmc_bomb": (card.get("cmc") or 0) >= 6.0,
     }
@@ -551,6 +551,7 @@ def score_candidate(
     _ir_resolved: tuple[Card | None] | None = None,
     rate_index: RateIndex | None = None,
     pair_ctx: PairContext | None = None,
+    deck_mana: DeckMana | None = None,
 ) -> dict:
     """Return the multi-axis readout for one candidate.
 
@@ -605,10 +606,10 @@ def score_candidate(
         "pairs": _pair[1],
         "served": served,
         "clusters": clusters,
-        "structural_floor": _structural_floor(card),
+        "structural_floor": _structural_floor(card, deck_mana),
         "cmc": card.get("cmc") or 0.0,
         "price": extract_price(card),
-        "roles": sorted(role_of(card)),
+        "roles": sorted(role_of(card, deck_mana=deck_mana)),
         "color_widening": _color_widening(card, widening_base),
     }
 
@@ -625,6 +626,7 @@ def rank_candidates(
     rate_index: RateIndex | None = None,
     pair_ctx: PairContext | None = None,
     row_class_permutation: bool = False,
+    deck_mana: DeckMana | None = None,
 ) -> list[dict]:
     """Score and sort candidates: synergy desc, then price asc (no-listing last),
     then cmc asc.
@@ -655,6 +657,7 @@ def rank_candidates(
                 _ir_resolved=(ir_for(c),),
                 rate_index=rate_index,
                 pair_ctx=pair_ctx,
+                deck_mana=deck_mana,
             ),
         }
         for c in cards

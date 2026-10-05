@@ -40,7 +40,7 @@ def test_winter_orb_untap_lock_is_mass_land_denial():
 
 def test_loses_the_game_two_card_combo_fails_below_bracket_three():
     # A 2-card "each opponent loses the game" kill is an infinite/game-ending combo, but
-    # _is_infinite only matched "infinite"/"win the game", missing the loss-side feature.
+    # the bracket gate's old check only matched "infinite"/"win the game", missing the loss-side feature.
     combos = {
         "combos": [
             {

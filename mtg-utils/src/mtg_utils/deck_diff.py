@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-from collections.abc import Mapping
 from pathlib import Path
 
 import click
@@ -35,11 +34,12 @@ def _build_sideboard_qty(deck: dict) -> dict[str, int]:
 
 
 def _compute_stats(
-    name_qty: dict[str, int], by_name: Mapping[str, dict]
+    hd: HydratedDeck, name_qty: dict[str, int]
 ) -> tuple[int, float, int, int]:
     """Compute count, avg_cmc, land_count, ramp_count."""
     m = accumulate_deck_metrics(
-        (qty, by_name.get(name)) for name, qty in name_qty.items()
+        ((qty, hd.by_name.get(name)) for name, qty in name_qty.items()),
+        deck_mana=hd.deck_mana,
     )
     return m["total"], round(m["avg_cmc"], 2), m["land_count"], m["ramp_count"]
 
@@ -71,11 +71,9 @@ def deck_diff(old: HydratedDeck, new: HydratedDeck) -> dict:
     added, removed = _diff_card_lists(old_qty, new_qty)
 
     count_before, avg_cmc_before, land_before, ramp_before = _compute_stats(
-        old_qty, old.by_name
+        old, old_qty
     )
-    count_after, avg_cmc_after, land_after, ramp_after = _compute_stats(
-        new_qty, new.by_name
-    )
+    count_after, avg_cmc_after, land_after, ramp_after = _compute_stats(new, new_qty)
 
     result = {
         "added": added,

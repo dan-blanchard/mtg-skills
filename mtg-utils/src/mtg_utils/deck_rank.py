@@ -61,7 +61,7 @@ def _focus_sets(
     feeds Step 6, so it wants the tuner's notion of theme prominence).
     ``payoff_subjects`` (the task-#101 emerging-tribal gate) comes from the caller's
     single ``ranked_signals_and_payoffs`` pass — never re-extracted here."""
-    classes = classify_deck(hd, signals, commander_names)
+    classes = classify_deck(hd, signals, commander_names, deck_mana=hd.deck_mana)
     deck_size = hd.format.deck_size
     foc = metrics.focus(
         classes,
@@ -132,6 +132,7 @@ def main(
             [hd.by_name.get(n) or {} for n in commander_names],
             list(hd.deck_records()),
         ),
+        deck_mana=hd.deck_mana,
     )[: max(1, limit)]
     if as_json:
         out = [

@@ -2,7 +2,7 @@
 
 import re
 import sys
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
 
 import click
@@ -331,14 +331,36 @@ def search_combos(
     return combos
 
 
-def _is_game_winning(combo: dict) -> bool:
+def combos_or_none[T](combos_fn: Callable[[T], dict] | None, deck: T) -> dict | None:
+    """``combos_fn(deck)``, or ``None`` when it fails: Commander Spellbook is a network
+    service, and a deterministic check must never depend on it being up."""
+    if combos_fn is None:
+        return None
+    try:
+        return combos_fn(deck)
+    except Exception:  # noqa: BLE001 — any combos failure degrades, never breaks
+        return None
+
+
+def is_game_winning(combo: Mapping) -> bool:
     """Heuristic: combos whose result is infinite or game-ending (win OR make an
-    opponent lose the game)."""
-    result_text = " ".join(str(r) for r in combo.get("result", [])).lower()
-    return (
-        "infinite" in result_text
-        or "win the game" in result_text
-        or "lose the game" in result_text
+    opponent lose the game). The one test behind the report's GAME_WINNING tag, the
+    bracket gate's two-card-combo axis and the tuner's near-miss severity.
+
+    ``result`` is Commander Spellbook's list of feature strings; a bare string (a few
+    synthetic call sites) reads the same way."""
+    result = combo.get("result") or []
+    if isinstance(result, str):
+        result = [result]
+    text = " ".join(str(r) for r in result).lower()
+    return "infinite" in text or any(
+        phrase in text
+        for phrase in (
+            "win the game",
+            "wins the game",
+            "lose the game",
+            "loses the game",
+        )
     )
 
 
@@ -347,7 +369,7 @@ def render_combo_search_report(data: dict) -> str:
     combos = data.get("combos", [])
     near_misses = data.get("near_misses", [])
 
-    game_winning_count = sum(1 for c in combos if _is_game_winning(c))
+    game_winning_count = sum(1 for c in combos if is_game_winning(c))
     value_count = len(combos) - game_winning_count
 
     lines: list[str] = []
@@ -363,7 +385,7 @@ def render_combo_search_report(data: dict) -> str:
         lines.append("")
         lines.append("Existing combos:")
         for c in combos:
-            kind = "GAME_WINNING" if _is_game_winning(c) else "VALUE"
+            kind = "GAME_WINNING" if is_game_winning(c) else "VALUE"
             cards = " + ".join(c.get("cards", []))
             result = ", ".join(str(r) for r in c.get("result", []))
             bracket = c.get("bracket_tag", "")

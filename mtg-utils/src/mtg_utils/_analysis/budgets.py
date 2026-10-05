@@ -24,7 +24,7 @@ from __future__ import annotations
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 
-from mtg_utils._analysis.roles import role_of
+from mtg_utils._analysis.roles import DeckMana, role_of
 from mtg_utils.card_classify import is_creature, is_land
 from mtg_utils.formats import Family
 
@@ -223,6 +223,7 @@ def banded_slot_budgets(
     deck_size: int,
     shape: str | None = None,
     template: Template | None = None,
+    deck_mana: DeckMana | None = None,
 ) -> dict[str, dict]:
     """:func:`slot_budgets` over *records* (a deck's ``expanded()`` cards) with the
     lands row set to *land_band*, the mana audit's own ``{floor, top, …}`` readout
@@ -234,6 +235,7 @@ def banded_slot_budgets(
         shape=shape,
         land_band=(land_band["floor"], land_band["top"]),
         template=template,
+        deck_mana=deck_mana,
     )
 
 
@@ -244,6 +246,7 @@ def slot_budgets(
     shape: str | None = None,
     land_band: tuple[int, int],
     template: Template | None = None,
+    deck_mana: DeckMana | None = None,
 ) -> dict[str, dict]:
     """Return ``{row: {min, max, target, current, remaining, deviation, label,
     advisory}}`` vs the band, in template order.
@@ -260,7 +263,8 @@ def slot_budgets(
     eliminate, and no longer exists.
 
     ``template`` is the family's (``template_for(fmt.family)``); ``None`` is the
-    Commander template.
+    Commander template. ``commander`` is the deck context the ramp row counts under
+    (``roles.DeckMana``): a rock whose mana is dead for this commander isn't ramp.
     """
     tmpl = template or COMMANDER_TEMPLATE
     scale = deck_size / tmpl.base_size
@@ -269,7 +273,7 @@ def slot_budgets(
     for record in records:
         if not record:
             continue
-        roles = role_of(record)
+        roles = role_of(record, deck_mana=deck_mana)
         for row in tmpl.rows:
             if row.counts(record, roles):
                 current[row.key] += 1

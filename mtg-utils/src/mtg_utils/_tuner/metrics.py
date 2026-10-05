@@ -275,6 +275,7 @@ def focus(
     medium: str = "paper",
     tribal_payoff_subjects: frozenset[str] | None = None,
     cal: Calibration = COMMANDER,
+    playrate_condemns: bool | None = None,
 ) -> dict:
     # Avenues that are really Spine roles (ramp/draw/removal) are not themes — exclude
     # them so the deck's mana base + scaffolding can't masquerade as its main lane.
@@ -378,7 +379,13 @@ def focus(
     low_value_classes = [
         c
         for c in nonland
-        if c.low_value(medium=medium, playrate=cal.playrate_meaningful)
+        if c.low_value(
+            medium=medium,
+            # tune passes Calibration.playrate_condemns; without it, the family's.
+            playrate=cal.playrate_meaningful
+            if playrate_condemns is None
+            else playrate_condemns,
+        )
     ]
     low_value_cards = [c.name for c in low_value_classes]
 

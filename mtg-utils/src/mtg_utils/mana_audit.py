@@ -8,7 +8,7 @@ from pathlib import Path
 
 import click
 
-from mtg_utils._analysis.roles import is_ramp
+from mtg_utils._analysis.roles import DeckMana, is_ramp
 from mtg_utils._sidecar import atomic_write_json, sha_keyed_path
 from mtg_utils.card_classify import (
     color_sources,
@@ -360,10 +360,14 @@ def _commander_stats(
 
 
 def _scan_entries(
-    all_entries: list[dict], card_lookup: Mapping[str, dict]
+    all_entries: list[dict],
+    card_lookup: Mapping[str, dict],
+    *,
+    deck_mana: DeckMana | None = None,
 ) -> tuple[int, int, list[float], list[dict], dict[str, int], dict[str, int]]:
     """Scan all entries and return (land_count, ramp_count, nonland_cmcs,
-    pip_cards, land_color_production, rock_colors)."""
+    pip_cards, land_color_production, rock_colors). Ramp is judged under
+    ``commander`` (a rock whose mana is dead for it isn't ramp)."""
     land_count = 0
     ramp_count = 0
     nonland_cmcs: list[float] = []
@@ -384,7 +388,7 @@ def _scan_entries(
             nonland_cmcs.extend([card.get("cmc", 0.0)] * qty)
             pip_cards.extend([card] * qty)
 
-        if is_ramp(card):
+        if is_ramp(card, deck_mana=deck_mana):
             ramp_count += qty
             if not is_land(card):
                 _add_color_sources(rock_colors, color_sources(card), qty)
@@ -447,7 +451,7 @@ def mana_audit(hd: HydratedDeck) -> dict:
         pip_cards,
         land_color_production,
         rock_colors,
-    ) = _scan_entries(all_entries, card_lookup)
+    ) = _scan_entries(all_entries, card_lookup, deck_mana=hd.deck_mana)
 
     avg_cmc = round(sum(nonland_cmcs) / len(nonland_cmcs), 2) if nonland_cmcs else 0.0
 

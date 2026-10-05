@@ -47,6 +47,15 @@ class Calibration:
     playrate_meaningful: bool
     default_shape: str = field(default="midrange")
 
+    def playrate_condemns(self, *, multiplayer: bool) -> bool:
+        """Whether a fringe play-rate may mark a card low-value (an upgrade target).
+
+        EDHREC is a multiplayer paper-EDH population, so in a one-on-one game
+        (Arena's Brawl queues, Competitive Brawl) a narrow 1v1 tool ranks fringe
+        there for reasons that don't apply. Play-rate still breaks ties between
+        equal adds (``playrate_meaningful``); it just never condemns here."""
+        return self.playrate_meaningful and multiplayer
+
     @property
     def template(self) -> Template:
         """The family's budgets template — the one place its base size lives."""

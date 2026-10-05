@@ -65,3 +65,32 @@ plays (the lane's own docstring excludes that mechanic, and it would change a se
 key's population for Find). Fixing the number-word regex and leaving two paths (it is
 the drift, not the one bug, that ADR-0027 rejected). Deleting the text read outright
 (cube pools and synthetic fixtures have no coverage).
+
+**Amendment (2026-10-04): ramp is judged under the deck's commander.** The role was the
+card's alone, so a rock that makes no usable mana for *this* deck still filled a ramp
+slot. Arcane Signet under a colorless commander "produces no mana. It doesn't produce
+{C}" (its ruling). Mox Amber and Chrome Mox take their colors from your legends and your
+exiled card, all colorless in such a deck. The Mightstone and Weakstone's mana "can't be
+spent to cast nonartifact spells", so it can't cast a creature commander. An Omnath,
+Locus of the Void deck counted all of them, and the tuner could have suggested Arcane
+Signet as ramp.
+
+`roles.DeckMana` is the deck context: the commanders' combined color identity and
+facts, plus the deck's nonland cards and their copies, from `HydratedDeck.deck_mana`.
+`is_ramp` and `role_of` take it as an optional `deck_mana`. With it, a source is not
+ramp when every `Mana` effect it has is dead for the deck: a deck-colored `produced`
+kind (`AnyInCommandersColorIdentity`, `AnyOneColorAmongPermanents`,
+`ChoiceAmongExiledColors`) under an empty identity, or a spell-type restriction the
+deck can't use. A restriction is usable when it admits a commander or at least a third
+of the deck's nonland cards by copies, so artifact-only mana is ramp in an artifact deck
+under a creature commander. The restriction is phase's string ("Instant, Sorcery,
+Demon, and Spirit"), split on its list words and read word by word against each card's
+types, subtypes, supertypes and colors (outlaw per CR 700.12); a word it doesn't know
+admits, so a card is never condemned on vocabulary alone. One usable ability keeps a source live
+(Eldrazi Temple's plain {C}), and a card phase hasn't parsed is never condemned. The
+reads are two new crosswalk helpers, `produced_kind` and `mana_spell_type_restriction`.
+Every surface that counts a deck's ramp passes the context: `deck-stats`, `deck-diff`,
+`mana-audit` (so a dead rock no longer lowers the land band), `slot-budgets`, the hub's
+budgets, candidate ranking (`deck-rank`, the hub's Find, the tuner's adds), and the tuner's
+classes, band and ramp sourcing. Without a commander the deck-colored rule doesn't
+apply; for a card on its own the answer is unchanged.

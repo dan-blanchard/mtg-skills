@@ -151,7 +151,8 @@ def deck_stats(hd: HydratedDeck) -> dict:
     # deck-side quantity and the record can't desync. Reused below for alt-costs.
     main_entries = hd.entries(zones=("commanders", "cards"))
     m = accumulate_deck_metrics(
-        (entry.get("quantity", 1), card) for entry, card in main_entries
+        ((entry.get("quantity", 1), card) for entry, card in main_entries),
+        deck_mana=hd.deck_mana,
     )
     total_cards = m["total"]
     land_count = m["land_count"]

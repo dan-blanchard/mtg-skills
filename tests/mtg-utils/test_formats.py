@@ -189,8 +189,8 @@ class TestLegality:
 
     def test_paper_nadu_stays_banned_after_the_rebalance_reversion(self):
         # Arena reverted every rebalanced card on 2026-09-22 and ordinary Brawl banned
-        # the paper Nadu, so the `brawl` key will read "banned" once the upstream data
-        # catches up. Competitive Brawl's override promotes `banned` to legal, so its
+        # the paper Nadu, so the `brawl` key reads "banned" (MTGJSON caught up by
+        # 2026-10-03). Competitive Brawl's override promotes `banned` to legal, so its
         # own list has to name the paper card for Nadu to stay banned.
         nadu = test_card("Nadu, Winged Wisdom")
         reverted = {**nadu, "legalities": {**nadu["legalities"], "brawl": "banned"}}
@@ -278,9 +278,11 @@ class TestCommanderEligibility:
         assert CMD.commander_eligibility(chandra)["eligible"] is False
 
     def test_legality_gates_eligibility(self):
-        # Chandra isn't Standard-legal, so she can't lead a (Standard) Brawl deck.
-        chandra = test_card("Chandra, Torch of Defiance")
-        assert FORMATS["brawl"].commander_eligibility(chandra)["eligible"] is False
+        # Ashiok, Dream Render isn't Standard-legal, so it can't lead a (Standard)
+        # Brawl deck. (Chandra, Torch of Defiance served here until a reprint made her
+        # Standard-legal.)
+        ashiok = test_card("Ashiok, Dream Render")
+        assert FORMATS["brawl"].commander_eligibility(ashiok)["eligible"] is False
         # A banned legend is never eligible, however legendary.
         assert (
             CB.commander_eligibility(test_card("Oko, Thief of Crowns"))["eligible"]
