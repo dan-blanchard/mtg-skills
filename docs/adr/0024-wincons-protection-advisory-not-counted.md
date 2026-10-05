@@ -35,7 +35,10 @@ read the tuner's ADR-0030 bracket-constraint gate (Game Changers / mass land den
 extra turns / two-card combos, gated by a chosen target bracket) as reintroducing
 bracket-scaled role bands — role density stays Shape-scaled per this ADR. The two are
 different questions: *permission* (what a bracket forbids, ADR-0030) vs *density* (how
-much scaffolding a Shape wants, here).
+much scaffolding a Shape wants, here). Don't re-add a bracket-keyed interaction table
+either (removal / wipes / total interaction by bracket 1-2 / 3 / 4) — not to the tuner, and
+not to the skills as agent judgment. deck-wizard carried one, sourced to the same Command
+Zone episode, until 2026-10-04; it was removed because this research contradicts it.
 
 **Amendment (2026-09-12, ADR-0045 follow-up).** The closer read is relative to the
 **Game** the deck plays (`Format.game`: starting life, pod vs one opponent, whether CR

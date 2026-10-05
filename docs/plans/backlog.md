@@ -6,6 +6,42 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
 
 ## Open
 
+**From the Omnath Competitive Brawl build (2026-10-04)**
+
+- **Read MTGJSON's Competitive Brawl key once it exists.** Scryfall's API now carries
+  `competitivebrawl`, and it agreed with `Format("competitive_brawl")` on every card
+  spot-checked. MTGJSON (5.3.0+20261004) drops it: its `ScryfallLegalities` model
+  (`mtgjson5/models/submodels.py` `Legalities`) is a fixed TypedDict, and pydantic drops
+  the undeclared key. Fix proposed upstream in mtgjson/mtgjson#1742 (2026-10-04).
+  When it ships, add the key to `_mtgjson/adapter._LEGALITY_FORMATS` and point
+  the format at it. That would retire `ignores_legality_key_bans` and the hand-kept
+  `COMPETITIVE_BRAWL_BANNED` snapshot, after diffing the two over the whole pool.
+- **Move the remaining oracle-text regexes in the tuner and deck CLIs to phase's IR**
+  (next after the 2026-10-04 tuner changes, at Dan's request). Card reads go through the
+  corrected trees and the shared crosswalk reads; a clause phase can't parse belongs in
+  the recovery stage or a ledgered bridge (ADR-0047/0048), never a free regex. The
+  `_analysis/text_reads.py` patterns are the sanctioned bridge / membership-floor set and
+  out of scope. Pre-existing targets:
+  - `cut_check.py` (~30): trigger types and values, keyword interactions,
+    self-recurring, `detect_commander_multiplication`'s copy patterns, the zone grant.
+    The tuner's protection already moved to `_analysis/multipliers.py`; cut-check's own
+    report should read the same trees.
+  - `_analysis/ranking.py` (~7): `_TRIGGER_RE` / `_REWARD_RE` / `_ACTIVATED_RE` /
+    `_STRONG_REWARD_RE` / `_STATIC_PAYOFF_RE` / `_TRIBAL_GATE_RE` clause-role reads.
+  - `_analysis/roles.py`: `_PROTECT_GRANT` / `_PROTECT_SAVE` (`protects`).
+  - `_tuner/`: `bracket._EXTRA_TURN_RE`, `metrics`' closer and reach templates,
+    `swaps._LAND_FETCH_FIXING_RE`.
+  - `deck_stats._detect_alternative_costs`: phase's keywords carry the costs
+    (`ConceptTree.card_curve_costs` already reads the curve ones).
+  - `card_classify.py` (~20): the text helpers; keep only the documented no-coverage
+    degrades (`ramp_by_text`) and retire the rest behind their IR equivalents.
+- **Two commander-multiplier gaps.** Syr Konrad's trigger reads as `ChangesZone` with
+  no zones (a phase gap), so `_analysis/multipliers` can't match a dies doubler to it;
+  report upstream rather than work around it. And `trees.object_facts` reads printed
+  types only, so Grist, the Hunger Tide ("a 1/1 Insect creature" off the battlefield)
+  isn't seen as a creature spell Double Major or Lithoform Engine can copy; read the
+  off-battlefield type-adding static from the tree.
+
 **From the twohg-guide skill (2026-09-27)**
 
 - **The edict presets match sacrifices you make yourself.** `removal_tutors.

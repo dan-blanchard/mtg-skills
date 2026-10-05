@@ -154,7 +154,7 @@ Reuse these stable paths within a session: `/tmp/cuts.json`, `/tmp/adds.json`, `
 
 ### Alchemy Card Warning
 
-Alchemy includes two categories of digital-only cards beyond the Standard pool: (1) **Rebalanced cards** prefixed with `A-` (e.g., `A-Teferi, Time Raveler`) that have different oracle text from their paper counterparts, and (2) **Digital-only originals** with mechanics that only work on Arena (conjure, seek, perpetually, etc.). When building or tuning Alchemy decks, search for both `"<Card Name>"` and `"A-<Card Name>"` via `scryfall-lookup` to verify which version is legal and what its current oracle text says.
+Alchemy adds **digital-only originals** beyond the Standard pool, with mechanics that only work on Arena (conjure, seek, perpetually, etc.). Verify their oracle text like any other card. Arena reverted every **rebalanced** (`A-`) card to its paper version on 2026-09-22 and the card data no longer carries rebalanced `A-` records, so look up the plain card name. If Arena ever rebalances a card again, the `A-` name is the one with the live oracle text.
 
 ### AskUserQuestion Cap
 
@@ -179,21 +179,21 @@ legal as commanders without explicit permission text.
 
 Two things make it different from every other format here:
 
-1. **It shares the `brawl` legality key but not its ban list.** MTGJSON/Scryfall publish
-   no `competitivebrawl` key, so the audit reads `brawl` and then applies two overrides
+1. **It shares the `brawl` legality key but not its ban list.** MTGJSON, the card-data
+   source, publishes no Competitive Brawl key, so the audit reads `brawl` and then applies two overrides
    from the `Format` (`mtg_utils.formats`): a card marked **`banned`** under that key is **legal** here
    (ordinary Brawl bans ~28 cards that Competitive Brawl allows — Mana Drain, Demonic
    Tutor, Fierce Guardianship, Ancient Tomb, Chrome Mox…), while **`not_legal` still
    fails** because it means the card isn't on Arena at all. The format's own ten-card ban
    list is enforced by name via `COMPETITIVE_BRAWL_BANNED`.
+   Scryfall's live API does carry a `competitivebrawl` key (a single `scryfall-lookup`
+   without `--bulk-data` shows it). It agreed with the audit on every card checked on
+   2026-10-04, so it's a way to double-check a surprising audit result; the tools don't read it.
 2. **Rebalanced cards were reverted on 2026-09-22.** Arena turned every Alchemy `A-`
-   rebalance of a paper card back into the paper printing, in every format. Until
-   Scryfall (and so MTGJSON) catches up, the card data still marks the paper original
-   `not_legal` and the `A-` version legal. `Harald, King of Skemfar` reports `not_legal`
-   and `A-Harald, King of Skemfar` reports legal, but on Arena you now play the paper
-   Harald. When a card reports `not_legal` and has an `A-` variant, treat the paper card
-   as the legal one and tell the user the tools are behind. Check the next
-   `download-mtgjson` to see whether the data has caught up.
+   rebalance back into the paper printing, in every format, and the card data has caught
+   up: the `A-` records are gone and the paper cards carry the real legality (paper Nadu is
+   banned under `brawl`, which is why `COMPETITIVE_BRAWL_BANNED` names it). Treat any
+   leftover `A-` result as stale data.
 
 **Determining Arena availability generally:** a card is craftable iff its MTGJSON record
 has `arena` in `games`. Checking the legality key alone is not sufficient — `banned` and
@@ -296,6 +296,7 @@ mark-owned <deck.json> <collection.json> [--bulk-data <bulk-data-path>]
 | Compare mana before/after | `mana-audit <deck.json> --compare <new-deck.json> [--bulk-data <path>]` |
 | Price check (paper) | `price-check <deck.json> --bulk-data <path>` |
 | Price check (Arena wildcards) | `price-check <deck.json> --format <fmt> --medium digital --bulk-data <path>` |
+| **Check a proposal against every mechanical gate (Steps 7 + 10)** | `proposal-check <deck.json> --cuts <c.json> --adds <a.json> [--sideboard-cuts …] [--sideboard-adds …] [--budget <usd> \| --wildcards <rarity=N,…>] [--medium paper\|digital] [--collection <collection>] [--allow-combo-loss] [--multiplier-low N --multiplier-high N] [--output-dir <dir>]` (writes `new-deck.json` + sidecar and `proposal-check.json`; exits 1 on a FAIL) |
 | Apply mainboard + sideboard changes | `build-deck <deck.json> --cuts <c.json> --adds <a.json> --sideboard-cuts <sc.json> --sideboard-adds <sa.json> [--bulk-data <path>] [--output-dir <dir>]` (writes `new-deck.json` + its own `new-deck.hydrated.json` sidecar) |
 | Compare deck versions | `deck-diff <old-deck.json> <new-deck.json> [--bulk-data <path>]` |
 | Export for import | `export-deck <deck.json>` (auto-picks Arena section headers for Arena formats; `--style moxfield\|arena` to force) |
@@ -821,8 +822,8 @@ Card counts scale with deck size. The base counts below are for 100-card decks; 
 | Lands | 36-38 | 22-23 | Burgess formula scaled: `round((31 + colors + effective_commander_cost) * deck_size / 100)` — read it from `mana-audit`'s `land_band`, don't compute it by hand (ADR-0044: for a self-discounting commander such as The Lord of the Eagles or Ghalta the tool uses the **effective commander cost**, the earliest turn the deck expects to afford it, not the printed mana value) |
 | Ramp | 10 | 6 | Mana rocks, dorks, land-fetch spells |
 | Card draw | 10 | 6 | Prefer draw that aligns with strategy |
-| Targeted removal/disruption | 5-12 | 3-7 | Scaled to bracket |
-| Board wipes | 2-5 | 1-3 | Scaled to bracket |
+| Targeted removal/disruption | 5-12 | 3-7 | Scaled to the deck's Shape — read the band from `deck-tune`'s `template` |
+| Board wipes | 2-5 | 1-3 | Scaled to the deck's Shape — read the band from `deck-tune`'s `template` |
 | Win conditions | 3-5 | 2-3 | Cards that close out a game |
 | Engine/synergy pieces | 15-20 | 9-12 | Cards that work with the commander |
 | Protection/utility | 8-10 | 5-6 | Counterspells, hexproof, recursion |
@@ -858,17 +859,9 @@ The land count comes from the Burgess formula, but composition matters. Guidelin
 
 Run `mana-audit` after filling to verify color balance.
 
-##### Interaction Scaling by Bracket
+##### Interaction Density
 
-Based on Command Zone #658 (2025), EDHREC, and MTGGoldfish guidelines:
-
-| Category | Bracket 1-2 (Casual) | Bracket 3 (Upgraded) | Bracket 4 (Optimized) |
-|----------|----------------------|----------------------|----------------------|
-| Targeted removal/disruption | 5-7 | 8-10 | 10-12 |
-| Board wipes | 2-3 | 3-4 | 4-5 |
-| Total interaction | 8-10 | 12-14 | 15-18 |
-
-"Disruption" includes counterspells, discard, and stax pieces — not just creature/artifact removal. Extra interaction slots come out of the engine/synergy budget.
+How much interaction a deck wants scales with its **Shape** (aggro / midrange / control / combo), not its power bracket (ADR-0024). Read the bands from `slot-budgets` or `deck-tune`'s `template` rows (`interaction`, `board_wipe`). "Disruption" — counterspells, discard, stax pieces — counts as interaction alongside creature/artifact removal. Extra interaction slots come out of the engine/synergy budget. The bracket governs *permission* (Game Changers, mass land denial, extra turns, two-card combos), never density.
 
 ##### Filling Process (Commander/Brawl)
 
@@ -1305,20 +1298,20 @@ deck-tune <deck.json> [--bulk-data <path>] \
 The medium picks the currency: a **paper** build spends `--budget` USD; a **digital** (Arena) build spends `--wildcards` (per-rarity, e.g. `mythic=1,rare=4,uncommon=8,common=8`) and ignores `--budget`. Omit both for an owned-only pass. The medium also picks the candidate pool — paper printings for a paper table, Arena's for a digital build.
 
 Scorecard sections and what each subsumes:
-- **`shape` / `efficiency`** — deck speed + curve/tempo health (the 6a curve read).
-- **`template`** — role density vs the family's bands (Commander: lands / ramp / draw / interaction / wipes; 60-card: lands / interaction incl. sweepers / draw, plus an advisory creature count — the old `slot-budgets` pass; 6a + 6b counts). An `advisory` row is a fact beside the verdict, never a deviation.
+- **`shape` / `efficiency`** — deck speed + curve/tempo health (the 6a curve read). Each card is read at the cost the deck pays on curve: an unconditional cheaper alternative cost (warp, evoke, dash, blitz, prototype, impending) replaces its printed mana value (`_analysis.costs.effective_mana_value`, read off phase's keywords; the scorecard's `curve` and average both read it, while `deck-stats` keeps reporting printed mana value and lists the alternative costs beside it). Suspend and plot keep the printed value: they pay now and cast turns later, so judge those by hand (the alternative-cost check below).
+- **`template`** — role density vs the family's bands (Commander: lands / ramp / draw / interaction / wipes; 60-card: lands / interaction incl. sweepers / draw, plus an advisory creature count — the old `slot-budgets` pass; 6a + 6b counts). An `advisory` row is a fact beside the verdict, never a deviation. Ramp is judged under the deck's commander (ADR-0051 amendment): a rock whose mana is dead for it fills no ramp slot and is never suggested — Arcane Signet, Mox Amber and Chrome Mox under a colorless commander; The Mightstone and Weakstone's artifact-only mana under a creature commander.
 - **`focus`** — the commander's signal lanes and whether the deck concentrates on them (the old `deck-signals` pass; 6c).
 - **`mana`** — the full mana audit: color balance, Burgess land target, untapped quality.
 - **`curve`** — the per-CMC histogram.
-- **`combos`** — combos + near-misses; combo pieces are auto-protected from the proposed cuts.
+- **`combos`** — combos + near-misses; combo pieces are auto-protected from the proposed cuts. A near-miss one named card short becomes a `near_miss_combo` issue whose swap adds that card (a game-winning line ranks above dead weight; below target bracket 3 a game-winning near-miss is never suggested).
+- **`commander_multipliers`** — the cards that copy the commander, make an ability it actually has trigger additional times or copy it (CR 603.2d, 707.10 — read off phase's trees, so Panharmonicon counts only for a commander with a matching enters trigger), or lend it activated abilities from another zone, with the reason. They're protected from the proposed cuts like combo pieces.
 - **`bracket`** — the constraint gate when you pass `--bracket` (Game Changers / mass land denial / extra turns / two-card combos vs the target bracket's official allowances; ADR-0030). For a one-on-one game (every Arena build, Competitive Brawl) it passes with a `not_applicable` reason — the brackets are a multiplayer-Commander system.
-- **`swaps`** — budgeted (cut, add) candidate pairs, synergy-ranked (the old `deck-rank` pass).
+- **`swaps`** — budgeted (cut, add) candidate pairs, synergy-ranked (the old `deck-rank` pass). In a one-on-one game (every Arena build) EDHREC play rate never marks a card low-value — EDHREC is multiplayer paper Commander — though it still breaks ties between equal adds.
 
 **Your job is judgment, not counting.** Read the scorecard's `top_issues`, then run the per-card Cut Checklist (6d) on the *candidate swaps* `deck-tune` surfaced — verify oracle text, commander interaction, multiplied trigger values (Step 7 `cut-check`), and combo lines before accepting any swap. The Self-Grill (Step 8) still gates the final proposal, and **you and the user make every final call** (the user drives card choices).
 
 **What deliberately stays OUTSIDE the spine:**
 - `mana-audit <deck.json> --compare <new-deck.json>` for the before/after check in 6g / Step 10 (the scorecard carries the *current* mana read; the comparison is its own call).
-- The **bracket interaction-target table** in 6b (5-7 / 8-10 / 10-12) is an *agent-layer overlay* — compare the scorecard's interaction count against it as judgment. It is NOT a tuner role band: ADR-0024 keeps role density Shape-scaled, while the tuner's `bracket` gate governs *permission* (Game Changers etc.), not interaction density.
 - `archetype-audit` is now **optional** — `focus` answers the commander-coherence question. Reach for `archetype-audit` only to test a specific *named* theme's density or to find bridge cards (capabilities `focus` doesn't provide).
 
 **60-card constructed:** `deck-tune` runs the same spine (its `size` reports a `shortfall` toward 60, never an overflow; a swap's `add` carries `copy` — "go to four" is a swap like any other; the sideboard is never counted and never proposed). The agent-driven analysis below — metagame archetypes, build-around evaluation, the sideboard — stays the judgment layer on top of it.
@@ -1345,15 +1338,7 @@ Scorecard sections and what each subsumes:
 
 #### Commander/Brawl/Historic Brawl
 
-Count the deck's removal and interaction pieces. Compare against bracket-appropriate targets:
-
-| Category | Bracket 1-2 (Casual) | Bracket 3 (Upgraded) | Bracket 4 (Optimized) |
-|----------|----------------------|----------------------|----------------------|
-| Targeted removal/disruption | 5-7 | 8-10 | 10-12 |
-| Board wipes | 2-3 | 3-4 | 4-5 |
-| Total interaction | 8-10 | 12-14 | 15-18 |
-
-"Disruption" includes counterspells, discard, and stax pieces. Flag decks that fall below the low end of their bracket's range.
+Read the scorecard's `template` rows for `interaction` and `board_wipe`: the count against the band for the deck's Shape (ADR-0024 — density scales with Shape, not power bracket). A row marked `(under)` is the falsifiable signal to add interaction. "Disruption" includes counterspells, discard, and stax pieces. Then judge the *kind* of interaction against the user's pain points and table: instant-speed vs sorcery, answers to the threats this table actually presents.
 
 #### 60-Card Constructed
 
@@ -1471,6 +1456,11 @@ Before recommending ANY cut, work through this checklist for every candidate. Sk
 
 7. **Zone-granted ability check.** If the commander reads a non-battlefield zone (see Step 5 > Zone-Granted Abilities), does this card's *activated* ability stay live from that zone? `cut-check` flags these as `ZONE_GRANTED`. A card whose body is unremarkable can still be a key piece — Thranduil, the Elvenking turns Priest of Titania in the graveyard into "{T}: Add {G} for each Elf" on a 5/6 commander. **The card never has to be cast**, so evaluating it as a creature you'd play understates it. Cutting one of these removes a tool from the commander.
 
+8. **Anti-synergy sizing.** When a clause hurts some of your own cards ("players can't pay life…", "can't cast spells from libraries", a symmetric wipe or hate piece), name the affected cards and count them before the anti-synergy decides anything. This applies to adds as much as cuts.
+   - **One or two affected cards is minor.** It earns a play note ("don't fire Sylex with your rocks out"), not a cut or a rejected add.
+   - **Weigh the same clause against the opponent.** A symmetric effect usually hits the deck that relies on it far harder. Karn's Sylex shuts off two cards in a colorless Omnath deck and every fetchland and Phyrexian-mana card in the opponent's.
+   - **It decides only when it hits a lot.** That means the commander, a combo piece, the deck's engine, or a real slice of the deck (roughly five or more cards).
+
 **Cuts — Be Careful.** Before recommending ANY cut, re-read the oracle text of BOTH the card and the commander. Articulate specifically why the card underperforms in THIS deck.
 
 #### 60-Card Constructed: Draft Cuts
@@ -1483,6 +1473,7 @@ For each proposed cut, evaluate:
 4. **Matchup impact** — Does cutting this hurt specific matchups?
 5. **Combo line check** — Is this card part of an existing combo? (from Step 3)
 6. **Metagame relevance** — Is this card specifically good/bad in the current metagame?
+7. **Anti-synergy sizing** — Count the cards a self-harming clause actually hits, and weigh it against the opponent, as in the Commander checklist's item 8. One or two affected cards is a play note, not a cut.
 
 **Be careful with cuts.** Re-read oracle text of both the card and its synergy partners. Articulate the specific underperformance.
 
@@ -1539,7 +1530,13 @@ If the swaps would damage the mana base, revise before presenting. It is better 
 
 ## Step 7: Pre-Grill Verification
 
-Before the self-grill, verify mechanically.
+Before the self-grill, verify mechanically. **`proposal-check` runs every gate below in one call** — it builds the preview deck and reports cuts found, size, legality, the land band, budget, combos lost / near-misses closed (WARN when Commander Spellbook is unreachable), and a cut that copies or multiplies the commander (WARN), each PASS / WARN / FAIL, with `cut-check`'s full readout for every commander alongside:
+
+```
+proposal-check <deck.json> --cuts /tmp/cuts.json --adds /tmp/adds.json [--budget <usd> | --wildcards <rarity=N,…>] [--medium digital] [--collection <collection>] --output-dir <wd>
+```
+
+Pass `--collection` on Arena (or any time the adds may already be owned): the deck's `owned_cards` only covers its current cards. A lost game-winning combo FAILs; pass `--allow-combo-loss` only once the cut's justification is written down. Hand its `proposal-check.json` to the Step 8 agents as the mechanical record. The sections below describe each gate and what to do when it fails.
 
 ### Legality Check on Additions (HARD GATE)
 
@@ -1643,6 +1640,7 @@ Defend the proposal. Push back on challenger objections unless they provide:
 The challenger must verify:
 - [ ] Read oracle text for every cut independently (don't trust paraphrasing)
 - [ ] Verify each cut's role — is the replacement actually better in this slot?
+- [ ] **Size every anti-synergy claim** (yours and the proposer's): name the affected cards and count them. An effect that hits one or two of our cards is a play note, not a reason to cut or reject (Step 6d item 8). Also weigh what the same clause does to the opponent.
 - [ ] Check that no critical matchup coverage is lost
 - [ ] **Verify `legality-audit` was run on the proposal (not just the current deck)** — cite the JSON output path. Training-data ban-list claims are never acceptable.
 - [ ] Verify mana-audit is PASS
@@ -1744,7 +1742,7 @@ For Arena wildcard budgets, show per-rarity breakdown.
 
 ## Step 10: Impact Verification
 
-**HARD GATE.** Run BOTH checks on the new deck before presenting close calls. This step catches emergent regressions — cross-swap interactions visible only after all changes are applied together.
+**HARD GATE.** Run BOTH checks on the new deck before presenting close calls. This step catches emergent regressions — cross-swap interactions visible only after all changes are applied together. Re-running `proposal-check` on the final proposal covers both (its `diff` is `deck-diff`, its `combos` gate compares `combo-search` before and after).
 
 ### Check 1: Deck Diff
 
@@ -2000,6 +1998,7 @@ See `proxy-printer/SKILL.md` for layout details and catalog setup.
 | "I'll write a quick `python3 -c` to count / filter / extract" | Check the decision table first. Almost every common task is covered by an existing script. |
 | "Skip impact verification, the swaps look clean" | Emergent cross-swap effects only visible post-build. Run the checks. |
 | "This card is too expensive to cut" | Sunk cost. Evaluate on merit, not price. |
+| "This card shuts off one of my cards, so it has to go" | Count the cards it hits. One or two out of 99 is a play note. Weigh what the same clause does to the opponent before cutting or rejecting it. |
 | "Propose changes and ask for approval in one message" | Step 9 is its own turn. AskUserQuestion comes in Step 11. |
 | "The mana base is close enough" | Run mana-audit. "Close enough" is how you lose to color screw. |
 | "Cutting this land for a nonland is fine, the deck has enough" | Count the lands. Count the ramp. Do the math. Don't eyeball mana bases. |

@@ -256,6 +256,17 @@ _Avoid_: "the game the deck plays" as loose prose (that is this term), "format" 
 this (a format has several games — paper Historic Brawl at a 30-life table and Arena
 Historic Brawl at 25 one-on-one are one format, two games).
 
+**Meta archetype**:
+Untapped.gg's grouping of Arena ladder decks within one meta period: a commander on a
+Brawl ladder, a named deck type ("Izzet Prowess") on a 60-card ladder.
+_Avoid_: bare "archetype" (cube-wizard's stated and gauntlet archetypes are design
+themes and built decks), "Shape" (the tuner's aggro / midrange / control / combo read).
+
+**Meta period**:
+The span Untapped aggregates one Arena queue's ladder stats over, starting at a set
+release or a ban and rebalance update; each queue has its own.
+_Avoid_: "season" (Arena's ranked season is a different, monthly clock), "meta" alone.
+
 **Ownership** (ADR-0058):
 How many copies of a card a collection can put in a deck — a medium rule with one
 owner, `Format.coverage(medium, name, needed, owned, *, requested_owned)`. Paper: you

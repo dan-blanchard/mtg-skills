@@ -174,7 +174,8 @@ class Game:
 
 # Arena's Competitive Brawl (June 2026) bans ten cards outright — as commander AND in
 # the 99 — and legalizes everything else on Arena, including the ~28 cards the ordinary
-# Brawl queue bans. MTGJSON/Scryfall publish no legality key for it, so legality runs
+# Brawl queue bans. MTGJSON publishes no legality key for it (Scryfall's API has
+# ``competitivebrawl``, but no code reads that key), so legality runs
 # off the ``brawl`` key plus two overrides: ``banned`` under that key is legal here,
 # ``not_legal`` still is not (it means the card isn't in the Arena pool at all).
 # Canonical Scryfall names. Arena reverted every rebalanced (``A-``) card to its paper
