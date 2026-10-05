@@ -140,6 +140,7 @@ from `mtg_utils` in `deck-strat/pyproject.toml`. Invoke via
 | Analysis | `combo-search` | Existing + near-miss combos via Commander Spellbook |
 | Analysis | `combo-discover` | Optional: explore combos by outcome/card/colors |
 | Analysis | `edhrec-lookup` | Community top-cards + high-synergy for the commander(s) |
+| Analysis | `arena-meta` | Arena decks: the queue's field, the deck's meta archetype and its core (ADR-0059) |
 | Analysis | `card-search` | Fallback card discovery when EDHREC is empty |
 | Analysis | `web-fetch` | Strategy articles when WebFetch is blocked |
 | Verification | `rules-lookup` | CR lookups by `--rule`, `--term`, `--grep` |
@@ -499,6 +500,22 @@ Use WebSearch + WebFetch sparingly — only if you need strategic context
 for an obscure commander. Use `web-fetch` script as a fallback if
 WebFetch is blocked.
 
+**Arena decks: the ladder field.** A Historic Brawl or Competitive Brawl deck
+built for Arena plays a queue Untapped.gg tracks (standard Brawl has none). Ask
+the player's rank if you don't know it, then run, with `--ranks` from it
+(`platinum+` by default; `diamond+`, `mythic`, or `all` for a lower rank):
+
+```bash
+arena-meta --deck <deck.json> --ranks <rank>+ --json
+```
+
+It reads the cached meta and fetches when the cache is older than 24 hours. A
+first fetch may need `arena-meta --login` (the user signs in to Untapped once).
+Keep the `field` (the meta archetypes the deck will face, by share at Platinum and
+up), the deck's `match`, and its `core`. They feed the "What you'll face" section.
+If the deck matches no meta archetype or nothing is cached, say so in deck notes
+and skip that section.
+
 ---
 
 ## Phase 3: Authoring
@@ -608,6 +625,14 @@ re-run reproduces the same shape if signals fire again.
   Kessig Wolf Run line, the Helix Pinnacle line.
 - **ETB multiplication** (Panharmonicon-likes): which ETB triggers in
   the deck benefit most, ordering on the stack.
+- **What you'll face** (an Arena deck with an `arena-meta` field from
+  Step 7): the five to eight most-played meta archetypes on the deck's
+  queue, each with its share and win rate. For each, name its key threats
+  from its core cards (`arena-meta --archetype "<name>" --json`), and say
+  which of the deck's answers handles them and what to hold back.
+  Verify every card claim like the rest of the guide: `scryfall-lookup` for
+  the oracle text, `rules-lookup` for any interaction. Note the period and
+  ranks the numbers come from.
 
 #### Writing style
 

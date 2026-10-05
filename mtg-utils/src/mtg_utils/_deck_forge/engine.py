@@ -38,6 +38,9 @@ from mtg_utils._analysis.signals import (
     extract_signals,
     rank_deck_signals,
 )
+from mtg_utils._arena_meta import meta as arena_meta
+from mtg_utils._arena_meta import untapped
+from mtg_utils._arena_meta.report import build_report, wildcard_cost_fn
 from mtg_utils._deck_forge import collection, views
 from mtg_utils._deck_forge.state import DeckSession, ForgeState
 from mtg_utils._gauntlet_build import build_gauntlet_deck
@@ -69,6 +72,7 @@ from mtg_utils.mana_audit import (
     mana_audit,
     reconcile_basic_lands,
 )
+from mtg_utils.names import normalize_card_name
 from mtg_utils.parse_deck import parse_deck_text
 from mtg_utils.set_scan import pool_color_pairs, set_scan
 
@@ -1293,6 +1297,7 @@ def tune_params(
     shape_override: str | None,
     suggest_commander: bool,
     exclude: Collection[str] = (),
+    meta: arena_meta.MetaContext | None = None,
 ) -> TuneParams:
     """The tuner's parameters for THIS build — transport only: the medium and both
     purses go through as-is, and ``tune`` asks the Format which currency and which
@@ -1310,6 +1315,7 @@ def tune_params(
         suggest_commander=suggest_commander,
         medium=state.session.medium,
         exclude=frozenset(exclude),
+        meta=meta,
     )
 
 
@@ -1834,3 +1840,95 @@ def snapshot(state: ForgeState) -> dict:
         # findable; otherwise they lock to the commander's identity (A5).
         "partner_open": partner_search(state) is not None,
     }
+
+
+# --- The Arena meta (ADR-0059) ------------------------------------------------------
+# The hub reads only the arena-meta cache: Tune never waits on a browser, and the
+# Meta panel's Refresh is the one fetch. ``untapped.deck_queue`` picks the queue for
+# both, so the panel and Tune always read the same one.
+
+
+def meta_context(
+    state: ForgeState, hd: HydratedDeck, archetype: str | None = None
+) -> arena_meta.MetaContext | None:
+    """The tuner's meta context for this build, from the cache (``None`` for a
+    paper build, an uncached queue, ``archetype="off"``, or no match)."""
+    if archetype == "off":
+        return None
+    ctx, _note = untapped.cached_deck_context(
+        hd, state.session.medium, archetype=archetype or None
+    )
+    return ctx
+
+
+def meta_report(
+    state: ForgeState,
+    hd: HydratedDeck,
+    *,
+    archetype: str | None = None,
+    ranks: tuple[str, ...] = arena_meta.DEFAULT_RANKS,
+    previous: bool = False,
+    wildcards: Mapping[str, int] | None = None,
+) -> dict:
+    """The Meta panel: the cached report for this build's queue, the deck's match
+    (each core card marked by whether the deck runs it), and the lists the active
+    Collection can build within ``wildcards`` (a digital build with bulk)."""
+    queue = untapped.deck_queue(hd)
+    if queue is None:
+        return {
+            "available": False,
+            "reason": f"{hd.format.label} has no Arena queue Untapped tracks",
+        }
+    event, bo3, snap = queue
+    if previous:
+        snap = untapped.cached_snapshot(event, previous=True)
+    out: dict = {
+        "available": True,
+        "event": event,
+        "signed_in": untapped.profile_dir().exists(),
+        "cached": snap is not None,
+    }
+    if snap is None:
+        return out
+    cost = None
+    rarity = _rarity_index(state)
+    if not is_paper(state) and rarity is not None:
+        owned = {normalize_card_name(n): q for n, q in owned_collection(state).items()}
+        cost = wildcard_cost_fn(owned, rarity, sideboard=bo3)
+    age = untapped.snapshot_age_hours(snap)
+    out.update(
+        age_hours=None if age is None else round(age, 1),
+        stale=untapped.snapshot_is_stale(snap),
+        report=build_report(
+            snap,
+            ranks=ranks,
+            match=arena_meta.resolve(
+                snap,
+                deck=hd.deck,
+                archetype=archetype,
+                ranks=ranks,
+                lands=untapped.deck_lands(hd),
+            ),
+            held=arena_meta.deck_card_names(hd.deck),
+            cost=cost,
+            wildcards=wildcards,
+        ),
+    )
+    return out
+
+
+def refresh_meta(
+    state: ForgeState,
+    hd: HydratedDeck,
+    *,
+    previous: bool = False,
+    force: bool = True,
+) -> None:
+    """Fetch this build's own queue (``untapped.deck_queues``' first — never the
+    fallback it may be reading) into the cache: always when ``force``, else only
+    when stale. Blocking; raises ``untapped.MetaError`` with what to do."""
+    queues = untapped.deck_queues(hd)
+    if not queues:
+        raise untapped.MetaError(f"{hd.format.label} has no Arena queue")
+    pool = CardPool.load(state.bulk_path) if state.bulk_path is not None else None
+    untapped.load_snapshot(queues[0][0], previous=previous, refresh=force, pool=pool)

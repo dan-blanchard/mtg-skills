@@ -35,7 +35,7 @@ import requests
 
 from mtg_utils._http import BROWSER_HEADERS, HttpFetcher, cache_root, is_fresh
 from mtg_utils._sidecar import atomic_write_bytes
-from mtg_utils.arena_card_db import _title
+from mtg_utils.arena_card_db import arena_title
 
 API_URL = (
     "https://api.mtga.untapped.gg/api/v1/analytics/query/card_stats_limited_by_set"
@@ -175,7 +175,7 @@ def build_card_index(
     for entry in loc:
         key = str(entry.get("id"))
         if key in title_ids and key not in names:
-            names[key] = _title(None, str(entry.get("text", ""))) or ""
+            names[key] = arena_title(None, str(entry.get("text", ""))) or ""
     want = set_code.upper()
     chosen: dict[str, dict] = {}
     for rec in cards:
@@ -451,8 +451,11 @@ def fetch_card_stats(set_code: str, event: str) -> tuple[dict, str]:
     return json.loads(path.read_text(encoding="utf-8")), _mtime_iso(path)
 
 
-def fetch_card_index(set_code: str, title_ids: set[str]) -> dict[str, dict]:
-    """titleId -> name / rarity / colours / set from the cached mtgajson files."""
+def mtgajson_files() -> tuple[list[dict], list[dict]]:
+    """Untapped's public Arena card files — ``cards.json`` (every printing: grpid,
+    titleId, rarity, set) and ``loc_en.json`` (titleId -> English text) — cached for
+    24 hours under :func:`cache_dir`. ``arena-meta`` names deckstring cards with them
+    too."""
     fetcher = HttpFetcher(
         cache_dir(),
         user_agent=BROWSER_HEADERS["User-Agent"],
@@ -460,6 +463,12 @@ def fetch_card_index(set_code: str, title_ids: set[str]) -> dict[str, dict]:
     )
     cards = json.loads(fetcher.fetch(CARDS_URL, "cards.json"))
     loc = json.loads(fetcher.fetch(LOC_URL, "loc_en.json"))
+    return cards, loc
+
+
+def fetch_card_index(set_code: str, title_ids: set[str]) -> dict[str, dict]:
+    """titleId -> name / rarity / colours / set from the cached mtgajson files."""
+    cards, loc = mtgajson_files()
     return build_card_index(cards, loc, set_code, title_ids)
 
 

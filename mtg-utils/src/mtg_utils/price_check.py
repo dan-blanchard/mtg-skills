@@ -35,7 +35,7 @@ from mtg_utils.scryfall_lookup import (
 _extract_price = extract_price
 
 
-def _normalize_owned_cards(entries: list) -> dict[str, int]:
+def owned_quantities(entries: list) -> dict[str, int]:
     """Return ``normalized name -> owned_quantity`` from an ``owned_cards`` list
     (``names.normalize_card_name``, the ownership path's one folding).
 
@@ -89,7 +89,7 @@ def _extract_deck_entries(names_or_deck: list | dict) -> list[tuple[str, int]]:
     ``deck_qty`` / ``owned_qty`` numbers across both tools.
 
     Rows with ``quantity < 1`` are dropped (consistent with the
-    ``owned_cards`` treatment in ``_normalize_owned_cards``).
+    ``owned_cards`` treatment in ``owned_quantities``).
 
     - Plain list of strings → each yields ``(name, 1)``.
     - List of ``{name, quantity}`` dicts → quantity honored; duplicates
@@ -154,7 +154,7 @@ def _api_price_lookup(name: str) -> float | None:
         session.close()
 
 
-def _check_arena_wildcards(
+def arena_wildcard_cost(
     entries: list[tuple[str, int]],
     owned_map: dict[str, int],
     rarity_index: NameIndex,
@@ -275,7 +275,7 @@ def check_prices(
     owned_map: dict[str, int] = {}
     if isinstance(names_or_deck, dict):
         owned_cards = names_or_deck.get("owned_cards", []) or []
-        owned_map = _normalize_owned_cards(owned_cards)
+        owned_map = owned_quantities(owned_cards)
 
     fmt = get_format(format) if format is not None else None
     medium = resolve_deck_medium(fmt, names_or_deck, medium)
@@ -285,7 +285,7 @@ def check_prices(
         and bulk_path is not None
     ):
         rarity_index = CardPool.load(bulk_path).rarity_index(fmt, arena_only=True)
-        return _check_arena_wildcards(entries, owned_map, rarity_index)
+        return arena_wildcard_cost(entries, owned_map, rarity_index)
 
     # USD price mode: each slot charges the copies the paper ownership rule leaves
     # short (``Format.copies_short``) — 17 Hare Apparent with 4 owned buys 13; basic

@@ -38,7 +38,12 @@ from mtg_utils.build_deck import build_deck, lookup_missing_adds, normalize_entr
 from mtg_utils.card_pool import CardPool
 from mtg_utils.combo_search import combo_search, combos_or_none, is_game_winning
 from mtg_utils.cut_check import run_cut_check
-from mtg_utils.deck_cli import acquire_for_cli, bulk_data_option, resolve_bulk_path
+from mtg_utils.deck_cli import (
+    acquire_for_cli,
+    bulk_data_option,
+    resolve_bulk_path,
+    wildcards_option,
+)
 from mtg_utils.deck_diff import deck_diff
 from mtg_utils.formats import CostMode
 from mtg_utils.hydrated_deck import HydratedDeck
@@ -303,16 +308,6 @@ def _read_list(path: Path | None) -> list:
     return json.loads(path.read_text(encoding="utf-8")) if path else []
 
 
-def _parse_wildcards(text: str | None) -> dict[str, int] | None:
-    if not text:
-        return None
-    out: dict[str, int] = {}
-    for part in text.split(","):
-        rarity, _, n = part.partition("=")
-        out[rarity.strip().lower()] = int(n)
-    return out
-
-
 @click.command()
 @click.argument("deck_json", type=click.Path(exists=True, path_type=Path))
 @bulk_data_option
@@ -325,11 +320,7 @@ def _parse_wildcards(text: str | None) -> dict[str, int] | None:
     "--sideboard-adds", "sb_adds_json", type=click.Path(exists=True, path_type=Path)
 )
 @click.option("--budget", type=float, default=None, help="Paper budget in USD.")
-@click.option(
-    "--wildcards",
-    default=None,
-    help="Arena wildcard budget, e.g. mythic=1,rare=0,uncommon=48,common=33.",
-)
+@wildcards_option("Arena wildcard budget, e.g. mythic=1,rare=0,uncommon=48,common=33.")
 @click.option("--medium", type=click.Choice(["paper", "digital"]), default=None)
 @click.option(
     "--collection",
@@ -360,7 +351,7 @@ def main(
     sb_cuts_json: Path | None,
     sb_adds_json: Path | None,
     budget: float | None,
-    wildcards: str | None,
+    wildcards: dict[str, int] | None,
     medium: str | None,
     collection_path: Path | None,
     allow_combo_loss: bool,  # noqa: FBT001 — a click flag
@@ -388,7 +379,7 @@ def main(
         extra_hydrated=extra,
         bulk_path=bulk_path,
         budget=budget,
-        wildcards=_parse_wildcards(wildcards),
+        wildcards=wildcards,
         medium=medium,
         collection=load_collection(collection_path) if collection_path else None,
         name_aliases=build_name_alias_map(bulk_path)

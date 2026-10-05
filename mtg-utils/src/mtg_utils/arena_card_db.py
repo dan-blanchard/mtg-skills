@@ -134,7 +134,7 @@ def find_card_db() -> Path | None:
     return None
 
 
-def _title(plain: str | None, formatted: str | None) -> str | None:
+def arena_title(plain: str | None, formatted: str | None) -> str | None:
     """The card's name: the plain row when Arena has one (the formatted row hides a
     rebalanced card's "A-" behind a sprite tag), else the formatted row with its
     markup stripped and a split card's ``///`` written as ``//``."""
@@ -172,7 +172,7 @@ def primary_rarities(path: Path) -> dict[str, str]:
     rarities: dict[str, str] = {}
     for code, plain, formatted in rows:
         rarity = _RARITIES.get(code)
-        name = _title(plain, formatted)
+        name = arena_title(plain, formatted)
         if rarity is None or name is None:
             continue
         key_name = normalize_card_name(name)

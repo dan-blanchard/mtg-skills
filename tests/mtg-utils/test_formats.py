@@ -555,6 +555,7 @@ class TestSpaTable:
             "sideboard_size": 0,
             "size_is_minimum": False,
             "media": ["paper"],
+            "arena_meta": False,
             "medium_labels": {"paper": "Paper"},
             "default_medium": "paper",
             "deck_size": 100,
@@ -565,6 +566,10 @@ class TestSpaTable:
             "paper": [60, 100],
         }
         assert by_id["competitive_brawl"]["media"] == ["digital"]
+        # Only a format with an Arena queue Untapped tracks gets the Meta panel.
+        assert by_id["competitive_brawl"]["arena_meta"] is True
+        assert by_id["brawl"]["arena_meta"] is False
+        assert by_id["sealed"]["arena_meta"] is False
         # The family facts the SPA keys its zones, stepper and pills off.
         modern = by_id["modern"]
         assert modern["family"] == "constructed"

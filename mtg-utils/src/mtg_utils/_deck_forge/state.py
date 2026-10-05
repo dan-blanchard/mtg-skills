@@ -345,6 +345,8 @@ class ForgeState:
     # worker thread running it, read into every snapshot, pushed over SSE as it
     # moves. Runtime only; never persisted.
     busy: dict | None = None
+    # Whether the Meta panel's Untapped sign-in window is open (one at a time).
+    meta_login_open: bool = False
     # ``report_busy(job, label, done, total)`` — the transport's reporter for a long
     # job (installed by the production entry; None in tests / agent-less use, and
     # a job just skips reporting). A worker thread calls it; it folds the step into

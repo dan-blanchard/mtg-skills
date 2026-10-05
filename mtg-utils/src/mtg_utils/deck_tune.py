@@ -7,7 +7,7 @@ emits the scorecard + budgeted swaps as JSON.
 
     deck-tune <deck.json> [--bulk-data <path>] \
         [--budget N] [--max-swaps N] [--shape ...] [--bracket 1-5] [--paper-only] \
-        [--exclude <name>]...
+        [--exclude <name>]... [--meta auto|off|<archetype>]
 
 Every format family: the template and every floor are the deck's family's
 (``Format.family``), and the Commander-only axes — commander fit, the bracket gate —
@@ -24,7 +24,12 @@ import click
 
 from mtg_utils import card_search, combo_search
 from mtg_utils._tuner.tune import TuneParams, tune
-from mtg_utils.deck_cli import acquire_for_cli, bulk_data_option, resolve_bulk_path
+from mtg_utils.deck_cli import (
+    acquire_for_cli,
+    bulk_data_option,
+    resolve_bulk_path,
+    wildcards_option,
+)
 from mtg_utils.hydrated_deck import HydratedDeck
 
 
@@ -44,27 +49,6 @@ def _ensure_ir() -> None:
             f"deck-tune: Card IR unavailable ({exc}); using regex path.",
             file=sys.stderr,
         )
-
-
-_WILDCARD_TIERS = ("mythic", "rare", "uncommon", "common")
-
-
-def _parse_wildcards(
-    _ctx: click.Context, _param: click.Parameter, value: str | None
-) -> dict[str, int] | None:
-    """``'rare=4,uncommon=8'`` → ``{"rare": 4, "uncommon": 8}``."""
-    if value is None:
-        return None
-    out: dict[str, int] = {}
-    for part in value.split(","):
-        tier, sep, count = part.strip().partition("=")
-        if not sep or tier not in _WILDCARD_TIERS or not count.isdigit():
-            raise click.BadParameter(
-                f"{part!r}: expected <rarity>=<count>, rarity one of "
-                f"{', '.join(_WILDCARD_TIERS)}"
-            )
-        out[tier] = int(count)
-    return out
 
 
 @click.command()
@@ -98,13 +82,9 @@ def _parse_wildcards(
     "scorecard reads, the currency (--budget USD vs --wildcards), the candidate "
     "pool, and whether a null EDHREC rank condemns a card (ADR-0040 §4).",
 )
-@click.option(
-    "--wildcards",
-    "wildcards",
-    callback=_parse_wildcards,
-    default=None,
-    help="Arena wildcard budget for a digital build, per rarity: "
-    "'mythic=1,rare=4,uncommon=8,common=8'. Omit = owned-only.",
+@wildcards_option(
+    "Arena wildcard budget for a digital build, per rarity: "
+    "'mythic=1,rare=4,uncommon=8,common=8'. Omit = owned-only."
 )
 @click.option(
     "--paper-only/--no-paper-only",
@@ -120,6 +100,15 @@ def _parse_wildcards(
     multiple=True,
     help="A card never to propose as an add (repeatable) — the CLI's form of "
     "deck-forge's Reject: its slot goes to the next-ranked candidate.",
+)
+@click.option(
+    "--meta",
+    "meta",
+    default="auto",
+    show_default=True,
+    help="A digital build's Arena meta archetype (ADR-0059), read from the "
+    "arena-meta cache: 'auto' matches the deck, 'off' skips it, anything else "
+    "names the archetype.",
 )
 @click.option(
     "--output",
@@ -140,6 +129,7 @@ def main(
     wildcards: dict[str, int] | None,
     paper_only: bool | None,
     exclude: tuple[str, ...],
+    meta: str,
     output: str | None,
 ) -> None:
     """Diagnose DECK_JSON and (with --max-swaps) propose swaps."""
@@ -196,6 +186,15 @@ def main(
             HydratedDeck.from_parsed(deck, by_name=by_name)
         )
 
+    meta_ctx = None
+    if meta != "off":
+        from mtg_utils._arena_meta.untapped import cached_deck_context
+
+        meta_ctx, note = cached_deck_context(
+            hd, effective_medium, archetype=None if meta == "auto" else meta
+        )
+        if note:
+            click.echo(note, err=True)
     params = TuneParams(
         budget=budget,
         max_swaps=max(0, max_swaps),
@@ -205,6 +204,7 @@ def main(
         wildcard_budget=wildcards,
         target_bracket=target_bracket,
         exclude=frozenset(exclude),
+        meta=meta_ctx,
     )
     result = tune(hd, search_fn=search, params=params, combos_fn=combos_fn, pool=pool)
 

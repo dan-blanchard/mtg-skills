@@ -126,6 +126,12 @@ _WIRE_FIELDS = (
 )
 
 
+# A missing meta-core card's severity per unit of share (ADR-0059): a card in
+# nearly every list of the archetype (8) ranks with dead weight, a 40% one (3) is
+# a nudge.
+META_CORE_SEVERITY = 8
+
+
 @dataclass(frozen=True)
 class Issue:
     """One ranked finding. ``remedy is None`` means the engine sources nothing for it.
@@ -274,8 +280,9 @@ class Sourcing:
             if spec is None:
                 spec = self.main_avenue()
             return Remedy(spec, cut_from=cut_over(role or ""))
-        if kind == "near_miss_combo":
-            # One named card completes a combo: search for exactly that card.
+        if kind in ("near_miss_combo", "meta_core_missing"):
+            # One named card: the combo's missing piece, or a core card of the
+            # deck's meta archetype. Search for exactly that card.
             return Remedy({"name": label}) if label else None
         if kind == "efficiency":
             # A curve problem is fixed by adding a synergistic card at the missing CMC
@@ -331,11 +338,14 @@ def top_issues(
     commander_r: dict | None,
     sourcing: Sourcing,
     near_misses: Sequence[Mapping] = (),
+    meta_missing: Sequence[Mapping] = (),
 ) -> list[Issue]:
     """Rank the scorecard's findings by severity, each with its remedy decided.
     ``commander_r`` is None outside the Commander family (no commander to misfit).
     ``near_misses`` are combo-search's one-card-away combos the deck may complete
-    (``tune`` drops the game-winning ones a low target bracket forbids)."""
+    (``tune`` drops the game-winning ones a low target bracket forbids).
+    ``meta_missing`` are core cards of the deck's meta archetype it lacks
+    (``{name, share}``, ADR-0059)."""
     issues: list[Issue] = []
 
     def row_name(role: str, b: dict) -> str:
@@ -475,6 +485,18 @@ def top_issues(
                 # comes from the filler first. A value line is a nudge.
                 severity=9 if is_game_winning(near) else 2,
                 message=f"{missing} completes {' + '.join(others)} → {result}",
+            )
+        )
+
+    for card in meta_missing:
+        share = float(card["share"])
+        issues.append(
+            sourcing.issue(
+                "meta_core_missing",
+                label=card["name"],
+                severity=max(1, round(META_CORE_SEVERITY * share)),
+                message=f"{card['name']} is in {share:.0%} of the meta archetype's "
+                "ladder lists",
             )
         )
 

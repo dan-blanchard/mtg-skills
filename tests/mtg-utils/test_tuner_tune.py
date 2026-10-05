@@ -1055,3 +1055,100 @@ def test_one_on_one_formats_never_condemn_by_play_rate(captured_ctx, fmt, condem
     ctx = captured_ctx["ctx"]
     assert ctx.playrate_condemns is condemns
     assert ctx.playrate is True  # the add tiebreak still reads play-rate
+
+
+# --- ADR-0059: the Arena meta archetype -------------------------------------------
+
+
+def _meta_ctx(inclusion, core=()):
+    from mtg_utils._arena_meta.meta import Match, MetaArchetype, MetaContext
+    from mtg_utils.names import normalize_card_name
+
+    arch = MetaArchetype(1, "Mono-Red / Krenko, Mob Boss", "R", {})
+    return MetaContext(
+        archetype={"id": 1, "name": arch.name},
+        match=Match(arch, "commander", 1.0),
+        period={"id": 763},
+        ranks=("platinum", "diamond", "mythic"),
+        inclusion={normalize_card_name(k): v for k, v in inclusion.items()},
+        core=tuple(core),
+    )
+
+
+def _competitive_hd():
+    return HydratedDeck.from_parsed(
+        {
+            "format": "competitive_brawl",
+            "deck_size": 100,
+            "commanders": [{"name": "Krenko, Mob Boss", "quantity": 1}],
+            "cards": [{"name": c["name"], "quantity": 1} for c in _DECK_CARDS],
+        },
+        by_name=_INDEX,
+    )
+
+
+_CORE = [
+    {"name": "Goblin Matron", "share": 0.9, "avg_copies": 1.0, "land": False},
+    {"name": "Goblin Warchief", "share": 0.8, "avg_copies": 1.0, "land": False},
+    {"name": "Mountain", "share": 1.0, "avg_copies": 30.0, "land": True},
+    {"name": "Arid Mesa", "share": 0.5, "avg_copies": 1.0, "land": True},
+]
+
+
+def test_a_digital_build_reads_its_meta_archetype():
+    ctx = _meta_ctx({"Goblin Warchief": 0.8, "Goblin Rabblemaster": 0.02}, _CORE)
+    out = tune(
+        _competitive_hd(),
+        search_fn=_fake_search,
+        params=TuneParams(max_swaps=0, medium="digital", meta=ctx),
+    )
+    meta = out["scorecard"]["meta"]
+    assert meta["archetype"]["name"] == "Mono-Red / Krenko, Mob Boss"
+    # Every core card the deck lacks is listed, lands too…
+    assert {c["name"] for c in meta["missing_core"]} == {"Goblin Matron", "Arid Mesa"}
+    # …and the cards almost no list runs.
+    assert "Goblin Rabblemaster" in meta["low_share"]
+    assert "Goblin Warchief" not in meta["low_share"]
+    issues = {
+        i["label"]: i
+        for i in out["scorecard"]["top_issues"]
+        if i["kind"] == "meta_core_missing"
+    }
+    # A missing nonland core card is an add issue scaled by its share; a land
+    # isn't (the fill pass never adds lands).
+    assert set(issues) == {"Goblin Matron"}
+    assert issues["Goblin Matron"]["severity"] == 7
+
+
+def test_the_meta_share_replaces_play_rate_for_low_value_cuts():
+    from mtg_utils._tuner.classify import CardClass
+
+    card = CardClass(
+        name="X",
+        bucket="engine",
+        roles=(),
+        served=("a",),
+        dual_purpose=False,
+        cmc=2.0,
+        record={},
+        edhrec_rank=100,  # popular on EDHREC…
+        meta_share=0.01,  # …but in 1% of the ladder lists
+    )
+    assert card.low_value(medium="digital", playrate=False)
+    assert card.least_played_key == 0.01
+    played = CardClass(**{**card.__dict__, "meta_share": 0.5})
+    assert not played.low_value(medium="digital", playrate=True)
+
+
+def test_a_paper_build_ignores_the_meta():
+    ctx = _meta_ctx({"Goblin Rabblemaster": 0.0}, _CORE)
+    hd = _historic_brawl_hd()
+    out = tune(
+        hd,
+        search_fn=_fake_search,
+        params=TuneParams(max_swaps=0, medium="paper", meta=ctx),
+    )
+    assert out["scorecard"]["meta"] is None
+    assert not any(
+        i["kind"] == "meta_core_missing" for i in out["scorecard"]["top_issues"]
+    )

@@ -42,6 +42,13 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   isn't seen as a creature spell Double Major or Lithoform Engine can copy; read the
   off-battlefield type-adding static from the tree.
 
+**From arena-meta (2026-10-05, ADR-0059)**
+
+- **Rank Find's candidates by meta inclusion on an Arena build.** The tuner reads the
+  meta archetype's card shares; deck-forge's Find still ranks by synergy, then price,
+  then curve. Feeding `MetaContext.share` into `_analysis.ranking` as a tiebreak
+  (never above synergy) was left for later, by agreement.
+
 **From the twohg-guide skill (2026-09-27)**
 
 - **The edict presets match sacrifices you make yourself.** `removal_tutors.

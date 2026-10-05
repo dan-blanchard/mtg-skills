@@ -12,19 +12,24 @@ from __future__ import annotations
 
 import functools
 import json
+import threading
 from collections.abc import AsyncIterator, Callable
 from pathlib import Path
 
+import click
 from fastapi import BackgroundTasks, FastAPI, Request, Response
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
+from mtg_utils._arena_meta import meta as arena_meta
+from mtg_utils._arena_meta import untapped
 from mtg_utils._deck_forge import collection, discovery, engine, views
 from mtg_utils._deck_forge.engine import DeckRuleError
 from mtg_utils._deck_forge.state import DeckSession, ForgeState
 from mtg_utils._tuner.tune import tune as run_tune
+from mtg_utils.deck_cli import parse_wildcards
 from mtg_utils.deck_stats import deck_stats
 from mtg_utils.export_deck import export_as
 from mtg_utils.mana_audit import mana_audit
@@ -179,6 +184,15 @@ class TunePayload(BaseModel):
     # Adds the builder rejected (Tune's Reject button): never proposed; the slot a
     # rejected card held goes to the next-ranked candidate on the re-run.
     exclude: list[str] = []
+    # ADR-0059: the build's Arena meta archetype — None matches the deck from the
+    # arena-meta cache, "off" skips it, anything else names one.
+    meta_archetype: str | None = None
+
+
+class MetaRefreshPayload(BaseModel):
+    previous: bool = False
+    # False: fetch only when the cache is stale (the panel's on-open check).
+    force: bool = True
 
 
 def _autosave(state: ForgeState) -> None:
@@ -783,6 +797,7 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
         rarity, gated per tier (wildcards aren't interchangeable)."""
         if not state.bulk_available:
             return _no_bulk()
+        hd = engine.hydrate_session(state)
         params = engine.tune_params(
             state,
             budget=payload.budget,
@@ -791,11 +806,15 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
             shape_override=payload.shape_override,
             suggest_commander=payload.suggest_commander,
             exclude=payload.exclude,
+            # Read from the cache in the threadpool: a cold read parses the
+            # snapshot, which must not stall the event loop.
+            meta=await run_in_threadpool(
+                engine.meta_context, state, hd, payload.meta_archetype
+            ),
         )
         # run_tune does blocking work (a Commander Spellbook combos call + heavy bulk
         # searches); offload it to a worker thread so a slow combo lookup can't stall
         # the event loop and wedge the whole hub. Pure read of state, so thread-safe.
-        hd = engine.hydrate_session(state)
         return await run_in_threadpool(
             run_tune,
             hd,
@@ -813,6 +832,77 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
             resolve_object=state.object_resolver,
             pool=engine.pool_owned(state),
         )
+
+    @app.get("/api/meta", response_model=None)
+    async def meta(
+        archetype: str | None = None,
+        ranks: str = "platinum+",
+        wildcards: str | None = None,
+        *,
+        previous: bool = False,
+    ) -> dict | JSONResponse:
+        """The Meta panel (ADR-0059): the arena-meta cache for this build's Arena
+        queue — ranking, field, the deck's meta archetype and its core, and the lists
+        the active Collection can build. Reads only the cache; Refresh fetches."""
+        try:
+            parsed = arena_meta.parse_ranks(ranks)
+            allowance = parse_wildcards(None, None, wildcards)
+        except (ValueError, click.BadParameter) as exc:
+            return JSONResponse({"error": str(exc)}, status_code=400)
+        hd = engine.hydrate_session(state)
+        return await run_in_threadpool(
+            engine.meta_report,
+            state,
+            hd,
+            archetype=archetype,
+            ranks=parsed,
+            previous=previous,
+            wildcards=allowance,
+        )
+
+    @app.post("/api/meta/refresh", response_model=None)
+    async def meta_refresh(payload: MetaRefreshPayload) -> dict | JSONResponse:
+        """Fetch this build's queue from Untapped (a headless browser, seconds), then
+        answer like ``GET /api/meta``. A 409 names what to do (sign in, install the
+        browser)."""
+        hd = engine.hydrate_session(state)
+        try:
+            await run_in_threadpool(
+                engine.refresh_meta,
+                state,
+                hd,
+                previous=payload.previous,
+                force=payload.force,
+            )
+        except untapped.MetaError as exc:
+            return JSONResponse(
+                {
+                    "error": str(exc),
+                    "sign_in": isinstance(exc, untapped.SignInRequiredError),
+                },
+                status_code=409,
+            )
+        return await run_in_threadpool(
+            engine.meta_report, state, hd, previous=payload.previous
+        )
+
+    @app.post("/api/meta/login")
+    async def meta_login() -> dict:
+        """Open the visible Untapped sign-in browser on this machine (the hub runs
+        locally) — ``arena-meta --login``'s window, without the terminal trip."""
+        if not state.meta_login_open:
+            state.meta_login_open = True
+
+            def run() -> None:
+                try:
+                    untapped.login()
+                except untapped.MetaError:
+                    pass
+                finally:
+                    state.meta_login_open = False
+
+            threading.Thread(target=run, daemon=True).start()
+        return {"started": True}
 
     @app.post("/api/finalize")
     async def finalize(payload: FinalizePayload) -> dict:

@@ -1122,6 +1122,37 @@ When arriving from Path B, note both the **total budget** and the **upgrade budg
 
 ## Step 3: Research
 
+### Arena ladder decks: `arena-meta` first
+
+For a deck built for an Arena queue (a digital build of Standard, Pioneer, Historic,
+Timeless, Alchemy, Historic Brawl or Competitive Brawl), the ladder itself is the
+research. Run it before any web search:
+
+```bash
+arena-meta --deck <deck.json> [--bo3] --collection <collection> --wildcards <allowance>
+```
+
+It reads Untapped.gg's Premium meta for the deck's queue (Platinum and up by default,
+`--ranks` to change), from a 24-hour cache it shares with `deck-tune` (ADR-0059):
+
+- the **field**: each meta archetype's share of the matches, i.e. what the deck will face;
+- the **ranking**: meta archetypes by the Wilson lower bound on their win rate, with
+  a Mythic column;
+- the deck's **meta archetype** (by commander on a Brawl ladder, by nonland overlap on
+  a 60-card one) and its **core**: the cards most of its lists run, with average
+  copies;
+- the **buildable** lists your collection reaches within the wildcards.
+
+The first run in a session may say it needs a sign-in. Ask the user to run
+`arena-meta --login` (`! uv run arena-meta --login`), which opens a browser to sign
+in to their Untapped account once.
+
+Then `deck-tune` reads the same cache by default (`--meta auto`). A card under 5% of
+the meta archetype's lists is a low-value cut candidate, a missing core card is a
+`meta_core_missing` add issue, and the scorecard's `meta` section lists both. Web
+search stays the paper path, and the source for the "why" behind what the numbers
+show.
+
 ### 60-Card Constructed
 
 #### Path A: Full Research
@@ -1305,6 +1336,7 @@ Scorecard sections and what each subsumes:
 - **`curve`** — the per-CMC histogram.
 - **`combos`** — combos + near-misses; combo pieces are auto-protected from the proposed cuts. A near-miss one named card short becomes a `near_miss_combo` issue whose swap adds that card (a game-winning line ranks above dead weight; below target bracket 3 a game-winning near-miss is never suggested).
 - **`commander_multipliers`** — the cards that copy the commander, make an ability it actually has trigger additional times or copy it (CR 603.2d, 707.10 — read off phase's trees, so Panharmonicon counts only for a commander with a matching enters trigger), or lend it activated abilities from another zone, with the reason. They're protected from the proposed cuts like combo pieces.
+- **`meta`** (a digital build of an Arena queue with an `arena-meta` cache; otherwise `null`). It holds the deck's meta archetype on Untapped's ladder, its record and its `core`, the `missing_core` cards (lands included), and the `low_share` cards almost none of its lists run. Those replace EDHREC play rate in the cut ranking. The top missing nonland core cards also appear as `meta_core_missing` issues (ADR-0059). `--meta off` skips it; `--meta "<name>"` picks the archetype.
 - **`bracket`** — the constraint gate when you pass `--bracket` (Game Changers / mass land denial / extra turns / two-card combos vs the target bracket's official allowances; ADR-0030). For a one-on-one game (every Arena build, Competitive Brawl) it passes with a `not_applicable` reason — the brackets are a multiplayer-Commander system.
 - **`swaps`** — budgeted (cut, add) candidate pairs, synergy-ranked (the old `deck-rank` pass). In a one-on-one game (every Arena build) EDHREC play rate never marks a card low-value — EDHREC is multiplayer paper Commander — though it still breaks ties between equal adds.
 

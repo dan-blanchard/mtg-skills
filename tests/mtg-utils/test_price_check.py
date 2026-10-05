@@ -110,7 +110,7 @@ class TestCheckPrices:
     def test_owned_cards_zero_quantity_not_owned(self):
         """A zero-quantity ``owned_cards`` entry (e.g. a Moxfield wishlist
         row) is not treated as owned — price-check charges full price.
-        This pins the ``_normalize_owned_cards`` qty<1 skip behavior so a
+        This pins the ``owned_quantities`` qty<1 skip behavior so a
         future refactor can't silently let wishlist rows zero out budgets.
         """
         cards_data = [

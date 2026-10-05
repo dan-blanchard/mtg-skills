@@ -19,7 +19,14 @@ import click
 from mtg_utils.card_pool import CardPool, NoBulkError
 from mtg_utils.hydrated_deck import HydratedDeck
 
-__all__ = ["acquire_for_cli", "bulk_data_option", "resolve_bulk_path", "warn_missing"]
+__all__ = [
+    "acquire_for_cli",
+    "bulk_data_option",
+    "parse_wildcards",
+    "resolve_bulk_path",
+    "warn_missing",
+    "wildcards_option",
+]
 
 
 def bulk_data_option[F: Callable[..., object]](func: F) -> F:
@@ -35,6 +42,39 @@ def bulk_data_option[F: Callable[..., object]](func: F) -> F:
             "download-mtgjson wrote."
         ),
     )(func)
+
+
+WILDCARD_TIERS = ("mythic", "rare", "uncommon", "common")
+
+
+def parse_wildcards(
+    _ctx: click.Context | None, _param: click.Parameter | None, value: str | None
+) -> dict[str, int] | None:
+    """``'rare=4,uncommon=8'`` -> ``{"rare": 4, "uncommon": 8}`` (a click callback)."""
+    if value is None:
+        return None
+    out: dict[str, int] = {}
+    for part in value.split(","):
+        tier, sep, count = part.strip().partition("=")
+        tier = tier.strip().lower()
+        if not sep or tier not in WILDCARD_TIERS or not count.strip().isdigit():
+            raise click.BadParameter(
+                f"{part!r}: expected <rarity>=<count>, rarity one of "
+                f"{', '.join(WILDCARD_TIERS)}"
+            )
+        out[tier] = int(count)
+    return out
+
+
+def wildcards_option[F: Callable[..., object]](help_text: str) -> Callable[[F], F]:
+    """The shared ``--wildcards`` option: an Arena wildcard allowance per rarity."""
+    return click.option(
+        "--wildcards",
+        "wildcards",
+        callback=parse_wildcards,
+        default=None,
+        help=help_text,
+    )
 
 
 def resolve_bulk_path(bulk_data: Path | None) -> Path:

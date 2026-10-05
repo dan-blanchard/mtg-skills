@@ -15,9 +15,13 @@ dependencies = [
     # The "Print proxies" run-here handoff renders a PDF in-process via proxy_print
     # (ADR-0016); reportlab is the PDF backend (lazily imported inside build_pdf).
     "reportlab>=4.0",
+    # arena-meta / the Meta panel fetch Untapped through a signed-in browser
+    # profile; imported lazily, only when fetching (ADR-0059).
+    "playwright>=1.50",
 ]
 
 [project.scripts]
+arena-meta = "mtg_utils.arena_meta:main"
 deck-forge = "mtg_utils.deck_forge_server:main"
 # Read-only audit: diff detector firings vs phase-rs's parsed classification.
 deck-forge-phase-crosscheck = "mtg_utils._deck_forge.phase_crosscheck:main"

@@ -86,6 +86,17 @@ export const busy = writable(null);
 // `exclude`, so a rejected card's slot is re-sourced from the next candidate. Per
 // build: cleared when the snapshot's build_id changes.
 export const rejectedAdds = writable(new Set());
+// A digital build's per-rarity wildcard allowance — Tune spends it, and the Meta
+// panel's buildable list checks published lists against it (ADR-0059).
+export const wildcardBudget = writable({
+  mythic: 1,
+  rare: 5,
+  uncommon: 15,
+  common: 40,
+});
+// The Arena meta archetype the builder pinned in the Meta panel ("" = the one the
+// deck matches); Tune reads the same one.
+export const metaArchetype = writable("");
 export const buildName = writable("Untitled");
 // True when a second commander could still join (CR 702.124 partner / Background): the
 // Find color pips stay unlocked so an off-identity partner is findable (A5).

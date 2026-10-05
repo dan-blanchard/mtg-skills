@@ -264,6 +264,10 @@ class Format:
     #: Per-medium size choices where a medium may pick (paper Historic Brawl, a.k.a.
     #: paper "Brawl", is 60 OR 100). Absent medium → the fixed ``deck_size``.
     size_choices_by_medium: Mapping[str, tuple[int, ...]] = field(default_factory=dict)
+    #: Arena's event name for the format's Bo1 queue, the key Untapped.gg files its
+    #: meta under (ADR-0059); ``None`` for a format with no Arena queue Untapped
+    #: tracks. The Bo3 queue is :meth:`arena_event_for`'s.
+    arena_event: str | None = None
 
     def __post_init__(self) -> None:
         object.__setattr__(
@@ -388,6 +392,22 @@ class Format:
         Arena-pool gate is separate and medium-independent — ``legality`` applies it
         either way."""
         return not medium_is_digital(self.resolve_medium(medium))
+
+    def arena_event_for(self, *, bo3: bool = False) -> str | None:
+        """Arena's event name for this format's queue: the Bo1 ``arena_event``, or
+        its ``Traditional_`` (Bo3) twin; a Brawl queue has no Bo3."""
+        if self.arena_event is None or not bo3:
+            return self.arena_event
+        return None if self.has_commander else f"Traditional_{self.arena_event}"
+
+    def arena_queues(self, *, sideboard: bool) -> tuple[tuple[str, bool], ...]:
+        """The Arena queues a deck reads, best first, as ``(event, bo3)``: Bo3 for a
+        constructed deck carrying a sideboard, else Bo1, then the other as the
+        fallback. Empty for a format with no queue."""
+        bo3 = sideboard and not self.has_commander
+        order = ((self.arena_event_for(bo3=bo3), bo3),)
+        order += ((self.arena_event_for(bo3=not bo3), not bo3),)
+        return tuple((e, b) for e, b in order if e is not None)
 
     @staticmethod
     def cost_mode(medium: str) -> CostMode:
@@ -570,6 +590,8 @@ class Format:
             "sideboard_size": self.sideboard_size,
             "size_is_minimum": self.size_is_minimum,
             "media": list(self.media),
+            # Whether Untapped tracks an Arena queue for it (the Meta panel, ADR-0059).
+            "arena_meta": self.arena_event is not None,
             "medium_labels": {m: MEDIUM_LABELS[m] for m in self.media},
             "default_medium": self.default_medium,
             "deck_size": self.deck_size,
@@ -602,6 +624,7 @@ def _constructed(
     arena_pool: bool = False,
     arena_only: bool = False,
     primary_medium: Medium | None = None,
+    arena_event: str | None = None,
 ) -> Format:
     return Format(
         name=name,
@@ -621,6 +644,7 @@ def _constructed(
         arena_pool=arena_pool,
         is_arena_only=arena_only,
         primary_medium=primary_medium,
+        arena_event=arena_event,
     )
 
 
@@ -686,6 +710,8 @@ _ALL: tuple[Format, ...] = (
         size_rule="CR 903.5a",
         # Paper "Brawl" may be 60 OR 100 cards; Arena fixes it at 100.
         size_choices_by_medium={"paper": (60, 100)},
+        # Arena's Historic Brawl queue is unranked ("Play").
+        arena_event="Play_Brawl_Historic",
     ),
     _commander_variant(
         "competitive_brawl",
@@ -704,6 +730,7 @@ _ALL: tuple[Format, ...] = (
         ignores_legality_key_bans=True,
         banned_cards=COMPETITIVE_BRAWL_BANNED,
         size_rule="CR 903.5a",
+        arena_event="Brawl_Ladder",
     ),
     # ── Constructed formats (60-card, 4-of, sideboard) ──
     # Standard and Pioneer are paper-defined formats Arena also hosts: a new build
@@ -713,6 +740,7 @@ _ALL: tuple[Format, ...] = (
         "Standard",
         legality_key="standard",
         arena=True,
+        arena_event="Ladder",
         primary_medium="paper",
     ),
     _constructed(
@@ -720,6 +748,7 @@ _ALL: tuple[Format, ...] = (
         "Alchemy",
         legality_key="alchemy",
         arena=True,
+        arena_event="Alchemy_Ladder",
         arena_pool=True,
         arena_only=True,
     ),
@@ -728,6 +757,7 @@ _ALL: tuple[Format, ...] = (
         "Historic",
         legality_key="historic",
         arena=True,
+        arena_event="Historic_Ladder",
         arena_pool=True,
         arena_only=True,
     ),
@@ -736,6 +766,7 @@ _ALL: tuple[Format, ...] = (
         "Timeless",
         legality_key="timeless",
         arena=True,
+        arena_event="Timeless_Ladder",
         arena_pool=True,
         arena_only=True,
     ),
@@ -744,6 +775,8 @@ _ALL: tuple[Format, ...] = (
         "Pioneer",
         legality_key="pioneer",
         arena=True,
+        # Arena's Pioneer queue kept its Explorer event name.
+        arena_event="Explorer_Ladder",
         primary_medium="paper",
     ),
     _constructed("modern", "Modern", legality_key="modern", arena=False),

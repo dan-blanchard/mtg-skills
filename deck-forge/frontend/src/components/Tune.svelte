@@ -6,8 +6,11 @@
     applySnapshot,
     hasCommander,
     rejectedAdds,
+    wildcardBudget,
+    metaArchetype,
   } from "../lib/store.js";
   import { WC_TIERS } from "../lib/mana.js";
+  import { matchLabel, pct1 } from "../lib/cards.js";
   import CardChip from "./CardChip.svelte";
   import CardList from "./CardList.svelte";
 
@@ -18,7 +21,6 @@
   // interchangeable — so the budget is four per-rarity quantities. Defaults reflect
   // scarcity (commons/uncommons plentiful, rare/mythic dear); the user dials them to
   // their actual stock. All-zero = owned-only.
-  let wcBudget = { mythic: 1, rare: 5, uncommon: 15, common: 40 };
   let maxSwaps = 5;
   let shapeOverride = ""; // "" → inferred
   let suggestCommander = false;
@@ -72,15 +74,17 @@
       shape_override: shapeOverride || null,
       suggest_commander: suggestCommander,
       exclude: [...$rejectedAdds],
+      // The archetype pinned in the Meta panel, else the one the deck matches.
+      meta_archetype: $metaArchetype || null,
     };
     if ($isDigital) {
       // Per-rarity wildcard allowance — the tuner gates each unowned add against the
       // budget for that card's rarity (all-zero = owned-only).
       body.wildcard_budget = {
-        mythic: Number(wcBudget.mythic) || 0,
-        rare: Number(wcBudget.rare) || 0,
-        uncommon: Number(wcBudget.uncommon) || 0,
-        common: Number(wcBudget.common) || 0,
+        mythic: Number($wildcardBudget.mythic) || 0,
+        rare: Number($wildcardBudget.rare) || 0,
+        uncommon: Number($wildcardBudget.uncommon) || 0,
+        common: Number($wildcardBudget.common) || 0,
       };
     } else if (budget !== "" && !Number.isNaN(Number(budget))) {
       body.budget = Number(budget);
@@ -273,7 +277,7 @@
             {#each WC_TIERS as [k, label, cls] (k)}
               <label class="wc-in" title="{label} wildcards you'll spend">
                 <span class="wc-{cls}">{label}</span>
-                <input type="number" min="0" bind:value={wcBudget[k]} />
+                <input type="number" min="0" bind:value={$wildcardBudget[k]} />
               </label>
             {/each}
           </div>
@@ -435,6 +439,38 @@
           {/each}
         {/if}
       </div>
+
+      <!-- Meta (ADR-0059): the deck's Arena meta archetype — null for a paper
+           build, an uncached queue, or no match -->
+      {#if sc.meta}
+        <div class="metric">
+          <div class="m-head">
+            <span class="m-name">Meta</span>
+            <span class="m-verdict" class:ok={!sc.meta.missing_core.length}>
+              {sc.meta.archetype.name}
+            </span>
+          </div>
+          <div class="m-line">
+            {matchLabel(sc.meta.match)}
+            · win <b>{pct1(sc.meta.archetype.winrate)}</b>
+          </div>
+          {#if sc.meta.missing_core.length}
+            <div class="m-line">
+              missing core
+              <CardList
+                names={sc.meta.missing_core.map((c) => c.name)}
+                label=""
+              />
+            </div>
+          {/if}
+          {#if sc.meta.low_share.length}
+            <div class="m-line">
+              rare in its lists (&lt; {pct1(sc.meta.cut_share)})
+              <CardList names={sc.meta.low_share} label="" />
+            </div>
+          {/if}
+        </div>
+      {/if}
 
       <!-- Tier-2 advisory flags -->
       <div class="flag-block">

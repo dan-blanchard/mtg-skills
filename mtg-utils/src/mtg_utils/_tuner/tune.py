@@ -10,6 +10,7 @@ from __future__ import annotations
 from collections import Counter
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 from mtg_utils._analysis.budgets import banded_slot_budgets, template_for
 from mtg_utils._analysis.multipliers import commander_multipliers
@@ -23,9 +24,16 @@ from mtg_utils._tuner.issues import Sourcing, top_issues
 from mtg_utils._tuner.shape import infer_shape
 from mtg_utils.card_classify import is_land
 from mtg_utils.combo_search import combos_or_none
-from mtg_utils.formats import Format
+from mtg_utils.formats import Format, medium_is_digital
 from mtg_utils.hydrated_deck import HydratedDeck
 from mtg_utils.mana_audit import mana_audit
+
+if TYPE_CHECKING:
+    from mtg_utils._arena_meta.meta import MetaContext
+
+
+#: The most missing meta-core cards offered as add issues at once.
+META_CORE_ISSUES = 5
 
 
 @dataclass(frozen=True)
@@ -59,6 +67,11 @@ class TuneParams:
     # is deterministic, so every other swap holds). Names, exactly as the bulk spells
     # them.
     exclude: frozenset[str] = frozenset()
+    # ADR-0059: the deck's meta archetype on Arena's ladder (``arena_meta``'s
+    # ``deck_context``, read from the cache by the caller). A digital build reads
+    # it: its cut ranking replaces EDHREC play rate, and the core cards the deck
+    # lacks become add issues. ``None`` tunes exactly as without it.
+    meta: MetaContext | None = None
 
 
 def _deck_identity(hd: HydratedDeck) -> str:
@@ -234,7 +247,12 @@ def tune(
         hd.deck_records(), commander_names, resolve_object=resolve_object
     )
     deck_mana = hd.deck_mana
-    classes = classify_deck(hd, deck_signals, commander_names, deck_mana=deck_mana)
+    # ADR-0059: the ladder is a digital deck's population, so only a digital build
+    # reads its meta archetype.
+    meta = params.meta if medium_is_digital(game.medium) else None
+    classes = classify_deck(
+        hd, deck_signals, commander_names, deck_mana=deck_mana, meta=meta
+    )
     # The curve the deck actually plays: each nonland at its effective cost (a warp or
     # evoke card at the cheaper cost), so shape and efficiency read the real speed.
     nonland = [c for c in classes if c.bucket != "land"]
@@ -291,6 +309,7 @@ def tune(
         playrate_condemns=condemns,
     )
     tmpl = metrics.template_deviation(budgets)
+    meta_missing = meta.missing_from(c.name for c in classes) if meta else []
     wins = metrics.win_conditions(
         classes,
         shape=shape,
@@ -314,6 +333,7 @@ def tune(
         commander_r=cfit,
         sourcing=Sourcing(foc, deck_signals, budgets),
         near_misses=suggestable_near_misses(combos, params.target_bracket),
+        meta_missing=[c for c in meta_missing if not c["land"]][:META_CORE_ISSUES],
     )
 
     # ADR-0030: a target-bracket constraint gate, only when a target was chosen —
@@ -375,6 +395,15 @@ def tune(
         "combos": combos or {"combos": []},
         "bracket": bracket,
         "commander_multipliers": multipliers,
+        "meta": (
+            {
+                **meta.to_json(),
+                "missing_core": meta_missing,
+                "low_share": sorted(c.name for c in classes if c.meta_rare),
+            }
+            if meta is not None
+            else None
+        ),
     }
 
     # Win-con floor protection (ADR-0029, sibling to combo-piece protection): at/below

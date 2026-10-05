@@ -133,7 +133,7 @@ def cut_candidates(
     #     play-rate (incl. unranked) first.
     for c in sorted(
         (c for c in classes if c.low_value(medium=medium, playrate=playrate)),
-        key=lambda c: -(c.edhrec_rank if c.edhrec_rank is not None else 10**9),
+        key=lambda c: c.least_played_key,
     ):
         push("low_value", c)
 
@@ -159,7 +159,7 @@ def cut_candidates(
         members.sort(
             key=lambda c: (
                 _is_fixing(c),
-                -(c.edhrec_rank if c.edhrec_rank is not None else 10**9),
+                c.least_played_key,
                 len(c.served),
                 -c.cmc,
             )

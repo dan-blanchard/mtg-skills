@@ -11,13 +11,18 @@ avenue-serving from ``ranking.score_candidate``/``serves`` — both bottoming ou
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 from mtg_utils._analysis.costs import effective_mana_value
 from mtg_utils._analysis.ranking import score_candidate
 from mtg_utils._analysis.roles import DeckMana, protects, role_of
+from mtg_utils._arena_meta.meta import CUT_SHARE
 from mtg_utils.card_classify import is_land
 from mtg_utils.formats import medium_is_digital
 from mtg_utils.hydrated_deck import HydratedDeck
+
+if TYPE_CHECKING:
+    from mtg_utils._arena_meta.meta import MetaContext
 
 # The hard-counted Spine roles; ``lands`` is its own bucket (the curve gate's domain).
 _SPINE_ROLES = frozenset({"ramp", "card_draw", "interaction", "board_wipe"})
@@ -67,6 +72,10 @@ class CardClass:
     # ADR-0040 §5 (task #100): grants a closer-grade ability (team double
     # strike) — ONE closer regardless of recipient count.
     grant_closer: bool = False
+    # ADR-0059: the share of the deck's meta archetype's ladder lists that run the
+    # card (None = no meta read). Where set it replaces EDHREC play rate: a digital
+    # deck's population is the Arena ladder it plays against, not paper EDH.
+    meta_share: float | None = None
 
     def low_value(self, *, medium: str = "paper", playrate: bool = True) -> bool:
         """An Engine card that feeds a theme but isn't pulling its weight — dead weight
@@ -75,14 +84,30 @@ class CardClass:
         outlast), never by play-rate; a non-Granter by a fringe play-rate (the one
         EDHREC-popularity lean, by user direction; medium-aware per §4) — and only
         where play-rate means something (``playrate``: a paper-EDH population says
-        nothing about a Modern card)."""
+        nothing about a Modern card). Where the deck has a meta archetype (ADR-0059),
+        a card almost none of its ladder lists run is low-value instead."""
         if self.bucket != "engine":
             return False
         if self.grant_grade is not None:
             return self.grant_grade == "weak"
+        if self.meta_share is not None:
+            return self.meta_rare
         if not playrate:
             return False
         return is_fringe(self.edhrec_rank, medium=medium)
+
+    @property
+    def meta_rare(self) -> bool:
+        """In under ``CUT_SHARE`` of the deck's meta archetype's lists (ADR-0059)."""
+        return self.meta_share is not None and self.meta_share < CUT_SHARE
+
+    @property
+    def least_played_key(self) -> float:
+        """Sorts the least-played card first: its meta share where the deck has a
+        meta archetype, else its EDHREC rank (unranked last)."""
+        if self.meta_share is not None:
+            return self.meta_share
+        return -(self.edhrec_rank if self.edhrec_rank is not None else 10**9)
 
 
 # The repeatable-draw commander keys that arm the hellbent anti-synergy
@@ -108,12 +133,14 @@ def classify_deck(
     *,
     zones: tuple[str, ...] = ("commanders", "cards"),
     deck_mana: DeckMana | None = None,
+    meta: MetaContext | None = None,
 ) -> list[CardClass]:
     """Classify every distinct card in ``zones`` (one record per name, quantities
     summed — the counted deck: commanders + main deck, never the sideboard).
 
     ``deck_mana`` (``hd.deck_mana``) is the deck context the ramp role reads: a
-    rock whose mana is dead under this commander fills no ramp slot.
+    rock whose mana is dead under this commander fills no ramp slot. ``meta`` (the
+    deck's Arena meta archetype, ADR-0059) gives every nonland class its share.
 
     ``served`` is the set of avenue labels the card feeds — the same
     ``score_candidate`` machinery the Find ranker uses, so a card's tuner
@@ -173,6 +200,11 @@ def classify_deck(
                 grant_grade=grade,
                 grant_closer=closer,
                 quantity=quantity,
+                meta_share=(
+                    meta.share(name)
+                    if meta is not None and bucket not in ("commander", "land")
+                    else None
+                ),
             )
         )
     return out

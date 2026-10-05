@@ -37,3 +37,18 @@ export function canHoldAnother(card, held) {
   if (limit === null || limit === undefined) return true;
   return held < limit;
 }
+
+/** A 0–1 share as a one-decimal percent ("—" when unknown) — the Meta panel's and
+ * the Tune scorecard's meta block's one formatter. */
+export function pct1(x) {
+  return x === null || x === undefined ? "—" : (100 * x).toFixed(1) + "%";
+}
+
+/** How a deck matched its Arena meta archetype (ADR-0059): "71.0% overlap", or
+ * "by commander" / "by named". */
+export function matchLabel(match) {
+  if (!match) return "";
+  return match.by === "overlap"
+    ? `${pct1(match.overlap)} overlap`
+    : `by ${match.by}`;
+}

@@ -7,13 +7,20 @@ name = "deck-strat"
 version = "0.1.0"
 description = "Generate MTG Strategy Guides for Commander/Brawl/Historic Brawl decks (shared from mtg-utils)"
 requires-python = ">=3.12"
-dependencies = ["click>=8.0", "requests>=2.28"]
+dependencies = [
+    "click>=8.0",
+    "requests>=2.28",
+    # arena-meta fetches Untapped through a signed-in browser profile; imported
+    # lazily, only when fetching (ADR-0059).
+    "playwright>=1.50",
+]
 
 [project.scripts]
 # Reused from mtg-utils. deck-strat owns no CLIs of its own — the skill
 # is orchestration prose over deck-wizard's analysis CLIs and
 # rules-lawyer's rules/rulings CLIs. (Per ADR-0004, defer extracting
 # strategy-specific helpers until a second caller appears.)
+arena-meta = "mtg_utils.arena_meta:main"
 
 # Deck acquisition + hydration
 parse-deck = "mtg_utils.parse_deck:main"

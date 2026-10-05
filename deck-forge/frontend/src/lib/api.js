@@ -88,6 +88,26 @@ export const api = {
   // The deterministic Tune surface (ADR-0023): diagnose + budgeted swap proposals.
   // Pure deterministic core — works with no session attached.
   tune: (body) => post("/api/tune", body),
+  // The Meta panel (ADR-0059): the arena-meta cache for this build's Arena queue.
+  // GET reads only the cache; refresh fetches from Untapped (seconds — a 409 names
+  // what to do, `sign_in` when the saved session is missing or expired); login
+  // opens the visible sign-in browser on the hub's machine.
+  meta: ({ archetype = "", ranks = "platinum+", wildcards = null } = {}) => {
+    const q = new URLSearchParams({ ranks });
+    if (archetype) q.set("archetype", archetype);
+    if (wildcards)
+      q.set(
+        "wildcards",
+        Object.entries(wildcards)
+          .map(([k, n]) => `${k}=${Number(n) || 0}`)
+          .join(","),
+      );
+    return get(`/api/meta?${q}`);
+  },
+  // force=false: fetch only when the cache is stale (the panel's on-open check).
+  metaRefresh: ({ force = true } = {}) =>
+    post("/api/meta/refresh", { previous: false, force }),
+  metaLogin: () => post("/api/meta/login", {}),
 
   // Raise a reasoning request and long-poll for the session-agent's answer.
   // Resolves to {result} | {offline: true} | {slow: true} | {error}.
