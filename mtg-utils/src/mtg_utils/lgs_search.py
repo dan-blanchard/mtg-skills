@@ -7,7 +7,7 @@ build carts → handoff. See specs/2026-05-04-lgs-search-design.md.
 from __future__ import annotations
 
 import json
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Generator
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -812,7 +812,7 @@ from contextlib import contextmanager  # noqa: E402
 @contextmanager
 def _playwright_pages(
     stores: list[str], *, headless: bool = True
-) -> Iterator[Callable[[str], Page | None]]:
+) -> Generator[Callable[[str], Page | None]]:
     """Open one persistent_context + one page per store; yield a page_factory.
 
     Persistent profiles live at `~/.cache/mtg-skills/lgs-profiles/<store>/`
