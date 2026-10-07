@@ -115,6 +115,10 @@ def build_report(
         "core": (
             {
                 "archetype": match.archetype.name,
+                # The sample in the asked ranks, and whether the tuner reads it —
+                # :func:`meta.tunable`'s answer, never judged again here.
+                **m.list_sample(snap, match.archetype.id, ranks)._asdict(),
+                "tuned": m.tunable(snap, match.archetype.id),
                 "cards": m.mark_held(
                     m.core(snap, match.archetype.id, ranks, min_share=core_share),
                     held,
@@ -178,7 +182,15 @@ def render_text(report: Mapping) -> str:
         how = f"{_pct(mt['overlap'])} overlap" if mt["by"] == "overlap" else mt["by"]
         lines += ["", f"Deck matches {mt['archetype']} ({how})."]
     if report.get("core"):
-        lines += ["", f"## Core of {report['core']['archetype']}"]
+        c = report["core"]
+        thin = "" if c["tuned"] else " — too thin: deck-tune skips it"
+        lines += [
+            "",
+            (
+                f"## Core of {c['archetype']} ({c['lists']} lists, "
+                f"{c['matches']} matches{thin})"
+            ),
+        ]
         lines += [
             f"  {_pct(c['share']):>6}  {c['avg_copies']:.1f}x  {c['name']}"
             for c in report["core"]["cards"]

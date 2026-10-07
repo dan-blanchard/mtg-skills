@@ -201,9 +201,16 @@
         <h4>
           Core of {report.core.archetype}
           <span class="hint"
-            >≥ {pct1(report.thresholds.core_share)} of lists</span
+            >≥ {pct1(report.thresholds.core_share)} of {report.core.lists}
+            lists · {report.core.matches} matches</span
           >
         </h4>
+        {#if !report.core.tuned}
+          <p class="match dim">
+            A thin sample: shown for reference, but Tune doesn't read it (it
+            needs 250 Platinum+ matches across the published lists).
+          </p>
+        {/if}
         <table class="rows">
           <tbody>
             {#each report.core.cards as c (c.name)}

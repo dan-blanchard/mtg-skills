@@ -11,7 +11,9 @@ from mtg_utils import arena_meta
 from mtg_utils._arena_meta import meta as m
 from mtg_utils._arena_meta import untapped
 from mtg_utils._arena_meta.deckstring import DeckstringError, decode
+from mtg_utils._arena_meta.report import build_report, render_text, wildcard_cost_fn
 from mtg_utils.formats import FORMATS
+from mtg_utils.hydrated_deck import HydratedDeck
 
 # --- Deckstrings ---------------------------------------------------------------------
 
@@ -161,6 +163,8 @@ def _brawl_raw():
             _arch(1, [101, 100], {"platinum": (900, 55.0), "mythic": (100, 60.0)}),
             _arch(2, [100, 102], {"platinum": (260, 57.0), "gold": (50, 40.0)}),
             _arch(3, [100], {"platinum": (5, 20.0)}),
+            # Untapped serves some archetypes with no tags at all.
+            {**_arch(4, [], {"gold": (3, 0.0)}), "primary_tags": None},
         ],
         "decks": [
             _deck(
@@ -271,7 +275,8 @@ def test_find_archetype_by_part_of_its_name(snap):
 
 
 def test_deck_context_reads_shares_and_core(snap):
-    ctx = m.deck_context(snap, _parsed(["Commander Alpha"], ["Spell One"]))
+    match = m.resolve(snap, deck=_parsed(["Commander Alpha"], ["Spell One"]))
+    ctx = m.deck_context(snap, match)
     assert ctx.archetype["name"] == "Mono-Blue / Commander Alpha"
     assert ctx.share("spell one") == 1.0  # folded like every name read
     assert ctx.share("Not In Any List") == 0.0
@@ -362,7 +367,6 @@ def test_resolve_titles_prefers_the_card_pool_name():
 
 
 def test_the_cache_round_trips_and_only_a_digital_build_reads_it(tmp_path, monkeypatch):
-    from mtg_utils.hydrated_deck import HydratedDeck
 
     monkeypatch.setenv("MTG_SKILLS_CACHE_DIR", str(tmp_path))
     snap = untapped.snapshot_from_raw(_brawl_raw())
@@ -384,7 +388,6 @@ def test_the_cache_round_trips_and_only_a_digital_build_reads_it(tmp_path, monke
 
 
 def test_no_cache_says_how_to_fill_it(tmp_path, monkeypatch):
-    from mtg_utils.hydrated_deck import HydratedDeck
 
     monkeypatch.setenv("MTG_SKILLS_CACHE_DIR", str(tmp_path))
     hd = HydratedDeck.from_parsed({"format": "historic", "cards": []}, by_name={})
@@ -408,7 +411,6 @@ def test_the_queue_rule_prefers_bo3_for_a_sideboard():
 
 
 def test_a_cold_cache_falls_back_to_the_other_queue(tmp_path, monkeypatch):
-    from mtg_utils.hydrated_deck import HydratedDeck
 
     monkeypatch.setenv("MTG_SKILLS_CACHE_DIR", str(tmp_path))
     snap = untapped.snapshot_from_raw({**_brawl_raw(), "event": "Ladder"})
@@ -490,7 +492,6 @@ def test_cli_refuses_a_format_without_a_queue():
 
 
 def test_a_bo3_list_counts_main_and_sideboard_copies_together():
-    from mtg_utils._arena_meta.report import wildcard_cost_fn
 
     deck = m.MetaDeck(1, (), (("Spell One", 2),), (("Spell One", 2),), {})
     rarity = {"Spell One": {"rarity": "rare"}}
@@ -505,7 +506,6 @@ def test_a_bo3_list_counts_main_and_sideboard_copies_together():
 
 
 def test_core_cards_say_whether_the_deck_runs_them(snap):
-    from mtg_utils._arena_meta.report import build_report
 
     match = m.resolve(snap, archetype="alpha")
     report = build_report(snap, match=match, held=["spell one"])
@@ -520,3 +520,71 @@ def test_a_land_no_list_runs_doesnt_count_against_the_overlap(snap):
     assert m.match_deck(snap, deck) is None  # 2 of 6 "nonland" cards: under 40%
     match = m.match_deck(snap, deck, lands=lands)
     assert match.archetype.id == 1
+
+
+def test_an_archetype_with_no_tags_is_named_unknown(snap):
+    assert snap.archetypes[4].name == "Unknown"
+
+
+def test_a_thin_list_sample_is_reported_but_never_tuned_by(tmp_path, monkeypatch):
+    """Beta's one published list holds 100 Platinum+ matches, under the 250 floor:
+    the report shows its core with the sample, the tuner skips it."""
+
+    raw = _brawl_raw()
+    raw["decks"][2] = {**raw["decks"][2], "rs": {"p": [100, 57, 1]}}
+    thin = untapped.snapshot_from_raw(raw)
+    beta = m.resolve(thin, archetype="beta")
+    assert m.list_sample(thin, 2) == (1, 100)
+    assert m.deck_context(thin, beta) is None
+    core = build_report(thin, match=beta)["core"]
+    assert (core["lists"], core["matches"], core["tuned"]) == (1, 100, False)
+    # The flag is the tuner's own test, whatever ranks the report was asked for.
+    every_rank = build_report(thin, match=beta, ranks=m.LADDER_RANKS)["core"]
+    assert every_rank["tuned"] is False
+    assert "deck-tune skips it" in render_text(build_report(thin, match=beta))
+
+    monkeypatch.setenv("MTG_SKILLS_CACHE_DIR", str(tmp_path))
+    path = untapped.meta_dir() / "Brawl_Ladder.current.json"
+    path.parent.mkdir(parents=True)
+    path.write_text(json.dumps(thin.to_json()))
+    deck = {
+        "format": "competitive_brawl",
+        "commanders": [{"name": "Commander Beta", "quantity": 1}],
+        "cards": [],
+    }
+    hd = HydratedDeck.from_parsed(deck, by_name={})
+    ctx, note = untapped.cached_deck_context(hd, "digital")
+    assert ctx is None
+    assert "too thin" in note
+
+
+def test_a_list_unplayed_in_the_ranks_adds_nothing():
+    raw = _brawl_raw()
+    # A third Alpha list with a card no other runs, played only at Gold.
+    raw["decks"].append(_deck(1, encode([1], {15: 1}), {"g": [40, 20, 1]}))
+    shares = m.card_shares(untapped.snapshot_from_raw(raw), 1)
+    assert "Spell Five" not in shares
+    assert shares["Spell One"]["share"] == 1.0
+
+
+def test_untappeds_nulls_fall_back_to_defaults():
+    raw = _brawl_raw()
+    raw["archetypes"].append(
+        {"primary_tag_group_id": 5, "primary_tags": [101], "stats": None}
+    )
+    raw["archetypes"][0]["stats"]["platinum"]["winrate"] = None
+    raw["decks"].append({"ptg": None, "ds": encode([1], {11: 1}), "rs": None})
+    raw["decks"][0]["rs"]["p"] = [600, None, None]
+    snap = untapped.snapshot_from_raw(raw)
+    assert snap.archetypes[5].stats == {}
+    assert snap.archetypes[1].stats["platinum"] == m.Record(900, 0)
+    assert snap.decks[-1].archetype == 0
+    assert snap.decks[0].stats["platinum"] == m.Record(600, 0)
+
+
+def test_a_null_period_start_never_wins_newest():
+    periods = [
+        {"id": 1, "event_name": "Ladder", "start_ts": "2026-09-29"},
+        {"id": 2, "event_name": "Ladder", "start_ts": None},
+    ]
+    assert untapped.pick_period(m.drop_nulls(periods), "Ladder")["id"] == 1

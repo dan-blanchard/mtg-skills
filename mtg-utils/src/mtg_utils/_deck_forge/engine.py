@@ -1852,7 +1852,8 @@ def meta_context(
     state: ForgeState, hd: HydratedDeck, archetype: str | None = None
 ) -> arena_meta.MetaContext | None:
     """The tuner's meta context for this build, from the cache (``None`` for a
-    paper build, an uncached queue, ``archetype="off"``, or no match)."""
+    paper build, an uncached queue, ``archetype="off"``, no match, or an archetype
+    too thin to tune by — ``arena_meta.tunable``)."""
     if archetype == "off":
         return None
     ctx, _note = untapped.cached_deck_context(

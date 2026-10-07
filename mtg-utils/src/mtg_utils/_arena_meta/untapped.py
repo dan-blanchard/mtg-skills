@@ -28,9 +28,9 @@ from collections import defaultdict
 from collections.abc import Collection, Iterable, Mapping
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Self
+from typing import TYPE_CHECKING, Self, cast
 
-from mtg_utils._arena_meta.meta import Snapshot, build_snapshot
+from mtg_utils._arena_meta.meta import Snapshot, build_snapshot, drop_nulls
 from mtg_utils._http import cache_root, is_fresh
 from mtg_utils._sidecar import atomic_write_json
 
@@ -97,8 +97,13 @@ def login() -> None:
             ctx = p.chromium.launch_persistent_context(str(profile), headless=False)
         except Exception as exc:  # playwright's launch error: no browser binary
             raise BrowserMissingError(str(exc).splitlines()[0]) from exc
-        ctx.new_page().goto(SITE)
-        ctx.wait_for_event("close", timeout=0)
+        (ctx.pages[0] if ctx.pages else ctx.new_page()).goto(SITE)
+        # Wait on the pages, not the context: on macOS closing the last window
+        # leaves the browser (and so the context) running. Every page counts — a
+        # sign-in can open its own tab or popup.
+        while ctx.pages:
+            ctx.pages[0].wait_for_event("close", timeout=0)
+        ctx.close()  # a clean close writes the session cookies to the profile
 
 
 def is_ranked_event(event: str) -> bool:
@@ -187,13 +192,18 @@ def fetch_raw(
     """One meta period's raw bundle — ``{event, period, fetched_at, tags,
     archetypes, decks}`` — straight from Untapped."""
     with _Session() as session:
-        periods = session.get("meta-periods/active") or []
+
+        def get(path: str, **query: str | float) -> list:
+            # Untapped's nulls are dropped here, once, as its data comes in.
+            return drop_nulls(cast(list, session.get(path, **query) or []))
+
+        periods = get("meta-periods/active")
         period = pick_period(periods, event, previous=previous, period_id=period_id)
         scope = "BRONZE_TO_MYTHIC" if is_ranked_event(event) else "ALL"
         query = {"MetaPeriodId": period["id"], "RankingClassScopeFilter": scope}
-        archetypes = session.get(_ARCHETYPES, **query) or []
-        decks = session.get(_DECKS, **query) or []
-        tags = session.get("tags") or []
+        archetypes = get(_ARCHETYPES, **query)
+        decks = get(_DECKS, **query)
+        tags = get("tags")
     used = {t for a in archetypes for t in a.get("primary_tags", ())}
     return {
         "event": event,
@@ -229,7 +239,9 @@ def resolve_titles(
         title = rec.get("titleId")
         if title in wanted and not rec.get("isToken"):
             grpids[title].append(int(rec["grpid"]))
-    text = {int(e["id"]): str(e.get("text", "")) for e in loc if e.get("id") in wanted}
+    text = {
+        int(e["id"]): str(e.get("text") or "") for e in loc if e.get("id") in wanted
+    }
     names: dict[int, str] = {}
     lands: set[str] = set()
     for title in wanted:
@@ -269,6 +281,7 @@ def snapshot_from_raw(raw: Mapping, *, pool: CardPool | None = None) -> Snapshot
     (``{titleId: name}``) and ``lands`` is self-contained (tests, offline
     ``--from-json``); otherwise names come from Untapped's public card files and the
     card pool (``pool``, a ``CardPool``, optional)."""
+    raw = drop_nulls(raw)  # a saved bundle may carry Untapped's nulls
     if "names" in raw:
         names = {int(k): v for k, v in raw["names"].items()}
         return build_snapshot(raw, names, lands=raw.get("lands", ()))
@@ -383,7 +396,13 @@ def cached_deck_context(
     """The tuner's meta context for ``hd`` from the CACHE alone (:func:`deck_queue`),
     and a note saying what was read or why nothing was — ``None`` where no meta
     applies (a paper build, a format with no Arena queue)."""
-    from mtg_utils._arena_meta.meta import deck_context
+    from mtg_utils._arena_meta.meta import (
+        MIN_MATCHES,
+        deck_context,
+        list_sample,
+        resolve,
+        tunable,
+    )
     from mtg_utils.formats import medium_is_digital
 
     fmt = hd.format
@@ -395,11 +414,18 @@ def cached_deck_context(
     snap = queue[2]
     if snap is None:
         return None, f"meta: none cached — run `arena-meta --format {fmt.name}`"
-    ctx = deck_context(snap, hd.deck, archetype=archetype, lands=deck_lands(hd))
-    if ctx is None:
+    match = resolve(snap, deck=hd.deck, archetype=archetype, lands=deck_lands(hd))
+    if match is None:
         return None, f"meta: the deck matches no {snap.event} meta archetype"
+    if not tunable(snap, match.archetype.id):
+        sample = list_sample(snap, match.archetype.id)
+        return None, (
+            f"meta: {match.archetype.name} has {sample.lists} published list(s) "
+            f"with {sample.matches} matches (under {MIN_MATCHES}) — too thin to "
+            "tune by; skipped"
+        )
     stale = ", stale" if snapshot_is_stale(snap) else ""
-    return ctx, (
-        f"meta: {ctx.archetype['name']} ({snap.event} period "
+    return deck_context(snap, match), (
+        f"meta: {match.archetype.name} ({snap.event} period "
         f"{snap.period.get('id')}{stale})"
     )

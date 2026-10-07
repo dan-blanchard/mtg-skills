@@ -58,8 +58,14 @@ deck-forge and deck-strat read its cache.
   - The scorecard gains a `meta` section: the archetype, its record, its core, the
     missing core (lands included) and the low-share cards.
 
-  With no cache, or no match, the tuner runs exactly as before. `deck-tune --meta
-  auto|off|<name>` and the hub's `meta_archetype` choose.
+  Untapped publishes lists for a fraction of its archetypes (2026-10-07: 103 of
+  1104 on `Brawl_Ladder`), often one thin list, so the tuner reads an archetype only
+  when its published lists hold at least the ranking's floor, 250 matches, at
+  Platinum and up (`meta.tunable`, measured by `meta.list_sample`). One 21-match
+  list would otherwise condemn every card it lacks. The report and the panel show a
+  thin core with its sample and `tunable`'s answer, never judging it again. With no
+  cache, no match, or a thin sample, the tuner runs exactly as before. `deck-tune
+  --meta auto|off|<name>` and the hub's `meta_archetype` choose.
 - **deck-forge** reads only the cache too: a Tune click never waits on a browser.
   `GET /api/meta` serves the Meta panel (field, ranking, the deck's match and its
   core, the buildable lists). `POST /api/meta/refresh` is the one fetch.

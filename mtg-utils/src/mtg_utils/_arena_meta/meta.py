@@ -13,8 +13,10 @@ buckets asked for (Platinum and up by default); an unranked queue has one bucket
 - :func:`card_shares` / :func:`core` — how often a meta archetype's lists run each
   card, weighted by matches, with the average copies;
 - :func:`buildable` — the decklists you can build, cheapest first;
-- :func:`resolve` / :func:`deck_context` — which meta archetype a deck is (or the
-  one named), and what the tuner reads from it.
+- :func:`resolve` — which meta archetype a deck is (or the one named);
+- :func:`tunable` / :func:`deck_context` — whether the tuner may read that archetype
+  (its published lists clear the ranking's floor at the tuner's ranks), and what it
+  reads from it.
 """
 
 from __future__ import annotations
@@ -23,6 +25,7 @@ import math
 from collections import defaultdict
 from collections.abc import Callable, Collection, Iterable, Mapping, Sequence
 from dataclasses import asdict, dataclass, field
+from typing import NamedTuple, cast
 
 from mtg_utils.names import normalize_card_name
 
@@ -206,6 +209,22 @@ class Snapshot:
 # --- Building a snapshot from Untapped's payloads --------------------------------
 
 
+def drop_nulls[T](value: T) -> T:
+    """Untapped's JSON with every ``null`` field dropped (recursively), so each read
+    of it falls back to its default — the one place its nulls are handled."""
+    if isinstance(value, dict):
+        return cast(T, {k: drop_nulls(v) for k, v in value.items() if v is not None})
+    if isinstance(value, list):
+        return cast(T, [drop_nulls(v) for v in value])
+    return value
+
+
+def _count(row: Sequence, at: int) -> int:
+    """A ``rs`` row's ``at``-th count (``[matches, wins, avg_seconds]``), 0 when
+    missing or null."""
+    return int(row[at] or 0) if len(row) > at else 0
+
+
 def _colors(color_byte: int | None) -> str:
     return "".join(c for i, c in enumerate(_COLORS) if (color_byte or 0) >> i & 1)
 
@@ -228,6 +247,7 @@ def build_snapshot(
     A deckstring this decoder can't read is skipped."""
     from mtg_utils._arena_meta.deckstring import DeckstringError, decode
 
+    raw = drop_nulls(raw)
     tags = {int(t["id"]): t for t in raw.get("tags", ())}
 
     def name(title: int) -> str:
@@ -242,7 +262,7 @@ def build_snapshot(
                     int(s.get("total_matches", 0)) * float(s.get("winrate", 0)) / 100
                 ),
             )
-            for rank, s in (row.get("stats") or {}).items()
+            for rank, s in row.get("stats", {}).items()
         }
         aid = int(row["primary_tag_group_id"])
         archetypes[aid] = MetaArchetype(
@@ -264,15 +284,15 @@ def build_snapshot(
                 main=tuple((name(t), q) for t, q in deck.main),
                 sideboard=tuple((name(t), q) for t, q in deck.sideboard),
                 stats={
-                    RANK_CODES[code]: Record(int(v[0]), int(v[1]))
-                    for code, v in (row.get("rs") or {}).items()
+                    RANK_CODES[code]: Record(_count(v, 0), _count(v, 1))
+                    for code, v in row.get("rs", {}).items()
                     if code in RANK_CODES
                 },
             )
         )
     return Snapshot(
         event=str(raw.get("event", "")),
-        period=dict(raw.get("period") or {}),
+        period=dict(raw.get("period", {})),
         fetched_at=str(raw.get("fetched_at", "")),
         archetypes=archetypes,
         decks=tuple(decks),
@@ -356,6 +376,8 @@ def card_shares(
     in_lists: dict[str, float] = defaultdict(float)
     copies: dict[str, float] = defaultdict(float)
     for deck, weight in zip(decks, weights, strict=True):
+        if not weight:
+            continue  # a list unplayed in these ranks says nothing about them
         for name, qty in deck.main:
             in_lists[name] += weight
             copies[name] += weight * qty
@@ -602,20 +624,38 @@ class MetaContext:
         }
 
 
-def deck_context(
-    snap: Snapshot,
-    deck: Mapping,
-    ranks: Sequence[str] = DEFAULT_RANKS,
-    *,
-    archetype: str | None = None,
-    lands: Collection[str] = (),
-) -> MetaContext | None:
-    """The tuner's meta context for a parsed ``deck``: its matched (or named) meta
-    archetype's card shares and core. ``None`` when it matches none."""
-    match = resolve(snap, deck=deck, archetype=archetype, ranks=ranks, lands=lands)
-    if match is None:
-        return None
+class ListSample(NamedTuple):
+    """How much an archetype's published lists say: how many, and their matches."""
+
+    lists: int
+    matches: int
+
+
+def list_sample(
+    snap: Snapshot, archetype: int, ranks: Sequence[str] = DEFAULT_RANKS
+) -> ListSample:
+    """The archetype's published lists and their matches in ``ranks``. Untapped
+    publishes lists for a fraction of its archetypes (2026-10: 103 of 1104 on
+    Brawl_Ladder), often one thin list, so every core read carries its sample."""
+    decks = [d for d in snap.decks if d.archetype == archetype]
+    return ListSample(len(decks), sum(_total(d.stats, ranks).matches for d in decks))
+
+
+def tunable(snap: Snapshot, archetype: int) -> bool:
+    """Whether the tuner may read the archetype: its published lists hold at least
+    the ranking's ``MIN_MATCHES`` at the tuner's ranks (``DEFAULT_RANKS``), so one
+    thin list never condemns every card it lacks. The one test — the report and
+    the panel show its answer rather than judge it again."""
+    return list_sample(snap, archetype).matches >= MIN_MATCHES
+
+
+def deck_context(snap: Snapshot, match: Match) -> MetaContext | None:
+    """The tuner's meta context for a ``match`` (:func:`resolve`): the archetype's
+    card shares and core at ``DEFAULT_RANKS``. ``None`` unless :func:`tunable`."""
     aid = match.archetype.id
+    if not tunable(snap, aid):
+        return None
+    ranks = DEFAULT_RANKS
     shares = card_shares(snap, aid, ranks)
     return MetaContext(
         archetype=_row(snap, match.archetype, ranks, _field_total(snap, ranks)),
