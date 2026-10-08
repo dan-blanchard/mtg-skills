@@ -9,6 +9,7 @@ import re
 from mtg_utils._analysis._sweep_detectors import (
     SWEEP_LABELS,
 )
+from mtg_utils._card_ir.crosswalk import LAND_DENIAL_KINDS
 
 from ._shared import (
     _CHEAP_EVASION_EXTRA,
@@ -313,6 +314,21 @@ SPECS_4: dict[tuple[str, str], SignalSpec] = {
                 },
             ),
             _LANDS_FROM_GRAVE_EXTRA,
+        ),
+    ),
+    # Mass land denial (ADR-0030: the Commander Brackets' definition — destroy,
+    # exile or bounce lands, keep them tapped, or change their mana, four or more
+    # per player). A deck already running Armageddon effects, untap locks or Blood
+    # Moon wants the rest of the lock. Search and serve both ride the key (the
+    # ``mass-land-denial`` preset; every shape the lane names as its subject).
+    ("mass_land_denial", "each"): _spec(
+        "Mass land denial",
+        "Armageddon effects, untap locks and Blood Moon — four or more lands per "
+        "player",
+        {"preset_names": ("mass-land-denial",)},
+        None,
+        serve_idents=frozenset(
+            f"mass_land_denial|each|{kind}" for kind in LAND_DENIAL_KINDS
         ),
     ),
     # A cheat-from-top commander (Vaevictis, Hans Eriksson) reveals its top card and

@@ -6,6 +6,8 @@ official WotC allowances and reports violations. Distinct from
 same signals; this gate measures the deck against a target the builder picked.
 """
 
+import pytest
+
 from mtg_utils._tuner.bracket import bracket_gate
 from mtg_utils.testkit import test_card
 
@@ -26,10 +28,8 @@ def _plain(name):
 
 
 def test_winter_orb_untap_lock_is_mass_land_denial():
-    # Winter Orb is the canonical untap-lock mass land denial the detector comment
-    # explicitly names, but the regex only matched "lands don't untap", missing the
-    # "can't untap more than one land" templating — so a Winter Orb deck could PASS a
-    # deterministic FAIL axis at bracket 2.
+    # Winter Orb's "can't untap more than one land" keeps lands tapped (the
+    # bracket definition's untap-lock arm): a deterministic FAIL at bracket 2.
     winter_orb = test_card("Winter Orb")
     result = bracket_gate([winter_orb, _plain("x")], target_bracket=2)
     mld = [v for v in result["violations"] if v["axis"] == "mass_land_denial"]
@@ -56,8 +56,7 @@ def test_loses_the_game_two_card_combo_fails_below_bracket_three():
 
 
 def test_multi_extra_turn_card_detected_at_exhibition():
-    # Time Stretch ("Take two extra turns after this one") is an extra-turn card, but the
-    # regex only matched "an extra turn" — so a B1 deck could PASS holding it.
+    # Time Stretch ("Take two extra turns after this one") is an extra-turn card.
     time_stretch = test_card("Time Stretch")
     result = bracket_gate([time_stretch, _plain("x")], target_bracket=1)
     ext = [v for v in result["violations"] if v["axis"] == "extra_turns"]
@@ -212,24 +211,44 @@ class TestUnconstrainedBrackets:
         assert result["pass"] is True
 
 
-def test_ir_extra_turn_read_is_structural():
-    # phase parses both Time Warp and Time Stretch as cat=extra_turn; the gate reads that
-    # structurally (no "takes N extra turns" regex needed), regex staying as the no-IR
-    # fallback.
-    from mtg_utils._tuner.bracket import _ir_has_extra_turn
-    from mtg_utils.card_ir import Ability, Card, Effect, Face
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Time Stretch",
+        "Expropriate",  # a vote's outcome
+        "Chance for Glory",  # you take an extra turn after this one
+        "Emrakul, the Promised End",  # the controlled player's extra turn
+        "Timesifter",  # a ledgered bridge over phase's unbound-subject residue
+    ],
+)
+def test_extra_turn_axis_reads_the_extra_turns_key(name):
+    # The axis reads the ``extra_turns`` signal key (CR 500.7: any extra turn,
+    # whoever takes it), so B1's "any = FAIL" holds for every shape.
+    result = bracket_gate([test_card(name), _plain("x")], target_bracket=1)
+    ext = [v for v in result["violations"] if v["axis"] == "extra_turns"]
+    assert ext
+    assert name in ext[0]["cards"]
 
-    def _ir(*effects):
-        return Card(
-            oracle_id="x",
-            name="T",
-            faces=(
-                Face(name="T", abilities=(Ability(kind="spell", effects=effects),)),
-            ),
-        )
 
-    assert _ir_has_extra_turn(_ir(Effect(category="extra_turn", scope="any"))) is True
-    assert _ir_has_extra_turn(_ir(Effect(category="draw", scope="you"))) is False
+@pytest.mark.parametrize(
+    "name",
+    ["Blood Moon", "Back to Basics", "Death Cloud", "Cataclysm", "Static Orb"],
+)
+def test_mass_land_denial_axis_follows_the_bracket_definition(name):
+    # "change what mana is produced", "keep lands tapped", four or more lands per
+    # player — Wizards' Commander Brackets definition of mass land denial.
+    result = bracket_gate([test_card(name), _plain("x")], target_bracket=3)
+    mld = [v for v in result["violations"] if v["axis"] == "mass_land_denial"]
+    assert mld
+    assert name in mld[0]["cards"]
+
+
+@pytest.mark.parametrize("name", ["Yawning Fissure", "From the Ashes", "Pox"])
+def test_one_land_or_replaced_land_denial_passes(name):
+    # One land each (Yawning Fissure), lands given back (From the Ashes), a third
+    # of a player's lands (Pox): none reaches the definition's four per player.
+    result = bracket_gate([test_card(name), _plain("x")], target_bracket=3)
+    assert not [v for v in result["violations"] if v["axis"] == "mass_land_denial"]
 
 
 def test_gate_is_not_applicable_one_on_one():

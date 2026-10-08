@@ -2202,6 +2202,23 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
         should_not_match=("Lightning Bolt", "Doom Blade", "Wrath of God"),
     ),
     Preset(
+        name="mass-land-denial",
+        description=(
+            "Mass land denial as the Commander Brackets define it: destroy, exile "
+            "or bounce lands, keep them tapped, or change their mana, four or more "
+            "per player and without replacing them (Armageddon, Wildfire, Winter "
+            "Orb, Blood Moon). Disallowed below bracket 4."
+        ),
+        notes=(
+            "Structural view: signal key `mass_land_denial` "
+            "(`crosswalk.reads.mass_land_denial`, ADR-0030). One-land edicts "
+            "(Yawning Fissure) and replaced lands (From the Ashes) are not."
+        ),
+        signal_keys=("mass_land_denial",),
+        should_match=("Armageddon", "Winter Orb", "Blood Moon", "Wildfire"),
+        should_not_match=("Strip Mine", "Yawning Fissure", "From the Ashes"),
+    ),
+    Preset(
         name="planeswalker-removal",
         description=(
             "Single-target OR mass planeswalker removal: destroy/exile "

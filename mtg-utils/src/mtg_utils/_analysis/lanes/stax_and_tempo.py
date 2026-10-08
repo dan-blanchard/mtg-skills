@@ -62,6 +62,7 @@ from mtg_utils._card_ir.crosswalk import (
     iter_static_defs,
     iter_threaded_target_statics,
     iter_typed_nodes,
+    mass_land_denial,
     mod_keyword_name,
     modify_cost_mode,
     modify_cost_spell_filter,
@@ -1272,6 +1273,20 @@ def _land_denial(tree: ConceptTree) -> list[Signal]:
     return []
 
 
+def _mass_land_denial(tree: ConceptTree) -> list[Signal]:
+    """mass_land_denial — the Commander Brackets' mass land denial ("cards that
+    regularly destroy, exile, and bounce other lands, keep lands tapped, or change
+    what mana is produced by four or more lands per player without replacing
+    them"), read by :func:`~mtg_utils._card_ir.crosswalk.reads.mass_land_denial`:
+    Armageddon, Wildfire, Winter Orb, Blood Moon. The subject is the shape (one
+    of ``crosswalk.LAND_DENIAL_KINDS``). Scope "each":
+    it hits every player's lands (or a chosen player's), yours among them."""
+    kind = mass_land_denial(tree)
+    if kind is None:
+        return []
+    return [Signal("mass_land_denial", "each", kind, "", tree.name, "high")]
+
+
 def _is_protection_animator(unit: AbilityUnit) -> bool:
     """The land_protection-only WIDER animator read (the shared b1 helper is
     untouched so the settled land_creatures_matter lane cannot move): any
@@ -1750,6 +1765,7 @@ LANES = (
     _control_exchange,
     _land_exchange,
     _land_denial,
+    _mass_land_denial,
     _land_protection,
     _evasion_denial,
     _animate_artifact,

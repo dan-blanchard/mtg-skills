@@ -233,6 +233,9 @@ _MISPARSE_ROWS = {
     "moku_haste_grant_misscoped_selfref": (
         "the haste grant to OTHER creatures parsed as a SelfRef static def"
     ),
+    "global_ruin_tracked_set_sacrifice": (
+        "the sacrifice of the unchosen lands parsed as Sacrifice{TrackedSet, 1}"
+    ),
 }
 
 # Rows whose match reads structure, not the clause's words: text can't locate
@@ -249,6 +252,9 @@ _STRUCTURE_MATCHED_ROWS = {
         "the ModifyCost's counted kind is missing from its operand"
     ),
     "moku_haste_grant_misscoped_selfref": "a misparse (see _MISPARSE_ROWS)",
+    "keyword_dropped_paylife": (
+        "the match reads the keyword rows crosswalk.core recovers from the residue"
+    ),
 }
 
 

@@ -212,8 +212,10 @@ def is_basic_land(card: dict) -> bool:
     return is_land(card) and "basic" in (card.get("type_line") or "").lower()
 
 
-#: The evasion keyword abilities a limited scan counts (a body that gets past
-#: blockers) — read off the record's ``keywords``.
+#: The evasion keyword abilities (a body that gets past blockers, CR 509.1b) —
+#: read off the record's ``keywords``. Landwalk is one (702.14c: "can't be blocked
+#: as long as the defending player controls" a land of its type); a record lists
+#: "Landwalk" beside the specific "Islandwalk".
 EVASION_KEYWORDS: frozenset[str] = frozenset(
     {
         "Flying",
@@ -224,6 +226,7 @@ EVASION_KEYWORDS: frozenset[str] = frozenset(
         "Intimidate",
         "Skulk",
         "Horsemanship",
+        "Landwalk",
     }
 )
 

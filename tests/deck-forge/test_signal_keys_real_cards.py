@@ -257,6 +257,7 @@ _REAL_CASES: dict[str, str] = {
     "mana_amplifier": "Mana Reflection",
     "mass_bounce": "Evacuation",
     "mass_death_payoff": "Khabál Ghoul",
+    "mass_land_denial": "Armageddon",
     "mass_removal": "Wrath of God",
     "meld_pair": "Bruna, the Fading Light",
     "mill_makers": "Stitcher's Supplier",

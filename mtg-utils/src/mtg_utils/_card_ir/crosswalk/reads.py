@@ -19,7 +19,7 @@ from __future__ import annotations
 import re
 from collections.abc import Callable, Iterable, Iterator
 from dataclasses import fields
-from typing import TYPE_CHECKING, Any, Literal, NamedTuple
+from typing import TYPE_CHECKING, Any, Literal, NamedTuple, get_args
 
 from mtg_utils._card_ir.mirror.runtime import (
     MISSING,
@@ -455,24 +455,31 @@ def cost_mana_value(cost: object) -> int | None:
     return generic + sum(1 for s in shards if s != "X")
 
 
+def mana_value_paying_life(parts: Iterable[tuple[str, int | None]]) -> int | None:
+    """The mana value of a cost made of mana and life payments, or ``None`` when a
+    part is neither (an exile or sacrifice is a condition a deck can't always
+    meet). ``parts`` are ``("mana", mana value)`` / ``("life", None)`` /
+    ``("other", None)`` — Infestation's "Evoke—{1}{B}{B}, Pay 3 life" is 3."""
+    total = 0
+    for kind, mv in parts:
+        if kind == "mana" and mv is not None:
+            total += mv
+        elif kind != "life":
+            return None
+    return total
+
+
 def _composite_mana_value(cost: object) -> int | None:
-    """The mana part of a ``Composite`` cost whose other parts are life payments —
-    Infestation's "Evoke—{1}{B}{B}, Pay 3 life" — or ``None`` when any part is
-    neither (an exile or sacrifice is a condition a deck can't always meet)."""
+    """:func:`mana_value_paying_life` over a ``Composite`` cost node."""
     parts = getattr(cost, "costs", MISSING)
     if tag_of(cost) != "Composite" or not isinstance(parts, (list, tuple)):
         return None
-    total = 0
-    for part in parts:
-        tag = tag_of(part)
-        if tag == "Mana":
-            mv = cost_mana_value(getattr(part, "cost", MISSING))
-            if mv is None:
-                return None
-            total += mv
-        elif tag != "PayLife":
-            return None
-    return total
+    return mana_value_paying_life(
+        ("mana", cost_mana_value(getattr(part, "cost", MISSING)))
+        if tag_of(part) == "Mana"
+        else ("life" if tag_of(part) == "PayLife" else "other", None)
+        for part in parts
+    )
 
 
 # The keywords that cast the card itself, from hand, for a different payment that
@@ -486,24 +493,43 @@ CURVE_COST_KEYWORDS = frozenset(
 )
 
 
+def keyword_cost(keyword: object) -> object | None:
+    """The cost node a parameterized keyword carries, unwrapped, or ``None``.
+
+    Phase's keyword payloads come in four shapes: the ``Cost`` itself (Warp, Dash,
+    Foretell, Morph …); a ``Mana`` / ``NonMana`` wrapper whose ``data`` is a
+    ``Cost`` or a non-mana cost such as a ``Composite`` (Evoke, Flashback,
+    Escape, Buyback); a struct with a ``cost`` field beside its other parameters
+    (Suspend's ``count``, Prototype's power and toughness, Impending's
+    ``counters``); or Emerge's ``mana_cost`` beside its ``sacrifice_filter``."""
+    if not isinstance(keyword, MirrorVariant):
+        return None
+    inner = keyword.inner
+    tag = tag_of(inner)
+    if tag == "Cost":
+        return inner
+    if tag in ("Mana", "NonMana"):
+        data = getattr(inner, "data", MISSING)
+        return data if _present(data) else None
+    for field in ("cost", "mana_cost"):
+        sub = getattr(inner, field, MISSING)
+        if _present(sub):
+            return sub
+    return None
+
+
 def keyword_curve_cost(keyword: object) -> int | None:
     """The mana value of a :data:`CURVE_COST_KEYWORDS` keyword's cost, or ``None``.
 
-    Warp / Dash / Blitz carry the ``Cost`` itself; Prototype and Impending a
-    ``cost`` field; Evoke a ``Mana`` wrapper, or a ``NonMana`` one whose cost is a
-    mana-and-life ``Composite`` (Infestation). Fury's "Exile a red card from your
-    hand" has no mana cost to plan on."""
+    Read off :func:`keyword_cost`: a ``Cost`` (Warp, Dash, Blitz, Prototype,
+    Impending, a mana Evoke), or a mana-and-life ``Composite`` (Infestation's
+    evoke). Fury's "Exile a red card from your hand" has no mana cost to plan on."""
     if not isinstance(keyword, MirrorVariant) or keyword.key not in CURVE_COST_KEYWORDS:
         return None
-    inner = keyword.inner
-    if keyword.key in ("Prototype", "Impending"):
-        return cost_mana_value(getattr(inner, "cost", MISSING))
-    if keyword.key == "Evoke":
-        data = getattr(inner, "data", MISSING)
-        if tag_of(inner) == "Mana":
-            return cost_mana_value(data)
-        return _composite_mana_value(data)
-    return cost_mana_value(inner)
+    cost = keyword_cost(keyword)
+    if tag_of(cost) == "Composite":
+        return _composite_mana_value(cost)
+    return cost_mana_value(cost)
 
 
 class ObjectFacts(NamedTuple):
@@ -1797,7 +1823,7 @@ def cost_has_paylife(node: object, *, depth: int = 0) -> bool:
     return False
 
 
-def damage_recipient_is_player(vt: object) -> bool:
+def damage_recipient_is_player(vt: object, *, aimed: bool = False) -> bool:
     """Whether a combat-damage TRIGGER's recipient (``valid_target``) is a PLAYER an
     aggressor reaches — an OPPONENT / generic / targeted player (CR 510.1c).
 
@@ -1810,12 +1836,24 @@ def damage_recipient_is_player(vt: object) -> bool:
     triggers as ``Controller``, a phase-parse bug the live path excludes too), NOT this
     aggressive lane. A bare ``Typed`` filter with no core type words (a controller-only
     reference — Coastal Piracy's "an opponent") IS a reachable player.
+
+    ``aimed`` asks the narrower question of a damage EFFECT's target (the reach
+    read, :func:`reach_amount`): can the effect be pointed at a player? A
+    ``ParentTarget`` / ``Target`` is "that creature" an earlier clause targeted
+    (Abyssal Hunter's tapped creature), and a planeswalker arm is not a player
+    (Bite Down's "creature or planeswalker"); "target player" (``TargetPlayer``)
+    is one.
     """
     t = tag_of(vt)
+    back_reference = t in ("Target", "ParentTarget")
+    if aimed and back_reference:
+        return False
     if (
         t in _OPPONENT_ACTOR_TAGS
         or t in _EACH_ACTOR_TAGS
-        or t in ("Player", "Any", "Target", "ParentTarget")
+        or t in ("Player", "Any")
+        or back_reference
+        or (aimed and t == "TargetPlayer")
     ):
         return True
     if t == "Typed":
@@ -1825,14 +1863,15 @@ def damage_recipient_is_player(vt: object) -> bool:
         cores = filter_core_types(vt)
         if not cores:
             return True
-        return "Player" in cores or "Planeswalker" in cores
+        return "Player" in cores or (not aimed and "Planeswalker" in cores)
     if t == "Or":
         # ADR-0038 W3 batch 2 unit 6: "deals combat damage to a player or
         # planeswalker/battle" (Flitterwing Nuisance, Zurgo and Ojutai)
         # reaches a player in the Player branch even though the OTHER
         # branch is object-typed; ANY reachable branch is enough.
         return any(
-            damage_recipient_is_player(f) for f in getattr(vt, "filters", ()) or ()
+            damage_recipient_is_player(f, aimed=aimed)
+            for f in getattr(vt, "filters", ()) or ()
         )
     return False
 
@@ -2664,8 +2703,21 @@ def has_nested_extra_turn(node: object) -> bool:
     effect`` / ``win_effect`` / a modification's ``definition`` aren't
     among those fields. The ``extra_turns`` lane's structural fallback,
     the :func:`has_nested_roll_die` sibling (task #85, phase v0.23.0).
+
+    Also a ``ControlNextTurn`` whose ``grant_extra_turn_after`` is set: Emrakul,
+    the Promised End's "After that turn, that player takes an extra turn" rides
+    the control effect as a flag, not an ``ExtraTurn`` node. Its rulings confirm
+    the extra turn is real ("each ability's effect will create an extra turn"),
+    added after the controlled turn (CR 500.7).
     """
-    return any(tag_of(n) == "ExtraTurn" for n in _iter_typed_nodes(node))
+    return any(
+        tag_of(n) == "ExtraTurn"
+        or (
+            tag_of(n) == "ControlNextTurn"
+            and getattr(n, "grant_extra_turn_after", None) is True
+        )
+        for n in _iter_typed_nodes(node)
+    )
 
 
 # ── ADR-0037/0038 W1 batch-3 / task #86 — the granted-ability shared descent ─
@@ -4340,3 +4392,466 @@ def _own_mana_effects(tree: ConceptTree) -> Iterator[TypedMirrorNode]:
                     and tag_of(eff) == "Mana"
                 ):
                     yield eff
+
+
+# ── Mass land denial (Commander Brackets) ──────────────────────────────────────
+# Wizards' Commander Brackets define mass land denial as "cards that regularly
+# destroy, exile, and bounce other lands, keep lands tapped, or change what mana
+# is produced by four or more lands per player without replacing them" (examples:
+# Armageddon, Ruination, Sunder, Winter Orb, Blood Moon). The CR has no bracket
+# rule; this read is the definition's shapes over phase's trees, and its calls
+# (four lands, "regularly", "without replacing them") are the lane's own reading
+# of that definition.
+
+#: How a card denies lands in bulk — the ``mass_land_denial`` signal's subject.
+LandDenialKind = Literal[
+    "destroy", "exile", "bounce", "sacrifice", "untap_lock", "mana_change"
+]
+LAND_DENIAL_KINDS: tuple[LandDenialKind, ...] = get_args(LandDenialKind)
+
+#: The basic land types (CR 205.3i, 305.6).
+_BASIC_LAND_TYPES: frozenset[str] = frozenset(BASIC_LAND_TYPE_COLORS)
+# The filter properties a "lands as a class" filter may carry: a basic or
+# nonbasic restriction (Ruination's nonbasic lands) and the battlefield zone.
+# Anything narrower (Wake of Destruction's "same name", Tsabo's Web's lands
+# with an activated ability, Freyalise's Radiance's snow permanents) is not
+# every land a player controls.
+_MASS_LAND_SUPERTYPE_PROPS = frozenset({"NotSupertype", "HasSupertype"})
+_MASS_LAND_REMOVAL_KIND: dict[str, LandDenialKind] = {
+    "DestroyAll": "destroy",
+    "BounceAll": "bounce",
+    "ChangeZoneAll": "exile",
+}
+# The players a land sacrifice can reach and still be "other lands": every
+# player, each opponent, a chosen player (Epicenter's "target player").
+_DENIAL_REACH = frozenset({"each", "opponents", "per_opponent", "target", "scoped"})
+# The durations that end by the next turn (CR 514.2's "until end of turn", a next
+# step or turn): a lock that short is not "regularly" keeping lands tapped
+# (Nightcreep's one turn of Swamps). Any other duration lasts — and a resolving
+# effect that states none "lasts until the end of the game" (CR 611.2a).
+_SHORT_DURATIONS = frozenset(
+    {
+        "UntilEndOfTurn",
+        "UntilNextStepOf",
+        "UntilNextTurnOf",
+        "UntilControllersNextTurn",
+        "UntilEndOfNextTurnOf",
+    }
+)
+
+#: Phase v0.94.0 drops the narrowing clause from three "permanents" sweeps and
+#: parses each as every permanent: End Hostilities ("all permanents attached to
+#: creatures"), Eye of Singularity ("each permanent with the same name as another
+#: permanent, except for basic lands") and Herald of Vengeance ("each permanent you
+#: don't control that has the same name as …"). Every other all-permanents sweep in
+#: the legal corpus is a true one (Apocalypse, Upheaval, Worldfire, Worldpurge,
+#: Dimensional Breach, Soulscour, Bearer of the Heavens). An every-permanent sweep
+#: on a card whose text names one of these narrowings is vetoed. Guarded by
+#: ``test_narrowed_permanent_sweeps_canary``.
+NARROWED_PERMANENT_SWEEPS = ("permanents attached to", "same name as")
+
+
+def _land_class_arm(
+    filt: object, *, battlefield_default: bool, own_ok: bool, permanents: bool
+) -> bool:
+    """Whether one ``Typed`` filter arm names lands as a class: a ``Land`` core
+    type, a basic land type (Choke's Islands), or, with ``permanents``, every
+    permanent (Apocalypse, Upheaval) unless it excludes lands (a "nonland
+    permanent" sweep). ``battlefield_default``: whether an arm without an
+    ``InZone`` reads the battlefield (the effect's own origin is the battlefield
+    or unset)."""
+    if tag_of(filt) != "Typed":
+        return False
+    if not own_ok and getattr(filt, "controller", None) == "You":
+        return False
+    zone: object = None
+    for prop in getattr(filt, "properties", None) or ():
+        ptag = tag_of(prop)
+        if ptag == "InZone":
+            zone = getattr(prop, "zone", None)
+        elif not (
+            ptag in _MASS_LAND_SUPERTYPE_PROPS
+            and getattr(prop, "value", None) == "Basic"
+        ):
+            return False
+    if zone is None and not battlefield_default:
+        return False
+    if zone is not None and zone != "Battlefield":
+        return False
+    cores = set(filter_core_types(filt))
+    if "Land" in cores or set(filter_subtypes(filt)) & _BASIC_LAND_TYPES:
+        return True
+    return permanents and "Permanent" in cores and "Land" not in filter_non_types(filt)
+
+
+def _names_land_class(
+    filt: object,
+    *,
+    battlefield_default: bool = True,
+    own_ok: bool = False,
+    permanents: bool = True,
+) -> bool:
+    """Whether ``filt`` (or any arm of an ``Or``) names lands as a class on the
+    battlefield, not limited to your own (``own_ok`` lifts that last check for a
+    sacrifice whose player scope already says who sacrifices). ``permanents``
+    admits "all permanents", which take the lands with them (Apocalypse, Static
+    Orb); a sacrifice turns it off, since each player picks which permanents
+    (Smokestack). See :func:`_land_class_arm`."""
+    arms = (getattr(filt, "filters", None) or ()) if tag_of(filt) == "Or" else (filt,)
+    return any(
+        _land_class_arm(
+            f,
+            battlefield_default=battlefield_default,
+            own_ok=own_ok,
+            permanents=permanents,
+        )
+        for f in arms
+    )
+
+
+def _sacrifices_four_or_more(count: object) -> bool:
+    """Whether a sacrifice's ``count`` reaches the definition's "four or more
+    lands per player": a fixed four or more (Wildfire's four, not Ember
+    Swallower's three), or a count that grows with the board — X (Death Cloud,
+    Tectonic Break), every land (Epicenter's threshold, Keldon Firebombers), the
+    rest after a choice (Restore Balance). A fraction is not: Pox's "a third of
+    the lands they control, rounded up" reaches four only at ten lands."""
+    if isinstance(count, int):
+        return count >= 4
+    if tag_of(count) == "Fixed":
+        value = getattr(count, "value", 0)
+        return isinstance(value, int) and value >= 4
+    return tag_of(count) not in (None, "DivideRounded")
+
+
+def _gives_lands_back(unit: AbilityUnit) -> bool:
+    """Whether the same ability lets the players who lost lands search for lands
+    to put back (From the Ashes, Wave of Vitriol: "its controller may search
+    their library for a basic land card") — the definition's "without replacing
+    them". Fall of the Thran's returns sit on later chapters, two lands each,
+    and do not count."""
+    for n in unit.iter_typed():
+        if tag_of(n) != "SearchLibrary":
+            continue
+        facts = search_filter_land_facts(getattr(n, "filter", None))
+        searcher = _searcher_is_self(getattr(n, "target_player", MISSING))
+        if facts is not None and facts[0] and searcher is False:
+            return True
+    return False
+
+
+def _lasting_static_defs(
+    unit: AbilityUnit, *, permanent_card: bool
+) -> Iterator[TypedMirrorNode]:
+    """The static defs of ``unit`` that last: a permanent's own statics, and a
+    resolving effect's statics unless its duration ends by the next turn
+    (:data:`_SHORT_DURATIONS`). An instant's or sorcery's top-level static is its
+    one-shot effect (CR 113.6: its abilities function on the stack) — phase
+    v0.94.0 parses Exhaustion's and Mana Vapors' "don't untap during their next
+    untap step" that way, without the duration; guarded by
+    ``test_one_shot_untap_statics_canary``."""
+    if unit.origin == "static":
+        if permanent_card:
+            yield from unit.static_defs()
+        return
+    for n in unit.iter_typed():
+        if tag_of(n) != "GenericEffect" or node_duration(n) in _SHORT_DURATIONS:
+            continue
+        for sdef in getattr(n, "static_abilities", None) or ():
+            if isinstance(sdef, TypedMirrorNode):
+                yield sdef
+
+
+def _unit_land_denial(
+    unit: AbilityUnit, *, permanent_card: bool, oracle: str
+) -> LandDenialKind | None:
+    """The mass-land-denial shape one ability carries, or ``None``."""
+    for sdef in _lasting_static_defs(unit, permanent_card=permanent_card):
+        mode = static_mode_tag(sdef)
+        affected = getattr(sdef, "affected", None)
+        if mode == "CantUntap" and _names_land_class(affected):
+            return "untap_lock"  # Back to Basics, Choke, Mist of Stagnation
+        if mode == "MaxUntapPerType" and _names_land_class(
+            static_mode_field(sdef, "filter")
+        ):
+            return "untap_lock"  # Winter Orb, Static Orb
+        if (
+            mode == "SkipStep"
+            and static_mode_field(sdef, "step") == "Untap"
+            and _present(affected)
+            and _scope_from_player_node(affected) != "you"
+        ):
+            return "untap_lock"  # Stasis: players skip their untap steps
+        if mode == "Continuous" and _names_land_class(affected, permanents=False):
+            mods = getattr(sdef, "modifications", None) or ()
+            if any(tag_of(m) == "SetBasicLandType" for m in mods):
+                # Blood Moon: a land set to a basic land type loses its other
+                # abilities and makes only that type's mana (CR 305.7).
+                return "mana_change"
+    if (
+        unit.origin == "replacement"
+        and permanent_card
+        and replacement_event_tag(unit.node) == "ProduceMana"
+        and tag_of(getattr(unit.node, "mana_modification", None)) == "ReplaceWith"
+        and _names_land_class(getattr(unit.node, "valid_card", None), permanents=False)
+    ):
+        return "mana_change"  # Contamination, Ritual of Subdual
+    if _gives_lands_back(unit):
+        return None
+    narrowed = any(phrase in oracle for phrase in NARROWED_PERMANENT_SWEEPS)
+    found: list[LandDenialKind] = []
+    for n in unit.iter_typed():
+        tag = tag_of(n)
+        if tag in _MASS_LAND_REMOVAL_KIND:
+            destination = getattr(n, "destination", None)
+            if destination == "Battlefield":
+                continue  # Planar Birth, Second Sunrise put lands back
+            target = getattr(n, "target", None)
+            origin_ok = getattr(n, "origin", None) in (None, "Battlefield")
+            if _names_land_class(
+                target, battlefield_default=origin_ok, permanents=not narrowed
+            ):
+                if tag == "ChangeZoneAll" and destination == "Hand":
+                    found.append("bounce")
+                else:
+                    found.append(_MASS_LAND_REMOVAL_KIND[tag])
+        elif tag == "Sacrifice":
+            if (
+                effect_player_reach(unit.node, n) in _DENIAL_REACH
+                and _names_land_class(
+                    getattr(n, "target", None), own_ok=True, permanents=False
+                )
+                and _sacrifices_four_or_more(getattr(n, "count", None))
+            ):
+                found.append("sacrifice")
+        elif tag == "ChooseAndSacrificeRest":
+            if "Land" in (getattr(n, "categories", None) or ()):
+                found.append("sacrifice")  # Cataclysm: one land kept, the rest go
+    # The removal first, in LAND_DENIAL_KINDS order (the deep walk's order is not
+    # the card's): Omen of Fire bounces every Island before its Plains sacrifice.
+    return min(found, key=LAND_DENIAL_KINDS.index, default=None)
+
+
+def mass_land_denial(tree: ConceptTree) -> LandDenialKind | None:
+    """How the card denies lands in bulk, per the Commander Brackets' definition
+    of mass land denial (see the section comment), or ``None``:
+
+    * ``"destroy"`` / ``"exile"`` / ``"bounce"`` — removes lands as a class, not
+      only your own (Armageddon, Ruination, Boil, Ajani Vengeant's "all lands
+      target player controls"; Apocalypse's and Worldfire's exile; Sunder's,
+      Upheaval's and Omen of Fire's bounce);
+    * ``"sacrifice"`` — makes players sacrifice four or more lands each, or every
+      land but a few (Wildfire, Death Cloud's X, Cataclysm, Restore Balance);
+    * ``"untap_lock"`` — keeps lands tapped, lastingly (Winter Orb, Static Orb,
+      Back to Basics, Choke, Stasis) — not for one untap step (Exhaustion);
+    * ``"mana_change"`` — changes the mana lands produce, lastingly (Blood Moon,
+      Contamination) — not for one turn (Nightcreep).
+
+    The lane's own readings of the definition: a one-land edict is not mass
+    denial (Yawning Fissure, Tremble), nor a destruction its own ability gives
+    back (From the Ashes), nor a lock on your own lands only (Mungha Wurm,
+    Celestial Dawn)."""
+    permanent_card = not set(tree.card_types) <= {"Instant", "Sorcery"}
+    for unit in tree.units:
+        kind = _unit_land_denial(
+            unit, permanent_card=permanent_card, oracle=tree.oracle or ""
+        )
+        if kind is not None:
+            return kind
+    return None
+
+
+# ── Closers: game wins and reach ───────────────────────────────────────────────
+
+
+def ends_the_game(tree: ConceptTree) -> bool:
+    """Whether the card can end the game in your favour by its own effect: you win
+    (CR 104.2b — Felidar Sovereign, Thassa's Oracle, Laboratory Maniac) or
+    another player loses (CR 104.3e — Door to Nothingness, Phage's combat-damage
+    trigger). A loss aimed at you is a drawback (Pact of Negation's upkeep
+    payment, Phage's own enters trigger), and "can't win / can't lose" statics
+    (Platinum Angel) are protection, not effects."""
+    for n in tree.iter_typed():
+        tag = tag_of(n)
+        if tag not in ("WinTheGame", "LoseTheGame"):
+            continue
+        target = getattr(n, "target", MISSING)
+        who = _scope_from_player_node(target) if _present(target) else "you"
+        if (tag == "WinTheGame") == (who == "you"):
+            return True
+    return False
+
+
+def _hits_one_other_player(node: TypedMirrorNode) -> bool:
+    """Whether a life loss is directed at another player (a target or relative
+    player — :func:`lifeloss_recipient_scope`) or a damage effect can be aimed at a
+    player (:func:`damage_recipient_is_player` with ``aimed``)."""
+    if tag_of(node) == "LoseLife":
+        return lifeloss_recipient_scope(node) == "opponents"
+    if tag_of(node) == "DealDamage":
+        target = _unwrap_role_target(getattr(node, "target", MISSING))
+        return damage_recipient_is_player(target, aimed=True)
+    return False
+
+
+#: The effects that take life from players: life loss (CR 119.3) and damage.
+_REACH_EFFECT_TAGS: frozenset[str] = frozenset(
+    {"LoseLife", "DealDamage", "DamageEachPlayer", "DamageAll"}
+)
+
+
+def reach_amount(
+    root: object, node: TypedMirrorNode
+) -> tuple[Literal["group", "single"], int | None] | None:
+    """Who a burn / drain effect reaches and how much it takes, or ``None``.
+
+    ``"group"`` — each opponent (Exsanguinate, Gray Merchant of Asphodel,
+    Kokusho, Fanatic of Mogis); ``"single"`` — one chosen player or any target
+    (Blood Artist, Sanguine Bond's target opponent, Aetherflux Reservoir,
+    Fireball). A symmetric "each player" effect (Earthquake, Crypt Rats) and a
+    loss you take are neither. The amount is the fixed number, or ``None`` when
+    it scales — X, a count, a devotion, a doubled X (Debt to the Deathless), or a
+    fixed loss repeated X times (Torment of Hailfire)."""
+    tag = tag_of(node)
+    if tag not in _REACH_EFFECT_TAGS:
+        return None
+    scope: Literal["group", "single"]
+    if effect_player_reach(root, node) in ("opponents", "per_opponent"):
+        scope = "group"
+    elif _hits_one_other_player(node):
+        scope = "single"
+    else:
+        return None
+    owner = _find_owner_wrapper(root, node, 0, set())
+    repeated = owner is not None and _present(getattr(owner, "repeat_for", MISSING))
+    if repeated or amount_is_scaling(node):
+        return scope, None
+    return scope, amount_factor(node)
+
+
+#: Phase v0.94.0 replaces an effect whose amount is "X, where X is <a count>" with
+#: a ``where_x_binding`` residue that keeps only the binding (Insatiable
+#: Hemophage's "each opponent loses X life …, where X is the number of times ~ has
+#: mutated", Zenith Flare's "deals X damage to any target …"), so no LoseLife /
+#: DealDamage node is left to read. Gated on that residue, the card's own "where X
+#: is" line says who loses the X; its amount scales. Guarded by
+#: ``test_unbound_x_reach_canary``.
+_UNBOUND_X_GROUP_RE = re.compile(
+    r"each opponent loses X life|deals X damage to each opponent", re.IGNORECASE
+)
+_UNBOUND_X_SINGLE_RE = re.compile(
+    r"deals X damage to (?:any target|target (?:player|opponent))"
+    r"|target (?:player|opponent) loses X life",
+    re.IGNORECASE,
+)
+
+
+def unbound_x_reach(tree: ConceptTree) -> Literal["group", "single"] | None:
+    """The reach scope of an effect phase parked as a ``where_x_binding`` residue
+    (see :data:`_UNBOUND_X_GROUP_RE`), or ``None``; its amount always scales."""
+    if next(tree.effect_residues("where_x_binding"), None) is None:
+        return None
+    lines = [ln for ln in (tree.oracle or "").splitlines() if "where X is" in ln]
+    if any(_UNBOUND_X_GROUP_RE.search(ln) for ln in lines):
+        return "group"
+    if any(_UNBOUND_X_SINGLE_RE.search(ln) for ln in lines):
+        return "single"
+    return None
+
+
+#: The blocking restrictions an attacker can carry on itself — evasion abilities
+#: in CR 509.1b's sense: "can't be blocked" (Phantom Warrior), "can't be blocked
+#: except by three or more creatures" (Pathrazer of Ulamog), "can't be blocked
+#: unless all creatures defending player controls block it" (Tromokratis).
+_SELF_EVASION_MODES: frozenset[str] = frozenset(
+    {"CantBeBlocked", "CantBeBlockedExceptBy", "CantBeBlockedUnlessAllBlock"}
+)
+
+
+def is_evasive_body(tree: ConceptTree) -> bool:
+    """Whether the card restricts what can block it by a static on itself (see
+    :data:`_SELF_EVASION_MODES`) — the static half of "an evasive body"; the keyword
+    half is ``card_classify.EVASION_KEYWORDS``. Not the ``evasion_self`` lane: that
+    one also fires on cards that GRANT evasion to others, and leaves flying out as
+    soft evasion, so it can't say whether the card itself is hard to block."""
+    return any(
+        static_mode_tag(sdef) in _SELF_EVASION_MODES
+        and tag_of(getattr(sdef, "affected", None)) == "SelfRef"
+        for unit in tree.units
+        for sdef in unit.static_defs()
+    )
+
+
+# ── Team buffs ──────────────────────────────────────────────────────────────
+
+# Evergreen team-anthem keywords (CR 702) — mirrors the deleted ``_signals_ir``'s
+# identically-named ``_TEAM_BUFF_GRANT_KW`` (phase's spaceless spelling normalized via
+# lower+strip).
+_TEAM_BUFF_GRANT_KW: frozenset[str] = frozenset(
+    {
+        "flying",
+        "trample",
+        "menace",
+        "hexproof",
+        "indestructible",
+        "protection",
+        "deathtouch",
+        "lifelink",
+        "doublestrike",
+        "firststrike",
+        "vigilance",
+        "haste",
+        "ward",
+        "reach",
+    }
+)
+# Predicates a GENERIC your-team anthem subject may carry (Always Watching's
+# NonToken, "each OTHER creature you control") — mirrors ``_TEAM_BUFF_OK_PREDS``.
+_TEAM_BUFF_OK_PREDS: frozenset[str] = frozenset({"NonToken", "Another", "Other"})
+
+
+def _is_team_buff_filter(filt: object) -> bool:
+    """The team_buff anthem subject (CR 604.3): GENERIC creatures YOU control
+    — no subtypes (tribal is type_matters), predicates at most
+    NonToken/Another/Other (Always Watching stays in; an Attacking/color/
+    equipped narrowing fails). Mirrors the deleted ``_signals_ir``'s
+    ``_is_team_buff_grant``."""
+    return (
+        filter_controller(filt) == "You"
+        and "Creature" in filter_core_types(filt)
+        and not filter_subtypes(filt)
+        and set(filter_predicates(filt)) <= _TEAM_BUFF_OK_PREDS
+    )
+
+
+def team_buff_sites(
+    tree: ConceptTree,
+) -> Iterator[tuple[AbilityUnit, TypedMirrorNode]]:
+    """Every ``(unit, static def)`` granting the team an evergreen keyword — the
+    one walk behind the ``team_buff`` lane and the tuner's closer read, which asks
+    the unit's ``origin`` (a one-shot pump vs a static anthem)."""
+    for unit in tree.units:
+        for sdef, mod in iter_mod_sites(unit.node):
+            if tag_of(mod) not in ("AddKeyword", "AddKeywordUntilEndOfTurn"):
+                continue
+            kw = getattr(mod, "keyword", None)
+            if not isinstance(kw, str):
+                continue
+            if kw.lower().replace(" ", "") not in _TEAM_BUFF_GRANT_KW:
+                continue
+            if _is_team_buff_filter(getattr(sdef, "affected", None)):
+                yield unit, sdef
+
+
+def static_def_adds_power(sdef: object) -> bool:
+    """Whether a static def's modifications raise power: a positive ``AddPower``
+    (Overrun's +3, Triumph of the Hordes' +1) or an ``AddDynamicPower``
+    (Craterhoof Behemoth's +X, X the number of creatures you control) — CR
+    613.4c's power-changing effects."""
+    for mod in getattr(sdef, "modifications", None) or ():
+        tag = tag_of(mod)
+        if tag == "AddDynamicPower":
+            return True
+        if tag == "AddPower" and (mod_value(mod) or 0) > 0:
+            return True
+    return False

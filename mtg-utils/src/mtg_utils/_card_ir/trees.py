@@ -32,7 +32,6 @@ from __future__ import annotations
 
 import functools
 import json
-import re
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -136,36 +135,11 @@ _TEXT_ONLY_EXCLUDED_LAYOUTS: frozenset[str] = frozenset(
     }
 )
 
-_MANA_SYMBOL_RE = re.compile(r"\{([^}]+)\}")
-
 
 def _face_key(name: str | None) -> str:
     """Casefold a face name to phase's join key (phase's own ``card-data.json``
     keys are lowercased face names; casefold is the Unicode-correct match)."""
     return (name or "").strip().casefold()
-
-
-def mana_value_of_cost(mana_cost: str) -> int | None:
-    """Mana value (CR 202.3) of one face's ``mana_cost`` string, or ``None``
-    for an empty string (the caller falls back to the record ``cmc``). A
-    generic symbol adds its number; ``X``/``Y``/``Z`` add 0 (CR 107.3c); a
-    hybrid symbol (``{2/W}``/``{W/P}``) adds the larger side (1 when neither
-    side is numeric); any other symbol (a color, ``{C}``, ``{S}``) adds 1."""
-    if not mana_cost:
-        return None
-    total = 0
-    for raw_sym in _MANA_SYMBOL_RE.findall(mana_cost):
-        sym = raw_sym.upper()
-        if sym.isdigit():
-            total += int(sym)
-        elif sym in ("X", "Y", "Z"):
-            continue
-        elif "/" in sym:
-            nums = [int(p) for p in sym.split("/") if p.isdigit()]
-            total += max(nums) if nums else 1
-        else:
-            total += 1
-    return total
 
 
 def _face_power(value: object) -> int | None:
@@ -199,7 +173,7 @@ def _text_only_tree(face: dict, bulk: dict, *, oracle_id: str) -> ConceptTree | 
     ADR-0038 clause-grammar recovery, which has nothing to re-decorate here
     since there are no ``other``-concept nodes) apply to a text-only tree
     exactly as they would to a phase-built one."""
-    from mtg_utils._card_ir.crosswalk import ConceptTree
+    from mtg_utils._card_ir.crosswalk import ConceptTree, mana_value_of_cost
     from mtg_utils.deck import CARD_TYPE_WORDS, split_type_line
 
     oracle = (face.get("oracle_text") or "").strip()

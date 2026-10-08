@@ -29,12 +29,39 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   - `_analysis/ranking.py` (~7): `_TRIGGER_RE` / `_REWARD_RE` / `_ACTIVATED_RE` /
     `_STRONG_REWARD_RE` / `_STATIC_PAYOFF_RE` / `_TRIBAL_GATE_RE` clause-role reads.
   - `_analysis/roles.py`: `_PROTECT_GRANT` / `_PROTECT_SAVE` (`protects`).
-  - `_tuner/`: `bracket._EXTRA_TURN_RE`, `metrics`' closer and reach templates.
-  - `deck_stats._detect_alternative_costs`: phase's keywords carry the costs
-    (`ConceptTree.card_curve_costs` already reads the curve ones).
+  - `_tuner/issues.py`: `_RAMP_CONDITIONAL` ("only if you control" in the oracle text
+    keeps a conditionally gated rock out of the tuner's ramp sourcing); read the
+    mana ability's activation condition off the tree.
   - `find_commanders._is_partner` / `_partner_with_target`: read
     `card_classify.partner_abilities` instead of the oracle (the `Partner—[text]`
     groups and Doctor's companion are already there).
+- **Phase gaps behind the closer, alternative-cost and mass-land-denial reads**
+  (found moving `_tuner/` and `deck_stats` onto the trees, phase v0.94.0; report
+  upstream, Dan posts). Each is a card the old regexes read and the trees don't:
+  - Reach: `unparsed_quantity` residues park "loses life / deals damage equal to …"
+    (Within Range, Soulblast, Final Punishment, Mjölnir; ~28 such residues name
+    damage or life loss). Underbridge Warlock's boon reads as a self loss. (The
+    `where_x_binding` X effects — Insatiable Hemophage, Zenith Flare — are read by
+    `reads.unbound_x_reach`, canary `test_unbound_x_reach_canary`.)
+  - Our own walk: `reads._find_owner_wrapper` doesn't descend `per_choice_effect` /
+    `else_ability`, so a vote's or an else-branch's `player_scope` is lost (Tyrant's
+    Choice, Sphinx Sovereign). Widening it moves `effect_player_reach` for every lane
+    — do it with a corpus diff.
+  - Game wins: Frodo, Sauron's Bane's Rogue clause is dropped (its second ability
+    parses as the Ring tempting you); Celestial Convergence's win is an
+    `unbound_subject` residue.
+  - Alternative costs, each corrected where the tree is built with a canary: keyword
+    lines with a non-mana cost parked as residues (morph "Reveal a blue card", blitz
+    / warp / madness with life, Escape Velocity's escape —
+    `core._dropped_keyword_costs`, `test_dropped_keyword_costs_canary`); suspend X
+    read as count 0 and Warbringer's / Catalyst Stone's cost changers read as empty
+    keywords (`core._misread_keyword`, `test_misread_keyword_canary`).
+  - Mass land denial, each with a canary or a ledger row: End Hostilities, Eye of
+    Singularity and Herald of Vengeance lose their narrowing clause and read as
+    "all permanents" (vetoed by `reads.NARROWED_PERMANENT_SWEEPS`); Exhaustion's and
+    Mana Vapors' one-untap-step effect parses as a lasting static
+    (`_lasting_static_defs`); Burning of Xinye's "destroys four lands" is a residue
+    and Global Ruin's sacrifice a tracked set (both ledger bridges).
 - **Two commander-multiplier gaps.** Syr Konrad's trigger reads as `ChangesZone` with
   no zones (a phase gap), so `_analysis/multipliers` can't match a dies doubler to it;
   report upstream rather than work around it. And `trees.object_facts` reads printed

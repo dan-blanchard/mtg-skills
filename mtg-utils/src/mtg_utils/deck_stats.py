@@ -2,77 +2,35 @@
 
 from __future__ import annotations
 
-import re
 from collections import Counter
 from collections.abc import Sequence
 from pathlib import Path
 
 import click
 
+from mtg_utils._card_ir.trees import trees_for
 from mtg_utils._sidecar import atomic_write_json, sha_keyed_path
-from mtg_utils.card_classify import (
-    get_oracle_text,
-    is_land,
-)
+from mtg_utils.card_classify import is_land
 from mtg_utils.deck import accumulate_deck_metrics
 from mtg_utils.deck_cli import acquire_for_cli, bulk_data_option
 from mtg_utils.hydrated_deck import HydratedDeck, sidecar_path
-
-ALTERNATIVE_COST_KEYWORDS = {
-    "suspend",
-    "evoke",
-    "foretell",
-    "flashback",
-    "escape",
-    "dash",
-    "disturb",
-    "madness",
-    "miracle",
-    "blitz",
-    "prototype",
-    "spectacle",
-    "emerge",
-    "ninjutsu",
-    "overload",
-    "plot",
-    "bestow",
-    "mutate",
-    "prowl",
-    "retrace",
-    "surge",
-    "buyback",
-}
-
-_MORPH_KEYWORDS = {"morph", "disguise", "megamorph"}
+from mtg_utils.theme_presets import get_preset
 
 
 def _detect_alternative_costs(card: dict) -> list[dict]:
-    """Detect alternative casting costs from keywords and oracle text."""
-    keywords = [kw.lower() for kw in card.get("keywords", [])]
-    oracle = get_oracle_text(card)
-    alt_costs: list[dict] = []
+    """The card's other ways to pay for it: every printed keyword cost phase reads
+    (``ConceptTree.card_alt_costs`` — suspend, evoke, flashback, buyback, morph,
+    ninjutsu …, each with its ``cost_kind``: alternative / additional / special
+    action / ability, see ``crosswalk.AltCost``), plus an adventure's or a
+    modal DFC's other half, read off the record's faces."""
+    alt_costs: list[dict] = [
+        {"type": alt.kind, "cost": alt.cost, "cost_kind": alt.cost_kind}
+        for tree in trees_for(card)
+        for alt in tree.card_alt_costs
+    ]
 
-    for kw in keywords:
-        if kw in ALTERNATIVE_COST_KEYWORDS:
-            pattern = re.compile(
-                rf"{re.escape(kw)}(?:\s|—|\u2014)\s*(.+?)(?:\n|\.|$|\()",
-                re.IGNORECASE,
-            )
-            match = pattern.search(oracle)
-            if match:
-                alt_costs.append({"type": kw, "cost": match.group(1).strip()})
-        elif kw in _MORPH_KEYWORDS:
-            alt_costs.append({"type": kw, "cost": "{3} (face down)"})
-            pattern = re.compile(
-                rf"{re.escape(kw)}(?:\s|—|\u2014)\s*(.+?)(?:\n|\.|$|\()",
-                re.IGNORECASE,
-            )
-            match = pattern.search(oracle)
-            if match:
-                cost = match.group(1).strip()
-                alt_costs.append({"type": f"{kw} (face up)", "cost": cost})
-
-    # Card faces: adventure and MDFC
+    # Card faces: adventure and MDFC — casting the other half is a choice of which
+    # half to cast (CR 715.3, 712.11b), not a cost the card prints.
     card_faces = card.get("card_faces")
     layout = card.get("layout", "")
     if card_faces and layout == "adventure" and len(card_faces) >= 2:
@@ -80,6 +38,7 @@ def _detect_alternative_costs(card: dict) -> list[dict]:
             {
                 "type": "adventure",
                 "cost": card_faces[1].get("mana_cost", ""),
+                "cost_kind": "other_face",
             }
         )
     elif card_faces and layout == "modal_dfc" and len(card_faces) >= 2:
@@ -87,24 +46,13 @@ def _detect_alternative_costs(card: dict) -> list[dict]:
             {
                 "type": "mdfc_back",
                 "cost": card_faces[1].get("mana_cost", ""),
+                "cost_kind": "other_face",
             }
         )
 
     return alt_costs
 
 
-# Mass land denial / destruction — a Commander-bracket pillar (Armageddon, Jokulhaups,
-# Pox-style symmetric land sac, Back to Basics / Winter Orb "lands don't untap" locks).
-# Spot land removal ("destroy target land") is deliberately NOT matched.
-_MASS_LAND_DENIAL_RE = re.compile(
-    r"destroy all lands|destroy all nonbasic lands"
-    r"|each (?:player|opponent) sacrifices?[^.]*\blands?\b"
-    r"|nonbasic lands don't untap|lands don't untap during"
-    # Winter Orb / Static Orb untap-lock: "can't untap more than one land" (the comment
-    # named Winter Orb but the regex matched only the "don't untap" templating).
-    r"|can't untap more than \w+ lands?",
-    re.IGNORECASE,
-)
 # avg CMC at or below this reads as a fast, high-power curve.
 _FAST_CURVE_CMC = 2.3
 
@@ -122,15 +70,12 @@ def detect_bracket(hydrated: Sequence[dict | None], avg_cmc: float) -> dict:
     Returns the bracket plus the evidence (game-changer names, MLD card names, and a
     fast-curve flag) so the UI can show the reasoning."""
     game_changers = sorted({c["name"] for c in hydrated if c and c.get("game_changer")})
-    mass_land_denial = sorted(
-        {
-            c["name"]
-            for c in hydrated
-            if c and _MASS_LAND_DENIAL_RE.search(get_oracle_text(c) or "")
-        }
-    )
+    # Mass land denial: the ``mass_land_denial`` signal key (the Commander
+    # Brackets' definition, ADR-0030 — Armageddon, Wildfire, Winter Orb, Blood Moon).
+    mld = get_preset("mass-land-denial")
+    mld_cards = sorted({c["name"] for c in hydrated if c and mld.matches(c)})
     fast_curve = bool(hydrated) and 0 < avg_cmc <= _FAST_CURVE_CMC
-    if mass_land_denial or len(game_changers) >= 4:
+    if mld_cards or len(game_changers) >= 4:
         bracket, name = 4, "Optimized"
     elif game_changers:
         bracket, name = 3, "Upgraded"
@@ -140,7 +85,7 @@ def detect_bracket(hydrated: Sequence[dict | None], avg_cmc: float) -> dict:
         "bracket": bracket,
         "name": name,
         "game_changers": game_changers,
-        "mass_land_denial": mass_land_denial,
+        "mass_land_denial": mld_cards,
         "fast_curve": fast_curve,
     }
 

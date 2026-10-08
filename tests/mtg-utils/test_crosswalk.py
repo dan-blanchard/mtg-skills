@@ -632,8 +632,21 @@ def test_death_matters_excludes_self_and_nondeath(name):
     assert "death_matters" not in _keys(name)
 
 
-def test_extra_turns_fires():
-    assert ("extra_turns", "you", "") in _idents("Time Warp")
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Time Warp",
+        "Expropriate",  # a vote's per-choice branch
+        "Stitch in Time",  # a coin flip's win branch
+        # ControlNextTurn's grant_extra_turn_after: "After that turn, that player
+        # takes an extra turn" (its rulings: each cast creates an extra turn,
+        # CR 500.7).
+        "Emrakul, the Promised End",
+        "Timesifter",  # the timesifter_unbound_extra_turn ledger bridge
+    ],
+)
+def test_extra_turns_fires(name):
+    assert ("extra_turns", "you", "") in _idents(name)
 
 
 @pytest.mark.parametrize(

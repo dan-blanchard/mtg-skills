@@ -24,11 +24,35 @@ against the WotC "Commander Brackets Beta Update" (most recent official version
 | Two-card infinite combo | none | none | only if not cheap-&-early (~turn 6) | allowed |
 
 - **Game Changers** and **mass land denial** are crisp/deterministic — reuse
-  `deck_stats.detect_bracket`'s existing detection (the `game_changer` Scryfall flag; the
-  mass-land-denial regex). The Game-Changers list is **pulled from Scryfall's
+  `deck_stats.detect_bracket`'s existing detection (the `game_changer` Scryfall flag;
+  the mass-land-denial read). The Game-Changers list is **pulled from Scryfall's
   `game_changer` bulk field, never hardcoded** — it is a moving target (40 cards at
   launch → 53 as of 2026-02-09) that auto-updates with each bulk refresh.
-- **Extra-turn cards** (new detector) and the **B3 "cheap-&-early" combo** test are
+- **Mass land denial** follows Wizards' definition (Introducing Commander Brackets,
+  <https://magic.wizards.com/en/news/announcements/introducing-commander-brackets-beta>,
+  re-checked 2026-10-07): *"cards that regularly destroy, exile, and bounce other
+  lands, keep lands tapped, or change what mana is produced by four or more lands per
+  player without replacing them"* (examples: Armageddon, Ruination, Sunder, Winter
+  Orb, Blood Moon). The `mass_land_denial` signal key (`crosswalk.reads.mass_land_denial`,
+  the `mass-land-denial` preset) reads it off phase's trees in
+  four shapes (the subject, `crosswalk.LAND_DENIAL_KINDS`): a destroy / exile /
+  bounce over lands as a class, not only your own (Armageddon, Ruination, Sunder,
+  Boil, Ajani Vengeant's −7, Apocalypse's and Upheaval's every permanent); a
+  sacrifice of four or more lands each, or of a growing number (Wildfire, Death
+  Cloud, Cataclysm, Restore Balance); an untap lock (Winter Orb, Static Orb, Back to
+  Basics, Choke, Stasis); a mana change (Blood Moon, Contamination). Project calls
+  inside that definition: a one-land edict is out (Yawning Fissure, Tremble), as are
+  three lands each (Ember Swallower) and Pox's third (four only at ten lands); a
+  sweep its own ability gives back is "replacing them" (From the Ashes, Wave of
+  Vitriol), but Fall of the Thran's two-per-chapter return on later turns is not;
+  "regularly" means lasting, so one untap step (Exhaustion, Mana Vapors) or one
+  turn (Nightcreep) is out; four lands of one target opponent counts (Burning of
+  Xinye, Ajani Vengeant); a basic-land-type hoser counts (Boil, Choke). Phase
+  misparses are bridged or vetoed with a canary (Burning of Xinye, Global Ruin; End
+  Hostilities, Eye of Singularity, Herald of Vengeance).
+- **Extra-turn cards** read the `extra_turns` signal key (any extra turn, whoever
+  takes it — CR 500.7: Time Stretch, Expropriate's vote, Emrakul, the Promised End's
+  controlled player). Extra turns and the **B3 "cheap-&-early" combo** test are
   *qualitative in the official text* — encoded as project-chosen heuristics flagged
   **WARN, not FAIL** (e.g. extra-turn count over a low cap or an extra-turn + recursion
   loop; combined-mana-value / earliest-assembly-turn vs the ~turn-6 anchor), and labeled

@@ -11,19 +11,29 @@ ordering the swap engine acts on (deck-forge CONTEXT.md, "Tune").
 from __future__ import annotations
 
 import math
-import re
 from collections.abc import Sequence
+from typing import TYPE_CHECKING
 
 from mtg_utils._analysis import signal_keys
 from mtg_utils._analysis.roles import protects
 from mtg_utils._analysis.signal_specs import spec_for
-from mtg_utils._card_ir.compat_lookup import ir_for
+from mtg_utils._card_ir.crosswalk import (
+    ends_the_game,
+    is_evasive_body,
+    reach_amount,
+    static_def_adds_power,
+    team_buff_sites,
+    unbound_x_reach,
+)
+from mtg_utils._card_ir.trees import trees_for
 from mtg_utils._tuner.calibration import COMMANDER, Calibration
 from mtg_utils._tuner.classify import CardClass
-from mtg_utils.card_classify import card_pt_int, is_creature
-from mtg_utils.card_ir import Card
+from mtg_utils.card_classify import card_pt_int, has_evasion, is_creature
 from mtg_utils.formats import Game
 from mtg_utils.theme_presets import get_preset
+
+if TYPE_CHECKING:
+    from mtg_utils._card_ir.crosswalk import ConceptTree
 
 # Signal keys that mirror a hard-counted Spine role (ramp / draw / interaction). Not
 # themes, so focus excludes their avenues: a "Ramp / big mana" avenue full of mana rocks
@@ -73,53 +83,15 @@ _EVASIVE_CLOSER_POWER_FLOOR = 3
 # of starting life: 5 at _CALIBRATION_LIFE, 4 at 30, 3 at 25 or 20.
 _BURN_CLOSER_FRACTION = 0.12
 
-# Heuristic finisher oracle patterns (labeled heuristic; combos are the precise source).
-_WINCON_PATTERNS = [
-    re.compile(p, re.IGNORECASE)
-    for p in (
-        # Guard "can't win" — Platinum Angel ("your opponents can't win the game") is
-        # self-protection, not a finisher.
-        r"(?<!can't )(?<!cannot )wins? the game",
-        # Opponent-scoped: a real alt-win makes an OPPONENT lose (CR 104.3e). The bare
-        # r"loses? the game" matched self-loss DRAWBACKS (Pact of Negation "you lose the
-        # game") and self-protection (Platinum Angel "you can't lose the game").
-        r"(?:each opponent|target (?:player|opponent)|that player) loses? the game",
-        r"an additional combat phase",
-        r"extra combat",
-        r"infinite",
-        # Burn / drain reach (scaling or fixed, group or single-target) is read by
-        # ``_reach_closes`` against the Game, not here.
-        r"creatures you control get \+\d",
-    )
-]
-# Reach — burn / drain that ends a game — is ONE scope table x ONE amount read. Group
-# scope ("each opponent") counts at any table; single-target scope counts only
-# one-on-one, where "any target" is the finisher "each opponent" is at a pod. A
-# SCALING amount (X, "equal to …") is always a closer. A FIXED amount is a closer when
-# one resolution takes ``_BURN_CLOSER_FRACTION`` of starting life in group scope, or
-# the WHOLE starting life in single-target scope (Aetherflux Reservoir's 50 is a
-# one-on-one closer; a bolt is removal, never a closer, even at 25 life).
-_GROUP_SCOPE = r"each opponent"
-_SINGLE_SCOPE = r"any target|target (?:player|opponent)"
-# ``{scope}`` is substituted with str.replace, not str.format, so a regex quantifier
-# such as ``{1,2}`` can join a template without colliding with the placeholder.
-_REACH_TEMPLATES = (
-    r"deals? (?P<amount>\d+|x) damage to (?:{scope})",
-    r"deals? damage to (?:{scope}) equal to",
-    r"(?:{scope}) loses? (?P<amount>\d+|x) life",
-    r"(?:{scope}) loses? life equal to",
-)
-
-
-def _reach_patterns(scope: str) -> list[re.Pattern[str]]:
-    return [
-        re.compile(t.replace("{scope}", scope), re.IGNORECASE) for t in _REACH_TEMPLATES
-    ]
-
-
-_GROUP_REACH = _reach_patterns(_GROUP_SCOPE)
-_SINGLE_REACH = _reach_patterns(_SINGLE_SCOPE)
-_EVASION = ("flying", "menace", "trample", "can't be blocked", "shadow", "fear")
+# Reach — burn / drain that ends a game — is ONE scope table x ONE amount read
+# (``crosswalk.reads.reach_amount`` over the card's trees). Group scope ("each
+# opponent") counts at any table; single-target scope counts only one-on-one, where
+# "any target" is the finisher "each opponent" is at a pod. A SCALING amount (X, a
+# devotion, a count, a loss repeated X times) is always a closer. A FIXED amount is a
+# closer when one resolution takes ``_BURN_CLOSER_FRACTION`` of starting life in
+# group scope, or the WHOLE starting life in single-target scope (Aetherflux
+# Reservoir's 50 is a one-on-one closer; a bolt is removal, never a closer, even at
+# 25 life). A symmetric "each player" sweep (Earthquake) is neither scope.
 
 
 def _matches(card: dict, preset: str) -> bool:
@@ -136,20 +108,40 @@ def _life_scaled(value: int, life: int, *, floor: int) -> int:
     return max(floor, round(value * life / _CALIBRATION_LIFE))
 
 
-def _reach_closes(text: str, *, game: Game) -> bool:
-    """Burn / drain that closes ``game`` (see the reach table above): each scope's
-    patterns paired with the fixed amount that closes from that scope."""
-    scopes = [(_GROUP_REACH, math.ceil(game.life * _BURN_CLOSER_FRACTION))]
-    if not game.multiplayer:
-        scopes.append((_SINGLE_REACH, game.life))
-    for patterns, fixed_limit in scopes:
-        for pat in patterns:
-            for m in pat.finditer(text):
-                amount = m.groupdict().get("amount")
-                scaling = amount is None or amount.lower() == "x"
-                if scaling or int(amount) >= fixed_limit:
+def _reach_closes(trees: Sequence[ConceptTree], *, game: Game) -> bool:
+    """Burn / drain that closes ``game`` (see the reach table above): each effect's
+    scope paired with the fixed amount that closes from that scope."""
+    group_limit = math.ceil(game.life * _BURN_CLOSER_FRACTION)
+    for tree in trees:
+        unbound = unbound_x_reach(tree)  # an X phase parked (its amount scales)
+        if unbound == "group" or (unbound == "single" and not game.multiplayer):
+            return True
+        for unit in tree.units:
+            for node in unit.iter_typed():
+                reach = reach_amount(unit.node, node)
+                if reach is None:
+                    continue
+                scope, amount = reach
+                if scope == "single" and game.multiplayer:
+                    continue
+                limit = group_limit if scope == "group" else game.life
+                if amount is None or amount >= limit:
                     return True
     return False
+
+
+def _one_shot_team_pump(trees: Sequence[ConceptTree]) -> bool:
+    """A one-shot team pump that swings for the win — Overrun, Craterhoof Behemoth,
+    Triumph of the Hordes: the ``team_buff`` lane's keyword grant to your team, from
+    a spell, trigger or activation, that also gives the team +N power. A static
+    anthem (Akroma's Memorial, Always Watching, Glorious Anthem) is board presence,
+    and a one-shot grant with no pump (Azorius Charm's lifelink, Crash Through's
+    trample) is a trick, not a closer."""
+    return any(
+        unit.origin != "static" and static_def_adds_power(sdef)
+        for tree in trees
+        for unit, sdef in team_buff_sites(tree)
+    )
 
 
 def _voltron_pieces(classes: Sequence[CardClass]) -> list[str]:
@@ -460,41 +452,27 @@ def template_deviation(budgets: dict) -> dict:
 # ── Tier-2 advisory flags ──────────────────────────────────────────────────────
 
 
-def _ir_wincon(ir: Card) -> bool:
-    """Structural alt-win read. A ``cat=win_game`` (you win: Felidar, Thassa's Oracle),
-    or a ``cat=lose_game`` with scope != "you" that forces another player to lose (Door
-    to Nothingness). A ``cat=lose_game`` scope "you" is a self-loss DRAWBACK (Pact of
-    Negation), never a closer (CR 104.3e): the IR makes the self-vs-opponent split the
-    regex approximates with a subject guard.
-
-    A scaling group-drain stays on the regex: ``lose_life`` projects scope="any" for
-    every drain (Exsanguinate AND Blood Artist), so a structural read can't separate an
-    opponent finisher from a 1-life drip; only ``amount.op`` carries the scaling."""
-    return any(
-        e.category == "win_game" or (e.category == "lose_game" and e.scope != "you")
-        for ab in ir.all_abilities()
-        for e in ab.effects
-    )
-
-
 def _is_wincon_card(card: dict, *, game: Game = _CALIBRATION_GAME) -> bool:
-    """Heuristic finisher read, relative to ``game``: its starting life sets the
-    evasive-body and fixed-reach thresholds, and one opponent admits single-target
-    reach (the same finisher "each opponent" is at a pod)."""
-    ir = ir_for(card)
-    if ir is not None and _ir_wincon(ir):
+    """Heuristic finisher read over the card's trees (every face), relative to
+    ``game``: its starting life sets the evasive-body and fixed-reach thresholds,
+    and one opponent admits single-target reach (the same finisher "each opponent"
+    is at a pod). A closer is a card that wins or makes another player lose
+    (``reads.ends_the_game`` — not Pact of Negation's self-loss), an extra combat
+    (the ``extra_combats`` key), a one-shot team pump, reach that closes, or a big
+    evasive body (an evasion keyword, landwalk among them — CR 702.14c — or a
+    blocking restriction on itself, CR 509.1b)."""
+    trees = trees_for(card)
+    if any(ends_the_game(tree) for tree in trees):
         return True
-    text = card.get("oracle_text") or ""
-    if any(p.search(text) for p in _WINCON_PATTERNS):
+    if _matches(card, "extra-combats") or _one_shot_team_pump(trees):
         return True
-    if _reach_closes(text, game=game):
+    if _reach_closes(trees, game=game):
         return True
     power_floor = _life_scaled(
         _EVASIVE_CLOSER_POWER, game.life, floor=_EVASIVE_CLOSER_POWER_FLOOR
     )
     if is_creature(card) and card_pt_int(card) >= power_floor:
-        low = text.lower()
-        return any(e in low for e in _EVASION)
+        return has_evasion(card) or any(is_evasive_body(tree) for tree in trees)
     return False
 
 

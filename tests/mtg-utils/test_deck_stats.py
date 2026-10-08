@@ -174,6 +174,112 @@ class TestAlternativeCostCards:
         assert "Command Tower" not in alt_names
 
 
+def _alt_costs(*names):
+    deck = {"commanders": [], "cards": [{"name": n, "quantity": 1} for n in names]}
+    result = deck_stats(_hd(deck, [test_card(n) for n in names]))
+    return {c["name"]: c["alt_costs"] for c in result["alternative_cost_cards"]}
+
+
+class TestAlternativeCostKinds:
+    """Each row says what the rules make of the payment (``cost_kind``)."""
+
+    def test_display_formats(self):
+        alt = _alt_costs("Ancestral Vision", "Phyrexian Fleshgorger")
+        assert {"type": "suspend", "cost": "4—{U}", "cost_kind": "special_action"} in (
+            alt["Ancestral Vision"]
+        )
+        assert alt["Phyrexian Fleshgorger"] == [
+            {
+                "type": "prototype",
+                "cost": "{1}{B}{B} — 3/3",
+                "cost_kind": "alternative_characteristics",
+            }
+        ]
+
+    def test_buyback_and_retrace_are_additional_costs(self):
+        # Buyback: "You may pay an additional [cost]" (CR 702.27a). Retrace: cast from
+        # the graveyard "by discarding a land card as an additional cost" (702.81a) —
+        # it prints no cost of its own, so the row shows the discard.
+        alt = _alt_costs("Capsize", "Raven's Crime")
+        assert alt["Capsize"] == [
+            {"type": "buyback", "cost": "{3}", "cost_kind": "additional"}
+        ]
+        assert alt["Raven's Crime"] == [
+            {
+                "type": "retrace",
+                "cost": "Discard a land card",
+                "cost_kind": "additional",
+            }
+        ]
+
+    def test_ninjutsu_is_an_ability_not_a_cast(self):
+        alt = _alt_costs("Yuriko, the Tiger's Shadow")
+        assert alt["Yuriko, the Tiger's Shadow"] == [
+            {"type": "commander ninjutsu", "cost": "{U}{B}", "cost_kind": "ability"}
+        ]
+
+    def test_adventure_is_the_other_face(self):
+        alt = _alt_costs("Bonecrusher Giant // Stomp")
+        assert alt["Bonecrusher Giant // Stomp"] == [
+            {"type": "adventure", "cost": "{1}{R}", "cost_kind": "other_face"}
+        ]
+
+    def test_dropped_keyword_cost_is_read_off_its_line(self):
+        # Phase drops "Morph—Pay 5 life" from Zombie Cutthroat's keywords; the tree
+        # build recovers it off the card's own morph line.
+        alt = _alt_costs("Zombie Cutthroat", "Tenacious Underdog")
+        assert alt["Zombie Cutthroat"] == [
+            {"type": "morph", "cost": "{3} (face down)", "cost_kind": "alternative"},
+            {
+                "type": "morph (face up)",
+                "cost": "Pay 5 life",
+                "cost_kind": "special_action",
+            },
+        ]
+        assert alt["Tenacious Underdog"] == [
+            {
+                "type": "blitz",
+                "cost": "{2}{B}{B}, Pay 2 life",
+                "cost_kind": "alternative",
+            }
+        ]
+
+    def test_granting_plot_is_not_a_plot_cost(self):
+        # Fblthp lets the top card of your library be plotted; it has no plot cost.
+        assert _alt_costs("Fblthp, Lost on the Range") == {}
+
+
+class TestMassLandDenial:
+    """The Commander Brackets' definition: destroy, exile or bounce lands, keep them
+    tapped, or change their mana, four or more per player, not replaced."""
+
+    def test_definition_examples(self):
+        names = ["Ruination", "Sunder", "Winter Orb", "Blood Moon", "Wildfire"]
+        b = detect_bracket([test_card(n) for n in names], 3.0)
+        assert b["mass_land_denial"] == sorted(names)
+
+    def test_all_permanent_sweeps_and_bridged_parses(self):
+        # Exile or bounce of every permanent takes the lands; Burning of Xinye and
+        # Global Ruin fire through ledger bridges over phase's parse failures.
+        names = ["Apocalypse", "Upheaval", "Burning of Xinye", "Global Ruin"]
+        b = detect_bracket([test_card(n) for n in names], 3.0)
+        assert b["mass_land_denial"] == sorted(names)
+
+    def test_one_land_edicts_and_replacements_are_not(self):
+        names = [
+            "Yawning Fissure",
+            "Tremble",
+            "From the Ashes",
+            "Mungha Wurm",
+            "Exhaustion",  # one untap step
+            "Nightcreep",  # one turn
+            "End Hostilities",  # only permanents attached to creatures
+        ]
+        b = detect_bracket([test_card(n) for n in names], 3.0)
+        assert b["mass_land_denial"] == []
+        assert b["bracket"] == 2
+
+
 class TestSideboardStats:
     def test_sideboard_stats_present(self):
         deck = {

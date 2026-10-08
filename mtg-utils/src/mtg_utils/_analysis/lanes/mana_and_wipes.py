@@ -59,6 +59,7 @@ from mtg_utils._card_ir.crosswalk import (
     recipient_tag,
     ref_count_qty,
     tag_of,
+    team_buff_sites,
 )
 from mtg_utils._card_ir.mirror.runtime import (
     MirrorVariant,
@@ -75,30 +76,6 @@ _MASS_REMOVAL_TYPES: frozenset[str] = frozenset(
 )
 
 
-# Evergreen team-anthem keywords (CR 702) — mirrors the deleted ``_signals_ir``'s
-# identically-named ``_TEAM_BUFF_GRANT_KW`` (phase's spaceless spelling normalized via
-# lower+strip).
-_TEAM_BUFF_GRANT_KW: frozenset[str] = frozenset(
-    {
-        "flying",
-        "trample",
-        "menace",
-        "hexproof",
-        "indestructible",
-        "protection",
-        "deathtouch",
-        "lifelink",
-        "doublestrike",
-        "firststrike",
-        "vigilance",
-        "haste",
-        "ward",
-        "reach",
-    }
-)
-# Predicates a GENERIC your-team anthem subject may carry (Always Watching's
-# NonToken, "each OTHER creature you control") — mirrors ``_TEAM_BUFF_OK_PREDS``.
-_TEAM_BUFF_OK_PREDS: frozenset[str] = frozenset({"NonToken", "Another", "Other"})
 # Ref-qty tags that are a BOARD-COUNT scaler by construction (CR 107.3) — a
 # counted object population or a named game count. The scaling gate admits
 # them structurally; every other non-bare-X tag needs the "for each" raw.
@@ -1467,45 +1444,21 @@ def _self_pump(tree: ConceptTree) -> list[Signal]:
     return []
 
 
-def _is_team_buff_filter(filt: object) -> bool:
-    """The team_buff anthem subject (CR 604.3): GENERIC creatures YOU control
-    — no subtypes (tribal is type_matters), predicates at most
-    NonToken/Another/Other (Always Watching stays in; an Attacking/color/
-    equipped narrowing fails). Mirrors the deleted ``_signals_ir``'s
-    ``_is_team_buff_grant``."""
-    return (
-        filter_controller(filt) == "You"
-        and "Creature" in filter_core_types(filt)
-        and not filter_subtypes(filt)
-        and set(filter_predicates(filt)) <= _TEAM_BUFF_OK_PREDS
-    )
-
-
 def _team_buff(tree: ConceptTree) -> list[Signal]:
     """team_buff — the BROAD evergreen-keyword union anthem (CR 604.3 / 702):
     "creatures you control have/gain <evergreen keyword>" (Akroma's Memorial,
     Always Watching; Craterhoof's one-shot "gain trample"). Reads every
     modification site's ``AddKeyword`` whose keyword is a plain evergreen
-    string (:data:`_TEAM_BUFF_GRANT_KW`) over a generic your-team subject
-    (:func:`_is_team_buff_filter`) — a tribal grant ("Sliver creatures you
-    control gain …") or a single-target grant (an effect target, never a
-    generic your-team ``affected``) stays out (checklist #6). The variant-
+    string over a generic your-team subject (the shared walk,
+    :func:`~mtg_utils._card_ir.crosswalk.reads.team_buff_sites`) — a tribal
+    grant ("Sliver creatures you control gain …") or a single-target grant (an
+    effect target, never a generic your-team ``affected``) stays out (checklist
+    #6). The variant-
     parameterized keywords (Protection-from-X, Ward-{N}) are non-string nodes
     — a documented residue. Scope "you".
     """
-    for unit in tree.units:
-        for sdef, mod in iter_mod_sites(unit.node):
-            if tag_of(mod) not in ("AddKeyword", "AddKeywordUntilEndOfTurn"):
-                continue
-            kw = getattr(mod, "keyword", None)
-            if not isinstance(kw, str):
-                continue
-            if kw.lower().replace(" ", "") not in _TEAM_BUFF_GRANT_KW:
-                continue
-            if _is_team_buff_filter(getattr(sdef, "affected", None)):
-                return [
-                    Signal("team_buff", "you", "", _site_raw(sdef), tree.name, "high")
-                ]
+    for _unit, sdef in team_buff_sites(tree):
+        return [Signal("team_buff", "you", "", _site_raw(sdef), tree.name, "high")]
     return []
 
 

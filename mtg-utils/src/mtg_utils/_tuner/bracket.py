@@ -13,14 +13,11 @@ detection are reused from ``deck_stats.detect_bracket`` (Game Changers via Scryf
 
 from __future__ import annotations
 
-import re
 from collections.abc import Mapping, Sequence
 
-from mtg_utils._card_ir.compat_lookup import ir_for
-from mtg_utils.card_classify import get_oracle_text
-from mtg_utils.card_ir import Card
 from mtg_utils.combo_search import is_game_winning
 from mtg_utils.deck_stats import detect_bracket
+from mtg_utils.theme_presets import get_preset
 
 # Game-Changers count ceiling per target bracket. Brackets 4 (Optimized) and 5 (cEDH)
 # are unconstrained (banned list only) and short-circuit before this is consulted.
@@ -30,21 +27,13 @@ _GC_CEILING: dict[int, int] = {1: 0, 2: 0, 3: 3}
 # banned-list-only (nothing to enforce).
 _UNCONSTRAINED_FROM = 4
 
-# Extra-turn grant ("Take an extra turn after this one"). At bracket 1 any is a FAIL;
-# at 2-3 they're allowed "in low quantities... not chained/looped" — a qualitative
-# rule, so more than this many is a heuristic WARN (project-chosen, not an official
-# number), never a hard FAIL.
-# Extra-turn detection prefers the IR (``cat=extra_turn`` — phase parses Time Warp and
-# Time Stretch's "two extra turns" identically, no count needed for B1's "any = FAIL").
-# The regex is the no-IR fallback: "takes an extra turn" OR "takes two/N extra turns".
-_EXTRA_TURN_RE = re.compile(r"takes? \w+ extra turns?", re.IGNORECASE)
+# Extra-turn grant (CR 500.7). At bracket 1 any is a FAIL; at 2-3 they're allowed
+# "in low quantities... not chained/looped" — a qualitative rule, so more than this
+# many is a heuristic WARN (project-chosen, not an official number), never a hard
+# FAIL. Read off the ``extra_turns`` signal key (the ``extra-turns`` preset): any
+# extra-turn grant, whoever takes it — Time Stretch's two turns read the same as Time
+# Warp's one, and B1's "any = FAIL" needs no count.
 _EXTRA_TURN_LOW_MAX = 1
-
-
-def _ir_has_extra_turn(ir: Card) -> bool:
-    return any(
-        e.category == "extra_turn" for ab in ir.all_abilities() for e in ab.effects
-    )
 
 
 # A two-card infinite combo whose pieces' combined mana value is at or below this reads
@@ -54,15 +43,9 @@ def _ir_has_extra_turn(ir: Card) -> bool:
 _COMBO_CHEAP_MV_MAX = 6.0
 
 
-def _has_extra_turn(card: dict) -> bool:
-    ir = ir_for(card)
-    if ir is not None and _ir_has_extra_turn(ir):
-        return True
-    return bool(_EXTRA_TURN_RE.search(get_oracle_text(card) or ""))
-
-
 def _extra_turn_cards(records: Sequence[dict | None]) -> list[str]:
-    return sorted({c["name"] for c in records if c and _has_extra_turn(c)})
+    extra_turns = get_preset("extra-turns")
+    return sorted({c["name"] for c in records if c and extra_turns.matches(c)})
 
 
 # Intentional two-card infinite combos are disallowed below bracket 3 (WotC's

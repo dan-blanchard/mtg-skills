@@ -112,6 +112,7 @@ class Bridge:
     # bridge is ONE row and retiring it is deleting that row.
     scope: str = "you"  # "you" | "opponents" | "each" | "any"
     quote_oracle: bool = False  # carry the card's oracle text as Signal.text
+    subject: str = ""  # the Signal subject, for a key that carries one
 
     def fires(self, tree: ConceptTree) -> bool:
         """Gap-gated firing — a landed structural read stands the bridge down."""
@@ -120,7 +121,7 @@ class Bridge:
     def signal(self, tree: ConceptTree) -> Signal:
         """The signal this row serves for ``tree`` (call only when it fires)."""
         text = (tree.oracle or "") if self.quote_oracle else ""
-        return Signal(self.key, self.scope, "", text, tree.name, "high")
+        return Signal(self.key, self.scope, self.subject, text, tree.name, "high")
 
 
 def _static_parse_failure_descs(tree: ConceptTree) -> Iterator[str]:
@@ -257,18 +258,29 @@ def _zuko_match(tree: ConceptTree) -> bool:
 # ``root.keywords`` doesn't even carry a bare variant entry for them, let
 # alone a cost payload (CR 702.1/601.2f: an alternative way to cast the
 # card, phase's keyword grammar frontier). ZERO trace anywhere in the tree.
-_KEYWORD_DROPPED_RX = re.compile(
-    r"\b(?:Warp|Blitz|Morph|Ninjutsu)—[^.]*\bpay\s+\d+\s+life\b",
-    re.IGNORECASE,
+# The keyword itself is recovered where the tree is built
+# (``crosswalk.core._dropped_keyword_costs``, guarded by
+# ``test_dropped_keyword_costs_canary``); this row reads those recovered rows for
+# a life payment, keeping its prior keyword families (madness is not one).
+_KEYWORD_DROPPED_KINDS = frozenset(
+    {"warp", "blitz", "morph (face up)", "megamorph (face up)", "ninjutsu"}
 )
+_PAY_LIFE_RX = re.compile(r"\bpay \d+ life\b", re.IGNORECASE)
 
 
 def _keyword_dropped_gap(tree: ConceptTree) -> bool:
-    return all(tag_of(n) not in ("PayLife", "GrantAbility") for n in tree.iter_typed())
+    # No PayLife node anywhere, and phase parked the keyword line ("Warp—{B}, Pay 2
+    # life.") as a residue.
+    return all(
+        tag_of(n) not in ("PayLife", "GrantAbility") for n in tree.iter_typed()
+    ) and _says(_PAY_LIFE_RX, tree.residues())
 
 
 def _keyword_dropped_match(tree: ConceptTree) -> bool:
-    return bool(_KEYWORD_DROPPED_RX.search(tree.oracle))
+    return any(
+        alt.kind in _KEYWORD_DROPPED_KINDS and _PAY_LIFE_RX.search(alt.cost)
+        for alt in tree.card_alt_costs
+    )
 
 
 # ── sacrifice_outlets residual class (ADR-0039 W7) ────────────────────────
@@ -2023,9 +2035,140 @@ def _plural_attach_anaphor_match(tree: ConceptTree) -> bool:
     )
 
 
+# ── Timesifter → extra_turns ─────────────────────────────────────────────────
+# "The player who exiled the card with the greatest mana value takes an extra
+# turn after this one." Phase v0.94.0 parses the upkeep trigger's ExileTop but
+# parks the extra-turn clause as ``Unimplemented(name='unbound_subject')`` (the
+# player is picked by a comparison it can't bind), so no ``ExtraTurn`` node is
+# reachable. Its 2004-12-01 ruling confirms the extra turn is real ("If multiple
+# extra turns are created in a game, the most recently created extra turn is
+# taken first" — CR 500.7: "The most recently created turn will be taken
+# first."). The gap is that residue's own clause; the match reads it too.
+# Prior serving: the bracket gate's extra-turn axis read Timesifter off its
+# oracle text (``bracket._EXTRA_TURN_RE``) until it moved onto this key.
+_TIMESIFTER_RX = re.compile(r"\btakes an extra turn\b", re.IGNORECASE)
+
+
+def _unbound_extra_turn_gap(tree: ConceptTree) -> bool:
+    return _says(_TIMESIFTER_RX, tree.residues("unbound_subject"))
+
+
+def _unbound_extra_turn_match(tree: ConceptTree) -> bool:
+    return _says(_TIMESIFTER_RX, tree.residues("unbound_subject"))
+
+
+# ── Burning of Xinye → mass_land_denial ──────────────────────────────────────
+# "You destroy four lands you control, then target opponent destroys four lands
+# they control." Phase v0.94.0 parks both clauses as
+# ``Unimplemented(unparsed_verb_arguments)`` residues (a player-directed destroy
+# with a count), so no DestroyAll reaches the mass_land_denial read. Four lands
+# of the targeted opponent's is the Commander Brackets' "four or more lands per
+# player"; its rulings confirm "the targeted opponent destroys four lands they
+# control (all at the same time)". Not prior serving (the retired deck_stats
+# regex missed it): a bracket FAIL Dan's 2026-10-08 review asked to restore.
+_XINYE_RX = re.compile(
+    r"\bopponent destroys (?:four|five|six|\d+) lands\b", re.IGNORECASE
+)
+
+
+def _xinye_gap(tree: ConceptTree) -> bool:
+    return _says(_XINYE_RX, tree.residues("unparsed_verb_arguments"))
+
+
+def _xinye_match(tree: ConceptTree) -> bool:
+    return _says(_XINYE_RX, tree.residues("unparsed_verb_arguments"))
+
+
+# ── Global Ruin → mass_land_denial ───────────────────────────────────────────
+# "Each player chooses from the lands they control a land of each basic land
+# type, then sacrifices the rest." Phase v0.94.0 parses the sacrifice as one
+# tracked permanent (``Sacrifice{target: TrackedSet, count: Fixed 1}`` after a
+# ``TargetOnly(Any)``) — a wrong typed node, not a residue — so the land
+# sacrifice never reaches the read. Its ruling: "You sacrifice all lands other
+# than the chosen ones" — at most five lands kept per player. Not prior serving
+# either (the retired regex missed it); Dan's 2026-10-08 review.
+_GLOBAL_RUIN_RX = re.compile(
+    r"chooses from the lands they control[^.]*then sacrifices the rest", re.IGNORECASE
+)
+
+
+def _tracked_set_sacrifice_gap(tree: ConceptTree) -> bool:
+    sacrifices = [n for n in tree.iter_typed() if tag_of(n) == "Sacrifice"]
+    return bool(sacrifices) and all(
+        tag_of(getattr(n, "target", None)) == "TrackedSet" for n in sacrifices
+    )
+
+
+def _global_ruin_match(tree: ConceptTree) -> bool:
+    return bool(_GLOBAL_RUIN_RX.search(tree.oracle or ""))
+
+
 BRIDGES: dict[str, Bridge] = {
     b.bridge_id: b
     for b in (
+        Bridge(
+            bridge_id="burning_of_xinye_opponent_destroys_lands",
+            key="mass_land_denial",
+            scope="each",
+            subject="destroy",
+            kind="upstream_parse_failure",
+            todo=(
+                "upstream phase-rs report candidate (Dan posts): 'target opponent "
+                "destroys four lands they control' parks as "
+                "Unimplemented(unparsed_verb_arguments) — retires on the phase "
+                "bump that emits a player-directed Destroy with a count"
+            ),
+            census=(
+                "1 hit / 696 unparsed_verb_arguments residues corpus-wide (Burning "
+                "of Xinye), MTGJSON "
+                "2026-09-22 @ phase v0.94.0, 2026-10-08"
+            ),
+            pins=("Burning of Xinye",),
+            gap=_xinye_gap,
+            match=_xinye_match,
+        ),
+        Bridge(
+            bridge_id="global_ruin_tracked_set_sacrifice",
+            key="mass_land_denial",
+            scope="each",
+            subject="sacrifice",
+            kind="upstream_parse_failure",
+            todo=(
+                "upstream phase-rs report candidate (Dan posts): 'chooses from "
+                "the lands they control a land of each basic land type, then "
+                "sacrifices the rest' parses as Sacrifice{TrackedSet, 1} — retires "
+                "on the phase bump that emits a choose-and-sacrifice-the-rest "
+                "over lands (ChooseAndSacrificeRest, as Cataclysm has)"
+            ),
+            census=(
+                "1 hit / the legal corpus's 'chooses from the lands they control "
+                "… sacrifices the rest' cards (Global Ruin), MTGJSON 2026-09-22 @ "
+                "phase v0.94.0, 2026-10-08"
+            ),
+            pins=("Global Ruin",),
+            gap=_tracked_set_sacrifice_gap,
+            match=_global_ruin_match,
+        ),
+        Bridge(
+            bridge_id="timesifter_unbound_extra_turn",
+            key="extra_turns",
+            kind="upstream_parse_failure",
+            todo=(
+                "upstream phase-rs report candidate (Dan posts): 'The player who "
+                "exiled the card with the greatest mana value takes an extra turn "
+                "after this one' parks as Unimplemented(unbound_subject) — retires "
+                "on the phase bump that binds the compared player and emits an "
+                "ExtraTurn (CR 500.7)"
+            ),
+            census=(
+                "1 hit / 163 unbound_subject residues corpus-wide, the only one "
+                "naming an extra turn (Timesifter), MTGJSON 2026-09-22 @ phase "
+                "v0.94.0, 2026-10-07"
+            ),
+            pins=("Timesifter",),
+            gap=_unbound_extra_turn_gap,
+            match=_unbound_extra_turn_match,
+        ),
         Bridge(
             bridge_id="combat_choice_unimplemented_choose",
             key="combat_choice_makers",
@@ -2210,7 +2353,9 @@ BRIDGES: dict[str, Bridge] = {
                 "variant (v0.20.0: no keyword entry at all; v0.94.0: the "
                 "line parked as an Unimplemented residue — unlike "
                 "Flashback's Composite/PayLife structure) — retires on a "
-                "phase bump that parses these keywords' own cost payload"
+                "phase bump that parses these keywords' own cost payload "
+                "(test_dropped_keyword_costs_canary fails RETIRE-READY then; "
+                "retire crosswalk.core._dropped_keyword_costs with this row)"
             ),
             census=(
                 "3 hits / 31,622 commander-legal (Timeline Culler [Warp], "

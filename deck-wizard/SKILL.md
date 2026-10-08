@@ -1047,7 +1047,7 @@ deck-stats <deck.json> [--bulk-data <path>]
 
 Review: total cards, land count, creature count, ramp count, avg CMC, curve distribution, sideboard total (60-card). Note any obvious red flags. Flag immediately if the total card count does not match the deck's expected size.
 
-Review the `alternative_cost_cards` section. For any card with alternative costs (suspend, adventure, foretell, etc.), note the cost most likely to be used in this deck. Do not evaluate these cards at their CMC alone.
+Review the `alternative_cost_cards` section. For any card with alternative costs (suspend, adventure, foretell, etc.), note the cost most likely to be used in this deck. Do not evaluate these cards at their CMC alone. Each row's `cost_kind` says what the payment is: `alternative` (paid instead of the mana cost — evoke, flashback, warp, a morph's face-down {3}), `additional` (paid on top of it — buyback, retrace's land discard), `alternative_characteristics` (prototype's smaller mana cost and body), `special_action` (suspend and plot exile it now to cast it free later; turning a morph face up), `ability` (ninjutsu puts it onto the battlefield without casting it), or `other_face` (an adventure's or modal DFC's other half).
 
 ### 3. Card Summary
 

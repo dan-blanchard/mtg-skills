@@ -304,6 +304,8 @@ SERVED_SIGNAL_KEYS: frozenset[str] = frozenset(
         "control_exchange",
         "land_exchange",
         "land_denial",
+        # The Commander Brackets' mass land denial (ADR-0030; reads.mass_land_denial).
+        "mass_land_denial",
         "land_protection",
         "evasion_denial",
         "animate_artifact",

@@ -40,9 +40,18 @@ from __future__ import annotations
 from collections.abc import Iterator
 from dataclasses import dataclass, field
 
+from mtg_utils._card_ir.crosswalk.cost_text import (
+    ALT_COST_KEYWORDS,
+    FACE_DOWN_KEYWORDS,
+    AltCost,
+    face_down_rows,
+    keyword_alt_costs,
+    mana_value_of_cost,
+)
 from mtg_utils._card_ir.crosswalk.reads import (
     _EFFECT_CHILD_FIELDS,
     _PAYLIFE_COST_TAGS,
+    CURVE_COST_KEYWORDS,
     _effect_scope,
     _effect_subject,
     _filter_type_words,
@@ -56,7 +65,9 @@ from mtg_utils._card_ir.crosswalk.reads import (
     iter_nested_granted_bodies,
     iter_static_defs,
     iter_typed_nodes,
+    keyword_cost,
     keyword_curve_cost,
+    mana_value_paying_life,
     residue_is,
     static_mode_tag,
     tag_of,
@@ -504,10 +515,16 @@ class ConceptTree:
     # doesn't resolve.
     card_enchant_core_types: tuple[str, ...] = ()
     # The mana values of the card's own unconditional alternative casting costs
-    # (``reads.CURVE_COST_KEYWORDS`` — warp, evoke, dash, blitz, prototype, plot,
-    # suspend), read off ``root.keywords`` like ``card_enchant_core_types``: the
+    # (``reads.CURVE_COST_KEYWORDS`` — warp, evoke, dash, blitz, prototype,
+    # impending), read off ``root.keywords`` like ``card_enchant_core_types``: the
     # cost a deck can plan its curve on when it's below the printed mana value.
     card_curve_costs: tuple[int, ...] = ()
+    # Every other way the card's printed keywords let you pay for it
+    # (``cost_text.keyword_alt_costs``: suspend, evoke, flashback, buyback, morph,
+    # ninjutsu …), in keyword order, with the printed cost and what the rules
+    # make of the payment (alternative / additional / special action / ability);
+    # plus the keywords phase drops, recovered by ``_dropped_keyword_costs``.
+    card_alt_costs: tuple[AltCost, ...] = ()
 
     def is_type(self, core: str) -> bool:
         """Whether the card itself has core type ``core`` (Creature / Land / …).
@@ -1244,6 +1261,96 @@ def _corrected_partner_kind(
     return variant, data if isinstance(data, str) else ""
 
 
+#: Phase v0.94.0 fails a keyword whose cost has a non-mana part: it leaves the
+#: keyword off the card and parks its line as an ``Unimplemented`` residue —
+#: Zombie Cutthroat's "Morph—Pay 5 life.", Dragon's Eye Savants' "Morph—Reveal a
+#: blue card in your hand.", Tenacious Underdog's "Blitz—{2}{B}{B}, Pay 2 life.",
+#: Timeline Culler's "Warp—{B}, Pay 2 life.", Shadowgrange Archfiend's madness,
+#: Escape Velocity's escape (parked as "~—…", the card's name read for the
+#: keyword). Each oracle "<Keyword>—" line whose cost phase parked as a residue is
+#: recovered, for ``card_alt_costs`` and (warp, blitz) ``card_curve_costs`` alike.
+#: Plot and retrace are left out (a card can mention plot without a plot cost;
+#: retrace prints none). The ``keyword_dropped_paylife`` ledger bridge reads the
+#: rows this recovers. Guarded by ``test_dropped_keyword_costs_canary``.
+_RECOVERABLE_KEYWORDS: dict[str, str] = {
+    kind: key
+    for key, (kind, _) in ALT_COST_KEYWORDS.items()
+    if key not in ("Plot", "Retrace")
+}
+
+
+def _printed_part(part: str) -> tuple[str, int | None]:
+    """One comma-separated part of a printed cost, for ``mana_value_paying_life``:
+    mana symbols, a life payment ("Pay 2 life"), or anything else."""
+    if part.startswith("{"):
+        return "mana", mana_value_of_cost(part)
+    if part.startswith("Pay ") and part.endswith(" life"):
+        return "life", None
+    return "other", None
+
+
+#: Phase v0.94.0 also misreads two keyword shapes, corrected here. "Suspend X—{X}…"
+#: (Detritivore, Aeon Chronicler, Benalish Commander, Fungal Behemoth, Roiling
+#: Horror) parses as count 0 with an empty {0} cost, so it is read off the card's
+#: line instead (CR 702.62a's "Suspend N—[cost]", N here X). Warbringer's "Dash costs
+#: you pay cost {2} less" (its ruling: the ability reduces dash costs) parses as a
+#: second ``Dash`` with an empty cost, dropped beside the real one. Guarded by
+#: ``test_misread_keyword_canary``.
+def _misread_keyword(kw: object, keys: list[str]) -> bool:
+    if not isinstance(kw, MirrorVariant):
+        return False
+    if kw.key == "Suspend" and getattr(kw.inner, "count", None) == 0:
+        return True
+    cost = keyword_cost(kw)
+    empty = tag_of(cost) == "Cost" and not getattr(cost, "shards", None)
+    return empty and not getattr(cost, "generic", 0) and keys.count(kw.key) > 1
+
+
+def _dropped_keyword_costs(
+    root: TypedMirrorNode, present: set[str]
+) -> tuple[list[AltCost], list[int]]:
+    """The alternative-cost rows and curve costs of the keywords phase parked as
+    residues (see :data:`_RECOVERABLE_KEYWORDS`)."""
+    rows: list[AltCost] = []
+    curve: list[int] = []
+    oracle = getattr(root, "oracle_text", None)
+    parked = [
+        str(getattr(n, "description", "") or "").partition("\u2014")[2].rstrip(".")
+        for n in _iter_typed_nodes(root)
+        if tag_of(n) == "Unimplemented"
+    ]
+    parked = [p.strip() for p in parked if p.strip()]
+    if not isinstance(oracle, str) or not parked:
+        return rows, curve
+    for line in oracle.splitlines():
+        head, dash, rest = line.partition("\u2014")
+        if not dash:
+            continue
+        head = head.strip().lower()
+        count = ""
+        key = _RECOVERABLE_KEYWORDS.get(head)
+        if key is None:  # "Suspend X—", "Impending 4—": the keyword, then N
+            word, _, count = head.partition(" ")
+            key = _RECOVERABLE_KEYWORDS.get(word)
+            if key not in ("Suspend", "Impending"):
+                continue
+        if key in present or not any(rest.strip().startswith(p) for p in parked):
+            continue
+        cost = rest.split(" (")[0].split(". ")[0].strip().rstrip(".")
+        kind, cost_kind = ALT_COST_KEYWORDS[key]
+        if key in FACE_DOWN_KEYWORDS:
+            rows.extend(face_down_rows(kind, cost))
+            continue
+        shown = f"{count.upper()}\u2014{cost}" if count else cost
+        rows.append(AltCost(kind, shown, cost_kind))
+        if key in CURVE_COST_KEYWORDS:
+            parts = (_printed_part(p.strip()) for p in cost.split(","))
+            mv = mana_value_paying_life(parts)
+            if mv is not None:
+                curve.append(mv)
+    return rows, curve
+
+
 def build_concept_tree(
     root: TypedMirrorNode, *, name: str = "", oracle_id: str = ""
 ) -> ConceptTree:
@@ -1321,11 +1428,21 @@ def build_concept_tree(
     # Phase's own Commander-eligibility verdict (``root.is_commander``; see the
     # ``ConceptTree.can_be_commander`` field).
     can_be_commander = getattr(root, "is_commander", None) is True
-    card_curve_costs = tuple(
-        cost
-        for kw in (kws_root if isinstance(kws_root, list) else ())
-        if (cost := keyword_curve_cost(kw)) is not None
-    )
+    card_curve_costs: list[int] = []
+    card_alt_costs: list[AltCost] = []
+    present_keywords: set[str] = set()
+    kw_list = kws_root if isinstance(kws_root, list) else []
+    kw_keys = [kw.key for kw in kw_list if isinstance(kw, MirrorVariant)]
+    for kw in kw_list:
+        if _misread_keyword(kw, kw_keys):
+            continue
+        if (cost := keyword_curve_cost(kw)) is not None:
+            card_curve_costs.append(cost)
+        card_alt_costs.extend(keyword_alt_costs(kw))
+        present_keywords.add(kw.key if isinstance(kw, MirrorVariant) else str(kw))
+    dropped_rows, dropped_curve = _dropped_keyword_costs(root, present_keywords)
+    card_alt_costs.extend(dropped_rows)
+    card_curve_costs.extend(dropped_curve)
     # ADR-0039 grammar sprint (task #82): a modal SPELL's card-root
     # ``modal.mode_descriptions`` (CR 700.2), positionally paired with
     # ``root.abilities`` (Fatal Lore, Season of the Burrow) — see the
@@ -1549,7 +1666,8 @@ def build_concept_tree(
         can_be_commander=can_be_commander,
         card_modal_mode_descriptions=card_modal_mode_descriptions,
         card_enchant_core_types=card_enchant_core_types,
-        card_curve_costs=card_curve_costs,
+        card_curve_costs=tuple(card_curve_costs),
+        card_alt_costs=tuple(card_alt_costs),
     )
     # ADR-0038 — substrate-wide Unimplemented recovery runs INSIDE the tree
     # build so every consumer (signal lanes, compat projection, convergence +

@@ -1,8 +1,9 @@
 """Tuner Tier-2 metrics: win-condition heuristic detection (grill F6)."""
 
+import pytest
+
 from mtg_utils._tuner.issues import Sourcing, top_issues
-from mtg_utils._tuner.metrics import _ir_wincon, _is_wincon_card
-from mtg_utils.card_ir import Ability, Card, Effect, Face
+from mtg_utils._tuner.metrics import _is_wincon_card
 from mtg_utils.formats import Game
 from mtg_utils.testkit import test_card
 
@@ -18,29 +19,30 @@ def _top_issues_for(*, focus_r, template_r, **metrics):
     )
 
 
-def _ir(*effects):
-    return Card(
-        oracle_id="x",
-        name="T",
-        faces=(Face(name="T", abilities=(Ability(kind="spell", effects=effects),)),),
-    )
-
-
-def test_ir_wincon_reads_win_lose_game_structurally():
-    # The IR encodes alt-wins natively: cat=win_game (Felidar Sovereign) and a
-    # cat=lose_game forcing a non-self player to lose (Door to Nothingness). A
-    # cat=lose_game scope="you" is the Pact-of-Negation self-loss drawback — NOT a closer.
-    assert _ir_wincon(_ir(Effect(category="win_game", scope="you"))) is True
-    assert _ir_wincon(_ir(Effect(category="lose_game", scope="any"))) is True
-    assert _ir_wincon(_ir(Effect(category="lose_game", scope="you"))) is False
-    assert _ir_wincon(_ir(Effect(category="counter_spell", scope="any"))) is False
-
-
-def _card(name, oracle, type_line="Instant", power=None):
-    rec = {"name": name, "oracle_text": oracle, "type_line": type_line}
-    if power is not None:
-        rec["power"] = power
-    return rec
+@pytest.mark.parametrize(
+    ("name", "closer"),
+    [
+        # Game wins off the tree's WinTheGame / LoseTheGame player scope.
+        ("Felidar Sovereign", True),  # you win (CR 104.2b)
+        ("Phage the Untouchable", True),  # that player loses (CR 104.3e)
+        # Extra combat (the extra_combats key).
+        ("Aggravated Assault", True),
+        # One-shot team pumps (Dan's call: "+N" closers): the team_buff grant from a
+        # spell or trigger that also adds power.
+        ("Overrun", True),
+        ("Craterhoof Behemoth", True),
+        ("Triumph of the Hordes", True),
+        # Static anthems are board presence, and a one-shot grant with no pump is
+        # a trick.
+        ("Glorious Anthem", False),
+        ("Akroma's Memorial", False),
+        ("Azorius Charm", False),
+        # "Infinite" in a name reads no mechanic.
+        ("Tome of the Infinite", False),
+    ],
+)
+def test_closer_reads(name, closer):
+    assert _is_wincon_card(test_card(name)) is closer
 
 
 def test_self_loss_drawback_is_not_a_wincon():
@@ -128,8 +130,23 @@ class TestClosersReadTheGame:
         flyer = test_card("Serra Angel")  # 4-power flier
         assert _is_wincon_card(flyer) is False  # 40 life: needs 6 power
         assert _is_wincon_card(flyer, game=DUEL_25) is True  # 25 life: 4 power
-        five = _card("Big Flyer", "Flying", "Creature — Drake", power=5)
+        five = test_card("Shivan Dragon")  # 5-power flier
         assert _is_wincon_card(five, game=POD_30) is True  # 30 life: 5 power
+
+    def test_evasion_reads_keywords_and_blocking_restrictions(self):
+        # Landwalk is evasion (CR 702.14c), as is a restriction on what can block
+        # the creature (509.1b). Reach is not, though its reminder text says
+        # "flying" — the old substring scan counted Arbor Colossus.
+        assert _is_wincon_card(test_card("Stormtide Leviathan")) is True  # islandwalk
+        assert _is_wincon_card(test_card("Pathrazer of Ulamog")) is True
+        assert _is_wincon_card(test_card("Arbor Colossus")) is False
+
+    def test_an_adventurer_is_read_off_its_faces(self):
+        # A two-face record carries its text on the faces, not on the record:
+        # Bloomvine Regent is a 4/5 flier whose record has no oracle_text.
+        regent = test_card("Bloomvine Regent // Claim Territory")
+        assert not regent.get("oracle_text")
+        assert _is_wincon_card(regent, game=DUEL_25) is True
 
     def test_fixed_group_reach_scales_with_life(self):
         # 3 damage to each opponent is 7.5% of a Commander life total and 12% of a
@@ -151,6 +168,22 @@ class TestClosersReadTheGame:
         assert _is_wincon_card(axe, game=DUEL_25) is False
         assert _is_wincon_card(reservoir, game=DUEL_25) is True
         assert _is_wincon_card(reservoir) is False  # single-target: not a pod closer
+
+    def test_repeated_and_symmetric_reach(self):
+        # Torment of Hailfire's 3 life repeats X times: it scales. Earthquake hits
+        # every player, you too, so it is neither scope.
+        assert _is_wincon_card(test_card("Torment of Hailfire")) is True
+        assert _is_wincon_card(test_card("Earthquake"), game=DUEL_25) is False
+
+    def test_an_x_phase_parks_still_reaches(self):
+        # Insatiable Hemophage: "each opponent loses X life", X its mutate count;
+        # Zenith Flare: "deals X damage to any target". Phase parks both X effects
+        # (see reads.unbound_x_reach); group reach counts at a pod, single only
+        # one-on-one.
+        assert _is_wincon_card(test_card("Insatiable Hemophage")) is True
+        flare = test_card("Zenith Flare")
+        assert _is_wincon_card(flare) is False
+        assert _is_wincon_card(flare, game=DUEL_25) is True
 
     def test_single_target_scaling_reach_counts_only_one_on_one(self):
         # Blaze: "deals X damage to any target" (Fireball divides its X among
