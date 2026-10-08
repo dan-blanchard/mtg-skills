@@ -149,7 +149,8 @@ def test_partner_avenue_filters_to_valid_partners(monkeypatch):
     assert "Partner / Background" in avenues
     search = avenues["Partner / Background"]["search"]
     assert search.get("color_identity") == "WUBRG"  # partners aren't color-restricted
-    assert "partner" in (search.get("oracle") or "").lower()
+    # Ishai has plain partner (CR 702.124h): the search keeps cards that pair with it.
+    assert search.get("partner_of") == [["plain", ""]]
 
 
 def test_partner_avenue_hidden_when_slot_filled():

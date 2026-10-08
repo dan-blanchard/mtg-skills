@@ -16,9 +16,10 @@ three classes are inert strings under ``from __future__ import annotations``
 
 from __future__ import annotations
 
-from collections.abc import Callable, Iterator
+import re
+from collections.abc import Callable, Iterable, Iterator
 from dataclasses import fields
-from typing import TYPE_CHECKING, Any, NamedTuple
+from typing import TYPE_CHECKING, Any, Literal, NamedTuple
 
 from mtg_utils._card_ir.mirror.runtime import (
     MISSING,
@@ -934,6 +935,13 @@ def _node_raw(node: TypedMirrorNode) -> str:
 
 
 # ── trigger-event derivation (provenance: phase ``mode`` + zone/recipient) ─────
+
+
+#: The derived trigger events that fire as a permanent enters (CR 603.6a: "When
+#: [this object] enters, ..." / "Whenever a [type] enters, ..."): a plain enters
+#: event, and the compound ``entersorattacks`` ("Whenever this creature enters or
+#: attacks" -- its enters event is an ETB per 603.6a).
+ENTERS_EVENTS: frozenset[str] = frozenset({"enters", "entersorattacks"})
 
 
 def _trigger_event(trig: TypedMirrorNode) -> str:
@@ -2875,7 +2883,7 @@ def is_creature_etb_trigger_def(trig: object) -> bool:
     """
     if not isinstance(trig, TypedMirrorNode):
         return False
-    if _trigger_event(trig) not in ("enters", "entersorattacks"):
+    if _trigger_event(trig) not in ENTERS_EVENTS:
         return False
     return "Creature" in filter_core_types(getattr(trig, "valid_card", None))
 
@@ -3713,3 +3721,622 @@ def hand_size_scopes(root: object) -> tuple[str, ...]:
                 continue
             out.append(_scope_from_player_node(player) or "any")
     return tuple(out)
+
+
+# ── self searches (CR 701.23a) ────────────────────────────────────────────────
+# The shared search-your-library walks: the tutor / ramp lanes
+# (``tree_synthesis.mana_ramp_lands``) and card_classify's land-search reads both
+# go through them.
+
+_TUTOR_DIRECTED_PLAYER_TAGS = frozenset(
+    {
+        "ParentTarget",
+        "Player",
+        "Target",
+        "Opponent",
+        "Opponents",
+        "EachOpponent",
+        "TriggeringPlayer",
+        "ScopedPlayer",
+        "ParentTargetController",
+        "ParentObjectTargetController",
+    }
+)
+_TUTOR_NON_SELF_ABILITY_SCOPE = frozenset(
+    {
+        "All",
+        "AllExcept",
+        "EachPlayer",
+        "Opponent",
+        "Opponents",
+        "EachOpponent",
+        "ParentTargetController",
+        "ParentObjectTargetController",
+    }
+)
+_TUTOR_SIBLING_RECIPIENT_CONCEPTS = frozenset(
+    {"gain_life", "lose_life", "draw", "discard"}
+)
+# A bespoke non-SearchLibrary effect tag phase uses for a still-genuine own-
+# library search (Teacher's Pet's Augment-combine); mapped to concept "tutor"
+# in the crosswalk (crosswalk.EFFECT_CONCEPTS) alongside SearchLibrary.
+TUTOR_EFFECT_TAGS = frozenset({"SearchLibrary", "ChooseAugmentAndCombineWithHost"})
+
+
+def tutor_ability_body(unit: AbilityUnit) -> TypedMirrorNode | None:
+    """The execute-shaped ability body carrying ``ability_tag`` /
+    ``player_scope`` -- a trigger/replacement unit wraps its real ability body
+    one level down in ``.execute`` (``AbilityUnit.node`` is the OUTER trigger/
+    replacement wrapper for those origins); an ``ability``-origin unit's own
+    node already IS that body."""
+    if unit.origin in ("trigger", "replacement"):
+        ex = getattr(unit.node, "execute", MISSING)
+        return ex if isinstance(ex, TypedMirrorNode) else None
+    return unit.node
+
+
+def _searcher_is_self(tp: object) -> bool | None:
+    """Whose library a ``SearchLibrary``'s own ``target_player`` names: ``True``
+    for you (``Typed`` You/Controller), ``False`` for another player (Player/
+    Target/Opponent(s)/TriggeringPlayer/ScopedPlayer/ParentTarget(Controller)),
+    ``None`` when it names nobody (absent -- the default searcher is you) or an
+    unknown shape."""
+    if tp is MISSING or tp is None:
+        return None
+    t = tag_of(tp)
+    if t in _TUTOR_DIRECTED_PLAYER_TAGS:
+        return False
+    if t == "Typed":
+        return getattr(tp, "controller", None) in ("You", "Controller")
+    return None
+
+
+def _unit_search_vetoed(unit: AbilityUnit) -> bool:
+    """The whole-unit vetoes on a self search: a symmetric/opponent-scoped
+    ability (``player_scope`` on the execute body -- Old-Growth Dryads'
+    ``Opponent``, Weird Harvest's ``All``), or a sibling gain_life/lose_life/
+    draw/discard effect naming another player (Restorative Technique's "target
+    player gains 2 life, then searches their library" -- the search itself
+    carries no recipient, inheriting the preceding effect's)."""
+    body = tutor_ability_body(unit)
+    ps_tag = tag_of(getattr(body, "player_scope", None)) if body else None
+    if ps_tag in _TUTOR_NON_SELF_ABILITY_SCOPE:
+        return True
+    return any(
+        c.concept in _TUTOR_SIBLING_RECIPIENT_CONCEPTS
+        and explicit_recipient_scope(c.node) in ("opponents", "each", "any")
+        for c in unit.effects
+    )
+
+
+def _is_cycling_search(unit: AbilityUnit) -> bool:
+    """A Cycling/Landcycling/Typecycling reminder-granted search (``ability_tag``
+    Cycling -- CR 702.29e: "[Type]cycling" searches for a [type] card and puts it
+    into your hand; CR 702.29a: it functions only from your hand)."""
+    return tag_of(getattr(tutor_ability_body(unit), "ability_tag", None)) == "Cycling"
+
+
+def unit_is_self_tutor(unit: AbilityUnit) -> bool | None:
+    """Whether THIS unit's tutor concept(s) search YOUR OWN library (CR
+    701.23a), or ``None`` if the unit carries no tutor concept at all.
+
+    Four vetoes, all typed: (1) a Cycling/Landcycling/Typecycling reminder-
+    granted search (:func:`_is_cycling_search` -- a keyword reminder is not a
+    deliberate tutor); (2)/(3) :func:`_unit_search_vetoed`; (4) the search's
+    own ``target_player`` (:func:`_searcher_is_self`). A unit MAY carry more
+    than one SearchLibrary (Sadistic Sacrament's directed find-and-exile chains
+    a second, recipient-less SearchLibrary for "the rest") -- if ANY search in
+    the unit is directed, the WHOLE unit is (they share one targeted-player
+    action chain). :func:`land_searches` judges each search on its own."""
+    tutors = [
+        c
+        for c in unit.effects
+        if c.concept == "tutor" and tag_of(c.node) in TUTOR_EFFECT_TAGS
+    ]
+    if not tutors:
+        return None
+    if _is_cycling_search(unit) or _unit_search_vetoed(unit):
+        return False
+    saw_self = False
+    for c in tutors:
+        tp = getattr(c.node, "target_player", MISSING)
+        verdict = _searcher_is_self(tp)
+        if verdict is False:
+            return False
+        if verdict is True or tp is MISSING or tp is None:
+            saw_self = True
+        # unknown target_player shape -- never guess either way for THIS node
+    return saw_self or None
+
+
+#: CR 205.3i's full land-type list, lowercased. The one copy: the land-animate
+#: lanes' narrower set (``lanes/_shared._LAND_SUBTYPE_WORDS``) is derived from it.
+LAND_SUBTYPE_WORDS: frozenset[str] = frozenset(
+    {
+        "cave",
+        "desert",
+        "forest",
+        "gate",
+        "island",
+        "lair",
+        "locus",
+        "mine",
+        "mountain",
+        "plains",
+        "planet",
+        "power-plant",
+        "sphere",
+        "swamp",
+        "tower",
+        "town",
+        "urza's",
+    }
+)
+
+
+def _has_basic_supertype(filt: object) -> bool:
+    return any(
+        tag_of(p) == "HasSupertype" and getattr(p, "value", None) == "Basic"
+        for p in (getattr(filt, "properties", None) or ())
+    )
+
+
+def search_filter_land_facts(f: object) -> tuple[bool, bool] | None:
+    """``(can_fetch_land, fetches_only_lands)`` for a ``SearchLibrary``
+    filter, or ``None`` when phase left the filter unresolved (a bare ``Any``
+    -- Planar Engineering's "four basic land cards"; an empty ``Typed`` --
+    Wild Endeavor's dice-scaled count). Landish = a ``Land`` core type, a CR
+    205.3i land-subtype word, or a ``HasSupertype Basic`` property (CR
+    305.6); land-ONLY additionally requires no nonland core type / nonland
+    subtype disjunct (Archdruid's Charm's Or(Creature, Land) can fetch a
+    creature, so it is landish but never land-only)."""
+    t = tag_of(f)
+    if t in ("Or", "And"):
+        subs = [
+            search_filter_land_facts(x) for x in (getattr(f, "filters", None) or ())
+        ]
+        subs = [s for s in subs if s is not None]
+        if not subs:
+            return None
+        can = any(c for c, _ in subs)
+        only = all(o for _, o in subs) if t == "Or" else any(o for _, o in subs)
+        return can, only
+    if t != "Typed":
+        return None
+    cores = set(filter_core_types(f))
+    subtys = {s.lower() for s in filter_subtypes(f)}
+    basic = _has_basic_supertype(f)
+    if not cores and not subtys and not basic:
+        return None
+    landish = bool("Land" in cores or (subtys & LAND_SUBTYPE_WORDS) or basic)
+    only = (
+        landish and not (cores - {"Land", "Card"}) and not (subtys - LAND_SUBTYPE_WORDS)
+    )
+    return landish, only
+
+
+def iter_search_landings(unit: AbilityUnit) -> Iterator[tuple[str, bool]]:
+    """``(destination, enters_tapped)`` for every place the UNIT's searched
+    card(s) can land: the search node's own ``split`` (Cultivate's
+    one-to-battlefield-tapped / rest-to-hand) plus every ``ChangeZone`` in the
+    unit whose origin is ``Library`` (the plain "put that card into X"
+    continuation) or absent with an ``Any`` / ``ParentTarget`` target (the
+    conditional-continuation shape phase emits for "put it onto the battlefield
+    tapped if it's a land card" -- an origin-less ChangeZone chained onto the
+    search's own result)."""
+    for n in iter_typed_nodes(unit.node):
+        t = tag_of(n)
+        if t == "SearchLibrary":
+            split = getattr(n, "split", MISSING)
+            if split is not MISSING and split is not None:
+                primary = getattr(split, "primary_destination", None)
+                if isinstance(primary, str):
+                    yield primary, getattr(split, "primary_enter_tapped", None) is True
+                rest = getattr(split, "rest_destination", None)
+                if isinstance(rest, str):
+                    yield rest, False
+        elif t == "ChangeZone":
+            origin = getattr(n, "origin", MISSING)
+            if origin is not MISSING and origin is not None:
+                if origin != "Library":
+                    continue
+            elif tag_of(getattr(n, "target", None)) not in (
+                "Any",
+                "ParentTarget",
+            ):
+                continue
+            d = getattr(n, "destination", None)
+            if isinstance(d, str):
+                yield d, getattr(n, "enter_tapped", None) is True
+
+
+# ── land searches and mana colours (card_classify's IR reads) ─────────────────
+# ``card_classify.color_sources`` / ``land_fetch_profile`` / ``is_fixing_land``
+# and the tuner's fixing read go through these, never oracle text.
+
+#: The basic land types and the mana each one's intrinsic ability adds (CR 305.6:
+#: "An object with the land card type and a basic land type has the intrinsic
+#: ability '{T}: Add [mana symbol]'" -- Plains {W}, Island {U}, Swamp {B},
+#: Mountain {R}, Forest {G}).
+BASIC_LAND_TYPE_COLORS: dict[str, str] = {
+    "Plains": "W",
+    "Island": "U",
+    "Swamp": "B",
+    "Mountain": "R",
+    "Forest": "G",
+}
+_MANA_COLOR_LETTER: dict[str, str] = {
+    "White": "W",
+    "Blue": "U",
+    "Black": "B",
+    "Red": "R",
+    "Green": "G",
+    "Colorless": "C",
+}
+_FIVE_COLORS: frozenset[str] = frozenset("WUBRG")
+
+#: What a land search can find, colour-wise: the colours its basic land types
+#: name, ``"any_basic"`` for a basic land of any type (resolved against the
+#: deck's own basics), or ``"any"`` for any land card.
+type LandColors = frozenset[str] | Literal["any", "any_basic"]
+
+
+def _merge_land_colors(
+    parts: Iterable[LandColors],
+) -> LandColors:
+    """The union of several :data:`LandColors` (``"any"`` > ``"any_basic"`` > the
+    named colours)."""
+    named: set[str] = set()
+    basic = False
+    for p in parts:
+        if p == "any":
+            return "any"
+        if p == "any_basic":
+            basic = True
+        elif isinstance(p, frozenset):
+            named |= p
+    return "any_basic" if basic else frozenset(named)
+
+
+def land_search_colors(filt: object) -> LandColors | None:
+    """The colours of mana a land found by a ``SearchLibrary`` filter can make,
+    or ``None`` when the filter can't find a land (or phase left it unresolved
+    -- see :func:`search_filter_land_facts`).
+
+    A filter naming basic land types (Wood Elves' "Forest card", Farseek's
+    "Plains, Island, Swamp, or Mountain card", Krosan Verge's "a Forest card and
+    a Plains card") reads those types' colours (CR 305.6); a basic land with no
+    type named (Evolving Wilds, Cultivate) is ``"any_basic"`` (CR 205.4c: a basic
+    land is one with the basic supertype); any land card (Sylvan Scrying, Knight
+    of the Reliquary) is ``"any"``. A filter naming only non-basic land types
+    (a Gate, a Desert) names no colour: an empty set. ``Or`` / ``And`` widen to
+    the broadest arm (Archdruid's Charm's creature-or-land reads its land arm)."""
+    t = tag_of(filt)
+    if t in ("Or", "And"):
+        arms = [land_search_colors(x) for x in (getattr(filt, "filters", None) or ())]
+        found = [a for a in arms if a is not None]
+        return _merge_land_colors(found) if found else None
+    facts = search_filter_land_facts(filt)
+    if facts is None or not facts[0]:
+        return None
+    subtypes = filter_subtypes(filt)
+    if subtypes:
+        return frozenset(
+            BASIC_LAND_TYPE_COLORS[s] for s in subtypes if s in BASIC_LAND_TYPE_COLORS
+        )
+    return "any_basic" if _has_basic_supertype(filt) else "any"
+
+
+#: Phase's "any number" search count is i32::MAX (Nissa, Who Shakes the World's
+#: -8: "any number of Forest cards"); a read caps it at a whole deck's worth.
+SEARCH_COUNT_CAP = 99
+
+
+def _count_value(node: object, field: str = "count") -> int | None:
+    """``field``'s fixed magnitude (:func:`amount_factor`), unwrapping an ``UpTo``
+    to its ``max``; None when dynamic or absent."""
+    if not isinstance(node, TypedMirrorNode):
+        return None
+    if has_fixed_count(node, field):
+        return amount_factor(node, field)
+    q = getattr(node, field, MISSING)
+    if _present(q) and tag_of(q) == "UpTo":
+        return _count_value(q, "max")
+    return None
+
+
+def search_count(node: TypedMirrorNode) -> int:
+    """How many cards a ``SearchLibrary`` puts where it puts them: a ``split``'s
+    primary count when only the primary pile goes to the battlefield (Cultivate's
+    one of two), else the search's own count (``Fixed`` / ``UpTo`` max). A
+    dynamic count (Settle the Wreckage's "that many") reads 1; "any number"
+    reads :data:`SEARCH_COUNT_CAP`."""
+    split = getattr(node, "split", MISSING)
+    if _present(split) and getattr(split, "rest_destination", None) != getattr(
+        split, "primary_destination", None
+    ):
+        primary = getattr(split, "primary_count", None)
+        if isinstance(primary, int) and getattr(split, "primary_destination", None) == (
+            "Battlefield"
+        ):
+            return min(primary, SEARCH_COUNT_CAP)
+    n = _count_value(node)
+    return min(n, SEARCH_COUNT_CAP) if n is not None and n > 0 else 1
+
+
+def is_self_enters_trigger(unit: AbilityUnit) -> bool:
+    """Whether UNIT is a trigger that fires when the card ITSELF enters: an
+    enters event watching ``SelfRef`` -- never another permanent entering (Deep
+    Gnome Terramancer's "whenever one or more lands enter under an opponent's
+    control", a landfall trigger)."""
+    if unit.origin != "trigger" or unit.trigger_event not in ENTERS_EVENTS:
+        return False
+    return tag_of(getattr(unit.node, "valid_card", None)) == "SelfRef"
+
+
+class LandSearch(NamedTuple):
+    """One of YOUR land searches (CR 701.23a), one per ability unit."""
+
+    colors: LandColors  # what it can find (see land_search_colors)
+    count: int  # lands it puts onto your battlefield (see _battlefield_count)
+    to_battlefield: bool  # some found land can enter the battlefield
+    enters_tapped: bool  # a land it puts onto the battlefield enters tapped
+    on_self_etb: bool  # it rides the card's own enters trigger
+    cycling: bool  # a landcycling search: from your hand, into your hand
+
+
+def _self_searches(unit: AbilityUnit) -> list[TypedMirrorNode]:
+    """The unit's ``SearchLibrary`` effects that search YOUR library, judged one
+    search at a time along the effect chain. A search's own ``target_player``
+    decides (:func:`_searcher_is_self`); a recipient-less search is read off the
+    ``Shuffle`` that closes its leg (Demolition Field's "You may search your
+    library ..., then shuffle" closes on ``Controller``, after the opponent's
+    ``ParentTargetController`` leg); with neither it continues the leg before it
+    (Sadistic Sacrament's kicked "instead search that player's library" -- the
+    whole-unit continuation :func:`unit_is_self_tutor` describes). The first leg
+    with no recipient defaults to you."""
+    out: list[TypedMirrorNode] = []
+    verdict = True
+    current: TypedMirrorNode | None = None
+    pending: bool | None = None
+
+    def close() -> None:
+        nonlocal verdict
+        if current is None:
+            return
+        verdict = verdict if pending is None else pending
+        if verdict:
+            out.append(current)
+
+    for c in unit.effects:
+        t = tag_of(c.node)
+        if t == "SearchLibrary":
+            close()
+            current = c.node
+            pending = _searcher_is_self(getattr(c.node, "target_player", MISSING))
+        elif t == "Shuffle" and current is not None and pending is None:
+            tgt = tag_of(getattr(c.node, "target", None))
+            if tgt in _TUTOR_DIRECTED_PLAYER_TAGS:
+                pending = False
+            elif tgt in ("Controller", "You"):
+                pending = True
+    close()
+    return out
+
+
+def _rolled_battlefield_count(roll: TypedMirrorNode, found: int) -> int:
+    """The EXPECTED number of found lands a die roll's result rows put onto the
+    battlefield, rounded (Druid of the Emerald Grove's d20: 1-9 none, 10-19 one,
+    20 both -- 0.45x0 + 0.50x1 + 0.05x2 = 0.6, so 1). A row's single-card
+    ``ChangeZone`` moves one land, a ``ChangeZoneAll`` every land found. Rows
+    phase left unreadable count 1."""
+    sides = getattr(roll, "sides", None)
+    rows = getattr(roll, "results", None)
+    if not isinstance(sides, int) or sides <= 0 or not isinstance(rows, list):
+        return 1
+    expected = 0.0
+    for row in rows:
+        lo, hi = getattr(row, "min", MISSING), getattr(row, "max", MISSING)
+        lo = lo if isinstance(lo, int) else 1
+        if not isinstance(hi, int):
+            return 1
+        faces = max(0, min(hi, sides) - max(lo, 1) + 1)
+        landed = 0
+        for n in iter_typed_nodes(getattr(row, "effect", None)):
+            if getattr(n, "destination", None) != "Battlefield":
+                continue
+            if tag_of(n) == "ChangeZoneAll":
+                landed += found
+            elif tag_of(n) == "ChangeZone":
+                landed += 1
+        expected += faces / sides * min(landed, found)
+    return round(expected)
+
+
+#: Phase v0.94.0 loses Verdant Mastery's piles: "Put one of them onto the
+#: battlefield tapped under an opponent's control if the {3}{G} cost was paid.
+#: Put two of them onto the battlefield tapped under your control and the rest
+#: into your hand" parses as uncounted battlefield moves plus a ``ChangeZoneAll``
+#: of the revealed cards onto YOUR battlefield (the hand pile). The size of your
+#: pile survives only in the ability's own text. Gated on that shape;
+#: guarded by ``test_verdant_mastery_piles_are_still_lost_canary``.
+_YOUR_PILE_RE = re.compile(
+    r"\bput (one|two|three|four|five) of them onto the battlefield tapped "
+    r"under your control",
+    re.IGNORECASE,
+)
+_PILE_WORDS = {"one": 1, "two": 2, "three": 3, "four": 4, "five": 5}
+
+
+def lost_pile_count(unit: AbilityUnit) -> int | None:
+    """Your battlefield pile's size where phase lost it (see ``_YOUR_PILE_RE``):
+    a ``ChangeZoneAll`` of the revealed cards (``TrackedSet``) onto the
+    battlefield under you, beside a library ``ChangeZone`` onto the battlefield
+    under you, read from the ability's own description. None otherwise."""
+    nodes = list(iter_typed_nodes(unit.node))
+    rest_onto_yours = any(
+        tag_of(n) == "ChangeZoneAll"
+        and tag_of(getattr(n, "target", None)) == "TrackedSet"
+        and getattr(n, "destination", None) == "Battlefield"
+        and getattr(n, "enters_under", None) == "You"
+        for n in nodes
+    )
+    library_onto_yours = any(
+        tag_of(n) == "ChangeZone"
+        and getattr(n, "origin", None) == "Library"
+        and getattr(n, "destination", None) == "Battlefield"
+        and getattr(n, "enters_under", None) == "You"
+        for n in nodes
+    )
+    if not (rest_onto_yours and library_onto_yours):
+        return None
+    m = _YOUR_PILE_RE.search(str(getattr(unit.node, "description", "") or ""))
+    return _PILE_WORDS[m.group(1).lower()] if m else None
+
+
+def _battlefield_count(unit: AbilityUnit, search: TypedMirrorNode) -> int:
+    """How many found lands ``search`` puts onto YOUR battlefield: a die roll's
+    expected rows (:func:`_rolled_battlefield_count`), a pile phase lost
+    (:func:`lost_pile_count`), else :func:`search_count`."""
+    found = search_count(search)
+    roll = next(
+        (n for n in iter_typed_nodes(unit.node) if tag_of(n) == "RollDie"), None
+    )
+    if roll is not None:
+        return _rolled_battlefield_count(roll, found)
+    pile = lost_pile_count(unit)
+    return pile if pile is not None else found
+
+
+def land_searches(tree: ConceptTree) -> tuple[LandSearch, ...]:
+    """Every unit of TREE that searches YOUR library for a land.
+
+    Each search is judged on its own (:func:`_self_searches`): an opponent's
+    compensation search (Path to Exile, Assassin's Trophy, Ghost Quarter, Settle
+    the Wreckage) is not yours, while Demolition Field's own search after the
+    opponent's is. A symmetric or another-player-scoped ability is vetoed whole
+    (:func:`_unit_search_vetoed`). A landcycling search is yours but flagged
+    ``cycling`` (CR 702.29a/e: from your hand, into your hand). The count is the
+    unit's FIRST self search, the base clause: Primal Growth's "if this spell was
+    kicked, instead search for up to two" rides a later, condition-gated search."""
+    out: list[LandSearch] = []
+    for unit in tree.units:
+        if not any(tag_of(c.node) == "SearchLibrary" for c in unit.effects):
+            continue
+        if _unit_search_vetoed(unit):
+            continue
+        found = [
+            (node, colors)
+            for node in _self_searches(unit)
+            if (colors := land_search_colors(getattr(node, "filter", None))) is not None
+        ]
+        if not found:
+            continue
+        landings = list(iter_search_landings(unit))
+        out.append(
+            LandSearch(
+                colors=_merge_land_colors(colors for _n, colors in found),
+                count=_battlefield_count(unit, found[0][0]),
+                to_battlefield=any(d == "Battlefield" for d, _t in landings),
+                enters_tapped=any(d == "Battlefield" and t for d, t in landings),
+                on_self_etb=is_self_enters_trigger(unit),
+                cycling=_is_cycling_search(unit),
+            )
+        )
+    return tuple(out)
+
+
+def produced_colors(node: TypedMirrorNode) -> frozenset[str] | Literal["any"]:
+    """The mana a ``Mana`` effect's ``produced`` spec can add, as colour letters
+    (``"C"`` for colorless -- CR 106.1b's six types), or ``"any"``.
+
+    ``Fixed`` / ``Mixed`` name their colours; ``AnyOneColor`` / ``AnyCombination``
+    their ``color_options`` (Arcane Sanctum's {W}, {U}, or {B}; all five reads
+    ``"any"``); a filter land's ``ChoiceAmongCombinations`` (Cascade Bluffs'
+    {U}{U}, {U}{R}, or {R}{R}) the union of its options. A chosen colour and
+    every deck- or board-dependent kind (Command Tower's commander identity,
+    Exotic Orchard, Mox Amber, Chrome Mox, Reflecting Pool) read ``"any"``.
+    ``TriggerEventManaType`` (Mana Flare's "one mana of any type that land
+    produced") only repeats the triggering mana, so it names no colour."""
+    p = getattr(node, "produced", MISSING)
+    if not _present(p):
+        return frozenset()
+    t = tag_of(p)
+
+    def letters(names: object) -> frozenset[str]:
+        out = {
+            _MANA_COLOR_LETTER[n]
+            for n in (names if isinstance(names, list) else ())
+            if isinstance(n, str) and n in _MANA_COLOR_LETTER
+        }
+        return frozenset(out)
+
+    if t == "Fixed":
+        return letters(getattr(p, "colors", None))
+    if t == "Mixed":
+        cl = getattr(p, "colorless_count", 0)
+        return letters(getattr(p, "colors", None)) | (
+            frozenset("C") if isinstance(cl, int) and cl > 0 else frozenset()
+        )
+    if t == "Colorless":
+        return frozenset("C")
+    if t in ("AnyOneColor", "AnyCombination"):
+        got = letters(getattr(p, "color_options", None))
+        return "any" if got >= _FIVE_COLORS else got
+    if t == "ChoiceAmongCombinations":
+        opts = getattr(p, "options", None) or []
+        got = frozenset().union(*(letters(o) for o in opts if isinstance(o, list)))
+        return "any" if got >= _FIVE_COLORS else got
+    if t == "TriggerEventManaType":
+        return frozenset()
+    return "any"
+
+
+def mana_colors(tree: ConceptTree) -> frozenset[str] | Literal["any"]:
+    """Every colour of mana the card's own ``Mana`` effects add (see
+    :func:`produced_colors`). Reads each unit's resolved effects only, so an
+    activation cost's ``Mana`` payment (Cascade Bluffs' {U/R}) and a created
+    token's own ability are never the card's: a Treasure maker (Smothering Tithe,
+    Dockside Extortionist) is not a mana source of its own -- CR 111.10a: the
+    Treasure token is the object with the "Add one mana of any color" ability.
+    See :func:`_own_mana_effects`."""
+    out: set[str] = set()
+    for node in _own_mana_effects(tree):
+        got = produced_colors(node)
+        if got == "any":
+            return "any"
+        out |= got
+    if not out and any(CIRCLED_COLORS_RESIDUE in r for r in tree.residues()):
+        return "any"
+    return frozenset(out)
+
+
+#: Phase v0.94.0 parks Cryptic Spires' mana ability ("Add one mana of either of the
+#: circled colors") as an ``Unimplemented`` residue, so its trees carry no ``Mana``
+#: node. Its rulings: "You circle two colors as you put Cryptic Spires into your deck
+#: before any games begin" — a deck-dependent producer, read ``"any"`` like Command
+#: Tower. Guarded by ``test_cryptic_spires_mana_is_still_a_residue_canary``.
+CIRCLED_COLORS_RESIDUE = "Add one mana of either of the circled colors"
+
+
+def _own_mana_effects(tree: ConceptTree) -> Iterator[TypedMirrorNode]:
+    """The ``Mana`` effects the card's own abilities resolve: each unit's effect
+    chain, plus a mana ability the card grants ITSELF (a static def ``affected:
+    SelfRef`` -- Urza's Saga's chapter I "This Saga gains '{T}: Add {C}.'"). A
+    grant to other permanents (The World Tree's lands, Sachi's Shamans) is
+    theirs, not the card's."""
+    for unit in tree.units:
+        for c in unit.effects:
+            if tag_of(c.node) == "Mana":
+                yield c.node
+        for sdef in unit.static_defs():
+            if tag_of(getattr(sdef, "affected", None)) != "SelfRef":
+                continue
+            for kind, body in iter_nested_granted_bodies(sdef):
+                eff = getattr(body, "effect", None)
+                if (
+                    kind == "ability"
+                    and isinstance(eff, TypedMirrorNode)
+                    and tag_of(eff) == "Mana"
+                ):
+                    yield eff

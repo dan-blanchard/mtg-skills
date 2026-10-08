@@ -101,6 +101,7 @@ _EXPLORE_KEYS = (
     "cmc_max",
     "price_min",
     "price_max",
+    "partner_of",
 )
 # The ranked-candidate pool the Find surface ranks over; the route windows the caller's
 # page size into it, so this bounds how deep "Show more" can page on one request.

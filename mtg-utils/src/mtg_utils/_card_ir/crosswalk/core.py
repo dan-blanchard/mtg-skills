@@ -453,6 +453,30 @@ class ConceptTree:
     # the field is a whole-card deck-construction property, not tied to any
     # one ability.
     many_copies: bool = False
+    # The bound of an ``UpTo`` copy limit ("A deck can have up to seven cards
+    # named Seven Dwarves" — ``UpTo{data: 7}``), None otherwise. With
+    # ``many_copies`` it splits the relaxation three ways: unlimited
+    # (``many_copies`` and no cap — Relentless Rats), capped (Seven Dwarves 7,
+    # Nazgûl 9), or none. ``UpTo:1`` (Vazal's Megalegendary) carries cap 1 with
+    # ``many_copies`` False. ``card_classify.named_card_cap`` /
+    # ``has_any_number_exemption`` read it for ``legality_audit.card_copy_limit``.
+    deck_copy_cap: int | None = None
+    # The card's printed partner abilities (CR 702.124a), one per ``Partner``
+    # keyword on ``root.keywords``: ``(variant, data)`` — ``("Generic", "")``,
+    # ``("With", "Rory Williams")``, ``("FriendsForever", "")``,
+    # ``("CharacterSelect", "")``, ``("ChooseABackground", "")``,
+    # ``("DoctorsCompanion", "")``, and ``("Group", "Survivors")`` for a
+    # partner—[text] group phase collapses to Generic (corrected at build, see
+    # ``PARTNER_GROUPS_PHASE_COLLAPSES``). A card may print two (Amy Pond: Doctor's
+    # companion AND partner with Rory Williams — CR 702.124g). Root-level like
+    # ``card_enchant_core_types``: no ability unit carries it.
+    card_partner_kinds: tuple[tuple[str, str], ...] = ()
+    # Phase's ``root.is_commander``: whether the card can be your commander in the
+    # Commander variant -- a legendary creature, Vehicle or Spacecraft (CR 903.3),
+    # or a card whose own text says it can (Teferi, Temporal Archmage; Grist, the
+    # Hunger Tide, per its ruling). ``card_classify.is_commander`` reads it for the
+    # text half.
+    can_be_commander: bool = False
     # ADR-0039 grammar sprint (task #82, deepening-start-minimal): a modal
     # SPELL's card-root ``modal.mode_descriptions`` (CR 700.2 "choose one"),
     # positionally paired with ``root.abilities`` — the REAL per-mode English
@@ -1199,6 +1223,27 @@ def _nested_static_concepts(
     return tuple(out)
 
 
+#: The partner—[text] groups phase v0.94.0 collapses to ``Partner{Generic}``
+#: (both Ellies, Joel, Abby: "Partner—Survivors"; Kratos, Stoic Father and Atreus:
+#: "Partner—Father & son"). CR 702.124f: different partner abilities can't be
+#: combined, so read as plain they would wrongly pair with every partner card. The
+#: group is read off the card's own ``Partner—`` line, only where phase says
+#: Generic, and served as ``("Group", name)`` to every reader. Guarded by
+#: ``test_survivors_partner_is_still_generic_canary``.
+PARTNER_GROUPS_PHASE_COLLAPSES = ("Survivors", "Father & son")
+
+
+def _corrected_partner_kind(
+    variant: str, data: object, oracle: object
+) -> tuple[str, str]:
+    if variant == "Generic" and isinstance(oracle, str):
+        for line in oracle.splitlines():
+            for group in PARTNER_GROUPS_PHASE_COLLAPSES:
+                if line.startswith(f"Partner\u2014{group}"):
+                    return "Group", group
+    return variant, data if isinstance(data, str) else ""
+
+
 def build_concept_tree(
     root: TypedMirrorNode, *, name: str = "", oracle_id: str = ""
 ) -> ConceptTree:
@@ -1239,13 +1284,16 @@ def build_concept_tree(
     # ``deck_copy_limit`` union (mirrors old-IR ``card_ir._allows_many_copies``).
     dcl = getattr(root, "deck_copy_limit", None)
     many_copies = False
+    deck_copy_cap: int | None = None
     if isinstance(dcl, TypedMirrorNode):
         dcl_tag = tag_of(dcl)
         if dcl_tag == "Unlimited":
             many_copies = True
         elif dcl_tag == "UpTo":
             dcl_data = getattr(dcl, "data", None)
-            many_copies = isinstance(dcl_data, int) and dcl_data >= 2
+            if isinstance(dcl_data, int):
+                deck_copy_cap = dcl_data
+                many_copies = dcl_data >= 2
     # task #87: the card's own printed ``Enchant`` keyword filter's core
     # type words (see ``ConceptTree.card_enchant_core_types``'s own
     # docstring) — a root-level array, never surfaced by any per-ability
@@ -1257,6 +1305,22 @@ def build_concept_tree(
             if isinstance(kw, MirrorVariant) and kw.key == "Enchant":
                 card_enchant_core_types = filter_core_types(kw.inner)
                 break
+    card_partner_kinds: list[tuple[str, str]] = []
+    for kw in kws_root if isinstance(kws_root, list) else ():
+        if not isinstance(kw, MirrorVariant) or kw.key != "Partner":
+            continue
+        variant = tag_of(kw.inner)
+        if variant:
+            card_partner_kinds.append(
+                _corrected_partner_kind(
+                    variant,
+                    getattr(kw.inner, "data", ""),
+                    getattr(root, "oracle_text", None),
+                )
+            )
+    # Phase's own Commander-eligibility verdict (``root.is_commander``; see the
+    # ``ConceptTree.can_be_commander`` field).
+    can_be_commander = getattr(root, "is_commander", None) is True
     card_curve_costs = tuple(
         cost
         for kw in (kws_root if isinstance(kws_root, list) else ())
@@ -1480,6 +1544,9 @@ def build_concept_tree(
         has_printed_cost=has_printed_cost,
         oracle=oracle if isinstance(oracle, str) else "",
         many_copies=many_copies,
+        deck_copy_cap=deck_copy_cap,
+        card_partner_kinds=tuple(card_partner_kinds),
+        can_be_commander=can_be_commander,
         card_modal_mode_descriptions=card_modal_mode_descriptions,
         card_enchant_core_types=card_enchant_core_types,
         card_curve_costs=card_curve_costs,

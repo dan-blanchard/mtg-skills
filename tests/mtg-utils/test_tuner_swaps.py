@@ -134,6 +134,18 @@ def test_is_fixing_counts_basic_land_fetch():
     assert _is_fixing(sol_ring) is False  # colorless rock
 
 
+def test_is_fixing_reads_the_land_search_off_the_trees():
+    # Any land card (Sylvan Scrying) can find any land: fixing. A single basic land
+    # type ("a Forest card", Three Visits) is mono-color ramp. An opponent's
+    # compensation search (Path to Exile) isn't yours.
+    scrying = _real_cc("Sylvan Scrying", "spine", roles=("ramp",))
+    three_visits = _real_cc("Three Visits", "spine", roles=("ramp",))
+    path = _real_cc("Path to Exile", "spine", roles=("removal",))
+    assert _is_fixing(scrying) is True
+    assert _is_fixing(three_visits) is False
+    assert _is_fixing(path) is False
+
+
 def test_over_band_ramp_cut_keeps_basic_land_fetch_over_colorless_rock():
     # ramp over by 1; the cut must trim the redundant colorless rock, not the basic-land
     # fetch that fixes the deck's colors. Kodama is the LEAST-played (rank 900 vs 40) so

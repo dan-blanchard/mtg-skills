@@ -6,6 +6,7 @@ import random
 import pytest
 from click.testing import CliRunner
 
+from mtg_utils._card_ir.crosswalk import SEARCH_COUNT_CAP
 from mtg_utils._playtest_common import render_goldfish_markdown
 from mtg_utils.card_classify import land_fetch_profile
 from mtg_utils.playtest import (
@@ -204,27 +205,36 @@ class TestLandFetchMana:
         fetch = land_fetch_profile(self._fetch_land(), deck_basic_colors=self.BASICS)
         assert fetch.enters_tapped is True
 
-    def test_enters_tapped_sentence_templating_is_detected(self):
-        # The newer wording: "put it onto the battlefield. It enters tapped."
-        card = _hydrated_card(
-            "Modern Fetch",
-            type_line="Land",
-            oracle_text=(
-                "{T}, Sacrifice this land: Search your library for a basic land "
-                "card and put it onto the battlefield. It enters tapped."
-            ),
+    def test_split_search_reads_its_battlefield_pile(self):
+        # Cultivate: "put one onto the battlefield tapped and the other into your
+        # hand" — phase's split puts ONE land onto the battlefield, tapped.
+        fetch = land_fetch_profile(
+            test_card("Cultivate"), deck_basic_colors=self.BASICS
         )
-        assert land_fetch_profile(card, deck_basic_colors=self.BASICS).enters_tapped
+        assert fetch.to_battlefield is True
+        assert fetch.enters_tapped is True
+        assert fetch.count == 1
 
     def test_search_to_hand_is_not_a_mana_source(self):
         # Only "onto the battlefield" yields mana now; a tutor-to-hand does not.
-        # Ash Barrens's only basic-land search (basic landcycling) goes to hand,
-        # and its direct mana is colorless.
-        to_hand = test_card("Ash Barrens")
-        fetch = land_fetch_profile(to_hand, deck_basic_colors=self.BASICS)
+        fetch = land_fetch_profile(
+            test_card("Sylvan Scrying"), deck_basic_colors=self.BASICS
+        )
         assert fetch is not None
         assert fetch.to_battlefield is False
+
+    def test_landcycling_is_not_a_land_fetch(self):
+        # Ash Barrens's only basic-land search is basic landcycling, which puts the
+        # card into your HAND (CR 702.29e) — no fetch profile, colorless direct mana.
+        to_hand = test_card("Ash Barrens")
+        assert land_fetch_profile(to_hand, deck_basic_colors=self.BASICS) is None
         assert _land_produces(to_hand, self.BASICS) == []
+
+    def test_opponent_compensation_search_is_not_yours(self):
+        # Path to Exile / Ghost Quarter: the searching player is the target's
+        # controller, not you.
+        for name in ("Path to Exile", "Ghost Quarter", "Settle the Wreckage"):
+            assert land_fetch_profile(test_card(name)) is None, name
 
     def test_direct_mana_still_wins(self):
         dual = test_card("Mirkwood")
@@ -263,22 +273,97 @@ class TestLandFetchCount:
         card = test_card("Explosive Vegetation")
         assert land_fetch_profile(card, deck_basic_colors=self.BASICS).count == 2
 
-    def test_tapped_scan_is_scoped_to_the_fetch_clause(self):
-        # An unrelated later sentence about putting a land onto the battlefield
-        # tapped must not delay THIS fetch, which arrives untapped.
-        card = _hydrated_card(
-            "Two Abilities",
-            oracle_text=(
-                "When this creature enters, search your library for a Forest "
-                "card, put that card onto the battlefield, then shuffle. "
-                "Whenever you cycle a card, put a land from your hand onto the "
-                "battlefield tapped."
-            ),
+    def test_tapped_read_is_scoped_to_the_fetch(self):
+        # Grasslands itself enters tapped, but the land it fetches does not.
+        fetch = land_fetch_profile(
+            test_card("Grasslands"), deck_basic_colors=self.BASICS
         )
-        assert (
-            land_fetch_profile(card, deck_basic_colors=self.BASICS).enters_tapped
-            is False
+        assert fetch.enters_tapped is False
+        assert fetch.colors == frozenset({"G", "W"})
+
+    def test_krosan_verge_finds_a_forest_and_a_plains(self):
+        fetch = land_fetch_profile(
+            test_card("Krosan Verge"), deck_basic_colors=self.BASICS
         )
+        assert fetch.colors == frozenset({"G", "W"})
+        assert fetch.count == 2
+        assert fetch.enters_tapped is True
+
+    def test_kicked_upgrade_is_not_the_base_count(self):
+        # Primal Growth: "If this spell was kicked, instead search for up to two" —
+        # the base search finds one.
+        fetch = land_fetch_profile(
+            test_card("Primal Growth"), deck_basic_colors=self.BASICS
+        )
+        assert fetch.count == 1
+
+    def test_any_number_is_capped(self):
+        # Nissa, Who Shakes the World's -8: "any number of Forest cards" (phase's
+        # unbounded count).
+        fetch = land_fetch_profile(
+            test_card("Nissa, Who Shakes the World"), deck_basic_colors=self.BASICS
+        )
+        assert fetch.count == SEARCH_COUNT_CAP
+        assert fetch.colors == frozenset({"G"})
+
+    def test_each_basic_land_type(self):
+        fetch = land_fetch_profile(test_card("Gaea's Balance"))
+        assert fetch.colors == frozenset("WUBRG")
+        assert fetch.count == 5
+        assert fetch.to_battlefield is True
+
+
+class TestEtbFetcher:
+    """``on_etb`` is the card's OWN enters trigger (CR 603.6a)."""
+
+    def test_enters_or_attacks_fires_on_entering(self):
+        # "Whenever this creature enters or attacks" triggers as it enters.
+        for name in ("Primeval Herald", "Lumbering Worldwagon"):
+            assert land_fetch_profile(test_card(name)).on_etb is True, name
+
+    def test_another_permanent_entering_is_not_self_etb(self):
+        # Deep Gnome Terramancer: "Whenever one or more lands enter under an
+        # opponent's control without being played" — not its own entering.
+        fetch = land_fetch_profile(test_card("Deep Gnome Terramancer"))
+        assert fetch.on_etb is False
+        assert fetch.to_battlefield is True
+
+    def test_activated_fetch_is_not_etb(self):
+        # Khalni Heart Expedition's search is an activated ability; its landfall
+        # trigger only adds quest counters.
+        assert land_fetch_profile(test_card("Khalni Heart Expedition")).on_etb is False
+
+    def test_conditional_battlefield_landings(self):
+        # Each can put the land onto the battlefield (a die roll, an opponent's
+        # land count, a Dragon, the alternative cost): phase's conditional
+        # continuation is a battlefield destination.
+        for name in (
+            "Druid of the Emerald Grove",
+            "Stoic Farmer",
+            "Embermouth Sentinel",
+            "Verdant Mastery",
+        ):
+            fetch = land_fetch_profile(test_card(name))
+            assert fetch.to_battlefield is True, name
+            assert fetch.enters_tapped is True, name
+
+    def test_die_roll_counts_its_expected_landings(self):
+        # Druid of the Emerald Grove's d20: 1-9 both basics to hand, 10-19 one onto
+        # the battlefield, 20 both — 0.45x0 + 0.50x1 + 0.05x2 = 0.6, so one land.
+        assert land_fetch_profile(test_card("Druid of the Emerald Grove")).count == 1
+
+    def test_only_your_pile_counts(self):
+        # Verdant Mastery: "Put two of them onto the battlefield tapped under your
+        # control and the rest into your hand" — two of the four.
+        assert land_fetch_profile(test_card("Verdant Mastery")).count == 2
+
+    def test_your_search_after_the_opponents_is_yours(self):
+        # Demolition Field: the opponent's compensation search comes first, then
+        # "You may search your library for a basic land card, put it onto the
+        # battlefield".
+        fetch = land_fetch_profile(test_card("Demolition Field"))
+        assert fetch is not None
+        assert fetch.to_battlefield is True
 
 
 class TestUnresolvedFetchWarning:

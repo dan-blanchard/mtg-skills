@@ -10,7 +10,6 @@ existing search + ranking (ADR-0023).
 
 from __future__ import annotations
 
-import re
 from collections import Counter
 from collections.abc import Callable, Collection, Mapping, Sequence
 from dataclasses import dataclass
@@ -30,9 +29,9 @@ from mtg_utils._tuner.issues import (
 )
 from mtg_utils.card_classify import (
     extract_price,
-    get_oracle_text,
     is_basic_land,
     is_land,
+    land_search_fixes,
 )
 from mtg_utils.deck import split_type_line
 from mtg_utils.formats import Coverage, Format
@@ -65,19 +64,6 @@ def _fills_short_role(card: CardClass, budgets: dict) -> bool:
     )
 
 
-# Basic-land FETCH is color fixing even though the spell produces no battlefield mana
-# itself (produced_mana is empty on a sorcery): a generic "basic land" search lets you
-# fetch the color you need, and a multi-type land-name search (Farseek) grabs 2+ types.
-# Single-type fetches ("a Forest card") are mono-color ramp, not fixing — excluded.
-_LAND_FETCH_FIXING_RE = re.compile(
-    r"search your library for[^.]*\bbasic land"
-    r"|search your library for[^.]*"
-    r"(?:plains|island|swamp|mountain|forest)[^.]*"
-    r"(?:plains|island|swamp|mountain|forest)",
-    re.IGNORECASE,
-)
-
-
 def _is_fixing(card: CardClass) -> bool:
     """A ramp source that fixes COLORS — a premium dork/rock/land-fetch the deck's mana
     base leans on (Birds of Paradise, Arcane Signet, Kodama's Reach). It reads as ramp,
@@ -87,11 +73,14 @@ def _is_fixing(card: CardClass) -> bool:
     Fixing = produces ≥2 colors of battlefield mana, OR is a basic-land fetch (which
     produces no mana itself but retrieves the color the deck needs — produced_mana would
     miss it, so the worse 2-color rock was being protected while the any-basic fetcher,
-    which fixes ALL the deck's colors, was cut first)."""
+    which fixes ALL the deck's colors, was cut first).
+
+    A land search fixes by ``card_classify.land_search_fixes`` (the one rule
+    ``is_fixing_land`` reads too)."""
     produced = card.record.get("produced_mana") or []
     if len({c for c in produced if c in "WUBRG"}) >= 2:
         return True
-    return bool(_LAND_FETCH_FIXING_RE.search(get_oracle_text(card.record).lower()))
+    return land_search_fixes(card.record)
 
 
 def cut_candidates(

@@ -5,6 +5,7 @@ broadest color-openers surface first."""
 
 from fastapi.testclient import TestClient
 
+from mtg_utils import card_classify
 from mtg_utils._card_ir import compat_lookup as _ir_lookup
 from mtg_utils._card_ir import trees
 from mtg_utils._card_ir.crosswalk import ConceptTree
@@ -66,6 +67,8 @@ def _text_only_tree(card: dict) -> ConceptTree:
         card_supertypes=("Legendary",) if "legendary" in type_words else (),
         cmc=int(card.get("cmc") or 0),
         oracle=card.get("oracle_text") or "",
+        # The partner avenue reads phase's Partner keyword (card_classify).
+        card_partner_kinds=(("Generic", ""),),
     )
 
 
@@ -81,11 +84,12 @@ def _client(monkeypatch):
         c["oracle_id"]: (_text_only_tree(c),) for c in (PAIR_LORD, WIDE, MONO)
     }
     monkeypatch.setattr(_ir_lookup, "_crosswalk_index", lambda: ir_index)
-    monkeypatch.setattr(
-        trees,
-        "trees_for",
-        lambda card, bulk=None, **_kw: trees_index.get(card.get("oracle_id") or "", ()),  # noqa: ARG005
-    )
+
+    def fake_trees_for(card, bulk=None, **_kw):  # noqa: ARG001
+        return trees_index.get(card.get("oracle_id") or "", ())
+
+    monkeypatch.setattr(trees, "trees_for", fake_trees_for)
+    monkeypatch.setattr(card_classify, "trees_for", fake_trees_for)
     session = DeckSession("commander")
     session.add("Pair Lord", zone="commanders")
     state = ForgeState(

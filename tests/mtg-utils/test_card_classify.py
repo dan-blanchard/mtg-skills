@@ -3,14 +3,19 @@
 import re
 
 from mtg_utils.card_classify import (
+    PartnerAbility,
     build_card_lookup,
+    can_partner,
     classify_cube_category,
     color_sources,
     get_oracle_text,
+    has_any_number_exemption,
     is_commander,
     is_creature,
+    is_fixing_land,
     is_land,
-    partner_ability,
+    named_card_cap,
+    partner_abilities,
     ramp_by_text,
     valid_partner_search,
 )
@@ -294,6 +299,46 @@ class TestColorSources:
         card = test_card("Plains")
         assert color_sources(card) == {"W"}
 
+    def test_every_listed_color(self):
+        """ "Add {W}, {U}, or {B}" is all three colours — the old text read stopped at
+        the first symbol and reported {W} alone."""
+        assert color_sources(test_card("Arcane Sanctum")) == {"W", "U", "B"}
+        assert color_sources(test_card("Noble Hierarch")) == {"G", "W", "U"}
+        assert color_sources(test_card("Obelisk of Grixis")) == {"U", "B", "R"}
+
+    def test_filter_land_reads_its_combinations(self):
+        """Cascade Bluffs: {T}: Add {C}, or {U/R}, {T}: Add {U}{U}, {U}{R}, or {R}{R} —
+        blue and red, not "any"."""
+        assert color_sources(test_card("Cascade Bluffs")) == {"U", "R"}
+
+    def test_any_one_color_of_several(self):
+        """ "Add three mana of any one color" (Lotus Field) is any colour."""
+        assert color_sources(test_card("Lotus Field")) == {"any"}
+
+    def test_mentioning_mana_is_not_producing_it(self):
+        """Trinisphere's "less than three mana" names no mana it adds."""
+        assert color_sources(test_card("Trinisphere")) == set()
+
+    def test_treasure_maker_is_not_a_color_source(self):
+        """The Treasure token is the object with the mana ability (CR 111.10a); a
+        one-shot sacrifice is ramp, not a colour source (this module's own decision)."""
+        assert color_sources(test_card("Smothering Tithe")) == set()
+        assert color_sources(test_card("Deadly Dispute")) == set()
+
+    def test_landcycling_adds_no_color(self):
+        """Basic landcycling puts the land into your hand (CR 702.29e); Ash Barrens's
+        own mana is colorless."""
+        assert color_sources(test_card("Ash Barrens")) == {"C"}
+
+    def test_cryptic_spires_reads_any(self):
+        """Cryptic Spires' two colours are circled as it goes into the deck (its
+        rulings) — a deck-dependent producer, like Command Tower."""
+        assert color_sources(test_card("Cryptic Spires")) == {"any"}
+
+    def test_self_granted_mana_ability(self):
+        """Urza's Saga chapter I: "This Saga gains '{T}: Add {C}.'"."""
+        assert color_sources(test_card("Urza's Saga")) == {"C"}
+
 
 class TestColorSourcesFetchLands:
     def test_polluted_delta(self):
@@ -320,13 +365,64 @@ class TestColorSourcesFetchLands:
         card = test_card("Seething Landscape")
         assert color_sources(card) == {"U", "B", "R"}
 
-    def test_basic_land_type_fetch(self):
-        """Verify 'basic Mountain card' wording is handled."""
-        card = {
-            "type_line": "Land",
-            "oracle_text": "{T}, Pay 1 life, Sacrifice this land: Search your library for a basic Mountain card, put it onto the battlefield tapped, then shuffle.",
-        }
-        assert color_sources(card) == {"R"}
+    def test_two_named_types(self):
+        """Krosan Verge finds "a Forest card and a Plains card"; its own mana is {C}."""
+        assert color_sources(test_card("Krosan Verge")) == {"G", "W"}
+
+    def test_opponents_search_is_not_yours(self):
+        """Ghost Quarter's basic land goes to the destroyed land's controller."""
+        assert color_sources(test_card("Ghost Quarter")) == {"C"}
+
+
+class TestFixingLand:
+    def test_dual_and_any_color_lands_fix(self):
+        for name in (
+            "Overgrown Tomb",
+            "Command Tower",
+            "Lotus Field",
+            "Cryptic Spires",
+        ):
+            assert is_fixing_land(test_card(name)) is True, name
+
+    def test_fetch_land_fixes(self):
+        assert is_fixing_land(test_card("Evolving Wilds")) is True
+
+    def test_landcycling_any_basic_fixes(self):
+        """Ash Barrens' basic landcycling puts a basic of your choice into your hand
+        (CR 702.29e): a colour found, whatever the destination."""
+        assert is_fixing_land(test_card("Ash Barrens")) is True
+
+    def test_your_search_after_the_opponents(self):
+        """Demolition Field: "That land's controller may search their library ...
+        You may search your library for a basic land card, put it onto the
+        battlefield" — the second search is yours."""
+        field = test_card("Demolition Field")
+        assert color_sources(field) == {"any"}
+        assert is_fixing_land(field) is True
+
+    def test_mono_and_colorless_lands_do_not(self):
+        for name in ("Forest", "Ancient Tomb", "Ghost Quarter"):
+            assert is_fixing_land(test_card(name)) is False, name
+
+
+class TestCopyLimitExemptions:
+    """CR 100.2a's four-of rule; the rulings of each card say its last ability
+    "lets you ignore the 'four-of' rule"."""
+
+    def test_any_number(self):
+        rats = test_card("Relentless Rats")
+        assert has_any_number_exemption(rats) is True
+        assert named_card_cap(rats) is None
+
+    def test_up_to_n(self):
+        assert has_any_number_exemption(test_card("Seven Dwarves")) is False
+        assert named_card_cap(test_card("Seven Dwarves")) == 7
+        assert named_card_cap(test_card("Nazgûl")) == 9
+
+    def test_ordinary_card(self):
+        elves = test_card("Llanowar Elves")
+        assert has_any_number_exemption(elves) is False
+        assert named_card_cap(elves) is None
 
 
 class TestIsCommander:
@@ -367,28 +463,28 @@ class TestIsCommander:
         assert result == {"eligible": True, "requires_partner": False}
 
     def test_can_be_your_commander_text(self):
-        card = {
-            "type_line": "Legendary Enchantment",
-            "oracle_text": "This card can be your commander.",
-        }
+        card = test_card("Teferi, Temporal Archmage")
         result = is_commander(card)
         assert result == {"eligible": True, "requires_partner": False}
 
     def test_choose_a_background(self):
-        card = {
-            "type_line": "Legendary Creature — Human Ranger",
-            "oracle_text": "Choose a Background",
-        }
+        card = test_card("Wilson, Refined Grizzly")
         result = is_commander(card)
         assert result == {"eligible": True, "requires_partner": True}
 
-    def test_choose_a_background_non_creature(self):
-        card = {
-            "type_line": "Legendary Enchantment",
-            "oracle_text": "Choose a Background\nSome other text.",
-        }
-        result = is_commander(card)
-        assert result == {"eligible": True, "requires_partner": True}
+    def test_can_be_your_commander_read_by_phase(self):
+        """Grist, the Hunger Tide's ruling: it "can be your commander as its first
+        ability works before the game begins during deck construction" — phase's
+        own verdict, where the old "can be your commander" text read missed it."""
+        card = test_card("Grist, the Hunger Tide")
+        assert is_commander(card) == {"eligible": True, "requires_partner": False}
+
+    def test_plain_planeswalker_needs_the_brawl_flag(self):
+        card = test_card("Chandra, Torch of Defiance")
+        assert is_commander(card)["eligible"] is False
+        assert is_commander(card, planeswalker_commander_requires_text=False)[
+            "eligible"
+        ]
 
     def test_legendary_background_enchantment(self):
         card = {"type_line": "Legendary Enchantment — Background"}
@@ -408,61 +504,33 @@ class TestIsCommander:
 
 class TestClassifyCubeCategory:
     def test_mono_white(self):
-        card = {
-            "type_line": "Creature — Human Knight",
-            "color_identity": ["W"],
-            "oracle_text": "",
-        }
+        card = test_card("Savannah Lions")
         assert classify_cube_category(card) == "W"
 
     def test_mono_red_instant(self):
-        card = {
-            "type_line": "Instant",
-            "color_identity": ["R"],
-            "oracle_text": "Deal 3 damage to any target.",
-        }
+        card = test_card("Lightning Bolt")
         assert classify_cube_category(card) == "R"
 
     def test_multicolor(self):
-        card = {
-            "type_line": "Creature — Human Warrior",
-            "color_identity": ["W", "R"],
-            "oracle_text": "",
-        }
+        card = test_card("Lightning Helix")
         assert classify_cube_category(card) == "M"
 
     def test_multicolor_three_color(self):
-        card = {
-            "type_line": "Creature — Sliver",
-            "color_identity": ["W", "U", "B"],
-            "oracle_text": "",
-        }
+        card = test_card("Esper Charm")
         assert classify_cube_category(card) == "M"
 
     def test_colorless_non_fixing_artifact(self):
         """Plain colorless artifact with no mana production → C."""
-        card = {
-            "type_line": "Artifact",
-            "color_identity": [],
-            "oracle_text": "",
-        }
+        card = test_card("Sensei's Divining Top")
         assert classify_cube_category(card) == "C"
 
     def test_colorless_creature(self):
-        card = {
-            "type_line": "Artifact Creature — Construct",
-            "color_identity": [],
-            "oracle_text": "",
-        }
+        card = test_card("Ornithopter")
         assert classify_cube_category(card) == "C"
 
     def test_mana_producing_land(self):
         """A mono-color land that taps for mana → L (mana-producing land)."""
-        card = {
-            "type_line": "Land",
-            "color_identity": ["R"],
-            "oracle_text": "{T}: Add {R}.",
-        }
+        card = test_card("Castle Embereth")
         assert classify_cube_category(card) == "L"
 
     def test_dual_land_goes_to_land_bucket(self):
@@ -489,12 +557,19 @@ class TestClassifyCubeCategory:
         assert classify_cube_category(card) == "F"
 
     def test_colorless_land_is_land_bucket(self):
-        card = {
-            "type_line": "Land",
-            "color_identity": [],
-            "oracle_text": "{T}: Add {C}.",
-        }
+        card = test_card("Ancient Tomb")
         assert classify_cube_category(card) == "L"
+
+    def test_any_one_color_land_is_land_bucket(self):
+        """Lotus Field taps for "three mana of any one color" → L (the old text read
+        missed the number-word wording and filed it under F)."""
+        assert classify_cube_category(test_card("Lotus Field")) == "L"
+
+    def test_cryptic_spires_is_land_bucket(self):
+        assert classify_cube_category(test_card("Cryptic Spires")) == "L"
+
+    def test_self_granted_mana_is_land_bucket(self):
+        assert classify_cube_category(test_card("Urza's Saga")) == "L"
 
     def test_basic_land_is_land_bucket(self):
         """A basic with no oracle text still produces mana via its type line → L.
@@ -547,11 +622,7 @@ class TestClassifyCubeCategory:
 
     def test_multicolor_non_fixing(self):
         """Multicolor creature that doesn't produce mana or fetch → M."""
-        card = {
-            "type_line": "Legendary Creature — Human Soldier",
-            "color_identity": ["W", "R"],
-            "oracle_text": "Whenever this creature attacks, create a 1/1 white Soldier token.",
-        }
+        card = test_card("Aurelia, the Warleader")
         assert classify_cube_category(card) == "M"
 
 
@@ -628,65 +699,111 @@ class TestBuildCardLookup:
 class TestPartnerAbility:
     """Partner pairing variants (CR 702.124) drive the deck-forge partner avenue."""
 
-    def _ce(self, name, type_line, oracle):
-        return {"name": name, "type_line": type_line, "oracle_text": oracle}
-
     def test_plain_partner(self):
+        # CR 702.124h: pairs with another card that has partner.
         c = test_card("Ishai, Ojutai Dragonspeaker")
-        assert partner_ability(c) == {"kind": "plain", "value": ""}
-        s = valid_partner_search(c)
-        assert "partner \\(you can have two commanders" in s["oracle"]
+        assert partner_abilities(c) == {PartnerAbility("plain")}
+        assert valid_partner_search(c)["partner_of"] == [["plain", ""]]
+        assert can_partner([("plain", "")], test_card("Thrasios, Triton Hero"))
 
     def test_partner_with_named_card_only(self):
-        # CR 702.124j: pairs ONLY with the named card, even though it also carries the
-        # bare `partner` keyword — the specific variant must win.
+        # CR 702.124j / 702.124f: pairs ONLY with the named card, never with a plain
+        # partner.
         c = test_card("Krav, the Unredeemed")
-        pa = partner_ability(c)
-        assert pa["kind"] == "with"
-        assert pa["value"] == "Regna, the Redeemer"
-        assert valid_partner_search(c)["name"] == "Regna, the Redeemer"
+        assert partner_abilities(c) == {PartnerAbility("with", "Regna, the Redeemer")}
+        search = valid_partner_search(c)["partner_of"]
+        assert can_partner(search, test_card("Regna, the Redeemer"))
+        assert not can_partner(search, test_card("Thrasios, Triton Hero"))
 
     def test_partner_group_same_group_only(self):
+        # CR 702.124i: each must have the SAME partner—[text] ability.
         c = test_card("Atreus, Impulsive Son")
-        pa = partner_ability(c)
-        assert pa["kind"] == "group"
-        assert pa["value"] == "Father & son"
-        # the search isolates the same group (won't match Partner—Character select).
-        s = valid_partner_search(c)
-        assert re.search(s["oracle"], "Partner—Father & son (...)", re.IGNORECASE)
-        assert not re.search(
-            s["oracle"], "Partner—Character select (...)", re.IGNORECASE
+        assert partner_abilities(c) == {PartnerAbility("group", "Father & son")}
+        search = valid_partner_search(c)["partner_of"]
+        assert can_partner(search, test_card("Kratos, Stoic Father"))
+        assert not can_partner(search, test_card("Leonardo, the Balance"))
+        assert not can_partner(search, test_card("Thrasios, Triton Hero"))
+
+    def test_survivors_never_pair_with_plain_partner(self):
+        # CR 702.124f: partner—Survivors and partner are distinct abilities.
+        ellie = test_card("Ellie, Vengeful Hunter")
+        assert partner_abilities(ellie) == {PartnerAbility("group", "Survivors")}
+        search = valid_partner_search(ellie)["partner_of"]
+        assert can_partner(search, test_card("Joel, Resolute Survivor"))
+        assert not can_partner(search, test_card("Thrasios, Triton Hero"))
+        assert not can_partner([("plain", "")], ellie)
+
+    def test_phase_named_groups(self):
+        c = test_card("Cecily, Haunted Mage")
+        assert partner_abilities(c) == {PartnerAbility("group", "Friends forever")}
+        assert can_partner(
+            valid_partner_search(c)["partner_of"],
+            test_card("Bjorna, Nightfall Alchemist"),
         )
+        assert partner_abilities(test_card("Leonardo, the Balance")) == {
+            PartnerAbility("group", "Character select")
+        }
 
     def test_choose_a_background_pairs_with_backgrounds(self):
         c = test_card("Wilson, Refined Grizzly")
-        assert partner_ability(c)["kind"] == "choose_background"
-        assert valid_partner_search(c)["card_type"] == "Background"
+        assert partner_abilities(c) == {PartnerAbility("choose_background")}
+        search = valid_partner_search(c)["partner_of"]
+        assert can_partner(search, test_card("Far Traveler"))
+        assert not can_partner(search, test_card("Thrasios, Triton Hero"))
 
     def test_background_pairs_with_choosers(self):
         c = test_card("Far Traveler")
-        assert partner_ability(c)["kind"] == "background"
-        assert "choose a background" in valid_partner_search(c)["oracle"]
+        assert partner_abilities(c) == {PartnerAbility("background")}
+        assert can_partner(
+            valid_partner_search(c)["partner_of"], test_card("Wilson, Refined Grizzly")
+        )
+
+    def test_background_that_chooses_a_background(self):
+        # Faceless One's ruling: it "both has choose a Background and is itself a
+        # Background".
+        assert partner_abilities(test_card("Faceless One")) == {
+            PartnerAbility("background"),
+            PartnerAbility("choose_background"),
+        }
 
     def test_doctors_companion_pairs_with_doctors(self):
+        # CR 702.124m: a legendary Time Lord Doctor creature card with no other
+        # creature types.
         c = test_card("Sarah Jane Smith")
-        assert partner_ability(c)["kind"] == "doctors_companion"
-        assert valid_partner_search(c)["card_type"] == "Time Lord Doctor"
+        assert partner_abilities(c) == {PartnerAbility("doctors_companion")}
+        assert can_partner(
+            valid_partner_search(c)["partner_of"], test_card("The Tenth Doctor")
+        )
 
     def test_time_lord_doctor_pairs_with_companions(self):
         c = test_card("The Tenth Doctor")
-        assert partner_ability(c)["kind"] == "doctor"
-        assert "doctor's companion" in valid_partner_search(c)["oracle"]
+        assert partner_abilities(c) == {PartnerAbility("doctor")}
+        assert can_partner(
+            valid_partner_search(c)["partner_of"], test_card("Sarah Jane Smith")
+        )
+
+    def test_two_partner_abilities(self):
+        # Amy Pond's rulings: two partner abilities; she uses one or the other (CR
+        # 702.124g).
+        amy = test_card("Amy Pond")
+        assert partner_abilities(amy) == {
+            PartnerAbility("doctors_companion"),
+            PartnerAbility("with", "Rory Williams"),
+        }
+        search = valid_partner_search(amy)["partner_of"]
+        assert can_partner(search, test_card("Rory Williams"))
+        assert can_partner(search, test_card("The Tenth Doctor"))
+        assert not can_partner(search, test_card("Thrasios, Triton Hero"))
+
+    def test_a_saga_is_no_companion(self):
+        assert partner_abilities(test_card("An Unearthly Child")) == frozenset()
 
     def test_no_partner_ability(self):
         c = test_card("Llanowar Elves")
-        assert partner_ability(c)["kind"] is None
+        assert partner_abilities(c) == frozenset()
         assert valid_partner_search(c) is None
 
     def test_partner_searches_are_color_agnostic(self):
         # Legal partners aren't restricted by color identity (CR 702.124c union).
-        for c in (
-            self._ce("X", "Legendary Creature — Bird", "Partner (You can have ...)"),
-            self._ce("Y", "Legendary Creature — Demon", "Partner with Regna ()"),
-        ):
-            assert valid_partner_search(c)["color_identity"] == "WUBRG"
+        for name in ("Ishai, Ojutai Dragonspeaker", "Krav, the Unredeemed"):
+            assert valid_partner_search(test_card(name))["color_identity"] == "WUBRG"

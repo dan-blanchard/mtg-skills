@@ -29,12 +29,12 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   - `_analysis/ranking.py` (~7): `_TRIGGER_RE` / `_REWARD_RE` / `_ACTIVATED_RE` /
     `_STRONG_REWARD_RE` / `_STATIC_PAYOFF_RE` / `_TRIBAL_GATE_RE` clause-role reads.
   - `_analysis/roles.py`: `_PROTECT_GRANT` / `_PROTECT_SAVE` (`protects`).
-  - `_tuner/`: `bracket._EXTRA_TURN_RE`, `metrics`' closer and reach templates,
-    `swaps._LAND_FETCH_FIXING_RE`.
+  - `_tuner/`: `bracket._EXTRA_TURN_RE`, `metrics`' closer and reach templates.
   - `deck_stats._detect_alternative_costs`: phase's keywords carry the costs
     (`ConceptTree.card_curve_costs` already reads the curve ones).
-  - `card_classify.py` (~20): the text helpers; keep only the documented no-coverage
-    degrades (`ramp_by_text`) and retire the rest behind their IR equivalents.
+  - `find_commanders._is_partner` / `_partner_with_target`: read
+    `card_classify.partner_abilities` instead of the oracle (the `Partner—[text]`
+    groups and Doctor's companion are already there).
 - **Two commander-multiplier gaps.** Syr Konrad's trigger reads as `ChangesZone` with
   no zones (a phase gap), so `_analysis/multipliers` can't match a dies doubler to it;
   report upstream rather than work around it. And `trees.object_facts` reads printed

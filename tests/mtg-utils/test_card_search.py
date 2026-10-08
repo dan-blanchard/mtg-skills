@@ -1240,3 +1240,43 @@ class TestFilterRecords:
         )
         with pytest.raises(TypeError):
             filter_records(cards, fmt=FORMATS["sealed"], format="sealed")
+
+
+class TestPartnerOfFilter:
+    """``partner_of`` (``card_classify.valid_partner_search``) keeps the cards that
+    can be a card's second commander (CR 702.124) — a predicate, not an oracle
+    regex."""
+
+    def _pool(self):
+        return [
+            test_card("Thrasios, Triton Hero"),
+            test_card("Ellie, Vengeful Hunter"),
+            test_card("Joel, Resolute Survivor"),
+            test_card("Regna, the Redeemer"),
+            test_card("Llanowar Elves"),
+        ]
+
+    def test_plain_partner_finds_plain_partners_only(self):
+        names = {
+            c["name"]
+            for c in filter_records(
+                self._pool(),
+                fmt=FORMATS["commander"],
+                color_identity="WUBRG",
+                partner_of=[["plain", ""]],
+            )
+        }
+        # Survivors don't pair with plain partner (CR 702.124f).
+        assert names == {"Thrasios, Triton Hero"}
+
+    def test_survivors_find_survivors(self):
+        names = {
+            c["name"]
+            for c in filter_records(
+                self._pool(),
+                fmt=FORMATS["commander"],
+                color_identity="WUBRG",
+                partner_of=[["group", "Survivors"]],
+            )
+        }
+        assert names == {"Ellie, Vengeful Hunter", "Joel, Resolute Survivor"}

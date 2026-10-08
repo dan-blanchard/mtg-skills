@@ -540,10 +540,11 @@ class Format:
     ) -> dict:
         """``{"eligible", "requires_partner"}`` for this format: legality (a pre-release
         legend counts, so brewing around a spoiled commander works) composed with the
-        type-line / oracle-text rules in ``card_classify.is_commander``, under this
-        format's planeswalker rule (the Brawl family admits any legendary planeswalker;
-        Commander needs "can be your commander"). A format with no command zone has
-        no commanders: nothing is eligible, however legendary."""
+        type-line / phase-tree rules in ``card_classify.is_commander``, under this
+        format's planeswalker rule (the Brawl family admits any legendary
+        planeswalker, CR 903.12c; Commander needs "can be your commander"). A format
+        with no command zone has no commanders: nothing is eligible, however
+        legendary."""
         if not self.has_commander:
             return {"eligible": False, "requires_partner": False}
         status = self.legality(record, unreleased=unreleased)

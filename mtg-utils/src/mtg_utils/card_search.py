@@ -15,6 +15,7 @@ from mtg_utils._name_index import keep_cheaper
 from mtg_utils.bulk_loader import bulk_mtime, load_bulk_cards
 from mtg_utils.card_classify import (
     SKIP_LAYOUTS,
+    can_partner,
     color_identity_subset,
     extract_price,
     get_oracle_text,
@@ -142,6 +143,7 @@ def _matches_filters(
     is_commander_filter: bool = False,
     presets: tuple[Preset, ...] = (),
     set_lower: str | None = None,
+    partner_of: Sequence[Sequence[str]] | None = None,
 ) -> bool:
     # Skip tokens and non-game cards
     if card.get("layout") in SKIP_LAYOUTS:
@@ -208,14 +210,20 @@ def _matches_filters(
     if presets and not all(p.matches(card) for p in presets):
         return False
 
-    if is_commander_filter:
+    if (
+        is_commander_filter
+        and not fmt.commander_eligibility(card, unreleased=unreleased)["eligible"]
+    ):
         # A pre-release legend counts (``commander_eligibility`` admits the
         # ``unreleased`` status) — otherwise "commanders only" AND "include unreleased"
         # together would return nothing, which is exactly the combination someone
         # brewing around a spoiled commander reaches for.
-        return fmt.commander_eligibility(card, unreleased=unreleased)["eligible"]
+        return False
 
-    return True
+    # A second-commander search (``card_classify.valid_partner_search``): the card
+    # must pair with one of these partner abilities (CR 702.124). Last: it reads the
+    # card's trees, which the cheaper checks above spare most of the pool.
+    return partner_of is None or can_partner(partner_of, card)
 
 
 # Cached format-invariant "playable" subsets of bulk, keyed by
@@ -335,6 +343,7 @@ def filter_records(
     is_commander_filter: bool = False,
     preset_names: tuple[str, ...] = (),
     set_code: str | None = None,
+    partner_of: Sequence[Sequence[str]] | None = None,
 ) -> list[dict]:
     """The one filter implementation over an explicit record list: every per-query
     filter ``search_cards`` takes, then the cheapest-printing dedup by name, the sort
@@ -378,6 +387,7 @@ def filter_records(
             is_commander_filter=is_commander_filter,
             presets=presets,
             set_lower=set_code.lower() if set_code else None,
+            partner_of=partner_of,
         )
     ]
 
@@ -439,6 +449,7 @@ def search_cards(
     is_commander_filter: bool = False,
     preset_names: tuple[str, ...] = (),
     set_code: str | None = None,
+    partner_of: Sequence[Sequence[str]] | None = None,
 ) -> list[dict]:
     """Search bulk data for cards matching all specified filters.
 
@@ -451,6 +462,11 @@ def search_cards(
     ``set_code`` narrows to one set's printings (``--set HOB``) — what a set holds, for
     a limited scan; it runs on every printing before the cheapest-printing dedup, so a
     reprint's other sets never leak in.
+
+    ``partner_of`` keeps only the cards that can pair, as a second commander, with
+    a card holding those partner abilities (``card_classify.valid_partner_search``
+    builds it; CR 702.124) — a predicate over each card's trees, not an oracle
+    regex.
     """
     fmt = get_format(format) if format is not None else FORMATS["commander"]
 
@@ -512,6 +528,7 @@ def search_cards(
         is_commander_filter=is_commander_filter,
         preset_names=preset_names,
         set_code=set_code,
+        partner_of=partner_of,
     )
 
 

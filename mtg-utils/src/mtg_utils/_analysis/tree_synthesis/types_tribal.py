@@ -36,6 +36,7 @@ from mtg_utils._analysis.tree_synthesis._shared import (
     _synthetic_concept,
 )
 from mtg_utils._card_ir.crosswalk import (
+    LAND_SUBTYPE_WORDS,
     ConceptNode,
     ConceptTree,
     change_zone_dirs,
@@ -798,25 +799,9 @@ _MANLAND_SYNTH_RX = re.compile(
 _MANLAND_TYPE_CHANGE_VETO_RX = re.compile(
     r"becomes? an? (?:forest|island|swamp|mountain|plains)\b", re.IGNORECASE
 )
-_LAND_SUBTYPE_WORDS_SYNTH: frozenset[str] = frozenset(
-    {
-        "plains",
-        "island",
-        "swamp",
-        "mountain",
-        "forest",
-        "desert",
-        "gate",
-        "lair",
-        "locus",
-        "cave",
-        "mine",
-        "power-plant",
-        "sphere",
-        "tower",
-        "urza's",
-    }
-)
+# CR 205.3i's land types (``crosswalk.LAND_SUBTYPE_WORDS``) less Town and Planet,
+# which postdate this arm (the same set as ``lanes/_shared._LAND_SUBTYPE_WORDS``).
+_LAND_SUBTYPE_WORDS_SYNTH: frozenset[str] = LAND_SUBTYPE_WORDS - {"planet", "town"}
 
 
 def _manland_landish(affected: object) -> bool:

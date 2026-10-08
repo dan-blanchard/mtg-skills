@@ -35,10 +35,14 @@ from mtg_utils._analysis.lanes import (
 )
 from mtg_utils._analysis.signal_trees import as_signal_tree
 from mtg_utils._card_ir.crosswalk import (
+    CIRCLED_COLORS_RESIDUE,
     OTHER,
+    PARTNER_GROUPS_PHASE_COLLAPSES,
     AbilityUnit,
     ConceptTree,
     build_concept_tree,
+    lost_pile_count,
+    tag_of,
 )
 from mtg_utils._card_ir.mirror import strict_load_card
 from mtg_utils._card_ir.mirror.build import load_committed_schema
@@ -50,7 +54,7 @@ from mtg_utils._card_ir.overlay_corrections import (
     apply_overlay_corrections,
     l1_bytes,
 )
-from mtg_utils._card_ir.trees import _text_only_trees
+from mtg_utils._card_ir.trees import _text_only_trees, trees_for
 from mtg_utils.testkit import snapshot_records, test_card, test_phase_records
 
 
@@ -17588,3 +17592,69 @@ def test_combat_choice_makers_excludes(name):
 @pytest.mark.parametrize("name", ["Balance", "Limited Resources"])
 def test_keep_n_wrath_bridge_excludes_land_resets(name):
     assert "keep_n_wrath" not in _keys(name)
+
+
+# ── Retirement canaries for card_classify's crosswalk reads ───────────────────
+
+
+@pytest.mark.retirement_canary
+@pytest.mark.parametrize("name", ["Ellie, Vengeful Hunter", "Atreus, Impulsive Son"])
+def test_survivors_partner_is_still_generic_canary(name):
+    """Retirement canary for ``crosswalk.core.PARTNER_GROUPS_PHASE_COLLAPSES``.
+    Phase v0.94.0 parses partner—Survivors and partner—Father & son as
+    ``Partner{Generic}`` (plain partner), which CR 702.124f keeps apart. When phase
+    gives them their own variants, this fails RETIRE-READY."""
+    rec = _record(name)
+    kinds = [
+        kw["Partner"]
+        for kw in rec.get("keywords") or []
+        if isinstance(kw, dict) and "Partner" in kw
+    ]
+    group = next(g for g in PARTNER_GROUPS_PHASE_COLLAPSES if g in rec["oracle_text"])
+    assert kinds == [{"type": "Generic"}], (
+        "crosswalk.core._corrected_partner_kind: RETIRE-READY — phase now reads "
+        f"{name}'s partner—{group} ability as {kinds}. Map the new variant in "
+        "card_classify._PARTNER_KIND_OF_VARIANT, then delete "
+        "PARTNER_GROUPS_PHASE_COLLAPSES, _corrected_partner_kind and this canary."
+    )
+
+
+@pytest.mark.retirement_canary
+def test_cryptic_spires_mana_is_still_a_residue_canary():
+    """Retirement canary for ``crosswalk.reads.CIRCLED_COLORS_RESIDUE``. Phase
+    v0.94.0 parks Cryptic Spires' mana ability as an ``Unimplemented`` residue, so
+    its trees carry no ``Mana`` effect (and ``mana_colors`` reads the residue as
+    ``"any"``)."""
+    trees = trees_for(test_card("Cryptic Spires"))
+    has_mana_node = any(
+        tag_of(c.node) == "Mana"
+        for tree in trees
+        for u in tree.units
+        for c in u.effects
+    )
+    still_residue = (
+        any(CIRCLED_COLORS_RESIDUE in r for tree in trees for r in tree.residues())
+        and not has_mana_node
+    )
+    assert still_residue, (
+        "crosswalk.reads.mana_colors: RETIRE-READY — phase now parses Cryptic "
+        "Spires' mana ability. Delete CIRCLED_COLORS_RESIDUE, its check in "
+        "mana_colors and this canary."
+    )
+
+
+@pytest.mark.retirement_canary
+def test_verdant_mastery_piles_are_still_lost_canary():
+    """Retirement canary for ``crosswalk.reads.lost_pile_count``. Phase v0.94.0
+    loses Verdant Mastery's piles ("Put two of them onto the battlefield tapped
+    under your control and the rest into your hand"): no count on the battlefield
+    moves, and the hand pile parsed as a ``ChangeZoneAll`` onto your battlefield.
+    When phase counts the piles, the gate stops matching and this fails
+    RETIRE-READY."""
+    (tree,) = trees_for(test_card("Verdant Mastery"))
+    piles = [lost_pile_count(u) for u in tree.units]
+    assert 2 in piles, (
+        "crosswalk.reads.lost_pile_count: RETIRE-READY — phase now parses Verdant "
+        "Mastery's piles. Read your pile's count off the tree, then delete "
+        "lost_pile_count, _YOUR_PILE_RE and this canary."
+    )

@@ -8,6 +8,7 @@ from collections.abc import Sequence
 
 from mtg_utils._analysis.signal_base import Signal
 from mtg_utils._card_ir.crosswalk import (
+    LAND_SUBTYPE_WORDS,
     MASS_EFFECT_TAGS,
     AbilityUnit,
     ConceptNode,
@@ -208,26 +209,10 @@ _FIXING_PRODUCED_TYPES: frozenset[str] = frozenset(
 _REMINDER_RX = re.compile(r"\([^)]*\)")
 
 # Land subtype words the land-animate arms accept when the animated filter
-# names the land by SUBTYPE ("target Forest" — Awakener Druid). CR 205.3i.
-_LAND_SUBTYPE_WORDS: frozenset[str] = frozenset(
-    {
-        "plains",
-        "island",
-        "swamp",
-        "mountain",
-        "forest",
-        "desert",
-        "gate",
-        "lair",
-        "locus",
-        "cave",
-        "mine",
-        "power-plant",
-        "sphere",
-        "tower",
-        "urza's",
-    }
-)
+# names the land by SUBTYPE ("target Forest" — Awakener Druid). CR 205.3i's list
+# (``crosswalk.reads.LAND_SUBTYPE_WORDS``) less Town and Planet, which postdate
+# these arms: widening it would move their population.
+_LAND_SUBTYPE_WORDS: frozenset[str] = LAND_SUBTYPE_WORDS - {"planet", "town"}
 
 
 def _kept(tree: ConceptTree) -> str:

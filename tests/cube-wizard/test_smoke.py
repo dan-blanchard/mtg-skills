@@ -160,66 +160,17 @@ class TestCardClassifyCubeAddition:
 
     def test_categorizes_basic_cases(self):
         from mtg_utils.card_classify import classify_cube_category
+        from mtg_utils.testkit import test_card
 
-        # Multicolor non-fixing creature
-        assert (
-            classify_cube_category(
-                {
-                    "type_line": "Creature",
-                    "color_identity": ["W", "U"],
-                    "oracle_text": "Flying",
-                }
-            )
-            == "M"
-        )
-        # Dual land that taps for mana → L (mana-producing land)
-        assert (
-            classify_cube_category(
-                {
-                    "type_line": "Land — Swamp Forest",
-                    "color_identity": ["B", "G"],
-                    "oracle_text": "{T}: Add {B} or {G}.",
-                }
-            )
-            == "L"
-        )
-        # Fetch land that doesn't tap for mana → F (fixing)
-        assert (
-            classify_cube_category(
-                {
-                    "type_line": "Land",
-                    "color_identity": [],
-                    "oracle_text": "{T}, Sacrifice this land: Search your library for a basic land card, put it onto the battlefield tapped, then shuffle.",
-                }
-            )
-            == "F"
-        )
-        # Mono-color non-fixing instant
-        assert (
-            classify_cube_category(
-                {
-                    "type_line": "Instant",
-                    "color_identity": ["R"],
-                    "oracle_text": "Deal 3 damage to any target.",
-                }
-            )
-            == "R"
-        )
-        # Colorless non-fixing artifact
-        assert (
-            classify_cube_category(
-                {"type_line": "Artifact", "color_identity": [], "oracle_text": ""}
-            )
-            == "C"
-        )
-        # Mana rock → F
-        assert (
-            classify_cube_category(
-                {
-                    "type_line": "Artifact",
-                    "color_identity": [],
-                    "oracle_text": "{T}: Add {C}{C}.",
-                }
-            )
-            == "F"
-        )
+        # multicolor non-fixing
+        assert classify_cube_category(test_card("Lightning Helix")) == "M"
+        # dual land that taps for mana
+        assert classify_cube_category(test_card("Overgrown Tomb")) == "L"
+        # fetch land that doesn't tap for mana
+        assert classify_cube_category(test_card("Evolving Wilds")) == "F"
+        # mono-color non-fixing instant
+        assert classify_cube_category(test_card("Lightning Bolt")) == "R"
+        # colorless non-fixing artifact
+        assert classify_cube_category(test_card("Sensei's Divining Top")) == "C"
+        # mana rock
+        assert classify_cube_category(test_card("Sol Ring")) == "F"

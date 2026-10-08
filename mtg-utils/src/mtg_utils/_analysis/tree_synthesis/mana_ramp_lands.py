@@ -16,12 +16,12 @@ from mtg_utils._analysis.tree_synthesis._shared import (
     _synthetic_concept,
 )
 from mtg_utils._card_ir.crosswalk import (
+    TUTOR_EFFECT_TAGS,
     AbilityUnit,
     ConceptNode,
     ConceptTree,
     change_zone_dirs,
     effect_filter,
-    explicit_recipient_scope,
     filter_controller,
     filter_core_types,
     filter_inzone_zones,
@@ -29,11 +29,15 @@ from mtg_utils._card_ir.crosswalk import (
     has_filter_property,
     iter_cost_leaves,
     iter_nested_trigger_defs,
+    iter_search_landings,
     iter_typed_nodes,
     reveal_until_player,
+    search_filter_land_facts,
     settap_state,
     static_mode_tag,
     tag_of,
+    tutor_ability_body,
+    unit_is_self_tutor,
 )
 from mtg_utils._card_ir.mirror.runtime import (
     MISSING,
@@ -333,112 +337,11 @@ def _arm_untap_engine(tree: ConceptTree) -> ConceptNode | None:
 # :func:`has_structural_tutor` reads all four exclusions off typed fields --
 # the entire Tier-1 structural read, shared verbatim by the ``tutor`` lane and
 # this stage's two gap gates (no drift).
-_TUTOR_DIRECTED_PLAYER_TAGS = frozenset(
-    {
-        "ParentTarget",
-        "Player",
-        "Target",
-        "Opponent",
-        "Opponents",
-        "EachOpponent",
-        "TriggeringPlayer",
-        "ScopedPlayer",
-        "ParentTargetController",
-        "ParentObjectTargetController",
-    }
-)
-_TUTOR_NON_SELF_ABILITY_SCOPE = frozenset(
-    {
-        "All",
-        "AllExcept",
-        "EachPlayer",
-        "Opponent",
-        "Opponents",
-        "EachOpponent",
-        "ParentTargetController",
-        "ParentObjectTargetController",
-    }
-)
-_TUTOR_SIBLING_RECIPIENT_CONCEPTS = frozenset(
-    {"gain_life", "lose_life", "draw", "discard"}
-)
-# A bespoke non-SearchLibrary effect tag phase uses for a still-genuine own-
-# library search (Teacher's Pet's Augment-combine); mapped to concept "tutor"
-# in the crosswalk (crosswalk.EFFECT_CONCEPTS) alongside SearchLibrary.
-_TUTOR_EFFECT_TAGS = frozenset({"SearchLibrary", "ChooseAugmentAndCombineWithHost"})
-
-
-def _tutor_ability_body(unit: AbilityUnit) -> TypedMirrorNode | None:
-    """The execute-shaped ability body carrying ``ability_tag`` /
-    ``player_scope`` -- a trigger/replacement unit wraps its real ability body
-    one level down in ``.execute`` (``AbilityUnit.node`` is the OUTER trigger/
-    replacement wrapper for those origins); an ``ability``-origin unit's own
-    node already IS that body."""
-    if unit.origin in ("trigger", "replacement"):
-        ex = getattr(unit.node, "execute", MISSING)
-        return ex if isinstance(ex, TypedMirrorNode) else None
-    return unit.node
-
-
-def _unit_is_self_tutor(unit: AbilityUnit) -> bool | None:
-    """Whether THIS unit's tutor concept(s) search YOUR OWN library (CR
-    701.23a), or ``None`` if the unit carries no tutor concept at all.
-
-    Four vetoes, all typed: (1) a Cycling/Landcycling/Typecycling reminder-
-    granted search (``ability_tag``); (2) a symmetric/opponent-scoped ability
-    (``player_scope`` on the execute body -- Old-Growth Dryads' ``Opponent``,
-    Weird Harvest's ``All``); (3) a sibling gain_life/lose_life/draw/discard
-    effect in the SAME unit naming another player (Restorative Technique's
-    "target player gains 2 life, then searches their library" -- the search
-    itself carries no recipient, inheriting the preceding effect's); (4) the
-    search's own ``target_player`` (absent/You/Controller = self; Player/
-    Target/Opponent(s)/TriggeringPlayer/ScopedPlayer/ParentTarget(Controller)
-    = directed). A unit MAY carry more than one SearchLibrary (Sadistic
-    Sacrament's directed find-and-exile chains a second, recipient-less
-    SearchLibrary for "the rest") -- if ANY search in the unit is directed,
-    the WHOLE unit is (they share one targeted-player action chain)."""
-    tutors = [
-        c
-        for c in unit.effects
-        if c.concept == "tutor" and tag_of(c.node) in _TUTOR_EFFECT_TAGS
-    ]
-    if not tutors:
-        return None
-    body = _tutor_ability_body(unit)
-    if tag_of(getattr(body, "ability_tag", None)) == "Cycling":
-        return False
-    ps_tag = tag_of(getattr(body, "player_scope", None)) if body else None
-    if ps_tag in _TUTOR_NON_SELF_ABILITY_SCOPE:
-        return False
-    for c in unit.effects:
-        if c.concept in _TUTOR_SIBLING_RECIPIENT_CONCEPTS and (
-            explicit_recipient_scope(c.node) in ("opponents", "each", "any")
-        ):
-            return False
-    saw_self = False
-    for c in tutors:
-        tp = getattr(c.node, "target_player", MISSING)
-        if tp is MISSING or tp is None:
-            saw_self = True
-            continue
-        t = tag_of(tp)
-        if t in _TUTOR_DIRECTED_PLAYER_TAGS:
-            return False
-        if t == "Typed":
-            if getattr(tp, "controller", None) in ("You", "Controller"):
-                saw_self = True
-            else:
-                return False
-            continue
-        # unknown target_player shape -- never guess either way for THIS node
-    return saw_self or None
-
-
 def has_structural_tutor(tree: ConceptTree) -> bool:
     """A deliberate self search-your-library tutor (CR 701.23/701.23a) --
     shared by the ``tutor`` lane (its entire Tier-1 structural read) AND this
-    stage's two gap gates. See :func:`_unit_is_self_tutor`."""
-    return any(_unit_is_self_tutor(unit) for unit in tree.units)
+    stage's two gap gates. See :func:`unit_is_self_tutor`."""
+    return any(unit_is_self_tutor(unit) for unit in tree.units)
 
 
 # ── lf_ramp (2026-07-13 signal-key convention change): a NONLAND card whose
@@ -454,105 +357,6 @@ def has_structural_tutor(tree: ConceptTree) -> bool:
 # the ``tutor`` and ``ramp`` lanes read, so a clause can never lose tutor
 # without the ramp side firing from the SAME facts.
 
-# CR 205.3i's full land-type list (June 2026 CR). Deliberately NOT the
-# ``_LAND_SUBTYPE_WORDS_SYNTH`` manland set below (which predates Town and
-# Planet): widening THAT set would move the manland/land-animate arms'
-# population; this one is fetch-classification-only.
-_SEARCH_LAND_SUBTYPE_WORDS: frozenset[str] = frozenset(
-    {
-        "cave",
-        "desert",
-        "forest",
-        "gate",
-        "island",
-        "lair",
-        "locus",
-        "mine",
-        "mountain",
-        "plains",
-        "planet",
-        "power-plant",
-        "sphere",
-        "swamp",
-        "tower",
-        "town",
-        "urza's",
-    }
-)
-
-
-def _search_filter_land_facts(f: object) -> tuple[bool, bool] | None:
-    """``(can_fetch_land, fetches_only_lands)`` for a ``SearchLibrary``
-    filter, or ``None`` when phase left the filter unresolved (a bare ``Any``
-    -- Planar Engineering's "four basic land cards"; an empty ``Typed`` --
-    Wild Endeavor's dice-scaled count). Landish = a ``Land`` core type, a CR
-    205.3i land-subtype word, or a ``HasSupertype Basic`` property (CR
-    305.6); land-ONLY additionally requires no nonland core type / nonland
-    subtype disjunct (Archdruid's Charm's Or(Creature, Land) can fetch a
-    creature, so it is landish but never land-only)."""
-    t = tag_of(f)
-    if t in ("Or", "And"):
-        subs = [
-            _search_filter_land_facts(x) for x in (getattr(f, "filters", None) or ())
-        ]
-        subs = [s for s in subs if s is not None]
-        if not subs:
-            return None
-        can = any(c for c, _ in subs)
-        only = all(o for _, o in subs) if t == "Or" else any(o for _, o in subs)
-        return can, only
-    if t != "Typed":
-        return None
-    cores = set(filter_core_types(f))
-    subtys = {s.lower() for s in filter_subtypes(f)}
-    basic = any(
-        tag_of(p) == "HasSupertype" and getattr(p, "value", None) == "Basic"
-        for p in (getattr(f, "properties", None) or ())
-    )
-    if not cores and not subtys and not basic:
-        return None
-    landish = bool("Land" in cores or (subtys & _SEARCH_LAND_SUBTYPE_WORDS) or basic)
-    only = (
-        landish
-        and not (cores - {"Land", "Card"})
-        and not (subtys - _SEARCH_LAND_SUBTYPE_WORDS)
-    )
-    return landish, only
-
-
-def _unit_search_destinations(unit: AbilityUnit) -> set[str]:
-    """Every zone the UNIT's searched card(s) can reach: the search node's
-    own ``split`` destinations (Cultivate's one-to-battlefield/rest-to-hand)
-    plus every ``ChangeZone`` in the unit whose origin is ``Library`` (the
-    plain "put that card into X" continuation) or absent with an ``Any`` /
-    ``ParentTarget`` target (the conditional-continuation shape phase emits
-    for "put it onto the battlefield tapped if it's a land card" -- an
-    origin-less ChangeZone chained onto the search's own result)."""
-    dests: set[str] = set()
-    for n in iter_typed_nodes(unit.node):
-        t = tag_of(n)
-        if t == "SearchLibrary":
-            split = getattr(n, "split", MISSING)
-            if split is not MISSING and split is not None:
-                for fname in ("primary_destination", "rest_destination"):
-                    v = getattr(split, fname, None)
-                    if isinstance(v, str):
-                        dests.add(v)
-        elif t == "ChangeZone":
-            origin = getattr(n, "origin", MISSING)
-            if origin is not MISSING and origin is not None:
-                if origin != "Library":
-                    continue
-            elif tag_of(getattr(n, "target", None)) not in (
-                "Any",
-                "ParentTarget",
-            ):
-                continue
-            d = getattr(n, "destination", None)
-            if isinstance(d, str):
-                dests.add(d)
-    return dests
-
 
 def _tree_search_continuations(tree: ConceptTree) -> set[str]:
     """Cross-unit battlefield continuations of a search clause. ``cont_bf``:
@@ -565,7 +369,7 @@ def _tree_search_continuations(tree: ConceptTree) -> set[str]:
     "put a card at random exiled with ~ onto the battlefield")."""
     out: set[str] = set()
     for unit in tree.units:
-        body = _tutor_ability_body(unit)
+        body = tutor_ability_body(unit)
         if body is None:
             continue
         eff = getattr(body, "effect", MISSING)
@@ -599,7 +403,7 @@ def _tree_search_continuations(tree: ConceptTree) -> set[str]:
 
 def structural_land_fetch_split(tree: ConceptTree) -> tuple[bool, bool]:
     """``(land_fetch, other_search)`` over every CONFIRMED self search
-    (:func:`_unit_is_self_tutor` ``True`` units only -- directed/symmetric
+    (:func:`unit_is_self_tutor` ``True`` units only -- directed/symmetric
     searches never enter). ``land_fetch``: some clause fetches a land to the
     battlefield (the ramp side); ``other_search``: some clause remains a
     genuine tutor (to-hand / nonland-fetchable / unresolvable destination).
@@ -607,11 +411,11 @@ def structural_land_fetch_split(tree: ConceptTree) -> tuple[bool, bool]:
     Rampant Growth raises only ``land_fetch`` and Demonic Tutor only
     ``other_search``.
 
-    Per-unit mechanics: filter facts from :func:`_search_filter_land_facts`
+    Per-unit mechanics: filter facts from :func:`search_filter_land_facts`
     (an unresolved filter inherits a resolved sibling search's facts -- the
     "instead search for up to three" count-upgrade idiom -- else falls back
     to the unit-less sentence read :func:`_text_search_facts`); destinations
-    from :func:`_unit_search_destinations` plus the cross-unit continuations
+    from :func:`iter_search_landings` plus the cross-unit continuations
     (:func:`_tree_search_continuations`). A condition-gated land-only unit
     with NO battlefield destination of its own is skipped as a
     count-upgrade continuation when a land-only battlefield clause exists
@@ -621,19 +425,19 @@ def structural_land_fetch_split(tree: ConceptTree) -> tuple[bool, bool]:
     rows: list[tuple[bool, bool, bool, bool]] = []
     other = False
     for unit in tree.units:
-        if _unit_is_self_tutor(unit) is not True:
+        if unit_is_self_tutor(unit) is not True:
             continue
         tutors = [
             c
             for c in unit.effects
-            if c.concept == "tutor" and tag_of(c.node) in _TUTOR_EFFECT_TAGS
+            if c.concept == "tutor" and tag_of(c.node) in TUTOR_EFFECT_TAGS
         ]
         if not tutors:
             continue
         if any(tag_of(c.node) != "SearchLibrary" for c in tutors):
             other = True  # Augment-combine: a creature search, never lands
         facts = [
-            _search_filter_land_facts(getattr(c.node, "filter", None))
+            search_filter_land_facts(getattr(c.node, "filter", None))
             for c in tutors
             if tag_of(c.node) == "SearchLibrary"
         ]
@@ -653,13 +457,13 @@ def structural_land_fetch_split(tree: ConceptTree) -> tuple[bool, bool]:
             resolved = [f if f is not None else inherit for f in facts]
         landish = any(c for c, _ in resolved)
         land_only = all(o for _, o in resolved)
-        dests = _unit_search_destinations(unit)
+        dests = {d for d, _tapped in iter_search_landings(unit)}
         bf = "Battlefield" in dests
         if not bf and "cont_bf" in conts:
             bf = True
         if not bf and dests and dests <= {"Exile"} and "exile_bf" in conts:
             bf = True
-        body = _tutor_ability_body(unit)
+        body = tutor_ability_body(unit)
         cond = getattr(body, "condition", MISSING) if body is not None else MISSING
         cond_gated = cond is not MISSING and cond is not None
         rows.append((landish, land_only, bf, cond_gated))
@@ -758,7 +562,7 @@ def _arm_tutor_directed(tree: ConceptTree) -> ConceptNode | None:
     SearchLibrary directed at ANOTHER player or symmetric across players --
     the residual phase leaves with no typed direction marker at all."""
     if not any(
-        c.concept == "tutor" and tag_of(c.node) in _TUTOR_EFFECT_TAGS
+        c.concept == "tutor" and tag_of(c.node) in TUTOR_EFFECT_TAGS
         for c in tree.iter_concepts()
     ):
         return None

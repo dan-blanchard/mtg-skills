@@ -3,9 +3,15 @@
 from __future__ import annotations
 
 import re
-from collections.abc import Mapping, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from typing import NamedTuple
 
+from mtg_utils._card_ir.crosswalk import (
+    BASIC_LAND_TYPE_COLORS,
+    land_searches,
+    mana_colors,
+)
+from mtg_utils._card_ir.trees import trees_for
 from mtg_utils._name_index import NameIndex, build_name_index
 
 SKIP_LAYOUTS = frozenset(
@@ -16,35 +22,6 @@ SKIP_LAYOUTS = frozenset(
     # would otherwise show up as a duplicate, mis-parsed search entry.
     ("token", "double_faced_token", "art_series", "reversible_card")
 )
-
-
-# Singleton-rule exemption patterns.
-#
-# Standard MTG deck-building rules cap non-basic cards at 4 copies (or 1 in
-# singleton formats like Commander/Brawl). Some cards opt out via oracle
-# text: "A deck can have any number of cards named X" (Relentless Rats,
-# Persistent Petitioners, Hare Apparent, Shadowborn Apostle, Rat Colony,
-# Dragon's Approach) or "A deck can have up to N cards named X" (Seven
-# Dwarves, Nazgul). These cards break singleton legality (handled by
-# legality_audit). They do NOT change Arena's wildcard math: owning 4 copies
-# of any card, these included, is unlimited supply on Arena.
-_ANY_NUMBER_PATTERN = "A deck can have any number of cards named"
-_UP_TO_N_PATTERN = re.compile(
-    r"A deck can have up to (\w+) cards named",
-    re.IGNORECASE,
-)
-_WORD_TO_INT = {
-    "one": 1,
-    "two": 2,
-    "three": 3,
-    "four": 4,
-    "five": 5,
-    "six": 6,
-    "seven": 7,
-    "eight": 8,
-    "nine": 9,
-    "ten": 10,
-}
 
 
 def _terminate_face(text: str) -> str:
@@ -283,6 +260,10 @@ def count_color_pips(mana_cost: str) -> dict[str, int]:
     return out
 
 
+# The regexes from here to ``ramp_by_text`` are ITS no-coverage text degrade (ADR-0051)
+# and stay; every other card read in this module goes through phase's trees.
+# ``_REMINDER_RE`` is also ``twohg_scan``'s oracle-text fallback.
+#
 # Reminder text (always parenthetical) describes a TOKEN's ability, not the card's own
 # — so a counterspell that hands an opponent Treasures carries "(… Add one mana …)" even
 # though it produces no mana for you.
@@ -304,6 +285,13 @@ _AMPLIFY_MANA_RE = re.compile(
 _EXTRA_LAND_RE = re.compile(r"play [^.]{0,18}additional lands?", re.IGNORECASE)
 _LAND_FROM_HAND_RE = re.compile(
     r"put a land card from your hand onto the battlefield", re.IGNORECASE
+)
+# A land search naming basic land types ("a Forest card", "a Plains or Island card").
+_FETCH_BASIC_LAND_PATTERN = re.compile(
+    r"[Ss]earch your library for (?:a |an )?(?:basic )?"
+    r"((?:Plains|Island|Swamp|Mountain|Forest)"
+    r"(?:(?:,|,? or) (?:Plains|Island|Swamp|Mountain|Forest))*)"
+    r"(?: card| land)"
 )
 # Phrases that hand a created token to someone other than you (An Offer You Can't
 # Refuse: "Its controller creates two Treasure tokens").
@@ -374,74 +362,62 @@ def ramp_by_text(card: dict) -> bool:
     )
 
 
-# Pattern to find explicit mana symbols in "Add {X}" patterns
-_ADD_MANA_PATTERN = re.compile(r"[Aa]dd\s+(\{[^}]+\}(?:\s*(?:or\s+)?\{[^}]+\})*)")
-_MANA_SYMBOL_PATTERN = re.compile(r"\{([WUBRGC])\}")
+def _face_basic_land_colors(card: dict) -> set[str]:
+    """The colours of the basic land types on the card's own type line: a land
+    with a basic land type taps for that type's colour by its intrinsic ability
+    (CR 305.6), even with no text box. Per " // " face, so a non-land face's
+    subtypes never count. A type-line read: it holds for a card phase has no
+    trees for (a new-set dual)."""
+    out: set[str] = set()
+    for face in (card.get("type_line") or "").split(" // "):
+        if "Land" not in face:
+            continue
+        low = face.lower()
+        out.update(
+            color
+            for land_type, color in BASIC_LAND_TYPE_COLORS.items()
+            if type_line_has(low, land_type.lower())
+        )
+    return out
 
-# Quantified/plural forms included: the narrow "for a basic land card" wording
-# missed every multi-land ramp spell (Explosive Vegetation, Migration Path —
-# "up to two basic land cards"), so color_sources reported them as producing
-# nothing at all.
-_FETCH_ANY_BASIC_PATTERN = re.compile(
-    r"[Ss]earch your library for (?:up to )?(?:a|an|one|two|three|four|five) "
-    r"basic land cards?"
-)
-_FETCH_BASIC_LAND_PATTERN = re.compile(
-    r"[Ss]earch your library for (?:a |an )?(?:basic )?"
-    r"((?:Plains|Island|Swamp|Mountain|Forest)"
-    r"(?:(?:,|,? or) (?:Plains|Island|Swamp|Mountain|Forest))*)"
-    r"(?: card| land)"
-)
 
-_BASIC_LAND_TYPES: dict[str, str] = {
-    "Plains": "W",
-    "Island": "U",
-    "Swamp": "B",
-    "Mountain": "R",
-    "Forest": "G",
-}
+def _taps_for_mana(card: dict) -> bool:
+    """Whether the card itself adds mana: a ``Mana`` effect in its trees, or a basic
+    land type on a land's type line (CR 305.6)."""
+    return bool(_face_basic_land_colors(card)) or any(
+        mana_colors(tree) for tree in trees_for(card)
+    )
 
 
 def color_sources(card: dict) -> set[str]:
-    """Parse which colors of mana a card can produce."""
-    oracle = get_oracle_text(card)
-    type_line = card.get("type_line", "") or ""
-    colors: set[str] = set()
+    """Which colours of mana a card can produce: ``{"any"}``, a set of colour letters,
+    ``{"C"}`` for colorless only, or empty.
 
-    # Check for "any color" first
-    if re.search(r"[Aa]dd.*\bany color\b", oracle):
-        return {"any"}
-
-    # Check for "basic land card" fetch (any color)
-    if _FETCH_ANY_BASIC_PATTERN.search(oracle):
-        return {"any"}
-
-    # Check for specific land type fetches
-    for match in _FETCH_BASIC_LAND_PATTERN.finditer(oracle):
-        types_text = match.group(1)
-        for land_type, color in _BASIC_LAND_TYPES.items():
-            if land_type in types_text:
-                colors.add(color)
-
-    # Check explicit Add {X} patterns
-    for match in _ADD_MANA_PATTERN.finditer(oracle):
-        symbols_text = match.group(1)
-        for sym_match in _MANA_SYMBOL_PATTERN.finditer(symbols_text):
-            colors.add(sym_match.group(1))
-
-    # Check basic land types in type_line
-    for land_type, color in _BASIC_LAND_TYPES.items():
-        if land_type in type_line:
-            colors.add(color)
-
-    if not colors:
-        return set()
-
-    # If only colorless symbols found, return {C}
+    Read off phase's trees: the card's own ``Mana`` effects
+    (``crosswalk.mana_colors`` — Arcane Sanctum's {W}, {U}, or {B} is all three;
+    a filter land's combinations, Cascade Bluffs U/R; a deck-dependent kind such as
+    Command Tower reads ``"any"``), plus a land search of YOURS that puts the land
+    onto the battlefield (``crosswalk.land_searches`` — a fetch land's types; a basic
+    land of any type reads ``"any"``), plus the basic land types on a land's type line
+    (CR 305.6). A Treasure maker is not a colour source — this module's own
+    decision: the Treasure is a one-shot sacrifice, so ramp counts it and colour
+    balance doesn't — and a landcycling card's search puts the land into hand (CR
+    702.29e), so it adds no colour. A card phase has no trees for reads its type
+    line only."""
+    colors = _face_basic_land_colors(card)
+    for tree in trees_for(card):
+        produced = mana_colors(tree)
+        if produced == "any":
+            return {"any"}
+        colors |= produced
+        for search in land_searches(tree):
+            if not search.to_battlefield:
+                continue
+            if not isinstance(search.colors, frozenset):  # any / any_basic
+                return {"any"}
+            colors |= search.colors
     if colors == {"C"}:
         return {"C"}
-
-    # Remove C if we also found real colors
     colors.discard("C")
     return colors
 
@@ -459,12 +435,14 @@ class LandFetch(NamedTuple):
     * ``to_battlefield`` — a search that puts the land in *hand* produces no mana
       now; only "onto the battlefield" does.
     * ``enters_tapped`` — delays the land by a turn.
-    * ``on_etb`` — True for an enters trigger (Wood Elves). False means the fetch
-      sits behind an activation cost the caller must price itself. Note CR 302.6
-      scopes summoning sickness to *creatures*, so an artifact fetcher may legally
-      tap the turn it enters; the unmodeled cost, not sickness, is why callers
-      generally skip these.
-    * ``count`` — lands found. Explosive Vegetation and Krosan Verge fetch two.
+    * ``on_etb`` — True for the card's own enters trigger (Wood Elves; Primeval
+      Herald's "enters or attacks", whose enters event is an ETB per CR 603.6a).
+      False means the fetch sits behind
+      an activation cost the caller must price itself. Note CR 302.6 scopes summoning
+      sickness to *creatures*, so an artifact fetcher may legally tap the turn it
+      enters; the unmodeled cost, not sickness, is why callers generally skip these.
+    * ``count`` — lands it puts where it puts them. Explosive Vegetation and Krosan
+      Verge fetch two.
     """
 
     colors: frozenset[str]
@@ -474,44 +452,10 @@ class LandFetch(NamedTuple):
     count: int
 
 
-_FETCH_TO_BATTLEFIELD_RE = re.compile(r"onto the battlefield", re.IGNORECASE)
-# Both templatings for a land arriving tapped: the inline "…onto the battlefield
-# tapped" and the newer standalone "It enters tapped." sentence.
-_FETCH_TAPPED_RE = re.compile(
-    r"onto the battlefield tapped|\bit enters tapped\b", re.IGNORECASE
-)
-_ETB_TRIGGER_RE = re.compile(r"when(?:ever)? (?:this|[^,.]*?) enters", re.IGNORECASE)
-_NUMBER_WORDS = {"a": 1, "an": 1, "one": 1, "two": 2, "three": 3, "four": 4, "five": 5}
-_FETCH_COUNT_RE = re.compile(
-    r"search your library for (?:up to )?(a|an|one|two|three|four|five)\b",
-    re.IGNORECASE,
-)
-
-
-_ENTERS_TAPPED_SENTENCE_RE = re.compile(r"^\s*it enters tapped\b", re.IGNORECASE)
-
-
-def _fetch_clause_scope(oracle: str, match_end: int) -> str:
-    """The search's own sentence, plus a trailing "It enters tapped." if present.
-
-    "…onto the battlefield tapped" sits inside the search sentence, but the newer
-    "…onto the battlefield. It enters tapped." puts it in the next one. Taking the
-    next sentence unconditionally is too greedy — a separate ability ("Whenever you
-    cycle a card, put a land from your hand onto the battlefield tapped") would then
-    misdate this fetch by a turn — so the continuation is only absorbed when it is
-    actually the enters-tapped templating. Scanning the whole card is wider still.
-    """
-    sentences = oracle[match_end:].split(".")
-    scope = sentences[0]
-    if len(sentences) > 1 and _ENTERS_TAPPED_SENTENCE_RE.match(sentences[1]):
-        scope += "." + sentences[1]
-    return scope
-
-
 def land_fetch_profile(
     card: dict, *, deck_basic_colors: frozenset[str] = frozenset()
 ) -> LandFetch | None:
-    """Resolve a land-search effect, or ``None`` when the card has none.
+    """Resolve the card's land search, or ``None`` when it has none of YOUR library.
 
     Scryfall leaves ``produced_mana`` empty for every land whose only mana ability
     is sacrificing itself to fetch a basic (Evolving Wilds, Hobbit Hole), so a
@@ -519,42 +463,39 @@ def land_fetch_profile(
     counting them toward available mana — reporting *more* color screw the more
     fixing a deck runs. See tests/mtg-utils/test_playtest_goldfish.py.
 
+    Read off phase's trees (``crosswalk.land_searches``): an opponent's compensation
+    search (Path to Exile, Ghost Quarter) is not the card's, and a landcycling
+    search is left out — it functions only while the card is in your hand (CR
+    702.29a). The search that reaches the battlefield is the profile's; a basic land
+    of any type, or any land card, resolves to ``deck_basic_colors`` — what the
+    deck's own basics can make.
+
     ``None`` means "no land-search effect here". A returned profile with an EMPTY
     ``colors`` means "there is one, but it can't be resolved" — a generic basic
     search in a deck running no basics. Keeping those distinct lets a caller label
     the card a fetch (deck-stats) or warn about it, instead of silently treating an
-    unresolvable fetch as if the card had no such ability at all.
+    unresolvable fetch as if the card had no such ability at all. A card phase has
+    no trees for has no profile.
     """
-    oracle = get_oracle_text(card)
-    if not oracle:
+    searches = [
+        s for tree in trees_for(card) for s in land_searches(tree) if not s.cycling
+    ]
+    if not searches:
         return None
-
+    landing = [s for s in searches if s.to_battlefield] or searches
+    primary = landing[0]
     colors: set[str] = set()
-    clause_end = -1
-    for match in _FETCH_BASIC_LAND_PATTERN.finditer(oracle):
-        types_text = match.group(1)
-        colors.update(
-            color for land, color in _BASIC_LAND_TYPES.items() if land in types_text
-        )
-        clause_end = match.end()
-    if not colors:
-        generic = _FETCH_ANY_BASIC_PATTERN.search(oracle)
-        if generic:
-            colors = set(deck_basic_colors)
-            clause_end = generic.end()
-    if clause_end < 0:  # no land-search clause at all
-        return None
-
-    scope = _fetch_clause_scope(oracle, clause_end)
-    count_match = _FETCH_COUNT_RE.search(oracle)
+    for search in landing:
+        if isinstance(search.colors, frozenset):
+            colors |= search.colors
+        else:  # any_basic / any: what the deck's own basics can make
+            colors |= deck_basic_colors
     return LandFetch(
         colors=frozenset(colors),
-        to_battlefield=bool(_FETCH_TO_BATTLEFIELD_RE.search(scope)),
-        enters_tapped=bool(_FETCH_TAPPED_RE.search(scope)),
-        on_etb=bool(_ETB_TRIGGER_RE.search(oracle)),
-        count=_NUMBER_WORDS.get(
-            (count_match.group(1) if count_match else "a").lower(), 1
-        ),
+        to_battlefield=primary.to_battlefield,
+        enters_tapped=primary.enters_tapped,
+        on_etb=primary.on_self_etb,
+        count=primary.count,
     )
 
 
@@ -563,27 +504,38 @@ def is_commander(
     *,
     planeswalker_commander_requires_text: bool = True,
 ) -> dict:
-    """Commander eligibility on the card's TYPE LINE and ORACLE TEXT alone.
+    """Commander eligibility from the card's TYPE LINE and phase's trees alone.
 
     Returns {"eligible": bool, "requires_partner": bool}.
 
     Knows nothing about formats: legality is ``formats.Format.legality``, and
     ``Format.commander_eligibility`` composes the two. The one format-dependent rule
-    — whether a legendary planeswalker needs "can be your commander" text (Commander)
-    or is eligible outright (the Brawl family) — arrives as the flag.
+    — whether a legendary planeswalker needs "can be your commander" (Commander) or
+    is eligible outright (the Brawl family, CR 903.12c) — arrives as the flag.
+
+    A legendary creature, Vehicle or Spacecraft with power/toughness is eligible by
+    type (CR 903.3); "can be your commander" is phase's ``root.is_commander``
+    (``ConceptTree.can_be_commander`` — Grist, the Hunger Tide's ruling: it "can be
+    your commander as its first ability works before the game begins during deck
+    construction"); choose a Background is phase's ``Partner`` keyword. A legendary
+    Background enchantment is eligible only beside a choose-a-Background commander
+    (CR 702.124k). A card phase has no trees for is judged on its type line alone.
     """
     type_line = card.get("type_line", "")
-    oracle = get_oracle_text(card).lower()
-
     if "Legendary" not in type_line:
         return {"eligible": False, "requires_partner": False}
 
-    # Legendary Creature — always eligible
-    # Check "choose a background" before returning, since those creatures
-    # support (but don't require) a Background partner.
+    trees = trees_for(card)
+    chooses_background = any(
+        variant == "ChooseABackground"
+        for tree in trees
+        for variant, _data in tree.card_partner_kinds
+    )
+
+    # Legendary Creature — always eligible; a choose-a-Background creature pairs
+    # with a Background.
     if "Creature" in type_line:
-        requires_partner = "choose a background" in oracle
-        return {"eligible": True, "requires_partner": requires_partner}
+        return {"eligible": True, "requires_partner": chooses_background}
 
     # Legendary Vehicle — always eligible
     if "Vehicle" in type_line:
@@ -594,124 +546,171 @@ def is_commander(
         return {"eligible": True, "requires_partner": False}
 
     # Brawl family: any Legendary Planeswalker is eligible; Commander keeps requiring
-    # "can be your commander" text. The format's flag decides, never a name tuple.
+    # "can be your commander". The format's flag decides, never a name tuple.
     if "Planeswalker" in type_line and not planeswalker_commander_requires_text:
         return {"eligible": True, "requires_partner": False}
 
-    # "can be your commander" oracle text — eligible
-    if "can be your commander" in oracle:
-        return {"eligible": True, "requires_partner": False}
-
-    # "Choose a Background" — eligible but needs Background partner
-    if "choose a background" in oracle:
-        return {"eligible": True, "requires_partner": True}
-
-    # Legendary Background enchantment — eligible only as partner
+    # Legendary Background enchantment — eligible only as partner (CR 702.124k).
     if "Background" in type_line and "Enchantment" in type_line:
         return {"eligible": True, "requires_partner": True}
+
+    # "Choose a Background" — eligible but needs a Background partner.
+    if chooses_background:
+        return {"eligible": True, "requires_partner": True}
+
+    # "can be your commander" — phase's own verdict.
+    if any(tree.can_be_commander for tree in trees):
+        return {"eligible": True, "requires_partner": False}
 
     return {"eligible": False, "requires_partner": False}
 
 
-# Partner pairing (CR 702.124). Each variant pairs only within its own kind, and the
-# variants can't be mixed (702.124f). `kind` ∈ {plain, group, with, choose_background,
-# background, doctors_companion, doctor} or None; `value` is the group name (group) or
-# the named partner (with).
-_PARTNER_WITH_RE = re.compile(r"partner with ([^.\n(]+)", re.IGNORECASE)
-# Separator may be em-dash, en-dash, or hyphen (\u escapes keep the source ASCII).
-_PARTNER_SEP = "[\u2014\u2013-]"  # em-dash, en-dash, or hyphen
-_PARTNER_GROUP_RE = re.compile(rf"partner\s*{_PARTNER_SEP}\s*([^.\n(]+)", re.IGNORECASE)
+class PartnerAbility(NamedTuple):
+    """One partner ability (CR 702.124a): ``kind`` is ``plain`` (partner,
+    702.124h), ``group`` (partner—[text], 702.124i; ``value`` the text),
+    ``with`` (partner with [name], 702.124j; ``value`` the name),
+    ``choose_background`` / ``background`` (702.124k), or
+    ``doctors_companion`` / ``doctor`` (702.124m)."""
+
+    kind: str
+    value: str = ""
 
 
-def partner_ability(card: dict) -> dict:
-    """Classify a card's partner-style ability for second-commander pairing.
+#: Phase's ``Partner`` keyword variant → ``(kind, value)``; a None value passes the
+#: keyword's own data through (the named partner, the corrected partner—[text]
+#: group — ``crosswalk.PARTNER_GROUPS_PHASE_COLLAPSES``). CR 702.124a's abilities:
+#: partner (702.124h), partner—[text] (702.124i), partner with [name] (702.124j),
+#: choose a Background (702.124k), Doctor's companion (702.124m).
+_PARTNER_KIND_OF_VARIANT: dict[str, tuple[str, str | None]] = {
+    "Generic": ("plain", ""),
+    "Group": ("group", None),
+    "FriendsForever": ("group", "Friends forever"),
+    "CharacterSelect": ("group", "Character select"),
+    "With": ("with", None),
+    "ChooseABackground": ("choose_background", ""),
+    "DoctorsCompanion": ("doctors_companion", ""),
+}
 
-    Order matters: the specific variants (choose-a-Background, partner-with,
-    partner—[group], Doctor's companion) are checked before plain ``partner``, because
-    a "partner with [name]" card also carries the bare ``partner`` keyword (CR 702.124j)
-    but pairs ONLY with its named partner, not with arbitrary partners (702.124f)."""
-    type_line = card.get("type_line", "") or ""
-    oracle = get_oracle_text(card)
-    low = oracle.lower()
 
-    if "choose a background" in low:
-        return {"kind": "choose_background", "value": ""}
-    if "Background" in type_line:
-        return {"kind": "background", "value": ""}
-    m = _PARTNER_WITH_RE.search(oracle)
-    if m:
-        return {"kind": "with", "value": m.group(1).strip().rstrip(",")}
-    m = _PARTNER_GROUP_RE.search(oracle)
-    if m:
-        return {"kind": "group", "value": m.group(1).strip()}
-    if "doctor's companion" in low:
-        return {"kind": "doctors_companion", "value": ""}
-    if "Time Lord Doctor" in type_line:
-        return {"kind": "doctor", "value": ""}
-    if re.search(r"\bpartner\b", low):
-        return {"kind": "plain", "value": ""}
-    return {"kind": None, "value": ""}
+def partner_abilities(card: dict) -> frozenset[PartnerAbility]:
+    """Every partner ability the card has (CR 702.124a) — a SET, since a card can
+    print two (Amy Pond: Doctor's companion and partner with Rory Williams; CR
+    702.124g lets you use either, never both).
+
+    Read off the trees' ``Partner`` keywords (``ConceptTree.card_partner_kinds``);
+    a Background and a Time Lord Doctor are type-line reads (they have no keyword
+    of their own). A card phase has no trees for keeps only those type-line kinds.
+
+    CR 702.124a: a partner ability lets you designate two LEGENDARY cards as your
+    commander, so a nonlegendary card has none to use — checked first, off the
+    front face's type line, before any tree is built (a partner search walks the
+    whole pool)."""
+    types, _, subtypes = (
+        classifying_type_line(card).split(" // ")[0].partition("\u2014")
+    )
+    if "Legendary" not in types:
+        return frozenset()
+    out: set[PartnerAbility] = set()
+    for tree in trees_for(card):
+        for variant, data in tree.card_partner_kinds:
+            mapped = _PARTNER_KIND_OF_VARIANT.get(variant)
+            if mapped is not None:
+                kind, value = mapped
+                out.add(PartnerAbility(kind, data if value is None else value))
+    # A Background enchantment (CR 702.124k); a Time Lord Doctor creature with no
+    # other creature types (CR 702.124m).
+    if "Enchantment" in types and type_line_has(subtypes.lower(), "background"):
+        out.add(PartnerAbility("background"))
+    if "Creature" in types and subtypes.strip() == "Time Lord Doctor":
+        out.add(PartnerAbility("doctor"))
+    return frozenset(out)
+
+
+#: The kind each one-sided ability pairs with (CR 702.124k, 702.124m).
+_PARTNER_COMPLEMENT = {
+    "choose_background": "background",
+    "background": "choose_background",
+    "doctors_companion": "doctor",
+    "doctor": "doctors_companion",
+}
+
+
+def can_partner(abilities: Iterable[Sequence[str]], candidate: dict) -> bool:
+    """Whether ``candidate`` can be the second commander of a card with
+    ``abilities`` (``(kind, value)`` pairs — :class:`PartnerAbility` or their JSON
+    form). One ability of each card must match, the SAME ability on both for
+    partner and partner—[text] (CR 702.124f, 702.124h, 702.124i), the named card
+    for partner with [name] (702.124j), the other half for choose a Background
+    (702.124k) and Doctor's companion (702.124m)."""
+    theirs = partner_abilities(candidate)
+    name = candidate.get("name") or ""
+    for kind, value in abilities:
+        if kind == "with":
+            if value and (name == value or name.split(" // ")[0] == value):
+                return True
+        elif kind in _PARTNER_COMPLEMENT:
+            if PartnerAbility(_PARTNER_COMPLEMENT[kind]) in theirs:
+                return True
+        elif PartnerAbility(kind, value) in theirs:
+            return True
+    return False
 
 
 def valid_partner_search(card: dict) -> dict | None:
     """``card_search`` filter that finds the cards legally eligible to be ``card``'s
     paired second commander (CR 702.124), or ``None`` if it has no partner ability.
 
-    Color-agnostic on purpose: partner legality has no color-identity restriction — the
-    pair's identity is the union of the two (702.124c) — so we pass ``color_identity``
-    "WUBRG" (every identity is a subset) to disable the color filter rather than wrongly
-    hide an off-color legal partner (e.g. a "partner with [name]" target in a new
-    color).
+    ``partner_of`` carries the card's partner abilities (JSON-shaped
+    ``[kind, value]`` pairs); ``card_search`` keeps a candidate when
+    :func:`can_partner` says it pairs. Color-agnostic on purpose: partner legality
+    has no color-identity restriction — the pair's identity is the union of the two
+    (CR 702.124c) — so we pass ``color_identity`` "WUBRG" (every identity is a
+    subset) to disable the color filter rather than wrongly hide an off-color legal
+    partner (e.g. a "partner with [name]" target in a new color).
     """
-    pa = partner_ability(card)
-    kind = pa["kind"]
-    base = {"color_identity": "WUBRG"}
-    if kind == "choose_background":
-        return {**base, "card_type": "Background"}
-    if kind == "background":
-        return {**base, "oracle": r"choose a background"}
-    if kind == "with":
-        return {**base, "name": pa["value"]}
-    if kind == "group":
-        grp = re.escape(pa["value"])
-        return {**base, "oracle": rf"partner\s*{_PARTNER_SEP}\s*{grp}"}
-    if kind == "doctors_companion":
-        return {**base, "card_type": "Time Lord Doctor"}
-    if kind == "doctor":
-        return {**base, "oracle": r"doctor's companion"}
-    if kind == "plain":
-        return {**base, "oracle": r"partner \(you can have two commanders"}
-    return None
+    abilities = partner_abilities(card)
+    if not abilities:
+        return None
+    return {
+        "color_identity": "WUBRG",
+        "partner_of": [[a.kind, a.value] for a in sorted(abilities)],
+    }
 
 
 def has_any_number_exemption(card: dict) -> bool:
-    """True if oracle text reads "A deck can have any number of cards named X".
+    """Whether a deck can have any number of cards with this name ("A deck can have
+    any number of cards named X" — Relentless Rats, Hare Apparent), read off phase's
+    ``deck_copy_limit: Unlimited``. Its rulings: the ability "lets you ignore the
+    'four-of' rule" (CR 100.2a) — it doesn't let you ignore format legality.
 
-    Returns False for the "up to N" variant, which still has a numeric
-    cap (``named_card_cap``). Used by
-    ``legality_audit.check_singletons`` to short-circuit the cap check
-    for unlimited cards.
-    """
-    return _ANY_NUMBER_PATTERN in get_oracle_text(card)
+    False for the "up to N" variant, which still has a numeric cap
+    (``named_card_cap``), and for a card phase has no trees for."""
+    return any(t.many_copies and t.deck_copy_cap is None for t in trees_for(card))
 
 
 def named_card_cap(card: dict) -> int | None:
-    """Return the integer cap from "A deck can have up to N cards named X".
-
-    Returns None if the card has no such clause. Used by the singleton
-    legality audit to permit up-to-N duplicates (e.g. 7 Seven Dwarves).
-    """
-    oracle = get_oracle_text(card)
-    match = _UP_TO_N_PATTERN.search(oracle)
-    if match is None:
-        return None
-    return _WORD_TO_INT.get(match.group(1).lower())
+    """The cap from "A deck can have up to N cards named X" (Seven Dwarves 7,
+    Nazgûl 9), read off phase's ``deck_copy_limit: UpTo``; None if the card has no
+    such clause (or phase has no trees for it)."""
+    return next(
+        (t.deck_copy_cap for t in trees_for(card) if t.deck_copy_cap is not None),
+        None,
+    )
 
 
-_LAND_PRODUCES_MANA = re.compile(
-    r"[Aa]dd\s+(?:\{[WUBRGC]|one mana|an? amount|X\s+mana|that much|mana of)",
-    re.IGNORECASE,
-)
+def land_search_fixes(card: dict) -> bool:
+    """Whether the card searches YOUR library for a land that finds you a colour,
+    wherever the land goes: any land card (Sylvan Scrying), a basic land of any
+    type (Evolving Wilds, Ash Barrens' basic landcycling — CR 702.29e: into your
+    hand, still a colour of your choice), or 2+ basic land types (Farseek). A
+    single basic type ("a Forest card") is mono-colour ramp, not fixing. The one
+    fixing rule for a land search: ``is_fixing_land`` and the tuner's
+    ``swaps._is_fixing`` both read it."""
+    return any(
+        not isinstance(search.colors, frozenset) or len(search.colors) >= 2
+        for tree in trees_for(card)
+        for search in land_searches(tree)
+    )
 
 
 def is_fixing_land(card: dict) -> bool:
@@ -723,9 +722,11 @@ def is_fixing_land(card: dict) -> bool:
 
     * Multi-color mana producers: duals (Overgrown Tomb), triomes, Command
       Tower, Exotic Orchard.
-    * Any-color producers: City of Brass, Mana Confluence.
+    * Any-color producers: City of Brass, Mana Confluence, Lotus Field.
     * Land-fetchers that don't tap for mana: Evolving Wilds, Fabled Passage,
       fetchlands (Polluted Delta, Flooded Strand, etc.).
+    * A land whose search finds a colour (:func:`land_search_fixes` — Ash Barrens'
+      basic landcycling).
 
     Mono-color basic-producing lands and mono-color taplands are NOT fixing.
 
@@ -737,36 +738,11 @@ def is_fixing_land(card: dict) -> bool:
     if not is_land(card):
         return False
     sources = color_sources(card)
-    if "any" in sources or len(sources) >= 2:
+    if "any" in sources or len(sources) >= 2 or land_search_fixes(card):
         return True
-    # Lands that fetch lands without tapping for mana themselves
-    # (Evolving Wilds, fetchlands). The ramp role early-returns for lands,
-    # so we detect this by checking the oracle text directly.
-    oracle = get_oracle_text(card).lower()
-    return (
-        "search your library for" in oracle
-        and "land" in oracle
-        and not _LAND_PRODUCES_MANA.search(get_oracle_text(card))
-    )
-
-
-def _land_produces_mana_directly(card: dict) -> bool:
-    """True if a land has an explicit ``Add <mana>`` oracle clause.
-
-    Distinguishes mana-producing lands (duals, Command Tower, Underground
-    Sea, Karakas) from lands that only fetch other lands without tapping
-    for mana (Evolving Wilds, Fabled Passage, Prismatic Vista, all fetch
-    lands). A basic land's oracle text is empty — but basic lands produce
-    mana by virtue of their type line, so callers short-circuit the basic
-    case themselves.
-    """
-    oracle = get_oracle_text(card)
-    if _LAND_PRODUCES_MANA.search(oracle):
-        return True
-    # Basic lands have empty oracle text; their type_line carries the mana
-    # ability implicitly.
-    type_line = card.get("type_line", "") or ""
-    return any(t in type_line for t in _BASIC_LAND_TYPES)
+    # A land that fetches a land onto the battlefield without tapping for mana itself.
+    fetch = land_fetch_profile(card)
+    return fetch is not None and fetch.to_battlefield and not _taps_for_mana(card)
 
 
 def classify_cube_category(card: dict) -> str:
@@ -811,9 +787,7 @@ def classify_cube_category(card: dict) -> str:
     identity = card.get("color_identity", []) or []
 
     if is_land(card):
-        if _land_produces_mana_directly(card):
-            return "L"
-        return "F"
+        return "L" if _taps_for_mana(card) else "F"
 
     # Non-land F is restricted to COLORLESS fixing. Colored mana sources
     # (Llanowar Elves, Birds of Paradise, Cultivate) slot into their

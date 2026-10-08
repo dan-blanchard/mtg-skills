@@ -9,10 +9,17 @@ from mtg_utils._deck_forge import engine
 from mtg_utils._deck_forge.state import DeckSession, ForgeState
 from mtg_utils.testkit import test_card
 
-ISHAI = test_card("Ishai, Ojutai Dragonspeaker")
-ATRAXA = test_card("Atraxa, Praetors' Voice")
-FOREST = test_card("Forest")
-INDEX = {c["name"]: c for c in (ISHAI, ATRAXA, FOREST)}
+
+def _index() -> dict:
+    # Fetched per state, not at import: test_card re-seeds a card's trees, and a
+    # suite-wide cache clear between import and test would otherwise leave the
+    # partner read (phase's Partner keyword) with no trees.
+    cards = (
+        test_card("Ishai, Ojutai Dragonspeaker"),
+        test_card("Atraxa, Praetors' Voice"),
+        test_card("Forest"),
+    )
+    return {c["name"]: c for c in cards}
 
 
 def _state(commanders=(), cards=()):
@@ -21,7 +28,7 @@ def _state(commanders=(), cards=()):
         session.add(c, 1, zone="commanders")
     for name, qty in cards:
         session.add(name, qty)
-    return ForgeState(by_name=INDEX, search_fn=lambda **_: [], session=session)
+    return ForgeState(by_name=_index(), search_fn=lambda **_: [], session=session)
 
 
 def test_hydrate_joins_session_to_records():
@@ -128,3 +135,13 @@ def test_explore_filters_respects_avenue_color_identity():
         {"oracle": "x"}, color_identity="G", fmt="commander"
     )
     assert fallback["color_identity"] == "G"
+
+
+def test_explore_filters_carry_the_partner_predicate():
+    # The partner avenue's search is a partner predicate, forwarded to card_search.
+    filters = engine.explore_filters(
+        {"color_identity": "WUBRG", "partner_of": [["plain", ""]]},
+        color_identity="G",
+        fmt="commander",
+    )
+    assert filters["partner_of"] == [["plain", ""]]
