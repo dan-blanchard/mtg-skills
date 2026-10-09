@@ -21,7 +21,9 @@ from mtg_utils._card_ir.crosswalk import (
     counter_kind,
     effect_filter,
     filter_subtypes,
+    iter_condition_sites,
     iter_cost_leaves,
+    iter_typed_nodes,
     tag_of,
 )
 from mtg_utils._card_ir.mirror.runtime import MirrorVariant
@@ -510,7 +512,18 @@ def _matches_suspect_matters_idiom(tree: ConceptTree) -> bool:
                     raw
                 ) and not _SUSPECT_VERB_SYNTH_RX.search(raw):
                     return True
-        return False
+        # "If it's suspected, …. Otherwise, suspect it" (Agrus Kos, Repeat
+        # Offender): the suspect verb sits in the else branch and the state
+        # reference is the branch's typed condition — a ``Suspected`` filter
+        # property under a condition site (CR 701.60b). A watched subject
+        # (Nelly Borca's "whenever a suspected creature …" trigger filter)
+        # isn't a condition, so the verb still wins there.
+        return any(
+            tag_of(x) == "Suspected"
+            for unit in tree.units
+            for site in iter_condition_sites(unit.node)
+            for x in iter_typed_nodes(site)
+        )
     m = _SUSPECT_REF.search(_REMINDER.sub(" ", tree.oracle or ""))
     if m is not None:
         g = m.group(0)

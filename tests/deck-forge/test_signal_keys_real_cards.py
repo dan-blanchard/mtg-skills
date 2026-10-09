@@ -615,12 +615,11 @@ def test_blood_matters_fires_from_a_sacrificed_trigger_subject():
     assert "blood_matters" in keys
 
 
-def test_blood_makers_fires_from_a_recovered_choice_list_maker():
+def test_blood_makers_fires_from_a_choice_list_maker():
     """Token-subtype maker (choice list): Transmutation Font "create your choice of
     a Blood token, a Clue token, or a Food token" — the typed Token nodes live on
-    ChooseOneOf BRANCHES the concept decoration doesn't descend; served by the
-    gap-gated choice_list_token_maker_{blood,clue,food} bridges
-    (bridge_ledger.BRIDGES) until the overlay decorates branch effects."""
+    the controller's ChooseOneOf BRANCHES, which the shared effect walk reads (the
+    choice_list_token_maker_* bridges retired with that)."""
     keys = {s.key for s in test_signals("Transmutation Font")}
     assert "blood_makers" in keys
     assert "clue_makers" in keys

@@ -368,9 +368,11 @@ def test_role_of_unions_card_draw_preset_for_nested_draw_for_each():
     compat IR at all, even though the crosswalk's ``card-draw`` preset
     (``card_draw_engine`` + ``draw_for_each`` since task #86) correctly
     fires. ``role_of`` must union the preset in unconditionally (not just
-    as the no-IR fallback) so this class isn't budget-invisible."""
+    as the no-IR fallback) so this class isn't budget-invisible. Since the
+    shared effect walk reads a vote's ``per_choice_effect`` (CR 701.38a), the
+    compat IR carries the draw too."""
     ir = test_card_ir("Truth or Consequences")
-    assert _ir_draws(ir) is False  # the compat-IR walk alone still misses it
+    assert _ir_draws(ir) is True
     assert "card_draw" in role_of(test_card("Truth or Consequences"))
 
 

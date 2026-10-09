@@ -24,10 +24,6 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
     damage or life loss). Underbridge Warlock's boon reads as a self loss. (The
     `where_x_binding` X effects — Insatiable Hemophage, Zenith Flare — are read by
     `reads.unbound_x_reach`, canary `test_unbound_x_reach_canary`.)
-  - Our own walk: `reads._find_owner_wrapper` doesn't descend `per_choice_effect` /
-    `else_ability`, so a vote's or an else-branch's `player_scope` is lost (Tyrant's
-    Choice, Sphinx Sovereign). Widening it moves `effect_player_reach` for every lane
-    — do it with a corpus diff.
   - Game wins: Frodo, Sauron's Bane's Rogue clause is dropped (its second ability
     parses as the Ring tempting you); Celestial Convergence's win is an
     `unbound_subject` residue.
@@ -116,6 +112,25 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   opponent" clause), reads Cruel Calculations as target-player (phase drops its player
   target), and differs on removal reach for about 18 cards.
 
+**From walking phase's branch shapes (2026-10-09)**
+
+- **Lane-local else-branch descents.** `mana_and_wipes._cheat_negated_reveal_else_put`
+  and the `card_advantage` / `counters_tokens` whole-unit walks predate the shared
+  walk reading `else_ability`; fold what it now covers, re-measuring the LOW
+  downgrade (`signal_trees.branch_certain_idents`). (`card_advantage.
+  _pce_has_paired_draw` stays: a vote's branches mustn't pair a draw across them.)
+- **Phase misparses behind the branch-misread registry** (`_card_ir.branches.
+  BRANCH_MISREADS`, each row with its `retirement_canary`; report upstream, Dan
+  posts). Fraying Line's "that player may pay {2}" is a `PayCost` with `payer:
+  Controller`, so its "Otherwise" branch reads as yours (pruned from the certain
+  records: LOW); Osseous Sticktwister's "each opponent who didn't sacrifice … or
+  discard a card this way" parses as a second choice with a discard branch; Spitting
+  Slug's "each creature blocking or blocked by this creature" loses its narrowing
+  (both dropped from every tree). Also unreported, no workaround: Worms of the
+  Earth's "any player may" choice is `chooser: Controller` (read off the wrapper's
+  `optional_for`), and Ensnared by the Mara's villainous branch carries
+  `player_scope: All`, so its (LOW) impulse_top_play scopes "each".
+
 **From the phase v0.104.0 bump (2026-10-09)**
 
 - **Phase now fails closed on what it can't represent** (#9392 and kin), parking the
@@ -140,14 +155,6 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   Move them onto `recovery.read_clause` marks like the v0.104.0 rows (ADR-0038
   amendment); `make_token` needs its own subject field first, since its `subject`
   already carries the token's types.
-- **Walk `ChooseOneOf` branches** (fold into the vote / "otherwise" / d20 branch
-  task below, Dan 2026-10-09). `core._walk_effects` doesn't descend a
-  `ChooseOneOf`'s `branches`; v0.104.0 moved nine cards' "+1/-1 or -1/+1" pumps
-  there (Endling, Brightling, Shorecrasher Elemental, Pemmin's Aura …: `self_pump`,
-  `debuff_makers`, `scaling_pump` lost). Walking controller-chosen branches (and
-  teaching `_find_owner_scope` / `reads._find_owner_wrapper` the branch scope)
-  restores them but adds about 60 gains across the 175 `ChooseOneOf` cards — review
-  those first.
 - **Keyword-cost discards.** Sabin, Master Monk's blitz cost is now a typed
   `Composite[Mana, Discard]` keyword cost, which `_keyword_cost_paylife_concepts`
   doesn't decorate (PayLife only), so `discard_outlet` lost it. Decorating `Discard`
@@ -164,16 +171,6 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
 
 **From the phase v0.94.0 bump (2026-09-26)**
 
-- **d20 roll tables.** Phase now parses them into `results[]` rows, which the shared
-  effect walker never reads (only the ramp lane reads them, locally). Farideh's
-  Fireball (`symmetric_damage_each`) and Overwhelming Encounter (`pump_makers`) lost
-  their old flattened fires. Walking `results[]` adds about 50 fires across 117 cards,
-  so those need a review first. (Druid of the Emerald Grove's lost `tutor` was
-  accepted: a basic-land fetch is ramp, which it keeps.)
-- **Walking `else_ability` everywhere.** "Otherwise" branches are opt-in per read
-  (`walk_effects_with_else`). Walking them globally would change 176 cards: mostly
-  plausible gains, but the Champion cards' `self_etb_payload` looks doubtful and 3
-  fires are lost (`suspect_matters` ×2, `exile_removal`).
 - **`named_synergy_overloaded_named_node`'s gap is the constant `True`**, so that
   bridge row can never retire itself.
 - **`_phase.run_commander` loses finished games on timeout**, the flaw `run_duel`

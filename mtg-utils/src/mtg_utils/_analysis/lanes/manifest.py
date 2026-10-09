@@ -1072,7 +1072,7 @@ SERVED_SIGNAL_KEYS: frozenset[str] = frozenset(
 # shared ``tutor`` CONCEPT_MAP — that would incorrectly open the
 # dedicated tutor lane for every Wish card too); a ``ChooseOneOf``-
 # wrapped sac (Nimble Hobbit's "sacrifice a Food or pay {2}{W}" —
-# ``_walk_effect_chain`` collapses the whole modal branch to one
+# ``walk_effect_chain`` collapses the whole modal branch to one
 # opaque concept, so a deep scan finds the Sacrifice inside directly);
 # a ``become_copy`` type-restricted target read (Spirit of
 # Resilience's "become a copy of an artifact or creature card", CR

@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import re
 from collections.abc import Callable, Sequence
+from dataclasses import replace
 
 from mtg_utils._analysis import signal_keys
 from mtg_utils._analysis._subtypes import (
@@ -80,6 +81,31 @@ __all__ = [
 # ── The structural serving seam (ADR-0035) ────────────────────────────────────
 
 
+def _branch_confidence(
+    record: dict,
+    sigs: list[Signal],
+    keywords: frozenset[str],
+    vocab: frozenset[str],
+) -> list[Signal]:
+    """``sigs`` with every HIGH signal that rests only on a branch another player
+    picks, or only a natural top die face reaches, served at LOW confidence: an
+    ident the card's certain trees don't produce
+    (``signal_trees.branch_certain_idents``). An ident both reads produce keeps
+    the full read's confidence, so a high read of the same (key, scope, subject)
+    wins."""
+    from mtg_utils._analysis.signal_trees import branch_certain_idents
+
+    kept = branch_certain_idents(record, keywords=keywords, vocab=vocab)
+    if kept is None:
+        return sigs
+    return [
+        replace(s, confidence="low")
+        if s.confidence == "high" and (s.key, s.scope, s.subject) not in kept
+        else s
+        for s in sigs
+    ]
+
+
 def extract_signals(
     record: dict,
     *,
@@ -129,14 +155,15 @@ def extract_signals(
     keywords = frozenset(
         k for k in (record.get("keywords") or []) if isinstance(k, str)
     )
-    for tree in trees:
+    lane_sigs = [
+        sig
+        for tree in trees
         for sig in extract_crosswalk_signals(
-            tree,
-            keywords=keywords,
-            vocab=vocab,
-            all_trees=trees,
-        ):
-            _add(sig)
+            tree, keywords=keywords, vocab=vocab, all_trees=trees
+        )
+    ]
+    for sig in _branch_confidence(record, lane_sigs, keywords, vocab):
+        _add(sig)
     if include_membership:
         apply_membership_floor(trees, record, out, _add, vocab=vocab)
     # ADR-0027 spell-copy → spellcast cross-open reconciliation: the regex

@@ -112,12 +112,14 @@ Each has a comment at the read that learned it.
   `ParentTargetController` → `EventTargetController` off a trigger event; reflexive
   payment → `PayCost{OneOf}` + `WhenYouDo`; `PreventDamage` → `replacements[]` with
   `PreventionMinus`.
-- **v0.94.0:** "Otherwise" branches → `else_ability` (the shared walk doesn't follow it;
-  reads opt in via `walk_effects_with_else`); d20 tables → `results[]` rows (the walker
-  doesn't read them yet); bare-recipient `LoseLife` after the "you draw N and lose M"
-  errata; `ChooseAndSacrificeRest` + `player_scope` for keep-N wraths; `TrackedSet`
-  "those creatures" grants; static prevention lines → `replacement_structure` residue
-  (bridged).
+- **v0.94.0:** "Otherwise" branches → `else_ability`; d20 tables → `results[]` rows
+  (the shared walk reads both, with every `ChooseOneOf` branch and vote outcome, via
+  `reads.effect_child_items`; a signal resting only on another player's choice or a
+  natural-20 row is served LOW off the certain records, `_card_ir.branches`; phase's
+  misparsed branches live in that module's `BRANCH_MISREADS`); bare-recipient
+  `LoseLife` after the "you draw N and lose M" errata; `ChooseAndSacrificeRest` +
+  `player_scope` for keep-N wraths; `TrackedSet` "those creatures" grants; static
+  prevention lines → `replacement_structure` residue (bridged).
 - **v0.104.0:** `AdditionalPhase.phase` / `target` → a tagged `segment`
   (`Phase{Combat|Beginning|Ending}` / `Step{…}` / `CreatedPhase{…}`) + `recipient`
   (`reads.additional_phase_kind`); each meld result copied under every half's oracle

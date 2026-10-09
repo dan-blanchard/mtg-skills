@@ -68,3 +68,20 @@ tree).
 synthesis, signals-only") is unchanged in order and now names where each stage is
 applied: corrections in the owner, synthesis in `signal_trees`. `_card_ir/compat_lookup.py` (the former `_ir_lookup`) is the
 compat-Card seam only (`ir_for`).
+
+**Amendment (2026-10-09): the certain tree, a third product.** The shared effect walk
+reads every branch phase parses (an "otherwise" `else_ability`, a `ChooseOneOf`'s
+branches, a vote's outcomes, die-roll rows), and a signal resting only on a branch
+another player picks, or only a natural top die face reaches, is served at LOW
+confidence (Dan's verdicts). To tell them apart, `signal_trees.branch_certain_idents`
+reads the card's **certain trees**: `trees.build_trees` over
+`_card_ir.branches.certain_records`, the phase records with those branches pruned
+before strict load. Pruning the input, rather than teaching each walk a mode, means
+no read — shared walk, raw deep walk, owner lookup — can see a pruned branch, and no
+node carries hidden state. Certain trees are built fresh, never memoized in the
+owner's memo and never served by `trees_for`; their synthesis keeps only the arms the
+card's full trees already fire, so a text tail can't stand in for a pruned branch.
+The kept idents are memoized per oracle_id beside `_SIGNAL_TREES_MEMO`. The same
+module holds the branch-misread registry (`BRANCH_MISREADS`): record paths dropped
+from every tree (`"always"`) or only from the certain records (`"certain"`), each row
+naming its `retirement_canary`.

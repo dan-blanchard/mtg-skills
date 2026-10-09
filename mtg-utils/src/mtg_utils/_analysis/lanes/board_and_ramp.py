@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import re
 from collections.abc import Iterator
+from dataclasses import replace
 
 from mtg_utils._analysis._subtypes import CREATURE_SUBTYPES, LAND_SUBTYPES
 from mtg_utils._analysis.lanes._shared import (
@@ -55,11 +56,13 @@ from mtg_utils._card_ir.crosswalk import (
     count_distinct_operand_filter,
     count_operand_filter,
     effect_filter,
+    effects_exclusive,
     filter_controller,
     filter_core_types,
     filter_inzone_zones,
     filter_predicates,
     filter_subtypes,
+    in_uncertain_branch,
     iter_condition_sites,
     iter_cost_leaves,
     iter_nested_granted_effect_concepts,
@@ -847,6 +850,11 @@ def _blink_flicker(tree: ConceptTree) -> list[Signal]:
             origin, dest = change_zone_dirs(c.node)
             if dest != "Battlefield":
                 continue
+            # An exile and a return that are alternatives ("put it onto the
+            # battlefield. Otherwise, exile it." — Search for Survivors) never
+            # both happen, so they are no blink.
+            if all(effects_exclusive(unit.node, e.node, c.node) for e in exiles):
+                continue
             tgt = tag_of(getattr(c.node, "target", None))
             if tgt in ("ParentTarget", "TrackedSet") or (  # the SAME exiled object
                 # …but never unearth's Graveyard→Battlefield self-return whose "exile
@@ -1108,22 +1116,6 @@ def _iter_returnasaura_mana_defs(
     return out
 
 
-def _die_roll_table_mana_nodes(tree: ConceptTree) -> Iterator[TypedMirrorNode]:
-    """Every typed ``Mana`` effect sitting in a ``RollDie`` results-table row
-    (CR 706.3 — ``results[].effect`` is a full ability wrapper whose
-    ``.effect`` is the row's payload), across the tree's units. Lane-local
-    by design (see the call site in :func:`_ramp`)."""
-    for n in tree.iter_typed():
-        if tag_of(n) != "RollDie":
-            continue
-        for row in getattr(n, "results", None) or ():
-            body = getattr(getattr(row, "effect", None), "effect", None)
-            # Explicit None guard: ``tag_of`` is not a TypeGuard, so the tag
-            # comparison alone can't narrow ``body`` to the annotated node type.
-            if body is not None and tag_of(body) == "Mana":
-                yield body
-
-
 def _ramp(tree: ConceptTree) -> list[Signal]:
     """Mana acceleration (Sol Ring, Command Tower — CR 106.1 / 605.1a / 305).
 
@@ -1199,18 +1191,6 @@ def _ramp(tree: ConceptTree) -> list[Signal]:
             c.raw or ""
         ):
             return [Signal("ramp", "you", "", c.raw, tree.name, "high")]
-    # phase v0.66.0 pin bump: a die-roll RESULTS TABLE (CR 706.3) whose rows
-    # add mana — "Name Sticker" Goblin's "1-6 | Add {R}{R}{R}{R}." — now
-    # parses as typed ``Mana`` effects inside ``RollDie.results[].effect``
-    # (a flat ``Unimplemented("1-6 | Add …")`` residue per row through
-    # v0.45.0, served by the ``ramp_dropped_add_mana_clause`` synthesis
-    # arm). The shared effect walk deliberately does NOT descend result
-    # tables (a die-roll's put-on-top row is a documented topdeck_stack
-    # over-fire — see :func:`_topdeck_stack`), so this lane reads its own
-    # rows: the same land/nonland split as the top-level ``Mana`` branch.
-    for mana in _die_roll_table_mana_nodes(tree):
-        if not is_land or _mana_accel(mana) or _mana_fixing(mana):
-            return [Signal("ramp", "you", "", "", tree.name, "high")]
     for d, aff in (*_granted_mana_defs(tree), *_iter_returnasaura_mana_defs(tree)):
         eff = getattr(d, "effect", None)
         if tag_of(aff) in ("Typed", "Or", "And"):
@@ -1680,42 +1660,6 @@ def _artifacts_enchantments_matter(tree: ConceptTree) -> list[Signal]:
                 out.append("artifacts_matter")
             if "Enchantment" in cores:
                 out.append("enchantments_matter")
-        # ADR-0038 W5 tails: a ``ChooseOneOf``-wrapped sac ("you may
-        # sacrifice a Food or pay {2}{W}" — Nimble Hobbit) is an ORDINARY
-        # resolution-time effect branch (CR 701.21a — the sacrifice still
-        # just moves a permanent the controller controls to their
-        # graveyard, same rule as any other Sacrifice), not an activation
-        # cost, so ``_walk_effect_chain`` collapses the whole
-        # ``ChooseOneOf`` to one opaque ``other`` concept — the unit's own
-        # ``effects`` list never decomposes into per-branch concepts the
-        # way ``unit.costs``/``unit.statics`` do. Deep-scan for a
-        # ``Sacrifice`` inside any branch directly; the SAME edict/
-        # controller/core-type gates apply (a branch is just as capable of
-        # naming an opponent-directed or Permanent-list sac as a top-level
-        # effect).
-        for n in iter_typed_nodes(unit.node):
-            if tag_of(n) != "ChooseOneOf":
-                continue
-            for branch in getattr(n, "branches", None) or ():
-                beff = getattr(branch, "effect", None)
-                if not isinstance(beff, TypedMirrorNode) or tag_of(beff) != "Sacrifice":
-                    continue
-                if _sac_is_edict(unit, beff):
-                    continue
-                sub = effect_filter(beff)
-                if sub is None:
-                    continue
-                ctrl = filter_controller(sub)
-                if ctrl is not None and ctrl != "You":
-                    continue
-                cores = filter_core_types(sub)
-                if "Permanent" in cores:
-                    continue
-                types = cores + filter_subtypes(sub)
-                if _is_artifact_token_types(types):
-                    out.append("artifacts_matter")
-                if "Enchantment" in cores:
-                    out.append("enchantments_matter")
     # SAC-COST PAYOFF — an artifact/enchantment sac paid as a COST: a bare
     # activated-ability cost (Atog, Priest of Yawgmoth), a Composite-wrapped
     # cost leaf (Shattergang Brothers' "{2}{R}, Sacrifice an artifact:"), or a
@@ -2925,6 +2869,23 @@ _TYPE_MATTERS_GOWIDE_KEYWORDS: frozenset[str] = frozenset(
 )
 
 
+def _own_token_makes(tree: ConceptTree) -> ConceptTree:
+    """``tree`` without the ``make_token`` effects in a branch another player
+    decides (Master of Ceremonies' "for each player who chose friends, you and
+    that player each create a … Citizen" — the opponents' vote,
+    :func:`in_uncertain_branch`): a card whose creature tokens hang on others'
+    choices isn't a go-wide engine of its own."""
+    units = []
+    for u in tree.units:
+        kept = tuple(
+            c
+            for c in u.effects
+            if c.concept != "make_token" or not in_uncertain_branch(u.node, c.node)
+        )
+        units.append(u if len(kept) == len(u.effects) else replace(u, effects=kept))
+    return replace(tree, units=tuple(units))
+
+
 def _type_matters_go_wide(
     tree: ConceptTree,
     keywords: frozenset[str] = frozenset(),
@@ -3016,7 +2977,7 @@ def _type_matters_go_wide(
         or _anthem_static(tree)
     ):
         return True
-    if _floor_token_maker_subjects(tree, vocab):
+    if _floor_token_maker_subjects(_own_token_makes(tree), vocab):
         return True
     for c in tree.iter_concepts():
         if _is_generic_creature_filter(count_operand_filter(c.node)):

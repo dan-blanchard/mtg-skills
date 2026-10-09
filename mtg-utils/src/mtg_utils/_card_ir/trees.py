@@ -101,6 +101,7 @@ def clear_caches() -> None:
             clear()
     _TREES_MEMO.clear()
     _TEXT_ONLY_FALLBACK_MEMO.clear()
+    _RECORDS_MEMO.clear()
 
 
 # ── ADR-0038 W2c — text-only face trees ────────────────────────────────────
@@ -658,11 +659,13 @@ def face_tree(rec: dict, schema: MirrorSchema, *, oracle_id: str) -> ConceptTree
     — the honest "nothing structured survives" answer, never a crash. The one
     place the substrate stages are composed; every product below is built from it.
     """
+    from mtg_utils._card_ir.branches import apply_misreads
     from mtg_utils._card_ir.crosswalk import build_concept_tree
     from mtg_utils._card_ir.mirror import MirrorDriftError, strict_load_card
     from mtg_utils._card_ir.overlay_corrections import apply_overlay_corrections
 
     nm = rec.get("name") or ""
+    rec = apply_misreads(rec)  # drop the branches phase misparses (registry rows)
     try:
         root = strict_load_card(rec, schema, name=nm)
     except MirrorDriftError:
@@ -693,7 +696,8 @@ def build_trees(
     :mod:`mtg_utils.testkit` calls it directly against the committed snapshot's
     stored raw phase records (ADR-0039 task #80 step 5), so a signal test builds
     the SAME trees production would with zero ``_phase.ensure_card_data``
-    dependency (no phase cache / network in CI)."""
+    dependency (no phase cache / network in CI). The certain trees
+    (ADR-0047 amendment) are this over ``branches.certain_records``."""
     from mtg_utils._card_ir.overlay_corrections import apply_overlay_corrections
 
     schema = _committed_schema()
@@ -725,6 +729,25 @@ def seed_trees(oid: str, trees: tuple[ConceptTree, ...]) -> None:
     no network, byte-identical trees to what production would build from a
     live phase install. ``mtg_utils.testkit`` is the one caller."""
     _TREES_MEMO[oid] = trees
+
+
+_RECORDS_MEMO: dict[str, tuple[dict, ...]] = {}
+
+
+def seed_records(oid: str, recs: Sequence[dict]) -> None:
+    """Pre-populate the phase records :func:`phase_records_for` serves
+    (testkit only — production reads ``_phase_record_index``)."""
+    _RECORDS_MEMO[oid] = tuple(recs)
+
+
+def phase_records_for(oid: str) -> tuple[dict, ...]:
+    """The phase face records for ``oid`` — the testkit's seeded ones
+    (:func:`seed_records`), else production's ``_phase_record_index`` — or ``()``."""
+    recs = _RECORDS_MEMO.get(oid)
+    if recs is None:
+        index = _phase_record_index()
+        recs = index.get(oid) if index is not None else None
+    return tuple(recs or ())
 
 
 def has_memoized_trees(oid: str) -> bool:

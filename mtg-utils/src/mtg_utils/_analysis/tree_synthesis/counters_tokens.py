@@ -33,7 +33,7 @@ from mtg_utils._card_ir.crosswalk import (
     distribute_counter_kind,
     filter_controller,
     tag_of,
-    walk_effects_with_else,
+    walk_effect_chain,
 )
 
 # ── token_maker_type_subject structural read + bucket-B (ADR-0036/0037 ───────
@@ -345,13 +345,13 @@ def has_structural_self_counter_grow(tree: ConceptTree) -> bool:
     keyword action, phase types directly.
 
     phase v0.94.0 moved an "Otherwise, put a +1/+1 counter on ~" branch onto
-    the conditional's ``else_ability`` (Shelinda, Yevon Acolyte), which the
-    unit's effect chain never walks — so that branch is read too.
+    the conditional's ``else_ability`` (Shelinda, Yevon Acolyte); the whole
+    unit node is walked, so that branch is read too.
     """
     for unit in tree.units:
         for node in (
             *(c.node for c in unit.effect_concepts("place_counter")),
-            *(c.node for c in walk_effects_with_else(unit.node)),
+            *(c.node for c in walk_effect_chain(unit.node)),
         ):
             if tag_of(node) != "PutCounter":
                 continue

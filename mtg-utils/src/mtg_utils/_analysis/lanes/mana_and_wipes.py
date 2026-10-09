@@ -704,15 +704,6 @@ def _draw_for_each(tree: ConceptTree) -> list[Signal]:
                         return [
                             Signal("draw_for_each", "you", "", "", tree.name, "high")
                         ]
-            elif tag == "Vote":
-                for pce in getattr(n, "per_choice_effect", None) or []:
-                    draw = getattr(pce, "effect", None)
-                    if not isinstance(draw, TypedMirrorNode) or tag_of(draw) != "Draw":
-                        continue
-                    if scaling(draw, unit.node):
-                        return [
-                            Signal("draw_for_each", "you", "", "", tree.name, "high")
-                        ]
         # ADR-0038 W6 endgame: a Draw's ``count`` reading
         # ``Ref(PreviousEffectAmount)`` stays OFF the shared
         # ``_DRAW_FOR_EACH_TRACKED_TAGS`` set (Windfall / Jace's Archivist
@@ -789,14 +780,12 @@ _DISCARD_OUTLET_SWEEP_RE = re.compile(DISCARD_OUTLET_REGEX, re.IGNORECASE)
 # hatch whose payer may be a DIFFERENT player; even a self-paid one
 # — Balduvian Horde's "sacrifice it unless you discard" — stays out to match
 # legacy, which reads none of this shape either); ``branches``/
-# ``per_choice_effect`` (a ``ChooseOneOf`` modal's alternatives — K'un-Lun
-# Warrior's "you may discard a card or sacrifice a Room" is a genuine
-# self-outlet, but Osseous Sticktwister's "each opponent may sacrifice a
-# permanent or discard a card" is the SAME branch shape with an opponent
-# chooser :func:`effect_owner_player_scope` can't reach through — the modal
-# wrapper's ``player_scope`` lives OUTSIDE ``_EFFECT_CHILD_FIELDS``'s reach,
-# so the two can't be told apart structurally without new machinery; both
-# stay out, matching legacy, which reads neither); ``mode`` (Mox Diamond's
+# ``per_choice_effect`` (choice and vote alternatives: the shared effect walk
+# reads them into ``unit.effects``, where :func:`effect_owner_player_scope`
+# carries the clause's actor into each branch — K'un-Lun Warrior's "you may
+# discard a card or sacrifice a Room" stays yours, Osseous Sticktwister's "each
+# opponent may sacrifice a permanent or discard a card" the opponents' — so this
+# deep walk, which has no owner read, leaves them to that arm); ``mode`` (Mox Diamond's
 # replacement ``MayCost`` alternative — "you may discard a land instead" is
 # a REPLACEMENT's decline-cost, not a discretionary value engine, and legacy
 # doesn't read it either).
@@ -2198,18 +2187,12 @@ def _cheat_into_play(tree: ConceptTree) -> list[Signal]:
     for unit in tree.units:
         if _nested_grant_reveal_or_hand_put(unit):
             return [Signal("cheat_into_play", "you", "", "", tree.name, "high")]
-    # ADR-0039 W7 endgame — two scan-scope closers. crosswalk.py's
-    # ``_EFFECT_CHILD_FIELDS`` (``effect``/``sub_ability``/``execute``/
-    # ``mode_abilities``) never walks a ``ChooseOneOf``'s ``branches`` list
-    # or any node's ``else_ability`` field — every OTHER consumer wants the
-    # CHOSEN branch / the TAKEN arm, not every possibility, so ``unit.
-    # effects`` silently drops a Battlefield put that lives in either
-    # container. cheat_into_play is a "may put"/"otherwise put" possibility
-    # lane, so descending into both is correct here (see each helper's
-    # docstring for the corpus-verified narrow blast radius).
+    # ADR-0039 W7 endgame — two scan-scope closers for puts the reveal and
+    # ChangeZone arms above can't pair with their producer (see each helper's
+    # docstring). A ``ChooseOneOf`` branch's put (Dr. Eggman) needs none: the
+    # shared effect walk reads it, and a villainous branch is served LOW
+    # (``signal_trees.branch_certain_idents``).
     for unit in tree.units:
-        if _cheat_choose_one_of_battlefield_put(unit):
-            return [Signal("cheat_into_play", "you", "", "", tree.name, "high")]
         if _cheat_negated_reveal_else_put(unit):
             return [Signal("cheat_into_play", "you", "", "", tree.name, "high")]
         if _cheat_reveal_until_you_enters_put(unit):
@@ -2273,42 +2256,6 @@ def _cheat_reveal_until_you_enters_put(unit: AbilityUnit) -> bool:
     return False
 
 
-def _cheat_choose_one_of_battlefield_put(unit: AbilityUnit) -> bool:
-    """ADR-0039 W7 — a modal ``ChooseOneOf`` branch's OWN effect chain
-    carrying a Hand/Library-origin ``ChangeZone``/``ChangeZoneAll``
-    {Battlefield} (Dr. Eggman's villainous-choice: "That player discards a
-    card, or you may put a Construct, Robot, or Vehicle card from your hand
-    onto the battlefield" — the SECOND branch is a genuine cheat, CR 700.2 /
-    400.7). Reads each branch's own filter with the SAME core/subtype +
-    land-carve-out gate the top-level ChangeZone arm uses
-    (:func:`_change_zone_all_cores` / :func:`filter_subtypes`); origin
-    restricted to Hand/Library only — no ``None``-origin sibling-tutor trust
-    extension, since this narrow shape never needs one. Corpus-verified
-    sole hit (2026-07, every commander-legal ``ChooseOneOf`` branch chain
-    carrying a Battlefield-destined ChangeZone/ChangeZoneAll): Dr. Eggman.
-    """
-    for n in iter_typed_nodes(unit.node):
-        if tag_of(n) != "ChooseOneOf":
-            continue
-        for br in getattr(n, "branches", None) or []:
-            for bn in iter_typed_nodes(br):
-                if not (
-                    tag_of(bn) in ("ChangeZone", "ChangeZoneAll")
-                    and getattr(bn, "destination", None) == "Battlefield"
-                    and getattr(bn, "origin", None) in ("Hand", "Library")
-                ):
-                    continue
-                cores = set(_change_zone_all_cores(bn))
-                if cores:
-                    if not cores <= {"Land"}:
-                        return True
-                    continue
-                subs = {s.lower() for s in filter_subtypes(effect_filter(bn))}
-                if subs and not subs & LAND_SUBTYPES:
-                    return True
-    return False
-
-
 def _cheat_negated_reveal_else_put(unit: AbilityUnit) -> bool:
     """ADR-0039 W7 — the "otherwise, put it onto the battlefield" arm of a
     reveal-then-branch idiom whose gating condition is NEGATED (Impromptu
@@ -2316,9 +2263,8 @@ def _cheat_negated_reveal_else_put(unit: AbilityUnit) -> bool:
     card, put it into your graveyard. Otherwise, put that card onto the
     battlefield." — phase structures this as ``condition=Not
     (RevealedHasCardType(Creature))`` on the GRAVEYARD branch's own node,
-    with the BATTLEFIELD put living on that SAME node's ``else_ability`` —
-    the field :func:`_cheat_choose_one_of_battlefield_put`'s docstring
-    explains ``unit.effects`` never reaches). Fix (e)'s existing reveal-
+    with the BATTLEFIELD put living on that SAME node's ``else_ability``,
+    away from the reveal producer's condition chain). Fix (e)'s existing reveal-
     producer arm only searches ``unit.effects`` for the ChangeZone site, so
     it never finds this one even though its producer gate
     (:data:`_CHEAT_REVEAL_PRODUCERS`) is satisfied — this helper is the

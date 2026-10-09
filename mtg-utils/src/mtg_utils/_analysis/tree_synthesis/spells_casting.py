@@ -23,10 +23,12 @@ from mtg_utils._analysis.tree_synthesis.value_engines import (
     _subtree_has_graveyard_zone,
 )
 from mtg_utils._card_ir.crosswalk import (
+    _OPPONENT_ACTOR_TAGS,
     AbilityUnit,
     ConceptNode,
     ConceptTree,
     counter_kind,
+    effect_owner_player_scope,
     filter_controller,
     filter_core_types,
     filter_non_types,
@@ -309,8 +311,13 @@ def has_permanent_recast(tree: ConceptTree) -> bool:
                     return True
         if unit.origin == "ability":
             for c in unit.effects:
-                if c.concept == "bounce" and (
-                    filter_controller(getattr(c.node, "target", None)) == "You"
+                # "you control" is the actor's: a foe returning a creature
+                # they control (Zndrsplt's Judgment) recasts nothing of yours.
+                if (
+                    c.concept == "bounce"
+                    and filter_controller(getattr(c.node, "target", None)) == "You"
+                    and effect_owner_player_scope(unit.node, c.node)
+                    not in _OPPONENT_ACTOR_TAGS
                 ):
                     return True
         # phase v0.104.0: the graveyard-cast permission static parked whole

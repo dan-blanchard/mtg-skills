@@ -21,6 +21,11 @@ from collections.abc import Callable, Iterable, Iterator
 from dataclasses import fields
 from typing import TYPE_CHECKING, Any, Literal, NamedTuple, get_args
 
+from mtg_utils._card_ir.branches import (
+    BRANCH_LISTS,
+    natural_top_only,
+    uncertain_list,
+)
 from mtg_utils._card_ir.creature_types import CREATURE_TYPES
 from mtg_utils._card_ir.mirror.runtime import (
     MISSING,
@@ -1267,11 +1272,16 @@ def count_distinct_operand_filter(node: TypedMirrorNode) -> object | None:
 
 def filter_controller(filt: object) -> str | None:
     """The phase ``controller`` of a typed filter (``"You"`` / ``"Opponent"`` /
-    ``None``), recursing ``Or`` / ``And`` to the first that names one.
+    ``None``), recursing ``Or`` / ``And`` to the first that names one. A chosen
+    player's permanents ("Choose an opponent. That player sacrifices a creature"
+    — Myrkul's Edict's d20 row) carry a variant controller, read as its key
+    (``"ChosenPlayer"``), never as unset.
     """
     t = tag_of(filt)
     if t == "Typed":
         c = getattr(filt, "controller", None)
+        if isinstance(c, MirrorVariant):
+            return c.key
         return c if isinstance(c, str) else None
     if t in ("Or", "And"):
         for sub in getattr(filt, "filters", ()) or ():
@@ -2298,13 +2308,76 @@ def ref_count_filter(node: object, field: str) -> object | None:
 # ability-shaped fields — same flattening rationale, 6 carriers at the bump
 # census (Fact or Fiction, Sphinx of Clear Skies, Sphinx of Uthuun, Unesh,
 # Boneyard Parley, Make an Example).
+# ``else_ability``: phase v0.94.0's "Otherwise, …" branch of a conditional
+# (Bogardan Phoenix's "Otherwise, return it to the battlefield"; Sphinx
+# Sovereign's "Otherwise, each opponent loses 3 life") — one of the two
+# outcomes the ability can have, so a faithful unit aggregates it too.
 _EFFECT_CHILD_FIELDS = (
     "effect",
     "sub_ability",
     "execute",
     "chosen_pile_effect",
     "unchosen_pile_effect",
+    "else_ability",
 )
+# The LIST-valued branch fields, each entry one alternative outcome of the
+# node that carries it: a modal ability's ``mode_abilities`` (Demonic Pact), a
+# ``ChooseOneOf``'s ``branches`` (an unbulleted "X or Y" choice — Endling's "~
+# gets +1/-1 or -1/+1", fabricate's counters or Servos), a ``Vote``'s
+# ``per_choice_effect`` (Tyrant's Choice, CR 701.38a), and a ``RollDie``'s
+# ``results`` table rows (Farideh's Fireball's d20, CR 706 — each row an
+# untyped ``{min, max, effect}`` struct whose ``effect`` is the row's ability).
+_EFFECT_LIST_FIELDS = ("mode_abilities", *BRANCH_LISTS.values())
+# Every field a walk over an ability's effects descends, single and list alike.
+_EFFECT_WALK_FIELDS = (*_EFFECT_CHILD_FIELDS, *_EFFECT_LIST_FIELDS)
+
+
+def effect_child_items(node: object) -> Iterator[tuple[str, int | None, object]]:
+    """``(field, list index or None, child)`` for each child a walk over the card's
+    OWN effects descends from ``node``: every "otherwise" branch, choice branch,
+    vote outcome and die-roll row. (The certain trees leave out the branches the
+    controller doesn't decide by pruning them from the records before load —
+    ``_card_ir.branches.certain_records`` — so no walk needs to know.)
+
+    A "sacrifice it unless you …" choice is always skipped, the choice and its
+    "otherwise, sacrifice it" branch: champion's "sacrifice it unless you exile
+    another [object] you control" (CR 702.72a — Changeling Hero, Mistbind
+    Clique) is a drawback the controller pays to keep the card, so neither
+    alternative is something the card does for them."""
+    tag = tag_of(node)
+    for fname in _EFFECT_WALK_FIELDS:
+        child = getattr(node, fname, MISSING)
+        if fname == "else_ability" and is_self_sacrifice(child):
+            continue
+        if (
+            fname == BRANCH_LISTS["ChooseOneOf"]
+            and tag == "ChooseOneOf"
+            and _present(child)
+            and isinstance(child, list)
+            and any(is_self_sacrifice(b) for b in child)
+        ):
+            continue
+        if isinstance(child, TypedMirrorNode):
+            yield fname, None, child
+        elif _present(child) and isinstance(child, list):
+            for i, m in enumerate(child):
+                yield fname, i, m
+
+
+def effect_children(node: object) -> Iterator[object]:
+    """The child nodes :func:`effect_child_items` names."""
+    for _fname, _i, child in effect_child_items(node):
+        yield child
+
+
+def is_self_sacrifice(ability_like: object) -> bool:
+    """Whether an ability wrapper's effect is "sacrifice this permanent" (a
+    ``Sacrifice`` of ``SelfRef``) — the drawback half of "sacrifice it unless"."""
+    eff = getattr(ability_like, "effect", None)
+    return (
+        tag_of(eff) == "Sacrifice" and tag_of(getattr(eff, "target", None)) == "SelfRef"
+    )
+
 
 _MOD_SITES_CACHE_ATTR = "_xw_mod_sites"
 
@@ -2387,12 +2460,12 @@ def _walk_mod_sites(
             for mod in mods:
                 if isinstance(mod, TypedMirrorNode):
                     yield node, mod
-        for fname in (*_EFFECT_CHILD_FIELDS, "mode_abilities", "static_abilities"):
-            child = getattr(node, fname, MISSING)
-            if isinstance(child, TypedMirrorNode):
-                stack.append(child)
-            elif _present(child) and isinstance(child, list):
-                stack.extend(child)
+        stack.extend(effect_children(node))
+        child = getattr(node, "static_abilities", MISSING)
+        if isinstance(child, TypedMirrorNode):
+            stack.append(child)
+        elif _present(child) and isinstance(child, list):
+            stack.extend(child)
 
 
 def filter_inzone_zones(filt: object) -> tuple[str, ...]:
@@ -2738,12 +2811,8 @@ def _walk_static_defs(root: object) -> Iterator[TypedMirrorNode]:
         seen.add(id(node))
         if _is_static_def(node):
             yield node
-        for fname in (
-            *_EFFECT_CHILD_FIELDS,
-            "mode_abilities",
-            "static_abilities",
-            "statics",
-        ):
+        stack.extend(effect_children(node))
+        for fname in ("static_abilities", "statics"):
             child = getattr(node, fname, MISSING)
             if isinstance(child, TypedMirrorNode):
                 stack.append(child)
@@ -2920,7 +2989,7 @@ def has_nested_extra_turn(node: object) -> bool:
 # shaped bodies only), and :func:`iter_nested_granted_effect_concepts` walks
 # EVERY yielded body (trigger AND ability alike) through the same effect/
 # sub_ability/execute chain a top-level unit's own effects walk uses
-# (:func:`_walk_effect_chain`) — so a granted trigger's ``execute.effect``
+# (:func:`walk_effect_chain`) — so a granted trigger's ``execute.effect``
 # and a granted ability's ``definition.effect`` decorate identically, tagged
 # "granted" only by way of never appearing in ``unit.effects`` otherwise.
 #
@@ -3594,6 +3663,16 @@ _SELF_EXCLUDE_TAGS: frozenset[str] = frozenset({"Controller", "You"})
 #: each read decides what it means (reach: ``"each"``).
 OTHERS_SCOPE = "Others"
 
+#: every player's option ("any player may …"): reach reads it as ``"each"``; no
+#: one is forced, so it is no edict actor.
+ANY_PLAYER_SCOPE = "AnyPlayer"
+
+#: a player the card picks out — the players who chose a vote's outcome (Master of
+#: Ceremonies' "for each player who chose money"), a villainous choice's "that
+#: player" (Damocles Base). Nobody is targeted; reach reads it as ``"target"`` (a
+#: player the card chooses) and an edict as opponents.
+CHOSEN_PLAYER_SCOPE = "ChosenPlayer"
+
 
 def _owner_scope_tag(ps: object, root: object) -> str | None:
     """A wrapper's ``player_scope`` tag, with "each other player" — an
@@ -3603,7 +3682,13 @@ def _owner_scope_tag(ps: object, root: object) -> str | None:
     ParentObjectTargetOwner}`` on the card's own dies trigger, whose parent
     object is the card itself; on any other trigger that object is a target
     (Fractured Identity), so it stays ``AllExcept``."""
+    if isinstance(ps, str):  # an actor the owner walk resolved (a choice, a label)
+        return None if ps == "You" else ps
     tag = _player_scope_tag(ps)
+    if tag == "VotedFor":
+        # the players who chose a vote's outcome, outside friend-or-foe (whose
+        # side the owner walk reads off its label).
+        return CHOSEN_PLAYER_SCOPE
     if tag != "AllExcept":
         return tag
     excluded = tag_of(getattr(ps, "exclude", None))
@@ -3615,28 +3700,286 @@ def _owner_scope_tag(ps: object, root: object) -> str | None:
     return tag
 
 
-def _find_owner_wrapper(
-    node: object, target: object, depth: int, seen: set[int]
-) -> TypedMirrorNode | None:
-    """The ability wrapper whose ``.effect`` IS ``target`` (same walk as
-    :func:`effect_owner_player_scope`'s), or ``None``."""
-    if depth > 40 or not isinstance(node, TypedMirrorNode) or id(node) in seen:
-        return None
-    seen.add(id(node))
-    if getattr(node, "effect", MISSING) is target:
-        return node
-    for fname in (*_EFFECT_CHILD_FIELDS, "mode_abilities"):
-        child = getattr(node, fname, MISSING)
-        if isinstance(child, TypedMirrorNode):
-            r = _find_owner_wrapper(child, target, depth + 1, seen)
-            if r is not None:
-                return r
-        elif _present(child) and isinstance(child, list):
-            for m in child:
-                r = _find_owner_wrapper(m, target, depth + 1, seen)
-                if r is not None:
-                    return r
-    return None
+# Effect nodes that pick one of several alternatives (``_EFFECT_LIST_FIELDS``
+# minus the modes): the alternatives are still the clause that holds the node,
+# so a branch wrapper with no ``player_scope`` of its own is done by whoever
+# does that clause.
+_BRANCHING_EFFECT_TAGS = frozenset(BRANCH_LISTS)
+_BRANCH_LIST_FIELDS = tuple(f for f in _EFFECT_LIST_FIELDS if f != "mode_abilities")
+
+_OWNER_INDEX_CACHE_ATTR = "_xw_owner_index"
+
+
+class _OwnerIndex(NamedTuple):
+    """id(effect node) → (owner wrapper, its actor: a ``player_scope`` node or an
+    actor tag string); id(any node) → the alternatives it sits in ({id of the
+    choosing node: which alternative})."""
+
+    owners: dict[int, tuple[TypedMirrorNode, object]]
+    paths: dict[int, dict[int, object]]
+    #: ids of the nodes inside a branch the controller doesn't decide, or only a
+    #: natural top die face reaches (``branches.uncertain_list`` /
+    #: ``branches.natural_top_only`` — the branches the certain records prune).
+    uncertain: set[int]
+    #: id(node) → the actor facing the choice it sits in, when another player
+    #: makes that choice (:data:`_CHOOSER_ACTORS`).
+    facing: dict[int, str]
+
+
+# The player facing a choice another player makes — a ``ChooseOneOf``'s
+# non-controller ``chooser`` (a villainous choice, CR 701.55a). Its branches name
+# that player as ``ScopedPlayer`` ("They sacrifice a nontoken creature of their
+# choice" — Damocles Base); :func:`effect_facing_player` hands the reads that
+# resolve ``ScopedPlayer`` this side. Damocles Base's "that player" and a target's
+# controller or owner are a player the card picks out (:data:`CHOSEN_PLAYER_SCOPE`);
+# a defending player (CR 506.2) and "each opponent who lost 3 or more life"
+# (Davros's ``PlayerAttribute``) are opponents.
+_CHOOSER_ACTORS: dict[str, str] = {
+    "Opponent": "Opponent",
+    "DefendingPlayer": "Opponent",
+    "PlayerAttribute": "Opponent",
+    "ChosenPlayer": CHOSEN_PLAYER_SCOPE,
+    "ParentObjectTargetController": CHOSEN_PLAYER_SCOPE,
+    "ParentObjectTargetOwner": CHOSEN_PLAYER_SCOPE,
+}
+# The actor of a choice its holding wrapper offers to more players than the
+# controller (``optional_for``): "any player may sacrifice two lands … or have this
+# deal 5 damage to that player" (Worms of the Earth) — every player's option, not an
+# each-player instruction (:data:`ANY_PLAYER_SCOPE`).
+_OPTION_ACTORS: dict[str, str] = {
+    "AnyPlayer": ANY_PLAYER_SCOPE,
+    "AnyOpponent": "Opponent",
+    "AnyOtherPlayer": OTHERS_SCOPE,
+}
+
+
+def _option_actor(holder: object, scope: object) -> object:
+    """The actor a ``ChooseOneOf``'s branches inherit: the "any player" option of
+    the wrapper holding it (:data:`_OPTION_ACTORS`), else the holding clause's."""
+    option = getattr(holder, "optional_for", None)
+    if isinstance(option, str) and option in _OPTION_ACTORS:
+        return _OPTION_ACTORS[option]
+    return scope
+
+
+def _owner_index(root: object) -> _OwnerIndex:
+    """One walk over ``root``'s effects (:func:`effect_child_items` — the same
+    branches and champion skip as every other effect walk), noting for each
+    effect node the wrapper that owns it (the one whose ``.effect`` IS it) with
+    that wrapper's actor, and for every node the alternatives it sits in.
+    Memoized on ``root``.
+
+    The actor is the wrapper's own ``player_scope`` or — for a branch wrapper that
+    carries none — the one of the clause whose ``effect`` holds the branching
+    node: Osseous Sticktwister's "each opponent may sacrifice a nonland permanent
+    or discard a card" hangs ``player_scope: Opponent`` on the trigger's
+    ``execute``, and its two branches carry none. A choice offered to "any player"
+    hands its branches that option (:func:`_option_actor`); a choice another player
+    makes notes the facing player (:func:`effect_facing_player`); a friend-or-foe
+    outcome its label's side (:func:`_friend_or_foe_actor`). A sequential
+    ``sub_ability`` or an ``else_ability`` is its own clause and inherits nothing.
+    An alternative is a conditional wrapper's ``"then"`` (its ``effect``) or
+    ``"else"`` (its ``else_ability``), or a branching node's list index."""
+    if isinstance(root, TypedMirrorNode):
+        cached = root.__dict__.get(_OWNER_INDEX_CACHE_ATTR)
+        if cached is not None:
+            return cached
+    owners: dict[int, tuple[TypedMirrorNode, object]] = {}
+    paths: dict[int, dict[int, object]] = {}
+    uncertain: set[int] = set()
+    facing: dict[int, str] = {}
+    seen: set[int] = set()
+
+    def walk(
+        node: object,
+        inherited: object,
+        path: dict,
+        depth: int,
+        *,
+        row: bool,
+        vote: object = None,
+        holder: object = None,
+        in_uncertain: bool = False,
+        facing_actor: str | None = None,
+    ) -> None:
+        if depth > 40 or not isinstance(node, TypedMirrorNode) or id(node) in seen:
+            return
+        seen.add(id(node))
+        paths.setdefault(id(node), path)
+        if in_uncertain:
+            uncertain.add(id(node))
+        if facing_actor is not None:
+            facing.setdefault(id(node), facing_actor)
+        own = getattr(node, "player_scope", MISSING)
+        scope = own if _present(own) else inherited
+        if vote is not None:
+            scope = _friend_or_foe_actor(vote, scope)
+        eff = getattr(node, "effect", MISSING)
+        if not row and isinstance(eff, TypedMirrorNode):
+            owners.setdefault(id(eff), (node, scope))
+        tag = tag_of(node)
+        branching = tag in _BRANCHING_EFFECT_TAGS
+        branch_scope = _option_actor(holder, scope) if tag == "ChooseOneOf" else scope
+        chooser = (
+            tag_of(getattr(node, "chooser", None)) if tag == "ChooseOneOf" else None
+        )
+        branch_facing = (
+            _CHOOSER_ACTORS.get(chooser, CHOSEN_PLAYER_SCOPE)
+            if tag == "ChooseOneOf" and chooser not in (None, "Controller")
+            else facing_actor
+        )
+        others_pick = branching and uncertain_list(node, holder)
+        has_else = isinstance(getattr(node, "else_ability", MISSING), TypedMirrorNode)
+        for fname, i, child in effect_child_items(node):
+            if fname == "effect":
+                # a d20 row's ``effect`` is the row's ability wrapper
+                keep = row or tag_of(child) in _BRANCHING_EFFECT_TAGS
+                passed = scope if keep else None
+            else:
+                in_branch = branching and fname in _BRANCH_LIST_FIELDS
+                passed = branch_scope if in_branch else None
+            step = path
+            if has_else and fname in ("effect", "else_ability"):
+                step = {**path, id(node): "else" if fname == "else_ability" else "then"}
+            elif branching and i is not None and fname in _BRANCH_LIST_FIELDS:
+                step = {**path, id(node): i}
+            walk(
+                child,
+                passed,
+                step,
+                depth + 1,
+                row=branching and fname == BRANCH_LISTS["RollDie"],
+                vote=node if fname == BRANCH_LISTS["Vote"] else None,
+                holder=node if fname == "effect" else None,
+                facing_actor=branch_facing
+                if branching and fname in _BRANCH_LIST_FIELDS
+                else facing_actor,
+                in_uncertain=in_uncertain
+                or (
+                    branching
+                    and fname in _BRANCH_LIST_FIELDS
+                    and (
+                        others_pick
+                        or (
+                            fname == BRANCH_LISTS["RollDie"]
+                            and natural_top_only(node, child)
+                        )
+                    )
+                ),
+            )
+
+    walk(root, None, {}, 0, row=False)
+    out = _OwnerIndex(owners, paths, uncertain, facing)
+    if isinstance(root, TypedMirrorNode):
+        object.__setattr__(root, _OWNER_INDEX_CACHE_ATTR, out)
+    return out
+
+
+# Friend-or-foe's two labels (``Vote.choices`` under ``voter_scope:
+# ControllerLabels``) and the side each lands on. The controller labels every
+# player, themselves included — "You make this choice for yourself as well as each
+# other player" (Pir's Whim's ruling) — so a friend reads as the controller and a
+# foe as an opponent: the lane's own decision (a friend "doesn't become your
+# teammate", the same ruling set says).
+_FRIEND_OR_FOE_ACTORS = {"friend": "You", "foe": "Opponent"}
+
+
+def _friend_or_foe_actor(vote: object, scope: object) -> object:
+    """A friend-or-foe outcome's actor: the branch's ``player_scope: VotedFor``
+    names its label by ``choice_index`` into the vote's ``choices`` (Pir's
+    Whim: ``["friend", "foe"]`` — the friends search for a land, the foes
+    sacrifice). Any other scope or vote is returned unchanged."""
+    if tag_of(getattr(vote, "voter_scope", None)) != "ControllerLabels":
+        return scope
+    if tag_of(scope) != "VotedFor":
+        return scope
+    index = getattr(scope, "choice_index", None)
+    choices = getattr(vote, "choices", None)
+    if not isinstance(choices, list):
+        return scope
+    i = index if isinstance(index, int) else 0
+    label = choices[i] if 0 <= i < len(choices) else None
+    return _FRIEND_OR_FOE_ACTORS.get(label, scope) if isinstance(label, str) else scope
+
+
+def _find_owner_wrapper(root: object, target: object) -> TypedMirrorNode | None:
+    """The ability wrapper whose ``.effect`` IS ``target``, or ``None``."""
+    found = _owner_index(root).owners.get(id(target))
+    return found[0] if found is not None else None
+
+
+def effect_owner_player_scope(root: object, effect_node: object) -> str | None:
+    """The actor tag on the ability wrapper that DIRECTLY owns ``effect_node``
+    (the wrapper whose ``.effect`` IS it — :func:`_owner_index`), or ``None``
+    when that wrapper names none (the controller).
+
+    phase hangs ``player_scope`` ("each player / an opponent <does X>") on the
+    wrapper whose ``effect`` is the resolving action — a trigger ``execute``, a
+    sequential ``sub_ability``, a modal ``mode_abilities`` arm, a vote's or a
+    ``ChooseOneOf``'s branch (which takes the actor of the choice when it carries
+    none: "each opponent may sacrifice … or discard …"), an "otherwise"
+    ``else_ability`` — NOT on the inner effect node the overlay decorates.
+    Reading the scope of the wrapper that owns THIS effect (not a sibling's)
+    tells a give-away / edict ("each player gains control", "each opponent
+    sacrifices an enchantment") from a you-effect that merely shares a unit with
+    an unrelated each-player action — Nihiloor's per-opponent tap loop (a
+    ``repeat_for`` on the OUTER trigger, not the gain-control's wrapper),
+    Garland's monarch vote. ``OTHERS_SCOPE`` == "each other player" and
+    ``CHOSEN_PLAYER_SCOPE`` == a player the card picks out
+    (:func:`_owner_scope_tag`): each lane decides what they mean."""
+    found = _owner_index(root).owners.get(id(effect_node))
+    return _owner_scope_tag(found[1], root) if found is not None else None
+
+
+def effect_owner_is_friend(root: object, effect_node: object) -> bool:
+    """Whether ``effect_node`` is a friend-or-foe outcome labelled friend — the
+    controller's side (:func:`_friend_or_foe_actor`): Pir's Whim's "each friend
+    searches their library for a land card"."""
+    found = _owner_index(root).owners.get(id(effect_node))
+    if found is None:
+        return False
+    owner, actor = found
+    return actor == "You" and tag_of(getattr(owner, "player_scope", None)) == "VotedFor"
+
+
+def effect_facing_player(root: object, node: object) -> str | None:
+    """The actor tag of the player facing the choice ``node`` sits in, when
+    another player makes it — the player a branch's ``ScopedPlayer`` names
+    ("That player sacrifices a creature of their choice" — Midnight Crusader
+    Shuttle's defending player, an opponent) — else ``None``."""
+    return _owner_index(root).facing.get(id(node))
+
+
+def in_uncertain_branch(root: object, node: object) -> bool:
+    """Whether ``node`` sits in a branch under ``root`` the controller doesn't
+    decide, or only a natural top die face reaches — what the certain records
+    prune (``_card_ir.branches``), read on a full tree."""
+    return id(node) in _owner_index(root).uncertain
+
+
+def effects_exclusive(root: object, a: object, b: object) -> bool:
+    """Whether two effects under ``root`` are alternatives that can't both
+    happen: one in a conditional's main branch and one in its "otherwise"
+    branch (Search for Survivors' "If it's a creature card, put it onto the
+    battlefield. Otherwise, exile it."), or in different branches of one
+    ``ChooseOneOf`` / vote / die-roll row. A lane pairing two effects of one
+    unit (an exile with its return) checks this now that the effect walk reads
+    every branch. ``False`` when either isn't under ``root``."""
+    paths = _owner_index(root).paths
+    pa, pb = paths.get(id(a)), paths.get(id(b))
+    if pa is None or pb is None:
+        return False
+    return any(k in pb and pb[k] != v for k, v in pa.items())
+
+
+def effect_owner_rebinds_kind(root: object, effect_node: object) -> bool:
+    """Whether the wrapper that owns ``effect_node`` carries phase's
+    ``iteration_kind_binding`` marker: a "for each kind of counter on target
+    permanent, put another counter of that kind on it or remove one from it"
+    branch (Quarry Hauler, Dramatist's Puppet), whose typed counter kind is a
+    loop placeholder, not the kind the card names."""
+    owner = _find_owner_wrapper(root, effect_node)
+    return _present(getattr(owner, "iteration_kind_binding", MISSING))
 
 
 def effect_owner_raw(root: object, effect_node: object) -> str:
@@ -3653,7 +3996,7 @@ def effect_owner_raw(root: object, effect_node: object) -> str:
     clause elsewhere in the same ability). ``""`` when the owner is
     unresolvable or carries no description of its own.
     """
-    owner = _find_owner_wrapper(root, effect_node, 0, set())
+    owner = _find_owner_wrapper(root, effect_node)
     return _node_raw(owner) if owner is not None else ""
 
 
@@ -3668,7 +4011,7 @@ def effect_owner_targets_per_opponent(root: object, effect_node: object) -> bool
     per-opponent CARDINALITY is unambiguous. CR 506.4's "each opponent"
     multiplayer default.
     """
-    owner = _find_owner_wrapper(root, effect_node, 0, set())
+    owner = _find_owner_wrapper(root, effect_node)
     if owner is None:
         return False
     mt = getattr(owner, "multi_target", MISSING)
@@ -3687,7 +4030,7 @@ def effect_owner_reads_chosen_group(root: object, effect_node: object) -> bool:
     """Whether the wrapper that DIRECTLY owns ``effect_node`` acts on a group an
     earlier clause chose (phase's ``reads_chosen_group`` index — The Eagles Are
     Coming!'s "return each chosen creature")."""
-    owner = _find_owner_wrapper(root, effect_node, 0, set())
+    owner = _find_owner_wrapper(root, effect_node)
     return isinstance(getattr(owner, "reads_chosen_group", None), int)
 
 
@@ -3697,7 +4040,7 @@ def effect_owner_duration(root: object, effect_node: object) -> str | None:
     Spell wrapper, not on the ``ChangeZone`` node itself), or ``None``.
     CR 611.2b.
     """
-    owner = _find_owner_wrapper(root, effect_node, 0, set())
+    owner = _find_owner_wrapper(root, effect_node)
     return node_duration(owner) if owner is not None else None
 
 
@@ -3739,12 +4082,11 @@ def effect_player_reach(root: object, effect_node: TypedMirrorNode) -> str | Non
     ``player_scope: Opponent`` (Grave Pact, Syphon Mind)."""
     if effect_owner_targets_per_opponent(root, effect_node):
         return "per_opponent"
-    owner = _find_owner_wrapper(root, effect_node, 0, set())
-    actor = (
-        _owner_scope_tag(getattr(owner, "player_scope", MISSING), root)
-        if owner is not None
-        else None
-    )
+    actor = effect_owner_player_scope(root, effect_node)
+    if actor == CHOSEN_PLAYER_SCOPE:
+        return "target"
+    if actor == ANY_PLAYER_SCOPE:
+        return "each"
     if actor in _OPPONENT_ACTOR_TAGS:
         return "opponents"
     # "each other player" (``Others``) reaches your teammate too (CR 102.3), the
@@ -5050,7 +5392,7 @@ def reach_amount(
         scope = "single"
     else:
         return None
-    owner = _find_owner_wrapper(root, node, 0, set())
+    owner = _find_owner_wrapper(root, node)
     repeated = owner is not None and _present(getattr(owner, "repeat_for", MISSING))
     if repeated or amount_is_scaling(node):
         return scope, None
@@ -5374,7 +5716,9 @@ def activation_zone(node: object) -> str | None:
 def unit_zones(unit: AbilityUnit) -> frozenset[str]:
     """The zones a unit functions from when it says so (CR 113.6b): a trigger's
     ``trigger_zones``, an activated ability's :func:`activation_zone`, and an "if
-    this card is in your graveyard" ``SourceInZone`` condition (Ichorid)."""
+    this card is in your graveyard" ``SourceInZone`` condition (Ichorid) — on the
+    unit, or as an activation restriction (Loathsome Troll's "Activate only if
+    this card is in your graveyard")."""
     zones: set[str] = set()
     tz = getattr(unit.node, "trigger_zones", None)
     if isinstance(tz, list):
@@ -5384,11 +5728,22 @@ def unit_zones(unit: AbilityUnit) -> frozenset[str]:
                 zones.add(z)
     if (az := activation_zone(unit.node)) is not None:
         zones.add(az)
-    cond = getattr(unit.node, "condition", None)
-    zone = getattr(cond, "zone", None)
-    if tag_of(cond) == "SourceInZone" and isinstance(zone, str):
-        zones.add(zone)
+    for cond in (
+        getattr(unit.node, "condition", None),
+        *activation_restriction_conditions(unit.node),
+    ):
+        zone = getattr(cond, "zone", None)
+        if tag_of(cond) == "SourceInZone" and isinstance(zone, str):
+            zones.add(zone)
     return frozenset(zones)
+
+
+def functions_off_battlefield(unit: AbilityUnit) -> bool:
+    """Whether a unit says it works only from zones other than the battlefield
+    (:func:`unit_zones` — a graveyard trigger, a graveyard-only activation):
+    "this card" there is a card, never a permanent (Loathsome Troll)."""
+    zones = unit_zones(unit)
+    return bool(zones) and "Battlefield" not in zones
 
 
 def _functions_on_battlefield(unit: AbilityUnit) -> bool:

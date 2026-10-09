@@ -34,6 +34,7 @@ from mtg_utils._analysis.lanes import (
     extract_crosswalk_signals,
 )
 from mtg_utils._analysis.signal_trees import as_signal_tree
+from mtg_utils._card_ir.branches import apply_misreads
 from mtg_utils._card_ir.crosswalk import (
     CIRCLED_COLORS_RESIDUE,
     OTHER,
@@ -91,7 +92,7 @@ def _schema():
 def _raw_tree(name: str, face: str | None = None) -> ConceptTree:
     """The RAW overlay tree (no corrections, no synthesis) — for the tests OF the
     correction stage itself."""
-    rec = _record(name, face)
+    rec = apply_misreads(_record(name, face))  # as ``trees.face_tree`` loads it
     root = strict_load_card(rec, _schema(), name=rec["name"])
     return build_concept_tree(root, name=rec["name"])
 
@@ -9543,10 +9544,10 @@ def test_cheat_into_play_choose_one_of_branch_arm():
     """Dr. Eggman's "Then each opponent faces a villainous choice — That
     player discards a card, or you may put a Construct, Robot, or Vehicle
     card from your hand onto the battlefield" — the SECOND ``ChooseOneOf``
-    branch is a genuine Hand-origin cheat (CR 700.2 modal, CR 601.2/400.7
-    the cheat itself); crosswalk.py's ``_EFFECT_CHILD_FIELDS`` never walks a
-    ``ChooseOneOf``'s ``branches`` list, so ``unit.effects`` never surfaces
-    it without :func:`_cheat_choose_one_of_battlefield_put`'s descent."""
+    branch is a genuine Hand-origin cheat (CR 701.55a villainous choice; CR 601.2/400.7
+    the cheat itself); the shared effect walk reads the branch, so the
+    top-level ChangeZone arm sees it (served LOW by ``extract_signals``: the
+    choice is the opponent's, CR 701.55a)."""
     assert ("cheat_into_play", "you", "") in _idents("Dr. Eggman")
 
 
@@ -10898,14 +10899,13 @@ def test_topdeck_stack_selection_idiom_excluded():
     assert "topdeck_stack" not in _keys("Telling Time")
 
 
-def test_topdeck_stack_nested_rolldie_result_excluded():
-    """Loathsome Troll's graveyard-recursion d20 result ("1-9 | Put this
-    card on top of your library") lives inside a modal ``RollDie.results``
-    branch — the nested-grant descent is scoped to
-    ``GrantAbility``/``GrantTrigger``/``GrantStaticAbility`` only, never a
-    blanket deep walk, so this stays out (legacy's project.py doesn't walk
-    it either)."""
-    assert "topdeck_stack" not in _keys("Loathsome Troll")
+def test_topdeck_stack_reads_a_rolldie_result_row():
+    """Loathsome Troll's d20 row "1-9 | Put this card on top of your library"
+    is one of the effects the shared walk reads since it descends
+    ``RollDie.results``: the same graveyard-to-top self-move Arashin Sovereign's
+    and Moss-Pit Skeleton's dies triggers already fire on. (Pinned out before
+    only because the walk didn't reach the row.)"""
+    assert "topdeck_stack" in _keys("Loathsome Troll")
 
 
 def test_target_player_draws_excludes_scoped_player_group_draw():

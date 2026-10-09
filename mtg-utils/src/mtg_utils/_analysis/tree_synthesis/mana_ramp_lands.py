@@ -22,10 +22,12 @@ from mtg_utils._card_ir.crosswalk import (
     ConceptTree,
     change_zone_dirs,
     effect_filter,
+    effect_owner_is_friend,
     filter_controller,
     filter_core_types,
     filter_inzone_zones,
     filter_subtypes,
+    functions_off_battlefield,
     has_filter_property,
     iter_cost_leaves,
     iter_nested_trigger_defs,
@@ -561,10 +563,17 @@ def _arm_tutor_directed(tree: ConceptTree) -> ConceptNode | None:
     """Synthesize a veto marker when the reminder-stripped oracle reveals a
     SearchLibrary directed at ANOTHER player or symmetric across players --
     the residual phase leaves with no typed direction marker at all."""
-    if not any(
-        c.concept == "tutor" and tag_of(c.node) in TUTOR_EFFECT_TAGS
-        for c in tree.iter_concepts()
-    ):
+    searches = [
+        (unit, c)
+        for unit in tree.units
+        for c in unit.effects
+        if c.concept == "tutor" and tag_of(c.node) in TUTOR_EFFECT_TAGS
+    ]
+    if not searches:
+        return None
+    # A friend-or-foe "each friend searches their library" (Pir's Whim) reads,
+    # structurally, as the controller's side: no veto.
+    if all(effect_owner_is_friend(unit.node, c.node) for unit, c in searches):
         return None
     if not _matches_tutor_directed_idiom(tree.oracle or ""):
         return None
@@ -987,6 +996,18 @@ def _arm_bounce_tempo(tree: ConceptTree) -> ConceptNode | None:
         )
         if gy_return and gy_typed:
             gy_return = False  # the recall is typed; the screen stands down
+        # The unit chose a card in a graveyard (Aberrant Mind Sorcerer's
+        # "choose target instant or sorcery card in your graveyard", whose d20
+        # row returns "that card" to your hand): a back-reference names that
+        # card, not a permanent.
+        gy_chosen = any(
+            "Graveyard" in filter_inzone_zones(getattr(n, "target", None))
+            for n in iter_typed_nodes(unit.node)
+        )
+        # A unit that functions only from a graveyard (Loathsome Troll's
+        # "Activate only if this card is in your graveyard") returns a card, not
+        # a permanent, when it returns itself.
+        off_battlefield = functions_off_battlefield(unit)
         bounces = [
             c
             for c in unit.iter_concepts()
@@ -1013,13 +1034,20 @@ def _arm_bounce_tempo(tree: ConceptTree) -> ConceptNode | None:
             #   Spirit battlefield self-bounce family. A PERMANENT's
             #   SelfRef bounce in the same shape (Mtenda Griffin's
             #   return-this-to-hand cost rider) keeps firing.
-            if gy_typed and tag_of(getattr(c.node, "target", None)) in (
+            if (gy_typed or gy_chosen) and tag_of(getattr(c.node, "target", None)) in (
                 "ParentTarget",
                 "TrackedSet",
             ):
                 continue
             if tag_of(sub) == "SelfRef":
-                if gy_typed and (tree.is_type("Instant") or tree.is_type("Sorcery")):
+                # An instant or sorcery returning itself does so from the stack:
+                # it is a spell there, not a permanent (CR 110.1: a permanent is
+                # a card or token on the battlefield), so it is spell recursion,
+                # not a battlefield bounce (Unexpected Results' "return
+                # Unexpected Results to its owner's hand").
+                if tree.is_type("Instant") or tree.is_type("Sorcery"):
+                    continue
+                if off_battlefield:
                     continue
                 if gy_return:
                     continue  # self GY-return — recursion, not tempo

@@ -29,6 +29,7 @@ from mtg_utils._analysis.text_reads import (
     _graveyard_matters_clauses,
 )
 from mtg_utils._card_ir.crosswalk import (
+    ANY_PLAYER_SCOPE,
     EFFECT_CONCEPTS,
     OTHERS_SCOPE,
     AbilityUnit,
@@ -2017,8 +2018,12 @@ def _land_sacrifice_makers(tree: ConceptTree) -> list[Signal]:
                 and c.scope != "opponents"
                 and not _sac_targets_opponent(unit, c.node)
             ):
+                # "any player may sacrifice two lands" (Worms of the Earth): every
+                # player's option.
+                actor = effect_owner_player_scope(unit.node, c.node)
+                scope = "each" if actor == ANY_PLAYER_SCOPE else "you"
                 return [
-                    Signal("land_sacrifice_makers", "you", "", c.raw, tree.name, "high")
+                    Signal("land_sacrifice_makers", scope, "", c.raw, tree.name, "high")
                 ]
         for leaf in iter_cost_leaves(getattr(unit.node, "cost", None)):
             if tag_of(leaf) == "Sacrifice" and filter_core_types(

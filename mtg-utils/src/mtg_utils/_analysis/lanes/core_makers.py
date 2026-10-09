@@ -39,9 +39,14 @@ from mtg_utils._analysis.tree_synthesis import (
     creature_death_condition,
 )
 from mtg_utils._card_ir.crosswalk import (
+    _OPPONENT_ACTOR_TAGS,
+    CHOSEN_PLAYER_SCOPE,
     ConceptTree,
     change_zone_dirs,
     counter_kind,
+    effect_facing_player,
+    effect_owner_player_scope,
+    effect_owner_rebinds_kind,
     effect_reaches_player,
     entered_this_turn_filters,
     filter_controller,
@@ -93,6 +98,10 @@ def _win_lose_game(tree: ConceptTree) -> list[Signal]:
     return []
 
 
+# Owner actors naming someone other than the controller alone.
+_OTHER_ACTORS = frozenset({*_OPPONENT_ACTOR_TAGS, CHOSEN_PLAYER_SCOPE})
+
+
 def _discard_makers(tree: ConceptTree) -> list[Signal]:
     """Loot / rummage / connive OUTLET — a draw + discard in the SAME ability unit.
 
@@ -107,8 +116,18 @@ def _discard_makers(tree: ConceptTree) -> list[Signal]:
     for unit in tree.units:
         if not unit.has_effect("draw"):
             continue
+        # The discard must be yours: "each opponent discards a card … you draw"
+        # (Bad Deal) is the opponents' — its clause's actor — and a villainous
+        # choice's "that opponent discards" (Dr. Eggman, Sycorax Commander) the
+        # facing player's.
         disc = next(
-            (c for c in unit.effect_concepts("discard") if c.scope in _YOU_EACH),
+            (
+                c
+                for c in unit.effect_concepts("discard")
+                if c.scope in _YOU_EACH
+                and effect_owner_player_scope(unit.node, c.node) not in _OTHER_ACTORS
+                and effect_facing_player(unit.node, c.node) is None
+            ),
             None,
         )
         if disc is not None:
@@ -905,24 +924,15 @@ def _plus_one_makers(tree: ConceptTree) -> list[Signal]:
     Young-Hero-Role-token cycles stay OUT (no ability body at all in
     phase's parse, a substrate gap rather than a missed read).
 
-    task #93 (niche-7 re-triage, Tizerus Charger) adds a ``ChooseOneOf``
-    modal BRANCH descent: Fabricate (CR 702.146 — "put a +1/+1 counter on
-    it or create a Servo token", Glint-Sleeve Artisan/Accomplished
-    Automaton/Angel of Invention/…), Tizerus Charger's Escape-cost
-    replacement ("your choice of a +1/+1 counter or a flying counter"),
-    and Me, the Immortal's own multi-kind choice all put the genuine
-    ``PutCounter``/``P1P1`` node INSIDE a branch ``effect_concepts``
-    never reaches (the same reason ``draw_for_each``'s ``Vote``
-    ``per_choice_effect`` descent and ``_cheat_choose_one_of_battlefield_
-    put`` exist). Corpus-verified (32,521 commander-legal cards): 25 total
-    P1P1-anywhere-but-missing hits; this arm closes 20 of them. EXCLUDED
-    (by design) are Quarry Hauler / Dramatist's Puppet's "for each kind of
-    counter on target permanent, put ANOTHER counter of that kind" loop,
-    whose branch carries phase's own ``iteration_kind_binding:
-    RebindToIteratedKind`` marker — "P1P1" there is the loop-iteration
-    sentinel value, not a genuine reference to +1/+1 counters (the card's
-    own text never says "+1/+1" at all), so that marker is the exact,
-    structural discriminator gating this arm off for them.
+    ``ChooseOneOf`` branches (Fabricate, CR 702.123a — "put a +1/+1 counter
+    on it or create a Servo token"; Tizerus Charger's escape choice; Me, the
+    Immortal's multi-kind choice) reach the first arm through the shared effect
+    walk. EXCLUDED (by design) are Quarry Hauler / Dramatist's Puppet's "for
+    each kind of counter on target permanent, put ANOTHER counter of that kind"
+    loop, whose branch carries phase's own ``iteration_kind_binding:
+    RebindToIteratedKind`` marker (:func:`effect_owner_rebinds_kind`) — "P1P1"
+    there is the loop-iteration sentinel value, not a genuine reference to
+    +1/+1 counters (the card's own text never says "+1/+1" at all).
 
     task #94 (residual close-out) adds the GrantTrigger-nested-effect
     descent named above as the unblock path: Eternal Thirst, Agent of
@@ -954,10 +964,13 @@ def _plus_one_makers(tree: ConceptTree) -> list[Signal]:
     legal cards, same set task #93 measured): 3 gains (the 3 named
     cards), 0 losses.
     """
-    for c in tree.effect_concepts("place_counter"):
-        ck = counter_kind(c.node).upper()
-        if ck == "P1P1" or (not ck and "+1/+1 counter" in (c.raw or "")):
-            return [Signal("plus_one_makers", "you", "", c.raw, tree.name, "high")]
+    for unit in tree.units:
+        for c in unit.effect_concepts("place_counter"):
+            if effect_owner_rebinds_kind(unit.node, c.node):
+                continue  # the "for each kind of counter" loop placeholder
+            ck = counter_kind(c.node).upper()
+            if ck == "P1P1" or (not ck and "+1/+1 counter" in (c.raw or "")):
+                return [Signal("plus_one_makers", "you", "", c.raw, tree.name, "high")]
     for c in tree.iter_concepts():
         if c.concept == "synth_plus_one_makers":
             return [Signal("plus_one_makers", "you", "", "", tree.name, "high")]
@@ -972,18 +985,6 @@ def _plus_one_makers(tree: ConceptTree) -> list[Signal]:
                     if tag_of(m) != "PutCounter":
                         continue
                     if counter_kind(m).upper() == "P1P1":
-                        return [
-                            Signal("plus_one_makers", "you", "", "", tree.name, "high")
-                        ]
-            if tag_of(n) != "ChooseOneOf":
-                continue
-            for br in getattr(n, "branches", None) or ():
-                if getattr(br, "iteration_kind_binding", MISSING) is not MISSING:
-                    continue  # the "for each kind of counter" loop artifact
-                for bn in iter_typed_nodes(br):
-                    if tag_of(bn) != "PutCounter":
-                        continue
-                    if counter_kind(bn).upper() == "P1P1":
                         return [
                             Signal("plus_one_makers", "you", "", "", tree.name, "high")
                         ]

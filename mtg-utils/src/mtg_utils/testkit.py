@@ -58,7 +58,12 @@ from typing import TYPE_CHECKING, Any
 from mtg_utils._card_ir.compat import compat_card_from_records
 from mtg_utils._card_ir.load import CROSSWALK_SIDECAR_VERSION
 from mtg_utils._card_ir.mirror.build import load_committed_schema
-from mtg_utils._card_ir.trees import build_trees, has_memoized_trees, seed_trees
+from mtg_utils._card_ir.trees import (
+    build_trees,
+    has_memoized_trees,
+    seed_records,
+    seed_trees,
+)
 from mtg_utils._phase import PHASE_TAG
 from mtg_utils.card_ir import Card
 from mtg_utils.deck import split_type_line
@@ -273,6 +278,8 @@ def _seed_trees(name: str) -> None:
     the IR always warms the SAME oracle_id's trees first."""
     entry = _entry(name)
     oid = entry["scryfall"].get("oracle_id") or ""
+    if oid:
+        seed_records(oid, entry["phase_records"])
     if not oid or has_memoized_trees(oid):
         return  # already seeded (building trees is the costly part)
     trees = build_trees(oid, entry["phase_records"], bulk=entry["scryfall"])

@@ -50,7 +50,6 @@ from mtg_utils._card_ir.crosswalk.cost_text import (
     mana_value_of_cost,
 )
 from mtg_utils._card_ir.crosswalk.reads import (
-    _EFFECT_CHILD_FIELDS,
     _PAYLIFE_COST_TAGS,
     CURVE_COST_KEYWORDS,
     _effect_scope,
@@ -58,10 +57,10 @@ from mtg_utils._card_ir.crosswalk.reads import (
     _filter_type_words,
     _iter_typed_nodes,
     _node_raw,
-    _owner_scope_tag,
     _present,
     _scope_from_player_node,
     _trigger_event,
+    effect_children,
     filter_core_types,
     iter_nested_granted_bodies,
     iter_static_defs,
@@ -726,7 +725,7 @@ def iter_nested_granted_effect_concepts(node: object) -> Iterator[ConceptNode]:
     ability/trigger body under ``node`` (see :func:`iter_nested_granted_bodies`)
     — walks each yielded body through the SAME effect/sub_ability/execute/
     mode_abilities chain a top-level unit's own effects walk uses
-    (:func:`_walk_effect_chain`), so a granted ABILITY's
+    (:func:`walk_effect_chain`), so a granted ABILITY's
     ``definition.effect`` (Arc Spitter's Equip-granted damage ability,
     Lavamancer's Skill / Pathway Arrows / Shuriken's Aura/Equipment-granted
     damage abilities) and a granted TRIGGER's ``execute.effect`` (Tyrant's
@@ -741,7 +740,7 @@ def iter_nested_granted_effect_concepts(node: object) -> Iterator[ConceptNode]:
     concept of their own (CR 113.3 / 605 / 611).
     """
     for _kind, body in iter_nested_granted_bodies(node):
-        yield from _walk_effect_chain(body)
+        yield from walk_effect_chain(body)
 
 
 # ── Batch-9 typed accessors (death / library-top / grant cluster) ────────────
@@ -781,7 +780,7 @@ def is_dies_return_trigger(trig: object) -> bool:
     (:data:`_DIES_RETURN_WATCHER_TAGS`), whose ``execute`` chain carries a
     ``ChangeZone`` back to the Battlefield targeting the same object
     (:data:`_SELF_RETURN_TARGETS` — directly, or one level down inside a
-    ``CreateDelayedTrigger`` wrapper, which :func:`_walk_effect_chain`
+    ``CreateDelayedTrigger`` wrapper, which :func:`walk_effect_chain`
     already descends into). Works on a card's own trigger unit (Young Wolf
     — undying parses to exactly this) AND on the granted trigger inside a
     ``GrantTrigger`` modification (Feign Death), so the dies_recursion lane
@@ -835,9 +834,9 @@ def is_dies_return_trigger(trig: object) -> bool:
     #     Ruffians) binds its ``TriggeringSource`` to that watched object.
     delayed_ids: set[int] = set()
     watching_ids: set[int] = set()
-    for cn in _walk_effect_chain(execute):
+    for cn in walk_effect_chain(execute):
         if tag_of(cn.node) == "CreateDelayedTrigger":
-            inner = {id(x.node) for x in _walk_effect_chain(cn.node)}
+            inner = {id(x.node) for x in walk_effect_chain(cn.node)}
             delayed_ids.update(inner)
             watched = getattr(getattr(cn.node, "condition", None), "filter", None)
             if watched is not None and tag_of(watched) != "SelfRef":
@@ -845,7 +844,7 @@ def is_dies_return_trigger(trig: object) -> bool:
     producer_seen = False
     # The else branch is walked after the main branch's subtree, so any
     # producer there still gates it (Bogardan Phoenix's return) — conservative.
-    for cn in walk_effects_with_else(execute):
+    for cn in walk_effect_chain(execute):
         node = cn.node
         tag = tag_of(node)
         if tag in _CARD_PRODUCER_TAGS:
@@ -875,23 +874,6 @@ def is_dies_return_trigger(trig: object) -> bool:
     return False
 
 
-_WITH_ELSE_FIELDS: tuple[str, ...] = (*_EFFECT_CHILD_FIELDS, "else_ability")
-
-
-def walk_effects_with_else(ability_like: TypedMirrorNode) -> Iterator[ConceptNode]:
-    """:func:`_walk_effect_chain`, also descending ``else_ability`` branches.
-
-    phase v0.94.0 moved "Otherwise, …" clauses onto a conditional's
-    ``else_ability`` (Bogardan Phoenix's "Otherwise, return it to the
-    battlefield"; Shelinda's "Otherwise, put a +1/+1 counter on Shelinda").
-    ``_EFFECT_CHILD_FIELDS`` deliberately never walks ``else_ability`` — most
-    consumers want the main branch only — so a read that wants the other
-    branch too opts in here. Depth-first: a node's else branch is walked
-    after its main-branch subtree.
-    """
-    yield from _walk_effects(ability_like, 0, set(), _WITH_ELSE_FIELDS)
-
-
 # ── overlay construction ──────────────────────────────────────────────────────
 
 
@@ -915,24 +897,25 @@ def _decorate_effect(node: object, role: str) -> ConceptNode | None:
     )
 
 
-def _walk_effect_chain(ability_like: TypedMirrorNode) -> Iterator[ConceptNode]:
+def walk_effect_chain(ability_like: TypedMirrorNode) -> Iterator[ConceptNode]:
     """Yield role=effect concepts reachable from one ability unit, depth-first.
 
     Decorates every tagged effect node reached through an effect-bearing field
-    (``effect`` / ``sub_ability`` / ``execute`` / ``mode_abilities``) so a deeply
-    nested terminal effect (a replacement's ``execute.effect`` win, a modal arm's
-    loss) is still one of the unit's effects — the whole-unit aggregation the
-    co-occurrence and whole-card lanes read. Cycle-safe (id-set + depth cap).
+    (``effect`` / ``sub_ability`` / ``execute`` / ``else_ability`` and the branch
+    lists :data:`_EFFECT_LIST_FIELDS` — modes, ``ChooseOneOf`` branches, vote
+    outcomes, die-roll rows) so a deeply nested terminal effect (a replacement's
+    ``execute.effect`` win, a modal arm's loss, an "otherwise" branch, a d20 row)
+    is still one of the unit's effects — the whole-unit aggregation the
+    co-occurrence and whole-card lanes read. A branch is one POSSIBLE outcome, so
+    a lane that must tell who picks it reads the owner wrapper
+    (:func:`effect_owner_player_scope`, ``reads.effect_player_reach``).
+    Depth-first: a node's else branch is walked after its main-branch subtree.
+    Cycle-safe (id-set + depth cap).
     """
     yield from _walk_effects(ability_like, 0, set())
 
 
-def _walk_effects(
-    node: object,
-    depth: int,
-    seen: set[int],
-    fields: tuple[str, ...] = _EFFECT_CHILD_FIELDS,
-) -> Iterator[ConceptNode]:
+def _walk_effects(node: object, depth: int, seen: set[int]) -> Iterator[ConceptNode]:
     if depth > 40 or not isinstance(node, TypedMirrorNode):
         return
     if id(node) in seen:
@@ -943,59 +926,8 @@ def _walk_effects(
         cn = _decorate_effect(node, "effect")
         if cn is not None:
             yield cn
-    for fname in fields:
-        child = getattr(node, fname, MISSING)
-        if isinstance(child, TypedMirrorNode):
-            yield from _walk_effects(child, depth + 1, seen, fields)
-    modes = getattr(node, "mode_abilities", MISSING)
-    if _present(modes) and isinstance(modes, list):
-        for m in modes:
-            if isinstance(m, TypedMirrorNode):
-                yield from _walk_effects(m, depth + 1, seen, fields)
-
-
-def _find_owner_scope(
-    node: object, target: object, depth: int, seen: set[int], root: object = None
-) -> str | None:
-    if depth > 40 or not isinstance(node, TypedMirrorNode) or id(node) in seen:
-        return None
-    seen.add(id(node))
-    root = node if root is None else root
-    if getattr(node, "effect", MISSING) is target:
-        return _owner_scope_tag(getattr(node, "player_scope", MISSING), root)
-    for fname in (*_EFFECT_CHILD_FIELDS, "mode_abilities"):
-        child = getattr(node, fname, MISSING)
-        if isinstance(child, TypedMirrorNode):
-            r = _find_owner_scope(child, target, depth + 1, seen, root)
-            if r is not None:
-                return r
-        elif _present(child) and isinstance(child, list):
-            for m in child:
-                r = _find_owner_scope(m, target, depth + 1, seen, root)
-                if r is not None:
-                    return r
-    return None
-
-
-def effect_owner_player_scope(root: object, effect_node: object) -> str | None:
-    """The ``player_scope`` actor tag on the ability wrapper that DIRECTLY owns
-    ``effect_node`` (the wrapper whose ``.effect`` IS it), or ``None`` when that
-    wrapper carries none.
-
-    phase hangs ``player_scope`` ("each player / an opponent <does X>") on the
-    wrapper whose ``effect`` is the resolving action — a trigger ``execute``, a
-    sequential ``sub_ability``, a modal ``mode_abilities`` arm — NOT on the inner
-    effect node the overlay decorates. Reading the scope of the wrapper that owns
-    THIS effect (not a sibling's) tells a give-away / edict ("each player gains
-    control", "each opponent sacrifices an enchantment") from a you-effect that
-    merely shares a unit with an unrelated each-player action — Nihiloor's
-    per-opponent tap loop (a ``repeat_for`` on the OUTER trigger, not the
-    gain-control's wrapper), Garland's monarch vote. Typed-attr reads only;
-    depth-capped, cycle-safe. ``None`` == owned by the ability's controller.
-    ``OTHERS_SCOPE`` == "each other player" (:func:`_owner_scope_tag`): CR 102.3 makes
-    a teammate one of the other players, so each lane decides what it means.
-    """
-    return _find_owner_scope(root, effect_node, 0, set())
+    for child in effect_children(node):
+        yield from _walk_effects(child, depth + 1, seen)
 
 
 def _cost_concepts(ability: TypedMirrorNode) -> tuple[ConceptNode, ...]:
@@ -1136,7 +1068,7 @@ def _keyword_effect_units(root: TypedMirrorNode) -> list[AbilityUnit]:
     :func:`_keyword_cost_paylife_concepts` (role=cost, merges onto an
     ``"ability"``-origin Spell unit): this is the keyword's own role=effect
     body, decorated the same way any other origin's effect chain is
-    (:func:`_walk_effect_chain`), so e.g. a ``Mana`` effect tag reads as the
+    (:func:`walk_effect_chain`), so e.g. a ``Mana`` effect tag reads as the
     ordinary ``ramp`` concept.
 
     v0.23.0 corpus census: 9 commander-legal cards carry an ``EffectCost``
@@ -1170,7 +1102,7 @@ def _keyword_effect_units(root: TypedMirrorNode) -> list[AbilityUnit]:
                 node=inner,
                 kind=tag_of(effect),
                 trigger_event=None,
-                effects=tuple(_walk_effect_chain(effect)),
+                effects=tuple(walk_effect_chain(effect)),
                 costs=(),
                 statics=(),
             )
@@ -1246,12 +1178,7 @@ def _nested_static_concepts(
         if not isinstance(node, TypedMirrorNode) or id(node) in seen:
             continue
         seen.add(id(node))
-        for fname in (*_EFFECT_CHILD_FIELDS, "mode_abilities"):
-            child = getattr(node, fname, MISSING)
-            if isinstance(child, TypedMirrorNode):
-                stack.append(child)
-            elif _present(child) and isinstance(child, list):
-                stack.extend(child)
+        stack.extend(effect_children(node))
         if tag_of(node) != "GenericEffect":
             continue
         target = getattr(node, "target", MISSING)
@@ -1555,7 +1482,7 @@ def build_concept_tree(
                 node=ab,
                 kind=kind,
                 trigger_event=None,
-                effects=tuple(_walk_effect_chain(ab)),
+                effects=tuple(walk_effect_chain(ab)),
                 costs=costs,
                 statics=_nested_static_concepts(ab),
             )
@@ -1647,7 +1574,7 @@ def build_concept_tree(
             continue
         execute = getattr(trig, "execute", MISSING)
         effects = (
-            tuple(_walk_effect_chain(execute))
+            tuple(walk_effect_chain(execute))
             if isinstance(execute, TypedMirrorNode)
             else ()
         )
@@ -1696,7 +1623,7 @@ def build_concept_tree(
                 node=rp,
                 kind="replacement",
                 trigger_event=None,
-                effects=tuple(_walk_effect_chain(rp)),
+                effects=tuple(walk_effect_chain(rp)),
                 costs=(),
                 statics=_nested_static_concepts(rp),
             )

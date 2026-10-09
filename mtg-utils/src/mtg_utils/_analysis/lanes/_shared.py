@@ -8,11 +8,14 @@ from collections.abc import Sequence
 
 from mtg_utils._analysis.signal_base import Signal
 from mtg_utils._card_ir.crosswalk import (
+    _OPPONENT_ACTOR_TAGS,
+    CHOSEN_PLAYER_SCOPE,
     LAND_SUBTYPE_WORDS,
     MASS_EFFECT_TAGS,
     AbilityUnit,
     ConceptNode,
     ConceptTree,
+    effect_facing_player,
     effect_filter,
     effect_owner_player_scope,
     filter_controller,
@@ -283,15 +286,21 @@ def _attack_compulsion_hit(kept: str, *patterns: re.Pattern[str]) -> bool:
 
 # player_scope actor tags that are NOT the ability's controller (an edict makes
 # someone ELSE sacrifice; the controller never does). CR 701.21a / 800.4a.
+# ``CHOSEN_PLAYER_SCOPE`` is a player the card picks out — the actor
+# ``effect_owner_player_scope`` reads off a vote's "each player who chose X" or a
+# villainous choice's "that player" (Damocles Base), an edict on whom lands on an
+# opponent like a "target player sacrifices" filter. (Friend-or-foe's foes read
+# ``Opponent``, its friends you.)
 _EDICT_ACTORS: frozenset[str] = frozenset(
-    {"Opponent", "Opponents", "EachOpponent", "All", "EachPlayer", "Each"}
+    {*_OPPONENT_ACTOR_TAGS, "All", "EachPlayer", "Each", CHOSEN_PLAYER_SCOPE}
 )
 
 
 def _edict_scope(owner_tag: str | None) -> str:
     """An edict actor tag → lane scope (CR 701.21a). An opponent actor → opponents; a
-    symmetric each-player actor → each (mirrors ``_ir_scope`` opp/each)."""
-    if owner_tag in ("Opponent", "Opponents", "EachOpponent"):
+    symmetric each-player actor → each (mirrors ``_ir_scope`` opp/each); a player
+    the card picks out → opponents, like a ``TargetPlayer`` controller."""
+    if owner_tag in _OPPONENT_ACTOR_TAGS or owner_tag == CHOSEN_PLAYER_SCOPE:
         return "opponents"
     return "each"
 
@@ -320,6 +329,11 @@ def _sac_actor_scope(
     ParentTargetController, an optional bounce rider, not an edict)."""
     ctrl = filter_controller(effect_filter(node))
     if ctrl == "ScopedPlayer":
+        # a villainous choice's "They sacrifice …" names the facing player
+        # (Damocles Base; Midnight Crusader Shuttle's defending player).
+        facing = effect_facing_player(getattr(unit, "node", None), node)
+        if facing is not None:
+            return _edict_scope(facing)
         return scoped_player_scope(unit)
     # phase v0.86.0: "target opponent" is its own ``TargetOpponent`` tag (283 → 285
     # TargetPlayer, 38 → 83 TargetOpponent across the card-data) — the same forced

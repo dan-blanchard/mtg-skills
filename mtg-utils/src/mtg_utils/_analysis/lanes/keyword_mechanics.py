@@ -5,10 +5,10 @@ lanes, opponent discard, and cost reduction (split from crosswalk_signals.py).""
 from __future__ import annotations
 
 import re
-from dataclasses import fields
 
 from mtg_utils._analysis.lanes._shared import (
     _CAST_FROM_EXILE_PERMS,
+    _GRANT_ABILITY_MOD_TAGS,
     _GY_CAST_KEYWORDS,
     _GY_MATTERS_KEYWORDS,
     _OPP_DISCARD_ACTORS,
@@ -37,6 +37,7 @@ from mtg_utils._card_ir.crosswalk import (
     discard_recipient_scope,
     effect_filter,
     effect_owner_player_scope,
+    effects_exclusive,
     filter_controller,
     filter_predicates,
     has_nested_flip_coin,
@@ -56,7 +57,6 @@ from mtg_utils._card_ir.crosswalk import (
     trigger_scope,
 )
 from mtg_utils._card_ir.mirror.runtime import (
-    MirrorVariant,
     TypedMirrorNode,
 )
 from mtg_utils._card_ir.text_idioms import _CAST_FROM_EXILE_P
@@ -1185,81 +1185,21 @@ _SYMMETRIC_DISCARD_WATCH_RX = re.compile(r"\ba player discards\b", re.IGNORECASE
 
 
 def _nested_owner_player_scope(root: object, target: object) -> str | None:
-    """The ``player_scope`` actor tag INHERITED by ``target`` from the
-    CLOSEST ancestor (along the unique path from ``root``) that carries
-    one, found by a GENERIC depth-first walk of every dataclass field /
-    list / variant payload reachable from ``root`` — unlike
-    :func:`effect_owner_player_scope`, which only follows the fixed
-    ``effect``/``sub_ability``/``execute``/``mode_abilities`` chain
-    (:data:`_EFFECT_CHILD_FIELDS` in ``_card_ir.crosswalk``).
-
-    ADR-0038 W5 tails: a discard nested under a ``GrantAbility``'s
-    ``definition`` (Mindlash Sliver: "All Slivers have '{1}, Sacrifice ~:
-    Each player discards a card.'" — the owning wrapper is
-    ``modifications[i].definition``) or under a ``Vote``'s
-    ``per_choice_effect`` branch (Capital Punishment's "Each opponent
-    ... discards a card for each taxes vote", Sail into the West's "each
-    player may discard their hand" — the owning wrapper is
-    ``effect.per_choice_effect[i]``) sits behind a field neither on that
-    fixed chain, so the shared helper returns ``None`` for both. Kept
-    LANE-LOCAL rather than widening the shared helper: that helper backs
-    several OTHER lanes (``discard_outlet``, ``group_hug_draw``, the
-    ``opponent_cast_matters`` grant descent) a blanket widening would
-    need a full-corpus sibling check across, per the ADR-0038 shared-
-    helper-widening landmine — this walk only ever runs from
-    ``_opponent_discard``. CR 613.1f (a static ability's Layer 6
-    ability-granting continuous effect) / 701.38 (Vote).
-
-    ADR-0038 W6 endgame: an INHERITED read, not merely the immediate
-    parent's own field — Memory Jar / Magus of the Jar's "each player
-    discards their hand" sits inside a ``CreateDelayedTrigger`` (CR
-    603.7)'s ``.effect`` (an ``S_effect`` wrapper with NO ``player_scope``
-    field of its own at all), several ``SequentialSibling`` hops below
-    the ROOT ability's ``player_scope: All`` — the immediate-parent-only
-    read the original version of this walk performed returns ``None``
-    there even though the whole multi-part ability is genuinely
-    each-player-scoped throughout. Threading the last-seen non-``None``
-    ``player_scope`` DOWN the recursion (reset only when a closer node
-    re-asserts its own) generalizes cleanly: every pre-existing case
-    (Mindlash Sliver, Capital Punishment, Sail into the West) already had
-    its OWN player_scope on the immediate wrapper, so the closest-
-    ancestor read gives the identical answer for them — verified via the
-    full-corpus ALL-KEY diff (0 changed idents outside
-    ``opponent_discard``).
-    """
-    seen: set[int] = set()
-
-    def walk(node: object, inherited: str | None) -> str | None:
-        if node is target:
-            return inherited
-        if isinstance(node, TypedMirrorNode):
-            if id(node) in seen:
-                return None
-            seen.add(id(node))
-            ps = getattr(node, "player_scope", None)
-            if ps is not None:
-                if isinstance(ps, TypedMirrorNode):
-                    inherited = tag_of(ps)
-                elif isinstance(ps, MirrorVariant):
-                    inherited = ps.key
-                elif isinstance(ps, str):
-                    inherited = ps
-            for f in fields(node):
-                result = walk(getattr(node, f.name), inherited)
-                if result is not None:
-                    return result
-            return None
-        if isinstance(node, MirrorVariant):
-            return walk(node.inner, inherited)
-        if isinstance(node, list):
-            for item in node:
-                result = walk(item, inherited)
-                if result is not None:
-                    return result
-            return None
-        return None
-
-    return walk(root, None)
+    """The ``player_scope`` actor tag of the wrapper owning ``target`` inside a
+    granted ability's ``definition`` under ``root`` (ADR-0038 W5 tails: Mindlash
+    Sliver's "All Slivers have '{1}, Sacrifice ~: Each player discards a card.'"
+    — the owning wrapper is ``modifications[i].definition``, which the unit's own
+    effect walk doesn't reach). Read with the shared owner walk
+    (:func:`effect_owner_player_scope`) rooted at that ``definition``. CR 613.1f
+    (a static ability's Layer 6 ability-granting continuous effect)."""
+    for n in iter_typed_nodes(root):
+        if tag_of(n) not in _GRANT_ABILITY_MOD_TAGS:
+            continue
+        definition = getattr(n, "definition", None)
+        scope = effect_owner_player_scope(definition, target)
+        if scope is not None:
+            return scope
+    return None
 
 
 # ADR-0038 W6 endgame: a ``Discard``/``DiscardCard`` node buried inside a
@@ -2011,6 +1951,15 @@ def _donate_makers(tree: ConceptTree) -> list[Signal]:
             unit_desc = getattr(unit.node, "description", "") or ""
             if _CONTROL_REVENGE_RE.search(unit_desc):
                 continue  # "'s controller gains control" — a revenge idiom, not a gift
+            # The losing half of a control contest (Captivating Glance's clash:
+            # "If you win, gain control of enchanted creature. Otherwise, that
+            # player gains control of enchanted creature") — either player may
+            # end up with it, so it is no gift.
+            if any(
+                effects_exclusive(unit.node, g.node, c.node)
+                for g in unit.effect_concepts("gain_control")
+            ):
+                continue
             return [Signal("donate_makers", "you", "", c.raw, tree.name, "high")]
     for c in tree.effect_concepts("gain_control"):
         if tag_of(c.node) == "GainControlAll":

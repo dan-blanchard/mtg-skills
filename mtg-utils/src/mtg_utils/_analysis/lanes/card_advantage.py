@@ -67,7 +67,7 @@ from mtg_utils._card_ir.crosswalk import (
     trigger_subject,
     trigger_subject_scope,
     unit_zones,
-    walk_effects_with_else,
+    walk_effect_chain,
 )
 from mtg_utils._card_ir.mirror.runtime import (
     TypedMirrorNode,
@@ -86,6 +86,27 @@ from mtg_utils._card_ir.text_idioms import (
     _TOPDECK_YOUR_LIBRARY,
     _topdeck_stack_self,
 )
+
+
+def _impulse_scope(unit: AbilityUnit, tops: list[ConceptNode]) -> str:
+    """Whose impulse: "each" when every exile-the-top is done by each player off
+    their own library (Omen Machine: an ``All`` wrapper and the ``ExileTop``'s
+    ``actor: LibraryPlayer`` — "that player exiles … the player casts it");
+    the owner of an earlier target (Audacious Swap: "the owner of target
+    nonenchantment permanent … exiles the top card of their library … they may
+    cast it", :func:`_target_owner_beneficiary_scope`, "any" without a target);
+    else "you"."""
+    if all(
+        getattr(c.node, "actor", None) == "LibraryPlayer"
+        and effect_owner_player_scope(unit.node, c.node) == "All"
+        for c in tops
+    ):
+        return "each"
+    if all(
+        tag_of(getattr(c.node, "player", None)) == "ParentTargetOwner" for c in tops
+    ):
+        return _target_owner_beneficiary_scope(unit) or "any"
+    return "you"
 
 
 def _impulse_top_play(tree: ConceptTree) -> list[Signal]:
@@ -129,7 +150,8 @@ def _impulse_top_play(tree: ConceptTree) -> list[Signal]:
                 c.concept == "grant_cast_permission"
                 and permission_tag(c.node) == "PlayFromExile"
             ):
-                return [Signal("impulse_top_play", "you", "", c.raw, tree.name, "high")]
+                scope = _impulse_scope(unit, tops)
+                return [Signal("impulse_top_play", scope, "", c.raw, tree.name, "high")]
     for c in tree.iter_concepts():
         if c.concept == "synth_impulse_top_play":
             return [Signal("impulse_top_play", "you", "", "", tree.name, "high")]
@@ -732,7 +754,7 @@ def recurs_itself(tree: ConceptTree) -> bool:
             # name or find something else: past a payment or an effect on the
             # card itself, never past a reveal, a search or a seek (Sphinx of
             # Uthuun's "put one pile into your hand").
-            for c in walk_effects_with_else(unit.node):
+            for c in walk_effect_chain(unit.node):
                 if _returns_self(
                     unit, c.node, self_targets=_SELF_REFERENCES, blinks=blinks
                 ):
@@ -936,6 +958,27 @@ def _draw_engine_scope(unit: AbilityUnit, c: ConceptNode) -> str:
     return "you"
 
 
+def _redraws_replaced_card(unit: AbilityUnit, c: ConceptNode) -> bool:
+    """Whether a draw replacement's one-card ``Draw`` only gives back the draw it
+    replaced (CR 614.6: the replaced draw never happens): the same player draws
+    one card — Enduring Renewal's "reveal the top card instead … Otherwise, draw
+    a card" (you would draw, you draw), Zur's Weirding's "that player draws a
+    card". Notion Thief's "that player skips that draw and you draw a card"
+    moves the draw to you, so it stays an engine."""
+    if any(tag_of(n) == "Unimplemented" for n in iter_typed_nodes(unit.node)):
+        # Phase parked part of the clause (Plagiarize's "if target player would
+        # draw a card" is a residue), so who would have drawn is unknown.
+        return False
+    would_draw = getattr(unit.node, "valid_player", None)
+    if not isinstance(would_draw, str):
+        would_draw = None  # unset: "if you would draw"
+    drawer = recipient_tag(c.node)
+    yours = drawer in (None, "Controller", "You")
+    if would_draw in (None, "You"):
+        return yours
+    return would_draw == "AnyPlayer" and not yours
+
+
 def _card_draw_engine(tree: ConceptTree) -> list[Signal]:
     """card_draw_engine — recurring / BULK card advantage, NOT a cantrip (CR
     121.1 / 121.2). The live path is a byte-identical kept mirror whose "no
@@ -978,6 +1021,8 @@ def _card_draw_engine(tree: ConceptTree) -> list[Signal]:
             if not (
                 is_phase or is_draw_repl or (bulk and unit.trigger_event != "enters")
             ):
+                continue
+            if is_draw_repl and not bulk and _redraws_replaced_card(unit, c):
                 continue
             scope = _draw_engine_scope(unit, c)
             if scope not in seen:

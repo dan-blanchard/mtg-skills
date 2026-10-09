@@ -1702,13 +1702,13 @@ def _paycost_artifact_sacrifice_undecorated(tree: ConceptTree) -> bool:
 
 
 # ── predefined-token maker/payoff bridges (Blood-token gap sweep, 2026-07-25) ─
-# Four measured gaps around the Blood/Clue/Food predefined-token lanes. The
-# first three shapes are OUR overlay's frontier, not phase's: the typed
-# substrate is complete (a fully-typed ``Token`` node exists) but the concept
-# decoration only walks the top-level effect chain — a ``ChooseOneOf``
-# BRANCH's Token (Transmutation Font) and a ``GrantTrigger``-granted
-# trigger's Token (Ceremonial Knife) never surface as ``make_token``
-# concepts, so ``_resource_token_makers``'s concept read finds nothing.
+# Measured gaps around the Blood/Clue/Food predefined-token lanes. The maker
+# shape is OUR overlay's frontier, not phase's: the typed substrate is complete
+# (a fully-typed ``Token`` node exists) but a ``GrantTrigger``-granted
+# trigger's Token (Ceremonial Knife) never surfaces as a ``make_token``
+# concept, so ``_resource_token_makers``'s concept read finds nothing. (The
+# ``ChooseOneOf`` choice-list rows — Transmutation Font — retired once the
+# shared effect walk read the controller's branches.)
 # (Odric, Blood-Cursed rode the blood row via a second match arm until phase
 # v0.104.0: its parked "create X Blood tokens" now reads through the
 # ``make_token`` recovery arm of ``_resource_token_makers``.) CR 111.10
@@ -1727,57 +1727,8 @@ def _make_token_concept_missing(tree: ConceptTree, subtype: str) -> bool:
     )
 
 
-def _choice_branch_makes_token(tree: ConceptTree, subtype: str) -> bool:
-    """A ``ChooseOneOf`` branch whose own effect is a typed ``Token`` node
-    carrying ``subtype`` in its ``types`` — the choice-list maker idiom
-    ("Create your choice of a Blood token, a Clue token, or a Food token"),
-    read structurally off the branch nodes the decoration skips."""
-    for n in tree.iter_typed():
-        if tag_of(n) != "ChooseOneOf":
-            continue
-        for br in getattr(n, "branches", None) or []:
-            eff = getattr(br, "effect", None)
-            if tag_of(eff) == "Token" and subtype in (
-                getattr(eff, "types", None) or ()
-            ):
-                return True
-    return False
-
-
 def _blood_maker_concept_gap(tree: ConceptTree) -> bool:
     return _make_token_concept_missing(tree, "Blood")
-
-
-def _choice_list_blood_match(tree: ConceptTree) -> bool:
-    return _choice_branch_makes_token(tree, "Blood")
-
-
-def _choice_list_clue_gap(tree: ConceptTree) -> bool:
-    # clue_makers has TWO structural reads in _resource_token_makers: the
-    # make_token subtype AND a first-class Investigate effect — both must
-    # miss before the bridge may serve.
-    if tree.has_effect("investigate"):
-        return False
-    return _make_token_concept_missing(tree, "Clue")
-
-
-def _choice_list_clue_match(tree: ConceptTree) -> bool:
-    return _choice_branch_makes_token(tree, "Clue")
-
-
-def _choice_list_food_gap(tree: ConceptTree) -> bool:
-    return _make_token_concept_missing(tree, "Food")
-
-
-def _choice_list_food_match(tree: ConceptTree) -> bool:
-    return _choice_branch_makes_token(tree, "Food")
-
-
-# NOTE (grammar sprint, NOT fired here): The Third Doctor's choice list
-# ("...create your choice of a Clue, a Food, or a Treasure token") could
-# also serve treasure_makers via the identical branch read — beyond this
-# sweep's named Blood/Clue/Food shapes, so it stays a comment; gold_makers
-# is not a served key at all (verified absent from SERVED_SIGNAL_KEYS).
 
 
 def _granted_trigger_blood_token_match(tree: ConceptTree) -> bool:
@@ -4233,72 +4184,6 @@ BRIDGES: dict[str, Bridge] = {
             pins=("Nimble Hobbit",),
             gap=_paycost_artifact_sacrifice_undecorated,
             match=_paycost_artifact_sacrifice_undecorated,
-        ),
-        Bridge(
-            bridge_id="choice_list_token_maker_blood",
-            key="blood_makers",
-            kind="grammar_straggler",
-            todo=(
-                "grammar sprint (task #82): decorate ChooseOneOf BRANCH "
-                "effects with concepts (the branch's typed Token -> a "
-                "make_token concept whose subject carries the token "
-                "subtypes) — the moment the overlay descends branches, "
-                "the shared gap goes False and this row + its "
-                "_resource_token_makers call delete"
-            ),
-            census=(
-                "2 hits / 38,261 distinct oracle_ids (31,552 commander-"
-                "legal), structural sweep over every choice-list / "
-                "create-X candidate: Transmutation Font (choice-list "
-                "branch Token) + Odric, Blood-Cursed (Unimplemented "
-                "'create' residue), MTGJSON 2026-07-25 @ phase v0.35.2; "
-                "Odric reads through recovery since v0.104.0"
-            ),
-            pins=("Transmutation Font",),
-            gap=_blood_maker_concept_gap,
-            match=_choice_list_blood_match,
-        ),
-        Bridge(
-            bridge_id="choice_list_token_maker_clue",
-            key="clue_makers",
-            kind="grammar_straggler",
-            todo=(
-                "grammar sprint (task #82): the SAME ChooseOneOf-branch "
-                "decoration gap as choice_list_token_maker_blood (one key "
-                "per row splits the serving) — retires with it; the gap "
-                "additionally stands down on a first-class Investigate "
-                "effect (the lane's second clue read)"
-            ),
-            census=(
-                "2 hits / 38,261 distinct oracle_ids (31,552 commander-"
-                "legal): Transmutation Font + The Third Doctor (its "
-                "Clue/Food/Treasure choice list shares the branch shape), "
-                "MTGJSON 2026-07-25 @ phase v0.35.2"
-            ),
-            pins=("Transmutation Font",),
-            gap=_choice_list_clue_gap,
-            match=_choice_list_clue_match,
-        ),
-        Bridge(
-            bridge_id="choice_list_token_maker_food",
-            key="food_makers",
-            kind="grammar_straggler",
-            todo=(
-                "grammar sprint (task #82): the SAME ChooseOneOf-branch "
-                "decoration gap as choice_list_token_maker_blood (one key "
-                "per row splits the serving) — retires with it"
-            ),
-            census=(
-                "2 hits / 38,261 distinct oracle_ids (31,552 commander-"
-                "legal): Transmutation Font + The Third Doctor, MTGJSON "
-                "2026-07-25 @ phase v0.35.2 (The Third Doctor's Treasure "
-                "branch could also serve treasure_makers — beyond this "
-                "sweep's named shapes, ledgered as the section comment's "
-                "grammar-sprint note instead)"
-            ),
-            pins=("Transmutation Font",),
-            gap=_choice_list_food_gap,
-            match=_choice_list_food_match,
         ),
         Bridge(
             bridge_id="granted_trigger_blood_token_maker",
