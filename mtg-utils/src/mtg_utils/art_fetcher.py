@@ -1428,15 +1428,25 @@ def run(
 
 # --- CLI -------------------------------------------------------------------
 
-_DEFAULT_CACHE = Path(os.environ.get("MTG_SKILLS_CACHE_DIR") or "/tmp")
+
+def default_http_cache() -> Path:
+    """Where the crawler keeps its HTTP responses by default: ``$MTG_SKILLS_CACHE_DIR``,
+    else ``/tmp`` — read when the command runs, so a test's env applies.
+
+    Deliberately NOT ``_http.cache_root()``: with no override this cache has always
+    lived under ``/tmp`` (disposable 7-day responses, not durable state), and moving
+    its fallback to ``~/.cache/mtg-skills`` would orphan every user's existing
+    ``/tmp/ascii-art-fetcher`` cache. The durable catalog it writes is
+    ``attributed_art_dir()``, which does use the shared root."""
+    return Path(os.environ.get("MTG_SKILLS_CACHE_DIR") or "/tmp")
 
 
 @click.command()
 @click.option(
     "--cache-dir",
     type=click.Path(path_type=Path),
-    default=_DEFAULT_CACHE,
-    show_default=True,
+    default=None,
+    show_default="$MTG_SKILLS_CACHE_DIR, else /tmp",
     help=(
         "Root cache directory. HTTP responses are stored under "
         "<cache-dir>/ascii-art-fetcher/ with a 7-day TTL."
@@ -1501,7 +1511,7 @@ _DEFAULT_CACHE = Path(os.environ.get("MTG_SKILLS_CACHE_DIR") or "/tmp")
     help="Print every subtype slug that had no in-budget match.",
 )
 def main(
-    cache_dir: Path,
+    cache_dir: Path | None,
     out_dir: Path | None,
     limit: int | None,
     from_deck: Path | None,
@@ -1522,6 +1532,8 @@ def main(
     if by_name and from_deck is None:
         click.echo("ERROR: --by-name requires --from-deck", err=True)
         sys.exit(EXIT_FETCH_FAILED)
+    if cache_dir is None:
+        cache_dir = default_http_cache()
     if out_dir is None:
         out_dir = attributed_art_dir()
     try:

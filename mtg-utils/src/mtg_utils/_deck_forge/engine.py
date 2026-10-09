@@ -14,6 +14,7 @@ reads ``state`` at call time and can never go stale.
 from __future__ import annotations
 
 import functools
+import json
 import time
 import uuid
 from collections.abc import Callable, Collection, Mapping
@@ -1869,12 +1870,23 @@ def meta_context(
 ) -> arena_meta.MetaContext | None:
     """The tuner's meta context for this build, from the cache (``None`` for a
     paper build, an uncached queue, ``archetype="off"``, no match, or an archetype
-    too thin to tune by — ``arena_meta.tunable``)."""
-    if archetype == "off":
-        return None
-    ctx, _note = untapped.cached_deck_context(
-        hd, state.session.medium, archetype=archetype or None
+    too thin to tune by — ``arena_meta.tunable``). ``archetype`` is passed through
+    as the one choice ``untapped.cached_deck_context`` decodes. Memoized on
+    ``state.meta_memo`` until the deck, its medium, the choice or the cached
+    snapshot changes, so Find reads it per keystroke for the cost of a ``stat``."""
+    medium = state.session.medium
+    key = (
+        json.dumps(state.session.to_deck_dict(), sort_keys=True),
+        medium,
+        archetype,
     )
+    queue = untapped.deck_queue(hd)
+    snap = queue[2] if queue is not None else None
+    memo = state.meta_memo
+    if memo is not None and memo[0] == key and memo[1] is snap:
+        return memo[2]
+    ctx, _note = untapped.cached_deck_context(hd, medium, archetype=archetype)
+    state.meta_memo = (key, snap, ctx)
     return ctx
 
 

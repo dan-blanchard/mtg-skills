@@ -26,10 +26,10 @@ from mtg_utils._stores._common import (
 )
 from mtg_utils._stores._common import (
     AddToCartResult,
+    HeadedWindows,
     Listing,
     SearchPrefs,
     StoreSelectorError,
-    StoreSession,
     attr_str,
     name_matches,
 )
@@ -85,7 +85,7 @@ def _parse_title(title: str) -> tuple[str, bool, bool]:
     return cleaned, foil, etched
 
 
-class _AtomicEmpireAdapter(StoreSession):
+class _AtomicEmpireAdapter(HeadedWindows):
     name = "atomic_empire"
     display_name = "Atomic Empire"
     kind: Literal["lgs"] = "lgs"

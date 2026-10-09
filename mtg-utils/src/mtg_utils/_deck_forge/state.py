@@ -336,6 +336,11 @@ class ForgeState:
     printing_by_id: dict[str, dict] = field(default_factory=dict)
     # ``set-scan`` readouts memoized per set code (a whole-bulk walk each).
     set_scans: dict[str, dict] = field(default_factory=dict)
+    # The last meta context ``engine.meta_context`` read (ADR-0059): ``(key, snapshot,
+    # context)``, the key the deck, its medium and the archetype choice, and the
+    # snapshot object the cache served (a new object once a refresh rewrites it).
+    # Spares every Find keystroke the archetype match and share/core reads.
+    meta_memo: tuple | None = None
     # The main deck a pool seed replaced (name → copies), for one undo. Runtime,
     # scoped to the live build (``switch_build`` drops it), never persisted.
     seed_undo: dict[str, int] | None = None

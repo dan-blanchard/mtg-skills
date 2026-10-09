@@ -22,10 +22,10 @@ from mtg_utils._stores._common import (
 )
 from mtg_utils._stores._common import (
     AddToCartResult,
+    HeadedWindows,
     Listing,
     SearchPrefs,
     StoreSelectorError,
-    StoreSession,
     attr_str,
     name_matches,
 )
@@ -81,7 +81,7 @@ def _parse_data_name(data_name: str) -> tuple[str, str, bool]:
     return name, set_code, foil
 
 
-class _TGPAdapter(StoreSession):
+class _TGPAdapter(HeadedWindows):
     name = "tgp"
     display_name = "The Gathering Place"
     kind: Literal["lgs"] = "lgs"

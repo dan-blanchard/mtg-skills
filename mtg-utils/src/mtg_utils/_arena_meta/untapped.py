@@ -390,12 +390,26 @@ def deck_lands(hd: HydratedDeck) -> list[str]:
     return [r["name"] for r in hd.deck_records() if is_land(r)]
 
 
+#: The meta-archetype choice that skips the meta (``--meta off``, the hub's "off").
+META_OFF = "off"
+#: The choice that matches the deck (``--meta auto``; the hub sends ``None``).
+META_AUTO = "auto"
+
+
 def cached_deck_context(
     hd: HydratedDeck, medium: str, *, archetype: str | None = None
 ) -> tuple[MetaContext | None, str | None]:
     """The tuner's meta context for ``hd`` from the CACHE alone (:func:`deck_queue`),
     and a note saying what was read or why nothing was — ``None`` where no meta
-    applies (a paper build, a format with no Arena queue)."""
+    applies (a paper build, a format with no Arena queue, ``archetype`` "off").
+
+    ``archetype`` is the one meta-archetype choice every caller passes through
+    as-is: ``None`` / ``""`` / "auto" match the deck, "off" skips the meta, and any
+    other value names the archetype."""
+    if archetype == META_OFF:
+        return None, None
+    if archetype == META_AUTO:
+        archetype = None
     from mtg_utils._arena_meta.meta import (
         MIN_MATCHES,
         deck_context,
@@ -414,7 +428,9 @@ def cached_deck_context(
     snap = queue[2]
     if snap is None:
         return None, f"meta: none cached — run `arena-meta --format {fmt.name}`"
-    match = resolve(snap, deck=hd.deck, archetype=archetype, lands=deck_lands(hd))
+    match = resolve(
+        snap, deck=hd.deck, archetype=archetype or None, lands=deck_lands(hd)
+    )
     if match is None:
         return None, f"meta: the deck matches no {snap.event} meta archetype"
     if not tunable(snap, match.archetype.id):

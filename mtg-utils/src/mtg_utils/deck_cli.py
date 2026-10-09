@@ -13,15 +13,21 @@ from __future__ import annotations
 import os
 from collections.abc import Callable
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import click
 
 from mtg_utils.card_pool import CardPool, NoBulkError
 from mtg_utils.hydrated_deck import HydratedDeck
 
+if TYPE_CHECKING:
+    from mtg_utils._arena_meta.meta import MetaContext
+
 __all__ = [
     "acquire_for_cli",
     "bulk_data_option",
+    "cli_meta_context",
+    "meta_option",
     "parse_wildcards",
     "resolve_bulk_path",
     "warn_missing",
@@ -114,3 +120,32 @@ def acquire_for_cli(
     if hd.has_records or require_records:
         warn_missing(hd)
     return hd
+
+
+def meta_option[F: Callable[..., object]](help_text: str) -> Callable[[F], F]:
+    """The shared ``--meta`` option (ADR-0059): a digital build's Arena meta
+    archetype, read from the arena-meta cache — 'auto' matches the deck, 'off'
+    skips it, anything else names the archetype. ``help_text`` says what the
+    command does with it."""
+    return click.option(
+        "--meta",
+        "meta",
+        default="auto",
+        show_default=True,
+        help="A digital build's Arena meta archetype (ADR-0059), read from the "
+        "arena-meta cache: 'auto' matches the deck, 'off' skips it, anything else "
+        f"names the archetype. {help_text}",
+    )
+
+
+def cli_meta_context(hd: HydratedDeck, medium: str, meta: str) -> MetaContext | None:
+    """The meta context for ``hd`` in ``medium`` (resolve it with
+    ``formats.resolve_deck_medium``, as deck-forge's session does) under the
+    ``--meta`` choice, from the cache alone; the note on what was read, or why
+    nothing was, goes to stderr."""
+    from mtg_utils._arena_meta.untapped import cached_deck_context
+
+    ctx, note = cached_deck_context(hd, medium, archetype=meta)
+    if note:
+        click.echo(note, err=True)
+    return ctx

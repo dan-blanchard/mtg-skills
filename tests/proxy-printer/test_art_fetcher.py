@@ -1160,3 +1160,12 @@ def test_write_art_website_round_trips(tmp_path: Path, monkeypatch) -> None:
     body, artist = result
     assert artist == "Alice Author"
     assert "lion-art-marker" in body
+
+
+def test_the_http_cache_default_is_read_when_the_command_runs(monkeypatch, tmp_path):
+    """The crawler's response cache follows ``$MTG_SKILLS_CACHE_DIR`` at call time,
+    and keeps its historical ``/tmp`` fallback (not the shared cache root)."""
+    monkeypatch.setenv("MTG_SKILLS_CACHE_DIR", str(tmp_path))
+    assert art_fetcher.default_http_cache() == tmp_path
+    monkeypatch.delenv("MTG_SKILLS_CACHE_DIR")
+    assert art_fetcher.default_http_cache() == Path("/tmp")

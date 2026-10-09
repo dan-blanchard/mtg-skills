@@ -300,3 +300,16 @@ def test_a_sealed_deck_tunes_over_its_pool_never_the_bulk(tmp_path, monkeypatch)
     assert captured["pool"] == {"Krenko, Mob Boss": 2}
     found = captured["search_fn"](card_type="Creature", paper_only=True)
     assert [c["name"] for c in found] == ["Krenko, Mob Boss"]
+
+
+def test_the_deck_jsons_own_medium_is_the_default(tmp_path, monkeypatch):
+    # One medium resolution with deck-forge's session and deck-rank
+    # (``resolve_deck_medium``): no flag, so the deck JSON's ``medium`` decides —
+    # nothing was inferred, so nothing is announced.
+    captured = _spy_tune(monkeypatch)
+    deck = _write(tmp_path, "deck.json", {**BRAWL_DECK, "medium": "paper"})
+    hyd = _write(tmp_path, "hyd.json", HYDRATED)
+    res = CliRunner().invoke(deck_tune_main, [deck, "--bulk-data", hyd])
+    assert res.exit_code == 0, res.output
+    assert captured["params"].medium == "paper"
+    assert "--medium not given" not in res.output

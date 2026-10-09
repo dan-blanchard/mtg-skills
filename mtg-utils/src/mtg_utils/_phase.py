@@ -17,6 +17,7 @@ import subprocess
 import tempfile
 import time
 import urllib.error
+from collections.abc import Callable
 from functools import lru_cache
 from pathlib import Path
 
@@ -674,6 +675,52 @@ def _duel_chunk_size(games: int) -> int:
     return max(_DUEL_MIN_CHUNK, math.ceil(games / _DUEL_CHUNKS))
 
 
+def _run_budgeted(
+    *,
+    games: int,
+    seed: int | None,
+    timeout_s: int,
+    chunk: int,
+    play: Callable[[int, int, float], None],
+) -> dict:
+    """Play ``games`` as consecutive chunks of at most ``chunk`` within ``timeout_s``
+    seconds, and return the run's envelope: ``status`` (``ok`` / ``timeout``),
+    ``games`` (= ``games_completed``), ``games_requested``, ``timed_out`` and ``seed``.
+
+    ``play(n, chunk_seed, remaining)`` runs one chunk of ``n`` games seeded
+    ``chunk_seed`` (``seed`` + the index of its first game, so a chunked run plays
+    the games one batch would) with only the ``remaining`` budget, folding its
+    results into the caller's totals; a ``subprocess.TimeoutExpired`` it raises
+    ends the run and keeps every chunk that finished. With no seed, one is drawn
+    here so the chunks don't overlap and the run replays from the seed it reports.
+    """
+    if seed is None:
+        seed = random.SystemRandom().randrange(2**31)
+    deadline = _monotonic() + timeout_s
+    completed = 0
+    timed_out = False
+    while completed < games:
+        remaining = deadline - _monotonic()
+        if remaining <= 0:
+            timed_out = True
+            break
+        n = min(chunk, games - completed)
+        try:
+            play(n, seed + completed, remaining)
+        except subprocess.TimeoutExpired:
+            timed_out = True
+            break
+        completed += n
+    return {
+        "status": "timeout" if timed_out else "ok",
+        "games": completed,
+        "games_completed": completed,
+        "games_requested": games,
+        "timed_out": timed_out,
+        "seed": seed,
+    }
+
+
 def _parse_duel_summary(out: str) -> dict:
     """One batch's stderr summary: win / draw counts and per-game averages."""
 
@@ -731,19 +778,9 @@ def run_duel(
             f"phase card-data.json not found at {data_root / 'card-data.json'}. "
             "Run `playtest-install-phase`.",
         )
-    if seed is None:
-        seed = random.SystemRandom().randrange(2**31)
-    chunk = _duel_chunk_size(games)
-    deadline = _monotonic() + timeout_s
-    wins_p0 = wins_p1 = draws = completed = 0
-    turns_total = duration_total = 0.0
-    timed_out = False
-    while completed < games:
-        remaining = deadline - _monotonic()
-        if remaining <= 0:
-            timed_out = True
-            break
-        n = min(chunk, games - completed)
+    totals = {"wins_p0": 0, "wins_p1": 0, "draws": 0, "turns": 0.0, "ms": 0.0}
+
+    def play(n: int, chunk_seed: int, remaining: float) -> None:
         cmd = [
             str(binary),
             str(data_root),
@@ -755,40 +792,38 @@ def run_duel(
             "--difficulty",
             difficulty,
             "--seed",
-            str(seed + completed),
+            str(chunk_seed),
         ]
         try:
             proc = subprocess.run(
                 cmd, check=True, timeout=remaining, capture_output=True, text=True
             )
-        except subprocess.TimeoutExpired:
-            timed_out = True
-            break
         except subprocess.CalledProcessError as exc:
             raise PhaseRuntimeError(
                 f"phase ai-duel exited with code {exc.returncode}",
                 stderr=exc.stderr or "",
             ) from exc
         batch = _parse_duel_summary(proc.stderr or "")  # summary is on stderr
-        wins_p0 += batch["wins_p0"]
-        wins_p1 += batch["wins_p1"]
-        draws += batch["draws"]
-        turns_total += batch["avg_turns"] * n
-        duration_total += batch["avg_duration_ms"] * n
-        completed += n
+        for key in ("wins_p0", "wins_p1", "draws"):
+            totals[key] += batch[key]
+        totals["turns"] += batch["avg_turns"] * n
+        totals["ms"] += batch["avg_duration_ms"] * n
 
+    run = _run_budgeted(
+        games=games,
+        seed=seed,
+        timeout_s=timeout_s,
+        chunk=_duel_chunk_size(games),
+        play=play,
+    )
+    completed = run["games_completed"]
     return {
-        "status": "timeout" if timed_out else "ok",
-        "wins_p0": wins_p0,
-        "wins_p1": wins_p1,
-        "draws": draws,
-        "games": completed,
-        "games_completed": completed,
-        "games_requested": games,
-        "timed_out": timed_out,
-        "seed": seed,
-        "avg_turns": round(turns_total / completed, 2) if completed else 0.0,
-        "avg_duration_ms": round(duration_total / completed) if completed else 0,
+        **run,
+        "wins_p0": totals["wins_p0"],
+        "wins_p1": totals["wins_p1"],
+        "draws": totals["draws"],
+        "avg_turns": round(totals["turns"] / completed, 2) if completed else 0.0,
+        "avg_duration_ms": round(totals["ms"] / completed) if completed else 0,
     }
 
 
@@ -848,10 +883,9 @@ def run_commander(
     and prints the result to stdout (no ``--decks``/``--games``/``--output``). We
     synthesize a runtime feed from the four decks and invoke once per game,
     aggregating the parsed ``Winner: P<seat>`` lines. Each game is a chunk of one
-    under :func:`run_duel`'s budget: ``timeout_s`` covers the whole run, each game
-    gets only what remains, and a timeout keeps every game that finished. Game
-    ``g`` runs with ``--seed seed + g``; with no seed, one is drawn here so a run
-    stays reproducible from the seed it reports.
+    under :func:`_run_budgeted`, the budget :func:`run_duel` runs under:
+    ``timeout_s`` covers the whole run, each game gets only what remains, a timeout
+    keeps every game that finished, and game ``g`` runs with ``--seed seed + g``.
     """
     if len(deck_paths) != 4:
         raise ValueError(
@@ -870,24 +904,15 @@ def run_commander(
             for p in deck_paths
         ]
     }
-    if seed is None:
-        seed = random.SystemRandom().randrange(2**31)
-    deadline = _monotonic() + timeout_s
     winners = [0, 0, 0, 0]
-    draws = 0
-    turns_total = 0
-    completed = 0
-    timed_out = False
+    totals = {"draws": 0, "turns": 0}
     with tempfile.TemporaryDirectory() as td:
         # An absolute --feed path overrides the data-root join (Rust Path::join
         # with an absolute path replaces the base), so the feed lives off-root.
         feed_path = Path(td) / "feed.json"
         feed_path.write_text(json.dumps(feed))
-        while completed < games:
-            remaining = deadline - _monotonic()
-            if remaining <= 0:
-                timed_out = True
-                break
+
+        def play(_n: int, game_seed: int, remaining: float) -> None:
             cmd = [
                 str(binary),
                 str(data_root),
@@ -896,15 +921,12 @@ def run_commander(
                 "--difficulty",
                 difficulty,
                 "--seed",
-                str(seed + completed),
+                str(game_seed),
             ]
             try:
                 proc = subprocess.run(
                     cmd, check=True, timeout=remaining, capture_output=True, text=True
                 )
-            except subprocess.TimeoutExpired:
-                timed_out = True
-                break
             except subprocess.CalledProcessError as exc:
                 raise PhaseRuntimeError(
                     f"phase ai-commander exited with code {exc.returncode}",
@@ -915,20 +937,19 @@ def run_commander(
             if m and 0 <= int(m.group(1)) < 4:
                 winners[int(m.group(1))] += 1
             else:
-                draws += 1  # no winner line → draw / abort
+                totals["draws"] += 1  # no winner line → draw / abort
             tm = _TURNS_RE.search(out)
             if tm:
-                turns_total += int(tm.group(1))
-            completed += 1
+                totals["turns"] += int(tm.group(1))
 
+        # One game per invocation: each game is a chunk of one.
+        run = _run_budgeted(
+            games=games, seed=seed, timeout_s=timeout_s, chunk=1, play=play
+        )
+    completed = run["games_completed"]
     return {
-        "status": "timeout" if timed_out else "ok",
+        **run,
         "winners_by_seat": winners,
-        "games": completed,
-        "games_completed": completed,
-        "games_requested": games,
-        "timed_out": timed_out,
-        "seed": seed,
-        "draws": draws,
-        "avg_turns": round(turns_total / completed, 2) if completed else 0.0,
+        "draws": totals["draws"],
+        "avg_turns": round(totals["turns"] / completed, 2) if completed else 0.0,
     }

@@ -101,4 +101,7 @@ sorts synergy first, then share, then price, curve and name. Share never outrank
 synergy because it measures popularity, not fit with this deck. Each row's score
 then carries its `meta_share`, which the SPA shows beside the synergy spark. With
 no meta read, no row carries a share and the order is unchanged. The hub's Find
-takes the same `meta_archetype` as Tune; `deck-rank` takes `--medium` and `--meta`.
+takes the same `meta_archetype` as Tune; `deck-rank` takes `--medium` and `--meta`. It
+shares `deck_cli.meta_option` with `deck-tune`, and both resolve the medium as the hub
+does (`resolve_deck_medium`). The hub memoizes the context per deck, medium, choice and
+cached snapshot, so a Find keystroke costs a `stat`.

@@ -30,11 +30,11 @@ from mtg_utils._stores._common import (
 )
 from mtg_utils._stores._common import (
     CartNotEmptyError,
+    HeadedWindows,
     Line,
     Listing,
     OptimizedCart,
     StoreSelectorError,
-    StoreSession,
 )
 from mtg_utils._stores._common import (
     money as _money,
@@ -157,7 +157,7 @@ def _await_optimized_alternatives(
     return alternatives
 
 
-class _ManaPoolAdapter(StoreSession):
+class _ManaPoolAdapter(HeadedWindows):
     name = "manapool"
     display_name = "Mana Pool"
     kind: Literal["marketplace"] = "marketplace"

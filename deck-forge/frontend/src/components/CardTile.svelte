@@ -46,7 +46,8 @@
   // served only on a digital build with a meta read, where it breaks synergy ties.
   $: metaPct =
     score?.meta_share > 0 ? Math.round(score.meta_share * 100) : null;
-  $: metaTitle = `In ${metaPct}% of your meta archetype's ladder lists`;
+  $: metaTitle =
+    metaPct && `In ${metaPct}% of your meta archetype's ladder lists`;
   // First line of oracle text (dense only) — newlines flattened to a bullet so a
   // multi-paragraph card reads as one line; CSS ellipsis shows "as much as fits".
   $: oracle = (card.oracle_text || "").replace(/\s*\n+\s*/g, " • ").trim();
@@ -100,10 +101,9 @@
           {#if metaPct}
             <span class="metashare" title={metaTitle}>meta {metaPct}%</span>
           {/if}
-          {#if hasSynergy}
-            {#each served.slice(0, 3) as s, i (i)}<span class="served">{s}</span
-              >{/each}
-          {/if}
+          <!-- served is empty without synergy (synergy_fit counts it) -->
+          {#each served.slice(0, 3) as s, i (i)}<span class="served">{s}</span
+            >{/each}
           <span class="typetail">{card.type_line}</span>
         </div>
         {#if oracle}

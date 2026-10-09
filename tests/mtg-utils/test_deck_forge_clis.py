@@ -126,26 +126,16 @@ def _cache_meta(tmp_path, monkeypatch, *cards: str) -> None:
     path.write_text(json.dumps(snap.to_json()))
 
 
-# Two synthetic candidates (machinery only) with the same text, so the same synergy:
-# the rogue is cheaper, but only the staple is in the meta archetype's list.
-_STAPLE = {
-    "name": "Test Meta Staple",
-    "type_line": "Sorcery",
-    "cmc": 2.0,
-    "color_identity": ["R"],
-    "oracle_text": "Create a 1/1 red Goblin creature token.",
-    "prices": {"usd": "5.00"},
-}
-_ROGUE = {**_STAPLE, "name": "Test Meta Rogue", "prices": {"usd": "0.10"}}
-
-
-def test_deck_rank_breaks_synergy_ties_by_meta_share(tmp_path, monkeypatch):
+def test_deck_rank_breaks_synergy_ties_by_meta_share(
+    tmp_path, monkeypatch, meta_tiebreak_pair
+):
+    staple, rogue = meta_tiebreak_pair
     _cache_meta(tmp_path, monkeypatch, "Test Meta Staple")
     # Historic Brawl defaults to Arena (digital); the same deck at a paper table
     # reads no meta.
     deck = _write(tmp_path, "deck.json", {**DECK, "format": "historic_brawl"})
     hyd = _write(tmp_path, "hyd.json", HYDRATED)
-    cands = _write(tmp_path, "cands.json", [_ROGUE, _STAPLE])
+    cands = _write(tmp_path, "cands.json", [rogue, staple])
 
     def ranked(*flags: str) -> list[tuple[str, float | None]]:
         res = CliRunner().invoke(

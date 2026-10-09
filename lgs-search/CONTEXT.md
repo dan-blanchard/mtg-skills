@@ -88,8 +88,9 @@ The Protocol shared by every Storefront — methods for auth state
 pollution sweep, login pre-flight, Phase 7 handoff, grand-total
 report) uses only StoreSession methods. The headed windows
 (`open_login`, `open_handoff`) are the same browser session at every
-Storefront, so StoreSession implements them and each adapter
-subclasses it, naming only its `cart_path` and `login_path`.
+Storefront, so one `HeadedWindows` mixin implements them; each adapter
+mixes it in, names only its `cart_path` and `login_path`, and still
+satisfies StoreSession structurally.
 _Avoid_: "Adapter base", "common interface".
 
 **LGS adapter**:

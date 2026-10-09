@@ -30,7 +30,12 @@ from mtg_utils._tuner import metrics
 from mtg_utils._tuner.classify import classify_deck
 from mtg_utils.card_classify import type_line_has
 from mtg_utils.deck import split_type_line
-from mtg_utils.deck_cli import acquire_for_cli, bulk_data_option
+from mtg_utils.deck_cli import (
+    acquire_for_cli,
+    bulk_data_option,
+    cli_meta_context,
+    meta_option,
+)
 from mtg_utils.formats import resolve_deck_medium
 from mtg_utils.hydrated_deck import HydratedDeck
 
@@ -107,15 +112,7 @@ def _deck_tribes(hd: HydratedDeck) -> frozenset[str]:
     help="Deck medium; default: the deck JSON's medium, else the format's. Only a "
     "digital build reads the Arena meta (--meta).",
 )
-@click.option(
-    "--meta",
-    "meta",
-    default="auto",
-    show_default=True,
-    help="A digital build's Arena meta archetype (ADR-0059), read from the "
-    "arena-meta cache, whose card share breaks synergy ties: 'auto' matches the "
-    "deck, 'off' skips it, anything else names the archetype.",
-)
+@meta_option("Its card share breaks synergy ties, before price.")
 def main(
     deck_json: Path,
     candidates_json: Path,
@@ -129,17 +126,9 @@ def main(
     """Rank CANDIDATES_JSON by synergy with DECK_JSON."""
     _ensure_ir()  # build the sidecar on first run, BEFORE the first ir_for
     hd = acquire_for_cli(deck_json, bulk_data)
-    meta_ctx = None
-    if meta != "off":
-        from mtg_utils._arena_meta.untapped import cached_deck_context
-
-        meta_ctx, note = cached_deck_context(
-            hd,
-            resolve_deck_medium(hd.format, hd.deck, medium),
-            archetype=None if meta == "auto" else meta,
-        )
-        if note:
-            click.echo(note, err=True)
+    meta_ctx = cli_meta_context(
+        hd, resolve_deck_medium(hd.format, hd.deck, medium), meta
+    )
     commander_names = {c["name"] for c in hd.commanders}
     signals, payoff_subjects = ranked_signals_and_payoffs(
         hd.deck_records(), commander_names
@@ -172,21 +161,18 @@ def main(
         meta_share=meta_ctx.share if meta_ctx is not None else None,
     )[: max(1, limit)]
     if as_json:
-        out = [
-            {
+        out = []
+        for r in ranked:
+            row = {
                 "name": r["card"].get("name", ""),
                 "synergy_fit": r["score"]["synergy_fit"],
                 "served": r["score"]["served"],
                 "price": r["score"]["price"],
                 "cmc": r["score"]["cmc"],
-                **(
-                    {"meta_share": r["score"]["meta_share"]}
-                    if "meta_share" in r["score"]
-                    else {}
-                ),
             }
-            for r in ranked
-        ]
+            if "meta_share" in r["score"]:
+                row["meta_share"] = r["score"]["meta_share"]
+            out.append(row)
         click.echo(json.dumps(out, indent=2))
         return
     for r in ranked:

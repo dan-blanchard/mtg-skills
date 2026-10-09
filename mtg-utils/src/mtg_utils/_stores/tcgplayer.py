@@ -31,11 +31,11 @@ from mtg_utils._stores._common import (
 )
 from mtg_utils._stores._common import (
     CartNotEmptyError,
+    HeadedWindows,
     Line,
     Listing,
     OptimizedCart,
     StoreSelectorError,
-    StoreSession,
 )
 from mtg_utils._stores._common import (
     money as _money,
@@ -129,7 +129,7 @@ def _extract_money_after_label(window: list[str], label: str) -> float | None:
     return None
 
 
-class _TCGPlayerAdapter(StoreSession):
+class _TCGPlayerAdapter(HeadedWindows):
     name = "tcgplayer"
     display_name = "TCGPlayer"
     kind: Literal["marketplace"] = "marketplace"

@@ -27,9 +27,12 @@ from mtg_utils._tuner.tune import TuneParams, tune
 from mtg_utils.deck_cli import (
     acquire_for_cli,
     bulk_data_option,
+    cli_meta_context,
+    meta_option,
     resolve_bulk_path,
     wildcards_option,
 )
+from mtg_utils.formats import resolve_deck_medium
 from mtg_utils.hydrated_deck import HydratedDeck
 
 
@@ -77,8 +80,9 @@ def _ensure_ir() -> None:
     "medium",
     type=click.Choice(["paper", "digital"]),
     default=None,
-    help="Deck medium. Defaults by format, same as deck-forge's DeckSession: the "
-    "Arena Brawl formats → digital, everything else → paper. Decides the game the "
+    help="Deck medium. Defaults to the deck JSON's medium, else by format, same as "
+    "deck-forge's DeckSession: the Arena Brawl formats → digital, everything else → "
+    "paper. Decides the game the "
     "scorecard reads, the currency (--budget USD vs --wildcards), the candidate "
     "pool, and whether a null EDHREC rank condemns a card (ADR-0040 §4).",
 )
@@ -101,15 +105,7 @@ def _ensure_ir() -> None:
     help="A card never to propose as an add (repeatable) — the CLI's form of "
     "deck-forge's Reject: its slot goes to the next-ranked candidate.",
 )
-@click.option(
-    "--meta",
-    "meta",
-    default="auto",
-    show_default=True,
-    help="A digital build's Arena meta archetype (ADR-0059), read from the "
-    "arena-meta cache: 'auto' matches the deck, 'off' skips it, anything else "
-    "names the archetype.",
-)
+@meta_option("The tuner reads its card shares and core.")
 @click.option(
     "--output",
     "output",
@@ -142,12 +138,14 @@ def main(
             f"Note: Commander brackets do not apply to {fmt.name}; --bracket ignored.",
             err=True,
         )
-    # The Format resolves the medium the same way deck-forge's DeckSession does (the
-    # Arena Brawl formats default digital); tune() asks it for everything else the
-    # medium decides. Say which medium was inferred so a paper table isn't tuned as
-    # Arena (the medium decides the game the scorecard reads, the currency, the pool).
-    effective_medium = fmt.resolve_medium(medium)
-    if medium is None and len(fmt.media) > 1:
+    # The medium resolves as deck-forge's DeckSession and deck-rank resolve it
+    # (``resolve_deck_medium``: the flag, else the deck JSON's own ``medium``, else
+    # the format's default — the Arena Brawl formats default digital); tune() asks
+    # the Format for everything else the medium decides. Say which medium was
+    # inferred so a paper table isn't tuned as Arena (the medium decides the game
+    # the scorecard reads, the currency, the pool).
+    effective_medium = resolve_deck_medium(fmt, hd.deck, medium)
+    if medium is None and hd.deck.get("medium") is None and len(fmt.media) > 1:
         other = next(m for m in fmt.media if m != effective_medium)
         click.echo(
             f"Note: --medium not given; tuning {fmt.name} as {effective_medium!r} "
@@ -186,21 +184,15 @@ def main(
             HydratedDeck.from_parsed(deck, by_name=by_name)
         )
 
-    meta_ctx = None
-    if meta != "off":
-        from mtg_utils._arena_meta.untapped import cached_deck_context
-
-        meta_ctx, note = cached_deck_context(
-            hd, effective_medium, archetype=None if meta == "auto" else meta
-        )
-        if note:
-            click.echo(note, err=True)
+    meta_ctx = cli_meta_context(hd, effective_medium, meta)
     params = TuneParams(
         budget=budget,
         max_swaps=max(0, max_swaps),
         shape_override=shape_override,
         paper_only=paper_only,
-        medium=medium,
+        # The raw choice (flag, else the deck JSON's): tune() resolves it through
+        # the Format, to the same effective_medium.
+        medium=medium if medium is not None else hd.deck.get("medium"),
         wildcard_budget=wildcards,
         target_bracket=target_bracket,
         exclude=frozenset(exclude),

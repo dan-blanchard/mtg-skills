@@ -205,28 +205,23 @@ def test_refresh_fills_a_bo3_decks_own_queue(tmp_path, monkeypatch):
 
 
 # --- Find: the meta share breaks synergy ties (ADR-0059) ---------------------------
-# Two synthetic candidates (machinery only) with the same text, so the same synergy:
-# the rogue is cheaper, but only the staple is in the meta archetype's list.
-_STAPLE = {
-    "name": "Test Meta Staple",
-    "type_line": "Sorcery",
-    "cmc": 2.0,
-    "color_identity": ["R"],
-    "oracle_text": "Create a 1/1 red Goblin creature token.",
-    "prices": {"usd": "5.00"},
-}
-_ROGUE = {**_STAPLE, "name": "Test Meta Rogue", "prices": {"usd": "0.10"}}
-
-
-def _find_client(tmp_path, monkeypatch, *, cached: bool = True):
+def _find_client(tmp_path, monkeypatch, pair, *, cached: bool = True):
+    """A Competitive Brawl hub whose Find returns ``pair`` (``meta_tiebreak_pair``),
+    with a cached meta whose archetype list runs the staple (when ``cached``)."""
+    staple, rogue = pair
     monkeypatch.setenv("MTG_SKILLS_CACHE_DIR", str(tmp_path))
     if cached:
-        path = untapped.meta_dir() / "Brawl_Ladder.current.json"
-        path.parent.mkdir(parents=True)
-        path.write_text(json.dumps(_snapshot(("Test Meta Staple", 1)).to_json()))
+        _write_find_meta()
     client, state = _client()
-    state.search_fn = lambda **_: [_ROGUE, _STAPLE]
-    return client
+    state.search_fn = lambda **_: [rogue, staple]
+    return client, state
+
+
+def _write_find_meta():
+    path = untapped.meta_dir() / "Brawl_Ladder.current.json"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(_snapshot(("Test Meta Staple", 1)).to_json()))
+    return path
 
 
 def _find(client, **extra):
@@ -234,8 +229,10 @@ def _find(client, **extra):
     return [(r["name"], r["score"].get("meta_share")) for r in data["results"]]
 
 
-def test_find_breaks_synergy_ties_by_meta_share(tmp_path, monkeypatch):
-    client = _find_client(tmp_path, monkeypatch)
+def test_find_breaks_synergy_ties_by_meta_share(
+    tmp_path, monkeypatch, meta_tiebreak_pair
+):
+    client, _ = _find_client(tmp_path, monkeypatch, meta_tiebreak_pair)
     assert _find(client) == [("Test Meta Staple", 1.0), ("Test Meta Rogue", 0.0)]
     # "off" skips the meta, as Tune's does: price decides again, no share served.
     assert _find(client, meta_archetype="off") == [
@@ -244,6 +241,39 @@ def test_find_breaks_synergy_ties_by_meta_share(tmp_path, monkeypatch):
     ]
 
 
-def test_find_without_a_cached_meta_ranks_as_before(tmp_path, monkeypatch):
-    client = _find_client(tmp_path, monkeypatch, cached=False)
+def test_find_without_a_cached_meta_ranks_as_before(
+    tmp_path, monkeypatch, meta_tiebreak_pair
+):
+    client, _ = _find_client(tmp_path, monkeypatch, meta_tiebreak_pair, cached=False)
     assert _find(client) == [("Test Meta Rogue", None), ("Test Meta Staple", None)]
+
+
+def test_find_reads_the_meta_once_per_deck_choice_and_snapshot(
+    tmp_path, monkeypatch, meta_tiebreak_pair
+):
+    """Find runs per keystroke, so the hub memoizes the meta context until the deck,
+    the archetype choice or the cached snapshot changes."""
+    import os
+
+    client, state = _find_client(tmp_path, monkeypatch, meta_tiebreak_pair)
+    reads = []
+    real = untapped.cached_deck_context
+
+    def counting(*args, **kwargs):
+        reads.append(kwargs.get("archetype"))
+        return real(*args, **kwargs)
+
+    monkeypatch.setattr(untapped, "cached_deck_context", counting)
+    _find(client)
+    _find(client)
+    assert len(reads) == 1  # the second keystroke reuses it
+    _find(client, meta_archetype="off")
+    assert len(reads) == 2  # a new choice
+    state.session.add("Mountain")
+    _find(client, meta_archetype="off")
+    assert len(reads) == 3  # a new deck
+    path = _write_find_meta()
+    st = path.stat()
+    os.utime(path, ns=(st.st_atime_ns, st.st_mtime_ns + 1_000_000_000))
+    _find(client, meta_archetype="off")
+    assert len(reads) == 4  # a refreshed snapshot
