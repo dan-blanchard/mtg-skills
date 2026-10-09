@@ -64,13 +64,14 @@ uv run bump-phase-pin <tag> --install-phase # also move the cargo clone (playtes
     recovered node's `scope`, `subject` (the `CLAUSE_MARKS`: self, yours/theirs,
     player recipient, target, mass …) and `zones`, so the lane's typed arm tests
     those fields. A missing fact is a new mark in `read_clause`, never a regex on
-    `c.raw` in a lane. Recovery only runs on `Unimplemented` nodes, so a phase fix
+    `c.raw` in a lane. A compound clause recovers each instruction, and a granted
+    body's residue is recovered where the shared granted walk reads it. Recovery only runs on `Unimplemented` nodes, so a phase fix
     retires it with no ledger row; the report's recovery fire counts flag a token
     or mark at 0. Corpus-check each new token's gains before keeping it. A ledger row
     is for what recovery can't express: a key that comes from the parked CONDITION
-    (Bring Low's "+1/+1 counter" check, Tetsuo's "if it's equipped"), a verb the
-    grammar doesn't tag, or a clause whose SECOND verb carries the key (a draw
-    clause's "and lose 1 life").
+    (Bring Low's "+1/+1 counter" check, Tetsuo's "if it's equipped") or a verb the
+    grammar doesn't tag, a compound clause's later verb included (Might Makes
+    Right's "It gains haste", an additional combat phase).
 - **Gains to check.** Each [check] gain is a candidate false positive. Don't fix a
   false positive with a guard that also drops cards the old index already had: that
   is a policy change, not a bump fix — list it for a decision instead. New wording in
@@ -89,8 +90,10 @@ uv run bump-phase-pin <tag> --install-phase # also move the cargo clone (playtes
     node") that holds on almost every card by design, so sampling its gap-only cards
     says nothing. Each gets one summary line (gap count, fires count) so no row is
     hidden; a wide gap only matters if its fires count moves unexpectedly.
-- **Roster counts.** The hard-coded counts in `tests/mtg-utils/test_card_ir_mirror.py`
-  still bump by hand.
+- **Roster counts.** Step 4 rewrites the counts `tests/mtg-utils/test_card_ir_mirror.py`
+  pins (its generated block: the Effect roster, zero-instance and observed variants,
+  the tagged + struct mirror classes) from the rosters and the substrate fixtures; a
+  count that drifts between bumps fails there.
 
 ## Fixing what the report finds
 

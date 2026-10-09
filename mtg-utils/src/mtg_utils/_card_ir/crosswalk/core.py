@@ -363,6 +363,11 @@ class ConceptNode:
     # decorated straight from the typed substrate). Per-rule corpus fire
     # counts over this field are the bridge-remaining metric.
     recovered_by: str = ""
+    # The recovered clause's reading (``recovery.read_clause``: type words and
+    # ``CLAUSE_MARKS``) for a row whose ``scope`` / ``subject`` keep the node's
+    # own meaning (``TokenRule.into_clause`` — a token's ``subject`` is the
+    # token's types). Written only by the recovery stage.
+    clause: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -685,6 +690,23 @@ class ConceptTree:
                     continue
                 yield getattr(sdef, "description", "") or ""
 
+    def unknown_trigger_modes(self) -> Iterator[str]:
+        """The phrases of phase's ``Unknown`` trigger modes — a trigger whose
+        event phase couldn't classify, the event surviving only as the mode's
+        own text (Hero of Bretagard's "Whenever one or more cards are put into
+        exile from your hand or …"). The trigger-side sibling of
+        :meth:`residues`."""
+        for unit in self.units:
+            mode = (
+                getattr(unit.node, "mode", None) if unit.origin == "trigger" else None
+            )
+            if (
+                isinstance(mode, MirrorVariant)
+                and mode.key == "Unknown"
+                and isinstance(mode.inner, str)
+            ):
+                yield mode.inner
+
     @property
     def is_text_only(self) -> bool:
         """Whether the card carries NO phase-parsed unit at all — a text-only face
@@ -740,7 +762,26 @@ def iter_nested_granted_effect_concepts(node: object) -> Iterator[ConceptNode]:
     concept of their own (CR 113.3 / 605 / 611).
     """
     for _kind, body in iter_nested_granted_bodies(node):
-        yield from walk_effect_chain(body)
+        yield from _granted_body_concepts(body)
+
+
+_GRANTED_CONCEPTS_CACHE_ATTR = "_xw_granted_concepts"
+
+
+def _granted_body_concepts(body: TypedMirrorNode) -> tuple[ConceptNode, ...]:
+    """One granted body's effect concepts, the recovery stage's grammar reading
+    its residues too (Shackles of Treachery's granted "destroy target Equipment
+    attached to it"). Memoized on the body node like :func:`iter_mod_sites`:
+    several lanes walk the same grants."""
+    cached = body.__dict__.get(_GRANTED_CONCEPTS_CACHE_ATTR)
+    if cached is not None:
+        return cached
+    # imported here: recovery reads this module
+    from mtg_utils._card_ir.recovery import recover_concepts
+
+    out = recover_concepts(tuple(walk_effect_chain(body)))
+    object.__setattr__(body, _GRANTED_CONCEPTS_CACHE_ATTR, out)
+    return out
 
 
 # ── Batch-9 typed accessors (death / library-top / grant cluster) ────────────
@@ -1016,9 +1057,23 @@ def _spell_alt_cost_paylife_concepts(root: TypedMirrorNode) -> tuple[ConceptNode
     return tuple(out)
 
 
-def _keyword_cost_paylife_concepts(root: TypedMirrorNode) -> tuple[ConceptNode, ...]:
-    """Role=cost ``PayLife`` concepts inside a KEYWORD's own alternative-cost
-    payload (CR 702 — Flashback/Warp/Blitz/Morph "Pay N life" variants) —
+# The keyword-cost leaves :func:`_keyword_cost_concepts` decorates: a life
+# payment and (phase v0.104.0 types Sabin, Master Monk's "Blitz—{2}{R}{R}, Discard a
+# card" as a ``Composite[Mana, Discard]``) a discard.
+_KEYWORD_COST_TAGS: frozenset[str] = _PAYLIFE_COST_TAGS | {"Discard"}
+# Keywords whose cost is an upkeep trigger's payment to keep the permanent (CR
+# 702.30a echo, 702.24a cumulative upkeep: "sacrifice it unless you pay"), not a
+# way to cast the card. Whether their discard (Deepcavern Imp's "Echo—Discard a
+# card", Vexing Sphinx's "Cumulative upkeep—Discard a card") is a discard outlet
+# is undecided, so only their life payments are read.
+_UPKEEP_PAYMENT_KEYWORDS: frozenset[str] = frozenset({"Echo", "CumulativeUpkeep"})
+
+
+def _keyword_cost_concepts(root: TypedMirrorNode) -> tuple[ConceptNode, ...]:
+    """Role=cost ``PayLife`` (and ``Discard``, :data:`_KEYWORD_COST_TAGS`)
+    concepts inside a KEYWORD's own alternative-cost payload (CR 702 —
+    Flashback/Warp/Blitz/Morph "Pay N life" variants, Sabin, Master Monk's
+    "Blitz—{2}{R}{R}, Discard a card") —
     Deep Analysis's "Flashback—{1}{U}, Pay 3 life.", Timeline Culler's
     "Warp—{B}, Pay 2 life.", Tenacious Underdog's "Blitz—{2}{B}{B}, Pay 2
     life.", Zombie Cutthroat's "Morph—Pay 5 life." Each keyword rides
@@ -1048,8 +1103,13 @@ def _keyword_cost_paylife_concepts(root: TypedMirrorNode) -> tuple[ConceptNode, 
     for kw in kws:
         if isinstance(kw, MirrorVariant) and kw.key == "Ward":
             continue
+        tags = (
+            _PAYLIFE_COST_TAGS
+            if isinstance(kw, MirrorVariant) and kw.key in _UPKEEP_PAYMENT_KEYWORDS
+            else _KEYWORD_COST_TAGS
+        )
         for n in iter_typed_nodes(kw):
-            if tag_of(n) in _PAYLIFE_COST_TAGS:
+            if tag_of(n) in tags:
                 cn = _decorate_effect(n, "cost")
                 if cn is not None:
                     out.append(cn)
@@ -1065,7 +1125,7 @@ def _keyword_effect_units(root: TypedMirrorNode) -> list[AbilityUnit]:
     ``triggers`` / ``static_abilities`` / ``replacements`` walks never reach,
     so a card whose ONLY structured content lives here previously carried
     ZERO ability units (no arm could ever fire on it). Distinct from
-    :func:`_keyword_cost_paylife_concepts` (role=cost, merges onto an
+    :func:`_keyword_cost_concepts` (role=cost, merges onto an
     ``"ability"``-origin Spell unit): this is the keyword's own role=effect
     body, decorated the same way any other origin's effect chain is
     (:func:`walk_effect_chain`), so e.g. a ``Mana`` effect tag reads as the
@@ -1455,10 +1515,10 @@ def build_concept_tree(
     alt_costs = _spell_alt_cost_paylife_concepts(root)
     alt_attached = False
     # A keyword's own alternative-cost PayLife leaf (CR 702 — Flashback's
-    # "Pay N life" variant, see :func:`_keyword_cost_paylife_concepts`)
+    # "Pay N life" variant, see :func:`_keyword_cost_concepts`)
     # merges the SAME way — a FOURTH independent root-level cost surface
     # (``keywords``, distinct from ``additional_cost``/``casting_options``).
-    kw_costs = _keyword_cost_paylife_concepts(root)
+    kw_costs = _keyword_cost_concepts(root)
     kw_attached = False
     abilities = getattr(root, "abilities", ()) or ()
     for i, ab in enumerate(abilities):

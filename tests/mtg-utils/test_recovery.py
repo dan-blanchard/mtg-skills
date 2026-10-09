@@ -381,8 +381,7 @@ def test_direct_damage_promoted_via_production_allowlist():
     WHOLE clause as an Unimplemented residue; the production ALLOWLIST's
     "damage" token entry re-decorates it in place to the native
     "deal_damage" concept — no typed ``target`` field survives, so
-    ``direct_damage`` direction-gates on the raw (see
-    ``crosswalk_signals._RECOVERED_DAMAGE_REACH``)."""
+    ``direct_damage`` direction-gates on the seam's ``OTHER_PLAYER`` mark."""
     tree = _fixture_tree("Soulblast")
     nodes = tree.effect_concepts("deal_damage")
     assert len(nodes) == 1
@@ -431,6 +430,7 @@ from mtg_utils._card_ir.recovery import (  # noqa: E402
     MANY,
     ON_SELF,
     OTHER_CHOOSER,
+    OTHER_PLAYER,
     PLAYER,
     POWER_SCALED,
     SELF,
@@ -548,3 +548,113 @@ def test_reanimate_names_no_zone_of_its_own():
     # The grammar's reanimate token fires on any "put … onto the battlefield",
     # so the clause's own zones say whether a graveyard is involved.
     assert ALLOWLIST["reanimate"].zones == ()
+
+
+def _row_reading(raw: str, token: str) -> tuple[str, ...]:
+    rule = ALLOWLIST[token]
+    return read_clause(
+        raw,
+        None,
+        rule.object_verb,
+        other_player=rule.other_player,
+        token_types=rule.token_types,
+    )[1]
+
+
+@pytest.mark.parametrize(
+    ("raw", "token", "other"),
+    [
+        # draw: another player draws, alone or beside you, never past an "if"
+        ("When it regenerates this way, that player may draw a card", "draw", True),
+        ("you and the attacking player each draw a card", "draw", True),
+        ("you draw a card if they didn't attack you that turn", "draw", False),
+        ("if it was historic, draw two cards", "draw", False),
+        # discard: another player discards, or the cards are theirs
+        ("each opponent discards a card", "discard", True),
+        ("discard all cards with that name revealed this way", "discard", True),
+        ("discard a card unless this spell was cast using teamwork", "discard", False),
+        # damage: it can reach a player other than you
+        (
+            "~ deals 4 damage to that player unless they control a commander",
+            "damage",
+            True,
+        ),
+        ("deal damage to any target equal to X", "damage", True),
+        ("~ deals damage equal to its power to you", "damage", False),
+        # make_token: another player creates the token (CR 111.2)
+        (
+            "who voted for a choice you voted for creates a Treasure token",
+            "make_token",
+            True,
+        ),
+        ("create a Treasure token", "make_token", False),
+    ],
+)
+def test_other_player_is_the_rows_own_reading(raw, token, other):
+    assert (OTHER_PLAYER in _row_reading(raw, token)) is other
+
+
+def test_a_token_rows_types_are_the_created_objects_own():
+    # "Human" names the condition's creature, "Food" the token.
+    reading = _row_reading(
+        "if another Human died under your control this turn, create a Food token",
+        "make_token",
+    )
+    assert "Food" in reading
+    assert "Creature" not in reading
+    assert "Powerstone" in _row_reading(
+        "if you didn't play a card from exile this turn, create a tapped Powerstone "
+        "token",
+        "make_token",
+    )
+
+
+def test_a_token_rows_reading_goes_to_the_clause_field():
+    # make_token's subject is the token's own types (token_maker reads it), so its
+    # reading — like discard's and lose_life's, whose scope the overlay keeps —
+    # goes to ``clause``.
+    for token in ("make_token", "discard", "lose_life"):
+        assert ALLOWLIST[token].into_clause, token
+    assert not ALLOWLIST["draw"].into_clause
+
+
+def test_imperative_includes_you_as_the_doer():
+    assert IMPERATIVE in _subject(
+        "if you control an enchanted creature, you lose 1 life"
+    )
+    assert IMPERATIVE in _subject("Then if it has two counters on it, sacrifice it")
+
+
+def test_a_compound_clause_recovers_each_instruction_on_one_node():
+    # "if you control an enchanted creature, you lose 1 life and you draw an
+    # additional card": both verbs decorate the SAME residue node, so the
+    # substrate fingerprint (each node once) is unchanged.
+    tree = _fixture_tree("Lord Skitter's Blessing")
+    (unit,) = (u for u in tree.units if any(c.recovered_by for c in u.effects))
+    recovered = [c for c in unit.effects if c.recovered_by]
+    assert [c.recovered_by for c in recovered] == ["lose_life", "draw"]
+    assert recovered[0].node is recovered[1].node
+    assert recovered[1].raw == "draw an additional card"
+
+
+def test_a_granted_bodys_residue_is_recovered_where_the_walk_reads_it():
+    from mtg_utils._card_ir.crosswalk import iter_nested_granted_effect_concepts
+
+    tree = _fixture_tree("Shackles of Treachery")
+    granted = [
+        c
+        for u in tree.units
+        for c in iter_nested_granted_effect_concepts(u.node)
+        if c.recovered_by
+    ]
+    assert [c.recovered_by for c in granted] == ["destroy"]
+    assert TARGET_OBJECT in granted[0].subject
+
+
+def test_a_second_pass_adds_no_instruction_twice():
+    # Darigaaz Reincarnated's first instruction (removing an egg counter) has no
+    # verb token, its later "return it to the battlefield" recovers; a second
+    # pass over the built tree is a no-op.
+    tree = _fixture_tree("Darigaaz Reincarnated")
+    assert any(c.recovered_by == "reanimate" for u in tree.units for c in u.effects)
+    assert apply_unimplemented_recovery(tree) is tree

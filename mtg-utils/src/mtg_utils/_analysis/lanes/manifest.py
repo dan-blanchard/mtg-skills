@@ -581,13 +581,9 @@ SERVED_SIGNAL_KEYS: frozenset[str] = frozenset(
         # (Unimplemented('flip')), never the trigger's `condition` field one
         # level up. 5/5 live cards closed, 0 cw_only. CR 122.1.
         "ki_counter_matters",
-        # named_synergy: entirely bridge-served (`named_synergy_
-        # overloaded_named_node`) — the raw typed `Named` node this key's
-        # idiom carries is corpus-verified too overloaded (partner pairs /
-        # copy-limit swarms / named-card tutoring / planeswalker-uncoupled
-        # callbacks — 245 Named-node hits vs 27 legacy) to read directly
-        # yet; see the bridge's module comment in bridge_ledger.py. CR
-        # 201.4 / 201.5.
+        # named_synergy: a typed ``Named`` reference to a permanent
+        # (`_named_synergy`, `reads.named_permanent_refs`); the clauses phase
+        # parks or drops are the `named_synergy_parked_reference` ledger row.
         "named_synergy",
         # task #83 (theme-preset structural views, lane-gap fix #5): "cantrip"
         # — the deleted preset's NO_LANE gap (rec 0.10 vs card_draw_engine,
@@ -1053,7 +1049,7 @@ SERVED_SIGNAL_KEYS: frozenset[str] = frozenset(
 # — the giants agent's ONLY remaining class (the period-split "Then
 # discard a card unless <cond>" tail, 5 cards) is recovered by the
 # "discard" ALLOWLIST row; the lane's recovered-node DIRECTION gate
-# (``_RECOVERED_OPP_DISCARD_RE``, a raw reject-list) keeps the
+# (the seam's ``OTHER_PLAYER`` mark since phase v0.104.0) keeps the
 # opponent-directed / protection residues out (Nebuchadnezzar's
 # subject-truncated imperative, Bladecoil's "each opponent", Tamiyo's
 # "can't cause you to"), negative-pinned. Final live_only=0; the
@@ -1229,6 +1225,8 @@ SERVED_SIGNAL_KEYS: frozenset[str] = frozenset(
 # bridges into gap-gated tree-build-time synthesis, and ``_base_pt_set``/
 # ``_base_power_matters``/``_creatures_matter`` now read the synthesized
 # concept nodes structurally. Membership unchanged (same pins, same keys).
+# (``_arm_base_power_ref_conjunctive`` retired at phase v0.104.0, which types
+# the conjunctive reference as a ``PtComparison``.)
 # cheat_into_play PROMOTED (ADR-0039 W7, 2026-07-12) — landfall
 # rule met: live_only 40 -> 0 accounted for, every remaining
 # live_only card is a TESTED, CR-grounded adjudicated shed (a
@@ -1438,7 +1436,7 @@ SERVED_SIGNAL_KEYS: frozenset[str] = frozenset(
 # three new root-level cost-surface readers
 # (_spell_additional_cost_concepts's PayLife carve-out,
 # _spell_alt_cost_paylife_concepts for casting_options
-# AlternativeCost, _keyword_cost_paylife_concepts for a keyword's
+# AlternativeCost, _keyword_cost_concepts for a keyword's
 # own cost payload — all crosswalk.py), two narrow static
 # accessors (_has_paylife_as_colored_mana, K'rrik;
 # _has_defiler_cost_reduction, the Defiler cycle), a Spell-kind

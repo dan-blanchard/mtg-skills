@@ -30,8 +30,12 @@ The overlay stage that gives Unimplemented clauses a real reading: it parses
 the clause text with the clause grammar and re-decorates the node's
 `ConceptNode`, recording which rule fired (`recovered_by`). Substrate-wide —
 signal lanes and compat consumers both see recovered readings. For the rows that opt in, it also reads the clause once
-(`read_clause`) and decorates `scope`, `subject` (the `CLAUSE_MARKS`) and `zones`,
-so lanes test fields, never the recovered text.
+(`read_clause`) and decorates `scope`, `subject` (the `CLAUSE_MARKS`) and `zones` —
+or, for a row whose `subject` keeps its own meaning (`make_token`: the token's
+types), the `clause` field — so lanes test fields, never the recovered text. A
+compound clause recovers each instruction ("you lose 1 life and you draw an
+additional card"), each a decoration of the same node, and a granted ability's
+body is recovered where the shared granted walk reads it.
 _Avoid_: "supplement" (the old-IR path's envelope around the same grammar),
 "synthesis" (adds nodes; recovery rewrites decoration in place).
 
@@ -165,8 +169,9 @@ membership-floor mirror) makes to decide the substrate lacks the structure it wo
 otherwise read from text — one of the presence reads `ConceptTree` owns (`has_typed`
 / `has_concept` / `has_static_mode` / `has_trigger` / `has_residue` /
 `is_text_only`, over `iter_typed`; ADR-0047), or the residue text they expose
-(`residues`; `effect_residues` for a residue in an ability's effect position; and
-`hollow_statics` for a static def phase built but left empty). A gate that must
+(`residues`; `effect_residues` for a residue in an ability's effect position;
+`hollow_statics` for a static def phase built but left empty; and
+`unknown_trigger_modes` for a trigger event phase left as an `Unknown` mode's text). A gate that must
 judge a node against its own ability unit (a trigger's mode and condition, a
 static's mode fields, an effect's owning wrapper) takes the unit from
 `iter_units(*origins)` and reads it through the unit's own `iter_typed` /

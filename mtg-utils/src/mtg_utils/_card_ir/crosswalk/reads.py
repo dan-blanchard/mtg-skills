@@ -1216,6 +1216,31 @@ def _trigger_event(trig: TypedMirrorNode) -> str:
     }.get(mode, mode.lower())
 
 
+def trigger_zone_changes(trig: object) -> tuple[tuple[str | None, str | None], ...]:
+    """The ``(origin, destination)`` of each zone change a ``ChangesZone`` trigger
+    watches. Phase v0.104.0 folds "whenever a creature dies or a creature card is
+    put into a graveyard from a library" (Dreadhound) into one trigger whose
+    ``zone_change_clauses`` each carry an origin predicate: ``Equals`` names the
+    zone; ``NotEquals`` / ``OneOf`` ("from anywhere other than the battlefield")
+    read as an unrestricted ``None``, phase's own shape for "from anywhere". A
+    single-move trigger is its own ``origin`` / ``destination``."""
+    clauses = getattr(trig, "zone_change_clauses", MISSING)
+    if not (_present(clauses) and isinstance(clauses, list) and clauses):
+        return ((getattr(trig, "origin", None), getattr(trig, "destination", None)),)
+    out: list[tuple[str | None, str | None]] = []
+    for clause in clauses:
+        pred = getattr(clause, "origin", None)
+        origin = getattr(pred, "data", None) if tag_of(pred) == "Equals" else None
+        dest = getattr(clause, "destination", None)
+        out.append(
+            (
+                origin if isinstance(origin, str) else None,
+                dest if isinstance(dest, str) else None,
+            )
+        )
+    return tuple(out)
+
+
 def trigger_scope(trig: TypedMirrorNode) -> str:
     """The scope a trigger watches (you/opponents/each) from its recipient field.
 
@@ -2628,6 +2653,39 @@ def filter_inzone_zones(filt: object) -> tuple[str, ...]:
     elif t in ("Or", "And"):
         for sub in getattr(filt, "filters", ()) or ():
             out.extend(filter_inzone_zones(sub))
+    return tuple(out)
+
+
+# The card types a ``Typed`` filter must not carry for its ``Named`` property to name a
+# permanent: ``Card`` is a card in a zone (a tutor, a grandeur discard, a graveyard
+# count), and an empty type list is the "a card named X" of a search or seek.
+_NAMED_CARD_TYPES = frozenset({"Card"})
+
+
+def named_permanent_refs(nodes: Iterable[object]) -> tuple[str, ...]:
+    """The names the typed ``nodes`` (a tree's or unit's ``iter_typed()``) refer to
+    as permanents on the battlefield: each positive ``Named`` property of a
+    ``Typed`` filter over a permanent type with no ``InZone`` outside the
+    battlefield ("each other creature named Brothers Yamazaki", "if you control a
+    creature named Bogbrew Witch", "artifacts named Crown of Empires", a meld
+    partner). Such a filter matches every object with that name, unlike a
+    self-reference by name (CR 201.5). Not a card named in a library, graveyard or
+    hand (a tutor, a grandeur discard, "cards named Kindle in all graveyards"), a
+    spell named in a cast count, nor a ``Not`` wrapper ("a creature not named
+    Ebondeath")."""
+    out: list[str] = []
+    for n in nodes:
+        if tag_of(n) != "Typed":
+            continue
+        types = getattr(n, "type_filters", ()) or ()
+        if not types or _NAMED_CARD_TYPES.intersection(filter_core_types(n)):
+            continue
+        if any(z != "Battlefield" for z in filter_inzone_zones(n)):
+            continue
+        for prop in getattr(n, "properties", ()) or ():
+            name = getattr(prop, "name", None) if tag_of(prop) == "Named" else None
+            if isinstance(name, str) and name not in out:
+                out.append(name)
     return tuple(out)
 
 

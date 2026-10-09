@@ -66,6 +66,7 @@ from mtg_utils._card_ir.crosswalk import (
     trigger_subject,
     trigger_subject_scope,
     trigger_turn_constraint,
+    trigger_zone_changes,
 )
 from mtg_utils._card_ir.mirror.runtime import (
     MISSING,
@@ -516,14 +517,14 @@ def self_mill_fill(tree: ConceptTree) -> bool:
     task #87 (preset-membership only) adds TWO more structural arms for a
     #85-census residue tail:
 
-    * a BRANCH-nested bare ``Mill`` (HYDRA Troopers's "create a token if
-      [condition]. Otherwise, mill two cards.") — the ``Mill`` sits inside
-      a trigger's ``else_ability`` field, which ``_EFFECT_CHILD_FIELDS``'s
-      curated walk never follows (unlike ``chosen_pile_effect`` /
-      ``mode_abilities``, added for other shapes); raw
-      :func:`iter_typed_nodes` reaches it directly (the
-      :func:`has_nested_extra_turn` precedent) with the SAME destination/
-      scope gate the bare-``Mill`` arm above already runs;
+    * a nested bare ``Mill`` outside the effect walk (a granted trigger's
+      body — Imperious Mindbreaker), reached by the raw
+      :func:`iter_typed_nodes` walk (the :func:`has_nested_extra_turn`
+      precedent) with the SAME destination/scope gate the bare-``Mill`` arm
+      above already runs. (A branch's ``Mill`` — HYDRA Troopers's
+      "Otherwise, mill two cards." — is one of the unit's effects since the
+      shared walk reads "otherwise" branches, so the bare-``Mill`` arm reads
+      it.);
     * a "look/reveal-then-keep-one" idiom whose surviving structural
       residue is a single marker field rather than an explicit rest-
       destination: a ``Dig`` (Underrealm Lich's draw-replacement "look at
@@ -929,8 +930,6 @@ def _graveyard_matters(tree: ConceptTree) -> list[Signal]:
     for unit in tree.units:
         node = unit.node
         if unit.origin == "trigger":
-            origin = getattr(node, "origin", None)
-            dest = getattr(node, "destination", None)
             # ADR-0038 W5b: ``origin is None`` is phase's shape for an
             # EXPLICITLY unrestricted "from anywhere" arrival (Kozilek /
             # Ulamog's "is put into a graveyard from anywhere", Tezzeret's
@@ -942,10 +941,13 @@ def _graveyard_matters(tree: ConceptTree) -> list[Signal]:
             # different lane), excluded here; ``origin is None`` is
             # unrestricted and thus INCLUDES a battlefield-to-graveyard
             # move, so it stays in (CR 400.7).
-            gy_arrival = dest == "Graveyard" and origin != "Battlefield"
-            gy_departure = origin == "Graveyard"
-            if gy_arrival or gy_departure:
-                fire(_gy_scope(trigger_subject_scope(node)), "")
+            # A merged trigger watches each of its clauses' moves (Dreadhound's
+            # "dies or … put into a graveyard from a library").
+            for origin, dest in trigger_zone_changes(node):
+                gy_arrival = dest == "Graveyard" and origin != "Battlefield"
+                gy_departure = origin == "Graveyard"
+                if gy_arrival or gy_departure:
+                    fire(_gy_scope(trigger_subject_scope(node)), "")
             subj = effect_filter(node)
             if subj is not None and "Graveyard" in filter_inzone_zones(subj):
                 fire(_gy_scope(trigger_subject_scope(node)), "")
@@ -1698,9 +1700,8 @@ def _lifeloss_makers(tree: ConceptTree) -> list[Signal]:
                 continue
             top_level_ids.add(id(c.node))
             scoped_fire(unit, c.node, c.raw)
-        # (Phase v0.104.0's draw-then-lose-life clause recovered under its draw
-        # — Marchesa — is the ledger row conditional_draw_bleed_lifeloss_parked:
-        # the loss is the clause's second verb.)
+        # (Phase v0.104.0's draw-then-lose-life clause — Marchesa — recovers
+        # its loss as the clause's second instruction, a lose_life above.)
         for n in iter_typed_nodes(unit.node):
             # Skip a node already handled via the top-level concept read above
             # — a LoseLife reachable BOTH through ``unit.effect_concepts``

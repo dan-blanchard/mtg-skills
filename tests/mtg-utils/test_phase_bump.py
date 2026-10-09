@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import json
 import pickle
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -469,6 +470,16 @@ def _fake_repo(tmp_path: Path) -> Path:
         f"{phase_bump.ZERO_END}\n"
     )
     (repo / phase_bump.BRIDGE_LEDGER_TEST).write_text("")
+    (repo / phase_bump.ROSTER_COUNTS_FILE).write_text(
+        "import x\n"
+        f"{phase_bump.COUNTS_BEGIN}\n"
+        "EFFECT_ROSTER_SIZE = 1\n"
+        f"{phase_bump.COUNTS_END}\n"
+        "def test_x(): ...\n"
+    )
+    (repo / phase_bump.SCHEMA_FIXTURE).write_text(
+        json.dumps({"tagged": [{}, {}, {}], "structs": [{}]})
+    )
     return repo
 
 
@@ -561,6 +572,15 @@ def test_dry_run_executes_every_step_in_order_and_writes_the_report(
     # step 4: zero-instance from the population zeros (Draw has 0; unseen = 0)
     assert '"Draw",\n' in variants.split(phase_bump.ZERO_BEGIN)[1]
     assert '"StartYourEngines"' not in variants.split(phase_bump.ZERO_BEGIN)[1]
+    # …and the mirror test's pinned counts, rewritten from the rosters + fixtures
+    counts = (repo / phase_bump.ROSTER_COUNTS_FILE).read_text()
+    roster = phase_bump.parse_effect_enum(ABILITY_RS)
+    assert f"EFFECT_ROSTER_SIZE = {len(roster)}\n" in counts
+    assert f"ZERO_INSTANCE_SIZE = {len(roster) - 1}\n" in counts  # only one seen
+    assert "DISTINCT_VARIANTS_OBSERVED = 1\n" in counts
+    assert "MIRROR_TAGGED_CLASSES = 3\nMIRROR_STRUCT_CLASSES = 1\n" in counts
+    assert counts.startswith("import x\n")
+    assert counts.endswith("def test_x(): ...\n")
     # step 6: builders ran in order, old index copied aside
     modules = [c[2] for c in calls]
     assert modules == [
@@ -691,10 +711,10 @@ def test_main_refuses_a_bump_to_the_current_pin(tmp_path, monkeypatch):
 # ── recovery fire counts (ADR-0038: fire count → 0 → retire) ───────────────────
 
 
-def _recovered(token: str, *subject: str):
+def _recovered(token: str, *subject: str, clause: tuple[str, ...] = ()):
     from types import SimpleNamespace
 
-    return SimpleNamespace(recovered_by=token, subject=subject)
+    return SimpleNamespace(recovered_by=token, subject=subject, clause=clause)
 
 
 def _tree(*effects):
@@ -703,17 +723,60 @@ def _tree(*effects):
     return SimpleNamespace(units=(SimpleNamespace(effects=effects),))
 
 
+def test_roster_counts_read_the_rosters_and_the_substrate_fixtures():
+    counts = phase_bump.roster_counts(
+        ("Draw", "DealDamage", "Cascade"),
+        {"Cascade"},
+        {"population": {"Draw": 5, "DealDamage": 2, "Cascade": 0}},
+        {"tagged": [{}, {}], "structs": [{}]},
+    )
+    assert counts == phase_bump.RosterCounts(3, 1, 2, 2, 1)
+    text = phase_bump.render_roster_counts(counts, "v0.70.0")
+    assert text.startswith("# v0.70.0: written by bump-phase-pin")
+    assert "DISTINCT_VARIANTS_OBSERVED = 2\n" in text
+
+
+def test_the_committed_roster_counts_block_is_the_one_the_bump_rewrites():
+    """The real mirror test carries the marker block, and the bump's own render of
+    today's rosters and fixtures reproduces it: a hand edit or a stale block fails."""
+    repo = Path(__file__).resolve().parents[2]
+    text = (repo / phase_bump.ROSTER_COUNTS_FILE).read_text()
+    variants = (repo / phase_bump.VARIANTS_FILE).read_text()
+    zeros = re.findall(
+        r'^        "([A-Za-z0-9_]+)",$',
+        variants.split(phase_bump.ZERO_BEGIN)[1],
+        re.MULTILINE,
+    )
+    counts = phase_bump.roster_counts(
+        phase_bump.parse_effect_enum_from_variants(variants),
+        zeros,
+        json.loads((repo / phase_bump.POPULATION_FIXTURE).read_text()),
+        json.loads((repo / phase_bump.SCHEMA_FIXTURE).read_text()),
+    )
+    rewritten = phase_bump.rewrite_between_markers(
+        text,
+        phase_bump.COUNTS_BEGIN,
+        phase_bump.COUNTS_END,
+        phase_bump.render_roster_counts(counts, _phase.PHASE_TAG),
+    )
+    assert rewritten == text
+
+
 def test_recovery_counts_tokens_and_marks():
     plain = _recovered("")  # a typed node: never counted
     trees = [
         _tree(_recovered("destroy", "Targeted", "Creature"), plain),
         _tree(_recovered("destroy", "Self"), _recovered("draw")),
+        # a row reading into ``clause`` (make_token) counts its marks there
+        _tree(_recovered("make_token", clause=("OtherPlayer",))),
     ]
     counts = phase_bump.recovery_counts(
-        trees, ("destroy", "draw", "mill"), ("Self", "Targeted", "Player")
+        trees,
+        ("destroy", "draw", "mill"),
+        ("Self", "Targeted", "Player", "OtherPlayer"),
     )
     assert counts.tokens == {"destroy": 2, "draw": 1, "mill": 0}
-    assert counts.marks == {"Self": 1, "Targeted": 1, "Player": 0}
+    assert counts.marks == {"Self": 1, "Targeted": 1, "Player": 0, "OtherPlayer": 1}
 
 
 def test_render_recovery_flags_zero_counts():

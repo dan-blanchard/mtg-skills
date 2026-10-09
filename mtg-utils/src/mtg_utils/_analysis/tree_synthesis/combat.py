@@ -35,10 +35,6 @@ from mtg_utils._card_ir.crosswalk import (
     tag_of,
 )
 from mtg_utils._card_ir.mirror.runtime import MirrorVariant
-from mtg_utils._card_ir.supplement import (
-    _BASE_POWER_REF,
-    _anchored,
-)
 
 # ── attack_matters structural reads (ADR-0036 fold — shared lane/gate source) ──
 # The Tier-1 ``_attack_tapped_matters`` lane fires ``attack_matters`` on these typed
@@ -1023,42 +1019,4 @@ def _arm_base_pt_mass_where_x(tree: ConceptTree) -> ConceptNode | None:
         desc=(
             "mass 'creatures you control have base power and toughness X/X' (CR 613.4b)"
         ),
-    )
-
-
-def has_structural_base_power_ref(tree: ConceptTree) -> bool:
-    """Whether a typed ``PtComparison(scope='Base')`` node is reachable
-    anywhere in the tree — the SAME typed gate the ``_base_power_matters``
-    lane itself reads (CR 613.4b sentence 2)."""
-    return any(
-        tag_of(n) == "PtComparison" and getattr(n, "scope", None) == "Base"
-        for n in tree.iter_typed()
-    )
-
-
-def _arm_base_power_ref_conjunctive(tree: ConceptTree) -> ConceptNode | None:
-    """A CONJUNCTIVE "base power and toughness N/N" reference (Duskana, the
-    Rage Mother; Bess, Soul Nourisher — CR 613.4b sentence 2) phase's
-    clause grammar drops with ZERO trace (no ``PtComparison`` node at
-    all) — distinct from the single-stat "base power N" / "base toughness
-    N" reference form phase structures directly as a typed node (the
-    ``has_structural_base_power_ref`` gap this arm stands down on for
-    those 4 siblings — Rapid Augmenter, Sword of the Squeak, Zinnia,
-    Valley's Voice, Primo, the Unbounded). Reuses ``supplement.py``'s OWN
-    ``_BASE_POWER_REF`` combinator scan verbatim — the SAME six-token
-    phrase anchor the retired legacy ``_recover_base_power_ref`` used, so
-    the blast radius matches byte-for-byte (6 corpus hits total, 4 already
-    structurally covered, 2 left — the exact former ``duskana_bess_base_
-    pt_and_toughness_ref`` bridge census)."""
-    if has_structural_base_power_ref(tree):
-        return None
-    oracle = re.sub(r"\([^)]*\)", " ", tree.oracle or "")
-    if not _anchored(oracle, "with base", _BASE_POWER_REF):
-        return None
-    return _synthetic_concept(
-        arm_id="base_power_ref_conjunctive",
-        concept="base_power_matters",
-        scope="you",
-        subject=(),
-        desc="conjunctive 'with base power and toughness N' reference (CR 613.4b)",
     )

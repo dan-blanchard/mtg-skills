@@ -67,7 +67,13 @@ from mtg_utils._card_ir.mirror.runtime import (
     MirrorVariant,
     TypedMirrorNode,
 )
-from mtg_utils._card_ir.recovery import CARD, ON_SELF, TARGET_OBJECT, YOURS
+from mtg_utils._card_ir.recovery import (
+    CARD,
+    ON_SELF,
+    OTHER_PLAYER,
+    TARGET_OBJECT,
+    YOURS,
+)
 from mtg_utils._card_ir.text_idioms import _SINGLE_PERMANENT_GRANT_PREDS
 
 # Board-wipe subject types (CR 115.10) — mirrors the deleted ``_signals_ir``'s
@@ -819,18 +825,6 @@ def _iter_discard_cost_nodes(root: object) -> Iterator[TypedMirrorNode]:
             stack.extend(node)
 
 
-# Recovered-discard direction gate (see the recovered_by branch inside
-# _discard_outlet): a recovered node's raw is a TRUNCATED clause, so an
-# opponent-directed discard can LOOK imperative ("discard all cards with
-# that name revealed this way" — the "Target opponent reveals ..." subject
-# lives in a different clause). These residues carry tell-tale
-# subject/backref words; a genuine self-loot clause carries none of them.
-_RECOVERED_OPP_DISCARD_RE = re.compile(
-    r"\b(?:target (?:player|opponent)|each opponent|that player|the player"
-    r"|its controller|their hand|revealed this way|spliced|can't)\b"
-)
-
-
 def _discard_outlet(tree: ConceptTree) -> list[Signal]:
     """discard_outlet — a SELF-loot / symmetric discard outlet (CR 701.9):
     fuel for YOUR graveyard (Faithless Looting; Dark Deal's each-player
@@ -884,8 +878,9 @@ def _discard_outlet(tree: ConceptTree) -> list[Signal]:
                 continue
             # A RECOVERED discard node (ADR-0038 post-giants batch) keeps
             # the Unimplemented wrapper as ``.node`` — no typed recipient,
-            # so both gates above pass trivially and the clause's own
-            # words are the only direction carrier. Reject the
+            # so both gates above pass trivially and the seam's reading of
+            # the clause (``OTHER_PLAYER`` in ``c.clause``) carries the
+            # direction. Reject the
             # opponent-directed / protection residues (census: 22
             # recovered discards; "Target player discards" — Tainted
             # Specter, "each opponent discards" — Bladecoil Serpent,
@@ -897,9 +892,7 @@ def _discard_outlet(tree: ConceptTree) -> list[Signal]:
             # + bare self imperatives (Breakthrough) + the symmetric
             # each-player wheel (Noxious Vapors — the Dark Deal
             # precedent: a wheel hits you too).
-            if c.recovered_by == "discard" and _RECOVERED_OPP_DISCARD_RE.search(
-                (c.raw or "").lower()
-            ):
+            if c.recovered_by == "discard" and OTHER_PLAYER in c.clause:
                 continue
             return [Signal("discard_outlet", "you", "", c.raw, tree.name, "high")]
         for n in _iter_discard_cost_nodes(unit.node):
@@ -1514,9 +1507,7 @@ def _team_buff(tree: ConceptTree) -> list[Signal]:
 
 # Fix (e)'s reveal-producer allow-list (a unit that actually REVEALS/
 # imprints a card before the conditional put — reveal_top / reveal_until /
-# dig / turn_face_up / exile_top). Hoisted to module scope so
-# :func:`_cheat_negated_reveal_else_put` (ADR-0039 W7) can gate on the SAME
-# producer set fix (e) uses, rather than re-deriving a parallel list.
+# dig / turn_face_up / exile_top).
 _CHEAT_REVEAL_PRODUCERS = (
     "reveal_top",
     "reveal_until",
@@ -2098,14 +2089,7 @@ def _cheat_into_play(tree: ConceptTree) -> list[Signal]:
                         )
                     ]
                 found_condition_evidence = False
-                for cond in iter_condition_sites(unit.node):
-                    cond_tag = tag_of(cond)
-                    if cond_tag == "RevealedHasCardType":
-                        types = set(getattr(cond, "card_types", None) or [])
-                    elif cond_tag == "TargetMatchesFilter":
-                        types = set(filter_core_types(getattr(cond, "filter", None)))
-                    else:
-                        continue
+                for types in _put_condition_types(unit, c.node):
                     found_condition_evidence = True
                     if not types or types <= {"Land"}:
                         continue  # no type evidence / a land put — never guess
@@ -2187,14 +2171,12 @@ def _cheat_into_play(tree: ConceptTree) -> list[Signal]:
     for unit in tree.units:
         if _nested_grant_reveal_or_hand_put(unit):
             return [Signal("cheat_into_play", "you", "", "", tree.name, "high")]
-    # ADR-0039 W7 endgame — two scan-scope closers for puts the reveal and
-    # ChangeZone arms above can't pair with their producer (see each helper's
-    # docstring). A ``ChooseOneOf`` branch's put (Dr. Eggman) needs none: the
-    # shared effect walk reads it, and a villainous branch is served LOW
-    # (``signal_trees.branch_certain_idents``).
+    # ADR-0039 W7 endgame — a scan-scope closer for a put the reveal and
+    # ChangeZone arms above can't pair with its producer (see the helper's
+    # docstring). A ``ChooseOneOf`` branch's put (Dr. Eggman) or an "otherwise"
+    # put (Impromptu Raid) needs none: the shared effect walk reads it, and a
+    # villainous branch is served LOW (``signal_trees.branch_certain_idents``).
     for unit in tree.units:
-        if _cheat_negated_reveal_else_put(unit):
-            return [Signal("cheat_into_play", "you", "", "", tree.name, "high")]
         if _cheat_reveal_until_you_enters_put(unit):
             return [Signal("cheat_into_play", "you", "", "", tree.name, "high")]
     # ADR-0039 grammar sprint (task #82) — the tree-synthesis closer for the
@@ -2256,52 +2238,27 @@ def _cheat_reveal_until_you_enters_put(unit: AbilityUnit) -> bool:
     return False
 
 
-def _cheat_negated_reveal_else_put(unit: AbilityUnit) -> bool:
-    """ADR-0039 W7 — the "otherwise, put it onto the battlefield" arm of a
-    reveal-then-branch idiom whose gating condition is NEGATED (Impromptu
-    Raid: "Reveal the top card of your library. If it isn't a creature
-    card, put it into your graveyard. Otherwise, put that card onto the
-    battlefield." — phase structures this as ``condition=Not
-    (RevealedHasCardType(Creature))`` on the GRAVEYARD branch's own node,
-    with the BATTLEFIELD put living on that SAME node's ``else_ability``,
-    away from the reveal producer's condition chain). Fix (e)'s existing reveal-
-    producer arm only searches ``unit.effects`` for the ChangeZone site, so
-    it never finds this one even though its producer gate
-    (:data:`_CHEAT_REVEAL_PRODUCERS`) is satisfied — this helper is the
-    narrow ``else_ability`` complement of that arm, gated on the SAME
-    producer set so it never fires standalone on an unrelated else_ability
-    shape. Type evidence is the INNER (un-negated) condition's card types —
-    the else fires exactly when that inner condition IS true (CR 726 "if"/
-    "otherwise" phrasing — De Morgan's law read off the typed ``Not``
-    wrapper, not a guess). Corpus-verified sole hit (2026-07, every
-    commander-legal reveal-producing unit whose node carries ``condition=
-    Not(RevealedHasCardType)`` and an ``else_ability`` Battlefield put
-    targeting ``ParentTarget``/``SelfRef``): Impromptu Raid.
-    """
-    if not any(c.concept in _CHEAT_REVEAL_PRODUCERS for c in unit.effects):
-        return False
+def _put_condition_types(unit: AbilityUnit, put: object) -> Iterator[set[str]]:
+    """The card types each type-checking condition on ``unit`` gives a reveal
+    producer's put (fix (e)): a ``RevealedHasCardType``'s types, a
+    ``TargetMatchesFilter``'s core types, and — for an "Otherwise, put that card
+    onto the battlefield" put (Impromptu Raid: "If it isn't a creature card, put
+    it into your graveyard. Otherwise, put that card onto the battlefield.") —
+    the inner types of a ``Not(RevealedHasCardType)`` whose ``else_ability`` is
+    ``put``: the else branch happens exactly when that inner check holds."""
+    for cond in iter_condition_sites(unit.node):
+        cond_tag = tag_of(cond)
+        if cond_tag == "RevealedHasCardType":
+            yield set(getattr(cond, "card_types", None) or [])
+        elif cond_tag == "TargetMatchesFilter":
+            yield set(filter_core_types(getattr(cond, "filter", None)))
     for n in iter_typed_nodes(unit.node):
         cond = getattr(n, "condition", None)
-        if tag_of(cond) != "Not":
-            continue
-        inner = getattr(cond, "condition", None)
+        inner = getattr(cond, "condition", None) if tag_of(cond) == "Not" else None
         if tag_of(inner) != "RevealedHasCardType":
             continue
-        ea = getattr(n, "else_ability", None)
-        if not isinstance(ea, TypedMirrorNode):
-            continue
-        eff = getattr(ea, "effect", None)
-        if not (
-            isinstance(eff, TypedMirrorNode)
-            and tag_of(eff) == "ChangeZone"
-            and getattr(eff, "destination", None) == "Battlefield"
-            and tag_of(getattr(eff, "target", None)) in ("ParentTarget", "SelfRef")
-        ):
-            continue
-        types = set(getattr(inner, "card_types", None) or [])
-        if types and not types <= {"Land"}:
-            return True
-    return False
+        if getattr(getattr(n, "else_ability", None), "effect", None) is put:
+            yield set(getattr(inner, "card_types", None) or [])
 
 
 def _nested_grant_reveal_or_hand_put(unit: AbilityUnit) -> bool:

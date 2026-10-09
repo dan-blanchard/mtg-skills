@@ -81,6 +81,7 @@ from mtg_utils._card_ir.mirror.runtime import (
     MISSING,
     TypedMirrorNode,
 )
+from mtg_utils._card_ir.recovery import OTHER_PLAYER
 
 
 def _win_lose_game(tree: ConceptTree) -> list[Signal]:
@@ -1832,35 +1833,6 @@ def extract_grant_payloads(tree: ConceptTree) -> tuple[GrantPayload, ...]:
     return tuple(out)
 
 
-# ADR-0038 W5 tails (direct_damage): a recovery.ALLOWLIST "damage" node (a
-# computed-amount DealDamage/DamageAll/DamageEachPlayer clause phase drops
-# entirely — Soulblast's sacrifice-tally, Mjölnir Storm Hammer's per-tapped-
-# creature count, Iron Mastiff's d20 chart row) carries NO typed ``target``
-# field (:func:`effect_reaches_player` needs one) — the raw residue clause
-# is truncated ("deal damage to any target equal to ...", "~ deals 4 damage
-# to that player unless ..."), so direction is a reject-list scan over the
-# tell-tale recipient words themselves, same discipline as recovered
-# "discard"/"draw" nodes elsewhere. Corpus-verified (29 of 85 corpus-wide
-# "damage"-token residues overlap direct_damage's residual tail; every
-# member's own recipient phrase matches one of these words OR is bare
-# "target creature" — Whipkeeper, correctly NOT matched, stays excluded
-# alongside the pre-existing creature-only shed class). "to you" alone is
-# deliberately NOT a match — the same incidental-self-damage exclusion as
-# the typed path's bare ``Controller`` (Iron Mastiff's own "1-9: deals
-# damage ... to you" row stays unmatched; its "defending player"/"each
-# opponent" sibling rows still fire the unit).
-_RECOVERED_DAMAGE_REACH = re.compile(
-    r"\bany (?:other )?target\b|\beach opponent\b|\bthat player\b"
-    r"|\bdefending player\b|\btarget player\b"
-    # phase v0.104.0 fails closed on an intervening-if burn to the damaged
-    # creature's controller (Consuming Ferocity, Enchanter's Bane): the typed
-    # path's ``ParentTargetController`` recipient (a permanent's controller,
-    # CR 110.2), read off the recovered "damage" clause.
-    r"|\bto (?:its|that (?:creature|permanent)'s) controller\b",
-    re.IGNORECASE,
-)
-
-
 def _direct_damage(tree: ConceptTree) -> list[Signal]:
     """Burn that reaches a PLAYER (Fanatic of Mogis, Lightning Bolt — CR 120.1).
 
@@ -1892,10 +1864,13 @@ def _direct_damage(tree: ConceptTree) -> list[Signal]:
     (Aggressive Sabotage's "Target player discards ... deals 3 damage to
     that player" vs. Fiery Impulse's "target creature ... deals 3 instead").
 
-    ADR-0038 W5 tails: a recovered "damage" node (see
-    :data:`_RECOVERED_DAMAGE_REACH`) direction-gates on the raw clause text
-    instead of ``effect_reaches_player`` — a recovered node's ``.node`` is
-    still the bare ``Unimplemented`` wrapper, no typed recipient to read.
+    ADR-0038 W5 tails: a recovered "damage" node (a computed-amount clause
+    phase parks whole — Soulblast's sacrifice tally, Iron Mastiff's d20 rows)
+    has no typed recipient, so it reads the seam's ``OTHER_PLAYER`` mark
+    (``recovery.read_clause``: any target, each opponent, target / that /
+    defending player, a permanent's controller). "to you" alone is no reach —
+    the typed path's incidental self-damage exclusion (Iron Mastiff's "1-9"
+    row).
 
     ADR-0039 W7 endgame (2026-07-11) — PROMOTED. One real structural gain
     (:func:`~mtg_utils._card_ir.crosswalk._unit_has_player_target`'s
@@ -1919,37 +1894,25 @@ def _direct_damage(tree: ConceptTree) -> list[Signal]:
     row RETIRED at the v0.66.0 pin bump — upstream #7047 restored the
     trailing damage clause — and Avatar Aang's at v0.104.0, which carries the
     fifth conjunct), and a kicker-mode ParentTarget-reuse pair (Goblin
-    Barrage / Unstable Footing). Two phase v0.104.0 residue rows serve
-    granted burns the recovery stage names by another verb: Karn, Living
-    Legacy's emblem (``karn_living_legacy_emblem_tap_cost_damage``, an
-    emblem_creation residue) and an Equipment's sacrifice-to-burn grant
-    (``granted_sacrifice_burn_parked`` — Blazing Torch, Ninja's Kunai). See
-    each bridge row for its
+    Barrage / Unstable Footing). Phase v0.104.0's granted burns behind a cost
+    (Karn, Living Legacy's emblem "Tap an untapped artifact you control: ~ deals
+    1 damage to any target", Blazing Torch's "Sacrifice ~: ~ deals 2 damage …")
+    recover as the grant's own damage instruction. See each bridge row for its
     own corpus census; every remaining shed class stays pinned from W4/W6
     (creature/battle-only, bare-self-damage, damage doubler/matters/
     prevention). CR 120.1 / 102.1 / 303.4c / 702.33d verified this session.
 
-    ADR-0039 task #82 grammar sprint — two more graduated OFF the ledger. A
-    Devil-token quoted-grant pair (Maestros Diabolist / Pugnacious
-    Pugilist's death-trigger damage clause nested inside a single ``create``
-    residue) and Keranos, God of Storms's ``effect_structure`` upstream
-    parse-failure residue now synthesize a typed ``synth_direct_damage_
-    dropped_grant`` marker node (``tree_synthesis``'s
-    ``devil_token_quoted_grant_dominant_verb_create`` /
-    ``keranos_effect_structure_parse_failure`` arms — the regex runs ONCE
-    at synthesis, gated on the SAME no-player-reaching-damage-node absence
-    proof the ledgered bridges shared), and the lane reads it structurally
-    below — no ``bridge_ledger`` involvement, no per-idiom lane special-
-    casing. Grolnok / Mairsil share the SAME ``effect_structure`` diagnostic
-    for their OWN unrelated multi-clause idioms (a different signal key
-    entirely) and stay open bridge_ledger rows — a general multi-trigger-
-    sentence parser for that diagnostic class stays their named upstream
-    retirement path.
+    Keranos, God of Storms's ``effect_structure`` parse-failure residue (its
+    whole reveal-and-punish ability) is recovered instruction by instruction
+    (``recovery.recover_concepts``): "… Keranos deals 3 damage to any target"
+    reads as a recovered damage clause. (The synthesis arms that stood in for
+    it and for Maestros Diabolist's quoted Devil grant retired at phase
+    v0.104.0.)
     """
     for unit in tree.units:
         for c in unit.effect_concepts("deal_damage"):
             if c.recovered_by == "damage":
-                if _RECOVERED_DAMAGE_REACH.search(c.raw or ""):
+                if OTHER_PLAYER in c.subject:
                     return [
                         Signal("direct_damage", "you", "", c.raw, tree.name, "high")
                     ]
@@ -1957,18 +1920,6 @@ def _direct_damage(tree: ConceptTree) -> list[Signal]:
             if effect_reaches_player(c.node, unit.node):
                 return [Signal("direct_damage", "you", "", c.raw, tree.name, "high")]
         if has_nested_damage_reaching_player(unit.node):
-            return [Signal("direct_damage", "you", "", "", tree.name, "high")]
-    # ADR-0039 task #82 grammar sprint — two dropped-grant / upstream-parse-
-    # failure idioms now synthesize a typed ``synth_direct_damage_dropped_
-    # grant`` marker node the lane reads structurally below (``tree_
-    # synthesis``'s ``devil_token_quoted_grant_dominant_verb_create`` /
-    # ``keranos_effect_structure_parse_failure`` arms — the regex runs ONCE
-    # at synthesis, gated on the SAME no-player-reaching-damage-node
-    # absence proof the ledgered bridges shared) — graduated OFF the
-    # ledgered-bridge mechanism (formerly two bridge_ledger rows; see the
-    # module's own git history for the retired text).
-    for c in tree.iter_concepts():
-        if c.concept == "synth_direct_damage_dropped_grant":
             return [Signal("direct_damage", "you", "", "", tree.name, "high")]
     return []
 
@@ -2064,7 +2015,8 @@ def _landfall(tree: ConceptTree) -> list[Signal]:
 
     The last-resort tail catches the pure-text residue: The Lost and the
     Damned's compound OR-trigger (phase drops the Land branch's own filter
-    onto an untyped ``zone_change_clauses`` list this substrate doesn't read),
+    onto a ``zone_change_clauses`` list whose clauses carry no type filter
+    this arm reads — ``reads.trigger_zone_changes`` reads only their zones),
     Invader Parasite's "same name as the exiled card" comparison (an Unknown
     trigger mode phase's grammar cannot classify at all), and Werewolf
     Lightning Mage's Un-set Stickers gimmick (phase can't parse its {TK}

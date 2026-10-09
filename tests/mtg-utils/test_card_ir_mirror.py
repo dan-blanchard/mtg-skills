@@ -50,6 +50,18 @@ from mtg_utils._card_ir.mirror.generated import (
     S_sub_ability,
 )
 
+# The pinned roster counts. ``bump-phase-pin`` derives them from the rosters and
+# the substrate fixtures and rewrites this block (step 4), so a bump never edits
+# them by hand; a drifted count between bumps still fails here.
+# BEGIN GENERATED ROSTER COUNTS
+# v0.104.0: written by bump-phase-pin (step 4); never edit by hand
+EFFECT_ROSTER_SIZE = 234
+ZERO_INSTANCE_SIZE = 20
+DISTINCT_VARIANTS_OBSERVED = 214
+MIRROR_TAGGED_CLASSES = 1793
+MIRROR_STRUCT_CLASSES = 126
+# END GENERATED ROSTER COUNTS
+
 # ---------------------------------------------------------------------------
 # fixtures / helpers
 # ---------------------------------------------------------------------------
@@ -165,11 +177,8 @@ def _find_required(record, schema):
 
 
 def test_effect_roster_shape():
-    # v0.66.0: 228 + NoteManaSpent + ReproduceEventCounters + RevealChosenNumbers
-    # + CompletePlayerAction; v0.86.0: + OpenBoosterPack; v0.94.0: + EmpowerJace
-    assert len(EFFECT_VARIANTS) == 234
-    # 19 + CompletePlayerAction (declared in v0.66.0's enum, zero corpus nodes)
-    assert len(ZERO_INSTANCE_EFFECTS) == 20
+    assert len(EFFECT_VARIANTS) == EFFECT_ROSTER_SIZE
+    assert len(ZERO_INSTANCE_EFFECTS) == ZERO_INSTANCE_SIZE
     assert set(EFFECT_VARIANTS) >= ZERO_INSTANCE_EFFECTS
     # the ADR's four named examples are in the closed-union arm
     for name in ("Cascade", "Exploit", "MiracleCast", "VentureInto"):
@@ -315,16 +324,11 @@ def test_losslessness_roundtrip_full_corpus():
 def test_variant_population_committed_fixture():
     pop = _fixture(POPULATION_FIXTURE)
     population = pop["population"]
-    # v0.66.0: 228 + the four v0.66.0 arrivals; v0.86.0: + OpenBoosterPack;
-    # v0.94.0: + EmpowerJace (see test_effect_roster_shape)
-    assert len(population) == 234
+    assert len(population) == EFFECT_ROSTER_SIZE
     zeros = {n for n, c in population.items() if c == 0}
     assert zeros == set(ZERO_INSTANCE_EFFECTS)
-    # 209 + NoteManaSpent + ReproduceEventCounters + RevealChosenNumbers
-    # (CompletePlayerAction is zero-instance); v0.86.0: + OpenBoosterPack;
-    # v0.94.0: + EmpowerJace
-    assert pop["distinct_variants_observed"] == 214
-    assert pop["zero_instance_variants"] == 20
+    assert pop["distinct_variants_observed"] == DISTINCT_VARIANTS_OBSERVED
+    assert pop["zero_instance_variants"] == ZERO_INSTANCE_SIZE
     assert pop["total_effect_nodes"] == sum(population.values())
     # the name grep must not have drifted from phase's enum
     assert pop["unknown_effect_slot_tags"] == {}
@@ -380,10 +384,9 @@ def test_generated_classes_dispatch_table():
     for ckey in schema.structs:
         assert ckey in GENERATED_BY_CKEY, f"struct {ckey!r} has no generated class"
         assert issubclass(GENERATED_BY_CKEY[ckey], TypedMirrorNode)
-    # the headline coverage number: v0.104.0 = 1793 tagged + 126 struct = 1919
-    # classes (v0.66.0: 1714 + 115 = 1829; v0.86.0: 1750 + 119 = 1869;
-    # v0.94.0: 1753 + 125 = 1878)
-    assert len(GENERATED_BY_KEY) + len(GENERATED_BY_CKEY) == 1919
+    # the headline coverage number: one generated class per schema shape
+    assert len(GENERATED_BY_KEY) == MIRROR_TAGGED_CLASSES
+    assert len(GENERATED_BY_CKEY) == MIRROR_STRUCT_CLASSES
 
 
 def test_typed_instances_no_fallback_samples():

@@ -231,3 +231,117 @@ def test_reanimation_from_an_opponents_graveyard_fills_no_graveyard_of_yours():
     assert {
         i for i in _idents("Geth's Summons") if i.startswith("graveyard_makers|")
     } == {"graveyard_makers|you|"}
+
+
+# ── Compound clauses and granted bodies (recovery.recover_concepts) ───────────
+# The recovery stage reads a parked clause instruction by instruction, and a
+# residue inside a granted ability's body through the shared granted walk, so a
+# key a clause's second verb or a grant's own verb carries reads like a first
+# verb's. Each of these was a bridge-ledger row through phase v0.104.0's bump.
+
+
+@pytest.mark.parametrize(
+    ("name", "ident"),
+    [
+        # "you lose 1 life and you draw an additional card"
+        ("Lord Skitter's Blessing", "card_draw_engine|you|"),
+        ("Lord Skitter's Blessing", "lifegain_matters|you|"),
+        # "you draw a card and you lose 1 life"
+        ("Marchesa, Resolute Monarch", "lifegain_matters|you|"),
+        ("Marchesa, Resolute Monarch", "lifeloss_makers|you|"),
+        # "… put a velocity counter on it. Then if …, sacrifice it and draw two"
+        ("Daredevil Dragster", "card_draw_engine|you|"),
+        # "… remove an egg counter from it. Then if this card has no egg
+        # counters on it, return it to the battlefield"
+        ("Darigaaz Reincarnated", "dies_recursion|you|"),
+        ("Death Spark", "self_recurring|you|"),
+        # a granted "Unattach ~: It deals 1 damage to any target. Return ~ to
+        # its owner's hand." (the grant names its granter)
+        ("Razor Boomerang", "self_recurring|you|"),
+        ("Toralf's Hammer", "self_recurring|you|"),
+        # a granted "Sacrifice ~: ~ deals N damage to any target"
+        ("Blazing Torch", "direct_damage|you|"),
+        ("Ninja's Kunai", "direct_damage|you|"),
+        # an emblem's "Tap an untapped artifact you control: ~ deals 1 damage …"
+        ("Karn, Living Legacy", "direct_damage|you|"),
+        # a granted trigger's "destroy target Equipment attached to it"
+        ("Shackles of Treachery", "removal|you|"),
+    ],
+)
+def test_later_instructions_and_granted_bodies_recover(name, ident):
+    assert ident in _idents(name)
+
+
+@pytest.mark.parametrize(
+    ("name", "absent"),
+    [
+        # "That player chooses and sacrifices one of those creatures": the
+        # second verb is that player's, not yours.
+        ("Retribution", "sacrifice_outlets|"),
+        ("Barrin's Spite", "sacrifice_outlets|"),
+        # "reveal a permanent card from among them and put it into your hand":
+        # "it" is the revealed card, not this one.
+        ("Sandstalker Moloch", "self_recurring|"),
+        # a replacement's own "then draw a card" is the replaced draw
+        ("Aladdin's Lamp", "activated_draw|"),
+        # phase's "(unless: you sacrifice it)" note is no instruction
+        ("Town-Razer Tyrant", "self_etb_payload|"),
+    ],
+)
+def test_later_instructions_keep_their_own_subject(name, absent):
+    assert not any(i.startswith(absent) for i in _idents(name))
+
+
+# ── Reads phase v0.104.0's new shapes lost ─────────────────────────────────────
+
+
+def test_a_merged_zone_change_trigger_reads_each_clause():
+    # "Whenever a creature dies or a creature card is put into a graveyard from
+    # a library": one trigger, two ``zone_change_clauses``; the library one is a
+    # graveyard arrival.
+    from mtg_utils._analysis.signal_trees import signal_trees_for
+    from mtg_utils._card_ir.crosswalk import trigger_zone_changes
+    from mtg_utils.testkit import test_card
+
+    assert "graveyard_matters|you|" in _idents("Dreadhound")
+    record = test_card("Dreadhound")
+    moves = {
+        move
+        for tree in signal_trees_for(record, bulk=record)
+        for unit in tree.iter_units("trigger")
+        for move in trigger_zone_changes(unit.node)
+    }
+    assert {("Battlefield", "Graveyard"), ("Library", "Graveyard")} <= moves
+
+
+@pytest.mark.parametrize(
+    ("name", "fires"),
+    [
+        # "Blitz—{2}{R}{R}, Discard a card": a way to cast it (CR 702.152a)
+        ("Sabin, Master Monk", True),
+        # An upkeep payment to keep the permanent (CR 702.30a echo, 702.24a
+        # cumulative upkeep): undecided whether it's an outlet, so not read.
+        ("Deepcavern Imp", False),
+        ("Rakdos Headliner", False),
+        ("Vexing Sphinx", False),
+    ],
+)
+def test_a_keyword_cost_discard_is_an_outlet_only_as_a_casting_cost(name, fires):
+    assert ("discard_outlet|you|" in _idents(name)) is fires
+
+
+@pytest.mark.parametrize(
+    ("name", "ident"),
+    [
+        # an Unknown trigger mode (ledger row exile_from_hand_trigger_unknown_mode)
+        ("Hero of Bretagard", "exile_matters|you|"),
+        ("Ranar the Ever-Watchful", "exile_matters|you|"),
+        # a hollow graveyard cast permission (hollow_graveyard_cast_permission_*)
+        ("Glimpse the Cosmos", "permanent_recast|you|"),
+        ("Glimpse the Cosmos", "self_recurring|you|"),
+        # the cast permission's Human half (artifact_or_human_graveyard_cast_parked)
+        ("Arcade Gannon", "type_matters|you|Human"),
+    ],
+)
+def test_lost_reads_restored_by_ledger_rows(name, ident):
+    assert ident in _idents(name)

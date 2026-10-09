@@ -34,6 +34,7 @@ from mtg_utils._analysis.bridge_ledger import BRIDGE_KINDS, BRIDGES
 from mtg_utils._card_ir.crosswalk import ConceptTree, build_concept_tree, tag_of
 from mtg_utils._card_ir.mirror import strict_load_card
 from mtg_utils._card_ir.mirror.build import load_committed_schema
+from mtg_utils._card_ir.mirror.runtime import MirrorVariant
 from mtg_utils._card_ir.trees import _text_only_trees
 from mtg_utils.testkit import test_card, test_phase_records, test_signals
 
@@ -167,6 +168,9 @@ def _edited(tree: ConceptTree, texts: dict[str, str], *, oracle: str) -> Concept
     what the ledger reads."""
     edited = copy.deepcopy(tree)
     for unit in edited.iter_units():
+        mode = getattr(unit.node, "mode", None)
+        if isinstance(mode, MirrorVariant) and str(mode.inner) in texts:
+            object.__setattr__(mode, "inner", texts[mode.inner])
         nodes = [*unit.iter_typed(), *unit.static_defs()]
         for n in nodes:
             if (d := _desc(n)) in texts:
@@ -189,8 +193,8 @@ def _unrecognized(node) -> str:
 
 def _parked_texts(tree) -> list[str]:
     """Every text phase parked rather than parsed: residue descriptions, hollow
-    static defs (an emblem's included), and ``Unrecognized`` condition/filter
-    nodes' ``text``."""
+    static defs (an emblem's included), ``Unknown`` trigger modes, and
+    ``Unrecognized`` condition/filter nodes' ``text``."""
     unrecognized = [
         _unrecognized(n) for n in tree.iter_typed() if tag_of(n) == "Unrecognized"
     ]
@@ -200,6 +204,7 @@ def _parked_texts(tree) -> list[str]:
                 *tree.residues(),
                 *tree.hollow_statics(),
                 *tree.hollow_emblem_statics(),
+                *tree.unknown_trigger_modes(),
                 *unrecognized,
             ]
         )
@@ -411,6 +416,7 @@ _RESIDUE_TEXT_READS = frozenset(
         "has_residue",
         "hollow_statics",
         "hollow_emblem_statics",
+        "unknown_trigger_modes",
     }
 )
 
@@ -487,7 +493,8 @@ def test_no_bridge_fires_where_a_structural_read_already_serves(monkeypatch):
     """A row whose signal the non-bridge lanes already emit for a pin should have
     stood down: its gap missed the structure that arrived (pattern rot the other
     way). Production signals with the bridge lane removed must lack the row's
-    ``(key, scope)`` on every pin it fires on."""
+    ``(key, scope, subject)`` on every pin it fires on — a row serving one
+    subject (Arcade Gannon's ``type_matters|Human``) isn't served by another."""
     from mtg_utils._analysis import lanes
     from mtg_utils._analysis.bridge_ledger import bridge_signals
 
@@ -499,6 +506,7 @@ def test_no_bridge_fires_where_a_structural_read_already_serves(monkeypatch):
         for pin in b.pins:
             if not b.fires(_tree(pin)):
                 continue
-            if (b.key, b.scope) in {(s.key, s.scope) for s in test_signals(pin)}:
+            idents = {(s.key, s.scope, s.subject) for s in test_signals(pin)}
+            if (b.key, b.scope, b.subject) in idents:
                 served.append(f"{b.bridge_id}: {pin!r} ({b.key}/{b.scope})")
     assert not served, "structural reads already serve: " + "; ".join(served)

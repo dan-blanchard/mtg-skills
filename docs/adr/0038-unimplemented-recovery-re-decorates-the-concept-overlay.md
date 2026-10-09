@@ -181,14 +181,28 @@ now also reads the clause once (`recovery.read_clause`) and decorates the node:
 `scope` (the side the clause names), `subject` (type words plus the
 `CLAUSE_MARKS` — self, yours/theirs, player recipient, any target, mass, card,
 power-scaled, many, another chooser …; some only count when they attach to the
-token's own verb, `TokenRule.object_verb`) and `zones`. Lanes test those fields;
-no lane reads a recovered clause's text. Rows opt in (`TokenRule.reads_clause`):
-`make_token` doesn't, because its `subject` already carries the token's own types.
-The seam also refuses a replacement clause ("would … instead") unless the row says
-the replacement's effect is the verb's (`in_replacements`: discard, roll_die,
-coin_flip). A key carried by a clause's second verb stays a ledger row (ADR-0048).
-`bump-phase-pin` reports each token's and mark's corpus fire count and flags 0 as
-retire-ready. The pre-v0.104.0 rows' lane-side clause reads (draw direction,
-discard direction, damage reach) predate this and are backlog.
+token's own verb, `TokenRule.object_verb`; `OtherPlayer`, in each row's own words,
+`TokenRule.other_player`) and `zones`. Lanes test those fields; no lane reads a
+recovered clause's text. Rows opt in (`TokenRule.reads_clause`); a row whose
+`subject` or scope keeps its own meaning writes the reading to the node's `clause`
+field instead (`TokenRule.into_clause`: `make_token`, whose `subject` is the
+token's own types — its reading names them, `TokenRule.type_noun` — and `discard` /
+`lose_life`, whose overlay scope stays). The seam also refuses a replacement clause
+("would … instead") unless the row says the replacement's effect is the verb's
+(`in_replacements`: discard, roll_die, coin_flip). `bump-phase-pin` reports each
+token's and mark's corpus fire count and flags 0 as retire-ready.
 
-*Amended 2026-07-10 (twice), 2026-09-13 and 2026-10-09; original decision revised in place.*
+Later the same day, the pre-v0.104.0 rows' lane-side clause reads (draw
+direction, discard direction, damage reach, make_token's resource kinds) moved
+onto those marks with no population change, and recovery reached two places it
+skipped. A compound clause recovers each instruction (`recover_concepts`: "you
+lose 1 life and you draw an additional card" is a lose_life and a draw, both
+decorations of the one residue node; the purity fingerprint counts each node
+once). A granted ability's body is recovered where the shared granted walk reads
+it (`iter_nested_granted_effect_concepts`). A later instruction joined by "and" /
+"then" keeps the earlier one's subject (a third-person verb is another player's),
+and its "it" names the card only when nothing earlier could be "it". Nine
+second-verb and granted-body ledger rows retired. A key carried by a later verb
+the grammar doesn't tag ("It gains haste") stays a ledger row (ADR-0048).
+
+*Amended 2026-07-10 (twice), 2026-09-13 and 2026-10-09 (twice); original decision revised in place.*

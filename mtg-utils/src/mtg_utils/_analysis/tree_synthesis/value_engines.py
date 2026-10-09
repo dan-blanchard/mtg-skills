@@ -29,13 +29,11 @@ from mtg_utils._analysis.tree_synthesis.death_life import (
 from mtg_utils._card_ir.crosswalk import (
     AGGREGATE_QTY_TAGS,
     ALL_VARIANT_EFFECT_TAGS,
-    DAMAGE_EFFECT_TAGS,
     EFFECT_CONCEPTS,
     AbilityUnit,
     ConceptNode,
     ConceptTree,
     effect_owner_player_scope,
-    effect_reaches_player,
     filter_controller,
     filter_core_types,
     filter_inzone_zones,
@@ -50,7 +48,6 @@ from mtg_utils._card_ir.crosswalk import (
     iter_mod_sites,
     iter_typed_nodes,
     recipient_tag,
-    residue_is,
     static_mode_tag,
     tag_of,
     trigger_constraint_tag,
@@ -1421,130 +1418,6 @@ def _arm_sac_etb_self_sac(tree: ConceptTree) -> ConceptNode | None:
                 desc=(
                     "bucket-B written-out ETB self-sac Devour sibling "
                     "(CR 614.12/701.21a)"
-                ),
-            )
-    return None
-
-
-# ── ADR-0039 task #82 grammar sprint — direct_damage dropped-grant /
-# upstream-parse-failure bridges (bridge_ledger.py's ``devil_token_quoted_
-# grant_dominant_verb_create`` / ``keranos_effect_structure_parse_failure``
-# rows). Two genuinely-buried DealDamage idioms — a quoted granted-ability
-# death trigger nested INSIDE a single token-creation ``Unimplemented``
-# residue (Maestros Diabolist / Pugnacious Pugilist) and a compound reveal-
-# and-punish ability that fails phase's OWN effect-sentence parser wholesale
-# (Keranos, God of Storms) — where phase's typed tree carries NO DealDamage
-# node reaching a player anywhere for the clause. Gated on the SAME "no
-# player-reaching damage node anywhere on this tree" absence proof the
-# ledgered bridges shared (:func:`_tree_has_reaching_damage_node`, the
-# ``_tree_has_sacrifice_node`` precedent) — a card that already carries a
-# REAL reaching DealDamage node elsewhere is already served structurally.
-# One shared marker concept (``synth_direct_damage_dropped_grant``) — the
-# lane (``crosswalk_signals._direct_damage``) reads it structurally with no
-# per-idiom special-casing, both idioms resolving to the SAME "you" burn
-# read (CR 120.1).
-def _tree_has_reaching_damage_node(tree: ConceptTree) -> bool:
-    """Whether TREE carries a ``DealDamage``/``DamageAll``/``DamageEach
-    Player`` node that structurally reaches a PLAYER anywhere — the shared
-    gap for the two arms below (mirrors ``bridge_ledger._no_player_
-    reaching_damage_node`` exactly, CR 120.1)."""
-    for unit in tree.units:
-        for n in iter_typed_nodes(unit.node):
-            if tag_of(n) in DAMAGE_EFFECT_TAGS and effect_reaches_player(n, unit.node):
-                return True
-    return False
-
-
-# Maestros Diabolist / Pugnacious Pugilist's "create a tapped and attacking
-# 1/1 red Devil creature token with 'When this token dies, it deals 1
-# damage to any target.'" — the WHOLE clause is one
-# ``Unimplemented(name='create', ...)`` residue whose dominant verb token is
-# "create," so the recovery stage's ``make_token`` ALLOWLIST entry
-# re-decorates the node's CONCEPT but never descends into the quoted
-# granted-ability text for the nested damage clause. Reuses the ledgered
-# bridge's own verbatim idiom regex, anchored on the residue NODE (not raw
-# whole-card oracle) so the read stays precise the same way the bridge did.
-_DEVIL_TOKEN_QUOTED_GRANT_SYNTH_RX = re.compile(
-    r"create a tapped and attacking 1/1 red devil creature token with "
-    r'"when [^"]*dies, it deals \d+ damage to any target',
-    re.IGNORECASE,
-)
-
-
-def _arm_devil_token_quoted_grant(tree: ConceptTree) -> ConceptNode | None:
-    """Synthesize a ``synth_direct_damage_dropped_grant`` node for the
-    Devil-token quoted death-trigger damage clause nested inside a single
-    ``create`` ``Unimplemented`` residue (Maestros Diabolist, Pugnacious
-    Pugilist; CR 701.7/120.1). Dance with Devils's simpler, un-triggered
-    "Create two ... tokens. They have '...'" phrasing decomposes into a REAL
-    typed ``GrantTrigger`` -> ``DealDamage(target=Any())`` chain phase
-    structures fine — this arm mirrors that same shape for the quoted-
-    inside-a-single-create-clause idiom phase's token grammar can't yet
-    split."""
-    if _tree_has_reaching_damage_node(tree):
-        return None
-    for n in tree.iter_typed():
-        if not residue_is(n, "create"):
-            continue
-        desc = getattr(n, "description", "") or ""
-        if _DEVIL_TOKEN_QUOTED_GRANT_SYNTH_RX.search(desc):
-            return _synthetic_concept(
-                arm_id="devil_token_quoted_grant_dominant_verb_create",
-                concept="synth_direct_damage_dropped_grant",
-                scope="you",
-                subject=(),
-                desc=(
-                    "bucket-B Devil-token quoted death-trigger damage "
-                    "clause nested inside a create residue (CR "
-                    "701.7/120.1)"
-                ),
-            )
-    return None
-
-
-# Keranos, God of Storms's three-sentence reveal-and-punish ability
-# ("Reveal the first card you draw on each of your turns. Whenever you
-# reveal a land card this way, draw a card. Whenever you reveal a nonland
-# card this way, Keranos deals 3 damage to any target.") fails phase's OWN
-# effect-sentence parser wholesale — a genuine upstream parse failure (CR
-# 120.1): an ``Unimplemented(name='effect_structure', description=
-# "Effect sentence candidate but line failed effect parser: ...")``
-# diagnostic residue. Grolnok / Mairsil share the SAME diagnostic name for
-# their OWN unrelated multi-clause idioms and stay open bridge_ledger rows
-# (``bridge_ledger._grolnok_gap`` / ``_mairsil_rex_gap``) — this arm reads
-# ONLY the bounded damage-clause tail of Keranos's own idiom (the SAME
-# scalpel the ledgered bridge used), not the whole compound trigger; a
-# general multi-trigger-sentence parser for ``effect_structure`` residues
-# stays the named upstream retirement path for the Grolnok/Mairsil siblings.
-_KERANOS_EFFECT_STRUCTURE_SYNTH_RX = re.compile(
-    r"whenever you reveal a nonland card this way, [^.]*deals \d+ "
-    r"damage to any target",
-    re.IGNORECASE,
-)
-
-
-def _arm_keranos_effect_structure(tree: ConceptTree) -> ConceptNode | None:
-    """Synthesize a ``synth_direct_damage_dropped_grant`` node for Keranos,
-    God of Storms's bounded damage-clause tail inside its whole-ability
-    ``effect_structure`` parse-failure residue (CR 120.1)."""
-    if _tree_has_reaching_damage_node(tree):
-        return None
-    for n in tree.iter_typed():
-        if (
-            tag_of(n) != "Unimplemented"
-            or getattr(n, "name", None) != "effect_structure"
-        ):
-            continue
-        desc = getattr(n, "description", "") or ""
-        if _KERANOS_EFFECT_STRUCTURE_SYNTH_RX.search(desc):
-            return _synthetic_concept(
-                arm_id="keranos_effect_structure_parse_failure",
-                concept="synth_direct_damage_dropped_grant",
-                scope="you",
-                subject=(),
-                desc=(
-                    "bucket-B bounded damage-clause tail inside an "
-                    "effect_structure parse-failure residue (CR 120.1)"
                 ),
             )
     return None

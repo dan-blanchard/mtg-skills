@@ -62,6 +62,7 @@ from mtg_utils._card_ir.crosswalk import (
     iter_typed_nodes,
     mana_restrictions,
     mod_keyword_name,
+    named_permanent_refs,
     normalised_keyword,
     normalised_keyword_name,
     parked_prevention,
@@ -2078,21 +2079,11 @@ def _base_power_matters(tree: ConceptTree) -> list[Signal]:
     with ``scope == 'Base'``. Scope "you" (the deleted producer's forced
     scope, matching the OLD IR's ``add("base_power_matters", "you", ...)``).
 
-    ADR-0039 task #82 grammar sprint: the 2 remaining live members — a
-    CONJUNCTIVE "base power and toughness N/N" reference (Duskana, Bess)
-    phase's clause grammar drops with zero trace, no typed node at all,
-    unlike the single-stat form this arm reads structurally above —
-    graduated off the ``duskana_bess_base_pt_and_toughness_ref``
-    ledgered-bridge row into a ``tree_synthesis.py`` arm
-    (``_arm_base_power_ref_conjunctive``): the regex read moves to
-    tree-build time, and this lane reads the synthesized concept node
-    structurally. CR 613.4b.
+    The conjunctive "base power and toughness N/N" form (Duskana, Bess) types
+    the same way since phase v0.104.0; its synthesis arm retired. CR 613.4b.
     """
     for n in tree.iter_typed():
         if tag_of(n) == "PtComparison" and getattr(n, "scope", None) == "Base":
-            return [Signal("base_power_matters", "you", "", "", tree.name, "high")]
-    for c in tree.effect_concepts("base_power_matters"):
-        if isinstance(c.node, SynthesizedNode):
             return [Signal("base_power_matters", "you", "", "", tree.name, "high")]
     return []
 
@@ -2113,6 +2104,23 @@ def _copy_limit(tree: ConceptTree) -> list[Signal]:
     """
     if tree.many_copies:
         return [Signal("copy_limit", "you", "", "", tree.name, "high")]
+    return []
+
+
+def _named_synergy(tree: ConceptTree) -> list[Signal]:
+    """named_synergy — the card refers to a permanent by name, so it wants that
+    card beside it ("each other creature named Brothers Yamazaki", "if you control
+    a creature named Bogbrew Witch", a meld partner): a typed ``Named`` reference
+    to a permanent on the battlefield (``reads.named_permanent_refs``; a filter
+    naming objects matches every object with that name, unlike a self-reference,
+    CR 201.5). A card named in a library, graveyard or hand (a tutor, a grandeur
+    discard) is not one, nor a copy-limit swarm naming itself (Relentless Rats,
+    Seven Dwarves): wanting more of itself is ``copy_limit`` (CR 100.2a). The
+    clauses phase parks or drops are the ``named_synergy_parked_reference``
+    ledger row. Scope "you"."""
+    own = {tree.name.casefold(), "~"} if tree.many_copies else set()
+    if any(n.casefold() not in own for n in named_permanent_refs(tree.iter_typed())):
+        return [Signal("named_synergy", "you", "", "", tree.name, "high")]
     return []
 
 
@@ -2705,4 +2713,5 @@ LANES_W8 = (
     _damage_redirect,
     _base_power_matters,
     _copy_limit,
+    _named_synergy,
 )

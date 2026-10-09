@@ -3700,7 +3700,7 @@ def test_lifeloss_makers_degraded_typed_each_opponent(name, scope):
 # touched at all (Force of Will's "rather than pay this spell's mana
 # cost"); (d) a KEYWORD's own cost payload (Deep Analysis's "Flashback—
 # {1}{U}, Pay 3 life.") — see _spell_additional_cost_concepts /
-# _spell_alt_cost_paylife_concepts / _keyword_cost_paylife_concepts
+# _spell_alt_cost_paylife_concepts / _keyword_cost_concepts
 # (crosswalk.py).
 @pytest.mark.parametrize(
     ("name", "scope"),
@@ -4719,8 +4719,8 @@ def test_convert_adapt_self_counter_grow_np_counters():
 
 def test_dropped_counter_move_np_counters():
     """np_counters item 3: the possessed-counters relocation clause phase
-    drops WHOLE fires counter_move + any_counter_makers via the
-    ``dropped_counter_move`` synthesis arm — Ambitious Augmenter ("...then
+    dropped WHOLE through v0.94.0 (a synthesis arm, retired at v0.104.0, which
+    types it) fires counter_move + any_counter_makers — Ambitious Augmenter ("...then
     put this creature's counters on that token"; only the Token sibling
     survives) and Heroic Sacrifice (the entire delayed dies-trigger is
     gone; the card parses as only its damage-redirect replacement) join
@@ -9555,11 +9555,10 @@ def test_cheat_into_play_negated_reveal_else_arm():
     """Impromptu Raid: "Reveal the top card of your library. If it isn't a
     creature card, put it into your graveyard. Otherwise, put that card
     onto the battlefield." — phase structures the BATTLEFIELD put on the
-    GRAVEYARD branch's own ``else_ability`` field, another container
-    ``unit.effects`` never reaches; :func:`_cheat_negated_reveal_else_put`
-    reads the inner (un-negated) ``RevealedHasCardType`` condition as the
-    genuine Creature type evidence (CR 726 if/otherwise — De Morgan's law
-    off the typed ``Not`` wrapper, not a guess)."""
+    GRAVEYARD branch's own ``else_ability`` field, which the shared effect
+    walk reads into ``unit.effects``; fix (e) (``_put_condition_types``) reads
+    the inner (un-negated) ``RevealedHasCardType`` as the else branch's
+    Creature type evidence (the branch runs exactly when that check holds)."""
     assert ("cheat_into_play", "you", "") in _idents("Impromptu Raid")
 
 
@@ -10980,8 +10979,8 @@ def test_target_player_draws_any_recipient_tag():
     the v0.66.0 pin bump phase fails the compound subject CLOSED (v0.46.0
     #7003) into an ``Unimplemented(name="unbound_subject")`` residue whose
     description is the clause; recovery.py's "draw" ALLOWLIST token recovers
-    it and :data:`_RECOVERED_DRAW_DIRECTED_RE`'s "you and … each draw"
-    alternative reads the direction — membership preserved either way."""
+    it and the seam's ``OTHER_PLAYER`` mark ("you and … each draw") reads the
+    direction — membership preserved either way."""
     for name in (
         "Karazikar, the Eye Tyrant",
         "Zurzoth, Chaos Rider",
@@ -11142,9 +11141,8 @@ def test_target_player_draws_excludes_bled_leadership_vacuum():
 def test_target_player_draws_excludes_recovered_each_and_self_branches():
     """Mathise, Surge Channeler's d20 table recovers TWO "draw" residues —
     "Each player draws a card." (group, no directed-recipient word) and
-    "You draw a card." (self, no directed-recipient word) — neither
-    matches :data:`_RECOVERED_DRAW_DIRECTED_RE`'s word list, so both
-    correctly stay out."""
+    "You draw a card." (self, no directed-recipient word) — the seam marks
+    neither ``OTHER_PLAYER``, so both correctly stay out."""
     assert "target_player_draws" not in _keys("Mathise, Surge Channeler")
 
 
@@ -14845,44 +14843,51 @@ def test_voting_matters_trigger_event_and_effect_split():
     assert "voting_makers" in expro
 
 
-# ── named_synergy (ADR-0039 W8, KEPT-twelve wave) ────────────────────────────
-# CR 201.4 / 201.5. Entirely bridge-served (named_synergy_overloaded_named_
-# node in bridge_ledger.py) — the raw typed Named node this idiom carries is
-# corpus-verified too overloaded (partner pairs / copy-limit swarms / named-
-# card tutoring / planeswalker-uncoupled callbacks) to read directly, so the
-# bridge's idiom-bounded regex (byte-identical to the deleted
-# NAMED_PERMANENT_REGEX SWEEP producer) stays the mechanism. 27/27 both, 0
-# live_only, 0 cw_only on the full commander-legal corpus re-measure
-# (2026-07-12).
+# ── named_synergy ──────────────────────────────────────────────────────────────
+# A typed ``Named`` reference to a permanent (``reads.named_permanent_refs``),
+# read by the ``_named_synergy`` lane; the clauses phase parks or drops ride the
+# ``named_synergy_parked_reference`` ledger row (test_bridge_ledger.py).
 
 
-def test_named_synergy_self_reference_legend_rule_bypass():
-    """Brothers Yamazaki's "Each other creature named Brothers Yamazaki
-    gets +2/+2 and has haste" — a self-referencing permanent-named-X
-    payoff (CR 201.5) that ALSO carries a real typed ``Named`` filter
-    property (phase v0.20.0 preserves the name string here), but the
-    bridge's idiom-bounded regex match is what actually fires the lane
-    (the raw node is too overloaded to read directly — see the bridge's
-    module comment)."""
-    assert ("named_synergy", "you", "") in _idents("Brothers Yamazaki")
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Brothers Yamazaki",  # "each other creature named Brothers Yamazaki"
+        "Mishra, Claimed by Gix",  # a meld partner
+        "Festering Newt",  # "if you control a creature named Bogbrew Witch"
+        "Plague Rats",  # "the number of creatures named Plague Rats"
+        "Crown of Empires",  # "artifacts named Scepter of Empires and …"
+    ],
+)
+def test_named_synergy_reads_a_typed_named_permanent(name):
+    from mtg_utils._analysis.lanes import _named_synergy
+
+    assert any(s.key == "named_synergy" for s in _named_synergy(_tree(name)))
+    assert ("named_synergy", "you", "") in _idents(name)
 
 
-def test_named_synergy_other_card_reference():
-    """Mishra, Claimed by Gix's meld clause references a DIFFERENT card by
-    name ("a creature named Phyrexian Dragon Engine") — CR 201.4, the
-    genuinely-other-permanent half of the split (not the CR 201.5 self-
-    reference half). No typed ``Named`` node here either (the bridge's
-    regex match is the only mechanism, matching Sheltered Valley)."""
-    assert ("named_synergy", "you", "") in _idents("Mishra, Claimed by Gix")
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Squadron Hawk",  # "search your library for … cards named Squadron Hawk"
+        "Accumulated Knowledge",  # "cards named … in all graveyards"
+        "Oriss, Samite Guardian",  # grandeur: "Discard another card named …"
+        "Ebondeath, Dracolich",  # "a creature not named Ebondeath"
+        "Relentless Rats",  # a copy-limit swarm naming itself: copy_limit's
+        "Seven Dwarves",
+    ],
+)
+def test_named_synergy_skips_cards_tutors_and_swarms(name):
+    assert "named_synergy" not in _keys(name)
 
 
-def test_named_synergy_no_typed_node_at_all():
-    """Sheltered Valley's "sacrifice each other permanent named Sheltered
-    Valley you control" carries NO typed ``Named`` node anywhere (phase
-    drops the reference entirely here — the stale ADR-0027 case this
-    bridge's module comment notes still holds for SOME cards even though
-    it no longer holds universally). The bridge's regex-over-oracle match
-    is the ONLY mechanism that reaches it."""
+def test_named_synergy_parked_reference_is_bridged():
+    """Sheltered Valley's "sacrifice each other permanent named Sheltered Valley"
+    is a replacement phase parks whole (no typed Named node): the ledger row
+    serves it."""
+    from mtg_utils._analysis.lanes import _named_synergy
+
+    assert not _named_synergy(_tree("Sheltered Valley"))
     assert ("named_synergy", "you", "") in _idents("Sheltered Valley")
 
 
@@ -15838,8 +15843,8 @@ def test_damage_recovery_row_closes_computed_amount_tail():
     the sacrificed creatures" (CR 120.1) — a total-power sacrifice tally
     phase's own amount grammar can't structure — lands as an Unimplemented
     residue the recovery.ALLOWLIST "damage" row re-decorates to
-    "deal_damage"; the raw residue's "any target" phrase satisfies
-    ``_RECOVERED_DAMAGE_REACH``."""
+    "deal_damage"; the residue's "any target" phrase earns the seam's
+    ``OTHER_PLAYER`` mark."""
     assert ("direct_damage", "you", "") in _idents("Soulblast")
 
 
@@ -15855,8 +15860,8 @@ def test_damage_recovery_row_closes_computed_amount_tail():
 def test_direct_damage_recovered_reach_words(name):
     """The recovered-node raw-read direction gate (no typed ``target`` field
     survives a computed-amount Unimplemented residue): "each opponent" /
-    "that player" / "target player or planeswalker" all satisfy
-    ``_RECOVERED_DAMAGE_REACH`` (CR 120.1). An "unless" guard on the damage
+    "that player" / "target player or planeswalker" all earn the seam's
+    ``OTHER_PLAYER`` mark (CR 120.1). An "unless" guard on the damage
     (Crimson Honor Guard / Curse Artifact) doesn't change the recipient —
     still a genuine burn source, just a punisher/upkeep-tax shape."""
     assert ("direct_damage", "you", "") in _idents(name)
@@ -15877,8 +15882,8 @@ def test_direct_damage_recovered_creature_only_stays_excluded():
     """Whipkeeper's "deals damage to target creature equal to the damage
     already dealt to it" (CR 120.1) recovers to "deal_damage" (the amount is
     a computed reference phase drops) but its recipient phrase is bare
-    "target creature" — no player-reach word — so ``_RECOVERED_DAMAGE_REACH``
-    correctly excludes it. Joins the pre-existing creature-only tap-ability
+    "target creature" — no player-reach word — so the seam marks no
+    ``OTHER_PLAYER`` and the lane correctly excludes it. Joins the pre-existing creature-only tap-ability
     shed class rather than closing a genuine gap."""
     assert "direct_damage" not in _keys("Whipkeeper")
 
@@ -16067,11 +16072,10 @@ def test_direct_damage_bridge_insult_injury_aftermath_face_unparsed():
 
 
 def test_direct_damage_karn_living_legacy_emblem_tap_cost_damage():
-    """BRIDGE ``karn_living_legacy_emblem_tap_cost_damage``: the [-7]
-    emblem's granted "Tap an untapped artifact you control: This emblem
-    deals 1 damage to any target." is parked entirely as an opaque
-    emblem_creation residue (the ``sac_emblem_
-    activated_cost`` bridge's Sacrifice-costed sibling shape, CR 120.1).
+    """The [-7] emblem's granted "Tap an untapped artifact you control: This
+    emblem deals 1 damage to any target." is parked entirely as an opaque
+    emblem_creation residue; the recovery stage reads the grant's own damage
+    instruction after its cost (a ledger row through phase v0.104.0's bump).
     Koth of the Hammer's structurally-identical-looking emblem stays
     UNaffected — its Mountain-static grant is already served via a
     different, already-structural path."""
@@ -16096,12 +16100,9 @@ def test_direct_damage_devil_token_quoted_grant_structural(name):
     a tapped and attacking 1/1 red Devil creature token with 'When this
     token dies, it deals 1 damage to any target.'" is ONE ``Unimplemented
     (name='create', ...)`` residue whose dominant verb token is "create,"
-    so the make_token recovery ALLOWLIST never descends into the quoted
-    granted-ability text (contrast Dance with Devils's simpler,
-    un-triggered phrasing, which IS structured). ``tree_synthesis``'s
-    ``devil_token_quoted_grant_dominant_verb_create`` arm now synthesizes a
-    typed ``synth_direct_damage_dropped_grant`` marker node for the nested
-    damage clause, which ``_direct_damage`` reads structurally (CR 120.1)."""
+    through phase v0.94.0, served by a synthesis arm. Phase v0.104.0 types the
+    quoted grant, so the arm retired and the structural read serves it (CR
+    120.1)."""
     assert ("direct_damage", "you", "") in _idents(name)
 
 
@@ -16122,10 +16123,9 @@ def test_direct_damage_keranos_effect_structure_structural():
     ``Unimplemented(name='effect_structure', ...)`` diagnostic residue (a
     genuine upstream parse failure; Grolnok / Mairsil share the same
     diagnostic name for unrelated idioms and stay open bridge rows).
-    ``tree_synthesis``'s ``keranos_effect_structure_parse_failure`` arm now
-    synthesizes a typed ``synth_direct_damage_dropped_grant`` marker node
-    for the bounded damage-clause tail, which ``_direct_damage`` reads
-    structurally (CR 120.1)."""
+    Since phase v0.104.0 the recovery stage reads the residue instruction by
+    instruction, so "Keranos deals 3 damage to any target" is a recovered
+    damage clause ``_direct_damage`` reads (its synthesis arm retired)."""
     assert ("direct_damage", "you", "") in _idents("Keranos, God of Storms")
 
 
@@ -16324,11 +16324,9 @@ def test_base_power_matters_excludes_current_power_scope():
 
 def test_base_power_matters_conjunctive_bridge_duskana():
     """The former ``duskana_bess_base_pt_and_toughness_ref`` ledgered
-    bridge, graduated (ADR-0039 task #82) into ``tree_synthesis.
-    _arm_base_power_ref_conjunctive``: phase drops the CONJUNCTIVE "base
-    power and toughness 2/2" reference form (Duskana's ETB draw-per) with
-    zero trace — no PtComparison node at all, unlike the single-stat form
-    Rapid Augmenter carries structurally."""
+    bridge, then a synthesis arm: phase dropped the CONJUNCTIVE "base power and
+    toughness 2/2" reference (Duskana's ETB draw-per) through v0.94.0. Phase
+    v0.104.0 types it as a ``PtComparison``, so the structural read serves it."""
     assert ("base_power_matters", "you", "") in _idents("Duskana, the Rage Mother")
 
 

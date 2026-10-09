@@ -1185,11 +1185,10 @@ def _ramp(tree: ConceptTree) -> list[Signal]:
     # Visions of Phyrexia) as an Unimplemented residue the ``make_token``
     # token recovers. A typed Powerstone maker (Karn, Living Legacy) is ramp
     # through its token's mana ability; the recovered node carries no token
-    # definition, so the create-clause names it (CR 111.10 / 205.3g).
+    # definition, so the seam's reading of the clause names the token's types
+    # (``c.clause``, CR 111.10 / 205.3g).
     for c in tree.effect_concepts("make_token"):
-        if c.recovered_by == "make_token" and _RECOVERED_POWERSTONE_RE.search(
-            c.raw or ""
-        ):
+        if c.recovered_by == "make_token" and "Powerstone" in c.clause:
             return [Signal("ramp", "you", "", c.raw, tree.name, "high")]
     for d, aff in (*_granted_mana_defs(tree), *_iter_returnasaura_mana_defs(tree)):
         eff = getattr(d, "effect", None)
@@ -1366,18 +1365,6 @@ def _typed_matters_lanes(filt: object) -> list[str]:
 # predefined artifact-token subtype (CR 205.3g), and the Enchantment
 # card-type word (covers "Aura enchantment token" / "enchantment creature
 # token" phrasings).
-_RECOVERED_ARTIFACT_TOKEN_RE = re.compile(
-    r"\b(?:artifact|"
-    + "|".join(sorted(ARTIFACT_TOKEN_SUBTYPES))
-    + r")\b[^.]*\btokens?\b"
-)
-_RECOVERED_ENCHANT_TOKEN_RE = re.compile(r"\benchantment\b[^.]*\btokens?\b")
-# A recovered Powerstone maker (the ramp recovered branch). Kept as a clause read:
-# ``make_token``'s subject is the token's own types, so the seam can't decorate it
-# (recovery.TokenRule.reads_clause).
-_RECOVERED_POWERSTONE_RE = re.compile(
-    r"\bcreates? [^.]*\bpowerstone tokens?\b", re.IGNORECASE
-)
 # A recovered "+1/+1 counter on each [other] creature you control" with no
 # further qualifier — the generic team population (the creatures_matter
 # recovered branch; a "that's a token" / "with modular" tail is tribal). Kept as
@@ -1517,18 +1504,16 @@ def _artifacts_enchantments_matter(tree: ConceptTree) -> list[Signal]:
             # Recovered-node fallback (ADR-0038 post-giants batch): a
             # make_token recovered off an Unimplemented residue keeps the
             # phase wrapper as its ``.node`` — no typed token subject to
-            # read — so the create-clause's own type words are the only
-            # carrier (the dig_until / hand_revealed recovered-node
-            # precedent). Corpus census at introduction: 38 recovered
-            # make_token nodes total; the artifact/enchantment hits are
+            # read — so the seam reads the token's own type words off the
+            # create-clause into ``c.clause``. Corpus census at introduction:
+            # 38 recovered make_token nodes total; the artifact/enchantment hits are
             # all genuine (Smoke Spirits' Aid's named-Aura shape, Circuits
             # Act / Yawgmoth Merfolk Soul's Clown Robots, the Treasure /
             # Food resource-token class — CR 111.4/205.3g).
-            if not types and c.recovered_by == "make_token" and c.raw:
-                low = c.raw.lower()
-                if _RECOVERED_ARTIFACT_TOKEN_RE.search(low):
+            if not types and c.recovered_by == "make_token":
+                if _is_artifact_token_types(c.clause):
                     out.append("artifacts_matter")
-                if _RECOVERED_ENCHANT_TOKEN_RE.search(low):
+                if "Enchantment" in c.clause:
                     out.append("enchantments_matter")
         # COPY-TOKEN doer (ADR-0038 W4 giant): "create a token that's a
         # copy of target artifact/creature" (Molten Duplication, Echo

@@ -20,7 +20,6 @@ from mtg_utils._analysis.tree_synthesis import (
     _arm_animate_artifact,
     _arm_b13_node_anchor,
     _arm_b13_raw_anchor,
-    _arm_base_power_ref_conjunctive,
     _arm_base_pt_have_become,
     _arm_base_pt_is_a_type_with,
     _arm_base_pt_mass_where_x,
@@ -96,7 +95,6 @@ from mtg_utils._analysis.tree_synthesis import (
     has_self_etb_value,
     has_selfloss_engine,
     has_structural_arcane,
-    has_structural_base_power_ref,
     has_structural_base_pt_set,
     has_structural_big_hand_makers,
     has_structural_big_hand_matters,
@@ -6061,10 +6059,6 @@ def test_base_pt_mass_where_x_synth_registered():
     assert "base_pt_mass_where_x" in SYNTHESIS_ARM_IDS
 
 
-def test_base_power_ref_conjunctive_synth_registered():
-    assert "base_power_ref_conjunctive" in SYNTHESIS_ARM_IDS
-
-
 @pytest.mark.parametrize(
     "name",
     ["Ambassador Blorpityblorpboop", "Unruly Krasis"],
@@ -6182,30 +6176,22 @@ def test_base_pt_mass_where_x_never_widens_creatures_matter(name):
     assert not any(s.key == "creatures_matter" for s in _creatures_matter(tree))
 
 
-@pytest.mark.parametrize("name", ["Duskana, the Rage Mother", "Bess, Soul Nourisher"])
-def test_base_power_ref_conjunctive_graduated_structural(name):
-    """The former ``duskana_bess_base_pt_and_toughness_ref`` bridge's exact
-    2-card census — a conjunctive 'base power and toughness N/N' reference
-    phase's grammar dropped with zero trace through v0.94.0. Phase v0.104.0
-    types it, so the arm stands down and the lane serves the card through the
-    structural read: membership kept, mechanism graduated."""
-    tree = _fixture_tree(name)
-    assert has_structural_base_power_ref(tree) is True
-    assert _arm_base_power_ref_conjunctive(tree) is None
-
-    from mtg_utils._analysis.lanes import _base_power_matters
-
-    synth_tree = apply_tree_synthesis(tree)
-    assert any(s.key == "base_power_matters" for s in _base_power_matters(synth_tree))
-
-
-def test_base_power_ref_conjunctive_no_fire_on_single_stat_sibling():
-    """Rapid Augmenter's single-stat 'base power N' reference already
-    carries a typed ``PtComparison(scope='Base')`` node phase structures
-    directly — the gap correctly stands this arm down."""
-    tree = _fixture_tree("Rapid Augmenter")
-    assert has_structural_base_power_ref(tree) is True
-    assert _arm_base_power_ref_conjunctive(tree) is None
+@pytest.mark.parametrize(
+    "arm_id",
+    [
+        "base_power_ref_conjunctive",
+        "devil_token_quoted_grant_dominant_verb_create",
+        "dropped_counter_move",
+        # recovery reads its residue instruction by instruction
+        "keranos_effect_structure_parse_failure",
+    ],
+)
+def test_converged_arms_stay_retired(arm_id):
+    """Three arms fired on no card at phase v0.104.0, which types their clauses
+    (Duskana / Bess's conjunctive base-P/T reference, Maestros Diabolist's quoted
+    Devil grant, Ambitious Augmenter's counter move); their pins read
+    structurally (test_crosswalk)."""
+    assert arm_id not in SYNTHESIS_ARM_IDS
 
 
 def test_ramp_grant_unimplemented_body_synth_registered():

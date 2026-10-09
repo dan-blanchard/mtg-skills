@@ -15,6 +15,8 @@ production emits.
 
 from __future__ import annotations
 
+import pytest
+
 from mtg_utils.testkit import test_card_ir, test_signals
 
 # ── Real-card path (task #25): a card looked up by NAME from the committed snapshot
@@ -398,48 +400,31 @@ def test_board_counter_tax_with_that_creature_rider_still_fires():
 
 
 # ── named_synergy / copy_limit (Task #19 SPLIT of the old named_permanent) ────────
-# named_synergy (CR 201.4 named refs / 201.5 self-reference) is the named-card SYNERGY
-# lane — a card referencing a specific OTHER card by name. phase drops the referenced
-# name, so it rides a kept word mirror (_NAMED_PERMANENT_SWEEP_RE in _IR_KEPT_DETECTORS
-# over the reminder-stripped oracle, scope 'you'). copy_limit (CR 100.2a) is its
-# SIBLING — the deck copy-limit relaxation, read STRUCTURALLY off the IR `many_copies`
-# field. They are genuinely different deck concerns (named-partner vs swarm-of-copies).
+# named_synergy is the named-card SYNERGY lane — a card referring to a permanent by
+# name (a typed ``Named`` filter, ``reads.named_permanent_refs``). copy_limit (CR
+# 100.2a) is its SIBLING — the deck copy-limit relaxation, read STRUCTURALLY off the
+# IR `many_copies` field. A copy-limit swarm naming itself is copy_limit's alone.
 
 
-def test_named_card_synergy_fires_named_synergy_from_kept_mirror():
-    """A card naming a specific partner (CR 201.4) fires the named_synergy mirror —
-    NOT copy_limit (no deck-relaxation field). Festering Newt names Bogbrew Witch."""
+def test_named_card_synergy_fires_named_synergy():
+    """A card naming a specific partner fires named_synergy — NOT copy_limit (no
+    deck-relaxation field). Festering Newt names Bogbrew Witch."""
     keys = _skeys(test_signals("Festering Newt"))
     assert "named_synergy" in keys
     assert "copy_limit" not in keys
 
 
-def test_copy_limit_field_fires_copy_limit_not_named_synergy():
+@pytest.mark.parametrize(
+    "name", ["Relentless Rats", "Shadowborn Apostle", "Seven Dwarves"]
+)
+def test_copy_limit_swarm_naming_itself_fires_copy_limit_alone(name):
     """The CR 100.2a copy-limit population (ir.many_copies) fires its OWN structural
-    lane, copy_limit. Relentless Rats' pump phrasing ("each other creature on the
-    battlefield named …") does NOT match the named_synergy mirror (which anchors on
-    "control a creature named" / "permanent named"), so it fires copy_limit ALONE —
-    confirming the two lanes are genuinely distinct populations."""
-    keys = _skeys(test_signals("Relentless Rats"))
+    lane, copy_limit. Its pump or sacrifice naming itself ("each other creature named
+    Seven Dwarves", "Sacrifice six creatures named Shadowborn Apostle") wants more
+    copies — copy_limit's concern, not a named partner."""
+    keys = _skeys(test_signals(name))
     assert "copy_limit" in keys
     assert "named_synergy" not in keys
-
-
-def test_pure_copy_limit_does_not_fire_named_synergy():
-    """A bare copy-limit card (only "A deck can have any number of cards named X", no
-    "creature/permanent named X" synergy clause) fires copy_limit ALONE."""
-    keys = _skeys(test_signals("Shadowborn Apostle"))
-    assert "copy_limit" in keys
-    assert "named_synergy" not in keys
-
-
-def test_seven_dwarves_fires_both_lanes():
-    """Seven Dwarves is many_copies True AND names itself ("creature named Seven
-    Dwarves") — the lone overlap card, it fires BOTH copy_limit (the field) and
-    named_synergy (the mirror clause)."""
-    keys = _skeys(test_signals("Seven Dwarves"))
-    assert "named_synergy" in keys
-    assert "copy_limit" in keys
 
 
 def test_voltron_maker_attach_other_object():

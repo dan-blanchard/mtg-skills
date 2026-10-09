@@ -33,7 +33,6 @@ from mtg_utils._card_ir.crosswalk import (
     distribute_counter_kind,
     filter_controller,
     tag_of,
-    walk_effect_chain,
 )
 
 # ── token_maker_type_subject structural read + bucket-B (ADR-0036/0037 ───────
@@ -344,15 +343,13 @@ def has_structural_self_counter_grow(tree: ConceptTree) -> bool:
     """A CR 122.1 self-anchored +1/+1 grow, or an Adapt/Monstrosity/Renown
     keyword action, phase types directly.
 
-    phase v0.94.0 moved an "Otherwise, put a +1/+1 counter on ~" branch onto
-    the conditional's ``else_ability`` (Shelinda, Yevon Acolyte); the whole
-    unit node is walked, so that branch is read too.
+    An "Otherwise, put a +1/+1 counter on ~" branch (Shelinda, Yevon Acolyte's
+    ``else_ability``) is one of the unit's effects: the shared effect walk reads
+    "otherwise" branches.
     """
     for unit in tree.units:
-        for node in (
-            *(c.node for c in unit.effect_concepts("place_counter")),
-            *(c.node for c in walk_effect_chain(unit.node)),
-        ):
+        for c in unit.effect_concepts("place_counter"):
+            node = c.node
             if tag_of(node) != "PutCounter":
                 continue
             if counter_kind(node) != "P1P1":
@@ -478,52 +475,6 @@ def _arm_convert_adapt_self_grow(tree: ConceptTree) -> ConceptNode | None:
         scope="you",
         subject=(),
         desc="convert-then-adapt-N consequence dropped whole (CR 701.46a)",
-    )
-
-
-# ── arm: dropped possessed-counters relocation (np_counters item 3) ───────────
-# CR 122.1: the counter RELOCATION idiom — moving counters a permanent
-# already possesses onto another object ("put its/those counters on X"),
-# normally a typed ``MoveCounters`` node (19 of the corpus's 21 carriers:
-# Essence Channeler, Iron Apprentice, The Ozolith, Reluctant Role Model, …)
-# that ``counter_move`` + ``any_counter_makers`` read structurally. TWO
-# corpus cards drop the clause WHOLE with no residue node to re-decorate
-# (routes i/ii can't anchor):
-#
-# * Ambitious Augmenter — "…create a 0/0 … Fractal creature token, then put
-#   this creature's counters on that token": only the ``Token`` sibling
-#   survives; the move clause vanishes.
-# * Heroic Sacrifice — the entire delayed dies-trigger ("When that creature
-#   dies this turn, put its counters on up to one target creature you
-#   control and draw a card") is dropped; the card parses as ONLY its
-#   damage-redirect replacement.
-#
-# Gated on NO structural ``move_counters`` concept anywhere on the tree, so
-# every typed carrier stays on its real node; a placement of NEW counters
-# ("put a +1/+1 counter on") never matches the possessive form. The marker
-# concept is read by ``counter_move`` and ``any_counter_makers`` (the same
-# pair every typed classmate fires), and deliberately NOT by
-# ``plus_one_matters``'s kind-gated ``move_counters`` read — a synthetic
-# node carries no ``counter_type``, matching Iron Apprentice's own
-# kind-agnostic membership.
-_DROPPED_COUNTER_MOVE_RE = re.compile(
-    r"\bput (?:its|those|this creature's|~'s) counters on\b", re.IGNORECASE
-)
-
-
-def _arm_dropped_counter_move(tree: ConceptTree) -> ConceptNode | None:
-    """Synthesize a ``counter_move`` marker for the possessed-counters
-    relocation clause phase drops whole. CR 122.1."""
-    if tree.effect_concepts("move_counters"):
-        return None
-    if not _DROPPED_COUNTER_MOVE_RE.search(_REMINDER.sub(" ", tree.oracle or "")):
-        return None
-    return _synthetic_concept(
-        arm_id="dropped_counter_move",
-        concept="synth_counter_move",
-        scope="you",
-        subject=(),
-        desc="possessed-counters relocation clause dropped whole (CR 122.1)",
     )
 
 

@@ -43,7 +43,7 @@ from mtg_utils._card_ir.mirror.runtime import (
     MirrorVariant,
     TypedMirrorNode,
 )
-from mtg_utils._card_ir.recovery import SELF
+from mtg_utils._card_ir.recovery import IMPERATIVE, SELF
 from mtg_utils._card_ir.text_idioms import (
     _MASS_DEATH_REF,
     _PAY_LIFE_REF,
@@ -506,6 +506,13 @@ def has_trigger_draw_bleed(tree: ConceptTree) -> bool:
         if not unit.trigger_event or not unit.has_effect("draw"):
             continue
         for c in unit.effect_concepts("lose_life"):
+            if c.recovered_by == "lose_life":
+                # phase v0.104.0's fail-closed intervening-if draw-and-bleed
+                # ("if …, you draw a card and you lose 1 life" — Marchesa,
+                # Resolute Monarch): the seam reads "you" as the loser
+                if IMPERATIVE in c.clause:
+                    return True
+                continue
             if _is_self_lifeloss(unit, c.node):
                 return True
     return False

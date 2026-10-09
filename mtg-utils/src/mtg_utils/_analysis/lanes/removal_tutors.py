@@ -885,6 +885,11 @@ def _removal(tree: ConceptTree) -> list[Signal]:
             return [Signal("removal", "you", "", c.raw, tree.name, "high")]
     for unit in tree.units:
         for c in iter_nested_granted_effect_concepts(unit.node):
+            if c.recovered_by:
+                # a granted body's fail-closed residue (Shackles of Treachery)
+                if _recovered_removal(c):
+                    return [Signal("removal", "you", "", c.raw, tree.name, "high")]
+                continue
             if tag_of(c.node) not in ("Destroy", "DealDamage"):
                 continue
             if _perm_subject(getattr(c.node, "target", None)):

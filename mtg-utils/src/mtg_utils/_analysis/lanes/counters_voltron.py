@@ -53,6 +53,7 @@ from mtg_utils._card_ir.mirror.runtime import (
     MirrorVariant,
     TypedMirrorNode,
 )
+from mtg_utils._card_ir.recovery import OTHER_PLAYER
 
 
 def _any_counter_makers(tree: ConceptTree) -> list[Signal]:
@@ -68,13 +69,6 @@ def _any_counter_makers(tree: ConceptTree) -> list[Signal]:
         return [Signal("any_counter_makers", "you", "", c.raw, tree.name, "high")]
     for c in tree.effect_concepts("move_counters"):
         return [Signal("any_counter_makers", "you", "", c.raw, tree.name, "high")]
-    # np_counters item 3: the dropped-clause counter-move marker
-    # (``tree_synthesis._arm_dropped_counter_move`` — Ambitious Augmenter,
-    # Heroic Sacrifice) joins exactly like its typed ``MoveCounters``
-    # classmates (The Ozolith, Iron Apprentice) do via the arm above.
-    for c in tree.iter_concepts():
-        if c.concept == "synth_counter_move":
-            return [Signal("any_counter_makers", "you", "", "", tree.name, "high")]
     for c in tree.effect_concepts("remove_counter"):
         if not counter_kind(c.node):
             return [Signal("any_counter_makers", "you", "", c.raw, tree.name, "high")]
@@ -283,13 +277,10 @@ def _free_cast(tree: ConceptTree) -> list[Signal]:
         return []
     scope = "you"
     for unit in tree.units:
-        # Audacious Swap's ``CastFromZone`` lives on an ``else_ability``
-        # branch (the "Otherwise, they may cast it" fork off the land-put
-        # arm), never on the linear ``sub_ability`` chain ``unit.effects``
-        # walks — a deep node scan is needed to reach it.
-        has_cast_from_zone = any(
-            tag_of(n) == "CastFromZone" for n in iter_typed_nodes(unit.node)
-        )
+        # Audacious Swap's ``CastFromZone`` lives on an ``else_ability`` branch
+        # (the "Otherwise, they may cast it" fork off the land-put arm), which
+        # the shared effect walk reads into ``unit.effects``.
+        has_cast_from_zone = any(tag_of(c.node) == "CastFromZone" for c in unit.effects)
         has_owner_recipient = any(
             recipient_tag(c.node) == "ParentTargetOwner" for c in unit.effects
         )
@@ -1367,24 +1358,6 @@ def _gain_control(tree: ConceptTree) -> list[Signal]:
     return []
 
 
-# Recovered token-creator gate (see the ``recovered_by == "make_token"``
-# branch inside _resource_token_makers): a clause whose creator is an
-# opponent / another player hands the token away (CR 111.2). Kept as clause
-# reads: ``make_token``'s subject is the token's own types, so the seam can't
-# decorate it (recovery.TokenRule.reads_clause).
-_RECOVERED_OTHER_CREATOR_RE = re.compile(
-    r"\b(?:target opponent|each opponent|an opponent|target player|that player"
-    r"|its controller)\b[^.]*\bcreates?\b"
-    # a residue cut after its subject: "who voted for a choice you voted for
-    # creates a Treasure token" (Erestor of the Council's "each opponent who …")
-    r"|^who\b[^.]*\bcreates?\b"
-)
-# The resource subtype named in the SAME sentence as the "token" noun.
-_RECOVERED_RESOURCE_TOKEN_RE = re.compile(
-    r"\b(treasure|food|clue|blood)\b(?=[^.]*\btokens?\b)"
-)
-
-
 def _resource_token_makers(tree: ConceptTree) -> list[Signal]:
     """treasure_makers / food_makers / clue_makers / blood_makers — a predefined
     artifact-token maker (CR 111.10 / 205.3g / 701.16a investigate). Mirrors
@@ -1410,15 +1383,15 @@ def _resource_token_makers(tree: ConceptTree) -> list[Signal]:
         # phase v0.104.0 parks an intervening-if token clause ("if another
         # Human died under your control this turn, create a Food token" —
         # White Glove Gourmand) as an Unimplemented residue the
-        # ``make_token`` token recovers; no typed subtypes, so the
-        # create-clause names the resource token.
-        if c.recovered_by == "make_token" and not c.subject:
-            low = (c.raw or "").lower()
-            if not _RECOVERED_OTHER_CREATOR_RE.search(low):
-                out.extend(
-                    keys[sub.capitalize()]
-                    for sub in _RECOVERED_RESOURCE_TOKEN_RE.findall(low)
-                )
+        # ``make_token`` token recovers; no typed subtypes, so the seam's
+        # reading of the clause names the token's types (``c.clause``), unless
+        # another player creates it (``OTHER_PLAYER``, CR 111.2).
+        if (
+            c.recovered_by == "make_token"
+            and not c.subject
+            and OTHER_PLAYER not in c.clause
+        ):
+            out.extend(key for sub, key in keys.items() if sub in c.clause)
     if tree.has_effect("investigate"):
         out.append("clue_makers")
     seen: set[str] = set()

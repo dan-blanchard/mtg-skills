@@ -47,8 +47,9 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   gated that way (`reads.UNPARSED_ACTIVATION_GATE`,
   `test_boxing_ring_gate_is_still_a_residue_canary`).
 - **Commander-multiplier gap.** Syr Konrad's trigger reads as `ChangesZone` with no
-  zones (a phase gap), so `_analysis/multipliers` can't match a dies doubler to it;
-  report upstream rather than work around it.
+  zones of its own: phase v0.104.0 folds its three moves into `zone_change_clauses`,
+  which `reads.trigger_zone_changes` now reads (graveyard_matters does). Teach
+  `_analysis/multipliers` the same read so a dies doubler matches it.
 - **Phase misparses behind cut-check reads** (found 2026-10-08; report upstream,
   Dan posts). Each has a canary: Glorfindel, Dauntless Rescuer's "can't be blocked
   by more than one creature each combat" parses as `CantBeBlockedBy` a typeless
@@ -100,11 +101,6 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
 
 **From walking phase's branch shapes (2026-10-09)**
 
-- **Lane-local else-branch descents.** `mana_and_wipes._cheat_negated_reveal_else_put`
-  and the `card_advantage` / `counters_tokens` whole-unit walks predate the shared
-  walk reading `else_ability`; fold what it now covers, re-measuring the LOW
-  downgrade (`signal_trees.branch_certain_idents`). (`card_advantage.
-  _pce_has_paired_draw` stays: a vote's branches mustn't pair a draw across them.)
 - **Phase misparses behind the branch-misread registry** (`_card_ir.branches.
   BRANCH_MISREADS`, each row with its `retirement_canary`; report upstream, Dan
   posts). Fraying Line's "that player may pay {2}" is a `PayCost` with `payer:
@@ -123,46 +119,25 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   whole effect as a residue named for its shape (`unparsed_condition` 63 → 216 at
   v0.104.0, `put_counter_tail`, `attached_to_qualifier`, `static_structure`,
   `unparsed_verb_arguments`, `perpetual_modify_pt`, `granter_reference_unreached`).
-  The v0.104.0 bump routes the parked verbs through `recovery.ALLOWLIST` (15 new
-  tokens) and keeps 28 ledger rows for the rest. Open: recovery only re-decorates a
-  unit's top-level effects, so a verb inside a granted trigger body (Shackles of
-  Treachery) or a clause's second verb (Darigaaz, Lord Skitter's Blessing, Razor
-  Boomerang) still needs a row — walking `iter_nested_granted_effect_concepts` and
-  splitting compound clauses would retire most of them. Report upstream by residue
-  class, not per card. Arcade Gannon's `type_matters|Human` stays lost (the ledger
-  test compares key and scope, not subject).
-- **Merged zone-change triggers.** Phase v0.104.0 folds Dreadhound's two triggers
-  ("whenever a creature dies or a creature card is put into a graveyard from a
-  library") into one trigger with `zone_change_clauses` (Equals-origin predicates);
-  the library-origin clause isn't read, so its `graveyard_matters|you` is lost.
-- **Pre-v0.104.0 recovered-clause reads.** The older recovery rows' lanes still read
-  their own clause text (draw direction `_RECOVERED_DRAW_DIRECTED_RE`, discard
-  direction, damage reach `_RECOVERED_DAMAGE_REACH`, make_token's resource kinds).
-  Move them onto `recovery.read_clause` marks like the v0.104.0 rows (ADR-0038
-  amendment); `make_token` needs its own subject field first, since its `subject`
-  already carries the token's types.
-- **Keyword-cost discards.** Sabin, Master Monk's blitz cost is now a typed
-  `Composite[Mana, Discard]` keyword cost, which `_keyword_cost_paylife_concepts`
-  doesn't decorate (PayLife only), so `discard_outlet` lost it. Decorating `Discard`
-  leaves too also fires on about nine older cards (Collective Brutality, Forbid,
-  Conflagrate …) — review first.
-- **Converged synthesis arms.** `base_power_ref_conjunctive`,
-  `devil_token_quoted_grant_dominant_verb_create` and `dropped_counter_move` fire on
-  no card at v0.104.0 (their pins read structurally now); retire them with their
-  registry rows and tests.
-- **Phase regressions with no typed shape left (bridge candidates):** Hero of
-  Bretagard and Ranar the Ever-Watchful's "cards put into exile from your hand"
-  trigger is an `Unknown` mode (`exile_matters`); Glimpse the Cosmos's graveyard
-  cast permission is a hollow static (`permanent_recast`, `self_recurring`).
-
-**From the phase v0.94.0 bump (2026-09-26)**
-
-- **`named_synergy_overloaded_named_node`'s gap is the constant `True`**, so that
-  bridge row can never retire itself.
-- **Roster counts are still hand-bumped.** Every pin bump edits the hard-coded counts
-  in `tests/mtg-utils/test_card_ir_mirror.py` (Effect roster length,
-  `distinct_variants_observed`, tagged + struct mirror classes) by hand;
-  `bump-phase-pin` could derive and rewrite them like the rosters themselves.
+  Recovery reads the parked verbs (`recovery.ALLOWLIST`), each instruction of a
+  compound clause and a granted body's residue (nine rows retired that way,
+  2026-10-09); the remaining v0.104.0 ledger rows are parked conditions and verbs the
+  grammar doesn't tag. Report upstream by residue class, not per card.
+- **Lane-side reads of recovered clause text remain** beside the seam's marks:
+  `damage_for_each`'s `_DFE_RECOVERED_RX`, `named_counter_misc`'s
+  `_RECOVERED_POWER_TAP_RE`, `_recovered_power_damage`, `creatures_matter`'s
+  `_RECOVERED_TEAM_COUNTER_RE` and `target_player_draws`'
+  `_RECOVERED_DRAW_REPLACEMENT_RE` (a replacement diagnostic the seam could refuse).
+  Move each onto a `read_clause` mark the same way draw, discard, damage reach and
+  make_token's kinds moved (2026-10-09), population unchanged.
+- **Upkeep-payment discards are undecided** (Dan's call). Keyword-cost `Discard`
+  leaves are decorated since 2026-10-09 (Sabin, Master Monk's blitz reads as a
+  discard outlet again), except Echo and Cumulative upkeep
+  (`core._UPKEEP_PAYMENT_KEYWORDS`): Deepcavern Imp, Rakdos Headliner ("Echo—Discard
+  a card") and Vexing Sphinx ("Cumulative upkeep—Discard a card") would fire
+  `discard_outlet`. A keyword discard merged into a spell's own costs (Collective
+  Brutality's escalate, Forbid's buyback, Conflagrate's flashback) still fires
+  nothing: `discard_outlet`'s cost walk reads the unit's node, not merged costs.
 
 **From the 2026-09-17 architecture review (worth exploring, not started)**
 

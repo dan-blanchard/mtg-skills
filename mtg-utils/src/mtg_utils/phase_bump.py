@@ -17,7 +17,8 @@ Steps:
                         (live sites only — dated history mentions are kept)
   2 variants            EFFECT_VARIANTS from phase's ``ability.rs`` at the tag
   3 card-data           fetch + cache card-data.json for the tag
-  4 substrate           build-card-ir-substrate; ZERO_INSTANCE_EFFECTS from the zeros
+  4 substrate           build-card-ir-substrate; ZERO_INSTANCE_EFFECTS from the zeros;
+                        the mirror test's roster counts from the rosters + fixtures
   5 impostor-census     card-data records whose text matches no bulk face, each
                         classified; dead ``_IMPOSTOR_RECORDS`` rows
   6 rebuild             copy the signals .pkl aside; snapshot, sidecar, signals index
@@ -78,6 +79,13 @@ PIN_MENTION_FILES = (
 )
 FIXTURES = Path("tests/fixtures")
 POPULATION_FIXTURE = FIXTURES / "phase_variant_population.json"
+SCHEMA_FIXTURE = FIXTURES / "phase_mirror_schema.json"
+# The roster counts the mirror test pins (Effect roster length, zero-instance and
+# observed variants, the generated tagged + struct classes), rewritten from the
+# rosters and the substrate fixtures at step 4 rather than bumped by hand.
+ROSTER_COUNTS_FILE = Path("tests/mtg-utils/test_card_ir_mirror.py")
+COUNTS_BEGIN = "# BEGIN GENERATED ROSTER COUNTS"
+COUNTS_END = "# END GENERATED ROSTER COUNTS"
 BRIDGE_LEDGER_TEST = Path("tests/mtg-utils/test_bridge_ledger.py")
 # A retirement canary guards a phase-misparse workaround that is NOT a ledger
 # row (it suppresses a fire rather than recovering one, so no ADR-0048 gap
@@ -164,6 +172,45 @@ def render_zero_instance(names: Iterable[str]) -> str:
         "ZERO_INSTANCE_EFFECTS: frozenset[str] = frozenset(\n    {\n"
         + "".join(lines)
         + "    }\n)\n"
+    )
+
+
+@dataclass(frozen=True)
+class RosterCounts:
+    """The counts ``test_card_ir_mirror.py`` pins, derived from one bump's rosters
+    and substrate fixtures."""
+
+    effect_variants: int
+    zero_instance: int
+    observed: int
+    tagged: int
+    structs: int
+
+
+def roster_counts(
+    roster: Sequence[str], zeros: Collection[str], population: dict, schema: dict
+) -> RosterCounts:
+    """The pinned counts: the roster and its zeros as written, the variants the
+    population fixture observes, and the schema fixture's tagged and struct shapes
+    (one generated class each)."""
+    observed = population.get("population") or {}
+    return RosterCounts(
+        effect_variants=len(roster),
+        zero_instance=len(zeros),
+        observed=sum(1 for n in roster if observed.get(n)),
+        tagged=len(schema.get("tagged") or ()),
+        structs=len(schema.get("structs") or ()),
+    )
+
+
+def render_roster_counts(counts: RosterCounts, tag: str) -> str:
+    return (
+        f"# {tag}: written by bump-phase-pin (step 4); never edit by hand\n"
+        f"EFFECT_ROSTER_SIZE = {counts.effect_variants}\n"
+        f"ZERO_INSTANCE_SIZE = {counts.zero_instance}\n"
+        f"DISTINCT_VARIANTS_OBSERVED = {counts.observed}\n"
+        f"MIRROR_TAGGED_CLASSES = {counts.tagged}\n"
+        f"MIRROR_STRUCT_CLASSES = {counts.structs}\n"
     )
 
 
@@ -730,14 +777,19 @@ def recovery_counts(
     every token and mark asked about is present, at 0 when nothing fires it."""
     tok = dict.fromkeys(tokens, 0)
     mk = dict.fromkeys(marks, 0)
+    from mtg_utils._card_ir.crosswalk import iter_nested_granted_effect_concepts
+
     for tree in trees:
         for unit in tree.units:
-            for c in unit.effects:
+            # a granted body's residues are recovered where the shared granted
+            # walk reads them (Shackles of Treachery's granted destroy)
+            granted = iter_nested_granted_effect_concepts(getattr(unit, "node", None))
+            for c in (*unit.effects, *granted):
                 if not c.recovered_by:
                     continue
                 if c.recovered_by in tok:
                     tok[c.recovered_by] += 1
-                for m in c.subject:
+                for m in (*c.subject, *c.clause):
                     if m in mk:
                         mk[m] += 1
     return RecoveryCounts(tok, mk)
@@ -890,6 +942,19 @@ def step_substrate(ctx: BumpContext) -> None:
     )
     _write(ctx, VARIANTS_FILE, text)
     ctx.report.zero_instance = tuple(sorted(zeros))
+    counts = roster_counts(
+        roster, zeros, population, json.loads(_read(ctx, SCHEMA_FIXTURE))
+    )
+    _write(
+        ctx,
+        ROSTER_COUNTS_FILE,
+        rewrite_between_markers(
+            _read(ctx, ROSTER_COUNTS_FILE),
+            COUNTS_BEGIN,
+            COUNTS_END,
+            render_roster_counts(counts, ctx.new_tag),
+        ),
+    )
 
 
 def parse_effect_enum_from_variants(variants_source: str) -> tuple[str, ...]:

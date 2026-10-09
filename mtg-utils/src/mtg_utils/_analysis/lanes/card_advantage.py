@@ -81,6 +81,7 @@ from mtg_utils._card_ir.recovery import (
     CARD,
     MANY,
     OTHER_CHOOSER,
+    OTHER_PLAYER,
     SELF,
     TARGETED,
     THEIRS,
@@ -915,6 +916,11 @@ def _has_exile_then_return_replacement(tree: ConceptTree) -> bool:
                 in ("SelfRef", "TriggeringSource", "ParentTarget")
             ):
                 has_delayed_return = True
+            # phase v0.104.0 parks the upkeep return as an intervening-if
+            # residue; the recovered "return it to the battlefield" names the
+            # card itself
+            if c.recovered_by == "reanimate" and SELF in c.subject:
+                has_delayed_return = True
     return has_exile_redirect and has_delayed_return
 
 
@@ -1240,51 +1246,15 @@ def _pce_has_paired_draw(pce: object) -> bool:
     return any(t in others for t in tags)
 
 
-# ADR-0038 W5 tails: a RECOVERED "draw" residue (recovery.py's ALLOWLIST
-# token row) keeps the Unimplemented wrapper as ``.node`` — no typed
-# recipient, so the clause's own words are the only direction carrier, same
-# precedent as ``discard_outlet``'s ``_RECOVERED_OPP_DISCARD_RE`` (inverted
-# polarity: THIS lane wants the directed-AWAY-from-you class). Reuses
-# :data:`_TARGET_PLAYER_DRAW_PHRASE_RE`'s direction-word list but additionally
-# refuses to cross an "if"/"unless" boundary between the verb and the
-# direction word — Faramir, Prince of Ithilien's "you draw a card if they
-# didn't attack you" names "they" as the subject of a CONDITION clause, not
-# the drawer (the drawer is plainly "you", stated earlier in the SAME
-# clause); Forget's "draws as many cards as they discarded this way" and
-# Soldevi Sentry's "that player may draw a card" carry no such conditional
-# boundary and correctly match. CR 121.1.
+# ADR-0038 W5 tails: a RECOVERED "draw" residue (recovery.py's ALLOWLIST token
+# row) keeps the Unimplemented wrapper as ``.node`` — no typed recipient — so
+# the seam reads the drawer off the clause: its ``OTHER_PLAYER`` mark is another
+# player drawing, alone or beside you ("that player may draw a card" — Soldevi
+# Sentry; "you and the attacking player each draw a card" — Karazikar, the
+# v0.46.0 fail-closed ``unbound_subject`` pairing), never across an "if" /
+# "unless" boundary (Faramir's "you draw a card if they didn't attack you").
+# CR 121.1.
 #
-# phase v0.66.0 pin bump — the third alternative: the "you and <player> each
-# draw" pairing idiom. Through v0.45.0 phase collapsed it into ONE
-# ``Draw{target: Any}`` node (the unconditional ``Any`` admission in
-# :data:`_TARGETED_DRAW_TAGS`); v0.46.0 (#7003, "stop failing open on an
-# unparseable subject") fails the compound subject CLOSED instead, parking
-# the whole clause as ``Unimplemented(name="unbound_subject")`` whose
-# description IS the clause — which recovery.py's ALLOWLIST "draw" token
-# recovers into this residue node. Corpus census at v0.66.0: 7
-# ``unbound_subject`` residues carry "you and … each draw" (Karazikar, the
-# Eye Tyrant's "the attacking player", Zurzoth's "those players", Nelly
-# Borca's "the controller of those creatures", Cait / The River Warlock's
-# "defending player", Splinter's "another target player", Cleaver Blow's
-# "its controller") — every one the SAME CR 121.1 directed-gift pairing the
-# ``Any`` tag used to carry; the "you and" anchor is what keeps a plain
-# self-draw out. CR 121.1 (a draw as a spell/ability effect) directed at
-# a second, specific player — CR 506.2's attacking player, a defending
-# player, a target player, "the controller of those creatures".
-# Phase v0.104.0 also fails closed on an intervening-if draw whose drawer is the
-# attacking or defending player ("if one or more players being attacked are
-# poisoned, the attacking player draws a card" — Norn's Decree), recovered by the
-# ``draw`` token; those subjects are named here without the "you and" pairing.
-_RECOVERED_DRAW_DIRECTED_RE = re.compile(
-    r"\b(?:target (?:player|opponent)s?|(?:its|their|that|the) (?:controller|owner)s?"
-    r"|\w+'s (?:controller|owner)s?|that player|they|(?:attacking|defending) player)\b"
-    r"(?:(?!\bif\b|\bunless\b)[^.,;])*?\bdraws?\b"
-    r"|\bdraws?\b(?:(?!\bif\b|\bunless\b)[^.,;])*?\b(?:target (?:player|opponent)s?"
-    r"|(?:its|their|that|the) (?:controller|owner)s?|\w+'s (?:controller|owner)s?"
-    r"|that player|they)\b"
-    r"|\byou and\b(?:(?!\bif\b|\bunless\b)[^.,;])*?\beach draws?\b",
-    re.IGNORECASE,
-)
 # A recovered "draw" residue whose diagnostic wrapper names phase's OWN
 # replacement parser ("Replacement pattern matched but line failed
 # replacement parser: ..." — Alms Collector's "instead you and that player
@@ -1377,7 +1347,7 @@ def _target_player_draws(tree: ConceptTree) -> list[Signal]:
       ``ScopedPlayer``-draw population: 17 unpaired (all "each player"/"each
       opponent" phase triggers) vs. 6 paired (all this idiom), 0 exceptions
       either way;
-    * a RECOVERED "draw" residue (:data:`_RECOVERED_DRAW_DIRECTED_RE` — Forget,
+    * a RECOVERED "draw" residue the seam marks ``OTHER_PLAYER`` (Forget,
       Soldevi Sentry) — guarded against the replacement-diagnostic residue
       (:data:`_RECOVERED_DRAW_REPLACEMENT_RE`) and the symmetric each-player
       residue (``effect_owner_player_scope(...) == "All"`` — Grothama,
@@ -1515,7 +1485,7 @@ def _target_player_draws(tree: ConceptTree) -> list[Signal]:
                     continue
                 if effect_owner_player_scope(unit.node, c.node) == "All":
                     continue  # each-player group draw, group_hug territory
-                if _RECOVERED_DRAW_DIRECTED_RE.search((c.raw or "").lower()):
+                if OTHER_PLAYER in c.subject:
                     return [
                         Signal(
                             "target_player_draws", "any", "", c.raw, tree.name, "high"
@@ -2671,19 +2641,10 @@ def _counter_move(tree: ConceptTree) -> list[Signal]:
     ``counter_manipulation`` and the kind-agnostic ``any_counter_makers``
     co-fire where already ported (additive); this adds only the dedicated
     key. A ``PutCounter`` placer (Renata) never fires. Scope "you".
-
-    np_counters item 3: the ``synth_counter_move`` marker
-    (``tree_synthesis._arm_dropped_counter_move``) covers the two corpus
-    cards whose possessed-counters relocation clause phase drops WHOLE
-    (Ambitious Augmenter, Heroic Sacrifice) — same key, same scope as their
-    19 typed ``MoveCounters`` classmates. CR 122.1.
     """
     hits = tree.effect_concepts("move_counters")
     if hits:
         return [Signal("counter_move", "you", "", hits[0].raw, tree.name, "high")]
-    for c in tree.iter_concepts():
-        if c.concept == "synth_counter_move":
-            return [Signal("counter_move", "you", "", "", tree.name, "high")]
     return []
 
 

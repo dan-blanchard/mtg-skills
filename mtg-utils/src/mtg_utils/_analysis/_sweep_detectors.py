@@ -120,25 +120,16 @@ THEFT_MATTERS_REGEX = "conjure a duplicate of[^.]*from an opponent's library|you
 # Its `[^.]*\.?\s*` arms span a sentence over the WHOLE oracle, so the mirror MUST run
 # per-clause (matching the deleted SWEEP path), NOT flat. CR 701.8a.
 DISCARD_OUTLET_REGEX = "discard (?:a|an|another|two|three|your hand|x|\\d+) [^:.]{0,40}?:|, discard (?:a|an|another|two|three|x|\\d+) cards?:|discard (?:two|three|four|five|x|\\d+) cards? at random|discard all the cards in your hand|discard your hand|discard three cards at random|draw (?:two|three|\\w+|\\d+) cards?[^.]*\\.?\\s*then discard|draw [^.]*cards?,? then discard"
-# ADR-0027 Cluster D (SIGNALS-ONLY, no SIDECAR bump) — the named_synergy lane (key
-# SPLIT off the old named_permanent in Task #19). A card whose ability references a
-# specific OTHER permanent/card BY NAME for synergy (Festering Newt → Bogbrew Witch,
-# Pious Kitsune → Eight-and-a-Half-Tails, Urborg Panther → Spirit of the Night,
-# Bonder's Ornament → itself). phase v0.1.60 DROPS the referenced name: it carries only
-# a bare `Named` predicate FLAG on one tutor (Urborg Panther) and otherwise leaves the
-# name solely in an effect's `raw` byte-fragment — the actual card name is never a
-# structured field project.py can promote (verified: the only name-ish strings phase
-# emits are the card's OWN name / type_line). So this is a SIGNALS-ONLY KEPT-MIRROR
-# (the meld_pair precedent): no projection, no sidecar bump. Its SWEEP_DETECTORS row is
-# DELETED; detection moves to a BYTE-IDENTICAL kept word mirror (NAMED_PERMANENT_REGEX
-# in signals._IR_KEPT_DETECTORS, scope 'you', run FLAT over the reminder-stripped
-# joined-face kept_oracle). The two `[^.]*`-free / `[^.]*`-bounded arms never cross a
-# clause boundary, so flat-over-kept_oracle == the deleted per-clause SWEEP firing
-# byte-identically (commander-legal: 26 cards). The serve spec stays hand-registered.
-# DISTINCT from the COPY_LIMIT lane below: this is "an ability refers to a named card"
-# (CR 201.4 choose-a-name / 201.5 self-reference), NOT the deck-construction copy-limit
-# relaxation. The regex constant keeps its NAMED_PERMANENT name (it matches the
-# "permanent named X" shape); only the signal KEY split to named_synergy.
+# The named_synergy lane (key SPLIT off the old named_permanent in Task #19): a card
+# whose ability references a specific permanent BY NAME for synergy (Festering Newt →
+# Bogbrew Witch, Brothers Yamazaki → itself). Detection reads phase's typed ``Named``
+# reference to a permanent (``lanes._named_synergy`` over
+# ``reads.named_permanent_refs``); this regex is the serve pool's idiom and the
+# ``named_synergy_parked_reference`` ledger row's match for the clauses phase parks.
+# DISTINCT from the COPY_LIMIT lane below: "an ability refers to a named permanent",
+# NOT the deck-construction copy-limit relaxation (a copy-limit swarm naming itself
+# is copy_limit's alone). The constant keeps its NAMED_PERMANENT name (it matches
+# the "permanent named X" shape).
 NAMED_PERMANENT_REGEX = "(?:permanent|creature|another permanent) named [A-Z]|a permanent you control named|control a (?:permanent|creature)[^.]*named"
 # Task #19 SPLIT — the copy_limit lane (key SPLIT off the old named_permanent). The CR
 # 100.2a deck-construction relaxation: "A deck can have any number of cards named X" /

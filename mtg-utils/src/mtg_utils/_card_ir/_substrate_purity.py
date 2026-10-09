@@ -90,15 +90,19 @@ def l1_nodes(tree: ConceptTree) -> list[TypedMirrorNode]:
     ADR-0037: :class:`SynthesizedNode` additions (the ``tree_synthesis`` stage's
     tagged synthetic nodes) are FILTERED OUT so the fingerprint is the phase-only
     set — a synthetic addition is exempt, but a phase-node mutation/removal still
-    trips the id-check.
+    trips the id-check. Each node counts once: the recovery stage may decorate
+    one residue twice, once per instruction of a compound clause.
     """
     out: list[TypedMirrorNode] = []
+    seen: set[int] = set()
     for unit in tree.units:
-        if not isinstance(unit.node, SynthesizedNode):
-            out.append(unit.node)
-        for c in (*unit.effects, *unit.costs, *unit.statics):
-            if not isinstance(c.node, SynthesizedNode):
-                out.append(c.node)
+        for n in (
+            unit.node,
+            *(c.node for c in (*unit.effects, *unit.costs, *unit.statics)),
+        ):
+            if not isinstance(n, SynthesizedNode) and id(n) not in seen:
+                seen.add(id(n))
+                out.append(n)
     return out
 
 

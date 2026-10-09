@@ -1211,12 +1211,12 @@ SPECS_1: dict[tuple[str, str], SignalSpec] = {
         serve_idents=frozenset({"self_recurring|you|"}),
     ),
     # Task #19 SPLIT — named_synergy (the named-card SYNERGY half of the old
-    # named_permanent lane). Detection lives in the Card IR (a NAMED_PERMANENT_REGEX
-    # kept word mirror in signals._IR_KEPT_DETECTORS — phase drops the referenced name).
-    # The SERVE pool stays oracle-defined, so hand-register the spec the sweep auto-
-    # register loop used to build (scope "you"), reusing NAMED_PERMANENT_REGEX so the
-    # served named-card pool never drifts. SWEEP_LABELS keeps the human label. CR 201.4
-    # (named references) / 201.5 (self-reference).
+    # named_permanent lane). Detection reads phase's typed ``Named`` reference to a
+    # permanent (``lanes._named_synergy``), the clauses phase parks riding the
+    # ``named_synergy_parked_reference`` ledger row. The SERVE pool stays
+    # oracle-defined, so hand-register the spec the sweep auto-register loop used to
+    # build (scope "you"), reusing NAMED_PERMANENT_REGEX. SWEEP_LABELS keeps the
+    # human label.
     ("named_synergy", "you"): _spec(
         *SWEEP_LABELS["named_synergy"],
         {"oracle": NAMED_PERMANENT_REGEX},

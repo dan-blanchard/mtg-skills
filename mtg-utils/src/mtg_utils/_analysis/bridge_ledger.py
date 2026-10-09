@@ -68,6 +68,7 @@ from mtg_utils._card_ir.crosswalk import (
     filter_subtypes,
     iter_cost_leaves,
     iter_nested_granted_effect_concepts,
+    named_permanent_refs,
     protective_keyword,
     residue_is,
     static_mode_field,
@@ -257,7 +258,7 @@ def _zuko_match(tree: ConceptTree) -> bool:
 # Cutthroat); phase v0.104.0 parses Tenacious Underdog's "Blitz—{2}{B}{B}, Pay 2
 # life." as a ``Composite`` keyword cost, so blitz left this row. Unlike
 # Flashback (a full ``Composite``/``PayLife`` structure rides
-# ``root.keywords``, see :func:`_keyword_cost_paylife_concepts`), phase
+# ``root.keywords``, see :func:`_keyword_cost_concepts`), phase
 # v0.20.0 drops these three newer alternative-casting keywords WHOLESALE —
 # ``root.keywords`` doesn't even carry a bare variant entry for them, let
 # alone a cost payload (CR 702.1/601.2f: an alternative way to cast the
@@ -581,28 +582,6 @@ _INSULT_INJURY_RX = re.compile(
 
 def _insult_injury_match(tree: ConceptTree) -> bool:
     return bool(_INSULT_INJURY_RX.search(tree.oracle or ""))
-
-
-# (8) Karn, Living Legacy's [-7] emblem — "You get an emblem with 'Tap an
-# untapped artifact you control: This emblem deals 1 damage to any
-# target.'" — parks the WHOLE granted activated ability as an opaque
-# ``CreateEmblem.statics[].description`` string (the ``sac_emblem_
-# activated_cost`` precedent, a Sacrifice-costed sibling of this same
-# opaque-emblem-body shape).
-_KARN_LIVING_LEGACY_RX = re.compile(
-    r'emblem with\s*"[^".]*:[^".]*deals? \d+ damage to any target',
-    re.IGNORECASE,
-)
-
-
-def _karn_living_legacy_match(tree: ConceptTree) -> bool:
-    return bool(_KARN_LIVING_LEGACY_RX.search(tree.oracle or ""))
-
-
-def _karn_living_legacy_gap(tree: ConceptTree) -> bool:
-    # Phase v0.104.0 parks the emblem as an emblem_creation residue (row below,
-    # in the v0.104.0 section).
-    return _says(_KARN_LIVING_LEGACY_RX, tree.residues("emblem_creation"))
 
 
 # (9) Captain Rex Nebula's granted "Crash Land" trigger — "Whenever ~ deals
@@ -1358,76 +1337,26 @@ def _hierophant_match(tree: ConceptTree) -> bool:
     return _says(_HIEROPHANT_RX, _hierophant_modifycost_descs(tree))
 
 
-# ── named_synergy (ADR-0039 W8, the KEPT-twelve wave) ────────────────────────
-# CR 201.4 (choosing a card name) / 201.5 (self-reference by name): a card
-# whose ability references a specific permanent BY NAME — another copy of
-# ITSELF (Brothers Yamazaki's legend-rule bypass, Alania Divergent Storm's
-# "another Alania"), or a genuinely different card (Mishra, Claimed by Gix's
-# meld partner, Rohgahh of Kher Keep's "Kobolds of Kher Keep"). phase v0.20.0
-# DOES now preserve the literal name string on a typed ``Named`` filter
-# property/predicate (``T_properties__Named`` / ``T_filter__Named`` both
-# carry a real ``name: str`` field — this SUPERSEDES the stale ADR-0027 claim
-# that "phase drops the referenced name"), but that SAME typed shape is
-# massively overloaded: partner-pair references (CR 716.3 — Will Kenrith /
-# Rowan Kenrith), planeswalker-uncoupled "Path of the X" callbacks, deck-
-# construction copy-limit swarms (Relentless Rats — CR 100.2a, the SIBLING
-# copy_limit lane's own territory), and named-card library TUTORING (Squadron
-# Hawk — "search for a card named X") all route through the identical typed
-# node. Corpus-verified 2026-07-12 (phase v0.20.0): 245 commander-legal cards
-# carry a ``Named`` node ANYWHERE, vs this lane's 27-card legacy population —
-# an ~9x blast radius, far past the ~2x tighten bar — so a blind "any Named
-# node" deep walk is not a safe port. Discriminating the permanent-synergy
-# idiom from the other four Named-node uses needs a dedicated Named-context
-# classifier (the todo); until it lands, the bridge's idiom-bounded ``match``
-# (byte-identical to the deleted NAMED_PERMANENT_REGEX SWEEP producer, flat
-# over the reminder-stripped per-face oracle — the SAME input the legacy
-# _IR_KEPT_DETECTORS mirror reads) is what keeps this lane scoped to exactly
-# legacy's population, not the raw gap.
-#
-# Grammar-sprint attempt (task #82, 2026-07-12): tried the narrowest bounded
-# structural sub-shape available — a STATIC ability whose affected Typed
-# filter co-occurs ``Named`` + ``Another`` properties (the literal "each
-# other creature/permanent named X gets..." self-buff shape Brothers
-# Yamazaki's third line carries). It survives on exactly 1 of this lane's
-# 29-card current-corpus population (Brothers Yamazaki) plus 1 near-miss the
-# legacy regex itself undercounts (Syr Joshua and Syr Saxon — "creature you
-# control named Syr Joshua and Syr Saxon has battle cry" doesn't match
-# NAMED_PERMANENT_REGEX's word order but is the same idiom). The other two
-# pins never reach a typed ``Named`` node at all — Mishra, Claimed by Gix's
-# meld-partner clause and Sheltered Valley's land-legend-swap replacement
-# both fail their static/replacement parsers and land as ``Unimplemented``
-# residue, so "named X" survives only as raw text there, not structure. A
-# full context-shape census (every ``(unit_origin, Named node type)`` pair
-# corpus-wide) confirms no shape cleanly separates this lane's population
-# from the rest: ``static/T_properties__Named`` is the best available
-# signal and it is STILL a mix of 4 in-population against 12 out (3x
-# over-fire for 14% recall); every other shape (``ability/T_properties__
-# Named`` 5-in/81-out, ``trigger/T_properties__Named`` 10-in/64-out,
-# ``trigger/T_filter__Named`` 0-in/53-out, ``ability/T_subject__Named``
-# 0-in/18-out, ``trigger/T_subject__Named`` 0-in/10-out) is worse. There is
-# no bounded structural discriminator to synthesize here — the disambiguation
-# genuinely needs semantic classification of what the Named reference is
-# FOR (self-buff vs tutoring vs partner-pair vs copy-limit vs planeswalker
-# callback), which is exactly the dedicated classifier project the todo
-# already names, not something a corpus-bounded tree_synthesis arm can
-# close. Scan script + full result dump:
-# /Users/danblanchard/.claude/jobs/097c2256/tmp/gs_named/.
+# ── named_synergy: a named reference phase parks or drops ────────────────────
+# The ``_named_synergy`` lane reads a typed ``Named`` reference to a permanent
+# (``reads.named_permanent_refs`` — the Named-context classifier this row once
+# stood in for). This row serves the cards whose named clause phase leaves no
+# typed ``Named`` permanent filter for: Sheltered Valley's replacement and
+# Ominous Traveler's perpetual grant are parked whole as residues; Goblin
+# Artisans' counter clause and Gollum's "dealt combat damage this game by a
+# creature named …" are dropped. The match is the NAMED_PERMANENT_REGEX idiom
+# the lane's serve pool uses (it also reads Tenth District Hero's "becomes a
+# legendary creature named Mileva", which names nothing to look for — a known
+# false positive the regex has always carried).
 _NAMED_SYNERGY_RE = re.compile(NAMED_PERMANENT_REGEX, re.IGNORECASE)
 
 
-def _named_synergy_kept(tree: ConceptTree) -> str:
-    """Reminder-stripped per-face oracle text — mirrors legacy's OWN
-    paren-strip so this bridge's blast radius matches legacy's byte-for-
-    byte, not an independently-invented pattern."""
-    return _REMINDER_RX.sub(" ", tree.oracle or "")
-
-
-def _named_synergy_gap(_tree: ConceptTree) -> bool:
-    return True
+def _named_synergy_gap(tree: ConceptTree) -> bool:
+    return not named_permanent_refs(tree.iter_typed())
 
 
 def _named_synergy_match(tree: ConceptTree) -> bool:
-    return bool(_NAMED_SYNERGY_RE.search(_named_synergy_kept(tree)))
+    return bool(_NAMED_SYNERGY_RE.search(_REMINDER_RX.sub(" ", tree.oracle or "")))
 
 
 # ── creatures_matter residual class (ADR-0039 W8 finisher) ──────────────────
@@ -2218,6 +2147,7 @@ _V0_104_RESIDUE_TOTALS = {
     "zone_change_reflexive_target_timing": 1,
     "additional_phase": 1,
     "emblem_creation": 12,
+    "unknown": 541,
 }
 
 # The card's reference to itself. A residue writes it "~"; the oracle spells the
@@ -2318,8 +2248,9 @@ def _dies_payload_gap(tree: ConceptTree) -> bool:
 
 # Darigaaz Reincarnated's upkeep "if this card is exiled with an egg counter on
 # it, remove an egg counter from it. Then if this card has no egg counters on it,
-# return it to the battlefield" — one residue, two keys (named_counter_misc and
-# dies_recursion).
+# return it to the battlefield" → named_counter_misc (the grammar reads the egg
+# counter's removal as no verb of its own; the return recovers, so dies_recursion
+# reads it).
 _EGG_COUNTER_RX = re.compile(
     r"\bif this card is exiled with an egg counter on it, remove an egg counter\b",
     re.IGNORECASE,
@@ -2340,21 +2271,6 @@ _CARPET_RX = re.compile(
 
 def _carpet_gap(tree: ConceptTree) -> bool:
     return _says(_CARPET_RX, tree.residues("unparsed_condition"))
-
-
-# A conditional draw → card_draw_engine. Curator's Ward's "if it was historic"
-# also matches, but recovery already serves it, so the pins are the other two.
-_CONDITIONAL_DRAW_RX = re.compile(
-    r"\bif (?:it was historic, draw two cards"
-    r"|it has two or more velocity counters on it, sacrifice it and draw two cards"
-    r"|you control an enchanted creature, you lose 1 life and you draw an "
-    r"additional card)\b",
-    re.IGNORECASE,
-)
-
-
-def _conditional_draw_gap(tree: ConceptTree) -> bool:
-    return _says(_CONDITIONAL_DRAW_RX, tree.residues("unparsed_condition"))
 
 
 # A combat-keyed pump → combat_buff_engine: Septic Rats', Sickle Dancer's attack
@@ -2382,23 +2298,6 @@ _PLAINS_LIFEGAIN_RX = re.compile(
 
 def _plains_lifegain_gap(tree: ConceptTree) -> bool:
     return _says(_PLAINS_LIFEGAIN_RX, tree.residues("unparsed_condition"))
-
-
-# A graveyard self-return → self_recurring: "…, return this card from your
-# graveyard to your hand / the battlefield" ("Lifetime" Pass Holder, Command the
-# Stage, Kami of Transience, Perennial Gravewarden, Spellpyre Phoenix) and the
-# graveyard-position "if this card is in your graveyard with a creature card
-# directly above it, … return this card to your hand" (Death Spark, Krovikan
-# Horror). Recovery serves all but Death Spark, the one pin.
-_GRAVEYARD_SELF_RETURN_RX = re.compile(
-    r"\b(?:return this card from your graveyard to (?:your hand|the battlefield)"
-    r"|if this card is in your graveyard\b[^\n]*?\breturn this card to your hand)\b",
-    re.IGNORECASE,
-)
-
-
-def _graveyard_self_return_gap(tree: ConceptTree) -> bool:
-    return _says(_GRAVEYARD_SELF_RETURN_RX, tree.residues("unparsed_condition"))
 
 
 # A conditional "gets +N/+N until end of turn" → pump_makers (Alex Wilder's "it
@@ -2463,29 +2362,12 @@ def _alt_win_gap(tree: ConceptTree) -> bool:
     return _says(_ALT_WIN_RX, tree.residues("unparsed_condition"))
 
 
-# The second-verb rows. The recovery stage names a residue by its FIRST verb, so a
-# key the clause's second verb carries is a row here, not a lane read of the first
-# verb's node.
-#
-# A draw-and-self-bleed trigger → lifegain_matters and lifeloss_makers: Invasion of
-# Fiora // Marchesa's "if you haven't been dealt combat damage since your last turn,
-# you draw a card and you lose 1 life" (recovered as a draw) and Lord Skitter's
-# Blessing's "you lose 1 life and you draw an additional card" (recovered as a life
-# loss, so lifeloss_makers reads it already; the lifegain engine needs both halves).
-_DRAW_BLEED_RX = re.compile(
-    r"\bif [^,.]+, you (?:draw a card and you lose 1 life"
-    r"|lose 1 life and you draw an additional card)\b",
-    re.IGNORECASE,
-)
-
-
-def _draw_bleed_gap(tree: ConceptTree) -> bool:
-    return _says(_DRAW_BLEED_RX, tree.residues("unparsed_condition"))
-
-
-# Might Makes Right's "gain control of target creature an opponent controls until
-# end of turn. Untap that creature. It gains haste until end of turn" →
-# keyword_grant_target (recovered as the gain_control).
+# The second-verb rows. The recovery stage splits a compound clause into its
+# instructions (``recovery.recover_concepts``), so a row here is a later verb the
+# grammar doesn't tag. Might Makes Right's "gain control of target creature an
+# opponent controls until end of turn. Untap that creature. It gains haste until
+# end of turn" → keyword_grant_target (the gain control and untap recover; the
+# haste grant has no verb token).
 _THREATEN_HASTE_RX = re.compile(
     r"\bgain control of target creature an opponent controls until end of turn\. "
     r"Untap that creature\. It gains haste\b",
@@ -2546,24 +2428,6 @@ def _lore_saga_gap(tree: ConceptTree) -> bool:
 
 
 # ── unparsed_verb_arguments ──────────────────────────────────────────────────
-# "Destroy target Aura/Equipment attached to <X>" → removal (Devout Harpist,
-# Miracle Worker, Piety Charm, Pyramids, Savaen Elves, and Shackles of
-# Treachery's granted "destroy target Equipment attached to it"). Through v0.94.0
-# phase typed a Destroy over the Aura / Equipment subtype (the removal lane's
-# permanent-subtype arm, CR 303.4: an Aura is attached to an object). Shackles'
-# ruling: "It doesn't matter who controls the Equipment attached to the
-# creature." Recovery serves all but Shackles, the one pin.
-_DESTROY_ATTACHED_RX = re.compile(
-    r"\bdestroy target (?:aura|equipment) attached to "
-    r"(?:it|an? (?:creature|land)(?: you control)?)\b",
-    re.IGNORECASE,
-)
-
-
-def _destroy_attached_gap(tree: ConceptTree) -> bool:
-    return _says(_DESTROY_ATTACHED_RX, tree.residues("unparsed_verb_arguments"))
-
-
 # Trail of Mystery's "Whenever a permanent you control is turned face up, if it's
 # a creature, it gets +2/+2 until end of turn" → pump_makers.
 _FACE_UP_PUMP_RX = re.compile(
@@ -2645,31 +2509,50 @@ def _johan_gap(tree: ConceptTree) -> bool:
     return _says(_JOHAN_RX, tree.residues("granter_reference_unreached"))
 
 
-# The boomerang Equipment's granted "{cost}, Unattach ~: It deals N damage to any
-# target. Return <~> to its owner's hand." → self_recurring (Razor Boomerang,
-# Toralf's Hammer).
-_GRANTED_BOOMERANG_RX = re.compile(
-    r"\bunattach [^:\"]*: it deals \d+ damage to any target\. return [^.\"]+ to "
-    r"its owner's hand\b",
-    re.IGNORECASE,
+# ── unknown: a static phase parks whole ─────────────────────────────────────
+# Arcade Gannon's "you may cast an artifact or Human spell from your graveyard"
+# → type_matters|Human. The recovery stage reads the cast permission
+# (``cast_from_zone``), but a creature type is no clause mark, so the Human half
+# rides here; the row carries the subject.
+_ARTIFACT_OR_HUMAN_CAST_RX = re.compile(
+    r"\bcast an artifact or Human spell from your graveyard\b", re.IGNORECASE
 )
 
 
-def _granted_boomerang_gap(tree: ConceptTree) -> bool:
-    return _says(_GRANTED_BOOMERANG_RX, tree.residues("granter_reference_unreached"))
+def _artifact_or_human_cast_gap(tree: ConceptTree) -> bool:
+    return _says(_ARTIFACT_OR_HUMAN_CAST_RX, tree.residues("unknown"))
 
 
-# An Equipment's granted "{cost}, Sacrifice <~>: ~ deals N damage to any target" →
-# direct_damage (Blazing Torch, Ninja's Kunai). A second-verb row: the recovery
-# stage names the clause by the grant's sacrifice cost, and the burn is the granted
-# ability's own verb.
-_GRANTED_SAC_BURN_RX = re.compile(
-    r"\bsacrifice [^:\"]*: [^:\"]*\bdeals \d+ damage to any target\b", re.IGNORECASE
+# ── an Unknown trigger mode ──────────────────────────────────────────────────
+# Hero of Bretagard's and Ranar the Ever-Watchful's "Whenever one or more cards
+# are put into exile from your hand or a spell or ability you control exiles one
+# or more permanents from the battlefield" → exile_matters. Through phase v0.94.0
+# a ``ChangesZone`` Hand→Exile watcher; phase v0.104.0 reads the compound event
+# as an ``Unknown`` mode, the phrase only in the mode's own text.
+_EXILE_FROM_HAND_RX = re.compile(
+    r"\bcards are put into exile from your hand\b", re.IGNORECASE
 )
 
 
-def _granted_sac_burn_gap(tree: ConceptTree) -> bool:
-    return _says(_GRANTED_SAC_BURN_RX, tree.residues("granter_reference_unreached"))
+def _exile_from_hand_gap(tree: ConceptTree) -> bool:
+    return _says(_EXILE_FROM_HAND_RX, tree.unknown_trigger_modes())
+
+
+# ── a hollow graveyard cast permission ──────────────────────────────────────
+# Glimpse the Cosmos's "As long as you control a Giant, you may cast this card
+# from your graveyard by paying {U} rather than paying its mana cost" →
+# permanent_recast and self_recurring. Through phase v0.94.0 a typed
+# ``GraveyardCastPermission`` static (Hogaak's still is); phase v0.104.0 builds
+# a hollow ``Continuous`` def, the permission only in its description.
+_HOLLOW_GRAVEYARD_CAST_RX = re.compile(
+    r"\byou may cast this card from your graveyard\b", re.IGNORECASE
+)
+
+
+def _hollow_graveyard_cast_gap(tree: ConceptTree) -> bool:
+    return not tree.has_static_mode("GraveyardCastPermission") and _says(
+        _HOLLOW_GRAVEYARD_CAST_RX, tree.hollow_statics()
+    )
 
 
 # ── unrecognized_clause_head ─────────────────────────────────────────────────
@@ -4042,41 +3925,24 @@ BRIDGES: dict[str, Bridge] = {
             match=_hierophant_match,
         ),
         Bridge(
-            bridge_id="named_synergy_overloaded_named_node",
+            bridge_id="named_synergy_parked_reference",
             key="named_synergy",
-            # Our Named-context classifier's frontier, not phase's (the todo: "NOT a
-            # phase grammar gap") — a straggler, whatever residue some pins carry.
-            kind="grammar_straggler",
+            kind="upstream_parse_failure",
             todo=(
-                "dedicated Named-context classifier (confirmed NOT a "
-                "grammar-sprint task #82 arm — task #82 tried the "
-                "narrowest bounded structural sub-shape available "
-                "[static Named+Another self-buff] and it recovers only "
-                "1 of 29 current-corpus population cards with no clean "
-                "context-shape split available corpus-wide; see the "
-                "module comment's 'Grammar-sprint attempt' paragraph — "
-                "this is a crosswalk-side disambiguation project, not a "
-                "phase grammar gap): narrow the typed Named-node deep "
-                "walk to exclude partner-pair references (CR 716.3), "
-                "planeswalker-uncoupled 'Path of the X' callbacks, "
-                "copy-limit swarms (CR 100.2a — the copy_limit sibling's "
-                "own territory), and named-card library tutoring, "
-                "keeping only the permanent-synergy self/other-name "
-                "reference this lane serves — retires (for the cards it "
-                "then covers) once that classifier lands and the lane "
-                "switches to reading it structurally"
+                "upstream phase-rs report candidate (Dan posts): a named "
+                "reference inside a clause phase fails closed on (a replacement "
+                "parser failure, a perpetual grant) or drops (a coin-flip "
+                "rider, a 'dealt damage this game by' filter) — each card "
+                "retires as phase types its clause with a Named filter the "
+                "_named_synergy lane reads"
             ),
             census=(
-                "27 hits / 31,622 commander-legal (byte-identical to the "
-                "deleted NAMED_PERMANENT_REGEX SWEEP producer, flat over "
-                "the reminder-stripped per-face oracle — unchanged from "
-                "the legacy population); 245 commander-legal cards carry "
-                "a Named node ANYWHERE (an ~9x blast radius past the ~2x "
-                "tighten bar, corpus-verified), so the bridge stays "
-                "idiom-bounded by regex rather than reading the raw node, "
-                "phase v0.20.0, 2026-07-12"
+                "4 legal cards (Sheltered Valley, Ominous Traveler, Goblin "
+                "Artisans, Gollum, Obsessed Stalker) of the 28 the "
+                "NAMED_PERMANENT_REGEX idiom matches; the other 24 read "
+                "structurally, phase v0.104.0, 2026-10-09"
             ),
-            pins=("Brothers Yamazaki", "Mishra, Claimed by Gix", "Sheltered Valley"),
+            pins=("Sheltered Valley", "Ominous Traveler"),
             gap=_named_synergy_gap,
             match=_named_synergy_match,
         ),
@@ -4370,16 +4236,6 @@ BRIDGES: dict[str, Bridge] = {
             hits=2,
         ),
         _residue_row(
-            "darigaaz_egg_counter_return_parked",
-            "dies_recursion",
-            "unparsed_condition",
-            "the egg-counter upkeep",
-            ("Darigaaz Reincarnated",),
-            _egg_counter_gap,
-            _oracle_match(_EGG_COUNTER_RX),
-            hits=1,
-        ),
-        _residue_row(
             "darigaaz_egg_counter_removal_parked",
             "named_counter_misc",
             "unparsed_condition",
@@ -4398,16 +4254,6 @@ BRIDGES: dict[str, Bridge] = {
             _carpet_gap,
             _oracle_match(_CARPET_RX),
             hits=1,
-        ),
-        _residue_row(
-            "conditional_draw_engine_parked",
-            "card_draw_engine",
-            "unparsed_condition",
-            "an intervening-if on a draw trigger",
-            ("Daredevil Dragster", "Lord Skitter's Blessing"),
-            _conditional_draw_gap,
-            _oracle_match(_CONDITIONAL_DRAW_RX),
-            hits=3,
         ),
         _residue_row(
             "conditional_combat_pump_parked",
@@ -4430,16 +4276,6 @@ BRIDGES: dict[str, Bridge] = {
             hits=1,
         ),
         _residue_row(
-            "graveyard_self_return_condition_parked",
-            "self_recurring",
-            "unparsed_condition",
-            "an intervening-if graveyard self-return",
-            ("Death Spark",),
-            _graveyard_self_return_gap,
-            _oracle_match(_GRAVEYARD_SELF_RETURN_RX),
-            hits=7,
-        ),
-        _residue_row(
             "pump_condition_parked",
             "pump_makers",
             "unparsed_condition",
@@ -4456,8 +4292,6 @@ BRIDGES: dict[str, Bridge] = {
             "an intervening-if CopySpell",
             (
                 "Ashnod the Uncaring",
-                "Beamsplitter Mage",
-                "Exterminator Magmarch",
                 "Ink-Treader Nephilim",
                 "Spellweaver Helix",
                 "Uldaros Theorix",
@@ -4465,29 +4299,6 @@ BRIDGES: dict[str, Bridge] = {
             _copy_spell_condition_gap,
             _oracle_match(_COPY_SPELL_CONDITION_RX),
             hits=7,
-        ),
-        _residue_row(
-            "conditional_draw_bleed_lifegain_matters_parked",
-            "lifegain_matters",
-            "unparsed_condition",
-            "an intervening-if on a draw-and-lose-life trigger",
-            (
-                "Marchesa, Resolute Monarch",
-                "Lord Skitter's Blessing",
-            ),
-            _draw_bleed_gap,
-            _oracle_match(_DRAW_BLEED_RX),
-            hits=2,
-        ),
-        _residue_row(
-            "conditional_draw_bleed_lifeloss_parked",
-            "lifeloss_makers",
-            "unparsed_condition",
-            "an intervening-if on a draw-and-lose-life trigger",
-            ("Marchesa, Resolute Monarch",),
-            _draw_bleed_gap,
-            _oracle_match(_DRAW_BLEED_RX),
-            hits=2,
         ),
         _residue_row(
             "conditional_threaten_haste_parked",
@@ -4555,16 +4366,6 @@ BRIDGES: dict[str, Bridge] = {
         ),
         # unparsed_verb_arguments
         _residue_row(
-            "destroy_attached_aura_equipment_parked",
-            "removal",
-            "unparsed_verb_arguments",
-            "'destroy target Aura/Equipment attached to <X>'",
-            ("Shackles of Treachery",),
-            _destroy_attached_gap,
-            _oracle_match(_DESTROY_ATTACHED_RX),
-            hits=6,
-        ),
-        _residue_row(
             "face_up_creature_pump_parked",
             "pump_makers",
             "unparsed_verb_arguments",
@@ -4627,26 +4428,6 @@ BRIDGES: dict[str, Bridge] = {
             _oracle_match(_JOHAN_RX),
             hits=1,
         ),
-        _residue_row(
-            "granted_boomerang_return_parked",
-            "self_recurring",
-            "granter_reference_unreached",
-            "an Equipment's granted unattach-burn-and-return ability",
-            ("Razor Boomerang", "Toralf's Hammer"),
-            _granted_boomerang_gap,
-            _oracle_match(_GRANTED_BOOMERANG_RX),
-            hits=2,
-        ),
-        _residue_row(
-            "granted_sacrifice_burn_parked",
-            "direct_damage",
-            "granter_reference_unreached",
-            "an Equipment's granted sacrifice-to-burn ability",
-            ("Blazing Torch", "Ninja's Kunai"),
-            _granted_sac_burn_gap,
-            _oracle_match(_GRANTED_SAC_BURN_RX),
-            hits=2,
-        ),
         # unrecognized_clause_head
         _residue_row(
             "dunedain_rangers_ring_tempt_parked",
@@ -4670,15 +4451,60 @@ BRIDGES: dict[str, Bridge] = {
             hits=1,
         ),
         # additional_phase / emblem_creation
+        *(
+            Bridge(
+                bridge_id=f"hollow_graveyard_cast_permission_{suffix}",
+                key=key,
+                kind="upstream_parse_failure",
+                todo=(
+                    "upstream phase-rs report candidate (Dan posts): a conditional "
+                    "alternative-cost graveyard cast permission parses as a hollow "
+                    "Continuous static since v0.104.0 — retires on a phase bump that "
+                    "types it as a GraveyardCastPermission again"
+                ),
+                census=(
+                    "1 hit / the hollow statics saying 'you may cast this card from "
+                    "your graveyard' without a typed GraveyardCastPermission "
+                    "(Glimpse the Cosmos), phase v0.104.0, 2026-10-09"
+                ),
+                pins=("Glimpse the Cosmos",),
+                gap=_hollow_graveyard_cast_gap,
+                match=_oracle_match(_HOLLOW_GRAVEYARD_CAST_RX),
+            )
+            for suffix, key in (
+                ("recast", "permanent_recast"),
+                ("self_recurring", "self_recurring"),
+            )
+        ),
+        Bridge(
+            bridge_id="exile_from_hand_trigger_unknown_mode",
+            key="exile_matters",
+            kind="upstream_parse_failure",
+            todo=(
+                "upstream phase-rs report candidate (Dan posts): the compound "
+                "'cards are put into exile from your hand or a spell or ability "
+                "you control exiles one or more permanents' trigger event is an "
+                "Unknown mode since v0.104.0 — retires on a phase bump that types "
+                "the event (a ChangesZone Hand→Exile watcher, as through v0.94.0)"
+            ),
+            census=(
+                "2 hits / the corpus's Unknown trigger modes (Hero of Bretagard, "
+                "Ranar the Ever-Watchful), phase v0.104.0, 2026-10-09"
+            ),
+            pins=("Hero of Bretagard", "Ranar the Ever-Watchful"),
+            gap=_exile_from_hand_gap,
+            match=_oracle_match(_EXILE_FROM_HAND_RX),
+        ),
         _residue_row(
-            "karn_living_legacy_emblem_tap_cost_damage",
-            "direct_damage",
-            "emblem_creation",
-            "the emblem's granted tap-cost 'deals 1 damage to any target'",
-            ("Karn, Living Legacy",),
-            _karn_living_legacy_gap,
-            _karn_living_legacy_match,
+            "artifact_or_human_graveyard_cast_parked",
+            "type_matters",
+            "unknown",
+            "an artifact-or-Human graveyard cast permission",
+            ("Arcade Gannon",),
+            _artifact_or_human_cast_gap,
+            _oracle_match(_ARTIFACT_OR_HUMAN_CAST_RX),
             hits=1,
+            subject="Human",
         ),
         _residue_row(
             "additional_combat_phase_parked",
