@@ -1,5 +1,5 @@
 {
-  "phase_tag": "v0.94.0",
+  "phase_tag": "v0.104.0",
   "schema_version": 1,
   "cards": {
     "\"Ach! Hans, Run!\"": {
@@ -118,9 +118,17 @@
         "Red"
       ],
       "scryfall_oracle_id": "a2c5ee76-6084-413c-bb70-45490d818374",
+      "metadata": {
+        "source_printing_ids": [
+          "84f2c8f5-8e11-4639-b7de-00e4a2cbabee"
+        ]
+      },
       "legalities": {},
       "printings": [
         "UNH"
+      ],
+      "rarities": [
+        "rare"
       ]
     },
     "\"Brims\" Barone, Midway Mobster": {
@@ -166,24 +174,9 @@
           "execute": {
             "kind": "Spell",
             "effect": {
-              "type": "PutCounterAll",
-              "counter_type": "P1P1",
-              "count": {
-                "type": "Fixed",
-                "value": 1
-              },
-              "target": {
-                "type": "Typed",
-                "type_filters": [
-                  "Creature"
-                ],
-                "controller": "You",
-                "properties": [
-                  {
-                    "type": "Another"
-                  }
-                ]
-              }
+              "type": "Unimplemented",
+              "name": "put_counter_tail",
+              "description": "put a +1/+1 counter on each other creature you control that has a hat"
             },
             "cost": null,
             "sub_ability": null,
@@ -351,16 +344,9 @@
           "execute": {
             "kind": "Spell",
             "effect": {
-              "type": "ChangeZone",
-              "origin": "Graveyard",
-              "destination": "Battlefield",
-              "target": {
-                "type": "SelfRef"
-              },
-              "owner_library": false,
-              "enter_transformed": false,
-              "enter_tapped": false,
-              "enters_attacking": false
+              "type": "Unimplemented",
+              "name": "unparsed_condition",
+              "description": "if you roll a 6, you may return this card from your graveyard to the battlefield"
             },
             "cost": null,
             "sub_ability": null,
@@ -370,14 +356,13 @@
             "condition": null,
             "optional_targeting": false,
             "optional": true,
-            "target_choice_timing": "Resolution",
             "forward_result": false
           },
           "valid_card": null,
           "origin": null,
           "destination": null,
           "trigger_zones": [
-            "Graveyard"
+            "Battlefield"
           ],
           "phase": null,
           "optional": true,
@@ -909,9 +894,17 @@
         "White"
       ],
       "scryfall_oracle_id": "dcbf8d0d-a5a8-4dc2-828f-25ccfe87fe0f",
+      "metadata": {
+        "source_printing_ids": [
+          "a732bc65-33fe-4445-ba3f-082578ee837a"
+        ]
+      },
       "legalities": {},
       "printings": [
         "UNK"
+      ],
+      "rarities": [
+        "uncommon"
       ]
     },
     "1996 World Champion": {
@@ -1682,6 +1675,12 @@
       "scryfall_oracle_id": "2df37779-2ec0-48ac-8be9-5d3b0e9679e6",
       "brawl_commander": true,
       "is_oathbreaker": true,
+      "metadata": {
+        "source_printing_ids": [
+          "a7f9b11f-1b37-45b1-8e4d-f469b89ab6fb",
+          "a9a6cf9c-3560-435c-b0ec-8653a9dc7776"
+        ]
+      },
       "legalities": {},
       "printings": [
         "CMB1",
@@ -1708,6 +1707,9 @@
           "date": "2019-11-12",
           "text": "While Abian is on the battlefield, you're both a player and a permanent. You're a legendary planeswalker that's red and green."
         }
+      ],
+      "rarities": [
+        "rare"
       ]
     },
     "Abrade": {
@@ -1822,6 +1824,8 @@
           "61ada5ce-3a58-4da9-aff2-93a61411dd64",
           "6c762283-0a35-42d7-8c28-3b349e56789a",
           "6d7c1ad4-5bbf-4d84-8494-953e95ed2717",
+          "6ef4ac5a-71bd-4b75-a949-084160ef7b7a",
+          "75120201-e3bb-496f-84e2-5cab08f0b79e",
           "778fad36-28d5-488b-bc7a-e60c8646bdc2",
           "7b0d67b1-e7ae-4ec9-b135-8ff10b46e92b",
           "7edf88fb-a4ba-40d4-af93-81ffbeedb29c",
@@ -1830,7 +1834,10 @@
           "aa74ab7c-b9de-47ab-83ea-2b98738838c7",
           "c1466ae6-9dbc-4ead-844b-9b1ba7274baf",
           "c1d9e279-61c1-4567-9f54-50a7138fb36d",
+          "c3a0c43a-c03f-4070-aa46-f4107a1e3dd2",
+          "c5bb5307-e874-42c4-b85d-06b9f6c474c8",
           "cccbc616-5592-4051-a066-a325209f349e",
+          "d1ed5b20-94f6-455f-80a5-e4ed360167be",
           "d27d5b87-6dfc-4b99-822b-f6f8489ad275",
           "fee393c7-1868-4d11-93c3-3d143e0c8dd9"
         ]

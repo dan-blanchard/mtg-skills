@@ -29,7 +29,9 @@ _Avoid_: "immutability" (the overlay layer is also frozen; purity is about the
 The overlay stage that gives Unimplemented clauses a real reading: it parses
 the clause text with the clause grammar and re-decorates the node's
 `ConceptNode`, recording which rule fired (`recovered_by`). Substrate-wide —
-signal lanes and compat consumers both see recovered readings.
+signal lanes and compat consumers both see recovered readings. For the rows that opt in, it also reads the clause once
+(`read_clause`) and decorates `scope`, `subject` (the `CLAUSE_MARKS`) and `zones`,
+so lanes test fields, never the recovered text.
 _Avoid_: "supplement" (the old-IR path's envelope around the same grammar),
 "synthesis" (adds nodes; recovery rewrites decoration in place).
 

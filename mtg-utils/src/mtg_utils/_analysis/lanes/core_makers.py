@@ -1850,7 +1850,12 @@ def extract_grant_payloads(tree: ConceptTree) -> tuple[GrantPayload, ...]:
 # opponent" sibling rows still fire the unit).
 _RECOVERED_DAMAGE_REACH = re.compile(
     r"\bany (?:other )?target\b|\beach opponent\b|\bthat player\b"
-    r"|\bdefending player\b|\btarget player\b",
+    r"|\bdefending player\b|\btarget player\b"
+    # phase v0.104.0 fails closed on an intervening-if burn to the damaged
+    # creature's controller (Consuming Ferocity, Enchanter's Bane): the typed
+    # path's ``ParentTargetController`` recipient (a permanent's controller,
+    # CR 110.2), read off the recovered "damage" clause.
+    r"|\bto (?:its|that (?:creature|permanent)'s) controller\b",
     re.IGNORECASE,
 )
 
@@ -1902,18 +1907,23 @@ def _direct_damage(tree: ConceptTree) -> list[Signal]:
     recipient-blind ``{T}:...deals damage`` alternative even though the
     card's real text has no player-reaching clause at all (an empty-``raw``
     legacy signal — see :func:`test_direct_damage_excludes_tap_ability_
-    creature_only_shed`). Twelve REMAINING ledgered bridges
+    creature_only_shed`). Ten REMAINING ledgered bridges
     (``bridge_ledger.py``, all sharing :func:`~mtg_utils._deck_forge.
     bridge_ledger._no_player_reaching_damage_node`) close most of the rest
     — a compound "creature + that creature's controller" dropped-clause
-    template (Judgment Bolt / Liquid Fire / Synchronized Spellcraft), eight
+    template (Judgment Bolt / Liquid Fire / Synchronized Spellcraft), six
     further singleton dropped-clause/upstream-parse-failure shapes (Vexing
-    Arcanix, Curse of Shaken Faith, Flames of the Blood Hand, Avatar Aang,
-    Insult // Injury, Karn Living Legacy, Captain Rex Nebula, Ellie Vengeful
-    Hunter; Valakut Exploration's row RETIRED at the v0.66.0 pin bump —
-    upstream #7047 restored the trailing damage clause), and a kicker-mode
-    ParentTarget-reuse
-    pair (Goblin Barrage / Unstable Footing). See each bridge row for its
+    Arcanix, Curse of Shaken Faith, Flames of the Blood Hand, Insult //
+    Injury, Captain Rex Nebula, Ellie Vengeful Hunter; Valakut Exploration's
+    row RETIRED at the v0.66.0 pin bump — upstream #7047 restored the
+    trailing damage clause — and Avatar Aang's at v0.104.0, which carries the
+    fifth conjunct), and a kicker-mode ParentTarget-reuse pair (Goblin
+    Barrage / Unstable Footing). Two phase v0.104.0 residue rows serve
+    granted burns the recovery stage names by another verb: Karn, Living
+    Legacy's emblem (``karn_living_legacy_emblem_tap_cost_damage``, an
+    emblem_creation residue) and an Equipment's sacrifice-to-burn grant
+    (``granted_sacrifice_burn_parked`` — Blazing Torch, Ninja's Kunai). See
+    each bridge row for its
     own corpus census; every remaining shed class stays pinned from W4/W6
     (creature/battle-only, bare-self-damage, damage doubler/matters/
     prevention). CR 120.1 / 102.1 / 303.4c / 702.33d verified this session.

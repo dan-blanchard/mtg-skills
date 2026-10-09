@@ -33,7 +33,6 @@ from mtg_utils._card_ir.crosswalk import (
     AbilityUnit,
     ConceptNode,
     ConceptTree,
-    activation_zone,
     additional_phase_kind,
     amount_factor,
     amount_is_scaling,
@@ -67,10 +66,20 @@ from mtg_utils._card_ir.crosswalk import (
     trigger_scope,
     trigger_subject,
     trigger_subject_scope,
+    unit_zones,
     walk_effects_with_else,
 )
 from mtg_utils._card_ir.mirror.runtime import (
     TypedMirrorNode,
+)
+from mtg_utils._card_ir.recovery import (
+    CARD,
+    MANY,
+    OTHER_CHOOSER,
+    SELF,
+    TARGETED,
+    THEIRS,
+    YOURS,
 )
 from mtg_utils._card_ir.text_idioms import (
     _TOPDECK_OTHER_ZONE,
@@ -233,8 +242,12 @@ def _counter_manipulation(tree: ConceptTree) -> list[Signal]:
 # comma between the owner reference and the verb that
 # :data:`_TARGET_PLAYER_DRAW_PHRASE_RE`'s ``[^.,;]*?`` can't cross, so the
 # phrase gate previously always missed them regardless of wording.
+# Phase v0.104.0 types "you and defending player each draw a card" (Cait, Cage
+# Brawler; The River Warlock) as a ``Draw`` per player, the second recipient
+# ``DefendingPlayer`` — a player other than you by definition, so unconditional.
+# (The tap and reveal lanes keep their own recipient sets; they differ by verb.)
 _TARGETED_DRAW_TAGS: frozenset[str] = frozenset(
-    {"Player", "ParentTarget", "Target", "Any", "ParentTargetOwner"}
+    {"Player", "ParentTarget", "Target", "Any", "ParentTargetOwner", "DefendingPlayer"}
 )
 # ADR-0038 W3 batch 6 — the THREE widened tags above (``Typed``,
 # ``ParentTargetController``, ``TriggeringPlayer``) are NOT unconditional
@@ -361,6 +374,7 @@ def _self_death_payoff(tree: ConceptTree) -> list[Signal]:
             if (
                 c.concept == OTHER
                 or _is_self_return_effect(c)
+                or _recovered_returns_self(unit, c)  # dies_recursion's, below
                 or _is_shuffle_back_effect(c)
             ):
                 continue
@@ -415,6 +429,18 @@ def _dies_recursion(tree: ConceptTree) -> list[Signal]:
     """
     for unit in tree.units:
         if _returns_on_death(unit):
+            return [Signal("dies_recursion", "you", "", "", tree.name, "high")]
+        # Phase v0.104.0 fails closed on an intervening-if dies-return ("if they
+        # were a creature, return them to the battlefield" — Tom, Bert, and
+        # William) and parks it as a residue the ``reanimate`` token recovers.
+        if (
+            unit.trigger_event == "dies"
+            and tag_of(getattr(unit.node, "valid_card", None)) == "SelfRef"
+            and any(
+                c.recovered_by == "reanimate" and _recovered_returns_self(unit, c)
+                for c in unit.effects
+            )
+        ):
             return [Signal("dies_recursion", "you", "", "", tree.name, "high")]
         for _sdef, mod in iter_mod_sites(unit.node):
             if tag_of(mod) == "GrantTrigger" and is_dies_return_trigger(
@@ -513,23 +539,6 @@ RECURSION_KEYWORDS: frozenset[str] = frozenset(
 )
 
 
-def _unit_zones(unit: AbilityUnit) -> frozenset[str]:
-    """The zones a unit functions from when it says so (CR 113.6b): a trigger's
-    ``trigger_zones``, an activated ability's ``activation_zone``, and an "if this
-    card is in your graveyard" ``SourceInZone`` condition (Ichorid)."""
-    zones: set[str] = set()
-    tz = getattr(unit.node, "trigger_zones", None)
-    if isinstance(tz, list):
-        zones.update(z for z in tz if isinstance(z, str))
-    if (az := activation_zone(unit.node)) is not None:
-        zones.add(az)
-    cond = getattr(unit.node, "condition", None)
-    zone = getattr(cond, "zone", None)
-    if tag_of(cond) == "SourceInZone" and isinstance(zone, str):
-        zones.add(zone)
-    return frozenset(zones)
-
-
 def _own_nodes(unit: AbilityUnit) -> list[TypedMirrorNode]:
     """The unit's typed nodes, costs and every branch included (a coin flip's
     losing branch, an "otherwise" clause), minus the bodies it grants to other
@@ -590,19 +599,8 @@ def _returns_self(
     if dest == "Battlefield":
         if origin == "Exile" and blinks:
             return False
-        if origin in _RECURSION_ORIGINS or _unit_zones(unit) & _RECURSION_ORIGINS:
-            return True
-        # A step trigger putting "this card onto the battlefield" with no zone
-        # named: the card isn't on the battlefield already, so it comes back from
-        # elsewhere — Nether Shadow's "if this card is in your graveyard" upkeep
-        # trigger, whose graveyard condition phase v0.94.0 drops. Not a blink or a
-        # transform ("exile this Saga, then return it transformed").
-        return (
-            origin is None
-            and tag_of(getattr(node, "target", None)) == "SelfRef"
-            and not blinks
-            and unit.origin == "trigger"
-            and unit.trigger_event == "phase"
+        return bool(
+            origin in _RECURSION_ORIGINS or unit_zones(unit) & _RECURSION_ORIGINS
         )
     if dest == "Exile":
         # "Exile ~ with three time counters on it" (Arc Blade, Epochrasite): with
@@ -661,6 +659,39 @@ def _keeps_back_ref(node: TypedMirrorNode) -> bool:
     )
 
 
+#: Phase v0.104.0 fails closed on a self-return it can't fully parse (an
+#: intervening "if this card is in your graveyard", a perpetual rider, a "you may
+#: cast this card from your graveyard" static) and parks the clause as an
+#: ``Unimplemented`` residue; the recovery stage names its verb with these tokens
+#: and marks the card itself as the clause's object (``SELF``).
+_RECOVERED_SELF_MOVE_TOKENS: frozenset[str] = frozenset(
+    {"reanimate", "graveyard_return", "bounce", "cast_from_zone"}
+)
+
+
+def _recovered_returns_self(unit: AbilityUnit, c: ConceptNode) -> bool:
+    """A recovered residue (phase v0.104.0 fail-closed; tokens
+    :data:`_RECOVERED_SELF_MOVE_TOKENS`) that brings the card itself back:
+    "return this card from your graveyard to your hand" (Command the Stage),
+    "put this card onto the battlefield" (Nether Shadow), "return ~ to its owner's
+    hand" (Imaginary Pet), "you may cast this card from your graveyard" (Squee,
+    the Immortal), "return them to the battlefield" off its own dies trigger (Tom,
+    Bert, and William). A cast or a return to the battlefield also needs the card
+    to come from its graveyard (the clause or the unit says so), never a blink."""
+    if c.recovered_by not in _RECOVERED_SELF_MOVE_TOKENS or SELF not in c.subject:
+        return False
+    from_graveyard = "Graveyard" in c.zones
+    if c.recovered_by == "cast_from_zone":
+        return from_graveyard
+    if c.recovered_by == "reanimate":
+        return (
+            from_graveyard
+            or bool(unit_zones(unit) & _RECURSION_ORIGINS)
+            or unit.trigger_event == "dies"
+        )
+    return True
+
+
 def recurs_itself(tree: ConceptTree) -> bool:
     """Whether the card brings ITSELF back for another use — the per-game value a
     cut weighs:
@@ -692,6 +723,9 @@ def recurs_itself(tree: ConceptTree) -> bool:
         if any(
             _returns_self(unit, n, self_targets=_SELF_REF, blinks=blinks) for n in nodes
         ):
+            return True
+        # Phase v0.104.0's fail-closed self-return residue, recovered by verb.
+        if any(_recovered_returns_self(unit, c) for c in unit.effects):
             return True
         if _back_ref_names_self(unit):
             # In effect order, "it" names the card only until an effect could
@@ -767,6 +801,25 @@ def _has_exile_then_return_replacement(tree: ConceptTree) -> bool:
     return has_exile_redirect and has_delayed_return
 
 
+def _recovered_creature_card_recursion(c: ConceptNode) -> bool:
+    """A recovered reanimation / recall residue (phase v0.104.0 fail-closed;
+    tokens ``reanimate`` / ``graveyard_return``) of a creature card picked out of
+    a graveyard — a target, or one from your own — that is not the card itself
+    (its own return is self-recursion) and not only an opponent's (graveyard
+    hate, the typed arm's ``Opponent`` controller gate)."""
+    subject = c.subject
+    return (
+        c.recovered_by in ("reanimate", "graveyard_return")
+        and "Creature" in subject
+        and CARD in subject
+        and "Graveyard" in c.zones
+        and (TARGETED in subject or YOURS in subject)
+        and SELF not in subject
+        and THEIRS not in subject
+        and c.scope != "opponents"
+    )
+
+
 def _creature_recursion(tree: ConceptTree) -> list[Signal]:
     """creature_recursion — loop-a-creature (CR 700.4 / 401.4 / 404). Two
     typed arms mirroring the live structural pair:
@@ -820,6 +873,15 @@ def _creature_recursion(tree: ConceptTree) -> list[Signal]:
     """
     for unit in tree.units:
         for c in unit.effects:
+            # Phase v0.104.0 fails closed on a reanimation / recall it can't fully
+            # parse (an intervening-if — Dawn Evangel, Grave Scrabbler; Necromancy's
+            # become-an-Aura body) and parks it as a residue the ``reanimate`` /
+            # ``graveyard_return`` token recovers; no typed filter survives, so
+            # the seam's reading of the clause stands in for it.
+            if _recovered_creature_card_recursion(c):
+                return [
+                    Signal("creature_recursion", "you", "", c.raw, tree.name, "high")
+                ]
             t = tag_of(c.node)
             sub = effect_filter(c.node)
             if filter_controller(sub) == "Opponent":
@@ -904,8 +966,14 @@ def _card_draw_engine(tree: ConceptTree) -> list[Signal]:
             unit.origin == "replacement" and getattr(unit.node, "event", None) == "Draw"
         )
         for c in unit.effect_concepts("draw"):
-            bulk = amount_factor(c.node, "count") >= 2 or amount_is_scaling(
-                c.node, "count"
+            bulk = (
+                amount_factor(c.node, "count") >= 2
+                or amount_is_scaling(c.node, "count")
+                # Phase v0.104.0 fails closed on an intervening-if draw ("if it
+                # was historic, draw two cards" — Curator's Ward), recovered by
+                # the ``draw`` token with no typed count: the seam marks a count
+                # of two or more, or one that scales, ``MANY``.
+                or (c.recovered_by == "draw" and MANY in c.subject)
             )
             if not (
                 is_phase or is_draw_repl or (bulk and unit.trigger_event != "enters")
@@ -1063,9 +1131,13 @@ def _pce_has_paired_draw(pce: object) -> bool:
 # self-draw out. CR 121.1 (a draw as a spell/ability effect) directed at
 # a second, specific player — CR 506.2's attacking player, a defending
 # player, a target player, "the controller of those creatures".
+# Phase v0.104.0 also fails closed on an intervening-if draw whose drawer is the
+# attacking or defending player ("if one or more players being attacked are
+# poisoned, the attacking player draws a card" — Norn's Decree), recovered by the
+# ``draw`` token; those subjects are named here without the "you and" pairing.
 _RECOVERED_DRAW_DIRECTED_RE = re.compile(
     r"\b(?:target (?:player|opponent)s?|(?:its|their|that|the) (?:controller|owner)s?"
-    r"|\w+'s (?:controller|owner)s?|that player|they)\b"
+    r"|\w+'s (?:controller|owner)s?|that player|they|(?:attacking|defending) player)\b"
     r"(?:(?!\bif\b|\bunless\b)[^.,;])*?\bdraws?\b"
     r"|\bdraws?\b(?:(?!\bif\b|\bunless\b)[^.,;])*?\b(?:target (?:player|opponent)s?"
     r"|(?:its|their|that|the) (?:controller|owner)s?|\w+'s (?:controller|owner)s?"
@@ -1704,6 +1776,11 @@ def _topdeck_selection(tree: ConceptTree) -> list[Signal]:
         nodes = list(iter_typed_nodes(unit.node))
         tags_here = {tag_of(n) for n in nodes}
         unit_text = _REMINDER_RX.sub(" ", getattr(unit.node, "description", None) or "")
+        # Phase v0.104.0 fails closed on an intervening-if scry ("if it didn't
+        # die, scry 1 …" — Taeko, the Patient Avalanche) and parks it as a
+        # residue the ``scry`` token recovers; a scry is always your own library.
+        if any(c.recovered_by == "scry" for c in unit.effects):
+            return [Signal("topdeck_selection", "you", "", "", tree.name, "high")]
         for n in nodes:
             t = tag_of(n)
             if t in ("Scry", "Surveil"):
@@ -1895,6 +1972,19 @@ def _topdeck_stack(tree: ConceptTree) -> list[Signal]:
     return []
 
 
+def _buffs_with_counters(c: ConceptNode) -> bool:
+    """A counter placement that can be the combat buff: any typed one, or — phase
+    v0.104.0 failing closed on a counter clause it can't fully parse (Cait, Cage
+    Brawler's "if you discarded …" tail, Finneas's "that's a token or a Rabbit")
+    and parking it as a residue the ``place_counter`` token recovers — one whose
+    clause names a +1/+1 counter (an experience or rad counter is no buff)."""
+    if not c.recovered_by:
+        return True
+    # Erithizon's "on target creature of defending player's choice": the
+    # opponent aims it (its ruling), so it is no buff you can direct.
+    return OTHER_CHOOSER not in c.subject and "+1/+1 counter" in c.subject
+
+
 def _combat_buff_engine(tree: ConceptTree) -> list[Signal]:
     """combat_buff_engine — combat-keyed pump (CR 508 / 509.3a): a trigger in
     the combat frame (attacks / blocks / becomes-blocked / begin-combat) with
@@ -1917,9 +2007,11 @@ def _combat_buff_engine(tree: ConceptTree) -> list[Signal]:
         )
         if not combat:
             continue
-        if any(c.concept in ("pump", "place_counter") for c in unit.effects) or any(
-            c.concept == "pump" for c in unit.statics
-        ):
+        if any(
+            c.concept == "pump"
+            or (c.concept == "place_counter" and _buffs_with_counters(c))
+            for c in unit.effects
+        ) or any(c.concept == "pump" for c in unit.statics):
             return [Signal("combat_buff_engine", "you", "", "", tree.name, "high")]
     return []
 
@@ -2394,6 +2486,19 @@ def _exile_matters(tree: ConceptTree) -> list[Signal]:
                 continue
             if "Exile" in filter_inzone_zones(filt):
                 return [Signal("exile_matters", "you", "", "", tree.name, "high")]
+    # Phase v0.104.0 fails closed on the same standing-pile cast it can't fully
+    # parse ("you may cast spells from among cards in exile your opponents own
+    # with ice counters on them" — Draugr Necromancer) and parks it as a residue
+    # the ``cast_from_zone`` token recovers; the seam reads the pile (cards in
+    # exile) off the clause.
+    for c in tree.iter_concepts():
+        if (
+            c.recovered_by == "cast_from_zone"
+            and CARD in c.subject
+            and "Exile" in c.zones
+            and SELF not in c.subject  # the card's own cast from exile (Squee)
+        ):
+            return [Signal("exile_matters", "you", "", c.raw, tree.name, "high")]
     return []
 
 

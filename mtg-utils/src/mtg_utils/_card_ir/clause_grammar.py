@@ -329,7 +329,10 @@ _DIG_UNTIL = comb.value(
     comb.seq3(
         comb.keyword({"exile", "exiles", "reveal", "reveals"}),
         comb.take_until("your library"),
-        comb.seq2(comb.tag("your library"), comb.take_until("until")),
+        # One sentence only: phase v0.104.0 parks Matoc, Lavamancer's impulse
+        # draw ("exile the top card of your library. You may play it until the
+        # end of your next turn"), whose "until" belongs to the next sentence.
+        comb.seq2(comb.tag("your library"), comb.take_until("until", within=".;")),
     ),
 )
 

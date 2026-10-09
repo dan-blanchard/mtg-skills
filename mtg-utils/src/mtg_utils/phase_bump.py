@@ -712,6 +712,58 @@ def render_bridge_reach(reach: Sequence[BridgeReach], corpus: int) -> list[str]:
     return lines
 
 
+@dataclass(frozen=True)
+class RecoveryCounts:
+    """The recovery stage's corpus fire counts (ADR-0038: a token or decoration
+    whose count reaches 0 retires): per ALLOWLIST token, the recovered nodes it
+    re-decorated; per clause mark (``recovery.CLAUSE_MARKS``), the decorated
+    nodes carrying it."""
+
+    tokens: Mapping[str, int]
+    marks: Mapping[str, int]
+
+
+def recovery_counts(
+    trees: Iterable, tokens: Iterable[str], marks: Iterable[str]
+) -> RecoveryCounts:
+    """Count recovered nodes per token and per decoration mark over ``trees``;
+    every token and mark asked about is present, at 0 when nothing fires it."""
+    tok = dict.fromkeys(tokens, 0)
+    mk = dict.fromkeys(marks, 0)
+    for tree in trees:
+        for unit in tree.units:
+            for c in unit.effects:
+                if not c.recovered_by:
+                    continue
+                if c.recovered_by in tok:
+                    tok[c.recovered_by] += 1
+                for m in c.subject:
+                    if m in mk:
+                        mk[m] += 1
+    return RecoveryCounts(tok, mk)
+
+
+def render_recovery(counts: RecoveryCounts | None, corpus: int) -> list[str]:
+    if counts is None:
+        return []
+    lines = [f"## Recovery fire counts (over {corpus} trees)"]
+    zero = [f"token {t}" for t, n in counts.tokens.items() if n == 0] + [
+        f"mark {m}" for m, n in counts.marks.items() if n == 0
+    ]
+    if zero:
+        lines.extend(f"- ZERO — retire-ready (ADR-0038): {z}" for z in zero)
+    else:
+        lines.append("- every token and decoration mark fires on at least one card")
+    lines.append(
+        "- tokens: " + ", ".join(f"{t} {n}" for t, n in sorted(counts.tokens.items()))
+    )
+    if counts.marks:
+        lines.append(
+            "- marks: " + ", ".join(f"{m} {n}" for m, n in sorted(counts.marks.items()))
+        )
+    return lines
+
+
 @dataclass
 class ReportData:
     """Everything the report renders — the steps fill it in, :func:`render_report`
@@ -732,6 +784,7 @@ class ReportData:
     graduation: tuple[str, ...] = ()
     reach: tuple[BridgeReach, ...] = ()
     corpus: int = 0
+    recovery: RecoveryCounts | None = None
 
 
 def render_report(data: ReportData) -> str:
@@ -747,6 +800,7 @@ def render_report(data: ReportData) -> str:
         render_gains_to_check(triaged),
         render_graduation(data.graduation),
         render_bridge_reach(data.reach, data.corpus),
+        render_recovery(data.recovery, data.corpus),
         ["## Notes", *(f"- {n}" for n in data.notes)] if data.notes else [],
     ]
     return "\n\n".join("\n".join(s) for s in sections if s) + "\n"
@@ -956,7 +1010,9 @@ def _corpus_trees(rec: dict) -> tuple:
 def step_graduation(ctx: BumpContext) -> None:
     # Two runs, because ``-m`` filters every collected item: the whole ledger
     # file, then only the marker-selected canaries. Their outputs are read as one.
-    pytest = [sys.executable, "-m", "pytest", "-q"]
+    # ``--color=no``: a colored run (FORCE_COLOR / PY_COLORS in the caller's
+    # environment) wraps names in ANSI codes RETIRE_READY would misread.
+    pytest = [sys.executable, "-m", "pytest", "-q", "--color=no"]
     out = ""
     for argv in (
         [*pytest, str(ctx.repo / BRIDGE_LEDGER_TEST)],
@@ -979,6 +1035,11 @@ def step_graduation(ctx: BumpContext) -> None:
             trees.extend(_corpus_trees(rec))
     ctx.report.reach = tuple(bridge_reach(BRIDGES, trees))
     ctx.report.corpus = len(trees)
+    from mtg_utils._card_ir import recovery
+
+    ctx.report.recovery = recovery_counts(
+        trees, recovery.ALLOWLIST, getattr(recovery, "CLAUSE_MARKS", ())
+    )
     ctx.report.notes.append(
         f"bridge reach: {len(BRIDGES)} rows over {len(trees)} trees in "
         f"{time.monotonic() - started:.1f}s"
@@ -1017,6 +1078,25 @@ def resume_old_tag(report_dir: Path) -> str:
     return tag
 
 
+#: The generated mirror classes, rewritten when a bump's schema changes. This
+#: process imported them at startup, so a step that reads trees in-process would
+#: load records with the OLD classes (v0.104.0: ``KeyError: ('recipient',
+#: 'NoPlayer')`` in the signal diff).
+GENERATED_MIRROR_DIR = Path("mtg-utils/src/mtg_utils/_card_ir/mirror/generated")
+#: The first step that reads trees in this process.
+IN_PROCESS_TREE_STEP = "signal-diff"
+
+
+def _generated_fingerprint(repo: Path) -> tuple[tuple[str, int, int], ...]:
+    root = repo / GENERATED_MIRROR_DIR
+    if not root.is_dir():
+        return ()
+    return tuple(
+        (p.name, p.stat().st_size, p.stat().st_mtime_ns)
+        for p in sorted(root.glob("*.py"))
+    )
+
+
 def run(ctx: BumpContext, *, from_step: int = 1, echo: Callable[[str], None]) -> Path:
     """Run the steps from ``from_step`` (1-based); write and return the report."""
     if from_step == 1:
@@ -1024,9 +1104,18 @@ def run(ctx: BumpContext, *, from_step: int = 1, echo: Callable[[str], None]) ->
         (ctx.report_dir / OLD_TAG_MARKER).write_text(
             ctx.old_tag + "\n", encoding="utf-8"
         )
+    mirror_at_start = _generated_fingerprint(ctx.repo)
     for i, (name, fn) in enumerate(STEPS, start=1):
         if i < from_step:
             continue
+        if (
+            name == IN_PROCESS_TREE_STEP
+            and _generated_fingerprint(ctx.repo) != mirror_at_start
+        ):
+            raise click.ClickException(
+                "the generated mirror changed during this run, and this process "
+                f"still holds the old classes: resume with --from-step {i}"
+            )
         echo(f"[{i}/{len(STEPS)}] {name}")
         fn(ctx)
     ctx.report_dir.mkdir(parents=True, exist_ok=True)

@@ -78,6 +78,7 @@ from mtg_utils._card_ir.mirror.runtime import (
     MirrorVariant,
     TypedMirrorNode,
 )
+from mtg_utils._card_ir.recovery import IMPERATIVE, SELF
 from mtg_utils._card_ir.text_idioms import (
     _BECOMES_TYPE_RE,
     _TOKEN_SUBTYPE_OWN_REF,
@@ -100,6 +101,10 @@ def _sac_subject_present(tgt: object) -> bool:
     ``properties`` predicate list, so a bare ``{Token}`` filter previously
     fell through the ``not core and not sub`` empty-subject gate.
     """
+    if tag_of(tgt) == "Or":
+        # phase v0.104.0 keeps West Wind Avatar's "a token or a land" as an
+        # ``Or``; a present subject on any branch is an outlet.
+        return any(_sac_subject_present(b) for b in getattr(tgt, "filters", ()) or ())
     core = filter_core_types(tgt)
     sub = filter_subtypes(tgt)
     if not core and not sub:
@@ -349,6 +354,17 @@ def _sacrifice_outlets(tree: ConceptTree) -> list[Signal]:
                 return [
                     Signal("sacrifice_outlets", "you", "", c.raw, tree.name, "high")
                 ]
+            # phase v0.104.0 parks an intervening-if / either-or sacrifice
+            # ("sacrifice another creature or a token" — Old Man Willow; "if
+            # it's a creature, sacrifice that many permanents" — Phyrexian
+            # Totem) as an Unimplemented residue the ``sacrifice`` token
+            # recovers, with no typed subject. The lane's own decision: a
+            # clause that opens on the instruction names no other actor, so
+            # you sacrifice — the typed arm's unset-controller default.
+            if c.recovered_by == "sacrifice" and _recovered_you_sacrifice(c):
+                return [
+                    Signal("sacrifice_outlets", "you", "", c.raw, tree.name, "high")
+                ]
     m = _CAST_ADD_SAC_RX.search(_kept(tree))
     if m and not _cast_add_sac_clause_is_land_only(m.group(1)):
         return [Signal("sacrifice_outlets", "you", "", "", tree.name, "high")]
@@ -507,6 +523,19 @@ def _has_created_token_devour(tree: ConceptTree) -> bool:
 # unset-controller class: 79/81 default to you, exactly the 2 "any player
 # may sacrifice" cards (Prowling Pangolin, Brain Gorgers — neither you nor
 # an opponent specifically, a true coin-flip actor) exclude.
+def _recovered_you_sacrifice(c: ConceptNode) -> bool:
+    """A recovered sacrifice (the ``recovered_by == "sacrifice"`` branch in
+    _sacrifice_outlets) the seam reads as an instruction to you: it opens on the
+    verb (``IMPERATIVE``), not the card itself (``SELF`` — an upkeep drawback),
+    not on another side (scope), not lands (the outlet lane's land carve-out)."""
+    return (
+        IMPERATIVE in c.subject
+        and SELF not in c.subject
+        and "Land" not in c.subject
+        and c.scope not in ("opponents", "each")
+    )
+
+
 _SAC_DEPENDENT_CLAUSE_RX = re.compile(
     r"^(when|whenever|at the beginning of|if|as|before|during)\b",
     re.IGNORECASE,
@@ -715,6 +744,9 @@ def _lifegain_matters(tree: ConceptTree) -> list[Signal]:
     for c in tree.iter_concepts():
         if c.concept == "synth_lifegain_matters":
             return [Signal("lifegain_matters", "you", "", "", tree.name, "high")]
+    # phase v0.104.0's intervening-if draw-and-self-bleed trigger (Marchesa, Lord
+    # Skitter's Blessing) is the ledger row conditional_draw_bleed_lifegain_
+    # matters_parked: the bleed is the clause's second verb.
     return []
 
 
@@ -1156,6 +1188,17 @@ def _ramp(tree: ConceptTree) -> list[Signal]:
     for c in tree.effect_concepts("ramp"):
         if not is_land or _mana_accel(c.node) or _mana_fixing(c.node):
             return [Signal("ramp", "you", "", c.raw, tree.name, "high")]
+    # phase v0.104.0 parks an intervening-if token clause ("if you didn't
+    # play a card from exile this turn, create a tapped Powerstone token" —
+    # Visions of Phyrexia) as an Unimplemented residue the ``make_token``
+    # token recovers. A typed Powerstone maker (Karn, Living Legacy) is ramp
+    # through its token's mana ability; the recovered node carries no token
+    # definition, so the create-clause names it (CR 111.10 / 205.3g).
+    for c in tree.effect_concepts("make_token"):
+        if c.recovered_by == "make_token" and _RECOVERED_POWERSTONE_RE.search(
+            c.raw or ""
+        ):
+            return [Signal("ramp", "you", "", c.raw, tree.name, "high")]
     # phase v0.66.0 pin bump: a die-roll RESULTS TABLE (CR 706.3) whose rows
     # add mana — "Name Sticker" Goblin's "1-6 | Add {R}{R}{R}{R}." — now
     # parses as typed ``Mana`` effects inside ``RollDie.results[].effect``
@@ -1349,6 +1392,21 @@ _RECOVERED_ARTIFACT_TOKEN_RE = re.compile(
     + r")\b[^.]*\btokens?\b"
 )
 _RECOVERED_ENCHANT_TOKEN_RE = re.compile(r"\benchantment\b[^.]*\btokens?\b")
+# A recovered Powerstone maker (the ramp recovered branch). Kept as a clause read:
+# ``make_token``'s subject is the token's own types, so the seam can't decorate it
+# (recovery.TokenRule.reads_clause).
+_RECOVERED_POWERSTONE_RE = re.compile(
+    r"\bcreates? [^.]*\bpowerstone tokens?\b", re.IGNORECASE
+)
+# A recovered "+1/+1 counter on each [other] creature you control" with no
+# further qualifier — the generic team population (the creatures_matter
+# recovered branch; a "that's a token" / "with modular" tail is tribal). Kept as
+# a clause read: the seam's reading names no filter qualifier, and the generic
+# team is the absence of one.
+_RECOVERED_TEAM_COUNTER_RE = re.compile(
+    r"\bcounters? on each (?:other )?creature you control\s*(?:$|[.,;])",
+    re.IGNORECASE,
+)
 
 
 def _is_artifact_token_types(types: tuple[str, ...]) -> bool:
@@ -2026,6 +2084,14 @@ _CREATURES_MATTER_MOD_TAGS = frozenset(
         # creature_filter`), whose OTHER branch (Sliver subtype) already
         # fails the generic gate on its own (tribal, type_matters).
         "AddChosenSubtype",
+        # phase v0.104.0: Siege Behemoth's "for each creature you control, you
+        # may have that creature assign its combat damage as though it weren't
+        # blocked" (its ruling: a choice per creature you control) is a typed
+        # modification over the team — another combat-damage-assignment
+        # rewrite beside Rasaad's (CR 510.1c is the blocked-assignment rule it
+        # sets aside). Retired the ``siege_behemoth_unblocked_assign_empty_mods``
+        # ledger bridge.
+        "AssignDamageAsThoughUnblocked",
     }
 )
 
@@ -2619,14 +2685,15 @@ def _creatures_matter(tree: ConceptTree) -> list[Signal]:
       107.3 — a "modified creatures" population reads as generic the
       same way a power-threshold filter does).
 
-    Five ADR-0039 ledgered bridges (bridge_ledger.py, the
+    Three ADR-0039 ledgered bridges (bridge_ledger.py, the
     ``creatures_matter`` section) close the residual dropped-clause /
     mis-scoped-grant tail — Lightning Runner's absence-proof "untap all
-    creatures you control" (CR 701.26), Duskana's dropped per-base-2/2
-    draw count, Moku's mis-scoped SelfRef haste grant, Siege Behemoth's
-    empty-modifications static, and Candlekeep Inspiration's mass
-    base-P/T-setter residue (sharing its gap/match with the
-    ``base_pt_set`` sibling row, CR 613.4b).
+    creatures you control" (CR 701.26), Moku's mis-scoped SelfRef haste
+    grant, and Candlekeep Inspiration's mass base-P/T-setter residue
+    (sharing its gap/match with the ``base_pt_set`` sibling row, CR
+    613.4b). Phase v0.104.0 types Duskana's per-base-2/2 draw count and
+    Siege Behemoth's per-creature unblocked assignment, so those two rows
+    retired: both read structurally now.
 
     ADR-0039 task #82 (post-deletion grammar sprint) retired three
     grammar-straggler bridges into a typed ``tree_synthesis`` sweep row
@@ -2762,6 +2829,16 @@ def _creatures_matter(tree: ConceptTree) -> list[Signal]:
     for c in tree.effect_concepts("pump"):
         if tag_of(c.node) == "PumpAll" and _is_generic_creature_filter(
             effect_filter(c.node)
+        ):
+            return [Signal("creatures_matter", "you", "", c.raw, tree.name, "high")]
+    # phase v0.104.0 parks an intervening-if team counter ("if a counter was
+    # put on ~ this turn, put a +1/+1 counter on each other creature you
+    # control" — Wakka, Devoted Guardian) as an Unimplemented residue the
+    # ``place_counter`` token recovers: the typed PutCounterAll over the
+    # team (Cathars' Crusade) is read above, the recovered one off its clause.
+    for c in tree.effect_concepts("place_counter"):
+        if c.recovered_by == "place_counter" and _RECOVERED_TEAM_COUNTER_RE.search(
+            c.raw or ""
         ):
             return [Signal("creatures_matter", "you", "", c.raw, tree.name, "high")]
     for unit in tree.units:

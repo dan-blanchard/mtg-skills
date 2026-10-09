@@ -24,11 +24,12 @@ A doubler's cause is matched to the commander's trigger by card TYPE, so Panharm
 ("an artifact or creature entering") doesn't count for a landfall commander even
 though an artifact land would set off both.
 
-Every read is over phase's corrected trees except one gap: phase parks Thranduil's
-grant as an ``Unimplemented`` residue, so the grant's type and zone are read from that
-residue's own text — only while it is there, guarded by a ``retirement_canary`` test.
-The candidate card's side (its type, changeling included; its activated abilities that
-work on the battlefield, ``reads.activated_ability_units``) is read off its tree.
+Every read is over phase's corrected trees. Thranduil's grant is a
+``GrantAllActivatedAbilitiesOf`` modification on a static that affects the commander
+itself, whose ``source`` filter names the card type and the zone (phase v0.104.0
+parses it; through v0.94.0 it was a residue read by a text arm). The candidate
+card's side (its type, changeling included; its activated abilities that work on
+the battlefield, ``reads.activated_ability_units``) is read off its tree.
 
 :func:`commander_multipliers` is the tuner's and proposal-check's view (one reason per
 card); :func:`multiplier_reasons` lists every way one card does it, by kind, for
@@ -37,7 +38,6 @@ cut-check, and :func:`zone_grant` exposes the grant itself.
 
 from __future__ import annotations
 
-import re
 from collections.abc import Mapping, Sequence
 from typing import NamedTuple
 
@@ -53,6 +53,7 @@ from mtg_utils._card_ir.crosswalk.reads import (
     filter_controller,
     filter_core_types,
     filter_inzone_zones,
+    filter_subtypes,
     has_filter_property,
     iter_typed_nodes,
     tag_of,
@@ -70,13 +71,6 @@ _CAUSE_EVENTS = {
 }
 _PERMANENT_TYPES = frozenset(
     {"Artifact", "Battle", "Creature", "Enchantment", "Land", "Planeswalker"}
-)
-# The gap-gated text read: phase's residue for the zone grant it can't parse ("~ has
-# all activated abilities of all Elf cards in your graveyard"). Retire with the canary.
-ZONE_GRANT_RESIDUE = "has all activated abilities of all"
-_ZONE_GRANT_RE = re.compile(
-    re.escape(ZONE_GRANT_RESIDUE) + r" (\w+) cards? (?:in your (\w+)|(exiled) with)",
-    re.IGNORECASE,
 )
 
 #: A ``CopySpell`` of a stack ability → its :attr:`Multiplication.kind` (CR 707.10).
@@ -136,11 +130,21 @@ class _Trigger:
 
 
 def _grant_of(trees: Sequence[ConceptTree]) -> ZoneGrant | None:
-    """The gap-gated text arm (see the module docstring)."""
-    for residue in (r for tree in trees for r in tree.residues()):
-        m = _ZONE_GRANT_RE.search(residue)
-        if m:
-            return ZoneGrant(m.group(1), (m.group(2) or "exile").lower())
+    """The commander's own ``GrantAllActivatedAbilitiesOf`` whose source is one card
+    type in a zone other than the battlefield (Thranduil, the Elvenking: "Elf cards
+    in your graveyard"; Trazyn the Infinite: artifact cards in your graveyard)."""
+    for tree in trees:
+        for unit in tree.iter_units("static"):
+            if tag_of(getattr(unit.node, "affected", None)) != "SelfRef":
+                continue
+            for mod in getattr(unit.node, "modifications", None) or ():
+                if tag_of(mod) != "GrantAllActivatedAbilitiesOf":
+                    continue
+                source = getattr(mod, "source", None)
+                words = filter_subtypes(source) or filter_core_types(source)
+                zones = [z for z in filter_inzone_zones(source) if z != "Battlefield"]
+                if len(words) == 1 and zones:
+                    return ZoneGrant(words[0], zones[0].lower())
     return None
 
 

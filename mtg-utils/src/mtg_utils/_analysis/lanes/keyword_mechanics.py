@@ -1856,6 +1856,10 @@ def _extra_combats(tree: ConceptTree) -> list[Signal]:
     for c in tree.effect_concepts("extra_phase"):
         if additional_phase_kind(c.node) in _COMBAT_PHASES:
             return [Signal("extra_combats", "you", "", c.raw, tree.name, "high")]
+    # phase v0.104.0's "untap …, and after this phase, there is an additional
+    # combat phase" (Lightning Runner; Zariel's emblem) is the ledger row
+    # additional_combat_phase_parked: the added phase is the clause's second
+    # verb, not the untap the recovery stage reads.
     return []
 
 

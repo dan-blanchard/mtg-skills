@@ -43,6 +43,7 @@ from mtg_utils._card_ir.crosswalk import (
     recipient_tag,
     ref_count_filter,
     requires_condition_inner,
+    residue_is,
     static_mode_field,
     static_mode_tag,
     tag_of,
@@ -1340,6 +1341,12 @@ def _gain_control(tree: ConceptTree) -> list[Signal]:
                 continue  # control-RESET, not theft
             if _gives_control_to_other(c.node, unit):
                 continue  # give-away — the new controller is an opponent, not you
+            # phase v0.104.0 parks an intervening-if / attached-gear /
+            # exchange-of-control clause (Hot Pursuit, Fumble, Juxtapose) as
+            # an Unimplemented residue the ``gain_control`` token recovers;
+            # an exchange is a theft like the typed ``exchange_control`` arm
+            # below (CR 701.12b). No legal card's recovered clause hands
+            # control to another player, so there is no give-away gate.
             return [Signal("gain_control", "you", "", c.raw, tree.name, "high")]
     # EXCHANGE-control THEFT (recall gap): an ``ExchangeControl`` swaps your
     # permanent for an opponent's — you gain control of theirs (Daring Thief,
@@ -1358,6 +1365,24 @@ def _gain_control(tree: ConceptTree) -> list[Signal]:
             if tag_of(c.node) == "ChangeController":
                 return [Signal("gain_control", "you", "", c.raw, tree.name, "high")]
     return []
+
+
+# Recovered token-creator gate (see the ``recovered_by == "make_token"``
+# branch inside _resource_token_makers): a clause whose creator is an
+# opponent / another player hands the token away (CR 111.2). Kept as clause
+# reads: ``make_token``'s subject is the token's own types, so the seam can't
+# decorate it (recovery.TokenRule.reads_clause).
+_RECOVERED_OTHER_CREATOR_RE = re.compile(
+    r"\b(?:target opponent|each opponent|an opponent|target player|that player"
+    r"|its controller)\b[^.]*\bcreates?\b"
+    # a residue cut after its subject: "who voted for a choice you voted for
+    # creates a Treasure token" (Erestor of the Council's "each opponent who …")
+    r"|^who\b[^.]*\bcreates?\b"
+)
+# The resource subtype named in the SAME sentence as the "token" noun.
+_RECOVERED_RESOURCE_TOKEN_RE = re.compile(
+    r"\b(treasure|food|clue|blood)\b(?=[^.]*\btokens?\b)"
+)
 
 
 def _resource_token_makers(tree: ConceptTree) -> list[Signal]:
@@ -1382,6 +1407,18 @@ def _resource_token_makers(tree: ConceptTree) -> list[Signal]:
         for sub, key in keys.items():
             if sub in c.subject:
                 out.append(key)
+        # phase v0.104.0 parks an intervening-if token clause ("if another
+        # Human died under your control this turn, create a Food token" —
+        # White Glove Gourmand) as an Unimplemented residue the
+        # ``make_token`` token recovers; no typed subtypes, so the
+        # create-clause names the resource token.
+        if c.recovered_by == "make_token" and not c.subject:
+            low = (c.raw or "").lower()
+            if not _RECOVERED_OTHER_CREATOR_RE.search(low):
+                out.extend(
+                    keys[sub.capitalize()]
+                    for sub in _RECOVERED_RESOURCE_TOKEN_RE.findall(low)
+                )
     if tree.has_effect("investigate"):
         out.append("clue_makers")
     seen: set[str] = set()
@@ -1625,8 +1662,13 @@ def _voltron_makers(tree: ConceptTree) -> list[Signal]:
                 continue
             if _UNATTACH_RX.search(desc):
                 return [Signal("voltron_makers", "you", "", desc, tree.name, "high")]
-            if tag_of(n) == "Unimplemented" and _UNIMPLEMENTED_ATTACH_GEAR_RX.search(
-                desc
+            # phase v0.104.0 parks Animal Friend's "put a +1/+1 counter on that
+            # token for each Aura and Equipment attached to ~" as a
+            # ``put_counter_tail`` residue: a counter placement, not an attach.
+            if (
+                tag_of(n) == "Unimplemented"
+                and not residue_is(n, "put_counter_tail")
+                and _UNIMPLEMENTED_ATTACH_GEAR_RX.search(desc)
             ):
                 return [Signal("voltron_makers", "you", "", desc, tree.name, "high")]
             if _VOLTRON_BECOMES_ATTACHED_RX.search(desc):

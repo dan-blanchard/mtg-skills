@@ -5,7 +5,7 @@ Codegen'd from ``tests/fixtures/phase_mirror_schema.json`` by
 
 Part of the generated typed-mirror package (see this directory's
 ``__init__.py``). This module holds content keys ``additional_modifications``
-.. ``choose_filter`` (31 keys).
+.. ``casting_restrictions`` (30 keys).
 
 Class naming: ``S_<ckey>`` for a struct shape, ``T_<ckey>__<tag>`` for a tagged
 shape, ``U_<ckey>`` for the union of all tagged shapes at one content_key.
@@ -23,20 +23,21 @@ from mtg_utils._card_ir.mirror.runtime import (
 )
 
 if TYPE_CHECKING:
-    from mtg_utils._card_ir.mirror.generated.g04_choose_scope import (
+    from mtg_utils._card_ir.mirror.generated.g04_characteristics import (
+        S_characteristics,
         U_colors,
         U_condition,
     )
     from mtg_utils._card_ir.mirror.generated.g05_conditional_enter_wi import (
         U_cost,
-        U_costs,
     )
-    from mtg_utils._card_ir.mirror.generated.g06_count import (
+    from mtg_utils._card_ir.mirror.generated.g06_costs import (
         S_definition,
+        U_costs,
         U_count,
         U_duplicate_of,
     )
-    from mtg_utils._card_ir.mirror.generated.g07_effect import (
+    from mtg_utils._card_ir.mirror.generated.g07_dynamic_count import (
         U_effect,
     )
     from mtg_utils._card_ir.mirror.generated.g08_else_ability import (
@@ -47,10 +48,10 @@ if TYPE_CHECKING:
         U_inner,
         U_iteration_kind_binding,
     )
-    from mtg_utils._card_ir.mirror.generated.g09_keeper_constraint import (
+    from mtg_utils._card_ir.mirror.generated.g09_journal import (
         U_left,
     )
-    from mtg_utils._card_ir.mirror.generated.g10_origin import (
+    from mtg_utils._card_ir.mirror.generated.g10_optional_player import (
         U_player,
         U_player_scope,
     )
@@ -60,11 +61,11 @@ if TYPE_CHECKING:
     from mtg_utils._card_ir.mirror.generated.g12_qty import (
         U_qty,
     )
-    from mtg_utils._card_ir.mirror.generated.g13_reference import (
-        S_static_abilities,
+    from mtg_utils._card_ir.mirror.generated.g13_redirect_to import (
         U_right,
     )
-    from mtg_utils._card_ir.mirror.generated.g14_sub_ability import (
+    from mtg_utils._card_ir.mirror.generated.g14_static_abilities import (
+        S_static_abilities,
         S_sub_ability,
         S_trigger,
         U_target,
@@ -149,18 +150,6 @@ class S_casting_options(TypedMirrorNode):
     kind: str
     condition: U_condition = MISSING
     cost: U_cost = MISSING
-
-
-@dataclass(frozen=True)
-class S_characteristics(TypedMirrorNode):
-    colors: list[U_colors]
-    core_types: list[object]
-    display_name: str
-    keywords: list[MirrorVariant]
-    power: int | None
-    subtypes: list[object]
-    supertypes: list[object]
-    toughness: int | None
 
 
 # --- tagged shapes (discriminated enum nodes) ---
@@ -448,6 +437,23 @@ class T_affected_players__TargetedPlayer(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class T_after__FirstOfTurn(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "FirstOfTurn"
+    data: str
+
+
+@dataclass(frozen=True)
+class T_after__ThisPhase(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "ThisPhase"
+    data: MirrorVariant
+
+
+@dataclass(frozen=True)
+class T_after__ThisStep(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "ThisStep"
+
+
+@dataclass(frozen=True)
 class T_alt_ability_cost__Discard(TypedMirrorNode):
     _tag: ClassVar[str | None] = "Discard"
     count: U_count
@@ -571,6 +577,11 @@ class T_attach_to__Typed(TypedMirrorNode):
     controller: str | None
     properties: list[U_properties]
     type_filters: list[MirrorVariant]
+
+
+@dataclass(frozen=True)
+class T_attachment__GrantingObject(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "GrantingObject"
 
 
 @dataclass(frozen=True)
@@ -864,14 +875,6 @@ class T_casting_restrictions__SpendOnlyOnX(TypedMirrorNode):
     data: MirrorVariant
 
 
-@dataclass(frozen=True)
-class T_choose_filter__Typed(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "Typed"
-    controller: None
-    properties: list[U_properties]
-    type_filters: list[MirrorVariant]
-
-
 # --- discriminated-union aliases (one per tagged content_key) ---
 
 type U_additional_modifications = (
@@ -930,6 +933,7 @@ type U_affected_players = (
     | T_affected_players__SourceController
     | T_affected_players__TargetedPlayer
 )
+type U_after = T_after__FirstOfTurn | T_after__ThisPhase | T_after__ThisStep
 type U_alt_ability_cost = (
     T_alt_ability_cost__Discard
     | T_alt_ability_cost__KeywordCostOfCastSpell
@@ -952,7 +956,8 @@ type U_amount_dynamic = T_amount_dynamic__Ref
 type U_announced_x = T_announced_x__Offset | T_announced_x__Ref
 type U_attach_to = T_attach_to__ParentTarget | T_attach_to__Typed
 type U_attachment = (
-    T_attachment__LastCreated
+    T_attachment__GrantingObject
+    | T_attachment__LastCreated
     | T_attachment__Or
     | T_attachment__ParentTarget
     | T_attachment__ParentTargetSlot
@@ -1007,4 +1012,3 @@ type U_casting_restrictions = (
     | T_casting_restrictions__RequiresCondition
     | T_casting_restrictions__SpendOnlyOnX
 )
-type U_choose_filter = T_choose_filter__Typed

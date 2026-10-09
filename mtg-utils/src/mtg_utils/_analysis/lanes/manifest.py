@@ -1349,12 +1349,12 @@ SERVED_SIGNAL_KEYS: frozenset[str] = frozenset(
 # ``TrackedSetSize``-after-exile-ChangeZone arm (Rysorian Badger,
 # discriminated from Revival Experiment's reversed-order
 # self-exile housekeeping by execution-chain position). Five
-# ADR-0039 ledgered bridges close the rest
+# ADR-0039 ledgered bridges closed the rest (Grolnok's retired at phase
+# v0.104.0, served by the recovered cast_from_zone read)
 # (bridge_ledger.BRIDGES: exile_grant_all_activated_abilities
 # [Mairsil, the Pretender; Rex, Cyber-Hound — the SAME "has all
 # activated abilities of cards in exile with counters" idiom, a
-# static_structure parse failure], grolnok_cast_from_exile_
-# counter_pile, candlekeep_inspiration_exile_gy_pt_setter,
+# static_structure parse failure], candlekeep_inspiration_exile_gy_pt_setter,
 # close_encounter_warped_exile_additional_cost [zero-residue
 # absence proof], kaya_emblem_cast_from_exile_drop). CR
 # 406.1/113.10/601.2f/601.3/107.3/702.62a verified this session.

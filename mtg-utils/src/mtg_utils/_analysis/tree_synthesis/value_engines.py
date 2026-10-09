@@ -28,7 +28,9 @@ from mtg_utils._analysis.tree_synthesis.death_life import (
 )
 from mtg_utils._card_ir.crosswalk import (
     AGGREGATE_QTY_TAGS,
+    ALL_VARIANT_EFFECT_TAGS,
     DAMAGE_EFFECT_TAGS,
+    EFFECT_CONCEPTS,
     AbilityUnit,
     ConceptNode,
     ConceptTree,
@@ -55,6 +57,7 @@ from mtg_utils._card_ir.crosswalk import (
 )
 from mtg_utils._card_ir.mirror.runtime import (
     MISSING,
+    MirrorVariant,
     TypedMirrorNode,
 )
 from mtg_utils._card_ir.text_idioms import (
@@ -328,12 +331,20 @@ def has_own_target_spell(tree: ConceptTree) -> bool:
     * a NON-NEGATIVE targeted ``pump`` on a creature (Infuriate, Defiant
       Strike — a beneficial pump is own-directed in practice; a "-X/-X"
       debuff-removal spell fails the sign gate, the anthem lane's rule).
+
+    Both arms need a real target on the battlefield (a permanent is a card or
+    token on the battlefield, CR 110.1): a mass pump's filter (``PumpAll`` —
+    Unnerving Assault's "creatures you control", Roar of Jukai's "each blocked
+    creature") targets nothing, and a filter whose zone is explicitly off the
+    battlefield names cards, not permanents (phase v0.104.0 writes Pull from the
+    Deep's "target instant card … from your graveyard" as ``controller: You`` +
+    ``InZone: Graveyard``).
     """
     if not (tree.is_type("Instant") or tree.is_type("Sorcery")):
         return False
     for unit in tree.units:
         for c in unit.effects:
-            if c.concept != "pump":
+            if c.concept != "pump" or _is_mass_effect(c.node):
                 continue
             tgt = getattr(c.node, "target", None)
             if not (
@@ -356,6 +367,8 @@ def has_own_target_spell(tree: ConceptTree) -> bool:
             isinstance(tgt, TypedMirrorNode)
             and tag_of(tgt) == "Typed"
             and filter_controller(tgt) == "You"
+            and not _is_mass_effect(node)
+            and not _names_cards_off_battlefield(tgt)
         ):
             return True
         for v in vars(node).values():
@@ -364,6 +377,35 @@ def has_own_target_spell(tree: ConceptTree) -> bool:
             elif isinstance(v, list):
                 queue.extend(x for x in v if isinstance(x, TypedMirrorNode))
     return False
+
+
+#: The mass pumps — the ``*All`` variants of a pump effect: their ``target``
+#: field is the affected filter, not a target.
+_MASS_PUMP_TAGS: frozenset[str] = frozenset(
+    t
+    for t in ALL_VARIANT_EFFECT_TAGS
+    if EFFECT_CONCEPTS.get(t) in ("pump", "double_pt")
+)
+
+
+def _is_mass_effect(node: object) -> bool:
+    """An effect whose ``target`` field is no target: a mass pump (Unnerving
+    Assault's "creatures you control get +1/+0"), an effect scoped to ``All``
+    (Woodland Guidance's "untap all Forests you control"), or an object chosen as
+    the effect resolves (One Last Job's Aura or Equipment "attached to a creature
+    you control", ``selection: at_resolution``). Other ``*All`` effects are left
+    to the target read as they were."""
+    if tag_of(node) in _MASS_PUMP_TAGS or tag_of(getattr(node, "scope", None)) == "All":
+        return True
+    sel = getattr(node, "selection", None)
+    return isinstance(sel, MirrorVariant) and sel.key == "at_resolution"
+
+
+def _names_cards_off_battlefield(filt: object) -> bool:
+    """Whether a filter's zone is explicitly somewhere other than the battlefield
+    (a graveyard, hand, library or exile card, not a permanent — CR 110.1)."""
+    zones = filter_inzone_zones(filt)
+    return bool(zones) and "Battlefield" not in zones
 
 
 def _pump_mod_ints(node: object) -> list[int]:

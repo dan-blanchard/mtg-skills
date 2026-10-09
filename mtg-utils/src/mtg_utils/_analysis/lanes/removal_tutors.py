@@ -84,6 +84,12 @@ from mtg_utils._card_ir.mirror.runtime import (
     MirrorVariant,
     TypedMirrorNode,
 )
+from mtg_utils._card_ir.recovery import (
+    ANY_TARGET,
+    ON_SELF,
+    TARGET_OBJECT,
+    YOUR_TARGET,
+)
 from mtg_utils._card_ir.text_idioms import _LIB_SEARCH_PLAYER_ACTIONS
 
 # ── Batch 13 lanes (ADR-0035 Stage 2): the field-lookup wholesale batch ──────
@@ -638,6 +644,51 @@ _COUNTER_TUCK_CHOICE_RE = re.compile(
 )
 
 
+# phase v0.104.0 fails closed: a destroy / burn clause it can't fully parse is
+# parked as an ``Unimplemented`` residue the recovery stage re-decorates
+# (tokens ``destroy`` / ``damage``), with no typed target to read; the seam's
+# reading of the clause stands in for it, beside ``_removal``'s typed arms.
+# Destroy only ever moves a permanent (CR 701.8a), so a targeted destroy is
+# removal unless the target is a land (land_destruction's country, the same
+# veto ``_perm_subject`` applies to a typed Land target).
+_RECOVERED_BURN_TYPES: frozenset[str] = frozenset(
+    {"Creature", "Planeswalker", "Battle", "Permanent"}
+)
+_CLAUSE_TYPE_WORDS: frozenset[str] = frozenset(
+    {
+        "Creature",
+        "Artifact",
+        "Enchantment",
+        "Land",
+        "Planeswalker",
+        "Permanent",
+        "Battle",
+        "Aura",
+        "Equipment",
+    }
+)
+
+
+def _recovered_removal(c: ConceptNode) -> bool:
+    """A recovered destroy / burn residue (phase v0.104.0's fail-closed
+    ``Unimplemented``, tokens ``destroy`` / ``damage``) whose own object is a
+    target permanent (the seam's ``TARGET_OBJECT``): a destroy of anything but
+    only a land; a burn to "any target" (a creature, planeswalker or battle among
+    them, CR 115.4) or to a target naming a permanent type, but not one you
+    control (Simulacrum's redirect onto your own creature)."""
+    subject = c.subject
+    if TARGET_OBJECT not in subject:
+        return False
+    if c.recovered_by == "destroy":
+        types = {t for t in subject if t in _CLAUSE_TYPE_WORDS}
+        return types != {"Land"}
+    if c.recovered_by == "damage":
+        return YOUR_TARGET not in subject and (
+            ANY_TARGET in subject or any(t in _RECOVERED_BURN_TYPES for t in subject)
+        )
+    return False
+
+
 def _removal(tree: ConceptTree) -> list[Signal]:
     """removal (§2) — CR 701.8/701.8a: single-target destroy or burn of a
     permanent. Two structural arms, scope "you", HIGH:
@@ -803,6 +854,11 @@ def _removal(tree: ConceptTree) -> list[Signal]:
 
     for unit in tree.units:
         for c in unit.effect_concepts("destroy"):
+            if c.recovered_by:
+                # phase v0.104.0 fail-closed residue, token ``destroy``.
+                if _recovered_removal(c):
+                    return [Signal("removal", "you", "", c.raw, tree.name, "high")]
+                continue
             if tag_of(c.node) != "Destroy":
                 continue
             target = getattr(c.node, "target", None)
@@ -813,6 +869,11 @@ def _removal(tree: ConceptTree) -> list[Signal]:
                 if _qualified_destroy_target_type(desc):
                     return [Signal("removal", "you", "", c.raw, tree.name, "high")]
     for c in tree.effect_concepts("deal_damage"):
+        if c.recovered_by:
+            # phase v0.104.0 fail-closed residue, token ``damage``.
+            if _recovered_removal(c):
+                return [Signal("removal", "you", "", c.raw, tree.name, "high")]
+            continue
         # v0.66.0: the per-source batch burn ("each Bird you control deals
         # damage equal to its power to target creature an opponent
         # controls" — Bartz and Boko) is an ``EachSourceDealsDamage`` whose
@@ -1601,6 +1662,12 @@ def _self_counter_grow(tree: ConceptTree) -> list[Signal]:
     for c in tree.iter_concepts():
         if c.concept in ("synth_self_counter_grow", "synth_self_power_scale"):
             return [Signal("self_counter_grow", "you", "", "", tree.name, "high")]
+        # phase v0.104.0 fails closed on a conditional self-counter clause,
+        # parking it as an Unimplemented residue (recovery token
+        # ``place_counter``, or ``scry`` when a scry leads the clause —
+        # Taeko); the seam marks +1/+1 counters put on the card itself.
+        if c.recovered_by and ON_SELF in c.subject and "+1/+1 counter" in c.subject:
+            return [Signal("self_counter_grow", "you", "", "", tree.name, "high")]
     return []
 
 
@@ -1680,40 +1747,9 @@ def _activated_ability(tree: ConceptTree) -> list[Signal]:
                 genmana = True
         if not (tapish or (genmana and not (tags & _AA_EXTRA_COST_TAGS))):
             continue
-        self_sacrificed = any(
-            tag_of(leaf) == "Sacrifice"
-            and tag_of(getattr(leaf, "target", None)) == "SelfRef"
-            for leaf in leaves
-        )
-        if any(
-            c.concept not in _ACTIVATED_ABILITY_DROP_EFFECTS
-            and not (self_sacrificed and _grants_only_to_self(c.node))
-            for c in unit.effects
-        ):
+        if any(c.concept not in _ACTIVATED_ABILITY_DROP_EFFECTS for c in unit.effects):
             return [Signal("activated_ability", "you", "", "", tree.name, "high")]
     return []
-
-
-def _grants_only_to_self(node: object) -> bool:
-    """A ``GenericEffect`` whose every continuous grant affects ``SelfRef`` —
-    a dead effect when the ability's own cost sacrificed that source: the
-    source is a new object in the graveyard with no relation to the permanent
-    the grant names (CR 400.7), so the grant applies to nothing. Phase
-    v0.94.0 lands Generator Servant's spend rider ("if any of that mana is
-    spent on a creature spell, it gains haste") in exactly this shape — the
-    condition swallowed, the haste misassigned to the sacrificed Servant —
-    and that dead grant must not lift a mana ability (CR 605.1a) into the
-    value-engine census. Corpus census at v0.94.0: 1 card. A misparse
-    workaround, not a ledgered bridge: its retirement canary is
-    ``test_generator_servant_split_rider_canary`` (tests/mtg-utils/
-    test_crosswalk.py), which fails RETIRE-READY once phase folds the rider
-    back into the Mana effect's ``grants``."""
-    if tag_of(node) != "GenericEffect":
-        return False
-    statics = getattr(node, "static_abilities", None) or []
-    return bool(statics) and all(
-        tag_of(getattr(s, "affected", None)) == "SelfRef" for s in statics
-    )
 
 
 def _mass_death_payoff(tree: ConceptTree) -> list[Signal]:

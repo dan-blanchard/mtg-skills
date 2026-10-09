@@ -172,4 +172,23 @@ retirement — the review's "tabulate the two-arm lanes" candidate is closed on 
 basis (the 95 reference concepts and their 208 reads stay imperative, per ADR-0014's
 locality argument).
 
-*Amended 2026-07-10 (twice) and 2026-09-13; original decision revised in place.*
+**Amended at the phase v0.104.0 bump (2026-10-09).** Phase began failing closed:
+it parks a whole effect it can't fully parse as an `Unimplemented` residue. 15
+verb tokens joined the allowlist (reanimate, place_counter, destroy, exile,
+gain_control, tap, untap, scry, spell_copy, counter_move, cast_from_zone, clone,
+sacrifice, mill, lose_game). A recovered node carries no typed target, so the seam
+now also reads the clause once (`recovery.read_clause`) and decorates the node:
+`scope` (the side the clause names), `subject` (type words plus the
+`CLAUSE_MARKS` — self, yours/theirs, player recipient, any target, mass, card,
+power-scaled, many, another chooser …; some only count when they attach to the
+token's own verb, `TokenRule.object_verb`) and `zones`. Lanes test those fields;
+no lane reads a recovered clause's text. Rows opt in (`TokenRule.reads_clause`):
+`make_token` doesn't, because its `subject` already carries the token's own types.
+The seam also refuses a replacement clause ("would … instead") unless the row says
+the replacement's effect is the verb's (`in_replacements`: discard, roll_die,
+coin_flip). A key carried by a clause's second verb stays a ledger row (ADR-0048).
+`bump-phase-pin` reports each token's and mark's corpus fire count and flags 0 as
+retire-ready. The pre-v0.104.0 rows' lane-side clause reads (draw direction,
+discard direction, damage reach) predate this and are backlog.
+
+*Amended 2026-07-10 (twice), 2026-09-13 and 2026-10-09; original decision revised in place.*

@@ -23,27 +23,25 @@ from mtg_utils._card_ir.mirror.runtime import (
 )
 
 if TYPE_CHECKING:
-    from mtg_utils._card_ir.mirror.generated.g05_conditional_enter_wi import (
+    from mtg_utils._card_ir.mirror.generated.g06_costs import (
         U_costs,
-    )
-    from mtg_utils._card_ir.mirror.generated.g06_count import (
         U_count,
         U_counters,
     )
     from mtg_utils._card_ir.mirror.generated.g08_else_ability import (
         U_filter,
     )
-    from mtg_utils._card_ir.mirror.generated.g10_origin import (
+    from mtg_utils._card_ir.mirror.generated.g10_optional_player import (
         U_parity,
         U_player,
     )
     from mtg_utils._card_ir.mirror.generated.g12_qty import (
         U_recipient,
     )
-    from mtg_utils._card_ir.mirror.generated.g13_reference import (
+    from mtg_utils._card_ir.mirror.generated.g13_redirect_to import (
         U_reference,
     )
-    from mtg_utils._card_ir.mirror.generated.g14_sub_ability import (
+    from mtg_utils._card_ir.mirror.generated.g14_static_abilities import (
         U_target,
         U_value,
     )
@@ -82,6 +80,12 @@ class T_prop__HasAttachment(TypedMirrorNode):
 class T_prop__InTrackedSet(TypedMirrorNode):
     _tag: ClassVar[str | None] = "InTrackedSet"
     id: int
+
+
+@dataclass(frozen=True)
+class T_prop__Named(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "Named"
+    name: str
 
 
 @dataclass(frozen=True)
@@ -155,6 +159,12 @@ class T_properties__Attacking(TypedMirrorNode):
 @dataclass(frozen=True)
 class T_properties__AttackingAlone(TypedMirrorNode):
     _tag: ClassVar[str | None] = "AttackingAlone"
+
+
+@dataclass(frozen=True)
+class T_properties__BlockStatus(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "BlockStatus"
+    status: str
 
 
 @dataclass(frozen=True)
@@ -595,11 +605,6 @@ class T_properties__Transformed(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
-class T_properties__Unblocked(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "Unblocked"
-
-
-@dataclass(frozen=True)
 class T_properties__Unpaired(TypedMirrorNode):
     _tag: ClassVar[str | None] = "Unpaired"
 
@@ -690,6 +695,7 @@ type U_prop = (
     | T_prop__EnteredThisTurn
     | T_prop__HasAttachment
     | T_prop__InTrackedSet
+    | T_prop__Named
     | T_prop__SameName
     | T_prop__SharesQuality
     | T_prop__WasPlayed
@@ -705,6 +711,7 @@ type U_properties = (
     | T_properties__AttackedThisTurn
     | T_properties__Attacking
     | T_properties__AttackingAlone
+    | T_properties__BlockStatus
     | T_properties__BlockedThisTurn
     | T_properties__Blocking
     | T_properties__BlockingSource
@@ -782,7 +789,6 @@ type U_properties = (
     | T_properties__Token
     | T_properties__ToughnessGTPower
     | T_properties__Transformed
-    | T_properties__Unblocked
     | T_properties__Unpaired
     | T_properties__Untapped
     | T_properties__WasDealtDamageThisTurn

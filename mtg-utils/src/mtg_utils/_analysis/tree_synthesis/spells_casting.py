@@ -44,6 +44,7 @@ from mtg_utils._card_ir.crosswalk import (
     static_mode_tag,
     tag_of,
     trigger_caster_scope,
+    unit_zones,
 )
 from mtg_utils._card_ir.mirror.runtime import (
     MirrorVariant,
@@ -234,6 +235,39 @@ def _arm_spellcast_matters(tree: ConceptTree) -> ConceptNode | None:
 
 _NONPERMANENT_CORES = frozenset({"Instant", "Sorcery"})
 
+# phase v0.104.0 fails closed on a graveyard-cast permission static it can't
+# fully parse, parking the whole line as an ``Unimplemented`` residue the
+# recovery stage re-decorates with the ``cast_from_zone`` token. The node
+# keeps no typed ``affected`` filter, so the cast spell's permanent-ness is
+# read off the clause: the card itself ("this card" / "~", a permanent card
+# by its own types) or a spell named by a permanent type ("artifact or Human
+# spell", "creature spells", "permanent spell"; CR 110.4b). A negated type
+# ("noncreature", "non-artifact") names no permanent: instants and sorceries
+# qualify. Kept as a clause read: the seam's reading is clause-wide, and this
+# needs the spell's type and "from your graveyard" bound to the one cast (a
+# graveyard exiled to pay a cost — Redemptor Dreadnought — is no recast).
+_RECOVERED_GY_PERMANENT_CAST_RE = re.compile(
+    r"\bcast\s+(?:(?P<self>this\s+card|~)|[^.]*?\b(?<!non-)"
+    r"(?:artifact|creature|enchantment|planeswalker|battle|permanent)\b[^.]*?\bspells?)"
+    r"\s+from\s+your\s+graveyard\b",
+    re.IGNORECASE,
+)
+
+
+def _recovered_graveyard_permanent_cast(tree: ConceptTree, c: ConceptNode) -> bool:
+    """A recovered ``cast_from_zone`` residue (phase v0.104.0's fail-closed
+    graveyard-cast static, see :data:`_RECOVERED_GY_PERMANENT_CAST_RE`) that
+    lets you cast a PERMANENT spell from your graveyard."""
+    if c.recovered_by != "cast_from_zone":
+        return False
+    m = _RECOVERED_GY_PERMANENT_CAST_RE.search(c.raw or "")
+    if m is None:
+        return False
+    return not m.group("self") or any(
+        tree.is_type(t)
+        for t in ("Artifact", "Creature", "Enchantment", "Planeswalker", "Battle")
+    )
+
 
 def has_permanent_recast(tree: ConceptTree) -> bool:
     """A REPEATABLE engine that re-delivers your own permanents to a
@@ -270,6 +304,7 @@ def has_permanent_recast(tree: ConceptTree) -> bool:
                     c.concept == "change_zone"
                     and getattr(c.node, "destination", None) == "Battlefield"
                     and _subtree_has_graveyard_zone(unit.node)
+                    and not _is_self_flicker_return(unit, c.node)
                 ):
                     return True
         if unit.origin == "ability":
@@ -278,7 +313,27 @@ def has_permanent_recast(tree: ConceptTree) -> bool:
                     filter_controller(getattr(c.node, "target", None)) == "You"
                 ):
                     return True
+        # phase v0.104.0: the graveyard-cast permission static parked whole
+        # as an Unimplemented residue (recovery token ``cast_from_zone``).
+        if any(_recovered_graveyard_permanent_cast(tree, c) for c in unit.effects):
+            return True
     return False
+
+
+def _is_self_flicker_return(unit: AbilityUnit, node: object) -> bool:
+    """A ``ChangeZone`` that returns the source itself (``SelfRef``) while it
+    is NOT in a graveyard: no ``Graveyard`` origin, and the trigger fires
+    from outside the graveyard. phase v0.104.0: The Great Work's chapter III
+    ("exile this Saga, then return it to the battlefield") sits beside a
+    granted cast-from-graveyard permission whose ``InZone(Graveyard)`` is
+    not this return's zone — a self-reset, not a graveyard re-delivery.
+    Ichorid's own graveyard return (origin or trigger zone
+    ``Graveyard``) stays in."""
+    if tag_of(getattr(node, "target", None)) != "SelfRef":
+        return False
+    if getattr(node, "origin", None) == "Graveyard":
+        return False
+    return "Graveyard" not in unit_zones(unit)
 
 
 # "Whenever an opponent casts a[n ...] spell" idiom (CR 102.2/102.3 +

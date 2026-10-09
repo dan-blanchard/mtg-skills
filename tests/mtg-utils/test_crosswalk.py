@@ -2031,19 +2031,20 @@ def test_creatures_matter_w8_closer_batch(name, should_fire):
         # "untap all creatures you control" (CR 701.26), Superior
         # Numbers' excess-count comparator, Sovereign Okinec Ahau's
         # per-creature counter distribution, Whisperwood Elemental's
-        # face-up team-grant residue, Duskana's dropped per-base-2/2
-        # draw count (distinct row from the ALREADY-LANDED base_power_
-        # matters reference bridge — different key), Moku's mis-scoped
-        # SelfRef haste grant, Siege Behemoth's empty-modifications
-        # static, and Candlekeep Inspiration's mass base-P/T-setter
+        # face-up team-grant residue, Moku's mis-scoped SelfRef haste
+        # grant, and Candlekeep Inspiration's mass base-P/T-setter
         # residue (sharing its gap/match with the base_pt_set sibling
         # row, CR 613.4b).
         ("Lightning Runner", True),
         ("Superior Numbers", True),
         ("Sovereign Okinec Ahau", True),
         ("Whisperwood Elemental", True),
-        ("Duskana, the Rage Mother", True),
         ("Moku, Meandering Drummer", True),
+        # (4) bridges retired at phase v0.104.0, now structural: Duskana's
+        # per-base-2/2 draw count is a typed ``Ref`` count, and Siege
+        # Behemoth's per-creature unblocked assignment is an
+        # ``AssignDamageAsThoughUnblocked`` modification over the team.
+        ("Duskana, the Rage Mother", True),
         ("Siege Behemoth", True),
         ("Candlekeep Inspiration", True),
     ],
@@ -5892,12 +5893,13 @@ def test_v086_emblem_self_reference_damage_is_structural():
     assert ("direct_damage", "you", "") in _idents("Chandra, Spark Hunter")
 
 
-def test_v066_each_source_power_rider_bridges():
-    """BRIDGES ``removal_each_source_power_rider`` /
-    ``creature_ping_each_source_power_rider``: Master of the Wild Hunt's
+def test_v066_each_source_power_rider_recovered():
+    """Master of the Wild Hunt's
     "Each Wolf tapped this way deals damage equal to its power to target
     creature" — phase v0.53.0 (#7322) fails the per-source rider CLOSED as
-    ``each_source_unrepresentable_rider`` (a typed DealDamage at v0.45.0).
+    ``each_source_unrepresentable_rider`` (a typed DealDamage at v0.45.0); two
+    ledger bridges served it until phase v0.104.0, when the ``damage`` recovery
+    arms (removal, creature_ping) began reading the parked clause.
     CR 120.3 — a creature source dealing power-scaled damage to a creature
     (the creature_ping doer) that removes it (CR 701.8a territory)."""
     keys = _keys("Master of the Wild Hunt")
@@ -8561,12 +8563,13 @@ def test_exile_matters_bridge_grant_all_activated_abilities(name):
     assert ("exile_matters", "you", "") in _idents(name)
 
 
-def test_exile_matters_bridge_grolnok_cast_from_exile_counter_pile():
-    """ADR-0039 W7 endgame: PROMOTED via the
-    ``grolnok_cast_from_exile_counter_pile`` ledgered bridge — "You may
-    play lands and cast spells from among cards you own in exile with
-    croak counters on them" fails the effect parser
-    (``Unimplemented(name='effect_structure')``). CR 305.1/601.3/406.1."""
+def test_exile_matters_grolnok_cast_from_exile_counter_pile():
+    """ADR-0039 W7 endgame, graduated off the ledger at phase v0.104.0: "You may
+    play lands and cast spells from among cards you own in exile with croak
+    counters on them" fails the effect parser
+    (``Unimplemented(name='effect_structure')``), and the recovery stage's
+    ``cast_from_zone`` read marks the cards in exile that exile_matters
+    tests. CR 305.1/601.3/406.1."""
     assert ("exile_matters", "you", "") in _idents("Grolnok, the Omnivore")
 
 
@@ -13205,7 +13208,9 @@ def test_convoke_matters_cast_trigger_anchor_only():
 
 def test_curse_matters_subtype_reads_and_mirror():
     """CR 205.3h: the Curse trigger-subject read (Lynde), the Curse
-    effect-subject read (Witchbane Orb) and the kept mirror (Curse of
+    effect-subject read (Witchbane Orb — the
+    ``witchbane_orb_curses_attached_parked`` ledger bridge since phase v0.104.0
+    parks the effect) and the kept mirror (Curse of
     Misfortunes — search filter still dropped in v0.9.0, [P11] family)
     fire; MEMBERSHIP stays out — Cruel Reality (an Aura Curse CARD)
     never fires."""
@@ -13802,40 +13807,6 @@ def test_activated_ability_cost_census():
         "Generator Servant",
     ):
         assert "activated_ability" not in _keys(name), name
-
-
-@pytest.mark.retirement_canary
-def test_generator_servant_split_rider_canary():
-    """Retirement canary for ``lanes.removal_tutors._grants_only_to_self``, a
-    phase-misparse workaround rather than a ledgered bridge (it suppresses a
-    fire instead of recovering one, so it has no ADR-0048 row to self-retire).
-    Phase v0.94.0 splits Generator Servant's "if any of that mana is spent on
-    a creature spell, it gains haste" rider out of the Mana effect's
-    ``grants`` into a sibling ``GenericEffect`` granting Haste to ``SelfRef``
-    — the source the ability's own cost sacrificed (CR 400.7). When phase
-    folds the rider back, the shape is gone: this fails RETIRE-READY, and
-    the helper, its call site and this canary go (the Generator Servant
-    negative in :func:`test_activated_ability_cost_census` stays)."""
-    (ability,) = test_phase_records("Generator Servant")[0]["abilities"]
-    sacrifices_self = any(
-        c.get("type") == "Sacrifice"
-        and (c.get("target") or {}).get("type") == "SelfRef"
-        for c in (ability.get("cost") or {}).get("costs") or []
-    )
-    rider = (ability.get("sub_ability") or {}).get("effect") or {}
-    statics = rider.get("static_abilities") or []
-    still_split = (
-        sacrifices_self
-        and rider.get("type") == "GenericEffect"
-        and bool(statics)
-        and all((st.get("affected") or {}).get("type") == "SelfRef" for st in statics)
-    )
-    assert still_split, (
-        "_grants_only_to_self: RETIRE-READY — phase no longer splits Generator "
-        "Servant's spend rider into a SelfRef GenericEffect. Delete "
-        "_grants_only_to_self and its call in _activated_ability "
-        "(lanes/removal_tutors.py) and this canary; keep the census negative."
-    )
 
 
 def test_mass_death_payoff_aggregate_head_only():
@@ -15117,10 +15088,11 @@ def test_overlay_exile_removal_lands_category_and_subject():
 
 def test_overlay_removal_target_subject_lands_subject():
     """(b) _recover_removal_target_subject: a destroy whose creature target phase
-    dropped (Smite) gains a Creature subject on the overlay."""
+    dropped (Fatal Push; Smite was the pin until phase v0.104.0 typed its
+    "target blocked creature") gains a Creature subject on the overlay."""
     hits = [
         a
-        for b, a in _corrected_effects("Smite")
+        for b, a in _corrected_effects("Fatal Push")
         if a.concept == "destroy" and not b.subject and a.subject
     ]
     assert hits
@@ -16066,14 +16038,14 @@ def test_direct_damage_valakut_exploration_graduated_structural():
     assert ("direct_damage", "you", "") in _idents("Valakut Exploration")
 
 
-def test_direct_damage_bridge_avatar_aang_conjunction_tail_drop():
-    """BRIDGE ``avatar_aang_conjunction_tail_drop``: a FIVE-effect
-    ``SequentialSibling`` conjunction (gain life, draw, put counters, deal
-    damage) terminates after the FOURTH effect — the fifth conjunct "he
-    deals 4 damage to each opponent" carries no node (CR 120.1). Pinned via
-    the transformed back face's own name ("Aang, Master of
-    Elements") — the front face ("Avatar Aang") carries neither this
-    trigger nor the damage clause."""
+def test_direct_damage_avatar_aang_fifth_conjunct():
+    """A FIVE-effect ``SequentialSibling`` conjunction (gain life, draw, put
+    counters, deal damage): through v0.94.0 phase's chain stopped after the
+    fourth effect and the ``avatar_aang_conjunction_tail_drop`` ledger bridge
+    served "he deals 4 damage to each opponent"; v0.104.0 carries the fifth
+    conjunct, so the read is structural. Pinned via the transformed back
+    face's own name ("Aang, Master of Elements") — the front face ("Avatar
+    Aang") carries neither this trigger nor the damage clause."""
     assert ("direct_damage", "you", "") in _idents("Aang, Master of Elements")
 
 
@@ -16094,11 +16066,11 @@ def test_direct_damage_bridge_insult_injury_aftermath_face_unparsed():
     assert ("direct_damage", "you", "") in idents
 
 
-def test_direct_damage_bridge_karn_living_legacy_emblem_tap_cost_damage():
+def test_direct_damage_karn_living_legacy_emblem_tap_cost_damage():
     """BRIDGE ``karn_living_legacy_emblem_tap_cost_damage``: the [-7]
     emblem's granted "Tap an untapped artifact you control: This emblem
     deals 1 damage to any target." is parked entirely as an opaque
-    ``CreateEmblem.statics[].description`` string (the ``sac_emblem_
+    emblem_creation residue (the ``sac_emblem_
     activated_cost`` bridge's Sacrifice-costed sibling shape, CR 120.1).
     Koth of the Hammer's structurally-identical-looking emblem stays
     UNaffected — its Mountain-static grant is already served via a
@@ -17796,22 +17768,3 @@ def test_earthbend_last_created_binding_canary():
         "_sets_up_dies_return: RETIRE-READY — Bumi's Feast Lecture's earthbend "
         "return no longer reads LastCreated; delete the misbind arm and this canary."
     )
-
-
-@pytest.mark.retirement_canary
-def test_nether_shadow_graveyard_condition_canary():
-    """Phase v0.94.0 drops Nether Shadow's "if this card is in your graveyard", so
-    the self_recurring lane reads a step trigger's zone-less "put this card onto
-    the battlefield" as a return (``_returns_self``). When phase marks the
-    graveyard zone, that arm can go."""
-    units = [
-        u
-        for t in trees_for(test_card("Nether Shadow"))
-        for u in t.iter_units("trigger")
-    ]
-    assert units
-    assert not any(
-        "Graveyard" in (getattr(u.node, "trigger_zones", None) or [])
-        or getattr(getattr(u.node, "condition", None), "zone", None) == "Graveyard"
-        for u in units
-    ), "Nether Shadow: RETIRE-READY — phase now carries the graveyard zone."

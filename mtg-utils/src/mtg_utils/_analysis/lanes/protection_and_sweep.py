@@ -1168,6 +1168,16 @@ def _meld_pair(tree: ConceptTree) -> list[Signal]:
     return []
 
 
+# Recovered granted power-tap gate (see the ``recovered_by == "damage"``
+# branch inside _power_tap_engine): a granted "{T}...: ... deals damage equal
+# to its power" ability inside a quoted grant (Surestrike Trident). Kept as a
+# clause read: the key needs the granted ability's {T} cost, which the seam's
+# reading of the clause doesn't carry.
+_RECOVERED_POWER_TAP_RE = re.compile(
+    r"\{t\}[^\":]*:[^\"]*\bdamage equal to (?:its|his|her|~'s) power\b"
+)
+
+
 def _named_counter_misc(tree: ConceptTree) -> list[Signal]:
     """named_counter_misc (§13) — CR 122.1 ("Counters with the same name or
     description are interchangeable" — the NAME is the mechanic
@@ -1212,6 +1222,17 @@ def _named_counter_misc(tree: ConceptTree) -> list[Signal]:
     for concept in ("place_counter", "remove_counter"):
         for c in tree.effect_concepts(concept):
             if counter_kind_any(c.node).lower() in _NAMED_COUNTER_KINDS:
+                return [
+                    Signal("named_counter_misc", "you", "", c.raw, tree.name, "high")
+                ]
+            # phase v0.104.0 parks an intervening-if counter clause ("if this
+            # card is exiled with an egg counter on it, remove an egg counter
+            # from it" — Darigaaz Reincarnated) as an Unimplemented residue
+            # the ``place_counter`` token recovers; the seam names each counter
+            # kind the clause does ("<kind> counter", CR 122.1).
+            if c.recovered_by == "place_counter" and any(
+                f"{k} counter" in c.subject for k in _NAMED_COUNTER_KINDS
+            ):
                 return [
                     Signal("named_counter_misc", "you", "", c.raw, tree.name, "high")
                 ]
@@ -1390,6 +1411,14 @@ def _power_tap_engine(tree: ConceptTree) -> list[Signal]:
     for c in tree.iter_concepts():
         if c.concept == "synth_power_tap_engine":
             return [Signal("power_tap_engine", "you", "", "", tree.name, "high")]
+        # phase v0.104.0 parks a static grant whose granted ability refers to
+        # its granter ("Equipped creature has '{T}, Unattach ~: ~ deals damage
+        # equal to its power ...'" — Surestrike Trident) as one Unimplemented
+        # residue the ``damage`` token recovers.
+        if c.recovered_by == "damage" and _RECOVERED_POWER_TAP_RE.search(
+            (c.raw or "").lower()
+        ):
+            return [Signal("power_tap_engine", "you", "", c.raw, tree.name, "high")]
     return []
 
 

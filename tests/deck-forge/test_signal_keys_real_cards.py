@@ -640,8 +640,8 @@ def test_blood_makers_fires_from_a_recovered_granted_ability_maker():
 def test_blood_makers_fires_from_a_create_x_unimplemented_residue():
     """Token-subtype maker (create-X residue): Odric, Blood-Cursed "create X Blood
     tokens, where X is the number of abilities ..." parks WHOLE as phase
-    Unimplemented('create'); recovery decorates make_token with an EMPTY subject —
-    the choice_list_token_maker_blood bridge's second match arm serves it."""
+    Unimplemented('create'); since phase v0.104.0 the make_token recovery arm of
+    _resource_token_makers reads "Blood" off the recovered clause."""
     keys = {s.key for s in test_signals("Odric, Blood-Cursed")}
     assert "blood_makers" in keys
 

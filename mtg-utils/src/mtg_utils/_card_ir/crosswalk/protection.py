@@ -9,17 +9,17 @@ your board.
 
 Most of the module resolves WHO an effect protects: ``affected`` / ``target``
 filters, the back-references phase leaves (``ParentTarget``, ``TrackedSet``,
-``TriggeringSource``), and the "this" inside a granted ability. Two of those
-resolutions read past a phase misbinding and are canary-guarded rather than
+``TriggeringSource``), and the "this" inside a granted ability. One of those
+resolutions reads past a phase misbinding and is canary-guarded rather than
 corrected where the tree is built: a spell's ``SelfRef`` (the read's own
-decision — ``test_spell_selfref_misbinding_canary``) and an Aura's enters
-trigger aimed at its ``TriggeringSource`` (CR 303.4b —
-``test_aura_etb_triggering_source_canary``).
-The overlay-correction stage can't own them: it decorates the concept overlay
-(``scope`` / ``subject`` / ``zones``) and never rewrites a Layer-1 mirror node
-(the substrate-purity invariant), while both misbindings live in mirror fields
-(a nested static's ``affected``, a ``GenericEffect``'s ``target``) these reads
-walk directly.
+decision — ``test_spell_selfref_misbinding_canary``). (An Aura's enters trigger
+aimed at its ``TriggeringSource`` was the other until phase v0.104.0, which
+parks Maze's Mantle's grant as a residue instead.) The overlay-correction stage
+can't own it: it decorates the concept overlay (``scope`` / ``subject`` /
+``zones``) and never rewrites a Layer-1 mirror node (the substrate-purity
+invariant), while the misbinding lives in a mirror field (a nested static's
+``affected``) these reads walk directly. A prevention phase parks by shape is
+read off the residue's name (``reads.PARKED_PREVENTION_RESIDUES``).
 
 Pure readers over the typed substrate, like ``reads``: nothing here constructs
 a concept tree.
@@ -44,6 +44,7 @@ from mtg_utils._card_ir.crosswalk.reads import (
     iter_mod_sites,
     iter_typed_nodes,
     normalised_keyword,
+    parked_prevention,
     protective_keyword,
     static_mode_field,
     static_mode_tag,
@@ -178,20 +179,6 @@ def _puts_onto_battlefield(root: object) -> bool:
     )
 
 
-def _aura_etb_names_enchanted(tree: ConceptTree, unit: AbilityUnit) -> bool:
-    """An Aura's own enters trigger whose effect phase aims at the
-    ``TriggeringSource`` — the Aura itself — where the text names the enchanted
-    creature (Maze's Mantle: "When this Aura enters, if enchanted creature has
-    toxic, that creature gains hexproof until end of turn"; CR 303.4b: the
-    object an Aura is attached to is "enchanted")."""
-    return (
-        unit.origin == "trigger"
-        and "Aura" in tree.card_subtypes
-        and tag_of(getattr(unit.node, "valid_card", None)) == "SelfRef"
-        and any(tag_of(t) == "TriggeringSource" for t in _effect_targets(unit.node))
-    )
-
-
 def _back_reference_recipient(
     tree: ConceptTree, unit: AbilityUnit
 ) -> ProtectionRecipient | None:
@@ -201,8 +188,7 @@ def _back_reference_recipient(
     from colorless or from the color of your choice" — Giver of Runes'
     ``ChooseOneOf`` branches) or puts onto the battlefield (Doors of Durin: "put
     it onto the battlefield tapped and attacking. Until your next turn, it gains
-    … hexproof"); on an Aura's own enters trigger, the enchanted creature
-    (:func:`_aura_etb_names_enchanted`); for a replacement, the permanent it
+    … hexproof"); for a replacement, the permanent it
     watches (the enchanted land Crackling Emergence saves; Mossbridge Troll's own
     "regenerate it" watches itself); for a trigger on the card itself with no
     target of its own, the card ("Whenever ~ attacks … it gains indestructible"
@@ -210,8 +196,6 @@ def _back_reference_recipient(
     (Break of Day's fateful-hour "those creatures", Efflorescence's infusion
     "that creature")."""
     if _chooses_other_object(unit.node) or _puts_onto_battlefield(unit.node):
-        return "permanent"
-    if _aura_etb_names_enchanted(tree, unit):
         return "permanent"
     if unit.origin in ("replacement", "trigger"):
         watched = getattr(unit.node, "valid_card", MISSING)
@@ -595,6 +579,13 @@ def protective_saves(tree: ConceptTree) -> Iterator[tuple[str, ProtectionRecipie
             who = _prevention_shield_recipient(tree, n, static=static)
             if who is not None:
                 yield "prevent_damage", who
+            parked = parked_prevention(n)
+            if parked is not None:
+                # Read off the residue's name (reads.PARKED_PREVENTION_RESIDUES):
+                # a two-way shield names an opponent's permanent (Dovin, Kiora),
+                # the source-role preventions neutralise an attacker or blocker.
+                both = parked == "bidirectional_prevent_declared_target"
+                yield "prevent_damage", "player" if both else "permanent"
             if _life_floor_for_you(n):
                 yield "life_floor", "player"
             if _returning_death_shield(n):

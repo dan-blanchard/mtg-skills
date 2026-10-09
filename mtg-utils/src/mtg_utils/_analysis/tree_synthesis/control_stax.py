@@ -548,7 +548,13 @@ def has_structural_superfriends(tree: ConceptTree) -> bool:
             and trigger_subject_scope(node) != "opponents"
         ):
             return True
-        if unit.trigger_event == "loyaltyabilityactivated":
+        if (
+            unit.trigger_event == "loyaltyabilityactivated"
+            # phase v0.104.0 types the activator on ``valid_target``: Gideon the
+            # Oathless punishes an OPPONENT's loyalty activation — not a payoff
+            # for your own planeswalkers.
+            and filter_controller(getattr(node, "valid_target", None)) != "Opponent"
+        ):
             return True
         for c in (*unit.effects, *unit.statics):
             if _superfriends_count_operand_ref(c):

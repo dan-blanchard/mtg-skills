@@ -34,19 +34,19 @@ if TYPE_CHECKING:
         U_amount,
         U_casting_restrictions,
     )
-    from mtg_utils._card_ir.mirror.generated.g04_choose_scope import (
+    from mtg_utils._card_ir.mirror.generated.g04_characteristics import (
         S_cleave_variant,
     )
     from mtg_utils._card_ir.mirror.generated.g05_conditional_enter_wi import (
         U_cost,
-        U_costs,
     )
-    from mtg_utils._card_ir.mirror.generated.g06_count import (
+    from mtg_utils._card_ir.mirror.generated.g06_costs import (
+        U_costs,
         U_count,
         U_data,
         U_deck_copy_limit,
     )
-    from mtg_utils._card_ir.mirror.generated.g07_effect import (
+    from mtg_utils._card_ir.mirror.generated.g07_dynamic_count import (
         U_effect,
     )
     from mtg_utils._card_ir.mirror.generated.g08_else_ability import (
@@ -54,7 +54,7 @@ if TYPE_CHECKING:
         U_filter,
         U_filters,
     )
-    from mtg_utils._card_ir.mirror.generated.g09_keeper_constraint import (
+    from mtg_utils._card_ir.mirror.generated.g09_journal import (
         S_legalities,
         S_metadata,
         S_modal,
@@ -64,7 +64,7 @@ if TYPE_CHECKING:
         U_materials,
         U_once_per_turn,
     )
-    from mtg_utils._card_ir.mirror.generated.g10_origin import (
+    from mtg_utils._card_ir.mirror.generated.g10_optional_player import (
         U_parse_warnings,
         U_power,
     )
@@ -72,22 +72,22 @@ if TYPE_CHECKING:
         U_properties,
     )
     from mtg_utils._card_ir.mirror.generated.g12_qty import (
-        S_reduction,
         U_qty,
     )
-    from mtg_utils._card_ir.mirror.generated.g13_reference import (
+    from mtg_utils._card_ir.mirror.generated.g13_redirect_to import (
+        S_reduction,
         S_replacements,
         S_requirement,
         S_rulings,
-        S_static_abilities,
         U_sacrifice_filter,
         U_solve_condition,
         U_source_filter,
         U_spell_filter,
-        U_strive_cost,
     )
-    from mtg_utils._card_ir.mirror.generated.g14_sub_ability import (
+    from mtg_utils._card_ir.mirror.generated.g14_static_abilities import (
+        S_static_abilities,
         S_triggers,
+        U_strive_cost,
         U_target,
         U_toughness,
     )
@@ -309,6 +309,8 @@ class S_GraveyardCastPermission(TypedMirrorNode):
     enters_with_counter: str = MISSING
     extra_cost: S_extra_cost = MISSING
     graveyard_destination_replacement: str = MISSING
+    pool: str = MISSING
+    required_cast_keyword: str = MISSING
 
 
 @dataclass(frozen=True)
@@ -379,15 +381,15 @@ class T_Bestow__NonMana(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
-class T_Blitz__Cost(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "Cost"
-    generic: int
-    shards: list[object]
+class T_Blitz__Mana(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "Mana"
+    data: U_data
 
 
 @dataclass(frozen=True)
-class T_Blitz__SelfManaCost(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "SelfManaCost"
+class T_Blitz__NonMana(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "NonMana"
+    data: U_data
 
 
 @dataclass(frozen=True)
@@ -900,7 +902,7 @@ class T_Mobilize__Ref(TypedMirrorNode):
 
 type U_ActivateTagged = T_ActivateTagged__Equip | T_ActivateTagged__PowerUp
 type U_Bestow = T_Bestow__Mana | T_Bestow__NonMana
-type U_Blitz = T_Blitz__Cost | T_Blitz__SelfManaCost
+type U_Blitz = T_Blitz__Mana | T_Blitz__NonMana
 type U_Bloodthirst = T_Bloodthirst__Fixed | T_Bloodthirst__X
 type U_Buyback = T_Buyback__Mana | T_Buyback__NonMana
 type U_Cleave = T_Cleave__Cost

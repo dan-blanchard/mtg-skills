@@ -43,6 +43,7 @@ from mtg_utils._card_ir.mirror.runtime import (
     MirrorVariant,
     TypedMirrorNode,
 )
+from mtg_utils._card_ir.recovery import SELF
 from mtg_utils._card_ir.text_idioms import (
     _MASS_DEATH_REF,
     _PAY_LIFE_REF,
@@ -131,7 +132,12 @@ def _is_death_payoff_effect(e: ConceptNode) -> bool:
 def _is_self_return_effect(c: ConceptNode) -> bool:
     """A ``ChangeZone`` back to the battlefield targeting the trigger's own
     source — the dies_recursion return arm (Kitchen Finks' persist), NOT a
-    death VALUE payoff."""
+    death VALUE payoff. A recovered return (phase v0.104.0 parks Tom, Bert, and
+    William's "if they were a creature, return them to the battlefield" as an
+    ``unparsed_condition`` residue the ``reanimate`` token recovers) is the
+    seam's ``SELF`` mark."""
+    if c.recovered_by == "reanimate":
+        return SELF in c.subject
     return (
         tag_of(c.node) == "ChangeZone"
         and getattr(c.node, "destination", None) == "Battlefield"
@@ -544,8 +550,17 @@ def has_selfloss_engine(tree: ConceptTree) -> bool:
     a beginning-of-upkeep bleed with factor >= 2 (Xathrid Demon). A one-shot fixed
     "you lose 2 life" rider is NOT an engine (excluded — the mirror's broader loose
     lose-life / pay-life / symmetric-drain matches are shed as over-fires).
+
+    Engines only (Dan's verdict at the v0.104.0 bump, when phase began typing
+    "you lose N life for each …" as a ``Controller`` loss): the loss must be able
+    to recur — a trigger (The One Ring's upkeep, Embalmed Brawler's attacks) or an
+    activated ability (Netherborn Altar). A spell's single loss (Rain of Daggers,
+    Stroke of Luck) and a trigger on the card's own entering or leaving (Phyrexian
+    Etchings' "when it's put into a graveyard") happen once, so they don't count.
     """
     for unit in tree.units:
+        if not _loss_can_recur(unit):
+            continue
         for c in unit.effect_concepts("lose_life"):
             if not _is_self_lifeloss(unit, c.node):
                 continue
@@ -553,6 +568,22 @@ def has_selfloss_engine(tree: ConceptTree) -> bool:
             if amount_is_scaling(c.node) or (up and amount_factor(c.node) >= 2):
                 return True
     return False
+
+
+#: A trigger on the card's own zone change fires once per time it moves.
+_ONCE_PER_OBJECT_EVENTS: frozenset[str] = frozenset({"enters", "dies", "leaves"})
+
+
+def _loss_can_recur(unit: AbilityUnit) -> bool:
+    """Whether ``unit`` can make you lose life more than once: not a spell's own
+    resolution, and not a trigger on the card itself entering or leaving."""
+    if unit.origin == "ability" and unit.kind == "Spell":
+        return False
+    return not (
+        unit.origin == "trigger"
+        and unit.trigger_event in _ONCE_PER_OBJECT_EVENTS
+        and tag_of(getattr(unit.node, "valid_card", None)) == "SelfRef"
+    )
 
 
 def has_life_gained_this_turn(tree: ConceptTree) -> bool:

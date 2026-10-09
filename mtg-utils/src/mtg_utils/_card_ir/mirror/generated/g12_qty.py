@@ -4,8 +4,8 @@ Codegen'd from ``tests/fixtures/phase_mirror_schema.json`` by
 ``mtg_utils._card_ir.mirror.codegen`` (run via ``build-card-ir-substrate``).
 
 Part of the generated typed-mirror package (see this directory's
-``__init__.py``). This module holds content keys ``qty`` .. ``reduction`` (10
-keys).
+``__init__.py``). This module holds content keys ``qty`` .. ``redirect_target``
+(10 keys).
 
 Class naming: ``S_<ckey>`` for a struct shape, ``T_<ckey>__<tag>`` for a tagged
 shape, ``U_<ckey>`` for the union of all tagged shapes at one content_key.
@@ -23,11 +23,10 @@ from mtg_utils._card_ir.mirror.runtime import (
 )
 
 if TYPE_CHECKING:
-    from mtg_utils._card_ir.mirror.generated.g04_choose_scope import (
+    from mtg_utils._card_ir.mirror.generated.g04_characteristics import (
         U_colors,
     )
-    from mtg_utils._card_ir.mirror.generated.g06_count import (
-        U_count,
+    from mtg_utils._card_ir.mirror.generated.g06_costs import (
         U_counters,
         U_data,
         U_direction,
@@ -36,22 +35,26 @@ if TYPE_CHECKING:
         U_exclude,
         U_exprs,
         U_filter,
+        U_filters,
         U_inner,
     )
-    from mtg_utils._card_ir.mirror.generated.g09_keeper_constraint import (
+    from mtg_utils._card_ir.mirror.generated.g09_journal import (
+        U_letters,
         U_metric,
+        U_noun,
     )
-    from mtg_utils._card_ir.mirror.generated.g10_origin import (
+    from mtg_utils._card_ir.mirror.generated.g10_optional_player import (
         U_player,
     )
     from mtg_utils._card_ir.mirror.generated.g11_prop import (
         U_properties,
     )
-    from mtg_utils._card_ir.mirror.generated.g13_reference import (
+    from mtg_utils._card_ir.mirror.generated.g13_redirect_to import (
         U_scope,
         U_source,
     )
-    from mtg_utils._card_ir.mirror.generated.g14_sub_ability import (
+    from mtg_utils._card_ir.mirror.generated.g14_static_abilities import (
+        U_stickers,
         U_target,
     )
 
@@ -60,9 +63,10 @@ if TYPE_CHECKING:
 
 
 @dataclass(frozen=True)
-class S_reduction(TypedMirrorNode):
-    amount_per: int
-    count: U_count
+class S_reads_return_result(TypedMirrorNode):
+    destination: str
+    noun: U_noun
+    recipient: str
 
 
 # --- tagged shapes (discriminated enum nodes) ---
@@ -356,6 +360,13 @@ class T_qty__ManaSymbolsInManaCost(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class T_qty__NameStickerLetterCount(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "NameStickerLetterCount"
+    letters: U_letters
+    stickers: U_stickers
+
+
+@dataclass(frozen=True)
 class T_qty__ObjectColorCount(TypedMirrorNode):
     _tag: ClassVar[str | None] = "ObjectColorCount"
     scope: U_scope
@@ -505,6 +516,7 @@ class T_qty__SpellsCastThisTurn(TypedMirrorNode):
 @dataclass(frozen=True)
 class T_qty__StartingLifeTotal(TypedMirrorNode):
     _tag: ClassVar[str | None] = "StartingLifeTotal"
+    player: U_player = MISSING
 
 
 @dataclass(frozen=True)
@@ -523,6 +535,8 @@ class T_qty__TargetObjectManaValue(TypedMirrorNode):
 class T_qty__TargetZoneCardCount(TypedMirrorNode):
     _tag: ClassVar[str | None] = "TargetZoneCardCount"
     zone: str
+    binding: str = MISSING
+    scope: str = MISSING
 
 
 @dataclass(frozen=True)
@@ -714,6 +728,11 @@ class T_recipient__Neighbor(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class T_recipient__NoPlayer(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "NoPlayer"
+
+
+@dataclass(frozen=True)
 class T_recipient__OtherBatchSource(TypedMirrorNode):
     _tag: ClassVar[str | None] = "OtherBatchSource"
     data: MirrorVariant
@@ -787,6 +806,12 @@ class T_recipient__Untargeted(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class T_recipient_object_filter__Or(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "Or"
+    filters: list[U_filters]
+
+
+@dataclass(frozen=True)
 class T_recipient_object_filter__SelfRef(TypedMirrorNode):
     _tag: ClassVar[str | None] = "SelfRef"
 
@@ -797,6 +822,16 @@ class T_recipient_object_filter__Typed(TypedMirrorNode):
     controller: str | None
     properties: list[U_properties]
     type_filters: list[MirrorVariant]
+
+
+@dataclass(frozen=True)
+class T_recipient_scope__All(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "All"
+
+
+@dataclass(frozen=True)
+class T_recipient_scope__Single(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "Single"
 
 
 @dataclass(frozen=True)
@@ -825,31 +860,6 @@ class T_redirect_target__AttachedTo(TypedMirrorNode):
 @dataclass(frozen=True)
 class T_redirect_target__SelfRef(TypedMirrorNode):
     _tag: ClassVar[str | None] = "SelfRef"
-
-
-@dataclass(frozen=True)
-class T_redirect_to__AttachedToSource(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "AttachedToSource"
-
-
-@dataclass(frozen=True)
-class T_redirect_to__ChosenTarget(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "ChosenTarget"
-
-
-@dataclass(frozen=True)
-class T_redirect_to__Controller(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "Controller"
-
-
-@dataclass(frozen=True)
-class T_redirect_to__DamageSourceController(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "DamageSourceController"
-
-
-@dataclass(frozen=True)
-class T_redirect_to__SourceObject(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "SourceObject"
 
 
 # --- discriminated-union aliases (one per tagged content_key) ---
@@ -902,6 +912,7 @@ type U_qty = (
     | T_qty__LoyaltyAbilitiesActivatedThisTurn
     | T_qty__ManaSpentToCast
     | T_qty__ManaSymbolsInManaCost
+    | T_qty__NameStickerLetterCount
     | T_qty__ObjectColorCount
     | T_qty__ObjectCount
     | T_qty__ObjectCountBySharedQuality
@@ -966,6 +977,7 @@ type U_recipient = (
     | T_recipient__DefendingPlayer
     | T_recipient__EachController
     | T_recipient__Neighbor
+    | T_recipient__NoPlayer
     | T_recipient__OtherBatchSource
     | T_recipient__ParentTarget
     | T_recipient__ParentTargetController
@@ -981,17 +993,13 @@ type U_recipient = (
     | T_recipient__Untargeted
 )
 type U_recipient_object_filter = (
-    T_recipient_object_filter__SelfRef | T_recipient_object_filter__Typed
+    T_recipient_object_filter__Or
+    | T_recipient_object_filter__SelfRef
+    | T_recipient_object_filter__Typed
 )
+type U_recipient_scope = T_recipient_scope__All | T_recipient_scope__Single
 type U_redirect_lifetime = T_redirect_lifetime__Continuous
 type U_redirect_object_filter = (
     T_redirect_object_filter__Any | T_redirect_object_filter__Typed
 )
 type U_redirect_target = T_redirect_target__AttachedTo | T_redirect_target__SelfRef
-type U_redirect_to = (
-    T_redirect_to__AttachedToSource
-    | T_redirect_to__ChosenTarget
-    | T_redirect_to__Controller
-    | T_redirect_to__DamageSourceController
-    | T_redirect_to__SourceObject
-)

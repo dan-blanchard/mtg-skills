@@ -49,6 +49,13 @@ def _group_by_oracle_id(data: object) -> dict[str, list[dict]]:
     for rec in records:
         if not isinstance(rec, dict):
             continue
+        if rec.get("layout") == "meld" and rec.get("face_index") not in (None, 0):
+            # Phase v0.104.0 copies each meld result under every half's oracle id
+            # ("chittering host [<Graf Rats' oid>]", ``face_index: 1``). The
+            # melded permanent exists only once both halves meld (CR 701.42a), so
+            # it is never a face of either half; its own record (its own oracle
+            # id) stays, for the commander fold (ADR-0025).
+            continue
         oid = rec.get("scryfall_oracle_id")
         if isinstance(oid, str) and oid and not _phase.is_impostor_record(rec):
             groups.setdefault(oid, []).append(rec)

@@ -69,6 +69,7 @@ from mtg_utils._card_ir.crosswalk import (
     iter_cost_leaves,
     iter_typed_nodes,
     protective_keyword,
+    residue_is,
     static_mode_field,
     tag_of,
     trigger_turn_constraint,
@@ -251,8 +252,9 @@ def _zuko_match(tree: ConceptTree) -> bool:
 
 
 # ── Warp / Blitz / Morph life-cost cycle → lifeloss_makers ──────────────────
-# "Warp—{B}, Pay 2 life." (Timeline Culler), "Blitz—{2}{B}{B}, Pay 2 life."
-# (Tenacious Underdog), "Morph—Pay 5 life." (Zombie Cutthroat). Unlike
+# "Warp—{B}, Pay 2 life." (Timeline Culler), "Morph—Pay 5 life." (Zombie
+# Cutthroat); phase v0.104.0 parses Tenacious Underdog's "Blitz—{2}{B}{B}, Pay 2
+# life." as a ``Composite`` keyword cost, so blitz left this row. Unlike
 # Flashback (a full ``Composite``/``PayLife`` structure rides
 # ``root.keywords``, see :func:`_keyword_cost_paylife_concepts`), phase
 # v0.20.0 drops these three newer alternative-casting keywords WHOLESALE —
@@ -564,22 +566,6 @@ def _flames_blood_hand_match(tree: ConceptTree) -> bool:
     return bool(_FLAMES_BLOOD_HAND_RX.search(tree.oracle or ""))
 
 
-# (6) Avatar Aang // Aang, Master of Elements's transform trigger is a FIVE-
-# effect conjunction (gain life, draw, put counters, deal damage) chained via
-# ``SequentialSibling``; phase's chain terminates after the FOURTH effect
-# (``PutCounter``, ``sub_ability=None``) — the fifth conjunct, "he deals 4
-# damage to each opponent," carries no node at all.
-_AVATAR_AANG_RX = re.compile(
-    r"put four \+1/\+1 counters on \w+, and \w+ deals \d+ damage to "
-    r"each opponent",
-    re.IGNORECASE,
-)
-
-
-def _avatar_aang_match(tree: ConceptTree) -> bool:
-    return bool(_AVATAR_AANG_RX.search(tree.oracle or ""))
-
-
 # (7) Insult // Injury's Aftermath back face ("Injury deals 2 damage to
 # target creature and 2 damage to target player or planeswalker") gets ZERO
 # units in its ``ConceptTree`` — neither phase's own parse nor the W2c
@@ -610,6 +596,12 @@ _KARN_LIVING_LEGACY_RX = re.compile(
 
 def _karn_living_legacy_match(tree: ConceptTree) -> bool:
     return bool(_KARN_LIVING_LEGACY_RX.search(tree.oracle or ""))
+
+
+def _karn_living_legacy_gap(tree: ConceptTree) -> bool:
+    # Phase v0.104.0 parks the emblem as an emblem_creation residue (row below,
+    # in the v0.104.0 section).
+    return _says(_KARN_LIVING_LEGACY_RX, tree.residues("emblem_creation"))
 
 
 # (9) Captain Rex Nebula's granted "Crash Land" trigger — "Whenever ~ deals
@@ -983,31 +975,8 @@ def _mairsil_rex_match(tree: ConceptTree) -> bool:
     return _says(_MAIRSIL_REX_RX, _static_parse_failure_descs(tree))
 
 
-# (2) Grolnok, the Omnivore — "You may play lands and cast spells from among
-# cards you own in exile with croak counters on them" (CR 305.1 land-play
-# permission / CR 601.3 cast permission). A DIFFERENT phase diagnostic name
-# than (1) — ``Unimplemented(name='effect_structure')`` ("Effect sentence
-# candidate but line failed effect parser") — so a separate gap/match pair,
-# even though the surface idiom (a counter-gated persistent exile pile as a
-# play/cast resource) is a sibling of (1)'s ability-grant idiom.
-def _effect_structure_descs(tree: ConceptTree) -> Iterator[str]:
-    return tree.residues("effect_structure")
-
-
-_GROLNOK_RX = re.compile(
-    r"play lands and cast spells from among cards you own in exile with"
-    r" [^.]* counters? on (?:it|them)",
-    re.IGNORECASE,
-)
-
-
-def _grolnok_gap(tree: ConceptTree) -> bool:
-    # The effect_structure residue carrying THIS clause, not any effect failure.
-    return _says(_GROLNOK_RX, _effect_structure_descs(tree))
-
-
-def _grolnok_match(tree: ConceptTree) -> bool:
-    return _says(_GROLNOK_RX, _effect_structure_descs(tree))
+# (2) Grolnok, the Omnivore's row retired at phase v0.104.0: the recovery stage
+# reads its cast-from-exile residue (exile_matters's recovered cast_from_zone arm).
 
 
 # (3) Candlekeep Inspiration — "Until end of turn, creatures you control
@@ -1506,35 +1475,6 @@ def _lightning_runner_match(tree: ConceptTree) -> bool:
     return bool(_LIGHTNING_RUNNER_UNTAP_RX.search(tree.oracle or ""))
 
 
-# (5) Duskana, the Rage Mother's ETB "draw a card for each creature you
-# control with base power and toughness 2/2" (CR 121.1 draw, 613.4b base
-# P/T reference) — the ``Draw`` node IS typed, but its ``count`` field
-# collapses to a bare ``Fixed(1)`` instead of a ``Ref(qty=ObjectCount(...
-# base-power-2/2 filter))``; the dynamic count is dropped with no residue
-# at all. Distinct from the ALREADY-LANDED ``duskana_bess_base_pt_and_
-# toughness_ref`` bridge above (``base_power_matters`` key) — that bridge
-# serves the SECOND ability's "creature ... with base power and toughness
-# 2/2 attacks" REFERENCE; this one serves the FIRST ability's dropped
-# COUNT, a different key, kept as a separate row/id per the ledger's
-# one-key-per-row contract.
-_DUSKANA_DRAW_COUNT_RX = re.compile(
-    r"draw a card for each creature you control with base power and "
-    r"toughness 2/2",
-    re.IGNORECASE,
-)
-
-
-def _duskana_draw_count_gap(tree: ConceptTree) -> bool:
-    return any(
-        tag_of(n) == "Draw" and tag_of(getattr(n, "count", None)) != "Ref"
-        for n in tree.iter_typed()
-    )
-
-
-def _duskana_draw_count_match(tree: ConceptTree) -> bool:
-    return bool(_DUSKANA_DRAW_COUNT_RX.search(tree.oracle or ""))
-
-
 # (6) Moku, Meandering Drummer's "Moku gets +2/+1 AND CREATURES YOU CONTROL
 # GAIN HASTE until end of turn" (CR 113.10 ability grant) — phase folds
 # BOTH clauses into ONE ``S_static_abilities`` def whose ``affected`` is
@@ -1578,28 +1518,6 @@ def _oracle_says(tree: ConceptTree, rx: re.Pattern[str]) -> bool:
     return bool(rx.search(tree.oracle or ""))
 
 
-# (7) Siege Behemoth's "As long as this creature is attacking, FOR EACH
-# CREATURE YOU CONTROL, you may have that creature assign its combat
-# damage as though it weren't blocked" (CR 509.1h-adjacent unblocked-
-# damage-assignment permission) — a hollow static def: ``affected`` is
-# ``SelfRef`` and ``modifications`` is an EMPTY list; the whole per-creature
-# grant lives only in the def's own ``description`` and an ``Unrecognized``
-# condition text, never a typed mode or modification.
-_SIEGE_BEHEMOTH_RX = re.compile(
-    r"for each creature you control, you may have that creature assign "
-    r"its combat damage as though it weren't blocked",
-    re.IGNORECASE,
-)
-
-
-def _siege_behemoth_gap(tree: ConceptTree) -> bool:
-    return _hollow_static_says(tree, _SIEGE_BEHEMOTH_RX)
-
-
-def _siege_behemoth_match(tree: ConceptTree) -> bool:
-    return _oracle_says(tree, _SIEGE_BEHEMOTH_RX)
-
-
 # (8) Illusionist's Gambit → extra_combats. "Remove all attacking creatures
 # from combat and untap them. After this phase, there is an additional
 # combat phase. Each of those creatures attacks that combat if able. They
@@ -1607,9 +1525,9 @@ def _siege_behemoth_match(tree: ConceptTree) -> bool:
 # ``Condition_If`` clause grammar swallows the WHOLE sentence (a phase
 # ``SwallowedClause`` parse warning fires on it, unchanged since phase
 # v0.20.0 through v0.23.0), leaving the card's one static ability def with
-# ``affected: SelfRef`` and an EMPTY ``modifications`` list — the same
-# residue shape as (7) Siege Behemoth above, no ``AdditionalPhase`` node of
-# any kind reachable anywhere on the tree.
+# ``affected: SelfRef`` and an EMPTY ``modifications`` list (a hollow static,
+# :func:`_hollow_static_says`), no ``AdditionalPhase`` node of any kind
+# reachable anywhere on the tree.
 _ILLUSIONISTS_GAMBIT_RX = re.compile(
     r"after this phase, there is an additional combat phase", re.IGNORECASE
 )
@@ -1700,10 +1618,13 @@ def keep_n_shape_b_reads(tree: ConceptTree) -> list[tuple[str, str]]:
                     continue
                 ctrl = filter_controller(target)
                 owner = effect_owner_player_scope(unit.node, c.node)
-                if ctrl == "ScopedPlayer" and owner == "All":
-                    pending = "each"
-                elif ctrl == "You" and _knw_one_sided(unit, c.node):
+                # One-sidedness first: phase v0.104.0 binds Archfiend of
+                # Depravity's "that player chooses" (an opponent's end step) as
+                # ScopedPlayer under an All wrapper, the symmetric shape.
+                if ctrl in ("You", "ScopedPlayer") and _knw_one_sided(unit, c.node):
                     pending = "opponents"
+                elif ctrl == "ScopedPlayer" and owner == "All":
+                    pending = "each"
                 continue
             if (
                 pending
@@ -1788,13 +1709,10 @@ def _paycost_artifact_sacrifice_undecorated(tree: ConceptTree) -> bool:
 # BRANCH's Token (Transmutation Font) and a ``GrantTrigger``-granted
 # trigger's Token (Ceremonial Knife) never surface as ``make_token``
 # concepts, so ``_resource_token_makers``'s concept read finds nothing.
-# Odric, Blood-Cursed rides the choice-list blood row via a second match arm
-# (upstream_parse_failure class, the keep_n_wrath/Promise-of-Loyalty
-# precedent): phase parks "create X Blood tokens, where X is the number of
-# abilities ..." WHOLE as ``Unimplemented(name='create')``; the recovery
-# stage decorates it as a ``make_token`` concept but with an EMPTY subject —
-# no ``Blood`` for the lane's subtype read. CR 111.10 (predefined tokens)
-# throughout.
+# (Odric, Blood-Cursed rode the blood row via a second match arm until phase
+# v0.104.0: its parked "create X Blood tokens" now reads through the
+# ``make_token`` recovery arm of ``_resource_token_makers``.) CR 111.10
+# (predefined tokens) throughout.
 
 
 def _make_token_concept_missing(tree: ConceptTree, subtype: str) -> bool:
@@ -1826,19 +1744,12 @@ def _choice_branch_makes_token(tree: ConceptTree, subtype: str) -> bool:
     return False
 
 
-_CREATE_X_BLOOD_RX = re.compile(r"\bcreate x blood tokens\b", re.IGNORECASE)
-
-
 def _blood_maker_concept_gap(tree: ConceptTree) -> bool:
     return _make_token_concept_missing(tree, "Blood")
 
 
 def _choice_list_blood_match(tree: ConceptTree) -> bool:
-    # Arm 1: the Font choice-list branch Token; arm 2: Odric's phase
-    # Unimplemented('create') residue (see the section comment above).
-    if _choice_branch_makes_token(tree, "Blood"):
-        return True
-    return _says(_CREATE_X_BLOOD_RX, _unimplemented_descs_anywhere(tree))
+    return _choice_branch_makes_token(tree, "Blood")
 
 
 def _choice_list_clue_gap(tree: ConceptTree) -> bool:
@@ -1997,8 +1908,8 @@ def _prevention_parse_failure_match(tree: ConceptTree) -> bool:
 # banded with this creature" (CR 615.1a) — v0.86.0 parsed it as a Prevention
 # replacement; v0.94.0 leaves a hollow static def (``affected: SelfRef``, a
 # ``SourceIsAttacking`` condition and an EMPTY ``modifications`` list), the
-# prevention living only in the def's own ``description`` (the Siege Behemoth
-# / Illusionist's Gambit shape above — no residue node to key on).
+# prevention living only in the def's own ``description`` (the Illusionist's
+# Gambit shape above — no residue node to key on).
 def _prevention_empty_static_gap(tree: ConceptTree) -> bool:
     return _hollow_static_says(tree, _PREVENTION_SHIELD_RX)
 
@@ -2025,13 +1936,18 @@ def _plural_attach_anaphor_gap(tree: ConceptTree) -> bool:
     return _says(_ATTACH_ANAPHOR_RX, tree.residues("plural_attachment_anaphor"))
 
 
+# Phase v0.104.0 parks Fumble's "gain control of all Auras and Equipment that
+# were attached to it" too, as an ``attached_to_qualifier`` residue: the match
+# reads the anaphor clause's words, and the gain-control half as that residue's
+# presence (its name, not its words).
 def _plural_attach_anaphor_match(tree: ConceptTree) -> bool:
-    if not _plural_attach_anaphor_gap(tree):
-        return False
-    return any(
-        tag_of(n) == "GainControlAll"
-        and {s.lower() for s in filter_subtypes(getattr(n, "target", None))}
-        & _VOLTRON_SUBTYPES
+    return _oracle_says(tree, _ATTACH_ANAPHOR_RX) and any(
+        residue_is(n, "attached_to_qualifier")
+        or (
+            tag_of(n) == "GainControlAll"
+            and {s.lower() for s in filter_subtypes(getattr(n, "target", None))}
+            & _VOLTRON_SUBTYPES
+        )
         for n in tree.iter_typed()
     )
 
@@ -2116,8 +2032,12 @@ def _global_ruin_match(tree: ConceptTree) -> bool:
 
 # A protective keyword given to something (CR 702.11 hexproof, 702.18 shroud,
 # 702.12 indestructible, 702.21 ward, 702.16 protection, 702.89a umbra armor) …
+# A negated verb ("as though it didn't have shroud", "if it doesn't have an
+# indestructible counter") strips or checks protection, never grants it — the
+# shapes phase v0.104.0 newly parks (Autumn Willow, Detection Tower, Risona).
 _PARKED_GRANT_RX = re.compile(
-    r"\b(?:gains?|have|has)\b[^.]*\b(?:hexproof|indestructible|shroud|ward|"
+    r"(?<!n't )(?<!not )\b(?:gains?|have|has)\b[^.]*\b"
+    r"(?:hexproof|indestructible|shroud|ward|"
     r"protection from|umbra armor)\b",
     re.IGNORECASE,
 )
@@ -2328,6 +2248,531 @@ def _chosen_creature_match(tree: ConceptTree) -> bool:
     )
 
 
+# ══ Phase v0.104.0 fail-closed residues ══════════════════════════════════════
+# Phase v0.104.0 stops guessing at clauses it can't fully represent (an
+# intervening-if, a qualified counter tail, a granted ability's back-reference to
+# its granter, a keyword condition) and parks the whole effect as an
+# ``Unimplemented`` residue named for the shape (phase #9392 "intervening-if
+# fail-closed" and kin). Through v0.94.0 each clause parsed with its condition,
+# qualifier or reference dropped, which served the key; each row restores that
+# serving. A row's gap is the residue of its class that carries the row's own
+# clause; its match is the same words over the oracle unless noted. One section
+# per residue class below, and the rows sit in ``BRIDGES`` in the same order.
+
+# ``Unimplemented`` node counts per residue class in phase v0.104.0's card-data —
+# the corpus each row's census is measured against.
+_V0_104_RESIDUE_TOTALS = {
+    "unparsed_condition": 216,
+    "target_has_unknown_keyword_condition": 5,
+    "attached_to_qualifier": 28,
+    "put_counter_tail": 61,
+    "unparsed_verb_arguments": 714,
+    "perpetual_modify_pt": 41,
+    "granter_reference_unreached": 20,
+    "unrecognized_clause_head": 1036,
+    "zone_change_reflexive_target_timing": 1,
+    "additional_phase": 1,
+    "emblem_creation": 12,
+}
+
+# The card's reference to itself. A residue writes it "~"; the oracle spells the
+# name out ("Johan") or says "this creature" / "this card". The capitalised name
+# words match case-SENSITIVELY, so "it" / "target creature" never pass for the
+# card itself. ``~`` is a non-word character, so ``(?!\w)`` stands in for ``\b``.
+_SELF_REF = (
+    r"(?:~(?!\w)|this (?:creature|card)\b"
+    r"|(?-i:[A-Z][\w'-]*(?: [A-Z][\w'-]*){0,3}))"
+)
+
+
+def _residue_todo(shape: str, residue: str) -> str:
+    return (
+        "upstream phase-rs regression (v0.94.0 → v0.104.0, report candidate — "
+        f"Dan posts): {shape} fails closed into Unimplemented({residue}) — "
+        "retires on the phase bump that parses it"
+    )
+
+
+def _oracle_match(rx: re.Pattern[str]) -> Callable[[ConceptTree], bool]:
+    """The match most fail-closed rows share: the clause's words in the oracle."""
+
+    def match(tree: ConceptTree) -> bool:
+        return _oracle_says(tree, rx)
+
+    return match
+
+
+def _residue_row(
+    bridge_id: str,
+    key: str,
+    residue: str | tuple[str, ...],
+    shape: str,
+    pins: tuple[str, ...],
+    gap: Callable[[ConceptTree], bool],
+    match: Callable[[ConceptTree], bool],
+    *,
+    hits: int,
+    scope: str = "you",
+    subject: str = "",
+) -> Bridge:
+    """One phase v0.104.0 fail-closed row: ``shape`` parked as ``residue`` (or
+    one of several residue classes, the census counting them together)."""
+    residues = (residue,) if isinstance(residue, str) else residue
+    names = " + ".join(residues)
+    total = sum(_V0_104_RESIDUE_TOTALS[r] for r in residues)
+    return Bridge(
+        bridge_id=bridge_id,
+        key=key,
+        kind="upstream_parse_failure",
+        todo=_residue_todo(shape, names),
+        census=(
+            f"{hits} hit{'' if hits == 1 else 's'} / "
+            f"{total} {names} residues corpus-wide "
+            f"({', '.join(pins)}), phase v0.104.0, 2026-10-09"
+        ),
+        pins=pins,
+        gap=gap,
+        match=match,
+        scope=scope,
+        subject=subject,
+    )
+
+
+# ── unparsed_condition: an intervening-if (CR 603.4) ─────────────────────────
+# Tetsuo, Imperial Champion's attack trigger gate "if it's equipped" (two keys:
+# voltron_matters and direct_damage).
+_TETSUO_RX = re.compile(r"\bif it's equipped\b", re.IGNORECASE)
+
+
+def _tetsuo_gap(tree: ConceptTree) -> bool:
+    return _says(_TETSUO_RX, tree.residues("unparsed_condition"))
+
+
+# Ochre Jelly's Split "if it had two or more +1/+1 counters on it, create a token
+# that's a copy of it" (plus_one_matters), and with Fyndhorn Druid's "if it was
+# blocked this turn, you gain 4 life" a dies trigger's payload
+# (self_death_payoff).
+_SPLIT_COPY = (
+    r"if it had two or more \+1/\+1 counters on it, create a token that's a "
+    r"copy of it"
+)
+_SPLIT_COPY_RX = re.compile(rf"\b{_SPLIT_COPY}\b", re.IGNORECASE)
+_DIES_PAYLOAD_RX = re.compile(
+    rf"\b(?:{_SPLIT_COPY}|if it was blocked this turn, you gain \d+ life)\b",
+    re.IGNORECASE,
+)
+
+
+def _split_copy_gap(tree: ConceptTree) -> bool:
+    return _says(_SPLIT_COPY_RX, tree.residues("unparsed_condition"))
+
+
+def _dies_payload_gap(tree: ConceptTree) -> bool:
+    return _says(_DIES_PAYLOAD_RX, tree.residues("unparsed_condition"))
+
+
+# Darigaaz Reincarnated's upkeep "if this card is exiled with an egg counter on
+# it, remove an egg counter from it. Then if this card has no egg counters on it,
+# return it to the battlefield" — one residue, two keys (named_counter_misc and
+# dies_recursion).
+_EGG_COUNTER_RX = re.compile(
+    r"\bif this card is exiled with an egg counter on it, remove an egg counter\b",
+    re.IGNORECASE,
+)
+
+
+def _egg_counter_gap(tree: ConceptTree) -> bool:
+    return _says(_EGG_COUNTER_RX, tree.residues("unparsed_condition"))
+
+
+# Carpet of Flowers → big_mana.
+_CARPET_RX = re.compile(
+    r"\bif you haven't added mana with this ability this turn, you may add X mana "
+    r"of any one color\b",
+    re.IGNORECASE,
+)
+
+
+def _carpet_gap(tree: ConceptTree) -> bool:
+    return _says(_CARPET_RX, tree.residues("unparsed_condition"))
+
+
+# A conditional draw → card_draw_engine. Curator's Ward's "if it was historic"
+# also matches, but recovery already serves it, so the pins are the other two.
+_CONDITIONAL_DRAW_RX = re.compile(
+    r"\bif (?:it was historic, draw two cards"
+    r"|it has two or more velocity counters on it, sacrifice it and draw two cards"
+    r"|you control an enchanted creature, you lose 1 life and you draw an "
+    r"additional card)\b",
+    re.IGNORECASE,
+)
+
+
+def _conditional_draw_gap(tree: ConceptTree) -> bool:
+    return _says(_CONDITIONAL_DRAW_RX, tree.residues("unparsed_condition"))
+
+
+# A combat-keyed pump → combat_buff_engine: Septic Rats', Sickle Dancer's attack
+# self-pump (Proft's Eidetic Memory's begin-combat counters also match; recovery
+# serves that one).
+_COMBAT_PUMP_RX = re.compile(
+    r"\bif (?:defending player is poisoned, it"
+    rf"|your team controls another Warrior, {_SELF_REF}) gets \+1/\+1 until "
+    r"end of turn\b"
+    r"|\bif you've drawn more than one card this turn, put X \+1/\+1 counters on "
+    r"target creature you control\b",
+    re.IGNORECASE,
+)
+
+
+def _combat_pump_gap(tree: ConceptTree) -> bool:
+    return _says(_COMBAT_PUMP_RX, tree.residues("unparsed_condition"))
+
+
+# Spiritual Sanctuary → lifegain_makers.
+_PLAINS_LIFEGAIN_RX = re.compile(
+    r"\bif that player controls a Plains, they gain 1 life\b", re.IGNORECASE
+)
+
+
+def _plains_lifegain_gap(tree: ConceptTree) -> bool:
+    return _says(_PLAINS_LIFEGAIN_RX, tree.residues("unparsed_condition"))
+
+
+# A graveyard self-return → self_recurring: "…, return this card from your
+# graveyard to your hand / the battlefield" ("Lifetime" Pass Holder, Command the
+# Stage, Kami of Transience, Perennial Gravewarden, Spellpyre Phoenix) and the
+# graveyard-position "if this card is in your graveyard with a creature card
+# directly above it, … return this card to your hand" (Death Spark, Krovikan
+# Horror). Recovery serves all but Death Spark, the one pin.
+_GRAVEYARD_SELF_RETURN_RX = re.compile(
+    r"\b(?:return this card from your graveyard to (?:your hand|the battlefield)"
+    r"|if this card is in your graveyard\b[^\n]*?\breturn this card to your hand)\b",
+    re.IGNORECASE,
+)
+
+
+def _graveyard_self_return_gap(tree: ConceptTree) -> bool:
+    return _says(_GRAVEYARD_SELF_RETURN_RX, tree.residues("unparsed_condition"))
+
+
+# A conditional "gets +N/+N until end of turn" → pump_makers (Alex Wilder's "it
+# gets +2/+0 and gains haste until end of turn", Septic Rats, Sickle Dancer).
+_PUMP_CONDITION_RX = re.compile(
+    r"\bgets \+\d+/\+\d+ (?:and gains \w+ )?until end of turn\b", re.IGNORECASE
+)
+
+
+def _pump_condition_gap(tree: ConceptTree) -> bool:
+    return _says(_PUMP_CONDITION_RX, tree.residues("unparsed_condition"))
+
+
+# A conditional CopySpell → spell_copy_makers: "copy that spell (or ability)" /
+# "copy the spell" / "copy that ability" / "copy those cards" / "copy the other"
+# (v0.94.0 emitted CopySpell for each; spellcast_matters returns with it through
+# the lanes' spell-copy cross-open). Recovery serves Unbound Flourishing.
+_COPY_SPELL_CONDITION_RX = re.compile(
+    r"\bcopy (?:that spell(?: or ability)?|the spell|that ability|those cards"
+    r"|the other)\b",
+    re.IGNORECASE,
+)
+
+
+def _copy_spell_condition_gap(tree: ConceptTree) -> bool:
+    return _says(_COPY_SPELL_CONDITION_RX, tree.residues("unparsed_condition"))
+
+
+# Wakka, Devoted Guardian's go-wide counter spread → type_matters (Warrior).
+# Through v0.94.0 the PutCounterAll over "each other creature you control" fired
+# creatures_matter, which opens the CLASS tribe Warrior behind the go-wide gate
+# (lanes._type_matters_go_wide). Subject-fixed, so the match also needs the card
+# to be a Warrior.
+_GO_WIDE_COUNTERS_RX = re.compile(
+    r"\bput a \+1/\+1 counter on each other creature you control\b", re.IGNORECASE
+)
+
+
+def _go_wide_counters_gap(tree: ConceptTree) -> bool:
+    return _says(_GO_WIDE_COUNTERS_RX, tree.residues("unparsed_condition"))
+
+
+def _go_wide_counters_warrior_match(tree: ConceptTree) -> bool:
+    return "Warrior" in tree.card_subtypes and _oracle_says(tree, _GO_WIDE_COUNTERS_RX)
+
+
+# A conditional alt-win / alt-loss → win_lose_game: Ramses "if they were attacked
+# this turn by an Assassin you controlled, you win the game"; Vessel of the
+# All-Consuming "if it has dealt 10 or more damage to that player this turn, they
+# lose the game" (recovery serves Vessel). Kept to these two shapes so the
+# Un-card alt-wins (Topdeck the Halls, Now I Know My ABC's, Platinum Persecutor)
+# stay out.
+_ALT_WIN_RX = re.compile(
+    r"\b(?:if they were attacked this turn by an? \w+ you controlled, you win"
+    r"|if it has dealt \d+ or more damage to that player this turn, they lose)"
+    r" the game\b",
+    re.IGNORECASE,
+)
+
+
+def _alt_win_gap(tree: ConceptTree) -> bool:
+    return _says(_ALT_WIN_RX, tree.residues("unparsed_condition"))
+
+
+# The second-verb rows. The recovery stage names a residue by its FIRST verb, so a
+# key the clause's second verb carries is a row here, not a lane read of the first
+# verb's node.
+#
+# A draw-and-self-bleed trigger → lifegain_matters and lifeloss_makers: Invasion of
+# Fiora // Marchesa's "if you haven't been dealt combat damage since your last turn,
+# you draw a card and you lose 1 life" (recovered as a draw) and Lord Skitter's
+# Blessing's "you lose 1 life and you draw an additional card" (recovered as a life
+# loss, so lifeloss_makers reads it already; the lifegain engine needs both halves).
+_DRAW_BLEED_RX = re.compile(
+    r"\bif [^,.]+, you (?:draw a card and you lose 1 life"
+    r"|lose 1 life and you draw an additional card)\b",
+    re.IGNORECASE,
+)
+
+
+def _draw_bleed_gap(tree: ConceptTree) -> bool:
+    return _says(_DRAW_BLEED_RX, tree.residues("unparsed_condition"))
+
+
+# Might Makes Right's "gain control of target creature an opponent controls until
+# end of turn. Untap that creature. It gains haste until end of turn" →
+# keyword_grant_target (recovered as the gain_control).
+_THREATEN_HASTE_RX = re.compile(
+    r"\bgain control of target creature an opponent controls until end of turn\. "
+    r"Untap that creature\. It gains haste\b",
+    re.IGNORECASE,
+)
+
+
+def _threaten_haste_gap(tree: ConceptTree) -> bool:
+    return _says(_THREATEN_HASTE_RX, tree.residues("unparsed_condition"))
+
+
+# ── target_has_unknown_keyword_condition: a counter condition on a target ────
+# Bring Low's "If that creature has a +1/+1 counter on it, ~ deals 5 damage to it
+# instead", and Hadana's Climb's "if that creature has three or more +1/+1
+# counters on it, transform ~" (both plus_one_matters).
+_BRING_LOW_RX = re.compile(
+    r"\bif that creature has a \+1/\+1 counter on it\b", re.IGNORECASE
+)
+_COUNTER_THRESHOLD_RX = re.compile(
+    r"\bif that creature has three or more \+1/\+1 counters on it, transform\b",
+    re.IGNORECASE,
+)
+
+
+def _bring_low_gap(tree: ConceptTree) -> bool:
+    return _says(_BRING_LOW_RX, tree.residues("target_has_unknown_keyword_condition"))
+
+
+def _counter_threshold_gap(tree: ConceptTree) -> bool:
+    return _says(
+        _COUNTER_THRESHOLD_RX, tree.residues("target_has_unknown_keyword_condition")
+    )
+
+
+# ── attached_to_qualifier ────────────────────────────────────────────────────
+# Witchbane Orb's "When this artifact enters, destroy all Curses attached to you"
+# → curse_matters: v0.94.0 emitted a DestroyAll over the Curse subtype.
+_CURSES_ATTACHED_RX = re.compile(
+    r"\bdestroy all curses attached to you\b", re.IGNORECASE
+)
+
+
+def _curses_attached_gap(tree: ConceptTree) -> bool:
+    return _says(_CURSES_ATTACHED_RX, tree.residues("attached_to_qualifier"))
+
+
+# ── put_counter_tail ─────────────────────────────────────────────────────────
+# Sigurd, Jarl of Ravensthorpe's boast "put a lore counter on target Saga you
+# control or remove one from it" → saga_matters.
+_LORE_SAGA_RX = re.compile(
+    r"\bput a lore counter on target saga you control or remove one from it\b",
+    re.IGNORECASE,
+)
+
+
+def _lore_saga_gap(tree: ConceptTree) -> bool:
+    return _says(_LORE_SAGA_RX, tree.residues("put_counter_tail"))
+
+
+# ── unparsed_verb_arguments ──────────────────────────────────────────────────
+# "Destroy target Aura/Equipment attached to <X>" → removal (Devout Harpist,
+# Miracle Worker, Piety Charm, Pyramids, Savaen Elves, and Shackles of
+# Treachery's granted "destroy target Equipment attached to it"). Through v0.94.0
+# phase typed a Destroy over the Aura / Equipment subtype (the removal lane's
+# permanent-subtype arm, CR 303.4: an Aura is attached to an object). Shackles'
+# ruling: "It doesn't matter who controls the Equipment attached to the
+# creature." Recovery serves all but Shackles, the one pin.
+_DESTROY_ATTACHED_RX = re.compile(
+    r"\bdestroy target (?:aura|equipment) attached to "
+    r"(?:it|an? (?:creature|land)(?: you control)?)\b",
+    re.IGNORECASE,
+)
+
+
+def _destroy_attached_gap(tree: ConceptTree) -> bool:
+    return _says(_DESTROY_ATTACHED_RX, tree.residues("unparsed_verb_arguments"))
+
+
+# Trail of Mystery's "Whenever a permanent you control is turned face up, if it's
+# a creature, it gets +2/+2 until end of turn" → pump_makers.
+_FACE_UP_PUMP_RX = re.compile(
+    r"\bif it's a creature, it gets \+\d+/\+\d+ until end of turn\b",
+    re.IGNORECASE,
+)
+
+
+def _face_up_pump_gap(tree: ConceptTree) -> bool:
+    return _says(_FACE_UP_PUMP_RX, tree.residues("unparsed_verb_arguments"))
+
+
+# ── perpetual_modify_pt: Alchemy's "perpetually gets" ────────────────────────
+# A combat-frame trigger's perpetual pump of your own creature → combat_buff_engine:
+# By Elspeth's Command's begin-combat "Up to one target Soldier perpetually gets
+# +1/+1", Hurkyl's Prodigy's attack "~ can't be blocked this turn and it
+# perpetually gets +2/+0".
+_COMBAT_PERPETUAL_RX = re.compile(
+    r"\bup to one target soldier perpetually gets \+1/\+1\b"
+    r"|\bcan't be blocked this turn and it perpetually gets \+\d+/\+\d+",
+    re.IGNORECASE,
+)
+
+
+def _combat_perpetual_gap(tree: ConceptTree) -> bool:
+    return _says(_COMBAT_PERPETUAL_RX, tree.residues("perpetual_modify_pt"))
+
+
+# Sewer Plague's "Target creature an opponent controls perpetually gets -2/-2"
+# → debuff_makers.
+_PERPETUAL_SHRINK_RX = re.compile(
+    r"\btarget creature an opponent controls perpetually gets -\d+/-\d+",
+    re.IGNORECASE,
+)
+
+
+def _perpetual_shrink_gap(tree: ConceptTree) -> bool:
+    return _says(_PERPETUAL_SHRINK_RX, tree.residues("perpetual_modify_pt"))
+
+
+# A counted perpetual pump → scaling_pump: Gyox's "Those duplicates perpetually
+# get +X/+X", Mycoid Resurrection's "… perpetually gets +X/+X, where X is the
+# number of permanent cards in your graveyard". Bounded to the two subjects that
+# served scaling_pump at v0.94.0 (Arvad, Golden Sidekick and Thorna and Twigtooth
+# carry the same residue but never had the key).
+_PERPETUAL_X_PUMP_RX = re.compile(
+    r"\b(?:those duplicates|each creature card in your graveyard) perpetually "
+    r"gets? \+X/\+X\b",
+    re.IGNORECASE,
+)
+
+
+def _perpetual_x_pump_gap(tree: ConceptTree) -> bool:
+    return _says(_PERPETUAL_X_PUMP_RX, tree.residues("perpetual_modify_pt"))
+
+
+# Network Marauder's "all artifact creature cards and Spacecraft cards you own
+# perpetually get +1/+1" → station_matters.
+_SPACECRAFT_PERPETUAL_RX = re.compile(
+    r"\bspacecraft cards you own perpetually get\b", re.IGNORECASE
+)
+
+
+def _spacecraft_perpetual_gap(tree: ConceptTree) -> bool:
+    return _says(_SPACECRAFT_PERPETUAL_RX, tree.residues("perpetual_modify_pt"))
+
+
+# ── granter_reference_unreached: a granted ability naming its granter ────────
+# Johan's begin-combat "you may have ~ gain "~ can't attack" until end of combat"
+# → wants_cloning.
+_JOHAN_RX = re.compile(
+    rf"\bat the beginning of combat on your turn, you may have {_SELF_REF} gain "
+    rf"\"{_SELF_REF} can't attack\"",
+    re.IGNORECASE,
+)
+
+
+def _johan_gap(tree: ConceptTree) -> bool:
+    return _says(_JOHAN_RX, tree.residues("granter_reference_unreached"))
+
+
+# The boomerang Equipment's granted "{cost}, Unattach ~: It deals N damage to any
+# target. Return <~> to its owner's hand." → self_recurring (Razor Boomerang,
+# Toralf's Hammer).
+_GRANTED_BOOMERANG_RX = re.compile(
+    r"\bunattach [^:\"]*: it deals \d+ damage to any target\. return [^.\"]+ to "
+    r"its owner's hand\b",
+    re.IGNORECASE,
+)
+
+
+def _granted_boomerang_gap(tree: ConceptTree) -> bool:
+    return _says(_GRANTED_BOOMERANG_RX, tree.residues("granter_reference_unreached"))
+
+
+# An Equipment's granted "{cost}, Sacrifice <~>: ~ deals N damage to any target" →
+# direct_damage (Blazing Torch, Ninja's Kunai). A second-verb row: the recovery
+# stage names the clause by the grant's sacrifice cost, and the burn is the granted
+# ability's own verb.
+_GRANTED_SAC_BURN_RX = re.compile(
+    r"\bsacrifice [^:\"]*: [^:\"]*\bdeals \d+ damage to any target\b", re.IGNORECASE
+)
+
+
+def _granted_sac_burn_gap(tree: ConceptTree) -> bool:
+    return _says(_GRANTED_SAC_BURN_RX, tree.residues("granter_reference_unreached"))
+
+
+# ── unrecognized_clause_head ─────────────────────────────────────────────────
+# Dúnedain Rangers' "if you don't control a Ring-bearer, the Ring tempts you" →
+# ring_tempters.
+_RING_TEMPT_RX = re.compile(
+    r"\bif you don't control a ring-bearer, the ring tempts you\b", re.IGNORECASE
+)
+
+
+def _ring_tempt_gap(tree: ConceptTree) -> bool:
+    return _says(_RING_TEMPT_RX, tree.residues("unrecognized_clause_head"))
+
+
+# ── zone_change_reflexive_target_timing ──────────────────────────────────────
+# Cait Sith, Fortune Teller's begin-combat reflexive "When you exile a card this
+# way, target creature you control gets +X/+0 until end of turn" →
+# combat_buff_engine.
+_REFLEXIVE_COMBAT_PUMP_RX = re.compile(
+    r"\bwhen you exile a card this way, target creature you control gets \+X/\+0 "
+    r"until end of turn\b",
+    re.IGNORECASE,
+)
+
+
+def _reflexive_combat_pump_gap(tree: ConceptTree) -> bool:
+    return _says(
+        _REFLEXIVE_COMBAT_PUMP_RX, tree.residues("zone_change_reflexive_target_timing")
+    )
+
+
+# ── additional_phase / emblem_creation ───────────────────────────────────────
+# "…, and after this phase, there is an additional combat phase" (an added phase,
+# CR 500.8) → extra_combats: Lightning Runner's attack trigger (additional_phase)
+# and Zariel, Archduke of Avernus's emblem (emblem_creation). A second-verb row:
+# the recovery stage names the clause by its untap.
+_ADDITIONAL_COMBAT_RX = re.compile(
+    r"\bafter this phase, there is an additional combat phase\b", re.IGNORECASE
+)
+
+
+def _additional_combat_gap(tree: ConceptTree) -> bool:
+    return _says(
+        _ADDITIONAL_COMBAT_RX,
+        (*tree.residues("additional_phase"), *tree.residues("emblem_creation")),
+    )
+
+
 BRIDGES: dict[str, Bridge] = {
     b.bridge_id: b
     for b in (
@@ -2358,6 +2803,9 @@ BRIDGES: dict[str, Bridge] = {
                 "Sheltering Prayers",
                 "Guardian Archon",
                 "Jade Orb of Dragonkind",
+                # Phase v0.104.0 parks "if enchanted creature has toxic, that
+                # creature gains hexproof" as an unparsed_condition residue.
+                "Maze's Mantle",
             ),
             gap=_parked_grant_gap,
             match=_parked_grant_match,
@@ -2808,9 +3256,10 @@ BRIDGES: dict[str, Bridge] = {
             census=(
                 "3 hits / 31,622 commander-legal (Timeline Culler [Warp], "
                 "Tenacious Underdog [Blitz], Zombie Cutthroat [Morph]), "
-                "phase v0.20.0, 2026-07-11"
+                "phase v0.20.0, 2026-07-11; Tenacious Underdog's blitz parses "
+                "at v0.104.0 (2026-10-08)"
             ),
-            pins=("Timeline Culler", "Tenacious Underdog", "Zombie Cutthroat"),
+            pins=("Timeline Culler", "Zombie Cutthroat"),
             gap=_keyword_dropped_gap,
             match=_keyword_dropped_match,
         ),
@@ -2844,7 +3293,10 @@ BRIDGES: dict[str, Bridge] = {
         Bridge(
             bridge_id="sac_emblem_activated_cost",
             key="sacrifice_outlets",
-            kind="dropped_clause",
+            # Filed dropped_clause; phase v0.104.0 parks the clause as an
+            # ``emblem_creation`` residue
+            # — phase tried and failed, so the kind follows the evidence.
+            kind="upstream_parse_failure",
             todo=(
                 "upstream phase-rs report candidate (Dan posts): "
                 "CreateEmblem's granted-ability text parks entirely as an "
@@ -3032,28 +3484,6 @@ BRIDGES: dict[str, Bridge] = {
             match=_flames_blood_hand_match,
         ),
         Bridge(
-            bridge_id="avatar_aang_conjunction_tail_drop",
-            key="direct_damage",
-            kind="dropped_clause",
-            todo=(
-                "upstream phase-rs report candidate (Dan posts): a FIVE-"
-                "effect SequentialSibling conjunction (gain life, draw, put "
-                "counters, deal damage) terminates after the FOURTH effect "
-                "(PutCounter, sub_ability=None) — the fifth conjunct 'he "
-                "deals 4 damage to each opponent' carries no node. Retires "
-                "on a phase bump that extends the chain depth for this "
-                "shape"
-            ),
-            census=(
-                "1 hit / 31,622 commander-legal (Avatar Aang // Aang, "
-                "Master of Elements, a singleton idiom), phase v0.20.0, "
-                "2026-07-11"
-            ),
-            pins=("Aang, Master of Elements",),
-            gap=_no_player_reaching_damage_node,
-            match=_avatar_aang_match,
-        ),
-        Bridge(
             bridge_id="insult_injury_aftermath_face_unparsed",
             key="direct_damage",
             kind="missing_face",
@@ -3075,33 +3505,6 @@ BRIDGES: dict[str, Bridge] = {
             pins=("Insult // Injury",),
             gap=_no_player_reaching_damage_node,
             match=_insult_injury_match,
-        ),
-        Bridge(
-            bridge_id="karn_living_legacy_emblem_tap_cost_damage",
-            key="direct_damage",
-            kind="dropped_clause",
-            todo=(
-                "upstream phase-rs report candidate (Dan posts): "
-                "CreateEmblem's granted-ability text parks entirely as an "
-                "opaque S_statics.description string — no typed activated-"
-                "ability-with-cost structure survives for the emblem's OWN "
-                "granted tap-cost damage outlet (the sac_emblem_activated_"
-                "cost bridge's Sacrifice-costed sibling shape). Retires on "
-                "a phase bump that decomposes an emblem's granted ability "
-                "the way a GrantAbility's granted ability already is"
-            ),
-            census=(
-                "1 hit / 31,622 commander-legal, no-player-reaching-damage-"
-                "node subset scanned for a comma/colon-cost-prefixed "
-                "'deals N damage to any target' inside an emblem's quoted "
-                "granted text (Koth of the Hammer's structurally-identical-"
-                "looking emblem is ALREADY served — its Mountain-static "
-                "grant resolves via a different, already-structural path), "
-                "phase v0.20.0, 2026-07-11"
-            ),
-            pins=("Karn, Living Legacy",),
-            gap=_no_player_reaching_damage_node,
-            match=_karn_living_legacy_match,
         ),
         Bridge(
             bridge_id="captain_rex_nebula_crash_land_final_step_drop",
@@ -3279,47 +3682,6 @@ BRIDGES: dict[str, Bridge] = {
             match=_donate_superlative_match,
         ),
         Bridge(
-            bridge_id="removal_each_source_power_rider",
-            key="removal",
-            kind="upstream_parse_failure",
-            todo=(
-                "FILED upstream as phase-rs/phase#8171 (2026-08-29): phase "
-                "v0.53.0 (#7322) "
-                "fails the per-source 'each <X> … deals damage equal to its "
-                "power to target creature' rider CLOSED as "
-                "Unimplemented('each_source_unrepresentable_rider') — a "
-                "typed DealDamage{Ref(Power, Anaphoric) -> Typed(Creature)} "
-                "through v0.45.0. Retires on a phase bump that represents a "
-                "per-source damage amount"
-            ),
-            census=(
-                "2 hits / 35,798 corpus records, 1 commander-legal (Master "
-                "of the Wild Hunt; Season's Beatings is not legal), phase "
-                "v0.66.0, 2026-08-29"
-            ),
-            pins=("Master of the Wild Hunt",),
-            gap=_no_creature_reaching_damage_node,
-            match=_each_source_rider_match,
-        ),
-        Bridge(
-            bridge_id="creature_ping_each_source_power_rider",
-            key="creature_ping",
-            kind="upstream_parse_failure",
-            todo=(
-                "same residue as removal_each_source_power_rider "
-                "(phase-rs/phase#8171) — the "
-                "creature_ping doer shape (a creature dealing damage equal "
-                "to ITS OWN power to a creature, CR 120.3); retires with it"
-            ),
-            census=(
-                "2 hits / 35,798 corpus records, 1 commander-legal (Master "
-                "of the Wild Hunt), phase v0.66.0, 2026-08-29"
-            ),
-            pins=("Master of the Wild Hunt",),
-            gap=_no_creature_reaching_damage_node,
-            match=_each_source_rider_match,
-        ),
-        Bridge(
             bridge_id="land_creatures_condition_reference_dropped",
             key="land_creatures_matter",
             kind="upstream_parse_failure",
@@ -3398,30 +3760,6 @@ BRIDGES: dict[str, Bridge] = {
             match=_mairsil_rex_match,
         ),
         Bridge(
-            bridge_id="grolnok_cast_from_exile_counter_pile",
-            key="exile_matters",
-            kind="upstream_parse_failure",
-            todo=(
-                "upstream phase-rs report candidate (Dan posts): the "
-                "effect parser recognizes but fails to structure 'You may "
-                "play lands and cast spells from among cards you own in "
-                "exile with <kind> counters on them' (no CastFromZone/"
-                "MayPlayAdditionalLand permission node results) — retires "
-                "on a phase bump that parses this dual land-play/cast "
-                "permission into typed nodes"
-            ),
-            census=(
-                "1 hit / 31,622 commander-legal effect_structure "
-                "Unimplemented residues matching the 'play lands and cast "
-                "spells from among cards you own in exile with ... "
-                "counters' idiom, phase v0.20.0, 2026-07-12 (exactly the "
-                "1 pin)"
-            ),
-            pins=("Grolnok, the Omnivore",),
-            gap=_grolnok_gap,
-            match=_grolnok_match,
-        ),
-        Bridge(
             bridge_id="candlekeep_inspiration_exile_gy_pt_setter",
             key="exile_matters",
             kind="upstream_parse_failure",
@@ -3496,6 +3834,10 @@ BRIDGES: dict[str, Bridge] = {
         Bridge(
             bridge_id="voltron_attach_count_scaling_dropped",
             key="voltron_matters",
+            # Sage's Reverie still drops the clause. Phase v0.104.0 parks Animal
+            # Friend's as a ``put_counter_tail`` residue instead — the row still
+            # serves it (its gap reads no count node), but it left the pins,
+            # whose evidence must match the row's one kind.
             kind="dropped_clause",
             todo=(
                 "upstream phase-rs report candidate (Dan posts): an Aura/"
@@ -3527,7 +3869,7 @@ BRIDGES: dict[str, Bridge] = {
                 "more of the existing attach-housekeeping shed class), "
                 "all correctly excluded by this tighter anchor"
             ),
-            pins=("Animal Friend", "Sage's Reverie"),
+            pins=("Sage's Reverie",),
             gap=_voltron_scaling_gap,
             match=_voltron_scaling_match,
         ),
@@ -3820,32 +4162,6 @@ BRIDGES: dict[str, Bridge] = {
             match=_lightning_runner_match,
         ),
         Bridge(
-            bridge_id="duskana_draw_per_base_pt_creature_dropped",
-            key="creatures_matter",
-            kind="dropped_clause",
-            todo=(
-                "upstream phase-rs report candidate (Dan posts): the ETB "
-                "Draw node's own count collapses to a bare Fixed(1) "
-                "instead of a Ref(qty=ObjectCount(base-power-2/2 "
-                "filter)) — the dynamic count is dropped with no residue "
-                "at all — retires on a phase bump that structures the "
-                "per-base-2/2-creature count. Distinct from the RETIRED "
-                "duskana_bess_base_pt_and_toughness_ref bridge "
-                "(base_power_matters key, graduated to a tree_synthesis.py "
-                "arm this session) — that one served the SECOND ability's "
-                "base-power-2/2 REFERENCE; this one serves the FIRST "
-                "ability's dropped COUNT, kept as a separate row per the "
-                "ledger's one-key-per-row contract"
-            ),
-            census=(
-                "1 hit / 105,561 commander-legal (Duskana, the Rage "
-                "Mother), phase v0.20.0, 2026-07-12"
-            ),
-            pins=("Duskana, the Rage Mother",),
-            gap=_duskana_draw_count_gap,
-            match=_duskana_draw_count_match,
-        ),
-        Bridge(
             bridge_id="moku_haste_grant_misscoped_selfref",
             key="creatures_matter",
             # A misparse — the grant survives on a mis-scoped def ("not dropped
@@ -3869,29 +4185,6 @@ BRIDGES: dict[str, Bridge] = {
             pins=("Moku, Meandering Drummer",),
             gap=_moku_haste_grant_gap,
             match=_moku_haste_grant_match,
-        ),
-        Bridge(
-            bridge_id="siege_behemoth_unblocked_assign_empty_mods",
-            key="creatures_matter",
-            kind="upstream_parse_failure",
-            todo=(
-                "upstream phase-rs report candidate (Dan posts): the "
-                "static def for 'for each creature you control, you may "
-                "have that creature assign combat damage as though "
-                "unblocked' parses with affected=SelfRef, an "
-                "Unrecognized condition text, and an EMPTY modifications "
-                "list — the whole per-creature grant survives only in "
-                "the def's own description — retires on a phase bump "
-                "that types the per-creature permission as a real mode "
-                "or modification"
-            ),
-            census=(
-                "1 hit / 105,561 commander-legal (Siege Behemoth), "
-                "phase v0.20.0, 2026-07-12"
-            ),
-            pins=("Siege Behemoth",),
-            gap=_siege_behemoth_gap,
-            match=_siege_behemoth_match,
         ),
         Bridge(
             bridge_id="illusionists_gambit_additional_combat_swallowed",
@@ -3951,25 +4244,17 @@ BRIDGES: dict[str, Bridge] = {
                 "make_token concept whose subject carries the token "
                 "subtypes) — the moment the overlay descends branches, "
                 "the shared gap goes False and this row + its "
-                "_resource_token_makers call delete. The Odric arm is an "
-                "upstream phase-rs report candidate (Dan posts) riding "
-                "this row via the match's second branch (the "
-                "keep_n_wrath/Promise-of-Loyalty precedent): 'create X "
-                "Blood tokens, where X is the number of abilities ...' "
-                "parks WHOLE as Unimplemented(name='create'); recovery "
-                "decorates it make_token but with an EMPTY subject — "
-                "retires on a phase bump that structures the create-X-"
-                "where-X count (the subject then carries Blood and the "
-                "same gap stands the arm down)"
+                "_resource_token_makers call delete"
             ),
             census=(
                 "2 hits / 38,261 distinct oracle_ids (31,552 commander-"
                 "legal), structural sweep over every choice-list / "
                 "create-X candidate: Transmutation Font (choice-list "
                 "branch Token) + Odric, Blood-Cursed (Unimplemented "
-                "'create' residue), MTGJSON 2026-07-25 @ phase v0.35.2"
+                "'create' residue), MTGJSON 2026-07-25 @ phase v0.35.2; "
+                "Odric reads through recovery since v0.104.0"
             ),
-            pins=("Transmutation Font", "Odric, Blood-Cursed"),
+            pins=("Transmutation Font",),
             gap=_blood_maker_concept_gap,
             match=_choice_list_blood_match,
         ),
@@ -4155,11 +4440,376 @@ BRIDGES: dict[str, Bridge] = {
             census=(
                 "1 hit / 2 plural_attachment_anaphor residues corpus-wide "
                 "(Fumble; Helm of Kaldra has no GainControlAll and is served "
-                "by the lane), MTGJSON 2026-09-22 @ phase v0.94.0, 2026-09-26"
+                "by the lane), MTGJSON 2026-09-22 @ phase v0.94.0, 2026-09-26; "
+                "the gain-control half is an attached_to_qualifier residue at "
+                "v0.104.0, 2026-10-08"
             ),
             pins=("Fumble",),
             gap=_plural_attach_anaphor_gap,
             match=_plural_attach_anaphor_match,
+        ),
+        # ── Phase v0.104.0 fail-closed residues, by residue class ─────────────
+        # unparsed_condition
+        _residue_row(
+            "tetsuo_equipped_condition_parked",
+            "voltron_matters",
+            "unparsed_condition",
+            "the 'if it's equipped' gate on a modal attack trigger",
+            ("Tetsuo, Imperial Champion",),
+            _tetsuo_gap,
+            _oracle_match(_TETSUO_RX),
+            hits=1,
+        ),
+        _residue_row(
+            "tetsuo_equipped_condition_damage_parked",
+            "direct_damage",
+            "unparsed_condition",
+            "the 'if it's equipped' gate on a modal attack trigger",
+            ("Tetsuo, Imperial Champion",),
+            _tetsuo_gap,
+            _oracle_match(_TETSUO_RX),
+            hits=1,
+        ),
+        _residue_row(
+            "ochre_jelly_counter_condition_parked",
+            "plus_one_matters",
+            "unparsed_condition",
+            "the Split copy's +1/+1-counter condition",
+            ("Ochre Jelly",),
+            _split_copy_gap,
+            _oracle_match(_SPLIT_COPY_RX),
+            hits=1,
+        ),
+        _residue_row(
+            "dies_payload_condition_parked",
+            "self_death_payoff",
+            "unparsed_condition",
+            "a dies trigger's intervening-if payload",
+            ("Fyndhorn Druid",),
+            _dies_payload_gap,
+            _oracle_match(_DIES_PAYLOAD_RX),
+            hits=2,
+        ),
+        _residue_row(
+            "darigaaz_egg_counter_return_parked",
+            "dies_recursion",
+            "unparsed_condition",
+            "the egg-counter upkeep",
+            ("Darigaaz Reincarnated",),
+            _egg_counter_gap,
+            _oracle_match(_EGG_COUNTER_RX),
+            hits=1,
+        ),
+        _residue_row(
+            "darigaaz_egg_counter_removal_parked",
+            "named_counter_misc",
+            "unparsed_condition",
+            "the egg-counter upkeep",
+            ("Darigaaz Reincarnated",),
+            _egg_counter_gap,
+            _oracle_match(_EGG_COUNTER_RX),
+            hits=1,
+        ),
+        _residue_row(
+            "carpet_of_flowers_mana_once_parked",
+            "big_mana",
+            "unparsed_condition",
+            "the 'if you haven't added mana with this ability this turn' gate",
+            ("Carpet of Flowers",),
+            _carpet_gap,
+            _oracle_match(_CARPET_RX),
+            hits=1,
+        ),
+        _residue_row(
+            "conditional_draw_engine_parked",
+            "card_draw_engine",
+            "unparsed_condition",
+            "an intervening-if on a draw trigger",
+            ("Daredevil Dragster", "Lord Skitter's Blessing"),
+            _conditional_draw_gap,
+            _oracle_match(_CONDITIONAL_DRAW_RX),
+            hits=3,
+        ),
+        _residue_row(
+            "conditional_combat_pump_parked",
+            "combat_buff_engine",
+            "unparsed_condition",
+            "an intervening-if on a combat-keyed pump trigger",
+            ("Septic Rats", "Sickle Dancer"),
+            _combat_pump_gap,
+            _oracle_match(_COMBAT_PUMP_RX),
+            hits=3,
+        ),
+        _residue_row(
+            "plains_upkeep_lifegain_parked",
+            "lifegain_makers",
+            "unparsed_condition",
+            "the 'if that player controls a Plains' gate",
+            ("Spiritual Sanctuary",),
+            _plains_lifegain_gap,
+            _oracle_match(_PLAINS_LIFEGAIN_RX),
+            hits=1,
+        ),
+        _residue_row(
+            "graveyard_self_return_condition_parked",
+            "self_recurring",
+            "unparsed_condition",
+            "an intervening-if graveyard self-return",
+            ("Death Spark",),
+            _graveyard_self_return_gap,
+            _oracle_match(_GRAVEYARD_SELF_RETURN_RX),
+            hits=7,
+        ),
+        _residue_row(
+            "pump_condition_parked",
+            "pump_makers",
+            "unparsed_condition",
+            "an intervening-if 'gets +N/+N until end of turn'",
+            ("Alex Wilder, Runaway", "Septic Rats", "Sickle Dancer"),
+            _pump_condition_gap,
+            _oracle_match(_PUMP_CONDITION_RX),
+            hits=3,
+        ),
+        _residue_row(
+            "copy_spell_condition_parked",
+            "spell_copy_makers",
+            "unparsed_condition",
+            "an intervening-if CopySpell",
+            (
+                "Ashnod the Uncaring",
+                "Beamsplitter Mage",
+                "Exterminator Magmarch",
+                "Ink-Treader Nephilim",
+                "Spellweaver Helix",
+                "Uldaros Theorix",
+            ),
+            _copy_spell_condition_gap,
+            _oracle_match(_COPY_SPELL_CONDITION_RX),
+            hits=7,
+        ),
+        _residue_row(
+            "conditional_draw_bleed_lifegain_matters_parked",
+            "lifegain_matters",
+            "unparsed_condition",
+            "an intervening-if on a draw-and-lose-life trigger",
+            (
+                "Marchesa, Resolute Monarch",
+                "Lord Skitter's Blessing",
+            ),
+            _draw_bleed_gap,
+            _oracle_match(_DRAW_BLEED_RX),
+            hits=2,
+        ),
+        _residue_row(
+            "conditional_draw_bleed_lifeloss_parked",
+            "lifeloss_makers",
+            "unparsed_condition",
+            "an intervening-if on a draw-and-lose-life trigger",
+            ("Marchesa, Resolute Monarch",),
+            _draw_bleed_gap,
+            _oracle_match(_DRAW_BLEED_RX),
+            hits=2,
+        ),
+        _residue_row(
+            "conditional_threaten_haste_parked",
+            "keyword_grant_target",
+            "unparsed_condition",
+            "an intervening-if on a gain-control-until-end-of-turn trigger",
+            ("Might Makes Right",),
+            _threaten_haste_gap,
+            _oracle_match(_THREATEN_HASTE_RX),
+            hits=1,
+        ),
+        _residue_row(
+            "conditional_alt_win_parked",
+            "win_lose_game",
+            "unparsed_condition",
+            "a conditional 'you win / they lose the game'",
+            ("Ramses, Assassin Lord",),
+            _alt_win_gap,
+            _oracle_match(_ALT_WIN_RX),
+            hits=2,
+            scope="any",
+        ),
+        # target_has_unknown_keyword_condition
+        _residue_row(
+            "bring_low_counter_condition_parked",
+            "plus_one_matters",
+            "target_has_unknown_keyword_condition",
+            "the 'if that creature has a +1/+1 counter on it' damage upgrade",
+            ("Bring Low",),
+            _bring_low_gap,
+            _oracle_match(_BRING_LOW_RX),
+            hits=1,
+        ),
+        _residue_row(
+            "hadanas_climb_counter_threshold_parked",
+            "plus_one_matters",
+            "target_has_unknown_keyword_condition",
+            "the +1/+1-counter threshold transform",
+            ("Hadana's Climb // Winged Temple of Orazca",),
+            _counter_threshold_gap,
+            _oracle_match(_COUNTER_THRESHOLD_RX),
+            hits=1,
+        ),
+        # attached_to_qualifier
+        _residue_row(
+            "witchbane_orb_curses_attached_parked",
+            "curse_matters",
+            "attached_to_qualifier",
+            "'destroy all Curses attached to you'",
+            ("Witchbane Orb",),
+            _curses_attached_gap,
+            _oracle_match(_CURSES_ATTACHED_RX),
+            hits=1,
+        ),
+        # put_counter_tail
+        _residue_row(
+            "sigurd_lore_counter_saga_parked",
+            "saga_matters",
+            "put_counter_tail",
+            "'put a lore counter on target Saga you control or remove one from it'",
+            ("Sigurd, Jarl of Ravensthorpe",),
+            _lore_saga_gap,
+            _oracle_match(_LORE_SAGA_RX),
+            hits=1,
+        ),
+        # unparsed_verb_arguments
+        _residue_row(
+            "destroy_attached_aura_equipment_parked",
+            "removal",
+            "unparsed_verb_arguments",
+            "'destroy target Aura/Equipment attached to <X>'",
+            ("Shackles of Treachery",),
+            _destroy_attached_gap,
+            _oracle_match(_DESTROY_ATTACHED_RX),
+            hits=6,
+        ),
+        _residue_row(
+            "face_up_creature_pump_parked",
+            "pump_makers",
+            "unparsed_verb_arguments",
+            "'if it's a creature, it gets +N/+N until end of turn'",
+            ("Trail of Mystery",),
+            _face_up_pump_gap,
+            _oracle_match(_FACE_UP_PUMP_RX),
+            hits=1,
+        ),
+        # perpetual_modify_pt
+        _residue_row(
+            "perpetual_combat_self_pump_parked",
+            "combat_buff_engine",
+            "perpetual_modify_pt",
+            "a combat trigger's perpetual pump of your creature",
+            ("By Elspeth's Command", "Hurkyl's Prodigy"),
+            _combat_perpetual_gap,
+            _oracle_match(_COMBAT_PERPETUAL_RX),
+            hits=2,
+        ),
+        _residue_row(
+            "perpetual_opponent_shrink_parked",
+            "debuff_makers",
+            "perpetual_modify_pt",
+            "a perpetual -N/-N on an opponent's creature",
+            ("Sewer Plague",),
+            _perpetual_shrink_gap,
+            _oracle_match(_PERPETUAL_SHRINK_RX),
+            hits=1,
+            scope="any",
+        ),
+        _residue_row(
+            "perpetual_x_pump_parked",
+            "scaling_pump",
+            "perpetual_modify_pt",
+            "a perpetual +X/+X counted pump",
+            ("Gyox, Brutal Carnivora", "Mycoid Resurrection"),
+            _perpetual_x_pump_gap,
+            _oracle_match(_PERPETUAL_X_PUMP_RX),
+            hits=2,
+        ),
+        _residue_row(
+            "perpetual_spacecraft_pump_parked",
+            "station_matters",
+            "perpetual_modify_pt",
+            "a perpetual pump of Spacecraft cards you own",
+            ("Network Marauder",),
+            _spacecraft_perpetual_gap,
+            _oracle_match(_SPACECRAFT_PERPETUAL_RX),
+            hits=1,
+        ),
+        # granter_reference_unreached
+        _residue_row(
+            "johan_combat_self_grant_parked",
+            "wants_cloning",
+            "granter_reference_unreached",
+            "the begin-combat self-grant",
+            ("Johan",),
+            _johan_gap,
+            _oracle_match(_JOHAN_RX),
+            hits=1,
+        ),
+        _residue_row(
+            "granted_boomerang_return_parked",
+            "self_recurring",
+            "granter_reference_unreached",
+            "an Equipment's granted unattach-burn-and-return ability",
+            ("Razor Boomerang", "Toralf's Hammer"),
+            _granted_boomerang_gap,
+            _oracle_match(_GRANTED_BOOMERANG_RX),
+            hits=2,
+        ),
+        _residue_row(
+            "granted_sacrifice_burn_parked",
+            "direct_damage",
+            "granter_reference_unreached",
+            "an Equipment's granted sacrifice-to-burn ability",
+            ("Blazing Torch", "Ninja's Kunai"),
+            _granted_sac_burn_gap,
+            _oracle_match(_GRANTED_SAC_BURN_RX),
+            hits=2,
+        ),
+        # unrecognized_clause_head
+        _residue_row(
+            "dunedain_rangers_ring_tempt_parked",
+            "ring_tempters",
+            "unrecognized_clause_head",
+            "the conditional Ring temptation",
+            ("Dúnedain Rangers",),
+            _ring_tempt_gap,
+            _oracle_match(_RING_TEMPT_RX),
+            hits=1,
+        ),
+        # zone_change_reflexive_target_timing
+        _residue_row(
+            "cait_sith_reflexive_combat_pump_parked",
+            "combat_buff_engine",
+            "zone_change_reflexive_target_timing",
+            "the begin-combat reflexive pump",
+            ("Cait Sith, Fortune Teller",),
+            _reflexive_combat_pump_gap,
+            _oracle_match(_REFLEXIVE_COMBAT_PUMP_RX),
+            hits=1,
+        ),
+        # additional_phase / emblem_creation
+        _residue_row(
+            "karn_living_legacy_emblem_tap_cost_damage",
+            "direct_damage",
+            "emblem_creation",
+            "the emblem's granted tap-cost 'deals 1 damage to any target'",
+            ("Karn, Living Legacy",),
+            _karn_living_legacy_gap,
+            _karn_living_legacy_match,
+            hits=1,
+        ),
+        _residue_row(
+            "additional_combat_phase_parked",
+            "extra_combats",
+            ("additional_phase", "emblem_creation"),
+            '"after this phase, there is an additional combat phase"',
+            ("Lightning Runner", "Zariel, Archduke of Avernus"),
+            _additional_combat_gap,
+            _oracle_match(_ADDITIONAL_COMBAT_RX),
+            hits=2,
         ),
     )
 }

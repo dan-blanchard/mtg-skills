@@ -419,7 +419,7 @@ def test_graduation_rows_reads_a_retirement_canary_name():
     assert graduation_rows(out) == ("_grants_only_to_self",)
 
 
-def test_the_canary_marker_selects_the_generator_servant_canary():
+def test_the_canary_marker_selects_a_retirement_canary():
     """The marker the graduation step selects by is registered and applied — a
     renamed marker would silently select nothing and hide every canary."""
     root = Path(__file__).resolve().parents[2]
@@ -441,7 +441,7 @@ def test_the_canary_marker_selects_the_generator_servant_canary():
         text=True,
         check=False,
     )
-    assert "test_generator_servant_split_rider_canary" in proc.stdout, proc.stdout
+    assert "test_misread_keyword_canary" in proc.stdout, proc.stdout
 
 
 # ── the orchestration, dry-run over a fake repo ────────────────────────────────
@@ -686,3 +686,45 @@ def test_main_refuses_a_bump_to_the_current_pin(tmp_path, monkeypatch):
     result = CliRunner().invoke(phase_bump.main, ["v0.66.0"])
     assert result.exit_code != 0
     assert "already v0.66.0" in result.output
+
+
+# ── recovery fire counts (ADR-0038: fire count → 0 → retire) ───────────────────
+
+
+def _recovered(token: str, *subject: str):
+    from types import SimpleNamespace
+
+    return SimpleNamespace(recovered_by=token, subject=subject)
+
+
+def _tree(*effects):
+    from types import SimpleNamespace
+
+    return SimpleNamespace(units=(SimpleNamespace(effects=effects),))
+
+
+def test_recovery_counts_tokens_and_marks():
+    plain = _recovered("")  # a typed node: never counted
+    trees = [
+        _tree(_recovered("destroy", "Targeted", "Creature"), plain),
+        _tree(_recovered("destroy", "Self"), _recovered("draw")),
+    ]
+    counts = phase_bump.recovery_counts(
+        trees, ("destroy", "draw", "mill"), ("Self", "Targeted", "Player")
+    )
+    assert counts.tokens == {"destroy": 2, "draw": 1, "mill": 0}
+    assert counts.marks == {"Self": 1, "Targeted": 1, "Player": 0}
+
+
+def test_render_recovery_flags_zero_counts():
+    counts = phase_bump.RecoveryCounts({"destroy": 2, "mill": 0}, {"Player": 0})
+    text = "\n".join(phase_bump.render_recovery(counts, 10))
+    assert "ZERO — retire-ready (ADR-0038): token mill" in text
+    assert "ZERO — retire-ready (ADR-0038): mark Player" in text
+    assert "token destroy" not in text.split("- tokens:")[0]
+
+
+def test_render_recovery_all_firing():
+    counts = phase_bump.RecoveryCounts({"destroy": 2}, {"Self": 1})
+    text = "\n".join(phase_bump.render_recovery(counts, 10))
+    assert "every token and decoration mark fires" in text

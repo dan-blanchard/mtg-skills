@@ -5,7 +5,6 @@ oracle text and rulings (CR 603.2d additional triggers, CR 707.10 copied abiliti
 import pytest
 
 from mtg_utils._analysis.multipliers import (
-    ZONE_GRANT_RESIDUE,
     Commander,
     ZoneGrant,
     commander_multipliers,
@@ -282,18 +281,3 @@ def test_a_changeling_is_every_creature_type_but_no_equipment():
 
 def test_commander_never_protects_itself():
     assert commander_multipliers([OMNATH], [OMNATH]) == {}
-
-
-@pytest.mark.retirement_canary
-def test_thranduil_zone_grant_is_still_a_residue_canary():
-    """Retirement canary for the zone-grant text arm in ``_analysis.multipliers``
-    (``zone_grant``, read by the tuner's protection and by cut-check's
-    ZONE_GRANTED flag). Phase v0.94.0 parks Thranduil's
-    "has all activated abilities of all Elf cards in your graveyard" as an
-    Unimplemented residue; once it parses, read the grant off the tree instead."""
-    residues = [r for tree in trees_for(THRANDUIL) for r in tree.residues()]
-    assert any(ZONE_GRANT_RESIDUE in r for r in residues), (
-        "multipliers.zone_grant: RETIRE-READY — phase now parses "
-        "Thranduil's zone grant. Read it off the tree, then delete the text arm "
-        "and this canary."
-    )

@@ -5,7 +5,7 @@ Codegen'd from ``tests/fixtures/phase_mirror_schema.json`` by
 
 Part of the generated typed-mirror package (see this directory's
 ``__init__.py``). This module holds content keys
-``conditional_enter_with_counters`` .. ``costs`` (8 keys).
+``conditional_enter_with_counters`` .. ``cost_reduction`` (7 keys).
 
 Class naming: ``S_<ckey>`` for a struct shape, ``T_<ckey>__<tag>`` for a tagged
 shape, ``U_<ckey>`` for the union of all tagged shapes at one content_key.
@@ -27,27 +27,28 @@ if TYPE_CHECKING:
         U_amount,
         U_base,
     )
-    from mtg_utils._card_ir.mirror.generated.g04_choose_scope import (
+    from mtg_utils._card_ir.mirror.generated.g04_characteristics import (
+        U_color,
         U_condition,
     )
-    from mtg_utils._card_ir.mirror.generated.g06_count import (
+    from mtg_utils._card_ir.mirror.generated.g06_costs import (
         S_data,
+        U_costs,
         U_count,
         U_counter_type,
         U_counters,
     )
-    from mtg_utils._card_ir.mirror.generated.g07_effect import (
+    from mtg_utils._card_ir.mirror.generated.g07_dynamic_count import (
         U_effect,
     )
     from mtg_utils._card_ir.mirror.generated.g08_else_ability import (
         U_filter,
     )
-    from mtg_utils._card_ir.mirror.generated.g09_keeper_constraint import (
+    from mtg_utils._card_ir.mirror.generated.g09_journal import (
         U_lhs,
         U_mana_cost,
-        U_materials,
     )
-    from mtg_utils._card_ir.mirror.generated.g10_origin import (
+    from mtg_utils._card_ir.mirror.generated.g10_optional_player import (
         U_player,
     )
     from mtg_utils._card_ir.mirror.generated.g11_prop import (
@@ -56,12 +57,12 @@ if TYPE_CHECKING:
     from mtg_utils._card_ir.mirror.generated.g12_qty import (
         U_quantity,
     )
-    from mtg_utils._card_ir.mirror.generated.g13_reference import (
+    from mtg_utils._card_ir.mirror.generated.g13_redirect_to import (
         S_requirement,
         U_rhs,
         U_scaling,
     )
-    from mtg_utils._card_ir.mirror.generated.g14_sub_ability import (
+    from mtg_utils._card_ir.mirror.generated.g14_static_abilities import (
         U_subject,
         U_target,
     )
@@ -146,6 +147,12 @@ class T_conditions__ControlCount(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class T_conditions__ControllerControlledMatchingAsCast(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "ControllerControlledMatchingAsCast"
+    filter: U_filter
+
+
+@dataclass(frozen=True)
 class T_conditions__ControllerControlsMatching(TypedMirrorNode):
     _tag: ClassVar[str | None] = "ControllerControlsMatching"
     filter: U_filter
@@ -181,8 +188,20 @@ class T_conditions__EffectOutcome(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class T_conditions__EventTime(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "EventTime"
+    condition: U_condition
+
+
+@dataclass(frozen=True)
 class T_conditions__FirstCombatPhaseOfTurn(TypedMirrorNode):
     _tag: ClassVar[str | None] = "FirstCombatPhaseOfTurn"
+
+
+@dataclass(frozen=True)
+class T_conditions__HadCounters(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "HadCounters"
+    counter_type: None
 
 
 @dataclass(frozen=True)
@@ -226,7 +245,7 @@ class T_conditions__IsYourTurn(TypedMirrorNode):
 @dataclass(frozen=True)
 class T_conditions__ManaColorSpent(TypedMirrorNode):
     _tag: ClassVar[str | None] = "ManaColorSpent"
-    color: str
+    color: U_color
     minimum: int
 
 
@@ -676,6 +695,12 @@ class T_cost__SelfManaCost(TypedMirrorNode):
 
 
 @dataclass(frozen=True)
+class T_cost__SelfManaCostReduced(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "SelfManaCostReduced"
+    reduction: int
+
+
+@dataclass(frozen=True)
 class T_cost__SelfManaValue(TypedMirrorNode):
     _tag: ClassVar[str | None] = "SelfManaValue"
 
@@ -704,175 +729,6 @@ class T_cost__Waterbend(TypedMirrorNode):
     cost: U_cost
 
 
-@dataclass(frozen=True)
-class T_costs__Behold(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "Behold"
-    action: str
-    count: int
-    filter: U_filter
-
-
-@dataclass(frozen=True)
-class T_costs__Blight(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "Blight"
-    count: int
-
-
-@dataclass(frozen=True)
-class T_costs__CollectEvidence(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "CollectEvidence"
-    amount: int
-
-
-@dataclass(frozen=True)
-class T_costs__Composite(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "Composite"
-    costs: list[U_costs]
-
-
-@dataclass(frozen=True)
-class T_costs__Cost(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "Cost"
-    generic: int
-    shards: list[object]
-
-
-@dataclass(frozen=True)
-class T_costs__Discard(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "Discard"
-    count: U_count
-    filter: U_filter | None
-    random: bool
-    self_ref: bool
-
-
-@dataclass(frozen=True)
-class T_costs__EffectCost(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "EffectCost"
-    effect: U_effect
-
-
-@dataclass(frozen=True)
-class T_costs__Exert(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "Exert"
-
-
-@dataclass(frozen=True)
-class T_costs__Exile(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "Exile"
-    count: int
-    filter: U_filter | None
-    zone: str | None
-
-
-@dataclass(frozen=True)
-class T_costs__ExileMaterials(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "ExileMaterials"
-    count: U_count
-    materials: U_materials
-
-
-@dataclass(frozen=True)
-class T_costs__Mana(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "Mana"
-    cost: U_cost
-
-
-@dataclass(frozen=True)
-class T_costs__Mill(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "Mill"
-    count: int
-
-
-@dataclass(frozen=True)
-class T_costs__OneOf(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "OneOf"
-    costs: list[U_costs]
-
-
-@dataclass(frozen=True)
-class T_costs__PayEnergy(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "PayEnergy"
-    amount: U_amount
-
-
-@dataclass(frozen=True)
-class T_costs__PayLife(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "PayLife"
-    amount: U_amount
-
-
-@dataclass(frozen=True)
-class T_costs__RemoveCounter(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "RemoveCounter"
-    count: int
-    counter_type: U_counter_type
-    selection: str
-    target: U_target | None
-
-
-@dataclass(frozen=True)
-class T_costs__ReturnToHand(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "ReturnToHand"
-    count: int
-    filter: U_filter
-
-
-@dataclass(frozen=True)
-class T_costs__Reveal(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "Reveal"
-    count: int
-    filter: U_filter = MISSING
-
-
-@dataclass(frozen=True)
-class T_costs__Sacrifice(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "Sacrifice"
-    count: int
-    target: U_target
-
-
-@dataclass(frozen=True)
-class T_costs__Tap(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "Tap"
-
-
-@dataclass(frozen=True)
-class T_costs__TapCreatures(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "TapCreatures"
-    filter: U_filter
-    requirement: S_requirement
-
-
-@dataclass(frozen=True)
-class T_costs__Unattach(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "Unattach"
-
-
-@dataclass(frozen=True)
-class T_costs__UnattachFrom(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "UnattachFrom"
-    count: int
-    filter: U_filter
-
-
-@dataclass(frozen=True)
-class T_costs__Unimplemented(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "Unimplemented"
-    description: str
-
-
-@dataclass(frozen=True)
-class T_costs__Untap(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "Untap"
-
-
-@dataclass(frozen=True)
-class T_costs__Waterbend(TypedMirrorNode):
-    _tag: ClassVar[str | None] = "Waterbend"
-    cost: U_cost
-
-
 # --- discriminated-union aliases (one per tagged content_key) ---
 
 type U_conditional_enter_with_counters = (
@@ -887,13 +743,16 @@ type U_conditions = (
     | T_conditions__ChosenLabelIs
     | T_conditions__ClassLevelGE
     | T_conditions__ControlCount
+    | T_conditions__ControllerControlledMatchingAsCast
     | T_conditions__ControllerControlsMatching
     | T_conditions__ControlsType
     | T_conditions__CurrentPhaseIs
     | T_conditions__DuringPlayersTurn
     | T_conditions__DuringYourTurn
     | T_conditions__EffectOutcome
+    | T_conditions__EventTime
     | T_conditions__FirstCombatPhaseOfTurn
+    | T_conditions__HadCounters
     | T_conditions__HasCounters
     | T_conditions__HasEnduringStory
     | T_conditions__HasObjectTarget
@@ -979,37 +838,10 @@ type U_cost = (
     | T_cost__Reveal
     | T_cost__Sacrifice
     | T_cost__SelfManaCost
+    | T_cost__SelfManaCostReduced
     | T_cost__SelfManaValue
     | T_cost__Tap
     | T_cost__TapCreatures
     | T_cost__Unimplemented
     | T_cost__Waterbend
-)
-type U_costs = (
-    T_costs__Behold
-    | T_costs__Blight
-    | T_costs__CollectEvidence
-    | T_costs__Composite
-    | T_costs__Cost
-    | T_costs__Discard
-    | T_costs__EffectCost
-    | T_costs__Exert
-    | T_costs__Exile
-    | T_costs__ExileMaterials
-    | T_costs__Mana
-    | T_costs__Mill
-    | T_costs__OneOf
-    | T_costs__PayEnergy
-    | T_costs__PayLife
-    | T_costs__RemoveCounter
-    | T_costs__ReturnToHand
-    | T_costs__Reveal
-    | T_costs__Sacrifice
-    | T_costs__Tap
-    | T_costs__TapCreatures
-    | T_costs__Unattach
-    | T_costs__UnattachFrom
-    | T_costs__Unimplemented
-    | T_costs__Untap
-    | T_costs__Waterbend
 )

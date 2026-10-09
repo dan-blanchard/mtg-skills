@@ -96,8 +96,9 @@ def test_mass_land_denial(name, kind):
         "Exhaustion",
         "Mana Vapors",
         "Nightcreep",
-        # Phase drops the narrowing clause (vetoed; see the canary below).
+        # A residue since phase v0.104.0 (attached_to_qualifier).
         "End Hostilities",
+        # Phase drops the narrowing clause (vetoed; see the canary below).
         "Eye of Singularity",
         "Herald of Vengeance",
     ],
@@ -338,7 +339,6 @@ def test_recovered_warp_reaches_the_curve():
     ("name", "key"),
     [
         ("Zombie Cutthroat", "Morph"),
-        ("Tenacious Underdog", "Blitz"),
         ("Timeline Culler", "Warp"),
         ("Shadowgrange Archfiend", "Madness"),
         ("Escape Velocity", "Escape"),
@@ -400,12 +400,11 @@ def test_misread_keyword_canary():
 
 
 @pytest.mark.retirement_canary
-@pytest.mark.parametrize(
-    "name", ["End Hostilities", "Eye of Singularity", "Herald of Vengeance"]
-)
+@pytest.mark.parametrize("name", ["Eye of Singularity", "Herald of Vengeance"])
 def test_narrowed_permanent_sweeps_canary(name):
-    """Retirement canary for ``reads.NARROWED_PERMANENT_SWEEPS``: phase v0.94.0
-    parses each of these narrowed sweeps as destroying every permanent."""
+    """Retirement canary for ``reads.NARROWED_PERMANENT_SWEEPS``: phase (v0.94.0,
+    still at v0.104.0) parses each of these narrowed sweeps as destroying every
+    permanent."""
     bare = [
         n
         for t in _trees(name)

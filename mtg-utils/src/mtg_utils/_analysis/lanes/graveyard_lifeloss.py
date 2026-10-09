@@ -30,6 +30,7 @@ from mtg_utils._analysis.text_reads import (
 )
 from mtg_utils._card_ir.crosswalk import (
     EFFECT_CONCEPTS,
+    OTHERS_SCOPE,
     AbilityUnit,
     ConceptTree,
     change_zone_dirs,
@@ -70,6 +71,7 @@ from mtg_utils._card_ir.mirror.runtime import (
     MirrorVariant,
     TypedMirrorNode,
 )
+from mtg_utils._card_ir.recovery import SELF, TARGETED, THEIRS
 from mtg_utils._card_ir.text_idioms import (
     _GOAD_REWARD_REF,
     _LURE_ABLE,
@@ -175,8 +177,21 @@ def _graveyard_makers(tree: ConceptTree) -> list[Signal]:
     for c in tree.effect_concepts("change_zone"):
         origin, dest = change_zone_dirs(c.node)
         gy_direct = origin == "Graveyard" and dest in ("Battlefield", "Hand")
-        gy_recovered = c.recovered_by == "bounce" and _GY_RECOVERED_BOUNCE_RE.search(
-            c.raw or ""
+        gy_recovered = (
+            c.recovered_by == "bounce" and _GY_RECOVERED_BOUNCE_RE.search(c.raw or "")
+        ) or (
+            # phase v0.104.0 parks an intervening-if / perpetual reanimation
+            # (Perennial Gravewarden, Benalish Partisan, Necromancy) as an
+            # Unimplemented residue the ``reanimate`` token recovers. The token
+            # fires on any "put/return … onto the battlefield", so the seam
+            # must read a graveyard in the clause; one that is only an
+            # opponent's ("your opponents' graveyards" — Supper for Spiders;
+            # "defending player's graveyard" — Bone Dancer) is no fill for your
+            # own, as the typed Ashen Powder doesn't fire either.
+            c.recovered_by == "reanimate"
+            and "Graveyard" in c.zones
+            and THEIRS not in c.subject
+            and c.scope != "opponents"
         )
         if gy_direct or gy_recovered:
             fire(_gy_scope(c.scope), c.raw)
@@ -270,6 +285,16 @@ def _graveyard_makers(tree: ConceptTree) -> list[Signal]:
         if "return" in desc and "graveyard" in desc and "hand" in desc:
             fire("you", desc)
     for c in tree.effect_concepts("mill"):
+        # phase v0.104.0 parks an intervening-if mill ("if you have a boon,
+        # you mill three cards, ..." — Underbridge Warlock) as an
+        # Unimplemented residue the ``mill`` token recovers: no typed
+        # destination or recipient, so the seam's reading decides (CR
+        # 701.17a — a mill always puts cards into the graveyard): a mill aimed
+        # at a target player or an opponent (Sanity Grinding) isn't yours.
+        if c.recovered_by == "mill":
+            if c.scope != "opponents" and TARGETED not in c.subject:
+                fire("you", c.raw)
+            continue
         # The ``Mill`` effect carries a ``destination``; only a Graveyard destination
         # is a CR-701.17a mill (Stitcher's Supplier). A library↔hand swap phase
         # MISLABELS as ``Mill`` with destination=Hand (Scroll Rack) — a phase-parse
@@ -1418,6 +1443,11 @@ def _lifeloss_scope(
     owner = effect_owner_player_scope(getattr(unit, "node", None), node)
     if owner in _EDICT_ACTORS:
         return "opponents", False
+    # "each other player loses" (Oft-Nabbed Goat, phase v0.104.0): every player
+    # but you, which in Two-Headed Giant includes your teammate (CR 102.3), so
+    # not "opponents" — the lane's symmetric scope, as twohg_scan reads it.
+    if owner == OTHERS_SCOPE:
+        return "each", False
     text_scope = _lifeloss_text_scope(tree, skip=text_skip)
     if text_scope is not None:
         return text_scope, True
@@ -1667,6 +1697,9 @@ def _lifeloss_makers(tree: ConceptTree) -> list[Signal]:
                 continue
             top_level_ids.add(id(c.node))
             scoped_fire(unit, c.node, c.raw)
+        # (Phase v0.104.0's draw-then-lose-life clause recovered under its draw
+        # — Marchesa — is the ledger row conditional_draw_bleed_lifeloss_parked:
+        # the loss is the clause's second verb.)
         for n in iter_typed_nodes(unit.node):
             # Skip a node already handled via the top-level concept read above
             # — a LoseLife reachable BOTH through ``unit.effect_concepts``
@@ -2265,6 +2298,17 @@ def _clone_text_idiom(tree: ConceptTree) -> str | None:
     return None
 
 
+def _copies_a_named_card(unit: AbilityUnit) -> bool:
+    """Whether the unit's copy is of a card NAME it chose (a typed
+    ``Choose{choice_type: CardName}`` beside the recovered ``clone`` clause —
+    Garth One-Eye's "create a copy of the card with the chosen name"): a new card
+    from a list, not a copy of an object in play, so no token-copy maker."""
+    return any(
+        tag_of(n) == "Choose" and getattr(n, "choice_type", None) == "CardName"
+        for n in unit.iter_typed()
+    )
+
+
 def _copy_clone(tree: ConceptTree) -> list[Signal]:
     """copy_permanent / clone_makers / token_copy_makers — the copy cluster (CR 707 /
     701.36). Three structural surfaces (Dan's clone-vs-token-copy boundary):
@@ -2334,6 +2378,13 @@ def _copy_clone(tree: ConceptTree) -> list[Signal]:
             tgt = getattr(c.node, "target", None)
             if c.concept == "copy_token" and tag_of(tgt) == "SelfRef":
                 continue  # a copy of THIS card (Embalm / Eternalize / Squad / Myriad)
+            # phase v0.104.0 parks Ochre Jelly's / Shredder's "create a token
+            # that's a copy of it" as a residue the ``clone`` token recovers, with
+            # no typed target: the seam marks the same self-copy (``SELF``).
+            if c.recovered_by == "clone" and (
+                SELF in c.subject or _copies_a_named_card(unit)
+            ):
+                continue
             fire("token_copy_makers", c.raw)
     if "clone_makers" not in seen:
         idiom = _clone_text_idiom(tree)

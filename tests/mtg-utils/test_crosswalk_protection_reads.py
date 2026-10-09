@@ -64,8 +64,6 @@ def _deterrent(name: str) -> str | None:
         # "put it onto the battlefield … it gains … hexproof" — the card the
         # ability put onto the battlefield.
         ("Doors of Durin", ("hexproof", "permanent")),
-        # An Aura's "that creature" is the enchanted creature (CR 303.4b).
-        ("Maze's Mantle", ("hexproof", "permanent")),
         # Umbra armor on an Aura shields the enchanted permanent (CR 702.89a):
         # Dog Umbra's own conditional grant, Estrid's Mask token.
         ("Dog Umbra", ("umbra armor", "permanent")),
@@ -256,20 +254,27 @@ def test_spell_selfref_misbinding_canary(name):
 
 
 @pytest.mark.retirement_canary
-def test_aura_etb_triggering_source_canary():
-    """Retirement canary for ``crosswalk.protection._aura_etb_names_enchanted``:
-    phase v0.94.0
-    aims Maze's Mantle's "that creature gains hexproof" at the trigger's
-    ``TriggeringSource`` (the Aura itself) rather than the enchanted creature."""
-    targets = [
-        tag_of(getattr(n, "target", None))
-        for t in _trees("Maze's Mantle")
+@pytest.mark.parametrize(
+    ("name", "residue"),
+    [
+        ("Resistance Fighter", "prevent_damage_recipient_target_role"),
+        ("Safeguard", "prevent_damage_dealt_by_target"),
+        ("Dovin, Hand of Control", "bidirectional_prevent_declared_target"),
+    ],
+)
+def test_parked_prevention_residues_canary(name, residue):
+    """Retirement canary for ``reads.PARKED_PREVENTION_RESIDUES``: phase v0.104.0
+    parks a prevention whose target is the damage source as a residue named for
+    its shape. When phase types these again, the residue read goes."""
+    names = {
+        getattr(n, "name", None)
+        for t in _trees(name)
         for n in t.iter_typed()
-        if tag_of(n) == "GenericEffect"
-    ]
-    assert "TriggeringSource" in targets, (
-        "crosswalk.protection._aura_etb_names_enchanted: RETIRE-READY — phase no "
-        "longer binds Maze's Mantle's grant to the triggering Aura. Delete the "
-        "helper, its call in protection._back_reference_recipient, and this "
-        "canary."
+        if tag_of(n) == "Unimplemented"
+    }
+    assert residue in names, (
+        f"reads.PARKED_PREVENTION_RESIDUES: RETIRE-READY for {residue} — phase "
+        f"no longer parks {name}'s prevention. Drop the name (and this case); "
+        "with none left, delete parked_prevention and its two readers "
+        "(protection.protective_saves, the damage_prevention lane)."
     )

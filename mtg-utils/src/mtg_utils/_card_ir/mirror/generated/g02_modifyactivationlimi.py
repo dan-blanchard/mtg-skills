@@ -28,21 +28,21 @@ if TYPE_CHECKING:
         U_amount,
         U_announced_x,
     )
-    from mtg_utils._card_ir.mirror.generated.g04_choose_scope import (
+    from mtg_utils._card_ir.mirror.generated.g04_characteristics import (
         U_condition,
     )
     from mtg_utils._card_ir.mirror.generated.g05_conditional_enter_wi import (
         S_cost_reduction,
         U_cost,
     )
-    from mtg_utils._card_ir.mirror.generated.g06_count import (
+    from mtg_utils._card_ir.mirror.generated.g06_costs import (
         S_data,
         U_count,
         U_data,
         U_distribute,
-        U_dynamic_count,
     )
-    from mtg_utils._card_ir.mirror.generated.g07_effect import (
+    from mtg_utils._card_ir.mirror.generated.g07_dynamic_count import (
+        U_dynamic_count,
         U_effect,
     )
     from mtg_utils._card_ir.mirror.generated.g08_else_ability import (
@@ -50,34 +50,35 @@ if TYPE_CHECKING:
         U_filter,
         U_filters,
     )
-    from mtg_utils._card_ir.mirror.generated.g09_keeper_constraint import (
+    from mtg_utils._card_ir.mirror.generated.g09_journal import (
         S_modal,
         S_mode_abilities,
         S_multi_target,
         U_land_filter,
         U_only_tag,
     )
-    from mtg_utils._card_ir.mirror.generated.g10_origin import (
+    from mtg_utils._card_ir.mirror.generated.g10_optional_player import (
         U_player,
         U_player_scope,
     )
     from mtg_utils._card_ir.mirror.generated.g11_prop import (
         U_properties,
     )
-    from mtg_utils._card_ir.mirror.generated.g13_reference import (
+    from mtg_utils._card_ir.mirror.generated.g13_redirect_to import (
         U_reference,
         U_repeat_for,
         U_repeat_until,
         U_source_filter,
         U_spell_filter,
     )
-    from mtg_utils._card_ir.mirror.generated.g14_sub_ability import (
+    from mtg_utils._card_ir.mirror.generated.g14_static_abilities import (
         S_sub_ability,
         S_unless_pay,
         U_target,
         U_target_chooser,
         U_target_constraints,
         U_target_selection_mode,
+        U_targets,
         U_timing,
         U_trigger_source_filter,
         U_value,
@@ -149,7 +150,9 @@ class S_ReduceAbilityCost(TypedMirrorNode):
     mode: str
     activator: U_activator = MISSING
     dynamic_count: U_dynamic_count = MISSING
+    frequency: str = MISSING
     minimum_mana: int = MISSING
+    targets: U_targets = MISSING
 
 
 @dataclass(frozen=True)
@@ -215,7 +218,8 @@ class S_SpellWithManaValue(TypedMirrorNode):
 
 @dataclass(frozen=True)
 class S_SpendManaAsAnyColor(TypedMirrorNode):
-    pass
+    concession: str = MISSING
+    spell_filter: U_spell_filter = MISSING
 
 
 @dataclass(frozen=True)
@@ -290,6 +294,7 @@ class S_abilities(TypedMirrorNode):
     cant_be_copied: bool = MISSING
     consumes_source: bool = MISSING
     cost_reduction: S_cost_reduction = MISSING
+    declares_chosen_group: int = MISSING
     distribute: U_distribute = MISSING
     else_ability: S_else_ability = MISSING
     is_mana_ability: bool = MISSING
@@ -420,6 +425,11 @@ class T_Prowl__Cost(TypedMirrorNode):
     _tag: ClassVar[str | None] = "Cost"
     generic: int
     shards: list[object]
+
+
+@dataclass(frozen=True)
+class T_Quality__Any(TypedMirrorNode):
+    _tag: ClassVar[str | None] = "Any"
 
 
 @dataclass(frozen=True)
@@ -879,7 +889,7 @@ type U_Partner = (
 )
 type U_Plot = T_Plot__Cost
 type U_Prowl = T_Prowl__Cost
-type U_Quality = T_Quality__Or | T_Quality__Typed
+type U_Quality = T_Quality__Any | T_Quality__Or | T_Quality__Typed
 type U_Reconfigure = T_Reconfigure__Cost
 type U_Recover = T_Recover__Cost
 type U_Replicate = T_Replicate__Cost | T_Replicate__SelfManaCost

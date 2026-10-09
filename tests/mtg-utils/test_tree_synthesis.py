@@ -3995,10 +3995,11 @@ def test_land_creatures_animate_synth_registered():
 
 
 def test_curse_matters_structural_gate_true_on_existing_arm():
-    """Witchbane Orb's Curse-subtype DestroyAll effect target — one of the
-    lane's two genuinely structural arms."""
-    assert has_structural_curse_matters(_fixture_tree("Witchbane Orb"))
-    assert _arm_curse_matters(_fixture_tree("Witchbane Orb")) is None
+    """Bitterheart Witch's Curse-subtype search filter — one of the lane's two
+    genuinely structural arms. (Witchbane Orb's Curse-subtype DestroyAll was the
+    pin until phase v0.104.0 parked it as a residue; a ledger bridge serves it.)"""
+    assert has_structural_curse_matters(_fixture_tree("Bitterheart Witch"))
+    assert _arm_curse_matters(_fixture_tree("Bitterheart Witch")) is None
 
 
 def test_curse_matters_bucket_b_synth_gap_gated():
@@ -6182,16 +6183,15 @@ def test_base_pt_mass_where_x_never_widens_creatures_matter(name):
 
 
 @pytest.mark.parametrize("name", ["Duskana, the Rage Mother", "Bess, Soul Nourisher"])
-def test_base_power_ref_conjunctive_fires_on_pins(name):
+def test_base_power_ref_conjunctive_graduated_structural(name):
     """The former ``duskana_bess_base_pt_and_toughness_ref`` bridge's exact
     2-card census — a conjunctive 'base power and toughness N/N' reference
-    phase's grammar drops with zero trace."""
+    phase's grammar dropped with zero trace through v0.94.0. Phase v0.104.0
+    types it, so the arm stands down and the lane serves the card through the
+    structural read: membership kept, mechanism graduated."""
     tree = _fixture_tree(name)
-    assert has_structural_base_power_ref(tree) is False
-    node = _arm_base_power_ref_conjunctive(tree)
-    assert node is not None
-    assert node.concept == "base_power_matters"
-    assert node.node.arm_id == "base_power_ref_conjunctive"
+    assert has_structural_base_power_ref(tree) is True
+    assert _arm_base_power_ref_conjunctive(tree) is None
 
     from mtg_utils._analysis.lanes import _base_power_matters
 
@@ -6272,7 +6272,6 @@ def test_ramp_grant_unimplemented_body_no_fire_on_structural_grant():
 @pytest.mark.parametrize(
     "name",
     [
-        "Neheb, the Eternal",
         "Squandered Resources",
     ],
 )
@@ -6313,6 +6312,9 @@ def test_ramp_dropped_add_mana_clause_fires_on_pins(name):
         # 706.3), read by ``_ramp``'s lane-local ``_die_roll_table_mana_
         # nodes`` — the flat per-row ``Unimplemented`` residue is gone.
         '"Name Sticker" Goblin',
+        # v0.104.0 pin bump: phase parses Neheb's "add {R} for each 1 life
+        # your opponents have lost this turn" as a typed Mana node.
+        "Neheb, the Eternal",
     ],
 )
 def test_ramp_dropped_add_mana_clause_graduated_structural(name):

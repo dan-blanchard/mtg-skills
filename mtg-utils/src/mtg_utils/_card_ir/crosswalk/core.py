@@ -39,6 +39,7 @@ from __future__ import annotations
 
 from collections.abc import Iterator
 from dataclasses import dataclass, field
+from functools import cached_property
 
 from mtg_utils._card_ir.crosswalk.cost_text import (
     ALT_COST_KEYWORDS,
@@ -57,7 +58,7 @@ from mtg_utils._card_ir.crosswalk.reads import (
     _filter_type_words,
     _iter_typed_nodes,
     _node_raw,
-    _player_scope_tag,
+    _owner_scope_tag,
     _present,
     _scope_from_player_node,
     _trigger_event,
@@ -615,15 +616,20 @@ class ConceptTree:
         """Whether ANY trigger unit fires on one of the derived ``events``."""
         return any(u.trigger_event in events for u in self.units)
 
+    @cached_property
+    def unimplemented(self) -> tuple[TypedMirrorNode, ...]:
+        """Every ``Unimplemented`` residue node on the card, walked once and kept:
+        the ledger's ~150 gap reads and the parked-residue lane reads all filter
+        this instead of re-walking the tree."""
+        return tuple(n for n in self.iter_typed() if tag_of(n) == "Unimplemented")
+
     def residues(self, name: str | None = None) -> Iterator[str]:
         """The descriptions of phase's ``Unimplemented`` residue nodes — every
         typed node phase parked rather than parsed — optionally only those whose
         phase ``name`` is ``name`` (``"static_structure"``, ``"effect_structure"``,
         ``"Unsupported unless clause"``, …). The read every gap-gated text bridge
         keys on: a residue present means the clause survives only as text."""
-        for n in self.iter_typed():
-            if tag_of(n) != "Unimplemented":
-                continue
+        for n in self.unimplemented:
             if name is not None and not residue_is(n, name):
                 continue
             yield getattr(n, "description", "") or ""
@@ -949,22 +955,23 @@ def _walk_effects(
 
 
 def _find_owner_scope(
-    node: object, target: object, depth: int, seen: set[int]
+    node: object, target: object, depth: int, seen: set[int], root: object = None
 ) -> str | None:
     if depth > 40 or not isinstance(node, TypedMirrorNode) or id(node) in seen:
         return None
     seen.add(id(node))
+    root = node if root is None else root
     if getattr(node, "effect", MISSING) is target:
-        return _player_scope_tag(getattr(node, "player_scope", MISSING))
+        return _owner_scope_tag(getattr(node, "player_scope", MISSING), root)
     for fname in (*_EFFECT_CHILD_FIELDS, "mode_abilities"):
         child = getattr(node, fname, MISSING)
         if isinstance(child, TypedMirrorNode):
-            r = _find_owner_scope(child, target, depth + 1, seen)
+            r = _find_owner_scope(child, target, depth + 1, seen, root)
             if r is not None:
                 return r
         elif _present(child) and isinstance(child, list):
             for m in child:
-                r = _find_owner_scope(m, target, depth + 1, seen)
+                r = _find_owner_scope(m, target, depth + 1, seen, root)
                 if r is not None:
                     return r
     return None
@@ -985,6 +992,8 @@ def effect_owner_player_scope(root: object, effect_node: object) -> str | None:
     per-opponent tap loop (a ``repeat_for`` on the OUTER trigger, not the
     gain-control's wrapper), Garland's monarch vote. Typed-attr reads only;
     depth-capped, cycle-safe. ``None`` == owned by the ability's controller.
+    ``OTHERS_SCOPE`` == "each other player" (:func:`_owner_scope_tag`): CR 102.3 makes
+    a teammate one of the other players, so each lane decides what it means.
     """
     return _find_owner_scope(root, effect_node, 0, set())
 
@@ -1299,14 +1308,15 @@ def _corrected_partner_kind(
 #: Phase v0.94.0 fails a keyword whose cost has a non-mana part: it leaves the
 #: keyword off the card and parks its line as an ``Unimplemented`` residue —
 #: Zombie Cutthroat's "Morph—Pay 5 life.", Dragon's Eye Savants' "Morph—Reveal a
-#: blue card in your hand.", Tenacious Underdog's "Blitz—{2}{B}{B}, Pay 2 life.",
-#: Timeline Culler's "Warp—{B}, Pay 2 life.", Shadowgrange Archfiend's madness,
+#: blue card in your hand.", Timeline Culler's "Warp—{B}, Pay 2 life.",
+#: Shadowgrange Archfiend's madness,
 #: Escape Velocity's escape (parked as "~—…", the card's name read for the
 #: keyword). Each oracle "<Keyword>—" line whose cost phase parked as a residue is
 #: recovered, for ``card_alt_costs`` and (warp, blitz) ``card_curve_costs`` alike.
 #: Plot and retrace are left out (a card can mention plot without a plot cost;
 #: retrace prints none). The ``keyword_dropped_paylife`` ledger bridge reads the
-#: rows this recovers. Guarded by ``test_dropped_keyword_costs_canary``.
+#: rows this recovers. Guarded by ``test_dropped_keyword_costs_canary``. (v0.104.0
+#: carries every blitz cost, Tenacious Underdog's ``Composite`` included.)
 _RECOVERABLE_KEYWORDS: dict[str, str] = {
     kind: key
     for key, (kind, _) in ALT_COST_KEYWORDS.items()

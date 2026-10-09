@@ -76,6 +76,7 @@ from mtg_utils._card_ir.crosswalk import (
     trigger_scope,
 )
 from mtg_utils._card_ir.mirror.runtime import MirrorVariant
+from mtg_utils._card_ir.recovery import EACH_OBJECT, TARGET_OBJECT, THEIRS
 
 
 def _counter_place_trigger(tree: ConceptTree) -> list[Signal]:
@@ -323,6 +324,18 @@ def _tap_lanes(tree: ConceptTree) -> list[Signal]:
             if c.role != "effect":
                 continue
             if c.concept == "tap_untap":
+                # phase v0.104.0 parks an intervening-if tap ("if your team
+                # controls another Warrior, tap target creature" — Aurora
+                # Champion) as an Unimplemented residue the ``tap`` token
+                # recovers; no typed target, so the seam reads it. The token
+                # also fires on tap-as-cost grants ("Tap an untapped artifact
+                # you control: …") and "tap it" back-references; only a tap
+                # whose own object is a target (``TARGET_OBJECT``) is a tapper
+                # (CR 701.26a).
+                if c.recovered_by == "tap":
+                    if TARGET_OBJECT in c.subject:
+                        fire("tapper_engine", "any", c.raw)
+                    continue
                 if settap_state(c.node) != "Tap":
                     continue
                 tgt = getattr(c.node, "target", None)
@@ -360,7 +373,12 @@ def _tap_lanes(tree: ConceptTree) -> list[Signal]:
                 if (
                     ctrl in ("Opponent", "DefendingPlayer", "TargetOpponent")
                     or (
-                        ctrl == "TargetPlayer"
+                        # phase v0.104.0 binds "that player" off a deals-damage
+                        # trigger as TriggeringPlayer (Mana Skimmer, Somnophore).
+                        # Not shared with the reveal / draw recipient sets: each
+                        # verb's recipient tags differ (a Controller revealer is
+                        # only "other" under an each-player wrapper).
+                        ctrl in ("TargetPlayer", "TriggeringPlayer")
                         and unit.origin == "trigger"
                         and unit.trigger_event in ("attacks", "deals_damage")
                     )
@@ -1214,8 +1232,11 @@ def _control_exchange(tree: ConceptTree) -> list[Signal]:
                 and filter_controller(target) != "You"
             )
 
+        # A graveyard card has no controller (CR 108.4a): Calim's "exile two
+        # other cards named Calim from your graveyard" (typed at phase
+        # v0.104.0) is self-recursion, not a stolen permanent coming home.
         exile_owned = any(
-            change_zone_dirs(c.node)[1] == "Exile"
+            change_zone_dirs(c.node) in ((None, "Exile"), ("Battlefield", "Exile"))
             and _steal_recovery(getattr(c.node, "target", None))
             for c in czs
         )
@@ -1604,6 +1625,20 @@ def _counter_distribute(tree: ConceptTree) -> list[Signal]:
     for c in tree.iter_concepts():
         if c.concept == "synth_counter_distribute":
             return [Signal("counter_distribute", "you", "", "", tree.name, "high")]
+        # phase v0.104.0 parks a qualified spread ("on each creature that
+        # entered the battlefield under your control" — Shaile; "on each
+        # artifact that became a creature this way" — Rise and Shine) as an
+        # Unimplemented residue the ``place_counter`` token recovers: +1/+1
+        # counters whose own object is "each …" (``EACH_OBJECT``), not aimed at
+        # an opponent's creatures (Aku Djinn's drawback).
+        if (
+            c.recovered_by == "place_counter"
+            and "+1/+1 counter" in c.subject
+            and EACH_OBJECT in c.subject
+            and THEIRS not in c.subject
+            and c.scope != "opponents"
+        ):
+            return [Signal("counter_distribute", "you", "", c.raw, tree.name, "high")]
     return []
 
 

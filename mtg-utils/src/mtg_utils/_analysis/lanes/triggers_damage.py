@@ -30,6 +30,7 @@ from mtg_utils._card_ir.crosswalk import (
     OTHER,
     PROTECTIVE_KEYWORDS,
     AbilityUnit,
+    ConceptNode,
     ConceptTree,
     cast_with_keyword_name,
     change_zone_dirs,
@@ -63,6 +64,7 @@ from mtg_utils._card_ir.crosswalk import (
     mod_keyword_name,
     normalised_keyword,
     normalised_keyword_name,
+    parked_prevention,
     player_filter_tag,
     recipient_tag,
     ref_count_qty,
@@ -81,11 +83,21 @@ from mtg_utils._card_ir.crosswalk import (
     trigger_damage_kind,
     trigger_subject_scope,
     unit_keyword_grants,
+    unit_zones,
     zone_change_count_reads,
 )
 from mtg_utils._card_ir.mirror.runtime import (
     MirrorVariant,
     TypedMirrorNode,
+)
+from mtg_utils._card_ir.recovery import (
+    ANY_TARGET,
+    MASS,
+    PLAYER,
+    POWER_SCALED,
+    SELF,
+    TARGET_OBJECT,
+    YOURS,
 )
 from mtg_utils._card_ir.text_idioms import (
     _FORCE_ATTACK,
@@ -372,7 +384,11 @@ def _reveal_names_other_player(node: TypedMirrorNode, unit_node: object = None) 
                 tag_of(n) == "Choose" and getattr(n, "choice_type", None) == "Opponent"
                 for n in iter_typed_nodes(unit_node)
             )
-    if unit_node is not None and t in ("Any", "ScopedPlayer"):
+    # phase v0.104.0 writes the revealer under an each-player / each-opponent
+    # wrapper as ``Controller`` (Noxious Vapors, Valki) where v0.94.0 wrote
+    # ``Any``: the wrapper's iterated player reveals. (Not the tap or draw
+    # lanes' recipient sets — a bare ``Controller`` is you anywhere else.)
+    if unit_node is not None and t in ("Any", "ScopedPlayer", "Controller"):
         return effect_owner_player_scope(unit_node, node) in _REVEAL_SCOPE_WRAPPER_TAGS
     return False
 
@@ -1095,7 +1111,47 @@ def _bounce_tempo(tree: ConceptTree) -> list[Signal]:
     for c in tree.iter_concepts():
         if c.concept == "synth_bounce_tempo":
             return [Signal("bounce_tempo", "you", "", "", tree.name, "high")]
+    # phase v0.104.0 fails closed: a bounce behind an intervening-if or a
+    # reflexive "when it connives this way" parks whole as an Unimplemented
+    # residue, re-decorated by the recovery stage's "bounce" token (concept
+    # change_zone, no typed target to read), so the seam's reading of the
+    # clause stands in: a return to a hand that isn't yours, of a
+    # targeted permanent (Psychic Pickpocket — ``TARGET_OBJECT`` and a type
+    # word, so a spell bounce, Remand's shape, stays out), or of the card
+    # itself (``SELF`` — Imaginary Pet, Shatterskull Charger) only from a
+    # battlefield unit (the Blinking Spirit family, never a graveyard recall).
+    for unit in tree.units:
+        for c in unit.effect_concepts("change_zone"):
+            if c.recovered_by != "bounce":
+                continue
+            subject = c.subject
+            if "Hand" not in c.zones or YOURS in subject:
+                continue
+            targets_permanent = TARGET_OBJECT in subject and any(
+                t in _BOUNCE_TYPE_WORDS for t in subject
+            )
+            if targets_permanent or (
+                SELF in subject and "Battlefield" in unit_zones(unit)
+            ):
+                return [Signal("bounce_tempo", "you", "", c.raw, tree.name, "high")]
     return []
+
+
+#: The permanent type words the seam names (a bounce's target must be one).
+_BOUNCE_TYPE_WORDS: frozenset[str] = frozenset(
+    {
+        "Creature",
+        "Artifact",
+        "Enchantment",
+        "Land",
+        "Planeswalker",
+        "Permanent",
+        "Battle",
+        "Aura",
+        "Equipment",
+        "Vehicle",
+    }
+)
 
 
 def _power_double(tree: ConceptTree) -> list[Signal]:
@@ -1173,6 +1229,10 @@ def _keyword_grant_lanes(tree: ConceptTree) -> list[Signal]:
             fire("keyword_grant_target", "you", "")
             if normalised_keyword(mod) in PROTECTIVE_KEYWORDS:
                 fire("protection_grant", "you", "")
+        # (phase v0.104.0's intervening-if threaten-then-haste — Might Makes
+        # Right — is the ledger row conditional_threaten_haste_parked: the
+        # grant is the clause's second verb, not the gain_control the recovery
+        # stage reads.)
         for sdef, mod in iter_mod_sites(unit.node):
             if tag_of(mod) != "AddKeyword":
                 continue
@@ -1925,6 +1985,9 @@ def _damage_prevention(tree: ConceptTree) -> list[Signal]:
     hits = tree.effect_concepts("prevent_damage")
     if hits:
         return [Signal("damage_prevention", "you", "", hits[0].raw, tree.name, "high")]
+    # A prevention phase v0.104.0 parks by shape (reads.PARKED_PREVENTION_RESIDUES).
+    if any(parked_prevention(n) for n in tree.unimplemented):
+        return [Signal("damage_prevention", "you", "", "", tree.name, "high")]
     # Third arm (v0.45.0 pin bump): phase v0.38.0 re-modeled the static
     # "prevent N of that damage" shield (Urza's Armor, Orbs of Warding,
     # Guardian Seraph) from a mis-typed ``PreventDamage`` spell effect into
@@ -2072,6 +2135,21 @@ def _dep_or_and_reaches_player(tgt: object, depth: int = 0) -> bool:
     return False
 
 
+def _recovered_power_to_player(c: ConceptNode) -> bool:
+    """A recovered "damage" clause (see ``_damage_equal_power``) the seam reads as
+    power-scaled (``POWER_SCALED``) and reaching a player the way
+    ``_DEP_PLAYER_TAGS`` do: a damage target that is any target or a player
+    (``TARGET_OBJECT`` with ``ANY_TARGET`` / ``PLAYER``), or every opponent or
+    player at once (``PLAYER`` with ``MASS``) — never one fixed player (you,
+    defending player, its controller)."""
+    subject = c.subject
+    if POWER_SCALED not in subject:
+        return False
+    if TARGET_OBJECT in subject and (ANY_TARGET in subject or PLAYER in subject):
+        return True
+    return PLAYER in subject and MASS in subject
+
+
 def _damage_equal_power(tree: ConceptTree) -> list[Signal]:
     """damage_equal_power — the Fling shape (CR 120.3 recipient rules): a
     ``DealDamage`` whose amount is a ``Ref`` over a POWER qty
@@ -2085,6 +2163,19 @@ def _damage_equal_power(tree: ConceptTree) -> list[Signal]:
     """
     for unit in tree.units:
         for c in unit.effect_concepts("deal_damage"):
+            # phase v0.104.0 fails closed: an intervening-if power burn
+            # (Syrix's "target Phoenix you control deals damage equal to its
+            # power to any target") parks whole as an Unimplemented residue
+            # the recovery stage's "damage" token re-decorates; with no typed
+            # amount/recipient, the seam's reading names both.
+            if c.recovered_by == "damage":
+                if _recovered_power_to_player(c):
+                    return [
+                        Signal(
+                            "damage_equal_power", "you", "", c.raw, tree.name, "high"
+                        )
+                    ]
+                continue
             if tag_of(c.node) not in ("DealDamage", "EachSourceDealsDamage"):
                 continue
             if ref_qty_tag(c.node, "amount") != "Power":
@@ -2336,8 +2427,10 @@ def _damage_trigger_lanes(tree: ConceptTree) -> list[Signal]:
 # The structural anchor (a ``DealDamage`` whose amount is a POWER-scaled
 # ``Ref``) only fires today when the RECIPIENT is independently typed as a
 # Creature (Ram Through). Legacy's actual discriminator is the DOER, not
-# the recipient: "a creature deals damage equal to ITS OWN power" fires
-# creature_ping regardless of WHO the damage reaches (a Fling-style "the
+# the recipient: on a typed node, "a creature deals damage equal to ITS OWN
+# power" fires creature_ping regardless of WHO the damage reaches; a recovered
+# clause (no typed amount) also needs a non-player recipient — the seam marks
+# none (:func:`_recovered_power_damage`) (a Fling-style "the
 # sacrificed creature's power" names a DIFFERENT object's power and never
 # matches these phrasings, so it correctly stays out — that shape is
 # damage_equal_power only, already ported separately). CR 120.3.
@@ -2376,6 +2469,23 @@ _POWER_MULT_DOER = re.compile(
 _POWER_RECIP_CREATURE_TEXT = re.compile(
     r"power to (?:target|another target|that) creature\b", re.IGNORECASE
 )
+
+
+def _recovered_power_damage(c: ConceptNode) -> bool:
+    """A recovered "damage" clause scaled by power that ``creature_ping``
+    counts (CR 120.3): any power dealt to a creature
+    (:data:`_POWER_RECIP_CREATURE_TEXT`), or its own power
+    (:data:`_POWER_ITS_OWN_DOER` / :data:`_POWER_MULT_DOER`) dealt to something
+    other than a player (the seam marks no ``PLAYER`` recipient — Consuming
+    Ferocity's "to its controller", Iron Mastiff's d20 rows). These are the typed
+    path's own doer / recipient confirms; every one names "power", so it stands
+    in for the typed ``Ref(Power)`` amount anchor."""
+    text = c.raw or ""
+    if _POWER_RECIP_CREATURE_TEXT.search(text):
+        return True
+    return PLAYER not in c.subject and any(
+        rx.search(text) for rx in (_POWER_ITS_OWN_DOER, _POWER_MULT_DOER)
+    )
 
 
 def _unit_is_repeatable(unit: AbilityUnit) -> bool:
@@ -2523,6 +2633,14 @@ def _mass_damage_lanes(tree: ConceptTree) -> list[Signal]:
                 creature_ping_nodes.append(c.node)
                 if _creature_ping_fires(c.node, c.raw or "", tree):
                     fire("creature_ping", "you", c.raw or "")
+            # phase v0.104.0 fails closed: an intervening-if power-damage
+            # trigger (Squall, Syrix) or an Equipment's quoted grant
+            # (Surestrike Trident) parks whole as an Unimplemented residue the
+            # recovery stage's "damage" token re-decorates — no typed amount or
+            # recipient, so the power anchor is the clause's own doer/recipient
+            # confirm (the same three text confirms the typed path uses).
+            elif c.recovered_by == "damage" and _recovered_power_damage(c):
+                fire("creature_ping", "you", c.raw)
     # ADR-0038 W3 batch 6: a SECOND, DEEP pass over every unit's node reaches
     # a DealDamage/DamageAll/DamageEachPlayer node buried inside a GRANTED
     # ability's OWN definition (GrantAbility/GrantStaticAbility/

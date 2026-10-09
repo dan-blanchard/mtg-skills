@@ -32,14 +32,15 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
     parses as the Ring tempting you); Celestial Convergence's win is an
     `unbound_subject` residue.
   - Alternative costs, each corrected where the tree is built with a canary: keyword
-    lines with a non-mana cost parked as residues (morph "Reveal a blue card", blitz
-    / warp / madness with life, Escape Velocity's escape —
+    lines with a non-mana cost parked as residues (morph "Reveal a blue card", warp
+    / madness with life, Escape Velocity's escape; blitz parses since v0.104.0 —
     `core._dropped_keyword_costs`, `test_dropped_keyword_costs_canary`); suspend X
     read as count 0 and Warbringer's / Catalyst Stone's cost changers read as empty
     keywords (`core._misread_keyword`, `test_misread_keyword_canary`).
-  - Mass land denial, each with a canary or a ledger row: End Hostilities, Eye of
-    Singularity and Herald of Vengeance lose their narrowing clause and read as
-    "all permanents" (vetoed by `reads.NARROWED_PERMANENT_SWEEPS`); Exhaustion's and
+  - Mass land denial, each with a canary or a ledger row: Eye of Singularity and
+    Herald of Vengeance lose their narrowing clause and read as "all permanents"
+    (vetoed by `reads.NARROWED_PERMANENT_SWEEPS`; End Hostilities is an
+    `attached_to_qualifier` residue since v0.104.0); Exhaustion's and
     Mana Vapors' one-untap-step effect parses as a lasting static
     (`_lasting_static_defs`); Burning of Xinye's "destroys four lands" is a residue
     and Global Ruin's sacrifice a tracked set (both ledger bridges).
@@ -63,8 +64,9 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   (`test_wylls_reversal_target_constraint_canary`); aftermath halves (Dusk // Dawn),
   Garza's Assassin's recover, Salvation Colossus's unearth and Oscorp Industries'
   mayhem are dropped, so the `self-recurring` preset reads them by keyword
-  (`test_self_recurring_keyword_gap_canary`); Nether Shadow loses "if this card is
-  in your graveyard" (`test_nether_shadow_graveyard_condition_canary`); Bumi's Feast
+  (`test_self_recurring_keyword_gap_canary`); Nether Shadow's graveyard return is an
+  `unparsed_condition` residue since v0.104.0 (ledger row
+  `nether_shadow_graveyard_return_parked`); Bumi's Feast
   Lecture's earthbend return binds to the Food token (`LastCreated`) instead of the
   land (`test_earthbend_last_created_binding_canary`).
 - **`serve_self_recur` is still an oracle regex** (`signal_specs._shared._self_recurs`,
@@ -113,6 +115,52 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   text path misses Tomik, Izzet Sparkmage (a damage *replacement*, not an "each
   opponent" clause), reads Cruel Calculations as target-player (phase drops its player
   target), and differs on removal reach for about 18 cards.
+
+**From the phase v0.104.0 bump (2026-10-09)**
+
+- **Phase now fails closed on what it can't represent** (#9392 and kin), parking the
+  whole effect as a residue named for its shape (`unparsed_condition` 63 → 216 at
+  v0.104.0, `put_counter_tail`, `attached_to_qualifier`, `static_structure`,
+  `unparsed_verb_arguments`, `perpetual_modify_pt`, `granter_reference_unreached`).
+  The v0.104.0 bump routes the parked verbs through `recovery.ALLOWLIST` (15 new
+  tokens) and keeps 28 ledger rows for the rest. Open: recovery only re-decorates a
+  unit's top-level effects, so a verb inside a granted trigger body (Shackles of
+  Treachery) or a clause's second verb (Darigaaz, Lord Skitter's Blessing, Razor
+  Boomerang) still needs a row — walking `iter_nested_granted_effect_concepts` and
+  splitting compound clauses would retire most of them. Report upstream by residue
+  class, not per card. Arcade Gannon's `type_matters|Human` stays lost (the ledger
+  test compares key and scope, not subject).
+- **Merged zone-change triggers.** Phase v0.104.0 folds Dreadhound's two triggers
+  ("whenever a creature dies or a creature card is put into a graveyard from a
+  library") into one trigger with `zone_change_clauses` (Equals-origin predicates);
+  the library-origin clause isn't read, so its `graveyard_matters|you` is lost.
+- **Pre-v0.104.0 recovered-clause reads.** The older recovery rows' lanes still read
+  their own clause text (draw direction `_RECOVERED_DRAW_DIRECTED_RE`, discard
+  direction, damage reach `_RECOVERED_DAMAGE_REACH`, make_token's resource kinds).
+  Move them onto `recovery.read_clause` marks like the v0.104.0 rows (ADR-0038
+  amendment); `make_token` needs its own subject field first, since its `subject`
+  already carries the token's types.
+- **Walk `ChooseOneOf` branches** (fold into the vote / "otherwise" / d20 branch
+  task below, Dan 2026-10-09). `core._walk_effects` doesn't descend a
+  `ChooseOneOf`'s `branches`; v0.104.0 moved nine cards' "+1/-1 or -1/+1" pumps
+  there (Endling, Brightling, Shorecrasher Elemental, Pemmin's Aura …: `self_pump`,
+  `debuff_makers`, `scaling_pump` lost). Walking controller-chosen branches (and
+  teaching `_find_owner_scope` / `reads._find_owner_wrapper` the branch scope)
+  restores them but adds about 60 gains across the 175 `ChooseOneOf` cards — review
+  those first.
+- **Keyword-cost discards.** Sabin, Master Monk's blitz cost is now a typed
+  `Composite[Mana, Discard]` keyword cost, which `_keyword_cost_paylife_concepts`
+  doesn't decorate (PayLife only), so `discard_outlet` lost it. Decorating `Discard`
+  leaves too also fires on about nine older cards (Collective Brutality, Forbid,
+  Conflagrate …) — review first.
+- **Converged synthesis arms.** `base_power_ref_conjunctive`,
+  `devil_token_quoted_grant_dominant_verb_create` and `dropped_counter_move` fire on
+  no card at v0.104.0 (their pins read structurally now); retire them with their
+  registry rows and tests.
+- **Phase regressions with no typed shape left (bridge candidates):** Hero of
+  Bretagard and Ranar the Ever-Watchful's "cards put into exile from your hand"
+  trigger is an `Unknown` mode (`exile_matters`); Glimpse the Cosmos's graveyard
+  cast permission is a hollow static (`permanent_recast`, `self_recurring`).
 
 **From the phase v0.94.0 bump (2026-09-26)**
 

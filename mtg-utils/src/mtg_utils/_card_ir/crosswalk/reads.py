@@ -1706,19 +1706,38 @@ def change_zone_dirs(node: TypedMirrorNode) -> tuple[str | None, str | None]:
     )
 
 
-def additional_phase_kind(node: TypedMirrorNode) -> str:
-    """The lowercased ``phase`` of an ``AdditionalPhase`` effect (CR 505 / 506), or
-    ``""`` when absent.
+#: A whole added PHASE (``segment: Phase``) → the step-name kind the readers key
+#: on: an added combat phase is ``"begincombat"`` (its first step), an added
+#: beginning phase ``"untap"`` (CR 501.1: untap, upkeep, draw), an added ending
+#: phase ``"end"``.
+_ADDED_PHASE_KIND: dict[str, str] = {
+    "combat": "begincombat",
+    "beginning": "untap",
+    "ending": "end",
+}
 
-    Phase carries the granted extra phase on ``AdditionalPhase.phase``
-    (``"BeginCombat"`` — Aurelia, Moraug, Combat Celebrant). The ``extra_combats``
-    lane gates on it being a combat phase, mirroring ``project._EXTRA_PHASE``: phase
-    v0.9.0 only structurally emits a combat phase here (it mis-routes
-    extra-upkeep/draw/end to combat, recovered by a separate ``project`` marker), so
-    the combat read mirrors the live ``extra_combats`` exactly.
+
+def additional_phase_kind(node: TypedMirrorNode) -> str:
+    """The lowercased kind of an ``AdditionalPhase`` effect's added phase or step
+    (CR 500.8), or ``""`` when absent: ``"begincombat"`` for an added combat phase
+    (Aurelia, Moraug, Combat Celebrant), ``"untap"`` for an added beginning phase
+    (Sphinx of the Second Sun), ``"upkeep"`` / ``"draw"`` / ``"end"`` for an added
+    step (Paradox Haze, Y'shtola Rhul).
+
+    Phase v0.104.0 replaced the flat ``phase: "BeginCombat"`` string with a tagged
+    ``segment``: ``Phase`` (a whole phase — ``Combat`` / ``Beginning`` / ``Ending``),
+    ``Step`` (one step — ``Upkeep`` / ``End`` …) or ``CreatedPhase`` (Obeka's
+    "additional upkeep steps"), each carrying its name on ``data``. Both read to the
+    same step-name kinds the ``extra_combats`` and extra-phase lanes key on.
     """
-    p = getattr(node, "phase", MISSING)
-    return p.lower() if isinstance(p, str) else ""
+    seg = getattr(node, "segment", MISSING)
+    data = getattr(seg, "data", None)
+    if isinstance(data, str):
+        name = data.lower()
+        if tag_of(seg) == "Phase":
+            return _ADDED_PHASE_KIND.get(name, name)
+        return name
+    return ""
 
 
 def modify_cost_mode(static_node: TypedMirrorNode) -> str | None:
@@ -3566,6 +3585,36 @@ def _player_scope_tag(ps: object) -> str | None:
     return ps if isinstance(ps, str) else None
 
 
+#: ``AllExcept.exclude`` tags naming the ability's own controller.
+_SELF_EXCLUDE_TAGS: frozenset[str] = frozenset({"Controller", "You"})
+
+
+#: "each other player": an ``AllExcept`` ``player_scope`` that excludes the
+#: ability's controller. CR 102.3 makes a teammate one of the other players, so
+#: each read decides what it means (reach: ``"each"``).
+OTHERS_SCOPE = "Others"
+
+
+def _owner_scope_tag(ps: object, root: object) -> str | None:
+    """A wrapper's ``player_scope`` tag, with "each other player" — an
+    ``AllExcept`` that excludes the ability's controller — resolved to
+    ``"Others"``. Phase v0.104.0 writes Oft-Nabbed Goat's "its owner draws … and
+    each other player loses that much life" as ``AllExcept{exclude:
+    ParentObjectTargetOwner}`` on the card's own dies trigger, whose parent
+    object is the card itself; on any other trigger that object is a target
+    (Fractured Identity), so it stays ``AllExcept``."""
+    tag = _player_scope_tag(ps)
+    if tag != "AllExcept":
+        return tag
+    excluded = tag_of(getattr(ps, "exclude", None))
+    if excluded in _SELF_EXCLUDE_TAGS or (
+        excluded == "ParentObjectTargetOwner"
+        and tag_of(getattr(root, "valid_card", None)) == "SelfRef"
+    ):
+        return OTHERS_SCOPE
+    return tag
+
+
 def _find_owner_wrapper(
     node: object, target: object, depth: int, seen: set[int]
 ) -> TypedMirrorNode | None:
@@ -3634,6 +3683,14 @@ def effect_owner_targets_per_opponent(root: object, effect_node: object) -> bool
     return tag_of(getattr(qty, "filter", None)) == "Opponent"
 
 
+def effect_owner_reads_chosen_group(root: object, effect_node: object) -> bool:
+    """Whether the wrapper that DIRECTLY owns ``effect_node`` acts on a group an
+    earlier clause chose (phase's ``reads_chosen_group`` index — The Eagles Are
+    Coming!'s "return each chosen creature")."""
+    owner = _find_owner_wrapper(root, effect_node, 0, set())
+    return isinstance(getattr(owner, "reads_chosen_group", None), int)
+
+
 def effect_owner_duration(root: object, effect_node: object) -> str | None:
     """The ``duration`` tag on the wrapper that DIRECTLY owns ``effect_node``
     (Banisher Priest's exile execute carries ``UntilHostLeavesPlay`` on the
@@ -3684,13 +3741,15 @@ def effect_player_reach(root: object, effect_node: TypedMirrorNode) -> str | Non
         return "per_opponent"
     owner = _find_owner_wrapper(root, effect_node, 0, set())
     actor = (
-        _player_scope_tag(getattr(owner, "player_scope", MISSING))
+        _owner_scope_tag(getattr(owner, "player_scope", MISSING), root)
         if owner is not None
         else None
     )
     if actor in _OPPONENT_ACTOR_TAGS:
         return "opponents"
-    if actor in _EACH_ACTOR_TAGS or actor == "All":
+    # "each other player" (``Others``) reaches your teammate too (CR 102.3), the
+    # same call as twohg_scan's veto on phase's ``Opponent`` reading of it.
+    if actor in _EACH_ACTOR_TAGS or actor in ("All", OTHERS_SCOPE):
         return "each"
     pf = player_filter_tag(effect_node)
     if pf == "All":
@@ -3709,11 +3768,13 @@ def effect_player_reach(root: object, effect_node: TypedMirrorNode) -> str | Non
             return "scoped"
         if ctrl in _TARGET_PLAYER_TAGS:
             return "target"
-    # Phase-misparse workaround: phase v0.94.0 parses Predictive Preparations'
-    # "each of one or two target creatures" as a ``PutCounterAll`` over a
-    # typeless filter, which would read as every permanent. Retire the
-    # ``filter_core_types`` condition when test_typeless_mass_filter_canary
-    # fails RETIRE-READY.
+    # Phase-misparse workaround: phase drops the narrowing clause of some mass
+    # effects and leaves a typeless filter, which would read as every
+    # permanent — v0.94.0's Predictive Preparations ("each of one or two target
+    # creatures"; a ``put_counter_tail`` residue since v0.104.0) and Saproling
+    # Burst's "destroy all tokens created with this enchantment" (a bare
+    # ``Token`` filter). Retire the ``filter_core_types`` condition when
+    # test_typeless_mass_filter_canary fails RETIRE-READY.
     if tag_of(effect_node) in _MASS_REACH_TAGS and filter_core_types(filt):
         ctrl = filter_controller(filt)
         if ctrl is None:
@@ -4577,6 +4638,34 @@ def _own_mana_effects(tree: ConceptTree) -> Iterator[TypedMirrorNode]:
             yield eff
 
 
+#: Phase v0.104.0 stops modelling a prevention whose TARGET is the damage source
+#: (or both source and recipient) and parks the effect as a residue named for the
+#: shape — Resistance Fighter's "Prevent all combat damage target creature would
+#: deal" (``prevent_damage_recipient_target_role``), Safeguard's "… dealt by
+#: target creature" (``prevent_damage_dealt_by_target``), Dovin, Hand of
+#: Control's "… dealt to and dealt by target permanent an opponent controls"
+#: (``bidirectional_prevent_declared_target``). Each is still a prevention effect
+#: (CR 615.1a: effects that use the word "prevent"), so the ``damage_prevention``
+#: lane and ``protection.protective_saves`` read the residue's name. Guarded by
+#: ``test_parked_prevention_residues_canary``.
+PARKED_PREVENTION_RESIDUES: frozenset[str] = frozenset(
+    {
+        "prevent_damage_recipient_target_role",
+        "prevent_damage_dealt_by_target",
+        "bidirectional_prevent_declared_target",
+    }
+)
+
+
+def parked_prevention(node: object) -> str | None:
+    """The :data:`PARKED_PREVENTION_RESIDUES` name ``node`` is parked under, or
+    ``None``."""
+    if tag_of(node) != "Unimplemented":
+        return None
+    name = getattr(node, "name", None)
+    return name if name in PARKED_PREVENTION_RESIDUES else None
+
+
 #: Phase v0.94.0 parks Boxing Ring's "Activate only if you control a creature that
 #: fought this turn" as an ``unparsed_condition`` residue in the ability's effect
 #: chain instead of an ``activation_restrictions`` entry, so the gate is invisible
@@ -4676,16 +4765,18 @@ _SHORT_DURATIONS = frozenset(
     }
 )
 
-#: Phase v0.94.0 drops the narrowing clause from three "permanents" sweeps and
-#: parses each as every permanent: End Hostilities ("all permanents attached to
-#: creatures"), Eye of Singularity ("each permanent with the same name as another
-#: permanent, except for basic lands") and Herald of Vengeance ("each permanent you
-#: don't control that has the same name as …"). Every other all-permanents sweep in
-#: the legal corpus is a true one (Apocalypse, Upheaval, Worldfire, Worldpurge,
-#: Dimensional Breach, Soulscour, Bearer of the Heavens). An every-permanent sweep
-#: on a card whose text names one of these narrowings is vetoed. Guarded by
+#: Phase drops the narrowing clause from two "permanents" sweeps and parses each as
+#: every permanent: Eye of Singularity ("each permanent with the same name as
+#: another permanent, except for basic lands") and Herald of Vengeance ("each
+#: permanent you don't control that has the same name as …"). (End Hostilities'
+#: "all permanents attached to creatures" was the third until v0.104.0, which
+#: parks it as an ``attached_to_qualifier`` residue.) Every other all-permanents
+#: sweep in the legal corpus is a true one (Apocalypse, Upheaval, Worldfire,
+#: Worldpurge, Dimensional Breach, Soulscour, Bearer of the Heavens). An
+#: every-permanent sweep on a card whose text names one of these narrowings is
+#: vetoed. Guarded by
 #: ``test_narrowed_permanent_sweeps_canary``.
-NARROWED_PERMANENT_SWEEPS = ("permanents attached to", "same name as")
+NARROWED_PERMANENT_SWEEPS = ("same name as",)
 
 
 def _land_class_arm(
@@ -5133,12 +5224,12 @@ def protective_keyword(mod: object) -> str | None:
 
 
 _TRACKED_SET_PRODUCER_TAGS: frozenset[str] = frozenset({"Token", "CopyTokenOf"})
-# Every ``*All`` Effect variant phase declares (v0.94.0) — each acts on EVERY
+#: Every ``*All`` Effect variant phase declares (v0.94.0) — each acts on EVERY
 # object its filter matches, never on a chosen target, so a "those creatures"
 # after one names a board filter, not the chain's targets. Wider than
 # :data:`MASS_EFFECT_TAGS` (the mass effects whose object filter decides who a
 # removal / reach read hits): this set only ends a target thread.
-_ALL_VARIANT_EFFECT_TAGS: frozenset[str] = frozenset(
+ALL_VARIANT_EFFECT_TAGS: frozenset[str] = frozenset(
     {
         "BounceAll",
         "ChangeZoneAll",
@@ -5155,7 +5246,7 @@ _ALL_VARIANT_EFFECT_TAGS: frozenset[str] = frozenset(
     }
 )
 _THREAD_ENDING_TAGS: frozenset[str] = (
-    _TRACKED_SET_PRODUCER_TAGS | _ALL_VARIANT_EFFECT_TAGS
+    _TRACKED_SET_PRODUCER_TAGS | ALL_VARIANT_EFFECT_TAGS
 )
 
 
@@ -5278,6 +5369,26 @@ def activation_zone(node: object) -> str | None:
     functions in functions only from those zones"."""
     zone = getattr(node, "activation_zone", MISSING)
     return zone if isinstance(zone, str) else None
+
+
+def unit_zones(unit: AbilityUnit) -> frozenset[str]:
+    """The zones a unit functions from when it says so (CR 113.6b): a trigger's
+    ``trigger_zones``, an activated ability's :func:`activation_zone`, and an "if
+    this card is in your graveyard" ``SourceInZone`` condition (Ichorid)."""
+    zones: set[str] = set()
+    tz = getattr(unit.node, "trigger_zones", None)
+    if isinstance(tz, list):
+        for raw in tz:
+            z = raw.key if isinstance(raw, MirrorVariant) else raw
+            if isinstance(z, str):
+                zones.add(z)
+    if (az := activation_zone(unit.node)) is not None:
+        zones.add(az)
+    cond = getattr(unit.node, "condition", None)
+    zone = getattr(cond, "zone", None)
+    if tag_of(cond) == "SourceInZone" and isinstance(zone, str):
+        zones.add(zone)
+    return frozenset(zones)
 
 
 def _functions_on_battlefield(unit: AbilityUnit) -> bool:

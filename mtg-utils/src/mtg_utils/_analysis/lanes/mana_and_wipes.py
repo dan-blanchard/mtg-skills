@@ -32,6 +32,7 @@ from mtg_utils._analysis.signal_base import (
 from mtg_utils._analysis.tree_synthesis import has_structural_extra_land_drop
 from mtg_utils._card_ir.crosswalk import (
     AbilityUnit,
+    ConceptNode,
     ConceptTree,
     change_zone_dirs,
     count_operand_filter,
@@ -41,6 +42,7 @@ from mtg_utils._card_ir.crosswalk import (
     effect_filter,
     effect_owner_player_scope,
     effect_owner_raw,
+    effect_owner_reads_chosen_group,
     filter_controller,
     filter_core_types,
     filter_inzone_zones,
@@ -65,6 +67,7 @@ from mtg_utils._card_ir.mirror.runtime import (
     MirrorVariant,
     TypedMirrorNode,
 )
+from mtg_utils._card_ir.recovery import CARD, ON_SELF, TARGET_OBJECT, YOURS
 from mtg_utils._card_ir.text_idioms import _SINGLE_PERMANENT_GRANT_PREDS
 
 # Board-wipe subject types (CR 115.10) — mirrors the deleted ``_signals_ir``'s
@@ -1080,17 +1083,55 @@ def _mass_bounce(tree: ConceptTree) -> list[Signal]:
     (phase_parse_bug) — the crosswalk correctly reads only the targeted base
     mode. Scope "any" (the sweep convention).
     """
-    for c in tree.effect_concepts("bounce"):
-        if tag_of(c.node) != "BounceAll":
-            continue
-        sub = effect_filter(c.node)
-        if not (set(filter_core_types(sub)) & {"Creature", "Permanent"}):
-            continue
-        preds = set(filter_predicates(sub))
-        if "InZone" in preds or "Owned" in preds:
-            continue
-        return [Signal("mass_bounce", "any", "", c.raw, tree.name, "high")]
+    for unit in tree.units:
+        for c in unit.effect_concepts("bounce"):
+            if tag_of(c.node) != "BounceAll":
+                continue
+            sub = effect_filter(c.node)
+            if not (set(filter_core_types(sub)) & {"Creature", "Permanent"}):
+                continue
+            preds = set(filter_predicates(sub))
+            if "InZone" in preds or "Owned" in preds:
+                continue
+            # phase v0.104.0: "return each chosen creature" (The Eagles Are
+            # Coming!) is a ``BounceAll`` over a bare ``Typed{Creature}`` whose
+            # owning ability reads an earlier ``declares_chosen_group`` — it
+            # bounces the chosen set, not the board.
+            if effect_owner_reads_chosen_group(unit.node, c.node):
+                continue
+            return [Signal("mass_bounce", "any", "", c.raw, tree.name, "high")]
     return []
+
+
+# Recovered-exile subject gate (see the ``recovered_by == "exile"`` branch
+# inside _exile_removal): phase v0.104.0 parks an intervening-if exile ("if
+# it's enchanted, exile target permanent" — Krond the Dawn-Clad) as an
+# Unimplemented residue with no typed origin/destination/subject, and the
+# grammar's "exile" token also fires on graveyard-hate, top-of-library,
+# die-replacement and self-blink clauses. Only an exile whose own object is a
+# target permanent (the seam's ``TARGET_OBJECT`` and a permanent type, no card)
+# not limited to your own side is single-target removal.
+_PERMANENT_TYPE_WORDS: frozenset[str] = frozenset(
+    {
+        "Permanent",
+        "Creature",
+        "Artifact",
+        "Enchantment",
+        "Planeswalker",
+        "Battle",
+        "Land",
+    }
+)
+
+
+def _recovered_exile_removal(c: ConceptNode) -> bool:
+    subject = c.subject
+    return (
+        TARGET_OBJECT in subject
+        and CARD not in subject
+        and YOURS not in subject
+        and any(t in _PERMANENT_TYPE_WORDS for t in subject)
+    )
 
 
 def _exile_removal(tree: ConceptTree) -> list[Signal]:
@@ -1125,6 +1166,16 @@ def _exile_removal(tree: ConceptTree) -> list[Signal]:
         )
         sib_clone = unit.has_effect("become_copy")
         for c in czs:
+            # phase v0.104.0 fails closed on an intervening-if exile and
+            # parks it as an Unimplemented residue the ``exile`` token
+            # recovers (Krond the Dawn-Clad, O-Kagachi): no typed subject,
+            # so the clause's own words carry it (CR 406.1).
+            if c.recovered_by == "exile":
+                if not (sib_return or sib_clone) and _recovered_exile_removal(c):
+                    return [
+                        Signal("exile_removal", "you", "", c.raw, tree.name, "high")
+                    ]
+                continue
             if tag_of(c.node) != "ChangeZone":
                 continue
             origin, dest = change_zone_dirs(c.node)
@@ -1439,6 +1490,16 @@ def _self_pump(tree: ConceptTree) -> list[Signal]:
                 t == "PutCounter"
                 and counter_kind(c.node).upper() == "P1P1"
                 and tgt == "SelfRef"
+            ):
+                return [Signal("self_pump", "you", "", c.raw, tree.name, "high")]
+            # phase v0.104.0 parks a counter-or-keyword choice ("Put a +1/+1
+            # counter on ~ or ~ gains flying ..." — Flowstone Sculpture) as an
+            # Unimplemented residue the ``place_counter`` token recovers; the
+            # seam marks a +1/+1 counter put on the card itself.
+            if (
+                c.recovered_by == "place_counter"
+                and ON_SELF in c.subject
+                and "+1/+1 counter" in c.subject
             ):
                 return [Signal("self_pump", "you", "", c.raw, tree.name, "high")]
     return []

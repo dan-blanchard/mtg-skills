@@ -65,12 +65,19 @@ def tag(literal: str, *, ci: bool = True) -> Parser[str]:
     return Parser(go)
 
 
-def take_until(literal: str, *, ci: bool = True) -> Parser[str]:
-    """Consume up to (not including) ``literal``; fail if absent (``take_until``)."""
+def take_until(
+    literal: str, *, ci: bool = True, within: str | None = None
+) -> Parser[str]:
+    """Consume up to (not including) ``literal``; fail if absent (``take_until``).
+
+    ``within`` names delimiter characters the consumed span may not cross (pass
+    ``".;"`` to keep the match inside one sentence)."""
 
     def go(s: str) -> tuple[str, str] | None:
         idx = s.lower().find(literal.lower()) if ci else s.find(literal)
-        return None if idx < 0 else (s[:idx], s[idx:])
+        if idx < 0 or (within and any(d in s[:idx] for d in within)):
+            return None
+        return (s[:idx], s[idx:])
 
     return Parser(go)
 

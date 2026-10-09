@@ -320,23 +320,27 @@ def test_each_other_player_still_reads_opponent_canary():
 @pytest.mark.retirement_canary
 def test_typeless_mass_filter_canary():
     """Retirement canary for ``effect_player_reach``'s typeless-mass guard (a
-    mass filter must name a card type), a phase-misparse workaround. Phase v0.94.0 parses Predictive Preparations' "put a
-    +1/+1 counter on each of one or two target creatures" as a ``PutCounterAll``
-    over a filter with no card type, which would otherwise read as "every
-    permanent"."""
-    (ability,) = test_phase_records("Predictive Preparations")[0]["abilities"]
-    effect = ability["effect"]
-    still_typeless = (
-        effect["type"] == "PutCounterAll" and not effect["target"]["type_filters"]
+    mass filter must name a card type), a phase-misparse workaround. Phase
+    v0.104.0 drops Saproling Burst's "created with this enchantment" and reads
+    "destroy all tokens created with this enchantment" as a ``DestroyAll`` over
+    a typeless ``Token`` filter, which would otherwise read as every player's
+    tokens. (Its first pin, Predictive Preparations, is a ``put_counter_tail``
+    residue since v0.104.0.)"""
+    records = test_phase_records("Saproling Burst")
+    still_typeless = any(
+        n.get("type") == "DestroyAll" and not n["target"]["type_filters"]
+        for rec in records
+        for trig in rec.get("triggers") or ()
+        for n in [trig["execute"]["effect"]]
     )
     assert still_typeless, (
-        "effect_player_reach: RETIRE-READY — phase now parses Predictive "
-        "Preparations with a typed or targeted filter. Delete the "
-        "filter_core_types condition on effect_player_reach's mass arm (the "
-        "typeless-mass guard) and this canary."
+        "effect_player_reach: RETIRE-READY — phase now parses Saproling Burst's "
+        "sweep with a typed or narrowed filter. Delete the filter_core_types "
+        "condition on effect_player_reach's mass arm (the typeless-mass guard) "
+        "and this canary."
     )
-    unit, c = _effect("Predictive Preparations", "place_counter")
-    assert tag_of(c.node) == "PutCounterAll"
+    unit, c = _effect("Saproling Burst", "destroy")
+    assert tag_of(c.node) == "DestroyAll"
     assert not filter_core_types(effect_filter(c.node))
     assert effect_player_reach(unit.node, c.node) is None
 

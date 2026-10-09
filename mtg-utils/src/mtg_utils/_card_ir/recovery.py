@@ -29,8 +29,20 @@ import re
 from dataclasses import dataclass, replace
 
 from mtg_utils._card_ir._substrate_purity import assert_substrate_pure, l1_identity
-from mtg_utils._card_ir.clause_grammar import parse_clause, scan_clause, static_token
-from mtg_utils._card_ir.crosswalk import OTHER, ConceptNode, ConceptTree, tag_of
+from mtg_utils._card_ir.clause_grammar import (
+    _VERB_PRESENT,
+    parse_clause,
+    scan_clause,
+    static_token,
+)
+from mtg_utils._card_ir.crosswalk import (
+    OTHER,
+    AbilityUnit,
+    ConceptNode,
+    ConceptTree,
+    tag_of,
+    unit_zones,
+)
 from mtg_utils._card_ir.text_idioms import _DICE_TRIG
 
 
@@ -41,6 +53,21 @@ class TokenRule:
     concept: str  # signal-facing ConceptNode.concept the lanes read
     category: str  # compat-facing old-IR category override
     zones: tuple[str, ...] = ()  # optional zone correction (e.g. reanimate)
+    # Decorate the node with the clause's reading (:func:`read_clause`): scope,
+    # subject marks, zones. Every row whose lanes test the clause does; the
+    # rows that don't keep the overlay's own decoration. ``make_token`` can't:
+    # a token node's ``subject`` is the token's own types, which token_maker /
+    # artifacts_matter read, and the clause's other type words would pass for
+    # them.
+    reads_clause: bool = False
+    # Where the verb's own object starts ("destroy", "damage … to", "counters
+    # on"), for the marks bound to that object (``TARGET_OBJECT`` /
+    # ``EACH_OBJECT``) rather than to the whole clause.
+    object_verb: str = ""
+    # Recover the verb even inside a replacement clause ("would … instead"): only
+    # where the replacement's own effect IS the verb's effect (Words of Waste's
+    # "each opponent discards a card instead", a die-roll or coin-flip modifier).
+    in_replacements: bool = False
 
 
 # ADR-0038 token allowlist — grows per-key with corpus measurement + pinned
@@ -74,7 +101,9 @@ ALLOWLIST: dict[str, TokenRule] = {
     # structure (the consequence that follows often DOES parse) — the
     # grammar's "roll_die" token re-decorates it so the dice_makers lane's
     # typed effect_concepts("roll_die") read (CR 706) sees it directly.
-    "roll_die": TokenRule(concept="roll_die", category="roll_die"),
+    "roll_die": TokenRule(
+        concept="roll_die", category="roll_die", in_replacements=True
+    ),
     # coin-flip idiom (CR 705.1/705.3): "flip a coin" (Molten Sentry's modal
     # ETB flip) / a flip-fixing static ("Two-Headed Coin — the first time
     # you flip ..., those coins come up heads and you win those flips" —
@@ -85,7 +114,9 @@ ALLOWLIST: dict[str, TokenRule] = {
     # native FlipCoin/FlipCoins tags' own concept ("flip_coin") so the
     # coin_flip lane's ordinary ``effect_concepts("flip_coin")`` read
     # covers the recovered node with no special-case.
-    "coin_flip": TokenRule(concept="flip_coin", category="coin_flip"),
+    "coin_flip": TokenRule(
+        concept="flip_coin", category="coin_flip", in_replacements=True
+    ),
     # opponent cast-lock idiom (CR 601.3/604.1): "each opponent can't cast
     # noncreature spells with mana value greater than ..." (Lavinia,
     # Azorius Renegade) -- maps straight to the REAL "stax_taxes" concept
@@ -190,7 +221,9 @@ ALLOWLIST: dict[str, TokenRule] = {
     # a recovered node carries NO typed target — so every lane reading
     # recovered discard nodes MUST direction-gate on the raw (the
     # recovered-node raw-read precedent), never trust scope alone.
-    "discard": TokenRule(concept="discard", category="discard"),
+    # (Its lanes still read the clause; moving them onto read_clause is
+    # backlog.)
+    "discard": TokenRule(concept="discard", category="discard", in_replacements=True),
     # ADR-0038 post-giants main-session batch: the card-draw ACTION idiom
     # (CR 121.1): "draw cards equal to <computed amount>" / "For each
     # <thing>, draw a card" — amount-computed or per-thing draws phase's
@@ -203,8 +236,9 @@ ALLOWLIST: dict[str, TokenRule] = {
     # Sanctuary) plus lane-level recipient gates verified by the all-key
     # corpus diff. Recipient hazards are real (Forget / Soldevi Sentry
     # draw for the OTHER player), so lanes reading recovered draw nodes
-    # must direction-gate on the raw, same as "discard".
-    "draw": TokenRule(concept="draw", category="draw"),
+    # must direction-gate. The seam decorates the clause's reading (a bulk
+    # count is ``MANY``); the older directed-draw gate still reads the raw.
+    "draw": TokenRule(concept="draw", category="draw", reads_clause=True),
     # ADR-0038 W5 tails (direct_damage): the deal-damage ACTION idiom (CR
     # 120.1/120.3): "deal[s] damage ... equal to <computed amount> ..." —
     # an amount phase's own ``Ref``/``Qty`` grammar can't structure at all
@@ -222,9 +256,9 @@ ALLOWLIST: dict[str, TokenRule] = {
     # ``effect_concepts("deal_damage")`` read reaches the recovered node —
     # but a recovered node carries NO typed ``target`` field
     # (:func:`~mtg_utils._card_ir.crosswalk.effect_reaches_player` needs
-    # one), so the LANE direction-gates on the raw residue text itself (the
-    # recovered-node raw-read precedent — same discipline as "discard" /
-    # "draw" above), never trusting scope alone. The OTHER four
+    # one), so the lanes read the recipient off the seam's decoration
+    # (``ANY_TARGET`` / ``PLAYER`` / ``TARGETED`` and the type words; the
+    # older direct_damage reach gate still reads the raw). The OTHER four
     # ``deal_damage`` consumers (``damage_equal_power``, the combat-trio's
     # ``creature_ping``/``symmetric_damage_each``/``aoe_ping``,
     # ``typed_enters_punish``, ``removal``) all gate on
@@ -232,7 +266,12 @@ ALLOWLIST: dict[str, TokenRule] = {
     # first, so a recovered ``Unimplemented`` node (tag never matches) is a
     # silent no-op for them — verified via the full-corpus ALL-KEY diff, 0
     # changed idents outside ``direct_damage``.
-    "damage": TokenRule(concept="deal_damage", category="damage"),
+    "damage": TokenRule(
+        concept="deal_damage",
+        category="damage",
+        reads_clause=True,
+        object_verb=r"damage\b[^.]*?\bto",
+    ),
     # ADR-0039 W8 grammar sprint (task #82): the counter TALLY idiom (CR
     # 122.1/701.6a): "count the number of X counters on <filter>" (Rumbling
     # Ruin's ETB, whose result feeds a following-sentence threshold phase's
@@ -284,7 +323,7 @@ ALLOWLIST: dict[str, TokenRule] = {
     # Psychic Pickpocket), so the two rows are disjoint in practice, not
     # merely in key-name.
     "graveyard_return": TokenRule(
-        concept="graveyard_return", category="graveyard_return"
+        concept="graveyard_return", category="graveyard_return", reads_clause=True
     ),
     # np_boons task #3 (Comet, Stellar Pup): the return-to-hand/owner ACTION
     # idiom (CR 400.4/404) — "return a card ... from your graveyard to your
@@ -307,7 +346,67 @@ ALLOWLIST: dict[str, TokenRule] = {
     # graveyard involvement at all (Quarry Colossus's tuck-to-library,
     # Psychic Pickpocket's connive-then-bounce) — unaffected by the
     # ``graveyard_return`` row above since neither mentions "graveyard".
-    "bounce": TokenRule(concept="change_zone", category="bounce"),
+    "bounce": TokenRule(
+        concept="change_zone",
+        category="bounce",
+        reads_clause=True,
+        object_verb=r"return|put",
+    ),
+    # Phase v0.104.0 fails closed on clauses it can't fully represent (an
+    # intervening-if, a granted ability's reference to its granter, a counter
+    # tail …) and parks the whole effect as an ``Unimplemented`` residue named
+    # for the shape. The shared grammar still names the verb (it peels the
+    # "if …," prefix), so each verb earns the concept its native effect tag
+    # carries, and the seam decorates the clause's reading (:func:`read_clause`)
+    # for the lanes to test. A key the clause's SECOND verb carries ("…, and
+    # there is an additional combat phase" after an untap) is a ledger row, not
+    # a read of the first verb's node. Recovery runs only on ``Unimplemented``
+    # nodes, so a phase fix retires it with no ledger row.
+    # ``reanimate`` names no zone of its own: the grammar's "put/return …
+    # onto the battlefield" token fires from a hand, exile or a spellbook
+    # too, so ``zones`` is the clause's own (``Graveyard`` only when named).
+    "reanimate": TokenRule(
+        concept="change_zone", category="reanimate", reads_clause=True
+    ),
+    "place_counter": TokenRule(
+        concept="place_counter",
+        category="place_counter",
+        reads_clause=True,
+        object_verb=r"counters? on",
+    ),
+    "destroy": TokenRule(
+        concept="destroy", category="destroy", reads_clause=True, object_verb="destroy"
+    ),
+    "exile": TokenRule(
+        concept="change_zone", category="exile", reads_clause=True, object_verb="exile"
+    ),
+    "gain_control": TokenRule(
+        concept="gain_control", category="gain_control", reads_clause=True
+    ),
+    "tap": TokenRule(
+        concept="tap_untap", category="tap", reads_clause=True, object_verb="tap"
+    ),
+    "untap": TokenRule(
+        concept="tap_untap", category="untap", reads_clause=True, object_verb="untap"
+    ),
+    "scry": TokenRule(concept="scry", category="scry", reads_clause=True),
+    "spell_copy": TokenRule(
+        concept="copy_spell", category="copy_spell", reads_clause=True
+    ),
+    "counter_move": TokenRule(
+        concept="move_counters", category="counter_move", reads_clause=True
+    ),
+    "cast_from_zone": TokenRule(
+        concept="cast_from_zone", category="cast_from_zone", reads_clause=True
+    ),
+    "clone": TokenRule(concept="copy_token", category="clone", reads_clause=True),
+    "sacrifice": TokenRule(
+        concept="sacrifice", category="sacrifice", reads_clause=True
+    ),
+    "mill": TokenRule(concept="mill", category="mill", reads_clause=True),
+    "lose_game": TokenRule(
+        concept="lose_game", category="lose_game", reads_clause=True
+    ),
 }
 
 
@@ -326,7 +425,265 @@ _NON_DRAW_SENSE = re.compile(r"\bgame is a draw\b|\bdraw step\b", re.IGNORECASE)
 _NON_DAMAGE_SENSE = re.compile(r"\bturned face up\b|\bcombat damage\b", re.IGNORECASE)
 
 
-def _recover(c: ConceptNode, table: dict[str, TokenRule]) -> ConceptNode | None:
+# "place_counter"'s grammar token also matches a counter REMOVAL ("remove all
+# mire counters from a land" — Cyclopean Tomb's parked dies trigger, phase
+# v0.104.0): the clause names counters but places none.
+_NON_PLACE_COUNTER_SENSE = re.compile(
+    r"\bremoves?\b[^.]*\bcounters?\b"
+    # Biomancer's Familiar: "it adapts as though it had no +1/+1 counters on it"
+    # changes how adapt checks; it places nothing itself.
+    r"|\bas though it had no\b",
+    re.IGNORECASE,
+)
+# A REPLACEMENT clause ("if … would die this turn, exile it instead" — Gut,
+# Fanatical Priestess; Enduring Angel's "If your life total would be reduced to 0
+# or less, instead … you lose the game", parked with phase's replacement-parser
+# diagnostic) only modifies an event; its verb is no imperative, so the seam
+# recovers nothing from it, whatever the token.
+_REPLACEMENT_SENSE = re.compile(
+    r"\bwould\b[^.]*\binstead\b|^Replacement pattern matched", re.IGNORECASE
+)
+
+
+# ── The recovered clause's reading (ADR-0038 amended at phase v0.104.0) ────────
+# A recovered node is still phase's ``Unimplemented`` residue: no typed target,
+# recipient or zone. So the lanes read the same facts their typed arms read off a
+# real node, the seam reads them ONCE off the clause and decorates the node:
+# ``subject`` carries the clause's object and recipient marks below, ``zones``
+# the zones it names, and ``scope`` the side it names ("opponents" / "each";
+# otherwise the overlay's own scope is kept). Lanes test these fields; no lane
+# reads a recovered clause's text.
+
+#: The card itself as what the clause moves, casts, exiles, sacrifices or copies:
+#: "return this card", "put ~ onto the battlefield", "a copy of this creature", or
+#: "it"/"them" after such a verb on an ability whose "it" starts out as the card
+#: (:func:`_it_names_self`). Not a mention as the doer or a possessive ("~ deals",
+#: "~'s power").
+SELF = "Self"
+#: Counters put on the card itself ("put a +1/+1 counter on ~", "put … counters on
+#: itself").
+ON_SELF = "OnSelf"
+#: The clause opens on its instruction ("sacrifice another creature", after an
+#: "if …," condition or "you may"), so it names no other player to act.
+IMPERATIVE = "Imperative"
+#: The object is qualified as yours ("you control", "your graveyard", "you own").
+YOURS = "Yours"
+#: The object is qualified as an opponent's ("an opponent controls", "you don't
+#: control", "your opponents' graveyards").
+THEIRS = "Theirs"
+#: A player is the recipient ("to you", "to its controller", "to each opponent").
+PLAYER = "Player"
+#: "any [other] target" (CR 115.4 — a creature, player, planeswalker or battle).
+ANY_TARGET = "AnyTarget"
+#: The clause targets ("target …").
+TARGETED = "Targeted"
+#: The recovered verb's own object is a target ("tap target creature", "destroy up
+#: to one target artifact", "deals 2 damage to any target") — not a target the
+#: clause names elsewhere ("damage to the owner of target creature").
+TARGET_OBJECT = "TargetObject"
+#: The recovered verb's target object is qualified as yours ("deal damage to target
+#: creature you control").
+YOUR_TARGET = "YourTarget"
+#: "each" / "all" — a mass object, no single choice.
+MASS = "Mass"
+#: The recovered verb's own object is "each …" ("a +1/+1 counter on each creature
+#: you control"), not a count elsewhere in the clause ("for each vote").
+EACH_OBJECT = "EachObject"
+#: The object is a card (in a zone), not a permanent.
+CARD = "Card"
+#: An amount scaled by power ("damage equal to its power").
+POWER_SCALED = "PowerScaled"
+#: More than one ("two or more", "X", "that many", "cards equal to").
+MANY = "Many"
+#: A chooser other than you ("of defending player's choice").
+OTHER_CHOOSER = "OtherChooser"
+
+#: Every mark :func:`read_clause` can put in ``subject`` (beside the type words and
+#: the free-form "<kind> counter" marks).
+CLAUSE_MARKS: tuple[str, ...] = (
+    SELF,
+    ON_SELF,
+    IMPERATIVE,
+    YOURS,
+    THEIRS,
+    PLAYER,
+    ANY_TARGET,
+    TARGETED,
+    TARGET_OBJECT,
+    YOUR_TARGET,
+    MASS,
+    EACH_OBJECT,
+    CARD,
+    POWER_SCALED,
+    MANY,
+    OTHER_CHOOSER,
+)
+
+_TYPE_WORDS: dict[str, str] = {
+    w.lower(): w
+    for w in (
+        "Creature",
+        "Artifact",
+        "Enchantment",
+        "Land",
+        "Planeswalker",
+        "Permanent",
+        "Battle",
+        "Instant",
+        "Sorcery",
+        "Aura",
+        "Equipment",
+        "Treasure",
+        "Food",
+        "Clue",
+        "Blood",
+        "Powerstone",
+        "Mount",
+        "Vehicle",
+    )
+}
+_TYPE_RX = re.compile(
+    r"(?<!non)(?<!non-)\b(" + "|".join(_TYPE_WORDS) + r")s?\b", re.IGNORECASE
+)
+# The verbs and prepositions that take the card as their object.
+_SELF_WORDS = (
+    r"(?:~(?![\w'])|this (?:card|creature|permanent|artifact|enchantment)\b(?!')"
+    r"|itself\b)"
+)
+_SELF_NAMED_RX = re.compile(
+    r"\b(?:return|put|cast|exile|sacrifice|copy of)\s+" + _SELF_WORDS, re.IGNORECASE
+)
+_ON_SELF_RX = re.compile(r"\bput\b[^.]*?\bcounters? on\s+" + _SELF_WORDS, re.IGNORECASE)
+# "it" after a verb ("return it", "a copy of it"), never "on it": a counter "on
+# it" refers back to whatever the clause just named.
+_BACKREF_RX = re.compile(
+    r"\b(?:return|put|cast|exile|sacrifice|copy of)\s+(?:it|them)\b", re.IGNORECASE
+)
+_IMPERATIVE_PEEL = re.compile(r"^(?:if [^,]*, )?(?:you may )?", re.IGNORECASE)
+_YOURS_RX = re.compile(
+    r"\byou control\b|\byour (?:graveyard|hand|library)\b|\byou own\b", re.IGNORECASE
+)
+_THEIRS_RX = re.compile(
+    r"\b(?:an|each|target) opponent controls\b|\byou don't control\b"
+    r"|\bopponents?'s? (?:graveyards?|hands?|librar(?:y|ies))\b",
+    re.IGNORECASE,
+)
+_PLAYER_RECIPIENT_RX = re.compile(
+    r"\bto (?:you|its controller|that creature's controller|defending player"
+    r"|each (?:opponent|player)|that player|target (?:player|opponent))\b",
+    re.IGNORECASE,
+)
+_COUNTER_KIND_RX = re.compile(r"(\+1/\+1|-1/-1|[a-z]+) counters?\b", re.IGNORECASE)
+_POWER_RX = re.compile(
+    r"\bequal to (?:its|his|her|that creature's|~'s|the) power\b", re.IGNORECASE
+)
+_MANY_RX = re.compile(
+    r"\b(?:two|three|four|five|six|seven|x) (?:or more )?cards\b|\bthat many\b"
+    r"|\bcards equal to\b",
+    re.IGNORECASE,
+)
+_OPPONENT_SIDE_RX = re.compile(
+    r"\b(?:each|an|target) opponent\b(?! controls)|\bdefending player\b(?!'s choice)"
+    r"|\bopponent gains control\b",
+    re.IGNORECASE,
+)
+_OTHER_CHOOSER_RX = re.compile(
+    r"\bof (?:defending player|an opponent|target opponent|that player)'s choice\b",
+    re.IGNORECASE,
+)
+_EACH_PLAYER_RX = re.compile(r"\beach player\b", re.IGNORECASE)
+_ZONE_RX = {
+    "Graveyard": re.compile(r"\bgraveyards?\b", re.IGNORECASE),
+    "Hand": re.compile(r"\bhands?\b", re.IGNORECASE),
+    "Library": re.compile(r"\blibrar(?:y|ies)\b", re.IGNORECASE),
+    # The exile zone itself, not a linked pile ("cards exiled with ~", CR 607.2a).
+    "Exile": re.compile(r"\b(?:in|from|into) exile\b", re.IGNORECASE),
+}
+
+
+def _it_names_self(unit: AbilityUnit) -> bool:
+    """Whether "it" in the unit's clause starts out as the card: a trigger or
+    replacement watching the card itself, a step trigger watching nothing (Pyre
+    Zombie's upkeep), or a unit working from the card's graveyard. Not an
+    activated ability, whose clause names its own object first ("search the other
+    pile for a card, put it into your hand" — Phyrexian Portal)."""
+    if "Graveyard" in unit_zones(unit):
+        return True
+    if unit.origin not in ("trigger", "replacement"):
+        return False
+    watched = tag_of(getattr(unit.node, "valid_card", None)) or tag_of(
+        getattr(unit.node, "valid_source", None)
+    )
+    return watched == "SelfRef" or (watched is None and unit.trigger_event == "phase")
+
+
+def read_clause(
+    raw: str, unit: AbilityUnit | None = None, object_verb: str = ""
+) -> tuple[str | None, tuple[str, ...], tuple[str, ...]]:
+    """``(scope, subject, zones)`` the seam decorates a recovered node with (see
+    the marks above); ``scope`` is ``None`` when the clause names no side.
+    ``object_verb`` (:attr:`TokenRule.object_verb`) anchors the object-bound
+    marks."""
+    text = raw or ""
+    subject: list[str] = []
+    for m in _TYPE_RX.finditer(text):
+        word = _TYPE_WORDS[m.group(1).lower()]
+        if word not in subject:
+            subject.append(word)
+    if re.search(r"\bcards?\b", text, re.IGNORECASE):
+        subject.append(CARD)
+    if _SELF_NAMED_RX.search(text) or (
+        unit is not None and _it_names_self(unit) and _BACKREF_RX.search(text)
+    ):
+        subject.append(SELF)
+    if _ON_SELF_RX.search(text):
+        subject.append(ON_SELF)
+    peeled = _IMPERATIVE_PEEL.match(text)
+    if _VERB_PRESENT.match(text, peeled.end() if peeled else 0):
+        subject.append(IMPERATIVE)
+    for mark, rx in (
+        (YOURS, _YOURS_RX),
+        (THEIRS, _THEIRS_RX),
+        (PLAYER, _PLAYER_RECIPIENT_RX),
+        (POWER_SCALED, _POWER_RX),
+        (MANY, _MANY_RX),
+        (OTHER_CHOOSER, _OTHER_CHOOSER_RX),
+    ):
+        if rx.search(text):
+            subject.append(mark)
+    if re.search(r"\bany (?:other )?target\b", text, re.IGNORECASE):
+        subject.append(ANY_TARGET)
+    if re.search(r"\btarget\b", text, re.IGNORECASE):
+        subject.append(TARGETED)
+    if re.search(r"\b(?:each|all)\b", text, re.IGNORECASE):
+        subject.append(MASS)
+    if object_verb:
+        head = rf"\b(?:{object_verb})\s+"
+        target = (
+            head + r"(?:up to \w+ )?(?:another |other )?(?:any (?:other )?)?target\b"
+        )
+        if re.search(target, text, re.IGNORECASE):
+            subject.append(TARGET_OBJECT)
+        if re.search(target + r" (?:\w+ ){1,2}you control\b", text, re.IGNORECASE):
+            subject.append(YOUR_TARGET)
+        if re.search(head + r"(?:each|all)\b", text, re.IGNORECASE):
+            subject.append(EACH_OBJECT)
+    for m in _COUNTER_KIND_RX.finditer(text):
+        kind = f"{m.group(1).lower()} counter"
+        if kind not in subject:
+            subject.append(kind)
+    zones = tuple(z for z, rx in _ZONE_RX.items() if rx.search(text))
+    scope = None
+    if _OPPONENT_SIDE_RX.search(text):
+        scope = "opponents"
+    elif _EACH_PLAYER_RX.search(text):
+        scope = "each"
+    return scope, tuple(subject), zones
+
+
+def _recover(
+    c: ConceptNode, table: dict[str, TokenRule], unit: AbilityUnit | None = None
+) -> ConceptNode | None:
     """Recover one concept-node, or ``None`` if it is not a recovery candidate
     or its grammar token is not in ``table``."""
     if c.concept != OTHER or c.recovered_by or tag_of(c.node) != "Unimplemented":
@@ -361,12 +718,27 @@ def _recover(c: ConceptNode, table: dict[str, TokenRule]) -> ConceptNode | None:
     # CR 120.1 direct-damage effect (see ``_NON_DAMAGE_SENSE``'s docstring).
     if token == "damage" and _NON_DAMAGE_SENSE.search(c.raw):
         return None
+    if token == "place_counter" and _NON_PLACE_COUNTER_SENSE.search(c.raw):
+        return None
     rule = table[token]
+    if not rule.in_replacements and _REPLACEMENT_SENSE.search(c.raw):
+        return None
+    if not rule.reads_clause:
+        return replace(
+            c,
+            concept=rule.concept,
+            category=rule.category,
+            zones=rule.zones or c.zones,
+            recovered_by=token,
+        )
+    scope, subject, zones = read_clause(c.raw, unit, rule.object_verb)
     return replace(
         c,
         concept=rule.concept,
         category=rule.category,
-        zones=rule.zones or c.zones,
+        scope=scope or c.scope,
+        subject=subject or c.subject,
+        zones=tuple(dict.fromkeys((*rule.zones, *zones))) or c.zones,
         recovered_by=token,
     )
 
@@ -395,7 +767,7 @@ def apply_unimplemented_recovery(
     changed = False
     new_units = []
     for unit in tree.units:
-        new_effects = tuple(_recover(c, table) or c for c in unit.effects)
+        new_effects = tuple(_recover(c, table, unit) or c for c in unit.effects)
         pairs = zip(new_effects, unit.effects, strict=True)
         if any(new is not old for new, old in pairs):
             changed = True
@@ -411,4 +783,26 @@ def apply_unimplemented_recovery(
     return out
 
 
-__all__ = ["ALLOWLIST", "TokenRule", "apply_unimplemented_recovery"]
+__all__ = [
+    "ALLOWLIST",
+    "ANY_TARGET",
+    "CARD",
+    "CLAUSE_MARKS",
+    "EACH_OBJECT",
+    "IMPERATIVE",
+    "MANY",
+    "MASS",
+    "ON_SELF",
+    "OTHER_CHOOSER",
+    "PLAYER",
+    "POWER_SCALED",
+    "SELF",
+    "TARGETED",
+    "TARGET_OBJECT",
+    "THEIRS",
+    "YOURS",
+    "YOUR_TARGET",
+    "TokenRule",
+    "apply_unimplemented_recovery",
+    "read_clause",
+]

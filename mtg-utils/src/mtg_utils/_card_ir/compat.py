@@ -37,6 +37,7 @@ from mtg_utils._card_ir.crosswalk import (
     AbilityUnit,
     ConceptNode,
     ConceptTree,
+    additional_phase_kind,
     change_zone_dirs,
     effect_filter,
     explicit_recipient_scope,
@@ -214,7 +215,7 @@ _DOUBLE_PT_TAG: dict[str, str] = {
     "DoublePT": "pump_target",  # 100% x16 n=27
     "DoublePTAll": "pump",  # 100% x10 n=7
 }
-# AdditionalPhase.phase → old extra-phase category (project.py _EXTRA_PHASE).
+# additional_phase_kind → old extra-phase category (project.py _EXTRA_PHASE).
 _EXTRA_PHASE_FIELD: dict[str, str] = {
     "begincombat": "extra_combat",  # 100% x735 n=41
     "upkeep": "extra_upkeep",  # 100% x5270 n=3
@@ -577,7 +578,7 @@ def _effect_category(cnode: ConceptNode, cov: CompatCoverage) -> str:
     * ``tap_untap`` routes on ``SetTapState.state``: Untap = ``untap``
       (measured 99% x44.1); Tap stays a miss (old ``tap`` presence 49% —
       the old projection categorized only some tap forms, via markers).
-    * ``extra_phase`` routes on ``AdditionalPhase.phase`` (the old
+    * ``extra_phase`` routes on ``additional_phase_kind`` (the old
       projection's _EXTRA_PHASE routing, measured per phase).
     * ``give_player_counter`` routes on ``counter_kind`` (CR 122.1 — kinds
       are non-interchangeable; mirrors the old _PLAYER_COUNTER_CATEGORY),
@@ -630,8 +631,7 @@ def _effect_category(cnode: ConceptNode, cov: CompatCoverage) -> str:
         cov.unported["concept:tap_untap"] += 1
         return "other"
     if cnode.concept == "extra_phase":
-        ph = getattr(cnode.node, "phase", None)
-        cat = _EXTRA_PHASE_FIELD.get(ph.lower() if isinstance(ph, str) else "")
+        cat = _EXTRA_PHASE_FIELD.get(additional_phase_kind(cnode.node))
         if cat is not None:
             cov.ported[cat] += 1
             return cat
