@@ -815,11 +815,6 @@ _BASE_PT_ANIMATE_HOOK = re.compile(
 )
 
 
-_SELF_PROTECTION_GRANT_KW: frozenset[str] = frozenset(
-    {"hexproof", "indestructible", "protection", "shroud", "ward"}
-)
-
-
 _COUNTER_KIND_KEYS: dict[str, tuple[str, str]] = {
     "m1m1": ("minus_counters_matter", "you"),
     "oil": ("oil_counter_matters", "you"),

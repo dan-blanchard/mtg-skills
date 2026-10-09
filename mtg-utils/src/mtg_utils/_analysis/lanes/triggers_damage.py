@@ -28,6 +28,7 @@ from mtg_utils._analysis.tree_synthesis import SynthesizedNode
 from mtg_utils._card_ir.crosswalk import (
     DAMAGE_EFFECT_TAGS,
     OTHER,
+    PROTECTIVE_KEYWORDS,
     AbilityUnit,
     ConceptTree,
     cast_with_keyword_name,
@@ -52,16 +53,16 @@ from mtg_utils._card_ir.crosswalk import (
     is_damage_reflect_trigger_def,
     is_opponent_cast_trigger_def,
     iter_cost_leaves,
-    iter_deep_target_grants,
     iter_delayed_trigger_condition_defs,
     iter_mod_sites,
     iter_nested_trigger_defs,
-    iter_single_target_grants,
     iter_static_defs,
     iter_threaded_target_statics,
     iter_typed_nodes,
     mana_restrictions,
     mod_keyword_name,
+    normalised_keyword,
+    normalised_keyword_name,
     player_filter_tag,
     recipient_tag,
     ref_count_qty,
@@ -79,6 +80,7 @@ from mtg_utils._card_ir.crosswalk import (
     trigger_constraint_tag,
     trigger_damage_kind,
     trigger_subject_scope,
+    unit_keyword_grants,
     zone_change_count_reads,
 )
 from mtg_utils._card_ir.mirror.runtime import (
@@ -90,12 +92,6 @@ from mtg_utils._card_ir.text_idioms import (
     _FORCE_ATTACK_REF,
     combat_damage_recipients_from_text,
 )
-
-
-def _norm_kw(kw: str) -> str:
-    """Normalize a phase keyword spelling for set membership (lower,
-    spaceless, hyphenless — ``JumpStart`` → ``jumpstart``)."""
-    return kw.lower().replace(" ", "").replace("-", "")
 
 
 def _spell_keyword_grant(tree: ConceptTree) -> list[Signal]:
@@ -138,10 +134,10 @@ def _spell_keyword_grant(tree: ConceptTree) -> list[Signal]:
 
     def grant(kw: str, raw: str) -> None:
         fire("spell_keyword_grant", raw)
-        if _norm_kw(kw) == "flash":
+        if normalised_keyword_name(kw) == "flash":
             fire("flash_grant", raw)
             fire("flash_makers", raw)
-        elif _norm_kw(kw) == "convoke":
+        elif normalised_keyword_name(kw) == "convoke":
             fire("convoke_makers", raw)
 
     for unit in tree.units:
@@ -158,7 +154,7 @@ def _spell_keyword_grant(tree: ConceptTree) -> list[Signal]:
             if tag_of(mod) != "AddKeyword":
                 continue
             kw = mod_keyword_name(mod)
-            if kw is None or _norm_kw(kw) not in _SPELL_GRANT_KEYWORDS:
+            if kw is None or normalised_keyword_name(kw) not in _SPELL_GRANT_KEYWORDS:
                 continue
             affected = getattr(sdef, "affected", None)
             if tag_of(affected) == "SelfRef":
@@ -422,11 +418,6 @@ _KEYWORD_GRANT_TARGET_KEPT_RX = re.compile(
     r"|first strike|lifelink|haste|hexproof|indestructible|protection|reach"
     r"|ward|shroud)",
     re.IGNORECASE,
-)
-# Protective keywords (live ``_PROTECTION_GRANT_KW`` — CR 702.11 hexproof /
-# 702.12 indestructible / 702.16 protection / 702.18 shroud / 702.21 ward).
-_PROTECTIVE_GRANT_KW: frozenset[str] = frozenset(
-    {"hexproof", "shroud", "indestructible", "ward", "protection"}
 )
 # Evergreen allowlist for the Aura/Equipment-subgroup grant (live
 # ``_AURA_EQUIP_GRANT_KW`` — excludes equip{0}/crew cost grants).
@@ -1122,64 +1113,6 @@ def _power_double(tree: ConceptTree) -> list[Signal]:
     return []
 
 
-_TRACKED_SET_PRODUCER_TAGS: frozenset[str] = frozenset({"Token", "CopyTokenOf"})
-
-# The mass effects — each acts on EVERY object its filter matches, never on a
-# chosen target (every ``*All`` Effect variant phase declares, v0.94.0), so a
-# "those creatures" after one names a board filter, not the chain's targets.
-_MASS_EFFECT_TAGS: frozenset[str] = frozenset(
-    {
-        "BounceAll",
-        "ChangeZoneAll",
-        "CounterAll",
-        "DamageAll",
-        "DestroyAll",
-        "DoublePTAll",
-        "ExploreAll",
-        "GainControlAll",
-        "GoadAll",
-        "PumpAll",
-        "PutCounterAll",
-        "UnattachAll",
-    }
-)
-
-
-_THREAD_ENDING_TAGS: frozenset[str] = _TRACKED_SET_PRODUCER_TAGS | _MASS_EFFECT_TAGS
-
-
-def _ends_target_thread(eff: TypedMirrorNode) -> bool:
-    """A token producer or a mass effect ends the chosen-target thread."""
-    return tag_of(eff) in _THREAD_ENDING_TAGS
-
-
-def _iter_tracked_set_target_grants(
-    ability_like: object,
-) -> Iterator[tuple[object, TypedMirrorNode]]:
-    """``(threaded_target_filter, AddKeyword_mod)`` pairs for a keyword grant
-    whose nested static's ``affected`` is ``TrackedSet`` — "those creatures
-    gain X" back-referencing the chain's own TARGETS.
-
-    phase v0.94.0 parses Arm the Cathars ("target creature gets +3/+3, up to
-    one other target creature gets +2/+2, … Those creatures gain vigilance")
-    as a Pump chain ending in a ``GenericEffect`` whose static is
-    ``TrackedSet``-affected; v0.86.0 wrote ``ParentTarget``, which
-    :func:`iter_single_target_grants` threads. Same thread
-    (:func:`iter_threaded_target_statics`), but a token producer or a mass
-    effect ends it (:func:`_ends_target_thread`) — "create a token. It gains
-    haste" tracks the made token, and "put a +1/+1 counter on each creature
-    you control. Those creatures gain vigilance" (Ajani Goldmane, a
-    ``PutCounterAll``) tracks a board filter, never a chosen target.
-    CR 115.1 / 613.1f.
-    """
-    for tracked, st in iter_threaded_target_statics(
-        ability_like, affected_tag="TrackedSet", resets_thread=_ends_target_thread
-    ):
-        for mod in getattr(st, "modifications", None) or ():
-            if tag_of(mod) == "AddKeyword":
-                yield tracked, mod
-
-
 def _keyword_grant_lanes(tree: ConceptTree) -> list[Signal]:
     """The AddKeyword mod-site cluster (CR 613.1f layer 6) — one shared walk,
     per-ability aggregation (granularity b), direction gates per checklist #6
@@ -1228,32 +1161,22 @@ def _keyword_grant_lanes(tree: ConceptTree) -> list[Signal]:
             out.append(Signal(key, scope, "", raw, tree.name, "high"))
 
     for unit in tree.units:
-        grants = list(iter_deep_target_grants(unit.node))
-        if unit.origin in ("ability", "trigger"):
-            # ADR-0038 W3 batch 4: the threaded-target walk ALSO covers a
-            # TRIGGER's own "gain control of target creature ... Untap that
-            # creature. It gains haste" idiom (Conquering Manticore, every
-            # Equipment's "attach it to target creature. That creature gains
-            # X" ETB idiom, Hidden Footblade/Squire's Lightblade) — the SAME
-            # tracked-target thread as the ability form (Snakeskin Veil,
-            # Jump), just riding a GainControl/Attach producer effect first
-            # instead of a plain instant. iter_threaded_target_statics
-            # already resolves it (a GenericEffect's OWN target is
-            # ParentTarget, threaded back to the GainControl/Attach's Typed
-            # target) — this was a caller-side origin gate, not a missing
-            # accessor. CR 613.1f (layer 6, ability-adding effects).
-            grants.extend(iter_single_target_grants(unit.node))
-            grants.extend(_iter_tracked_set_target_grants(unit.node))
-        for resolved, mod in grants:
+        # ``unit_keyword_grants``: the DEEP local-target leaf on any unit, plus —
+        # on an ability or trigger — the threaded "It gains X" walk (ADR-0038 W3
+        # batch 4: a TRIGGER's own "gain control of target creature ... It gains
+        # haste" idiom — Conquering Manticore, the Equipment "attach it to target
+        # creature. That creature gains X" ETB idiom) and the "those creatures"
+        # TrackedSet walk. ``crosswalk.protection`` reads the same walk.
+        for resolved, mod in unit_keyword_grants(unit):
             if "Creature" not in filter_core_types(resolved):
                 continue  # the live creature-core gate (no tribal/permanent)
             fire("keyword_grant_target", "you", "")
-            if _norm_kw(mod_keyword_name(mod) or "") in _PROTECTIVE_GRANT_KW:
+            if normalised_keyword(mod) in PROTECTIVE_KEYWORDS:
                 fire("protection_grant", "you", "")
         for sdef, mod in iter_mod_sites(unit.node):
             if tag_of(mod) != "AddKeyword":
                 continue
-            kw = _norm_kw(mod_keyword_name(mod) or "")
+            kw = normalised_keyword_name(mod_keyword_name(mod) or "")
             affected = getattr(sdef, "affected", None)
             atag = tag_of(affected)
             if atag in ("SelfRef", "ParentTarget"):
@@ -1273,7 +1196,7 @@ def _keyword_grant_lanes(tree: ConceptTree) -> list[Signal]:
                 fire("aura_equip_kw_grant", "you", raw)
             your_perms = "Permanent" in cores and ctrl == "You" and generic
             suit_up = set(preds) & _SUIT_UP_PREDS and cores & {"Creature", "Permanent"}
-            if kw in _PROTECTIVE_GRANT_KW and (team or your_perms or suit_up):
+            if kw in PROTECTIVE_KEYWORDS and (team or your_perms or suit_up):
                 fire("protection_grant", "you", raw)
     if _TEAM_EVASION_GRANT_RX.search(_kept(tree)):
         fire("team_evasion_grant", "you", "")

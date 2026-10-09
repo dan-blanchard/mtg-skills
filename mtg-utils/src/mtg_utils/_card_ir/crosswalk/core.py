@@ -646,10 +646,27 @@ class ConceptTree:
         ``description`` (Siege Behemoth, Illusionist's Gambit; Camel since
         v0.94.0). The static-side sibling of :meth:`residues`: no
         ``Unimplemented`` node marks this gap, so a gap-gated text bridge keys
-        on the hollow def instead."""
+        on the hollow def instead. (An emblem's unparsed static is
+        :meth:`hollow_emblem_statics`.)"""
         for unit in self.units:
             for sdef in unit.static_defs():
                 if tag_of(getattr(sdef, "affected", None)) != "SelfRef":
+                    continue
+                if getattr(sdef, "modifications", None):
+                    continue
+                yield getattr(sdef, "description", "") or ""
+
+    def hollow_emblem_statics(self) -> Iterator[str]:
+        """The descriptions of an emblem's UNPARSED statics: phase's placeholder
+        ``EmblemStatic`` mode with no ``affected`` and no modifications, the
+        clause only in its ``description`` (Ajani Steadfast's "If a source would
+        deal damage to you or a planeswalker you control, prevent all but 1 of
+        that damage"; CR 114.4: abilities of emblems function in the command
+        zone). Kept apart from :meth:`hollow_statics`, whose bridges were
+        censused without these."""
+        for unit in self.units:
+            for sdef in unit.static_defs():
+                if getattr(sdef, "mode", None) != "EmblemStatic":
                     continue
                 if getattr(sdef, "modifications", None):
                     continue

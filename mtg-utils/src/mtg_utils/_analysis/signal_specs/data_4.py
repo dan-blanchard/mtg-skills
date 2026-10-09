@@ -331,6 +331,26 @@ SPECS_4: dict[tuple[str, str], SignalSpec] = {
             f"mass_land_denial|each|{kind}" for kind in LAND_DENIAL_KINDS
         ),
     ),
+    # Board protection (ADR-0051: two of ``roles.protects``'s keys). A commander
+    # that already shields your board (Avacyn, Shalai, Sterling Grove) wants more
+    # of it; one that locks out attackers (Ghostly Prison) wants the rest of the
+    # pillowfort. Each spec searches and serves its own key's preset.
+    ("board_protection", "you"): _spec(
+        "Board protection",
+        "protection for the rest of your board — Heroic Intervention, Darksteel "
+        "Forge, Mother of Runes, Teferi's Protection",
+        {"preset_names": ("board-protection",)},
+        None,
+        serve_idents=frozenset({"board_protection|you|"}),
+    ),
+    ("pillowfort", "you"): _spec(
+        "Pillowfort",
+        "taxes and limits that make attacking you costly — Ghostly Prison, "
+        "Propaganda, Sphere of Safety, Crawlspace",
+        {"preset_names": ("pillowfort",)},
+        None,
+        serve_idents=frozenset({"pillowfort|you|"}),
+    ),
     # A cheat-from-top commander (Vaevictis, Hans Eriksson) reveals its top card and
     # puts a permanent into play, so it wants to STACK its top with a bomb: graveyard-
     # to-top recursion and deliberate put-on-top effects choose what gets cheated in.

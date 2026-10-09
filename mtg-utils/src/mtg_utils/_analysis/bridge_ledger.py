@@ -68,6 +68,7 @@ from mtg_utils._card_ir.crosswalk import (
     filter_subtypes,
     iter_cost_leaves,
     iter_typed_nodes,
+    protective_keyword,
     static_mode_field,
     tag_of,
     trigger_turn_constraint,
@@ -2103,9 +2104,456 @@ def _global_ruin_match(tree: ConceptTree) -> bool:
     return bool(_GLOBAL_RUIN_RX.search(tree.oracle or ""))
 
 
+# ── board_protection / pillowfort parse failures (roles.protects, ADR-0051) ──
+# Prior serving: ``roles.protects`` read these off the oracle text (its retired
+# ``_PROTECT_GRANT`` / ``_PROTECT_SAVE`` / ``_PROTECT_DETER`` regexes) until it
+# became a view over these keys. Each card's protective clause is parked as a
+# residue or a hollow static def, so no node reaches the structural reads
+# (``crosswalk.protection.protective_grant_recipients`` / ``protective_saves`` /
+# ``attack_deterrent``). Each row's gap and match are module-level defs (the
+# ledger tests read their names and ASTs) over one shared read,
+# :func:`_parked_says`.
+
+# A protective keyword given to something (CR 702.11 hexproof, 702.18 shroud,
+# 702.12 indestructible, 702.21 ward, 702.16 protection, 702.89a umbra armor) …
+_PARKED_GRANT_RX = re.compile(
+    r"\b(?:gains?|have|has)\b[^.]*\b(?:hexproof|indestructible|shroud|ward|"
+    r"protection from|umbra armor)\b",
+    re.IGNORECASE,
+)
+# … but not to the card itself ("~ has hexproof", "it has hexproof" — Slippery
+# Scoundrel's hollow static: self-protection, not protection of your board).
+_PARKED_SELF_GRANT_RX = re.compile(
+    r"(?:~|\bit|\bthis (?:creature|permanent|artifact|enchantment)) (?:has|gains?)\b",
+    re.IGNORECASE,
+)
+
+
+def _parked_says(
+    tree: ConceptTree,
+    rx: re.Pattern[str],
+    *,
+    veto: re.Pattern[str] | None = None,
+    emblems: bool = False,
+) -> bool:
+    """Whether a parked text — a residue or a hollow static def, and with
+    ``emblems`` an emblem's unparsed static — says ``rx`` (and not ``veto``)."""
+    texts = [*tree.residues(), *tree.hollow_statics()]
+    if emblems:
+        texts.extend(tree.hollow_emblem_statics())
+    return any(rx.search(t) and not (veto and veto.search(t)) for t in texts)
+
+
+def _parked_grant_gap(tree: ConceptTree) -> bool:
+    return _parked_says(tree, _PARKED_GRANT_RX, veto=_PARKED_SELF_GRANT_RX)
+
+
+def _parked_grant_match(tree: ConceptTree) -> bool:
+    return _parked_says(tree, _PARKED_GRANT_RX, veto=_PARKED_SELF_GRANT_RX)
+
+
+# A damage-prevention shield (CR 615.1) around you, your creatures or a chosen
+# creature — not around the card itself ("dealt to ~": Phyrexian Vindicator).
+_PARKED_PREVENTION_RX = re.compile(
+    r"\bprevent\b.*\b(?:dealt|deal(?: combat)? damage) to (?:you|creatures you "
+    r"control|that creature)\b|\b(?:dealt|deal(?: combat)? damage) to (?:you|"
+    r"creatures you control|that creature)\b.*\bprevent\b",
+    re.IGNORECASE,
+)
+
+
+def _parked_prevention_gap(tree: ConceptTree) -> bool:
+    return _parked_says(tree, _PARKED_PREVENTION_RX, emblems=True)
+
+
+def _parked_prevention_match(tree: ConceptTree) -> bool:
+    return _parked_says(tree, _PARKED_PREVENTION_RX, emblems=True)
+
+
+# An attack restriction that protects you (CR 508.1c): "can't attack you", or a
+# limit on how many creatures can attack you.
+_PARKED_ATTACK_YOU_RX = re.compile(
+    r"\bcan't attack you\b|\bno more than \w+ creatures? can attack you\b",
+    re.IGNORECASE,
+)
+
+
+def _parked_attack_you_gap(tree: ConceptTree) -> bool:
+    return _parked_says(tree, _PARKED_ATTACK_YOU_RX)
+
+
+def _parked_attack_you_match(tree: ConceptTree) -> bool:
+    return _parked_says(tree, _PARKED_ATTACK_YOU_RX)
+
+
+# A granted "Unattach ~: Prevent all combat damage that would be dealt to ~"
+# (Blinding Powder: "Equipped creature has 'Unattach Blinding Powder: Prevent all
+# combat damage that would be dealt to this creature this turn'"). Inside the
+# granted ability "~" is the equipped creature, so this is a shield for it.
+_GRANTED_UNATTACH_PREVENTION_RX = re.compile(
+    r"\bUnattach ~: Prevent all (?:combat )?damage that would be dealt to ~",
+    re.IGNORECASE,
+)
+
+
+def _granted_unattach_prevention_gap(tree: ConceptTree) -> bool:
+    return _says(_GRANTED_UNATTACH_PREVENTION_RX, tree.residues())
+
+
+def _granted_unattach_prevention_match(tree: ConceptTree) -> bool:
+    return _says(_GRANTED_UNATTACH_PREVENTION_RX, tree.residues())
+
+
+# A redirect of a spell or ability on the stack (CR 115.7) parked as a residue
+# (Emissary of Grudges: "Choose new targets for target spell or ability if it's
+# controlled by the chosen player and if it targets you or a permanent you
+# control").
+_PARKED_REDIRECT_RX = re.compile(
+    r"\b(?:choose new targets for|change the targets? of) target spell or ability\b",
+    re.IGNORECASE,
+)
+
+
+def _parked_redirect_gap(tree: ConceptTree) -> bool:
+    return _says(_PARKED_REDIRECT_RX, tree.residues())
+
+
+def _parked_redirect_match(tree: ConceptTree) -> bool:
+    return _says(_PARKED_REDIRECT_RX, tree.residues())
+
+
+# Dropped clauses (no node, no residue): Assault Suit's "Equipped creature … can't
+# attack you or planeswalkers you control" (its static keeps the +2/+2 and haste),
+# and Nick Fury, Spymaster's "It enters tapped and attacking and gains
+# indestructible until end of turn" (the put-onto-the-battlefield keeps no grant).
+_EQUIPPED_CANT_ATTACK_YOU_RX = re.compile(
+    r"\b(?:Equipped|Enchanted) creature [^.]*\bcan't attack you\b", re.IGNORECASE
+)
+_ENTERS_AND_GAINS_PROTECTION_RX = re.compile(
+    r"\bonto the battlefield\. It enters [^.]*\band gains "
+    r"(?:hexproof|indestructible|shroud)\b",
+    re.IGNORECASE,
+)
+
+
+def _no_attack_restriction_gap(tree: ConceptTree) -> bool:
+    return not tree.has_static_mode("CantAttack", "CantAttackOrBlock")
+
+
+def _equipped_cant_attack_you_match(tree: ConceptTree) -> bool:
+    return bool(_EQUIPPED_CANT_ATTACK_YOU_RX.search(tree.oracle or ""))
+
+
+def _no_protective_grant_gap(tree: ConceptTree) -> bool:
+    return not _has_protective_keyword_node(tree)
+
+
+def _enters_and_gains_protection_match(tree: ConceptTree) -> bool:
+    return bool(_ENTERS_AND_GAINS_PROTECTION_RX.search(tree.oracle or ""))
+
+
+# Sokrates, Athenian Teacher: "{T}: Until end of turn, target creature gains 'If
+# this creature would deal combat damage to a player, prevent that damage. …'" —
+# a granted prevention shield that neutralises an attacker (CR 615.1), which phase
+# v0.94.0 misparses as a ``CreateToken`` replacement with a ``Half`` quantity
+# modification. The gap is that wrong node; the match its own description.
+_GRANTED_COMBAT_PREVENTION_RX = re.compile(
+    r"gains \"if ~ would deal combat damage to a player, prevent that damage",
+    re.IGNORECASE,
+)
+
+
+def _create_token_prevention_nodes(tree: ConceptTree) -> list[str]:
+    return [
+        getattr(n, "description", "") or ""
+        for n in tree.iter_typed()
+        if getattr(n, "event", None) == "CreateToken"
+    ]
+
+
+def _misparsed_granted_prevention_gap(tree: ConceptTree) -> bool:
+    return _says(_GRANTED_COMBAT_PREVENTION_RX, _create_token_prevention_nodes(tree))
+
+
+def _misparsed_granted_prevention_match(tree: ConceptTree) -> bool:
+    return _says(_GRANTED_COMBAT_PREVENTION_RX, _create_token_prevention_nodes(tree))
+
+
+# ── Akiri, Fearless Voyager / Dauntless Bodyguard → board_protection ─────────────
+# Each grants indestructible to a creature of yours that an UNPARSED clause picks,
+# so phase has nothing to bind "that creature" / "the chosen creature" to: Akiri's
+# "{W}: You may unattach an Equipment from a creature you control. If you do, tap
+# that creature and it gains indestructible until end of turn" binds the grant to
+# Akiri itself (``affected: SelfRef``); Dauntless Bodyguard's "As this creature
+# enters, choose another creature you control" leaves its "Sacrifice this
+# creature: The chosen creature gains indestructible" an unresolvable
+# ``ParentTarget``. Its rulings confirm the chosen creature is protected ("Players
+# can't respond to your choice of which creature it's protecting"). The gap is the
+# residue carrying the unparsed choice; the match also asks for the protective
+# grant (Tyrannical Pitlord parks the same choice to sacrifice it).
+_UNATTACH_CHOICE_RX = re.compile(
+    r"\bunattach an Equipment from a creature you control\b", re.IGNORECASE
+)
+_CHOSEN_CREATURE_RX = re.compile(
+    r"\bchoose another creature you control\b", re.IGNORECASE
+)
+
+
+def _has_protective_keyword_node(tree: ConceptTree) -> bool:
+    """Whether ANY protective keyword grant node exists, whoever phase binds it
+    to. Not ``protective_grant_recipients``: these rows exist because the
+    recipient is unresolvable (Akiri's grant binds to itself, Dauntless
+    Bodyguard's to nothing), so the protection read finds nothing here by
+    design — the question is whether the clause's grant node is present."""
+    return any(protective_keyword(n) for n in tree.iter_typed())
+
+
+def _unattach_choice_gap(tree: ConceptTree) -> bool:
+    return _says(_UNATTACH_CHOICE_RX, tree.residues())
+
+
+def _unattach_choice_match(tree: ConceptTree) -> bool:
+    return _says(_UNATTACH_CHOICE_RX, tree.residues()) and _has_protective_keyword_node(
+        tree
+    )
+
+
+def _chosen_creature_gap(tree: ConceptTree) -> bool:
+    return _says(_CHOSEN_CREATURE_RX, tree.residues())
+
+
+def _chosen_creature_match(tree: ConceptTree) -> bool:
+    return _says(_CHOSEN_CREATURE_RX, tree.residues()) and _has_protective_keyword_node(
+        tree
+    )
+
+
 BRIDGES: dict[str, Bridge] = {
     b.bridge_id: b
     for b in (
+        Bridge(
+            bridge_id="protective_grant_parse_failure",
+            key="board_protection",
+            kind="upstream_parse_failure",
+            todo=(
+                "upstream phase-rs report candidate (Dan posts): each pin's "
+                "protective grant to another permanent parks as an Unimplemented "
+                "residue or a hollow static def (Darksteel Garrison's 'Fortified "
+                "land has indestructible', Umbra Mystic's 'Auras attached to "
+                "permanents you control have umbra armor', Guardian Beast's 'they "
+                "have indestructible') — retires per card as phase parses each "
+                "into an AddKeyword"
+            ),
+            census=(
+                "9 hits / 1,944 residues + the hollow static defs of the legal "
+                "corpus (the 7 pins, Better Offer, and Thorin Oakenshield, whose "
+                "other ward grant the structural read already serves), MTGJSON "
+                "2026-09-22 @ phase v0.94.0, 2026-10-08"
+            ),
+            pins=(
+                "Darksteel Garrison",
+                "Guardian Beast",
+                "Outmuscle",
+                "Umbra Mystic",
+                "Sheltering Prayers",
+                "Guardian Archon",
+                "Jade Orb of Dragonkind",
+            ),
+            gap=_parked_grant_gap,
+            match=_parked_grant_match,
+        ),
+        Bridge(
+            bridge_id="prevention_shield_parse_failure",
+            key="board_protection",
+            kind="upstream_parse_failure",
+            todo=(
+                "upstream phase-rs report candidate (Dan posts): a prevention "
+                "shield around you or your creatures parks as an Unimplemented "
+                "residue (Light of Sanction's and Hyperion's 'Replacement pattern "
+                "matched but line failed replacement parser', Forcefield's 'prevent "
+                "all but 1') — retires per card as phase emits a PreventDamage / "
+                "prevention replacement"
+            ),
+            census=(
+                "5 hits / 1,944 residues + hollow static defs (emblem placeholders "
+                "included) of the legal corpus (the 5 pins), MTGJSON 2026-09-22 @ "
+                "phase v0.94.0, 2026-10-08"
+            ),
+            pins=(
+                "Forcefield",
+                "Light of Sanction",
+                "Hyperion, Supreme Hero",
+                "Silhouette",
+                "Ajani Steadfast",
+            ),
+            gap=_parked_prevention_gap,
+            match=_parked_prevention_match,
+        ),
+        Bridge(
+            bridge_id="attack_you_parse_failure",
+            key="pillowfort",
+            kind="upstream_parse_failure",
+            todo=(
+                "upstream phase-rs report candidate (Dan posts): 'can't attack "
+                "you' / 'no more than one creature can attack you' parks as a "
+                "residue or a hollow static def (Teferi's Moat, Sivitri, Web of "
+                "Inertia, Mirri) — retires per card as phase emits a CantAttack "
+                "with the defended player, or MaxAttackersEachCombat"
+            ),
+            census=(
+                "9 hits / 1,944 residues + hollow static defs of the legal corpus "
+                "(the 9 pins), MTGJSON 2026-09-22 @ phase v0.94.0, 2026-10-08"
+            ),
+            pins=(
+                "Teferi's Moat",
+                "Sivitri, Dragon Master",
+                "Chronomantic Escape",
+                "Web of Inertia",
+                "Champions of Minas Tirith",
+                "Mirri, Weatherlight Duelist",
+                "Varchild, Betrayer of Kjeldor",
+                "Immortal Obligation",
+                "Illusionist's Gambit",
+            ),
+            gap=_parked_attack_you_gap,
+            match=_parked_attack_you_match,
+        ),
+        Bridge(
+            bridge_id="granted_unattach_prevention_parse_failure",
+            key="board_protection",
+            kind="upstream_parse_failure",
+            todo=(
+                "upstream phase-rs report candidate (Dan posts): a granted "
+                "'Unattach ~: Prevent all combat damage that would be dealt to ~' "
+                "parks as Unimplemented inside the GrantAbility — retires on the "
+                "phase bump that parses an unattach cost and its PreventDamage"
+            ),
+            census=(
+                "1 hit / 1,944 residues of the legal corpus (Blinding Powder), "
+                "MTGJSON 2026-09-22 @ phase v0.94.0, 2026-10-08"
+            ),
+            pins=("Blinding Powder",),
+            gap=_granted_unattach_prevention_gap,
+            match=_granted_unattach_prevention_match,
+        ),
+        Bridge(
+            bridge_id="spell_or_ability_redirect_parse_failure",
+            key="board_protection",
+            kind="upstream_parse_failure",
+            todo=(
+                "upstream phase-rs report candidate (Dan posts): 'Choose new "
+                "targets for target spell or ability if …' parks as an "
+                "Unimplemented residue — retires on the phase bump that emits a "
+                "ChangeTargets with its conditions"
+            ),
+            census=(
+                "1 hit / 1,944 residues of the legal corpus (Emissary of Grudges), "
+                "MTGJSON 2026-09-22 @ phase v0.94.0, 2026-10-08"
+            ),
+            pins=("Emissary of Grudges",),
+            gap=_parked_redirect_gap,
+            match=_parked_redirect_match,
+        ),
+        Bridge(
+            bridge_id="equipped_cant_attack_you_dropped",
+            key="pillowfort",
+            kind="dropped_clause",
+            todo=(
+                "upstream phase-rs report candidate (Dan posts): Assault Suit's "
+                "'can't attack you or planeswalkers you control' leaves no node "
+                "(its static keeps only +2/+2 and haste) — retires on the phase "
+                "bump that emits the CantAttack with its defended player"
+            ),
+            census=(
+                "1 hit of the legal corpus's 'Equipped/Enchanted creature … can't "
+                "attack you' cards with no attack restriction (Assault Suit; the "
+                "Vow cycle, Spectral Grasp and Fealty to the Realm parse), MTGJSON "
+                "2026-09-22 @ phase v0.94.0, 2026-10-08"
+            ),
+            pins=("Assault Suit",),
+            gap=_no_attack_restriction_gap,
+            match=_equipped_cant_attack_you_match,
+        ),
+        Bridge(
+            bridge_id="enters_and_gains_protection_dropped",
+            key="board_protection",
+            kind="dropped_clause",
+            todo=(
+                "upstream phase-rs report candidate (Dan posts): Nick Fury's 'It "
+                "enters tapped and attacking and gains indestructible until end of "
+                "turn' keeps the put-onto-the-battlefield and drops the grant "
+                "(parse_warnings SwallowedClause Duration_UntilEndOfTurn) — "
+                "retires on the phase bump that emits the AddKeyword"
+            ),
+            census=(
+                "1 hit of the legal corpus's 'onto the battlefield. It enters … and "
+                "gains hexproof/indestructible/shroud' cards with no protective "
+                "grant node (Nick Fury, Spymaster), MTGJSON 2026-09-22 @ phase "
+                "v0.94.0, 2026-10-08"
+            ),
+            pins=("Nick Fury, Spymaster",),
+            gap=_no_protective_grant_gap,
+            match=_enters_and_gains_protection_match,
+        ),
+        Bridge(
+            bridge_id="sokrates_granted_prevention_misparse",
+            key="board_protection",
+            kind="upstream_parse_failure",
+            todo=(
+                "upstream phase-rs report candidate (Dan posts): a granted 'If "
+                "this creature would deal combat damage to a player, prevent that "
+                "damage' parses as an AddTargetReplacement with event CreateToken "
+                "and a Half quantity modification — retires on the phase bump that "
+                "emits a granted DamageDone prevention replacement"
+            ),
+            census=(
+                "1 hit / the legal corpus's CreateToken replacements whose "
+                "description says 'prevent' (Sokrates, Athenian Teacher), MTGJSON "
+                "2026-09-22 @ phase v0.94.0, 2026-10-08"
+            ),
+            pins=("Sokrates, Athenian Teacher",),
+            gap=_misparsed_granted_prevention_gap,
+            match=_misparsed_granted_prevention_match,
+        ),
+        Bridge(
+            bridge_id="akiri_unattach_selfref_grant",
+            key="board_protection",
+            kind="upstream_parse_failure",
+            todo=(
+                "upstream phase-rs report candidate (Dan posts): 'unattach an "
+                "Equipment from a creature you control' parks as "
+                "Unimplemented, so 'that creature … gains indestructible' binds "
+                "to SelfRef — retires on the phase bump that parses the unattach "
+                "and threads its creature to the grant"
+            ),
+            census=(
+                "1 hit / 1,944 residues of the legal corpus (Akiri, Fearless "
+                "Voyager), MTGJSON 2026-09-22 @ phase v0.94.0, 2026-10-08"
+            ),
+            pins=("Akiri, Fearless Voyager",),
+            gap=_unattach_choice_gap,
+            match=_unattach_choice_match,
+        ),
+        Bridge(
+            bridge_id="dauntless_bodyguard_chosen_creature",
+            key="board_protection",
+            kind="upstream_parse_failure",
+            todo=(
+                "upstream phase-rs report candidate (Dan posts): 'As this creature "
+                "enters, choose another creature you control' parks as "
+                "Unimplemented, leaving 'The chosen creature gains "
+                "indestructible' an unresolvable ParentTarget — retires on the "
+                "phase bump that parses the as-enters choice (CR 614.12)"
+            ),
+            census=(
+                "2 hits / 1,944 residues of the legal corpus say the choice "
+                "(Dauntless Bodyguard, Tyrannical Pitlord — no protective grant, "
+                "so no match), MTGJSON 2026-09-22 @ phase v0.94.0, 2026-10-08"
+            ),
+            pins=("Dauntless Bodyguard",),
+            gap=_chosen_creature_gap,
+            match=_chosen_creature_match,
+        ),
         Bridge(
             bridge_id="burning_of_xinye_opponent_destroys_lands",
             key="mass_land_denial",

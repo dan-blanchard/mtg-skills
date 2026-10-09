@@ -15,9 +15,9 @@ from mtg_utils.testkit import test_card, test_card_ir
 
 def _text_only(name):
     """The real record for *name* with its ``oracle_id`` stripped (ADR-0056's
-    missing-field rule). ``role_of`` / ``protects`` read a card with no
-    ``oracle_id`` through the oracle-text fallback, not the signal path; these
-    fixtures pin that fallback, so they must not resolve a concept tree."""
+    missing-field rule). ``role_of`` reads a card with no ``oracle_id`` through the
+    oracle-text fallback, not the signal path; these fixtures pin that fallback,
+    so they must not resolve a concept tree."""
     record = test_card(name)
     record.pop("oracle_id", None)
     return record
@@ -156,57 +156,124 @@ def test_interaction_excludes_infect_creatures_and_graveyard_recursion():
 
 
 def test_protection_is_advisory_not_a_counted_role():
-    # Counterspell counts as both interaction (template) AND protection (Tier-2 flag).
-    # protects() gates on the `counterspell` preset (a structural view, task #83) —
-    # the module-level COUNTERSPELL constant is already the real testkit record.
+    # Counterspell counts as both interaction (template) AND protection (Tier-2 flag):
+    # the `protects-board` preset protects() reads includes `counter_control`.
     assert protects(COUNTERSPELL) is True
     assert protects(MURDER) is False
     assert "protection" not in role_of(COUNTERSPELL)  # never a counted role
 
 
-def test_protection_requires_granting_not_a_self_keyword():
-    # A permanent that is merely indestructible/hexproof itself protects only itself.
-    self_indestructible = _text_only("Darksteel Reactor")
-    self_hexproof = _text_only("Carnage Tyrant")
-    assert protects(self_indestructible) is False
-    assert protects(self_hexproof) is False
-    # Granting a protective quality to ANOTHER permanent does count.
-    grants = _text_only("Swiftfoot Boots")
-    save = _text_only("Boros Charm")
-    assert protects(grants) is True
-    assert protects(save) is True
-    # Pillow-fort / attack-deterrent effects protect YOU the player.
-    pillow = _text_only("Ghostly Prison")
-    assert protects(pillow) is True
+@pytest.mark.parametrize(
+    "name",
+    [
+        # A protective keyword given to something else of yours (CR 702.11b
+        # hexproof, 702.12b indestructible, 702.16b protection, 702.18a shroud).
+        "Swiftfoot Boots",  # equipped creature
+        "Avacyn, Angel of Hope",  # "other permanents you control"
+        "Darksteel Forge",  # artifacts you control
+        "Sterling Grove",  # other enchantments you control
+        "Tamiyo's Safekeeping",  # target permanent you control
+        "Apostle's Blessing",  # a ChooseOneOf branch's grant to the target
+        "Boros Charm",  # one mode of three
+        "Leyline of Sanctity",  # "You have hexproof" (CR 702.11c)
+        "Shalai, Voice of Plenty",  # you, and other creatures you control
+        # Saves for something else (CR 701.19a, 702.26b, 615.1).
+        "Regenerate",
+        "Teferi's Protection",
+        "Fog",
+        # Umbra armor shields the enchanted permanent (CR 702.89a).
+        "Hyena Umbra",
+        # Pillowfort: attack taxes, bans and limits on attacking you.
+        "Ghostly Prison",
+        "Silent Arbiter",
+        "Crawlspace",
+        # Redirect answers (CR 115.7) and counterspells (CR 701.6a).
+        "Misdirection",
+        "Deflecting Swat",
+        "Counterspell",
+        # Ledgered bridges: the protective clause is parked by phase.
+        "Umbra Mystic",  # "Auras attached to permanents you control have umbra armor"
+        "Dauntless Bodyguard",  # "The chosen creature gains indestructible"
+        "Akiri, Fearless Voyager",
+        "Blinding Powder",
+        "Ajani Steadfast",  # its emblem's prevention shield
+        "Emissary of Grudges",
+        "Assault Suit",
+        "Nick Fury, Spymaster",
+        # Defensive neutralisers: damage an opponent's object would deal is
+        # prevented (CR 615.1).
+        "Resistance Fighter",
+        "Kiora, the Crashing Wave",
+        "Dovin, Hand of Control",
+        # Our walk: an ability redirect, a back-referenced creature, umbra armor.
+        "Reroute",
+        "Doors of Durin",
+        "Maze's Mantle",
+        "Dog Umbra",
+        "Estrid, the Masked",
+        "Orzhov Advokist",
+        "The Second Doctor",
+        "Willie Lumpkin, Postman",
+        # Spell thieves answer removal like a counterspell (Dan, 2026-10-08).
+        "Commandeer",
+        "Aethersnatch",
+        "Perplexing Chimera",
+        # A granted combat-damage prevention neutralising an attacker (CR 615.1).
+        "Sokrates, Athenian Teacher",
+        # Damage can't take your life below 1 (a replacement, CR 614.1a).
+        "Angel's Grace",
+        "Angel of Grace",
+        "Gore Vassal",  # "regenerate it" — aimable at your own creature
+    ],
+)
+def test_protection_protects_your_board_or_you(name):
+    assert protects(test_card(name)) is True
 
 
-def test_protection_recognizes_redirect_and_totem_armor():
-    # Free redirect answers (CR 115.7 — "change the target"/"choose new targets for
-    # target spell or ability") answer removal like a counterspell, and umbra/totem
-    # armor (CR 702.89a) grants a destroy-replacement shield to your permanents. Both
-    # were missed, so Misdirection/Deflecting Swat/Umbra Mystic bucketed filler and the
-    # tuner proposed cutting them "serves no avenue (filler)". They must read as
-    # protection (spine), never filler.
-    misdirection = _text_only("Misdirection")
-    deflecting_swat = _text_only("Deflecting Swat")
-    umbra_mystic = _text_only("Umbra Mystic")
-    assert protects(misdirection) is True
-    assert protects(deflecting_swat) is True
-    assert protects(umbra_mystic) is True
-    # Over-fire guard: a copy spell redirects "the copy", not an answer — not protection.
-    twincast = _text_only("Twincast")
-    assert protects(twincast) is False
+@pytest.mark.parametrize(
+    "name",
+    [
+        # Protects only itself — not your board.
+        "Darksteel Reactor",
+        "Carnage Tyrant",
+        "Dragonlord Ojutai",  # "~ has hexproof as long as it's untapped"
+        "Fleecemane Lion",  # monstrous: it has hexproof and indestructible
+        "Thrun, the Last Troll",  # "{1}{G}: Regenerate ~"
+        "Frenetic Efreet",  # its own coin-flip phase-out
+        # "Prevent all damage that would be dealt by enchanted creature": a
+        # pacifying Aura neutralises the creature, it doesn't protect yours.
+        "Temporal Isolation",
+        # A copy spell changes the COPY's targets, not an answer.
+        "Twincast",
+        "Murder",
+        # Phasing out an opponent's creature indefinitely is removal.
+        "Oubliette",
+        # A shield over every player's objects alike protects no one's board.
+        "Crumbling Sanctuary",
+        "Plated Pegasus",
+        # The keyword comes with animating the permanent, not shielding it.
+        "Avalanche Caller",
+        "Sylvan Awakening",
+        "Kamahl, Heart of Krosa",
+        "Wrenn and Realmbreaker",
+        "Kamahl's Will",
+        "Sparkshaper Visionary",
+    ],
+)
+def test_protection_excludes_self_only_and_non_protection(name):
+    assert protects(test_card(name)) is False
 
 
-def test_protection_excludes_self_only_saves():
-    # A creature that only phases/regenerates ITSELF is self-protection — doesn't count.
-    self_phase = _text_only("Frenetic Efreet")
-    assert protects(self_phase) is False
-    # Saving / shielding OTHERS still counts.
-    fog = _text_only("Fog")
-    save_target = _text_only("Regenerate")
-    assert protects(fog) is True
-    assert protects(save_target) is True
+def test_protection_has_no_text_degrade():
+    # A card the signal path can't see is not protection (unlike is_ramp, which
+    # degrades to ramp_by_text): the signal path never guesses from text.
+    synthetic = {
+        "name": "Test Shield",
+        "type_line": "Instant",
+        "oracle_text": "Target creature you control gains indestructible until end "
+        "of turn.",
+    }
+    assert protects(synthetic) is False
 
 
 def test_current_counts_reflect_deck():
@@ -551,17 +618,6 @@ def test_ir_recursion_only_vetoes_pure_graveyard_return():
     )
     # No graveyard bounce at all can never be vetoed (real removal — mass destroy).
     assert _ir_recursion_only(test_card_ir("Wrath of God")) is False
-
-
-def test_ir_redirect_is_structural():
-    # phase parses redirect answers (Misdirection, Deflecting Swat) as cat=redirect, so
-    # protects() reads that structurally instead of the "change the target / choose new
-    # targets" regex (kept as the no-IR fallback — Misdirection/Deflecting Swat have no
-    # oracle_id in the ``_text_only`` record, so the regex still covers the test above).
-    from mtg_utils._analysis.roles import _ir_redirect
-
-    assert _ir_redirect(_ir_effect(category="redirect")) is True
-    assert _ir_redirect(_ir_effect(category="destroy")) is False
 
 
 # ── per-family templates ──────────────────────────────────────────────────────

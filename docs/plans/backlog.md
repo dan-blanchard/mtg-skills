@@ -26,9 +26,6 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
     self-recurring, `detect_commander_multiplication`'s copy patterns, the zone grant.
     The tuner's protection already moved to `_analysis/multipliers.py`; cut-check's own
     report should read the same trees.
-  - `_analysis/ranking.py` (~7): `_TRIGGER_RE` / `_REWARD_RE` / `_ACTIVATED_RE` /
-    `_STRONG_REWARD_RE` / `_STATIC_PAYOFF_RE` / `_TRIBAL_GATE_RE` clause-role reads.
-  - `_analysis/roles.py`: `_PROTECT_GRANT` / `_PROTECT_SAVE` (`protects`).
   - `_tuner/issues.py`: `_RAMP_CONDITIONAL` ("only if you control" in the oracle text
     keeps a conditionally gated rock out of the tuner's ramp sourcing); read the
     mana ability's activation condition off the tree.
@@ -62,6 +59,12 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
     Mana Vapors' one-untap-step effect parses as a lasting static
     (`_lasting_static_defs`); Burning of Xinye's "destroys four lands" is a residue
     and Global Ruin's sacrifice a tracked set (both ledger bridges).
+- **Leftovers from moving `roles.protects` onto the signal path** (2026-10-08).
+  - deck-forge's "Pillowfort" sub-avenue (`signal_specs._PILLOWFORT_EXTRA`) still
+    serves by an oracle regex; the `pillowfort` key now carries the same fact.
+  - `ranking._structural_floor` (`is_fixing` / `is_ramp` / `cmc_bomb`) is serialised
+    into every candidate's score and read by nothing — the SPA, the tuner and the
+    CLIs all ignore it (its `is_tutor` text read was deleted for that reason).
 - **Two commander-multiplier gaps.** Syr Konrad's trigger reads as `ChangesZone` with
   no zones (a phase gap), so `_analysis/multipliers` can't match a dies doubler to it;
   report upstream rather than work around it. And `trees.object_facts` reads printed
@@ -155,5 +158,9 @@ headroom and parked items.
   signals; removal isn't duplicated), `cut_check`, proxy-printer's layout and Fetcher
   seam, `phase_bump`, `testkit`, `agent_bridge` / `events`, and the tuner's classify,
   shape and bracket modules.
+- **Symmetric shields aren't protection** (Dan, 2026-10-08): `roles.protects` is
+  protecting YOUR board, so a permanent's shield over every player's objects alike
+  (Crumbling Sanctuary, Plated Pegasus, Well-Laid Plans' residue) stays out; a fog
+  you cast and an optional shield you aim stay in.
 - **Every strong candidate from the 2026-09-12 review shipped** (ADR-0045 to 0050,
   plus ADR-0041 and ADR-0013 finished).

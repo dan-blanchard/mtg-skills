@@ -15,12 +15,12 @@ preset the role counts by (ADR-0051).
 The one text read is the documented no-coverage degrade: a card the signal path
 cannot see (no ``oracle_id``, no phase parse, no sidecar — a synthetic fixture, a
 cube pool run with no card-data) answers ramp from
-``card_classify.ramp_by_text``.
+``card_classify.ramp_by_text``. ``protects`` has no degrade: such a card is not
+protection.
 """
 
 from __future__ import annotations
 
-import re
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
@@ -35,7 +35,7 @@ from mtg_utils._card_ir.crosswalk.reads import (
     tag_of,
 )
 from mtg_utils._card_ir.trees import object_facts, trees_for
-from mtg_utils.card_classify import get_oracle_text, is_land, ramp_by_text
+from mtg_utils.card_classify import is_land, ramp_by_text
 from mtg_utils.card_ir import Card
 from mtg_utils.theme_presets import get_preset, has_signal_coverage
 
@@ -71,46 +71,6 @@ _INTERACTION_PRESETS = (
     "bounce",
     "creature-edict",
     "pacify-aura",
-)
-
-# Protection (Tier-2, advisory) must GRANT a protective quality to another permanent — a
-# card that merely HAS indestructible/hexproof itself (Darksteel Reactor) protects only
-# itself, not your board, so the keyword-on-itself presets are deliberately NOT used. We
-# anchor on a granting verb + the keyword in oracle text (reminder text stripped).
-_PROTECT_GRANT = re.compile(
-    r"\b(?:gains?|have|has|gets?)\b[^.]*?"
-    r"\b(?:hexproof|indestructible|ward|shroud|protection from)\b",
-    re.IGNORECASE,
-)
-# Single-use saves that protect your stuff for a turn. Regenerate / phase-out must apply
-# to a TARGET or your permanents — a creature that only regenerates or phases ITSELF
-# (Frenetic Efreet) is self-protection, which doesn't count (same rule as the keywords).
-_PROTECT_SAVE = re.compile(
-    r"regenerate (?:target|another|each|all|up to|creatures? you control|"
-    r"permanents? you control)|"
-    r"prevent (?:the next|all|that)\b[^.]*\bdamage|"
-    r"(?:target|another target|each|all|creatures? you control|permanents? you control)"
-    r"[^.]*phases? out",
-    re.IGNORECASE,
-)
-# Pillow-fort / attack-deterrent effects that protect YOU the player (Ghostly Prison,
-# Propaganda, Sphere of Safety, Crawlspace, Silent Arbiter, …).
-_PROTECT_DETER = re.compile(
-    r"can'?t attack you|"
-    r"no more than \w+ creatures? can attack",
-    re.IGNORECASE,
-)
-# Redirect answers (CR 115.7): a free "change the target" / "choose new targets for
-# target spell or ability" (Misdirection, Deflecting Swat, Divert) answers removal aimed
-# at your board like the counterspells protects() already counts. Anchored on "target
-# spell" / "spell or ability" — NOT "the copy" — so copy spells (Twincast, Fork) don't
-# match. Umbra/totem armor (CR 702.89a) grants a destroy-replacement shield to your
-# permanents (Umbra Mystic and the totem-armor auras themselves).
-_PROTECT_REDIRECT = re.compile(
-    r"change the target(?:\(s\))? of target spell"
-    r"|choose new targets for target spell or ability"
-    r"|\b(?:umbra|totem) armor\b",
-    re.IGNORECASE,
 )
 
 
@@ -497,40 +457,22 @@ def role_of(card: dict, *, deck_mana: DeckMana | None = None) -> set[str]:
     return roles
 
 
-def _ir_redirect(ir: Card) -> bool:
-    """A redirect answer (``cat=redirect`` — Misdirection, Deflecting Swat): changing a
-    spell's target / choosing new targets answers removal aimed at your board like a
-    counterspell. phase parses it as its own category, so this reads it structurally."""
-    return any(
-        e.category == "redirect" for ab in ir.all_abilities() for e in ab.effects
-    )
-
-
 def protects(card: dict) -> bool:
-    """Tier-2 (advisory, ADR-0024): does this card protect your own board/commander?
+    """Tier-2 (advisory, ADR-0024): does this card protect your board or you?
 
-    Counts counterspells (answer removal), REDIRECT answers (``cat=redirect``, read
-    structurally), and cards that GRANT a protective quality to another permanent or
-    save it for a turn — NOT a permanent that merely has hexproof / indestructible /
-    ward on itself (which protects only itself, not your board).
+    THE protection answer (ADR-0051, like :func:`is_ramp`): the
+    ``protects-board`` preset, a view over the signal path —
+    ``board_protection`` (a protective keyword given to another permanent or to
+    you, or a save — regeneration, phasing out, damage prevention — for
+    something other than the card itself), ``pillowfort`` (attack taxes, bans and
+    limits on attacking you), ``counter_control`` (counterspells answer removal)
+    and ``spell_redirect`` (Misdirection, Deflecting Swat — CR 115.7). The
+    tuner's protection sourcing reads the same preset.
 
-    The grant/save/deter modes stay on oracle regex under ADR-0027 A3 (the regex
-    residual here): the most common protect mode, a "gains protection from <color>"
-    grant (Mother of Runes, Alseid, Apostle's Blessing — ~80 cards), projects to
-    ``grant_keyword`` with an EMPTY ``counter_kind`` (the IR carries no "protection"
-    marker; the keyword lives only in ``raw``), so an IR-only ``protects`` would
-    silently drop them — a recall regression needing a project.py marker (out of A3
-    scope). Umbra/totem armor likewise rides the regex (projects to ``grant_keyword``).
-    """
-    if _matches_preset(card, "counterspell"):
-        return True
-    ir = ir_for(card)
-    if ir is not None and _ir_redirect(ir):
-        return True
-    text = re.sub(r"\([^)]*\)", " ", get_oracle_text(card) or "")  # strip reminder text
-    return bool(
-        _PROTECT_GRANT.search(text)
-        or _PROTECT_SAVE.search(text)
-        or _PROTECT_DETER.search(text)
-        or _PROTECT_REDIRECT.search(text)
-    )
+    A permanent that protects only itself (Dragonlord Ojutai's hexproof, Thrun's
+    regeneration) protects nothing else on your board, so it is not protection.
+
+    No text degrade, unlike :func:`is_ramp`: a card the signal path can't see (no
+    ``oracle_id``, no phase parse) is not protection — the signal path never
+    guesses from text."""
+    return _matches_preset(card, "protects-board")

@@ -306,6 +306,11 @@ SERVED_SIGNAL_KEYS: frozenset[str] = frozenset(
         "land_denial",
         # The Commander Brackets' mass land denial (ADR-0030; reads.mass_land_denial).
         "mass_land_denial",
+        # roles.protects' own keys (ADR-0051): protection for something of yours
+        # other than the card itself (crosswalk.protection.protective_grant_recipients
+        # / protective_saves), and attack deterrents (protection.attack_deterrent).
+        "board_protection",
+        "pillowfort",
         "land_protection",
         "evasion_denial",
         "animate_artifact",

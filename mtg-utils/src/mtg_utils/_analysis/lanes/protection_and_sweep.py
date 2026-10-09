@@ -13,7 +13,6 @@ from mtg_utils._analysis.text_reads import (
     _COUNTER_KIND_KEYS,
     _EVERGREEN_CK,
     _NAMED_COUNTER_KINDS,
-    _SELF_PROTECTION_GRANT_KW,
 )
 from mtg_utils._analysis.tree_synthesis import (
     _ANTHEM_PUMP_MODS,
@@ -34,8 +33,10 @@ from mtg_utils._analysis.tree_synthesis import (
 )
 from mtg_utils._card_ir.crosswalk import (
     OTHER,
+    PROTECTIVE_KEYWORDS,
     ConceptNode,
     ConceptTree,
+    attack_deterrent,
     change_zone_dirs,
     counter_kind_any,
     counter_pred_kinds,
@@ -50,6 +51,8 @@ from mtg_utils._card_ir.crosswalk import (
     iter_typed_nodes,
     mod_keyword_name,
     modify_cost_mode,
+    protective_grant_recipients,
+    protective_saves,
     residue_is,
     static_mode_field,
     tag_of,
@@ -531,7 +534,7 @@ def _conditional_self_protection(tree: ConceptTree) -> list[Signal]:
     conditioned grant (Sigarda, pop False); (2) affected SelfRef —
     team/aura/equipment conditioned grants are other lanes; (3) an
     ``AddKeyword`` whose name lowercases into the imported live
-    ``_SELF_PROTECTION_GRANT_KW`` — a conditional combat buff ("during
+    ``PROTECTIVE_KEYWORDS`` — a conditional combat buff ("during
     your turn, ~ has deathtouch/flying") stays out. Scope "you", HIGH
     (the lane sits in the regex-side ``_VOLTRON_COMPAT_KEYS`` — a
     signals.py concern the port does not touch).
@@ -561,7 +564,7 @@ def _conditional_self_protection(tree: ConceptTree) -> list[Signal]:
             kw = getattr(mod, "keyword", None)
             if not isinstance(kw, str):
                 continue
-            if kw.lower() in _SELF_PROTECTION_GRANT_KW:
+            if kw.lower() in PROTECTIVE_KEYWORDS:
                 raw = getattr(sdef, "description", None) or ""
                 return [
                     Signal(
@@ -1572,10 +1575,16 @@ _SWEEP_SYNTH_KEYS: tuple[tuple[str, str], ...] = (
 #     Dragon Broodmother's own printed keywords never include Devour, so
 #     this row does not double-cover :func:`_has_created_token_devour`'s
 #     typed ``MirrorVariant`` read.
+#   * umbra armor (CR 702.89a: "If enchanted permanent would be destroyed,
+#     instead remove all damage marked on it and destroy this Aura"; 702.89b:
+#     the older "totem armor" printings) shields the permanent the Aura
+#     enchants — :func:`_board_protection`'s keyword-field arm, since phase's
+#     ``TotemArmor`` keyword is not on the concept tree.
 _SWEEP_KEYWORD_LANES: tuple[tuple[frozenset[str], str], ...] = (
     (frozenset({"power-up"}), "powerup_matters"),
     (frozenset({"sneak"}), "recast_etb"),
     (frozenset({"casualty", "bargain", "exploit", "devour"}), "sacrifice_outlets"),
+    (frozenset({"umbra armor", "totem armor"}), "board_protection"),
 )
 
 
@@ -1958,6 +1967,45 @@ def _theft_protection(tree: ConceptTree) -> list[Signal]:
     return []
 
 
+def _board_protection(tree: ConceptTree) -> list[Signal]:
+    """board_protection — the card protects something of yours other than itself
+    (``roles.protects``, ADR-0051): a protective keyword it gives another
+    permanent or you (:func:`~mtg_utils._card_ir.crosswalk.protection.
+    protective_grant_recipients` — Avacyn, Darksteel Forge, Swiftfoot Boots,
+    Apostle's Blessing, Leyline of Sanctity), or a save for another permanent or
+    you (:func:`~mtg_utils._card_ir.crosswalk.protection.protective_saves` —
+    Regenerate, Teferi's Protection, Fog, Circle of Protection: Red). A card that
+    protects only itself (Dragonlord Ojutai, Thrun, the Last Troll) is not a
+    member — ``protection_grant`` (the deck-forge avenue lane) keeps its own
+    narrower read. Scope "you".
+
+    Umbra armor (CR 702.89a) reaches this key three ways, each owning one case:
+    an Umbra's PRINTED keyword is the keyword-field row (:data:`_SWEEP_KEYWORD_LANES`
+    — phase's ``TotemArmor`` keyword is not on the concept tree); umbra armor
+    GRANTED to an Aura — conditionally to itself (Dog Umbra) or to an Aura token
+    (Estrid, the Masked's Mask) — is ``protective_grant_recipients``; and a grant
+    phase parks unparsed (Umbra Mystic's "Auras attached to permanents you
+    control have umbra armor") is the ``protective_grant_parse_failure`` ledger
+    bridge."""
+    if (
+        next(protective_grant_recipients(tree), None) is not None
+        or next(protective_saves(tree), None) is not None
+    ):
+        return [Signal("board_protection", "you", "", "", tree.name, "high")]
+    return []
+
+
+def _pillowfort(tree: ConceptTree) -> list[Signal]:
+    """pillowfort — the card keeps creatures from attacking you
+    (:func:`~mtg_utils._card_ir.crosswalk.protection.attack_deterrent`): attack taxes
+    (Ghostly Prison, Propaganda, Sphere of Safety), attack bans (Blazing Archon,
+    the Vow cycle) and attack limits (Crawlspace, Silent Arbiter). Scope "you":
+    it protects you."""
+    if attack_deterrent(tree) is None:
+        return []
+    return [Signal("pillowfort", "you", "", "", tree.name, "high")]
+
+
 def _voting_matters(tree: ConceptTree) -> list[Signal]:
     """voting_matters (sweep §23) — CR 701.38 (Vote — fixes the mapping
     row's stale 701.32 cite): the ``Vote`` TRIGGER mode ("Whenever players
@@ -2024,6 +2072,8 @@ LANES = (
     _becomes_target_lanes,
     _theft_protection,
     _voting_matters,
+    _board_protection,
+    _pillowfort,
 )
 
 

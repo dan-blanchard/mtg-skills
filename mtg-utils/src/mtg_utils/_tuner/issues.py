@@ -64,9 +64,9 @@ ROLE_SEARCH: dict[str, dict] = {
     "two_drops": {"cmc_min": 2, "cmc_max": 2},
     "three_drops": {"cmc_min": 3, "cmc_max": 3},
 }
-PROTECTION_SEARCH = {
-    "preset_names": ("hexproof", "indestructible", "protection", "ward", "counterspell")
-}
+# Protection is SOURCED by the same preset ``roles.protects`` COUNTS it by (ADR-0051):
+# a self-hexproof creature fills no protection slot, so it isn't suggested for one.
+PROTECTION_SEARCH = {"preset_names": ("protects-board",)}
 WINCON_SEARCH = {"oracle": r"wins the game|an additional combat phase|deals damage"}
 
 # Efficiency curve issues → a CMC band to add into, scoped to the deck's main theme.

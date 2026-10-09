@@ -94,3 +94,84 @@ Every surface that counts a deck's ramp passes the context: `deck-stats`, `deck-
 budgets, candidate ranking (`deck-rank`, the hub's Find, the tuner's adds), and the tuner's
 classes, band and ramp sourcing. Without a commander the deck-colored rule doesn't
 apply; for a card on its own the answer is unchanged.
+
+**Amendment (2026-10-08): protection is a view too.** `protects` was the last role on
+oracle text: four regexes (grant, save, deter, redirect) beside the `counterspell`
+preset and the compat IR's `redirect` category. Its docstring said protection is
+"another permanent", but the grant regex fired on any "has hexproof", so some 200
+cards that protect only themselves (Dragonlord Ojutai, Yahenni, Fleecemane Lion,
+Paradise Druid) bucketed as protection — Spine, never cut. The `redirect` category
+also tagged every "exile it instead" replacement (Lava Coil, Anger of the Gods), and
+Temporal Isolation's "prevent all damage that would be dealt by enchanted creature"
+counted as a save. The tuner sourced protection from a fifth definition: the
+self-keyword presets (`hexproof`, `indestructible`, `protection`, `ward`).
+
+`protects` is now the `protects-board` preset, and the tuner's protection search reads
+the same preset. The reads live in `crosswalk/protection.py`. Its keys:
+
+- `board_protection` (new, served; its own preset is `board-protection`): a
+  protective keyword (hexproof, shroud, indestructible, ward, protection — CR 702.11,
+  702.18, 702.12, 702.21, 702.16) given to something other than the card itself,
+  permanent or player (`protective_grant_recipients`: Avacyn's "Another" filter,
+  Darksteel Forge, Sterling Grove, Apostle's Blessing's `ChooseOneOf` branch, Leyline
+  of Sanctity's `Hexproof` player mode, Giant's Amulet's granted static); a save for
+  something other than itself (`protective_saves`: regeneration, CR 701.19a; phasing
+  out, 702.26b; a prevention shield, 615.1; Angel's Grace's life floor and Cosmic
+  Intervention's exile-and-return, both replacements, 614.1a); umbra armor on an Aura,
+  from the keyword array or a grant (Dog Umbra, Estrid's Mask; 702.89a). A keyword
+  that comes with animating a permanent (Avalanche Caller's "becomes a 4/4 Elemental
+  creature with hexproof and haste") is part of the creature it makes, not a shield.
+  A spell's `SelfRef` grant is phase binding "it" to the spell; the read takes it as
+  the chosen object (its own decision), guarded by
+  `test_spell_selfref_misbinding_canary`.
+- `pillowfort` (new, served): `attack_deterrent` — attack taxes (Ghostly Prison),
+  attack bans on you (Blazing Archon, the Vow cycle) and attack limits (Crawlspace,
+  Silent Arbiter, Tomik's granted limit), and a player's creatures barred from
+  attacking you for a turn (The Second Doctor, Orzhov Advokist), CR 508.1c / 508.1h.
+- `counter_control` (CR 701.6a), and `spell_redirect` (CR 115.7), which now also
+  takes Reroute's redirect of an activated ability (`reads.redirects_stack_object`)
+  and the spell thieves (`reads.steals_stack_spell` — Commandeer, Aethersnatch,
+  Perplexing Chimera, Invert Polarity): taking a removal spell answers it like a
+  counterspell (Dan, 2026-10-08).
+
+Dan's rulings on the boundary (2026-10-08): defensive neutralisers count, removal
+doesn't. Damage prevention scoped to the damage an opponent's object would deal
+shields you and your board like a fog or a pillowfort (CR 615.1 — Dovin, Hand of
+Control; Kiora, the Crashing Wave; Resistance Fighter; Sokrates, Athenian Teacher's
+granted shield). Phasing out or exiling an opponent's object is removal: a phase-out
+aimed only at an opponent's object, or one held by "can't phase in" until the source
+leaves (Oubliette, whose creature skips the CR 702.26a untap-step phase-in), is not a
+save. And protection is protecting YOUR board: a permanent's shield over every
+player's objects alike (Crumbling Sanctuary, Plated Pegasus) isn't, while a fog you
+cast and an optional shield you aim (Battletide Alchemist) are.
+
+Ten ledger rows (ADR-0048) restore cards whose protective clause phase parks, drops or
+misparses: `protective_grant_parse_failure`, `prevention_shield_parse_failure` (with
+Ajani Steadfast's emblem, read through the new `hollow_emblem_statics` accessor for
+phase's `EmblemStatic` placeholders, CR 114.4), `attack_you_parse_failure`,
+`granted_unattach_prevention_parse_failure` (Blinding Powder),
+`spell_or_ability_redirect_parse_failure` (Emissary of Grudges),
+`equipped_cant_attack_you_dropped` (Assault Suit),
+`enters_and_gains_protection_dropped` (Nick Fury, Spymaster),
+`sokrates_granted_prevention_misparse`, `akiri_unattach_selfref_grant` and
+`dauntless_bodyguard_chosen_creature`. Maze's Mantle's "that creature" (the enchanted
+creature, CR 303.4b) is phase-bound to the triggering Aura and read past with
+`test_aura_etb_triggering_source_canary`. Unlike `is_ramp`, `protects` has no text
+degrade: a card the signal path can't see is not protection.
+
+**Consequences.** Over the 32,758 cards legal in at least one format (MTGJSON
+2026-09-22, phase v0.94.0): 1,650 keep the role, 85 gain it, 435 lose it. The gains
+are protection the regex couldn't phrase: Regeneration and Trollhide's granted
+regeneration, the Sphere cycle's "prevent 2 of that damage", Pariah and Palisade
+Giant's damage shields, Urza's Armor, Worship's life floor, Zombie Master, Clot Sliver,
+Vines of Vastwood. The losses are mostly self-only grants and saves (Dragonlord
+Ojutai, the Gideons, Phantom creatures, Fog Bank), cards only the `redirect` category
+caught ("exile it instead" replacements), pacifying, symmetric or removal effects
+(Temporal Isolation, Hostility, Crumbling Sanctuary, Oubliette), land and planeswalker
+animators, and The Eternal Wanderer's limit on attacking itself. The tuner's
+protection bucket loses self-protecting creatures, which become cut-eligible like any
+other card that serves no avenue.
+
+The candidate ranking lost its text fallback in the same change: a card with no IR
+(newer than the phase pin, or synthetic) scores every clause as an enabler with no
+tribal gate, the same "never guess from text" rule `extract_signals` follows.

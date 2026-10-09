@@ -2219,6 +2219,108 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
         should_not_match=("Strip Mine", "Yawning Fissure", "From the Ashes"),
     ),
     Preset(
+        name="board-protection",
+        description=(
+            "Gives hexproof, shroud, indestructible, ward, protection or umbra "
+            "armor to your other permanents or to you, or saves them — "
+            "regeneration, phasing out, damage prevention."
+        ),
+        notes=(
+            "Structural view: signal key `board_protection` "
+            "(`crosswalk.protection.protective_grant_recipients` / "
+            "`protective_saves`; umbra armor also from the keyword array). The "
+            "narrower half of `protects-board`, which `roles.protects` reads; a "
+            "counterspell or a pillowfort is protection but not this key."
+        ),
+        signal_keys=("board_protection",),
+        should_match=(
+            "Avacyn, Angel of Hope",
+            "Darksteel Forge",
+            "Leyline of Sanctity",
+            "Heroic Intervention",
+            "Swiftfoot Boots",
+            "Fog",
+            "Hyena Umbra",
+        ),
+        should_not_match=(
+            "Dragonlord Ojutai",
+            "Temporal Isolation",
+            "Counterspell",
+            "Ghostly Prison",
+            "Lightning Bolt",
+        ),
+    ),
+    Preset(
+        name="protects-board",
+        description=(
+            "Protects your board or you: grants hexproof, shroud, indestructible, "
+            "ward or protection to your other permanents or to you, saves them "
+            "(regeneration, phasing out, damage prevention), keeps attackers off "
+            "you, or answers removal on the stack (counterspells, redirects)."
+        ),
+        notes=(
+            "Structural view: `roles.protects` (ADR-0051) and the tuner's "
+            "protection sourcing read this one preset. Keys `board_protection` "
+            "(the `board-protection` preset's key), `pillowfort` "
+            "(`crosswalk.protection.attack_deterrent`), `counter_control`, "
+            "`spell_redirect` (stack redirects of spells and abilities, and spell "
+            "thieves). A "
+            "card that protects only itself (Dragonlord Ojutai) and a pacifying "
+            "prevention Aura (Temporal Isolation) are not members."
+        ),
+        signal_keys=(
+            "board_protection",
+            "pillowfort",
+            "counter_control",
+            "spell_redirect",
+        ),
+        should_match=(
+            "Avacyn, Angel of Hope",
+            "Darksteel Forge",
+            "Leyline of Sanctity",
+            "Heroic Intervention",
+            "Swiftfoot Boots",
+            "Ghostly Prison",
+            "Counterspell",
+            "Misdirection",
+            "Hyena Umbra",
+            "Fog",
+        ),
+        should_not_match=(
+            "Dragonlord Ojutai",
+            "Fleecemane Lion",
+            "Temporal Isolation",
+            "Thrun, the Last Troll",
+            "Oubliette",
+            "Twincast",
+            "Lightning Bolt",
+        ),
+    ),
+    Preset(
+        name="pillowfort",
+        description=(
+            "Keeps creatures from attacking you: attack taxes (Ghostly Prison, "
+            "Propaganda), attack bans (the Vow cycle) and attack limits "
+            "(Crawlspace, Silent Arbiter)."
+        ),
+        notes=(
+            "Structural view: signal key `pillowfort` "
+            "(`crosswalk.protection.attack_deterrent`). A restriction on one "
+            "creature's "
+            "attacks with no defender named (Pacifism) and a limit on attacking "
+            "the card itself (The Eternal Wanderer) are not."
+        ),
+        signal_keys=("pillowfort",),
+        should_match=(
+            "Ghostly Prison",
+            "Propaganda",
+            "Crawlspace",
+            "Silent Arbiter",
+            "Vow of Duty",
+        ),
+        should_not_match=("Pacifism", "The Eternal Wanderer", "Lightning Bolt"),
+    ),
+    Preset(
         name="planeswalker-removal",
         description=(
             "Single-target OR mass planeswalker removal: destroy/exile "

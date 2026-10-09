@@ -71,61 +71,20 @@ _PROM_DEFAULT = 0.4
 # creature dies → drain) OR an ACTIVATED ability whose effect impacts the board
 # (Walking Ballista's "remove a counter: deal 1 damage" — a real payoff with no
 # trigger word) OR a static team anthem. Everything else with oracle text is an
-# ENABLER (fodder/generative); a match with no oracle clause is STRUCTURAL.
-_TRIGGER_RE = re.compile(
-    r"\b(whenever|when|at the beginning of|each time)\b", re.IGNORECASE
-)
-# Broad reward set, accepted off a triggered ability (a trigger already proves the
-# clause is reactive value, so weaker rewards like a counter/token still count).
-_REWARD_RE = re.compile(
-    r"loses? \d|loses? [^.]*\blife\b|gains? [^.]*\blife\b|\bdraw\b|"
-    r"deals? \d|deals? [^.]*\bdamage\b|\bdestroy\b|\bexile\b|"
-    r"return[s]? [^.]*to (?:the battlefield|your hand)|each opponent|"
-    r"\+1/\+1 counter|create [^.]*\b(?:treasure|blood|clue|food|gold)\b|"
-    r"put[s]? [^.]*counter",
-    re.IGNORECASE,
-)
-# An activated ability: a cost (mana/tap symbol, "Sacrifice …:", "Remove a …
-# counter:") followed by a colon. Its effect must be a STRONG (board-impacting)
-# reward to count as a payoff — a self-pump activation ("{1}{R}: put a counter on
-# this creature") is NOT a payoff, so the narrower set excludes bare counters.
-_ACTIVATED_RE = re.compile(
-    r"(?:\{[^}]*\}|sacrifice[^:.]*|remove (?:a|one|two|x|\d+)[^:.]*counter[^:.]*)\s*:",
-    re.IGNORECASE,
-)
-_STRONG_REWARD_RE = re.compile(
-    r"deals? \d|deals? [^.]*\bdamage\b|loses? \d|loses? [^.]*\blife\b|"
-    r"\bdraw\b|\bdestroy\b|\bexile\b|each opponent",
-    re.IGNORECASE,
-)
-_STATIC_PAYOFF_RE = re.compile(
-    r"creatures? you control get |other creatures? you control (?:get|have|gain)|"
-    r"for each [^.]*you control",
-    re.IGNORECASE,
-)
-
-
-def _clause_role_regex(clause: str) -> str:
-    """The legacy oracle-clause role classifier — the ``ir is None`` fallback."""
-    if _TRIGGER_RE.search(clause) and _REWARD_RE.search(clause):
-        return "payoff"
-    if _ACTIVATED_RE.search(clause) and _STRONG_REWARD_RE.search(clause):
-        return "payoff"
-    if _STATIC_PAYOFF_RE.search(clause):
-        return "payoff"
-    return "enabler"
+# ENABLER (fodder/generative); a match with no oracle clause is STRUCTURAL. The
+# role is read off the candidate's Card IR; a card with no IR (newer than the
+# phase pin, or a synthetic record) scores every clause as an enabler — the
+# signal path never guesses from text.
 
 
 # ── Card IR role classification (ADR-0027) ────────────────────────────────────
-# The same three payoff conditions the regex tiers above encode, read off the
-# candidate's structured abilities instead of its oracle text. The reward
-# CATEGORY sets mirror the regex reward sets verbatim (rules-anchored: destroy =
-# CR 701.8a board removal, draw = card advantage, a creature token is a
-# GENERATIVE enabler not a reward per CR 111.1 — so make_token is excluded except
-# the artifact-token "create a Treasure/Clue/…" form the regex also rewards).
+# The three payoff conditions, read off the candidate's structured abilities. The
+# reward CATEGORY sets are rules-anchored: destroy = CR 701.8a board removal, draw =
+# card advantage, a creature token is a GENERATIVE enabler not a reward per CR
+# 111.1 — so make_token is excluded except the artifact-token "create a
+# Treasure/Clue/…" form.
 
-# Broad reward set off a TRIGGER (the trigger already proves reactive value), the
-# structured mirror of ``_REWARD_RE``.
+# Broad reward set off a TRIGGER (the trigger already proves reactive value).
 _TRIGGER_REWARD_CATS = frozenset(
     {
         "draw",
@@ -140,20 +99,18 @@ _TRIGGER_REWARD_CATS = frozenset(
     }
 )
 # Narrow board-impacting set off an ACTIVATED ability (a self-pump activation is
-# NOT a payoff), the structured mirror of ``_STRONG_REWARD_RE`` — bare counters
-# excluded by leaving ``place_counter`` out.
+# NOT a payoff) — bare counters excluded by leaving ``place_counter`` out.
 _ACTIVATED_REWARD_CATS = frozenset({"damage", "lose_life", "draw", "destroy", "exile"})
-# Artifact-token kinds the regex rewards ("create a Treasure/Blood/Clue/Food/Gold")
-# — a make_token whose subject is one of these is value, not creature fodder.
+# Artifact-token kinds that reward ("create a Treasure/Blood/Clue/Food/Gold") — a
+# make_token whose subject is one of these is value, not creature fodder.
 _REWARD_TOKEN_SUBTYPES = frozenset({"Treasure", "Blood", "Clue", "Food", "Gold"})
 # Static anthem/grant effect categories (the buff a "creatures you control get …"
-# line projects to), the structured mirror of ``_STATIC_PAYOFF_RE``.
+# line projects to).
 _STATIC_ANTHEM_CATS = frozenset({"pump", "grant_keyword", "base_pt_set"})
 
 
 def _is_reward_token(e: Effect) -> bool:
-    """A make_token of a value artifact token (Treasure/Clue/…), the structured
-    mirror of the regex's "create … treasure/blood/clue/food/gold" reward."""
+    """A make_token of a value artifact token (Treasure/Clue/…)."""
     sub = e.subject
     return (
         e.category == "make_token"
@@ -186,15 +143,13 @@ def _your_creature_buff(e: Effect) -> bool:
 
 
 def _ability_is_payoff(ab: Ability) -> bool:
-    """Does this IR ability reward the deck — the structured mirror of the three
-    ``_clause_role_regex`` payoff tiers (triggered reward / activated strong reward
-    / static anthem).
+    """Does this IR ability reward the deck — the three payoff tiers (triggered
+    reward / activated strong reward / static anthem).
 
     The static-anthem tier (``_your_creature_buff``) is checked for EVERY ability
-    kind, because the regex it mirrors (``_STATIC_PAYOFF_RE``) is clause-based and
-    fires regardless of the surrounding ability: a planeswalker ``+1: creatures
-    you control get +1/+0`` (Sorin) and a one-shot ``Creatures you control get
-    +2/+2`` (Overrun) are both anthem payoffs, not just static enchantments."""
+    kind: a planeswalker ``+1: creatures you control get +1/+0`` (Sorin) and a
+    one-shot ``Creatures you control get +2/+2`` (Overrun) are both anthem
+    payoffs, not just static enchantments."""
     if any(_your_creature_buff(e) for e in ab.effects):
         return True
     if ab.kind == "triggered":
@@ -250,10 +205,9 @@ def _ir_payoff_raws(ir: Card) -> list[str]:
 
 def _ir_gate_subtypes(ir: Card) -> list[tuple[str, frozenset[str]]]:
     """(normalized trigger/effect raw, gating creature subtypes) for every TRIGGERED
-    payoff whose trigger narrows to a creature subtype — the structured mirror of
-    ``_TRIBAL_GATE_RE``. A "whenever you attack with one or more Lizards" payoff
-    carries ``trigger.subject.subtypes == ('Lizard',)``, so the gate is a field
-    read, not a regex over the clause."""
+    payoff whose trigger narrows to a creature subtype. A "whenever you attack with
+    one or more Lizards" payoff carries ``trigger.subject.subtypes == ('Lizard',)``,
+    so the gate is a field read."""
     out: list[tuple[str, frozenset[str]]] = []
     for ab in ir.all_abilities():
         if ab.kind != "triggered" or ab.trigger is None:
@@ -269,11 +223,11 @@ def _ir_gate_subtypes(ir: Card) -> list[tuple[str, frozenset[str]]]:
 
 
 def _clause_role(clause: str, ir: Card | None, payoff_raws: list[str]) -> str:
-    """The cluster role for one oracle clause. With the candidate's IR present, a
-    clause is a payoff iff it aligns to one of the card's payoff-ability raws
-    (``payoff_raws``); else enabler. Without IR, the legacy regex tiers."""
+    """The cluster role for one oracle clause: a payoff iff it aligns to one of the
+    card's payoff-ability raws (``payoff_raws``), else an enabler — always an
+    enabler for a card with no IR."""
     if ir is None:
-        return _clause_role_regex(clause)
+        return "enabler"
     clause_norm = _norm_raw(clause)
     if any(_clause_overlaps(clause_norm, raw) for raw in payoff_raws):
         return "payoff"
@@ -282,28 +236,10 @@ def _clause_role(clause: str, ir: Card | None, payoff_raws: list[str]) -> str:
 
 # A payoff gated on a creature SUBTYPE the deck doesn't field is a dead payoff
 # ("whenever you attack with one or more Lizards …" in a deck with no Lizards).
-# Detect the gate's subtype and, only when given the deck's tribes, discount the
-# cluster — deck-relative, so the same card is full-credit in a Lizard deck.
+# Read the gate's subtype off the IR and, only when given the deck's tribes,
+# discount the cluster — deck-relative, so the same card is full-credit in a Lizard
+# deck.
 _GATE_PENALTY = 0.4
-_TRIBAL_GATE_RE = re.compile(
-    r"\b(?:attacks? with|control)\s+"
-    r"(?:one or more|a|an|another|each|\d+|x|that many)?\s*"
-    r"([A-Za-z][A-Za-z'\-]+)\b",
-    re.IGNORECASE,
-)
-
-
-def _gate_penalty_regex(clause: str, deck_tribes: frozenset[str]) -> float:
-    """The legacy clause-regex gate detector — the ``ir is None`` fallback."""
-    from mtg_utils._analysis._subtypes import CREATURE_SUBTYPES
-
-    for m in _TRIBAL_GATE_RE.finditer(clause):
-        word = m.group(1).lower()
-        singular = word.removesuffix("s")
-        for cand in (word, singular):
-            if cand in CREATURE_SUBTYPES:
-                return 1.0 if cand in deck_tribes else _GATE_PENALTY
-    return 1.0
 
 
 def _gate_penalty(
@@ -313,15 +249,13 @@ def _gate_penalty(
     gate_subtypes: list[tuple[str, frozenset[str]]],
 ) -> float:
     """1.0 unless the clause gates on a creature subtype the deck lacks (then
-    ``_GATE_PENALTY``). No penalty without deck context (``deck_tribes`` falsy).
+    ``_GATE_PENALTY``). No penalty without deck context (``deck_tribes`` falsy), or
+    for a card with no IR.
 
-    With the candidate's IR present, the gate's tribe rides in the trigger's
-    ``subject.subtypes`` (``gate_subtypes``) — a structured field read, not a
-    clause regex; without IR, the legacy ``_TRIBAL_GATE_RE``."""
-    if not deck_tribes:
+    The gate's tribe rides in the trigger's ``subject.subtypes``
+    (``gate_subtypes``) — a structured field read."""
+    if not deck_tribes or ir is None:
         return 1.0
-    if ir is None:
-        return _gate_penalty_regex(clause, deck_tribes)
     clause_norm = _norm_raw(clause)
     for raw_norm, tribes in gate_subtypes:
         if _clause_overlaps(clause_norm, raw_norm):
@@ -414,15 +348,13 @@ def _prominence(label: str, focus_sets: Mapping[str, set] | None) -> float:
 
 def _structural_floor(card: dict, deck_mana: DeckMana | None = None) -> dict:
     """The out-of-synergy quality axis: a card can be load-bearing (fixing, ramp,
-    tutor, finisher) while serving few THEME lanes. The cut side reads this so a
-    premium dork like Birds of Paradise isn't trimmed as "low synergy"."""
+    finisher) while serving few THEME lanes. The cut side reads this so a premium
+    dork like Birds of Paradise isn't trimmed as "low synergy"."""
     produced = card.get("produced_mana") or []
     colors = {c for c in produced if c in "WUBRG"}
-    oracle = (get_oracle_text(card) or "").lower()
     return {
         "is_fixing": len(colors) >= 2,
         "is_ramp": is_ramp(card, deck_mana=deck_mana),
-        "is_tutor": "search your library" in oracle,
         "cmc_bomb": (card.get("cmc") or 0) >= 6.0,
     }
 
@@ -445,9 +377,9 @@ def _synergy_score(
     readout rows carry each cluster's actual contribution and sum to the score.
 
     Cluster ROLE and the tribal-gate discount read the candidate's Card IR
-    (``ir``) when present — a clause is a payoff iff it aligns to a payoff
-    ability, the gate iff a trigger narrows to a creature subtype — and degrade to
-    the legacy oracle-clause regexes when ``ir is None`` (ADR-0027)."""
+    (``ir``) — a clause is a payoff iff it aligns to a payoff ability, the gate iff
+    a trigger narrows to a creature subtype (ADR-0027). With no IR every clause is
+    an enabler and no gate applies."""
     payoff_raws = _ir_payoff_raws(ir) if ir is not None else []
     gate_subtypes = _ir_gate_subtypes(ir) if ir is not None else []
     # Attribute each hit to the clause(s) its oracle matched; lanes that matched
@@ -567,7 +499,7 @@ def score_candidate(
     ranking; when omitted they are derived here, so behavior is unchanged.
     ``_ir_resolved`` is the candidate's Card IR (boxed in a 1-tuple so a resolved
     ``None`` is distinct from "not yet looked up"); when omitted it is resolved
-    here by ``oracle_id`` (ADR-0027), degrading to the legacy regex when absent."""
+    here by ``oracle_id`` (ADR-0027); with none, every clause is an enabler."""
     oracle = get_oracle_text(card) or ""
     clause_list = clauses(oracle)
     ir = _ir_resolved[0] if _ir_resolved is not None else ir_for(card)

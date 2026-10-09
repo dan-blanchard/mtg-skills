@@ -189,12 +189,20 @@ def _unrecognized(node) -> str:
 
 def _parked_texts(tree) -> list[str]:
     """Every text phase parked rather than parsed: residue descriptions, hollow
-    static defs, and ``Unrecognized`` condition/filter nodes' ``text``."""
+    static defs (an emblem's included), and ``Unrecognized`` condition/filter
+    nodes' ``text``."""
     unrecognized = [
         _unrecognized(n) for n in tree.iter_typed() if tag_of(n) == "Unrecognized"
     ]
     return list(
-        dict.fromkeys([*tree.residues(), *tree.hollow_statics(), *unrecognized])
+        dict.fromkeys(
+            [
+                *tree.residues(),
+                *tree.hollow_statics(),
+                *tree.hollow_emblem_statics(),
+                *unrecognized,
+            ]
+        )
     )
 
 
@@ -226,6 +234,9 @@ def _fixed_view(tree, carriers: list[str]) -> ConceptTree:
 # names the wrong node; the check below fails if a listed row ever does carry
 # its clause in a residue (the entry is then stale).
 _MISPARSE_ROWS = {
+    "sokrates_granted_prevention_misparse": (
+        "the granted prevention parsed as a CreateToken replacement"
+    ),
     "cheat_kept_destination_hand_misparse": (
         "RevealUntil.kept_destination parsed as 'Hand' when the revealer and "
         "the putter differ"
@@ -244,6 +255,7 @@ _MISPARSE_ROWS = {
 # kind allows (see the test). A listed row whose clause text CAN be located is
 # stale; an unlisted row whose clause text can't fails the kind test.
 _STRUCTURE_MATCHED_ROWS = {
+    "sokrates_granted_prevention_misparse": "a misparse (see _MISPARSE_ROWS)",
     "kaya_emblem_cast_from_exile_drop": (
         "the emblem's CastFromZone lost its in-exile filter"
     ),
@@ -393,7 +405,13 @@ def _raw_walk(fn: str, n: ast.AST) -> str | None:
 
 
 _RESIDUE_TEXT_READS = frozenset(
-    {"residues", "effect_residues", "has_residue", "hollow_statics"}
+    {
+        "residues",
+        "effect_residues",
+        "has_residue",
+        "hollow_statics",
+        "hollow_emblem_statics",
+    }
 )
 
 

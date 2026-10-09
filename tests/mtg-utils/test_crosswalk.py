@@ -17505,11 +17505,28 @@ def test_keep_n_wrath_cataclysm_keeps_its_mass_removal_fire():
 # its CopySpell node, never a ChangeTargets node. Wild Ricochet fires BOTH
 # lanes — its ChangeTargets node redirects the original AND its CopySpell
 # sub-ability copies (each read on its own node). Gain-control-then-retarget
-# follow-ons (Commandeer's ParentTarget) and ability-only redirects carry no
-# StackSpell leaf in the ChangeTargets target — excluded.
+# follow-ons (Commandeer's ParentTarget) carry no stack leaf in the
+# ChangeTargets target, but a unit that gains control of a stack spell is a
+# thief, and the thieves count (Dan, 2026-10-08). An ability redirect counts too
+# (CR 115.7: "change the target(s) of a spell or ability" — Reroute).
 
 
-@pytest.mark.parametrize("name", ["Wild Ricochet", "Deflecting Swat", "Bolt Bend"])
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Wild Ricochet",
+        "Deflecting Swat",
+        "Bolt Bend",
+        "Reroute",
+        "Wyll's Reversal",  # nested in its d20 table
+        # Spell thieves (Commandeer's ruling: "After Commandeer resolves, you
+        # control the targeted spell"), Dan 2026-10-08.
+        "Commandeer",
+        "Aethersnatch",
+        "Perplexing Chimera",
+        "Invert Polarity",
+    ],
+)
 def test_spell_redirect_fires_for_stack_spell_changetargets(name):
     assert ("spell_redirect", "you", "") in _idents(name)
 
@@ -17528,8 +17545,6 @@ def test_wild_ricochet_fires_both_redirect_and_copy_lanes():
         "Twincast",
         # Counter tag — counter_control's lane.
         "Counterspell",
-        # ParentTarget follow-on after GainControl, no StackSpell leaf.
-        "Commandeer",
     ],
 )
 def test_spell_redirect_excludes(name):

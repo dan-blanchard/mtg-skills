@@ -63,8 +63,10 @@ from mtg_utils._card_ir.crosswalk import (
     mod_value,
     nested_plus_one_keyword_grant,
     recipient_tag,
+    redirects_stack_object,
     ref_count_filter,
     static_mode_tag,
+    steals_stack_spell,
     tag_of,
     trigger_scope,
     trigger_subject,
@@ -1679,34 +1681,33 @@ def _keep_n_wrath(tree: ConceptTree) -> list[Signal]:
 
 # ── task B-4: spell_redirect — the ChangeTargets(Spell) doer ─────────────────
 def _spell_redirect(tree: ConceptTree) -> list[Signal]:
-    """spell_redirect — redirect instruments for spells on the stack (task
-    B-4, 2026-07-16 study): Wild Ricochet, Deflecting Swat, Bolt Bend,
-    Misdirection, Spellskite.
+    """spell_redirect — redirect instruments for spells and abilities on the
+    stack (task B-4, 2026-07-16 study): Wild Ricochet, Deflecting Swat, Bolt
+    Bend, Misdirection, Spellskite, Reroute's "Change the target of target
+    activated ability with a single target", and the spell thieves that take a
+    spell and may retarget it (Commandeer, Aethersnatch, Perplexing Chimera).
 
-    Structural: a ``ChangeTargets`` effect node (concept "other" — the tag
-    is read directly, the ``_theft_protection`` precedent) whose ``target``
-    filter tree contains a ``StackSpell`` leaf. Changing targets of the
-    ORIGINAL spell (CR 115.7a/b) is fizzle protection and a political
-    blowout — distinct from copy-with-new-targets (Fork), where only the
-    COPY is retargeted (CR 707.10c) and the original still resolves at its
-    owner's chosen targets: structurally exact, since Fork's retarget rides
-    a FIELD on its CopySpell node, never a ChangeTargets node (that stays
-    spell_copy_makers; Wild Ricochet fires both lanes off its two nodes).
+    Structural: a ``ChangeTargets`` node whose ``target`` carries a
+    ``StackSpell`` / ``StackAbility`` leaf (``reads.redirects_stack_object`` —
+    one walk over the tree, so a redirect nested in a d20 table, Wyll's
+    Reversal, counts too), or a unit that gains control of a stack spell
+    (``reads.steals_stack_spell``). Changing the targets of the ORIGINAL spell
+    or ability (CR 115.7: "Some effects allow a player to change the target(s)
+    of a spell or ability") is fizzle protection and a political blowout —
+    distinct from copy-with-new-targets (Fork), where only the COPY is
+    retargeted (CR 707.10c): Fork's retarget rides a FIELD on its CopySpell
+    node, never a ChangeTargets node (that stays spell_copy_makers; Wild
+    Ricochet fires both lanes off its two nodes). ``forced_to`` (Spellskite's
+    redirect-to-self) and ``scope`` (All/Single) are irrelevant.
 
-    ``forced_to`` is irrelevant (None = free choice, SelfRef = Spellskite's
-    redirect-to-self — both redirect the original); so is ``scope``
-    (All/Single). Gain-control follow-on retargets (Commandeer's
-    ParentTarget) and ability-only redirects (Reroute, the corpus'
-    single StackAbility-only card) carry no StackSpell leaf — excluded.
-    Corpus census at phase v0.23.0: 35 ChangeTargets nodes, 26 fire the
-    StackSpell gate, zero Unimplemented residue — no bridge."""
-    for unit in tree.units:
-        for c in unit.effects:
-            if tag_of(c.node) != "ChangeTargets":
-                continue
-            target = getattr(c.node, "target", None)
-            if any(tag_of(n) == "StackSpell" for n in iter_typed_nodes(target)):
-                return [Signal("spell_redirect", "you", "", c.raw, tree.name, "high")]
+    ``roles.protects`` reads this key: Reroute (an ability redirect) and the
+    thieves joined 2026-10-08 (Dan: taking a removal spell answers it like a
+    counterspell). Corpus census at phase v0.94.0: 36 ChangeTargets nodes, 28
+    carry a stack leaf; zero Unimplemented residue — no bridge."""
+    if any(redirects_stack_object(n) for n in tree.iter_typed()) or any(
+        steals_stack_spell(u) for u in tree.units
+    ):
+        return [Signal("spell_redirect", "you", "", "", tree.name, "high")]
     return []
 
 

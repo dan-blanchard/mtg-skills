@@ -2172,9 +2172,16 @@ _MOD_SITES_CACHE_ATTR = "_xw_mod_sites"
 
 
 def iter_mod_sites(
-    root: object,
+    root: object, *, deep: bool = False
 ) -> Iterator[tuple[TypedMirrorNode, TypedMirrorNode]]:
     """``(static_def, modification)`` pairs reachable from one unit node.
+
+    ``deep`` widens the walk to EVERY typed node under ``root`` (the generic
+    deep walk, :func:`iter_typed_nodes`): a ``ChooseOneOf``'s ``branches``
+    (Apostle's Blessing's and Giver of Runes' protection choices), a token's
+    definition, a granted ability's body, an emblem — the board-protection
+    reads (``crosswalk.protection``) need every grant wherever phase nests it;
+    the default walk stays the anthem / team-buff lanes' narrower one.
 
     Covers BOTH continuous-ability shapes: a top-level static (the unit node
     itself carries ``modifications`` — Glorious Anthem, Commander's Insignia)
@@ -2186,7 +2193,33 @@ def iter_mod_sites(
     Iterates a per-root memoized walk like :func:`_iter_typed_nodes` — many
     lanes re-scan the same unit node.
     """
+    if deep:
+        yield from _deep_mod_sites(root)
+        return
     yield from _mod_sites(root)
+
+
+_DEEP_MOD_SITES_CACHE_ATTR = "_xw_deep_mod_sites"
+
+
+def _deep_mod_sites(
+    root: object,
+) -> tuple[tuple[TypedMirrorNode, TypedMirrorNode], ...]:
+    def walk() -> Iterator[tuple[TypedMirrorNode, TypedMirrorNode]]:
+        for node in _iter_typed_nodes(root):
+            mods = getattr(node, "modifications", MISSING)
+            if _present(mods) and isinstance(mods, list):
+                for mod in mods:
+                    if isinstance(mod, TypedMirrorNode):
+                        yield node, mod
+
+    if isinstance(root, TypedMirrorNode):
+        cached = root.__dict__.get(_DEEP_MOD_SITES_CACHE_ATTR)
+        if cached is None:
+            cached = tuple(walk())
+            object.__setattr__(root, _DEEP_MOD_SITES_CACHE_ATTR, cached)
+        return cached
+    return tuple(walk())
 
 
 def _mod_sites(
@@ -4651,7 +4684,7 @@ def mass_land_denial(tree: ConceptTree) -> LandDenialKind | None:
     denial (Yawning Fissure, Tremble), nor a destruction its own ability gives
     back (From the Ashes), nor a lock on your own lands only (Mungha Wurm,
     Celestial Dawn)."""
-    permanent_card = not set(tree.card_types) <= {"Instant", "Sorcery"}
+    permanent_card = not is_spell_card(tree)
     for unit in tree.units:
         kind = _unit_land_denial(
             unit, permanent_card=permanent_card, oracle=tree.oracle or ""
@@ -4853,5 +4886,179 @@ def static_def_adds_power(sdef: object) -> bool:
         if tag == "AddDynamicPower":
             return True
         if tag == "AddPower" and (mod_value(mod) or 0) > 0:
+            return True
+    return False
+
+
+# ── Keyword grants and protective keywords ─────────────────────────────────────
+# Shared by the AddKeyword grant lanes (``lanes.triggers_damage``) and the
+# board-protection reads (``crosswalk.protection``), so the two walk one way.
+
+#: The protective keywords (normalised — :func:`normalised_keyword_name`):
+#: hexproof (CR 702.11b-c), shroud (702.18a), indestructible (702.12b),
+#: protection (702.16b) and ward (702.21a).
+PROTECTIVE_KEYWORDS: frozenset[str] = frozenset(
+    {"hexproof", "shroud", "indestructible", "ward", "protection"}
+)
+
+
+def normalised_keyword_name(kw: str) -> str:
+    """A phase keyword spelling folded for set membership: lower case, no
+    spaces, no hyphens (``JumpStart`` → ``jumpstart``, ``TotemArmor`` →
+    ``totemarmor``)."""
+    return kw.lower().replace(" ", "").replace("-", "")
+
+
+def normalised_keyword(mod: object) -> str:
+    """The normalised keyword name an ``AddKeyword`` modification carries (``""``
+    for none) — :func:`mod_keyword_name` folded by
+    :func:`normalised_keyword_name`."""
+    if not isinstance(mod, TypedMirrorNode) or tag_of(mod) != "AddKeyword":
+        return ""
+    return normalised_keyword_name(mod_keyword_name(mod) or "")
+
+
+def protective_keyword(mod: object) -> str | None:
+    """The protective keyword an ``AddKeyword`` modification grants (one of
+    :data:`PROTECTIVE_KEYWORDS`), or ``None``. "Hexproof from [quality]" is a
+    hexproof ability (CR 702.11d), so it reads as ``"hexproof"``."""
+    name = normalised_keyword(mod)
+    if name == "hexprooffrom":
+        name = "hexproof"
+    return name if name in PROTECTIVE_KEYWORDS else None
+
+
+_TRACKED_SET_PRODUCER_TAGS: frozenset[str] = frozenset({"Token", "CopyTokenOf"})
+# Every ``*All`` Effect variant phase declares (v0.94.0) — each acts on EVERY
+# object its filter matches, never on a chosen target, so a "those creatures"
+# after one names a board filter, not the chain's targets. Wider than
+# :data:`MASS_EFFECT_TAGS` (the mass effects whose object filter decides who a
+# removal / reach read hits): this set only ends a target thread.
+_ALL_VARIANT_EFFECT_TAGS: frozenset[str] = frozenset(
+    {
+        "BounceAll",
+        "ChangeZoneAll",
+        "CounterAll",
+        "DamageAll",
+        "DestroyAll",
+        "DoublePTAll",
+        "ExploreAll",
+        "GainControlAll",
+        "GoadAll",
+        "PumpAll",
+        "PutCounterAll",
+        "UnattachAll",
+    }
+)
+_THREAD_ENDING_TAGS: frozenset[str] = (
+    _TRACKED_SET_PRODUCER_TAGS | _ALL_VARIANT_EFFECT_TAGS
+)
+
+
+def ends_target_thread(eff: TypedMirrorNode) -> bool:
+    """A token producer or a mass effect ends the chosen-target thread."""
+    return tag_of(eff) in _THREAD_ENDING_TAGS
+
+
+def iter_tracked_set_target_grants(
+    ability_like: object,
+) -> Iterator[tuple[object, TypedMirrorNode]]:
+    """``(threaded_target_filter, AddKeyword_mod)`` pairs for a keyword grant
+    whose nested static's ``affected`` is ``TrackedSet`` — "those creatures
+    gain X" back-referencing the chain's own TARGETS.
+
+    phase v0.94.0 parses Arm the Cathars ("target creature gets +3/+3, up to
+    one other target creature gets +2/+2, … Those creatures gain vigilance")
+    as a Pump chain ending in a ``GenericEffect`` whose static is
+    ``TrackedSet``-affected; v0.86.0 wrote ``ParentTarget``, which
+    :func:`iter_single_target_grants` threads. Same thread
+    (:func:`iter_threaded_target_statics`), but a token producer or a mass
+    effect ends it (:func:`ends_target_thread`) — "create a token. It gains
+    haste" tracks the made token, and "put a +1/+1 counter on each creature
+    you control. Those creatures gain vigilance" (Ajani Goldmane, a
+    ``PutCounterAll``) tracks a board filter, never a chosen target.
+    CR 115.1 / 613.1f.
+    """
+    for tracked, st in iter_threaded_target_statics(
+        ability_like, affected_tag="TrackedSet", resets_thread=ends_target_thread
+    ):
+        for mod in getattr(st, "modifications", None) or ():
+            if tag_of(mod) == "AddKeyword":
+                yield tracked, mod
+
+
+def unit_keyword_grants(
+    unit: AbilityUnit,
+) -> list[tuple[object, TypedMirrorNode]]:
+    """``(chosen_target_filter, AddKeyword_mod)`` for every keyword grant to a
+    chosen target in one unit: the DEEP local-target leaf on any unit (a
+    trigger, a modal arm, a Saga chapter — :func:`iter_deep_target_grants`),
+    plus, on an ability or trigger, the threaded "It gains X" walk
+    (:func:`iter_single_target_grants`) and the "those creatures" walk
+    (:func:`iter_tracked_set_target_grants`). The ``keyword_grant_target`` /
+    ``protection_grant`` lane and ``crosswalk.protection`` read this one walk.
+    CR 613.1f (layer 6, ability-adding effects)."""
+    grants = list(iter_deep_target_grants(unit.node))
+    if unit.origin in ("ability", "trigger"):
+        grants.extend(iter_single_target_grants(unit.node))
+        grants.extend(iter_tracked_set_target_grants(unit.node))
+    return grants
+
+
+def is_spell_card(tree: ConceptTree) -> bool:
+    """Whether the card is an instant or sorcery (no permanent face)."""
+    return bool(tree.card_types) and set(tree.card_types) <= {"Instant", "Sorcery"}
+
+
+def redirects_stack_object(node: object) -> bool:
+    """Whether a ``ChangeTargets`` node retargets a spell or ability on the stack
+    (CR 115.7: "Some effects allow a player to change the target(s) of a spell
+    or ability"): Misdirection, Deflecting Swat, Spellskite, Reroute's "Change
+    the target of target activated ability with a single target". A follow-on
+    retarget of a stolen spell (Commandeer — its target is a back-reference, no
+    stack leaf; :func:`steals_stack_spell` reads that case) and
+    copy-with-new-targets (Fork — a field on its ``CopySpell``, CR 707.10c) are
+    not."""
+    if tag_of(node) != "ChangeTargets":
+        return False
+    return any(
+        tag_of(x) in ("StackSpell", "StackAbility")
+        for x in iter_typed_nodes(getattr(node, "target", None))
+    )
+
+
+def steals_stack_spell(unit: AbilityUnit) -> bool:
+    """Whether a unit takes control of a spell on the stack — "Gain control of
+    target noncreature spell. You may choose new targets for it" (Commandeer;
+    its ruling: "After Commandeer resolves, you control the targeted spell"),
+    Aethersnatch's "Gain control of target spell", and Perplexing Chimera's
+    "exchange control of ~ and that spell" off its opponent-casts trigger, and
+    Invert Polarity's "Choose target spell … gain control of that spell" (a
+    back-reference to the spell the unit chose). A removal spell aimed at your
+    board is answered by taking it."""
+    nodes = list(iter_typed_nodes(unit.node))
+    chooses_spell = any(
+        tag_of(getattr(n, "target", None)) == "StackSpell" for n in nodes
+    )
+    for n in nodes:
+        tag = tag_of(n)
+        target = getattr(n, "target", None)
+        if tag == "GainControl" and (
+            any(tag_of(x) == "StackSpell" for x in iter_typed_nodes(target))
+            or (
+                chooses_spell and tag_of(target) in ("ParentTarget", "TriggeringSource")
+            )
+        ):
+            return True
+        if (
+            tag == "ExchangeControl"
+            and unit.origin == "trigger"
+            and getattr(unit.node, "mode", None) == "SpellCast"
+            and "TriggeringSource"
+            in (
+                tag_of(getattr(n, "target_a", None)),
+                tag_of(getattr(n, "target_b", None)),
+            )
+        ):
             return True
     return False
