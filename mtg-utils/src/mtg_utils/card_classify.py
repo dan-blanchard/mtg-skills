@@ -271,6 +271,9 @@ def count_color_pips(mana_cost: str) -> dict[str, int]:
 # — so a counterspell that hands an opponent Treasures carries "(… Add one mana …)" even
 # though it produces no mana for you.
 _REMINDER_RE = re.compile(r"\([^)]*\)")
+# Firebending's reminder ("add {R}. This mana lasts until end of combat.", CR
+# 702.189a): combat-only mana, never ramp (Dan, 2026-10-09).
+_COMBAT_MANA_REMINDER_RE = re.compile(r"\([^)]*until end of combat[^)]*\)")
 _ADD_MANA_RE = re.compile(
     r"add\s+(?:\{|(?:one|two|three|four|five|six|seven|eight|nine|ten|x) mana\b"
     r"|mana of|an amount of (?:mana|\{))"
@@ -324,7 +327,7 @@ def ramp_by_text(card: dict) -> bool:
         return False
 
     oracle = get_oracle_text(card)
-    oracle_lower = oracle.lower()
+    oracle_lower = _COMBAT_MANA_REMINDER_RE.sub("", oracle.lower())
 
     # Non-land cards that add mana in any form:
     #   "Add {C}{C}" / "Add {G}" — mana symbols

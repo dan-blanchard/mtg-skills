@@ -463,10 +463,13 @@ def _plus_one_counters_self_grow_concept(card: dict) -> bool:
 
 # The signal keys whose doers are mana acceleration outright. ``treasure_makers``
 # is NOT here — phase scopes a giveaway "you" too, so :func:`_ramp_concept` reads
-# the token's owner instead.
-_RAMP_SIGNAL_KEYS = frozenset(
-    {"ramp", "mana_amplifier", "extra_land_drop", "firebending_makers"}
-)
+# the token's owner instead. Nor is ``firebending_makers``: firebending isn't ramp
+# (Dan, 2026-10-09) — its mana comes only as the creature attacks and lasts until
+# end of combat (CR 702.189a), so it never casts a bigger spell sooner. That holds
+# for a bearer (Uncle Iroh), a maker of firebending tokens (Fire Nation Attacks)
+# and a grant (Sozin's Comet) alike; a firebending card with real mana besides
+# (The Legend of Roku's chapter II ritual) is ramp through that mana.
+_RAMP_SIGNAL_KEYS = frozenset({"ramp", "mana_amplifier", "extra_land_drop"})
 
 
 def _ramp_concept(card: dict) -> bool:
@@ -476,7 +479,7 @@ def _ramp_concept(card: dict) -> bool:
     lands) that carries one of
 
     * a :data:`_RAMP_SIGNAL_KEYS` key (rocks / dorks / rituals / granted mana /
-      land-fetch-to-battlefield, mana amplifiers, a land PUT, firebending);
+      land-fetch-to-battlefield, mana amplifiers, a land PUT);
     * a Treasure maker whose token YOU keep (``lanes.treasure_maker_you_keep`` —
       An Offer You Can't Refuse hands its Treasures to an opponent);
     * an extra land PLAY (``lanes.additional_land_play`` — Exploration, Azusa; CR

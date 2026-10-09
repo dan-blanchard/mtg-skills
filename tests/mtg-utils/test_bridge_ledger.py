@@ -436,6 +436,25 @@ def test_gap_composes_presence_reads(gap):
     )
 
 
+def _match_names() -> list[str]:
+    """Each row's match by its module-level def — a factory's closure
+    (``_oracle_match``) by the factory that builds it."""
+    return sorted({b.match.__qualname__.split(".")[0] for b in BRIDGES.values()})
+
+
+@pytest.mark.parametrize("match", _match_names())
+def test_match_composes_presence_reads(match):
+    """A match reads through the same presence reads and shared crosswalk walks a
+    gap does — a structural match (Ceremonial Knife's granted Blood token) asks
+    ``iter_nested_granted_effect_concepts``, never re-walks the nodes itself."""
+    assert match in _LEDGER_FUNCS, f"{match}: a match must be a module-level def"
+    walks = _ledger_hits(match, _raw_walk)
+    assert not walks, (
+        f"{match} re-walks the tree ({sorted(walks)}) — compose the presence reads "
+        f"or a shared crosswalk walk instead (CONTEXT.md 'Gap predicate')"
+    )
+
+
 _RESIDUE_KEYED = [
     (b, pin)
     for b in BRIDGES.values()

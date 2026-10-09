@@ -67,11 +67,12 @@ from mtg_utils._card_ir.crosswalk import (
     filter_inzone_zones,
     filter_subtypes,
     iter_cost_leaves,
-    iter_typed_nodes,
+    iter_nested_granted_effect_concepts,
     protective_keyword,
     residue_is,
     static_mode_field,
     tag_of,
+    trigger_subject,
     trigger_turn_constraint,
 )
 from mtg_utils._card_ir.mirror.runtime import MISSING
@@ -1732,20 +1733,16 @@ def _blood_maker_concept_gap(tree: ConceptTree) -> bool:
 
 
 def _granted_trigger_blood_token_match(tree: ConceptTree) -> bool:
-    """A ``GrantTrigger`` static modification whose granted trigger's own
-    effect chain carries a typed Blood ``Token`` node ('Equipped creature
-    ... has "Whenever this creature deals combat damage, create a Blood
-    token."' — Ceremonial Knife, CR 301.5/613.1f)."""
-    for n in tree.iter_typed():
-        if tag_of(n) != "GrantTrigger":
-            continue
-        trig = getattr(n, "trigger", None)
-        if trig is None:
-            continue
-        for t in iter_typed_nodes(trig):
-            if tag_of(t) == "Token" and "Blood" in (getattr(t, "types", None) or ()):
-                return True
-    return False
+    """A static's granted ability or trigger whose effect chain creates a Blood
+    token (CR 111.10g) — Ceremonial Knife's 'Equipped creature ... has "Whenever
+    this creature deals combat damage, create a Blood token."', a trigger the
+    equipped creature (CR 301.5a) gains — read through the shared granted-body
+    walk (``iter_nested_granted_effect_concepts``)."""
+    return any(
+        c.concept == "make_token" and "Blood" in c.subject
+        for unit in tree.iter_units("static")
+        for c in iter_nested_granted_effect_concepts(unit.node)
+    )
 
 
 def _blood_matters_structural_gap(tree: ConceptTree) -> bool:
@@ -1770,20 +1767,17 @@ def _blood_matters_structural_gap(tree: ConceptTree) -> bool:
 
 
 def _blood_sacrificed_trigger_match(tree: ConceptTree) -> bool:
-    """A ``Sacrificed``-mode trigger whose ``valid_card`` filter carries the
-    Blood subtype and a You/unstated controller ("Whenever you sacrifice one
-    or more Blood tokens, ..." — Blood Hypnotist; CR 701.21, the
-    sacrifice-PAYOFF half). An Opponent-controller watcher is a punisher,
-    not your payoff — excluded."""
-    for unit in tree.units:
-        if unit.trigger_event != "sacrificed":
-            continue
-        vc = getattr(unit.node, "valid_card", None)
-        if vc is None or filter_controller(vc) not in (None, "You"):
-            continue
-        if any(s.lower() == "blood" for s in filter_subtypes(vc)):
-            return True
-    return False
+    """A ``Sacrificed``-mode trigger watching a Blood token whose controller is
+    you or unstated ("Whenever you sacrifice one or more Blood tokens, ..." —
+    Blood Hypnotist; CR 701.21, the sacrifice-PAYOFF half), its watched types read
+    through ``trigger_subject``. An opponent's sacrifice is a punisher, not your
+    payoff — excluded."""
+    return any(
+        unit.trigger_event == "sacrificed"
+        and filter_controller(getattr(unit.node, "valid_card", None)) in (None, "You")
+        and any(w.lower() == "blood" for w in trigger_subject(unit.node))
+        for unit in tree.iter_units("trigger")
+    )
 
 
 # ── folded-object text-only lifeloss (ADR-0025, 2026-07-25) ──────────────────

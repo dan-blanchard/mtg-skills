@@ -39,7 +39,7 @@ if TYPE_CHECKING:
     from collections.abc import Iterator, Sequence
 
     from mtg_utils._card_ir.crosswalk import ConceptTree
-    from mtg_utils._card_ir.crosswalk.reads import ObjectFacts
+    from mtg_utils._card_ir.crosswalk.reads import FactsZone, ObjectFacts
     from mtg_utils._card_ir.mirror.schema import MirrorSchema
 
 
@@ -855,29 +855,20 @@ def trees_for(
     return out
 
 
-def object_facts(card: dict) -> ObjectFacts:
-    """The card's own types, subtypes and supertypes off its corrected trees (every
-    face), whether it is every creature type (changeling, CR 702.73a), and its
-    keywords; its colors, mana value and {X} off the record — what
-    ``reads.filter_admits`` asks of an object."""
-    from mtg_utils._card_ir.crosswalk.reads import (
-        ObjectFacts,
-        is_every_creature_type,
-        normalised_keyword_name,
-    )
+def object_facts(card: dict, *, zone: FactsZone = "any") -> ObjectFacts:
+    """The card's facts off its corrected trees (``reads.object_facts_of``: every
+    face's types, changeling, keywords, the types it has only off the battlefield)
+    and its colors, mana value and {X} off the record — what ``reads.filter_admits``
+    asks of an object. ``zone`` says where the caller looks at it: a permanent
+    (``"battlefield"``), a card or spell (``"elsewhere"`` — Grist is a creature
+    there), or ``"any"`` (``filter_admits`` decides per filter)."""
+    from mtg_utils._card_ir.crosswalk.reads import object_facts_of
 
-    trees = trees_for(dict(card))
-    return ObjectFacts(
-        types=frozenset(t for tree in trees for t in tree.card_types),
-        subtypes=frozenset(t for tree in trees for t in tree.card_subtypes),
-        supertypes=frozenset(t for tree in trees for t in tree.card_supertypes),
+    cmc = card.get("cmc")
+    return object_facts_of(
+        trees_for(dict(card)),
+        zone=zone,
         colors=frozenset(card.get("colors") or ()),
-        every_creature_type=any(is_every_creature_type(tree) for tree in trees),
-        mana_value=int(cmc)
-        if isinstance(cmc := card.get("cmc"), (int, float))
-        else None,
+        mana_value=int(cmc) if isinstance(cmc, (int, float)) else None,
         x_cost="{X}" in (card.get("mana_cost") or ""),
-        keywords=frozenset(
-            normalised_keyword_name(k) for tree in trees for k in tree.card_keywords
-        ),
     )

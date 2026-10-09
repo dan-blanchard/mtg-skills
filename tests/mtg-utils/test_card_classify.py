@@ -2,6 +2,8 @@
 
 import re
 
+import pytest
+
 from mtg_utils.card_classify import (
     PartnerAbility,
     build_card_lookup,
@@ -213,6 +215,11 @@ class TestRampByText:
         """Lands that produce mana should not be classified as ramp."""
         card = test_card("Three Tree City")
         assert ramp_by_text(card) is False
+
+    @pytest.mark.parametrize("name", ["Uncle Iroh", "Fire Nation Attacks"])
+    def test_firebending_is_not_ramp(self, name):
+        """Firebending's reminder "add {R}" is combat-only mana (CR 702.189a)."""
+        assert ramp_by_text(test_card(name)) is False
 
     def test_an_offer_you_cant_refuse_not_ramp(self):
         """Opponent-directed Treasure is anti-ramp: the "Add one mana" lives only in the

@@ -13,6 +13,8 @@ from mtg_utils._analysis.multipliers import (
 )
 from mtg_utils._card_ir.crosswalk.reads import filter_admits, filter_subtypes
 from mtg_utils._card_ir.trees import object_facts, trees_for
+from mtg_utils.card_classify import is_creature
+from mtg_utils.deck import accumulate_deck_metrics
 from mtg_utils.testkit import test_card
 
 OMNATH = test_card("Omnath, Locus of the Void")  # a landfall trigger only
@@ -127,6 +129,37 @@ def test_copies_that_exclude_a_legendary_commander():
 def test_a_creature_spell_copy_copies_the_commander_as_its_cast():
     assert commander_multipliers([test_card("Double Major")], [KRENKO]) == {
         "Double Major": "copies Krenko, Mob Boss as it's cast"
+    }
+
+
+def test_grist_is_a_creature_only_off_the_battlefield():
+    """Grist's "As long as Grist isn't on the battlefield, it's a 1/1 Insect
+    creature" works only off the battlefield (CR 113.6b). Its ruling: anywhere else
+    it's a Planeswalker Creature — Grist Insect, so Essence Scatter can counter it;
+    on the battlefield it is just a planeswalker."""
+    facts = object_facts(GRIST)
+    assert not facts.has_type("Creature")
+    assert facts.off_battlefield().has_type("Creature")
+    assert facts.off_battlefield().has_subtype("Insect")
+    assert not object_facts(KRENKO).off_battlefield_types
+    assert object_facts(GRIST, zone="elsewhere").has_type("Creature")
+    assert not object_facts(GRIST, zone="battlefield").off_battlefield_types
+
+
+def test_grist_counts_as_a_planeswalker_in_deck_counts():
+    """Dan's verdict: the deck counts read what's on the battlefield, where Grist
+    is just a planeswalker (its ruling) — no creature in deck-stats or the tuner's
+    shape counts."""
+    assert not is_creature(GRIST)
+    assert accumulate_deck_metrics([(1, GRIST), (1, KRENKO)])["creature_count"] == 1
+
+
+def test_a_creature_spell_copy_copies_grist_as_its_cast():
+    """Double Major copies "target creature spell you control" — Grist on the stack
+    is one. Clone copies a creature on the battlefield, where Grist isn't one."""
+    cards = [test_card("Double Major"), test_card("Clone")]
+    assert commander_multipliers(cards, [GRIST]) == {
+        "Double Major": "copies Grist, the Hunger Tide as it's cast"
     }
 
 

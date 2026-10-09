@@ -560,6 +560,26 @@ class ObjectFacts(NamedTuple):
     #: Its printed keywords, folded (:func:`normalised_keyword_name`) — for what a
     #: filter asks of a spell's casting ("a kicked spell" needs kicker).
     keywords: frozenset[str] = frozenset()
+    #: The core types and subtypes its own static adds only while it isn't on the
+    #: battlefield (:func:`off_battlefield_types` — Grist, the Hunger Tide), which
+    #: :meth:`off_battlefield` folds in.
+    off_battlefield_types: frozenset[str] = frozenset()
+    off_battlefield_subtypes: frozenset[str] = frozenset()
+
+    def off_battlefield(self) -> ObjectFacts:
+        """The object as a card or a spell — anywhere but the battlefield, where
+        the types :func:`off_battlefield_types` reads are its own too. Grist's
+        ruling: "Anywhere but on the battlefield, Grist is a Legendary
+        Planeswalker Creature — Grist Insect" (a creature spell Essence Scatter
+        counters, a creature card Chord of Calling finds)."""
+        if not (self.off_battlefield_types or self.off_battlefield_subtypes):
+            return self
+        return self._replace(
+            types=self.types | self.off_battlefield_types,
+            subtypes=self.subtypes | self.off_battlefield_subtypes,
+            off_battlefield_types=frozenset(),
+            off_battlefield_subtypes=frozenset(),
+        )
 
     def has_type(self, word: str) -> bool:
         return _fold(word) in {_fold(t) for t in self.types}
@@ -581,6 +601,104 @@ def _fold(word: str) -> str:
     return word.lower().replace("\u2019", "'")
 
 
+def _is_off_battlefield_condition(cond: object) -> bool:
+    """A static's ``Not(SourceInZone Battlefield)`` condition — "as long as ~
+    isn't on the battlefield"."""
+    if tag_of(cond) != "Not":
+        return False
+    inner = getattr(cond, "condition", None)
+    return tag_of(inner) == "SourceInZone" and getattr(inner, "zone", None) == (
+        "Battlefield"
+    )
+
+
+def off_battlefield_types(tree: ConceptTree) -> tuple[frozenset[str], frozenset[str]]:
+    """``(core types, subtypes)`` the card's own static adds to it while it isn't
+    on the battlefield: Grist, the Hunger Tide's "As long as Grist isn't on the
+    battlefield, it's a 1/1 Insect creature in addition to its other types" —
+    ``Creature`` and ``Insect``. An ability that states which zones it functions
+    in functions only there (CR 113.6b), so on the battlefield Grist is "just a
+    planeswalker" (its ruling) and these types aren't its own."""
+    types: set[str] = set()
+    subtypes: set[str] = set()
+    for unit in tree.iter_units("static"):
+        for sdef, mod in iter_mod_sites(unit.node):
+            if tag_of(getattr(sdef, "affected", None)) != "SelfRef":
+                continue
+            if not _is_off_battlefield_condition(getattr(sdef, "condition", None)):
+                continue
+            tag = tag_of(mod)
+            if tag == "AddType" and isinstance(
+                core := getattr(mod, "core_type", None), str
+            ):
+                types.add(core)
+            elif tag == "AddSubtype" and isinstance(
+                sub := getattr(mod, "subtype", None), str
+            ):
+                subtypes.add(sub)
+    return frozenset(types), frozenset(subtypes)
+
+
+#: Where :func:`object_facts_of` reads a card: ``"battlefield"`` (printed types
+#: only — a permanent), ``"elsewhere"`` (a card or a spell, with the types it has
+#: only off the battlefield folded in — :meth:`ObjectFacts.off_battlefield`), or
+#: ``"any"`` (both kept apart, so :func:`filter_admits` picks per filter).
+FactsZone = Literal["any", "battlefield", "elsewhere"]
+
+
+def object_facts_of(
+    trees: Iterable[ConceptTree],
+    *,
+    zone: FactsZone = "any",
+    colors: frozenset[str] = frozenset(),
+    mana_value: int | None = None,
+    x_cost: bool = False,
+) -> ObjectFacts:
+    """The :class:`ObjectFacts` a card's trees (every face) say: its types,
+    subtypes and supertypes, whether it is every creature type
+    (:func:`is_every_creature_type`), its keywords, and — unless ``zone`` is
+    ``"battlefield"`` — the types it has only off the battlefield
+    (:func:`off_battlefield_types`), folded in for ``"elsewhere"``. Colors, mana
+    value and {X} come from the record (``_card_ir.trees.object_facts``) when the
+    caller has one."""
+    trees = tuple(trees)
+    elsewhere = (
+        [] if zone == "battlefield" else [off_battlefield_types(t) for t in trees]
+    )
+    facts = ObjectFacts(
+        types=frozenset(t for tree in trees for t in tree.card_types),
+        subtypes=frozenset(t for tree in trees for t in tree.card_subtypes),
+        supertypes=frozenset(t for tree in trees for t in tree.card_supertypes),
+        colors=colors,
+        every_creature_type=any(is_every_creature_type(tree) for tree in trees),
+        mana_value=mana_value,
+        x_cost=x_cost,
+        keywords=frozenset(
+            normalised_keyword_name(k) for tree in trees for k in tree.card_keywords
+        ),
+        off_battlefield_types=frozenset(t for types, _ in elsewhere for t in types),
+        off_battlefield_subtypes=frozenset(t for _, subs in elsewhere for t in subs),
+    )
+    return facts.off_battlefield() if zone == "elsewhere" else facts
+
+
+def _describes_off_battlefield(filt: object) -> bool:
+    """Whether a filter describes an object off the battlefield: a spell (an
+    ``And`` holding ``StackSpell`` — Double Major's "target creature spell you
+    control") or a card in a zone its ``InZone`` property names. Reading the
+    filter's zone as the card's is this read's own decision, so a card whose type
+    holds only off the battlefield (Grist's ruling: "Anywhere but on the
+    battlefield, Grist is a Legendary Planeswalker Creature"; CR 113.6b) is
+    judged as it is there."""
+    tag = tag_of(filt)
+    if tag == "And" and any(
+        tag_of(f) == "StackSpell" for f in getattr(filt, "filters", ()) or ()
+    ):
+        return True
+    zones = filter_inzone_zones(filt) if tag == "Typed" else ()
+    return bool(zones) and "Battlefield" not in zones
+
+
 def filter_admits(filt: object, facts: ObjectFacts) -> bool | None:
     """Whether a phase object filter can describe the card ``facts`` describes.
 
@@ -589,12 +707,18 @@ def filter_admits(filt: object, facts: ObjectFacts) -> bool | None:
     supertype / token / colorless properties, and recurses ``Or`` (any) / ``And``
     (all). ``SelfRef`` (the filter's own card) is ``False``. ``None`` when the filter
     is a reference this read can't resolve (``ParentTarget``, ``AttachedTo``, …) —
-    the caller resolves those against their own context."""
+    the caller resolves those against their own context. A filter describing a
+    spell or a card in another zone (:func:`_describes_off_battlefield`) sees the
+    card as it is there (:meth:`ObjectFacts.off_battlefield`)."""
     tag = tag_of(filt)
     if tag == "SelfRef":
         return False
     if tag == "StackSpell":
         return True  # "a spell" — the And beside it carries the constraint
+    if (
+        facts.off_battlefield_types or facts.off_battlefield_subtypes
+    ) and _describes_off_battlefield(filt):
+        facts = facts.off_battlefield()
     if tag in ("Or", "And"):
         answers = [filter_admits(f, facts) for f in getattr(filt, "filters", ()) or ()]
         if not answers or None in answers:
@@ -1104,6 +1228,25 @@ def trigger_scope(trig: TypedMirrorNode) -> str:
         if sc is not None:
             return sc
     return "you"
+
+
+def _names_itself(filt: object, *, among_others: bool) -> bool:
+    tag = tag_of(filt)
+    if among_others and tag in ("Or", "And"):
+        return any(
+            _names_itself(f, among_others=True)
+            for f in getattr(filt, "filters", ()) or ()
+        )
+    return tag == "SelfRef"
+
+
+def watches_itself(trig: object, *, among_others: bool = False) -> bool:
+    """Whether a trigger or replacement watches the card itself: its
+    ``valid_card`` is ``SelfRef`` ("When ~ dies"), or — ``among_others`` — a
+    ``SelfRef`` branch of an ``Or`` / ``And`` beside other objects (Forgeborn
+    Phoenix's "Whenever ~ or equipped creature dies"). Without ``among_others``
+    a shared watcher (Blood Artist's "~ or another creature") doesn't count."""
+    return _names_itself(getattr(trig, "valid_card", None), among_others=among_others)
 
 
 def trigger_subject(trig: TypedMirrorNode) -> tuple[str, ...]:
@@ -5429,6 +5572,23 @@ def unbound_x_reach(tree: ConceptTree) -> Literal["group", "single"] | None:
     return None
 
 
+def parked_search_puts_onto_battlefield(tree: ConceptTree) -> bool:
+    """Whether phase parked a library search as a ``where_x_binding`` residue and
+    kept only its put: an ability holding the residue whose searched card lands
+    on the battlefield (:func:`iter_search_landings`). Surveyor's Scope's "Search
+    your library for up to X basic land cards, where X is … Put those cards onto
+    the battlefield" (phase v0.104.0): the ``SearchLibrary`` node is gone, so the
+    put is the only structure left. A workaround: ``test_parked_search_put_canary``
+    fails once phase reads the search."""
+    if next(tree.effect_residues("where_x_binding"), None) is None:
+        return False
+    return any(
+        any(residue_is(c.node, "where_x_binding") for c in unit.effects)
+        and any(dest == "Battlefield" for dest, _ in iter_search_landings(unit))
+        for unit in tree.iter_units()
+    )
+
+
 #: The blocking restrictions an attacker can carry on itself — evasion abilities
 #: in CR 509.1b's sense: "can't be blocked" (Phantom Warrior), "can't be blocked
 #: except by three or more creatures" (Pathrazer of Ulamog), "can't be blocked
@@ -5714,23 +5874,30 @@ def activation_zone(node: object) -> str | None:
 
 
 def unit_zones(unit: AbilityUnit) -> frozenset[str]:
-    """The zones a unit functions from when it says so (CR 113.6b): a trigger's
-    ``trigger_zones``, an activated ability's :func:`activation_zone`, and an "if
-    this card is in your graveyard" ``SourceInZone`` condition (Ichorid) — on the
-    unit, or as an activation restriction (Loathsome Troll's "Activate only if
-    this card is in your graveyard")."""
+    """The zones a unit functions from when it says so (:func:`ability_zones` of
+    its node)."""
+    return ability_zones(unit.node)
+
+
+def ability_zones(node: object) -> frozenset[str]:
+    """The zones an ability functions from when it says so (CR 113.6b): a
+    trigger's ``trigger_zones``, an activated ability's :func:`activation_zone`,
+    and an "if this card is in your graveyard" ``SourceInZone`` condition
+    (Ichorid) — on the ability, or as an activation restriction (Loathsome Troll's
+    "Activate only if this card is in your graveyard"). Takes a granted ability's
+    body as well as a unit's node."""
     zones: set[str] = set()
-    tz = getattr(unit.node, "trigger_zones", None)
+    tz = getattr(node, "trigger_zones", None)
     if isinstance(tz, list):
         for raw in tz:
             z = raw.key if isinstance(raw, MirrorVariant) else raw
             if isinstance(z, str):
                 zones.add(z)
-    if (az := activation_zone(unit.node)) is not None:
+    if (az := activation_zone(node)) is not None:
         zones.add(az)
     for cond in (
-        getattr(unit.node, "condition", None),
-        *activation_restriction_conditions(unit.node),
+        getattr(node, "condition", None),
+        *activation_restriction_conditions(node),
     ):
         zone = getattr(cond, "zone", None)
         if tag_of(cond) == "SourceInZone" and isinstance(zone, str):

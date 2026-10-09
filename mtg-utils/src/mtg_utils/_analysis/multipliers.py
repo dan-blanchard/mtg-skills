@@ -436,7 +436,7 @@ def grant_abilities(card: Mapping, grant: ZoneGrant) -> list[str] | None:
     the battlefield — cycling works only from its card's hand (CR 702.29a) — mana
     abilities included: a borrowed one (Priest of Titania's) is often the
     commander's best tool."""
-    facts = object_facts(dict(card))
+    facts = object_facts(dict(card), zone="elsewhere")  # a card in that zone
     if not (facts.has_type(grant.card_type) or facts.has_subtype(grant.card_type)):
         return None
     return ability_texts(trees_for(dict(card)), include_mana=True)

@@ -187,6 +187,15 @@ class TestDetectSelfRecurring:
             "Dusk // Dawn",  # aftermath, CR 702.127a (the preset's keyword arm)
             "Sinister Concierge",  # dies: exiled with time counters, suspended
             "Trusty Boomerang",  # its granted ability returns it to hand
+            # A Sliver has the ability it grants "All Slivers" (its ruling).
+            "Hibernation Sliver",
+            # The copy's own exception (its ruling; CR 707.9a).
+            "Mercurial Pretender",
+            # Dies: perpetually gains a graveyard trigger that returns this card.
+            "Forgeborn Phoenix",
+            # Threshold grants itself "When this creature dies, … return this card
+            # to the battlefield" — a dies return, like undying (CR 702.93a).
+            "Reborn Hero",
             "Escape Velocity",  # escape phase leaves as a residue, recovered
             "Nether Shadow",  # upkeep: from your graveyard onto the battlefield
             # Dash returns it to hand at the next end step (CR 702.109a).
@@ -211,6 +220,7 @@ class TestDetectSelfRecurring:
             "Phyrexian Arena",
             "Sphinx of Uthuun",  # "put one pile into your hand": revealed cards
             "Memory Crystal",  # changes buyback costs; no buyback of its own
+            "Aethermage's Touch",  # the creature it puts in play returns itself
         ],
     )
     def test_does_not_recur(self, name):

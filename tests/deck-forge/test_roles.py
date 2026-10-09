@@ -35,7 +35,13 @@ def _real(name: str) -> dict:
         "Azusa, Lost but Seeking",  # extra land PLAY (the concept arm)
         "Burgeoning",  # land PUT (extra_land_drop)
         "Dockside Extortionist",  # a Treasure maker you keep
-        "Uncle Iroh",  # firebending
+        "Tireless Provisioner",  # "a Food token or a Treasure token": your choice
+        # Firebending isn't ramp (below), but chapter II's "Add one mana of any
+        # color" is a ritual.
+        "The Legend of Roku",
+        # Puts basic lands onto the battlefield (lf_ramp), though phase parks its
+        # search: the put is the structure left (parked_search_puts_onto_battlefield).
+        "Surveyor's Scope",
     ],
 )
 def test_ramp_is_read_off_the_signal_path(name):
@@ -51,10 +57,24 @@ def test_ramp_is_read_off_the_signal_path(name):
         "Demonic Tutor",
         "Sylvan Scrying",  # a land tutor TO HAND adds no mana and drops no land
         "Murder",
+        # Near misses (Dan, 2026-10-09): firebending's mana comes only as the
+        # creature attacks and lasts until end of combat (CR 702.189a), so no
+        # firebending card is ramp — a bearer, a token maker or a grant.
+        "Uncle Iroh",
+        "Fire Nation Attacks",
+        "Sozin's Comet",
     ],
 )
 def test_non_ramp_is_not_ramp(name):
     assert not is_ramp(_real(name))
+
+
+def test_a_land_fetch_to_the_battlefield_is_not_a_tutor():
+    """Surveyor's Scope's search puts basic lands onto the battlefield: ramp, never
+    a tutor (the lf_ramp convention, ``_tutor_lane``)."""
+    scope = _real("Surveyor's Scope")
+    assert "tutor" not in {s.key for s in test_signals(scope["name"])}
+    assert not get_preset("tutors").matches(scope)
 
 
 def test_a_land_is_the_mana_base_never_ramp():
@@ -244,6 +264,16 @@ def test_noncreature_restriction_admits_a_planeswalker():
         colors=frozenset({"B", "G"}),
     )
     assert _restriction_admits("Noncreature", facts)
+
+
+def test_creature_only_mana_casts_a_commander_that_is_a_creature_spell():
+    """Beastcaller Savant's mana casts only creature spells (CR 106.6). Grist, the
+    Hunger Tide is a creature anywhere but the battlefield (its ruling; CR 113.6b),
+    so the mana casts it; Teferi, Temporal Archmage is no creature anywhere."""
+    savant = _real("Beastcaller Savant")
+    spells = ("Lightning Bolt", "Cultivate")
+    assert is_ramp(savant, deck_mana=_deck("Grist, the Hunger Tide", *spells))
+    assert not is_ramp(savant, deck_mana=_deck("Teferi, Temporal Archmage", *spells))
 
 
 def test_without_a_commander_deck_colored_mana_is_untouched():

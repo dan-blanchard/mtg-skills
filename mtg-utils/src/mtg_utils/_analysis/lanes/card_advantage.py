@@ -33,6 +33,7 @@ from mtg_utils._card_ir.crosswalk import (
     AbilityUnit,
     ConceptNode,
     ConceptTree,
+    ability_zones,
     additional_phase_kind,
     amount_factor,
     amount_is_scaling,
@@ -41,9 +42,11 @@ from mtg_utils._card_ir.crosswalk import (
     counter_kind_any,
     effect_filter,
     effect_owner_player_scope,
+    filter_admits,
     filter_controller,
     filter_core_types,
     filter_inzone_zones,
+    filter_predicates,
     filter_subtypes,
     has_fixed_count,
     is_dies_return_trigger,
@@ -55,6 +58,7 @@ from mtg_utils._card_ir.crosswalk import (
     mod_keyword_name,
     modal_mode_description,
     normalised_keyword_name,
+    object_facts_of,
     permission_tag,
     recipient_tag,
     requires_condition_inner,
@@ -68,6 +72,7 @@ from mtg_utils._card_ir.crosswalk import (
     trigger_subject_scope,
     unit_zones,
     walk_effect_chain,
+    watches_itself,
 )
 from mtg_utils._card_ir.mirror.runtime import (
     TypedMirrorNode,
@@ -390,7 +395,7 @@ def _self_death_payoff(tree: ConceptTree) -> list[Signal]:
     for unit in tree.units:
         if unit.origin != "trigger" or unit.trigger_event != "dies":
             continue
-        if tag_of(getattr(unit.node, "valid_card", None)) != "SelfRef":
+        if not watches_itself(unit.node):
             continue
         for c in unit.effects:
             if (
@@ -457,7 +462,7 @@ def _dies_recursion(tree: ConceptTree) -> list[Signal]:
         # William) and parks it as a residue the ``reanimate`` token recovers.
         if (
             unit.trigger_event == "dies"
-            and tag_of(getattr(unit.node, "valid_card", None)) == "SelfRef"
+            and watches_itself(unit.node)
             and any(
                 c.recovered_by == "reanimate" and _recovered_returns_self(unit, c)
                 for c in unit.effects
@@ -602,13 +607,16 @@ def _returns_self(
     *,
     self_targets: frozenset[str],
     blinks: bool,
+    zones: frozenset[str] | None = None,
 ) -> bool:
     """Whether one node of ``unit`` puts the card itself where it can be used again
     (see :func:`recurs_itself`); ``self_targets`` are the target tags that name
-    the card here."""
+    the card here. ``zones`` are the zones the ability holding ``node`` works
+    from — the unit's own (:func:`unit_zones`) unless the node sits in a granted
+    body (:func:`ability_zones` of that body)."""
     tag = tag_of(node)
     if tag == "ReturnToHand":  # a cost: "Return ~ to its owner's hand: …"
-        return tag_of(getattr(node, "filter", None)) == "SelfRef"
+        return tag_of(getattr(node, "filter", None)) in self_targets
     if tag not in ("Bounce", "ChangeZone"):
         return False
     if tag_of(getattr(node, "target", None)) not in self_targets:
@@ -621,9 +629,9 @@ def _returns_self(
     if dest == "Battlefield":
         if origin == "Exile" and blinks:
             return False
-        return bool(
-            origin in _RECURSION_ORIGINS or unit_zones(unit) & _RECURSION_ORIGINS
-        )
+        if zones is None:
+            zones = unit_zones(unit)
+        return bool(origin in _RECURSION_ORIGINS or zones & _RECURSION_ORIGINS)
     if dest == "Exile":
         # "Exile ~ with three time counters on it" (Arc Blade, Epochrasite): with
         # suspend and a time counter in exile it is suspended (CR 702.62b), and it
@@ -646,17 +654,105 @@ def _times_itself(unit: AbilityUnit) -> bool:
     )
 
 
-def _granted_self_bounce(unit: AbilityUnit) -> bool:
-    """A granted ability that returns the card granting it — Trusty Boomerang's
-    equipped creature "{1}, {T}: Tap target creature. Return Trusty Boomerang to its
-    owner's hand" (phase's ``GrantingObject``)."""
+def _returns_its_holder(
+    unit: AbilityUnit, body: TypedMirrorNode, holder: frozenset[str]
+) -> bool:
+    """Whether a granted ability or trigger ``body`` returns the card for another
+    use (:func:`_returns_self`), the card named by one of the target tags in
+    ``holder``; it works from the zones the body names."""
+    zones = ability_zones(body)
     return any(
-        tag_of(n) in ("Bounce", "ChangeZone")
-        and tag_of(getattr(n, "target", None)) == "GrantingObject"
-        and getattr(n, "destination", "Hand") in ("Hand", None)
-        for _kind, body in iter_nested_granted_bodies(unit.node)
+        _returns_self(unit, n, self_targets=holder, blinks=False, zones=zones)
         for n in iter_typed_nodes(body)
     )
+
+
+def _grants_itself(sdef: object, tree: ConceptTree) -> bool:
+    """Whether a static's ``affected`` group takes in the card itself: "All
+    Slivers" on a Sliver (Hibernation Sliver's ruling: a Sliver is affected by its
+    own ability), never "other Slivers" or an opponent's."""
+    affected = getattr(sdef, "affected", None)
+    if tag_of(affected) == "SelfRef":
+        return True
+    if filter_controller(affected) == "Opponent":
+        return False
+    if {"Another", "Other"} & set(filter_predicates(affected)):
+        return False
+    return filter_admits(affected, object_facts_of((tree,))) is True
+
+
+_GRANTING_OBJECT: frozenset[str] = frozenset({"GrantingObject"})
+
+
+def _granted_self_bounce(unit: AbilityUnit, tree: ConceptTree) -> bool:
+    """A granted ability that returns the card itself:
+
+    * one it grants another object, naming itself — Trusty Boomerang's equipped
+      creature "{1}, {T}: Tap target creature. Return Trusty Boomerang to its
+      owner's hand" (phase's ``GrantingObject``);
+    * one it grants itself, where "this" is the card: a static whose group takes
+      it in (:func:`_grants_itself` — Hibernation Sliver's "All Slivers have 'Pay
+      2 life: Return this permanent to its owner's hand'"), or the exception of a
+      copy effect it becomes (Mercurial Pretender's "except it has '{2}{U}{U}:
+      Return this creature to its owner's hand'" — its ruling: the ability
+      "Mercurial Pretender gives itself", CR 707.9a). A ``BecomeCopy`` with a
+      ``recipient`` turns another object into the copy."""
+    if any(
+        _returns_its_holder(unit, body, _GRANTING_OBJECT)
+        for _kind, body in iter_nested_granted_bodies(unit.node)
+    ):
+        return True
+    if unit.origin == "static":
+        for sdef, mod in iter_mod_sites(unit.node):
+            if sdef is not unit.node:
+                continue
+            if any(
+                _returns_its_holder(unit, body, _SELF_REF)
+                for _kind, body in iter_nested_granted_bodies(mod)
+            ) and _grants_itself(sdef, tree):
+                return True
+    for node in _own_nodes(unit):
+        if tag_of(node) != "BecomeCopy" or tag_of(
+            getattr(node, "recipient", None)
+        ) not in (None, "SelfRef"):
+            continue
+        mods = getattr(node, "additional_modifications", None)
+        if isinstance(mods, list) and any(
+            _returns_its_holder(unit, body, _SELF_REF)
+            for mod in mods
+            for _kind, body in iter_nested_granted_bodies(mod)
+        ):
+            return True
+    return False
+
+
+def _perpetual_graveyard_return(unit: AbilityUnit) -> bool:
+    """A perpetual grant to the card itself of a trigger that works from its
+    graveyard and returns it — Forgeborn Phoenix: "Whenever ~ or equipped creature
+    dies, it perpetually gains 'Whenever an equipped creature you control deals
+    combat damage to a player or planeswalker, return this card from your
+    graveyard to battlefield tapped.'" The grant goes to the dying card
+    (``TriggeringSource``), the card itself when it is what died."""
+    for node in _own_nodes(unit):
+        if tag_of(node) != "ApplyPerpetual":
+            continue
+        target = tag_of(getattr(node, "target", None))
+        if not (
+            target == "SelfRef"
+            or (
+                target == "TriggeringSource"
+                and watches_itself(unit.node, among_others=True)
+            )
+        ):
+            continue
+        for kind, body in iter_nested_granted_bodies(node):
+            if (
+                kind == "trigger"
+                and "Graveyard" in ability_zones(body)
+                and _returns_its_holder(unit, body, _SELF_REF)
+            ):
+                return True
+    return False
 
 
 def _back_ref_names_self(unit: AbilityUnit) -> bool:
@@ -667,9 +763,9 @@ def _back_ref_names_self(unit: AbilityUnit) -> bool:
         return unit.kind == "Activated"
     if unit.origin not in ("trigger", "replacement"):
         return False
-    watched = tag_of(getattr(unit.node, "valid_card", None)) or tag_of(
-        getattr(unit.node, "valid_source", None)
-    )
+    if tag_of(getattr(unit.node, "valid_card", None)) is not None:
+        return watches_itself(unit.node)
+    watched = tag_of(getattr(unit.node, "valid_source", None))
     return watched == "SelfRef" or (watched is None and unit.trigger_event == "phase")
 
 
@@ -726,10 +822,13 @@ def recurs_itself(tree: ConceptTree) -> bool:
       :func:`_returns_on_death`, watching the card itself; Endless Cockroaches;
       Firestorm Phoenix);
     * a static letting you cast it from your graveyard (Gravecrawler);
+    * a trigger it perpetually gains that returns it from your graveyard
+      (Forgeborn Phoenix — :func:`_perpetual_graveyard_return`);
     * re-exiling itself with time counters (Arc Blade, Epochrasite);
     * returning itself from the battlefield to your hand, as an effect or a cost
       (Arcanis the Omnipotent, Batterskull, Greenbelt Rampager, Grinning Ignus,
-      Recurring Nightmare; Trusty Boomerang through the ability it grants):
+      Recurring Nightmare; Trusty Boomerang, Hibernation Sliver and Mercurial
+      Pretender through an ability granted — :func:`_granted_self_bounce`):
       re-buying it to cast again is per-game value. The
       lane's decision, not a rule; bouncing something else (Man-o'-War),
       returning another card (Eternal Witness) or blinking itself (Aetherling)
@@ -761,11 +860,9 @@ def recurs_itself(tree: ConceptTree) -> bool:
                     return True
                 if not _keeps_back_ref(c.node):
                     break
-        if _granted_self_bounce(unit):
+        if _granted_self_bounce(unit, tree) or _perpetual_graveyard_return(unit):
             return True
-        if _returns_on_death(unit) and (
-            tag_of(getattr(unit.node, "valid_card", None)) == "SelfRef"
-        ):
+        if _returns_on_death(unit) and watches_itself(unit.node):
             return True
         for sdef in unit.static_defs():
             if (
@@ -798,9 +895,7 @@ def _has_exile_then_return_replacement(tree: ConceptTree) -> bool:
     has_exile_redirect = False
     has_delayed_return = False
     for unit in tree.units:
-        if unit.origin == "replacement" and (
-            tag_of(getattr(unit.node, "valid_card", None)) == "SelfRef"
-        ):
+        if unit.origin == "replacement" and watches_itself(unit.node):
             for c in unit.effects:
                 if tag_of(c.node) == "ChangeZone" and (
                     getattr(c.node, "destination", None) == "Exile"

@@ -17,6 +17,7 @@ from mtg_utils._card_ir.crosswalk import (
     ends_the_game,
     is_evasive_body,
     mass_land_denial,
+    parked_search_puts_onto_battlefield,
     reach_amount,
     shard_symbol,
     tag_of,
@@ -451,6 +452,20 @@ def test_unbound_x_reach_canary(name):
     X effect as a where_x_binding residue, so no reach node is left."""
     assert not _reach(name), (
         f"reads.unbound_x_reach: RETIRE-READY — phase now reads {name}'s X effect."
+    )
+
+
+@pytest.mark.retirement_canary
+def test_parked_search_put_canary():
+    """Retirement canary for ``reads.parked_search_puts_onto_battlefield``: phase
+    v0.104.0 parks Surveyor's Scope's "Search your library for up to X basic land
+    cards, where X is …" as a where_x_binding residue and keeps only the put. Once
+    it reads the search, the land fetch is structural and the read can go."""
+    assert any(
+        parked_search_puts_onto_battlefield(t) for t in _trees("Surveyor's Scope")
+    ), (
+        "reads.parked_search_puts_onto_battlefield: RETIRE-READY — phase reads "
+        "Surveyor's Scope's search now."
     )
 
 

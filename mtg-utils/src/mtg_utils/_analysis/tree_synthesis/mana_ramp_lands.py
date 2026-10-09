@@ -33,6 +33,7 @@ from mtg_utils._card_ir.crosswalk import (
     iter_nested_trigger_defs,
     iter_search_landings,
     iter_typed_nodes,
+    parked_search_puts_onto_battlefield,
     reveal_until_player,
     search_filter_land_facts,
     settap_state,
@@ -503,18 +504,38 @@ _LF_TEXT_NONLAND_RE = re.compile(
 _LF_ONTO_BATTLEFIELD_RE = re.compile(r"onto the battlefield", re.IGNORECASE)
 
 
-def _text_search_facts(kept: str) -> tuple[bool, bool, bool]:
+def _text_search_facts(
+    kept: str, *, parked_search_tree: ConceptTree | None = None
+) -> tuple[bool, bool, bool]:
     """``(landish_bf, land_only_bf, other)`` over KEPT's search sentences:
     ``landish_bf`` -- some sentence fetches a land to the battlefield;
     ``land_only_bf`` -- some sentence does so and can ONLY fetch lands;
     ``other`` -- some search sentence stays a genuine tutor (no land word,
-    no battlefield, or a nonland type alongside the land word)."""
+    no battlefield, or a nonland type alongside the land word).
+
+    ``parked_search_tree`` lets the structure answer the battlefield half when
+    phase parked the search itself (``reads.parked_search_puts_onto_battlefield``
+    -- Surveyor's Scope, whose put sits in the NEXT sentence). The answer is
+    WHOLE-CARD: when it holds, every search sentence with no "onto the
+    battlefield" of its own counts as one. Its population is one card, the read is
+    asked only when a sentence needs it, and ``test_parked_search_put_canary``
+    retires it once phase reads the search."""
+    parked: bool | None = None
+
+    def parked_put() -> bool:
+        nonlocal parked
+        if parked is None:
+            parked = parked_search_tree is not None and (
+                parked_search_puts_onto_battlefield(parked_search_tree)
+            )
+        return parked
+
     landish = land_only = other = False
     for s in re.split(r"(?<=[.!])\s+|\n", kept):
         if not _LF_SEARCH_SENTENCE_RE.search(s):
             continue
         land = bool(_LF_TEXT_LAND_RE.search(s))
-        bf = bool(_LF_ONTO_BATTLEFIELD_RE.search(s))
+        bf = bool(_LF_ONTO_BATTLEFIELD_RE.search(s)) or (land and parked_put())
         nonland = bool(_LF_TEXT_NONLAND_RE.search(s))
         if land and bf and not nonland:
             landish = True
@@ -622,7 +643,7 @@ def _arm_tutor(tree: ConceptTree) -> ConceptNode | None:
     if not _TUTOR_OWN_LIBRARY_RE.search(kept):
         return None
     if not tree.is_type("Land"):
-        _landish, land_only, other = _text_search_facts(kept)
+        _landish, land_only, other = _text_search_facts(kept, parked_search_tree=tree)
         if land_only and not other:
             return None  # pure land fetch: ramp, never tutor (lf_ramp)
     return _synthetic_concept(
@@ -658,7 +679,7 @@ def _arm_land_fetch_ramp(tree: ConceptTree) -> ConceptNode | None:
     kept = _REMINDER.sub(" ", tree.oracle or "")
     if not _TUTOR_OWN_LIBRARY_RE.search(kept):
         return None
-    landish, _land_only, _other = _text_search_facts(kept)
+    landish, _land_only, _other = _text_search_facts(kept, parked_search_tree=tree)
     if not landish:
         return None
     return _synthetic_concept(

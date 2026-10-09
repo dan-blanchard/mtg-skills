@@ -46,12 +46,9 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   activation restriction — the only legal card whose mana or Treasure ability is
   gated that way (`reads.UNPARSED_ACTIVATION_GATE`,
   `test_boxing_ring_gate_is_still_a_residue_canary`).
-- **Commander-multiplier gaps.** Syr Konrad's trigger reads as `ChangesZone` with no
+- **Commander-multiplier gap.** Syr Konrad's trigger reads as `ChangesZone` with no
   zones (a phase gap), so `_analysis/multipliers` can't match a dies doubler to it;
-  report upstream rather than work around it. `trees.object_facts` reads printed
-  types only, so Grist, the Hunger Tide ("a 1/1 Insect creature" off the battlefield)
-  isn't seen as a creature spell Double Major or Lithoform Engine can copy; read the
-  off-battlefield type-adding static from the tree.
+  report upstream rather than work around it.
 - **Phase misparses behind cut-check reads** (found 2026-10-08; report upstream,
   Dan posts). Each has a canary: Glorfindel, Dauntless Rescuer's "can't be blocked
   by more than one creature each combat" parses as `CantBeBlockedBy` a typeless
@@ -180,9 +177,6 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   in `tests/mtg-utils/test_card_ir_mirror.py` (Effect roster length,
   `distinct_variants_observed`, tagged + struct mirror classes) by hand;
   `bump-phase-pin` could derive and rewrite them like the rosters themselves.
-- **Raw walks left in bridge-ledger matches.** The purity rule covers gaps only; the
-  Ceremonial Knife `GrantTrigger` walk and `_blood_sacrificed_trigger_match` still
-  walk nodes directly.
 
 **From the 2026-09-17 architecture review (worth exploring, not started)**
 
@@ -193,11 +187,8 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
 
 **Known lane recall gaps (surfaced by ADR-0051; a lane fix repairs every consumer)**
 
-- Tireless Provisioner ("Food or Treasure") fires only `food_makers`.
-- Surveyor's Scope (fetch X basics) reads as `tutor`.
-- Firebending token makers aren't ramp (Firebender Ascension, Fire Nation Attacks,
-  Cruel Administrator, Fire Nation Occupation). Vibranium-mana token makers are
-  suspected too, but no card was found to test.
+- Vibranium-mana token makers are suspected not to count as ramp, but no card was
+  found to test.
 
 **Discovery ranking:** see ADR-0043's terminal-state amendment for the unclaimed
 headroom and parked items.
@@ -211,6 +202,12 @@ headroom and parked items.
   signals; removal isn't duplicated), `cut_check`, proxy-printer's layout and Fetcher
   seam, `phase_bump`, `testkit`, `agent_bridge` / `events`, and the tuner's classify,
   shape and bracket modules.
+- **Firebending isn't ramp** (Dan, 2026-10-09): not a creature with firebending
+  (Uncle Iroh; `firebending_makers` is out of the ramp preset's keys), a maker of
+  firebending tokens (Fire Nation Attacks, Firebender Ascension, Cruel
+  Administrator, Fire Nation Occupation) nor a grant (Sozin's Comet, Fire Nation
+  Turret, Fire Nation Cadets). The mana comes only as the creature attacks and lasts
+  until end of combat (CR 702.189a), so it doesn't speed up the curve.
 - **Symmetric shields aren't protection** (Dan, 2026-10-08): `roles.protects` is
   protecting YOUR board, so a permanent's shield over every player's objects alike
   (Crumbling Sanctuary, Plated Pegasus, Well-Laid Plans' residue) stays out; a fog

@@ -203,10 +203,14 @@ class DeckMana:
             if recs
             else None
         )
+        # Mana is spent casting them, so each is read as the spell it is (Grist,
+        # the Hunger Tide is a creature spell).
         return cls(
             identity=identity,
-            commanders=tuple(object_facts(dict(c)) for c in recs),
-            spells=tuple((object_facts(dict(r)), q) for r, q in spells),
+            commanders=tuple(object_facts(dict(c), zone="elsewhere") for c in recs),
+            spells=tuple(
+                (object_facts(dict(r), zone="elsewhere"), q) for r, q in spells
+            ),
         )
 
     def dead_mana(self, card: Mapping) -> str | None:

@@ -124,7 +124,7 @@ def detect_triggers(
 
 def detect_keyword_interactions(card: dict, cmd: CommanderProfile) -> list[dict]:
     """Emergent keyword combinations between the card and the commander."""
-    kws = object_facts(dict(card)).keywords | cmd.facts.keywords
+    kws = object_facts(dict(card), zone="battlefield").keywords | cmd.facts.keywords
     interactions: list[dict] = []
 
     # Menace: "can't be blocked except by two or more creatures" (CR 702.111b);
