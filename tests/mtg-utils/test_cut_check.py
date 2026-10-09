@@ -1,13 +1,19 @@
-"""Tests for cut_check.py — mechanical pre-grill analysis."""
+"""Tests for cut_check.py — mechanical pre-grill analysis, read off phase's trees.
+
+Every card is real (ADR-0056); each expectation follows the card's oracle text, its
+rulings and the CR rule cited beside it.
+"""
 
 from __future__ import annotations
 
 import json
 
-from mtg_utils.card_ir import Ability, Card, Effect, Face, Quantity, Trigger
+import pytest
+
+from mtg_utils._card_ir.crosswalk.reads import TRIGGER_KINDS, activated_ability_units
+from mtg_utils._card_ir.trees import trees_for
 from mtg_utils.cut_check import (
-    _activated_ability_lines,
-    _extract_activated_abilities,
+    commander_profile,
     detect_commander_multiplication,
     detect_keyword_interactions,
     detect_self_recurring,
@@ -18,6 +24,8 @@ from mtg_utils.cut_check import (
     run_cut_check,
 )
 from mtg_utils.testkit import test_card
+
+_ALL_TYPES = list(TRIGGER_KINDS)
 
 
 def _obeka_deck(tmp_path, cards):
@@ -37,254 +45,291 @@ def _obeka_deck(tmp_path, cards):
     return deck_path
 
 
-def _ir_triggered(event, *, category, factor, op="fixed", effect_scope="any"):
-    """A hand-built single-trigger Card IR (the _SYNTHETIC_CASES pattern — no
-    snapshot/bulk needed) with one triggered ability whose effect carries a value."""
-    return Card(
-        oracle_id="test",
-        name="IR Card",
-        faces=(
-            Face(
-                name="IR Card",
-                abilities=(
-                    Ability(
-                        kind="triggered",
-                        trigger=Trigger(event=event, scope="you"),
-                        effects=(
-                            Effect(
-                                category=category,
-                                amount=Quantity(op=op, factor=factor),
-                                scope=effect_scope,
-                            ),
-                        ),
-                    ),
-                ),
-            ),
-        ),
+def _triggers(name, trigger_types=_ALL_TYPES, opponents=3):
+    return detect_triggers(
+        test_card(name), trigger_types=list(trigger_types), opponents=opponents
     )
 
 
-class TestDetectTriggersFromIR:
-    """ADR-0029: trigger detection reads the Card IR structurally when present
-    (bucket-A), falling back to the regex path when absent (bucket-B)."""
-
-    _CARD = {"name": "x", "oracle_text": ""}
-
-    def test_ir_attack_trigger_to_each_opponent_multiplies(self):
-        # "Whenever you attack, deal 2 damage to each opponent" — IR-native.
-        ir = _ir_triggered("attacks", category="damage", factor=2, effect_scope="opp")
-        triggers = detect_triggers(
-            self._CARD, trigger_types=["attack"], opponents=3, ir=ir
-        )
-        matched = [t for t in triggers if t["matches_trigger_type"]]
-        assert len(matched) == 1
-        assert matched[0]["matched_type"] == "attack"
-        assert matched[0]["parseable"] is True
-        assert matched[0]["base_value"] == "6"  # 2 damage x 3 opponents
-
-    def test_ir_event_respects_trigger_type_filter(self):
-        ir = _ir_triggered("etb", category="draw", factor=1)
-        triggers = detect_triggers(
-            self._CARD, trigger_types=["upkeep"], opponents=3, ir=ir
-        )
-        assert [t for t in triggers if t["matches_trigger_type"]] == []
-
-    def test_ir_variable_amount_is_not_parseable(self):
-        # op="count" (scales with the board) is not a fixed multipliable value.
-        ir = _ir_triggered("upkeep", category="make_token", factor=1, op="count")
-        triggers = detect_triggers(
-            self._CARD, trigger_types=["upkeep"], opponents=3, ir=ir
-        )
-        matched = [t for t in triggers if t["matches_trigger_type"]]
-        assert len(matched) == 1
-        assert matched[0]["parseable"] is False
-
-    def test_run_cut_check_reads_ir_when_resolvable(self, monkeypatch):
-        # Wiring: run_cut_check resolves ir_for per card and feeds it to detect_triggers.
-        import mtg_utils.cut_check as cc
-
-        ir = _ir_triggered("attacks", category="damage", factor=2, effect_scope="opp")
-        monkeypatch.setattr(
-            cc, "ir_for", lambda card: ir if card.get("name") == "Atk" else None
-        )
-        hydrated = [{"name": "Atk", "oracle_text": "", "keywords": []}]
-        results = run_cut_check(
-            hydrated=hydrated,
-            commander_name="Atk",
-            cut_names=["Atk"],
-            trigger_types=["attack"],
-            multiplier_low=1,
-            multiplier_high=1,
-            opponents=3,
-        )
-        matched = [t for t in results[0]["triggers"] if t["matches_trigger_type"]]
-        assert matched
-        assert matched[0]["base_value"] == "6"  # the IR each-opponent value
-
-
 class TestDetectTriggers:
-    def test_upkeep_trigger_fixed_damage(self, trigger_test_cards):
-        card = next(c for c in trigger_test_cards if c["name"] == "Upkeep Drainer")
-        triggers = detect_triggers(card, trigger_types=["upkeep"], opponents=3)
-        assert len(triggers) == 1
-        assert triggers[0]["matches_trigger_type"] is True
-        assert triggers[0]["parseable"] is True
+    def test_upkeep_trigger_with_a_fixed_value(self):
+        (t,) = _triggers("Phyrexian Arena", ["upkeep"])
+        assert t["matched_type"] == "upkeep"
+        assert t["parseable"] is True
+        assert t["base_value"] == "1"  # draws a card
 
-    def test_upkeep_trigger_not_matched_as_attack(self, trigger_test_cards):
-        card = next(c for c in trigger_test_cards if c["name"] == "Upkeep Drainer")
-        triggers = detect_triggers(card, trigger_types=["attack"], opponents=3)
-        matched = [t for t in triggers if t["matches_trigger_type"]]
-        assert len(matched) == 0
+    def test_type_filter(self):
+        (t,) = _triggers("Phyrexian Arena", ["attack"])
+        assert t["matches_trigger_type"] is False
+        assert t["matched_type"] is None
+        assert t["types"] == ["upkeep"]
 
-    def test_attack_trigger(self, trigger_test_cards):
-        card = next(c for c in trigger_test_cards if c["name"] == "Attack Trigger Guy")
-        triggers = detect_triggers(card, trigger_types=["attack"], opponents=3)
-        matched = [t for t in triggers if t["matches_trigger_type"]]
-        assert len(matched) == 1
+    def test_attack_trigger_token_count(self):
+        """Hero of Bladehold's own attack trigger makes two tokens; its battle cry
+        is a second attack trigger (CR 702.91a) with no number to multiply."""
+        triggers = _triggers("Hero of Bladehold", ["attack"])
+        assert [t["matched_type"] for t in triggers] == ["attack", "attack"]
+        assert sorted(t["base_value"] for t in triggers if t["parseable"]) == ["2"]
 
-    def test_variable_trigger_not_parseable(self, trigger_test_cards):
-        card = next(c for c in trigger_test_cards if c["name"] == "Variable Trigger")
-        triggers = detect_triggers(card, trigger_types=["upkeep"], opponents=3)
-        assert len(triggers) == 1
-        assert triggers[0]["matches_trigger_type"] is True
-        assert triggers[0]["parseable"] is False
+    def test_a_scaling_amount_is_not_parseable(self):
+        """Dark Confidant's life loss is "equal to its mana value"."""
+        (t,) = _triggers("Dark Confidant", ["upkeep"])
+        assert t["matches_trigger_type"] is True
+        assert t["parseable"] is False
+        assert t["base_value"] == t["text"]
 
-    def test_multiple_trigger_types(self, trigger_test_cards):
-        card = next(c for c in trigger_test_cards if c["name"] == "Upkeep Drainer")
-        triggers = detect_triggers(
-            card, trigger_types=["upkeep", "attack"], opponents=3
-        )
-        matched = [t for t in triggers if t["matches_trigger_type"]]
-        assert len(matched) == 1  # matches upkeep only
+    @pytest.mark.parametrize(
+        ("name", "value"),
+        [("Purphoros, God of the Forge", "6"), ("Impact Tremors", "3")],
+    )
+    def test_damage_to_each_opponent_counts_per_opponent(self, name, value):
+        (t,) = _triggers(name, ["etb"])
+        assert t["base_value"] == value
+        assert name.split(",")[0] in t["text"]  # phase's "~" reads as the name
+
+    def test_when_it_dies_is_a_death_trigger(self):
+        """Kokusho's "When ~ dies" (CR 700.4): "each opponent loses 5 life" is 5 per
+        opponent."""
+        (t,) = _triggers("Kokusho, the Evening Star", ["death"])
+        assert t["matched_type"] == "death"
+        assert t["base_value"] == "15"
+
+    def test_enters_or_attacks_is_both(self):
+        (t,) = _triggers("Sun Titan")
+        assert t["types"] == ["etb", "attack"]
+
+    def test_landfall_is_an_enters_trigger(self):
+        """An ability word has no rules meaning (CR 207.2c): landfall is "whenever a
+        land you control enters" (CR 603.6a)."""
+        (t,) = _triggers("Rampaging Baloths", ["etb"])
+        assert t["matched_type"] == "etb"
+        assert t["base_value"] == "1"
+
+    def test_the_end_step(self):
+        (t,) = _triggers("Pestilence", ["endstep"])
+        assert t["matched_type"] == "endstep"
+
+    def test_combat_damage_trigger(self):
+        (t,) = _triggers("Obeka, Splitter of Seconds", ["combat-damage"])
+        assert t["matched_type"] == "combat-damage"
+
+    def test_no_trees_no_triggers(self):
+        """A card phase has no trees for gets no triggers — never a text guess."""
+        card = {
+            "name": "Unknown Card",
+            "oracle_text": "At the beginning of your upkeep",
+        }
+        assert detect_triggers(card, trigger_types=_ALL_TYPES, opponents=3) == []
 
 
 class TestDetectKeywordInteractions:
-    def test_menace_plus_blocking_restriction(self, trigger_test_cards):
-        commander = next(
-            c for c in trigger_test_cards if c["name"] == "Obeka, Splitter of Seconds"
-        )
-        card = next(c for c in trigger_test_cards if c["name"] == "Blocking Restrictor")
-        interactions = detect_keyword_interactions(card, commander)
-        assert len(interactions) > 0
-        assert any("unblockable" in i["interaction"].lower() for i in interactions)
+    _OBEKA = "Obeka, Splitter of Seconds"
 
-    def test_double_strike_plus_combat_damage(self, trigger_test_cards):
-        commander = next(
-            c for c in trigger_test_cards if c["name"] == "Obeka, Splitter of Seconds"
+    def test_menace_and_blocked_by_at_most_one(self):
+        """Menace needs two or more blockers (CR 702.111b); the restrictions are
+        cumulative (CR 509.1b), so no block is legal."""
+        out = detect_keyword_interactions(
+            test_card("Charging Rhino"), commander_profile(test_card(self._OBEKA))
         )
-        card = next(c for c in trigger_test_cards if c["name"] == "Double Striker")
-        interactions = detect_keyword_interactions(card, commander)
-        assert any("double" in i["interaction"].lower() for i in interactions)
+        assert [i["keywords"][0] for i in out] == ["menace"]
 
-    def test_no_interaction(self, trigger_test_cards):
-        commander = next(
-            c for c in trigger_test_cards if c["name"] == "Obeka, Splitter of Seconds"
+    def test_a_granted_blocking_limit_counts(self):
+        out = detect_keyword_interactions(
+            test_card("Full Steam Ahead"), commander_profile(test_card(self._OBEKA))
         )
-        card = next(c for c in trigger_test_cards if c["name"] == "Upkeep Drainer")
-        interactions = detect_keyword_interactions(card, commander)
-        assert len(interactions) == 0
+        assert [i["keywords"][0] for i in out] == ["menace"]
+
+    def test_double_strike_and_a_combat_damage_trigger(self):
+        """A double striker deals combat damage in both steps (CR 702.4b)."""
+        out = detect_keyword_interactions(
+            test_card("Boros Swiftblade"), commander_profile(test_card(self._OBEKA))
+        )
+        assert [i["keywords"] for i in out] == [
+            ["double strike", "combat damage trigger"]
+        ]
+
+    def test_trample_and_deathtouch(self):
+        out = detect_keyword_interactions(
+            test_card("Baleful Strix"),
+            commander_profile(test_card("Ghalta, Primal Hunger")),
+        )
+        assert [i["keywords"] for i in out] == [["trample", "deathtouch"]]
+
+    def test_no_interaction(self):
+        assert (
+            detect_keyword_interactions(
+                test_card("Phyrexian Arena"), commander_profile(test_card(self._OBEKA))
+            )
+            == []
+        )
 
 
 class TestDetectSelfRecurring:
-    def test_suspend_card(self, trigger_test_cards):
-        card = next(c for c in trigger_test_cards if c["name"] == "Suspend Bouncer")
-        assert detect_self_recurring(card) is True
+    @pytest.mark.parametrize(
+        "name",
+        [
+            "Bloodghast",  # landfall: returns from the graveyard
+            "Vengevine",
+            "Prized Amalgam",
+            "Gravecrawler",  # cast from the graveyard
+            "Endless Cockroaches",  # dies: returns to hand
+            "Arc Blade",  # its ruling: it suspends itself again
+            "Arcanis the Omnipotent",  # returns itself to hand (the lane's decision)
+            "Batterskull",
+            "Greenbelt Rampager",
+            "Grinning Ignus",  # a self-bounce cost
+            "Whispers of the Muse",  # buyback, CR 702.27a
+            "Kitchen Finks",  # persist, CR 702.79a
+            "Pyre Zombie",  # "return it to your hand" from the graveyard
+            "Epochrasite",  # dies: exiled with time counters, gains suspend
+            "Staggershock",  # rebound, CR 702.88a
+            "Anointer Priest",  # embalm, CR 702.128a
+            "Dusk // Dawn",  # aftermath, CR 702.127a (the preset's keyword arm)
+            "Sinister Concierge",  # dies: exiled with time counters, suspended
+            "Trusty Boomerang",  # its granted ability returns it to hand
+            "Escape Velocity",  # escape phase leaves as a residue, recovered
+            "Nether Shadow",  # upkeep: from your graveyard onto the battlefield
+            # Dash returns it to hand at the next end step (CR 702.109a).
+            "Ragavan, Nimble Pilferer",
+            "Warbringer",
+            "Zurgo Bellstriker",
+            "Mardu Scout",
+        ],
+    )
+    def test_recurs(self, name):
+        assert detect_self_recurring(test_card(name)) is True
 
-    def test_buyback_card(self, trigger_test_cards):
-        card = next(c for c in trigger_test_cards if c["name"] == "Buyback Spell")
-        assert detect_self_recurring(card) is True
+    @pytest.mark.parametrize(
+        "name",
+        [
+            "Unsummon",  # bounces something else
+            "Man-o'-War",
+            "Eternal Witness",  # returns another card
+            "Gravedigger",
+            "Aetherling",  # blinks itself: protection, not another use
+            "Ancestral Vision",  # suspend is one delayed cast, CR 702.62a
+            "Phyrexian Arena",
+            "Sphinx of Uthuun",  # "put one pile into your hand": revealed cards
+            "Memory Crystal",  # changes buyback costs; no buyback of its own
+        ],
+    )
+    def test_does_not_recur(self, name):
+        assert detect_self_recurring(test_card(name)) is False
 
-    def test_non_recurring_card(self, trigger_test_cards):
-        card = next(c for c in trigger_test_cards if c["name"] == "Upkeep Drainer")
-        assert detect_self_recurring(card) is False
+
+@pytest.mark.retirement_canary
+@pytest.mark.parametrize(
+    "name",
+    ["Dusk // Dawn", "Garza's Assassin", "Salvation Colossus", "Oscorp Industries"],
+)
+def test_self_recurring_keyword_gap_canary(name):
+    """Retirement canary for the ``self-recurring`` preset's ``keywords`` arm
+    (Aftermath, Recover, Unearth, Mayhem). Phase v0.94.0 drops Dawn's aftermath
+    half, Garza's Assassin's recover, Salvation Colossus's unearth and Oscorp
+    Industries' mayhem, so
+    ``recurs_itself`` can't see them. Once it can, drop that keyword from the arm."""
+    from mtg_utils._analysis.lanes import recurs_itself
+
+    trees = trees_for(test_card(name))
+    assert not any(recurs_itself(t) for t in trees), (
+        f"self-recurring preset: RETIRE-READY for {name} — phase now parses its "
+        "recursion; drop its keyword from the preset's keywords arm and this case."
+    )
+
+
+class TestActivatedAbilities:
+    """The activated abilities that work on the battlefield (CR 602.1, 113.6b)."""
+
+    @staticmethod
+    def _count(name, *, include_mana=True):
+        return sum(
+            1
+            for tree in trees_for(test_card(name))
+            for _ in activated_ability_units(tree, include_mana=include_mana)
+        )
+
+    def test_hand_and_graveyard_abilities_are_out(self):
+        """Cycling (CR 702.29a), ninjutsu (702.49a), suspend's special action
+        (116.2f) and a graveyard ability work from another zone."""
+        assert self._count("Ash Barrens") == 1  # its {T}: Add {C}
+        assert self._count("Ninja of the Deep Hours") == 0
+        assert self._count("Ancestral Vision") == 0
+        assert self._count("Reassembling Skeleton") == 0
+
+    def test_loyalty_and_equip_are_activated_abilities(self):
+        """CR 606.1 (loyalty abilities are activated abilities), 702.6a (equip)."""
+        assert self._count("Liliana of the Veil") == 3
+        assert self._count("Batterskull") == 2
+
+    def test_mana_abilities_on_request(self):
+        assert self._count("Priest of Titania") == 1
+        assert self._count("Priest of Titania", include_mana=False) == 0
 
 
 class TestDetectCommanderMultiplication:
-    def _get_card(self, cards, name):
-        return next(c for c in cards if c["name"] == name)
+    _OBEKA = commander_profile(test_card("Obeka, Splitter of Seconds"))
+    _KRENKO = commander_profile(test_card("Krenko, Mob Boss"))
 
-    def test_helm_of_the_host_commander_copy(self, trigger_test_cards):
-        commander = self._get_card(trigger_test_cards, "Obeka, Splitter of Seconds")
-        card = self._get_card(trigger_test_cards, "Helm of the Host")
-        result = detect_commander_multiplication(card, commander)
-        assert len(result["commander_copy"]) > 0
+    def test_helm_of_the_host_copies_the_commander(self):
+        result = detect_commander_multiplication(
+            test_card("Helm of the Host"), self._OBEKA
+        )
+        assert [c["type"] for c in result["commander_copy"]] == ["create_token_copy"]
+        assert "isn't legendary" in result["commander_copy"][0]["clause"]
+        assert result["legend_bypass"] is True  # CR 707.9b, 704.5j
+        assert result["commander_triggers_affected"] == ["combat-damage"]
+
+    def test_spark_double_becomes_a_copy(self):
+        result = detect_commander_multiplication(test_card("Spark Double"), self._OBEKA)
+        assert [c["type"] for c in result["commander_copy"]] == ["becomes_copy"]
         assert result["legend_bypass"] is True
 
-    def test_spark_double_commander_copy(self, trigger_test_cards):
-        commander = self._get_card(trigger_test_cards, "Obeka, Splitter of Seconds")
-        card = self._get_card(trigger_test_cards, "Spark Double")
-        result = detect_commander_multiplication(card, commander)
-        assert len(result["commander_copy"]) > 0
+    def test_strionic_resonator_copies_a_triggered_ability(self):
+        result = detect_commander_multiplication(
+            test_card("Strionic Resonator"), self._OBEKA
+        )
+        assert [c["type"] for c in result["ability_copy"]] == ["copy_triggered_ability"]
+        assert result["commander_copy"] == []
+
+    def test_panharmonicon_needs_an_enters_trigger(self):
+        """Obeka has no enters trigger; Urza's own enters trigger is doubled (the
+        Panharmonicon ruling)."""
+        pan = test_card("Panharmonicon")
+        assert detect_commander_multiplication(pan, self._OBEKA)["ability_copy"] == []
+        result = detect_commander_multiplication(
+            pan, commander_profile(test_card("Urza, Lord High Artificer"))
+        )
+        assert [c["type"] for c in result["ability_copy"]] == ["trigger_doubler"]
+
+    def test_rings_needs_an_activated_ability(self):
+        rings = test_card("Rings of Brighthearth")
+        assert detect_commander_multiplication(rings, self._OBEKA)["ability_copy"] == []
+        result = detect_commander_multiplication(rings, self._KRENKO)
+        assert [c["type"] for c in result["ability_copy"]] == ["copy_activated_ability"]
+        assert result["commander_activated_abilities"] == [
+            (
+                "{T}: Create X 1/1 red Goblin creature tokens, where X is the "
+                "number of Goblins you control."
+            )
+        ]
+
+    def test_kiki_jiki_cannot_copy_a_legendary_commander(self):
+        result = detect_commander_multiplication(
+            test_card("Kiki-Jiki, Mirror Breaker"), self._KRENKO
+        )
+        assert result["commander_copy"] == []
+
+    def test_a_legend_rule_static_is_a_bypass(self):
+        result = detect_commander_multiplication(
+            test_card("Mirror Gallery"), self._KRENKO
+        )
         assert result["legend_bypass"] is True
 
-    def test_strionic_resonator_ability_copy(self, trigger_test_cards):
-        commander = self._get_card(trigger_test_cards, "Obeka, Splitter of Seconds")
-        card = self._get_card(trigger_test_cards, "Strionic Resonator")
-        result = detect_commander_multiplication(card, commander)
-        assert len(result["ability_copy"]) > 0
-        assert len(result["commander_copy"]) == 0
-
-    def test_panharmonicon_trigger_doubler(self, trigger_test_cards):
-        commander = self._get_card(trigger_test_cards, "Obeka, Splitter of Seconds")
-        card = self._get_card(trigger_test_cards, "Panharmonicon")
-        result = detect_commander_multiplication(card, commander)
-        assert len(result["ability_copy"]) > 0
-        assert any(e["type"] == "trigger_doubler" for e in result["ability_copy"])
-
-    def test_rings_of_brighthearth_activated_copy(self, trigger_test_cards):
-        commander = self._get_card(trigger_test_cards, "Obeka, Splitter of Seconds")
-        card = self._get_card(trigger_test_cards, "Rings of Brighthearth")
-        result = detect_commander_multiplication(card, commander)
-        assert len(result["ability_copy"]) > 0
-        assert any(
-            e["type"] == "copy_activated_ability" for e in result["ability_copy"]
-        )
-
-    def test_commander_triggers_affected(self, trigger_test_cards):
-        commander = self._get_card(trigger_test_cards, "Obeka, Splitter of Seconds")
-        card = self._get_card(trigger_test_cards, "Strionic Resonator")
-        result = detect_commander_multiplication(card, commander)
-        assert "combat-damage" in result["commander_triggers_affected"]
-
-    def test_commander_activated_abilities(self, trigger_test_cards, hydrated_cards):
-        # Thrasios has "{4}: Scry 1, then reveal..."
-        thrasios = next(
-            c for c in hydrated_cards if c["name"] == "Thrasios, Triton Hero"
-        )
-        card = self._get_card(trigger_test_cards, "Rings of Brighthearth")
-        result = detect_commander_multiplication(card, thrasios)
-        assert len(result["commander_activated_abilities"]) > 0
-
-    def test_no_false_positive_counterspell(self, trigger_test_cards):
-        commander = self._get_card(trigger_test_cards, "Obeka, Splitter of Seconds")
-        card = self._get_card(trigger_test_cards, "Counterspell")
-        result = detect_commander_multiplication(card, commander)
-        assert len(result["commander_copy"]) == 0
-        assert len(result["ability_copy"]) == 0
+    def test_no_false_positive(self):
+        result = detect_commander_multiplication(test_card("Counterspell"), self._OBEKA)
+        assert result["commander_copy"] == []
+        assert result["ability_copy"] == []
         assert result["legend_bypass"] is False
-
-    def test_no_false_positive_upkeep_drainer(self, trigger_test_cards):
-        commander = self._get_card(trigger_test_cards, "Obeka, Splitter of Seconds")
-        card = self._get_card(trigger_test_cards, "Upkeep Drainer")
-        result = detect_commander_multiplication(card, commander)
-        assert len(result["commander_copy"]) == 0
-        assert len(result["ability_copy"]) == 0
-
-    def test_run_cut_check_includes_multiplication(self, trigger_test_cards):
-        results = run_cut_check(
-            hydrated=trigger_test_cards,
-            commander_name="Obeka, Splitter of Seconds",
-            cut_names=["Helm of the Host", "Strionic Resonator"],
-            trigger_types=["upkeep"],
-            multiplier_low=3,
-            multiplier_high=7,
-            opponents=3,
-        )
-        helm = next(r for r in results if r["name"] == "Helm of the Host")
-        assert "commander_multiplication" in helm
-        assert len(helm["commander_multiplication"]["commander_copy"]) > 0
-        resonator = next(r for r in results if r["name"] == "Strionic Resonator")
-        assert len(resonator["commander_multiplication"]["ability_copy"]) > 0
 
 
 class TestRunCutCheck:
@@ -292,20 +337,27 @@ class TestRunCutCheck:
         results = run_cut_check(
             hydrated=trigger_test_cards,
             commander_name="Obeka, Splitter of Seconds",
-            cut_names=["Upkeep Drainer", "Blocking Restrictor", "Suspend Bouncer"],
+            cut_names=[
+                "Phyrexian Arena",
+                "Charging Rhino",
+                "Arc Blade",
+                "Helm of the Host",
+                "Strionic Resonator",
+            ],
             trigger_types=["upkeep"],
             multiplier_low=3,
             multiplier_high=7,
             opponents=3,
         )
-        assert len(results) == 3
-        drainer = next(r for r in results if r["name"] == "Upkeep Drainer")
-        assert len(drainer["triggers"]) == 1
-        assert drainer["triggers"][0]["parseable"] is True
-        restrictor = next(r for r in results if r["name"] == "Blocking Restrictor")
-        assert len(restrictor["keyword_interactions"]) > 0
-        bouncer = next(r for r in results if r["name"] == "Suspend Bouncer")
-        assert bouncer["self_recurring"] is True
+        by_name = {r["name"]: r for r in results}
+        (arena,) = by_name["Phyrexian Arena"]["triggers"]
+        assert (arena["multiplied_low"], arena["multiplied_high"]) == ("3", "7")
+        assert by_name["Charging Rhino"]["keyword_interactions"]
+        assert by_name["Arc Blade"]["self_recurring"] is True
+        helm = by_name["Helm of the Host"]["commander_multiplication"]
+        assert helm["commander_copy"]
+        resonator = by_name["Strionic Resonator"]["commander_multiplication"]
+        assert resonator["ability_copy"]
 
 
 class TestFlexibleInput:
@@ -328,7 +380,7 @@ class TestFlexibleInput:
         hydrated_path.write_text(json.dumps(trigger_test_cards))
         deck_path = _obeka_deck(tmp_path, trigger_test_cards)
         cuts_path = tmp_path / "cuts.json"
-        cuts_path.write_text(json.dumps([{"name": "Upkeep Drainer", "quantity": 1}]))
+        cuts_path.write_text(json.dumps([{"name": "Phyrexian Arena", "quantity": 1}]))
         output_path = tmp_path / "out.json"
 
         runner = CliRunner()
@@ -352,7 +404,7 @@ class TestFlexibleInput:
         )
 
         assert result.exit_code == 0, result.output
-        assert "Upkeep Drainer" in result.output
+        assert "Phyrexian Arena" in result.output
 
     def test_cli_rejects_malformed_entry(self, trigger_test_cards, tmp_path):
         """Symmetric with build_deck's contract: malformed cuts entries
@@ -407,8 +459,8 @@ class TestFlexibleInput:
         cuts_path.write_text(
             json.dumps(
                 [
-                    "Upkeep Drainer",
-                    {"name": "Blocking Restrictor", "quantity": 1},
+                    "Phyrexian Arena",
+                    {"name": "Charging Rhino", "quantity": 1},
                 ]
             )
         )
@@ -435,8 +487,8 @@ class TestFlexibleInput:
         )
 
         assert result.exit_code == 0, result.output
-        assert "Upkeep Drainer" in result.output
-        assert "Blocking Restrictor" in result.output
+        assert "Phyrexian Arena" in result.output
+        assert "Charging Rhino" in result.output
 
 
 class TestCLI:
@@ -448,7 +500,7 @@ class TestCLI:
         hydrated_path.write_text(json.dumps(trigger_test_cards))
         deck_path = _obeka_deck(tmp_path, trigger_test_cards)
         cuts_path = tmp_path / "cuts.json"
-        cuts_path.write_text(json.dumps(["Upkeep Drainer"]))
+        cuts_path.write_text(json.dumps(["Phyrexian Arena"]))
         output_path = tmp_path / "out.json"
 
         runner = CliRunner()
@@ -474,14 +526,14 @@ class TestCLI:
 
         # Loose text-report assertions
         assert "cut-check:" in result.output
-        assert "Upkeep Drainer" in result.output
+        assert "Phyrexian Arena" in result.output
         assert "Full JSON:" in result.output
         assert "Obeka, Splitter of Seconds" in result.output
 
         # Strict structural correctness via the JSON file
         data = json_from_cli_output(result)
         assert len(data) == 1
-        assert data[0]["name"] == "Upkeep Drainer"
+        assert data[0]["name"] == "Phyrexian Arena"
         assert output_path.exists()
 
     def test_flags_commander_multiplication_in_text_report(
@@ -494,7 +546,7 @@ class TestCLI:
         deck_path = _obeka_deck(tmp_path, trigger_test_cards)
         cuts_path = tmp_path / "cuts.json"
         cuts_path.write_text(
-            json.dumps(["Helm of the Host", "Strionic Resonator", "Upkeep Drainer"])
+            json.dumps(["Helm of the Host", "Strionic Resonator", "Phyrexian Arena"])
         )
         output_path = tmp_path / "out.json"
 
@@ -527,7 +579,7 @@ class TestCLI:
         hydrated_path.write_text(json.dumps(trigger_test_cards))
         deck_path = _obeka_deck(tmp_path, trigger_test_cards)
         cuts_path = tmp_path / "cuts.json"
-        cuts_path.write_text(json.dumps(["Upkeep Drainer"]))
+        cuts_path.write_text(json.dumps(["Phyrexian Arena"]))
 
         runner = CliRunner()
         args = [
@@ -591,7 +643,7 @@ class TestCiteRules:
         hydrated_path.write_text(json.dumps(trigger_test_cards))
         deck_path = _obeka_deck(tmp_path, trigger_test_cards)
         cuts_path = tmp_path / "cuts.json"
-        cuts_path.write_text(json.dumps(["Blocking Restrictor"]))
+        cuts_path.write_text(json.dumps(["Charging Rhino"]))
         output_path = tmp_path / "out.json"
 
         runner = CliRunner()
@@ -616,11 +668,11 @@ class TestCiteRules:
         )
         assert result.exit_code == 0, result.output
         data = json_from_cli_output(result)
-        # Obeka + Blocking Restrictor have the menace + can't-be-blocked
-        # interaction, plus trample (from the Restrictor's oracle text).
+        # Obeka's menace + Charging Rhino's "can't be blocked by more than one
+        # creature" cite menace.
         citations = data[0].get("rule_citations") or []
         cited_terms = {c["term"] for c in citations}
-        assert {"Menace", "Trample"} & cited_terms
+        assert "Menace" in cited_terms
 
     def test_cite_rules_missing_file_is_soft_error(self, trigger_test_cards, tmp_path):
         """Missing CR file should record an error field, not crash."""
@@ -631,7 +683,7 @@ class TestCiteRules:
         hydrated_path.write_text(json.dumps(trigger_test_cards))
         deck_path = _obeka_deck(tmp_path, trigger_test_cards)
         cuts_path = tmp_path / "cuts.json"
-        cuts_path.write_text(json.dumps(["Blocking Restrictor"]))
+        cuts_path.write_text(json.dumps(["Charging Rhino"]))
         output_path = tmp_path / "out.json"
         missing_rules = tmp_path / "nope.txt"
 
@@ -678,7 +730,7 @@ class TestCiteRules:
         hydrated_path.write_text(json.dumps(trigger_test_cards))
         deck_path = _obeka_deck(tmp_path, trigger_test_cards)
         cuts_path = tmp_path / "cuts.json"
-        cuts_path.write_text(json.dumps(["Blocking Restrictor"]))
+        cuts_path.write_text(json.dumps(["Charging Rhino"]))
         output_path = tmp_path / "out.json"
 
         runner = CliRunner()
@@ -717,7 +769,7 @@ class TestCiteRules:
         hydrated_path.write_text(json.dumps(trigger_test_cards))
         deck_path = _obeka_deck(tmp_path, trigger_test_cards)
         cuts_path = tmp_path / "cuts.json"
-        cuts_path.write_text(json.dumps(["Blocking Restrictor"]))
+        cuts_path.write_text(json.dumps(["Charging Rhino"]))
         output_path = tmp_path / "out.json"
 
         runner = CliRunner()
@@ -762,7 +814,7 @@ class TestCiteRules:
         hydrated_path.write_text(json.dumps(trigger_test_cards))
         deck_path = _obeka_deck(tmp_path, trigger_test_cards)
         cuts_path = tmp_path / "cuts.json"
-        cuts_path.write_text(json.dumps(["Blocking Restrictor"]))
+        cuts_path.write_text(json.dumps(["Charging Rhino"]))
         output_path = tmp_path / "out.json"
         monkeypatch.chdir(tmp_path)
 
@@ -791,11 +843,9 @@ class TestCiteRules:
 # Zone-granted activated abilities
 # ---------------------------------------------------------------------------
 
-# Real cards from the testkit snapshot (ADR-0056), not templated stand-ins — a
-# zone grant keys on the exact cost syntax, so a trimmed body would test the
-# fixture rather than the detector.
 _THRANDUIL = test_card("Thranduil, the Elvenking")
-_OBEKA = test_card("Obeka, Splitter of Seconds")
+_THRANDUIL_CMD = commander_profile(_THRANDUIL)
+_OBEKA_CMD = commander_profile(test_card("Obeka, Splitter of Seconds"))
 _PRIEST_OF_TITANIA = test_card("Priest of Titania")
 _IRON_SHIELD_ELF = test_card("Iron-Shield Elf")
 _LATHRIL = test_card("Lathril, Blade of the Elves")
@@ -805,40 +855,52 @@ _DOOR_OF_DESTINIES = test_card("Door of Destinies")
 
 class TestDetectZoneGrantedAbilities:
     def test_no_grant_on_ordinary_commander(self):
-        result = detect_zone_granted_abilities(_PRIEST_OF_TITANIA, _OBEKA)
+        result = detect_zone_granted_abilities(_PRIEST_OF_TITANIA, _OBEKA_CMD)
         assert result == {"grants": False}
 
     def test_parses_granted_type_and_zone(self):
-        result = detect_zone_granted_abilities(_PRIEST_OF_TITANIA, _THRANDUIL)
+        result = detect_zone_granted_abilities(_PRIEST_OF_TITANIA, _THRANDUIL_CMD)
         assert result["grants"] is True
         assert result["granted_type"] == "Elf"
         assert result["zone"] == "graveyard"
 
     def test_mana_ability_is_reported(self):
-        """A mana ability is what a zone-granting commander mostly borrows, so
-        include_mana must default on for this caller."""
-        result = detect_zone_granted_abilities(_PRIEST_OF_TITANIA, _THRANDUIL)
+        """A mana ability is what a zone-granting commander mostly borrows."""
+        result = detect_zone_granted_abilities(_PRIEST_OF_TITANIA, _THRANDUIL_CMD)
         assert result["abilities"] == ["{T}: Add {G} for each Elf on the battlefield."]
 
     def test_non_mana_symbol_cost_is_reported(self):
-        """ "Discard a card:" has no mana symbol but is still an activated ability."""
-        result = detect_zone_granted_abilities(_IRON_SHIELD_ELF, _THRANDUIL)
+        """ "Discard a card:" has no mana symbol but is still an activated ability
+        (CR 602.1)."""
+        result = detect_zone_granted_abilities(_IRON_SHIELD_ELF, _THRANDUIL_CMD)
         assert len(result["abilities"]) == 1
         assert result["abilities"][0].startswith("Discard a card:")
 
-    def test_reminder_text_is_not_an_ability(self):
-        """Lathril has one activated ability; menace reminder text has no colon
-        and the combat-damage line is triggered, not activated."""
-        result = detect_zone_granted_abilities(_LATHRIL, _THRANDUIL)
+    def test_triggered_abilities_are_not_activated(self):
+        """Lathril has one activated ability; its combat-damage line is triggered."""
+        result = detect_zone_granted_abilities(_LATHRIL, _THRANDUIL_CMD)
         assert len(result["abilities"]) == 1
         assert result["abilities"][0].startswith("{T}, Tap ten untapped Elves")
 
-    def test_changeling_counts_as_the_granted_type(self):
-        result = detect_zone_granted_abilities(_BLOODLINE_PRETENDER, _THRANDUIL)
+    @pytest.mark.parametrize(
+        "name", ["Bloodline Pretender", "Mirror Entity", "Chameleon Colossus"]
+    )
+    def test_changeling_counts_as_the_granted_type(self, name):
+        """Changeling is every creature type and works in every zone (CR 702.73a,
+        604.3) — Mirror Entity in the graveyard is an Elf card."""
+        result = detect_zone_granted_abilities(test_card(name), _THRANDUIL_CMD)
         assert result["card_matches_type"] is True
 
+    def test_hand_only_abilities_are_not_borrowed(self):
+        """Forestcycling works only from its card's hand (CR 702.29a), so Thranduil
+        can't activate it on the battlefield; the mana ability it can."""
+        result = detect_zone_granted_abilities(
+            test_card("Elvish Aberration"), _THRANDUIL_CMD
+        )
+        assert result["abilities"] == ["{T}: Add {G}{G}{G}."]
+
     def test_off_type_card_reports_no_abilities(self):
-        result = detect_zone_granted_abilities(_DOOR_OF_DESTINIES, _THRANDUIL)
+        result = detect_zone_granted_abilities(_DOOR_OF_DESTINIES, _THRANDUIL_CMD)
         assert result["grants"] is True
         assert result["card_matches_type"] is False
         assert result["abilities"] == []
@@ -879,28 +941,3 @@ class TestDetectZoneGrantedAbilities:
         assert "ZONE_GRANTED" in report
         assert "1 zone-granted" in report
         assert "removes a tool from the commander" in report
-
-
-class TestExtractActivatedAbilities:
-    """The non-mana extractor and the zone-grant extractor share one
-    implementation; only the mana-ability filter differs between them."""
-
-    def test_non_mana_cost_is_still_an_activated_ability(self):
-        """Regression: a rule keyed on "{...}" in the cost dropped these."""
-        assert _extract_activated_abilities(_IRON_SHIELD_ELF["oracle_text"]) == [
-            _activated_ability_lines(_IRON_SHIELD_ELF["oracle_text"])[0]
-        ]
-
-    def test_mana_abilities_excluded_here_and_included_there(self):
-        text = _PRIEST_OF_TITANIA["oracle_text"]
-        assert _extract_activated_abilities(text) == []
-        assert _activated_ability_lines(text) == [
-            "{T}: Add {G} for each Elf on the battlefield."
-        ]
-
-    def test_triggered_abilities_are_not_activated_abilities(self):
-        assert _extract_activated_abilities(_THRANDUIL["oracle_text"]) == []
-
-    def test_loyalty_abilities_are_not_activated_abilities(self):
-        oracle = "[+1]: Draw a card.\n[−3]: Destroy target creature."
-        assert _activated_ability_lines(oracle) == []

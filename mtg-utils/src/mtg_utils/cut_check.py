@@ -1,28 +1,41 @@
 """Cut-check: mechanical pre-grill analysis of cards under consideration for cutting.
 
-ADR-0029 migration state (ADR-0027 strangler): **trigger detection** reads the Card IR
-structurally when a card's IR resolves (bucket-A — ``_detect_triggers_ir`` off
-``Ability.trigger.event`` + ``Effect.amount``), degrading to the oracle-regex path when
-no IR is present (bucket-B). The IR sidecar is built upstream by the Step-6 spine
-(``deck-tune`` → ``ensure_card_ir``); cut-check consumes it via ``ir_for`` and never
-builds it itself. **Keyword interactions / self-recurring / commander multiplication**
-stay on regex (bucket-B): phase's IR doesn't structurally encode "this copies the
-commander" or an emergent two-keyword interaction, so those are legitimate regex
-bridges, not yet-migrated debt. The multiplied-value math is unchanged.
+Every read is over phase's corrected concept trees (``_card_ir.trees.trees_for``) and
+the shared reads — triggers (``reads.trigger_kinds``) and their fixed values
+(``reads.fixed_amount``), keyword interactions, self-recursion (the
+``self-recurring`` preset over the ``self_recurring`` signal key), commander
+multiplication (``_analysis.multipliers``, the same read the tuner protects cuts
+with) and the zone grant. A card phase has no trees for (a set newer than
+``PHASE_TAG``) reports no triggers, no recursion and no multiplication: cut-check
+never guesses from oracle text. The multiplied-value math is unchanged.
 """
 
 from __future__ import annotations
 
 import json
-import re
+from collections.abc import Callable, Iterable, Iterator, Mapping
 from pathlib import Path
 
 import click
 
-from mtg_utils._card_ir.compat_lookup import ir_for
+from mtg_utils._analysis.multipliers import (
+    Commander,
+    grant_abilities,
+    multiplier_reasons,
+)
+from mtg_utils._card_ir.crosswalk import AbilityUnit, ConceptTree
+from mtg_utils._card_ir.crosswalk.describe import unit_text
+from mtg_utils._card_ir.crosswalk.reads import (
+    TRIGGER_KINDS,
+    bypasses_legend_rule,
+    fixed_amount,
+    has_combat_damage_trigger,
+    limits_blockers_to_one,
+    trigger_kinds,
+)
+from mtg_utils._card_ir.trees import object_facts, trees_for
 from mtg_utils._sidecar import atomic_write_json, sha_keyed_path
-from mtg_utils.card_classify import build_card_lookup, get_oracle_text
-from mtg_utils.card_ir import Ability, Card
+from mtg_utils.card_classify import build_card_lookup
 from mtg_utils.deck_cli import acquire_for_cli, bulk_data_option
 from mtg_utils.hydrated_deck import sidecar_path
 from mtg_utils.rules_lookup import (
@@ -30,217 +43,75 @@ from mtg_utils.rules_lookup import (
     load_rules,
     resolve_rules_path,
 )
-
-# ---------------------------------------------------------------------------
-# Trigger type patterns
-# ---------------------------------------------------------------------------
-
-_TRIGGER_PATTERNS: dict[str, list[str]] = {
-    "upkeep": [
-        r"At the beginning of your upkeep",
-    ],
-    "attack": [
-        r"Whenever you attack",
-        r"Whenever \S.*? attacks",
-    ],
-    "combat-damage": [
-        r"Whenever \S.*? deals combat damage",
-    ],
-    "death": [
-        r"Whenever \S.*? dies",
-        r"Whenever a creature dies",
-    ],
-    "etb": [
-        r"When \S.*? enters",
-        r"Whenever \S.*? enters",
-    ],
-    "endstep": [
-        r"At the beginning of (?:your|each) end step",
-    ],
-}
-
-# Sentence splitter — split on newlines and periods followed by whitespace/cap
-_SENTENCE_RE = re.compile(r"(?:\n|(?<=\.)\s+)")
-
-# Trigger sentence openers
-_TRIGGER_OPENER_RE = re.compile(
-    r"^(At the beginning of|Whenever|When)\b", re.IGNORECASE
-)
-
-# Value parsers
-_DAMAGE_N_RE = re.compile(r"deals?\s+(\d+)\s+damage", re.IGNORECASE)
-_DAMAGE_EACH_OPPONENT_RE = re.compile(
-    r"deals?\s+(\d+)\s+damage\s+to\s+each\s+opponent", re.IGNORECASE
-)
-_LIFE_N_RE = re.compile(r"gain\s+(\d+)\s+life", re.IGNORECASE)
-_LIFE_EQUAL_RE = re.compile(r"gain\s+life\s+equal", re.IGNORECASE)
-_TOKEN_N_RE = re.compile(r"create\s+(\d+)\s+\S.*?token", re.IGNORECASE)
-_TOKEN_AN_RE = re.compile(r"create\s+(?:a|an)\s+\S.*?token", re.IGNORECASE)
-_DRAW_N_RE = re.compile(r"draw\s+(\d+)\s+card", re.IGNORECASE)
-_DRAW_A_RE = re.compile(r"draw\s+a\s+card", re.IGNORECASE)
+from mtg_utils.theme_presets import matches as matches_preset
 
 
-def _parse_value(sentence: str, opponents: int) -> tuple[bool, str]:
-    """Try to parse a fixed numeric value from a trigger sentence.
-
-    Returns (parseable, base_value).
-    """
-    result = _try_parse_value(sentence, opponents)
-    if result is not None:
-        return True, result
-    return False, sentence.strip()
+def _trigger_units(
+    trees: Iterable[ConceptTree],
+) -> Iterator[tuple[ConceptTree, AbilityUnit]]:
+    for tree in trees:
+        for unit in tree.iter_units("trigger"):
+            yield tree, unit
 
 
-def _try_parse_value(sentence: str, opponents: int) -> str | None:
-    """Return parsed value string, or None if unparseable."""
-    # Damage to each opponent — multiply
-    m = _DAMAGE_EACH_OPPONENT_RE.search(sentence)
-    if m:
-        return str(int(m.group(1)) * opponents)
-
-    # Plain damage N
-    m = _DAMAGE_N_RE.search(sentence)
-    if m:
-        return m.group(1)
-
-    # Life equal to damage (copy damage value from same sentence)
-    if _LIFE_EQUAL_RE.search(sentence):
-        md = _DAMAGE_EACH_OPPONENT_RE.search(sentence)
-        if md:
-            return str(int(md.group(1)) * opponents)
-        md = _DAMAGE_N_RE.search(sentence)
-        if md:
-            return md.group(1)
-        # "gain life equal to" with no copyable damage value in the sentence is NOT
-        # a parseable multipliable value — return None so the caller reports
-        # parseable=False, rather than the literal string "equal to damage".
-        return None
-
-    # Life N
-    m = _LIFE_N_RE.search(sentence)
-    if m:
-        return m.group(1)
-
-    # Token N
-    m = _TOKEN_N_RE.search(sentence)
-    if m:
-        return m.group(1)
-
-    # Token a/an → 1
-    if _TOKEN_AN_RE.search(sentence):
-        return "1"
-
-    # Draw N
-    m = _DRAW_N_RE.search(sentence)
-    if m:
-        return m.group(1)
-
-    # Draw a card → 1
-    if _DRAW_A_RE.search(sentence):
-        return "1"
-
-    return None
+def _any_tree(card: Mapping, read: Callable[[ConceptTree], bool]) -> bool:
+    return any(read(tree) for tree in trees_for(dict(card)))
 
 
-def _split_trigger_sentences(oracle_text: str) -> list[str]:
-    """Split oracle text into trigger sentences."""
-    sentences = _SENTENCE_RE.split(oracle_text)
-    return [s.strip() for s in sentences if _TRIGGER_OPENER_RE.match(s.strip())]
+class CommanderProfile(Commander):
+    """The commander as cut-check reads it, once per run: the multipliers' view
+    (:class:`~mtg_utils._analysis.multipliers.Commander` — its trees, facts,
+    triggers, non-mana activated abilities and zone grant) plus the trigger types
+    it has and whether it limits blockers or has a combat-damage trigger."""
 
-
-def _match_trigger_type(
-    sentence: str, trigger_types: list[str]
-) -> tuple[bool, str | None]:
-    """Return (matches, matched_type|None)."""
-    for ttype in trigger_types:
-        patterns = _TRIGGER_PATTERNS.get(ttype, [])
-        for pattern in patterns:
-            if re.search(pattern, sentence, re.IGNORECASE):
-                return True, ttype
-    return False, None
-
-
-# IR trigger event -> cut-check trigger type (ADR-0029 bucket-A: read the node, not a
-# `Whenever \S.*? attacks` regex). Events outside this map (cast_spell, taps, …) don't
-# correspond to a cut-check trigger type and so never `matches_trigger_type`.
-_IR_EVENT_TO_TYPE: dict[str, str] = {
-    "upkeep": "upkeep",
-    "attacks": "attack",
-    "combat_damage": "combat-damage",
-    "dies": "death",
-    "etb": "etb",
-    "end_step": "endstep",
-}
-# Effect categories that carry a fixed, multipliable numeric value.
-_IR_VALUE_CATEGORIES = frozenset({"damage", "gain_life", "make_token", "draw"})
-
-
-def _ir_base_value(ability: Ability, opponents: int) -> tuple[bool, str]:
-    """A fixed numeric value from the ability's effects, or (False, "").
-
-    Only ``op="fixed"`` amounts are parseable — ``count``/``multiply`` scale with the
-    board, the same "variable" non-multipliable case the regex path returns False for.
-    A ``damage`` effect scoped to each opponent multiplies by the opponent count (the
-    structural mirror of ``_DAMAGE_EACH_OPPONENT_RE``)."""
-    for e in ability.effects:
-        amt = e.amount
-        if e.category in _IR_VALUE_CATEGORIES and amt is not None and amt.op == "fixed":
-            base = amt.factor
-            if e.category == "damage" and e.scope in ("opp", "each"):
-                base *= opponents
-            return True, str(base)
-    return False, ""
-
-
-def _detect_triggers_ir(
-    ir: Card, trigger_types: list[str], opponents: int
-) -> list[dict]:
-    """Trigger detection read straight from the Card IR's triggered abilities."""
-    results: list[dict] = []
-    for ab in ir.all_abilities():
-        if ab.kind != "triggered" or ab.trigger is None:
-            continue
-        matched_type = _IR_EVENT_TO_TYPE.get(ab.trigger.event)
-        matches = matched_type is not None and matched_type in trigger_types
-        parseable, base_value = _ir_base_value(ab, opponents)
-        results.append(
-            {
-                "text": f"{ab.trigger.event} trigger",
-                "matches_trigger_type": matches,
-                "matched_type": matched_type,
-                "parseable": parseable,
-                "base_value": base_value
-                if parseable
-                else f"{ab.trigger.event} trigger",
-            }
+    def __init__(self, record: Mapping) -> None:
+        super().__init__(record)
+        types: list[str] = []
+        for _tree, unit in _trigger_units(self.trees):
+            types.extend(t for t in trigger_kinds(unit) if t not in types)
+        self.trigger_types: tuple[str, ...] = tuple(types)
+        self.limits_blockers = any(limits_blockers_to_one(t) for t in self.trees)
+        self.combat_damage_trigger = any(
+            has_combat_damage_trigger(t) for t in self.trees
         )
-    return results
+
+
+def commander_profile(commander: Mapping) -> CommanderProfile:
+    return CommanderProfile(commander)
+
+
+# ---------------------------------------------------------------------------
+# Triggers
+# ---------------------------------------------------------------------------
 
 
 def detect_triggers(
-    card: dict,
-    *,
-    trigger_types: list[str],
-    opponents: int,
-    ir: Card | None = None,
+    card: dict, *, trigger_types: list[str], opponents: int
 ) -> list[dict]:
-    """Classify a card's triggered abilities. Reads the Card IR when ``ir`` is present
-    (ADR-0029 bucket-A), otherwise scans oracle text (bucket-B fallback)."""
-    if ir is not None:
-        return _detect_triggers_ir(ir, trigger_types, opponents)
-    oracle = get_oracle_text(card)
-    sentences = _split_trigger_sentences(oracle)
+    """The card's triggered abilities: ``text`` (the ability in words), ``types``
+    (every trigger type it fires on, ``reads.trigger_kinds``),
+    ``matches_trigger_type`` and ``matched_type`` (the first of ``types`` asked
+    for), and ``parseable`` / ``base_value`` — the first fixed number the ability
+    yields (``reads.fixed_amount``), damage to each opponent counted once per
+    opponent (Purphoros, God of the Forge: 2 → 6 against three); the text when
+    there is none."""
     results: list[dict] = []
-    for sentence in sentences:
-        matches, matched_type = _match_trigger_type(sentence, trigger_types)
-        parseable, base_value = _parse_value(sentence, opponents)
+    for tree, unit in _trigger_units(trees_for(dict(card))):
+        text = unit_text(unit, tree.name)
+        types = trigger_kinds(unit)
+        matched = next((t for t in types if t in trigger_types), None)
+        amount = fixed_amount(unit)
+        value = None
+        if amount is not None:
+            value = amount.value * (opponents if amount.per_opponent else 1)
         results.append(
             {
-                "text": sentence,
-                "matches_trigger_type": matches,
-                "matched_type": matched_type,
-                "parseable": parseable,
-                "base_value": base_value,
+                "text": text,
+                "types": list(types),
+                "matches_trigger_type": matched is not None,
+                "matched_type": matched,
+                "parseable": value is not None,
+                "base_value": str(value) if value is not None else text,
             }
         )
     return results
@@ -250,45 +121,18 @@ def detect_triggers(
 # Keyword interaction detection
 # ---------------------------------------------------------------------------
 
-_CANT_BE_BLOCKED_MORE_THAN_ONE_RE = re.compile(
-    r"can't be blocked by more than one creature", re.IGNORECASE
-)
-_DEALS_COMBAT_DAMAGE_RE = re.compile(r"deals combat damage", re.IGNORECASE)
 
-
-def _card_keywords_lower(card: dict) -> set[str]:
-    """Return lowercased set of keywords from keywords list + oracle text."""
-    kws: set[str] = set()
-    for kw in card.get("keywords", []):
-        kws.add(kw.lower())
-    oracle = get_oracle_text(card)
-    # Pick up inline keyword declarations (e.g. "Double strike\n")
-    for line in oracle.splitlines():
-        stripped = line.strip().rstrip(".")
-        if stripped and len(stripped.split()) <= 3:
-            kws.add(stripped.lower())
-    return kws
-
-
-def detect_keyword_interactions(card: dict, commander: dict) -> list[dict]:
-    """Detect emergent keyword combinations between card and commander."""
-    card_kws = _card_keywords_lower(card)
-    cmd_kws = _card_keywords_lower(commander)
-    card_oracle = get_oracle_text(card)
-    cmd_oracle = get_oracle_text(commander)
-
-    all_card_kws = card_kws
-    all_cmd_kws = cmd_kws
-
+def detect_keyword_interactions(card: dict, cmd: CommanderProfile) -> list[dict]:
+    """Emergent keyword combinations between the card and the commander."""
+    kws = object_facts(dict(card)).keywords | cmd.facts.keywords
     interactions: list[dict] = []
 
-    # menace (commander) + "can't be blocked by more than one creature" (card oracle)
-    has_menace = "menace" in all_cmd_kws or "menace" in all_card_kws
-    has_block_restrict = (
-        _CANT_BE_BLOCKED_MORE_THAN_ONE_RE.search(card_oracle) is not None
-        or _CANT_BE_BLOCKED_MORE_THAN_ONE_RE.search(cmd_oracle) is not None
-    )
-    if has_menace and has_block_restrict:
+    # Menace: "can't be blocked except by two or more creatures" (CR 702.111b);
+    # beside "can't be blocked by more than one creature" no block is legal, the
+    # restrictions being cumulative (CR 509.1b).
+    if "menace" in kws and (
+        cmd.limits_blockers or _any_tree(card, limits_blockers_to_one)
+    ):
         interactions.append(
             {
                 "keywords": ["menace", "can't be blocked by more than one creature"],
@@ -299,15 +143,11 @@ def detect_keyword_interactions(card: dict, commander: dict) -> list[dict]:
             }
         )
 
-    # double strike (card) + combat damage trigger (commander oracle)
-    has_double_strike = (
-        "double strike" in all_card_kws or "double strike" in all_cmd_kws
-    )
-    has_combat_damage_trigger = (
-        _DEALS_COMBAT_DAMAGE_RE.search(cmd_oracle) is not None
-        or _DEALS_COMBAT_DAMAGE_RE.search(card_oracle) is not None
-    )
-    if has_double_strike and has_combat_damage_trigger:
+    # Double strike deals combat damage in both combat damage steps (CR 702.4b),
+    # so a combat-damage trigger fires twice.
+    if "doublestrike" in kws and (
+        cmd.combat_damage_trigger or _any_tree(card, has_combat_damage_trigger)
+    ):
         interactions.append(
             {
                 "keywords": ["double strike", "combat damage trigger"],
@@ -318,10 +158,9 @@ def detect_keyword_interactions(card: dict, commander: dict) -> list[dict]:
             }
         )
 
-    # trample + deathtouch
-    has_trample = "trample" in all_card_kws or "trample" in all_cmd_kws
-    has_deathtouch = "deathtouch" in all_card_kws or "deathtouch" in all_cmd_kws
-    if has_trample and has_deathtouch:
+    # Any nonzero combat damage from a deathtouch source is lethal for assigning
+    # trample damage (CR 702.2c, 702.19b).
+    if "trample" in kws and "deathtouch" in kws:
         interactions.append(
             {
                 "keywords": ["trample", "deathtouch"],
@@ -335,174 +174,45 @@ def detect_keyword_interactions(card: dict, commander: dict) -> list[dict]:
 
 
 # ---------------------------------------------------------------------------
-# Commander multiplication patterns
+# Self-recurring, commander multiplication, zone grant
 # ---------------------------------------------------------------------------
-
-# Commander copy patterns — cards that create a permanent copy
-_COMMANDER_COPY_PATTERNS: dict[str, re.Pattern[str]] = {
-    "create_token_copy": re.compile(
-        r"create[s]?\s+(?:a|an|one|two|\d+)\s+(?:\S+\s+)*?tokens?\s+"
-        r"(?:that(?:'s|\s+is)\s+(?:a\s+)?)?cop(?:y|ies)\s+of",
-        re.IGNORECASE,
-    ),
-    "becomes_copy": re.compile(
-        r"(?:enter[s]?\s+(?:the\s+battlefield\s+)?as\s+(?:a\s+)?copy\s+of"
-        r"|becomes?\s+a\s+copy\s+of)",
-        re.IGNORECASE,
-    ),
-    "create_copy": re.compile(
-        r"create[s]?\s+(?:a|an|one|two|\d+)\s+cop(?:y|ies)\s+of",
-        re.IGNORECASE,
-    ),
-    "copy_creature_spell": re.compile(
-        r"copy\s+target\s+creature\s+spell.*?isn(?:'t| not)\s+legendary",
-        re.IGNORECASE,
-    ),
-}
-
-# Ability copy patterns — cards that copy or double abilities
-_ABILITY_COPY_PATTERNS: dict[str, re.Pattern[str]] = {
-    "copy_triggered_ability": re.compile(
-        r"copy\s+target\s+triggered\s+ability",
-        re.IGNORECASE,
-    ),
-    "copy_activated_or_triggered": re.compile(
-        r"copy\s+target\s+activated\s+or\s+triggered\s+ability",
-        re.IGNORECASE,
-    ),
-    "copy_activated_ability": re.compile(
-        r"copy\s+that\s+ability",
-        re.IGNORECASE,
-    ),
-    "trigger_doubler": re.compile(
-        r"triggers?\s+an\s+additional\s+time",
-        re.IGNORECASE,
-    ),
-}
-
-# Legend-rule bypass patterns
-_LEGEND_BYPASS_PATTERNS: list[re.Pattern[str]] = [
-    re.compile(r"isn(?:'t| not)\s+legendary", re.IGNORECASE),
-    re.compile(r"legend\s+rule.*?doesn(?:'t| not)\s+apply", re.IGNORECASE),
-]
-
-# A mana ability is an activated ability whose effect adds mana (CR 605.1a).
-# Callers choose whether to include them; that is a real distinction. "Does the
-# cost contain a mana symbol" is NOT — see _activated_ability_lines.
-_MANA_ABILITY_RE = re.compile(r"^\{[^}]*\}(?:,\s*\{[^}]*\})*:\s*Add\s", re.IGNORECASE)
-
-# ---------------------------------------------------------------------------
-# Self-recurring detection
-# ---------------------------------------------------------------------------
-
-_RECURRING_KEYWORD_RE = re.compile(
-    r"\b(suspend|buyback|retrace|escape|flashback|encore)\b", re.IGNORECASE
-)
-_EXILE_TIME_COUNTER_RE = re.compile(r"exile.*?with.*?time counter", re.IGNORECASE)
-_RETURN_TO_HAND_RE = re.compile(r"return.*?to.*?hand", re.IGNORECASE)
 
 
 def detect_self_recurring(card: dict) -> bool:
-    """Return True if the card has self-recursion mechanics."""
-    oracle = get_oracle_text(card)
-    keywords = [kw.lower() for kw in card.get("keywords", [])]
-
-    # Check keywords list
-    for kw in keywords:
-        if _RECURRING_KEYWORD_RE.search(kw):
-            return True
-
-    # Check oracle text
-    if _RECURRING_KEYWORD_RE.search(oracle):
-        return True
-    if _EXILE_TIME_COUNTER_RE.search(oracle):
-        return True
-    return bool(_RETURN_TO_HAND_RE.search(oracle))
+    """Whether the card brings itself back for another use — the
+    ``self-recurring`` preset (``lanes.card_advantage.recurs_itself``)."""
+    return matches_preset("self-recurring", card)
 
 
-# ---------------------------------------------------------------------------
-# Commander multiplication detection
-# ---------------------------------------------------------------------------
+def detect_commander_multiplication(card: dict, cmd: CommanderProfile) -> dict:
+    """Whether the card copies the commander or multiplies its abilities.
 
-
-def _extract_activated_abilities(oracle_text: str) -> list[str]:
-    """Non-mana activated abilities on a card.
-
-    Thin wrapper over :func:`_activated_ability_lines` — kept because
-    "abilities that would be doubled by an ability-copier" legitimately wants
-    mana abilities excluded, which is a caller's choice about *effects*.
+    Returns a dict with:
+        - commander_copy: ``{"type", "clause"}`` per way it copies the commander
+        - ability_copy: the same per way it copies or doubles its abilities
+        - legend_bypass: whether the card gets around the legend rule
+        - commander_triggers_affected: the commander's trigger types
+        - commander_activated_abilities: the commander's non-mana activated
+          abilities (both only when the card copies or multiplies)
     """
-    return _activated_ability_lines(oracle_text, include_mana=False)
+    reasons = multiplier_reasons(card, cmd)
+    by_family: dict[str, list[dict]] = {"copy": [], "ability": []}
+    for r in reasons:
+        if r.family in by_family:
+            by_family[r.family].append({"type": r.kind, "clause": r.clause})
+    multiplies = bool(by_family["copy"] or by_family["ability"])
+    return {
+        "commander_copy": by_family["copy"],
+        "ability_copy": by_family["ability"],
+        "legend_bypass": _any_tree(card, bypasses_legend_rule),
+        "commander_triggers_affected": list(cmd.trigger_types) if multiplies else [],
+        "commander_activated_abilities": (
+            list(cmd.activated_texts) if multiplies else []
+        ),
+    }
 
 
-# ---------------------------------------------------------------------------
-# Zone-granted activated abilities
-# ---------------------------------------------------------------------------
-
-# Some commanders read a zone rather than the battlefield: Thranduil, the
-# Elvenking "has all activated abilities of all Elf cards in your graveyard."
-# Capture the card type the grant keys on and the zone it reads.
-_ZONE_GRANT_RE = re.compile(
-    r"has all activated abilities of all ([A-Za-z][\w'\-]*) cards?\s*"
-    r"(?:in your (graveyard|hand|library)|(exiled) with)",
-    re.IGNORECASE,
-)
-
-# Reminder text can hold a colon ("Equip {1} ({1}: Attach ...)"), so strip it
-# before deciding whether a line is an activated ability.
-_REMINDER_RE = re.compile(r"\([^)]*\)")
-_TRIGGER_PREFIX_RE = re.compile(
-    r"^\s*(?:At the beginning|Whenever|When)\b", re.IGNORECASE
-)
-# Loyalty costs print with U+2212 MINUS SIGN, not a hyphen — escaped so it
-# survives a copy-paste and doesn't read as an ambiguous-unicode typo.
-_LOYALTY_RE = re.compile("^\\s*\\[?\\s*[+\\u2212-]?\\s*\\d+\\s*\\]?\\s*:")
-
-
-def _activated_ability_lines(
-    oracle_text: str, *, include_mana: bool = True
-) -> list[str]:
-    """Activated abilities on a card — "[Cost]: [Effect]" per CR 602.1.
-
-    The cost need not contain a mana symbol: "Discard a card:" (Iron-Shield
-    Elf) and "Tap three untapped Elves you control:" (High Perfect Morcant) are
-    activated abilities, and any rule keyed on ``{...}`` in the cost silently
-    drops them. Triggered abilities and loyalty abilities are excluded because
-    they are different ability types, not because of their cost shape.
-
-    ``include_mana`` is the one legitimate caller choice here — a mana ability
-    is still an activated ability (CR 605.1a), but "which of the commander's
-    abilities would an ability-copier double" reasonably wants them out, while
-    a zone grant reasonably wants them in (Priest of Titania's mana ability is
-    usually the single biggest thing such a commander borrows).
-    """
-    out: list[str] = []
-    for raw in oracle_text.splitlines():
-        line = raw.strip()
-        core = _REMINDER_RE.sub("", line).strip()
-        if ":" not in core:
-            continue
-        if _TRIGGER_PREFIX_RE.match(core) or _LOYALTY_RE.match(core):
-            continue
-        if not include_mana and _MANA_ABILITY_RE.match(core):
-            continue
-        out.append(core)
-    return out
-
-
-def _card_has_type(card: dict, type_word: str) -> bool:
-    """Whether the card carries ``type_word`` (changeling counts — CR 702.73a)."""
-    type_line = card.get("type_line") or ""
-    if not type_line:
-        type_line = " ".join(
-            f.get("type_line", "") for f in (card.get("card_faces") or [])
-        )
-    if re.search(rf"\b{re.escape(type_word)}\b", type_line, re.IGNORECASE):
-        return True
-    return "changeling" in get_oracle_text(card).lower()
-
-
-def detect_zone_granted_abilities(card: dict, commander: dict) -> dict:
+def detect_zone_granted_abilities(card: dict, cmd: CommanderProfile) -> dict:
     """Abilities the commander borrows from this card in a non-battlefield zone.
 
     For a commander like Thranduil, the Elvenking, a matching card's activated
@@ -511,81 +221,20 @@ def detect_zone_granted_abilities(card: dict, commander: dict) -> dict:
     cut-check models this: ``detect_triggers`` reads triggered abilities and
     ``detect_commander_multiplication`` only fires when the cut card copies the
     commander, so a card whose whole value is "its activated ability, from the
-    yard" otherwise produces zero signal.
+    yard" otherwise produces zero signal (``multipliers.grant_abilities``).
 
     Returns ``{"grants": False}`` when the commander has no such ability.
     """
-    match = _ZONE_GRANT_RE.search(get_oracle_text(commander))
-    if not match:
+    grant = cmd.grant
+    if grant is None:
         return {"grants": False}
-
-    type_word = match.group(1)
-    zone = (match.group(2) or match.group(3) or "exile").lower()
-    matches_type = _card_has_type(card, type_word)
+    abilities = grant_abilities(card, grant)
     return {
         "grants": True,
-        "granted_type": type_word,
-        "zone": zone,
-        "card_matches_type": matches_type,
-        "abilities": (
-            _activated_ability_lines(get_oracle_text(card)) if matches_type else []
-        ),
-    }
-
-
-def detect_commander_multiplication(card: dict, commander: dict) -> dict:
-    """Detect whether a card can copy the commander or its abilities.
-
-    Returns a dict with:
-        - commander_copy: list of matched copy effects
-        - ability_copy: list of matched ability-copy/doubler effects
-        - legend_bypass: whether the card bypasses the legend rule
-        - commander_triggers_affected: commander trigger types that would be multiplied
-        - commander_activated_abilities: non-mana activated abilities on the commander
-    """
-    card_oracle = get_oracle_text(card)
-    cmd_oracle = get_oracle_text(commander)
-
-    commander_copy: list[dict] = []
-    ability_copy: list[dict] = []
-    legend_bypass = False
-
-    for label, pattern in _COMMANDER_COPY_PATTERNS.items():
-        m = pattern.search(card_oracle)
-        if m:
-            commander_copy.append({"type": label, "matched_text": m.group(0)})
-
-    for label, pattern in _ABILITY_COPY_PATTERNS.items():
-        m = pattern.search(card_oracle)
-        if m:
-            ability_copy.append({"type": label, "matched_text": m.group(0)})
-
-    for pattern in _LEGEND_BYPASS_PATTERNS:
-        if pattern.search(card_oracle):
-            legend_bypass = True
-            break
-
-    # Identify commander triggers that would be affected
-    commander_triggers_affected: list[str] = []
-    if commander_copy or ability_copy:
-        cmd_sentences = _split_trigger_sentences(cmd_oracle)
-        all_types = list(_TRIGGER_PATTERNS.keys())
-        for sentence in cmd_sentences:
-            _matches, matched_type = _match_trigger_type(sentence, all_types)
-            if matched_type and matched_type not in commander_triggers_affected:
-                commander_triggers_affected.append(matched_type)
-
-    # Identify commander activated abilities
-    commander_activated_abilities: list[str] = []
-    if commander_copy or ability_copy:
-        commander_activated_abilities = _extract_activated_abilities(cmd_oracle)
-
-    return {
-        "commander_copy": commander_copy,
-        "ability_copy": ability_copy,
-        "legend_bypass": legend_bypass,
-        "commander_triggers_affected": commander_triggers_affected,
-        "commander_activated_abilities": commander_activated_abilities,
+        "granted_type": grant.card_type,
+        "zone": grant.zone,
+        "card_matches_type": abilities is not None,
+        "abilities": abilities or [],
     }
 
 
@@ -606,20 +255,14 @@ def run_cut_check(
 ) -> list[dict]:
     """Run full mechanical analysis for each card in cut_names."""
     lookup = build_card_lookup(hydrated)
-    commander = lookup.get(commander_name, {})
+    cmd = commander_profile(lookup.get(commander_name, {}))
     results: list[dict] = []
 
     for name in cut_names:
-        card = lookup.get(name, {"name": name, "oracle_text": "", "keywords": []})
-        # ADR-0029: read the card's IR structurally when the sidecar (built upstream by
-        # the Step-6 spine) resolves it; ir_for returns None otherwise → regex fallback.
+        card = lookup.get(name, {"name": name, "keywords": []})
         triggers = detect_triggers(
-            card, trigger_types=trigger_types, opponents=opponents, ir=ir_for(card)
+            card, trigger_types=trigger_types, opponents=opponents
         )
-        keyword_interactions = detect_keyword_interactions(card, commander)
-        self_recurring = detect_self_recurring(card)
-        commander_multiplication = detect_commander_multiplication(card, commander)
-        zone_granted = detect_zone_granted_abilities(card, commander)
 
         # Add multiplied values for parseable matching triggers
         enriched_triggers: list[dict] = []
@@ -638,10 +281,10 @@ def run_cut_check(
             {
                 "name": name,
                 "triggers": enriched_triggers,
-                "keyword_interactions": keyword_interactions,
-                "self_recurring": self_recurring,
-                "commander_multiplication": commander_multiplication,
-                "zone_granted_abilities": zone_granted,
+                "keyword_interactions": detect_keyword_interactions(card, cmd),
+                "self_recurring": detect_self_recurring(card),
+                "commander_multiplication": detect_commander_multiplication(card, cmd),
+                "zone_granted_abilities": detect_zone_granted_abilities(card, cmd),
             }
         )
 
@@ -844,7 +487,7 @@ def _attach_rule_citations(
         terms: list[str] = []
         for ki in entry.get("keyword_interactions", []):
             for kw in ki.get("keywords", []):
-                # Keep short, single-word-ish keywords; skip oracle-text
+                # Keep short, single-word-ish keywords; skip descriptive
                 # fragments like "can't be blocked by more than one
                 # creature" which aren't glossary terms.
                 if len(kw.split()) <= 3:
@@ -873,6 +516,7 @@ def _attach_rule_citations(
     "--trigger-type",
     "trigger_types",
     multiple=True,
+    type=click.Choice(TRIGGER_KINDS),
     help="Trigger type to check (may be repeated).",
 )
 @click.option(

@@ -525,6 +525,14 @@ class ConceptTree:
     # make of the payment (alternative / additional / special action / ability);
     # plus the keywords phase drops, recovered by ``_dropped_keyword_costs``.
     card_alt_costs: tuple[AltCost, ...] = ()
+    # The card's printed keyword abilities as phase names them (``Flashback``,
+    # ``Rebound``, ``JumpStart``, ``Embalm`` …), in ``root.keywords`` order — the
+    # keywords phase leaves to its rules engine rather than expanding into ability
+    # units (flashback's cast permission, rebound's exile), which a read can only
+    # see by name, plus the ones ``_dropped_keyword_costs`` recovers from a residue
+    # (Escape Velocity's escape, in its lowercase kind). Fold with
+    # ``reads.normalised_keyword_name`` to compare.
+    card_keywords: tuple[str, ...] = ()
 
     def is_type(self, core: str) -> bool:
         """Whether the card itself has core type ``core`` (Creature / Land / …).
@@ -746,7 +754,7 @@ _SELF_RETURN_TARGETS: frozenset[str] = frozenset({"SelfRef", "TriggeringSource"}
 # back-reference after one of these names the produced card, not the dying
 # self (CR 702.93a/702.79a's "return it" is the dying object itself).
 _CARD_PRODUCER_TAGS: frozenset[str] = frozenset(
-    {"RevealTop", "Dig", "TurnFaceUp", "Search"}
+    {"RevealTop", "Dig", "TurnFaceUp", "Search", "Seek"}
 )
 
 # ADR-0038 W3 batch 2: the dies-return trigger's OWN watcher — a bare
@@ -816,10 +824,18 @@ def is_dies_return_trigger(trig: object) -> bool:
     #     loose back-ref to the face-down IMPRINTED card being turned up
     #     (Clone Shell, Summoner's Egg — the returned object never died).
     #     A ``Dig``/exile producer marks the same imprint indirection.
+    #   * a delayed trigger that WATCHES an object ("When it dies or is
+    #     exiled, return it" — earthbend's animated land, Earth Village
+    #     Ruffians) binds its ``TriggeringSource`` to that watched object.
     delayed_ids: set[int] = set()
+    watching_ids: set[int] = set()
     for cn in _walk_effect_chain(execute):
         if tag_of(cn.node) == "CreateDelayedTrigger":
-            delayed_ids.update(id(x.node) for x in _walk_effect_chain(cn.node))
+            inner = {id(x.node) for x in _walk_effect_chain(cn.node)}
+            delayed_ids.update(inner)
+            watched = getattr(getattr(cn.node, "condition", None), "filter", None)
+            if watched is not None and tag_of(watched) != "SelfRef":
+                watching_ids.update(inner)
     producer_seen = False
     # The else branch is walked after the main branch's subtree, so any
     # producer there still gates it (Bogardan Phoenix's return) — conservative.
@@ -845,6 +861,8 @@ def is_dies_return_trigger(trig: object) -> bool:
             continue
         if producer_seen and target == "TriggeringSource" and not in_delayed:
             continue  # imprint return — the face-down card, not the self
+        if target == "TriggeringSource" and id(node) in watching_ids:
+            continue  # the delayed trigger's watched object, not the self
         if player_chosen and getattr(node, "enters_under", None) != "You":
             continue  # hot-potato — the return goes to the CHOSEN player
         return True
@@ -1311,7 +1329,9 @@ def _printed_part(part: str) -> tuple[str, int | None]:
 #: Horror) parses as count 0 with an empty {0} cost, so it is read off the card's
 #: line instead (CR 702.62a's "Suspend N—[cost]", N here X). Warbringer's "Dash costs
 #: you pay cost {2} less" (its ruling: the ability reduces dash costs) parses as a
-#: second ``Dash`` with an empty cost, dropped beside the real one. Guarded by
+#: second ``Dash`` with an empty cost, dropped beside the real one; Memory Crystal's
+#: "Buyback costs cost {2} less" (its rulings: it changes buyback costs) as a lone
+#: ``Buyback`` with an empty cost — a buyback always has one (CR 702.27a). Guarded by
 #: ``test_misread_keyword_canary``.
 def _misread_keyword(kw: object, keys: list[str]) -> bool:
     if not isinstance(kw, MirrorVariant):
@@ -1320,7 +1340,9 @@ def _misread_keyword(kw: object, keys: list[str]) -> bool:
         return True
     cost = keyword_cost(kw)
     empty = tag_of(cost) == "Cost" and not getattr(cost, "shards", None)
-    return empty and not getattr(cost, "generic", 0) and keys.count(kw.key) > 1
+    if not empty or getattr(cost, "generic", 0):
+        return False
+    return keys.count(kw.key) > 1 or kw.key == "Buyback"
 
 
 def _dropped_keyword_costs(
@@ -1448,6 +1470,7 @@ def build_concept_tree(
     card_curve_costs: list[int] = []
     card_alt_costs: list[AltCost] = []
     present_keywords: set[str] = set()
+    card_keywords: list[str] = []
     kw_list = kws_root if isinstance(kws_root, list) else []
     kw_keys = [kw.key for kw in kw_list if isinstance(kw, MirrorVariant)]
     for kw in kw_list:
@@ -1456,9 +1479,15 @@ def build_concept_tree(
         if (cost := keyword_curve_cost(kw)) is not None:
             card_curve_costs.append(cost)
         card_alt_costs.extend(keyword_alt_costs(kw))
-        present_keywords.add(kw.key if isinstance(kw, MirrorVariant) else str(kw))
+        name = kw.key if isinstance(kw, MirrorVariant) else str(kw)
+        present_keywords.add(name)
+        card_keywords.append(name)
     dropped_rows, dropped_curve = _dropped_keyword_costs(root, present_keywords)
     card_alt_costs.extend(dropped_rows)
+    # A keyword phase parked as a residue (Escape Velocity's escape) still names it.
+    card_keywords.extend(
+        row.kind for row in dropped_rows if row.kind not in card_keywords
+    )
     card_curve_costs.extend(dropped_curve)
     # ADR-0039 grammar sprint (task #82): a modal SPELL's card-root
     # ``modal.mode_descriptions`` (CR 700.2), positionally paired with
@@ -1685,6 +1714,7 @@ def build_concept_tree(
         card_enchant_core_types=card_enchant_core_types,
         card_curve_costs=tuple(card_curve_costs),
         card_alt_costs=tuple(card_alt_costs),
+        card_keywords=tuple(card_keywords),
     )
     # ADR-0038 — substrate-wide Unimplemented recovery runs INSIDE the tree
     # build so every consumer (signal lanes, compat projection, convergence +

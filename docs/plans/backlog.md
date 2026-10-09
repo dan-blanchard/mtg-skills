@@ -22,10 +22,6 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   the recovery stage or a ledgered bridge (ADR-0047/0048), never a free regex. The
   `_analysis/text_reads.py` patterns are the sanctioned bridge / membership-floor set and
   out of scope. Pre-existing targets:
-  - `cut_check.py` (~30): trigger types and values, keyword interactions,
-    self-recurring, `detect_commander_multiplication`'s copy patterns, the zone grant.
-    The tuner's protection already moved to `_analysis/multipliers.py`; cut-check's own
-    report should read the same trees.
   - `_tuner/issues.py`: `_RAMP_CONDITIONAL` ("only if you control" in the oracle text
     keeps a conditionally gated rock out of the tuner's ramp sourcing); read the
     mana ability's activation condition off the tree.
@@ -65,12 +61,27 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   - `ranking._structural_floor` (`is_fixing` / `is_ramp` / `cmc_bomb`) is serialised
     into every candidate's score and read by nothing — the SPA, the tuner and the
     CLIs all ignore it (its `is_tutor` text read was deleted for that reason).
-- **Two commander-multiplier gaps.** Syr Konrad's trigger reads as `ChangesZone` with
-  no zones (a phase gap), so `_analysis/multipliers` can't match a dies doubler to it;
-  report upstream rather than work around it. And `trees.object_facts` reads printed
+- **Commander-multiplier gaps.** Syr Konrad's trigger reads as `ChangesZone` with no
+  zones (a phase gap), so `_analysis/multipliers` can't match a dies doubler to it;
+  report upstream rather than work around it. `trees.object_facts` reads printed
   types only, so Grist, the Hunger Tide ("a 1/1 Insect creature" off the battlefield)
   isn't seen as a creature spell Double Major or Lithoform Engine can copy; read the
   off-battlefield type-adding static from the tree.
+- **Phase misparses behind cut-check reads** (found 2026-10-08; report upstream,
+  Dan posts). Each has a canary: Glorfindel, Dauntless Rescuer's "can't be blocked
+  by more than one creature each combat" parses as `CantBeBlockedBy` a typeless
+  filter (`test_glorfindel_blocking_limit_misparse_canary`); Wyll's Reversal loses
+  "with one or more targets", so it reads as a commander-spell copy
+  (`test_wylls_reversal_target_constraint_canary`); aftermath halves (Dusk // Dawn),
+  Garza's Assassin's recover, Salvation Colossus's unearth and Oscorp Industries'
+  mayhem are dropped, so the `self-recurring` preset reads them by keyword
+  (`test_self_recurring_keyword_gap_canary`); Nether Shadow loses "if this card is
+  in your graveyard" (`test_nether_shadow_graveyard_condition_canary`); Bumi's Feast
+  Lecture's earthbend return binds to the Food token (`LastCreated`) instead of the
+  land (`test_earthbend_last_created_binding_canary`).
+- **`serve_self_recur` is still an oracle regex** (`signal_specs._shared._self_recurs`,
+  the reanimator avenue's self-recurring creatures). It could ride the
+  `self_recurring` key's idents, filtered to creatures.
 
 **From arena-meta (2026-10-05, ADR-0059)**
 

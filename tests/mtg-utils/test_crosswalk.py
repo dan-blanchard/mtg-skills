@@ -7746,8 +7746,9 @@ def test_dies_recursion_aura_equipment_attached_to_arm(name):
 # Wretch, Unstoppable Slasher, Infernal Vessel, Princess Yue), a Phoenix-
 # style modal branch (Bogardan Phoenix, Lamplight Phoenix), a
 # same-type-share condition (Fang Roku's Companion, Otherworldly Escort),
-# a self-transforming Aura-Land loop (Harold and Bob, Earth Village
-# Ruffians' land-creature analog), an exile-then-reattach (Lucius the
+# a self-transforming Aura-Land loop (Harold and Bob; Earth Village
+# Ruffians' earthbend sets the same return up on a land — the lane's
+# delayed grant arm, ``_sets_up_dies_return``), an exile-then-reattach (Lucius the
 # Eternal), and a delayed-trigger return AT THE BEGINNING OF THE NEXT END
 # STEP (Loyal Cathar — a flat ``ParentTarget`` with NO producer effect
 # preceding it, so it binds to the trigger's own source); a player-chosen
@@ -17686,3 +17687,97 @@ def test_verdant_mastery_piles_are_still_lost_canary():
         "Mastery's piles. Read your pile's count off the tree, then delete "
         "lost_pile_count, _YOUR_PILE_RE and this canary."
     )
+
+
+@pytest.mark.parametrize("name", ["Earth Village Ruffians", "Wildgrove Summoner"])
+def test_a_dies_trigger_returning_another_card_is_no_self_return(name):
+    """``is_dies_return_trigger`` (undying / persist, CR 702.93a / 702.79a) wants the
+    object that died. Earthbend's "when it dies, return it" watches the animated
+    land; Wildgrove Summoner puts the Forests it seeks onto the battlefield."""
+    from mtg_utils._card_ir.crosswalk import is_dies_return_trigger
+
+    units = [u for t in trees_for(test_card(name)) for u in t.iter_units("trigger")]
+    assert units
+    assert not any(is_dies_return_trigger(u.node) for u in units)
+
+
+@pytest.mark.retirement_canary
+def test_glorfindel_blocking_limit_misparse_canary():
+    """Phase v0.94.0 parses Glorfindel, Dauntless Rescuer's "can't be blocked by more
+    than one creature each combat this turn" as ``CantBeBlockedBy`` a typeless
+    filter, so ``reads.limits_blockers_to_one`` (cut-check's menace interaction)
+    misses it. RETIRE-READY when the mode reads ``CantBeBlockedByMoreThan``: then
+    cut-check flags menace + Glorfindel with no change, and this canary goes."""
+    from mtg_utils._card_ir.crosswalk.reads import limits_blockers_to_one
+
+    trees = trees_for(test_card("Glorfindel, Dauntless Rescuer"))
+    assert not any(limits_blockers_to_one(t) for t in trees), (
+        "Glorfindel: RETIRE-READY — phase now parses the blocking limit; delete "
+        "this canary and its backlog line."
+    )
+
+
+@pytest.mark.retirement_canary
+def test_wylls_reversal_target_constraint_canary():
+    """Phase v0.94.0 drops Wyll's Reversal's "with one or more targets", leaving a
+    bare ``StackSpell``, so ``_analysis.multipliers`` reads its copy as able to copy
+    a commander spell (which has no targets, CR 115.1a/b). RETIRE-READY when the
+    target carries the constraint: then the multipliers' targeting veto drops it."""
+    from mtg_utils._analysis.multipliers import commander_multipliers
+
+    out = commander_multipliers(
+        [test_card("Wyll's Reversal")], [test_card("Krenko, Mob Boss")]
+    )
+    assert "Wyll's Reversal" in out, (
+        "Wyll's Reversal: RETIRE-READY — no longer read as a commander copy; "
+        "delete this canary and its backlog line."
+    )
+
+
+@pytest.mark.parametrize(
+    "name", ["Earth Village Ruffians", "Fatal Fissure", "Bumi's Feast Lecture"]
+)
+def test_earthbend_is_dies_recursion(name):
+    """CR 701.66a: earthbend's land returns "when that land dies or is put into
+    exile" — dies-recursion set up on a land, like a granted undying."""
+    assert ("dies_recursion", "you", "") in _idents(name)
+
+
+@pytest.mark.retirement_canary
+def test_earthbend_last_created_binding_canary():
+    """Phase v0.94.0 binds Bumi's Feast Lecture's earthbend return to ``LastCreated``
+    (the Food token it just made), not the land; ``lanes.card_advantage.
+    _sets_up_dies_return`` counts it (``EARTHBEND_LAST_CREATED_MISBIND``). When
+    the return names the land, drop that arm and this canary."""
+    from mtg_utils._card_ir.crosswalk import tag_of
+
+    targets = {
+        tag_of(getattr(n, "target", None))
+        for t in trees_for(test_card("Bumi's Feast Lecture"))
+        for n in t.iter_typed()
+        if tag_of(n) == "ChangeZone"
+        and getattr(n, "destination", None) == "Battlefield"
+    }
+    assert "LastCreated" in targets, (
+        "_sets_up_dies_return: RETIRE-READY — Bumi's Feast Lecture's earthbend "
+        "return no longer reads LastCreated; delete the misbind arm and this canary."
+    )
+
+
+@pytest.mark.retirement_canary
+def test_nether_shadow_graveyard_condition_canary():
+    """Phase v0.94.0 drops Nether Shadow's "if this card is in your graveyard", so
+    the self_recurring lane reads a step trigger's zone-less "put this card onto
+    the battlefield" as a return (``_returns_self``). When phase marks the
+    graveyard zone, that arm can go."""
+    units = [
+        u
+        for t in trees_for(test_card("Nether Shadow"))
+        for u in t.iter_units("trigger")
+    ]
+    assert units
+    assert not any(
+        "Graveyard" in (getattr(u.node, "trigger_zones", None) or [])
+        or getattr(getattr(u.node, "condition", None), "zone", None) == "Graveyard"
+        for u in units
+    ), "Nether Shadow: RETIRE-READY — phase now carries the graveyard zone."

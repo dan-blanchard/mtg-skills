@@ -33,6 +33,7 @@ from mtg_utils._card_ir.crosswalk import (
     filter_core_types,
     filter_inzone_zones,
     filter_predicates,
+    has_structural_legend_rule_off,
     iter_condition_sites,
     iter_static_defs,
     iter_typed_nodes,
@@ -1061,12 +1062,6 @@ _TARGETING_RESIDUE_SYNTH_RX = re.compile(
     r"that targets",
     re.IGNORECASE,
 )
-
-
-def has_structural_legend_rule_off(tree: ConceptTree) -> bool:
-    """CR 704.5j: a ``LegendRuleDoesntApply`` static mode phase types
-    directly (the unbounded AND the Cadric-style bounded forms)."""
-    return tree.has_static_mode("LegendRuleDoesntApply")
 
 
 def _arm_legend_rule_off(tree: ConceptTree) -> ConceptNode | None:

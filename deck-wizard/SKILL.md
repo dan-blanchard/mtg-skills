@@ -1279,7 +1279,7 @@ Cards with feedback loops are almost always stronger than they appear in isolati
 
 ### Recurring Cards
 
-Identify all cards that return themselves to a usable zone: re-suspend, buyback, retrace, escape, flashback, "return to hand" clauses, "exile with time counters" effects. Evaluate these on their per-game value (total free casts over a typical game), not their per-cast value. A 6-mana spell that re-suspends and gets cast for free every 1-2 turns is a permanent with a triggered ability, not a one-shot.
+Identify all cards that return themselves to a usable zone: re-suspend ("exile it with time counters"), buyback, retrace, escape, flashback and the other cast-from-graveyard keywords, a return of the card itself from the graveyard (Bloodghast, Vengevine), and a card that returns itself to your hand (Arcanis the Omnipotent, Grinning Ignus). Evaluate these on their per-game value (total free casts over a typical game), not their per-cast value. A 6-mana spell that re-suspends and gets cast for free every 1-2 turns is a permanent with a triggered ability, not a one-shot. `cut-check`'s `self-recurring` flag reads exactly this; returning *another* card (Eternal Witness) or bouncing something else (Man-o'-War) is not self-recursion, and suspend alone is one delayed cast.
 
 ### Commander Multiplication
 
@@ -1289,9 +1289,9 @@ Identify cards that multiply the commander's impact. Two categories:
 
 **Ability copiers and trigger multipliers** — cards that copy or double the commander's triggered/activated abilities (Strionic Resonator, Rings of Brighthearth, Panharmonicon for ETB commanders, Teysa Karlov for death triggers, Isshin for attack triggers, Seedborn Muse for extra activations).
 
-Scan oracle text for these patterns directly — `cut-check`'s `commander_multiplication` field catches obvious cases but misses oddly-worded effects. **These cards are force-multipliers.** Treat any card you flag as untouchable when drafting cuts — it should not appear on the cuts list without explicit justification.
+`cut-check`'s `commander_multiplication` field reads this against **your** commander, the same read the tuner protects cuts with: a copy only counts when it can copy the commander (Kiki-Jiki and Cytoshape copy only a nonlegendary creature, Brudiclad and Esika's Chariot copy tokens, Mirrormade an artifact or enchantment), and a trigger doubler only when its cause reaches one of the commander's triggers (Panharmonicon does nothing for a commander with no enters trigger). Each entry names its kind (`create_token_copy`, `becomes_copy`, `copy_commander_spell`, `copy_triggered_ability`, `copy_activated_ability`, `copy_activated_or_triggered`, `trigger_doubler`) and the card's ability that does it (`clause`). It reads phase's parse of the card, so a card phase can't parse yet, or an effect it parses loosely, can be missed — still read each cut's text yourself. **These cards are force-multipliers.** Treat any card you flag as untouchable when drafting cuts — it should not appear on the cuts list without explicit justification.
 
-Note the scope of `commander_activated_abilities` in that output: it is only populated when the *cut card* copies the commander, and it lists the **commander's own** abilities that would get doubled. It says nothing about the cut card's abilities. Do not read an empty list as "this cut is safe."
+Note the scope of `commander_activated_abilities` in that output: it is only populated when the *cut card* copies the commander, and it lists the **commander's own** non-mana activated abilities (loyalty abilities included) that would get doubled. It says nothing about the cut card's abilities. Do not read an empty list as "this cut is safe."
 
 ### Zone-Granted Abilities
 
@@ -1304,7 +1304,7 @@ Check the commander's oracle text for this pattern *before drafting any cuts*. I
 3. Treat "ways to put those cards into that zone" as a distinct role with its own count (self-mill, looting, discard outlets, tutor-to-graveyard). **Supply and delivery are separate axes** — a deck can have a deep toolbox and no way to load it, which is a delivery problem, not a supply problem. Count both before claiming either is short.
 4. Note the anti-synergies: effects that *exile* your own graveyard or return those cards to hand shrink the toolbox. That is a real cost to weigh, not an automatic disqualifier — most such effects are optional and target any graveyard.
 
-`cut-check` flags matching cuts as `ZONE_GRANTED` and prints a `NOTE:` naming the grant. Consult per-card rulings (`rulings-lookup`) — these grants have non-obvious corner cases. Thranduil's, for instance: *"If an activated ability of an Elf card in your graveyard references the card it's printed on by name, treat Thranduil's instance of that ability as though it referenced Thranduil instead"* (compare CR 201.5), which makes self-referential abilities like Devoted Druid's untap work on the commander.
+`cut-check` flags matching cuts as `ZONE_GRANTED` and prints a `NOTE:` naming the grant. A changeling card counts as every creature type (CR 702.73a), and only abilities that work on the battlefield are listed: cycling, ninjutsu and graveyard abilities can't be activated by the commander. Consult per-card rulings (`rulings-lookup`) — these grants have non-obvious corner cases. Thranduil's, for instance: *"If an activated ability of an Elf card in your graveyard references the card it's printed on by name, treat Thranduil's instance of that ability as though it referenced Thranduil instead"* (compare CR 201.5), which makes self-referential abilities like Devoted Druid's untap work on the commander.
 
 ### Combo Detection
 
@@ -1605,7 +1605,7 @@ cut-check <deck.json> --cuts <cuts.json> --multiplier-low <low> --multiplier-hig
 
 The commander is read from the deck's `commanders` zone by default (first one); pass `--commander "<Name>"` to override — e.g. to check the other half of a partner pair.
 
-Stdout is a compact text report with one line per cut card summarizing flags (`COMMANDER_MULTIPLICATION`, `triggers=N (type=value-range)`, `self-recurring=yes/no`, `keyword-interactions=N`) plus a `Flags:` tally line.
+Stdout is a compact text report with one line per cut card summarizing flags (`COMMANDER_MULTIPLICATION`, `triggers=N (type=value-range)`, `self-recurring=yes/no`, `keyword-interactions=N`) plus a `Flags:` tally line. `--trigger-type` takes `upkeep`, `attack`, `combat-damage`, `death`, `etb` or `endstep`. Each trigger in the JSON carries its ability `text`, every type it fires on (`types` — Sun Titan's "enters or attacks" is both `etb` and `attack`), and a `base_value` only when the ability yields a fixed number (damage to each opponent counts once per opponent; "gain life equal to…" doesn't parse). A card phase can't parse yet reports no triggers.
 
 For each proposed cut, write out (internally, not presented to user):
 1. **Multiplied value:** [from cut-check output, or "no matching triggers"]

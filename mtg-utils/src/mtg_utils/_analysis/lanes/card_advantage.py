@@ -28,10 +28,12 @@ from mtg_utils._analysis.tree_synthesis import (
     _is_shuffle_back_effect,
 )
 from mtg_utils._card_ir.crosswalk import (
+    _SELF_RETURN_TARGETS,
     OTHER,
     AbilityUnit,
     ConceptNode,
     ConceptTree,
+    activation_zone,
     additional_phase_kind,
     amount_factor,
     amount_is_scaling,
@@ -49,9 +51,11 @@ from mtg_utils._card_ir.crosswalk import (
     iter_condition_sites,
     iter_cost_leaves,
     iter_mod_sites,
+    iter_nested_granted_bodies,
     iter_typed_nodes,
     mod_keyword_name,
     modal_mode_description,
+    normalised_keyword_name,
     permission_tag,
     recipient_tag,
     residue_is,
@@ -62,6 +66,7 @@ from mtg_utils._card_ir.crosswalk import (
     trigger_scope,
     trigger_subject,
     trigger_subject_scope,
+    walk_effects_with_else,
 )
 from mtg_utils._card_ir.mirror.runtime import (
     MirrorVariant,
@@ -363,6 +368,14 @@ def _self_death_payoff(tree: ConceptTree) -> list[Signal]:
     return []
 
 
+def _returns_on_death(unit: AbilityUnit) -> bool:
+    """A dies trigger that returns the object that died to the battlefield (CR
+    702.93a undying, 702.79a persist — phase expands both into this trigger), read
+    by :func:`~mtg_utils._card_ir.crosswalk.core.is_dies_return_trigger`: the card's
+    own (Young Wolf) or an Aura's enchanted creature (Fungal Fortitude)."""
+    return unit.origin == "trigger" and is_dies_return_trigger(unit.node)
+
+
 _DIES_RECURSION_GRANT_KEYWORDS: frozenset[str] = frozenset({"Persist", "Undying"})
 
 
@@ -401,7 +414,7 @@ def _dies_recursion(tree: ConceptTree) -> list[Signal]:
     watcher and stays creature_recursion/reanimator. Scope "you".
     """
     for unit in tree.units:
-        if unit.origin == "trigger" and is_dies_return_trigger(unit.node):
+        if _returns_on_death(unit):
             return [Signal("dies_recursion", "you", "", "", tree.name, "high")]
         for _sdef, mod in iter_mod_sites(unit.node):
             if tag_of(mod) == "GrantTrigger" and is_dies_return_trigger(
@@ -414,8 +427,305 @@ def _dies_recursion(tree: ConceptTree) -> list[Signal]:
                 and mod_keyword_name(n) in _DIES_RECURSION_GRANT_KEYWORDS
             ):
                 return [Signal("dies_recursion", "you", "", "", tree.name, "high")]
+        if _sets_up_dies_return(unit):
+            return [Signal("dies_recursion", "you", "", "", tree.name, "high")]
     if _has_exile_then_return_replacement(tree):
         return [Signal("dies_recursion", "you", "", "", tree.name, "high")]
+    return []
+
+
+#: Who "return it" names in an earthbend's delayed return (CR 701.66a: "When
+#: that land dies or is put into exile, return it"): the watched land, as phase
+#: binds it (``TriggeringSource`` — Earth Village Ruffians; ``ParentTarget`` —
+#: Fatal Fissure).
+_DELAYED_RETURN_TARGETS: frozenset[str] = frozenset(
+    {"TriggeringSource", "ParentTarget"}
+)
+#: Phase v0.94.0 binds the return in an earthbend that follows a token maker to the
+#: token (``LastCreated`` — Bumi's Feast Lecture's Food), not the land. Counted
+#: while phase does; ``test_earthbend_last_created_binding_canary`` retires it.
+EARTHBEND_LAST_CREATED_MISBIND = "LastCreated"
+
+
+def _sets_up_dies_return(unit: AbilityUnit) -> bool:
+    """The grant arm's delayed form: a "when it dies or is exiled, return it to the
+    battlefield" the card sets up on another permanent — earthbend's land (CR
+    701.66a: Earth Village Ruffians, Fatal Fissure, Bumi's Feast Lecture), the same
+    dies-recursion tech a granted undying is. ``is_dies_return_trigger`` (the
+    object that died) rightly leaves it out."""
+    earthbends = any(
+        tag_of(n) == "RegisterBending" and getattr(n, "kind", None) == "Earth"
+        for n in unit.iter_typed()
+    )
+    targets = _DELAYED_RETURN_TARGETS | (
+        {EARTHBEND_LAST_CREATED_MISBIND} if earthbends else set()
+    )
+    for n in unit.iter_typed():
+        if tag_of(n) != "CreateDelayedTrigger":
+            continue
+        if tag_of(getattr(n, "condition", None)) != "WhenDiesOrExiled":
+            continue
+        if any(
+            tag_of(x) == "ChangeZone"
+            and getattr(x, "destination", None) == "Battlefield"
+            and tag_of(getattr(x, "target", None)) in targets
+            for x in iter_typed_nodes(getattr(n, "effect", None))
+        ):
+            return True
+    return False
+
+
+# ── self_recurring: the card brings ITSELF back for another use ────────────────
+
+#: The zones an ability can bring its card back from for another use.
+_RECURSION_ORIGINS: frozenset[str] = frozenset({"Graveyard", "Exile"})
+#: Back-references that name the card itself while its own ability names nothing
+#: else first ("When ~ dies, return it to its owner's hand").
+_SELF_REFERENCES: frozenset[str] = _SELF_RETURN_TARGETS | {"ParentTarget"}
+_SELF_REF: frozenset[str] = frozenset({"SelfRef"})
+
+#: Keywords that use the card again after its first use and that phase leaves to its
+#: rules engine (so no ability unit shows the return): cast from the graveyard —
+#: flashback 702.34a, retrace 702.81a, jump-start 702.133a, escape 702.138a,
+#: harmonize 702.180a, mayhem 702.187a, disturb 702.146a; cast again from exile —
+#: rebound 702.88a; back to hand — buyback 702.27a, dash 702.109a ("return the
+#: permanent this spell becomes to its owner's hand at the beginning of the next end
+#: step", the lane's self-bounce); a token copy from the graveyard — embalm
+#: 702.128a, eternalize 702.129a, encore 702.141a. Phase expands persist, undying,
+#: dredge, recover and unearth into units the walk reads. Suspend alone is one
+#: delayed cast (702.62a). Phase's spellings, folded by ``normalised_keyword_name``.
+RECURSION_KEYWORDS: frozenset[str] = frozenset(
+    {
+        "buyback",
+        "dash",
+        "disturb",
+        "embalm",
+        "encore",
+        "escape",
+        "eternalize",
+        "flashback",
+        "harmonize",
+        "jumpstart",
+        "mayhem",
+        "rebound",
+        "retrace",
+    }
+)
+
+
+def _unit_zones(unit: AbilityUnit) -> frozenset[str]:
+    """The zones a unit functions from when it says so (CR 113.6b): a trigger's
+    ``trigger_zones``, an activated ability's ``activation_zone``, and an "if this
+    card is in your graveyard" ``SourceInZone`` condition (Ichorid)."""
+    zones: set[str] = set()
+    tz = getattr(unit.node, "trigger_zones", None)
+    if isinstance(tz, list):
+        zones.update(z for z in tz if isinstance(z, str))
+    if (az := activation_zone(unit.node)) is not None:
+        zones.add(az)
+    cond = getattr(unit.node, "condition", None)
+    zone = getattr(cond, "zone", None)
+    if tag_of(cond) == "SourceInZone" and isinstance(zone, str):
+        zones.add(zone)
+    return frozenset(zones)
+
+
+def _own_nodes(unit: AbilityUnit) -> list[TypedMirrorNode]:
+    """The unit's typed nodes, costs and every branch included (a coin flip's
+    losing branch, an "otherwise" clause), minus the bodies it grants to other
+    objects — a granted "return this creature to its owner's hand" (Aethermage's
+    Touch) is about the grantee, not this card."""
+    granted = {
+        id(n)
+        for _kind, body in iter_nested_granted_bodies(unit.node)
+        for n in iter_typed_nodes(body)
+    }
+    return [n for n in unit.iter_typed() if id(n) not in granted]
+
+
+def _has_time_counters(node: TypedMirrorNode) -> bool:
+    counters = getattr(node, "enter_with_counters", None)
+    return isinstance(counters, list) and any(
+        isinstance(c, list) and c and c[0] == "time" for c in counters
+    )
+
+
+def _exiles_self(node: TypedMirrorNode) -> bool:
+    """The first half of a blink: the card exiling itself, as an effect (Aetherling)
+    or a cost (craft, CR 702.167a), to return at once — protection, not another
+    use. Exiling itself with time counters is suspend's recursion instead."""
+    tag = tag_of(node)
+    if tag == "Exile":  # a cost leaf
+        return tag_of(getattr(node, "filter", None)) == "SelfRef"
+    return (
+        tag == "ChangeZone"
+        and getattr(node, "destination", None) == "Exile"
+        and tag_of(getattr(node, "target", None)) == "SelfRef"
+        and not _has_time_counters(node)
+    )
+
+
+def _returns_self(
+    unit: AbilityUnit,
+    node: TypedMirrorNode,
+    *,
+    self_targets: frozenset[str],
+    blinks: bool,
+) -> bool:
+    """Whether one node of ``unit`` puts the card itself where it can be used again
+    (see :func:`recurs_itself`); ``self_targets`` are the target tags that name
+    the card here."""
+    tag = tag_of(node)
+    if tag == "ReturnToHand":  # a cost: "Return ~ to its owner's hand: …"
+        return tag_of(getattr(node, "filter", None)) == "SelfRef"
+    if tag not in ("Bounce", "ChangeZone"):
+        return False
+    if tag_of(getattr(node, "target", None)) not in self_targets:
+        return False
+    if tag == "Bounce":  # to its owner's hand, from wherever it is
+        return True
+    origin, dest = change_zone_dirs(node)
+    if dest == "Hand":
+        return origin != "Library"
+    if dest == "Battlefield":
+        if origin == "Exile" and blinks:
+            return False
+        if origin in _RECURSION_ORIGINS or _unit_zones(unit) & _RECURSION_ORIGINS:
+            return True
+        # A step trigger putting "this card onto the battlefield" with no zone
+        # named: the card isn't on the battlefield already, so it comes back from
+        # elsewhere — Nether Shadow's "if this card is in your graveyard" upkeep
+        # trigger, whose graveyard condition phase v0.94.0 drops. Not a blink or a
+        # transform ("exile this Saga, then return it transformed").
+        return (
+            origin is None
+            and tag_of(getattr(node, "target", None)) == "SelfRef"
+            and not blinks
+            and unit.origin == "trigger"
+            and unit.trigger_event == "phase"
+        )
+    if dest == "Exile":
+        # "Exile ~ with three time counters on it" (Arc Blade, Epochrasite): with
+        # suspend and a time counter in exile it is suspended (CR 702.62b), and it
+        # is cast again when the last counter comes off (CR 702.62a) — Arc Blade's
+        # ruling: "it will suspend itself again when it resolves". Sinister
+        # Concierge puts the counters on as a separate step.
+        return _has_time_counters(node) or _times_itself(unit)
+    return False
+
+
+def _times_itself(unit: AbilityUnit) -> bool:
+    """Whether the unit puts time counters on the card itself as an effect (the
+    synthesized suspend action's are its cost's companion, never beside a
+    ``ChangeZone`` to exile)."""
+    return any(
+        tag_of(c.node) == "PutCounter"
+        and getattr(c.node, "counter_type", None) == "time"
+        and tag_of(getattr(c.node, "target", None)) == "SelfRef"
+        for c in unit.effects
+    )
+
+
+def _granted_self_bounce(unit: AbilityUnit) -> bool:
+    """A granted ability that returns the card granting it — Trusty Boomerang's
+    equipped creature "{1}, {T}: Tap target creature. Return Trusty Boomerang to its
+    owner's hand" (phase's ``GrantingObject``)."""
+    return any(
+        tag_of(n) in ("Bounce", "ChangeZone")
+        and tag_of(getattr(n, "target", None)) == "GrantingObject"
+        and getattr(n, "destination", "Hand") in ("Hand", None)
+        for _kind, body in iter_nested_granted_bodies(unit.node)
+        for n in iter_typed_nodes(body)
+    )
+
+
+def _back_ref_names_self(unit: AbilityUnit) -> bool:
+    """Whether "it" in this unit starts out as the card: its own activated
+    ability, a trigger or replacement watching the card itself, or a step trigger
+    of the card (Pyre Zombie's "return it to your hand")."""
+    if unit.origin == "ability":
+        return unit.kind == "Activated"
+    if unit.origin not in ("trigger", "replacement"):
+        return False
+    watched = tag_of(getattr(unit.node, "valid_card", None)) or tag_of(
+        getattr(unit.node, "valid_source", None)
+    )
+    return watched == "SelfRef" or (watched is None and unit.trigger_event == "phase")
+
+
+def _keeps_back_ref(node: TypedMirrorNode) -> bool:
+    """Whether "it" still names the card after this effect: a payment, or an
+    effect on the card itself."""
+    return (
+        tag_of(node) == "PayCost" or tag_of(getattr(node, "target", None)) == "SelfRef"
+    )
+
+
+def recurs_itself(tree: ConceptTree) -> bool:
+    """Whether the card brings ITSELF back for another use — the per-game value a
+    cut weighs:
+
+    * a return of the card from its graveyard or exile to the battlefield or your
+      hand, by an ability that works there (Bloodghast, Vengevine, Prized
+      Amalgam, Squee, Reassembling Skeleton, Ichorid, Pyre Zombie; dredge,
+      recover and unearth, which phase expands into such abilities);
+    * a dies trigger or replacement that returns it (undying and persist —
+      :func:`_returns_on_death`, watching the card itself; Endless Cockroaches;
+      Firestorm Phoenix);
+    * a static letting you cast it from your graveyard (Gravecrawler);
+    * re-exiling itself with time counters (Arc Blade, Epochrasite);
+    * returning itself from the battlefield to your hand, as an effect or a cost
+      (Arcanis the Omnipotent, Batterskull, Greenbelt Rampager, Grinning Ignus,
+      Recurring Nightmare; Trusty Boomerang through the ability it grants):
+      re-buying it to cast again is per-game value. The
+      lane's decision, not a rule; bouncing something else (Man-o'-War),
+      returning another card (Eternal Witness) or blinking itself (Aetherling)
+      is not;
+    * a :data:`RECURSION_KEYWORDS` keyword."""
+    if any(
+        normalised_keyword_name(k) in RECURSION_KEYWORDS for k in tree.card_keywords
+    ):
+        return True
+    for unit in tree.units:
+        nodes = _own_nodes(unit)
+        blinks = any(_exiles_self(n) for n in nodes)
+        if any(
+            _returns_self(unit, n, self_targets=_SELF_REF, blinks=blinks) for n in nodes
+        ):
+            return True
+        if _back_ref_names_self(unit):
+            # In effect order, "it" names the card only until an effect could
+            # name or find something else: past a payment or an effect on the
+            # card itself, never past a reveal, a search or a seek (Sphinx of
+            # Uthuun's "put one pile into your hand").
+            for c in walk_effects_with_else(unit.node):
+                if _returns_self(
+                    unit, c.node, self_targets=_SELF_REFERENCES, blinks=blinks
+                ):
+                    return True
+                if not _keeps_back_ref(c.node):
+                    break
+        if _granted_self_bounce(unit):
+            return True
+        if _returns_on_death(unit) and (
+            tag_of(getattr(unit.node, "valid_card", None)) == "SelfRef"
+        ):
+            return True
+        for sdef in unit.static_defs():
+            if (
+                static_mode_tag(sdef) == "GraveyardCastPermission"
+                and tag_of(getattr(sdef, "affected", None)) == "SelfRef"
+            ):
+                return True
+    return False
+
+
+def _self_recurring(tree: ConceptTree) -> list[Signal]:
+    """self_recurring — the card brings itself back for another use
+    (:func:`recurs_itself`); the ``self-recurring`` preset and cut-check's
+    self-recurring flag read it. Scope "you"."""
+    if recurs_itself(tree):
+        return [Signal("self_recurring", "you", "", "", tree.name, "high")]
     return []
 
 
@@ -2357,6 +2667,7 @@ LANES = (
     _opponent_draw_matters,
     _self_death_payoff,
     _dies_recursion,
+    _self_recurring,
     _creature_recursion,
     _card_draw_engine,
     _group_hug_draw,

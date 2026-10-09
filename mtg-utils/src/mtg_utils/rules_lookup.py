@@ -454,6 +454,21 @@ def lookup_rule(parsed: dict[str, Any], number: str) -> dict | None:
     return parsed["rules"].get(number)
 
 
+def creature_types(parsed: dict[str, Any]) -> frozenset[str]:
+    """CR 205.3m's creature types, lowercased ("time lord" is the one two-word type).
+    The source of ``_card_ir.creature_types.CREATURE_TYPES`` (``rules-lookup
+    --creature-types`` prints it)."""
+    entry = lookup_rule(parsed, "205.3m") or {}
+    text = entry.get("text", "").replace("\u2019", "'")
+    two_word = re.search(r"two words long: ([^.]+)\.", text)
+    listed = text.split("one word long:", 1)[-1].rstrip(". ")
+    words = [w.strip() for w in re.split(r",|\band\b", listed) if w.strip()]
+    out = {w.lower() for w in words}
+    if two_word:
+        out.add(two_word.group(1).strip().lower())
+    return frozenset(out)
+
+
 def lookup_term(parsed: dict[str, Any], term: str) -> dict | None:
     """Return a glossary entry by case-insensitive term match, or None."""
     return parsed["glossary"].get(term.lower())
@@ -669,6 +684,15 @@ def resolve_rules_path(
     help="Override the default sha-keyed path for the full JSON sidecar.",
 )
 @click.option("--json", "json_output", is_flag=True, help="Emit full JSON to stdout.")
+@click.option(
+    "--creature-types",
+    "creature_types_block",
+    is_flag=True,
+    help=(
+        "Print CR 205.3m's creature types as the CREATURE_TYPES block of "
+        "mtg_utils/_card_ir/creature_types.py (a maintainer tool; never CI)."
+    ),
+)
 def main(
     rule_number: str | None,
     glossary_term: str | None,
@@ -678,8 +702,16 @@ def main(
     output_path: Path | None,
     *,
     json_output: bool,
+    creature_types_block: bool = False,
 ) -> None:
     """Look up MTG Comprehensive Rules entries by number, term, or regex."""
+    if creature_types_block:
+        types = sorted(creature_types(load_rules(resolve_rules_path(rules_file))))
+        click.echo("CREATURE_TYPES: frozenset[str] = frozenset(\n    {")
+        for t in types:
+            click.echo(f'        "{t}",')
+        click.echo("    }\n)")
+        return
     mode_count = sum(1 for x in (rule_number, glossary_term, grep_pattern) if x)
     if mode_count != 1:
         msg = "Specify exactly one of --rule, --term, or --grep"

@@ -21,6 +21,7 @@ from mtg_utils._analysis.tree_synthesis._shared import (
     _synthetic_concept,
 )
 from mtg_utils._card_ir.crosswalk import (
+    _SELF_RETURN_TARGETS,
     AbilityUnit,
     ConceptNode,
     ConceptTree,
@@ -125,10 +126,8 @@ def _is_death_payoff_effect(e: ConceptNode) -> bool:
 # A ``ChangeZone`` back to the battlefield targeting the trigger's own source (the
 # undying/persist return — Kitchen Finks) OR a shuffle-into-library protection
 # rider (Kozilek). Both are SELF-preservation, never a fork-worthy VALUE payoff, so
-# ``is_clone_value_effect`` and ``_self_death_payoff`` both shed them.
-_SELF_RETURN_TAGS: frozenset[str] = frozenset({"SelfRef", "TriggeringSource"})
-
-
+# ``is_clone_value_effect`` and ``_self_death_payoff`` both shed them. The trigger's
+# own source is ``crosswalk.core._SELF_RETURN_TARGETS``, the dies-return read's set.
 def _is_self_return_effect(c: ConceptNode) -> bool:
     """A ``ChangeZone`` back to the battlefield targeting the trigger's own
     source — the dies_recursion return arm (Kitchen Finks' persist), NOT a
@@ -136,7 +135,7 @@ def _is_self_return_effect(c: ConceptNode) -> bool:
     return (
         tag_of(c.node) == "ChangeZone"
         and getattr(c.node, "destination", None) == "Battlefield"
-        and tag_of(getattr(c.node, "target", None)) in _SELF_RETURN_TAGS
+        and tag_of(getattr(c.node, "target", None)) in _SELF_RETURN_TARGETS
     )
 
 

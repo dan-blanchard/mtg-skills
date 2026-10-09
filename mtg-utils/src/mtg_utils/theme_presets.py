@@ -2785,6 +2785,39 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
     # correctly falls out (a bare 2-for-1 draw spell with no sibling
     # effect — the WHOLE point of the card, not a rider).
     Preset(
+        name="self-recurring",
+        description=(
+            "Brings itself back for another use: returns from the graveyard "
+            "(Bloodghast, Gravecrawler), re-suspends (Arc Blade), returns itself "
+            "to hand (Arcanis the Omnipotent), or recurs by keyword (flashback, "
+            "escape, buyback, embalm)."
+        ),
+        notes=(
+            "Structural view: signal key `self_recurring` "
+            "(`lanes.card_advantage.recurs_itself`); cut-check's self-recurring "
+            "flag reads this preset. The `keywords` arm covers the cards whose "
+            "recursion phase v0.94.0 drops: aftermath's graveyard half, Garza's "
+            "Assassin's recover, Salvation Colossus's unearth, a land's mayhem "
+            "(Oscorp Industries) (`test_self_recurring_keyword_gap_canary`)."
+        ),
+        keywords=("Aftermath", "Recover", "Unearth", "Mayhem"),
+        signal_keys=("self_recurring",),
+        should_match=(
+            "Bloodghast",
+            "Gravecrawler",
+            "Arc Blade",
+            "Arcanis the Omnipotent",
+            "Faithless Looting",
+            "Dusk // Dawn",
+        ),
+        should_not_match=(
+            "Eternal Witness",
+            "Man-o'-War",
+            "Aetherling",
+            "Ancestral Vision",
+        ),
+    ),
+    Preset(
         name="cantrip",
         description=(
             "Draws exactly ONE card as a rider or primary effect. For "

@@ -554,10 +554,10 @@ class TestRealCR:
             )
         )
         cuts_path = tmp_path / "cuts.json"
-        # Blocking Restrictor (trample + can't-be-blocked-by-more-than-one)
-        # against Obeka (menace commander) produces two keyword
-        # interactions, each citing a real CR rule.
-        cuts_path.write_text(json.dumps(["Blocking Restrictor", "Double Striker"]))
+        # Charging Rhino (can't be blocked by more than one creature) and
+        # Boros Swiftblade (double strike) against Obeka (menace, a combat-damage
+        # trigger) produce two keyword interactions, each citing a real CR rule.
+        cuts_path.write_text(json.dumps(["Charging Rhino", "Boros Swiftblade"]))
         output_path = tmp_path / "out.json"
 
         runner = CliRunner()
@@ -677,3 +677,18 @@ class TestDigitalRulesSupplement:
         d = parse_digital_rules(_DIGITAL_RULES_FILE.read_text(encoding="utf-8"))
         defn = d["glossary"]["perpetually"]["definition"].lower()
         assert "original card's printed statistics" in defn
+
+
+def test_committed_creature_types_match_the_newest_local_cr():
+    """``_card_ir.creature_types.CREATURE_TYPES`` is CR 205.3m's list (what changeling means, CR
+    702.73a). Against the newest ``comprehensive-rules-*.txt`` a ``download-rules``
+    left in the repo (none in CI: skipped): regenerate the constant with
+    ``rules-lookup --creature-types`` when a new CR adds or renames a type."""
+    from mtg_utils._card_ir.creature_types import CREATURE_TYPES
+    from mtg_utils.rules_lookup import creature_types
+
+    repo = Path(__file__).resolve().parents[2]
+    found = sorted(repo.glob("*/comprehensive-rules-*.txt"), key=lambda p: p.name)
+    if not found:
+        pytest.skip("no Comprehensive Rules file downloaded in the repo")
+    assert creature_types(load_rules(found[-1])) == CREATURE_TYPES

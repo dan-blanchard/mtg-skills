@@ -1198,6 +1198,18 @@ SPECS_1: dict[tuple[str, str], SignalSpec] = {
         {"oracle": DIES_RECURSION_REGEX},
         DIES_RECURSION_REGEX,
     ),
+    # A card that brings itself back for another use (lanes.card_advantage.
+    # recurs_itself): a grind deck running Bloodghast or Gravecrawler wants more of
+    # the threats that don't stay dead. Search and serve both ride the key (the
+    # ``self-recurring`` preset).
+    ("self_recurring", "you"): _spec(
+        "Self-recursion",
+        "cards that come back for another use — from the graveyard, by re-"
+        "suspending, or by returning to your hand",
+        {"preset_names": ("self-recurring",)},
+        None,
+        serve_idents=frozenset({"self_recurring|you|"}),
+    ),
     # Task #19 SPLIT — named_synergy (the named-card SYNERGY half of the old
     # named_permanent lane). Detection lives in the Card IR (a NAMED_PERMANENT_REGEX
     # kept word mirror in signals._IR_KEPT_DETECTORS — phase drops the referenced name).

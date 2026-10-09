@@ -212,6 +212,9 @@ SERVED_SIGNAL_KEYS: frozenset[str] = frozenset(
         "opponent_draw_matters",
         "self_death_payoff",
         "dies_recursion",
+        # The card brings itself back for another use (lanes.card_advantage.
+        # recurs_itself; cut-check's self-recurring flag).
+        "self_recurring",
         "creature_recursion",
         "card_draw_engine",
         "group_hug_draw",

@@ -21,6 +21,7 @@ from collections.abc import Callable, Iterable, Iterator
 from dataclasses import fields
 from typing import TYPE_CHECKING, Any, Literal, NamedTuple, get_args
 
+from mtg_utils._card_ir.creature_types import CREATURE_TYPES
 from mtg_utils._card_ir.mirror.runtime import (
     MISSING,
     MirrorVariant,
@@ -534,20 +535,52 @@ def keyword_curve_cost(keyword: object) -> int | None:
 
 class ObjectFacts(NamedTuple):
     """What a card IS, for asking whether a filter can describe it: its own core
-    types, subtypes and supertypes (phase's capitalized words) and its colors
-    (``W``/``U``/``B``/``R``/``G``). Built from a card's trees by
-    ``_card_ir.trees.object_facts``."""
+    types, subtypes and supertypes (phase's capitalized words), its colors
+    (``W``/``U``/``B``/``R``/``G``), and whether it is every creature type
+    (:func:`is_every_creature_type` — changeling, CR 702.73a), which no printed
+    ``subtypes`` set spells out. Built from a card's trees by
+    ``_card_ir.trees.object_facts``. Ask it through :meth:`has_type` /
+    :meth:`has_supertype` / :meth:`has_subtype` (any case), never the raw sets:
+    only :meth:`has_subtype` knows what changeling adds."""
 
     types: frozenset[str]
     subtypes: frozenset[str]
     supertypes: frozenset[str]
     colors: frozenset[str]
+    every_creature_type: bool = False
+    #: Its mana value (CR 202.3), ``None`` when unknown; and whether its mana cost
+    #: has {X} (CR 107.3).
+    mana_value: int | None = None
+    x_cost: bool = False
+    #: Its printed keywords, folded (:func:`normalised_keyword_name`) — for what a
+    #: filter asks of a spell's casting ("a kicked spell" needs kicker).
+    keywords: frozenset[str] = frozenset()
+
+    def has_type(self, word: str) -> bool:
+        return _fold(word) in {_fold(t) for t in self.types}
+
+    def has_supertype(self, word: str) -> bool:
+        return _fold(word) in {_fold(t) for t in self.supertypes}
+
+    def has_subtype(self, word: str) -> bool:
+        """Whether the object has subtype ``word``: printed, or — for an object
+        that is every creature type — any of CR 205.3m's creature types. A
+        changeling is no Equipment, Aura or Forest."""
+        w = _fold(word)
+        if w in {_fold(t) for t in self.subtypes}:
+            return True
+        return self.every_creature_type and w in CREATURE_TYPES
+
+
+def _fold(word: str) -> str:
+    return word.lower().replace("\u2019", "'")
 
 
 def filter_admits(filt: object, facts: ObjectFacts) -> bool | None:
     """Whether a phase object filter can describe the card ``facts`` describes.
 
-    Reads the type words (``Permanent`` and ``Card`` admit any type), subtypes, the
+    Reads the type words (``Permanent`` and ``Card`` admit any type), the negated
+    ones ("noncreature"), subtypes, the
     supertype / token / colorless properties, and recurses ``Or`` (any) / ``And``
     (all). ``SelfRef`` (the filter's own card) is ``False``. ``None`` when the filter
     is a reference this read can't resolve (``ParentTarget``, ``AttachedTo``, …) —
@@ -565,20 +598,31 @@ def filter_admits(filt: object, facts: ObjectFacts) -> bool | None:
     if tag != "Typed":
         return None
     cores = set(filter_core_types(filt))
-    if cores and not ({"Permanent", "Card"} & cores or cores & facts.types):
+    if cores and not (
+        {"Permanent", "Card"} & cores or any(facts.has_type(c) for c in cores)
+    ):
         return False
+    for word in filter_non_types(filt):  # "noncreature permanent" (Astral Dragon)
+        if facts.has_type(word) or facts.has_supertype(word) or facts.has_subtype(word):
+            return False
     subtypes = set(filter_subtypes(filt))
-    if subtypes and not subtypes & facts.subtypes:
+    if subtypes and not any(facts.has_subtype(s) for s in subtypes):
         return False
     for prop in getattr(filt, "properties", ()) or ():
         ptag = tag_of(prop)
         value = getattr(prop, "value", MISSING)
         if ptag == "Token":
             return False  # a card is never a token
-        if ptag == "HasSupertype" and value not in facts.supertypes:
+        if ptag == "HasSupertype" and not facts.has_supertype(str(value)):
             return False
-        if ptag == "NotSupertype" and value in facts.supertypes:
+        if ptag == "NotSupertype" and facts.has_supertype(str(value)):
             return False
+        if ptag == "WasKicked" and not facts.keywords & {"kicker", "multikicker"}:
+            return False  # "a kicked spell" (Verazol): only one with kicker, 702.33a
+        if ptag == "HasXInManaCost" and not facts.x_cost:
+            return False  # "a spell with {X} in its mana cost" (Owlin Spiralmancer)
+        if ptag == "Cmc" and not _mana_value_admits(prop, facts.mana_value):
+            return False  # "a spell with mana value 5 or greater" (Gandalf)
         if (
             ptag == "ColorCount"
             and getattr(prop, "comparator", MISSING) == "EQ"
@@ -587,6 +631,25 @@ def filter_admits(filt: object, facts: ObjectFacts) -> bool | None:
         ):
             return False  # "colorless" (CR 105.2c)
     return True
+
+
+_COMPARE: dict[str, Callable[[int, int], bool]] = {
+    "EQ": lambda a, b: a == b,
+    "NE": lambda a, b: a != b,
+    "GE": lambda a, b: a >= b,
+    "GT": lambda a, b: a > b,
+    "LE": lambda a, b: a <= b,
+    "LT": lambda a, b: a < b,
+}
+
+
+def _mana_value_admits(prop: object, mana_value: int | None) -> bool:
+    """A ``Cmc`` filter property (:func:`_fixed_cmc`) against a known mana value;
+    a bound the read can't fix (X, a chosen number) admits."""
+    bound = _fixed_cmc(prop)
+    if mana_value is None or bound is None or bound[0] not in _COMPARE:
+        return True
+    return _COMPARE[bound[0]](mana_value, bound[1])
 
 
 def copied_ability_kind(node: object) -> str | None:
@@ -1218,6 +1281,20 @@ def filter_controller(filt: object) -> str | None:
     return None
 
 
+def _fixed_cmc(prop: object) -> tuple[str, int] | None:
+    """A ``Cmc`` filter property's ``(comparator, value)`` when the value is a
+    fixed number (``"GE"``, 5 — "mana value 5 or greater"), else ``None`` (X, a
+    chosen number)."""
+    if tag_of(prop) != "Cmc":
+        return None
+    value = getattr(prop, "value", None)
+    n = getattr(value, "value", None) if tag_of(value) == "Fixed" else None
+    comparator = getattr(prop, "comparator", None)
+    if not isinstance(n, int) or not isinstance(comparator, str):
+        return None
+    return comparator, n
+
+
 def filter_mana_value_floor(filt: object) -> int | None:
     """The lowest mana value a typed filter admits, from its ``Cmc`` ``GE`` / ``GT``
     predicates ("target creature or planeswalker with mana value 3 or greater" —
@@ -1228,13 +1305,10 @@ def filter_mana_value_floor(filt: object) -> int | None:
     if t == "Typed":
         floors: list[int] = []
         for prop in getattr(filt, "properties", ()) or ():
-            if tag_of(prop) != "Cmc":
+            bound = _fixed_cmc(prop)
+            if bound is None:
                 continue
-            value = getattr(prop, "value", None)
-            n = getattr(value, "value", None) if tag_of(value) == "Fixed" else None
-            if not isinstance(n, int):
-                continue
-            comparator = getattr(prop, "comparator", None)
+            comparator, n = bound
             if comparator == "GE":
                 floors.append(n)
             elif comparator == "GT":
@@ -1769,6 +1843,51 @@ def has_fixed_count(node: TypedMirrorNode, field: str = "amount") -> bool:
     """
     q = getattr(node, field, MISSING)
     return _present(q) and tag_of(q) == "Fixed"
+
+
+#: The effects whose fixed number a trigger multiplier multiplies: damage, life
+#: gained, tokens made, cards drawn — tag → the field holding the number.
+_MULTIPLIABLE_FIELDS: dict[str, str] = {
+    "LoseLife": "amount",
+    "DealDamage": "amount",
+    "DamageEachPlayer": "amount",
+    "DamageAll": "amount",
+    "GainLife": "amount",
+    "Token": "count",
+    "Draw": "count",
+}
+
+
+class FixedAmount(NamedTuple):
+    """The first fixed number an ability yields (:func:`fixed_amount`): ``value``,
+    and ``per_opponent`` when it is damage or life loss dealt to each opponent."""
+
+    value: int
+    per_opponent: bool
+
+
+def fixed_amount(unit: AbilityUnit) -> FixedAmount | None:
+    """The first fixed damage, life loss dealt to opponents, life gain, token or card
+    count an ability yields (:func:`has_fixed_count` + :func:`amount_factor`), or
+    ``None``. Kokusho's "each opponent loses 5 life" is 5 per opponent. An amount that
+    scales — "gain life equal to the life lost this way" (Kokusho), "tokens equal
+    to its power" — isn't a fixed number. Damage that reaches each opponent
+    (:func:`effect_player_reach`) is marked, so a caller can count it per opponent
+    (Purphoros, God of the Forge's 2)."""
+    for concept in unit.effects:
+        node = concept.node
+        tag = tag_of(node) or ""
+        field = _MULTIPLIABLE_FIELDS.get(tag)
+        if field is None or not has_fixed_count(node, field):
+            continue
+        reach = effect_player_reach(unit.node, node)
+        per_opponent = reach in ("opponents", "per_opponent")
+        if tag == "LoseLife" and not (per_opponent or reach == "target"):
+            continue  # your own life payment (Phyrexian Arena) is no yield
+        if tag not in DAMAGE_EFFECT_TAGS and tag != "LoseLife":
+            per_opponent = False
+        return FixedAmount(amount_factor(node, field), per_opponent)
+    return None
 
 
 def pump_is_negative(node: TypedMirrorNode) -> bool:
@@ -5061,4 +5180,169 @@ def steals_stack_spell(unit: AbilityUnit) -> bool:
             )
         ):
             return True
+    return False
+
+
+# ── Activated abilities, blocking limits, combat-damage triggers ────────────────
+
+
+def activation_zone(node: object) -> str | None:
+    """The zone an activated ability says it works from (``activation_zone``:
+    ``"Hand"`` for cycling, ``"Graveyard"`` for unearth or embalm), or ``None``
+    when it names none — CR 113.6b: "An ability that states which zones it
+    functions in functions only from those zones"."""
+    zone = getattr(node, "activation_zone", MISSING)
+    return zone if isinstance(zone, str) else None
+
+
+def _functions_on_battlefield(unit: AbilityUnit) -> bool:
+    """Whether an activated ability can be activated while its object is on the
+    battlefield: no other :func:`activation_zone` (cycling, CR 702.29a, "functions
+    only while the card with cycling is in a player's hand"), and not ninjutsu,
+    which names no zone but "functions only while the card with ninjutsu is in a
+    player's hand" (CR 702.49a). Phase's synthesized suspend unit is a special
+    action, not an ability at all (CR 116.2f), and carries the hand zone too."""
+    if activation_zone(unit.node) not in (None, "Battlefield"):
+        return False
+    return tag_of(getattr(unit.node, "cost", None)) != "NinjutsuFamily"
+
+
+def activated_ability_units(
+    tree: ConceptTree, *, include_mana: bool = True
+) -> Iterator[AbilityUnit]:
+    """The card's activated abilities ("[Cost]: [Effect.]", CR 602.1) that work on
+    the battlefield (:func:`_functions_on_battlefield`) — what a copier of the
+    object's abilities or a commander borrowing them can use. Loyalty abilities are
+    activated abilities (CR 606.1) and Equip is one (CR 702.6a), so both stay in.
+    ``include_mana=False`` leaves out mana abilities (CR 605.1a), the caller's
+    choice: an ability copier can't copy one (Rings of Brighthearth: "if it isn't
+    a mana ability"), while a borrowed mana ability is often the best tool."""
+    for unit in tree.iter_units("ability"):
+        if unit.kind != "Activated" or not _functions_on_battlefield(unit):
+            continue
+        if not include_mana and getattr(unit.node, "is_mana_ability", None) is True:
+            continue
+        yield unit
+
+
+def limits_blockers_to_one(tree: ConceptTree) -> bool:
+    """Whether the card says a creature "can't be blocked by more than one
+    creature" — on itself (Charging Rhino) or granted (Full Steam Ahead's
+    quoted grant). Beside menace ("can't be blocked except by two or more
+    creatures", CR 702.111b) no block is legal: the restrictions are cumulative
+    (CR 509.1b)."""
+    for unit in tree.units:
+        for sdef in unit.static_defs():
+            if (
+                static_mode_tag(sdef) == "CantBeBlockedByMoreThan"
+                and static_mode_field(sdef, "max") == 1
+            ):
+                return True
+        for _sdef, mod in iter_mod_sites(unit.node, deep=True):
+            if (
+                tag_of(mod) == "AddStaticMode"
+                and static_mode_tag(mod) == "CantBeBlockedByMoreThan"
+                and static_mode_field(mod, "max") == 1
+            ):
+                return True
+    return False
+
+
+def _is_combat_damage_trigger(trig: object) -> bool:
+    """Whether a trigger definition fires on combat damage ("whenever ~ deals
+    combat damage"): a ``DamageDone`` event phase marks ``CombatOnly``."""
+    return (
+        isinstance(trig, TypedMirrorNode)
+        and _trigger_event(trig) == "deals_damage"
+        and trigger_damage_kind(trig) == "CombatOnly"
+    )
+
+
+def has_combat_damage_trigger(tree: ConceptTree) -> bool:
+    """Whether the card has, or grants (Sword of Fire and Ice's equipped creature
+    trigger, a quoted grant), a combat-damage trigger — the trigger double strike
+    fires twice, since a double striker deals combat damage in both combat damage
+    steps (CR 702.4b)."""
+    for unit in tree.units:
+        if unit.origin == "trigger" and _is_combat_damage_trigger(unit.node):
+            return True
+        if any(
+            _is_combat_damage_trigger(d) for d in iter_nested_trigger_defs(unit.node)
+        ):
+            return True
+    return False
+
+
+#: Every name :func:`trigger_kinds` gives (cut-check's ``--trigger-type`` choices).
+TRIGGER_KINDS: tuple[str, ...] = (
+    "upkeep",
+    "attack",
+    "combat-damage",
+    "death",
+    "etb",
+    "endstep",
+)
+#: The step a "beginning of [step]" trigger fires at (:func:`trigger_phase`) → its
+#: :func:`trigger_kinds` name.
+_STEP_KINDS = {"Upkeep": "upkeep", "End": "endstep"}
+
+
+def trigger_kinds(unit: AbilityUnit) -> tuple[str, ...]:
+    """What a trigger unit fires on, in cut-check's words: an enters trigger
+    (CR 603.6a, :data:`ENTERS_EVENTS`) is ``etb``, "enters or attacks" (Sun Titan)
+    both ``etb`` and ``attack``; a dies trigger (CR 700.4: put into a graveyard from
+    the battlefield) is ``death``; a combat-damage trigger ``combat-damage``; "at
+    the beginning of [your / each] upkeep / end step" ``upkeep`` / ``endstep``."""
+    event = unit.trigger_event
+    out: list[str] = []
+    if event in ENTERS_EVENTS:
+        out.append("etb")
+    if event in ("attacks", "entersorattacks"):
+        out.append("attack")
+    if event == "dies":
+        out.append("death")
+    if _is_combat_damage_trigger(unit.node):
+        out.append("combat-damage")
+    if event == "phase":
+        step = _STEP_KINDS.get(trigger_phase(unit.node) or "")
+        if step:
+            out.append(step)
+    return tuple(out)
+
+
+def has_structural_legend_rule_off(tree: ConceptTree) -> bool:
+    """CR 704.5j: a ``LegendRuleDoesntApply`` static mode phase types directly
+    (Mirror Gallery, Mirror Box, Sakashima; the Cadric-style bounded forms too)."""
+    return tree.has_static_mode("LegendRuleDoesntApply")
+
+
+def bypasses_legend_rule(tree: ConceptTree) -> bool:
+    """Whether the card gets around the legend rule (CR 704.5j) for a copy: a copy
+    "except it isn't legendary" (Helm of the Host, Spark Double, Double Major — a
+    ``RemoveSupertype`` of Legendary, which becomes part of the copiable values,
+    CR 707.9b), or a static saying the legend rule doesn't apply
+    (:func:`has_structural_legend_rule_off`)."""
+    if has_structural_legend_rule_off(tree):
+        return True
+    return any(
+        tag_of(n) == "RemoveSupertype" and getattr(n, "supertype", None) == "Legendary"
+        for n in tree.iter_typed()
+    )
+
+
+def is_every_creature_type(tree: ConceptTree) -> bool:
+    """Whether the card is every creature type by its own static ability:
+    changeling ("This object is every creature type", CR 702.73a — phase expands
+    the keyword to this static) or Mistform Ultimus's printed ability. A
+    characteristic-defining ability, so it works in every zone (CR 604.3) — a
+    changeling card in a graveyard is an Elf card too. The card itself only: the
+    ``has_changeling`` and ``type_changers`` lanes also read grants of every
+    creature type to other objects (Maskwood Nexus, Mirror Entity's ability)."""
+    for unit in tree.iter_units("static"):
+        for sdef, mod in iter_mod_sites(unit.node):
+            if (
+                tag_of(mod) == "AddAllCreatureTypes"
+                and tag_of(getattr(sdef, "affected", None)) == "SelfRef"
+            ):
+                return True
     return False

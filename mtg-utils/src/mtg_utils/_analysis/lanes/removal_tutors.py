@@ -226,6 +226,9 @@ def _b13_conferred_grant_lanes(tree: ConceptTree) -> list[Signal]:
                 if lane is not None:
                     add(lane, "")
             elif tag == "AddAllCreatureTypes":
+                # Wider than ``reads.is_every_creature_type`` (the card itself):
+                # has_changeling also serves a static making other creatures every
+                # type, so this walk keeps every mod site.
                 add("has_changeling", "")
         for sdef in iter_static_defs(unit.node):
             cw = cast_with_keyword_name(sdef)

@@ -333,6 +333,7 @@ _REAL_CASES: dict[str, str] = {
     "self_counter_grow": "Adaptive Snapjaw",
     "self_death_payoff": "Kokusho, the Evening Star",
     "self_pump": "Shivan Dragon",
+    "self_recurring": "Bloodghast",
     "shield_counter_makers": "Boon of Safety",
     "snow_matters": "Diamond Faerie",
     "has_soulbond": "Flowering Lumberknot",

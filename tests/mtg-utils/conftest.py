@@ -522,97 +522,18 @@ def alt_cost_cards():
 
 @pytest.fixture
 def trigger_test_cards() -> list[dict]:
-    """Cards with known trigger types and numeric values for cut-check testing.
-
-    Real cards come from the testkit snapshot with a ``prices`` overlay
-    (ADR-0056); the fictionally named records are machinery for trigger shapes.
-    """
+    """Real cards with known trigger types, values, keyword interactions and
+    recursion for cut-check testing, from the testkit snapshot with a ``prices``
+    overlay (ADR-0056). Obeka (menace, a combat-damage trigger) is the commander."""
     return [
         _real("Obeka, Splitter of Seconds", prices={"usd": "1.00"}),
-        {
-            "name": "Upkeep Drainer",
-            "mana_cost": "{1}{B}",
-            "cmc": 2.0,
-            "type_line": "Creature — Vampire",
-            "oracle_text": "At the beginning of your upkeep, this creature deals 1 damage to each opponent. You gain life equal to the damage dealt this way.",
-            "keywords": [],
-            "colors": ["B"],
-            "color_identity": ["B"],
-            "prices": {"usd": "0.50"},
-            "legalities": {"commander": "legal"},
-        },
-        {
-            "name": "Suspend Bouncer",
-            "mana_cost": "{4}{U}{U}",
-            "cmc": 6.0,
-            "type_line": "Sorcery",
-            "oracle_text": "Return target permanent to its owner's hand. Exile Suspend Bouncer with three time counters on it.\nSuspend 3—{2}{U}",
-            "keywords": ["Suspend"],
-            "colors": ["U"],
-            "color_identity": ["U"],
-            "prices": {"usd": "0.25"},
-            "legalities": {"commander": "legal"},
-        },
-        {
-            "name": "Blocking Restrictor",
-            "mana_cost": "{2}",
-            "cmc": 2.0,
-            "type_line": "Artifact — Equipment",
-            "oracle_text": "Equipped creature has trample and can't be blocked by more than one creature.\nEquip {1}",
-            "keywords": ["Equip"],
-            "colors": [],
-            "color_identity": [],
-            "prices": {"usd": "0.10"},
-            "legalities": {"commander": "legal"},
-        },
-        {
-            "name": "Double Striker",
-            "mana_cost": "{1}{R}",
-            "cmc": 2.0,
-            "type_line": "Artifact Creature — Equipment Lizard",
-            "oracle_text": "Double strike\nEquipped creature has double strike.\nReconfigure {2}",
-            "keywords": ["Double strike", "Reconfigure"],
-            "colors": ["R"],
-            "color_identity": ["R"],
-            "prices": {"usd": "0.75"},
-            "legalities": {"commander": "legal"},
-        },
-        {
-            "name": "Variable Trigger",
-            "mana_cost": "{2}{B}",
-            "cmc": 3.0,
-            "type_line": "Enchantment",
-            "oracle_text": "At the beginning of your upkeep, repeat the following process for each opponent in turn order. Reveal the top card of your library. Any opponent may pay life equal to that card's mana value. If they don't, put it into your hand.",
-            "keywords": [],
-            "colors": ["B"],
-            "color_identity": ["B"],
-            "prices": {"usd": "1.00"},
-            "legalities": {"commander": "legal"},
-        },
-        {
-            "name": "Attack Trigger Guy",
-            "mana_cost": "{3}{R}{R}",
-            "cmc": 5.0,
-            "type_line": "Creature — Dragon",
-            "oracle_text": "Flying\nWhenever you attack, create two 1/1 red Goblin creature tokens that are tapped and attacking.",
-            "keywords": ["Flying"],
-            "colors": ["R"],
-            "color_identity": ["R"],
-            "prices": {"usd": "2.00"},
-            "legalities": {"commander": "legal"},
-        },
-        {
-            "name": "Buyback Spell",
-            "mana_cost": "{2}{U}",
-            "cmc": 3.0,
-            "type_line": "Instant",
-            "oracle_text": "Buyback {3}\nDraw a card.",
-            "keywords": ["Buyback"],
-            "colors": ["U"],
-            "color_identity": ["U"],
-            "prices": {"usd": "0.50"},
-            "legalities": {"commander": "legal"},
-        },
+        _real("Phyrexian Arena", prices={"usd": "3.00"}),  # upkeep: draw a card
+        _real("Dark Confidant", prices={"usd": "2.00"}),  # upkeep, life = its MV
+        _real("Hero of Bladehold", prices={"usd": "2.00"}),  # attacks: two tokens
+        _real("Charging Rhino", prices={"usd": "0.10"}),  # blocked by at most one
+        _real("Boros Swiftblade", prices={"usd": "0.10"}),  # double strike
+        _real("Arc Blade", prices={"usd": "0.25"}),  # re-suspends itself
+        _real("Whispers of the Muse", prices={"usd": "0.50"}),  # buyback
         _real("Helm of the Host", prices={"usd": "7.00"}),
         _real("Spark Double", prices={"usd": "3.00"}),
         _real("Strionic Resonator", prices={"usd": "1.50"}),

@@ -1266,6 +1266,9 @@ def _type_changer_static_reads(
     out: list[tuple[str, str, str, str]] = []
     for unit in tree.units:
         for node in iter_static_defs(unit.node):
+            # The card's OWN every-creature-type CDA (``reads.is_every_creature_
+            # type``) is the complement of this lane: type_changers reads what a
+            # card grants to other creatures, so it skips the CDA.
             if getattr(node, "characteristic_defining", False):
                 continue
             affected = getattr(node, "affected", None)

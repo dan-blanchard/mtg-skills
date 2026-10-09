@@ -4,8 +4,16 @@ oracle text and rulings (CR 603.2d additional triggers, CR 707.10 copied abiliti
 
 import pytest
 
-from mtg_utils._analysis.multipliers import ZONE_GRANT_RESIDUE, commander_multipliers
-from mtg_utils._card_ir.trees import trees_for
+from mtg_utils._analysis.multipliers import (
+    ZONE_GRANT_RESIDUE,
+    Commander,
+    ZoneGrant,
+    commander_multipliers,
+    multiplier_reasons,
+    zone_grant,
+)
+from mtg_utils._card_ir.crosswalk.reads import filter_admits, filter_subtypes
+from mtg_utils._card_ir.trees import object_facts, trees_for
 from mtg_utils.testkit import test_card
 
 OMNATH = test_card("Omnath, Locus of the Void")  # a landfall trigger only
@@ -152,19 +160,140 @@ def test_zone_granted_toolbox_card():
     }
 
 
+@pytest.mark.parametrize("name", ["Mirror Entity", "Chameleon Colossus"])
+def test_a_changeling_is_an_elf_card_in_the_graveyard(name):
+    """Changeling is every creature type, in every zone (CR 702.73a, 604.3)."""
+    assert set(commander_multipliers([test_card(name)], [THRANDUIL])) == {name}
+
+
+def test_zone_grant_reads_type_and_zone():
+    assert zone_grant(THRANDUIL) == ZoneGrant("Elf", "graveyard")
+    assert zone_grant(KRENKO) is None
+
+
+def test_copies_of_a_noncreature_or_an_opponents_permanent():
+    """Astral Dragon copies a noncreature permanent; Venser, Fervent Forger's
+    token copies are of a permanent an opponent controls."""
+    cards = [test_card("Astral Dragon"), test_card("Venser, Fervent Forger")]
+    assert commander_multipliers(cards, [KRENKO]) == {}
+
+
+def test_reasons_list_every_way_by_kind():
+    """Lithoform Engine copies an activated or triggered ability and a permanent
+    spell: two kinds, each with its ability as the clause."""
+    reasons = multiplier_reasons(test_card("Lithoform Engine"), Commander(KRENKO))
+    assert [(r.kind, r.family) for r in reasons] == [
+        ("copy_activated_or_triggered", "ability"),
+        ("copy_commander_spell", "copy"),
+    ]
+    assert reasons[1].clause == "{4}, {T}: Copy target permanent spell you control."
+
+
+def test_a_copy_of_the_creature_that_entered_can_copy_the_commander():
+    """Flameshadow Conjuring and Molten Echoes copy "that creature" — the nontoken
+    creature whose entering triggered them, the commander included (choose its
+    type for Molten Echoes); the legendary token copy still enters, so its enters
+    triggers fire before the legend rule (CR 704.5j) removes one."""
+    cards = [test_card("Flameshadow Conjuring"), test_card("Molten Echoes")]
+    assert set(commander_multipliers(cards, [URZA])) == {
+        "Flameshadow Conjuring",
+        "Molten Echoes",
+    }
+
+
+def test_copies_the_commander_never_reaches():
+    """Nacatl War-Pride copies itself ("copies of it"); Chef's Kiss takes a spell
+    that targets, and a creature spell has no targets (CR 115.1a/b); Kaervek, the
+    Punisher copies a black card in your graveyard; Ominous Lockbox an opponent's
+    spell; Gandalf, Westward Voyager a spell of mana value 5 or more."""
+    cards = [
+        test_card("Nacatl War-Pride"),
+        test_card("Chef's Kiss"),
+        test_card("Kaervek, the Punisher"),
+        test_card("Ominous Lockbox"),  # copies a spell an opponent casts
+        test_card("Gandalf, Westward Voyager"),  # mana value 5 or greater; Krenko 4
+    ]
+    assert commander_multipliers(cards, [KRENKO]) == {}
+
+
+def test_copies_of_cards_to_cast_never_copy_the_commander():
+    """Zethi copies exiled instant cards and Arcane Savant a card exiled before the
+    game, to cast the copies (CR 707.12) — never the commander spell."""
+    cards = [test_card("Zethi, Arcane Blademaster"), test_card("Arcane Savant")]
+    assert commander_multipliers(cards, [KRENKO]) == {}
+
+
+def test_a_cast_trigger_copy_needs_the_commanders_cast():
+    """Ulalek copies spells when you cast an Eldrazi spell (Kozilek is one);
+    Verazol copies a kicked spell, and only a spell with kicker can be kicked
+    (CR 702.33a — Josu Vess)."""
+    ulalek = test_card("Ulalek, Fused Atrocity")
+    verazol = test_card("Verazol, the Split Current")
+    assert set(commander_multipliers([ulalek, verazol], [KOZILEK])) == {
+        "Ulalek, Fused Atrocity"
+    }
+    assert set(
+        commander_multipliers([ulalek, verazol], [test_card("Josu Vess, Lich Knight")])
+    ) == {"Verazol, the Split Current"}
+    assert commander_multipliers([ulalek, verazol], [KRENKO]) == {}
+
+
+def test_becoming_a_copy_of_a_legend_needs_a_legend_rule_bypass():
+    """A permanent that becomes a copy of a legendary commander takes its
+    supertype (CR 707.2), and the legend rule then keeps only one (CR 704.5j —
+    Mirage Mirror's ruling); becoming a copy isn't entering. Entering as a copy
+    (Clone, CR 707.5) still enters. A nonlegendary object (Wood Elves) can be
+    copied by Mirage Mirror for real."""
+    mirror = test_card("Mirage Mirror")
+    clone = test_card("Clone")
+    assert set(commander_multipliers([mirror, clone], [KRENKO])) == {"Clone"}
+    assert set(commander_multipliers([mirror], [test_card("Wood Elves")])) == {
+        "Mirage Mirror"
+    }
+
+
+def test_a_delayed_or_loyalty_copy_reaches_its_commander():
+    """The Clone Saga's chapter II copies the next creature spell you cast ("except
+    it isn't legendary"); Rowan's Talent copies the loyalty abilities of the
+    planeswalker it enchants (CR 606.1: loyalty abilities are activated)."""
+    saga = test_card("The Clone Saga")
+    talent = test_card("Rowan's Talent")
+    assert set(commander_multipliers([saga, talent], [KRENKO])) == {"The Clone Saga"}
+    assert set(commander_multipliers([talent], [GRIST])) == {"Rowan's Talent"}
+
+
+def test_a_changeling_is_every_creature_type_but_no_equipment():
+    """CR 702.73a: "This object is every creature type" — creature types only
+    (CR 205.3m), so Stoneforge Mystic's "Equipment card" doesn't describe Bloodline
+    Pretender, an artifact creature changeling."""
+    facts = object_facts(test_card("Bloodline Pretender"))
+    assert facts.has_subtype("Elf")
+    assert facts.has_subtype("Time Lord")
+    assert not facts.has_subtype("Equipment")
+    assert not facts.has_subtype("Forest")
+    equipment = next(
+        n
+        for tree in trees_for(test_card("Stoneforge Mystic"))
+        for n in tree.iter_typed()
+        if "Equipment" in filter_subtypes(n)
+    )
+    assert filter_admits(equipment, facts) is False
+
+
 def test_commander_never_protects_itself():
     assert commander_multipliers([OMNATH], [OMNATH]) == {}
 
 
 @pytest.mark.retirement_canary
 def test_thranduil_zone_grant_is_still_a_residue_canary():
-    """Retirement canary for the zone-grant text arm in
-    ``_analysis.multipliers._zone_grant_reason``. Phase v0.94.0 parks Thranduil's
+    """Retirement canary for the zone-grant text arm in ``_analysis.multipliers``
+    (``zone_grant``, read by the tuner's protection and by cut-check's
+    ZONE_GRANTED flag). Phase v0.94.0 parks Thranduil's
     "has all activated abilities of all Elf cards in your graveyard" as an
     Unimplemented residue; once it parses, read the grant off the tree instead."""
     residues = [r for tree in trees_for(THRANDUIL) for r in tree.residues()]
     assert any(ZONE_GRANT_RESIDUE in r for r in residues), (
-        "multipliers._zone_grant_reason: RETIRE-READY — phase now parses "
+        "multipliers.zone_grant: RETIRE-READY — phase now parses "
         "Thranduil's zone grant. Read it off the tree, then delete the text arm "
         "and this canary."
     )

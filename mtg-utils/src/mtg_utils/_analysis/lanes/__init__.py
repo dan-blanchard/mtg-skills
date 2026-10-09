@@ -193,6 +193,7 @@ from mtg_utils._analysis.lanes.card_advantage import (
     _pce_has_paired_draw,
     _play_from_top,
     _self_death_payoff,
+    _self_recurring,
     _target_player_draws,
     _topdeck_owner_ok,
     _topdeck_selection,
@@ -200,6 +201,7 @@ from mtg_utils._analysis.lanes.card_advantage import (
     _unit_has_originalcontroller_draw,
     _widened_tag_phrase_match,
     etb_bulk_draw,
+    recurs_itself,
 )
 from mtg_utils._analysis.lanes.card_advantage import (
     LANES as _CARD_ADVANTAGE_LANES,
@@ -1327,6 +1329,7 @@ __all__ = [
     "_self_death_payoff",
     "_self_etb_payload",
     "_self_pump",
+    "_self_recurring",
     "_sentence_span",
     "_sibling_exile_producer_cores",
     "_sibling_named_tutor_no_core",
@@ -1426,6 +1429,7 @@ __all__ = [
     "extract_crosswalk_signals",
     "extract_grant_payloads",
     "graveyard_return_direction",
+    "recurs_itself",
     "removal_edict_answers",
     "removal_edict_targets_type",
     "sacrifice_actor_scope",

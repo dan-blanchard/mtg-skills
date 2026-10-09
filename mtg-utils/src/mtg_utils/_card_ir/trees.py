@@ -834,9 +834,14 @@ def trees_for(
 
 def object_facts(card: dict) -> ObjectFacts:
     """The card's own types, subtypes and supertypes off its corrected trees (every
-    face), and its colors off the record — what ``reads.filter_admits`` asks of an
-    object."""
-    from mtg_utils._card_ir.crosswalk.reads import ObjectFacts
+    face), whether it is every creature type (changeling, CR 702.73a), and its
+    keywords; its colors, mana value and {X} off the record — what
+    ``reads.filter_admits`` asks of an object."""
+    from mtg_utils._card_ir.crosswalk.reads import (
+        ObjectFacts,
+        is_every_creature_type,
+        normalised_keyword_name,
+    )
 
     trees = trees_for(dict(card))
     return ObjectFacts(
@@ -844,4 +849,12 @@ def object_facts(card: dict) -> ObjectFacts:
         subtypes=frozenset(t for tree in trees for t in tree.card_subtypes),
         supertypes=frozenset(t for tree in trees for t in tree.card_supertypes),
         colors=frozenset(card.get("colors") or ()),
+        every_creature_type=any(is_every_creature_type(tree) for tree in trees),
+        mana_value=int(cmc)
+        if isinstance(cmc := card.get("cmc"), (int, float))
+        else None,
+        x_cost="{X}" in (card.get("mana_cost") or ""),
+        keywords=frozenset(
+            normalised_keyword_name(k) for tree in trees for k in tree.card_keywords
+        ),
     )

@@ -132,13 +132,13 @@ def _restriction_word_admits(word: str, facts: ObjectFacts) -> bool | None:
     if word == "multicolored":
         return len(facts.colors) >= 2
     if word == "outlaw":  # CR 700.12
-        return bool({t.lower() for t in facts.subtypes} & _OUTLAWS)
+        return any(facts.has_subtype(t) for t in _OUTLAWS)
     if word in _CARD_TYPE_WORDS:
-        return word in {t.lower() for t in facts.types}
+        return facts.has_type(word)
     if word in _SUPERTYPE_WORDS:
-        return word in {t.lower() for t in facts.supertypes}
+        return facts.has_supertype(word)
     if word in _SUBTYPE_WORDS:
-        return word in {t.lower() for t in facts.subtypes}
+        return facts.has_subtype(word)
     return None
 
 

@@ -365,6 +365,9 @@ def test_misread_keywords_are_corrected():
     # Warbringer's "Dash costs you pay cost {2} less" reduces dash costs (its
     # ruling); it is not a second dash.
     assert _alts("Warbringer") == [AltCost("dash", "{2}{R}", "alternative")]
+    # Memory Crystal's "Buyback costs cost {2} less" changes buyback costs (its
+    # rulings); it has no buyback of its own.
+    assert _alts("Memory Crystal") == []
 
 
 @pytest.mark.retirement_canary
@@ -389,6 +392,10 @@ def test_misread_keyword_canary():
     )
     assert len(dashes) == 2, (
         "crosswalk.core._misread_keyword: RETIRE-READY — Warbringer has one Dash."
+    )
+    assert any("Buyback" in kw for kw in keywords("Memory Crystal")), (
+        "crosswalk.core._misread_keyword: RETIRE-READY — Memory Crystal has no "
+        "Buyback keyword."
     )
 
 
