@@ -86,7 +86,10 @@ The Protocol shared by every Storefront — methods for auth state
 (`open_handoff`), and the canonical-name canonicalization
 (`name_for_search`). Every iteration that crosses kinds (cart
 pollution sweep, login pre-flight, Phase 7 handoff, grand-total
-report) uses only StoreSession methods.
+report) uses only StoreSession methods. The headed windows
+(`open_login`, `open_handoff`) are the same browser session at every
+Storefront, so StoreSession implements them and each adapter
+subclasses it, naming only its `cart_path` and `login_path`.
 _Avoid_: "Adapter base", "common interface".
 
 **LGS adapter**:

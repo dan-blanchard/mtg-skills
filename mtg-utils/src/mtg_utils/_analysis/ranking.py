@@ -544,9 +544,16 @@ def rank_candidates(
     pair_ctx: PairContext | None = None,
     row_class_permutation: bool = False,
     deck_mana: DeckMana | None = None,
+    meta_share: Callable[[str], float] | None = None,
 ) -> list[dict]:
     """Score and sort candidates: synergy desc, then price asc (no-listing last),
     then cmc asc.
+
+    ``meta_share`` (ADR-0059) is a digital build's meta archetype share by card
+    name (``MetaContext.share``): a tiebreak after synergy, before price — among
+    equally fitting candidates, the one more of the archetype's ladder lists run
+    leads. Each row's score then carries its ``meta_share``. Omitted (paper, no
+    cached or tunable archetype), no row carries one and the order is unchanged.
 
     ``rank_by="score"`` (default) sorts on ``synergy_score`` — the depth measure
     that fixes the breadth bias so a box-ticker grazing many lanes no longer
@@ -579,6 +586,9 @@ def rank_candidates(
         }
         for c in cards
     ]
+    if meta_share is not None:
+        for r in scored:
+            r["score"]["meta_share"] = meta_share(r["card"].get("name") or "")
 
     # Rate is a READOUT ONLY — the v1 multiplier is structurally disarmed
     # (Dan, 2026-07-24). ADR-0042's four-way eval falsified the percentile
@@ -598,6 +608,8 @@ def rank_candidates(
         key=lambda r: (
             -r["score"]["color_widening"],
             -_depth(r),
+            # Never above synergy: 0 for every row without a meta read.
+            -r["score"].get("meta_share", 0.0),
             r["score"]["price"] if r["score"]["price"] is not None else math.inf,
             r["score"]["cmc"],
             # Deterministic final key (2026-07-24): without it, ties fell

@@ -17,20 +17,16 @@ changelog, ``sidecar_path`` / ``load_card_ir`` / ``card_for``) died with the
 from __future__ import annotations
 
 import json
-import os
 from collections.abc import Iterator, Mapping
 from pathlib import Path
 
+from mtg_utils._http import cache_root
 from mtg_utils.card_ir import Card
 
 
 def card_ir_dir() -> Path:
-    """The Card IR cache root: ``$MTG_SKILLS_CACHE_DIR/card-ir`` or
-    ``$HOME/.cache/mtg-skills/card-ir`` (mirrors ``_phase.cache_dir``)."""
-    base = os.environ.get("MTG_SKILLS_CACHE_DIR")
-    if base:
-        return Path(base) / "card-ir"
-    return Path(os.environ["HOME"]) / ".cache" / "mtg-skills" / "card-ir"
+    """The Card IR cache root: ``<cache root>/card-ir`` (``_http.cache_root``)."""
+    return cache_root() / "card-ir"
 
 
 # ADR-0035 Stage-3a: the crosswalk-backed sidecar carries the SAME on-disk shape

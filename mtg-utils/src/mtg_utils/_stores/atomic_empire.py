@@ -17,7 +17,6 @@ catch real auth failures via cart-add response codes.
 from __future__ import annotations
 
 import re
-from pathlib import Path
 from typing import TYPE_CHECKING, Literal
 
 from bs4 import BeautifulSoup, Tag
@@ -30,6 +29,7 @@ from mtg_utils._stores._common import (
     Listing,
     SearchPrefs,
     StoreSelectorError,
+    StoreSession,
     attr_str,
     name_matches,
 )
@@ -85,11 +85,13 @@ def _parse_title(title: str) -> tuple[str, bool, bool]:
     return cleaned, foil, etched
 
 
-class _AtomicEmpireAdapter:
+class _AtomicEmpireAdapter(StoreSession):
     name = "atomic_empire"
     display_name = "Atomic Empire"
     kind: Literal["lgs"] = "lgs"
     base_url = _BASE_URL
+    cart_path = "/Cart"
+    login_path = "/Account/Login"
 
     def name_for_search(self, card_name: str) -> str:
         return card_name
@@ -189,23 +191,12 @@ class _AtomicEmpireAdapter:
         return AddToCartResult(
             success=success,
             qty_added=qty if success else 0,
-            cart_url=f"{self.base_url}/Cart",
+            cart_url=self.cart_url,
         )
-
-    def open_handoff(self, profile_dir: Path) -> None:
-        from playwright.sync_api import sync_playwright
-
-        with sync_playwright() as p:
-            ctx = p.chromium.launch_persistent_context(
-                str(profile_dir),
-                headless=False,
-            )
-            ctx.new_page().goto(f"{self.base_url}/Cart")
-            ctx.wait_for_event("close", timeout=0)
 
     def get_existing_cart(self, page: Page) -> list[Listing]:
         if hasattr(page, "goto"):
-            page.goto(f"{self.base_url}/Cart", wait_until="domcontentloaded")
+            page.goto(self.cart_url, wait_until="domcontentloaded")
             page.wait_for_timeout(500)
         soup = BeautifulSoup(page.content(), "html.parser")
         # Cart line items have an .remove-item link per row.
@@ -225,14 +216,14 @@ class _AtomicEmpireAdapter:
                     price=0.0,
                     qty_available=1,
                     listing_id="",
-                    url=f"{self.base_url}/Cart",
+                    url=self.cart_url,
                 )
             )
         return out
 
     def clear_cart(self, page: Page) -> None:
         if hasattr(page, "goto"):
-            page.goto(f"{self.base_url}/Cart", wait_until="domcontentloaded")
+            page.goto(self.cart_url, wait_until="domcontentloaded")
             page.wait_for_timeout(500)
         # Click each remove link; XHR fires POST /Cart/RemoveFromCart followed
         # by GET /Cart/ReloadSidebar.
@@ -250,17 +241,6 @@ class _AtomicEmpireAdapter:
         # assume logged in. The orchestrator's lazy-fallback handles real
         # auth failures via the cart-add HTTP response.
         return True
-
-    def open_login(self, profile_dir: Path) -> None:
-        from playwright.sync_api import sync_playwright
-
-        with sync_playwright() as p:
-            ctx = p.chromium.launch_persistent_context(
-                str(profile_dir),
-                headless=False,
-            )
-            ctx.new_page().goto(f"{self.base_url}/Account/Login")
-            ctx.wait_for_event("close", timeout=0)
 
 
 ADAPTER = _AtomicEmpireAdapter()

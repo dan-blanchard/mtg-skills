@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import functools
 import json
-import os
 import sys
 import threading
 import uuid
@@ -21,6 +20,7 @@ from mtg_utils._deck_forge import collection
 from mtg_utils._deck_forge.collection import CollectionStore
 from mtg_utils._deck_forge.persistence import BuildStore
 from mtg_utils._deck_forge.state import DeckSession, ForgeState
+from mtg_utils._http import cache_root
 from mtg_utils.card_pool import CardPool, NoBulkError
 from mtg_utils.hydrated_deck import HydratedDeck
 
@@ -89,9 +89,7 @@ def _combos(deck: dict, by_name: Mapping[str, dict]) -> dict:
 
 
 def _deck_forge_dir() -> Path:
-    base = os.environ.get("MTG_SKILLS_CACHE_DIR")
-    root = Path(base) if base else Path.home() / ".cache" / "mtg-skills"
-    return root / "deck-forge"
+    return cache_root() / "deck-forge"
 
 
 def _builds_dir() -> Path:

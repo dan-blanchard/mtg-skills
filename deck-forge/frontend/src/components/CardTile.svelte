@@ -42,6 +42,11 @@
   $: canCommand = card.can_be_commander === true;
   $: hasSynergy = score && score.synergy_fit > 0;
   $: served = score?.served ?? [];
+  // The share of the meta archetype's ladder lists that run the card (ADR-0059):
+  // served only on a digital build with a meta read, where it breaks synergy ties.
+  $: metaPct =
+    score?.meta_share > 0 ? Math.round(score.meta_share * 100) : null;
+  $: metaTitle = `In ${metaPct}% of your meta archetype's ladder lists`;
   // First line of oracle text (dense only) — newlines flattened to a bullet so a
   // multi-paragraph card reads as one line; CSS ellipsis shows "as much as fits".
   $: oracle = (card.oracle_text || "").replace(/\s*\n+\s*/g, " • ").trim();
@@ -91,6 +96,11 @@
         <div class="metaline" title={served.join(", ")}>
           {#if hasSynergy}
             <span class="spark">✦ {score.synergy_fit}</span>
+          {/if}
+          {#if metaPct}
+            <span class="metashare" title={metaTitle}>meta {metaPct}%</span>
+          {/if}
+          {#if hasSynergy}
             {#each served.slice(0, 3) as s, i (i)}<span class="served">{s}</span
               >{/each}
           {/if}
@@ -99,9 +109,14 @@
         {#if oracle}
           <div class="oracle"><OracleText text={oracle} size="0.82rem" /></div>
         {/if}
-      {:else if hasSynergy}
+      {:else if hasSynergy || metaPct}
         <div class="synergy" title={served.join(", ")}>
-          <span class="spark">✦ {score.synergy_fit}</span>
+          {#if hasSynergy}
+            <span class="spark">✦ {score.synergy_fit}</span>
+          {/if}
+          {#if metaPct}
+            <span class="metashare" title={metaTitle}>meta {metaPct}%</span>
+          {/if}
           {#each served.slice(0, 2) as s, i (i)}<span class="served">{s}</span
             >{/each}
         </div>
@@ -282,6 +297,15 @@
     font-size: 0.72rem;
     color: var(--brass-bright);
     flex-shrink: 0;
+  }
+  /* The meta archetype's share (ADR-0059): a tiebreak under synergy, so it sits
+     beside the spark in the same brass, smaller. */
+  .metashare {
+    font-size: 0.62rem;
+    color: var(--brass-bright);
+    white-space: nowrap;
+    flex-shrink: 0;
+    font-variant-numeric: tabular-nums;
   }
   /* Pre-release marker. Deliberately cooler than the ember/gold used for synergy so it
      reads as a status flag, not a recommendation. */

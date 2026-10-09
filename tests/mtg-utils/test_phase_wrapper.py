@@ -600,6 +600,89 @@ class TestRunDuelError:
         assert "code 2" in str(excinfo.value)
 
 
+@pytest.fixture
+def commander_env(monkeypatch, tmp_path):
+    """A fake ai-commander install plus four commander decks; returns the decks."""
+    bin_path = tmp_path / "ai-commander"
+    bin_path.write_text("#!/bin/sh\n")
+    bin_path.chmod(0o755)
+    monkeypatch.setenv("MTG_SKILLS_PHASE_BIN", str(bin_path.parent))
+    root = tmp_path / "root"
+    root.mkdir()
+    (root / "card-data.json").write_text("{}")
+    monkeypatch.setattr(_phase, "_binary_data_root", lambda: root)
+    decks = [tmp_path / f"d{i}.json" for i in range(4)]
+    for d in decks:
+        d.write_text(json.dumps({"name": d.stem, "main": [], "commander": ["X"]}))
+    return decks
+
+
+def _fake_ai_commander(calls: list, *, timeout_on: int | None = None):
+    """A ``subprocess.run`` stand-in playing one game per call, won by seat
+    ``call % 4`` in 10 turns; call number ``timeout_on`` (0-based) times out."""
+
+    def fake_run(cmd, **kwargs):
+        calls.append((cmd, kwargs))
+        if timeout_on is not None and len(calls) - 1 == timeout_on:
+            raise subprocess.TimeoutExpired(cmd, kwargs.get("timeout"))
+        r = MagicMock()
+        r.returncode = 0
+        r.stdout = f"Turns played: 10\nWinner: P{(len(calls) - 1) % 4}\n"
+        return r
+
+    return fake_run
+
+
+class TestRunCommanderBudget:
+    def test_seeds_each_game_from_the_base_seed(self, monkeypatch, commander_env):
+        calls: list = []
+        monkeypatch.setattr("subprocess.run", _fake_ai_commander(calls))
+        result = _phase.run_commander(commander_env, games=3, seed=7, timeout_s=600)
+        assert [int(_arg(c, "--seed")) for c, _ in calls] == [7, 8, 9]
+        assert result["seed"] == 7
+        assert result["games_completed"] == result["games_requested"] == 3
+        assert result["timed_out"] is False
+
+    def test_no_seed_draws_one_so_the_run_replays(self, monkeypatch, commander_env):
+        calls: list = []
+        monkeypatch.setattr("subprocess.run", _fake_ai_commander(calls))
+        result = _phase.run_commander(commander_env, games=3, seed=None, timeout_s=600)
+        seeds = [int(_arg(c, "--seed")) for c, _ in calls]
+        assert seeds == [result["seed"], result["seed"] + 1, result["seed"] + 2]
+
+    def test_timeout_keeps_the_games_that_finished(self, monkeypatch, commander_env):
+        calls: list = []
+        monkeypatch.setattr("subprocess.run", _fake_ai_commander(calls, timeout_on=5))
+        result = _phase.run_commander(commander_env, games=8, seed=0, timeout_s=600)
+        assert result["games_completed"] == result["games"] == 5
+        assert result["games_requested"] == 8
+        assert result["timed_out"] is True
+        assert result["status"] == "timeout"
+        assert result["winners_by_seat"] == [2, 1, 1, 1]
+        assert result["avg_turns"] == 10.0
+
+    def test_timeout_before_any_game_reports_none(self, monkeypatch, commander_env):
+        calls: list = []
+        monkeypatch.setattr("subprocess.run", _fake_ai_commander(calls, timeout_on=0))
+        result = _phase.run_commander(commander_env, games=4, seed=0, timeout_s=600)
+        assert result["games_completed"] == 0
+        assert result["timed_out"] is True
+        assert result["winners_by_seat"] == [0, 0, 0, 0]
+        assert result["avg_turns"] == 0.0
+
+    def test_each_game_gets_only_the_budget_left(self, monkeypatch, commander_env):
+        # The budget covers the whole run: each game's timeout is what remains, and
+        # once it's spent no further game starts.
+        clock = iter([0.0, 0.0, 120.0, 250.0, 301.0])
+        monkeypatch.setattr(_phase, "_monotonic", lambda: next(clock))
+        calls: list = []
+        monkeypatch.setattr("subprocess.run", _fake_ai_commander(calls))
+        result = _phase.run_commander(commander_env, games=10, seed=0, timeout_s=300)
+        assert [kw["timeout"] for _, kw in calls] == [300.0, 180.0, 50.0]
+        assert result["games_completed"] == 3
+        assert result["timed_out"] is True
+
+
 class TestRunCommander:
     def test_runs_4_player_commander(self, monkeypatch, tmp_path):
         bin_path = tmp_path / "ai-commander"

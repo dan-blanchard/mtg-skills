@@ -22,7 +22,6 @@ already populated by `bulk_submit_and_optimize`.
 from __future__ import annotations
 
 import re
-from pathlib import Path
 from typing import TYPE_CHECKING, Literal
 
 from bs4 import BeautifulSoup
@@ -36,6 +35,7 @@ from mtg_utils._stores._common import (
     Listing,
     OptimizedCart,
     StoreSelectorError,
+    StoreSession,
 )
 from mtg_utils._stores._common import (
     money as _money,
@@ -129,11 +129,13 @@ def _extract_money_after_label(window: list[str], label: str) -> float | None:
     return None
 
 
-class _TCGPlayerAdapter:
+class _TCGPlayerAdapter(StoreSession):
     name = "tcgplayer"
     display_name = "TCGPlayer"
     kind: Literal["marketplace"] = "marketplace"
     base_url = _BASE_URL
+    cart_path = "/cart"
+    login_path = "/login"
 
     def name_for_search(self, card_name: str) -> str:
         # TCG Mass Entry chokes on the canonical " // " split notation.
@@ -162,7 +164,7 @@ class _TCGPlayerAdapter:
             raise CartNotEmptyError(
                 self.name,
                 len(existing),
-                f"{self.base_url}/cart",
+                self.cart_url,
             )
 
         # Step 1 — Mass Entry
@@ -220,25 +222,14 @@ class _TCGPlayerAdapter:
             shipping=cheapest.get("shipping") or 0.0,
             lines=[],  # Per-line breakdown not extracted in v1.
             unfound=[],  # TCG flags unmatched lines on /massentry; v1 tolerates loss.
-            cart_url=f"{self.base_url}/cart",
+            cart_url=self.cart_url,
         )
 
     # -- Protocol stubs (online adapter; per-card search is unused) --
 
-    def open_handoff(self, profile_dir: Path) -> None:
-        from playwright.sync_api import sync_playwright
-
-        with sync_playwright() as p:
-            ctx = p.chromium.launch_persistent_context(
-                str(profile_dir),
-                headless=False,
-            )
-            ctx.new_page().goto(f"{self.base_url}/cart")
-            ctx.wait_for_event("close", timeout=0)
-
     def get_existing_cart(self, page: Page) -> list[Listing]:
         if hasattr(page, "goto"):
-            page.goto(f"{self.base_url}/cart", wait_until="domcontentloaded")
+            page.goto(self.cart_url, wait_until="domcontentloaded")
             page.wait_for_timeout(1500)
         soup = BeautifulSoup(page.content(), "html.parser")
         # Cart items render via React; the safest signal is "Subtotal:" text
@@ -260,14 +251,14 @@ class _TCGPlayerAdapter:
                     price=0.0,
                     qty_available=1,
                     listing_id="",
-                    url=f"{self.base_url}/cart",
+                    url=self.cart_url,
                 )
             ]
         return []
 
     def clear_cart(self, page: Page) -> None:
         if hasattr(page, "goto"):
-            page.goto(f"{self.base_url}/cart", wait_until="domcontentloaded")
+            page.goto(self.cart_url, wait_until="domcontentloaded")
             page.wait_for_timeout(1500)
         # "Remove all items" button on the cart page wipes the cart in one click.
         btn = page.locator('button:has-text("Remove all items")').first
@@ -285,17 +276,6 @@ class _TCGPlayerAdapter:
         text = soup.get_text(" ", strip=True)
         # "Sign In" in header without "Sign Out" → logged out.
         return not ("Sign In" in text and "Sign Out" not in text)
-
-    def open_login(self, profile_dir: Path) -> None:
-        from playwright.sync_api import sync_playwright
-
-        with sync_playwright() as p:
-            ctx = p.chromium.launch_persistent_context(
-                str(profile_dir),
-                headless=False,
-            )
-            ctx.new_page().goto(f"{self.base_url}/login")
-            ctx.wait_for_event("close", timeout=0)
 
 
 ADAPTER = _TCGPlayerAdapter()

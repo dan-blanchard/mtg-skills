@@ -1537,6 +1537,9 @@ class FindParams:
     sort: str = "cmc-asc"
     limit: int = 25
     offset: int = 0
+    # ADR-0059: the build's Arena meta archetype, as Tune takes it — None matches the
+    # deck from the arena-meta cache, "off" skips it, anything else names one.
+    meta_archetype: str | None = None
 
 
 @dataclass(frozen=True)
@@ -1609,6 +1612,10 @@ def find_candidates(state: ForgeState, params: FindParams) -> CandidatePage:
     singleton's one, a 4-of's four, a basic's never), then returns the requested
     window of ranked rows. The route serializes the rows and annotates ownership;
     this stops at ranked records.
+
+    On a digital build with a tunable meta archetype in the cache (:func:`meta_context`,
+    the gate Tune reads through), the archetype's card share breaks synergy ties
+    (ADR-0059); without one the ranking is synergy, price, curve, as before.
     """
     fmt = state.session.format
     ci = deck_colors(state)
@@ -1618,6 +1625,12 @@ def find_candidates(state: ForgeState, params: FindParams) -> CandidatePage:
     all_avenues = avenues(state, deck_records)
     focused = [a for a in all_avenues if a.get("focused")]
     search = search_for(state, hd)
+    meta = (
+        meta_context(state, hd, params.meta_archetype)
+        if focused or has_user_filters(params)
+        else None
+    )
+    meta_share = meta.share if meta is not None else None
 
     if focused:
         pool: dict[str, dict] = {}
@@ -1652,6 +1665,7 @@ def find_candidates(state: ForgeState, params: FindParams) -> CandidatePage:
             widening_base=widening_base,
             rank_by="fit",
             deck_mana=hd.deck_mana,
+            meta_share=meta_share,
         )
     elif has_user_filters(params):
         records = search(
@@ -1683,6 +1697,7 @@ def find_candidates(state: ForgeState, params: FindParams) -> CandidatePage:
             active_signals=sigs,
             avenues=all_avenues,
             deck_mana=hd.deck_mana,
+            meta_share=meta_share,
         )
     else:
         ranked = []

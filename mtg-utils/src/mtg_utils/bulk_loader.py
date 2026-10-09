@@ -22,10 +22,10 @@ knobs there.
 from __future__ import annotations
 
 import json
-import os
 import sys
 from pathlib import Path
 
+from mtg_utils._http import cache_root, default_cache_root
 from mtg_utils._sidecar import load_pickle_sidecar, write_pickle_sidecar
 
 # Bump when the on-disk payload shape changes so old sidecars are
@@ -180,15 +180,8 @@ def default_bulk_path() -> Path | None:
     survives ``/tmp`` cleanup), then ``/tmp`` (ephemeral).
     Returns ``None`` if none exists.
     """
-    cache_root = os.environ.get("MTG_SKILLS_CACHE_DIR")
-    home = os.environ.get("HOME")
-    roots: list[Path] = []
-    if cache_root:
-        roots.append(Path(cache_root))
-    if home:
-        roots.append(Path(home) / ".cache" / "mtg-skills")
-    roots.append(Path("/tmp"))
-
+    # dict.fromkeys: with no override the first two roots are the same directory.
+    roots = dict.fromkeys((cache_root(), default_cache_root(), Path("/tmp")))
     for root in roots:
         p = root / "mtgjson" / "AllPrintings.json"
         if p.is_file():

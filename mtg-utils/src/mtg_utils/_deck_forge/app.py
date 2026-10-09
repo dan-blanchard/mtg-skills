@@ -171,6 +171,9 @@ class SearchPayload(BaseModel):
     sort: str = "cmc-asc"
     limit: int = 25
     offset: int = 0
+    # ADR-0059: the meta archetype Tune reads (TunePayload.meta_archetype), whose
+    # card share breaks Find's synergy ties on a digital build.
+    meta_archetype: str | None = None
 
 
 class TunePayload(BaseModel):
@@ -254,6 +257,7 @@ def _find_params(payload: SearchPayload) -> engine.FindParams:
         sort=payload.sort,
         limit=payload.limit,
         offset=payload.offset,
+        meta_archetype=payload.meta_archetype,
     )
 
 

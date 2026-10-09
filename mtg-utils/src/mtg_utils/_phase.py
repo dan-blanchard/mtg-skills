@@ -20,7 +20,7 @@ import urllib.error
 from functools import lru_cache
 from pathlib import Path
 
-from mtg_utils._http import urllib_get
+from mtg_utils._http import cache_root, urllib_get
 
 # Deliberately its own identity (not mtg_utils._http.USER_AGENT): this
 # fetches from GitHub releases/raw, so it names the phase subsystem
@@ -61,13 +61,8 @@ class PhaseRuntimeError(RuntimeError):
 
 
 def cache_dir() -> Path:
-    """Return the phase cache root: ``$MTG_SKILLS_CACHE_DIR/phase``
-    or ``$HOME/.cache/mtg-skills/phase``.
-    """
-    base = os.environ.get("MTG_SKILLS_CACHE_DIR")
-    if base:
-        return Path(base) / "phase"
-    return Path(os.environ["HOME"]) / ".cache" / "mtg-skills" / "phase"
+    """Return the phase cache root: ``<cache root>/phase`` (``_http.cache_root``)."""
+    return cache_root() / "phase"
 
 
 def _repo_dir() -> Path:
@@ -837,15 +832,26 @@ def run_commander(
     difficulty: str = "Medium",
     timeout_s: int,
 ) -> dict:
-    """Run ``ai-commander`` for a 4-player FFA. Returns per-seat win counts.
+    """Run ``games`` 4-player FFA games of ``ai-commander`` within ``timeout_s``
+    seconds and return per-seat win counts.
 
     ``deck_paths`` must have length 4 (phase requires 4 seats). Each is a
     phase-native deck JSON (see :func:`to_phase_deck`) carrying a ``commander``.
 
+    Returned dict: ``winners_by_seat``, ``draws``, ``avg_turns`` (over the games
+    that finished), ``games`` (= games completed), ``games_completed``,
+    ``games_requested``, ``timed_out``, ``seed`` (the base seed used), and
+    ``status`` (``ok``, or ``timeout`` when the budget ran out before every game
+    finished).
+
     v0.8.0 model: ``ai-commander <data-root> --feed <feed.json>`` plays ONE game
     and prints the result to stdout (no ``--decks``/``--games``/``--output``). We
-    synthesize a runtime feed from the four decks and invoke once per game (seed
-    bumped per game), aggregating the parsed ``Winner: P<seat>`` lines.
+    synthesize a runtime feed from the four decks and invoke once per game,
+    aggregating the parsed ``Winner: P<seat>`` lines. Each game is a chunk of one
+    under :func:`run_duel`'s budget: ``timeout_s`` covers the whole run, each game
+    gets only what remains, and a timeout keeps every game that finished. Game
+    ``g`` runs with ``--seed seed + g``; with no seed, one is drawn here so a run
+    stays reproducible from the seed it reports.
     """
     if len(deck_paths) != 4:
         raise ValueError(
@@ -864,16 +870,24 @@ def run_commander(
             for p in deck_paths
         ]
     }
+    if seed is None:
+        seed = random.SystemRandom().randrange(2**31)
+    deadline = _monotonic() + timeout_s
     winners = [0, 0, 0, 0]
     draws = 0
     turns_total = 0
     completed = 0
+    timed_out = False
     with tempfile.TemporaryDirectory() as td:
         # An absolute --feed path overrides the data-root join (Rust Path::join
         # with an absolute path replaces the base), so the feed lives off-root.
         feed_path = Path(td) / "feed.json"
         feed_path.write_text(json.dumps(feed))
-        for g in range(games):
+        while completed < games:
+            remaining = deadline - _monotonic()
+            if remaining <= 0:
+                timed_out = True
+                break
             cmd = [
                 str(binary),
                 str(data_root),
@@ -881,21 +895,16 @@ def run_commander(
                 str(feed_path),
                 "--difficulty",
                 difficulty,
+                "--seed",
+                str(seed + completed),
             ]
-            if seed is not None:
-                cmd += ["--seed", str(seed + g)]
             try:
                 proc = subprocess.run(
-                    cmd, check=True, timeout=timeout_s, capture_output=True, text=True
+                    cmd, check=True, timeout=remaining, capture_output=True, text=True
                 )
             except subprocess.TimeoutExpired:
-                return {
-                    "status": "timeout",
-                    "winners_by_seat": [0, 0, 0, 0],
-                    "games": 0,
-                    "draws": 0,
-                    "avg_turns": 0.0,
-                }
+                timed_out = True
+                break
             except subprocess.CalledProcessError as exc:
                 raise PhaseRuntimeError(
                     f"phase ai-commander exited with code {exc.returncode}",
@@ -913,9 +922,13 @@ def run_commander(
             completed += 1
 
     return {
-        "status": "ok",
+        "status": "timeout" if timed_out else "ok",
         "winners_by_seat": winners,
         "games": completed,
+        "games_completed": completed,
+        "games_requested": games,
+        "timed_out": timed_out,
+        "seed": seed,
         "draws": draws,
-        "avg_turns": (turns_total / completed) if completed else 0.0,
+        "avg_turns": round(turns_total / completed, 2) if completed else 0.0,
     }

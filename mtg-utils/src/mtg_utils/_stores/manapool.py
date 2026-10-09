@@ -21,7 +21,6 @@ from __future__ import annotations
 
 import re
 from collections.abc import Callable
-from pathlib import Path
 from typing import TYPE_CHECKING, Literal
 
 from bs4 import BeautifulSoup
@@ -35,6 +34,7 @@ from mtg_utils._stores._common import (
     Listing,
     OptimizedCart,
     StoreSelectorError,
+    StoreSession,
 )
 from mtg_utils._stores._common import (
     money as _money,
@@ -157,11 +157,13 @@ def _await_optimized_alternatives(
     return alternatives
 
 
-class _ManaPoolAdapter:
+class _ManaPoolAdapter(StoreSession):
     name = "manapool"
     display_name = "Mana Pool"
     kind: Literal["marketplace"] = "marketplace"
     base_url = _BASE_URL
+    cart_path = "/cart"
+    login_path = "/sign-in"
 
     def name_for_search(self, card_name: str) -> str:
         # Mana Pool's bulk parser accepts the canonical name with " // ".
@@ -193,7 +195,7 @@ class _ManaPoolAdapter:
             raise CartNotEmptyError(
                 self.name,
                 len(existing),
-                f"{self.base_url}/cart",
+                self.cart_url,
             )
 
         # Step 1 — Mass entry. networkidle doesn't reliably settle on MP
@@ -249,23 +251,12 @@ class _ManaPoolAdapter:
             shipping=cheapest["shipping"],
             lines=[],  # Per-line breakdown not extracted in v1.
             unfound=[],  # MP flags unmatched lines on /add-deck; v1 tolerates loss.
-            cart_url=f"{self.base_url}/cart",
+            cart_url=self.cart_url,
         )
-
-    def open_handoff(self, profile_dir: Path) -> None:
-        from playwright.sync_api import sync_playwright
-
-        with sync_playwright() as p:
-            ctx = p.chromium.launch_persistent_context(
-                str(profile_dir),
-                headless=False,
-            )
-            ctx.new_page().goto(f"{self.base_url}/cart")
-            ctx.wait_for_event("close", timeout=0)
 
     def get_existing_cart(self, page: Page) -> list[Listing]:
         if hasattr(page, "goto"):
-            page.goto(f"{self.base_url}/cart", wait_until="domcontentloaded")
+            page.goto(self.cart_url, wait_until="domcontentloaded")
             page.wait_for_timeout(1500)
         soup = BeautifulSoup(page.content(), "html.parser")
         text = soup.get_text(" ", strip=True)
@@ -283,7 +274,7 @@ class _ManaPoolAdapter:
                     price=0.0,
                     qty_available=1,
                     listing_id="",
-                    url=f"{self.base_url}/cart",
+                    url=self.cart_url,
                 )
             ]
         return []
@@ -303,7 +294,7 @@ class _ManaPoolAdapter:
         # on a non-empty MP cart, prompts the user to empty it in the open
         # headed window, and waits for Enter — annoying but not blocking.
         if hasattr(page, "goto"):
-            page.goto(f"{self.base_url}/cart", wait_until="domcontentloaded")
+            page.goto(self.cart_url, wait_until="domcontentloaded")
             page.wait_for_timeout(1500)
         clear = page.locator(
             'button:has-text("Clear cart"), button:has-text("Empty cart")',
@@ -323,17 +314,6 @@ class _ManaPoolAdapter:
         soup = BeautifulSoup(page.content(), "html.parser")
         text = soup.get_text(" ", strip=True)
         return not ("Sign In" in text and "Sign Out" not in text)
-
-    def open_login(self, profile_dir: Path) -> None:
-        from playwright.sync_api import sync_playwright
-
-        with sync_playwright() as p:
-            ctx = p.chromium.launch_persistent_context(
-                str(profile_dir),
-                headless=False,
-            )
-            ctx.new_page().goto(f"{self.base_url}/sign-in")
-            ctx.wait_for_event("close", timeout=0)
 
 
 ADAPTER = _ManaPoolAdapter()

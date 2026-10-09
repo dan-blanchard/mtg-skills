@@ -75,13 +75,6 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   Trudge). Switching needs a zone-discriminating subject on the key's ident
   (graveyard → battlefield / stack) and those misses read first.
 
-**From arena-meta (2026-10-05, ADR-0059)**
-
-- **Rank Find's candidates by meta inclusion on an Arena build.** The tuner reads the
-  meta archetype's card shares; deck-forge's Find still ranks by synergy, then price,
-  then curve. Feeding `MetaContext.share` into `_analysis.ranking` as a tiebreak
-  (never above synergy) was left for later, by agreement.
-
 **From the twohg-guide skill (2026-09-27)**
 
 - **The edict presets match sacrifices you make yourself.** `removal_tutors.
@@ -93,10 +86,6 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   preset reads signal keys only, so on a set newer than `PHASE_TAG` `set-scan` reports
   no removal while `twohg-scan`'s text path finds it. Move a removal text degrade into
   `roles` beside `ramp_by_text` so both readouts share it.
-- **About eight copies of the cache-root lookup** (`$MTG_SKILLS_CACHE_DIR` else
-  `~/.cache/mtg-skills`: bulk_loader, _phase, proxy_print, download_mtgjson,
-  _deck_forge/production, _stores/_common, …). `_http.cache_root()` now exists; migrate
-  the rest to it.
 - **phase tags "each other player" as `Opponent`.** Grave Pact and Syphon Mind carry
   `player_scope: Opponent`, which only differs from "each opponent" in team formats
   (it includes your teammate). phase doesn't support team formats yet, so this isn't
@@ -170,9 +159,6 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
 
 - **`named_synergy_overloaded_named_node`'s gap is the constant `True`**, so that
   bridge row can never retire itself.
-- **`_phase.run_commander` loses finished games on timeout**, the flaw `run_duel`
-  had (limited plan P3): a timeout on game N discards games 1..N-1. Nothing calls it
-  today; give it `run_duel`'s chunked budget before anything does.
 - **Roster counts are still hand-bumped.** Every pin bump edits the hard-coded counts
   in `tests/mtg-utils/test_card_ir_mirror.py` (Effect roster length,
   `distinct_variants_observed`, tagged + struct mirror classes) by hand;
@@ -180,9 +166,6 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
 
 **From the 2026-09-17 architecture review (worth exploring, not started)**
 
-- **One Storefront browser session.** `open_handoff` / `open_login` are repeated,
-  near-identical, across the four Storefront adapters (TGP, Atomic Empire,
-  TCGPlayer, Mana Pool): eight methods.
 - Speculative: `playtest.py`'s mode functions; copies of the Scryfall client policy.
 
 **Known lane recall gaps (surfaced by ADR-0051; a lane fix repairs every consumer)**

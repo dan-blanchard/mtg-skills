@@ -813,3 +813,43 @@ def test_sort_is_total_and_input_order_independent():
         list(reversed(cards)), active_signals=_ARI_SIGNALS, focus_sets=_ARI_FOCUS
     )
     assert [r["card"]["name"] for r in fwd] == [r["card"]["name"] for r in rev]
+
+
+# ── Meta share tiebreak (ADR-0059) ───────────────────────────────────────────
+# On a digital build with a meta archetype, the share of its ladder lists running a
+# card breaks synergy ties — after synergy, before price. Without one the order is
+# exactly synergy, price, curve, name.
+_META_SHARES = {"Rare Token Maker": 0.6, "Token Maker": 0.1}
+
+
+def test_meta_share_breaks_synergy_ties_before_price():
+    ranked = rank_candidates(
+        [TOKEN_MAKER, DUAL_PURPOSE, NO_LISTING],
+        active_signals=[ETB, LIFE],
+        rank_by="fit",
+        meta_share=lambda name: _META_SHARES.get(name, 0.0),
+    )
+    # Synergy still leads (fit 2, in no list); among the fit-1 pair, the card more
+    # lists run beats the cheaper one — even with no listing.
+    assert [r["card"]["name"] for r in ranked] == [
+        "Lifegain Tokens",
+        "Rare Token Maker",
+        "Token Maker",
+    ]
+    assert [r["score"]["meta_share"] for r in ranked] == [0.0, 0.6, 0.1]
+
+
+def test_without_a_meta_read_the_ranking_is_unchanged():
+    cards = [TOKEN_MAKER, DUAL_PURPOSE, NO_LISTING]
+    plain = rank_candidates(cards, active_signals=[ETB, LIFE], rank_by="fit")
+    assert [r["card"]["name"] for r in plain] == [
+        "Lifegain Tokens",
+        "Token Maker",
+        "Rare Token Maker",
+    ]
+    assert not any("meta_share" in r["score"] for r in plain)
+    # A meta read in which no list runs any candidate changes nothing but the readout.
+    zero = rank_candidates(
+        cards, active_signals=[ETB, LIFE], rank_by="fit", meta_share=lambda _n: 0.0
+    )
+    assert [r["card"]["name"] for r in zero] == [r["card"]["name"] for r in plain]

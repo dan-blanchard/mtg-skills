@@ -26,7 +26,8 @@ MOUNTAIN = test_card("Mountain")
 INDEX = {c["name"]: c for c in (CMD, RABBLE, MOUNTAIN)}
 
 
-def _snapshot() -> m.Snapshot:
+def _snapshot(*extra: tuple[str, int]) -> m.Snapshot:
+    """The cached Brawl_Ladder meta; ``extra`` adds cards to archetype 1's list."""
     plat = {"platinum": m.Record(400, 220)}
     return m.Snapshot(
         event="Brawl_Ladder",
@@ -40,7 +41,12 @@ def _snapshot() -> m.Snapshot:
             m.MetaDeck(
                 1,
                 ("Test Commander Alpha",),
-                (("Mountain", 30), ("Goblin Matron", 1), ("Goblin Rabblemaster", 1)),
+                (
+                    ("Mountain", 30),
+                    ("Goblin Matron", 1),
+                    ("Goblin Rabblemaster", 1),
+                    *extra,
+                ),
                 (),
                 plat,
             ),
@@ -196,3 +202,48 @@ def test_refresh_fills_a_bo3_decks_own_queue(tmp_path, monkeypatch):
     assert client.get("/api/meta").json()["event"] == "Ladder"  # the fallback
     client.post("/api/meta/refresh", json={})
     assert fetched == ["Traditional_Ladder"]
+
+
+# --- Find: the meta share breaks synergy ties (ADR-0059) ---------------------------
+# Two synthetic candidates (machinery only) with the same text, so the same synergy:
+# the rogue is cheaper, but only the staple is in the meta archetype's list.
+_STAPLE = {
+    "name": "Test Meta Staple",
+    "type_line": "Sorcery",
+    "cmc": 2.0,
+    "color_identity": ["R"],
+    "oracle_text": "Create a 1/1 red Goblin creature token.",
+    "prices": {"usd": "5.00"},
+}
+_ROGUE = {**_STAPLE, "name": "Test Meta Rogue", "prices": {"usd": "0.10"}}
+
+
+def _find_client(tmp_path, monkeypatch, *, cached: bool = True):
+    monkeypatch.setenv("MTG_SKILLS_CACHE_DIR", str(tmp_path))
+    if cached:
+        path = untapped.meta_dir() / "Brawl_Ladder.current.json"
+        path.parent.mkdir(parents=True)
+        path.write_text(json.dumps(_snapshot(("Test Meta Staple", 1)).to_json()))
+    client, state = _client()
+    state.search_fn = lambda **_: [_ROGUE, _STAPLE]
+    return client
+
+
+def _find(client, **extra):
+    data = client.post("/api/find", json={"name": "Test Meta", **extra}).json()
+    return [(r["name"], r["score"].get("meta_share")) for r in data["results"]]
+
+
+def test_find_breaks_synergy_ties_by_meta_share(tmp_path, monkeypatch):
+    client = _find_client(tmp_path, monkeypatch)
+    assert _find(client) == [("Test Meta Staple", 1.0), ("Test Meta Rogue", 0.0)]
+    # "off" skips the meta, as Tune's does: price decides again, no share served.
+    assert _find(client, meta_archetype="off") == [
+        ("Test Meta Rogue", None),
+        ("Test Meta Staple", None),
+    ]
+
+
+def test_find_without_a_cached_meta_ranks_as_before(tmp_path, monkeypatch):
+    client = _find_client(tmp_path, monkeypatch, cached=False)
+    assert _find(client) == [("Test Meta Rogue", None), ("Test Meta Staple", None)]

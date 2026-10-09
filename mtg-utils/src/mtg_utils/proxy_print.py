@@ -16,7 +16,6 @@ card-type and ultimate-generic fallbacks) from the on-disk catalog at
 from __future__ import annotations
 
 import json
-import os
 import re
 import sys
 from collections.abc import Callable
@@ -27,6 +26,7 @@ from typing import TYPE_CHECKING
 
 import click
 
+from mtg_utils._http import cache_root
 from mtg_utils.bulk_loader import default_bulk_path
 from mtg_utils.deck import (
     CARD_TYPE_WORDS,
@@ -103,13 +103,10 @@ _ART_SKIP_WORDS = frozenset(
 # source, and license. When a piece is found here it overrides the local
 # catalog and its artist is rendered in the proxy's lower-left footer.
 def attributed_art_dir() -> Path:
-    """Return the attributed-catalog root: ``$MTG_SKILLS_CACHE_DIR/attributed-art``
-    or ``$HOME/.cache/mtg-skills/attributed-art``.
+    """Return the attributed-catalog root: ``<cache root>/attributed-art``
+    (``_http.cache_root``).
     """
-    base = os.environ.get("MTG_SKILLS_CACHE_DIR")
-    if base:
-        return Path(base) / "attributed-art"
-    return Path(os.environ["HOME"]) / ".cache" / "mtg-skills" / "attributed-art"
+    return cache_root() / "attributed-art"
 
 
 # Header line shape: ``# Title (by Artist Name (signature))``

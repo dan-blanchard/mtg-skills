@@ -282,7 +282,7 @@ mark-owned <deck.json> <collection.json> [--bulk-data <bulk-data-path>]
 | **Run the Step-6 deterministic spine (scorecard + candidate swaps)** — every format | `deck-tune <deck.json> [--bulk-data <path>] [--bracket <1-5>] [--max-swaps <N>] [--budget <usd> \| --wildcards <rarity=N,…>] [--medium paper\|digital] [--exclude <name>]… --output <wd>/tune.json` |
 | See what the commander/deck cares about (signal lanes) — *ad-hoc; the spine's `focus` has this* | `deck-signals <deck.json> [--bulk-data <path>] [--json]` |
 | Role-density budgets (lands/ramp/draw/interaction/wipes) — *ad-hoc; the spine's `template` has this* | `slot-budgets <deck.json> [--bulk-data <path>] [--shape <S>] [--json]` (deck size comes from the deck JSON) |
-| Rank a separate candidate list by synergy — *the spine's `swaps` already rank adds* | `deck-rank <deck.json> <candidates.json> [--bulk-data <path>] [--limit <N>] [--json]` (candidates from `card-search --json`) |
+| Rank a separate candidate list by synergy — *the spine's `swaps` already rank adds* | `deck-rank <deck.json> <candidates.json> [--bulk-data <path>] [--limit <N>] [--json] [--medium paper\|digital] [--meta auto\|off\|<archetype>]` (candidates from `card-search --json`) |
 | Look up a specific card's oracle text | `scryfall-lookup "<Card Name>"` |
 | View card table (mainboard) | `card-summary <deck.json> [--nonlands-only] [--lands-only] [--type <T>] [--bulk-data <path>]` |
 | View card table (sideboard) | `card-summary <deck.json> --sideboard [--bulk-data <path>]` |
@@ -2077,7 +2077,7 @@ See `proxy-printer/SKILL.md` for layout details and catalog setup.
 - `deck-stats <deck.json> [--bulk-data <path>] [--output PATH]` — Deck statistics
 - `deck-signals <deck.json> [--bulk-data <path>] [--json]` — The deck's signal lanes (what the commander's oracle text cares about), via the deck-forge detector. Deterministic.
 - `slot-budgets <deck.json> [--bulk-data <path>] [--shape aggro|midrange|control|combo] [--json]` — Role-density bands (lands/ramp/card_draw/interaction/board_wipe) vs the template. Deck size comes from the deck JSON. Deterministic.
-- `deck-rank <deck.json> <candidates.json> [--bulk-data <path>] [--limit N] [--json]` — Rank candidate records (from `card-search --json`) by synergy with the deck's lanes, then price, then curve. Never EDHREC popularity.
+- `deck-rank <deck.json> <candidates.json> [--bulk-data <path>] [--limit N] [--json] [--medium paper|digital] [--meta auto|off|<archetype>]` — Rank candidate records (from `card-search --json`) by synergy with the deck's lanes, then price, then curve. Never EDHREC popularity. On a digital build with a cached `arena-meta` archetype, its card share breaks synergy ties before price (`meta_share` in `--json`; ADR-0059).
 - `build-deck <deck.json> --cuts <c.json> --adds <a.json> [--sideboard-cuts <sc.json>] [--sideboard-adds <sa.json>] [--bulk-data <path>] [--output-dir <dir>]` — Apply changes. Cuts/adds accept `[{name, quantity}]` dicts or plain name strings. Writes `new-deck.json` and its own `new-deck.hydrated.json` sidecar.
 - `deck-diff <old.json> <new.json> [--bulk-data <path>]` — Compare deck versions
 - `export-deck <deck.json> [--style auto|moxfield|arena]` — Export import text with sideboard/companion sections. `auto` (default) emits Arena's `Commander` / `Deck` section headers for Arena formats and bare Moxfield lines otherwise.

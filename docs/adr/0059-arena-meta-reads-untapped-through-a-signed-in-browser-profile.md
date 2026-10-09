@@ -93,3 +93,12 @@ decode error skips that list, and an unsupported version raises
 `DeckstringError`. `tests/mtg-utils/test_arena_meta.py` pins real V4 strings, so a
 format change shows up as a fixture to refresh. The stats are Untapped's sample,
 players running its tracker, not all of Arena.
+
+**Amendment (2026-10-09): Find breaks synergy ties by meta share.** deck-forge's Find
+and `deck-rank` read the archetype's card shares through the tuner's gate (a digital
+build with a cached, tunable match). `rank_candidates(meta_share=MetaContext.share)`
+sorts synergy first, then share, then price, curve and name. Share never outranks
+synergy because it measures popularity, not fit with this deck. Each row's score
+then carries its `meta_share`, which the SPA shows beside the synergy spark. With
+no meta read, no row carries a share and the order is unchanged. The hub's Find
+takes the same `meta_archetype` as Tune; `deck-rank` takes `--medium` and `--meta`.

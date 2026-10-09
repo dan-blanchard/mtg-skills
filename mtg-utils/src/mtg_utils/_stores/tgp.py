@@ -13,7 +13,6 @@ is required and the cheapest variant is LP.
 from __future__ import annotations
 
 import re
-from pathlib import Path
 from typing import TYPE_CHECKING, Literal
 
 from bs4 import BeautifulSoup, Tag
@@ -26,6 +25,7 @@ from mtg_utils._stores._common import (
     Listing,
     SearchPrefs,
     StoreSelectorError,
+    StoreSession,
     attr_str,
     name_matches,
 )
@@ -81,11 +81,13 @@ def _parse_data_name(data_name: str) -> tuple[str, str, bool]:
     return name, set_code, foil
 
 
-class _TGPAdapter:
+class _TGPAdapter(StoreSession):
     name = "tgp"
     display_name = "The Gathering Place"
     kind: Literal["lgs"] = "lgs"
     base_url = _BASE_URL
+    cart_path = "/cart.php"
+    login_path = "/login.php"
 
     def name_for_search(self, card_name: str) -> str:
         return card_name
@@ -289,17 +291,8 @@ class _TGPAdapter:
         return AddToCartResult(
             success=confirmed,
             qty_added=qty if confirmed else 0,
-            cart_url=f"{self.base_url}/cart.php",
+            cart_url=self.cart_url,
         )
-
-    def open_handoff(self, profile_dir: Path) -> None:
-        from playwright.sync_api import sync_playwright
-
-        with sync_playwright() as p:
-            ctx = p.chromium.launch_persistent_context(str(profile_dir), headless=False)
-            ctx.new_page().goto(f"{self.base_url}/cart.php")
-            # Block until the user closes the window.
-            ctx.wait_for_event("close", timeout=0)
 
     def get_existing_cart(self, page: Page) -> list[Listing]:
         """Inspect the cart page and return one stub Listing per cart item.
@@ -308,7 +301,7 @@ class _TGPAdapter:
         only needs to know that the cart is non-empty.
         """
         if hasattr(page, "goto"):
-            page.goto(f"{self.base_url}/cart.php", wait_until="domcontentloaded")
+            page.goto(self.cart_url, wait_until="domcontentloaded")
             page.wait_for_timeout(500)
         soup = BeautifulSoup(page.content(), "html.parser")
         # Empty-cart heuristic: the cart-empty fixture contains "empty" text
@@ -332,14 +325,14 @@ class _TGPAdapter:
                     price=0.0,
                     qty_available=1,
                     listing_id="",
-                    url=f"{self.base_url}/cart.php",
+                    url=self.cart_url,
                 )
             )
         return out
 
     def clear_cart(self, page: Page) -> None:
         if hasattr(page, "goto"):
-            page.goto(f"{self.base_url}/cart.php", wait_until="domcontentloaded")
+            page.goto(self.cart_url, wait_until="domcontentloaded")
             page.wait_for_timeout(500)
         # Per line: `button.cart-remove` carries `data-confirm-delete` and
         # spawns a BigCommerce "reveal" modal containing
@@ -377,14 +370,6 @@ class _TGPAdapter:
         # Ambiguous — assume logged in to avoid a spurious login prompt.
         # The lazy fallback in the orchestrator will catch real auth failures.
         return True
-
-    def open_login(self, profile_dir: Path) -> None:
-        from playwright.sync_api import sync_playwright
-
-        with sync_playwright() as p:
-            ctx = p.chromium.launch_persistent_context(str(profile_dir), headless=False)
-            ctx.new_page().goto(f"{self.base_url}/login.php")
-            ctx.wait_for_event("close", timeout=0)
 
 
 ADAPTER = _TGPAdapter()

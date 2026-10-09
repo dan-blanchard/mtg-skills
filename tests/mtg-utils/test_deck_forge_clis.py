@@ -95,3 +95,67 @@ def test_deck_rank_rejects_a_bare_name_list(tmp_path):
     cands = _write(tmp_path, "cands.json", ["Goblin Chieftain"])
     res = CliRunner().invoke(deck_rank_main, [deck, cands, "--bulk-data", hyd])
     assert res.exit_code != 0  # records required, not bare names
+
+
+def _cache_meta(tmp_path, monkeypatch, *cards: str) -> None:
+    """A cached Historic Brawl meta (ADR-0059) whose one Krenko archetype list runs
+    ``cards``."""
+    from mtg_utils._arena_meta import meta as m
+    from mtg_utils._arena_meta import untapped
+
+    monkeypatch.setenv("MTG_SKILLS_CACHE_DIR", str(tmp_path / "cache"))
+    plat = {"platinum": m.Record(400, 220)}
+    snap = m.Snapshot(
+        event="Play_Brawl_Historic",
+        period={"id": 763, "description": "Set Release", "start": "2026-09-29"},
+        fetched_at="2026-10-05T12:00:00+00:00",
+        archetypes={1: m.MetaArchetype(1, "Mono-Red / Krenko, Mob Boss", "R", plat)},
+        decks=(
+            m.MetaDeck(
+                1,
+                ("Krenko, Mob Boss",),
+                (("Mountain", 30), *((c, 1) for c in cards)),
+                (),
+                plat,
+            ),
+        ),
+        lands=frozenset({"Mountain"}),
+    )
+    path = untapped.meta_dir() / "Play_Brawl_Historic.current.json"
+    path.parent.mkdir(parents=True)
+    path.write_text(json.dumps(snap.to_json()))
+
+
+# Two synthetic candidates (machinery only) with the same text, so the same synergy:
+# the rogue is cheaper, but only the staple is in the meta archetype's list.
+_STAPLE = {
+    "name": "Test Meta Staple",
+    "type_line": "Sorcery",
+    "cmc": 2.0,
+    "color_identity": ["R"],
+    "oracle_text": "Create a 1/1 red Goblin creature token.",
+    "prices": {"usd": "5.00"},
+}
+_ROGUE = {**_STAPLE, "name": "Test Meta Rogue", "prices": {"usd": "0.10"}}
+
+
+def test_deck_rank_breaks_synergy_ties_by_meta_share(tmp_path, monkeypatch):
+    _cache_meta(tmp_path, monkeypatch, "Test Meta Staple")
+    # Historic Brawl defaults to Arena (digital); the same deck at a paper table
+    # reads no meta.
+    deck = _write(tmp_path, "deck.json", {**DECK, "format": "historic_brawl"})
+    hyd = _write(tmp_path, "hyd.json", HYDRATED)
+    cands = _write(tmp_path, "cands.json", [_ROGUE, _STAPLE])
+
+    def ranked(*flags: str) -> list[tuple[str, float | None]]:
+        res = CliRunner().invoke(
+            deck_rank_main, [deck, cands, "--bulk-data", hyd, "--json", *flags]
+        )
+        assert res.exit_code == 0, res.output
+        return [(r["name"], r.get("meta_share")) for r in json.loads(res.stdout)]
+
+    assert ranked() == [("Test Meta Staple", 1.0), ("Test Meta Rogue", 0.0)]
+    # Off, or a paper build: synergy, price, curve, as before.
+    without = [("Test Meta Rogue", None), ("Test Meta Staple", None)]
+    assert ranked("--meta", "off") == without
+    assert ranked("--medium", "paper") == without

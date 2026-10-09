@@ -12,14 +12,13 @@ files arrive gzip-compressed (~174 MB + ~5 MB) and are stream-decompressed to JS
 from __future__ import annotations
 
 import contextlib
-import os
 import zlib
 from pathlib import Path
 
 import click
 import requests
 
-from mtg_utils._http import USER_AGENT, is_fresh
+from mtg_utils._http import USER_AGENT, cache_root, is_fresh
 from mtg_utils._mtgjson.load import ALLPRINTINGS_NAME, MTGJSON_FILES
 from mtg_utils.bulk_loader import build_sidecar
 
@@ -27,14 +26,9 @@ MTGJSON_BASE = "https://mtgjson.com/api/v5"
 
 
 def default_mtgjson_dir() -> Path:
-    """The durable MTGJSON cache dir (mirrors ``default_bulk_path``'s roots)."""
-    root = os.environ.get("MTG_SKILLS_CACHE_DIR")
-    if root:
-        return Path(root) / "mtgjson"
-    home = os.environ.get("HOME")
-    if home:
-        return Path(home) / ".cache" / "mtg-skills" / "mtgjson"
-    return Path("/tmp/mtgjson")
+    """The durable MTGJSON cache dir: ``<cache root>/mtgjson`` (``_http.cache_root``),
+    the first of ``default_bulk_path``'s roots."""
+    return cache_root() / "mtgjson"
 
 
 def _download_gz(session: requests.Session, url: str, dest: Path) -> None:

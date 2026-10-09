@@ -15,6 +15,7 @@
     deckColors,
     poolBounded,
     pool,
+    metaArchetype,
   } from "../lib/store.js";
   import { facetOk } from "../lib/filter.js";
   import { heldCopies, canHoldAnother } from "../lib/cards.js";
@@ -108,6 +109,9 @@
       presets: [...selectedPresets],
       is_commander: commandersOnly,
       include_unreleased: includeUnreleased,
+      // ADR-0059: the archetype Tune reads; its card share breaks synergy ties on a
+      // digital build.
+      meta_archetype: $metaArchetype || null,
       limit: PAGE,
       offset: off,
     };

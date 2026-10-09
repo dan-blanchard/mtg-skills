@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
-import os
 import re
 from pathlib import Path
 from typing import TYPE_CHECKING, Literal, Protocol, TypedDict, runtime_checkable
+
+from mtg_utils._http import cache_root
 
 # Shared price parsing for every store adapter: a "$1,234.56" pattern and a parser
 # that strips both the currency symbol and thousands separators.
@@ -136,6 +137,17 @@ class CartNotEmptyError(Exception):
 StorefrontKind = Literal["lgs", "marketplace"]
 
 
+def _open_headed(profile_dir: Path, url: str) -> None:
+    """Open a headed Chromium on the Storefront's persistent profile at ``url``
+    and block until the user closes the window."""
+    from playwright.sync_api import sync_playwright
+
+    with sync_playwright() as p:
+        ctx = p.chromium.launch_persistent_context(str(profile_dir), headless=False)
+        ctx.new_page().goto(url)
+        ctx.wait_for_event("close", timeout=0)
+
+
 @runtime_checkable
 class StoreSession(Protocol):
     """Lifecycle methods every Storefront has — auth, cart inspection,
@@ -143,19 +155,41 @@ class StoreSession(Protocol):
     cross-kind iteration sites (cart-pollution sweep, login pre-flight,
     Phase 7 handoff, grand-total report) only depend on this surface.
     See lgs-search/CONTEXT.md for the domain language.
+
+    The headed windows (``open_login`` / ``open_handoff``) are the same browser
+    session at every Storefront, so they live here: an adapter subclasses
+    ``StoreSession`` and names only where its cart and sign-in pages are
+    (``cart_path`` / ``login_path``, relative to ``base_url``).
     """
 
     name: str
     display_name: str
-    kind: StorefrontKind
     base_url: str
+    cart_path: str
+    login_path: str
+
+    @property
+    def kind(self) -> StorefrontKind:
+        """LGS or Marketplace: intrinsic to the Storefront, so read-only here and
+        narrowed by each adapter (and by ``LGSAdapter`` / ``MarketplaceAdapter``)."""
+        ...
+
+    @property
+    def cart_url(self) -> str:
+        return f"{self.base_url}{self.cart_path}"
 
     def name_for_search(self, card_name: str) -> str: ...
     def get_existing_cart(self, page: Page) -> list[Listing]: ...
     def clear_cart(self, page: Page) -> None: ...
     def is_logged_in(self, page: Page) -> bool: ...
-    def open_login(self, profile_dir: Path) -> None: ...
-    def open_handoff(self, profile_dir: Path) -> None: ...
+
+    def open_login(self, profile_dir: Path) -> None:
+        """A headed window at the sign-in page, for a one-time login."""
+        _open_headed(profile_dir, f"{self.base_url}{self.login_path}")
+
+    def open_handoff(self, profile_dir: Path) -> None:
+        """A headed window at the cart, left open for the user to check out."""
+        _open_headed(profile_dir, self.cart_url)
 
 
 @runtime_checkable
@@ -197,15 +231,8 @@ class MarketplaceAdapter(StoreSession, Protocol):
     ) -> OptimizedCart: ...
 
 
-def cache_dir() -> Path:
-    base = os.environ.get("MTG_SKILLS_CACHE_DIR")
-    if base:
-        return Path(base)
-    return Path.home() / ".cache" / "mtg-skills"
-
-
 def profile_dir_for(store: str) -> Path:
-    p = cache_dir() / "lgs-profiles" / store
+    p = cache_root() / "lgs-profiles" / store
     p.mkdir(parents=True, exist_ok=True)
     return p
 

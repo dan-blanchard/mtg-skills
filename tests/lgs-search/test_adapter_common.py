@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+from unittest.mock import MagicMock
+
 import pytest
 
+from mtg_utils._stores import lookup
 from mtg_utils._stores._common import (
     CONDITION_ORDER,
     LoginRequiredError,
@@ -132,3 +135,49 @@ class TestErrors:
     def test_login_required(self):
         with pytest.raises(LoginRequiredError):
             raise LoginRequiredError("atomic_empire")
+
+
+_HEADED_PAGES = [
+    ("tgp", "/cart.php", "/login.php"),
+    ("atomic_empire", "/Cart", "/Account/Login"),
+    ("tcgplayer", "/cart", "/login"),
+    ("manapool", "/cart", "/sign-in"),
+]
+
+
+class TestHeadedWindows:
+    """``open_handoff`` / ``open_login`` are StoreSession's one browser session:
+    a headed window on the Storefront's profile at its cart or sign-in page,
+    held open until the user closes it."""
+
+    @staticmethod
+    def _fake_playwright(monkeypatch):
+        ctx = MagicMock()
+        pw = MagicMock()
+        pw.chromium.launch_persistent_context.return_value = ctx
+        cm = MagicMock()
+        cm.return_value.__enter__.return_value = pw
+        monkeypatch.setattr("playwright.sync_api.sync_playwright", cm)
+        return pw, ctx
+
+    @pytest.mark.parametrize(("store", "cart", "login"), _HEADED_PAGES)
+    def test_handoff_opens_the_cart(self, monkeypatch, tmp_path, store, cart, login):
+        pw, ctx = self._fake_playwright(monkeypatch)
+        adapter = lookup(store)
+        adapter.open_handoff(tmp_path)
+        pw.chromium.launch_persistent_context.assert_called_once_with(
+            str(tmp_path), headless=False
+        )
+        ctx.new_page.return_value.goto.assert_called_once_with(adapter.base_url + cart)
+        ctx.wait_for_event.assert_called_once_with("close", timeout=0)
+        assert adapter.cart_url == adapter.base_url + cart
+
+    @pytest.mark.parametrize(("store", "cart", "login"), _HEADED_PAGES)
+    def test_login_opens_the_sign_in_page(
+        self, monkeypatch, tmp_path, store, cart, login
+    ):
+        _pw, ctx = self._fake_playwright(monkeypatch)
+        adapter = lookup(store)
+        adapter.open_login(tmp_path)
+        ctx.new_page.return_value.goto.assert_called_once_with(adapter.base_url + login)
+        ctx.wait_for_event.assert_called_once_with("close", timeout=0)
