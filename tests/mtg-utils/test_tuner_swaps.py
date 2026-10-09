@@ -1,5 +1,7 @@
 """Swap engine: template-safety, role-over trims, and emerging-theme commits."""
 
+import pytest
+
 from mtg_utils._analysis.signal_specs import spec_for
 from mtg_utils._analysis.signals import Signal
 from mtg_utils._tuner.classify import CardClass
@@ -803,34 +805,37 @@ def test_wildcard_owned_is_free_even_at_zero_budget():
     }
 
 
-def test_reliable_ramp_excludes_conditional_and_opponent_mana():
+@pytest.mark.parametrize(
+    ("name", "reliable"),
+    [
+        # Genuine, unconditional ramp → sourced.
+        ("Arcane Signet", True),
+        # Every mana / Treasure ability gated on a condition (CR 602.5) → not
+        # sourced: metalcraft, a Dragon, formidable, oil counters, max speed, an
+        # opponent's turn, a creature that fought (a residue phase parks).
+        ("Mox Opal", False),
+        ("Mox Jasper", False),
+        ("Circle of Elders", False),
+        ("Tablet of Compleation", False),
+        ("Endrider Catalyzer", False),
+        ("Lavinia, Foil to Conspiracy", False),
+        ("Boxing Ring", False),
+        # No activation restriction: per its ruling Mox Amber can be activated with
+        # no legendary permanent (it then adds no mana).
+        ("Mox Amber", True),
+        # An ungated sibling ({T}: Add {G}) makes the card reliable ramp.
+        ("Fanatic of Rhonas", True),
+        ("Whisperer of the Wilds", True),
+        # The legendary-sorcery cast restriction gates no mana ability.
+        ("Kamahl's Druidic Vow", True),
+        # An Offer You Can't Refuse: the Treasures (and their mana) go to the opponent.
+        ("An Offer You Can't Refuse", False),
+    ],
+)
+def test_reliable_ramp_excludes_conditional_and_opponent_mana(name, reliable):
     """The tuner sources only ramp it can rely on: genuine producers that aren't gated
-    on board state, and never mana an opponent receives."""
-
-    def rock(oracle, type_line="Artifact"):
-        return {"type_line": type_line, "oracle_text": oracle}
-
-    # Genuine, unconditional ramp → sourced.
-    assert _reliable_ramp(rock("{T}: Add one mana of any color."))
-    # Mox Opal (metalcraft) / Mox Jasper (a Dragon): conditional rocks → not sourced.
-    assert not _reliable_ramp(
-        rock(
-            "Metalcraft — {T}: Add one mana of any color. Activate only if you "
-            "control three or more artifacts."
-        )
-    )
-    assert not _reliable_ramp(
-        rock("{T}: Add one mana of any color. Activate only if you control a Dragon.")
-    )
-    # An Offer You Can't Refuse: the Treasures (and their mana) go to the opponent.
-    assert not _reliable_ramp(
-        rock(
-            "Counter target noncreature spell. Its controller creates two Treasure "
-            "tokens. (They're artifacts with \"{T}, Sacrifice this token: Add one "
-            'mana of any color.")',
-            type_line="Instant",
-        )
-    )
+    on a condition, and never mana an opponent receives."""
+    assert _reliable_ramp(test_card(name)) is reliable
 
 
 def test_cut_candidates_null_rank_low_value_is_medium_aware():

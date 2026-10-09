@@ -478,7 +478,7 @@ This narrows the candidate *pool*; it does NOT replace the guided interview. Run
 
 1. **Parse the collection** — `parse-deck <absolute-path-to-collection.csv>` produces a parsed deck JSON. `parse-deck` handles Untapped.gg CSV, Moxfield CSV, Moxfield deck export, Arena, MTGO, and plain text.
 
-2. **Find commander candidates** — `find-commanders <parsed.json> --bulk-data <bulk-data-path> --format <format> --output <working-dir>/.cache/candidates.json [--color-identity <ci>] [--min-quantity 1]`. **Always pass `--output`** — the default path is under `$TMPDIR` which triggers outside-workspace permission prompts. Stdout is a compact text table with columns EDHREC rank, color identity, CMC, name, type_line, flags (PARTNER / BACKGROUND / GC). The last line is `Full JSON: <path>`.
+2. **Find commander candidates** — `find-commanders <parsed.json> --bulk-data <bulk-data-path> --format <format> --output <working-dir>/.cache/candidates.json [--color-identity <ci>] [--min-quantity 1]`. **Always pass `--output`** — the default path is under `$TMPDIR` which triggers outside-workspace permission prompts. Stdout is a compact text table with columns EDHREC rank, color identity, CMC, name, type_line, flags (PARTNER / BACKGROUND / GC), then an `Owned pairings` list of candidate pairs that can be commanders together. The last line is `Full JSON: <path>`.
 
 3. **Run the guided interview** (colors, playstyle, mechanics, favorite cards, play group, bracket, budget) the same as the no-collection flow. The candidate pool is the constraint; the interview answers are what differentiates one commander from another.
 
@@ -488,7 +488,7 @@ This narrows the candidate *pool*; it does NOT replace the guided interview. Run
    - **1 wildcard** — something the user probably hasn't considered: an unusual color combo they own, a partner pairing where they own both halves, or a commander that enables a combo using cards already in their collection.
    - For bracket gating, use the `game_changer` flag and your judgment about combo density. Do NOT use any "EDHREC bracket" field — community bracket data is user-reported and unreliable.
 
-5. **Enumerate partner pairings from within the owned pool.** Walk the candidate list once: for each card with `is_partner=true`, find compatible partners from the same list. For each card with `has_background_clause=true`, find Backgrounds in the candidate list. Surface promising pairings as wildcard or off-meta picks.
+5. **Take partner pairings from the CLI's answer, not by eye.** Each candidate's `pairs_with` lists the owned candidates it can legally share the command zone with (`card_classify.can_partner`: partner with partner, the same partner—[text] group, the named partner-with card, choose a Background with a Background, Doctor's companion with a Time Lord Doctor; CR 702.124f — different partner abilities can't be combined, so a Survivors card never pairs with a plain Partner). `partner_kinds` lists each card's pairing kinds: its partner abilities (CR 702.124a) plus the type-line kinds they pair with (a Background, a Time Lord Doctor), which aren't partner abilities themselves. Surface promising pairings as wildcard or off-meta picks.
 
 6. **Present the shortlist** following the "Commander Recommendation" rules below. Mention that candidates are filtered to cards they own.
 

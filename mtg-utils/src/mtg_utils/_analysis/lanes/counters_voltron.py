@@ -42,6 +42,7 @@ from mtg_utils._card_ir.crosswalk import (
     modify_cost_spell_filter,
     recipient_tag,
     ref_count_filter,
+    requires_condition_inner,
     static_mode_field,
     static_mode_tag,
     tag_of,
@@ -669,8 +670,7 @@ def _plus_one_matters(tree: ConceptTree) -> list[Signal]:
                             Signal("plus_one_matters", "you", "", "", tree.name, "high")
                         ]
                 elif ctag == "RequiresCondition":
-                    data = getattr(cond, "data", None)
-                    inner = data.inner if isinstance(data, MirrorVariant) else data
+                    inner = requires_condition_inner(cond)
                     if inner is None:
                         desc = str(getattr(unit.node, "description", "") or "")
                         if _P1P1_COND_TEXT_RX.search(desc):

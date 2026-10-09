@@ -20,9 +20,8 @@ on top (2026-07-16 discovery study): same-role cluster stacks decay
 geometrically (a four-payoff text wall isn't 4x one payoff) and every cluster
 earns a prominence-weighted breadth credit (one clause the deck wants for seven
 reasons beats seven clauses it wants for one each). Premium fixing / bombs
-score low on synergy BY DESIGN and are surfaced on the separate
-``structural_floor`` axis (so the tuner can protect them on the cut side without
-faking synergy).
+score low on synergy BY DESIGN; the template roles (``roles``) and the tuner's
+own fixing read protect them on the cut side without faking synergy.
 """
 
 from __future__ import annotations
@@ -33,7 +32,7 @@ from collections.abc import Callable, Mapping, Sequence
 
 from mtg_utils._analysis.pair_reads import PairContext, pair_score
 from mtg_utils._analysis.rate import RateIndex, rate_for
-from mtg_utils._analysis.roles import DeckMana, is_ramp, role_of
+from mtg_utils._analysis.roles import DeckMana, role_of
 from mtg_utils._analysis.signal_specs import serve_from_dict, spec_for
 from mtg_utils._analysis.signals import clauses
 from mtg_utils._card_ir.compat_lookup import ir_for
@@ -346,19 +345,6 @@ def _prominence(label: str, focus_sets: Mapping[str, set] | None) -> float:
     return _PROM_DEFAULT
 
 
-def _structural_floor(card: dict, deck_mana: DeckMana | None = None) -> dict:
-    """The out-of-synergy quality axis: a card can be load-bearing (fixing, ramp,
-    finisher) while serving few THEME lanes. The cut side reads this so a premium
-    dork like Birds of Paradise isn't trimmed as "low synergy"."""
-    produced = card.get("produced_mana") or []
-    colors = {c for c in produced if c in "WUBRG"}
-    return {
-        "is_fixing": len(colors) >= 2,
-        "is_ramp": is_ramp(card, deck_mana=deck_mana),
-        "cmc_bomb": (card.get("cmc") or 0) >= 6.0,
-    }
-
-
 def _synergy_score(
     hits: Sequence[tuple[str, re.Pattern[str] | None]],
     clause_list: Sequence[str],
@@ -538,7 +524,6 @@ def score_candidate(
         "pairs": _pair[1],
         "served": served,
         "clusters": clusters,
-        "structural_floor": _structural_floor(card, deck_mana),
         "cmc": card.get("cmc") or 0.0,
         "price": extract_price(card),
         "roles": sorted(role_of(card, deck_mana=deck_mana)),

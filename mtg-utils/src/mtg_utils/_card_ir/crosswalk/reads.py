@@ -3908,6 +3908,27 @@ def iter_condition_sites(root: object) -> Iterator[TypedMirrorNode]:
                     yield ar
 
 
+def requires_condition_inner(node: object) -> object | None:
+    """The condition a ``RequiresCondition`` activation restriction carries ("Activate
+    only if …", CR 602.5), unwrapped from its ``data`` variant; ``None`` for the
+    empty marker phase leaves when it couldn't structure the condition."""
+    data = getattr(node, "data", None)
+    return data.inner if isinstance(data, MirrorVariant) else data
+
+
+def activation_restriction_conditions(node: object) -> Iterator[object | None]:
+    """The condition of each ``RequiresCondition`` activation restriction on one
+    ability node (:func:`requires_condition_inner`; ``None`` for an empty marker).
+    Timing and per-turn restrictions ("as a sorcery", "once each turn") aren't
+    conditions and are skipped."""
+    ars = getattr(node, "activation_restrictions", MISSING)
+    if not (_present(ars) and isinstance(ars, list)):
+        return
+    for ar in ars:
+        if tag_of(ar) == "RequiresCondition":
+            yield requires_condition_inner(ar)
+
+
 def hand_size_scopes(root: object) -> tuple[str, ...]:
     """The player scope of every ``HandSize`` / ``HandSizeExact`` /
     ``HandSizeOneOf`` QTY operand under one unit node (Maro's dynamic-P/T
@@ -4523,27 +4544,91 @@ def mana_colors(tree: ConceptTree) -> frozenset[str] | Literal["any"]:
 CIRCLED_COLORS_RESIDUE = "Add one mana of either of the circled colors"
 
 
+def _unit_own_mana(
+    unit: AbilityUnit,
+) -> Iterator[tuple[TypedMirrorNode, TypedMirrorNode]]:
+    """``(Mana effect, the ability node carrying it)`` for one unit: the unit's own
+    effect chain (carried by ``unit.node``), plus a mana ability the card grants
+    ITSELF (a static def ``affected: SelfRef`` -- Urza's Saga's chapter I "This
+    Saga gains '{T}: Add {C}.'", carried by the granted body). A grant to other
+    permanents (The World Tree's lands, Sachi's Shamans) is theirs, not the
+    card's."""
+    for c in unit.effects:
+        if tag_of(c.node) == "Mana":
+            yield c.node, unit.node
+    for sdef in unit.static_defs():
+        if tag_of(getattr(sdef, "affected", None)) != "SelfRef":
+            continue
+        for kind, body in iter_nested_granted_bodies(sdef):
+            eff = getattr(body, "effect", None)
+            if (
+                kind == "ability"
+                and isinstance(eff, TypedMirrorNode)
+                and tag_of(eff) == "Mana"
+            ):
+                yield eff, body
+
+
 def _own_mana_effects(tree: ConceptTree) -> Iterator[TypedMirrorNode]:
-    """The ``Mana`` effects the card's own abilities resolve: each unit's effect
-    chain, plus a mana ability the card grants ITSELF (a static def ``affected:
-    SelfRef`` -- Urza's Saga's chapter I "This Saga gains '{T}: Add {C}.'"). A
-    grant to other permanents (The World Tree's lands, Sachi's Shamans) is
-    theirs, not the card's."""
+    """The ``Mana`` effects the card's own abilities resolve (:func:`_unit_own_mana`
+    over every unit)."""
     for unit in tree.units:
-        for c in unit.effects:
-            if tag_of(c.node) == "Mana":
-                yield c.node
-        for sdef in unit.static_defs():
-            if tag_of(getattr(sdef, "affected", None)) != "SelfRef":
-                continue
-            for kind, body in iter_nested_granted_bodies(sdef):
-                eff = getattr(body, "effect", None)
-                if (
-                    kind == "ability"
-                    and isinstance(eff, TypedMirrorNode)
-                    and tag_of(eff) == "Mana"
-                ):
-                    yield eff
+        for eff, _ability in _unit_own_mana(unit):
+            yield eff
+
+
+#: Phase v0.94.0 parks Boxing Ring's "Activate only if you control a creature that
+#: fought this turn" as an ``unparsed_condition`` residue in the ability's effect
+#: chain instead of an ``activation_restrictions`` entry, so the gate is invisible
+#: to the typed read. Guarded by ``test_boxing_ring_gate_is_still_a_residue_canary``.
+UNPARSED_ACTIVATION_GATE = "Activate only if"
+
+
+def _unit_activation_gated(unit: AbilityUnit) -> bool:
+    """Whether an ability may be activated only while a condition holds ("Activate
+    only if you control three or more artifacts", "… during an opponent's turn"):
+    a ``RequiresCondition`` activation restriction (CR 602.5 — a player can't begin
+    to activate a prohibited ability), or the residue phase parks one as
+    (:data:`UNPARSED_ACTIVATION_GATE`). Phase files a max speed ability the same
+    way; by the rules it is a static that grants the ability only while your speed
+    is 4 (CR 702.178a), which comes to the same thing here. Timing-only and per-turn
+    limits ("as a sorcery", "once each turn") aren't conditions."""
+    if next(activation_restriction_conditions(unit.node), MISSING) is not MISSING:
+        return True
+    return any(
+        tag_of(c.node) == "Unimplemented"
+        and residue_is(c.node, "unparsed_condition")
+        and (getattr(c.node, "description", "") or "").startswith(
+            UNPARSED_ACTIVATION_GATE
+        )
+        for c in unit.effects
+    )
+
+
+def mana_ability_gates(tree: ConceptTree) -> tuple[bool, ...]:
+    """One entry per ability of the card's that adds mana or makes a Treasure: whether
+    it is gated on a condition (:func:`_unit_activation_gated` — Mox Opal's
+    metalcraft, Mox Jasper's Dragon, Tablet of Compleation's oil counters). A card
+    whose every entry is gated (Mox Opal) ramps only when the condition holds; one
+    with an ungated sibling (Fanatic of Rhonas' {T}: Add {G}) always ramps. A mana
+    ability the card grants itself is one entry (:func:`_unit_own_mana`). A fact
+    about the card, no policy: the tuner's ramp SOURCING reads it
+    (``_tuner.issues._reliable_ramp``); COUNTING a deck's ramp (``roles.is_ramp``)
+    deliberately doesn't."""
+    out: list[bool] = []
+    for unit in tree.units:
+        abilities = {id(ab): ab for _eff, ab in _unit_own_mana(unit)}
+        if any(
+            c.concept == "make_token" and "Treasure" in c.subject for c in unit.effects
+        ):
+            abilities.setdefault(id(unit.node), unit.node)
+        out.extend(
+            _unit_activation_gated(unit)
+            if ab is unit.node
+            else next(activation_restriction_conditions(ab), MISSING) is not MISSING
+            for ab in abilities.values()
+        )
+    return tuple(out)
 
 
 # ── Mass land denial (Commander Brackets) ──────────────────────────────────────

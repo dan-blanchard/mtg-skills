@@ -38,6 +38,7 @@ from mtg_utils._card_ir.crosswalk import (
     CIRCLED_COLORS_RESIDUE,
     OTHER,
     PARTNER_GROUPS_PHASE_COLLAPSES,
+    UNPARSED_ACTIVATION_GATE,
     AbilityUnit,
     ConceptTree,
     build_concept_tree,
@@ -17670,6 +17671,39 @@ def test_cryptic_spires_mana_is_still_a_residue_canary():
         "Spires' mana ability. Delete CIRCLED_COLORS_RESIDUE, its check in "
         "mana_colors and this canary."
     )
+
+
+@pytest.mark.retirement_canary
+def test_boxing_ring_gate_is_still_a_residue_canary():
+    """Retirement canary for ``crosswalk.reads.UNPARSED_ACTIVATION_GATE``. Phase
+    v0.94.0 parks Boxing Ring's "Activate only if you control a creature that fought
+    this turn" as an ``unparsed_condition`` residue in its Treasure ability's effect
+    chain, with no ``activation_restrictions`` entry."""
+    units = [
+        u
+        for tree in trees_for(test_card("Boxing Ring"))
+        for u in tree.units
+        if any(c.concept == "make_token" for c in u.effects)
+    ]
+    typed = any(
+        tag_of(a) == "RequiresCondition"
+        for u in units
+        if isinstance(ars := getattr(u.node, "activation_restrictions", None), list)
+        for a in ars
+    )
+    residue = any(
+        (getattr(c.node, "description", "") or "").startswith(UNPARSED_ACTIVATION_GATE)
+        for u in units
+        for c in u.effects
+        if tag_of(c.node) == "Unimplemented"
+    )
+    retire = (
+        "crosswalk.reads._unit_activation_gated: RETIRE-READY — phase now carries "
+        "Boxing Ring's activation condition. Delete UNPARSED_ACTIVATION_GATE, its "
+        "residue arm in _unit_activation_gated and this canary."
+    )
+    assert residue, retire
+    assert not typed, retire
 
 
 @pytest.mark.retirement_canary

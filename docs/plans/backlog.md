@@ -16,18 +16,6 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   When it ships, add the key to `_mtgjson/adapter._LEGALITY_FORMATS` and point
   the format at it. That would retire `ignores_legality_key_bans` and the hand-kept
   `COMPETITIVE_BRAWL_BANNED` snapshot, after diffing the two over the whole pool.
-- **Move the remaining oracle-text regexes in the tuner and deck CLIs to phase's IR**
-  (next after the 2026-10-04 tuner changes, at Dan's request). Card reads go through the
-  corrected trees and the shared crosswalk reads; a clause phase can't parse belongs in
-  the recovery stage or a ledgered bridge (ADR-0047/0048), never a free regex. The
-  `_analysis/text_reads.py` patterns are the sanctioned bridge / membership-floor set and
-  out of scope. Pre-existing targets:
-  - `_tuner/issues.py`: `_RAMP_CONDITIONAL` ("only if you control" in the oracle text
-    keeps a conditionally gated rock out of the tuner's ramp sourcing); read the
-    mana ability's activation condition off the tree.
-  - `find_commanders._is_partner` / `_partner_with_target`: read
-    `card_classify.partner_abilities` instead of the oracle (the `Partner—[text]`
-    groups and Doctor's companion are already there).
 - **Phase gaps behind the closer, alternative-cost and mass-land-denial reads**
   (found moving `_tuner/` and `deck_stats` onto the trees, phase v0.94.0; report
   upstream, Dan posts). Each is a card the old regexes read and the trees don't:
@@ -55,12 +43,12 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
     Mana Vapors' one-untap-step effect parses as a lasting static
     (`_lasting_static_defs`); Burning of Xinye's "destroys four lands" is a residue
     and Global Ruin's sacrifice a tracked set (both ledger bridges).
-- **Leftovers from moving `roles.protects` onto the signal path** (2026-10-08).
-  - deck-forge's "Pillowfort" sub-avenue (`signal_specs._PILLOWFORT_EXTRA`) still
-    serves by an oracle regex; the `pillowfort` key now carries the same fact.
-  - `ranking._structural_floor` (`is_fixing` / `is_ramp` / `cmc_bomb`) is serialised
-    into every candidate's score and read by nothing — the SPA, the tuner and the
-    CLIs all ignore it (its `is_tutor` text read was deleted for that reason).
+- **Phase gap behind the tuner's ramp sourcing** (found 2026-10-08, phase v0.94.0;
+  report upstream, Dan posts). Boxing Ring's "Activate only if you control a
+  creature that fought this turn" is an `unparsed_condition` residue, not an
+  activation restriction — the only legal card whose mana or Treasure ability is
+  gated that way (`reads.UNPARSED_ACTIVATION_GATE`,
+  `test_boxing_ring_gate_is_still_a_residue_canary`).
 - **Commander-multiplier gaps.** Syr Konrad's trigger reads as `ChangesZone` with no
   zones (a phase gap), so `_analysis/multipliers` can't match a dies doubler to it;
   report upstream rather than work around it. `trees.object_facts` reads printed
@@ -80,8 +68,17 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   Lecture's earthbend return binds to the Food token (`LastCreated`) instead of the
   land (`test_earthbend_last_created_binding_canary`).
 - **`serve_self_recur` is still an oracle regex** (`signal_specs._shared._self_recurs`,
-  the reanimator avenue's self-recurring creatures). It could ride the
-  `self_recurring` key's idents, filtered to creatures.
+  the reanimator avenue's and aristocrats' "Self-recurring fodder" creatures). The
+  `self_recurring` key's idents, filtered to creatures, don't line up (2026-10-08, legal
+  corpus): 294 kept, 302 gained, 28 lost. The key is wider by design — any per-game
+  reuse: self-bounce (Arcanis, Blinking Spirit), dash (Kolaghan Forerunners), returns
+  to hand, persist (Kitchen Finks), re-suspend (Epochrasite) — where the serve wants a
+  creature coming back from the graveyard to play. Of the 28 lost, some are the
+  regex's misfires (Emptiness and Kami of Mourning return another card or grant a
+  perpetual ability), some key misses phase hides: cast-from-graveyard permissions on
+  a trigger or keyword (Tenacious Underdog's blitz, Skyclave Shade, Sproutback
+  Trudge). Switching needs a zone-discriminating subject on the key's ident
+  (graveyard → battlefield / stack) and those misses read first.
 
 **From arena-meta (2026-10-05, ADR-0059)**
 

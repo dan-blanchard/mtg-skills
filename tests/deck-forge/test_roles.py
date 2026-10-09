@@ -11,7 +11,7 @@ import pytest
 from mtg_utils._analysis.roles import DeckMana, _restriction_admits, is_ramp, role_of
 from mtg_utils._card_ir.crosswalk.reads import ObjectFacts
 from mtg_utils._tuner.issues import ROLE_SEARCH, _reliable_ramp
-from mtg_utils.card_classify import get_oracle_text, is_land
+from mtg_utils.card_classify import is_land
 from mtg_utils.testkit import snapshot_records, test_card, test_signals
 from mtg_utils.theme_presets import get_preset, has_signal_coverage
 
@@ -122,11 +122,17 @@ def test_the_tuner_ramp_search_page_is_nonland_ramp():
     # The tuner's gate is ``is_land`` (the FRONT face): a Saga // Land DFC such as
     # Welcome to . . . // Jurassic Park is a nonland card the tuner may source.
     assert not [r["name"] for r in hits if is_land(r)]
-    # The precision filter only ever removes a conditionally-gated rock. It reads
-    # every face's text (``get_oracle_text``), so a DFC such as Ojer Kaslem, Deepest
-    # Growth // Temple of Cultivation is checked on the face text it was dropped for.
-    dropped = [r["name"] for r in hits if not _reliable_ramp(r)]
-    assert all("only if you control" in get_oracle_text(test_card(n)) for n in dropped)
+    # The precision filter removes a rock whose every mana / Treasure ability is
+    # gated on a condition (CR 602.5), and nothing else. Mox Amber has no gate: its
+    # ruling says you can activate it with no legendary permanent (it then adds no
+    # mana). Fanatic of Rhonas' first ability is ungated.
+    names = {r["name"] for r in hits}
+    gated = {"Mox Opal", "Mox Jasper", "Tablet of Compleation", "Boxing Ring"}
+    ungated = {"Mox Amber", "Fanatic of Rhonas", "Sol Ring", "Arcane Signet"}
+    assert gated | ungated <= names
+    dropped = {r["name"] for r in hits if not _reliable_ramp(r)}
+    assert gated <= dropped
+    assert not ungated & dropped
 
 
 @pytest.mark.parametrize("name", ["Skyshroud Claim", "Hunting Wilds"])

@@ -58,6 +58,7 @@ from mtg_utils._card_ir.crosswalk import (
     normalised_keyword_name,
     permission_tag,
     recipient_tag,
+    requires_condition_inner,
     residue_is,
     reveal_until_player,
     static_mode_tag,
@@ -69,7 +70,6 @@ from mtg_utils._card_ir.crosswalk import (
     walk_effects_with_else,
 )
 from mtg_utils._card_ir.mirror.runtime import (
-    MirrorVariant,
     TypedMirrorNode,
 )
 from mtg_utils._card_ir.text_idioms import (
@@ -2299,8 +2299,7 @@ def _exile_matters(tree: ConceptTree) -> list[Signal]:
                             Signal("exile_matters", "you", "", "", tree.name, "high")
                         ]
                 elif ctag == "RequiresCondition":
-                    data = getattr(cond, "data", None)
-                    inner = data.inner if isinstance(data, MirrorVariant) else data
+                    inner = requires_condition_inner(cond)
                     if inner is None:
                         desc = str(getattr(unit.node, "description", "") or "")
                         if _EXILE_OWNS_COND_TEXT_RX.search(desc):

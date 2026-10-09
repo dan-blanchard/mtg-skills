@@ -23,6 +23,7 @@ from ._shared import (
     _LANDS_FROM_GRAVE_EXTRA,
     _MASS_DEATH_PAYOFF_ORACLE,
     _MULTI_TARGET_ORACLE,
+    _PILLOWFORT_IDENTS,
     _REDIRECT_SERVE_ORACLE,
     Serve,
     SignalSpec,
@@ -349,7 +350,7 @@ SPECS_4: dict[tuple[str, str], SignalSpec] = {
         "Propaganda, Sphere of Safety, Crawlspace",
         {"preset_names": ("pillowfort",)},
         None,
-        serve_idents=frozenset({"pillowfort|you|"}),
+        serve_idents=_PILLOWFORT_IDENTS,
     ),
     # A cheat-from-top commander (Vaevictis, Hans Eriksson) reveals its top card and
     # puts a permanent into play, so it wants to STACK its top with a bomb: graveyard-

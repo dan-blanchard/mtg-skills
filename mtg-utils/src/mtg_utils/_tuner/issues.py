@@ -20,30 +20,39 @@ from typing import TYPE_CHECKING
 
 from mtg_utils._analysis.roles import DeckMana, is_ramp
 from mtg_utils._analysis.signal_specs import spec_for
-from mtg_utils.card_classify import get_oracle_text
+from mtg_utils._card_ir.crosswalk import mana_ability_gates
+from mtg_utils._card_ir.trees import trees_for
 from mtg_utils.combo_search import is_game_winning
 
 if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
 
-# The mana ability of these rocks is gated on board state a deck may not have (Mox Opal
-# wants metalcraft, Mox Jasper a Dragon: "Activate only if you control …") — so they
-# read as ramp but do nothing here. Match the gate phrase itself (not the "Activate[
-# this ability]" prefix) so re-templating can't sneak one back in. Mox Amber has no such
-# gate ("…among legendary creatures … you control"), so it's correctly still sourced.
-_RAMP_CONDITIONAL = "only if you control"
+
+def _conditionally_gated(card: dict) -> bool:
+    """Every ability of the card's that adds mana or makes a Treasure may be activated
+    only while a condition holds (``crosswalk.mana_ability_gates``: Mox Opal wants
+    metalcraft, Mox Jasper a Dragon, Circle of Elders formidable — CR 602.5). Such a
+    rock reads as ramp but may do nothing in this deck. One ungated sibling (Fanatic
+    of Rhonas' {T}: Add {G}) makes the card reliable; a card with no such ability
+    (Cultivate, Kamahl's Druidic Vow) has nothing to gate."""
+    gates = [g for tree in trees_for(card) for g in mana_ability_gates(tree)]
+    return bool(gates) and all(gates)
 
 
 def _reliable_ramp(card: dict, *, deck_mana: DeckMana | None = None) -> bool:
     """Ramp the tuner will SOURCE: a genuine producer (``roles.is_ramp`` — which already
     rejects mana an opponent receives, like An Offer You Can't Refuse's Treasures, and
     under ``commander`` mana the deck can't use) whose ability isn't conditionally
-    gated. The deck's existing conditional rocks still COUNT as ramp, but the tuner
-    won't suggest one the deck can't reliably turn on."""
-    return (
-        is_ramp(card, deck_mana=deck_mana)
-        and _RAMP_CONDITIONAL not in get_oracle_text(card).lower()
-    )
+    gated (:func:`_conditionally_gated`).
+
+    Sourcing, not counting, on purpose: the activation gate stays here, out of
+    ``roles.is_ramp``, so deck-stats, mana-audit and slot-budgets still count
+    Mox Opal in the artifact deck that runs it — there it does ramp. Only a
+    suggestion has to be vouched for, and the tuner can't vouch that a candidate's
+    condition holds in this deck, so it doesn't suggest a gated rock. Which gates
+    count as unreliable (every ``RequiresCondition``, an opponent's-turn-only one
+    included) is this module's decision, not a rule."""
+    return is_ramp(card, deck_mana=deck_mana) and not _conditionally_gated(card)
 
 
 ROLE_SEARCH: dict[str, dict] = {

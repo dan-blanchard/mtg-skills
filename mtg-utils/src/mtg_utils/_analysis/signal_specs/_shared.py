@@ -480,16 +480,17 @@ _SLINGER_SEARCH_ORACLE = (
 # Initiative (0% — it's an aggressive race-the-dungeon mechanic), and counterspell-
 # control (0% on both synergy and inclusion). Tallying high-pillowfort activated/combat
 # commanders found NO coherent sub-archetype to rescue them (they mostly co-open
-# goad/fog), so no combination predicate is needed here.
-_PILLOWFORT_ORACLE = (
-    r"can't attack you\b|no more than (?:one|two|\w+) creatures? can attack you"
-)
+# goad/fog), so no combination predicate is needed here. Search and serve both ride
+# the ``pillowfort`` key (the ``pillowfort`` preset), the same fact the top-level
+# ("pillowfort", "you") spec and ``roles.protects`` read. One ident, shared with
+# that spec (data_4), so the two serves can't drift.
+_PILLOWFORT_IDENTS = frozenset({"pillowfort|you|"})
 _PILLOWFORT_EXTRA = SubAvenue(
     "Pillowfort",
     "taxes and limits that make attacking you costly (Ghostly Prison, Propaganda, "
     "Sphere of Safety, Crawlspace)",
-    {"oracle": _PILLOWFORT_ORACLE},
-    serve=Serve(oracle=re.compile(_PILLOWFORT_ORACLE, _IC)),
+    {"preset_names": ("pillowfort",)},
+    serve=Serve(signal_idents=_PILLOWFORT_IDENTS),
 )
 # ADR-0036/0037 Stage 5 #62: a GENERIC (any-permanent) counter doubler ALSO doubles
 # LOYALTY counters — a real hook, CR 306.6 (loyalty counters are counters, CR 122.1)
