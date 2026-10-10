@@ -703,6 +703,36 @@ def _tuck_preceded_by_selection(effects: Sequence[ConceptNode], idx: int) -> boo
 _OPP_DISCARD_ACTORS: frozenset[str] = frozenset(
     {"Opponent", "Opponents", "EachOpponent", "TargetPlayer", "TargetOpponent"}
 )
+
+
+def _choose_opponent_bound_discard(unit: AbilityUnit) -> object | None:
+    """The Discard/DiscardCard effect immediately bound to a unit-root
+    ``Choose(choice_type='Opponent')`` (CR 601.2c — choosing a player as
+    part of resolving a spell/ability), or ``None``. ``opponent_discard`` reads
+    it as the opponent's discard, ``discard_outlet`` as not yours.
+
+    Fervent Mastery: "If the {2}{R}{R} cost was paid, AN OPPONENT discards
+    any number of cards, then draws that many cards." parses to a root
+    ``Choose{choice_type: Opponent}`` immediately followed by a
+    ``Discard{target: Controller}`` — the chosen opponent has no typed
+    carrier of its own to re-read structurally (``Choose`` doesn't record
+    WHERE its choice gets consumed), so POSITION is the only signal: the
+    VERY NEXT effect in the chain, never a deeper sibling. Corpus-
+    verified: Fervent Mastery is the ONLY commander-legal
+    ``Choose(Opponent)``-root card with any discard concept at all in its
+    unit, and its OWN second, unrelated "discard three cards at random"
+    self-cost deep in the SAME chain (post-tutor, its own ``Controller``
+    target genuinely means you) is excluded by the immediate-successor
+    requirement — it is not this function's return value.
+    """
+    root = getattr(unit, "node", None)
+    eff = getattr(root, "effect", None)
+    if tag_of(eff) != "Choose" or getattr(eff, "choice_type", None) != "Opponent":
+        return None
+    sub = getattr(root, "sub_ability", None)
+    return getattr(sub, "effect", None) if sub is not None else None
+
+
 # Sibling-return target tags marking the SAME exiled object coming back (CR
 # 603.6e) — the blink tell the exile_removal lane vetoes on.
 _RETURN_TARGET_TAGS: frozenset[str] = frozenset(

@@ -113,6 +113,11 @@ def _discard_makers(tree: ConceptTree) -> list[Signal]:
     reads role=effect only, scoped to one unit) is load-bearing: Psychic Frog and
     Nezahal carry a combat-damage draw *trigger* and a separate ``Discard a card:``
     *cost* in DIFFERENT units, so they must NOT fire here.
+
+    A RANDOM discard counts here (Burning Inquiry, Goblin Lore; Dan, 2026-10-10),
+    unlike ``discard_outlet``, which skips it: this key makes discard EVENTS, and a
+    "whenever you discard" payoff (Drake Haven) fires whichever card goes, where
+    an outlet must put the card you choose into your graveyard (CR 701.9b).
     """
     for unit in tree.units:
         if not unit.has_effect("draw"):

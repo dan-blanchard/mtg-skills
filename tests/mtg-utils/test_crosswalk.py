@@ -7023,15 +7023,14 @@ def test_discard_outlet_else_ability_effect_descent():
 
 
 def test_discard_outlet_alt_cast_cost_kept_mirror():
-    """ "As an additional cost to cast this spell, discard …" surfaces NO
-    typed ``Discard`` node anywhere in phase's tree for a Spell ability
-    (the Spell's own ``cost`` field is ``None`` — mirrors
-    ``_CAST_ADD_SAC_RX``'s documented sacrifice_outlets gap). The
-    byte-identical deleted SWEEP regex, run per-clause over the kept
-    oracle, recovers both Devastating Dreams ("discard X cards at
-    random") and Kaervek's Spite ("discard your hand") — CR 601.2f."""
-    assert ("discard_outlet", "you", "") in _idents("Devastating Dreams")
+    """Kaervek's Spite's "as an additional cost to cast this spell, sacrifice
+    all permanents you control and discard your hand" surfaces no typed
+    ``Discard`` node; the byte-identical deleted SWEEP regex, run per-clause
+    over the kept oracle, recovers it (CR 601.2f). Devastating Dreams' typed
+    "discard X cards at random" is out: a random discard is no outlet (CR
+    701.9b; Dan, 2026-10-10), so the mirror stays off it too."""
     assert ("discard_outlet", "you", "") in _idents("Kaervek's Spite")
+    assert ("discard_outlet", "you", "") not in _idents("Devastating Dreams")
 
 
 def test_discard_outlet_self_ref_cycling_excluded():

@@ -1833,6 +1833,18 @@ def modal_mode_description(
     return ""
 
 
+def discard_is_random(node: object) -> bool:
+    """Whether a ``Discard`` node discards at random (CR 701.9b: by default the
+    discarding player chooses the card; some effects require a random discard).
+
+    Phase carries the choice on the node's own ``random`` flag, on an effect
+    (Goblin Lore's "discard three cards at random") and a cost (Flowstone Flood's
+    "Buyback—Pay 3 life, Discard a card at random") alike; an absent flag is a
+    chosen discard.
+    """
+    return getattr(node, "random", False) is True
+
+
 def discard_recipient_scope(node: TypedMirrorNode) -> str | None:
     """The DIRECTION of a ``Discard`` effect (who discards) from its recipient node.
 

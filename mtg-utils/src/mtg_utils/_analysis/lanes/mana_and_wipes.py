@@ -17,6 +17,7 @@ from mtg_utils._analysis.lanes._shared import (
     _OPP_DISCARD_ACTORS,
     _PERMANENT_TYPES,
     _RETURN_TARGET_TAGS,
+    _choose_opponent_bound_discard,
     _is_generic_creature_filter,
     _kept,
     _negative_pt_field,
@@ -37,6 +38,7 @@ from mtg_utils._card_ir.crosswalk import (
     change_zone_dirs,
     count_operand_filter,
     counter_kind,
+    discard_is_random,
     discard_recipient_scope,
     double_target_kind,
     effect_filter,
@@ -57,6 +59,7 @@ from mtg_utils._card_ir.crosswalk import (
     iter_typed_nodes,
     mana_replacement_multiplier,
     mod_value,
+    normalised_keyword_name,
     produced_contribution,
     recipient_tag,
     ref_count_qty,
@@ -761,19 +764,17 @@ def _draw_for_each(tree: ConceptTree) -> list[Signal]:
 # arms span a sentence over the whole oracle, so — like self_blink /
 # impulse_top_play in the old IR — it MUST scan clauses, not flat text).
 # Recovers what the structural + cost-descent arms below still can't reach:
-# an "as an additional cost to cast this spell, discard …" (Devastating
-# Dreams, Kaervek's Spite — the Spell ability's own ``cost`` field is
-# ``None`` for an additional cast cost, mirroring ``_CAST_ADD_SAC_RX``'s
-# documented sacrifice_outlets gap: no Discard node exists ANYWHERE in the
-# typed tree for it), and a cross-clause "draw N cards. Then discard a
+# an additional cost phase leaves untyped (Kaervek's Spite's "sacrifice all
+# permanents you control and discard your hand" — no Discard node anywhere in
+# the tree; a typed additional-cost discard, Tormenting Voice's, is read off
+# ``unit.costs`` instead), and a cross-clause "draw N cards. Then discard a
 # card unless …" whose "unless" rider phase parks as a whole-clause
 # ``Unimplemented`` residue with NO typed Discard node at all (Timeline
 # Inquiry, Katara, Seeking Revenge, Waterbending Lesson, Tainted
-# Indulgence). None of the regex's arms mention "opponent"/"target" (CR
-# 701.8a's forced-attack family never phrases as a self-referential
-# "discard …:" cost or a "draw … then discard" sequence), so the opp-
-# hand-attack cards stay out of this arm exactly as they did in the
-# deleted SWEEP era.
+# Indulgence). None of the regex's arms mention "opponent"/"target" (a
+# hand-attack discard never phrases as a self-referential "discard …:" cost
+# or a "draw … then discard" sequence), so the opp-hand-attack cards stay out
+# of this arm exactly as they did in the deleted SWEEP era.
 _DISCARD_OUTLET_SWEEP_RE = re.compile(DISCARD_OUTLET_REGEX, re.IGNORECASE)
 
 # Fields the discard_outlet cost/effect descent does NOT walk through — every
@@ -800,9 +801,19 @@ _DISCARD_OUTLET_SKIP_FIELDS: frozenset[str] = frozenset(
 )
 
 
+# Keywords whose discard phase v0.104.0 leaves untyped (a bare keyword name, no
+# cost payload): jump-start discards a card (CR 702.133a), retrace a land card
+# (CR 702.81a), each an optional way to cast the card from your graveyard, so an
+# outlet by the keyword-cost verdict (Dan, 2026-10-10). Read by name off
+# ``tree.card_keywords``; ``test_untyped_discard_cast_keywords_canary`` fails once
+# phase types the cost, and the typed cost walk takes over.
+_UNTYPED_DISCARD_CAST_KEYWORDS: frozenset[str] = frozenset({"jumpstart", "retrace"})
+
+
 def _iter_discard_cost_nodes(root: object) -> Iterator[TypedMirrorNode]:
     """Deep walk collecting every ``Discard``-tagged node reachable from
-    ``root``, skipping :data:`_DISCARD_OUTLET_SKIP_FIELDS` subtrees. Mirrors
+    ``root`` (one node, or a list of them), skipping
+    :data:`_DISCARD_OUTLET_SKIP_FIELDS` subtrees. Mirrors
     :func:`~mtg_utils._card_ir.crosswalk.iter_typed_nodes`'s generic
     field/variant/list walk exactly, narrowed for this one lane."""
     seen: set[int] = set()
@@ -867,10 +878,50 @@ def _discard_outlet(tree: ConceptTree) -> list[Signal]:
     shapes corpus-verified to over-fire when read this deeply (+60
     crosswalk_only, reverted this session; see that constant's docstring).
 
+    The same gates read a spell's merged casting costs (``unit.costs``: what
+    :func:`~mtg_utils._card_ir.crosswalk.core._keyword_cost_concepts` and
+    ``_spell_additional_cost_concepts`` merge onto its Spell unit, outside the
+    unit's own node). An optional keyword-cost discard is an outlet (Dan,
+    2026-10-10) — escalate (Collective Brutality, CR 702.120a), buyback
+    (Forbid, CR 702.27a), flashback (Conflagrate, CR 702.34a), blitz (Sabin,
+    Master Monk, CR 702.152a) — since you choose to pay it each time you cast
+    the spell; so is a mandatory additional-cost discard (Tormenting Voice,
+    Thrill of Possibility; CR 601.2f; Dan, 2026-10-10): you choose the card and
+    when to cast. Echo and cumulative upkeep never reach it
+    (``core._UPKEEP_PAYMENT_KEYWORDS``). Jump-start and retrace, whose discard
+    phase leaves untyped, are read by name
+    (:data:`_UNTYPED_DISCARD_CAST_KEYWORDS`).
+
+    A RANDOM discard (CR 701.9b, :func:`discard_is_random`) is no outlet in any
+    arm (Dan, 2026-10-10): it can't put the card you choose into your graveyard
+    (Flowstone Flood's buyback, Goblin Lore, Amok's cost). Nor is a discard
+    bound to a chosen opponent (:func:`_choose_opponent_bound_discard` —
+    Fervent Mastery's "an opponent discards", which phase types with a
+    ``Controller`` target).
+
     Scope "you" (the lane convention — it fuels the controller's engine).
     """
-    for unit in tree.units:
+    walks = [(unit, tuple(_iter_discard_cost_nodes(unit.node))) for unit in tree.units]
+    # A card whose typed tree holds a random discard (its merged costs included —
+    # Devastating Dreams' "discard X cards at random") skips the kept text mirror
+    # below too, whose "at random" arms would otherwise re-admit it. The gate is
+    # whole-card despite ``_shared``'s warning that whole-card gates over-exclude:
+    # the mirror only runs once every typed arm has missed, and a corpus check
+    # (2026-10-10) found none of the 81 legal cards with a typed random discard
+    # losing a chosen-discard outlet to it.
+    saw_random = any(
+        discard_is_random(n)
+        for unit, walked in walks
+        for n in (
+            *(c.node for c in (*unit.effects, *unit.costs) if c.concept == "discard"),
+            *walked,
+        )
+    )
+    for unit, walked in walks:
+        opp_bound = _choose_opponent_bound_discard(unit)
         for c in unit.effect_concepts("discard"):
+            if discard_is_random(c.node) or c.node is opp_bound:
+                continue
             if discard_recipient_scope(c.node) not in ("you", "each", None):
                 continue
             owner = effect_owner_player_scope(getattr(unit, "node", None), c.node)
@@ -887,7 +938,7 @@ def _discard_outlet(tree: ConceptTree) -> list[Signal]:
             # subject-truncated backrefs like Nebuchadnezzar's "discard
             # all cards with that name revealed this way", Tamiyo's
             # "can't cause you to discard" protection). What remains is
-            # the self-loot class (CR 701.8a): the period-split "Then
+            # the self-loot class (CR 701.9a): the period-split "Then
             # discard a card unless <cond>" tail (Timeline Inquiry class)
             # + bare self imperatives (Breakthrough) + the symmetric
             # each-player wheel (Noxious Vapors — the Dark Deal
@@ -895,7 +946,13 @@ def _discard_outlet(tree: ConceptTree) -> list[Signal]:
             if c.recovered_by == "discard" and OTHER_PLAYER in c.reading:
                 continue
             return [Signal("discard_outlet", "you", "", c.raw, tree.name, "high")]
-        for n in _iter_discard_cost_nodes(unit.node):
+        # The unit's own node, plus the casting costs merged onto it; a cost
+        # both reach (a top-level activation cost, a carrier unit's own node) is
+        # read once.
+        merged = (c.node for c in unit.costs if c.concept == "discard")
+        for n in {id(n): n for n in (*walked, *merged)}.values():
+            if discard_is_random(n) or n is opp_bound:
+                continue
             # A ``self_ref`` COST leaf ("Discard THIS card:") is Cycling /
             # Eternalize / Unearth-style alt-cost fodder, not an outlet —
             # mirrors the old IR's cost-part split ("discardself" vs
@@ -910,6 +967,11 @@ def _discard_outlet(tree: ConceptTree) -> list[Signal]:
             if owner in _OPP_DISCARD_ACTORS:
                 continue
             return [Signal("discard_outlet", "you", "", "", tree.name, "high")]
+    keywords = {normalised_keyword_name(k) for k in tree.card_keywords}
+    if keywords & _UNTYPED_DISCARD_CAST_KEYWORDS:
+        return [Signal("discard_outlet", "you", "", "", tree.name, "high")]
+    if saw_random:
+        return []
     if any(_DISCARD_OUTLET_SWEEP_RE.search(cl) for cl in _clauses(_kept(tree))):
         return [Signal("discard_outlet", "you", "", "", tree.name, "high")]
     return []

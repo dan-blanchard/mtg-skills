@@ -7,7 +7,7 @@ carry), and the v0.104.0 shape the guard reads.
 
 import pytest
 
-from mtg_utils.testkit import test_signals
+from mtg_utils.testkit import test_phase_records, test_signals
 
 
 def _idents(name: str) -> set[str]:
@@ -319,6 +319,26 @@ def test_a_merged_zone_change_trigger_reads_each_clause():
     [
         # "Blitz—{2}{R}{R}, Discard a card": a way to cast it (CR 702.152a)
         ("Sabin, Master Monk", True),
+        # A spell's optional keyword-cost discard is an outlet too (Dan,
+        # 2026-10-10): you choose to pay it each time you cast the spell.
+        # Escalate (CR 702.120a), buyback (CR 702.27a), flashback (CR 702.34a).
+        ("Collective Brutality", True),
+        ("Forbid", True),
+        ("Demonic Collusion", True),
+        ("Conflagrate", True),
+        ("Twinned Vision", True),
+        # Jump-start (CR 702.133a) and retrace (CR 702.81a): an optional discard
+        # (retrace: a land card) to cast it from your graveyard, read by name
+        # while phase leaves the cost untyped.
+        ("Radical Idea", True),
+        ("Raven's Crime", True),
+        # A mandatory additional-cost discard is an outlet too (CR 601.2f; Dan,
+        # 2026-10-10): you choose the card, and when to cast.
+        ("Tormenting Voice", True),
+        ("Thrill of Possibility", True),
+        # A random discard can't be aimed: "Buyback—Pay 3 life, Discard a card
+        # at random" is no outlet (Dan, 2026-10-10).
+        ("Flowstone Flood", False),
         # An upkeep payment to keep the permanent (CR 702.30a echo, 702.24a
         # cumulative upkeep) is no discard outlet (Dan, 2026-10-09): a forced
         # payment, not a discard you make on demand.
@@ -329,6 +349,53 @@ def test_a_merged_zone_change_trigger_reads_each_clause():
 )
 def test_a_keyword_cost_discard_is_an_outlet_only_as_a_casting_cost(name, fires):
     assert ("discard_outlet|you|" in _idents(name)) is fires
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Goblin Lore",  # an effect: "then discard three cards at random"
+        "Amok",  # an activation cost: "{1}, Discard a card at random:"
+        "Devastating Dreams",  # an additional cost: "discard X cards at random"
+    ],
+)
+def test_a_random_discard_is_no_outlet(name):
+    # A random discard can't be aimed at the card you want in your graveyard
+    # (CR 701.9b; Dan, 2026-10-10), in every arm, the kept text mirror included.
+    assert "discard_outlet|you|" not in _idents(name)
+
+
+def test_a_chosen_opponents_discard_is_no_outlet():
+    # Fervent Mastery: "an opponent discards any number of cards" is the chosen
+    # opponent's (phase types it ``Controller`` after a ``Choose{Opponent}``),
+    # and "discard three cards at random" can't be aimed.
+    assert "discard_outlet|you|" not in _idents("Fervent Mastery")
+
+
+def test_a_random_discard_still_makes_discards():
+    # ``discard_makers`` (loot / rummage) keeps random discards (Dan,
+    # 2026-10-10): a "whenever you discard" payoff fires whichever card goes.
+    idents = _idents("Burning Inquiry")
+    assert "discard_makers|you|" in idents
+    assert "discard_outlet|you|" not in idents
+
+
+@pytest.mark.retirement_canary
+@pytest.mark.parametrize(
+    ("name", "key"), [("Radical Idea", "JumpStart"), ("Raven's Crime", "Retrace")]
+)
+def test_untyped_discard_cast_keywords_canary(name, key):
+    """Retirement canary for ``mana_and_wipes._UNTYPED_DISCARD_CAST_KEYWORDS``:
+    phase v0.104.0 carries jump-start and retrace as a bare keyword name, with no
+    typed discard cost."""
+    keywords = [
+        kw for rec in test_phase_records(name) for kw in rec.get("keywords") or ()
+    ]
+    assert key in keywords, (
+        f"mana_and_wipes._UNTYPED_DISCARD_CAST_KEYWORDS: RETIRE-READY — phase now "
+        f"types {name}'s {key} cost. If discard_outlet still fires on {name} "
+        "without it, delete the keyword read, the constant and this canary."
+    )
 
 
 @pytest.mark.parametrize(

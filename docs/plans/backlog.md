@@ -132,10 +132,6 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   `_RECOVERED_DRAW_REPLACEMENT_RE` (a replacement diagnostic the seam could refuse).
   Move each onto a `read_clause` mark the same way draw, discard, damage reach and
   make_token's kinds moved (2026-10-09), population unchanged.
-- **Keyword-cost discards merged into a spell's costs fire nothing.** Collective
-  Brutality's escalate, Forbid's buyback and Conflagrate's flashback discard is
-  decorated (`core._keyword_cost_concepts`) but `discard_outlet`'s cost walk reads
-  the unit's node, not merged costs; whether they are outlets is unjudged.
 
 **From the 2026-09-17 architecture review (worth exploring, not started)**
 
@@ -151,6 +147,24 @@ headroom and parked items.
 
 ## Settled: don't re-suggest
 
+- **A spell's casting-cost discard is a discard outlet** (Dan, 2026-10-10). The
+  optional keyword costs count: escalate (Collective Brutality, CR 702.120a),
+  buyback (Forbid, Demonic Collusion, CR 702.27a), flashback (Conflagrate, Twinned
+  Vision, CR 702.34a), as Sabin's blitz does (CR 702.152a). Jump-start (CR
+  702.133a) and retrace (CR 702.81a) count too; phase leaves their discard
+  untyped, so `discard_outlet` reads them by keyword name behind a
+  `retirement_canary`. A mandatory additional-cost discard counts as well
+  (Tormenting Voice, Thrill of Possibility, CR 601.2f): you choose the card and
+  when to cast. So does a discard that is one choice of an either/or cost (Bitter
+  Triumph, Bone Shards, Lightning Axe: "discard a card or pay …"), since you may
+  always choose it. `discard_outlet` reads each off the spell's merged `unit.costs`.
+- **A random discard isn't a discard outlet, but it still makes discards** (Dan,
+  2026-10-10). It can't be aimed (CR 701.9b; Flowstone Flood's buyback, Goblin
+  Lore, Amok), so `discard_outlet` skips it in every arm, the kept text mirror
+  included (`crosswalk.discard_is_random`). `discard_makers` (loot and rummage)
+  keeps it, because a "whenever you discard" payoff (Drake Haven) fires whichever
+  card goes (Burning Inquiry). A chosen opponent's discard is not yours either
+  (Fervent Mastery, `lanes._shared._choose_opponent_bound_discard`).
 - **Upkeep-payment discards aren't discard outlets** (Dan, 2026-10-09): echo's and
   cumulative upkeep's discard (Deepcavern Imp, Rakdos Headliner, Vexing Sphinx) is
   a forced payment to keep the permanent, not a discard you make on demand (CR
