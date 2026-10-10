@@ -1912,7 +1912,7 @@ def _direct_damage(tree: ConceptTree) -> list[Signal]:
     for unit in tree.units:
         for c in unit.effect_concepts("deal_damage"):
             if c.recovered_by == "damage":
-                if OTHER_PLAYER in c.subject:
+                if OTHER_PLAYER in c.reading:
                     return [
                         Signal("direct_damage", "you", "", c.raw, tree.name, "high")
                     ]

@@ -443,8 +443,9 @@ from mtg_utils._card_ir.recovery import (  # noqa: E402
 
 
 def _subject(raw: str, token: str = "") -> tuple[str, ...]:
-    verb = ALLOWLIST[token].object_verb if token else ""
-    return read_clause(raw, None, verb)[1]
+    if not token:
+        return read_clause(raw)[1]
+    return read_clause(raw, None, ALLOWLIST[token])[1]
 
 
 @pytest.mark.parametrize(
@@ -551,14 +552,7 @@ def test_reanimate_names_no_zone_of_its_own():
 
 
 def _row_reading(raw: str, token: str) -> tuple[str, ...]:
-    rule = ALLOWLIST[token]
-    return read_clause(
-        raw,
-        None,
-        rule.object_verb,
-        other_player=rule.other_player,
-        token_types=rule.token_types,
-    )[1]
+    return read_clause(raw, None, ALLOWLIST[token])[1]
 
 
 @pytest.mark.parametrize(
@@ -658,3 +652,23 @@ def test_a_second_pass_adds_no_instruction_twice():
     tree = _fixture_tree("Darigaaz Reincarnated")
     assert any(c.recovered_by == "reanimate" for u in tree.units for c in u.effects)
     assert apply_unimplemented_recovery(tree) is tree
+
+
+@pytest.mark.retirement_canary
+def test_unless_note_is_still_phases_annotation_canary():
+    """Retirement canary for ``recovery._UNLESS_NOTE_RX``. Phase v0.104.0 appends
+    "(unless: …)" to an ``Unsupported unless clause`` residue's description
+    (Town-Razer Tyrant's granted "… deals 2 damage to you unless you sacrifice
+    it" ends "(unless: you sacrifice it…"); compound-clause splitting strips the
+    note so its words never read as a later instruction."""
+    raws = [
+        c.raw or ""
+        for u in _fixture_tree("Town-Razer Tyrant").units
+        for c in u.effects
+        if tag_of(c.node) == "Unimplemented"
+    ]
+    assert any("(unless:" in r for r in raws), (
+        "recovery._UNLESS_NOTE_RX: RETIRE-READY — phase no longer appends its "
+        "'(unless: …)' note. Delete _UNLESS_NOTE_RX, its use in _later_clauses "
+        "and this canary."
+    )

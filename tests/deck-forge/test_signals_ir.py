@@ -418,7 +418,7 @@ def test_named_card_synergy_fires_named_synergy():
     "name", ["Relentless Rats", "Shadowborn Apostle", "Seven Dwarves"]
 )
 def test_copy_limit_swarm_naming_itself_fires_copy_limit_alone(name):
-    """The CR 100.2a copy-limit population (ir.many_copies) fires its OWN structural
+    """The copy-limit population (ir.many_copies) fires its OWN structural
     lane, copy_limit. Its pump or sacrifice naming itself ("each other creature named
     Seven Dwarves", "Sacrifice six creatures named Shadowborn Apostle") wants more
     copies — copy_limit's concern, not a named partner."""

@@ -1485,7 +1485,7 @@ def _target_player_draws(tree: ConceptTree) -> list[Signal]:
                     continue
                 if effect_owner_player_scope(unit.node, c.node) == "All":
                     continue  # each-player group draw, group_hug territory
-                if OTHER_PLAYER in c.subject:
+                if OTHER_PLAYER in c.reading:
                     return [
                         Signal(
                             "target_player_draws", "any", "", c.raw, tree.name, "high"

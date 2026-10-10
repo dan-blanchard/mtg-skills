@@ -510,7 +510,7 @@ def has_trigger_draw_bleed(tree: ConceptTree) -> bool:
                 # phase v0.104.0's fail-closed intervening-if draw-and-bleed
                 # ("if …, you draw a card and you lose 1 life" — Marchesa,
                 # Resolute Monarch): the seam reads "you" as the loser
-                if IMPERATIVE in c.clause:
+                if IMPERATIVE in c.reading:
                     return True
                 continue
             if _is_self_lifeloss(unit, c.node):

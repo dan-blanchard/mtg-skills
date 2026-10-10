@@ -187,7 +187,8 @@ recovered clause's text. Rows opt in (`TokenRule.reads_clause`); a row whose
 `subject` or scope keeps its own meaning writes the reading to the node's `clause`
 field instead (`TokenRule.into_clause`: `make_token`, whose `subject` is the
 token's own types — its reading names them, `TokenRule.type_noun` — and `discard` /
-`lose_life`, whose overlay scope stays). The seam also refuses a replacement clause
+`lose_life`, whose overlay scope stays); a lane reads either through
+`ConceptNode.reading`. The seam also refuses a replacement clause
 ("would … instead") unless the row says the replacement's effect is the verb's
 (`in_replacements`: discard, roll_die, coin_flip). `bump-phase-pin` reports each
 token's and mark's corpus fire count and flags 0 as retire-ready.
@@ -198,8 +199,9 @@ onto those marks with no population change, and recovery reached two places it
 skipped. A compound clause recovers each instruction (`recover_concepts`: "you
 lose 1 life and you draw an additional card" is a lose_life and a draw, both
 decorations of the one residue node; the purity fingerprint counts each node
-once). A granted ability's body is recovered where the shared granted walk reads
-it (`iter_nested_granted_effect_concepts`). A later instruction joined by "and" /
+once). A granted ability's body is recovered by the stage too and served by the
+shared granted walk (`iter_nested_granted_effect_concepts` reads the stage's memo
+on the body; the substrate never imports the overlay). A later instruction joined by "and" /
 "then" keeps the earlier one's subject (a third-person verb is another player's),
 and its "it" names the card only when nothing earlier could be "it". Nine
 second-verb and granted-body ledger rows retired. A key carried by a later verb

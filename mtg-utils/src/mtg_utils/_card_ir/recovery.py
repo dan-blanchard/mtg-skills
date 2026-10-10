@@ -42,9 +42,12 @@ from mtg_utils._card_ir.crosswalk import (
     AbilityUnit,
     ConceptNode,
     ConceptTree,
+    iter_nested_granted_bodies,
     tag_of,
     unit_zones,
+    walk_effect_chain,
 )
+from mtg_utils._card_ir.crosswalk.core import GRANTED_RECOVERY_ATTR
 from mtg_utils._card_ir.text_idioms import _DICE_TRIG
 
 
@@ -727,23 +730,24 @@ def _opens_imperatively(text: str) -> bool:
     return bool(_VERB_PRESENT.match(text, peeled.end() if peeled else 0))
 
 
+_NO_RULE = TokenRule(concept="", category="")
+
+
 def read_clause(
-    raw: str,
-    unit: AbilityUnit | None = None,
-    object_verb: str = "",
-    *,
-    other_player: str = "",
-    token_types: bool = False,
+    raw: str, unit: AbilityUnit | None = None, rule: TokenRule = _NO_RULE
 ) -> tuple[str | None, tuple[str, ...], tuple[str, ...]]:
     """``(scope, subject, zones)`` the seam decorates a recovered node with (see
-    the marks above); ``scope`` is ``None`` when the clause names no side.
-    ``object_verb`` (:attr:`TokenRule.object_verb`) anchors the object-bound
-    marks; ``other_player`` and ``token_types`` are the row's own
-    (:class:`TokenRule`)."""
+    the marks above); ``scope`` is ``None`` when the clause names no side. The
+    row's own reads (:class:`TokenRule`): ``object_verb`` anchors the
+    object-bound marks, ``other_player`` names another player, ``token_types``
+    reads a token's own types."""
     text = raw or ""
+    object_verb, other_player = rule.object_verb, rule.other_player
     subject: list[str] = []
     words, type_rx = (
-        (_TOKEN_TYPE_WORDS, _TOKEN_TYPE_RX) if token_types else (_TYPE_WORDS, _TYPE_RX)
+        (_TOKEN_TYPE_WORDS, _TOKEN_TYPE_RX)
+        if rule.token_types
+        else (_TYPE_WORDS, _TYPE_RX)
     )
     for m in type_rx.finditer(text):
         word = words[m.group(1).lower()]
@@ -857,13 +861,7 @@ def _recover(
             zones=rule.zones or c.zones,
             recovered_by=token,
         )
-    scope, subject, zones = read_clause(
-        raw,
-        unit,
-        rule.object_verb,
-        other_player=rule.other_player,
-        token_types=rule.token_types,
-    )
+    scope, subject, zones = read_clause(raw, unit, rule)
     if rule.into_clause:
         reading = {"clause": subject, "zones": rule.zones or c.zones}
     else:
@@ -1034,6 +1032,13 @@ def apply_unimplemented_recovery(
     changed = False
     new_units = []
     for unit in tree.units:
+        # A granted body's residues: recovered here, served by the shared
+        # granted walk (``crosswalk.iter_nested_granted_effect_concepts``).
+        for _kind, body in iter_nested_granted_bodies(unit.node):
+            granted = tuple(walk_effect_chain(body))
+            recovered = recover_concepts(granted, None, table, tree.name)
+            if recovered is not granted:
+                object.__setattr__(body, GRANTED_RECOVERY_ATTR, recovered)
         new_effects = recover_concepts(unit.effects, unit, table, tree.name)
         if new_effects is not unit.effects:
             changed = True

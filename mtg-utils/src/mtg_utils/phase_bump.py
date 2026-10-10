@@ -934,15 +934,15 @@ def _run(ctx: BumpContext, *argv: str) -> str:
 def step_substrate(ctx: BumpContext) -> None:
     _run(ctx, "mtg_utils.card_ir_substrate_build")
     population = json.loads(_read(ctx, POPULATION_FIXTURE))
-    counts = population.get("population") or {}
+    variant_nodes = population.get("population") or {}
     roster = parse_effect_enum_from_variants(_read(ctx, VARIANTS_FILE))
-    zeros = tuple(n for n in roster if not counts.get(n))
+    zeros = tuple(n for n in roster if not variant_nodes.get(n))
     text = rewrite_between_markers(
         _read(ctx, VARIANTS_FILE), ZERO_BEGIN, ZERO_END, render_zero_instance(zeros)
     )
     _write(ctx, VARIANTS_FILE, text)
     ctx.report.zero_instance = tuple(sorted(zeros))
-    counts = roster_counts(
+    pinned = roster_counts(
         roster, zeros, population, json.loads(_read(ctx, SCHEMA_FIXTURE))
     )
     _write(
@@ -952,7 +952,7 @@ def step_substrate(ctx: BumpContext) -> None:
             _read(ctx, ROSTER_COUNTS_FILE),
             COUNTS_BEGIN,
             COUNTS_END,
-            render_roster_counts(counts, ctx.new_tag),
+            render_roster_counts(pinned, ctx.new_tag),
         ),
     )
 

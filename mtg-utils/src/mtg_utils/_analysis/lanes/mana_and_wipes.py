@@ -879,7 +879,7 @@ def _discard_outlet(tree: ConceptTree) -> list[Signal]:
             # A RECOVERED discard node (ADR-0038 post-giants batch) keeps
             # the Unimplemented wrapper as ``.node`` — no typed recipient,
             # so both gates above pass trivially and the seam's reading of
-            # the clause (``OTHER_PLAYER`` in ``c.clause``) carries the
+            # the clause (``OTHER_PLAYER`` in ``c.reading``) carries the
             # direction. Reject the
             # opponent-directed / protection residues (census: 22
             # recovered discards; "Target player discards" — Tainted
@@ -892,7 +892,7 @@ def _discard_outlet(tree: ConceptTree) -> list[Signal]:
             # + bare self imperatives (Breakthrough) + the symmetric
             # each-player wheel (Noxious Vapors — the Dark Deal
             # precedent: a wheel hits you too).
-            if c.recovered_by == "discard" and OTHER_PLAYER in c.clause:
+            if c.recovered_by == "discard" and OTHER_PLAYER in c.reading:
                 continue
             return [Signal("discard_outlet", "you", "", c.raw, tree.name, "high")]
         for n in _iter_discard_cost_nodes(unit.node):

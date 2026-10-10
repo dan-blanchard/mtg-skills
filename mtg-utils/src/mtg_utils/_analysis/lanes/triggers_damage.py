@@ -85,6 +85,7 @@ from mtg_utils._card_ir.crosswalk import (
     trigger_subject_scope,
     unit_keyword_grants,
     unit_zones,
+    watches_itself,
     zone_change_count_reads,
 )
 from mtg_utils._card_ir.mirror.runtime import (
@@ -2114,14 +2115,45 @@ def _named_synergy(tree: ConceptTree) -> list[Signal]:
     to a permanent on the battlefield (``reads.named_permanent_refs``; a filter
     naming objects matches every object with that name, unlike a self-reference,
     CR 201.5). A card named in a library, graveyard or hand (a tutor, a grandeur
-    discard) is not one, nor a copy-limit swarm naming itself (Relentless Rats,
-    Seven Dwarves): wanting more of itself is ``copy_limit`` (CR 100.2a). The
-    clauses phase parks or drops are the ``named_synergy_parked_reference``
+    discard) is not one, nor a name the card supplies itself (:func:`_own_names`).
+    The clauses phase parks or drops are the ``named_synergy_parked_reference``
     ledger row. Scope "you"."""
-    own = {tree.name.casefold(), "~"} if tree.many_copies else set()
+    own = _own_names(tree)
     if any(n.casefold() not in own for n in named_permanent_refs(tree.iter_typed())):
         return [Signal("named_synergy", "you", "", "", tree.name, "high")]
     return []
+
+
+# A token copy whose target is the card itself: "a token that's a copy of it" off
+# its own trigger (Wedding Ring), or of ``SelfRef``.
+_SELF_COPY_TARGETS = frozenset({"ParentTarget", "TriggeringSource"})
+
+
+def _own_names(tree: ConceptTree) -> set[str]:
+    """The names a card's ``Named`` references can give that are no other card to
+    look for (casefolded): the tokens it creates itself (Rite of the Raging
+    Storm's "Creatures named Lightning Rager", Rufus Shinra's "a creature named
+    Darkstar"), and its own name when it copies itself (Wedding Ring's
+    opponent's copy) or is a copy-limit swarm (Relentless Rats, Seven Dwarves —
+    wanting more of itself is ``copy_limit``'s concern; the lane's own
+    decision)."""
+    own = {
+        name.casefold()
+        for n in tree.iter_typed()
+        if tag_of(n) == "Token" and isinstance(name := getattr(n, "name", None), str)
+    }
+    copies_itself = any(
+        tag_of(c.node) == "CopyTokenOf"
+        and (
+            (target := tag_of(getattr(c.node, "target", None))) == "SelfRef"
+            or (target in _SELF_COPY_TARGETS and watches_itself(unit.node))
+        )
+        for unit in tree.units
+        for c in unit.effects
+    )
+    if tree.many_copies or copies_itself:
+        own |= {tree.name.casefold(), "~"}
+    return own
 
 
 def _dep_or_and_reaches_player(tgt: object, depth: int = 0) -> bool:

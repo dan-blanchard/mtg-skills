@@ -369,6 +369,14 @@ class ConceptNode:
     # token's types). Written only by the recovery stage.
     clause: tuple[str, ...] = ()
 
+    @property
+    def reading(self) -> tuple[str, ...]:
+        """A recovered clause's reading — its type words and ``CLAUSE_MARKS`` —
+        whichever field its recovery row wrote it to (``clause`` for an
+        ``into_clause`` row, ``subject`` otherwise). The one read a lane makes of
+        a recovered node's marks."""
+        return self.clause or self.subject
+
 
 @dataclass(frozen=True)
 class AbilityUnit:
@@ -762,26 +770,16 @@ def iter_nested_granted_effect_concepts(node: object) -> Iterator[ConceptNode]:
     concept of their own (CR 113.3 / 605 / 611).
     """
     for _kind, body in iter_nested_granted_bodies(node):
-        yield from _granted_body_concepts(body)
+        recovered = body.__dict__.get(GRANTED_RECOVERY_ATTR)
+        yield from recovered if recovered is not None else walk_effect_chain(body)
 
 
-_GRANTED_CONCEPTS_CACHE_ATTR = "_xw_granted_concepts"
-
-
-def _granted_body_concepts(body: TypedMirrorNode) -> tuple[ConceptNode, ...]:
-    """One granted body's effect concepts, the recovery stage's grammar reading
-    its residues too (Shackles of Treachery's granted "destroy target Equipment
-    attached to it"). Memoized on the body node like :func:`iter_mod_sites`:
-    several lanes walk the same grants."""
-    cached = body.__dict__.get(_GRANTED_CONCEPTS_CACHE_ATTR)
-    if cached is not None:
-        return cached
-    # imported here: recovery reads this module
-    from mtg_utils._card_ir.recovery import recover_concepts
-
-    out = recover_concepts(tuple(walk_effect_chain(body)))
-    object.__setattr__(body, _GRANTED_CONCEPTS_CACHE_ATTR, out)
-    return out
+#: Where the recovery stage (an overlay stage built on this module) leaves a
+#: granted body's effect concepts with its residues re-decorated (Shackles of
+#: Treachery's granted "destroy target Equipment attached to it"), for
+#: :func:`iter_nested_granted_effect_concepts` to serve. A memo attribute beside
+#: the node's fields, like :func:`iter_mod_sites`'s, never a field of the mirror.
+GRANTED_RECOVERY_ATTR = "_xw_granted_recovered"
 
 
 # ── Batch-9 typed accessors (death / library-top / grant cluster) ────────────
@@ -1063,9 +1061,10 @@ def _spell_alt_cost_paylife_concepts(root: TypedMirrorNode) -> tuple[ConceptNode
 _KEYWORD_COST_TAGS: frozenset[str] = _PAYLIFE_COST_TAGS | {"Discard"}
 # Keywords whose cost is an upkeep trigger's payment to keep the permanent (CR
 # 702.30a echo, 702.24a cumulative upkeep: "sacrifice it unless you pay"), not a
-# way to cast the card. Whether their discard (Deepcavern Imp's "Echo—Discard a
-# card", Vexing Sphinx's "Cumulative upkeep—Discard a card") is a discard outlet
-# is undecided, so only their life payments are read.
+# way to cast the card. Their discard (Deepcavern Imp's "Echo—Discard a card",
+# Vexing Sphinx's "Cumulative upkeep—Discard a card") is no discard outlet (Dan,
+# 2026-10-09): a forced payment to keep the permanent, not a discard you make on
+# demand. Only their life payments are read.
 _UPKEEP_PAYMENT_KEYWORDS: frozenset[str] = frozenset({"Echo", "CumulativeUpkeep"})
 
 

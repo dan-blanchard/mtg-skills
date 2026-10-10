@@ -1186,9 +1186,9 @@ def _ramp(tree: ConceptTree) -> list[Signal]:
     # token recovers. A typed Powerstone maker (Karn, Living Legacy) is ramp
     # through its token's mana ability; the recovered node carries no token
     # definition, so the seam's reading of the clause names the token's types
-    # (``c.clause``, CR 111.10 / 205.3g).
+    # (``c.reading``, CR 111.10 / 205.3g).
     for c in tree.effect_concepts("make_token"):
-        if c.recovered_by == "make_token" and "Powerstone" in c.clause:
+        if c.recovered_by == "make_token" and "Powerstone" in c.reading:
             return [Signal("ramp", "you", "", c.raw, tree.name, "high")]
     for d, aff in (*_granted_mana_defs(tree), *_iter_returnasaura_mana_defs(tree)):
         eff = getattr(d, "effect", None)
@@ -1505,15 +1505,15 @@ def _artifacts_enchantments_matter(tree: ConceptTree) -> list[Signal]:
             # make_token recovered off an Unimplemented residue keeps the
             # phase wrapper as its ``.node`` — no typed token subject to
             # read — so the seam reads the token's own type words off the
-            # create-clause into ``c.clause``. Corpus census at introduction:
+            # create-clause (``c.reading``). Corpus census at introduction:
             # 38 recovered make_token nodes total; the artifact/enchantment hits are
             # all genuine (Smoke Spirits' Aid's named-Aura shape, Circuits
             # Act / Yawgmoth Merfolk Soul's Clown Robots, the Treasure /
             # Food resource-token class — CR 111.4/205.3g).
             if not types and c.recovered_by == "make_token":
-                if _is_artifact_token_types(c.clause):
+                if _is_artifact_token_types(c.reading):
                     out.append("artifacts_matter")
-                if "Enchantment" in c.clause:
+                if "Enchantment" in c.reading:
                     out.append("enchantments_matter")
         # COPY-TOKEN doer (ADR-0038 W4 giant): "create a token that's a
         # copy of target artifact/creature" (Molten Duplication, Echo

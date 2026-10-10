@@ -130,14 +130,10 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   `_RECOVERED_DRAW_REPLACEMENT_RE` (a replacement diagnostic the seam could refuse).
   Move each onto a `read_clause` mark the same way draw, discard, damage reach and
   make_token's kinds moved (2026-10-09), population unchanged.
-- **Upkeep-payment discards are undecided** (Dan's call). Keyword-cost `Discard`
-  leaves are decorated since 2026-10-09 (Sabin, Master Monk's blitz reads as a
-  discard outlet again), except Echo and Cumulative upkeep
-  (`core._UPKEEP_PAYMENT_KEYWORDS`): Deepcavern Imp, Rakdos Headliner ("Echo—Discard
-  a card") and Vexing Sphinx ("Cumulative upkeep—Discard a card") would fire
-  `discard_outlet`. A keyword discard merged into a spell's own costs (Collective
-  Brutality's escalate, Forbid's buyback, Conflagrate's flashback) still fires
-  nothing: `discard_outlet`'s cost walk reads the unit's node, not merged costs.
+- **Keyword-cost discards merged into a spell's costs fire nothing.** Collective
+  Brutality's escalate, Forbid's buyback and Conflagrate's flashback discard is
+  decorated (`core._keyword_cost_concepts`) but `discard_outlet`'s cost walk reads
+  the unit's node, not merged costs; whether they are outlets is unjudged.
 
 **From the 2026-09-17 architecture review (worth exploring, not started)**
 
@@ -152,6 +148,11 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
 headroom and parked items.
 
 ## Settled: don't re-suggest
+
+- **Upkeep-payment discards aren't discard outlets** (Dan, 2026-10-09): echo's and
+  cumulative upkeep's discard (Deepcavern Imp, Rakdos Headliner, Vexing Sphinx) is
+  a forced payment to keep the permanent, not a discard you make on demand (CR
+  702.30a, 702.24a); `core._UPKEEP_PAYMENT_KEYWORDS` reads only their life costs.
 
 - **Two-arm lanes** (a structural arm OR a `synth_<key>` reference-arm concept, 91 of
   279 lanes): stable by design, not debt (ADR-0038 amendment). Don't tabulate or

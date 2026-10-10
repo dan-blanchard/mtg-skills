@@ -32,10 +32,11 @@ the clause text with the clause grammar and re-decorates the node's
 signal lanes and compat consumers both see recovered readings. For the rows that opt in, it also reads the clause once
 (`read_clause`) and decorates `scope`, `subject` (the `CLAUSE_MARKS`) and `zones` —
 or, for a row whose `subject` keeps its own meaning (`make_token`: the token's
-types), the `clause` field — so lanes test fields, never the recovered text. A
-compound clause recovers each instruction ("you lose 1 life and you draw an
-additional card"), each a decoration of the same node, and a granted ability's
-body is recovered where the shared granted walk reads it.
+types), the `clause` field; lanes read either through `ConceptNode.reading`, so
+they test fields, never the recovered text. A compound clause recovers each
+instruction ("you lose 1 life and you draw an additional card"), each a
+decoration of the same node, and a granted ability's body is recovered too, then
+served by the shared granted walk.
 _Avoid_: "supplement" (the old-IR path's envelope around the same grammar),
 "synthesis" (adds nodes; recovery rewrites decoration in place).
 

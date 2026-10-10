@@ -14875,6 +14875,11 @@ def test_named_synergy_reads_a_typed_named_permanent(name):
         "Ebondeath, Dracolich",  # "a creature not named Ebondeath"
         "Relentless Rats",  # a copy-limit swarm naming itself: copy_limit's
         "Seven Dwarves",
+        # a name the card supplies itself: its own token, its own copy, a rename
+        "Rite of the Raging Storm",  # "Creatures named Lightning Rager" (its token)
+        "Wirefly Hive",  # "destroy all permanents named Wirefly" (its token)
+        "Wedding Ring",  # an opponent's copy of it
+        "Tenth District Hero",  # "becomes a legendary creature named Mileva"
     ],
 )
 def test_named_synergy_skips_cards_tutors_and_swarms(name):

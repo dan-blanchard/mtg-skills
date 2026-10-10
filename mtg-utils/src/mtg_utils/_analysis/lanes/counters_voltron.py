@@ -1384,14 +1384,14 @@ def _resource_token_makers(tree: ConceptTree) -> list[Signal]:
         # Human died under your control this turn, create a Food token" —
         # White Glove Gourmand) as an Unimplemented residue the
         # ``make_token`` token recovers; no typed subtypes, so the seam's
-        # reading of the clause names the token's types (``c.clause``), unless
+        # reading of the clause names the token's types (``c.reading``), unless
         # another player creates it (``OTHER_PLAYER``, CR 111.2).
         if (
             c.recovered_by == "make_token"
             and not c.subject
-            and OTHER_PLAYER not in c.clause
+            and OTHER_PLAYER not in c.reading
         ):
-            out.extend(key for sub, key in keys.items() if sub in c.clause)
+            out.extend(key for sub, key in keys.items() if sub in c.reading)
     if tree.has_effect("investigate"):
         out.append("clue_makers")
     seen: set[str] = set()

@@ -320,7 +320,8 @@ def test_a_merged_zone_change_trigger_reads_each_clause():
         # "Blitz—{2}{R}{R}, Discard a card": a way to cast it (CR 702.152a)
         ("Sabin, Master Monk", True),
         # An upkeep payment to keep the permanent (CR 702.30a echo, 702.24a
-        # cumulative upkeep): undecided whether it's an outlet, so not read.
+        # cumulative upkeep) is no discard outlet (Dan, 2026-10-09): a forced
+        # payment, not a discard you make on demand.
         ("Deepcavern Imp", False),
         ("Rakdos Headliner", False),
         ("Vexing Sphinx", False),

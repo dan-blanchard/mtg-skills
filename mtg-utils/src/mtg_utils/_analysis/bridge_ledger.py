@@ -1345,14 +1345,16 @@ def _hierophant_match(tree: ConceptTree) -> bool:
 # Ominous Traveler's perpetual grant are parked whole as residues; Goblin
 # Artisans' counter clause and Gollum's "dealt combat damage this game by a
 # creature named …" are dropped. The match is the NAMED_PERMANENT_REGEX idiom
-# the lane's serve pool uses (it also reads Tenth District Hero's "becomes a
-# legendary creature named Mileva", which names nothing to look for — a known
-# false positive the regex has always carried).
+# the lane's serve pool uses. A card that renames itself (Tenth District Hero's
+# "becomes a legendary creature named Mileva", a typed ``SetTextName``) names
+# nothing to look for: phase typed the clause the idiom reads, so the gap closes.
 _NAMED_SYNERGY_RE = re.compile(NAMED_PERMANENT_REGEX, re.IGNORECASE)
 
 
 def _named_synergy_gap(tree: ConceptTree) -> bool:
-    return not named_permanent_refs(tree.iter_typed())
+    return not named_permanent_refs(tree.iter_typed()) and not tree.has_typed(
+        "SetTextName"
+    )
 
 
 def _named_synergy_match(tree: ConceptTree) -> bool:
@@ -2314,7 +2316,10 @@ def _pump_condition_gap(tree: ConceptTree) -> bool:
 # A conditional CopySpell → spell_copy_makers: "copy that spell (or ability)" /
 # "copy the spell" / "copy that ability" / "copy those cards" / "copy the other"
 # (v0.94.0 emitted CopySpell for each; spellcast_matters returns with it through
-# the lanes' spell-copy cross-open). Recovery serves Unbound Flourishing.
+# the lanes' spell-copy cross-open). The row stands down where a copy_spell effect
+# already serves the card: recovery reads Unbound Flourishing's clause, and its
+# compound-clause split reads Beamsplitter Mage's and Exterminator Magmarch's later
+# "copy that spell".
 _COPY_SPELL_CONDITION_RX = re.compile(
     r"\bcopy (?:that spell(?: or ability)?|the spell|that ability|those cards"
     r"|the other)\b",
@@ -2323,7 +2328,9 @@ _COPY_SPELL_CONDITION_RX = re.compile(
 
 
 def _copy_spell_condition_gap(tree: ConceptTree) -> bool:
-    return _says(_COPY_SPELL_CONDITION_RX, tree.residues("unparsed_condition"))
+    return not tree.has_effect("copy_spell") and _says(
+        _COPY_SPELL_CONDITION_RX, tree.residues("unparsed_condition")
+    )
 
 
 # Wakka, Devoted Guardian's go-wide counter spread → type_matters (Warrior).
@@ -3939,8 +3946,9 @@ BRIDGES: dict[str, Bridge] = {
             census=(
                 "4 legal cards (Sheltered Valley, Ominous Traveler, Goblin "
                 "Artisans, Gollum, Obsessed Stalker) of the 28 the "
-                "NAMED_PERMANENT_REGEX idiom matches; the other 24 read "
-                "structurally, phase v0.104.0, 2026-10-09"
+                "NAMED_PERMANENT_REGEX idiom matches; the rest read "
+                "structurally or name the card's own token or new name, phase "
+                "v0.104.0, 2026-10-09"
             ),
             pins=("Sheltered Valley", "Ominous Traveler"),
             gap=_named_synergy_gap,
@@ -4298,7 +4306,7 @@ BRIDGES: dict[str, Bridge] = {
             ),
             _copy_spell_condition_gap,
             _oracle_match(_COPY_SPELL_CONDITION_RX),
-            hits=7,
+            hits=4,
         ),
         _residue_row(
             "conditional_threaten_haste_parked",
