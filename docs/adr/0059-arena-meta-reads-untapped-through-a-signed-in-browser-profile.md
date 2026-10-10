@@ -70,7 +70,18 @@ deck-forge and deck-strat read its cache.
   `GET /api/meta` serves the Meta panel (field, ranking, the deck's match and its
   core, the buildable lists). `POST /api/meta/refresh` is the one fetch.
   `POST /api/meta/login` opens the sign-in window on the user's machine, since the
-  hub runs locally.
+  hub runs locally. The panel's Mythic column shows each rate with its game count,
+  and "—" with no Mythic games. A rate is dimmed under its own floor,
+  `MYTHIC_MIN_MATCHES` = 100 games (served as `thresholds.mythic_min_matches`). The
+  ranking's 250-match floor would dim almost every row, since few archetypes reach
+  250 Mythic games. At 100 games the 95% Wilson interval is about ±10 points (±14 at
+  50, ±6 at 250), and the tooltip shows each row's own interval. The buildable lists
+  check the SPA's one wildcard budget, the store Tune spends. The panel shows it,
+  editable, with its source. Once per page load, the first digital build seeds it
+  from the player's own wildcards. `GET /api/arena-wildcards` reads them from the hub
+  machine's Arena log (`mtga_import.read_arena_wildcards`: local, never raising). A
+  seed never overwrites a value the user typed. With no log, the panel labels the
+  budget as an assumed default.
 
 Snapshots are cached 24 hours, `--previous` included, since after a set release
 "previous" names a new period; a period pinned by id is kept for good. One cache

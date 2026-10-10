@@ -73,6 +73,7 @@ from mtg_utils.mana_audit import (
     mana_audit,
     reconcile_basic_lands,
 )
+from mtg_utils.mtga_import import read_arena_wildcards
 from mtg_utils.names import normalize_card_name
 from mtg_utils.parse_deck import parse_deck_text
 from mtg_utils.set_scan import pool_color_pairs, set_scan
@@ -1944,6 +1945,21 @@ def meta_report(
         ),
     )
     return out
+
+
+def arena_wildcards() -> dict:
+    """The player's Arena wildcard counts, the seed for the SPA's wildcard budget
+    (ADR-0059): ``{"wildcards": {mythic, rare, uncommon, common} | None, "source":
+    "arena-log" | None, "captured_local": <the login's local time> | None}``, read
+    from this machine's Arena log by ``mtga_import.read_arena_wildcards`` (local
+    only, never raises). No log, or none holding the counts, answers
+    ``wildcards: None``."""
+    found = read_arena_wildcards()
+    return {
+        "wildcards": found["wildcards"] if found else None,
+        "source": "arena-log" if found else None,
+        "captured_local": found["captured_local"] if found else None,
+    }
 
 
 def refresh_meta(

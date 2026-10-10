@@ -36,6 +36,7 @@ import pytest
 from click.testing import CliRunner
 
 from mtg_utils import mtga_import
+from mtg_utils.arena_card_db import player_log_path as _platform_log_path
 from mtg_utils.card_pool import CardPool
 from mtg_utils.mark_owned import mark_owned
 from mtg_utils.mtga_import import (
@@ -53,6 +54,7 @@ from mtg_utils.mtga_import import (
     _scan_log,
     arena_id_index,
     main,
+    read_arena_wildcards,
 )
 
 # A minimal "good" log body — one StartHook with a realistic
@@ -769,6 +771,50 @@ class TestWildcardsExtraction:
         assert wc == {"mythic": 0, "rare": 0, "uncommon": 0, "common": 0}
 
 
+class TestReadArenaWildcards:
+    """``read_arena_wildcards`` — deck-forge's budget seed: the latest login's
+    counts from Player.log (Player-prev.log as the fallback), ``None`` and never an
+    error when nothing is readable."""
+
+    def test_reads_the_latest_inventory_and_its_login_time(self, tmp_path):
+        log = tmp_path / "Player.log"
+        log.write_text(_GOOD_LOG)
+        assert read_arena_wildcards(log) == {
+            "wildcards": {"mythic": 3, "rare": 12, "uncommon": 47, "common": 132},
+            "captured_local": "2026-04-10T14:32:17",
+        }
+
+    def test_falls_back_to_the_previous_log(self, tmp_path):
+        (tmp_path / "Player.log").write_text("no login yet\n")
+        (tmp_path / "Player-prev.log").write_text(_GOOD_LOG)
+        found = read_arena_wildcards(tmp_path / "Player.log")
+        assert found is not None
+        assert found["wildcards"]["rare"] == 12
+
+    def test_no_log_or_no_inventory_is_none(self, tmp_path):
+        assert read_arena_wildcards(tmp_path / "Player.log") is None
+        (tmp_path / "Player.log").write_text("<== StartHook(x) {broken\n")
+        assert read_arena_wildcards(tmp_path / "Player.log") is None
+
+    def test_an_unreadable_log_is_none(self, tmp_path, monkeypatch):
+        log = tmp_path / "Player.log"
+        log.write_text(_GOOD_LOG)
+
+        def denied(_path):
+            raise PermissionError("locked")
+
+        monkeypatch.setattr("mtg_utils.mtga_import._read_log_text", denied)
+        assert read_arena_wildcards(log) is None
+
+    def test_defaults_to_the_platform_log(self, tmp_path, monkeypatch):
+        log = tmp_path / "Player.log"
+        log.write_text(_GOOD_LOG)
+        monkeypatch.setattr("mtg_utils.mtga_import.player_log_path", lambda: log)
+        assert read_arena_wildcards()["wildcards"]["mythic"] == 3
+        monkeypatch.setattr("mtg_utils.mtga_import.player_log_path", lambda: None)
+        assert read_arena_wildcards() is None
+
+
 class TestFreshnessWarnings:
     def test_bulk_mtime_warning_fires_for_old_file(self, tmp_path):
         bulk = tmp_path / "default-cards.json"
@@ -880,6 +926,12 @@ class TestEndToEndMarkOwned:
 
 
 class TestPathDetection:
+    @pytest.fixture(autouse=True)
+    def _real_path_lookup(self, monkeypatch):
+        """Restore the platform lookup tests/conftest.py stubs out — these tests
+        fake the platform and home directory, so no real log is read."""
+        monkeypatch.setattr(mtga_import, "player_log_path", _platform_log_path)
+
     def test_macos_path(self, monkeypatch):
         monkeypatch.setattr(mtga_import.sys, "platform", "darwin")
         monkeypatch.setattr(

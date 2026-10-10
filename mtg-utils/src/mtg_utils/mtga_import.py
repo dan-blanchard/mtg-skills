@@ -85,6 +85,8 @@ import re
 import shutil
 import sys
 import tempfile
+from collections.abc import Iterator
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -255,6 +257,29 @@ def _parse_timestamp_prefix(line: str) -> datetime | None:
         return None
 
 
+def _start_hooks(text: str) -> Iterator[tuple[dict, datetime | None]]:
+    """Each parseable ``<== StartHook`` blob in a log buffer, oldest first, with
+    its local timestamp prefix (on the anchor line or the one before it). A
+    broken blob is skipped, never fatal."""
+    lines = text.splitlines()
+    i = 0
+    while i < len(lines):
+        line = lines[i]
+        if _START_HOOK_ANCHOR not in line:
+            i += 1
+            continue
+        ts = _parse_timestamp_prefix(line)
+        if ts is None and i > 0:
+            ts = _parse_timestamp_prefix(lines[i - 1])
+        extracted = _extract_json_blob(lines, i)
+        if extracted is None:
+            i += 1
+            continue
+        parsed, end_idx = extracted
+        yield parsed, ts
+        i = end_idx + 1
+
+
 def _scan_log(
     text: str,
 ) -> tuple[dict | None, dict | None, datetime | None]:
@@ -274,37 +299,69 @@ def _scan_log(
     Returning the raw dict here keeps the scanner agnostic about how
     the collection is derived — useful for future alternative strategies.
     """
-    lines = text.splitlines()
-    latest_decks: dict | None = None
-    latest_inventory: dict | None = None
-    latest_timestamp: datetime | None = None
+    scan = _scan_text(text)
+    return scan.decks, scan.inventory, scan.decks_time
 
-    i = 0
-    while i < len(lines):
-        line = lines[i]
-        if _START_HOOK_ANCHOR not in line:
-            i += 1
-            continue
-        # Timestamp prefix may be on this line or the preceding line.
-        ts = _parse_timestamp_prefix(line)
-        if ts is None and i > 0:
-            ts = _parse_timestamp_prefix(lines[i - 1])
-        extracted = _extract_json_blob(lines, i)
-        if extracted is None:
-            # Move past this anchor and keep scanning.
-            i += 1
-            continue
-        parsed, end_idx = extracted
+
+@dataclass
+class _LogScan:
+    """The latest ``Decks`` and ``InventoryInfo`` blobs a scan found, each with its
+    StartHook's local time and (across log files) the file it came from."""
+
+    decks: dict | None = None
+    decks_time: datetime | None = None
+    decks_source: Path | None = None
+    inventory: dict | None = None
+    inventory_time: datetime | None = None
+    inventory_source: Path | None = None
+
+
+def _scan_text(text: str) -> _LogScan:
+    """One log buffer's latest ``Decks`` and ``InventoryInfo``, latest-wins for
+    each independently (see :func:`_scan_log`)."""
+    scan = _LogScan()
+    for parsed, ts in _start_hooks(text):
         decks = parsed.get("Decks")
         if isinstance(decks, dict) and decks:
-            latest_decks = decks
-            latest_timestamp = ts
+            scan.decks, scan.decks_time = decks, ts
         inventory = parsed.get("InventoryInfo")
         if isinstance(inventory, dict):
-            latest_inventory = inventory
-        i = end_idx + 1
+            scan.inventory, scan.inventory_time = inventory, ts
+    return scan
 
-    return latest_decks, latest_inventory, latest_timestamp
+
+def _log_candidates(log_path: Path) -> tuple[Path, Path]:
+    """The logs to read, in order: ``Player.log``, then the ``Player-prev.log``
+    Arena rotates the last session into (the fallback when the current log has no
+    login yet)."""
+    return (log_path, log_path.with_name("Player-prev.log"))
+
+
+def _scan_logs(log_path: Path, *, strict: bool = False) -> _LogScan:
+    """Each field from the first of :func:`_log_candidates` that holds it, with
+    the file it came from. An unreadable or missing fallback log is skipped; so
+    is an unreadable ``log_path`` unless ``strict``, which re-raises its
+    ``OSError`` for the caller to word."""
+    scan = _LogScan()
+    for i, candidate in enumerate(_log_candidates(log_path)):
+        if scan.decks is not None and scan.inventory is not None:
+            break
+        if i and not candidate.is_file():
+            continue
+        try:
+            text = _read_log_text(candidate)
+        except OSError:
+            if strict and not i:
+                raise
+            continue
+        found = _scan_text(text)
+        if scan.decks is None and found.decks is not None:
+            scan.decks, scan.decks_time = found.decks, found.decks_time
+            scan.decks_source = candidate
+        if scan.inventory is None and found.inventory is not None:
+            scan.inventory, scan.inventory_time = found.inventory, found.inventory_time
+            scan.inventory_source = candidate
+    return scan
 
 
 def _is_int_like(value: object) -> bool:
@@ -629,6 +686,31 @@ def _extract_wildcards(inventory: dict) -> dict[str, int]:
         "rare": int(inventory.get("WildCardRares", 0) or 0),
         "uncommon": int(inventory.get("WildCardUnCommons", 0) or 0),
         "common": int(inventory.get("WildCardCommons", 0) or 0),
+    }
+
+
+def read_arena_wildcards(log_path: Path | None = None) -> dict | None:
+    """The player's wildcard counts from Arena's log (``log_path``, else the
+    platform's ``Player.log``; :func:`_log_candidates` order, the fallback
+    ``mtga-import`` itself reads): ``{"wildcards": {mythic, rare, uncommon,
+    common}, "captured_local": <that login's local time or None>}``, or ``None``
+    when no log is found or readable or none holds ``InventoryInfo``. Never
+    raises — deck-forge's wildcard-budget seed treats the counts as optional.
+    Local file reads only."""
+    path = log_path if log_path is not None else player_log_path()
+    if path is None:
+        return None
+    try:
+        scan = _scan_logs(path)
+        if scan.inventory is None:
+            return None
+        wildcards = _extract_wildcards(scan.inventory)
+    except (OSError, TypeError, ValueError):
+        return None
+    captured = scan.inventory_time
+    return {
+        "wildcards": wildcards,
+        "captured_local": captured.isoformat() if captured else None,
     }
 
 
@@ -965,47 +1047,25 @@ def main(
 
     if log_path is not None:
         try:
-            log_text = _read_log_text(log_path)
+            scan = _scan_logs(log_path, strict=log_required)
         except FileNotFoundError as exc:
-            if log_required:
-                msg = f"Could not read Player.log at {log_path}: {exc}"
-                raise click.UsageError(msg) from exc
-            log_text = None
+            msg = f"Could not read Player.log at {log_path}: {exc}"
+            raise click.UsageError(msg) from exc
         except PermissionError as exc:
-            if log_required:
-                msg = (
-                    f"Could not read Player.log at {log_path}: {exc}. "
-                    f"If MTG Arena is running on an older Windows client, "
-                    f"quit Arena and re-run."
-                )
-                raise click.UsageError(msg) from exc
-            log_text = None
-
-        if log_text is not None:
-            decks, inventory, snapshot_time = _scan_log(log_text)
-
-        # Player-prev.log fallback — only scan if we're missing something.
-        if log_path is not None and (decks is None or inventory is None):
-            prev_path = log_path.with_name("Player-prev.log")
-            if prev_path.exists():
-                try:
-                    prev_text = _read_log_text(prev_path)
-                except (PermissionError, FileNotFoundError):
-                    prev_text = None
-                if prev_text is not None:
-                    prev_decks, prev_inventory, prev_time = _scan_log(prev_text)
-                    if decks is None and prev_decks is not None:
-                        decks = prev_decks
-                        snapshot_time = prev_time
-                        collection_log_source = prev_path
-                    if inventory is None and prev_inventory is not None:
-                        inventory = prev_inventory
-                        inventory_source = prev_path
+            msg = (
+                f"Could not read Player.log at {log_path}: {exc}. "
+                f"If MTG Arena is running on an older Windows client, "
+                f"quit Arena and re-run."
+            )
+            raise click.UsageError(msg) from exc
+        decks, inventory, snapshot_time = scan.decks, scan.inventory, scan.decks_time
+        collection_log_source = scan.decks_source or log_path
+        inventory_source = scan.inventory_source or log_path
 
     if log_required and decks is None and inventory is None:
         prev_suffix = (
             " or Player-prev.log"
-            if log_path is not None and log_path.with_name("Player-prev.log").exists()
+            if log_path is not None and _log_candidates(log_path)[1].exists()
             else ""
         )
         log_name = log_path.name if log_path is not None else "Player.log"

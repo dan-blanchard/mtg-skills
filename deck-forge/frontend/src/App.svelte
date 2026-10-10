@@ -1,7 +1,13 @@
 <script>
   import { onMount, onDestroy } from "svelte";
   import { api, connectEvents } from "./lib/api.js";
-  import { applySnapshot, connected, agentAttached } from "./lib/store.js";
+  import {
+    applySnapshot,
+    connected,
+    agentAttached,
+    isDigital,
+    seedWildcardBudget,
+  } from "./lib/store.js";
   import Header from "./components/Header.svelte";
   import LeftTabs from "./components/LeftTabs.svelte";
   import Avenues from "./components/Avenues.svelte";
@@ -31,6 +37,10 @@
     // eslint-disable-next-line no-useless-assignment
     prevAttached = a;
   }
+
+  // The first digital build of the session seeds the wildcard budget from the
+  // player's own Arena wildcards (a no-op after the first ask).
+  $: if ($isDigital) seedWildcardBudget(api.arenaWildcards);
 
   async function refreshAgent() {
     const r = await api.agentStatus();

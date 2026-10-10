@@ -588,3 +588,13 @@ def test_a_null_period_start_never_wins_newest():
         {"id": 2, "event_name": "Ladder", "start_ts": None},
     ]
     assert untapped.pick_period(m.drop_nulls(periods), "Ladder")["id"] == 1
+
+
+def test_report_serves_the_mythic_floor_and_marks_thin_mythic_samples(snap):
+    report = build_report(snap)
+    assert report["thresholds"]["mythic_min_matches"] == m.MYTHIC_MIN_MATCHES == 100
+    alpha = report["ranking"][0]
+    assert alpha["mythic"]["matches"] == 100  # at the floor: read as is
+    assert "mythic 60.0% (100)" in render_text(report)
+    alpha["mythic"] = {**alpha["mythic"], "matches": 40}
+    assert "(40, thin)" in render_text(report)

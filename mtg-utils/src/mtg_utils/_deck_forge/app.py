@@ -890,6 +890,13 @@ def build_app(state: ForgeState, *, frontend_dist: Path | None = None) -> FastAP
             engine.meta_report, state, hd, previous=payload.previous
         )
 
+    @app.get("/api/arena-wildcards")
+    async def arena_wildcards() -> dict:
+        """The player's Arena wildcard counts from this machine's ``Player.log``
+        (``wildcards: None`` when there's no log or it holds none) — the SPA seeds
+        its wildcard budget from them once per session (ADR-0059)."""
+        return await run_in_threadpool(engine.arena_wildcards)
+
     @app.post("/api/meta/login")
     async def meta_login() -> dict:
         """Open the visible Untapped sign-in browser on this machine (the hub runs

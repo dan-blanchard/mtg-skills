@@ -44,6 +44,10 @@ RANK_CODES = {
 }
 #: Defaults agreed for the reads (ADR-0059).
 MIN_MATCHES = 250
+# The Mythic column's sub-sample floor: a Mythic rate over fewer games is shown
+# dimmed. At 100 games the 95% Wilson interval is about ±10 points (±14 at 50, ±6
+# at 250, the ranking's floor, which most archetypes' Mythic games never reach).
+MYTHIC_MIN_MATCHES = 100
 CORE_SHARE = 0.40
 FIELD_SHARE = 0.01
 CUT_SHARE = 0.05  # under it, a card is rarely in the archetype's lists

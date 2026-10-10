@@ -2,8 +2,11 @@
   // The Meta panel (ADR-0059): Untapped.gg's Arena ladder meta for this build's
   // queue — the field you'll face, the ranking by Wilson lower bound, the deck's
   // meta archetype with its core cards (the ones the deck lacks marked), and the
-  // published lists the active Collection can build. The hub serves the cached
-  // report; Refresh is the one fetch (a headless browser, seconds).
+  // published lists the active Collection can build within the wildcard budget
+  // (the store Tune spends — the player's Arena wildcards when the hub read them,
+  // else a labelled default; editable here too). The hub serves the cached report;
+  // Refresh is the one fetch (a headless browser, seconds).
+  import { onMount, onDestroy } from "svelte";
   import { api } from "../lib/api.js";
   import { tryAdd } from "../lib/adds.js";
   import {
@@ -14,7 +17,9 @@
   } from "../lib/store.js";
   import { displayName, matchLabel, pct1 } from "../lib/cards.js";
   import { WC_TIERS } from "../lib/mana.js";
+  import { timeAgo } from "../lib/time.js";
   import Mana from "./Mana.svelte";
+  import WildcardBudget from "./WildcardBudget.svelte";
 
   const RANKS = [
     ["platinum+", "Platinum+"],
@@ -72,9 +77,20 @@
       ($deck[z] || []).map((c) => `${z}:${c.name}`),
     ),
   ].join("|");
+  // A budget edit re-reads once typing pauses, not per keystroke (the first read
+  // goes straight through).
   $: budgetKey = JSON.stringify($wildcardBudget);
+  let settledBudget = null;
+  let budgetTimer;
+  function settleBudget(key) {
+    clearTimeout(budgetTimer);
+    if (settledBudget === null) settledBudget = key;
+    else budgetTimer = setTimeout(() => (settledBudget = key), 400);
+  }
+  onDestroy(() => clearTimeout(budgetTimer));
+  $: settleBudget(budgetKey);
   // (The arguments only name the dependencies; load reads the picks itself.)
-  $: load(deckKey, budgetKey, ranks, $metaArchetype);
+  $: load(deckKey, settledBudget, ranks, $metaArchetype);
 
   async function refresh(force = true) {
     refreshing = true;
@@ -118,6 +134,39 @@
     ...(list.commanders || []).map((name) => ({ name, quantity: 1 })),
     ...(list.main || []),
   ];
+  // How old the cached snapshot is, from its fetch time (the hub's rounded
+  // age_hours when that doesn't parse); `now` ticks so the label stays current.
+  let now = Date.now();
+  onMount(() => {
+    const tick = setInterval(() => (now = Date.now()), 60000);
+    return () => clearInterval(tick);
+  });
+  function fetchedAgo(fetchedAt, ageHours, at) {
+    const t = Date.parse(fetchedAt ?? "");
+    if (!Number.isNaN(t)) return timeAgo(at - t);
+    return ageHours === null || ageHours === undefined
+      ? ""
+      : timeAgo(ageHours * 3600000);
+  }
+  $: ago = fetchedAgo(report?.fetched_at, data?.age_hours, now);
+
+  // A Mythic win rate is only as good as its sample: none reads "—", and one
+  // under the Mythic floor (thresholds.mythic_min_matches) shows dimmed. The
+  // tooltip gives the 95% Wilson interval's half-width, in points.
+  const halfWidth = (p, n, z = 1.96) =>
+    (z * Math.sqrt((p * (1 - p)) / n + (z * z) / (4 * n * n))) /
+    (1 + (z * z) / n);
+  const mythicThin = (r) =>
+    r.mythic.matches < report.thresholds.mythic_min_matches;
+  function mythicTitle(r) {
+    const n = r.mythic?.matches;
+    if (!n) return "No Mythic games";
+    const rate = `${pct1(r.mythic.winrate)} ± ${(100 * halfWidth(r.mythic.winrate, n)).toFixed(1)} points over ${n} Mythic games`;
+    return mythicThin(r)
+      ? `${rate} — under the ${report.thresholds.mythic_min_matches}-game floor, too few to read`
+      : rate;
+  }
+
   const needText = (need) =>
     WC_TIERS.filter(([k]) => need?.[k]).map(([k, letter]) => [
       k,
@@ -170,10 +219,9 @@
         <b>{report.event}</b>
         {#if report.period?.description}· {report.period.description}{/if}
         · {report.ranks.join(", ")}
-        {#if data.age_hours !== null}
-          · fetched {data.age_hours} h ago{#if data.stale}<span class="stale">
-              stale</span
-            >{/if}
+        {#if ago}
+          · fetched {ago}{#if data.stale}
+            <span class="stale">stale</span>{/if}
         {/if}
       </p>
       <div class="picks">
@@ -217,11 +265,10 @@
               <tr class:lacking={!c.in_deck}>
                 <td class="num">{pct1(c.share)}</td>
                 <td class="num">{c.avg_copies.toFixed(1)}×</td>
-                <td class="name"
-                  >{displayName(c.name)}{#if c.land}<span class="hint">
-                      land</span
-                    >{/if}</td
-                >
+                <td class="name">
+                  {displayName(c.name)}
+                  {#if c.land}<span class="tag">land</span>{/if}
+                </td>
                 <td class="act">
                   {#if c.in_deck}
                     <span class="have" title="In the deck">✓</span>
@@ -276,7 +323,9 @@
             <th>#</th><th class="l">archetype</th><th>win</th><th>lower</th><th
               >games</th
             >
-            {#if report.ranked}<th title="Win rate at Mythic">mythic</th>{/if}
+            {#if report.ranked}<th
+                title="Win rate at Mythic, with its game count">mythic</th
+              >{/if}
           </tr>
         </thead>
         <tbody>
@@ -294,9 +343,15 @@
               <td class="num">{pct1(r.wilson_lower)}</td>
               <td class="num">{r.matches}</td>
               {#if report.ranked}
-                <td class="num"
-                  >{r.mythic?.matches ? pct1(r.mythic.winrate) : "—"}</td
+                <td
+                  class="num"
+                  class:thin={r.mythic?.matches && mythicThin(r)}
+                  title={mythicTitle(r)}
                 >
+                  {#if r.mythic?.matches}{pct1(r.mythic.winrate)}<span
+                      class="games">{r.mythic.matches}</span
+                    >{:else}—{/if}
+                </td>
               {/if}
             </tr>
           {/each}
@@ -306,9 +361,13 @@
       {#if report.buildable}
         <h4>
           Lists you can build <span class="hint"
-            >fits your wildcards first, then cheapest</span
+            >fits the budget first, then cheapest</span
           >
         </h4>
+        <div class="budget">
+          <span class="blabel">Budget</span>
+          <WildcardBudget layout="inline" />
+        </div>
         {#each report.buildable as b, i (i)}
           <details class="list" class:fits={b.fits}>
             <summary>
@@ -440,6 +499,34 @@
   }
   tr.mine td {
     background: rgba(232, 181, 99, 0.08);
+  }
+  .tag {
+    margin-left: 0.2rem;
+    font-size: 0.7rem;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 4px;
+    padding: 0.05rem 0.4rem;
+    color: var(--parchment-dim);
+  }
+  .games {
+    margin-left: 0.3rem;
+    font-size: 0.7rem;
+    color: var(--muted);
+  }
+  .rows td.thin {
+    color: var(--muted);
+    opacity: 0.6;
+  }
+  .budget {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.3rem 0.5rem;
+    font-size: 0.78rem;
+    margin-bottom: 0.4rem;
+  }
+  .blabel {
+    color: var(--parchment-dim);
   }
   .have {
     color: var(--pass);

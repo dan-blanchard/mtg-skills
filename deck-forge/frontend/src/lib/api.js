@@ -92,6 +92,7 @@ export const api = {
   // GET reads only the cache; refresh fetches from Untapped (seconds — a 409 names
   // what to do, `sign_in` when the saved session is missing or expired); login
   // opens the visible sign-in browser on the hub's machine.
+  // `wildcards` is the cleaned wildcardBudget (whole numbers ≥ 0).
   meta: ({ archetype = "", ranks = "platinum+", wildcards = null } = {}) => {
     const q = new URLSearchParams({ ranks });
     if (archetype) q.set("archetype", archetype);
@@ -99,7 +100,7 @@ export const api = {
       q.set(
         "wildcards",
         Object.entries(wildcards)
-          .map(([k, n]) => `${k}=${Number(n) || 0}`)
+          .map(([k, n]) => `${k}=${n}`)
           .join(","),
       );
     return get(`/api/meta?${q}`);
@@ -108,6 +109,10 @@ export const api = {
   metaRefresh: ({ force = true } = {}) =>
     post("/api/meta/refresh", { previous: false, force }),
   metaLogin: () => post("/api/meta/login", {}),
+  // The player's Arena wildcard counts from the hub machine's Player.log
+  // ({ wildcards: {mythic, rare, uncommon, common} | null, source, captured_local })
+  // — the wildcard budget's once-per-session seed.
+  arenaWildcards: () => get("/api/arena-wildcards"),
 
   // Raise a reasoning request and long-poll for the session-agent's answer.
   // Resolves to {result} | {offline: true} | {slow: true} | {error}.

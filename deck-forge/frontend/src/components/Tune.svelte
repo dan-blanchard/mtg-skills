@@ -13,14 +13,16 @@
   import { matchLabel, pct1 } from "../lib/cards.js";
   import CardChip from "./CardChip.svelte";
   import CardList from "./CardList.svelte";
+  import WildcardBudget from "./WildcardBudget.svelte";
 
   // The deterministic Tune surface (ADR-0023): diagnose → cut candidates → budgeted
   // swaps, all from the pure deterministic core (works with no session attached).
   let budget = ""; // "" → owned-only zero-spend pass (paper / USD)
   // Digital builds spend Arena wildcards, not dollars, and the four tiers aren't
-  // interchangeable — so the budget is four per-rarity quantities. Defaults reflect
-  // scarcity (commons/uncommons plentiful, rare/mythic dear); the user dials them to
-  // their actual stock. All-zero = owned-only.
+  // interchangeable — so the budget is four per-rarity quantities, the shared
+  // wildcardBudget store: seeded from the player's Arena wildcards when the hub can
+  // read them, else a default that reflects scarcity (commons/uncommons plentiful,
+  // rare/mythic dear); the user dials it. All-zero = owned-only.
   let maxSwaps = 5;
   let shapeOverride = ""; // "" → inferred
   let suggestCommander = false;
@@ -80,12 +82,8 @@
     if ($isDigital) {
       // Per-rarity wildcard allowance — the tuner gates each unowned add against the
       // budget for that card's rarity (all-zero = owned-only).
-      body.wildcard_budget = {
-        mythic: Number($wildcardBudget.mythic) || 0,
-        rare: Number($wildcardBudget.rare) || 0,
-        uncommon: Number($wildcardBudget.uncommon) || 0,
-        common: Number($wildcardBudget.common) || 0,
-      };
+      // The store holds it cleaned (whole numbers ≥ 0).
+      body.wildcard_budget = { ...$wildcardBudget };
     } else if (budget !== "" && !Number.isNaN(Number(budget))) {
       body.budget = Number(budget);
     }
@@ -273,14 +271,7 @@
           <span class="wc-budget-label"
             >Wildcard budget <em>— what you'll craft, by rarity</em></span
           >
-          <div class="wc-inputs">
-            {#each WC_TIERS as [k, label, cls] (k)}
-              <label class="wc-in" title="{label} wildcards you'll spend">
-                <span class="wc-{cls}">{label}</span>
-                <input type="number" min="0" bind:value={$wildcardBudget[k]} />
-              </label>
-            {/each}
-          </div>
+          <WildcardBudget layout="grid" />
         </div>
       {:else}
         <label
@@ -712,26 +703,6 @@
     color: var(--parchment-dim);
     font-style: normal;
     font-size: 0.72rem;
-  }
-  .wc-inputs {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 0.4rem;
-  }
-  .wc-in {
-    flex-direction: row;
-    align-items: center;
-    gap: 0.3rem;
-  }
-  .wc-in span {
-    font-weight: 700;
-    font-variant-numeric: tabular-nums;
-    width: 1ch;
-    text-align: center;
-  }
-  .wc-in input {
-    width: 100%;
-    min-width: 0;
   }
   button {
     background: var(--brass);

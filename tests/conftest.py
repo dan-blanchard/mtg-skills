@@ -45,6 +45,19 @@ def _no_network(monkeypatch):
 
 
 @pytest.fixture(autouse=True)
+def _no_arena_log(monkeypatch, tmp_path_factory):
+    """No test reads this machine's real MTG Arena ``Player.log`` (the wildcard
+    counts deck-forge seeds its budget from, the collection ``mtga-import``
+    reads): every lookup of the platform log lands on a missing path. A test that
+    wants a log monkeypatches ``player_log_path`` to its own file."""
+    from mtg_utils import arena_card_db, mtga_import
+
+    missing = tmp_path_factory.getbasetemp() / "no-arena" / "Player.log"
+    monkeypatch.setattr(mtga_import, "player_log_path", lambda: missing)
+    monkeypatch.setattr(arena_card_db, "player_log_path", lambda: missing)
+
+
+@pytest.fixture(autouse=True)
 def _known_tokens_cached_only(request, monkeypatch):
     """``_phase.ensure_known_tokens`` fetches phase's known-tokens.toml on a cold
     cache. In tests it answers from the cache or ``None`` (its offline contract, so

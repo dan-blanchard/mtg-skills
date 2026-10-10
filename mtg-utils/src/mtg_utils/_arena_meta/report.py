@@ -106,6 +106,7 @@ def build_report(
         "ranks": list(ranks) if snap.ranked else [m.UNRANKED],
         "thresholds": {
             "min_matches": min_matches,
+            "mythic_min_matches": m.MYTHIC_MIN_MATCHES,
             "core_share": core_share,
             "field_share": field_share,
         },
@@ -164,7 +165,8 @@ def render_text(report: Mapping) -> str:
     for i, r in enumerate(report["ranking"], 1):
         mythic = r.get("mythic")
         tail = (
-            f"  mythic {_pct(mythic['winrate'])} ({mythic['matches']})"
+            f"  mythic {_pct(mythic['winrate'])} ({mythic['matches']}"
+            f"{', thin' if mythic['matches'] < m.MYTHIC_MIN_MATCHES else ''})"
             if mythic and mythic["matches"]
             else ""
         )

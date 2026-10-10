@@ -277,3 +277,41 @@ def test_find_reads_the_meta_once_per_deck_choice_and_snapshot(
     os.utime(path, ns=(st.st_atime_ns, st.st_mtime_ns + 1_000_000_000))
     _find(client, meta_archetype="off")
     assert len(reads) == 4  # a refreshed snapshot
+
+
+# --- The wildcard budget seed (the player's Arena wildcards) ---------------------
+
+_LOGIN = (
+    "[UnityCrossThreadLogger]10/8/2026 12:28:11 AM <== StartHook(x) "
+    '{"InventoryInfo": {"WildCardMythics": 2, "WildCardRares": 9, '
+    '"WildCardUnCommons": 30}}\n'
+)
+
+
+def test_arena_wildcards_reads_player_log(tmp_path, monkeypatch):
+    log = tmp_path / "Player.log"
+    log.write_text(_LOGIN)
+    monkeypatch.setattr("mtg_utils.mtga_import.player_log_path", lambda: log)
+    client, _ = _client()
+    assert client.get("/api/arena-wildcards").json() == {
+        "wildcards": {"mythic": 2, "rare": 9, "uncommon": 30, "common": 0},
+        "source": "arena-log",
+        "captured_local": "2026-10-08T00:28:11",
+    }
+
+
+def test_arena_wildcards_without_a_log_is_unknown(monkeypatch):
+    # tests/conftest.py points the log at a missing path for every test.
+    client, _ = _client()
+    unknown = {"wildcards": None, "source": None, "captured_local": None}
+    assert client.get("/api/arena-wildcards").json() == unknown
+    # No Arena on this platform at all.
+    monkeypatch.setattr("mtg_utils.mtga_import.player_log_path", lambda: None)
+    assert client.get("/api/arena-wildcards").json() == unknown
+
+
+@pytest.mark.usefixtures("cache")
+def test_report_serves_the_mythic_floor():
+    client, _ = _client()
+    thresholds = client.get("/api/meta").json()["report"]["thresholds"]
+    assert thresholds["mythic_min_matches"] == m.MYTHIC_MIN_MATCHES
