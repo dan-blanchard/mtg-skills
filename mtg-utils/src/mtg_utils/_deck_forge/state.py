@@ -320,8 +320,8 @@ class ForgeState:
     name_aliases: dict[str, str] = field(default_factory=dict)
     # Arena wildcard costing for digital builds: the bulk path + a lazily-built, cached
     # Arena rarity index per FORMAT (``CardPool.rarity_index`` walks all of bulk, so
-    # it's computed once per format and reused; keyed by format, not legality key, as
-    # competitive_brawl shares historic_brawl's key with a different ban policy).
+    # it's computed once per format and reused; keyed by format, since the format's
+    # legality read, not its key alone, decides membership).
     bulk_path: Path | None = None
     rarity_index: dict[str, NameIndex] = field(default_factory=dict)
     # Commander discovery's memoized sweeps (lane density, per-collection served-name

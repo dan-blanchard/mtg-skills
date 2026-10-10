@@ -105,8 +105,8 @@ def check_format_legality(
     deck_card_names: set[str] | None = None,
 ) -> list[dict]:
     """Return a list of cards whose ``fmt.legality`` is not ``legal`` or ``restricted``
-    (the status is the violation's ``legality``; Competitive Brawl's ban override and
-    the Arena-pool gate are the Format's business).
+    (the status is the violation's ``legality``; the legality key and the Arena-pool
+    gate are the Format's business).
 
     When *deck_card_names* is provided, only cards whose name appears in the
     set are checked. This allows callers to pass a combined main+sideboard

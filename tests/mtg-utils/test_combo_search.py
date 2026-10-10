@@ -7,12 +7,14 @@ from click.testing import CliRunner
 
 from mtg_utils.combo_search import (
     _card_matches_query,
+    _is_format_legal,
     _unmet_templates,
     combo_search,
     discover_main,
     main,
     search_combos,
 )
+from mtg_utils.formats import FORMATS
 from mtg_utils.hydrated_deck import HydratedDeck
 from mtg_utils.testkit import test_card
 
@@ -363,6 +365,19 @@ class TestFormatAwareLegality:
             result = combo_search(_cs_hd(brawl_deck))
 
         assert len(result["combos"]) == 1
+
+    def test_spellbook_camel_case_keys_match_the_format_key(self):
+        """Spellbook camel-cases the keys MTGJSON spells in lower case."""
+        variant = {
+            "legalities": {
+                "brawl": False,
+                "competitiveBrawl": True,
+                "standardBrawl": False,
+            }
+        }
+        assert _is_format_legal(variant, FORMATS["competitive_brawl"].legality_key)
+        assert not _is_format_legal(variant, FORMATS["brawl"].legality_key)
+        assert not _is_format_legal(variant, FORMATS["historic_brawl"].legality_key)
 
     def test_defaults_to_commander_legality(self, sample_combo_response):
         """Deck without format field uses commander legality."""

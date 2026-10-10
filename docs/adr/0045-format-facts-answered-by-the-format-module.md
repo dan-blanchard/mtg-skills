@@ -16,8 +16,8 @@ deepening candidate.
 `Format` value (`FORMATS[name]`, `get_format`, `Format.for_deck(deck_json)`):
 
 - **Legality** — `Format.legality(record, *, unreleased=frozenset())` returns one status
-  (`legal` / `restricted` / `banned` / `not_legal` / `unreleased`) with the Competitive
-  Brawl override, the format's own ban list, and the Arena-pool gate folded in;
+  (`legal` / `restricted` / `banned` / `not_legal` / `unreleased`) with the
+  Arena-pool gate folded in;
   `is_legal` is the strict bool. The pre-release widening stays a caller-side control
   (the Find surface's *include unreleased*), expressed as the caller passing the
   oracle-level set and reading `unreleased` back — never re-reading `legalities`.
@@ -59,3 +59,13 @@ format-name tuple or if-chain anywhere (`fmt == "historic_brawl"`): put the fact
 table row and the behaviour on the value. Don't mirror the format table in the SPA; read
 `format_options`. `combo_search._is_format_legal` reads Commander Spellbook's own
 legalities record and is deliberately outside this module.
+
+**Amendment (2026-10-10).** Competitive Brawl first shipped as an override on the `brawl`
+key: `banned` there read as legal, and a hand-kept ten-card list was enforced by name
+(`ignores_legality_key_bans` + `COMPETITIVE_BRAWL_BANNED`). MTGJSON now publishes a
+`competitivebrawl` key (5.3.0+20261010, mtgjson/mtgjson#1742), and the format reads it
+like any other. Over the whole pool the two answers differed on exactly two cards, both
+the override's bug: the name list missed the double-faced Ajani, Nacatl Pariah and
+Tamiyo, Inquisitive Student, whose records are named "Front // Back". A bulk downloaded
+before the key reads every card `not_legal` there; `_mtgjson.load.flatten` warns when
+no card in the file carries the key, so the audit fails loudly rather than quietly.

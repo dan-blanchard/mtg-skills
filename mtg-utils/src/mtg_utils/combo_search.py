@@ -104,11 +104,14 @@ def _unmet_templates(
 
 def _is_format_legal(variant: dict, legality_key: str | None = "commander") -> bool:
     """Check if a combo is legal in the given format. A pool-bounded format (no
-    legality key) has no ban list: any combo the pool holds is playable."""
+    legality key) has no ban list: any combo the pool holds is playable. Spellbook
+    camel-cases the keys MTGJSON spells in lower case (``competitiveBrawl``,
+    ``standardBrawl``), so the match ignores case."""
     if legality_key is None:
         return True
+    key = legality_key.lower()
     legalities = variant.get("legalities", {})
-    return legalities.get(legality_key, False)
+    return any(v for k, v in legalities.items() if k.lower() == key)
 
 
 def _resolve_name(

@@ -8,14 +8,6 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
 
 **From the Omnath Competitive Brawl build (2026-10-04)**
 
-- **Read MTGJSON's Competitive Brawl key once it exists.** Scryfall's API now carries
-  `competitivebrawl`, and it agreed with `Format("competitive_brawl")` on every card
-  spot-checked. MTGJSON (5.3.0+20261004) drops it: its `ScryfallLegalities` model
-  (`mtgjson5/models/submodels.py` `Legalities`) is a fixed TypedDict, and pydantic drops
-  the undeclared key. Fix proposed upstream in mtgjson/mtgjson#1742 (2026-10-04).
-  When it ships, add the key to `_mtgjson/adapter._LEGALITY_FORMATS` and point
-  the format at it. That would retire `ignores_legality_key_bans` and the hand-kept
-  `COMPETITIVE_BRAWL_BANNED` snapshot, after diffing the two over the whole pool.
 - **Phase gaps behind the closer, alternative-cost and mass-land-denial reads**
   (found moving `_tuner/` and `deck_stats` onto the trees, phase v0.94.0; report
   upstream, Dan posts). Each is a card the old regexes read and the trees don't:

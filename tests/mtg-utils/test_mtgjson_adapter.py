@@ -11,11 +11,13 @@ from mtg_utils._mtgjson.load import (
     ALLPRICES_NAME,
     ALLPRINTINGS_NAME,
     MTGJSON_FILES,
+    STALE_COMPETITIVE_BRAWL_WARNING,
     _group_faces,
     flatten,
     source_files,
 )
 from mtg_utils.card_classify import get_mana_cost, get_oracle_text
+from mtg_utils.testkit import mtgjson_printing, mtgjson_sets
 
 
 # ── normalize_legalities ──────────────────────────────────────────────────────
@@ -588,6 +590,34 @@ def test_translate_uses_oracle_legalities_index():
     rec = adapter.translate_card([c], legalities_index=idx)
     assert rec["legalities"]["commander"] == "legal"
     assert rec["legalities"]["modern"] == "not_legal"  # index overrides own
+
+
+def test_flatten_carries_the_competitive_brawl_key():
+    # Mana Drain: ordinary Brawl bans it, Competitive Brawl allows it. Sol Ring has
+    # no status there, so MTGJSON omits the key and the adapter fills not_legal.
+    drain = mtgjson_printing("Mana Drain", "ema", "mythic", ["arena", "paper"])
+    ring = mtgjson_printing("Sol Ring", "cmr", "uncommon", ["paper"])
+    by_name = {r["name"]: r for r in flatten(mtgjson_sets(drain, ring)["data"])}
+    assert by_name["Mana Drain"]["legalities"]["brawl"] == "banned"
+    assert by_name["Mana Drain"]["legalities"]["competitivebrawl"] == "legal"
+    assert by_name["Sol Ring"]["legalities"]["competitivebrawl"] == "not_legal"
+
+
+def test_flatten_warns_once_when_the_file_predates_the_competitive_brawl_key(capsys):
+    # A file older than MTGJSON's key carries it on no card: every record reads
+    # not_legal in Competitive Brawl, and flatten says so once.
+    drain = mtgjson_printing("Mana Drain", "ema", "mythic", ["arena", "paper"])
+    del drain["legalities"]["competitivebrawl"]
+    ring = mtgjson_printing("Sol Ring", "cmr", "uncommon", ["paper"])
+    out = flatten(mtgjson_sets(drain, ring)["data"])
+    assert {r["legalities"]["competitivebrawl"] for r in out} == {"not_legal"}
+    assert capsys.readouterr().err.count(STALE_COMPETITIVE_BRAWL_WARNING) == 1
+
+
+def test_flatten_is_quiet_when_the_file_carries_the_key(capsys):
+    drain = mtgjson_printing("Mana Drain", "ema", "mythic", ["arena", "paper"])
+    flatten(mtgjson_sets(drain)["data"])
+    assert STALE_COMPETITIVE_BRAWL_WARNING not in capsys.readouterr().err
 
 
 def _printing(name="Card", **over):

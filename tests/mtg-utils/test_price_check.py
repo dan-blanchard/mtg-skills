@@ -546,16 +546,15 @@ class TestArenaIllegalOrMissing:
         assert "illegal or not on Arena" in text
 
 
-class TestCompetitiveBrawlBanOverrides:
-    """``competitive_brawl`` shares the ``brawl`` legality key but not its ban
-    list (``Format.ignores_legality_key_bans`` + ``banned_cards``).
-    ``price-check`` must cost a brawl-banned staple as a normal craft, not
-    report it under ``illegal_or_missing`` — and must still reject the
-    format's own by-name bans."""
+class TestCompetitiveBrawlBanList:
+    """``competitive_brawl`` reads its own ``competitivebrawl`` key, whose ban list
+    differs from ordinary Brawl's. ``price-check`` must cost a brawl-banned staple
+    as a normal craft, not report it under ``illegal_or_missing`` — and must still
+    reject the format's own bans."""
 
     def _bulk(self, tmp_path):
         # Both are banned under the ``brawl`` key and printed on Arena; only Oko
-        # is on Competitive Brawl's own by-name list.
+        # is banned under ``competitivebrawl``.
         cards = [
             _arena_printing("Tainted Pact", "mythic"),
             _arena_printing("Oko, Thief of Crowns", "mythic"),

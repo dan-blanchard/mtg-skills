@@ -282,8 +282,8 @@ class CardPool:
         """name -> ``{rarity}`` for Arena wildcard costing in *fmt*.
 
         A card's wildcard cost is its LOWEST rarity among printings legal in *fmt*
-        (``Format.is_legal``, which carries Competitive Brawl's ban override, so an
-        owned, legal staple is never reported as illegal). *arena_only* restricts to
+        (``Format.is_legal``, the same read the audit makes, so an owned, legal staple
+        is never reported as illegal). *arena_only* restricts to
         printings that exist on Arena, and lets the local Arena card database
         (``arena_card_db``) decide the rarity of every card it lists: the lowest
         rarity among the card's craftable (primary) printings, which MTGJSON cannot

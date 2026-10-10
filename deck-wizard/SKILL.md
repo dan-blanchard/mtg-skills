@@ -28,7 +28,7 @@ For 60-card constructed: discovery (brainstorming candidates) may use training d
 | commander | 100 | 1 (singleton) | No | Paper + MTGO | commander | 40 life, multiplayer |
 | brawl | 60 | 1 (singleton) | No | Arena | standardbrawl | 25/30 life, Standard pool |
 | historic_brawl | 100 | 1 (singleton) | No | Arena (+ paper) | brawl | 25/30 life, all Arena sets |
-| competitive_brawl | 100 | 1 (singleton) | No | Arena only | brawl + own ban list | 25 life, 1v1, **no free mulligan** |
+| competitive_brawl | 100 | 1 (singleton) | No | Arena only | competitivebrawl | 25 life, 1v1, **no free mulligan** |
 | standard | 60 | 4 | 15 | Arena + Paper | standard | Rotating |
 | alchemy | 60 | 4 | 15 | Arena only | alchemy | Digital mechanics |
 | historic | 60 | 4 | 15 | Arena only | historic | All Arena sets |
@@ -177,22 +177,19 @@ It is Arena's ranked Brawl queue (June 2026): 100-card singleton, 1v1, 25 life,
 **no free mulligan** (unlike ordinary Brawl), no commander damage, planeswalkers
 legal as commanders without explicit permission text.
 
-Two things make it different from every other format here:
+Two things to know about its card pool:
 
-1. **It shares the `brawl` legality key but not its ban list.** MTGJSON, the card-data
-   source, publishes no Competitive Brawl key, so the audit reads `brawl` and then applies two overrides
-   from the `Format` (`mtg_utils.formats`): a card marked **`banned`** under that key is **legal** here
-   (ordinary Brawl bans ~28 cards that Competitive Brawl allows — Mana Drain, Demonic
-   Tutor, Fierce Guardianship, Ancient Tomb, Chrome Mox…), while **`not_legal` still
-   fails** because it means the card isn't on Arena at all. The format's own ten-card ban
-   list is enforced by name via `COMPETITIVE_BRAWL_BANNED`.
-   Scryfall's live API does carry a `competitivebrawl` key (a single `scryfall-lookup`
-   without `--bulk-data` shows it). It agreed with the audit on every card checked on
-   2026-10-04, so it's a way to double-check a surprising audit result; the tools don't read it.
+1. **Its ban list is not ordinary Brawl's.** It bans ten cards, as commander and in the
+   99, and legalizes every other Arena card, including most of the cards ordinary Brawl
+   bans (Mana Drain, Demonic Tutor, Fierce Guardianship, Ancient Tomb, Chrome Mox…).
+   The tools read MTGJSON's own `competitivebrawl` legality key, so a `banned` under
+   `brawl` means nothing here; `not_legal` means the card isn't on Arena at all. A card
+   bulk downloaded before 2026-10-10 lacks that key, so every card reads `not_legal`;
+   the loader warns when it builds the index from such a bulk. Run `download-mtgjson`.
 2. **Rebalanced cards were reverted on 2026-09-22.** Arena turned every Alchemy `A-`
    rebalance back into the paper printing, in every format, and the card data has caught
-   up: the `A-` records are gone and the paper cards carry the real legality (paper Nadu is
-   banned under `brawl`, which is why `COMPETITIVE_BRAWL_BANNED` names it). Treat any
+   up: the `A-` records are gone and the paper cards carry the real legality (paper Nadu
+   is banned under `competitivebrawl`; Harald, King of Skemfar is legal). Treat any
    leftover `A-` result as stale data.
 
 **Determining Arena availability generally:** a card is craftable iff its MTGJSON record

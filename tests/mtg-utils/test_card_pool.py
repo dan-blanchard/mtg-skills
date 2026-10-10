@@ -334,39 +334,23 @@ class TestRarityIndex:
         assert index["reckless charge"]["rarity"] == "common"
 
 
-class TestRarityIndexFormatBanOverrides:
-    """Competitive Brawl reads the ``brawl`` legality key but legalizes every
-    card that key marks ``banned`` (Force of Will, Mana Drain, ...) while
-    enforcing its own ten-card list by name. The rarity index must honor the
-    same overrides ``check_format_legality`` does, or ``price-check`` reports
-    owned, legal staples as "illegal or not on Arena"."""
+class TestRarityIndexCompetitiveBrawlKey:
+    """Competitive Brawl reads its own ``competitivebrawl`` key, which legalizes
+    cards ordinary Brawl bans (Force of Will, Mana Drain, ...) and bans its own ten.
+    The rarity index must honor the same answer ``check_format_legality`` does, or
+    ``price-check`` reports owned, legal staples as "illegal or not on Arena"."""
 
     def _bulk(self, tmp_path):
+        # Real records; rarity and availability are the per-printing facts the
+        # snapshot omits (ADR-0056).
         cards = [
-            {
-                "name": "Force of Will",
-                "rarity": "mythic",
-                "games": ["arena"],
-                "legalities": {"brawl": "banned"},
-            },
-            {
-                "name": "Oko, Thief of Crowns",
-                "rarity": "mythic",
-                "games": ["arena"],
-                "legalities": {"brawl": "banned"},
-            },
-            {
-                "name": "Counterspell",
-                "rarity": "uncommon",
-                "games": ["arena"],
-                "legalities": {"brawl": "legal"},
-            },
-            {
-                "name": "Black Lotus",
-                "rarity": "mythic",
-                "games": ["paper"],
-                "legalities": {"brawl": "not_legal"},
-            },
+            {**test_card(name), "rarity": rarity, "games": games}
+            for name, rarity, games in (
+                ("Force of Will", "mythic", ["arena"]),
+                ("Oko, Thief of Crowns", "mythic", ["arena"]),
+                ("Counterspell", "uncommon", ["arena"]),
+                ("Black Lotus", "mythic", ["paper"]),
+            )
         ]
         bulk_path = tmp_path / "bulk.json"
         bulk_path.write_text(json.dumps(cards))
@@ -388,7 +372,7 @@ class TestRarityIndexFormatBanOverrides:
         # not_legal still means "not in the pool at all".
         assert "black lotus" not in index
 
-    def test_competitive_brawl_own_ban_list_is_excluded_by_name(self, tmp_path):
+    def test_competitive_brawl_own_bans_are_excluded(self, tmp_path):
         # Oko is on Competitive Brawl's own ten-card list.
         index = CardPool.load(self._bulk(tmp_path)).rarity_index(
             FORMATS["competitive_brawl"], arena_only=True

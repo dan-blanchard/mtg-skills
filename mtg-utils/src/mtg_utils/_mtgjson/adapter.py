@@ -16,13 +16,14 @@ from __future__ import annotations
 
 # The full legality-format universe. MTGJSON OMITS not-legal formats, so the adapter
 # fills every absent key with "not_legal" — matching Scryfall, whose records carry
-# every format. These 20 are MTGJSON's emitted set; they cover every format any
+# every format. These 21 are MTGJSON's emitted set; they cover every format any
 # consumer reads via ``formats`` (Scryfall's extra ``oldschool`` / ``tlr`` are
 # read by nothing). Values are lowercased (MTGJSON Capitalizes them).
 _LEGALITY_FORMATS: tuple[str, ...] = (
     "alchemy",
     "brawl",
     "commander",
+    "competitivebrawl",
     "duel",
     "future",
     "gladiator",
@@ -41,6 +42,11 @@ _LEGALITY_FORMATS: tuple[str, ...] = (
     "timeless",
     "vintage",
 )
+
+# Arena's Competitive Brawl key: MTGJSON emits it from 5.3.0+20261010
+# (mtgjson/mtgjson#1742). A file older than that carries it on no card, so every
+# record reads not_legal there; ``load.flatten`` warns when it sees one.
+COMPETITIVE_BRAWL_KEY = "competitivebrawl"
 
 # Scryfall CDN sizes the codebase reads (see ``_deck_forge/images.py``). All are .jpg.
 _IMAGE_SIZES: tuple[str, ...] = ("small", "normal", "art_crop")

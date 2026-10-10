@@ -1,15 +1,15 @@
 """Formats — the one module that answers every deck-format question (ADR-0045).
 
 A ``Format`` is a frozen value that owns the *behaviour* of a format, not just its
-flags: whether a record is legal here (with the Competitive Brawl override and the
-Arena-pool gate folded in), whether a record can be a commander here, which media the
-format is played in and which one is the default, what size a deck must be and which
-sizes a medium may choose from, the CR citation for that size, and the cost mode a
-medium implies. Callers resolve a name once (``FORMATS[name]`` / ``get_format`` /
-``Format.for_deck``) and never re-derive a rule from the table again — the six
-legality predicates, four medium rules and three SPA hand-lists this module replaced
-were each a re-derivation that drifted (a card ``brawl`` bans but Competitive Brawl
-legalizes was hidden from ``card-search`` while ``legality-audit`` accepted it).
+flags: whether a record is legal here (with the Arena-pool gate folded in), whether a
+record can be a commander here, which media the format is played in and which one is
+the default, what size a deck must be and which sizes a medium may choose from, the CR
+citation for that size, and the cost mode a medium implies. Callers resolve a name
+once (``FORMATS[name]`` / ``get_format`` / ``Format.for_deck``) and never re-derive a
+rule from the table again — the six legality predicates, four medium rules and three
+SPA hand-lists this module replaced were each a re-derivation that drifted (a card
+``brawl`` bans but Competitive Brawl legalizes was hidden from ``card-search`` while
+``legality-audit`` accepted it).
 
 Record contract (the MTGJSON adapter emits both; see ``_mtgjson.adapter``):
   - ``legalities[legality_key]`` — the oracle-level status, aggregated across printings.
@@ -31,7 +31,6 @@ from dataclasses import dataclass, field, replace
 from typing import Literal
 
 from mtg_utils.card_classify import BASIC_LAND_NAMES, is_commander
-from mtg_utils.names import normalize_card_name
 
 Legality = Literal["legal", "restricted", "banned", "not_legal", "unreleased"]
 Medium = Literal["paper", "digital"]
@@ -172,35 +171,6 @@ class Game:
     commander_damage: bool
 
 
-# Arena's Competitive Brawl (June 2026) bans ten cards outright — as commander AND in
-# the 99 — and legalizes everything else on Arena, including the ~28 cards the ordinary
-# Brawl queue bans. MTGJSON publishes no legality key for it (Scryfall's API has
-# ``competitivebrawl``, but no code reads that key), so legality runs
-# off the ``brawl`` key plus two overrides: ``banned`` under that key is legal here,
-# ``not_legal`` still is not (it means the card isn't in the Arena pool at all).
-# Canonical Scryfall names. Arena reverted every rebalanced (``A-``) card to its paper
-# printing on 2026-09-22, so the list names the paper Nadu the reversion left banned.
-#
-# Source: https://mtg.wiki/page/Competitive_Brawl (banned list as of 2026-08);
-# https://magic.wizards.com/en/news/mtg-arena/state-of-the-formats-2026 (no Competitive
-# Brawl change at the reversion).
-# Re-verify after each B&R announcement; this list is a point-in-time snapshot.
-COMPETITIVE_BRAWL_BANNED: frozenset[str] = frozenset(
-    {
-        "Ajani, Nacatl Pariah",
-        "Nadu, Winged Wisdom",
-        "Lutri, the Spellchaser",
-        "Oko, Thief of Crowns",
-        "Old Stickfingers",
-        "Ragavan, Nimble Pilferer",
-        "Rusko, Clockmaker",
-        "Tamiyo, Inquisitive Student",
-        "Wrenn and Six",
-        "Tajic, Legion's Valor",
-    }
-)
-
-
 @dataclass(frozen=True, slots=True)
 class Format:
     """One deck format's rules. Build from ``FORMATS`` / ``get_format`` /
@@ -248,16 +218,6 @@ class Format:
     #: Brawl queues use Arena's pool too. Standard / Pioneer are Arena formats whose
     #: pool is defined in paper, so they are NOT gated.
     arena_pool: bool = False
-    #: Treat ``banned`` under ``legality_key`` as legal (Competitive Brawl shares
-    #: ``brawl`` but not its ban list) and enforce ``banned_cards`` by name instead.
-    ignores_legality_key_bans: bool = False
-    #: Canonical names banned by this format's own list (empty for most formats).
-    banned_cards: frozenset[str] = frozenset()
-    #: ``banned_cards`` folded through ``names.normalize_card_name`` — the keys the
-    #: legality read matches a record's name against (derived, never set by hand).
-    banned_keys: frozenset[str] = field(
-        init=False, repr=False, compare=False, default=frozenset()
-    )
     #: CR citation for the exact deck size (Commander family only): the over-size
     #: message cites it. None where the CR sets only a minimum (CR 100.2a).
     size_rule: str | None = None
@@ -270,11 +230,6 @@ class Format:
     arena_event: str | None = None
 
     def __post_init__(self) -> None:
-        object.__setattr__(
-            self,
-            "banned_keys",
-            frozenset(normalize_card_name(n) for n in self.banned_cards),
-        )
         # The medium flags must agree: Arena-only is a kind of Arena, and a primary
         # medium names one the format is actually played in.
         if self.is_arena_only and not self.is_arena:
@@ -509,15 +464,9 @@ class Format:
         record contract). ``unreleased`` is the oracle-level pre-release set, or
         ``True`` when the caller has already established this record is pre-release
         (the hub's views carry that as a flag per card)."""
-        if self.banned_keys and normalize_card_name(record.get("name", "")) in (
-            self.banned_keys
-        ):
-            return "banned"
         if self.legality_key is None:
             return "legal"  # pool-bounded: membership is the audit's question
         status = (record.get("legalities") or {}).get(self.legality_key, "not_legal")
-        if status == "banned" and self.ignores_legality_key_bans:
-            status = "legal"
         if status in LEGAL_STATUSES:
             if self.arena_pool and record.get("arena_available") is False:
                 return "not_legal"
@@ -721,15 +670,13 @@ _ALL: tuple[Format, ...] = (
         life_total=25,
         # Arena is 1v1 only; there is no multiplayer Competitive Brawl.
         multiplayer_life_total=None,
-        legality_key="brawl",
+        legality_key="competitivebrawl",
         # Unlike ordinary Brawl, Competitive Brawl has no free mulligan.
         free_mulligan=False,
         is_arena=True,
         # No paper counterpart at all: the medium is always digital.
         is_arena_only=True,
         arena_pool=True,
-        ignores_legality_key_bans=True,
-        banned_cards=COMPETITIVE_BRAWL_BANNED,
         size_rule="CR 903.5a",
         arena_event="Brawl_Ladder",
     ),

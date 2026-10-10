@@ -15,7 +15,6 @@ import pytest
 
 from mtg_utils.formats import (
     COMMANDER_FORMATS,
-    COMPETITIVE_BRAWL_BANNED,
     FORMATS,
     Format,
     Game,
@@ -55,10 +54,7 @@ class TestTable:
             get_format("made_up_format")
 
     def test_competitive_brawl_table_row(self):
-        assert CB.legality_key == "brawl"
-        assert CB.ignores_legality_key_bans
-        assert CB.banned_cards is COMPETITIVE_BRAWL_BANNED
-        assert "oko, thief of crowns" in CB.banned_keys
+        assert CB.legality_key == "competitivebrawl"
         assert CB.is_arena_only
         assert CB.arena_pool
         assert not CB.free_mulligan
@@ -170,31 +166,30 @@ class TestTable:
 
 
 class TestLegality:
-    def test_key_banned_card_is_banned_in_historic_brawl_legal_in_competitive(self):
-        # Mana Drain: `brawl` says banned; Competitive Brawl legalizes the key's bans.
+    def test_brawl_banned_card_is_legal_in_competitive_brawl(self):
+        # Mana Drain: ordinary Brawl bans it, Competitive Brawl's own key allows it.
         drain = test_card("Mana Drain")
+        assert drain["legalities"]["brawl"] == "banned"
         assert HB.legality(drain) == "banned"
         assert CB.legality(drain) == "legal"
         assert HB.is_legal(drain) is False
         assert CB.is_legal(drain) is True
 
-    def test_own_ban_list_is_enforced_by_name(self):
-        # Ragavan is legal under `brawl` but on Competitive Brawl's own ten-card list.
+    def test_competitive_brawl_bans_come_from_its_own_key(self):
+        # Ragavan is legal in ordinary Brawl but on Competitive Brawl's own list.
         ragavan = test_card("Ragavan, Nimble Pilferer")
         assert HB.legality(ragavan) == "legal"
         assert CB.legality(ragavan) == "banned"
-        # Oko is banned under the key AND on the list — the list wins, still banned.
-        assert CB.legality(test_card("Oko, Thief of Crowns")) == "banned"
+        # A DFC banned by its front face — the by-name list this key replaced matched
+        # the record's "Front // Back" name and missed it.
+        assert CB.legality(test_card("Ajani, Nacatl Pariah")) == "banned"
         assert CMD.legality(test_card("Oko, Thief of Crowns")) == "legal"
+        assert CB.legality(test_card("Oko, Thief of Crowns")) == "banned"
 
-    def test_paper_nadu_stays_banned_after_the_rebalance_reversion(self):
-        # Arena reverted every rebalanced card on 2026-09-22 and ordinary Brawl banned
-        # the paper Nadu, so the `brawl` key reads "banned" (MTGJSON caught up by
-        # 2026-10-03). Competitive Brawl's override promotes `banned` to legal, so its
-        # own list has to name the paper card for Nadu to stay banned.
-        nadu = test_card("Nadu, Winged Wisdom")
-        reverted = {**nadu, "legalities": {**nadu["legalities"], "brawl": "banned"}}
-        assert CB.legality(reverted) == "banned"
+    def test_paper_nadu_is_banned_after_the_rebalance_reversion(self):
+        # Arena reverted every rebalanced card on 2026-09-22; the paper Nadu took
+        # the A- card's place on Competitive Brawl's list, and the key says so.
+        assert CB.legality(test_card("Nadu, Winged Wisdom")) == "banned"
 
     def test_restricted_and_banned_are_distinct_statuses(self):
         lotus = test_card("Black Lotus")
@@ -203,10 +198,10 @@ class TestLegality:
         assert CMD.legality(lotus) == "banned"
         assert HB.legality(lotus) == "not_legal"
 
-    def test_not_legal_means_absent_from_the_pool_even_under_the_override(self):
-        # Sol Ring isn't on Arena at all: not_legal under `brawl`, and Competitive
-        # Brawl's ban override never promotes not_legal.
+    def test_a_card_not_on_arena_is_not_legal_in_competitive_brawl(self):
+        # Sol Ring has no Arena printing: not_legal under both Brawl keys.
         ring = test_card("Sol Ring")
+        assert ring["arena_available"] is False
         assert HB.legality(ring) == "not_legal"
         assert CB.legality(ring) == "not_legal"
         assert CMD.legality(ring) == "legal"
@@ -239,13 +234,6 @@ class TestLegality:
         assert CMD.legality({**drain, "arena_available": False}) == "legal"
         no_evidence = {"name": "X", "legalities": {"brawl": "legal"}}
         assert HB.legality(no_evidence) == "legal"
-
-    def test_ban_list_matches_folded_names(self):
-        # The list holds canonical names; a record whose name differs only in case or
-        # Unicode form (an Arena export, a printed_name alias) still matches.
-        folded = {"name": "ragavan, nimble pilferer", "legalities": {}}
-        assert CB.legality(folded) == "banned"
-        assert CB.legality({"name": "Wrenn and Six", "legalities": {}}) == "banned"
 
     def test_unreleased_flag_form(self):
         # ``unreleased=True`` is the per-record form the hub's views use once the

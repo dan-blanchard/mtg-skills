@@ -12,9 +12,11 @@ Scryfall represents them.
 from __future__ import annotations
 
 import json
+import sys
 from pathlib import Path
 
 from mtg_utils._mtgjson.adapter import (
+    COMPETITIVE_BRAWL_KEY,
     aggregate_legalities,
     token_part,
     translate_card,
@@ -27,6 +29,10 @@ ALLPRICES_NAME = "AllPricesToday.json"
 # what the sidecar freshness check stats, and what download fetches — so the
 # three can't drift (e.g. freshness silently not watching a daily price refresh).
 MTGJSON_FILES = (ALLPRINTINGS_NAME, ALLPRICES_NAME)
+STALE_COMPETITIVE_BRAWL_WARNING = (
+    "Warning: your MTGJSON bulk predates the competitivebrawl key, so every card "
+    "reads not legal in Competitive Brawl; re-run download-mtgjson."
+)
 
 
 def is_mtgjson_path(path: Path) -> bool:
@@ -170,6 +176,14 @@ def flatten(data: dict, *, price_index: dict | None = None) -> list[dict]:
             out.append(
                 translate_card(group, price_index=price_index, set_meta=set_meta)
             )
+    # A file that predates MTGJSON's Competitive Brawl key carries it on no card, so
+    # every record reads not_legal there: say so once, while the index is built.
+    if not any(
+        COMPETITIVE_BRAWL_KEY in (leg or {})
+        for legs in raw_leg.values()
+        for leg in legs
+    ):
+        print(STALE_COMPETITIVE_BRAWL_WARNING, file=sys.stderr, flush=True)
     return out
 
 

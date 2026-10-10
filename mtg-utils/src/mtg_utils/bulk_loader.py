@@ -36,8 +36,9 @@ from mtg_utils._sidecar import load_pickle_sidecar, write_pickle_sidecar
 # records carry printing style (``full_art`` / ``border_color`` / ``frame_effects`` /
 # ``promo`` / ``promo_types``) for the special-basic-printing rule (ADR-0058). v5:
 # records carry ``arena_id`` (MTGJSON ``identifiers.mtgArenaId``), which mtga-import
-# resolves Player.log card ids through (``CardPool.by_arena_id``).
-SIDECAR_VERSION = 5
+# resolves Player.log card ids through (``CardPool.by_arena_id``). v6: legalities carry
+# ``competitivebrawl`` (MTGJSON's Competitive Brawl key).
+SIDECAR_VERSION = 6
 SIDECAR_SUFFIX = ".idx.pkl"
 
 

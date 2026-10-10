@@ -421,8 +421,8 @@ def _deck_rows(state: ForgeState) -> list[dict]:
 def _rarity_index(state: ForgeState) -> NameIndex | None:
     """The Arena rarity index for the current format, built once from bulk and
     cached on the state per FORMAT (the pool's own memo shares it across states).
-    Keyed by format rather than legality key because Competitive Brawl shares
-    Historic Brawl's ``brawl`` key but admits the cards that key marks banned."""
+    Keyed by format rather than legality key: the format's legality read (with its
+    Arena-pool gate), not the key alone, decides which printings count."""
     if state.bulk_path is None:
         return None
     fmt = state.session.format

@@ -987,33 +987,32 @@ class TestCompanionCiteRules:
 
 
 class TestCompetitiveBrawl:
-    """Competitive Brawl shares the `brawl` legality key but not its ban list:
-    it legalizes everything that key marks `banned` and enforces its own ten
-    cards by name. `not_legal` still fails — that means absent from Arena."""
+    """Competitive Brawl reads its own `competitivebrawl` legality key, whose ban
+    list is not ordinary Brawl's: most cards the `brawl` key bans are legal here,
+    and it bans ten of its own. `not_legal` means absent from Arena."""
 
-    def test_key_banned_card_is_legal(self):
+    def test_brawl_banned_card_is_legal(self):
         # Mana Drain is banned in ordinary Historic Brawl, legal here.
         hydrated = [_real("Mana Drain")]
         violations = check_format_legality(hydrated, FORMATS["competitive_brawl"])
         assert violations == []
 
-    def test_not_legal_card_still_fails(self):
+    def test_not_legal_card_fails(self):
         # not_legal means the card isn't on Arena at all — still a violation.
         hydrated = [_real("Sol Ring")]
         violations = check_format_legality(hydrated, FORMATS["competitive_brawl"])
         assert len(violations) == 1
         assert violations[0]["legality"] == "not_legal"
 
-    def test_format_ban_list_is_enforced_by_name(self):
-        # Oko is `banned` under the brawl key too, which Competitive Brawl ignores;
-        # it is banned here by name, on the format's own list.
+    def test_card_banned_under_the_competitive_brawl_key_fails(self):
+        # Oko is `banned` under the `competitivebrawl` key (one of its ten).
         hydrated = [_real("Oko, Thief of Crowns")]
         violations = check_format_legality(hydrated, FORMATS["competitive_brawl"])
         assert len(violations) == 1
         assert violations[0]["name"] == "Oko, Thief of Crowns"
         assert violations[0]["legality"] == "banned"
 
-    def test_end_to_end_audit_passes_with_a_key_banned_card(self):
+    def test_end_to_end_audit_passes_with_a_brawl_banned_card(self):
         cmd = _real("Thranduil, the Elvenking")
         drain = _real("Mana Drain")
         deck = {
