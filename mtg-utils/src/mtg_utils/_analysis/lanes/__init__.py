@@ -199,6 +199,7 @@ from mtg_utils._analysis.lanes.card_advantage import (
     _widened_tag_phrase_match,
     etb_bulk_draw,
     recurs_itself,
+    self_return_routes,
 )
 from mtg_utils._analysis.lanes.card_advantage import (
     LANES as _CARD_ADVANTAGE_LANES,
@@ -1423,6 +1424,7 @@ __all__ = [
     "sacrifice_actor_scope",
     "self_counter_grow_narrow",
     "self_mill_fill",
+    "self_return_routes",
     "treasure_maker_you_keep",
 ]
 

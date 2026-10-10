@@ -73,7 +73,11 @@ from mtg_utils._card_ir.crosswalk import (
     trigger_turn_constraint,
 )
 from mtg_utils._card_ir.trees import trees_for
-from mtg_utils.card_classify import _REMINDER_RE, get_oracle_text
+from mtg_utils.card_classify import (
+    _REMINDER_RE,
+    get_oracle_text,
+    removal_reach_by_text,
+)
 from mtg_utils.card_pool import CardPool
 from mtg_utils.deck_cli import bulk_data_option, resolve_bulk_path
 
@@ -273,7 +277,7 @@ def _ir_removal_reach(card: dict) -> tuple[bool, int | None] | None:
     floors: list[int] = []
     answers = (
         *removal_edict_answers(card, soft=True),
-        *removal_edict_answers(card, "edict", forced_only=True),
+        *removal_edict_answers(card, "edict"),
     )
     for c, types in answers:
         rt = recipient_tag(c.node)
@@ -350,22 +354,6 @@ _TEXT_WHAT = (
     (re.compile(r"\bcosts? [^.]*?\bmore\b"), "tax"),
     (re.compile(r"\bgains? [^.]*?\blife\b"), "gain_life"),
 )
-_TEXT_WALKERS = re.compile(
-    r"\bany target\b|\bplaneswalkers?\b|\btarget (?:nonland |nontoken )?permanent\b"
-)
-_TEXT_MV_FLOOR = re.compile(r"\bmana value (\d+) or greater\b")
-_TEXT_REMOVAL = re.compile(
-    r"\b(?:destroy|exile) (?:up to \w+ )?(?:target|all|each)\b"
-    r"|\bdeals? (?:\w+ )?damage to (?:any target|each creature"
-    r"|(?:up to \w+ )?target (?!opponent|player))"
-    r"|\bgets? -\d+/-\d+"
-    r"|\bsacrifices? (?:a|an|\w+) (?:[\w-]+ )*?(?:creature|planeswalker|permanent)"
-    r"|\breturn (?:up to \w+ )?target (?:[\w-]+ )*?(?:creature|permanent)\b(?! card)"
-)
-_TEXT_BOARD = re.compile(
-    r"\bany target\b|\btarget (?:[\w-]+ )*?(?:creature|planeswalker|permanent)\b"
-    r"|\b(?:each|all) (?:[\w-]+ )*?(?:creatures?|planeswalkers?|permanents?)\b"
-)
 
 
 def _text_what(clause: str) -> str:
@@ -425,17 +413,6 @@ def _text_rows(card: dict) -> _Rows:
     return rows
 
 
-def _text_removal(card: dict) -> tuple[bool, bool, int | None]:
-    """(removes a permanent, can hit a planeswalker, mana-value floor) from text."""
-    text = _text(card)
-    floors = [int(n) for n in _TEXT_MV_FLOOR.findall(text)]
-    return (
-        bool(_TEXT_REMOVAL.search(text) and _TEXT_BOARD.search(text)),
-        bool(_TEXT_WALKERS.search(text)),
-        min(floors) if floors else None,
-    )
-
-
 # ── the card and the set ─────────────────────────────────────────────────────
 
 
@@ -451,7 +428,7 @@ def _removal_reach(card: dict, *, ir: bool) -> dict | None:
             return None
         walkers, floor = reach
     else:
-        reaches, walkers, floor = _text_removal(card)
+        reaches, walkers, floor = removal_reach_by_text(card)
         if not reaches:
             return None
     # A floor misses the Jace tokens: no mana cost, so mana value 0 (CR 202.3a).

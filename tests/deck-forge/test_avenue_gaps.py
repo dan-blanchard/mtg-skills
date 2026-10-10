@@ -13,6 +13,8 @@ Patterns implemented here:
   5. Self-ETB-value commanders surface the existing blink/flicker avenue (extraction).
 """
 
+import pytest
+
 from mtg_utils._analysis.signal_specs import serves, spec_for
 from mtg_utils._analysis.signals import Signal
 from mtg_utils.testkit import test_card, test_signals
@@ -166,18 +168,109 @@ class TestEtbCommanderSurfacesFlicker:
 
 # ── Deferred fixes now implemented (engine-change batch) ──────────────────────
 class TestSelfRecurringFodder:
-    """Aristocrats commanders want self-recurring fodder — creatures that return/recast
-    THEMSELVES from the graveyard (Bloodghast, Gravecrawler). Name-aware serve so
-    Sun-Titan-style reanimation of OTHER cards is excluded (CR 603.6e)."""
+    """Aristocrats commanders want self-recurring fodder — creatures that bring
+    THEMSELVES back out of the graveyard (Bloodghast, Gravecrawler): the
+    ``self_recurring`` key's graveyard routes, so Sun-Titan-style reanimation of
+    OTHER cards is excluded."""
 
-    def test_aristocrats_specs_offer_self_recur(self):
-        bloodghast = test_card("Bloodghast")
-        sun_titan = test_card("Sun Titan")
+    @pytest.mark.parametrize(
+        "name",
+        [
+            "Bloodghast",  # graveyard → battlefield
+            "Kitchen Finks",  # persist, CR 702.79a
+            "Gravecrawler",  # cast from your graveyard
+            "Pyre Zombie",  # graveyard → hand
+            "Anointer Priest",  # embalm's token copy, CR 702.128a
+            "Garza's Assassin",  # recover, a keyword phase drops
+            "Loyal Cathar // Unhallowed Cathar",  # returns transformed, a creature
+            "Kami of Mourning",  # can give itself its perpetual return
+        ],
+    )
+    def test_serves_graveyard_self_recursion(self, name):
         for key, scope in (("sacrifice_outlets", "you"), ("death_matters", "any")):
             extra = _extra(spec_for(_sig(key, scope)), "Self-recurring fodder")
             assert extra is not None, key
-            assert extra.serve.matches(bloodghast)
-            assert not extra.serve.matches(sun_titan)
+            assert extra.serve.matches(test_card(name)), (key, name)
+
+    @pytest.mark.parametrize(
+        "name",
+        [
+            "Sun Titan",  # returns another card
+            "Emptiness",  # returns another creature card
+            "Arcanis the Omnipotent",  # returns itself, but from the battlefield
+            "Mtenda Griffin",  # bounces itself; the graveyard Griffin is another card
+            "Faithless Looting",  # not a creature
+            # Comes back as a non-creature: a land, a Curse, an Aura.
+            "Ojer Axonil, Deepest Might // Temple of Power",
+            "Accursed Witch // Infectious Curse",
+            "Harold and Bob, First Numens",
+            "Brine Comber // Brinebound Gift",
+        ],
+    )
+    def test_does_not_serve(self, name):
+        extra = _extra(
+            spec_for(_sig("sacrifice_outlets", "you")), "Self-recurring fodder"
+        )
+        assert not extra.serve.matches(test_card(name))
+
+
+def test_self_recurring_support_counts_cards_not_routes():
+    """Seven self-recurring cards by five different routes are one deck signal
+    with support 7 — one avenue (``engine:self_recurring:you``), however each card
+    comes back."""
+    from mtg_utils._analysis.signals import _deck_signal_stats, rank_deck_signals
+
+    names = [
+        "Bloodghast",  # graveyard → battlefield
+        "Kitchen Finks",  # graveyard → battlefield (persist)
+        "Gravecrawler",  # cast from the graveyard
+        "Pyre Zombie",  # graveyard → hand
+        "Anointer Priest",  # a token copy (embalm)
+        "Arcanis the Omnipotent",  # battlefield → hand
+        "Arc Blade",  # re-suspends
+    ]
+    for name in names:
+        test_signals(name)
+    records = [test_card(n) for n in names]
+    support, _cmd, _first, _nc = _deck_signal_stats(records, set())
+    recur = {i: n for i, n in support.items() if i[0] == "self_recurring"}
+    assert recur == {("self_recurring", "you", ""): 7}
+    ranked = [s for s in rank_deck_signals(records, set()) if s.key == "self_recurring"]
+    assert [(s.scope, s.subject) for s in ranked] == [("you", "")]
+
+
+class TestReanimatorSelfRecursion:
+    """The reanimator avenue serves a creature that comes back by itself onto the
+    battlefield or cast from the graveyard; a token copy or a return to hand is
+    sacrifice fodder only."""
+
+    @pytest.mark.parametrize(
+        "name",
+        [
+            "Bloodghast",
+            "Kitchen Finks",
+            "Gravecrawler",
+            "Salvation Colossus",
+            # Its perpetual "return this card from your graveyard to battlefield
+            # tapped", which phase reads as a bounce to hand.
+            "Forgeborn Phoenix",
+            "Lunarch Veteran // Luminous Phantom",  # disturb casts a creature face
+        ],
+    )
+    def test_serves(self, name):
+        assert spec_for(_sig("reanimator", "you")).serve.matches(test_card(name))
+
+    @pytest.mark.parametrize(
+        "name",
+        [
+            "Pyre Zombie",  # back to hand
+            "Anointer Priest",  # a token copy
+            "Ojer Axonil, Deepest Might // Temple of Power",  # returns as a land
+            "Brine Comber // Brinebound Gift",  # disturb casts its Aura face
+        ],
+    )
+    def test_does_not_serve(self, name):
+        assert not spec_for(_sig("reanimator", "you")).serve.matches(test_card(name))
 
 
 class TestDeathtouchGear:

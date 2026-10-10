@@ -40,6 +40,7 @@ from mtg_utils._analysis._sweep_detectors import (
     TRIBE_DAMAGE_TRIGGER_REGEX,
     VARIABLE_PT_SWEEP_REGEX,
 )
+from mtg_utils._analysis.lanes.card_advantage import REANIMATED_SELF_RETURNS
 
 from ._shared import (
     _ART_SUBTYPES,
@@ -405,11 +406,16 @@ SPECS_1: dict[tuple[str, str], SignalSpec] = {
         _REANIMATOR_SERVE_ORACLE,
         # persist/undying (CR 702.79/702.93) return the creature FROM THE GRAVEYARD on
         # death, so it re-enters from a graveyard and fires the reanimator payoff.
-        serve_keywords=("escape", "disturb", "persist", "undying"),
-        serve_self_recur=True,
+        # Disturb is read by its route instead: it casts the back face, a creature
+        # or an Aura (Brine Comber's).
+        serve_keywords=("escape", "persist", "undying"),
+        # A creature that comes back by itself onto the battlefield or cast from
+        # the graveyard; a token copy or a return to hand is sacrifice fodder
+        # (_SELF_RECUR_EXTRA), not a reanimation.
+        serve_self_recur=REANIMATED_SELF_RETURNS,
         # A reanimator deck wants the high-ETB creatures it reanimates (Mulldrifter,
         # Plaguecrafter), not just the reanimation spells.
-        extras=(_CAST_FROM_GY_EXTRA, _SELF_RECUR_EXTRA, _ETB_VALUE_EXTRA),
+        extras=(_CAST_FROM_GY_EXTRA, _ETB_VALUE_EXTRA),
     ),
     # Lifegain. The bare `lifelink` oracle word matched any card listing it (Crystalline
     # Giant's random-counter menu, reminder text). Lifelink is a keyword (CR 702.15), so

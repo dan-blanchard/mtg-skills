@@ -244,19 +244,12 @@ def test_removal_reach(name, walkers, mv_floor):
     assert _row(name)["removal_reach"] == {"walkers": walkers, "mv_floor": mv_floor}
 
 
-def test_forced_only_edict_walk_drops_your_own_sacrifice():
-    """The shared edict walk reads no actor by default (the type-scoped presets);
-    ``forced_only`` gates it on ``edict_makers``' actor read, so Winter's "you may
-    sacrifice a creature or planeswalker" drops while its opponents' creature
-    sacrifice stays."""
+def test_edict_walk_drops_your_own_sacrifice():
+    """The shared edict walk is gated on ``edict_makers``' actor read (CR
+    701.21a), so Winter's "you may sacrifice a creature or planeswalker" drops
+    while its opponents' creature sacrifice stays."""
     winter = test_card("Winter, Tormented Loner")
-    every = {t for _, types in removal_edict_answers(winter, "edict") for t in types}
-    forced = {
-        t
-        for _, types in removal_edict_answers(winter, "edict", forced_only=True)
-        for t in types
-    }
-    assert "Planeswalker" in every
+    forced = {t for _, types in removal_edict_answers(winter, "edict") for t in types}
     assert forced == {"Creature"}
 
 

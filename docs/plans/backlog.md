@@ -57,36 +57,38 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   "with one or more targets", so it reads as a commander-spell copy
   (`test_wylls_reversal_target_constraint_canary`); aftermath halves (Dusk // Dawn),
   Garza's Assassin's recover, Salvation Colossus's unearth and Oscorp Industries'
-  mayhem are dropped, so the `self-recurring` preset reads them by keyword
-  (`test_self_recurring_keyword_gap_canary`); Nether Shadow's graveyard return is an
+  mayhem are dropped, so the `self-recurring` preset and the "Self-recurring
+  fodder" serve read them by keyword (`theme_presets.SELF_RECURRING_KEYWORD_GAPS`,
+  `test_self_recurring_keyword_gap_canary`); Nether Shadow's graveyard return is an
   `unparsed_condition` residue since v0.104.0 (ledger row
   `nether_shadow_graveyard_return_parked`); Bumi's Feast
   Lecture's earthbend return binds to the Food token (`LastCreated`) instead of the
   land (`test_earthbend_last_created_binding_canary`).
-- **`serve_self_recur` is still an oracle regex** (`signal_specs._shared._self_recurs`,
-  the reanimator avenue's and aristocrats' "Self-recurring fodder" creatures). The
-  `self_recurring` key's idents, filtered to creatures, don't line up (2026-10-08, legal
-  corpus): 294 kept, 302 gained, 28 lost. The key is wider by design — any per-game
-  reuse: self-bounce (Arcanis, Blinking Spirit), dash (Kolaghan Forerunners), returns
-  to hand, persist (Kitchen Finks), re-suspend (Epochrasite) — where the serve wants a
-  creature coming back from the graveyard to play. Of the 28 lost, some are the
-  regex's misfires (Emptiness and Kami of Mourning return another card or grant a
-  perpetual ability), some key misses phase hides: cast-from-graveyard permissions on
-  a trigger or keyword (Tenacious Underdog's blitz, Skyclave Shade, Sproutback
-  Trudge). Switching needs a zone-discriminating subject on the key's ident
-  (graveyard → battlefield / stack) and those misses read first.
+- **Phase misparses behind the "Self-recurring fodder" serve** (found 2026-10-09,
+  phase v0.104.0; report upstream, Dan posts). The serve reads the card's graveyard
+  return routes (`card_advantage.comes_back_from_graveyard`); three legal creatures
+  the old regex served stay out because
+  phase loses "this card": Sproutback Trudge's and Syrix, Carrier of the Flame's "you
+  may cast this card from your graveyard" is a `CastFromZone` with target `Any` in a
+  battlefield-zone trigger; Worldheart Phoenix's (and Raffine's Guidance's)
+  graveyard alternative cost is a `CastWithAlternativeCost` static whose `affected`
+  is your typed permanents, active on the battlefield. Read with a canary: "you may
+  cast it from your graveyard" (Skyclave Shade, Hildibrand Manderville, Mosswood
+  Dreadknight, Ichor Aberration) is a `PlayFromExile` permission on an empty
+  `TrackedSet` (`test_unbound_graveyard_cast_misparse_canary`); Forgeborn Phoenix's
+  granted "return this card from your graveyard to battlefield" parses as a
+  `Bounce` to hand (`test_perpetual_bounce_misparse_canary`).
 
 **From the twohg-guide skill (2026-09-27)**
 
-- **The edict presets match sacrifices you make yourself.** `removal_tutors.
-  _edict_answer_types` applies no actor gate, so `creature-edict` /
-  `planeswalker-edict` fire on Winter, Tormented Loner and Mycoloth ("you may
-  sacrifice…"). `edict_makers` already has the right actor read; gate the removal walk
-  on the same predicate (twohg_scan now calls it) and re-check the preset real-card tests.
-- **`role_of` has no removal fallback for a set phase hasn't parsed.** The removal
-  preset reads signal keys only, so on a set newer than `PHASE_TAG` `set-scan` reports
-  no removal while `twohg-scan`'s text path finds it. Move a removal text degrade into
-  `roles` beside `ramp_by_text` so both readouts share it.
+- **Phase drops the player behind edicts** (found 2026-10-09, phase v0.104.0;
+  report upstream, Dan posts). Each is read with a workaround that retires itself:
+  a chained "…, then sacrifices" loses its subject (Undercity Plague, Priest of
+  Forgotten Gods, Din of the Fireherd's land half, Nicol Bolas, Planeswalker's −9),
+  and Davriel, Soul Broker's +1 hangs "they sacrifice an attacking creature" beside
+  its delayed trigger, not in it (`test_chained_sacrifice_actor_dropped_canary`);
+  "each opponent [who …] sacrifices" parses with no player at all (Papalymo
+  Totolymo, Variable Solutions — ledger row `opponent_sacrifice_actor_dropped`).
 - **phase tags "each other player" as `Opponent`.** Grave Pact and Syphon Mind carry
   `player_scope: Opponent`, which only differs from "each opponent" in team formats
   (it includes your teammate). phase doesn't support team formats yet, so this isn't

@@ -4183,6 +4183,27 @@ def effect_owner_rebinds_kind(root: object, effect_node: object) -> bool:
     return _present(getattr(owner, "iteration_kind_binding", MISSING))
 
 
+def effect_owner_optional(root: object, effect_node: object) -> bool:
+    """Whether the wrapper that owns ``effect_node`` is optional — "that
+    permanent's controller MAY sacrifice a land" (Chain of Vapor), a choice the
+    actor can decline, not a forced action."""
+    owner = _find_owner_wrapper(root, effect_node)
+    return getattr(owner, "optional", None) is True
+
+
+def sacrifice_names_no_player(root: object, node: TypedMirrorNode) -> bool:
+    """Whether a ``Sacrifice`` effect of a typed permanent names no player at all:
+    no controller on the sacrificed filter, no ``player_scope`` on the wrapper
+    that owns it — the shape of a sacrifice you make yourself, and the shape phase
+    leaves when it drops the forcing player ("each opponent … sacrifices",
+    "…, then sacrifices")."""
+    return (
+        tag_of(getattr(node, "target", None)) == "Typed"
+        and filter_controller(effect_filter(node)) is None
+        and effect_owner_player_scope(root, node) is None
+    )
+
+
 def effect_owner_raw(root: object, effect_node: object) -> str:
     """The ``description`` grounding clause on the wrapper that DIRECTLY owns
     ``effect_node`` (mirrors :func:`effect_owner_duration`'s walk, but reads

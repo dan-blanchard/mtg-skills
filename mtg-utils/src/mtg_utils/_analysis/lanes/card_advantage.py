@@ -5,6 +5,7 @@ crosswalk_signals.py)."""
 from __future__ import annotations
 
 import re
+from typing import Literal, get_args
 
 from mtg_utils._analysis._sweep_detectors import TOPDECK_STACK_SWEEP_REGEX
 from mtg_utils._analysis.lanes._shared import (
@@ -531,6 +532,52 @@ def _sets_up_dies_return(unit: AbilityUnit) -> bool:
 
 # ── self_recurring: the card brings ITSELF back for another use ────────────────
 
+#: How the card comes back — where it is when it returns and where it goes next:
+#: to the battlefield, to your hand, onto the stack (cast), or a token copy of it
+#: onto the battlefield (embalm, eternalize, encore). A return from the graveyard
+#: as another object is its own route: transformed (the Ojer gods' "return it to
+#: the battlefield tapped and transformed"; disturb casts it transformed, CR
+#: 702.146a), whose back face decides what it is, or as an Aura (Harold and Bob's
+#: "It's an Aura enchantment"), never a creature. Read by
+#: :func:`self_return_routes`; the serves ask :func:`comes_back_from_graveyard`.
+SelfReturnRoute = Literal[
+    "graveyard_to_battlefield",
+    "graveyard_to_battlefield_transformed",
+    "graveyard_to_battlefield_as_aura",
+    "graveyard_to_hand",
+    "graveyard_to_stack",
+    "graveyard_to_stack_transformed",
+    "graveyard_to_token",
+    "exile_to_battlefield",
+    "exile_to_hand",
+    "exile_to_stack",
+    "battlefield_to_hand",
+    "stack_to_hand",
+]
+SELF_RETURN_ROUTES: tuple[SelfReturnRoute, ...] = get_args(SelfReturnRoute)
+#: The "Self-recurring fodder" routes: every way a creature comes back out of the
+#: graveyard as a body to sacrifice again — onto the battlefield, to hand, cast, or
+#: as a token copy (Bloodghast, Pyre Zombie, Gravecrawler, Sacred Cat).
+FODDER_SELF_RETURNS: frozenset[SelfReturnRoute] = frozenset(
+    {
+        "graveyard_to_battlefield",
+        "graveyard_to_hand",
+        "graveyard_to_stack",
+        "graveyard_to_token",
+    }
+)
+#: The reanimator routes: the card itself onto the battlefield from the graveyard,
+#: or cast from it — never a token copy or a return to hand.
+REANIMATED_SELF_RETURNS: frozenset[SelfReturnRoute] = frozenset(
+    {"graveyard_to_battlefield", "graveyard_to_stack"}
+)
+#: A transformed return, by the route it is when the face it returns as is a
+#: creature.
+TRANSFORMED_SELF_RETURNS: dict[SelfReturnRoute, SelfReturnRoute] = {
+    "graveyard_to_battlefield_transformed": "graveyard_to_battlefield",
+    "graveyard_to_stack_transformed": "graveyard_to_stack",
+}
+
 #: The zones an ability can bring its card back from for another use.
 _RECURSION_ORIGINS: frozenset[str] = frozenset({"Graveyard", "Exile"})
 #: Back-references that name the card itself while its own ability names nothing
@@ -538,33 +585,43 @@ _RECURSION_ORIGINS: frozenset[str] = frozenset({"Graveyard", "Exile"})
 _SELF_REFERENCES: frozenset[str] = _SELF_RETURN_TARGETS | {"ParentTarget"}
 _SELF_REF: frozenset[str] = frozenset({"SelfRef"})
 
-#: Keywords that use the card again after its first use and that phase leaves to its
-#: rules engine (so no ability unit shows the return): cast from the graveyard —
-#: flashback 702.34a, retrace 702.81a, jump-start 702.133a, escape 702.138a,
-#: harmonize 702.180a, mayhem 702.187a, disturb 702.146a; cast again from exile —
-#: rebound 702.88a; back to hand — buyback 702.27a, dash 702.109a ("return the
-#: permanent this spell becomes to its owner's hand at the beginning of the next end
-#: step", the lane's self-bounce); a token copy from the graveyard — embalm
-#: 702.128a, eternalize 702.129a, encore 702.141a. Phase expands persist, undying,
-#: dredge, recover and unearth into units the walk reads. Suspend alone is one
-#: delayed cast (702.62a). Phase's spellings, folded by ``normalised_keyword_name``.
-RECURSION_KEYWORDS: frozenset[str] = frozenset(
-    {
-        "buyback",
-        "dash",
-        "disturb",
-        "embalm",
-        "encore",
-        "escape",
-        "eternalize",
-        "flashback",
-        "harmonize",
-        "jumpstart",
-        "mayhem",
-        "rebound",
-        "retrace",
-    }
-)
+#: Every recursion keyword's route: cast from the graveyard — flashback 702.34a,
+#: retrace 702.81a, jump-start 702.133a, escape 702.138a, harmonize 702.180a,
+#: mayhem 702.187a, aftermath 702.127a, disturb 702.146a (transformed); cast again
+#: from exile — rebound 702.88a; back to hand — buyback 702.27a (from the stack),
+#: dash 702.109a ("return the permanent this spell becomes to its owner's hand at
+#: the beginning of the next end step", the lane's self-bounce), recover 702.59a
+#: (from the graveyard); onto the battlefield — unearth 702.84a; a token copy from
+#: the graveyard — embalm 702.128a, eternalize 702.129a, encore 702.141a. Phase's
+#: spellings, folded by ``normalised_keyword_name``.
+KEYWORD_SELF_RETURNS: dict[str, SelfReturnRoute] = {
+    "aftermath": "graveyard_to_stack",
+    "buyback": "stack_to_hand",
+    "dash": "battlefield_to_hand",
+    "disturb": "graveyard_to_stack_transformed",
+    "embalm": "graveyard_to_token",
+    "encore": "graveyard_to_token",
+    "escape": "graveyard_to_stack",
+    "eternalize": "graveyard_to_token",
+    "flashback": "graveyard_to_stack",
+    "harmonize": "graveyard_to_stack",
+    "jumpstart": "graveyard_to_stack",
+    "mayhem": "graveyard_to_stack",
+    "rebound": "exile_to_stack",
+    "recover": "graveyard_to_hand",
+    "retrace": "graveyard_to_stack",
+    "unearth": "graveyard_to_battlefield",
+}
+#: The keywords phase leaves to its rules engine, so no ability unit shows the
+#: return and the lane reads the keyword. Phase expands persist, undying, dredge,
+#: recover and unearth into units the walk reads (when it parses them — see
+#: ``theme_presets.SELF_RECURRING_KEYWORD_GAPS``), and drops aftermath's graveyard
+#: half. Suspend alone is one delayed cast (702.62a).
+RECURSION_KEYWORDS: frozenset[str] = frozenset(KEYWORD_SELF_RETURNS) - {
+    "aftermath",
+    "recover",
+    "unearth",
+}
 
 
 def _own_nodes(unit: AbilityUnit) -> list[TypedMirrorNode]:
@@ -602,45 +659,101 @@ def _exiles_self(node: TypedMirrorNode) -> bool:
     )
 
 
-def _returns_self(
+def _names_card(
+    target: object, self_targets: frozenset[str], *, conjunctions: bool = True
+) -> bool:
+    """Whether a return's ``target`` names the card: one of ``self_targets``, or —
+    with ``conjunctions`` — a conjunction holding one ("return it from your
+    graveyard" — Tomakul Phoenix's ``And(ParentTarget, a card in your
+    graveyard)``)."""
+    if conjunctions and tag_of(target) == "And":
+        return any(
+            tag_of(f) in self_targets for f in getattr(target, "filters", None) or ()
+        )
+    return tag_of(target) in self_targets
+
+
+#: A return to hand, by where the card was (:func:`_bounce_origin`).
+_TO_HAND: dict[str, SelfReturnRoute] = {
+    "Graveyard": "graveyard_to_hand",
+    "Exile": "exile_to_hand",
+    "Battlefield": "battlefield_to_hand",
+    "Stack": "stack_to_hand",
+}
+#: A return to the battlefield, by where the card was.
+_TO_BATTLEFIELD: dict[str, SelfReturnRoute] = {
+    "Graveyard": "graveyard_to_battlefield",
+    "Exile": "exile_to_battlefield",
+}
+
+
+def _bounce_origin(unit: AbilityUnit, zones: frozenset[str], *, spell: bool) -> str:
+    """Where the card is when a return to hand with no origin of its own takes it:
+    the zone the ability works from (Pyre Zombie's graveyard trigger), the
+    graveyard for a dies trigger (Endless Cockroaches), the stack for an instant's
+    or sorcery's own effect (``spell`` — Pulse of the Fields returns itself while
+    it resolves, so from the stack), else the battlefield (Arcanis's ability;
+    Firestorm Phoenix's "would die" replacement)."""
+    if "Graveyard" in zones or unit.trigger_event == "dies":
+        return "Graveyard"
+    if "Exile" in zones:
+        return "Exile"
+    if spell and unit.origin == "ability" and unit.kind == "Spell":
+        return "Stack"
+    return "Battlefield"
+
+
+def _self_return_route(
     unit: AbilityUnit,
     node: TypedMirrorNode,
     *,
     self_targets: frozenset[str],
     blinks: bool,
     zones: frozenset[str] | None = None,
-) -> bool:
-    """Whether one node of ``unit`` puts the card itself where it can be used again
-    (see :func:`recurs_itself`); ``self_targets`` are the target tags that name
-    the card here. ``zones`` are the zones the ability holding ``node`` works
-    from — the unit's own (:func:`unit_zones`) unless the node sits in a granted
-    body (:func:`ability_zones` of that body)."""
+    conjunctions: bool = True,
+    spell: bool = False,
+) -> SelfReturnRoute | None:
+    """The route by which one node of ``unit`` puts the card itself where it can be
+    used again (see :func:`recurs_itself`), or ``None``; ``self_targets`` are the
+    target tags that name the card here, ``conjunctions`` whether a conjunction
+    holding one does (:func:`_names_card`), ``spell`` whether the card is an
+    instant or sorcery (:func:`_bounce_origin`). ``zones`` are the zones the
+    ability holding ``node`` works from — the unit's own (:func:`unit_zones`)
+    unless the node sits in a granted body (:func:`ability_zones` of that body)."""
     tag = tag_of(node)
     if tag == "ReturnToHand":  # a cost: "Return ~ to its owner's hand: …"
-        return tag_of(getattr(node, "filter", None)) in self_targets
+        if tag_of(getattr(node, "filter", None)) in self_targets:
+            return "battlefield_to_hand"
+        return None
     if tag not in ("Bounce", "ChangeZone"):
-        return False
-    if tag_of(getattr(node, "target", None)) not in self_targets:
-        return False
-    if tag == "Bounce":  # to its owner's hand, from wherever it is
-        return True
+        return None
+    if not _names_card(
+        getattr(node, "target", None), self_targets, conjunctions=conjunctions
+    ):
+        return None
+    if zones is None:
+        zones = unit_zones(unit)
     origin, dest = change_zone_dirs(node)
-    if dest == "Hand":
-        return origin != "Library"
+    if tag == "Bounce" or dest == "Hand":  # to its owner's hand
+        if origin == "Library":
+            return None
+        if origin not in _TO_HAND:
+            origin = _bounce_origin(unit, zones, spell=spell)
+        return _TO_HAND[origin]
     if dest == "Battlefield":
         if origin == "Exile" and blinks:
-            return False
-        if zones is None:
-            zones = unit_zones(unit)
-        return bool(origin in _RECURSION_ORIGINS or zones & _RECURSION_ORIGINS)
-    if dest == "Exile":
+            return None
+        if origin not in _TO_BATTLEFIELD:
+            origin = next((z for z in ("Graveyard", "Exile") if z in zones), None)
+        return None if origin is None else _TO_BATTLEFIELD[origin]
+    if dest == "Exile" and (_has_time_counters(node) or _times_itself(unit)):
         # "Exile ~ with three time counters on it" (Arc Blade, Epochrasite): with
         # suspend and a time counter in exile it is suspended (CR 702.62b), and it
         # is cast again when the last counter comes off (CR 702.62a) — Arc Blade's
         # ruling: "it will suspend itself again when it resolves". Sinister
         # Concierge puts the counters on as a separate step.
-        return _has_time_counters(node) or _times_itself(unit)
-    return False
+        return "exile_to_stack"
+    return None
 
 
 def _times_itself(unit: AbilityUnit) -> bool:
@@ -655,38 +768,55 @@ def _times_itself(unit: AbilityUnit) -> bool:
     )
 
 
-def _returns_its_holder(
+def _holder_return_route(
     unit: AbilityUnit, body: TypedMirrorNode, holder: frozenset[str]
-) -> bool:
-    """Whether a granted ability or trigger ``body`` returns the card for another
-    use (:func:`_returns_self`), the card named by one of the target tags in
-    ``holder``; it works from the zones the body names."""
+) -> SelfReturnRoute | None:
+    """The route by which a granted ability or trigger ``body`` returns the card
+    for another use (:func:`_self_return_route`), the card named by one of the
+    target tags in ``holder``; it works from the zones the body names."""
     zones = ability_zones(body)
-    return any(
-        _returns_self(unit, n, self_targets=holder, blinks=False, zones=zones)
-        for n in iter_typed_nodes(body)
+    return next(
+        (
+            route
+            for n in iter_typed_nodes(body)
+            if (
+                route := _self_return_route(
+                    unit, n, self_targets=holder, blinks=False, zones=zones
+                )
+            )
+        ),
+        None,
     )
 
 
-def _grants_itself(sdef: object, tree: ConceptTree) -> bool:
-    """Whether a static's ``affected`` group takes in the card itself: "All
-    Slivers" on a Sliver (Hibernation Sliver's ruling: a Sliver is affected by its
-    own ability), never "other Slivers" or an opponent's."""
-    affected = getattr(sdef, "affected", None)
-    if tag_of(affected) == "SelfRef":
+def _takes_in_card(filt: object, tree: ConceptTree) -> bool:
+    """Whether a group or target filter takes in the card itself: "All Slivers" on
+    a Sliver, "target creature you control" on a creature (CR 115.5: only a spell
+    or ability is an illegal target for itself) — never "other Slivers", "another
+    target creature" or an opponent's."""
+    if tag_of(filt) == "SelfRef":
         return True
-    if filter_controller(affected) == "Opponent":
+    if filter_controller(filt) == "Opponent":
         return False
-    if {"Another", "Other"} & set(filter_predicates(affected)):
+    if {"Another", "Other"} & set(filter_predicates(filt)):
         return False
-    return filter_admits(affected, object_facts_of((tree,))) is True
+    return filter_admits(filt, object_facts_of((tree,))) is True
+
+
+def _grants_itself(sdef: object, tree: ConceptTree) -> bool:
+    """Whether a static's ``affected`` group takes in the card itself
+    (:func:`_takes_in_card`; Hibernation Sliver's ruling: a Sliver is affected by
+    its own ability)."""
+    return _takes_in_card(getattr(sdef, "affected", None), tree)
 
 
 _GRANTING_OBJECT: frozenset[str] = frozenset({"GrantingObject"})
 
 
-def _granted_self_bounce(unit: AbilityUnit, tree: ConceptTree) -> bool:
-    """A granted ability that returns the card itself:
+def _granted_self_return(
+    unit: AbilityUnit, tree: ConceptTree, nodes: list[TypedMirrorNode]
+) -> SelfReturnRoute | None:
+    """The route of a granted ability that returns the card itself, or ``None``:
 
     * one it grants another object, naming itself — Trusty Boomerang's equipped
       creature "{1}, {T}: Tap target creature. Return Trusty Boomerang to its
@@ -698,62 +828,82 @@ def _granted_self_bounce(unit: AbilityUnit, tree: ConceptTree) -> bool:
       Return this creature to its owner's hand'" — its ruling: the ability
       "Mercurial Pretender gives itself", CR 707.9a). A ``BecomeCopy`` with a
       ``recipient`` turns another object into the copy."""
-    if any(
-        _returns_its_holder(unit, body, _GRANTING_OBJECT)
-        for _kind, body in iter_nested_granted_bodies(unit.node)
-    ):
-        return True
+    for _kind, body in iter_nested_granted_bodies(unit.node):
+        if route := _holder_return_route(unit, body, _GRANTING_OBJECT):
+            return route
     if unit.origin == "static":
         for sdef, mod in iter_mod_sites(unit.node):
             if sdef is not unit.node:
                 continue
-            if any(
-                _returns_its_holder(unit, body, _SELF_REF)
-                for _kind, body in iter_nested_granted_bodies(mod)
-            ) and _grants_itself(sdef, tree):
-                return True
-    for node in _own_nodes(unit):
+            route = next(
+                (
+                    r
+                    for _kind, body in iter_nested_granted_bodies(mod)
+                    if (r := _holder_return_route(unit, body, _SELF_REF))
+                ),
+                None,
+            )
+            if route and _grants_itself(sdef, tree):
+                return route
+    for node in nodes:
         if tag_of(node) != "BecomeCopy" or tag_of(
             getattr(node, "recipient", None)
         ) not in (None, "SelfRef"):
             continue
         mods = getattr(node, "additional_modifications", None)
-        if isinstance(mods, list) and any(
-            _returns_its_holder(unit, body, _SELF_REF)
-            for mod in mods
-            for _kind, body in iter_nested_granted_bodies(mod)
-        ):
-            return True
-    return False
+        if not isinstance(mods, list):
+            continue
+        for mod in mods:
+            for _kind, body in iter_nested_granted_bodies(mod):
+                if route := _holder_return_route(unit, body, _SELF_REF):
+                    return route
+    return None
 
 
-def _perpetual_graveyard_return(unit: AbilityUnit) -> bool:
+def _perpetual_graveyard_return(
+    unit: AbilityUnit, tree: ConceptTree, nodes: list[TypedMirrorNode]
+) -> SelfReturnRoute | None:
     """A perpetual grant to the card itself of a trigger that works from its
     graveyard and returns it — Forgeborn Phoenix: "Whenever ~ or equipped creature
     dies, it perpetually gains 'Whenever an equipped creature you control deals
     combat damage to a player or planeswalker, return this card from your
     graveyard to battlefield tapped.'" The grant goes to the dying card
-    (``TriggeringSource``), the card itself when it is what died."""
-    for node in _own_nodes(unit):
-        if tag_of(node) != "ApplyPerpetual":
+    (``TriggeringSource``), the card itself when it is what died — or to a target
+    the card can be (:func:`_takes_in_card`): Kami of Mourning's enters trigger
+    gives "target creature you control" the return, and it can target itself."""
+    for node in nodes:
+        if tag_of(node) not in ("ApplyPerpetual", "GenericEffect"):
             continue
-        target = tag_of(getattr(node, "target", None))
+        target = getattr(node, "target", None)
         if not (
-            target == "SelfRef"
+            tag_of(target) == "SelfRef"
             or (
-                target == "TriggeringSource"
+                tag_of(target) == "TriggeringSource"
                 and watches_itself(unit.node, among_others=True)
             )
+            or (tag_of(target) == "Typed" and _takes_in_card(target, tree))
         ):
             continue
         for kind, body in iter_nested_granted_bodies(node):
-            if (
-                kind == "trigger"
-                and "Graveyard" in ability_zones(body)
-                and _returns_its_holder(unit, body, _SELF_REF)
-            ):
-                return True
-    return False
+            if kind == "trigger" and "Graveyard" in ability_zones(body):
+                route = _holder_return_route(unit, body, _SELF_REF)
+                if route == "graveyard_to_hand" and _perpetual_bounce_misparse(body):
+                    return "graveyard_to_battlefield"
+                if route:
+                    return route
+    return None
+
+
+def _perpetual_bounce_misparse(body: TypedMirrorNode) -> bool:
+    """Phase v0.104.0 reads Forgeborn Phoenix's perpetually granted "return this
+    card from your graveyard to battlefield tapped" (no "the") as a ``Bounce`` —
+    a return to hand. A perpetual graveyard grant whose return is a ``Bounce`` of
+    the card is that misparse; ``test_perpetual_bounce_misparse_canary`` retires
+    it once phase reads the battlefield."""
+    return any(
+        tag_of(n) == "Bounce" and tag_of(getattr(n, "target", None)) == "SelfRef"
+        for n in iter_typed_nodes(body)
+    )
 
 
 def _back_ref_names_self(unit: AbilityUnit) -> bool:
@@ -811,6 +961,171 @@ def _recovered_returns_self(unit: AbilityUnit, c: ConceptNode) -> bool:
     return True
 
 
+def _recovered_route(unit: AbilityUnit, c: ConceptNode) -> SelfReturnRoute | None:
+    """The route of a recovered self-return residue (:func:`_recovered_returns_self`):
+    a cast from the graveyard, a return to the battlefield (from exile only when
+    the clause names exile and not the graveyard), a graveyard return to your
+    hand or the battlefield as the clause says, or a return to hand — from the
+    graveyard when the clause names it."""
+    if not _recovered_returns_self(unit, c):
+        return None
+    if c.recovered_by == "cast_from_zone":
+        return "graveyard_to_stack"
+    if c.recovered_by == "reanimate":
+        if "Graveyard" not in c.zones and "Exile" in (set(c.zones) | unit_zones(unit)):
+            return "exile_to_battlefield"
+        return "graveyard_to_battlefield"
+    if c.recovered_by == "graveyard_return":
+        if "Battlefield" in c.zones and "Hand" not in c.zones:
+            return "graveyard_to_battlefield"
+        return "graveyard_to_hand"
+    if "Graveyard" in c.zones:  # Krovikan Horror: "if ~ is in your graveyard"
+        return "graveyard_to_hand"
+    return "battlefield_to_hand"
+
+
+#: Effects that find or move cards — after one, "it" (a ``TrackedSet``) can name
+#: the card they found (Clockwork Percussionist's "exile the top card of your
+#: library. You may play it"), not the card whose ability it is.
+_CARD_FINDERS: frozenset[str] = frozenset(
+    {
+        "ChangeZone",
+        "ChangeZoneAll",
+        "Dig",
+        "ExileTop",
+        "Mill",
+        "RevealUntil",
+        "SearchLibrary",
+        "Seek",
+    }
+)
+#: Phase v0.104.0 binds "you may cast it from your graveyard" in an ability that
+#: works from the graveyard to an empty ``TrackedSet`` with a ``PlayFromExile``
+#: permission (Skyclave Shade, Hildibrand Manderville, Mosswood Dreadknight,
+#: Ichor Aberration). ``test_unbound_graveyard_cast_misparse_canary`` retires it.
+UNBOUND_CAST_TARGET = "TrackedSet"
+
+
+def _unbound_graveyard_cast(unit: AbilityUnit) -> bool:
+    """A cast permission an ability working from your graveyard gives "it" before
+    any effect could find another card (:data:`_CARD_FINDERS`), so "it" is the card
+    in the graveyard: Skyclave Shade's landfall, Hildibrand Manderville's and
+    Mosswood Dreadknight's dies triggers ("you may cast it from your graveyard as
+    an Adventure"). The ability works from the graveyard (CR 113.6b) — it says so,
+    or it is a dies trigger watching the card itself."""
+    if not (
+        "Graveyard" in unit_zones(unit)
+        or (unit.trigger_event == "dies" and watches_itself(unit.node))
+    ):
+        return False
+    for c in walk_effect_chain(unit.node):
+        tag = tag_of(c.node)
+        if tag == "GrantCastingPermission":
+            return tag_of(getattr(c.node, "target", None)) in (
+                "SelfRef",
+                UNBOUND_CAST_TARGET,
+            )
+        if tag in _CARD_FINDERS:
+            return False
+    return False
+
+
+def _changed_return(nodes: list[TypedMirrorNode]) -> SelfReturnRoute | None:
+    """The route a unit's return from the graveyard to the battlefield takes when
+    it changes what the card is: transformed (a ``ChangeZone`` that enters
+    transformed — Ojer Axonil, Loyal Cathar) or as an Aura (phase's
+    ``ReturnAsAura`` — Harold and Bob); ``None`` when it doesn't."""
+    for n in nodes:
+        tag = tag_of(n)
+        if tag == "ReturnAsAura":
+            return "graveyard_to_battlefield_as_aura"
+        if (
+            tag == "ChangeZone"
+            and getattr(n, "destination", None) == "Battlefield"
+            and getattr(n, "enter_transformed", None) is True
+        ):
+            return "graveyard_to_battlefield_transformed"
+    return None
+
+
+def self_return_routes(tree: ConceptTree) -> frozenset[SelfReturnRoute]:
+    """Every route by which the card brings itself back (:func:`recurs_itself`)."""
+    routes: set[SelfReturnRoute] = {
+        KEYWORD_SELF_RETURNS[name]
+        for k in tree.card_keywords
+        if (name := normalised_keyword_name(k)) in RECURSION_KEYWORDS
+    }
+    spell = tree.is_type("Instant") or tree.is_type("Sorcery")
+    for unit in tree.units:
+        nodes = _own_nodes(unit)
+        unit_routes = _unit_return_routes(unit, tree, nodes, spell=spell)
+        changed = _changed_return(nodes)
+        if changed and "graveyard_to_battlefield" in unit_routes:
+            unit_routes.discard("graveyard_to_battlefield")
+            unit_routes.add(changed)
+        routes |= unit_routes
+    return frozenset(routes)
+
+
+def _unit_return_routes(
+    unit: AbilityUnit,
+    tree: ConceptTree,
+    nodes: list[TypedMirrorNode],
+    *,
+    spell: bool,
+) -> set[SelfReturnRoute]:
+    """The routes one unit (its own ``nodes``) brings the card back by
+    (:func:`self_return_routes`)."""
+    routes: set[SelfReturnRoute] = set()
+    blinks = any(_exiles_self(n) for n in nodes)
+    for n in nodes:
+        if route := _self_return_route(
+            unit, n, self_targets=_SELF_REF, blinks=blinks, spell=spell
+        ):
+            routes.add(route)
+    # Phase v0.104.0's fail-closed self-return residue, recovered by verb.
+    for c in unit.effects:
+        if route := _recovered_route(unit, c):
+            routes.add(route)
+    if _back_ref_names_self(unit):
+        # In effect order, "it" names the card only until an effect could
+        # name or find something else: past a payment or an effect on the
+        # card itself, never past a reveal, a search or a seek (Sphinx of
+        # Uthuun's "put one pile into your hand"). After the card's own
+        # enters trigger the card is on the battlefield, so "the creature card
+        # in your graveyard" there is another card (Desecrator Hag).
+        entering = unit.trigger_event == "enters" and watches_itself(unit.node)
+        for c in walk_effect_chain(unit.node):
+            if route := _self_return_route(
+                unit,
+                c.node,
+                self_targets=_SELF_REFERENCES,
+                blinks=blinks,
+                conjunctions=not entering,
+                spell=spell,
+            ):
+                routes.add(route)
+            if not _keeps_back_ref(c.node):
+                break
+    for route in (
+        _granted_self_return(unit, tree, nodes),
+        _perpetual_graveyard_return(unit, tree, nodes),
+    ):
+        if route:
+            routes.add(route)
+    if _returns_on_death(unit) and watches_itself(unit.node):
+        routes.add("graveyard_to_battlefield")
+    if _unbound_graveyard_cast(unit):
+        routes.add("graveyard_to_stack")
+    for sdef in unit.static_defs():
+        if (
+            static_mode_tag(sdef) == "GraveyardCastPermission"
+            and tag_of(getattr(sdef, "affected", None)) == "SelfRef"
+        ):
+            routes.add("graveyard_to_stack")
+    return routes
+
+
 def recurs_itself(tree: ConceptTree) -> bool:
     """Whether the card brings ITSELF back for another use — the per-game value a
     cut weighs:
@@ -822,65 +1137,91 @@ def recurs_itself(tree: ConceptTree) -> bool:
     * a dies trigger or replacement that returns it (undying and persist —
       :func:`_returns_on_death`, watching the card itself; Endless Cockroaches;
       Firestorm Phoenix);
-    * a static letting you cast it from your graveyard (Gravecrawler);
+    * a static letting you cast it from your graveyard (Gravecrawler), or a
+      cast permission an ability that works from your graveyard gives it
+      (Skyclave Shade — :func:`_unbound_graveyard_cast`);
     * a trigger it perpetually gains that returns it from your graveyard
       (Forgeborn Phoenix — :func:`_perpetual_graveyard_return`);
     * re-exiling itself with time counters (Arc Blade, Epochrasite);
     * returning itself from the battlefield to your hand, as an effect or a cost
       (Arcanis the Omnipotent, Batterskull, Greenbelt Rampager, Grinning Ignus,
       Recurring Nightmare; Trusty Boomerang, Hibernation Sliver and Mercurial
-      Pretender through an ability granted — :func:`_granted_self_bounce`):
+      Pretender through an ability granted — :func:`_granted_self_return`):
       re-buying it to cast again is per-game value. The
       lane's decision, not a rule; bouncing something else (Man-o'-War),
       returning another card (Eternal Witness) or blinking itself (Aetherling)
       is not;
-    * a :data:`RECURSION_KEYWORDS` keyword."""
-    if any(
-        normalised_keyword_name(k) in RECURSION_KEYWORDS for k in tree.card_keywords
-    ):
-        return True
-    for unit in tree.units:
-        nodes = _own_nodes(unit)
-        blinks = any(_exiles_self(n) for n in nodes)
-        if any(
-            _returns_self(unit, n, self_targets=_SELF_REF, blinks=blinks) for n in nodes
-        ):
-            return True
-        # Phase v0.104.0's fail-closed self-return residue, recovered by verb.
-        if any(_recovered_returns_self(unit, c) for c in unit.effects):
-            return True
-        if _back_ref_names_self(unit):
-            # In effect order, "it" names the card only until an effect could
-            # name or find something else: past a payment or an effect on the
-            # card itself, never past a reveal, a search or a seek (Sphinx of
-            # Uthuun's "put one pile into your hand").
-            for c in walk_effect_chain(unit.node):
-                if _returns_self(
-                    unit, c.node, self_targets=_SELF_REFERENCES, blinks=blinks
-                ):
-                    return True
-                if not _keeps_back_ref(c.node):
-                    break
-        if _granted_self_bounce(unit, tree) or _perpetual_graveyard_return(unit):
-            return True
-        if _returns_on_death(unit) and watches_itself(unit.node):
-            return True
-        for sdef in unit.static_defs():
-            if (
-                static_mode_tag(sdef) == "GraveyardCastPermission"
-                and tag_of(getattr(sdef, "affected", None)) == "SelfRef"
-            ):
-                return True
-    return False
+    * a :data:`RECURSION_KEYWORDS` keyword.
+
+    :func:`self_return_routes` names the route of each."""
+    return bool(self_return_routes(tree))
 
 
 def _self_recurring(tree: ConceptTree) -> list[Signal]:
     """self_recurring — the card brings itself back for another use
     (:func:`recurs_itself`); the ``self-recurring`` preset and cut-check's
-    self-recurring flag read it. Scope "you"."""
+    self-recurring flag read it. One signal per card, so a deck's support counts
+    cards, not routes; the serves read the routes themselves
+    (:func:`comes_back_from_graveyard`). Scope "you"."""
     if recurs_itself(tree):
         return [Signal("self_recurring", "you", "", "", tree.name, "high")]
     return []
+
+
+def card_self_return_routes(card: dict) -> frozenset[SelfReturnRoute]:
+    """CARD's :func:`self_return_routes` across every face."""
+    from mtg_utils._card_ir.trees import trees_for
+
+    return frozenset().union(
+        *(self_return_routes(t) for t in trees_for(card, bulk=card))
+    )
+
+
+def comes_back_from_graveyard(card: dict, routes: frozenset[str]) -> bool:
+    """Whether CARD is a creature that brings itself back out of the graveyard by
+    one of ``routes`` — :data:`FODDER_SELF_RETURNS` (the "Self-recurring fodder"
+    serve and the ``self-recurring-fodder`` preset its Find search reads) or
+    :data:`REANIMATED_SELF_RETURNS` (the reanimator serve).
+
+    A transformed return counts as its plain route only when the face it returns
+    as is a creature (Loyal Cathar; never an Ojer god's land, Accursed Witch's
+    Curse or a disturb Aura); a return as an Aura never does. A recursion keyword
+    phase drops on the card (``theme_presets.SELF_RECURRING_KEYWORD_GAPS`` —
+    Garza's Assassin's recover, Salvation Colossus's unearth) counts by its
+    :data:`KEYWORD_SELF_RETURNS` route, as it does for the ``self-recurring``
+    preset."""
+    if "creature" not in (card.get("type_line") or "").lower():
+        return False
+    from mtg_utils.theme_presets import SELF_RECURRING_KEYWORD_GAPS
+
+    if any(
+        KEYWORD_SELF_RETURNS[normalised_keyword_name(k)] in routes
+        for k in card.get("keywords") or ()
+        if k in SELF_RECURRING_KEYWORD_GAPS
+    ):
+        return True
+    have = card_self_return_routes(card)
+    if have & routes:
+        return True
+    return any(
+        TRANSFORMED_SELF_RETURNS[r] in routes
+        for r in have
+        if r in TRANSFORMED_SELF_RETURNS
+    ) and _returns_as_creature_face(card)
+
+
+def _returns_as_creature_face(card: dict) -> bool:
+    """Whether a face other than the front — the face a transformed return brings
+    the card back as — is a creature (phase's typed card type per face)."""
+    from mtg_utils._card_ir.trees import trees_for
+
+    faces = card.get("card_faces") or ()
+    if not faces:
+        return False
+    front = faces[0].get("name")
+    return any(
+        t.name != front and t.is_type("Creature") for t in trees_for(card, bulk=card)
+    )
 
 
 def _has_exile_then_return_replacement(tree: ConceptTree) -> bool:

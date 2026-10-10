@@ -25,6 +25,10 @@ from mtg_utils._analysis._sweep_detectors import (
     THEFT_MATTERS_REGEX,
     TOPDECK_SELECTION_REGEX,
 )
+from mtg_utils._analysis.lanes.card_advantage import (
+    FODDER_SELF_RETURNS,
+    comes_back_from_graveyard,
+)
 from mtg_utils.card_classify import (
     card_pt_int,
     classifying_type_line,
@@ -111,7 +115,9 @@ class Serve:
     toughness_over_power: bool = False  # serve a "butt": toughness > power (>=3 floor)
     keyword_count_min: int | None = None  # serve a creature with >=N EVERGREEN keywords
     vanilla: bool = False  # serve a creature with NO rules text (Muraganda / Ruxa)
-    self_recur: bool = False  # serve a creature that returns/recasts ITSELF from a gy
+    # serve a creature that comes back from its graveyard by one of these routes
+    # (``lanes.card_advantage.comes_back_from_graveyard``)
+    self_recur: frozenset[str] = frozenset()
     names: frozenset[str] = frozenset()  # serve if the card NAME is in this set
     mana_cost: re.Pattern[str] | None = None  # regex on printed mana_cost (X-spells)
     # Structural arm (task #96): serve if the card's own emitted signal idents
@@ -198,7 +204,7 @@ class Serve:
             and not re.sub(r"\([^)]*\)", "", oracle_text).strip()
         ):
             return True
-        if self.self_recur and _self_recurs(card, oracle_text):
+        if self.self_recur and comes_back_from_graveyard(card, self.self_recur):
             return True
         if (
             self.min_devotion is not None
@@ -247,7 +253,7 @@ class Serve:
         if self.vanilla:
             out["vanilla"] = True
         if self.self_recur:
-            out["self_recur"] = True
+            out["self_recur"] = sorted(self.self_recur)
         if self.names:
             out["names"] = sorted(self.names)
         if self.mana_cost is not None:
@@ -312,30 +318,6 @@ def _toughness(card: dict) -> int:
     return card_pt_int(card, "toughness")
 
 
-_ARTICLES_NAME = frozenset({"the", "a", "an", "of", "and"})
-
-
-def _self_recurs(card: dict, oracle_text: str) -> bool:
-    """True if ``card`` is a CREATURE that returns or recasts ITSELF from the graveyard
-    (Bloodghast / Gravecrawler / Reassembling Skeleton) — the self-replacing aristocrats
-    fodder. Name-aware: the returned object must be the card itself (its own name, "this
-    card/creature", or "it"), so Sun-Titan-style reanimation of OTHER cards is excluded.
-    """
-    if "creature" not in (card.get("type_line") or "").lower():
-        return False
-    refs = ["this card", "this creature", r"\bit\b"]
-    for w in re.split(r"\W+", card.get("name") or ""):
-        if len(w) > 2 and w.lower() not in _ARTICLES_NAME:
-            refs.append(re.escape(w))
-            break
-    pat = re.compile(
-        rf"(?:return|cast) (?:{'|'.join(refs)})"
-        r"(?:[^.]*?from (?:your|a) graveyard|[^.]*?graveyard[^.]*?to the battlefield)",
-        _IC,
-    )
-    return pat.search(oracle_text) is not None
-
-
 def _compile(pat: str | None) -> re.Pattern[str] | None:
     try:
         return re.compile(pat, _IC) if pat else None
@@ -363,7 +345,7 @@ def serve_from_dict(data: dict) -> Serve:
         toughness_over_power=bool(data.get("toughness_over_power")),
         keyword_count_min=data.get("keyword_count_min"),
         vanilla=bool(data.get("vanilla")),
-        self_recur=bool(data.get("self_recur")),
+        self_recur=frozenset(data.get("self_recur") or ()),
         names=frozenset(n.lower() for n in (data.get("names") or ())),
         mana_cost=_compile(data.get("mana_cost")),
         signal_idents=frozenset(data.get("signal_idents") or ()),
@@ -416,7 +398,7 @@ def _spec(
     serve_toughness_over_power: bool = False,
     serve_keyword_count_min: int | None = None,
     serve_vanilla: bool = False,
-    serve_self_recur: bool = False,
+    serve_self_recur: frozenset[str] = frozenset(),
     serve_mana_cost: str | None = None,
     serve_idents: frozenset[str] = frozenset(),
     serve_not: str | None = None,
@@ -916,15 +898,16 @@ _TRIGGER_COPY_EXTRA = SubAvenue(
     {"oracle": _TRIGGER_COPY_ORACLE},
     serve=Serve(oracle=re.compile(_TRIGGER_COPY_ORACLE, _IC)),
 )
-# Self-recurring fodder (CR 603.6e): aristocrats wants creatures that return/recast
-# THEMSELVES from the graveyard (Bloodghast / Gravecrawler). Name-aware serve (see
-# _self_recurs) excludes Sun-Titan-style reanimation of OTHER cards.
+# Self-recurring fodder: aristocrats wants creatures that bring THEMSELVES back from the
+# graveyard (Bloodghast / Gravecrawler) — never Sun-Titan-style reanimation of OTHER
+# cards. Search and serve read one predicate: the ``self-recurring-fodder`` preset is
+# ``lanes.card_advantage.comes_back_from_graveyard`` over the fodder routes.
 _SELF_RECUR_EXTRA = SubAvenue(
     "Self-recurring fodder",
     "creatures that bring themselves back from the graveyard — free, repeatable sac "
     "fodder (Bloodghast / Gravecrawler / Reassembling Skeleton)",
-    {"oracle": r"from your graveyard to the battlefield"},
-    serve=Serve(self_recur=True),
+    {"preset_names": ("self-recurring-fodder",)},
+    serve=Serve(self_recur=FODDER_SELF_RETURNS),
 )
 # Aristocrats DRAIN payoff (CR 700.4 "dies"): the heart of the archetype — a permanent
 # that punishes creatures dying with a drain, life swing, or token (Blood Artist /
@@ -1310,13 +1293,20 @@ _CAST_FROM_GY_EXTRA = SubAvenue(
     "creatures with escape or disturb that recast themselves from your graveyard, "
     "re-firing the payoff each time (Woe Strider / Kroxa)",
     {"preset_names": ("graveyard-cast",), "card_type": "Creature"},
-    serve=Serve(keywords=frozenset({"escape", "disturb"})),
+    # Disturb by its route: the face it casts must be a creature (never Brine
+    # Comber's Aura).
+    serve=Serve(
+        keywords=frozenset({"escape"}),
+        self_recur=frozenset({"graveyard_to_stack"}),
+    ),
 )
 # Top-level serve credits BOTH enabler families plus self-recurring fodder, so any
 # genuine reanimator piece reads as on-theme no matter which sub-avenue surfaced it.
+# Disturb's "cast this card from your graveyard transformed" is read by its route
+# (``Serve.self_recur``), which asks whether the face it casts is a creature.
 _REANIMATOR_SERVE_ORACLE = (
     _REANIMATE_ORACLE
-    + r"|\bescape\b|\bdisturb\b|cast [^.]*from (?:a|your|their) graveyard"
+    + r"|\bescape\b|cast [^.]*from (?:a|your|their) graveyard(?! transformed)"
 )
 
 

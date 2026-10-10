@@ -73,6 +73,7 @@ from mtg_utils._card_ir.crosswalk import (
     mod_keyword_name,
     mod_value,
     recipient_tag,
+    sacrifice_names_no_player,
     static_mode_field,
     static_mode_tag,
     tag_of,
@@ -1193,65 +1194,103 @@ def _removal_answer_types(tree: ConceptTree) -> frozenset[str]:
     return frozenset().union(*(types for _, types in _removal_answers(tree)))
 
 
-def _edict_answers(
-    tree: ConceptTree, *, forced_only: bool = False
-) -> Iterator[tuple[ConceptNode, frozenset[str]]]:
-    """Each ``sacrifice`` effect in TREE with its sacrificed filter's
-    :func:`_perm_answer_types` (the SAME shape ``_edict_makers`` reads for
-    its own key).
+_EdictAnswers = tuple[tuple[ConceptNode, frozenset[str]], ...]
+#: Where :func:`_tree_edict_answers` caches its walk on a tree (the owner-index
+#: precedent: a frozen tree, so its answers never change, and a re-seeded tree is
+#: a new object).
+_EDICT_CACHE_ATTR = "_edict_answers_cache"
 
-    By default a type-scoped view only asks WHAT gets sacrificed, not WHO is
-    forced (no actor-scope gate). ``forced_only`` keeps only a sacrifice
-    another player is forced to make — :func:`sacrifice_actor_scope`, the
-    actor read ``edict_makers`` scopes by — so a "you may sacrifice a creature
-    or planeswalker" choice (Winter, Tormented Loner) drops out.
-    """
-    if not forced_only:
-        for c in tree.iter_concepts():
-            if c.role == "effect" and c.concept == "sacrifice":
-                yield c, _perm_answer_types(effect_filter(c.node))
-        return
+
+def _tree_edict_answers(tree: ConceptTree) -> tuple[_EdictAnswers, _EdictAnswers]:
+    """TREE's sacrifice effects with their sacrificed filter's
+    :func:`_perm_answer_types`, split in two: the ones another player is forced to
+    make (:func:`sacrifice_actor_scope`, the actor read ``edict_makers`` scopes by
+    — CR 701.21a: a player only sacrifices a permanent they control), and the ones
+    naming no player at all (``sacrifice_names_no_player``), which
+    :func:`removal_edict_answers` promotes only when phase dropped the forcing
+    player. A sacrifice whose permanent "shares a card type with" the one
+    sacrificed before it answers that one's types (Braids, Arisen Nightmare's
+    ruling: an opponent "may choose to sacrifice any permanent they control that
+    shares any card type with it"). Cached on the tree."""
+    cached = tree.__dict__.get(_EDICT_CACHE_ATTR)
+    if cached is not None:
+        return cached
+    forced: list[tuple[ConceptNode, frozenset[str]]] = []
+    actorless: list[tuple[ConceptNode, frozenset[str]]] = []
     for unit in tree.units:
+        previous: frozenset[str] = frozenset()
         for c in unit.effects:
-            if c.concept == "sacrifice" and sacrifice_actor_scope(unit, c.node):
-                yield c, _perm_answer_types(effect_filter(c.node))
+            if c.concept != "sacrifice":
+                continue
+            filt = effect_filter(c.node)
+            types = _perm_answer_types(filt)
+            if "SharesQuality" in filter_predicates(filt) and previous:
+                types = previous
+            previous = types
+            if sacrifice_actor_scope(unit, c.node):
+                forced.append((c, types))
+            elif sacrifice_names_no_player(unit.node, c.node):
+                actorless.append((c, types))
+    out = (tuple(forced), tuple(actorless))
+    object.__setattr__(tree, _EDICT_CACHE_ATTR, out)
+    return out
+
+
+def _edict_answers(tree: ConceptTree) -> Iterator[tuple[ConceptNode, frozenset[str]]]:
+    """Each ``sacrifice`` effect in TREE another player is forced to make, with its
+    answer types (:func:`_tree_edict_answers`). A sacrifice you make yourself — a
+    "you may sacrifice a creature or planeswalker" choice (Winter, Tormented
+    Loner), a devour or a sac outlet (Mycoloth) — answers nothing of theirs."""
+    yield from _tree_edict_answers(tree)[0]
 
 
 def _edict_answer_types(tree: ConceptTree) -> frozenset[str]:
     """Every permanent-type "answer" a forced-sacrifice (edict, CR 701.21a)
-    effect in TREE can give — the UNION of :func:`_edict_answers`, no
-    actor-scope gate. Deliberately SEPARATE from :func:`_removal_answer_types`:
-    a destroy/exile/damage effect is never an edict (Armageddon's "destroy all
-    lands" must not satisfy a land-EDICT view — CR 701.8 vs 701.21a are
-    distinct zone-change verbs).
+    effect in TREE can give — the UNION of :func:`_edict_answers`.
+    Deliberately SEPARATE from :func:`_removal_answer_types`: a destroy/exile/
+    damage effect is never an edict (Armageddon's "destroy all lands" must not
+    satisfy a land-EDICT view — CR 701.8 vs 701.21a are distinct zone-change
+    verbs).
     """
     return frozenset().union(*(types for _, types in _edict_answers(tree)))
+
+
+#: The served ident a ledgered bridge emits when phase drops the forcing player of
+#: "each opponent … sacrifices" (``bridge_ledger``'s
+#: ``_sacrifice_actor_dropped_gap`` row).
+_OPPONENT_EDICT_IDENT = "edict_makers|opponents|"
 
 
 def removal_edict_answers(
     card: dict,
     family: str = "removal",
     *,
-    forced_only: bool = False,
     soft: bool = False,
 ) -> list[tuple[ConceptNode, frozenset[str]]]:
     """CARD's removal (FAMILY="removal" -> :func:`_removal_answers`, with its
     ``soft`` opt-in) or forced-sacrifice (FAMILY="edict" ->
-    :func:`_edict_answers`, with its ``forced_only`` gate) effects across every
-    face, each with its answer types. ``trees_for`` (the per-oracle_id tree
-    resolution) already memoizes the expensive part — see
-    ``theme_presets._signal_keys_for``'s docstring for the two-layer memo this
-    seam piggybacks on — so no separate cache is needed here.
+    :func:`_tree_edict_answers`) effects across every face, each with its answer
+    types.
+
+    An edict card with no forced sacrifice phase can read, only sacrifices naming
+    no player, whose served signals still say an opponent is forced (the ledger
+    reads "each opponent … sacrifices" off the oracle — Papalymo Totolymo,
+    Variable Solutions), answers with those sacrifices. The served ident is read
+    lazily, only for such a card.
     """
     from mtg_utils._card_ir.trees import trees_for
 
-    out: list[tuple[ConceptNode, frozenset[str]]] = []
-    for tree in trees_for(card, bulk=card):
-        if family == "removal":
-            out.extend(_removal_answers(tree, soft=soft))
-        else:
-            out.extend(_edict_answers(tree, forced_only=forced_only))
-    return out
+    trees = trees_for(card, bulk=card)
+    if family == "removal":
+        return [a for tree in trees for a in _removal_answers(tree, soft=soft)]
+    split = [_tree_edict_answers(tree) for tree in trees]
+    forced = [a for f, _ in split for a in f]
+    actorless = [a for _, n in split for a in n]
+    if forced or not actorless:
+        return forced
+    from mtg_utils.theme_presets import _signal_idents_for
+
+    return actorless if _OPPONENT_EDICT_IDENT in _signal_idents_for(card) else []
 
 
 def _removal_edict_types_for(card: dict, family: str) -> frozenset[str]:

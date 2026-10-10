@@ -48,6 +48,7 @@ from __future__ import annotations
 import re
 from collections.abc import Callable, Iterable, Iterator
 from dataclasses import dataclass
+from functools import cache
 from typing import TYPE_CHECKING
 
 from mtg_utils._analysis._subtypes import LAND_SUBTYPES
@@ -71,6 +72,7 @@ from mtg_utils._card_ir.crosswalk import (
     named_permanent_refs,
     protective_keyword,
     residue_is,
+    sacrifice_names_no_player,
     static_mode_field,
     tag_of,
     trigger_subject,
@@ -1896,6 +1898,37 @@ def _global_ruin_match(tree: ConceptTree) -> bool:
     return bool(_GLOBAL_RUIN_RX.search(tree.oracle or ""))
 
 
+# An opponent sacrifice whose player phase drops → edict_makers/opponents (and,
+# through the served ident ``removal_tutors.removal_edict_answers`` reads, the
+# type-scoped edict presets).
+# Papalymo Totolymo's "Each opponent who lost life this turn sacrifices a creature
+# with the greatest power …" and Variable Solutions' "If X is 2, each opponent
+# sacrifices an artifact" parse as a ``Sacrifice`` of a typed permanent that names
+# no player at all — the shape of a sacrifice you make yourself.
+_OPPONENT_SACRIFICE_RX = re.compile(
+    r"\beach opponent (?:who [^.,]*? )?sacrifices an? "
+    r"(?:artifact|creature|enchantment|land|planeswalker|permanent)\b",
+    re.IGNORECASE,
+)
+
+
+def _sacrifice_actor_dropped_gap(tree: ConceptTree) -> bool:
+    """A sacrifice naming no player (``sacrifice_names_no_player``), and no
+    sacrifice naming another player."""
+    actorless = named = False
+    for unit in tree.iter_units():
+        for c in unit.effects:
+            if c.concept != "sacrifice":
+                continue
+            if sacrifice_names_no_player(unit.node, c.node):
+                actorless = True
+            elif filter_controller(effect_filter(c.node)) != "You" or (
+                effect_owner_player_scope(unit.node, c.node) is not None
+            ):
+                named = True
+    return actorless and not named
+
+
 # ── board_protection / pillowfort parse failures (roles.protects, ADR-0051) ──
 # Prior serving: ``roles.protects`` read these off the oracle text (its retired
 # ``_PROTECT_GRANT`` / ``_PROTECT_SAVE`` / ``_PROTECT_DETER`` regexes) until it
@@ -2879,6 +2912,24 @@ BRIDGES: dict[str, Bridge] = {
             pins=("Global Ruin",),
             gap=_tracked_set_sacrifice_gap,
             match=_global_ruin_match,
+        ),
+        Bridge(
+            bridge_id="opponent_sacrifice_actor_dropped",
+            key="edict_makers",
+            scope="opponents",
+            kind="upstream_parse_failure",
+            todo=(
+                "upstream phase-rs report candidate (Dan posts): 'each opponent "
+                "[who …] sacrifices a <type>' parses as a Sacrifice naming no "
+                "player — retires on the phase bump that carries the actor"
+            ),
+            census=(
+                "2 hits / the legal corpus's 'each opponent … sacrifices' cards "
+                "(Papalymo Totolymo, Variable Solutions), phase v0.104.0, 2026-10-09"
+            ),
+            pins=("Papalymo Totolymo", "Variable Solutions"),
+            gap=_sacrifice_actor_dropped_gap,
+            match=_oracle_match(_OPPONENT_SACRIFICE_RX),
         ),
         Bridge(
             bridge_id="timesifter_unbound_extra_turn",
@@ -4533,6 +4584,7 @@ def bridge_fires(bridge_id: str, tree: ConceptTree) -> bool:
     return BRIDGES[bridge_id].fires(tree)
 
 
+@cache
 def bridges_for(key: str) -> tuple[Bridge, ...]:
     """Every ledgered bridge serving signal ``key`` — the question the ledger
     exists to answer (ADR-0048), so retirement and review read one place."""

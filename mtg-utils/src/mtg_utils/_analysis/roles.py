@@ -12,11 +12,12 @@ card's IR. Nothing here hand-rolls a second detector: the bands these roles are
 measured against live in ``budgets``; the search that SOURCES a role reads the same
 preset the role counts by (ADR-0051).
 
-The one text read is the documented no-coverage degrade: a card the signal path
+The text reads are the documented no-coverage degrades: a card the signal path
 cannot see (no ``oracle_id``, no phase parse, no sidecar — a synthetic fixture, a
-cube pool run with no card-data) answers ramp from
-``card_classify.ramp_by_text``. ``protects`` has no degrade: such a card is not
-protection.
+cube pool run with no card-data, a set newer than the phase pin) answers ramp from
+``card_classify.ramp_by_text`` and removal (``interaction``) from
+``card_classify.removal_reach_by_text``. ``protects`` has no degrade: such a card
+is not protection.
 """
 
 from __future__ import annotations
@@ -35,7 +36,7 @@ from mtg_utils._card_ir.crosswalk.reads import (
     tag_of,
 )
 from mtg_utils._card_ir.trees import object_facts, trees_for
-from mtg_utils.card_classify import is_land, ramp_by_text
+from mtg_utils.card_classify import is_land, ramp_by_text, removal_reach_by_text
 from mtg_utils.card_ir import Card
 from mtg_utils.theme_presets import get_preset, has_signal_coverage
 
@@ -394,8 +395,9 @@ def is_ramp(card: dict, *, deck_mana: DeckMana | None = None) -> bool:
 
     A card the signal path cannot see at all (``has_signal_coverage`` false: no
     ``oracle_id``, no phase parse, no card-data) degrades to
-    ``card_classify.ramp_by_text`` — the ONE surviving text read, so a no-sidecar
-    ``deck-stats`` / cube goldfish still counts its rocks.
+    ``card_classify.ramp_by_text`` — one of the two no-coverage text reads (the
+    other is :func:`role_of`'s removal), so a no-sidecar ``deck-stats`` / cube
+    goldfish still counts its rocks.
 
     ``deck_mana`` is the deck context: with it, a source whose mana is dead for this
     deck (:meth:`DeckMana.dead_mana`: Arcane Signet under a colorless commander) is
@@ -424,7 +426,11 @@ def role_of(card: dict, *, deck_mana: DeckMana | None = None) -> set[str]:
     (the IR's ``destroy`` / ``restriction`` categories don't encode the pacify-vs-self
     and edict boundaries), but a structural VETO drops a preset hit the IR shows is pure
     graveyard recursion (``_ir_recursion_only`` — "return X or Y card from your
-    graveyard", which the preset's ``card`` anchor misses).
+    graveyard", which the preset's ``card`` anchor misses). A card phase has no
+    concept trees for (a set newer than the phase pin) reads its removal from
+    ``card_classify.removal_reach_by_text`` instead — the degrade, and the gate,
+    ``twohg_scan``'s removal reach uses — so ``set-scan`` still counts a new set's
+    removal.
 
     ``card_draw`` ALSO unions in the ``card-draw`` PRESET unconditionally
     (task #93) — ``_ir_draws`` alone under-counts: it only tags a whole-
@@ -454,9 +460,10 @@ def role_of(card: dict, *, deck_mana: DeckMana | None = None) -> set[str]:
         roles.add("card_draw")
     if (ir is not None and _ir_board_wipe(ir)) or _matches_preset(card, "board-wipe"):
         roles.add("board_wipe")
-    if _matches_any(card, _INTERACTION_PRESETS) and not (
-        ir is not None and _ir_recursion_only(ir)
-    ):
+    if (
+        _matches_any(card, _INTERACTION_PRESETS)
+        and not (ir is not None and _ir_recursion_only(ir))
+    ) or (not trees_for(card, bulk=card) and removal_reach_by_text(card).removes):
         roles.add("interaction")
     return roles
 

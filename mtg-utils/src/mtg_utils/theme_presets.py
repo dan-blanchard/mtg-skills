@@ -500,6 +500,33 @@ def _ramp_concept(card: dict) -> bool:
     )
 
 
+#: Graveyard-recursion keywords phase v0.94.0+ drops on some cards, so the
+#: ``self_recurring`` key can't see them (Dawn's aftermath half, Garza's Assassin's
+#: recover, Salvation Colossus's unearth, Oscorp Industries' mayhem). Each brings the
+#: card back out of its graveyard (CR 702.127a, 702.59a, 702.84a, 702.187a): the
+#: ``self-recurring`` preset's keywords arm reads them, and the graveyard serves
+#: (``lanes.card_advantage.comes_back_from_graveyard``) by each keyword's route;
+#: ``test_self_recurring_keyword_gap_canary`` retires each.
+SELF_RECURRING_KEYWORD_GAPS: tuple[str, ...] = (
+    "Aftermath",
+    "Recover",
+    "Unearth",
+    "Mayhem",
+)
+
+
+def _fodder_concept(card: dict) -> bool:
+    """The ``self-recurring-fodder`` preset: a creature that comes back out of the
+    graveyard by a fodder route (``lanes.card_advantage``), imported lazily for the
+    cycle :func:`_signal_keys_for` documents."""
+    from mtg_utils._analysis.lanes.card_advantage import (
+        FODDER_SELF_RETURNS,
+        comes_back_from_graveyard,
+    )
+
+    return comes_back_from_graveyard(card, FODDER_SELF_RETURNS)
+
+
 def _removal_edict_concept(
     core_type: str, *, family: str = "removal", generous_any: bool = False
 ) -> Callable[[dict], bool]:
@@ -2803,7 +2830,7 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
             "Assassin's recover, Salvation Colossus's unearth, a land's mayhem "
             "(Oscorp Industries) (`test_self_recurring_keyword_gap_canary`)."
         ),
-        keywords=("Aftermath", "Recover", "Unearth", "Mayhem"),
+        keywords=SELF_RECURRING_KEYWORD_GAPS,
         signal_keys=("self_recurring",),
         should_match=(
             "Bloodghast",
@@ -2818,6 +2845,38 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
             "Man-o'-War",
             "Aetherling",
             "Ancestral Vision",
+        ),
+    ),
+    Preset(
+        name="self-recurring-fodder",
+        description=(
+            "A creature that brings itself back out of the graveyard — onto the "
+            "battlefield, to hand, cast, or as a token copy (Bloodghast, Kitchen "
+            "Finks, Pyre Zombie, Gravecrawler, Sacred Cat): sacrifice fodder that "
+            "comes back."
+        ),
+        notes=(
+            'The "Self-recurring fodder" sub-avenue\'s search; its serve reads the '
+            "same predicate (`lanes.card_advantage.comes_back_from_graveyard` over "
+            "`FODDER_SELF_RETURNS`). A card that comes back as a non-creature — an "
+            "Ojer god's land, Accursed Witch's Curse, Harold and Bob's Aura, a "
+            "disturb Aura — or only from the battlefield (Arcanis) is out."
+        ),
+        concept=_fodder_concept,
+        should_match=(
+            "Bloodghast",
+            "Kitchen Finks",
+            "Pyre Zombie",
+            "Anointer Priest",
+            "Loyal Cathar // Unhallowed Cathar",
+        ),
+        should_not_match=(
+            "Arcanis the Omnipotent",
+            "Ojer Axonil, Deepest Might // Temple of Power",
+            "Accursed Witch // Infectious Curse",
+            "Harold and Bob, First Numens",
+            "Brine Comber // Brinebound Gift",
+            "Sun Titan",
         ),
     ),
     Preset(
@@ -3454,8 +3513,25 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
             "Includes 'creature or planeswalker' modals."
         ),
         concept=_removal_edict_concept("Creature", family="edict"),
-        should_match=("Diabolic Edict",),
-        should_not_match=("Lightning Bolt", "Shatter", "Sinkhole"),
+        should_match=(
+            "Diabolic Edict",
+            "Priest of Forgotten Gods",  # "any number of target players each …"
+            "Papalymo Totolymo",  # phase drops "each opponent" (a ledger row)
+            "Davriel, Soul Broker",  # +1's "they sacrifice an attacking creature"
+            # "may sacrifice a permanent … that shares a card type with it" (its
+            # ruling): the types of what you sacrificed.
+            "Braids, Arisen Nightmare",
+        ),
+        # Devour (CR 702.82a) is a sacrifice YOU make (CR 701.21a): no edict; nor
+        # is a punisher "any player may sacrifice".
+        should_not_match=(
+            "Lightning Bolt",
+            "Shatter",
+            "Sinkhole",
+            "Mycoloth",
+            "Prowling Pangolin",
+            "Brain Gorgers",
+        ),
     ),
     Preset(
         name="artifact-edict",
@@ -3464,7 +3540,7 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
             "Tribute to the Wild, Pick Your Poison, Perilous Predicament."
         ),
         concept=_removal_edict_concept("Artifact", family="edict"),
-        should_match=("Tribute to the Wild",),
+        should_match=("Tribute to the Wild", "Variable Solutions"),
         should_not_match=("Lightning Bolt", "Diabolic Edict"),
     ),
     Preset(
@@ -3489,8 +3565,14 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
             "Zuran Orb): this is a FORCED sacrifice a caster inflicts."
         ),
         concept=_removal_edict_concept("Land", family="edict"),
-        should_match=("Wildfire",),
-        should_not_match=("Lightning Bolt", "Armageddon"),
+        should_match=(
+            "Wildfire",
+            "Feast of Worms",  # "its controller sacrifices another land"
+            "Tectonic Hellion",  # each player who controls the most lands
+            "Din of the Fireherd",  # "…, then sacrifices a land"
+        ),
+        # Chain of Vapor's "that permanent's controller MAY sacrifice a land".
+        should_not_match=("Lightning Bolt", "Armageddon", "Chain of Vapor"),
     ),
     Preset(
         name="planeswalker-edict",
@@ -3502,7 +3584,13 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
         ),
         concept=_removal_edict_concept("Planeswalker", family="edict"),
         should_match=("Sheoldred's Edict",),
-        should_not_match=("Lightning Bolt", "Diabolic Edict"),
+        # Winter's "you may sacrifice a creature or planeswalker" is your own
+        # sacrifice (CR 701.21a); only its opponents' creature sacrifice is an edict.
+        should_not_match=(
+            "Lightning Bolt",
+            "Diabolic Edict",
+            "Winter, Tormented Loner",
+        ),
     ),
     Preset(
         name="universal-edict",
@@ -3517,7 +3605,14 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
         ),
         keywords=("Annihilator",),
         concept=_removal_edict_concept("Permanent", family="edict"),
-        should_match=("Shard of the Void Dragon", "Martyr's Bond"),
+        should_match=(
+            "Shard of the Void Dragon",
+            "Martyr's Bond",
+            "Fade Away",  # "For each creature, its controller sacrifices"
+            "Liliana of the Veil",  # -6: the pile of their choice
+            "Nicol Bolas, Planeswalker",  # -9: "then sacrifices seven permanents"
+            "Undercity Plague",  # "…, then sacrifices a permanent"
+        ),
         should_not_match=("Lightning Bolt", "Diabolic Edict", "Wildfire"),
     ),
     # ── Land-animation (manlands + Earthbend) ──

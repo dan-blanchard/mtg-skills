@@ -164,3 +164,12 @@ def test_clis(tmp_path):
     assert res.exit_code == 0, res.output
     rows = {r["pair"]: r for r in json.loads(res.output)}
     assert rows["BG"]["playables"] == 3
+
+
+def test_set_scan_counts_removal_on_a_set_phase_has_not_parsed():
+    """A set newer than the phase pin has no concept trees (here: the real record
+    with its ``oracle_id`` stripped), so removal falls back to the text degrade
+    ``twohg-scan`` shares (``card_classify.removal_reach_by_text``)."""
+    unparsed = {k: v for k, v in MURDER.items() if k != "oracle_id"}
+    scan = set_scan([unparsed, BEAR], code="new")
+    assert scan["removal"]["cards"] == ["Murder"]

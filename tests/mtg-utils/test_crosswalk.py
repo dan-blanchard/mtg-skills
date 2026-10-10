@@ -3427,17 +3427,65 @@ def test_lifeloss_matters_trigger_and_keyword():
         ("Diabolic Edict", ("edict_makers", "opponents", "")),  # subject TargetPlayer
         ("Grave Pact", ("edict_makers", "opponents", "")),  # player_scope on wrapper
         ("Fleshbag Marauder", ("edict_makers", "each", "")),  # player_scope All
+        # "Target player loses 1 life, discards a card, then sacrifices a
+        # permanent": the chained clause's subject is the target player.
+        ("Undercity Plague", ("edict_makers", "opponents", "")),
+        # Its ruling: "You may target players who can't sacrifice a creature."
+        ("Priest of Forgotten Gods", ("edict_makers", "opponents", "")),
+        # "That player or that planeswalker's controller … then sacrifices".
+        ("Nicol Bolas, Planeswalker", ("edict_makers", "opponents", "")),
+        # A delayed trigger watching an opponent's attackers: "they sacrifice".
+        ("Davriel, Soul Broker", ("edict_makers", "opponents", "")),
+        # "its controller sacrifices another land": the destroyed land's controller.
+        ("Feast of Worms", ("edict_makers", "opponents", "")),
+        # Its ruling: "each player counts up the number of creatures they control".
+        ("Fade Away", ("edict_makers", "each", "")),
+        # Its ruling: "If everyone controls the same number of lands, everyone
+        # sacrifices two lands."
+        ("Tectonic Hellion", ("edict_makers", "each", "")),
     ],
 )
 def test_edict_makers_fires(name, ident):
     assert ident in _idents(name)
 
 
-@pytest.mark.parametrize("name", ["Mycoloth", "Viscera Seer"])
+@pytest.mark.parametrize(
+    "name",
+    ["Mycoloth", "Viscera Seer", "Vexing Devil", "Chain of Vapor", "Prowling Pangolin"],
+)
 def test_edict_makers_excludes_you_sac(name):
     """A you-sac (Mycoloth — sacrificed subject controller You; Viscera Seer — a sac
-    COST, never an effect) is NOT an edict (CR 701.21a)."""
+    COST, never an effect; Vexing Devil's "If a player does, sacrifice ~" after an
+    effect aimed at an opponent) is NOT an edict (CR 701.21a)."""
     assert "edict_makers" not in _keys(name)
+
+
+@pytest.mark.retirement_canary
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Undercity Plague",
+        "Din of the Fireherd",
+        "Nicol Bolas, Planeswalker",
+        # The sacrifice hangs beside the delayed trigger, not inside it.
+        "Davriel, Soul Broker",
+    ],
+)
+def test_chained_sacrifice_actor_dropped_canary(name):
+    """Retirement canary for ``lanes._shared._chained_sacrifice_actor``: phase
+    v0.104.0 drops the subject of a chained "…, then sacrifices …" clause (a
+    sacrifice naming no player — ``sacrifice_names_no_player``). Once phase
+    carries the actor, delete the chained read."""
+    from mtg_utils._card_ir.crosswalk import sacrifice_names_no_player
+
+    dropped = [
+        c
+        for t in trees_for(test_card(name))
+        for u in t.units
+        for c in u.effects
+        if c.concept == "sacrifice" and sacrifice_names_no_player(u.node, c.node)
+    ]
+    assert dropped, f"{name}: RETIRE-READY — phase now names the sacrificing player"
 
 
 def test_land_sacrifice_makers_fires():

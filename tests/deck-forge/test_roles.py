@@ -120,6 +120,35 @@ def test_covered_card_never_falls_back_to_text():
     assert not is_ramp(lying)
 
 
+def _no_ir(name: str) -> dict:
+    """The real record with no ``oracle_id``: the signal path can't see it, the
+    shape of a set newer than the phase pin (as ``test_twohg_scan`` strips it)."""
+    return {k: v for k, v in test_card(name).items() if k != "oracle_id"}
+
+
+@pytest.mark.parametrize("name", ["Murder", "Lightning Bolt", "Wrath of God"])
+def test_removal_degrades_to_text_without_coverage(name):
+    """``set-scan`` on a set phase hasn't parsed still counts its removal: the
+    interaction role reads ``card_classify.removal_reach_by_text``, the degrade
+    ``twohg_scan``'s removal reach shares."""
+    card = _no_ir(name)
+    assert not has_signal_coverage(card)
+    assert "interaction" in role_of(card)
+
+
+@pytest.mark.parametrize("name", ["Grizzly Bears", "Divination"])
+def test_no_removal_text_no_interaction_without_coverage(name):
+    assert "interaction" not in role_of(_no_ir(name))
+
+
+def test_covered_card_never_falls_back_to_removal_text():
+    # Covered + no interaction preset ⇒ no interaction, whatever the text says.
+    bears = _real("Grizzly Bears")
+    lying = {**bears, "oracle_text": "Destroy target creature."}
+    assert has_signal_coverage(lying)
+    assert "interaction" not in role_of(lying)
+
+
 def test_the_preset_and_the_role_agree_on_every_covered_card():
     """The agreement test that replaces the "mirrors is_ramp" comments: over the whole
     snapshot, the preset the tuner SEARCHES by and the role the budgets row COUNTS by

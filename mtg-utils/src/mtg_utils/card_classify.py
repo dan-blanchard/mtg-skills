@@ -368,6 +368,55 @@ def ramp_by_text(card: dict) -> bool:
     )
 
 
+# The removal text degrade (:func:`removal_reach_by_text`): a card that destroys,
+# exiles, burns, shrinks, forces the sacrifice of, or bounces a permanent on the
+# board, whether it can take a planeswalker, and its mana-value floor.
+_TEXT_REMOVAL = re.compile(
+    r"\b(?:destroy|exile) (?:up to \w+ )?(?:target|all|each)\b"
+    r"|\bdeals? (?:\w+ )?damage to (?:any target|each creature"
+    r"|(?:up to \w+ )?target (?!opponent|player))"
+    # a toughness cut that can kill — never Pradesh Gypsies' "-2/-0"
+    r"|\bgets? -\d+/-[1-9]\d*"
+    r"|\bsacrifices? (?:a|an|\w+) (?:[\w-]+ )*?(?:creature|planeswalker|permanent)"
+    r"|\breturn (?:up to \w+ )?target (?:[\w-]+ )*?(?:creature|permanent)\b(?! card)"
+)
+_TEXT_BOARD = re.compile(
+    r"\bany target\b|\btarget (?:[\w-]+ )*?(?:creature|planeswalker|permanent)\b"
+    r"|\b(?:each|all) (?:[\w-]+ )*?(?:creatures?|planeswalkers?|permanents?)\b"
+)
+_TEXT_WALKERS = re.compile(
+    r"\bany target\b|\bplaneswalkers?\b|\btarget (?:nonland |nontoken )?permanent\b"
+)
+_TEXT_MV_FLOOR = re.compile(r"\bmana value (\d+) or greater\b")
+
+
+class TextRemovalReach(NamedTuple):
+    """What :func:`removal_reach_by_text` reads off a card's oracle text."""
+
+    removes: bool  # removes a permanent on the board
+    walkers: bool  # can take a planeswalker
+    mv_floor: int | None  # the lowest "mana value N or greater" it names
+
+
+def removal_reach_by_text(card: dict) -> TextRemovalReach:
+    """Oracle-text read of a card's removal — the NO-COVERAGE DEGRADE only, like
+    :func:`ramp_by_text`.
+
+    ``_analysis.roles.role_of`` owns the removal answer (the interaction presets, a
+    view over the signal path) and falls back here ONLY for a card phase has no
+    concept trees for — a set newer than the phase pin, a synthetic record — and so
+    does ``twohg_scan``'s removal reach, on the same gate. Do not call this to
+    classify a covered card.
+    """
+    text = _REMINDER_RE.sub("", get_oracle_text(card)).lower()
+    floors = [int(n) for n in _TEXT_MV_FLOOR.findall(text)]
+    return TextRemovalReach(
+        removes=bool(_TEXT_REMOVAL.search(text) and _TEXT_BOARD.search(text)),
+        walkers=bool(_TEXT_WALKERS.search(text)),
+        mv_floor=min(floors) if floors else None,
+    )
+
+
 def _face_basic_land_colors(card: dict) -> set[str]:
     """The colours of the basic land types on the card's own type line: a land
     with a basic land type taps for that type's colour by its intrinsic ability

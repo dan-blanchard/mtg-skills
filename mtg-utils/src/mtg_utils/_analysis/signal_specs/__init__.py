@@ -16,7 +16,6 @@ from __future__ import annotations
 
 from ._shared import (
     _ART_SUBTYPES,
-    _ARTICLES_NAME,
     _BASIC_LAND_FETCH,
     _BOARD_PROTECTION_EXTRA,
     _BOARD_PROTECTION_ORACLE,
@@ -171,7 +170,6 @@ from ._shared import (
     _compile,
     _max_color_pips,
     _power,
-    _self_recurs,
     _spec,
     _sweep_spec_with_extras,
     _toughness,
@@ -210,7 +208,6 @@ __all__ = [
     "SOURCE_KEYWORDS",
     "SOURCE_TYPES",
     "SPECS",
-    "_ARTICLES_NAME",
     "_ART_SUBTYPES",
     "_BASIC_LAND_FETCH",
     "_BOARD_PROTECTION_EXTRA",
@@ -379,7 +376,6 @@ __all__ = [
     "_payoff_extra",
     "_pluralize",
     "_power",
-    "_self_recurs",
     "_spec",
     "_subject_spec",
     "_sweep_spec_with_extras",

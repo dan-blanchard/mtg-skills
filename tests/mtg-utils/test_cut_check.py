@@ -247,6 +247,123 @@ def test_self_recurring_keyword_gap_canary(name):
     )
 
 
+def _routes(name: str) -> set[str]:
+    from mtg_utils._analysis.lanes import self_return_routes
+
+    return {r for t in trees_for(test_card(name)) for r in self_return_routes(t)}
+
+
+@pytest.mark.parametrize(
+    ("name", "routes"),
+    [
+        ("Bloodghast", {"graveyard_to_battlefield"}),  # landfall, from your graveyard
+        ("Kitchen Finks", {"graveyard_to_battlefield"}),  # persist, CR 702.79a
+        ("Gravecrawler", {"graveyard_to_stack"}),  # cast from your graveyard
+        ("Faithless Looting", {"graveyard_to_stack"}),  # flashback
+        ("Pyre Zombie", {"graveyard_to_hand"}),  # its graveyard upkeep trigger
+        ("Krovikan Horror", {"graveyard_to_hand"}),  # a recovered residue
+        ("Anointer Priest", {"graveyard_to_token"}),  # embalm, CR 702.128a
+        ("Arcanis the Omnipotent", {"battlefield_to_hand"}),
+        ("Ragavan, Nimble Pilferer", {"battlefield_to_hand"}),  # dash, CR 702.109a
+        ("Whispers of the Muse", {"stack_to_hand"}),  # buyback, CR 702.27a
+        ("Pulse of the Fields", {"stack_to_hand"}),  # returns itself as it resolves
+        ("Arc Blade", {"exile_to_stack"}),  # re-suspends, CR 702.62a
+        ("Staggershock", {"exile_to_stack"}),  # rebound, CR 702.88a
+        # "you may cast it from your graveyard" in an ability that works there
+        # (Skyclave Shade's ruling: cast "from your graveyard").
+        ("Skyclave Shade", {"graveyard_to_stack"}),
+        ("Mosswood Dreadknight // Dread Whispers", {"graveyard_to_stack"}),
+        # "return it from your graveyard": And(ParentTarget, a card in a graveyard).
+        ("Tomakul Phoenix", {"graveyard_to_battlefield"}),
+        # Returns as another object: transformed (its back face decides) or as an
+        # Aura ("It's an Aura enchantment").
+        (
+            "Ojer Axonil, Deepest Might // Temple of Power",
+            {"graveyard_to_battlefield_transformed"},
+        ),
+        ("Loyal Cathar // Unhallowed Cathar", {"graveyard_to_battlefield_transformed"}),
+        ("Harold and Bob, First Numens", {"graveyard_to_battlefield_as_aura"}),
+        # Disturb casts it transformed from your graveyard (CR 702.146a).
+        ("Brine Comber // Brinebound Gift", {"graveyard_to_stack_transformed"}),
+        # Its enters trigger can target itself (CR 115.5: only a spell or ability is
+        # an illegal target for itself), which perpetually gains the return.
+        ("Kami of Mourning", {"graveyard_to_battlefield"}),
+        # "return this card from your graveyard to battlefield tapped", read past
+        # phase's bounce (test_perpetual_bounce_misparse_canary).
+        ("Forgeborn Phoenix", {"graveyard_to_battlefield"}),
+    ],
+)
+def test_self_return_routes(name, routes):
+    """The ``self_recurring`` subject: where the card is when it comes back, and
+    where it goes."""
+    assert _routes(name) == routes
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        # Its enters trigger returns "the creature card in your graveyard with the
+        # greatest power" — never itself, which is on the battlefield.
+        "Desecrator Hag",
+        # "exile the top card of your library … you may play it": the exiled card.
+        "Clockwork Percussionist",
+    ],
+)
+def test_no_self_return_route(name):
+    assert _routes(name) == set()
+
+
+@pytest.mark.retirement_canary
+@pytest.mark.parametrize(
+    "name", ["Skyclave Shade", "Mosswood Dreadknight // Dread Whispers"]
+)
+def test_unbound_graveyard_cast_misparse_canary(name):
+    """Retirement canary for ``card_advantage._unbound_graveyard_cast``'s
+    ``TrackedSet`` arm: phase v0.104.0 reads "you may cast it from your graveyard"
+    as a ``PlayFromExile`` permission on an empty ``TrackedSet``. Once phase names
+    the card (``SelfRef``) or the graveyard, drop ``UNBOUND_CAST_TARGET``."""
+    from mtg_utils._analysis.lanes.card_advantage import UNBOUND_CAST_TARGET
+    from mtg_utils._card_ir.crosswalk import tag_of
+
+    grants = [
+        n
+        for t in trees_for(test_card(name))
+        for n in t.iter_typed()
+        if tag_of(n) == "GrantCastingPermission"
+    ]
+    assert grants
+    assert all(
+        tag_of(getattr(n, "target", None)) == UNBOUND_CAST_TARGET
+        and "PlayFromExile" in repr(getattr(n, "permission", None))
+        for n in grants
+    ), f"{name}: RETIRE-READY — phase now binds the graveyard cast permission"
+
+
+@pytest.mark.retirement_canary
+def test_perpetual_bounce_misparse_canary():
+    """Retirement canary for ``card_advantage._perpetual_bounce_misparse``: phase
+    v0.104.0 reads Forgeborn Phoenix's perpetually granted "return this card from
+    your graveyard to battlefield tapped" as a ``Bounce`` (to hand). Once it reads
+    a ``ChangeZone`` to the battlefield, delete the workaround."""
+    from mtg_utils._card_ir.crosswalk import (
+        iter_nested_granted_bodies,
+        iter_typed_nodes,
+        tag_of,
+    )
+
+    tags = {
+        tag_of(n)
+        for t in trees_for(test_card("Forgeborn Phoenix"))
+        for node in t.iter_typed()
+        if tag_of(node) == "ApplyPerpetual"
+        for _kind, body in iter_nested_granted_bodies(node)
+        for n in iter_typed_nodes(body)
+    }
+    retire = "Forgeborn Phoenix: RETIRE-READY — phase now reads the battlefield"
+    assert "Bounce" in tags, retire
+    assert "ChangeZone" not in tags, retire
+
+
 class TestActivatedAbilities:
     """The activated abilities that work on the battlefield (CR 602.1, 113.6b)."""
 

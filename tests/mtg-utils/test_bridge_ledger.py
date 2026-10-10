@@ -252,6 +252,9 @@ _MISPARSE_ROWS = {
     "global_ruin_tracked_set_sacrifice": (
         "the sacrifice of the unchosen lands parsed as Sacrifice{TrackedSet, 1}"
     ),
+    "opponent_sacrifice_actor_dropped": (
+        "'each opponent sacrifices' parsed as a Sacrifice naming no player"
+    ),
 }
 
 # Rows whose match reads structure, not the clause's words: text can't locate
