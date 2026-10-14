@@ -148,8 +148,13 @@ class StoreSession(Protocol):
 
     name: str
     display_name: str
-    kind: StorefrontKind
     base_url: str
+
+    # Read-only so the two sub-Protocols can narrow it: a mutable
+    # attribute can't be overridden with a narrower type (writes of the
+    # wider type would be legal through the base).
+    @property
+    def kind(self) -> StorefrontKind: ...
 
     def name_for_search(self, card_name: str) -> str: ...
     def get_existing_cart(self, page: Page) -> list[Listing]: ...
@@ -198,7 +203,8 @@ class LGSAdapter(StoreSession, Protocol):
     is a single physical shop with its own first-party inventory.
     """
 
-    kind: Literal["lgs"]
+    @property
+    def kind(self) -> Literal["lgs"]: ...
 
     def search(
         self,
@@ -221,7 +227,8 @@ class MarketplaceAdapter(StoreSession, Protocol):
     aggregator over many third-party sellers.
     """
 
-    kind: Literal["marketplace"]
+    @property
+    def kind(self) -> Literal["marketplace"]: ...
 
     def bulk_submit_and_optimize(
         self,
