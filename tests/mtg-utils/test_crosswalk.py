@@ -966,6 +966,8 @@ def test_blink_flicker_membership_floor_payoff_is_low_and_not_a_maker():
     [
         ("Intangible Virtue", True),  # YOUR token anthem
         ("Anointer Priest", True),  # YOUR-token ETB trigger
+        # YOUR-token leaves-the-battlefield trigger (CR 603.6c)
+        ("Zurgo Stormrender", True),
         ("Virulent Plague", False),  # symmetric -2/-2 token hoser
     ],
 )
@@ -11491,6 +11493,23 @@ def test_token_doubling_replacement_read(name, should_fire):
     assert (("token_doubling", "you", "") in _idents(name)) is should_fire
 
 
+@pytest.mark.parametrize(
+    ("name", "should_fire"),
+    [
+        ("Esix, Fractal Bloom", True),  # copies instead — no increase mod
+        ("Chatterfang, Squirrel General", True),  # "plus that many Squirrels"
+        ("Halving Season", False),  # an opponent's tokens, halved
+    ],
+)
+def test_token_replacement_is_a_tokens_payoff(name, should_fire):
+    """CR 614.1a + 111.1: any your-side CreateToken replacement only does
+    something when you make tokens, so it is a tokens_matter carer of the
+    token-maker avenue, doubler or not; only a real increase is token_doubling."""
+    idents = _idents(name)
+    assert (("tokens_matter", "you", "") in idents) is should_fire
+    assert ("token_doubling", "you", "") not in idents
+
+
 def test_token_doubling_co_fires_copy_and_matters():
     """Live ADR-0027 C5 co-fire reproduced: a token doubler forks token-copy
     spells and is a go-wide payoff — token_copy_makers + tokens_matter open
@@ -13950,6 +13969,21 @@ def test_wants_theft_facade_reconciliation():
     assert ("gain_control", "you", "") in amalgam
     assert "wants_theft" not in _keys("Hero's Downfall")
     assert _confidences("Thieving Amalgam", "wants_theft") == {"low"}
+
+
+def test_wants_theft_from_a_dont_own_cost_reduction():
+    """Gonti, Canny Acquisitor's "Spells you cast but don't own cost {1} less"
+    is a theft payoff (CR 108.3 owner, 601.2f cost reduction): wants_theft
+    HIGH (so read_deck_signals counts it among a Gonti commander's own idents),
+    scope you, beside the cost_reduction read. The exile-and-cast
+    engines with no don't-own line (Gonti, Lord of Luxury; Thief of Sanity)
+    open no wants_theft."""
+    idents = _idents("Gonti, Canny Acquisitor")
+    assert ("wants_theft", "you", "") in idents
+    assert ("cost_reduction", "you", "") in idents
+    assert _confidences("Gonti, Canny Acquisitor", "wants_theft") == {"high"}
+    assert "wants_theft" not in _keys("Gonti, Lord of Luxury")
+    assert "wants_theft" not in _keys("Thief of Sanity")
 
 
 def test_wants_cloning_membership_arms():

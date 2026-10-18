@@ -1406,15 +1406,16 @@ def test_dont_own_payoff_opens_wants_theft_and_gain_control():
     # A theft-PAYOFF commander that rewards permanents "you control but DON'T OWN"
     # (Don Andres, Arvinox) is built on stealing — it WANTS the whole theft package
     # (battlefield steals AND borrow-and-cast). Gonti, Canny Acquisitor's "Spells
-    # you cast but don't own" pins the intervening-verb form. The don't-own tell is
-    # extract_signals's post-merge reconciliation. Real oracle.
-    for name in (
-        "Don Andres, the Renegade",
-        "Arvinox, the Mind Flail",
-        "Gonti, Canny Acquisitor",
+    # you cast but don't own" pins the intervening-verb form; its don't-own line is
+    # a cost reduction, so it opens the payoff at scope you (HIGH) instead. The
+    # don't-own tell is extract_signals's post-merge reconciliation. Real oracle.
+    for name, scope in (
+        ("Don Andres, the Renegade", "opponents"),
+        ("Arvinox, the Mind Flail", "opponents"),
+        ("Gonti, Canny Acquisitor", "you"),
     ):
         ks = _ks_real(name)
-        assert ("wants_theft", "opponents") in ks, name
+        assert ("wants_theft", scope) in ks, name
         assert ("gain_control", "you") in ks, name
     # Over-fire guard: a plain commander opens neither.
     assert ("wants_theft", "opponents") not in _ks_real("Grizzly Bears")

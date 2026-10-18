@@ -197964,6 +197964,274 @@
     "type_line": "Creature — Squid Horror"
    }
   },
+  "Chatterfang, Squirrel General": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": {
+        "costs": [
+         {
+          "cost": {
+           "generic": 0,
+           "shards": [
+            "Black"
+           ],
+           "type": "Cost"
+          },
+          "type": "Mana"
+         },
+         {
+          "count": 4294967295,
+          "target": {
+           "controller": null,
+           "properties": [],
+           "type": "Typed",
+           "type_filters": [
+            {
+             "Subtype": "Squirrel"
+            }
+           ]
+          },
+          "type": "Sacrifice"
+         }
+        ],
+        "type": "Composite"
+       },
+       "description": "{B}, Sacrifice X Squirrels: Target creature gets +X/-X until end of turn.",
+       "duration": "UntilEndOfTurn",
+       "effect": {
+        "power": {
+         "type": "Variable",
+         "value": "X"
+        },
+        "target": {
+         "controller": null,
+         "properties": [],
+         "type": "Typed",
+         "type_filters": [
+          "Creature"
+         ]
+        },
+        "toughness": {
+         "type": "Variable",
+         "value": "-X"
+        },
+        "type": "Pump"
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "brawl_commander": true,
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Squirrel",
+       "Warrior"
+      ],
+      "supertypes": [
+       "Legendary"
+      ]
+     },
+     "color_identity": [
+      "Black",
+      "Green"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "is_commander": true,
+     "keywords": [
+      {
+       "Landwalk": "Forest"
+      }
+     ],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 2,
+      "shards": [
+       "Green"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "related_token_ids": [
+       "20cf468e-53c0-55c9-81f0-7ed254feac63",
+       "76ce65a3-028f-555a-8294-afe5c9e769e2",
+       "da457623-e6de-51b0-a22f-e279640934a9"
+      ],
+      "source_printing_ids": [
+       "1785cf85-1ac0-4246-9b89-1a8221a8e1b2",
+       "2bb8c103-37c3-4c5f-9b3f-48d8b2292783",
+       "30310d1c-27b5-4d49-95ea-aad530190974",
+       "47ba5ac8-e8fa-4979-9ef9-c3d75ee7f982",
+       "57b819b7-c193-446d-b7cf-75a09e1d58a4",
+       "72ab0422-eba0-4e1e-9626-ef31b836dcd2",
+       "798d161f-230d-4115-8351-ec6e33ed1730"
+      ]
+     },
+     "name": "Chatterfang, Squirrel General",
+     "non_ability_text": null,
+     "oracle_text": "Forestwalk (This creature can't be blocked as long as defending player controls a Forest.)\nIf one or more tokens would be created under your control, those tokens plus that many 1/1 green Squirrel creature tokens are created instead.\n{B}, Sacrifice X Squirrels: Target creature gets +X/-X until end of turn.",
+     "power": {
+      "type": "Fixed",
+      "value": 3
+     },
+     "printings": [
+      "BLC",
+      "J21",
+      "MH2",
+      "PMH2",
+      "PRM"
+     ],
+     "rarities": [
+      "mythic"
+     ],
+     "replacements": [
+      {
+       "additional_token_spec": {
+        "characteristics": {
+         "colors": [
+          "Green"
+         ],
+         "core_types": [
+          "Creature"
+         ],
+         "display_name": "Squirrel",
+         "keywords": [],
+         "power": 1,
+         "subtypes": [
+          "Squirrel"
+         ],
+         "supertypes": [],
+         "toughness": 1
+        },
+        "controller": 0,
+        "enter_with_counters": [],
+        "enters_attacking": false,
+        "sacrifice_at": null,
+        "script_name": "Squirrel",
+        "source_id": 0,
+        "static_abilities": [],
+        "tapped": false
+       },
+       "condition": null,
+       "description": "If one or more tokens would be created under your control, those tokens plus that many 1/1 green Squirrel creature tokens are created instead.",
+       "event": "CreateToken",
+       "execute": null,
+       "mode": {
+        "type": "Mandatory"
+       },
+       "token_owner_scope": "You",
+       "valid_card": null
+      }
+     ],
+     "rulings": [
+      {
+       "date": "2021-06-18",
+       "text": "Chatterfang's second ability applies to all kinds of tokens, including Clue, Food, and Treasure tokens."
+      },
+      {
+       "date": "2021-06-18",
+       "text": "If an effect changes under whose control a token would be created, that effect applies before Chatterfang's effect applies. If an effect changes under whose control a token would enter the battlefield, that effect applies after Chatterfang's effect is able to be applied."
+      },
+      {
+       "date": "2021-06-18",
+       "text": "In a Commander game, the defending player is the player Chatterfang is attacking or the controller of the planeswalker Chatterfang is attacking."
+      },
+      {
+       "date": "2021-06-18",
+       "text": "The additional Squirrel tokens won't have any abilities the other tokens were created with. Anything else specified in the effect creating the token (such as tapped, attacking, \"That token gains haste,\" or \"Exile that token at end of combat\") applies to both the original tokens and the Squirrels."
+      },
+      {
+       "date": "2025-01-24",
+       "text": "You don't need to control the spell or ability that creates the tokens, nor do you have to be the one creating the tokens for Chatterfang's ability to apply. As long as the tokens are being created under your control, Chatterang's replacement effect will apply."
+      }
+     ],
+     "scryfall_oracle_id": "f15b3b76-d38a-48db-bb44-3296183c8641",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 3
+     },
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "all_parts": [
+     {
+      "component": "token",
+      "id": "aa846cf5-c618-4304-bb92-5df936ebca9b",
+      "name": "Squirrel",
+      "oracle_id": "67f21c0c-2083-4eda-9dc3-cc8aee42289f",
+      "type_line": "Token Creature — Squirrel"
+     }
+    ],
+    "arena_available": true,
+    "cmc": 3.0,
+    "color_identity": [
+     "B",
+     "G"
+    ],
+    "colors": [
+     "G"
+    ],
+    "keywords": [
+     "Forestwalk",
+     "Landwalk"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{2}{G}",
+    "name": "Chatterfang, Squirrel General",
+    "oracle_id": "f15b3b76-d38a-48db-bb44-3296183c8641",
+    "oracle_text": "Forestwalk (This creature can't be blocked as long as defending player controls a Forest.)\nIf one or more tokens would be created under your control, those tokens plus that many 1/1 green Squirrel creature tokens are created instead.\n{B}, Sacrifice X Squirrels: Target creature gets +X/-X until end of turn.",
+    "power": "3",
+    "toughness": "3",
+    "type_line": "Legendary Creature — Squirrel Warrior"
+   }
+  },
   "Chef's Kiss": {
    "phase_records": [
     {
@@ -325528,6 +325796,232 @@
     "type_line": "Legendary Creature — God // Legendary Enchantment"
    }
   },
+  "Esix, Fractal Bloom": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "brawl_commander": true,
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Fractal"
+      ],
+      "supertypes": [
+       "Legendary"
+      ]
+     },
+     "color_identity": [
+      "Green",
+      "Blue"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "is_commander": true,
+     "keywords": [
+      "Flying"
+     ],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 4,
+      "shards": [
+       "Green",
+       "Blue"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "related_token_ids": [
+       "3e14c94c-0678-506c-aeac-ca3a286c2343",
+       "53c49d79-4634-5dca-80ea-af578fcdf6dc"
+      ],
+      "source_printing_ids": [
+       "2e390f8e-1dd5-4383-83f5-45f20f18d410",
+       "9c381bc2-d26e-4d7e-9a0b-a8f7d2d802be",
+       "f695b960-d55f-471d-b1b0-68220e6508ad"
+      ]
+     },
+     "name": "Esix, Fractal Bloom",
+     "non_ability_text": null,
+     "oracle_text": "Flying\nThe first time you would create one or more tokens during each of your turns, you may instead choose a creature other than Esix and create that many tokens that are copies of that creature.",
+     "power": {
+      "type": "Fixed",
+      "value": 4
+     },
+     "printings": [
+      "C21",
+      "MKC"
+     ],
+     "rarities": [
+      "mythic"
+     ],
+     "replacements": [
+      {
+       "condition": {
+        "active_player_req": "You",
+        "type": "FirstTokenCreationEachTurn"
+       },
+       "description": "The first time you would create one or more tokens during each of your turns, you may instead choose a creature other than ~ and create that many tokens that are copies of that creature.",
+       "event": "CreateToken",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "filter": {
+          "controller": null,
+          "properties": [
+           {
+            "type": "Another"
+           }
+          ],
+          "type": "Typed",
+          "type_filters": [
+           "Creature"
+          ]
+         },
+         "type": "ChoosePermanent"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": null,
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "count": {
+           "qty": {
+            "type": "EventContextAmount"
+           },
+           "type": "Ref"
+          },
+          "enters_attacking": false,
+          "owner": {
+           "type": "Controller"
+          },
+          "tapped": false,
+          "target": {
+           "type": "Any"
+          },
+          "type": "CopyTokenOf"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": null,
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "mode": {
+        "decline": null,
+        "type": "Optional"
+       },
+       "token_owner_scope": "You",
+       "valid_card": null
+      }
+     ],
+     "rulings": [
+      {
+       "date": "2021-04-16",
+       "text": "If you choose a legendary creature, the copies will also be legendary. If this results in you controlling more than one legendary permanent with the same name, you'll put all but one of them into their owner's graveyard."
+      },
+      {
+       "date": "2021-04-16",
+       "text": "If you choose not to apply the replacement effect, you will not get the choice to apply it again until your next turn."
+      },
+      {
+       "date": "2021-04-16",
+       "text": "If you create one or more tokens during your turn, and then Esix comes under your control, the replacement effect won't apply to any tokens you create the rest of the turn. You'll have to wait until your next turn."
+      },
+      {
+       "date": "2021-04-16",
+       "text": "This effect applies before anything that modifies how those tokens enter the battlefield."
+      },
+      {
+       "date": "2021-04-16",
+       "text": "This effect can apply to any token, not just creature tokens. For example, you could replace creating a Treasure token with creating a copy of the chosen creature."
+      }
+     ],
+     "scryfall_oracle_id": "9d22960b-babc-4cf3-b228-d32e13bc6014",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 4
+     },
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "all_parts": [
+     {
+      "component": "token",
+      "id": "6870a2af-80e1-4813-a332-2b1bd789f1c1",
+      "name": "Copy",
+      "oracle_id": "88c78601-87f0-45e7-b2e0-e7ffcfb1cb70",
+      "type_line": "Token"
+     }
+    ],
+    "arena_available": false,
+    "cmc": 6.0,
+    "color_identity": [
+     "G",
+     "U"
+    ],
+    "colors": [
+     "G",
+     "U"
+    ],
+    "keywords": [
+     "Flying"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{4}{G}{U}",
+    "name": "Esix, Fractal Bloom",
+    "oracle_id": "9d22960b-babc-4cf3-b228-d32e13bc6014",
+    "oracle_text": "Flying\nThe first time you would create one or more tokens during each of your turns, you may instead choose a creature other than Esix and create that many tokens that are copies of that creature.",
+    "power": "4",
+    "toughness": "4",
+    "type_line": "Legendary Creature — Fractal"
+   }
+  },
   "Esper Charm": {
    "phase_records": [
     {
@@ -428970,6 +429464,159 @@
     "oracle_id": "36a9de4c-8073-475d-8679-e50844eef09e",
     "oracle_text": "{W}, {T}, Untap a tapped creature you control: Create a 1/1 green and white Citizen creature token.\n{W}{W}, {T}, Untap two tapped creatures you control: Draw a card.\n{W}{W}{W}{W}{W}, {T}, Untap fifteen tapped creatures you control: You win the game.",
     "type_line": "Artifact"
+   }
+  },
+  "Halving Season": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Enchantment"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Black"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {},
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 4,
+      "shards": [
+       "Black"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "63c0e008-58df-4a22-aa09-c33ee6daa923",
+       "e5a73344-e06c-48b9-98c8-c4ace487ab25"
+      ]
+     },
+     "name": "Halving Season",
+     "non_ability_text": null,
+     "oracle_text": "If an opponent would create one or more tokens, they create half that many of each of those kinds of tokens instead, rounded down.\nIf an opponent would put one or more counters on a permanent or player, they put half that many of each of those kinds of counters on that permanent or player instead, rounded down.",
+     "power": null,
+     "printings": [
+      "MB2",
+      "UNK"
+     ],
+     "rarities": [
+      "uncommon",
+      "rare"
+     ],
+     "replacements": [
+      {
+       "condition": null,
+       "description": "If an opponent would create one or more tokens, they create half that many of each of those kinds of tokens instead, rounded down.",
+       "event": "CreateToken",
+       "execute": null,
+       "mode": {
+        "type": "Mandatory"
+       },
+       "quantity_modification": {
+        "type": "Half"
+       },
+       "token_owner_scope": "Opponent",
+       "valid_card": null
+      },
+      {
+       "condition": null,
+       "counter_replacement_subject": "Actor",
+       "description": "If an opponent would put one or more counters on a permanent or player, they put half that many of each of those kinds of counters on that permanent or player instead, rounded down.",
+       "event": "AddCounter",
+       "execute": null,
+       "mode": {
+        "type": "Mandatory"
+       },
+       "quantity_modification": {
+        "type": "Half"
+       },
+       "valid_card": null,
+       "valid_player": "Opponent"
+      }
+     ],
+     "rulings": [
+      {
+       "date": "2024-11-08",
+       "text": "For many playtest cards, you’ll need to make a generous assumption that basic game rules would be updated to allow them to work. The Mystery Booster 2 Playtest Card Notes section (reproduced here in individual Gatherer rulings) provides guidance for fitting these cards into the existing rules structure."
+      },
+      {
+       "date": "2024-11-08",
+       "text": "Halving Season’s abilities won’t change the number of tokens you create or counters you place, even if you’re placing counters on permanents your opponents control."
+      },
+      {
+       "date": "2024-11-08",
+       "text": "If a permanent enters the battlefield with counters on it, the effect causing the permanent to be given counters may specify which player puts those counters on it. If the effect doesn’t specify a player, the object’s controller puts those counters on it."
+      },
+      {
+       "date": "2024-11-08",
+       "text": "If a player would create tokens or put counters on a permanent or player while their opponents control two or more Halving Seasons, apply the replacement effects one at a time, rounding down each time. For example, if a player would create 30 Treasure tokens while their opponents control three Halving Seasons, they would halve 30 to 15, halve 15 to 7, and then halve 7 to 3, and end up creating three Treasure tokens. Don’t spend them all on one spell!"
+      },
+      {
+       "date": "2024-11-08",
+       "text": "If two or more effects attempt to modify how many counters would be put onto a permanent you control, you choose the order to apply those effects, no matter who controls the sources of those effects."
+      },
+      {
+       "date": "2024-11-08",
+       "text": "Playtest cards aren’t legal for play in any tournament format other than Mystery Booster Limited formats. On the other hand, we expect they will spice up a wide variety of non-tournament games (as long as everyone’s on the same page about using them!)."
+      },
+      {
+       "date": "2024-11-08",
+       "text": "Playtest cards use a modified version of game symbols, such as {T} and {W}. These modified symbols should be treated as the standard symbols during play."
+      }
+     ],
+     "scryfall_oracle_id": "4d4ad5b2-b22d-497f-bd9a-282bf5c33947",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 5.0,
+    "color_identity": [
+     "B"
+    ],
+    "colors": [
+     "B"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "not_legal",
+     "competitivebrawl": "not_legal",
+     "duel": "not_legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "not_legal",
+     "modern": "not_legal",
+     "oathbreaker": "not_legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "not_legal"
+    },
+    "mana_cost": "{4}{B}",
+    "name": "Halving Season",
+    "oracle_id": "4d4ad5b2-b22d-497f-bd9a-282bf5c33947",
+    "oracle_text": "If an opponent would create one or more tokens, they create half that many of each of those kinds of tokens instead, rounded down.\nIf an opponent would put one or more counters on a permanent or player, they put half that many of each of those kinds of counters on that permanent or player instead, rounded down.",
+    "type_line": "Enchantment"
    }
   },
   "Hamlet Vanguard": {
@@ -992259,6 +992906,354 @@
     "oracle_text": "Haste\nZurgo attacks each combat if able.\nDuring your turn, Zurgo has indestructible.\nWhenever a creature dealt damage by Zurgo this turn dies, put a +1/+1 counter on Zurgo.",
     "power": "7",
     "toughness": "2",
+    "type_line": "Legendary Creature — Orc Warrior"
+   }
+  },
+  "Zurgo Stormrender": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "brawl_commander": true,
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Orc",
+       "Warrior"
+      ],
+      "supertypes": [
+       "Legendary"
+      ]
+     },
+     "color_identity": [
+      "Black",
+      "Red",
+      "White"
+     ],
+     "color_override": [
+      "Black",
+      "Red",
+      "White"
+     ],
+     "defense": null,
+     "flavor_name": null,
+     "is_commander": true,
+     "keywords": [
+      {
+       "Mobilize": {
+        "type": "Fixed",
+        "value": 1
+       }
+      }
+     ],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 0,
+      "shards": [
+       "Red",
+       "White",
+       "Black"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "related_token_ids": [
+       "0639a7f1-e1a9-5c70-9d2f-e43e36448115"
+      ],
+      "source_printing_ids": [
+       "dc8eb325-75c9-4331-830d-3f7d62d77290"
+      ]
+     },
+     "name": "Zurgo Stormrender",
+     "non_ability_text": null,
+     "oracle_text": "Mobilize 1 (Whenever this creature attacks, create a tapped and attacking 1/1 red Warrior creature token. Sacrifice it at the beginning of the next end step.)\nWhenever a creature token you control leaves the battlefield, draw a card if it was attacking. Otherwise, each opponent loses 1 life.",
+     "power": {
+      "type": "Fixed",
+      "value": 3
+     },
+     "printings": [
+      "TDC"
+     ],
+     "rarities": [
+      "mythic"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2025-04-04",
+       "text": "Although the Warrior tokens enter as attacking creatures, they were never declared as attacking creatures. Abilities that trigger whenever a creature attacks won’t trigger when the tokens enter attacking."
+      },
+      {
+       "date": "2025-04-04",
+       "text": "If Zurgo Stormrender leaves the battlefield at the same time as one or more creature tokens you control, its last ability will trigger once for each of those creature tokens."
+      },
+      {
+       "date": "2025-04-04",
+       "text": "You choose the player, planeswalker, or battle each Warrior token is attacking. They don’t all have to attack the same one, and they don’t have to attack the same player, planeswalker, or battle as the creature with mobilize."
+      }
+     ],
+     "scryfall_oracle_id": "0f93d88c-9d2e-416d-a10b-99483360b1fb",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 3
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "Whenever a creature token you control leaves the battlefield, draw a card if it was attacking. Otherwise, each opponent loses 1 life.",
+       "destination": null,
+       "execute": {
+        "condition": {
+         "filter": {
+          "controller": null,
+          "properties": [
+           {
+            "type": "Attacking"
+           }
+          ],
+          "type": "Typed",
+          "type_filters": []
+         },
+         "type": "TargetMatchesFilter",
+         "use_lki": true
+        },
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "count": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "target": {
+          "type": "Controller"
+         },
+         "type": "Draw"
+        },
+        "else_ability": {
+         "condition": null,
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "amount": {
+           "type": "Fixed",
+           "value": 1
+          },
+          "type": "LoseLife"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "player_scope": {
+          "type": "Opponent"
+         },
+         "sub_ability": null,
+         "target_prompt": null
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "LeavesBattlefield",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "controller": "You",
+        "properties": [
+         {
+          "type": "Token"
+         }
+        ],
+        "type": "Typed",
+        "type_filters": [
+         "Creature"
+        ]
+       },
+       "valid_source": null,
+       "valid_target": null
+      },
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "Mobilize — create Warrior tokens tapped and attacking",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "colors": [
+          "Red"
+         ],
+         "count": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "enters_attacking": true,
+         "keywords": [],
+         "name": "Warrior",
+         "owner": {
+          "type": "Controller"
+         },
+         "power": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "tapped": true,
+         "toughness": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "type": "Token",
+         "types": [
+          "Creature",
+          "Warrior"
+         ]
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": null,
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "condition": {
+           "phase": "End",
+           "type": "AtNextPhase"
+          },
+          "effect": {
+           "condition": null,
+           "cost": null,
+           "description": null,
+           "duration": null,
+           "effect": {
+            "count": {
+             "type": "Fixed",
+             "value": 1
+            },
+            "target": {
+             "type": "LastCreated"
+            },
+            "type": "Sacrifice"
+           },
+           "forward_result": false,
+           "kind": "Spell",
+           "optional": false,
+           "optional_targeting": false,
+           "sub_ability": null,
+           "target_prompt": null
+          },
+          "type": "CreateDelayedTrigger",
+          "uses_tracked_set": false
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": null,
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "mode": "Attacks",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [],
+       "valid_card": null,
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "all_parts": [
+     {
+      "component": "token",
+      "id": "7edc0515-a130-45a7-aa09-0e23bba41587",
+      "name": "Warrior",
+      "oracle_id": "7217090a-e420-4c17-ad47-f92cc3ae9190",
+      "type_line": "Token Creature — Warrior"
+     }
+    ],
+    "arena_available": true,
+    "cmc": 3.0,
+    "color_identity": [
+     "B",
+     "R",
+     "W"
+    ],
+    "colors": [
+     "B",
+     "R",
+     "W"
+    ],
+    "keywords": [
+     "Mobilize"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{R}{W}{B}",
+    "name": "Zurgo Stormrender",
+    "oracle_id": "0f93d88c-9d2e-416d-a10b-99483360b1fb",
+    "oracle_text": "Mobilize 1 (Whenever this creature attacks, create a tapped and attacking 1/1 red Warrior creature token. Sacrifice it at the beginning of the next end step.)\nWhenever a creature token you control leaves the battlefield, draw a card if it was attacking. Otherwise, each opponent loses 1 life.",
+    "power": "3",
+    "toughness": "3",
     "type_line": "Legendary Creature — Orc Warrior"
    }
   },

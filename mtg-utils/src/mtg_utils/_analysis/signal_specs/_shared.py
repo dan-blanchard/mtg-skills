@@ -72,8 +72,11 @@ _ART_SUBTYPES = (
     r"|equipment|vehicle|attraction|bobblehead|contraption|fortification"
     r"|incubator|spacecraft|mutagen"
 )
+# CR 205.3h's enchantment types. "Plan" is left out: the serve's unanchored
+# ``create [^.]*(?:…)[^.]*token`` arm would read it inside "Plains" /
+# "planeswalker".
 _ENCH_SUBTYPES = (
-    r"aura|saga|class|curse|shrine|background|cartouche|case|room|rune|shard"
+    r"aura|saga|class|curse|shrine|background|cartouche|case|room|rune|shard|role"
 )
 
 

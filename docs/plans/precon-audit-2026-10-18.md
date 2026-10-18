@@ -88,6 +88,33 @@ the guides' consensus; the notable miss.
 | Veloci-Ramp-Tor | FOCUSED | Dinosaur tribal | 1/4 | cheap ramp, protection, recursion; Ghalta and Mavren, Gishath | Sol Ring no longer cut; Wayward Swordtooth is |
 | Virtue and Valor | FOCUSED | Enchantments | 2/5 | fix mana and ramp; Sythis, protection, on-theme auras | Sythis matched; Gylwain (Role tokens) still filler |
 
+## Second pass (same day)
+
+Three more fixes, re-measured on the eight precons they touch: a template row
+whose members are mostly the commander's lane is advisory, never trimmed
+(Gimbal's "ramp over by 9", Morska's "card draw over by 7", Bello's "ramp over
+by 14", Pantlaza's "ramp over by 3" all read "mostly the commander's own lane,
+not a trim"); a closer is sourced on the main lane (Tinker Time's is
+Blightsteel Colossus, Deep Clue Sea's Genji Glove — Sliver Swarm's lane holds no
+card the wincons read counts, so its closer shortfall is reported unsourced
+rather than filled with Bruce Banner); and a deep lane's least-played half is
+the last cut tier, open only to a Spine fill, a closer or a game-ending combo
+piece. Blood Rites went from no swaps to nine: Sanguine Bond and Vito, Thorn
+of the Dusk Rose (the guides' two consensus adds, each one card short of
+Exquisite Blood), Malakir Bloodwitch as a closer, and ramp / draw / wipe fills,
+each at the expense of a least-played Vampire. Play-rate inside a lane predicts
+a guide cut at 0.32-0.40 precision against a 0.21 base rate, which is why the
+tier is a slot for a Spine fill and not a dead-weight claim. Four lane misreads
+the guides exposed were fixed in the same pass: Gonti, Canny Acquisitor's
+"spells you cast but don't own" line is `wants_theft` (Grand Larceny now holds
+Wants theft as a commander lane, four carers); a trigger on a token leaving,
+dying or being sacrificed is a tokens payoff (Zurgo Stormrender); Role tokens
+are on the Enchantments lane (CR 205.3h lists Role among the enchantment
+types), so Gylwain is no longer filler under Ellivere; a token replacement
+that keeps the count (Esix, Chatterfang) is a tokens payoff. Totals after the
+second pass over all 25: 91 adds, 7 matching a guide; 40 of 91 cuts matching;
+one SPREAD-THIN.
+
 ## What is left
 
 `docs/plans/backlog.md`, "What the 25-precon audit still finds wrong": no

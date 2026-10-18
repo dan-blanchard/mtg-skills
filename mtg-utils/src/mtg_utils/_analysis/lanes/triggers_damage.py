@@ -2260,6 +2260,11 @@ def _replacement_doubler_lanes(tree: ConceptTree) -> list[Signal]:
       ``token_owner_scope`` is excluded (zero corpus members; defensive).
       Co-fires ``token_copy_makers`` + ``tokens_matter`` (live's ADR-0027 C5
       read: a token doubler forks copies and is a go-wide payoff).
+    * ``tokens_matter`` alone — every OTHER your-side ``CreateToken``
+      replacement (no increase mod: Esix, Fractal Bloom's copy swap,
+      Chatterfang's "plus that many Squirrels", Academy Manufactor): it only
+      does anything when the deck makes tokens, so it is a carer of the
+      token-maker avenue (CR 614.1a, 111.1).
     * ``counter_doubling`` + ``counter_replace_bonus`` — an ``AddCounter``
       replacement with an INCREASE mod whose ``valid_card`` controller is
       You/null (checklist #6). Live subsumption reproduced: both keys co-fire
@@ -2299,16 +2304,16 @@ def _replacement_doubler_lanes(tree: ConceptTree) -> list[Signal]:
         node = unit.node
         ev = replacement_event_tag(node)
         raw = getattr(node, "description", None) or ""
-        if ev == "CreateToken":
+        if ev == "CreateToken" and replacement_token_owner_scope(node) != "Opponent":
             qm = replacement_qty_mod(node)
-            if (
-                qm is not None
-                and qm[0] in _INCREASE_QTY_MODS
-                and replacement_token_owner_scope(node) != "Opponent"
-            ):
+            if qm is not None and qm[0] in _INCREASE_QTY_MODS:
                 fire("token_doubling", raw)
                 fire("token_copy_makers", raw)
-                fire("tokens_matter", raw)
+            # Any your-side token-creation replacement pays off on the deck's
+            # token makers, doubler or not: Esix's copies, Chatterfang's and
+            # Peregrin Took's riders, Academy Manufactor's swap. A ``Half``
+            # reducer is Opponent-scoped (Halving Season), gated out above.
+            fire("tokens_matter", raw)
         elif ev == "AddCounter":
             qm = replacement_qty_mod(node)
             vc = getattr(node, "valid_card", None)

@@ -320,6 +320,24 @@ def tune(
         classes = [
             replace(c, bucket="filler") if c.name in fed_only else c for c in classes
         ]
+    # A template row whose members are mostly cards the commander's lanes serve
+    # is the lane counted by another name — Gimbal's twenty-one rocks are "ramp
+    # over by 9", Morska's Clues "card draw over by 7" (2026-10-18) — so it is
+    # reported and never trimmed (``lane_row``: the issue goes advisory, the row
+    # is no cut pool), the Grant-covered shape on the over side.
+    lane_members = set(foc.get("commander_lane_members") or ())
+    if lane_members:
+        for role, band in budgets.items():
+            if role == "lands" or band["deviation"] <= 0 or band.get("advisory"):
+                continue
+            members = [
+                c.name
+                for c in swaps_mod.over_row_members(
+                    classes, role, budgets, template=template
+                )
+            ]
+            if members and len(lane_members.intersection(members)) * 2 >= len(members):
+                band["lane_row"] = True
     tmpl = metrics.template_deviation(budgets)
     meta_missing = meta.missing_from(c.name for c in classes) if meta else []
     wins = metrics.win_conditions(
@@ -343,7 +361,7 @@ def tune(
         wincons_r=wins,
         protection_r=prot,
         commander_r=cfit,
-        sourcing=Sourcing(foc, deck_signals, budgets),
+        sourcing=Sourcing(foc, deck_signals, budgets, game=game),
         near_misses=suggestable_near_misses(combos, params.target_bracket),
         meta_missing=[c for c in meta_missing if not c["land"]][:META_CORE_ISSUES],
     )
@@ -452,6 +470,7 @@ def tune(
             stranded=set(foc["stranded_avenues"]),
             viable={a["label"] for a in foc["viable_avenues"]},
             commander_cards=foc["commander_lane_cards"],
+            lane_upgrade_floor=cal.scaled(cal.lane_upgrade_floor, deck_size),
             message=f"deck is {overflow} over {legal} — cut",
             protected=protected,
             medium=game.medium,
@@ -493,6 +512,7 @@ def tune(
             playrate_condemns=condemns,
             exclude=params.exclude,
             deck_mana=deck_mana,
+            lane_upgrade_floor=cal.scaled(cal.lane_upgrade_floor, deck_size),
         )
         swaps_out = swaps_mod.propose_swaps(classes, issues, swap_ctx)
         # The fill pass deliberately skips lands; flag any mana-base shortfall so the

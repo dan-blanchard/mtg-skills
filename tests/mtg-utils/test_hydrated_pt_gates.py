@@ -14,7 +14,7 @@ asserting the classifiers against records that have actually been through hydrat
 import json
 
 from mtg_utils._analysis.text_reads import _VOLTRON_TOKEN_MAKE_RE  # noqa: F401
-from mtg_utils._tuner.metrics import _is_wincon_card
+from mtg_utils._tuner.metrics import is_wincon_card
 from mtg_utils.card_classify import card_pt_int
 from mtg_utils.scryfall_lookup import lookup_single
 from mtg_utils.testkit import test_card
@@ -38,7 +38,7 @@ class TestHydratedCardsCarryPT:
 
 
 class TestWinconGateOnHydratedInput:
-    """``_is_wincon_card`` classifies a big evasive body as a win condition via
+    """``is_wincon_card`` classifies a big evasive body as a win condition via
     ``is_creature(card) and card_pt_int(card) >= 6``. With P/T stripped this arm
     could never fire on a hydrated deck, so large fliers were invisible to the
     tuner's wincon count and the scorecard under-reported win conditions.
@@ -49,13 +49,13 @@ class TestWinconGateOnHydratedInput:
         # fails outright if hydration drops P/T (card_pt_int returns 0 → gate False).
         wyrm = _hydrate("Ancient Wyrm", sample_bulk_data)
         assert card_pt_int(wyrm) == 7
-        assert _is_wincon_card(wyrm) is True
+        assert is_wincon_card(wyrm) is True
 
     def test_small_evasive_creature_is_not_a_wincon(self, sample_bulk_data):
         # The other side of the gate: Korvold is a 4/4 flier — evasive but under 6.
         korvold = _hydrate("Korvold, Fae-Cursed King", sample_bulk_data)
         assert card_pt_int(korvold) == 4
-        assert _is_wincon_card(korvold) is False
+        assert is_wincon_card(korvold) is False
 
     def test_big_creature_without_evasion_is_not_a_wincon(self, tmp_path):
         # A real near miss: Craw Wurm is a 6/4 with no rules text — past the
@@ -69,4 +69,4 @@ class TestWinconGateOnHydratedInput:
         bulk.write_text(json.dumps([wurm_printing]), encoding="utf-8")
         ground = _hydrate("Craw Wurm", bulk)
         assert card_pt_int(ground) == 6
-        assert _is_wincon_card(ground) is False
+        assert is_wincon_card(ground) is False

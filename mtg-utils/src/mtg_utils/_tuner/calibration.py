@@ -50,6 +50,11 @@ class Calibration:
     #: cards caring about twenty-two artifacts is a sub beside the main, not a
     #: second main (the Timey-Wimey precon, 2026-10-18).
     focus_main_carer_share: float
+    #: Doers on the commander's lane from which the lane is DEEP enough that
+    #: its least-played, costliest members are the slots an upgrade takes
+    #: (``swaps.cut_candidates``' last tier), at ``base_size``. Below it the
+    #: lane is a handful of pieces (Jace's six polymorphs) and every one is kept.
+    lane_upgrade_floor: int
     spine_led: int
     #: Shape → (min, max) dedicated closers at ``base_size`` (life-scaled downstream).
     wincon_target: Mapping[str, tuple[int, int]]
@@ -98,6 +103,7 @@ COMMANDER = Calibration(
     focus_carers=4,
     focus_main_carers=6,
     focus_main_carer_share=1 / 3,
+    lane_upgrade_floor=12,
     spine_led=8,
     wincon_target={
         "aggro": (4, 6),
@@ -122,6 +128,7 @@ CONSTRUCTED = Calibration(
     focus_carers=2,
     focus_main_carers=4,
     focus_main_carer_share=1 / 3,
+    lane_upgrade_floor=8,
     spine_led=6,
     wincon_target={
         "aggro": (4, 8),
@@ -146,6 +153,7 @@ LIMITED = Calibration(
     focus_carers=2,
     focus_main_carers=4,
     focus_main_carer_share=1 / 3,
+    lane_upgrade_floor=6,
     spine_led=4,
     wincon_target={
         "aggro": (2, 4),

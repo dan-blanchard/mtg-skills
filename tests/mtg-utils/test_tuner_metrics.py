@@ -3,7 +3,7 @@
 import pytest
 
 from mtg_utils._tuner.issues import Sourcing, top_issues
-from mtg_utils._tuner.metrics import _is_wincon_card
+from mtg_utils._tuner.metrics import is_wincon_card
 from mtg_utils.formats import Game
 from mtg_utils.testkit import test_card
 
@@ -42,7 +42,7 @@ def _top_issues_for(*, focus_r, template_r, **metrics):
     ],
 )
 def test_closer_reads(name, closer):
-    assert _is_wincon_card(test_card(name)) is closer
+    assert is_wincon_card(test_card(name)) is closer
 
 
 def test_self_loss_drawback_is_not_a_wincon():
@@ -50,13 +50,13 @@ def test_self_loss_drawback_is_not_a_wincon():
     # — a player losing is a drawback to its controller). Pact of Negation is a free
     # counter, not a closer; the subjectless r"loses? the game" wrongly counted it.
     pact = test_card("Pact of Negation")
-    assert _is_wincon_card(pact) is False
+    assert is_wincon_card(pact) is False
 
 
 def test_platinum_angel_self_protection_is_not_a_wincon():
     # Real Platinum Angel: a 4-power flier, below the 40-life evasive-body bar.
     angel = test_card("Platinum Angel")
-    assert _is_wincon_card(angel) is False
+    assert is_wincon_card(angel) is False
 
 
 def test_opponent_loses_the_game_is_a_wincon():
@@ -64,7 +64,7 @@ def test_opponent_loses_the_game_is_a_wincon():
     # Nothingness: "Target player loses the game." (Mortal Combat wins the game
     # instead, the other pattern.)
     door = test_card("Door to Nothingness")
-    assert _is_wincon_card(door) is True
+    assert is_wincon_card(door) is True
 
 
 def test_scaling_group_drain_is_a_wincon():
@@ -72,13 +72,13 @@ def test_scaling_group_drain_is_a_wincon():
     # the pattern list had the burn analog ("damage to each opponent equal") but no
     # life-loss sibling. Not trigger-multiplication (no commander doubler involved).
     yuriko = test_card("Yuriko, the Tiger's Shadow")
-    assert _is_wincon_card(yuriko) is True
+    assert is_wincon_card(yuriko) is True
 
 
 def test_small_fixed_pinger_is_not_a_group_drain_wincon():
     # A 1-life incidental drip is not a finisher — keep the drain pattern scaling-scoped.
     blood_artist = test_card("Blood Artist")
-    assert _is_wincon_card(blood_artist) is False
+    assert is_wincon_card(blood_artist) is False
 
 
 def _cc(name, record, **kw):
@@ -128,34 +128,34 @@ class TestClosersReadTheGame:
 
     def test_evasive_body_threshold_scales_with_life(self):
         flyer = test_card("Serra Angel")  # 4-power flier
-        assert _is_wincon_card(flyer) is False  # 40 life: needs 6 power
-        assert _is_wincon_card(flyer, game=DUEL_25) is True  # 25 life: 4 power
+        assert is_wincon_card(flyer) is False  # 40 life: needs 6 power
+        assert is_wincon_card(flyer, game=DUEL_25) is True  # 25 life: 4 power
         five = test_card("Shivan Dragon")  # 5-power flier
-        assert _is_wincon_card(five, game=POD_30) is True  # 30 life: 5 power
+        assert is_wincon_card(five, game=POD_30) is True  # 30 life: 5 power
 
     def test_evasion_reads_keywords_and_blocking_restrictions(self):
         # Landwalk is evasion (CR 702.14c), as is a restriction on what can block
         # the creature (509.1b). Reach is not, though its reminder text says
         # "flying" — the old substring scan counted Arbor Colossus.
-        assert _is_wincon_card(test_card("Stormtide Leviathan")) is True  # islandwalk
-        assert _is_wincon_card(test_card("Pathrazer of Ulamog")) is True
-        assert _is_wincon_card(test_card("Arbor Colossus")) is False
+        assert is_wincon_card(test_card("Stormtide Leviathan")) is True  # islandwalk
+        assert is_wincon_card(test_card("Pathrazer of Ulamog")) is True
+        assert is_wincon_card(test_card("Arbor Colossus")) is False
 
     def test_an_adventurer_is_read_off_its_faces(self):
         # A two-face record carries its text on the faces, not on the record:
         # Bloomvine Regent is a 4/5 flier whose record has no oracle_text.
         regent = test_card("Bloomvine Regent // Claim Territory")
         assert not regent.get("oracle_text")
-        assert _is_wincon_card(regent, game=DUEL_25) is True
+        assert is_wincon_card(regent, game=DUEL_25) is True
 
     def test_fixed_group_reach_scales_with_life(self):
         # 3 damage to each opponent is 7.5% of a Commander life total and 12% of a
         # Brawl one — a closer at 25, not at 40; 5 clears the 40-life bar.
         three = test_card("Sizzle")  # "deals 3 damage to each opponent"
         five = test_card("Breath of Malfegor")  # "deals 5 damage to each opponent"
-        assert _is_wincon_card(three) is False
-        assert _is_wincon_card(three, game=DUEL_25) is True
-        assert _is_wincon_card(five) is True
+        assert is_wincon_card(three) is False
+        assert is_wincon_card(three, game=DUEL_25) is True
+        assert is_wincon_card(five) is True
 
     def test_fixed_single_target_reach_closes_only_when_lethal(self):
         # A fixed bolt is removal, not a finisher, even one-on-one at 25 life —
@@ -164,26 +164,26 @@ class TestClosersReadTheGame:
         bolt = test_card("Lightning Bolt")
         axe = test_card("Lava Axe")  # 5 damage to target player
         reservoir = test_card("Aetherflux Reservoir")  # 50 damage to any target
-        assert _is_wincon_card(bolt, game=DUEL_25) is False
-        assert _is_wincon_card(axe, game=DUEL_25) is False
-        assert _is_wincon_card(reservoir, game=DUEL_25) is True
-        assert _is_wincon_card(reservoir) is False  # single-target: not a pod closer
+        assert is_wincon_card(bolt, game=DUEL_25) is False
+        assert is_wincon_card(axe, game=DUEL_25) is False
+        assert is_wincon_card(reservoir, game=DUEL_25) is True
+        assert is_wincon_card(reservoir) is False  # single-target: not a pod closer
 
     def test_repeated_and_symmetric_reach(self):
         # Torment of Hailfire's 3 life repeats X times: it scales. Earthquake hits
         # every player, you too, so it is neither scope.
-        assert _is_wincon_card(test_card("Torment of Hailfire")) is True
-        assert _is_wincon_card(test_card("Earthquake"), game=DUEL_25) is False
+        assert is_wincon_card(test_card("Torment of Hailfire")) is True
+        assert is_wincon_card(test_card("Earthquake"), game=DUEL_25) is False
 
     def test_an_x_phase_parks_still_reaches(self):
         # Insatiable Hemophage: "each opponent loses X life", X its mutate count;
         # Zenith Flare: "deals X damage to any target". Phase parks both X effects
         # (see reads.unbound_x_reach); group reach counts at a pod, single only
         # one-on-one.
-        assert _is_wincon_card(test_card("Insatiable Hemophage")) is True
+        assert is_wincon_card(test_card("Insatiable Hemophage")) is True
         flare = test_card("Zenith Flare")
-        assert _is_wincon_card(flare) is False
-        assert _is_wincon_card(flare, game=DUEL_25) is True
+        assert is_wincon_card(flare) is False
+        assert is_wincon_card(flare, game=DUEL_25) is True
 
     def test_single_target_scaling_reach_counts_only_one_on_one(self):
         # Blaze: "deals X damage to any target" (Fireball divides its X among
@@ -191,12 +191,12 @@ class TestClosersReadTheGame:
         # player loses X life".
         blaze = test_card("Blaze")
         drain = test_card("Essence Harvest")
-        assert _is_wincon_card(blaze) is False
-        assert _is_wincon_card(blaze, game=DUEL_25) is True
-        assert _is_wincon_card(drain, game=DUEL_25) is True
+        assert is_wincon_card(blaze) is False
+        assert is_wincon_card(blaze, game=DUEL_25) is True
+        assert is_wincon_card(drain, game=DUEL_25) is True
         # Group scaling reach counts at any table (unchanged).
         exsanguinate = test_card("Exsanguinate")
-        assert _is_wincon_card(exsanguinate) is True
+        assert is_wincon_card(exsanguinate) is True
 
     def test_closer_band_scales_with_life(self):
         from mtg_utils._tuner.metrics import win_conditions

@@ -57,46 +57,53 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   dead weight only when it ends the game, the verdict counts directions, a main
   needs carers in proportion to its feeders, the primary lane is the held lane
   most cards care about. Left, by weight:
-  (a) **No quality read inside a lane.** 141 of the 170 cards the guides cut
+  (a) **No quality read inside a lane.** 142 of the 170 cards the guides cut
   are cards the tuner protects as carers of the main or doers of the
   commander's lane — the weak Slivers, Dinosaurs and Vampires a guide swaps for
-  better ones. Blood Rites proposes nothing at all (43 of 45 Vampire-lane cards
-  are carers, so there is no cut pool) while short on ramp, draw and wipes and
-  with Vito / Sanguine Bond the consensus adds. The lane exemption from the
-  low-value read was made for Jace's six-card polymorph lane; a lane of twenty
-  or more doers should let its least-played members be upgrade targets, cut
-  only for an add serving the same label. This is the flip-quality item above,
-  generalized.
-  (b) **Lane misreads the guides expose.** Gonti, Canny Acquisitor's first line
-  ("spells you cast but don't own cost {1} less") reads as Cost reduction, not
-  `wants_theft`, so Grand Larceny's theft lane (17 deep) has three carers and
-  six on-theme cards (The Mimeoplasm, Siphon Insight) read as filler; Zurgo
-  Stormrender's "whenever a creature token you control leaves the battlefield"
-  is a tokens-matter carer the lane does not emit (Mardu Surge: Token
-  generators 27 deep, one carer); Bello, Bard of the Brambles animates
-  noncreature artifacts and enchantments of mana value 4+, a lane that does
-  not exist, so his rocks read as "ramp over by 14"; Yuma, Proud Protector's
-  Desert trigger has no lane (Desert Bloom: Lands matter 17 deep, no carer);
-  Ellivere's Role tokens (Gylwain, Casting Director) are enchantment tokens
-  the `enchantment_makers` read misses, so Gylwain reads as filler under an
-  enchantments commander; a token doubler (Adrix and Nev, Esix) does not care
-  about `token_maker`, so Deep Clue Sea cuts both; pillowfort cards
-  (Comeuppance, Gideon's Sacrifice, Promise of Loyalty) read as "Superfriends"
-  under Nelly Borca; "Opponents' graveyards" carries every "Your graveyard"
-  carer (43 under Teval) — its cares-keys fold into `graveyard_matters`.
+  better ones. Play-rate is not that read: inside the 25 lanes a card's rank
+  predicts a guide cut at 0.32-0.40 precision (bottom quarter by rank, or rank
+  > 10000 with mana value ≥ 4) against a 0.21 base rate, and the guide cuts
+  sit evenly along the lane's play-rate order. What the guides reason from is
+  function: one-shot versus repeatable, a one-type creature under delirium,
+  mana value against the lane's curve, an ability the commander already
+  supplies. A deep lane's least-played half now trims last (the
+  ``lane_upgrade`` tier, so Blood Rites proposes its short roles' adds), but
+  a function read — the flip-quality item above generalized over the lane's
+  payoff arm — is still the missing piece.
+  (b) **Lane misreads the guides expose** (second pass fixed four: Gonti,
+  Canny Acquisitor's "spells you cast but don't own cost {1} less" is
+  `wants_theft` at scope `you`; a trigger on a token you control leaving,
+  dying or being sacrificed is `tokens_matter` (Zurgo Stormrender); `role` is
+  among the Enchantments serve's subtypes (CR 205.3h), so Gylwain's Role
+  makers are on the lane; a token replacement that keeps the count (Esix,
+  Chatterfang) is a tokens payoff beside the doublers that already were).
+  Left: Bello, Bard of the Brambles animates noncreature artifacts and
+  enchantments of mana value 4+, a lane that does not exist; Yuma, Proud
+  Protector's Desert trigger has no lane (Desert Bloom: Lands matter 17 deep,
+  no carer); pillowfort cards (Comeuppance, Gideon's Sacrifice, Promise of
+  Loyalty) read as "Superfriends" under Nelly Borca; "Opponents' graveyards"
+  carries every "Your graveyard" carer (43 under Teval) — its cares-keys fold
+  into `graveyard_matters`; Deep Clue Sea's Clue makers emit `artifacts_matter`
+  rather than a maker key, so its token doublers (Adrix and Nev, Esix) still
+  read fed-only — item (c) above is the fix.
+  (g) **`tokens_matter` from a typed token replacement or sacrifice trigger
+  carries no subject.** Xorn, Jolene, Academy Manufactor, Fisher's Talent
+  (Treasure / Clue / Food replacements) and Gluttonous Guest, Blood Hypnotist
+  (Blood-sacrifice triggers) emit `tokens_matter|you|` with an empty subject
+  since the second pass, and an empty subject cares about every subject, so
+  Xorn counts as a carer for Soldier makers. Carry the token subtype the
+  filter names as the subject (the `artifact`-token split of item (c) is the
+  same work).
+  (f) **Spine fills pick the cheapest mana value first, so MV-0 oddities win.**
+  A protection shortfall is filled with Welding Jar, a board-wipe shortfall with
+  Engineered Explosives, under a Dinosaur commander (second pass, 2026-10-18):
+  the Spine ranking is cheapest-MV does-the-job, then play-rate, and an X or
+  zero cost is "cheapest". Rank Spine fills by play-rate first within a mana
+  value band, or treat an X / {0} cost as its typical cast cost.
   (c) **Symmetric damage reads as interaction.** Endless Punishment's 35
   "interaction" (Blasphemous Act and the punisher suite) trips "interaction
   over by 20" and trims Enchanter's Bane; a damage-to-each-opponent spell under
   a punisher commander is the lane, not the template's removal row.
-  (d) **A closer search that finds Bruce Banner.** `wincon_short` sources from
-  `WINCON_SEARCH` with no avenue, so Sliver Swarm's closer is Bruce Banner //
-  The Incredible Hulk and Living Energy's is Clown Car; the guides add The
-  First Sliver, Craterhoof, Aurelia — a closer that serves the main lane. The
-  remedy should be the main avenue's spec intersected with the closer read.
-  (e) **Template bands versus a commander whose lane IS the band.** "Ramp over
-  by 9" under Gimbal (artifacts) and "card draw over by 7" under Morska (Clues)
-  trim the lane; a band whose members are mostly lane doers should relax or go
-  advisory.
 - **Competitive Brawl's "banned as a commander" reads as `restricted`.** The
   2026-10-12 B&R update introduced the category (mtg.wiki "Competitive Brawl"
   §Banned as a commander; Draftsim 2026-10-12): Oko, Thief of Crowns, Ragavan,

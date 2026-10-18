@@ -4292,3 +4292,13 @@ def test_serve_signal_idents_subject_wildcard():
     exact = Serve(signal_idents=frozenset({"token_maker|you|Elf"}))
     assert exact.matches(_card("Krenko, Mob Boss")) is False
     assert any_token_maker.as_dict() == {"signal_idents": ["token_maker|you|*"]}
+
+
+def test_enchantments_serves_role_token_makers():
+    """A Role is an enchantment type (CR 205.3h), so a creature that makes Role
+    tokens (Gylwain, Casting Director: "Create a Royal Role token attached to that
+    creature") feeds an enchantments deck — it emits ``enchantments_matter`` and
+    was filler under Ellivere because the serve's subtype list lacked Role."""
+    sig = _sig("enchantments_matter", "you")
+    assert serves(_card("Gylwain, Casting Director"), sig) is True
+    assert serves(_card("Grizzly Bears"), sig) is False

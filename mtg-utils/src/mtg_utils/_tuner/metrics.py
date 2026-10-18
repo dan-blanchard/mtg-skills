@@ -69,13 +69,13 @@ _AVG_CEILING = 4.0
 # The Game every band below is calibrated at: the 40-life Commander pod (CR 103.4c),
 # where 21 commander damage wins (CR 903.10a). ``win_conditions`` scales from it to the
 # Game the deck actually plays (``Format.game``).
-_CALIBRATION_GAME = Game(
+CALIBRATION_GAME = Game(
     medium="paper", life=40, multiplayer=True, commander_damage=True
 )
-_CALIBRATION_LIFE = _CALIBRATION_GAME.life
+_CALIBRATION_LIFE = CALIBRATION_GAME.life
 
 # The dedicated-closer bands (ADR-0024; floor ~3, archetype-scaled) live on the
-# family's ``Calibration`` at _CALIBRATION_GAME. Both bounds scale with starting life
+# family's ``Calibration`` at CALIBRATION_GAME. Both bounds scale with starting life
 # (``_life_scaled``): at 25 life one-on-one, ordinary threats close games and fewer
 # dedicated closers are wanted.
 # An evasive body reads as a closer from this power at _CALIBRATION_LIFE (~7 swings);
@@ -665,6 +665,10 @@ def focus(
         # The nonland cards doing what the commander's lanes do — what the cut
         # ranking protects as the commander's own pieces.
         "commander_lane_cards": sorted(lane_doers),
+        # The nonland cards the commander's lanes SERVE (members of a held
+        # avenue: every artifact under Gimbal, every Clue under Morska) — what
+        # a template band is measured against before it trims (``tune``).
+        "commander_lane_members": sorted(commander_members - land_names),
         "carer_floor": carer_floor,
         "main_carer_floor": main_carer_floor,
         "main_floor": main_floor,
@@ -687,6 +691,9 @@ def template_deviation(budgets: dict) -> dict:
     """The hard-counted rows drive the verdict and the issues; an ``advisory`` row
     (a fact about the deck — a creature count) is reported beside them, never as a
     deviation to fix (CONTEXT: Template deviation)."""
+    # A ``lane_row`` (the commander's lane counted as a template row — ``tune``)
+    # stays in ``over``: the deck IS off-template there, as a Grant-covered
+    # short row is; the issue it raises is advisory and sources nothing.
     counted = {r: b for r, b in budgets.items() if not b.get("advisory")}
     short = {r: b for r, b in counted.items() if b["deviation"] < 0}
     over = {r: b for r, b in counted.items() if b["deviation"] > 0}
@@ -705,7 +712,7 @@ def template_deviation(budgets: dict) -> dict:
 # ── Tier-2 advisory flags ──────────────────────────────────────────────────────
 
 
-def _is_wincon_card(card: dict, *, game: Game = _CALIBRATION_GAME) -> bool:
+def is_wincon_card(card: dict, *, game: Game = CALIBRATION_GAME) -> bool:
     """Heuristic finisher read over the card's trees (every face), relative to
     ``game``: its starting life sets the evasive-body and fixed-reach thresholds,
     and one opponent admits single-target reach (the same finisher "each opponent"
@@ -735,7 +742,7 @@ def win_conditions(
     shape: str,
     combo_count: int,
     deck_size: int = 100,
-    game: Game = _CALIBRATION_GAME,
+    game: Game = CALIBRATION_GAME,
     cal: Calibration = COMMANDER,
 ) -> dict:
     """Dedicated closers vs the Shape's band (ADR-0024 advisory), read against the
@@ -750,7 +757,7 @@ def win_conditions(
     closers = {
         c.name: c
         for c in classes
-        if _is_wincon_card(c.record, game=game) or c.grant_closer
+        if is_wincon_card(c.record, game=game) or c.grant_closer
     }
     cards = sorted(closers)
     pieces = _voltron_pieces(classes)

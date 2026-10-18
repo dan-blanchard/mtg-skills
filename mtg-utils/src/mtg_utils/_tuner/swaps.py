@@ -22,6 +22,7 @@ from mtg_utils._tuner.classify import CardClass, is_premium
 from mtg_utils._tuner.issues import (
     CUT_FILLER,
     CUT_GENERIC,
+    CUT_LANE,
     Issue,
     Sourcing,
     cut_over,
@@ -76,6 +77,26 @@ def _is_fixing(card: CardClass) -> bool:
     return land_search_fixes(card.record)
 
 
+def over_row_members(
+    classes: Sequence[CardClass],
+    role: str,
+    budgets: dict,
+    *,
+    template: Template,
+) -> list[CardClass]:
+    """The Spine cards an over-band trim of ``role`` may draw from: the
+    template's own membership read, never a card also filling a floor role.
+    The one read ``tune``'s lane-row share and the trim itself both use, so
+    the share is measured on the set that would be trimmed."""
+    return [
+        c
+        for c in classes
+        if c.bucket == "spine"
+        and template.fills(role, c.record, roles=set(c.roles))
+        and not _fills_short_role(c, budgets)
+    ]
+
+
 def cut_candidates(
     classes: Sequence[CardClass],
     *,
@@ -89,6 +110,7 @@ def cut_candidates(
     playrate_meaningful: bool = True,
     viable: Collection[str] = (),
     commander_cards: Collection[str] = (),
+    lane_upgrade_floor: int = 12,
 ) -> list[tuple[str, CardClass]]:
     """Ordered (reason, card) cut candidates, most-cuttable first. Hard floors apply.
 
@@ -110,6 +132,18 @@ def cut_candidates(
     piece under a polymorph commander) and trims last from an over-band row; a
     card feeding no viable avenue trims first. A payoff the lane merely serves
     (a bomb the commander flips into) is ordered like any other card.
+
+    The LAST tier is the lane itself, once it is deep (``lane_upgrade_floor``
+    doers): a tribal precon's forty-three Vampires are all carers, so with every
+    other tier empty the deck proposed nothing while short on ramp, draw and
+    wipes (Blood Rites, 2026-10-18) — the guides trim its clunky, least-played
+    members. Play-rate inside a lane is a weak read (of the lane's least-played
+    half, a quarter are guide cuts, against a fifth of the lane; the costlier
+    among them a little more), so it is the slot an upgrade takes, never dead
+    weight: the least-played half of the lane, costliest first — and only a
+    Spine fill, a closer or a game-ending piece may take it (``Remedy.lane_ok``;
+    the first pass traded Dinosaurs for Human-tribal and Landfall "commit more"
+    adds).
     """
     out: list[tuple[str, CardClass]] = []
     seen: set[str] = set()
@@ -154,15 +188,14 @@ def cut_candidates(
     #    sorted last so the least-synergistic excess goes first. Membership is the
     #    template's own read (a constructed interaction row counts a sweeper too).
     for role, b in budgets.items():
-        if role == "lands" or b["deviation"] <= 0 or b.get("advisory"):
+        if (
+            role == "lands"
+            or b["deviation"] <= 0
+            or b.get("advisory")
+            or b.get("lane_row")
+        ):
             continue
-        members = [
-            c
-            for c in classes
-            if c.bucket == "spine"
-            and template.fills(role, c.record, roles=set(c.roles))
-            and not _fills_short_role(c, budgets)
-        ]
+        members = over_row_members(classes, role, budgets, template=template)
         # A premium card (``classify.PREMIUM_RANK``) is never a band trim: under
         # a tribal commander the lane holds forty cards and sorts last, which
         # left Sol Ring as the first non-lane ramp to trim for "ramp over by 3"
@@ -212,6 +245,20 @@ def cut_candidates(
         ):
             push("stranded", c)
 
+    # 4. The lane's own least-played, costliest members — only in a deep lane.
+    lane = [
+        c
+        for c in classes
+        if c.name in lane_cards
+        and c.bucket == "engine"
+        and c.name not in protected
+        and not premium(c)
+    ]
+    if len(lane) >= lane_upgrade_floor:
+        ranked = sorted(lane, key=lambda c: c.least_played_key)
+        for c in sorted(ranked[: len(ranked) // 2], key=lambda c: -c.cmc):
+            push("lane_upgrade", c)
+
     return out
 
 
@@ -230,6 +277,7 @@ def size_cuts(
     playrate_meaningful: bool = True,
     viable: Collection[str] = (),
     commander_cards: Collection[str] = (),
+    lane_upgrade_floor: int = 12,
 ) -> list[dict]:
     """Legality-driven cuts for an OVER-sized deck: up to ``overflow`` proposals.
 
@@ -256,6 +304,7 @@ def size_cuts(
         medium=medium,
         playrate=playrate_condemns,
         playrate_meaningful=playrate_meaningful,
+        lane_upgrade_floor=lane_upgrade_floor,
         viable=viable,
         commander_cards=commander_cards,
     ):
@@ -477,6 +526,9 @@ class SwapContext:
     #: The deck context ramp is judged in (``hd.deck_mana``): a rock whose mana
     #: is dead under this commander is never sourced as ramp.
     deck_mana: DeckMana | None = None
+    #: Lane doers from which the lane's least-played members are cut candidates
+    #: (``Calibration.lane_upgrade_floor``, scaled).
+    lane_upgrade_floor: int = 12
 
     def copy_ceiling(self, record: dict) -> int | None:
         """How many copies of this card the build may run: the copy limit, bounded
@@ -553,15 +605,25 @@ def propose_swaps(
         template=ctx.template,
         playrate=ctx.playrate_condemns,
         playrate_meaningful=ctx.playrate,
+        lane_upgrade_floor=ctx.lane_upgrade_floor,
         viable=focus_sets["viable"],
         commander_cards=ctx.focus_result.get("commander_lane_cards") or (),
     )
     # Route cuts into the pools a Remedy names: an over-band trim cuts from THAT over
     # role (``over:<role>``); everything else is the generic pool (filler, low-value,
     # then stranded), so a trim isn't derailed onto filler.
-    pools: dict[str, list[tuple[str, CardClass]]] = {CUT_GENERIC: [], CUT_FILLER: []}
+    pools: dict[str, list[tuple[str, CardClass]]] = {
+        CUT_GENERIC: [],
+        CUT_FILLER: [],
+        CUT_LANE: [],
+    }
     for reason, card in cuts:
-        pool = reason if over_role(reason) is not None else CUT_GENERIC
+        if over_role(reason) is not None:
+            pool = reason
+        elif reason == "lane_upgrade":
+            pool = CUT_LANE  # only a ``lane_ok`` remedy, once its own pool is dry
+        else:
+            pool = CUT_GENERIC
         pools.setdefault(pool, []).append((reason, card))
         # The dead-weight drain cuts filler ONLY (a separate view of the same cards);
         # the shared used_cuts guard stops it and the generic pool cutting a card twice.
@@ -850,6 +912,8 @@ def propose_swaps(
                     )
                 break
             cut_entry = take_cut(remedy.cut_from)
+            if cut_entry is None and remedy.lane_ok:
+                cut_entry = take_cut(CUT_LANE)
             if cut_entry is None:
                 break  # no appropriate cut for this issue — don't grab a wrong one
             reason, cut = cut_entry
@@ -988,4 +1052,6 @@ def _cut_why(reason: str, card: CardClass | None = None) -> str:
         return f"{role.replace('_', ' ')} over template band"
     if reason == "stranded":
         return "stranded on a near-empty avenue"
+    if reason == "lane_upgrade":
+        return "among the lane's least-played, costlier cards — an upgrade's slot"
     return reason

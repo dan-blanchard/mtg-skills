@@ -1559,6 +1559,16 @@ def extract_crosswalk_signals(
     out_keys = {s.key for s in out}
     gc_now = "gain_control" in out_keys
     dont_own = any(c.concept == "synth_dont_own" for c in tree.iter_concepts())
+    # A cost reduction on a card whose payoff tell is "don't own" (Gonti, Canny
+    # Acquisitor: "Spells you cast but don't own cost {1} less to cast") is a
+    # theft PAYOFF the card is built around, not a generic reducer: HIGH, scope
+    # you. phase drops the ownership predicate from the ModifyCost ``affected``
+    # filter (``Typed{controller You, Card}``), so the don't-own node is the
+    # tell; the only corpus card carrying both is Gonti (2026-10-18). CR 108.3
+    # (owner) / 601.2f (cost reductions).
+    if dont_own and "cost_reduction" in out_keys and "wants_theft" not in out_keys:
+        add(Signal("wants_theft", "you", "", "", tree.name, "high"))
+        out_keys.add("wants_theft")
     if (gc_now or dont_own) and "wants_theft" not in out_keys:
         add(Signal("wants_theft", "opponents", "", "", tree.name, "low"))
     if dont_own and not gc_now:

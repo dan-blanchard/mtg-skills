@@ -909,6 +909,14 @@ def blink_flicker_maker_present(card: dict) -> bool:
     return any(blink_flicker_is_maker(s) for s in sigs)
 
 
+# The zone-change events a token-watching trigger (arm B below) pays off on: a
+# token of yours entering (Anointer Priest), leaving the battlefield (Zurgo
+# Stormrender — CR 603.6c), dying, or being sacrificed (Mirkwood Bats).
+_TOKEN_WATCH_EVENTS: frozenset[str] = frozenset(
+    {"enters", "leaves", "dies", "sacrificed"}
+)
+
+
 def _tokens_matter(tree: ConceptTree) -> list[Signal]:
     """Go-wide token payoff — an anthem or ETB-token trigger (CR 111.1).
 
@@ -917,8 +925,9 @@ def _tokens_matter(tree: ConceptTree) -> list[Signal]:
     filter PREDICATE: (A) a pump / grant-keyword / set-P/T static whose affected
     filter carries ``Token`` AND controller you (Intangible Virtue) — a symmetric
     controller-any token anthem (Virulent Plague's -2/-2 hoser) is correctly scoped
-    out; (B) an enters trigger whose watched subject carries ``Token`` AND
-    controller you (Anointer Priest). Scope "you".
+    out; (B) an enters / leaves / dies / sacrificed trigger whose watched subject
+    carries ``Token`` AND controller you (Anointer Priest; Zurgo Stormrender's
+    "whenever a creature token you control leaves the battlefield"). Scope "you".
 
     recall-completion b1 (ADR-0034) adds two structural arms the live path only got
     via the ``TOKENS_MATTER_REGEX`` mirror: (C) a ``TokenCreated`` trigger ("whenever
@@ -937,7 +946,7 @@ def _tokens_matter(tree: ConceptTree) -> list[Signal]:
         ):
             return [Signal("tokens_matter", "you", "", "", tree.name, "high")]
         if (
-            unit.trigger_event == "enters"
+            unit.trigger_event in _TOKEN_WATCH_EVENTS
             and "Token" in filter_predicates(getattr(unit.node, "valid_card", None))
             and trigger_subject_scope(unit.node) == "you"
         ):

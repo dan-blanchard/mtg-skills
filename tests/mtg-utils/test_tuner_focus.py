@@ -858,3 +858,22 @@ def test_a_collapsed_near_duplicate_avenue_still_counts_as_built():
     assert fr["fed_only_cards"] == []
     assert fr["filler_cards"] == []
     assert emitters  # documents the shape; the legacy path ignores emitters
+
+
+def test_the_lane_members_are_what_the_held_avenues_serve():
+    """Doers emit the held ident; members are every nonland card a held avenue
+    serves (Gimbal's rocks) — what a template band is measured against."""
+    classes, signals, emitters, _art, _energy = _two_lane_commander()
+    fr = focus(
+        classes,
+        deck_size=100,
+        deck_signals=signals,
+        emitters=emitters,
+        commander_idents=frozenset({("artifacts_matter", "you", "")}),
+    )
+    assert set(fr["commander_lane_cards"]) == {"Saheeli"} | {
+        f"Art {i}" for i in range(10)
+    }
+    assert set(fr["commander_lane_members"]) == {"Saheeli"} | {
+        f"Art {i}" for i in range(20)
+    }

@@ -22,10 +22,13 @@ from mtg_utils._analysis.roles import DeckMana, is_ramp
 from mtg_utils._analysis.signal_specs import spec_for
 from mtg_utils._card_ir.crosswalk import mana_ability_gates
 from mtg_utils._card_ir.trees import trees_for
+from mtg_utils._tuner.metrics import CALIBRATION_GAME, is_wincon_card
 from mtg_utils.combo_search import ends_the_game
 
 if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
+
+    from mtg_utils.formats import Game
 
 
 def _conditionally_gated(card: dict) -> bool:
@@ -88,6 +91,10 @@ _EFFICIENCY_BANDS: dict[str, dict] = {
 # Cut pools a remedy may draw from (the swap engine routes ``cut_candidates`` in).
 CUT_GENERIC = "generic"  # filler, then low-value, then stranded
 CUT_FILLER = "filler"  # filler + low-value only — the dead-weight drain
+# The deep lane's least-played members (``swaps.cut_candidates``' last tier):
+# the slot a Spine fill, a closer or a game-ending piece may take once the
+# generic pool is dry, never an emerging theme's or a value line's.
+CUT_LANE = "lane"
 
 
 _CUT_OVER_PREFIX = "over:"
@@ -121,6 +128,11 @@ class Remedy:
     cut_from: str = CUT_GENERIC
     spine: bool = False
     drain: bool = False
+    #: Whether, with ``cut_from`` dry, the add may take a slot from the deep
+    #: lane's least-played members (``CUT_LANE``): a Spine fill, a closer, a
+    #: game-ending combo piece — the swaps a guide makes at a tribal lane's
+    #: expense. An emerging theme or a value line never trades a lane card.
+    lane_ok: bool = False
 
 
 # An issue's optional wire fields, in the scorecard's key order.
@@ -177,11 +189,17 @@ class Sourcing:
     rows ``tune`` annotates with ``grant_covered``)."""
 
     def __init__(
-        self, focus_result: Mapping, deck_signals: list, budgets: Mapping[str, dict]
+        self,
+        focus_result: Mapping,
+        deck_signals: list,
+        budgets: Mapping[str, dict],
+        *,
+        game: Game = CALIBRATION_GAME,
     ) -> None:
         self._focus = focus_result
         self._signals = deck_signals
         self._budgets = budgets
+        self._game = game
 
     # ── Spine roles ─────────────────────────────────────────────────────────────
 
@@ -258,14 +276,30 @@ class Sourcing:
         role: str | None = None,
         label: str | None = None,
         subkind: str | None = None,
+        terminal: bool = False,
     ) -> Remedy | None:
         if kind == "role_short":
             spec = self.role_spec(role or "")
-            return Remedy(spec, spine=True) if spec is not None else None
+            return Remedy(spec, spine=True, lane_ok=True) if spec is not None else None
         if kind == "protection_short":
-            return Remedy(PROTECTION_SEARCH, spine=True)
+            return Remedy(PROTECTION_SEARCH, spine=True, lane_ok=True)
         if kind == "wincon_short":
-            return Remedy(WINCON_SEARCH)
+            # A closer ON the main lane: the search is the main avenue's (the
+            # closer read alone has no theme, and found Bruce Banner for Sliver
+            # Swarm and Clown Car for Living Energy, 2026-10-18 — the guides add
+            # The First Sliver, Craterhoof, Aurelia), narrowed to the cards the
+            # wincons metric would count (``is_wincon_card``, the one closer
+            # read). A lane whose page holds no closer sources nothing and the
+            # shortfall stays reported (Sliver Swarm); only with no main theme
+            # at all does the closer regex page the search.
+            game = self._game
+            return Remedy(
+                {
+                    **(self.main_avenue() or WINCON_SEARCH),
+                    "_filter": lambda c, **_kw: is_wincon_card(c, game=game),
+                },
+                lane_ok=True,
+            )
         if kind == "dead_weight":
             spec = self.redeploy()
             if spec is None:
@@ -286,7 +320,13 @@ class Sourcing:
             # a polymorph piece, not a card for whichever direction is emerging),
             # else an under-supported emerging theme if any (commit while trimming),
             # else the main theme. The engine's full-role filter keeps it from
-            # re-filling the role being trimmed.
+            # re-filling the role being trimmed. A row that IS the commander's
+            # lane (``lane_row``: most of its members are cards a held avenue
+            # serves — Gimbal's rocks, Morska's Clues, Bello's animated rocks)
+            # is a fact to read, never a trim: no remedy, as for a Grant-covered
+            # short row.
+            if (self._budgets.get(role) or {}).get("lane_row"):
+                return None
             spec: dict | None = None
             held = self._focus.get("commander_avenues") or []
             if held:
@@ -299,8 +339,9 @@ class Sourcing:
             return Remedy(spec, cut_from=cut_over(role or ""))
         if kind in ("near_miss_combo", "meta_core_missing"):
             # One named card: the combo's missing piece, or a core card of the
-            # deck's meta archetype. Search for exactly that card.
-            return Remedy({"name": label}) if label else None
+            # deck's meta archetype. Search for exactly that card. A game-ending
+            # piece (``terminal``) may take a lane slot.
+            return Remedy({"name": label}, lane_ok=terminal) if label else None
         if kind == "efficiency":
             # A curve problem is fixed by adding a synergistic card at the missing CMC
             # band (a thin top-end wants a 6+ MV finisher on the main theme, etc.).
@@ -323,8 +364,10 @@ class Sourcing:
         subkind: str | None = None,
         count: int | None = None,
         advisory: bool | None = None,
+        terminal: bool = False,
     ) -> Issue:
-        """An :class:`Issue` of ``kind`` with its remedy decided."""
+        """An :class:`Issue` of ``kind`` with its remedy decided (``terminal``:
+        a near-miss whose line ends the game)."""
         covered = None
         if kind == "role_short":
             # A Grant-covered role keeps its literal shortfall but downgrades to
@@ -335,7 +378,9 @@ class Sourcing:
             kind=kind,
             severity=severity,
             message=message,
-            remedy=self.remedy_for(kind, role=role, label=label, subkind=subkind),
+            remedy=self.remedy_for(
+                kind, role=role, label=label, subkind=subkind, terminal=terminal
+            ),
             role=role,
             label=label,
             subkind=subkind,
@@ -381,13 +426,19 @@ def top_issues(
             sourcing.issue("role_short", role=role, severity=deficit, message=message)
         )
     for role, b in template_r["over"].items():
+        message = (
+            f"{row_name(role, b)} over by {b['deviation']} "
+            f"({b['current']}/{b['min']}-{b['max']})"
+        )
+        if b.get("lane_row"):
+            message += " — mostly the commander's own lane, not a trim"
         issues.append(
             sourcing.issue(
                 "role_over",
                 role=role,
                 severity=b["deviation"],
-                message=f"{row_name(role, b)} over by {b['deviation']} "
-                f"({b['current']}/{b['min']}-{b['max']})",
+                message=message,
+                advisory=True if b.get("lane_row") else None,
             )
         )
 
@@ -493,6 +544,7 @@ def top_issues(
             continue  # a missing generic requirement isn't one card to add
         others = [c for c in near.get("cards") or [] if c != missing]
         result = ", ".join(near.get("result") or []) or "a combo"
+        terminal = ends_the_game(near)
         issues.append(
             sourcing.issue(
                 "near_miss_combo",
@@ -504,8 +556,9 @@ def top_issues(
                 # beside Swords to Plowshares, Tidespout Tyrant beside Sol Ring in
                 # seven decks and Repercussion beside Blasphemous Act in four, and
                 # no upgrade article agreed with one of them.
-                severity=9 if ends_the_game(near) else 2,
+                severity=9 if terminal else 2,
                 message=f"{missing} completes {' + '.join(others)} → {result}",
+                terminal=terminal,
             )
         )
 

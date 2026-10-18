@@ -120,8 +120,12 @@ def test_every_emitted_kind_has_a_decided_remedy():
     )
     prot = issues["protection_short"].remedy
     assert (prot.spec, prot.spine) == (PROTECTION_SEARCH, True)
-    assert issues["wincon_short"].remedy.spec == WINCON_SEARCH
-    assert issues["wincon_short"].remedy.spine is False
+    # A closer on the main lane (here no main avenue has a spec, so the closer
+    # regex pages the search), narrowed to what the wincons metric counts.
+    wincon = issues["wincon_short"].remedy
+    assert {k: v for k, v in wincon.spec.items() if k != "_filter"} == WINCON_SEARCH
+    assert callable(wincon.spec["_filter"])
+    assert wincon.spine is False
     # A trim cuts from THAT role's excess; dead weight drains the filler pool.
     assert issues["role_over"].remedy.cut_from == cut_over("interaction")
     dead = issues["dead_weight"].remedy
@@ -271,3 +275,29 @@ def test_a_near_miss_short_a_generic_requirement_sources_nothing():
         near_misses=[{"cards": ["A"], "result": ["x"], "missing_template": "B"}],
     )
     assert not [i for i in issues if i.kind == "near_miss_combo"]
+
+
+def test_an_over_row_that_is_the_commanders_lane_is_advisory_and_unsourced():
+    """Gimbal's rocks read "ramp over by 9": the row is the lane counted by
+    another name — reported, never trimmed."""
+    budgets = {"ramp": {**_band(21, 10, 12), "lane_row": True}}
+    focus_r = _focus(viable=[{"label": "Artifacts"}], verdict="FOCUSED")
+    issues = top_issues(
+        efficiency_r={"verdict": "ok"},
+        focus_r=focus_r,
+        template_r={"short": {}, "over": {"ramp": budgets["ramp"]}},
+        wincons_r={
+            "status": "ok",
+            "count": 4,
+            "target": [2, 4],
+            "life": 40,
+            "voltron_needs_real_damage": False,
+        },
+        protection_r={"status": "ok", "count": 5, "target": 5},
+        commander_r=None,
+        sourcing=Sourcing(focus_r, [], budgets),
+    )
+    over = next(i for i in issues if i.kind == "role_over")
+    assert over.advisory is True
+    assert over.remedy is None
+    assert "commander's own lane" in over.message

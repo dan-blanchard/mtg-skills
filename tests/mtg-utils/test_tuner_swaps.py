@@ -1682,3 +1682,105 @@ def test_fed_only_filler_says_why():
     assert _cut_why("filler", _cc("Legend", "filler", served=("Historic",))) == (
         "feeds only avenues nobody built toward (fed)"
     )
+
+
+def test_a_deep_lane_is_the_last_cut_tier_least_played_costlier_first():
+    """Blood Rites: forty-three Vampire carers and nothing else to cut. The lane's
+    least-played half, costliest first, is the last tier; a shallow lane (Jace's
+    polymorphs) is never cut."""
+    lane = [
+        _cc(
+            f"Vamp {i}",
+            "engine",
+            served=("Vampires",),
+            cmc=float(i % 4 + 1),
+            edhrec_rank=1000 * (i + 1),
+        )
+        for i in range(12)
+    ]
+    kw = {
+        "budgets": {},
+        "focus_verdict": "FOCUSED",
+        "stranded": set(),
+        "viable": {"Vampires"},
+    }
+    cuts = cut_candidates(lane, commander_cards={c.name for c in lane}, **kw)
+    reasons = {r for r, _ in cuts}
+    assert reasons == {"lane_upgrade"}
+    names = [c.name for _, c in cuts]
+    # The least-played half (ranks 7000-12000: Vamp 6..11), costlier first.
+    assert set(names) == {f"Vamp {i}" for i in range(6, 12)}
+    assert [c.cmc for _, c in cuts] == sorted((c.cmc for _, c in cuts), reverse=True)
+    # Below the floor the lane is kept whole.
+    assert (
+        cut_candidates(
+            lane, commander_cards={c.name for c in lane}, lane_upgrade_floor=13, **kw
+        )
+        == []
+    )
+    assert _cut_why("lane_upgrade").startswith("among the lane's least-played")
+
+
+def test_a_band_that_is_the_commanders_lane_is_no_cut_pool():
+    classes = [
+        _cc(f"Rock {i}", "spine", roles=["ramp"], cmc=2.0, edhrec_rank=5000)
+        for i in range(3)
+    ]
+    budgets = {"ramp": {**_band(3, 0, 1), "lane_row": True}}
+    cuts = cut_candidates(
+        classes, budgets=budgets, focus_verdict="FOCUSED", stranded=set()
+    )
+    assert cuts == []
+
+
+def test_only_a_spine_fill_or_closer_takes_a_lane_slot():
+    """Twelve lane cards and nothing else to cut: a protection shortfall (a
+    Spine fill) trades a lane card; a curve fix (an engine add) does not."""
+    lane = [
+        _cc(
+            f"Vamp {i}",
+            "engine",
+            served=("Vampires",),
+            cmc=3.0,
+            edhrec_rank=1000 * (i + 1),
+        )
+        for i in range(12)
+    ]
+    add = {
+        "name": "Shield",
+        "type_line": "Instant",
+        "oracle_text": "Creatures you control gain hexproof and indestructible until end of turn.",
+        "cmc": 2.0,
+        "prices": {"usd": "1.00"},
+        "color_identity": [],
+    }
+
+    def ctx():
+        return SwapContext(
+            budgets={},
+            focus_result={
+                **_focus(viable=[{"label": "Vampires", "depth": 20, "cards": []}]),
+                "commander_lane_cards": [c.name for c in lane],
+            },
+            deck_signals=[],
+            search_fn=lambda **_: [add],
+            identity="",
+            fmt="commander",
+            paper_only=True,
+            owned={},
+            budget=50.0,
+            max_swaps=1,
+            top_heavy=False,
+        )
+
+    short = {"kind": "protection_short", "severity": 5, "message": "0 protection"}
+    out = _swaps_for_issue_dicts(lane, [short], ctx())
+    assert len(out["swaps"]) == 1
+    assert out["swaps"][0]["cut"]["name"].startswith("Vamp")
+    curve = {
+        "kind": "efficiency",
+        "subkind": "thin top-end",
+        "severity": 3,
+        "message": "curve",
+    }
+    assert _swaps_for_issue_dicts(lane, [curve], ctx())["swaps"] == []
