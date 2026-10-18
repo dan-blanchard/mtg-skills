@@ -1684,10 +1684,13 @@ def test_fed_only_filler_says_why():
     )
 
 
-def test_a_deep_lane_is_the_last_cut_tier_least_played_costlier_first():
+def test_a_deep_lane_is_the_last_cut_tier_feeders_first_then_least_played():
     """Blood Rites: forty-three Vampire carers and nothing else to cut. The lane's
-    least-played half, costliest first, is the last tier; a shallow lane (Jace's
-    polymorphs) is never cut."""
+    least-played half is the last tier, its plain feeders (members that do not
+    themselves care about the lane) before its carers, least played first — the
+    order that puts a guide's cut in the top five most often across the 25
+    precons; costlier-first did worse than play-rate alone. A shallow lane
+    (Jace's polymorphs) is never cut."""
     lane = [
         _cc(
             f"Vamp {i}",
@@ -1707,10 +1710,15 @@ def test_a_deep_lane_is_the_last_cut_tier_least_played_costlier_first():
     cuts = cut_candidates(lane, commander_cards={c.name for c in lane}, **kw)
     reasons = {r for r, _ in cuts}
     assert reasons == {"lane_upgrade"}
-    names = [c.name for _, c in cuts]
-    # The least-played half (ranks 7000-12000: Vamp 6..11), costlier first.
-    assert set(names) == {f"Vamp {i}" for i in range(6, 12)}
-    assert [c.cmc for _, c in cuts] == sorted((c.cmc for _, c in cuts), reverse=True)
+    # The least-played half (ranks 7000-12000: Vamp 6..11), least played first.
+    assert [c.name for _, c in cuts] == [f"Vamp {i}" for i in range(11, 5, -1)]
+    # A carer of the lane yields its place to a feeder: with Vamp 11 and Vamp 10
+    # caring, the half is the six least-played FEEDERS, the carers after them.
+    carers = {"Vamp 11", "Vamp 10"}
+    cuts = cut_candidates(
+        lane, commander_cards={c.name for c in lane}, lane_carers=carers, **kw
+    )
+    assert [c.name for _, c in cuts] == [f"Vamp {i}" for i in range(9, 3, -1)]
     # Below the floor the lane is kept whole.
     assert (
         cut_candidates(
@@ -1718,7 +1726,7 @@ def test_a_deep_lane_is_the_last_cut_tier_least_played_costlier_first():
         )
         == []
     )
-    assert _cut_why("lane_upgrade").startswith("among the lane's least-played")
+    assert _cut_why("lane_upgrade").startswith("a lane feeder few decks play")
 
 
 def test_a_band_that_is_the_commanders_lane_is_no_cut_pool():
@@ -1784,3 +1792,47 @@ def test_only_a_spine_fill_or_closer_takes_a_lane_slot():
         "message": "curve",
     }
     assert _swaps_for_issue_dicts(lane, [curve], ctx())["swaps"] == []
+
+
+def test_spine_fill_ranks_by_playrate_within_a_mana_value_band():
+    """A Spine fill is the most-played card in the cheapest band that does the
+    job, not the cheapest mana value outright: a {0} oddity (Welding Jar as the
+    protection add, Engineered Explosives as the wipe — 25-precon audit) no longer
+    beats a three-mana staple where play-rate means something. Where it means
+    nothing (a 60-card deck) exact mana value still ranks first."""
+    sig, label, classes, budgets, issue, _off, _on = _role_fix_scenario()
+    zero_oddity = _off_avenue_draw("Zero Jar", cmc=0.0, rank=20000)
+    played_three = _off_avenue_draw("Played Three", cmc=3.0, rank=100)
+    six_drop = _off_avenue_draw("Played Six", cmc=6.0, rank=10)
+
+    def run(*, playrate: bool):
+        out = _swaps_for_issue_dicts(
+            classes,
+            [issue],
+            SwapContext(
+                budgets=budgets,
+                focus_result=_focus(
+                    viable=[{"label": label, "depth": 20, "cards": []}]
+                ),
+                deck_signals=[sig],
+                search_fn=lambda **_: [zero_oddity, played_three, six_drop],
+                identity="",
+                fmt="commander",
+                paper_only=True,
+                owned={},
+                budget=50.0,
+                max_swaps=1,
+                top_heavy=False,
+                playrate=playrate,
+            ),
+        )
+        return out["swaps"][0]["add"]["name"]
+
+    assert run(playrate=True) == "Played Three"  # the band's most-played, not MV 6
+    assert run(playrate=False) == "Zero Jar"
+    # An X cost is banded at what it is cast for, not its printed mana value: a
+    # {X}{W}{W} wipe (mana value 2) at rank 10 is a mid-band card, so the cheap
+    # band's most-played card still wins it.
+    x_wipe = {**_off_avenue_draw("X Coup", cmc=2.0, rank=10), "mana_cost": "{X}{W}{W}"}
+    six_drop.update(x_wipe)  # reuse the slot: the pool is read by name
+    assert run(playrate=True) == "Played Three"

@@ -250,20 +250,37 @@ def test_a_makers_avenue_is_cared_about_by_its_matters_emitters():
     assert fr["fed"][0]["carers"] == 1
 
 
-def test_an_emerging_avenue_needs_one_card_that_cares():
+def test_an_emerging_avenue_needs_builders_in_proportion():
+    # An emerging direction needs two carers (half the sub's carer floor of four
+    # at 100 cards, never one card) and carers a third of its depth — the share
+    # a main is held to. One card caring about six proliferators is a payoff.
     label = spec_for(_sig("proliferate_makers")).label
-    classes = [_cc(f"Prolif {i}", "engine", [label]) for i in range(6)]
-    nobody = focus(
-        classes, deck_size=100, deck_signals=[_sig("proliferate_makers")], emitters={}
-    )
-    assert label not in [a["label"] for a in nobody["emerging"]]
-    somebody = focus(
-        classes,
-        deck_size=100,
-        deck_signals=[_sig("proliferate_makers")],
-        emitters={("proliferate_matters", "you", ""): frozenset({"Prolif 0"})},
-    )
-    assert [a["label"] for a in somebody["emerging"]] == [label]
+
+    def run(depth, carers):
+        classes = [_cc(f"Prolif {i}", "engine", [label]) for i in range(depth)]
+        emitters = {
+            ("proliferate_matters", "you", ""): frozenset(
+                f"Prolif {i}" for i in range(carers)
+            )
+        }
+        return focus(
+            classes,
+            deck_size=100,
+            deck_signals=[_sig("proliferate_makers")],
+            emitters=emitters,
+        )
+
+    assert run(6, 0)["emerging"] == []
+    one = run(6, 1)
+    assert one["emerging"] == []
+    assert [(a["label"], a["carers"]) for a in one["fed"]] == [(label, 1)]
+    assert one["emerging_carer_floor"] == 2
+    # Two carers over five or six feeders build it (Blame Game's Proliferate,
+    # 5 deep / 2 carers); two over nine do not (Jace's activated-ability
+    # engine, 9 / 2); three over nine do (Animated Army's Landfall, 9 / 3).
+    assert [a["label"] for a in run(6, 2)["emerging"]] == [label]
+    assert run(9, 2)["emerging"] == []
+    assert [a["label"] for a in run(9, 3)["emerging"]] == [label]
 
 
 def test_removal_family_avenues_are_not_themes():
@@ -443,8 +460,8 @@ def test_token_maker_is_cared_about_by_tokens_matter():
 
 
 def test_carers_are_read_across_scopes():
-    # A doer lane emits scope ``any`` where its payoff sibling emits ``you``: the
-    # carer read keys on (key, subject) only.
+    # A doer lane emits scope ``any`` where its payoff sibling emits ``you``: a
+    # scope the payoff key does not split stays scope-blind.
     makers = spec_for(_sig("lifegain_makers", scope="any")).label
     classes = [_cc(f"Gainer {i}", "engine", [makers]) for i in range(11)]
     fr = focus(
@@ -462,6 +479,157 @@ def test_carers_are_read_across_scopes():
     )
     assert [a["label"] for a in fr["viable_avenues"]] == [makers]
     assert fr["viable_avenues"][0]["carers"] == 4
+
+
+def test_a_scoped_payoff_cares_only_about_its_own_scope():
+    # graveyard_matters gives ``you`` and ``opponents`` avenues of their own: a
+    # self-mill payoff is a carer of "Your graveyard", never of "Opponents'
+    # graveyards" (under Teval both read 43 carers). A scope the key does not
+    # split (``each``: Living Death's symmetric return) cares about either.
+    yours = spec_for(_sig("graveyard_matters")).label
+    theirs = spec_for(_sig("graveyard_matters", scope="opponents")).label
+    assert yours != theirs
+    classes = [_cc(f"Yard {i}", "engine", [yours]) for i in range(12)]
+    classes += [_cc(f"Theirs {i}", "engine", [theirs]) for i in range(6)]
+    self_payoffs = {f"Yard {i}" for i in range(10)}
+    emitters = {
+        ("graveyard_matters", "you", ""): frozenset(self_payoffs),
+        ("graveyard_matters", "opponents", ""): frozenset({"Theirs 0", "Theirs 1"}),
+        ("graveyard_matters", "each", ""): frozenset({"Theirs 2"}),
+    }
+    signals = [
+        _sig("graveyard_matters"),
+        _sig("graveyard_matters", scope="opponents"),
+        # The doer sibling opens the same opponents' avenue: its payoff key
+        # splits by scope, so the self-mill payoffs stay out of it too.
+        _sig("graveyard_makers", scope="opponents"),
+    ]
+    fr = focus(classes, deck_size=100, deck_signals=signals, emitters=emitters)
+    rows = {a["label"]: a for a in fr["viable_avenues"] + fr["emerging"] + fr["fed"]}
+    assert set(rows[theirs]["carer_cards"]) == {"Theirs 0", "Theirs 1", "Theirs 2"}
+    assert set(rows[yours]["carer_cards"]) == self_payoffs | {"Theirs 2"}
+
+
+def _fodder_deck():
+    """Multiverse Reforged's shape: Jace holds the polymorph lane (wants_fodder)
+    and the polymorphs, caring about token fodder, are every carer of "Token
+    generators" too (``_CARES_ALIASES``) — two avenues sharing most of the
+    smaller one's members (the token spells feed both) and one carer set, but
+    short of the 80 % member fold (8 of the 16 makers)."""
+    fodder = spec_for(_sig("wants_fodder")).label
+    tokens = spec_for(_sig("token_maker")).label
+    polymorphs = {"Jace", "Polymorph 0", "Polymorph 1", "Polymorph 2"}
+    classes = [_cc("Jace", "commander", [fodder])]
+    classes += [_cc(f"Polymorph {i}", "engine", [fodder]) for i in range(3)]
+    classes += [_cc(f"Maker {i}", "engine", [fodder, tokens]) for i in range(8)]
+    classes += [_cc(f"Maker {i}", "engine", [tokens]) for i in range(8, 16)]
+    signals = [_sig("wants_fodder"), _sig("token_maker")]
+    emitters = {
+        ("wants_fodder", "you", ""): frozenset(polymorphs),
+        ("token_maker", "you", ""): frozenset(f"Maker {i}" for i in range(16)),
+    }
+    return classes, signals, emitters, fodder, tokens
+
+
+def test_two_avenues_one_carer_set_are_one_theme():
+    classes, signals, emitters, fodder, tokens = _fodder_deck()
+    fr = focus(
+        classes,
+        deck_size=100,
+        deck_signals=signals,
+        commander_idents=frozenset({("wants_fodder", "you", "")}),
+        emitters=emitters,
+    )
+    viable = [a["label"] for a in fr["viable_avenues"]]
+    assert viable == [fodder]
+    assert tokens not in [a["label"] for a in fr["emerging"]]
+
+
+def test_one_carer_set_over_two_pools_stays_two_avenues():
+    # Subject-less tokens anthems care about Soldier makers and Spirit makers
+    # alike: the same carers, but no card feeds both tribes — two avenues.
+    soldiers = spec_for(_sig("token_maker", subject="Soldier")).label
+    spirits = spec_for(_sig("token_maker", subject="Spirit")).label
+    assert soldiers != spirits
+    anthems = {f"Anthem {i}" for i in range(5)}
+    classes = [_cc(f"Soldier {i}", "engine", [soldiers]) for i in range(12)]
+    classes += [_cc(f"Spirit {i}", "engine", [spirits]) for i in range(12)]
+    classes += [_cc(a, "engine", []) for a in sorted(anthems)]
+    fr = focus(
+        classes,
+        deck_size=100,
+        deck_signals=[
+            _sig("token_maker", subject="Soldier"),
+            _sig("token_maker", subject="Spirit"),
+        ],
+        emitters={
+            ("tokens_matter", "you", ""): frozenset(anthems),
+            ("token_maker", "you", "Soldier"): frozenset(
+                f"Soldier {i}" for i in range(12)
+            ),
+            ("token_maker", "you", "Spirit"): frozenset(
+                f"Spirit {i}" for i in range(12)
+            ),
+        },
+    )
+    rows = {a["label"]: a for a in fr["viable_avenues"]}
+    assert set(rows) == {soldiers, spirits}
+    assert set(rows[soldiers]["carer_cards"]) == set(rows[spirits]["carer_cards"])
+
+
+def test_a_held_lane_never_folds_into_an_avenue_it_does_not_hold():
+    # The same carer set, with the commander holding the SHALLOW lane at
+    # emerging depth: the held lane stays the commander's own, even with a
+    # deeper non-held avenue kept above it.
+    fodder = spec_for(_sig("wants_fodder")).label
+    tokens = spec_for(_sig("token_maker")).label
+    carers = {"Jace", "Polymorph 0", "Polymorph 1", "Polymorph 2"}
+    classes = [_cc("Jace", "commander", [fodder])]
+    classes += [_cc(f"Polymorph {i}", "engine", [fodder]) for i in range(3)]
+    # Half the held lane's members are token makers (the carer fold's member
+    # floor), short of the 80 % member fold.
+    classes += [_cc(f"Maker {i}", "engine", [fodder, tokens]) for i in range(4)]
+    classes += [_cc(f"Maker {i}", "engine", [tokens]) for i in range(4, 14)]
+    fr = focus(
+        classes,
+        deck_size=100,
+        deck_signals=[_sig("wants_fodder"), _sig("token_maker")],
+        commander_idents=frozenset({("wants_fodder", "you", "")}),
+        emitters={("wants_fodder", "you", ""): frozenset(carers)},
+    )
+    assert fr["commander_avenues"] == []  # held, but under the sub floor
+    assert tokens in [a["label"] for a in fr["viable_avenues"]]
+    assert fodder in [a["label"] for a in fr["emerging"]]
+
+
+def test_two_avenues_sharing_one_carer_stay_apart():
+    # Sun Titan is the one card caring about recast AND about ETB value: one
+    # shared carer is a single card, not a theme read twice.
+    recast = spec_for(_sig("permanent_recast")).label
+    engine = spec_for(_sig("landfall")).label
+    classes = [_cc(f"Recast {i}", "engine", [recast]) for i in range(12)]
+    classes += [_cc(f"Engine {i}", "engine", [engine]) for i in range(12)]
+    fr = focus(
+        classes,
+        deck_size=100,
+        deck_signals=[_sig("permanent_recast"), _sig("landfall")],
+        emitters={
+            ("permanent_recast", "you", ""): frozenset(
+                {"Both Payoff", "Recast 0", "Recast 1", "Recast 2"}
+            ),
+            ("landfall", "you", ""): frozenset(
+                {"Both Payoff", "Engine 0", "Engine 1", "Engine 2"}
+            ),
+        },
+    )
+    assert {a["label"] for a in fr["viable_avenues"]} == {recast, engine}
+    # Nor does a lone carer, however exactly the two sets match.
+    from mtg_utils._tuner.metrics import _same_carers
+
+    assert not _same_carers({"Both Payoff"}, {"Both Payoff"})
+    assert _same_carers(
+        {"Both Payoff", "Other Payoff"}, {"Both Payoff", "Other Payoff"}
+    )
 
 
 def test_an_emerging_depth_avenue_nobody_cares_about_is_reported_fed():
@@ -669,6 +837,30 @@ def test_two_commander_held_mains_are_one_direction():
     assert fr["verdict"] == "SPREAD-THIN"
 
 
+def test_the_lane_carers_are_every_held_lanes_carers():
+    # The lane cut tier spares the cards caring about the commander's lanes —
+    # ALL of them: Saheeli's Energy carers are not plain feeders because
+    # Artifacts happens to rank first.
+    classes, signals, emitters, _art, _energy = _two_lane_commander()
+    fr = focus(
+        classes,
+        deck_size=100,
+        deck_signals=signals,
+        emitters=emitters,
+        commander_idents=frozenset(
+            {("artifacts_matter", "you", ""), ("energy_matters", "you", "")}
+        ),
+    )
+    assert set(fr["commander_lane_carers"]) == (
+        {"Saheeli"}
+        | {f"Art {i}" for i in range(10)}
+        | {f"Energy {i}" for i in range(10)}
+    )
+    # No held lane, no lane carers.
+    fr = focus(classes, deck_size=100, deck_signals=signals, emitters=emitters)
+    assert fr["commander_lane_carers"] == []
+
+
 def test_a_main_needs_carers_in_proportion_to_its_feeders():
     """Six cards caring about twenty-two artifacts (the Timey-Wimey precon) is a
     sub-theme beside the main, not a second main."""
@@ -727,6 +919,42 @@ def test_the_primary_lane_is_the_held_lane_most_cards_care_about():
     assert fr["viable_avenues"][0]["label"] == goad
 
 
+def test_the_primary_lane_is_a_held_lane_deep_enough_to_show():
+    """Bello: his combat-damage read (4 deep, 4 caring) is never reported below
+    the sub floor, so it cannot be the primary; the Animation lane (28 deep, one
+    carer — Bello himself) is, and the deck has a main."""
+    anim = spec_for(_sig("animate_makers", subject="Artifact")).label
+    combat = spec_for(_sig("combat_damage_to_opp", scope="opponents")).label
+    classes = [_cc("Bello", "commander", [anim, combat])]
+    classes += [_cc(f"Rock {i}", "engine", [anim]) for i in range(28)]
+    classes += [_cc(f"Hitter {i}", "engine", [combat]) for i in range(4)]
+    signals = [
+        _sig("animate_makers", subject="Artifact"),
+        _sig("combat_damage_to_opp", scope="opponents"),
+    ]
+    emitters = {
+        ("animate_makers", "you", "Artifact"): frozenset({"Bello"}),
+        ("combat_damage_to_opp", "opponents", ""): frozenset(
+            {"Bello"} | {f"Hitter {i}" for i in range(3)}
+        ),
+    }
+    fr = focus(
+        classes,
+        deck_size=100,
+        deck_signals=signals,
+        emitters=emitters,
+        commander_idents=frozenset(
+            {
+                ("animate_makers", "you", "Artifact"),
+                ("combat_damage_to_opp", "opponents", ""),
+            }
+        ),
+    )
+    assert fr["viable_avenues"][0]["label"] == anim
+    assert fr["viable_avenues"][0]["tier"] == "main"
+    assert fr["verdict"] == "FOCUSED"
+
+
 def test_an_engine_card_feeding_only_fed_avenues_is_dead_weight():
     classes, signals, emitters, _cheat, _combat, _dig = _polymorph_precon()
     fr = focus(
@@ -750,6 +978,29 @@ def test_an_engine_card_feeding_only_fed_avenues_is_dead_weight():
     assert not low & set(attackers)
     assert not low & {f"Polymorph {i}" for i in range(5)}
     assert "Bomb 0" in low
+
+
+def test_a_carer_of_a_built_avenue_is_never_fed_only():
+    # Deep Clue Sea: a token doubler serves only the fed "Token doubling"
+    # avenue, but it cares about the Clue lane the deck built — not dead weight.
+    clues = spec_for(_sig("clue_makers")).label
+    doubling = spec_for(_sig("token_doubling")).label
+    classes = [_cc(f"Clue {i}", "engine", [clues]) for i in range(20)]
+    classes += [_cc("Doubler", "engine", [doubling])]
+    classes += [_cc(f"Copier {i}", "engine", [doubling]) for i in range(10)]
+    fr = focus(
+        classes,
+        deck_size=100,
+        deck_signals=[_sig("clue_makers"), _sig("token_doubling")],
+        emitters={
+            ("clue_matters", "you", ""): frozenset(f"Clue {i}" for i in range(8)),
+            ("token_doubling", "you", ""): frozenset({"Doubler"}),
+        },
+    )
+    assert [a["label"] for a in fr["viable_avenues"]] == [clues]
+    assert "Doubler" in next(a for a in fr["viable_avenues"])["carer_cards"]
+    assert "Doubler" not in fr["fed_only_cards"]
+    assert "Copier 0" in fr["fed_only_cards"]
 
 
 def test_nothing_is_fed_only_until_something_is_built():
@@ -877,3 +1128,31 @@ def test_the_lane_members_are_what_the_held_avenues_serve():
     assert set(fr["commander_lane_members"]) == {"Saheeli"} | {
         f"Art {i}" for i in range(20)
     }
+
+
+def test_a_land_type_lane_counts_its_lands_and_no_other_lane_does():
+    """A land-type lane's feeders ARE lands (Yuma's Deserts): they count toward
+    its depth, and toward nothing else — a Desert that also serves Landfall is
+    still mana base there."""
+    desert = _sig(signal_keys.LAND_TYPE_MATTERS, subject="Desert")
+    deserts = spec_for(desert).label
+    landfall = spec_for(_sig("landfall")).label
+    classes = [_cc("Yuma", "commander", [deserts])]
+    classes += [_cc(f"Desert {i}", "land", [deserts, landfall]) for i in range(12)]
+    classes += [_cc(f"Payoff {i}", "engine", [deserts]) for i in range(2)]
+    fr = focus(
+        classes,
+        deck_size=100,
+        deck_signals=[desert, _sig("landfall")],
+        commander_idents=frozenset({(signal_keys.LAND_TYPE_MATTERS, "you", "Desert")}),
+        emitters={
+            (signal_keys.LAND_TYPE_MATTERS, "you", "Desert"): frozenset(
+                {"Yuma", "Payoff 0", "Payoff 1"}
+            ),
+        },
+    )
+    rows = {a["label"]: a for a in fr["viable_avenues"]}
+    assert rows[deserts]["depth"] == 15
+    assert "Desert 0" in rows[deserts]["cards"]
+    assert landfall not in rows
+    assert fr["commander_avenues"] == [deserts]

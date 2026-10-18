@@ -260,9 +260,10 @@ def _incubate_makers(tree: ConceptTree) -> list[Signal]:
     """incubate_makers — an ``Incubate N`` DOER (CR 701.53): make an Incubator token
     with N +1/+1 counters that transforms into a 0/0 artifact creature (Brimaz,
     Blight of Oreskos, Chrome Host Seedshark). A NEW dedicated lane (the live path
-    has no incubate key). The Incubator co-feeds ``artifacts_matter`` only when a
-    card MAKES the token via ``make_token``; the ``Incubate`` effect is its own
-    maker. Scope "you".
+    has no incubate key). Neither path co-feeds ``artifacts_matter``: making an
+    Incubator (an artifact token, CR 205.3g) is a maker read, never the
+    artifacts payoff (``_artifacts_enchantments_matter``'s docstring); the
+    ``Incubate`` effect is its own maker. Scope "you".
     """
     return _whole_card_maker(tree, "incubate", "incubate_makers", "you")
 

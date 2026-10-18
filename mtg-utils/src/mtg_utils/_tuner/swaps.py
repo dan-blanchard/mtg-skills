@@ -48,6 +48,31 @@ def _quality(card: dict, *, playrate: bool) -> int:
     return edhrec_popularity(card) if playrate else 0
 
 
+#: The mana-value bands a Spine fill ranks within when play-rate means something:
+#: cheap (0-3: the one-mana removal, the two-mana rocks, the three-mana wipes and
+#: draw engines), mid (4-5: the four-mana wraths) and top (6+).
+_MV_BANDS: tuple[float, ...] = (3.0, 5.0)
+
+
+#: What an X in a mana cost is worth for banding: an X spell is cast for value at
+#: X ≥ 3 (Martial Coup wants five, Comet Storm three) — a printed mana value of 2
+#: would otherwise band Martial Coup with Swords to Plowshares. The lane's own call.
+_X_COST_VALUE = 3.0
+
+
+def _mv_band(card: Mapping) -> int:
+    """The index of the band the card's cost falls in (``_MV_BANDS``), so a Spine
+    fill is ranked by play-rate among its peers in cost rather than by exact mana
+    value, where a {0} cost reads as the cheapest card that does the job. An X in
+    the cost counts ``_X_COST_VALUE`` (CR 202.3e: X is treated as 0 while the
+    object is not on the stack, so a printed mana value never shows what the
+    spell is cast for)."""
+    cmc = float(card.get("cmc") or 0.0)
+    if "{X}" in (card.get("mana_cost") or ""):
+        cmc += _X_COST_VALUE
+    return sum(1 for top in _MV_BANDS if cmc > top)
+
+
 def _fills_short_role(card: CardClass, budgets: dict) -> bool:
     """True if the card fills a role already at/below its floor — cutting it would drop
     that role below the template minimum, so it is never a safe trim (e.g. don't cut the
@@ -110,6 +135,7 @@ def cut_candidates(
     playrate_meaningful: bool = True,
     viable: Collection[str] = (),
     commander_cards: Collection[str] = (),
+    lane_carers: Collection[str] = (),
     lane_upgrade_floor: int = 12,
 ) -> list[tuple[str, CardClass]]:
     """Ordered (reason, card) cut candidates, most-cuttable first. Hard floors apply.
@@ -245,7 +271,16 @@ def cut_candidates(
         ):
             push("stranded", c)
 
-    # 4. The lane's own least-played, costliest members — only in a deep lane.
+    # 4. The lane's own feeders nobody plays much — only in a deep lane. Measured
+    # against the upgrade guides' cuts inside the 25 precons' lanes (906 lane
+    # cards, 222 guide cuts, 2026-10-18): a member that does NOT itself care
+    # about the lane (an artifact that is just an artifact under an Artifacts
+    # main; in a tribal lane every member is a carer, so there the order is
+    # play-rate alone) before one that does,
+    # then least played, puts a guide cut in the top five 48% of the time; the
+    # same half ordered costlier-first managed 30%, and no function read
+    # (one-shot vs repeatable, body for its cost, in-deck synergy depth, how
+    # many lanes a card touches) moved the rate off the 25% base at all.
     lane = [
         c
         for c in classes
@@ -255,8 +290,8 @@ def cut_candidates(
         and not premium(c)
     ]
     if len(lane) >= lane_upgrade_floor:
-        ranked = sorted(lane, key=lambda c: c.least_played_key)
-        for c in sorted(ranked[: len(ranked) // 2], key=lambda c: -c.cmc):
+        ranked = sorted(lane, key=lambda c: (c.name in lane_carers, c.least_played_key))
+        for c in ranked[: len(ranked) // 2]:
             push("lane_upgrade", c)
 
     return out
@@ -277,6 +312,7 @@ def size_cuts(
     playrate_meaningful: bool = True,
     viable: Collection[str] = (),
     commander_cards: Collection[str] = (),
+    lane_carers: Collection[str] = (),
     lane_upgrade_floor: int = 12,
 ) -> list[dict]:
     """Legality-driven cuts for an OVER-sized deck: up to ``overflow`` proposals.
@@ -307,6 +343,7 @@ def size_cuts(
         lane_upgrade_floor=lane_upgrade_floor,
         viable=viable,
         commander_cards=commander_cards,
+        lane_carers=lane_carers,
     ):
         if len(out) >= overflow:
             break
@@ -608,6 +645,7 @@ def propose_swaps(
         lane_upgrade_floor=ctx.lane_upgrade_floor,
         viable=focus_sets["viable"],
         commander_cards=ctx.focus_result.get("commander_lane_cards") or (),
+        lane_carers=ctx.focus_result.get("commander_lane_carers") or (),
     )
     # Route cuts into the pools a Remedy names: an over-band trim cuts from THAT over
     # role (``over:<role>``); everything else is the generic pool (filler, low-value,
@@ -727,14 +765,19 @@ def propose_swaps(
                 )
             ]
         else:
-            # Spine fills: cheapest-MV does-the-job first (efficiency) within the
-            # page (the most-played matches in the Commander family, see
-            # ``_run_search``), then play-rate so a played staple beats a fringe
-            # same-cost role-filler, then price.
+            # Spine fills: the cheapest mana-value BAND that does the job first
+            # (efficiency), then play-rate within it, then price. Exact mana value
+            # first let an X or {0} cost win every fill — Welding Jar as the
+            # protection add, Engineered Explosives as the board wipe, under a
+            # Dinosaur commander (25-precon audit, 2026-10-18) — so where play-rate
+            # means something (the Commander family) the band is the unit and the
+            # most-played card in it is the fill. A 60-card or limited deck keeps
+            # the exact mana value: its ``_quality`` is neutral, so price breaks the
+            # tie and nothing else would.
             ranked = sorted(
                 pool,
                 key=lambda c: (
-                    c.get("cmc", 0.0),
+                    _mv_band(c) if ctx.playrate else c.get("cmc", 0.0),
                     _quality(c, playrate=ctx.playrate),
                     extract_price(c) or 1e9,
                 ),
@@ -1053,5 +1096,5 @@ def _cut_why(reason: str, card: CardClass | None = None) -> str:
     if reason == "stranded":
         return "stranded on a near-empty avenue"
     if reason == "lane_upgrade":
-        return "among the lane's least-played, costlier cards — an upgrade's slot"
+        return "a lane feeder few decks play — an upgrade's slot"
     return reason

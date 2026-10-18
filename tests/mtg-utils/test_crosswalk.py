@@ -44,6 +44,8 @@ from mtg_utils._card_ir.crosswalk import (
     ConceptTree,
     build_concept_tree,
     lost_pile_count,
+    replacement_event_tag,
+    replacement_token_types,
     tag_of,
 )
 from mtg_utils._card_ir.mirror import strict_load_card
@@ -2086,8 +2088,10 @@ def test_creatures_matter_w8_finisher_batch(name, should_fire):
         ("Padeem, Consul of Innovation", ("artifacts_matter", "you", ""), True),
         ("Enlightened Tutor", ("artifacts_matter", "you", ""), True),  # composite
         ("Enlightened Tutor", ("enchantments_matter", "you", ""), True),
-        ("Dockside Extortionist", ("artifacts_matter", "you", ""), True),  # Treasure
-        ("Bartered Cow", ("artifacts_matter", "you", ""), True),  # Food token
+        # An artifact-token MAKER is a doer (treasure_makers / food_makers), never
+        # the artifacts_matter payoff.
+        ("Dockside Extortionist", ("artifacts_matter", "you", ""), False),  # Treasure
+        ("Bartered Cow", ("artifacts_matter", "you", ""), False),  # Food token
         # Edict over-fire: "each opponent sacrifices an artifact or enchantment" is a
         # you-controlled-subject phase mislabel — must NOT open either type lane.
         ("Tribute to the Wild", ("artifacts_matter", "you", ""), False),
@@ -7334,10 +7338,14 @@ def test_resource_token_sac_payoffs(name, ident):
 
 
 def test_resource_token_matters_role_split():
-    """A pure MAKER (Dockside's Treasures; Voldaren Bloodcaster's Blood) fires
-    the *_makers lane and never the sacrifice payoff (checklist #4)."""
+    """A pure MAKER (Dockside's Treasures; Ceremonial Knife's Blood) fires
+    the *_makers lane and never the sacrifice payoff (checklist #4). (Voldaren
+    Bloodcaster also watches its Blood — "whenever you create a Blood token, if
+    you control five or more" — so it is both, see
+    ``test_typed_token_payoff_carries_its_subject``.)"""
     assert "treasure_matters" not in _keys("Dockside Extortionist")
-    assert "blood_matters" not in _keys("Voldaren Bloodcaster")
+    assert "blood_makers" in _keys("Ceremonial Knife")
+    assert "blood_matters" not in _keys("Ceremonial Knife")
 
 
 def test_resource_token_matters_excludes_non_token_sac():
@@ -11520,6 +11528,110 @@ def test_token_doubling_co_fires_copy_and_matters():
 
 
 @pytest.mark.parametrize(
+    ("name", "expected"),
+    [
+        ("Xorn", {(("Treasure",), ())}),
+        ("Academy Manufactor", {(("Clue", "Food", "Treasure"), ())}),
+        # Two Class-level replacements, each an And[ClassLevelGE, TokenSubtype].
+        ("Fisher's Talent", {(("Fish",), ()), (("Shark",), ())}),
+        ("Stridehangar Automaton", {((), ("Artifact",))}),  # "artifact tokens"
+        ("Doubling Season", {((), ())}),  # every token
+    ],
+)
+def test_replacement_token_types(name, expected):
+    """CR 614.1a: a CreateToken replacement's condition names the token kinds it
+    replaces — subtypes (TokenSubtypeMatches) and core types
+    (TokenCoreTypeMatches), read through And."""
+    reads = {
+        replacement_token_types(u.node)
+        for u in _tree(name).units
+        if u.origin == "replacement" and replacement_event_tag(u.node) == "CreateToken"
+    }
+    assert reads == expected
+
+
+@pytest.mark.parametrize(
+    ("name", "fires", "never"),
+    [
+        # A typed token replacement cares about that kind's makers only
+        # (CR 111.10a Treasure / 111.10b Food / 111.10f Clue): the served typed
+        # payoff, never the bare tokens_matter that cares about Soldier makers.
+        ("Xorn", {("treasure_matters", "you", "")}, {("tokens_matter", "you", "")}),
+        (
+            "Academy Manufactor",
+            {
+                ("clue_matters", "you", ""),
+                ("food_matters", "you", ""),
+                ("treasure_matters", "you", ""),
+            },
+            {("tokens_matter", "you", "")},
+        ),
+        # A creature-type token: the subject spelled the way token_maker spells it.
+        (
+            "Fisher's Talent",
+            {("tokens_matter", "you", "Fish"), ("tokens_matter", "you", "Shark")},
+            {("tokens_matter", "you", "")},
+        ),
+        ("Stridehangar Automaton", {("artifacts_matter", "you", "")}, set()),
+        # A typed token-watching trigger (CR 111.10g Blood) and a typed token anthem.
+        (
+            "Gluttonous Guest",
+            {("blood_matters", "you", "")},
+            {("tokens_matter", "you", "")},
+        ),
+        # A typed TokenCreated trigger ("whenever you create a Blood token").
+        (
+            "Voldaren Bloodcaster",
+            {("blood_matters", "you", "")},
+            {("tokens_matter", "you", "")},
+        ),
+        (
+            "Gleaming Overseer",
+            {("tokens_matter", "you", "Zombie")},
+            {("tokens_matter", "you", "")},
+        ),
+        # No subtype named: the bare payoff that cares about every token maker.
+        ("Doubling Season", {("tokens_matter", "you", "")}, set()),
+        ("Teysa Karlov", {("tokens_matter", "you", "")}, set()),
+    ],
+)
+def test_typed_token_payoff_carries_its_subject(name, fires, never):
+    idents = _idents(name)
+    assert fires <= idents
+    assert not (never & idents)
+    if name != "Stridehangar Automaton":
+        assert ("artifacts_matter", "you", "") not in idents
+
+
+@pytest.mark.parametrize(
+    ("name", "maker"),
+    [
+        ("Skrelv's Hive", ("token_maker", "you", "Mite")),  # Mite artifact creatures
+        ("Currency Converter", ("treasure_makers", "you", "")),
+        ("Erdwal Illuminator", ("clue_makers", "you", "")),  # investigate
+        # A RollDie bullet phase parks as Unimplemented ("create a 1/1 white
+        # Clown Robot artifact creature token"), recovered as a make_token.
+        ("Circuits Act", ("token_maker", "you", "Robot")),
+    ],
+)
+def test_artifact_token_maker_is_a_maker_not_an_artifacts_payoff(name, maker):
+    """CR 205.3g: Treasure, Clue and the rest are artifact types, so these cards
+    MAKE artifacts — the doer side, credited on their maker key. artifacts_matter
+    is the payoff key the tuner reads as a card that cares about artifacts."""
+    idents = _idents(name)
+    assert maker in idents
+    assert ("artifacts_matter", "you", "") not in idents
+
+
+@pytest.mark.parametrize("name", ["Kappa Cannoneer", "Cranial Plating"])
+def test_artifact_payoff_still_fires_artifacts_matter(name):
+    """The payoff half of the split: a card that scales with or triggers on your
+    artifacts (Kappa Cannoneer's artifact-enters trigger, Cranial Plating's
+    "for each artifact you control") still fires artifacts_matter."""
+    assert ("artifacts_matter", "you", "") in _idents(name)
+
+
+@pytest.mark.parametrize(
     ("name", "should_fire"),
     [
         ("Doubling Season", True),  # AddCounter Times 2, Permanent/You
@@ -13036,6 +13148,50 @@ def test_superfriends_matters_skips_whenever_event_recipients():
     assert "superfriends_matters" not in _keys("Flitterwing Nuisance")
 
 
+@pytest.mark.parametrize(
+    ("name", "lands_on"),
+    [
+        ("Comeuppance", "damage_prevention"),  # "to you and planeswalkers you control"
+        ("Take the Bait", "damage_prevention"),
+        ("Gideon's Sacrifice", "damage_redirect"),  # a creature or planeswalker
+        ("Promise of Loyalty", "pillowfort"),  # can't attack you or planeswalkers
+        ("Orzhov Advokist", "pillowfort"),
+        ("Rite of the Raging Storm", "pillowfort"),
+        ("Archangel of Tithes", "pillowfort"),
+        ("Vow of Duty", "pillowfort"),
+        ("Soul Snare", "exile_removal"),  # attacking you or a planeswalker
+        ("Blood Reckoning", "lifeloss_makers"),  # attacks you or a planeswalker
+    ],
+)
+def test_superfriends_matters_attackable_pair_is_not_a_tell(name, lands_on):
+    """CR 506.2: the defending player and the planeswalkers they control may
+    be attacked, so a fog, an attack tax/ban or a defensive attack trigger
+    names "you or planeswalkers you control" as the standard wording for
+    YOU. That protects the player, it doesn't pay off planeswalkers — the
+    Blame Game precon (Nelly Borca) read seven such cards as a Superfriends
+    sub-theme. Each lands on its real lane instead."""
+    keys = _keys(name)
+    assert "superfriends_matters" not in keys
+    assert lands_on in keys
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "The Chain Veil",  # GrantExtraLoyaltyActivations
+        "Oath of Teferi",  # bucket-B: activate loyalty abilities twice
+        "Carth the Lion",  # a planeswalker you control dies
+        "Onakke Oathkeeper",  # can't attack planeswalkers you control (alone)
+        "Oath of Kaya",  # attacks a planeswalker you control (alone)
+    ],
+)
+def test_superfriends_matters_real_payoffs_still_fire(name):
+    """The pair veto above keeps the real planeswalker payoffs: loyalty
+    engines, a planeswalker-death trigger, and a restriction or trigger
+    that names planeswalkers ALONE (no "you or")."""
+    assert ("superfriends_matters", "you", "") in _idents(name)
+
+
 def test_commander_matters_filter_property_not_metadata():
     """CR 903.3: the IsCommander filter property fires (Bastion Protector,
     Anara); the card-level is_commander/brawl_commander metadata flags are
@@ -13825,13 +13981,16 @@ def test_type_matters_ref_count_filter_multiply_wrapped():
 
 def test_removal_destroy_and_damage_arms():
     """CR 701.8a: single-target destroy (Hero's Downfall) and burn (Flame
-    Slash) of a permanent fire; the mass forms (Wrath of God — DestroyAll,
-    CR 115.10) and player-only burn (Lightning Bolt — target Any) never
-    fire."""
+    Slash) of a permanent fire, and so does "any target" burn (Lightning Bolt,
+    CR 115.4 — a creature, planeswalker or battle among them); the mass forms
+    (Wrath of God — DestroyAll, CR 115.10) and player-only burn (Guttersnipe's
+    "each opponent" — CR 120.3a, the player only loses life) never fire."""
     assert ("removal", "you", "") in _idents("Hero's Downfall")
     assert ("removal", "you", "") in _idents("Flame Slash")
+    assert ("removal", "you", "") in _idents("Lightning Bolt")
     assert "removal" not in _keys("Wrath of God")
-    assert "removal" not in _keys("Lightning Bolt")
+    assert "direct_damage" in _keys("Guttersnipe")
+    assert "removal" not in _keys("Guttersnipe")
 
 
 @pytest.mark.parametrize(
@@ -15804,13 +15963,13 @@ def test_artifacts_matter_condition_type_gate():
     assert ("artifacts_matter", "you", "") in _idents("Dhund Operative")
 
 
-def test_artifacts_matter_investigate_keyword():
-    """Investigate (CR 701.16) IS "create a Clue token", a colorless
-    ARTIFACT (CR 205.3g). Thraben Inspector's investigate keyword-action
-    carries no structured ``make_token`` subject (the Clue subtype lives
-    only in unstructured reminder text), so the Scryfall keyword-array
-    field-lookup is the structural anchor."""
-    assert ("artifacts_matter", "you", "") in _idents("Thraben Inspector")
+def test_investigate_is_a_clue_maker_not_artifacts_matter():
+    """Investigate (CR 701.16a: "Create a Clue token") MAKES an artifact
+    (CR 205.3g) — Thraben Inspector is a Clue maker, not a card that cares
+    about artifacts, so it fires clue_makers and never artifacts_matter."""
+    idents = _idents("Thraben Inspector")
+    assert ("clue_makers", "you", "") in idents
+    assert ("artifacts_matter", "you", "") not in idents
 
 
 def test_artifacts_matter_excludes_bargain_optional_alt_cost():
@@ -15872,18 +16031,48 @@ def test_artifacts_matter_search_outside_game():
     assert "tutor" not in _keys("Golden Wish")
 
 
-def test_artifacts_matter_choose_one_of_wrapped_sac():
+def test_reflexive_food_payment_is_a_food_payoff():
     """Nimble Hobbit's "Whenever ~ attacks, you may sacrifice a Food or pay
-    {2}{W}." (CR 603.12 reflexive trigger; Food is an artifact subtype, CR
-    205.3g). Through phase v0.23.0 this decomposed as a modal
-    ``ChooseOneOf`` branch whose typed Food Sacrifice the deep scan read;
-    the v0.26.0-v0.66.0 reflexive-payment rework parked the WHOLE body as
-    ``Unimplemented(name='reflexive optional payment')``; v0.86.0 structures
-    it as an effect-role ``PayCost{cost: OneOf[Sacrifice(Food), Mana]}`` +
-    ``WhenYouDo`` — a shape OUR overlay's cost decoration doesn't read yet,
-    served by the ``artifact_sac_reflexive_payment_undecorated`` ledgered
-    bridge until it does."""
-    assert ("artifacts_matter", "you", "") in _idents("Nimble Hobbit")
+    {2}{W}. When you do, …" (CR 603.12 reflexive trigger) is an effect-role
+    ``PayCost{cost: OneOf[Sacrifice(Food), Mana]}`` (phase v0.86.0+). The Food
+    lane reads the payment's cost leaves, so it is a Food payoff — and, like
+    every Treasure / Clue / Food / Blood sacrifice, not an artifacts_matter
+    payoff (the ``artifact_sac_reflexive_payment_undecorated`` bridge retired
+    2026-10-18)."""
+    idents = _idents("Nimble Hobbit")
+    assert ("food_matters", "you", "") in idents
+    assert ("artifacts_matter", "you", "") not in idents
+
+
+def test_opponent_paid_food_payment_is_not_your_food_payoff():
+    """Machinery pin (synthetic IR — no real card parses this shape at phase
+    v0.104.0): Nimble Hobbit's ``PayCost`` with its payer rewritten to
+    ``TriggeringPlayer`` is a payment ANOTHER player makes, sacrificing their
+    own Food, so it is no Food payoff of yours."""
+    import copy
+
+    rec = copy.deepcopy(apply_misreads(_record("Nimble Hobbit")))
+    hits = 0
+
+    def retarget(o: object) -> None:
+        nonlocal hits
+        if isinstance(o, dict):
+            if o.get("type") == "PayCost":
+                o["payer"] = {"type": "TriggeringPlayer"}
+                hits += 1
+            for v in o.values():
+                retarget(v)
+        elif isinstance(o, list):
+            for v in o:
+                retarget(v)
+
+    retarget(rec)
+    assert hits == 1
+    rec["name"] = "Test Opponent-Paid Food Payment"
+    root = strict_load_card(rec, _schema(), name=rec["name"])
+    tree = as_signal_tree(build_concept_tree(root, name=rec["name"]))
+    keys = {s.key for s in extract_crosswalk_signals(tree, keywords=frozenset())}
+    assert "food_matters" not in keys
 
 
 def test_artifacts_matter_become_copy_type_restricted_target():
@@ -16060,7 +16249,7 @@ def test_direct_damage_parent_target_sibling_aware():
     tag. Aggressive Sabotage's "Target player discards two cards. If this
     spell was kicked, it deals 3 damage to that player." resolves it by
     checking whether the SAME ability establishes an explicit player target
-    elsewhere (:func:`_unit_has_player_target`) — it does (the Discard's own
+    elsewhere (:func:`_unit_has_target`) — it does (the Discard's own
     "target player"), so the ``ParentTarget`` damage recipient reaches."""
     assert ("direct_damage", "you", "") in _idents("Aggressive Sabotage")
 
@@ -16244,7 +16433,7 @@ def test_direct_damage_beyond_legacy_gain_recovered_node():
 def test_direct_damage_damage_all_target_reach(name):
     """(a) a ``DamageAll`` effect with NO ``player_filter`` can still reach a
     player through its ``target`` field, via the SAME
-    :func:`~mtg_utils._card_ir.crosswalk._damage_target_reaches_player`
+    :func:`~mtg_utils._card_ir.crosswalk._damage_target_reaches`
     discriminator ``DealDamage`` already uses (CR 120.1). Full-corpus scan:
     253 commander-legal ``DamageAll`` nodes carry no ``player_filter``; 238
     are Pyroclasm-shaped creature-typed sweeps (stay excluded — non-empty
@@ -16292,7 +16481,7 @@ def test_direct_damage_sin_prodder_optional_for_player_marker():
     damage to that player..." names the CHOOSING player only via a bare
     ``optional_for='AnyOpponent'`` STRING marker on the ChangeZone sub-
     ability — no ``_SCOPE_FIELDS`` slot carries it.
-    :func:`~mtg_utils._card_ir.crosswalk._unit_has_player_target`'s
+    :func:`~mtg_utils._card_ir.crosswalk._unit_has_target`'s
     ``optional_for`` widening (corpus-verified: 26 commander-legal hits, 18
     ``AnyPlayer`` / 8 ``AnyOpponent``, Sin Prodder the ONLY one whose
     ``direct_damage`` membership turns on it) resolves the sibling bare
@@ -16467,7 +16656,7 @@ def test_direct_damage_bridge_kicker_ptplayer_modal_new_target(name):
     chooses to pay a kicker cost... that spell has been kicked"; not a
     back-reference) is tagged ``ParentTarget``, the SAME bare marker a
     genuine back-reference (Aggressive Sabotage) uses — with no sibling
-    player-reaching field in the SAME unit, ``_unit_has_player_target``
+    player-reaching field in the SAME unit, ``_unit_has_target``
     correctly can't resolve it (this module's own documented Fiery-
     Impulse-collision caution)."""
     assert ("direct_damage", "you", "") in _idents(name)
@@ -16589,10 +16778,6 @@ def test_enchantments_matter_excludes_symmetric_library_reset_shed():
         # "create a white and black Spirit enchantment creature token" —
         # same recovered shape, plain enchantment-creature wording.
         ("Daxos the Returned", "enchantments_matter"),
-        # "For each different result, create a 1/1 white Clown Robot
-        # artifact creature token" — a RollDie modal bullet phase parks as
-        # Unimplemented; the artifact word routes the artifacts sibling.
-        ("Circuits Act", "artifacts_matter"),
     ],
 )
 def test_recovered_make_token_type_words_route_matter_lanes(name, lane):
@@ -16682,6 +16867,18 @@ def test_damage_redirect_arm_b_redirect_clause():
     this turn is dealt to target creature you control instead" — the
     genuine CR 614.9 redirection-effect idiom."""
     assert ("damage_redirect", "you", "") in _idents("Nomads en-Kor")
+
+
+@pytest.mark.parametrize("name", ["Gideon's Sacrifice", "Harm's Way"])
+def test_damage_redirect_arm_c_typed_redirection_shield(name):
+    """ARM C (``reads.redirects_damage_from_you``): a typed
+    ``CreateDamageReplacement`` moving damage dealt to you and permanents you
+    control onto another object — Gideon's Sacrifice's "is dealt to the chosen
+    permanent instead", Harm's Way's "is dealt to any target instead" (CR
+    614.9, a redirection effect). Neither says "that damage", so the clause
+    mirror misses both; Gideon's Sacrifice fired nothing but a superfriends
+    false positive before (Blame Game precon audit)."""
+    assert ("damage_redirect", "you", "") in _idents(name)
 
 
 # ── task #84: phase v0.23.0 bump — corpus-diff GAIN-class pins ────────────────
@@ -18084,3 +18281,40 @@ def test_earthbend_last_created_binding_canary():
         "_sets_up_dies_return: RETIRE-READY — Bumi's Feast Lecture's earthbend "
         "return no longer reads LastCreated; delete the misbind arm and this canary."
     )
+
+
+@pytest.mark.parametrize(
+    ("name", "reaches_permanent"),
+    [
+        ("Lightning Bolt", True),  # "any target" (CR 115.4)
+        ("Screaming Nemesis", True),  # "any other target": Typed, no controller
+        ("Comet Storm", True),  # ParentTarget back to "Choose any target"
+        ("Pestilence", True),  # each creature and each player
+        ("Mogis, God of Slaughter", False),  # "that player": ScopedPlayer
+        ("Guttersnipe", False),  # each opponent: DamageEachPlayer
+        ("Aragorn, the Uniter", False),  # "target opponent": Typed, controller set
+        ("Aggressive Sabotage", False),  # ParentTarget back to "Target player"
+        ("Repercussion", False),  # "that creature's controller"
+    ],
+)
+def test_effect_reaches_permanent_tells_a_permanent_from_a_player(
+    name, reaches_permanent
+):
+    """``effect_reaches_permanent``: damage dealt to a player makes them lose life
+    (CR 120.3a); only damage that can be dealt to a battle, creature or
+    planeswalker (CR 120.1) reaches the board — ``effect_reaches_player``'s
+    other side, over the one shared target read."""
+    from mtg_utils._card_ir.crosswalk import (
+        DAMAGE_EFFECT_TAGS,
+        effect_reaches_permanent,
+        iter_typed_nodes,
+    )
+
+    reads = [
+        effect_reaches_permanent(n, u.node)
+        for u in _tree(name).units
+        for n in iter_typed_nodes(u.node)
+        if tag_of(n) in DAMAGE_EFFECT_TAGS
+    ]
+    assert reads, name
+    assert any(reads) is reaches_permanent

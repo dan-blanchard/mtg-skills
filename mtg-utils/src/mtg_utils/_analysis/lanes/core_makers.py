@@ -1878,7 +1878,7 @@ def _direct_damage(tree: ConceptTree) -> list[Signal]:
     row).
 
     ADR-0039 W7 endgame (2026-07-11) — PROMOTED. One real structural gain
-    (:func:`~mtg_utils._card_ir.crosswalk._unit_has_player_target`'s
+    (:func:`~mtg_utils._card_ir.crosswalk._unit_has_target`'s
     ``optional_for`` widening — Sin Prodder's "Any opponent may have you
     put that card into your graveyard. If a player does, ~ deals damage to
     that player..." reads the choosing player off a bare ``optional_for``

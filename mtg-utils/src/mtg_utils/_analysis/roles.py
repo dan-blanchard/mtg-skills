@@ -66,6 +66,11 @@ if TYPE_CHECKING:
 # folded into `removal`'s signal_keys union — CR 611.2 keeps "neutralizes"
 # and "removes" genuinely distinct facts; `removal`'s should_not_match
 # pin on Pacifism stays in force.
+#
+# Damage that only ever reaches a player is not interaction: the player loses life
+# (CR 120.3a) and nothing leaves the board — Mogis, Guttersnipe, Sulfuric Vortex are
+# the `direct_damage` punisher lane, which the `removal` preset no longer reads. Burn
+# that can reach a permanent ("any target", CR 115.4) fires the `removal` lane itself.
 _INTERACTION_PRESETS = (
     "removal",
     "counterspell",

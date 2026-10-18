@@ -4,6 +4,8 @@ avenues panel is ranked by support and capped. Otherwise every creature's race a
 stat-line becomes a "X tribal / X payoffs" pair (the reported UI overload).
 """
 
+import re
+
 from fastapi.testclient import TestClient
 
 from mtg_utils._analysis import signal_trees
@@ -213,5 +215,11 @@ def test_avenues_capped_for_many_themes(monkeypatch):
     _wire_trees(monkeypatch, [cmd, *deck])
     avenues = _client(cmd, deck).get("/api/snapshot").json()["avenues"]
     engine = [a for a in avenues if a["source"] == "engine"]
-    # capped to the dominant themes (+ at most the trailing parent's sub-avenues).
-    assert len(engine) <= _AVENUE_CAP + 3
+    # capped to the dominant themes: the PARENT avenues (a sub-avenue's id ends in
+    # ``:src`` or an index) are what the cap bounds; the trailing parent's
+    # sub-avenues ride along, however many its spec holds (the token lane's five —
+    # it trails here since 2026-10-18, when a Treasure or Food maker stopped
+    # opening "Artifacts").
+    parents = [a for a in engine if not re.search(r":(?:src|\d+)$", a["id"])]
+    assert len(parents) <= _AVENUE_CAP
+    assert len(engine) <= _AVENUE_CAP + 5

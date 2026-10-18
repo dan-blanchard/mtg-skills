@@ -1965,11 +1965,15 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
         ),
     ),
     # Creature/permanent removal (task #83/#86 structural-view conversion —
-    # the LAST regex-bearing preset). ``signal_keys`` is the 9-key union
+    # the LAST regex-bearing preset). ``signal_keys`` is the 8-key union
     # scoped by task #83's census (rec 0.81 vs the old intentionally-
     # generous regex): ``removal`` + ``exile_removal`` + ``mass_removal`` +
-    # ``mass_bounce`` + ``counter_control`` + ``direct_damage`` +
-    # ``bounce_tempo`` + ``fight_makers`` + ``debuff_makers``.
+    # ``mass_bounce`` + ``counter_control`` + ``bounce_tempo`` +
+    # ``fight_makers`` + ``debuff_makers``. ``direct_damage`` left the union
+    # (2026-10-18, the 25-precon audit): it also fires on damage that only
+    # reaches a player (Guttersnipe, Mogis — CR 120.3a, that player loses
+    # life), which removes nothing; the ``removal`` lane now reads burn that
+    # can reach a permanent itself ("any target", CR 115.4 — Lightning Bolt).
     #
     # Two lane gaps the original scoping deferred on are now fixed (task
     # #85, the lanes package): (1) ``debuff_makers``'s single-target Pump
@@ -1986,7 +1990,7 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
     #   - Pacifism / Arrest (pacify auras — "enchanted creature can't
     #     attack"): neutralizes the threat but never destroys/exiles/
     #     counters/bounces/fights/-X's it, so it's not a removal-FAMILY
-    #     effect by ANY of the 9 keys; routes to ``enchantments_matter``.
+    #     effect by ANY of the 8 keys; routes to ``enchantments_matter``.
     #
     # Task #88 CLOSES the two library-tuck gaps this note used to document
     # (Condemn/Chaos Warp routed to lifegain_makers/toughness_combat and
@@ -2021,7 +2025,6 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
             "mass_removal",
             "mass_bounce",
             "counter_control",
-            "direct_damage",
             "bounce_tempo",
             "fight_makers",
             "debuff_makers",
@@ -2032,7 +2035,7 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
             "Wrath of God",  # mass_removal
             "Evacuation",  # mass_bounce
             "Counterspell",  # counter_control
-            "Lightning Bolt",  # direct_damage
+            "Lightning Bolt",  # removal — "any target" burn (CR 115.4)
             "Boomerang",  # bounce_tempo
             "Prey Upon",  # fight_makers
             "Disfigure",  # debuff_makers
@@ -2045,6 +2048,9 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
             "Command Tower",
             "Lupine Prototype",
             "Pacifism",  # pacify aura -> enchantments_matter, not removal
+            # player-only damage (CR 120.3a: that player loses life) — the
+            # `direct_damage` burn lane, never a removal-family key
+            "Guttersnipe",
         ),
     ),
     # Pacify aura (task #87): the dedicated structural concept the

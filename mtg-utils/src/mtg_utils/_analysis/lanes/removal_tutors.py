@@ -58,6 +58,7 @@ from mtg_utils._card_ir.crosswalk import (
     counter_kind,
     damage_recipient,
     effect_filter,
+    effect_reaches_permanent,
     filter_controller,
     filter_core_types,
     filter_inzone_zones,
@@ -65,6 +66,7 @@ from mtg_utils._card_ir.crosswalk import (
     filter_predicates,
     filter_subtypes,
     has_filter_property,
+    has_nested_damage_reaching,
     iter_cost_leaves,
     iter_mod_sites,
     iter_nested_granted_effect_concepts,
@@ -690,6 +692,27 @@ def _recovered_removal(c: ConceptNode) -> bool:
     return False
 
 
+#: The single-target damage shapes (never a ``DamageAll`` / ``DamageEachPlayer``
+#: mass form, CR 115.10's untargeted "each").
+_SINGLE_TARGET_DAMAGE_TAGS = frozenset({"DealDamage", "EachSourceDealsDamage"})
+
+
+def _untyped_burn_reaches_board(
+    c: ConceptNode, recipient: object, root: object
+) -> bool:
+    """A damage effect whose recipient names no permanent type that can still
+    reach one (:func:`~mtg_utils._card_ir.crosswalk.effect_reaches_permanent`):
+    "any target" (CR 115.4 — Lightning Bolt, Shock), "any other target"
+    (Screaming Nemesis), the chosen targets of a multi-target burn (Comet Storm's
+    "Choose any target … deals X damage to each of them"). Player-only damage
+    ("each opponent", "that player" — CR 120.3a: the player loses life) never
+    does, and a typed sweep ("each creature") is ``mass_removal``'s, not this
+    single-target lane's."""
+    if filter_core_types(recipient) or filter_subtypes(recipient):
+        return False
+    return effect_reaches_permanent(c.node, root)
+
+
 def _removal(tree: ConceptTree) -> list[Signal]:
     """removal (§2) — CR 701.8/701.8a: single-target destroy or burn of a
     permanent. Two structural arms, scope "you", HIGH:
@@ -713,9 +736,14 @@ def _removal(tree: ConceptTree) -> list[Signal]:
     nothing" — a land-destruction spell corpus-verified false-positive this
     gate closes;
     (b) effect-role ``DealDamage`` (not DamageAll / DamageEachPlayer) with
-    the same subject test — a player-only burn (target ``Any`` / Player) has
-    no permanent-typed subject and stays direct_damage. Cost-role Destroy
-    never fires (effects-only read, granularity a).
+    the same subject test, OR any damage effect whose recipient names no
+    permanent type but can still reach a battle, creature or planeswalker (CR
+    120.1) — "any target" (CR 115.4 — Lightning Bolt), "any other target", a
+    multi-target burn's chosen targets (Comet Storm's ``DamageAll`` over a
+    ``ParentTarget``) — :func:`_untyped_burn_reaches_board`. Player-only damage
+    (Guttersnipe's "each opponent", Mogis's "that player") reaches no permanent
+    and stays ``direct_damage`` alone. Cost-role Destroy never fires
+    (effects-only read, granularity a).
 
     task #86 adds a third arm: a ``Destroy``/``DealDamage`` reachable inside
     a static's ``GrantAbility``/``GrantStaticAbility``/``GrantTrigger`` body
@@ -869,21 +897,26 @@ def _removal(tree: ConceptTree) -> list[Signal]:
                 desc = getattr(unit.node, "description", "") or ""
                 if _qualified_destroy_target_type(desc):
                     return [Signal("removal", "you", "", c.raw, tree.name, "high")]
-    for c in tree.effect_concepts("deal_damage"):
-        if c.recovered_by:
-            # phase v0.104.0 fail-closed residue, token ``damage``.
-            if _recovered_removal(c):
+    for unit in tree.units:
+        for c in unit.effect_concepts("deal_damage"):
+            if c.recovered_by:
+                # phase v0.104.0 fail-closed residue, token ``damage``.
+                if _recovered_removal(c):
+                    return [Signal("removal", "you", "", c.raw, tree.name, "high")]
+                continue
+            # v0.66.0: the per-source batch burn ("each Bird you control deals
+            # damage equal to its power to target creature an opponent
+            # controls" — Bartz and Boko) is an ``EachSourceDealsDamage`` whose
+            # shared target ``damage_recipient`` unwraps; same single-target
+            # burn (CR 701.8a territory) as the ``DealDamage`` shape.
+            tag = tag_of(c.node)
+            if tag not in ("DealDamage", "EachSourceDealsDamage", "DamageAll"):
+                continue
+            recipient = damage_recipient(c.node)
+            if tag != "DamageAll" and _perm_subject(recipient):
                 return [Signal("removal", "you", "", c.raw, tree.name, "high")]
-            continue
-        # v0.66.0: the per-source batch burn ("each Bird you control deals
-        # damage equal to its power to target creature an opponent
-        # controls" — Bartz and Boko) is an ``EachSourceDealsDamage`` whose
-        # shared target ``damage_recipient`` unwraps; same single-target
-        # burn (CR 701.8a territory) as the ``DealDamage`` shape.
-        if tag_of(c.node) not in ("DealDamage", "EachSourceDealsDamage"):
-            continue
-        if _perm_subject(damage_recipient(c.node)):
-            return [Signal("removal", "you", "", c.raw, tree.name, "high")]
+            if _untyped_burn_reaches_board(c, recipient, unit.node):
+                return [Signal("removal", "you", "", c.raw, tree.name, "high")]
     for unit in tree.units:
         for c in iter_nested_granted_effect_concepts(unit.node):
             if c.recovered_by:
@@ -893,8 +926,22 @@ def _removal(tree: ConceptTree) -> list[Signal]:
                 continue
             if tag_of(c.node) not in ("Destroy", "DealDamage"):
                 continue
-            if _perm_subject(getattr(c.node, "target", None)):
+            target = getattr(c.node, "target", None)
+            if _perm_subject(target):
                 return [Signal("removal", "you", "", c.raw, tree.name, "high")]
+            if tag_of(c.node) == "DealDamage" and _untyped_burn_reaches_board(
+                c, target, unit.node
+            ):
+                return [Signal("removal", "you", "", c.raw, tree.name, "high")]
+    # Single-target burn the flat walk can't see — a coin-flip / modal branch
+    # (Goblin Bangchuckers), a replacement (Words of War), a token's ability
+    # (Dance with Devils): the shared deep damage walk, single-target tags only
+    # (a nested ``DamageAll`` sweep is ``mass_removal``'s).
+    for unit in tree.units:
+        if has_nested_damage_reaching(
+            unit.node, "permanent", tags=_SINGLE_TARGET_DAMAGE_TAGS
+        ):
+            return [Signal("removal", "you", "", "", tree.name, "high")]
     # task #88 — single-target TUCK (battlefield permanent -> library)
     for unit in tree.units:
         effects = unit.effects
@@ -1034,6 +1081,20 @@ def _tuck_filter(unit: AbilityUnit, node: TypedMirrorNode, *, soft: bool) -> obj
     return sub
 
 
+def _damage_answer_types(c: ConceptNode, root: object) -> frozenset[str]:
+    """A damage effect's answer types: its target filter's permanent types, else
+    ``Any`` when it can still reach a permanent (CR 120.1 — "any target", CR
+    115.4; :func:`~mtg_utils._card_ir.crosswalk.effect_reaches_permanent`, or a
+    recovered residue :func:`_recovered_removal` reads as a burn), else none —
+    damage that only reaches players (CR 120.3a) answers no permanent."""
+    types = _perm_answer_types(effect_filter(c.node))
+    if types:
+        return types
+    if c.recovered_by:
+        return _ANY if _recovered_removal(c) else frozenset()
+    return _ANY if effect_reaches_permanent(c.node, root) else frozenset()
+
+
 def _removal_answers(
     tree: ConceptTree, *, soft: bool = False
 ) -> Iterator[tuple[ConceptNode, frozenset[str]]]:
@@ -1056,7 +1117,8 @@ def _removal_answers(
     ``deal_damage`` node whose filter names no permanent type at all: it
     can't name a permanent core type, but it CAN still kill a creature or a
     planeswalker, matching the deliberately generous legacy creature-
-    removal / planeswalker-removal presets).
+    removal / planeswalker-removal presets) — never damage that only reaches
+    players (:func:`_damage_answer_types`).
 
     Four effect concepts, mirroring the shapes ``_removal``, ``_exile_
     removal``, ``_mass_removal``, and ``_debuff_makers`` each read for their
@@ -1074,8 +1136,10 @@ def _removal_answers(
       combat-state/color-qualified target — the same phase-parse gap
       ``_removal`` bridges for its own key, ported here so the 10 type-
       scoped presets recover it too);
-    * ``deal_damage`` (``DealDamage``/``DamageAll``, CR 119) — the target
-      filter's answer types, or ``Any`` when it names none;
+    * ``deal_damage`` (``DealDamage``/``DamageAll``, CR 120) — the target
+      filter's answer types, or ``Any`` when it names none but can still reach a
+      permanent (:func:`_damage_answer_types` — player-only damage answers
+      nothing);
     * ``change_zone`` reaching ``Exile`` (CR 406.1) — the SAME three vetoes
       ``_exile_removal`` applies (blink-your-own controller/owned-
       controller check, graveyard/hand origin, a sibling battlefield-return
@@ -1115,7 +1179,7 @@ def _removal_answers(
                         types = frozenset({bridged})
                 yield c, types
             elif c.concept == "deal_damage":
-                yield c, _perm_answer_types(effect_filter(c.node)) or _ANY
+                yield c, _damage_answer_types(c, unit.node)
             elif c.concept == "fight" or (
                 c.concept == "pump"
                 and (
@@ -1185,7 +1249,7 @@ def _removal_answers(
             if c.concept == "destroy":
                 yield c, _perm_answer_types(effect_filter(c.node))
             elif c.concept == "deal_damage":
-                yield c, _perm_answer_types(effect_filter(c.node)) or _ANY
+                yield c, _damage_answer_types(c, unit.node)
 
 
 def _removal_answer_types(tree: ConceptTree) -> frozenset[str]:
@@ -1576,20 +1640,32 @@ def _unit_sacrifice_nodes(unit: AbilityUnit) -> list[TypedMirrorNode]:
     """Every ``Sacrifice`` node of one unit — effect role AND activation-cost
     leaves (a sacrifice COST is always the controller's, CR 701.21a; Gyome /
     Gilded Goose carry theirs inside a ``Composite`` cost the top-level cost
-    decoration types ``other``)."""
+    decoration types ``other``), plus the cost leaves of an effect-role
+    ``PayCost`` YOU pay (``payer`` Controller or unset): a reflexive payment
+    (CR 603.12 — Nimble Hobbit's "you may sacrifice a Food or pay {2}{W}. When
+    you do, …", a ``PayCost{cost: OneOf[Sacrifice(Food), Mana]}``). A payment
+    another player makes (a ``TriggeringPlayer`` / ``ParentTargetController``
+    payer) sacrifices THEIR permanent, which is no payoff of yours."""
     out = [c.node for c in unit.effects if tag_of(c.node) == "Sacrifice"]
-    for leaf in iter_cost_leaves(getattr(unit.node, "cost", None)):
-        if tag_of(leaf) == "Sacrifice":
-            out.append(leaf)
+    costs = [getattr(unit.node, "cost", None)] + [
+        getattr(c.node, "cost", None)
+        for c in unit.effects
+        if tag_of(c.node) == "PayCost"
+        and tag_of(getattr(c.node, "payer", None)) in (None, "Controller")
+    ]
+    for cost in costs:
+        for leaf in iter_cost_leaves(cost):
+            if tag_of(leaf) == "Sacrifice":
+                out.append(leaf)
     return out
 
 
 def _token_subtype_payoff(tree: ConceptTree, sub: str) -> list[Signal]:
     """Shared food/clue cares-about arms (§9/§10) — CR 111.10b Food /
     701.16a+111.10f Clue; one subtype-parameterized function, all "you"
-    HIGH. Tier-1 (ADR-0036/0037 Stage 5 T9-finalize fold — the
-    ``_TOKEN_SUBTYPE_OWN_REF`` lane-time read is RETIRED to a shared
-    bucket-B synth arm):
+    HIGH. Tier-1 (ADR-0036/0037 Stage 5 T9-finalize fold — this lane no
+    longer reads the ``_TOKEN_SUBTYPE_OWN_REF`` marker (``text_idioms``)
+    itself; the shared bucket-B synth arm reads it at synthesis time):
 
     (1) a ``Sacrifice`` of the subtype (effect OR cost role — Gyome probed
     verbatim; Gilded Goose's "{T}, Sacrifice a Food: Add…" is a LIVE member,

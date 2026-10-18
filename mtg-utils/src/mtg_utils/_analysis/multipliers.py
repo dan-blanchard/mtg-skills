@@ -59,6 +59,7 @@ from mtg_utils._card_ir.crosswalk.reads import (
     tag_of,
     trigger_caster_scope,
     trigger_subject,
+    trigger_zone_changes,
 )
 from mtg_utils._card_ir.mirror.runtime import TypedMirrorNode
 from mtg_utils._card_ir.trees import object_facts, trees_for
@@ -124,6 +125,16 @@ class _Trigger:
 
     def __init__(self, unit: AbilityUnit) -> None:
         self.event = unit.trigger_event
+        # Phase folds a multi-move watcher (Syr Konrad's dies / enters-a-graveyard /
+        # leaves-a-graveyard) into clauses; a battlefield -> graveyard clause is a
+        # creature dying (CR 700.4), which a dies doubler reaches.
+        if (
+            self.event == "changes_zone"
+            and not getattr(unit.node, "origin", None)
+            and not getattr(unit.node, "destination", None)
+            and ("Battlefield", "Graveyard") in trigger_zone_changes(unit.node)
+        ):
+            self.event = "dies"
         self.watched = set(trigger_subject(unit.node))
         zones = getattr(unit.node, "trigger_zones", None)
         self.on_battlefield = not isinstance(zones, list) or "Battlefield" in zones

@@ -40,7 +40,8 @@ from dataclasses import dataclass, field
 
 # A BODY-cheating commander anchor: a creature-typed or untyped cheat (subject
 # "" puts whatever it finds). An enchantment or artifact cheat (Zur, Stoneforge
-# Mystic) floods no bodies and cheats no power, so it anchors neither row.
+# Mystic) floods no bodies and cheats no power, so it anchors neither row; the
+# typed cheats anchor their own type's payoff rows instead (the last three).
 _BODY_CHEAT_ANCHOR = ("cheat_into_play|you|Creature", "cheat_into_play|you|")
 
 
@@ -580,6 +581,58 @@ PAIR_READS: dict[str, PairRead] = {
                 "text — a documented recall gap, not imprecision)."
             ),
             pins=("Ephemerate", "Feat of Resistance"),
+        ),
+        # ── The typed cheats (2026-10-18): an enchantment, artifact or
+        # planeswalker cheat floods no bodies (``_BODY_CHEAT_ANCHOR``), but
+        # each is the entry stream of its own type's payoffs. ──────────────
+        PairRead(
+            pair_id="enchantment_payoff_x_enchantment_cheat_commander",
+            candidate=("enchantments_matter|you|*",),
+            anchor_kind="commander",
+            anchor=("cheat_into_play|you|Enchantment",),
+            weight=3.0,
+            label="Enchantment payoff x enchantment-cheating commander",
+            rationale=(
+                "A commander that searches out an enchantment and puts it "
+                "onto the battlefield (CR 701.23a) is a free enchantment "
+                "entry each turn, and enters triggers fire on every such "
+                "event (CR 603.6a). Precision gap: a cheated enchantment is "
+                "never cast (CR 601.2i), but the ident also matches "
+                "cast-trigger enchantresses."
+            ),
+            pins=("Eidolon of Blossoms", "Setessan Champion"),
+        ),
+        PairRead(
+            pair_id="artifact_payoff_x_artifact_cheat_commander",
+            candidate=("artifacts_matter|you|*",),
+            anchor_kind="commander",
+            anchor=("cheat_into_play|you|Artifact",),
+            weight=3.0,
+            label="Artifact payoff x artifact-cheating commander",
+            rationale=(
+                "A commander that puts an artifact onto the battlefield from "
+                "the library (CR 701.23a) fires the artifact-enters payoffs "
+                "each time (CR 603.6a). artifacts_matter, not voltron_matters: "
+                "a cheated Equipment enters unattached (CR 301.5b), and a "
+                "cast trigger never fires (CR 601.2i)."
+            ),
+            pins=("Puresteel Paladin", "Reckless Fireweaver"),
+        ),
+        PairRead(
+            pair_id="superfriends_payoff_x_planeswalker_cheat_commander",
+            candidate=("superfriends_matters|you|*",),
+            anchor_kind="commander",
+            anchor=("cheat_into_play|you|Planeswalker",),
+            weight=3.0,
+            label="Planeswalker payoff x planeswalker-cheating commander",
+            rationale=(
+                "A commander that puts planeswalker cards onto the "
+                "battlefield delivers walkers the deck never paid for: each "
+                "enters with loyalty by a replacement effect (CR 306.5b, "
+                "614.1c) and may activate a loyalty ability that turn (CR "
+                "606.3)."
+            ),
+            pins=("Oath of Gideon", "The Chain Veil"),
         ),
     )
 }

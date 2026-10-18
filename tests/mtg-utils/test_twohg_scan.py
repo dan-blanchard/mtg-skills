@@ -14,6 +14,7 @@ import pytest
 from click.testing import CliRunner
 
 from mtg_utils._analysis.lanes.removal_tutors import removal_edict_answers
+from mtg_utils._analysis.roles import role_of
 from mtg_utils._card_ir.crosswalk import (
     effect_filter,
     effect_owner_player_scope,
@@ -278,10 +279,12 @@ def test_a_shrink_on_the_card_itself_is_not_removal():
 
 
 def test_player_only_interaction_has_no_removal_reach():
-    """Screeching Soulbreaker's "1 damage to each opponent" is interaction to the
-    template roles, but it reaches no permanent."""
+    """Screeching Soulbreaker's "1 damage to each opponent" fires ``direct_damage``
+    but reaches no permanent (CR 120.3a: the player loses life) — so it fires no
+    removal-family key and is not interaction to the template roles either."""
     row = _row("Screeching Soulbreaker")
     assert row["removal_reach"] is None
+    assert "interaction" not in role_of(test_card("Screeching Soulbreaker"))
     assert {"what": "deal_damage", "how": "each opponent"} in row["doubles"]
 
 

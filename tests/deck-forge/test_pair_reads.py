@@ -527,3 +527,100 @@ def test_token_fodder_needs_a_polymorph_commander():
     test_card_ir("Raise the Alarm")
     _s, rows = pair_score(test_card("Raise the Alarm"), _ctx_for("Kaalia of the Vast"))
     assert not any(r["pair"] == "token_fodder_x_polymorph_commander" for r in rows)
+
+
+# ── The typed cheats: each anchors its own type's payoffs (2026-10-18) ───────
+
+
+@pytest.mark.parametrize(
+    ("candidate", "commander", "row_id"),
+    [
+        # Constellation x an enchantment cheat (CR 603.6a: an enters trigger
+        # fires on every event that puts a permanent onto the battlefield).
+        (
+            "Eidolon of Blossoms",
+            "Zur the Enchanter",
+            "enchantment_payoff_x_enchantment_cheat_commander",
+        ),
+        (
+            "Setessan Champion",
+            "Light-Paws, Emperor's Voice",
+            "enchantment_payoff_x_enchantment_cheat_commander",
+        ),
+        # Artifact-enters payoffs x an artifact cheat (CR 603.6a).
+        (
+            "Puresteel Paladin",
+            "Arcum Dagsson",
+            "artifact_payoff_x_artifact_cheat_commander",
+        ),
+        (
+            "Reckless Fireweaver",
+            "Arcum Dagsson",
+            "artifact_payoff_x_artifact_cheat_commander",
+        ),
+        # Planeswalker payoffs x a planeswalker cheat (CR 306.5b / 614.1c
+        # loyalty on entry; CR 606.3 one loyalty activation per turn).
+        (
+            "Oath of Gideon",
+            "Jace, Multiverse Architect",
+            "superfriends_payoff_x_planeswalker_cheat_commander",
+        ),
+        (
+            "The Chain Veil",
+            "Jace, Multiverse Architect",
+            "superfriends_payoff_x_planeswalker_cheat_commander",
+        ),
+    ],
+)
+def test_typed_cheat_rows_fire(candidate, commander, row_id):
+    test_card_ir(candidate)
+    _score, rows = pair_score(test_card(candidate), _ctx_for(commander))
+    assert any(r["pair"] == row_id for r in rows), (candidate, commander, rows)
+
+
+@pytest.mark.parametrize(
+    ("candidate", "commander", "row_id"),
+    [
+        # A creature cheat (Kaalia) puts no enchantment, artifact or
+        # planeswalker onto the battlefield.
+        (
+            "Eidolon of Blossoms",
+            "Kaalia of the Vast",
+            "enchantment_payoff_x_enchantment_cheat_commander",
+        ),
+        (
+            "Puresteel Paladin",
+            "Kaalia of the Vast",
+            "artifact_payoff_x_artifact_cheat_commander",
+        ),
+        (
+            "Oath of Gideon",
+            "Kaalia of the Vast",
+            "superfriends_payoff_x_planeswalker_cheat_commander",
+        ),
+        # Nor does each typed cheat reach another type's payoffs.
+        (
+            "Eidolon of Blossoms",
+            "Arcum Dagsson",
+            "enchantment_payoff_x_enchantment_cheat_commander",
+        ),
+        (
+            "Puresteel Paladin",
+            "Zur the Enchanter",
+            "artifact_payoff_x_artifact_cheat_commander",
+        ),
+    ],
+)
+def test_typed_cheat_rows_need_their_type(candidate, commander, row_id):
+    test_card_ir(candidate)
+    _score, rows = pair_score(test_card(candidate), _ctx_for(commander))
+    assert not any(r["pair"] == row_id for r in rows), (candidate, commander, rows)
+
+
+def test_typed_cheats_do_not_anchor_the_body_rows():
+    # An enchantment or artifact cheat floods no bodies and cheats no power:
+    # the power-threshold row stays off under Zur and Arcum.
+    test_card_ir("Elemental Bond")
+    for commander in ("Zur the Enchanter", "Arcum Dagsson"):
+        _s, rows = pair_score(test_card("Elemental Bond"), _ctx_for(commander))
+        assert not any(r["pair"] == "power_threshold_x_cheat_commander" for r in rows)

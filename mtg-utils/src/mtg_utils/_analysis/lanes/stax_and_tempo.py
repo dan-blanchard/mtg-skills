@@ -1650,9 +1650,9 @@ def _superfriends_matters(tree: ConceptTree) -> list[Signal]:
     * **Structural (bucket-A):** :func:`has_structural_superfriends` — a
       CONDITION-site Planeswalker group-reference (Historian of Zhalfir,
       Arisen Gorgon, Companion of the Trials), an attack-recipient trigger
-      or static defending "you or planeswalkers you control" (Blood
-      Reckoning, Archangel of Tithes, the Vow cycle), a Planeswalker-group
-      anthem/grant static (Ichormoon Gauntlet, Sorin), a battlefield dies-
+      or restriction defending planeswalkers ALONE (Oath of Kaya, Onakke
+      Oathkeeper), a Planeswalker-group anthem/grant static (Ichormoon
+      Gauntlet, Sorin), a battlefield dies-
       trigger subject including Planeswalker (Carth the Lion), an
       activate-loyalty engine (Chandra's Regulator, The Chain Veil), a
       dynamic count/cost-reduction operand naming Planeswalker (Ajani,
@@ -1660,14 +1660,21 @@ def _superfriends_matters(tree: ConceptTree) -> list[Signal]:
       EFFECT (Chandra, Acolyte of Flame) — minus the removal-target /
       ``TargetMatchesFilter`` / opponent-controlled / event-plumbing
       over-fires (Hero's Downfall, Chandra's Defeat, Eidolon of Obstruction,
-      Hunter's Insight never fire).
+      Hunter's Insight never fire). "You or planeswalkers you control" — the
+      pair CR 506.2 says may be attacked — is protective wording, never a
+      tell: pillowfort (Archangel of Tithes, the Vow cycle, Promise of
+      Loyalty), defensive attack triggers (Blood Reckoning, Isperia, Soul
+      Snare) and fogs (Comeuppance, Take the Bait) stay out.
     * **bucket-B synth (ADR-0037):** the ``tree_synthesis`` stage's
       ``synth_superfriends_matters`` node — an Unimplemented anthem/engine
       static (Shalai, Kasmina Enigma Sage), a CantAttack/CantBlock static
       with no typed recipient payload (Onakke Oathkeeper, Assault Suit), or
       an activate-loyalty permission ability with no typed carrier (Oath of
       Teferi) — gated against the SAME structural read + the SAME opponent/
-      self-only/incidental vetoes (SYNTH-EXCLUSION-PARITY).
+      self-only/incidental vetoes (SYNTH-EXCLUSION-PARITY), and stood down
+      on a card phase types as defending you or watching attacks on you
+      (``crosswalk.defends_you`` / ``watches_attacks_on_you`` — Promise of
+      Loyalty, Comeuppance, Gideon's Sacrifice, Soul Snare).
 
     Scope "you", HIGH.
     """

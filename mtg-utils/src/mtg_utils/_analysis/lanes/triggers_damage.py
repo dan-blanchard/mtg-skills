@@ -14,6 +14,7 @@ from mtg_utils._analysis.lanes._shared import (
     _kept,
     _site_raw,
     _unknown_mode_combat_damage_to_player,
+    typed_token_payoff_signals,
 )
 from mtg_utils._analysis.signal_base import Signal
 from mtg_utils._analysis.text_reads import (
@@ -68,12 +69,14 @@ from mtg_utils._card_ir.crosswalk import (
     parked_prevention,
     player_filter_tag,
     recipient_tag,
+    redirects_damage_from_you,
     ref_count_qty,
     ref_qty_tag,
     replacement_damage_mod,
     replacement_event_tag,
     replacement_qty_mod,
     replacement_token_owner_scope,
+    replacement_token_types,
     spell_count_at_least,
     spell_velocity_static_two,
     static_mode_tag,
@@ -2048,12 +2051,21 @@ def _damage_redirect(tree: ConceptTree) -> list[Signal]:
       from ``text_reads``): en-Kor / Reflect Damage / Nova Pentacle /
       Captain's Maneuver's "... is dealt to [X] instead" idiom.
 
+    * ARM C — the typed redirection shield (:func:`reads.redirects_damage_
+      from_you`): a ``CreateDamageReplacement`` moving damage dealt to you
+      (and your permanents) elsewhere. Recovers the "All damage that would be
+      dealt this turn to you and permanents you control is dealt to the chosen
+      permanent instead" family the clause mirror misses (Gideon's Sacrifice,
+      Harm's Way, Heroic Sacrifice, Saving Grace — no "that damage").
+
     Scope "you" (the deleted producers' forced scope). CR 614.9 / 615.
     """
     kept = _kept(tree)
     if _detect_self_damage_prevention(kept, tree.name):
         return [Signal("damage_redirect", "you", "", "", tree.name, "high")]
     if _DAMAGE_REDIRECT_MIRROR.search(kept):
+        return [Signal("damage_redirect", "you", "", "", tree.name, "high")]
+    if any(redirects_damage_from_you(n) for n in tree.iter_typed()):
         return [Signal("damage_redirect", "you", "", "", tree.name, "high")]
     return []
 
@@ -2262,9 +2274,15 @@ def _replacement_doubler_lanes(tree: ConceptTree) -> list[Signal]:
       read: a token doubler forks copies and is a go-wide payoff).
     * ``tokens_matter`` alone — every OTHER your-side ``CreateToken``
       replacement (no increase mod: Esix, Fractal Bloom's copy swap,
-      Chatterfang's "plus that many Squirrels", Academy Manufactor): it only
-      does anything when the deck makes tokens, so it is a carer of the
-      token-maker avenue (CR 614.1a, 111.1).
+      Chatterfang's "plus that many Squirrels"): it only does anything when
+      the deck makes tokens, so it is a carer of the token-maker avenue
+      (CR 614.1a, 111.1). A replacement restricted to a token kind
+      (:func:`replacement_token_types`) cares about that kind's makers only,
+      so it carries the kind (:func:`typed_token_payoff_signals`): Xorn's
+      Treasure fires ``treasure_matters``, Academy Manufactor's Clue / Food /
+      Treasure fire all three, Fisher's Talent's Fish fires
+      ``tokens_matter|you|Fish``, Stridehangar Automaton's artifact tokens
+      fire ``artifacts_matter``.
     * ``counter_doubling`` + ``counter_replace_bonus`` — an ``AddCounter``
       replacement with an INCREASE mod whose ``valid_card`` controller is
       You/null (checklist #6). Live subsumption reproduced: both keys co-fire
@@ -2311,9 +2329,12 @@ def _replacement_doubler_lanes(tree: ConceptTree) -> list[Signal]:
                 fire("token_copy_makers", raw)
             # Any your-side token-creation replacement pays off on the deck's
             # token makers, doubler or not: Esix's copies, Chatterfang's and
-            # Peregrin Took's riders, Academy Manufactor's swap. A ``Half``
-            # reducer is Opponent-scoped (Halving Season), gated out above.
-            fire("tokens_matter", raw)
+            # Peregrin Took's riders. A ``Half`` reducer is Opponent-scoped
+            # (Halving Season), gated out above. A replacement restricted to a
+            # token kind pays off on that kind's makers only (Xorn's Treasure,
+            # Academy Manufactor's Clue / Food / Treasure swap).
+            subtypes, cores = replacement_token_types(node)
+            out.extend(typed_token_payoff_signals(subtypes, cores, raw, tree.name))
         elif ev == "AddCounter":
             qm = replacement_qty_mod(node)
             vc = getattr(node, "valid_card", None)

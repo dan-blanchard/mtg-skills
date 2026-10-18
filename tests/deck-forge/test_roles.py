@@ -149,6 +149,57 @@ def test_covered_card_never_falls_back_to_removal_text():
     assert "interaction" not in role_of(lying)
 
 
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Lightning Bolt",  # "any target" (CR 115.4) — direct_damage alone
+        "Chain Lightning",  # "any target" — direct_damage alone
+        "Mayhem Devil",  # a permanent's "1 damage to any target" trigger
+        "Flame Slash",  # creature-only burn (the `removal` key)
+        "Electrickery",  # creature-only burn, either mode
+        "Fiery Confluence",  # modal: a creature mode beside the player modes
+        "Screaming Nemesis",  # "any other target"
+        "Comet Storm",  # "Choose any target … deals X damage to each of them"
+    ],
+)
+def test_damage_that_can_reach_a_permanent_is_interaction(name):
+    """Damage a battle, creature or planeswalker can be dealt (CR 120.1) is
+    removal: the ``removal`` lane reads "any target" burn (CR 115.4) itself."""
+    card = _real(name)
+    assert get_preset("removal").matches(card)
+    assert "interaction" in role_of(card)
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Mogis, God of Slaughter",  # "2 damage to that player"
+        "Enchanter's Bane",  # an enchantment deals damage to its controller
+        "Fate Unraveler",  # "1 damage to that player"
+        "Sulfuric Vortex",  # "2 damage to that player"
+        "Spiteful Visions",  # "1 damage to that player"
+        "Guttersnipe",  # "2 damage to each opponent"
+        "Harsh Mentor",  # "2 damage to that player"
+        "Aggressive Sabotage",  # "target player discards … 3 damage to that player"
+    ],
+)
+def test_player_only_damage_is_not_interaction(name):
+    """Damage to a player makes them lose life (CR 120.3a) and removes nothing from
+    the board: the punisher fires ``direct_damage`` (the ``burn`` preset), never a
+    removal-family key, so neither the ``removal`` preset the tuner sources
+    interaction by nor the role it counts by reads it (ADR-0051)."""
+    card = _real(name)
+    assert get_preset("burn").matches(card)
+    assert not get_preset("removal").matches(card)
+    assert not get_preset("creature-removal").matches(card)
+    assert "interaction" not in role_of(card)
+
+
+@pytest.mark.parametrize("name", ["Blasphemous Act", "Pyroclasm"])
+def test_damage_sweepers_stay_interaction_and_board_wipe(name):
+    assert {"interaction", "board_wipe"} <= role_of(_real(name))
+
+
 def test_the_preset_and_the_role_agree_on_every_covered_card():
     """The agreement test that replaces the "mirrors is_ramp" comments: over the whole
     snapshot, the preset the tuner SEARCHES by and the role the budgets row COUNTS by

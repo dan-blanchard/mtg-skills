@@ -863,141 +863,176 @@ def damage_recipient(node: object) -> object:
     return tgt if _present(tgt) else None
 
 
-def effect_reaches_player(node: TypedMirrorNode, root: object | None = None) -> bool:
-    """Whether a damage EFFECT reaches a PLAYER (CR 120.1), read structurally.
+#: Which side of CR 120.1 a damage read asks about: a ``"player"`` (CR 120.3a —
+#: loses life) or a ``"permanent"`` (a battle, creature or planeswalker — CR
+#: 120.3c/e/h — the removal half).
+DamageRecipient = Literal["player", "permanent"]
 
-    The direct-damage / burn gate: a creature-only bite ("4 damage to target
-    creature" — Flame Slash; "2 to each creature" — Pyroclasm) is removal, not burn.
+# The permanents damage can be dealt to (CR 120.1: "battles, creatures,
+# planeswalkers, and players"), plus phase's generic ``Permanent`` word — the one
+# board-type set every damage-reach read (and the removal walks) shares.
+DAMAGE_PERMANENT_TYPES: frozenset[str] = frozenset(
+    {"Battle", "Creature", "Planeswalker", "Permanent"}
+)
 
-    * ``DamageEachPlayer`` always hits players.
-    * ``DamageAll`` hits players iff it carries a ``player_filter`` (Pestilence pings
-      creatures AND each player; Pyroclasm-as-``DamageAll`` has none) OR its
-      ``target`` reaches one via the SAME :func:`_damage_target_reaches_player`
-      discriminator ``DealDamage`` uses (ADR-0038 W6 endgame: a multi-target
-      "any number of target creatures and/or players" burn spell — Firestorm,
-      Meteor Blast, Comet Storm — and a "deals N damage to each of your
-      opponents" ability with no fixed permanent-type restriction — Aurelia,
-      the Law Above, Chandra planeswalkers — both serialize their recipient
-      into ``target`` rather than ``player_filter``; a creature-only sweep
-      (Pyroclasm's own ``target=Typed(type_filters=['Creature'])``) stays
-      excluded via the SAME non-empty-filter/no-"Player"-word rule that
-      excludes creature-only ``DealDamage``. Full-corpus scan: 253 commander-
-      legal ``DamageAll`` nodes with no ``player_filter``, 238 correctly stay
-      excluded (creature-typed sweeps), 15 gain — CR 120.1).
-    * ``DealDamage`` defers to :func:`_damage_target_reaches_player` on its
-      ``target`` (empty when absent, per the pre-existing gate). ``root`` —
-      the enclosing ability unit's node, when the caller has it — resolves a
-      bare ``ParentTarget`` recipient (see that function's docstring);
-      omitting it is conservative (a ``ParentTarget`` recipient never reaches).
+
+def _effect_reaches(
+    node: TypedMirrorNode, root: object | None, recipient: DamageRecipient
+) -> bool:
+    """Whether a damage EFFECT can reach RECIPIENT (CR 120.1), read structurally —
+    the one dispatch :func:`effect_reaches_player` and
+    :func:`effect_reaches_permanent` share.
+
+    * ``DamageEachPlayer`` hits players only.
+    * ``DamageAll`` hits players when it carries a ``player_filter`` (Pestilence
+      pings creatures AND each player; Pyroclasm-as-``DamageAll`` has none);
+      otherwise, and for the permanent side always, its ``target`` decides via
+      :func:`_damage_target_reaches` (ADR-0038 W6 endgame: a multi-target "any
+      number of target creatures and/or players" burn spell — Firestorm, Meteor
+      Blast, Comet Storm — and a "deals N damage to each of your opponents"
+      ability with no fixed permanent-type restriction — Aurelia, the Law Above,
+      Chandra planeswalkers — both serialize their recipient into ``target``
+      rather than ``player_filter``; Pyroclasm's own
+      ``target=Typed(type_filters=['Creature'])`` reaches only permanents).
+      Full-corpus scan at W6: 253 commander-legal ``DamageAll`` nodes with no
+      ``player_filter``, 238 creature-typed sweeps, 15 player-reaching.
+    * ``DealDamage`` defers to :func:`_damage_target_reaches` on its ``target``
+      (no reach when absent). ``root`` — the enclosing ability unit's node, when
+      the caller has it — resolves a bare ``ParentTarget`` recipient (see that
+      function's docstring); omitting it is conservative (never reaches).
+    * ``EachSourceDealsDamage``: ``EachController`` (each source hits its own
+      controller) is a player, ``OtherBatchSource`` (another creature in the
+      batch) a permanent; any other recipient defers to the target read.
     """
+    player = recipient == "player"
     t = tag_of(node)
     if t == "DamageEachPlayer":
-        return True
-    if t == "DamageAll":
-        if _present(getattr(node, "player_filter", MISSING)):
+        return player
+    if t in ("DamageAll", "DealDamage"):
+        if (
+            player
+            and t == "DamageAll"
+            and _present(getattr(node, "player_filter", MISSING))
+        ):
             return True
         tgt = getattr(node, "target", MISSING)
-        if not _present(tgt):
-            return False
-        return _damage_target_reaches_player(tgt, root)
-    if t == "DealDamage":
-        tgt = getattr(node, "target", MISSING)
-        if not _present(tgt):
-            return False
-        return _damage_target_reaches_player(tgt, root)
+        return _present(tgt) and _damage_target_reaches(tgt, root, recipient)
     if t == "EachSourceDealsDamage":
         rec = damage_recipient(node)
         if rec is None:
             return False
         if tag_of(rec) == "EachController":
-            return True  # each source hits its own controller — a player
+            return player
         if tag_of(rec) == "OtherBatchSource":
-            return False  # another creature in the batch
-        return _damage_target_reaches_player(rec, root)
+            return not player
+        return _damage_target_reaches(rec, root, recipient)
     return False
 
 
-def _damage_target_reaches_player(tgt: object, root: object | None = None) -> bool:
-    """Whether a ``DealDamage`` TARGET node names a recipient that reaches a
-    PLAYER (CR 120.1 / 115.4), recursing through an ``Or`` alternation.
+def effect_reaches_player(node: TypedMirrorNode, root: object | None = None) -> bool:
+    """Whether a damage EFFECT reaches a PLAYER (CR 120.1) — the direct-damage /
+    burn gate: a creature-only bite ("4 damage to target creature" — Flame Slash;
+    "2 to each creature" — Pyroclasm) is removal, not burn. See
+    :func:`_effect_reaches`."""
+    return _effect_reaches(node, root, "player")
+
+
+def effect_reaches_permanent(node: TypedMirrorNode, root: object | None = None) -> bool:
+    """Whether a damage EFFECT can reach a PERMANENT — a battle, creature or
+    planeswalker (CR 120.1) — the removal half of a damage effect: "any target"
+    (CR 115.4 — Lightning Bolt), a creature / planeswalker bite, a sweep, as
+    against damage that only ever reaches a player ("each opponent" —
+    Guttersnipe; "that player" — Mogis; "that creature's controller" —
+    Repercussion), which makes that player lose life (CR 120.3a) and removes
+    nothing. See :func:`_effect_reaches`."""
+    return _effect_reaches(node, root, "permanent")
+
+
+def _damage_target_reaches(
+    tgt: object, root: object | None, recipient: DamageRecipient
+) -> bool:
+    """Whether a damage TARGET node names a recipient that can be RECIPIENT
+    (CR 120.1 / 115.4), recursing through an ``Or`` alternation — the one target
+    read :func:`effect_reaches_player` and :func:`effect_reaches_permanent` share.
 
     * ``Typed`` with a NON-EMPTY ``type_filters`` is a creature/permanent/
-      battle-typed bite ("target creature" — Flame Slash; "target
-      attacking creature" — Femeref Archers) — removal, NOT direct,
-      UNLESS the words include "Player" explicitly. An EMPTY
-      ``type_filters`` carries NO card-type restriction at all — phase
-      uses this bare shape both for a controller-scoped player ("target
-      opponent" — controller='Opponent'; Lava Axe's sibling Aragorn, the
-      Uniter) and for a fully unrestricted recipient ("any other
-      target" — Self-Destruct, Screaming Nemesis; controller=None).
-      Both reach a player; only a POSITIVE type word ever excludes.
-    * ``Any`` / ``Target`` (bare "any target") always reach.
-    * ``SourceChosenPlayer`` / ``TriggeringPlayer`` chosen/triggering
-      player forms (CR 120.1) reach — the pre-existing chosen-player
-      gate.
-    * ``ScopedPlayer`` ("that player" — a per-player-loop back-reference,
-      Ancient Runes "each player's upkeep ... deals damage to that
-      player"), ``ParentTargetController`` ("that creature's/permanent's/
-      land's controller" — a controller is always a player, CR 102.1;
-      Ankh of Mishra, Backfire), and ``DefendingPlayer`` ("defending
-      player" — the attacked player, CR 506.4c; Falkenrath Perforator)
-      are bare zero-field player-designator marker tags: always reach.
-      A bare ``Controller`` (the SOURCE's OWN controller — "deals 2
-      damage to you", Voltaic Visionary) stays the incidental
-      SELF-damage exclusion (``_scope_from_player_node`` maps it "you",
-      excluded below) — distinct from ``ParentTargetController``, which
-      names a DIFFERENT (targeted/tracked) object's controller.
-    * ``ParentTarget`` (bare — no ``Controller`` suffix) is
-      POSITION-relative (the ADR-0038 boundary lesson): it binds to
-      whatever EARLIER clause in the SAME ability produced the target, so
-      the tag is ambiguous read alone. A modal "instead" amendment clause
-      that re-quotes an earlier "target creature" (Fiery Impulse "deals 2
-      damage to target creature. ... it deals 3 damage instead", Thermal
-      Blast, Unholy Heat — pure creature removal) carries the SAME
-      ``ParentTarget`` tag as a genuine player back-reference (Aggressive
-      Sabotage's "Target player discards two cards. If this spell was
-      kicked, it deals 3 damage to that player."; Curse of Shaken Faith's
-      "Enchant player" + "... deals 2 damage to them"). When ``root`` (the
-      enclosing ability unit) is supplied, resolve it by asking whether
-      that SAME ability establishes an explicit (non-``ParentTarget``)
-      player target anywhere else (:func:`_unit_has_player_target`) — the
-      producer a genuine back-reference binds to. With no ``root``,
-      conservative: never reaches (matches every corpus member that
-      DOESN'T need it — the creature-removal modal tail above).
+      battle-typed bite ("target creature" — Flame Slash; "target attacking
+      creature" — Femeref Archers): it reaches a permanent, and a player only
+      when the words include "Player" explicitly. An EMPTY ``type_filters``
+      carries NO card-type restriction at all — phase uses this bare shape both
+      for a controller-scoped player ("target opponent" — controller='Opponent';
+      Lava Axe's sibling Aragorn, the Uniter) and for a fully unrestricted
+      recipient ("any other target" — Self-Destruct, Screaming Nemesis;
+      controller=None). Both reach a player; only the unrestricted one reaches a
+      permanent.
+    * ``Any`` / ``Target`` (bare "any target") reach both.
+    * ``SourceChosenPlayer`` / ``TriggeringPlayer`` chosen/triggering player
+      forms (CR 120.1), ``ScopedPlayer`` ("that player" — a per-player-loop
+      back-reference, Ancient Runes "each player's upkeep ... deals damage to
+      that player"), ``ParentTargetController`` ("that creature's/permanent's/
+      land's controller" — a controller is always a player, CR 102.1; Ankh of
+      Mishra, Backfire), and ``DefendingPlayer`` ("defending player" — the
+      attacked player, CR 506.4c; Falkenrath Perforator) are bare zero-field
+      player-designator marker tags: a player, never a permanent. A bare
+      ``Controller`` (the SOURCE's OWN controller — "deals 2 damage to you",
+      Voltaic Visionary) stays the incidental SELF-damage exclusion
+      (``_scope_from_player_node`` maps it "you", excluded below) — distinct
+      from ``ParentTargetController``, which names a DIFFERENT (targeted/
+      tracked) object's controller.
+    * ``ParentTarget`` (bare — no ``Controller`` suffix) is POSITION-relative
+      (the ADR-0038 boundary lesson): it binds to whatever EARLIER clause in the
+      SAME ability produced the target, so the tag is ambiguous read alone. A
+      modal "instead" amendment clause that re-quotes an earlier "target
+      creature" (Fiery Impulse "deals 2 damage to target creature. ... it deals
+      3 damage instead", Thermal Blast, Unholy Heat — pure creature removal)
+      carries the SAME ``ParentTarget`` tag as a genuine player back-reference
+      (Aggressive Sabotage's "Target player discards two cards. If this spell
+      was kicked, it deals 3 damage to that player."; Curse of Shaken Faith's
+      "Enchant player" + "... deals 2 damage to them"), and as Comet Storm's
+      "Choose any target … deals X damage to each of them". When ``root`` (the
+      enclosing ability unit) is supplied, resolve it by asking whether that
+      SAME ability establishes an explicit (non-``ParentTarget``) RECIPIENT
+      target anywhere else (:func:`_unit_has_target`) — the producer a genuine
+      back-reference binds to. With no ``root``, conservative: never reaches
+      (matches every corpus member that DOESN'T need it — the creature-removal
+      modal tail above).
     * ``Or`` recurses into each alternative filter ("target player or
-      planeswalker" — Lava Axe's post-2020 template, CR 115.4): the
-      whole target reaches iff ANY alternative does.
+      planeswalker" — Lava Axe's post-2020 template, CR 115.4): the whole
+      target reaches iff ANY alternative does.
     """
+    player = recipient == "player"
     tt = tag_of(tgt)
     if tt == "Typed":
         words = _filter_type_words(tgt)
         if words:
-            return "Player" in words  # creature/permanent typed → removal
-        return True  # no type restriction at all → names a player
+            # creature/permanent typed → removal; "Player" → a player
+            return ("Player" in words) if player else any(w != "Player" for w in words)
+        # no type restriction: a player either way; a permanent only unrestricted
+        return player or getattr(tgt, "controller", None) is None
     if tt in ("Any", "Target"):
         return True
-    if tt in _CHOSEN_PLAYER_TARGETS:
-        return True
-    if tt in (
+    if tt in _CHOSEN_PLAYER_TARGETS or tt in (
         "ScopedPlayer",
         "ParentTargetController",
         "EventTargetController",
         "DefendingPlayer",
     ):
-        return True
+        return player
     if tt == "Or":
         return any(
-            _damage_target_reaches_player(f, root)
+            _damage_target_reaches(f, root, recipient)
             for f in (getattr(tgt, "filters", None) or ())
         )
     if tt == "ParentTarget":
         # Deliberately excluded from the generic ``_scope_from_player_node``
         # fallback: that helper maps bare ``ParentTarget`` to scope "any"
         # for OTHER lanes' purposes (a chosen/targeted-object read), which
-        # would silently readmit the position-relative over-fire this
-        # function's docstring documents. Resolved via sibling context when
-        # available; conservative (no reach) otherwise.
-        return root is not None and _unit_has_player_target(root)
+        # would silently readmit the position-relative over-fire documented
+        # in the docstring. Resolved via sibling context when available; conservative
+        # (no reach) otherwise.
+        return root is not None and _unit_has_target(root, recipient)
+    if not player:
+        return False
     sc = _scope_from_player_node(tgt)  # a direct player node
     return sc in ("opponents", "each", "any")
 
@@ -1009,30 +1044,30 @@ _CHOSEN_PLAYER_TARGETS: frozenset[str] = frozenset(
 )
 
 
-def _unit_has_player_target(root: object) -> bool:
+def _unit_has_target(root: object, recipient: DamageRecipient) -> bool:
     """Whether ability ``root`` establishes an explicit (non-``ParentTarget``)
-    player-reaching TARGET anywhere in its own structure — the producer a
-    bare ``ParentTarget`` damage recipient can legitimately bind back to
-    within the SAME ability (Aggressive Sabotage's "Target player discards
-    two cards. If this spell was kicked, it deals 3 damage to that player.";
-    Blood Oath's "Target opponent reveals their hand. ... deals 3 damage to
-    that player ..."). Scans every ``_SCOPE_FIELDS`` slot on every typed node
-    reachable under ``root`` (:func:`_iter_typed_nodes`) — cost/target/static
-    fields alike, since the producer can be a non-damage effect (Discard,
-    RevealHand) or the ability's own enchant/attach target.
+    RECIPIENT-reaching TARGET anywhere in its own structure — the producer a bare
+    ``ParentTarget`` damage recipient can legitimately bind back to within the
+    SAME ability (a player: Aggressive Sabotage's "Target player discards two
+    cards. If this spell was kicked, it deals 3 damage to that player."; Blood
+    Oath's "Target opponent reveals their hand. ... deals 3 damage to that player
+    ..."; a permanent: Comet Storm's "Choose any target"). Scans every
+    ``_SCOPE_FIELDS`` slot on every typed node reachable under ``root``
+    (:func:`_iter_typed_nodes`) — cost/target/static fields alike, since the
+    producer can be a non-damage effect (Discard, RevealHand) or the ability's
+    own enchant/attach target.
 
-    ADR-0039 W7: also recognizes a bare ``optional_for`` STRING marker
-    ("AnyOpponent" / "AnyPlayer") a sibling node carries — phase's "may have
-    you <effect>" optional-choice shape (Sin Prodder's "Any opponent may
-    have you put that card into your graveyard. If a player does, ~ deals
+    ADR-0039 W7 (the player side only): also recognizes a bare ``optional_for``
+    STRING marker ("AnyOpponent" / "AnyPlayer") a sibling node carries — phase's
+    "may have you <effect>" optional-choice shape (Sin Prodder's "Any opponent
+    may have you put that card into your graveyard. If a player does, ~ deals
     damage to that player...") names the CHOOSING player only as this raw
     string, never a typed player node, so it never populates any
     ``_SCOPE_FIELDS`` slot. Corpus-verified: 26 commander-legal nodes carry
-    ``optional_for`` (18 ``AnyPlayer`` / 8 ``AnyOpponent``), and Sin Prodder
-    is the ONLY one whose ``direct_damage`` membership actually turns on
-    this read — every other hit is already served via its own explicit
-    typed target. A bare string always names a player (never a creature/
-    permanent), so no further discrimination is needed.
+    ``optional_for`` (18 ``AnyPlayer`` / 8 ``AnyOpponent``), and Sin Prodder is
+    the ONLY one whose ``direct_damage`` membership actually turns on this read
+    — every other hit is already served via its own explicit typed target. A
+    bare string always names a player (never a creature/permanent).
     """
     for n in _iter_typed_nodes(root):
         for fname in _SCOPE_FIELDS:
@@ -1040,12 +1075,13 @@ def _unit_has_player_target(root: object) -> bool:
             if (
                 _present(sub)
                 and tag_of(sub) != "ParentTarget"
-                and _damage_target_reaches_player(sub)
+                and _damage_target_reaches(sub, None, recipient)
             ):
                 return True
-        opt = getattr(n, "optional_for", MISSING)
-        if _present(opt) and opt in _OPTIONAL_FOR_PLAYER_VALUES:
-            return True
+        if recipient == "player":
+            opt = getattr(n, "optional_for", MISSING)
+            if _present(opt) and opt in _OPTIONAL_FOR_PLAYER_VALUES:
+                return True
     return False
 
 
@@ -1054,26 +1090,36 @@ def _unit_has_player_target(root: object) -> bool:
 _OPTIONAL_FOR_PLAYER_VALUES = frozenset({"AnyOpponent", "AnyPlayer"})
 
 
-def has_nested_damage_reaching_player(node: object) -> bool:
-    """Whether a ``DealDamage``/``DamageAll``/``DamageEachPlayer`` node
-    reaching a PLAYER (CR 120.1) is reachable ANYWHERE under ``node`` — a
-    damage effect buried inside a granted activated/static ability's
-    ``GrantAbility``/``GrantStaticAbility`` ``.definition`` (Barbed Field's
-    "Enchanted land has '{T}: ... deals 1 damage to any target.'", Acidic
-    Sliver's lord-granted "All Slivers have '{2}, Sacrifice ...: ... deals
-    2 damage to any target.'") or a ``CreateToken`` token-ability
-    definition (Dance with Devils's "When this token dies, it deals 1
-    damage to any target") — none of which the flat per-unit
-    ``effect_concepts`` walk ever surfaces as its own top-level concept.
-    The ``direct_damage`` lane's structural fallback, the
+def has_nested_damage_reaching(
+    node: object,
+    recipient: DamageRecipient,
+    *,
+    tags: frozenset[str] = DAMAGE_EFFECT_TAGS,
+) -> bool:
+    """Whether a damage node (one of TAGS) that can reach RECIPIENT (CR 120.1)
+    is reachable ANYWHERE under ``node`` — a damage effect buried inside a
+    granted activated/static ability's ``GrantAbility``/``GrantStaticAbility``
+    ``.definition`` (Barbed Field's "Enchanted land has '{T}: ... deals 1
+    damage to any target.'", Acidic Sliver's lord-granted "All Slivers have
+    '{2}, Sacrifice ...: ... deals 2 damage to any target.'"), a
+    ``CreateToken`` token-ability definition (Dance with Devils's "When this
+    token dies, it deals 1 damage to any target") or a coin-flip / modal
+    branch (Goblin Bangchuckers) — none of which the flat per-unit
+    ``effect_concepts`` walk ever surfaces as its own top-level concept. The
     :func:`has_nested_fight` sibling. ``node`` doubles as the ``root``
-    :func:`effect_reaches_player` resolves a bare ``ParentTarget`` recipient
-    against (the SAME ability owns both the grant and its nested damage).
+    :func:`_effect_reaches` resolves a bare ``ParentTarget`` recipient against
+    (the SAME ability owns both the grant and its nested damage).
     """
     return any(
-        tag_of(n) in DAMAGE_EFFECT_TAGS and effect_reaches_player(n, node)
+        tag_of(n) in tags and _effect_reaches(n, node, recipient)
         for n in _iter_typed_nodes(node)
     )
+
+
+def has_nested_damage_reaching_player(node: object) -> bool:
+    """:func:`has_nested_damage_reaching` a PLAYER — the ``direct_damage``
+    lane's structural fallback."""
+    return has_nested_damage_reaching(node, "player")
 
 
 def _type_filter_words(entries: object) -> list[str]:
@@ -3740,6 +3786,43 @@ def replacement_token_owner_scope(node: TypedMirrorNode) -> str:
     return s if isinstance(s, str) else ""
 
 
+def replacement_token_types(
+    node: TypedMirrorNode,
+) -> tuple[tuple[str, ...], tuple[str, ...]]:
+    """``(subtypes, core_types)`` a ``CreateToken`` replacement is restricted to,
+    read off its ``condition``: the ``TokenSubtypeMatches`` subtypes ("If you would
+    create a Treasure token" — Xorn; Academy Manufactor's Clue / Food / Treasure)
+    and the ``TokenCoreTypeMatches`` core types ("one or more artifact tokens" —
+    Stridehangar Automaton), through ``And`` / ``Or`` (Fisher's Talent's
+    ``And[ClassLevelGE, TokenSubtypeMatches]``). A ``Not`` is not entered: a negated
+    kind is not the kind the card watches. Both empty for an unrestricted
+    replacement (Doubling Season), which watches every token. (Not
+    ``lanes._shared._condition_leaves``: the lanes import this module, and that
+    walk keeps ``Not``-wrapped leaves.)
+    """
+    subtypes: list[str] = []
+    cores: list[str] = []
+
+    def walk(cond: object) -> None:
+        t = tag_of(cond)
+        if t in ("And", "Or"):
+            for c in getattr(cond, "conditions", ()) or ():
+                walk(c)
+            return
+        if t == "TokenSubtypeMatches":
+            acc, vals = subtypes, getattr(cond, "subtypes", ())
+        elif t == "TokenCoreTypeMatches":
+            acc, vals = cores, getattr(cond, "core_types", ())
+        else:
+            return
+        for v in vals or ():
+            if isinstance(v, str) and v not in acc:
+                acc.append(v)
+
+    walk(getattr(node, "condition", None))
+    return tuple(subtypes), tuple(cores)
+
+
 def damage_filter_scope(node: TypedMirrorNode, field: str) -> str | None:
     """The player scope of a DamageDone replacement's ``damage_target_filter``
     / ``damage_source_filter``, or ``None`` when absent.
@@ -3767,6 +3850,23 @@ def damage_filter_scope(node: TypedMirrorNode, field: str) -> str | None:
             return "objects"
         return _scope_from_player_node(f) or "objects"
     return None
+
+
+def redirects_damage_from_you(node: TypedMirrorNode) -> bool:
+    """Whether ``node`` is a redirection effect shielding you: a
+    ``CreateDamageReplacement`` whose ``target_filter`` names you (alone, or
+    you and permanents you control) and whose ``redirect_to`` sends the
+    damage elsewhere — Gideon's Sacrifice, Harm's Way, Saving Grace, Nova
+    Pentacle (CR 614.9: a redirection effect replaces damage dealt to one
+    battle, creature, planeswalker or player with the same damage dealt to
+    another). A redirect watching an opponent (Soltari Guerrillas' "would
+    deal combat damage to an opponent") is not one.
+    """
+    return (
+        tag_of(node) == "CreateDamageReplacement"
+        and _present(getattr(node, "redirect_to", MISSING))
+        and damage_filter_scope(node, "target_filter") == "you"
+    )
 
 
 def trigger_counter_filter(trig: TypedMirrorNode) -> tuple[str, int]:

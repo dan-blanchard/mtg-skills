@@ -24,11 +24,13 @@ from mtg_utils._analysis.tree_synthesis._shared import (
     _synthetic_concept,
 )
 from mtg_utils._card_ir.crosswalk import (
+    DEFENDED_YOU,
     ConceptNode,
     ConceptTree,
     change_zone_dirs,
     counter_kind,
     counter_kind_any,
+    defends_you,
     filter_controller,
     filter_core_types,
     filter_inzone_zones,
@@ -47,6 +49,7 @@ from mtg_utils._card_ir.crosswalk import (
     trigger_scope,
     trigger_subject,
     trigger_subject_scope,
+    watches_attacks_on_you,
 )
 from mtg_utils._card_ir.mirror.runtime import (
     MISSING,
@@ -419,12 +422,40 @@ def _arm_symmetric_stax(tree: ConceptTree) -> ConceptNode | None:
 # spell's own target — Chandra's Defeat — is removal, skipped subtree). Shared
 # by the ``_superfriends_matters`` lane (its entire Tier-1 structural read) and
 # this stage's synth gap gate — one source, no drift.
-_PW_ATTACK_RECIPIENTS: frozenset[str] = frozenset(
-    {"PlayerOrPlaneswalker", "OwnerOrPlaneswalker", "Planeswalker"}
-)
+#
+# Only a recipient naming planeswalkers ALONE is a tell (Onakke Oathkeeper's
+# "can't attack planeswalkers you control unless", Oath of Kaya's "attacks a
+# planeswalker you control"). A recipient in ``crosswalk.DEFENDED_YOU`` — "you
+# or planeswalkers you control" (CR 506.2: the defending player and the
+# planeswalkers they control may be attacked) — is how an attack deterrent or
+# a defensive attack trigger names YOU: Ghostly-Prison-style taxes, the Vow
+# cycle, Blood Reckoning, Isperia and Mangara protect you, they don't pay off
+# planeswalkers (Blame Game precon audit, 2026-10-18).
+_PW_ATTACK_RECIPIENTS: frozenset[str] = frozenset({"Planeswalker"})
+#: The attack-recipient field of each node that carries one.
+_ATTACK_RECIPIENT_FIELDS: dict[str, str] = {
+    "UnlessPay": "defended",
+    "AttackTarget": "attacked",
+}
 _SUPERFRIENDS_COUNTER_EFFECTS: frozenset[str] = frozenset(
     {"place_counter", "remove_counter", "move_counters", "multiply_counter"}
 )
+
+
+def _attack_recipient_tell(node: TypedMirrorNode) -> bool | None:
+    """Whether an ``UnlessPay`` / ``AttackTarget`` node's attack recipient is a
+    superfriends tell: ``True`` for your planeswalkers alone, ``False`` for a
+    recipient that defends you (``DEFENDED_YOU``) or an opponent's
+    planeswalkers, ``None`` for any other node or recipient."""
+    field = _ATTACK_RECIPIENT_FIELDS.get(tag_of(node) or "")
+    if field is None:
+        return None
+    recipient = getattr(node, field, None)
+    if recipient in DEFENDED_YOU:
+        return False
+    if recipient in _PW_ATTACK_RECIPIENTS:
+        return getattr(node, "controller", None) != "Opponent"
+    return None
 
 
 def _superfriends_typed_ref(node: object, depth: int = 0) -> bool:
@@ -434,14 +465,14 @@ def _superfriends_typed_ref(node: object, depth: int = 0) -> bool:
     the typed ``YouControlNamedPlaneswalker`` gate (Companion of the Trials).
     Three exclusions ride along at every depth: a ``TargetMatchesFilter``
     condition (a removal spell's own target — Chandra's Defeat), an
-    ``UnlessPay``/``AttackTarget`` node whose ``defended``/``attacked`` +
-    ``controller`` fields resolve the "can't attack you or planeswalkers you
-    control" tax/restriction family (Archangel of Tithes, Mangara), and a
-    ``WheneverEvent`` — vetoed UNLESS its wrapped trigger carries the SAME
-    "attacks you or a planeswalker you control" recipient shape (Tamiyo Meets
-    the Story Circle's delayed trigger), so the generic damage-recipient
-    event-plumbing family (Hunter's Insight — "player or planeswalker", no
-    controller gate) stays excluded.
+    ``UnlessPay``/``AttackTarget`` node that defends you
+    (:func:`_attack_recipient_tell` — Archangel of Tithes' tax, Mangara's
+    "attacking you and/or planeswalkers you control"; only planeswalkers
+    alone fire, Onakke Oathkeeper) — and a ``WheneverEvent`` — vetoed UNLESS
+    its wrapped trigger watches attacks on planeswalkers alone, so Tamiyo
+    Meets the Story Circle's "attacks you or a planeswalker you control" and
+    the generic damage-recipient event-plumbing family (Hunter's Insight —
+    "player or planeswalker", no controller gate) stay excluded.
     """
     if depth > 24:
         return False
@@ -460,13 +491,9 @@ def _superfriends_typed_ref(node: object, depth: int = 0) -> bool:
             return False
         atf = getattr(trig, "attack_target_filter", None)
         return atf in _PW_ATTACK_RECIPIENTS and trigger_scope(trig) == "you"
-    if t == "UnlessPay" and getattr(node, "defended", None) in _PW_ATTACK_RECIPIENTS:
-        return True
-    if t == "AttackTarget" and (
-        getattr(node, "attacked", None) in _PW_ATTACK_RECIPIENTS
-        and getattr(node, "controller", None) != "Opponent"
-    ):
-        return True
+    tell = _attack_recipient_tell(node)
+    if tell is not None:
+        return tell
     if t == "YouControlNamedPlaneswalker":
         return True
     if (
@@ -511,10 +538,13 @@ def has_structural_superfriends(tree: ConceptTree) -> bool:
     * a CONDITION-site Planeswalker group-reference (:func:`_superfriends_
       typed_ref` over :func:`iter_condition_sites` — Historian of Zhalfir /
       Arisen Gorgon / Companion of the Trials).
-    * an ATTACK-RECIPIENT trigger watching YOUR side (Blood Reckoning,
-      Isperia — a unit's own ``attack_target_filter``).
+    * an ATTACK-RECIPIENT trigger watching YOUR planeswalkers alone (Oath of
+      Kaya — a unit's own ``attack_target_filter``; "attacks you or a
+      planeswalker you control" — Blood Reckoning, Isperia — is the
+      attackable pair, CR 506.2, and never fires).
     * a static ``CantAttack``/``CantBlock`` ``attack_defended`` recipient
-      (Combat Calligrapher, the Vow cycle) or a Planeswalker-group ``affected``
+      naming planeswalkers alone (the pair — Combat Calligrapher, the Vow
+      cycle — is pillowfort, not a tell) or a Planeswalker-group ``affected``
       filter (an anthem/grant static — Ichormoon Gauntlet, Sorin).
     * a battlefield ``dies`` trigger whose subject includes Planeswalker,
       non-opponent scope (Carth the Lion, Cruel Celebrant — CR 700.4-adjacent).
@@ -578,7 +608,9 @@ def has_structural_superfriends(tree: ConceptTree) -> bool:
 # planeswalkers you control, ... have hexproof", Kasmina, Enigma Sage's
 # "each other planeswalker you control has the loyalty abilities of ~"; a
 # CantAttack/CantBlock static with no ``attack_defended`` payload at all —
-# Onakke Oathkeeper, Promise of Loyalty, Assault Suit, Varchild; an "activate
+# Assault Suit, Varchild, whose "can't attack you or planeswalkers you
+# control" is pillowfort wording the arm still misreads because phase types no
+# deterrent for :func:`defends_you` to stand it down on; an "activate
 # loyalty abilities of planeswalkers you control" permission ability with no
 # ``GrantExtraLoyaltyActivations`` typed node — Oath of Teferi, Teferi,
 # Temporal Archmage's emblem; a replacement/tax effect scoped to "planeswalkers
@@ -654,8 +686,21 @@ def _matches_superfriends_idiom(oracle: str) -> bool:
 
 def _arm_superfriends_matters(tree: ConceptTree) -> ConceptNode | None:
     """Synthesize a ``superfriends_matters`` node for a description-only
-    planeswalker/loyalty payoff (CR 306.5) phase leaves wholly unstructured."""
+    planeswalker/loyalty payoff (CR 306.5) phase leaves wholly unstructured.
+
+    It stands down on a card phase types as defending you
+    (:func:`defends_you`: an attack deterrent — Promise of Loyalty's and
+    Orzhov Advokist's "can't attack you or planeswalkers you control"; a fog
+    shielding you — Comeuppance's and Take the Bait's "damage that would be
+    dealt to you and planeswalkers you control"; a redirection of damage dealt
+    to you — Gideon's Sacrifice, CR 614.9) or as watching attacks on you
+    (:func:`watches_attacks_on_you` — Soul Snare's "creature that's attacking
+    you or a planeswalker you control", Isperia's attack trigger). Such a card
+    names your planeswalkers beside you as what an attack or damage can reach
+    (CR 506.2), not as a group it rewards."""
     if has_structural_superfriends(tree):
+        return None
+    if defends_you(tree) or watches_attacks_on_you(tree):
         return None
     if not _matches_superfriends_idiom(tree.oracle or ""):
         return None

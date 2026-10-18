@@ -314,3 +314,14 @@ def test_a_changeling_is_every_creature_type_but_no_equipment():
 
 def test_commander_never_protects_itself():
     assert commander_multipliers([OMNATH], [OMNATH]) == {}
+
+
+def test_a_dies_doubler_reaches_a_folded_zone_change_commander():
+    """Syr Konrad's trigger folds "another creature dies" with two graveyard moves
+    into one zone-change trigger with no zones of its own; its battlefield ->
+    graveyard clause is a death (CR 700.4), so Teysa Karlov doubles it. An attack
+    commander is not reached."""
+    teysa = test_card("Teysa Karlov")
+    konrad = test_card("Syr Konrad, the Grim")
+    assert set(commander_multipliers([teysa], [konrad])) == {"Teysa Karlov"}
+    assert commander_multipliers([teysa], [EDGAR]) == {}

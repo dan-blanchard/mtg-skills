@@ -8,6 +8,7 @@ re-exported public surface.
 from __future__ import annotations
 
 import re
+from collections.abc import Callable
 
 from mtg_utils._analysis import signal_keys
 from mtg_utils._analysis._subtypes import CREATURE_SUBTYPES
@@ -75,9 +76,26 @@ from mtg_utils._card_ir.mirror.runtime import TypedMirrorNode
 # fires on — one source, no drift, never double-counting a subtype phase types.
 
 
-def structural_type_subjects(tree: ConceptTree) -> set[str]:
+def structural_type_subjects(
+    tree: ConceptTree,
+    *,
+    resolve: Callable[[str], str] | None = None,
+    population_only: bool = False,
+) -> set[str]:
     """Creature subtypes of every non-opponent Typed filter phase carries at a read
     site the ``_type_matters_lane`` fires on (CR 205.3 kindred — Arm B).
+
+    Parameterised for the land-subtype payoff read (``land_type_matters`` —
+    ``lanes.animate_land_types``): ``resolve`` maps a filter's raw subtype to the
+    subject, "" to drop it (default: the kindred vocab read, ``_resolve_subject``
+    over ``CREATURE_SUBTYPES``); ``population_only`` drops the sites where the
+    subtype names what an effect or cost ACTS ON — an effect's target or searched
+    card, a cost's sacrificed permanent, a granted ability's target, a cost
+    reducer's spell — and keeps the sites where it names a population the card
+    counts, watches or grants to (count operands, trigger ``valid_card``, static
+    ``affected``, conditions): "search your library for a Forest card" is a fetch,
+    not a Forest payoff. Both reads resolve the one memoized site walk
+    (:func:`_type_subject_sites`), so the second lane pays no second walk.
 
     The Arm-B source SHARED by the lane AND this stage's per-subject gap gate
     (:func:`_arm_type_matters`) — one source, no drift. A Typed filter controlled by
@@ -151,15 +169,35 @@ def structural_type_subjects(tree: ConceptTree) -> set[str]:
     check in :func:`count_operand_filter` never unwraps the "twice that
     many" scalar, so this doubled-count kindred subject was missed.
     """
+    resolve_subtype = resolve or (lambda s: _resolve_subject(s, CREATURE_SUBTYPES))
     out: set[str] = set()
-
-    def add_filter(filt: object) -> None:
-        if filt is None or filter_controller(filt) == "Opponent":
-            return
-        for s in filter_subtypes(filt):
-            r = _resolve_subject(s, CREATURE_SUBTYPES)
+    for raw, population in _type_subject_sites(tree):
+        if population or not population_only:
+            r = resolve_subtype(raw)
             if r:
                 out.add(r)
+    return out
+
+
+_TYPE_SUBJECT_SITES_ATTR = "_xw_type_subject_sites"
+
+
+def _type_subject_sites(tree: ConceptTree) -> tuple[tuple[str, bool], ...]:
+    """``(raw subtype, population site?)`` for every subtype of a non-opponent
+    Typed filter at a :func:`structural_type_subjects` read site — ``False`` for
+    an effect / cost / granted-ability target or a cost reducer's spell, ``True``
+    for a count operand, trigger ``valid_card``, static ``affected`` or
+    condition. Walked once per tree and kept on it (the kindred and land-type
+    lanes both read it)."""
+    cached = tree.__dict__.get(_TYPE_SUBJECT_SITES_ATTR)
+    if cached is not None:
+        return cached
+    out: list[tuple[str, bool]] = []
+
+    def add_filter(filt: object, *, population: bool = True) -> None:
+        if filt is None or filter_controller(filt) == "Opponent":
+            return
+        out.extend((s, population) for s in filter_subtypes(filt))
 
     def add_ref_count_filter(node: TypedMirrorNode) -> None:
         for fname in ("amount", "count", "value"):
@@ -170,16 +208,16 @@ def structural_type_subjects(tree: ConceptTree) -> set[str]:
             add_filter(count_operand_filter(c.node))
             add_ref_count_filter(c.node)
             if c.concept != "make_token":
-                add_filter(effect_filter(c.node))
+                add_filter(effect_filter(c.node), population=False)
         for c in unit.costs:
             add_filter(count_operand_filter(c.node))
             add_ref_count_filter(c.node)
-            add_filter(effect_filter(c.node))
+            add_filter(effect_filter(c.node), population=False)
         if unit.origin == "trigger":
             add_filter(getattr(unit.node, "valid_card", None))
         for static_def in iter_static_defs(unit.node):
             add_filter(getattr(static_def, "affected", None))
-            add_filter(modify_cost_spell_filter(static_def))
+            add_filter(modify_cost_spell_filter(static_def), population=False)
             for mod in getattr(static_def, "modifications", None) or ():
                 add_filter(count_operand_filter(mod))
         for n in iter_typed_nodes(unit.node):
@@ -188,12 +226,14 @@ def structural_type_subjects(tree: ConceptTree) -> set[str]:
             d = getattr(n, "definition", None)
             eff = getattr(d, "effect", None) if d is not None else None
             if isinstance(eff, TypedMirrorNode):
-                add_filter(effect_filter(eff))
+                add_filter(effect_filter(eff), population=False)
         for cond in iter_condition_sites(unit.node):
             for q in iter_typed_nodes(cond):
                 if tag_of(q) == "Typed":
                     add_filter(q)
-    return out
+    sites = tuple(out)
+    tree.__dict__[_TYPE_SUBJECT_SITES_ATTR] = sites
+    return sites
 
 
 # ── arm: type_matters bucket-B (ADR-0036 fold — SUBJECT-carrying) ─────────────

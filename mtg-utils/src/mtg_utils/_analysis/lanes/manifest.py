@@ -604,6 +604,16 @@ SERVED_SIGNAL_KEYS: frozenset[str] = frozenset(
         # lifegain to offset its own life payments, so it is a carer of the
         # Lifegain avenue (ADR-0034's ``wants_<x>``), never a lifegain card.
         "wants_lifegain",
+        # animate_makers: an effect making noncreature permanents of a card type
+        # creatures (CR 613.1d — Bello, Bard of the Brambles; March of the
+        # Machines; Ensoul Artifact), subject = the animated type
+        # (lanes.animate_land_types). A doer lane with no payoff sibling: its
+        # doers are its carers.
+        signal_keys.ANIMATE_MAKERS,
+        # land_type_matters: a card counting / watching / granting to lands of one
+        # nonbasic land type (CR 205.3i — Yuma's Deserts, Gatebreaker Ram's
+        # Gates), subject = the land type (lanes.animate_land_types).
+        signal_keys.LAND_TYPE_MATTERS,
     }
 )
 

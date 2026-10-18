@@ -545,18 +545,21 @@ def test_composite_mass_recursion_fires_both_lanes_any_controller():
 # ── token-maker + sac-payoff + cost-payer + becomes + ability-payoff (ADR-0027) ─
 
 
-def test_artifact_token_maker_fires_artifacts_lane():
-    # Beza, the Bounding Spring — a Treasure-token maker phase carries by SUBTYPE with
-    # an empty card_types tuple (CR 205.3g) still fires artifacts_matter.
-    assert _smatters(test_signals("Beza, the Bounding Spring")) == {
-        ("artifacts_matter", "")
-    }
+def test_artifact_token_maker_is_a_maker_not_an_artifacts_payoff():
+    # Beza, the Bounding Spring — a Treasure-token maker (CR 205.3g: Treasure is an
+    # artifact type) is a DOER: it fires treasure_makers, never the artifacts_matter
+    # payoff the tuner reads as a card that cares about artifacts.
+    sigs = test_signals("Beza, the Bounding Spring")
+    assert _smatters(sigs) == set()
+    assert "treasure_makers" in _skeys(sigs)
 
 
-def test_sac_artifact_effect_fires_artifacts_lane():
-    # Giant Opportunity — "sacrifice two Foods" (artifact-token sac payoff) fires
-    # artifacts_matter (Food is an artifact token).
-    assert _smatters(test_signals("Giant Opportunity")) == {("artifacts_matter", "")}
+def test_sac_typed_token_effect_is_that_tokens_payoff():
+    # Giant Opportunity — "sacrifice two Foods" cares about Foods (food_matters), not
+    # about the deck's artifacts.
+    sigs = test_signals("Giant Opportunity")
+    assert _smatters(sigs) == set()
+    assert "food_matters" in _skeys(sigs)
 
 
 def test_sac_an_artifact_cost_fires_artifacts_lane():
@@ -581,10 +584,12 @@ def test_ability_of_artifact_trigger_fires_artifacts_lane():
     }
 
 
-def test_investigate_keyword_fires_artifacts_lane():
-    # Deduce — Investigate (CR 701.27) makes a Clue (a colorless ARTIFACT); the Scryfall
-    # keyword is the anchor (phase drops the Clue subtype).
-    assert _smatters(test_signals("Deduce")) == {("artifacts_matter", "")}
+def test_investigate_is_a_clue_maker_not_an_artifacts_payoff():
+    # Deduce — Investigate (CR 701.16a: "Create a Clue token") is a Clue MAKER; it
+    # fires clue_makers, never artifacts_matter.
+    sigs = test_signals("Deduce")
+    assert _smatters(sigs) == set()
+    assert "clue_makers" in _skeys(sigs)
 
 
 def test_devour_keyword_opens_plus_one_makers():

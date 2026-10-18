@@ -470,6 +470,7 @@ def tune(
             stranded=set(foc["stranded_avenues"]),
             viable={a["label"] for a in foc["viable_avenues"]},
             commander_cards=foc["commander_lane_cards"],
+            lane_carers=foc["commander_lane_carers"],
             lane_upgrade_floor=cal.scaled(cal.lane_upgrade_floor, deck_size),
             message=f"deck is {overflow} over {legal} — cut",
             protected=protected,

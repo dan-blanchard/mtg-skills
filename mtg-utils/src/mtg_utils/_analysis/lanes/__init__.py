@@ -64,6 +64,7 @@ from mtg_utils._analysis.lanes._shared import (
     _UNKNOWN_MODE_COMBAT_DAMAGE_TO_PLAYER,
     _VOLTRON_SUBTYPES,
     _YOU_EACH,
+    TOKEN_SUBTYPE_PAYOFF_KEYS,
     _attack_compulsion_hit,
     _choose_opponent_bound_discard,
     _condition_leaves,
@@ -83,6 +84,9 @@ from mtg_utils._analysis.lanes._shared import (
     _voltron_collective_preds,
     _whole_card_maker,
     sacrifice_actor_scope,
+)
+from mtg_utils._analysis.lanes.animate_land_types import (
+    LANES as _ANIMATE_LAND_TYPES_LANES,
 )
 from mtg_utils._analysis.lanes.board_and_ramp import (
     _CAST_ADD_SAC_LAND_ONLY_WORDS,
@@ -115,7 +119,6 @@ from mtg_utils._analysis.lanes.board_and_ramp import (
     _granted_mana_defs,
     _has_animate_treasure_grant,
     _has_created_token_devour,
-    _is_artifact_token_types,
     _is_big_mana_tree,
     _is_you_sac_subject,
     _iter_creatures_matter_static_defs,
@@ -124,6 +127,7 @@ from mtg_utils._analysis.lanes.board_and_ramp import (
     _mana_accel,
     _mana_fixing,
     _mass_untap_creature_filter,
+    _names_artifact_kind,
     _or_wrapped_generic_creature_filter,
     _pump_scaling_creature_filter,
     _ramp,
@@ -531,7 +535,6 @@ from mtg_utils._analysis.lanes.protection_and_sweep import (
     _keyword_field_signals_b15,
     _keyword_field_signals_b16,
     _keyword_field_signals_sweep,
-    _keyword_field_signals_w4g,
     _keyword_soup_makers,
     _legend_rule_off,
     _lessons_matter,
@@ -769,6 +772,7 @@ from mtg_utils.card_classify import get_oracle_text
 
 __all__ = [
     "SERVED_SIGNAL_KEYS",
+    "TOKEN_SUBTYPE_PAYOFF_KEYS",
     "_AA_EXTRA_COST_TAGS",
     "_AA_TAP_COST_TAGS",
     "_ADAPT_KEYWORD_INVOCATION_RE",
@@ -1163,7 +1167,6 @@ __all__ = [
     "_incubate_makers",
     "_initiative",
     "_is_anthem_group_filter",
-    "_is_artifact_token_types",
     "_is_big_mana_tree",
     "_is_creature_animator",
     "_is_generic_creature_filter",
@@ -1190,7 +1193,6 @@ __all__ = [
     "_keyword_field_signals_b15",
     "_keyword_field_signals_b16",
     "_keyword_field_signals_sweep",
-    "_keyword_field_signals_w4g",
     "_keyword_grant_lanes",
     "_keyword_soup",
     "_keyword_soup_makers",
@@ -1240,6 +1242,7 @@ __all__ = [
     "_monarch",
     "_named_counter_misc",
     "_named_synergy",
+    "_names_artifact_kind",
     "_negative_pt_field",
     "_nested_emblem_tutor_put",
     "_nested_grant_reveal_or_hand_put",
@@ -1450,6 +1453,9 @@ _LANES = (
     # a bridge id, so retiring a bridge is deleting its ledger row.
     + (bridge_signals,)
     + _PROTECTION_AND_SWEEP_LANES_TAIL
+    # Two subject-carrying lanes added after the split (2026-10-18): new keys,
+    # so their position moves no existing ident's first-wins dedupe.
+    + _ANIMATE_LAND_TYPES_LANES
 )
 
 
@@ -1524,8 +1530,6 @@ def extract_crosswalk_signals(
     for sig in _keyword_field_signals_b15(frozenset(keywords), tree.name):
         add(sig)
     for sig in _keyword_field_signals_b16(frozenset(keywords), tree.name):
-        add(sig)
-    for sig in _keyword_field_signals_w4g(frozenset(keywords), tree.name):
         add(sig)
     for sig in _keyword_field_signals_sweep(frozenset(keywords), tree.name):
         add(sig)

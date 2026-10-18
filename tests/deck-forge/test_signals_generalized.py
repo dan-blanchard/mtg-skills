@@ -414,16 +414,41 @@ def test_target_redirect_opens_on_draw_when_targeted():
     assert ("target_redirect", "you") in _ks_real("Rayne, Academy Chancellor")
 
 
-def test_artifacts_matter_opens_on_investigate():
-    # "Investigate" creates a Clue token — an artifact (keyword action) — so an
-    # investigate commander (Sophina) is an artifact deck whose Clues trigger artifact
-    # payoffs (Reckless Fireweaver / Ingenious Artillerist). "create a Clue token"
-    # already opened the lane; the keyword action "investigate" must too. Real oracle.
-    # ADR-0027: BOTH artifacts_matter and clue_matters migrated to the Card IR — each
-    # rides a kept oracle mirror that catches \binvestigate\b. The hybrid path emits both.
+def test_typed_token_payoffs_pair_with_their_makers():
+    # A typed token payoff (Xorn's Treasure replacement, Fisher's Talent's Fish /
+    # Shark replacements) must land on a key the tuner's focus read pairs with the
+    # deck's makers of THAT token (``_cares_keys``), not on the bare tokens_matter
+    # that cares about every token maker (Xorn read as caring about Soldier makers).
+    from mtg_utils._analysis.lanes import SERVED_SIGNAL_KEYS
+    from mtg_utils._analysis.lanes._shared import TOKEN_SUBTYPE_PAYOFF_KEYS
+    from mtg_utils._tuner.metrics import _cares_keys
+
+    for sub, payoff in TOKEN_SUBTYPE_PAYOFF_KEYS.items():
+        assert payoff in SERVED_SIGNAL_KEYS
+        assert f"{sub}_makers" in SERVED_SIGNAL_KEYS
+        assert payoff in _cares_keys(f"{sub}_makers")
+    xorn = {(s.key, s.subject) for s in test_signals("Xorn")}
+    assert ("treasure_matters", "") in xorn
+    assert ("tokens_matter", "") not in xorn
+    # The subject is spelled exactly as token_maker spells it, so the focus read's
+    # (key, subject) join finds the Fish makers.
+    fisher = test_signals("Fisher's Talent")
+    makers = {s.subject for s in fisher if s.key == "token_maker"}
+    payoffs = {s.subject for s in fisher if s.key == "tokens_matter"}
+    assert payoffs == {"Fish", "Shark"}
+    assert payoffs <= makers
+    assert "tokens_matter" in _cares_keys("token_maker")
+
+
+def test_investigate_opens_the_clue_lane_not_artifacts_matter():
+    # "Investigate" creates a Clue token (CR 701.16a) — an investigate commander
+    # (Sophina) MAKES artifacts, so it opens the Clue lane (clue_makers); it is not
+    # an artifacts_matter payoff, the key the tuner reads as a card that cares about
+    # artifacts (2026-10-18: the Deep Clue Sea precon's Clue makers read as 31
+    # carers of its Artifacts main). Real oracle.
     keys = _keys_real("Sophina, Spearsage Deserter")
-    assert "artifacts_matter" in keys  # Clue tokens are artifacts
-    assert "clue_matters" in keys  # still a Clue commander too
+    assert "clue_makers" in keys
+    assert "artifacts_matter" not in keys
 
 
 def test_token_copy_matters_opens_on_token_doubling():

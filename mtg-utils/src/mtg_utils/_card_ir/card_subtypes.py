@@ -30,6 +30,7 @@ ARTIFACT_TYPES: frozenset[str] = frozenset(
         "food",
         "fortification",
         "gold",
+        "heartwood",
         "incubator",
         "infinity",
         "junk",

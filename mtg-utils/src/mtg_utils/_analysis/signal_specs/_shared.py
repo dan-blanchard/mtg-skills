@@ -108,6 +108,16 @@ class Serve:
 
     oracle: re.Pattern[str] | None = None
     types: frozenset[str] = frozenset()
+    # The ``types`` arm's exclusions: a card matching ``types`` serves through it
+    # only if its type line carries none of these ("noncreature artifact":
+    # ``types={"artifact"}, not_types={"creature"}`` — the animation lane's
+    # feeders). The other arms are unaffected.
+    not_types: frozenset[str] = frozenset()
+    # Not a match dimension: the LANDS this serve matches are the avenue's feeders
+    # and count toward its depth (the land-type lane's Deserts). Every other
+    # avenue's land members are mana base, never theme support (``_tuner.metrics
+    # .focus``).
+    lands_feed: bool = False
     keywords: frozenset[str] = frozenset()
     cmc_min: float | None = None
     cmc_max: float | None = None  # serve a CHEAP card (mv <= this); inverse of cmc_min
@@ -161,7 +171,11 @@ class Serve:
         # Word-boundary tokens, never substrings: a 'rat' tribal serve must not
         # match every Pirate ("pi[rat]e"), nor 'orc' every Sorcery.
         type_line = classifying_type_line(card).lower()
-        if self.types and any(type_line_has(type_line, t) for t in self.types):
+        if (
+            self.types
+            and any(type_line_has(type_line, t) for t in self.types)
+            and not any(type_line_has(type_line, t) for t in self.not_types)
+        ):
             return True
         if self.keywords:
             card_kw = {k.lower() for k in (card.get("keywords") or [])}
@@ -246,6 +260,10 @@ class Serve:
             out["oracle"] = self.oracle.pattern
         if self.types:
             out["types"] = sorted(self.types)
+        if self.not_types:
+            out["not_types"] = sorted(self.not_types)
+        if self.lands_feed:
+            out["lands_feed"] = True
         if self.keywords:
             out["keywords"] = sorted(self.keywords)
         if self.cmc_min is not None:
@@ -349,6 +367,8 @@ def serve_from_dict(data: dict) -> Serve:
     return Serve(
         oracle=_compile(data.get("oracle")),
         types=frozenset(t.lower() for t in (types or ())),
+        not_types=frozenset(t.lower() for t in (data.get("not_types") or ())),
+        lands_feed=bool(data.get("lands_feed")),
         keywords=frozenset(k.lower() for k in (data.get("keywords") or ())),
         cmc_min=data.get("cmc_min"),
         cmc_max=data.get("cmc_max"),

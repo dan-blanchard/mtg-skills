@@ -17,6 +17,7 @@ from mtg_utils._analysis.lanes._shared import (
     _OPP_DISCARD_ACTORS,
     _PERMANENT_TYPES,
     _RETURN_TARGET_TAGS,
+    TOKEN_SUBTYPE_PAYOFF_KEYS,
     _choose_opponent_bound_discard,
     _is_generic_creature_filter,
     _kept,
@@ -1266,10 +1267,11 @@ def _lands_matter(tree: ConceptTree) -> list[Signal]:
 
 
 # Sacrificed-token subtype → the sacrifice-PAYOFF lane (role-split per
-# ADR-0034 — the ``make_token`` MAKER halves are already ported).
+# ADR-0034 — the ``make_token`` MAKER halves are already ported). Deliberately
+# Treasure / Blood only: Food and Clue sacrifices are read by their own lane
+# (``removal_tutors._token_subtype_payoff``), so the shared map is narrowed here.
 _SAC_TOKEN_MATTERS: dict[str, str] = {
-    "treasure": "treasure_matters",
-    "blood": "blood_matters",
+    sub: TOKEN_SUBTYPE_PAYOFF_KEYS[sub] for sub in ("treasure", "blood")
 }
 
 

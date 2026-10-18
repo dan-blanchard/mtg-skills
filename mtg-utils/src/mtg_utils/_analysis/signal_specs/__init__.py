@@ -202,6 +202,7 @@ from .core import (
     source_label,
     source_split,
     spec_for,
+    spec_scope_for,
 )
 
 __all__ = [
@@ -390,4 +391,5 @@ __all__ = [
     "source_label",
     "source_split",
     "spec_for",
+    "spec_scope_for",
 ]

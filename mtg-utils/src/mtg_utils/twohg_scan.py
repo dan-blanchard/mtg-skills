@@ -49,6 +49,7 @@ from mtg_utils._analysis.lanes.removal_tutors import removal_edict_answers
 from mtg_utils._analysis.roles import role_of
 from mtg_utils._analysis.signal_base import clauses
 from mtg_utils._card_ir.crosswalk import (
+    DAMAGE_PERMANENT_TYPES,
     AbilityUnit,
     ConceptNode,
     _node_raw,
@@ -84,9 +85,11 @@ from mtg_utils.deck_cli import bulk_data_option, resolve_bulk_path
 BUCKETS = ("doubles", "hits_partner", "target_player", "step_triggers")
 _ROW_BUCKETS = (*BUCKETS, "removal_reach")
 _OPPONENT = "Opponent"
-# Removal answer types that reach a permanent on the board, and the ones that
-# can take a planeswalker (``Any`` — "any target" — is read off the recipient).
-_BOARD_TYPES = frozenset({"Creature", "Planeswalker", "Permanent"})
+# Removal answer types that reach a permanent on the board (the damage-reach
+# read's own set, CR 120.1), and the ones that can take a planeswalker. ``Any``
+# is an untyped burn the shared walk only yields when it can reach a permanent
+# ("any target", CR 115.4).
+_BOARD_TYPES = DAMAGE_PERMANENT_TYPES
 _WALKER_TYPES = frozenset({"Planeswalker", "Permanent"})
 _WHOSE = {None: "each", "OnlyDuringOpponentsTurn": "each_opponent"}
 # A step trigger's "that player" / "that opponent", by whose step it watches —
@@ -268,10 +271,11 @@ def _ir_removal_reach(card: dict) -> tuple[bool, int | None] | None:
     on the ``edict_makers`` actor read — Winter, Tormented Loner's "you may
     sacrifice a creature or planeswalker" is yours, not theirs) — or ``None``
     when none of them reaches a permanent. Damage reaches the board only when
-    aimed at "any target" (Lightning Bolt), never player-only damage (Screeching
-    Soulbreaker's "1 damage to each opponent"), and an effect on the card itself
-    reaches nothing (the shared walk counts any -X/-X). The floor is the lowest among
-    the reaching effects (Your Fate Ends Here → 3; ``None`` when any has none).
+    it can reach a permanent ("any target" — Lightning Bolt; "any other target"),
+    never player-only damage (Screeching Soulbreaker's "1 damage to each
+    opponent"), and an effect on the card itself reaches nothing (the shared walk
+    counts any -X/-X). The floor is the lowest among the reaching effects (Your
+    Fate Ends Here → 3; ``None`` when any has none).
     """
     walkers = False
     floors: list[int] = []
@@ -286,7 +290,7 @@ def _ir_removal_reach(card: dict) -> tuple[bool, int | None] | None:
         if types & _BOARD_TYPES:
             walkers = walkers or bool(types & _WALKER_TYPES)
             floors.append(filter_mana_value_floor(effect_filter(c.node)) or 0)
-        elif "Any" in types and rt == "Any":
+        elif "Any" in types:
             walkers = True
             floors.append(0)
     if not floors:

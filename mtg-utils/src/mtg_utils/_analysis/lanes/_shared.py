@@ -9,6 +9,7 @@ from collections.abc import Sequence
 from mtg_utils._analysis.signal_base import Signal
 from mtg_utils._card_ir.crosswalk import (
     _OPPONENT_ACTOR_TAGS,
+    ARTIFACT_TOKEN_SUBTYPES,
     CHOSEN_PLAYER_SCOPE,
     LAND_SUBTYPE_WORDS,
     MASS_EFFECT_TAGS,
@@ -923,3 +924,65 @@ _SELF_BLINK_RETURN_TAGS: frozenset[str] = frozenset(
 _GRANT_ABILITY_MOD_TAGS: frozenset[str] = frozenset(
     {"GrantAbility", "GrantTrigger", "GrantStaticAbility"}
 )
+
+
+# The predefined tokens whose own payoff lane the manifest serves (CR 111.10a
+# Treasure, 111.10b Food, 111.10f Clue, 111.10g Blood), keyed lower-case. A card
+# that cares about one of these tokens is that lane's payoff, so the tuner pairs
+# it with the deck's ``<x>_makers`` and not with every token maker.
+TOKEN_SUBTYPE_PAYOFF_KEYS: dict[str, str] = {
+    "treasure": "treasure_matters",
+    "food": "food_matters",
+    "clue": "clue_matters",
+    "blood": "blood_matters",
+}
+
+
+def is_unserved_artifact_kind(word: str) -> bool:
+    """Whether a type word names artifacts broadly enough to be an
+    ``artifacts_matter`` payoff: the Artifact card type, or an artifact type
+    (CR 205.3g) with no payoff lane of its own (Powerstone, Map, Junk — phase
+    carries a predefined token's subtype with an empty card-type list). A
+    Treasure / Clue / Food / Blood word is that token's own payoff
+    (:data:`TOKEN_SUBTYPE_PAYOFF_KEYS`): "whenever you sacrifice a Clue" cares
+    about Clues, not about the deck's artifacts."""
+    low = word.lower()
+    return low == "artifact" or (
+        low in ARTIFACT_TOKEN_SUBTYPES and low not in TOKEN_SUBTYPE_PAYOFF_KEYS
+    )
+
+
+def typed_token_payoff_signals(
+    subtypes: Sequence[str], core_types: Sequence[str], raw: str, name: str
+) -> list[Signal]:
+    """The payoff signal(s) for a card that cares about tokens of the kind its
+    filter names (a token replacement, a token-watching trigger, a token anthem),
+    one per distinct ``(key, subject)``.
+
+    Each named subtype carries its own subject: a predefined token with a served
+    payoff lane fires that lane (Xorn's Treasure -> ``treasure_matters``); any other
+    artifact type (:func:`is_unserved_artifact_kind` — Map, Powerstone, or a filter
+    of "artifact tokens") fires ``artifacts_matter``; a creature type fires
+    ``tokens_matter`` with the type as its subject, spelled as ``token_maker``
+    spells it (Fisher's Talent's Fish -> ``tokens_matter|you|Fish``). A filter
+    naming no subtype keeps the bare ``tokens_matter``, which cares about every
+    token maker, unless its only core type is Artifact (Stridehangar Automaton's
+    "artifact tokens"). Scope "you".
+    """
+    idents: list[tuple[str, str]] = []
+    for st in subtypes:
+        if st.lower() in TOKEN_SUBTYPE_PAYOFF_KEYS:
+            idents.append((TOKEN_SUBTYPE_PAYOFF_KEYS[st.lower()], ""))
+        elif is_unserved_artifact_kind(st):
+            idents.append(("artifacts_matter", ""))
+        else:
+            idents.append(("tokens_matter", st))
+    if not subtypes:
+        if "Artifact" in core_types and "Creature" not in core_types:
+            idents.append(("artifacts_matter", ""))
+        else:
+            idents.append(("tokens_matter", ""))
+    return [
+        Signal(key, "you", subject, raw, name, "high")
+        for key, subject in dict.fromkeys(idents)
+    ]

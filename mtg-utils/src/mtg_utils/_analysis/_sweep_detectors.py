@@ -1063,6 +1063,10 @@ DEATH_MATTERS_REGEX = (
 # SWEEP_DETECTORS "if you control an artifact" row is KEPT (len stays >=36); the mirror
 # UNIONs it (the deleted _HAND_FLOOR producer + the kept SWEEP regex run together
 # per-clause). artifacts_matter is NOT in _IR_FLOOR_LANES (floor-mirror-dep == 0).
+# 2026-10-18: the artifact-token MAKER branches ("create … Treasure/Clue/… token",
+# "investigate") are gone — a card that makes artifact tokens is a doer, credited on
+# token_maker / treasure_makers / clue_makers / food_makers, and artifacts_matter is
+# the payoff key the tuner reads as a card that cares about artifacts.
 ARTIFACTS_MATTER_REGEX = (
     r"\bartifacts? you control\b"
     r"|artifact creatures? you control"
@@ -1078,9 +1082,6 @@ ARTIFACTS_MATTER_REGEX = (
     r"(?!,? (?:or )?(?:an? )?(?:creature|enchantment|land|permanent))"
     r"|abilit(?:y|ies) of (?:an? )?artifacts?\b"
     r"|becomes? an? artifact\b"
-    r"|create[^.]*\b(?:treasure|food|clue|blood|gold|map|powerstone"
-    r"|junk|incubator|lander|mutagen)\b[^.]*token"
-    r"|\binvestigate\b"
     r"|\bmetalcraft\b"
     r"|search (?:your library )?for an?[^.]*artifact card"
     r"|reveal an artifact card"

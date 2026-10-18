@@ -14,96 +14,101 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   traceback instead of landing in the envelope's `missing`. Catch the per-name
   network failure in `lookup_single`'s batch loop and report it as missing; keep
   the hard exit for a bulk that can't be read at all.
-- **What the polymorph tune still gets wrong** (after 2026-10-18's tuner pass:
-  carers never count lands or the cards the commander's lane serves as payoffs;
-  a main theme needs builders (`focus_main_carers`); a commander's sibling reads
-  of one ability collapse into its deepest held lane; fed-only engine cards
-  re-bucket as filler; the cut ranking protects the lane's own emitters; the
-  commander is never a misfit while its lane is viable; `cheat_into_play`
-  carries the cheated card type as its subject and `wants_fodder` names the
-  polymorph shape — see `deck-forge/CONTEXT.md` "Focus"). The Multiverse
-  Reforged precon now reads FOCUSED: Cheat into play (main, 7 carers),
-  Polymorph fodder and Token generators (subs), with Combat, Artifacts and
-  Spellslinger fed. Left: (a) "Polymorph fodder" and "Token generators" are one
-  theme read twice (the same seven polymorphs care about both; the broad serve
-  adds Elspeth / Overlord / Shark Typhoon the fodder serve rightly leaves out) —
-  a collapse by shared carers, not shared members, would fold them; (b) the
-  only quality read on a payoff the lane serves (a bomb Jace flips into) is
-  play-rate, so a weak flip with a null rank still reads as a low-value upgrade
-  target while a strong new one does too — a flip-quality read (power, ETB
-  value, evasion) over the cheat subject's payoff arm is the next step; (c)
-  `artifacts_matter` is emitted for artifact-TOKEN makers (Skrelv's Hive, White
-  Sun's Twilight, Currency Converter) — a doer read under a `_matters` key, the
-  one ADR-0034 split the artifact / enchantment lanes never got, so three token
-  makers read as three cards caring about artifacts; (d) the phantom
-  "Activated-ability engine" emerging theme is down to Niv-Mizzet and Staff of
-  the Storyteller once mana abilities are out (CR 605.1a), and "Lifegain
-  (makers)" surfaces as emerging on two carers — the emerging floor of one carer
-  may be too low for a 100-card deck; (e) `power_threshold_x_cheat_commander`
-  and `etb_payoff_x_flood_commander` now anchor on a Creature-typed or untyped
-  cheat only — the Planeswalker / Artifact / Enchantment cheat subjects have no
-  pair rows yet (Zur's enchantment tutor, Stoneforge's equipment); (f)
-  `_card_ir/card_subtypes.py` (and `creature_types.py`) are generated from the
-  repo's tracked `mtg-utils/comprehensive-rules-20260807.txt`; the 2026-09-25
-  CR adds Heartwood to the artifact types, so both regenerate when that
-  tracked file is bumped (`rules-lookup --card-subtypes` / `--creature-types`).
+- **What the polymorph tune and the 25-precon audit still get wrong** (third
+  pass, 2026-10-18 — `docs/plans/precon-audit-2026-10-18.md` has the method,
+  the three before / after tables and the per-precon reads; the first two
+  passes' fixes are listed there). Fixed in the third pass: a quality read
+  inside a lane is "a feeder nobody plays" (measured, below); Spine fills
+  rank by play-rate within a mana-value band; player-only damage is not
+  `interaction`; Bello's Animation and Yuma's Deserts have lanes
+  (`animate_makers|you|<Type>`, `land_type_matters|you|<Type>`); pillowfort
+  and fogs are not `superfriends_matters`; a typed token replacement or
+  sacrifice trigger carries its token kind (Xorn is `treasure_matters`,
+  Academy Manufactor three kinds, Fisher's Talent `tokens_matter|you|Fish`);
+  an artifact-TOKEN maker is a maker, never `artifacts_matter`; carers respect
+  scope where the specs split it ("Opponents' graveyards" 43 → 4 under
+  Teval); two avenues with one carer set are one theme (Polymorph fodder
+  absorbs Token generators); an emerging theme needs two carers in
+  proportion; the primary lane is a held lane deep enough to show; three pair
+  rows for the Enchantment / Artifact / Planeswalker cheat subjects; the CR
+  2026-09-25 subtype lists (Heartwood); Syr Konrad's folded zone-change
+  trigger reads as `dies` for a dies doubler; a card that merely has an
+  activated ability is a payoff target of "Activated-ability engine", not a
+  builder (its untap engines are — Abzan Armor read that lane as its main
+  over a 42-deep toughness lane; the Jace phantom of the polymorph entry's
+  (d) is gone with it). Left:
+  (a) **Inside a lane, the cut read is "a feeder nobody plays" — don't
+  re-suggest a function read.** Measured 2026-10-18 on the 25 precons' main
+  lanes (906 lane cards, 222 guide cuts, base rate 0.245): no function
+  feature moved the rate — one-shot vs repeatable 0.19, body for its cost
+  0.27-0.32, in-deck synergy depth (`rank_candidates` over the deck's own
+  cards) flat 0.22-0.25 across quartiles, lanes touched 0.14-0.28. Play-rate
+  does (least-played quarter 0.35), and "a member that does not itself care
+  about the lane" more so (0.32 vs carers 0.20; rank-bottom-quarter feeders
+  0.46; a feeder with no template role past rank 8000: 0.67, n=24). The
+  `lane_upgrade` tier now orders feeders before carers, then least played
+  (top-five precision 0.48; costlier-first within the half was 0.30). The
+  guides' stated reasons (one-shot, delirium type, curve) are not what their
+  cuts share, and the same holds for the flip-quality read the polymorph tune
+  wanted. Script: the session scratch `lane_quality.py` (rerun recipe in
+  `docs/plans/precon-audit-2026-10-18.md`).
+  (b) **Lane leftovers.** Bello's mana-value floor (4+) is not carried: a
+  `Signal` has no field for it and the subject must stay the card type, so
+  the Animation lane serves every noncreature artifact and enchantment (a
+  rock, an Equipment) and deck-tune proposed Tarrian's Soulcleaver as an
+  Animation add — a `cmc_min` on the per-subject serve, read off
+  `reads.filter_mana_value_floor`, is the fix. The old `animate_artifact`
+  regex lane ("Animate artifacts") is now a retire candidate: `animate_makers`
+  adds 23 cards it misses (Bello, March of the Machines, Ensoul Artifact);
+  the 27 only the regex catches are Vehicles, self-animators, copy effects
+  and two phase misparses (Alacrian Armory, Tezzeret the Schemer's emblem).
+  `clue_matters`' synth arm fires on bare investigate doers ("breadth
+  intended"), so Deep Clue Sea's Clues main counts Confirm Suspicions among
+  its 21 carers — the doer-under-payoff read, one lane over. Tomik, Wielder
+  of Law lost `superfriends_matters`: its "affinity for planeswalkers" is a
+  real count, but the concept tree exposes only the keyword name, not its
+  parameter. The superfriends synth arm still fires on protective "creature
+  or planeswalker you control" cards (Angelic Intervention, Kaya's Ghostform,
+  Fey Steed); a general veto would drop Spark Double and Lae'zel. With the
+  veto structural (`crosswalk.defends_you` / `watches_attacks_on_you` over
+  `DEFENDED_YOU`, CR 506.2), eight protective cards phase types no deterrent
+  for fire again — Assault Suit, Varchild (no defended field), Trove of
+  Temptation (an Unimplemented clause), Vengeful Pharaoh (trigger mode
+  Unknown), Ever-Watching Threshold, Illusionist's Gambit, Tenuous Truce (the
+  recipient untyped), Sivitri's +1 — phase gaps, report upstream. The
+  Animation subject types are spelled twice (`signal_specs/core._ANIMATED_TYPES`
+  and the lane's `_ANIMATE_SUBJECT_TYPES`): the spec layer and the lane layer
+  do not import each other. A
+  Clue/Treasure-maker commander (Sophina, Goldspan Dragon) no longer opens an
+  Artifacts avenue from its own text — it opens its typed lane, and the
+  Artifacts serve still counts its tokens as depth. An enchantment-token
+  maker (a Role maker) still emits `enchantments_matter`, the same
+  doer-under-payoff shape the artifact side just lost.
+  (c) **Gaps behind the interaction role** (the phase ones: report upstream,
+  Dan posts). With `direct_damage` out of the `removal` preset and the
+  `removal` lane firing on burn that can reach a permanent (+810 cards; the
+  role lost 592 player-only punishers and gained 26 real removals), what the
+  role now misses: mass planeswalker damage — "each opponent and each
+  planeswalker they control" (Cavalier of Flame, Kumano Faces Kakkazan,
+  Omnath, Locus of Creation) — a `mass_removal` lane gap; sweeps nested in a
+  coin flip, a granted ability or a dies trigger (Winter Sky, Noxious Field,
+  Volatile Rig), the same lane; real removal whose creature half phase drops
+  — Mob Verdict, Chandra's Flame Wave, Path of Mettle ("each creature"),
+  Cragganwick Cremator ("player or planeswalker"), Unstable Footing (its
+  target), Ian the Reckless ("you and any target" recovered only as a
+  residue); Flames of the Blood Hand, Insult // Injury, Kaboom!, Tetsuo parse
+  no damage at all (their `direct_damage` is a ledgered bridge). One false
+  positive: Monsoon's "tap all Islands" filter reads as a permanent target.
+  `ROLE_SEARCH["interaction"]` still sources `creature-removal`'s Fight /
+  Infect / Wither keywords that `role_of` deliberately does not count
+  (pre-existing).
+  (d) **The ETB-vs-cast gap in the typed-cheat pair rows.** The `*_matters`
+  idents do not separate an enters trigger from a cast trigger, so
+  Enchantress's Presence and Sythis ("whenever you cast an enchantment
+  spell") match the enchantment-cheat row and Sram the artifact one, though a
+  cheated permanent is never cast (CR 601.2i vs 603.6a); no ident in the
+  ledger's vocabulary separates them today.
 
-- **What the 25-precon audit still finds wrong** (2026-10-18: every Commander
-  precon list from MTGJSON's deck files, one per archetype family, tuned at
-  `--budget 100 --max-swaps 10` and compared with 2-3 published upgrade guides
-  each — `docs/plans/precon-audit-2026-10-18.md` has the method, the before /
-  after table and the per-precon reads). Fixed in that pass: the add page is
-  paged by play-rate, a premium card is never a band trim, a near-miss outranks
-  dead weight only when it ends the game, the verdict counts directions, a main
-  needs carers in proportion to its feeders, the primary lane is the held lane
-  most cards care about. Left, by weight:
-  (a) **No quality read inside a lane.** 142 of the 170 cards the guides cut
-  are cards the tuner protects as carers of the main or doers of the
-  commander's lane — the weak Slivers, Dinosaurs and Vampires a guide swaps for
-  better ones. Play-rate is not that read: inside the 25 lanes a card's rank
-  predicts a guide cut at 0.32-0.40 precision (bottom quarter by rank, or rank
-  > 10000 with mana value ≥ 4) against a 0.21 base rate, and the guide cuts
-  sit evenly along the lane's play-rate order. What the guides reason from is
-  function: one-shot versus repeatable, a one-type creature under delirium,
-  mana value against the lane's curve, an ability the commander already
-  supplies. A deep lane's least-played half now trims last (the
-  ``lane_upgrade`` tier, so Blood Rites proposes its short roles' adds), but
-  a function read — the flip-quality item above generalized over the lane's
-  payoff arm — is still the missing piece.
-  (b) **Lane misreads the guides expose** (second pass fixed four: Gonti,
-  Canny Acquisitor's "spells you cast but don't own cost {1} less" is
-  `wants_theft` at scope `you`; a trigger on a token you control leaving,
-  dying or being sacrificed is `tokens_matter` (Zurgo Stormrender); `role` is
-  among the Enchantments serve's subtypes (CR 205.3h), so Gylwain's Role
-  makers are on the lane; a token replacement that keeps the count (Esix,
-  Chatterfang) is a tokens payoff beside the doublers that already were).
-  Left: Bello, Bard of the Brambles animates noncreature artifacts and
-  enchantments of mana value 4+, a lane that does not exist; Yuma, Proud
-  Protector's Desert trigger has no lane (Desert Bloom: Lands matter 17 deep,
-  no carer); pillowfort cards (Comeuppance, Gideon's Sacrifice, Promise of
-  Loyalty) read as "Superfriends" under Nelly Borca; "Opponents' graveyards"
-  carries every "Your graveyard" carer (43 under Teval) — its cares-keys fold
-  into `graveyard_matters`; Deep Clue Sea's Clue makers emit `artifacts_matter`
-  rather than a maker key, so its token doublers (Adrix and Nev, Esix) still
-  read fed-only — item (c) above is the fix.
-  (g) **`tokens_matter` from a typed token replacement or sacrifice trigger
-  carries no subject.** Xorn, Jolene, Academy Manufactor, Fisher's Talent
-  (Treasure / Clue / Food replacements) and Gluttonous Guest, Blood Hypnotist
-  (Blood-sacrifice triggers) emit `tokens_matter|you|` with an empty subject
-  since the second pass, and an empty subject cares about every subject, so
-  Xorn counts as a carer for Soldier makers. Carry the token subtype the
-  filter names as the subject (the `artifact`-token split of item (c) is the
-  same work).
-  (f) **Spine fills pick the cheapest mana value first, so MV-0 oddities win.**
-  A protection shortfall is filled with Welding Jar, a board-wipe shortfall with
-  Engineered Explosives, under a Dinosaur commander (second pass, 2026-10-18):
-  the Spine ranking is cheapest-MV does-the-job, then play-rate, and an X or
-  zero cost is "cheapest". Rank Spine fills by play-rate first within a mana
-  value band, or treat an X / {0} cost as its typical cast cost.
-  (c) **Symmetric damage reads as interaction.** Endless Punishment's 35
-  "interaction" (Blasphemous Act and the punisher suite) trips "interaction
-  over by 20" and trims Enchanter's Bane; a damage-to-each-opponent spell under
-  a punisher commander is the lane, not the template's removal row.
 - **Competitive Brawl's "banned as a commander" reads as `restricted`.** The
   2026-10-12 B&R update introduced the category (mtg.wiki "Competitive Brawl"
   §Banned as a commander; Draftsim 2026-10-12): Oko, Thief of Crowns, Ragavan,
@@ -174,10 +179,6 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   activation restriction — the only legal card whose mana or Treasure ability is
   gated that way (`reads.UNPARSED_ACTIVATION_GATE`,
   `test_boxing_ring_gate_is_still_a_residue_canary`).
-- **Commander-multiplier gap.** Syr Konrad's trigger reads as `ChangesZone` with no
-  zones of its own: phase v0.104.0 folds its three moves into `zone_change_clauses`,
-  which `reads.trigger_zone_changes` now reads (graveyard_matters does). Teach
-  `_analysis/multipliers` the same read so a dies doubler matches it.
 - **Phase misparses behind cut-check reads** (found 2026-10-08; report upstream,
   Dan posts). Each has a canary: Glorfindel, Dauntless Rescuer's "can't be blocked
   by more than one creature each combat" parses as `CantBeBlockedBy` a typeless

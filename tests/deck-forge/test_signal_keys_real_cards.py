@@ -34,6 +34,8 @@ _REAL_CASES: dict[str, str] = {
     "all_creatures_kw_grant": "Angel's Trumpet",
     "alt_cost_keyword": "Chameleon, Master of Disguise",
     "animate_artifact": "Karn, Silver Golem",
+    # An animation names the type it animates (Bello: artifacts and enchantments).
+    "animate_makers": "Bello, Bard of the Brambles",
     "anthem_static": "Glorious Anthem",
     "any_counter_makers": "Karn's Bastion",
     "any_counter_matters": "Moira Brown, Guide Author",
@@ -228,6 +230,8 @@ _REAL_CASES: dict[str, str] = {
     "land_protection": "Living Plane",
     "land_sacrifice_makers": "Hearthhull, the Worldseed",
     "land_sacrifice_matters": "The Gitrog Monster",
+    # A land-type payoff names its land type (Yuma: Deserts).
+    "land_type_matters": "Yuma, Proud Protector",
     "landfall": "Lotus Cobra",
     "lands_matter": "Dakkon Blackblade",
     "legend_rule_off": "Mirror Box",
@@ -611,9 +615,9 @@ def test_blood_matters_fires_from_a_sacrifice_effect_subject():
 def test_blood_matters_fires_from_a_sacrificed_trigger_subject():
     """Token-subtype sacrifice PAYOFF (trigger side): Blood Hypnotist "whenever you
     sacrifice one or more Blood tokens" — the trigger's own valid_card Filter carries
-    the Blood subtype; served by the gap-gated blood_sacrificed_trigger_payoff
-    bridge (bridge_ledger.BRIDGES) until _resource_token_matters grows a
-    Sacrificed-trigger subject arm."""
+    the Blood subtype; served structurally by ``_tokens_matter``'s typed
+    token-watching arm (the blood_sacrificed_trigger_payoff bridge retired with
+    it)."""
     keys = {s.key for s in test_signals("Blood Hypnotist")}
     assert "blood_matters" in keys
 

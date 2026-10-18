@@ -232,14 +232,21 @@ def test_etb_trigger_doubler_opens_etb_lane():
 # ── Artifact-token makers ARE artifact commanders (Food/Treasure/Clue are artifacts) ─
 # A Treasure / Food / Clue / Blood maker should open the artifacts lane so artifact
 # payoffs (Academy Manufactor, Foundry Inspector, artifact sac) surface.
-def test_treasure_maker_opens_artifacts_lane():
-    # Real Goldspan Dragon (snapshot): a Treasure maker opens the artifacts lane.
-    assert ("artifacts_matter", "you") in _real("Goldspan Dragon")
+def test_treasure_maker_is_a_maker_not_an_artifacts_payoff():
+    # Real Goldspan Dragon (snapshot): a Treasure maker fires treasure_makers; making
+    # artifact tokens is not caring about artifacts.
+    keys = _real("Goldspan Dragon")
+    assert ("treasure_makers", "you") in keys
+    assert ("artifacts_matter", "you") not in keys
 
 
-def test_food_maker_opens_artifacts_lane():
-    # Real Gyome, Master Chef (snapshot): a Food maker opens the artifacts lane.
-    assert ("artifacts_matter", "you") in _real("Gyome, Master Chef")
+def test_food_maker_and_sacrificer_is_a_food_payoff():
+    # Real Gyome, Master Chef (snapshot): makes Foods and sacrifices one for its
+    # indestructible grant — the Food lane's maker and payoff, not artifacts_matter.
+    keys = _real("Gyome, Master Chef")
+    assert ("food_makers", "you") in keys
+    assert ("food_matters", "you") in keys
+    assert ("artifacts_matter", "you") not in keys
 
 
 # ── Activated-ability commanders want the untap / copy / cost-reduction package ──

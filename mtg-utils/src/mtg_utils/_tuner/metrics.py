@@ -15,8 +15,9 @@ from collections.abc import Callable, Mapping, Sequence
 from typing import TYPE_CHECKING
 
 from mtg_utils._analysis import signal_keys
+from mtg_utils._analysis.lanes import TOKEN_SUBTYPE_PAYOFF_KEYS
 from mtg_utils._analysis.roles import protects
-from mtg_utils._analysis.signal_specs import spec_for
+from mtg_utils._analysis.signal_specs import SPECS, spec_for, spec_scope_for
 from mtg_utils._card_ir.crosswalk import (
     ends_the_game,
     is_evasive_body,
@@ -263,12 +264,25 @@ def efficiency(
 # ── Focus ─────────────────────────────────────────────────────────────────────
 
 
-# Doer lanes whose payoff sibling doesn't follow the ``<x>_makers`` / ``<x>_matters``
-# spelling (ADR-0034's naming): key -> the payoff keys, checked against the manifest.
-# A polymorph (``wants_fodder``: Jace's -3, Mass Polymorph) cares about token
-# makers the way a tokens payoff does — the tokens are what it transforms.
+# Doer lanes cared about beyond (or instead of) their ``<x>_matters`` /
+# ``wants_<x>`` sibling (ADR-0034's naming): key -> the extra payoff keys,
+# checked against the manifest. Every token doer — the creature-token maker
+# and each predefined-token maker (Treasure, Clue, Food, Blood: CR 111.10) —
+# is cared about by a subject-less tokens payoff and a token doubler (Adrix
+# and Nev, Esix beside Deep Clue Sea's twenty Clue makers, 2026-10-18). A
+# polymorph (``wants_fodder``: Jace's -3, Mass Polymorph) cares about
+# creature-token makers too — the tokens are what it transforms.
+_TOKEN_PAYOFF_KEYS = ("tokens_matter", "token_doubling")
+# "Activated-ability engine" is served as the cost reducers, untappers and
+# haste-for-abilities that power an activated ability (its spec); a card that
+# merely HAS one (``activated_ability``) is the payoff target, not a builder —
+# eleven such cards made it Abzan Armor's main over its forty-two-deep
+# toughness lane, and two made the Jace precon's phantom emerging theme
+# (2026-10-18). The untap engines are the cards that care.
 _CARES_ALIASES: dict[str, tuple[str, ...]] = {
-    "token_maker": ("tokens_matter", "wants_fodder")
+    "token_maker": (*_TOKEN_PAYOFF_KEYS, "wants_fodder"),
+    **{f"{kind}_makers": _TOKEN_PAYOFF_KEYS for kind in TOKEN_SUBTYPE_PAYOFF_KEYS},
+    "activated_ability": ("untap_engine",),
 }
 
 
@@ -277,21 +291,56 @@ def _cares_keys(key: str) -> tuple[str, ...]:
 
     A ``<x>_makers`` (doer) lane is fed by its makers, but the cards that care are
     the payoff side: ``<x>_matters`` and ``wants_<x>`` (a card whose own identity
-    wants the mechanic done to it), whichever the lanes serve. A doer lane with no
-    served payoff sibling (mill, edict, clone, theft, …) is cared about by its
-    doers — the deck doing the thing is the theme. Every other key cares about
-    itself."""
+    wants the mechanic done to it), plus its ``_CARES_ALIASES``, whichever the
+    lanes serve. A doer lane with no served payoff (mill, edict, clone, theft, …)
+    is cared about by its doers — the deck doing the thing is the theme. Every
+    other key cares about itself."""
+    candidates = _CARES_ALIASES.get(key, ())
     if key.endswith("_makers"):
         base = key[: -len("_makers")]
-        candidates: tuple[str, ...] = (f"{base}_matters", f"wants_{base}")
-    elif key in _CARES_ALIASES:
-        candidates = _CARES_ALIASES[key]
-    else:
+        candidates = (f"{base}_matters", f"wants_{base}", *candidates)
+    if not candidates:
         return (key,)
     from mtg_utils._analysis.lanes import SERVED_SIGNAL_KEYS
 
     payoffs = tuple(k for k in candidates if k in SERVED_SIGNAL_KEYS)
     return payoffs or (key,)
+
+
+def _scopes_apart(ckey: str, emitter_scope: str, avenue_scope: str) -> bool:
+    """True when the cared-about key ``ckey`` gives both scopes avenues of their
+    own (``SPECS`` holds an entry for each): a ``graveyard_matters|you`` payoff
+    is "Your graveyard", and never cares about "Opponents' graveyards". A scope
+    the key does not split (a doer's ``any`` / ``each``) stays scope-blind."""
+    return (
+        emitter_scope != avenue_scope
+        and (ckey, emitter_scope) in SPECS
+        and (ckey, avenue_scope) in SPECS
+    )
+
+
+# The carer-set overlap at which two avenues are one theme read twice. A Jaccard
+# share, not containment: a two-carer sub whose carers also care about a 20-carer
+# main is a narrower direction of its own, not the main read again.
+_SAME_CARERS_SHARE = 0.9
+# ...and the share of the SMALLER avenue's members the two must also have in
+# common. One carer set can reward two pools no card feeds both of: subject-less
+# tokens anthems care about Soldier makers and Spirit makers alike, and the two
+# tribes are still two avenues. Polymorph fodder and Token generators share ten
+# of the smaller's eleven members; a majority is the floor (a single shared
+# card — a maker of both kinds — is not one pool).
+_SAME_CARERS_MEMBER_SHARE = 0.5
+
+
+def _same_carers(a: set[str], b: set[str]) -> bool:
+    """Two avenues one set of cards cares about: at least two carers each and a
+    Jaccard overlap of ``_SAME_CARERS_SHARE``. Below ten carers that is the same
+    set exactly (the four polymorph cards caring about both "Polymorph fodder" and
+    "Token generators"); a 40-carer theme tolerates a stray. One shared carer
+    (Sun Titan alone) is never a fold."""
+    if len(a) < 2 or len(b) < 2:
+        return False
+    return len(a & b) / len(a | b) >= _SAME_CARERS_SHARE
 
 
 def focus(
@@ -325,13 +374,17 @@ def focus(
 
     # Depth counts NONLAND supporters only (a land is mana base, never theme support) of
     # genuine theme avenues — engine cards + dual-purpose Spine cards that feed a theme.
-    # Names are listed once; depth counts slots (copies).
+    # Names are listed once; depth counts slots (copies). The one exception is an
+    # avenue whose serve says its lands feed it (``Serve.lands_feed`` — the
+    # land-type lane: the Deserts a Desert payoff counts); a land feeds that
+    # avenue and no other.
+    land_lanes = {spec.label for _sig, spec in resolved if spec.serve.lands_feed}
     members: dict[str, list[str]] = {}
     depth: dict[str, int] = {}
     for c in classes:
-        if c.bucket == "land":
-            continue
         for label in themes(c):
+            if c.bucket == "land" and label not in land_lanes:
+                continue
             members.setdefault(label, []).append(c.name)
             depth[label] = depth.get(label, 0) + c.quantity
 
@@ -342,10 +395,9 @@ def focus(
     # The cards that CARE about each avenue (its "carers"): those emitting its key,
     # read off the payoff side of the lane (a ``<x>_makers`` avenue is fed by the
     # makers, but the cards that care about it are the ``<x>_matters`` emitters —
-    # nine cards in the Jace precon gain life, and only Niv-Mizzet cares). The
-    # read ignores scope: a doer lane emits ``any`` / ``each`` where its payoff
-    # sibling emits ``you``. ``None`` (a caller with no ``read_deck_signals`` pass:
-    # the older focus tests) skips the gate: every deep avenue is built.
+    # nine cards in the Jace precon gain life, and only Niv-Mizzet cares).
+    # ``None`` (a caller with no ``read_deck_signals`` pass: the older focus
+    # tests) skips the gate: every deep avenue is built.
     # An avenue the COMMANDER itself holds (``commander_idents``: the idents the
     # commander emits, read record-level by ``read_deck_signals`` so a transform
     # commander's faces and a folded object count) is the deck's own axis. It is
@@ -371,16 +423,18 @@ def focus(
     member_sets = {lbl: frozenset(names) for lbl, names in members.items()}
     land_names = {c.name for c in classes if c.bucket == "land"}
 
-    def near_duplicate(lbl: str, kept: Sequence[str]) -> bool:
+    def folds(lbl: str, kept: Sequence[str], same: Callable[[str, str], bool]) -> bool:
+        """``lbl`` is a kept avenue read again (``same``): against any kept
+        avenue for an ordinary one, only the commander's other lanes for a lane
+        the commander holds."""
+        if lbl in commander_held:
+            kept = [k for k in kept if k in commander_held]
+        return any(same(lbl, k) for k in kept)
+
+    def same_members(lbl: str, k: str) -> bool:
+        """≥80 % of ``lbl``'s members are ``k``'s."""
         s = member_sets.get(lbl, frozenset())
-        if not s:
-            return False
-        against = (
-            kept
-            if lbl not in commander_held
-            else [k for k in kept if k in commander_held]
-        )
-        return any(len(s & member_sets[k]) / len(s) >= 0.8 for k in against)
+        return bool(s) and len(s & member_sets[k]) / len(s) >= 0.8
 
     # The commander's own lanes, collapsed among themselves (deepest first: one
     # ability's sibling reads share the same cards, and the broad read is the
@@ -388,7 +442,7 @@ def focus(
     # known.
     held_kept: list[str] = []
     for lbl in sorted(commander_held, key=lambda lbl: depth.get(lbl, 0), reverse=True):
-        if not near_duplicate(lbl, held_kept):
+        if not folds(lbl, held_kept, same_members):
             held_kept.append(lbl)
     commander_members: set[str] = set()
     for lbl in held_kept:
@@ -407,24 +461,36 @@ def focus(
     # key, read off the payoff side of the lane (a ``<x>_makers`` avenue is fed
     # by the makers, but the cards that care about it are the ``<x>_matters``
     # emitters — nine cards in the Jace precon gain life, and only Niv-Mizzet
-    # cares). The read ignores scope: a doer lane emits ``any`` / ``each`` where
-    # its payoff sibling emits ``you``. Carers never count lands (a creature
-    # land's attack trigger is mana base that happens to attack, not a card
-    # built toward Combat). A payoff with no subject cares about every subject
-    # of its doer key (a tokens anthem cares about Mite makers and Soldier makers
-    # alike). ``None`` (a caller with no ``read_deck_signals`` pass: the older
-    # focus tests) skips the gate: every deep avenue is built.
+    # cares). The read ignores scope where the payoff key does not split by it
+    # (a doer lane emits ``any`` / ``each`` where its payoff sibling emits
+    # ``you``); a key whose specs give ``you`` and ``opponents`` avenues of
+    # their own (graveyard_matters, lifeloss_matters, creature_etb) credits an
+    # emitter to its own scope's avenue alone — under Teval every self-mill
+    # payoff read as a carer of "Opponents' graveyards" too, 43 of them
+    # (``_scopes_apart``). Carers never count lands (a creature land's attack
+    # trigger is mana base that happens to attack, not a card built toward
+    # Combat). A payoff with no subject cares about every subject of its doer
+    # key (a tokens anthem cares about Mite makers and Soldier makers alike).
+    # ``None`` (a caller with no ``read_deck_signals`` pass: the older focus
+    # tests) skips the gate: every deep avenue is built.
     cares: dict[str, set[str]] = {}
     if emitters is not None:
-        by_key_subject: dict[tuple[str, str], set[str]] = {}
-        for (ekey, _scope, esubject), names in emitters.items():
-            by_key_subject.setdefault((ekey, esubject), set()).update(names)
+        by_key_subject: dict[tuple[str, str], dict[str, set[str]]] = {}
+        for (ekey, escope, esubject), names in emitters.items():
+            by_key_subject.setdefault((ekey, esubject), {}).setdefault(
+                escope, set()
+            ).update(names)
         for sig, spec in resolved:
             bucket = cares.setdefault(spec.label, set())
+            avenue_scope = spec_scope_for(sig.key, sig.scope) or sig.scope
             for ckey in _cares_keys(sig.key):
-                bucket.update(by_key_subject.get((ckey, sig.subject), ()))
-                if sig.subject:
-                    bucket.update(by_key_subject.get((ckey, ""), ()))
+                subjects = (sig.subject, "") if sig.subject else ("",)
+                for subject in subjects:
+                    for escope, names in by_key_subject.get(
+                        (ckey, subject), {}
+                    ).items():
+                        if not _scopes_apart(ckey, escope, avenue_scope):
+                            bucket.update(names)
             bucket.difference_update(land_names)
 
     def own_carers(lbl: str) -> set[str]:
@@ -451,22 +517,51 @@ def focus(
     def care_count(lbl: str) -> int:
         return len(carers.get(lbl, ()))
 
+    def one_theme(lbl: str, k: str) -> bool:
+        """``lbl`` is ``k`` read again: ≥80 % its members, or the same cards
+        caring about both (``_same_carers``) over largely the same members
+        (``_SAME_CARERS_MEMBER_SHARE``). The polymorphs care about "Polymorph
+        fodder" and "Token generators" alike (``_CARES_ALIASES``), and under
+        Jace the two read as two subs with one carer set (Multiverse Reforged,
+        2026-10-18)."""
+        if same_members(lbl, k):
+            return True
+        mine, theirs = member_sets.get(lbl, frozenset()), member_sets[k]
+        smaller = min(len(mine), len(theirs))
+        return (
+            smaller > 0
+            and len(mine & theirs) / smaller >= _SAME_CARERS_MEMBER_SHARE
+            and _same_carers(carers.get(lbl, set()), carers.get(k, set()))
+        )
+
     # The commander's PRIMARY lane: of its own lanes, the one the most cards
     # care about, then the deepest. Depth alone picked "Combat" (17 deep, 12
     # caring) over "Goad & politics" (16 deep, 16 caring) under Nelly Borca,
     # whose attack trigger is how she goads (Blame Game precon, 2026-10-18).
+    # Only a held lane deep enough to be shown can be the primary: Bello's
+    # "Combat damage to opponents" (4 deep, 4 caring) outranked his Animation
+    # lane (28 deep, 1 caring) and, below the sub floor, was never reported — so
+    # the deck had no main at all (Animated Army precon, 2026-10-18).
+    showable = [lbl for lbl in held_kept if depth.get(lbl, 0) >= sub_floor]
     primary = (
-        max(held_kept, key=lambda lbl: (care_count(lbl), depth.get(lbl, 0)))
+        max(showable or held_kept, key=lambda lbl: (care_count(lbl), depth.get(lbl, 0)))
         if held_kept
         else None
     )
 
-    def built(lbl: str, floor: int) -> bool:
+    def built(lbl: str, floor: int, *, in_proportion: bool = False) -> bool:
         """Deep in feeders AND enough cards care (or the commander does). On the
         stock Jace precon "Historic" was 32 deep — every legendary creature and
         every rock serves it — with one card caring (Jhoira), and read as the
-        main theme while the polymorph engine read as a sub (2026-10-17)."""
-        return emitters is None or lbl in commander_held or care_count(lbl) >= floor
+        main theme while the polymorph engine read as a sub (2026-10-17).
+        ``in_proportion`` also holds the carers to ``focus_main_carer_share``
+        of the depth."""
+        if emitters is None or lbl in commander_held:
+            return True
+        care = care_count(lbl)
+        return care >= floor and (
+            not in_proportion or care >= cal.focus_main_carer_share * depth[lbl]
+        )
 
     def rank_key(lbl: str) -> tuple[bool, bool, int, int]:
         """The commander's own lanes first (the issue remedies source adds from
@@ -489,12 +584,12 @@ def focus(
     # on a built theme): what the fed-only re-bucket below measures against.
     built_labels = set(candidates)
     # Collapse near-duplicate avenues that are really one theme: drop an avenue
-    # ≥80% covered by one already kept — a higher-ranked one, which since the
-    # commander-held / carers ordering above need not be the deeper one (e.g.
-    # Spellslinger / Magecraft).
+    # ≥80% covered by one already kept, or cared about by the same cards — a
+    # higher-ranked one, which since the commander-held / carers ordering above
+    # need not be the deeper one (e.g. Spellslinger / Magecraft).
     viable: list[str] = []
     for lbl in candidates:
-        if not near_duplicate(lbl, viable):
+        if not folds(lbl, viable, one_theme):
             viable.append(lbl)
 
     # The commander's primary lane is a main theme by definition, whatever its
@@ -535,17 +630,23 @@ def focus(
                 tribal_subject_of_label[spec.label] = sig.subject
 
     emerging_floor = max(1, cal.scaled(cal.focus_emerging, deck_size))
+    # An emerging direction needs builders the way a main does, at its own
+    # scale: at least two carers (half the sub's carer floor, never one card)
+    # AND carers a ``focus_main_carer_share`` of its depth. One card caring
+    # about nine feeders is a payoff, not a direction — Sun Titan beside nine
+    # permanents read as a "Permanent recast engine" (Blame Game), Niv-Mizzet
+    # and Proteus Staff beside nine activated abilities as an engine (Multiverse
+    # Reforged, 2026-10-18). Below it the avenue is fed at emerging depth.
+    emerging_carer_floor = max(2, math.ceil(carer_floor / 2))
     emerging: list[str] = []
     for lbl in sorted(depth, key=rank_key, reverse=True):
         if not emerging_floor <= depth[lbl] < sub_floor:
             continue
-        # An emerging direction needs at least one card that cares about it;
-        # otherwise it is fed at emerging depth, reported with the deep fed ones.
-        if not built(lbl, 1):
+        if not built(lbl, emerging_carer_floor, in_proportion=True):
             fed.append(lbl)
             continue
         built_labels.add(lbl)
-        if near_duplicate(lbl, viable + emerging):
+        if folds(lbl, viable + emerging, one_theme):
             continue
         subj = tribal_subject_of_label.get(lbl)
         if (
@@ -565,8 +666,18 @@ def focus(
     # Only once something IS built: a deck with no viable avenue yet (a build in
     # progress) has nothing to measure "not built toward" against, and its
     # theme cards must not all read as filler for the role fills to cut.
+    # A card that CARES about a built avenue is building toward it, whatever
+    # it serves: Adrix and Nev and Esix serve only "Token doubling" (fed), and
+    # double the Clues the deck's main lane makes (Deep Clue Sea, 2026-10-18).
+    built_carers: set[str] = set().union(
+        *(carers.get(lbl, set()) for lbl in built_labels)
+    )
     fed_only_classes = (
-        [c for c in engine if not built_labels.intersection(themes(c))]
+        [
+            c
+            for c in engine
+            if not built_labels.intersection(themes(c)) and c.name not in built_carers
+        ]
         if viable
         else []
     )
@@ -665,12 +776,19 @@ def focus(
         # The nonland cards doing what the commander's lanes do — what the cut
         # ranking protects as the commander's own pieces.
         "commander_lane_cards": sorted(lane_doers),
+        # The cards that CARE about the commander's lanes (the union of carers
+        # over every held lane that survived the collapse) — what the lane cut
+        # tier spares, cutting the lane's plain feeders first (``swaps``).
+        "commander_lane_carers": sorted(
+            set().union(*(carers.get(lbl, set()) for lbl in held_kept))
+        ),
         # The nonland cards the commander's lanes SERVE (members of a held
         # avenue: every artifact under Gimbal, every Clue under Morska) — what
         # a template band is measured against before it trims (``tune``).
         "commander_lane_members": sorted(commander_members - land_names),
         "carer_floor": carer_floor,
         "main_carer_floor": main_carer_floor,
+        "emerging_carer_floor": emerging_carer_floor,
         "main_floor": main_floor,
         "sub_floor": sub_floor,
         "top2_concentration": top2_share,

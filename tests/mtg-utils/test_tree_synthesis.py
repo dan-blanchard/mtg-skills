@@ -2557,6 +2557,9 @@ def _superfriends_fires(name):
         "Chandra, Acolyte of Flame",  # loyalty-counter EFFECT, non-Opp target
         "Sorin, Vengeful Bloodlord",  # PW-anthem static `affected` filter
         "The Chain Veil",  # GrantExtraLoyaltyActivations
+        "Carth the Lion",  # battlefield dies-trigger naming Planeswalker
+        "Onakke Oathkeeper",  # UnlessPay defending planeswalkers ALONE
+        "Oath of Kaya",  # attack trigger on planeswalkers ALONE
     ],
 )
 def test_superfriends_bucket_a_structural(name):
@@ -2589,6 +2592,16 @@ def test_superfriends_bucket_b_synth():
         "Hunter's Insight",  # generic damage-recipient event plumbing
         "Flitterwing Nuisance",  # same event-plumbing family
         "Chandra, Fire Artisan",  # self-only loyalty reference (no group marker)
+        # CR 506.2's attackable pair "you or planeswalkers you control" is
+        # protective wording, not a payoff (Blame Game precon audit):
+        "Archangel of Tithes",  # UnlessPay defended: PlayerOrPlaneswalker
+        "Vow of Duty",  # CantAttack attack_defended: PlayerOrPlaneswalker
+        "Blood Reckoning",  # attack_target_filter: PlayerOrPlaneswalker
+        # The synth arm stands down on a card phase types as defending you:
+        "Comeuppance",  # defends_you: a fog shielding you
+        "Promise of Loyalty",  # defends_you: an attack deterrent
+        "Gideon's Sacrifice",  # defends_you: a redirection (CR 614.9)
+        "Soul Snare",  # watches_attacks_on_you: Attacking{defender: You}
     ],
 )
 def test_superfriends_shed_overfires(name):

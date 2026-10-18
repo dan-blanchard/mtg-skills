@@ -17,6 +17,8 @@ from mtg_utils._analysis.lanes._shared import (
     _is_generic_creature_filter,
     _kept,
     _sac_is_edict,
+    is_unserved_artifact_kind,
+    typed_token_payoff_signals,
 )
 from mtg_utils._analysis.lanes.mana_and_wipes import _anthem_static
 from mtg_utils._analysis.signal_base import (
@@ -46,7 +48,6 @@ from mtg_utils._analysis.tree_synthesis import (
     structural_token_maker_type_subjects,
 )
 from mtg_utils._card_ir.crosswalk import (
-    ARTIFACT_TOKEN_SUBTYPES,
     AbilityUnit,
     ConceptNode,
     ConceptTree,
@@ -84,7 +85,6 @@ from mtg_utils._card_ir.mirror.runtime import (
 from mtg_utils._card_ir.recovery import IMPERATIVE, SELF
 from mtg_utils._card_ir.text_idioms import (
     _BECOMES_TYPE_RE,
-    _TOKEN_SUBTYPE_OWN_REF,
 )
 
 
@@ -917,6 +917,16 @@ _TOKEN_WATCH_EVENTS: frozenset[str] = frozenset(
 )
 
 
+def _typed_token_payoff(filt: object, raw: str, name: str) -> list[Signal]:
+    """The token payoff for a watched / affected / counted token ``filt``: its
+    subtypes when it names any (Gluttonous Guest's Blood, Dreadhorde Twins'
+    Zombie), else its core types (Zurgo Stormrender's creature token) — see
+    :func:`typed_token_payoff_signals`."""
+    return typed_token_payoff_signals(
+        filter_subtypes(filt), filter_core_types(filt), raw, name
+    )
+
+
 def _tokens_matter(tree: ConceptTree) -> list[Signal]:
     """Go-wide token payoff — an anthem or ETB-token trigger (CR 111.1).
 
@@ -934,25 +944,34 @@ def _tokens_matter(tree: ConceptTree) -> list[Signal]:
     you create one or more tokens" — Akim); (D) a count-operand carrying the ``Token``
     predicate + controller you ("draw = differently-named creature tokens you
     control" — Audience with Trostani), reading the plain AND distinct count forms.
+
+    Every arm carries the token kind its filter names
+    (:func:`typed_token_payoff_signals`): a filter naming a subtype cares about that
+    subtype's makers only — Gluttonous Guest's "whenever you sacrifice a Blood
+    token" is ``blood_matters``, Gleaming Overseer's "Zombie tokens you control" is
+    ``tokens_matter|you|Zombie`` — and only a filter naming no subtype is the bare
+    ``tokens_matter`` that cares about every token maker.
     """
     for unit in tree.units:
         anthem = [
             c for c in unit.statics if c.concept in ("pump", "grant_keyword", "set_pt")
         ]
+        affected = getattr(unit.node, "affected", None)
         if (
             anthem
             and anthem[0].scope == "you"
-            and "Token" in filter_predicates(getattr(unit.node, "affected", None))
+            and "Token" in filter_predicates(affected)
         ):
-            return [Signal("tokens_matter", "you", "", "", tree.name, "high")]
+            return _typed_token_payoff(affected, "", tree.name)
+        watched = getattr(unit.node, "valid_card", None)
         if (
             unit.trigger_event in _TOKEN_WATCH_EVENTS
-            and "Token" in filter_predicates(getattr(unit.node, "valid_card", None))
+            and "Token" in filter_predicates(watched)
             and trigger_subject_scope(unit.node) == "you"
         ):
-            return [Signal("tokens_matter", "you", "", "", tree.name, "high")]
+            return _typed_token_payoff(watched, "", tree.name)
         if unit.trigger_event == "tokencreated":
-            return [Signal("tokens_matter", "you", "", "", tree.name, "high")]
+            return _typed_token_payoff(watched, "", tree.name)
     for c in tree.iter_concepts():
         if c.role == "cost":
             continue
@@ -965,7 +984,7 @@ def _tokens_matter(tree: ConceptTree) -> list[Signal]:
                 and filter_controller(filt) == "You"
                 and "Token" in filter_predicates(filt)
             ):
-                return [Signal("tokens_matter", "you", "", c.raw, tree.name, "high")]
+                return _typed_token_payoff(filt, c.raw, tree.name)
     return []
 
 
@@ -1389,14 +1408,11 @@ _RECOVERED_TEAM_COUNTER_RE = re.compile(
 )
 
 
-def _is_artifact_token_types(types: tuple[str, ...]) -> bool:
-    """Whether a token's ``types`` name an Artifact — the Artifact card-type OR a
-    predefined artifact-token subtype (Treasure/Clue/Food/… CR 205.3g), which phase
-    carries with an empty card-type list.
-    """
-    if "Artifact" in types:
-        return True
-    return any(t.lower() in ARTIFACT_TOKEN_SUBTYPES for t in types)
+def _names_artifact_kind(types: tuple[str, ...]) -> bool:
+    """Whether a copied / sacrificed / watched filter's ``types`` name artifacts
+    broadly enough to be an ``artifacts_matter`` payoff
+    (:func:`is_unserved_artifact_kind`)."""
+    return any(is_unserved_artifact_kind(t) for t in types)
 
 
 def _generic_board_lanes(filt: object) -> list[str]:
@@ -1454,8 +1470,14 @@ def _artifacts_enchantments_matter(tree: ConceptTree) -> list[Signal]:
       with NO subtype (Fabricate, Idyllic Tutor; Enlightened Tutor → both);
     * **generic-board anthem** — a static pump/grant over the whole own-board set
       (Padeem);
-    * **token maker** — a ``make_token`` of an Artifact (incl. Treasure/Clue/Food
-      resource subtypes) / Enchantment subject, scope you/any;
+    * **enchantment-token maker** — a ``make_token`` of an Enchantment subject, scope
+      you/any. An ARTIFACT-token maker (Skrelv's Hive's Mites, a Treasure / Clue /
+      Food maker — CR 205.3g's artifact types) does NOT fire ``artifacts_matter``:
+      making artifacts is the doer side, credited on ``token_maker`` /
+      ``treasure_makers`` / ``clue_makers`` / ``food_makers`` and counted as the
+      Artifacts avenue's depth by its serve, while ``artifacts_matter`` is the
+      payoff key the tuner reads as a card that CARES about artifacts (31 Clue
+      makers read as carers of the Deep Clue Sea precon's Artifacts main);
     * **sac payoff** — a ``Sacrifice`` of an Artifact/Enchantment subject (Atog-style
       fodder), non-opponent, with the Permanent-symmetric-list gate (CR 702.166a).
 
@@ -1508,26 +1530,19 @@ def _artifacts_enchantments_matter(tree: ConceptTree) -> list[Signal]:
             sub = effect_filter(node)
             if sub is not None and not filter_subtypes(sub):
                 out.extend(_typed_matters_lanes(sub))
+        # An artifact-token maker is a doer, never this payoff (see the
+        # docstring); only the enchantment-token arm reads ``make_token``.
         if c.concept == "make_token" and c.scope in ("you", "any"):
             types = c.subject
-            if _is_artifact_token_types(types):
-                out.append("artifacts_matter")
             if "Enchantment" in types:
                 out.append("enchantments_matter")
-            # Recovered-node fallback (ADR-0038 post-giants batch): a
-            # make_token recovered off an Unimplemented residue keeps the
-            # phase wrapper as its ``.node`` — no typed token subject to
-            # read — so the seam reads the token's own type words off the
-            # create-clause (``c.reading``). Corpus census at introduction:
-            # 38 recovered make_token nodes total; the artifact/enchantment hits are
-            # all genuine (Smoke Spirits' Aid's named-Aura shape, Circuits
-            # Act / Yawgmoth Merfolk Soul's Clown Robots, the Treasure /
-            # Food resource-token class — CR 111.4/205.3g).
-            if not types and c.recovered_by == "make_token":
-                if _is_artifact_token_types(c.reading):
-                    out.append("artifacts_matter")
-                if "Enchantment" in c.reading:
-                    out.append("enchantments_matter")
+            # A recovered make_token has no typed subject: read the clause.
+            if (
+                not types
+                and c.recovered_by == "make_token"
+                and "Enchantment" in c.reading
+            ):
+                out.append("enchantments_matter")
         # COPY-TOKEN doer (ADR-0038 W4 giant): "create a token that's a
         # copy of target artifact/creature" (Molten Duplication, Echo
         # Storm, Saheeli's Artistry). A copy token's creator is its owner
@@ -1539,7 +1554,7 @@ def _artifacts_enchantments_matter(tree: ConceptTree) -> list[Signal]:
         # token's recipient, which is always you (the caster).
         if c.concept == "copy_token":
             types = c.subject
-            if _is_artifact_token_types(types):
+            if _names_artifact_kind(types):
                 out.append("artifacts_matter")
             if "Enchantment" in types:
                 out.append("enchantments_matter")
@@ -1654,7 +1669,7 @@ def _artifacts_enchantments_matter(tree: ConceptTree) -> list[Signal]:
             cores = filter_core_types(sub)
             if "Permanent" in cores:
                 continue
-            if _is_artifact_token_types(c.subject):
+            if _names_artifact_kind(c.subject):
                 out.append("artifacts_matter")
             if "Enchantment" in cores:
                 out.append("enchantments_matter")
@@ -1678,7 +1693,7 @@ def _artifacts_enchantments_matter(tree: ConceptTree) -> list[Signal]:
             cores = filter_core_types(filt)
             if "Permanent" in cores:
                 continue
-            if _is_artifact_token_types(cores + filter_subtypes(filt)):
+            if _names_artifact_kind(cores + filter_subtypes(filt)):
                 out.append("artifacts_matter")
             if "Enchantment" in cores:
                 out.append("enchantments_matter")
@@ -1728,18 +1743,6 @@ def _artifacts_enchantments_matter(tree: ConceptTree) -> list[Signal]:
         bt_m = _BECOMES_TYPE_RE.search(cl)
         if bt_m and "copy" not in bt_m.group(0).lower():
             out.append(_TYPE_MATTERS_LANE[bt_m.group(1).capitalize()])
-    # TOKEN-SUBTYPE cares-about reference (ADR-0038 W4 giant) — a
-    # SANCTIONED byte-identical port of legacy's ``_TOKEN_SUBTYPE_OWN_REF``
-    # (the LIVE constant): a cares-about mention of a named artifact-token
-    # subtype WITHOUT making/sacrificing it — "Foods you control" (Hobbit's
-    # Sting, Rent Is Due, Honored Dreyleader), "Treasures you control"
-    # become (Vihaan) — a count operand / anthem subject phase carries no
-    # structural filter for (the subtype rides bare prose, not a Filter
-    # node). Blood/Clue/Food/Treasure are ALL artifact tokens (CR 205.3g),
-    # so any match feeds artifacts_matter directly (no enchantment
-    # counterpart — none of the four are ever enchantments).
-    if any(_TOKEN_SUBTYPE_OWN_REF.search(cl) for cl in _clauses(_kept(tree))):
-        out.append("artifacts_matter")
     # CAST-TRIGGER doer (recall gap): "whenever you cast an artifact/enchantment
     # spell, <payoff>" (Argothian Enchantress, Enchantress's Presence, Sythis,
     # Mishra). Mirrors the deleted ``_signals_ir``'s line ~10974 — the watched-spell
@@ -1772,7 +1775,7 @@ def _artifacts_enchantments_matter(tree: ConceptTree) -> list[Signal]:
         if vc is None or filter_controller(vc) == "Opponent":
             continue
         words = filter_core_types(vc) + filter_subtypes(vc)
-        if _is_artifact_token_types(words):
+        if _names_artifact_kind(words):
             out.append("artifacts_matter")
         if "Enchantment" in words:
             out.append("enchantments_matter")

@@ -361,3 +361,32 @@ def test_commander_holding_a_viable_avenue_is_never_a_misfit():
         {"viable_avenues": rows, "commander_avenues": []},
     )
     assert stranger["misfit"] is True
+
+
+def test_a_bare_tokens_payoff_cares_about_predefined_token_makers():
+    """Deep Clue Sea: Adrix and Nev (a token doubler) and Esix care about the
+    deck's twenty Clue makers — a Clue is a token (CR 111.10f) — not only about
+    the creature-token makers ``token_maker`` spells."""
+    from mtg_utils._analysis.lanes import TOKEN_SUBTYPE_PAYOFF_KEYS
+    from mtg_utils._tuner.metrics import _cares_keys
+
+    # One table: every token doer — creature tokens and each predefined kind —
+    # is cared about by a tokens payoff and a doubler alike (Doubling Season
+    # cares about Soldier makers as it does about Clue makers).
+    for doer in ("token_maker", *(f"{k}_makers" for k in TOKEN_SUBTYPE_PAYOFF_KEYS)):
+        assert {"tokens_matter", "token_doubling"} <= set(_cares_keys(doer)), doer
+    # The kind's own payoff stays first; only creature tokens are polymorph fodder.
+    assert _cares_keys("clue_makers")[0] == "clue_matters"
+    assert "wants_fodder" in _cares_keys("token_maker")
+    assert "wants_fodder" not in _cares_keys("treasure_makers")
+    assert "tokens_matter" not in _cares_keys("lifegain_makers")
+
+
+def test_an_activated_ability_is_a_payoff_target_not_a_builder():
+    """Abzan Armor: eleven cards with an activated ability made "Activated-ability
+    engine" the main over a forty-two-deep toughness lane. The lane's builders
+    are the untap engines its spec names, never the cards that merely have an
+    ability."""
+    from mtg_utils._tuner.metrics import _cares_keys
+
+    assert _cares_keys("activated_ability") == ("untap_engine",)

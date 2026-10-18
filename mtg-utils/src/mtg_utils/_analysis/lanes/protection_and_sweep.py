@@ -803,24 +803,6 @@ def _keyword_field_signals_b16(keywords: frozenset[str], name: str) -> list[Sign
     return []
 
 
-def _keyword_field_signals_w4g(keywords: frozenset[str], name: str) -> list[Signal]:
-    """ADR-0038 W4 giant — Investigate (CR 701.27) IS "create a Clue token", a
-    colorless ARTIFACT (CR 205.3g). phase tags the keyword but drops the Clue
-    subtype off the ``make_token`` subject (the keyword-action's reminder
-    text isn't structured — Declaration in Stone, No Witnesses, Fateful
-    Absence all carry ``make_token`` subject=None or no make_token node at
-    all for a modal/rider investigate), so the keyword array is the
-    structural anchor. Mirrors the deleted ``_signals_ir``'s
-    ``_IR_KEYWORD_MAP["investigate"]``
-    byte-identically (``artifacts_matter`` you, high). The dedicated
-    ``clue_matters`` lane reads investigate off its own path; this opens
-    ``artifacts_matter``, which has no other tell for these.
-    """
-    if "investigate" in {k.lower() for k in keywords}:
-        return [Signal("artifacts_matter", "you", "", "", name, "high")]
-    return []
-
-
 def _ability_copy(tree: ConceptTree) -> list[Signal]:
     """ability_copy (§1) — CR 707.10 ("To copy a spell, activated ability, or
     triggered ability means to put a copy of it onto the stack; … A copy of an

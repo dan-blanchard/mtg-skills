@@ -46,6 +46,7 @@ from mtg_utils._card_ir.crosswalk.reads import (
     normalised_keyword,
     parked_prevention,
     protective_keyword,
+    redirects_damage_from_you,
     static_mode_field,
     static_mode_tag,
     tag_of,
@@ -610,10 +611,19 @@ def protective_saves(tree: ConceptTree) -> Iterator[tuple[str, ProtectionRecipie
 # ── Attack deterrents ───────────────────────────────────────────────────────────
 
 AttackDeterrentKind = Literal["attack_tax", "attack_ban", "attack_limit"]
-#: Who "can't attack" defends when it names you: you, you and your
-#: planeswalkers, or you and your permanents.
-_DEFENDED_YOU: frozenset[str] = frozenset(
-    {"Player", "PlayerOrPlaneswalker", "PlayerOrPermanents"}
+#: The attack recipients that name you: you, you and your planeswalkers, or you
+#: and your permanents — the values phase writes on an attack restriction's
+#: ``attack_defended`` / ``UnlessPay.defended`` / ``Attack.defended``, an
+#: ``AttackTarget``'s ``attacked`` and an attack trigger's
+#: ``attack_target_filter``. CR 506.2: the defending player and the
+#: planeswalkers they control may be attacked, so "you or planeswalkers you
+#: control" is the standard wording for defending YOU. ``OwnerOrPlaneswalker``
+#: is the same pair read from the card's owner ("can't attack its owner or
+#: planeswalkers its owner controls" — Xantcha, Sleeper Agent). A recipient
+#: naming planeswalkers alone (``"Planeswalker"`` — Onakke Oathkeeper) is not
+#: in the set: that defends your planeswalkers, not you.
+DEFENDED_YOU: frozenset[str] = frozenset(
+    {"Player", "PlayerOrPlaneswalker", "OwnerOrPlaneswalker", "PlayerOrPermanents"}
 )
 
 
@@ -622,7 +632,7 @@ def _taxes_attacks_on_you(cond: object) -> bool:
     pays" for attacking you, alone or beside another condition (Archangel of
     Tithes' "as long as this creature is untapped")."""
     if tag_of(cond) == "UnlessPay":
-        return getattr(cond, "defended", None) in _DEFENDED_YOU
+        return getattr(cond, "defended", None) in DEFENDED_YOU
     if tag_of(cond) == "And":
         return any(
             _taxes_attacks_on_you(c) for c in getattr(cond, "conditions", None) or ()
@@ -665,7 +675,7 @@ def attack_deterrent(tree: ConceptTree) -> AttackDeterrentKind | None:
             activity = getattr(n, "activity", None)
             if (
                 tag_of(activity) == "Attack"
-                and getattr(activity, "defended", None) in _DEFENDED_YOU
+                and getattr(activity, "defended", None) in DEFENDED_YOU
             ):
                 return "attack_ban"
             continue
@@ -680,6 +690,51 @@ def attack_deterrent(tree: ConceptTree) -> AttackDeterrentKind | None:
             continue
         if _taxes_attacks_on_you(getattr(n, "condition", MISSING)):
             return "attack_tax"
-        if getattr(n, "attack_defended", None) in _DEFENDED_YOU:
+        if getattr(n, "attack_defended", None) in DEFENDED_YOU:
             return "attack_ban"
     return None
+
+
+def defends_you(tree: ConceptTree) -> bool:
+    """Whether phase types the card as keeping attacks or damage off you: an
+    attack deterrent (:func:`attack_deterrent` — Promise of Loyalty, Orzhov
+    Advokist), a save shielding you as a player (:func:`protective_saves` —
+    Comeuppance's and Take the Bait's fogs) or a redirection of damage dealt to
+    you (CR 614.9, :func:`reads.redirects_damage_from_you` — Gideon's
+    Sacrifice)."""
+    if attack_deterrent(tree) is not None:
+        return True
+    if any(who == "player" for _kind, who in protective_saves(tree)):
+        return True
+    return any(redirects_damage_from_you(n) for n in tree.iter_typed())
+
+
+#: The fields phase writes an attack recipient on (see :data:`DEFENDED_YOU`).
+_ATTACK_RECIPIENT_FIELDS: tuple[str, ...] = (
+    "attack_target_filter",
+    "attack_defended",
+    "attacked",
+    "defended",
+)
+
+
+def watches_attacks_on_you(tree: ConceptTree) -> bool:
+    """Whether the card types an attack on you: an attack recipient in
+    :data:`DEFENDED_YOU` on any node — a trigger on creatures attacking you
+    (Blood Reckoning, Isperia, Tamiyo Meets the Story Circle), a count of the
+    creatures attacking you (Mangara), an attack restriction or tax defending
+    you — or an answer aimed at a creature attacking you (an ``Attacking``
+    filter property whose ``defender`` is ``You`` — Soul Snare's "Exile target
+    creature that's attacking you or a planeswalker you control", Mirror
+    Match). Phase writes "you or a planeswalker you control" as one recipient
+    naming you (CR 506.2: the defending player and the planeswalkers they
+    control may be attacked)."""
+    for n in tree.iter_typed():
+        if tag_of(n) == "Attacking" and getattr(n, "defender", None) == "You":
+            return True
+        if any(
+            getattr(n, field, None) in DEFENDED_YOU
+            for field in _ATTACK_RECIPIENT_FIELDS
+        ):
+            return True
+    return False

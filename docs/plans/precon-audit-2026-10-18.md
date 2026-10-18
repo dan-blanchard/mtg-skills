@@ -115,13 +115,42 @@ that keeps the count (Esix, Chatterfang) is a tokens payoff. Totals after the
 second pass over all 25: 91 adds, 7 matching a guide; 40 of 91 cuts matching;
 one SPREAD-THIN.
 
+## Third pass (same day)
+
+Every tuner item in the backlog worked through: Spine fills rank by play-rate
+within a mana-value band (an X cost at its cast value); the lane cut tier orders
+feeders before carers, then least played (measured: `precon-audit/lane_quality.py`,
+906 lane cards vs 222 guide cuts — no function read beats the 0.245 base, this
+order puts a guide cut in the top five 48% of the time, costlier-first 30%);
+player-only damage is not `interaction` (the `removal` lane fires on burn that can
+reach a permanent; `direct_damage` left the preset); Bello's Animation and Yuma's
+Deserts have lanes; pillowfort and fogs are not Superfriends; a typed token
+replacement carries its kind and an artifact-token maker is a maker; carers
+respect scope, one-carer-set avenues fold, emerging needs two carers in
+proportion, the primary is a held lane deep enough to show, "Activated-ability
+engine" is cared about by its untap engines; three typed-cheat pair rows; CR
+2026-09-25 subtypes; Syr Konrad's folded trigger doubles.
+
+| | second pass | third pass |
+|---|---|---|
+| precons read SPREAD-THIN | 1 of 25 | 1 of 25 (Squirreled Away) |
+| tuner cuts / matching a guide | 91 / 40 | 90 / 43 |
+| tuner weak-list matching a guide | 20 | 26 |
+| tuner adds / matching a guide | 91 / 7 | 90 / 8 |
+| guide cuts the tuner protects | 141 | 127 |
+| Endless Punishment "interaction" | 35 | 19 |
+
+Mains that moved: Animated Army Artifacts → Animation; Deep Clue Sea Artifacts →
+Clues / investigate; Abzan Armor none → Toughness as power. Desert Bloom gained a
+commander-held Deserts sub (18 deep). Blame Game lost its phantom Superfriends sub.
+
 ## What is left
 
-`docs/plans/backlog.md`, "What the 25-precon audit still finds wrong": no
-quality read inside a deep lane (the 142), the lane misreads the guides expose
-(Gonti, Zurgo, Bello, Yuma, Role tokens, token doublers, pillowfort,
-"Opponents' graveyards"), symmetric damage read as interaction, a closer search
-with no avenue, template bands against a commander whose lane is the band.
+`docs/plans/backlog.md`, "What the polymorph tune and the 25-precon audit still
+get wrong": Bello's mana-value floor, the `animate_artifact` regex lane to
+retire, `clue_matters` on bare investigate doers, the phase gaps behind the
+interaction role and the superfriends veto, the ETB-vs-cast gap in the typed-cheat
+pair rows.
 
 ## Rerunning
 

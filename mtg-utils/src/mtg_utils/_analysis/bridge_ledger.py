@@ -55,7 +55,6 @@ from mtg_utils._analysis._subtypes import LAND_SUBTYPES
 from mtg_utils._analysis._sweep_detectors import NAMED_PERMANENT_REGEX
 from mtg_utils._analysis.signal_base import Signal
 from mtg_utils._card_ir.crosswalk import (
-    ARTIFACT_TOKEN_SUBTYPES,
     DAMAGE_EFFECT_TAGS,
     _filter_type_words,
     aggregate_filter,
@@ -67,7 +66,6 @@ from mtg_utils._card_ir.crosswalk import (
     filter_core_types,
     filter_inzone_zones,
     filter_subtypes,
-    iter_cost_leaves,
     iter_nested_granted_effect_concepts,
     named_permanent_refs,
     protective_keyword,
@@ -75,7 +73,6 @@ from mtg_utils._card_ir.crosswalk import (
     sacrifice_names_no_player,
     static_mode_field,
     tag_of,
-    trigger_subject,
     trigger_turn_constraint,
 )
 from mtg_utils._card_ir.mirror.runtime import MISSING
@@ -647,7 +644,7 @@ def _kaboom_match(tree: ConceptTree) -> bool:
 # anyway (the SAME bare marker Aggressive Sabotage's genuine back-reference
 # uses), and with no sibling player-reaching field in the SAME unit (Goblin
 # Barrage's base mode targets ``Typed(Creature)`` only; Unstable Footing's
-# base effect has no target at all), ``_unit_has_player_target`` correctly
+# base effect has no target at all), ``_unit_has_target`` correctly
 # can't resolve it — this module's own documented Fiery-Impulse-collision
 # caution (a "deals N instead" modal amendment quoting an EARLIER creature
 # target carries the identical tag) forbids loosening that resolution
@@ -1602,39 +1599,6 @@ def _combat_choice_match(tree: ConceptTree) -> bool:
     return _oracle_says(tree, _COMBAT_CHOICE_RX)
 
 
-# ── artifacts_matter — the reflexive-payment regression (v0.35.2 bump) ───────
-# "you may sacrifice a Food or pay {2}{W}. When you do, ..." (Nimble Hobbit —
-# CR 603.12 reflexive trigger; Food is an artifact subtype, CR 205.3g). At
-# v0.23.0 phase decomposed the payment as a ChooseOneOf carrying a typed Food
-# Sacrifice branch; the v0.26.0+ reflexive-payment rework parks the WHOLE body
-# as ``Unimplemented(name='reflexive optional payment')`` instead. Gap is the
-# shared tree-wide ``_no_typed_sacrifice_node`` absence proof.
-def _paycost_artifact_sacrifice_undecorated(tree: ConceptTree) -> bool:
-    """phase v0.86.0 structures the reflexive payment (the ``Unimplemented('reflexive
-    optional payment')`` residue of v0.26.0-v0.66.0 is gone): "you may sacrifice a
-    Food or pay {2}{W}. When you do, …" is now an effect-role ``PayCost`` whose
-    ``OneOf`` cost carries a typed ``Sacrifice(Food)`` leaf, with the reflexive body
-    on a ``WhenYouDo`` sub-ability (CR 603.12). The gap is OURS now: the overlay
-    decorates activation costs and top-level effects, so a sacrifice inside an
-    effect's own cost never becomes a ``sacrifice`` concept the artifacts_matter
-    read sees. True when such a leaf names an artifact (core type or a predefined
-    artifact-token subtype) and no sacrifice concept was decorated anywhere."""
-    if any(c.concept == "sacrifice" for c in tree.iter_concepts()):
-        return False
-    for n in tree.iter_typed():
-        if tag_of(n) != "PayCost":
-            continue
-        for leaf in iter_cost_leaves(getattr(n, "cost", None)):
-            if tag_of(leaf) != "Sacrifice":
-                continue
-            filt = getattr(leaf, "target", None)
-            if "Artifact" in filter_core_types(filt) or (
-                {x.lower() for x in filter_subtypes(filt)} & ARTIFACT_TOKEN_SUBTYPES
-            ):
-                return True
-    return False
-
-
 # ── predefined-token maker/payoff bridges (Blood-token gap sweep, 2026-07-25) ─
 # Measured gaps around the Blood/Clue/Food predefined-token lanes. The maker
 # shape is OUR overlay's frontier, not phase's: the typed substrate is complete
@@ -1645,8 +1609,10 @@ def _paycost_artifact_sacrifice_undecorated(tree: ConceptTree) -> bool:
 # shared effect walk read the controller's branches.)
 # (Odric, Blood-Cursed rode the blood row via a second match arm until phase
 # v0.104.0: its parked "create X Blood tokens" now reads through the
-# ``make_token`` recovery arm of ``_resource_token_makers``.) CR 111.10
-# (predefined tokens) throughout.
+# ``make_token`` recovery arm of ``_resource_token_makers``.) (The Blood
+# sacrificed-trigger payoff row — Blood Hypnotist — retired 2026-10-18, once
+# ``_tokens_matter``'s token-watching arm carried the trigger's Blood subject
+# to ``blood_matters``.) CR 111.10 (predefined tokens) throughout.
 
 
 def _make_token_concept_missing(tree: ConceptTree, subtype: str) -> bool:
@@ -1675,41 +1641,6 @@ def _granted_trigger_blood_token_match(tree: ConceptTree) -> bool:
         c.concept == "make_token" and "Blood" in c.subject
         for unit in tree.iter_units("static")
         for c in iter_nested_granted_effect_concepts(unit.node)
-    )
-
-
-def _blood_matters_structural_gap(tree: ConceptTree) -> bool:
-    """The payoff-row gap: none of ``_resource_token_matters``'s three
-    structural reads (a Blood-subtyped sacrifice EFFECT, a Blood-subtyped
-    ``Sacrifice`` cost leaf, a ``synth_token_subtype_own_ref`` Blood marker)
-    finds anything on this tree."""
-    for c in tree.effect_concepts("sacrifice"):
-        if "blood" in {s.lower() for s in filter_subtypes(effect_filter(c.node))}:
-            return False
-    for n in tree.iter_typed():  # every Sacrifice leaf, activation costs included
-        if tag_of(n) == "Sacrifice" and "blood" in {
-            s.lower() for s in filter_subtypes(getattr(n, "target", None))
-        }:
-            return False
-    for c in tree.iter_concepts():
-        if c.concept == "synth_token_subtype_own_ref" and any(
-            s.lower() == "blood" for s in c.subject
-        ):
-            return False
-    return True
-
-
-def _blood_sacrificed_trigger_match(tree: ConceptTree) -> bool:
-    """A ``Sacrificed``-mode trigger watching a Blood token whose controller is
-    you or unstated ("Whenever you sacrifice one or more Blood tokens, ..." —
-    Blood Hypnotist; CR 701.21, the sacrifice-PAYOFF half), its watched types read
-    through ``trigger_subject``. An opponent's sacrifice is a punisher, not your
-    payoff — excluded."""
-    return any(
-        unit.trigger_event == "sacrificed"
-        and filter_controller(getattr(unit.node, "valid_card", None)) in (None, "You")
-        and any(w.lower() == "blood" for w in trigger_subject(unit.node))
-        for unit in tree.iter_units("trigger")
     )
 
 
@@ -4080,31 +4011,6 @@ BRIDGES: dict[str, Bridge] = {
             match=_illusionists_gambit_match,
         ),
         Bridge(
-            bridge_id="artifact_sac_reflexive_payment_undecorated",
-            key="artifacts_matter",
-            kind="grammar_straggler",
-            todo=(
-                "grammar sprint: decorate the cost leaves of an EFFECT-role "
-                "``PayCost`` (phase v0.86.0's reflexive-payment shape — "
-                "``PayCost{cost: OneOf[Sacrifice(Food), Mana]}`` + a "
-                "``WhenYouDo`` sub-ability, CR 603.12) as cost concepts the way "
-                "an activation cost's leaves are, so a 'sacrifice a Food' "
-                "payment reads as a sacrifice concept and the artifacts_matter "
-                "read serves it with no bridge. Through v0.66.0 the same body "
-                "was an Unimplemented('reflexive optional payment') residue "
-                "(an upstream gap, closed at v0.86.0)"
-            ),
-            census=(
-                "1 commander-legal card lost artifacts_matter at the v0.86.0 "
-                "bump (Nimble Hobbit — the pin; Bullseye, Death Dealer's SIBLING "
-                "activated ability carries a fully-typed Sacrifice(Artifact) "
-                "cost, so it is served structurally either way), 2026-09-17"
-            ),
-            pins=("Nimble Hobbit",),
-            gap=_paycost_artifact_sacrifice_undecorated,
-            match=_paycost_artifact_sacrifice_undecorated,
-        ),
-        Bridge(
             bridge_id="granted_trigger_blood_token_maker",
             key="blood_makers",
             kind="grammar_straggler",
@@ -4126,28 +4032,6 @@ BRIDGES: dict[str, Bridge] = {
             pins=("Ceremonial Knife",),
             gap=_blood_maker_concept_gap,
             match=_granted_trigger_blood_token_match,
-        ),
-        Bridge(
-            bridge_id="blood_sacrificed_trigger_payoff",
-            key="blood_matters",
-            kind="grammar_straggler",
-            todo=(
-                "grammar sprint (task #82): grow a Sacrificed-trigger "
-                "subject arm on _resource_token_matters (read the "
-                "trigger's own valid_card subtypes structurally — the "
-                "typed substrate is COMPLETE here, mode='Sacrificed' + "
-                "Typed(Blood) valid_card; only the lane read is missing) "
-                "— delete this row + its lane call when the arm lands"
-            ),
-            census=(
-                "4 hits / 38,261 distinct oracle_ids (3 commander-legal: "
-                "Blood Hypnotist, Gluttonous Guest, Sanguine Statuette; "
-                "+ Sanguine Brushstroke, not commander-legal), MTGJSON "
-                "2026-07-25 @ phase v0.35.2"
-            ),
-            pins=("Blood Hypnotist",),
-            gap=_blood_matters_structural_gap,
-            match=_blood_sacrificed_trigger_match,
         ),
         Bridge(
             bridge_id="folded_object_text_only_each_player_loses",

@@ -230,6 +230,90 @@ def _cheat_subject_spec(subj: str) -> SignalSpec:
     )
 
 
+# The animation lane's per-type feeders (``_animate_subject_spec``): the animated
+# card types (``lanes.animate_land_types``), all of them for an animation that
+# names only "a permanent" (subject "").
+_ANIMATED_TYPES = ("artifact", "enchantment", "planeswalker", "battle")
+
+
+@functools.cache
+def _animate_subject_spec(subj: str) -> SignalSpec:
+    """The ``animate_makers|you|<subj>`` spec, ``subj`` the animated card type
+    (signal_keys.ANIMATE_MAKERS), "" for "a permanent" (Luxior, Giada's Gift).
+    Every subject shares the one "Animation" label, so the per-type specs read as
+    one avenue downstream (focus dedupes by label). Its feeders are what the
+    animation turns into creatures — noncreature permanents of that type, by
+    type line (an artifact creature already is one) — and its doers are the
+    lane's own idents: this type's animators plus the untyped ones. A mana-value
+    floor on the animated set (Bello's 4) is the card's own and is not carried:
+    the lane serves every noncreature permanent of the type. An Aura never
+    feeds: an Aura that's also a creature can't enchant anything and goes to the
+    graveyard (CR 303.4d), and every enchantment animator says "non-Aura"
+    (Opalescence, Starfield of Nyx, Bello). An Equipment does feed — March of
+    the Machines and Ensoul Artifact animate one; only Bello excludes it. Cached:
+    a pure function of the subject (``spec_for`` is hot)."""
+    types = (subj.lower(),) if subj else _ANIMATED_TYPES
+    plural = _pluralize(types[0]).lower() if subj else "permanents"
+    return SignalSpec(
+        label="Animation",
+        avenue=(
+            f"noncreature {plural} for your animation effects to turn into "
+            f"creatures, plus more ways to animate them"
+        ),
+        search={"card_type": types[0] if subj else types[:2]},
+        serve=Serve(
+            types=frozenset(types),
+            not_types=frozenset({"creature", "aura"}),
+            signal_idents=frozenset(
+                {
+                    f"{signal_keys.ANIMATE_MAKERS}|you|{subj}",
+                    f"{signal_keys.ANIMATE_MAKERS}|you|",
+                }
+                if subj
+                else {f"{signal_keys.ANIMATE_MAKERS}|you|*"}
+            ),
+        ),
+    )
+
+
+@functools.cache
+def _land_type_subject_spec(subj: str) -> SignalSpec:
+    """The ``land_type_matters|you|<subj>`` spec, ``subj`` a nonbasic land type
+    (signal_keys.LAND_TYPE_MATTERS, CR 205.3i). The feeders are the lands of that
+    type, by type line — the Deserts a Desert payoff counts — and the payoffs are
+    the lane's own ident (Yuma, Hazezon, Hour of Promise). ``lands_feed``: those
+    lands count toward the lane's depth, where every other avenue's lands are
+    mana base. Cached: a pure function of the subject."""
+    land_type = subj.lower()
+    label = f"{subj} lands" if land_type.endswith("s") else _pluralize(land_type)
+    return SignalSpec(
+        label=label,
+        avenue=(
+            f"{subj} lands for your {subj} payoffs to count, plus the cards that "
+            f"reward controlling them"
+        ),
+        search={"card_type": land_type},
+        serve=Serve(
+            types=frozenset({land_type}),
+            lands_feed=True,
+            signal_idents=frozenset({f"{signal_keys.LAND_TYPE_MATTERS}|you|{subj}"}),
+        ),
+    )
+
+
+# Subject keys whose subject is a CARD or LAND TYPE, each built by its own
+# per-subject spec (cached): key -> builder(subject).
+_TYPED_SUBJECT_SPECS = {
+    signal_keys.CHEAT_INTO_PLAY: _cheat_subject_spec,
+    signal_keys.ANIMATE_MAKERS: _animate_subject_spec,
+    signal_keys.LAND_TYPE_MATTERS: _land_type_subject_spec,
+}
+# Subject keys whose "" subject is a VALUE, not subject-absence, so they dispatch
+# dynamic even when empty: type_changers' "the chosen type" (Xenograft), an
+# animation of "a permanent".
+_EMPTY_SUBJECT_IS_VALUE = _TYPE_CHANGER_KEYS | {signal_keys.ANIMATE_MAKERS}
+
+
 def _subject_spec(signal: Signal) -> SignalSpec:
     """Build a spec for a subject-bearing signal by interpolating the subject."""
     subj = signal.subject
@@ -280,9 +364,10 @@ def _subject_spec(signal: Signal) -> SignalSpec:
                 ),
             ),
         )
-    # cheat into play: the subject is the cheated card TYPE.
-    if signal.key == signal_keys.CHEAT_INTO_PLAY:
-        return _cheat_subject_spec(subj)
+    # cheat into play / animation / land-type payoffs: the subject is a card or
+    # land TYPE.
+    if (typed := _TYPED_SUBJECT_SPECS.get(signal.key)) is not None:
+        return typed(subj)
     # token-maker: the deck CREATES {s} tokens, so find cards that *make* them (not the
     # tribe — searching the type line surfaced {s} creatures that don't make tokens).
     if signal.key == signal_keys.TOKEN_MAKER:
@@ -513,22 +598,28 @@ def payoff_search(search: dict, serve: Serve) -> dict:
     return out
 
 
+def spec_scope_for(key: str, scope: str) -> str | None:
+    """The scope of the ``SPECS`` entry a subject-less ``(key, scope)`` signal
+    resolves to: exact (key, scope) → (key, any) → the key's first entry; None
+    when the key has no entry. ``spec_for``'s lookup order, owned once."""
+    if (key, scope) in SPECS:
+        return scope
+    if (key, "any") in SPECS:
+        return "any"
+    return next((s for (k, s) in SPECS if k == key), None)
+
+
 def spec_for(signal: Signal) -> SignalSpec | None:
     """Resolve a spec. Subject-bearing signals build a per-subject spec; otherwise
-    exact (key, scope) → (key, any) → first entry by key."""
-    # type_changers' "" subject is a VALUE ("the chosen type" — Xenograft),
-    # not subject-absence, so those keys dispatch dynamic even when empty.
+    the ``SPECS`` entry at ``spec_scope_for``'s scope."""
+    # A "" subject that is a VALUE (``_EMPTY_SUBJECT_IS_VALUE``) dispatches
+    # dynamic too.
     if signal.key in _SUBJECT_KEYS and (
-        signal.subject or signal.key in _TYPE_CHANGER_KEYS
+        signal.subject or signal.key in _EMPTY_SUBJECT_IS_VALUE
     ):
         return _subject_spec(signal)
-    exact = SPECS.get((signal.key, signal.scope))
-    if exact is not None:
-        return exact
-    any_scope = SPECS.get((signal.key, "any"))
-    if any_scope is not None:
-        return any_scope
-    return next((spec for (key, _), spec in SPECS.items() if key == signal.key), None)
+    scope = spec_scope_for(signal.key, signal.scope)
+    return None if scope is None else SPECS[(signal.key, scope)]
 
 
 def serves(card: dict, signal: Signal) -> bool:

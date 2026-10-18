@@ -12,9 +12,11 @@ import pytest
 
 from mtg_utils._card_ir.crosswalk import (
     attack_deterrent,
+    defends_you,
     protective_grant_recipients,
     protective_saves,
     tag_of,
+    watches_attacks_on_you,
 )
 from mtg_utils._card_ir.trees import trees_for
 from mtg_utils.testkit import test_card
@@ -219,6 +221,37 @@ def test_attack_deterrents(name, kind):
 )
 def test_non_deterrents(name):
     assert _deterrent(name) is None
+
+
+# ── Defending you (CR 506.2: you and your planeswalkers may be attacked) ────────
+
+
+@pytest.mark.parametrize(
+    ("name", "defends", "watches"),
+    [
+        ("Promise of Loyalty", True, True),  # attack ban: deterrent
+        ("Orzhov Advokist", True, True),  # attack ban: ProhibitActivity
+        ("Comeuppance", True, False),  # fog shielding you
+        ("Take the Bait", True, False),
+        ("Gideon's Sacrifice", True, False),  # redirection, CR 614.9
+        ("Soul Snare", False, True),  # creature that's attacking you
+        ("Blood Reckoning", False, True),  # attacks you or a planeswalker
+        ("Isperia, Supreme Judge", False, True),
+        ("Mangara, the Diplomat", False, True),  # attacking you and/or ...
+        # Planeswalkers alone are not you.
+        ("Onakke Oathkeeper", False, False),
+        ("Oath of Kaya", False, False),
+        ("The Chain Veil", False, False),
+    ],
+)
+def test_defends_you_and_watches_attacks_on_you(name, defends, watches):
+    """``defends_you`` — phase types the card as keeping attacks or damage off
+    you; ``watches_attacks_on_you`` — it types an attack on you (a recipient in
+    ``DEFENDED_YOU``, or an ``Attacking`` property defending you). A
+    planeswalkers-only recipient (Onakke Oathkeeper, Oath of Kaya) is neither."""
+    trees = _trees(name)
+    assert any(defends_you(t) for t in trees) is defends
+    assert any(watches_attacks_on_you(t) for t in trees) is watches
 
 
 # ── Retirement canary: a spell's misbound SelfRef ───────────────────────────────

@@ -53,6 +53,19 @@ DAMAGE_FOR_EACH: Final = "damage_for_each"
 # the static spec (signal_specs.core._cheat_subject_spec builds the rest).
 CHEAT_INTO_PLAY: Final = "cheat_into_play"
 
+# Animation (lanes.animate_land_types): an effect that makes noncreature
+# permanents of a card type creatures (CR 613.1d) — Bello, Bard of the Brambles,
+# March of the Machines, Ensoul Artifact, Opalescence. The subject is the
+# animated card TYPE ("Artifact" / "Enchantment" / "Planeswalker" / "Battle"),
+# spelled as CHEAT_INTO_PLAY's is; "" is an animation of "a permanent" (no one
+# type), which keeps the static spec.
+ANIMATE_MAKERS: Final = "animate_makers"
+
+# Land-type payoffs (lanes.animate_land_types): a card that counts, watches or
+# grants to lands of one nonbasic land type (CR 205.3i) — Yuma, Proud
+# Protector's Deserts, Gatebreaker Ram's Gates. The subject is the land type.
+LAND_TYPE_MATTERS: Final = "land_type_matters"
+
 # Combat puppeteers (task B-5): cards that transfer the combat DECLARATION
 # choices — attackers (CR 508.1a, normally the active player's) and blockers
 # (CR 509.1a, normally the defending player's) — to YOU (Master Warcraft,
@@ -88,5 +101,7 @@ SUBJECT_KEYS: Final = frozenset(
         TYPE_CHANGERS_GRAVEYARD,
         DAMAGE_FOR_EACH,
         CHEAT_INTO_PLAY,
+        ANIMATE_MAKERS,
+        LAND_TYPE_MATTERS,
     }
 )
