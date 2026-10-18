@@ -289,11 +289,16 @@ TOKEN_MAKER = {
     "oracle_text": "Create three 1/1 Soldier creature tokens.",
     "prices": {"usd": "0.50"},
 }
+# A serve may read the lanes' idents (the serve-ident pass, 2026-10-18), which a
+# synthetic no-oracle_id record never carries, so this fixture feeds the lifegain
+# serve through its structured dimension instead: the Lifelink keyword.
 DUAL_PURPOSE = {
     "name": "Lifegain Tokens",
-    "type_line": "Sorcery",
+    "type_line": "Creature — Cleric",
     "cmc": 4.0,
-    "oracle_text": "Create two 1/1 creature tokens. You gain 3 life.",
+    "keywords": ["Lifelink"],
+    "oracle_text": "Lifelink\nWhen this creature enters, create two 1/1 creature "
+    "tokens.",
     "prices": {"usd": "2.00"},
 }
 NO_LISTING = {

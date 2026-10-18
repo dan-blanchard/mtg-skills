@@ -42,7 +42,9 @@ SPECS_4: dict[tuple[str, str], SignalSpec] = {
         "Excess damage",
         "trample and big hits to exploit excess damage",
         {"oracle": r"\bexcess damage\b"},
-        r"\bexcess damage\b",
+        # 2026-10-18: the serve regex read trample's reminder text (Charging War Boar).
+        None,
+        serve_idents=frozenset({"excess_damage|you|"}),
         serve_keywords=("trample",),
     ),
     # anthem_static: a STATIC anthem, not a one-shot pump — VETO "until end of turn"
@@ -168,7 +170,10 @@ SPECS_4: dict[tuple[str, str], SignalSpec] = {
         "Recastable ETB aggressors",
         "cheap creatures whose enter-trigger bleeds opponents, to bounce and recast",
         {"oracle": r"when[^.]*enters[^.]*each opponent (?:discards|loses|sacrifices)"},
-        r"when[^.]*enters[^.]*each opponent (?:discards|loses|sacrifices)",
+        # 2026-10-18: the serve regex missed the Sneak bodies and conditional bleeds
+        # (Dream Seizer, Diregraf Scavenger) and read a Saga chapter (Thunder of Unity).
+        None,
+        serve_idents=frozenset({"recast_etb|you|"}),
     ),
     # Exert (Johan, Heliod God of the Sun): when your team has vigilance / never taps to
     # attack, an exert creature's only downside (won't untap) vanishes, so serve the
@@ -507,7 +512,10 @@ SPECS_4: dict[tuple[str, str], SignalSpec] = {
         "madness cards (discard them to cast for their madness cost) plus the discard "
         "outlets and madness-granters that enable the loop",
         {"oracle": r"\bmadness\b"},
-        r"\bmadness\b|if it has madness",
+        # 2026-10-18: the serve regex read ability-word names (Bloodboil Sorcerer's
+        # "Crown of Madness").
+        None,
+        serve_idents=frozenset({"madness_matters|you|"}),
         serve_keywords=("madness",),
     ),
     # ADR-0034 _matters sweep: the MAKER side of the speed split. speed_makers
@@ -520,7 +528,9 @@ SPECS_4: dict[tuple[str, str], SignalSpec] = {
         "Start-your-engines and speed-advancer bodies, plus the your-turn "
         "life-loss sources that advance your speed",
         {"oracle": r"start your engines|your speed"},
-        r"start your engines|your speed",
+        # 2026-10-18: the serve regex missed speed-reducers (Spikeshell Harrier).
+        None,
+        serve_idents=frozenset({"speed_makers|you|"}),
         serve_keywords=("start your engines!",),
         extras=(_CHEAP_EVASION_EXTRA,),
     ),
@@ -531,7 +541,10 @@ SPECS_4: dict[tuple[str, str], SignalSpec] = {
         "Max speed",
         "Max-speed payoffs that reward reaching speed 4",
         {"oracle": r"max speed"},
-        r"max speed",
+        # 2026-10-18: the serve regex reached the engines only through Start your
+        # engines!'s reminder text ("Max speed is 4"); the makers sibling serves them.
+        None,
+        serve_idents=frozenset({"speed_matters|you|", "speed_makers|you|"}),
         serve_keywords=("max speed",),
     ),
     ("discover_makers", "you"): _spec(
@@ -539,7 +552,9 @@ SPECS_4: dict[tuple[str, str], SignalSpec] = {
         "discover sources to dig for free, plus low-mana-value nonland spells worth "
         "flipping into",
         {"oracle": r"\bdiscover \d|\bdiscover x\b"},
-        r"\bdiscover \d|\bdiscover x\b|whenever you discover",
+        # 2026-10-18: the lane reproduces the serve regex card for card; the IR wins.
+        None,
+        serve_idents=frozenset({"discover_makers|you|"}),
         serve_keywords=("discover",),
     ),
     # ADR-0027 / _matters sweep (ADR-0034): the Foretell lane migrated to the Card IR
@@ -566,7 +581,10 @@ SPECS_4: dict[tuple[str, str], SignalSpec] = {
         "Undying and Persist bodies (free, repeatable death-return fodder) plus the "
         "anthems and grants that hand out the keyword",
         {"oracle": r"\b(?:undying|persist)\b"},
-        r"\b(?:undying|persist)\b|(?:have|gain|gains|with) (?:undying|persist)",
+        # 2026-10-18: the serve regex read ability-word / card names (Shadow of the
+        # Goblin's "Undying Vengeance", Undying Flames).
+        None,
+        serve_idents=frozenset({"has_undying_persist|you|"}),
         serve_keywords=("undying", "persist"),
     ),
     # ── Two-regex payoff avenues (serve = the broad axis, search = enabler pool) ──
@@ -583,8 +601,9 @@ SPECS_4: dict[tuple[str, str], SignalSpec] = {
         "cycling cards to churn through your deck plus the payoffs that reward each "
         "cycle (Astral Slide, Drake Haven, Faith of the Devoted)",
         {"preset_names": ("cycling",)},
-        r"whenever you cycle|cycles? or discard"
-        r"|whenever (?:a player|another player) cycles",
+        # 2026-10-18: the lane reproduces the serve regex card for card; the IR wins.
+        None,
+        serve_idents=frozenset({"cycling_matters|you|"}),
         serve_keywords=("cycling",),
     ),
     ("kicked_spell_matters", "you"): _spec(
@@ -592,7 +611,9 @@ SPECS_4: dict[tuple[str, str], SignalSpec] = {
         "kicker/multikicker spells plus the payoffs that trigger on casting a kicked "
         "spell (Verazol, Hallar, Rumbling Aftershocks)",
         {"oracle": r"\bkicker\b|\bkicked\b"},
-        r"whenever you cast a kicked spell|if (?:that|it) (?:spell )?was kicked",
+        # 2026-10-18: the lane reproduces the serve regex card for card; the IR wins.
+        None,
+        serve_idents=frozenset({"kicked_spell_matters|you|"}),
         serve_keywords=("kicker", "multikicker"),
     ),
     # colorless-hate counterspells ("Counter target colorless spell" — Ceremonious
@@ -602,7 +623,10 @@ SPECS_4: dict[tuple[str, str], SignalSpec] = {
         "Devoid and Eldrazi colorless bodies plus the anthems, cost reducers, and "
         "cast-triggers that reward casting colorless creatures and spells",
         {"oracle": r"colorless (?:creature|spell|permanent)"},
-        r"colorless (?:creature|spell|permanent)s?",
+        # 2026-10-18: the serve regex missed "colorless card" payoffs (Ancient
+        # Stirrings, Ugin's Labyrinth).
+        None,
+        serve_idents=frozenset({"colorless_matters|you|"}),
         serve_keywords=("devoid",),
         serve_types=("eldrazi",),
         serve_not=r"counter target colorless",
@@ -627,7 +651,9 @@ SPECS_4: dict[tuple[str, str], SignalSpec] = {
         "Exalted enablers plus the payoffs that reward a single attacker connecting "
         "(Rafiq, Sublime Archangel, Angelic Exaltation)",
         {"oracle": r"attacks alone|\bexalted\b"},
-        r"attacks alone",
+        # 2026-10-18: the lane reproduces the serve regex; the IR wins.
+        None,
+        serve_idents=frozenset({"exalted_lone_attacker|you|"}),
         serve_keywords=("exalted",),
     ),
     # ADR-0034 _matters sweep SPLIT: the MAKER side of the old flash_matters — the
@@ -648,8 +674,9 @@ SPECS_4: dict[tuple[str, str], SignalSpec] = {
         "opponent-turn cast payoffs plus flash creatures and granters that build the "
         "deck around instant-speed play",
         {"preset_names": ("flash",)},
-        r"whenever you cast (?:a |your first )?spells? "
-        r"during (?:an|each|any) opponent",
+        # 2026-10-18: the lane reproduces the serve regex card for card; the IR wins.
+        None,
+        serve_idents=frozenset({"flash_matters|you|"}),
         serve_keywords=("flash",),
     ),
     ("team_evasion_grant", "you"): _spec(
@@ -660,10 +687,10 @@ SPECS_4: dict[tuple[str, str], SignalSpec] = {
             "oracle": r"creatures you control (?:gain|have)[^.]{0,40}?"
             r"(?:menace|fear|intimidate|horsemanship|flying|can't be blocked)"
         },
-        r"(?:other |attacking )?creatures you control (?:gain|have)\b"
-        r"[^.]{0,40}?\b(?:menace|fear|intimidate|shadow|horsemanship|skulk"
-        r"|flying|can't be blocked)\b"
-        r"|(?:other |attacking )?creatures you control[^.]*can't be blocked",
+        # 2026-10-18: the serve regex missed a pump between "control" and the grant
+        # ("get +1/+0 and gain fear" — Dance of Shadows, Eldrazi Monument).
+        None,
+        serve_idents=frozenset({"team_evasion_grant|you|"}),
     ),
     # Override the auto-registered saga_matters sweep spec: surface the FULL Saga pool
     # via a subtype search (the sweep spec only found lore-counter cards), and serve the
@@ -711,8 +738,12 @@ SPECS_4: dict[tuple[str, str], SignalSpec] = {
         "cards that suspend themselves plus the time-counter accelerators that cast "
         "them early (Paradox Haze, Jhoira)",
         {"oracle": r"\bsuspend\b|time counter"},
-        r"\bsuspend\b|time counter|time travel"
-        r"|additional upkeep step|additional beginning phase",
+        # 2026-10-18: the serve regex missed vanishing bodies (Idris, Soul of the
+        # TARDIS); the suspend lane plus extra upkeeps (Paradox Haze) reproduce it.
+        None,
+        serve_idents=frozenset(
+            {"suspend_makers|you|", "suspend_matters|you|", "extra_upkeep|you|"}
+        ),
         serve_keywords=("suspend",),
     ),
     ("saddle_matters", "you"): _spec(
@@ -720,7 +751,9 @@ SPECS_4: dict[tuple[str, str], SignalSpec] = {
         "Mounts to ride plus the cheap wide creatures that pay the Saddle cost and the "
         "attacks-while-saddled payoffs (Calamity, Gitrog Ravenous Ride)",
         {"oracle": r"\bsaddle\b|\bsaddled\b|\bmount\b"},
-        r"\bsaddled\b|whenever you saddle|while saddled",
+        # 2026-10-18: the lane reproduces the serve regex card for card; the IR wins.
+        None,
+        serve_idents=frozenset({"saddle_matters|you|"}),
         serve_keywords=("saddle",),
     ),
     ("suspect_makers", "you"): _spec(
@@ -728,19 +761,24 @@ SPECS_4: dict[tuple[str, str], SignalSpec] = {
         "cards that suspect creatures (menace + can't block) to fuel your "
         "suspected-creature payoffs",
         {"oracle": r"\bsuspect\b"},
-        r"\bsuspects?\b",
+        # 2026-10-18: the lane reproduces the serve regex card for card; the IR wins.
+        None,
+        serve_idents=frozenset({"suspect_makers|you|"}),
     ),
     ("suspect_matters", "you"): _spec(
         "Suspect payoffs",
         "payoffs that reward having suspected creatures",
         {"oracle": r"\bsuspected\b"},
-        r"\bsuspected\b",
+        # 2026-10-18: the serve regex missed the suspect-it makers that feed the
+        # payoffs (Barbed Servitor, Caught Red-Handed); the makers sibling serves them.
+        None,
+        serve_idents=frozenset({"suspect_matters|you|", "suspect_makers|you|"}),
     ),
     # ADR-0027: cmdzone_ability had its oracle-regex SWEEP_DETECTORS row deleted
     # (detection moved to the Card IR — a 'command' ability-zone / condition-zone
-    # structural arm + a kept word mirror for the static-Eminence cost-reducer). The
-    # SERVE pool stays oracle-defined, so hand-register the spec the sweep auto-
-    # register loop used to build, reusing the deleted regex.
+    # structural arm + a kept word mirror for the static-Eminence cost-reducer).
+    # Hand-registered (the sweep auto-register loop used to build it); the SEARCH
+    # side keeps the deleted regex, the serve reads the lane's ident.
     ("cmdzone_ability", "you"): _spec(
         *SWEEP_LABELS["cmdzone_ability"],
         {
@@ -749,9 +787,8 @@ SPECS_4: dict[tuple[str, str], SignalSpec] = {
                 r"|activate this ability only if[^.]*command zone"
             )
         },
-        (
-            r"is (?:on the battlefield or )?in the command zone"
-            r"|activate this ability only if[^.]*command zone"
-        ),
+        # 2026-10-18: the Card IR's command-zone read reproduces the serve regex.
+        None,
+        serve_idents=frozenset({"cmdzone_ability|you|"}),
     ),
 }

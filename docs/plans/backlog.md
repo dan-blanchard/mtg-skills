@@ -58,6 +58,25 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   the same way. Until then a bare `build-card-snapshot` run drags the drift in —
   the 2026-10-17 regen spliced only its two new cards.
 
+- **Lane gaps behind the held serve specs** (the serve-ident pass, 2026-10-18;
+  the full table is in `docs/plans/serve-idents-and-avenue-support.md` §2
+  "Measured"). 41 specs keep their regex because the lane misses what the regex
+  catches: +1/+1 counters placed by keyword actions (bolster, adapt, renown,
+  monstrosity, connive, explore, endure, awaken — blocks plus_one, amass,
+  incubate, modified); surveil as graveyard filling; granted / replacement
+  Treasure and Food makers, forage; energy payers; random-discard outlets and
+  granted connive; foretell granters and cost reducers; "all damage that would
+  be dealt to you is dealt to X instead"; Bribery-style theft from an
+  opponent's library (blocks `gain_control`); amass / endure / populate token
+  makers read only off reminder text (blocks the `token_maker|you|*` wildcard
+  conversions: token_maker, creature_etb, creatures_matter, edict_makers,
+  damage_for_each, token_doubling). Report upstream where phase is the gap.
+  Lane false positives found the same way: `lifegain_matters` emits for
+  self-bleed engines (Dark Confidant, Phyrexian Arena — the lifegain pair is
+  held on its regex because of this); Impending Flux on `suspend_matters`; The
+  Book of Exalted Deeds on `exalted`; Investigator's Journal on
+  `suspect_makers`; Astarion's "Friends —" mode on `partner_background`.
+
 **From the Omnath Competitive Brawl build (2026-10-04)**
 
 - **Phase gaps behind the closer, alternative-cost and mass-land-denial reads**

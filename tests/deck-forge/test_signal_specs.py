@@ -1546,8 +1546,9 @@ class TestCoinFlipSpec:
         # but a plain flip payoff is NOT a fixer (stays in the main avenue only).
         plain = "Flip a coin. If you win the flip, draw a card."
         assert not re.search(fix.search["oracle"], plain, re.IGNORECASE)
-        # the main avenue still recognizes generic flip payoffs.
-        assert spec.serve.search(plain)
+        # the main avenue still recognizes generic flip payoffs — through the
+        # coin_flip lane's ident since the 2026-10-18 serve-ident pass.
+        assert spec.serve.matches(_card("Chance Encounter"))
 
     def test_flip_fixing_catches_outcome_forcing_fixers(self):
         """Edgar, King of Figaro fixes flips by FORCING THE OUTCOME
@@ -1565,8 +1566,9 @@ class TestCoinFlipSpec:
         # Edgar is a genuine fixer — the sub-avenue search must catch it.
         assert re.search(fix.search["oracle"], edgar, re.IGNORECASE)
         # …and it serves the parent coin-flip avenue (it IS a coin-flip card,
-        # phrased "flip one or more coins"/"come up heads", not "flip a coin").
-        assert spec.serve.search(edgar)
+        # phrased "flip one or more coins"/"come up heads", not "flip a coin"),
+        # read off the coin_flip lane's ident (2026-10-18).
+        assert spec.serve.matches(_card("Edgar, King of Figaro"))
         # but a plain flip-resolution payoff stays out of the fixer sub-avenue.
         plain = "Flip a coin. If you win the flip, draw a card."
         assert not re.search(fix.search["oracle"], plain, re.IGNORECASE)
@@ -4216,3 +4218,15 @@ def test_keep_n_wrath_serve_is_the_rebuild_package_not_the_wipe():
         "prices": {"usd": "1.00"},
     }
     assert spec.serve.matches(protector)
+
+
+def test_serve_signal_idents_subject_wildcard():
+    """``"key|scope|*"`` on the ident arm matches every subject of that key and
+    scope (the serve-ident pass, 2026-10-18): a token doubler's serve wants ANY
+    token maker, whatever the token's subtype, which exact-string idents can't say."""
+    any_token_maker = Serve(signal_idents=frozenset({"token_maker|you|*"}))
+    assert any_token_maker.matches(_card("Krenko, Mob Boss")) is True  # Goblin tokens
+    assert any_token_maker.matches(_card("Grizzly Bears")) is False
+    exact = Serve(signal_idents=frozenset({"token_maker|you|Elf"}))
+    assert exact.matches(_card("Krenko, Mob Boss")) is False
+    assert any_token_maker.as_dict() == {"signal_idents": ["token_maker|you|*"]}

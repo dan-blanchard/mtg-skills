@@ -220,7 +220,18 @@ class Serve:
             # same cycle reason its own docstring records.
             from mtg_utils.theme_presets import _signal_idents_for
 
-            if _signal_idents_for(card) & self.signal_idents:
+            card_idents = _signal_idents_for(card)
+            if card_idents & self.signal_idents:
+                return True
+            # ``"key|scope|*"`` matches every subject of that key and scope — a
+            # token doubler serves ANY ``token_maker``, whatever the token's
+            # subtype (the serve-ident pass, 2026-10-18).
+            wildcards = [w[:-1] for w in self.signal_idents if w.endswith("|*")]
+            if wildcards and any(
+                ident.startswith(prefix)
+                for ident in card_idents
+                for prefix in wildcards
+            ):
                 return True
         return False
 
@@ -1319,6 +1330,7 @@ def _sweep_spec_with_extras(
     serve_toughness_over_power: bool = False,
     serve_keywords: tuple[str, ...] = (),
     regex: str | None = None,
+    serve_idents: frozenset[str] = frozenset(),
 ) -> SignalSpec:
     """Promote a mined sweep detector to a hand-spec that keeps its regex (as both
     search and serve) but fans out extra sub-avenues — used where a sweep-derived lane
@@ -1328,6 +1340,11 @@ def _sweep_spec_with_extras(
     exploit); ``serve_keywords`` adds a keyword dimension. Reuses SWEEP_DETECTORS so the
     regex never drifts from the mine — UNLESS ``regex`` is given, for an ADR-0027-
     migrated key whose SWEEP_DETECTORS row is deleted (the serve keeps the old regex).
+
+    ``serve_idents`` (the serve-ident pass, docs/plans/serve-idents-and-avenue-
+    support.md): the serve's enabler arm becomes the lanes' own structural idents
+    and the regex stays on the SEARCH side only (what card-search runs); the
+    structured dims above are unaffected.
     """
     d_regex = (
         regex
@@ -1339,12 +1356,13 @@ def _sweep_spec_with_extras(
         label,
         avenue,
         {"oracle": d_regex},
-        d_regex,
+        None if serve_idents else d_regex,
         extras=extras,
         serve_power_min=serve_power_min,
         serve_toughness_min=serve_toughness_min,
         serve_toughness_over_power=serve_toughness_over_power,
         serve_keywords=serve_keywords,
+        serve_idents=serve_idents,
     )
 
 

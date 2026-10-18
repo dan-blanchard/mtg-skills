@@ -105,12 +105,18 @@ SPECS_3: dict[tuple[str, str], SignalSpec] = {
     ("ki_counter_makers", "you"): _spec(
         *SWEEP_LABELS["ki_counter_makers"],
         {"oracle": r"\bki counters?\b"},
-        r"\bki counters?\b",
+        # Serve idents (2026-10-18): the regex matched exactly the lane's own cards; the
+        # lane is the source of truth.
+        None,
+        serve_idents=frozenset({"ki_counter_makers|you|", "ki_counter_matters|you|"}),
     ),
     ("ki_counter_matters", "you"): _spec(
         *SWEEP_LABELS["ki_counter_matters"],
         {"oracle": r"\bki counters?\b"},
-        r"\bki counters?\b",
+        # Serve idents (2026-10-18): the regex matched exactly the lane's own cards; the
+        # lane is the source of truth.
+        None,
+        serve_idents=frozenset({"ki_counter_makers|you|", "ki_counter_matters|you|"}),
     ),
     ("seek_matters", "you"): _spec(
         *SWEEP_LABELS["seek_matters"],
@@ -141,7 +147,10 @@ SPECS_3: dict[tuple[str, str], SignalSpec] = {
     ("destroy_legendary", "any"): _spec(
         *SWEEP_LABELS["destroy_legendary"],
         {"oracle": r"destroy (?:up to one )?target legendary (?:permanent|creature)"},
-        r"destroy (?:up to one )?target legendary (?:permanent|creature)",
+        # Serve idents (2026-10-18): the regex missed 'destroy all legendary creatures'
+        # (Invasion of Fiora).
+        None,
+        serve_idents=frozenset({"destroy_legendary|any|"}),
     ),
     # ADR-0027: the four bending lanes had their oracle-regex SWEEP_DETECTORS rows
     # deleted (detection moved to the Card IR — the kept word-detector mirror in
@@ -152,7 +161,10 @@ SPECS_3: dict[tuple[str, str], SignalSpec] = {
     ("airbend_makers", "you"): _spec(
         *SWEEP_LABELS["airbend_makers"],
         {"oracle": r"\bairbend(?:ing|s)?\b"},
-        r"\bairbend(?:ing|s)?\b",
+        # Serve idents (2026-10-18): the regex matched exactly the lane's own cards; the
+        # lane is the source of truth.
+        None,
+        serve_idents=frozenset({"airbend_makers|you|"}),
     ),
     # _matters sweep (ADR-0034): earthbend split. The DOER arm (earthbend_makers,
     # keyword bearers) and the PAYOFF arm (earthbend_matters, keyword-less cross-bend
@@ -162,12 +174,18 @@ SPECS_3: dict[tuple[str, str], SignalSpec] = {
     ("earthbend_makers", "you"): _spec(
         *SWEEP_LABELS["earthbend_makers"],
         {"oracle": r"\bearthbend(?:ing|s)?\b"},
-        r"\bearthbend(?:ing|s)?\b",
+        # Serve idents (2026-10-18): the regex matched exactly the lane's own cards; the
+        # lane is the source of truth.
+        None,
+        serve_idents=frozenset({"earthbend_makers|you|", "earthbend_matters|you|"}),
     ),
     ("earthbend_matters", "you"): _spec(
         *SWEEP_LABELS["earthbend_matters"],
         {"oracle": r"\bearthbend(?:ing|s)?\b"},
-        r"\bearthbend(?:ing|s)?\b",
+        # Serve idents (2026-10-18): the regex matched exactly the lane's own cards; the
+        # lane is the source of truth.
+        None,
+        serve_idents=frozenset({"earthbend_makers|you|", "earthbend_matters|you|"}),
     ),
     # _matters sweep (ADR-0034): waterbend split. The DOER arm (waterbend_makers,
     # keyword bearers) and the PAYOFF arm (waterbend_matters) both serve the same
@@ -176,12 +194,18 @@ SPECS_3: dict[tuple[str, str], SignalSpec] = {
     ("waterbend_makers", "you"): _spec(
         *SWEEP_LABELS["waterbend_makers"],
         {"oracle": r"\bwaterbend(?:ing|s)?\b"},
-        r"\bwaterbend(?:ing|s)?\b",
+        # Serve idents (2026-10-18): the regex matched exactly the lane's own cards; the
+        # lane is the source of truth.
+        None,
+        serve_idents=frozenset({"waterbend_makers|you|", "waterbend_matters|you|"}),
     ),
     ("waterbend_matters", "you"): _spec(
         *SWEEP_LABELS["waterbend_matters"],
         {"oracle": r"\bwaterbend(?:ing|s)?\b"},
-        r"\bwaterbend(?:ing|s)?\b",
+        # Serve idents (2026-10-18): the regex matched exactly the lane's own cards; the
+        # lane is the source of truth.
+        None,
+        serve_idents=frozenset({"waterbend_makers|you|", "waterbend_matters|you|"}),
     ),
     # _matters sweep (ADR-0034): firebending split. The MAKER arm (firebending_makers,
     # Firebending-keyword bearers) and the PAYOFF arm (firebending_matters, keyword-less
@@ -191,12 +215,18 @@ SPECS_3: dict[tuple[str, str], SignalSpec] = {
     ("firebending_makers", "you"): _spec(
         *SWEEP_LABELS["firebending_makers"],
         {"oracle": r"\bfirebend(?:ing|s)?\b"},
-        r"\bfirebend(?:ing|s)?\b",
+        # Serve idents (2026-10-18): the regex served the name of a plain burn spell
+        # (Firebending Lesson).
+        None,
+        serve_idents=frozenset({"firebending_makers|you|", "firebending_matters|you|"}),
     ),
     ("firebending_matters", "you"): _spec(
         *SWEEP_LABELS["firebending_matters"],
         {"oracle": r"\bfirebend(?:ing|s)?\b"},
-        r"\bfirebend(?:ing|s)?\b",
+        # Serve idents (2026-10-18): the regex served the name of a plain burn spell
+        # (Firebending Lesson).
+        None,
+        serve_idents=frozenset({"firebending_makers|you|", "firebending_matters|you|"}),
     ),
     # ADR-0027 (t2b2-A): aura_equip_kw_grant / counter_grants_kw /
     # conditional_self_protection had their oracle-regex SWEEP_DETECTORS rows deleted
@@ -266,7 +296,10 @@ SPECS_3: dict[tuple[str, str], SignalSpec] = {
     ("stickers_matter", "you"): _spec(
         *SWEEP_LABELS["stickers_matter"],
         {"oracle": STICKERS_MATTER_REGEX},
-        STICKERS_MATTER_REGEX,
+        # Serve idents (2026-10-18): the regex matched exactly the lane's own cards; the
+        # lane is the source of truth.
+        None,
+        serve_idents=frozenset({"stickers_matter|you|"}),
     ),
     # ADR-0027 tranche2-C: extra_land_drop had its oracle-regex SWEEP_DETECTORS row
     # deleted (detection moved to the Card IR — cheat_play / topdeck_select with a Land
@@ -281,8 +314,10 @@ SPECS_3: dict[tuple[str, str], SignalSpec] = {
                 r"|you may put a land [^.]*onto the battlefield"
             )
         },
-        r"put a land(?: card)? from your hand onto the battlefield"
-        r"|you may put a land [^.]*onto the battlefield",
+        # Serve idents (2026-10-18): the regex missed library-to-battlefield land puts
+        # (Kamahl's Druidic Vow).
+        None,
+        serve_idents=frozenset({"extra_land_drop|you|"}),
     ),
     # ADR-0027: companion_keyword had its oracle-regex SWEEP_DETECTORS row deleted
     # (detection moved to the Scryfall `companion` keyword). The SERVE pool stays
@@ -297,8 +332,10 @@ SPECS_3: dict[tuple[str, str], SignalSpec] = {
                 r"starting deck|your starting deck contains"
             )
         },
-        r"companion —|each (?:creature |permanent )?card in your starting deck"
-        r"|your starting deck contains",
+        # Serve idents (2026-10-18): the regex matched exactly the lane's own cards; the
+        # lane is the source of truth.
+        None,
+        serve_idents=frozenset({"companion_keyword|you|"}),
     ),
     # ADR-0027: has_soulbond had its oracle-regex SWEEP_DETECTORS row deleted
     # (detection moved to the Card IR — the Scryfall `soulbond` keyword + a
@@ -309,7 +346,10 @@ SPECS_3: dict[tuple[str, str], SignalSpec] = {
     ("has_soulbond", "you"): _spec(
         *SWEEP_LABELS["has_soulbond"],
         {"oracle": r"\bsoulbond\b"},
-        r"\bsoulbond\b",
+        # Serve idents (2026-10-18): the regex matched exactly the lane's own cards; the
+        # lane is the source of truth.
+        None,
+        serve_idents=frozenset({"has_soulbond|you|"}),
     ),
     # ADR-0027: has_devour had its oracle-regex SWEEP_DETECTORS row deleted
     # (detection moved to the Card IR — the Scryfall `devour` keyword + phase's
@@ -320,7 +360,10 @@ SPECS_3: dict[tuple[str, str], SignalSpec] = {
     ("has_devour", "you"): _spec(
         *SWEEP_LABELS["has_devour"],
         {"oracle": r"\bdevour\b"},
-        r"\bdevour\b",
+        # Serve idents (2026-10-18): the regex served 'Devour' in card names (Devour in
+        # Flames, Intellect Devourer).
+        None,
+        serve_idents=frozenset({"has_devour|you|"}),
     ),
     # ADR-0027 tail-supplement: boast/exhaust/explore/phasing/end_the_turn/
     # trigger_doubling each had their oracle-regex SWEEP_DETECTORS row deleted
@@ -332,24 +375,36 @@ SPECS_3: dict[tuple[str, str], SignalSpec] = {
     ("boast_makers", "you"): _spec(
         *SWEEP_LABELS["boast_makers"],
         {"oracle": r"\bboast\b"},
-        r"\bboast\b",
+        # Serve idents (2026-10-18): the regex matched exactly the lane's own cards; the
+        # lane is the source of truth.
+        None,
+        serve_idents=frozenset({"boast_makers|you|", "boast_matters|you|"}),
     ),
     ("boast_matters", "you"): _spec(
         *SWEEP_LABELS["boast_matters"],
         {"oracle": r"\bboast\b"},
-        r"\bboast\b",
+        # Serve idents (2026-10-18): the regex matched exactly the lane's own cards; the
+        # lane is the source of truth.
+        None,
+        serve_idents=frozenset({"boast_makers|you|", "boast_matters|you|"}),
     ),
     # _matters sweep (ADR-0034): the MAKER arm of the exhaust split — cards carrying
     # an Exhaust ability. Same \bexhaust\b serve pool as the payoff arm.
     ("exhaust_makers", "you"): _spec(
         *SWEEP_LABELS["exhaust_makers"],
         {"oracle": r"\bexhaust\b"},
-        r"\bexhaust\b",
+        # Serve idents (2026-10-18): the regex matched exactly the lane's own cards; the
+        # lane is the source of truth.
+        None,
+        serve_idents=frozenset({"exhaust_makers|you|", "exhaust_matters|you|"}),
     ),
     ("exhaust_matters", "you"): _spec(
         *SWEEP_LABELS["exhaust_matters"],
         {"oracle": r"\bexhaust\b"},
-        r"\bexhaust\b",
+        # Serve idents (2026-10-18): the regex matched exactly the lane's own cards; the
+        # lane is the source of truth.
+        None,
+        serve_idents=frozenset({"exhaust_makers|you|", "exhaust_matters|you|"}),
     ),
     # _matters sweep (ADR-0034): the MAKER arm of the explore split — creatures that
     # explore. Same \bexplores?\b serve pool as the payoff arm.
@@ -366,7 +421,10 @@ SPECS_3: dict[tuple[str, str], SignalSpec] = {
     ("phasing_makers", "you"): _spec(
         *SWEEP_LABELS["phasing_makers"],
         {"oracle": r"phase out|phases out|phased out"},
-        r"phase out|phases out|phased out",
+        # Serve idents (2026-10-18): the regex served phasing's reminder text on a lock
+        # aura (Cloak of Invisibility).
+        None,
+        serve_idents=frozenset({"phasing_makers|you|"}),
     ),
     # ADR-0027 / _matters sweep (ADR-0034): the Station/Spacecraft lane migrated to the
     # Card IR and then SPLIT into station_makers (the Spacecraft/Planet bodies + the
@@ -378,12 +436,18 @@ SPECS_3: dict[tuple[str, str], SignalSpec] = {
         "Station / Spacecraft",
         "Spacecraft/Planet to station plus ways to charge them",
         {"oracle": STATION_MATTERS_REGEX},
-        STATION_MATTERS_REGEX,
+        # Serve idents (2026-10-18): the regex matched exactly the lane's own cards; the
+        # lane is the source of truth.
+        None,
+        serve_idents=frozenset({"station_makers|you|", "station_matters|you|"}),
     ),
     ("station_matters", "you"): _spec(
         *SWEEP_LABELS["station_matters"],
         {"oracle": STATION_MATTERS_REGEX},
-        STATION_MATTERS_REGEX,
+        # Serve idents (2026-10-18): the regex matched exactly the lane's own cards; the
+        # lane is the source of truth.
+        None,
+        serve_idents=frozenset({"station_makers|you|", "station_matters|you|"}),
     ),
     # ADR-0027: tap_down migrated to the Card IR (its SWEEP_DETECTORS row is deleted, so
     # the auto-register loop no longer builds this spec). Hand-register it reusing the
@@ -393,17 +457,26 @@ SPECS_3: dict[tuple[str, str], SignalSpec] = {
     ("tap_down", "opponents"): _spec(
         *SWEEP_LABELS["tap_down"],
         {"oracle": TAP_DOWN_REGEX},
-        TAP_DOWN_REGEX,
+        # Serve idents (2026-10-18): the regex missed tappers that don't say 'an
+        # opponent controls' (Blustersquall).
+        None,
+        serve_idents=frozenset({"tap_down|opponents|"}),
     ),
     ("end_the_turn", "you"): _spec(
         *SWEEP_LABELS["end_the_turn"],
         {"oracle": r"\bend the turn\b"},
-        r"\bend the turn\b",
+        # Serve idents (2026-10-18): the regex matched exactly the lane's own cards; the
+        # lane is the source of truth.
+        None,
+        serve_idents=frozenset({"end_the_turn|you|"}),
     ),
     ("trigger_doubling", "you"): _spec(
         *SWEEP_LABELS["trigger_doubling"],
         {"oracle": r"triggers? an additional time|trigger an additional time"},
-        r"triggers? an additional time|trigger an additional time",
+        # Serve idents (2026-10-18): the regex matched exactly the lane's own cards; the
+        # lane is the source of truth.
+        None,
+        serve_idents=frozenset({"trigger_doubling|you|"}),
     ),
     # ADR-0027: cant_block_grant had its oracle-regex SWEEP_DETECTORS row deleted
     # (detection moved to the Card IR — phase's `cant_block` effect category + a
@@ -423,7 +496,10 @@ SPECS_3: dict[tuple[str, str], SignalSpec] = {
     ("convoke_matters", "you"): _spec(
         *SWEEP_LABELS["convoke_matters"],
         {"oracle": r"\bconvoke\b"},
-        r"\bconvoke\b",
+        # Serve idents (2026-10-18): the regex matched exactly the lane's own cards; the
+        # lane is the source of truth.
+        None,
+        serve_idents=frozenset({"convoke_makers|you|", "convoke_matters|you|"}),
     ),
     # _matters sweep (ADR-0034): the DOER/ENABLER side of the convoke split (the
     # `convoke` keyword bearers + the "<type> spells you cast have convoke" granters).
@@ -431,7 +507,10 @@ SPECS_3: dict[tuple[str, str], SignalSpec] = {
     ("convoke_makers", "you"): _spec(
         *SWEEP_LABELS["convoke_makers"],
         {"oracle": r"\bconvoke\b"},
-        r"\bconvoke\b",
+        # Serve idents (2026-10-18): the regex matched exactly the lane's own cards; the
+        # lane is the source of truth.
+        None,
+        serve_idents=frozenset({"convoke_makers|you|", "convoke_matters|you|"}),
     ),
     # ADR-0027 t2b4a-B: win_lose_game / alt_cost_keyword / partner_background each had
     # their oracle-regex SWEEP_DETECTORS row deleted (detection moved to the Card IR —
@@ -467,8 +546,10 @@ SPECS_3: dict[tuple[str, str], SignalSpec] = {
                 r"|\bfriends forever\b|\bdoctor's companion\b"
             )
         },
-        r"choose a background|partner with|\bpartner\b(?! with)"
-        r"|\bfriends forever\b|\bdoctor's companion\b",
+        # Serve idents (2026-10-18): the regex served a 'doctor's companion' search (An
+        # Unearthly Child).
+        None,
+        serve_idents=frozenset({"partner_background|you|"}),
         serve_keywords=(
             "partner",
             "partner with",
@@ -490,13 +571,18 @@ SPECS_3: dict[tuple[str, str], SignalSpec] = {
                 r"|silver|gold|fate|incubation) counters?\b"
             )
         },
-        r"\b(?:egg|divinity|prey|bounty|bribery|page|study|knowledge"
-        r"|silver|gold|fate|incubation) counters?\b",
+        # Serve idents (2026-10-18): the regex listed a dozen counter names and missed
+        # the rest (Bomb Squad's fuse counters).
+        None,
+        serve_idents=frozenset({"named_counter_misc|you|"}),
     ),
     ("powerup_matters", "you"): _spec(
         *SWEEP_LABELS["powerup_matters"],
         {"oracle": r"power-up —"},
-        r"power-up —",
+        # Serve idents (2026-10-18): the regex matched exactly the lane's own cards; the
+        # lane is the source of truth.
+        None,
+        serve_idents=frozenset({"powerup_matters|you|"}),
         serve_keywords=("power-up",),
     ),
     # ADR-0027: rad_counter_makers had its oracle-regex SWEEP_DETECTORS row deleted
@@ -506,7 +592,10 @@ SPECS_3: dict[tuple[str, str], SignalSpec] = {
     ("rad_counter_makers", "opponents"): _spec(
         *SWEEP_LABELS["rad_counter_makers"],
         {"oracle": r"\brad counters?\b"},
-        r"\brad counters?\b",
+        # Serve idents (2026-10-18): the regex matched exactly the lane's own cards; the
+        # lane is the source of truth.
+        None,
+        serve_idents=frozenset({"rad_counter_makers|opponents|"}),
     ),
     # ADR-0027: oil_counter_matters had its oracle-regex SWEEP_DETECTORS row deleted
     # (detection moved to the Card IR — phase's place_counter(counter_kind='oil') placer
@@ -519,12 +608,18 @@ SPECS_3: dict[tuple[str, str], SignalSpec] = {
     ("oil_counter_makers", "you"): _spec(
         *SWEEP_LABELS["oil_counter_makers"],
         {"oracle": r"\boil counters?\b"},
-        r"\boil counters?\b",
+        # Serve idents (2026-10-18): the regex matched exactly the lane's own cards; the
+        # lane is the source of truth.
+        None,
+        serve_idents=frozenset({"oil_counter_makers|you|", "oil_counter_matters|you|"}),
     ),
     ("oil_counter_matters", "you"): _spec(
         *SWEEP_LABELS["oil_counter_matters"],
         {"oracle": r"\boil counters?\b"},
-        r"\boil counters?\b",
+        # Serve idents (2026-10-18): the regex matched exactly the lane's own cards; the
+        # lane is the source of truth.
+        None,
+        serve_idents=frozenset({"oil_counter_makers|you|", "oil_counter_matters|you|"}),
     ),
     # ADR-0027: shield_counter_makers had its oracle-regex SWEEP_DETECTORS row deleted
     # (detection moved to the Card IR — phase's place_counter / hascounters
@@ -549,6 +644,9 @@ SPECS_3: dict[tuple[str, str], SignalSpec] = {
             r"|\bfights? (?:up to (?:one|two) )?(?:other )?creature|\bfight each "
             r"other\b|\bfights? it\b|\bfights? (?:another|each)"
         ),
+        # Serve idents (2026-10-18): the regex missed mass and granted fights (Grothama,
+        # All-Devouring).
+        serve_idents=frozenset({"fight_makers|you|"}),
     ),
     # ADR-0027: has_changeling had its oracle-regex SWEEP_DETECTORS row deleted
     # (detection moved to the Card IR — the Scryfall changeling keyword + a "changeling"
@@ -557,7 +655,10 @@ SPECS_3: dict[tuple[str, str], SignalSpec] = {
     ("has_changeling", "you"): _spec(
         *SWEEP_LABELS["has_changeling"],
         {"oracle": r"is every creature type|\bchangeling\b"},
-        r"is every creature type|\bchangeling\b",
+        # Serve idents (2026-10-18): the regex missed 'all creature types' lands and
+        # grants (Mutavault).
+        None,
+        serve_idents=frozenset({"has_changeling|you|"}),
         serve_keywords=("changeling",),
     ),
     # ADR-0027: starting_life_matters had its oracle-regex SWEEP_DETECTORS row deleted
@@ -571,15 +672,18 @@ SPECS_3: dict[tuple[str, str], SignalSpec] = {
                 r"starting life total|starting life total"
             )
         },
-        (
-            r"(?:greater than|less than|above|below|equal to|more than) your "
-            r"starting life total|starting life total"
-        ),
+        # Serve idents (2026-10-18): the regex matched exactly the lane's own cards; the
+        # lane is the source of truth.
+        None,
+        serve_idents=frozenset({"starting_life_matters|you|"}),
     ),
     ("myriad_grant", "you"): _spec(
         *SWEEP_LABELS["myriad_grant"],
         {"oracle": r"gains? myriad|\bmyriad\b"},
-        r"gains? myriad|\bmyriad\b",
+        # Serve idents (2026-10-18): the regex served a card name (The Everflowing Well
+        # // The Myriad Pools).
+        None,
+        serve_idents=frozenset({"myriad_grant|you|"}),
     ),
     ("typed_anthem_multi", "you"): _spec(
         *SWEEP_LABELS["typed_anthem_multi"],
@@ -638,10 +742,10 @@ SPECS_3: dict[tuple[str, str], SignalSpec] = {
                 r"|turned face up this turn"
             )
         },
-        r"\bmorph\b|\bmegamorph\b|\bmanifest\b|\bdisguise\b|\bcloak\b"
-        r"|face-?down creatures?|as a 2/2 face-?down"
-        r"|turn (?:it|that creature|this creature|them|a permanent you control) "
-        r"face up|turn target [^.]*?face up|turned face up this turn",
+        # Serve idents (2026-10-18): the regex missed turned-face-up payoffs (Bonethorn
+        # Valesk) and served 'cloak' in card names (Cloak and Dagger, Entwined).
+        None,
+        serve_idents=frozenset({"facedown_makers|you|", "facedown_matters|you|"}),
     ),
     # _matters sweep (ADR-0034): the MAKER side of the facedown split. facedown_makers
     # fires on the morph/megamorph/disguise/manifest/cloak/manifest-dread bodies that
@@ -660,10 +764,10 @@ SPECS_3: dict[tuple[str, str], SignalSpec] = {
                 r"|turned face up this turn"
             )
         },
-        r"\bmorph\b|\bmegamorph\b|\bmanifest\b|\bdisguise\b|\bcloak\b"
-        r"|face-?down creatures?|as a 2/2 face-?down"
-        r"|turn (?:it|that creature|this creature|them|a permanent you control) "
-        r"face up|turn target [^.]*?face up|turned face up this turn",
+        # Serve idents (2026-10-18): the regex missed turned-face-up payoffs (Bonethorn
+        # Valesk) and served 'cloak' in card names (Cloak and Dagger, Entwined).
+        None,
+        serve_idents=frozenset({"facedown_makers|you|", "facedown_matters|you|"}),
     ),
     # ADR-0027: affinity_type + evasion_denial had their oracle-regex SWEEP_DETECTORS
     # rows deleted (detection moved to the Card IR — affinity ← the Scryfall keyword +
@@ -674,12 +778,18 @@ SPECS_3: dict[tuple[str, str], SignalSpec] = {
     ("affinity_type", "you"): _spec(
         *SWEEP_LABELS["affinity_type"],
         {"oracle": r"\baffinity\b|spells you cast have affinity"},
-        r"\baffinity\b|spells you cast have affinity",
+        # Serve idents (2026-10-18): the regex matched exactly the lane's own cards; the
+        # lane is the source of truth.
+        None,
+        serve_idents=frozenset({"affinity_type|you|"}),
     ),
     ("evasion_denial", "opponents"): _spec(
         *SWEEP_LABELS["evasion_denial"],
         {"oracle": r"can be blocked as though (?:it|they) didn't have"},
-        r"can be blocked as though (?:it|they) didn't have",
+        # Serve idents (2026-10-18): the regex matched exactly the lane's own cards; the
+        # lane is the source of truth.
+        None,
+        serve_idents=frozenset({"evasion_denial|opponents|"}),
     ),
     # ADR-0027: lure_makers had its oracle-regex SWEEP_DETECTORS row deleted (detection
     # moved to the Card IR — a structural `lure` arm + a byte-identical kept mirror for
@@ -690,7 +800,10 @@ SPECS_3: dict[tuple[str, str], SignalSpec] = {
     ("lure_makers", "you"): _spec(
         *SWEEP_LABELS["lure_makers"],
         {"oracle": LURE_MATTERS_REGEX},
-        LURE_MATTERS_REGEX,
+        # Serve idents (2026-10-18): the regex missed subtype lures (Talruum Piper's
+        # 'creatures with flying').
+        None,
+        serve_idents=frozenset({"lure_makers|you|"}),
     ),
     # ADR-0027: damage_doubling had its SWEEP_DETECTORS row deleted (detection moved
     # to the Card IR — the damage_doubling DamageDone-replacement category, now
@@ -734,13 +847,10 @@ SPECS_3: dict[tuple[str, str], SignalSpec] = {
                 r"|for each commander|commander damage"
             )
         },
-        r"commanders? you (?:control|own) (?:have|has|get|gets|gain|gains)"
-        r"|commander creatures? you (?:own|control)"
-        r"|whenever your commander\b|whenever a commander\b"
-        r"|your commander (?:has|have|deals|enters|attacks|gets|gains)"
-        r"|is your commander|it'?s your commander|while [^.]*your commander"
-        r"|it's a copy of your other commander|copy of any of your commanders"
-        r"|each commander you (?:control|own)|for each commander|commander damage",
+        # Serve idents (2026-10-18): the regex missed command-zone tools (Command
+        # Beacon, Hellkite Courser) and served 'If ~ is your commander' colour rules.
+        None,
+        serve_idents=frozenset({"commander_matters|you|"}),
     ),
     ("hand_disruption", "opponents"): _spec(
         *SWEEP_LABELS["hand_disruption"],
@@ -755,13 +865,10 @@ SPECS_3: dict[tuple[str, str], SignalSpec] = {
                 r"|reveals?[^.]*until you say stop"
             )
         },
-        r"look at (?:target player|that player|an opponent|each opponent"
-        r"|target opponent)'?s?'? hands?"
-        r"|plays? with (?:their|his or her) hands? revealed"
-        r"|reveals? (?:their|his or her) hands?"
-        r"|reveals? (?:\w+ )?cards? (?:at random )?from "
-        r"(?:their|his or her|that player's) hand"
-        r"|reveals?[^.]*until you say stop",
+        # Serve idents (2026-10-18): the regex missed reveal-and-choose and look-at-hand
+        # riders (Lay Bare).
+        None,
+        serve_idents=frozenset({"hand_disruption|opponents|"}),
     ),
     # _matters sweep (ADR-0034): the opponent_exile lane SPLIT by role. ADR-0034 lets
     # the avenue still serve makers + payoffs together; only MEMBERSHIP splits.
@@ -787,15 +894,20 @@ SPECS_3: dict[tuple[str, str], SignalSpec] = {
                 r"|opponents own in exile"
             )
         },
-        r"cards? (?:your opponents own|an opponent owns)[^.]*in exile"
-        r"|for each card your opponents own in exile|opponents own in exile",
+        # Serve idents (2026-10-18): the regex matched exactly the lane's own cards; the
+        # lane is the source of truth.
+        None,
+        serve_idents=frozenset({"opponent_exile_matters|opponents|"}),
     ),
     ("villainous_choice", "you"): _spec(
         "Villainous choice",
         "villainous-choice cards (the punisher pool a villainous-choice commander — "
         "The Valeyard, Davros, Missy — is built to present and double)",
         {"oracle": r"villainous choice"},
-        r"villainous choice",
+        # Serve idents (2026-10-18): the regex matched exactly the lane's own cards; the
+        # lane is the source of truth.
+        None,
+        serve_idents=frozenset({"villainous_choice|you|"}),
     ),
     ("curse_matters", "you"): _spec(
         "Curses",
@@ -813,7 +925,10 @@ SPECS_3: dict[tuple[str, str], SignalSpec] = {
         "Dice rolling",
         "dice-rolling enablers plus roll-result payoffs",
         {"oracle": r"roll (?:a|one or more|two|\d+) (?:d\d+|dice|die)|\bd20\b"},
-        r"roll (?:a|one or more|two|\d+) (?:d\d+|dice|die)|whenever you roll",
+        # Serve idents (2026-10-18): the regex missed 'roll three six-sided dice'
+        # rollers (Circuits Act).
+        None,
+        serve_idents=frozenset({"dice_makers|you|", "dice_matters|you|"}),
     ),
     ("dice_matters", "you"): _spec(
         "Dice payoffs",
@@ -822,7 +937,10 @@ SPECS_3: dict[tuple[str, str], SignalSpec] = {
             "oracle": r"whenever you roll"
             r"|roll (?:a|one or more|two|\d+) (?:d\d+|dice|die)"
         },
-        r"whenever you roll|roll (?:a|one or more|two|\d+) (?:d\d+|dice|die)",
+        # Serve idents (2026-10-18): the regex missed 'roll three six-sided dice'
+        # rollers (Circuits Act).
+        None,
+        serve_idents=frozenset({"dice_makers|you|", "dice_matters|you|"}),
     ),
     # A crime (CR 700.13) targets opponents / their permanents / spells they control —
     # i.e. targeted removal + explicit-opponent-target. The SEARCH's bare
@@ -838,7 +956,10 @@ SPECS_3: dict[tuple[str, str], SignalSpec] = {
                 r"|deals? (?:\d+|x) damage to target (?:creature|player|opponent)"
             )
         },
-        r"commit(?:s|ted)? a crime|whenever you commit",
+        # Serve idents (2026-10-18): the regex matched exactly the lane's own cards; the
+        # lane is the source of truth.
+        None,
+        serve_idents=frozenset({"crimes_matter|you|"}),
     ),
     ("connive_makers", "you"): _spec(
         "Connive",
@@ -906,7 +1027,10 @@ SPECS_3: dict[tuple[str, str], SignalSpec] = {
             "oracle": r"enchanted (?:creature|permanent)[^.]*"
             r"base power and toughness [01]/\d+"
         },
-        r"enchanted (?:creature|permanent)[^.]*base power and toughness [01]/\d+",
+        # Serve idents (2026-10-18): the regex missed Cursed Role makers (Cursed
+        # Courtier) and served a pump aura (Awakened Awareness).
+        None,
+        serve_idents=frozenset({"single_target_neutralize|you|"}),
     ),
     # VETO exile-and-return (blink): a card that exiles a creature then returns it is a
     # flicker engine, not removal (Ephemerate, Cloudshift) — CR 603.6e.
@@ -925,13 +1049,19 @@ SPECS_3: dict[tuple[str, str], SignalSpec] = {
     ("exile_until_leaves", "you"): _spec(
         *SWEEP_LABELS["exile_until_leaves"],
         {"oracle": r"exile [^.]*until [^.]*leaves the battlefield"},
-        r"exile [^.]*until [^.]*leaves the battlefield",
+        # Serve idents (2026-10-18): the regex missed the two-trigger O-Ring template
+        # (Oblivion Ring).
+        None,
+        serve_idents=frozenset({"exile_until_leaves|you|"}),
     ),
     ("counter_control", "you"): _spec(
         "Counterspells / control",
         "counterspells and stack interaction",
         {"oracle": r"counter target"},
-        r"counter target",
+        # Serve idents (2026-10-18): the regex missed 'counter that spell' triggers
+        # (Boromir, Glyph Keeper).
+        None,
+        serve_idents=frozenset({"counter_control|you|"}),
     ),
     # The bare `… (gain|have)` tail matched any "creatures you control gain/have X". Tie
     # it to the actual keyword-grant list or a static (+N/+N, not "until end of turn")
@@ -1079,8 +1209,13 @@ SPECS_3: dict[tuple[str, str], SignalSpec] = {
         "Hand attack",
         "forced discard and hand disruption aimed at opponents",
         {"oracle": r"opponent discards|each player discards|target player discards"},
-        r"(?:each opponent|target opponent|an opponent|that opponent|each player"
-        r"|target player|that player) discards|opponent[^.]*discards",
+        # Serve idents (2026-10-18): the regex missed combat / ETB discard triggers
+        # (Alley Grifters, Blightning) and served self-loot and ward costs (Compulsive
+        # Research, Reality Smasher).
+        None,
+        serve_idents=frozenset(
+            {"opponent_discard|each|", "opponent_discard|opponents|"}
+        ),
         extras=(_DISCARD_PUNISH_EXTRA, _HELLBENT_PUNISH_EXTRA),
     ),
     # Bare `can't be blocked` matched the menace/flying REMINDER "can't be blocked
@@ -1206,7 +1341,10 @@ SPECS_3: dict[tuple[str, str], SignalSpec] = {
         "Cascade",
         "high-value spells to hit off cascade plus more cascade enablers",
         {"oracle": r"\bcascade\b"},
-        r"\bcascade\b",
+        # Serve idents (2026-10-18): the regex matched exactly the lane's own cards; the
+        # lane is the source of truth.
+        None,
+        serve_idents=frozenset({"cascade_makers|you|", "cascade_matters|you|"}),
         # Cascade cheats big nonland bombs into play for free — credit genuine fatties
         # (Ghalta, Etali) as the payoff, not just more cascade sources.
         serve_power_min=6,
@@ -1219,14 +1357,20 @@ SPECS_3: dict[tuple[str, str], SignalSpec] = {
         "Cascade payoffs",
         "high-value spells to hit off cascade plus more cascade enablers",
         {"oracle": r"\bcascade\b"},
-        r"\bcascade\b",
+        # Serve idents (2026-10-18): the regex matched exactly the lane's own cards; the
+        # lane is the source of truth.
+        None,
+        serve_idents=frozenset({"cascade_makers|you|", "cascade_matters|you|"}),
         serve_power_min=6,
     ),
     ("regenerate_makers", "you"): _spec(
         "Regenerate / resilience",
         "regeneration and resilience to keep your threats around",
         {"oracle": r"\bregenerate\b"},
-        r"\bregenerate\b",
+        # Serve idents (2026-10-18): the regex matched exactly the lane's own cards; the
+        # lane is the source of truth.
+        None,
+        serve_idents=frozenset({"regenerate_makers|you|"}),
         # A regenerating/resilient beater is a voltron plan — surface the gear, buff
         # Auras (Rancor, Bear Umbra), and protection (Alpha Authority) you suit it with.
         extras=(_COMBAT_SUPPORT_EXTRA, _VOLTRON_PROTECT_EXTRA),

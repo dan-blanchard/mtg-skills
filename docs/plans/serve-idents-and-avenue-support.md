@@ -76,6 +76,39 @@ the snapshot builder scans.
 Done when: zero `_spec(... <regex>)` calls remain in `data_*.py` for a producible
 key, or each remaining one is a backlog row naming the lane gap.
 
+**Measured 2026-10-18 (first batch shipped).** Four agents, one per spec file,
+worked the 184 "mechanical" specs with a per-spec delta (regex-only losses /
+ident-only gains over the pool) before each decision: **141 converted, 43 held.**
+`_sweep_spec_with_extras` takes `serve_idents`; the ident arm accepts a
+`key|scope|*` subject wildcard. Every conversion is pinned by a real-card test
+(`tests/deck-forge/test_serve_idents_data_{1..4}.py`, 15 cards added to the
+snapshot). The holds, each a lane gap recorded in the backlog ("Lane gaps behind
+the held serve specs"):
+
+| held spec(s) | the lane misses |
+|---|---|
+| token_maker, creature_etb, damage_for_each, creatures_matter, edict_makers, token_doubling | converted later with the `token_maker\|you\|*` wildcard once the amass / endure / populate reminder-text makers are read (today they reach the serve only through the regex) |
+| plus_one_makers / matters, amass_makers, incubate_makers, modified_matters | keyword actions that place +1/+1 counters (bolster, adapt, renown, monstrosity, connive, explore, endure, awaken) |
+| graveyard_makers / matters (you) | surveil (only `topdeck_selection`, shared with scry), mill-as-cost |
+| treasure_makers / matters | granted and replacement Treasure makers; "if mana from a Treasure was spent" payoffs |
+| discard_makers / matters / outlet | random-discard costs, granted connive |
+| food_makers / matters | forage, granted / nested / replacement Food creation |
+| energy_makers / matters | energy payers, variable amounts, "whenever you get {E}", doublers |
+| venture_makers / matters | "complete a dungeon", a modal venture mode, granted venture |
+| foretell_makers / matters | foretell granters, cost reducers, foretell-only mana |
+| damage_redirect | "all damage that would be dealt to you is dealt to X instead", life-floor statics |
+| gain_control | opponent's library to the battlefield (Bribery, Acquire), opponent-chosen and granted theft |
+| lifegain_makers / matters | not a gap but a false positive: `lifegain_matters` emits for self-bleed engines (Dark Confidant, Phyrexian Arena), so the ident arm would serve them into a Lifegain avenue |
+| counter_place_trigger, counter_replace_bonus (Prairie Dog) | "counters on a creature you don't control", granted triggers |
+| debuff_makers, tapper_engine, tap_untap_matters | variable -X/-X and one-sided debuffs; granted tap abilities and "becomes tapped" triggers |
+| shield_counter_makers, alt_cost_keyword, explore_*, connive_makers, attractions_matter, suspend_matters, low_power_matters, modified_matters | "with a shield counter" puts; granted sneak / mayhem / web-slinging; explore payoffs; no `connive_matters` key; Step Right Up emits nothing; Clockspinning; cast-from-top with a power filter |
+
+Lane false positives the pass exposed: Impending Flux on `suspend_matters`, The
+Book of Exalted Deeds on `exalted`, Investigator's Journal on `suspect_makers`,
+Astarion's "Friends —" on `partner_background`, Consign to Memory past
+`colorless_matters`' veto, and the self-bleed engines (Dark Confidant) that
+`lifegain_matters` emits for — see the lifegain row of the backlog entry.
+
 ## 3. Pass B: an avenue needs cards that care
 
 `_tuner.metrics.focus` measures an avenue's depth as the number of nonland cards
