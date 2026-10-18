@@ -14,23 +14,31 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   traceback instead of landing in the envelope's `missing`. Catch the per-name
   network failure in `lookup_single`'s batch loop and report it as missing; keep
   the hard exit for a bulk that can't be read at all.
-- **The polymorph deck's tune is still off after the cheat avenue survives.** The
-  avenue collapse (a commander-held avenue swallowed by "Big creatures / power
-  matters") and the cheat serve's oracle regex are fixed (2026-10-17: `focus`
-  exempts an avenue the commander emits from the ≥80 % collapse; the serve's
-  enabler arm is the lane's own ident). "Cheat into play" now reads as a viable
-  sub-avenue on the Multiverse Reforged precon, but the swaps are unchanged (Kari
-  Zev / Patchwork Crawler / Hidden Strings): the spread-thin cut picks by play
-  rate and the role-over cuts by band, and neither reads a creature's *flip
-  quality* (Omnath, Ginger are poor flips; Hullbreaker Horror, Galactus are great
-  ones), nor is the enabler side (cheap noncreature token makers as fodder)
-  credited by any avenue. A polymorph read would pair `cheat_into_play` held by
-  the commander with `token_maker` enablers (the `etb_payoff_x_flood_commander`
-  pair already anchors on both) and rank a creature by what it does on entry,
-  not by castability. Note from the serve switch: the lane's ident now serves
-  Zur the Enchanter and Stoneforge Mystic (any Hand/Library→Battlefield put) into
-  a "big creatures" avenue — the lane's breadth, worth a payoff-shape carve-out
-  if it shows up in a Find.
+- **What the polymorph tune still gets wrong** (after 2026-10-17/18: the
+  commander-held avenue survives the collapse, the cheat serve reads the lane,
+  and `focus` demotes a deep avenue nobody cares about to *fed* — see
+  `docs/plans/serve-idents-and-avenue-support.md`). The Multiverse Reforged
+  precon now reads Cheat into play (commander-held, 7 carers) as its main lane,
+  and its swaps are Inevitable Betrayal, Glimpse of Tomorrow and the Slasher
+  near-miss. Left: (a) no cut ranking reads a creature's *flip quality* (a
+  board-wipe-over trim still picks Ob Nixilis, a great flip, by band alone); (b)
+  the enabler side (cheap noncreature token makers as fodder) is credited by no
+  avenue — a polymorph read would pair the commander-held `cheat_into_play` with
+  `token_maker` (the `etb_payoff_x_flood_commander` pair already anchors on
+  both); (c) lane co-emission inflates sibling avenues: every reveal-until
+  polymorph also emits `topdeck_selection` / `dig_until` (Top-deck selection
+  reads 8 carers), and artifact-token makers (Skrelv's Hive, White Sun's
+  Twilight) emit `artifacts_matter` (Artifacts reads 5 carers, a "main" theme on
+  16 rocks); (d) the cheat serve's ident serves Zur the Enchanter and Stoneforge
+  Mystic (any Hand/Library→Battlefield put) into the avenue — the lane's
+  breadth, worth a payoff-shape carve-out if it shows up in a Find. Two
+  loose ends of the fed/built read (2026-10-18 review): `classify_deck` buckets
+  a card as engine when it serves ANY avenue, fed ones included, so a card
+  whose only avenues are fed still feeds `engine_pool`, SPINE-LED and the
+  top-2 concentration (classification runs before focus; fixing it is a second
+  pass or a fed-aware re-bucket); and the SPA's Tune panel renders viable and
+  emerging avenues only, so `fed` never reaches the browser (a `Tune.svelte`
+  change plus a frontend build).
 
 - **Competitive Brawl's "banned as a commander" reads as `restricted`.** The
   2026-10-12 B&R update introduced the category (mtg.wiki "Competitive Brawl"

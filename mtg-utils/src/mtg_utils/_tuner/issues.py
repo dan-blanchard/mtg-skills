@@ -280,12 +280,20 @@ class Sourcing:
             spec = self.avenue(label or "")
             return Remedy(spec) if spec is not None else None
         if kind == "role_over":
-            # Trim the excess: the cut comes from the over role. The add deepens an
-            # under-supported emerging theme if any (commit while trimming), else the
-            # main theme. The engine's full-role filter keeps it from re-filling the
-            # role being trimmed.
-            emerging = self._focus.get("emerging", [])
-            spec = self.avenue(emerging[0]["label"]) if emerging else None
+            # Trim the excess: the cut comes from the over role. The add deepens the
+            # commander's own lane when the deck has one (it is the main theme and
+            # the first viable avenue — a polymorph commander's trimmed rock becomes
+            # a polymorph piece, not a card for whichever direction is emerging),
+            # else an under-supported emerging theme if any (commit while trimming),
+            # else the main theme. The engine's full-role filter keeps it from
+            # re-filling the role being trimmed.
+            spec: dict | None = None
+            held = self._focus.get("commander_avenues") or []
+            if held:
+                spec = self.avenue(held[0])
+            if spec is None:
+                emerging = self._focus.get("emerging", [])
+                spec = self.avenue(emerging[0]["label"]) if emerging else None
             if spec is None:
                 spec = self.main_avenue()
             return Remedy(spec, cut_from=cut_over(role or ""))

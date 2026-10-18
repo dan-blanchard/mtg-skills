@@ -11,7 +11,7 @@ ordering the swap engine acts on (deck-forge CONTEXT.md, "Tune").
 from __future__ import annotations
 
 import math
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from typing import TYPE_CHECKING
 
 from mtg_utils._analysis import signal_keys
@@ -260,12 +260,40 @@ def efficiency(
 # ── Focus ─────────────────────────────────────────────────────────────────────
 
 
+# Doer lanes whose payoff sibling doesn't follow the ``<x>_makers`` / ``<x>_matters``
+# spelling (ADR-0034's naming): key -> the payoff keys, checked against the manifest.
+_CARES_ALIASES: dict[str, tuple[str, ...]] = {"token_maker": ("tokens_matter",)}
+
+
+def _cares_keys(key: str) -> tuple[str, ...]:
+    """The keys whose emitters CARE about an avenue opened by ``key``.
+
+    A ``<x>_makers`` (doer) lane is fed by its makers, but the cards that care are
+    the payoff side: ``<x>_matters`` and ``wants_<x>`` (a card whose own identity
+    wants the mechanic done to it), whichever the lanes serve. A doer lane with no
+    served payoff sibling (mill, edict, clone, theft, …) is cared about by its
+    doers — the deck doing the thing is the theme. Every other key cares about
+    itself."""
+    if key.endswith("_makers"):
+        base = key[: -len("_makers")]
+        candidates: tuple[str, ...] = (f"{base}_matters", f"wants_{base}")
+    elif key in _CARES_ALIASES:
+        candidates = _CARES_ALIASES[key]
+    else:
+        return (key,)
+    from mtg_utils._analysis.lanes import SERVED_SIGNAL_KEYS
+
+    payoffs = tuple(k for k in candidates if k in SERVED_SIGNAL_KEYS)
+    return payoffs or (key,)
+
+
 def focus(
     classes: Sequence[CardClass],
     *,
     deck_size: int,
     deck_signals: Sequence = (),
     commander_idents: frozenset[tuple[str, str, str]] = frozenset(),
+    emitters: Mapping[tuple[str, str, str], frozenset[str]] | None = None,
     medium: str = "paper",
     tribal_payoff_subjects: frozenset[str] | None = None,
     cal: Calibration = COMMANDER,
@@ -305,11 +333,30 @@ def focus(
     # main, so it gets a lower floor — not the same bar as the main).
     main_floor = max(1, cal.scaled(cal.focus_main, deck_size))
     sub_floor = max(1, cal.scaled(cal.focus_sub, deck_size))
-    candidates = sorted(
-        (lbl for lbl, d in depth.items() if d >= sub_floor),
-        key=lambda lbl: depth[lbl],
-        reverse=True,
-    )
+    # The cards that CARE about each avenue (its "carers"): those emitting its key,
+    # read off the payoff side of the lane (a ``<x>_makers`` avenue is fed by the
+    # makers, but the cards that care about it are the ``<x>_matters`` emitters —
+    # nine cards in the Jace precon gain life, and only Niv-Mizzet cares). The
+    # read ignores scope: a doer lane emits ``any`` / ``each`` where its payoff
+    # sibling emits ``you``. ``None`` (a caller with no ``read_deck_signals`` pass:
+    # the older focus tests) skips the gate: every deep avenue is built.
+    cares: dict[str, set[str]] = {}
+    if emitters is not None:
+        by_key_subject: dict[tuple[str, str], set[str]] = {}
+        for (ekey, _scope, esubject), names in emitters.items():
+            by_key_subject.setdefault((ekey, esubject), set()).update(names)
+        for sig in deck_signals:
+            spec = spec_for(sig)
+            if spec is None:
+                continue
+            bucket = cares.setdefault(spec.label, set())
+            for ckey in _cares_keys(sig.key):
+                bucket.update(by_key_subject.get((ckey, sig.subject), ()))
+    carer_floor = max(1, cal.scaled(cal.focus_carers, deck_size))
+
+    def care_count(lbl: str) -> int:
+        return len(cares.get(lbl, ()))
+
     # An avenue the COMMANDER itself holds (``commander_idents``: the idents the
     # commander emits, read record-level by ``read_deck_signals`` so a transform
     # commander's faces and a folded object count) is the deck's own axis. It is
@@ -330,15 +377,41 @@ def focus(
         s = set(members[lbl])
         return any(len(s & set(members[k])) / len(s) >= 0.8 for k in kept)
 
-    # Collapse near-duplicate avenues that are really one theme: drop a shallower avenue
-    # ≥80% covered by a deeper one already kept (e.g. Spellslinger / Magecraft).
+    def built(lbl: str, floor: int) -> bool:
+        """Deep in feeders AND enough cards care (or the commander does). On the
+        stock Jace precon "Historic" was 32 deep — every legendary creature and
+        every rock serves it — with one card caring (Jhoira), and read as the
+        main theme while the polymorph engine read as a sub (2026-10-17)."""
+        return emitters is None or lbl in commander_held or care_count(lbl) >= floor
+
+    def rank_key(lbl: str) -> tuple[bool, int, int]:
+        """The commander's own lane first (the issue remedies source adds from
+        the first viable avenue), then by how many cards care, then by depth."""
+        return (lbl in commander_held, care_count(lbl), depth[lbl])
+
+    deep = [lbl for lbl, d in depth.items() if d >= sub_floor]
+    # Built avenues rank by ``rank_key``; a fed avenue (deep, but nobody built
+    # toward it) is reported apart and shapes nothing.
+    candidates = sorted(
+        (lbl for lbl in deep if built(lbl, carer_floor)), key=rank_key, reverse=True
+    )
+    fed = [lbl for lbl in deep if not built(lbl, carer_floor)]
+    # Collapse near-duplicate avenues that are really one theme: drop an avenue
+    # ≥80% covered by one already kept — a higher-ranked one, which since the
+    # commander-held / carers ordering above need not be the deeper one (e.g.
+    # Spellslinger / Magecraft).
     viable: list[str] = []
     for lbl in candidates:
         if near_duplicate(lbl, viable):
             continue
         viable.append(lbl)
-    mains = [lbl for lbl in viable if depth[lbl] >= main_floor]
-    subs = [lbl for lbl in viable if depth[lbl] < main_floor]
+
+    # The commander's own lane is a main theme by definition, whatever its depth.
+    def is_main(lbl: str) -> bool:
+        return lbl in commander_held or depth[lbl] >= main_floor
+
+    mains = [lbl for lbl in viable if is_main(lbl)]
+    subs = [lbl for lbl in viable if not is_main(lbl)]
 
     # Emerging themes: a real-but-under-supported direction (emerging floor ≤ depth <
     # sub floor) the deck started but didn't commit to — flagged "commit more or cut"
@@ -365,8 +438,13 @@ def focus(
 
     emerging_floor = max(1, cal.scaled(cal.focus_emerging, deck_size))
     emerging: list[str] = []
-    for lbl in sorted(depth, key=lambda x: depth[x], reverse=True):
+    for lbl in sorted(depth, key=rank_key, reverse=True):
         if not emerging_floor <= depth[lbl] < sub_floor:
+            continue
+        # An emerging direction needs at least one card that cares about it;
+        # otherwise it is fed at emerging depth, reported with the deep fed ones.
+        if not built(lbl, 1):
+            fed.append(lbl)
             continue
         if near_duplicate(lbl, viable + emerging):
             continue
@@ -419,24 +497,35 @@ def focus(
         # A substantial engine pool that coheres into no theme at all is scattered.
         verdict = "SPREAD-THIN"
 
+    def avenue_row(lbl: str) -> dict:
+        return {
+            "label": lbl,
+            "depth": depth[lbl],
+            "carers": care_count(lbl),
+            "cards": members[lbl],
+        }
+
     return {
         "verdict": verdict,
         "engine_pool": engine_pool,
         "viable_avenues": [
-            {
-                "label": lbl,
-                "depth": depth[lbl],
-                "cards": members[lbl],
-                "tier": "main" if depth[lbl] >= main_floor else "sub",
-            }
+            {**avenue_row(lbl), "tier": "main" if is_main(lbl) else "sub"}
             for lbl in viable
         ],
         "mains": mains,
         "subs": subs,
-        "emerging": [
-            {"label": lbl, "depth": depth[lbl], "cards": members[lbl]}
-            for lbl in emerging
+        "emerging": [avenue_row(lbl) for lbl in emerging],
+        # Deep in feeders, short of cards that care: reported so the reader sees
+        # "32 cards are historic", shaping no verdict, cut or fit read. Deepest
+        # first.
+        "fed": [
+            avenue_row(lbl)
+            for lbl in sorted(fed, key=lambda lbl: depth[lbl], reverse=True)
         ],
+        # The viable avenues the commander itself holds (its own lanes), in rank
+        # order: the issue remedies deepen these before any emerging direction.
+        "commander_avenues": [lbl for lbl in viable if lbl in commander_held],
+        "carer_floor": carer_floor,
         "main_floor": main_floor,
         "sub_floor": sub_floor,
         "top2_concentration": top2_share,

@@ -400,14 +400,16 @@ def _deck_signal_stats(
     set[tuple[str, str, str]],
     dict[tuple[str, str, str], Signal],
     dict[tuple[str, str, str], int],
+    dict[tuple[str, str, str], set[str]],
 ]:
     """The shared per-card extraction loop backing ``rank_deck_signals`` and
     ``tribal_payoff_subjects``: for every distinct ``(key, scope, subject)``
     ident, its *support* (how many cards feed it), whether the COMMANDER is
-    among those cards, the first ``Signal`` seen for it, and its
-    HIGH-confidence non-commander support (the payoff-grade count — the
-    membership floor's own-subtype signals are deliberately LOW and must
-    never read as payoffs).
+    among those cards, the first ``Signal`` seen for it, its HIGH-confidence
+    non-commander support (the payoff-grade count — the membership floor's
+    own-subtype signals are deliberately LOW and must never read as payoffs),
+    and the names of the cards emitting it (the tuner's "cards that care"
+    read behind an avenue — ``metrics.focus``).
 
     ``resolve_object`` (ADR-0025): when supplied, each COMMANDER also unions
     the structural signals of its folded objects (``folded_object_records``) —
@@ -417,6 +419,7 @@ def _deck_signal_stats(
     from_commander: set[tuple[str, str, str]] = set()
     first: dict[tuple[str, str, str], Signal] = {}
     nc_high: dict[tuple[str, str, str], int] = {}
+    emitters: dict[tuple[str, str, str], set[str]] = {}
     for card in records:
         if not card:
             continue
@@ -452,7 +455,8 @@ def _deck_signal_stats(
             elif sig.confidence == "high":
                 nc_high[ident] = nc_high.get(ident, 0) + 1
             first.setdefault(ident, sig)
-    return support, from_commander, first, nc_high
+            emitters.setdefault(ident, set()).add(card.get("name") or "")
+    return support, from_commander, first, nc_high, emitters
 
 
 def rank_deck_signals(
@@ -473,7 +477,7 @@ def rank_deck_signals(
     the commander's signals extend to the objects its plan brings into play
     (see ``folded_object_records``). The engine wires ``state.object_resolver``;
     ``None`` (the CLIs' default) just skips the fold."""
-    support, from_commander, first, _nc_high = _deck_signal_stats(
+    support, from_commander, first, _nc_high, _emitters = _deck_signal_stats(
         records, commander_names, resolve_object=resolve_object
     )
     return _ranked_from_stats(support, from_commander, first)
@@ -518,12 +522,17 @@ class DeckSignals:
 
     ranked: list[Signal]  # ``rank_deck_signals``' order
     payoff_subjects: frozenset[str]  # ``tribal_payoff_subjects``
-    # The ``(key, scope, subject)`` idents the COMMANDER itself emits (its folded
-    # objects included, ADR-0025) — record-level, so a transform commander's
-    # faces and a folded Ring count, where ``Signal.source`` (the face name)
-    # would not. The tuner's focus exempts these avenues from its near-duplicate
-    # collapse: the commander's own lane is the deck's axis, never a duplicate.
+    # The ``(key, scope, subject)`` idents the COMMANDER itself emits at HIGH
+    # confidence (its folded objects included, ADR-0025) — record-level, so a
+    # transform commander's faces and a folded Ring count, where ``Signal.source``
+    # (the face name) would not; its LOW own-type membership emissions excluded.
+    # The tuner's focus treats these avenues as the deck's own axis: never a
+    # near-duplicate, never fed, a main theme whatever their depth.
     commander_idents: frozenset[tuple[str, str, str]]
+    # ident -> the names of the deck cards emitting it: the cards that CARE about
+    # a lane, as opposed to the (far broader) set whose serve feeds its avenue.
+    # ``metrics.focus`` reads it to tell a built theme from a merely fed one.
+    emitters: dict[tuple[str, str, str], frozenset[str]]
 
 
 def read_deck_signals(
@@ -536,13 +545,21 @@ def read_deck_signals(
     idents from ONE extraction pass. A tune needs all three, and calling the
     helpers separately ran the full per-card lane pass once each per deck (the
     tree build is memoized; the lane pass is not)."""
-    support, from_commander, first, nc_high = _deck_signal_stats(
+    support, from_commander, first, nc_high, emitters = _deck_signal_stats(
         records, commander_names, resolve_object=resolve_object
     )
     return DeckSignals(
         ranked=_ranked_from_stats(support, from_commander, first),
         payoff_subjects=_payoffs_from_stats(first, nc_high),
-        commander_idents=frozenset(from_commander),
+        # HIGH-confidence only: the commander's own LOW membership emissions (a
+        # Goblin commander's own-type ``type_matters``, the go-wide floor) are
+        # membership, never a lane the deck is built around (ADR-0040 companion,
+        # task #101) — they must not waive the tuner's carer floor. The commander
+        # zone is read first, so ``first[ident]`` is the commander's instance.
+        commander_idents=frozenset(
+            ident for ident in from_commander if first[ident].confidence == "high"
+        ),
+        emitters={ident: frozenset(names) for ident, names in emitters.items()},
     )
 
 
@@ -576,7 +593,7 @@ def tribal_payoff_subjects(
     avenue once ANY card opens it — see ``signal_specs._subject_spec``'s
     changeling fold — so depth alone over-credits a tribe nobody actually
     built toward), not a real budding theme."""
-    _support, _from_commander, first, nc_high = _deck_signal_stats(
+    _support, _from_commander, first, nc_high, _emitters = _deck_signal_stats(
         records, commander_names, resolve_object=resolve_object
     )
     return _payoffs_from_stats(first, nc_high)

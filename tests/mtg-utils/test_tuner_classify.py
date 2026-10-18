@@ -312,9 +312,11 @@ def test_read_deck_signals_marks_the_commanders_own_idents():
     index = {c["name"]: c for c in [KRENKO, MURDER]}
     hd = HydratedDeck.from_parsed(deck, by_name=index)
     read = read_deck_signals(hd.records, {"Krenko, Mob Boss"})
+    # HIGH-confidence only: his own-type membership emissions are excluded.
     krenko_idents = {
         (s.key, s.scope, s.subject)
         for s in extract_signals(KRENKO, include_membership=True)
+        if s.confidence == "high"
     }
     murder_only = {
         (s.key, s.scope, s.subject) for s in extract_signals(MURDER)
@@ -323,3 +325,76 @@ def test_read_deck_signals_marks_the_commanders_own_idents():
     assert read.commander_idents == frozenset(krenko_idents)
     assert not read.commander_idents & murder_only
     assert read.ranked == rank_deck_signals(hd.records, {"Krenko, Mob Boss"})
+    # The emitters read names the cards behind each ident: Krenko behind his own
+    # idents, Murder behind its, never the other way round.
+    for ident in krenko_idents:
+        assert "Krenko, Mob Boss" in read.emitters[ident]
+    for ident in murder_only:
+        assert read.emitters[ident] == frozenset({"Murder"})
+
+
+def test_commander_idents_exclude_low_confidence_membership():
+    # Krenko's own Goblin / Warrior type-line membership is a LOW emission (the
+    # go-wide floor) — membership, never a lane the deck is built around, so it
+    # must not waive the tuner's carer floor (ADR-0040 companion, task #101).
+    from mtg_utils._analysis.signals import extract_signals, read_deck_signals
+
+    deck = {
+        "format": "commander",
+        "commanders": [{"name": "Krenko, Mob Boss", "quantity": 1}],
+        "cards": [{"name": "Murder", "quantity": 1}],
+    }
+    hd = HydratedDeck.from_parsed(
+        deck, by_name={c["name"]: c for c in [KRENKO, MURDER]}
+    )
+    low = {
+        (s.key, s.scope, s.subject)
+        for s in extract_signals(KRENKO, include_membership=True)
+        if s.confidence != "high"
+    }
+    assert low  # the test is vacuous without a low membership emission
+    read = read_deck_signals(hd.records, {"Krenko, Mob Boss"})
+    assert not read.commander_idents & low
+    assert read.commander_idents  # the high ones (his token making) remain
+
+
+def test_focus_reads_a_real_deck_signal_pass():
+    # End to end: classify + read_deck_signals + focus on real cards. Krenko's
+    # own lanes are commander-held; nothing is silently dropped between the
+    # viable, emerging and fed lists.
+    from mtg_utils._analysis.signals import read_deck_signals
+    from mtg_utils._tuner.metrics import focus
+
+    deck = {
+        "format": "commander",
+        "commanders": [{"name": "Krenko, Mob Boss", "quantity": 1}],
+        "cards": [
+            {"name": "Goblin Rabblemaster", "quantity": 1},
+            {"name": "Goblin Cratermaker", "quantity": 1},
+            {"name": "Mind Stone", "quantity": 1},
+            {"name": "Murder", "quantity": 1},
+        ],
+    }
+    index = {c["name"]: c for c in [KRENKO, RABBLEMASTER, DUAL, RAMP_ROCK, MURDER]}
+    hd = HydratedDeck.from_parsed(deck, by_name=index)
+    names = {"Krenko, Mob Boss"}
+    read = read_deck_signals(hd.records, names)
+    classes = classify_deck(hd, read.ranked, names, deck_mana=hd.deck_mana)
+    fr = focus(
+        classes,
+        deck_size=100,
+        deck_signals=read.ranked,
+        commander_idents=read.commander_idents,
+        emitters=read.emitters,
+        tribal_payoff_subjects=read.payoff_subjects,
+    )
+    assert set(fr) >= {
+        "viable_avenues",
+        "emerging",
+        "fed",
+        "commander_avenues",
+        "carer_floor",
+    }
+    assert set(fr["commander_avenues"]) <= {a["label"] for a in fr["viable_avenues"]}
+    for row in fr["viable_avenues"] + fr["emerging"] + fr["fed"]:
+        assert {"label", "depth", "carers", "cards"} <= set(row)

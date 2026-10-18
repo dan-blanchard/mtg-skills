@@ -75,6 +75,7 @@ def _focus_sets(hd: HydratedDeck, read: DeckSignals, commander_names: set) -> di
         deck_size=deck_size,
         deck_signals=read.ranked,
         commander_idents=read.commander_idents,
+        emitters=read.emitters,
         tribal_payoff_subjects=read.payoff_subjects,
     )
     return {

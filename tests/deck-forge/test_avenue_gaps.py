@@ -232,7 +232,7 @@ def test_self_recurring_support_counts_cards_not_routes():
     for name in names:
         test_signals(name)
     records = [test_card(n) for n in names]
-    support, _cmd, _first, _nc = _deck_signal_stats(records, set())
+    support, _cmd, _first, _nc, _emitters = _deck_signal_stats(records, set())
     recur = {i: n for i, n in support.items() if i[0] == "self_recurring"}
     assert recur == {("self_recurring", "you", ""): 7}
     ranked = [s for s in rank_deck_signals(records, set()) if s.key == "self_recurring"]

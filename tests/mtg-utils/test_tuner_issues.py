@@ -122,6 +122,41 @@ def test_every_emitted_kind_has_a_decided_remedy():
     assert near.severity == 9  # game-winning: above dead weight
 
 
+def test_role_over_deepens_the_commanders_lane_before_an_emerging_theme():
+    # A trimmed slot goes to the commander's own lane when the deck has one (the
+    # Jace precon's trimmed rock becomes a polymorph piece), else to the first
+    # emerging direction as before.
+    from mtg_utils._analysis.signal_specs import spec_for
+    from mtg_utils._analysis.signals import Signal
+
+    cheat = Signal(key="cheat_into_play", scope="you", subject="", text="", source="x")
+    prolif = Signal(
+        key="proliferate_makers", scope="you", subject="", text="", source="x"
+    )
+    main, emerging = spec_for(cheat).label, spec_for(prolif).label
+    budgets = {"ramp": _band(15, 10, 12)}
+    held = Sourcing(
+        _focus(
+            viable=[{"label": main}],
+            emerging=[{"label": emerging, "depth": 6}],
+            commander_avenues=[main],
+        ),
+        [cheat, prolif],
+        budgets,
+    )
+    assert held.remedy_for("role_over", role="ramp").spec == dict(
+        spec_for(cheat).search
+    )
+    unheld = Sourcing(
+        _focus(viable=[{"label": main}], emerging=[{"label": emerging, "depth": 6}]),
+        [cheat, prolif],
+        budgets,
+    )
+    assert unheld.remedy_for("role_over", role="ramp").spec == dict(
+        spec_for(prolif).search
+    )
+
+
 def test_issues_are_ranked_by_severity():
     severities = [i.severity for i in _every_issue()]
     assert severities == sorted(severities, reverse=True)

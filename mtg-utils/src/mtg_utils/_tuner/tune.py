@@ -305,6 +305,7 @@ def tune(
         deck_size=deck_size,
         deck_signals=deck_signals,
         commander_idents=read.commander_idents,
+        emitters=read.emitters,
         medium=game.medium,
         tribal_payoff_subjects=payoff_subjects,
         cal=cal,

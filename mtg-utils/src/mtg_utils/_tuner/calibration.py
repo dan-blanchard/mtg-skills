@@ -35,6 +35,11 @@ class Calibration:
     focus_main: int
     focus_sub: int
     focus_emerging: int
+    #: Distinct cards (names, not copies — a 4-of payoff is one carer) that must
+    #: CARE about an avenue (emit its key, or its payoff sibling's) for the avenue
+    #: to count as built, at ``base_size``; the commander holding the key waives
+    #: it. Below it the avenue is reported as *fed*.
+    focus_carers: int
     spine_led: int
     #: Shape → (min, max) dedicated closers at ``base_size`` (life-scaled downstream).
     wincon_target: Mapping[str, tuple[int, int]]
@@ -80,6 +85,7 @@ COMMANDER = Calibration(
     focus_main=20,
     focus_sub=10,
     focus_emerging=5,
+    focus_carers=3,
     spine_led=8,
     wincon_target={
         "aggro": (4, 6),
@@ -101,6 +107,7 @@ CONSTRUCTED = Calibration(
     focus_main=12,
     focus_sub=6,
     focus_emerging=3,
+    focus_carers=2,
     spine_led=6,
     wincon_target={
         "aggro": (4, 8),
@@ -122,6 +129,7 @@ LIMITED = Calibration(
     focus_main=8,
     focus_sub=4,
     focus_emerging=2,
+    focus_carers=2,
     spine_led=4,
     wincon_target={
         "aggro": (2, 4),
