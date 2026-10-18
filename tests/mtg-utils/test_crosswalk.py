@@ -114,6 +114,18 @@ def _keys(name: str, face: str | None = None) -> set[str]:
     return {k for k, _s, _su in _idents(name, face)}
 
 
+def _cheat_subjects_of(name: str, face: str | None = None) -> set[str]:
+    """The subjects of *name*'s ``cheat_into_play|you`` signals: the card
+    types its put cheats in, one signal per type ("" — a put that names no
+    single type: a named tutor, "a permanent card", or a put a
+    tree-synthesis arm stands in for)."""
+    return {
+        su
+        for k, sc, su in _idents(name, face)
+        if k == "cheat_into_play" and sc == "you"
+    }
+
+
 def _text_only_face_tree(name: str, face: str) -> ConceptTree:
     """The W2c text-only tree production builds for *name*'s phase-missing *face*
     (an Aftermath back half phase never emits a record for): the real card's
@@ -838,15 +850,27 @@ def test_sacrifice_outlets_edict_split(name, should_fire):
 
 
 @pytest.mark.parametrize(
-    "name",
+    ("name", "keys"),
     [
-        "Archangel of Thune",  # life_gained trigger
-        "Dark Confidant",  # scaling self-loss (lose-life-equal-to-mana-value)
-        "Disciple of Perdition",  # dies + draw + lose_life co-occurrence (gran. a)
+        # A payoff (lifegain_matters) is a lifegain card; a self-bleed engine
+        # (wants_lifegain) is a carer that wants lifegain without supplying it.
+        ("Archangel of Thune", {"lifegain_matters"}),  # life_gained trigger
+        ("Ajani's Pridemate", {"lifegain_matters"}),  # life_gained trigger
+        ("Dark Confidant", {"wants_lifegain"}),  # scaling self-loss (= mana value)
+        ("Phyrexian Arena", {"wants_lifegain"}),  # upkeep draw-and-self-bleed
+        ("Disciple of Perdition", {"wants_lifegain"}),  # dies + draw + lose_life
+        # Both kinds on one card: "whenever you gain life" growth plus an attack
+        # trigger that draws and loses life.
+        ("Nazar, the Velvet Fang", {"lifegain_matters", "wants_lifegain"}),
     ],
 )
-def test_lifegain_matters_fires(name):
-    assert ("lifegain_matters", "you", "") in _idents(name)
+def test_lifegain_matters_fires(name, keys):
+    assert {
+        key
+        for key, scope, subject in _idents(name)
+        if key in ("lifegain_matters", "wants_lifegain")
+        and (scope, subject) == ("you", "")
+    } == keys
 
 
 @pytest.mark.parametrize(
@@ -5963,7 +5987,7 @@ def test_v066_cheat_into_play_conditional_kept_destination():
     as ``RevealUntil.kept_destination_if = [<cmc filter>, "Battlefield"]``
     beside ``kept_destination: Hand`` (the Otherwise branch); the lane reads
     the Battlefield branch as the same put (CR 608.2c)."""
-    assert ("cheat_into_play", "you", "") in _idents("Part in Friendship")
+    assert _cheat_subjects_of("Part in Friendship") == {"Creature"}
 
 
 def test_v066_opponent_discard_you_and_each_residue():
@@ -7566,25 +7590,25 @@ def test_team_buff_generic_team_gate(name, should_fire):
 
 
 @pytest.mark.parametrize(
-    ("name", "should_fire"),
+    ("name", "subjects"),
     [
-        ("Sneak Attack", True),  # creature from hand
-        ("Elvish Piper", True),  # creature from hand (activated)
-        ("Bribery", True),  # from an OPPONENT's library — still your cheat
-        ("Burgeoning", False),  # a LAND put → extra_land_drop
-        ("Leyline of Anticipation", False),  # opening-hand BeginGame setup
+        ("Sneak Attack", {"Creature"}),  # creature from hand
+        ("Elvish Piper", {"Creature"}),  # creature from hand (activated)
+        ("Bribery", {"Creature"}),  # from an OPPONENT's library — still your cheat
+        ("Burgeoning", set()),  # a LAND put → extra_land_drop
+        ("Leyline of Anticipation", set()),  # opening-hand BeginGame setup
         # phase drops "basic land" to filter Any — no type evidence, no guess
         # (a supplement-fixable parse drop, reported for adjudication):
-        ("Planar Engineering", False),
+        ("Planar Engineering", set()),
         # the punished player's compensation fetch (ParentTargetController):
-        ("Settle the Wreckage", False),
+        ("Settle the Wreckage", set()),
     ],
 )
-def test_cheat_into_play_gates(name, should_fire):
+def test_cheat_into_play_gates(name, subjects):
     """cheat_into_play fires the non-land Hand/Library→Battlefield put (CR
     110.2 / 400.7); the land carve-out and the typed BeginGame opening-hand
     kind stay out (checklist #2/#4)."""
-    assert (("cheat_into_play", "you", "") in _idents(name)) is should_fire
+    assert _cheat_subjects_of(name) == subjects
 
 
 @pytest.mark.parametrize(
@@ -8964,7 +8988,7 @@ def test_cheat_into_play_subtype_only_type_evidence():
     """Fix (a): Academy Researchers' put carries a SUBTYPE-only filter
     (``{Subtype: Aura}``, cores ∅) — a non-land subtype IS type evidence
     (phase's filter is correct and complete), so the cheat fires."""
-    assert ("cheat_into_play", "you", "") in _idents("Academy Researchers")
+    assert _cheat_subjects_of("Academy Researchers") == {"Enchantment"}
 
 
 @pytest.mark.parametrize("name", ["Nature's Lore", "Path to Exile"])
@@ -8980,7 +9004,7 @@ def test_cheat_into_play_dig_to_battlefield_arm():
     """Fix (b): Aethermage's Touch's ``Dig`` lands a Creature on the
     battlefield (destination gate + non-Land cores) — a put, not a cast (CR
     401.1)."""
-    assert ("cheat_into_play", "you", "") in _idents("Aethermage's Touch")
+    assert _cheat_subjects_of("Aethermage's Touch") == {"Creature"}
 
 
 def test_cheat_into_play_dig_arm_negatives():
@@ -8997,7 +9021,7 @@ def test_cheat_into_play_arcum_directed_search_narrowing():
     ARTIFACT's controller (``ParentTargetController`` with NO player-target
     marker in the unit — CR 115.1: you choose the target, so the directed
     player is routinely YOU) — the narrowed veto no longer excludes it."""
-    assert ("cheat_into_play", "you", "") in _idents("Arcum Dagsson")
+    assert _cheat_subjects_of("Arcum Dagsson") == {"Artifact"}
 
 
 def test_cheat_into_play_settle_stays_out():
@@ -9008,14 +9032,20 @@ def test_cheat_into_play_settle_stays_out():
     assert "cheat_into_play" not in _keys("Settle the Wreckage")
 
 
-@pytest.mark.parametrize("name", ["Polymorph", "Jalira, Master Polymorphist"])
-def test_cheat_into_play_reveal_until_arm(name):
+@pytest.mark.parametrize(
+    ("name", "subjects"),
+    [
+        ("Polymorph", {"Creature"}),
+        ("Jalira, Master Polymorphist", {"Creature"}),
+    ],
+)
+def test_cheat_into_play_reveal_until_arm(name, subjects):
     """ADR-0038 W3 batch 5 fix (d): a ``RevealUntil`` whose
     ``kept_destination`` is Battlefield IS the reveal-until-a-match-then-put
     engine (CR 701.15) — Polymorph destroys a creature then reveals until a
     creature card is found and puts it onto the battlefield; Jalira's
     activated ability does the same with a nonlegendary-creature filter."""
-    assert ("cheat_into_play", "you", "") in _idents(name)
+    assert _cheat_subjects_of(name) == subjects
 
 
 def test_cheat_into_play_change_zone_all_arm():
@@ -9025,11 +9055,17 @@ def test_cheat_into_play_change_zone_all_arm():
     its real type filter one level deeper on a ``TrackedSetFiltered``
     target — :func:`_change_zone_all_cores` digs the nested filter the
     direct ``effect_filter`` read misses. CR 400.7."""
-    assert ("cheat_into_play", "you", "") in _idents("Warp World")
+    assert _cheat_subjects_of("Warp World") == {"Artifact", "Creature"}
 
 
-@pytest.mark.parametrize("name", ["Call of the Wild", "Clone Shell"])
-def test_cheat_into_play_revealed_has_card_type_arm(name):
+@pytest.mark.parametrize(
+    ("name", "subjects"),
+    [
+        ("Call of the Wild", {"Creature"}),
+        ("Clone Shell", {"Creature"}),
+    ],
+)
+def test_cheat_into_play_revealed_has_card_type_arm(name, subjects):
     """ADR-0038 W3 batch 5 fix (e): the type check rides a typed
     ``RevealedHasCardType`` CONDITION on the sub-ability, not a filter on the
     ``ChangeZone`` itself — :func:`iter_condition_sites` reaches it.
@@ -9038,11 +9074,17 @@ def test_cheat_into_play_revealed_has_card_type_arm(name):
     cycle's "turn the exiled card face up... put it onto the battlefield"
     (``TriggeringSource``, gated to a unit with a ``turn_face_up`` producer —
     landmine #7i). CR 400.7 / 701.36c."""
-    assert ("cheat_into_play", "you", "") in _idents(name)
+    assert _cheat_subjects_of(name) == subjects
 
 
-@pytest.mark.parametrize("name", ["Angel's Herald", "Llanowar Sentinel"])
-def test_cheat_into_play_named_tutor_arm(name):
+@pytest.mark.parametrize(
+    ("name", "subjects"),
+    [
+        ("Angel's Herald", {""}),
+        ("Llanowar Sentinel", {""}),
+    ],
+)
+def test_cheat_into_play_named_tutor_arm(name, subjects):
     """ADR-0038 W3 batch 5 fix (f): a ``SearchLibrary`` naming a SPECIFIC
     card carries NO type_filters at all (CR 201.4 — a name isn't a type), so
     the sibling-core / sibling-subtype fallbacks both come up empty. Corpus
@@ -9050,7 +9092,7 @@ def test_cheat_into_play_named_tutor_arm(name):
     coreless unit paired with a ``ChangeZone{Battlefield}`` names a
     creature, never a land — a Named property alone is sufficient type
     evidence for this narrow (single-tutor) shape."""
-    assert ("cheat_into_play", "you", "") in _idents(name)
+    assert _cheat_subjects_of(name) == subjects
 
 
 @pytest.mark.parametrize(
@@ -9084,9 +9126,16 @@ def test_cheat_into_play_excludes_reanimation_and_ambiguous_tutor_pairing(name):
 
 
 @pytest.mark.parametrize(
-    "name", ["Arbiter of the Ideal", "Hew the Entwood", "Pyxis of Pandemonium"]
+    ("name", "subjects"),
+    [
+        # Artifact alone: phase parks the rest of its "artifact, creature, or
+        # land card" check as an Unimplemented residue.
+        ("Arbiter of the Ideal", {"Artifact"}),
+        ("Hew the Entwood", {""}),
+        ("Pyxis of Pandemonium", {""}),
+    ],
 )
-def test_cheat_into_play_batch5_cw_only_baseline_gains(name):
+def test_cheat_into_play_batch5_cw_only_baseline_gains(name, subjects):
     """ADR-0038 W3 batch 6 — three cw_only cards flagged "pending closer
     review" at the end of batch 5, investigated this session and confirmed
     LEGIT gains (the existing arms already fire correctly; the legacy regex
@@ -9102,7 +9151,7 @@ def test_cheat_into_play_batch5_cw_only_baseline_gains(name):
       artifact, then puts all permanent cards among them onto the
       battlefield" idiom.
     """
-    assert ("cheat_into_play", "you", "") in _idents(name)
+    assert _cheat_subjects_of(name) == subjects
 
 
 @pytest.mark.parametrize("name", ["Boneyard Parley", "Rejoin the Fight"])
@@ -9180,8 +9229,14 @@ def test_cheat_into_play_excludes_dies_recursion_chain_order():
     assert "cheat_into_play" not in _keys("Yarus, Roar of the Old Gods")
 
 
-@pytest.mark.parametrize("name", ["Finale of Devastation", "Boonweaver Giant"])
-def test_cheat_into_play_tutor_untracked_origin_arm(name):
+@pytest.mark.parametrize(
+    ("name", "subjects"),
+    [
+        ("Finale of Devastation", {"Creature"}),
+        ("Boonweaver Giant", {"Enchantment"}),
+    ],
+)
+def test_cheat_into_play_tutor_untracked_origin_arm(name, subjects):
     """ADR-0038 W5 tails gain: a same-unit ``tutor`` (SearchLibrary) sibling
     is STILL search-and-put type evidence when the put's own ``ChangeZone``
     origin is untracked (None) rather than "Library" — phase leaves origin
@@ -9193,11 +9248,17 @@ def test_cheat_into_play_tutor_untracked_origin_arm(name):
     Graveyard-touching tutor among the 46 same-unit hits searches Graveyard
     ALONE (every one also searches Hand and/or Library), so this widening
     never collides with the pure-graveyard reanimation lane."""
-    assert ("cheat_into_play", "you", "") in _idents(name)
+    assert _cheat_subjects_of(name) == subjects
 
 
-@pytest.mark.parametrize("name", ["Zara, Renegade Recruiter", "Treacherous Urge"])
-def test_cheat_into_play_reveal_hand_untracked_origin_arm(name):
+@pytest.mark.parametrize(
+    ("name", "subjects"),
+    [
+        ("Zara, Renegade Recruiter", {"Creature"}),
+        ("Treacherous Urge", {"Creature"}),
+    ],
+)
+def test_cheat_into_play_reveal_hand_untracked_origin_arm(name, subjects):
     """ADR-0038 W5 tails gain: the SAME untracked-origin widening also
     covers a same-unit ``reveal_hand`` sibling — Zara's "look at defending
     player's hand... put a creature card from it onto the battlefield under
@@ -9209,11 +9270,17 @@ def test_cheat_into_play_reveal_hand_untracked_origin_arm(name):
     hits total off reveal_hand, all genuine (the 2 lacking type evidence —
     Retraced Image's name-match, Eladamri's ambiguous hand-or-library
     reveal — correctly stay excluded, never guessed)."""
-    assert ("cheat_into_play", "you", "") in _idents(name)
+    assert _cheat_subjects_of(name) == subjects
 
 
-@pytest.mark.parametrize("name", ["Armored Skyhunter", "Gilgamesh, Master-at-Arms"])
-def test_cheat_into_play_dig_subtype_only_arm(name):
+@pytest.mark.parametrize(
+    ("name", "subjects"),
+    [
+        ("Armored Skyhunter", {"Artifact", "Enchantment"}),
+        ("Gilgamesh, Master-at-Arms", {"Artifact"}),
+    ],
+)
+def test_cheat_into_play_dig_subtype_only_arm(name, subjects):
     """ADR-0038 W5 tails gain: the fix (a) subtype-only type-evidence
     fallback (already given to the ChangeZone arm) now ALSO covers the Dig
     arm — Armored Skyhunter's "look at the top six cards... put an Aura or
@@ -9221,7 +9288,7 @@ def test_cheat_into_play_dig_subtype_only_arm(name):
     Equipment-only dig carry no CORE type at all (CR 205.3 — a subtype
     isn't a core type), so the core-only read came up empty and never
     guessed until this fallback."""
-    assert ("cheat_into_play", "you", "") in _idents(name)
+    assert _cheat_subjects_of(name) == subjects
 
 
 def test_cheat_into_play_dig_subtype_land_subtype_stays_out():
@@ -9234,8 +9301,14 @@ def test_cheat_into_play_dig_subtype_land_subtype_stays_out():
     assert "cheat_into_play" not in _keys("Nine-Fingers Keene")
 
 
-@pytest.mark.parametrize("name", ["Indomitable Creativity", "Dubious Challenge"])
-def test_cheat_into_play_exile_origin_tracked_set_arm(name):
+@pytest.mark.parametrize(
+    ("name", "subjects"),
+    [
+        ("Indomitable Creativity", {"Artifact", "Creature"}),
+        ("Dubious Challenge", {"Creature"}),
+    ],
+)
+def test_cheat_into_play_exile_origin_tracked_set_arm(name, subjects):
     """ADR-0038 W5 tails gain: a ``ChangeZoneAll{Battlefield, origin: Exile}``
     whose own target is a BARE, untyped ``TrackedSet`` reads its type
     evidence off the SAME unit's earlier LIBRARY-sourced exile-populating
@@ -9244,7 +9317,7 @@ def test_cheat_into_play_exile_origin_tracked_set_arm(name):
     Challenge's ``ChangeZone{destination: Exile}`` chained after a ``Dig``
     (the Dig sibling proves the exile step is library-top, not a blink of
     an existing permanent)."""
-    assert ("cheat_into_play", "you", "") in _idents(name)
+    assert _cheat_subjects_of(name) == subjects
 
 
 def test_cheat_into_play_exile_origin_arm_excludes_self_blink():
@@ -9275,7 +9348,11 @@ def test_cheat_into_play_mixed_land_tutor_requires_enters_under():
     You`` marker and stays included — the gate requires it only when the
     sibling tutor's core set MIXES Land with a non-Land type."""
     assert "cheat_into_play" not in _keys("Archdruid's Charm")
-    assert ("cheat_into_play", "you", "") in _idents("Eternal Dominion")
+    assert _cheat_subjects_of("Eternal Dominion") == {
+        "Artifact",
+        "Creature",
+        "Enchantment",
+    }
 
 
 def test_cheat_into_play_mutate_exile_from_top_until_arm():
@@ -9287,7 +9364,7 @@ def test_cheat_into_play_mutate_exile_from_top_until_arm():
     concept), whose type evidence lives on a ``NextMatches`` condition
     wrapping its ``until`` field — a different SITE than ``RevealUntil``'s
     ``kept_destination``/``filter`` pair the existing fix (d) arm reads."""
-    assert ("cheat_into_play", "you", "") in _idents("Illuna, Apex of Wishes")
+    assert _cheat_subjects_of("Illuna, Apex of Wishes") == {""}
 
 
 def test_cheat_into_play_exile_top_producer_arm():
@@ -9298,11 +9375,17 @@ def test_cheat_into_play_exile_top_producer_arm():
     condition on the SAME chain, exactly the shape fix (e) already reads
     for ``reveal_top``/``reveal_until``/``dig``/``turn_face_up`` producers —
     ``exile_top`` was simply missing from the producer gate."""
-    assert ("cheat_into_play", "you", "") in _idents("Primal Surge")
+    assert _cheat_subjects_of("Primal Surge") == {""}
 
 
-@pytest.mark.parametrize("name", ["Tezzeret, Artifice Master", "Garruk, Unleashed"])
-def test_cheat_into_play_nested_emblem_tutor_put_arm(name):
+@pytest.mark.parametrize(
+    ("name", "subjects"),
+    [
+        ("Tezzeret, Artifice Master", {""}),
+        ("Garruk, Unleashed", {"Creature"}),
+    ],
+)
+def test_cheat_into_play_nested_emblem_tutor_put_arm(name, subjects):
     """ADR-0038 W5 tails gain: the planeswalker "you get an emblem with 'At
     the beginning of your end step, search your library for a [type] card,
     put it onto the battlefield, then shuffle'" idiom (CR 400.7 / 121.4a —
@@ -9314,13 +9397,18 @@ def test_cheat_into_play_nested_emblem_tutor_put_arm(name):
     ``unit.effects`` ConceptNode list), reached via the SAME
     ``iter_nested_trigger_defs`` shared descent every other granted-ability
     lane already uses."""
-    assert ("cheat_into_play", "you", "") in _idents(name)
+    assert _cheat_subjects_of(name) == subjects
 
 
 @pytest.mark.parametrize(
-    "name", ["From Father to Son", "The Five Doctors", "The Hunger Tide Rises"]
+    ("name", "subjects"),
+    [
+        ("From Father to Son", {"Artifact"}),
+        ("The Five Doctors", {"Creature"}),
+        ("The Hunger Tide Rises", {"Creature"}),
+    ],
 )
-def test_cheat_into_play_w5_conditional_gain_baseline(name):
+def test_cheat_into_play_w5_conditional_gain_baseline(name, subjects):
     """ADR-0038 W5 tails gain: three MORE cw_only cards surfaced by the
     tutor-widening investigation, confirmed LEGIT gains (existing arms fire
     correctly; legacy's regex simply never recognized the phrasing):
@@ -9339,7 +9427,7 @@ def test_cheat_into_play_w5_conditional_gain_baseline(name):
       unconditional, single Creature core; legacy's regex apparently misses
       the Saga chapter-ability phrasing entirely.
     """
-    assert ("cheat_into_play", "you", "") in _idents(name)
+    assert _cheat_subjects_of(name) == subjects
 
 
 def test_cheat_into_play_nested_grant_trigger_reveal_until_arm():
@@ -9355,7 +9443,7 @@ def test_cheat_into_play_nested_grant_trigger_reveal_until_arm():
     commander-legal nested-granted-trigger chain found this is the ONLY
     ``RevealUntil{Battlefield}`` hit besides Time Lord Regeneration
     (below); both carry a Creature core."""
-    assert ("cheat_into_play", "you", "") in _idents("Shifting Shadow")
+    assert _cheat_subjects_of("Shifting Shadow") == {"Creature"}
 
 
 def test_cheat_into_play_nested_grant_trigger_reveal_until_time_lord():
@@ -9366,11 +9454,17 @@ def test_cheat_into_play_nested_grant_trigger_reveal_until_time_lord():
     nested ``RevealUntil{kept_destination: Battlefield}`` with a Time Lord
     subtype-and-Creature-core filter, read by the same nested descent as
     Shifting Shadow (CR 400.7)."""
-    assert ("cheat_into_play", "you", "") in _idents("Time Lord Regeneration")
+    assert _cheat_subjects_of("Time Lord Regeneration") == {"Creature"}
 
 
-@pytest.mark.parametrize("name", ["Hunting Grounds", "Summoner's Grimoire"])
-def test_cheat_into_play_nested_grant_trigger_hand_put_arm(name):
+@pytest.mark.parametrize(
+    ("name", "subjects"),
+    [
+        ("Hunting Grounds", {"Creature"}),
+        ("Summoner's Grimoire", {"Creature"}),
+    ],
+)
+def test_cheat_into_play_nested_grant_trigger_hand_put_arm(name, subjects):
     """ADR-0038 W5b gain: a nested ``GrantTrigger``'s own ``ChangeZone
     {Battlefield, origin: Hand}`` is the SAME hand-put shape the top-level
     arm already admits (CR 400.7) — Hunting Grounds's Threshold grant
@@ -9384,7 +9478,7 @@ def test_cheat_into_play_nested_grant_trigger_hand_put_arm(name):
     reads (Tezzeret, Artifice Master; Garruk, Unleashed), and a nested
     ``'Graveyard'`` origin is reanimation (checklist #2), never admitted
     here."""
-    assert ("cheat_into_play", "you", "") in _idents(name)
+    assert _cheat_subjects_of(name) == subjects
 
 
 def test_cheat_into_play_nested_grant_trigger_excludes_reanimation():
@@ -9404,15 +9498,17 @@ def test_cheat_into_play_nested_grant_trigger_excludes_reanimation():
 
 
 @pytest.mark.parametrize(
-    "name",
+    ("name", "subjects"),
     [
-        "Call to the Kindred",
-        "Lord of the Void",
-        "Lonis, Cryptozoologist",
-        "Anzrag's Rampage",
+        ("Call to the Kindred", {"Creature"}),
+        ("Lord of the Void", {"Creature"}),
+        ("Lonis, Cryptozoologist", {""}),
+        ("Anzrag's Rampage", {"Creature"}),
     ],
 )
-def test_cheat_into_play_untracked_origin_extends_to_dig_reveal_exile_top(name):
+def test_cheat_into_play_untracked_origin_extends_to_dig_reveal_exile_top(
+    name, subjects
+):
     """ADR-0038 W6 endgame gain: the SAME untracked-origin (``origin: None``)
     trust the tutor/reveal_hand widening already gives (W5 tails) extends to
     a ``dig``/``reveal_top``/``exile_top`` sibling — each of these ALSO
@@ -9437,7 +9533,7 @@ def test_cheat_into_play_untracked_origin_extends_to_dig_reveal_exile_top(name):
     None} pair, 63 hits): the land-only / self-blink shapes this widening
     could otherwise catch stay excluded downstream (see the shed guard
     below). CR 400.7."""
-    assert ("cheat_into_play", "you", "") in _idents(name)
+    assert _cheat_subjects_of(name) == subjects
 
 
 def test_cheat_into_play_untracked_origin_widening_excludes_land_only():
@@ -9455,8 +9551,14 @@ def test_cheat_into_play_untracked_origin_widening_excludes_land_only():
     assert "cheat_into_play" not in _keys("Zimone's Experiment")
 
 
-@pytest.mark.parametrize("name", ["Whiskervale Forerunner", "Break Out"])
-def test_cheat_into_play_reveal_producer_own_filter_fallback(name):
+@pytest.mark.parametrize(
+    ("name", "subjects"),
+    [
+        ("Whiskervale Forerunner", {"Creature"}),
+        ("Break Out", {"Creature"}),
+    ],
+)
+def test_cheat_into_play_reveal_producer_own_filter_fallback(name, subjects):
     """ADR-0038 W6 endgame gain: when the fix-(e) reveal-producer chain
     carries NO ``RevealedHasCardType``/``TargetMatchesFilter`` condition at
     all — Whiskervale Forerunner's own gate is ``IsYourTurn()`` (a TIMING
@@ -9469,13 +9571,18 @@ def test_cheat_into_play_reveal_producer_own_filter_fallback(name):
     counterpart of :func:`_sibling_selector_cores`). Only tried when the
     condition walk found nothing type-shaped, so an explicit land-only
     condition elsewhere is never overridden. CR 400.7."""
-    assert ("cheat_into_play", "you", "") in _idents(name)
+    assert _cheat_subjects_of(name) == subjects
 
 
 @pytest.mark.parametrize(
-    "name", ["Hei Bai, Forest Guardian", "Songbirds' Blessing", "Genesis Storm"]
+    ("name", "subjects"),
+    [
+        ("Hei Bai, Forest Guardian", {"Enchantment"}),
+        ("Songbirds' Blessing", {"Enchantment"}),
+        ("Genesis Storm", {""}),
+    ],
 )
-def test_cheat_into_play_kept_optional_to_battlefield_arm(name):
+def test_cheat_into_play_kept_optional_to_battlefield_arm(name, subjects):
     """ADR-0038 W6 endgame gain: fix (d)'s RevealUntil destination read
     widens to ALSO accept phase's typed ``kept_optional_to == "Battlefield"``
     field (alongside the existing ``kept_destination == "Battlefield"``
@@ -9492,7 +9599,7 @@ def test_cheat_into_play_kept_optional_to_battlefield_arm(name):
 
     Same never-guess core/subtype type-evidence gate either way (a
     land-only ``kept_optional_to`` filter still never fires). CR 400.7."""
-    assert ("cheat_into_play", "you", "") in _idents(name)
+    assert _cheat_subjects_of(name) == subjects
 
 
 def test_cheat_into_play_named_tutor_or_widening():
@@ -9506,7 +9613,7 @@ def test_cheat_into_play_named_tutor_or_widening():
     its own — the SAME "a name isn't a type" reasoning as the single-Named
     case (CR 201.4), just requiring EVERY Or branch to be Named (a mixed
     Or with a bare/core-typed branch is never trusted here)."""
-    assert ("cheat_into_play", "you", "") in _idents("Agency Outfitter")
+    assert _cheat_subjects_of("Agency Outfitter") == {""}
 
 
 def test_cheat_into_play_untracked_origin_widening_bonus_gain():
@@ -9525,7 +9632,7 @@ def test_cheat_into_play_untracked_origin_widening_bonus_gain():
     fires — the SAME multi-type Bribery-class reasoning Eternal Dominion's
     "artifact, creature, enchantment, or land" carve-out already
     established. CR 400.7."""
-    assert ("cheat_into_play", "you", "") in _idents("Xenagos, the Reveler")
+    assert _cheat_subjects_of("Xenagos, the Reveler") == {"Creature"}
 
 
 @pytest.mark.parametrize(
@@ -9595,7 +9702,7 @@ def test_cheat_into_play_choose_one_of_branch_arm():
     the cheat itself); the shared effect walk reads the branch, so the
     top-level ChangeZone arm sees it (served LOW by ``extract_signals``: the
     choice is the opponent's, CR 701.55a)."""
-    assert ("cheat_into_play", "you", "") in _idents("Dr. Eggman")
+    assert _cheat_subjects_of("Dr. Eggman") == {"Artifact", "Creature"}
 
 
 def test_cheat_into_play_negated_reveal_else_arm():
@@ -9606,7 +9713,7 @@ def test_cheat_into_play_negated_reveal_else_arm():
     walk reads into ``unit.effects``; fix (e) (``_put_condition_types``) reads
     the inner (un-negated) ``RevealedHasCardType`` as the else branch's
     Creature type evidence (the branch runs exactly when that check holds)."""
-    assert ("cheat_into_play", "you", "") in _idents("Impromptu Raid")
+    assert _cheat_subjects_of("Impromptu Raid") == {"Creature"}
 
 
 def test_cheat_into_play_reveal_until_you_enters_arm():
@@ -9618,53 +9725,89 @@ def test_cheat_into_play_reveal_until_you_enters_arm():
     put` trusts the None origin ONLY when the put ALSO carries an explicit
     ``enters_under: You`` marker, reading its type evidence off the
     ``RevealUntil`` sibling's own Creature filter."""
-    assert ("cheat_into_play", "you", "") in _idents("Telemin Performance")
+    assert _cheat_subjects_of("Telemin Performance") == {"Creature"}
 
 
 @pytest.mark.parametrize(
-    "name",
+    ("name", "subjects"),
     [
-        "Divergent Transformations",  # "its controller reveals...puts...battlefield"
-        "Círdan the Shipwright",  # "who received no votes may put...battlefield"
-        "Vaevictis Asmadi, the Dire",  # "who sacrificed...reveals...puts...battlefield"
-        "Collision of Realms",  # "who shuffled...reveals...then puts...battlefield"
-        "Guild Feud",  # "You do the same with the top three cards..."
-        "Liberated Livestock",  # "For each of those tokens, you may put...battlefield"
+        (
+            "Divergent Transformations",
+            {""},
+        ),  # "its controller reveals...puts...battlefield"
+        (
+            "Círdan the Shipwright",
+            {""},
+        ),  # "who received no votes may put...battlefield"
+        (
+            "Vaevictis Asmadi, the Dire",
+            {""},
+        ),  # "who sacrificed...reveals...puts...battlefield"
+        (
+            "Collision of Realms",
+            {""},
+        ),  # "who shuffled...reveals...then puts...battlefield"
+        ("Guild Feud", {""}),  # "You do the same with the top three cards..."
+        (
+            "Liberated Livestock",
+            {""},
+        ),  # "For each of those tokens, you may put...battlefield"
     ],
 )
-def test_cheat_into_play_bridge_player_prefix(name):
+def test_cheat_into_play_bridge_player_prefix(name, subjects):
     """``cheat_player_prefix_battlefield_put`` (bridge_ledger.py): a
     swallowed leading-subject clause ("its controller reveals...", "who
     received no votes may put...", "you do the same with...") parks the
     WHOLE reveal-then-put sentence as an opaque ``Unimplemented`` — phase's
     clause grammar has no token yet for a referent/relative-clause before
     the imperative (task #82's ``_PLAYER_PREFIX``). CR 601.2/400.7."""
-    assert ("cheat_into_play", "you", "") in _idents(name)
+    assert _cheat_subjects_of(name) == subjects
 
 
 @pytest.mark.parametrize(
-    "name",
+    ("name", "subjects"),
     [
-        "Matter Reshaper",  # dropped "if it's a permanent card w/ mv<=3" condition
-        "Eladamri, Korvecdal",  # dropped "if you reveal a creature card" condition
-        "Curse of Misfortunes",  # SearchLibrary filter emptied (self-ref "Curse")
-        "Empty the Laboratory",  # RevealUntil filter/count emptied (dynamic X)
-        "Turntimber Symbiosis // Turntimber, Serpentine Wood",  # reveal mechanism absent
-        "Wakanda Forever!",  # Dig collapses the battlefield/hand modal to Hand only
-        "Game Preserve",  # symmetric put clause has zero node past RevealTop
-        "Green Sun's Twilight",  # X-gated destination swallowed into 'choose'
+        (
+            "Matter Reshaper",
+            {""},
+        ),  # dropped "if it's a permanent card w/ mv<=3" condition
+        (
+            "Eladamri, Korvecdal",
+            {""},
+        ),  # dropped "if you reveal a creature card" condition
+        (
+            "Curse of Misfortunes",
+            {""},
+        ),  # SearchLibrary filter emptied (self-ref "Curse")
+        ("Empty the Laboratory", {""}),  # RevealUntil filter/count emptied (dynamic X)
+        (
+            "Turntimber Symbiosis // Turntimber, Serpentine Wood",
+            {""},
+        ),  # reveal mechanism absent
+        (
+            "Wakanda Forever!",
+            {""},
+        ),  # Dig collapses the battlefield/hand modal to Hand only
+        ("Game Preserve", {""}),  # symmetric put clause has zero node past RevealTop
+        ("Green Sun's Twilight", {""}),  # X-gated destination swallowed into 'choose'
     ],
 )
-def test_cheat_into_play_bridge_dropped_clause(name):
+def test_cheat_into_play_bridge_dropped_clause(name, subjects):
     """``cheat_dropped_clause_zero_residue`` (bridge_ledger.py): CONTEXT.md's
     third residue class — the tree HAS nodes, just degraded (an emptied
     filter/count, a swallowed condition with zero residue, or the reveal/
     put mechanism itself never becoming a node). CR 601.2/400.7."""
-    assert ("cheat_into_play", "you", "") in _idents(name)
+    assert _cheat_subjects_of(name) == subjects
 
 
-@pytest.mark.parametrize("name", ["Chaos Mutation", "Chaotic Transformation"])
-def test_cheat_into_play_bridge_kept_destination_misparse(name):
+@pytest.mark.parametrize(
+    ("name", "subjects"),
+    [
+        ("Chaos Mutation", {""}),
+        ("Chaotic Transformation", {""}),
+    ],
+)
+def test_cheat_into_play_bridge_kept_destination_misparse(name, subjects):
     """``cheat_kept_destination_hand_misparse`` (bridge_ledger.py): a
     ``RevealUntil`` whose revealer and putter are DIFFERENT actors ("its
     controller reveals... puts that card onto the battlefield") mis-parses
@@ -9672,18 +9815,24 @@ def test_cheat_into_play_bridge_kept_destination_misparse(name):
     Performance shares the divergent-actor shape but is closed
     structurally instead (separate, correctly-typed ChangeZone node — see
     :func:`test_cheat_into_play_reveal_until_you_enters_arm`)."""
-    assert ("cheat_into_play", "you", "") in _idents(name)
+    assert _cheat_subjects_of(name) == subjects
 
 
-@pytest.mark.parametrize("name", ["Animal Magnetism", "Selective Adaptation"])
-def test_cheat_into_play_bridge_choose_from_among(name):
+@pytest.mark.parametrize(
+    ("name", "subjects"),
+    [
+        ("Animal Magnetism", {""}),
+        ("Selective Adaptation", {""}),
+    ],
+)
+def test_cheat_into_play_bridge_choose_from_among(name, subjects):
     """``cheat_choose_from_among_graveyard_origin`` (bridge_ledger.py): a
     swallowed "choose a [type] card from among them" Unimplemented residue
     whose sibling Battlefield put carries a phase-side ``origin:
     'Graveyard'`` MIS-TAG (the actual source is the just-revealed LIBRARY
     pile — CR 400.7 zones don't reorder themselves), which the main arm's
     reanimation carve-out correctly-but-wrongly excludes."""
-    assert ("cheat_into_play", "you", "") in _idents(name)
+    assert _cheat_subjects_of(name) == subjects
 
 
 def test_cheat_into_play_bridge_modal_mode_unsupported_qualifier():
@@ -9692,7 +9841,7 @@ def test_cheat_into_play_bridge_modal_mode_unsupported_qualifier():
     "total mana value 4 or less" qualifier on a "put any number of nonland
     permanent cards... onto the battlefield" mode, parking the WHOLE mode
     as ``Unimplemented(name='modal_mode_unsupported_qualifier')``."""
-    assert ("cheat_into_play", "you", "") in _idents("Ao, the Dawn Sky")
+    assert _cheat_subjects_of("Ao, the Dawn Sky") == {""}
 
 
 def test_cheat_into_play_bridge_synthetic_destiny():
@@ -9701,7 +9850,7 @@ def test_cheat_into_play_bridge_synthetic_destiny():
     re-decorated with concept 'reveal_until' (recovery-stage naming) but
     carries no typed ``kept_destination`` field — a raw-text destination
     read would be a NEW heuristic pattern invented for this one card."""
-    assert ("cheat_into_play", "you", "") in _idents("Synthetic Destiny")
+    assert _cheat_subjects_of("Synthetic Destiny") == {"Creature"}
 
 
 @pytest.mark.parametrize(
@@ -9759,6 +9908,78 @@ def test_cheat_into_play_name_or_bare_card_no_type_evidence_sheds(name):
     Image's "has the same name as a permanent" both carry zero
     type_filters). Never guess: genuinely too degraded to serve."""
     assert "cheat_into_play" not in _keys(name)
+
+
+# ── cheat_into_play subjects: the cheated card type (2026-10-18) ─────────────
+
+
+def test_cheat_into_play_subject_per_type_the_put_admits():
+    """The subject is the cheated card TYPE, one signal per type the put
+    admits: Jace, Multiverse Architect's -3 reveals until "a creature or
+    planeswalker card" and puts it onto the battlefield — two signals."""
+    assert _cheat_subjects_of("Jace, Multiverse Architect") == {
+        "Creature",
+        "Planeswalker",
+    }
+    assert _cheat_subjects_of("Identity Echo") == {"Creature", "Planeswalker"}
+    assert _cheat_subjects_of("Kaalia of the Vast") == {"Creature"}
+
+
+@pytest.mark.parametrize(
+    ("name", "subjects"),
+    [
+        # "an enchantment card with mana value 3 or less" (a core type).
+        ("Zur the Enchanter", {"Enchantment"}),
+        # "an Equipment card from your hand": subtype-only evidence names its
+        # card type (CR 205.3g — Equipment is an artifact type).
+        ("Stoneforge Mystic", {"Artifact"}),
+        # "an Aura card from your hand" (CR 205.3h — an enchantment type).
+        ("Academy Researchers", {"Enchantment"}),
+    ],
+)
+def test_cheat_into_play_subject_reads_core_or_subtype(name, subjects):
+    assert _cheat_subjects_of(name) == subjects
+
+
+@pytest.mark.parametrize("name", ["Angel's Herald", "Kassandra, Eagle Bearer"])
+def test_cheat_into_play_named_tutor_keeps_the_empty_subject(name):
+    """A named tutor carries no type at all (CR 201.4 — a name isn't a type):
+    the put names no single subject, so it keeps subject "" (any)."""
+    assert _cheat_subjects_of(name) == {""}
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Jace, Multiverse Architect",  # exiles a creature/planeswalker you control
+        "Mass Polymorph",  # exiles all creatures you control
+        "Synthetic Destiny",  # exiles all creatures you control
+        "Identity Echo",  # exiles a creature/planeswalker you control
+        "Proteus Staff",  # tucks a creature; its controller gets the put
+        "Divergent Transformations",  # exiles two; each controller gets the put
+        "Reality Scramble",  # tucks a permanent you own
+        "Polymorph",  # destroys a creature; its controller gets the put
+    ],
+)
+def test_wants_fodder_fires_on_a_polymorph(name):
+    """wants_fodder: one ability both removes a permanent you control and puts
+    a revealed or dug card onto the battlefield — the polymorph wants cheap,
+    expendable bodies to transform."""
+    assert ("wants_fodder", "you", "") in _idents(name)
+    assert "cheat_into_play" in _keys(name)
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Kaalia of the Vast",  # a hand cheat removes nothing
+        "Zur the Enchanter",  # a tutor-and-put removes nothing
+        "Sneak Attack",  # the sacrifice is a delayed trigger, not a transform
+        "Ephemerate",  # a blink returns the same object
+    ],
+)
+def test_wants_fodder_stays_off_other_cheats(name):
+    assert "wants_fodder" not in _keys(name)
 
 
 # ── batch 10: trigger-event / effect-tag / grant / P/T / static-mode ─────────
@@ -13851,6 +14072,17 @@ def test_activated_ability_cost_census():
         "Bojuka Bog",
         "Generator Servant",
     ):
+        assert "activated_ability" not in _keys(name), name
+
+
+def test_activated_ability_mana_ability_rider_never_fires():
+    """CR 605.1a: an activated ability that could add mana (no target, not a
+    loyalty ability, no card to or from a library) is a mana ability whatever
+    else it does. Talisman of Dominance's "{T}: Add {U} or {B}. This artifact
+    deals 1 damage to you." carries a damage rider outside the ramp-only drop
+    set, yet it is a mana rock, never an activated-ability engine; Sol Ring and
+    Llanowar Elves stay out as before."""
+    for name in ("Talisman of Dominance", "Sol Ring", "Llanowar Elves"):
         assert "activated_ability" not in _keys(name), name
 
 

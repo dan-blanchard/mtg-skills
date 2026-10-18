@@ -38,6 +38,11 @@ from collections import Counter
 from collections.abc import Callable
 from dataclasses import dataclass, field
 
+# A BODY-cheating commander anchor: a creature-typed or untyped cheat (subject
+# "" puts whatever it finds). An enchantment or artifact cheat (Zur, Stoneforge
+# Mystic) floods no bodies and cheats no power, so it anchors neither row.
+_BODY_CHEAT_ANCHOR = ("cheat_into_play|you|Creature", "cheat_into_play|you|")
+
 
 @dataclass(frozen=True)
 class PairRead:
@@ -212,7 +217,7 @@ PAIR_READS: dict[str, PairRead] = {
             candidate=("creature_etb|you|*",),
             candidate_not=("token_maker|*",),
             anchor_kind="commander",
-            anchor=("token_maker|*", "cheat_into_play|you|*"),
+            anchor=("token_maker|*", *_BODY_CHEAT_ANCHOR),
             weight=3.0,
             label="ETB payoff x flood commander",
             rationale=(
@@ -394,7 +399,7 @@ PAIR_READS: dict[str, PairRead] = {
             pair_id="power_threshold_x_cheat_commander",
             candidate=("power_matters|you|*",),
             anchor_kind="commander",
-            anchor=("cheat_into_play|you|*",),
+            anchor=_BODY_CHEAT_ANCHOR,
             weight=3.0,
             label="Power-threshold payoff x body-cheating commander",
             rationale=(
@@ -407,6 +412,25 @@ PAIR_READS: dict[str, PairRead] = {
                 "state on application (CR 608.2h)."
             ),
             pins=("Elemental Bond",),
+        ),
+        PairRead(
+            pair_id="token_fodder_x_polymorph_commander",
+            candidate=("token_maker|you|*",),
+            anchor_kind="commander",
+            anchor=("wants_fodder|you|*",),
+            weight=3.0,
+            label="Token fodder x polymorph commander",
+            rationale=(
+                "A polymorph commander trades a permanent you control for "
+                "the next creature card off the library (Jace, Multiverse "
+                "Architect's -3 exiles one, then reveals until a creature or "
+                "planeswalker card and puts it onto the battlefield). The "
+                "cheapest thing to give up is a token: a token in a zone "
+                "other than the battlefield ceases to exist (CR 111.7), so "
+                "every 1/1 a token spell adds is a library hit the next "
+                "activation turns it into."
+            ),
+            pins=("Raise the Alarm", "Hordeling Outburst"),
         ),
         PairRead(
             pair_id="extra_combat_x_attack_trigger_commander",

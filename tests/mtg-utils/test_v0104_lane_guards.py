@@ -45,7 +45,8 @@ def test_each_other_player_loses_is_not_you():
 # ── lifegain_matters: a self-bleed counts only when it can recur ────────────────
 # Phase v0.104.0 types "you lose N life for each …" as a Controller loss, which
 # the scaling self-loss arm read on one-shot spells and leave-the-battlefield
-# triggers too. Engines only: a repeated loss wants lifegain sustain.
+# triggers too. Engines only: a repeated loss wants lifegain sustain, so it emits
+# wants_lifegain (a carer of the Lifegain avenue, not a lifegain card).
 
 
 @pytest.mark.parametrize(
@@ -61,7 +62,9 @@ def test_each_other_player_loses_is_not_you():
     ],
 )
 def test_recurring_self_bleed_opens_lifegain(name):
-    assert "lifegain_matters|you|" in _idents(name)
+    idents = _idents(name)
+    assert "wants_lifegain|you|" in idents
+    assert "lifegain_matters|you|" not in idents
 
 
 @pytest.mark.parametrize(
@@ -77,7 +80,7 @@ def test_recurring_self_bleed_opens_lifegain(name):
     ],
 )
 def test_one_shot_self_bleed_is_not_lifegain(name):
-    assert "lifegain_matters|you|" not in _idents(name)
+    assert not {"lifegain_matters|you|", "wants_lifegain|you|"} & _idents(name)
 
 
 # ── own_target_spell: a real target, on the battlefield ─────────────────────────
@@ -245,9 +248,9 @@ def test_reanimation_from_an_opponents_graveyard_fills_no_graveyard_of_yours():
     [
         # "you lose 1 life and you draw an additional card"
         ("Lord Skitter's Blessing", "card_draw_engine|you|"),
-        ("Lord Skitter's Blessing", "lifegain_matters|you|"),
+        ("Lord Skitter's Blessing", "wants_lifegain|you|"),
         # "you draw a card and you lose 1 life"
-        ("Marchesa, Resolute Monarch", "lifegain_matters|you|"),
+        ("Marchesa, Resolute Monarch", "wants_lifegain|you|"),
         ("Marchesa, Resolute Monarch", "lifeloss_makers|you|"),
         # "… put a velocity counter on it. Then if …, sacrifice it and draw two"
         ("Daredevil Dragster", "card_draw_engine|you|"),

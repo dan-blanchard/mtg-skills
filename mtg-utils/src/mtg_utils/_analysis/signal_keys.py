@@ -45,6 +45,14 @@ TYPE_CHANGERS_GRAVEYARD: Final = "type_changers_graveyard"
 # finishers; X-cost damage (announcement-fixed mana, CR 107.3b) stays out.
 DAMAGE_FOR_EACH: Final = "damage_for_each"
 
+# Cheat into play (a card put onto the battlefield without being cast): the
+# subject is the cheated card TYPE ("Creature" / "Planeswalker" / "Artifact" /
+# "Enchantment" / "Battle"), one signal per type the put admits — Jace,
+# Multiverse Architect's "creature or planeswalker card" emits two. Subject ""
+# is a put with no single type (a named tutor, "a permanent card"); it keeps
+# the static spec (signal_specs.core._cheat_subject_spec builds the rest).
+CHEAT_INTO_PLAY: Final = "cheat_into_play"
+
 # Combat puppeteers (task B-5): cards that transfer the combat DECLARATION
 # choices — attackers (CR 508.1a, normally the active player's) and blockers
 # (CR 509.1a, normally the defending player's) — to YOU (Master Warcraft,
@@ -79,5 +87,6 @@ SUBJECT_KEYS: Final = frozenset(
         TYPE_CHANGERS_ALL_ZONES,
         TYPE_CHANGERS_GRAVEYARD,
         DAMAGE_FOR_EACH,
+        CHEAT_INTO_PLAY,
     }
 )

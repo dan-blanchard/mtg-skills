@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from collections import Counter
 from collections.abc import Callable, Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING
 
 from mtg_utils._analysis.budgets import banded_slot_budgets, template_for
@@ -311,6 +311,15 @@ def tune(
         cal=cal,
         playrate_condemns=condemns,
     )
+    # Focus now knows which avenues are built: an Engine card feeding only fed
+    # ones is dead weight here (classification ran before focus could tell), so
+    # it re-buckets as filler for every read below — the cut ranking, the
+    # dead-weight count, the size cuts.
+    fed_only = set(foc["fed_only_cards"])
+    if fed_only:
+        classes = [
+            replace(c, bucket="filler") if c.name in fed_only else c for c in classes
+        ]
     tmpl = metrics.template_deviation(budgets)
     meta_missing = meta.missing_from(c.name for c in classes) if meta else []
     wins = metrics.win_conditions(
@@ -441,6 +450,8 @@ def tune(
             budgets=budgets,
             focus_verdict=foc["verdict"],
             stranded=set(foc["stranded_avenues"]),
+            viable={a["label"] for a in foc["viable_avenues"]},
+            commander_cards=foc["commander_lane_cards"],
             message=f"deck is {overflow} over {legal} — cut",
             protected=protected,
             medium=game.medium,

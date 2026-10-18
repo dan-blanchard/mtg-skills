@@ -50,6 +50,9 @@ _SPINE_AVENUE_KEYS = frozenset(
         "exile_removal",
         "exile_until_leaves",
         "counter_control",
+        # Board wipes are the counted ``board_wipe`` Spine row; five of them read
+        # as an emerging "Board wipes" theme to commit to or cut (2026-10-18).
+        "mass_removal",
     }
 )
 
@@ -262,7 +265,11 @@ def efficiency(
 
 # Doer lanes whose payoff sibling doesn't follow the ``<x>_makers`` / ``<x>_matters``
 # spelling (ADR-0034's naming): key -> the payoff keys, checked against the manifest.
-_CARES_ALIASES: dict[str, tuple[str, ...]] = {"token_maker": ("tokens_matter",)}
+# A polymorph (``wants_fodder``: Jace's -3, Mass Polymorph) cares about token
+# makers the way a tokens payoff does — the tokens are what it transforms.
+_CARES_ALIASES: dict[str, tuple[str, ...]] = {
+    "token_maker": ("tokens_matter", "wants_fodder")
+}
 
 
 def _cares_keys(key: str) -> tuple[str, ...]:
@@ -299,12 +306,12 @@ def focus(
     cal: Calibration = COMMANDER,
     playrate_condemns: bool | None = None,
 ) -> dict:
+    # Each deck signal's spec, resolved once (``spec_for`` builds a per-subject
+    # spec for a subject-bearing signal; four passes below read it).
+    resolved = [(sig, spec) for sig in deck_signals if (spec := spec_for(sig))]
+
     def labels_where(pred: Callable[[Signal], bool]) -> set[str]:
-        return {
-            spec.label
-            for sig in deck_signals
-            if pred(sig) and (spec := spec_for(sig)) is not None
-        }
+        return {spec.label for sig, spec in resolved if pred(sig)}
 
     # Avenues that are really Spine roles (ramp/draw/removal) are not themes — exclude
     # them so the deck's mana base + scaffolding can't masquerade as its main lane.
@@ -315,7 +322,6 @@ def focus(
 
     nonland = [c for c in classes if c.bucket not in ("land", "commander")]
     engine = [c for c in classes if c.bucket == "engine"]
-    engine_pool = _slots(engine)
 
     # Depth counts NONLAND supporters only (a land is mana base, never theme support) of
     # genuine theme avenues — engine cards + dual-purpose Spine cards that feed a theme.
@@ -340,42 +346,110 @@ def focus(
     # read ignores scope: a doer lane emits ``any`` / ``each`` where its payoff
     # sibling emits ``you``. ``None`` (a caller with no ``read_deck_signals`` pass:
     # the older focus tests) skips the gate: every deep avenue is built.
+    # An avenue the COMMANDER itself holds (``commander_idents``: the idents the
+    # commander emits, read record-level by ``read_deck_signals`` so a transform
+    # commander's faces and a folded object count) is the deck's own axis. It is
+    # never fed and never collapsed into a generic avenue whose members happen to
+    # be the same cards: a serve that credits the lane's PAYOFFS as on-theme
+    # (cheat_into_play credits every power-5+ body) can make the lane's avenue
+    # ≥80 % the bombs it cheats in, and "Big creatures / power matters" (the same
+    # bombs, plus a few more) then swallowed it — the Jace, Multiverse Architect
+    # polymorph precon read SPREAD-THIN over Historic / Cantrips / Combat with its
+    # engine unnamed (2026-10-17). Held avenues DO collapse into one another: a
+    # commander's one ability emits sibling lanes (Jace's -3 is cheat_into_play,
+    # dig_until and topdeck_selection at once), and the narrower reads are the
+    # same cards as the broad one.
+    # (A held SPINE ident — Jace's +1 draw — is scaffolding like any other:
+    # it opens no lane, and its emitters (Brainstorm) are not the lane's cards.)
+    held_idents = {
+        (sig.key, sig.scope, sig.subject): spec.label
+        for sig, spec in resolved
+        if (sig.key, sig.scope, sig.subject) in commander_idents
+        and spec.label not in excluded
+    }
+    commander_held = set(held_idents.values())
+    member_sets = {lbl: frozenset(names) for lbl, names in members.items()}
+    land_names = {c.name for c in classes if c.bucket == "land"}
+
+    def near_duplicate(lbl: str, kept: Sequence[str]) -> bool:
+        s = member_sets.get(lbl, frozenset())
+        if not s:
+            return False
+        against = (
+            kept
+            if lbl not in commander_held
+            else [k for k in kept if k in commander_held]
+        )
+        return any(len(s & member_sets[k]) / len(s) >= 0.8 for k in against)
+
+    # The commander's own lanes, collapsed among themselves (deepest first: one
+    # ability's sibling reads share the same cards, and the broad read is the
+    # lane). The first is the commander's PRIMARY lane.
+    held_kept: list[str] = []
+    for lbl in sorted(commander_held, key=lambda lbl: depth.get(lbl, 0), reverse=True):
+        if not near_duplicate(lbl, held_kept):
+            held_kept.append(lbl)
+    primary = held_kept[0] if held_kept else None
+    commander_members: set[str] = set()
+    for lbl in held_kept:
+        commander_members.update(member_sets.get(lbl, ()))
+    # The cards that DO what the commander's lanes do (emit an ident of a lane
+    # that survived the collapse) — the polymorphs beside Jace, not the bombs
+    # the serve credits as their payoffs, and not the scry cards a collapsed
+    # sibling read (topdeck_selection) would have swept in.
+    lane_doers: set[str] = set()
+    for ident, lbl in held_idents.items():
+        if lbl in held_kept and emitters is not None:
+            lane_doers.update(emitters.get(ident, ()))
+    lane_doers -= land_names
+
+    # The cards that CARE about each avenue (its "carers"): those emitting its
+    # key, read off the payoff side of the lane (a ``<x>_makers`` avenue is fed
+    # by the makers, but the cards that care about it are the ``<x>_matters``
+    # emitters — nine cards in the Jace precon gain life, and only Niv-Mizzet
+    # cares). The read ignores scope: a doer lane emits ``any`` / ``each`` where
+    # its payoff sibling emits ``you``. Carers never count lands (a creature
+    # land's attack trigger is mana base that happens to attack, not a card
+    # built toward Combat). A payoff with no subject cares about every subject
+    # of its doer key (a tokens anthem cares about Mite makers and Soldier makers
+    # alike). ``None`` (a caller with no ``read_deck_signals`` pass: the older
+    # focus tests) skips the gate: every deep avenue is built.
     cares: dict[str, set[str]] = {}
     if emitters is not None:
         by_key_subject: dict[tuple[str, str], set[str]] = {}
         for (ekey, _scope, esubject), names in emitters.items():
             by_key_subject.setdefault((ekey, esubject), set()).update(names)
-        for sig in deck_signals:
-            spec = spec_for(sig)
-            if spec is None:
-                continue
+        for sig, spec in resolved:
             bucket = cares.setdefault(spec.label, set())
             for ckey in _cares_keys(sig.key):
                 bucket.update(by_key_subject.get((ckey, sig.subject), ()))
+                if sig.subject:
+                    bucket.update(by_key_subject.get((ckey, ""), ()))
+            bucket.difference_update(land_names)
+
+    def own_carers(lbl: str) -> set[str]:
+        """The cards that care about ``lbl`` on their own account. A carer the
+        commander's lane serves as a PAYOFF (a member of a held avenue that does
+        not itself emit the held ident) is the commander's lane seen through a
+        sibling key — the power-5+ bombs Jace cheats in carry attack triggers
+        and spell triggers, which read as nine cards building toward Combat and
+        a Spellslinger main — so it is discounted here. A card that DOES what
+        the lane does (a polymorph wanting fodder) and a card the lane does not
+        account for (Dreadhorde Invasion, Windcrag Siege) still count. The held
+        avenues themselves keep every carer."""
+        carers = cares.get(lbl, set())
+        if lbl in commander_held:
+            return carers
+        return {
+            n for n in carers if not (n in commander_members and n not in lane_doers)
+        }
+
+    carers = {lbl: own_carers(lbl) for lbl in cares}
     carer_floor = max(1, cal.scaled(cal.focus_carers, deck_size))
+    main_carer_floor = max(carer_floor, cal.scaled(cal.focus_main_carers, deck_size))
 
     def care_count(lbl: str) -> int:
-        return len(cares.get(lbl, ()))
-
-    # An avenue the COMMANDER itself holds (``commander_idents``: the idents the
-    # commander emits, read record-level by ``read_deck_signals`` so a transform
-    # commander's faces and a folded object count) is the deck's own axis. It is
-    # never collapsed into a deeper generic avenue whose members happen to be the
-    # same cards: a serve that credits the lane's PAYOFFS as on-theme
-    # (cheat_into_play credits every power-5+ body) can make the lane's avenue
-    # ≥80 % the bombs it cheats in, and "Big creatures / power matters" (the same
-    # bombs, plus a few more) then swallowed it — the Jace, Multiverse Architect
-    # polymorph precon read SPREAD-THIN over Historic / Cantrips / Combat with its
-    # engine unnamed (2026-10-17).
-    commander_held = labels_where(
-        lambda sig: (sig.key, sig.scope, sig.subject) in commander_idents
-    )
-
-    def near_duplicate(lbl: str, kept: Sequence[str]) -> bool:
-        if lbl in commander_held:
-            return False
-        s = set(members[lbl])
-        return any(len(s & set(members[k])) / len(s) >= 0.8 for k in kept)
+        return len(carers.get(lbl, ()))
 
     def built(lbl: str, floor: int) -> bool:
         """Deep in feeders AND enough cards care (or the commander does). On the
@@ -385,33 +459,46 @@ def focus(
         return emitters is None or lbl in commander_held or care_count(lbl) >= floor
 
     def rank_key(lbl: str) -> tuple[bool, int, int]:
-        """The commander's own lane first (the issue remedies source adds from
-        the first viable avenue), then by how many cards care, then by depth."""
-        return (lbl in commander_held, care_count(lbl), depth[lbl])
+        """The commander's own lanes first (the issue remedies source adds from
+        the first viable avenue) — among them the deepest, as above — then by
+        how many cards care, then by depth."""
+        if lbl in commander_held:
+            return (True, depth[lbl], care_count(lbl))
+        return (False, care_count(lbl), depth[lbl])
 
-    deep = [lbl for lbl, d in depth.items() if d >= sub_floor]
     # Built avenues rank by ``rank_key``; a fed avenue (deep, but nobody built
     # toward it) is reported apart and shapes nothing.
-    candidates = sorted(
-        (lbl for lbl in deep if built(lbl, carer_floor)), key=rank_key, reverse=True
-    )
-    fed = [lbl for lbl in deep if not built(lbl, carer_floor)]
+    candidates: list[str] = []
+    fed: list[str] = []
+    for lbl, d in depth.items():
+        if d >= sub_floor:
+            (candidates if built(lbl, carer_floor) else fed).append(lbl)
+    candidates.sort(key=rank_key, reverse=True)
+    # Every avenue somebody built toward, collapsed near-duplicates included (a
+    # card on the Magecraft side of a Spellslinger / Magecraft pair is still
+    # on a built theme): what the fed-only re-bucket below measures against.
+    built_labels = set(candidates)
     # Collapse near-duplicate avenues that are really one theme: drop an avenue
     # ≥80% covered by one already kept — a higher-ranked one, which since the
     # commander-held / carers ordering above need not be the deeper one (e.g.
     # Spellslinger / Magecraft).
     viable: list[str] = []
     for lbl in candidates:
-        if near_duplicate(lbl, viable):
-            continue
-        viable.append(lbl)
+        if not near_duplicate(lbl, viable):
+            viable.append(lbl)
 
-    # The commander's own lane is a main theme by definition, whatever its depth.
+    # The commander's primary lane is a main theme by definition, whatever its
+    # depth. Any other main needs depth AND builders: a broad serve (every
+    # artifact, every instant) is deep in any deck, so without the carer bar
+    # "Artifacts" read as a main theme on sixteen rocks (2026-10-18).
     def is_main(lbl: str) -> bool:
-        return lbl in commander_held or depth[lbl] >= main_floor
+        builders = emitters is None or care_count(lbl) >= main_carer_floor
+        return lbl == primary or (depth[lbl] >= main_floor and builders)
 
-    mains = [lbl for lbl in viable if is_main(lbl)]
-    subs = [lbl for lbl in viable if not is_main(lbl)]
+    mains: list[str] = []
+    subs: list[str] = []
+    for lbl in viable:
+        (mains if is_main(lbl) else subs).append(lbl)
 
     # Emerging themes: a real-but-under-supported direction (emerging floor ≤ depth <
     # sub floor) the deck started but didn't commit to — flagged "commit more or cut"
@@ -429,11 +516,8 @@ def focus(
     # appear in this map, so the gate is a no-op for them.
     tribal_subject_of_label: dict[str, str] = {}
     if tribal_payoff_subjects is not None:
-        for sig in deck_signals:
-            if sig.key != signal_keys.TYPE_MATTERS or not sig.subject:
-                continue
-            spec = spec_for(sig)
-            if spec is not None:
+        for sig, spec in resolved:
+            if sig.key == signal_keys.TYPE_MATTERS and sig.subject:
                 tribal_subject_of_label[spec.label] = sig.subject
 
     emerging_floor = max(1, cal.scaled(cal.focus_emerging, deck_size))
@@ -446,6 +530,7 @@ def focus(
         if not built(lbl, 1):
             fed.append(lbl)
             continue
+        built_labels.add(lbl)
         if near_duplicate(lbl, viable + emerging):
             continue
         subj = tribal_subject_of_label.get(lbl)
@@ -457,22 +542,46 @@ def focus(
             continue
         emerging.append(lbl)
 
-    top2 = viable[:2]
-    in_top2 = _slots([c for c in engine if set(top2).intersection(themes(c))])
+    # An Engine card whose every avenue is fed (or stranded below the emerging
+    # floor) feeds nothing the deck built toward: it is dead weight here — a
+    # legendary 3-drop in a polymorph deck "serves" Historic — and classification
+    # ran before focus knew which avenues are built, so the re-bucket happens
+    # here (``tune`` re-buckets the classes by ``fed_only_cards``). Lands and the
+    # commander are never engine; a Spine card keeps its role.
+    # Only once something IS built: a deck with no viable avenue yet (a build in
+    # progress) has nothing to measure "not built toward" against, and its
+    # theme cards must not all read as filler for the role fills to cut.
+    fed_only_classes = (
+        [c for c in engine if not built_labels.intersection(themes(c))]
+        if viable
+        else []
+    )
+    fed_only_names = {c.name for c in fed_only_classes}
+    engine_built = [c for c in engine if c.name not in fed_only_names]
+    engine_pool = _slots(engine_built)
+
+    top2 = set(viable[:2])
+    in_top2 = _slots([c for c in engine_built if top2.intersection(themes(c))])
     top2_share = round(in_top2 / engine_pool, 2) if engine_pool else 0.0
 
-    filler_classes = [c for c in nonland if c.bucket == "filler"]
+    filler_classes = [c for c in nonland if c.bucket == "filler"] + fed_only_classes
     filler_cards = [c.name for c in filler_classes]
     filler = _slots(filler_classes)
     filler_rate = round(filler / max(1, _slots(nonland)), 2)
 
     # Low-value Engine cards (``CardClass.low_value``) — the vanilla beater that
     # "counts" as creature support in a go-wide deck — surfaced as upgrade targets.
-    # Play-rate condemns only where it means something (a paper-EDH population).
+    # Play-rate condemns only where it means something (a paper-EDH population),
+    # and never a card that does what the commander's lane does: play-rate is a
+    # population's verdict on a card in general, not on a polymorph piece under
+    # a polymorph commander (the precon's new Identity Echo has no rank at all).
+    # A payoff the lane merely serves (a weak flip) stays an upgrade target.
     low_value_classes = [
         c
         for c in nonland
-        if c.low_value(
+        if c.name not in fed_only_names
+        and c.name not in lane_doers
+        and c.low_value(
             medium=medium,
             # tune passes Calibration.playrate_condemns; without it, the family's.
             playrate=cal.playrate_meaningful
@@ -482,17 +591,19 @@ def focus(
     ]
     low_value_cards = [c.name for c in low_value_classes]
 
-    engine_labels = {lbl for c in engine for lbl in themes(c)}
+    engine_labels = {lbl for c in engine_built for lbl in themes(c)}
     stranded = sorted(lbl for lbl in engine_labels if 1 <= depth.get(lbl, 0) <= 2)
 
     spine_led_floor = max(1, cal.scaled(cal.spine_led, deck_size))
     if engine_pool < spine_led_floor:
         verdict = "SPINE-LED"
-    elif len(viable) >= 3:
-        # More than a main + a sub — too many directions competing for the engine slots.
+    elif len(mains) >= 2 or len(subs) >= 3:
+        # Two main directions, or a crowd of sub-themes, competing for the engine
+        # slots. One main with a couple of light subs is focused: a sub is by
+        # definition a few cards caring (below ``focus_main_carers``).
         verdict = "SPREAD-THIN"
     elif viable:
-        verdict = "FOCUSED"  # 1 main, or 1 main + 1 sub — the research ideal
+        verdict = "FOCUSED"  # 1 main (+ up to 2 subs), or 1-2 subs
     else:
         # A substantial engine pool that coheres into no theme at all is scattered.
         verdict = "SPREAD-THIN"
@@ -502,6 +613,7 @@ def focus(
             "label": lbl,
             "depth": depth[lbl],
             "carers": care_count(lbl),
+            "carer_cards": sorted(carers.get(lbl, ())),
             "cards": members[lbl],
         }
 
@@ -525,7 +637,14 @@ def focus(
         # The viable avenues the commander itself holds (its own lanes), in rank
         # order: the issue remedies deepen these before any emerging direction.
         "commander_avenues": [lbl for lbl in viable if lbl in commander_held],
+        # Engine cards that feed only fed / stranded avenues — dead weight here;
+        # ``tune`` re-buckets them as filler so the cut ranking sees them.
+        "fed_only_cards": sorted(fed_only_names),
+        # The nonland cards doing what the commander's lanes do — what the cut
+        # ranking protects as the commander's own pieces.
+        "commander_lane_cards": sorted(lane_doers),
         "carer_floor": carer_floor,
+        "main_carer_floor": main_carer_floor,
         "main_floor": main_floor,
         "sub_floor": sub_floor,
         "top2_concentration": top2_share,
@@ -674,8 +793,13 @@ def commander_fit(classes: Sequence[CardClass], focus_result: dict) -> dict:
     served_viable = sorted(served & viable)
     fit = round(len(served_viable) / len(viable), 2) if viable else 1.0
     # Only meaningful once the deck has ≥2 viable avenues; a single-avenue deck can't be
-    # "built for a different commander" on this signal.
-    misfit = len(viable) >= 2 and fit < 0.5
+    # "built for a different commander" on this signal. A commander whose OWN lane
+    # is a viable avenue (``commander_avenues``) is never a misfit, however many
+    # side themes the deck carries beside it: the Jace precon read "serves 1/4
+    # viable avenues — may be built for a different commander" with its polymorph
+    # lane first on the list (2026-10-18).
+    held = focus_result.get("commander_avenues") or []
+    misfit = len(viable) >= 2 and fit < 0.5 and not held
     return {
         "fit": fit,
         "serves_viable": served_viable,

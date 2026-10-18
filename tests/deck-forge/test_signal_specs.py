@@ -2494,20 +2494,21 @@ def test_play_from_top_is_its_own_avenue_and_excludes_look_at_top():
 
 
 def test_cheat_into_play_credits_fat_creatures_as_payoff():
-    """The PAYOFF of a cheat-into-play deck is the huge body it cheats in (Craterhoof,
-    Worldspine Wurm, Emrakul) — a power-5+ creature must be on-theme for the lane, even
-    though its own text never says 'onto the battlefield'."""
-    sig = _sig("cheat_into_play")
+    """The PAYOFF of a creature-cheat deck is the huge body it cheats in (Craterhoof,
+    Worldspine Wurm, Emrakul) — a power-5+ creature must be on-theme for the
+    Creature-subject lane, even though its own text never says 'onto the
+    battlefield'."""
+    sig = _sig_sub("cheat_into_play", "Creature")
     worldspine = _card("Worldspine Wurm")
     assert _lane_covers(worldspine, sig)
-    # The enabler (a reanimation/cheat spell) still serves via the main serve.
+    # The enabler (a cheat spell) still serves via the main serve.
     sneak = _card("Sneak Attack")
     assert _lane_covers(sneak, sig)
 
 
 def test_cheat_into_play_does_not_credit_small_creatures():
     """A 2/2 bear is not the payoff of a cheat deck — power gate keeps it off-theme."""
-    sig = _sig("cheat_into_play")
+    sig = _sig_sub("cheat_into_play", "Creature")
     bear = _card("Grizzly Bears")
     assert not _lane_covers(bear, sig)
 
@@ -2516,11 +2517,14 @@ def test_cheat_into_play_enabler_arm_is_the_lane_itself():
     """The enabler arm reads the lane's own structural emission, not an oracle
     regex (2026-10-17): the reveal-until-then-put engine (Polymorph, Mass
     Polymorph) serves, as does the hand/library put (Elvish Piper, Bribery), while
-    a graveyard put is reanimation and stays out (the lane's own carve-out)."""
+    a graveyard put is reanimation and stays out (the lane's own carve-out). The
+    subject-less spec serves every cheat, whatever type it puts, and carries no
+    payoff arm (it has no type to pay off)."""
     sig = _sig("cheat_into_play")
     spec = spec_for(sig)
     assert spec.serve.oracle is None
-    assert "cheat_into_play|you|" in spec.serve.signal_idents
+    assert spec.serve.signal_idents == frozenset({"cheat_into_play|you|*"})
+    assert spec.serve.power_min is None
     for name in ("Polymorph", "Mass Polymorph", "Elvish Piper", "Bribery"):
         assert _lane_covers(_card(name), sig), name
     # The regression itself: the "creature or planeswalker card" reveal-until
@@ -2528,6 +2532,64 @@ def test_cheat_into_play_enabler_arm_is_the_lane_itself():
     for name in ("Identity Echo", "Jace, Multiverse Architect"):
         assert _lane_covers(_card(name), sig), name
     assert not _lane_covers(_card("Reanimate"), sig)
+    assert not _lane_covers(_card("Worldspine Wurm"), sig)
+
+
+def test_cheat_into_play_subject_specs_share_one_label():
+    """Every cheated type builds its own spec under the ONE "Cheat into play"
+    label, so the per-type specs read as one avenue downstream (focus dedupes by
+    label); the subject-less static spec keeps the same label."""
+    labels = {
+        spec_for(_sig_sub("cheat_into_play", subj)).label
+        for subj in (
+            "",
+            "Creature",
+            "Planeswalker",
+            "Artifact",
+            "Enchantment",
+            "Battle",
+        )
+    }
+    assert labels == {"Cheat into play"}
+    spec = spec_for(_sig_sub("cheat_into_play", "Artifact"))
+    assert spec.search == {"oracle": "onto the battlefield"}
+    assert spec.serve.signal_idents == frozenset(
+        {"cheat_into_play|you|Artifact", "cheat_into_play|you|"}
+    )
+    assert spec.serve.types == frozenset({"artifact"})
+
+
+def test_cheat_into_play_subject_spec_serves_its_own_type():
+    """A planeswalker serves a Planeswalker-subject cheat avenue (the card that
+    cheat wants to find) and NOT a Creature-subject one (a power-5 body is what
+    that one wants); a creature cheat (Sneak Attack) serves the Creature
+    avenue, not the Planeswalker one; a creature-or-planeswalker cheat (Jace,
+    Multiverse Architect) serves both; an untyped cheat (Angel's Herald, a
+    named tutor) serves both."""
+    pw = _sig_sub("cheat_into_play", "Planeswalker")
+    creature = _sig_sub("cheat_into_play", "Creature")
+    liliana = _card("Liliana of the Veil")
+    assert _lane_covers(liliana, pw)
+    assert not _lane_covers(liliana, creature)
+    sneak = _card("Sneak Attack")
+    assert _lane_covers(sneak, creature)
+    assert not _lane_covers(sneak, pw)
+    for name in ("Jace, Multiverse Architect", "Angel's Herald"):
+        assert _lane_covers(_card(name), pw), name
+        assert _lane_covers(_card(name), creature), name
+
+
+def test_wants_fodder_serves_cheap_token_makers():
+    """Polymorph fodder (wants_fodder): the cheap creature-token makers a
+    polymorph turns into library hits — the token lane's own idents AND mana
+    value 3 or less. A pricier token spell (Empty the Warrens, 4) and a
+    non-maker (Doubling Season) stay out."""
+    spec = spec_for(_sig("wants_fodder"))
+    assert spec.label == "Polymorph fodder"
+    for name in ("Raise the Alarm", "Lingering Souls"):
+        assert spec.serve.matches(_card(name)), name
+    for name in ("Empty the Warrens", "Doubling Season"):
+        assert not spec.serve.matches(_card(name)), name
 
 
 def test_voltron_credits_aura_equipment_cost_reduction():

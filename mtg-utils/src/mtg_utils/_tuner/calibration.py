@@ -40,6 +40,12 @@ class Calibration:
     #: to count as built, at ``base_size``; the commander holding the key waives
     #: it. Below it the avenue is reported as *fed*.
     focus_carers: int
+    #: Carers a MAIN theme needs at ``base_size`` (the commander's own lane is
+    #: exempt). Depth alone made every broad serve a main — "Artifacts" on sixteen
+    #: rocks and three artifact-token makers; "Spellslinger" on twenty-two
+    #: instants and four payoffs — so a main needs real builders, not just feeders.
+    #: Between ``focus_carers`` and this it is a sub-theme.
+    focus_main_carers: int
     spine_led: int
     #: Shape → (min, max) dedicated closers at ``base_size`` (life-scaled downstream).
     wincon_target: Mapping[str, tuple[int, int]]
@@ -85,7 +91,8 @@ COMMANDER = Calibration(
     focus_main=20,
     focus_sub=10,
     focus_emerging=5,
-    focus_carers=3,
+    focus_carers=4,
+    focus_main_carers=6,
     spine_led=8,
     wincon_target={
         "aggro": (4, 6),
@@ -108,6 +115,7 @@ CONSTRUCTED = Calibration(
     focus_sub=6,
     focus_emerging=3,
     focus_carers=2,
+    focus_main_carers=4,
     spine_led=6,
     wincon_target={
         "aggro": (4, 8),
@@ -130,6 +138,7 @@ LIMITED = Calibration(
     focus_sub=4,
     focus_emerging=2,
     focus_carers=2,
+    focus_main_carers=4,
     spine_led=4,
     wincon_target={
         "aggro": (2, 4),

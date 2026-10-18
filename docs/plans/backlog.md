@@ -14,31 +14,39 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   traceback instead of landing in the envelope's `missing`. Catch the per-name
   network failure in `lookup_single`'s batch loop and report it as missing; keep
   the hard exit for a bulk that can't be read at all.
-- **What the polymorph tune still gets wrong** (after 2026-10-17/18: the
-  commander-held avenue survives the collapse, the cheat serve reads the lane,
-  and `focus` demotes a deep avenue nobody cares about to *fed* — see
-  `docs/plans/serve-idents-and-avenue-support.md`). The Multiverse Reforged
-  precon now reads Cheat into play (commander-held, 7 carers) as its main lane,
-  and its swaps are Inevitable Betrayal, Glimpse of Tomorrow and the Slasher
-  near-miss. Left: (a) no cut ranking reads a creature's *flip quality* (a
-  board-wipe-over trim still picks Ob Nixilis, a great flip, by band alone); (b)
-  the enabler side (cheap noncreature token makers as fodder) is credited by no
-  avenue — a polymorph read would pair the commander-held `cheat_into_play` with
-  `token_maker` (the `etb_payoff_x_flood_commander` pair already anchors on
-  both); (c) lane co-emission inflates sibling avenues: every reveal-until
-  polymorph also emits `topdeck_selection` / `dig_until` (Top-deck selection
-  reads 8 carers), and artifact-token makers (Skrelv's Hive, White Sun's
-  Twilight) emit `artifacts_matter` (Artifacts reads 5 carers, a "main" theme on
-  16 rocks); (d) the cheat serve's ident serves Zur the Enchanter and Stoneforge
-  Mystic (any Hand/Library→Battlefield put) into the avenue — the lane's
-  breadth, worth a payoff-shape carve-out if it shows up in a Find. Two
-  loose ends of the fed/built read (2026-10-18 review): `classify_deck` buckets
-  a card as engine when it serves ANY avenue, fed ones included, so a card
-  whose only avenues are fed still feeds `engine_pool`, SPINE-LED and the
-  top-2 concentration (classification runs before focus; fixing it is a second
-  pass or a fed-aware re-bucket); and the SPA's Tune panel renders viable and
-  emerging avenues only, so `fed` never reaches the browser (a `Tune.svelte`
-  change plus a frontend build).
+- **What the polymorph tune still gets wrong** (after 2026-10-18's tuner pass:
+  carers never count lands or the cards the commander's lane serves as payoffs;
+  a main theme needs builders (`focus_main_carers`); a commander's sibling reads
+  of one ability collapse into its deepest held lane; fed-only engine cards
+  re-bucket as filler; the cut ranking protects the lane's own emitters; the
+  commander is never a misfit while its lane is viable; `cheat_into_play`
+  carries the cheated card type as its subject and `wants_fodder` names the
+  polymorph shape — see `deck-forge/CONTEXT.md` "Focus"). The Multiverse
+  Reforged precon now reads FOCUSED: Cheat into play (main, 7 carers),
+  Polymorph fodder and Token generators (subs), with Combat, Artifacts and
+  Spellslinger fed. Left: (a) "Polymorph fodder" and "Token generators" are one
+  theme read twice (the same seven polymorphs care about both; the broad serve
+  adds Elspeth / Overlord / Shark Typhoon the fodder serve rightly leaves out) —
+  a collapse by shared carers, not shared members, would fold them; (b) the
+  only quality read on a payoff the lane serves (a bomb Jace flips into) is
+  play-rate, so a weak flip with a null rank still reads as a low-value upgrade
+  target while a strong new one does too — a flip-quality read (power, ETB
+  value, evasion) over the cheat subject's payoff arm is the next step; (c)
+  `artifacts_matter` is emitted for artifact-TOKEN makers (Skrelv's Hive, White
+  Sun's Twilight, Currency Converter) — a doer read under a `_matters` key, the
+  one ADR-0034 split the artifact / enchantment lanes never got, so three token
+  makers read as three cards caring about artifacts; (d) the phantom
+  "Activated-ability engine" emerging theme is down to Niv-Mizzet and Staff of
+  the Storyteller once mana abilities are out (CR 605.1a), and "Lifegain
+  (makers)" surfaces as emerging on two carers — the emerging floor of one carer
+  may be too low for a 100-card deck; (e) `power_threshold_x_cheat_commander`
+  and `etb_payoff_x_flood_commander` now anchor on a Creature-typed or untyped
+  cheat only — the Planeswalker / Artifact / Enchantment cheat subjects have no
+  pair rows yet (Zur's enchantment tutor, Stoneforge's equipment); (f)
+  `_card_ir/card_subtypes.py` (and `creature_types.py`) are generated from the
+  repo's tracked `mtg-utils/comprehensive-rules-20260807.txt`; the 2026-09-25
+  CR adds Heartwood to the artifact types, so both regenerate when that
+  tracked file is bumped (`rules-lookup --card-subtypes` / `--creature-types`).
 
 - **Competitive Brawl's "banned as a commander" reads as `restricted`.** The
   2026-10-12 B&R update introduced the category (mtg.wiki "Competitive Brawl"
@@ -71,9 +79,10 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   makers read only off reminder text (blocks the `token_maker|you|*` wildcard
   conversions: token_maker, creature_etb, creatures_matter, edict_makers,
   damage_for_each, token_doubling). Report upstream where phase is the gap.
-  Lane false positives found the same way: `lifegain_matters` emits for
-  self-bleed engines (Dark Confidant, Phyrexian Arena — the lifegain pair is
-  held on its regex because of this); Impending Flux on `suspend_matters`; The
+  The lifegain pair converted anyway and lost its 96 Food makers:
+  `lifegain_makers` doesn't read the gain inside a Food token (Bake into a Pie,
+  Bill the Pony).
+  Lane false positives found the same way: Impending Flux on `suspend_matters`; The
   Book of Exalted Deeds on `exalted`; Investigator's Journal on
   `suspect_makers`; Astarion's "Friends —" mode on `partner_background`.
 

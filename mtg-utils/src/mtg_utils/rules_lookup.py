@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import json
 import re
+from collections.abc import Iterable
 from pathlib import Path
 from typing import Any
 
@@ -469,6 +470,35 @@ def creature_types(parsed: dict[str, Any]) -> frozenset[str]:
     return frozenset(out)
 
 
+# The CR rule listing each non-creature permanent type's subtypes: artifact types
+# (205.3g), enchantment types (205.3h), planeswalker types (205.3j) and the battle
+# type (205.3q). Keyed by the card type those subtypes belong to.
+_CARD_SUBTYPE_RULES: dict[str, str] = {
+    "Artifact": "205.3g",
+    "Enchantment": "205.3h",
+    "Planeswalker": "205.3j",
+    "Battle": "205.3q",
+}
+
+
+def card_subtypes(parsed: dict[str, Any]) -> dict[str, frozenset[str]]:
+    """The subtype lists of the non-creature permanent types, lowercased, keyed by
+    card type (``"Artifact"`` → CR 205.3g's artifact types, …). Each rule ends with
+    its list: "The artifact types are Attraction (see rule 717), Blood, …, and
+    Vibranium." / "That battle type is Siege." — the "(see rule …)" pointers
+    dropped. The source of ``_card_ir.card_subtypes`` (``rules-lookup
+    --card-subtypes`` prints it)."""
+    out: dict[str, frozenset[str]] = {}
+    for card_type, number in _CARD_SUBTYPE_RULES.items():
+        entry = lookup_rule(parsed, number) or {}
+        text = entry.get("text", "").replace("\u2019", "'")
+        listed = re.split(r"\btypes? (?:are|is) ", text, maxsplit=1)[-1]
+        listed = re.sub(r"\s*\(see rules? [^)]*\)", "", listed).rstrip(". ")
+        words = [w.strip() for w in re.split(r",|\band\b", listed) if w.strip()]
+        out[card_type] = frozenset(w.lower() for w in words)
+    return out
+
+
 def lookup_term(parsed: dict[str, Any], term: str) -> dict | None:
     """Return a glossary entry by case-insensitive term match, or None."""
     return parsed["glossary"].get(term.lower())
@@ -653,6 +683,15 @@ def resolve_rules_path(
 # ---------------------------------------------------------------------------
 
 
+def _echo_frozenset_block(name: str, items: Iterable[str]) -> None:
+    """Print one generated ``NAME: frozenset[str] = frozenset({...})`` block, the
+    shape ``_card_ir/creature_types.py`` and ``card_subtypes.py`` are written in."""
+    click.echo(f"{name}: frozenset[str] = frozenset(\n    {{")
+    for t in sorted(items):
+        click.echo(f'        "{t}",')
+    click.echo("    }\n)")
+
+
 @click.command()
 @click.option(
     "--rule",
@@ -693,6 +732,16 @@ def resolve_rules_path(
         "mtg_utils/_card_ir/creature_types.py (a maintainer tool; never CI)."
     ),
 )
+@click.option(
+    "--card-subtypes",
+    "card_subtypes_block",
+    is_flag=True,
+    help=(
+        "Print CR 205.3g/h/j/q's artifact, enchantment, planeswalker and battle "
+        "types as the constants of mtg_utils/_card_ir/card_subtypes.py (a "
+        "maintainer tool; never CI)."
+    ),
+)
 def main(
     rule_number: str | None,
     glossary_term: str | None,
@@ -703,14 +752,17 @@ def main(
     *,
     json_output: bool,
     creature_types_block: bool = False,
+    card_subtypes_block: bool = False,
 ) -> None:
     """Look up MTG Comprehensive Rules entries by number, term, or regex."""
+    if card_subtypes_block:
+        lists = card_subtypes(load_rules(resolve_rules_path(rules_file)))
+        for card_type, subtypes in lists.items():
+            _echo_frozenset_block(f"{card_type.upper()}_TYPES", subtypes)
+        return
     if creature_types_block:
-        types = sorted(creature_types(load_rules(resolve_rules_path(rules_file))))
-        click.echo("CREATURE_TYPES: frozenset[str] = frozenset(\n    {")
-        for t in types:
-            click.echo(f'        "{t}",')
-        click.echo("    }\n)")
+        types = creature_types(load_rules(resolve_rules_path(rules_file)))
+        _echo_frozenset_block("CREATURE_TYPES", types)
         return
     mode_count = sum(1 for x in (rule_number, glossary_term, grep_pattern) if x)
     if mode_count != 1:

@@ -13,6 +13,9 @@ real two-letter creature subtype, "ox" — re-add it by hand after any regen.
 
 from __future__ import annotations
 
+from mtg_utils._card_ir import card_subtypes
+from mtg_utils._card_ir.creature_types import CREATURE_TYPES
+
 # Card-type / spell-type / noise nouns that must NEVER become a tribal subject —
 # they fall through to the generic key instead (e.g. "creatures you control").
 # Articles/stopwords and the five basic LAND types (CR 305.6 — NOT creature types,
@@ -696,3 +699,31 @@ LAND_SUBTYPES: frozenset[str] = frozenset(
         "sphere",
     }
 )
+
+
+def _subtype_card_types() -> dict[str, str]:
+    """Every CR subtype → the card type whose list holds it: the creature types
+    (CR 205.3m) under the artifact / enchantment / planeswalker / battle types
+    (CR 205.3g/h/j/q). Both lists are generated from the CR
+    (``_card_ir.creature_types`` / ``_card_ir.card_subtypes``), never this
+    module's bulk-harvested ``CREATURE_SUBTYPES``, which picks up Equipment, Saga
+    and Treasure off kindred and artifact-creature faces."""
+    out = dict.fromkeys(CREATURE_TYPES, "Creature")
+    for card_type, subtypes in (
+        ("Artifact", card_subtypes.ARTIFACT_TYPES),
+        ("Enchantment", card_subtypes.ENCHANTMENT_TYPES),
+        ("Planeswalker", card_subtypes.PLANESWALKER_TYPES),
+        ("Battle", card_subtypes.BATTLE_TYPES),
+    ):
+        out.update(dict.fromkeys(subtypes, card_type))
+    return out
+
+
+_SUBTYPE_CARD_TYPE: dict[str, str] = _subtype_card_types()
+
+
+def subtype_card_type(subtype: str) -> str | None:
+    """The card type whose CR subtype list holds ``subtype`` ("Creature" /
+    "Artifact" / "Enchantment" / "Planeswalker" / "Battle"), or ``None`` for a
+    land subtype or a word on no list. Case-insensitive."""
+    return _SUBTYPE_CARD_TYPE.get(subtype.lower())

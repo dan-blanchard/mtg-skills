@@ -620662,6 +620662,281 @@
     "type_line": "Artifact"
    }
   },
+  "Nazar, the Velvet Fang": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "brawl_commander": true,
+     "card_type": {
+      "core_types": [
+       "Creature"
+      ],
+      "subtypes": [
+       "Vampire",
+       "Warlock"
+      ],
+      "supertypes": [
+       "Legendary"
+      ]
+     },
+     "color_identity": [
+      "Black"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "is_commander": true,
+     "keywords": [
+      "Menace"
+     ],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 3,
+      "shards": [
+       "Black"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "743f4b46-c04d-4431-9510-bc84726d7fd2"
+      ]
+     },
+     "name": "Nazar, the Velvet Fang",
+     "non_ability_text": null,
+     "oracle_text": "Menace (This creature can't be blocked except by two or more creatures.)\nWhenever you gain life, put a feeding counter on Nazar.\nWhenever Nazar attacks, you may remove three feeding counters from it. If you do, you draw three cards and you lose 3 life.",
+     "power": {
+      "type": "Fixed",
+      "value": 3
+     },
+     "printings": [
+      "J25"
+     ],
+     "rarities": [
+      "uncommon"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2024-11-08",
+       "text": "Each creature with lifelink dealing combat damage causes a separate life-gaining event. For example, if two creatures you control with lifelink deal combat damage at the same time, Nazar's second ability will trigger twice. However, if a single creature you control with lifelink deals combat damage to multiple creatures, players, planeswalkers, and/or battles at the same time (perhaps because it has trample or was blocked by more than one creature), the ability will trigger only once."
+      },
+      {
+       "date": "2024-11-08",
+       "text": "If Nazar isn't on the battlefield as its last ability resolves, you can't remove three feeding counters from it, even if it had three or more feeding counters on it before it left the battlefield. You won't draw cards or lose life."
+      },
+      {
+       "date": "2024-11-08",
+       "text": "If you gain an amount of life \"for each\" of something or \"equal to the number\" of something, that life is gained as one event and Nazar's second ability triggers only once."
+      },
+      {
+       "date": "2024-11-08",
+       "text": "In a Two-Headed Giant game, life gained by your teammate won't cause Nazar's second ability to trigger, even though it caused your team's life total to increase."
+      },
+      {
+       "date": "2024-11-08",
+       "text": "Nazar's second ability triggers just once for each life-gaining event, whether it's 1 life from Dazzling Angel or 4 life from Apothecary Stomper."
+      }
+     ],
+     "scryfall_oracle_id": "beeed1c5-2f51-4e40-87b9-9a6f810ee4cb",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 3
+     },
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "Whenever you gain life, put a feeding counter on ~.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "count": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "counter_type": "feeding",
+         "target": {
+          "type": "SelfRef"
+         },
+         "type": "PutCounter"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "LifeGained",
+       "optional": false,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": null,
+       "valid_source": null,
+       "valid_target": {
+        "type": "Controller"
+       }
+      },
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "Whenever ~ attacks, you may remove three feeding counters from it. If you do, you draw three cards and you lose 3 life.",
+       "destination": null,
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "count": {
+          "type": "Fixed",
+          "value": 3
+         },
+         "counter_type": "feeding",
+         "target": {
+          "type": "SelfRef"
+         },
+         "type": "RemoveCounter"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": true,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": {
+          "signal": "OptionalEffectPerformed",
+          "type": "EffectOutcome"
+         },
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "count": {
+           "type": "Fixed",
+           "value": 3
+          },
+          "target": {
+           "type": "Controller"
+          },
+          "type": "Draw"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": {
+          "condition": null,
+          "cost": null,
+          "description": null,
+          "duration": null,
+          "effect": {
+           "amount": {
+            "type": "Fixed",
+            "value": 3
+           },
+           "target": {
+            "type": "Controller"
+           },
+           "type": "LoseLife"
+          },
+          "forward_result": false,
+          "kind": "Spell",
+          "optional": false,
+          "optional_targeting": false,
+          "sub_ability": null,
+          "target_prompt": null
+         },
+         "sub_link": "SequentialSibling",
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "mode": "Attacks",
+       "optional": true,
+       "origin": null,
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "type": "SelfRef"
+       },
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 4.0,
+    "color_identity": [
+     "B"
+    ],
+    "colors": [
+     "B"
+    ],
+    "keywords": [
+     "Menace"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{3}{B}",
+    "name": "Nazar, the Velvet Fang",
+    "oracle_id": "beeed1c5-2f51-4e40-87b9-9a6f810ee4cb",
+    "oracle_text": "Menace (This creature can't be blocked except by two or more creatures.)\nWhenever you gain life, put a feeding counter on Nazar.\nWhenever Nazar attacks, you may remove three feeding counters from it. If you do, you draw three cards and you lose 3 life.",
+    "power": "3",
+    "toughness": "3",
+    "type_line": "Legendary Creature — Vampire Warlock"
+   }
+  },
   "Nazgûl": {
    "phase_records": [
     {
@@ -693753,6 +694028,189 @@
     "type_line": "Creature — Halfling Citizen"
    }
   },
+  "Proteus Staff": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "activation_restrictions": [
+        {
+         "type": "AsSorcery"
+        }
+       ],
+       "condition": null,
+       "cost": {
+        "costs": [
+         {
+          "cost": {
+           "generic": 2,
+           "shards": [
+            "Blue"
+           ],
+           "type": "Cost"
+          },
+          "type": "Mana"
+         },
+         {
+          "type": "Tap"
+         }
+        ],
+        "type": "Composite"
+       },
+       "description": "{2}{U}, {T}: Put target creature on the bottom of its owner's library. That creature's controller reveals cards from the top of their library until they reveal a creature card. The player puts that card onto the battlefield and the rest on the bottom of their library in any order. Activate only as a sorcery.",
+       "duration": null,
+       "effect": {
+        "count": {
+         "type": "Fixed",
+         "value": 1
+        },
+        "position": {
+         "type": "Bottom"
+        },
+        "target": {
+         "controller": null,
+         "properties": [],
+         "type": "Typed",
+         "type_filters": [
+          "Creature"
+         ]
+        },
+        "type": "PutAtLibraryPosition"
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "count": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "filter": {
+          "controller": null,
+          "properties": [],
+          "type": "Typed",
+          "type_filters": [
+           "Creature"
+          ]
+         },
+         "kept_destination": "Battlefield",
+         "player": {
+          "type": "ParentTargetController"
+         },
+         "rest_destination": "Library",
+         "rest_order": "player_choice",
+         "type": "RevealUntil"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "sub_link": "SequentialSibling",
+        "target_prompt": null
+       },
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Artifact"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Blue"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 3,
+      "shards": [],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "55e5c69c-43d0-4f5b-8720-40074eb122bb",
+       "825889d4-a0ed-4950-a8b0-bfbc2a2d1ea0",
+       "e6fcedb4-4152-47c3-a97e-34f4483ff94d"
+      ]
+     },
+     "name": "Proteus Staff",
+     "non_ability_text": null,
+     "oracle_text": "{2}{U}, {T}: Put target creature on the bottom of its owner's library. That creature's controller reveals cards from the top of their library until they reveal a creature card. The player puts that card onto the battlefield and the rest on the bottom of their library in any order. Activate only as a sorcery.",
+     "power": null,
+     "printings": [
+      "FRC",
+      "MB2",
+      "MRD"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "97024e8e-dfde-4769-bc27-c3d6fad19e7c",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 3.0,
+    "color_identity": [
+     "U"
+    ],
+    "colors": [],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{3}",
+    "name": "Proteus Staff",
+    "oracle_id": "97024e8e-dfde-4769-bc27-c3d6fad19e7c",
+    "oracle_text": "{2}{U}, {T}: Put target creature on the bottom of its owner's library. That creature's controller reveals cards from the top of their library until they reveal a creature card. The player puts that card onto the battlefield and the rest on the bottom of their library in any order. Activate only as a sorcery.",
+    "type_line": "Artifact"
+   }
+  },
   "Prowling Pangolin": {
    "phase_records": [
     {
@@ -715214,6 +715672,217 @@
     "oracle_id": "504d5c29-7c37-4c31-8549-2a49eeef74c8",
     "oracle_text": "Target artifact, creature, or land phases out. (While it's phased out, it's treated as though it doesn't exist. It phases in before its controller untaps during their next untap step.)",
     "type_line": "Instant"
+   }
+  },
+  "Reality Scramble": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "Put target permanent you own on the bottom of your library. Reveal cards from the top of your library until you reveal a card that shares a card type with that permanent. Put that card onto the battlefield and the rest on the bottom of your library in a random order.",
+       "duration": null,
+       "effect": {
+        "count": {
+         "type": "Fixed",
+         "value": 1
+        },
+        "position": {
+         "type": "Bottom"
+        },
+        "target": {
+         "controller": null,
+         "properties": [
+          {
+           "controller": "You",
+           "type": "Owned"
+          }
+         ],
+         "type": "Typed",
+         "type_filters": [
+          "Permanent"
+         ]
+        },
+        "type": "PutAtLibraryPosition"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "count": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "filter": {
+          "controller": null,
+          "properties": [
+           {
+            "quality": "CardType",
+            "reference": {
+             "type": "ParentTarget"
+            },
+            "type": "SharesQuality"
+           }
+          ],
+          "type": "Typed",
+          "type_filters": [
+           "Card"
+          ]
+         },
+         "kept_destination": "Battlefield",
+         "player": {
+          "type": "Controller"
+         },
+         "rest_destination": "Library",
+         "rest_order": "random",
+         "type": "RevealUntil"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "sub_link": "SequentialSibling",
+        "target_prompt": null
+       },
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Sorcery"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Red"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [
+      "Retrace"
+     ],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 2,
+      "shards": [
+       "Red",
+       "Red"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "19a40023-f7ac-4db7-9cc1-c8b113d5c5b8",
+       "34337c23-5dad-4ea3-84e9-aae7e34b2b17"
+      ]
+     },
+     "name": "Reality Scramble",
+     "non_ability_text": null,
+     "oracle_text": "Put target permanent you own on the bottom of your library. Reveal cards from the top of your library until you reveal a card that shares a card type with that permanent. Put that card onto the battlefield and the rest on the bottom of your library in a random order.\nRetrace (You may cast this card from your graveyard by discarding a land card in addition to paying its other costs.)",
+     "power": null,
+     "printings": [
+      "C18",
+      "PLST",
+      "PZ2"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2018-07-13",
+       "text": "Casting a card by using its retrace ability works just like casting any other spell, with two exceptions: You’re casting it from your graveyard rather than your hand, and you must discard a land card in addition to any other costs."
+      },
+      {
+       "date": "2018-07-13",
+       "text": "Casting a card with retrace from your graveyard follows the normal timing rules for its card type."
+      },
+      {
+       "date": "2018-07-13",
+       "text": "In most cases, at least one card in your library (the card you put on the bottom of your library) will share a card type with the target permanent. However, in some unusual situations, no cards in your library share a card type with the permanent (perhaps because the permanent was a token or its types were changed). In that case, you’ll reveal your entire library, put nothing onto the battlefield, and put the cards back in a random order."
+      },
+      {
+       "date": "2018-07-13",
+       "text": "Reality Scramble can target any permanent you own, including those another player controls. A token’s owner is the player who created it."
+      },
+      {
+       "date": "2018-07-13",
+       "text": "The target permanent’s last known existence on the battlefield is checked to determine its types."
+      },
+      {
+       "date": "2018-07-13",
+       "text": "When a retrace card you cast from your graveyard resolves or is countered, it’s put back into your graveyard. You may use the retrace ability to cast it again. If it’s your turn, you may do so before any other player may take actions to try to remove it from your graveyard."
+      },
+      {
+       "date": "2018-07-13",
+       "text": "You’ll stop as soon as you reveal a card that shares any card types with the target permanent. For example, if the target permanent is an artifact creature, you’ll stop as soon as you reveal a card that’s an artifact or a creature."
+      }
+     ],
+     "scryfall_oracle_id": "afad2e76-4b53-4884-8f96-ba68b0808990",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 4.0,
+    "color_identity": [
+     "R"
+    ],
+    "colors": [
+     "R"
+    ],
+    "keywords": [
+     "Retrace"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{2}{R}{R}",
+    "name": "Reality Scramble",
+    "oracle_id": "afad2e76-4b53-4884-8f96-ba68b0808990",
+    "oracle_text": "Put target permanent you own on the bottom of your library. Reveal cards from the top of your library until you reveal a card that shares a card type with that permanent. Put that card onto the battlefield and the rest on the bottom of your library in a random order.\nRetrace (You may cast this card from your graveyard by discarding a land card in addition to paying its other costs.)",
+    "type_line": "Sorcery"
    }
   },
   "Reality Smasher": {
@@ -844836,6 +845505,225 @@
     "power": "3",
     "toughness": "4",
     "type_line": "Legendary Creature — Faerie Noble"
+   }
+  },
+  "Talisman of Dominance": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": {
+        "type": "Tap"
+       },
+       "description": "{T}: Add {C}.",
+       "duration": null,
+       "effect": {
+        "produced": {
+         "count": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "type": "Colorless"
+        },
+        "type": "Mana"
+       },
+       "forward_result": false,
+       "is_mana_ability": true,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      },
+      {
+       "condition": null,
+       "cost": {
+        "type": "Tap"
+       },
+       "description": "{T}: Add {U} or {B}. ~ deals 1 damage to you.",
+       "duration": null,
+       "effect": {
+        "produced": {
+         "color_options": [
+          "Blue",
+          "Black"
+         ],
+         "count": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "type": "AnyOneColor"
+        },
+        "type": "Mana"
+       },
+       "forward_result": false,
+       "is_mana_ability": true,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "amount": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "target": {
+          "type": "Controller"
+         },
+         "type": "DealDamage"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "sub_link": "SequentialSibling",
+        "target_prompt": null
+       },
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Artifact"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Black",
+      "Blue"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 2,
+      "shards": [],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "00d4a1d4-b86a-4c05-9ecc-130e011e0486",
+       "0a004432-2d0d-47df-b321-ce38d9aa1709",
+       "1a1bdce9-daa6-4192-a652-038af18583f7",
+       "1ca2a0f9-b403-4d1e-961c-32b64bab81d0",
+       "20edd94e-0a41-485f-a3c1-3f8d15a88435",
+       "3f7370c5-24e8-481b-959d-c6a92e9bbe73",
+       "43ec73b2-4215-4e30-ad6d-1764879030f4",
+       "4f294565-2bbc-49c6-9777-42160c0afe3e",
+       "56f62d84-f62f-4363-a99e-fe5387c3d77e",
+       "58ebb5f3-5491-4f9c-84d5-f98d9ebece38",
+       "5c4f9134-e3be-4520-a53e-2cf572a5758f",
+       "637ebd2d-89cb-464d-bba5-e7da37776454",
+       "6c42fc2f-f661-4f7d-9f1d-aab3315f6250",
+       "78d5366f-eb6d-4ec1-880b-111872863766",
+       "827edf4f-2442-4c9d-8aac-3dead3af3146",
+       "8b5713b7-f2a6-41c5-a485-058b7393570b",
+       "939cc767-0de1-4d94-a1f9-fe07e923d343",
+       "991037a2-fea2-49f5-8ace-ebbf9f678cff",
+       "c7fb7ff7-aef0-4893-a120-e17a082cd07f",
+       "e195d8cd-8c26-460d-85fc-964931a89b0b",
+       "f6c8e0b5-218e-41dd-8b09-2d4aaec2c979",
+       "fea79e31-97f9-4131-8101-99f7265758dd"
+      ]
+     },
+     "name": "Talisman of Dominance",
+     "non_ability_text": null,
+     "oracle_text": "{T}: Add {C}.\n{T}: Add {U} or {B}. This artifact deals 1 damage to you.",
+     "power": null,
+     "printings": [
+      "40K",
+      "AA1",
+      "CLB",
+      "DRC",
+      "E01",
+      "FIC",
+      "FRC",
+      "M3C",
+      "MIC",
+      "MKC",
+      "MRD",
+      "MSC",
+      "PIP",
+      "SCD",
+      "SLD",
+      "WC04",
+      "WHO",
+      "WOC"
+     ],
+     "rarities": [
+      "uncommon",
+      "rare"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "4c0a0448-b9d6-43a0-8549-64066dac63f0",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 2.0,
+    "color_identity": [
+     "B",
+     "U"
+    ],
+    "colors": [],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{2}",
+    "name": "Talisman of Dominance",
+    "oracle_id": "4c0a0448-b9d6-43a0-8549-64066dac63f0",
+    "oracle_text": "{T}: Add {C}.\n{T}: Add {U} or {B}. This artifact deals 1 damage to you.",
+    "produced_mana": [
+     "B",
+     "C",
+     "U"
+    ],
+    "type_line": "Artifact"
    }
   },
   "Tallowisp": {

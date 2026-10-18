@@ -2962,7 +2962,9 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
             "applies elsewhere)."
         ),
         keywords=("Lifelink",),
-        signal_keys=("lifegain_makers", "lifegain_matters"),
+        # wants_lifegain: the recurring self-life-loss engines the notes name,
+        # split off lifegain_matters into their own key (2026-10-18).
+        signal_keys=("lifegain_makers", "lifegain_matters", "wants_lifegain"),
         should_match=("Thragtusk", "Lightning Helix", "Efflorescence"),
         should_not_match=(
             "Lightning Bolt",

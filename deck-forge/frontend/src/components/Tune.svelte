@@ -392,6 +392,23 @@
         </div>
       </div>
 
+      {#snippet avenueLine(a, tier)}
+        <div class="m-line avenue">
+          <span class="tier {tier}">{tier}</span>
+          {a.label} <b>{a.depth}</b>
+          {#if a.carer_cards && a.carer_cards.length}<span class="carers">
+              ·</span
+            >
+            <CardList
+              names={a.carer_cards}
+              label="care "
+            />{:else if a.carers != null}<span class="carers">
+              · {a.carers} care</span
+            >{/if}
+          <CardList names={a.cards || []} label="" />
+        </div>
+      {/snippet}
+
       <!-- Focus -->
       <div class="metric">
         <div class="m-head">
@@ -412,21 +429,19 @@
         {#if sc.focus.viable_avenues.length}
           <div class="m-sub">themes</div>
           {#each sc.focus.viable_avenues as a (a.label)}
-            <div class="m-line avenue">
-              <span class="tier {a.tier}">{a.tier}</span>
-              {a.label} <b>{a.depth}</b>
-              <CardList names={a.cards || []} label="" />
-            </div>
+            {@render avenueLine(a, a.tier)}
           {/each}
         {/if}
         {#if sc.focus.emerging && sc.focus.emerging.length}
           <div class="m-sub">under-supported — commit or cut</div>
           {#each sc.focus.emerging as a (a.label)}
-            <div class="m-line avenue">
-              <span class="tier emerging">emerging</span>
-              {a.label} <b>{a.depth}</b>
-              <CardList names={a.cards || []} label="" />
-            </div>
+            {@render avenueLine(a, "emerging")}
+          {/each}
+        {/if}
+        {#if sc.focus.fed && sc.focus.fed.length}
+          <div class="m-sub">fed — deep, but nobody built toward it</div>
+          {#each sc.focus.fed as a (a.label)}
+            {@render avenueLine(a, "fed")}
           {/each}
         {/if}
       </div>
@@ -849,6 +864,14 @@
   .tier.emerging {
     border: 1px dashed var(--brass);
     color: var(--brass);
+  }
+  .tier.fed {
+    border: 1px dashed var(--parchment-dim);
+    color: var(--parchment-dim);
+  }
+  .carers {
+    color: var(--parchment-dim);
+    font-size: 0.8rem;
   }
   .role-gap {
     margin-right: 0.7rem;

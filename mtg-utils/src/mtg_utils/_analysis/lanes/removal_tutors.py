@@ -1765,11 +1765,20 @@ def _activated_ability(tree: ConceptTree) -> list[Signal]:
     Ring, Llanowar Elves, both live-verified non-members). Fires once per
     card, scope "you", HIGH. NO kept mirror (live's own note: a mirror
     re-floods on dorks).
+
+    A mana ability is never an engine, whatever rider it carries: CR 605.1a
+    makes an activated ability that could add mana a mana ability (no target,
+    not a loyalty ability, no card to or from a library), and phase marks it
+    ``is_mana_ability``. Talisman of Dominance's "{T}: Add {U} or {B}. This
+    artifact deals 1 damage to you." is a mana rock, not an activated-ability
+    engine, though its damage rider sits outside the drop set.
     """
     if tree.is_type("Land"):
         return []
     for unit in tree.units:
         if unit.origin != "ability" or unit.kind != "Activated":
+            continue
+        if getattr(unit.node, "is_mana_ability", None) is True:
             continue
         leaves = list(iter_cost_leaves(getattr(unit.node, "cost", None)))
         tags = {tag_of(leaf) for leaf in leaves}

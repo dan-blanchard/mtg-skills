@@ -426,6 +426,9 @@ _REAL_CASES: dict[str, str] = {
     "voting_makers": "Capital Punishment",
     "voting_matters": "Grudge Keeper",
     "wants_cloning": "Arcum Dagsson",
+    "wants_fodder": "Mass Polymorph",
+    # A recurring self-bleed engine wants lifegain to offset its life payments.
+    "wants_lifegain": "Dark Confidant",
     "wants_theft": "Dragonlord Silumgar",
     "waterbend_makers": "Spirit Water Revival",
     "waterbend_matters": "Avatar Aang // Aang, Master of Elements",

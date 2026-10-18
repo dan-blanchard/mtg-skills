@@ -692,3 +692,65 @@ def test_committed_creature_types_match_the_newest_local_cr():
     if not found:
         pytest.skip("no Comprehensive Rules file downloaded in the repo")
     assert creature_types(load_rules(found[-1])) == CREATURE_TYPES
+
+
+def test_card_subtypes_reads_each_rules_list():
+    """``card_subtypes`` reads the list each of CR 205.3g/h/j/q ends with, dropping
+    the "(see rule …)" pointers: "The artifact types are …, and Vibranium." / "That
+    battle type is Siege." (the CR's own sentence shapes, abbreviated)."""
+    from mtg_utils.rules_lookup import card_subtypes
+
+    parsed = {
+        "rules": {
+            "205.3g": {
+                "text": "Artifacts have their own unique set of subtypes; these "
+                "subtypes are called artifact types. The artifact types are "
+                "Attraction (see rule 717), Blood, Equipment (see rule 301.5), "
+                "and Vibranium."
+            },
+            "205.3h": {
+                "text": "The enchantment types are Aura (see rule 303.4), "
+                "Background, and Shrine."
+            },
+            "205.3j": {"text": "The planeswalker types are Ajani, Jace, and Zariel."},
+            "205.3q": {
+                "text": "Battles have a unique subtype, called a battle type. That "
+                "battle type is Siege."
+            },
+        }
+    }
+    assert card_subtypes(parsed) == {
+        "Artifact": frozenset({"attraction", "blood", "equipment", "vibranium"}),
+        "Enchantment": frozenset({"aura", "background", "shrine"}),
+        "Planeswalker": frozenset({"ajani", "jace", "zariel"}),
+        "Battle": frozenset({"siege"}),
+    }
+
+
+def test_committed_card_subtypes_match_the_newest_local_cr():
+    """``_card_ir.card_subtypes`` is CR 205.3g/h/j/q's lists. Against the newest
+    ``comprehensive-rules-*.txt`` a ``download-rules`` left in the repo (none in CI:
+    skipped): regenerate the constants with ``rules-lookup --card-subtypes`` when a
+    new CR adds or renames a subtype."""
+    from mtg_utils._card_ir import card_subtypes as committed
+    from mtg_utils.rules_lookup import card_subtypes
+
+    repo = Path(__file__).resolve().parents[2]
+    found = sorted(repo.glob("*/comprehensive-rules-*.txt"), key=lambda p: p.name)
+    if not found:
+        pytest.skip("no Comprehensive Rules file downloaded in the repo")
+    assert card_subtypes(load_rules(found[-1])) == {
+        "Artifact": committed.ARTIFACT_TYPES,
+        "Enchantment": committed.ENCHANTMENT_TYPES,
+        "Planeswalker": committed.PLANESWALKER_TYPES,
+        "Battle": committed.BATTLE_TYPES,
+    }
+
+
+def test_artifact_token_subtypes_are_artifact_types():
+    """Every predefined artifact-token subtype the crosswalk names (Treasure, Clue,
+    Food, …) is one of CR 205.3g's artifact types."""
+    from mtg_utils._card_ir.card_subtypes import ARTIFACT_TYPES
+    from mtg_utils._card_ir.crosswalk.core import ARTIFACT_TOKEN_SUBTYPES
+
+    assert ARTIFACT_TOKEN_SUBTYPES <= ARTIFACT_TYPES

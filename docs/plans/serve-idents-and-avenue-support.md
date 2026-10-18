@@ -78,7 +78,7 @@ key, or each remaining one is a backlog row naming the lane gap.
 
 **Measured 2026-10-18 (first batch shipped).** Four agents, one per spec file,
 worked the 184 "mechanical" specs with a per-spec delta (regex-only losses /
-ident-only gains over the pool) before each decision: **141 converted, 43 held.**
+ident-only gains over the pool) before each decision: **143 converted, 41 held.**
 `_sweep_spec_with_extras` takes `serve_idents`; the ident arm accepts a
 `key|scope|*` subject wildcard. Every conversion is pinned by a real-card test
 (`tests/deck-forge/test_serve_idents_data_{1..4}.py`, 15 cards added to the
@@ -98,16 +98,17 @@ the held serve specs"):
 | foretell_makers / matters | foretell granters, cost reducers, foretell-only mana |
 | damage_redirect | "all damage that would be dealt to you is dealt to X instead", life-floor statics |
 | gain_control | opponent's library to the battlefield (Bribery, Acquire), opponent-chosen and granted theft |
-| lifegain_makers / matters | not a gap but a false positive: `lifegain_matters` emits for self-bleed engines (Dark Confidant, Phyrexian Arena), so the ident arm would serve them into a Lifegain avenue |
 | counter_place_trigger, counter_replace_bonus (Prairie Dog) | "counters on a creature you don't control", granted triggers |
 | debuff_makers, tapper_engine, tap_untap_matters | variable -X/-X and one-sided debuffs; granted tap abilities and "becomes tapped" triggers |
 | shield_counter_makers, alt_cost_keyword, explore_*, connive_makers, attractions_matter, suspend_matters, low_power_matters, modified_matters | "with a shield counter" puts; granted sneak / mayhem / web-slinging; explore payoffs; no `connive_matters` key; Step Right Up emits nothing; Clockspinning; cast-from-top with a power filter |
 
 Lane false positives the pass exposed: Impending Flux on `suspend_matters`, The
 Book of Exalted Deeds on `exalted`, Investigator's Journal on `suspect_makers`,
-Astarion's "Friends —" on `partner_background`, Consign to Memory past
-`colorless_matters`' veto, and the self-bleed engines (Dark Confidant) that
-`lifegain_matters` emits for — see the lifegain row of the backlog entry.
+Astarion's "Friends —" on `partner_background`, and Consign to Memory past
+`colorless_matters`' veto. The lifegain pair, first held over Dark Confidant,
+converted once the self-bleed engines moved to their own key, `wants_lifegain`
+(ADR-0034's `wants_<x>`): it shares the Lifegain label, so they are carers of the
+avenue, not cards it serves.
 
 ## 3. Pass B: an avenue needs cards that care
 

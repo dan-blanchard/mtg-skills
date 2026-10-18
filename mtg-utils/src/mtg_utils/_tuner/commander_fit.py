@@ -10,13 +10,9 @@ can't make.
 from __future__ import annotations
 
 from collections.abc import Callable, Sequence
-from typing import TYPE_CHECKING
 
-from mtg_utils._analysis.signal_specs import serves, spec_for
+from mtg_utils._analysis.signal_specs import spec_for
 from mtg_utils._tuner.classify import CardClass
-
-if TYPE_CHECKING:
-    from mtg_utils._analysis.signals import Signal
 
 
 def _identity_cost(candidate_ci: set[str], classes: Sequence[CardClass]) -> list[str]:
@@ -69,18 +65,15 @@ def suggest_commanders(
     )
     in_deck = {c.name for c in classes}
     wanted = set(viable_labels)
+    # Each signal's spec once, not per candidate (a subject-bearing signal's
+    # spec is built on resolution).
+    specs = [spec for sig in deck_signals if (spec := spec_for(sig))]
     scored: list[dict] = []
     for cand in pool:
         name = cand.get("name", "")
         if name in in_deck:
             continue
-        served = {
-            lbl
-            for sig in deck_signals
-            if serves(cand, sig)
-            for lbl in (_label(sig),)
-            if lbl
-        }
+        served = {spec.label for spec in specs if spec.serve.matches(cand)}
         fit = served & wanted
         if not fit:
             continue
@@ -100,8 +93,3 @@ def suggest_commanders(
         reverse=True,
     )
     return scored[:limit]
-
-
-def _label(sig: Signal) -> str | None:
-    spec = spec_for(sig)
-    return spec.label if spec else None

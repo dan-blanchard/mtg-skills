@@ -592,6 +592,18 @@ SERVED_SIGNAL_KEYS: frozenset[str] = frozenset(
         # before this batch — corpus-scanned to 433 commander-legal hits
         # (vs the old preset's unbounded 3174-card substring match).
         "cantrip",
+        # wants_fodder: the polymorph shape — one ability that removes a
+        # permanent you control and puts a revealed / dug card onto the
+        # battlefield (Jace, Multiverse Architect's -3, Mass Polymorph,
+        # Proteus Staff). Emitted beside cheat_into_play by
+        # :func:`_cheat_into_play` (``_polymorph_fodder``); it opens the cheap
+        # expendable-body avenue the transform wants.
+        "wants_fodder",
+        # wants_lifegain: a recurring self-bleed engine (Dark Confidant, Phyrexian
+        # Arena) — the two self-loss arms of :func:`_lifegain_matters`. It wants
+        # lifegain to offset its own life payments, so it is a carer of the
+        # Lifegain avenue (ADR-0034's ``wants_<x>``), never a lifegain card.
+        "wants_lifegain",
     }
 )
 

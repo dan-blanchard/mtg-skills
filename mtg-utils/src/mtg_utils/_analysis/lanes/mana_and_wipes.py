@@ -5,10 +5,10 @@ cheat-into-play (split from crosswalk_signals.py)."""
 from __future__ import annotations
 
 import re
-from collections.abc import Iterator
+from collections.abc import Iterable, Iterator
 from dataclasses import fields
 
-from mtg_utils._analysis._subtypes import LAND_SUBTYPES
+from mtg_utils._analysis._subtypes import LAND_SUBTYPES, subtype_card_type
 from mtg_utils._analysis._sweep_detectors import DISCARD_OUTLET_REGEX
 from mtg_utils._analysis.lanes._shared import (
     _DEBUFF_SINGLE_AURA_PREDS,
@@ -1578,8 +1578,96 @@ _CHEAT_REVEAL_PRODUCERS = (
     "exile_top",
 )
 
+# The card types a cheat's put can name as its signal SUBJECT, in emit order —
+# one ``cheat_into_play`` Signal per type the put admits (Jace, Multiverse
+# Architect's "creature or planeswalker card" emits two). Land is never a
+# subject: a land-only put is ramp (extra_land_drop) and every arm already
+# declines it; a mixed set (Eternal Dominion's "artifact, creature,
+# enchantment, or land card") keeps its non-land types.
+_CHEAT_SUBJECT_TYPES = ("Creature", "Planeswalker", "Artifact", "Enchantment", "Battle")
+
+
+def _cheat_subjects(cores: Iterable[str], subs: Iterable[str] = ()) -> tuple[str, ...]:
+    """The ``cheat_into_play`` subjects a put's type evidence names: each card
+    type in :data:`_CHEAT_SUBJECT_TYPES` among ``cores``, plus the card type
+    each SUBTYPE in ``subs`` belongs to (the lane's own map over CR 205.3's
+    subtype lists, each subtype to the permanent type that lists it — Equipment
+    / Vehicle → Artifact, Aura / Saga / Shrine → Enchantment, a planeswalker
+    type → Planeswalker, Siege → Battle, a creature type → Creature), so "a
+    Rebel permanent card" (Ramosian Captain) reads Creature and "a creature or
+    Aura card" both types. ``("",)`` when
+    the evidence names no one type: a generic "a permanent card" (Genesis
+    Storm), "a card that shares a card type with that permanent" (Reality
+    Scramble's ``Card`` + ``SharesQuality``), or a named tutor with no type at
+    all — subject "" (any), which every per-subject avenue serves."""
+    named = set(cores) | {subtype_card_type(sub) for sub in subs}
+    return tuple(t for t in _CHEAT_SUBJECT_TYPES if t in named) or ("",)
+
+
+def _typed_put_subjects(
+    cores: Iterable[str], subs: Iterable[str] = ()
+) -> tuple[str, ...]:
+    """The never-guess type-evidence gate every cheat arm shares: the put's
+    :func:`_cheat_subjects` when its evidence admits a non-land card, ``()``
+    when it names no type at all or only a land (a land put is ramp —
+    extra_land_drop). Core types decide when there are any (a Land-only set is
+    the land carve-out); with none, a subtype set touching no land subtype
+    (CR 205.3i) is the evidence (Academy Researchers' "Aura card")."""
+    core_set = set(cores)
+    sub_set = {s.lower() for s in subs}
+    if core_set:
+        return () if core_set <= {"Land"} else _cheat_subjects(core_set, sub_set)
+    if not sub_set or sub_set & LAND_SUBTYPES:
+        return ()
+    return _cheat_subjects((), sub_set)
+
+
+def _kept_onto_battlefield(node: object) -> bool:
+    """Whether a reveal / dig producer keeps its card onto the battlefield: a
+    ``Dig``'s ``destination``, a ``RevealUntil``'s ``kept_destination``, its
+    ``kept_optional_to`` (the "you may put that card onto the battlefield"
+    option — Hei Bai's Shrine dig, Songbirds' Blessing; the default
+    ``kept_destination`` is then where the card goes if you decline), or the
+    zone of its ``kept_destination_if`` pair (phase v0.66.0: "If its mana
+    value is less than or equal to the number of lands you control, put it
+    onto the battlefield. Otherwise put it into your hand." — Part in
+    Friendship; the conditional branch is followed as written, CR 608.2c)."""
+    kept_if = getattr(node, "kept_destination_if", None)
+    kept_if_to = (
+        next((x for x in kept_if if isinstance(x, str)), None)
+        if isinstance(kept_if, list)
+        else None
+    )
+    return "Battlefield" in (
+        getattr(node, "destination", None),
+        getattr(node, "kept_destination", None),
+        getattr(node, "kept_optional_to", None),
+        kept_if_to,
+    )
+
+
+def _cheat_signals(
+    subjects: Iterable[str], raw: str, name: str, scope: str = "you"
+) -> list[Signal]:
+    """One ``cheat_into_play`` Signal per subject."""
+    return [
+        Signal("cheat_into_play", scope, subject, raw, name, "high")
+        for subject in subjects
+    ]
+
 
 def _cheat_into_play(tree: ConceptTree) -> list[Signal]:
+    """The cheat lane's signals (:func:`_cheat_into_play_signals`), plus
+    ``wants_fodder`` when the cheat is a polymorph (:func:`_polymorph_fodder`):
+    the same card turns a body you control into a fresh one off the library, so
+    cheap expendable bodies are what it wants beside it."""
+    sigs = _cheat_into_play_signals(tree)
+    if sigs and _polymorph_fodder(tree):
+        sigs.append(Signal("wants_fodder", "you", "", "", tree.name, "high"))
+    return sigs
+
+
+def _cheat_into_play_signals(tree: ConceptTree) -> list[Signal]:
     """cheat_into_play — put a card onto the battlefield WITHOUT casting it
     (CR 110.2 / 400.7): Sneak Attack (hand), Elvish Piper, Bribery (an
     opponent's library — control is orthogonal, the cheat is still yours). A
@@ -1921,9 +2009,7 @@ def _cheat_into_play(tree: ConceptTree) -> list[Signal]:
                 # with a target-less put (origin untracked — Kassandra's
                 # ANY-zone search) — the Kassandra / Shaun & Rebecca shape.
                 if _sibling_named_tutor_no_core(unit):
-                    return [
-                        Signal("cheat_into_play", "you", "", c.raw, tree.name, "high")
-                    ]
+                    return _cheat_signals(("",), c.raw, tree.name)
                 continue
             cores = set(_change_zone_all_cores(c.node))
             if not cores and node_tag == "ChangeZoneAll" and origin == "Exile":
@@ -1952,29 +2038,23 @@ def _cheat_into_play(tree: ConceptTree) -> list[Signal]:
                     and getattr(c.node, "enters_under", None) != "You"
                 ):
                     cores = set()
-            if not cores:
-                # Fix (a): subtype-only type evidence (cores empty on both the
-                # effect's own filter and the sibling selector).
-                subs = {s.lower() for s in filter_subtypes(effect_filter(c.node))}
-                if not subs:
-                    subs = {s.lower() for s in _sibling_selector_subtypes(unit)}
-                if not subs or subs & LAND_SUBTYPES:
-                    # Fix (f): a Library-origin named tutor with no type
-                    # evidence at all — the "Herald" cycle / Llanowar
-                    # Sentinel / self-tutor shape (origin IS tracked here,
-                    # unlike Kassandra's ANY-zone search above).
-                    if _sibling_named_tutor_no_core(unit):
-                        return [
-                            Signal(
-                                "cheat_into_play", "you", "", c.raw, tree.name, "high"
-                            )
-                        ]
-                    continue  # no type evidence / a land put — never guess
-            elif cores <= {"Land"}:
-                continue  # land carve-out (ramp, not a cheat)
+            # Fix (a): subtype evidence — the put's own filter, else the
+            # sibling selector's (the only evidence when no core type names one).
+            subs = set(filter_subtypes(effect_filter(c.node))) or (
+                _sibling_selector_subtypes(unit)
+            )
+            subjects = _typed_put_subjects(cores, subs)
+            if not subjects:
+                # Fix (f): a Library-origin named tutor with no type evidence
+                # at all — the "Herald" cycle / Llanowar Sentinel / self-tutor
+                # shape (origin IS tracked here, unlike Kassandra's ANY-zone
+                # search above). A land put stays out (ramp, not a cheat).
+                if not cores and _sibling_named_tutor_no_core(unit):
+                    return _cheat_signals(("",), c.raw, tree.name)
+                continue
             if _directed_search_sibling(unit):
                 continue  # another player's compensation fetch, not yours
-            return [Signal("cheat_into_play", "you", "", c.raw, tree.name, "high")]
+            return _cheat_signals(subjects, c.raw, tree.name)
         # Fix (b): the non-land Dig→Battlefield arm (mirrors _extra_land_drop's
         # dig arm with the complementary type gate). ADR-0038 W5 tails adds
         # the SAME subtype-only fallback fix (a) already gives the ChangeZone
@@ -1985,17 +2065,13 @@ def _cheat_into_play(tree: ConceptTree) -> list[Signal]:
         # core-only read came up empty and never guessed; the subtype read
         # is still zero-guess (a land-subtype filter is still excluded).
         for c in unit.effect_concepts("dig"):
-            if getattr(c.node, "destination", None) != "Battlefield":
+            if not _kept_onto_battlefield(c.node):
                 continue
             filt = getattr(c.node, "filter", None)
-            cores = set(filter_core_types(filt))
-            if not cores:
-                subs = {s.lower() for s in filter_subtypes(filt)}
-                if not subs or subs & LAND_SUBTYPES:
-                    continue  # no type evidence / a land put — never guess
-            elif cores <= {"Land"}:
-                continue  # land put (extra_land_drop) / no evidence — no guess
-            return [Signal("cheat_into_play", "you", "", c.raw, tree.name, "high")]
+            if subjects := _typed_put_subjects(
+                filter_core_types(filt), filter_subtypes(filt)
+            ):
+                return _cheat_signals(subjects, c.raw, tree.name)
         # Fix (d): the RevealUntil→Battlefield arm. ADR-0038 W6 endgame
         # widens the destination read to ALSO accept ``kept_optional_to ==
         # "Battlefield"`` — phase's typed field for the "you may put that
@@ -2004,39 +2080,18 @@ def _cheat_into_play(tree: ConceptTree) -> list[Signal]:
         # dig, Genesis Storm's nonland-permanent dig): the default
         # ``kept_destination`` there is "Hand"/"Library" (where the card
         # goes if you DON'T exercise the option), while the real put site is
-        # the separate ``kept_optional_to`` field fix (d) never read. Same
-        # never-guess core/subtype type-evidence gate either way.
-        for c in unit.effects:
-            if c.concept != "reveal_until":
-                continue
-            kept_to = getattr(c.node, "kept_destination", None)
-            kept_optional_to = getattr(c.node, "kept_optional_to", None)
-            # phase v0.66.0 pin bump: a CONDITIONAL destination ("If its
-            # mana value is less than or equal to the number of lands you
-            # control, put it onto the battlefield. Otherwise put it into
-            # your hand." — Part in Friendship) is a ``kept_destination_if``
-            # ``[<condition filter>, <zone>]`` pair beside the default
-            # ``kept_destination`` (now the Otherwise branch, "Hand"); a
-            # Battlefield branch is the same put (CR 608.2c — the spell's
-            # instructions are followed as written, the conditional branch
-            # included).
-            kept_if = getattr(c.node, "kept_destination_if", None)
-            kept_if_to = (
-                next((x for x in kept_if if isinstance(x, str)), None)
-                if isinstance(kept_if, list)
-                else None
-            )
-            if "Battlefield" not in (kept_to, kept_optional_to, kept_if_to):
+        # the separate ``kept_optional_to`` field fix (d) never read; phase
+        # v0.66.0's conditional ``kept_destination_if`` too
+        # (:func:`_kept_onto_battlefield`). Same never-guess core/subtype
+        # type-evidence gate either way.
+        for c in unit.effect_concepts("reveal_until"):
+            if not _kept_onto_battlefield(c.node):
                 continue
             filt = getattr(c.node, "filter", None)
-            cores = set(filter_core_types(filt))
-            if not cores:
-                subs = {s.lower() for s in filter_subtypes(filt)}
-                if not subs or subs & LAND_SUBTYPES:
-                    continue  # no type evidence / a land put — never guess
-            elif cores <= {"Land"}:
-                continue
-            return [Signal("cheat_into_play", "you", "", c.raw, tree.name, "high")]
+            if subjects := _typed_put_subjects(
+                filter_core_types(filt), filter_subtypes(filt)
+            ):
+                return _cheat_signals(subjects, c.raw, tree.name)
         # Fix (e): the RevealedHasCardType-conditioned put — gated to a unit
         # that actually REVEALS/imprints a card (reveal_top / reveal_until /
         # dig / turn_face_up). ``RevealedHasCardType`` is reused by phase for
@@ -2144,22 +2199,13 @@ def _cheat_into_play(tree: ConceptTree) -> list[Signal]:
                         until_types |= set(
                             filter_core_types(getattr(until, "filter", None))
                         )
-                if until_types and not until_types <= {"Land"}:
-                    return [
-                        Signal(
-                            "cheat_into_play", cheat_scope, "", c.raw, tree.name, "high"
-                        )
-                    ]
+                if subjects := _typed_put_subjects(until_types):
+                    return _cheat_signals(subjects, c.raw, tree.name, cheat_scope)
                 found_condition_evidence = False
                 for types in _put_condition_types(unit, c.node):
                     found_condition_evidence = True
-                    if not types or types <= {"Land"}:
-                        continue  # no type evidence / a land put — never guess
-                    return [
-                        Signal(
-                            "cheat_into_play", cheat_scope, "", c.raw, tree.name, "high"
-                        )
-                    ]
+                    if subjects := _typed_put_subjects(types):
+                        return _cheat_signals(subjects, c.raw, tree.name, cheat_scope)
                 # ADR-0038 W6 endgame — when the chain carries NO type-
                 # checking condition at all (Whiskervale Forerunner's
                 # "if it's your turn" is a TIMING gate, not a type gate;
@@ -2172,27 +2218,12 @@ def _cheat_into_play(tree: ConceptTree) -> list[Signal]:
                 # evidence. Only tried when the condition walk found NOTHING
                 # type-shaped (never overrides an explicit land-only
                 # condition that already declined to guess).
-                if not found_condition_evidence:
-                    cores = _reveal_producer_cores(unit)
-                    if cores and not cores <= {"Land"}:
-                        return [
-                            Signal(
-                                "cheat_into_play", "you", "", c.raw, tree.name, "high"
-                            )
-                        ]
-                    if not cores:
-                        subs = {s.lower() for s in _reveal_producer_subtypes(unit)}
-                        if subs and not subs & LAND_SUBTYPES:
-                            return [
-                                Signal(
-                                    "cheat_into_play",
-                                    "you",
-                                    "",
-                                    c.raw,
-                                    tree.name,
-                                    "high",
-                                )
-                            ]
+                if not found_condition_evidence and (
+                    subjects := _typed_put_subjects(
+                        _reveal_producer_cores(unit), _reveal_producer_subtypes(unit)
+                    )
+                ):
+                    return _cheat_signals(subjects, c.raw, tree.name)
     # ADR-0038 W5 tails — the planeswalker "you get an emblem with 'At the
     # beginning of your end step, search your library for a [type] card,
     # put it onto the battlefield, then shuffle'" idiom (Tezzeret, Artifice
@@ -2205,9 +2236,6 @@ def _cheat_into_play(tree: ConceptTree) -> list[Signal]:
     # ``iter_nested_trigger_defs`` shared descent every other
     # granted-ability lane uses (module note above :func:`iter_nested_
     # trigger_defs`).
-    for unit in tree.units:
-        if _nested_emblem_tutor_put(unit):
-            return [Signal("cheat_into_play", "you", "", "", tree.name, "high")]
     # ADR-0038 W5b — a NESTED ``GrantTrigger`` (a static ability granting a
     # triggered ability, CR 603.1 — Shifting Shadow's Aura "At the
     # beginning of your upkeep, destroy this creature. Reveal cards...put
@@ -2230,17 +2258,19 @@ def _cheat_into_play(tree: ConceptTree) -> list[Signal]:
     # false hits across the full census when gated to (Hand-origin ChangeZone
     # WITH type evidence) / (Battlefield-kept RevealUntil WITH type
     # evidence). CR 400.7.
-    for unit in tree.units:
-        if _nested_grant_reveal_or_hand_put(unit):
-            return [Signal("cheat_into_play", "you", "", "", tree.name, "high")]
     # ADR-0039 W7 endgame — a scan-scope closer for a put the reveal and
     # ChangeZone arms above can't pair with its producer (see the helper's
     # docstring). A ``ChooseOneOf`` branch's put (Dr. Eggman) or an "otherwise"
     # put (Impromptu Raid) needs none: the shared effect walk reads it, and a
     # villainous branch is served LOW (``signal_trees.branch_certain_idents``).
-    for unit in tree.units:
-        if _cheat_reveal_until_you_enters_put(unit):
-            return [Signal("cheat_into_play", "you", "", "", tree.name, "high")]
+    for closer in (
+        _nested_emblem_tutor_put,
+        _nested_grant_reveal_or_hand_put,
+        _cheat_reveal_until_you_enters_put,
+    ):
+        for unit in tree.units:
+            if subjects := closer(unit):
+                return _cheat_signals(subjects, "", tree.name)
     # ADR-0039 grammar sprint (task #82) — the tree-synthesis closer for the
     # three retired grammar-straggler bridges (former bridge_ledger.py rows
     # ``cheat_player_prefix_battlefield_put`` / ``cheat_choose_from_among_
@@ -2250,11 +2280,11 @@ def _cheat_into_play(tree: ConceptTree) -> list[Signal]:
     # unchanged — a structural read of the synthesized node, not a widened
     # text match.
     if tree.has_effect("synth_cheat_reveal_or_put_battlefield"):
-        return [Signal("cheat_into_play", "you", "", "", tree.name, "high")]
+        return _cheat_signals(("",), "", tree.name)
     return []
 
 
-def _cheat_reveal_until_you_enters_put(unit: AbilityUnit) -> bool:
+def _cheat_reveal_until_you_enters_put(unit: AbilityUnit) -> tuple[str, ...]:
     """ADR-0039 W7 — a ``reveal_until`` sibling earns the SAME None-origin
     trust :data:`_untracked_producers` gives ``tutor``/``dig``/etc, but ONLY
     for a put that ALSO carries an explicit ``enters_under: You`` marker
@@ -2274,10 +2304,12 @@ def _cheat_reveal_until_you_enters_put(unit: AbilityUnit) -> bool:
     ``ExileFromTopUntil`` condition) stays excluded — corpus-verified sole
     hit (2026-07, every commander-legal ``reveal_until`` sibling + Change-
     Zone{Battlefield, origin: None} pair): Telemin Performance.
+
+    Returns the put's :func:`_cheat_subjects`, empty when there is none.
     """
     revealers = [c for c in unit.effects if c.concept == "reveal_until"]
     if not revealers:
-        return False
+        return ()
     for c in unit.effects:
         if c.concept != "change_zone" or tag_of(c.node) != "ChangeZone":
             continue
@@ -2293,11 +2325,9 @@ def _cheat_reveal_until_you_enters_put(unit: AbilityUnit) -> bool:
             filt = effect_filter(rv.node)
             cores |= set(filter_core_types(filt))
             subs |= set(filter_subtypes(filt))
-        if cores and not cores <= {"Land"}:
-            return True
-        if not cores and subs and not subs & LAND_SUBTYPES:
-            return True
-    return False
+        if subjects := _typed_put_subjects(cores, subs):
+            return subjects
+    return ()
 
 
 def _put_condition_types(unit: AbilityUnit, put: object) -> Iterator[set[str]]:
@@ -2323,7 +2353,7 @@ def _put_condition_types(unit: AbilityUnit, put: object) -> Iterator[set[str]]:
             yield set(getattr(inner, "card_types", None) or [])
 
 
-def _nested_grant_reveal_or_hand_put(unit: AbilityUnit) -> bool:
+def _nested_grant_reveal_or_hand_put(unit: AbilityUnit) -> tuple[str, ...]:
     """Whether ``unit`` grants a trigger (:func:`iter_nested_trigger_defs`)
     whose OWN raw effect chain carries a ``RevealUntil{kept_destination:
     Battlefield}`` (Shifting Shadow) or a ``ChangeZone{Battlefield,
@@ -2336,7 +2366,8 @@ def _nested_grant_reveal_or_hand_put(unit: AbilityUnit) -> bool:
     Master; Garruk, Unleashed); a Graveyard-origin nested ChangeZone is
     reanimation (checklist #2) and is never admitted by this narrower
     origin allow-list. Same land carve-out / never-guess type-evidence
-    gate (core, else subtype) as every other arm.
+    gate (core, else subtype) as every other arm. Returns the put's
+    :func:`_cheat_subjects`, empty when there is none.
     """
     for trig in iter_nested_trigger_defs(unit.node):
         execute = getattr(trig, "execute", None)
@@ -2349,30 +2380,24 @@ def _nested_grant_reveal_or_hand_put(unit: AbilityUnit) -> bool:
                     getattr(eff, "kept_destination", None) == "Battlefield"
                 ):
                     filt = effect_filter(eff)
-                    cores = set(filter_core_types(filt))
-                    if cores and not cores <= {"Land"}:
-                        return True
-                    if not cores:
-                        subs = {s.lower() for s in filter_subtypes(filt)}
-                        if subs and not subs & LAND_SUBTYPES:
-                            return True
+                    if subjects := _typed_put_subjects(
+                        filter_core_types(filt), filter_subtypes(filt)
+                    ):
+                        return subjects
                 elif (
                     t == "ChangeZone"
                     and getattr(eff, "destination", None) == "Battlefield"
                     and getattr(eff, "origin", None) == "Hand"
                 ):
-                    cores = set(_change_zone_all_cores(eff))
-                    if cores and not cores <= {"Land"}:
-                        return True
-                    if not cores:
-                        subs = {s.lower() for s in filter_subtypes(effect_filter(eff))}
-                        if subs and not subs & LAND_SUBTYPES:
-                            return True
+                    if subjects := _typed_put_subjects(
+                        _change_zone_all_cores(eff), filter_subtypes(effect_filter(eff))
+                    ):
+                        return subjects
             node = getattr(node, "sub_ability", None)
-    return False
+    return ()
 
 
-def _nested_emblem_tutor_put(unit: AbilityUnit) -> bool:
+def _nested_emblem_tutor_put(unit: AbilityUnit) -> tuple[str, ...]:
     """Whether ``unit`` grants an emblem/trigger whose OWN raw effect chain
     is a SearchLibrary immediately (before any further Battlefield-destined
     ChangeZone) followed by a ChangeZone{Battlefield} — the nested sibling
@@ -2382,7 +2407,8 @@ def _nested_emblem_tutor_put(unit: AbilityUnit) -> bool:
     trigger_defs`). Same land carve-out / never-guess type-evidence gate as
     the main arm, read off the SearchLibrary's own filter (core, else
     subtype) since these raw nodes never route through :func:`effect_
-    concepts`.
+    concepts`. Returns the put's :func:`_cheat_subjects`, empty when there
+    is none.
     """
     for trig in iter_nested_trigger_defs(unit.node):
         execute = getattr(trig, "execute", None)
@@ -2408,17 +2434,12 @@ def _nested_emblem_tutor_put(unit: AbilityUnit) -> bool:
                 and t == "ChangeZone"
                 and getattr(eff, "destination", None) == "Battlefield"
             ):
-                cores = set(_change_zone_all_cores(eff)) or tutor_cores
-                if cores:
-                    if not cores <= {"Land"}:
-                        return True
-                    continue
-                subs = {s.lower() for s in filter_subtypes(effect_filter(eff))}
-                if not subs:
-                    subs = tutor_subs
-                if subs and not subs & LAND_SUBTYPES:
-                    return True
-    return False
+                if subjects := _typed_put_subjects(
+                    set(_change_zone_all_cores(eff)) or tutor_cores,
+                    set(filter_subtypes(effect_filter(eff))) or tutor_subs,
+                ):
+                    return subjects
+    return ()
 
 
 def _change_zone_all_cores(node: TypedMirrorNode) -> tuple[str, ...]:
@@ -2603,6 +2624,113 @@ def _reveal_producer_subtypes(unit: AbilityUnit) -> set[str]:
         if c.concept in ("dig", "reveal_top", "exile_top"):
             subs |= set(filter_subtypes(effect_filter(c.node)))
     return subs
+
+
+# ── wants_fodder: the polymorph shape ─────────────────────────────────────────
+# A polymorph turns a body on the battlefield into a fresh card off the library:
+# one ability takes a permanent away (exile, tuck, shuffle-in, destroy,
+# sacrifice) and puts a revealed / dug card onto the battlefield (Jace,
+# Multiverse Architect's -3, Mass Polymorph, Proteus Staff). What it wants beside
+# it is something cheap and expendable to transform — a token is the best body
+# to lose (CR 111.7: a token in a zone other than the battlefield ceases to
+# exist).
+_POLYMORPH_REMOVAL_TAGS = frozenset(
+    {"ChangeZone", "ChangeZoneAll", "PutAtLibraryPosition", "Destroy", "Sacrifice"}
+)
+# Whose permanent it is: yours, or each player's own in turn ("each player
+# shuffles a nontoken creature they control into their library" — Collision of
+# Realms carries ``Owned: ScopedPlayer``; each player's pass includes yours).
+_POLYMORPH_OWN_CONTROLLERS = frozenset({"You", "ScopedPlayer"})
+# The swallowed-player-prefix put (Divergent Transformations' "For each of those
+# creatures, its controller reveals cards ... puts that card onto the
+# battlefield"): phase parks the reveal as a residue, and this tree-synthesis
+# arm stands in for it. The removed creature's controller gets the put.
+_POLYMORPH_PREFIX_ARM = "cheat_player_prefix_battlefield_put"
+
+
+def _polymorph_fodder(tree: ConceptTree) -> bool:
+    """Whether one ability of ``tree`` both removes a permanent you control and
+    puts a revealed or dug card onto the battlefield — the ``wants_fodder``
+    read (:func:`_cheat_into_play`).
+
+    The removal (:func:`_removes_own_permanent`) names a battlefield permanent
+    you control or own ("another target planeswalker or creature you control",
+    "all creatures you control", "target permanent you own"), or ANY creature
+    when the put goes to that creature's controller (Proteus Staff's "That
+    creature's controller reveals cards ..."; Polymorph) — your own creature is
+    a legal target. The put (:func:`_unit_reveal_put`) is a reveal-until or
+    dig onto the battlefield in the SAME ability; a hand cheat (Kaalia of the
+    Vast) or a tutor-and-put (Zur the Enchanter) removes nothing, and a
+    blink returns the same object (no reveal producer)."""
+    prefix_put = any(
+        getattr(c.node, "arm_id", "") == _POLYMORPH_PREFIX_ARM
+        for c in tree.effect_concepts("synth_cheat_reveal_or_put_battlefield")
+    )
+    for unit in tree.units:
+        puts, to_target_controller = _unit_reveal_put(unit)
+        if not (puts or prefix_put):
+            continue
+        if any(
+            _removes_own_permanent(
+                c.node, any_controller=to_target_controller or prefix_put
+            )
+            for c in unit.effects
+        ):
+            return True
+    return False
+
+
+def _unit_reveal_put(unit: AbilityUnit) -> tuple[bool, bool]:
+    """``(puts, to_target_controller)`` for ``unit``: whether it puts a revealed
+    or dug card onto the battlefield — a ``RevealUntil`` kept onto the
+    battlefield, a ``Dig`` onto the battlefield, or a reveal producer
+    (:data:`_CHEAT_REVEAL_PRODUCERS`) followed by a battlefield ``ChangeZone``
+    (Indomitable Creativity exiles the revealed pile, then puts it) — and
+    whether the revealing player is the TARGETED object's controller
+    (``ParentTargetController`` — Proteus Staff, Polymorph)."""
+    revealers = [c for c in unit.effects if c.concept in _CHEAT_REVEAL_PRODUCERS]
+    if not revealers:
+        return (False, False)
+    puts = any(_kept_onto_battlefield(c.node) for c in revealers) or any(
+        c.concept == "change_zone" and change_zone_dirs(c.node)[1] == "Battlefield"
+        for c in unit.effects
+    )
+    to_target_controller = any(
+        tag_of(getattr(c.node, "player", None)) == "ParentTargetController"
+        for c in revealers
+    )
+    return (puts, to_target_controller)
+
+
+def _removes_own_permanent(node: TypedMirrorNode, *, any_controller: bool) -> bool:
+    """Whether effect ``node`` takes a battlefield permanent you control away —
+    an exile / tuck / shuffle-in ``ChangeZone`` off the battlefield,
+    ``PutAtLibraryPosition``, ``Destroy`` or ``Sacrifice`` whose target filter
+    names a permanent type (``_PERMANENT_TYPES``), sits in no other
+    zone (no ``InZone`` — Jace's +1 puts a card from HAND on the bottom), and is
+    controlled or owned by you (:data:`_POLYMORPH_OWN_CONTROLLERS`). With
+    ``any_controller`` an unrestricted controller also counts: the put goes to
+    the removed creature's controller, so your own creature is the fodder."""
+    tag = tag_of(node)
+    if tag not in _POLYMORPH_REMOVAL_TAGS:
+        return False
+    if tag in ("ChangeZone", "ChangeZoneAll"):
+        origin, dest = change_zone_dirs(node)
+        if dest not in ("Exile", "Library", "Graveyard"):
+            return False
+        if origin not in (None, "Battlefield"):
+            return False
+    filt = effect_filter(node)
+    if filter_inzone_zones(filt):
+        return False
+    if not set(filter_core_types(filt)) & _PERMANENT_TYPES:
+        return False
+    controller = filter_controller(filt)
+    if controller in _POLYMORPH_OWN_CONTROLLERS:
+        return True
+    if filter_owned_controller(filt) in _POLYMORPH_OWN_CONTROLLERS:
+        return True
+    return controller is None and any_controller
 
 
 def _directed_search_sibling(unit: AbilityUnit) -> bool:

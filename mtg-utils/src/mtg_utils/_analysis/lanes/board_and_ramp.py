@@ -699,12 +699,17 @@ def _is_you_sac_subject(
 
 
 def _lifegain_matters(tree: ConceptTree) -> list[Signal]:
-    """A your-lifegain PAYOFF / significant self-life-loss engine (CR 119). Tier-1.
+    """A your-lifegain PAYOFF (``lifegain_matters``) or a significant self-life-loss
+    engine (``wants_lifegain``) (CR 119). Tier-1.
 
     Six structural arms + the bucket-B synth node, zero oracle text / regex at lane
     time (ADR-0036/0037 fold — the ``_LIFEGAIN_MATTERS_MIRROR`` is deleted). All
     scope "you"; the shared predicates live in ``tree_synthesis`` so the lane and the
-    synth gap gate read ONE source (gap-gate-alignment, no drift):
+    synth gap gate read ONE source (gap-gate-alignment, no drift). The two self-bleed
+    arms emit ``wants_lifegain`` (ADR-0034's ``wants_<x>``: the card's own play wants
+    lifegain done for it — it is a carer of the Lifegain avenue, not a lifegain
+    card); every other arm emits ``lifegain_matters``. A card hitting both kinds
+    (Nazar, the Velvet Fang) emits both keys:
 
     * a native ``life_gained`` trigger (:func:`has_life_gained_trigger` — Archangel
       of Thune, Ajani's Pridemate).
@@ -735,22 +740,21 @@ def _lifegain_matters(tree: ConceptTree) -> list[Signal]:
     shed (the mirror's cross-clause over-fires; the LOW-life polarity is a
     different signal, not read here).
     """
+    out: list[Signal] = []
     if (
         has_life_gained_trigger(tree)
-        or has_trigger_draw_bleed(tree)
-        or has_selfloss_engine(tree)
         or has_life_gained_this_turn(tree)
         or has_gain_life_amplifier(tree)
         or has_high_life_total_payoff(tree)
+        or any(c.concept == "synth_lifegain_matters" for c in tree.iter_concepts())
     ):
-        return [Signal("lifegain_matters", "you", "", "", tree.name, "high")]
-    for c in tree.iter_concepts():
-        if c.concept == "synth_lifegain_matters":
-            return [Signal("lifegain_matters", "you", "", "", tree.name, "high")]
-    # phase v0.104.0's intervening-if draw-and-self-bleed trigger (Marchesa, Lord
-    # Skitter's Blessing) is the ledger row conditional_draw_bleed_lifegain_
-    # matters_parked: the bleed is the clause's second verb.
-    return []
+        out.append(Signal("lifegain_matters", "you", "", "", tree.name, "high"))
+    if has_trigger_draw_bleed(tree) or has_selfloss_engine(tree):
+        out.append(Signal("wants_lifegain", "you", "", "", tree.name, "high"))
+    # phase v0.104.0 parks the intervening-if draw-and-self-bleed trigger (Marchesa,
+    # Lord Skitter's Blessing); the recovery stage reads its second verb, so it
+    # reaches the self-bleed arm like any other.
+    return out
 
 
 def _blink_flicker(tree: ConceptTree) -> list[Signal]:

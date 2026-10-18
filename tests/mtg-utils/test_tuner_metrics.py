@@ -327,3 +327,37 @@ def test_grant_covered_role_short_is_advisory_but_still_shows_the_literal_number
     ramp_issue = by_role["ramp"]
     assert ramp_issue.get("advisory", False) is False
     assert ramp_issue.get("grant_covered", False) is False
+
+
+def test_commander_holding_a_viable_avenue_is_never_a_misfit():
+    from mtg_utils._tuner.classify import CardClass
+    from mtg_utils._tuner.metrics import commander_fit
+
+    def cc(name, bucket, served):
+        return CardClass(
+            name=name,
+            bucket=bucket,
+            roles=(),
+            served=tuple(served),
+            dual_purpose=False,
+            cmc=2.0,
+            record={"name": name},
+        )
+
+    classes = [cc("Polymorph Cmdr", "commander", ["Cheat into play"])]
+    rows = [
+        {"label": lbl, "depth": 20, "carers": 6, "cards": [], "tier": "main"}
+        for lbl in ("Cheat into play", "Go wide", "Spellslinger", "Artifacts")
+    ]
+    held = commander_fit(
+        classes,
+        {"viable_avenues": rows, "commander_avenues": ["Cheat into play"]},
+    )
+    assert held["fit"] == 0.25
+    assert held["misfit"] is False
+    # The same numbers with the commander holding none of the lanes.
+    stranger = commander_fit(
+        [cc("Tribal Cmdr", "commander", ["Goblin tribal"])],
+        {"viable_avenues": rows, "commander_avenues": []},
+    )
+    assert stranger["misfit"] is True

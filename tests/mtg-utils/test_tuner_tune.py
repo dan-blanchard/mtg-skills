@@ -93,16 +93,22 @@ def test_swaps_propose_within_budget_and_pair_cut_with_add():
     )
     swaps = out["swaps"]
     assert swaps, "expected at least one swap"
-    for s in swaps:
+    # The two filler cards are the deck's only safe cuts (its Goblins do what
+    # Krenko does and are never a low-value cut); once they are spent, the
+    # under-sized deck's remaining moves are pure fills into open slots.
+    paired = [s for s in swaps if s["cut"] is not None]
+    assert paired, "expected at least one paired swap"
+    for s in paired:
         assert s["cut"]["name"]
-        assert s["add"]["name"]
         assert "why" in s["cut"]
+    for s in swaps:
+        assert s["add"]["name"]
     assert out["spent"] <= 100.0
     # `spent` must equal exactly the sum of *proposed* adds' costs — a found-but-unpaired
     # add must never inflate the total.
     assert out["spent"] == round(sum(s["add"]["cost"] for s in swaps), 2)
     # Cuts come from filler first (the deck's only safe cuts).
-    assert any(s["cut"]["name"] in ("Gloom Pangolin", "Palace Guard") for s in swaps)
+    assert any(s["cut"]["name"] in ("Gloom Pangolin", "Palace Guard") for s in paired)
 
 
 def test_owned_only_default_is_zero_spend():
@@ -621,17 +627,19 @@ def test_size_cut_cards_excluded_from_regular_swap_cut_pool():
 
 
 def test_medium_threads_to_the_low_value_reads():
-    # ADR-0040 §4 (task #99): real Krenko + Rabblemaster (edhrec_rank=None in
-    # the snapshot's minimal records) give one engine card: fringe-evidence on
-    # paper, no-data on digital. Proves TuneParams.medium reaches metrics.focus.
+    # ADR-0040 §4 (task #99): a real Rabblemaster (edhrec_rank=None in the
+    # snapshot's minimal records) under a commander whose lane he does not feed
+    # (Fynn's deathtouch lane — a card on the commander's own lane is never
+    # low-value, 2026-10-18) gives one engine card: fringe-evidence on paper,
+    # no-data on digital. Proves TuneParams.medium reaches metrics.focus.
     # Historic Brawl, because it is played in BOTH media — ``Format.game`` resolves an override the format cannot honour
     # (digital on Commander) back to the format's own medium.
-    testkit.test_card_ir("Krenko, Mob Boss")  # seeds the crosswalk trees memo
+    testkit.test_card_ir("Fynn, the Fangbearer")  # seeds the crosswalk trees memo
     testkit.test_card_ir("Goblin Rabblemaster")
     index = {
         c["name"]: c
         for c in (
-            testkit.test_card("Krenko, Mob Boss"),
+            testkit.test_card("Fynn, the Fangbearer"),
             testkit.test_card("Goblin Rabblemaster"),
             MOUNTAIN,
         )
@@ -639,7 +647,7 @@ def test_medium_threads_to_the_low_value_reads():
     deck = {
         "format": "historic_brawl",
         "deck_size": 100,
-        "commanders": [{"name": "Krenko, Mob Boss", "quantity": 1}],
+        "commanders": [{"name": "Fynn, the Fangbearer", "quantity": 1}],
         "cards": [
             {"name": "Goblin Rabblemaster", "quantity": 1},
             {"name": "Mountain", "quantity": 1},

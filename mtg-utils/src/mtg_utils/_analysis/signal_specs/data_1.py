@@ -109,6 +109,33 @@ from ._shared import (
     _sweep_spec_with_extras,
 )
 
+
+def _lifegain_spec(label: str, avenue: str) -> SignalSpec:
+    """The Lifegain avenue's spec, one per key: the payoffs (lifegain_matters), the
+    sources (lifegain_makers) and the self-bleed engines that want lifegain beside
+    them (wants_lifegain). All three serve the whole package, sources and payoffs
+    together; lifelink is a keyword, so it serves off keywords[]."""
+    return _spec(
+        label,
+        avenue,
+        {"oracle": r"gain .* life"},
+        # Serve rides the lane (2026-10-18): over the commander pool regex 2205,
+        # idents 2412, both 2054. Regex-only 151: 96 Food makers (the gain sits in
+        # the Food token, which the lane doesn't read as lifegain_makers — backlog),
+        # 20 lifegain hosers (Sulfuric Vortex, Tainted Remedy), gifts to an
+        # opponent (Path of Peace, Fiery Justice) and 5 lifelink grants on a token,
+        # counter or Aura (Charismatic Conqueror, Duskfang Mentor). Ident-only 358:
+        # 291 lifelink bearers the keyword arm already served, and 67 payoffs the
+        # regex missed (Angelic Accord, Voracious Wurm, the Infusion cards, Test of
+        # Endurance). The 134 self-bleed engines (Dark Confidant, Phyrexian Arena)
+        # emit wants_lifegain, not a served ident: they want lifegain, they don't
+        # supply it.
+        None,
+        serve_idents=frozenset({"lifegain_makers|you|*", "lifegain_matters|you|*"}),
+        serve_keywords=("lifelink",),
+    )
+
+
 SPECS_1: dict[tuple[str, str], SignalSpec] = {
     # task B-1: chosen_type_matters — wildcard tribal payoffs (Door of
     # Destinies, Herald's Horn, Urza's Incubator): choose a creature type as
@@ -417,47 +444,22 @@ SPECS_1: dict[tuple[str, str], SignalSpec] = {
         # Plaguecrafter), not just the reanimation spells.
         extras=(_CAST_FROM_GY_EXTRA, _ETB_VALUE_EXTRA),
     ),
-    # Lifegain. The bare `lifelink` oracle word matched any card listing it (Crystalline
-    # Giant's random-counter menu, reminder text). Lifelink is a keyword (CR 702.15), so
-    # gate on keywords[]; a card that GRANTS lifelink to the team still serves via the
-    # grant oracle branch. Keep the actual gain-life clauses.
-    ("lifegain_matters", "you"): _spec(
-        "Lifegain",
-        "incidental and repeatable lifegain",
-        {"oracle": r"gain .* life"},
-        # HELD on the regex (2026-10-18 serve-ident pass): the lane emits
-        # ``lifegain_matters`` for self-bleed engines (Dark Confidant, Phyrexian
-        # Arena), so the ident arm would serve them into a Lifegain avenue; the
-        # regex's own faults (lifegain hate and gifts to opponents — Sulfuric
-        # Vortex, Path of Peace — and a missed "life you gained") are logged in
-        # the backlog beside that lane bug.
-        r"gain \d+ life|gain x life|gains? [^.]*\blife\b"
-        r"|whenever[^.]*gain[^.]*life"
-        r"|(?:creatures? you control|enchanted creature|equipped creature|they)"
-        r"[^.]*\blifelink\b|(?:gain|gains|have|has) lifelink",
-        serve_keywords=("lifelink",),
+    # Lifegain: the payoffs and the self-bleed engines that want them share the
+    # "Lifegain" label, so focus reads them as one avenue.
+    ("lifegain_matters", "you"): _lifegain_spec(
+        "Lifegain", "incidental and repeatable lifegain"
     ),
     # _matters sweep (ADR-0034): the MAKER side of the lifegain split — cards that
     # PERFORM the lifegain (the lifelink keyword / a structured `gain_life` Effect / a
-    # grant-lifelink Effect). The avenue still offers the whole lifegain package (the
-    # makers and the whenever-you-gain-life payoffs together), so this spec copies the
-    # kept lifegain_matters serve content; only the role label differs. serve_keywords
-    # =("lifelink",) is a maker keyword (a lifelink bearer is a lifegain source).
-    ("lifegain_makers", "you"): _spec(
+    # grant-lifelink Effect).
+    ("lifegain_makers", "you"): _lifegain_spec(
         "Lifegain (makers)",
         "lifegain sources — incidental and repeatable lifegain doers",
-        {"oracle": r"gain .* life"},
-        # HELD on the regex (2026-10-18 serve-ident pass): the lane emits
-        # ``lifegain_matters`` for self-bleed engines (Dark Confidant, Phyrexian
-        # Arena), so the ident arm would serve them into a Lifegain avenue; the
-        # regex's own faults (lifegain hate and gifts to opponents — Sulfuric
-        # Vortex, Path of Peace — and a missed "life you gained") are logged in
-        # the backlog beside that lane bug.
-        r"gain \d+ life|gain x life|gains? [^.]*\blife\b"
-        r"|whenever[^.]*gain[^.]*life"
-        r"|(?:creatures? you control|enchanted creature|equipped creature|they)"
-        r"[^.]*\blifelink\b|(?:gain|gains|have|has) lifelink",
-        serve_keywords=("lifelink",),
+    ),
+    ("wants_lifegain", "you"): _lifegain_spec(
+        "Lifegain",
+        "lifegain to offset your own life payments — the sources and payoffs of "
+        "the Lifegain package",
     ),
     ("plus_one_matters", "any"): _spec(
         "+1/+1 counters",

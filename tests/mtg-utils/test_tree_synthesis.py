@@ -934,7 +934,8 @@ def test_lifegain_broadened_draw_bleed_recovered(name):
     assert has_trigger_draw_bleed(tree) is True
     assert _has_structural_lifegain(tree) is True
     assert synthesize_nodes(tree) == ()
-    assert any(s.key == "lifegain_matters" for s in _lifegain_matters(tree))
+    # A self-bleed engine wants lifegain (wants_lifegain); it is no payoff.
+    assert {s.key for s in _lifegain_matters(tree)} == {"wants_lifegain"}
 
 
 @pytest.mark.parametrize(

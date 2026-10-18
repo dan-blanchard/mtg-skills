@@ -10,6 +10,7 @@ import-time key-agreement gate (ADR-0014).
 
 from __future__ import annotations
 
+import functools
 import re
 from dataclasses import replace
 from typing import TYPE_CHECKING
@@ -187,6 +188,48 @@ def _tribal_group(subj: str) -> frozenset[str] | None:
     return None
 
 
+# The cheat lane's per-type payoff (``_cheat_subject_spec``): the card a cheat of
+# that type wants to find. A creature cheat wants the fat bodies it skips the
+# cost of (Craterhoof, Worldspine Wurm) — the power-5 floor the static spec
+# carried; every other type wants cards of that type.
+_CHEAT_PAYOFF_POWER_MIN = 5
+
+
+@functools.cache
+def _cheat_subject_spec(subj: str) -> SignalSpec:
+    """The ``cheat_into_play|you|<subj>`` spec, ``subj`` the cheated card type
+    (signal_keys.CHEAT_INTO_PLAY). Every subject shares the one "Cheat into
+    play" label, so the per-type specs read as one avenue downstream (focus
+    dedupes by label). The enabler arm is the lane's own idents — this type's
+    cheats plus the untyped ones (subject "", which put whatever they find);
+    the payoff arm is what such a cheat wants to find: a big creature, or a
+    card of the type. Cached: a pure function of the subject, and ``spec_for``
+    is hot (commander_fit asks per candidate x signal)."""
+    plural = "big creatures" if subj == "Creature" else _pluralize(subj.lower()).lower()
+    payoff = (
+        Serve(power_min=_CHEAT_PAYOFF_POWER_MIN)
+        if subj == "Creature"
+        else Serve(types=frozenset({subj.lower()}))
+    )
+    return SignalSpec(
+        label="Cheat into play",
+        avenue=(
+            f"ways to put {plural} onto the battlefield from hand or library, "
+            f"plus the {plural} worth cheating in"
+        ),
+        search={"oracle": "onto the battlefield"},
+        serve=replace(
+            payoff,
+            signal_idents=frozenset(
+                {
+                    f"{signal_keys.CHEAT_INTO_PLAY}|you|{subj}",
+                    f"{signal_keys.CHEAT_INTO_PLAY}|you|",
+                }
+            ),
+        ),
+    )
+
+
 def _subject_spec(signal: Signal) -> SignalSpec:
     """Build a spec for a subject-bearing signal by interpolating the subject."""
     subj = signal.subject
@@ -237,6 +280,9 @@ def _subject_spec(signal: Signal) -> SignalSpec:
                 ),
             ),
         )
+    # cheat into play: the subject is the cheated card TYPE.
+    if signal.key == signal_keys.CHEAT_INTO_PLAY:
+        return _cheat_subject_spec(subj)
     # token-maker: the deck CREATES {s} tokens, so find cards that *make* them (not the
     # tribe — searching the type line surfaced {s} creatures that don't make tokens).
     if signal.key == signal_keys.TOKEN_MAKER:

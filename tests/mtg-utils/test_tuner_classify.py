@@ -398,3 +398,49 @@ def test_focus_reads_a_real_deck_signal_pass():
     assert set(fr["commander_avenues"]) <= {a["label"] for a in fr["viable_avenues"]}
     for row in fr["viable_avenues"] + fr["emerging"] + fr["fed"]:
         assert {"label", "depth", "carers", "cards"} <= set(row)
+
+
+def test_focus_counts_a_self_bleed_engine_as_a_lifegain_carer():
+    # Dark Confidant emits wants_lifegain: he wants lifegain without
+    # supplying any, so he cares about the Lifegain avenue (a carer) but is never
+    # one of the cards it serves (a member).
+    from mtg_utils._analysis.signals import read_deck_signals
+    from mtg_utils._tuner.metrics import focus
+
+    names = [
+        "Dark Confidant",
+        "Ajani's Pridemate",
+        "Archangel of Thune",
+        "Baneslayer Angel",
+        "Soul Warden",
+        "Voracious Wurm",
+    ]
+    index = {KRENKO["name"]: KRENKO}
+    for name in names:
+        testkit.test_card_ir(name)  # seeds the crosswalk trees memo
+        index[name] = testkit.test_card(name)
+    deck = {
+        "format": "commander",
+        "commanders": [{"name": "Krenko, Mob Boss", "quantity": 1}],
+        "cards": [{"name": n, "quantity": 1} for n in names],
+    }
+    hd = HydratedDeck.from_parsed(deck, by_name=index)
+    cmd = {"Krenko, Mob Boss"}
+    read = read_deck_signals(hd.records, cmd)
+    classes = classify_deck(hd, read.ranked, cmd, deck_mana=hd.deck_mana)
+    fr = focus(
+        classes,
+        deck_size=100,
+        deck_signals=read.ranked,
+        commander_idents=read.commander_idents,
+        emitters=read.emitters,
+        tribal_payoff_subjects=read.payoff_subjects,
+    )
+    (row,) = [
+        r
+        for r in fr["viable_avenues"] + fr["emerging"] + fr["fed"]
+        if r["label"] == "Lifegain"
+    ]
+    assert "Dark Confidant" in row["carer_cards"]
+    assert "Dark Confidant" not in row["cards"]
+    assert "Ajani's Pridemate" in row["carer_cards"]

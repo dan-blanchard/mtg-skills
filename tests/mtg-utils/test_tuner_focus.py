@@ -210,7 +210,7 @@ def test_a_deep_avenue_nobody_cares_about_is_fed_not_built():
     assert historic in fed
     assert fed[historic]["depth"] == 22
     assert fed[historic]["carers"] == 1
-    assert fr["carer_floor"] == 3
+    assert fr["carer_floor"] == 4
     # The commander's lane leads (the remedies source adds from viable[0]) and is
     # a main theme whatever its depth; Combat follows on its nine carers.
     assert viable == [cheat, combat]
@@ -414,7 +414,7 @@ def test_granter_low_value_reads_quality_not_playrate():
 
 def test_a_doer_lane_with_no_payoff_sibling_is_cared_about_by_its_doers():
     # mill_makers has no served mill_matters / wants_mill: the deck milling IS
-    # the theme, so its carers are its makers and three of them build it.
+    # the theme, so its carers are its makers and four of them build it.
     from mtg_utils._tuner.metrics import _cares_keys
 
     assert _cares_keys("mill_makers") == ("mill_makers",)
@@ -425,7 +425,9 @@ def test_a_doer_lane_with_no_payoff_sibling_is_cared_about_by_its_doers():
         deck_size=100,
         deck_signals=[_sig("mill_makers")],
         emitters={
-            ("mill_makers", "you", ""): frozenset({"Mill 0", "Mill 1", "Mill 2"})
+            ("mill_makers", "you", ""): frozenset(
+                {"Mill 0", "Mill 1", "Mill 2", "Mill 3"}
+            )
         },
     )
     assert [a["label"] for a in fr["viable_avenues"]] == [label]
@@ -435,8 +437,8 @@ def test_token_maker_is_cared_about_by_tokens_matter():
     # The one irregular doer / payoff spelling in the manifest.
     from mtg_utils._tuner.metrics import _cares_keys
 
-    assert _cares_keys("token_maker") == ("tokens_matter",)
-    assert _cares_keys("lifegain_makers") == ("lifegain_matters",)
+    assert _cares_keys("token_maker")[0] == "tokens_matter"
+    assert _cares_keys("lifegain_makers") == ("lifegain_matters", "wants_lifegain")
     assert _cares_keys("cheat_into_play") == ("cheat_into_play",)
 
 
@@ -454,12 +456,12 @@ def test_carers_are_read_across_scopes():
                 {f"Gainer {i}" for i in range(9)}
             ),
             ("lifegain_matters", "you", ""): frozenset(
-                {"Gainer 0", "Gainer 1", "Gainer 2"}
+                {"Gainer 0", "Gainer 1", "Gainer 2", "Gainer 3"}
             ),
         },
     )
     assert [a["label"] for a in fr["viable_avenues"]] == [makers]
-    assert fr["viable_avenues"][0]["carers"] == 3
+    assert fr["viable_avenues"][0]["carers"] == 4
 
 
 def test_an_emerging_depth_avenue_nobody_cares_about_is_reported_fed():
@@ -470,3 +472,280 @@ def test_an_emerging_depth_avenue_nobody_cares_about_is_reported_fed():
     )
     assert fr["emerging"] == []
     assert [(a["label"], a["depth"], a["carers"]) for a in fr["fed"]] == [(label, 6, 0)]
+
+
+# ── 2026-10-18: carers that are the commander's lane, lands, sibling reads ─────
+
+
+def _polymorph_precon():
+    """The stock Jace precon's shape after the fed/built read: the cheat lane is
+    held by Jace and fed by his polymorphs and the power-5+ bombs; five of those
+    bombs carry attack triggers (they EMIT attack_matters) beside two real Combat
+    cards and two creature lands; Jace's one -3 also emits dig_until, a narrower
+    read of the same cards."""
+    cheat = spec_for(_sig("cheat_into_play")).label
+    combat = spec_for(_sig("attack_matters")).label
+    dig = spec_for(_sig("dig_until")).label
+    classes = [_cc("Polymorph Cmdr", "commander", [cheat, dig])]
+    classes += [_cc(f"Polymorph {i}", "engine", [cheat, dig]) for i in range(5)]
+    classes += [_cc(f"Bomb {i}", "engine", [cheat, combat]) for i in range(12)]
+    classes += [_cc(f"Attacker {i}", "engine", [combat]) for i in range(10)]
+    classes += [_cc(f"Manland {i}", "land", []) for i in range(2)]
+    signals = [_sig("cheat_into_play"), _sig("attack_matters"), _sig("dig_until")]
+    polymorphs = {f"Polymorph {i}" for i in range(5)}
+    emitters = {
+        ("cheat_into_play", "you", ""): frozenset({"Polymorph Cmdr"} | polymorphs),
+        ("dig_until", "you", ""): frozenset({"Polymorph Cmdr"} | polymorphs),
+        ("attack_matters", "you", ""): frozenset(
+            {f"Bomb {i}" for i in range(5)}
+            | {"Attacker 0", "Attacker 1"}
+            | {"Manland 0", "Manland 1"}
+        ),
+    }
+    return classes, signals, emitters, cheat, combat, dig
+
+
+def test_carers_already_in_the_commanders_lane_do_not_make_a_second_theme():
+    classes, signals, emitters, cheat, combat, dig = _polymorph_precon()
+    fr = focus(
+        classes,
+        deck_size=100,
+        deck_signals=signals,
+        commander_idents=frozenset(
+            {("cheat_into_play", "you", ""), ("dig_until", "you", "")}
+        ),
+        emitters=emitters,
+    )
+    # Combat's nine emitters: the five bombs are the cheat lane's payoffs and the
+    # two manlands are mana base — two cards built toward Combat on their own.
+    fed = {a["label"]: a for a in fr["fed"]}
+    assert combat in fed
+    assert fed[combat]["carers"] == 2
+    assert fed[combat]["carer_cards"] == ["Attacker 0", "Attacker 1"]
+    # The held lane keeps every carer (never discounted against itself).
+    cheat_row = next(a for a in fr["viable_avenues"] if a["label"] == cheat)
+    assert cheat_row["carers"] == 6
+    assert cheat_row["tier"] == "main"
+    # Jace's -3 is one ability read three ways: the narrower sibling collapses into
+    # the broad lane instead of surfacing as its own commander-held avenue.
+    assert dig not in [a["label"] for a in fr["viable_avenues"]]
+    assert dig not in [a["label"] for a in fr["emerging"]]
+    assert fr["commander_avenues"] == [cheat]
+    assert fr["verdict"] == "FOCUSED"
+
+
+def test_a_main_theme_needs_builders_not_just_feeders():
+    # Twenty-two artifacts feed "Artifacts" (every rock serves it) and four cards
+    # care: enough for a sub-theme, not a main. Six carers make it a main.
+    artifacts = spec_for(_sig("artifacts_matter")).label
+    classes = [_cc(f"Rock {i}", "engine", [artifacts]) for i in range(22)]
+    sig = [_sig("artifacts_matter")]
+    four = {("artifacts_matter", "you", ""): frozenset({f"Rock {i}" for i in range(4)})}
+    fr = focus(classes, deck_size=100, deck_signals=sig, emitters=four)
+    assert fr["main_carer_floor"] == 6
+    assert [(a["label"], a["tier"]) for a in fr["viable_avenues"]] == [
+        (artifacts, "sub")
+    ]
+    six = {("artifacts_matter", "you", ""): frozenset({f"Rock {i}" for i in range(6)})}
+    fr = focus(classes, deck_size=100, deck_signals=sig, emitters=six)
+    assert [(a["label"], a["tier"]) for a in fr["viable_avenues"]] == [
+        (artifacts, "main")
+    ]
+    # A caller with no emitter read keeps the depth-only main tier.
+    fr = focus(classes, deck_size=100, deck_signals=sig)
+    assert fr["viable_avenues"][0]["tier"] == "main"
+
+
+def test_a_subjectless_payoff_cares_about_every_subject_of_its_doer():
+    # A tokens anthem (tokens_matter, subject "") cares about Mite makers.
+    mites = spec_for(_sig("token_maker", subject="Mite")).label
+    classes = [_cc(f"Mite maker {i}", "engine", [mites]) for i in range(10)]
+    classes += [_cc(f"Anthem {i}", "engine", [mites]) for i in range(4)]
+    fr = focus(
+        classes,
+        deck_size=100,
+        deck_signals=[_sig("token_maker", subject="Mite")],
+        emitters={
+            ("token_maker", "you", "Mite"): frozenset(
+                {f"Mite maker {i}" for i in range(10)}
+            ),
+            ("tokens_matter", "you", ""): frozenset({f"Anthem {i}" for i in range(4)}),
+        },
+    )
+    assert [a["label"] for a in fr["viable_avenues"]] == [mites]
+    assert fr["viable_avenues"][0]["carer_cards"] == [f"Anthem {i}" for i in range(4)]
+
+
+def test_board_wipes_are_scaffolding_not_a_theme():
+    wipes = spec_for(_sig("mass_removal")).label
+    classes = [
+        _cc(f"Wipe {i}", "spine", [wipes], roles=["board_wipe"]) for i in range(6)
+    ]
+    fr = focus(
+        classes,
+        deck_size=100,
+        deck_signals=[_sig("mass_removal")],
+        emitters={
+            ("mass_removal", "you", ""): frozenset({f"Wipe {i}" for i in range(6)})
+        },
+    )
+    assert fr["viable_avenues"] == []
+    assert fr["emerging"] == []
+
+
+def test_verdict_counts_mains_and_subs_not_viable_avenues():
+    def deck(n_mains, n_subs):
+        classes, emitters = [], {}
+        for m in range(n_mains):
+            lbl = f"Main {m}"
+            classes += [_cc(f"M{m}-{i}", "engine", [lbl]) for i in range(20)]
+            emitters[(f"main{m}", "you", "")] = frozenset(f"M{m}-{i}" for i in range(6))
+        for s in range(n_subs):
+            lbl = f"Sub {s}"
+            classes += [_cc(f"S{s}-{i}", "engine", [lbl]) for i in range(10)]
+            emitters[(f"sub{s}", "you", "")] = frozenset(f"S{s}-{i}" for i in range(4))
+        return classes, emitters
+
+    # Labels here are synthetic (no spec), so run the legacy emitter-less path for
+    # the tiering and read the verdict off mains / subs directly.
+    classes, _ = deck(1, 2)
+    assert focus(classes, deck_size=100)["verdict"] == "FOCUSED"
+    classes, _ = deck(2, 0)
+    assert focus(classes, deck_size=100)["verdict"] == "SPREAD-THIN"
+    classes, _ = deck(1, 3)
+    assert focus(classes, deck_size=100)["verdict"] == "SPREAD-THIN"
+    classes, _ = deck(0, 2)
+    assert focus(classes, deck_size=100)["verdict"] == "FOCUSED"
+
+
+def test_an_engine_card_feeding_only_fed_avenues_is_dead_weight():
+    classes, signals, emitters, _cheat, _combat, _dig = _polymorph_precon()
+    fr = focus(
+        classes,
+        deck_size=100,
+        deck_signals=signals,
+        commander_idents=frozenset({("cheat_into_play", "you", "")}),
+        emitters=emitters,
+    )
+    # The ten attackers serve Combat only, and Combat is fed: they feed nothing the
+    # deck built toward, so they count as filler and leave the engine pool.
+    attackers = sorted(f"Attacker {i}" for i in range(10))
+    assert fr["fed_only_cards"] == attackers
+    assert sorted(fr["filler_cards"]) == attackers
+    assert fr["filler"] == 10
+    assert fr["engine_pool"] == 17  # 5 polymorphs + 12 bombs
+    # Filler is never also low-value (it would count twice as dead weight), and
+    # the lane's own polymorphs are never low-value; the rankless bombs the
+    # lane merely serves stay upgrade targets.
+    low = set(fr["low_value_cards"])
+    assert not low & set(attackers)
+    assert not low & {f"Polymorph {i}" for i in range(5)}
+    assert "Bomb 0" in low
+
+
+def test_nothing_is_fed_only_until_something_is_built():
+    # A build in progress: ten cards feeding an avenue nobody cares about yet must
+    # not all read as filler for the role fills to cut.
+    label = spec_for(_sig("mill_makers")).label
+    classes = [_cc(f"Mill {i}", "engine", [label]) for i in range(10)]
+    fr = focus(classes, deck_size=100, deck_signals=[_sig("mill_makers")], emitters={})
+    assert fr["viable_avenues"] == []
+    assert fr["fed_only_cards"] == []
+    assert fr["engine_pool"] == 10
+
+
+def test_a_card_on_the_commanders_lane_is_never_low_value():
+    cheat = spec_for(_sig("cheat_into_play")).label
+    polymorphs = [
+        CardClass(
+            name=f"Polymorph {i}",
+            bucket="engine",
+            roles=(),
+            served=(cheat,),
+            dual_purpose=False,
+            cmc=3.0,
+            record={"name": f"Polymorph {i}"},
+            edhrec_rank=None,  # a brand-new card: no play-rate at all
+        )
+        for i in range(12)
+    ]
+    classes = [_cc("Polymorph Cmdr", "commander", [cheat]), *polymorphs]
+    fr = focus(
+        classes,
+        deck_size=100,
+        deck_signals=[_sig("cheat_into_play")],
+        commander_idents=frozenset({("cheat_into_play", "you", "")}),
+        emitters={
+            ("cheat_into_play", "you", ""): frozenset(
+                {"Polymorph Cmdr"} | {f"Polymorph {i}" for i in range(12)}
+            )
+        },
+        medium="paper",
+    )
+    assert fr["low_value_cards"] == []
+    assert fr["commander_lane_cards"] == sorted(
+        ["Polymorph Cmdr", *(f"Polymorph {i}" for i in range(12))]
+    )
+
+
+def test_the_commanders_spine_ident_opens_no_lane_and_protects_no_card():
+    # Jace's +1 draws: card_draw_engine is a Spine avenue. Its emitters
+    # (Brainstorm) are not the polymorph lane's cards, so they get no cut
+    # protection and no exemption from the carer discount.
+    cheat = spec_for(_sig("cheat_into_play")).label
+    draw = spec_for(_sig("card_draw_engine")).label
+    combat = spec_for(_sig("attack_matters")).label
+    classes = [_cc("Polymorph Cmdr", "commander", [cheat, draw])]
+    classes += [_cc(f"Polymorph {i}", "engine", [cheat]) for i in range(10)]
+    classes += [_cc(f"Bomb {i}", "engine", [cheat, combat]) for i in range(10)]
+    classes += [
+        _cc(f"Cantrip {i}", "spine", [draw], roles=["card_draw"]) for i in range(5)
+    ]
+    fr = focus(
+        classes,
+        deck_size=100,
+        deck_signals=[
+            _sig("cheat_into_play"),
+            _sig("card_draw_engine"),
+            _sig("attack_matters"),
+        ],
+        commander_idents=frozenset(
+            {("cheat_into_play", "you", ""), ("card_draw_engine", "you", "")}
+        ),
+        emitters={
+            ("cheat_into_play", "you", ""): frozenset(
+                {"Polymorph Cmdr"} | {f"Polymorph {i}" for i in range(10)}
+            ),
+            ("card_draw_engine", "you", ""): frozenset(
+                {"Polymorph Cmdr", "Bomb 0"} | {f"Cantrip {i}" for i in range(5)}
+            ),
+            # Six bombs care about attacking; Bomb 0 also draws (Memnarch).
+            ("attack_matters", "you", ""): frozenset({f"Bomb {i}" for i in range(6)}),
+        },
+    )
+    assert fr["commander_avenues"] == [cheat]
+    assert "Cantrip 0" not in fr["commander_lane_cards"]
+    assert "Bomb 0" not in fr["commander_lane_cards"]
+    # Every bomb is the cheat lane's payoff: Combat has no carer of its own.
+    assert {a["label"]: a["carers"] for a in fr["fed"]} == {combat: 0}
+
+
+def test_a_collapsed_near_duplicate_avenue_still_counts_as_built():
+    # Theme B's members are 90% Theme A's (it collapses into A), but the one
+    # card only B serves is on a built theme: not fed-only, not filler.
+    classes = [_cc(f"Shared {i}", "engine", ["Theme A", "Theme B"]) for i in range(18)]
+    classes += [
+        _cc("Only A", "engine", ["Theme A"]),
+        _cc("Only B", "engine", ["Theme B"]),
+    ]
+    emitters = {
+        ("a", "you", ""): frozenset({f"Shared {i}" for i in range(6)}),
+        ("b", "you", ""): frozenset({f"Shared {i}" for i in range(6)}),
+    }
+    # Synthetic labels have no spec, so the carer read is the legacy
+    # emitter-less path: both avenues built, B collapses into A.
+    fr = focus(classes, deck_size=100)
+    assert [a["label"] for a in fr["viable_avenues"]] == ["Theme A"]
+    assert fr["fed_only_cards"] == []
+    assert fr["filler_cards"] == []
+    assert emitters  # documents the shape; the legacy path ignores emitters

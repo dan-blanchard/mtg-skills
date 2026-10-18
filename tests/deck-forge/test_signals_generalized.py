@@ -2291,13 +2291,14 @@ def test_significant_bleed_opens_lifegain_but_negligible_rider_does_not():
     # (that was the 79-commander over-broad lifeloss->lifegain trap). Real cards.
     # ADR-0027 β: lifegain_matters migrated to the Card IR — the self-bleed-wants-
     # sustain block (ARM B) rides the byte-identical kept-mirror, served from the hybrid.
-    assert "lifegain_matters" in _keys_real("Deadpool, Trading Card")
+    # The self-bleed arms emit wants_lifegain (a carer of the Lifegain avenue).
+    assert "wants_lifegain" in _keys_real("Deadpool, Trading Card")
     # A passive, frequent, unavoidable death-triggered draw-and-bleed engine (Kothophed
     # loses 1 life per opponent permanent dying — fast with board wipes) also bleeds you
     # out, so it wants lifegain even though each event is only 1 life.
-    assert "lifegain_matters" in _keys_real("Kothophed, Soul Hoarder")
+    assert "wants_lifegain" in _keys_real("Kothophed, Soul Hoarder")
     # Over-fire guard: losing 1 life per attack is a negligible rider, not a bleed engine.
-    assert "lifegain_matters" not in _keys_real("Azula, On the Hunt")
+    assert not {"lifegain_matters", "wants_lifegain"} & _keys_real("Azula, On the Hunt")
 
 
 def test_variable_self_bleed_opens_lifegain_sustain():
@@ -2308,12 +2309,14 @@ def test_variable_self_bleed_opens_lifegain_sustain():
     # lifegain sustain to not deck the controller. Real oracle, full text.
     # ADR-0027 β: lifegain_matters migrated to the Card IR — the variable self-bleed
     # sustain (ARM B) rides the byte-identical kept-mirror, served from the hybrid.
-    assert "lifegain_matters" in _keys_real("Asmodeus the Archfiend")
-    assert "lifegain_matters" in _keys_real("Be'lakor, the Dark Master")
+    assert "wants_lifegain" in _keys_real("Asmodeus the Archfiend")
+    assert "wants_lifegain" in _keys_real("Be'lakor, the Dark Master")
     # Boundary guard: OPTIONAL "you may pay life equal to" (Madame Null) is controlled,
     # affordable life payment, not an unavoidable bleed — it stays out (the over-broad
     # lifeloss trap). Forced "you lose …" opens; optional "you may pay …" does not.
-    assert "lifegain_matters" not in _keys_real("Madame Null, Power Broker")
+    assert not {"lifegain_matters", "wants_lifegain"} & _keys_real(
+        "Madame Null, Power Broker"
+    )
 
 
 def test_variable_self_lifeloss_opens_life_as_resource_lane():

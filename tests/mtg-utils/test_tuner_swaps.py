@@ -1463,3 +1463,129 @@ def test_a_crafted_copy_never_reads_as_owned():
     ]
     # Each add serves its shortfall (the copy it costs), which the UI sums.
     assert [f["add"]["copies_short"] for f in fills] == [0, 0, 1, 1]
+
+
+# ── 2026-10-18: the commander's lane in the cut ranking ───────────────────────
+
+
+def _polymorph_ctx(budgets, add, *, viable, lane_cards):
+    return SwapContext(
+        budgets=budgets,
+        focus_result={
+            **_focus(
+                viable=[{"label": lbl, "depth": 20, "cards": []} for lbl in viable]
+            ),
+            "commander_lane_cards": list(lane_cards),
+        },
+        deck_signals=[],
+        search_fn=lambda **_: [add],
+        identity="",
+        fmt="commander",
+        paper_only=True,
+        owned={},
+        budget=50.0,
+        max_swaps=1,
+        top_heavy=False,
+    )
+
+
+_WIPE_ADD = {
+    "name": "Another Wipe",
+    "type_line": "Sorcery",
+    "oracle_text": "Destroy all creatures.",
+    "cmc": 4.0,
+    "prices": {"usd": "1.00"},
+    "color_identity": ["W"],
+}
+
+
+def test_over_band_trim_cuts_the_commanders_lane_last():
+    # Board wipes over by one under a polymorph commander: a wipe that is itself
+    # a polymorph piece (emits the commander's ident; best play-rate too) must
+    # not be the trim; the fringe wipe off the lane is.
+    held = "Cheat into play"
+    classes = [
+        _cc("Sweeper Polymorph", "spine", roles=["board_wipe"], served=(held,)),
+        _cc(
+            "Fringe Wipe",
+            "spine",
+            roles=["board_wipe"],
+            served=("Combat",),
+            edhrec_rank=200,
+        ),
+    ]
+    budgets = {"board_wipe": _band(4, 2, 3)}
+    issue = {
+        "kind": "role_over",
+        "role": "board_wipe",
+        "severity": 1,
+        "message": "over",
+    }
+    out = _swaps_for_issue_dicts(
+        classes,
+        [issue],
+        _polymorph_ctx(
+            budgets, _WIPE_ADD, viable=[held], lane_cards=["Sweeper Polymorph"]
+        ),
+    )
+    assert out["swaps"][0]["cut"]["name"] == "Fringe Wipe"
+
+
+def test_over_band_trim_prefers_a_card_feeding_no_viable_avenue():
+    # Equal play-rate: a wipe feeding a FED avenue only ("Combat" is not viable)
+    # trims before one feeding a viable sub-theme.
+    classes = [
+        _cc(
+            "On Theme",
+            "spine",
+            roles=["board_wipe"],
+            served=("Go wide",),
+            edhrec_rank=100,
+        ),
+        _cc(
+            "Off Theme",
+            "spine",
+            roles=["board_wipe"],
+            served=("Combat",),
+            edhrec_rank=100,
+        ),
+    ]
+    budgets = {"board_wipe": _band(4, 2, 3)}
+    issue = {
+        "kind": "role_over",
+        "role": "board_wipe",
+        "severity": 1,
+        "message": "over",
+    }
+    out = _swaps_for_issue_dicts(
+        classes,
+        [issue],
+        _polymorph_ctx(budgets, _WIPE_ADD, viable=["Go wide"], lane_cards=[]),
+    )
+    assert out["swaps"][0]["cut"]["name"] == "Off Theme"
+
+
+def test_low_value_pass_skips_the_commanders_lane():
+    held = "Cheat into play"
+    classes = [
+        _cc("Identity Echo", "engine", served=(held,), edhrec_rank=None),
+        _cc("Fringe Beater", "engine", served=("Combat",), edhrec_rank=None),
+    ]
+    cuts = cut_candidates(
+        classes,
+        budgets={},
+        focus_verdict="FOCUSED",
+        stranded=set(),
+        viable={held},
+        commander_cards=["Identity Echo"],
+    )
+    assert [(reason, c.name) for reason, c in cuts] == [("low_value", "Fringe Beater")]
+
+
+def test_fed_only_filler_says_why():
+    assert (
+        _cut_why("filler", _cc("Plain", "filler")) == "serves no avenue here (filler)"
+    )
+    assert _cut_why("filler", _cc("Legend", "filler", served=("Historic",))) == (
+        "feeds only avenues nobody built toward (fed)"
+    )

@@ -93,6 +93,8 @@ def cut_candidates(
     medium: str = "paper",
     template: Template = COMMANDER_TEMPLATE,
     playrate: bool = True,
+    viable: Collection[str] = (),
+    commander_cards: Collection[str] = (),
 ) -> list[tuple[str, CardClass]]:
     """Ordered (reason, card) cut candidates, most-cuttable first. Hard floors apply.
 
@@ -101,9 +103,21 @@ def cut_candidates(
     listed once per COPY it holds (a 4-of filler may be cut four times); an over-band
     row's members are read through the ``template``'s own membership, and an
     ``advisory`` row is never a cut pool.
+
+    ``viable`` / ``commander_cards`` are the focus read's built avenues and the
+    cards that do what the commander's lane does (``commander_lane_cards``): such
+    a card is never a low-value cut (play-rate says nothing about a polymorph
+    piece under a polymorph commander) and trims last from an over-band row; a
+    card feeding no viable avenue trims first. A payoff the lane merely serves
+    (a bomb the commander flips into) is ordered like any other card.
     """
     out: list[tuple[str, CardClass]] = []
     seen: set[str] = set()
+    viable_set = set(viable)
+    lane_cards = set(commander_cards)
+
+    def viable_served(card: CardClass) -> int:
+        return len(viable_set.intersection(card.served))
 
     def push(reason: str, card: CardClass) -> None:
         if card.name not in seen and card.name not in protected:
@@ -120,8 +134,14 @@ def cut_candidates(
 
     # 1b. Low-value Engine cards (``CardClass.low_value``) — upgrade targets, worst
     #     play-rate (incl. unranked) first.
+    #     Never a card on the commander's own lane (the focus read exempts it too).
     for c in sorted(
-        (c for c in classes if c.low_value(medium=medium, playrate=playrate)),
+        (
+            c
+            for c in classes
+            if c.low_value(medium=medium, playrate=playrate)
+            and c.name not in lane_cards
+        ),
         key=lambda c: c.least_played_key,
     ):
         push("low_value", c)
@@ -141,15 +161,19 @@ def cut_candidates(
             and not _fills_short_role(c, budgets)
         ]
         # Color-fixing ramp sorts LAST (cut redundant single-purpose ramp before a
-        # dork the manabase needs); then trim the LEAST-PLAYED excess first (a premium
-        # staple like Sol Ring must not be cut to satisfy a band — it serves no
-        # thematic avenue but is the best card in the role); then fewest avenues
-        # served, then highest CMC.
+        # dork the manabase needs), and so does a card that does what the
+        # commander's lane does (a card-draw trim under Jace must not pick a
+        # polymorph that also draws); then trim the LEAST-PLAYED excess first (a
+        # premium staple like Sol Ring must not be cut to satisfy a band — it
+        # serves no thematic avenue but is the best card in the role); then
+        # fewest VIABLE avenues served (a fed avenue is no reason to keep a
+        # card), then highest CMC.
         members.sort(
             key=lambda c: (
                 _is_fixing(c),
+                c.name in lane_cards,
                 c.least_played_key,
-                len(c.served),
+                viable_served(c),
                 -c.cmc,
             )
         )
@@ -196,6 +220,8 @@ def size_cuts(
     medium: str = "paper",
     eligible: Collection[str] | None = None,
     playrate_condemns: bool = True,
+    viable: Collection[str] = (),
+    commander_cards: Collection[str] = (),
 ) -> list[dict]:
     """Legality-driven cuts for an OVER-sized deck: up to ``overflow`` proposals.
 
@@ -221,6 +247,8 @@ def size_cuts(
         protected=protected,
         medium=medium,
         playrate=playrate_condemns,
+        viable=viable,
+        commander_cards=commander_cards,
     ):
         if len(out) >= overflow:
             break
@@ -505,6 +533,8 @@ def propose_swaps(
         medium=ctx.medium,
         template=ctx.template,
         playrate=ctx.playrate_condemns,
+        viable=focus_sets["viable"],
+        commander_cards=ctx.focus_result.get("commander_lane_cards") or (),
     )
     # Route cuts into the pools a Remedy names: an over-band trim cuts from THAT over
     # role (``over:<role>``); everything else is the generic pool (filler, low-value,
@@ -917,6 +947,9 @@ def propose_swaps(
 
 def _cut_why(reason: str, card: CardClass | None = None) -> str:
     if reason == "filler":
+        if card is not None and card.served:
+            # Re-bucketed by focus: it feeds avenues only, none the deck built toward.
+            return "feeds only avenues nobody built toward (fed)"
         return "serves no avenue here (filler)"
     if reason == "low_value":
         # ADR-0040 §2 (Fix 6): a Granter condemned by GRADE (playrate-

@@ -9,6 +9,8 @@ over-served) a real card it wrongly served no longer does. The structured dims
 negative cards below.
 """
 
+import pytest
+
 from mtg_utils._analysis.signal_specs import Serve, spec_for
 from mtg_utils._analysis.signals import Signal
 from mtg_utils.testkit import test_card, test_card_ir
@@ -280,3 +282,31 @@ def test_base_pt_set_serve_reads_x_valued_sets():
     )
     assert serve.matches(_card("Biomass Mutation"))
     assert serve.matches(_card("Mirror Entity"))
+
+
+@pytest.mark.parametrize(
+    "key", ["lifegain_matters", "lifegain_makers", "wants_lifegain"]
+)
+def test_lifegain_serve_reads_payoffs_and_leaves_out_self_bleed(key):
+    serve = _ident_serve(key, "you", "lifegain_makers|you|*", "lifegain_matters|you|*")
+    assert serve.matches(_card("Ajani's Pridemate"))  # "whenever you gain life"
+    assert serve.matches(_card("Baneslayer Angel"))  # lifelink
+    # "X is the amount of life you've gained this turn": the regex missed it.
+    assert serve.matches(_card("Voracious Wurm"))
+    # A self-bleed engine wants lifegain (wants_lifegain) but supplies none, so
+    # it isn't a Lifegain card.
+    assert not serve.matches(_card("Dark Confidant"))
+    assert not serve.matches(_card("Phyrexian Arena"))
+    # The regex served lifegain hate and a gift to an opponent.
+    assert not serve.matches(_card("Sulfuric Vortex"))
+    assert not serve.matches(_card("Path of Peace"))
+
+
+def test_wants_lifegain_shares_the_lifegain_avenue():
+    # A self-bleed engine opens the same avenue its payoffs do, so focus reads
+    # the two keys as one Lifegain avenue.
+    wants = spec_for(_sig("wants_lifegain"))
+    payoff = spec_for(_sig("lifegain_matters"))
+    assert wants is not None
+    assert payoff is not None
+    assert wants.label == payoff.label == "Lifegain"

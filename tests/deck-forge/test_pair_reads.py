@@ -508,3 +508,22 @@ def test_iteration2_rows_need_their_anchor():
     assert not any(
         r["pair"] == "extra_combat_x_attack_trigger_commander" for r in rows3
     )
+
+
+@pytest.mark.parametrize("candidate", ["Raise the Alarm", "Hordeling Outburst"])
+def test_token_fodder_pairs_with_a_polymorph_commander(candidate):
+    # A polymorph commander (Jace, Multiverse Architect's -3: exile a creature
+    # you control, reveal until a creature or planeswalker card, put it onto
+    # the battlefield) turns each token into a library hit (CR 111.7: the token
+    # ceases to exist, so losing it costs nothing).
+    test_card_ir(candidate)
+    _s, rows = pair_score(test_card(candidate), _ctx_for("Jace, Multiverse Architect"))
+    assert any(r["pair"] == "token_fodder_x_polymorph_commander" for r in rows)
+
+
+def test_token_fodder_needs_a_polymorph_commander():
+    # A hand-cheat commander (Kaalia of the Vast) cheats too, but removes
+    # nothing: no polymorph, no fodder pair.
+    test_card_ir("Raise the Alarm")
+    _s, rows = pair_score(test_card("Raise the Alarm"), _ctx_for("Kaalia of the Vast"))
+    assert not any(r["pair"] == "token_fodder_x_polymorph_commander" for r in rows)

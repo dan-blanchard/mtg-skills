@@ -50,21 +50,24 @@ def test_lifegain_from_grant_lifelink_source():
 
 def test_lifegain_from_scaling_self_loss():
     # Dark Confidant "You lose life equal to its mana value" — a scaling self-bleed
-    # (op=count) that wants lifegain to sustain it (CR 119.3).
-    assert ("lifegain_matters", "you", "") in _striples(test_signals("Dark Confidant"))
+    # (op=count) that wants lifegain to sustain it: wants_lifegain, a carer of the
+    # Lifegain avenue, never a lifegain card.
+    sigs = _striples(test_signals("Dark Confidant"))
+    assert ("wants_lifegain", "you", "") in sigs
+    assert ("lifegain_matters", "you", "") not in sigs
 
 
 def test_lifegain_from_recurring_upkeep_bleed():
     # Benthic Djinn "At the beginning of your upkeep, you lose 2 life" — a recurring
     # fixed >=2 upkeep bleed.
-    assert ("lifegain_matters", "you", "") in _striples(test_signals("Benthic Djinn"))
+    assert ("wants_lifegain", "you", "") in _striples(test_signals("Benthic Djinn"))
 
 
 def test_lifegain_from_draw_bleed_engine():
     # Disciple of Perdition: a death-triggered ability that BOTH draws and makes you
     # lose life is a Necropotence-style draw-bleed engine — recurrence is the
     # significance, so the fixed-factor-1 floor does not apply.
-    assert ("lifegain_matters", "you", "") in _striples(
+    assert ("wants_lifegain", "you", "") in _striples(
         test_signals("Disciple of Perdition")
     )
 

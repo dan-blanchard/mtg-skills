@@ -31,6 +31,7 @@ from ._shared import (
     _UNTAP_EXTRA,
     _UNTAP_ORACLE,
     _VOLTRON_PROTECT_EXTRA,
+    Serve,
     SignalSpec,
     _spec,
     _sweep_spec_with_extras,
@@ -1307,9 +1308,15 @@ SPECS_3: dict[tuple[str, str], SignalSpec] = {
         r"becomes a copy|copy of (?:target|another|any|a|that)\b|as a copy of",
         extras=(_COPY_EXTRA,),
     ),
+    # The SUBJECT-LESS cheat (signal_keys.CHEAT_INTO_PLAY): a put that names no
+    # single card type — a named tutor (Angel's Herald), "a permanent card"
+    # (Jhoira, Weatherlight Corsair). A typed cheat builds its own per-type spec
+    # (``core._cheat_subject_spec``, same label) whose payoff arm is the type it
+    # cheats; this one has no type to pay off, so it serves the cheats alone.
     ("cheat_into_play", "you"): _spec(
         "Cheat into play",
-        "ways to put big creatures onto the battlefield from hand or library",
+        "ways to put cards onto the battlefield from hand or library without "
+        "casting them",
         {"oracle": r"onto the battlefield"},
         # The enabler arm is the lane's own structural read (``_cheat_into_play`` in
         # ``lanes.mana_and_wipes``: a Hand/Library→Battlefield put, the reveal-until
@@ -1318,11 +1325,26 @@ SPECS_3: dict[tuple[str, str], SignalSpec] = {
         # card" reveal-until idiom (Identity Echo, Jace, Multiverse Architect's -3)
         # and credited old-template reanimation (Reanimate's "Put target creature
         # card from a graveyard onto the battlefield"), which the lane keeps out.
+        # Every subject: an untyped cheat sits beside cheats of any type.
         None,
-        serve_idents=frozenset({"cheat_into_play|you|"}),
-        # The PAYOFF of a cheat-into-play deck is the fat creatures it cheats in
-        # (Craterhoof, Worldspine Wurm, Eldrazi) — credit big bodies as on-theme.
-        serve_power_min=5,
+        serve_idents=frozenset({"cheat_into_play|you|*"}),
+    ),
+    # Polymorph fodder (wants_fodder): a cheat that turns a body you control into a
+    # fresh card off the library (Jace, Multiverse Architect's -3, Mass Polymorph,
+    # Proteus Staff — ``lanes.mana_and_wipes._polymorph_fodder``) wants cheap,
+    # expendable bodies to transform: a token is the best one to lose (CR 111.7 —
+    # a token in a zone other than the battlefield ceases to exist). The serve is
+    # the token lane's own idents, capped at mana value 3 so it stays the cheap end.
+    ("wants_fodder", "you"): SignalSpec(
+        label="Polymorph fodder",
+        avenue="cheap creature-token makers and expendable bodies to transform",
+        search={"oracle": r"create [^.]*creature token", "cmc_max": 3},
+        serve=Serve(
+            all_of=(
+                Serve(signal_idents=frozenset({"token_maker|you|*"})),
+                Serve(cmc_max=3),
+            )
+        ),
     ),
     # Greedy `return target .*owner's hand` matched "return target spell" (Reprieve →
     # counterspell space) and spanned clauses. Constrain the object + the dot.
