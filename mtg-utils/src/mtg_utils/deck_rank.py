@@ -25,7 +25,7 @@ import click
 
 from mtg_utils._analysis.pair_reads import build_pair_context
 from mtg_utils._analysis.ranking import rank_candidates
-from mtg_utils._analysis.signals import ranked_signals_and_payoffs
+from mtg_utils._analysis.signals import DeckSignals, read_deck_signals
 from mtg_utils._tuner import metrics
 from mtg_utils._tuner.classify import classify_deck
 from mtg_utils.card_classify import type_line_has
@@ -60,25 +60,22 @@ def _ensure_ir() -> None:
         )
 
 
-def _focus_sets(
-    hd: HydratedDeck,
-    signals: list,
-    commander_names: set,
-    payoff_subjects: frozenset[str],
-) -> dict:
+def _focus_sets(hd: HydratedDeck, read: DeckSignals, commander_names: set) -> dict:
     """The deck's avenue prominence (viable/emerging/stranded), so the ranker scores
     DEPTH in the deck's real themes — the same deck-relative weighting the tuner uses
     (couples to ``_tuner`` for the focus metric; deck-rank is the deck-wizard CLI that
-    feeds Step 6, so it wants the tuner's notion of theme prominence).
-    ``payoff_subjects`` (the task-#101 emerging-tribal gate) comes from the caller's
-    single ``ranked_signals_and_payoffs`` pass — never re-extracted here."""
-    classes = classify_deck(hd, signals, commander_names, deck_mana=hd.deck_mana)
+    feeds Step 6, so it wants the tuner's notion of theme prominence). ``read`` is
+    the caller's single ``read_deck_signals`` pass — the payoff subjects (the
+    task-#101 emerging-tribal gate) and the commander's idents are never
+    re-extracted here."""
+    classes = classify_deck(hd, read.ranked, commander_names, deck_mana=hd.deck_mana)
     deck_size = hd.format.deck_size
     foc = metrics.focus(
         classes,
         deck_size=deck_size,
-        deck_signals=signals,
-        tribal_payoff_subjects=payoff_subjects,
+        deck_signals=read.ranked,
+        commander_idents=read.commander_idents,
+        tribal_payoff_subjects=read.payoff_subjects,
     )
     return {
         "viable": {a["label"] for a in foc["viable_avenues"]},
@@ -130,9 +127,8 @@ def main(
         hd, resolve_deck_medium(hd.format, hd.deck, medium), meta
     )
     commander_names = {c["name"] for c in hd.commanders}
-    signals, payoff_subjects = ranked_signals_and_payoffs(
-        hd.deck_records(), commander_names
-    )
+    read = read_deck_signals(hd.deck_records(), commander_names)
+    signals = read.ranked
     candidates = json.loads(Path(candidates_json).read_text(encoding="utf-8"))
     if not isinstance(candidates, list) or not all(
         isinstance(c, dict) for c in candidates
@@ -145,7 +141,7 @@ def main(
     ranked = rank_candidates(
         pool,
         active_signals=signals,
-        focus_sets=_focus_sets(hd, signals, commander_names, payoff_subjects),
+        focus_sets=_focus_sets(hd, read, commander_names),
         deck_tribes=_deck_tribes(hd),
         # Pair reads (ADR-0042): commander idents + deck ident density.
         # Rate stays NEUTRAL by default (no index built): the v1 formula

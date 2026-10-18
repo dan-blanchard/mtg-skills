@@ -6,6 +6,50 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
 
 ## Open
 
+**From the Jace, Multiverse Architect precon tune (2026-10-17)**
+
+- **`scryfall-lookup --batch` without `--bulk-data` dies on one Scryfall 503.** A
+  name the local pool can't resolve (or every name, when no `--bulk-data` is
+  passed) goes to `fetch_card`, and one `HTTPError` aborts the whole batch with a
+  traceback instead of landing in the envelope's `missing`. Catch the per-name
+  network failure in `lookup_single`'s batch loop and report it as missing; keep
+  the hard exit for a bulk that can't be read at all.
+- **The polymorph deck's tune is still off after the cheat avenue survives.** The
+  avenue collapse (a commander-held avenue swallowed by "Big creatures / power
+  matters") and the cheat serve's oracle regex are fixed (2026-10-17: `focus`
+  exempts an avenue the commander emits from the ≥80 % collapse; the serve's
+  enabler arm is the lane's own ident). "Cheat into play" now reads as a viable
+  sub-avenue on the Multiverse Reforged precon, but the swaps are unchanged (Kari
+  Zev / Patchwork Crawler / Hidden Strings): the spread-thin cut picks by play
+  rate and the role-over cuts by band, and neither reads a creature's *flip
+  quality* (Omnath, Ginger are poor flips; Hullbreaker Horror, Galactus are great
+  ones), nor is the enabler side (cheap noncreature token makers as fodder)
+  credited by any avenue. A polymorph read would pair `cheat_into_play` held by
+  the commander with `token_maker` enablers (the `etb_payoff_x_flood_commander`
+  pair already anchors on both) and rank a creature by what it does on entry,
+  not by castability. Note from the serve switch: the lane's ident now serves
+  Zur the Enchanter and Stoneforge Mystic (any Hand/Library→Battlefield put) into
+  a "big creatures" avenue — the lane's breadth, worth a payoff-shape carve-out
+  if it shows up in a Find.
+
+- **Competitive Brawl's "banned as a commander" reads as `restricted`.** The
+  2026-10-12 B&R update introduced the category (mtg.wiki "Competitive Brawl"
+  §Banned as a commander; Draftsim 2026-10-12): Oko, Thief of Crowns, Ragavan,
+  Nimble Pilferer, Nadu, Winged Wisdom and Wrenn and Six are legal in the 99 but
+  can't lead a deck; Yuriko, the Tiger's Shadow, Spider-Man 2099 and Light-Paws,
+  Emperor's Voice joined them; Lutri is the only outright ban. The 2026-10-17
+  AllPrintings encodes the category as `competitivebrawl: "restricted"` (the
+  2026-10-14 bulk said `banned`). `Format.legality` therefore reads these as
+  playable — right for the 99, wrong for `commander_eligibility` — and six tests
+  that pin the old outright bans (`test_formats`, `test_legality_audit`,
+  `test_price_check`) fail on a regenerated snapshot. Teach `formats.py`'s
+  Competitive Brawl read that `restricted` means legal in the 99 and ineligible
+  as commander (a new eligibility reason), re-pin the tests on Lutri for the
+  outright ban and Oko for the commander ban, then regen the snapshot. The
+  deck-wizard SKILL.md's "bans ten cards, as commander and in the 99" is stale
+  the same way. Until then a bare `build-card-snapshot` run drags the drift in —
+  the 2026-10-17 regen spliced only its two new cards.
+
 **From the Omnath Competitive Brawl build (2026-10-04)**
 
 - **Phase gaps behind the closer, alternative-cost and mass-land-denial reads**

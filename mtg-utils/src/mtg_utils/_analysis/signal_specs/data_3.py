@@ -1176,8 +1176,15 @@ SPECS_3: dict[tuple[str, str], SignalSpec] = {
         "Cheat into play",
         "ways to put big creatures onto the battlefield from hand or library",
         {"oracle": r"onto the battlefield"},
-        r"onto the battlefield from your (?:hand|library)"
-        r"|put .*creature card.*onto the battlefield",
+        # The enabler arm is the lane's own structural read (``_cheat_into_play`` in
+        # ``lanes.mana_and_wipes``: a Hand/Library→Battlefield put, the reveal-until
+        # engine, the dig-and-put — with its land / graveyard carve-outs). The
+        # oracle regex it replaced (2026-10-17) missed the "creature OR planeswalker
+        # card" reveal-until idiom (Identity Echo, Jace, Multiverse Architect's -3)
+        # and credited old-template reanimation (Reanimate's "Put target creature
+        # card from a graveyard onto the battlefield"), which the lane keeps out.
+        None,
+        serve_idents=frozenset({"cheat_into_play|you|"}),
         # The PAYOFF of a cheat-into-play deck is the fat creatures it cheats in
         # (Craterhoof, Worldspine Wurm, Eldrazi) — credit big bodies as on-theme.
         serve_power_min=5,

@@ -25,7 +25,7 @@ from __future__ import annotations
 
 import re
 from collections.abc import Callable, Sequence
-from dataclasses import replace
+from dataclasses import dataclass, replace
 
 from mtg_utils._analysis import signal_keys
 from mtg_utils._analysis._subtypes import (
@@ -512,23 +512,49 @@ def _payoffs_from_stats(
     return frozenset(subjects)
 
 
+@dataclass(frozen=True)
+class DeckSignals:
+    """One extraction pass over the counted deck, every read a tune needs."""
+
+    ranked: list[Signal]  # ``rank_deck_signals``' order
+    payoff_subjects: frozenset[str]  # ``tribal_payoff_subjects``
+    # The ``(key, scope, subject)`` idents the COMMANDER itself emits (its folded
+    # objects included, ADR-0025) — record-level, so a transform commander's
+    # faces and a folded Ring count, where ``Signal.source`` (the face name)
+    # would not. The tuner's focus exempts these avenues from its near-duplicate
+    # collapse: the commander's own lane is the deck's axis, never a duplicate.
+    commander_idents: frozenset[tuple[str, str, str]]
+
+
+def read_deck_signals(
+    records: Sequence[dict | None],
+    commander_names: set[str],
+    *,
+    resolve_object: Callable[[str], dict | None] | None = None,
+) -> DeckSignals:
+    """``rank_deck_signals`` + ``tribal_payoff_subjects`` + the commander's own
+    idents from ONE extraction pass. A tune needs all three, and calling the
+    helpers separately ran the full per-card lane pass once each per deck (the
+    tree build is memoized; the lane pass is not)."""
+    support, from_commander, first, nc_high = _deck_signal_stats(
+        records, commander_names, resolve_object=resolve_object
+    )
+    return DeckSignals(
+        ranked=_ranked_from_stats(support, from_commander, first),
+        payoff_subjects=_payoffs_from_stats(first, nc_high),
+        commander_idents=frozenset(from_commander),
+    )
+
+
 def ranked_signals_and_payoffs(
     records: Sequence[dict | None],
     commander_names: set[str],
     *,
     resolve_object: Callable[[str], dict | None] | None = None,
 ) -> tuple[list[Signal], frozenset[str]]:
-    """``rank_deck_signals`` + ``tribal_payoff_subjects`` from ONE extraction
-    pass. A tune needs both, and calling the two helpers separately ran the
-    full per-card lane pass twice per deck (the tree build is memoized; the
-    lane pass is not)."""
-    support, from_commander, first, nc_high = _deck_signal_stats(
-        records, commander_names, resolve_object=resolve_object
-    )
-    return (
-        _ranked_from_stats(support, from_commander, first),
-        _payoffs_from_stats(first, nc_high),
-    )
+    """The ranked signals and the payoff subjects of :func:`read_deck_signals`."""
+    read = read_deck_signals(records, commander_names, resolve_object=resolve_object)
+    return read.ranked, read.payoff_subjects
 
 
 def tribal_payoff_subjects(

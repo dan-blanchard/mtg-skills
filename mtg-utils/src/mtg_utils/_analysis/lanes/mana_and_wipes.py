@@ -1624,7 +1624,7 @@ def _cheat_into_play(tree: ConceptTree) -> list[Signal]:
       share the ``destination`` / ``target`` shape), just multi-object;
     * **the RevealUntil arm** (fix d) — a ``RevealUntil`` whose
       ``kept_destination`` is Battlefield IS the reveal-until-a-match-then-put
-      engine (Polymorph, Jalira, Audacious Reshapers — CR 701.15); the same
+      engine (Polymorph, Jalira, Audacious Reshapers — reveal, CR 701.20); the same
       core/subtype type-evidence gate as the ChangeZone arm (never guess);
     * **the RevealedHasCardType-conditioned put** (fix e) — Call of the Wild
       ("Reveal the top card. If it's a creature card, put it onto the

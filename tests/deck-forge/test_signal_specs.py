@@ -2510,6 +2510,24 @@ def test_cheat_into_play_does_not_credit_small_creatures():
     assert not _lane_covers(bear, sig)
 
 
+def test_cheat_into_play_enabler_arm_is_the_lane_itself():
+    """The enabler arm reads the lane's own structural emission, not an oracle
+    regex (2026-10-17): the reveal-until-then-put engine (Polymorph, Mass
+    Polymorph) serves, as does the hand/library put (Elvish Piper, Bribery), while
+    a graveyard put is reanimation and stays out (the lane's own carve-out)."""
+    sig = _sig("cheat_into_play")
+    spec = spec_for(sig)
+    assert spec.serve.oracle is None
+    assert "cheat_into_play|you|" in spec.serve.signal_idents
+    for name in ("Polymorph", "Mass Polymorph", "Elvish Piper", "Bribery"):
+        assert _lane_covers(_card(name), sig), name
+    # The regression itself: the "creature or planeswalker card" reveal-until
+    # idiom the old regex missed (Identity Echo; Jace, Multiverse Architect's -3).
+    for name in ("Identity Echo", "Jace, Multiverse Architect"):
+        assert _lane_covers(_card(name), sig), name
+    assert not _lane_covers(_card("Reanimate"), sig)
+
+
 def test_voltron_credits_aura_equipment_cost_reduction():
     """Danitha-style 'Aura and Equipment spells you cast cost {1} less' is a voltron
     payoff — it makes suiting up cheaper. EDHREC ranks it top-synergy for voltron."""

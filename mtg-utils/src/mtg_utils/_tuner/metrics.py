@@ -11,7 +11,7 @@ ordering the swap engine acts on (deck-forge CONTEXT.md, "Tune").
 from __future__ import annotations
 
 import math
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from typing import TYPE_CHECKING
 
 from mtg_utils._analysis import signal_keys
@@ -33,6 +33,7 @@ from mtg_utils.formats import Game
 from mtg_utils.theme_presets import get_preset
 
 if TYPE_CHECKING:
+    from mtg_utils._analysis.signals import Signal
     from mtg_utils._card_ir.crosswalk import ConceptTree
 
 # Signal keys that mirror a hard-counted Spine role (ramp / draw / interaction). Not
@@ -264,18 +265,22 @@ def focus(
     *,
     deck_size: int,
     deck_signals: Sequence = (),
+    commander_idents: frozenset[tuple[str, str, str]] = frozenset(),
     medium: str = "paper",
     tribal_payoff_subjects: frozenset[str] | None = None,
     cal: Calibration = COMMANDER,
     playrate_condemns: bool | None = None,
 ) -> dict:
+    def labels_where(pred: Callable[[Signal], bool]) -> set[str]:
+        return {
+            spec.label
+            for sig in deck_signals
+            if pred(sig) and (spec := spec_for(sig)) is not None
+        }
+
     # Avenues that are really Spine roles (ramp/draw/removal) are not themes — exclude
     # them so the deck's mana base + scaffolding can't masquerade as its main lane.
-    excluded = {
-        spec.label
-        for sig in deck_signals
-        if sig.key in _SPINE_AVENUE_KEYS and (spec := spec_for(sig)) is not None
-    }
+    excluded = labels_where(lambda sig: sig.key in _SPINE_AVENUE_KEYS)
 
     def themes(card: CardClass) -> list[str]:
         return [lbl for lbl in card.served if lbl not in excluded]
@@ -305,12 +310,31 @@ def focus(
         key=lambda lbl: depth[lbl],
         reverse=True,
     )
+    # An avenue the COMMANDER itself holds (``commander_idents``: the idents the
+    # commander emits, read record-level by ``read_deck_signals`` so a transform
+    # commander's faces and a folded object count) is the deck's own axis. It is
+    # never collapsed into a deeper generic avenue whose members happen to be the
+    # same cards: a serve that credits the lane's PAYOFFS as on-theme
+    # (cheat_into_play credits every power-5+ body) can make the lane's avenue
+    # ≥80 % the bombs it cheats in, and "Big creatures / power matters" (the same
+    # bombs, plus a few more) then swallowed it — the Jace, Multiverse Architect
+    # polymorph precon read SPREAD-THIN over Historic / Cantrips / Combat with its
+    # engine unnamed (2026-10-17).
+    commander_held = labels_where(
+        lambda sig: (sig.key, sig.scope, sig.subject) in commander_idents
+    )
+
+    def near_duplicate(lbl: str, kept: Sequence[str]) -> bool:
+        if lbl in commander_held:
+            return False
+        s = set(members[lbl])
+        return any(len(s & set(members[k])) / len(s) >= 0.8 for k in kept)
+
     # Collapse near-duplicate avenues that are really one theme: drop a shallower avenue
     # ≥80% covered by a deeper one already kept (e.g. Spellslinger / Magecraft).
     viable: list[str] = []
     for lbl in candidates:
-        s = set(members[lbl])
-        if any(len(s & set(members[k])) / len(s) >= 0.8 for k in viable):
+        if near_duplicate(lbl, viable):
             continue
         viable.append(lbl)
     mains = [lbl for lbl in viable if depth[lbl] >= main_floor]
@@ -344,8 +368,7 @@ def focus(
     for lbl in sorted(depth, key=lambda x: depth[x], reverse=True):
         if not emerging_floor <= depth[lbl] < sub_floor:
             continue
-        s = set(members[lbl])
-        if any(len(s & set(members[k])) / len(s) >= 0.8 for k in viable + emerging):
+        if near_duplicate(lbl, viable + emerging):
             continue
         subj = tribal_subject_of_label.get(lbl)
         if (

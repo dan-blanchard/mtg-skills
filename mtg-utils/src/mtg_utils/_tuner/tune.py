@@ -14,7 +14,7 @@ from typing import TYPE_CHECKING
 
 from mtg_utils._analysis.budgets import banded_slot_budgets, template_for
 from mtg_utils._analysis.multipliers import commander_multipliers
-from mtg_utils._analysis.signals import ranked_signals_and_payoffs
+from mtg_utils._analysis.signals import read_deck_signals
 from mtg_utils._tuner import commander_fit, grant_coverage, metrics
 from mtg_utils._tuner import swaps as swaps_mod
 from mtg_utils._tuner.bracket import bracket_gate, suggestable_near_misses
@@ -243,9 +243,10 @@ def tune(
     # task-#101 emerging-tribal payoff subjects.
     # The counted deck (commanders + main deck): a sideboard never shapes the
     # avenues or the classes.
-    deck_signals, payoff_subjects = ranked_signals_and_payoffs(
+    read = read_deck_signals(
         hd.deck_records(), commander_names, resolve_object=resolve_object
     )
+    deck_signals, payoff_subjects = read.ranked, read.payoff_subjects
     deck_mana = hd.deck_mana
     # ADR-0059: the ladder is a digital deck's population, so only a digital build
     # reads its meta archetype.
@@ -303,6 +304,7 @@ def tune(
         classes,
         deck_size=deck_size,
         deck_signals=deck_signals,
+        commander_idents=read.commander_idents,
         medium=game.medium,
         tribal_payoff_subjects=payoff_subjects,
         cal=cal,

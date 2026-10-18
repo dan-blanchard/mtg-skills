@@ -296,3 +296,30 @@ def test_ranked_signals_and_payoffs_extracts_once_per_card(monkeypatch):
     assert calls["n"] == len(hd.records)  # ONE pass, not two
     assert ranked == expected_ranked
     assert payoffs == expected_payoffs
+
+
+def test_read_deck_signals_marks_the_commanders_own_idents():
+    # The commander's idents are read record-level (``card["name"] in
+    # commander_names``), never off ``Signal.source`` (a face name): they are
+    # what the tuner's focus exempts from its near-duplicate collapse.
+    from mtg_utils._analysis.signals import extract_signals, read_deck_signals
+
+    deck = {
+        "format": "commander",
+        "commanders": [{"name": "Krenko, Mob Boss", "quantity": 1}],
+        "cards": [{"name": "Murder", "quantity": 1}],
+    }
+    index = {c["name"]: c for c in [KRENKO, MURDER]}
+    hd = HydratedDeck.from_parsed(deck, by_name=index)
+    read = read_deck_signals(hd.records, {"Krenko, Mob Boss"})
+    krenko_idents = {
+        (s.key, s.scope, s.subject)
+        for s in extract_signals(KRENKO, include_membership=True)
+    }
+    murder_only = {
+        (s.key, s.scope, s.subject) for s in extract_signals(MURDER)
+    } - krenko_idents
+    assert krenko_idents
+    assert read.commander_idents == frozenset(krenko_idents)
+    assert not read.commander_idents & murder_only
+    assert read.ranked == rank_deck_signals(hd.records, {"Krenko, Mob Boss"})

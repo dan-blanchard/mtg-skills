@@ -103,6 +103,57 @@ def test_near_duplicate_avenues_collapse_to_one():
     assert len(fr["viable_avenues"]) == 1
 
 
+def _cheat_sig(source):
+    return Signal(
+        key="cheat_into_play",
+        scope="you",
+        subject="",
+        text="",
+        source=source,
+        confidence="high",
+    )
+
+
+def _polymorph_classes():
+    """The Jace, Multiverse Architect precon's shape: the cheat avenue's members are
+    mostly the bombs the serve credits as its payoff, and every one of those also
+    serves the generic big-creatures avenue — 16 of 19 (≥80 %, the commander and
+    two polymorphs being the rest), while the deeper big-creatures avenue (22)
+    also holds six bodies the cheat serve doesn't credit."""
+    cheat = spec_for(_cheat_sig("Jace")).label  # "Cheat into play"
+    big = "Big creatures / power matters"
+    classes = [_cc("Jace", "commander", [cheat])]
+    classes += [_cc(f"Bomb {i}", "engine", [cheat, big]) for i in range(16)]
+    classes += [_cc(f"Polymorph {i}", "engine", [cheat]) for i in range(2)]
+    classes += [_cc(f"Body {i}", "engine", [big]) for i in range(6)]
+    return classes, cheat, big
+
+
+def test_commander_held_avenue_survives_the_collapse():
+    classes, cheat, big = _polymorph_classes()
+    # The commander emits the cheat key (``read_deck_signals``' commander_idents),
+    # so its avenue is the deck's own axis.
+    fr = focus(
+        classes,
+        deck_size=100,
+        deck_signals=[_cheat_sig("Jace")],
+        commander_idents=frozenset({("cheat_into_play", "you", "")}),
+    )
+    labels = [a["label"] for a in fr["viable_avenues"]]
+    assert cheat in labels
+    assert big in labels  # the generic lens is not collapsed either (16/22 < 0.8)
+
+
+def test_avenue_the_commander_does_not_hold_still_collapses():
+    classes, cheat, big = _polymorph_classes()
+    # Same cards, but only a 99 card emits the cheat key: the ≥80 % rule applies,
+    # whatever the Signal's ``source`` says.
+    fr = focus(classes, deck_size=100, deck_signals=[_cheat_sig("Jace")])
+    labels = [a["label"] for a in fr["viable_avenues"]]
+    assert big in labels
+    assert cheat not in labels
+
+
 def test_removal_family_avenues_are_not_themes():
     # Exile-based removal and counterspells are scaffolding (they answer the board),
     # never a "commit or cut" theme — but _SPINE_AVENUE_KEYS excluded only "removal", so
