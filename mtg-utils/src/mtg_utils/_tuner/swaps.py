@@ -18,7 +18,7 @@ from typing import Protocol
 from mtg_utils._analysis.budgets import COMMANDER_TEMPLATE, Template
 from mtg_utils._analysis.ranking import rank_candidates
 from mtg_utils._analysis.roles import DeckMana, role_of
-from mtg_utils._tuner.classify import CardClass
+from mtg_utils._tuner.classify import CardClass, is_premium
 from mtg_utils._tuner.issues import (
     CUT_FILLER,
     CUT_GENERIC,
@@ -33,25 +33,18 @@ from mtg_utils.card_classify import (
     is_land,
     land_search_fixes,
 )
+from mtg_utils.card_search import edhrec_popularity
 from mtg_utils.deck import split_type_line
 from mtg_utils.formats import Coverage, Format
 
+
 # Worst-possible play-rate sentinel (an unranked card sorts last on the quality axis).
-_UNPLAYED = 10**9
-
-
-def _popularity(card: dict) -> int:
-    """edhrec_rank as a quality key (lower = more played); absent → unplayed."""
-    rank = card.get("edhrec_rank")
-    return rank if rank is not None else _UNPLAYED
-
-
 def _quality(card: dict, *, playrate: bool) -> int:
     """The quality tiebreak between candidates of equal synergy / cost: play-rate
     where it means something (``playrate`` — edhrec_rank is a paper-EDH population,
     the Commander family's one popularity lean, by user direction), else neutral,
     so price alone breaks the tie for a 60-card or limited deck."""
-    return _popularity(card) if playrate else 0
+    return edhrec_popularity(card) if playrate else 0
 
 
 def _fills_short_role(card: CardClass, budgets: dict) -> bool:
@@ -93,10 +86,17 @@ def cut_candidates(
     medium: str = "paper",
     template: Template = COMMANDER_TEMPLATE,
     playrate: bool = True,
+    playrate_meaningful: bool = True,
     viable: Collection[str] = (),
     commander_cards: Collection[str] = (),
 ) -> list[tuple[str, CardClass]]:
     """Ordered (reason, card) cut candidates, most-cuttable first. Hard floors apply.
+
+    ``playrate`` is whether a fringe play-rate may CONDEMN a card
+    (``Calibration.playrate_condemns`` — never in a one-on-one game);
+    ``playrate_meaningful`` whether play-rate reads at all (the Commander
+    family), which is what shields a premium card from a band trim: a shield
+    is a quality read, not a condemnation, so it holds in a one-on-one game too.
 
     ``protected`` names cards the proposer must never cut (e.g. combo pieces, ADR-0029);
     they are skipped even when they would otherwise be the top filler cut. A card is
@@ -115,6 +115,9 @@ def cut_candidates(
     seen: set[str] = set()
     viable_set = set(viable)
     lane_cards = set(commander_cards)
+
+    def premium(card: CardClass) -> bool:
+        return playrate_meaningful and is_premium(card.edhrec_rank)
 
     def viable_served(card: CardClass) -> int:
         return len(viable_set.intersection(card.served))
@@ -160,14 +163,18 @@ def cut_candidates(
             and template.fills(role, c.record, roles=set(c.roles))
             and not _fills_short_role(c, budgets)
         ]
-        # Color-fixing ramp sorts LAST (cut redundant single-purpose ramp before a
-        # dork the manabase needs), and so does a card that does what the
-        # commander's lane does (a card-draw trim under Jace must not pick a
-        # polymorph that also draws); then trim the LEAST-PLAYED excess first (a
-        # premium staple like Sol Ring must not be cut to satisfy a band — it
-        # serves no thematic avenue but is the best card in the role); then
-        # fewest VIABLE avenues served (a fed avenue is no reason to keep a
-        # card), then highest CMC.
+        # A premium card (``classify.PREMIUM_RANK``) is never a band trim: under
+        # a tribal commander the lane holds forty cards and sorts last, which
+        # left Sol Ring as the first non-lane ramp to trim for "ramp over by 3"
+        # in the Veloci-Ramp-Tor precon (2026-10-18), a cut none of its upgrade
+        # guides made. A row whose whole excess is premium trims nothing, and
+        # that is the answer. Color-fixing ramp sorts LAST (cut redundant
+        # single-purpose ramp before a dork the manabase needs), and so does a
+        # card that does what the commander's lane does (a card-draw trim under
+        # Jace must not pick a polymorph that also draws); then trim the
+        # LEAST-PLAYED excess first; then fewest VIABLE avenues served (a fed
+        # avenue is no reason to keep a card), then highest CMC.
+        members = [c for c in members if not premium(c)]
         members.sort(
             key=lambda c: (
                 _is_fixing(c),
@@ -220,6 +227,7 @@ def size_cuts(
     medium: str = "paper",
     eligible: Collection[str] | None = None,
     playrate_condemns: bool = True,
+    playrate_meaningful: bool = True,
     viable: Collection[str] = (),
     commander_cards: Collection[str] = (),
 ) -> list[dict]:
@@ -247,6 +255,7 @@ def size_cuts(
         protected=protected,
         medium=medium,
         playrate=playrate_condemns,
+        playrate_meaningful=playrate_meaningful,
         viable=viable,
         commander_cards=commander_cards,
     ):
@@ -374,10 +383,20 @@ def _run_search(
     fmt: str,
     paper_only: bool,
     cmc_cap: float | None,
-    limit: int = 60,
+    limit: int,
+    playrate: bool = False,
 ) -> list[dict]:
     # A spec may carry its own cmc band (a thin-top-end fix wants cmc_min 6); combine
     # its ceiling with the top-heavy cap so both hold.
+    #
+    # The page is the candidate POOL the ranking below sees, so what it is sorted
+    # by decides what can be proposed at all. Paged cheapest-mana-value first, a
+    # broad serve ("Enchantments", "Artifacts") filled its 60 slots with the
+    # cheapest chaff that matched — Genju of the Fields, Clown Car, Bog Rats, the
+    # Class enchantments — and across 25 precons (2026-10-18) three of 77 adds
+    # matched any upgrade article. Where play-rate means something (the Commander
+    # family: ``Calibration.playrate_meaningful``) the page is the most-played
+    # matches instead; synergy still ranks within it.
     spec_max = spec.get("cmc_max")
     if cmc_cap is None:
         cmc_max = spec_max
@@ -399,7 +418,7 @@ def _run_search(
         paper_only=paper_only,
         preset_names=tuple(spec.get("preset_names") or ()),
         is_commander_filter=False,
-        sort="cmc-asc",
+        sort="edhrec-asc" if playrate else "cmc-asc",
         limit=limit,
         offset=0,
     )
@@ -533,6 +552,7 @@ def propose_swaps(
         medium=ctx.medium,
         template=ctx.template,
         playrate=ctx.playrate_condemns,
+        playrate_meaningful=ctx.playrate,
         viable=focus_sets["viable"],
         commander_cards=ctx.focus_result.get("commander_lane_cards") or (),
     )
@@ -606,6 +626,7 @@ def propose_swaps(
             paper_only=ctx.paper_only,
             cmc_cap=cmc_cap,
             limit=limit,
+            playrate=ctx.playrate,
         )
         # A card the deck already runs stays in the pool while it may hold another
         # copy (used_adds is applied at pick time, so the memoized order holds).
@@ -644,8 +665,10 @@ def propose_swaps(
                 )
             ]
         else:
-            # Spine fills: cheapest-MV does-the-job first (efficiency), then play-rate
-            # so a played staple beats a fringe same-cost role-filler, then price.
+            # Spine fills: cheapest-MV does-the-job first (efficiency) within the
+            # page (the most-played matches in the Commander family, see
+            # ``_run_search``), then play-rate so a played staple beats a fringe
+            # same-cost role-filler, then price.
             ranked = sorted(
                 pool,
                 key=lambda c: (
@@ -682,7 +705,7 @@ def propose_swaps(
         *,
         synergy_first: bool,
         nonland_only: bool = False,
-        limit: int = 60,
+        limit: int = 150,
         role_fix: bool = False,
     ) -> tuple[dict, float, bool] | None:
         """The best affordable, not-yet-used add for this spec — does NOT commit spend
@@ -696,7 +719,7 @@ def propose_swaps(
         only nonland producers, and the fill pass reserves land slots for the land tool,
         so the ramp oracle (which matches mana-producing lands) must not pull them in.
         ``limit`` widens the candidate pool — the fill pass adds many cards per spec, so
-        a 60-card page runs dry after dedup; it requests a deeper page.
+        the default 150-card page runs dry after dedup; it requests a deeper page.
 
         ``role_fix`` marks a Spine-band add (ADR-0040 companion): at FOCUSED verdict,
         among the non-overshooting affordable candidates, one that serves ≥1 of the
@@ -865,9 +888,10 @@ def propose_swaps(
             added < quota and fills_done < ctx.fill_slots and len(swaps) < ctx.max_swaps
         ):
             # Fill is nonland-only (land slots reserved) and pulls a DEEP page: an
-            # identity-only good-stuff search is cmc-asc, so its first few hundred hits
-            # are mostly CMC-0 lands — we need to page well past them to find enough
-            # distinct nonland cards.
+            # identity-only good-stuff search paged by mana value opens on a few
+            # hundred CMC-0 lands, and one paged by play-rate on the lands every
+            # deck runs — we need to page well past them to find enough distinct
+            # nonland cards.
             picked = find_add(
                 spec, synergy_first=synergy_first, nonland_only=True, limit=1000
             )

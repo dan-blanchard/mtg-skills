@@ -22,7 +22,7 @@ from mtg_utils._analysis.roles import DeckMana, is_ramp
 from mtg_utils._analysis.signal_specs import spec_for
 from mtg_utils._card_ir.crosswalk import mana_ability_gates
 from mtg_utils._card_ir.trees import trees_for
-from mtg_utils.combo_search import is_game_winning
+from mtg_utils.combo_search import ends_the_game
 
 if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
@@ -497,10 +497,14 @@ def top_issues(
             sourcing.issue(
                 "near_miss_combo",
                 label=missing,
-                # One card that completes a game-winning line is about the best
+                # One card that completes a game-ENDING line is about the best
                 # single swap there is: it ranks above dead weight (7-10), so its cut
-                # comes from the filler first. A value line is a nudge.
-                severity=9 if is_game_winning(near) else 2,
+                # comes from the filler first. A value line is a nudge: on any
+                # "infinite" the 25 precons audited 2026-10-18 got Jumbo Cactuar
+                # beside Swords to Plowshares, Tidespout Tyrant beside Sol Ring in
+                # seven decks and Repercussion beside Blasphemous Act in four, and
+                # no upgrade article agreed with one of them.
+                severity=9 if ends_the_game(near) else 2,
                 message=f"{missing} completes {' + '.join(others)} → {result}",
             )
         )

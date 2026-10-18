@@ -46,6 +46,10 @@ class Calibration:
     #: instants and four payoffs — so a main needs real builders, not just feeders.
     #: Between ``focus_carers`` and this it is a sub-theme.
     focus_main_carers: int
+    #: A main's carers are also at least this share of its depth (feeders): six
+    #: cards caring about twenty-two artifacts is a sub beside the main, not a
+    #: second main (the Timey-Wimey precon, 2026-10-18).
+    focus_main_carer_share: float
     spine_led: int
     #: Shape → (min, max) dedicated closers at ``base_size`` (life-scaled downstream).
     wincon_target: Mapping[str, tuple[int, int]]
@@ -93,6 +97,7 @@ COMMANDER = Calibration(
     focus_emerging=5,
     focus_carers=4,
     focus_main_carers=6,
+    focus_main_carer_share=1 / 3,
     spine_led=8,
     wincon_target={
         "aggro": (4, 6),
@@ -116,6 +121,7 @@ CONSTRUCTED = Calibration(
     focus_emerging=3,
     focus_carers=2,
     focus_main_carers=4,
+    focus_main_carer_share=1 / 3,
     spine_led=6,
     wincon_target={
         "aggro": (4, 8),
@@ -139,6 +145,7 @@ LIMITED = Calibration(
     focus_emerging=2,
     focus_carers=2,
     focus_main_carers=4,
+    focus_main_carer_share=1 / 3,
     spine_led=4,
     wincon_target={
         "aggro": (2, 4),

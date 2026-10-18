@@ -150,10 +150,10 @@ def test_is_fixing_reads_the_land_search_off_the_trees():
 
 def test_over_band_ramp_cut_keeps_basic_land_fetch_over_colorless_rock():
     # ramp over by 1; the cut must trim the redundant colorless rock, not the basic-land
-    # fetch that fixes the deck's colors. Kodama is the LEAST-played (rank 900 vs 40) so
+    # fetch that fixes the deck's colors. Kodama is the LEAST-played (rank 900 vs 400) so
     # without the fix the play-rate tiebreak cuts it first — _is_fixing must override that.
     kodama = _real_cc("Kodama's Reach", "spine", roles=("ramp",), edhrec_rank=900)
-    mind_stone = _real_cc("Mind Stone", "spine", roles=("ramp",), edhrec_rank=40)
+    mind_stone = _real_cc("Mind Stone", "spine", roles=("ramp",), edhrec_rank=400)
     budgets = {"ramp": _band(2, 0, 1), "lands": _band(36, 36, 38)}
     cuts = cut_candidates(
         [kodama, mind_stone], budgets=budgets, focus_verdict="FOCUSED", stranded=set()
@@ -334,6 +334,54 @@ def test_role_over_trims_the_over_role_not_a_floor_role():
     assert len(out["swaps"]) == 1
     # Trims the pure removal, never the lone board wipe (which sits at its floor).
     assert out["swaps"][0]["cut"]["name"] == "Pure Removal"
+
+
+def test_a_premium_card_is_never_a_band_trim():
+    # Ramp over by 2 under a tribal commander: the lane's two dorks trim last,
+    # which would leave Sol Ring (rank 1) as the first non-lane ramp to trim.
+    # A premium card is never cut to meet a band; the dorks are (lane last).
+    classes = [
+        _real_cc("Sol Ring", "spine", roles=["ramp"], edhrec_rank=1),
+        _cc(
+            "Dork A", "spine", roles=["ramp"], served=("Dinosaurs",), edhrec_rank=20000
+        ),
+        _cc(
+            "Dork B", "spine", roles=["ramp"], served=("Dinosaurs",), edhrec_rank=30000
+        ),
+    ]
+    budgets = {"ramp": _band(3, 0, 1)}
+    cuts = cut_candidates(
+        classes,
+        budgets=budgets,
+        focus_verdict="FOCUSED",
+        stranded=set(),
+        viable={"Dinosaurs"},
+        commander_cards={"Dork A", "Dork B"},
+    )
+    assert [c.name for r, c in cuts if r == "over:ramp"] == ["Dork B", "Dork A"]
+    # Where play-rate means nothing (a 60-card or limited deck) the rank is no
+    # shield. (``playrate=False`` alone — a one-on-one game, where play-rate
+    # may not condemn — keeps it: a shield is a quality read.)
+    cuts = cut_candidates(
+        classes,
+        budgets=budgets,
+        focus_verdict="FOCUSED",
+        stranded=set(),
+        playrate=False,
+        viable={"Dinosaurs"},
+        commander_cards={"Dork A", "Dork B"},
+    )
+    assert [c.name for r, c in cuts if r == "over:ramp"] == ["Dork B", "Dork A"]
+    cuts = cut_candidates(
+        classes,
+        budgets=budgets,
+        focus_verdict="FOCUSED",
+        stranded=set(),
+        playrate_meaningful=False,
+        viable={"Dinosaurs"},
+        commander_cards={"Dork A", "Dork B"},
+    )
+    assert next(c.name for r, c in cuts if r == "over:ramp") == "Sol Ring"
 
 
 def test_role_over_trim_cuts_least_played_excess_not_a_staple():
@@ -550,6 +598,51 @@ def test_dead_weight_cuts_fringe_theme_cards_keeps_played_ones():
     cut = {s["cut"]["name"] for s in out["swaps"]}
     assert {"Vanilla Beater", "Unranked Beater"} <= cut  # fringe theme cards upgraded
     assert "Good Engine" not in cut  # a well-played theme card is spared
+
+
+def test_candidate_pool_is_paged_by_playrate_where_it_means_something():
+    """The search page is the pool the ranking sees: by play-rate in the
+    Commander family, by mana value where play-rate means nothing."""
+    sig = _prolif_sig()
+    label = spec_for(sig).label
+    classes = [_cc("Filler A", "filler", cmc=3.0)]
+    issue = {"kind": "dead_weight", "severity": 7, "count": 1, "message": "x"}
+    seen: list[str] = []
+
+    def search(**kw):
+        seen.append(kw["sort"])
+        return [
+            {
+                "name": "Staple",
+                "type_line": "Creature",
+                "oracle_text": "Proliferate.",
+                "cmc": 3.0,
+                "prices": {"usd": "1.00"},
+                "color_identity": [],
+                "edhrec_rank": 50,
+            }
+        ]
+
+    def ctx(*, playrate):
+        return SwapContext(
+            budgets={},
+            focus_result=_focus(viable=[{"label": label, "depth": 20, "cards": []}]),
+            deck_signals=[sig],
+            search_fn=search,
+            identity="",
+            fmt="commander",
+            paper_only=True,
+            owned={},
+            budget=50.0,
+            max_swaps=1,
+            top_heavy=False,
+            playrate=playrate,
+        )
+
+    _swaps_for_issue_dicts(classes, [issue], ctx(playrate=True))
+    assert seen[-1] == "edhrec-asc"
+    _swaps_for_issue_dicts(classes, [issue], ctx(playrate=False))
+    assert seen[-1] == "cmc-asc"
 
 
 def test_add_prefers_higher_playrate_over_cheaper_chaff():
@@ -1511,7 +1604,7 @@ def test_over_band_trim_cuts_the_commanders_lane_last():
             "spine",
             roles=["board_wipe"],
             served=("Combat",),
-            edhrec_rank=200,
+            edhrec_rank=2000,
         ),
     ]
     budgets = {"board_wipe": _band(4, 2, 3)}
@@ -1540,14 +1633,14 @@ def test_over_band_trim_prefers_a_card_feeding_no_viable_avenue():
             "spine",
             roles=["board_wipe"],
             served=("Go wide",),
-            edhrec_rank=100,
+            edhrec_rank=1000,
         ),
         _cc(
             "Off Theme",
             "spine",
             roles=["board_wipe"],
             served=("Combat",),
-            edhrec_rank=100,
+            edhrec_rank=1000,
         ),
     ]
     budgets = {"board_wipe": _band(4, 2, 3)}

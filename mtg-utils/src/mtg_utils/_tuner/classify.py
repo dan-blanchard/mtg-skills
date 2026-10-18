@@ -35,6 +35,12 @@ _SPINE_ROLES = frozenset({"ramp", "card_draw", "interaction", "board_wipe"})
 # benchmark — vanilla beaters sit >23k/None while real theme cards are <8k.
 FRINGE_RANK = 15000
 
+# The rank at or above which a card is premium — the format's top two hundred by
+# play-rate, the staples every list runs (Sol Ring is rank 1). A premium card is
+# never cut to meet a template band (``swaps.cut_candidates``). Only where
+# play-rate means something (``Calibration.playrate_meaningful``).
+PREMIUM_RANK = 200
+
 
 def is_fringe(rank: int | None, *, medium: str = "paper") -> bool:
     """True when a card is barely-played (an upgrade candidate within its theme).
@@ -45,6 +51,11 @@ def is_fringe(rank: int | None, *, medium: str = "paper") -> bool:
     if rank is None:
         return not medium_is_digital(medium)
     return rank > FRINGE_RANK
+
+
+def is_premium(rank: int | None) -> bool:
+    """True when a card is among the format's most-played (``PREMIUM_RANK``)."""
+    return rank is not None and rank <= PREMIUM_RANK
 
 
 @dataclass(frozen=True)

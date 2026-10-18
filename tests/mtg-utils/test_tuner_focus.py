@@ -536,7 +536,8 @@ def test_carers_already_in_the_commanders_lane_do_not_make_a_second_theme():
 
 def test_a_main_theme_needs_builders_not_just_feeders():
     # Twenty-two artifacts feed "Artifacts" (every rock serves it) and four cards
-    # care: enough for a sub-theme, not a main. Six carers make it a main.
+    # care: enough for a sub-theme, not a main. Six carers clear the floor but
+    # not a third of the feeders (still a sub); eight make it a main.
     artifacts = spec_for(_sig("artifacts_matter")).label
     classes = [_cc(f"Rock {i}", "engine", [artifacts]) for i in range(22)]
     sig = [_sig("artifacts_matter")]
@@ -548,6 +549,13 @@ def test_a_main_theme_needs_builders_not_just_feeders():
     ]
     six = {("artifacts_matter", "you", ""): frozenset({f"Rock {i}" for i in range(6)})}
     fr = focus(classes, deck_size=100, deck_signals=sig, emitters=six)
+    assert [(a["label"], a["tier"]) for a in fr["viable_avenues"]] == [
+        (artifacts, "sub")
+    ]
+    eight = {
+        ("artifacts_matter", "you", ""): frozenset({f"Rock {i}" for i in range(8)})
+    }
+    fr = focus(classes, deck_size=100, deck_signals=sig, emitters=eight)
     assert [(a["label"], a["tier"]) for a in fr["viable_avenues"]] == [
         (artifacts, "main")
     ]
@@ -612,10 +620,111 @@ def test_verdict_counts_mains_and_subs_not_viable_avenues():
     assert focus(classes, deck_size=100)["verdict"] == "FOCUSED"
     classes, _ = deck(2, 0)
     assert focus(classes, deck_size=100)["verdict"] == "SPREAD-THIN"
+    # A clear main with three light subs is focused (a sub is a few cards
+    # caring); three subs with NO main is a deck pulled three ways.
     classes, _ = deck(1, 3)
+    assert focus(classes, deck_size=100)["verdict"] == "FOCUSED"
+    classes, _ = deck(0, 3)
     assert focus(classes, deck_size=100)["verdict"] == "SPREAD-THIN"
     classes, _ = deck(0, 2)
     assert focus(classes, deck_size=100)["verdict"] == "FOCUSED"
+
+
+def _two_lane_commander():
+    """Saheeli, Radiant Creator's shape: the commander emits an artifacts key and
+    an energy key, each a built avenue with enough carers for a main."""
+    art = spec_for(_sig("artifacts_matter")).label
+    energy = spec_for(_sig("energy_matters")).label
+    classes = [_cc("Saheeli", "commander", [art, energy])]
+    classes += [_cc(f"Art {i}", "engine", [art]) for i in range(20)]
+    classes += [_cc(f"Energy {i}", "engine", [energy]) for i in range(20)]
+    signals = [_sig("artifacts_matter"), _sig("energy_matters")]
+    emitters = {
+        ("artifacts_matter", "you", ""): frozenset(
+            {"Saheeli"} | {f"Art {i}" for i in range(10)}
+        ),
+        ("energy_matters", "you", ""): frozenset(
+            {"Saheeli"} | {f"Energy {i}" for i in range(10)}
+        ),
+    }
+    return classes, signals, emitters, art, energy
+
+
+def test_two_commander_held_mains_are_one_direction():
+    classes, signals, emitters, art, energy = _two_lane_commander()
+    held = frozenset({("artifacts_matter", "you", ""), ("energy_matters", "you", "")})
+    fr = focus(
+        classes,
+        deck_size=100,
+        deck_signals=signals,
+        emitters=emitters,
+        commander_idents=held,
+    )
+    tiers = {a["label"]: a["tier"] for a in fr["viable_avenues"]}
+    assert tiers[art] == "main"
+    assert tiers[energy] == "main"
+    assert fr["verdict"] == "FOCUSED"
+    # The same two mains, neither held by the commander: two directions.
+    fr = focus(classes, deck_size=100, deck_signals=signals, emitters=emitters)
+    assert fr["verdict"] == "SPREAD-THIN"
+
+
+def test_a_main_needs_carers_in_proportion_to_its_feeders():
+    """Six cards caring about twenty-two artifacts (the Timey-Wimey precon) is a
+    sub-theme beside the main, not a second main."""
+    main = spec_for(_sig("suspend_matters")).label
+    art = spec_for(_sig("artifacts_matter")).label
+    classes = [_cc("Doctor", "commander", [main])]
+    classes += [_cc(f"Time {i}", "engine", [main]) for i in range(30)]
+    classes += [_cc(f"Art {i}", "engine", [art]) for i in range(22)]
+    signals = [_sig("suspend_matters"), _sig("artifacts_matter")]
+    emitters = {
+        ("suspend_matters", "you", ""): frozenset(
+            {"Doctor"} | {f"Time {i}" for i in range(20)}
+        ),
+        ("artifacts_matter", "you", ""): frozenset({f"Art {i}" for i in range(6)}),
+    }
+    fr = focus(
+        classes,
+        deck_size=100,
+        deck_signals=signals,
+        emitters=emitters,
+        commander_idents=frozenset({("suspend_matters", "you", "")}),
+    )
+    tiers = {a["label"]: a["tier"] for a in fr["viable_avenues"]}
+    assert tiers[main] == "main"
+    assert tiers[art] == "sub"
+    assert fr["verdict"] == "FOCUSED"
+
+
+def test_the_primary_lane_is_the_held_lane_most_cards_care_about():
+    """Nelly Borca: her attack trigger reads as Combat (deeper) and as Goad (more
+    cards care). The primary lane is the one the deck built toward."""
+    combat = spec_for(_sig("attack_matters")).label
+    goad_sig = _sig("goad_makers", scope="opponents")
+    goad = spec_for(goad_sig).label
+    classes = [_cc("Nelly", "commander", [combat, goad])]
+    classes += [_cc(f"Attacker {i}", "engine", [combat]) for i in range(17)]
+    classes += [_cc(f"Goader {i}", "engine", [goad]) for i in range(16)]
+    signals = [_sig("attack_matters"), goad_sig]
+    emitters = {
+        ("attack_matters", "you", ""): frozenset(
+            {"Nelly"} | {f"Attacker {i}" for i in range(5)}
+        ),
+        ("goad_makers", "opponents", ""): frozenset(
+            {"Nelly"} | {f"Goader {i}" for i in range(12)}
+        ),
+    }
+    fr = focus(
+        classes,
+        deck_size=100,
+        deck_signals=signals,
+        emitters=emitters,
+        commander_idents=frozenset(
+            {("attack_matters", "you", ""), ("goad_makers", "opponents", "")}
+        ),
+    )
+    assert fr["viable_avenues"][0]["label"] == goad
 
 
 def test_an_engine_card_feeding_only_fed_avenues_is_dead_weight():

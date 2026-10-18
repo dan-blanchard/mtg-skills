@@ -345,26 +345,52 @@ def combos_or_none[T](combos_fn: Callable[[T], dict] | None, deck: T) -> dict | 
         return None
 
 
-def is_game_winning(combo: Mapping) -> bool:
-    """Heuristic: combos whose result is infinite or game-ending (win OR make an
-    opponent lose the game). The one test behind the report's GAME_WINNING tag, the
-    bracket gate's two-card-combo axis and the tuner's near-miss severity.
+_GAME_OVER_PHRASES = (
+    "win the game",
+    "wins the game",
+    "lose the game",
+    "loses the game",
+)
 
-    ``result`` is Commander Spellbook's list of feature strings; a bare string (a few
-    synthetic call sites) reads the same way."""
+# A result that ends the game outright: a win, a loss, or an unbounded damage /
+# life-loss / mill / turns / combat loop. "Infinite mana", "infinite lifegain",
+# "infinite ETB", an "infinitely large creature" (no evasion is promised) and a
+# "near-infinite" (life-total-bounded) line are value lines.
+_TERMINAL_PHRASES = (
+    *_GAME_OVER_PHRASES,
+    "infinite damage",
+    "infinite lifeloss",
+    "infinite life loss",
+    "infinite mill",
+    "infinite turns",
+    "infinite combat",
+)
+
+
+def _result_text(combo: Mapping) -> str:
+    """``result`` is Commander Spellbook's list of feature strings; a bare string
+    (a few synthetic call sites) reads the same way."""
     result = combo.get("result") or []
     if isinstance(result, str):
         result = [result]
-    text = " ".join(str(r) for r in result).lower()
-    return "infinite" in text or any(
-        phrase in text
-        for phrase in (
-            "win the game",
-            "wins the game",
-            "lose the game",
-            "loses the game",
-        )
-    )
+    return " ".join(str(r) for r in result).lower()
+
+
+def is_game_winning(combo: Mapping) -> bool:
+    """Heuristic: combos whose result is infinite or game-ending (win OR make an
+    opponent lose the game). The one test behind the report's GAME_WINNING tag and
+    the bracket gate's two-card-combo axis (the Brackets count every infinite
+    combo, whatever it produces)."""
+    text = _result_text(combo)
+    return "infinite" in text or any(phrase in text for phrase in _GAME_OVER_PHRASES)
+
+
+def ends_the_game(combo: Mapping) -> bool:
+    """Whether a combo's result ends the game outright (``_TERMINAL_PHRASES``) —
+    the tuner's near-miss severity: one card short of a game-ending line is about
+    the best single swap there is; one short of a value line is a nudge."""
+    text = _result_text(combo).replace("near-infinite", "bounded")
+    return any(phrase in text for phrase in _TERMINAL_PHRASES)
 
 
 def render_combo_search_report(data: dict) -> str:

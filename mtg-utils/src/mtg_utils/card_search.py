@@ -287,10 +287,22 @@ _SORT_DEFAULTS = {
     "price": True,  # descending
     "cmc": False,  # ascending
     "name": False,  # ascending
+    "edhrec": False,  # ascending: most played first
 }
 
 
-# Sort-key factory: each branch returns a homogeneous comparable key (price/cmc
+UNPLAYED_RANK = 10**9
+
+
+def edhrec_popularity(card: dict) -> int:
+    """A card's EDHREC rank as a sortable play-rate key (lower = more played);
+    an unranked card sorts as unplayed. The one popularity key the sort and the
+    tuner's quality tiebreak share."""
+    rank = card.get("edhrec_rank")
+    return rank if rank is not None else UNPLAYED_RANK
+
+
+# Sort-key factory: each branch returns a homogeneous comparable key (price/cmc/edhrec
 # -> number, name -> str); the union across branches is dynamic, so the key
 # return is Any (the standard sort-key shape, à la _typeshed.SupportsRichComparison).
 def _parse_sort(sort: str) -> tuple[Callable[[dict], Any], bool]:
@@ -304,6 +316,9 @@ def _parse_sort(sort: str) -> tuple[Callable[[dict], Any], bool]:
         return lambda c: c.get("cmc", 0), reverse
     if field == "name":
         return lambda c: c.get("name", ""), reverse
+    if field == "edhrec":
+        # Play-rate: EDHREC rank; ascending is most played first, unranked last.
+        return edhrec_popularity, reverse
     return lambda c: _extract_price(c) or 0.0, reverse
 
 
@@ -616,7 +631,7 @@ def format_results(cards: list[dict]) -> str:
     "--sort",
     default="price-desc",
     show_default=True,
-    help="Sort field: price, cmc, name. Suffix: -desc, -asc.",
+    help="Sort field: price, cmc, name, edhrec (play-rate). Suffix: -desc, -asc.",
 )
 @click.option("--limit", default=25, show_default=True)
 @click.option(

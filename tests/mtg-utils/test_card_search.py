@@ -386,6 +386,18 @@ class TestSearchCards:
         with pytest.raises(click.BadParameter, match="Invalid oracle regex"):
             search_cards(bulk_path, oracle="[invalid")
 
+    def test_sort_edhrec_most_played_first_unranked_last(self, tmp_path):
+        cards = [
+            {**_make_card(name="Fringe"), "edhrec_rank": 30000},
+            {**_make_card(name="Unranked"), "edhrec_rank": None},
+            {**_make_card(name="Staple"), "edhrec_rank": 1},
+        ]
+        bulk_path = tmp_path / "bulk.json"
+        bulk_path.write_text(json.dumps(cards))
+
+        results = search_cards(bulk_path, sort="edhrec")
+        assert [c["name"] for c in results] == ["Staple", "Fringe", "Unranked"]
+
     def test_sort_name_defaults_ascending(self, tmp_path):
         cards = [
             _make_card(name="Zebra"),

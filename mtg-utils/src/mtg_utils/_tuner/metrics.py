@@ -384,12 +384,12 @@ def focus(
 
     # The commander's own lanes, collapsed among themselves (deepest first: one
     # ability's sibling reads share the same cards, and the broad read is the
-    # lane). The first is the commander's PRIMARY lane.
+    # lane). The PRIMARY lane among them is chosen below, once the carers are
+    # known.
     held_kept: list[str] = []
     for lbl in sorted(commander_held, key=lambda lbl: depth.get(lbl, 0), reverse=True):
         if not near_duplicate(lbl, held_kept):
             held_kept.append(lbl)
-    primary = held_kept[0] if held_kept else None
     commander_members: set[str] = set()
     for lbl in held_kept:
         commander_members.update(member_sets.get(lbl, ()))
@@ -451,6 +451,16 @@ def focus(
     def care_count(lbl: str) -> int:
         return len(carers.get(lbl, ()))
 
+    # The commander's PRIMARY lane: of its own lanes, the one the most cards
+    # care about, then the deepest. Depth alone picked "Combat" (17 deep, 12
+    # caring) over "Goad & politics" (16 deep, 16 caring) under Nelly Borca,
+    # whose attack trigger is how she goads (Blame Game precon, 2026-10-18).
+    primary = (
+        max(held_kept, key=lambda lbl: (care_count(lbl), depth.get(lbl, 0)))
+        if held_kept
+        else None
+    )
+
     def built(lbl: str, floor: int) -> bool:
         """Deep in feeders AND enough cards care (or the commander does). On the
         stock Jace precon "Historic" was 32 deep — every legendary creature and
@@ -458,13 +468,13 @@ def focus(
         main theme while the polymorph engine read as a sub (2026-10-17)."""
         return emitters is None or lbl in commander_held or care_count(lbl) >= floor
 
-    def rank_key(lbl: str) -> tuple[bool, int, int]:
+    def rank_key(lbl: str) -> tuple[bool, bool, int, int]:
         """The commander's own lanes first (the issue remedies source adds from
-        the first viable avenue) — among them the deepest, as above — then by
-        how many cards care, then by depth."""
+        the first viable avenue), the primary at their head, then the deepest —
+        then by how many cards care, then by depth."""
         if lbl in commander_held:
-            return (True, depth[lbl], care_count(lbl))
-        return (False, care_count(lbl), depth[lbl])
+            return (True, lbl == primary, depth[lbl], care_count(lbl))
+        return (False, False, care_count(lbl), depth[lbl])
 
     # Built avenues rank by ``rank_key``; a fed avenue (deep, but nobody built
     # toward it) is reported apart and shapes nothing.
@@ -490,9 +500,13 @@ def focus(
     # The commander's primary lane is a main theme by definition, whatever its
     # depth. Any other main needs depth AND builders: a broad serve (every
     # artifact, every instant) is deep in any deck, so without the carer bar
-    # "Artifacts" read as a main theme on sixteen rocks (2026-10-18).
+    # "Artifacts" read as a main theme on sixteen rocks (2026-10-18). Builders
+    # are also measured against the feeders (``focus_main_carer_share``).
     def is_main(lbl: str) -> bool:
-        builders = emitters is None or care_count(lbl) >= main_carer_floor
+        care = care_count(lbl)
+        builders = emitters is None or (
+            care >= main_carer_floor and care >= cal.focus_main_carer_share * depth[lbl]
+        )
         return lbl == primary or (depth[lbl] >= main_floor and builders)
 
     mains: list[str] = []
@@ -595,15 +609,23 @@ def focus(
     stranded = sorted(lbl for lbl in engine_labels if 1 <= depth.get(lbl, 0) <= 2)
 
     spine_led_floor = max(1, cal.scaled(cal.spine_led, deck_size))
+    # Main directions competing for the engine slots: the commander's own lanes
+    # count as ONE direction however many it holds (Saheeli, Radiant Creator
+    # holds Artifacts and Energy; that is her design, not a deck pulled two
+    # ways), every other main is a direction of its own.
+    competing = len(set(mains) - commander_held) + bool(
+        commander_held.intersection(mains)
+    )
     if engine_pool < spine_led_floor:
         verdict = "SPINE-LED"
-    elif len(mains) >= 2 or len(subs) >= 3:
-        # Two main directions, or a crowd of sub-themes, competing for the engine
-        # slots. One main with a couple of light subs is focused: a sub is by
-        # definition a few cards caring (below ``focus_main_carers``).
+    elif competing >= 2 or (not mains and len(subs) >= 3):
+        # Two directions competing, or a crowd of sub-themes with no main among
+        # them. One main with light subs is focused, however many: a sub is by
+        # definition a few cards caring, and nine of 25 precons read SPREAD-THIN
+        # on "a main plus three subs" with a 27-43-carer main (2026-10-18).
         verdict = "SPREAD-THIN"
     elif viable:
-        verdict = "FOCUSED"  # 1 main (+ up to 2 subs), or 1-2 subs
+        verdict = "FOCUSED"  # 1 main (+ subs), or 1-2 subs
     else:
         # A substantial engine pool that coheres into no theme at all is scattered.
         verdict = "SPREAD-THIN"

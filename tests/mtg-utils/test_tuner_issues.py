@@ -74,6 +74,22 @@ def _every_issue():
     )
 
 
+def test_a_near_miss_outranks_dead_weight_only_when_it_ends_the_game():
+    from mtg_utils.combo_search import ends_the_game
+
+    def near(*result):
+        return {"cards": ["A", "B"], "result": list(result), "missing_card": "B"}
+
+    assert ends_the_game(near("Infinite mill"))
+    assert ends_the_game(near("Each opponent loses the game"))
+    assert ends_the_game(near("Infinite damage", "Infinite storm count"))
+    # Value lines, and a line bounded by a life total: a nudge, not the best swap.
+    assert not ends_the_game(near("Infinite colorless mana", "Infinite storm count"))
+    assert not ends_the_game(near("Near-infinite lifegain"))
+    assert not ends_the_game(near("Near-infinite damage to all players"))
+    assert not ends_the_game(near("Infinite creature ETB", "Infinite lifegain"))
+
+
 def test_every_emitted_kind_has_a_decided_remedy():
     issues = {i.kind: i for i in _every_issue()}
     assert set(issues) == {
