@@ -14,6 +14,7 @@ from mtg_utils._tuner.issues import (
 )
 from mtg_utils._tuner.swaps import (
     SwapContext,
+    _blended_percentiles,
     _cut_why,
     _is_fixing,
     _upgrades,
@@ -1864,20 +1865,65 @@ def test_an_upgrade_does_the_cut_cards_job_and_more_decks_play_it():
         ("Murder", "Swords to Plowshares")
     ]
     assert out["swaps"][0]["reason"] == (
-        "upgrade interaction: more decks play Swords to Plowshares"
+        "upgrade interaction: Swords to Plowshares — more decks play it"
     )
     assert out["swaps"][0]["cut"]["why"].startswith("off the deck's lanes")
 
 
-def test_no_upgrade_without_a_better_played_card_doing_the_job():
+def test_an_upgrade_does_the_job_by_its_read_and_more_decks_play_it():
+    """Removal has a card read (``job_quality``): Animate Dead counts as
+    interaction for the role, but its "-1/-0" on the creature it returns
+    removes nothing, so the read scores it None and it is no removal upgrade
+    however many decks play it. A removal spell played more than the cut is
+    one; one played less is not — "better" stays play-rate's (ADR-0060)."""
     murder = _real_cc("Murder", "spine", roles=["interaction"], edhrec_rank=8000)
-    pool = [_played("Swords to Plowshares", 9000)]
-    out = _swaps_for_issue_dicts(
-        [murder],
-        [{"kind": "upgrade", "severity": 1, "count": 1}],
-        _upgrade_ctx([murder], pool),
+
+    def upgrade(pool):
+        return _swaps_for_issue_dicts(
+            [murder],
+            [{"kind": "upgrade", "severity": 1, "count": 1}],
+            _upgrade_ctx([murder], pool),
+        )["swaps"]
+
+    assert upgrade([_played("Animate Dead", 10)]) == []
+    assert upgrade([_played("Swords to Plowshares", 9000)]) == []
+    assert [
+        s["add"]["name"] for s in upgrade([_played("Swords to Plowshares", 100)])
+    ] == ["Swords to Plowshares"]
+
+
+def test_the_main_theme_upgrades_to_a_better_played_card():
+    """A card with no template job is upgraded on the main theme, where no card
+    read applies: more decks must play the add."""
+    clunker = _real_cc("Murder", "engine", edhrec_rank=8000)
+    assert not _upgrades(_played("Doom Blade", 9000), clunker, None)
+    assert _upgrades(_played("Doom Blade", 100), clunker, None)
+
+
+def test_a_job_read_gates_out_a_card_that_does_not_do_the_job():
+    """Card draw has a read: a looter nets no card (Faithless Looting reads
+    None), so it is no draw upgrade however many decks play it; Night's
+    Whisper, which nets two, is."""
+    divination = _real_cc("Divination", "spine", roles=["card_draw"], edhrec_rank=8000)
+    assert not _upgrades(_played("Faithless Looting", 10), divination, "card_draw")
+    assert _upgrades(_played("Night's Whisper", 100), divination, "card_draw")
+
+
+def test_an_ordering_read_blends_with_play_rate():
+    """An ordering job's candidates take the read's percentile plus play-rate's,
+    so the read and play-rate weigh the same: here each card leads one order and
+    trails the other by as much, and all three tie. A job with no read blends
+    nothing."""
+    cards = [
+        _played("Swiftfoot Boots", 30),  # protection read 0.89
+        _played("Heroic Intervention", 300),  # protection read 1.11
+        _played("Flawless Maneuver", 3000),  # protection read 1.29
+    ]
+    mix = _blended_percentiles(cards, "protection")
+    assert (
+        mix["Heroic Intervention"] == mix["Swiftfoot Boots"] == mix["Flawless Maneuver"]
     )
-    assert out["swaps"] == []
+    assert _blended_percentiles(cards, None) == {}
 
 
 def test_an_upgrade_costs_no_more_mana_value_band():

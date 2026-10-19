@@ -43,7 +43,13 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   swaps, 104 cuts and 29 adds matching a guide, from 85 / 44 / 8); every theme
   add is the most-played candidate that fits; an Equipment's, Aura's or
   target's shrink and damage to each player are not board wipes; the main
-  theme no longer changes with the string-hash seed. Left:
+  theme no longer changes with the string-hash seed. Fixed in the eighth pass
+  (2026-10-19): the interaction search combined its five presets with AND and
+  sourced nothing (no removal fill or upgrade since the fourth pass) — it reads
+  any of them now; job reads (`_analysis/job_quality/`, ADR-0060) gate which
+  cards may be an upgrade and, for wipes / draw, order them blended with
+  play-rate, so a looter is no draw upgrade and Animate Dead no removal; overload spells are
+  sweeps (`mana_and_wipes._overloaded`, a retirement canary). Left:
   (a) **Inside a lane, the cut read is "a feeder nobody plays" — don't
   re-suggest a function read.** Measured 2026-10-18 on the 25 precons' main
   lanes (906 lane cards, 222 guide cuts, base rate 0.245): no function
@@ -113,13 +119,21 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   rows read candidates without membership idents since the fourth pass, so a
   card with both a cast and an enters payoff — Tuvasa the Sunlit, Sai — fires
   the typed-cheat rows and Sol Ring / Pacifism no longer score as payoffs.)
-  (e) **The most-played card of a job recurs** (seventh pass): Skullclamp is
-  an add in 12 of 25 precons (a guide add in 3), Swiftfoot Boots in 9, Frantic
-  Search in 5 — and looting counts as card draw (connive is written in as card
-  advantage), so Faithless Looting and Frantic Search upgrade a draw spell.
-  Nine precons get no guide-matching add at all. A "main theme" upgrade can
-  land on a generic card the main avenue's page holds (Swiftfoot Boots in
-  Mardu Surge, Lightning Greaves in Tinker Time).
+  (e) **The most-played card of a job recurs** (seventh pass; eighth pass:
+  looting is gone — the draw read nets it zero). Left, all play-rate's picks
+  among the cards a read admits: Skullclamp is the card-draw add in 11
+  precons (the draw read is per card; its worth is the deck's X/1 creatures and
+  token makers — `job_quality/card_draw.py`'s docstring has the measured
+  deck-context scaling, the next step), Swiftfoot Boots the protection add in 9,
+  Reclamation Sage the removal add in 6, Braids, Arisen Nightmare in 4 (a
+  symmetric sacrifice engine), Patchwork Banner the ramp add in 3, with Ashnod's
+  Altar, Fellwar Stone, Thought Vessel and Cultivate still in. A "main theme"
+  upgrade can land on a generic card the main avenue's page holds (Swiftfoot
+  Boots in Mardu Surge). Nine precons get no guide-matching add at all. Removal
+  upgrades read off-plan in places: Planeswalker Party trades Gideon Jura and
+  Nahiri for Abrade and Lightning Bolt (its planeswalkers are not superfriends
+  carers by the focus read), Veloci-Ramp-Tor trades Savage Stomp, which its
+  Dinosaurs make cheaper, for Loran.
   (f) A targeted static toughness shrink (Nameless Inversion's "+3/-3") is no
   `removal` key, so it fills no interaction slot.
   (g) The guide cuts the tuner protects are still 124 — lane carers and doers
@@ -141,6 +155,45 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   (i) `cut_candidates` / `size_cuts` take four focus-result fields one by one
   (`viable`, `commander_cards`, `upgrade_cards`, `lane_upgrade_cards`) — one
   focus slice would do.
+  (j) **Job-read leftovers** (eighth pass, ADR-0060; each module docstring lists
+  its own). Removal, ramp and protection only gate (their blend with play-rate
+  trailed play-rate alone at the top of the list), and no read decides "better
+  than the cut" yet (the cut side measured below play-rate for every job). Removal overrates an enters-the-
+  battlefield exile on a cheap permanent (Sheltered by Ghosts and Static Prison
+  read like Cast Out — the Aura's host and the upkeep payment carry no weight),
+  and phase drops Snuff Out's and Deadly Rollick's free alternative costs and
+  Winnow's condition. The wipe read's top picks include Spiteful Banditry and
+  Jaya Ballard where the guides add Blasphemous Act and Farewell. Over every
+  card with a removal effect (creatures with an incidental fight included) the
+  removal read's agreement with play-rate is weak; it was fitted on cards whose
+  main job is removal, and as a gate it only compares a cut with candidates of
+  the same job. The `removal` preset takes `debuff_makers` whole, so a
+  power-only "-1/-0" on the creature Animate Dead returns reads as removal (the
+  role, not the read — the read scores it None). Cyclonic Rift's overload reads
+  as `mass_bounce`, which the `board-wipe` view doesn't take, so the role still
+  counts it as interaction only.
+  (k) **Job-read plumbing the eighth-pass review deferred.** Which effects count
+  as a job should come from the lanes as unit iterators — `mass_removal_units`
+  / `mass_bounce_units` in `mana_and_wipes`, the `_removal_answers` pattern —
+  rather than `board_wipe` re-running `_mass_removal` over one-unit trees;
+  "overload makes this a sweep" is defined twice (the lanes' `_overload_sweep`
+  and `board_wipe`'s overload tags, which add Pump) and should be one crosswalk
+  read. The shared private helpers the reads import (`_overloaded`,
+  `_draw_engine_scope`, `_granted_mana_defs`, `_static_board_shrink`,
+  `_negative_pt_field`, `crosswalk.reads._unit_own_mana`, `lanes._shared._YOU_EACH`,
+  `counters_voltron._TOKEN_OWNER_IS_YOU`, `theme_presets._signal_keys_for`, and
+  `job_quality._READS` for `precon-audit/job_reads.py`) want public names.
+  `roles` could export each role's search spec (prefilter presets plus its
+  predicate) so `ROLE_SEARCH` can't restate it wrongly again. An ordering job
+  reads a 600-card play-rate page (`_JOB_READ_PAGE`); five-colour removal
+  exceeds it, and the blend's percentiles move with page depth — reading the
+  role's whole match set would remove both.
+  (l) **Tune speed.** The first ramp or card-draw preset search in a process
+  builds card trees across the pool (15-46 s, about 70% of a precon tune's
+  time): those presets read concepts the persisted signals index doesn't seed.
+  A source edit to a lane rebuilds the signals index on the next run with no
+  lock, so parallel first runs each rebuild it (the precon runner should warm
+  it once, serially).
 
 - **Competitive Brawl's "banned as a commander" reads as `restricted`.** The
   2026-10-12 B&R update introduced the category (mtg.wiki "Competitive Brawl"

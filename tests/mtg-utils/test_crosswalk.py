@@ -7484,13 +7484,15 @@ def test_mass_removal_languish_negative_amount_is_typed():
         ("Evacuation", True),  # BounceAll creatures
         ("Devastation Tide", True),  # BounceAll nonland permanents
         ("Boomerang", False),  # single-target Bounce → bounce_tempo
-        ("Cyclonic Rift", False),  # base mode targeted; Overload = parse drop
+        # base mode targeted; the overloaded sweep is read off it (CR 702.96a,
+        # ``mana_and_wipes._overloaded``)
+        ("Cyclonic Rift", True),
     ],
 )
 def test_mass_bounce_mass_gate(name, should_fire):
-    """mass_bounce fires only the BounceAll board sweep (CR 115.10). Cyclonic
-    Rift's Overload each-mode is a phase modal-alt-cost parse drop
-    (phase_parse_bug) — the crosswalk reads only the targeted base mode."""
+    """mass_bounce fires on a board sweep (CR 115.10): a BounceAll, or an
+    overload spell's targeted bounce (phase types only the base mode; the
+    retirement canary is ``test_overload_sweep_is_read_from_the_base_mode``)."""
     assert (("mass_bounce", "any", "") in _idents(name)) is should_fire
 
 

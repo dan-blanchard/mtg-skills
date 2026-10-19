@@ -74,10 +74,13 @@ ROLE_SEARCH: dict[str, dict] = {
     "ramp": {"preset_names": ("ramp",), "_filter": _reliable_ramp},
     "card_draw": {"preset_names": ("card-draw",)},
     # Interaction is sourced by the SAME presets ``roles.is_interaction`` counts it
-    # by (ADR-0051, the ramp rule), with the predicate as the precision pass: a
-    # preset hit the role drops (pure graveyard recursion) is never offered.
+    # by (ADR-0051, the ramp rule) — ANY of them, as the role reads them (passed
+    # as ``preset_names`` they combined with AND, and the search found nothing:
+    # no removal fill or upgrade was sourced from 2026-10-18 to 10-19) — with the
+    # predicate as the precision pass: a preset hit the role drops (pure
+    # graveyard recursion) is never offered.
     "interaction": {
-        "preset_names": _INTERACTION_PRESETS,
+        "any_preset_names": _INTERACTION_PRESETS,
         "_filter": lambda c, **_kw: is_interaction(c),
     },
     "board_wipe": {"preset_names": ("board-wipe",)},

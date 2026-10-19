@@ -256,3 +256,34 @@ def test_coin_flip_outcomes_are_walked(name, ident):
 )
 def test_coin_flip_drawback_outcomes_are_skipped(name, ident):
     assert ident not in _idents(name)
+
+
+@pytest.mark.parametrize("name", ["Damn", "Electrickery"])
+def test_an_overloaded_spell_is_a_sweep(name):
+    """Overload changes every "target" to "each" (CR 702.96a): Damn's destroy
+    and Electrickery's damage sweep the board when overloaded, so the
+    ``mass_removal`` lane reads them — and the board-wipe role counts them."""
+    assert "mass_removal|you|" in _idents(name)
+
+
+def test_an_overloaded_bounce_is_a_mass_bounce():
+    assert "mass_bounce|any|" in _idents("Cyclonic Rift")
+
+
+@pytest.mark.retirement_canary
+@pytest.mark.parametrize(
+    ("name", "mass_tag"), [("Damn", "DestroyAll"), ("Cyclonic Rift", "BounceAll")]
+)
+def test_overload_sweep_is_read_from_the_base_mode(name, mass_tag):
+    """Retirement canary for ``mana_and_wipes._overloaded``: phase v0.104.0 keeps
+    overload as an alternative cost and types only the targeted base mode, so
+    the lanes read the sweep off it. When phase types the overloaded mode as a
+    mass node, the base-mode arm is redundant — retire it."""
+    tree = _tree(name)
+    assert any(alt.kind == "overload" for alt in tree.card_alt_costs)
+    assert not tree.has_typed(mass_tag), (
+        f"{name}: RETIRE-READY — phase types the overloaded sweep; drop the "
+        "``_overloaded`` arms in lanes/mana_and_wipes.py and the overload path "
+        "in job_quality/board_wipe.py (_OVERLOAD_TAGS, _is_overload_unit, "
+        "_overload_cost)."
+    )

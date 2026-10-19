@@ -142,6 +142,7 @@ def _matches_filters(
     unreleased_ok: frozenset[str] | None = None,
     is_commander_filter: bool = False,
     presets: tuple[Preset, ...] = (),
+    any_presets: tuple[Preset, ...] = (),
     set_lower: str | None = None,
     partner_of: Sequence[Sequence[str]] | None = None,
 ) -> bool:
@@ -208,6 +209,8 @@ def _matches_filters(
         return False
 
     if presets and not all(p.matches(card) for p in presets):
+        return False
+    if any_presets and not any(p.matches(card) for p in any_presets):
         return False
 
     if (
@@ -357,6 +360,7 @@ def filter_records(
     exact_colors: bool = False,
     is_commander_filter: bool = False,
     preset_names: tuple[str, ...] = (),
+    any_preset_names: tuple[str, ...] = (),
     set_code: str | None = None,
     partner_of: Sequence[Sequence[str]] | None = None,
 ) -> list[dict]:
@@ -365,7 +369,9 @@ def filter_records(
     and the page. ``search_cards`` runs it over the bulk's playable pool; a
     pool-bounded build (sealed / draft) runs it over its opened pool's records
     (``pool_search_fn``), so Find and the tuner search the pool with the SAME
-    semantics."""
+    semantics. ``preset_names`` combine with AND (each must match);
+    ``any_preset_names`` with OR (one must match) — a template role counted by
+    any of several presets (interaction) is searched by the same union."""
     allowed_colors = set(color_identity.upper()) if color_identity else None
     try:
         oracle_re = re.compile(oracle, re.IGNORECASE) if oracle else None
@@ -380,6 +386,7 @@ def filter_records(
         type_lower = tuple(t.lower() for t in card_type)
     name_lower = name.lower() if name else None
     presets = resolve_presets(preset_names) if preset_names else ()
+    any_presets = resolve_presets(any_preset_names) if any_preset_names else ()
 
     matched = [
         card
@@ -401,6 +408,7 @@ def filter_records(
             unreleased_ok=unreleased_ok,
             is_commander_filter=is_commander_filter,
             presets=presets,
+            any_presets=any_presets,
             set_lower=set_code.lower() if set_code else None,
             partner_of=partner_of,
         )
@@ -463,6 +471,7 @@ def search_cards(
     exact_colors: bool = False,
     is_commander_filter: bool = False,
     preset_names: tuple[str, ...] = (),
+    any_preset_names: tuple[str, ...] = (),
     set_code: str | None = None,
     partner_of: Sequence[Sequence[str]] | None = None,
 ) -> list[dict]:
@@ -495,7 +504,7 @@ def search_cards(
     if format is not None and fmt.is_arena and not paper_only and not fmt.pool_bounded:
         arena_only = True
 
-    presets = resolve_presets(preset_names) if preset_names else ()
+    presets = resolve_presets(preset_names + any_preset_names)
     # A structural-view preset (task #83) reads _signal_keys_for, which is
     # itself a per-oracle_id memo (theme_presets._SIGNAL_KEY_INDEX). Seeding it
     # from the persisted whole-pool signals-index sidecar (task #90) before the
@@ -542,6 +551,7 @@ def search_cards(
         exact_colors=exact_colors,
         is_commander_filter=is_commander_filter,
         preset_names=preset_names,
+        any_preset_names=any_preset_names,
         set_code=set_code,
         partner_of=partner_of,
     )

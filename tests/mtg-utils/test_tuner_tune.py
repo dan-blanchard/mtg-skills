@@ -42,7 +42,7 @@ _WIPE = [_priced("Blasphemous Act", "2.00")]
 
 
 def _fake_search(**kw):
-    presets = set(kw.get("preset_names") or ())
+    presets = set(kw.get("preset_names") or ()) | set(kw.get("any_preset_names") or ())
     if "ramp" in presets:
         return list(_RAMP)
     if "card-draw" in presets:

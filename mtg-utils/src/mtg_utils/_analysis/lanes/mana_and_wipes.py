@@ -996,6 +996,35 @@ def _discard_outlet(tree: ConceptTree) -> list[Signal]:
     return []
 
 
+def _overloaded(tree: ConceptTree) -> bool:
+    """The card has overload (CR 702.96a): paying it changes every "target" in
+    the spell's text to "each". phase v0.104.0 keeps overload as an alternative
+    cost (``card_alt_costs``) and types only the targeted base mode — the
+    overloaded sweep is the base mode's own effect on every object matching its
+    description, legal target or not (CR 702.96b). Retires when phase types the
+    overloaded mode (``retirement_canary``:
+    ``test_overload_sweep_is_read_from_the_base_mode``)."""
+    return any(alt.kind == "overload" for alt in tree.card_alt_costs)
+
+
+def _overload_sweep(c: ConceptNode, tag: str | None, cores: set[str]) -> bool:
+    """A targeted removal effect that overload turns into a sweep: destroy a
+    permanent (Damn), damage a creature (Mizzium Mortars), exile one from the
+    battlefield (Winds of Abandon)."""
+    if tag == "Destroy":
+        return bool(cores & _MASS_REMOVAL_TYPES)
+    if tag == "DealDamage":
+        return bool(cores & {"Creature", "Permanent"})
+    if tag == "ChangeZone":
+        origin, dest = change_zone_dirs(c.node)
+        return (
+            dest == "Exile"
+            and origin not in ("Graveyard", "Hand")
+            and bool(cores & _MASS_REMOVAL_TYPES)
+        )
+    return False
+
+
 def _mass_removal(tree: ConceptTree) -> list[Signal]:
     """mass_removal — a BOARD WIPE (CR 115.10 / 701.8 / 701.21a / 406.1). Five
     typed arms, each anchored on phase's first-class mass tag (the
@@ -1057,7 +1086,10 @@ def _mass_removal(tree: ConceptTree) -> list[Signal]:
     (Baneblade Scoundrel) and a ``WithoutKeyword:Flanking`` blocker filter —
     the flanking template, whose -1/-1 hits only blocking creatures per CR
     702.25a (Knight of Valor). Scope "you".
+    An overload spell's targeted destroy / damage / exile is a sweep when
+    overloaded (:func:`_overloaded`, CR 702.96a — Damn, Mizzium Mortars).
     """
+    overloaded = _overloaded(tree)
     for unit in tree.units:
         combat_scope = unit.trigger_event in ("becomes_blocked", "blocks")
         for c in unit.iter_concepts():
@@ -1070,6 +1102,13 @@ def _mass_removal(tree: ConceptTree) -> list[Signal]:
             raw = c.raw
             hit = [Signal("mass_removal", "you", "", raw, tree.name, "high")]
             if t == "DestroyAll" and ctrl != "You" and cores & _MASS_REMOVAL_TYPES:
+                return hit
+            if (
+                overloaded
+                and unit.kind == "Spell"
+                and ctrl != "You"
+                and _overload_sweep(c, t, cores)
+            ):
                 return hit
             # CHOSEN-SET sweep (task #84): "starting with you, each player
             # chooses …; Destroy each [creature/permanent] chosen this way"
@@ -1144,13 +1183,20 @@ def _mass_bounce(tree: ConceptTree) -> list[Signal]:
     recursion (CR 404), excluded (checklist #2). KNOWN RESIDUE: Cyclonic
     Rift's Overload each-mode is a phase modal-alt-cost parse drop
     (phase_parse_bug) — the crosswalk correctly reads only the targeted base
-    mode. Scope "any" (the sweep convention).
+    mode; the lane reads the overloaded sweep off it (:func:`_overloaded`, CR
+    702.96a). Scope "any" (the sweep convention).
     """
+    overloaded = _overloaded(tree)
     for unit in tree.units:
         for c in unit.effect_concepts("bounce"):
-            if tag_of(c.node) != "BounceAll":
-                continue
             sub = effect_filter(c.node)
+            if tag_of(c.node) != "BounceAll" and not (
+                overloaded
+                and unit.kind == "Spell"
+                and filter_controller(sub) != "You"
+                and set(filter_core_types(sub)) & {"Creature", "Permanent"}
+            ):
+                continue
             if not (set(filter_core_types(sub)) & {"Creature", "Permanent"}):
                 continue
             preds = set(filter_predicates(sub))

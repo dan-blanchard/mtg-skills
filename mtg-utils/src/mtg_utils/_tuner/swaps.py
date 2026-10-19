@@ -18,6 +18,7 @@ from dataclasses import dataclass
 from typing import Protocol
 
 from mtg_utils._analysis.budgets import COMMANDER_TEMPLATE, Template
+from mtg_utils._analysis.job_quality import read_for
 from mtg_utils._analysis.ranking import rank_candidates
 from mtg_utils._analysis.roles import DeckMana, role_of
 from mtg_utils._tuner.classify import CardClass, is_premium
@@ -66,6 +67,13 @@ _MV_BANDS: tuple[float, ...] = (3.0, 5.0)
 #: play-rate alone 69; floors of 0.3-0.5 fell back toward synergy-first (63-49).
 _FIT_FLOOR = 0.2
 
+#: How deep an upgrade's search reads when the job has a card read
+#: (``job_quality``): the search pages by play-rate, so a short page would let
+#: popularity pick the candidates the read then orders.
+_JOB_READ_PAGE = 600
+#: The search page an add is ranked from otherwise.
+_PAGE = 150
+
 
 #: What an X in a mana cost is worth for banding: an X spell is cast for value at
 #: X ≥ 3 (Martial Coup wants five, Comet Storm three) — a printed mana value of 2
@@ -86,6 +94,25 @@ def _mv_band(card: Mapping) -> int:
     return sum(1 for top in _MV_BANDS if cmc > top)
 
 
+def _blended_percentiles(cards: Sequence[dict], job: str | None) -> dict[str, float]:
+    """For the cards ``job``'s read scores: the read's percentile among them plus
+    their play-rate percentile — the order an ordering job's candidates take
+    (``JobRead.orders``)."""
+    read = read_for(job)
+    if read is None:
+        return {}
+    scored = [(c, s) for c in cards if (s := read.score(c)) is not None]
+    if not scored:
+        return {}
+    n = len(scored)
+    by_read = sorted(scored, key=lambda cs: cs[1])
+    by_play = sorted(scored, key=lambda cs: -(cs[0].get("edhrec_rank") or 10**9))
+    out = {c.get("name", ""): i / n for i, (c, _s) in enumerate(by_read)}
+    for i, (c, _s) in enumerate(by_play):
+        out[c.get("name", "")] += i / n
+    return out
+
+
 def _upgrades(
     candidate: dict,
     cut: CardClass,
@@ -93,19 +120,26 @@ def _upgrades(
     *,
     deck_mana: DeckMana | None = None,
 ) -> bool:
-    """Whether ``candidate`` is an upgrade of ``cut``: more decks play it, it
-    costs no higher mana-value band (a two-mana removal spell is not upgraded to
-    a six-mana one, nor a one-drop to a seven-drop on the main theme), and for
-    a job (``upgrade_job``) it does that same job — card draw is not upgraded
-    to a counterspell that draws."""
-    rank = candidate.get("edhrec_rank")
-    if rank is None or (cut.edhrec_rank is not None and rank >= cut.edhrec_rank):
-        return False
+    """Whether ``candidate`` is an upgrade of ``cut``: it costs no higher
+    mana-value band (a two-mana removal spell is not upgraded to a six-mana one,
+    nor a one-drop to a seven-drop on the main theme), for a job
+    (``upgrade_job``) it does that same job — card draw is not upgraded to a
+    counterspell that draws — and, where the job has a card read
+    (``job_quality.read_for``), does it by that read (a looter is no card-draw
+    upgrade); and more decks play it than the cut. The read decides membership,
+    not "better": against the precon guides' cuts it found the weaker card less
+    often than play-rate did, for every job (ADR-0060)."""
     if _mv_band(candidate) > _mv_band(cut.record):
         return False
-    return job is None or (
-        upgrade_job(role_of(candidate, deck_mana=deck_mana), candidate) == job
-    )
+    if job is not None and (
+        upgrade_job(role_of(candidate, deck_mana=deck_mana), candidate) != job
+    ):
+        return False
+    read = read_for(job)
+    if read is not None and read.score(candidate) is None:
+        return False
+    rank = candidate.get("edhrec_rank")
+    return rank is not None and (cut.edhrec_rank is None or rank < cut.edhrec_rank)
 
 
 def _fills_short_role(card: CardClass, budgets: dict) -> bool:
@@ -533,6 +567,7 @@ def _run_search(
         format=fmt,
         paper_only=paper_only,
         preset_names=tuple(spec.get("preset_names") or ()),
+        any_preset_names=tuple(spec.get("any_preset_names") or ()),
         is_commander_filter=False,
         sort="edhrec-asc" if playrate else "cmc-asc",
         limit=limit,
@@ -740,24 +775,40 @@ def propose_swaps(
     # instead of re-searching + re-ranking ~1000 cards per card added (the dominant
     # redundant cost). used_adds is applied at pick time in find_add, not here.
     _pool_memo: dict[tuple, list[dict]] = {}
+    _search_memo: dict[tuple, tuple[int, list[dict]]] = {}
 
     def _ranked_pool(
-        spec: dict, *, synergy_first: bool, nonland_only: bool, limit: int
+        spec: dict,
+        *,
+        synergy_first: bool,
+        nonland_only: bool,
+        limit: int,
+        job: str | None = None,
     ) -> list[dict]:
-        key = (tuple(sorted(spec.items())), synergy_first, nonland_only, limit)
+        key = (tuple(sorted(spec.items())), synergy_first, nonland_only, limit, job)
         cached = _pool_memo.get(key)
         if cached is not None:
             return cached
-        found = _run_search(
-            ctx.search_fn,
-            spec,
-            identity=ctx.identity,
-            fmt=ctx.fmt,
-            paper_only=ctx.paper_only,
-            cmc_cap=cmc_cap,
-            limit=limit,
-            playrate=ctx.playrate,
-        )
+        # One search per spec at the deepest page asked so far: the search
+        # sorts before it pages, so a shorter page is the deeper one's head.
+        skey = tuple(sorted(spec.items()))
+        deep = _search_memo.get(skey)
+        if deep is None or deep[0] < limit:
+            deep = (
+                limit,
+                _run_search(
+                    ctx.search_fn,
+                    spec,
+                    identity=ctx.identity,
+                    fmt=ctx.fmt,
+                    paper_only=ctx.paper_only,
+                    cmc_cap=cmc_cap,
+                    limit=limit,
+                    playrate=ctx.playrate,
+                ),
+            )
+            _search_memo[skey] = deep
+        found = deep[1][:limit]
         # A card the deck already runs stays in the pool while it may hold another
         # copy (used_adds is applied at pick time, so the memoized order holds).
         pool = [
@@ -789,9 +840,24 @@ def propose_swaps(
                 (r["score"]["synergy_score"] for r in scored), default=0.0
             )
 
+            # A job whose card read orders (``JobRead.orders``):
+            # among the cards that fit, the best blend of how well each does
+            # the job (its read's percentile on the page) and how many decks
+            # play it (its play-rate percentile) — the read alone put the
+            # guides' adds lower at the top of the list than play-rate does.
+            read = read_for(job)
+            blend = (
+                _blended_percentiles([r["card"] for r in scored], job)
+                if read is not None and read.orders and ctx.playrate
+                else {}
+            )
+
             def fit_key(r: dict) -> tuple:
                 score = r["score"]["synergy_score"]
                 price = extract_price(r["card"]) or 1e9
+                mix = blend.get(r["card"].get("name", ""))
+                if mix is not None:
+                    return (score < floor, -mix, -score, price)
                 if not ctx.playrate:
                     return (-score, price)
                 played = _quality(r["card"], playrate=True)
@@ -844,10 +910,10 @@ def propose_swaps(
         *,
         synergy_first: bool,
         nonland_only: bool = False,
-        limit: int = 150,
+        limit: int = _PAGE,
         role_fix: bool = False,
         upgrade_of: CardClass | None = None,
-        upgrade_job: str | None = None,
+        job: str | None = None,
     ) -> tuple[dict, float, bool] | None:
         """The best affordable, not-yet-used add for this spec — does NOT commit spend
         (the caller commits once a cut is secured, so an unpaired add can't inflate the
@@ -870,12 +936,16 @@ def propose_swaps(
         calls are untouched: the first eligible candidate in ranked order wins, exactly
         as before this guard.
 
-        ``upgrade_of`` is the card an upgrade replaces and ``upgrade_job`` the
+        ``upgrade_of`` is the card an upgrade replaces and ``job`` the
         job it keeps: a candidate must be an upgrade (:func:`_upgrades`), and
         the roles the cut frees are no overshoot.
         """
         ranked = _ranked_pool(
-            spec, synergy_first=synergy_first, nonland_only=nonland_only, limit=limit
+            spec,
+            synergy_first=synergy_first,
+            nonland_only=nonland_only,
+            limit=limit,
+            job=job,
         )
         rejected_hits.clear()
         guard = role_fix and ctx.focus_result["verdict"] == "FOCUSED"
@@ -887,7 +957,7 @@ def propose_swaps(
             if not game_changers.allows(card):
                 continue  # ADR-0030: never propose an add past the bracket's ceiling
             if upgrade_of is not None and not _upgrades(
-                card, upgrade_of, upgrade_job, deck_mana=ctx.deck_mana
+                card, upgrade_of, job, deck_mana=ctx.deck_mana
             ):
                 continue
             cost = acquire_cost(card)
@@ -984,10 +1054,11 @@ def propose_swaps(
         # preserve. The mana base is the land tooling's job, not Tune's.
         if remedy.spec_for_cut is not None:
             # Cut first, then the add the cut names (the upgrade drain: its own
-            # job), ranked as any theme add is (fit, then play-rate — a Spine
+            # job), ranked as any theme add is — fit, then play-rate, or for a
+            # job whose read orders, the read blended with play-rate (a Spine
             # fill's cheapest-band order gave every deck the same Fellwar Stone
-            # and Brainstorm); a cut nothing better-played does the job of is
-            # passed over.
+            # and Brainstorm); a cut nothing does the job of better is passed
+            # over.
             while len(swaps) < ctx.max_swaps:
                 cut_entry = take_cut(remedy.cut_from)
                 if cut_entry is None and remedy.lane_ok:
@@ -998,20 +1069,29 @@ def propose_swaps(
                 source = remedy.spec_for_cut(cut)
                 if source is None:
                     continue
+                job_read = read_for(source.job)
                 picked = find_add(
                     source.spec,
                     synergy_first=True,
                     nonland_only=True,
                     upgrade_of=cut,
-                    upgrade_job=source.job,
+                    job=source.job,
+                    # A job with a card read is searched deeper than the
+                    # most-played page, so the read's gate (and, for an
+                    # ordering job, its blend) reaches past popularity.
+                    limit=_JOB_READ_PAGE if job_read else _PAGE,
                 )
                 if picked is None:
                     continue
                 add_card, cost, _off_avenue = picked
+                why = (
+                    "reads better at the job and more decks play it"
+                    if job_read is not None and job_read.orders
+                    else "more decks play it"
+                )
                 commit(
                     issue.kind,
-                    f"upgrade {source.label}: more decks play "
-                    f"{add_card.get('name', '')}",
+                    f"upgrade {source.label}: {add_card.get('name', '')} — {why}",
                     reason,
                     cut,
                     add_card,

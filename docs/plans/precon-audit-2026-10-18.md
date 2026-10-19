@@ -305,6 +305,73 @@ recurs: Skullclamp is an add in 12 decks (a guide add in 3), Swiftfoot Boots in
 9, Frantic Search in 5 — looting counts as card draw (connive is written in as
 card advantage).
 
+## Eighth pass (2026-10-19): job reads
+
+Dan's direction after the seventh pass: the tuner should land on the guides' cards
+from first principles — what a card does, what it costs, how it fits — with
+play-rate as the measuring stick rather than the decision, and no
+commander-specific EDHREC lookups. ADR-0060 records the result.
+
+- **A bug first.** The interaction search passed its five presets as
+  `preset_names`, which combine with AND, so it found nothing: since the fourth
+  pass no removal fill and no removal upgrade was ever proposed. It reads any of
+  them now (`any_preset_names`); a test runs the real filter over real cards.
+- **Job reads** (`_analysis/job_quality/`): removal, card draw, ramp, board wipe,
+  protection, each a handful of features off the concept trees with weights
+  fitted on play-rate. Each read's fit, on the cards whose main job it is
+  (agents' harness, scratch; `precon-audit/job_reads.py` re-measures the
+  production reads over every card they score):
+
+| job | fit on main-job cards: CV Spearman / guide adds (read vs play-rate) | production read, every card it scores: Spearman / guide adds (read vs play-rate) |
+|---|---|---|
+| protection | 0.56 / 0.94 vs 0.97 | 0.56 / 0.92 vs 0.97 |
+| board wipe | 0.50 / 0.94 vs 0.91 | 0.49 / 0.79 vs 0.92 |
+| removal | 0.40 / 0.79 vs 0.95 | 0.16 / 0.49 vs 0.94 |
+| card draw | 0.33 / 0.75 vs 0.89 | 0.33 / 0.76 vs 0.85 |
+| ramp | 0.28 / 0.80 vs 0.90 | 0.27 / 0.69 vs 0.89 |
+
+(Guide adds: the median percentile among the cards of their deck's color identity
+the read scores. The production column counts every card with that job's shape —
+removal's includes every creature with an incidental fight or enters-the-
+battlefield kill, which is why it falls furthest.)
+
+- **How the tuner uses them.** Percentile medians flattered the reads: the tuner
+  takes the top card, and there the read alone found guide adds less often than
+  play-rate for every job (removal's read made Sheltered by Ghosts the add in
+  seven precons). Against the guides' cuts every read found the weaker card less
+  often than play-rate too. So every read gates membership — the add must do the
+  job by the read — while "better than the cut" stays play-rate's, and only wipes
+  and draw also order the candidates, by read percentile plus play-rate
+  percentile (11 vs 7 guide adds in the top thirty for wipes, 11 vs 6 in the top
+  ten for draw; protection's blend trailed play-rate, 24 vs 29 in the top thirty).
+- **Overload** spells are sweeps (CR 702.96a): Damn, Mizzium Mortars, Winds of
+  Abandon, Electrickery and Vandalblast read `mass_removal`, Cyclonic Rift
+  `mass_bounce` — a retirement canary watches for phase typing the mode.
+
+| | seventh pass | eighth pass |
+|---|---|---|
+| tuner cuts / matching a guide | 223 / 104 | 230 / 109 |
+| tuner weak-list matching a guide | 25 | 25 |
+| tuner adds / matching a guide | 223 / 29 | 230 / 30 |
+| guide cuts the tuner protects | 124 | 124 |
+
+The totals barely move, and the adds stay close to play-rate's — the reads mostly
+decide which cards may be an upgrade, not which one wins. Removal upgrades exist at
+all (the search found nothing before): Reclamation Sage (six precons), Braids,
+Arisen Nightmare (four), Walking Ballista (three), Abrade, Cyclonic Rift, Deadly
+Rollick, Lightning Bolt, Boros Charm, Goblin Bombardment, Orcish Bowmasters, Loran
+of the Third Path, Aetherflux Reservoir — popular cards that do the job, where play-
+rate alone had picked Animate Dead and An Offer You Can't Refuse. Wipes go to Toxic
+Deluge and Martial Coup (three each), with Spiteful Banditry and Pyrohemia through
+the blend. Protection stays Swiftfoot Boots and Lightning Greaves (the read put
+Flawless Maneuver and Deflecting Swat first, but didn't measure well enough to
+decide). Ramp goes to Smothering Tithe, Farseek, Rampant Growth, Sakura-Tribe Elder
+and Talisman, beside Patchwork Banner (three), Ashnod's Altar (two), Fellwar Stone,
+Thought Vessel and Cultivate. Card draw drops Faithless Looting and Frantic Search
+for Wheel of Misfortune, Distant Melody and Village Rites; Skullclamp is still the
+draw add in eleven precons — the draw read is per card, and Skullclamp's worth is
+the deck's X/1 creatures (the next step, measured in `card_draw.py`'s docstring).
+
 ## What is left
 
 `docs/plans/backlog.md`, "What the polymorph tune and the 25-precon audit still

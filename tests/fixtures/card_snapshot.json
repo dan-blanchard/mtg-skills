@@ -260002,6 +260002,179 @@
     "type_line": "Creature — Ox"
    }
   },
+  "Damn": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "Destroy target creature. A creature destroyed this way can't be regenerated.",
+       "duration": null,
+       "effect": {
+        "cant_regenerate": true,
+        "target": {
+         "controller": null,
+         "properties": [],
+         "type": "Typed",
+         "type_filters": [
+          "Creature"
+         ]
+        },
+        "type": "Destroy"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Sorcery"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Black",
+      "White"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [
+      {
+       "Overload": {
+        "generic": 2,
+        "shards": [
+         "White",
+         "White"
+        ],
+        "type": "Cost"
+       }
+      }
+     ],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 0,
+      "shards": [
+       "Black",
+       "Black"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "1b25c224-4531-4fdc-9845-6663eaf60540",
+       "23b95b26-0bbf-4fa1-80c1-f621f1a1b947",
+       "2624fbf2-3a81-40f7-b3a0-9483cd4bf782",
+       "402060d4-10d6-4cee-aa8b-cd083bf5df43",
+       "483b64f7-bec5-4800-bdd4-6b303c5ec20e",
+       "84056124-1a6f-4274-bee2-74cf0debddb5",
+       "efeae088-9ac5-4d2f-a15c-d8675a471ac5"
+      ]
+     },
+     "name": "Damn",
+     "non_ability_text": null,
+     "oracle_text": "Destroy target creature. A creature destroyed this way can't be regenerated.\nOverload {2}{W}{W} (You may cast this spell for its overload cost. If you do, change \"target\" in its text to \"each.\")",
+     "power": null,
+     "printings": [
+      "AA2",
+      "DRC",
+      "DSC",
+      "LCC",
+      "MH2",
+      "PMH2",
+      "PRM",
+      "SLD"
+     ],
+     "rarities": [
+      "rare",
+      "mythic"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2024-01-12",
+       "text": "Because a spell with overload doesn't target when its overload cost is paid, it may affect permanents with hexproof or with protection from the appropriate color."
+      },
+      {
+       "date": "2024-01-12",
+       "text": "If you are instructed to cast a spell with overload \"without paying its mana cost,\" you can't choose to pay its overload cost instead."
+      },
+      {
+       "date": "2024-01-12",
+       "text": "If you don't pay the overload cost of a spell with overload, that spell will have a single target. If you pay the overload cost, the spell won't have any targets."
+      },
+      {
+       "date": "2024-01-12",
+       "text": "To determine the total cost of a spell, start with the mana cost or alternative cost you're paying (such as an overload cost), add any cost increases, then apply any cost reductions. The mana value of the spell remains unchanged, no matter what the total cost to cast it was."
+      }
+     ],
+     "scryfall_oracle_id": "b01d61cc-9844-4191-86a0-f2db6d42d6e5",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 2.0,
+    "color_identity": [
+     "B",
+     "W"
+    ],
+    "colors": [
+     "B"
+    ],
+    "keywords": [
+     "Overload"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{B}{B}",
+    "name": "Damn",
+    "oracle_id": "b01d61cc-9844-4191-86a0-f2db6d42d6e5",
+    "oracle_text": "Destroy target creature. A creature destroyed this way can't be regenerated.\nOverload {2}{W}{W} (You may cast this spell for its overload cost. If you do, change \"target\" in its text to \"each.\")",
+    "type_line": "Sorcery"
+   }
+  },
   "Damocles Base, Sword of Kang": {
    "phase_records": [
     {
@@ -315001,6 +315174,944 @@
     "type_line": "Sorcery"
    }
   },
+  "Eater of Virtue": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "ability_tag": {
+        "type": "Equip"
+       },
+       "activation_restrictions": [
+        {
+         "type": "AsSorcery"
+        }
+       ],
+       "condition": null,
+       "cost": {
+        "cost": {
+         "generic": 1,
+         "shards": [],
+         "type": "Cost"
+        },
+        "type": "Mana"
+       },
+       "description": "Equip {1}",
+       "duration": null,
+       "effect": {
+        "selection": {
+         "at_resolution": {}
+        },
+        "target": {
+         "controller": "You",
+         "properties": [],
+         "type": "Typed",
+         "type_filters": [
+          "Creature"
+         ]
+        },
+        "type": "Attach"
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Artifact"
+      ],
+      "subtypes": [
+       "Equipment"
+      ],
+      "supertypes": [
+       "Legendary"
+      ]
+     },
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 1,
+      "shards": [],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "34d92077-d7b2-4996-848f-fd4917e2fb42",
+       "87a86f45-ba70-48b4-a2e9-8269ec22b991",
+       "f103cb00-29f7-41ad-8368-ed2cf1a408ea"
+      ]
+     },
+     "name": "Eater of Virtue",
+     "non_ability_text": null,
+     "oracle_text": "Whenever equipped creature dies, exile it.\nEquipped creature gets +2/+0.\nAs long as a card exiled with Eater of Virtue has flying, equipped creature has flying. The same is true for first strike, double strike, deathtouch, haste, hexproof, indestructible, lifelink, menace, protection, reach, trample, and vigilance.\nEquip {1}",
+     "power": null,
+     "printings": [
+      "NEO",
+      "PNEO",
+      "PRM"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2022-02-18",
+       "text": "If Eater of Virtue leaves the battlefield and returns to the battlefield, it will be a new object with no association to any cards it exiled from any previous times it was on the battlefield. It will have to exile new cards to grant abilities to creatures it equips from that point forward."
+      },
+      {
+       "date": "2022-02-18",
+       "text": "The Equipped creature gains any hexproof and protection abilities of cards exiled with Eater of Virtue."
+      }
+     ],
+     "scryfall_oracle_id": "b6f8cc3b-b8f1-4b1a-8768-eddcb0631d80",
+     "static_abilities": [
+      {
+       "active_zones": [],
+       "affected": {
+        "controller": null,
+        "properties": [
+         {
+          "type": "EquippedBy"
+         }
+        ],
+        "type": "Typed",
+        "type_filters": [
+         "Creature"
+        ]
+       },
+       "affected_zone": null,
+       "characteristic_defining": false,
+       "condition": null,
+       "description": "Equipped creature gets +2/+0.",
+       "effect_zone": null,
+       "mode": "Continuous",
+       "modifications": [
+        {
+         "type": "AddPower",
+         "value": 2
+        },
+        {
+         "type": "AddToughness",
+         "value": 0
+        }
+       ]
+      },
+      {
+       "active_zones": [],
+       "affected": {
+        "controller": null,
+        "properties": [
+         {
+          "type": "EquippedBy"
+         }
+        ],
+        "type": "Typed",
+        "type_filters": [
+         "Creature"
+        ]
+       },
+       "affected_zone": null,
+       "characteristic_defining": false,
+       "condition": {
+        "filter": {
+         "filters": [
+          {
+           "type": "ExiledBySource"
+          },
+          {
+           "controller": null,
+           "properties": [
+            {
+             "type": "InZone",
+             "zone": "Exile"
+            },
+            {
+             "type": "WithKeyword",
+             "value": "Flying"
+            }
+           ],
+           "type": "Typed",
+           "type_filters": [
+            "Card"
+           ]
+          }
+         ],
+         "type": "And"
+        },
+        "type": "IsPresent"
+       },
+       "description": "As long as a card exiled with ~ has flying, equipped creature has flying. The same is true for first strike, double strike, deathtouch, haste, hexproof, indestructible, lifelink, menace, protection, reach, trample, and vigilance.",
+       "effect_zone": null,
+       "mode": "Continuous",
+       "modifications": [
+        {
+         "keyword": "Flying",
+         "type": "AddKeyword"
+        }
+       ]
+      },
+      {
+       "active_zones": [],
+       "affected": {
+        "controller": null,
+        "properties": [
+         {
+          "type": "EquippedBy"
+         }
+        ],
+        "type": "Typed",
+        "type_filters": [
+         "Creature"
+        ]
+       },
+       "affected_zone": null,
+       "characteristic_defining": false,
+       "condition": {
+        "filter": {
+         "filters": [
+          {
+           "type": "ExiledBySource"
+          },
+          {
+           "controller": null,
+           "properties": [
+            {
+             "type": "InZone",
+             "zone": "Exile"
+            },
+            {
+             "type": "WithKeyword",
+             "value": "FirstStrike"
+            }
+           ],
+           "type": "Typed",
+           "type_filters": [
+            "Card"
+           ]
+          }
+         ],
+         "type": "And"
+        },
+        "type": "IsPresent"
+       },
+       "description": "As long as a card exiled with ~ has flying, equipped creature has flying. The same is true for first strike, double strike, deathtouch, haste, hexproof, indestructible, lifelink, menace, protection, reach, trample, and vigilance.",
+       "effect_zone": null,
+       "mode": "Continuous",
+       "modifications": [
+        {
+         "keyword": "FirstStrike",
+         "type": "AddKeyword"
+        }
+       ]
+      },
+      {
+       "active_zones": [],
+       "affected": {
+        "controller": null,
+        "properties": [
+         {
+          "type": "EquippedBy"
+         }
+        ],
+        "type": "Typed",
+        "type_filters": [
+         "Creature"
+        ]
+       },
+       "affected_zone": null,
+       "characteristic_defining": false,
+       "condition": {
+        "filter": {
+         "filters": [
+          {
+           "type": "ExiledBySource"
+          },
+          {
+           "controller": null,
+           "properties": [
+            {
+             "type": "InZone",
+             "zone": "Exile"
+            },
+            {
+             "type": "WithKeyword",
+             "value": "DoubleStrike"
+            }
+           ],
+           "type": "Typed",
+           "type_filters": [
+            "Card"
+           ]
+          }
+         ],
+         "type": "And"
+        },
+        "type": "IsPresent"
+       },
+       "description": "As long as a card exiled with ~ has flying, equipped creature has flying. The same is true for first strike, double strike, deathtouch, haste, hexproof, indestructible, lifelink, menace, protection, reach, trample, and vigilance.",
+       "effect_zone": null,
+       "mode": "Continuous",
+       "modifications": [
+        {
+         "keyword": "DoubleStrike",
+         "type": "AddKeyword"
+        }
+       ]
+      },
+      {
+       "active_zones": [],
+       "affected": {
+        "controller": null,
+        "properties": [
+         {
+          "type": "EquippedBy"
+         }
+        ],
+        "type": "Typed",
+        "type_filters": [
+         "Creature"
+        ]
+       },
+       "affected_zone": null,
+       "characteristic_defining": false,
+       "condition": {
+        "filter": {
+         "filters": [
+          {
+           "type": "ExiledBySource"
+          },
+          {
+           "controller": null,
+           "properties": [
+            {
+             "type": "InZone",
+             "zone": "Exile"
+            },
+            {
+             "type": "WithKeyword",
+             "value": "Deathtouch"
+            }
+           ],
+           "type": "Typed",
+           "type_filters": [
+            "Card"
+           ]
+          }
+         ],
+         "type": "And"
+        },
+        "type": "IsPresent"
+       },
+       "description": "As long as a card exiled with ~ has flying, equipped creature has flying. The same is true for first strike, double strike, deathtouch, haste, hexproof, indestructible, lifelink, menace, protection, reach, trample, and vigilance.",
+       "effect_zone": null,
+       "mode": "Continuous",
+       "modifications": [
+        {
+         "keyword": "Deathtouch",
+         "type": "AddKeyword"
+        }
+       ]
+      },
+      {
+       "active_zones": [],
+       "affected": {
+        "controller": null,
+        "properties": [
+         {
+          "type": "EquippedBy"
+         }
+        ],
+        "type": "Typed",
+        "type_filters": [
+         "Creature"
+        ]
+       },
+       "affected_zone": null,
+       "characteristic_defining": false,
+       "condition": {
+        "filter": {
+         "filters": [
+          {
+           "type": "ExiledBySource"
+          },
+          {
+           "controller": null,
+           "properties": [
+            {
+             "type": "InZone",
+             "zone": "Exile"
+            },
+            {
+             "type": "WithKeyword",
+             "value": "Haste"
+            }
+           ],
+           "type": "Typed",
+           "type_filters": [
+            "Card"
+           ]
+          }
+         ],
+         "type": "And"
+        },
+        "type": "IsPresent"
+       },
+       "description": "As long as a card exiled with ~ has flying, equipped creature has flying. The same is true for first strike, double strike, deathtouch, haste, hexproof, indestructible, lifelink, menace, protection, reach, trample, and vigilance.",
+       "effect_zone": null,
+       "mode": "Continuous",
+       "modifications": [
+        {
+         "keyword": "Haste",
+         "type": "AddKeyword"
+        }
+       ]
+      },
+      {
+       "active_zones": [],
+       "affected": {
+        "controller": null,
+        "properties": [
+         {
+          "type": "EquippedBy"
+         }
+        ],
+        "type": "Typed",
+        "type_filters": [
+         "Creature"
+        ]
+       },
+       "affected_zone": null,
+       "characteristic_defining": false,
+       "condition": {
+        "filter": {
+         "filters": [
+          {
+           "type": "ExiledBySource"
+          },
+          {
+           "controller": null,
+           "properties": [
+            {
+             "type": "InZone",
+             "zone": "Exile"
+            },
+            {
+             "type": "WithKeyword",
+             "value": "Hexproof"
+            }
+           ],
+           "type": "Typed",
+           "type_filters": [
+            "Card"
+           ]
+          }
+         ],
+         "type": "And"
+        },
+        "type": "IsPresent"
+       },
+       "description": "As long as a card exiled with ~ has flying, equipped creature has flying. The same is true for first strike, double strike, deathtouch, haste, hexproof, indestructible, lifelink, menace, protection, reach, trample, and vigilance.",
+       "effect_zone": null,
+       "mode": "Continuous",
+       "modifications": [
+        {
+         "keyword": "Hexproof",
+         "type": "AddKeyword"
+        }
+       ]
+      },
+      {
+       "active_zones": [],
+       "affected": {
+        "controller": null,
+        "properties": [
+         {
+          "type": "EquippedBy"
+         }
+        ],
+        "type": "Typed",
+        "type_filters": [
+         "Creature"
+        ]
+       },
+       "affected_zone": null,
+       "characteristic_defining": false,
+       "condition": {
+        "filter": {
+         "filters": [
+          {
+           "type": "ExiledBySource"
+          },
+          {
+           "controller": null,
+           "properties": [
+            {
+             "type": "InZone",
+             "zone": "Exile"
+            },
+            {
+             "type": "WithKeyword",
+             "value": "Indestructible"
+            }
+           ],
+           "type": "Typed",
+           "type_filters": [
+            "Card"
+           ]
+          }
+         ],
+         "type": "And"
+        },
+        "type": "IsPresent"
+       },
+       "description": "As long as a card exiled with ~ has flying, equipped creature has flying. The same is true for first strike, double strike, deathtouch, haste, hexproof, indestructible, lifelink, menace, protection, reach, trample, and vigilance.",
+       "effect_zone": null,
+       "mode": "Continuous",
+       "modifications": [
+        {
+         "keyword": "Indestructible",
+         "type": "AddKeyword"
+        }
+       ]
+      },
+      {
+       "active_zones": [],
+       "affected": {
+        "controller": null,
+        "properties": [
+         {
+          "type": "EquippedBy"
+         }
+        ],
+        "type": "Typed",
+        "type_filters": [
+         "Creature"
+        ]
+       },
+       "affected_zone": null,
+       "characteristic_defining": false,
+       "condition": {
+        "filter": {
+         "filters": [
+          {
+           "type": "ExiledBySource"
+          },
+          {
+           "controller": null,
+           "properties": [
+            {
+             "type": "InZone",
+             "zone": "Exile"
+            },
+            {
+             "type": "WithKeyword",
+             "value": "Lifelink"
+            }
+           ],
+           "type": "Typed",
+           "type_filters": [
+            "Card"
+           ]
+          }
+         ],
+         "type": "And"
+        },
+        "type": "IsPresent"
+       },
+       "description": "As long as a card exiled with ~ has flying, equipped creature has flying. The same is true for first strike, double strike, deathtouch, haste, hexproof, indestructible, lifelink, menace, protection, reach, trample, and vigilance.",
+       "effect_zone": null,
+       "mode": "Continuous",
+       "modifications": [
+        {
+         "keyword": "Lifelink",
+         "type": "AddKeyword"
+        }
+       ]
+      },
+      {
+       "active_zones": [],
+       "affected": {
+        "controller": null,
+        "properties": [
+         {
+          "type": "EquippedBy"
+         }
+        ],
+        "type": "Typed",
+        "type_filters": [
+         "Creature"
+        ]
+       },
+       "affected_zone": null,
+       "characteristic_defining": false,
+       "condition": {
+        "filter": {
+         "filters": [
+          {
+           "type": "ExiledBySource"
+          },
+          {
+           "controller": null,
+           "properties": [
+            {
+             "type": "InZone",
+             "zone": "Exile"
+            },
+            {
+             "type": "WithKeyword",
+             "value": "Menace"
+            }
+           ],
+           "type": "Typed",
+           "type_filters": [
+            "Card"
+           ]
+          }
+         ],
+         "type": "And"
+        },
+        "type": "IsPresent"
+       },
+       "description": "As long as a card exiled with ~ has flying, equipped creature has flying. The same is true for first strike, double strike, deathtouch, haste, hexproof, indestructible, lifelink, menace, protection, reach, trample, and vigilance.",
+       "effect_zone": null,
+       "mode": "Continuous",
+       "modifications": [
+        {
+         "keyword": "Menace",
+         "type": "AddKeyword"
+        }
+       ]
+      },
+      {
+       "active_zones": [],
+       "affected": {
+        "controller": null,
+        "properties": [
+         {
+          "type": "EquippedBy"
+         }
+        ],
+        "type": "Typed",
+        "type_filters": [
+         "Creature"
+        ]
+       },
+       "affected_zone": null,
+       "characteristic_defining": false,
+       "condition": {
+        "filter": {
+         "filters": [
+          {
+           "type": "ExiledBySource"
+          },
+          {
+           "controller": null,
+           "properties": [
+            {
+             "type": "InZone",
+             "zone": "Exile"
+            },
+            {
+             "type": "WithKeyword",
+             "value": {
+              "Unknown": "protection"
+             }
+            }
+           ],
+           "type": "Typed",
+           "type_filters": [
+            "Card"
+           ]
+          }
+         ],
+         "type": "And"
+        },
+        "type": "IsPresent"
+       },
+       "description": "As long as a card exiled with ~ has flying, equipped creature has flying. The same is true for first strike, double strike, deathtouch, haste, hexproof, indestructible, lifelink, menace, protection, reach, trample, and vigilance.",
+       "effect_zone": null,
+       "mode": "Continuous",
+       "modifications": [
+        {
+         "keyword": {
+          "Unknown": "protection"
+         },
+         "type": "AddKeyword"
+        }
+       ]
+      },
+      {
+       "active_zones": [],
+       "affected": {
+        "controller": null,
+        "properties": [
+         {
+          "type": "EquippedBy"
+         }
+        ],
+        "type": "Typed",
+        "type_filters": [
+         "Creature"
+        ]
+       },
+       "affected_zone": null,
+       "characteristic_defining": false,
+       "condition": {
+        "filter": {
+         "filters": [
+          {
+           "type": "ExiledBySource"
+          },
+          {
+           "controller": null,
+           "properties": [
+            {
+             "type": "InZone",
+             "zone": "Exile"
+            },
+            {
+             "type": "WithKeyword",
+             "value": "Reach"
+            }
+           ],
+           "type": "Typed",
+           "type_filters": [
+            "Card"
+           ]
+          }
+         ],
+         "type": "And"
+        },
+        "type": "IsPresent"
+       },
+       "description": "As long as a card exiled with ~ has flying, equipped creature has flying. The same is true for first strike, double strike, deathtouch, haste, hexproof, indestructible, lifelink, menace, protection, reach, trample, and vigilance.",
+       "effect_zone": null,
+       "mode": "Continuous",
+       "modifications": [
+        {
+         "keyword": "Reach",
+         "type": "AddKeyword"
+        }
+       ]
+      },
+      {
+       "active_zones": [],
+       "affected": {
+        "controller": null,
+        "properties": [
+         {
+          "type": "EquippedBy"
+         }
+        ],
+        "type": "Typed",
+        "type_filters": [
+         "Creature"
+        ]
+       },
+       "affected_zone": null,
+       "characteristic_defining": false,
+       "condition": {
+        "filter": {
+         "filters": [
+          {
+           "type": "ExiledBySource"
+          },
+          {
+           "controller": null,
+           "properties": [
+            {
+             "type": "InZone",
+             "zone": "Exile"
+            },
+            {
+             "type": "WithKeyword",
+             "value": "Trample"
+            }
+           ],
+           "type": "Typed",
+           "type_filters": [
+            "Card"
+           ]
+          }
+         ],
+         "type": "And"
+        },
+        "type": "IsPresent"
+       },
+       "description": "As long as a card exiled with ~ has flying, equipped creature has flying. The same is true for first strike, double strike, deathtouch, haste, hexproof, indestructible, lifelink, menace, protection, reach, trample, and vigilance.",
+       "effect_zone": null,
+       "mode": "Continuous",
+       "modifications": [
+        {
+         "keyword": "Trample",
+         "type": "AddKeyword"
+        }
+       ]
+      },
+      {
+       "active_zones": [],
+       "affected": {
+        "controller": null,
+        "properties": [
+         {
+          "type": "EquippedBy"
+         }
+        ],
+        "type": "Typed",
+        "type_filters": [
+         "Creature"
+        ]
+       },
+       "affected_zone": null,
+       "characteristic_defining": false,
+       "condition": {
+        "filter": {
+         "filters": [
+          {
+           "type": "ExiledBySource"
+          },
+          {
+           "controller": null,
+           "properties": [
+            {
+             "type": "InZone",
+             "zone": "Exile"
+            },
+            {
+             "type": "WithKeyword",
+             "value": "Vigilance"
+            }
+           ],
+           "type": "Typed",
+           "type_filters": [
+            "Card"
+           ]
+          }
+         ],
+         "type": "And"
+        },
+        "type": "IsPresent"
+       },
+       "description": "As long as a card exiled with ~ has flying, equipped creature has flying. The same is true for first strike, double strike, deathtouch, haste, hexproof, indestructible, lifelink, menace, protection, reach, trample, and vigilance.",
+       "effect_zone": null,
+       "mode": "Continuous",
+       "modifications": [
+        {
+         "keyword": "Vigilance",
+         "type": "AddKeyword"
+        }
+       ]
+      }
+     ],
+     "toughness": null,
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "Whenever equipped creature dies, exile it.",
+       "destination": "Graveyard",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "destination": "Exile",
+         "enter_tapped": false,
+         "enter_transformed": false,
+         "enters_attacking": false,
+         "origin": null,
+         "owner_library": false,
+         "target": {
+          "type": "TriggeringSource"
+         },
+         "type": "ChangeZone"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "ChangesZone",
+       "optional": false,
+       "origin": "Battlefield",
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "type": "AttachedTo"
+       },
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 1.0,
+    "color_identity": [],
+    "colors": [],
+    "keywords": [
+     "Equip"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{1}",
+    "name": "Eater of Virtue",
+    "oracle_id": "b6f8cc3b-b8f1-4b1a-8768-eddcb0631d80",
+    "oracle_text": "Whenever equipped creature dies, exile it.\nEquipped creature gets +2/+0.\nAs long as a card exiled with Eater of Virtue has flying, equipped creature has flying. The same is true for first strike, double strike, deathtouch, haste, hexproof, indestructible, lifelink, menace, protection, reach, trample, and vigilance.\nEquip {1}",
+    "type_line": "Legendary Artifact — Equipment"
+   }
+  },
   "Ebondeath, Dracolich": {
    "phase_records": [
     {
@@ -353954,6 +355065,183 @@
     "type_line": "Artifact Creature — Phyrexian Construct"
    }
   },
+  "Exterminatus": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "Nonland permanents your opponents control lose indestructible until end of turn.\nDestroy all nonland permanents.",
+       "duration": "UntilEndOfTurn",
+       "effect": {
+        "duration": "UntilEndOfTurn",
+        "static_abilities": [
+         {
+          "active_zones": [],
+          "affected": {
+           "controller": "Opponent",
+           "properties": [],
+           "type": "Typed",
+           "type_filters": [
+            "Permanent",
+            {
+             "Non": "Land"
+            }
+           ]
+          },
+          "affected_zone": null,
+          "characteristic_defining": false,
+          "condition": null,
+          "description": "lose indestructible",
+          "effect_zone": null,
+          "mode": "Continuous",
+          "modifications": [
+           {
+            "keyword": "Indestructible",
+            "type": "RemoveKeyword"
+           }
+          ]
+         }
+        ],
+        "target": null,
+        "type": "GenericEffect"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "cant_regenerate": false,
+         "target": {
+          "controller": null,
+          "properties": [],
+          "type": "Typed",
+          "type_filters": [
+           "Permanent",
+           {
+            "Non": "Land"
+           }
+          ]
+         },
+         "type": "DestroyAll"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "sub_link": "SequentialSibling",
+        "target_prompt": null
+       },
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Sorcery"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Black",
+      "White"
+     ],
+     "color_override": [
+      "Black",
+      "White"
+     ],
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 5,
+      "shards": [
+       "White",
+       "Black"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "196703b0-78bf-4f85-ae81-7335fe486982",
+       "e65de05d-a7e4-4d97-8214-54f7b039e0f9"
+      ]
+     },
+     "name": "Exterminatus",
+     "non_ability_text": null,
+     "oracle_text": "Nonland permanents your opponents control lose indestructible until end of turn.\nDestroy all nonland permanents.",
+     "power": null,
+     "printings": [
+      "40K"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "8d90ffb5-63da-48d5-a5a2-7b61062556f6",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 7.0,
+    "color_identity": [
+     "B",
+     "W"
+    ],
+    "colors": [
+     "B",
+     "W"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{5}{W}{B}",
+    "name": "Exterminatus",
+    "oracle_id": "8d90ffb5-63da-48d5-a5a2-7b61062556f6",
+    "oracle_text": "Nonland permanents your opponents control lose indestructible until end of turn.\nDestroy all nonland permanents.",
+    "type_line": "Sorcery"
+   }
+  },
   "Extremis Elite": {
    "phase_records": [
     {
@@ -369734,6 +371022,315 @@
     "type_line": "Creature — Cat Beast"
    }
   },
+  "Fell the Profane // Fell Mire": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": {
+        "type": "Tap"
+       },
+       "description": "{T}: Add {B}.",
+       "duration": null,
+       "effect": {
+        "produced": {
+         "colors": [
+          "Black"
+         ],
+         "type": "Fixed"
+        },
+        "type": "Mana"
+       },
+       "forward_result": false,
+       "is_mana_ability": true,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Land"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Black"
+     ],
+     "color_override": null,
+     "defense": null,
+     "face_index": 1,
+     "flavor_name": null,
+     "keywords": [],
+     "layout": "modal_dfc",
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "type": "NoCost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "a3cb782d-c459-468d-9779-9b5669abc337"
+      ]
+     },
+     "name": "Fell Mire",
+     "non_ability_text": null,
+     "oracle_text": "As this land enters, you may pay 3 life. If you don't, it enters tapped.\n{T}: Add {B}.",
+     "power": null,
+     "printings": [
+      "MH3"
+     ],
+     "rarities": [
+      "uncommon"
+     ],
+     "replacements": [
+      {
+       "condition": null,
+       "description": "As ~ enters, you may pay 3 life. If you don't, it enters tapped.",
+       "destination_zone": "Battlefield",
+       "event": "Moved",
+       "execute": null,
+       "mode": {
+        "cost": {
+         "amount": {
+          "type": "Fixed",
+          "value": 3
+         },
+         "type": "PayLife"
+        },
+        "decline": {
+         "condition": null,
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "scope": {
+           "type": "Single"
+          },
+          "state": {
+           "type": "Tap"
+          },
+          "target": {
+           "type": "SelfRef"
+          },
+          "type": "SetTapState"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": null,
+         "target_prompt": null
+        },
+        "type": "MayCost"
+       },
+       "valid_card": {
+        "type": "SelfRef"
+       }
+      }
+     ],
+     "scryfall_oracle_id": "053a69d8-2b5e-4f14-8b02-ca405891dc4a",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    },
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "Destroy target creature or planeswalker.",
+       "duration": null,
+       "effect": {
+        "cant_regenerate": false,
+        "target": {
+         "filters": [
+          {
+           "controller": null,
+           "properties": [],
+           "type": "Typed",
+           "type_filters": [
+            "Creature"
+           ]
+          },
+          {
+           "controller": null,
+           "properties": [],
+           "type": "Typed",
+           "type_filters": [
+            "Planeswalker"
+           ]
+          }
+         ],
+         "type": "Or"
+        },
+        "type": "Destroy"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Instant"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Black"
+     ],
+     "color_override": null,
+     "defense": null,
+     "face_index": 0,
+     "flavor_name": null,
+     "keywords": [],
+     "layout": "modal_dfc",
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 2,
+      "shards": [
+       "Black",
+       "Black"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "a3cb782d-c459-468d-9779-9b5669abc337"
+      ]
+     },
+     "name": "Fell the Profane",
+     "non_ability_text": null,
+     "oracle_text": "Destroy target creature or planeswalker.",
+     "power": null,
+     "printings": [
+      "MH3"
+     ],
+     "rarities": [
+      "uncommon"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2024-06-07",
+       "text": "A modal double-faced card can't be transformed or be put onto the battlefield transformed. Ignore any instruction to transform a modal double-faced card or to put one onto the battlefield transformed."
+      },
+      {
+       "date": "2024-06-07",
+       "text": "If an effect allows you to play a land or cast a spell from among a group of cards, you may play or cast a modal double-faced card with any face that fits the criteria of that effect. For example, if an effect allows you to play lands from your graveyard, you can play Garden of Freyalise, but you can't cast Disciple of Freyalise."
+      },
+      {
+       "date": "2024-06-07",
+       "text": "If an effect allows you to play a specific modal double-faced card, you may cast it as a spell or play it as a land, as determined by which face you choose to play. If an effect allows you to cast (rather than \"play\") a specific modal double-faced card, you can't play it as a land."
+      },
+      {
+       "date": "2024-06-07",
+       "text": "If an effect allows you to put a card with particular characteristics onto the battlefield without instructing you to play or cast it, you consider only the characteristics of a modal double-faced card's front face to see if that card qualifies. If it does, it enters the battlefield with its front face up. For example, if an effect allows you to put a creature card from your graveyard onto the battlefield, you can put Disciple of Freyalise onto the battlefield. However, an effect that lets you return a land card from your graveyard to your hand won't let you return Garden of Freyalise to your hand, as that card has only its front face's characteristics while in the graveyard."
+      },
+      {
+       "date": "2024-06-07",
+       "text": "The mana value of a modal double-faced card is based on the characteristics of the face that's being considered. On the stack or the battlefield, consider whichever face is up. In all other zones, consider only the front face. This is different than how the mana value of a transforming double-faced card is determined."
+      },
+      {
+       "date": "2024-06-07",
+       "text": "To determine whether it is legal to play a modal double-faced card, consider only the characteristics of the face you're playing and ignore the other face's characteristics. For example, if an effect stops you from casting creature spells, you can't cast Disciple of Freyalise, but you can still play Garden of Freyalise."
+      }
+     ],
+     "scryfall_oracle_id": "053a69d8-2b5e-4f14-8b02-ca405891dc4a",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "card_faces": [
+     {
+      "colors": [
+       "B"
+      ],
+      "keywords": [],
+      "mana_cost": "{2}{B}{B}",
+      "name": "Fell the Profane",
+      "oracle_text": "Destroy target creature or planeswalker.",
+      "type_line": "Instant"
+     },
+     {
+      "colors": [],
+      "keywords": [],
+      "mana_cost": "",
+      "name": "Fell Mire",
+      "oracle_text": "As this land enters, you may pay 3 life. If you don't, it enters tapped.\n{T}: Add {B}.",
+      "type_line": "Land"
+     }
+    ],
+    "cmc": 4.0,
+    "color_identity": [
+     "B"
+    ],
+    "keywords": [],
+    "layout": "modal_dfc",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "name": "Fell the Profane // Fell Mire",
+    "oracle_id": "053a69d8-2b5e-4f14-8b02-ca405891dc4a",
+    "produced_mana": [
+     "B"
+    ],
+    "type_line": "Instant // Land"
+   }
+  },
   "Fencing Ace": {
    "phase_records": [
     {
@@ -380336,6 +381933,179 @@
     "name": "Flatline",
     "oracle_id": "d9c4a3ca-b966-4fd0-b189-ffbcbfb412b1",
     "oracle_text": "Creatures your opponents control have base power and toughness 0/1 until end of turn.",
+    "type_line": "Instant"
+   }
+  },
+  "Flawless Maneuver": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "Creatures you control gain indestructible until end of turn.",
+       "duration": "UntilEndOfTurn",
+       "effect": {
+        "duration": "UntilEndOfTurn",
+        "static_abilities": [
+         {
+          "active_zones": [],
+          "affected": {
+           "controller": "You",
+           "properties": [],
+           "type": "Typed",
+           "type_filters": [
+            "Creature"
+           ]
+          },
+          "affected_zone": null,
+          "characteristic_defining": false,
+          "condition": null,
+          "description": "gain indestructible",
+          "effect_zone": null,
+          "mode": "Continuous",
+          "modifications": [
+           {
+            "keyword": "Indestructible",
+            "type": "AddKeyword"
+           }
+          ]
+         }
+        ],
+        "target": null,
+        "type": "GenericEffect"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Instant"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "casting_options": [
+      {
+       "condition": {
+        "ownership": "Any",
+        "type": "ControlsCommander"
+       },
+       "kind": "CastWithoutManaCost"
+      }
+     ],
+     "color_identity": [
+      "White"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "banned",
+      "commander": "legal",
+      "duel": "banned",
+      "historic": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 2,
+      "shards": [
+       "White"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "1c4d0743-0f3b-492e-82a5-725dc6d3b582",
+       "3c3bf400-31c0-4ae4-8429-0f6fb92cbe9e",
+       "3d572269-3984-48d2-9705-8fe8afb4a2f6",
+       "3ffe82a4-584e-4ebd-9551-a745bed01e26",
+       "a2129252-fa14-49d2-9662-8dc804ddf4fb",
+       "ab12f69e-1491-47a8-8c46-d85bbf637ff6",
+       "becd6a66-51b5-4ef1-a8a4-f65343bda3f8",
+       "c972abe6-c732-4745-bde4-8b51698f05be"
+      ]
+     },
+     "name": "Flawless Maneuver",
+     "non_ability_text": null,
+     "oracle_text": "If you control a commander, you may cast this spell without paying its mana cost.\nCreatures you control gain indestructible until end of turn.",
+     "power": null,
+     "printings": [
+      "C20",
+      "CMM",
+      "FRC",
+      "ONC",
+      "SLD",
+      "TLE"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2020-04-17",
+       "text": "It doesn't matter whose commander you control. Any one will do. If you have two commanders, you just need to control one of them."
+      },
+      {
+       "date": "2020-04-17",
+       "text": "Once you begin casting this spell, players can't take any other actions until you're done casting it. Notably, they can't try to remove the commander you control to make you pay its cost."
+      }
+     ],
+     "scryfall_oracle_id": "4e183439-17d2-47ff-9d99-5e22821d91e3",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 3.0,
+    "color_identity": [
+     "W"
+    ],
+    "colors": [
+     "W"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "banned",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "banned",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{2}{W}",
+    "name": "Flawless Maneuver",
+    "oracle_id": "4e183439-17d2-47ff-9d99-5e22821d91e3",
+    "oracle_text": "If you control a commander, you may cast this spell without paying its mana cost.\nCreatures you control gain indestructible until end of turn.",
     "type_line": "Instant"
    }
   },
@@ -391065,6 +392835,228 @@
     "power": "1",
     "toughness": "1",
     "type_line": "Creature — Goat"
+   }
+  },
+  "Frantic Search": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "Draw two cards, then discard two cards. Untap up to three lands.",
+       "duration": null,
+       "effect": {
+        "count": {
+         "type": "Fixed",
+         "value": 2
+        },
+        "target": {
+         "type": "Controller"
+        },
+        "type": "Draw"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "count": {
+          "type": "Fixed",
+          "value": 2
+         },
+         "target": {
+          "type": "Controller"
+         },
+         "type": "Discard"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": {
+         "condition": null,
+         "cost": null,
+         "description": null,
+         "duration": null,
+         "effect": {
+          "scope": {
+           "type": "Single"
+          },
+          "state": {
+           "type": "Untap"
+          },
+          "target": {
+           "controller": null,
+           "properties": [],
+           "type": "Typed",
+           "type_filters": [
+            "Land"
+           ]
+          },
+          "type": "SetTapState"
+         },
+         "forward_result": false,
+         "kind": "Spell",
+         "multi_target": {
+          "max": {
+           "type": "Fixed",
+           "value": 3
+          },
+          "min": 0
+         },
+         "optional": false,
+         "optional_targeting": false,
+         "sub_ability": null,
+         "sub_link": "SequentialSibling",
+         "target_choice_timing": "Resolution",
+         "target_prompt": null
+        },
+        "target_prompt": null
+       },
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Instant"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Blue"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "banned",
+      "legacy": "banned",
+      "oathbreaker": "legal",
+      "pauper": "banned",
+      "paupercommander": "legal",
+      "premodern": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 2,
+      "shards": [
+       "Blue"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "0eb00e3c-b67a-44c7-ae61-23ecf4d4971a",
+       "1904db14-6df7-424f-afa5-e3dfab31300a",
+       "441f8b2f-c8cb-4340-a92f-116c2276e906",
+       "57ab2d8f-6804-46fb-9dec-5fd230333ffd",
+       "5b87a025-ab29-4375-9338-536636051640",
+       "6e2e5b6e-ca2e-4149-bad6-784f40afa9fb",
+       "79e5bc79-2a98-4389-9424-be01f8beeb81",
+       "7cceaa53-5cac-415c-ad52-6299d6934ba0",
+       "9ad4d49f-2505-43b7-b5fb-58bf1b8fcc71",
+       "a1c71f3e-16be-492a-8a3e-5911867270bd",
+       "a34c89af-ad2c-4d2e-87d9-76df6ca5d73f",
+       "a4a2a4ce-a44b-480b-b1a2-94fb2514c082",
+       "b8a6d5a5-ea8a-4d13-a8a6-11587f1bde44",
+       "d8c5e52d-57ae-464b-8860-7dd39ebfef64",
+       "fbb61ee0-5dba-4e46-814f-8b7c7703a501",
+       "fd030d0d-b5cc-4f80-bda4-730e70866952"
+      ]
+     },
+     "name": "Frantic Search",
+     "non_ability_text": null,
+     "oracle_text": "Draw two cards, then discard two cards. Untap up to three lands.",
+     "power": null,
+     "printings": [
+      "C20",
+      "CMM",
+      "DMR",
+      "NCC",
+      "PLST",
+      "PMEI",
+      "SLD",
+      "TDC",
+      "TLE",
+      "ULG",
+      "UMA",
+      "VMA",
+      "WC00",
+      "WOC"
+     ],
+     "rarities": [
+      "common",
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2018-12-07",
+       "text": "You draw two cards and discard two cards all while Frantic Search is resolving. Nothing can happen between the two, and no player may choose to take actions."
+      },
+      {
+       "date": "2022-12-08",
+       "text": "You choose which lands to untap as the spell resolves. They aren't targeted, and they don't have to be lands that you control."
+      }
+     ],
+     "scryfall_oracle_id": "16e015b2-f8a3-4b1a-80be-58a8f5fb5e8c",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 3.0,
+    "color_identity": [
+     "U"
+    ],
+    "colors": [
+     "U"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "banned",
+     "legacy": "banned",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "banned",
+     "paupercommander": "legal",
+     "penny": "legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{2}{U}",
+    "name": "Frantic Search",
+    "oracle_id": "16e015b2-f8a3-4b1a-80be-58a8f5fb5e8c",
+    "oracle_text": "Draw two cards, then discard two cards. Untap up to three lands.",
+    "type_line": "Instant"
    }
   },
   "Fraying Line": {
@@ -428440,6 +430432,155 @@
     "type_line": "Enchantment"
    }
   },
+  "Goblin Firebomb": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": {
+        "costs": [
+         {
+          "cost": {
+           "generic": 7,
+           "shards": [],
+           "type": "Cost"
+          },
+          "type": "Mana"
+         },
+         {
+          "type": "Tap"
+         },
+         {
+          "count": 1,
+          "target": {
+           "type": "SelfRef"
+          },
+          "type": "Sacrifice"
+         }
+        ],
+        "type": "Composite"
+       },
+       "description": "{7}, {T}, Sacrifice ~: Destroy target permanent.",
+       "duration": null,
+       "effect": {
+        "cant_regenerate": false,
+        "target": {
+         "controller": null,
+         "properties": [],
+         "type": "Typed",
+         "type_filters": [
+          "Permanent"
+         ]
+        },
+        "type": "Destroy"
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Artifact"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [
+      "Flash"
+     ],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pauper": "legal",
+      "paupercommander": "legal",
+      "pioneer": "legal",
+      "standard": "legal",
+      "standardbrawl": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 1,
+      "shards": [],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "0ba00d0f-0ea5-417c-a792-06b3b9d1c8f1",
+       "55ab3f99-9541-4100-818c-5d9e916791e4"
+      ]
+     },
+     "name": "Goblin Firebomb",
+     "non_ability_text": null,
+     "oracle_text": "Flash\n{7}, {T}, Sacrifice this artifact: Destroy target permanent.",
+     "power": null,
+     "printings": [
+      "BRO",
+      "FDN"
+     ],
+     "rarities": [
+      "common"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "2625fa9c-638c-46d3-966b-1166f440186f",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 1.0,
+    "color_identity": [],
+    "colors": [],
+    "keywords": [
+     "Flash"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "legal",
+     "paupercommander": "legal",
+     "penny": "not_legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "legal",
+     "standardbrawl": "legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{1}",
+    "name": "Goblin Firebomb",
+    "oracle_id": "2625fa9c-638c-46d3-966b-1166f440186f",
+    "oracle_text": "Flash\n{7}, {T}, Sacrifice this artifact: Destroy target permanent.",
+    "type_line": "Artifact"
+   }
+  },
   "Goblin Grenade": {
    "phase_records": [
     {
@@ -463170,6 +465311,214 @@
     "power": "2",
     "toughness": "1",
     "type_line": "Creature — Dryad"
+   }
+  },
+  "Hedron Archive": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": {
+        "type": "Tap"
+       },
+       "description": "{T}: Add {C}{C}.",
+       "duration": null,
+       "effect": {
+        "produced": {
+         "count": {
+          "type": "Fixed",
+          "value": 2
+         },
+         "type": "Colorless"
+        },
+        "type": "Mana"
+       },
+       "forward_result": false,
+       "is_mana_ability": true,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      },
+      {
+       "condition": null,
+       "cost": {
+        "costs": [
+         {
+          "cost": {
+           "generic": 2,
+           "shards": [],
+           "type": "Cost"
+          },
+          "type": "Mana"
+         },
+         {
+          "type": "Tap"
+         },
+         {
+          "count": 1,
+          "target": {
+           "type": "SelfRef"
+          },
+          "type": "Sacrifice"
+         }
+        ],
+        "type": "Composite"
+       },
+       "description": "{2}, {T}, Sacrifice ~: Draw two cards.",
+       "duration": null,
+       "effect": {
+        "count": {
+         "type": "Fixed",
+         "value": 2
+        },
+        "target": {
+         "type": "Controller"
+        },
+        "type": "Draw"
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Artifact"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "standard": "legal",
+      "standardbrawl": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 4,
+      "shards": [],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "068a365c-157c-4af4-9b17-4854d696c19d",
+       "228ce785-033c-4973-89c7-4616a5b9c9d2",
+       "2519149c-f8a3-413f-b7b2-cd596970be4c",
+       "27b2db81-cdf6-4989-a38a-eb728d63d9be",
+       "2feb16d2-7406-45ab-9595-e6c48fc47bf5",
+       "3d76d25c-b962-43e4-aa6f-7c6e3bd79f16",
+       "535b9ac6-dba2-4162-86ed-df3e9fad0306",
+       "59b6d6d4-9bf7-4a5a-bf8f-2a8cae95709e",
+       "64bff432-b85c-4764-82a7-6ae93c8bed45",
+       "677bf9ff-4e4b-495d-b56a-ed0f26c469ca",
+       "797bd0ea-5c4d-477e-9d92-199a99d6c2cf",
+       "7e93db59-2554-4477-a18a-7c2ae4f8d30f",
+       "857d324d-3576-4f1a-9025-db84703ef10f",
+       "8c7d1fa1-e393-4eae-8c8e-449d5d253bbc",
+       "a45ca366-2a43-4930-9c16-0ba72c1de3b8",
+       "abba5d92-3d12-4724-ba6b-2570e55ac810",
+       "ad69703c-637f-44c6-bc84-c1f60d9d9062",
+       "c5112871-dd07-4257-9a11-a86523c4a8b6",
+       "d946ad52-b09b-4ce5-800f-8415550c1936",
+       "f2dfe2d4-57a4-4136-a272-fd22896c8105",
+       "f8900980-6e0d-4d78-91a7-60a2e8cc92a5"
+      ]
+     },
+     "name": "Hedron Archive",
+     "non_ability_text": null,
+     "oracle_text": "{T}: Add {C}{C}.\n{2}, {T}, Sacrifice this artifact: Draw two cards.",
+     "power": null,
+     "printings": [
+      "40K",
+      "BFZ",
+      "BLC",
+      "BRC",
+      "C17",
+      "C18",
+      "C19",
+      "C21",
+      "CLB",
+      "CMM",
+      "DMC",
+      "FDC",
+      "FDN",
+      "J22",
+      "JMP",
+      "M3C",
+      "MOC",
+      "SCD",
+      "SLD",
+      "TSR"
+     ],
+     "rarities": [
+      "uncommon",
+      "rare",
+      "special"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "32263baa-d3f0-463f-92b3-4e9938476add",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 4.0,
+    "color_identity": [],
+    "colors": [],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "legal",
+     "standardbrawl": "legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{4}",
+    "name": "Hedron Archive",
+    "oracle_id": "32263baa-d3f0-463f-92b3-4e9938476add",
+    "oracle_text": "{T}: Add {C}{C}.\n{2}, {T}, Sacrifice this artifact: Draw two cards.",
+    "produced_mana": [
+     "C"
+    ],
+    "type_line": "Artifact"
    }
   },
   "Hedron Crab": {
@@ -575756,6 +578105,271 @@
     "oracle_id": "4457ed35-7c10-48c8-9776-456485fdf070",
     "oracle_text": "Lightning Bolt deals 3 damage to any target.",
     "type_line": "Instant"
+   }
+  },
+  "Lightning Greaves": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "ability_tag": {
+        "type": "Equip"
+       },
+       "activation_restrictions": [
+        {
+         "type": "AsSorcery"
+        }
+       ],
+       "condition": null,
+       "cost": {
+        "cost": {
+         "generic": 0,
+         "shards": [],
+         "type": "Cost"
+        },
+        "type": "Mana"
+       },
+       "description": "Equip {0}",
+       "duration": null,
+       "effect": {
+        "selection": {
+         "at_resolution": {}
+        },
+        "target": {
+         "controller": "You",
+         "properties": [],
+         "type": "Typed",
+         "type_filters": [
+          "Creature"
+         ]
+        },
+        "type": "Attach"
+       },
+       "forward_result": false,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Artifact"
+      ],
+      "subtypes": [
+       "Equipment"
+      ],
+      "supertypes": []
+     },
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 2,
+      "shards": [],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "047de2fe-6fc1-40c5-98d4-6203b4a83445",
+       "0596b5ac-0d95-430a-a747-332abdd30139",
+       "08005be9-fbf4-43e6-a742-b1fb8196c4a5",
+       "0d64fc93-aeb4-4f21-a794-71f38ac97ba8",
+       "172624da-26ee-49d6-bb68-643fdee4c148",
+       "19080c3f-67fa-4f98-9b5a-ede8579823d6",
+       "1d8d6d65-9692-442d-aa62-71124acc30c2",
+       "1e5d9c01-f8db-43ef-bb50-f9e38e99f8d0",
+       "202a98ec-3ce9-47c6-8f8e-cd421e71631d",
+       "205430f6-2d00-4dce-98c7-3d24a8ae73fc",
+       "2f314778-7fa6-4807-b707-9f490dbf0d63",
+       "3008696b-f89c-40e3-a437-22c95ef337fb",
+       "331013f6-976a-4dac-9939-1006e474e108",
+       "49404d84-bcd2-4893-906f-13c8a3b0d25b",
+       "4b8bfdd3-7c73-4d13-8a8d-50b6dd85fad3",
+       "4eac3ed8-5f23-4244-941c-ac42e3fbe191",
+       "57ac56f0-b628-41d0-885d-22df47553d58",
+       "59cb10b3-6856-4355-94a7-a14c516887d5",
+       "5bd49dc7-bce8-44da-bdae-788ece7206d8",
+       "61a28870-cf78-4323-9d82-cee764067764",
+       "638124a1-46ca-41b6-9cb1-7111dc2995d9",
+       "70eab734-875b-4b76-901b-3ac7d2133ad9",
+       "732779aa-3000-4a7b-a155-dbddc7de8d03",
+       "779abd27-985f-4bb9-9330-38d49bf52903",
+       "875cf823-8548-47a3-a1c0-85bfaaed94a4",
+       "8b59b12c-fde5-4f19-a357-e09f06f490cc",
+       "8d9f47af-5929-44f4-bc6b-3ac7e521177d",
+       "8ec824ef-fd09-4f7e-a350-ac80005c261f",
+       "96b0ee57-eb59-44dd-b7dc-bfef37ddb1a6",
+       "9b840da3-2818-4fed-8cff-19754ab1efdc",
+       "9e01e0e4-7e2b-41b5-86de-8e022170b3fc",
+       "b61634ae-05be-4b56-8ebb-9d4ade902e42",
+       "ca483a44-0eaa-4a2c-abef-de1e8f3f3766",
+       "caba0b46-4ffd-476a-839a-625aa988f67b",
+       "cc025f33-1b1a-428f-be28-02d7580a0a8a",
+       "ccd52ffc-dff8-48a7-a319-c642529f9a4b",
+       "ccff131c-2a66-4ebf-97f1-774c9f41b222",
+       "cfac7625-4c7b-4417-930e-f0de536a34f0",
+       "d0ea4d16-39cc-4c27-ba06-158e20fdf870",
+       "da9da49d-e319-4897-9ab6-57c7c69478a6",
+       "db25753d-59e6-4866-92fe-2b38b0f72967",
+       "e5ed8037-0450-4668-9f50-3abf367d7661",
+       "e5f3bd60-cdeb-48bc-9209-c01686938bfb",
+       "e6cec97f-0a2b-4543-a02e-d5e42d337790",
+       "ea21033a-9318-4599-a4bc-b7262621d7d8",
+       "ef5c570d-e415-4ac3-b48f-574ce109303a",
+       "f0fbee02-b6cc-4cd1-a702-cf4f89c17921",
+       "f4b6e6fb-f6b5-436d-95eb-47331e60cb52"
+      ]
+     },
+     "name": "Lightning Greaves",
+     "non_ability_text": null,
+     "oracle_text": "Equipped creature has haste and shroud. (It can't be the target of spells or abilities.)\nEquip {0}",
+     "power": null,
+     "printings": [
+      "2XM",
+      "AFC",
+      "ARC",
+      "C15",
+      "C16",
+      "C17",
+      "C19",
+      "C20",
+      "CLB",
+      "CM2",
+      "CMA",
+      "CMD",
+      "CMM",
+      "DDE",
+      "DRC",
+      "DSC",
+      "F09",
+      "FIC",
+      "LCC",
+      "LTC",
+      "M3C",
+      "MB2",
+      "MPS",
+      "MRD",
+      "MSC",
+      "NCC",
+      "OTC",
+      "PIP",
+      "PLST",
+      "PRM",
+      "PSAL",
+      "PZ1",
+      "SCD",
+      "SLD",
+      "SOC",
+      "TD0",
+      "TDC",
+      "WHO"
+     ],
+     "rarities": [
+      "uncommon",
+      "rare",
+      "special"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2020-08-07",
+       "text": "If a creature enters the battlefield under your control and gains haste, but then loses it before attacking, it won't be able to attack that turn. This means that you can't use one Lightning Greaves to allow two new creatures to attack in the same turn."
+      },
+      {
+       "date": "2020-08-07",
+       "text": "You can't simply unequip Equipment from a creature. If Lightning Greaves is attached to the only creature you control, you won't be able to attach other equipment to it (or target it with anything else) until you have another creature to which you can attach Lightning Greaves."
+      }
+     ],
+     "scryfall_oracle_id": "ca204b66-8d0c-431a-8d34-282f7c2d17da",
+     "static_abilities": [
+      {
+       "active_zones": [],
+       "affected": {
+        "controller": null,
+        "properties": [
+         {
+          "type": "EquippedBy"
+         }
+        ],
+        "type": "Typed",
+        "type_filters": [
+         "Creature"
+        ]
+       },
+       "affected_zone": null,
+       "characteristic_defining": false,
+       "condition": null,
+       "description": "Equipped creature has haste and shroud.",
+       "effect_zone": null,
+       "mode": "Continuous",
+       "modifications": [
+        {
+         "keyword": "Haste",
+         "type": "AddKeyword"
+        },
+        {
+         "keyword": "Shroud",
+         "type": "AddKeyword"
+        }
+       ]
+      }
+     ],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 2.0,
+    "color_identity": [],
+    "colors": [],
+    "keywords": [
+     "Equip"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{2}",
+    "name": "Lightning Greaves",
+    "oracle_id": "ca204b66-8d0c-431a-8d34-282f7c2d17da",
+    "oracle_text": "Equipped creature has haste and shroud. (It can't be the target of spells or abilities.)\nEquip {0}",
+    "type_line": "Artifact — Equipment"
    }
   },
   "Lightning Helix": {
@@ -697487,6 +700101,169 @@
     "type_line": "Artifact Creature — Thopter"
    }
   },
+  "Ornithopter of Paradise": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": {
+        "type": "Tap"
+       },
+       "description": "{T}: Add one mana of any color.",
+       "duration": null,
+       "effect": {
+        "produced": {
+         "color_options": [
+          "White",
+          "Blue",
+          "Black",
+          "Red",
+          "Green"
+         ],
+         "count": {
+          "type": "Fixed",
+          "value": 1
+         },
+         "type": "AnyOneColor"
+        },
+        "type": "Mana"
+       },
+       "forward_result": false,
+       "is_mana_ability": true,
+       "kind": "Activated",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Artifact",
+       "Creature"
+      ],
+      "subtypes": [
+       "Thopter"
+      ],
+      "supertypes": []
+     },
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [
+      "Flying"
+     ],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pauper": "legal",
+      "paupercommander": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 2,
+      "shards": [],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "025b0f0f-daf6-4071-82e7-39c015447ce4",
+       "18bbdc6c-b6c9-4f89-8f0a-6266e53c1fb9",
+       "191c51ae-b627-4b15-bf6f-68d2e5b597fd",
+       "23ac45cf-4dc8-47b9-8ca8-e72464f745d6",
+       "35e7c881-23a9-4703-b29f-a9e7a600e9e4",
+       "3eafd20b-30a7-4e37-b4e9-1d8a61f44ee7",
+       "47c976ee-7eb3-42bb-8bfb-5eda12417e97",
+       "9e5c677e-397d-4a0c-994e-2f35eadb8a33",
+       "e49592e0-4dcf-4b95-9fcc-a9e1c5d5bb6f"
+      ]
+     },
+     "name": "Ornithopter of Paradise",
+     "non_ability_text": null,
+     "oracle_text": "Flying\n{T}: Add one mana of any color.",
+     "power": {
+      "type": "Fixed",
+      "value": 0
+     },
+     "printings": [
+      "BLC",
+      "CMM",
+      "DRC",
+      "FDC",
+      "J21",
+      "J25",
+      "MH2",
+      "PLST"
+     ],
+     "rarities": [
+      "common"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "3a940dfa-a026-4969-8981-ef90cdfbe9ef",
+     "static_abilities": [],
+     "toughness": {
+      "type": "Fixed",
+      "value": 2
+     },
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 2.0,
+    "color_identity": [],
+    "colors": [],
+    "keywords": [
+     "Flying"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "legal",
+     "paupercommander": "legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{2}",
+    "name": "Ornithopter of Paradise",
+    "oracle_id": "3a940dfa-a026-4969-8981-ef90cdfbe9ef",
+    "oracle_text": "Flying\n{T}: Add one mana of any color.",
+    "power": "0",
+    "produced_mana": [
+     "B",
+     "G",
+     "R",
+     "U",
+     "W"
+    ],
+    "toughness": "2",
+    "type_line": "Artifact Creature — Thopter"
+   }
+  },
   "Oroku Saki, Shredder Rising": {
    "phase_records": [
     {
@@ -789700,6 +792477,166 @@
     "name": "Ruination",
     "oracle_id": "59dbc873-72d9-4e7b-9442-2c7b8e8523e1",
     "oracle_text": "Destroy all nonbasic lands.",
+    "type_line": "Sorcery"
+   }
+  },
+  "Ruinous Ultimatum": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "Destroy all nonland permanents your opponents control.",
+       "duration": null,
+       "effect": {
+        "cant_regenerate": false,
+        "target": {
+         "controller": "Opponent",
+         "properties": [],
+         "type": "Typed",
+         "type_filters": [
+          "Permanent",
+          {
+           "Non": "Land"
+          }
+         ]
+        },
+        "type": "DestroyAll"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Sorcery"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Black",
+      "Red",
+      "White"
+     ],
+     "color_override": [
+      "Black",
+      "Red",
+      "White"
+     ],
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 0,
+      "shards": [
+       "Red",
+       "Red",
+       "White",
+       "White",
+       "White",
+       "Black",
+       "Black"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "50c1d6ca-7789-46b5-bc89-85cc3915cb85",
+       "726cc21b-953e-41d3-b073-d2c6afdb0fbd",
+       "8aa531e0-a3e5-4b40-a824-354ed7a13fd5",
+       "8b39e94a-07b0-4a87-bd03-0cc369790c01",
+       "8fe3d5d4-7fa3-47ba-9963-23814bce063d",
+       "930bc0f5-758a-49a7-ab23-5b74802bcddb",
+       "a3dbc470-4580-4672-910b-9ef96910d7ae",
+       "bda08b23-4cfa-4e34-a74e-c7353e557d41",
+       "eddf05f8-9dcf-4e63-a411-6c2fc262f9c9"
+      ]
+     },
+     "name": "Ruinous Ultimatum",
+     "non_ability_text": null,
+     "oracle_text": "Destroy all nonland permanents your opponents control.",
+     "power": null,
+     "printings": [
+      "FIC",
+      "IKO",
+      "PIKO",
+      "PIP",
+      "PRM",
+      "SLD",
+      "SPG"
+     ],
+     "rarities": [
+      "rare",
+      "mythic"
+     ],
+     "replacements": [],
+     "scryfall_oracle_id": "a6f38908-aa4f-4f99-a28e-85d11dab52e4",
+     "static_abilities": [],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 7.0,
+    "color_identity": [
+     "B",
+     "R",
+     "W"
+    ],
+    "colors": [
+     "B",
+     "R",
+     "W"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{R}{R}{W}{W}{W}{B}{B}",
+    "name": "Ruinous Ultimatum",
+    "oracle_id": "a6f38908-aa4f-4f99-a28e-85d11dab52e4",
+    "oracle_text": "Destroy all nonland permanents your opponents control.",
     "type_line": "Sorcery"
    }
   },

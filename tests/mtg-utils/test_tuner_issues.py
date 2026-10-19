@@ -326,6 +326,32 @@ def test_interaction_is_sourced_only_where_the_role_counts_it():
     from mtg_utils.testkit import test_card
 
     keep = ROLE_SEARCH["interaction"]["_filter"]
-    assert ROLE_SEARCH["interaction"]["preset_names"] == _INTERACTION_PRESETS
+    assert ROLE_SEARCH["interaction"]["any_preset_names"] == _INTERACTION_PRESETS
     assert keep(test_card("Lightning Bolt"), deck_mana=None)
     assert not keep(test_card("Glistener Elf"), deck_mana=None)
+
+
+def test_the_interaction_search_finds_any_of_its_presets():
+    """The role counts a card matching ANY interaction preset, so the search must
+    too: passed as ``preset_names`` the five presets combined with AND and the
+    search found nothing — no removal fill or upgrade was sourced (2026-10-19)."""
+    from mtg_utils._analysis.roles import _INTERACTION_PRESETS
+    from mtg_utils.card_search import filter_records
+    from mtg_utils.formats import FORMATS
+    from mtg_utils.testkit import test_card
+
+    names = ["Lightning Bolt", "Murder", "Counterspell", "Llanowar Elves"]
+    records = [test_card(name) for name in names]
+
+    def found(**presets):
+        hits = filter_records(
+            records, fmt=FORMATS["commander"], limit=10, sort="cmc-asc", **presets
+        )
+        return {c["name"] for c in hits}
+
+    assert found(any_preset_names=_INTERACTION_PRESETS) == {
+        "Lightning Bolt",
+        "Murder",
+        "Counterspell",
+    }
+    assert found(preset_names=_INTERACTION_PRESETS) == set()
