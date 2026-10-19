@@ -19,6 +19,7 @@ from mtg_utils._analysis.lanes._shared import (
     _REMINDER_RX,
     _YOU_EACH,
     _kept,
+    _root_target_filter,
     _site_raw,
     _target_owner_beneficiary_scope,
 )
@@ -42,8 +43,11 @@ from mtg_utils._card_ir.crosswalk import (
     _OPPONENT_ACTOR_TAGS,
     CHOSEN_PLAYER_SCOPE,
     ConceptTree,
+    answers_its_target,
     change_zone_dirs,
+    controller_paid_cost_leaves,
     counter_kind,
+    effect_actor_scope,
     effect_facing_player,
     effect_owner_player_scope,
     effect_owner_rebinds_kind,
@@ -58,13 +62,16 @@ from mtg_utils._card_ir.crosswalk import (
     filter_subtypes,
     has_nested_damage_reaching_player,
     has_nested_extra_turn,
+    is_self_discard_cost,
     iter_mod_sites,
     iter_nested_token_effects,
     iter_nested_trigger_defs,
     iter_static_defs,
     iter_threaded_target_statics,
     iter_typed_nodes,
+    keyword_action_events,
     keyword_counter_placements,
+    keyword_token_creations,
     mod_keyword_name,
     mod_value,
     nested_plus_one_keyword_grant,
@@ -113,12 +120,31 @@ def _discard_makers(tree: ConceptTree) -> list[Signal]:
     scoped you/each is a self-loot outlet. The per-unit gate (``effect_concepts``
     reads role=effect only, scoped to one unit) is load-bearing: Psychic Frog and
     Nezahal carry a combat-damage draw *trigger* and a separate ``Discard a card:``
-    *cost* in DIFFERENT units, so they must NOT fire here.
+    *cost* in DIFFERENT units, so they are no loot (their discard cost fires the
+    cost arm below instead).
 
     A RANDOM discard counts here (Burning Inquiry, Goblin Lore; Dan, 2026-10-10),
     unlike ``discard_outlet``, which skips it: this key makes discard EVENTS, and a
     "whenever you discard" payoff (Drake Haven) fires whichever card goes, where
     an outlet must put the card you choose into your graveyard (CR 701.9b).
+
+    Two more shapes make discards without a draw + discard pair of effects:
+
+    * a discard COST you pay (:func:`controller_paid_cost_leaves` +
+      :func:`is_self_discard_cost`, the cost walk ``self_graveyard_fills``
+      reads): Fauna Shaman's "Discard a creature card:", Lion's Eye Diamond's
+      "Discard your hand", Tormenting Voice's additional cost, and a random
+      one (Amok's "Discard a card at random:"; CR 701.9b). Each payment is a
+      discard. A ``self_ref`` "Discard this card" (cycling, CR 702.29a) is the
+      cycling lanes' read, not this one. A tax ("sacrifice it unless you
+      discard a card": echo, CR 702.30a; Masticore; Hidden Horror) is not a
+      discard a deck is built on (Dan's upkeep-payment verdict), so it is
+      skipped.
+    * connive (CR 701.50a: the conniving permanent's controller draws a card,
+      then discards a card), which phase types as its own ``Connive`` node:
+      read deep, so a granted connive counts (Security Bypass, Copycrook), off
+      :func:`~mtg_utils._card_ir.crosswalk.keyword_action_events`; the
+      reference-arm ``connive`` concept (Unstable Experiment) too.
     """
     for unit in tree.units:
         if not unit.has_effect("draw"):
@@ -139,6 +165,16 @@ def _discard_makers(tree: ConceptTree) -> list[Signal]:
         )
         if disc is not None:
             return [Signal("discard_makers", "you", "", disc.raw, tree.name, "high")]
+    for unit in tree.units:
+        if any(
+            how != "tax" and is_self_discard_cost(leaf)
+            for leaf, how in controller_paid_cost_leaves(unit)
+        ):
+            return [Signal("discard_makers", "you", "", "", tree.name, "high")]
+    if tree.has_effect("connive") or any(
+        e.tag == "Connive" and e.yours for e in keyword_action_events(tree)
+    ):
+        return [Signal("discard_makers", "you", "", "", tree.name, "high")]
     return []
 
 
@@ -238,6 +274,23 @@ def _token_maker(tree: ConceptTree) -> list[Signal]:
       player" qualifier (Death by Dragons — corpus-verified the ONLY
       "each player ... other than" token-maker instance, which makes the
       excluded player possibly YOU, not symmetric).
+
+    Also fires on a keyword action that creates a creature token
+    (:func:`~mtg_utils._card_ir.crosswalk.keyword_token_creations`): amass's
+    Army (CR 701.47a), endure's Spirit (701.63a) and populate's copy of a
+    creature token you control (701.36a, subject ""). phase types each as its
+    own effect node; the token they make is spelled only in reminder text,
+    which the mirror strips.
+
+    A token the target's controller creates ("Destroy target permanent. Its
+    controller creates a 3/3 green Beast creature token." — Beast Within,
+    Pongify) reads the target like the ``ParentTargetOwner`` case above, and
+    when the effect answers that target
+    (:func:`~mtg_utils._card_ir.crosswalk.answers_its_target`) anywhere but a
+    graveyard the token is the answered player's consolation: "opponents", a
+    directed gift the scope gate drops. A
+    token "each opponent creates" (Slaughter Specialist) is skipped through
+    :func:`~mtg_utils._card_ir.crosswalk.effect_actor_scope`.
     """
     seen: set[str] = set()
     out: list[Signal] = []
@@ -280,13 +333,36 @@ def _token_maker(tree: ConceptTree) -> list[Signal]:
             # :func:`_target_owner_beneficiary_scope` returns ``None``)
             # leaves ``scope`` at its "you" default, unaffected.
             owner_override = False
-            if recipient_tag(concept.node) == "ParentTargetOwner":
+            rtag = recipient_tag(concept.node)
+            if rtag in ("ParentTargetOwner", "ParentTargetController"):
                 if not owner_scope_checked:
                     owner_scope = _target_owner_beneficiary_scope(unit)
                     owner_scope_checked = True
                 if owner_scope is not None:
                     scope = owner_scope
                     owner_override = True
+                    # "Destroy target permanent. Its controller creates a 3/3
+                    # Beast" (Beast Within, Pongify, Swan Song): the token is
+                    # the consolation for the permanent or spell the effect
+                    # answers, a directed gift. Only an exiled graveyard card
+                    # (Pharika, Funeral Pyre) is a target you'd pick as your own.
+                    filt = _root_target_filter(unit)
+                    root = next(
+                        e.node
+                        for e in unit.effects
+                        if getattr(e.node, "target", None) is filt
+                    )
+                    if answers_its_target(root) and (
+                        tag_of(root) not in ("ChangeZone", "ChangeZoneAll")
+                        or change_zone_dirs(root)[0] != "Graveyard"
+                    ):
+                        scope = "opponents"
+            # "Each opponent creates ..." (Slaughter Specialist, Akroan Horse):
+            # phase writes the Token's owner Controller-relative under an
+            # opponent wrapper, so the concept's own scope reads "you"
+            # (CR 111.2: the player who creates a token controls it).
+            if effect_actor_scope(unit, concept.node) == "opponents":
+                continue
             # The "any" bypass below is scoped STRICTLY to the owner-
             # override path above — an unrelated concept whose OWN
             # natural scope happens to be "any" (a ``Player``/``Target``/
@@ -309,6 +385,8 @@ def _token_maker(tree: ConceptTree) -> list[Signal]:
                     subject = resolved
                     break
             fire(subject, concept.raw, "any" if owner_override else "you")
+    for keyword, subject in keyword_token_creations(tree):
+        fire(subject, keyword)
     if need_mirror:
         for subject in sorted(_mirror_token_maker_type_subjects(tree.oracle or "")):
             fire(subject, "")

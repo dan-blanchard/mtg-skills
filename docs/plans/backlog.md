@@ -134,33 +134,77 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   the same way. Until then a bare `build-card-snapshot` run drags the drift in —
   the 2026-10-17 regen spliced only its two new cards.
 
-- **Lane gaps behind the held serve specs** (the serve-ident pass, 2026-10-18;
-  the full table is in `docs/plans/serve-idents-and-avenue-support.md` §2
-  "Measured"). 41 specs keep their regex because the lane misses what the regex
-  catches (the +1/+1 keyword actions converted 2026-10-18 —
-  `reads.keyword_counter_placements`; left of that row: `modified_matters`
-  fires on 18 cards while 19 "modified" payoffs miss it, and "whenever you
-  proliferate" / granted or X proliferate has no ident; surveil and a mill
-  cost converted the same day — `reads.self_graveyard_fills` — leaving
-  collect-evidence and forage costs, descend payoffs, the Empower Jace token's
-  surveil, granted delve / soulshift X and a craft cost as the remainder, and
-  ~130 `graveyard_matters|you` false positives from the typed arms: morbid
-  "if a creature died this turn" cards and graveyard hate such as Bojuka Bog;
-  the `self_mill_fill` preset predicate still reads an opponent-wrapped mill
-  as yours); granted / replacement
-  Treasure and Food makers, forage; energy payers; random-discard outlets and
-  granted connive; foretell granters and cost reducers; "all damage that would
-  be dealt to you is dealt to X instead"; Bribery-style theft from an
-  opponent's library (blocks `gain_control`); amass / endure / populate token
-  makers read only off reminder text (blocks the `token_maker|you|*` wildcard
-  conversions: token_maker, creature_etb, creatures_matter, edict_makers,
-  damage_for_each, token_doubling). Report upstream where phase is the gap.
-  The lifegain pair converted anyway and lost its 96 Food makers:
-  `lifegain_makers` doesn't read the gain inside a Food token (Bake into a Pie,
-  Bill the Pony).
-  Lane false positives found the same way: Impending Flux on `suspend_matters`; The
-  Book of Exalted Deeds on `exalted`; Investigator's Journal on
-  `suspect_makers`; Astarion's "Friends —" mode on `partner_background`.
+- **Every held serve spec is converted (2026-10-19); what the lanes still
+  miss** (the per-spec censuses are in `docs/plans/serve-idents-and-avenue-support.md`
+  §2; the 41 holds of the serve-ident pass and the six of the fourth pass are
+  all `serve_idents` now, each with its remainder classified). Phase gaps
+  (report upstream, Dan posts): Mask of the Schemer's "connives X" and Thromok's
+  devour X (`where_x_binding`); Izzet Generatorium's energy replacement,
+  Reiterating Bolt's "Replicate—Pay {E}{E}{E}", Salvation Colossus's
+  "Unearth—Pay eight {E}", "get an amount of {E} equal to …" (Robobrain War
+  Mind, The Motherlode, Overclocked Electromancer), Aether Refinery's energy
+  doubler typed as a CreateToken replacement, `CounterPlayerAddedAll` with no
+  counter kind (a canary), Dream Devourer's "whenever you foretell" (Unknown
+  mode); You Find a Cursed Idol's venture mode; Ethereal Valkyrie, Karfell
+  Harbinger, Ranar the Ever-Watchful (foretell); nine "all damage that would
+  be dealt to X is dealt to Y instead" effects left as residues (Kjeldoran
+  Royal Guard, Kor Chant, Kor Dirge, Sivvi's Valor, Turn the Tables …),
+  Treacherous Link; Prairie Dog's temporary AddCounter replacement, Zabaz's
+  modular bonus; Rags // Riches and Reduce // Rubble faces with no units;
+  Athreos, Shroud-Veiled's exile parsed as a CounterAdded trigger; Death's
+  Approach, Foul Renewal, Attempted Murder, Decimator Beetle, Zealous
+  Persecution, Pradesh Gypsies (debuffs); "that creature" / "each land"
+  stamped `SelfRef` (Mesmerizing Benthid, Scion of Stygia, Wall of Stolen
+  Identity, Tsabo's Web, Code of Constraint; Jace Architect of Thought, Blood
+  Lust); "that player controls" stamped `controller: You` (Delirium, Yosei,
+  Mana Web); Stunning Shot's lost opponent filter; Elspeth Resplendent's and
+  Undercover Operative's shield counters; Nicanzil's explore triggers;
+  Attraction triggers as Unknown modes (Motion Sickness, The Most Dangerous
+  Gamer); Venser's Diffusion's "or suspended card"; Heir of the Ancient Fang,
+  Ian the Reckless, Lethal Exploit, Lethal Throwdown, Lion Umbra (modified);
+  Officious Interrogation's "investigate X times"; Jetmir's Fixer, Rain of
+  Riches, Vazi (Treasure-spent conditions); Indulge // Excess; The Fourth
+  Doctor's reflexive Food; Osteomancer Adept's forage cast-permission;
+  Commence the Endgame and Fall of Cair Andros (amass folded away — a canary);
+  Afterlife Insurance and Infantry Shield (granted afterlife / mobilize X).
+  Lane gaps still open: `creature_recursion` has no destination subject (62
+  reanimation spells sit outside damage_for_each; creature_etb carries a
+  reanimation extra instead); `cost_reduction` has no spell-type subject (21
+  creature-spell reducers); `plus_one_matters` misses cost reductions that
+  count countered creatures (Hamza, Starport Security) and Dodecapod's
+  enters-with replacement; the edict lane misses Incriminate, Malik,
+  Gluttonous Hellkite, Killing Wave, Tragic Arrogance and granted edicts;
+  `walk_effect_chain` does not descend `FlipCoin.win_effect` (The Gold
+  Saucer's Treasure, Invert Polarity's theft); the known-token walk ignores
+  `additional_token_spec` (Worldwalker Helm's Map); keyword token-copy makers
+  (embalm, eternalize, myriad, squad, encore) are not read; granted flanking;
+  back-reference counter targets scoped you (Retribution, Obelisk Spider);
+  partial prevention, granted absorb, Blinding Powder, Torrent of Lava
+  (`damage_prevention`); `discard_outlet`
+  misses "cast from your graveyard by discarding" (Alien Symbiosis, Demonic
+  Embrace, Rona); the lifegain pair lost its 96 Food makers — `lifegain_makers`
+  does not read the gain inside a Food token (Bake into a Pie, Bill the Pony);
+  "whenever you proliferate" payoffs and granted / X proliferate have no ident
+  (Scheming Aspirant, Venser, Tam, Ichormoon Gauntlet); the own-graveyard
+  remainder (collect-evidence and forage costs, descend payoffs, the Empower
+  Jace token's surveil, granted delve / soulshift X, a craft cost). Lane false
+  positives still open: a token another player
+  creates serves as a `token_maker|you|*` (Varchild, Goblin Spymaster,
+  Skyclave Apparition, Genesis Chamber, March of Souls …); "tap creatures you
+  control" cards serve `tapper_engine` (Jaddi Lifestrider — inseparable from
+  the `controller: You` misstamp above); ~9 "when an opponent causes you to
+  discard this" cards fire `discard_matters` and Balance / Restore Balance
+  `discard_outlet`; Oft-Nabbed Goat and Sentinel of Lost Lore fire
+  `gain_control`; An Offer You Can't Refuse fires `treasure_makers|you`;
+  Brimaz, Blight of Oreskos's "if a Phyrexian died under your control" fires no
+  `death_matters`; Investigator's Journal still fires `proliferate_matters` and
+  The Book of Exalted Deeds `stax_taxes|opponents`; phase drops the owner from
+  "from your graveyard" on Rooting Moloch, Stitcher Geralf, Savior of
+  Ollenbock, Grime Gorger (the hate arm declines the shape).
+  Ranking: `ranking._synergy_score` gives clause clusters only to regex-matched
+  hits, so every regex → ident conversion thins clause breadth (Empty the
+  Warrens' token clause 8 → 6 lanes); attributing an ident hit to the clause
+  its signal came from belongs in the ranking module.
 
 **From the Omnath Competitive Brawl build (2026-10-04)**
 

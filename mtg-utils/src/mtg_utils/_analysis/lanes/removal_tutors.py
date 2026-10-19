@@ -65,6 +65,8 @@ from mtg_utils._card_ir.crosswalk import (
     filter_owned_controller,
     filter_predicates,
     filter_subtypes,
+    forages,
+    granted_alt_cost_kinds,
     has_filter_property,
     has_nested_damage_reaching,
     iter_cost_leaves,
@@ -72,6 +74,7 @@ from mtg_utils._card_ir.crosswalk import (
     iter_nested_granted_effect_concepts,
     iter_static_defs,
     iter_typed_nodes,
+    keyword_resource_events,
     mod_keyword_name,
     mod_value,
     named_filter_subtypes,
@@ -80,6 +83,7 @@ from mtg_utils._card_ir.crosswalk import (
     static_mode_field,
     static_mode_tag,
     tag_of,
+    time_counter_kind_refs,
     token_profile_keywords,
     trigger_scope,
 )
@@ -107,11 +111,15 @@ from mtg_utils._card_ir.text_idioms import _LIB_SEARCH_PLAYER_ACTIONS
 # (checklist #4a): companion / specialize / madness / affinity / scavenge and
 # the has_* keys tag the card that carries the mechanic. Byte-faithful to the
 # live _IR_KEYWORD_MAP rows (:607); the MTGJSON string gotchas ('Choose a
-# background' lowercase b, "Doctor's companion", 'Friends') are preserved by
-# the lowercase membership gate. companion is deliberately NOT partner
-# (CR 702.139 — a deckbuild constraint); "Friends" ∈ partner carries the
-# Astarion source-data quirk (MTGJSON tags his modal label "Friends" as a
-# keyword — live fires it, ported as-is + logged).
+# background' lowercase b, "Doctor's companion") are preserved by the
+# lowercase membership gate. companion is deliberately NOT partner
+# (CR 702.139 — a deckbuild constraint). MTGJSON tags Astarion, the
+# Decadent's modal flavor word "Friends" as a keyword; it is not a partner
+# ability, so the partner row leaves it out.
+# The alternative-cost keywords the alt_cost_keyword lane opens on, by
+# ``crosswalk.ALT_COST_KEYWORDS`` kind: printed (the row below) or granted
+# (``_b13_conferred_grant_lanes``).
+_ALT_COST_KEYWORD_KINDS: frozenset[str] = frozenset({"sneak", "web-slinging", "mayhem"})
 _B13_KEYWORD_LANES: tuple[tuple[frozenset[str], str], ...] = (
     (frozenset({"companion"}), "companion_keyword"),  # CR 702.139
     (frozenset({"banding"}), "has_banding"),  # CR 702.22
@@ -121,9 +129,11 @@ _B13_KEYWORD_LANES: tuple[tuple[frozenset[str], str], ...] = (
     # CR 118/601 + 702.190a/.188a/.187a-c — the three alternative-cost
     # keyword abilities (sneak ALSO fires the unported recast_etb live-side;
     # only this row is batch-13's).
-    (frozenset({"sneak", "web-slinging", "mayhem"}), "alt_cost_keyword"),
+    (_ALT_COST_KEYWORD_KINDS, "alt_cost_keyword"),
     # CR 702.124/.124a/.124k/.124m/.124i — the partner family (MTGJSON folds
-    # "Friends forever" → 'Partner').
+    # "Partner—Friends forever" → 'Partner'). A bare "Friends" keyword is
+    # Astarion, the Decadent's "Friends —" modal flavor word (CR 207.2d), not
+    # a partner ability, so it is not in the set.
     (
         frozenset(
             {
@@ -131,7 +141,6 @@ _B13_KEYWORD_LANES: tuple[tuple[frozenset[str], str], ...] = (
                 "partner with",
                 "choose a background",
                 "doctor's companion",
-                "friends",
             }
         ),
         "partner_background",
@@ -205,6 +214,9 @@ def _b13_conferred_grant_lanes(tree: ConceptTree) -> list[Signal]:
       Blade of Selves' Myriad, Yidris's sub-ability Cascade;
     * ``CastWithKeyword`` statics — Tezzeret's ``{Affinity: …}``, Maelstrom
       Nexus's ``Cascade`` (CR 601.3e);
+    * a granted sneak / mayhem / web-slinging, either shape
+      (:func:`~mtg_utils._card_ir.crosswalk.reads.granted_alt_cost_kinds`)
+      → alt_cost_keyword;
     * token-PROFILE keywords — Dragon Broodmother's ``{Devour: 2}`` token,
       Maskwood Nexus's Changeling Shapeshifter (CR 111.4);
     * the ``AddAllCreatureTypes`` modification — Mistform Ultimus's "every
@@ -246,6 +258,11 @@ def _b13_conferred_grant_lanes(tree: ConceptTree) -> list[Signal]:
                 add("affinity_type", _site_raw(sdef))
             elif cw == "Cascade":
                 add("cascade_matters", _site_raw(sdef))
+        # A grant of sneak / mayhem / web-slinging (Ninja Teen, Green Goblin,
+        # Amazing Spider-Man): the same alternative cost the bearer row reads
+        # off the printed keyword (CR 702.190a / 702.187b / 702.188a).
+        if _ALT_COST_KEYWORD_KINDS.intersection(granted_alt_cost_kinds(unit)):
+            add("alt_cost_keyword", "")
         for q in iter_typed_nodes(unit.node):
             profile = token_profile_keywords(q)
             if "Devour" in profile:
@@ -337,18 +354,32 @@ def _curse_matters(tree: ConceptTree) -> list[Signal]:
 
 
 def _foretell_matters(tree: ConceptTree) -> list[Signal]:
-    """foretell_matters (§C) — CR 702.143: the ``Foretold`` subject-
-    predicate read, incl. count-operand subjects (Niko Defies Destiny —
-    the property nests inside amount/inner/qty/filter/properties; Alrund's
-    dynamic-P/T operand). Pop == the v0.9.0 Foretold property census
-    (exactly 3 cards). Boundary (checklist #4b): bearers AND granters /
-    payoff-triggers (Ranar, Dream Devourer) ride the ported
-    foretell_makers keyword+marker rows, never this lane."""
-    for q in tree.iter_typed():
-        for fname in ("subject", "filter", "target", "affected", "valid_card"):
-            filt = getattr(q, fname, None)
-            if filt is not None and "Foretold" in filter_predicates(filt):
-                return [Signal("foretell_matters", "you", "", "", tree.name, "high")]
+    """foretell_matters (§C) — CR 702.143c: a filter naming foretold cards,
+    incl. count-operand subjects (Niko Defies Destiny — the property nests
+    inside amount/inner/qty/filter/properties; Alrund's dynamic-P/T operand),
+    read by :func:`~mtg_utils._card_ir.crosswalk.keyword_resource_events`.
+    Boundary (checklist #4b): bearers AND granters ride foretell_makers, never
+    this lane."""
+    if any(
+        e.resource == "foretell" and e.side == "matters"
+        for e in keyword_resource_events(tree)
+    ):
+        return [Signal("foretell_matters", "you", "", "", tree.name, "high")]
+    return []
+
+
+def _foretell_makers(tree: ConceptTree) -> list[Signal]:
+    """foretell_makers — a card that grants foretell (CR 702.143a): Bohn,
+    Beguiling Balladeer and Dream Devourer's "Each nonland card in your hand
+    without foretell has foretell", an ``AddKeyword`` grant read by
+    :func:`~mtg_utils._card_ir.crosswalk.keyword_resource_events`. The printed
+    keyword rides ``_keyword_field_signals_b5``'s keyword-array row. Scope
+    "you"."""
+    if any(
+        e.resource == "foretell" and e.side == "makers"
+        for e in keyword_resource_events(tree)
+    ):
+        return [Signal("foretell_makers", "you", "", "", tree.name, "high")]
     return []
 
 
@@ -433,8 +464,16 @@ def _suspend_matters(tree: ConceptTree) -> list[Signal]:
     Tier-1 (ADR-0036/0037 fold): a ``PutCounter{counter_type=Time}``
     structural node (CR 122.1) OR the ``synth_suspend_matters`` bucket-B
     residue (:func:`_arm_suspend_matters`, gap-gated against the same
-    structural read) — zero oracle text/regex at LANE time."""
-    if has_structural_suspend_matters(tree):
+    structural read) — zero oracle text/regex at LANE time.
+
+    A filter or condition naming time counters is the third arm
+    (:func:`~mtg_utils._card_ir.crosswalk.reads.time_counter_kind_refs`):
+    Clockspinning's "target permanent or suspended card" carries a time-counter
+    predicate (CR 702.62b: a suspended card is in exile, has suspend and has a
+    time counter on it), with no ``PutCounter{time}`` of its own."""
+    if has_structural_suspend_matters(tree) or any(
+        time_counter_kind_refs(unit.node) for unit in tree.units
+    ):
         return [Signal("suspend_matters", "you", "", "", tree.name, "high")]
     for c in tree.iter_concepts():
         if c.concept == "synth_suspend_matters":
@@ -899,6 +938,13 @@ def _removal(tree: ConceptTree) -> list[Signal]:
                 if _qualified_destroy_target_type(desc):
                     return [Signal("removal", "you", "", c.raw, tree.name, "high")]
     for unit in tree.units:
+        for c in unit.effects:
+            # A base toughness set to 0 or less kills outright (CR 704.5f):
+            # Multiply by Zero's 0/0 is removal, Turn to Frog's 1/1 only the
+            # 2HG scan's soft read.
+            if _sets_toughness_to_zero(c):
+                return [Signal("removal", "you", "", c.raw, tree.name, "high")]
+    for unit in tree.units:
         for c in unit.effect_concepts("deal_damage"):
             if c.recovered_by:
                 # phase v0.104.0 fail-closed residue, token ``damage``.
@@ -1046,6 +1092,19 @@ def _perm_answer_types(filt: object) -> frozenset[str]:
     return frozenset()
 
 
+def _sets_toughness_to_zero(c: ConceptNode) -> bool:
+    """A base-toughness SET to 0 or less on a permanent the caster doesn't
+    control (CR 704.5f: a creature with toughness 0 or less is put into its
+    owner's graveyard, and regeneration can't replace that)."""
+    filt = effect_filter(c.node)
+    if filter_controller(filt) == "You" or recipient_tag(c.node) == "SelfRef":
+        return False
+    return tag_of(c.node) == "GenericEffect" and any(
+        tag_of(m) == "SetToughness" and (v := mod_value(m)) is not None and v <= 0
+        for _, m in iter_mod_sites(c.node)
+    )
+
+
 def _soft_answer_types(c: ConceptNode) -> frozenset[str] | None:
     """The answer types of a SOFT-removal effect aimed at a permanent the caster
     doesn't control — a filter not controlled by ``You`` and not the card
@@ -1188,6 +1247,11 @@ def _removal_answers(
                     or _negative_pt_field(c.node, "toughness")
                 )
             ):
+                yield c, _CREATURE
+            elif _sets_toughness_to_zero(c):
+                # A base toughness set to 0 or less kills the creature outright
+                # (CR 704.5f) — Multiply by Zero's 0/0 — so it is removal in its
+                # own right, where a 1/1 set (Turn to Frog) is only the soft read.
                 yield c, _CREATURE
             elif c.concept == "put_library_position":
                 if tag_of(c.node) not in (
@@ -1646,9 +1710,12 @@ def _unit_sacrifice_nodes(unit: AbilityUnit) -> list[TypedMirrorNode]:
     (CR 603.12 — Nimble Hobbit's "you may sacrifice a Food or pay {2}{W}. When
     you do, …", a ``PayCost{cost: OneOf[Sacrifice(Food), Mana]}``). A payment
     another player makes (a ``TriggeringPlayer`` / ``ParentTargetController``
-    payer) sacrifices THEIR permanent, which is no payoff of yours."""
+    payer) sacrifices THEIR permanent, which is no payoff of yours. A spell's
+    merged additional cost (``unit.costs`` — Feed the Cycle's "As an additional
+    cost to cast this spell, forage or pay {B}", whose Food half phase keeps)
+    is the caster's too (CR 118.8: its controller pays it)."""
     out = [c.node for c in unit.effects if tag_of(c.node) == "Sacrifice"]
-    costs = [getattr(unit.node, "cost", None)] + [
+    costs = [getattr(unit.node, "cost", None), *(c.node for c in unit.costs)] + [
         getattr(c.node, "cost", None)
         for c in unit.effects
         if tag_of(c.node) == "PayCost"
@@ -1659,6 +1726,25 @@ def _unit_sacrifice_nodes(unit: AbilityUnit) -> list[TypedMirrorNode]:
             if tag_of(leaf) == "Sacrifice":
                 out.append(leaf)
     return out
+
+
+_SACRIFICED_SUBTYPES_ATTR = "_xw_sacrificed_subtypes"
+
+
+def _unit_sacrificed_subtypes(unit: AbilityUnit) -> frozenset[str]:
+    """The lowercased subtypes the unit's own sacrifices name
+    (:func:`_unit_sacrifice_nodes`' targets), memoized on the unit's node so the
+    Food and Clue payoff lanes share one pass."""
+    node = unit.node
+    cached = node.__dict__.get(_SACRIFICED_SUBTYPES_ATTR)
+    if cached is None:
+        cached = frozenset(
+            st.lower()
+            for sac in _unit_sacrifice_nodes(unit)
+            for st in filter_subtypes(getattr(sac, "target", None))
+        )
+        object.__setattr__(node, _SACRIFICED_SUBTYPES_ATTR, cached)
+    return cached
 
 
 def _token_subtype_payoff(tree: ConceptTree, sub: str) -> list[Signal]:
@@ -1690,10 +1776,8 @@ def _token_subtype_payoff(tree: ConceptTree, sub: str) -> list[Signal]:
     key = f"{sub.lower()}_matters"
     subl = sub.lower()
     for unit in tree.units:
-        for node in _unit_sacrifice_nodes(unit):
-            subs = {s.lower() for s in filter_subtypes(getattr(node, "target", None))}
-            if subl in subs:
-                return [Signal(key, "you", "", "", tree.name, "high")]
+        if subl in _unit_sacrificed_subtypes(unit):
+            return [Signal(key, "you", "", "", tree.name, "high")]
         if subl in named_filter_subtypes(unit.node):
             return [Signal(key, "you", "", "", tree.name, "high")]
     for c in tree.iter_concepts():
@@ -1703,8 +1787,19 @@ def _token_subtype_payoff(tree: ConceptTree, sub: str) -> list[Signal]:
 
 
 def _food_matters_lane(tree: ConceptTree) -> list[Signal]:
-    """food_matters (§9) — see :func:`_token_subtype_payoff`."""
-    return _token_subtype_payoff(tree, "Food")
+    """food_matters (§9) — see :func:`_token_subtype_payoff` — plus a forage
+    (:func:`~mtg_utils._card_ir.crosswalk.forages`): CR 701.61a's forage is
+    "Exile three cards from your graveyard or sacrifice a Food", so a card that
+    forages, or pays off foraging, is a Food payoff. phase writes most forages
+    as a Food sacrifice the shared arms read already (Treetop Sentries); the
+    read adds the bare ``Forage`` action and the "whenever you forage" trigger
+    (Corpseberry Cultivator)."""
+    hits = _token_subtype_payoff(tree, "Food")
+    if hits:
+        return hits
+    if any(forages(unit) for unit in tree.units):
+        return [Signal("food_matters", "you", "", "", tree.name, "high")]
+    return []
 
 
 def _clue_matters_lane(tree: ConceptTree) -> list[Signal]:
@@ -2087,6 +2182,7 @@ LANES = (
     _convoke_matters,
     _curse_matters,
     _foretell_matters,
+    _foretell_makers,
     _keyword_soup,
     _island_matters,
     _poison_matters,

@@ -23,6 +23,7 @@ from mtg_utils._analysis.lanes._shared import (
     _sac_is_edict,
     is_unserved_artifact_kind,
     typed_token_payoff_signals,
+    unclaimed_clauses,
 )
 from mtg_utils._analysis.lanes.mana_and_wipes import _anthem_static
 from mtg_utils._analysis.signal_base import (
@@ -1470,19 +1471,16 @@ def _non_animation_clauses(tree: ConceptTree) -> list[str]:
     objects creatures (CR 613.1d — Bello's "each non-Equipment artifact and
     non-Aura enchantment you control … is a 4/4 Elemental creature", whose "you
     control" the text mirrors would otherwise read as a payoff). A clause and a
-    static's description are compared up to their first quoted grant, where
-    the clause spells the card "this creature" and phase spells it "~"."""
-    animation = {
-        desc.split('"')[0].strip().lower()
-        for unit in tree.units
-        for d in iter_static_defs(unit.node)
-        if adds_creature_type(d)
-        and isinstance(desc := getattr(d, "description", None), str)
-    }
-    clauses = _clauses(_kept(tree))
-    if not animation:
-        return clauses
-    return [cl for cl in clauses if cl.split('"')[0].strip().lower() not in animation]
+    static's description are matched by :func:`unclaimed_clauses`."""
+    return unclaimed_clauses(
+        tree,
+        (
+            d
+            for unit in tree.units
+            for d in iter_static_defs(unit.node)
+            if adds_creature_type(d)
+        ),
+    )
 
 
 def _artifacts_enchantments_matter(tree: ConceptTree) -> list[Signal]:

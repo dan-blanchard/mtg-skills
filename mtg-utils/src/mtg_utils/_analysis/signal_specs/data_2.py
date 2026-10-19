@@ -34,6 +34,7 @@ from ._shared import (
     _OPP_LIBRARY_THEFT_ORACLE,
     _PARADOX_PAYOFF_EXTRA,
     _PILLOWFORT_EXTRA,
+    _PLUS_ONE_SERVE_IDENTS,
     _PUMP_EXTRA,
     _SELF_IMPULSE_VETO,
     _STEAL_CAST_ORACLE,
@@ -41,6 +42,7 @@ from ._shared import (
     _THEFT_SWEEP_REGEX,
     _TOKEN_DOUBLER_EXTRA,
     _TOKEN_MAKER_EXTRA,
+    _TOKEN_MAKER_IDENTS,
     _TOPDECK_SELECTION_SWEEP_REGEX,
     _TYPE_CHANGER_ORACLE,
     _VOLTRON_PROTECT_EXTRA,
@@ -48,6 +50,23 @@ from ._shared import (
     _spec,
     _sweep_spec_with_extras,
 )
+
+# The discard serve (discard_makers / discard_matters / discard_outlet, you): the
+# outlets, the discard makers, the "whenever you discard" payoffs and the Blood
+# makers whose tokens rummage.
+_DISCARD_SERVE_IDENTS = frozenset(
+    {
+        "discard_makers|you|",
+        "discard_matters|you|",
+        "discard_outlet|you|",
+        "blood_makers|you|",
+    }
+)
+
+# The energy and venture serves (both lanes of each pair): makers and payoffs
+# share one avenue.
+_ENERGY_SERVE_IDENTS = frozenset({"energy_makers|you|", "energy_matters|you|"})
+_VENTURE_SERVE_IDENTS = frozenset({"venture_makers|you|", "venture_matters|you|"})
 
 SPECS_2: dict[tuple[str, str], SignalSpec] = {
     # ── Rules mined from the zero-signal commander tail ─────────────────────────
@@ -304,34 +323,38 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
     # plus more outlets (the same self-discard pool as discard_matters), so an outlet
     # engine finds its payoffs. The maker/payoff split is in MEMBERSHIP; the avenue
     # legitimately offers both.
+    # Serve idents: the three discard lanes plus Blood makers (a Blood token is
+    # "{1}, {T}, Discard a card, Sacrifice this token: Draw a card.", CR 111.10g).
+    # discard_makers reads a discard cost you choose to pay (random included) and
+    # connive (CR 701.50a), granted connive too. The regex's remainder: opponent
+    # discards (Skull Rend, Court of Ambition) and an opponent's Blood token
+    # (Bloodvial Purveyor), a tax (Avatar of Discord's "sacrifice it unless you
+    # discard two cards"), and Mask of the Schemer's "connives X", which phase
+    # leaves an unimplemented ``where_x_binding``.
     ("discard_makers", "you"): _spec(
         "Loot / discard outlets",
         "loot/connive/rummage outlets plus the discard payoffs they power",
         {"oracle": r"discard (?:a|an|two|your hand)[^:.]*?:|draw [^.]*?then discard"},
-        r"whenever you discard|discard (?:a|an|two|your hand)[^:.]*?:"
-        r"|draw [^.]*then discard"
-        r"|\bdiscard (?:x|\d+|two|three|four|all)\b",
+        None,
+        serve_idents=_DISCARD_SERVE_IDENTS,
     ),
     ("discard_matters", "you"): _spec(
         "Discard",
         "discard payoffs and the self-discard outlets that feed them",
         {"oracle": r"discard (?:a|an|two|your hand)[^:.]*?:|draw [^.]*?then discard"},
-        r"whenever you discard|discard (?:a|an|two|your hand)[^:.]*?:"
-        r"|draw [^.]*then discard"
-        # Self-discard OUTLETS the loot/connive forms missed: wheels ("discard all the
-        # cards in your hand") and "discard X/N cards" as a cost (Turbulent Dreams,
-        # Firestorm). Imperative "discard " (no trailing s) keeps forced-OPPONENT
-        # discard ("target player discardS") out — the opponent_discard lane.
-        r"|\bdiscard (?:x|\d+|two|three|four|all)\b",
+        None,
+        serve_idents=_DISCARD_SERVE_IDENTS,
     ),
     # Discard OUTLET commander (a loot/rummage engine): hand-written so the serve adds
     # the discard PAYOFFS it powers ("whenever you discard …" — Containment Construct,
     # Rielle, Glint-Horn Buccaneer) alongside the outlets the sweep regex already
     # credits. Detector regex unchanged (same key → auto-register skips it).
+    # Serve idents: the same discard idents.
     ("discard_outlet", "you"): _spec(
         *SWEEP_LABELS["discard_outlet"],
         {"oracle": _DISCARD_OUTLET_SWEEP_REGEX},
-        _DISCARD_OUTLET_SWEEP_REGEX + r"|whenever you discard",
+        None,
+        serve_idents=_DISCARD_SERVE_IDENTS,
     ),
     # ADR-0027 dig library-owner scope (SIDECAR v27): dig_until migrated to the Card IR
     # (its SWEEP_DETECTORS row deleted, so the auto-register loop no longer builds this
@@ -804,12 +827,11 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
             "oracle": r"creatures? you control with power \d+ or (?:less|fewer)"
             r"|creature spells?[^.]*with power \d+ or (?:less|fewer)"
         },
-        # Oracle-only: the "you control with power N or less" anchor is what the payoffs
-        # share; NO power_max serve (it would flood the lane with vanilla small bodies).
-        # Also the casting-ENABLER form "cast a creature spell with power N or less"
-        # (Assemble the Players) — a low-power build-around, still not a vanilla body.
-        r"creatures? you control with power \d+ or (?:less|fewer)"
-        r"|creature spells?[^.]*with power \d+ or (?:less|fewer)",
+        # Serve on the lane's ident: it reads Assemble the Players' cast-from-the-top
+        # permission and the low-power reanimators (Reveillark, Smile at Death). NO
+        # power_max serve (it would flood the lane with vanilla small bodies).
+        None,
+        serve_idents=frozenset({"low_power_matters|you|"}),
     ),
     ("scry_surveil_matters", "you"): _spec(
         "Scry / surveil matters",
@@ -887,39 +909,50 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
         serve_idents=frozenset({"ring_tempters|you|", "ring_matters|you|"}),
     ),
     # _matters sweep (ADR-0034): the MAKER side of the venture split — cards that
-    # venture / take the initiative (CR 701.46 / 720). The avenue it opens is the
-    # venture enablers package; only the lane KEY encodes the doer role.
+    # venture / take the initiative (CR 701.49a; CR 726.2: taking the initiative
+    # ventures into Undercity). The avenue it opens is the venture enablers
+    # package; only the lane KEY encodes the doer role.
+    # Serve on the lanes' idents (reads.keyword_resource_events): the regex
+    # missed the take-the-initiative cards and room-trigger doubling (Hama
+    # Pashar). It also served a phase gap (You Find a Cursed Idol's venture mode
+    # is dropped) and an opponent hoser (Keen-Eared Sentry).
     ("venture_makers", "you"): _spec(
         "Venture (enablers)",
         "venture enablers — cards that venture into the dungeon",
         {"oracle": r"venture into the dungeon|\bdungeon\b"},
-        r"venture into the dungeon|\bdungeon\b",
+        None,
+        serve_idents=_VENTURE_SERVE_IDENTS,
     ),
     ("venture_matters", "you"): _spec(
         "Venture / dungeons",
         "dungeon-completion payoffs and dungeon-trigger doublers",
         {"oracle": r"venture into the dungeon|\bdungeon\b"},
-        r"venture into the dungeon|\bdungeon\b",
+        None,
+        serve_idents=_VENTURE_SERVE_IDENTS,
     ),
     # _matters sweep (ADR-0034): the energy split. energy_makers fires on cards
     # that PRODUCE energy (a real `energy` Effect — "you get {E}"); its avenue
     # serves the rest of the energy engine (more producers + the sinks that spend
-    # it). Same oracle search as the old combined lane.
+    # it).
+    # Serve on the lanes' idents (reads.keyword_resource_events). What the regex
+    # also served is phase gaps: Izzet Generatorium's energy replacement, a
+    # replicate / unearth cost paid in {E}.
     ("energy_makers", "you"): _spec(
         "Energy",
         "energy makers and energy sinks",
         {"oracle": r"\{e\}|energy counter"},
-        r"\{e\}|energy counter",
+        None,
+        serve_idents=_ENERGY_SERVE_IDENTS,
     ),
-    # The PAYOFF side of the energy split: a card that SPENDS / references energy
-    # without producing its own (a "Pay {E}{E}:" sink, a "whenever you get {E}"
-    # trigger, a doubler). It wants the producers that fuel it — same energy
-    # search pool.
+    # The PAYOFF side of the energy split: a card that SPENDS energy (a
+    # "Pay {E}{E}:" sink, a "you may pay {E}" trigger) or rewards getting it (a
+    # "whenever you get {E}" trigger). It wants the producers that fuel it.
     ("energy_matters", "you"): _spec(
         "Energy",
         "energy makers and energy sinks",
         {"oracle": r"\{e\}|energy counter"},
-        r"\{e\}|energy counter",
+        None,
+        serve_idents=_ENERGY_SERVE_IDENTS,
     ),
     # Devotion (CR 700.5) counts single-color mana SYMBOLS among permanents you control,
     # so the enablers are structurally heavy-pip permanents — a dimension oracle text
@@ -1064,7 +1097,14 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
         "Modified",
         "counters, Auras, and Equipment to keep creatures modified",
         {"oracle": r"\bmodified\b|\+1/\+1 counter|aura or equipment"},
-        r"\bmodified\b|\+1/\+1 counters?",
+        # Serve on the lanes' idents: the modified payoffs plus the
+        # +1/+1 counter package (makers, payoffs, doublers, proliferate — every
+        # counter is a modification). The losses are the +1/+1 package's own
+        # (blink-and-return-with-a-counter, tribute) and five "modified" cards
+        # whose predicate phase drops (Ian the Reckless, Lethal Exploit, Lethal
+        # Throwdown; Heir of the Ancient Fang and Lion Umbra still serve).
+        None,
+        serve_idents=_PLUS_ONE_SERVE_IDENTS | {"modified_matters|you|"},
         serve_types=("equipment", "aura"),
     ),
     ("has_mutate", "you"): _spec(
@@ -1080,21 +1120,27 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
     # sacrificed-trigger PAYOFF arm (food_matters) both serve the same Food
     # makers-plus-sacrifice-and-lifegain avenue. The union == the old
     # food_matters; only the role label differs.
+    #
+    # Serve on the lanes' idents: food_makers read granted / nested Food
+    # creation, a token replacement that adds a Food (Tippy-Toe, Peregrin Took)
+    # and the "artifacts you control are Foods" granters (Gourmand's Talent,
+    # Ragost); food_matters reads a forage (CR 701.61a) and a spell's additional
+    # Food sacrifice (Feed the Cycle). The regex's remainder is gift Foods only an
+    # opponent creates (CR 111.2) and two phase gaps (Osteomancer Adept's
+    # forage cast permission, The Fourth Doctor's reflexive Food).
     ("food_makers", "you"): _spec(
         "Food tokens",
         "Food makers plus sacrifice outlets and lifegain payoffs",
         {"oracle": r"\bfood token|foods? you control|sacrifice a food"},
-        # Food-GRANTERS (Ragost, The Food Court, Ygra: "are Foods in addition").
-        r"\bfood token|foods? you control|sacrifice a food"
-        r"|(?:are|is|becomes?) (?:an? )?foods? in addition",
+        None,
+        serve_idents=frozenset({"food_makers|you|", "food_matters|you|"}),
     ),
     ("food_matters", "you"): _spec(
         "Food token payoffs",
         "cards that sacrifice or reference Food tokens, plus lifegain payoffs",
         {"oracle": r"\bfood token|foods? you control|sacrifice a food"},
-        # Food-GRANTERS (Ragost, The Food Court, Ygra: "are Foods in addition").
-        r"\bfood token|foods? you control|sacrifice a food"
-        r"|(?:are|is|becomes?) (?:an? )?foods? in addition",
+        None,
+        serve_idents=frozenset({"food_makers|you|", "food_matters|you|"}),
     ),
     # Hand-spec overriding the mined sweep detector so the serve also credits color
     # GRANTERS / fixers — "are the chosen color" (Painter's Servant, Shifting Sky) and
@@ -1259,8 +1305,10 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
         "Token doubling",
         "token makers to multiply, plus other token doublers and go-wide payoffs",
         {"oracle": r"create [^.]*creature token|twice that many[^.]*tokens?"},
-        r"create [^.]*creature token"
-        r"|(?:twice that many|double the number of) [^.]*tokens?",
+        # Serve rides the lanes: the creature-token makers (amass, endure and
+        # populate included) and the other token doublers.
+        None,
+        serve_idents=_TOKEN_MAKER_IDENTS | {"token_doubling|you|"},
         extras=(
             _TOKEN_MAKER_EXTRA,
             _TOKEN_DOUBLER_EXTRA,

@@ -16,6 +16,7 @@ from mtg_utils._analysis.text_reads import _TOUGHNESS_VALUE_MIRROR
 from mtg_utils._analysis.tree_synthesis._shared import (
     _REMINDER,
     _synthetic_concept,
+    _unnamed_oracle,
 )
 from mtg_utils._card_ir.crosswalk import (
     AGGREGATE_QTY_TAGS,
@@ -387,14 +388,16 @@ def _arm_evasion_self(tree: ConceptTree) -> ConceptNode | None:
 _EXALTED_SYNTH_RX = re.compile(r"attacks alone|\bexalted\b", re.IGNORECASE)
 
 
-def _matches_exalted_idiom(oracle: str) -> bool:
-    return bool(_EXALTED_SYNTH_RX.search(_REMINDER.sub(" ", oracle or "")))
+def _matches_exalted_idiom(oracle: str, name: str = "") -> bool:
+    # The card's own name is not the keyword (The Book of Exalted Deeds,
+    # Exalted Angel — neither has or grants exalted, CR 702.83a).
+    return bool(_EXALTED_SYNTH_RX.search(_unnamed_oracle(oracle, name)))
 
 
 def _arm_exalted_lone_attacker(tree: ConceptTree) -> ConceptNode | None:
     """Synthesize an ``exalted_lone_attacker`` node for the textual grant /
     payoff tail (the deleted ``_EXALTED_TEXT_RX`` relocated verbatim)."""
-    if not _matches_exalted_idiom(tree.oracle or ""):
+    if not _matches_exalted_idiom(tree.oracle or "", tree.name or ""):
         return None
     return _synthetic_concept(
         arm_id="exalted_lone_attacker",

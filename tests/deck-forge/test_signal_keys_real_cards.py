@@ -85,6 +85,7 @@ _REAL_CASES: dict[str, str] = {
     "conditional_self_protection": "Zurgo Helmsmasher",
     "conjure_makers": "Brave Meadowguard",
     "connive_makers": "Security Bypass",
+    "connive_matters": "Glorious Purpose",
     "control_exchange": "Meneldor, Swift Savior",
     "convoke_makers": "Chief Engineer",
     "convoke_matters": "Joyful Stormsculptor",
@@ -112,6 +113,7 @@ _REAL_CASES: dict[str, str] = {
     "damage_equal_power": "Fling",
     "damage_prevention": "Urza's Armor",
     "damage_redirect": "Cho-Manno, Revolutionary",
+    "damage_received_matters": "Rite of Passage",
     "damage_reflect": "Spiteful Sliver",
     "damage_to_opp_matters": "Deus of Calamity",
     "damage_to_you_punish": "Flameblade Angel",
@@ -296,7 +298,7 @@ _REAL_CASES: dict[str, str] = {
     "opponent_exile_matters": "Umbris, Fear Manifest",
     "opponent_search_matters": "Ob Nixilis, Unshackled",
     "outlaw_matters": "Laughing Jasper Flint",
-    "partner_background": "Astarion, the Decadent",
+    "partner_background": "Thrasios, Triton Hero",
     "party_matters": "Archpriest of Iona",
     "per_target_payoff": "Hinata, Dawn-Crowned",
     "permanent_etb": "Amareth, the Lustrous",
@@ -636,9 +638,9 @@ def test_blood_makers_fires_from_a_choice_list_maker():
 def test_blood_makers_fires_from_a_recovered_granted_ability_maker():
     """Token-subtype maker (granted ability): Ceremonial Knife grants the equipped
     creature a quoted "create a Blood token" trigger — the typed Token node lives
-    inside a GrantTrigger modification the concept decoration doesn't descend;
-    served by the gap-gated granted_trigger_blood_token_maker bridge
-    (bridge_ledger.BRIDGES) until the overlay walks granted-trigger bodies."""
+    inside a GrantTrigger modification, which ``_resource_token_makers`` reads
+    through ``iter_nested_granted_effect_concepts`` (the
+    granted_trigger_blood_token_maker bridge retired 2026-10-18)."""
     keys = {s.key for s in test_signals("Ceremonial Knife")}
     assert "blood_makers" in keys
 

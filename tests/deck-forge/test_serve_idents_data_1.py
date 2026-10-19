@@ -348,3 +348,107 @@ def test_plus_one_serve_reads_the_keyword_actions(key):
     assert serve.matches(_card("Sheer Drop"))  # awaken
     # The regex served an energy doubler off "twice that many".
     assert not serve.matches(_card("Aether Refinery"))
+
+
+def test_damage_redirect_serve_reads_the_static_redirect():
+    serve = _ident_serve(
+        "damage_redirect", "you", "damage_redirect|you|", "damage_prevention|you|"
+    )
+    # "All damage that would be dealt to you is dealt to enchanted creature
+    # instead" (CR 614.9) and the one-shot redirects both serve.
+    assert serve.matches(_card("Pariah"))
+    assert serve.matches(_card("Palisade Giant"))
+    assert serve.matches(_card("Harm's Way"))
+    # A granted prevention ability (CR 615) blanks the soaked damage too.
+    assert serve.matches(_card("Samite Blessing"))
+    # A life floor redirects nothing: Worship's ruling says the damage is still
+    # dealt. It is board protection, not this avenue.
+    assert not serve.matches(_card("Worship"))
+    assert not serve.matches(_card("Ali from Cairo"))
+
+
+def test_counter_place_trigger_serve_is_the_lane():
+    serve = _ident_serve("counter_place_trigger", "you", "counter_place_trigger|you|")
+    # A granted "whenever counters are put on this" trigger (CR 122.6).
+    assert serve.matches(_card("Cursed Wombat"))
+    assert serve.matches(_card("Danny Pink"))
+    # You putting counters on a creature you don't control is your payoff.
+    assert serve.matches(_card("Kros, Defense Contractor"))
+    assert serve.matches(_card("Generous Patron"))
+    assert serve.matches(_card("Fathom Mage"))
+    # An opponent's placement, and a countdown on the card itself.
+    assert not serve.matches(_card("Bold Plagiarist"))
+    assert not serve.matches(_card("Midnight Clock"))
+    # A doubler places nothing to trigger on.
+    assert not serve.matches(_card("Doubling Season"))
+
+
+def test_debuff_serve_reads_variable_one_sided_and_granted_shrinks():
+    serve = _ident_serve(
+        "debuff_makers", "any", "debuff_makers|any|", "debuff_makers|you|"
+    )
+    assert serve.matches(_card("Dead Weight"))
+    assert serve.matches(_card("Disfigure"))
+    # A static "-X/-X, where X is …" (CR 613.4c, layer 7c); phase writes the
+    # dynamic amount as a negated quantity.
+    assert serve.matches(_card("Kagemaro's Clutch"))
+    assert serve.matches(_card("Meishin, the Mind Cage"))  # "-X/-0", all creatures
+    # One-sided: "Creatures your opponents control get -X/-0".
+    assert serve.matches(_card("Roilmage's Trick"))
+    # A granted "{B}, {T}: Put a -1/-1 counter on target creature" (CR 113.1a).
+    assert serve.matches(_card("Sadistic Obsession"))
+    # A one-shot base 0/1 on the opponents' creatures (CR 613.4b, layer 7b).
+    assert serve.matches(_card("Flatline"))
+    # "Each opponent blights 1": -1/-1 counters on their creature (CR 701.68a).
+    assert serve.matches(_card("High Perfect Morcant"))
+    # A whole board turned into 1/1 Frogs: retyping creatures animates nothing.
+    assert serve.matches(_card("Polymorphist's Jest"))
+    # A delayed "it gets -1/-0" on an attacker; on a noncreature card phase's
+    # SelfRef is the attacking creature.
+    assert serve.matches(_card("Jace, Architect of Thought"))
+    # The regex served a creature shrinking itself, blight (-1/-1 counters on
+    # a creature you control, CR 701.68a) and an animation's 1/1 (the
+    # animation is a CR 613.1d type change; the P/T it sets, 613.4b, is the
+    # new creature's).
+    assert not serve.matches(_card("Flowstone Giant"))
+    assert not serve.matches(_card("Blighted Blackthorn"))
+    assert not serve.matches(_card("Living Lands"))
+    # A single-target base-P/T set is a neutralize, not a -1/-1 enabler.
+    assert not serve.matches(_card("Turn to Frog"))
+    assert not serve.matches(_card("Diminish"))
+    assert not serve.matches(_card("Metamorphic Blast"))
+
+
+def test_tapper_serve_reads_granted_tap_abilities():
+    serve = _ident_serve("tapper_engine", "any", "tapper_engine|any|")
+    assert serve.matches(_card("Gideon's Lawkeeper"))
+    assert serve.matches(_card("Niblis of Frost"))
+    # An Aura's / Equipment's granted "{T}: Tap target creature" (CR 113.1a).
+    assert serve.matches(_card("Debtor's Pulpit"))
+    assert serve.matches(_card("Siren Song Lyre"))
+    # "This creature doesn't untap during your untap step" is a drawback on
+    # itself, not a lock.
+    assert not serve.matches(_card("Brass Gnat"))
+
+
+def test_damage_received_matters_serve_is_the_lane():
+    serve = _ident_serve(
+        "damage_received_matters",
+        "you",
+        "damage_received_matters|you|",
+        "damage_redirect|you|",
+    )
+    assert serve.matches(_card("Rite of Passage"))
+    assert serve.matches(_card("Pariah"))
+    assert not serve.matches(_card("Boros Reckoner"))
+
+
+def test_damage_redirect_soak_payoffs_ride_the_lane():
+    spec = spec_for(_sig("damage_redirect"))
+    assert spec is not None
+    (soak,) = [ex for ex in spec.extras if ex.label == "Profit from the soaked damage"]
+    assert soak.serve is not None
+    assert soak.serve.oracle is None
+    assert soak.serve.matches(_card("Druid's Call"))
+    assert soak.serve.matches(_card("Spiteful Shadows"))
+    assert not soak.serve.matches(_card("Brash Taunter"))

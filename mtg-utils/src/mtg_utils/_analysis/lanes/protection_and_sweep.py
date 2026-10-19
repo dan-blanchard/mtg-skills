@@ -1623,14 +1623,27 @@ def _sweep_kept_mirrors(tree: ConceptTree) -> list[Signal]:
     relocation of the deleted flat mirror, gap-free. See the
     ``_SWEEP_SYNTH_ROWS`` table in ``tree_synthesis.py`` for the per-lane
     CR grounding + structural-absence re-probe. Zero oracle text / regex at
-    lane time — reads the synthetic ``synth_<key>`` concept node.
+    lane time — reads the synthetic ``synth_<key>`` concept node, plus
+    attractions_matter's typed open / roll-to-visit nodes.
     """
     concepts = {c.concept for c in tree.iter_concepts()}
-    return [
+    out = [
         Signal(key, scope, "", "", tree.name, "high")
         for key, scope in _SWEEP_SYNTH_KEYS
         if f"synth_{key}" in concepts
     ]
+    # attractions_matter has a structural read after all: phase types opening
+    # an Attraction (CR 701.51b: put the top card of your Attraction deck onto
+    # the battlefield) and rolling to visit (CR 701.52a) as their own effect
+    # nodes. The synth row reads the reminder-stripped oracle, so Step Right
+    # Up's bare "Open two Attractions." and Line Cutter's roll to visit never
+    # reached it. The row stays for the payoffs phase leaves an ``Unknown``
+    # trigger mode ("Whenever you visit an Attraction" — Motion Sickness).
+    if "synth_attractions_matter" not in concepts and tree.has_typed(
+        "OpenAttractions", "RollToVisitAttractions"
+    ):
+        out.append(Signal("attractions_matter", "you", "", "", tree.name, "high"))
+    return out
 
 
 def _each_mode_player(tree: ConceptTree) -> list[Signal]:

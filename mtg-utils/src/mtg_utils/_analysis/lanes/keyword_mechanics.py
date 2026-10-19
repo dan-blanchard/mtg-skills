@@ -26,6 +26,7 @@ from mtg_utils._card_ir.crosswalk import (
     ConceptNode,
     ConceptTree,
     additional_phase_kind,
+    answers_its_target,
     change_zone_dirs,
     color_count_preds,
     condition_tags,
@@ -54,6 +55,8 @@ from mtg_utils._card_ir.crosswalk import (
     player_counter_kind,
     power_threshold_preds,
     recipient_tag,
+    references_modified,
+    static_mode_tag,
     tag_of,
     trigger_scope,
 )
@@ -872,51 +875,11 @@ def _count_operand_lanes(tree: ConceptTree) -> list[Signal]:
 
 
 def _modified_matters(tree: ConceptTree) -> list[Signal]:
-    """modified_matters — a Kamigawa-NEO "modified creature" payoff (CR 700.9: a
-    permanent is modified if it has a counter, is equipped, or is enchanted by an
-    Aura its controller controls). phase DERIVES the CR-700.9 union as a single
-    ``Modified`` predicate, so the lane reads that tag off a non-cost subject /
-    count-operand / static-affected filter, controller-gated to ``You`` (Chishiro,
-    Thundering Raiju). A removal "destroy target modified creature" (controller
-    any) is NOT a build-around. The bare ``\\bmodified\\b`` word references stay a
-    ``live_only`` mirror. Scope ``you``.
+    """modified_matters — a payoff of your modified creatures (CR 700.9), read by
+    :func:`~mtg_utils._card_ir.crosswalk.reads.references_modified`. Scope ``you``.
     """
-    for c in tree.iter_concepts():
-        if c.role == "cost":
-            continue
-        for filt in (effect_filter(c.node), count_operand_filter(c.node)):
-            if (
-                filt is not None
-                and "Modified" in filter_predicates(filt)
-                and filter_controller(filt) == "You"
-            ):
-                return [Signal("modified_matters", "you", "", c.raw, tree.name, "high")]
     for unit in tree.units:
-        if not unit.statics:
-            continue
-        aff = getattr(unit.node, "affected", None)
-        if (
-            aff is not None
-            and "Modified" in filter_predicates(aff)
-            and filter_controller(aff) == "You"
-        ):
-            return [Signal("modified_matters", "you", "", "", tree.name, "high")]
-    # recall-completion b2 (ADR-0034): the TRIGGER-subject Modified predicate. The
-    # effect_filter / count_operand_filter / static-affected reads above never see a
-    # trigger's watched subject, so "whenever a MODIFIED creature you control
-    # attacks / deals combat damage" (Arna Kennerüd, Kami of Celebration, One with
-    # the Kami) was missed. Reads the trigger's ``valid_card`` for a Modified
-    # predicate, controller You (a symmetric / opponent modified reference is not a
-    # your-board payoff — same gate the effect arm uses). CR 700.9.
-    for unit in tree.units:
-        if unit.origin != "trigger":
-            continue
-        vc = getattr(unit.node, "valid_card", None)
-        if (
-            vc is not None
-            and "Modified" in filter_predicates(vc)
-            and filter_controller(vc) == "You"
-        ):
+        if references_modified(unit):
             return [Signal("modified_matters", "you", "", "", tree.name, "high")]
     return []
 
@@ -956,15 +919,20 @@ def _predicate_build_around(tree: ConceptTree) -> list[Signal]:
             seen.add(key)
             out.append(Signal(key, "you", "", raw, tree.name, "high"))
 
-    def handle(filt: object, raw: str) -> None:
+    def handle(filt: object, raw: str, *, site: str = "payoff") -> None:
+        """``site`` is what the filter describes: ``"payoff"`` (a subject,
+        watcher or count), ``"answer"`` (the target of an effect that answers
+        it — colorless hate, not a build-around, unless the target is yours),
+        or ``"your_library"`` (a cast-from-the-top permission: the cards are
+        yours though the filter names no controller)."""
         if filt is None:
             return
         ctrl = filter_controller(filt)
-        you = ctrl == "You"
+        you = ctrl == "You" or (site == "your_library" and ctrl is None)
         shared = ctrl in ("You", "Any", None)  # you or an unscoped global
         for cmp_, cnt in color_count_preds(filt):
             if cmp_ == "EQ" and cnt == 0:
-                if shared:
+                if shared and (you or site != "answer"):
                     fire("colorless_matters", raw)
             elif you and ((cmp_ == "GE" and cnt >= 2) or (cmp_ == "EQ" and cnt >= 2)):
                 fire("multicolor_matters", raw)
@@ -1000,7 +968,16 @@ def _predicate_build_around(tree: ConceptTree) -> list[Signal]:
                     fire("colorless_matters", c.raw)
                     break
             continue
-        handle(effect_filter(c.node), c.raw)
+        # A colorless filter on an effect that answers its target ("Counter
+        # target colorless spell" — Ceremonious Rejection, Consign to Memory;
+        # "Exile target colorless creature" — Infernal Reckoning) is colorless
+        # HATE, not a build-around (CR 701.6a / 701.8a) — unless the target is
+        # yours. Only colorless_matters is vetoed; the other keys keep the read.
+        handle(
+            effect_filter(c.node),
+            c.raw,
+            site="answer" if answers_its_target(c.node) else "payoff",
+        )
         handle(count_operand_filter(c.node), c.raw)
     for unit in tree.units:
         # ADR-0038 W3 batch 2 unit 5: every static-ability DEF reachable
@@ -1011,7 +988,19 @@ def _predicate_build_around(tree: ConceptTree) -> list[Signal]:
         # since a mode-only static like Delney's CantBeBlockedBy carries no
         # ``modifications`` list to pair with).
         for defn in iter_static_defs(unit.node):
-            handle(getattr(defn, "affected", None), "")
+            # A cast-from-the-top permission names cards in YOUR library with
+            # no controller on its filter (Assemble the Players: "cast a
+            # creature spell with power 2 or less from the top of your
+            # library"), so the filter is yours.
+            handle(
+                getattr(defn, "affected", None),
+                "",
+                site=(
+                    "your_library"
+                    if static_mode_tag(defn) == "TopOfLibraryCastPermission"
+                    else "payoff"
+                ),
+            )
         if unit.origin == "trigger":
             # The trigger's OWN watched-subject filter ("whenever a
             # creature you control with power N or less enters/attacks" —
@@ -1058,8 +1047,7 @@ def _predicate_build_around(tree: ConceptTree) -> list[Signal]:
             break
     # ADR-0038 deferral sweep unit 6: the colorless cares-about REFERENCE
     # idiom phase drops the "colorless" qualifier from entirely (Ghostfire
-    # Blade / Ugin the Ineffable's dropped-predicate cost_reduction,
-    # Consign to Memory's colorless-blind counter_spell subject).
+    # Blade / Ugin the Ineffable's dropped-predicate cost_reduction).
     # tree_synthesis._arm_colorless_matters fills the gap from tree.oracle,
     # gated on has_structural_colorless_matters (the SAME typed read the
     # checks above run) — read here by concept NAME, mirroring the

@@ -39,10 +39,11 @@ def test_24g_colorless_historic_scaling_read_structure():
     # not the single representative card each key's _REAL_CASES entry proves.
     # colorless_matters (CR 105.2c) — _recover_colorless_subject synthesizes a
     # ColorCount:EQ:0 subject Filter for the dropped "colorless" qualifier, across
-    # three independent anchors (equip cost-reduce / cast-reduce / counter-target):
+    # independent anchors (equip cost-reduce / cast-reduce):
     assert ("colorless_matters", "you") in _real("Ghostfire Blade")  # equip cost-reduce
     assert ("colorless_matters", "you") in _real("Ugin, the Ineffable")  # cast-reduce
-    assert ("colorless_matters", "you") in _real("Consign to Memory")  # counter-target
+    # A counter-target is colorless HATE, not a payoff (CR 701.6a):
+    assert ("colorless_matters", "you") not in _real("Consign to Memory")
     # historic_matters (CR 700.6) — the cost-borne case (Sanctum Spirit's "Discard a
     # historic card" activation cost phase collapses to cost='discard'):
     assert ("historic_matters", "you") in _real("Sanctum Spirit")

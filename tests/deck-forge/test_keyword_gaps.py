@@ -257,17 +257,19 @@ class TestMinusCountersMatter:
 
 class TestCyclingMatters:
     """Cycling (CR 702.29) payoffs use "cycle or discard" wording; discard_matters'
-    serve catches 0/32 (it needs a literal "you discard")."""
+    old regex serve caught 0/32 (it needed a literal "you discard")."""
 
     def test_cycling_payoff_commander_emits(self):
         # Drake Haven's "Whenever you cycle or discard a card" payoff fires cycling_matters
         # on the real IR (the cycling_payoff marker), not the deleted regex path.
         assert "cycling_matters" in _hyb("Drake Haven")
 
-    def test_cycling_payoff_served_not_by_discard_matters(self):
+    def test_cycling_payoff_served_by_cycling_and_discard_matters(self):
         assert serves(test_card("Drake Haven"), _sig("cycling_matters", "you"))
-        # disjoint from discard_matters (its serve needs "you discard", not "cycle or discard")
-        assert not serves(test_card("Drake Haven"), _sig("discard_matters", "you"))
+        # discard_matters serves on its lanes' idents, and a "cycle or discard"
+        # payoff is a discard payoff: cycling's cost discards the card (CR
+        # 702.29a, "[Cost], Discard this card: Draw a card.").
+        assert serves(test_card("Drake Haven"), _sig("discard_matters", "you"))
 
 
 class TestKickedSpellMatters:

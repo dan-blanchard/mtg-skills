@@ -497,14 +497,16 @@ def test_damage_redirect_serves_creature_dealt_damage_payoffs():
     # NOT generic enrage ("whenever THIS creature is dealt damage" — Siegehorn): the
     # original creature is never dealt the redirected damage, so its trigger can't fire.
     # Real oracle.
+    # The main serve rides the redirect / prevention lanes; the payoffs are a
+    # sub-avenue (no lane reads that recipient filter).
     sig = _sig("damage_redirect", "you")
     rite_of_passage = _card("Rite of Passage")
     druids_call = _card("Druid's Call")
-    assert serves(rite_of_passage, sig) is True
-    assert serves(druids_call, sig) is True
+    assert _lane_covers(rite_of_passage, sig) is True
+    assert _lane_covers(druids_call, sig) is True
     # Generic enrage targets ITSELF, which never receives the redirected damage.
     siegehorn = _card("Siegehorn Ceratops")
-    assert serves(siegehorn, sig) is False
+    assert _lane_covers(siegehorn, sig) is False
 
 
 def test_outlaw_matters_serves_token_makers_and_recursion():
@@ -3024,12 +3026,14 @@ def test_burn_serves_land_enter_punishers():
 
 def test_redirect_lane_serves_damage_prevention():
     """A redirect-to-self commander (Hazduhr, Cho-Manno) also wants damage PREVENTION —
-    Battlefield Medic, Worship — to blank the damage it soaks."""
+    Battlefield Medic — to blank the damage it soaks (CR 615). Worship is a life
+    floor, not prevention: its ruling says the damage is still dealt, so it blanks
+    nothing the soak creature takes (board_protection, not this avenue)."""
     sig = _sig("damage_redirect")
     medic = _card("Battlefield Medic")
     worship = _card("Worship")
     assert _lane_covers(medic, sig)
-    assert _lane_covers(worship, sig)
+    assert not _lane_covers(worship, sig)
 
 
 def test_forced_attack_serves_extra_combat():

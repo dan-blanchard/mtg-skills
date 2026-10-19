@@ -134,6 +134,7 @@ SERVED_SIGNAL_KEYS: frozenset[str] = frozenset(
         "clone_makers",
         "token_copy_makers",
         "connive_makers",
+        "connive_matters",
         "explore_makers",
         "suspect_makers",
         "combat_damage_to_opp",
@@ -522,6 +523,8 @@ SERVED_SIGNAL_KEYS: frozenset[str] = frozenset(
         "copy_limit",
         "base_power_matters",
         "damage_redirect",
+        # The soak payoffs a redirect-to-self commander fires (Rite of Passage).
+        "damage_received_matters",
         # NB: land_destruction's batch-8 KEPT verdict (the membership-gated
         # structural arm reproduced the live 23-card set 23/23 but added 2
         # non-byte-identical extras — Goblin Grenadiers, Orcish Settlers)

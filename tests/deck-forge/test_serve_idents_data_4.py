@@ -147,3 +147,12 @@ def test_suspect_matters_serves_payoffs_and_the_makers_that_feed_them():
 def test_cmdzone_ability_serves_the_lane():
     serve = _ident_serve("cmdzone_ability")
     assert serve.matches(_card("Oloro, Ageless Ascetic"))
+
+
+def test_suspend_matters_serves_time_counter_references_not_its_own_name():
+    serve = _ident_serve("suspend_matters", "suspend_makers", "extra_upkeep")
+    # "Target permanent or suspended card" (CR 702.62b) names time counters.
+    assert serve.matches(_card("Clockspinning"))
+    assert serve.matches(_card("Paradox Haze"))
+    # Impending Flux only names itself.
+    assert not serve.matches(_card("Impending Flux"))

@@ -11,10 +11,11 @@ phase / network.
 The baked granularity fixtures are load-bearing: a flat-overlay regression (one
 that collapsed the per-ability / whole-card join structure) fails these loud.
 
-  * **(a) per-ability sibling co-occurrence** — Psychic Frog & Nezahal must NOT
-    fire ``discard_makers`` (their draw and discard live in DIFFERENT ability
-    units, and the discard is a cost), while Faithless Looting / The Locust God
-    (draw + discard in one unit) must.
+  * **(a) per-ability sibling co-occurrence** — Psychic Frog & Nezahal are no
+    loot (their draw and discard live in DIFFERENT ability units, and the
+    discard is a cost), while Faithless Looting / The Locust God (draw + discard
+    in one unit) are; the two fire ``discard_makers`` through its discard-cost
+    arm instead.
   * **(b) per-ability aggregation** — the animate-land split-subject (Natural
     Emergence / Sylvan Advocate) reconstructs ``land_creatures_matter``; the
     symmetric all-lands animate (Living Plane) is correctly scoped out.
@@ -249,12 +250,59 @@ def test_change_zone_dirs_reads_origin_destination():
     [
         ("Faithless Looting", True),  # draw + discard in ONE ability unit
         ("The Locust God", True),  # activated loot: draw effect + discard
-        ("Psychic Frog", False),  # draw TRIGGER + discard COST, diff units
-        ("Nezahal, Primal Tide", False),  # draw trigger + discard cost, diff units
+        # Draw TRIGGER + discard COST in different units: no loot, but the
+        # "Discard a card:" cost you pay makes a discard (the cost arm).
+        ("Psychic Frog", True),
+        ("Nezahal, Primal Tide", True),
     ],
 )
 def test_discard_makers_per_ability_co_occurrence(name, should_fire):
     assert (("discard_makers", "you", "") in _idents(name)) is should_fire
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Fauna Shaman",  # "{G}, {T}, Discard a creature card:"
+        "Lion's Eye Diamond",  # "Discard your hand, Sacrifice this artifact:"
+        "Amok",  # "{1}, Discard a card at random:" (CR 701.9b)
+        "Raffine's Informant",  # "it connives" (CR 701.50a)
+        "Security Bypass",  # a granted connive
+    ],
+)
+def test_discard_makers_reads_discard_costs_and_connive(name):
+    """A discard cost you pay makes a discard each time you pay it, a random
+    one included; connive is a draw then a discard (CR 701.50a: "that
+    permanent's controller draws a card, then discards a card")."""
+    assert ("discard_makers", "you", "") in _idents(name)
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Krosan Tusker",  # cycling's "Discard this card" is the cycling lanes'
+        "Mind Rot",  # the opponent discards: opponent_discard
+        "Skull Rend",  # "Those players each discard two cards at random."
+        # A forced payment to keep the permanent, not a discard a deck is
+        # built on (the upkeep-payment verdict): echo's "Discard a card"
+        # (CR 702.30a) and "sacrifice it unless you discard a creature card".
+        "Deepcavern Imp",
+        "Hidden Horror",
+        "Avatar of Discord",
+    ],
+)
+def test_discard_makers_skips_cycling_opponent_and_forced_discards(name):
+    assert "discard_makers" not in _keys(name)
+
+
+@pytest.mark.parametrize("name", ["Rona, Sheoldred's Faithful", "Alien Symbiosis"])
+def test_discard_outlet_reads_a_graveyard_cast_discard(name):
+    """A graveyard cast "by discarding a card in addition to paying its other
+    costs": the discard is a cost you choose to pay and aim (CR 601.2f), so the
+    card is an outlet."""
+    idents = _idents(name)
+    assert ("discard_outlet", "you", "") in idents
+    assert ("discard_makers", "you", "") in idents
 
 
 def test_psychic_frog_draw_and_discard_are_in_different_units():
@@ -576,10 +624,18 @@ def test_token_maker_copy_populate_boundary_shed():
     existing Rite of Replication pin (a corpus-wide live-vs-crosswalk
     set-diff confirms every blank-subject token_maker live_only ident on
     the corpus traces to a copy/Populate face on that same card — no
-    oracle-text pattern proxy needed, the diff is exact)."""
-    for name in ("Cackling Counterpart", "Trostani, Selesnya's Voice", "Mirror Match"):
+    oracle-text pattern proxy needed, the diff is exact).
+
+    Populate is the exception: CR
+    701.36a's copy is always of a creature token you control, so it also makes
+    a creature token (``crosswalk.keyword_token_creations``, subject "") while
+    staying ``token_copy_makers``. A copy of a nontoken creature stays out."""
+    for name in ("Cackling Counterpart", "Mirror Match"):
         assert "token_maker" not in _keys(name)
         assert ("token_copy_makers", "you", "") in _idents(name)
+    trostani = _idents("Trostani, Selesnya's Voice")
+    assert ("token_copy_makers", "you", "") in trostani
+    assert ("token_maker", "you", "") in trostani
 
 
 def test_token_maker_directed_controller_grant_shed():
@@ -3256,8 +3312,33 @@ def test_gain_control_not_fired_by_giveaway(name):
     ],
 )
 def test_gain_control_youtheft_preserved(name):
-    """Genuine you-take-control still fires past the give-away guard (CR 720)."""
+    """Genuine you-take-control still fires past the give-away guard (CR 110.2)."""
     assert ("gain_control", "you", "") in _idents(name)
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Bribery",  # search target opponent's library ... under your control
+        "Acquire",
+        "Telemin Performance",  # target opponent reveals until a creature card
+        "Chamber of Manipulation",  # an Aura-granted activated theft
+        "Wake the Dragon",  # a token's granted combat-damage theft trigger
+    ],
+)
+def test_gain_control_reads_library_seizes_and_granted_theft(name):
+    """A card put onto the battlefield under your control from an OPPONENT's
+    library is a permanent you control but don't own (CR 110.2;
+    ``reads.seats_opponent_library_card``); a gain-control inside a granted
+    ability or trigger is read through ``iter_nested_granted_effect_concepts``.
+    """
+    assert ("gain_control", "you", "") in _idents(name)
+
+
+def test_gain_control_library_seize_needs_an_opponents_library():
+    """Animate Dead returns a creature from any graveyard under your control:
+    reanimation, not a seize from an opponent's library."""
+    assert "gain_control" not in _keys("Animate Dead")
 
 
 def test_enchantments_matter_not_fired_by_modal_edict():
@@ -4422,7 +4503,6 @@ def test_graveyard_makers_travel_through_caradhras_mines_branch_only():
         "Tocasia, Dig Site Mentor",  # a granted "{T}: Surveil 1."
         "Millikin",  # "{T}, Mill a card: Add {C}."
         "Sinister Concoction",  # mill a card inside a composite cost
-        "Deep Spawn",  # "sacrifice Deep Spawn unless you mill two cards"
         "Manifest Dread",  # the card not manifested goes to your graveyard
     ],
 )
@@ -4434,6 +4514,20 @@ def test_graveyard_makers_surveil_and_self_mill_cost(name):
     effect, so all come through ``self_graveyard_fills``. Surveil keeps
     ``topdeck_selection`` too."""
     assert ("graveyard_makers", "you", "") in _idents(name)
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Deep Spawn",  # "sacrifice Deep Spawn unless you mill two cards"
+        "Masticore",  # "sacrifice this creature unless you discard a card"
+    ],
+)
+def test_graveyard_makers_skips_a_tax(name):
+    """A payment the card imposes to keep itself is a tax, not a graveyard
+    engine a deck builds on (Dan's upkeep-payment verdict), though the milled
+    or discarded card does land in your graveyard (CR 701.17a, 701.9a)."""
+    assert ("graveyard_makers", "you", "") not in _idents(name)
 
 
 @pytest.mark.parametrize("name", ["Unending Whisper", "Electro's Bolt"])
@@ -5078,6 +5172,26 @@ def test_connive_makers_excludes_connive_state_payoff(name):
     structural read stays doer-only by construction, so connive_makers
     correctly never fires here — the payoff belongs to a separate key."""
     assert "connive_makers" not in _keys(name)
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Glorious Purpose",
+        "Iron Monger, Sadistic Tycoon",
+        # "If a creature you control would connive, instead you draw a card,
+        # then that creature connives." — a replacement of the connive event.
+        "Leader, Super-Genius",
+    ],
+)
+def test_connive_matters_reads_the_connive_payoff(name):
+    """The payoff key the doer-only connive_makers leaves out: a ``Connives``
+    trigger watching a creature you control, or a replacement of its connive."""
+    assert ("connive_matters", "you", "") in _idents(name)
+
+
+def test_connive_matters_skips_a_connive_doer():
+    assert "connive_matters" not in _keys("Raffine's Informant")
 
 
 @pytest.mark.parametrize("name", ["Act on Impulse", "Aloe Alchemist"])
@@ -12219,11 +12333,31 @@ def test_counter_place_trigger_typed_lore_gate():
 
 def test_counter_place_trigger_effect_and_opponent_vetoes():
     """Cathars' Crusade PLACES counters via effect (ChangesZone trigger +
-    PutCounterAll — no CounterAdded mode) and stays out; Kros's
-    opponent-side population punisher ("creature you don't control" —
-    valid_card controller Opponent) is vetoed (checklist #6)."""
+    PutCounterAll — no CounterAdded mode) and stays out. The placer rides
+    ``valid_target``: Bold Plagiarist watches an OPPONENT put counters and is
+    vetoed (checklist #6), while Kros and Generous Patron watch YOU put
+    counters on a creature you don't control — Generous Patron's ruling: it
+    triggers "when you put counters on a creature you don't control" — a
+    payoff of your own placement (CR 122.6)."""
     assert "counter_place_trigger" not in _keys("Cathars' Crusade")
-    assert "counter_place_trigger" not in _keys("Kros, Defense Contractor")
+    assert "counter_place_trigger" not in _keys("Bold Plagiarist")
+    assert ("counter_place_trigger", "you", "") in _idents("Kros, Defense Contractor")
+    assert ("counter_place_trigger", "you", "") in _idents("Generous Patron")
+
+
+@pytest.mark.parametrize("name", ["Cursed Wombat", "Danny Pink"])
+def test_counter_place_trigger_reads_a_granted_trigger(name):
+    """ "Permanents / Creatures you control have 'Whenever one or more counters
+    are put on this …'": the payoff is a GrantTrigger, read through
+    ``iter_nested_trigger_defs``."""
+    assert ("counter_place_trigger", "you", "") in _idents(name)
+
+
+def test_counter_place_trigger_skips_a_self_countdown():
+    """Midnight Clock's "When the twelfth hour counter is put on this
+    artifact" is a countdown the card feeds itself — the Saga-chapter shape
+    (CR 714.2b) — not a payoff for the deck's counter placement."""
+    assert "counter_place_trigger" not in _keys("Midnight Clock")
 
 
 def test_tribal_etb_multi_vocab_gate():
@@ -13831,9 +13965,11 @@ def test_suspend_matters_mirror_breadth_and_boundary():
     """CR 702.62: the mirror deliberately fires bearers (un-parenthesized
     "Suspend 4—{1}{U}" survives stripping — Ancestral Vision, Jhoira),
     time-counter engines (As Foretold), Vanishing (Aven Riftwatcher) and
-    Impending (Overlord of the Mistmoors) — breadth intended; "suspended
-    card" does NOT match \\bsuspend\\b (Clockspinning — the sharpest
-    boundary) and Time Warp never fires."""
+    Impending (Overlord of the Mistmoors) — breadth intended; Time Warp
+    never fires. Clockspinning's "suspended card" doesn't match the mirror's
+    \\bsuspend\\b, but its target's time-counter predicate (CR 702.62b) is
+    the lane's structural read — see
+    ``test_a_time_counter_reference_is_suspend_matters``."""
     for name in (
         "Ancestral Vision",
         "As Foretold",
@@ -13842,7 +13978,6 @@ def test_suspend_matters_mirror_breadth_and_boundary():
         "Overlord of the Mistmoors",
     ):
         assert ("suspend_matters", "you", "") in _idents(name), name
-    assert "suspend_matters" not in _keys("Clockspinning")
     assert "suspend_matters" not in _keys("Time Warp")
 
 
@@ -15778,11 +15913,14 @@ def test_graveyard_matters_delirium_condition():
 
 
 def test_graveyard_matters_morbid_count_operand():
-    """Morbid ("if a creature died this turn") keys off
-    ``ZoneChangeCountThisTurn`` with ``to: Graveyard`` — CR 700.4's "dies" IS
-    a battlefield→graveyard zone change. Scavenging Ghoul's counter-per-death
-    effect amount reads it directly (not via a condition)."""
-    assert ("graveyard_matters", "you", "") in _idents("Scavenging Ghoul")
+    """A death count is no graveyard payoff: Morbid ("if a creature died this
+    turn") and Scavenging Ghoul's counter-per-death amount key off a
+    battlefield-to-graveyard ``ZoneChangeCountThisTurn`` (CR 700.4: "dies"
+    means "is put into a graveyard from the battlefield") — a death payoff
+    (``death_matters``), not a payoff on cards in your graveyard."""
+    keys = _keys("Scavenging Ghoul")
+    assert "graveyard_matters" not in keys
+    assert "death_matters" in keys
 
 
 def test_graveyard_matters_last_resort_mirror_recovery():
@@ -15869,11 +16007,14 @@ def test_graveyard_matters_static_scaler_offset_unwrap():
 
 
 def test_graveyard_matters_effect_multiply_unwrap():
-    """The effect count-operand read unwraps a ``Multiply`` scalar wrapper
-    (CR 700.4 — "dies" is a battlefield→graveyard zone change): Silent-Chant
-    Zubera's "gain 2 life FOR EACH Zubera that died this turn" wraps its
-    ``ZoneChangeCountThisTurn`` ``Ref`` in a ``Multiply(factor=2, …)``."""
-    assert ("graveyard_matters", "you", "") in _idents("Silent-Chant Zubera")
+    """The effect count-operand read unwraps a ``Multiply`` scalar wrapper:
+    Silent-Chant Zubera's "gain 2 life FOR EACH Zubera that died this turn"
+    wraps its ``ZoneChangeCountThisTurn`` ``Ref`` in a ``Multiply(factor=2,
+    …)`` — reached, and read as the death count it is (CR 700.4), not a
+    graveyard payoff."""
+    keys = _keys("Silent-Chant Zubera")
+    assert "graveyard_matters" not in keys
+    assert "death_matters" in keys
 
 
 def test_graveyard_matters_count_marker_condition_deep_scan():
@@ -15966,25 +16107,16 @@ def test_graveyard_matters_choose_from_zone_gain():
 
 
 def test_graveyard_matters_sibling_zone_tag_bleed_shed():
-    """SHED (LEGACY over-fire): Necromancer's Covenant's "exile all
-    creature cards from target player's graveyard, then create a 2/2
-    black Zombie creature token for each card exiled this way" has TWO
-    effects sharing one ``e.raw`` in legacy's old IR — the exile (a
-    genuine graveyard read, correctly excluded here per CR 406.2's own
-    GY-hate carve-out) and the make_token (which has NOTHING
-    graveyard-related on its own node). Legacy's ``_gy_scope`` tags
-    graveyard_matters at the WHOLE-ABILITY-RAW granularity, so the
-    make_token effect inherits the exile sibling's ``in:graveyard`` zone
-    tag and fires its OWN structural scope ('opponents', from targeting
-    an opponent's graveyard) as a graveyard_matters signal it has no
-    actual connection to. The crosswalk's per-EFFECT, filter-grounded
-    reads correctly decline to manufacture this — Necromancer's Covenant
-    still fires token_maker (Zombie) correctly, just not the
-    mis-attributed graveyard_matters 'opponents'. CR 404.1 (a
-    graveyard is a SPECIFIC player's own discard pile, independent of
-    which sibling effect on the same ability references it)."""
+    """Necromancer's Covenant's "exile all creature cards from target
+    player's graveyard, then create a 2/2 black Zombie creature token for
+    each card exiled this way": the exile is graveyard HATE, read off the
+    exile's own target — 'opponents', never 'you' — and the
+    make_token sibling, which has nothing graveyard-related on its own node,
+    adds nothing (the per-effect, filter-grounded reads never let a sibling
+    inherit the exile's zone, the legacy whole-ability-raw over-fire)."""
     idents = _idents("Necromancer's Covenant")
-    assert ("graveyard_matters", "opponents", "") not in idents
+    assert ("graveyard_matters", "opponents", "") in idents
+    assert ("graveyard_matters", "you", "") not in idents
     assert ("token_maker", "you", "Zombie") in idents
 
 
@@ -17065,6 +17197,47 @@ def test_damage_redirect_arm_c_typed_redirection_shield(name):
     mirror misses both; Gideon's Sacrifice fired nothing but a superfriends
     false positive before (Blame Game precon audit)."""
     assert ("damage_redirect", "you", "") in _idents(name)
+
+
+@pytest.mark.parametrize("name", ["Pariah", "Palisade Giant"])
+def test_damage_redirect_arm_c_static_redirection(name):
+    """ARM C's static form: a ``DamageDone`` replacement with a
+    ``redirect_target`` — "All damage that would be dealt to you is dealt to
+    enchanted creature instead" (Pariah), "… to you and other permanents you
+    control is dealt to ~ instead" (Palisade Giant). A CR 614.9 redirection
+    effect that read only as ``damage_prevention`` before."""
+    assert ("damage_redirect", "you", "") in _idents(name)
+
+
+@pytest.mark.parametrize("name", ["Samite Blessing", "Security Blockade"])
+def test_damage_prevention_reads_a_granted_prevention(name):
+    """A GRANTED "{T}: Prevent the next 1 damage that would be dealt to …"
+    (an Aura's grant to the enchanted creature or land) is a CR 615
+    prevention source, read through ``iter_nested_granted_effect_concepts``."""
+    assert ("damage_prevention", "you", "") in _idents(name)
+
+
+@pytest.mark.parametrize(
+    ("name", "fires"),
+    [
+        ("Rite of Passage", True),  # a creature you control is dealt damage
+        ("Druid's Call", True),  # the enchanted creature is dealt damage
+        ("Spiteful Shadows", True),
+        ("Boros Reckoner", False),  # "whenever ~ is dealt damage": itself only
+        ("Brash Taunter", False),
+    ],
+)
+def test_damage_received_matters_watches_another_creature(name, fires):
+    """A ``DamageReceived`` trigger watching a creature you control or the
+    enchanted creature pays off damage soaked by a redirect (CR 614.9); a
+    self watcher never sees a hit redirected away from it."""
+    assert (("damage_received_matters", "you", "") in _idents(name)) is fires
+
+
+def test_damage_redirect_skips_a_life_floor():
+    """Worship moves no damage anywhere (its ruling: the damage is still
+    dealt, it just can't lower your life below 1), so it is no redirect."""
+    assert "damage_redirect" not in _keys("Worship")
 
 
 # ── task #84: phase v0.23.0 bump — corpus-diff GAIN-class pins ────────────────
@@ -18504,3 +18677,94 @@ def test_effect_reaches_permanent_tells_a_permanent_from_a_player(
     ]
     assert reads, name
     assert any(reads) is reaches_permanent
+
+
+# Granted alternative costs, explore, attractions, time counters, cast-from-top
+# power ceilings and modified permanents: the reads behind their serves.
+
+
+@pytest.mark.parametrize(
+    ("name", "face", "kind"),
+    [
+        ("Ninja Teen", None, "sneak"),
+        ("Norman Osborn // Green Goblin", "Green Goblin", "mayhem"),
+        ("Peter Parker // Amazing Spider-Man", "Amazing Spider-Man", "web-slinging"),
+    ],
+)
+def test_a_granted_alt_cost_keyword_opens_alt_cost_keyword(name, face, kind):
+    """A grant of sneak / mayhem / web-slinging (CR 702.190a / 702.187b /
+    702.188a) is read off the granting node — an ``AddKeyword`` modification or
+    a ``CastWithKeyword`` static — so the granter opens the lane the printed
+    keyword opens."""
+    from mtg_utils._card_ir.crosswalk import granted_alt_cost_kinds
+
+    tree = _tree(name, face)
+    assert any(kind in granted_alt_cost_kinds(u) for u in tree.units)
+    assert "alt_cost_keyword" in _keys(name, face)
+
+
+def test_lightfoot_rogue_sneak_attack_is_not_an_alt_cost():
+    # "Sneak Attack —" is a flavor word (CR 207.2d: no rules meaning), not the
+    # sneak keyword.
+    assert "alt_cost_keyword" not in _keys("Lightfoot Rogue")
+
+
+def test_a_granted_explore_is_an_explore_maker():
+    # Glowcap Lantern's equipped creature has "Whenever this creature attacks,
+    # it explores." (CR 701.44a): the Explore node sits in the GrantTrigger body.
+    assert "explore_makers" in _keys("Glowcap Lantern")
+    # The payoff watches the event; it never explores itself.
+    assert "explore_makers" not in _keys("Wildgrowth Walker")
+    assert "explore_matters" in _keys("Wildgrowth Walker")
+
+
+@pytest.mark.parametrize("name", ["Step Right Up", "Line Cutter"])
+def test_opening_and_visiting_attractions_are_attractions_matter(name):
+    # CR 701.51b (open an Attraction) and 701.52a (roll to visit) are typed
+    # effect nodes; the word row reads only the reminder-stripped oracle.
+    assert "attractions_matter" in _keys(name)
+
+
+def test_a_time_counter_reference_is_suspend_matters():
+    """Clockspinning's "target permanent or suspended card" carries a
+    time-counter predicate (CR 702.62b), with no time-counter placement."""
+    from mtg_utils._card_ir.crosswalk import time_counter_kind_refs
+
+    assert any(time_counter_kind_refs(u.node) for u in _tree("Clockspinning").units)
+    assert "suspend_matters" in _keys("Clockspinning")
+    # A counter manipulator that never names time counters stays out.
+    assert "suspend_matters" not in _keys("Power Conduit")
+
+
+def test_a_cast_from_the_top_power_ceiling_is_low_power_matters():
+    # "cast a creature spell with power 2 or less from the top of your
+    # library": the permission's filter names cards in your library.
+    assert "low_power_matters" in _keys("Assemble the Players")
+    assert "low_power_matters" not in _keys("Vizier of the Menagerie")
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Kami's Flare",  # "if you control a modified creature" (a quantity check)
+        "Upriser Renegade",  # "for each other modified creature you control"
+        "Walking Skyscraper",  # a cost reduction's count
+        "Skyward Spider",  # "as long as it's modified" (its own condition)
+        "War Machine, Avenging Arsenal",  # a granted static's affected set
+        "Iron Man, Armored Avenger",  # "other attacking modified creatures"
+        "Chishiro, the Shattered Blade",  # a subject filter
+    ],
+)
+def test_modified_payoffs_are_modified_matters(name):
+    """CR 700.9: a permanent is modified if it has a counter, is equipped, or is
+    enchanted by an Aura its controller controls. phase types it as one
+    ``Modified`` predicate, read wherever the card names modified creatures of
+    yours."""
+    from mtg_utils._card_ir.crosswalk import references_modified
+
+    assert any(references_modified(u) for u in _tree(name).units)
+    assert "modified_matters" in _keys(name)
+
+
+def test_a_counter_hoser_is_not_modified_matters():
+    assert "modified_matters" not in _keys("Blightbeetle")

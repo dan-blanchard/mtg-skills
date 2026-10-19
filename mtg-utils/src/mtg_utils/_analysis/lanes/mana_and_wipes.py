@@ -37,6 +37,7 @@ from mtg_utils._card_ir.crosswalk import (
     ConceptNode,
     ConceptTree,
     change_zone_dirs,
+    controller_paid_cost_leaves,
     count_operand_filter,
     counter_kind,
     discard_is_random,
@@ -53,6 +54,7 @@ from mtg_utils._card_ir.crosswalk import (
     filter_predicates,
     filter_subtypes,
     filter_without_keywords,
+    is_self_discard_cost,
     iter_condition_sites,
     iter_cost_leaves,
     iter_mod_sites,
@@ -60,6 +62,7 @@ from mtg_utils._card_ir.crosswalk import (
     iter_typed_nodes,
     mana_replacement_multiplier,
     mod_value,
+    named_filter_subtypes,
     normalised_keyword_name,
     produced_contribution,
     recipient_tag,
@@ -968,6 +971,19 @@ def _discard_outlet(tree: ConceptTree) -> list[Signal]:
             if owner in _OPP_DISCARD_ACTORS:
                 continue
             return [Signal("discard_outlet", "you", "", "", tree.name, "high")]
+    # The paid-cost walk (:func:`controller_paid_cost_leaves`) also reaches the
+    # extra cost of casting a card from your graveyard ("You may cast this card
+    # from your graveyard by discarding a card in addition to paying its other
+    # costs." — Rona, Sheoldred's Faithful; Alien Symbiosis), which phase hangs on
+    # a ``GraveyardCastPermission`` static the walk above doesn't read: a discard
+    # you choose, so an outlet.
+    for unit in tree.units:
+        if any(
+            how in ("activation", "additional")
+            and is_self_discard_cost(leaf, random=False)
+            for leaf, how in controller_paid_cost_leaves(unit)
+        ):
+            return [Signal("discard_outlet", "you", "", "", tree.name, "high")]
     keywords = {normalised_keyword_name(k) for k in tree.card_keywords}
     if keywords & _UNTYPED_DISCARD_CAST_KEYWORDS:
         return [Signal("discard_outlet", "you", "", "", tree.name, "high")]
@@ -1290,6 +1306,16 @@ def _resource_token_matters(tree: ConceptTree) -> list[Signal]:
       reads effects only, so the cost arm is a structural widening (flagged
       in the shadow diff, not silently absorbed).
 
+    And a third: any other filter naming the
+    subtype that is not an opponent's
+    (:func:`~mtg_utils._card_ir.crosswalk.named_filter_subtypes`, the arm the
+    Food / Clue lane already reads) — a count or anthem subject ("Treasures you
+    control have …" — Goldspan Dragon), a watched sacrifice ("Whenever you
+    sacrifice a Treasure" — Captain Lannery Storm), and the mana-source
+    condition "if mana from a Treasure was spent to cast it" (Hired Hexblade,
+    Smaug, Wicked Worm), which phase types as a ``ManaSpentToCast`` quantity
+    whose ``FromSource`` filter names the Treasure subtype.
+
     A pure token MAKER (Dockside Extortionist) fires ``*_makers``, never this.
     """
     out: list[Signal] = []
@@ -1315,6 +1341,10 @@ def _resource_token_matters(tree: ConceptTree) -> list[Signal]:
                 key = _SAC_TOKEN_MATTERS.get(st.lower())
                 if key:
                     fire(key, "")
+        for st in named_filter_subtypes(unit.node):
+            key = _SAC_TOKEN_MATTERS.get(st)
+            if key:
+                fire(key, "")
     # Stage-A recovery: the ``synth_token_subtype_own_ref`` bucket-B marker (a
     # "cares about Treasure/Blood without making it" own-ref — Evereth's "if the
     # sacrificed permanent was a Treasure"), the SAME arm the parallel food/clue

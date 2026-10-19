@@ -66,7 +66,6 @@ from mtg_utils._card_ir.crosswalk import (
     filter_core_types,
     filter_inzone_zones,
     filter_subtypes,
-    iter_nested_granted_effect_concepts,
     named_permanent_refs,
     protective_keyword,
     residue_is,
@@ -1599,49 +1598,7 @@ def _combat_choice_match(tree: ConceptTree) -> bool:
     return _oracle_says(tree, _COMBAT_CHOICE_RX)
 
 
-# ── predefined-token maker/payoff bridges (Blood-token gap sweep, 2026-07-25) ─
-# Measured gaps around the Blood/Clue/Food predefined-token lanes. The maker
-# shape is OUR overlay's frontier, not phase's: the typed substrate is complete
-# (a fully-typed ``Token`` node exists) but a ``GrantTrigger``-granted
-# trigger's Token (Ceremonial Knife) never surfaces as a ``make_token``
-# concept, so ``_resource_token_makers``'s concept read finds nothing. (The
-# ``ChooseOneOf`` choice-list rows — Transmutation Font — retired once the
-# shared effect walk read the controller's branches.)
-# (Odric, Blood-Cursed rode the blood row via a second match arm until phase
-# v0.104.0: its parked "create X Blood tokens" now reads through the
-# ``make_token`` recovery arm of ``_resource_token_makers``.) (The Blood
-# sacrificed-trigger payoff row — Blood Hypnotist — retired 2026-10-18, once
-# ``_tokens_matter``'s token-watching arm carried the trigger's Blood subject
-# to ``blood_matters``.) CR 111.10 (predefined tokens) throughout.
-
-
-def _make_token_concept_missing(tree: ConceptTree, subtype: str) -> bool:
-    """The shared maker-row gap: no ``make_token`` concept ANYWHERE in the
-    tree carries ``subtype`` in its subject — the exact read
-    ``_resource_token_makers`` serves from. Self-retiring: the moment the
-    overlay decorates the branch/granted Token (or phase's create-X grammar
-    lands and recovery fills the subject), the concept appears with the
-    subtype and the bridge stands down."""
-    return not any(
-        c.concept == "make_token" and subtype in c.subject for c in tree.iter_concepts()
-    )
-
-
-def _blood_maker_concept_gap(tree: ConceptTree) -> bool:
-    return _make_token_concept_missing(tree, "Blood")
-
-
-def _granted_trigger_blood_token_match(tree: ConceptTree) -> bool:
-    """A static's granted ability or trigger whose effect chain creates a Blood
-    token (CR 111.10g) — Ceremonial Knife's 'Equipped creature ... has "Whenever
-    this creature deals combat damage, create a Blood token."', a trigger the
-    equipped creature (CR 301.5a) gains — read through the shared granted-body
-    walk (``iter_nested_granted_effect_concepts``)."""
-    return any(
-        c.concept == "make_token" and "Blood" in c.subject
-        for unit in tree.iter_units("static")
-        for c in iter_nested_granted_effect_concepts(unit.node)
-    )
+# (Predefined-token bridges: none live.)
 
 
 # ── folded-object text-only lifeloss (ADR-0025, 2026-07-25) ──────────────────
@@ -4009,29 +3966,6 @@ BRIDGES: dict[str, Bridge] = {
             pins=("Illusionist's Gambit",),
             gap=_illusionists_gambit_gap,
             match=_illusionists_gambit_match,
-        ),
-        Bridge(
-            bridge_id="granted_trigger_blood_token_maker",
-            key="blood_makers",
-            kind="grammar_straggler",
-            todo=(
-                "grammar sprint (task #82): decorate GrantTrigger-granted "
-                "trigger bodies with concepts (the granted trigger's typed "
-                "Token -> make_token, the same descent the granted-paylife "
-                "/ sac-outlet granted-cost arms already hand-roll) — the "
-                "moment the overlay walks the grant, the shared "
-                "_make_token_concept_missing gap goes False and this row "
-                "+ its _resource_token_makers call delete"
-            ),
-            census=(
-                "1 hit / 38,261 distinct oracle_ids (31,552 commander-"
-                "legal), structural sweep over every Blood-mentioning "
-                "card's GrantTrigger nodes: Ceremonial Knife alone, "
-                "MTGJSON 2026-07-25 @ phase v0.35.2"
-            ),
-            pins=("Ceremonial Knife",),
-            gap=_blood_maker_concept_gap,
-            match=_granted_trigger_blood_token_match,
         ),
         Bridge(
             bridge_id="folded_object_text_only_each_player_loses",

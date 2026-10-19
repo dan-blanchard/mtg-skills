@@ -4,9 +4,9 @@ crosswalk_signals.py — see this package's ``__init__``)."""
 from __future__ import annotations
 
 import re
-from collections.abc import Sequence
+from collections.abc import Iterable, Sequence
 
-from mtg_utils._analysis.signal_base import Signal
+from mtg_utils._analysis.signal_base import Signal, _clauses
 from mtg_utils._card_ir.crosswalk import (
     _OPPONENT_ACTOR_TAGS,
     ARTIFACT_TOKEN_SUBTYPES,
@@ -233,6 +233,67 @@ _LAND_SUBTYPE_WORDS: frozenset[str] = LAND_SUBTYPE_WORDS - {"planet", "town"}
 def _kept(tree: ConceptTree) -> str:
     """The reminder-stripped face oracle — the b12 mirror ports' scan text."""
     return _REMINDER_RX.sub(" ", tree.oracle or "")
+
+
+def _self_ref_key(text: str, self_refs: Sequence[str]) -> str:
+    """``text`` lowercased up to its first quoted grant, past a leading ability
+    or flavor word ("Constellation — ", "Starscourge — ": CR 207.2c / 207.2d,
+    italic labels phase's description leaves off), with each way the card
+    names itself read as "~" — the form phase writes a description in."""
+    key = text.partition('"')[0].strip().lower()
+    label, dash, rest = key.partition(" — ")
+    if dash and not any(ch in label for ch in ",.:;") and len(label.split()) <= 4:
+        key = rest
+    for ref in self_refs:
+        key = key.replace(ref, "~")
+    return key
+
+
+def unclaimed_clauses(tree: ConceptTree, claimed: Iterable[object]) -> list[str]:
+    """The card's kept clauses (:func:`_kept`, split by ``_clauses``) minus each
+    clause a typed read already claimed: one that sits inside the description
+    of a ``claimed`` node (an ability unit's node, a static def). A text
+    mirror reads only what's left, so a typed reading of an ability wins over
+    the mirror's reading of the same words.
+
+    A clause line and a description are compared by :func:`_self_ref_key`: up
+    to the first quoted grant, lowercased, past an ability-word label, with
+    the card's own name, its short name and "this <type>" read as phase's "~"."""
+    clauses = _clauses(_kept(tree))
+    descs = [
+        d
+        for node in claimed
+        if isinstance(d := getattr(node, "description", None), str)
+    ]
+    if not descs:
+        return clauses
+    name = (tree.name or "").lower()
+    self_refs = [
+        ref for ref in (name, name.split(",", maxsplit=1)[0].strip()) if ref
+    ] + [
+        f"this {word.lower()}"
+        for word in (
+            *tree.card_types,
+            *tree.card_subtypes,
+            "permanent",
+            "card",
+            "spell",
+        )
+    ]
+    keys = [_self_ref_key(d, self_refs) for d in descs]
+
+    def claimed_line(line: str) -> bool:
+        key = _self_ref_key(line, self_refs)
+        return bool(key) and any(key in k for k in keys)
+
+    # A clause can run across an ability line with no full stop ("Flying\nWhen
+    # this creature enters, …"), so each of its lines is matched on its own.
+    out = []
+    for cl in clauses:
+        kept = [line for line in cl.split("\n") if not claimed_line(line)]
+        if kept:
+            out.append("\n".join(kept))
+    return out
 
 
 # W3 batch-3 (ADR-0038, combat-coercion cluster) — the shared discriminator

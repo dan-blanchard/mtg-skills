@@ -39,6 +39,14 @@ from ._shared import (
     _sweep_spec_with_extras,
 )
 
+# The connive avenue (connive_makers / connive_matters, you): the doers and the
+# payoffs, one search shared by both.
+_CONNIVE_SEARCH = {"oracle": r"\bconnives?\b|draw a card, then discard"}
+_CONNIVE_SERVE_IDENTS = frozenset({"connive_makers|you|", "connive_matters|you|"})
+
+# The explore serve (explore_makers / explore_matters): both lanes.
+_EXPLORE_SERVE_IDENTS = frozenset({"explore_makers|you|", "explore_matters|you|"})
+
 SPECS_3: dict[tuple[str, str], SignalSpec] = {
     # ── Mechanics recovered from the "rejected" families ────────────────────────
     # ADR-0027 β: token_copy_makers migrated to the Card IR via a byte-identical kept-
@@ -290,10 +298,13 @@ SPECS_3: dict[tuple[str, str], SignalSpec] = {
     # (detection moved to an _IR_KEPT_DETECTORS word mirror). The SERVE pool stays
     # oracle-defined (Attraction openers / visit payoffs), so hand-register the spec
     # the sweep auto-register loop used to build, reusing the deleted regex.
+    # Serve on the lane's ident: the lane reads phase's typed open / roll-to-visit
+    # nodes beside its word row (Step Right Up, Line Cutter).
     ("attractions_matter", "you"): _spec(
         *SWEEP_LABELS["attractions_matter"],
         {"oracle": r"\battraction\b|open an attraction"},
-        r"\battraction\b|open an attraction",
+        None,
+        serve_idents=frozenset({"attractions_matter|you|"}),
     ),
     # ADR-0027: stickers_matter had its oracle-regex SWEEP_DETECTORS row deleted
     # (detection moved to a byte-identical STICKERS_MATTER_REGEX _IR_KEPT_DETECTORS word
@@ -415,16 +426,21 @@ SPECS_3: dict[tuple[str, str], SignalSpec] = {
         serve_idents=frozenset({"exhaust_makers|you|", "exhaust_matters|you|"}),
     ),
     # _matters sweep (ADR-0034): the MAKER arm of the explore split — creatures that
-    # explore. Same \bexplores?\b serve pool as the payoff arm.
+    # explore. One serve pool for both arms, on the lanes' idents: explore_makers
+    # reads a granted explore (Glowcap Lantern) and Map tokens. Not served:
+    # Nicanzil's "explores a land card" payoff (phase: an Unknown trigger mode) and
+    # Worldwalker Helm's replacement-made Map.
     ("explore_makers", "you"): _spec(
         *SWEEP_LABELS["explore_makers"],
         {"oracle": r"\bexplores?\b"},
-        r"\bexplores?\b",
+        None,
+        serve_idents=_EXPLORE_SERVE_IDENTS,
     ),
     ("explore_matters", "you"): _spec(
         *SWEEP_LABELS["explore_matters"],
         {"oracle": r"\bexplores?\b"},
-        r"\bexplores?\b",
+        None,
+        serve_idents=_EXPLORE_SERVE_IDENTS,
     ),
     ("phasing_makers", "you"): _spec(
         *SWEEP_LABELS["phasing_makers"],
@@ -540,7 +556,12 @@ SPECS_3: dict[tuple[str, str], SignalSpec] = {
     ("alt_cost_keyword", "you"): _spec(
         *SWEEP_LABELS["alt_cost_keyword"],
         {"oracle": r"\bweb-slinging\b|\bsneak\b|\bmayhem\b"},
-        r"\bweb-slinging\b|\bsneak\b|\bmayhem\b",
+        # Serve on the lane's ident: the lane reads a granted sneak /
+        # mayhem / web-slinging too (Ninja Teen, Green Goblin, Amazing
+        # Spider-Man); the regex also matched Lightfoot Rogue's "Sneak Attack"
+        # flavor word.
+        None,
+        serve_idents=frozenset({"alt_cost_keyword|you|"}),
         serve_keywords=("web-slinging", "sneak", "mayhem"),
     ),
     # partner_background's avenue REPLACES this serve with a partner-legality search
@@ -558,12 +579,13 @@ SPECS_3: dict[tuple[str, str], SignalSpec] = {
         # Unearthly Child).
         None,
         serve_idents=frozenset({"partner_background|you|"}),
+        # No bare "friends": that keyword is Astarion, the Decadent's "Friends —"
+        # flavor word (CR 207.2d); "Partner—Friends forever" carries 'Partner'.
         serve_keywords=(
             "partner",
             "partner with",
             "choose a background",
             "doctor's companion",
-            "friends",
         ),
     ),
     # ADR-0027 t2b5-C: named_counter_misc / powerup_matters each had their oracle-regex
@@ -638,7 +660,13 @@ SPECS_3: dict[tuple[str, str], SignalSpec] = {
     ("shield_counter_makers", "you"): _spec(
         *SWEEP_LABELS["shield_counter_makers"],
         {"oracle": r"\bshield counters?\b"},
-        r"\bshield counters?\b",
+        # Serve on the lane's ident. Not served: Call In a Professional's "Shield
+        # counters don't prevent this damage" reminder, and two shield counters
+        # phase drops — Elspeth
+        # Resplendent's dig "onto the battlefield with a shield counter" and
+        # Undercover Operative's copy "except it enters with a shield counter".
+        None,
+        serve_idents=frozenset({"shield_counter_makers|you|"}),
     ),
     # ADR-0027: fight_makers had its oracle-regex SWEEP_DETECTORS row deleted (moved to
     # the Card IR — phase's fight effect + a granted/quoted/modal fight marker). Serve
@@ -969,11 +997,23 @@ SPECS_3: dict[tuple[str, str], SignalSpec] = {
         None,
         serve_idents=frozenset({"crimes_matter|you|"}),
     ),
+    # Serve idents: the connive doers and the connive payoffs ("whenever a
+    # creature you control connives" — connive_matters). The regex's remainder:
+    # Mask of the Schemer's "connives X", an unimplemented ``where_x_binding`` in
+    # phase.
     ("connive_makers", "you"): _spec(
         "Connive",
         "connive enablers and counter/discard payoffs",
-        {"oracle": r"\bconnives?\b|draw a card, then discard"},
-        r"\bconnives?\b",
+        _CONNIVE_SEARCH,
+        None,
+        serve_idents=_CONNIVE_SERVE_IDENTS,
+    ),
+    ("connive_matters", "you"): _spec(
+        "Connive payoffs",
+        "creatures that connive to trigger your connive payoffs",
+        _CONNIVE_SEARCH,
+        None,
+        serve_idents=_CONNIVE_SERVE_IDENTS,
     ),
     ("spell_copy_makers", "you"): _spec(
         "Spell copy",
@@ -1145,10 +1185,13 @@ SPECS_3: dict[tuple[str, str], SignalSpec] = {
     # ADR-0027: tap_untap_matters had its SWEEP_DETECTORS row deleted (detection moved
     # to the Card IR — the `taps` trigger + a "becomes tapped/untapped" kept mirror).
     # The serve pool stays oracle-defined, so pass the deleted regex explicitly.
+    # The serve rides the lane once it reads granted "becomes tapped" triggers
+    # (Dionus, Elvish Archdruid); the regex stays the search.
     ("tap_untap_matters", "you"): _sweep_spec_with_extras(
         "tap_untap_matters",
         (_UNTAP_EXTRA,),
         regex=(r"whenever [^.]*becomes? (?:tapped|untapped)|becomes? untapped, put"),
+        serve_idents=frozenset({"tap_untap_matters|you|"}),
     ),
     # Activated-ability engine: the support package for a {T}: commander — activated-
     # ability cost reducers (Training Grounds), untappers + haste-for-abilities
@@ -1183,33 +1226,23 @@ SPECS_3: dict[tuple[str, str], SignalSpec] = {
         # a mana symbol in the cost (a {T}-only dork gains nothing from a discount).
         r"|\{(?:\d+|x)\}[^.:\n]{0,25}:",
     ),
-    # YOU must be the one gaining control — VETO the donate shapes where an OPPONENT
-    # gains control of your stuff (Sky Swallower). Add the exile-and-cast theft form.
-    # ADR-0027 β: gain_control migrated to the Card IR (the lane fires from a gated
-    # structural arm in crosswalk_signals._gain_control + a facade cross-open
-    # reconciliation). This serve spec was always hand-registered with its
-    # own curated SEARCH regex (broader than the deleted `gain control of` detector — it
-    # also
-    # credits "you control enchanted permanent" Auras and Bribery/Acquire library-
-    # seizes), independent of the deleted producer, so it survives unchanged.
+    # YOU must be the one gaining control: the lane (lanes.counters_voltron.
+    # _gain_control) vetoes the donate shapes where an OPPONENT gains control of your
+    # stuff (Sky Swallower) and the control resets.
     ("gain_control", "you"): _spec(
         "Theft",
         "steal effects and ways to keep or sacrifice what you take",
         {"oracle": r"gain control of"},
-        r"you (?:gain|may gain) control of"
-        r"|gain control of (?:target|all|each|another|that|them|those)"
-        r"|you control enchanted (?:creature|permanent)"
-        r"|you may (?:play|cast)[^.]*from (?:that|target) (?:player|opponent)"
-        # Bribery / Acquire: seize a card out of an OPPONENT's library and seat it
-        # onto the battlefield UNDER YOUR CONTROL — you now control a permanent you
-        # don't own (genuine gain-control), just sourced from a library. Anchored to
-        # "opponent's library" so a graveyard reanimator is excluded. NOT the same as
-        # the borrow-and-cast engines (Gonti / Hostage Taker / Thief): those exile a
-        # card and let you CAST it — playing what you don't own (theft_matters), never
-        # a battlefield control change — so they stay out of this lane.
-        r"|opponent's library for [^.]*onto the battlefield under your control",
-        serve_not=r"(?:opponent|another player|target player|that player) "
-        r"gains control of",
+        # Serve rides the lane, which vetoes the give-aways and
+        # control resets (Brand) and now reads granted theft (Chamber of
+        # Manipulation) and Bribery / Acquire: seize a card out of an OPPONENT's
+        # library onto the battlefield UNDER YOUR CONTROL (you control a
+        # permanent you don't own, CR 110.2). The borrow-and-cast engines (Gonti,
+        # Wrexial, Sen Triplets) exile or reach a card and let you CAST it —
+        # playing what you don't own, never a battlefield control change — so
+        # they serve theft_makers / wants_theft, not this lane.
+        None,
+        serve_idents=frozenset({"gain_control|you|"}),
     ),
     # Align the serve with the extraction regex so the wheel-punishers and "each
     # opponent/player discards" forms (Bottomless Pit, Hymn) are recovered.

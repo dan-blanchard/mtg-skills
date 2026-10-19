@@ -35,6 +35,7 @@ from mtg_utils._card_ir.crosswalk import (
     ConceptTree,
     effect_owner_player_scope,
     filter_controller,
+    filter_controller_side,
     filter_core_types,
     filter_inzone_zones,
     hand_size_scopes,
@@ -1002,26 +1003,17 @@ def _arm_extra_turns(tree: ConceptTree) -> ConceptNode | None:
 # the Stage). Each read below is gated to an explicit non-controller player
 # reference, never a bare/ambiguous tag a self-effect could also carry.
 
-# Typed-filter ``controller`` STRING values meaning "not the ability's
-# controller" (an explicit opponent/targeted-player direction — CR 613.1b).
-# Shared by every theft sub-read below (one source, per GAP-GATE-ALIGNMENT).
-_THEFT_OPP_CONTROLLERS = frozenset(
-    {
-        "Opponent",
-        "Opponents",
-        "EachOpponent",
-        "TargetPlayer",
-        "DefendingPlayer",
-        "SourceChosenPlayer",
-    }
-)
-
 
 def _theft_typed_opponent(node: object) -> bool:
-    """Whether a ``Typed`` player/zone-owner filter names an opponent (a
-    ``controller`` string in :data:`_THEFT_OPP_CONTROLLERS`) — never a bare
-    ``You``/``None`` (the self-effect default)."""
-    return tag_of(node) == "Typed" and filter_controller(node) in _THEFT_OPP_CONTROLLERS
+    """Whether a ``Typed`` player/zone-owner filter names a player other than
+    the ability's controller — an opponent or a player the card picks out
+    (:func:`~mtg_utils._card_ir.crosswalk.reads.filter_controller_side`), never
+    a bare ``You``/``None`` (the self-effect default). Shared by every theft
+    sub-read below (one source, per GAP-GATE-ALIGNMENT)."""
+    return tag_of(node) == "Typed" and filter_controller_side(node) in (
+        "opponents",
+        "chosen",
+    )
 
 
 # ExileFromTopUntil.player discriminator TAGS meaning "not the controller"

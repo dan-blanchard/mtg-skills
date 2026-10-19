@@ -57,6 +57,7 @@ from mtg_utils._card_ir.crosswalk import (
     iter_cost_leaves,
     iter_delayed_trigger_condition_defs,
     iter_mod_sites,
+    iter_nested_granted_effect_concepts,
     iter_nested_trigger_defs,
     iter_static_defs,
     iter_threaded_target_statics,
@@ -1980,16 +1981,24 @@ def _damage_prevention(tree: ConceptTree) -> list[Signal]:
     effect (Fog — ``{amount: All, scope: CombatDamage}``; Story Circle's
     activated next-time shield). Second arm (b10 follow-up c, adjudicated):
     a ``DamageDone`` REPLACEMENT carrying ``shield_kind {Prevention}`` (the
-    Palisade Giant family, 146 corpus) — prevention-shield MEMBERSHIP only;
-    the redirect SEMANTICS deliberately stay uncaptured (``damage_redirect``
-    is a settled KEPT — Pariah parses indistinguishably from a pure shield).
+    Palisade Giant family, 146 corpus) — prevention-shield MEMBERSHIP.
     Protection grants are a DIFFERENT node (Gods Willing →
     :func:`_keyword_grant_lanes`); the Aura/ward reminder-text tail rides
-    the live byte mirror — SUPPLEMENT, logged. Scope "you" (live).
+    the live byte mirror — SUPPLEMENT, logged. A GRANTED prevention ability
+    (:func:`iter_nested_granted_effect_concepts`) counts too: Hot Springs'
+    enchanted land, Healer's Headdress's equipped creature, Samite Blessing
+    ("{T}: Prevent the next 1 damage that would be dealt to any target"). The
+    static form's redirect is read by ``damage_redirect``. Scope "you" (live).
     """
     hits = tree.effect_concepts("prevent_damage")
     if hits:
         return [Signal("damage_prevention", "you", "", hits[0].raw, tree.name, "high")]
+    for unit in tree.units:
+        for c in iter_nested_granted_effect_concepts(unit.node):
+            if c.concept == "prevent_damage":
+                return [
+                    Signal("damage_prevention", "you", "", c.raw, tree.name, "high")
+                ]
     # A prevention phase v0.104.0 parks by shape (reads.PARKED_PREVENTION_RESIDUES).
     if any(parked_prevention(n) for n in tree.unimplemented):
         return [Signal("damage_prevention", "you", "", "", tree.name, "high")]
@@ -2029,11 +2038,10 @@ def _damage_redirect(tree: ConceptTree) -> list[Signal]:
     preventing/redirecting damage dealt to itself, or REDIRECTS damage to a
     different recipient ("... is dealt to [X] instead").
 
-    The typed ``S_replacements.redirect_target`` field exists on only 8
-    corpus replacements and Pariah itself parses with NO ``redirect_target``
-    (a pure ``shield_kind: Prevention`` — CR 615, structurally identical to a
-    plain shield; see :func:`_damage_prevention`'s docstring) — the lane's own
-    KEPT rationale (settled, re-verified this wave). BOTH legacy arms ride a
+    Pariah once parsed as a pure ``shield_kind: Prevention`` — the lane's
+    KEPT rationale. Phase v0.104.0 types its ``redirect_target``, which ARM C
+    now reads. BOTH
+    legacy arms ride a
     byte-identical b12 mirror over ``_kept(tree)`` (the DISJOINT-arm shape:
     commander-legal corpus overlap == 0, since phase's structural categories
     ~90%-over-fire either way — damage_prevention 396 vs 44, redirect/
@@ -2056,7 +2064,12 @@ def _damage_redirect(tree: ConceptTree) -> list[Signal]:
       (and your permanents) elsewhere. Recovers the "All damage that would be
       dealt this turn to you and permanents you control is dealt to the chosen
       permanent instead" family the clause mirror misses (Gideon's Sacrifice,
-      Harm's Way, Heroic Sacrifice, Saving Grace — no "that damage").
+      Harm's Way, Heroic Sacrifice, Saving Grace — no "that damage"); and the
+      STATIC form, a ``DamageDone`` replacement with a ``redirect_target`` —
+      "All damage that would be dealt to you is dealt to enchanted creature
+      instead" (Pariah, Pariah's Shield, Palisade Giant, the Bodyguards),
+      which before read only as ``damage_prevention``. A life floor (Worship,
+      Ali from Cairo) redirects nothing and stays ``board_protection``.
 
     Scope "you" (the deleted producers' forced scope). CR 614.9 / 615.
     """
@@ -2067,6 +2080,27 @@ def _damage_redirect(tree: ConceptTree) -> list[Signal]:
         return [Signal("damage_redirect", "you", "", "", tree.name, "high")]
     if any(redirects_damage_from_you(n) for n in tree.iter_typed()):
         return [Signal("damage_redirect", "you", "", "", tree.name, "high")]
+    return []
+
+
+def _damage_received_matters(tree: ConceptTree) -> list[Signal]:
+    """damage_received_matters — a payoff for damage dealt to a creature other
+    than the card itself (CR 120.3): a ``DamageReceived`` trigger watching a
+    creature you control (Rite of Passage) or the enchanted / equipped
+    creature (Druid's Call, Spiteful Shadows, Soul Link). A redirect-to-self
+    commander soaks damage on one creature (CR 614.9), which fires these. The
+    self watcher ("whenever ~ is dealt damage" — Boros Reckoner) is not one:
+    a redirected hit never reaches the original creature. Scope "you".
+    """
+    for unit in tree.units:
+        if unit.origin != "trigger" or unit.trigger_event != "damage_received":
+            continue
+        watched = getattr(unit.node, "valid_card", None)
+        if tag_of(watched) == "AttachedTo" or (
+            filter_controller(watched) == "You"
+            and "Creature" in filter_core_types(watched)
+        ):
+            return [Signal("damage_received_matters", "you", "", "", tree.name, "high")]
     return []
 
 
@@ -2769,6 +2803,7 @@ LANES = (
 # ADR-0039 W8 (KEPT-twelve wave):
 LANES_W8 = (
     _damage_redirect,
+    _damage_received_matters,
     _base_power_matters,
     _copy_limit,
     _named_synergy,

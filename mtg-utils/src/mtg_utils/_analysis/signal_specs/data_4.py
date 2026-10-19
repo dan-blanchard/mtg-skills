@@ -31,6 +31,9 @@ from ._shared import (
     _spec,
 )
 
+# The foretell serve (both lanes): bearers, granters and foretold-card payoffs.
+_FORETELL_SERVE_IDENTS = frozenset({"foretell_makers|you|", "foretell_matters|you|"})
+
 SPECS_4: dict[tuple[str, str], SignalSpec] = {
     # ── Hand-spec overrides for mined sweep keys that need a STRUCTURED serve ────
     # (a keyword/veto dimension the auto-registered oracle-only sweep serve can't carry;
@@ -561,19 +564,25 @@ SPECS_4: dict[tuple[str, str], SignalSpec] = {
     # and then SPLIT into foretell_makers (the `foretell` keyword bearers + grant /
     # "to foretell" enabler markers that PERFORM the mechanic) and foretell_matters
     # (the Foretold-card payoffs — Niko Defies Destiny). Both serve the SAME foretell
-    # pool (the avenue composes maker + payoff), so both reuse the same oracle regex.
+    # pool (the avenue composes maker + payoff).
+    # Serve on the lanes' idents (reads.keyword_resource_events reads the foretell
+    # grants — Bohn, Dream Devourer). What the regex also served is phase gaps:
+    # Ranar's foretell cost reducer, Karfell Harbinger's foretell-only mana and
+    # Ethereal Valkyrie's "it becomes foretold".
     ("foretell_makers", "you"): _spec(
         "Foretell",
         "foretell cards to bank in exile plus enablers that let you foretell",
         {"oracle": r"\bforetell\b|foretold"},
-        r"\bforetell\b|foretold",
+        None,
+        serve_idents=_FORETELL_SERVE_IDENTS,
         serve_keywords=("foretell",),
     ),
     ("foretell_matters", "you"): _spec(
         "Foretell",
         "foretell cards to bank in exile plus the payoffs that reward foretold cards",
         {"oracle": r"\bforetell\b|foretold"},
-        r"\bforetell\b|foretold",
+        None,
+        serve_idents=_FORETELL_SERVE_IDENTS,
         serve_keywords=("foretell",),
     ),
     ("has_undying_persist", "you"): _spec(
@@ -719,13 +728,17 @@ SPECS_4: dict[tuple[str, str], SignalSpec] = {
         "suspend, vanishing, and impending cards plus the time-counter manipulators "
         "and payoffs (As Foretold, Jhoira, Dust of Moments) that exploit them",
         {"oracle": r"\bsuspend\b|time counter"},
-        r"\bsuspend\b|\bvanishing\b|\bimpending\b|time counter|time travel"
-        # Suspend removes a TIME counter each upkeep (CR 702.62), so extra upkeeps /
-        # beginning phases (Paradox Haze, Sphinx of the Second Sun) accelerate it.
-        r"|additional upkeep step|additional beginning phase"
-        # Counter-manipulation that references suspended cards (Clockspinning, Dust of
-        # Moments, Timebender) — direct suspend support, generic "counter" not "time".
-        r"|suspended cards?",
+        # Serve on the lanes' idents, shared with suspend_makers: the
+        # suspend lane reads time-counter placements and references (a suspended
+        # card is in exile with suspend and a time counter, CR 702.62b —
+        # Clockspinning), extra_upkeep the extra upkeeps and beginning phases that
+        # tick suspend down (Paradox Haze). Not served: Impending Flux, which only
+        # names itself, and Venser's Diffusion, whose "or suspended card" phase
+        # drops from the bounce target.
+        None,
+        serve_idents=frozenset(
+            {"suspend_makers|you|", "suspend_matters|you|", "extra_upkeep|you|"}
+        ),
         serve_keywords=("suspend", "vanishing", "impending"),
     ),
     # _matters sweep (ADR-0034): the MAKER side of the suspend split — cards that

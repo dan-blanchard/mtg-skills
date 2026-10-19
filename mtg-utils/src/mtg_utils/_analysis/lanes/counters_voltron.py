@@ -35,19 +35,27 @@ from mtg_utils._card_ir.crosswalk import (
     iter_condition_sites,
     iter_cost_leaves,
     iter_mod_sites,
+    iter_nested_granted_effect_concepts,
     iter_static_defs,
     iter_typed_nodes,
+    keyword_resource_events,
     mod_keyword_name,
     modify_cost_mode,
     modify_cost_spell_filter,
     recipient_tag,
     ref_count_filter,
+    replacement_added_token_subtypes,
+    replacement_event_tag,
+    replacement_token_owner_scope,
+    replacement_token_types,
     requires_condition_inner,
     residue_is,
+    seats_opponent_library_card,
     static_mode_field,
     static_mode_tag,
     tag_of,
     trigger_counter_filter,
+    triggering_player_side,
 )
 from mtg_utils._card_ir.mirror.runtime import (
     MirrorVariant,
@@ -1308,7 +1316,7 @@ def _gives_control_to_other(node: TypedMirrorNode, unit: AbilityUnit) -> bool:
 
 def _gain_control(tree: ConceptTree) -> list[Signal]:
     """gain_control — YOU-THEFT (you take control of a permanent you don't own,
-    CR 110.2 / 720). Mirrors the deleted ``_signals_ir``'s line ~9270: a ``GainControl``
+    CR 110.2). Mirrors the deleted ``_signals_ir``'s line ~9270: a ``GainControl``
     /
     ``GainControlAll`` effect (Threaten, Control Magic's reset-free theft), EXCLUDING:
 
@@ -1323,15 +1331,30 @@ def _gain_control(tree: ConceptTree) -> list[Signal]:
 
     A donate (``GiveControl`` — you give your OWN away) is a SEPARATE phase tag,
     never reaching this arm. A ``Control Magic`` enchant rides a ``ChangeController``
-    STATIC modification (the new controller is you). Scope "you".
+    STATIC modification (the new controller is you).
+
+    Two more you-theft shapes the flat unit walk misses: a gain-control
+    inside a GRANTED ability or trigger
+    (:func:`iter_nested_granted_effect_concepts` — Chamber of Manipulation's
+    Aura-granted "{T}, Discard a card: Gain control of target creature", Sorin,
+    Vampire Lord's -8 Vampire grant, Wake the Dragon's Dragon token), under the
+    same reset / give-away vetoes; and a card taken from an OPPONENT's library
+    onto the battlefield under your control (:func:`seats_opponent_library_card`
+    — Bribery, Acquire, Telemin Performance: you control a permanent you don't
+    own, CR 110.2). Scope "you".
     """
+
+    def you_theft(node: TypedMirrorNode, unit: AbilityUnit) -> bool:
+        sub = effect_filter(node)
+        if sub is not None and "Owned" in filter_predicates(sub):
+            return False  # control-RESET, not theft
+        # give-away — the new controller is an opponent, not you
+        return not _gives_control_to_other(node, unit)
+
     for unit in tree.units:
         for c in unit.effect_concepts("gain_control"):
-            sub = effect_filter(c.node)
-            if sub is not None and "Owned" in filter_predicates(sub):
-                continue  # control-RESET, not theft
-            if _gives_control_to_other(c.node, unit):
-                continue  # give-away — the new controller is an opponent, not you
+            if not you_theft(c.node, unit):
+                continue
             # phase v0.104.0 parks an intervening-if / attached-gear /
             # exchange-of-control clause (Hot Pursuit, Fumble, Juxtapose) as
             # an Unimplemented residue the ``gain_control`` token recovers;
@@ -1355,7 +1378,31 @@ def _gain_control(tree: ConceptTree) -> list[Signal]:
         for c in unit.statics:
             if tag_of(c.node) == "ChangeController":
                 return [Signal("gain_control", "you", "", c.raw, tree.name, "high")]
+    for unit in tree.units:
+        for c in iter_nested_granted_effect_concepts(unit.node):
+            if c.concept == "gain_control" and you_theft(c.node, unit):
+                return [Signal("gain_control", "you", "", c.raw, tree.name, "high")]
+        if seats_opponent_library_card(unit):
+            return [Signal("gain_control", "you", "", "", tree.name, "high")]
     return []
+
+
+def _owner_is_target_player(token_node: object) -> bool:
+    """Whether a ``Token`` effect's ``owner`` is a target player ("Target player
+    creates a Treasure token" — Prismari Command). Reading it as yours (you may
+    target yourself) is this lane's own decision."""
+    return tag_of(getattr(token_node, "owner", None)) == "Player"
+
+
+def _triggering_opponent_creates(unit: AbilityUnit, token_node: object) -> bool:
+    """Whether an opponent creates the token: "Whenever an opponent casts a
+    spell, that player creates a Blood token" (Bloodvial Purveyor) names the
+    triggering player as the owner of a trigger that watches only opponents.
+    CR 111.2: the player who creates a token owns and controls it."""
+    return (
+        tag_of(getattr(token_node, "owner", None)) == "TriggeringPlayer"
+        and triggering_player_side(unit) == "opponents"
+    )
 
 
 def _resource_token_makers(tree: ConceptTree) -> list[Signal]:
@@ -1366,6 +1413,33 @@ def _resource_token_makers(tree: ConceptTree) -> list[Signal]:
     Clue / Blood, scope you/each; ``Investigate`` is a first-class Clue maker. The
     structural read improves on the raw-fallback (the resource subtype rides the
     token's typed ``types``). Scope "you".
+
+    Four more maker shapes:
+
+    * a maker inside an ability the card GRANTS
+      (:func:`~mtg_utils._card_ir.crosswalk.iter_nested_granted_effect_concepts`):
+      an Aura's or Equipment's granted trigger (Curious Inquiry's "whenever ~
+      deals combat damage to a player, investigate", Sticky Fingers), a land
+      grant (Bootleggers' Stash), a token's own trigger (Fable of the
+      Mirror-Breaker's Goblin Shaman, Wolf's Quarry's Boars);
+    * "Target player creates a Treasure token" (Prismari Command): the token's
+      ``owner`` is a target player you choose, and reading it as yours (you
+      may target yourself) is the lane's own decision; phase scopes it "any";
+    * a ``CreateToken`` replacement that creates a kind it does not watch
+      (:func:`~mtg_utils._card_ir.crosswalk.replacement_added_token_subtypes`
+      against :func:`~mtg_utils._card_ir.crosswalk.replacement_token_types`):
+      Bilbo, Fellow Conspirator adds a Treasure to each Food, Tippy-Toe adds a
+      Food to any token. A replacement that adds to the kind it watches (Xorn's
+      extra Treasure, Academy Manufactor's "one of each" over Clue / Food /
+      Treasure) only multiplies that kind's makers: it is the kind's payoff
+      (``_replacement_doubler_lanes``), not a maker;
+    * a static that makes your permanents the kind "in addition to their other
+      types" (CR 205.1b — Gourmand's Talent's and Ragost's Foods, Senator
+      Peacock's Clues), read off an ``AddSubtype`` over a filter you control.
+
+    A token an opponent creates is not yours to make (CR 111.2), including
+    "that player creates" on a trigger that watches only opponents
+    (:func:`_triggering_opponent_creates` — Bloodvial Purveyor).
     """
     keys = {
         "Treasure": "treasure_makers",
@@ -1374,26 +1448,48 @@ def _resource_token_makers(tree: ConceptTree) -> list[Signal]:
         "Blood": "blood_makers",
     }
     out: list[str] = []
-    for c in tree.effect_concepts("make_token"):
-        if c.scope not in _YOU_EACH:
-            continue
-        for sub, key in keys.items():
-            if sub in c.subject:
-                out.append(key)
-        # phase v0.104.0 parks an intervening-if token clause ("if another
-        # Human died under your control this turn, create a Food token" —
-        # White Glove Gourmand) as an Unimplemented residue the
-        # ``make_token`` token recovers; no typed subtypes, so the seam's
-        # reading of the clause names the token's types (``c.reading``), unless
-        # another player creates it (``OTHER_PLAYER``, CR 111.2).
+    for unit in tree.units:
+        for c in (*unit.effects, *iter_nested_granted_effect_concepts(unit.node)):
+            if c.concept == "investigate":
+                out.append("clue_makers")
+                continue
+            if c.concept != "make_token":
+                continue
+            if (
+                c.scope in _YOU_EACH or _owner_is_target_player(c.node)
+            ) and not _triggering_opponent_creates(unit, c.node):
+                out.extend(key for sub, key in keys.items() if sub in c.subject)
+            # phase v0.104.0 parks an intervening-if token clause ("if another
+            # Human died under your control this turn, create a Food token" —
+            # White Glove Gourmand) as an Unimplemented residue the
+            # ``make_token`` token recovers; no typed subtypes, so the seam's
+            # reading of the clause names the token's types (``c.reading``),
+            # unless another player creates it (``OTHER_PLAYER``, CR 111.2).
+            if (
+                c.scope in _YOU_EACH
+                and c.recovered_by == "make_token"
+                and not c.subject
+                and OTHER_PLAYER not in c.reading
+            ):
+                out.extend(key for sub, key in keys.items() if sub in c.reading)
         if (
-            c.recovered_by == "make_token"
-            and not c.subject
-            and OTHER_PLAYER not in c.reading
+            unit.origin == "replacement"
+            and replacement_event_tag(unit.node) == "CreateToken"
+            and replacement_token_owner_scope(unit.node) != "Opponent"
         ):
-            out.extend(key for sub, key in keys.items() if sub in c.reading)
-    if tree.has_effect("investigate"):
-        out.append("clue_makers")
+            watched = replacement_token_types(unit.node)[0]
+            out.extend(
+                keys[sub]
+                for sub in replacement_added_token_subtypes(unit.node)
+                if sub in keys and sub not in watched
+            )
+        for sdef in iter_static_defs(unit.node):
+            if filter_controller(getattr(sdef, "affected", None)) != "You":
+                continue
+            for mod in getattr(sdef, "modifications", None) or ():
+                sub = getattr(mod, "subtype", None)
+                if tag_of(mod) == "AddSubtype" and sub in keys:
+                    out.append(keys[sub])
     seen: set[str] = set()
     sigs: list[Signal] = []
     for key in out:
@@ -1463,9 +1559,17 @@ def _energy_makers(tree: ConceptTree) -> list[Signal]:
     (Aetherworks Marvel, Dynavolt Tower). phase models energy as a first-class effect
     (NOT a kind-dropped ``GivePlayerCounter``), so the structural read is clean. Scope
     "you".
+
+    Also fires on a ``GainEnergy`` inside an ability the card grants, read by
+    :func:`~mtg_utils._card_ir.crosswalk.keyword_resource_events`.
     """
     for c in tree.effect_concepts("gain_energy"):
         return [Signal("energy_makers", "you", "", c.raw, tree.name, "high")]
+    if any(
+        e.resource == "energy" and e.side == "makers"
+        for e in keyword_resource_events(tree)
+    ):
+        return [Signal("energy_makers", "you", "", "", tree.name, "high")]
     return []
 
 

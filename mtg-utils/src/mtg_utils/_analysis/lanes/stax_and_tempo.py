@@ -38,6 +38,7 @@ from mtg_utils._card_ir.crosswalk import (
     AbilityUnit,
     ConceptTree,
     change_zone_dirs,
+    controller_side,
     counter_kind,
     counter_kind_any,
     counter_pred_kinds,
@@ -51,14 +52,18 @@ from mtg_utils._card_ir.crosswalk import (
     effect_reaches_player,
     explicit_recipient_scope,
     filter_controller,
+    filter_controller_side,
     filter_core_types,
     filter_inzone_zones,
     filter_non_types,
     filter_owned_controller,
     filter_subtypes,
+    granted_target_taps,
+    granted_trigger_events,
     has_filter_property,
     iter_mod_sites,
     iter_nested_spellcast_static_modes,
+    iter_nested_trigger_defs,
     iter_static_defs,
     iter_threaded_target_statics,
     iter_typed_nodes,
@@ -71,37 +76,65 @@ from mtg_utils._card_ir.crosswalk import (
     settap_state,
     static_mode_tag,
     tag_of,
+    taps_target_object,
     trigger_caster_scope,
     trigger_counter_filter,
     trigger_scope,
 )
-from mtg_utils._card_ir.mirror.runtime import MirrorVariant
+from mtg_utils._card_ir.mirror.runtime import MirrorVariant, TypedMirrorNode
 from mtg_utils._card_ir.recovery import EACH_OBJECT, TARGET_OBJECT, THEIRS
 
 
+def _is_counter_place_payoff(trig: TypedMirrorNode) -> bool:
+    """Whether a ``CounterAdded`` trigger definition is a counters-placed payoff
+    (see :func:`_counter_place_trigger`)."""
+    if getattr(trig, "mode", None) != "CounterAdded":
+        return False
+    ct, threshold = trigger_counter_filter(trig)
+    if ct == "lore":
+        return False
+    watched = getattr(trig, "valid_card", None)
+    # A threshold on the card itself ("When the fourth plan counter is put on
+    # this enchantment", Midnight Clock's twelfth hour counter) is a countdown
+    # the card feeds itself, the Saga-chapter shape (CR 714.2b), not a payoff
+    # for the deck's counter placement.
+    if threshold and tag_of(watched) == "SelfRef":
+        return False
+    # The placer rides ``valid_target``: an opponent's placement is a hoser's
+    # or Bold Plagiarist's trigger, never a payoff of yours. YOU putting
+    # counters on a creature you don't control is yours (Kros, Defense
+    # Contractor; Generous Patron, whose ruling: it triggers "when you put
+    # counters on a creature you don't control").
+    placer = trigger_scope(trig)
+    if placer == "opponents":
+        return False
+    return not (filter_controller_side(watched) == "opponents" and placer != "you")
+
+
 def _counter_place_trigger(tree: ConceptTree) -> list[Signal]:
-    """counter_place_trigger — the counters-placed payoff (CR 122.1 + 603.2):
-    a ``CounterAdded`` trigger whose typed ``counter_filter`` is NOT the lore
+    """counter_place_trigger — the counters-placed payoff (CR 122.1 + 603.2;
+    CR 122.6: counters "put on" an object include those it enters with): a
+    ``CounterAdded`` trigger whose typed ``counter_filter`` is NOT the lore
     kind. The typed Saga gate (CR 714.2b: a chapter IS a lore-CounterAdded
     trigger — 723 of 798 corpus) IMPROVES on live's type_line sniff; the
     card-subtype belt (``Saga`` in the card's own subtypes) rides over it.
-    The opponent-side population punisher (Kros, Defense Contractor /
-    Generous Patron — ``valid_card`` controller Opponent) is vetoed
-    (checklist #6). Cards that PLACE counters via effect (Cathars' Crusade —
-    a ChangesZone trigger + PutCounterAll, no CounterAdded mode) never fire.
-    Scope "you" (live).
+    The trigger is read top-level or GRANTED (:func:`iter_nested_trigger_defs`
+    — Cursed Wombat's and Danny Pink's "Permanents / Creatures you control
+    have 'Whenever one or more counters are put on this …'"), and gated by
+    :func:`_is_counter_place_payoff`: a self countdown and an opponent's
+    placement are vetoed; your placement on an opponent's creature (Kros,
+    Generous Patron) is a payoff. Cards that PLACE counters via effect
+    (Cathars' Crusade — a ChangesZone trigger + PutCounterAll, no
+    CounterAdded mode) never fire. Scope "you" (live).
     """
     if "Saga" in tree.card_subtypes:
         return []
     for unit in tree.units:
-        if unit.origin != "trigger" or unit.trigger_event != "counter_added":
-            continue
-        ct, _threshold = trigger_counter_filter(unit.node)
-        if ct == "lore":
-            continue
-        if filter_controller(getattr(unit.node, "valid_card", None)) == "Opponent":
-            continue
-        return [Signal("counter_place_trigger", "you", "", "", tree.name, "high")]
+        defs = list(iter_nested_trigger_defs(unit.node))
+        if unit.origin == "trigger" and unit.trigger_event == "counter_added":
+            defs.insert(0, unit.node)
+        if any(_is_counter_place_payoff(d) for d in defs):
+            return [Signal("counter_place_trigger", "you", "", "", tree.name, "high")]
     return []
 
 
@@ -319,6 +352,7 @@ def _tap_lanes(tree: ConceptTree) -> list[Signal]:
             seen.add(key)
             out.append(Signal(key, scope, "", raw, tree.name, "high"))
 
+    self_permanent = not {"Instant", "Sorcery"} & set(tree.card_types)
     for unit in tree.units:
         for c in unit.iter_concepts():
             if c.role != "effect":
@@ -342,7 +376,7 @@ def _tap_lanes(tree: ConceptTree) -> list[Signal]:
                 ttag = tag_of(tgt)
                 if ttag == "SelfRef":
                     continue  # self-tap, no real target
-                if ttag in ("Typed", "Or", "And"):
+                if taps_target_object(c.node):
                     fire("tapper_engine", "any", c.raw)
                 ctrl = filter_controller(tgt)
                 # b11 follow-up (b), adjudicated: DefendingPlayer is
@@ -371,7 +405,7 @@ def _tap_lanes(tree: ConceptTree) -> list[Signal]:
                 # that opponent by definition, never a bare "any player"
                 # watcher.
                 if (
-                    ctrl in ("Opponent", "DefendingPlayer", "TargetOpponent")
+                    controller_side(ctrl) == "opponents"
                     or (
                         # phase v0.104.0 binds "that player" off a deals-damage
                         # trigger as TriggeringPlayer (Mana Skimmer, Somnophore).
@@ -502,8 +536,8 @@ def _tap_lanes(tree: ConceptTree) -> list[Signal]:
                 ttag = tag_of(tgt)
                 owner_scope = effect_owner_player_scope(unit.node, c.node)
                 if (
-                    ttag in ("Opponent", "Opponents", "EachOpponent", "DefendingPlayer")
-                    or owner_scope in ("Opponent", "Opponents", "EachOpponent")
+                    controller_side(ttag) == "opponents"
+                    or controller_side(owner_scope) == "opponents"
                     or (
                         ttag == "TriggeringPlayer"
                         and unit.origin == "trigger"
@@ -513,8 +547,20 @@ def _tap_lanes(tree: ConceptTree) -> list[Signal]:
                 ):
                     fire("tap_down", "opponents", c.raw)
         for sdef in iter_static_defs(unit.node):
-            if static_mode_tag(sdef) == "CantUntap":
+            # A permanent's "This creature doesn't untap during your untap
+            # step" (Brass Gnat, Mana Vault, the depletion lands) is a drawback
+            # on itself, not a lock. On an instant or sorcery ``SelfRef`` is
+            # the creature it tapped (Code of Constraint).
+            if static_mode_tag(sdef) == "CantUntap" and not (
+                self_permanent and tag_of(getattr(sdef, "affected", None)) == "SelfRef"
+            ):
                 fire("tapper_engine", "any", _site_raw(sdef))
+        # A tap ability or trigger the card grants (CR 113.1a): an Aura's or
+        # Equipment's "{T}: Tap target creature" (Debtor's Pulpit, Siren Song
+        # Lyre), a lord's (Telekinetic Sliver), a token's (Goldmeadow
+        # Lookout), a granted attack trigger (Web-Shooters).
+        if granted_target_taps(unit.node):
+            fire("tapper_engine", "any", "")
         # b11 follow-up (b) continued: a GRANTED attack-tap trigger — an
         # Aura/Equipment conferring "Whenever this creature attacks, tap
         # target creature defending player controls" (Grasp of the
@@ -533,8 +579,8 @@ def _tap_lanes(tree: ConceptTree) -> list[Signal]:
                     continue
                 if settap_state(tnode) != "Tap":
                     continue
-                tctrl = filter_controller(getattr(tnode, "target", None))
-                if tctrl in ("Opponent", "DefendingPlayer", "TargetPlayer"):
+                tside = filter_controller_side(getattr(tnode, "target", None))
+                if tside in ("opponents", "chosen"):
                     fire("tap_down", "opponents", "")
     if "tap_down" not in seen and _TAP_EACH_OPPONENT_CREATURE_RE.search(_kept(tree)):
         fire("tap_down", "opponents", "")
@@ -562,6 +608,13 @@ def _tap_untap_matters(tree: ConceptTree) -> list[Signal]:
     """
     for unit in tree.units:
         if unit.origin == "trigger" and unit.trigger_event in _TAP_EVENTS:
+            return [Signal("tap_untap_matters", "you", "", "", tree.name, "high")]
+    # The same trigger granted (CR 113.1a): "Elves you control have 'Whenever
+    # this creature becomes tapped …'" (Dionus, Elvish Archdruid), an Aura's
+    # (Well Rested), a token's (Wildfire Awakener), an emblem's (Tezzeret,
+    # Betrayer of Flesh).
+    for unit in tree.units:
+        if granted_trigger_events(unit.node) & _TAP_EVENTS:
             return [Signal("tap_untap_matters", "you", "", "", tree.name, "high")]
     for unit in tree.units:
         for concept in ("taps", "untaps"):

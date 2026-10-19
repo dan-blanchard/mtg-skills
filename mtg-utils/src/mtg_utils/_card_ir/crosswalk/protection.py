@@ -33,11 +33,12 @@ from typing import TYPE_CHECKING, Literal
 from mtg_utils._card_ir.crosswalk.reads import (
     _GRANTED_ABILITY_TAGS,
     _GRANTED_TRIGGER_TAGS,
-    _OPPONENT_ACTOR_TAGS,
     _present,
     _variant_field,
+    animates,
+    controller_side,
     filter_controller,
-    filter_core_types,
+    filter_controller_side,
     filter_predicates,
     filter_subtypes,
     is_spell_card,
@@ -69,10 +70,6 @@ _PLAYER_PROTECTION_MODES: dict[str, str] = {
     "Shroud": "shroud",
     "PlayerProtection": "protection",
 }
-#: Filter controllers that make a recipient someone else's — the opponent actor
-#: tags plus a targeted opponent: a protective effect aimed only at an
-#: opponent's object is not protecting your board.
-_HOSTILE_CONTROLLERS: frozenset[str] = _OPPONENT_ACTOR_TAGS | {"TargetOpponent"}
 #: Recipient tags naming you, or you and your permanents.
 _PLAYER_RECIPIENT_TAGS: frozenset[str] = frozenset(
     {"Controller", "Player", "ControllerAndControlledPermanents"}
@@ -116,7 +113,9 @@ def _filter_recipient(tree: ConceptTree, filt: object) -> ProtectionRecipient | 
         return "permanent"
     if tag not in _CHOSEN_TARGET_TAGS:
         return None
-    if filter_controller(filt) in _HOSTILE_CONTROLLERS:
+    # A protective effect aimed only at an opponent's object is not
+    # protecting your board.
+    if filter_controller_side(filt) == "opponents":
         return None
     if (
         tag == "Typed"
@@ -162,7 +161,7 @@ def _chooses_other_object(root: object) -> bool:
         tag_of(t) == "AttachedTo"
         or (
             tag_of(t) in _CHOSEN_TARGET_TAGS
-            and filter_controller(t) not in _HOSTILE_CONTROLLERS
+            and filter_controller_side(t) != "opponents"
         )
         for t in _effect_targets(root)
     )
@@ -317,33 +316,8 @@ def _umbra_armored_aura(sdef: object, mod: object, *, aura: bool) -> bool:
     if tag_of(affected) == "SelfRef":
         return aura
     return "Aura" in filter_subtypes(affected) and (
-        filter_controller(affected) not in _HOSTILE_CONTROLLERS
+        filter_controller_side(affected) != "opponents"
     )
-
-
-def _animates(sdef: object, recipient: object) -> bool:
-    """Whether a static def turns its object into a creature (Avalanche Caller's
-    "Target snow land you control becomes a 4/4 Elemental creature with hexproof
-    and haste"; Sylvan Awakening; Sparkshaper Visionary's planeswalkers) or
-    rewrites its card types outright (Darksteel Mutation's "is an Insect artifact
-    creature … has indestructible, and loses all other abilities"). A protective
-    keyword in the same def is part of the object it makes, not a shield for an
-    existing permanent of yours — the read's own decision. Adding the Creature
-    type to a creature (Secret Identity's "target creature you control becomes a
-    Citizen … and gains hexproof") animates nothing; ``recipient`` is the
-    resolved filter the def affects."""
-    for mod in getattr(sdef, "modifications", None) or ():
-        if tag_of(mod) == "SetCardTypes" and "Creature" in (
-            getattr(mod, "core_types", None) or ()
-        ):
-            return True
-        if (
-            tag_of(mod) == "AddType"
-            and getattr(mod, "core_type", None) == "Creature"
-            and "Creature" not in filter_core_types(recipient)
-        ):
-            return True
-    return False
 
 
 def protective_grant_recipients(
@@ -365,7 +339,8 @@ def protective_grant_recipients(
     Dropped: a grant to the card itself ("~ has hexproof as long as it's
     untapped" — Dragonlord Ojutai; "Sacrifice another creature: ~ gains
     indestructible" — Yahenni), a grant only an opponent's objects take, and a
-    keyword that comes with animating the object (:func:`_animates`)."""
+    keyword that comes with animating the object (:func:`animates`: Avalanche
+    Caller's land, Darksteel Mutation's Insect)."""
     card_is_aura = "Aura" in tree.card_subtypes
     for unit in tree.units:
         threaded: dict[int, object] = {}
@@ -395,7 +370,7 @@ def protective_grant_recipients(
             if kw is None or id(sdef) in in_token:
                 continue
             resolved = threaded.get(id(mod))
-            if _animates(sdef, resolved if resolved is not None else affected):
+            if animates(sdef, unit.node):
                 continue
             who = _self_or_granted(tree, unit, sdef, affected, granted, resolved)
             if who is not None:
@@ -431,7 +406,7 @@ def _symmetric_static_shield(node: TypedMirrorNode, *, static: bool) -> bool:
     source = getattr(node, "damage_source_filter", MISSING)
     if _present(source) and (
         tag_of(source) == "AttachedTo"
-        or filter_controller(source) in (*_HOSTILE_CONTROLLERS, "You")
+        or filter_controller_side(source) in ("opponents", "you")
     ):
         return False
     damaged = getattr(node, "damage_target_filter", MISSING)
@@ -476,7 +451,7 @@ def _prevention_shield_recipient(
     damaged = getattr(node, "damage_target_filter", MISSING)
     if isinstance(damaged, MirrorVariant):
         player = _variant_field(damaged.inner, "player")
-        if tag_of(player) in _HOSTILE_CONTROLLERS:
+        if controller_side(tag_of(player)) == "opponents":
             return None
     if _present(watched):
         return _filter_recipient(tree, watched)
@@ -529,7 +504,7 @@ def _hostile_damage_source(node: TypedMirrorNode) -> bool:
     that would be dealt … by target permanent an opponent controls"): a shield
     for you and your permanents against it."""
     source = getattr(node, "damage_source_filter", MISSING)
-    return _present(source) and filter_controller(source) in _HOSTILE_CONTROLLERS
+    return _present(source) and filter_controller_side(source) == "opponents"
 
 
 def _held_phased_out(root: object) -> bool:

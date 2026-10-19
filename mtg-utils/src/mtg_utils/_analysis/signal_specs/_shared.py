@@ -1107,6 +1107,13 @@ _PLUS_ONE_SERVE_IDENTS: frozenset[str] = _PLUS_ONE_PLACERS | {"proliferate_maker
 # Amass and incubate serve the +1/+1 package (_PLUS_ONE_PLACERS) without
 # proliferate (their regexes never named it); amass adds the Army payoffs.
 _AMASS_SERVE_IDENTS: frozenset[str] = _PLUS_ONE_PLACERS | {"type_matters|you|Army"}
+# The creature-token makers as the lanes read them: every token_maker subject
+# (token_maker reads amass's Army, endure's Spirit and populate's copy through
+# ``crosswalk.keyword_token_creations``) plus amass_makers, whose keyword fallback
+# keeps the amass clauses phase drops (Commence the Endgame, Fall of Cair Andros).
+_TOKEN_MAKER_IDENTS: frozenset[str] = frozenset(
+    {"token_maker|you|*", "amass_makers|you|"}
+)
 _COUNTER_DOUBLER_EXTRA = SubAvenue(
     "Counter doublers",
     "replacement effects that multiply every counter you place "

@@ -5,6 +5,8 @@ crosswalk_signals.py)."""
 from __future__ import annotations
 
 import re
+from itertools import chain
+from typing import Literal
 
 from mtg_utils._analysis._subtypes import CREATURE_SUBTYPES
 from mtg_utils._analysis._sweep_detectors import COMBAT_DAMAGE_TO_OPP_DS_GRANT_REGEX
@@ -18,10 +20,10 @@ from mtg_utils._analysis.lanes._shared import (
     _unknown_mode_combat_damage_to_player,
     _whole_card_maker,
     sacrifice_actor_scope,
+    unclaimed_clauses,
 )
 from mtg_utils._analysis.signal_base import (
     Signal,
-    _clauses,
     _resolve_subject,
 )
 from mtg_utils._analysis.text_reads import (
@@ -34,8 +36,11 @@ from mtg_utils._card_ir.crosswalk import (
     OTHERS_SCOPE,
     AbilityUnit,
     ConceptTree,
+    animates,
+    answers_its_target,
     change_zone_dirs,
     condition_tags,
+    controller_side,
     cost_has_paylife,
     counter_kind,
     damage_to_player_trigger_kind,
@@ -44,6 +49,7 @@ from mtg_utils._card_ir.crosswalk import (
     effect_owner_player_scope,
     explicit_recipient_scope,
     filter_controller,
+    filter_controller_side,
     filter_core_types,
     filter_inzone_zones,
     filter_owned_controller,
@@ -53,13 +59,16 @@ from mtg_utils._card_ir.crosswalk import (
     has_nested_fight,
     iter_cost_leaves,
     iter_delayed_trigger_condition_defs,
+    iter_nested_granted_effect_concepts,
     iter_nested_trigger_defs,
     iter_static_defs,
     iter_typed_nodes,
+    keyword_resource_events,
     lifeloss_recipient_is_degraded_typed,
     lifeloss_recipient_scope,
     mod_value,
     node_lure_mode,
+    pt_mod_signs,
     pump_is_negative,
     self_graveyard_fills,
     static_mode_tag,
@@ -793,13 +802,15 @@ def _gy_count_ref_scope(node: object) -> str | None:
     (``DistinctCardTypes`` over a graveyard ``Zone`` source — Grim
     Flayer), or a Threshold activation/condition gate
     (``ZoneCardCountAtLeast`` / a bare ``GraveyardSize`` comparison —
-    Nantuko Monastery, Mindwhisker). Morbid ("if a creature died this
-    turn") keys off ``ZoneChangeCountThisTurn`` with ``to: Graveyard``
-    (CR 700.4's "dies" IS a battlefield→graveyard move — Scavenging
-    Ghoul, Morkrut Banshee) — carries no scope/player field, always
-    'you' (the state is board-wide, but the payoff is the controller's).
-    An explicit ``Opponent`` scope/player on the other four routes to
-    'opponents' (GY-hate count); else the self-graveyard default 'you'
+    Nantuko Monastery, Mindwhisker). A ``ZoneChangeCountThisTurn`` with
+    ``to: Graveyard`` counts cards put into a graveyard this turn — no
+    scope/player field, always 'you' — EXCEPT a battlefield-origin count,
+    Morbid's "if a creature died this turn" (CR 700.4: "dies" means "is
+    put into a graveyard from the battlefield" — Bulette, Deathreap Ritual,
+    Scavenging Ghoul): a death payoff (``death_matters``), not a payoff on
+    cards IN your graveyard, so it returns ``None``. An explicit
+    ``Opponent`` scope/player on the other four routes to 'opponents'
+    (GY-hate count); else the self-graveyard default 'you'
     (``ZoneCardCountAtLeast`` carries no scope field at all — CR
     Threshold templating is always about YOUR graveyard).
     """
@@ -822,8 +833,59 @@ def _gy_count_ref_scope(node: object) -> str | None:
     if t == "ZoneChangeCountThisTurn":
         if getattr(node, "to", None) != "Graveyard":
             return None
+        if getattr(node, "from_", None) == "Battlefield":
+            return None
         return "you"
     return None
+
+
+#: What an exile out of a graveyard reads as (:func:`_graveyard_exile`):
+#: graveyard hate at a scope, or an exile out of your own graveyard.
+GraveyardExile = Literal["opponents", "any", "own"]
+
+
+def _graveyard_exile(node: TypedMirrorNode) -> GraveyardExile | None:
+    """What an effect that answers its target (:func:`answers_its_target`)
+    reads as when it exiles out of a graveyard, or ``None`` when it doesn't:
+
+    * ``"opponents"`` — hate on an opponent's graveyard, or a player's the
+      card picks ("exile target player's graveyard" — Bojuka Bog, Angel of
+      Finality; "exile all cards from target player's graveyard" —
+      Necromancer's Covenant);
+    * ``"any"`` — hate on a card from a graveyard, or all of them ("exile up
+      to one target card from a graveyard" — Afterthought Sentry,
+      Necrogenesis; "exile all graveyards" — Rest in Peace);
+    * ``"own"`` — no hate: your own graveyard, a card an earlier clause named
+      (the discarded card Necropotence exiles), or each player exiling from
+      their own (Living Death's mass reanimation).
+
+    Each half of a compound target names its own graveyard (Spelltwine: "…
+    from your graveyard and … from an opponent's graveyard"); a half that is
+    yours makes the exile ``"own"``. The owner is the filter's ``Owned``
+    property, else its controller (:func:`controller_side`)."""
+    filt = effect_filter(node)
+    origin, _ = change_zone_dirs(node)
+    in_gy = "Graveyard" in filter_inzone_zones(filt)
+    if origin != "Graveyard" and not in_gy:
+        return None
+    if tag_of(filt) == "Player":
+        return "opponents"
+    parts = getattr(filt, "filters", None) if tag_of(filt) in ("Or", "And") else None
+    owners = [
+        filter_owned_controller(p) or filter_controller(p) for p in (parts or (filt,))
+    ]
+    sides = {controller_side(o) for o in owners}
+    if "you" in sides:
+        return "own"
+    if sides & {"opponents", "chosen"}:
+        return "opponents"
+    if (
+        not any(owners)
+        and tag_of(filt) in ("Typed", "Or", "And")
+        and (in_gy or tag_of(node) == "ChangeZoneAll")
+    ):
+        return "any"
+    return "own"
 
 
 def _gy_filter_scope(filt: object) -> str | None:
@@ -885,9 +947,10 @@ def _graveyard_matters(tree: ConceptTree) -> list[Signal]:
       recursion, a copy/return/cast/count TARGET restricted to a
       graveyard — Reya Dawnbringer, Gravedigger, Surgical Extraction,
       Daring Waverider's ``cast_from_zone``) EXCEPT a ``ChangeZone``/
-      ``ChangeZoneAll`` whose destination is Exile — a graveyard-hate
-      exile or blink stays ``graveyard_makers`` only (CR 406.2), never
-      this lane.
+      ``ChangeZoneAll`` whose destination is Exile. A graveyard-hate exile
+      fires 'opponents' or 'any' (:func:`_graveyard_exile` — Bojuka Bog,
+      Afterthought Sentry), never 'you'; any other exile or blink stays
+      out of this lane.
     * **graveyard-fuel activation cost** — "Exile this card from your
       graveyard: …" (Seasoned Pyromancer's 2nd ability, Renew) — a typed
       ``Exile`` cost leaf whose zone is Graveyard (CR 702.66a's delve
@@ -938,13 +1001,18 @@ def _graveyard_matters(tree: ConceptTree) -> list[Signal]:
     """
     out: list[Signal] = []
     seen: set[str] = set()
+    # The units read as graveyard hate below, and those that also exile out
+    # of your own graveyard: the last-resort text mirror doesn't re-read the
+    # first unless it is also the second (see its gate).
+    hate_units: set[int] = set()
+    own_exile: set[int] = set()
 
     def fire(scope: str, raw: str) -> None:
         if scope not in seen:
             seen.add(scope)
             out.append(Signal("graveyard_matters", scope, "", raw, tree.name, "high"))
 
-    for unit in tree.units:
+    for unit_index, unit in enumerate(tree.units):
         node = unit.node
         if unit.origin == "trigger":
             # ADR-0038 W5b: ``origin is None`` is phase's shape for an
@@ -971,10 +1039,26 @@ def _graveyard_matters(tree: ConceptTree) -> list[Signal]:
 
         for c in unit.effects:
             enode = c.node
-            if tag_of(enode) in ("ChangeZone", "ChangeZoneAll"):
-                _, dest = change_zone_dirs(enode)
-                if dest == "Exile":
-                    continue
+            if answers_its_target(enode):
+                # Graveyard HATE: an exile out of a graveyard answers the
+                # cards there; it is no payoff on cards in YOUR graveyard
+                # (:func:`_graveyard_exile`). A battlefield exile or blink, and
+                # an exile out of your own graveyard, stay out of this arm.
+                exile = _graveyard_exile(enode)
+                if exile == "own":
+                    own_exile.add(unit_index)
+                elif exile is not None:
+                    # Phase drops "that player's" off the filter (Skullsnatcher,
+                    # Zombie Cannibal — retirement canary
+                    # test_gy_hate_that_players_graveyard_canary): the same
+                    # description veto the InZone arm below runs.
+                    if exile == "any" and _GY_OPP_RE.search(
+                        getattr(node, "description", "") or ""
+                    ):
+                        exile = "opponents"
+                    fire(exile, c.raw)
+                    hate_units.add(unit_index)
+                continue
             # ADR-0038 W6 endgame: a ``ChooseFromZone`` reading a graveyard
             # (Dawnbreak Reclaimer's "choose a creature card in an
             # opponent's graveyard, then that player chooses a creature
@@ -1047,14 +1131,14 @@ def _graveyard_matters(tree: ConceptTree) -> list[Signal]:
                         fire("you", "")
 
         # A graveyard-zone count operand on a DIRECT effect's own
-        # amount-bearing field (Scavenging Ghoul's ``PutCounter.count`` =
-        # Ref(ZoneChangeCountThisTurn); Ancestor's Chosen's
-        # ``GainLife.amount``; Silent-Chant Zubera's ``GainLife.amount`` =
-        # Multiply(2, Ref(ZoneChangeCountThisTurn)) — unwrapped by
-        # :func:`_gy_unwrap_scalar`). Checked on the node's OWN field
-        # only — NOT the whole ability subtree — so a value-SELECTOR
-        # nested under a sibling effect (Brimstone Volley/Life Goes On's
-        # Morbid "instead" alternate value) never reaches this arm.
+        # amount-bearing field (Ancestor's Chosen's ``GainLife.amount``; a
+        # scaling wrapper is unwrapped by :func:`_gy_unwrap_scalar`). A
+        # death count (Scavenging Ghoul's ``PutCounter.count``, Silent-Chant
+        # Zubera's ``Multiply(2, …)``) resolves no scope (CR 700.4).
+        # Checked on the node's OWN field only — NOT the whole ability
+        # subtree — so a value-SELECTOR nested under a sibling effect
+        # (Brimstone Volley/Life Goes On's Morbid "instead" alternate value)
+        # never reaches this arm.
         for c in unit.effects:
             for fname in ("amount", "count", "value"):
                 q = _gy_unwrap_scalar(getattr(c.node, fname, None))
@@ -1090,10 +1174,11 @@ def _graveyard_matters(tree: ConceptTree) -> list[Signal]:
                     fire(sc, c.raw)
 
         # A graveyard-zone count/threshold tag GATING this unit (Threshold/
-        # Delirium/Morbid CONDITION — Grim Flayer, Nantuko Monastery,
-        # Mindwhisker, Descend upon the Sinful) — the unit's OWN top-level
-        # ``condition`` / ``activation_restrictions`` field, un-nested (so a
-        # sibling sub-ability's alternate-value "instead" condition never
+        # Delirium CONDITION — Grim Flayer, Nantuko Monastery, Mindwhisker,
+        # Descend upon the Sinful; a Morbid death count resolves no scope) —
+        # the unit's OWN top-level ``condition`` /
+        # ``activation_restrictions`` field, un-nested (so a sibling
+        # sub-ability's alternate-value "instead" condition never
         # reaches this arm either, nor does a REPLACEMENT effect's own
         # ``OnlyIfQuantity`` Morbid gate — Festerhide Boar's "enters with
         # two +1/+1 counters if a creature died this turn" is a
@@ -1224,8 +1309,15 @@ def _graveyard_matters(tree: ConceptTree) -> list[Signal]:
     # (CR 400.7: a card whose own ETB trigger is gated on NOT arriving
     # from a graveyard still mechanically references the zone). No
     # exclusion filter, matching legacy byte-for-byte.
+    #
+    # The mirror skips the clauses of a unit read as graveyard hate above
+    # (:func:`unclaimed_clauses`): it read "exile target player's graveyard"
+    # (Bojuka Bog) and "from a graveyard" (Afterthought Sentry) as 'you'. A
+    # unit that also exiles out of your own graveyard (Spelltwine) stays
+    # unclaimed.
+    claimed = (tree.units[i].node for i in sorted(hate_units - own_exile))
     for _gy_key, _gy_scope_v in _graveyard_matters_clauses(
-        " ".join(_clauses(_kept(tree))), tree.name
+        " ".join(unclaimed_clauses(tree, claimed)), tree.name
     ):
         fire(_gy_scope_v, "")
 
@@ -2067,29 +2159,30 @@ def _land_sacrifice_makers(tree: ConceptTree) -> list[Signal]:
 
 
 def _debuff_makers(tree: ConceptTree) -> list[Signal]:
-    """debuff_makers — a -X/-X / -1/-1 enabler (CR 613.4c / 704.5g). Three anchors:
+    """debuff_makers — a -X/-X / -1/-1 enabler (CR 613.4c / 704.5f). Four anchors:
 
     * a NEGATIVE ``Pump`` / ``PumpAll`` EFFECT (Bile Blight's -3/-3) — scope
-      "any"; reads BOTH a FIXED shrink (either field negative, via
-      :func:`pump_is_negative`) and a dynamic ``Variable "-X"`` TOUGHNESS
-      shrink (Death Wind / Flunk's single-target "-X/-X", Toxic Deluge's mass
-      "-X/-X" — task #85: the single-target kill class fell through here
-      because ``pump_is_negative`` only reads ``Fixed`` sub-nodes; the mass
-      arm's own :func:`_negative_pt_field` already covered the dynamic case
-      in ``_mass_removal`` per the CR 704.5f lethality tell, so this mirrors
-      that precedent — toughness only, same as the mass arm, not power: a
-      dynamic "-X/+0" power-only dip has no toughness tell to key on and
-      stays unread here, matching the Fixed arm's silence on that shape too
-      since ``pump_is_negative`` gates on EITHER field but no corpus card
-      pairs a dynamic power shrink with a static positive toughness);
+      "any"; reads a FIXED shrink (either field negative, via
+      :func:`pump_is_negative`) and a dynamic one (:func:`_negative_pt_field`:
+      a ``Variable "-X"`` or a negated quantity) on either field — Death Wind /
+      Flunk's single-target "-X/-X", Toxic Deluge's mass "-X/-X", Roilmage's
+      Trick's one-sided "-X/-0". A creature shrinking itself ("This creature
+      gets +1/-1 until end of turn") is a cost it pays, not a debuff;
     * a ``-1/-1`` (``M1M1``) counter PLACEMENT whose scope is NOT you (an opponent /
       symmetric debuff — Black Sun's Zenith), distinct from the you-maker
       ``minus_counters_matter`` — scope "any";
-    * a mass base-toughness SET ≤ 2 on opponents / symmetric creatures (Humility,
-      Overwhelming Splendor) — a 0-toughness enabler — scope "you".
+    * a STATIC shrink: a continuous P/T modification lowering power, or
+      toughness alone (:func:`pt_mod_signs`) — the debuff Aura, the board
+      shrink — scope "any";
+    * a base-toughness SET ≤ 2 on opponents / symmetric creatures (Humility,
+      Overwhelming Splendor; the one-shot Flatline) — a 0-toughness enabler —
+      scope "you".
 
-    A scope-you base-P/T set is a BUFF (Biomass Mutation), excluded; a single-target
-    neutralize (scope any) is removal, not a -1/-1 payoff.
+    The first two also read inside an ability or trigger the card grants. A
+    scope-you base-P/T set is a BUFF (Biomass Mutation), excluded; a
+    single-target set (Turn to Frog, Diminish, Frogify) is a neutralize —
+    removal, not a -1/-1 payoff; an animation that sets the new creature's P/T
+    (Living Lands) shrinks nothing.
     """
     out: list[Signal] = []
     seen: set[str] = set()
@@ -2099,10 +2192,31 @@ def _debuff_makers(tree: ConceptTree) -> list[Signal]:
             seen.add(scope)
             out.append(Signal("debuff_makers", scope, "", raw, tree.name, "high"))
 
+    # A creature shrinking itself ("This creature gets +1/-1 until end of turn"
+    # — the Flowstone shifters) pays a cost to grow; it shrinks nobody else's
+    # creature. On a noncreature card phase's ``SelfRef`` is the "it" an
+    # earlier clause chose (Blood Lust's "it gets +4/-4"; Jace, Architect of
+    # Thought's "whenever a creature an opponent controls attacks, it gets
+    # -1/-0").
+    self_creature = "Creature" in tree.card_types
     for unit in tree.units:
-        for c in unit.effects:
-            if c.concept == "pump" and (
-                pump_is_negative(c.node) or _negative_pt_field(c.node, "toughness")
+        # The unit's own effects plus those inside an ability or trigger it
+        # grants (CR 113.1a): Sadistic Obsession's "Enchanted creature has
+        # '{B}, {T}: Put a -1/-1 counter on target creature'", Gloomdrifter's
+        # threshold-granted "nonblack creatures get -2/-2", the Festering
+        # Goblin token Skirk Ridge Exhumer makes.
+        for c in chain(unit.effects, iter_nested_granted_effect_concepts(unit.node)):
+            if (
+                c.concept == "pump"
+                and not (
+                    self_creature
+                    and tag_of(getattr(c.node, "target", None)) == "SelfRef"
+                )
+                and (
+                    pump_is_negative(c.node)
+                    or _negative_pt_field(c.node, "toughness")
+                    or _negative_pt_field(c.node, "power")
+                )
             ):
                 fire("any", c.raw)
             if (
@@ -2111,41 +2225,90 @@ def _debuff_makers(tree: ConceptTree) -> list[Signal]:
                 and c.scope != "you"
             ):
                 fire("any", c.raw)
-        # STATIC negative-POWER pump (recall gap — the biggest silent tail): a
-        # continuous ``AddPower`` with a NEGATIVE plain-int value — the debuff
-        # Aura (Clinging Darkness -4/-1, Chant of the Skifsang -13/-0, Animate
-        # Dead -1/-0). Keyed on the POWER sign to mirror the live path, which
-        # reads the projected pump Effect's ``amount`` (the power value, scope
-        # "any"): a +X/-Y combat Equipment/Aura (Barbed Battlegear +4/-1, Boon
-        # of Emrakul +3/-3) is a BUFF whose power is positive, so it stays out
-        # (the ``AddToughness`` shrink alone is a tradeoff downside, not a -1/-1
-        # enabler). The ``Pump``-EFFECT arm above reads the ``Fixed``
-        # power/toughness sub-nodes; a STATIC mod carries a bare-int ``value``
-        # (:func:`mod_value`). A dynamic ``AddDynamicPower`` value has no int →
-        # skipped. CR 613.4c.
-        for c in unit.statics:
-            if tag_of(c.node) != "AddPower":
+        # Blight puts -1/-1 counters on a creature its player controls (CR
+        # 701.68a); "each opponent blights 1" (High Perfect Morcant) shrinks
+        # theirs. Your own blight is a cost (minus_counters_matter).
+        if tree.has_typed("BlightEffect"):
+            for n in unit.iter_typed():
+                if (
+                    tag_of(n) == "BlightEffect"
+                    and effect_actor_scope(unit, n) == "opponents"
+                ):
+                    fire("any", "")
+        # The set_pt concepts below are the modifications; each one's def says
+        # whose creatures it sets and whether it animates them.
+        set_sites: dict[int, TypedMirrorNode] = {}
+        for sdef in iter_static_defs(unit.node):
+            affected = getattr(sdef, "affected", None)
+            mods = getattr(sdef, "modifications", None) or ()
+            # An animation's P/T is the new creature's (Living Lands' "All
+            # Forests are 1/1 creatures"): the type change is CR 613.1d (layer
+            # 4), the P/T it sets 613.4b (layer 7b) — neither shrinks a
+            # creature that was one.
+            if animates(sdef, unit.node, retype=False):
                 continue
-            v = mod_value(c.node)
-            if v is not None and v < 0:
-                fire("any", c.raw)
+            set_sites.update((id(m), sdef) for m in mods)
+            # STATIC shrink (CR 613.4c, layer 7c): a debuff Aura (Clinging
+            # Darkness -4/-1, Chant of the Skifsang -13/-0, Animate Dead
+            # -1/-0, Kagemaro's Clutch's "-X/-X, where X is …"), a one-sided
+            # "-0/-N", a board shrink (Toxrill, the Corrosive; Meishin, the
+            # Mind Cage's "-X/-0"). Keyed on the POWER sign first: a +X/-Y
+            # combat Equipment/Aura (Barbed Battlegear +4/-1, Boon of Emrakul
+            # +3/-3) is a buff whose toughness downside is a tradeoff, not a
+            # -1/-1 enabler; a toughness-only shrink has no such buff. A
+            # creature's own "This creature gets -2/-2 as long as …" (the
+            # Mirage Djinns, Death's Shadow) or "creatures you control get
+            # -0/-2" (Vibrating Sphere) is a drawback on your own side.
+            if tag_of(affected) != "SelfRef" and filter_controller(affected) != "You":
+                power, toughness = pt_mod_signs(sdef)
+                if power < 0 or (toughness < 0 and power == 0):
+                    fire("any", getattr(sdef, "description", None) or "")
+            # A one-shot base-P/T set ≤ 2 on a player's whole board (CR
+            # 613.4b, layer 7b): "Creatures your opponents control have base
+            # power and toughness 0/1 until end of turn" (Flatline), "creatures
+            # target player controls …" (Sudden Spoiling, Mass Diminish). The
+            # top-level static form is the ``set_pt`` arm below.
+            if (
+                sdef is not unit.node
+                and filter_controller(affected) in _DEBUFF_BOARD_CONTROLLERS
+                and any(
+                    tag_of(mod) == "SetToughness"
+                    and (v := mod_value(mod)) is not None
+                    and v <= 2
+                    for mod in mods
+                )
+            ):
+                fire("you", getattr(sdef, "description", None) or "")
         for c in unit.statics:
             if c.concept != "set_pt" or c.scope not in ("opponents", "each"):
                 continue
-            # A single-Aura / single-target shrink (Darksteel Mutation, Frogify —
-            # affected carries an ``EnchantedBy`` / attachment predicate) is a
-            # neutralize, NOT a mass -1/-1 enabler (checklist #6 — the live path
-            # scopes it "any" via its single-target read; the overlay scopes the
-            # controller-less Aura filter "each", so the attachment predicate is the
-            # discriminator). A genuine mass shrink (Humility — "all creatures") carries
-            # no attachment predicate.
-            aff = getattr(unit.node, "affected", None)
-            if set(filter_predicates(aff)) & _DEBUFF_SINGLE_AURA_PREDS:
+            sdef = set_sites.get(id(c.node))
+            if sdef is None:
+                continue
+            # A single-target set is a neutralize, NOT a mass -1/-1 enabler
+            # (checklist #6): an Aura's (Darksteel Mutation, Frogify — its
+            # ``affected`` carries an ``EnchantedBy`` / attachment predicate)
+            # or a spell's / ability's on the creature it targets ("Target
+            # creature has base power and toughness 1/1" — Diminish, Turn to
+            # Frog; the def's ``affected`` is a ``ParentTarget`` /
+            # ``TrackedSet`` back-reference). A genuine mass shrink (Humility —
+            # "all creatures") is neither.
+            aff = getattr(sdef, "affected", None)
+            if tag_of(aff) in ("ParentTarget", "TrackedSet") or (
+                set(filter_predicates(aff)) & _DEBUFF_SINGLE_AURA_PREDS
+            ):
                 continue
             v = mod_value(c.node)
             if v is not None and v <= 2:
                 fire("you", c.raw)
     return out
+
+
+#: The ``affected`` controllers that make a one-shot base-P/T set a whole
+#: board's: the opponents' creatures, or a chosen player's.
+_DEBUFF_BOARD_CONTROLLERS: frozenset[str] = frozenset(
+    {"Opponent", "TargetPlayer", "TargetOpponent"}
+)
 
 
 def _lure_makers(tree: ConceptTree) -> list[Signal]:
@@ -2446,6 +2609,27 @@ def _connive_makers(tree: ConceptTree) -> list[Signal]:
     return []
 
 
+def _connive_matters(tree: ConceptTree) -> list[Signal]:
+    """connive_matters — the connive PAYOFF, the doer's (:func:`_connive_makers`)
+    split partner: a ``Connives`` trigger watching a creature you control
+    ("Whenever a creature you control connives, …" — Glorious Purpose, Iron
+    Monger, Sadistic Tycoon, Ultron, Unlimited), or a replacement of your
+    creatures' connive event ("If a creature you control would connive,
+    instead you draw a card, then that creature connives." — Leader,
+    Super-Genius). CR 701.50a: connive is an instruction to a permanent, whose
+    controller draws a card, then discards a card. Scope "you".
+    """
+    for unit in tree.units:
+        if unit.trigger_event == "connives" or (
+            unit.origin == "replacement"
+            and getattr(unit.node, "event", None) == "Connive"
+        ):
+            watched = getattr(unit.node, "valid_card", None)
+            if filter_controller_side(watched) != "opponents":
+                return [Signal("connive_matters", "you", "", "", tree.name, "high")]
+    return []
+
+
 def _explore_makers(tree: ConceptTree) -> list[Signal]:
     """explore_makers — an explore DOER (CR 701.44a). An ``Explore`` / ``ExploreAll``
     effect (Merfolk Branchwalker, Jadelight Ranger). Read STRUCTURALLY only — the
@@ -2453,9 +2637,16 @@ def _explore_makers(tree: ConceptTree) -> list[Signal]:
     ("whenever a creature you control explores"), which has NO ``Explore`` effect
     (only a watch-trigger), so a keyword field-lookup would over-fire (CR 701.44a — the
     maker performs the explore; the payoff merely watches). Scope "you".
+
+    A granted explore counts too (Glowcap Lantern's equipped creature has
+    "Whenever this creature attacks, it explores."): the ``Explore`` node sits in
+    the ``GrantTrigger`` body, where the unit's effect chain never reaches, so
+    the whole-card typed read finds it.
     """
     for c in tree.effect_concepts("explore"):
         return [Signal("explore_makers", "you", "", c.raw, tree.name, "high")]
+    if tree.has_typed("Explore", "ExploreAll"):
+        return [Signal("explore_makers", "you", "", "", tree.name, "high")]
     return []
 
 
@@ -2571,13 +2762,10 @@ def _combat_damage_to_opp(tree: ConceptTree) -> list[Signal]:
 
 # Condition-node tags the batch-5 ``*_matters`` payoff lanes gate on (whole-card,
 # read via :func:`condition_tags`). A designation/state PAYOFF ("if you're the
-# monarch", "if you've completed a dungeon", "as long as ~ is the Ring-bearer")
+# monarch", "as long as ~ is the Ring-bearer")
 # carries one of these typed conditions; the bare MAKER (BecomeMonarch / venture /
 # RingTemptsYou effect) carries none.
 _MONARCH_CONDITIONS: frozenset[str] = frozenset({"IsMonarch", "NoMonarch"})
-_VENTURE_CONDITIONS: frozenset[str] = frozenset(
-    {"CompletedADungeon", "CompletedDungeon", "IsInitiative"}
-)
 
 
 def _monarch(tree: ConceptTree) -> list[Signal]:
@@ -2621,13 +2809,19 @@ def _venture(tree: ConceptTree) -> list[Signal]:
     MAKER: a ``VentureIntoDungeon`` or ``TakeTheInitiative`` effect (the card
     PERFORMS the venture / takes the Initiative — Bar the Gate, Avenging Hunter).
     MATTERS: a ``CompletedADungeon`` / ``CompletedDungeon`` / ``IsInitiative``
-    payoff condition (Gloom Stalker, Imoen, Nadaar) — read structurally off the
-    typed ``condition``. A maker-only card carries no condition; a matters-only
-    card carries no venture effect. Both scope "you".
+    payoff condition (Gloom Stalker, Imoen, Nadaar), a "whenever you complete a
+    dungeon" trigger (Dungeon Crawler, Sefris; CR 309.7) or a room-ability
+    doubler (Hama Pashar; CR 309.4c). Both sides also read a venture inside a
+    granted ability (Fly), all via
+    :func:`~mtg_utils._card_ir.crosswalk.keyword_resource_events`. Both scope
+    "you".
     """
     out: list[Signal] = []
     out += _whole_card_maker(tree, "venture", "venture_makers", "you")
-    if condition_tags(tree) & _VENTURE_CONDITIONS:
+    sides = {e.side for e in keyword_resource_events(tree) if e.resource == "venture"}
+    if not out and "makers" in sides:
+        out.append(Signal("venture_makers", "you", "", "", tree.name, "high"))
+    if "matters" in sides:
         out.append(Signal("venture_matters", "you", "", "", tree.name, "high"))
     return out
 
@@ -2646,6 +2840,7 @@ LANES = (
     _lure_makers,
     _copy_clone,
     _connive_makers,
+    _connive_matters,
     _explore_makers,
     _suspect_makers,
     _combat_damage_to_opp,

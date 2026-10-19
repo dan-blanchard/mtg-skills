@@ -256,11 +256,12 @@ def test_edict_walk_drops_your_own_sacrifice():
 
 @pytest.mark.parametrize(
     "name",
-    ["Unsummon", "Multiply by Zero", "Hapatra, the Desert Fang", "Clash of Elements"],
+    ["Unsummon", "Turn to Frog", "Hapatra, the Desert Fang", "Clash of Elements"],
 )
 def test_soft_removal_is_opt_in(name):
     """The type-scoped presets read the shared removal walk's default, which
-    never sees soft removal; ``soft=True`` (twohg_scan) does."""
+    never sees soft removal (a 1/1 set, a bounce, -1/-1 counters); ``soft=True``
+    (twohg_scan) does."""
     card = test_card(name)
 
     def board(answers):
@@ -269,6 +270,13 @@ def test_soft_removal_is_opt_in(name):
 
     assert not board(removal_edict_answers(card))
     assert board(removal_edict_answers(card, soft=True))
+
+
+def test_a_toughness_set_to_zero_is_hard_removal():
+    """Multiply by Zero's 0/0 kills (CR 704.5f), so the default walk sees it —
+    a creature answer, never a planeswalker one, whatever the filter names."""
+    answers = removal_edict_answers(test_card("Multiply by Zero"))
+    assert {t for _, types in answers for t in types} == {"Creature"}
 
 
 def test_a_shrink_on_the_card_itself_is_not_removal():

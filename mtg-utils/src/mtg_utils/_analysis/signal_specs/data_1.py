@@ -99,10 +99,12 @@ from ._shared import (
     _TARGETING_SWEEP_REGEX,
     _TEAM_PROTECT_EXTRA,
     _TOKEN_DOUBLER_EXTRA,
+    _TOKEN_MAKER_IDENTS,
     _TRIBAL_ETB_MULTI_SWEEP_REGEX,
     _TRIGGER_COPY_EXTRA,
     _TYPED_ENTERS_PUNISH_SWEEP_REGEX,
     _VOLTRON_PROTECT_EXTRA,
+    Serve,
     SignalSpec,
     SubAvenue,
     _spec,
@@ -139,6 +141,23 @@ def _lifegain_spec(label: str, avenue: str) -> SignalSpec:
 # The "your graveyard" serve (graveyard_makers / graveyard_matters, you): both lanes.
 _OWN_GRAVEYARD_IDENTS = frozenset({"graveyard_makers|you|", "graveyard_matters|you|"})
 
+# The Treasure serve (treasure_makers / treasure_matters, you): both lanes.
+_TREASURE_IDENTS = frozenset({"treasure_makers|you|", "treasure_matters|you|"})
+
+# Creatures entering your battlefield, as the lanes read them: the creature-token
+# makers, a creature cheat, a creature that reanimates (damage_for_each,
+# creature_etb).
+_CREATURES_ENTERING_IDENTS = _TOKEN_MAKER_IDENTS | {
+    "cheat_into_play|you|Creature",
+    "reanimator|you|",
+}
+
+# The "is dealt damage" payoff search (card-search only; the serve is the lane).
+_SOAK_PAYOFF_SEARCH = (
+    r"whenever a creature you control is dealt damage"
+    r"|whenever enchanted creature is dealt damage"
+)
+
 SPECS_1: dict[tuple[str, str], SignalSpec] = {
     # task B-1: chosen_type_matters — wildcard tribal payoffs (Door of
     # Destinies, Herald's Horn, Urza's Incubator): choose a creature type as
@@ -171,7 +190,12 @@ SPECS_1: dict[tuple[str, str], SignalSpec] = {
         # go-wide fuel the avenue text promises, never more board-count burn
         # emitters the serve below would then reject.
         {"oracle": r"create [^.]*creature tokens?"},
-        r"create .*creature token|put .*creature.*onto the battlefield",
+        # Serve rides the lanes: the token makers plus the creatures put onto the
+        # battlefield (a creature cheat, a creature that reanimates). The regex's
+        # reanimation spells (Reanimate, Ashen Powder) are the creature_etb
+        # avenue's, not go-wide fuel.
+        None,
+        serve_idents=_CREATURES_ENTERING_IDENTS,
     ),
     ("creature_etb", "you"): _spec(
         "Creatures entering — yours",
@@ -182,10 +206,15 @@ SPECS_1: dict[tuple[str, str], SignalSpec] = {
                 r"|put .*creature card.*onto the battlefield"
             )
         },
-        (r"create .*creature token|put .*creature.*onto the battlefield"),
+        # Serve rides the lanes (the token makers, creature cheats, creatures that
+        # reanimate); reanimation spells, which no ident separates from a
+        # return to hand, ride the Reanimation extra.
+        None,
+        serve_idents=_CREATURES_ENTERING_IDENTS,
         # An ETB commander wants the high-value ETB creatures and the doublers, not just
         # the punisher payoffs — same extras the blink lane uses (A3).
         extras=(
+            _REANIMATION_EXTRA,
             _ETB_PAYOFF_EXTRA,
             _ETB_VALUE_EXTRA,
             _ETB_DOUBLER_EXTRA,
@@ -210,21 +239,30 @@ SPECS_1: dict[tuple[str, str], SignalSpec] = {
         "Go wide",
         "token swarms and anthems that scale with creature count",
         {"oracle": r"create .*creature token"},
-        # Also credit team anthems ("creatures you control have/gain …"), token anthems
-        # (Intangible Virtue: "creature tokens you control get …"), and the ETB-value
-        # creatures a creatures deck fills its board with.
-        r"create .*creature token|creatures you control (?:get|have|gain)"
-        r"|(?:creature )?tokens? you control (?:get|have|gain)"
-        # Board-scaling lord: a creature that "gets +X/+Y for each other creature
-        # you control" (Leonardo, Big Brother) — a go-wide payoff that grows wide.
-        r"|gets \+[0-9x]+/\+[0-9x]+ for each other creature you control"
-        # Creature-spell cost reducers (Goreclaw, Herald's Horn, the Monuments) let a
-        # creatures deck deploy more bodies; board-scaled finishers (Ghalta) are what it
-        # casts off a wide board. Both are creatures-deck enablers/payoffs.
-        r"|creature spells? (?:you cast )?[^.]*cost \{?\d+\}?(?:\{[wubrgc]\})* less"
-        r"|costs? \{x\} less to cast, where x is the (?:total |greatest )?power",
-        # A go-wide board full of creature ETBs also wants the doubler (Panharmonicon).
-        extras=(_ETB_PAYOFF_EXTRA, _ETB_VALUE_EXTRA, _ETB_DOUBLER_EXTRA),
+        # Serve rides the lanes: the token makers, team buffs and anthems (token
+        # anthems — Intangible Virtue — are tokens_matter), the go-wide payoffs
+        # themselves, and the board-power payoffs (Ghalta's "costs {X} less, where
+        # X is the total power of creatures you control" — power_matters). A
+        # tribe's own grant ("Sliver creatures you control have …") is the tribal
+        # avenue's.
+        None,
+        serve_idents=_TOKEN_MAKER_IDENTS
+        | {
+            "team_buff|you|",
+            "anthem_static|you|*",
+            "tokens_matter|you|",
+            "creatures_matter|you|",
+            "power_matters|you|",
+        },
+        # A go-wide board full of creature ETBs also wants the doubler (Panharmonicon);
+        # creature-spell cost reducers (Goreclaw, Herald's Horn) deploy more bodies
+        # (cost_reduction carries no spell type to serve them by ident).
+        extras=(
+            _ETB_PAYOFF_EXTRA,
+            _ETB_VALUE_EXTRA,
+            _ETB_DOUBLER_EXTRA,
+            _CREATURE_COST_EXTRA,
+        ),
     ),
     # Creature-recursion engine (Hua Tuo, Adun, Othelm): repeatably return/put a
     # creature card from your graveyard. Wants loop fuel — SELF-SACRIFICING creatures
@@ -721,7 +759,11 @@ SPECS_1: dict[tuple[str, str], SignalSpec] = {
     ("edict_makers", "each"): _spec(
         *SWEEP_LABELS["edict_makers"],
         {"oracle": _EDICT_SWEEP_REGEX},
-        _EDICT_SWEEP_REGEX + r"|create [^.]*creature token",
+        # Serve rides the lanes: the edicts and the creature-token makers that
+        # feed your side of a symmetric one.
+        None,
+        serve_idents=_TOKEN_MAKER_IDENTS
+        | {"edict_makers|each|", "edict_makers|opponents|"},
         extras=(_SELF_RECUR_EXTRA, _DEATH_DRAIN_EXTRA),
     ),
     ("death_matters", "any"): _spec(
@@ -804,21 +846,30 @@ SPECS_1: dict[tuple[str, str], SignalSpec] = {
         "Token generators",
         "more cards that flood the board with creature tokens",
         {"oracle": r"create [^.]*creature token"},
-        # Also credit token ANTHEMS (Intangible Virtue, Cathars' Crusade): "creature
-        # tokens you control get/have …" — the go-wide "creatures you control" branch
-        # misses the "creature TOKENS" phrasing.
-        r"create [^.]*creature token"
-        r"|(?:creature )?tokens? you control (?:get|have|gain)",
+        # Serve rides the lanes: the creature-token makers (amass, endure and
+        # populate included) and the token payoffs, token anthems among them
+        # (Intangible Virtue — tokens_matter).
+        None,
+        serve_idents=_TOKEN_MAKER_IDENTS | {"tokens_matter|you|"},
         # Offspring (CR keyword) makes a 1/1 token copy of the creature — token-making
         # in stripped reminder text, so credit it via the Scryfall keyword.
         serve_keywords=("offspring",),
         extras=(_TOKEN_DOUBLER_EXTRA, _ETB_PAYOFF_EXTRA, _GOWIDE_ANTHEM_EXTRA),
     ),
+    # Serve on the lanes' idents, shared with treasure_makers below: the makers
+    # read granted / target-player / replacement Treasure creation, and the
+    # payoff reads any filter naming Treasures, the "if mana from a Treasure was
+    # spent" condition included. The regex's remainder is opponents' Treasures
+    # (gift, "target opponent creates", CR 111.2), an opponent's permanent turned
+    # into a Treasure, a treasure counter, and three gaps (Jetmir's Fixer's and
+    # Excess's phase residues; The Gold Saucer's coin-flip ``win_effect``, which
+    # the effect-chain walk doesn't descend).
     ("treasure_matters", "you"): _spec(
         "Treasure",
         "Treasure makers for ramp, fixing, and artifact synergy",
         {"oracle": r"create [^.]*treasure token|treasures? you control"},
-        r"\btreasure\b",
+        None,
+        serve_idents=_TREASURE_IDENTS,
     ),
     # _matters sweep (ADR-0034): treasure split. The make_token MAKER arm
     # (treasure_makers, cards that create Treasure tokens) and the sacrifice/ref/
@@ -829,7 +880,9 @@ SPECS_1: dict[tuple[str, str], SignalSpec] = {
         "Treasure makers",
         "Treasure makers for ramp, fixing, and artifact synergy",
         {"oracle": r"create [^.]*treasure token|treasures? you control"},
-        r"\btreasure\b",
+        # Serve rides the lanes, shared with treasure_matters above.
+        None,
+        serve_idents=_TREASURE_IDENTS,
     ),
     # Pariah combo (Cho-Manno, Anti-Venom): an unkillable commander that prevents damage
     # to itself wants the redirect effects (Pariah / Pariah's Shield: "damage dealt to
@@ -840,21 +893,42 @@ SPECS_1: dict[tuple[str, str], SignalSpec] = {
         "redirect-all-damage effects (Pariah) onto your unkillable creature, damage "
         "prevention to blank it, plus indestructible/protection to keep it alive",
         {"oracle": r"damage that would be dealt to you|prevent [^.]*damage"},
-        r"damage that would be dealt to you is dealt to [^.]*creature instead"
-        r"|all damage[^.]*dealt to you[^.]*dealt to [^.]*instead"
-        # Damage PREVENTION (Battlefield Medic, Worship) blanks the soaked damage — a
-        # redirect-to-self commander (Hazduhr, Cho-Manno) wants it.
-        r"|prevent (?:the next |all )?[^.]*damage"
-        r"|damage that would (?:reduce|be dealt)[^.]*(?:instead|prevented)"
-        # PROFIT from the soaked damage: a redirect-to-self commander (Daughter of
-        # Autumn) takes the redirected hit HERSELF (CR 614.9 — redirection replacement),
-        # so payoffs watching "a creature you control is dealt damage" (Rite of Passage)
-        # or an Aura on the soak creature (Druid's Call) fire. NOT generic enrage
-        # ("whenever THIS creature is dealt damage") — the original creature is never
-        # dealt the redirected damage, so its own trigger can't fire.
-        r"|whenever a creature you control is dealt damage"
-        r"|whenever enchanted creature is dealt damage",
-        extras=(_VOLTRON_PROTECT_EXTRA,),
+        # Serve on the lanes' idents: the redirects (CR 614.9 —
+        # Pariah's static form included) and damage PREVENTION (CR 615), which
+        # blanks the soaked damage a redirect-to-self commander (Hazduhr,
+        # Cho-Manno) takes. Left out: life floors (Worship, Ali from Cairo —
+        # board_protection; Worship's ruling: the damage is still dealt, so it
+        # blanks nothing a creature soaks) and the redirects phase parks as
+        # residues (Kjeldoran Royal Guard, Turn the Tables, Kor Chant).
+        None,
+        serve_idents=frozenset({"damage_redirect|you|", "damage_prevention|you|"}),
+        extras=(
+            _VOLTRON_PROTECT_EXTRA,
+            # PROFIT from the soaked damage: a redirect-to-self commander
+            # (Daughter of Autumn) takes the redirected hit HERSELF (CR 614.9),
+            # so payoffs watching "a creature you control is dealt damage"
+            # (Rite of Passage) or an Aura on the soak creature (Druid's Call)
+            # fire. NOT generic enrage ("whenever THIS creature is dealt
+            # damage"): the original creature is never dealt the redirected
+            # damage. The serve is the damage_received_matters lane.
+            SubAvenue(
+                "Profit from the soaked damage",
+                "payoffs that fire when a creature you control is dealt damage",
+                {"oracle": _SOAK_PAYOFF_SEARCH},
+                serve=Serve(signal_idents=frozenset({"damage_received_matters|you|"})),
+            ),
+        ),
+    ),
+    # The soak payoffs themselves (Rite of Passage, Druid's Call): fed by the
+    # redirects that move damage onto one creature of yours (CR 614.9).
+    ("damage_received_matters", "you"): _spec(
+        "Damage-received payoffs",
+        "redirects that move damage onto your creature, plus more soak payoffs",
+        {"oracle": _SOAK_PAYOFF_SEARCH},
+        None,
+        serve_idents=frozenset(
+            {"damage_received_matters|you|", "damage_redirect|you|"}
+        ),
     ),
     # Vanilla (Ruxa, Muraganda Petroglyphs): creatures with NO rules text (the tribe)
     # plus the "creatures with no abilities" payoffs.
@@ -1183,8 +1257,10 @@ SPECS_1: dict[tuple[str, str], SignalSpec] = {
         serve_idents=frozenset({"counter_distribute|you|"}),
     ),
     # ADR-0027 tranche2-B: counter_place_trigger's SWEEP_DETECTORS row was deleted
-    # (detection moved to the Card IR — the counter_added trigger event). The serve
-    # keeps the old regex via regex= (strangler pattern).
+    # (detection moved to the Card IR — the counter_added trigger event). The regex
+    # stays on the search side; the serve rides the lane, which reads
+    # granted triggers (Cursed Wombat, Danny Pink) and your placement on a creature
+    # you don't control (Kros, Generous Patron).
     ("counter_place_trigger", "you"): _sweep_spec_with_extras(
         "counter_place_trigger",
         _COUNTERS_PACKAGE,
@@ -1194,6 +1270,7 @@ SPECS_1: dict[tuple[str, str], SignalSpec] = {
             r"|whenever you put (?:a|one or more|two|\d+) [^.]*counters? on"
             r"|whenever (?:a|one or more) [^.]*counters? (?:is|are) put on"
         ),
+        serve_idents=frozenset({"counter_place_trigger|you|"}),
     ),
     # ADR-0027 tranche2-C: keyword_counter's SWEEP_DETECTORS row is deleted (detection
     # moved to the Card IR); reuse the shared KEYWORD_COUNTER_REGEX for the serve pool.
@@ -1368,10 +1445,17 @@ SPECS_1: dict[tuple[str, str], SignalSpec] = {
     # so hand-register the spec the sweep auto-register loop used to build (scope "any",
     # the deleted SWEEP row's scope), reusing the EXACT deleted regex (pinned as
     # DEBUFF_SWEEP_REGEX) so the serve pool never drifts. SWEEP_LABELS keeps the label.
+    #
+    # Serve on the lane's idents (the regex stays the search): the lane reads
+    # the variable and one-sided shrinks, the static "-X/-X" Auras and board
+    # shrinks, granted shrink abilities and one-shot base-P/T sets the regex
+    # served, and leaves out what it over-served — your own -1/-1 counters
+    # (blight, CR 701.68a), a creature shrinking itself, flanking reminder text.
     ("debuff_makers", "any"): _spec(
         *SWEEP_LABELS["debuff_makers"],
         {"oracle": DEBUFF_SWEEP_REGEX},
-        DEBUFF_SWEEP_REGEX,
+        None,
+        serve_idents=frozenset({"debuff_makers|any|", "debuff_makers|you|"}),
     ),
     # ADR-0027 β: pump_makers's SWEEP_DETECTORS row is deleted (detection moved to the
     # Card IR — a byte-identical _IR_KEPT_DETECTORS mirror; the lane is unstructurable,
@@ -1623,10 +1707,14 @@ SPECS_1: dict[tuple[str, str], SignalSpec] = {
     # deleted (detection moved to a `tap` Effect with a target subject + a "doesn't
     # untap" restriction raw), so hand-register the spec the sweep loop used to build,
     # reusing the deleted regex as both search and serve.
+    # Serve on the lane's ident once it reads granted tap abilities and
+    # triggers (an Equipment's "{T}: Tap target creature"); the regex stays the
+    # search.
     ("tapper_engine", "any"): _spec(
         *SWEEP_LABELS["tapper_engine"],
         {"oracle": _TAPPER_ENGINE_SWEEP_REGEX},
-        _TAPPER_ENGINE_SWEEP_REGEX,
+        None,
+        serve_idents=frozenset({"tapper_engine|any|"}),
     ),
     # ADR-0027: count_anthem migrated to the Card IR — its SWEEP_DETECTORS row is
     # deleted (detection moved to a team +N/+N pump scaling with a board count over a

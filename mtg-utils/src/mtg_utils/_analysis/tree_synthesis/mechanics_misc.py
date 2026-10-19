@@ -13,6 +13,7 @@ import re
 from mtg_utils._analysis.tree_synthesis._shared import (
     _REMINDER,
     _synthetic_concept,
+    _unnamed_oracle,
 )
 from mtg_utils._card_ir.crosswalk import (
     ConceptNode,
@@ -55,7 +56,9 @@ from mtg_utils._card_ir.text_idioms import (
 # the Suspect effect, so the typed ``effect_concepts("suspect")`` read misses it.
 # "suspected" (CR 701.60b — the DESIGNATION, a payoff reference) never matches
 # (the negative lookahead), keeping the doer/payoff split.
-_SUSPECT_ACTION_RE = re.compile(r"\bsuspect\b(?!ed)", re.IGNORECASE)
+# A "suspect counter" (Investigator's Journal — a named counter, CR 122.1) is
+# not the action either: the second lookahead keeps it out.
+_SUSPECT_ACTION_RE = re.compile(r"\bsuspect\b(?!ed)(?! counters?\b)", re.IGNORECASE)
 
 
 def _arm_suspect_makers(tree: ConceptTree) -> ConceptNode | None:
@@ -334,11 +337,10 @@ def _arm_token_subtype_own_ref(tree: ConceptTree) -> ConceptNode | None:
 # wrap of "exile it with N time counters on it. It gains suspend" (Rory
 # Williams, Delay, Epochrasite, Sibylline Soothsayer) — has no further
 # structural anchor. Relocates the deleted ``_SUSPEND_MATTERS_MIRROR``
-# verbatim, gap-gated against :func:`has_structural_suspend_matters`.
-# Measured byte-identical over the commander-legal corpus (143/143 union,
-# 0 drops, 0 adds; one PRE-EXISTING self-name-collision quirk — Impending
-# Flux, which mentions no time-counter/suspend mechanic at all — is ported
-# as-is + LOGGED, the b13 Blue Screen of Death precedent).
+# verbatim, gap-gated against :func:`has_structural_suspend_matters`. The
+# scan reads the card's own name as "~"
+# (:func:`_unnamed_oracle`), so Impending Flux — which names itself and has no
+# time-counter/suspend mechanic at all — doesn't fire.
 _SUSPEND_MATTERS_SYNTH_RX = re.compile(
     r"\bsuspend\b|time counter|time travel|\bvanishing\b|\bimpending\b",
     re.IGNORECASE,
@@ -355,8 +357,11 @@ def has_structural_suspend_matters(tree: ConceptTree) -> bool:
     return False
 
 
-def _matches_suspend_matters_idiom(oracle: str) -> bool:
-    return bool(_SUSPEND_MATTERS_SYNTH_RX.search(_REMINDER.sub(" ", oracle or "")))
+def _matches_suspend_matters_idiom(oracle: str, name: str = "") -> bool:
+    # The card's own name is not the keyword: Impending Flux names itself
+    # ("Impending Flux deals X damage …") and has no impending ability (CR
+    # 702.176a) — it is a Paradox / foretell sorcery.
+    return bool(_SUSPEND_MATTERS_SYNTH_RX.search(_unnamed_oracle(oracle, name)))
 
 
 def _arm_suspend_matters(tree: ConceptTree) -> ConceptNode | None:
@@ -365,7 +370,7 @@ def _arm_suspend_matters(tree: ConceptTree) -> ConceptNode | None:
     relocated, gap-gated against :func:`has_structural_suspend_matters`)."""
     if has_structural_suspend_matters(tree):
         return None
-    if not _matches_suspend_matters_idiom(tree.oracle or ""):
+    if not _matches_suspend_matters_idiom(tree.oracle or "", tree.name or ""):
         return None
     return _synthetic_concept(
         arm_id="suspend_matters",

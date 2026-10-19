@@ -548,8 +548,8 @@ def _arm_multicolor_matters(tree: ConceptTree) -> ConceptNode | None:
 # target the SAME way it drops "multicolored" (Ghostfire Blade's "if it
 # targets a colorless creature" cost_reduction subject=None, Ugin the
 # Ineffable's "Colorless spells you cast cost {2} less" cost_reduction
-# subject=None, Consign to Memory's "Counter target colorless spell" whose
-# counter_spell subject is a bare Card Filter with no color predicate) —
+# subject=None; phase v0.104.0 now types Consign to Memory's "colorless
+# spell" target, which the lane vetoes as colorless hate) —
 # the OLD-IR's own ``supplement._recover_colorless_subject`` (SIDECAR #24e)
 # already carries this exact idiom; ported here VERBATIM as a bucket-B
 # reference-idiom synthesis arm, mirroring _arm_multicolor_matters's shape.
@@ -627,8 +627,7 @@ _COLORLESS_REFERENCE_RE = re.compile(
 def _arm_colorless_matters(tree: ConceptTree) -> ConceptNode | None:
     """Synthesize a colorless_matters REFERENCE node for the cares-about
     idiom phase leaves unstructured (Ghostfire Blade / Ugin the Ineffable's
-    dropped-predicate cost_reduction, Consign to Memory's colorless-blind
-    counter_spell subject). Gap-gated on
+    dropped-predicate cost_reduction). Gap-gated on
     :func:`has_structural_colorless_matters` so a card the typed read
     already covers never doubles. Emits the REAL "colorless_matters"
     concept directly (ADR-0038 retired the ``synth_*`` marker namespace)

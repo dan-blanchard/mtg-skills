@@ -256,3 +256,99 @@ def test_serve_is_the_lane_not_a_regex(key, scope, ident, serves, dropped):
     assert spec.serve.matches(_card(serves)), serves
     if dropped is not None:
         assert not spec.serve.matches(_card(dropped)), dropped
+
+
+@pytest.mark.parametrize("key", ["connive_makers", "connive_matters"])
+def test_connive_serve_is_the_doers_and_the_payoffs(key):
+    spec = spec_for(_sig(key))
+    assert spec.serve.oracle is None
+    assert spec.search["oracle"]
+    serve = spec.serve
+    assert serve.matches(_card("Raffine's Informant"))
+    assert serve.matches(_card("Security Bypass"))  # a granted connive
+    # connive_matters: "Whenever a creature you control connives" and a
+    # replacement of the connive event.
+    assert serve.matches(_card("Glorious Purpose"))
+    assert serve.matches(_card("Leader, Super-Genius"))
+    # A loot isn't a connive.
+    assert not serve.matches(_card("Faithless Looting"))
+
+
+# Serves read off granted alternative costs, explore, shield counters and
+# attractions: (key, ident, a card that serves, a card the regex wrongly served
+# or None).
+_LANE_READ_SERVES = [
+    (
+        "shield_counter_makers",
+        "shield_counter_makers|you|",
+        "Boon of Safety",
+        "Call In a Professional",
+    ),
+    # A granted sneak: the regex read it, and now the lane does too.
+    ("alt_cost_keyword", "alt_cost_keyword|you|", "Ninja Teen", "Lightfoot Rogue"),
+    (
+        "alt_cost_keyword",
+        "alt_cost_keyword|you|",
+        "Peter Parker // Amazing Spider-Man",
+        None,
+    ),
+    # A granted explore, and a Map maker the regex never saw.
+    ("explore_makers", "explore_makers|you|", "Glowcap Lantern", None),
+    ("explore_makers", "explore_matters|you|", "Restless Anchorage", None),
+    ("explore_matters", "explore_makers|you|", "Glowcap Lantern", None),
+    ("explore_matters", "explore_matters|you|", "Wildgrowth Walker", None),
+    ("attractions_matter", "attractions_matter|you|", "Step Right Up", None),
+    ("attractions_matter", "attractions_matter|you|", "Line Cutter", None),
+]
+
+
+@pytest.mark.parametrize(
+    ("key", "ident", "serves", "dropped"),
+    _LANE_READ_SERVES,
+    ids=[f"{k}-{s}" for k, _i, s, _d in _LANE_READ_SERVES],
+)
+def test_lane_read_serve_is_the_lane(key, ident, serves, dropped):
+    spec = spec_for(_sig(key))
+    assert spec is not None
+    assert spec.serve.oracle is None
+    assert ident in spec.serve.signal_idents
+    assert spec.serve.matches(_card(serves)), serves
+    if dropped is not None:
+        assert not spec.serve.matches(_card(dropped)), dropped
+
+
+def test_gain_control_serve_is_the_theft_lane():
+    spec = spec_for(_sig("gain_control"))
+    assert spec is not None
+    assert spec.serve.oracle is None
+    assert spec.serve.not_oracle is None
+    assert "gain_control|you|" in spec.serve.signal_idents
+    # A card out of an opponent's library onto the battlefield under your
+    # control: you control a permanent you don't own (CR 110.2).
+    for name in ("Bribery", "Acquire", "Telemin Performance"):
+        assert spec.serve.matches(_card(name)), name
+    # Granted theft: an Aura-granted activated ability and a token's trigger.
+    assert spec.serve.matches(_card("Chamber of Manipulation"))
+    assert spec.serve.matches(_card("Wake the Dragon"))
+    # The regex served a control reset ("gain control of all permanents you
+    # own") and a give-away; the lane vetoes both.
+    assert not spec.serve.matches(_card("Brand"))
+    assert not spec.serve.matches(_card("Sky Swallower"))
+    # Reanimating from any graveyard isn't theft from a library.
+    assert not spec.serve.matches(_card("Animate Dead"))
+
+
+def test_tap_untap_matters_serve_reads_granted_tap_triggers():
+    spec = spec_for(_sig("tap_untap_matters"))
+    assert spec is not None
+    assert spec.serve.oracle is None
+    assert "tap_untap_matters|you|" in spec.serve.signal_idents
+    # A "becomes tapped" trigger (CR 603.2e) of its own, and the same trigger
+    # granted to your Elves (Dionus) or by an Aura (Well Rested, "becomes
+    # untapped").
+    for name in (
+        "Emmara, Soul of the Accord",
+        "Dionus, Elvish Archdruid",
+        "Well Rested",
+    ):
+        assert spec.serve.matches(_card(name)), name

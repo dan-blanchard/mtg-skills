@@ -241,3 +241,63 @@ def test_combat_damage_to_opp_serves_idents_and_cipher():
     assert spec.serve.matches(_card("Edric, Spymaster of Trest")) is True
     assert spec.serve.matches(_card("Last Thoughts")) is True
     assert spec.serve.matches(_card("Grizzly Bears")) is False
+
+
+@pytest.mark.parametrize("key", ["discard_makers", "discard_matters", "discard_outlet"])
+def test_discard_serve_reads_costs_connive_and_blood(key):
+    spec = spec_for(_sig(key))
+    assert spec.serve.oracle is None
+    assert spec.search["oracle"]
+    serve = spec.serve
+    # Outlets, a discard cost you pay (CR 701.9a), random included (CR 701.9b:
+    # a payoff fires whichever card goes), and the payoffs.
+    for name in (
+        "Fauna Shaman",
+        "Lion's Eye Diamond",
+        "Burning Inquiry",
+        "Amok",
+        "Bone Miser",
+        "Glint-Horn Buccaneer",
+    ):
+        assert serve.matches(_card(name)), name
+    # The regex missed these: connive printed without its reminder text (CR
+    # 701.50a), a "whenever you cycle or discard" payoff, and a granted connive.
+    assert serve.matches(_card("Baron Helmut Zemo"))
+    assert serve.matches(_card("Drake Haven"))
+    assert serve.matches(_card("Security Bypass"))
+    # A Blood token rummages (CR 111.10g); the regex read only its reminder text.
+    assert serve.matches(_card("Blood Servitor"))
+    # The opponents discard (opponent_discard); the regex served "discard two".
+    assert not serve.matches(_card("Skull Rend"))
+    assert not serve.matches(_card("Mind Rot"))
+    # Cycling's "Discard this card" is the cycling lanes' read.
+    assert not serve.matches(_card("Krosan Tusker"))
+    assert not serve.matches(_card("Grizzly Bears"))
+
+
+def test_low_power_serve_reads_the_cast_from_the_top_permission():
+    spec = spec_for(_sig("low_power_matters"))
+    assert spec.serve.oracle is None
+    assert "low_power_matters|you|" in spec.serve.signal_idents
+    # The lane reads the power ceiling on a cast-from-the-top permission, the
+    # regex's "creature spell with power N or less" arm.
+    assert spec.serve.matches(_card("Assemble the Players"))
+    # A low-power reanimator the regex missed.
+    assert spec.serve.matches(_card("Reveillark"))
+    assert not spec.serve.matches(_card("Vizier of the Menagerie"))
+
+
+def test_modified_serve_is_the_payoffs_and_the_counter_package():
+    spec = spec_for(_sig("modified_matters"))
+    assert spec.serve.oracle is None
+    assert {"modified_matters|you|", "plus_one_makers|you|"} <= (
+        spec.serve.signal_idents
+    )
+    # A modified payoff the lane missed until it read the gating condition.
+    assert spec.serve.matches(_card("Kami's Flare"))
+    # Every counter is a modification (CR 700.9): proliferate feeds the avenue.
+    assert spec.serve.matches(_card("Atraxa, Praetors' Voice"))
+    # Equipment and Auras still serve by type.
+    assert spec.serve.matches(_card("Glowcap Lantern"))
+    # The regex served a hoser off "+1/+1 counters".
+    assert not spec.serve.matches(_card("Blightbeetle"))

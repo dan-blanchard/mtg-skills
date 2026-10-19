@@ -56,6 +56,7 @@ from mtg_utils._card_ir.crosswalk import (
     iter_mod_sites,
     iter_nested_granted_bodies,
     iter_typed_nodes,
+    keyword_resource_events,
     mod_keyword_name,
     modal_mode_description,
     normalised_keyword_name,
@@ -2954,25 +2955,27 @@ def _exile_matters(tree: ConceptTree) -> list[Signal]:
 
 
 def _energy_matters(tree: ConceptTree) -> list[Signal]:
-    """energy_matters — an energy SINK payoff (CR 107.14: "to pay {E}, a
-    player removes one energy counter"): a ``PayEnergy`` cost leaf
-    (Whirler Virtuoso's ``Pay {E}{E}{E}: token``; Aetherworks Marvel's
-    ``Composite[Tap, PayEnergy 6]``) buying a NON-mana effect. The non-ramp
-    gate mirrors the live pay-life painland exclusion: a fixing land whose
-    only pay-energy effect is mana (Aether Hub) is the mana base +
-    energy_makers, not a sink engine. The "whenever you get {E}" doubler
-    trigger has NO mode in v0.9.0 — SUPPLEMENT-FIXABLE (the oracle carries
-    "you get {E}"; a Stage-3 re-categorizer arm can stamp the marker). Scope
-    "you".
+    """energy_matters — a card that SPENDS energy or rewards getting it (CR 107.14:
+    "To pay {E}, a player removes one energy counter from themselves"), read off
+    :func:`~mtg_utils._card_ir.crosswalk.keyword_resource_events`: a ``PayEnergy``
+    leaf of a cost you pay (Whirler Virtuoso's ``Pay {E}{E}{E}:``; Aetherworks
+    Marvel's ``Composite[Tap, PayEnergy 6]``; Overclocked Electromancer's "you may
+    pay {E}{E}{E}"; Rush of Inspiration's "unless you pay {E}{E}"), a cast paid in
+    {E} (Amped Raptor), or a "whenever you get one or more {E}" trigger (Territorial
+    Gorger). The non-ramp gate mirrors the live pay-life painland exclusion: a unit
+    whose only effect is mana (Aether Hub's "{T}, Pay {E}: Add one mana of any
+    color") is the mana base + energy_makers, not a sink engine. Scope "you".
     """
-    for unit in tree.units:
-        if not any(
-            tag_of(leaf) == "PayEnergy"
-            for leaf in iter_cost_leaves(getattr(unit.node, "cost", None))
+    for e in keyword_resource_events(tree):
+        if e.resource != "energy" or e.side != "matters":
+            continue
+        if (
+            e.unit is not None
+            and e.unit.effects
+            and all(c.concept == "ramp" for c in e.unit.effects)
         ):
             continue
-        if any(c.concept != "ramp" for c in unit.effects):
-            return [Signal("energy_matters", "you", "", "", tree.name, "high")]
+        return [Signal("energy_matters", "you", "", "", tree.name, "high")]
     return []
 
 

@@ -173,12 +173,48 @@ are depth, not payoffs); Deep Clue Sea's main is "Clue makers / investigate"
 with 12 carers instead of 21. Animated Army's Animation lane is 20 deep (the
 mana-value 4+ cards) and no longer proposes an Equipment as an Animation add.
 
+## Fifth pass (2026-10-19): every held serve spec converted
+
+The 41 serve specs the serve-ident pass held, and the six the fourth pass held,
+now serve on the lanes' idents (`docs/plans/serve-idents-and-avenue-support.md`
+§2 has each census and its classified remainder). The lanes gained one shared
+read per gap: keyword actions that make tokens (amass, endure, populate) or
+place counters, granted and replacement Treasure / Food / Clue / Blood makers,
+discard costs you choose to pay (labelled activation / additional / optional /
+tax — a tax to keep a permanent is neither a discard nor a graveyard fill), a
+served `connive_matters`, energy / venture / foretell events, library seizes
+(Bribery), static damage redirects (Pariah) and a `damage_received_matters` lane,
+granted counter triggers, variable and one-sided debuffs with a toughness-0 set
+as hard removal (CR 704.5f), granted tap abilities, shield counters, granted
+alternative costs, time-counter references, attractions, `modified`, and one
+`controller_side` read in place of six opponent-controller sets. Five lane false
+positives the census had exposed are fixed, and morbid / graveyard-hate cards
+left "Your graveyard" (`graveyard_matters|you|` 3839 → 3686).
+
+| | fourth pass | fifth pass |
+|---|---|---|
+| precons read SPREAD-THIN | 1 of 25 | 1 of 25 (Squirreled Away) |
+| tuner cuts / matching a guide | 86 / 45 | 86 / 44 |
+| tuner weak-list matching a guide | 25 | 25 |
+| tuner adds / matching a guide | 86 / 10 | 86 / 8 |
+| guide cuts the tuner protects | 131 | 124 |
+
+Reads that moved: Living Energy's main Artifacts → Energy (Satya's own lane);
+"Go wide" surfaces as a sub in Animated Army, Living Energy, Squirreled Away and
+Virtue and Valor now that the token serve reads amass, endure and populate;
+Death Toll and Sultai Arisen trade labels between "Your graveyard" and
+"Graveyard engine" (one avenue, two spellings) and Sultai regains its Sacrifice
+sub.
+
 ## What is left
 
 `docs/plans/backlog.md`, "What the polymorph tune and the 25-precon audit still
-get wrong": the phase gaps behind the interaction role, the superfriends veto and
-animation, the typed-cheat pair rows' veto of a card with both a cast and an
-enters payoff, and the held serve specs' remainders.
+get wrong" and "Every held serve spec is converted": the phase gaps behind the
+interaction role, the superfriends veto, animation and the converted serves; the
+text-mirror leftovers; the lane gaps the censuses left (a destination subject on
+`creature_recursion`, a spell-type subject on `cost_reduction`, the edict lane,
+keyword token-copy makers, `FlipCoin.win_effect`); the ranking module's
+clause-cluster attribution for ident-served hits.
 
 ## Rerunning
 
