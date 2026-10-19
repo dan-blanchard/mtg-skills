@@ -36,7 +36,14 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   activated ability is a payoff target of "Activated-ability engine", not a
   builder (its untap engines are — Abzan Armor read that lane as its main
   over a 42-deep toughness lane; the Jace phantom of the polymorph entry's
-  (d) is gone with it). Left:
+  (d) is gone with it). Fixed in the seventh pass (2026-10-19): the upgrade
+  slots — an off-lane card past rank 3000 and the deep lane's least-played
+  half (never a Granter), traded by a last-ranked `upgrade` issue for a
+  better-played card at no higher mana-value band doing the same job (223
+  swaps, 104 cuts and 29 adds matching a guide, from 85 / 44 / 8); every theme
+  add is the most-played candidate that fits; an Equipment's, Aura's or
+  target's shrink and damage to each player are not board wipes; the main
+  theme no longer changes with the string-hash seed. Left:
   (a) **Inside a lane, the cut read is "a feeder nobody plays" — don't
   re-suggest a function read.** Measured 2026-10-18 on the 25 precons' main
   lanes (906 lane cards, 222 guide cuts, base rate 0.245): no function
@@ -50,7 +57,7 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   (top-five precision 0.48; costlier-first within the half was 0.30). The
   guides' stated reasons (one-shot, delirium type, curve) are not what their
   cuts share, and the same holds for the flip-quality read the polymorph tune
-  wanted. Script: the session scratch `lane_quality.py` (rerun recipe in
+  wanted. Script: `docs/plans/precon-audit/lane_quality.py` (rerun recipe in
   `docs/plans/precon-audit-2026-10-18.md`).
   (b) **Lane leftovers.** (Bello's floor is carried since the fourth pass:
   `animate_makers|you|Artifact>=4`, `Serve.types_cmc_min`; the `animate_artifact`
@@ -106,6 +113,34 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   rows read candidates without membership idents since the fourth pass, so a
   card with both a cast and an enters payoff — Tuvasa the Sunlit, Sai — fires
   the typed-cheat rows and Sol Ring / Pacifism no longer score as payoffs.)
+  (e) **The most-played card of a job recurs** (seventh pass): Skullclamp is
+  an add in 12 of 25 precons (a guide add in 3), Swiftfoot Boots in 9, Frantic
+  Search in 5 — and looting counts as card draw (connive is written in as card
+  advantage), so Faithless Looting and Frantic Search upgrade a draw spell.
+  Nine precons get no guide-matching add at all. A "main theme" upgrade can
+  land on a generic card the main avenue's page holds (Swiftfoot Boots in
+  Mardu Surge, Lightning Greaves in Tinker Time).
+  (f) A targeted static toughness shrink (Nameless Inversion's "+3/-3") is no
+  `removal` key, so it fills no interaction slot.
+  (g) The guide cuts the tuner protects are still 124 — lane carers and doers
+  the guides trim, which the upgrade issue reaches only through the deep
+  lane's least-played half.
+  (h) The board-wipe role reads two substrates — the compat projection's mass
+  marker (`_ir_board_wipe`, whose destroy / damage / bounce arm duplicates
+  `mass_removal`) and a roles-local typed walk for static population shrinks
+  (`_static_board_shrink`, beside `debuff_makers`' static arm) — where it
+  should come off the signal path: `mass_removal` plus a population-shrink
+  arm, retiring `_ir_board_wipe`. The role and the `board-wipe` preset the
+  tuner sources by disagree on one-sided shrinks (the role counts Elesh Norn's
+  -2/-2; the preset excludes Massacre Wurm by adjudication), and no test pins
+  their agreement as `test_the_preset_and_the_role_agree_on_every_covered_card`
+  does for ramp. `mass_removal`'s attachment veto (`_DEBUFF_SINGLE_AURA_PREDS`)
+  has no `EquippedBy`; check with /rules-lawyer whether `AttachedToRecipient` /
+  `HasAnyAttachmentOf` name one object before folding it into
+  `crosswalk.ATTACHED_OBJECT_PREDICATES`.
+  (i) `cut_candidates` / `size_cuts` take four focus-result fields one by one
+  (`viable`, `commander_cards`, `upgrade_cards`, `lane_upgrade_cards`) — one
+  focus slice would do.
 
 - **Competitive Brawl's "banned as a commander" reads as `restricted`.** The
   2026-10-12 B&R update introduced the category (mtg.wiki "Competitive Brawl"

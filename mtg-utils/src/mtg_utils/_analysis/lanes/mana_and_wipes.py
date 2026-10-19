@@ -63,6 +63,7 @@ from mtg_utils._card_ir.crosswalk import (
     mana_replacement_multiplier,
     mod_value,
     named_filter_subtypes,
+    names_attached_object,
     normalised_keyword_name,
     produced_contribution,
     recipient_tag,
@@ -83,7 +84,6 @@ from mtg_utils._card_ir.recovery import (
     YOURS,
     is_theirs,
 )
-from mtg_utils._card_ir.text_idioms import _SINGLE_PERMANENT_GRANT_PREDS
 
 # Board-wipe subject types (CR 115.10) — mirrors the deleted ``_signals_ir``'s
 # identically-named ``_MASS_REMOVAL_TYPES``. Land is deliberately ABSENT: "destroy all
@@ -1388,7 +1388,7 @@ def _is_anthem_group_filter(filt: object) -> bool:
         return False
     if "Creature" not in filter_core_types(filt):
         return False
-    if set(filter_predicates(filt)) & _SINGLE_PERMANENT_GRANT_PREDS:
+    if names_attached_object(filt):
         return False
     return (
         filter_controller(filt) == "You"

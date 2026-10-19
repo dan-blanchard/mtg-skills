@@ -8,9 +8,15 @@ from mtg_utils._analysis.budgets import (
     slot_budgets,
     template_for,
 )
-from mtg_utils._analysis.roles import _ir_board_wipe, _ir_draws, protects, role_of
+from mtg_utils._analysis.roles import (
+    _ir_board_wipe,
+    _ir_draws,
+    _static_board_shrink,
+    protects,
+    role_of,
+)
 from mtg_utils.card_ir import Ability, Card, Effect, Face, Filter, Quantity
-from mtg_utils.testkit import test_card, test_card_ir
+from mtg_utils.testkit import test_card, test_card_ir, test_signals
 
 
 def _text_only(name):
@@ -491,6 +497,7 @@ def test_ir_board_wipe_reads_mass_marker_and_subject_gate():
         _ir_board_wipe(
             _ir_effect(
                 category="pump",
+                counter_kind="all",
                 toughness=Quantity(op="fixed", factor=-2),
                 subject=creature,
             )
@@ -501,11 +508,24 @@ def test_ir_board_wipe_reads_mass_marker_and_subject_gate():
         _ir_board_wipe(
             _ir_effect(
                 category="pump",
+                counter_kind="all",
                 toughness=Quantity(op="variable", factor=-1),
                 subject=creature,
             )
         )
         is True
+    )
+    # Without the mass marker the shrink is one creature's: removal, not a wipe
+    # (the real Nameless Inversion is pinned in test_roles).
+    assert (
+        _ir_board_wipe(
+            _ir_effect(
+                category="pump",
+                toughness=Quantity(op="fixed", factor=-3),
+                subject=creature,
+            )
+        )
+        is False
     )
     # Power-only -2/-0 (Marsh Gas), toughness factor 0 — harmless, NOT a wipe.
     assert (
@@ -556,11 +576,14 @@ def test_board_wipe_role_reads_real_ir_mass_destroy():
 
 
 def test_static_mass_debuff_anthem_is_board_wipe():
-    # SIDECAR v75: a STATIC mass-debuff anthem (Elesh Norn's "Creatures your opponents
-    # control get -2/-2") now carries Effect.toughness on its static-mod pump, so it reads
-    # as a structural board wipe — while its own "+2/+2" buff (controller=you, factor > 0)
-    # does not flip it.
-    assert _ir_board_wipe(test_card_ir("Elesh Norn, Grand Cenobite")) is True
+    # A STATIC mass-debuff anthem (Elesh Norn's "Creatures your opponents control get
+    # -2/-2") is read off the typed static defs (``_static_board_shrink``: the compat
+    # projection drops the attachment predicate that tells Skullclamp's "Equipped
+    # creature gets +1/-1" from a population) — while its own "+2/+2" buff
+    # (controller=you, factor > 0) does not flip it.
+    test_signals("Elesh Norn, Grand Cenobite")  # seed the concept-tree memo
+    assert _static_board_shrink(test_card("Elesh Norn, Grand Cenobite")) is True
+    assert "board_wipe" in role_of(test_card("Elesh Norn, Grand Cenobite"))
 
 
 def test_ir_recursion_only_vetoes_pure_graveyard_return():

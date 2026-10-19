@@ -242,6 +242,69 @@ The precon reads are unchanged apart from Sultai Arisen regaining its Sacrifice
 sub; the pass is about the card pool (about 120 cards gained the ident a guide
 would expect, 40 lost a wrong one), not the 25 lists.
 
+## Seventh pass (2026-10-19): the upgrade slots
+
+The six passes before this one fixed what the tuner read; the swaps were still a
+third of a guide's list (85 across 25 precons, about three a deck, against a
+guide's ten), because every swap answered an issue and most precons have few.
+Over half of what the guides cut and add are template-role cards (222 of 424
+cuts, 356 of 660 adds): the precon's own removal, draw and ramp traded for the
+staples. Two measurements (`precon-audit/upgrade_reads.py`):
+
+- **Cuts.** Off every lane the deck holds (no commander-lane doer, no carer of a
+  built theme), a nonland card ranked past 3000 is a guide cut 48% of the time
+  (119 of 247, about ten a deck), against 14% for an off-lane role card inside
+  rank 1000 and 24% overall; on a lane, ranks 3000-10000 run 17-24% (past
+  10000 a lane card is a guide cut 40-75%, but a lane holds few of those —
+  the lane tier's least-played half reaches them).
+- **Adds.** On the swap engine's candidate pages (187 of them), synergy-first put
+  41 guide adds in a page's top ten (median rank 36); a synergy floor of a fifth
+  of the page's best, then play-rate, 72 (median 14); play-rate alone 69.
+
+What changed: `focus` names the **upgrade slots** — `upgrade_cards` (off-lane,
+past `classify.UPGRADE_RANK`) and `lane_upgrade_cards` (the deep lane's
+least-played half, moved here from the cut ranking; never a Granter, which
+ADR-0040 §4 judges by its grant) — and a last-ranked `upgrade` issue spends the
+rest of the swap budget on them, each for a better-played card at no higher
+mana-value band doing the cut's own job (`issues.upgrade_job`: the scarcest
+template role, else protection, else the main theme). Every theme add,
+upgrades included, is the most-played candidate that fits (`swaps._FIT_FLOOR`).
+Two role misreads the upgrade pass surfaced: an Equipment's or Aura's own shrink
+("Equipped creature gets +1/-1" — Skullclamp, Dead Weight) and a spell's target
+(Nameless Inversion) read as board wipes, and the `board-wipe` view counted
+damage to each player (Price of Progress, Descent into Avernus — 27 cards, none a
+sweep). And one run-to-run drift: the commander's lanes were sorted by depth
+over a set, so two equally deep spellings of one lane (Death Toll's "Your
+graveyard" / "Graveyard engine") swapped with the string-hash seed — the label
+reads the passes above logged as trading places. The label now breaks the tie;
+two full reruns under different hash seeds agree on every swap.
+
+| | sixth pass | seventh pass |
+|---|---|---|
+| precons read SPREAD-THIN | 1 of 25 | 1 of 25 (Squirreled Away) |
+| tuner cuts / matching a guide | 85 / 44 | 223 / 104 |
+| tuner weak-list matching a guide | 25 | 25 |
+| tuner adds / matching a guide | 85 / 8 | 223 / 29 |
+| guide cuts the tuner protects | 124 | 124 |
+
+By issue, the upgrade swaps are 137 of the 223, their cuts matching a guide 43%
+of the time (the role trims 75%, dead weight 56%). As shares, cut precision eased
+(52% to 47%) while the count more than doubled, and add precision rose (9% to
+13%). Adds that match a guide: Delay, Resurgent Belief, Ancestral Vision and
+Rousing Refrain (Timey-Wimey); Sanguine Bond, Vito and Marauding Blight-Priest
+(Blood Rites); Bitterblossom (Fae Dominion, Grand Larceny) and Faerie
+Mastermind; Lae'zel and Teferi, Master of Time (Planeswalker Party); Taunt from
+the Rampart and Bothersome Quasit (Blame Game); Skullclamp, Swiftfoot Boots and
+Lightning Greaves; Hedge Shredder, Tamiyo's Journal, Buried Alive. Off the
+guides' lists but in their spirit: Doubling Season and Hardened Scales (Enduring
+Enchantments), Smothering Tithe, Consecrated Sphinx, Sylvan Library. Nine
+precons get no guide-matching add: Abzan Armor, Eldrazi Unbound, Enduring
+Enchantments, Living Energy, Mardu Surge, Multiverse Reforged, Sultai Arisen,
+Tinker Time, Veloci-Ramp-Tor. The most-played card of a job
+recurs: Skullclamp is an add in 12 decks (a guide add in 3), Swiftfoot Boots in
+9, Frantic Search in 5 — looting counts as card draw (connive is written in as
+card advantage).
+
 ## What is left
 
 `docs/plans/backlog.md`, "What the polymorph tune and the 25-precon audit still

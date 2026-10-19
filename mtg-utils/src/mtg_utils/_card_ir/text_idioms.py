@@ -41,13 +41,6 @@ _TOKEN_SUBTYPE_OWN_REF = re.compile(
     re.IGNORECASE,
 )
 
-# ADR-0027 β — predicates that narrow a grant to a SINGLE permanent (an Aura's
-# enchanted creature / an Equipment's equipped creature), NOT a board. A grant carrying
-# one of these is "Enchanted/Equipped creature has '<quoted>'" — single-target, NOT a
-# global ability grant — so it never fires the lane (the regex never matched a single
-# Aura/Equipment grant either). CR 303 / 301.
-_SINGLE_PERMANENT_GRANT_PREDS: frozenset[str] = frozenset({"EnchantedBy", "EquippedBy"})
-
 # Lure / force-a-block (CR 509.1c/h) phase swallows into a pump/grant_keyword compound
 # clause (Indrik Umbra, Revenge of the Hunted), drops in a conditional static (Seton's
 # Desire, Stone-Tongue Basilisk), folds the equip rider as "must be blocked by <type>

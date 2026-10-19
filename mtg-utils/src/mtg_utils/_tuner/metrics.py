@@ -28,7 +28,7 @@ from mtg_utils._card_ir.crosswalk import (
 )
 from mtg_utils._card_ir.trees import trees_for
 from mtg_utils._tuner.calibration import COMMANDER, Calibration
-from mtg_utils._tuner.classify import CardClass
+from mtg_utils._tuner.classify import CardClass, is_premium, is_upgrade_target
 from mtg_utils.card_classify import card_pt_int, has_evasion, is_creature
 from mtg_utils.formats import Game
 from mtg_utils.theme_presets import get_preset
@@ -439,9 +439,14 @@ def focus(
     # The commander's own lanes, collapsed among themselves (deepest first: one
     # ability's sibling reads share the same cards, and the broad read is the
     # lane). The PRIMARY lane among them is chosen below, once the carers are
-    # known.
+    # known. The commander's lanes are a set, so the label breaks a depth tie:
+    # set order made Death Toll's "Your graveyard" / "Graveyard engine" (one
+    # lane, equally deep) swap from run to run. Every later ordering walks
+    # this list or the deck's ranked signals, both deterministic.
     held_kept: list[str] = []
-    for lbl in sorted(commander_held, key=lambda lbl: depth.get(lbl, 0), reverse=True):
+    for lbl in sorted(
+        commander_held, key=lambda lbl: (depth.get(lbl, 0), lbl), reverse=True
+    ):
         if not folds(lbl, held_kept, same_members):
             held_kept.append(lbl)
     commander_members: set[str] = set()
@@ -720,20 +725,66 @@ def focus(
     # population's verdict on a card in general, not on a polymorph piece under
     # a polymorph commander (the precon's new Identity Echo has no rank at all).
     # A payoff the lane merely serves (a weak flip) stays an upgrade target.
+    # tune passes Calibration.playrate_condemns; without it, the family's.
+    condemns = (
+        cal.playrate_meaningful if playrate_condemns is None else playrate_condemns
+    )
     low_value_classes = [
         c
         for c in nonland
         if c.name not in fed_only_names
         and c.name not in lane_doers
-        and c.low_value(
-            medium=medium,
-            # tune passes Calibration.playrate_condemns; without it, the family's.
-            playrate=cal.playrate_meaningful
-            if playrate_condemns is None
-            else playrate_condemns,
-        )
+        and c.low_value(medium=medium, playrate=condemns)
     ]
     low_value_cards = [c.name for c in low_value_classes]
+    # Cards the upgrade read leaves alone: cut by an earlier tier (fed-only,
+    # low-value), or on a lane (a doer of the commander's, a carer of a built
+    # theme).
+    elsewhere = fed_only_names | set(low_value_cards) | lane_doers | built_carers
+    # The upgrade slots: a card off every lane the deck holds — no doer of the
+    # commander's lanes, no carer of a built theme — that few decks play
+    # (``classify.UPGRADE_RANK``). The guides' commonest move (2026-10-19):
+    # the precon's off-lane removal, draw, ramp and good-stuff traded for the
+    # staple that does the same job. Filler and low-value cards are cut by
+    # their own tiers first; a meta-read deck has its own share read; a
+    # Granter is judged by its grant, never by play-rate (ADR-0040 §4).
+    upgrade_cards = (
+        sorted(
+            c.name
+            for c in nonland
+            if c.bucket in ("spine", "engine")
+            and c.meta_share is None
+            and c.grant_grade is None
+            and c.name not in elsewhere
+            and is_upgrade_target(c.edhrec_rank, medium=medium)
+        )
+        if condemns
+        else []
+    )
+    # The deep lane's upgrade slots: once the commander's lanes hold
+    # ``lane_upgrade_floor`` engine doers, their least-played half. Measured
+    # against the upgrade guides' cuts inside the 25 precons' lanes (906 lane
+    # cards, 222 guide cuts, 2026-10-18): a member that does NOT itself care
+    # about the lane (an artifact that is just an artifact under an Artifacts
+    # main; in a tribal lane every member is a carer, so there the order is
+    # play-rate alone) before one that does, then least played, puts a guide
+    # cut in the top five 48% of the time; the same half ordered
+    # costlier-first managed 30%, and no function read (one-shot vs
+    # repeatable, body for its cost, in-deck synergy depth, how many lanes a
+    # card touches) moved the rate off the 25% base at all. A premium card is
+    # never one. The lane's carers are the union over every held lane.
+    lane_carers = set().union(*(carers.get(lbl, set()) for lbl in held_kept))
+    lane_pool = [
+        c
+        for c in engine_built
+        if c.name in lane_doers
+        and c.grant_grade is None
+        and not (cal.playrate_meaningful and is_premium(c.edhrec_rank))
+    ]
+    lane_upgrade_cards: list[str] = []
+    if len(lane_pool) >= cal.scaled(cal.lane_upgrade_floor, deck_size):
+        lane_pool.sort(key=lambda c: (c.name in lane_carers, c.least_played_key))
+        lane_upgrade_cards = [c.name for c in lane_pool[: len(lane_pool) // 2]]
 
     engine_labels = {lbl for c in engine_built for lbl in themes(c)}
     stranded = sorted(lbl for lbl in engine_labels if 1 <= depth.get(lbl, 0) <= 2)
@@ -798,9 +849,7 @@ def focus(
         # The cards that CARE about the commander's lanes (the union of carers
         # over every held lane that survived the collapse) — what the lane cut
         # tier spares, cutting the lane's plain feeders first (``swaps``).
-        "commander_lane_carers": sorted(
-            set().union(*(carers.get(lbl, set()) for lbl in held_kept))
-        ),
+        "commander_lane_carers": sorted(lane_carers),
         # The nonland cards the commander's lanes SERVE (members of a held
         # avenue: every artifact under Gimbal, every Clue under Morska) — what
         # a template band is measured against before it trims (``tune``).
@@ -816,6 +865,9 @@ def focus(
         "filler_cards": filler_cards,
         "low_value": _slots(low_value_classes),
         "low_value_cards": low_value_cards,
+        "upgrade_cards": upgrade_cards,
+        # The deep lane's least-played half, in cut order (feeders first).
+        "lane_upgrade_cards": lane_upgrade_cards,
         "stranded_avenues": stranded,
         "_depth": depth,
     }

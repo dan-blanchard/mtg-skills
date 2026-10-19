@@ -31,8 +31,14 @@ from mtg_utils._analysis.tree_synthesis.mechanics_misc import OUTLAW_SUBTYPES
 from mtg_utils._card_ir.compat_lookup import ir_for
 from mtg_utils._card_ir.crosswalk.reads import (
     ObjectFacts,
+    affected_tag,
+    filter_controller,
+    iter_static_defs,
     mana_spell_type_restriction,
+    names_attached_object,
     produced_kind,
+    pt_mod_signs,
+    static_affected,
     tag_of,
 )
 from mtg_utils._card_ir.trees import object_facts, trees_for
@@ -312,9 +318,10 @@ def _ir_board_wipe(ir: Card) -> bool:
     A mass ``-X/-X`` shrink (Toxic Deluge, Drown in Sorrow) is read via the SIDECAR-v74
     ``Effect.toughness`` companion: a mass ``pump`` whose toughness factor is negative
     can kill, where a harmless power-only "-2/-0" (toughness factor 0) and a "+X/+X"
-    anthem (factor > 0) are excluded. A SINGLE-target shrink is ``pump_target`` (not the
-    mass ``pump``). Covers both a mass-shrink SPELL (Toxic Deluge) and a STATIC
-    mass-debuff anthem (Elesh Norn's opponents' -2/-2 — SIDECAR v75)."""
+    anthem (factor > 0) are excluded. Only the mass marker counts: a single-target
+    shrink spell (Nameless Inversion's +3/-3) is removal, not a wipe. A STATIC
+    mass debuff (Elesh Norn's opponents' -2/-2) is :func:`_static_board_shrink`'s,
+    which can tell an Equipment's own creature from a population."""
     for ab in ir.all_abilities():
         for e in ab.effects:
             subj = e.subject
@@ -328,8 +335,42 @@ def _ir_board_wipe(ir: Card) -> bool:
             if e.category in _MASS_REMOVAL_CATS and e.counter_kind == "all":
                 return True
             tuf = e.toughness
-            if e.category == "pump" and tuf is not None and tuf.factor < 0:
+            if (
+                e.category == "pump"
+                and e.counter_kind == "all"
+                and tuf is not None
+                and tuf.factor < 0
+            ):
                 return True
+    return False
+
+
+# The affected tags naming one object: the card itself, or the target its
+# spell or ability chose.
+_ONE_OBJECT_TAGS = frozenset({"SelfRef", "ParentTarget"})
+
+
+def _static_board_shrink(card: dict) -> bool:
+    """A continuous toughness shrink on a population of creatures (CR 613.4c,
+    layer 7c) — every creature (Night of Souls' Betrayal), the others (Kaervek,
+    the Spiteful), or an opponent's (Elesh Norn, Grand Cenobite's -2/-2). Never
+    the creature an Equipment or Aura is attached to (Skullclamp's +1/-1, Dead
+    Weight's -2/-2: one creature, ``names_attached_object``), the card itself,
+    a spell's or ability's target (Nameless Inversion's +3/-3), or your own
+    side. The compat projection drops the attachment predicate, so
+    this reads the typed static defs."""
+    for tree in trees_for(card):
+        for unit in tree.units:
+            for sdef in iter_static_defs(unit.node):
+                affected = static_affected(sdef, unit)
+                if (
+                    affected_tag(sdef, unit) in _ONE_OBJECT_TAGS
+                    or filter_controller(affected, unit) == "You"
+                    or names_attached_object(affected)
+                ):
+                    continue
+                if pt_mod_signs(sdef)[1] < 0:
+                    return True
     return False
 
 
@@ -463,7 +504,11 @@ def role_of(card: dict, *, deck_mana: DeckMana | None = None) -> set[str]:
     )
     if draws:
         roles.add("card_draw")
-    if (ir is not None and _ir_board_wipe(ir)) or _matches_preset(card, "board-wipe"):
+    if (
+        (ir is not None and _ir_board_wipe(ir))
+        or _static_board_shrink(card)
+        or _matches_preset(card, "board-wipe")
+    ):
         roles.add("board_wipe")
     if is_interaction(card, ir=ir):
         roles.add("interaction")

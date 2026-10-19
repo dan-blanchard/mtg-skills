@@ -470,8 +470,8 @@ def tune(
             stranded=set(foc["stranded_avenues"]),
             viable={a["label"] for a in foc["viable_avenues"]},
             commander_cards=foc["commander_lane_cards"],
-            lane_carers=foc["commander_lane_carers"],
-            lane_upgrade_floor=cal.scaled(cal.lane_upgrade_floor, deck_size),
+            upgrade_cards=foc["upgrade_cards"],
+            lane_upgrade_cards=foc["lane_upgrade_cards"],
             message=f"deck is {overflow} over {legal} — cut",
             protected=protected,
             medium=game.medium,
@@ -513,7 +513,6 @@ def tune(
             playrate_condemns=condemns,
             exclude=params.exclude,
             deck_mana=deck_mana,
-            lane_upgrade_floor=cal.scaled(cal.lane_upgrade_floor, deck_size),
         )
         swaps_out = swaps_mod.propose_swaps(classes, issues, swap_ctx)
         # The fill pass deliberately skips lands; flag any mana-base shortfall so the

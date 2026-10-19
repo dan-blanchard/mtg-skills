@@ -1,5 +1,7 @@
 """Focus metric: lands and Spine-role avenues are not themes; near-dupes collapse."""
 
+from dataclasses import replace
+
 from mtg_utils._analysis import signal_keys
 from mtg_utils._analysis.signal_specs import spec_for
 from mtg_utils._analysis.signals import Signal
@@ -1196,3 +1198,67 @@ def test_a_land_type_lane_counts_its_lands_and_no_other_lane_does():
     assert "Desert 0" in rows[deserts]["cards"]
     assert landfall not in rows
     assert fr["commander_avenues"] == [deserts]
+
+
+def test_the_upgrade_slots_are_off_lane_little_played_and_the_deep_lanes_half():
+    """Two upgrade-slot reads (2026-10-19, the 25-precon audit): a card off every
+    lane the deck holds — no doer of the commander's lanes, no carer of a built
+    theme — ranked past ``UPGRADE_RANK`` (half of those were guide cuts); and,
+    once the commander's lane holds ``lane_upgrade_floor`` engine doers, its
+    least-played half. A premium card is never a lane slot."""
+    cheat = spec_for(_sig("cheat_into_play")).label
+    lane = [
+        replace(_cc(f"Polymorph {i}", "engine", [cheat]), edhrec_rank=1000 * (i + 1))
+        for i in range(14)
+    ]
+    staple = replace(_cc("Premium Polymorph", "engine", [cheat]), edhrec_rank=50)
+    off = [
+        replace(
+            _cc("Played Removal", "spine", [], roles=["interaction"]), edhrec_rank=500
+        ),
+        replace(
+            _cc("Clunky Removal", "spine", [], roles=["interaction"]),
+            edhrec_rank=9000,
+        ),
+        # A Granter is judged by its grant, never by play-rate (ADR-0040 §4).
+        replace(_cc("Granter", "engine", []), edhrec_rank=9000, grant_grade="solid"),
+    ]
+    classes = [_cc("Jace", "commander", [cheat]), *lane, staple, *off]
+    emitters = {
+        ("cheat_into_play", "you", ""): frozenset(
+            {"Jace", staple.name} | {c.name for c in lane}
+        )
+    }
+
+    def run(cards):
+        return focus(
+            cards,
+            deck_size=100,
+            deck_signals=[_sig("cheat_into_play")],
+            commander_idents=frozenset({("cheat_into_play", "you", "")}),
+            emitters=emitters,
+        )
+
+    fr = run(classes)
+    assert fr["upgrade_cards"] == ["Clunky Removal"]
+    assert fr["lane_upgrade_cards"] == [f"Polymorph {i}" for i in range(13, 6, -1)]
+    # Below the floor (eleven doers besides the premium one) the lane is whole.
+    assert run([*classes[:12], staple, *off])["lane_upgrade_cards"] == []
+
+
+def test_tied_lanes_resolve_by_label_not_by_set_order():
+    """Two commander lanes equally deep with as many carers: the label breaks
+    the tie, so the main theme is the same on every run (Death Toll's "Your
+    graveyard" / "Graveyard engine" swapped with the string-hash seed until
+    2026-10-19). Reversing the card order changes nothing either."""
+    classes, signals, emitters, art, energy = _two_lane_commander()
+    held = frozenset({("artifacts_matter", "you", ""), ("energy_matters", "you", "")})
+    for cards in (classes, classes[::-1]):
+        fr = focus(
+            cards,
+            deck_size=100,
+            deck_signals=signals,
+            emitters=emitters,
+            commander_idents=held,
+        )
+        assert fr["viable_avenues"][0]["label"] == max(art, energy)

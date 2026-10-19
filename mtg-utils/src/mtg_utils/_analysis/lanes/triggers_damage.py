@@ -27,6 +27,7 @@ from mtg_utils._analysis.text_reads import (
 )
 from mtg_utils._analysis.tree_synthesis import SynthesizedNode
 from mtg_utils._card_ir.crosswalk import (
+    ATTACHED_OBJECT_PREDICATES,
     DAMAGE_EFFECT_TAGS,
     OTHER,
     PROTECTIVE_KEYWORDS,
@@ -464,7 +465,6 @@ _AURA_EQUIP_KW: frozenset[str] = frozenset(
 )
 # Suit-up predicates: the grant lands on the creature the Aura/Equipment is
 # attached to (live ``_is_aura_equip_protection_subject`` — CR 303 / 301).
-_SUIT_UP_PREDS: frozenset[str] = frozenset({"EnchantedBy", "EquippedBy"})
 # ``DoublePT`` modes that double POWER (CR 613.4c; a toughness-only doubler is
 # not the beater build-around).
 _POWER_DOUBLE_MODES: frozenset[str] = frozenset({"Power", "PowerAndToughness"})
@@ -1262,7 +1262,10 @@ def _keyword_grant_lanes(tree: ConceptTree) -> list[Signal]:
             if ctrl == "You" and subs & {"aura", "equipment"} and kw in _AURA_EQUIP_KW:
                 fire("aura_equip_kw_grant", "you", raw)
             your_perms = "Permanent" in cores and ctrl == "You" and generic
-            suit_up = set(preds) & _SUIT_UP_PREDS and cores & {"Creature", "Permanent"}
+            suit_up = set(preds) & ATTACHED_OBJECT_PREDICATES and cores & {
+                "Creature",
+                "Permanent",
+            }
             if kw in PROTECTIVE_KEYWORDS and (team or your_perms or suit_up):
                 fire("protection_grant", "you", raw)
     if _TEAM_EVASION_GRANT_RX.search(_kept(tree)):

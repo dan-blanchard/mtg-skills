@@ -1,10 +1,12 @@
 """Cut selection + add sourcing → budgeted (cut, add) swap pairs.
 
-Cuts: filler → over-band Spine excess → stranded Engine singletons, gated by hard
-floors (never the commander, a Spine role at/below floor, lands, or a dual-purpose
-card). Adds: issue-driven calls to the injected ``search_fn`` (Spine/protection fills
-efficiency-first, avenue-deepening synergy-first), budget-bounded (owned = free,
-no-listing never free). No new search code — the tuner is a new *caller* of the
+Cuts: filler → low-value → over-band Spine excess → stranded Engine singletons →
+the upgrade slots (off-lane cards few decks play, then a deep lane's least-played
+half), gated by hard floors (never the commander, a Spine role at/below floor,
+lands, or a dual-purpose card). Adds: issue-driven calls to the injected
+``search_fn`` (Spine/protection fills by play-rate within a mana-value band,
+avenue-deepening and upgrades by fit then play-rate), budget-bounded (owned =
+free, no-listing never free). No new search code — the tuner is a new *caller* of the
 existing search + ranking (ADR-0023).
 """
 
@@ -23,10 +25,12 @@ from mtg_utils._tuner.issues import (
     CUT_FILLER,
     CUT_GENERIC,
     CUT_LANE,
+    CUT_UPGRADE,
     Issue,
     Sourcing,
     cut_over,
     over_role,
+    upgrade_job,
 )
 from mtg_utils.card_classify import (
     extract_price,
@@ -54,6 +58,15 @@ def _quality(card: dict, *, playrate: bool) -> int:
 _MV_BANDS: tuple[float, ...] = (3.0, 5.0)
 
 
+#: The share of a page's best synergy score a candidate needs to count as
+#: fitting the deck, before play-rate picks among the fitting ones. Measured on
+#: the 25 precons' candidate pages against their upgrade guides' adds
+#: (2026-10-19, 187 pages): synergy-first put 41 guide adds in a page's top
+#: ten (median rank 36); a fifth of the best then play-rate, 72 (median 14);
+#: play-rate alone 69; floors of 0.3-0.5 fell back toward synergy-first (63-49).
+_FIT_FLOOR = 0.2
+
+
 #: What an X in a mana cost is worth for banding: an X spell is cast for value at
 #: X ≥ 3 (Martial Coup wants five, Comet Storm three) — a printed mana value of 2
 #: would otherwise band Martial Coup with Swords to Plowshares. The lane's own call.
@@ -71,6 +84,28 @@ def _mv_band(card: Mapping) -> int:
     if "{X}" in (card.get("mana_cost") or ""):
         cmc += _X_COST_VALUE
     return sum(1 for top in _MV_BANDS if cmc > top)
+
+
+def _upgrades(
+    candidate: dict,
+    cut: CardClass,
+    job: str | None,
+    *,
+    deck_mana: DeckMana | None = None,
+) -> bool:
+    """Whether ``candidate`` is an upgrade of ``cut``: more decks play it, it
+    costs no higher mana-value band (a two-mana removal spell is not upgraded to
+    a six-mana one, nor a one-drop to a seven-drop on the main theme), and for
+    a job (``upgrade_job``) it does that same job — card draw is not upgraded
+    to a counterspell that draws."""
+    rank = candidate.get("edhrec_rank")
+    if rank is None or (cut.edhrec_rank is not None and rank >= cut.edhrec_rank):
+        return False
+    if _mv_band(candidate) > _mv_band(cut.record):
+        return False
+    return job is None or (
+        upgrade_job(role_of(candidate, deck_mana=deck_mana), candidate) == job
+    )
 
 
 def _fills_short_role(card: CardClass, budgets: dict) -> bool:
@@ -135,8 +170,8 @@ def cut_candidates(
     playrate_meaningful: bool = True,
     viable: Collection[str] = (),
     commander_cards: Collection[str] = (),
-    lane_carers: Collection[str] = (),
-    lane_upgrade_floor: int = 12,
+    upgrade_cards: Collection[str] = (),
+    lane_upgrade_cards: Sequence[str] = (),
 ) -> list[tuple[str, CardClass]]:
     """Ordered (reason, card) cut candidates, most-cuttable first. Hard floors apply.
 
@@ -159,17 +194,16 @@ def cut_candidates(
     card feeding no viable avenue trims first. A payoff the lane merely serves
     (a bomb the commander flips into) is ordered like any other card.
 
-    The LAST tier is the lane itself, once it is deep (``lane_upgrade_floor``
-    doers): a tribal precon's forty-three Vampires are all carers, so with every
-    other tier empty the deck proposed nothing while short on ramp, draw and
-    wipes (Blood Rites, 2026-10-18) — the guides trim its clunky, least-played
-    members. Play-rate inside a lane is a weak read (of the lane's least-played
-    half, a quarter are guide cuts, against a fifth of the lane; the costlier
-    among them a little more), so it is the slot an upgrade takes, never dead
-    weight: the least-played half of the lane, costliest first — and only a
-    Spine fill, a closer or a game-ending piece may take it (``Remedy.lane_ok``;
-    the first pass traded Dinosaurs for Human-tribal and Landfall "commit more"
-    adds).
+    The last two tiers are the upgrade slots the focus read names: the
+    off-lane cards few decks play (``upgrade_cards``, least played first), drawn
+    only by the upgrade issue for a better-played card doing the same job; then
+    the deep lane's least-played half (``lane_upgrade_cards``, in the focus
+    read's order) — a tribal precon's forty-three Vampires are all carers, so
+    with every other tier empty the deck proposed nothing while short on ramp,
+    draw and wipes (Blood Rites, 2026-10-18). A lane slot is never dead weight:
+    only a Spine fill, a closer, a game-ending piece or an upgrade may take it
+    (``Remedy.lane_ok``; the first pass traded Dinosaurs for Human-tribal and
+    Landfall "commit more" adds).
     """
     out: list[tuple[str, CardClass]] = []
     seen: set[str] = set()
@@ -271,28 +305,24 @@ def cut_candidates(
         ):
             push("stranded", c)
 
-    # 4. The lane's own feeders nobody plays much — only in a deep lane. Measured
-    # against the upgrade guides' cuts inside the 25 precons' lanes (906 lane
-    # cards, 222 guide cuts, 2026-10-18): a member that does NOT itself care
-    # about the lane (an artifact that is just an artifact under an Artifacts
-    # main; in a tribal lane every member is a carer, so there the order is
-    # play-rate alone) before one that does,
-    # then least played, puts a guide cut in the top five 48% of the time; the
-    # same half ordered costlier-first managed 30%, and no function read
-    # (one-shot vs repeatable, body for its cost, in-deck synergy depth, how
-    # many lanes a card touches) moved the rate off the 25% base at all.
-    lane = [
-        c
-        for c in classes
-        if c.name in lane_cards
-        and c.bucket == "engine"
-        and c.name not in protected
-        and not premium(c)
-    ]
-    if len(lane) >= lane_upgrade_floor:
-        ranked = sorted(lane, key=lambda c: (c.name in lane_carers, c.least_played_key))
-        for c in ranked[: len(ranked) // 2]:
-            push("lane_upgrade", c)
+    # 4. The upgrade slots (``focus``'s ``upgrade_cards``): off every lane the
+    # deck holds and played little — least played first. Only the upgrade
+    # issue draws on them, and only for a better-played card doing the same job.
+    upgrade_set = set(upgrade_cards)
+    for c in sorted(
+        (c for c in classes if c.name in upgrade_set),
+        key=lambda c: c.least_played_key,
+    ):
+        push("upgrade", c)
+
+    # 5. The deep lane's upgrade slots (``focus``'s ``lane_upgrade_cards``:
+    # its least-played half, plain feeders before carers) — the slot a Spine
+    # fill, a closer, a game-ending piece or an upgrade may take.
+    lane_order = {name: i for i, name in enumerate(lane_upgrade_cards)}
+    for c in sorted(
+        (c for c in classes if c.name in lane_order), key=lambda c: lane_order[c.name]
+    ):
+        push("lane_upgrade", c)
 
     return out
 
@@ -312,8 +342,8 @@ def size_cuts(
     playrate_meaningful: bool = True,
     viable: Collection[str] = (),
     commander_cards: Collection[str] = (),
-    lane_carers: Collection[str] = (),
-    lane_upgrade_floor: int = 12,
+    upgrade_cards: Collection[str] = (),
+    lane_upgrade_cards: Sequence[str] = (),
 ) -> list[dict]:
     """Legality-driven cuts for an OVER-sized deck: up to ``overflow`` proposals.
 
@@ -340,10 +370,10 @@ def size_cuts(
         medium=medium,
         playrate=playrate_condemns,
         playrate_meaningful=playrate_meaningful,
-        lane_upgrade_floor=lane_upgrade_floor,
         viable=viable,
         commander_cards=commander_cards,
-        lane_carers=lane_carers,
+        upgrade_cards=upgrade_cards,
+        lane_upgrade_cards=lane_upgrade_cards,
     ):
         if len(out) >= overflow:
             break
@@ -563,9 +593,6 @@ class SwapContext:
     #: The deck context ramp is judged in (``hd.deck_mana``): a rock whose mana
     #: is dead under this commander is never sourced as ramp.
     deck_mana: DeckMana | None = None
-    #: Lane doers from which the lane's least-played members are cut candidates
-    #: (``Calibration.lane_upgrade_floor``, scaled).
-    lane_upgrade_floor: int = 12
 
     def copy_ceiling(self, record: dict) -> int | None:
         """How many copies of this card the build may run: the copy limit, bounded
@@ -642,10 +669,10 @@ def propose_swaps(
         template=ctx.template,
         playrate=ctx.playrate_condemns,
         playrate_meaningful=ctx.playrate,
-        lane_upgrade_floor=ctx.lane_upgrade_floor,
         viable=focus_sets["viable"],
         commander_cards=ctx.focus_result.get("commander_lane_cards") or (),
-        lane_carers=ctx.focus_result.get("commander_lane_carers") or (),
+        upgrade_cards=ctx.focus_result.get("upgrade_cards") or (),
+        lane_upgrade_cards=ctx.focus_result.get("lane_upgrade_cards") or (),
     )
     # Route cuts into the pools a Remedy names: an over-band trim cuts from THAT over
     # role (``over:<role>``); everything else is the generic pool (filler, low-value,
@@ -654,12 +681,15 @@ def propose_swaps(
         CUT_GENERIC: [],
         CUT_FILLER: [],
         CUT_LANE: [],
+        CUT_UPGRADE: [],
     }
     for reason, card in cuts:
         if over_role(reason) is not None:
             pool = reason
         elif reason == "lane_upgrade":
             pool = CUT_LANE  # only a ``lane_ok`` remedy, once its own pool is dry
+        elif reason == "upgrade":
+            pool = CUT_UPGRADE  # only the upgrade issue, for a card doing its job
         else:
             pool = CUT_GENERIC
         pools.setdefault(pool, []).append((reason, card))
@@ -741,11 +771,13 @@ def propose_swaps(
         if spec_filter is not None:  # tuner-side precision pass (e.g. reliable-ramp)
             pool = [c for c in pool if spec_filter(c, deck_mana=ctx.deck_mana)]
         if synergy_first:
-            # Synergy DEPTH first (synergy_score, deck-relative — a real payoff for
-            # the deck's themes beats a box-ticker grazing many incidental lanes),
-            # then play-rate so a staple beats the cheapest chaff that nominally
-            # serves the same lane, then price. The play-rate tiebreak is the one
-            # EDHREC-popularity lean (user-directed).
+            # A candidate must FIT — a synergy score at least ``_FIT_FLOOR`` of
+            # the page's best (deck-relative depth, so a box-ticker grazing many
+            # incidental lanes doesn't count as fit by breadth alone) — and among
+            # those that fit, the most played wins where play-rate means
+            # something (the Commander family; the one EDHREC-popularity lean,
+            # user-directed), then the better fit, then price. Elsewhere
+            # synergy alone orders the page, then price.
             scored = rank_candidates(
                 pool,
                 active_signals=ctx.deck_signals,
@@ -753,17 +785,19 @@ def propose_swaps(
                 deck_tribes=deck_tribes,
                 deck_mana=ctx.deck_mana,
             )
-            ranked = [
-                r["card"]
-                for r in sorted(
-                    scored,
-                    key=lambda r: (
-                        -r["score"]["synergy_score"],
-                        _quality(r["card"], playrate=ctx.playrate),
-                        extract_price(r["card"]) or 1e9,
-                    ),
-                )
-            ]
+            floor = _FIT_FLOOR * max(
+                (r["score"]["synergy_score"] for r in scored), default=0.0
+            )
+
+            def fit_key(r: dict) -> tuple:
+                score = r["score"]["synergy_score"]
+                price = extract_price(r["card"]) or 1e9
+                if not ctx.playrate:
+                    return (-score, price)
+                played = _quality(r["card"], playrate=True)
+                return (score < floor, played, -score, price)
+
+            ranked = [r["card"] for r in sorted(scored, key=fit_key)]
         else:
             # Spine fills: the cheapest mana-value BAND that does the job first
             # (efficiency), then play-rate within it, then price. Exact mana value
@@ -812,6 +846,8 @@ def propose_swaps(
         nonland_only: bool = False,
         limit: int = 150,
         role_fix: bool = False,
+        upgrade_of: CardClass | None = None,
+        upgrade_job: str | None = None,
     ) -> tuple[dict, float, bool] | None:
         """The best affordable, not-yet-used add for this spec — does NOT commit spend
         (the caller commits once a cut is secured, so an unpaired add can't inflate the
@@ -833,6 +869,10 @@ def propose_swaps(
         caller labels it via the returned flag. SPREAD-THIN / SPINE-LED and non-role-fix
         calls are untouched: the first eligible candidate in ranked order wins, exactly
         as before this guard.
+
+        ``upgrade_of`` is the card an upgrade replaces and ``upgrade_job`` the
+        job it keeps: a candidate must be an upgrade (:func:`_upgrades`), and
+        the roles the cut frees are no overshoot.
         """
         ranked = _ranked_pool(
             spec, synergy_first=synergy_first, nonland_only=nonland_only, limit=limit
@@ -846,10 +886,17 @@ def propose_swaps(
                 continue
             if not game_changers.allows(card):
                 continue  # ADR-0030: never propose an add past the bracket's ceiling
+            if upgrade_of is not None and not _upgrades(
+                card, upgrade_of, upgrade_job, deck_mana=ctx.deck_mana
+            ):
+                continue
             cost = acquire_cost(card)
             if cost is None:
                 continue
-            if role_of(card, deck_mana=ctx.deck_mana) & full_roles:
+            overshoot = role_of(card, deck_mana=ctx.deck_mana) & full_roles
+            if upgrade_of is not None:
+                overshoot -= set(upgrade_of.roles)
+            if overshoot:
                 fallback = fallback or (card, cost)  # keep the best overshooting option
                 continue
             if not guard:
@@ -935,6 +982,42 @@ def propose_swaps(
         # nonland too — else a theme swap silently adds a value land (e.g. Fountainport
         # on the Aristocrats lane), shifting the land count a swap is meant to
         # preserve. The mana base is the land tooling's job, not Tune's.
+        if remedy.spec_for_cut is not None:
+            # Cut first, then the add the cut names (the upgrade drain: its own
+            # job), ranked as any theme add is (fit, then play-rate — a Spine
+            # fill's cheapest-band order gave every deck the same Fellwar Stone
+            # and Brainstorm); a cut nothing better-played does the job of is
+            # passed over.
+            while len(swaps) < ctx.max_swaps:
+                cut_entry = take_cut(remedy.cut_from)
+                if cut_entry is None and remedy.lane_ok:
+                    cut_entry = take_cut(CUT_LANE)
+                if cut_entry is None:
+                    break
+                reason, cut = cut_entry
+                source = remedy.spec_for_cut(cut)
+                if source is None:
+                    continue
+                picked = find_add(
+                    source.spec,
+                    synergy_first=True,
+                    nonland_only=True,
+                    upgrade_of=cut,
+                    upgrade_job=source.job,
+                )
+                if picked is None:
+                    continue
+                add_card, cost, _off_avenue = picked
+                commit(
+                    issue.kind,
+                    f"upgrade {source.label}: more decks play "
+                    f"{add_card.get('name', '')}",
+                    reason,
+                    cut,
+                    add_card,
+                    cost,
+                )
+            continue
         swaps_for_issue = 0
         while len(swaps) < ctx.max_swaps:
             picked = find_add(
@@ -1097,4 +1180,6 @@ def _cut_why(reason: str, card: CardClass | None = None) -> str:
         return "stranded on a near-empty avenue"
     if reason == "lane_upgrade":
         return "a lane feeder few decks play — an upgrade's slot"
+    if reason == "upgrade":
+        return "off the deck's lanes and few decks play it — a staple does its job"
     return reason

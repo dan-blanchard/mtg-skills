@@ -41,6 +41,7 @@ from mtg_utils._analysis.tree_synthesis import (
 )
 from mtg_utils._card_ir.crosswalk import (
     _OPPONENT_ACTOR_TAGS,
+    ATTACHED_OBJECT_PREDICATES,
     CHOSEN_PLAYER_SCOPE,
     ConceptTree,
     answers_its_target,
@@ -1124,7 +1125,7 @@ def _enters_with_plus_one(node: object) -> bool:
 # Fetters/Prison Term's combined CantAttackOrBlock) whose `affected` filter
 # carries an `EnchantedBy` predicate — "whatever THIS card enchants", the
 # same self-referential attach marker `_stax_structural_walk`'s pacify veto
-# already keys on (tree_synthesis.py's `_PACIFY_PREDS`) to keep Pacifism out
+# already keys on (`crosswalk.ATTACHED_OBJECT_PREDICATES`) to keep Pacifism out
 # of stax_taxes/symmetric_stax. A co-occurring `CantBeActivated{EnchantedBy}`
 # rider (Arrest/Prison Term's "activated abilities can't be activated") is
 # NOT independently required — it rides along on cards that already have
@@ -1168,7 +1169,6 @@ def _enters_with_plus_one(node: object) -> bool:
 # synergy escape hatch, not an unconditional benefit) lives in a DIFFERENT,
 # "ability"-origin unit and never gates this veto.
 _PACIFY_AURA_MODES = frozenset({"CantAttack", "CantBlock", "CantAttackOrBlock"})
-_PACIFY_ATTACH_PREDS = frozenset({"EnchantedBy", "EquippedBy"})
 _PACIFY_PT_MOD_TAGS = frozenset({"AddPower", "AddToughness"})
 _PACIFY_ALWAYS_COMPENSATING_TAGS = frozenset({"AddKeyword", "SetPower", "SetToughness"})
 
@@ -1185,7 +1185,7 @@ def _pacify_aura_compensates(tree: ConceptTree) -> bool:
             continue
         node = unit.node
         if not set(filter_predicates(getattr(node, "affected", None))) & (
-            _PACIFY_ATTACH_PREDS
+            ATTACHED_OBJECT_PREDICATES
         ):
             continue
         for m in getattr(node, "modifications", None) or ():
@@ -1221,7 +1221,7 @@ def _pacify_makers(tree: ConceptTree) -> list[Signal]:
             if static_mode_tag(node) not in _PACIFY_AURA_MODES:
                 continue
             affected = getattr(node, "affected", None)
-            if set(filter_predicates(affected)) & _PACIFY_ATTACH_PREDS:
+            if set(filter_predicates(affected)) & ATTACHED_OBJECT_PREDICATES:
                 return [
                     Signal(
                         "pacify_makers", "you", "", _site_raw(node), tree.name, "high"
@@ -1246,7 +1246,7 @@ def _neutralize_aura_compensates(tree: ConceptTree) -> bool:
     for unit in tree.units:
         for node in iter_static_defs(unit.node):
             if not set(filter_predicates(getattr(node, "affected", None))) & (
-                _PACIFY_ATTACH_PREDS
+                ATTACHED_OBJECT_PREDICATES
             ):
                 continue
             for m in getattr(node, "modifications", None) or ():
@@ -1261,7 +1261,7 @@ def _neutralize_aura_compensates(tree: ConceptTree) -> bool:
                 c.concept == "place_counter"
                 and counter_kind(c.node).upper() == "P1P1"
                 and set(filter_predicates(getattr(c.node, "target", None)))
-                & _PACIFY_ATTACH_PREDS
+                & ATTACHED_OBJECT_PREDICATES
             ):
                 return True
     return False
@@ -1314,7 +1314,7 @@ def _single_target_neutralize(tree: ConceptTree) -> list[Signal]:
     for unit in tree.units:
         for node in iter_static_defs(unit.node):
             if not set(filter_predicates(getattr(node, "affected", None))) & (
-                _PACIFY_ATTACH_PREDS
+                ATTACHED_OBJECT_PREDICATES
             ):
                 continue
             for m in getattr(node, "modifications", None) or ():
@@ -1393,7 +1393,7 @@ def _type_changer_static_reads(
             if affected is None:
                 continue
             preds = set(filter_predicates(affected))
-            if preds & _PACIFY_ATTACH_PREDS:
+            if preds & ATTACHED_OBJECT_PREDICATES:
                 continue
             cores = {c.lower() for c in filter_core_types(affected)}
             if "creature" not in cores:
@@ -1897,7 +1897,7 @@ def extract_grant_payloads(tree: ConceptTree) -> tuple[GrantPayload, ...]:
             if affected is None:
                 continue
             preds = set(filter_predicates(affected))
-            if preds & _PACIFY_ATTACH_PREDS or preds & _GRANT_HOSTILE_PREDS:
+            if preds & ATTACHED_OBJECT_PREDICATES or preds & _GRANT_HOSTILE_PREDS:
                 continue
             cores = {c.lower() for c in filter_core_types(affected)}
             if "creature" not in cores:

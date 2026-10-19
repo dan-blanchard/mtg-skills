@@ -2103,8 +2103,7 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
             "(DestroyAll / mass-exile / DamageAll / a SYMMETRIC "
             "negative-toughness PumpAll, FIXED or dynamic-X — CR 115.10 / 701.8 / "
             "701.21a / 406.1 — plus a ChooseAndSacrificeRest sweep, Tragic "
-            "Arrogance/Cataclysm) + `symmetric_damage_each` "
-            "(DamageAll/DamageEachPlayer, the burn-side twin). mass_removal "
+            "Arrogance/Cataclysm). mass_removal "
             "deliberately EXCLUDES an opponent-scoped one-sided shrink (Massacre "
             "Wurm, Cower in Fear: 'creatures your opponents control get -N/-N') — "
             "a real deck-building distinction between a SYMMETRIC sweep and a "
@@ -2133,7 +2132,12 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
             "owners' libraries') were ZERO-signal before this and are now "
             "board-wipe members, Terminus pinned below."
         ),
-        signal_keys=("mass_removal", "symmetric_damage_each"),
+        # ``symmetric_damage_each`` (damage to each PLAYER) left the view on
+        # 2026-10-19: every card it alone added was player-only damage — Price
+        # of Progress, Descent into Avernus, Sunspine Lynx, Mind Bomb, 27 in
+        # all — and every damage sweep (Pestilence, Earthquake) also fires
+        # ``mass_removal``.
+        signal_keys=("mass_removal",),
         should_match=(
             "Wrath of God",
             "Farewell",
@@ -2149,6 +2153,7 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
             "Swords to Plowshares",
             "Ivory Charm",
             "Massacre Wurm",
+            "Price of Progress",
         ),
     ),
     # ── Type-specific removal ──

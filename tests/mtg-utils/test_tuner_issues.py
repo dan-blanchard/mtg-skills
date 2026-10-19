@@ -6,6 +6,7 @@ import pytest
 from mtg_utils._tuner.issues import (
     CUT_FILLER,
     CUT_GENERIC,
+    CUT_UPGRADE,
     PROTECTION_SEARCH,
     ROLE_SEARCH,
     WINCON_SEARCH,
@@ -52,6 +53,8 @@ def _every_issue():
         stranded=["Noise"],
         verdict="SPREAD-THIN",
         filler=6,
+        upgrade_cards=["Clunky Removal"],
+        lane_upgrade_cards=["Vamp 9", "Vamp 10"],
     )
     return top_issues(
         efficiency_r={"verdict": "thin top-end"},
@@ -104,6 +107,7 @@ def test_every_emitted_kind_has_a_decided_remedy():
         "efficiency",
         "commander_misfit",
         "near_miss_combo",
+        "upgrade",
     }
     # No swap fixes a commander or a plan — and nothing else is silently unsourced
     # just because a kind was added without a branch.
@@ -131,7 +135,9 @@ def test_every_emitted_kind_has_a_decided_remedy():
     dead = issues["dead_weight"].remedy
     assert (dead.cut_from, dead.drain) == (CUT_FILLER, True)
     assert not any(
-        i.remedy.drain for k, i in issues.items() if i.remedy and k != "dead_weight"
+        i.remedy.drain
+        for k, i in issues.items()
+        if i.remedy and k not in ("dead_weight", "upgrade")
     )
     # A curve fix asks for the missing CMC band.
     assert issues["efficiency"].remedy.spec.get("cmc_min") == 6
@@ -140,6 +146,14 @@ def test_every_emitted_kind_has_a_decided_remedy():
     assert near.remedy.spec == {"name": "Grindstone"}
     assert near.label == "Grindstone"
     assert near.severity == 9  # game-winning: above dead weight
+    # The upgrade slots, off-lane and deep-lane together, rank last and drain
+    # their own pool, then the lane's.
+    upgrade = issues["upgrade"]
+    assert (upgrade.severity, upgrade.count) == (1, 3)
+    assert upgrade.remedy.cut_from == CUT_UPGRADE
+    assert upgrade.remedy.spec_for_cut is not None
+    assert upgrade.remedy.drain
+    assert upgrade.remedy.lane_ok
 
 
 def test_role_over_deepens_the_commanders_lane_before_an_emerging_theme():

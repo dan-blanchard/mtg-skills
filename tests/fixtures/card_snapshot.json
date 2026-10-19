@@ -656263,6 +656263,244 @@
     "type_line": "Creature — Beast Demon"
    }
   },
+  "Nameless Inversion": {
+   "phase_records": [
+    {
+     "abilities": [
+      {
+       "condition": null,
+       "cost": null,
+       "description": "Target creature gets +3/-3 and loses all creature types until end of turn.",
+       "duration": "UntilEndOfTurn",
+       "effect": {
+        "duration": "UntilEndOfTurn",
+        "static_abilities": [
+         {
+          "active_zones": [],
+          "affected": {
+           "type": "ParentTarget"
+          },
+          "affected_zone": null,
+          "characteristic_defining": false,
+          "condition": null,
+          "description": "get +3/-3 and loses all creature types",
+          "effect_zone": null,
+          "mode": "Continuous",
+          "modifications": [
+           {
+            "set": "Creature",
+            "type": "RemoveAllSubtypes"
+           },
+           {
+            "type": "AddPower",
+            "value": 3
+           },
+           {
+            "type": "AddToughness",
+            "value": -3
+           },
+           {
+            "keyword": "Changeling",
+            "type": "RemoveKeyword"
+           }
+          ]
+         }
+        ],
+        "target": {
+         "controller": null,
+         "properties": [],
+         "type": "Typed",
+         "type_filters": [
+          "Creature"
+         ]
+        },
+        "type": "GenericEffect"
+       },
+       "forward_result": false,
+       "kind": "Spell",
+       "optional": false,
+       "optional_targeting": false,
+       "sub_ability": null,
+       "target_prompt": null
+      }
+     ],
+     "card_type": {
+      "core_types": [
+       "Kindred",
+       "Instant"
+      ],
+      "subtypes": [
+       "Shapeshifter"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Black"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [
+      "Changeling"
+     ],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pauper": "legal",
+      "paupercommander": "legal",
+      "pioneer": "legal",
+      "standard": "legal",
+      "standardbrawl": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 1,
+      "shards": [
+       "Black"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "563c6f58-267a-4ae9-bf72-e0ae0be3b884",
+       "7a4944ac-839e-4aa1-8200-78cff36bb2ed",
+       "94b4e4d2-2358-48d2-9a2a-3d17afea28f5",
+       "fcd901c6-a5bb-49ba-872c-0769db6b1387"
+      ]
+     },
+     "name": "Nameless Inversion",
+     "non_ability_text": null,
+     "oracle_text": "Changeling (This card is every creature type.)\nTarget creature gets +3/-3 and loses all creature types until end of turn.",
+     "power": null,
+     "printings": [
+      "ECL",
+      "LRW",
+      "MM2",
+      "P09",
+      "PLST",
+      "PRM"
+     ],
+     "rarities": [
+      "common",
+      "uncommon"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2024-06-07",
+       "text": "Kindred is a card type that allows noncreature cards to have creature types. For example, Echoes of Eternity is an Eldrazi (although not a creature) while on the battlefield and an Eldrazi card (although not a creature card) in zones other than the battlefield."
+      },
+      {
+       "date": "2024-06-07",
+       "text": "This card was originally printed with the \"tribal\" card type. That card type has been replaced with \"kindred\". This change does not affect the gameplay function of this card."
+      },
+      {
+       "date": "2025-11-17",
+       "text": "Changeling is a characteristic-defining ability. It functions in all zones, not only while a card that has it is on the battlefield."
+      },
+      {
+       "date": "2025-11-17",
+       "text": "If a creature loses all creature types but then gains a new creature type later in the turn, it will be that new creature type."
+      },
+      {
+       "date": "2025-11-17",
+       "text": "If an effect causes a creature with changeling to become a new creature type, it will be only that new creature type (unless the effect says \"in addition\" or similar). It will still have changeling; the effect making it all creature types will simply be overwritten."
+      },
+      {
+       "date": "2025-11-17",
+       "text": "If an effect causes a creature with changeling to lose all abilities, it will remain all creature types, even though it will no longer have changeling. This is because changeling applies before the effect that removes it."
+      },
+      {
+       "date": "2025-11-17",
+       "text": "Kindred is a card type that allows noncreature cards to have creature types. For example, Morcant's Eyes is an Elf (although not a creature) while on the battlefield and an Elf card (although not a creature card) in zones other than the battlefield."
+      },
+      {
+       "date": "2025-11-17",
+       "text": "Some older cards were originally printed with the \"tribal\" card type. That card type has been replaced with \"kindred.\" This change does not affect the gameplay function of these cards."
+      },
+      {
+       "date": "2025-11-17",
+       "text": "The subtype Shapeshifter that appears on the type line is mostly there to reinforce the flavor. A creature card with changeling is just as much a Kithkin, a Goblin, a Merfolk, and a Brushwagg as it is a Shapeshifter."
+      },
+      {
+       "date": "2025-11-17",
+       "text": "While it appears only on cards that already have other card types, kindred is a card type and will be counted by effects that refer to the number of card types among cards in a zone."
+      }
+     ],
+     "scryfall_oracle_id": "d6911456-42cb-4b23-a560-dc98784530f5",
+     "static_abilities": [
+      {
+       "active_zones": [],
+       "affected": {
+        "type": "SelfRef"
+       },
+       "affected_zone": null,
+       "characteristic_defining": true,
+       "condition": null,
+       "description": null,
+       "effect_zone": null,
+       "mode": "Continuous",
+       "modifications": [
+        {
+         "type": "AddAllCreatureTypes"
+        }
+       ]
+      }
+     ],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 2.0,
+    "color_identity": [
+     "B"
+    ],
+    "colors": [
+     "B"
+    ],
+    "keywords": [
+     "Changeling"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "legal",
+     "paupercommander": "legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "legal",
+     "premodern": "not_legal",
+     "standard": "legal",
+     "standardbrawl": "legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{1}{B}",
+    "name": "Nameless Inversion",
+    "oracle_id": "d6911456-42cb-4b23-a560-dc98784530f5",
+    "oracle_text": "Changeling (This card is every creature type.)\nTarget creature gets +3/-3 and loses all creature types until end of turn.",
+    "type_line": "Kindred Instant — Shapeshifter"
+   }
+  },
   "Narset Transcendent": {
    "phase_records": [
     {
@@ -666780,6 +667018,146 @@
     "oracle_id": "d758fd82-7ccb-441d-a948-0abaf0311892",
     "oracle_text": "After you roll a die, you may pay 1 life. If you do, increase or decrease the result by 1. Do this only once each turn.\nWhenever you roll a 6, create a 2/2 black Zombie Employee creature token.",
     "type_line": "Enchantment"
+   }
+  },
+  "Night of Souls' Betrayal": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Enchantment"
+      ],
+      "subtypes": [],
+      "supertypes": [
+       "Legendary"
+      ]
+     },
+     "color_identity": [
+      "Black"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 2,
+      "shards": [
+       "Black",
+       "Black"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "dce44980-0540-4b31-9a81-35357a4382fa",
+       "e42c5234-7395-4c9f-a885-8b63cf02c5e8"
+      ]
+     },
+     "name": "Night of Souls' Betrayal",
+     "non_ability_text": null,
+     "oracle_text": "All creatures get -1/-1.",
+     "power": null,
+     "printings": [
+      "CHK",
+      "HA6",
+      "IMA"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2017-11-17",
+       "text": "If a second Night of Souls’ Betrayal comes under your control, you’ll put one into its owner’s graveyard due to the “legend rule” at the same time that any creatures getting -2/-2 are put into their owner’s graveyard for having 0 or less toughness."
+      }
+     ],
+     "scryfall_oracle_id": "916bd025-c44f-49c9-8d76-4b7b2f9a8ba3",
+     "static_abilities": [
+      {
+       "active_zones": [],
+       "affected": {
+        "controller": null,
+        "properties": [],
+        "type": "Typed",
+        "type_filters": [
+         "Creature"
+        ]
+       },
+       "affected_zone": null,
+       "characteristic_defining": false,
+       "condition": null,
+       "description": "All creatures get -1/-1.",
+       "effect_zone": null,
+       "mode": "Continuous",
+       "modifications": [
+        {
+         "type": "AddPower",
+         "value": -1
+        },
+        {
+         "type": "AddToughness",
+         "value": -1
+        }
+       ]
+      }
+     ],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 4.0,
+    "color_identity": [
+     "B"
+    ],
+    "colors": [
+     "B"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{2}{B}{B}",
+    "name": "Night of Souls' Betrayal",
+    "oracle_id": "916bd025-c44f-49c9-8d76-4b7b2f9a8ba3",
+    "oracle_text": "All creatures get -1/-1.",
+    "type_line": "Legendary Enchantment"
    }
   },
   "Night's Whisper": {

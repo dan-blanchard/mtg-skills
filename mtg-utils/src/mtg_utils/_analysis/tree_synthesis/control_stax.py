@@ -24,6 +24,7 @@ from mtg_utils._analysis.tree_synthesis._shared import (
     _synthetic_concept,
 )
 from mtg_utils._card_ir.crosswalk import (
+    ATTACHED_OBJECT_PREDICATES,
     DEFENDED_YOU,
     ConceptNode,
     ConceptTree,
@@ -73,7 +74,6 @@ from mtg_utils._card_ir.text_idioms import (
 # read the SAME predicate -- GAP-GATE-ALIGNMENT, no drift. Pacify veto
 # (EnchantedBy/EquippedBy) is LOAD-BEARING: a single-target Aura/Equipment
 # lock (Pacifism, Arrest) opens NEITHER lane.
-_PACIFY_PREDS: frozenset[str] = frozenset({"EnchantedBy", "EquippedBy"})
 _STAX_SIMPLE_RESTRICTIONS: frozenset[str] = frozenset(
     {
         "CantAttack",
@@ -235,7 +235,7 @@ def _stax_structural_walk(tree: ConceptTree) -> tuple[bool, bool, str, str]:
                     stax(raw)
                 continue  # a drawback / single-target trick, never a lock
             if mt in _STAX_SIMPLE_RESTRICTIONS:
-                if set(filter_predicates(affected)) & _PACIFY_PREDS:
+                if set(filter_predicates(affected)) & ATTACHED_OBJECT_PREDICATES:
                     continue
                 if ctrl in _OPPONENT_CTRL:
                     stax(raw)
@@ -273,7 +273,7 @@ def _stax_structural_walk(tree: ConceptTree) -> tuple[bool, bool, str, str]:
                 stax(raw)
             elif mt in _STAX_LOCK_MODES:
                 src = static_mode_field(node, "source_filter")
-                if set(filter_predicates(src)) & _PACIFY_PREDS:
+                if set(filter_predicates(src)) & ATTACHED_OBJECT_PREDICATES:
                     continue
                 if tag_of(src) == "SelfRef" or atag == "SelfRef":
                     continue  # an Aura's own-view lock (Detainment Spell)
@@ -951,7 +951,7 @@ def has_structural_cant_block_grant(tree: ConceptTree) -> bool:
             aff = getattr(sdef, "affected", None)
             if tag_of(aff) not in _CANT_BLOCK_THEMEABLE:
                 continue
-            single = bool(set(filter_predicates(aff)) & _PACIFY_PREDS)
+            single = bool(set(filter_predicates(aff)) & ATTACHED_OBJECT_PREDICATES)
             if (
                 unit.origin == "static"
                 and single

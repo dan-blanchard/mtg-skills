@@ -1530,6 +1530,18 @@ def filter_owners(filt: object) -> list[str | None]:
     ]
 
 
+#: Filter predicates naming the one object an Equipment or Aura is attached to:
+#: "equipped creature" (CR 301.5a), "enchanted creature" (an Aura is attached
+#: to one object, CR 303.4).
+ATTACHED_OBJECT_PREDICATES: frozenset[str] = frozenset({"EquippedBy", "EnchantedBy"})
+
+
+def names_attached_object(filt: object) -> bool:
+    """Whether a filter is the object its Equipment or Aura is attached to
+    (:data:`ATTACHED_OBJECT_PREDICATES`) — one creature, never a population."""
+    return not ATTACHED_OBJECT_PREDICATES.isdisjoint(filter_predicates(filt))
+
+
 def static_affected(sdef: object, unit: AbilityUnit | None = None) -> object:
     """A static def's ``affected`` set — the one the overlay corrections re-read
     when its ``unit`` carries one (Tsabo's Web's "each land …" phase stamps

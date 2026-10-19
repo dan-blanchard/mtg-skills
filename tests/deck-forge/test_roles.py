@@ -200,6 +200,43 @@ def test_damage_sweepers_stay_interaction_and_board_wipe(name):
     assert {"interaction", "board_wipe"} <= role_of(_real(name))
 
 
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Elesh Norn, Grand Cenobite",  # "creatures your opponents control get -2/-2"
+        "Night of Souls' Betrayal",  # "all creatures get -1/-1"
+    ],
+)
+def test_a_static_shrink_on_a_population_is_a_board_wipe(name):
+    """A continuous toughness shrink on a population of creatures (layer 7c, CR
+    613.4c) puts every creature it brings to 0 toughness into its owner's
+    graveyard (CR 704.5f)."""
+    assert "board_wipe" in role_of(_real(name))
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Skullclamp",  # "Equipped creature gets +1/-1" (CR 301.5a)
+        "Dead Weight",  # "Enchanted creature gets -2/-2" (CR 303.4)
+        "Nameless Inversion",  # "Target creature gets +3/-3"
+    ],
+)
+def test_a_shrink_on_one_creature_is_not_a_board_wipe(name):
+    """The creature an Equipment or Aura is attached to, or a spell's target, is
+    one creature, not a board: Skullclamp was the tuner's board-wipe upgrade
+    pick (2026-10-19)."""
+    assert "board_wipe" not in role_of(_real(name))
+
+
+def test_damage_to_each_player_is_not_a_board_wipe():
+    """Damage only to players removes nothing from the board (CR 120.3a): the
+    board-wipe view reads sweeps, not ``symmetric_damage_each``."""
+    card = _real("Price of Progress")
+    assert not get_preset("board-wipe").matches(card)
+    assert "board_wipe" not in role_of(card)
+
+
 def test_the_preset_and_the_role_agree_on_every_covered_card():
     """The agreement test that replaces the "mirrors is_ramp" comments: over the whole
     snapshot, the preset the tuner SEARCHES by and the role the budgets row COUNTS by

@@ -35,6 +35,15 @@ _SPINE_ROLES = frozenset({"ramp", "card_draw", "interaction", "board_wipe"})
 # benchmark — vanilla beaters sit >23k/None while real theme cards are <8k.
 FRINGE_RANK = 15000
 
+# The rank past which a card OFF the deck's lanes (no commander-lane doer, no
+# carer of a built theme) is an upgrade's slot: a staple does its job. Measured
+# on the 25 precons against their upgrade guides (2026-10-19): of the off-lane
+# nonland cards ranked past 3000, 48% are guide cuts (119 of 247, about ten a
+# deck — a guide's cut list), against 14% of the off-lane template-role cards
+# ranked inside 1000 and 24% of the decks overall; inside a lane the same
+# read is a quarter as sharp (``swaps.cut_candidates``' lane tier).
+UPGRADE_RANK = 3000
+
 # The rank at or above which a card is premium — the format's top two hundred by
 # play-rate, the staples every list runs (Sol Ring is rank 1). A premium card is
 # never cut to meet a template band (``swaps.cut_candidates``). Only where
@@ -48,9 +57,21 @@ def is_fringe(rank: int | None, *, medium: str = "paper") -> bool:
     EDHREC is a paper-EDH population (ADR-0040 §4): a null rank on a digital
     deck is a population artifact (Arena-only cards can never appear there) —
     no data, never condemning. On paper, absence genuinely means unplayed."""
+    return _ranked_past(rank, FRINGE_RANK, medium=medium)
+
+
+def _ranked_past(rank: int | None, floor: int, *, medium: str) -> bool:
+    """Whether a play-rate rank is worse than ``floor``; a null rank is unplayed
+    on paper and no data on a digital deck (ADR-0040 §4)."""
     if rank is None:
         return not medium_is_digital(medium)
-    return rank > FRINGE_RANK
+    return rank > floor
+
+
+def is_upgrade_target(rank: int | None, *, medium: str = "paper") -> bool:
+    """True when an off-lane card is played little enough that a staple doing
+    its job is an upgrade (``UPGRADE_RANK``)."""
+    return _ranked_past(rank, UPGRADE_RANK, medium=medium)
 
 
 def is_premium(rank: int | None) -> bool:

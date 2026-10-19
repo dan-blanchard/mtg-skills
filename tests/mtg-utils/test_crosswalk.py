@@ -17672,7 +17672,7 @@ def test_single_target_neutralize_excludes_compensating_auras():
 # (AddChosenSubtype kind=CreatureType), "all" = every creature type
 # (AddAllCreatureTypes), "<Type>" = a fixed subtype (AddSubtype through the
 # _subtypes vocabulary gate). Attached single-recipient statics (EquippedBy /
-# EnchantedBy — the _PACIFY_ATTACH_PREDS shapes) are excluded per ADR-0040
+# EnchantedBy — the ATTACHED_OBJECT_PREDICATES shapes) are excluded per ADR-0040
 # ("single-target excluded"); a changeling's own type is a CDA (CR 702.73a /
 # 604.3 — membership, not a changer). Zone reach is modeled from v1: the
 # "The same is true for creature spells you control..." rider (CR 109.2's
@@ -17951,7 +17951,7 @@ def test_grant_payloads_enduring_sliver_still_grades_weak():
 # lifelink.") is a DRAWBACK gifting your OPPONENTS' blockers lifelink too —
 # its affected filter carries a CombatRelation(BlockingOrBlockedBy)
 # predicate, not a controller-scoped mass grant. Excluded the same way the
-# EquippedBy/EnchantedBy attach predicates are (_PACIFY_ATTACH_PREDS).
+# EquippedBy/EnchantedBy attach predicates are (ATTACHED_OBJECT_PREDICATES).
 
 
 def test_grant_payloads_exclude_combat_relation_recipients():

@@ -32,6 +32,7 @@ from mtg_utils._analysis.tree_synthesis import (
     has_structural_toughness_combat,
 )
 from mtg_utils._card_ir.crosswalk import (
+    ATTACHED_OBJECT_PREDICATES,
     OTHER,
     PROTECTIVE_KEYWORDS,
     ConceptNode,
@@ -62,10 +63,7 @@ from mtg_utils._card_ir.mirror.runtime import (
     MirrorVariant,
     TypedMirrorNode,
 )
-from mtg_utils._card_ir.text_idioms import (
-    _SINGLE_PERMANENT_GRANT_PREDS,
-    _counter_kind_token,
-)
+from mtg_utils._card_ir.text_idioms import _counter_kind_token
 
 # ── Batch-15 mirror constants + census sets ──────────────────────────────────
 
@@ -461,7 +459,7 @@ def _global_ability_grant(tree: ConceptTree) -> list[Signal]:
             continue
         if ctrl == "Opponent":
             continue
-        if preds & _SINGLE_PERMANENT_GRANT_PREDS:
+        if preds & ATTACHED_OBJECT_PREDICATES:
             continue
         owned = any(p == "Owned" or p.startswith("Owned") for p in preds)
         creature_board = "Creature" in filter_core_types(aff) and (

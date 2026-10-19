@@ -16,6 +16,7 @@ from mtg_utils._tuner.swaps import (
     SwapContext,
     _cut_why,
     _is_fixing,
+    _upgrades,
     cut_candidates,
     propose_swaps,
 )
@@ -1684,48 +1685,30 @@ def test_fed_only_filler_says_why():
     )
 
 
-def test_a_deep_lane_is_the_last_cut_tier_feeders_first_then_least_played():
+def test_a_deep_lane_is_the_last_cut_tier_in_the_focus_reads_order():
     """Blood Rites: forty-three Vampire carers and nothing else to cut. The lane's
-    least-played half is the last tier, its plain feeders (members that do not
-    themselves care about the lane) before its carers, least played first — the
-    order that puts a guide's cut in the top five most often across the 25
-    precons; costlier-first did worse than play-rate alone. A shallow lane
-    (Jace's polymorphs) is never cut."""
+    upgrade slots are the focus read's ``lane_upgrade_cards`` (its least-played
+    half, plain feeders first — ``test_tuner_focus``), cut last and in that
+    order; a protected card is skipped."""
     lane = [
-        _cc(
-            f"Vamp {i}",
-            "engine",
-            served=("Vampires",),
-            cmc=float(i % 4 + 1),
-            edhrec_rank=1000 * (i + 1),
-        )
+        _cc(f"Vamp {i}", "engine", served=("Vampires",), edhrec_rank=1000 * (i + 1))
         for i in range(12)
     ]
-    kw = {
-        "budgets": {},
-        "focus_verdict": "FOCUSED",
-        "stranded": set(),
-        "viable": {"Vampires"},
-    }
-    cuts = cut_candidates(lane, commander_cards={c.name for c in lane}, **kw)
-    reasons = {r for r, _ in cuts}
-    assert reasons == {"lane_upgrade"}
-    # The least-played half (ranks 7000-12000: Vamp 6..11), least played first.
-    assert [c.name for _, c in cuts] == [f"Vamp {i}" for i in range(11, 5, -1)]
-    # A carer of the lane yields its place to a feeder: with Vamp 11 and Vamp 10
-    # caring, the half is the six least-played FEEDERS, the carers after them.
-    carers = {"Vamp 11", "Vamp 10"}
+    order = [f"Vamp {i}" for i in (9, 11, 10)]
     cuts = cut_candidates(
-        lane, commander_cards={c.name for c in lane}, lane_carers=carers, **kw
+        lane,
+        budgets={},
+        focus_verdict="FOCUSED",
+        stranded=set(),
+        viable={"Vampires"},
+        commander_cards={c.name for c in lane},
+        lane_upgrade_cards=order,
+        protected={"Vamp 11"},
     )
-    assert [c.name for _, c in cuts] == [f"Vamp {i}" for i in range(9, 3, -1)]
-    # Below the floor the lane is kept whole.
-    assert (
-        cut_candidates(
-            lane, commander_cards={c.name for c in lane}, lane_upgrade_floor=13, **kw
-        )
-        == []
-    )
+    assert [(r, c.name) for r, c in cuts] == [
+        ("lane_upgrade", "Vamp 9"),
+        ("lane_upgrade", "Vamp 10"),
+    ]
     assert _cut_why("lane_upgrade").startswith("a lane feeder few decks play")
 
 
@@ -1769,6 +1752,7 @@ def test_only_a_spine_fill_or_closer_takes_a_lane_slot():
             focus_result={
                 **_focus(viable=[{"label": "Vampires", "depth": 20, "cards": []}]),
                 "commander_lane_cards": [c.name for c in lane],
+                "lane_upgrade_cards": [c.name for c in lane[6:]],
             },
             deck_signals=[],
             search_fn=lambda **_: [add],
@@ -1836,3 +1820,133 @@ def test_spine_fill_ranks_by_playrate_within_a_mana_value_band():
     x_wipe = {**_off_avenue_draw("X Coup", cmc=2.0, rank=10), "mana_cost": "{X}{W}{W}"}
     six_drop.update(x_wipe)  # reuse the slot: the pool is read by name
     assert run(playrate=True) == "Played Three"
+
+
+# ── Upgrades: an off-lane card few decks play, traded for one doing its job ──
+
+
+def _upgrade_ctx(classes, pool, *, focus_extra=None, budget=50.0):
+    return SwapContext(
+        budgets={},
+        focus_result={
+            **_focus(),
+            "upgrade_cards": [c.name for c in classes],
+            **(focus_extra or {}),
+        },
+        deck_signals=[],
+        search_fn=lambda **_: pool,
+        identity="",
+        fmt="commander",
+        paper_only=True,
+        owned={},
+        budget=budget,
+        max_swaps=5,
+        top_heavy=False,
+    )
+
+
+def _played(name, rank):
+    return {**test_card(name), "edhrec_rank": rank, "prices": {"usd": "1.00"}}
+
+
+def test_an_upgrade_does_the_cut_cards_job_and_more_decks_play_it():
+    """Murder off every lane, at rank 8000, is traded for the most-played card in
+    the pool doing its job (removal); Wrath of God is played more, but its job is
+    a sweep, so it is never Murder's upgrade (25-precon audit, 2026-10-19)."""
+    murder = _real_cc("Murder", "spine", roles=["interaction"], edhrec_rank=8000)
+    pool = [_played("Wrath of God", 5), _played("Swords to Plowshares", 10)]
+    out = _swaps_for_issue_dicts(
+        [murder],
+        [{"kind": "upgrade", "severity": 1, "count": 1}],
+        _upgrade_ctx([murder], pool),
+    )
+    assert [(s["cut"]["name"], s["add"]["name"]) for s in out["swaps"]] == [
+        ("Murder", "Swords to Plowshares")
+    ]
+    assert out["swaps"][0]["reason"] == (
+        "upgrade interaction: more decks play Swords to Plowshares"
+    )
+    assert out["swaps"][0]["cut"]["why"].startswith("off the deck's lanes")
+
+
+def test_no_upgrade_without_a_better_played_card_doing_the_job():
+    murder = _real_cc("Murder", "spine", roles=["interaction"], edhrec_rank=8000)
+    pool = [_played("Swords to Plowshares", 9000)]
+    out = _swaps_for_issue_dicts(
+        [murder],
+        [{"kind": "upgrade", "severity": 1, "count": 1}],
+        _upgrade_ctx([murder], pool),
+    )
+    assert out["swaps"] == []
+
+
+def test_an_upgrade_costs_no_more_mana_value_band():
+    """A two-mana sweep is not upgraded to a four-mana one, however played —
+    nor a cheap card on the main theme (no job) to a costlier band."""
+    pyroclasm = _real_cc("Pyroclasm", "spine", roles=["board_wipe"], edhrec_rank=9000)
+    assert _upgrades(_played("Toxic Deluge", 30), pyroclasm, "board_wipe")
+    assert not _upgrades(_played("Wrath of God", 50), pyroclasm, "board_wipe")
+    assert not _upgrades(_played("Wrath of God", 50), pyroclasm, None)
+    assert _upgrades(_played("Toxic Deluge", 30), pyroclasm, None)
+
+
+def test_only_the_upgrade_issue_draws_an_upgrade_slot():
+    """A protection shortfall (a Spine fill that may take a lane slot) never
+    takes an upgrade slot: the upgrade pool is the upgrade issue's alone."""
+    murder = _real_cc("Murder", "spine", roles=["interaction"], edhrec_rank=8000)
+    out = _swaps_for_issue_dicts(
+        [murder],
+        [{"kind": "protection_short", "severity": 5, "message": "0 protection"}],
+        _upgrade_ctx([murder], [_played("Heroic Intervention", 50)]),
+    )
+    assert out["swaps"] == []
+
+
+def test_a_theme_add_is_the_most_played_card_that_fits(monkeypatch):
+    """Among candidates fitting the deck — a synergy score at least a fifth of
+    the page's best — the most played wins, where play-rate means something
+    (25-precon audit, 2026-10-19: 72 guide adds in a page's top ten against
+    synergy-first's 41). A card below the floor never does, however played;
+    without play-rate the best fit leads."""
+    from mtg_utils._tuner import swaps as swaps_mod
+
+    scores = {"Box Ticker": 5.0, "Played Fit": 1.5, "Unfit Staple": 0.5}
+    pool = [
+        {**_off_avenue_draw("Box Ticker", cmc=3.0, rank=20000)},
+        {**_off_avenue_draw("Played Fit", cmc=3.0, rank=100)},
+        {**_off_avenue_draw("Unfit Staple", cmc=3.0, rank=1)},
+    ]
+
+    def fake_rank(cards, **_kw):
+        return [
+            {"card": c, "score": {"synergy_score": scores[c["name"]], "served": []}}
+            for c in cards
+        ]
+
+    monkeypatch.setattr(swaps_mod, "rank_candidates", fake_rank)
+    sig = _prolif_sig()
+    label = spec_for(sig).label
+
+    def run(*, playrate):
+        out = _swaps_for_issue_dicts(
+            [_cc("Filler Card", "filler", cmc=3.0)],
+            [{"kind": "dead_weight", "severity": 8, "count": 1}],
+            SwapContext(
+                budgets={},
+                focus_result=_focus(viable=[{"label": label, "depth": 20}]),
+                deck_signals=[sig],
+                search_fn=lambda **_: pool,
+                identity="",
+                fmt="commander",
+                paper_only=True,
+                owned={},
+                budget=50.0,
+                max_swaps=1,
+                top_heavy=False,
+                playrate=playrate,
+            ),
+        )
+        return out["swaps"][0]["add"]["name"]
+
+    assert run(playrate=True) == "Played Fit"
+    assert run(playrate=False) == "Box Ticker"

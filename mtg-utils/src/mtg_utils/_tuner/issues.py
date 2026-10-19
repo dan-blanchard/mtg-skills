@@ -16,13 +16,14 @@ fill pass.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, NamedTuple
 
 from mtg_utils._analysis.roles import (
     _INTERACTION_PRESETS,
     DeckMana,
     is_interaction,
     is_ramp,
+    protects,
 )
 from mtg_utils._analysis.signal_specs import spec_for
 from mtg_utils._card_ir.crosswalk import mana_ability_gates
@@ -31,8 +32,9 @@ from mtg_utils._tuner.metrics import CALIBRATION_GAME, is_wincon_card
 from mtg_utils.combo_search import ends_the_game
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping, Sequence
+    from collections.abc import Callable, Collection, Mapping, Sequence
 
+    from mtg_utils._tuner.classify import CardClass
     from mtg_utils.formats import Game
 
 
@@ -104,6 +106,13 @@ CUT_FILLER = "filler"  # filler + low-value only — the dead-weight drain
 # the slot a Spine fill, a closer or a game-ending piece may take once the
 # generic pool is dry, never an emerging theme's or a value line's.
 CUT_LANE = "lane"
+# The upgrade slots (``focus``'s ``upgrade_cards``): drawn only by the upgrade
+# issue, each for a better-played card doing the same job.
+CUT_UPGRADE = "upgrade"
+
+# The order a Spine card's job is read in when it holds several roles: the
+# scarcer job first (a sweeper that also draws is upgraded as a sweeper).
+_UPGRADE_ROLE_ORDER = ("board_wipe", "interaction", "card_draw", "ramp")
 
 
 _CUT_OVER_PREFIX = "over:"
@@ -121,6 +130,32 @@ def over_role(pool_or_reason: str) -> str | None:
     if pool_or_reason.startswith(_CUT_OVER_PREFIX):
         return pool_or_reason.removeprefix(_CUT_OVER_PREFIX)
     return None
+
+
+class UpgradeSource(NamedTuple):
+    """An upgrade's add search (:meth:`Sourcing.upgrade_spec`): the spec, and the
+    job the add must do (:func:`upgrade_job` — a template role or
+    ``"protection"``), or ``None`` for a card with no job, upgraded on the main
+    theme."""
+
+    spec: dict
+    job: str | None
+
+    @property
+    def label(self) -> str:
+        """The job as the swap's reason names it."""
+        return self.job.replace("_", " ") if self.job else "the main theme"
+
+
+def upgrade_job(roles: Collection[str], record: Mapping) -> str | None:
+    """The one job an upgrade keeps: a card's scarcest template role
+    (``_UPGRADE_ROLE_ORDER``), else protection, else none. Read the same way for
+    the cut and for each candidate, so a counterspell that also draws is never
+    a card-draw upgrade."""
+    for role in _UPGRADE_ROLE_ORDER:
+        if role in roles:
+            return role
+    return "protection" if protects(dict(record)) else None
 
 
 @dataclass(frozen=True)
@@ -142,6 +177,10 @@ class Remedy:
     #: game-ending combo piece — the swaps a guide makes at a tribal lane's
     #: expense. An emerging theme or a value line never trades a lane card.
     lane_ok: bool = False
+    #: A remedy whose add depends on the cut (the upgrade drain): each cut is
+    #: traded for a card this names the search for (:meth:`Sourcing.upgrade_spec`
+    #: — the cut's own job), and ``spec`` is unused.
+    spec_for_cut: Callable[[CardClass], UpgradeSource | None] | None = None
 
 
 # An issue's optional wire fields, in the scorecard's key order.
@@ -258,6 +297,21 @@ class Sourcing:
             return self.avenue(viable[0]["label"]) or {}
         return {}
 
+    def upgrade_spec(self, card: CardClass) -> UpgradeSource | None:
+        """Where the upgrade of ``card`` comes from: its job (:func:`upgrade_job`),
+        else the main theme. None when neither is sourceable here."""
+        job = upgrade_job(card.roles, card.record)
+        if job is None:
+            spec = None
+        elif job == "protection":
+            spec = PROTECTION_SEARCH
+        else:
+            spec = self.role_spec(job)
+        if spec is not None:
+            return UpgradeSource(spec, job)
+        main = self.main_avenue()
+        return UpgradeSource(main, None) if main else None
+
     # ── Dead weight ─────────────────────────────────────────────────────────────
 
     def has_redeploy_target(self) -> bool:
@@ -308,6 +362,14 @@ class Sourcing:
                     "_filter": lambda c, **_kw: is_wincon_card(c, game=game),
                 },
                 lane_ok=True,
+            )
+        if kind == "upgrade":
+            return Remedy(
+                {},
+                cut_from=CUT_UPGRADE,
+                drain=True,
+                lane_ok=True,
+                spec_for_cut=self.upgrade_spec,
             )
         if kind == "dead_weight":
             spec = self.redeploy()
@@ -476,6 +538,23 @@ def top_issues(
                 count=excess,
                 message=f"{dead} cards are dead weight (no avenue/role, or barely "
                 "played) — replace with stronger on-theme cards",
+            )
+        )
+
+    # The upgrade slots rank last: every other issue spends the swap budget
+    # first, and the rest goes to trading off-lane cards few decks play for the
+    # staples that do their jobs — the bulk of an upgrade guide's list.
+    upgrades = len(focus_r.get("upgrade_cards") or ()) + len(
+        focus_r.get("lane_upgrade_cards") or ()
+    )
+    if upgrades:
+        issues.append(
+            sourcing.issue(
+                "upgrade",
+                severity=1,
+                count=upgrades,
+                message=f"{upgrades} cards are little played for what they do — "
+                "trade each for a better-played card doing the same job",
             )
         )
 

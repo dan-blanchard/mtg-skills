@@ -31,6 +31,7 @@ from __future__ import annotations
 from collections.abc import Callable, Sequence
 
 from mtg_utils._card_ir.crosswalk import (
+    ATTACHED_OBJECT_PREDICATES,
     filter_controller,
     filter_core_types,
     filter_predicates,
@@ -42,7 +43,6 @@ from mtg_utils._card_ir.trees import trees_for
 # A single-permanent recipient (an Aura's EnchantedBy / an Equipment's
 # EquippedBy — CR 303.4c / 301.5c) never scales with board count, so it can
 # never cover a per-body Spine role no matter what it grants.
-_SINGLE_PERMANENT_PREDS = frozenset({"EnchantedBy", "EquippedBy"})
 
 
 def _is_creature_board_grant(sdef: object) -> bool:
@@ -59,7 +59,7 @@ def _is_creature_board_grant(sdef: object) -> bool:
     if ctrl == "Opponent":
         return False
     preds = set(filter_predicates(aff))
-    if preds & _SINGLE_PERMANENT_PREDS:
+    if preds & ATTACHED_OBJECT_PREDICATES:
         return False
     owned = any(p == "Owned" or p.startswith("Owned") for p in preds)
     return "Creature" in filter_core_types(aff) and (ctrl == "You" or owned)
