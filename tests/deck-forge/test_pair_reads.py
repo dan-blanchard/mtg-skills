@@ -617,6 +617,67 @@ def test_typed_cheat_rows_need_their_type(candidate, commander, row_id):
     assert not any(r["pair"] == row_id for r in rows), (candidate, commander, rows)
 
 
+@pytest.mark.parametrize(
+    ("candidate", "commander", "row_id"),
+    [
+        # A cast-trigger payoff (subject ``cast``): a cheated permanent is never
+        # cast (CR 601.2i), so the enchantress never sees Zur's or Arcum's
+        # cheat. (The candidate side reads no membership idents, so Sythis's
+        # own enchantment type does not make it a payoff.)
+        (
+            "Sythis, Harvest's Hand",
+            "Zur the Enchanter",
+            "enchantment_payoff_x_enchantment_cheat_commander",
+        ),
+        (
+            "Enchantress's Presence",
+            "Zur the Enchanter",
+            "enchantment_payoff_x_enchantment_cheat_commander",
+        ),
+        (
+            "Sram, Senior Edificer",
+            "Arcum Dagsson",
+            "artifact_payoff_x_artifact_cheat_commander",
+        ),
+    ],
+)
+def test_typed_cheat_rows_skip_cast_payoffs(candidate, commander, row_id):
+    test_card_ir(candidate)
+    _score, rows = pair_score(test_card(candidate), _ctx_for(commander))
+    assert not any(r["pair"] == row_id for r in rows), (candidate, commander, rows)
+
+
+@pytest.mark.parametrize(
+    ("candidate", "commander", "row_id"),
+    [
+        # BEING an artifact / enchantment is not a payoff: the candidate side
+        # reads no membership floor ident.
+        ("Sol Ring", "Arcum Dagsson", "artifact_payoff_x_artifact_cheat_commander"),
+        (
+            "Pacifism",
+            "Zur the Enchanter",
+            "enchantment_payoff_x_enchantment_cheat_commander",
+        ),
+    ],
+)
+def test_typed_cheat_rows_skip_type_members(candidate, commander, row_id):
+    test_card_ir(candidate)
+    _score, rows = pair_score(test_card(candidate), _ctx_for(commander))
+    assert not any(r["pair"] == row_id for r in rows), (candidate, commander, rows)
+
+
+def test_cast_and_enters_payoff_still_fires_the_cheat_row():
+    # Tuvasa the Sunlit counts your enchantments AND draws on the first
+    # enchantment cast each turn: the enters/count half fires under Zur.
+    test_card_ir("Tuvasa the Sunlit")
+    _score, rows = pair_score(
+        test_card("Tuvasa the Sunlit"), _ctx_for("Zur the Enchanter")
+    )
+    assert any(
+        r["pair"] == "enchantment_payoff_x_enchantment_cheat_commander" for r in rows
+    )
+
+
 def test_typed_cheats_do_not_anchor_the_body_rows():
     # An enchantment or artifact cheat floods no bodies and cheats no power:
     # the power-threshold row stays off under Zur and Arcum.

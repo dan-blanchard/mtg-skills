@@ -1446,23 +1446,6 @@ def _evasion_denial(tree: ConceptTree) -> list[Signal]:
     return []
 
 
-def _animate_artifact(tree: ConceptTree) -> list[Signal]:
-    """animate_artifact (§D) — CR 613.1d + 702.122b: "artifacts become
-    creatures" (Karn Silver Golem, Titania's Song). Tier-1 (ADR-0036/0037
-    fold): reads the ``tree_synthesis`` bucket-B ``synth_animate_artifact``
-    node (the deleted ``_ANIMATE_ARTIFACT_RX`` relocated verbatim — no
-    competing Tier-1 predicate: the Animate effect tag is TLA earthbend, not
-    artifact animation, and every structural AddType/base_pt_set arm either
-    90%-over-fires or loses core animators, per the batch-12 adjudication).
-    A bare becomes-an-ARTIFACT type conferral (Liquimetal Coating, Mycosynth
-    Lattice) is a non-match. Scope "you".
-    """
-    for c in tree.iter_concepts():
-        if c.concept == "synth_animate_artifact":
-            return [Signal("animate_artifact", "you", "", "", tree.name, "high")]
-    return []
-
-
 def _color_change(tree: ConceptTree) -> list[Signal]:
     """color_change (§D) — CR 105.3: a color-changing effect ("becomes the
     color of your choice"/"becomes all colors" — Alchor's Tomb, Distorting
@@ -1810,7 +1793,6 @@ LANES = (
     _mass_land_denial,
     _land_protection,
     _evasion_denial,
-    _animate_artifact,
     _color_change,
     _type_change,
     _stax_lanes,

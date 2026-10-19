@@ -301,3 +301,17 @@ def test_an_over_row_that_is_the_commanders_lane_is_advisory_and_unsourced():
     assert over.advisory is True
     assert over.remedy is None
     assert "commander's own lane" in over.message
+
+
+def test_interaction_is_sourced_only_where_the_role_counts_it():
+    """An infect beater matches the ``creature-removal`` preset through its
+    keyword, but ``role_of`` never counts it as interaction — so the interaction
+    search's precision pass drops it, and a burn spell passes."""
+    from mtg_utils._analysis.roles import _INTERACTION_PRESETS
+    from mtg_utils._tuner.issues import ROLE_SEARCH
+    from mtg_utils.testkit import test_card
+
+    keep = ROLE_SEARCH["interaction"]["_filter"]
+    assert ROLE_SEARCH["interaction"]["preset_names"] == _INTERACTION_PRESETS
+    assert keep(test_card("Lightning Bolt"), deck_mana=None)
+    assert not keep(test_card("Glistener Elf"), deck_mana=None)

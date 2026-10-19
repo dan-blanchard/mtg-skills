@@ -499,7 +499,7 @@ PAIR_READS: dict[str, PairRead] = {
         PairRead(
             pair_id="yard_stocker_x_graveyard_commander",
             candidate=("tutor|you|*",),
-            candidate_all=("graveyard_matters|you|*",),
+            candidate_all=("graveyard_m*|you|*",),
             anchor_kind="commander",
             anchor=("graveyard_matters|you|*",),
             weight=3.0,
@@ -510,8 +510,9 @@ PAIR_READS: dict[str, PairRead] = {
                 "selection into the zone a graveyard commander casts from "
                 "— under Muldrotha or Meren the yard is a second hand, so "
                 "stocking it is tutoring to a castable zone. "
-                "candidate_all requires the graveyard half: a plain "
-                "to-hand tutor stays generic."
+                "candidate_all requires the graveyard half — a payoff "
+                "(graveyard_matters) or a filler (graveyard_makers: Fauna "
+                "Shaman's discard cost): a plain to-hand tutor stays generic."
             ),
             pins=("Buried Alive", "Fauna Shaman"),
         ),
@@ -587,7 +588,7 @@ PAIR_READS: dict[str, PairRead] = {
         # each is the entry stream of its own type's payoffs. ──────────────
         PairRead(
             pair_id="enchantment_payoff_x_enchantment_cheat_commander",
-            candidate=("enchantments_matter|you|*",),
+            candidate=("enchantments_matter|you|",),
             anchor_kind="commander",
             anchor=("cheat_into_play|you|Enchantment",),
             weight=3.0,
@@ -596,15 +597,15 @@ PAIR_READS: dict[str, PairRead] = {
                 "A commander that searches out an enchantment and puts it "
                 "onto the battlefield (CR 701.23a) is a free enchantment "
                 "entry each turn, and enters triggers fire on every such "
-                "event (CR 603.6a). Precision gap: a cheated enchantment is "
-                "never cast (CR 601.2i), but the ident also matches "
-                "cast-trigger enchantresses."
+                "event (CR 603.6a). A cheated enchantment is never cast "
+                "(CR 601.2i), so a cast-trigger enchantress (subject "
+                "``cast``) is excluded."
             ),
             pins=("Eidolon of Blossoms", "Setessan Champion"),
         ),
         PairRead(
             pair_id="artifact_payoff_x_artifact_cheat_commander",
-            candidate=("artifacts_matter|you|*",),
+            candidate=("artifacts_matter|you|",),
             anchor_kind="commander",
             anchor=("cheat_into_play|you|Artifact",),
             weight=3.0,
@@ -614,7 +615,7 @@ PAIR_READS: dict[str, PairRead] = {
                 "the library (CR 701.23a) fires the artifact-enters payoffs "
                 "each time (CR 603.6a). artifacts_matter, not voltron_matters: "
                 "a cheated Equipment enters unattached (CR 301.5b), and a "
-                "cast trigger never fires (CR 601.2i)."
+                "cast trigger (subject ``cast``) never fires (CR 601.2i)."
             ),
             pins=("Puresteel Paladin", "Reckless Fireweaver"),
         ),
@@ -641,7 +642,10 @@ PAIR_READS: dict[str, PairRead] = {
 def _card_idents(card: dict) -> frozenset[str]:
     from mtg_utils.theme_presets import _signal_idents_for
 
-    idents = set(_signal_idents_for(card))
+    # What the card DOES, never what it IS: the membership floor's
+    # low-confidence ``artifacts_matter`` / ``enchantments_matter`` on every
+    # artifact / enchantment would read Sol Ring and Pacifism as payoffs.
+    idents = set(_signal_idents_for(card, include_membership=False))
     # The ledger's one RECORD-DERIVED cost-shape ident (not a signal lane):
     # {X} anywhere in the mana cost. X is announced once at casting
     # (CR 601.2b) and read by both the spell's effect and an

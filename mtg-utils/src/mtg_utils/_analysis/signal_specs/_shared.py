@@ -113,6 +113,12 @@ class Serve:
     # ``types={"artifact"}, not_types={"creature"}`` — the animation lane's
     # feeders). The other arms are unaffected.
     not_types: frozenset[str] = frozenset()
+    # The ``types`` arm's mana-value floor, narrowing it the way ``not_types``
+    # does: a card matching ``types`` serves through it only at mana value >= this
+    # (Bello animates noncreature artifacts and enchantments of mana value 4 or
+    # greater). Unlike ``cmc_min`` — an OR dimension of its own — it never serves
+    # a card by itself.
+    types_cmc_min: float | None = None
     # Not a match dimension: the LANDS this serve matches are the avenue's feeders
     # and count toward its depth (the land-type lane's Deserts). Every other
     # avenue's land members are mana base, never theme support (``_tuner.metrics
@@ -175,6 +181,10 @@ class Serve:
             self.types
             and any(type_line_has(type_line, t) for t in self.types)
             and not any(type_line_has(type_line, t) for t in self.not_types)
+            and (
+                self.types_cmc_min is None
+                or (card.get("cmc") or 0) >= self.types_cmc_min
+            )
         ):
             return True
         if self.keywords:
@@ -262,6 +272,8 @@ class Serve:
             out["types"] = sorted(self.types)
         if self.not_types:
             out["not_types"] = sorted(self.not_types)
+        if self.types_cmc_min is not None:
+            out["types_cmc_min"] = self.types_cmc_min
         if self.lands_feed:
             out["lands_feed"] = True
         if self.keywords:
@@ -368,6 +380,7 @@ def serve_from_dict(data: dict) -> Serve:
         oracle=_compile(data.get("oracle")),
         types=frozenset(t.lower() for t in (types or ())),
         not_types=frozenset(t.lower() for t in (data.get("not_types") or ())),
+        types_cmc_min=data.get("types_cmc_min"),
         lands_feed=bool(data.get("lands_feed")),
         keywords=frozenset(k.lower() for k in (data.get("keywords") or ())),
         cmc_min=data.get("cmc_min"),
@@ -1069,6 +1082,31 @@ _COUNTER_DOUBLER_ORACLE = (
     r"|counters?[^.]*twice that many|double the number of [^.]*counters?"
     r"|if one or more (?:\+1/\+1 )?counters? would be put[^.]*instead"
 )
+# The +1/+1 counter package as the lanes read it:
+# the cards that put +1/+1 counters (plus_one_makers reads the keyword actions —
+# bolster, adapt, explore, endure, awaken … — through
+# ``crosswalk.keyword_counter_placements``; the amass / incubate / connive keys
+# add the few whose clause phase drops), the payoffs, the board-wide spreaders and
+# the counter doublers. What the regex served that this doesn't is a documented
+# exclusion: a creature returned or blinked "with a +1/+1 counter on it", tribute
+# (the opponent chooses), sunburst / riot grants, and the "no +1/+1 counter"
+# negations — see docs/plans/serve-idents-and-avenue-support.md §2.
+_PLUS_ONE_PLACERS: frozenset[str] = frozenset(
+    {
+        "plus_one_makers|you|",
+        "plus_one_matters|you|",
+        "counter_distribute|you|",
+        "counter_doubling|you|",
+        "amass_makers|you|",
+        "incubate_makers|you|",
+        "connive_makers|you|",
+    }
+)
+# The +1/+1 avenue itself also serves proliferate (its avenue text names it).
+_PLUS_ONE_SERVE_IDENTS: frozenset[str] = _PLUS_ONE_PLACERS | {"proliferate_makers|you|"}
+# Amass and incubate serve the +1/+1 package (_PLUS_ONE_PLACERS) without
+# proliferate (their regexes never named it); amass adds the Army payoffs.
+_AMASS_SERVE_IDENTS: frozenset[str] = _PLUS_ONE_PLACERS | {"type_matters|you|Army"}
 _COUNTER_DOUBLER_EXTRA = SubAvenue(
     "Counter doublers",
     "replacement effects that multiply every counter you place "

@@ -32,6 +32,7 @@ from mtg_utils._card_ir.crosswalk import (
     counter_kind_any,
     distribute_counter_kind,
     filter_controller,
+    keyword_counter_placements,
     tag_of,
 )
 
@@ -320,7 +321,7 @@ def _arm_proliferate_remove_cost(tree: ConceptTree) -> ConceptNode | None:
 
 
 # ── arm: self_counter_grow bucket-B (ADR-0036/0037 Stage 5, batch T2-counters) ─
-# CR 122.1 + adapt/monstrosity/renown (CR 701.46/701.37/702.104): the
+# CR 122.1 + adapt/monstrosity/renown (CR 701.46/701.37/702.112): the
 # grow-ITSELF lane. Shared structural gate with the ``_self_counter_grow``
 # lane — one source: an effect-role ``PutCounter{P1P1, SelfRef}`` (a
 # replacement-origin unit additionally requiring the replacement's own SelfRef
@@ -362,10 +363,11 @@ def has_structural_self_counter_grow(tree: ConceptTree) -> bool:
                 if any(s.concept == "sacrifice" for s in unit.effects):
                     continue
             return True
-        for c in unit.effects:
-            if tag_of(c.node) in _SELF_GROW_ACTION_TAGS:
-                return True
-    return False
+    # The card's own adapt / monstrosity / renown, never one it grants.
+    return any(
+        kw in _SELF_GROW_ACTION_TAGS
+        for kw, _kind in keyword_counter_placements(tree, granted=False)
+    )
 
 
 _SELF_COUNTER_GROW_SYNTH_RX = re.compile(
@@ -512,16 +514,15 @@ def _arm_convert_adapt_self_grow(tree: ConceptTree) -> ConceptNode | None:
 # side payoff uses to describe an EXTERNAL placement — Hardened Scales-
 # style triggers stay ``plus_one_matters``' territory) or the ETB-
 # replacement "enters … with … +1/+1 counter(s) on it" template, read on
-# the REMINDER-STRIPPED whole-card oracle. Reminder-stripping is what
-# keeps this SHED (not double-served) from every keyword mechanic whose
-# OWN +1/+1-counter rider is reminder text on a DIFFERENT keyword —
-# Connive ("If you discarded a nonland card, put a +1/+1 counter on this
-# creature."), Amass, Explore, Incubate, Megamorph, Awaken all template
-# their counter clause inside parens; stripping them before matching
-# means this arm never re-opens those already-distinct preset/signal
-# lanes (Connive routes to ``connive_makers``/cantrip, Amass/Incubate to
-# their own token-preset, Megamorph to ``facedown_makers`` — CR 702.153/
-# 701.47/701.53/702.75). Reanimation-with-a-bonus-counter ("Return …
+# the REMINDER-STRIPPED whole-card oracle. Reminder-stripping keeps this
+# text arm off every keyword mechanic whose OWN +1/+1-counter rider is
+# reminder text — Connive ("If you discarded a nonland card, put a +1/+1
+# counter on this creature."), Amass, Explore, Incubate, Megamorph, Awaken
+# all template their counter clause inside parens. The keyword actions
+# among them reach ``plus_one_makers`` structurally instead, through
+# ``crosswalk.keyword_counter_placements`` (the lane's keyword-action arm);
+# Megamorph stays ``facedown_makers``' (CR 702.37b).
+# Reanimation-with-a-bonus-counter ("Return …
 # creature card from your graveyard to the battlefield with an additional
 # +1/+1 counter on it" — A-Graveyard Shift, Drana) uses neither "put" nor
 # "enters", so it's excluded by construction, not by an explicit list —

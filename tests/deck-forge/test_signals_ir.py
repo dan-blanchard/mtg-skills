@@ -17,7 +17,9 @@ from __future__ import annotations
 
 import pytest
 
-from mtg_utils.testkit import test_card_ir, test_signals
+from mtg_utils._card_ir.crosswalk import keyword_counter_placements
+from mtg_utils._card_ir.trees import trees_for
+from mtg_utils.testkit import test_card, test_card_ir, test_signals
 
 # ── Real-card path (task #25): a card looked up by NAME from the committed snapshot
 # (``mtg_utils.testkit``), run through production ``extract_signals`` over its
@@ -568,12 +570,13 @@ def test_sac_an_artifact_cost_fires_artifacts_lane():
     assert _smatters(test_signals("Atog")) == {("artifacts_matter", "")}
 
 
-def test_becomes_artifact_grant_fires_artifacts_lane():
-    # Sydri, Galvanic Genius — a noncreature artifact "becomes an artifact creature"
-    # animate (the becomes/animate-artifact marker) fires artifacts_matter.
-    assert _smatters(test_signals("Sydri, Galvanic Genius")) == {
-        ("artifacts_matter", "")
-    }
+def test_becomes_artifact_creature_is_animation_not_a_payoff():
+    # Sydri, Galvanic Genius — "target noncreature artifact you control becomes an
+    # artifact creature" makes it a creature (CR 613.1d): animate_makers, never the
+    # artifacts_matter payoff.
+    sigs = test_signals("Sydri, Galvanic Genius")
+    assert _smatters(sigs) == set()
+    assert "animate_makers" in _skeys(sigs)
 
 
 def test_ability_of_artifact_trigger_fires_artifacts_lane():
@@ -659,6 +662,91 @@ def test_equip_granted_mentor_opens_plus_one_makers():
     the separate pacify_makers concept."""
     keys = _skeys(test_signals("Aegis of the Legion"))
     assert "plus_one_makers" in keys
+
+
+# ── plus_one_makers keyword-action arm (crosswalk.keyword_counter_placements) ──
+# Each keyword action / ability below puts +1/+1 counters by its own definition
+# (rules-lookup): bolster 701.39a, adapt 701.46a, monstrosity 701.37a, explore
+# 701.44a, connive 701.50a, endure 701.63a, amass 701.47a, incubate 701.53a,
+# renown 702.112a, awaken 702.113a, ravenous 702.156a. phase types each as its own
+# node (awaken / ravenous as a printed keyword only), never a ``PutCounter``.
+
+
+def _placements(name: str) -> set[tuple[str, str]]:
+    return {
+        p for t in trees_for(test_card(name)) for p in keyword_counter_placements(t)
+    }
+
+
+@pytest.mark.parametrize(
+    ("name", "keyword"),
+    [
+        ("Dromoka's Gift", "Bolster"),
+        ("Zegana, Utopian Speaker", "Adapt"),
+        ("Polukranos, World Eater", "Monstrosity"),
+        ("Merfolk Branchwalker", "Explore"),
+        ("Raffine's Informant", "Connive"),
+        ("Fortress Kin-Guard", "Endure"),
+        ("Lazotep Plating", "Amass"),
+        ("Eyes of Gitaxias", "Incubate"),
+        ("Topan Freeblade", "Renown"),
+        ("Sheer Drop", "awaken"),
+        ("Tervigon", "ravenous"),
+        # A bolster inside the ability the Aura grants.
+        ("Gleam of Authority", "Bolster"),
+    ],
+)
+def test_keyword_action_places_plus_one_counters(name, keyword):
+    assert (keyword, "P1P1") in _placements(name)
+    assert "plus_one_makers" in _skeys(test_signals(name))
+
+
+def _own_placements(name: str) -> set[tuple[str, str]]:
+    return {
+        p
+        for t in trees_for(test_card(name))
+        for p in keyword_counter_placements(t, granted=False)
+    }
+
+
+def test_granted_keyword_action_is_a_placement_but_not_the_cards_own():
+    """Gleam of Authority grants "{W}, {T}: Bolster 1" to the creature it
+    enchants: a +1/+1 placement the deck makes (plus_one_makers reads the deep
+    shape), but not one the Aura performs itself (the ``granted=False`` shape
+    self_counter_grow reads)."""
+    assert ("Bolster", "P1P1") in _placements("Gleam of Authority")
+    assert ("Bolster", "P1P1") not in _own_placements("Gleam of Authority")
+    assert "plus_one_makers" in _skeys(test_signals("Gleam of Authority"))
+
+
+def test_own_adapt_grows_the_card_itself():
+    """Zegana's own adapt (CR 701.46a: "put N +1/+1 counters on it") is in the
+    top-level shape, so self_counter_grow reads it. No commander-legal card
+    grants adapt, monstrosity or renown today; the shape keeps one out if it
+    ever does."""
+    assert ("Adapt", "P1P1") in _own_placements("Zegana, Utopian Speaker")
+    assert "self_counter_grow" in _skeys(test_signals("Zegana, Utopian Speaker"))
+
+
+def test_empower_jace_places_loyalty_not_plus_one():
+    """Empower Jace puts loyalty counters on a Jace token (CR 701.71a): the read
+    carries the kind, and the +1/+1 lane stays shut."""
+    assert _placements("Academic Ascent") == {("EmpowerJace", "Loyalty")}
+    assert "plus_one_makers" not in _skeys(test_signals("Academic Ascent"))
+
+
+def test_explore_payoff_is_not_an_explore_placement():
+    """Wildgrowth Walker carries phase's ``Explore`` keyword for its "whenever a
+    creature you control explores" trigger; it never explores itself, so the read
+    takes explore off the effect node only."""
+    assert _placements("Wildgrowth Walker") == set()
+
+
+def test_minus_one_counters_never_open_plus_one_makers():
+    """Carnifex Demon enters with -1/-1 counters and puts one on each other
+    creature: a -1/-1 counter is never a +1/+1 one."""
+    assert _placements("Carnifex Demon") == set()
+    assert "plus_one_makers" not in _skeys(test_signals("Carnifex Demon"))
 
 
 # ── plus_one_makers ChooseOneOf modal-branch class (task #93) ───────────────

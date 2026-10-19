@@ -234,43 +234,62 @@ def _cheat_subject_spec(subj: str) -> SignalSpec:
 # card types (``lanes.animate_land_types``), all of them for an animation that
 # names only "a permanent" (subject "").
 _ANIMATED_TYPES = ("artifact", "enchantment", "planeswalker", "battle")
+# The highest mana-value floor an animation subject's doer idents spell out: a
+# spec serves every animator of its type, whatever floor it carries (Bello's
+# ``Artifact>=4`` is a doer on a floor-3 animator's avenue). Sixteen is the
+# highest printed mana value (Draco).
+_MAX_ANIMATE_FLOOR = 16
 
 
 @functools.cache
 def _animate_subject_spec(subj: str) -> SignalSpec:
     """The ``animate_makers|you|<subj>`` spec, ``subj`` the animated card type
-    (signal_keys.ANIMATE_MAKERS), "" for "a permanent" (Luxior, Giada's Gift).
+    with its mana-value floor when it has one (``signal_keys.animate_subject``:
+    ``Artifact``, ``Artifact>=4``), "" for "a permanent" (Luxior, Giada's Gift).
     Every subject shares the one "Animation" label, so the per-type specs read as
-    one avenue downstream (focus dedupes by label). Its feeders are what the
-    animation turns into creatures — noncreature permanents of that type, by
-    type line (an artifact creature already is one) — and its doers are the
-    lane's own idents: this type's animators plus the untyped ones. A mana-value
-    floor on the animated set (Bello's 4) is the card's own and is not carried:
-    the lane serves every noncreature permanent of the type. An Aura never
-    feeds: an Aura that's also a creature can't enchant anything and goes to the
-    graveyard (CR 303.4d), and every enchantment animator says "non-Aura"
-    (Opalescence, Starfield of Nyx, Bello). An Equipment does feed — March of
-    the Machines and Ensoul Artifact animate one; only Bello excludes it. Cached:
-    a pure function of the subject (``spec_for`` is hot)."""
-    types = (subj.lower(),) if subj else _ANIMATED_TYPES
-    plural = _pluralize(types[0]).lower() if subj else "permanents"
+    one avenue downstream (focus dedupes by label: a floored and an unfloored
+    animator of one type serve the union, the wider set). Its feeders are what
+    the animation turns into creatures — noncreature permanents of that type, by
+    type line (an artifact creature already is one), at or above the floor
+    (``types_cmc_min``: Bello's mana value 4 or greater) — and its doers are the
+    lane's own idents: every animator of the type, whatever its floor, and the
+    untyped ones. An Aura never feeds: an Aura that's also a creature
+    can't enchant anything and goes to the graveyard (CR 303.4d), and every
+    enchantment animator says "non-Aura" (Opalescence, Starfield of Nyx, Bello).
+    An Equipment does feed — March of the Machines and Ensoul Artifact animate
+    one; only Bello excludes it. Cached: a pure function of the subject
+    (``spec_for`` is hot)."""
+    card_type, floor = signal_keys.split_animate_subject(subj)
+    types = (card_type.lower(),) if card_type else _ANIMATED_TYPES
+    plural = _pluralize(types[0]).lower() if card_type else "permanents"
+    if floor:
+        plural += f" of mana value {floor} or greater"
+    search: dict = {"card_type": types[0] if card_type else types[:2]}
+    if floor:
+        search["cmc_min"] = floor
+    ident = f"{signal_keys.ANIMATE_MAKERS}|you|"
     return SignalSpec(
         label="Animation",
         avenue=(
             f"noncreature {plural} for your animation effects to turn into "
             f"creatures, plus more ways to animate them"
         ),
-        search={"card_type": types[0] if subj else types[:2]},
+        search=search,
         serve=Serve(
             types=frozenset(types),
             not_types=frozenset({"creature", "aura"}),
+            types_cmc_min=floor,
             signal_idents=frozenset(
                 {
-                    f"{signal_keys.ANIMATE_MAKERS}|you|{subj}",
-                    f"{signal_keys.ANIMATE_MAKERS}|you|",
+                    ident,
+                    f"{ident}{card_type}",
+                    *(
+                        f"{ident}{signal_keys.animate_subject(card_type, f)}"
+                        for f in range(1, _MAX_ANIMATE_FLOOR + 1)
+                    ),
                 }
-                if subj
-                else {f"{signal_keys.ANIMATE_MAKERS}|you|*"}
+                if card_type
+                else {f"{ident}*"}
             ),
         ),
     )

@@ -57,9 +57,34 @@ CHEAT_INTO_PLAY: Final = "cheat_into_play"
 # permanents of a card type creatures (CR 613.1d) — Bello, Bard of the Brambles,
 # March of the Machines, Ensoul Artifact, Opalescence. The subject is the
 # animated card TYPE ("Artifact" / "Enchantment" / "Planeswalker" / "Battle"),
-# spelled as CHEAT_INTO_PLAY's is; "" is an animation of "a permanent" (no one
-# type), which keeps the static spec.
+# spelled as CHEAT_INTO_PLAY's is, plus the mana-value floor the animated set
+# carries when it has one, spelled ``<Type>>=<N>`` (Bello's "mana value 4 or
+# greater": ``Artifact>=4``) — :func:`animate_subject` / :func:`split_animate_
+# subject` are the one spelling. "" is an animation of "a permanent" (no one
+# type).
 ANIMATE_MAKERS: Final = "animate_makers"
+_FLOOR_SEP: Final = ">="
+
+
+def animate_subject(card_type: str, floor: int | None = None) -> str:
+    """An ``ANIMATE_MAKERS`` subject: the card type, with ``>=<floor>`` appended
+    when the animated set has a mana-value floor."""
+    return f"{card_type}{_FLOOR_SEP}{floor}" if card_type and floor else card_type
+
+
+def split_animate_subject(subject: str) -> tuple[str, int | None]:
+    """``(card type, mana-value floor or None)`` of an ``ANIMATE_MAKERS``
+    subject — the inverse of :func:`animate_subject`. A subject only
+    :func:`animate_subject` spells, so a malformed floor is a bug and raises
+    ``ValueError``."""
+    card_type, sep, floor = subject.partition(_FLOOR_SEP)
+    if not sep:
+        return card_type, None
+    if not (card_type and floor.isdigit() and int(floor) > 0):
+        msg = f"malformed {ANIMATE_MAKERS} subject: {subject!r}"
+        raise ValueError(msg)
+    return card_type, int(floor)
+
 
 # Land-type payoffs (lanes.animate_land_types): a card that counts, watches or
 # grants to lands of one nonbasic land type (CR 205.3i) — Yuma, Proud

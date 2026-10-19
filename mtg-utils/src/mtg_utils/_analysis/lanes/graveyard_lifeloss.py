@@ -39,6 +39,7 @@ from mtg_utils._card_ir.crosswalk import (
     cost_has_paylife,
     counter_kind,
     damage_to_player_trigger_kind,
+    effect_actor_scope,
     effect_filter,
     effect_owner_player_scope,
     explicit_recipient_scope,
@@ -60,6 +61,7 @@ from mtg_utils._card_ir.crosswalk import (
     mod_value,
     node_lure_mode,
     pump_is_negative,
+    self_graveyard_fills,
     static_mode_tag,
     tag_of,
     trigger_scope,
@@ -95,6 +97,10 @@ def _gy_scope(scope: str) -> str:
     branch (CR 701.17a)."""
     return "opponents" if scope == "opponents" else "you"
 
+
+# The scopes of a mill (resolved through :func:`effect_actor_scope`) that can fill
+# your own graveyard: you, a target player you may choose, every player.
+_SELF_MILL_SCOPES: frozenset[str] = frozenset({"you", "any", "each"})
 
 # np_boons task #3: a recovered "bounce" node's direction gate (see
 # ``_graveyard_makers``'s own docstring) — the grammar token fires on ANY
@@ -147,7 +153,13 @@ def _graveyard_makers(tree: ConceptTree) -> list[Signal]:
       carrying ANY ``unless_pay``): Broken Ambitions is the one other hit,
       whose ``unless_pay`` belongs to an unrelated Counter effect several
       sentences before its OWN "mills four cards" clash payoff and names
-      none of those three words, so the text gate excludes it cleanly.
+      none of those three words, so the text gate excludes it cleanly;
+    * a surveil, a manifest dread, or a mill or discard paid as a cost
+      (:func:`~mtg_utils._card_ir.crosswalk.reads.self_graveyard_fills` —
+      Thought Erasure's "Surveil 1", Millikin's "{T}, Mill a card:", Fauna
+      Shaman's "Discard a creature card:"). Surveil
+      also fires ``topdeck_selection``; a scry, which keeps every card in the
+      library, fires only that.
 
     The cast-from-GY keyword family (flashback / escape / …) rides a keyword
     field-lookup in :func:`extract_crosswalk_signals` (no effect node to read).
@@ -286,25 +298,41 @@ def _graveyard_makers(tree: ConceptTree) -> list[Signal]:
         desc = (getattr(unit.node, "description", "") or "").lower()
         if "return" in desc and "graveyard" in desc and "hand" in desc:
             fire("you", desc)
-    for c in tree.effect_concepts("mill"):
-        # phase v0.104.0 parks an intervening-if mill ("if you have a boon,
-        # you mill three cards, ..." — Underbridge Warlock) as an
-        # Unimplemented residue the ``mill`` token recovers: no typed
-        # destination or recipient, so the seam's reading decides (CR
-        # 701.17a — a mill always puts cards into the graveyard): a mill aimed
-        # at a target player or an opponent (Sanity Grinding) isn't yours.
-        if c.recovered_by == "mill":
-            if c.scope != "opponents" and TARGETED not in c.subject:
-                fire("you", c.raw)
-            continue
-        # The ``Mill`` effect carries a ``destination``; only a Graveyard destination
-        # is a CR-701.17a mill (Stitcher's Supplier). A library↔hand swap phase
-        # MISLABELS as ``Mill`` with destination=Hand (Scroll Rack) — a phase-parse
-        # bug [P2], excluded structurally by the dest gate.
-        if getattr(c.node, "destination", None) != "Graveyard":
-            continue
-        if c.scope in ("you", "any", "each"):
-            fire(_gy_scope(c.scope), c.raw)
+    for unit in tree.units:
+        for c in unit.effect_concepts("mill"):
+            # phase v0.104.0 parks an intervening-if mill ("if you have a boon,
+            # you mill three cards, ..." — Underbridge Warlock) as an
+            # Unimplemented residue the ``mill`` token recovers: no typed
+            # destination or recipient, so the seam's reading decides (CR
+            # 701.17a — a mill always puts cards into the graveyard): a mill aimed
+            # at a target player or an opponent (Sanity Grinding) isn't yours.
+            if c.recovered_by == "mill":
+                if c.scope != "opponents" and TARGETED not in c.subject:
+                    fire("you", c.raw)
+                continue
+            # The ``Mill`` effect carries a ``destination``; only a Graveyard
+            # destination is a CR-701.17a mill (Stitcher's Supplier). A
+            # library↔hand swap phase MISLABELS as ``Mill`` with destination=Hand
+            # (Scroll Rack) — a phase-parse bug [P2], excluded by the dest gate.
+            if getattr(c.node, "destination", None) != "Graveyard":
+                continue
+            # Whose library: phase writes "each opponent mills" (Maddening
+            # Cacophony), an opponent-only replacement (Bruvac) and a Curse's
+            # "enchanted player mills" (Fraying Sanity) Controller-relative, so
+            # the concept's own scope reads "you" (CR 701.17a: the player who
+            # mills puts the cards into their own graveyard).
+            scope = effect_actor_scope(unit, c.node) or c.scope
+            if scope in _SELF_MILL_SCOPES:
+                fire(_gy_scope(scope), c.raw)
+    # Surveil, manifest dread and a mill or discard COST fill your graveyard
+    # with no ``Mill`` effect node for the arm above to read (CR 701.25a:
+    # surveil puts any number of the looked-at cards into your graveyard; CR
+    # 701.62a: the card not manifested goes there; CR 701.9a: a discarded card
+    # goes there; a mill paid as a cost is the read's own decision). Read
+    # through the shared ``self_graveyard_fills``.
+    for unit in tree.units:
+        if self_graveyard_fills(unit):
+            fire("you", getattr(unit.node, "description", None) or "")
     return out
 
 
@@ -471,9 +499,11 @@ def self_mill_fill(tree: ConceptTree) -> bool:
     rather than hand-rolling a new scan:
 
     * a bare ``Mill`` effect (:func:`_graveyard_makers`'s own arm) whose
-      ``destination`` is Graveyard and whose scope isn't opponents-only
-      (Stitcher's Supplier — self or symmetric-each mill both count, the
-      SAME scope gate that lane's Mill arm runs);
+      ``destination`` is Graveyard and whose actor
+      (:func:`~mtg_utils._card_ir.crosswalk.reads.effect_actor_scope`) can be
+      you (Stitcher's Supplier — self, target-player or symmetric-each mill
+      all count, the SAME scope gate that lane's Mill arm runs; "each
+      opponent mills" — Maddening Cacophony — does not);
     * a filter effect (Satyr Wayfinder / Grisly Salvage / Ransack the Lab —
       "look at/reveal the top N, put a card to hand, the rest into your
       graveyard") — a ``Dig`` node (the SAME tag :func:`_topdeck_selection`'s
@@ -559,12 +589,12 @@ def self_mill_fill(tree: ConceptTree) -> bool:
     the Dig node itself parses correctly; see that arm's own comment for the
     exact-phrase gate + 155-card corpus sweep).
     """
-    for c in tree.effect_concepts("mill"):
-        if getattr(c.node, "destination", None) != "Graveyard":
-            continue
-        if c.scope == "opponents":
-            continue
-        return True
+    for unit in tree.units:
+        for c in unit.effect_concepts("mill"):
+            if getattr(c.node, "destination", None) != "Graveyard":
+                continue
+            if (effect_actor_scope(unit, c.node) or c.scope) in _SELF_MILL_SCOPES:
+                return True
     for unit in tree.units:
         for n in iter_typed_nodes(unit.node):
             if tag_of(n) != "Dig":
@@ -616,25 +646,12 @@ def self_mill_fill(tree: ConceptTree) -> bool:
                 # targeted-opponent mill card.
                 if explicit_recipient_scope(n) == "opponents":
                     continue
-                # A GRANTED trigger's ``target: Controller`` is REBOUND
-                # by the OWNING wrapper's own ``player_scope: Opponent``
-                # (Imperious Mindbreaker's paired-creature grant: "each
-                # opponent mills cards equal to its toughness" — the
-                # Mill's own ``target`` reads "Controller" relative to
-                # the per-opponent rotation, not this card's controller).
-                # This Mill is reachable ONLY via the raw deep walk (a
-                # GrantTrigger body nested inside a static's
-                # ``modifications`` list — not one of ``_EFFECT_CHILD_
-                # FIELDS``, so :func:`effect_owner_player_scope`'s own
-                # ancestor walk can't reach it either); a direct identity
-                # scan for the wrapper whose ``.effect`` IS this node is
-                # the narrow fallback.
-                owner_scope = None
-                for w in iter_typed_nodes(unit.node):
-                    if getattr(w, "effect", None) is n:
-                        owner_scope = tag_of(getattr(w, "player_scope", None))
-                        break
-                if owner_scope == "Opponent":
+                # A ``target: Controller`` the real actor rebinds: an
+                # opponent wrapper, a granted trigger's included (Imperious
+                # Mindbreaker's "each opponent mills cards equal to its
+                # toughness"), an opponent-only replacement, an Aura's
+                # enchanted player — the same read the lane's Mill arm runs.
+                if effect_actor_scope(unit, n) is not None:
                     continue
                 return True
             if t is not None:

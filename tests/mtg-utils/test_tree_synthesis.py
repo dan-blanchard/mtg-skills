@@ -17,7 +17,6 @@ from mtg_utils._analysis.tree_synthesis import (
     _SPELLCAST_TRIGGER_RX,
     SYNTHESIS_ARM_IDS,
     _arm_ability_copy,
-    _arm_animate_artifact,
     _arm_b13_node_anchor,
     _arm_b13_raw_anchor,
     _arm_base_pt_have_become,
@@ -27,7 +26,6 @@ from mtg_utils._analysis.tree_synthesis import (
     _arm_big_hand_makers,
     _arm_big_hand_matters,
     _arm_cant_block_grant,
-    _arm_clue_matters,
     _arm_coin_flip_payoff,
     _arm_color_change,
     _arm_color_hoser,
@@ -99,7 +97,6 @@ from mtg_utils._analysis.tree_synthesis import (
     has_structural_big_hand_makers,
     has_structural_big_hand_matters,
     has_structural_cant_block_grant,
-    has_structural_clue_matters,
     has_structural_coin_flip,
     has_structural_color_hoser,
     has_structural_connive_makers,
@@ -3782,54 +3779,13 @@ def test_island_matters_lane_reads_synth_node_end_to_end():
     assert any(s.key == "island_matters" for s in sigs)
 
 
-# ── batch T3-makers-type (ADR-0036/0037 Stage 5): animate_artifact ───────────
+# ── animate_artifact: retired (2026-10-18) ───────────────────────────────────
 
 
-def test_animate_artifact_bucket_b_synth():
-    """Karn, Silver Golem's artifact-becomes-creature grant — no competing
-    Tier-1 predicate (the batch-12 adjudication)."""
-    tree = _fixture_tree("Karn, Silver Golem")
-    node = _arm_animate_artifact(tree)
-    assert node is not None
-    assert node.concept == "synth_animate_artifact"
-    assert node.scope == "you"
-
-
-def test_animate_artifact_no_fire_on_bare_type_conferral():
-    """Liquimetal Coating's becomes-an-artifact conferral is a non-match."""
-    assert _arm_animate_artifact(_fixture_tree("Liquimetal Coating")) is None
-
-
-def test_animate_artifact_synth_registered():
-    assert "animate_artifact" in SYNTHESIS_ARM_IDS
-
-
-def test_animate_artifact_lane_reads_synth_node_end_to_end():
-    from mtg_utils._analysis.lanes import _animate_artifact
-
-    synth = ConceptNode(
-        concept="synth_animate_artifact",
-        node=SynthesizedNode(arm_id="animate_artifact", description="x"),
-        role="effect",
-        scope="you",
-        subject=(),
-        raw="",
-    )
-    unit = AbilityUnit(
-        origin="synth",
-        index=0,
-        node=SynthesizedNode(arm_id="_unit", description="u"),
-        kind=None,
-        trigger_event=None,
-        effects=(synth,),
-        costs=(),
-        statics=(),
-    )
-    tree = ConceptTree(
-        name="X", oracle_id="x", oracle="Do something unrelated.", units=(unit,)
-    )
-    sigs = _animate_artifact(tree)
-    assert any(s.key == "animate_artifact" for s in sigs)
+def test_animate_artifact_arm_stays_retired():
+    """The regex arm retired into the structural ``animate_makers`` lane
+    (``lanes.animate_land_types``), which reads the AddType-Creature static."""
+    assert "animate_artifact" not in SYNTHESIS_ARM_IDS
 
 
 # ── batch T3-makers-type (ADR-0036/0037 Stage 5): color_change ───────────────
@@ -4062,63 +4018,6 @@ def test_curse_matters_lane_reads_synth_node_end_to_end():
     )
     sigs = _curse_matters(tree)
     assert any(s.key == "curse_matters" for s in sigs)
-
-
-# ── batch T4-mechanic-kw: clue_matters ───────────────────────────────────────
-
-
-def test_clue_matters_structural_gate_true_on_existing_arm():
-    """Tireless Tracker's "Whenever you sacrifice a Clue" — a Sacrificed-
-    mode trigger naming Clue, one of the shared food/clue helper's two
-    genuinely structural arms (reimplemented by
-    :func:`has_structural_clue_matters`); the synth never double-covers
-    it."""
-    tree = _fixture_tree("Tireless Tracker")
-    assert has_structural_clue_matters(tree) is True
-    assert _arm_clue_matters(tree) is None
-
-
-def test_clue_matters_bucket_b_synth_gap_gated():
-    """Bygone Bishop's bare "investigate" residue (a cast-trigger, not a
-    sacrifice/Sacrificed-mode node) — the residual the two structural arms
-    of the shared helper miss."""
-    tree = _fixture_tree("Bygone Bishop")
-    assert has_structural_clue_matters(tree) is False
-    node = _arm_clue_matters(tree)
-    assert node is not None
-    assert node.concept == "synth_clue_matters"
-
-
-def test_clue_matters_synth_registered():
-    assert "clue_matters" in SYNTHESIS_ARM_IDS
-
-
-def test_clue_matters_lane_reads_synth_node_end_to_end():
-    from mtg_utils._analysis.lanes import _clue_matters_lane
-
-    synth = ConceptNode(
-        concept="synth_clue_matters",
-        node=SynthesizedNode(arm_id="clue_matters", description="x"),
-        role="effect",
-        scope="you",
-        subject=(),
-        raw="",
-    )
-    unit = AbilityUnit(
-        origin="synth",
-        index=0,
-        node=SynthesizedNode(arm_id="_unit", description="u"),
-        kind=None,
-        trigger_event=None,
-        effects=(synth,),
-        costs=(),
-        statics=(),
-    )
-    tree = ConceptTree(
-        name="X", oracle_id="x", oracle="Do something unrelated.", units=(unit,)
-    )
-    sigs = _clue_matters_lane(tree)
-    assert any(s.key == "clue_matters" for s in sigs)
 
 
 # ── batch T4-mechanic-kw: suspend_matters ────────────────────────────────────

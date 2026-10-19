@@ -955,6 +955,46 @@ def test_the_primary_lane_is_a_held_lane_deep_enough_to_show():
     assert fr["verdict"] == "FOCUSED"
 
 
+def test_a_main_whose_builders_mostly_care_about_the_primary_is_a_sub():
+    """Quick Draw: twelve cards care about "Your graveyard", seven of them
+    Spellslinger carers too — the commander's lane seen through the graveyard,
+    a sub beside it, not a second direction. The same twelve with two shared
+    carers are a direction of their own."""
+    spells = spec_for(_sig("spellcast_matters")).label
+    yard = spec_for(_sig("graveyard_matters")).label
+    classes = [_cc("Stella", "commander", [spells])]
+    classes += [_cc(f"Spell {i}", "engine", [spells]) for i in range(40)]
+    classes += [_cc(f"Yard {i}", "engine", [yard]) for i in range(22)]
+    signals = [_sig("spellcast_matters"), _sig("graveyard_matters")]
+    held = frozenset({("spellcast_matters", "you", "")})
+
+    def run(shared: int):
+        yard_carers = {f"Spell {i}" for i in range(shared)} | {
+            f"Yard {i}" for i in range(12 - shared)
+        }
+        emitters = {
+            ("spellcast_matters", "you", ""): frozenset(
+                {"Stella"} | {f"Spell {i}" for i in range(23)}
+            ),
+            ("graveyard_matters", "you", ""): frozenset(yard_carers),
+        }
+        fr = focus(
+            classes,
+            deck_size=100,
+            deck_signals=signals,
+            emitters=emitters,
+            commander_idents=held,
+        )
+        return fr["verdict"], {a["label"]: a["tier"] for a in fr["viable_avenues"]}
+
+    verdict, tiers = run(shared=7)
+    assert tiers[yard] == "sub"
+    assert verdict == "FOCUSED"
+    verdict, tiers = run(shared=2)
+    assert tiers[yard] == "main"
+    assert verdict == "SPREAD-THIN"
+
+
 def test_an_engine_card_feeding_only_fed_avenues_is_dead_weight():
     classes, signals, emitters, _cheat, _combat, _dig = _polymorph_precon()
     fr = focus(

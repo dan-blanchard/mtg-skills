@@ -310,3 +310,41 @@ def test_wants_lifegain_shares_the_lifegain_avenue():
     assert wants is not None
     assert payoff is not None
     assert wants.label == payoff.label == "Lifegain"
+
+
+@pytest.mark.parametrize("key", ["graveyard_makers", "graveyard_matters"])
+def test_own_graveyard_serve_reads_surveil_and_mill_costs(key):
+    serve = _ident_serve(key, "you", "graveyard_makers|you|", "graveyard_matters|you|")
+    # Surveil (CR 701.25a) and a mill paid as a cost fill your graveyard;
+    # the lane reads both now, so the regex's "surveil" arm has a replacement.
+    assert serve.matches(_card("Thought Erasure"))
+    assert serve.matches(_card("Millikin"))
+    assert serve.matches(_card("Sidisi, Brood Tyrant"))
+    # "Target player mills three cards" never says "your graveyard".
+    assert serve.matches(_card("Hedron Crab"))
+    # A scry keeps every card in the library (CR 701.22a).
+    assert not serve.matches(_card("Preordain"))
+    # Madness's reminder text says "put it into your graveyard"; it's a
+    # discard payoff, not a graveyard card.
+    assert not serve.matches(_card("Fiery Temper"))
+
+
+@pytest.mark.parametrize("key", ["plus_one_makers", "plus_one_matters"])
+def test_plus_one_serve_reads_the_keyword_actions(key):
+    serve = _ident_serve(
+        key,
+        "any",
+        "plus_one_makers|you|",
+        "plus_one_matters|you|",
+        "counter_doubling|you|",
+        "proliferate_makers|you|",
+    )
+    # plus_one_makers reads the keyword actions that put +1/+1 counters, so a
+    # connive / amass printed without its reminder text now serves; the regex
+    # needed the literal "+1/+1 counter".
+    assert serve.matches(_card("Baron Helmut Zemo"))
+    assert serve.matches(_card("Grishnákh, Brash Instigator"))
+    assert serve.matches(_card("Dromoka's Gift"))  # bolster
+    assert serve.matches(_card("Sheer Drop"))  # awaken
+    # The regex served an energy doubler off "twice that many".
+    assert not serve.matches(_card("Aether Refinery"))

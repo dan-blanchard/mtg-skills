@@ -289,15 +289,9 @@ def _amass_incubate_keyword_fallback(
     commander/brawl-legal cards, every one but these four already fires the
     structural ``_amass_makers``/``_incubate_makers`` read; the keyword bag is a
     precise field-lookup for the remainder, the SAME "route iii" pattern as
-    ``_keyword_field_signals``' phasing/lifelink/prowess rows. Corpus-verified
-    (same sweep): across every OTHER structurally-firing amass/incubate card,
-    the mechanic NEVER also opens ``plus_one_makers`` or ``token_maker`` from
-    the Amass/Incubate effect itself (Norn's Inquisitor / Bloated Processor's
-    ``plus_one_makers`` comes from a wholly SEPARATE +1/+1-counter clause on
-    those cards, not the Incubate rider) — ``amass_makers``/``incubate_makers``
-    stay their own dedicated population key by design (see both functions'
-    own docstrings), so this fallback mirrors that and fires ONLY the maker
-    key, matching the existing membership shape exactly. Scope "you" (CR
+    ``_keyword_field_signals``' phasing/lifelink/prowess rows. It fires ONLY
+    the maker key: these four have no Amass/Incubate node for
+    ``plus_one_makers``' keyword-action read. Scope "you" (CR
     701.47a/701.53a: both actions are performed by the spell/ability's
     controller)."""
     out: list[Signal] = []

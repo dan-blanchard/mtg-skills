@@ -124,6 +124,12 @@ _GY_CAST_KEYWORDS: frozenset[str] = frozenset(
         "jump-start",
         "recover",
         "unearth",
+        # CR 702.180a: "You may cast this card from your graveyard by paying
+        # [cost] …"; CR 702.187b: "As long as you discarded this card this turn,
+        # you may cast it from your graveyard by paying [cost] …" (702.187c: a
+        # costless mayhem plays it from your graveyard).
+        "harmonize",
+        "mayhem",
     }
 )
 

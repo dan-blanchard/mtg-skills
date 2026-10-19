@@ -74,6 +74,7 @@ from mtg_utils._card_ir.crosswalk import (
     iter_typed_nodes,
     mod_keyword_name,
     mod_value,
+    named_filter_subtypes,
     recipient_tag,
     sacrifice_names_no_player,
     static_mode_field,
@@ -494,9 +495,9 @@ def _keyword_tribe(tree: ConceptTree) -> list[Signal]:
 
 # Byte-identical copies of the INLINE (unnamed) ``_IR_KEPT_DETECTORS`` rows —
 # the _JOHAN_MIRROR precedent (no importable name exists for these).
-# (clue_matters / flash_matters / opponent_exile_matters were ADR-0036/0037
-# folded to bucket-B ``tree_synthesis`` arms; see ``_arm_clue_matters`` /
-# ``_arm_flash_matters`` / ``_arm_opponent_exile_matters``.)
+# (flash_matters / opponent_exile_matters were ADR-0036/0037 folded to
+# bucket-B ``tree_synthesis`` arms; see ``_arm_flash_matters`` /
+# ``_arm_opponent_exile_matters``.)
 # (The signals.py wants_theft hybrid FACADE's don't-own tell was
 # ADR-0036/0037 T10-finalize2 folded to a bucket-B ``tree_synthesis`` arm —
 # see ``_arm_dont_own``; the gain_control/wants_theft reconciliation below
@@ -1676,8 +1677,15 @@ def _token_subtype_payoff(tree: ConceptTree, sub: str) -> list[Signal]:
     to subtypes the face does not already make/sacrifice (the same
     made/sacd exclusion the arm recomputes structurally — a bare maker is
     <sub>_makers' country, never matters);
-    (3) a ``Sacrificed``-mode trigger whose ``valid_card`` names the subtype
-    (Experimental Confectioner probed verbatim).
+    (3) any other filter naming the subtype that is not an opponent's — a
+    watched trigger subject (Experimental Confectioner's "whenever you
+    sacrifice a Food", Daring Sleuth's Clue), a count ("for each Clue you
+    control" — Five Hundred Year Diary; "if you sacrificed three or more Clues
+    this turn" — Briarbridge Patrol), an anthem / grant subject ("Clues you
+    control have exalted" — Merchant of Truth). A sacrificed filter is arm
+    (1)'s, which knows who pays; a card that only MAKES the token names it in
+    no filter (a ``Token`` effect carries a type list), so a bare maker stays
+    ``<sub>_makers``.
     """
     key = f"{sub.lower()}_matters"
     subl = sub.lower()
@@ -1686,10 +1694,8 @@ def _token_subtype_payoff(tree: ConceptTree, sub: str) -> list[Signal]:
             subs = {s.lower() for s in filter_subtypes(getattr(node, "target", None))}
             if subl in subs:
                 return [Signal(key, "you", "", "", tree.name, "high")]
-        if unit.origin == "trigger" and _trigger_mode_tag(unit) == "Sacrificed":
-            vc = getattr(unit.node, "valid_card", None)
-            if subl in {s.lower() for s in filter_subtypes(vc)}:
-                return [Signal(key, "you", "", "", tree.name, "high")]
+        if subl in named_filter_subtypes(unit.node):
+            return [Signal(key, "you", "", "", tree.name, "high")]
     for c in tree.iter_concepts():
         if c.concept == "synth_token_subtype_own_ref" and subl in c.subject:
             return [Signal(key, "you", "", "", tree.name, "high")]
@@ -1702,23 +1708,19 @@ def _food_matters_lane(tree: ConceptTree) -> list[Signal]:
 
 
 def _clue_matters_lane(tree: ConceptTree) -> list[Signal]:
-    """clue_matters (§10) — the three shared arms (sacrifice-of-Clue, a
-    Sacrificed-mode trigger naming Clue, the ``synth_token_subtype_own_ref``
-    bucket-B marker — :func:`_token_subtype_payoff`, shared with
-    food_matters, Tier-1 since the T9-finalize fold) plus, Tier-1
-    (ADR-0036/0037 fold), the ``synth_clue_matters`` bucket-B RESIDUE node
-    (:func:`_arm_clue_matters` — the retired ``CLUE_MATTERS_REGEX``,
-    ``clue|investigate``) carrying the modal-vote folds (Tivit), delayed
-    triggers, token replacements and becomes-Clue statics (In Too Deep).
-    Breadth intended: bare investigate DOERS fire matters too via the word
-    (live behavior, the b13 suspend_matters precedent — port as-is). Zero
-    oracle text/regex at LANE time.
+    """clue_matters (§10) — a card that pays off Clues: the shared arms of
+    :func:`_token_subtype_payoff` (a Clue sacrifice, a filter naming Clue, the
+    ``synth_token_subtype_own_ref`` marker) plus an ``Investigated`` trigger
+    ("Whenever you investigate for the first time each turn" — Erdwal
+    Illuminator; CR 701.16a). A card that only investigates or makes Clues is
+    ``clue_makers``, never this payoff. A typed Clue token replacement
+    (Academy Manufactor) fires this key from ``_replacement_doubler_lanes``.
     """
     hits = _token_subtype_payoff(tree, "Clue")
     if hits:
         return hits
-    for c in tree.iter_concepts():
-        if c.concept == "synth_clue_matters":
+    for unit in tree.iter_units("trigger"):
+        if _trigger_mode_tag(unit) == "Investigated":
             return [Signal("clue_matters", "you", "", "", tree.name, "high")]
     return []
 

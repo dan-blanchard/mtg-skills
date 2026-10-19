@@ -18,7 +18,12 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from mtg_utils._analysis.roles import DeckMana, is_ramp
+from mtg_utils._analysis.roles import (
+    _INTERACTION_PRESETS,
+    DeckMana,
+    is_interaction,
+    is_ramp,
+)
 from mtg_utils._analysis.signal_specs import spec_for
 from mtg_utils._card_ir.crosswalk import mana_ability_gates
 from mtg_utils._card_ir.trees import trees_for
@@ -66,8 +71,12 @@ ROLE_SEARCH: dict[str, dict] = {
     # deck, but the tuner won't suggest one.
     "ramp": {"preset_names": ("ramp",), "_filter": _reliable_ramp},
     "card_draw": {"preset_names": ("card-draw",)},
+    # Interaction is sourced by the SAME presets ``roles.is_interaction`` counts it
+    # by (ADR-0051, the ramp rule), with the predicate as the precision pass: a
+    # preset hit the role drops (pure graveyard recursion) is never offered.
     "interaction": {
-        "preset_names": ("removal", "creature-removal", "counterspell", "bounce")
+        "preset_names": _INTERACTION_PRESETS,
+        "_filter": lambda c, **_kw: is_interaction(c),
     },
     "board_wipe": {"preset_names": ("board-wipe",)},
     # The constructed / limited template rows that are plain facts (type line,

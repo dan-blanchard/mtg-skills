@@ -1041,14 +1041,12 @@ def test_reminder_text_does_not_produce_signals():
     assert "blink_flicker" not in _keys_real("Ba Sing Se")
 
 
-def test_enchantment_token_maker_opens_enchantments():
-    # A commander that creates enchantment/Aura tokens (Scriv "create a white Aura
-    # enchantment token", The Rani, Preston Garvey) is an enchantment deck — it wants
-    # enchantment payoffs (Eriette, Sphere of Safety). Real oracle.
-    # ADR-0027: enchantments_matter migrated to the Card IR — the make_token DOER fires
-    # off the Enchantment-typed token subject (the Aura token), so this serves from the
-    # hybrid path against the structured make_token Effect.
-    assert ("enchantments_matter", "you") in _ks_real("Scriv, the Obligator")
+def test_enchantment_token_maker_is_not_an_enchantments_payoff():
+    # A card that creates enchantment / Aura tokens (Scriv's "white Aura enchantment
+    # token") MAKES enchantments (CR 205.3h) — the doer side, counted as the
+    # Enchantments avenue's depth by its serve — never the enchantments_matter
+    # payoff the tuner reads as a card that cares about enchantments. Real oracle.
+    assert ("enchantments_matter", "you") not in _ks_real("Scriv, the Obligator")
     assert ("enchantments_matter", "you") not in _ks_real("Grizzly Bears")
 
 
@@ -1917,11 +1915,11 @@ def test_token_maker_serves_token_aristocrats_drain():
     assert covers(blood_artist) is False
 
 
-def test_role_token_makers_open_enchantments_matter():
-    # Role tokens are Aura ENCHANTMENTS (CR 303.7 / 111.10j), so a commander that
-    # makes them (Gylwain) is an enchantment commander — it wants enchantment-count
-    # payoffs (Sanctum Weaver) and Aura payoffs. Proven over the real record.
-    assert ("enchantments_matter", "you") in _ks_real("Gylwain, Casting Director")
+def test_role_token_makers_are_not_enchantments_payoffs():
+    # Role tokens are Aura Role enchantment tokens (CR 303.7, 111.10j), so a card
+    # that makes them (Gylwain) MAKES enchantments; it is not an
+    # enchantments_matter payoff. Proven over the real record.
+    assert ("enchantments_matter", "you") not in _ks_real("Gylwain, Casting Director")
 
 
 def test_celebration_archetype_opens_and_serves():

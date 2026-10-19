@@ -8,7 +8,11 @@ import re
 from collections.abc import Iterator
 from dataclasses import replace
 
-from mtg_utils._analysis._subtypes import CREATURE_SUBTYPES, LAND_SUBTYPES
+from mtg_utils._analysis._subtypes import (
+    CREATURE_SUBTYPES,
+    LAND_SUBTYPES,
+    subtype_card_type,
+)
 from mtg_utils._analysis.lanes._shared import (
     _FIXING_PRODUCED_TYPES,
     _LAND_SUBTYPE_WORDS,
@@ -28,6 +32,7 @@ from mtg_utils._analysis.signal_base import (
 )
 from mtg_utils._analysis.text_reads import (
     _ARTIFACTS_MATTER_MIRROR,
+    _ENCHANTMENTS_CAST_MIRROR,
     _ENCHANTMENTS_MATTER_MIRROR,
     _TOKEN_SUBJECT_WORDS,
 )
@@ -52,6 +57,7 @@ from mtg_utils._card_ir.crosswalk import (
     ConceptNode,
     ConceptTree,
     _is_static_def,
+    adds_creature_type,
     aggregate_filter,
     change_zone_dirs,
     count_distinct_operand_filter,
@@ -1459,6 +1465,26 @@ def _type_recursion_lanes(filt: object) -> list[str]:
     return []
 
 
+def _non_animation_clauses(tree: ConceptTree) -> list[str]:
+    """The card's kept clauses minus the text of each static that makes its
+    objects creatures (CR 613.1d — Bello's "each non-Equipment artifact and
+    non-Aura enchantment you control … is a 4/4 Elemental creature", whose "you
+    control" the text mirrors would otherwise read as a payoff). A clause and a
+    static's description are compared up to their first quoted grant, where
+    the clause spells the card "this creature" and phase spells it "~"."""
+    animation = {
+        desc.split('"')[0].strip().lower()
+        for unit in tree.units
+        for d in iter_static_defs(unit.node)
+        if adds_creature_type(d)
+        and isinstance(desc := getattr(d, "description", None), str)
+    }
+    clauses = _clauses(_kept(tree))
+    if not animation:
+        return clauses
+    return [cl for cl in clauses if cl.split('"')[0].strip().lower() not in animation]
+
+
 def _artifacts_enchantments_matter(tree: ConceptTree) -> list[Signal]:
     """artifacts_matter / enchantments_matter — the broad type-payoff lanes (CR 301 /
     303). Mirrors the deleted ``_signals_ir``'s six structural arms over the typed
@@ -1470,20 +1496,29 @@ def _artifacts_enchantments_matter(tree: ConceptTree) -> list[Signal]:
       with NO subtype (Fabricate, Idyllic Tutor; Enlightened Tutor → both);
     * **generic-board anthem** — a static pump/grant over the whole own-board set
       (Padeem);
-    * **enchantment-token maker** — a ``make_token`` of an Enchantment subject, scope
-      you/any. An ARTIFACT-token maker (Skrelv's Hive's Mites, a Treasure / Clue /
-      Food maker — CR 205.3g's artifact types) does NOT fire ``artifacts_matter``:
-      making artifacts is the doer side, credited on ``token_maker`` /
-      ``treasure_makers`` / ``clue_makers`` / ``food_makers`` and counted as the
-      Artifacts avenue's depth by its serve, while ``artifacts_matter`` is the
-      payoff key the tuner reads as a card that CARES about artifacts (31 Clue
-      makers read as carers of the Deep Clue Sea precon's Artifacts main);
+    * **no token-maker arm** — a card that MAKES artifact or enchantment tokens
+      (Skrelv's Hive's Mites, a Treasure / Clue / Food maker — CR 205.3g; a Role,
+      Shard or enchantment-creature token maker — CR 205.3h) fires neither key:
+      making the permanents is the doer side, credited on ``token_maker`` /
+      ``treasure_makers`` / ``clue_makers`` / ``food_makers`` where a maker key
+      exists and counted as the avenue's depth by its serve, while these keys are
+      the payoff the tuner reads as a card that CARES about artifacts /
+      enchantments (31 Clue makers read as carers of the Deep Clue Sea precon's
+      Artifacts main);
     * **sac payoff** — a ``Sacrifice`` of an Artifact/Enchantment subject (Atog-style
       fodder), non-opponent, with the Permanent-symmetric-list gate (CR 702.166a).
 
     The ``Permanent``-in-list gate drops the Bargain alt-cost over-fires.
+
+    Subject: ``cast`` on a cast-trigger payoff ("Whenever you cast an enchantment
+    spell" — Enchantress's Presence, Sythis; Sram's "an Aura, Equipment, or
+    Vehicle spell", read through the subtypes' card types, CR 205.3g/h), which
+    triggers as the spell becomes cast (CR 601.2i) and so never on a permanent
+    put onto the battlefield without casting it; empty for every other arm (an
+    enters trigger — CR 603.6a, a count, a static, a sacrifice).
     """
     out: list[str] = []
+    cast_out: list[str] = []
     for c in tree.iter_concepts():
         node = c.node
         # count operand (scaling value over your artifacts/enchantments)
@@ -1530,19 +1565,7 @@ def _artifacts_enchantments_matter(tree: ConceptTree) -> list[Signal]:
             sub = effect_filter(node)
             if sub is not None and not filter_subtypes(sub):
                 out.extend(_typed_matters_lanes(sub))
-        # An artifact-token maker is a doer, never this payoff (see the
-        # docstring); only the enchantment-token arm reads ``make_token``.
-        if c.concept == "make_token" and c.scope in ("you", "any"):
-            types = c.subject
-            if "Enchantment" in types:
-                out.append("enchantments_matter")
-            # A recovered make_token has no typed subject: read the clause.
-            if (
-                not types
-                and c.recovered_by == "make_token"
-                and "Enchantment" in c.reading
-            ):
-                out.append("enchantments_matter")
+        # A token maker is a doer, never this payoff (see the docstring).
         # COPY-TOKEN doer (ADR-0038 W4 giant): "create a token that's a
         # copy of target artifact/creature" (Molten Duplication, Echo
         # Storm, Saheeli's Artistry). A copy token's creator is its owner
@@ -1697,8 +1720,14 @@ def _artifacts_enchantments_matter(tree: ConceptTree) -> list[Signal]:
                 out.append("artifacts_matter")
             if "Enchantment" in cores:
                 out.append("enchantments_matter")
-    # generic-board static anthem/grant (Padeem) — read the static's affected filter
+    # generic-board static anthem/grant (Padeem) — read the static's affected filter.
+    # A static that ALSO makes its objects creatures (Bello, Bard of the Brambles'
+    # "is a 4/4 Elemental creature in addition to its other types"; March of the
+    # Machines) is animation — a layer-4 type change, CR 613.1d — and belongs to
+    # ``animate_makers`` (``lanes.animate_land_types``), never this payoff.
     for unit in tree.units:
+        if any(adds_creature_type(d) for d in iter_static_defs(unit.node)):
+            continue
         for c in unit.statics:
             if c.concept in ("pump", "grant_keyword", "set_pt"):
                 aff = getattr(unit.node, "affected", None)
@@ -1708,16 +1737,7 @@ def _artifacts_enchantments_matter(tree: ConceptTree) -> list[Signal]:
                 # precedent, :func:`_or_wrapped_generic_creature_filter`):
                 # re-apply the SAME per-branch gate, so a subtype-scoped or
                 # opponent branch still fails for the reason it would
-                # un-wrapped. This is the STRUCTURAL read that graduated the
-                # ``bello_static_animate_artifacts`` ledgered bridge (task
-                # #84): phase v0.23.0 now parses Bello, Bard of the
-                # Brambles' whole animation line as one Continuous static
-                # over ``Or(Typed(You, non-Equipment Artifact, cmc>=4),
-                # Typed(You, non-Aura Enchantment, cmc>=4))`` with SetPower/
-                # SetToughness + AddType + GrantTrigger + AddKeyword
-                # modifications, so the anthem arm's set_pt/grant_keyword
-                # concepts reach it and the branch read replaces the
-                # bridge's bounded parse-failure-residue scan.
+                # un-wrapped.
                 if tag_of(aff) in ("Or", "And"):
                     for br in getattr(aff, "filters", None) or ():
                         out.extend(_generic_board_lanes(br))
@@ -1738,10 +1758,17 @@ def _artifacts_enchantments_matter(tree: ConceptTree) -> list[Signal]:
     # legacy's ``e.category not in (make_token, clone)`` guard excludes
     # it structurally; the per-clause text scan has no category to read,
     # so it excludes on the "copy" word instead (never the deciding vote
-    # for a real type-grant clause, which never says "copy"). CR 205.1b.
+    # for a real type-grant clause, which never says "copy"). CR 205.1b. A
+    # match followed by "creature" ("becomes an artifact creature" — Karn's
+    # Touch, Titania's Song, a Vehicle's crew) makes the permanent a creature:
+    # animation (CR 613.1d, ``animate_makers``), never this payoff.
     for cl in _clauses(_kept(tree)):
         bt_m = _BECOMES_TYPE_RE.search(cl)
-        if bt_m and "copy" not in bt_m.group(0).lower():
+        if (
+            bt_m
+            and "copy" not in bt_m.group(0).lower()
+            and not cl[bt_m.end() :].lstrip().lower().startswith("creature")
+        ):
             out.append(_TYPE_MATTERS_LANE[bt_m.group(1).capitalize()])
     # CAST-TRIGGER doer (recall gap): "whenever you cast an artifact/enchantment
     # spell, <payoff>" (Argothian Enchantress, Enchantress's Presence, Sythis,
@@ -1752,13 +1779,22 @@ def _artifacts_enchantments_matter(tree: ConceptTree) -> list[Signal]:
     # ROUTING HOME for the enchantment/artifact-only cast watcher that
     # ``_spellcast_matters`` deliberately excludes (the payoff body — a Draw — is
     # never itself a type tell, so the is-enchantment membership floor misses
-    # it). CR 603.2.
+    # it). CR 603.2. Subject ``cast`` (CR 601.2i — see the docstring); a
+    # subtype-only filter (Sram's Aura / Equipment / Vehicle) names its card
+    # type through the CR 205.3g/h subtype lists.
     for unit in tree.units:
         if unit.origin != "trigger" or unit.trigger_event != "cast_spell":
             continue
         if trigger_caster_scope(unit.node) == "opponents":
             continue
-        out.extend(_typed_matters_lanes(getattr(unit.node, "valid_card", None)))
+        vc = getattr(unit.node, "valid_card", None)
+        cast_out.extend(_typed_matters_lanes(vc))
+        if vc is not None and filter_controller(vc) != "Opponent":
+            cast_out.extend(
+                _TYPE_MATTERS_LANE[ct]
+                for st in filter_subtypes(vc)
+                if (ct := subtype_card_type(st)) in ("Artifact", "Enchantment")
+            )
     # SACRIFICE-TRIGGER payoff DOER (ADR-0038 W4 giant): "whenever you
     # sacrifice a Clue/Food/artifact, <payoff>" (Graf Mole, Curious
     # Cadaver, Jenny Flint's "Clue or Food"). The same trigger-own-subject
@@ -1850,7 +1886,8 @@ def _artifacts_enchantments_matter(tree: ConceptTree) -> list[Signal]:
     # path (regex_only==22, ALL affinity-for-non-artifact over-fire, 0
     # genuine recall lost by the narrowed `affinity for artifacts` branch).
     # Run PER-CLAUSE over ``_kept(tree)`` to match the legacy clause loop.
-    if any(_ARTIFACTS_MATTER_MIRROR.search(cl) for cl in _clauses(_kept(tree))):
+    payoff_clauses = _non_animation_clauses(tree)
+    if any(_ARTIFACTS_MATTER_MIRROR.search(cl) for cl in payoff_clauses):
         out.append("artifacts_matter")
     # ADR-0038 W4 giant — a SANCTIONED byte-identical port of legacy's
     # ``_ENCHANTMENTS_MATTER_MIRROR`` (the LIVE constant, imported not
@@ -1864,8 +1901,14 @@ def _artifacts_enchantments_matter(tree: ConceptTree) -> list[Signal]:
     # mechanism, same as the artifacts sibling. Corpus-verified in the legacy
     # path (regex_only EMPTY after the mirror — 0 genuine recall lost). Run
     # PER-CLAUSE over ``_kept(tree)`` to match the legacy clause loop.
-    if any(_ENCHANTMENTS_MATTER_MIRROR.search(cl) for cl in _clauses(_kept(tree))):
+    if any(_ENCHANTMENTS_MATTER_MIRROR.search(cl) for cl in payoff_clauses):
         out.append("enchantments_matter")
+    # The mirror's enchantment-CAST idiom, kept apart so it
+    # carries the ``cast`` subject: a casting permission or mana restriction no
+    # trigger types ("you may cast an enchantment spell by paying life" — Demon
+    # of Fate's Design; Creeping Peeper's mana) — CR 601.2i.
+    if any(_ENCHANTMENTS_CAST_MIRROR.search(cl) for cl in payoff_clauses):
+        cast_out.append("enchantments_matter")
     # AFFINITY-FOR-EQUIPMENT doer (ADR-0038 W4 giant): Equipment IS an
     # Artifact subtype (CR 301.5), so "Affinity for Equipment" (Nahiri,
     # Forged in Fury; Goldwardens' Gambit; Oxidda Finisher; Rebel Salvo) is
@@ -1897,12 +1940,11 @@ def _artifacts_enchantments_matter(tree: ConceptTree) -> list[Signal]:
     # artifacts. CR 702.41a / 303.
     if "affinity for enchantments" in _kept(tree).lower():
         out.append("enchantments_matter")
-    seen: set[str] = set()
-    sigs: list[Signal] = []
-    for lane in out:
-        if lane not in seen:
-            seen.add(lane)
-            sigs.append(Signal(lane, "you", "", "", tree.name, "high"))
+    idents = [(lane, "") for lane in out] + [(lane, "cast") for lane in cast_out]
+    sigs: list[Signal] = [
+        Signal(lane, "you", subject, "", tree.name, "high")
+        for lane, subject in dict.fromkeys(idents)
+    ]
     return sigs
 
 

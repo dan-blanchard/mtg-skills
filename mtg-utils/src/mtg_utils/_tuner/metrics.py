@@ -597,12 +597,31 @@ def focus(
     # artifact, every instant) is deep in any deck, so without the carer bar
     # "Artifacts" read as a main theme on sixteen rocks (2026-10-18). Builders
     # are also measured against the feeders (``focus_main_carer_share``).
+    # A main the commander does not hold is a direction of its own only when its
+    # builders are its own: when at least half of them also care about the
+    # primary lane it is the primary seen through another key, a sub beside it.
+    # Quick Draw's spells-in-the-graveyard payoffs (22 deep, 12 caring, seven of
+    # them Spellslinger carers) read as a second main and the precon as
+    # SPREAD-THIN once surveil and flashback reached the graveyard serve
+    # (2026-10-18). Half is this read's own line, not a rule.
+    primary_carers = carers.get(primary, set()) if primary else set()
+
+    def leans_on_primary(lbl: str) -> bool:
+        own = carers.get(lbl, set())
+        return bool(own) and len(own & primary_carers) * 2 >= len(own)
+
     def is_main(lbl: str) -> bool:
+        if lbl == primary:
+            return True
         care = care_count(lbl)
         builders = emitters is None or (
             care >= main_carer_floor and care >= cal.focus_main_carer_share * depth[lbl]
         )
-        return lbl == primary or (depth[lbl] >= main_floor and builders)
+        return (
+            depth[lbl] >= main_floor
+            and builders
+            and (lbl in commander_held or not leans_on_primary(lbl))
+        )
 
     mains: list[str] = []
     subs: list[str] = []

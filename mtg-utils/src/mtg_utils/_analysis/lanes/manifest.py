@@ -77,6 +77,15 @@ SERVED_SIGNAL_KEYS: frozenset[str] = frozenset(
         "ramp",
         # Batch 3 (ADR-0035 Stage 2, big over-fire lanes + doer cluster):
         "creatures_matter",
+        # artifacts_matter / enchantments_matter: a card that CARES about your
+        # artifacts / enchantments (a count, an enters / sacrifice trigger, an
+        # anthem, a tutor or recursion). Subject ``cast`` on a cast-trigger
+        # payoff ("Whenever you cast an enchantment spell" — Sythis, Sram's
+        # Aura / Equipment / Vehicle), which never fires on a permanent put onto
+        # the battlefield uncast (CR 601.2i); empty otherwise. Not a per-subject
+        # spec: both subjects serve the one Artifacts / Enchantments avenue. A
+        # card that MAKES the permanents (a Treasure, Clue or Role token) or
+        # animates them (``animate_makers``) fires neither.
         "artifacts_matter",
         "enchantments_matter",
         "attack_matters",
@@ -316,7 +325,6 @@ SERVED_SIGNAL_KEYS: frozenset[str] = frozenset(
         "pillowfort",
         "land_protection",
         "evasion_denial",
-        "animate_artifact",
         "color_change",
         "type_change",
         "stax_taxes",
@@ -606,9 +614,12 @@ SERVED_SIGNAL_KEYS: frozenset[str] = frozenset(
         "wants_lifegain",
         # animate_makers: an effect making noncreature permanents of a card type
         # creatures (CR 613.1d — Bello, Bard of the Brambles; March of the
-        # Machines; Ensoul Artifact), subject = the animated type
+        # Machines; Ensoul Artifact), subject = the animated type plus the
+        # animated set's mana-value floor when it has one, spelled
+        # ``<Type>>=<N>`` (Bello: ``Artifact>=4``; signal_keys.animate_subject)
         # (lanes.animate_land_types). A doer lane with no payoff sibling: its
-        # doers are its carers.
+        # doers are its carers. It retired the ``animate_artifact`` regex lane,
+        # whose only extra hits were self-animators, Vehicles and copy effects.
         signal_keys.ANIMATE_MAKERS,
         # land_type_matters: a card counting / watching / granting to lands of one
         # nonbasic land type (CR 205.3i — Yuma's Deserts, Gatebreaker Ram's

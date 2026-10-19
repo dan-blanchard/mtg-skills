@@ -223,6 +223,23 @@ _CONVERTED = [
     ("cascade_makers", "you", "cascade_makers|you|", "Ardent Plea", None),
     ("cascade_matters", "you", "cascade_matters|you|", "Ardent Plea", None),
     ("regenerate_makers", "you", "regenerate_makers|you|", "Clot Sliver", None),
+    # The +1/+1 counter package: plus_one_makers reads the keyword actions, so a
+    # connive printed without its reminder text serves; the regex served a "no
+    # +1/+1 counters" negation.
+    (
+        "amass_makers",
+        "you",
+        "plus_one_makers|you|",
+        "Baron Helmut Zemo",
+        "Hindervines",
+    ),
+    (
+        "incubate_makers",
+        "you",
+        "plus_one_makers|you|",
+        "Baron Helmut Zemo",
+        "Hindervines",
+    ),
 ]
 
 

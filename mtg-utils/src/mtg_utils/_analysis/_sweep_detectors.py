@@ -662,23 +662,6 @@ VEHICLES_MATTER_REGEX = (
     r"|\bbecomes? a vehicle\b|\bgains? crew\b"
 )
 
-# ADR-0027: clue_matters migrated to the Card IR via a STRUCTURAL ARM (the artifact-
-# token-subtype maker / sac payoff / token_subtype_ref marker shared with food/
-# treasure/blood) UNIONed with a byte-identical kept WORD MIRROR. The deleted
-# _HAND_FLOOR producer (`\\bclue\\b|\\binvestigate\\b`, scope 'you') is pinned here so
-# the _CLUE_MATTERS_MIRROR kept detector (_signals_ir) and the _CLUE_MATTERS_PLAN_MIRROR
-# voltron gate (_signals_regex) share ONE source. The mirror is REQUIRED, not optional:
-# the structural arm alone fires only 52 of the 163 commander-legal lane cards because
-# phase tags the Investigate keyword (→ artifacts_matter) but DROPS the Clue subtype off
-# the make_token subject (Deduce, Bygone Bishop, Thraben Inspector — make_token
-# subject=None), so the 112 pure-investigate / Clue-payoff cards survive only textually.
-# The two bare `\\b`-anchored words carry NO `[^.]*` span, so a flat scan over the
-# reminder-stripped oracle == the deleted floor Detector's per-clause scan (the regex
-# floor ran flat over kept_oracle in the IR path too). Investigate IS "create a Clue
-# artifact token" (CR 701.16); a Clue token is a colorless Clue artifact token (CR
-# 111.10f). The serve spec stays hand-registered in signal_specs.py.
-CLUE_MATTERS_REGEX = "\\bclue\\b|\\binvestigate\\b"
-
 # ADR-0027 β: color_change migrated to the Card IR via a byte-identical kept-mirror —
 # the deleted SWEEP producer is pinned here so the _COLOR_CHANGE_MIRROR kept detector
 # (_signals_ir) and the _COLOR_CHANGE_PLAN_MIRROR voltron gate (_signals_regex) share
@@ -696,31 +679,6 @@ COLOR_CHANGE_REGEX = (
     "becomes the color of your choice|becomes? (?:the color|all colors)"
 )
 
-# ADR-0027 β: animate_artifact migrated to the Card IR via a byte-identical kept-mirror —
-# the deleted SWEEP producer is pinned here so the _ANIMATE_ARTIFACT_MIRROR kept detector
-# (_signals_ir), the _ANIMATE_ARTIFACT_PLAN_MIRROR voltron gate (_signals_regex), and the
-# hand-registered serve (signal_specs) share ONE source. NOT a structural arm: the lane
-# is "artifacts become creatures" (Karn Silver Golem, March of the Machines, Ensoul
-# Artifact, Tezzeret the Seeker, Vehicle-crew animation), and phase parses it three
-# INCONSISTENT ways — base_pt_set/board_grant over an Artifact subject (March/Ensoul/
-# Tezzeret the Seeker), a becomes_type{Artifact} grant (Karn Silver Golem/Karn's Touch),
-# or a base_pt_set with subject=None (Karn's Touch's spell clause, every "target artifact
-# becomes a N/N artifact creature" whose subject phase drops). The pre-existing
-# cat=='animate' & 'Artifact'-subject arm fires on ZERO commander-legal cards (phase
-# never tags artifact-animation `animate`); a base_pt_set/board_grant/becomes_type-over-
-# Artifact arm either 90%-OVER-FIRES (47 ir_only: "becomes an artifact" type-conferral —
-# Liquimetal Coating/Memnarch/Argent Mutation; artifact-creature ANTHEMS — Galazeth/Food
-# Fight/Fountain Watch; "Artifacts are Foods/Clues/Equipment" — Ragost/Senator Peacock/
-# Dan Lewis) or, narrowed to drop those, LOSES 48 core animators (every Vehicle-crew
-# "becomes an artifact creature" + the subject=None spells). The artifact-animation is
-# NOT structurally separable from generic become / type-conferral, so the lane rides a
-# byte-identical mirror of this exact regex (commander-legal corpus: regex==mirror, 67/67
-# genuine vs Scryfall oracle, 0 over-fire). CR 110.1 / 305.7 (Vehicles / noncreature
-# artifacts gaining the creature type) / 613 (layer-4 type-changing). The lane's `[^.]*`
-# arms never cross a sentence, so the flat-text mirror == the per-clause SWEEP firing set.
-# SWEEP_LABELS keeps the human label; the serve stays hand-registered in signal_specs
-# reusing this constant.
-ANIMATE_ARTIFACT_REGEX = "(?:target |each )?(?:noncreature )?artifact(?:s)? (?:you control )?(?:becomes?|are|become) (?:an? )?(?:artifact )?creature|becomes? an artifact creature|(?:artifact or land|target artifact|noncreature artifact|artifact you control)[^.]*becomes? a[^.]*creature"
 
 # ADR-0027 β: ability_copy migrated to the Card IR via a byte-identical kept-mirror.
 # ONE pinned source the _ABILITY_COPY_MIRROR kept detector (_signals_ir), the
@@ -1072,7 +1030,7 @@ ARTIFACTS_MATTER_REGEX = (
     r"|artifact creatures? you control"
     r"|for each artifact you control"
     r"|whenever an? artifact (?:you control )?enters"
-    r"|whenever you cast an artifact|affinity for artifacts"
+    r"|affinity for artifacts"
     r"|artifact (?:card|spell)[^.]*(?:from|in)[^.]*graveyard"
     r"|search [^.]*\bfor [^.]*artifact[^.]*card|noncreature artifact card"
     r"|put (?:an?|that|up to \w+) artifact cards?[^.]*"
@@ -1081,7 +1039,6 @@ ARTIFACTS_MATTER_REGEX = (
     r"|sacrifices? (?:an?|another|two|three|x|\d+) artifacts?\b"
     r"(?!,? (?:or )?(?:an? )?(?:creature|enchantment|land|permanent))"
     r"|abilit(?:y|ies) of (?:an? )?artifacts?\b"
-    r"|becomes? an? artifact\b"
     r"|\bmetalcraft\b"
     r"|search (?:your library )?for an?[^.]*artifact card"
     r"|reveal an artifact card"
@@ -1127,13 +1084,14 @@ ENCHANTMENTS_MATTER_REGEX = (
     r"\benchantments? you control\b"
     r"|for each enchantment you control"
     r"|whenever an? enchantment (?:you control )?enters"
-    r"|cast (?:an?|your (?:first|second)) enchantment"
     r"|search (?:your library )?for an?[^.]*enchantment card"
     r"|return [^.]*enchantment cards?[^.]*(?:graveyard|hand)"
     r"|enchantment cards? in your hand"
     r"|reveal[^.]*enchantment cards?[^.]*hand|put all enchantment cards"
-    r"|create [^.]*\bRole token"
 )
+# The enchantment-cast idiom, kept apart so its hits carry the ``cast`` subject: a
+# cast trigger never sees an uncast permanent (CR 601.2i).
+ENCHANTMENTS_CAST_REGEX = r"cast (?:an?|your (?:first|second)) enchantment"
 # ADR-0027 — attack_matters (the COMBAT-trigger / attacked-this-turn payoff axis: a
 # card that CARES when a creature attacks — "whenever ~ attacks" triggers, the Raid /
 # "attacked this turn" combat-count condition, the "attacking causes" Isshin form, and
@@ -1659,10 +1617,6 @@ SWEEP_LABELS: dict[str, tuple[str, str]] = {
     "alt_cost_keyword": (
         "Alternative-cost keyword",
         "cards sharing the alternative-cost mechanic",
-    ),
-    "animate_artifact": (
-        "Animate artifacts",
-        "artifacts to animate plus artifact-creature payoffs",
     ),
     "anthem_static": ("Static anthem", "go-wide creatures to ride the anthem"),
     "attractions_matter": ("Attractions", "attraction openers and visit payoffs"),

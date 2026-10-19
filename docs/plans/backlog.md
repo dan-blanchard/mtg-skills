@@ -52,19 +52,24 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   cuts share, and the same holds for the flip-quality read the polymorph tune
   wanted. Script: the session scratch `lane_quality.py` (rerun recipe in
   `docs/plans/precon-audit-2026-10-18.md`).
-  (b) **Lane leftovers.** Bello's mana-value floor (4+) is not carried: a
-  `Signal` has no field for it and the subject must stay the card type, so
-  the Animation lane serves every noncreature artifact and enchantment (a
-  rock, an Equipment) and deck-tune proposed Tarrian's Soulcleaver as an
-  Animation add — a `cmc_min` on the per-subject serve, read off
-  `reads.filter_mana_value_floor`, is the fix. The old `animate_artifact`
-  regex lane ("Animate artifacts") is now a retire candidate: `animate_makers`
-  adds 23 cards it misses (Bello, March of the Machines, Ensoul Artifact);
-  the 27 only the regex catches are Vehicles, self-animators, copy effects
-  and two phase misparses (Alacrian Armory, Tezzeret the Schemer's emblem).
-  `clue_matters`' synth arm fires on bare investigate doers ("breadth
-  intended"), so Deep Clue Sea's Clues main counts Confirm Suspicions among
-  its 21 carers — the doer-under-payoff read, one lane over. Tomik, Wielder
+  (b) **Lane leftovers.** (Bello's floor is carried since the fourth pass:
+  `animate_makers|you|Artifact>=4`, `Serve.types_cmc_min`; the `animate_artifact`
+  regex lane is retired for `animate_makers` — 24 cards lost the old key with
+  no replacement, by design: 19 Vehicles and 2 artifacts that animate only
+  themselves, 2 copy effects (Saheeli, Sublime Artificer; True Polymorph).)
+  Phase misparses behind animation (report upstream, Dan posts): Alacrian
+  Armory ("that permanent … becomes an artifact creature if it's a Vehicle"
+  reads as the source animating itself); Hidden Guerrillas ("it" read as the
+  cast spell); Animate Artifact (the Aura animating itself), so none fires.
+  (`clue_matters` on bare investigate doers and the enchantment-token makers'
+  `enchantments_matter` are fixed in the fourth pass: a `<x>_matters` is a
+  payoff shape — a count, a grant, a watched subject, a sacrifice you pay —
+  never a maker; `clue_matters` 165 → 31, `food_matters` 53 → 69. Three Clue
+  cards now carry no Clue key at all, maker-lane gaps in `counters_voltron.py`:
+  Officious Interrogation (phase parks "investigate X times" in an
+  Unimplemented where-X residue), Curious Inquiry (an Aura granting an
+  investigate trigger — `_resource_token_makers` does not walk granted
+  bodies), In Too Deep.) Tomik, Wielder
   of Law lost `superfriends_matters`: its "affinity for planeswalkers" is a
   real count, but the concept tree exposes only the keyword name, not its
   parameter. The superfriends synth arm still fires on protective "creature
@@ -99,15 +104,17 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   residue); Flames of the Blood Hand, Insult // Injury, Kaboom!, Tetsuo parse
   no damage at all (their `direct_damage` is a ledgered bridge). One false
   positive: Monsoon's "tap all Islands" filter reads as a permanent target.
-  `ROLE_SEARCH["interaction"]` still sources `creature-removal`'s Fight /
-  Infect / Wither keywords that `role_of` deliberately does not count
-  (pre-existing).
-  (d) **The ETB-vs-cast gap in the typed-cheat pair rows.** The `*_matters`
-  idents do not separate an enters trigger from a cast trigger, so
-  Enchantress's Presence and Sythis ("whenever you cast an enchantment
-  spell") match the enchantment-cheat row and Sram the artifact one, though a
-  cheated permanent is never cast (CR 601.2i vs 603.6a); no ident in the
-  ledger's vocabulary separates them today.
+  (d) **Text-mirror leftovers behind the payoff lanes.** The three `_matters`
+  text mirrors (artifacts / enchantments / the cast arm) run over oracle
+  clauses minus a string match against an animating static's description
+  (`board_and_ramp._non_animation_clauses`) because nothing aligns a clause
+  with the unit phase typed it as; the deeper shape is to run the mirrors over
+  each non-claimed unit's description plus the residue text. Rise and Shine
+  still fires `artifacts_matter|you|` through another arm ("put four +1/+1
+  counters on each artifact that became a creature this way"). (The pair
+  rows read candidates without membership idents since the fourth pass, so a
+  card with both a cast and an enters payoff — Tuvasa the Sunlit, Sai — fires
+  the typed-cheat rows and Sol Ring / Pacifism no longer score as payoffs.)
 
 - **Competitive Brawl's "banned as a commander" reads as `restricted`.** The
   2026-10-12 B&R update introduced the category (mtg.wiki "Competitive Brawl"
@@ -130,9 +137,17 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
 - **Lane gaps behind the held serve specs** (the serve-ident pass, 2026-10-18;
   the full table is in `docs/plans/serve-idents-and-avenue-support.md` §2
   "Measured"). 41 specs keep their regex because the lane misses what the regex
-  catches: +1/+1 counters placed by keyword actions (bolster, adapt, renown,
-  monstrosity, connive, explore, endure, awaken — blocks plus_one, amass,
-  incubate, modified); surveil as graveyard filling; granted / replacement
+  catches (the +1/+1 keyword actions converted 2026-10-18 —
+  `reads.keyword_counter_placements`; left of that row: `modified_matters`
+  fires on 18 cards while 19 "modified" payoffs miss it, and "whenever you
+  proliferate" / granted or X proliferate has no ident; surveil and a mill
+  cost converted the same day — `reads.self_graveyard_fills` — leaving
+  collect-evidence and forage costs, descend payoffs, the Empower Jace token's
+  surveil, granted delve / soulshift X and a craft cost as the remainder, and
+  ~130 `graveyard_matters|you` false positives from the typed arms: morbid
+  "if a creature died this turn" cards and graveyard hate such as Bojuka Bog;
+  the `self_mill_fill` preset predicate still reads an opponent-wrapped mill
+  as yours); granted / replacement
   Treasure and Food makers, forage; energy payers; random-discard outlets and
   granted connive; foretell granters and cost reducers; "all damage that would
   be dealt to you is dealt to X instead"; Bribery-style theft from an

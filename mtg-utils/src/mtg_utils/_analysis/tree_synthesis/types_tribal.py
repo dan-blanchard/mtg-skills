@@ -13,7 +13,6 @@ from collections.abc import Callable
 from mtg_utils._analysis import signal_keys
 from mtg_utils._analysis._subtypes import CREATURE_SUBTYPES
 from mtg_utils._analysis._sweep_detectors import (
-    ANIMATE_ARTIFACT_REGEX,
     COLOR_CHANGE_REGEX,
     ISLAND_MATTERS_REGEX,
     VEHICLES_MATTER_REGEX,
@@ -678,37 +677,6 @@ def _arm_island_matters(tree: ConceptTree) -> ConceptNode | None:
     )
 
 
-# ── batch T3-makers-type: animate_artifact bucket-B (verbatim relocation) ────
-# CR 613.1d + 702.122b: "artifacts become creatures" (Karn Silver Golem, March
-# of the Machines, Vehicle-crew animation). phase parses this THREE
-# inconsistent ways (batch-12 adjudication, ``_sweep_detectors.
-# ANIMATE_ARTIFACT_REGEX`` module docstring) — no clean structural
-# separation from generic become/type-conferral exists (a raw ``animate``
-# arm fires on ZERO commander-legal cards; a base_pt_set/AddType-over-
-# Artifact arm either 90%-over-fires or loses 48 core animators) — so this
-# has no competing Tier-1 predicate and relocates the deleted
-# ``_ANIMATE_ARTIFACT_RX`` verbatim.
-_ANIMATE_ARTIFACT_SYNTH_RX = re.compile(ANIMATE_ARTIFACT_REGEX, re.IGNORECASE)
-
-
-def _matches_animate_artifact_idiom(oracle: str) -> bool:
-    return bool(_ANIMATE_ARTIFACT_SYNTH_RX.search(_REMINDER.sub(" ", oracle or "")))
-
-
-def _arm_animate_artifact(tree: ConceptTree) -> ConceptNode | None:
-    """Synthesize an ``animate_artifact`` node (the deleted
-    ``_ANIMATE_ARTIFACT_RX`` relocated verbatim)."""
-    if not _matches_animate_artifact_idiom(tree.oracle or ""):
-        return None
-    return _synthetic_concept(
-        arm_id="animate_artifact",
-        concept="synth_animate_artifact",
-        scope="you",
-        subject=(),
-        desc="bucket-B artifact-becomes-creature (CR 613.1d/702.122b)",
-    )
-
-
 # ── batch T3-makers-type: color_change bucket-B (verbatim relocation) ────────
 # CR 105.3: "becomes the color of your choice" / "becomes all colors" (Alchor's
 # Tomb, Distorting Lens). phase parses this inconsistently (20 cards as a
@@ -806,8 +774,8 @@ def _arm_vehicles_matter(tree: ConceptTree) -> ConceptNode | None:
 # improvements over the deleted ``_MANLAND_MIRROR``:
 #
 # * a SelfRef-affected nested static (an Activated ability's own GenericEffect
-#   — the projection does NOT lift these, per the animate_artifact/
-#   waterbend precedent) conferring ``AddType Creature`` on a card that IS
+#   — the projection does NOT lift these; :func:`iter_mod_sites` reaches
+#   them) conferring ``AddType Creature`` on a card that IS
 #   itself a Land (the "Restless" self-animate manland cycle — Restless
 #   Anchorage, Crawling Barrens — the latter a genuine RECOVER the mirror
 #   MISSED: no "land" word precedes "becomes a 0/0 Elemental creature").

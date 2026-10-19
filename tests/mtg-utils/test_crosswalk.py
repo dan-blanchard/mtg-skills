@@ -33,6 +33,7 @@ from mtg_utils._analysis.lanes import (
     SERVED_SIGNAL_KEYS,
     extract_crosswalk_signals,
 )
+from mtg_utils._analysis.lanes.graveyard_lifeloss import self_mill_fill
 from mtg_utils._analysis.signal_trees import as_signal_tree
 from mtg_utils._card_ir.branches import apply_misreads
 from mtg_utils._card_ir.crosswalk import (
@@ -4412,6 +4413,95 @@ def test_graveyard_makers_travel_through_caradhras_mines_branch_only():
     assert ("graveyard_makers", "you", "") in idents
     assert ("ramp", "you", "") in idents
     assert ("tutor", "you", "") not in idents
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Thought Erasure",  # Surveil 1 in a spell's chain
+        "Tocasia, Dig Site Mentor",  # a granted "{T}: Surveil 1."
+        "Millikin",  # "{T}, Mill a card: Add {C}."
+        "Sinister Concoction",  # mill a card inside a composite cost
+        "Deep Spawn",  # "sacrifice Deep Spawn unless you mill two cards"
+        "Manifest Dread",  # the card not manifested goes to your graveyard
+    ],
+)
+def test_graveyard_makers_surveil_and_self_mill_cost(name):
+    """Surveil puts any number of the looked-at cards into your graveyard
+    (CR 701.25a), manifest dread puts the card it doesn't manifest there
+    (CR 701.62a), and a mill puts the top of your library there (CR 701.17a;
+    counting one paid as a cost is the read's own decision). None is a ``Mill``
+    effect, so all come through ``self_graveyard_fills``. Surveil keeps
+    ``topdeck_selection`` too."""
+    assert ("graveyard_makers", "you", "") in _idents(name)
+
+
+@pytest.mark.parametrize("name", ["Unending Whisper", "Electro's Bolt"])
+def test_graveyard_makers_harmonize_and_mayhem(name):
+    """Harmonize (CR 702.180a) and mayhem (CR 702.187b) cast the card from your
+    graveyard, like flashback: the cast-from-graveyard keyword family."""
+    assert ("graveyard_makers", "you", "") in _idents(name)
+
+
+def test_graveyard_makers_not_scry_or_opponent_mill():
+    """A scry keeps every card in the library (CR 701.22a): Preordain is top-deck
+    selection only. "Each opponent mills eight cards" (Maddening Cacophony) fills
+    their graveyards: phase targets the mill at ``Controller`` under an
+    ``Opponent`` wrapper, and the wrapper actor decides whose library it is."""
+    assert "graveyard_makers" not in _keys("Preordain")
+    assert "topdeck_selection" in _keys("Preordain")
+    assert "topdeck_selection" in _keys("Thought Erasure")
+    assert ("graveyard_makers", "you", "") not in _idents("Maddening Cacophony")
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Maddening Cacophony",  # "Each opponent mills eight cards."
+        "Bruvac the Grandiloquent",  # "If an opponent would mill …" replacement
+        "Fraying Sanity",  # a Curse: "enchanted player mills X cards"
+        "Curse of the Bloody Tome",  # "enchanted player's upkeep, that player mills"
+    ],
+)
+def test_mill_of_another_players_library_is_no_self_fill(name):
+    """phase writes each of these mills Controller-relative; ``effect_actor_scope``
+    reads the real actor (the owning wrapper's opponent ``player_scope``, the
+    replacement's ``valid_player``, an Aura's enchanted player — CR 303.4: an Aura
+    can enchant any player). The player who mills fills their own graveyard
+    (CR 701.17a), so neither the lane nor the self-mill preset reads it as yours."""
+    assert ("graveyard_makers", "you", "") not in _idents(name)
+    assert not self_mill_fill(_tree(name))
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Fauna Shaman",  # "{G}, {T}, Discard a creature card: Search …"
+        "Lion's Eye Diamond",  # "Discard your hand, Sacrifice ~: …"
+        "Zombie Infestation",  # "Discard two cards: Create a 2/2 … Zombie"
+    ],
+)
+def test_graveyard_makers_discard_cost(name):
+    """A discard you pay as a cost moves the card from your hand to your
+    graveyard (CR 701.9a), read structurally off the cost leaf."""
+    assert ("graveyard_makers", "you", "") in _idents(name)
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Mind Rot",  # an opponent discards (an effect, their graveyard)
+        "Krosan Tusker",  # cycling: "Discard this card" fodder
+        "Amok",  # "Discard a card at random" (CR 701.9b)
+    ],
+)
+def test_graveyard_makers_not_other_discards(name):
+    assert ("graveyard_makers", "you", "") not in _idents(name)
+
+
+def test_self_mill_fill_keeps_self_and_target_player_mill():
+    assert self_mill_fill(_tree("Stitcher's Supplier"))  # "mill three cards"
+    assert self_mill_fill(_tree("Hedron Crab"))  # "target player mills"
 
 
 def test_removal_counter_tuck_choice_of_position():
@@ -12921,16 +13011,17 @@ def test_evasion_denial_static_parse_failure_recovery():
 # ── Batch 12: §D mirror-parity lanes ─────────────────────────────────────────
 
 
-def test_animate_artifact_mirror_primary():
-    """CR 613.1d + 702.122b: Tier-1 (ADR-0036/0037 fold — the
-    ``ANIMATE_ARTIFACT_REGEX`` mirror relocated verbatim to a bucket-B
-    ``tree_synthesis`` arm, no competing Tier-1 predicate) fires (Karn,
-    Silver Golem; Titania's Song); a bare becomes-an-artifact type
-    conferral (Liquimetal Coating, Mycosynth Lattice) never fires."""
-    assert ("animate_artifact", "you", "") in _idents("Karn, Silver Golem")
-    assert ("animate_artifact", "you", "") in _idents("Titania's Song")
-    assert "animate_artifact" not in _keys("Liquimetal Coating")
-    assert "animate_artifact" not in _keys("Mycosynth Lattice")
+def test_animate_artifact_regex_lane_is_retired_for_animate_makers():
+    """The ``animate_artifact`` regex lane retired into the structural
+    ``animate_makers`` read (CR 613.1d): its animators (Karn, Silver Golem;
+    Titania's Song) emit ``animate_makers|you|Artifact`` and nothing emits the
+    old key; a bare becomes-an-artifact type conferral (Liquimetal Coating,
+    Mycosynth Lattice) adds no Creature type and fires neither."""
+    for name in ("Karn, Silver Golem", "Titania's Song"):
+        assert ("animate_makers", "you", "Artifact") in _idents(name)
+        assert "animate_artifact" not in _keys(name)
+    for name in ("Liquimetal Coating", "Mycosynth Lattice"):
+        assert not {"animate_artifact", "animate_makers"} & _keys(name)
 
 
 def test_color_change_mirror_primary():
@@ -14176,17 +14267,34 @@ def test_food_matters_three_arms_and_maker_boundary():
     assert "food_makers" in pie
 
 
-def test_clue_matters_structural_and_residue_mirror():
-    """CR 701.16a + 111.10f: the word mirror carries the investigate DOER
-    (Thraben Inspector — breadth intended, the b13 suspend_matters
-    precedent; clue_makers co-fires), the becomes-Clue static (In Too
-    Deep) and the trigger+mirror pair (Bygone Bishop); no clue text, no
-    fire (Hero's Downfall)."""
-    inspector = _keys("Thraben Inspector")
-    assert "clue_matters" in inspector
-    assert "clue_makers" in inspector
-    assert ("clue_matters", "you", "") in _idents("In Too Deep")
-    assert ("clue_matters", "you", "") in _idents("Bygone Bishop")
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Erdwal Illuminator",  # an ``Investigated`` trigger
+        "Five Hundred Year Diary",  # "for each Clue you control" (a count)
+        "Merchant of Truth",  # "Clues you control have exalted" (a grant)
+        "Briarbridge Patrol",  # "if you sacrificed three or more Clues"
+        "Daring Sleuth // Bearer of Overwhelming Truths",  # "you sacrifice a Clue"
+        "Tireless Tracker",  # "Whenever you sacrifice a Clue"
+    ],
+)
+def test_clue_matters_is_a_clue_payoff(name):
+    """CR 701.16a ("Investigate" means "Create a Clue token") / 111.10f: a card
+    that pays off Clues — counts them, grants them, watches their sacrifice or
+    the investigate action — fires clue_matters, read off its filters and
+    trigger mode."""
+    assert ("clue_matters", "you", "") in _idents(name)
+
+
+@pytest.mark.parametrize(
+    "name", ["Thraben Inspector", "Bygone Bishop", "Confirm Suspicions"]
+)
+def test_clue_maker_is_not_a_clue_payoff(name):
+    """A card that only investigates is a Clue MAKER (clue_makers), never the
+    payoff. No clue text, no fire (Hero's Downfall)."""
+    keys = _keys(name)
+    assert "clue_makers" in keys
+    assert "clue_matters" not in keys
     assert "clue_matters" not in _keys("Hero's Downfall")
 
 
@@ -15380,9 +15488,13 @@ def test_enchantments_matter_cast_trigger():
     (Argothian Enchantress, Enchantress's Presence). phase parses a ``cast_spell``
     trigger whose ``valid_card`` is Enchantment-typed + a Draw payoff body; the
     is-enchantment membership floor can't recover it (the body is a Draw). Routed
-    off the watched-spell filter's core type. CR 603.2."""
-    assert ("enchantments_matter", "you", "") in _idents("Argothian Enchantress")
-    assert ("enchantments_matter", "you", "") in _idents("Enchantress's Presence")
+    off the watched-spell filter's core type (CR 603.2), with the subject
+    ``cast``: it triggers as the spell becomes cast (CR 601.2i), never on an
+    enchantment put onto the battlefield uncast."""
+    for name in ("Argothian Enchantress", "Enchantress's Presence"):
+        idents = _idents(name)
+        assert ("enchantments_matter", "you", "cast") in idents
+        assert ("enchantments_matter", "you", "") not in idents
 
 
 @pytest.mark.parametrize(
@@ -16129,33 +16241,87 @@ def test_additional_cost_carrier_gain_classes(name, key):
     assert key in _keys(name)
 
 
-def test_bello_ledgered_bridge_membership():
-    """MEMBERSHIP pin (survived graduation): Bello, Bard of the Brambles
-    fires ``artifacts_matter``. The MECHANISM was the first ledgered bridge
-    (``bello_static_animate_artifacts`` — phase's static parser failed the
-    whole animation line); the v0.23.0 bump (task #84) landed the structure
-    and the bridge GRADUATED: the anthem arm's one-level Or/And ``affected``
-    descent in :func:`_artifacts_enchantments_matter` now reads the parsed
-    Continuous static per-branch. ``enchantments_matter`` was already a
-    member pre-graduation (the legacy byte-mirror's "enchantment you
-    control" clause scan), so the structural read changes no membership."""
-    assert "artifacts_matter" in _keys("Bello, Bard of the Brambles")
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Bello, Bard of the Brambles",
+        "Ensoul Artifact",
+        "March of the Machines",
+        "Opalescence",
+        # "becomes an artifact creature" — a type change, not a payoff
+        "Titania's Song",
+        "Karn's Touch",
+        "Karn, Silver Golem",
+    ],
+)
+def test_animation_static_is_not_an_artifacts_or_enchantments_payoff(name):
+    """A static that makes noncreature artifacts / enchantments creatures is a
+    layer-4 type change (CR 613.1d): ``animate_makers``, never the
+    artifacts/enchantments payoff. Bello's "each non-Equipment artifact and
+    non-Aura enchantment you control … is a 4/4 Elemental creature" used to fire
+    both keys through the anthem arm (its set_pt / grant concepts) and the text
+    mirror's "enchantment you control"."""
+    idents = _idents(name)
+    assert any(k == "animate_makers" for k, _s, _su in idents)
+    assert not any(
+        k in ("artifacts_matter", "enchantments_matter") for k, _s, _su in idents
+    )
 
 
-def test_bello_animation_static_structural_mechanism():
-    """MECHANISM pin (the graduation's structural replacement, task #84):
-    Bello's animation line parses at phase v0.23.0 as ONE Continuous static
-    whose ``affected`` is ``Or(Typed(You, non-Equipment Artifact, cmc>=4),
-    Typed(You, non-Aura Enchantment, cmc>=4))`` with set_pt/grant_keyword
-    modification concepts — the anthem arm's per-branch
-    ``_generic_board_lanes`` re-apply (CR 604.3 multi-object statics; the
-    Silkguard Or-descent precedent) fires BOTH type lanes structurally, no
-    parse-failure residue left to bridge. Guards the descent: if a
-    projection change collapses the static's Or branches or drops the
-    set_pt/grant_keyword concepts, this fails before the membership pin."""
-    idents = _idents("Bello, Bard of the Brambles")
-    assert ("artifacts_matter", "you", "") in idents
+def test_adds_creature_type_reads_the_animation_static():
+    """CR 613.1d: Bello's static adds the Creature type (an ``AddType``);
+    Tempered Steel's anthem changes no type."""
+    from mtg_utils._card_ir.crosswalk import adds_creature_type, iter_static_defs
+
+    def animates(name: str) -> bool:
+        return any(
+            adds_creature_type(d)
+            for u in _tree(name).units
+            for d in iter_static_defs(u.node)
+        )
+
+    assert animates("Bello, Bard of the Brambles")
+    assert not animates("Tempered Steel")
+
+
+def test_named_filter_subtypes_skips_sacrificed_filters():
+    """A filter naming Clue that the card counts or grants to is read (Five
+    Hundred Year Diary's count, Merchant of Truth's "Clues you control have
+    exalted"); a sacrificed filter is left to the sacrifice read (Nimble
+    Hobbit's Food payment), and a token the card only makes names no filter."""
+    from mtg_utils._card_ir.crosswalk import named_filter_subtypes
+
+    def kinds(name: str) -> set[str]:
+        return {k for u in _tree(name).units for k in named_filter_subtypes(u.node)}
+
+    assert "clue" in kinds("Five Hundred Year Diary")
+    assert "clue" in kinds("Merchant of Truth")
+    assert "food" not in kinds("Nimble Hobbit")
+    assert "clue" not in kinds("Thraben Inspector")
+
+
+def test_starfield_of_nyx_animates_and_recurs_enchantments():
+    """Starfield of Nyx animates (``animate_makers``) AND is a genuine
+    enchantments payoff on its other lines: "return target enchantment card from
+    your graveyard to the battlefield" and "as long as you control five or more
+    enchantments"."""
+    idents = _idents("Starfield of Nyx")
+    assert ("animate_makers", "you", "Enchantment") in idents
     assert ("enchantments_matter", "you", "") in idents
+
+
+@pytest.mark.parametrize(
+    ("name", "ident"),
+    [
+        ("Chief of the Foundry", ("artifacts_matter", "you", "")),
+        ("Tempered Steel", ("artifacts_matter", "you", "")),
+        ("Sterling Grove", ("enchantments_matter", "you", "")),
+    ],
+)
+def test_type_anthem_still_fires_the_payoff(name, ident):
+    """A real artifact / enchantment anthem that makes nothing a creature keeps
+    the anthem arm."""
+    assert ident in _idents(name)
 
 
 # ── ADR-0038 W4 giant: direct_damage (structural arms + verified CR) ─────────
@@ -16767,27 +16933,47 @@ def test_enchantments_matter_excludes_symmetric_library_reset_shed():
 
 
 @pytest.mark.parametrize(
-    ("name", "lane"),
+    "name", ["Smoke Spirits' Aid", "Ellivere of the Wild Court", "Monstrous Rage"]
+)
+def test_enchantment_token_maker_is_not_an_enchantments_payoff(name):
+    """CR 205.3h: Role / Aura tokens are enchantments (CR 111.10j-r: the Role
+    tokens are Aura Role enchantment tokens), so these cards MAKE enchantments —
+    the doer side, counted as the Enchantments avenue's depth by its serve, never
+    the enchantments_matter payoff (Smoke Spirits' Aid's recovered Aura token;
+    Ellivere's and Monstrous Rage's Roles)."""
+    assert not any(k == "enchantments_matter" for k, _s, _su in _idents(name))
+
+
+def test_enchantment_creature_token_maker_keeps_only_its_cast_payoff():
+    """Daxos the Returned makes enchantment creature tokens (a maker) and gets an
+    experience counter whenever you cast an enchantment spell (a cast payoff)."""
+    idents = _idents("Daxos the Returned")
+    assert ("enchantments_matter", "you", "cast") in idents
+    assert ("enchantments_matter", "you", "") not in idents
+
+
+@pytest.mark.parametrize(
+    ("name", "ident"),
     [
-        # The named-Aura-attached shape phase's token grammar can't
-        # structure — the whole for-each-target clause parks as ONE
-        # Unimplemented residue; the make_token ALLOWLIST row recovers it
-        # and the raw-read branch sees "Aura enchantment token". This was
-        # enchantments_matter's LAST genuine gap at promotion.
-        ("Smoke Spirits' Aid", "enchantments_matter"),
-        # "create a white and black Spirit enchantment creature token" —
-        # same recovered shape, plain enchantment-creature wording.
-        ("Daxos the Returned", "enchantments_matter"),
+        ("Eidolon of Blossoms", ("enchantments_matter", "you", "")),  # constellation
+        ("Setessan Champion", ("enchantments_matter", "you", "")),
+        ("Puresteel Paladin", ("artifacts_matter", "you", "")),
+        ("Sythis, Harvest's Hand", ("enchantments_matter", "you", "cast")),
+        ("Enchantress's Presence", ("enchantments_matter", "you", "cast")),
+        # "Whenever you cast an Aura, Equipment, or Vehicle spell": the subtypes'
+        # card types (CR 205.3g/h).
+        ("Sram, Senior Edificer", ("artifacts_matter", "you", "cast")),
+        ("Sram, Senior Edificer", ("enchantments_matter", "you", "cast")),
     ],
 )
-def test_recovered_make_token_type_words_route_matter_lanes(name, lane):
-    """ADR-0038 post-giants batch (CR 111.2 "create" / 205.3g predefined
-    artifact-token subtypes, verified via rules-lookup this session): a
-    ``make_token`` node recovered off an Unimplemented residue keeps the
-    phase wrapper as its ``.node`` (no typed token subject), so the
-    artifacts/enchantments lane reads the create-clause's own type words
-    — the dig_until / hand_revealed recovered-node precedent."""
-    assert (lane, "you", "") in _idents(name)
+def test_type_payoff_subject_separates_cast_from_enters(name, ident):
+    """An enters trigger (CR 603.6a) fires on a permanent put onto the
+    battlefield; a cast trigger (CR 601.2i) only on a cast spell — subject
+    ``cast`` keeps the two apart on the same key."""
+    assert ident in _idents(name)
+    key, scope, subject = ident
+    other = (key, scope, "" if subject == "cast" else "cast")
+    assert other not in _idents(name)
 
 
 # ── ADR-0039 W8 (KEPT-twelve wave) — copy_limit / base_power_matters /

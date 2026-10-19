@@ -144,13 +144,41 @@ Mains that moved: Animated Army Artifacts → Animation; Deep Clue Sea Artifacts
 Clues / investigate; Abzan Armor none → Toughness as power. Desert Bloom gained a
 commander-held Deserts sub (18 deep). Blame Game lost its phantom Superfriends sub.
 
+## Fourth pass (same day)
+
+The leftovers of the backlog entry: Bello's mana-value floor carried
+(`animate_makers|you|Artifact>=4`, `Serve.types_cmc_min`) and the `animate_artifact`
+regex lane retired; `clue_matters` and `enchantments_matter` are payoff shapes, never
+a maker (`clue_matters` 165 → 31 cards); `artifacts_matter` / `enchantments_matter`
+carry subject `cast` on a cast-trigger payoff and the typed-cheat pair rows read
+candidates without membership idents (Sol Ring no longer scores as an artifact
+payoff under Arcum); an animation static is not an anthem; the +1/+1 keyword
+actions and surveil / a mill or discard cost you pay reach their lanes through
+shared reads, converting six held serve specs off their regexes; the interaction
+role is sourced by its own presets and `roles.is_interaction`; a non-held main
+whose builders mostly care about the primary is a sub (Quick Draw's spells in the
+graveyard); "Activated-ability engine" is cared about by its untap engines.
+
+| | third pass | fourth pass |
+|---|---|---|
+| precons read SPREAD-THIN | 1 of 25 | 1 of 25 (Squirreled Away) |
+| tuner cuts / matching a guide | 90 / 43 | 86 / 45 |
+| tuner weak-list matching a guide | 26 | 25 |
+| tuner adds / matching a guide | 90 / 8 | 86 / 10 |
+| guide cuts the tuner protects | 127 | 131 |
+
+Mains that moved: Abzan Armor Activated-ability engine → Toughness as power;
+Virtue and Valor Enchantments → Voltron / equipment & auras (Ellivere's Roles
+are depth, not payoffs); Deep Clue Sea's main is "Clue makers / investigate"
+with 12 carers instead of 21. Animated Army's Animation lane is 20 deep (the
+mana-value 4+ cards) and no longer proposes an Equipment as an Animation add.
+
 ## What is left
 
 `docs/plans/backlog.md`, "What the polymorph tune and the 25-precon audit still
-get wrong": Bello's mana-value floor, the `animate_artifact` regex lane to
-retire, `clue_matters` on bare investigate doers, the phase gaps behind the
-interaction role and the superfriends veto, the ETB-vs-cast gap in the typed-cheat
-pair rows.
+get wrong": the phase gaps behind the interaction role, the superfriends veto and
+animation, the typed-cheat pair rows' veto of a card with both a cast and an
+enters payoff, and the held serve specs' remainders.
 
 ## Rerunning
 

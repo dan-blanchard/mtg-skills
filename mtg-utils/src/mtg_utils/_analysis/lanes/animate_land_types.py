@@ -1,4 +1,4 @@
-"""Two subject-carrying lanes the 25-precon audit (2026-10-18) found missing:
+"""Two subject-carrying lanes the 25-precon audit found missing:
 animation (``animate_makers``) and land-subtype payoffs (``land_type_matters``).
 
 * ``animate_makers|you|<Type>`` — a continuous effect that makes noncreature
@@ -6,7 +6,9 @@ animation (``animate_makers``) and land-subtype payoffs (``land_type_matters``).
   4; CR 205.1b: "in addition to its other types" / "an artifact creature" keep
   the permanent's prior types). Bello, Bard of the Brambles, March of the
   Machines, Ensoul Artifact, Opalescence, Tezzeret, Agent of Bolas's -1. The
-  subject is the animated card type, spelled as ``cheat_into_play``'s is.
+  subject is the animated card type, spelled as ``cheat_into_play``'s is, plus
+  the animated set's mana-value floor when it has one (Bello: ``Artifact>=4`` —
+  ``signal_keys.animate_subject``).
 * ``land_type_matters|you|<Subtype>`` — a card that counts, watches or grants
   to lands of one land type (CR 205.3i): Yuma, Proud Protector's Desert
   trigger, Gatebreaker Ram's Gate count, Maze's End's ten-Gates win. The
@@ -25,9 +27,12 @@ from mtg_utils._card_ir.crosswalk import (
     LAND_SUBTYPE_WORDS,
     AbilityUnit,
     ConceptTree,
+    adds_creature_type,
     filter_controller,
     filter_core_types,
+    filter_mana_value_floor,
     filter_subtypes,
+    iter_nested_trigger_defs,
     iter_static_defs,
     iter_threaded_target_statics,
     tag_of,
@@ -41,22 +46,6 @@ from mtg_utils._card_ir.crosswalk import (
 # this one; a filter that already names Creature ("target creature becomes an
 # artifact creature") animates nothing.
 _ANIMATE_SUBJECT_TYPES = ("Artifact", "Enchantment", "Planeswalker", "Battle")
-
-
-def _adds_creature_type(static_def: object) -> bool:
-    """Whether a continuous effect's modifications make its objects creatures
-    (CR 613.1d): an ``AddType{core_type: Creature}`` ("is a creature in addition
-    to its other types"), or a ``SetCardTypes`` naming Creature ("becomes a green
-    Elk creature" — Oko, Thief of Crowns's +1, which replaces the other types)."""
-    for mod in getattr(static_def, "modifications", None) or ():
-        tag = tag_of(mod)
-        if tag == "AddType" and getattr(mod, "core_type", None) == "Creature":
-            return True
-        if tag == "SetCardTypes" and "Creature" in (
-            getattr(mod, "core_types", None) or ()
-        ):
-            return True
-    return False
 
 
 def _animated_filters(unit: AbilityUnit) -> Iterator[object]:
@@ -73,17 +62,28 @@ def _animated_filters(unit: AbilityUnit) -> Iterator[object]:
     is the card making only itself a creature and is never read."""
     for sdef in iter_static_defs(unit.node):
         aff = getattr(sdef, "affected", None)
-        if not _adds_creature_type(sdef):
+        if not adds_creature_type(sdef):
             continue
         if tag_of(aff) in ("Typed", "Or", "And"):
             yield aff
-        elif tag_of(aff) == "TriggeringSource" and unit.origin == "trigger":
+        elif tag_of(aff) == "TriggeringSource" and unit.trigger_event == "enters":
             # "Whenever a Vehicle you control enters, it becomes an artifact
-            # creature" (Kolodin, Triumph Caster): the trigger's watched object.
+            # creature" (Kolodin, Triumph Caster): the trigger's watched object,
+            # the permanent that entered. The gate admits enters triggers only,
+            # where the triggering source is the permanent ``valid_card``
+            # describes. Phase reads Hidden Guerrillas's "When an opponent casts
+            # an artifact spell, ... it becomes a 5/3" (``it`` = itself) as
+            # ``TriggeringSource`` under a cast trigger; admitted there, the
+            # cast artifact spell would read as the animated object
+            # (``test_hidden_guerrillas_self_animation_is_still_misparsed``).
             yield getattr(unit.node, "valid_card", None)
-    for resolved, sdef in iter_threaded_target_statics(unit.node):
-        if _adds_creature_type(sdef):
-            yield resolved
+    # The ability's own chain, then each trigger it grants or puts on an emblem
+    # (Tezzeret the Schemer's -7: "At the beginning of combat on your turn,
+    # target artifact you control becomes an artifact creature").
+    for root in (unit.node, *iter_nested_trigger_defs(unit.node)):
+        for resolved, sdef in iter_threaded_target_statics(root):
+            if adds_creature_type(sdef):
+                yield resolved
 
 
 def _filter_arms(filt: object) -> Iterator[object]:
@@ -96,13 +96,15 @@ def _filter_arms(filt: object) -> Iterator[object]:
         yield filt
 
 
-def _animate_subjects(filt: object) -> set[str]:
-    """The ``animate_makers`` subjects one animated filter names: each arm's
-    noncreature, nonland permanent card type — a core type, or the card type a
-    subtype belongs to (CR 205.3g/h: Vehicle → Artifact, Saga → Enchantment) —
-    and "" for an arm naming only "permanent" (no one type). An arm that names
-    Creature or Land, or another player's permanents, adds nothing."""
-    out: set[str] = set()
+def _animate_subjects(filt: object) -> set[tuple[str, int | None]]:
+    """The ``(card type, mana-value floor)`` pairs one animated filter names: each
+    arm's noncreature, nonland permanent card type — a core type, or the card
+    type a subtype belongs to (CR 205.3g/h: Vehicle → Artifact, Saga →
+    Enchantment) — with the arm's own floor (``filter_mana_value_floor``:
+    Bello's "mana value 4 or greater"), and ``("", None)`` for an arm naming
+    only "permanent" (no one type). An arm that names Creature or Land, or
+    another player's permanents, adds nothing."""
+    out: set[tuple[str, int | None]] = set()
     for arm in _filter_arms(filt):
         if filter_controller(arm) == "Opponent":
             continue
@@ -113,11 +115,12 @@ def _animate_subjects(filt: object) -> set[str]:
         if sub_types & {"Creature", None} and not cores:
             continue  # a creature or land subtype ("Forests") — not this lane
         named = cores | {t for t in sub_types if t}
-        typed = {t for t in _ANIMATE_SUBJECT_TYPES if t in named}
+        typed = [t for t in _ANIMATE_SUBJECT_TYPES if t in named]
+        floor = filter_mana_value_floor(arm)
         if typed:
-            out |= typed
+            out.update((t, floor) for t in typed)
         elif "Permanent" in cores:
-            out.add("")
+            out.add(("", None))
     return out
 
 
@@ -125,8 +128,9 @@ def _animate_makers(tree: ConceptTree) -> list[Signal]:
     """animate_makers — one Signal per card type the card's effects animate
     (module docstring; the read is :func:`_animated_filters`).
 
-    A mana-value floor on the animated set (Bello's "mana value 4 or greater")
-    is the card's own and is not carried: the subject is the type. Out of scope:
+    The subject is the type plus the animated set's mana-value floor when it
+    has one (``signal_keys.animate_subject``: Bello's ``Artifact>=4``). Out of
+    scope:
     a type conferral that adds no Creature (Liquimetal Coating), a land
     animation (the land-creatures lanes). Phase v0.104.0 parses Animate
     Artifact's "enchanted artifact ... is an artifact creature" as a ``SelfRef``
@@ -135,7 +139,7 @@ def _animate_makers(tree: ConceptTree) -> list[Signal]:
     # modification anywhere, no animation.
     if not tree.has_typed("AddType", "SetCardTypes"):
         return []
-    found: set[str] = set()
+    found: set[tuple[str, int | None]] = set()
     raw = ""
     for unit in tree.units:
         for filt in _animated_filters(unit):
@@ -143,10 +147,19 @@ def _animate_makers(tree: ConceptTree) -> list[Signal]:
             if subjects - found and not raw:
                 raw = getattr(unit.node, "description", "") or ""
             found |= subjects
+    order = (*_ANIMATE_SUBJECT_TYPES, "")
     return [
-        Signal(signal_keys.ANIMATE_MAKERS, "you", subject, raw, tree.name, "high")
-        for subject in (*_ANIMATE_SUBJECT_TYPES, "")
-        if subject in found
+        Signal(
+            signal_keys.ANIMATE_MAKERS,
+            "you",
+            signal_keys.animate_subject(card_type, floor),
+            raw,
+            tree.name,
+            "high",
+        )
+        for card_type, floor in sorted(
+            found, key=lambda tf: (order.index(tf[0]), tf[1] or 0)
+        )
     ]
 
 

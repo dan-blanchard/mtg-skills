@@ -86,7 +86,6 @@ from mtg_utils._analysis.tree_synthesis.mana_ramp_lands import (
 )
 from mtg_utils._analysis.tree_synthesis.mechanics_misc import (
     _arm_celebration_matters,
-    _arm_clue_matters,
     _arm_coven_matters,
     _arm_crimes_matter,
     _arm_curse_matters,
@@ -127,7 +126,6 @@ from mtg_utils._analysis.tree_synthesis.spells_casting import (
     _arm_spellcast_matters,
 )
 from mtg_utils._analysis.tree_synthesis.types_tribal import (
-    _arm_animate_artifact,
     _arm_color_change,
     _arm_colorless_matters,
     _arm_island_matters,
@@ -394,13 +392,11 @@ _ARMS: tuple[tuple[str, _Arm], ...] = (
     ("boon_plus_one_makers", _arm_boon_plus_one_makers),
     ("poison_matters", _arm_poison_matters),
     ("island_matters", _arm_island_matters),
-    ("animate_artifact", _arm_animate_artifact),
     ("color_change", _arm_color_change),
     ("vehicles_matter", _arm_vehicles_matter),
     ("manland", _arm_manland),
     ("land_creatures_dynamic_animate", _arm_land_creatures_dynamic_animate),
     ("curse_matters", _arm_curse_matters),
-    ("clue_matters", _arm_clue_matters),
     ("token_subtype_own_ref", _arm_token_subtype_own_ref),
     ("suspend_matters", _arm_suspend_matters),
     ("flash_matters", _arm_flash_matters),

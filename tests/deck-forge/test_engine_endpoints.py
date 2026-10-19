@@ -68,7 +68,7 @@ CMD = {
     # search-spec assertions below check "Artifacts" accordingly; the endpoint
     # plumbing under test (does a migrated key surface through /api/signals and
     # /api/snapshot avenues) is unaffected by which key demonstrates it.
-    "oracle_text": "Whenever you cast an artifact spell, draw a card.",
+    "oracle_text": "Whenever an artifact you control enters, draw a card.",
     "prices": {"usd": "5.00"},
     "oracle_id": "etb-boss-oid",
 }
@@ -247,7 +247,7 @@ def test_avenues_deduped_when_same_spec_via_two_scopes(monkeypatch):
         "type_line": "Legendary Creature",
         "color_identity": ["G"],
         "oracle_id": "lord-a-oid",
-        "oracle_text": "Whenever you cast an artifact spell, draw a card.",
+        "oracle_text": "Whenever an artifact you control enters, draw a card.",
         "prices": {"usd": "1"},
     }
     lord_b = {

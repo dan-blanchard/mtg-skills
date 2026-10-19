@@ -13,6 +13,7 @@ from mtg_utils._analysis._sweep_detectors import (
 )
 
 from ._shared import (
+    _AMASS_SERVE_IDENTS,
     _BASIC_LAND_FETCH,
     _CLONE_DIES_VALUE_EXTRA,
     _COMBAT_SUPPORT_EXTRA,
@@ -24,6 +25,7 @@ from ._shared import (
     _ETB_PAYOFF_EXTRA,
     _FLICKER_EXTRA,
     _HELLBENT_PUNISH_EXTRA,
+    _PLUS_ONE_PLACERS,
     _SELF_BOUNCE_EXTRA,
     _SELF_BOUNCE_RECAST_EXTRA,
     _TOKEN_DOUBLER_EXTRA,
@@ -78,17 +80,22 @@ SPECS_3: dict[tuple[str, str], SignalSpec] = {
         {"oracle": r"becomes a copy|copy of (?:target|another|any|a|that)\b"},
         r"becomes a copy|copy of (?:target|another|any|a|that)\b|as a copy of",
     ),
+    # Serve on the lanes' idents: the +1/+1 counter package
+    # (plus_one_makers reads the amass / incubate actions themselves) and, for
+    # amass, the Army payoffs.
     ("amass_makers", "you"): _spec(
         "Amass",
         "amass sources plus Army / +1/+1-counter payoffs",
         {"oracle": r"\bamass\b"},
-        r"\bamass\b|\bArmy\b|\+1/\+1 counter",
+        None,
+        serve_idents=_AMASS_SERVE_IDENTS,
     ),
     ("incubate_makers", "you"): _spec(
         "Incubate",
         "incubate sources plus artifact-token / +1/+1-counter payoffs",
         {"oracle": r"\bincubate\b"},
-        r"\bincubate\b|\bIncubator\b|\+1/\+1 counter",
+        None,
+        serve_idents=_PLUS_ONE_PLACERS,
     ),
     ("specialize_matters", "you"): _spec(
         "Specialize",

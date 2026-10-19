@@ -42,6 +42,7 @@ from collections.abc import Callable, Iterable
 from pathlib import Path
 
 from mtg_utils._analysis.signals import extract_signals
+from mtg_utils._card_ir.crosswalk import KEYWORD_ACTION_COUNTER_KINDS
 from mtg_utils._card_ir.mirror.variants import EFFECT_VARIANTS
 
 # ── phase enum vocabularies (v0.35.2 pin bump, 2026-07-24) ───────────────────
@@ -447,12 +448,19 @@ CROSSWALK: dict[str, frozenset[str]] = {
     # MAKER arm (deck-forge fires plus_one_makers); the counter MOVE and the
     # counter-added TRIGGER are the PAYOFF arm (plus_one_matters — relocating / caring,
     # not creating).
+    # Plus the keyword actions that put +1/+1 counters (bolster, adapt, explore …),
+    # which the lane reads through ``crosswalk.keyword_counter_placements``.
     "plus_one_makers": frozenset(
         {
             "effect:addcounter",
             "effect:putcounter",
             "effect:putcounterall",
             "effect:multiplycounter",
+        }
+        | {
+            f"effect:{tag.lower()}"
+            for tag, kind in KEYWORD_ACTION_COUNTER_KINDS.items()
+            if kind == "P1P1"
         }
     ),
     "plus_one_matters": frozenset(

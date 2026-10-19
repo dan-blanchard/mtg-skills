@@ -6,7 +6,6 @@ from __future__ import annotations
 
 from mtg_utils._analysis._sweep_detectors import (
     ABILITY_COPY_REGEX,
-    ANIMATE_ARTIFACT_REGEX,
     BASE_PT_SET_REGEX,
     BLOCKED_MATTERS_REGEX,
     COMBAT_BUFF_ENGINE_SWEEP_REGEX,
@@ -81,6 +80,7 @@ from ._shared import (
     _LURE_EXTRA,
     _NONCOMBAT_BURN_EXTRA,
     _PILLOWFORT_EXTRA,
+    _PLUS_ONE_SERVE_IDENTS,
     _POWER_FLING_EXTRA,
     _PROLIFERATE_EXTRA,
     _REANIMATE_ORACLE,
@@ -135,6 +135,9 @@ def _lifegain_spec(label: str, avenue: str) -> SignalSpec:
         serve_keywords=("lifelink",),
     )
 
+
+# The "your graveyard" serve (graveyard_makers / graveyard_matters, you): both lanes.
+_OWN_GRAVEYARD_IDENTS = frozenset({"graveyard_makers|you|", "graveyard_matters|you|"})
 
 SPECS_1: dict[tuple[str, str], SignalSpec] = {
     # task B-1: chosen_type_matters — wildcard tribal payoffs (Door of
@@ -335,10 +338,9 @@ SPECS_1: dict[tuple[str, str], SignalSpec] = {
         "self-mill and recursion fuel for your own graveyard, plus the high-ETB and "
         "self-recurring creatures worth putting there and bringing back",
         {"oracle": r"into your graveyard|surveil"},
-        # "in your graveyard" catches recursion spells that pick a target there before
-        # returning it (Victimize: "creature cards in your graveyard … return those").
-        r"into your graveyard|from your graveyard|in your graveyard"
-        r"|surveil\b|self-mill",
+        # Serve rides the lanes, shared with graveyard_makers|you below.
+        None,
+        serve_idents=_OWN_GRAVEYARD_IDENTS,
         # A graveyard/reanimator deck recurs creatures with strong ETBs (Fleshbag
         # Marauder, Eternal Witness), self-recurring fodder (Gravecrawler), and
         # self-sacrificing creatures it loops for repeated value (Spore Frog).
@@ -377,8 +379,9 @@ SPECS_1: dict[tuple[str, str], SignalSpec] = {
         "self-mill, recursion, and cast-from-graveyard tools that fill and reuse your "
         "graveyard, plus the high-ETB and self-recurring creatures worth binning",
         {"oracle": r"into your graveyard|surveil"},
-        r"into your graveyard|from your graveyard|in your graveyard"
-        r"|surveil\b|self-mill",
+        # Serve rides the lanes, shared with graveyard_matters|you above.
+        None,
+        serve_idents=_OWN_GRAVEYARD_IDENTS,
         extras=(_ETB_VALUE_EXTRA, _SELF_RECUR_EXTRA, _SELF_SAC_CREATURE_EXTRA),
         serve_keywords=(
             "dredge",
@@ -465,9 +468,11 @@ SPECS_1: dict[tuple[str, str], SignalSpec] = {
         "+1/+1 counters",
         "counter generators, doublers, and proliferate",
         {"oracle": r"\+1/\+1 counter"},
-        # Credit generic-counter doublers (Doubling Season) the bare "+1/+1 counter"
-        # serve missed.
-        r"\+1/\+1 counter|proliferate|" + _COUNTER_DOUBLER_ORACLE,
+        # Serve on the lanes' idents, once plus_one_makers read the
+        # keyword actions that place +1/+1 counters: the makers, the payoffs, the
+        # doublers (Doubling Season) and proliferate.
+        None,
+        serve_idents=_PLUS_ONE_SERVE_IDENTS,
         extras=(
             _COUNTER_DOUBLER_EXTRA,
             _KEYWORD_COUNTER_EXTRA,
@@ -485,7 +490,8 @@ SPECS_1: dict[tuple[str, str], SignalSpec] = {
         "+1/+1 counters (makers)",
         "counter generators, doublers, and proliferate",
         {"oracle": r"\+1/\+1 counter"},
-        r"\+1/\+1 counter|proliferate|" + _COUNTER_DOUBLER_ORACLE,
+        None,
+        serve_idents=_PLUS_ONE_SERVE_IDENTS,
         extras=(
             _COUNTER_DOUBLER_EXTRA,
             _KEYWORD_COUNTER_EXTRA,
@@ -1378,19 +1384,6 @@ SPECS_1: dict[tuple[str, str], SignalSpec] = {
         *SWEEP_LABELS["pump_makers"],
         {"oracle": PUMP_MATTERS_REGEX},
         PUMP_MATTERS_REGEX,
-    ),
-    # ADR-0027 β: animate_artifact's SWEEP_DETECTORS row is deleted (detection moved to
-    # the Card IR via a byte-identical _ANIMATE_ARTIFACT_MIRROR; no clean structural arm
-    # — phase parses "artifacts become creatures" inconsistently as base_pt_set /
-    # board_grant / becomes_type, none separable from generic become / type-conferral).
-    # The SERVE pool stays oracle-defined, so hand-register the spec the sweep auto-
-    # register loop used to build (scope "you", the deleted SWEEP row's scope), reusing
-    # the EXACT deleted regex (pinned as ANIMATE_ARTIFACT_REGEX) so the serve pool never
-    # drifts. SWEEP_LABELS keeps the label.
-    ("animate_artifact", "you"): _spec(
-        *SWEEP_LABELS["animate_artifact"],
-        {"oracle": ANIMATE_ARTIFACT_REGEX},
-        ANIMATE_ARTIFACT_REGEX,
     ),
     # ADR-0027 β: free_cast's SWEEP_DETECTORS row is deleted (detection moved to the
     # Card IR via a byte-identical _FREE_CAST_MIRROR; the IR has no 'free' flag, so no

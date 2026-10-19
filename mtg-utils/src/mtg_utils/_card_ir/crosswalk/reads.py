@@ -1594,6 +1594,39 @@ def filter_subtypes(filt: object) -> tuple[str, ...]:
     return tuple(out)
 
 
+def named_filter_subtypes(root: object) -> frozenset[str]:
+    """The lowercased subtypes named by the filters under ``root`` (a unit node)
+    that no ``Sacrifice`` consumes and no opponent controls — the token kinds a
+    card counts, watches or grants to ("for each Clue you control", "Clues you
+    control have exalted", "whenever you sacrifice a Food"'s watched subject).
+    A sacrificed filter is left to the caller's sacrifice read, which knows who
+    pays. One pass over the unit, memoized on the node."""
+    if isinstance(root, TypedMirrorNode):
+        cached = root.__dict__.get(_NAMED_FILTER_SUBTYPES_ATTR)
+        if cached is not None:
+            return cached
+    typed: list[TypedMirrorNode] = []
+    consumed: set[int] = set()
+    for n in iter_typed_nodes(root):
+        tag = tag_of(n)
+        if tag == "Typed":
+            typed.append(n)
+        elif tag == "Sacrifice":
+            consumed.update(map(id, iter_typed_nodes(getattr(n, "target", None))))
+    out = frozenset(
+        st.lower()
+        for n in typed
+        if id(n) not in consumed and filter_controller(n) != "Opponent"
+        for st in filter_subtypes(n)
+    )
+    if isinstance(root, TypedMirrorNode):
+        object.__setattr__(root, _NAMED_FILTER_SUBTYPES_ATTR, out)
+    return out
+
+
+_NAMED_FILTER_SUBTYPES_ATTR = "_named_filter_subtypes"
+
+
 def counter_pred_kinds(filt: object) -> tuple[str, ...]:
     """The counter KINDS a filter's ``Counters`` predicates reference (``"P1P1"`` /
     ``"M1M1"`` / ``"Any"`` …), EXCLUDING the ``EQ 0`` "with NO counter" inverse.
@@ -2438,6 +2471,62 @@ def iter_cost_leaves(node: object, *, depth: int = 0) -> Iterator[TypedMirrorNod
     yield node
 
 
+def self_graveyard_fills(unit: AbilityUnit) -> tuple[TypedMirrorNode, ...]:
+    """The nodes of one unit that put your own cards into your graveyard
+    without a ``Mill`` effect: the shapes the graveyard lane's effect walk
+    can't see.
+
+    * a ``Surveil`` action anywhere under the unit, a granted ability's
+      included (Tocasia's "{T}: Surveil 1"). CR 701.25a: to surveil N is to
+      look at the top N cards of *your* library and put any number of them
+      into your graveyard, so phase's ``Controller`` target (or none) is the
+      only reading.
+    * a ``ManifestDread`` action: CR 701.62a looks at the top two cards of
+      your library, manifests one and puts the other into your graveyard.
+    * a ``Mill`` leaf of a cost the unit's controller pays: the unit's own
+      activation cost (Millikin's "{T}, Mill a card:"), a granted ability's
+      cost, a spell's merged additional cost (``unit.costs``), or an
+      ``unless_pay`` / ``PayCost`` you pay (Deep Spawn). A milled card goes
+      from the top of that player's library into their graveyard (CR
+      701.17a); counting a mill paid as a cost as filling your graveyard is
+      this read's decision. A cost another player pays (a ``payer`` that is
+      not the controller) mills *their* library, so it is skipped.
+    * a ``Discard`` leaf of such a cost: "{G}, {T}, Discard a creature card:"
+      (Fauna Shaman), "Discard your hand, Sacrifice ~:" (Lion's Eye
+      Diamond). CR 701.9a: to discard a card is to move it from its owner's
+      hand to that player's graveyard. Two leaves are left out, as
+      ``discard_outlet`` leaves them out: a random discard (CR 701.9b — the
+      card isn't yours to choose) and a ``self_ref`` "Discard this card"
+      (cycling and channel fodder, not a graveyard engine).
+    """
+    out: dict[int, TypedMirrorNode] = {}
+    costs: list[object] = [c.node for c in unit.costs]
+    for n in unit.iter_typed():
+        if tag_of(n) == "Surveil":
+            if tag_of(getattr(n, "target", None)) in (None, "Controller"):
+                out[id(n)] = n
+            continue
+        if tag_of(n) == "ManifestDread":
+            out[id(n)] = n
+            continue
+        cost = getattr(n, "cost", MISSING)
+        if _present(cost) and tag_of(getattr(n, "payer", None)) in (
+            None,
+            "Controller",
+        ):
+            costs.append(cost)
+    for cost in costs:
+        for leaf in iter_cost_leaves(cost):
+            t = tag_of(leaf)
+            if t == "Mill" or (
+                t == "Discard"
+                and not discard_is_random(leaf)
+                and not getattr(leaf, "self_ref", False)
+            ):
+                out[id(leaf)] = leaf
+    return tuple(out.values())
+
+
 # The MAX/MIN-over-a-population quantity node, across phase shapes. Through
 # v0.45.0 phase emitted ``Aggregate{function, property, filter}``; the v0.65.0
 # "opponent controlled count extrema" rework (#7967) reified it as
@@ -2911,6 +3000,88 @@ def nested_plus_one_keyword_grant(unit_node: object) -> bool:
     return False
 
 
+#: The keyword ACTIONS whose own definition puts counters on a permanent, by
+#: phase's effect tag, with the counter kind each places (``counter_kind``'s
+#: spelling). Each verified via ``rules-lookup``: bolster (CR 701.39a, "Put N
+#: +1/+1 counters on that creature"), adapt (701.46a), monstrosity (701.37a),
+#: explore (701.44a, when the revealed card isn't a land), connive (701.50a,
+#: when a nonland card is discarded), endure (701.63a, unless its controller
+#: creates the Spirit instead), amass (701.47a, on an Army), incubate (701.53a,
+#: the Incubator token enters with them), empower Jace (701.71a, loyalty
+#: counters on a Jace token), and the renown trigger (702.112a). phase types
+#: each as its own effect node, never a ``PutCounter`` the counter lanes read.
+KEYWORD_ACTION_COUNTER_KINDS: dict[str, str] = {
+    "Bolster": "P1P1",
+    "Adapt": "P1P1",
+    "Monstrosity": "P1P1",
+    "Explore": "P1P1",
+    "ExploreAll": "P1P1",
+    "Connive": "P1P1",
+    "Endure": "P1P1",
+    "Amass": "P1P1",
+    "Incubate": "P1P1",
+    "Renown": "P1P1",
+    "EmpowerJace": "Loyalty",
+}
+#: Printed keyword abilities phase keeps on ``root.keywords`` with no effect
+#: node, folded (:func:`normalised_keyword_name`): awaken's spell ability puts
+#: N +1/+1 counters on target land you control (CR 702.113a); a ravenous
+#: permanent enters with X +1/+1 counters on it (702.156a). Tribute (702.104a)
+#: stays out: the opponent chooses whether its counters are put.
+KEYWORD_ABILITY_COUNTER_KINDS: dict[str, str] = {"awaken": "P1P1", "ravenous": "P1P1"}
+
+
+_KEYWORD_PLACEMENTS_CACHE_ATTR = "_xw_keyword_counter_placements"
+
+
+def keyword_counter_placements(
+    tree: ConceptTree, *, granted: bool = True
+) -> tuple[tuple[str, str], ...]:
+    """Every counter placement a keyword action or keyword ability performs on
+    the card: ``(keyword, counter kind)`` per occurrence, the keyword as phase
+    tags it (``"Bolster"``, ``"EmpowerJace"``; ``"awaken"`` folded, read off
+    ``card_keywords``) and the kind in :func:`counter_kind`'s spelling
+    (``"P1P1"``, ``"Loyalty"``).
+
+    With ``granted`` (the default) the read is deep: a keyword action inside an
+    ability the card grants counts (Gleam of Authority's granted bolster,
+    Security Bypass's granted connive). ``granted=False`` reads only each
+    unit's own effect chain, the card performing the action itself. Explore is
+    read off its effect node only: phase's ``Explore`` keyword also marks the
+    "whenever a creature you control explores" payoffs (Wildgrowth Walker).
+    Memoized on the tree, both shapes from one pass, like the typed walk.
+    """
+    cached = tree.__dict__.get(_KEYWORD_PLACEMENTS_CACHE_ATTR)
+    if cached is None:
+        cached = _keyword_counter_placements(tree)
+        object.__setattr__(tree, _KEYWORD_PLACEMENTS_CACHE_ATTR, cached)
+    return cached[0] if granted else cached[1]
+
+
+def _keyword_counter_placements(
+    tree: ConceptTree,
+) -> tuple[tuple[tuple[str, str], ...], tuple[tuple[str, str], ...]]:
+    printed = tuple(
+        (folded, KEYWORD_ABILITY_COUNTER_KINDS[folded])
+        for folded in map(normalised_keyword_name, tree.card_keywords)
+        if folded in KEYWORD_ABILITY_COUNTER_KINDS
+    )
+    if not tree.has_typed(*KEYWORD_ACTION_COUNTER_KINDS):
+        return printed, printed
+    deep: list[tuple[str, str]] = []
+    own: list[tuple[str, str]] = []
+    for unit in tree.units:
+        for n in unit.iter_typed():
+            tag = tag_of(n) or ""
+            if tag in KEYWORD_ACTION_COUNTER_KINDS:
+                deep.append((tag, KEYWORD_ACTION_COUNTER_KINDS[tag]))
+        for c in unit.effects:
+            tag = tag_of(c.node) or ""
+            if tag in KEYWORD_ACTION_COUNTER_KINDS:
+                own.append((tag, KEYWORD_ACTION_COUNTER_KINDS[tag]))
+    return tuple(deep) + printed, tuple(own) + printed
+
+
 def cast_with_keyword_name(static_node: TypedMirrorNode) -> str | None:
     """The keyword a ``CastWithKeyword`` static confers on casts, or ``None``.
 
@@ -3048,6 +3219,24 @@ def iter_static_defs(root: object) -> Iterator[TypedMirrorNode]:
     memoized walk.
     """
     yield from _static_defs(root)
+
+
+def adds_creature_type(static_def: object) -> bool:
+    """Whether a continuous effect's modifications make its objects creatures
+    (CR 613.1d, layer 4): an ``AddType{core_type: Creature}`` ("is a creature in
+    addition to its other types"), or a ``SetCardTypes`` naming Creature
+    ("becomes a green Elk creature" — Oko, Thief of Crowns's +1, which replaces
+    the other types). The animation read; an anthem over the same set is not a
+    payoff of its card type."""
+    for mod in getattr(static_def, "modifications", None) or ():
+        tag = tag_of(mod)
+        if tag == "AddType" and getattr(mod, "core_type", None) == "Creature":
+            return True
+        if tag == "SetCardTypes" and "Creature" in (
+            getattr(mod, "core_types", None) or ()
+        ):
+            return True
+    return False
 
 
 def _static_defs(root: object) -> tuple[TypedMirrorNode, ...]:
@@ -4242,6 +4431,68 @@ def effect_owner_player_scope(root: object, effect_node: object) -> str | None:
     (:func:`_owner_scope_tag`): each lane decides what they mean."""
     found = _owner_index(root).owners.get(id(effect_node))
     return _owner_scope_tag(found[1], root) if found is not None else None
+
+
+#: Wrapper actors (:func:`effect_owner_player_scope`) naming the opponents: the
+#: opponent ``player_scope`` tags plus "each other player".
+OPPONENT_WRAPPER_ACTORS: frozenset[str] = frozenset(
+    {*_OPPONENT_ACTOR_TAGS, OTHERS_SCOPE}
+)
+
+#: An Aura's enchanted player. CR 303.4: an Aura enters the battlefield attached
+#: to an object or player, so it names no side; each read decides what it means.
+ENCHANTED_PLAYER_SCOPE = "EnchantedPlayer"
+
+
+def effect_actor_scope(unit: AbilityUnit, node: object) -> str | None:
+    """The player a player-recipient effect ``node`` of ``unit`` (a mill, a
+    discard, a draw) really acts on, when phase names it outside the effect's
+    own recipient — else ``None``, and the caller keeps its own scope (the
+    concept's, or :func:`explicit_recipient_scope`). phase writes these effects
+    Controller-relative, so the recipient alone reads "you":
+
+    * the owning wrapper's ``player_scope``: "Each opponent mills eight cards"
+      (Maddening Cacophony) hangs ``Opponent`` on the wrapper and targets the
+      mill at ``Controller`` → ``"opponents"`` (a granted trigger's wrapper
+      too — Imperious Mindbreaker);
+    * a replacement's ``valid_player``: "If an opponent would mill one or more
+      cards, they mill twice that many cards instead" (Bruvac the
+      Grandiloquent) → ``"opponents"``;
+    * an Aura's enchanted player: an ``AttachedTo`` recipient ("enchanted
+      player mills X cards" — Fraying Sanity), or the ``TriggeringPlayer`` of
+      a trigger watching ``AttachedTo`` ("At the beginning of enchanted
+      player's upkeep, that player mills two cards" — Curse of the Bloody
+      Tome) → :data:`ENCHANTED_PLAYER_SCOPE`.
+    """
+    owner = effect_owner_player_scope(unit.node, node)
+    if owner is None:
+        # A granted trigger's body (Imperious Mindbreaker's "each opponent mills
+        # cards equal to its toughness") sits in a static's ``modifications``,
+        # past the owner index's walk: find the wrapper whose ``.effect`` IS it.
+        wrapper = next(
+            (
+                w
+                for w in iter_typed_nodes(unit.node)
+                if getattr(w, "effect", None) is node
+            ),
+            None,
+        )
+        if wrapper is not None:
+            owner = _owner_scope_tag(getattr(wrapper, "player_scope", None), unit.node)
+    if owner in OPPONENT_WRAPPER_ACTORS:
+        return "opponents"
+    if unit.origin == "replacement" and (
+        _player_scope_tag(getattr(unit.node, "valid_player", None))
+        in _OPPONENT_ACTOR_TAGS
+    ):
+        return "opponents"
+    recipient = tag_of(getattr(node, "target", None))
+    if recipient == "AttachedTo" or (
+        recipient == "TriggeringPlayer"
+        and tag_of(getattr(unit.node, "valid_target", None)) == "AttachedTo"
+    ):
+        return ENCHANTED_PLAYER_SCOPE
+    return None
 
 
 def effect_owner_is_friend(root: object, effect_node: object) -> bool:

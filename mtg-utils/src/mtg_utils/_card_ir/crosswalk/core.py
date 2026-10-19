@@ -462,7 +462,7 @@ class ConceptTree:
     has_printed_cost: bool = False
     # The phase record's face oracle text (``S_Root.oracle_text``), verbatim.
     # Carried for the b12 SANCTIONED byte-identical mirror ports (the live
-    # kept-regex lanes: entered_attacker, animate_artifact, color_change, the
+    # kept-regex lanes: entered_attacker, color_change, the
     # stax residues, …) — those lanes strip reminder parens and re-run the
     # EXACT live constants; every structural lane stays a typed read.
     oracle: str = ""

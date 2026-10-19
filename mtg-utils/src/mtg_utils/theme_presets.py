@@ -271,25 +271,37 @@ def has_signal_coverage(card: dict) -> bool:
 # :func:`seed_signal_key_index` from the task-#90 sidecar (which already
 # stores full idents).
 _SIGNAL_IDENT_INDEX: dict[str, frozenset[str]] = {}
+# The same idents WITHOUT the membership floor (what the card does, not what it
+# is) — the pair reads' candidate side, where the floor's low-confidence
+# ``artifacts_matter`` on every artifact would read Sol Ring as a payoff. Live
+# compute only: the bulk sidecar stores the membership-inclusive set.
+_SIGNAL_IDENT_INDEX_NO_MEMBERSHIP: dict[str, frozenset[str]] = {}
 
 
-def _signal_idents_for(card: dict) -> frozenset[str]:
+def _signal_idents_for(
+    card: dict, *, include_membership: bool = True
+) -> frozenset[str]:
     """CARD's production "key|scope|subject" ident set (memoized per
     ``oracle_id``) — :func:`_signal_keys_for`'s scope/subject-bearing
     sibling, with the same lazy-import rationale and the same empty-set
-    degradation for a synthetic no-``oracle_id`` record."""
+    degradation for a synthetic no-``oracle_id`` record.
+    ``include_membership=False`` leaves out the membership floor (its own memo)."""
     oid = card.get("oracle_id")
     if not oid:
         return frozenset()
-    cached = _SIGNAL_IDENT_INDEX.get(oid)
+    memo = (
+        _SIGNAL_IDENT_INDEX if include_membership else _SIGNAL_IDENT_INDEX_NO_MEMBERSHIP
+    )
+    cached = memo.get(oid)
     if cached is not None:
         return cached
     from mtg_utils._analysis.signals import extract_signals
 
     idents = frozenset(
-        f"{sig.key}|{sig.scope}|{sig.subject}" for sig in extract_signals(card)
+        f"{sig.key}|{sig.scope}|{sig.subject}"
+        for sig in extract_signals(card, include_membership=include_membership)
     )
-    _SIGNAL_IDENT_INDEX[oid] = idents
+    memo[oid] = idents
     return idents
 
 
@@ -302,6 +314,7 @@ def forget_signal_keys(oid: str) -> None:
     before the seed (empty, when no trees were available yet) outlives it."""
     _SIGNAL_KEY_INDEX.pop(oid, None)
     _SIGNAL_IDENT_INDEX.pop(oid, None)
+    _SIGNAL_IDENT_INDEX_NO_MEMBERSHIP.pop(oid, None)
 
 
 # Bulk-file identities (path, mtime_ns, size) already merged into
@@ -3025,9 +3038,10 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
     # (1)+(2)+(3) close via one bucket-B ``tree_synthesis`` bridge feeding
     # ``plus_one_makers`` (:func:`mtg_utils._analysis.tree_synthesis.
     # _arm_plus_one_makers` — see its own docstring for the unified idiom
-    # read and why reminder-stripping keeps it from re-opening the
-    # Connive/Amass/Explore/Incubate/Megamorph/Awaken keyword-mechanic
-    # shed). (4) closes as four genuine structural-read widenings in
+    # read and why it strips reminder text; the keyword actions reach
+    # ``plus_one_makers`` structurally through
+    # ``crosswalk.keyword_counter_placements``). (4) closes as four genuine
+    # structural-read widenings in
     # ``lanes._plus_one_matters`` (no bridge — real typed
     # fields/tags the prior code just didn't check yet).
     #
@@ -3120,12 +3134,14 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
     # from task #83's own finding: counter_doubling (its own lane) and
     # opponent-directed placement (a different scope than this preset's
     # ``you`` read). Keyword mechanics whose OWN +1/+1-counter rider is
-    # reminder text on a DIFFERENT primary mechanic stay shed to their
-    # existing preset/lane: Connive (CR 702.153, cantrip), Amass/Incubate
-    # (CR 701.47/701.53, token-preset), Megamorph (CR 702.75,
-    # facedown_makers), Undying/Persist (CR 702.92/702.79, their own
-    # death-replacement lane). Mentor (CR 702.134) and Explore (CR
-    # 701.44) join the keywords list per task #83's own scoping-pass
+    # secondary to a DIFFERENT primary mechanic stay off this keyword list:
+    # Connive (CR 701.50a, cantrip), Amass/Incubate (CR 701.47/701.53,
+    # token-preset), Megamorph (CR 702.37b, facedown_makers),
+    # Undying/Persist (CR 702.93/702.79, their own death-replacement lane).
+    # Connive, Amass and Incubate still match through ``plus_one_makers``,
+    # whose keyword-action arm reads the counters they place
+    # (``crosswalk.keyword_counter_placements``). Mentor (CR 702.134) and
+    # Explore (CR 701.44) join the keywords list per task #83's own scoping-pass
     # recommendation — both mechanics' placement is unconditional-or-
     # primary, the same class as Bolster; Awaken (CR 702.113), Ravenous
     # (CR 702.156), and Scavenge (CR 702.97) join for the identical

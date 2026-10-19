@@ -33,8 +33,8 @@ _REAL_CASES: dict[str, str] = {
     "airbend_makers": "Airbender Ascension",
     "all_creatures_kw_grant": "Angel's Trumpet",
     "alt_cost_keyword": "Chameleon, Master of Disguise",
-    "animate_artifact": "Karn, Silver Golem",
-    # An animation names the type it animates (Bello: artifacts and enchantments).
+    # An animation names the type it animates, with its mana-value floor
+    # (Bello: Artifact>=4, Enchantment>=4).
     "animate_makers": "Bello, Bard of the Brambles",
     "anthem_static": "Glorious Anthem",
     "any_counter_makers": "Karn's Bastion",

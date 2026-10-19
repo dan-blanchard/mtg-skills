@@ -465,12 +465,27 @@ def role_of(card: dict, *, deck_mana: DeckMana | None = None) -> set[str]:
         roles.add("card_draw")
     if (ir is not None and _ir_board_wipe(ir)) or _matches_preset(card, "board-wipe"):
         roles.add("board_wipe")
-    if (
-        _matches_any(card, _INTERACTION_PRESETS)
-        and not (ir is not None and _ir_recursion_only(ir))
-    ) or (not trees_for(card, bulk=card) and removal_reach_by_text(card).removes):
+    if is_interaction(card, ir=ir):
         roles.add("interaction")
     return roles
+
+
+def is_interaction(card: dict, *, ir: Card | None = None) -> bool:
+    """THE interaction answer (ADR-0051, like :func:`is_ramp`): a hit on one of
+    ``_INTERACTION_PRESETS`` that is not pure graveyard recursion, or — for a card
+    phase has no trees for — the text degrade's removal reach. The Tuner sources
+    the role through the same presets and this same predicate
+    (``_tuner.issues.ROLE_SEARCH``), so what a Slot counts and what it is offered
+    cannot drift."""
+    if ir is None:
+        ir = ir_for(card)
+    return bool(
+        (
+            _matches_any(card, _INTERACTION_PRESETS)
+            and not (ir is not None and _ir_recursion_only(ir))
+        )
+        or (not trees_for(card, bulk=card) and removal_reach_by_text(card).removes)
+    )
 
 
 def protects(card: dict) -> bool:

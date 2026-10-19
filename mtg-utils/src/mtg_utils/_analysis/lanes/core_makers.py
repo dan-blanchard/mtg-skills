@@ -64,6 +64,7 @@ from mtg_utils._card_ir.crosswalk import (
     iter_static_defs,
     iter_threaded_target_statics,
     iter_typed_nodes,
+    keyword_counter_placements,
     mod_keyword_name,
     mod_value,
     nested_plus_one_keyword_grant,
@@ -969,6 +970,10 @@ def _plus_one_makers(tree: ConceptTree) -> list[Signal]:
     counter-example). Corpus re-measure at this arm (32,521 commander-
     legal cards, same set task #93 measured): 3 gains (the 3 named
     cards), 0 losses.
+
+    Also fires on a keyword action that places +1/+1 counters
+    (:func:`~mtg_utils._card_ir.crosswalk.keyword_counter_placements`);
+    tribute is excluded because the opponent chooses (CR 702.104a).
     """
     for unit in tree.units:
         for c in unit.effect_concepts("place_counter"):
@@ -977,6 +982,8 @@ def _plus_one_makers(tree: ConceptTree) -> list[Signal]:
             ck = counter_kind(c.node).upper()
             if ck == "P1P1" or (not ck and "+1/+1 counter" in (c.raw or "")):
                 return [Signal("plus_one_makers", "you", "", c.raw, tree.name, "high")]
+    if any(kind == "P1P1" for _kw, kind in keyword_counter_placements(tree)):
+        return [Signal("plus_one_makers", "you", "", "", tree.name, "high")]
     for c in tree.iter_concepts():
         if c.concept == "synth_plus_one_makers":
             return [Signal("plus_one_makers", "you", "", "", tree.name, "high")]

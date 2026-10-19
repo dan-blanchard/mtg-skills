@@ -160,7 +160,6 @@ from mtg_utils._analysis.tree_synthesis.mana_ramp_lands import (
 )
 from mtg_utils._analysis.tree_synthesis.mechanics_misc import (
     _arm_celebration_matters,
-    _arm_clue_matters,
     _arm_coven_matters,
     _arm_crimes_matter,
     _arm_curse_matters,
@@ -168,7 +167,6 @@ from mtg_utils._analysis.tree_synthesis.mechanics_misc import (
     _arm_suspect_matters,
     _arm_suspend_matters,
     _arm_token_subtype_own_ref,
-    has_structural_clue_matters,
     has_structural_crimes_matter,
     has_structural_curse_matters,
     has_structural_outlaw,
@@ -202,7 +200,6 @@ from mtg_utils._analysis.tree_synthesis.spells_casting import (
 )
 from mtg_utils._analysis.tree_synthesis.types_tribal import (
     _ANTHEM_PUMP_MODS,
-    _arm_animate_artifact,
     _arm_color_change,
     _arm_island_matters,
     _arm_keyword_tribe,
@@ -276,7 +273,6 @@ __all__ = [
     "_SPELLCAST_TRIGGER_RX",
     "SynthesizedNode",
     "_arm_ability_copy",
-    "_arm_animate_artifact",
     "_arm_arcane_matters",
     "_arm_b13_node_anchor",
     "_arm_b13_raw_anchor",
@@ -288,7 +284,6 @@ __all__ = [
     "_arm_big_hand_matters",
     "_arm_cant_block_grant",
     "_arm_celebration_matters",
-    "_arm_clue_matters",
     "_arm_coin_flip_payoff",
     "_arm_color_change",
     "_arm_color_hoser",
@@ -395,7 +390,6 @@ __all__ = [
     "has_structural_big_hand_makers",
     "has_structural_big_hand_matters",
     "has_structural_cant_block_grant",
-    "has_structural_clue_matters",
     "has_structural_coin_flip",
     "has_structural_color_hoser",
     "has_structural_connive_makers",
