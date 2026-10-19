@@ -609,8 +609,10 @@ def has_structural_superfriends(tree: ConceptTree) -> bool:
 # "each other planeswalker you control has the loyalty abilities of ~"; a
 # CantAttack/CantBlock static with no ``attack_defended`` payload at all —
 # Assault Suit, Varchild, whose "can't attack you or planeswalkers you
-# control" is pillowfort wording the arm still misreads because phase types no
-# deterrent for :func:`defends_you` to stand it down on; an "activate
+# control" is pillowfort wording phase types no deterrent for
+# :func:`defends_you` to stand it down on (the parked-text veto below catches
+# Varchild; Assault Suit's clause is parked nowhere, so it still fires); an
+# "activate
 # loyalty abilities of planeswalkers you control" permission ability with no
 # ``GrantExtraLoyaltyActivations`` typed node — Oath of Teferi, Teferi,
 # Temporal Archmage's emblem; a replacement/tax effect scoped to "planeswalkers
@@ -684,6 +686,37 @@ def _matches_superfriends_idiom(oracle: str) -> bool:
     return False
 
 
+# The same veto for a card phase leaves its deterrent or watcher unparsed: the
+# clause naming you and your planeswalkers together survives only as parked
+# text — an ``Unknown`` trigger mode (Tenuous Truce's attack trigger, Vengeful
+# Pharaoh's "Whenever combat damage is dealt to you or a planeswalker you
+# control"), an Unimplemented residue (Trove of Temptation's "must attack you or
+# a planeswalker you control", Ever-Watching Threshold's "if they attacked you
+# and/or a planeswalker you control", Sivitri's +1 tax) or a hollow static
+# (Varchild, Illusionist's Gambit). CR 506.2 makes "you or planeswalkers you
+# control" the pair an attack can reach; reading the same pair as protection
+# when it names what combat damage reaches (Vengeful Pharaoh) is the arm's own
+# decision. Read off the parked text only, so it retires with each parse
+# (``test_phase_gaps_dropped``'s canaries).
+# Corpus precision: the parked texts it matches are those 7 cards' plus Ajani
+# Steadfast's emblem, whose structural superfriends read fires first.
+_PARKED_YOU_OR_YOUR_PLANESWALKERS_RX = re.compile(
+    r"\byou,? (?:and/or|or) (?:a |one or more )?planeswalkers? you control\b",
+    re.IGNORECASE,
+)
+
+
+def _parks_you_or_your_planeswalkers(tree: ConceptTree) -> bool:
+    """Whether a clause phase parked names you and your planeswalkers together
+    as what an attack or combat damage reaches."""
+    parked = (
+        *tree.residues(),
+        *tree.unknown_trigger_modes(),
+        *tree.hollow_statics(),
+    )
+    return any(_PARKED_YOU_OR_YOUR_PLANESWALKERS_RX.search(t) for t in parked)
+
+
 def _arm_superfriends_matters(tree: ConceptTree) -> ConceptNode | None:
     """Synthesize a ``superfriends_matters`` node for a description-only
     planeswalker/loyalty payoff (CR 306.5) phase leaves wholly unstructured.
@@ -703,6 +736,8 @@ def _arm_superfriends_matters(tree: ConceptTree) -> ConceptNode | None:
     if defends_you(tree) or watches_attacks_on_you(tree):
         return None
     if not _matches_superfriends_idiom(tree.oracle or ""):
+        return None
+    if _parks_you_or_your_planeswalkers(tree):
         return None
     return _synthetic_concept(
         arm_id="superfriends_matters",

@@ -35,8 +35,10 @@ from mtg_utils._analysis.tree_synthesis import (
     has_structural_vehicles_matter,
 )
 from mtg_utils._card_ir.crosswalk import (
+    ANAPHORIC,
     AbilityUnit,
     ConceptTree,
+    affected_tag,
     change_zone_dirs,
     controller_side,
     counter_kind,
@@ -82,7 +84,7 @@ from mtg_utils._card_ir.crosswalk import (
     trigger_scope,
 )
 from mtg_utils._card_ir.mirror.runtime import MirrorVariant, TypedMirrorNode
-from mtg_utils._card_ir.recovery import EACH_OBJECT, TARGET_OBJECT, THEIRS
+from mtg_utils._card_ir.recovery import EACH_OBJECT, TARGET_OBJECT, is_theirs
 
 
 def _is_counter_place_payoff(trig: TypedMirrorNode) -> bool:
@@ -352,7 +354,6 @@ def _tap_lanes(tree: ConceptTree) -> list[Signal]:
             seen.add(key)
             out.append(Signal(key, scope, "", raw, tree.name, "high"))
 
-    self_permanent = not {"Instant", "Sorcery"} & set(tree.card_types)
     for unit in tree.units:
         for c in unit.iter_concepts():
             if c.role != "effect":
@@ -376,9 +377,18 @@ def _tap_lanes(tree: ConceptTree) -> list[Signal]:
                 ttag = tag_of(tgt)
                 if ttag == "SelfRef":
                     continue  # self-tap, no real target
-                if taps_target_object(c.node):
+                # Tapping your own creatures ("tap any number of untapped
+                # creatures you control" — Jaddi Lifestrider) taps no threat;
+                # "that player controls" phase also stamps ``You`` is corrected
+                # (overlay ``tap_other_player``: Delirium, Mana Web, Arena).
+                ctrl = filter_controller(tgt, unit)
+                if (taps_target_object(c.node) and ctrl != "You") or (
+                    # a fresh "tap target creature …" phase types as a bare
+                    # ParentTarget, marked ``TARGET_OBJECT`` like a recovered one
+                    # (overlay ``fresh_tap_target``: Stunning Shot)
+                    ttag == "ParentTarget" and TARGET_OBJECT in c.subject
+                ):
                     fire("tapper_engine", "any", c.raw)
-                ctrl = filter_controller(tgt)
                 # b11 follow-up (b), adjudicated: DefendingPlayer is
                 # opponent-directed BY RULE (CR 506.2 — the defending player
                 # is an opponent of the attacker; 20/21 live-verified), so it
@@ -417,7 +427,9 @@ def _tap_lanes(tree: ConceptTree) -> list[Signal]:
                         and unit.trigger_event in ("attacks", "deals_damage")
                     )
                     or (
-                        ctrl in ("TriggeringPlayer", "You")
+                        # ANAPHORIC: the overlay's re-read of Mana Web's
+                        # "that player controls" phase stamps ``You``.
+                        ctrl in ("TriggeringPlayer", "You", ANAPHORIC)
                         and unit.origin == "trigger"
                         and filter_controller(getattr(unit.node, "valid_card", None))
                         == "Opponent"
@@ -549,10 +561,13 @@ def _tap_lanes(tree: ConceptTree) -> list[Signal]:
         for sdef in iter_static_defs(unit.node):
             # A permanent's "This creature doesn't untap during your untap
             # step" (Brass Gnat, Mana Vault, the depletion lands) is a drawback
-            # on itself, not a lock. On an instant or sorcery ``SelfRef`` is
-            # the creature it tapped (Code of Constraint).
-            if static_mode_tag(sdef) == "CantUntap" and not (
-                self_permanent and tag_of(getattr(sdef, "affected", None)) == "SelfRef"
+            # on itself, not a lock. Phase stamps every such static ``SelfRef``;
+            # the overlay's ``cant_untap_object`` arm re-reads the one naming
+            # another object (Code of Constraint's "that creature", Tsabo's
+            # Web's "each land with an activated ability").
+            if (
+                static_mode_tag(sdef) == "CantUntap"
+                and affected_tag(sdef, unit) != "SelfRef"
             ):
                 fire("tapper_engine", "any", _site_raw(sdef))
         # A tap ability or trigger the card grants (CR 113.1a): an Aura's or
@@ -1671,8 +1686,7 @@ def _counter_distribute(tree: ConceptTree) -> list[Signal]:
             c.recovered_by == "place_counter"
             and "+1/+1 counter" in c.subject
             and EACH_OBJECT in c.subject
-            and THEIRS not in c.subject
-            and c.scope != "opponents"
+            and not is_theirs(c)
         ):
             return [Signal("counter_distribute", "you", "", c.raw, tree.name, "high")]
     return []
@@ -1692,7 +1706,7 @@ def _superfriends_matters(tree: ConceptTree) -> list[Signal]:
       trigger subject including Planeswalker (Carth the Lion), an
       activate-loyalty engine (Chandra's Regulator, The Chain Veil), a
       dynamic count/cost-reduction operand naming Planeswalker (Ajani,
-      Strength of the Pride; Tomik), or a non-Opponent loyalty-counter
+      Strength of the Pride), or a non-Opponent loyalty-counter
       EFFECT (Chandra, Acolyte of Flame) — minus the removal-target /
       ``TargetMatchesFilter`` / opponent-controlled / event-plumbing
       over-fires (Hero's Downfall, Chandra's Defeat, Eidolon of Obstruction,
@@ -1712,9 +1726,16 @@ def _superfriends_matters(tree: ConceptTree) -> list[Signal]:
       (``crosswalk.defends_you`` / ``watches_attacks_on_you`` — Promise of
       Loyalty, Comeuppance, Gideon's Sacrifice, Soul Snare).
 
+    * **Affinity for planeswalkers** (Tomik, Wielder of Law): CR 702.41a — the
+      spell "costs {1} less to cast for each [text] you control", so it wants
+      planeswalkers on your board (``ConceptTree.card_keyword_types``).
+
     Scope "you", HIGH.
     """
-    if has_structural_superfriends(tree):
+    if has_structural_superfriends(tree) or any(
+        kw == "Affinity" and "Planeswalker" in words
+        for kw, words in tree.card_keyword_types
+    ):
         return [Signal("superfriends_matters", "you", "", "", tree.name, "high")]
     for c in tree.iter_concepts():
         if c.concept == "synth_superfriends_matters":

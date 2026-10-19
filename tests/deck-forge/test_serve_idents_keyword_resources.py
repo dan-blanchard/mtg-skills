@@ -12,7 +12,6 @@ from mtg_utils._card_ir.trees import trees_for
 from mtg_utils.testkit import (
     test_card,
     test_card_ir,
-    test_phase_records,
     test_signals,
 )
 
@@ -71,21 +70,6 @@ def test_energy_matters_reads_payers_and_get_triggers():
     assert "energy_matters" not in _keys("Aether Hub")
 
 
-@pytest.mark.retirement_canary
-def test_counter_player_added_trigger_drops_its_kind_canary():
-    """Retirement canary for ``reads._RESOURCE_TRIGGER_MODES``'s energy row: phase
-    v0.104.0 types "Whenever you get one or more {E}" as a
-    ``CounterPlayerAddedAll`` trigger with no counter kind, so the read takes the
-    mode as energy. Once phase carries the kind, gate the row on it."""
-    (record,) = test_phase_records("Territorial Gorger")
-    (trigger,) = record["triggers"]
-    assert trigger["mode"] == "CounterPlayerAddedAll"
-    named = [k for k, v in trigger.items() if "counter" in k.lower() and v]
-    assert not named, (
-        f"Territorial Gorger: RETIRE-READY — phase now names the counter kind ({named})"
-    )
-
-
 @pytest.mark.parametrize("key", ["venture_makers", "venture_matters"])
 def test_venture_serve_rides_the_lanes(key):
     serve = _ident_serve(key, "venture_makers|you|", "venture_matters|you|")
@@ -119,7 +103,9 @@ def test_foretell_serve_rides_the_lanes(key):
 
 
 def test_foretell_grant_is_a_maker_not_a_payoff():
+    # The grant reads as a maker only; Dream Devourer's foretell_matters is its
+    # own "Whenever you foretell a card" trigger (an Unknown mode phase leaves,
+    # served by the foretell_payoff_trigger_unknown_mode ledger row).
     assert _events("Dream Devourer") == {("foretell", "makers")}
     assert "foretell_makers" in _keys("Dream Devourer")
-    assert "foretell_matters" not in _keys("Dream Devourer")
     assert _events("Doomskar") == {("foretell", "makers")}

@@ -22,6 +22,7 @@ from mtg_utils._card_ir.crosswalk import (
     AbilityUnit,
     ConceptTree,
     aggregate_filter,
+    cost_reduction_count_filters,
     count_operand_filter,
     count_operand_qty,
     counter_kind,
@@ -833,6 +834,15 @@ def _plus_one_matters(tree: ConceptTree) -> list[Signal]:
                         ]
         for leaf in iter_cost_leaves(getattr(unit.node, "cost", None)):
             if tag_of(leaf) == "RemoveCounter" and counter_kind_any(leaf) == "P1P1":
+                return [Signal("plus_one_matters", "you", "", "", tree.name, "high")]
+        # A cost reduction counting your creatures with +1/+1 counters (CR
+        # 601.2f / 602.2b): Hamza, Guardian of Arashin's "{1} less for each
+        # creature you control with a +1/+1 counter on it", Starport Security's
+        # "{2} less to activate if you control a creature with a +1/+1 counter".
+        for filt in cost_reduction_count_filters(unit.node):
+            if filter_controller(filt) != "Opponent" and "P1P1" in counter_pred_kinds(
+                filt
+            ):
                 return [Signal("plus_one_matters", "you", "", "", tree.name, "high")]
         # ADR-0039 W8 grammar sprint (task #82) — two recovered-node arms,
         # both kind-gated on the raw (the "draw"/"discard"/"damage"
@@ -1983,12 +1993,8 @@ def _voltron_matters(tree: ConceptTree) -> list[Signal]:
         # the ability's OWN activation cost_reduction scaling on an Equipment/
         # Aura COUNT (Plate Armor: "costs {1} less for each other Equipment
         # you control"). CR 601.2f.
-        cred = getattr(unit.node, "cost_reduction", None)
-        if cred is not None:
-            cred_filt = ref_count_filter(cred, "count")
-            if cred_filt is not None and (
-                {s.lower() for s in filter_subtypes(cred_filt)} & _VOLTRON_SUBTYPES
-            ):
+        for cred_filt in cost_reduction_count_filters(unit.node):
+            if {s.lower() for s in filter_subtypes(cred_filt)} & _VOLTRON_SUBTYPES:
                 return [Signal("voltron_matters", "you", "", "", tree.name, "high")]
         for c in unit.iter_concepts():
             for filt in (effect_filter(c.node), count_operand_filter(c.node)):

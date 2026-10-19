@@ -206,12 +206,48 @@ Death Toll and Sultai Arisen trade labels between "Your graveyard" and
 "Graveyard engine" (one avenue, two spellings) and Sultai regains its Sacrifice
 sub.
 
+## Sixth pass (2026-10-19): the phase parse gaps, bridged
+
+Every phase parse gap the serve-spec censuses had logged is worked around in the
+supplemental parser, each self-retiring: recovery tokens for the parked residues
+(where-X keyword heads read off the residue's own sentence — connive, amass,
+investigate, devour, debuff; energy gains and payments; foretell; the "all damage
+dealt to X is dealt to Y instead" redirects; a counter bonus; a replacement
+idiom is read over its own sentence so a compound residue keeps both readings),
+unit-level field corrections for a misstamped field on a node with no concept
+decoration (`FieldCorrection`, ADR-0035 amended — untap locks stamped `SelfRef`,
+"that player controls" stamped `controller: You`, the self-animation cycle,
+Athreos's exile, the graveyard owner, the energy counter kind), concept
+re-decoration where the node has one (anaphoric pumps, the suspended-card
+target, fresh tap targets), bridge-ledger rows for clauses phase drops whole
+(the creature half of a one-sided sweep, a dropped planeswalker target, a dropped
+shrink, modified references, shield counters, four Unknown-mode triggers, a
+forage cost), and repo-side reads the censuses had blamed on phase (granted
+afterlife / mobilize tokens, a replacement-made Map, Dodecapod's counters,
+countered-creature cost reductions, Brimaz's Phyrexian death, Tomik's affinity
+for planeswalkers, a coin flip's branches minus the ones that are drawbacks).
+Still open, nothing to read: Commence the Endgame, the aftermath faces, Pradesh
+Gypsies, Desperate Gambit's dropped "you control", Orcish Captain's "it" in an
+activated ability.
+
+| | fifth pass | sixth pass |
+|---|---|---|
+| precons read SPREAD-THIN | 1 of 25 | 1 of 25 (Squirreled Away) |
+| tuner cuts / matching a guide | 86 / 44 | 85 / 44 |
+| tuner weak-list matching a guide | 25 | 25 |
+| tuner adds / matching a guide | 86 / 8 | 85 / 8 |
+| guide cuts the tuner protects | 124 | 124 |
+
+The precon reads are unchanged apart from Sultai Arisen regaining its Sacrifice
+sub; the pass is about the card pool (about 120 cards gained the ident a guide
+would expect, 40 lost a wrong one), not the 25 lists.
+
 ## What is left
 
 `docs/plans/backlog.md`, "What the polymorph tune and the 25-precon audit still
 get wrong" and "Every held serve spec is converted": the phase gaps behind the
 interaction role, the superfriends veto, animation and the converted serves; the
-text-mirror leftovers; the lane gaps the censuses left (a destination subject on
+text-mirror leftovers; the phase gaps nothing can read; the lane gaps the censuses left (a destination subject on
 `creature_recursion`, a spell-type subject on `cost_reduction`, the edict lane,
 keyword token-copy makers, `FlipCoin.win_effect`); the ranking module's
 clause-cluster attribution for ident-served hits.

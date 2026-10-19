@@ -68,6 +68,7 @@ from mtg_utils._card_ir.crosswalk import (
     recipient_tag,
     ref_count_qty,
     tag_of,
+    targets_the_card,
     team_buff_sites,
 )
 from mtg_utils._card_ir.mirror.runtime import (
@@ -80,6 +81,7 @@ from mtg_utils._card_ir.recovery import (
     OTHER_PLAYER,
     TARGET_OBJECT,
     YOURS,
+    is_theirs,
 )
 from mtg_utils._card_ir.text_idioms import _SINGLE_PERMANENT_GRANT_PREDS
 
@@ -1345,6 +1347,17 @@ def _resource_token_matters(tree: ConceptTree) -> list[Signal]:
             key = _SAC_TOKEN_MATTERS.get(st)
             if key:
                 fire(key, "")
+        # A recovered clause naming the subtype (the seam's type words): phase
+        # v0.104.0 parks Jetmir's Fixer's "If mana from a Treasure was spent to
+        # activate this ability, put a +1/+1 counter on ~ instead" whole, so no
+        # ``ManaSpentToCast`` filter is left to name it. A token clause names what
+        # it makes (the makers' read); another player's Treasures aren't yours.
+        for c in unit.effects:
+            if c.recovered_by and c.recovered_by != "make_token" and not is_theirs(c):
+                for st in c.reading:
+                    key = _SAC_TOKEN_MATTERS.get(st.lower())
+                    if key:
+                        fire(key, c.raw)
     # Stage-A recovery: the ``synth_token_subtype_own_ref`` bucket-B marker (a
     # "cares about Treasure/Blood without making it" own-ref — Evereth's "if the
     # sacrificed permanent was a Treasure"), the SAME arm the parallel food/clue
@@ -1560,7 +1573,10 @@ def _self_pump(tree: ConceptTree) -> list[Signal]:
         for c in unit.effects:
             t = tag_of(c.node)
             tgt = tag_of(getattr(c.node, "target", None))
-            if t == "Pump" and tgt in (None, "SelfRef"):
+            # The overlay's ``anaphoric_pump`` arm marks a delayed trigger's
+            # "it gets -1/-0" phase stamps ``SelfRef`` (Jace, Architect of
+            # Thought's +1: the attacking creature, not Jace).
+            if t == "Pump" and (tgt is None or targets_the_card(c)):
                 return [Signal("self_pump", "you", "", c.raw, tree.name, "high")]
             if (
                 t == "PutCounter"

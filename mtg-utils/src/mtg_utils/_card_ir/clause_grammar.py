@@ -390,7 +390,9 @@ _SIMPLE_VERB = comb.alt(
     comb.value("manifest", comb.keyword({"manifest", "manifests"})),
     comb.value("clash", comb.keyword({"clash"})),  # "clash with defending player"
     comb.value("discover", comb.keyword({"discover", "discovers"})),
-    comb.value("make_token", comb.keyword({"investigate", "investigates"})),  # Clue
+    # Investigate (CR 701.16a: "Create a Clue token") keeps its own token so the
+    # recovered node earns the native Investigate concept the Clue lane reads.
+    comb.value("investigate", comb.keyword({"investigate", "investigates"})),
     # Craft (CR 702.166) — exile this + materials, return it transformed: a transform.
     comb.value("transform", comb.keyword({"craft"})),
     comb.value("suspect", comb.keyword({"suspect", "suspects"})),  # CR 701.61
@@ -428,7 +430,9 @@ _SIMPLE_VERB = comb.alt(
     # marked Spirit-tribal commanders as reanimators.
     comb.value("graveyard_recursion", comb.keyword({"soulshift"})),  # CR 702.46
     comb.value("cost_reduction", comb.keyword({"multikicker"})),  # CR 702.33
-    comb.value("cast_from_zone", comb.keyword({"foretell", "foretells"})),  # 702.143
+    # Foretell (CR 702.143a) keeps its own token: the recovery row decorates it
+    # like ``cast_from_zone`` and the foretell lanes read the token itself.
+    comb.value("foretell", comb.keyword({"foretell", "foretells"})),
     comb.value("topdeck_select", comb.keyword({"look", "looks"})),  # "look at top N"
     comb.value("damage_prevention", comb.keyword({"prevent", "prevents"})),
     # The four bending keyword-actions (CR 701.65-67, 702.189) — distinct mechanics,
@@ -449,6 +453,11 @@ _SIMPLE_VERB = comb.alt(
             }
         ),
     ),
+    # Connive (CR 701.50a) and amass (CR 701.47a) — keyword actions phase types
+    # as their own nodes; a residue that names one ("it connives X", "amass Orcs
+    # X") recovers to the action itself.
+    comb.value("connive", comb.keyword({"connive", "connives"})),
+    comb.value("amass", comb.keyword({"amass", "amasses"})),
 )
 # Multi-word verb phrases (order: most specific first).
 _VERB = comb.alt(
@@ -496,6 +505,12 @@ _VERB = comb.alt(
     comb.value(
         "place_counter",
         comb.seq2(comb.tag("enter with"), comb.take_until("counter")),
+    ),
+    # "get(s) … {E}" — you get energy (CR 107.14: {E} is one energy counter); the
+    # reminder "(energy counters)" is stripped, so the symbol is the tell.
+    comb.value(
+        "gain_energy",
+        comb.seq2(comb.keyword({"get", "gets"}), comb.take_until("{e}", within=".;")),
     ),
     # "get(s) … counter(s)" — a player/permanent gains counters (poison/energy/+1+1);
     # the take_until("counter") gate keeps a bare "get" out.
@@ -632,7 +647,7 @@ _VERB_PRESENT = re.compile(
     r"|shuffles?|loses?|reveals?|proliferates?|returns?|conjures?|chooses?"
     r"|goads?|rolls?|prevents?|enters?|enter|moves?|plays?|casts?|removes?"
     r"|fights?|switch|switches|adds?|foretells?|adapts?|crews?|stations?|soulshift"
-    r"|regenerates?|converts?|ends?|phases?)\b",
+    r"|regenerates?|converts?|ends?|phases?|connives?|amass(?:es)?|investigates?)\b",
     re.IGNORECASE,
 )
 
@@ -743,6 +758,18 @@ STATIC_TOKENS: tuple[tuple[re.Pattern[str], str], ...] = (
         ),
         "hand_revealed",
     ),
+    # A P/T shrink its parsers failed on (CR 613.4c, layer 7c): "Enchanted
+    # creature gets -X/-X, where X is the number of creature cards in its
+    # controller's graveyard" (Death's Approach), "-X/-0" (Disturbing
+    # Conversion), Nuclear Fallout's "get twice -X/-X", Sewer Plague's
+    # "perpetually gets -2/-2". Both stats signed down ("-0/-N" counts), never a
+    # "+N/-N" trade-off. Corpus precision (commander-legal, phase v0.104.0):
+    # exactly those first three; off-format it also reads Sewer Plague, Alora,
+    # Craving of Yeenoghu and Undersimplify's perpetual shrinks.
+    (
+        re.compile(r"\bgets?(?: twice)? -(?:\d+|X)/-(?:\d+|X)\b", re.IGNORECASE),
+        "debuff",
+    ),
 )
 
 
@@ -755,3 +782,90 @@ def static_token(text: str) -> str | None:
         if pattern.search(s):
             return token
     return None
+
+
+# ── Replacement idioms: the redirect and the counter bonus ──────────────────────
+# Two replacement idioms whose effect IS the replacement (CR 614.1a), so the verb
+# inside them ("put … counters", "dealt to") names the replaced event, not an
+# instruction the imperative grammar should read. Each is anchored to its own
+# sentence: a clause that OPENS on one reads as the idiom (Prairie Dog's "if you
+# would put one or more +1/+1 counters on a creature you control, put that many
+# plus one … instead" — otherwise a ``place_counter`` the seam refuses as a
+# replacement); one met in a later sentence is a later instruction of the clause
+# (``recovery._later_clauses``), and the verb grammar reads the clause without it.
+# Phase v0.104.0 parks each as an ``Unimplemented`` residue; a phase fix types the
+# replacement and the token's fire count drops to 0 (``bump-phase-pin`` flags it).
+#
+# Corpus precision (commander-legal, phase v0.104.0): ``damage_redirect`` re-
+# decorates 21 nodes on 19 cards, every one a CR 614.9 redirection (Kjeldoran
+# Royal Guard, Shimian Night Stalker, Oracle's Attendants, Karona's Zealot, Ascent
+# of the Worthy twice, Kor Chant, Kor Dirge, Sivvi's Valor, Turn the Tables, Blood of
+# the Martyr, Personal Incarnation, Captain's Maneuver, Ward of Piety, Hazduhr the
+# Abbot, Glarecaster, Mirrorwood Treefolk, Treacherous Link, Megatron);
+# ``counter_bonus`` exactly 2 (Prairie Dog, Zabaz, the Glimmerwasp).
+REPLACEMENT_TOKENS: tuple[tuple[re.Pattern[str], str], ...] = (
+    # A redirection effect (CR 614.9: damage that would be dealt to one battle,
+    # creature, planeswalker or player is dealt to another instead): "All combat
+    # damage that would be dealt to you … is dealt to ~ instead" (Kjeldoran Royal
+    # Guard), "… is dealt to another target creature" (Kor Chant, cut before its
+    # "instead"), "you may have that damage dealt to you" (Blood of the Martyr).
+    (
+        re.compile(
+            r"\bdamage\b[^.]*?\bwould be dealt\b[^.]*\bdealt to\b", re.IGNORECASE
+        ),
+        "damage_redirect",
+    ),
+    # A counter-placement bonus (CR 122.1, 614.1a): "if you would put one or more
+    # +1/+1 counters on a creature you control, put that many plus one … instead"
+    # (Prairie Dog), "If a modular triggered ability would put one or more +1/+1
+    # counters on a creature you control, that many plus one … instead" (Zabaz).
+    # Counters on a permanent only: a player's counters ("If you would get one or
+    # more counters" — Winding Constrictor's second sentence, Izzet
+    # Generatorium's {E}) are another mechanic.
+    (
+        re.compile(
+            r"\bput one or more\b[^.]*\bcounters? on\b[^.]*\bthat many plus\b",
+            re.IGNORECASE,
+        ),
+        "counter_bonus",
+    ),
+)
+
+# A sentence of a clause: up to and including its period (or the clause's end).
+_SENTENCE_RX = re.compile(r"[^.]+(?:\.|$)")
+
+
+def replacement_sentences(text: str) -> list[tuple[int, int, str]]:
+    """``(start, end, token)`` of each sentence of ``text`` a
+    :data:`REPLACEMENT_TOKENS` row matches, first row winning per sentence."""
+    out: list[tuple[int, int, str]] = []
+    for m in _SENTENCE_RX.finditer(text):
+        for pattern, token in REPLACEMENT_TOKENS:
+            if pattern.search(m.group(0)):
+                out.append((m.start(), m.end(), token))
+                break
+    return out
+
+
+def replacement_token(text: str) -> str | None:
+    """The replacement idiom ``text`` OPENS on — its first sentence, phase's
+    diagnostic prefix included ("Replacement pattern matched but line failed
+    replacement parser: All damage …") — or ``None``."""
+    spans = replacement_sentences(text)
+    if spans and not text[: spans[0][0]].strip():
+        return spans[0][2]
+    return None
+
+
+# ── Energy payments parked as statics ──────────────────────────────────────────
+# An energy payment a residue states (CR 107.14: "To pay {E}, a player removes one
+# energy counter from themselves"): a keyword cost paid in {E} ("Replicate—Pay
+# {E}{E}{E}" — Reiterating Bolt; "Unearth—Pay eight {E}" — Salvation Colossus;
+# "Reconfigure—Pay {2} or {E}{E}{E}" — Razorfield Ripper) or an activation gated
+# on {E} paid ("Activate only if you've paid or lost four or more {E}" — Izzet
+# Generatorium). No verb the imperative grammar reads opens these, so the
+# last-resort static table carries the idiom.
+STATIC_TOKENS = (
+    *STATIC_TOKENS,
+    (re.compile(r"\b(?:pay|paid)\b[^.]*?\{E\}", re.IGNORECASE), "energy_payment"),
+)

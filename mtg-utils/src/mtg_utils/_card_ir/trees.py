@@ -36,7 +36,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator, Sequence
+    from collections.abc import Callable, Iterator, Sequence
 
     from mtg_utils._card_ir.crosswalk import ConceptTree
     from mtg_utils._card_ir.crosswalk.reads import FactsZone, ObjectFacts
@@ -483,22 +483,51 @@ _KNOWN_TOKEN_WIRED_DISPLAY_NAMES = frozenset(
 )
 
 
-def _iter_raw_token_effects(node: object) -> Iterator[dict]:
-    """Depth-first walk of a RAW (pre-strict-load) phase JSON fragment,
-    yielding every ``dict`` that is a ``Token`` effect node (a CreateToken
-    payload — always carries its own ``name``). Deliberately independent of
-    the typed mirror schema: this substrate must still see a Token node whose
-    OTHER fields have drifted (unrecognized-tag drift raises inside
-    ``strict_load_card``, never reaches here at all — this walk is plain
-    dict/list recursion over the untyped JSON)."""
+def _iter_raw_dicts(node: object, keep: Callable[[dict], bool]) -> Iterator[dict]:
+    """Depth-first walk of a RAW (pre-strict-load) phase JSON fragment, yielding
+    every ``dict`` that ``keep`` selects. Deliberately independent of the typed
+    mirror schema: the token substrate must still see a node whose OTHER fields
+    have drifted (unrecognized-tag drift raises inside ``strict_load_card``,
+    never reaches here at all — this walk is plain dict/list recursion over the
+    untyped JSON)."""
     if isinstance(node, dict):
-        if node.get("type") == "Token" and "name" in node:
+        if keep(node):
             yield node
         for v in node.values():
-            yield from _iter_raw_token_effects(v)
+            yield from _iter_raw_dicts(v, keep)
     elif isinstance(node, list):
         for item in node:
-            yield from _iter_raw_token_effects(item)
+            yield from _iter_raw_dicts(item, keep)
+
+
+#: The fields a ``CreateToken`` replacement names the tokens it adds on (CR
+#: 614.1a — "instead create those tokens plus an additional Map token":
+#: Worldwalker Helm; "one of each": Academy Manufactor).
+_RAW_TOKEN_SPEC_FIELDS = ("additional_token_spec", "ensure_token_specs")
+
+
+def _iter_raw_token_creations(node: object) -> Iterator[tuple[str, bool]]:
+    """``(token name, phase parsed its abilities)`` for every token ``node`` (a
+    RAW phase record fragment) creates: each ``Token`` effect (a CreateToken
+    payload — always carries its own ``name``) and each token spec a
+    ``CreateToken`` replacement adds (:data:`_RAW_TOKEN_SPEC_FIELDS` — its name
+    on ``characteristics.display_name``, its parsed substance on the spec's
+    ``static_abilities`` and the characteristics' ``keywords``)."""
+    for token in _iter_raw_dicts(node, lambda d: d.get("type") == "Token"):
+        if "name" in token:
+            parsed = bool(token.get("static_abilities") or token.get("keywords"))
+            yield str(token.get("name") or ""), parsed
+    holders = _iter_raw_dicts(node, lambda d: any(map(d.get, _RAW_TOKEN_SPEC_FIELDS)))
+    for holder in holders:
+        for field in _RAW_TOKEN_SPEC_FIELDS:
+            specs = holder.get(field)
+            for spec in specs if isinstance(specs, list) else (specs,):
+                if not isinstance(spec, dict):
+                    continue
+                chars = spec.get("characteristics") or {}
+                name = chars.get("display_name") or spec.get("script_name") or ""
+                parsed = bool(spec.get("static_abilities") or chars.get("keywords"))
+                yield str(name), parsed
 
 
 def _known_token_display_name_candidates(token_name: str) -> tuple[str, ...]:
@@ -632,13 +661,11 @@ def _known_token_trees(rec: dict, *, oracle_id: str) -> list[ConceptTree]:
         return []
     trees: list[ConceptTree] = []
     seen: set[str] = set()
-    for token_node in _iter_raw_token_effects(rec):
-        if token_node.get("static_abilities") or token_node.get("keywords"):
+    for token_name, parsed in _iter_raw_token_creations(rec):
+        if parsed:
             continue  # phase already parsed something for this token — leave it
         entry = None
-        for cand in _known_token_display_name_candidates(
-            str(token_node.get("name") or "")
-        ):
+        for cand in _known_token_display_name_candidates(token_name):
             entry = candidates.get(cand.casefold())
             if entry is not None:
                 break

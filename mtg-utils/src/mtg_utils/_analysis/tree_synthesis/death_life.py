@@ -280,7 +280,18 @@ def _filter_is_creature_death(filt: object) -> bool:
         return False
     # ``type_filters`` mixes plain strings ("Creature") and dicts ({"Subtype":
     # "Dalek"}); a dict is unhashable, so membership must not hash the element.
-    return any(isinstance(tf, str) and tf in ("Creature", "Permanent") for tf in tfs)
+    # A creature type alone names a creature too (CR 205.3m: creature types are
+    # the subtypes creatures and kindreds share) — Brimaz, Blight of Oreskos's
+    # "if a Phyrexian died under your control this turn".
+    return any(
+        (isinstance(tf, str) and tf in ("Creature", "Permanent"))
+        or (
+            isinstance(tf, dict)
+            and isinstance(tf.get("Subtype"), str)
+            and _resolve_subject(tf["Subtype"], CREATURE_SUBTYPES)
+        )
+        for tf in tfs
+    )
 
 
 def creature_death_condition(tree: ConceptTree) -> bool:

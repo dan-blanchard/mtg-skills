@@ -149,6 +149,19 @@ A three-layer model, a three-way-decomposed supplement, and a two-layer cache.
   the animate-land split-subject reconstruction, and four whole-card
   reconciliations are not per-node-expressible.
 
+## Amendment (2026-10-19): unit-level field corrections
+
+Bucket (b) decorated the `ConceptNode` overlay, which only effect nodes carry. A
+misstamped field on a node with no decoration — a static def's `affected`, a
+trigger def's counter kind, a filter's `controller` — had nowhere to land, so
+the 2026-10-19 phase-gap pass added a unit-level sibling: `FieldCorrection(node,
+field, value, arm)` records on `AbilityUnit.corrections` (`crosswalk/core.py`),
+written by `overlay_corrections` arms under the same substrate-purity guard (the
+mirror node is kept by identity; the value is a node of the same tree or a tag).
+The shared reads take the unit so the correction is not opt-in site by site; a
+node that does carry a `ConceptNode` keeps using re-decoration. Each arm has a
+`retirement_canary`. See `mtg-utils/CONTEXT.md` "Field correction".
+
 ## Consequences
 
 - bucket-A field-drop becomes impossible at the substrate; the v0.8.0 silent-drift

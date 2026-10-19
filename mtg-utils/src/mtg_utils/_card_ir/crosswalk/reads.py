@@ -34,7 +34,18 @@ from mtg_utils._card_ir.mirror.runtime import (
 )
 
 if TYPE_CHECKING:
-    from mtg_utils._card_ir.crosswalk.core import AbilityUnit, ConceptTree
+    from mtg_utils._card_ir.crosswalk.core import AbilityUnit, ConceptNode, ConceptTree
+
+
+#: "The object or player an earlier clause named" — a :class:`FieldCorrection`
+#: value for a field phase stamped as the card itself or as you, and the
+#: ``ConceptNode.subject`` mark the overlay corrections put on an effect whose
+#: ``SelfRef`` target is such an object (phase's own ``Anaphoric`` quantity scope
+#: is the same back-reference).
+ANAPHORIC = "Anaphoric"
+#: The ``ConceptNode.subject`` mark for an effect whose target also admits a
+#: suspended card (CR 702.62b), the alternative phase dropped.
+SUSPENDED_CARD = "suspended card"
 
 
 # ── scalar/typed-node helpers ─────────────────────────────────────────────────
@@ -1484,25 +1495,75 @@ def count_distinct_operand_filter(node: TypedMirrorNode) -> object | None:
     return None
 
 
-def filter_controller(filt: object) -> str | None:
+def filter_controller(filt: object, unit: AbilityUnit | None = None) -> str | None:
     """The phase ``controller`` of a typed filter (``"You"`` / ``"Opponent"`` /
     ``None``), recursing ``Or`` / ``And`` to the first that names one. A chosen
     player's permanents ("Choose an opponent. That player sacrifices a creature"
     — Myrkul's Edict's d20 row) carry a variant controller, read as its key
-    (``"ChosenPlayer"``), never as unset.
+    (``"ChosenPlayer"``), never as unset. Given the filter's ``unit``, a
+    controller the overlay corrections re-read wins (:data:`ANAPHORIC` for
+    Delirium's "that player controls", which phase stamps ``You``).
     """
     t = tag_of(filt)
     if t == "Typed":
-        c = getattr(filt, "controller", None)
+        fc = unit.correction(filt, "controller") if unit is not None else None
+        c = fc.value if fc is not None else getattr(filt, "controller", None)
         if isinstance(c, MirrorVariant):
             return c.key
         return c if isinstance(c, str) else None
     if t in ("Or", "And"):
         for sub in getattr(filt, "filters", ()) or ():
-            c = filter_controller(sub)
+            c = filter_controller(sub, unit)
             if c is not None:
                 return c
     return None
+
+
+def filter_owners(filt: object) -> list[str | None]:
+    """The owner each part of a graveyard filter names — its ``Owned`` property,
+    else its controller — one per ``Or`` / ``And`` arm ("… from your graveyard and
+    … from an opponent's graveyard" — Spelltwine), ``None`` where an arm names
+    none."""
+    parts = getattr(filt, "filters", None) if tag_of(filt) in ("Or", "And") else None
+    return [
+        filter_owned_controller(p) or filter_controller(p) for p in (parts or (filt,))
+    ]
+
+
+def static_affected(sdef: object, unit: AbilityUnit | None = None) -> object:
+    """A static def's ``affected`` set — the one the overlay corrections re-read
+    when its ``unit`` carries one (Tsabo's Web's "each land …" phase stamps
+    ``SelfRef``): a filter node or a tag string."""
+    if unit is not None:
+        return unit.corrected(sdef, "affected")
+    return getattr(sdef, "affected", None)
+
+
+def affected_tag(sdef: object, unit: AbilityUnit | None = None) -> str | None:
+    """The tag of :func:`static_affected` (a corrected tag string as is)."""
+    value = static_affected(sdef, unit)
+    return value if isinstance(value, str) else tag_of(value)
+
+
+def corrected_scope(cnode: ConceptNode) -> str | None:
+    """The ``scope`` an overlay stage re-read for an effect concept, or ``None``
+    when the scope is the substrate's own derivation from the node's recipient
+    (:func:`_effect_scope`) — so a reader can honour a correction without
+    mistaking the substrate's default for one (Skullsnatcher's ownerless "from
+    that player's graveyard" exile: substrate ``each``, corrected
+    ``opponents``)."""
+    return None if cnode.scope == _effect_scope(cnode.node) else cnode.scope
+
+
+def targets_the_card(cnode: ConceptNode) -> bool:
+    """Whether an effect concept's target is the card itself: phase's ``SelfRef``,
+    unless the overlay corrections marked it the object an earlier clause named
+    (:data:`ANAPHORIC` — Jace, Architect of Thought's "whenever a creature an
+    opponent controls attacks, it gets -1/-0")."""
+    return (
+        tag_of(getattr(cnode.node, "target", None)) == "SelfRef"
+        and ANAPHORIC not in cnode.subject
+    )
 
 
 def _fixed_cmc(prop: object) -> tuple[str, int] | None:
@@ -2620,6 +2681,11 @@ def ref_count_filter(node: object, field: str) -> object | None:
 # (Bogardan Phoenix's "Otherwise, return it to the battlefield"; Sphinx
 # Sovereign's "Otherwise, each opponent loses 3 life") — one of the two
 # outcomes the ability can have, so a faithful unit aggregates it too.
+# ``win_effect`` / ``lose_effect``: a ``FlipCoin`` / ``FlipCoins`` outcome — The
+# Gold Saucer's Treasure, Invert Polarity's theft or counter, Winter Sky's sweep.
+# Like a die-roll row, each is one possible outcome; the walk skips an outcome
+# that is the card's own drawback (:func:`is_own_drawback`).
+_FLIP_OUTCOME_FIELDS = ("win_effect", "lose_effect")
 _EFFECT_CHILD_FIELDS = (
     "effect",
     "sub_ability",
@@ -2627,6 +2693,7 @@ _EFFECT_CHILD_FIELDS = (
     "chosen_pile_effect",
     "unchosen_pile_effect",
     "else_ability",
+    *_FLIP_OUTCOME_FIELDS,
 )
 # The LIST-valued branch fields, each entry one alternative outcome of the
 # node that carries it: a modal ability's ``mode_abilities`` (Demonic Pact), a
@@ -2640,7 +2707,9 @@ _EFFECT_LIST_FIELDS = ("mode_abilities", *BRANCH_LISTS.values())
 _EFFECT_WALK_FIELDS = (*_EFFECT_CHILD_FIELDS, *_EFFECT_LIST_FIELDS)
 
 
-def effect_child_items(node: object) -> Iterator[tuple[str, int | None, object]]:
+def effect_child_items(
+    node: object, *, cast_by_you: bool = False
+) -> Iterator[tuple[str, int | None, object]]:
     """``(field, list index or None, child)`` for each child a walk over the card's
     OWN effects descends from ``node``: every "otherwise" branch, choice branch,
     vote outcome and die-roll row. (The certain trees leave out the branches the
@@ -2657,6 +2726,10 @@ def effect_child_items(node: object) -> Iterator[tuple[str, int | None, object]]
         child = getattr(node, fname, MISSING)
         if fname == "else_ability" and is_self_sacrifice(child):
             continue
+        if fname in _FLIP_OUTCOME_FIELDS and is_own_drawback(
+            child, node, cast_by_you=cast_by_you
+        ):
+            continue
         if (
             fname == BRANCH_LISTS["ChooseOneOf"]
             and tag == "ChooseOneOf"
@@ -2672,10 +2745,77 @@ def effect_child_items(node: object) -> Iterator[tuple[str, int | None, object]]
                 yield fname, i, m
 
 
-def effect_children(node: object) -> Iterator[object]:
-    """The child nodes :func:`effect_child_items` names."""
-    for _fname, _i, child in effect_child_items(node):
+def effect_children(node: object, *, cast_by_you: bool = False) -> Iterator[object]:
+    """The child nodes :func:`effect_child_items` names. ``cast_by_you``: the
+    walk started at a trigger watching spells you cast, so its triggering spell
+    is yours (:func:`is_own_drawback`)."""
+    for _fname, _i, child in effect_child_items(node, cast_by_you=cast_by_you):
         yield child
+
+
+#: Effects that take the card itself out of play or out of combat when aimed at
+#: ``SelfRef``: sacrificing, bouncing, exiling or moving it, turning it face down,
+#: removing it from combat.
+_SELF_DRAWBACK_TAGS: frozenset[str] = frozenset(
+    {"Sacrifice", "Bounce", "ChangeZone", "TurnFaceDown", "RemoveFromCombat"}
+)
+#: Effects that cost you when aimed at you (``Controller``).
+_SELF_HARM_TAGS: frozenset[str] = frozenset({"DealDamage", "LoseLife"})
+
+
+#: Effects that answer or move the objects their filter names — a drawback
+#: when every one they name is yours.
+_OBJECT_ANSWER_TAGS: frozenset[str] = frozenset(
+    {"Counter", "Bounce", "Destroy", "DestroyAll", "Sacrifice", "ChangeZone"}
+)
+
+
+def is_own_drawback(
+    ability_like: object, flip: object = None, *, cast_by_you: bool = False
+) -> bool:
+    """Whether a coin flip's outcome branch works against the card's controller —
+    the effect walk's own decision: a drawback outcome is not what the card does
+    for you, so it adds nothing to the unit's effects. Three shapes:
+
+    * it sacrifices, bounces, exiles or otherwise removes the card itself
+      (Scoria Wurm's and Viashino Sandswimmer's return to hand, Ral, Monsoon
+      Mage's and Frenetic Sliver's exile-and-return);
+    * it damages you or makes you lose life (Mana Crypt);
+    * it counters, bounces, destroys or moves only objects that are yours:
+      every object filter it names is controlled by you (Goblin Artisans'
+      "counter target artifact spell you control") or names a token the same
+      flip's other outcome creates (Wirefly Hive's "destroy all permanents named
+      Wirefly"), or it aims at the triggering spell of a trigger that watches
+      spells you cast (``cast_by_you`` — Krark, the Thumbless's "return that
+      spell to its owner's hand"). Invert Polarity's "counter that spell" names
+      anyone's spell, so it stays."""
+    eff = getattr(ability_like, "effect", None)
+    tag = tag_of(eff)
+    target = getattr(eff, "target", None)
+    if tag in _SELF_DRAWBACK_TAGS and tag_of(target) == "SelfRef":
+        return True
+    if tag in _SELF_HARM_TAGS and tag_of(target) == "Controller":
+        return True
+    if tag not in _OBJECT_ANSWER_TAGS:
+        return False
+    if tag_of(target) == "TriggeringSource":
+        return cast_by_you
+    own_tokens = {
+        getattr(n, "name", None)
+        for field in _FLIP_OUTCOME_FIELDS
+        if getattr(flip, field, None) is not ability_like
+        for n in _iter_typed_nodes(getattr(flip, field, None))
+        if tag_of(n) == "Token"
+    }
+    filters = [n for n in _iter_typed_nodes(target) if tag_of(n) == "Typed"]
+    return bool(filters) and all(
+        getattr(f, "controller", None) == "You"
+        or any(
+            tag_of(p) == "Named" and getattr(p, "name", None) in own_tokens
+            for p in getattr(f, "properties", None) or ()
+        )
+        for f in filters
+    )
 
 
 def is_self_sacrifice(ability_like: object) -> bool:
@@ -3022,6 +3162,32 @@ KEYWORD_ACTION_COUNTER_KINDS: dict[str, str] = {
 #: permanent enters with X +1/+1 counters on it (702.156a). Tribute (702.104a)
 #: stays out: the opponent chooses whether its counters are put.
 KEYWORD_ABILITY_COUNTER_KINDS: dict[str, str] = {"awaken": "P1P1", "ravenous": "P1P1"}
+#: What a recovered residue (``ConceptNode.recovered_by``, the recovery stage's
+#: allowlisted token) means to the three keyword reads, by token:
+#: ``("action", phase tag)`` — a keyword action :func:`keyword_action_events`
+#: counts like phase's typed node; ``("counter", counter kind)`` — a keyword
+#: ability :func:`keyword_counter_placements` counts like a printed one;
+#: ``("resource", resource, side)`` — a :class:`ResourceEvent` of
+#: :func:`keyword_resource_events`. Each event sits in the residue's own unit.
+_RECOVERED_TOKEN_READS: dict[str, tuple[str, ...]] = {
+    "connive": ("action", "Connive"),
+    "amass": ("action", "Amass"),
+    "devour": ("counter", "P1P1"),
+    "gain_energy": ("resource", "energy", "makers"),
+    "energy_payment": ("resource", "energy", "matters"),
+    "foretell": ("resource", "foretell", "makers"),
+}
+
+
+def _recovered_reads(
+    unit: AbilityUnit, kind: str
+) -> Iterator[tuple[ConceptNode, tuple[str, ...]]]:
+    """Each recovered effect of ``unit`` whose token reads as ``kind``
+    (:data:`_RECOVERED_TOKEN_READS`), with the rest of its entry."""
+    for c in unit.effects:
+        read = _RECOVERED_TOKEN_READS.get(c.recovered_by)
+        if read is not None and read[0] == kind:
+            yield c, read[1:]
 
 
 def keyword_counter_placements(
@@ -3050,7 +3216,12 @@ def keyword_counter_placements(
         for e in keyword_action_events(tree)
         if e.tag in KEYWORD_ACTION_COUNTER_KINDS and e.yours and (granted or e.own)
     )
-    return actions + printed
+    recovered = tuple(
+        (c.recovered_by, kind)
+        for unit in tree.units
+        for c, (kind,) in _recovered_reads(unit, "counter")
+    )
+    return actions + printed + recovered
 
 
 def cast_with_keyword_name(static_node: TypedMirrorNode) -> str | None:
@@ -3356,11 +3527,9 @@ def has_nested_extra_turn(node: object) -> bool:
     vote outcome), a ``FlipCoin``/``FlipCoins`` ``win_effect`` (Stitch in
     Time, Ral Zarek's -7), or a static ability's ``GrantAbility.
     definition`` (Ichormoon Gauntlet's granted planeswalker loyalty
-    ability) — none of which ``_walk_effects``'s narrow
-    ``_EFFECT_CHILD_FIELDS`` walk (``effect`` / ``sub_ability`` /
-    ``execute`` / ``mode_abilities``) ever reaches, since ``per_choice_
-    effect`` / ``win_effect`` / a modification's ``definition`` aren't
-    among those fields. The ``extra_turns`` lane's structural fallback,
+    ability) — a modification's ``definition`` is past the reach of
+    ``_walk_effects`` (:data:`_EFFECT_WALK_FIELDS`), and the deep walk
+    covers every nesting at once. The ``extra_turns`` lane's structural fallback,
     the :func:`has_nested_roll_die` sibling (task #85, phase v0.23.0).
 
     Also a ``ControlNextTurn`` whose ``grant_extra_turn_after`` is set: Emrakul,
@@ -4838,6 +5007,31 @@ def modify_cost_spell_filter(static_node: TypedMirrorNode) -> object | None:
     return None
 
 
+def cost_reduction_count_filters(node: object) -> Iterator[object]:
+    """The filters of the objects a cost reduction counts (CR 601.2f, 602.2b):
+    a ``ModifyCost`` static's ``dynamic_count`` ("costs {1} less to cast for
+    each creature you control with a +1/+1 counter on it" — Hamza, Guardian of
+    Arashin), and an activated ability's own ``cost_reduction`` — its scaling
+    ``count`` or the ``condition`` that turns it on ("costs {2} less to activate
+    if you control a creature with a +1/+1 counter on it" — Starport
+    Security)."""
+    mode = getattr(node, "mode", MISSING)
+    if isinstance(mode, MirrorVariant) and mode.key == "ModifyCost":
+        count = _variant_field(mode.inner, "dynamic_count")
+        if tag_of(count) == "ObjectCount":
+            filt = getattr(count, "filter", None)
+            if filt is not None:
+                yield filt
+    reduction = getattr(node, "cost_reduction", MISSING)
+    if not isinstance(reduction, TypedMirrorNode):
+        return
+    cond = getattr(reduction, "condition", None)
+    for site, field in ((reduction, "count"), (cond, "lhs"), (cond, "rhs")):
+        filt = ref_count_filter(site, field)
+        if filt is not None:
+            yield filt
+
+
 def static_mode_field(node: object, field: str) -> object:
     """One named field of a parameterized static MODE's payload, or ``None``.
 
@@ -5820,7 +6014,7 @@ def _unit_land_denial(
     """The mass-land-denial shape one ability carries, or ``None``."""
     for sdef in _lasting_static_defs(unit, permanent_card=permanent_card):
         mode = static_mode_tag(sdef)
-        affected = getattr(sdef, "affected", None)
+        affected = static_affected(sdef, unit)
         if mode == "CantUntap" and _names_land_class(affected):
             return "untap_lock"  # Back to Basics, Choke, Mist of Stagnation
         if mode == "MaxUntapPerType" and _names_land_class(
@@ -6603,6 +6797,17 @@ KEYWORD_ACTION_TOKEN_SUBTYPES: dict[str, str] = {
     "Populate": "",
 }
 
+#: The keyword ABILITIES whose own definition creates a creature token, read
+#: where a card grants them: afterlife (CR 702.135a: "create N 1/1 white and
+#: black Spirit creature tokens with flying") and mobilize (CR 702.181a: "create
+#: N 1/1 red Warrior creature tokens"). phase expands a PRINTED one into its own
+#: trigger and Token node (Ministrant of Obligation); a GRANTED one stays the
+#: keyword on an ``AddKeyword`` / ``AddDynamicKeyword`` modification.
+GRANTED_KEYWORD_TOKEN_SUBTYPES: dict[str, str] = {
+    "Afterlife": "Spirit",
+    "Mobilize": "Warrior",
+}
+
 #: Every keyword-action tag :func:`keyword_action_events` reads.
 KEYWORD_ACTION_TAGS: frozenset[str] = frozenset(
     {*KEYWORD_ACTION_COUNTER_KINDS, *KEYWORD_ACTION_TOKEN_SUBTYPES}
@@ -6647,12 +6852,11 @@ def keyword_action_events(tree: ConceptTree) -> tuple[KeywordActionEvent, ...]:
 
 
 def _keyword_action_events(tree: ConceptTree) -> tuple[KeywordActionEvent, ...]:
-    if not tree.has_typed(*KEYWORD_ACTION_TAGS):
-        return ()
+    typed = tree.has_typed(*KEYWORD_ACTION_TAGS)
     out: list[KeywordActionEvent] = []
     for unit in tree.units:
         own = {id(c.node) for c in unit.effects}
-        for n in unit.iter_typed():
+        for n in unit.iter_typed() if typed else ():
             tag = tag_of(n) or ""
             if tag in KEYWORD_ACTION_TAGS:
                 out.append(
@@ -6660,17 +6864,48 @@ def _keyword_action_events(tree: ConceptTree) -> tuple[KeywordActionEvent, ...]:
                         tag, unit, id(n) in own, effect_actor_scope(unit, n)
                     )
                 )
+        out.extend(
+            KeywordActionEvent(
+                tag, unit, own=True, actor_scope=effect_actor_scope(unit, c.node)
+            )
+            for c, (tag,) in _recovered_reads(unit, "action")
+        )
     return tuple(out)
 
 
-def keyword_token_creations(tree: ConceptTree) -> tuple[tuple[str, str], ...]:
+def keyword_token_creations(
+    tree: ConceptTree, *, granted: bool = False
+) -> tuple[tuple[str, str], ...]:
     """``(keyword, token subtype)`` per keyword action you perform that creates
-    a creature token (:data:`KEYWORD_ACTION_TOKEN_SUBTYPES`)."""
-    return tuple(
+    a creature token (:data:`KEYWORD_ACTION_TOKEN_SUBTYPES`). ``granted`` adds
+    each token-making keyword ability the card grants to a permanent that isn't
+    an opponent's (:data:`GRANTED_KEYWORD_TOKEN_SUBTYPES` — Afterlife
+    Insurance's "Creatures you control gain afterlife 1", Infantry Shield's
+    "Equipped creature has … mobilize X"); the token goes to that permanent's
+    controller (CR 111.2). A grant is read wherever it sits (a spell's one-shot
+    ``GenericEffect`` static, a static, a granted body)."""
+    out = [
         (e.tag, KEYWORD_ACTION_TOKEN_SUBTYPES[e.tag])
         for e in keyword_action_events(tree)
         if e.tag in KEYWORD_ACTION_TOKEN_SUBTYPES and e.yours
-    )
+    ]
+    if granted:
+        for unit in tree.units:
+            for sdef, mod in iter_mod_sites(unit.node, deep=True):
+                tag = tag_of(mod)
+                if tag == "AddKeyword":
+                    name = mod_keyword_name(mod) or ""
+                elif tag == "AddDynamicKeyword":
+                    name = getattr(mod, "kind", None) or ""
+                else:
+                    continue
+                subtype = GRANTED_KEYWORD_TOKEN_SUBTYPES.get(name)
+                if subtype is None:
+                    continue
+                if filter_controller(getattr(sdef, "affected", None)) == "Opponent":
+                    continue
+                out.append((name, subtype))
+    return tuple(out)
 
 
 # ── end keyword action events ────────────────────────────────────────────────
@@ -6708,14 +6943,16 @@ _RESOURCE_NODE_TAGS: dict[str, tuple[str, str]] = {
 }
 #: Trigger modes that watch a resource event of the trigger's controller (a
 #: ``Controller`` ``valid_target``). ``DungeonCompleted``: "whenever you complete a
-#: dungeon" (CR 309.7). ``CounterPlayerAddedAll``: "whenever you get one or more
-#: {E}" (Territorial Gorger). phase drops the counter kind from that trigger, so
-#: reading it as energy is a bridge: every card phase gives the mode is an energy
-#: card today, and ``test_counter_player_added_trigger_drops_its_kind_canary``
-#: fails once phase carries the kind.
+#: dungeon" (CR 309.7).
 _RESOURCE_TRIGGER_MODES: dict[str, tuple[str, str]] = {
-    "CounterPlayerAddedAll": ("energy", "matters"),
     "DungeonCompleted": ("venture", "matters"),
+}
+#: The counter kinds a ``CounterPlayerAddedAll`` trigger ("whenever you get one
+#: or more {E}" — Territorial Gorger) watches that are a resource. Phase drops the
+#: kind from the trigger; the overlay's ``player_counter_kind`` arm re-reads it
+#: off the trigger's clause (CR 107.14: {E} is an energy counter).
+_PLAYER_COUNTER_RESOURCES: dict[str, tuple[str, str]] = {
+    "energy": ("energy", "matters"),
 }
 #: Condition tags a venture payoff is gated on: "if you've completed a dungeon"
 #: (Gloom Stalker), "if you completed <a named dungeon>" (Acererak), "if you have
@@ -6745,6 +6982,10 @@ def _keyword_resource_events(tree: ConceptTree) -> tuple[ResourceEvent, ...]:
     if any(normalised_keyword_name(kw) == "foretell" for kw in tree.card_keywords):
         out.append(ResourceEvent("foretell", "makers", None))
     for unit in tree.units:
+        out.extend(
+            ResourceEvent(resource, side, unit)
+            for _c, (resource, side) in _recovered_reads(unit, "resource")
+        )
         for n in unit.iter_typed():
             tag = tag_of(n) or ""
             if tag in _RESOURCE_NODE_TAGS:
@@ -6754,10 +6995,17 @@ def _keyword_resource_events(tree: ConceptTree) -> tuple[ResourceEvent, ...]:
             mode = getattr(n, "mode", None)
             if (
                 isinstance(mode, str)
-                and mode in _RESOURCE_TRIGGER_MODES
                 and tag_of(getattr(n, "valid_target", None)) == "Controller"
             ):
-                out.append(ResourceEvent(*_RESOURCE_TRIGGER_MODES[mode], unit))
+                kind = unit.corrected(n, "counter_kind")
+                if mode in _RESOURCE_TRIGGER_MODES:
+                    out.append(ResourceEvent(*_RESOURCE_TRIGGER_MODES[mode], unit))
+                elif (
+                    mode == "CounterPlayerAddedAll"
+                    and isinstance(kind, str)
+                    and kind in _PLAYER_COUNTER_RESOURCES
+                ):
+                    out.append(ResourceEvent(*_PLAYER_COUNTER_RESOURCES[kind], unit))
             cause = double_triggers_cause(n)
             if cause is not None and cause[0] == "RoomEntered":
                 out.append(ResourceEvent("venture", "matters", unit))
@@ -6870,9 +7118,11 @@ def taps_target_object(node: object) -> bool:
     """Whether ``node`` taps a permanent its controller picks: a ``SetTapState``
     whose state is ``Tap`` and whose target is an object filter (CR 701.26a: to
     tap a permanent is to turn it sideways). A self-tap (``SelfRef``) and an
-    untap never count. A filter phase stamps ``controller: You`` still counts:
-    phase writes "tap target creature that player controls" (Delirium; Yosei,
-    the Morning Star) that way too."""
+    untap never count. A filter phase stamps ``controller: You`` still counts
+    here: phase writes "tap target creature that player controls" (Delirium;
+    Yosei, the Morning Star) that way too, and the overlay's
+    ``tap_other_player`` correction (``AbilityUnit.corrected``) is what tells
+    the two apart."""
     return (
         isinstance(node, TypedMirrorNode)
         and tag_of(node) == "SetTapState"

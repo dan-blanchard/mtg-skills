@@ -353,28 +353,17 @@ def has_own_target_spell(tree: ConceptTree) -> bool:
                 continue
             if not any(v < 0 for v in _pump_mod_ints(c.node)):
                 return True
-    seen: set[int] = set()
-    queue: list[object] = [u.node for u in tree.units]
-    while queue:
-        node = queue.pop(0)
-        if not isinstance(node, TypedMirrorNode) or id(node) in seen:
-            continue
-        seen.add(id(node))
-        tgt = getattr(node, "target", None)
-        if (
-            isinstance(tgt, TypedMirrorNode)
-            and tag_of(tgt) == "Typed"
-            and filter_controller(tgt) == "You"
-            and not _is_mass_effect(node)
-            and not _names_cards_off_battlefield(tgt)
-        ):
-            return True
-        for v in vars(node).values():
-            if isinstance(v, TypedMirrorNode):
-                queue.append(v)
-            elif isinstance(v, list):
-                queue.extend(x for x in v if isinstance(x, TypedMirrorNode))
-    return False
+    # The controller is read through the unit's overlay corrections: Delirium's
+    # "tap target creature that player controls" phase stamps ``You``.
+    return any(
+        isinstance(tgt := getattr(node, "target", None), TypedMirrorNode)
+        and tag_of(tgt) == "Typed"
+        and filter_controller(tgt, unit) == "You"
+        and not _is_mass_effect(node)
+        and not _names_cards_off_battlefield(tgt)
+        for unit in tree.units
+        for node in unit.iter_typed()
+    )
 
 
 #: The mass pumps — the ``*All`` variants of a pump effect: their ``target``

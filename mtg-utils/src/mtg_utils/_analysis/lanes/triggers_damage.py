@@ -104,6 +104,7 @@ from mtg_utils._card_ir.recovery import (
     SELF,
     TARGET_OBJECT,
     YOURS,
+    is_theirs,
 )
 from mtg_utils._card_ir.text_idioms import (
     _FORCE_ATTACK,
@@ -2071,6 +2072,13 @@ def _damage_redirect(tree: ConceptTree) -> list[Signal]:
       which before read only as ``damage_prevention``. A life floor (Worship,
       Ali from Cairo) redirects nothing and stays ``board_protection``.
 
+    * ARM D — a redirect phase v0.104.0 parks as a residue, recovered by the
+      ``damage_redirect`` token (Kjeldoran Royal Guard, Kor Chant, Sivvi's
+      Valor, Turn the Tables, Ascent of the Worthy …). One that moves the
+      damage onto a creature's controller (``OTHER_PLAYER`` — Treacherous
+      Link's curse) shields nothing of yours, the same line
+      :func:`reads.redirects_damage_from_you` draws.
+
     Scope "you" (the deleted producers' forced scope). CR 614.9 / 615.
     """
     kept = _kept(tree)
@@ -2080,6 +2088,9 @@ def _damage_redirect(tree: ConceptTree) -> list[Signal]:
         return [Signal("damage_redirect", "you", "", "", tree.name, "high")]
     if any(redirects_damage_from_you(n) for n in tree.iter_typed()):
         return [Signal("damage_redirect", "you", "", "", tree.name, "high")]
+    for c in tree.iter_concepts():
+        if c.recovered_by == "damage_redirect" and not is_theirs(c):
+            return [Signal("damage_redirect", "you", "", c.raw, tree.name, "high")]
     return []
 
 
@@ -2387,6 +2398,13 @@ def _replacement_doubler_lanes(tree: ConceptTree) -> list[Signal]:
                     fire("damage_doubling", raw)
                     if tscope in (None, "opponents", "each", "any"):
                         fire("direct_damage", raw)
+    # A "that many plus N" bonus phase v0.104.0 parks as a residue, recovered by
+    # the ``counter_bonus`` token (Prairie Dog's activated one, Zabaz's modular
+    # one): the typed arm's Plus mod, read off the clause, your side only.
+    for c in tree.effect_concepts("counter_bonus"):
+        if c.recovered_by == "counter_bonus" and not is_theirs(c):
+            fire("counter_doubling", c.raw)
+            fire("counter_replace_bonus", c.raw)
     for c in tree.effect_concepts("double_quantity"):
         if double_target_kind(c.node) == "Counters":
             fire("counter_doubling", c.raw)

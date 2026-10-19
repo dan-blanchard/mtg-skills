@@ -861,9 +861,8 @@ SPECS_1: dict[tuple[str, str], SignalSpec] = {
     # payoff reads any filter naming Treasures, the "if mana from a Treasure was
     # spent" condition included. The regex's remainder is opponents' Treasures
     # (gift, "target opponent creates", CR 111.2), an opponent's permanent turned
-    # into a Treasure, a treasure counter, and three gaps (Jetmir's Fixer's and
-    # Excess's phase residues; The Gold Saucer's coin-flip ``win_effect``, which
-    # the effect-chain walk doesn't descend).
+    # into a Treasure, a treasure counter, and two gaps (Jetmir's Fixer's and
+    # Excess's phase residues).
     ("treasure_matters", "you"): _spec(
         "Treasure",
         "Treasure makers for ramp, fixing, and artifact synergy",
@@ -898,8 +897,9 @@ SPECS_1: dict[tuple[str, str], SignalSpec] = {
         # blanks the soaked damage a redirect-to-self commander (Hazduhr,
         # Cho-Manno) takes. Left out: life floors (Worship, Ali from Cairo —
         # board_protection; Worship's ruling: the damage is still dealt, so it
-        # blanks nothing a creature soaks) and the redirects phase parks as
-        # residues (Kjeldoran Royal Guard, Turn the Tables, Kor Chant).
+        # blanks nothing a creature soaks). The redirects phase parks as residues
+        # (Kjeldoran Royal Guard, Turn the Tables, Kor Chant) recover (the
+        # ``damage_redirect`` token).
         None,
         serve_idents=frozenset({"damage_redirect|you|", "damage_prevention|you|"}),
         extras=(

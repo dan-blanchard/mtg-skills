@@ -403,8 +403,8 @@ def test_debuff_serve_reads_variable_one_sided_and_granted_shrinks():
     assert serve.matches(_card("High Perfect Morcant"))
     # A whole board turned into 1/1 Frogs: retyping creatures animates nothing.
     assert serve.matches(_card("Polymorphist's Jest"))
-    # A delayed "it gets -1/-0" on an attacker; on a noncreature card phase's
-    # SelfRef is the attacking creature.
+    # A delayed "it gets -1/-0" on an attacker: phase stamps it SelfRef, the
+    # overlay's anaphoric_pump arm re-reads it as the attacking creature.
     assert serve.matches(_card("Jace, Architect of Thought"))
     # The regex served a creature shrinking itself, blight (-1/-1 counters on
     # a creature you control, CR 701.68a) and an animation's 1/1 (the

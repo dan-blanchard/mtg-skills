@@ -9,14 +9,6 @@ the lane must keep.
 import pytest
 
 from mtg_utils._analysis.lanes.graveyard_lifeloss import self_mill_fill
-from mtg_utils._card_ir.crosswalk import (
-    answers_its_target,
-    change_zone_dirs,
-    effect_filter,
-    filter_controller,
-    filter_inzone_zones,
-    filter_owned_controller,
-)
 from mtg_utils._card_ir.trees import trees_for
 from mtg_utils.testkit import test_card, test_card_ir, test_signals
 
@@ -136,7 +128,7 @@ def test_an_opponents_triggered_mill_is_not_yours():
     assert "graveyard_makers|you|" not in _idents("Mindcrank")
 
 
-# ── Retirement canary: "that player's graveyard" with no owner ───────────────
+# ── "that player's graveyard" with no owner (overlay graveyard_owner) ────────
 
 
 @pytest.mark.parametrize("name", ["Skullsnatcher", "Zombie Cannibal"])
@@ -146,36 +138,3 @@ def test_gy_hate_that_players_graveyard_scope(name):
     assert "graveyard_matters|opponents|" in idents
     assert "graveyard_matters|any|" not in idents
     assert "graveyard_matters|you|" not in idents
-
-
-@pytest.mark.retirement_canary
-@pytest.mark.parametrize("name", ["Skullsnatcher", "Zombie Cannibal"])
-def test_gy_hate_that_players_graveyard_canary(name):
-    """Retirement canary for the ``_GY_OPP_RE`` description check in
-    ``graveyard_lifeloss._graveyard_matters``'s graveyard-hate arm: phase
-    v0.104.0 drops "that player's" off the exile's target filter, so the
-    filter names no owner and reads "a graveyard"."""
-    test_card_ir(name)
-    exiles = [
-        c.node
-        for t in trees_for(test_card(name))
-        for u in t.units
-        for c in u.effects
-        if answers_its_target(c.node)
-        and (
-            change_zone_dirs(c.node)[0] == "Graveyard"
-            or "Graveyard" in filter_inzone_zones(effect_filter(c.node))
-        )
-    ]
-    assert exiles
-    assert all(
-        not (
-            filter_owned_controller(effect_filter(n))
-            or filter_controller(effect_filter(n))
-        )
-        for n in exiles
-    ), (
-        "graveyard_lifeloss: RETIRE-READY — phase now carries the owner of "
-        f"{name}'s graveyard exile. Delete the _GY_OPP_RE check in the "
-        "graveyard-hate arm of _graveyard_matters and this canary."
-    )

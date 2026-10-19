@@ -9,7 +9,7 @@ import pytest
 from mtg_utils._analysis import signal_keys
 from mtg_utils._analysis.signal_specs import Serve, serve_from_dict, spec_for
 from mtg_utils._analysis.signals import Signal
-from mtg_utils.testkit import test_card, test_phase_records, test_signals
+from mtg_utils.testkit import test_card, test_signals
 
 
 def _subjects(name: str, key: str) -> set[str]:
@@ -44,27 +44,6 @@ def _sig(key: str, subject: str) -> Signal:
 )
 def test_animate_makers_names_the_animated_type(name, subjects):
     assert _subjects(name, signal_keys.ANIMATE_MAKERS) == subjects
-
-
-@pytest.mark.retirement_canary
-def test_hidden_guerrillas_self_animation_is_still_misparsed():
-    """Retirement canary for the enters-only ``TriggeringSource`` gate in
-    ``lanes.animate_land_types._animated_filters``. Phase v0.104.0 reads Hidden
-    Guerrillas's "When an opponent casts an artifact spell, if ~ is an
-    enchantment, it becomes a 5/3 Soldier creature" with ``it`` as the
-    TRIGGERING SOURCE (the cast spell) instead of the card itself. When phase
-    reads it as ``SelfRef``, this fails RETIRE-READY."""
-    (record,) = test_phase_records("Hidden Guerrillas")
-    (trigger,) = record["triggers"]
-    (static,) = trigger["execute"]["effect"]["static_abilities"]
-    assert static["affected"]["type"] == "TriggeringSource", (
-        "lanes.animate_land_types._animated_filters: RETIRE-READY — phase now "
-        f"reads Hidden Guerrillas's animated object as {static['affected']}. Let "
-        "the TriggeringSource arm read every trigger's watched object (drop its "
-        "trigger_event == 'enters' gate), keep Hidden Guerrillas out of "
-        "animate_makers, then delete this canary."
-    )
-    assert not _subjects("Hidden Guerrillas", signal_keys.ANIMATE_MAKERS)
 
 
 @pytest.mark.parametrize(

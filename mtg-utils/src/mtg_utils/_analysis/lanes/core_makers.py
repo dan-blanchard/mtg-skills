@@ -280,7 +280,10 @@ def _token_maker(tree: ConceptTree) -> list[Signal]:
     Army (CR 701.47a), endure's Spirit (701.63a) and populate's copy of a
     creature token you control (701.36a, subject ""). phase types each as its
     own effect node; the token they make is spelled only in reminder text,
-    which the mirror strips.
+    which the mirror strips. So does a token-making keyword the card grants
+    (``keyword_token_creations(granted=True)``):
+    afterlife's Spirit (CR 702.135a — Afterlife Insurance) and mobilize's
+    Warrior (CR 702.181a — Infantry Shield).
 
     A token the target's controller creates ("Destroy target permanent. Its
     controller creates a 3/3 green Beast creature token." — Beast Within,
@@ -385,7 +388,7 @@ def _token_maker(tree: ConceptTree) -> list[Signal]:
                     subject = resolved
                     break
             fire(subject, concept.raw, "any" if owner_override else "you")
-    for keyword, subject in keyword_token_creations(tree):
+    for keyword, subject in keyword_token_creations(tree, granted=True):
         fire(subject, keyword)
     if need_mirror:
         for subject in sorted(_mirror_token_maker_type_subjects(tree.oracle or "")):
@@ -1079,7 +1082,30 @@ def _plus_one_makers(tree: ConceptTree) -> list[Signal]:
                         return [
                             Signal("plus_one_makers", "you", "", "", tree.name, "high")
                         ]
+        # A replacement that puts the card onto the battlefield with +1/+1
+        # counters (Dodecapod's "put it onto the battlefield with two +1/+1
+        # counters on it instead of putting it into your graveyard"; CR 122.6:
+        # counters an object is given as it enters are counters put on it). A
+        # dies or blink return "with a +1/+1 counter" (undying, Long Road Home)
+        # stays out, the plus-one preset's documented exclusion.
+        if unit.origin == "replacement" and any(
+            _enters_with_plus_one(n) for n in unit.iter_typed()
+        ):
+            return [Signal("plus_one_makers", "you", "", "", tree.name, "high")]
     return []
+
+
+def _enters_with_plus_one(node: object) -> bool:
+    """A ``ChangeZone`` onto the battlefield whose ``enter_with_counters`` names
+    +1/+1 counters."""
+    if tag_of(node) != "ChangeZone" or getattr(node, "destination", None) != (
+        "Battlefield"
+    ):
+        return False
+    counters = getattr(node, "enter_with_counters", None)
+    return isinstance(counters, list) and any(
+        isinstance(c, list) and c and c[0] == "P1P1" for c in counters
+    )
 
 
 # task #87 — the pacify-aura structural concept. Task #86's removal-preset
@@ -1669,8 +1695,8 @@ def _damage_for_each(tree: ConceptTree) -> list[Signal]:
     player`` — the finisher read), ``"any"`` for a creature-only bite
     (board-scaled removal, Outnumber). A "that player controls" text guard
     kills phase's two mis-parsed opponent-board counts (Jovial Evil, Wing
-    Storm). Known acceptable miss: Goblin Lyre (count inside FlipCoin's
-    win_effect — recorded, not dismissed)."""
+    Storm). Goblin Lyre's count sits inside FlipCoin's ``win_effect``, which
+    the effect walk descends."""
     out: list[Signal] = []
     seen: set[tuple[str, str]] = set()
 

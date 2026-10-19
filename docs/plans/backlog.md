@@ -57,10 +57,8 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   regex lane is retired for `animate_makers` — 24 cards lost the old key with
   no replacement, by design: 19 Vehicles and 2 artifacts that animate only
   themselves, 2 copy effects (Saheeli, Sublime Artificer; True Polymorph).)
-  Phase misparses behind animation (report upstream, Dan posts): Alacrian
-  Armory ("that permanent … becomes an artifact creature if it's a Vehicle"
-  reads as the source animating itself); Hidden Guerrillas ("it" read as the
-  cast spell); Animate Artifact (the Aura animating itself), so none fires.
+  (Alacrian Armory, Hidden Guerrillas and Animate Artifact are bridged by field
+  corrections since 2026-10-19 — see the phase-gap list below.)
   (`clue_matters` on bare investigate doers and the enchantment-token makers'
   `enchantments_matter` are fixed in the fourth pass: a `<x>_matters` is a
   payoff shape — a count, a grant, a watched subject, a sacrifice you pay —
@@ -69,18 +67,11 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   Officious Interrogation (phase parks "investigate X times" in an
   Unimplemented where-X residue), Curious Inquiry (an Aura granting an
   investigate trigger — `_resource_token_makers` does not walk granted
-  bodies), In Too Deep.) Tomik, Wielder
-  of Law lost `superfriends_matters`: its "affinity for planeswalkers" is a
-  real count, but the concept tree exposes only the keyword name, not its
-  parameter. The superfriends synth arm still fires on protective "creature
+  bodies), In Too Deep.) The superfriends synth arm still fires on protective "creature
   or planeswalker you control" cards (Angelic Intervention, Kaya's Ghostform,
-  Fey Steed); a general veto would drop Spark Double and Lae'zel. With the
-  veto structural (`crosswalk.defends_you` / `watches_attacks_on_you` over
-  `DEFENDED_YOU`, CR 506.2), eight protective cards phase types no deterrent
-  for fire again — Assault Suit, Varchild (no defended field), Trove of
-  Temptation (an Unimplemented clause), Vengeful Pharaoh (trigger mode
-  Unknown), Ever-Watching Threshold, Illusionist's Gambit, Tenuous Truce (the
-  recipient untyped), Sivitri's +1 — phase gaps, report upstream. The
+  Fey Steed); a general veto would drop Spark Double and Lae'zel. (The eight
+  protective cards phase types no deterrent for are bridged since 2026-10-19 —
+  the phase-gap list below.) The
   Animation subject types are spelled twice (`signal_specs/core._ANIMATED_TYPES`
   and the lane's `_ANIMATE_SUBJECT_TYPES`): the spec layer and the lane layer
   do not import each other. A
@@ -137,46 +128,71 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
 - **Every held serve spec is converted (2026-10-19); what the lanes still
   miss** (the per-spec censuses are in `docs/plans/serve-idents-and-avenue-support.md`
   §2; the 41 holds of the serve-ident pass and the six of the fourth pass are
-  all `serve_idents` now, each with its remainder classified). Phase gaps
-  (report upstream, Dan posts): Mask of the Schemer's "connives X" and Thromok's
-  devour X (`where_x_binding`); Izzet Generatorium's energy replacement,
-  Reiterating Bolt's "Replicate—Pay {E}{E}{E}", Salvation Colossus's
-  "Unearth—Pay eight {E}", "get an amount of {E} equal to …" (Robobrain War
-  Mind, The Motherlode, Overclocked Electromancer), Aether Refinery's energy
-  doubler typed as a CreateToken replacement, `CounterPlayerAddedAll` with no
-  counter kind (a canary), Dream Devourer's "whenever you foretell" (Unknown
-  mode); You Find a Cursed Idol's venture mode; Ethereal Valkyrie, Karfell
-  Harbinger, Ranar the Ever-Watchful (foretell); nine "all damage that would
-  be dealt to X is dealt to Y instead" effects left as residues (Kjeldoran
-  Royal Guard, Kor Chant, Kor Dirge, Sivvi's Valor, Turn the Tables …),
-  Treacherous Link; Prairie Dog's temporary AddCounter replacement, Zabaz's
-  modular bonus; Rags // Riches and Reduce // Rubble faces with no units;
-  Athreos, Shroud-Veiled's exile parsed as a CounterAdded trigger; Death's
-  Approach, Foul Renewal, Attempted Murder, Decimator Beetle, Zealous
-  Persecution, Pradesh Gypsies (debuffs); "that creature" / "each land"
-  stamped `SelfRef` (Mesmerizing Benthid, Scion of Stygia, Wall of Stolen
-  Identity, Tsabo's Web, Code of Constraint; Jace Architect of Thought, Blood
-  Lust); "that player controls" stamped `controller: You` (Delirium, Yosei,
-  Mana Web); Stunning Shot's lost opponent filter; Elspeth Resplendent's and
-  Undercover Operative's shield counters; Nicanzil's explore triggers;
-  Attraction triggers as Unknown modes (Motion Sickness, The Most Dangerous
-  Gamer); Venser's Diffusion's "or suspended card"; Heir of the Ancient Fang,
-  Ian the Reckless, Lethal Exploit, Lethal Throwdown, Lion Umbra (modified);
-  Officious Interrogation's "investigate X times"; Jetmir's Fixer, Rain of
-  Riches, Vazi (Treasure-spent conditions); Indulge // Excess; The Fourth
-  Doctor's reflexive Food; Osteomancer Adept's forage cast-permission;
-  Commence the Endgame and Fall of Cair Andros (amass folded away — a canary);
-  Afterlife Insurance and Infantry Shield (granted afterlife / mobilize X).
+  all `serve_idents` now, each with its remainder classified). Phase gaps,
+  each bridged 2026-10-19 by the supplemental parser with a `retirement_canary`
+  or a self-retiring ledger row (tests/mtg-utils/test_phase_gaps_*.py; report
+  upstream all the same, Dan posts): where-X keyword heads (Mask of the
+  Schemer's connive X, Thromok's devour X, Fall of Cair Andros's amass X,
+  Officious Interrogation's investigate X — the `_where_x_head` recovery,
+  scoped to connive / amass / investigate; opening it to every allowlisted verb
+  would recover ~40 more where-X clauses across many lanes, a separate
+  measured promotion); energy residues (`gain_energy` / `energy_payment`
+  tokens: Overclocked Electromancer, Robobrain War Mind, The Motherlode,
+  Reiterating Bolt, Salvation Colossus, Izzet Generatorium's condition);
+  foretell residues (Ethereal Valkyrie, Karfell Harbinger, Ranar); Osteomancer
+  Adept's forage cost (a ledger row); Jetmir's Fixer (a lane arm over the
+  recovered counter); the nine "all damage dealt to X is dealt to Y instead"
+  replacements (`damage_redirect` token, Treacherous Link and Megatron kept
+  out as opponent-side); Prairie Dog and Zabaz (`counter_bonus` token);
+  Death's Approach and kin (`debuff` static token — the Sewer Plague ledger row
+  retired by it); Attempted Murder; Ian the Reckless and Volcano Hellion ("to
+  you and …" burn); Stunning Shot and three more fresh tap targets; ledger rows
+  for Cragganwick Cremator / Flames of the Blood Hand / Kaboom! / Unstable
+  Footing (a dropped planeswalker target), Insult // Injury, Tetsuo, Mob
+  Verdict / Chandra's Flame Wave / Path of Mettle (the creature half), Decimator
+  Beetle / Zealous Persecution / Foul Renewal (a dropped shrink), Heir of the
+  Ancient Fang / Lethal Exploit / Lethal Throwdown / Lion Umbra (modified),
+  Elspeth Resplendent / Undercover Operative (shield counters), Nicanzil,
+  Dream Devourer, The Fourth Doctor, You Find a Cursed Idol (Unknown or
+  dropped trigger modes); field corrections for the `SelfRef` untap locks
+  (Mesmerizing Benthid, Scion of Stygia, Wall of Stolen Identity, Tsabo's Web,
+  Code of Constraint), the anaphoric "it gets -N/-0" pumps (the two Jaces,
+  Tamiyo, Blood Lust, Six-Sided Die), "that player controls" taps (Delirium,
+  Yosei, Mana Web — and 22 self-tap cards such as Jaddi Lifestrider left
+  `tapper_engine`), the Hidden / Opal / Veiled / Lurking self-animation cycle,
+  Alacrian Armory and Animate Artifact, Athreos's exile, the graveyard owner
+  (Skullsnatcher, Zombie Cannibal, Grime Gorger — opponents; Savior of
+  Ollenbock — any), `CounterPlayerAddedAll`'s energy kind, Venser's Diffusion;
+  the eight protective superfriends cards (a parked-recipient check); and the
+  repo-side reads: granted afterlife / mobilize token makers, Worldwalker
+  Helm's replacement Map, Dodecapod's enters-with counters, Hamza / Starport
+  Security's countered-creature cost reductions, Brimaz's Phyrexian death,
+  `walk_effect_chain` descending a coin flip's WIN branch only (+23 idents;
+  the lose branch — Volatile Rig's sweep — is deliberately not walked, since
+  both branches would serve drawbacks: Scoria Wurm's self-bounce). Still open,
+  nothing to read: Commence the Endgame (the amass is folded into the Draw
+  node's description with no residue; the keyword-array fallback serves it),
+  Izzet Generatorium's energy replacement (a payoff on makers, left), Aether
+  Refinery's doubler typed as a CreateToken replacement (no consumer reads it
+  wrong), Rain of Riches (already served), the aftermath faces Rags // Riches,
+  Reduce // Rubble, Indulge // Excess (phase emits no record for the second
+  face — a canary waits on it), Pradesh Gypsies (no record at all), Tomik's
+  "affinity for planeswalkers" (the keyword's parameter is not exposed), the
+  Attraction Unknown modes (already served by the sweep row); Orcish Captain's
+  "it gets -0/-2" (an anaphoric "it" inside an ACTIVATED ability's coin-flip
+  branch, stamped `SelfRef`; the `anaphoric_pump` arm covers delayed triggers
+  and a spell's own chain, not activated abilities, since a Dragonrage-type
+  grant really does mean the card) fires `self_pump|you|`; Desperate Gambit's "choose a source you control" loses
+  "you control" (the chooser is `TargetOnly{target: Any}`), so its losing
+  branch's prevention reads as `damage_prevention` — a dropped-controller
+  misstamp, and once a field correction restores it `is_own_drawback` needs a
+  `PreventDamage`-on-your-source arm.
   Lane gaps still open: `creature_recursion` has no destination subject (62
   reanimation spells sit outside damage_for_each; creature_etb carries a
   reanimation extra instead); `cost_reduction` has no spell-type subject (21
-  creature-spell reducers); `plus_one_matters` misses cost reductions that
-  count countered creatures (Hamza, Starport Security) and Dodecapod's
-  enters-with replacement; the edict lane misses Incriminate, Malik,
+  creature-spell reducers); the edict lane misses Incriminate, Malik,
   Gluttonous Hellkite, Killing Wave, Tragic Arrogance and granted edicts;
-  `walk_effect_chain` does not descend `FlipCoin.win_effect` (The Gold
-  Saucer's Treasure, Invert Polarity's theft); the known-token walk ignores
-  `additional_token_spec` (Worldwalker Helm's Map); keyword token-copy makers
+  keyword token-copy makers
   (embalm, eternalize, myriad, squad, encore) are not read; granted flanking;
   back-reference counter targets scoped you (Retribution, Obelisk Spider);
   partial prevention, granted absorb, Blinding Powder, Torrent of Lava
@@ -196,11 +212,8 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   discard this" cards fire `discard_matters` and Balance / Restore Balance
   `discard_outlet`; Oft-Nabbed Goat and Sentinel of Lost Lore fire
   `gain_control`; An Offer You Can't Refuse fires `treasure_makers|you`;
-  Brimaz, Blight of Oreskos's "if a Phyrexian died under your control" fires no
-  `death_matters`; Investigator's Journal still fires `proliferate_matters` and
-  The Book of Exalted Deeds `stax_taxes|opponents`; phase drops the owner from
-  "from your graveyard" on Rooting Moloch, Stitcher Geralf, Savior of
-  Ollenbock, Grime Gorger (the hate arm declines the shape).
+  Investigator's Journal still fires `proliferate_matters` and
+  The Book of Exalted Deeds `stax_taxes|opponents`.
   Ranking: `ranking._synergy_score` gives clause clusters only to regex-matched
   hits, so every regex → ident conversion thins clause breadth (Empty the
   Warrens' token clause 8 → 6 lanes); attributing an ident hit to the clause

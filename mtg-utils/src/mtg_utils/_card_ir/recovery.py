@@ -33,6 +33,8 @@ from mtg_utils._card_ir._substrate_purity import assert_substrate_pure, l1_ident
 from mtg_utils._card_ir.clause_grammar import (
     _VERB_PRESENT,
     parse_clause,
+    replacement_sentences,
+    replacement_token,
     scan_clause,
     static_token,
 )
@@ -43,6 +45,7 @@ from mtg_utils._card_ir.crosswalk import (
     ConceptNode,
     ConceptTree,
     iter_nested_granted_bodies,
+    residue_is,
     tag_of,
     unit_zones,
     walk_effect_chain,
@@ -86,6 +89,11 @@ class TokenRule:
     # created token's own types ("create a tapped Powerstone token") — the
     # artifact-token subtypes (Treasure, Map, Junk …) among them.
     token_types: bool = False
+    # Also recover a ``where_x_binding`` residue — phase parks only the binding
+    # ("where X is …") and drops the verb it binds — from the sentence of its
+    # unit's ``description`` that holds the residue verbatim
+    # (:func:`_binding_sentence`).
+    from_binding_sentence: bool = False
 
 
 # ADR-0038 token allowlist — grows per-key with corpus measurement + pinned
@@ -489,6 +497,128 @@ ALLOWLIST: dict[str, TokenRule] = {
 }
 
 
+# ── The redirect, the counter bonus and the shrink ──────────────────────────────
+# Three idioms phase v0.104.0 parks whole (``clause_grammar.REPLACEMENT_TOKENS`` /
+# its ``debuff`` static row; each row states its corpus precision). Each earns a
+# concept of its own that only its lane reads (``recovered_by``), so no other
+# ``deal_damage`` / ``place_counter`` / ``pump`` reader picks it up — a redirect
+# is never burn, so the removal lanes and the 2HG scan's removal reach never see
+# one.
+ALLOWLIST.update(
+    {
+        # CR 614.9 redirection: ``damage_redirect`` reads it. ``OTHER_PLAYER`` is
+        # the damage moved onto a creature's controller (Treacherous Link's curse,
+        # Megatron's excess damage) — a punisher shielding nothing of yours.
+        "damage_redirect": TokenRule(
+            concept="redirect_damage",
+            category="damage_redirect",
+            in_replacements=True,
+            reads_clause=True,
+            other_player=(
+                r"\bdealt to (?:its|that (?:creature|permanent)'s) controller\b"
+            ),
+        ),
+        # A "that many plus N" counter-placement bonus (CR 122.1, 614.1a):
+        # ``counter_replace_bonus`` / ``counter_doubling`` read it, beside their
+        # typed ``AddCounter`` replacement arm.
+        "counter_bonus": TokenRule(
+            concept="counter_bonus",
+            category="counter_bonus",
+            in_replacements=True,
+            reads_clause=True,
+        ),
+        # A -X/-X shrink phase's static parser failed on (CR 613.4c):
+        # ``debuff_makers`` reads it.
+        "debuff": TokenRule(
+            concept="debuff",
+            category="debuff",
+            reads_clause=True,
+            from_binding_sentence=True,
+        ),
+    }
+)
+# The burn's object is a target after a "you and" recipient too: Ian the
+# Reckless's "deal damage equal to its power to you and any target" (CR 115.4),
+# so the removal lane reads it like any other "to any target" residue. Corpus
+# precision (commander-legal, phase v0.104.0): it marks exactly 2 more nodes
+# ``TARGET_OBJECT`` — Ian the Reckless and Volcano Hellion ("to you and target
+# creature").
+ALLOWLIST["damage"] = replace(
+    ALLOWLIST["damage"], object_verb=r"damage\b[^.]*?\bto(?: you and)?"
+)
+
+
+# ── Recovered keyword heads and resource events ────────────────────────────────
+# Keyword actions and resources phase v0.104.0 parks as residues. Each earns the
+# concept its native node decorates to, and the shared reads
+# (``crosswalk.keyword_action_events`` / ``keyword_resource_events`` /
+# ``keyword_counter_placements``) read the token itself (``recovered_by``), so
+# every lane over them — counters, tokens, connive, energy, foretell — sees it.
+ALLOWLIST.update(
+    {
+        # CR 701.50a connive / 701.47a amass / 701.16a investigate (a Clue), each
+        # the verb of a ``where_x_binding`` residue: Mask of the Schemer's "it
+        # connives X", Fall of Cair Andros's "amass Orcs X", Officious
+        # Interrogation's "Investigate X times".
+        "connive": TokenRule(
+            concept="connive", category="connive", from_binding_sentence=True
+        ),
+        "amass": TokenRule(
+            concept="amass", category="amass", from_binding_sentence=True
+        ),
+        "investigate": TokenRule(
+            concept="investigate", category="make_token", from_binding_sentence=True
+        ),
+        # CR 702.82a devour: Thromok the Insatiable's "Devour X, where X is …".
+        "devour": TokenRule(concept="devour", category="devour"),
+        # CR 107.14 energy: "you get X {E}" / "an amount of {E} equal to …"
+        # (Overclocked Electromancer, Robobrain War Mind, The Motherlode), and an
+        # energy payment (``clause_grammar``'s ``energy_payment`` static row). A
+        # replacement that adds {E} (Izzet Generatorium's "that many plus one")
+        # stays out: it rewards the makers rather than being one.
+        "gain_energy": TokenRule(concept="gain_energy", category="energy"),
+        "energy_payment": TokenRule(concept="pay_energy", category="pay_cost"),
+        # CR 702.143a foretell: decorated as the ``cast_from_zone`` row decorates
+        # (the grammar's foretell row fed that token until it had its own name);
+        # the foretell lanes read the token itself.
+        "foretell": TokenRule(
+            concept="cast_from_zone", category="cast_from_zone", reads_clause=True
+        ),
+    }
+)
+
+
+def _binding_sentence(c: ConceptNode, unit: AbilityUnit | None) -> str | None:
+    """The sentence a ``where_x_binding`` residue was cut from: in its unit's own
+    ``description``, the text from the last sentence break (``.`` or ``:`` and
+    whitespace) before the residue's first verbatim occurrence through the
+    residue's end — "Whenever equipped creature deals combat damage to a player,
+    it connives X, where X is …" (Mask of the Schemer). ``None`` when ``c`` is no
+    such residue or the description doesn't hold it verbatim."""
+    if unit is None or not residue_is(c.node, "where_x_binding") or not c.raw:
+        return None
+    desc = getattr(unit.node, "description", None)
+    if not isinstance(desc, str):
+        return None
+    end = desc.find(c.raw)
+    if end < 0:
+        return None
+    start = max((m.end() for m in _SENTENCE_BREAK_RX.finditer(desc, 0, end)), default=0)
+    return desc[start : end + len(c.raw)]
+
+
+def _recover_binding_sentence(
+    c: ConceptNode, table: dict[str, TokenRule], unit: AbilityUnit | None
+) -> ConceptNode | None:
+    """``c`` recovered from its binding's sentence (:func:`_binding_sentence`),
+    when that sentence's token is a :attr:`TokenRule.from_binding_sentence` row."""
+    sentence = _binding_sentence(c, unit)
+    out = _recover(c, table, unit, sentence) if sentence is not None else None
+    if out is None or not table[out.recovered_by].from_binding_sentence:
+        return None
+    return out
+
+
 _NON_DRAW_SENSE = re.compile(r"\bgame is a draw\b|\bdraw step\b", re.IGNORECASE)
 # "damage"'s grammar token also matches two NON-burn-effect senses: a
 # face-up REPLACEMENT clause that merely LISTS "deals damage" among several
@@ -602,6 +732,21 @@ CLAUSE_MARKS: tuple[str, ...] = (
     OTHER_CHOOSER,
     OTHER_PLAYER,
 )
+
+
+def is_theirs(c: ConceptNode) -> bool:
+    """Whether a recovered clause acts on another player's side: it names a
+    player other than you (``OTHER_PLAYER``), an opponent's objects (``THEIRS``)
+    or the opponents' side (its ``scope``). The one side read the lanes make of a
+    recovered node."""
+    return c.scope == "opponents" or bool({THEIRS, OTHER_PLAYER} & set(c.reading))
+
+
+def is_yours(c: ConceptNode) -> bool:
+    """Whether a recovered clause acts on your own side: it names your objects
+    (``YOURS``) or the card itself (``SELF`` / ``ON_SELF``)."""
+    return bool({YOURS, SELF, ON_SELF} & set(c.reading))
+
 
 _TYPE_WORDS: dict[str, str] = {
     w.lower(): w
@@ -820,7 +965,12 @@ def _recover(
     raw = c.raw if text is None else text
     if not raw:
         return None
-    token = parse_clause(raw) or scan_clause(raw) or static_token(raw)
+    # A clause opening on a replacement idiom reads as the idiom over its own
+    # sentence (the verb inside it names the replaced event); any other clause
+    # reads its verb without the idiom sentences, each a later instruction
+    # (:func:`_later_clauses`).
+    token, raw = _replacement_reading(raw)
+    token = token or parse_clause(raw) or scan_clause(raw) or static_token(raw)
     if token is None or token not in table:
         return None
     # roll_die's grammar token is a broad "roll(s)" verb match that ALSO
@@ -879,6 +1029,31 @@ def _recover(
     )
 
 
+def _replacement_reading(raw: str) -> tuple[str | None, str]:
+    """``(token, text)``: the replacement idiom ``raw`` opens on and that idiom's
+    own sentence (:func:`~mtg_utils._card_ir.clause_grammar.replacement_token`),
+    else ``None`` and ``raw`` without the idiom sentences it carries later ("Draw
+    a card. All damage that would be dealt to you … instead" reads "Draw a
+    card.")."""
+    spans = replacement_sentences(raw)
+    if not spans:
+        return None, raw
+    opening = replacement_token(raw)
+    if opening is not None:
+        return opening, raw[: spans[0][1]]
+    return None, _without_spans(raw, spans)
+
+
+def _without_spans(text: str, spans: list[tuple[int, int, str]]) -> str:
+    """``text`` with each ``(start, end, _)`` span cut out."""
+    kept, at = [], 0
+    for start, end, _token in spans:
+        kept.append(text[at:start])
+        at = end
+    kept.append(text[at:])
+    return "".join(kept).strip()
+
+
 def _is_candidate(c: ConceptNode) -> bool:
     """A residue the stage may read: an undecorated ``Unimplemented`` node."""
     return (
@@ -930,13 +1105,21 @@ def _later_clauses(raw: str, table: dict[str, TokenRule]) -> list[tuple[int, str
     Darigaaz Reincarnated's "… remove an egg counter from it. Then if this card
     has no egg counters on it, return it to the battlefield" → the return. A
     part counts only when the grammar reads an allowlisted verb at its start;
-    a replacement clause ("would … instead") has no later instruction."""
+    a replacement clause ("would … instead") has no later instruction. A sentence
+    carrying a replacement idiom (``clause_grammar.REPLACEMENT_TOKENS``) is one
+    later instruction whole, never split, and no bar to the others."""
     text = _UNLESS_NOTE_RX.sub("", raw)
-    if _REPLACEMENT_SENSE.search(text):
+    idioms = replacement_sentences(text)
+    if _REPLACEMENT_SENSE.search(_without_spans(text, idioms)):
         return []
     breaks = sorted(
-        [(m.start(), m.end(), False) for m in _SENTENCE_BREAK_RX.finditer(text)]
-        + [(m.start(), m.end(), True) for m in _CONJUNCTION_RX.finditer(text)]
+        b
+        for b in (
+            *((m.start(), m.end(), False) for m in _SENTENCE_BREAK_RX.finditer(text)),
+            *((m.start(), m.end(), True) for m in _CONJUNCTION_RX.finditer(text)),
+        )
+        # inside an idiom sentence, short of the period that ends it
+        if not any(a <= b[0] < z - 1 for a, z, _token in idioms)
     )
     starts: list[int] = []
     segment = 0
@@ -948,7 +1131,7 @@ def _later_clauses(raw: str, table: dict[str, TokenRule]) -> list[tuple[int, str
         ) and not _third_person_verb(part)
         if conjunction and peeled == part and not shares_subject:
             continue
-        if (parse_clause(peeled) or "") in table:
+        if (replacement_token(peeled) or parse_clause(peeled) or "") in table:
             starts.append(end + len(part) - len(peeled))
         if not conjunction:
             segment = end
@@ -967,8 +1150,10 @@ def recover_concepts(
     each on the SAME ``.node`` with its own part as ``raw`` — a key a clause's
     second verb carries ("… and you draw an additional card") reads like the
     first's. ``self_name`` (the card's name) is read as "~": a granted ability's
-    quote names its granter ("Return Razor Boomerang to its owner's hand").
-    Returns ``concepts`` itself when nothing recovers."""
+    quote names its granter ("Return Razor Boomerang to its owner's hand"). A
+    ``where_x_binding`` residue whose own text names no verb reads its binding's
+    sentence (:func:`_recover_binding_sentence`). Returns ``concepts`` itself when
+    nothing recovers."""
     if not any(_is_candidate(c) for c in concepts):
         return concepts
     table = ALLOWLIST if table is None else table
@@ -978,7 +1163,9 @@ def recover_concepts(
     present = {(id(c.node), c.recovered_by, c.raw) for c in concepts}
     for c in concepts:
         text = c.raw.replace(self_name, "~") if self_name and c.raw else c.raw
-        first = _recover(c, table, unit, text)
+        first = _recover(c, table, unit, text) or _recover_binding_sentence(
+            c, table, unit
+        )
         out.append(first or c)
         changed |= first is not None
         if not text or (first is None and not _is_candidate(c)):
@@ -1076,6 +1263,8 @@ __all__ = [
     "YOUR_TARGET",
     "TokenRule",
     "apply_unimplemented_recovery",
+    "is_theirs",
+    "is_yours",
     "read_clause",
     "recover_concepts",
 ]

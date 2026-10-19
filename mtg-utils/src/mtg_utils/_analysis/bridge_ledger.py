@@ -35,12 +35,17 @@ mechanism pin structural, keep the membership pin — the graduation rule) and
 ``match`` still hits (pattern rot fails loudly). Laggards stay visible at
 every fixture regen; nothing retires silently.
 
-Bridges restore prior serving only — the serving the legacy IR gave (the
+Bridges restore prior serving — the serving the legacy IR gave (the
 ADR-0039 deletion's laggards) or the serving an upstream phase regression
 took away (a bump's parse failure, bridged until the next bump restores it).
-Beyond-prior breadth is the typed substrate's job. A bridge that "could also"
-open a sibling lane records that as a note for the grammar sprint instead of
-widening its own read.
+With the legacy IR gone, a ``dropped_clause`` row may also serve a clause phase
+drops whole that no path ever served (Decimator Beetle's -1/-1 counter, Heir of
+the Ancient Fang's modified condition), each bounded by its census. Beyond that,
+breadth is the typed substrate's job. A row emits one key: a dropped clause that
+belongs to two lanes reaches only the row's (Zealous Persecution's one-sided
+-1/-1 sweep is ``debuff_makers``, never ``mass_removal``) — that is the row's
+limit, not a second row to add. A bridge that "could also" open a sibling lane
+records that as a note for the grammar sprint instead of widening its own read.
 """
 
 from __future__ import annotations
@@ -58,6 +63,7 @@ from mtg_utils._card_ir.crosswalk import (
     DAMAGE_EFFECT_TAGS,
     _filter_type_words,
     aggregate_filter,
+    counter_kind,
     damage_recipient,
     effect_filter,
     effect_owner_player_scope,
@@ -66,8 +72,12 @@ from mtg_utils._card_ir.crosswalk import (
     filter_core_types,
     filter_inzone_zones,
     filter_subtypes,
+    has_nested_damage_reaching,
     named_permanent_refs,
     protective_keyword,
+    pt_mod_signs,
+    pump_is_negative,
+    references_modified,
     residue_is,
     sacrifice_names_no_player,
     static_mode_field,
@@ -75,6 +85,7 @@ from mtg_utils._card_ir.crosswalk import (
     trigger_turn_constraint,
 )
 from mtg_utils._card_ir.mirror.runtime import MISSING
+from mtg_utils._card_ir.recovery import ANY_TARGET, TARGET_OBJECT
 
 if TYPE_CHECKING:  # pragma: no cover
     from mtg_utils._card_ir.crosswalk import AbilityUnit, ConceptTree
@@ -2384,18 +2395,6 @@ def _combat_perpetual_gap(tree: ConceptTree) -> bool:
     return _says(_COMBAT_PERPETUAL_RX, tree.residues("perpetual_modify_pt"))
 
 
-# Sewer Plague's "Target creature an opponent controls perpetually gets -2/-2"
-# → debuff_makers.
-_PERPETUAL_SHRINK_RX = re.compile(
-    r"\btarget creature an opponent controls perpetually gets -\d+/-\d+",
-    re.IGNORECASE,
-)
-
-
-def _perpetual_shrink_gap(tree: ConceptTree) -> bool:
-    return _says(_PERPETUAL_SHRINK_RX, tree.residues("perpetual_modify_pt"))
-
-
 # A counted perpetual pump → scaling_pump: Gyox's "Those duplicates perpetually
 # get +X/+X", Mycoid Resurrection's "… perpetually gets +X/+X, where X is the
 # number of permanent cards in your graveyard". Bounded to the two subjects that
@@ -2464,6 +2463,43 @@ _EXILE_FROM_HAND_RX = re.compile(
 
 def _exile_from_hand_gap(tree: ConceptTree) -> bool:
     return _says(_EXILE_FROM_HAND_RX, tree.unknown_trigger_modes())
+
+
+# ── Unknown trigger modes and dropped modes ──────────────────────────────────
+# Phase v0.104.0 reads three payoff events as ``Unknown`` modes, the event only
+# in the mode's own text: Nicanzil, Current Conductor's "Whenever a creature you
+# control explores a land card / a nonland card" (explore_matters, CR 701.44a),
+# Dream Devourer's "Whenever you foretell a card" (foretell_matters, CR
+# 702.143a), and The Fourth Doctor's reflexive "When you do, create a Food
+# token" (CR 603.12), whose ``Unknown`` mode keeps only "when you do" and no
+# ``execute`` at all, so the Food (CR 111.10b) is gone (food_makers). You Find a
+# Cursed Idol's third mode keeps its Treasure and drops "and venture into the
+# dungeon" (CR 701.49a) without a trace — venture_makers.
+_EXPLORES_RX = re.compile(
+    r"\bwhenever a creature you control explores\b", re.IGNORECASE
+)
+_FORETELL_EVENT_RX = re.compile(r"\bwhenever you foretell\b", re.IGNORECASE)
+_WHEN_YOU_DO_RX = re.compile(r"^when you do$", re.IGNORECASE)
+_REFLEXIVE_FOOD_RX = re.compile(r"\bwhen you do, create a food token\b", re.IGNORECASE)
+_TREASURE_AND_VENTURE_RX = re.compile(
+    r"\bcreate a treasure token and venture into the dungeon\b", re.IGNORECASE
+)
+
+
+def _explore_event_gap(tree: ConceptTree) -> bool:
+    return _says(_EXPLORES_RX, tree.unknown_trigger_modes())
+
+
+def _foretell_event_gap(tree: ConceptTree) -> bool:
+    return _says(_FORETELL_EVENT_RX, tree.unknown_trigger_modes())
+
+
+def _reflexive_food_gap(tree: ConceptTree) -> bool:
+    return _says(_WHEN_YOU_DO_RX, tree.unknown_trigger_modes())
+
+
+def _modal_venture_gap(tree: ConceptTree) -> bool:
+    return not tree.has_typed("VentureIntoDungeon", "TakeTheInitiative")
 
 
 # ── a hollow graveyard cast permission ──────────────────────────────────────
@@ -4264,17 +4300,6 @@ BRIDGES: dict[str, Bridge] = {
             hits=2,
         ),
         _residue_row(
-            "perpetual_opponent_shrink_parked",
-            "debuff_makers",
-            "perpetual_modify_pt",
-            "a perpetual -N/-N on an opponent's creature",
-            ("Sewer Plague",),
-            _perpetual_shrink_gap,
-            _oracle_match(_PERPETUAL_SHRINK_RX),
-            hits=1,
-            scope="any",
-        ),
-        _residue_row(
             "perpetual_x_pump_parked",
             "scaling_pump",
             "perpetual_modify_pt",
@@ -4372,6 +4397,80 @@ BRIDGES: dict[str, Bridge] = {
             gap=_exile_from_hand_gap,
             match=_oracle_match(_EXILE_FROM_HAND_RX),
         ),
+        Bridge(
+            bridge_id="explore_payoff_trigger_unknown_mode",
+            key="explore_matters",
+            kind="upstream_parse_failure",
+            todo=(
+                "upstream phase-rs report candidate (Dan posts): 'Whenever a "
+                "creature you control explores a land card / a nonland card' is "
+                "an Unknown trigger mode at v0.104.0 — retires on the phase bump "
+                "that types it as an Explored watcher (the land / nonland split "
+                "as its filter)"
+            ),
+            census=(
+                "1 hit / 307 Unknown trigger modes of the corpus (Nicanzil, "
+                "Current Conductor, both of its triggers), phase v0.104.0"
+            ),
+            pins=("Nicanzil, Current Conductor",),
+            gap=_explore_event_gap,
+            match=_oracle_match(_EXPLORES_RX),
+        ),
+        Bridge(
+            bridge_id="foretell_payoff_trigger_unknown_mode",
+            key="foretell_matters",
+            kind="upstream_parse_failure",
+            todo=(
+                "upstream phase-rs report candidate (Dan posts): 'Whenever you "
+                "foretell a card' is an Unknown trigger mode at v0.104.0 — "
+                "retires on the phase bump that types the foretell event"
+            ),
+            census=(
+                "1 hit / 307 Unknown trigger modes of the corpus (Dream "
+                "Devourer), phase v0.104.0"
+            ),
+            pins=("Dream Devourer",),
+            gap=_foretell_event_gap,
+            match=_oracle_match(_FORETELL_EVENT_RX),
+        ),
+        Bridge(
+            bridge_id="reflexive_food_trigger_dropped",
+            key="food_makers",
+            kind="dropped_clause",
+            todo=(
+                "upstream phase-rs report candidate (Dan posts): The Fourth "
+                "Doctor's 'When you do, create a Food token' is an Unknown "
+                "trigger mode ('when you do') with no execute at all — retires "
+                "on the phase bump that parses the reflexive trigger (CR 603.12) "
+                "and its Token"
+            ),
+            census=(
+                "1 hit / 2 'when you do' Unknown trigger modes of the corpus (The "
+                "Fourth Doctor; Dialogue Tree's makes no Food), phase v0.104.0"
+            ),
+            pins=("The Fourth Doctor",),
+            gap=_reflexive_food_gap,
+            match=_oracle_match(_REFLEXIVE_FOOD_RX),
+        ),
+        Bridge(
+            bridge_id="modal_venture_dropped",
+            key="venture_makers",
+            kind="dropped_clause",
+            todo=(
+                "upstream phase-rs report candidate (Dan posts): You Find a Cursed "
+                "Idol's 'Steal Its Eyes — Create a Treasure token and venture into "
+                "the dungeon' keeps the Token and drops the venture — retires on "
+                "the phase bump that emits the VentureIntoDungeon"
+            ),
+            census=(
+                "1 hit / the 2 legal cards saying 'venture into the dungeon' with "
+                "no VentureIntoDungeon node (You Find a Cursed Idol; Keen-Eared "
+                "Sentry is a hoser the match leaves out), phase v0.104.0"
+            ),
+            pins=("You Find a Cursed Idol",),
+            gap=_modal_venture_gap,
+            match=_oracle_match(_TREASURE_AND_VENTURE_RX),
+        ),
         _residue_row(
             "artifact_or_human_graveyard_cast_parked",
             "type_matters",
@@ -4395,6 +4494,337 @@ BRIDGES: dict[str, Bridge] = {
         ),
     )
 }
+
+
+# ── Phase v0.104.0 drops: clauses no residue carries ───────────────────────────
+# Clauses phase v0.104.0 drops whole, or parses with the datum the lane needs gone,
+# so the tree carries nothing to read: the burn, sweep, shrink, modified, shield
+# and forage clauses below. (The residue-carried redirects, counter bonuses and
+# -X/-X shrinks recover instead — ``clause_grammar.REPLACEMENT_TOKENS`` and its
+# ``debuff`` static row.)
+def _no_permanent_reaching_damage_node(tree: ConceptTree) -> bool:
+    """No damage effect anywhere on the card — a granted or modal one included
+    (:func:`has_nested_damage_reaching`) — reaches a battle, creature or
+    planeswalker (CR 120.1) — the ``removal`` twin of
+    :func:`_no_player_reaching_damage_node`."""
+    if any(
+        has_nested_damage_reaching(unit.node, "permanent") for unit in tree.iter_units()
+    ):
+        return False
+    # a burn residue the recovery stage read (Deathforge Shaman's "deal damage to
+    # target player or planeswalker equal to …"): the removal lane's own reading
+    return not any(
+        c.recovered_by == "damage"
+        and TARGET_OBJECT in c.reading
+        and bool({ANY_TARGET, "Creature", "Planeswalker", "Battle"} & set(c.reading))
+        for c in tree.iter_concepts()
+    )
+
+
+def _no_damage_all_node(tree: ConceptTree) -> bool:
+    """No ``DamageAll`` sweep anywhere on the card (the ``mass_removal`` lane's
+    damage arm)."""
+    return not tree.has_typed("DamageAll")
+
+
+def _no_shrink_node(tree: ConceptTree) -> bool:
+    """No P/T shrink the ``debuff_makers`` lane reads: no ``Pump`` / ``PumpAll``
+    lowering a stat (a dynamic amount phase can't sign counts, so a typed -X/-X
+    stands the row down) and no -1/-1 counter placed on a creature not
+    restricted to yours (CR 613.4c, 122.1)."""
+    for n in tree.iter_typed():
+        tag = tag_of(n)
+        if tag in ("Pump", "PumpAll") and (
+            pump_is_negative(n)
+            or any(
+                tag_of(getattr(n, f, None)) not in ("Fixed", None)
+                for f in ("power", "toughness")
+            )
+        ):
+            return False
+        if (
+            tag in ("PutCounter", "PutCounterAll")
+            and counter_kind(n).upper() == "M1M1"
+            and filter_controller(getattr(n, "target", None)) != "You"
+        ):
+            return False
+    # a static shrink (Elesh Norn's "creatures your opponents control get -2/-2")
+    return not any(
+        -1 in pt_mod_signs(sdef)
+        for unit in tree.iter_units()
+        for sdef in unit.static_defs()
+    )
+
+
+def _no_modified_reference(tree: ConceptTree) -> bool:
+    """No unit carries phase's ``Modified`` predicate
+    (:func:`references_modified`, CR 700.9)."""
+    return not any(references_modified(unit) for unit in tree.iter_units())
+
+
+def _no_shield_counter_node(tree: ConceptTree) -> bool:
+    """No node on the card names a shield counter (CR 122.1c)."""
+    return not any(counter_kind(n).lower() == "shield" for n in tree.iter_typed())
+
+
+# Burn to "target player or planeswalker" whose planeswalker half phase drops: the
+# headline dropped whole (Flames of the Blood Hand), the trailing clause after a
+# RevealUntil (Kaboom!'s "that player or planeswalker"), the kicked mode's fresh
+# target typed ``ParentTarget`` (Unstable Footing), the target typed ``Player``
+# alone (Cragganwick Cremator). CR 120.3c: damage to a planeswalker removes
+# loyalty — the same single-target answer a typed ``Or[Player, Planeswalker]``
+# recipient gives the ``removal`` lane.
+_BURN_PLANESWALKER_RX = re.compile(
+    r"\bdeals? (?:\d+ |X )?damage\b[^.]*?\bto (?:target|that) player or "
+    r"planeswalker\b",
+    re.IGNORECASE,
+)
+# One player's board swept by damage, the creature half dropped: "~ deals 2 damage
+# to that player and each creature that player controls" (Mob Verdict, Chandra's
+# Flame Wave, Chandra, Flame's Fury's -8 — only the player half is typed); Path
+# of Mettle's "it deals 1 damage to each creature that doesn't have first strike,
+# …" parsed as keyword grants.
+_ONE_SIDED_SWEEP_RX = re.compile(
+    r"\bdeals \d+ damage to (?:target|that) player and each creature that player "
+    r"controls\b|\bdeals \d+ damage to each creature that doesn't have\b",
+    re.IGNORECASE,
+)
+# A shrink phase drops with no node: Decimator Beetle's attack trigger keeps only
+# its "remove a -1/-1 counter" half; Zealous Persecution keeps only its anthem
+# half. A row emits one key, so Zealous Persecution's one-sided sweep reaches
+# ``debuff_makers`` here and never ``mass_removal``.
+_DROPPED_SHRINK_RX = re.compile(
+    r"\bput a -1/-1 counter on up to one target creature defending player "
+    r"controls\b|\bcreatures your opponents control get -\d+/-\d+\b",
+    re.IGNORECASE,
+)
+# A modified reference phase drops: a replacement's "if you control a modified
+# creature" (Heir of the Ancient Fang), a count's "for each modified creature you
+# controlled" (Lethal Exploit), an additional cost's "sacrifice a modified
+# creature" (Lethal Throwdown), "Enchant modified creature" (Lion Umbra).
+_DROPPED_MODIFIED_RX = re.compile(
+    r"\b(?:you control a modified creature|for each modified creature you "
+    r"control(?:led)?|sacrifice a modified creature|enchant modified creature)\b",
+    re.IGNORECASE,
+)
+# Ian the Reckless's attack-trigger gate "if it's modified", parked whole.
+_IT_IS_MODIFIED_RX = re.compile(r"\bif it's modified\b", re.IGNORECASE)
+
+
+def _it_is_modified_gap(tree: ConceptTree) -> bool:
+    return _says(_IT_IS_MODIFIED_RX, tree.residues("unparsed_condition"))
+
+
+# A shield counter phase drops: Elspeth Resplendent's -3 "onto the battlefield with
+# a shield counter on it" (a ``Dig`` with no counters), Undercover Operative's
+# "except it enters with a shield counter on it" (the ``BecomeCopy`` replacement
+# keeps the copy only).
+_DROPPED_SHIELD_RX = re.compile(r"\bwith a shield counter on it\b", re.IGNORECASE)
+
+
+# Osteomancer Adept: "{T}: Until end of turn, you may cast creature spells from
+# your graveyard by foraging in addition to paying their other costs." Phase
+# v0.104.0 types the cast permission (``CastFromZone``) and drops its forage cost
+# entirely — no residue, no ``Forage`` node, no Food sacrifice. CR 701.61a: "To
+# forage means 'Exile three cards from your graveyard or sacrifice a Food'", so
+# the card is a Food payoff (``food_matters``, beside ``forages``' reads).
+_BY_FORAGING_RX = re.compile(r"\bby foraging\b", re.IGNORECASE)
+
+
+def _no_forage_cost_gap(tree: ConceptTree) -> bool:
+    """No forage on the card: no ``Forage`` action and no filter naming a Food
+    (phase writes most forage costs as a Food sacrifice)."""
+    return not any(
+        tag_of(n) == "Forage" or "Food" in filter_subtypes(n) for n in tree.iter_typed()
+    )
+
+
+BRIDGES.update(
+    {
+        b.bridge_id: b
+        for b in (
+            Bridge(
+                bridge_id="forage_cast_permission_cost_dropped",
+                key="food_matters",
+                kind="dropped_clause",
+                todo=(
+                    "upstream phase-rs report candidate (Dan posts): Osteomancer "
+                    "Adept's 'cast creature spells from your graveyard by foraging "
+                    "in addition to paying their other costs' keeps the "
+                    "CastFromZone and drops the forage cost (no node, no residue) "
+                    "— retires on the phase bump that types the cost"
+                ),
+                census=(
+                    "1 hit / the legal corpus's 'by foraging' cards (Osteomancer "
+                    "Adept; the other seven forage cards parse), MTGJSON "
+                    "2026-09-22 @ phase v0.104.0"
+                ),
+                pins=("Osteomancer Adept",),
+                gap=_no_forage_cost_gap,
+                match=_oracle_match(_BY_FORAGING_RX),
+            ),
+            Bridge(
+                bridge_id="burn_planeswalker_target_dropped",
+                key="removal",
+                kind="dropped_clause",
+                todo=(
+                    "upstream phase-rs report candidate (Dan posts): a burn to "
+                    "'target player or planeswalker' keeps no planeswalker "
+                    "recipient — the headline dropped (Flames of the Blood Hand), "
+                    "the trailing clause dropped (Kaboom!), the target a bare "
+                    "ParentTarget (Unstable Footing) or Player alone (Cragganwick "
+                    "Cremator). Retires on the bump that types an Or[Player, "
+                    "Planeswalker] recipient"
+                ),
+                census=(
+                    "5 hits / 32,046 commander-legal (Cragganwick Cremator, "
+                    "Flames of the Blood Hand, Kaboom!, Unstable Footing, and "
+                    "Insult // Injury, whose missing face is its own row), MTGJSON "
+                    "2026-10-17 @ phase v0.104.0"
+                ),
+                pins=(
+                    "Cragganwick Cremator",
+                    "Flames of the Blood Hand",
+                    "Kaboom!",
+                    "Unstable Footing",
+                ),
+                gap=_no_permanent_reaching_damage_node,
+                match=_oracle_match(_BURN_PLANESWALKER_RX),
+            ),
+            Bridge(
+                bridge_id="insult_injury_aftermath_face_removal",
+                key="removal",
+                kind="missing_face",
+                todo=(
+                    "the same W2c / phase gap as insult_injury_aftermath_face_"
+                    "unparsed: Injury's 'deals 2 damage to target creature' has no "
+                    "unit. Retires when either path gives the face a unit"
+                ),
+                census=(
+                    "1 hit / 32,046 commander-legal (Insult // Injury), MTGJSON "
+                    "2026-10-17 @ phase v0.104.0"
+                ),
+                pins=("Insult // Injury",),
+                gap=_no_permanent_reaching_damage_node,
+                match=_insult_injury_match,
+            ),
+            _residue_row(
+                "tetsuo_equipped_condition_removal_parked",
+                "removal",
+                "unparsed_condition",
+                "the 'if it's equipped' gate on a modal attack trigger whose "
+                "first mode burns any target",
+                ("Tetsuo, Imperial Champion",),
+                _tetsuo_gap,
+                _oracle_match(_TETSUO_RX),
+                hits=1,
+            ),
+            Bridge(
+                bridge_id="one_sided_sweep_creature_half_dropped",
+                key="mass_removal",
+                kind="dropped_clause",
+                todo=(
+                    "upstream phase-rs report candidate (Dan posts): '~ deals N "
+                    "damage to that player and each creature that player controls' "
+                    "keeps only the player half (Mob Verdict, Chandra's Flame Wave, "
+                    "Chandra, Flame's Fury), "
+                    "and Path of Mettle's 'deals 1 damage to each creature that "
+                    "doesn't have first strike, …' parses as keyword grants. "
+                    "Retires on the bump that types the DamageAll"
+                ),
+                census=(
+                    "4 hits / 32,046 commander-legal (Chandra's Flame Wave, "
+                    "Chandra, Flame's Fury's -8, Mob Verdict, Path of Mettle), "
+                    "MTGJSON 2026-10-17 @ phase v0.104.0"
+                ),
+                pins=(
+                    "Mob Verdict",
+                    "Chandra's Flame Wave",
+                    "Chandra, Flame's Fury",
+                    "Path of Mettle // Metzali, Tower of Triumph",
+                ),
+                gap=_no_damage_all_node,
+                match=_oracle_match(_ONE_SIDED_SWEEP_RX),
+            ),
+            Bridge(
+                bridge_id="shrink_clause_dropped",
+                key="debuff_makers",
+                scope="any",
+                kind="dropped_clause",
+                todo=(
+                    "upstream phase-rs report candidate (Dan posts): a -1/-1 "
+                    "shrink dropped with no node — Decimator Beetle's 'put a -1/-1 "
+                    "counter on up to one target creature defending player "
+                    "controls', Zealous Persecution's 'creatures your opponents "
+                    "control get -1/-1'. Retires on the bump that types the "
+                    "PutCounter / PumpAll"
+                ),
+                census=(
+                    "2 hits / 32,046 commander-legal (Decimator Beetle, Zealous "
+                    "Persecution), MTGJSON 2026-10-17 @ phase v0.104.0"
+                ),
+                pins=("Decimator Beetle", "Zealous Persecution"),
+                gap=_no_shrink_node,
+                match=_oracle_match(_DROPPED_SHRINK_RX),
+            ),
+            Bridge(
+                bridge_id="modified_reference_dropped",
+                key="modified_matters",
+                kind="dropped_clause",
+                todo=(
+                    "upstream phase-rs report candidate (Dan posts): a 'modified' "
+                    "reference dropped with no node — a replacement's condition "
+                    "(Heir of the Ancient Fang), a count (Lethal Exploit), an "
+                    "additional cost (Lethal Throwdown), an enchant restriction "
+                    "(Lion Umbra). Retires on the bump that carries the Modified "
+                    "predicate"
+                ),
+                census=(
+                    "4 hits / 32,046 commander-legal (Heir of the Ancient Fang, "
+                    "Lethal Exploit, Lethal Throwdown, Lion Umbra), MTGJSON "
+                    "2026-10-17 @ phase v0.104.0"
+                ),
+                pins=(
+                    "Heir of the Ancient Fang",
+                    "Lethal Exploit",
+                    "Lethal Throwdown",
+                    "Lion Umbra",
+                ),
+                gap=_no_modified_reference,
+                match=_oracle_match(_DROPPED_MODIFIED_RX),
+            ),
+            _residue_row(
+                "ian_modified_condition_parked",
+                "modified_matters",
+                "unparsed_condition",
+                "the 'if it's modified' gate on an attack trigger",
+                ("Ian the Reckless",),
+                _it_is_modified_gap,
+                _oracle_match(_IT_IS_MODIFIED_RX),
+                hits=1,
+            ),
+            Bridge(
+                bridge_id="shield_counter_dropped",
+                key="shield_counter_makers",
+                kind="dropped_clause",
+                todo=(
+                    "upstream phase-rs report candidate (Dan posts): 'with a shield "
+                    "counter on it' dropped — Elspeth Resplendent's -3 Dig carries "
+                    "no counters, Undercover Operative's BecomeCopy replacement "
+                    "keeps the copy only. Retires on the bump that types the "
+                    "counter"
+                ),
+                census=(
+                    "2 hits / 32,046 commander-legal (Elspeth Resplendent, "
+                    "Undercover Operative), MTGJSON 2026-10-17 @ phase v0.104.0"
+                ),
+                pins=("Elspeth Resplendent", "Undercover Operative"),
+                gap=_no_shield_counter_node,
+                match=_oracle_match(_DROPPED_SHIELD_RX),
+            ),
+        )
+    }
+)
 
 
 def bridge_fires(bridge_id: str, tree: ConceptTree) -> bool:

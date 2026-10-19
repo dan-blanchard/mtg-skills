@@ -50,6 +50,7 @@ from mtg_utils._analysis.tree_synthesis import (
     structural_untap_subject,
 )
 from mtg_utils._card_ir.crosswalk import (
+    SUSPENDED_CARD,
     AbilityUnit,
     ConceptNode,
     ConceptTree,
@@ -373,8 +374,11 @@ def _foretell_makers(tree: ConceptTree) -> list[Signal]:
     Beguiling Balladeer and Dream Devourer's "Each nonland card in your hand
     without foretell has foretell", an ``AddKeyword`` grant read by
     :func:`~mtg_utils._card_ir.crosswalk.keyword_resource_events`. The printed
-    keyword rides ``_keyword_field_signals_b5``'s keyword-array row. Scope
-    "you"."""
+    keyword rides ``_keyword_field_signals_b5``'s keyword-array row. Boundary:
+    an enabler that lets the deck foretell more — a foretell discount, foretell-
+    only mana (Ranar the Ever-Watchful, Karfell Harbinger) — is a maker too;
+    foretell_matters keeps the payoffs that name foretold cards (CR 702.143c).
+    Scope "you"."""
     if any(
         e.resource == "foretell" and e.side == "makers"
         for e in keyword_resource_events(tree)
@@ -470,9 +474,13 @@ def _suspend_matters(tree: ConceptTree) -> list[Signal]:
     (:func:`~mtg_utils._card_ir.crosswalk.reads.time_counter_kind_refs`):
     Clockspinning's "target permanent or suspended card" carries a time-counter
     predicate (CR 702.62b: a suspended card is in exile, has suspend and has a
-    time counter on it), with no ``PutCounter{time}`` of its own."""
-    if has_structural_suspend_matters(tree) or any(
-        time_counter_kind_refs(unit.node) for unit in tree.units
+    time counter on it), with no ``PutCounter{time}`` of its own. Venser's
+    Diffusion's same "or suspended card" target phase drops; the overlay's
+    ``suspended_card_target`` arm re-reads it."""
+    if (
+        has_structural_suspend_matters(tree)
+        or any(time_counter_kind_refs(unit.node) for unit in tree.units)
+        or any(SUSPENDED_CARD in c.subject for c in tree.iter_concepts())
     ):
         return [Signal("suspend_matters", "you", "", "", tree.name, "high")]
     for c in tree.iter_concepts():
@@ -1151,7 +1159,12 @@ def _damage_answer_types(c: ConceptNode, root: object) -> frozenset[str]:
     if types:
         return types
     if c.recovered_by:
-        return _ANY if _recovered_removal(c) else frozenset()
+        if not _recovered_removal(c):
+            return frozenset()
+        # the permanent types the clause names ("you and target creature" —
+        # Volcano Hellion), else any target
+        named = frozenset(c.reading) & _RECOVERED_BURN_TYPES
+        return named if named and ANY_TARGET not in c.reading else _ANY
     return _ANY if effect_reaches_permanent(c.node, root) else frozenset()
 
 

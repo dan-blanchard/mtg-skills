@@ -28,6 +28,7 @@ from mtg_utils._card_ir.crosswalk import (
     AbilityUnit,
     ConceptTree,
     adds_creature_type,
+    affected_tag,
     filter_controller,
     filter_core_types,
     filter_mana_value_floor,
@@ -35,6 +36,7 @@ from mtg_utils._card_ir.crosswalk import (
     iter_nested_trigger_defs,
     iter_static_defs,
     iter_threaded_target_statics,
+    static_affected,
     tag_of,
 )
 
@@ -59,23 +61,26 @@ def _animated_filters(unit: AbilityUnit) -> Iterator[object]:
     threaded target (Karn, Silver Golem; Tezzeret, Agent of Bolas's -1), or a
     trigger's ``TriggeringSource`` read through its watched object. A
     ``SelfRef`` animation (a manland, a Vehicle's crew, a creature-planeswalker)
-    is the card making only itself a creature and is never read."""
+    is the card making only itself a creature and is never read. ``affected``
+    is read through the overlay corrections: an Aura's "enchanted artifact"
+    and Alacrian Armory's "that permanent" phase stamps ``SelfRef``
+    (``animated_object``), and the Hidden / Opal / Veiled cycles' "if ~ is an
+    enchantment, it becomes …" phase stamps ``TriggeringSource``
+    (``self_animation``: the card itself)."""
     for sdef in iter_static_defs(unit.node):
-        aff = getattr(sdef, "affected", None)
         if not adds_creature_type(sdef):
             continue
-        if tag_of(aff) in ("Typed", "Or", "And"):
+        aff = static_affected(sdef, unit)
+        atag = affected_tag(sdef, unit)
+        if atag in ("Typed", "Or", "And"):
             yield aff
-        elif tag_of(aff) == "TriggeringSource" and unit.trigger_event == "enters":
+        elif atag == "TriggeringSource" and unit.trigger_event == "enters":
             # "Whenever a Vehicle you control enters, it becomes an artifact
-            # creature" (Kolodin, Triumph Caster): the trigger's watched object,
-            # the permanent that entered. The gate admits enters triggers only,
-            # where the triggering source is the permanent ``valid_card``
-            # describes. Phase reads Hidden Guerrillas's "When an opponent casts
-            # an artifact spell, ... it becomes a 5/3" (``it`` = itself) as
-            # ``TriggeringSource`` under a cast trigger; admitted there, the
-            # cast artifact spell would read as the animated object
-            # (``test_hidden_guerrillas_self_animation_is_still_misparsed``).
+            # creature" (Kolodin, Triumph Caster): the trigger's watched
+            # object, the permanent that entered. Only an enters trigger's
+            # triggering source is a permanent ``valid_card`` describes; under
+            # a cast trigger it is the spell, so an uncorrected cast-trigger
+            # animation stays out (the corrected Hidden cycle reads SelfRef).
             yield getattr(unit.node, "valid_card", None)
     # The ability's own chain, then each trigger it grants or puts on an emblem
     # (Tezzeret the Schemer's -7: "At the beginning of combat on your turn,
@@ -132,9 +137,7 @@ def _animate_makers(tree: ConceptTree) -> list[Signal]:
     has one (``signal_keys.animate_subject``: Bello's ``Artifact>=4``). Out of
     scope:
     a type conferral that adds no Creature (Liquimetal Coating), a land
-    animation (the land-creatures lanes). Phase v0.104.0 parses Animate
-    Artifact's "enchanted artifact ... is an artifact creature" as a ``SelfRef``
-    static, so it reads as the Aura animating itself and stays out."""
+    animation (the land-creatures lanes)."""
     # Cheap presence gate before the per-unit threaded walk: no type-changing
     # modification anywhere, no animation.
     if not tree.has_typed("AddType", "SetCardTypes"):

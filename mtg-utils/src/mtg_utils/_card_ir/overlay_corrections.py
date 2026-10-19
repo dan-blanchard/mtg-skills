@@ -43,6 +43,17 @@ seam — see ``ConceptNode.category``).
 Each arm records whether the crosswalk substrate ALREADY handles the correction
 (``already_handled``) or the overlay genuinely adds it (``newly_ported``) — the
 per-arm bucketing ADR-0035 Stage-3b calls for.
+
+**Field arms.** A wrong field on an effect is that effect's ``ConceptNode``
+decoration — a ``scope`` or a ``subject`` mark. A wrong field on a node that has
+no ``ConceptNode`` — a static def's ``affected``, a target filter's
+``controller``, a trigger's dropped counter kind — is a
+:class:`~mtg_utils._card_ir.crosswalk.FieldCorrection` on the unit
+(``AbilityUnit.corrections``), read through the shared reads that take the unit
+(``filter_controller(filt, unit)``, ``static_affected(sdef, unit)``); the
+trigger-event arm rewrites the unit's derived ``trigger_event``. All keep every
+mirror node by identity, so the same purity guard covers them. Each carries a
+``retirement_canary`` (tests/mtg-utils/test_phase_gaps_fields.py).
 """
 
 from __future__ import annotations
@@ -69,15 +80,29 @@ from mtg_utils._card_ir._substrate_purity import (
     l1_nodes as _l1_nodes,
 )
 from mtg_utils._card_ir.crosswalk import (
+    ANAPHORIC,
+    SUSPENDED_CARD,
     AbilityUnit,
     ConceptNode,
     ConceptTree,
+    FieldCorrection,
+    adds_creature_type,
+    answers_its_target,
     change_zone_dirs,
     effect_filter,
+    effect_owner_raw,
+    filter_controller,
     filter_inzone_zones,
+    filter_owners,
+    iter_static_defs,
+    iter_threaded_target_statics,
+    iter_typed_nodes,
+    static_mode_tag,
     tag_of,
 )
+from mtg_utils._card_ir.crosswalk.reads import ends_target_thread
 from mtg_utils._card_ir.mirror.runtime import MISSING, TypedMirrorNode
+from mtg_utils._card_ir.recovery import TARGET_OBJECT
 
 # The substrate-purity names re-exported here for the committed tests (and the
 # historic private aliases callers import from this module).
@@ -371,6 +396,408 @@ def _arm_blink_returns_to_unit(
     return tuple(out) if changed else None
 
 
+# ── (b) field and decoration arms over one unit ───────────────────────────────
+# A wrong field on an effect is that effect's ConceptNode decoration: a ``scope``
+# or a ``subject`` mark (``anaphoric_pump``, ``graveyard_owner``,
+# ``suspended_card_target``). A wrong field on a node with no ConceptNode of its
+# own — a static def, a trigger def, a target filter — is a
+# :class:`FieldCorrection` on the unit (``AbilityUnit.corrections``), read through
+# the shared reads that take the unit (``filter_controller(filt, unit)``,
+# ``static_affected(sdef, unit)``). Each arm names the one shape it re-reads and
+# carries a ``retirement_canary`` in tests/mtg-utils/test_phase_gaps_fields.py
+# that fails RETIRE-READY once phase stamps the field right. A text read is the
+# node's own clause (:func:`_clause_text`).
+
+
+def _clause_text(tree: ConceptTree, unit: AbilityUnit, node: object) -> str:
+    """The clause ``node`` sits in, reminder-stripped and lowercased: a def's own
+    ``description``, else its owning wrapper's, else the unit's; the card's
+    oracle only for a one-ability card whose unit carries no description at all
+    (Delirium's spell ability) — a multi-ability card never reads another
+    ability's sentence."""
+    raw = getattr(node, "description", None)
+    if not isinstance(raw, str) or not raw:
+        raw = effect_owner_raw(unit.node, node) or getattr(
+            unit.node, "description", None
+        )
+    if raw is None and len(tree.units) == 1:
+        raw = tree.oracle
+    return _REMINDER.sub(" ", raw or "").lower()
+
+
+# "X doesn't untap during …" (CR 502.3: effects can keep a permanent from
+# untapping). Phase stamps ``affected: SelfRef`` on every such static; the
+# subject before "doesn't untap" says whose it is. "~" (or "~ enters tapped and")
+# is the card; any other subject — "that creature" (Mesmerizing Benthid's token,
+# Code of Constraint), "each land with an activated ability" (Tsabo's Web),
+# "enchanted creature … it" (Stunning Strike) — is another object. A def with no
+# subject ("doesn't untap during its controller's next untap step") is the
+# object an earlier clause of its unit chose (Scion of Stygia, Wall of Stolen
+# Identity, Telekinesis, Triton Tactics) unless the unit names no object but the
+# card (Apes of Rath's "whenever ~ attacks, it doesn't untap"); "your untap
+# step" is always the card's own drawback (the depletion lands).
+_UNTAP_SUBJECT = re.compile(r"^(.*?)\s*\bdoesn't untap\b")
+_SELF_SUBJECT = re.compile(r"(?:^|,\s*)~(?: enters tapped and)?$")
+_OBJECT_TARGET_TAGS = frozenset({"Typed", "Or", "And", "Any", "ParentTarget"})
+
+
+def _names_an_object(unit: AbilityUnit) -> bool:
+    """Whether some effect of the unit picks an object other than the card."""
+    return any(
+        tag_of(getattr(n, "target", None)) in _OBJECT_TARGET_TAGS
+        for n in unit.iter_typed()
+    )
+
+
+def _arm_cant_untap_object(
+    tree: ConceptTree, unit: AbilityUnit
+) -> list[FieldCorrection]:
+    out: list[FieldCorrection] = []
+    for sdef in iter_static_defs(unit.node):
+        if static_mode_tag(sdef) != "CantUntap":
+            continue
+        if tag_of(getattr(sdef, "affected", None)) != "SelfRef":
+            continue
+        desc = _clause_text(tree, unit, sdef).strip()
+        m = _UNTAP_SUBJECT.search(desc)
+        if m is None:
+            continue
+        subject = m.group(1).strip()
+        if subject:
+            other = _SELF_SUBJECT.search(subject) is None
+        else:
+            other = "its controller's" in desc and _names_an_object(unit)
+        if other:
+            out.append(
+                FieldCorrection(sdef, "affected", ANAPHORIC, "cant_untap_object")
+            )
+    return out
+
+
+# "Tap target creature that player controls" (Delirium), "tap up to five target
+# permanents that player controls" (Yosei, the Morning Star), "tap all lands that
+# player controls" (Mana Web, Nature's Will): phase stamps the tapped filter
+# ``controller: You``, the same stamp as "tap any number of untapped creatures you
+# control" (Jaddi Lifestrider). "That player" is the player an earlier clause
+# named. Arena's "tap … target creature of an opponent's choice they control"
+# carries the same stamp; its own wrapper's ``target_chooser: Opponent`` names
+# "they" (Arena, Magus of the Arena).
+_TAP_THAT_PLAYER = re.compile(r"\btap\b([^.]*?)\bthat player controls\b")
+
+
+def _opponent_chooses(unit: AbilityUnit, node: object) -> bool:
+    """Whether the wrapper holding ``node`` hands its target choice to an
+    opponent."""
+    return any(
+        getattr(w, "effect", None) is node
+        and tag_of(getattr(w, "target_chooser", None)) == "Opponent"
+        for w in unit.iter_typed()
+    )
+
+
+def _arm_tap_other_player(
+    tree: ConceptTree, unit: AbilityUnit
+) -> list[FieldCorrection]:
+    out: list[FieldCorrection] = []
+    for c in unit.effects:
+        node = c.node
+        if tag_of(node) != "SetTapState":
+            continue
+        target = getattr(node, "target", None)
+        if (
+            not isinstance(target, TypedMirrorNode)
+            or filter_controller(target) != "You"
+        ):
+            continue
+        m = _TAP_THAT_PLAYER.search(_clause_text(tree, unit, node))
+        if (m is not None and "you control" not in m.group(1)) or _opponent_chooses(
+            unit, node
+        ):
+            out.append(
+                FieldCorrection(target, "controller", ANAPHORIC, "tap_other_player")
+            )
+    return out
+
+
+# "When an opponent casts an artifact spell, if ~ is an enchantment, it becomes
+# a 5/3 Soldier creature" (Hidden Guerrillas and the Hidden / Opal / Veiled
+# cycles): "it" is the card (its ruling: "When it turns into a creature, it is
+# no longer an enchantment"), but phase stamps the animation ``affected:
+# TriggeringSource`` — the cast spell. The trigger's own "if ~ is …" condition
+# (``SourceMatchesFilter``) is the tell that "it" is the source.
+def _arm_self_animation(_tree: ConceptTree, unit: AbilityUnit) -> list[FieldCorrection]:
+    if unit.origin != "trigger":
+        return []
+    cond = getattr(unit.node, "condition", None)
+    if not any(tag_of(n) == "SourceMatchesFilter" for n in iter_typed_nodes(cond)):
+        return []
+    return [
+        FieldCorrection(sdef, "affected", "SelfRef", "self_animation")
+        for sdef in iter_static_defs(unit.node)
+        if tag_of(getattr(sdef, "affected", None)) == "TriggeringSource"
+        and adds_creature_type(sdef)
+    ]
+
+
+def _ends_thread(eff: TypedMirrorNode) -> bool:
+    """A mass effect ends the chosen-target thread: Chimeric Idol's "tap all lands
+    you control. ~ becomes a 3/3" animates the card, not the lands."""
+    return ends_target_thread(eff) or tag_of(getattr(eff, "scope", None)) == "All"
+
+
+def _enchanted_filter(cond: object) -> object | None:
+    """The ``EnchantedBy`` filter an Aura's static condition names ("as long as
+    enchanted artifact isn't a creature") — never one under a ``Not``."""
+    tag = tag_of(cond)
+    if tag == "And":
+        for sub in getattr(cond, "conditions", None) or ():
+            found = _enchanted_filter(sub)
+            if found is not None:
+                return found
+    if tag == "IsPresent":
+        filt = getattr(cond, "filter", None)
+        if any(tag_of(p) == "EnchantedBy" for p in iter_typed_nodes(filt)):
+            return filt
+    return None
+
+
+# The animated object phase stamps ``SelfRef``: "choose up to one target Mount or
+# Vehicle you control. … that permanent … becomes an artifact creature" (Alacrian
+# Armory — the chain's chosen target), and an Aura's "enchanted artifact … is an
+# artifact creature" (Animate Artifact; Aerial and Siege Modification's
+# "enchanted permanent … is a creature" — CR 303.4b: the enchanted object). The
+# correction is the filter phase did parse: the threaded target, or the
+# condition's ``EnchantedBy`` filter.
+def _arm_animated_object(tree: ConceptTree, unit: AbilityUnit) -> list[FieldCorrection]:
+    out = [
+        FieldCorrection(sdef, "affected", target, "animated_object")
+        for target, sdef in iter_threaded_target_statics(
+            unit.node, affected_tag="SelfRef", resets_thread=_ends_thread
+        )
+        if adds_creature_type(sdef)
+    ]
+    if "Aura" in tree.card_subtypes:
+        for sdef in iter_static_defs(unit.node):
+            if tag_of(getattr(sdef, "affected", None)) != "SelfRef":
+                continue
+            if not adds_creature_type(sdef):
+                continue
+            filt = _enchanted_filter(getattr(sdef, "condition", None))
+            if filt is not None:
+                out.append(FieldCorrection(sdef, "affected", filt, "animated_object"))
+    return out
+
+
+# "Whenever you get one or more {E}" (Territorial Gorger): phase types the
+# trigger ``CounterPlayerAddedAll`` and drops the counter kind (CR 107.14: {E} is
+# one energy counter). Every such trigger of the corpus is an energy one; the
+# kind is in the trigger's own clause.
+_GETS_ENERGY = re.compile(r"\bone or more \{e\}")
+
+
+def _arm_player_counter_kind(
+    tree: ConceptTree, unit: AbilityUnit
+) -> list[FieldCorrection]:
+    return [
+        FieldCorrection(n, "counter_kind", "energy", "player_counter_kind")
+        for n in unit.iter_typed()
+        if getattr(n, "mode", None) == "CounterPlayerAddedAll"
+        and _GETS_ENERGY.search(_clause_text(tree, unit, n))
+    ]
+
+
+# ── fresh_tap_target ──────────────────────────────────────────────────────────
+# "Tap up to one target creature an opponent controls and put a stun counter on
+# it" (Stunning Shot), "When you do, tap target creature an opponent controls"
+# (Snaremaster Sprite), "If the gift was promised, tap target creature …" (Mind
+# Spiral), "tap up to that many target creatures" (Seasoned Cryomancer): the
+# clause picks its own target (CR 115.1), but phase stamps the ``SetTapState``
+# ``target: ParentTarget`` — the bare back-reference a "tap it" carries, with the
+# filter lost. The clause read is the tap's own wrapper description only, never
+# the unit's or the card's, so a later "tap it" never borrows an earlier
+# sentence's target. The decoration is the seam's ``TARGET_OBJECT`` subject mark
+# — the mark a recovered "tap target creature" carries — which the tapper lane
+# reads.
+_FRESH_TAP_TARGET = re.compile(
+    r"(?:^|, )tap (?:up to (?:\w+|that many) )?(?:other )?target\b"
+)
+
+
+def _arm_fresh_tap_target(unit: AbilityUnit, cnode: ConceptNode) -> ConceptNode | None:
+    if TARGET_OBJECT in cnode.subject or tag_of(cnode.node) != "SetTapState":
+        return None
+    if tag_of(getattr(cnode.node, "target", None)) != "ParentTarget":
+        return None
+    own = effect_owner_raw(unit.node, cnode.node) or ""
+    if not _FRESH_TAP_TARGET.search(_REMINDER.sub(" ", own).lower()):
+        return None
+    return replace(cnode, subject=(*cnode.subject, TARGET_OBJECT))
+
+
+# The def / filter arms (FieldCorrection).
+_FIELD_ARMS = (
+    _arm_cant_untap_object,
+    _arm_tap_other_player,
+    _arm_self_animation,
+    _arm_animated_object,
+    _arm_player_counter_kind,
+)
+
+
+# ── effect decorations: a wrong field on an effect's own ConceptNode ──────────
+
+
+# "Until your next turn, whenever a creature an opponent controls attacks, it
+# gets -1/-0" (Jace, Architect of Thought): phase stamps the delayed trigger's
+# pump ``target: SelfRef``; the arm reads "it" as the creature the delayed
+# trigger watched (a ``Typed`` watched object, never the card). An instant's or
+# sorcery's ``SelfRef`` pump is an object an earlier clause chose (Blood Lust's
+# "if target creature has toughness 5 or greater, it gets +4/-4"; Six-Sided
+# Die's "It gets -4/-4"): the spell is never on the battlefield to pump itself.
+# The decoration is the :data:`ANAPHORIC` subject mark
+# (``reads.targets_the_card``).
+def _anaphoric_pumps(tree: ConceptTree, unit: AbilityUnit) -> set[int]:
+    def self_pump(n: object) -> bool:
+        return tag_of(n) == "Pump" and tag_of(getattr(n, "target", None)) == "SelfRef"
+
+    out: set[int] = set()
+    for n in unit.iter_typed():
+        if tag_of(n) != "CreateDelayedTrigger":
+            continue
+        trigger = getattr(getattr(n, "condition", None), "trigger", None)
+        if tag_of(getattr(trigger, "valid_card", None)) in ("Typed", "Or", "And"):
+            out.update(
+                id(p)
+                for p in iter_typed_nodes(getattr(n, "effect", None))
+                if self_pump(p)
+            )
+    if {"Instant", "Sorcery"} & set(tree.card_types):
+        # The spell's own chain only: a token it makes or an ability it grants
+        # pumps itself ("'{R}: This creature gets +1/+0'" — Dragonrage).
+        out.update(id(c.node) for c in unit.effects if self_pump(c.node))
+    return out
+
+
+def _arm_anaphoric_pump(cnode: ConceptNode, pumps: set[int]) -> ConceptNode | None:
+    if id(cnode.node) not in pumps or ANAPHORIC in cnode.subject:
+        return None
+    return replace(cnode, subject=(*cnode.subject, ANAPHORIC))
+
+
+# An exile out of a graveyard whose filter names no owner: phase drops "your" off
+# "exile target card … from your graveyard" (Rooting Moloch), "defending
+# player's" / "that player's" off an opponent's (Grime Gorger, Skullsnatcher,
+# Zombie Cannibal) and leaves "a graveyard" (Savior of Ollenbock) without the
+# ``InZone`` its siblings carry. The owner is in the exile's own clause; every
+# graveyard sentence of it must agree, or the arm stands down (Waste
+# Management's "a single graveyard" beside its kicked "target player's
+# graveyard"). The decoration is the exile's ``scope``: you / opponents / any.
+_GY_OWNER_PHRASES: tuple[tuple[str, re.Pattern[str]], ...] = (
+    ("you", re.compile(r"\byour graveyard\b")),
+    (
+        "opponents",
+        re.compile(
+            r"\b(?:(?:that|target|defending) player|(?:an|target|that|each) "
+            r"opponent)'s graveyard\b"
+        ),
+    ),
+    ("any", re.compile(r"\b(?:from|in) a (?:single )?graveyard\b")),
+)
+
+
+def _arm_graveyard_owner(
+    tree: ConceptTree, unit: AbilityUnit, cnode: ConceptNode
+) -> ConceptNode | None:
+    node = cnode.node
+    # A targeted exile; a mass one ("then exile all graveyards" — Abstergo
+    # Entertainment) shares its sentence with another clause's owner.
+    if not answers_its_target(node) or (tag_of(node) or "").endswith("All"):
+        return None
+    filt = effect_filter(node)
+    if tag_of(filt) not in ("Typed", "Or") or any(filter_owners(filt)):
+        return None
+    in_zone = "Graveyard" in filter_inzone_zones(filt)
+    if change_zone_dirs(node)[0] != "Graveyard" and not in_zone:
+        return None
+    owners = {
+        owner
+        for sentence in _clause_text(tree, unit, node).split(".")
+        if "graveyard" in sentence
+        for owner, rx in _GY_OWNER_PHRASES
+        if rx.search(sentence)
+    }
+    # An ownerless ``InZone(Graveyard)`` filter already reads "a graveyard";
+    # only an owner it dropped is a correction there.
+    if len(owners) != 1 or (in_zone and owners == {"any"}):
+        return None
+    (owner,) = owners
+    return None if cnode.scope == owner else replace(cnode, scope=owner)
+
+
+# "Return target nonland permanent or suspended card to its owner's hand"
+# (Venser's Diffusion): phase keeps the permanent and drops the "or suspended
+# card" alternative (CR 702.62b: a card in exile with suspend and a time
+# counter). Clockspinning's same alternative carries its time-counter predicate.
+# The decoration is the :data:`SUSPENDED_CARD` subject mark.
+def _arm_suspended_card_target(
+    tree: ConceptTree, unit: AbilityUnit, cnode: ConceptNode
+) -> ConceptNode | None:
+    if tag_of(cnode.node) != "Bounce" or SUSPENDED_CARD in cnode.subject:
+        return None
+    if "or suspended card" not in _clause_text(tree, unit, cnode.node):
+        return None
+    return replace(cnode, subject=(*cnode.subject, SUSPENDED_CARD))
+
+
+def _decorate_effects(tree: ConceptTree, unit: AbilityUnit) -> AbilityUnit:
+    """The effect decoration arms over one unit (identity when none fires)."""
+    pumps = _anaphoric_pumps(tree, unit)
+    changed = False
+    effects: list[ConceptNode] = []
+    for c in unit.effects:
+        cur = c
+        for corrected in (
+            _arm_anaphoric_pump(cur, pumps),
+            _arm_graveyard_owner(tree, unit, cur),
+            _arm_suspended_card_target(tree, unit, cur),
+            _arm_fresh_tap_target(unit, cur),
+        ):
+            if corrected is not None:
+                cur = corrected
+                changed = True
+        effects.append(cur)
+    return replace(unit, effects=tuple(effects)) if changed else unit
+
+
+# "Whenever a creature with a coin counter on it is put into exile" (Athreos,
+# Shroud-Veiled): phase types the exile half as a ``CounterAdded`` trigger
+# watching ``Any`` — the only ``CounterAdded`` trigger of the corpus whose
+# watched object is ``Any``. Its event is the zone change, not a placement.
+_PUT_INTO_EXILE = re.compile(r"\bis put into exile\b")
+
+
+def _arm_counter_added_zone_change(
+    tree: ConceptTree, unit: AbilityUnit
+) -> AbilityUnit | None:
+    if unit.origin != "trigger" or unit.trigger_event != "counter_added":
+        return None
+    if tag_of(getattr(unit.node, "valid_card", None)) != "Any":
+        return None
+    if not _PUT_INTO_EXILE.search(_clause_text(tree, unit, unit.node)):
+        return None
+    return replace(unit, trigger_event="changes_zone")
+
+
+def _correct_fields(tree: ConceptTree, unit: AbilityUnit) -> AbilityUnit:
+    """The field, effect-decoration and trigger-event arms over one unit
+    (identity when none fires)."""
+    found = [fc for arm in _FIELD_ARMS for fc in arm(tree, unit)]
+    if found:
+        unit = replace(unit, corrections=(*unit.corrections, *found))
+    unit = _decorate_effects(tree, unit)
+    return _arm_counter_added_zone_change(tree, unit) or unit
+
+
 # ── the stage ─────────────────────────────────────────────────────────────────
 
 
@@ -424,8 +851,9 @@ def apply_overlay_corrections(tree: ConceptTree) -> ConceptTree:
     changed = False
     for unit in tree.units:
         nu, uch = _correct_unit(tree, unit, oracle, single_effect=single_effect)
-        changed = changed or uch
-        new_units.append(nu)
+        fixed = _correct_fields(tree, nu)
+        changed = changed or uch or fixed is not nu
+        new_units.append(fixed)
 
     if not changed:
         return tree

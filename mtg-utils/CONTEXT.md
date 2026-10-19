@@ -36,9 +36,31 @@ types), the `clause` field; lanes read either through `ConceptNode.reading`, so
 they test fields, never the recovered text. A compound clause recovers each
 instruction ("you lose 1 life and you draw an additional card"), each a
 decoration of the same node, and a granted ability's body is recovered too, then
-served by the shared granted walk.
+served by the shared granted walk. A `where_x_binding` residue ("where X is
+…") carries no verb of its own: a row flagged `from_binding_sentence` (connive,
+amass, investigate, debuff) reads the sentence — or colon-delimited clause — of
+the unit's own description that contains the residue verbatim, up to the
+residue's end, never past a sentence break and never beyond that unit; every
+other row never reads outside the residue.
 _Avoid_: "supplement" (the old-IR path's envelope around the same grammar),
 "synthesis" (adds nodes; recovery rewrites decoration in place).
+
+**Field correction**:
+A unit-level sibling of re-decoration for a node that has NO `ConceptNode` to
+decorate — a static def, a trigger def, a filter — and whose ONE field phase
+misstamped: a "that creature" stamped `SelfRef` on a `CantUntap` static, "that
+player controls" stamped `controller: You` on a tap target, a `CounterAdded`
+trigger with no counter kind. An `overlay_corrections` arm records a
+`FieldCorrection(node, field, value, arm)` on the `AbilityUnit`
+(`unit.corrections`); the mirror node is never touched (the value is another
+node of the same tree, a tag string, or the `ANAPHORIC` marker). The shared
+reads take the unit (`filter_controller(filt, unit=…)`) so a lane cannot forget
+to ask; a lane that reads a raw field directly uses `unit.corrected(node,
+field)`. A misstamp on a node that DOES carry a `ConceptNode` is re-decoration
+(a subject mark, a scope), never a field correction, and a trigger whose event
+phase mis-typed (Athreos's exile as a `CounterAdded`) is corrected on the
+unit's derived `trigger_event`. Every arm has a `retirement_canary`.
+_Avoid_: "override" (nothing is overwritten; the raw field stays readable).
 
 **Re-decoration**:
 Rewriting a `ConceptNode`'s decoration in place — new concept/scope/subject,

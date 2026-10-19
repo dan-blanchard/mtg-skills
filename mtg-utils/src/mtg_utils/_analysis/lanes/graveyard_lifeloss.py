@@ -35,12 +35,15 @@ from mtg_utils._card_ir.crosswalk import (
     EFFECT_CONCEPTS,
     OTHERS_SCOPE,
     AbilityUnit,
+    ConceptNode,
     ConceptTree,
+    affected_tag,
     animates,
     answers_its_target,
     change_zone_dirs,
     condition_tags,
     controller_side,
+    corrected_scope,
     cost_has_paylife,
     counter_kind,
     damage_to_player_trigger_kind,
@@ -53,6 +56,7 @@ from mtg_utils._card_ir.crosswalk import (
     filter_core_types,
     filter_inzone_zones,
     filter_owned_controller,
+    filter_owners,
     filter_predicates,
     filter_subtypes,
     has_nested_connive,
@@ -71,8 +75,10 @@ from mtg_utils._card_ir.crosswalk import (
     pt_mod_signs,
     pump_is_negative,
     self_graveyard_fills,
+    static_affected,
     static_mode_tag,
     tag_of,
+    targets_the_card,
     trigger_scope,
     trigger_subject,
     trigger_subject_scope,
@@ -84,7 +90,13 @@ from mtg_utils._card_ir.mirror.runtime import (
     MirrorVariant,
     TypedMirrorNode,
 )
-from mtg_utils._card_ir.recovery import SELF, TARGETED, THEIRS
+from mtg_utils._card_ir.recovery import (
+    SELF,
+    TARGET_OBJECT,
+    TARGETED,
+    is_theirs,
+    is_yours,
+)
 from mtg_utils._card_ir.text_idioms import (
     _GOAD_REWARD_REF,
     _LURE_ABLE,
@@ -213,8 +225,7 @@ def _graveyard_makers(tree: ConceptTree) -> list[Signal]:
             # own, as the typed Ashen Powder doesn't fire either.
             c.recovered_by == "reanimate"
             and "Graveyard" in c.zones
-            and THEIRS not in c.subject
-            and c.scope != "opponents"
+            and not is_theirs(c)
         )
         if gy_direct or gy_recovered:
             fire(_gy_scope(c.scope), c.raw)
@@ -728,7 +739,9 @@ def self_mill_fill(tree: ConceptTree) -> bool:
 # from THAT PLAYER's graveyard" carries the SAME bare
 # ``{controller: None}`` typed filter shape as Reya Dawnbringer's "…from
 # YOUR graveyard") — an unrecoverable phase-parse gap this text veto
-# patches at the unit-description granularity (CR 400.7).
+# patches at the unit-description granularity (CR 400.7). The graveyard-hate
+# arm reads the overlay's ``graveyard_owner`` re-read of the exile's own clause
+# instead (``_graveyard_exile``).
 _GY_OPP_RE = re.compile(
     r"\b(?:opponent'?s?|their|each (?:player|opponent)'?s?|that player'?s?"
     r"|target (?:player|opponent)'?s?) graveyard\b",
@@ -844,7 +857,18 @@ def _gy_count_ref_scope(node: object) -> str | None:
 GraveyardExile = Literal["opponents", "any", "own"]
 
 
-def _graveyard_exile(node: TypedMirrorNode) -> GraveyardExile | None:
+#: An ownerless graveyard exile's ``ConceptNode.scope`` the overlay's
+#: ``graveyard_owner`` arm re-read off its clause, as what the exile reads as.
+_GY_OWNER_SCOPE: dict[str, GraveyardExile] = {
+    "you": "own",
+    "opponents": "opponents",
+    "any": "any",
+}
+
+
+def _graveyard_exile(
+    node: TypedMirrorNode, scope: str | None = None
+) -> GraveyardExile | None:
     """What an effect that answers its target (:func:`answers_its_target`)
     reads as when it exiles out of a graveyard, or ``None`` when it doesn't:
 
@@ -862,7 +886,11 @@ def _graveyard_exile(node: TypedMirrorNode) -> GraveyardExile | None:
     Each half of a compound target names its own graveyard (Spelltwine: "…
     from your graveyard and … from an opponent's graveyard"); a half that is
     yours makes the exile ``"own"``. The owner is the filter's ``Owned``
-    property, else its controller (:func:`controller_side`)."""
+    property, else its controller (:func:`controller_side`). A filter naming no
+    owner reads ``scope``, its concept's corrected scope (:func:`corrected_scope`):
+    the overlay's ``graveyard_owner`` re-read of the owner phase dropped ("from
+    that player's graveyard" — Skullsnatcher; "from defending player's
+    graveyard" — Grime Gorger; "from a graveyard" — Savior of Ollenbock)."""
     filt = effect_filter(node)
     origin, _ = change_zone_dirs(node)
     in_gy = "Graveyard" in filter_inzone_zones(filt)
@@ -870,10 +898,9 @@ def _graveyard_exile(node: TypedMirrorNode) -> GraveyardExile | None:
         return None
     if tag_of(filt) == "Player":
         return "opponents"
-    parts = getattr(filt, "filters", None) if tag_of(filt) in ("Or", "And") else None
-    owners = [
-        filter_owned_controller(p) or filter_controller(p) for p in (parts or (filt,))
-    ]
+    owners = filter_owners(filt)
+    if not any(owners) and scope in _GY_OWNER_SCOPE:
+        return _GY_OWNER_SCOPE[scope]
     sides = {controller_side(o) for o in owners}
     if "you" in sides:
         return "own"
@@ -1044,18 +1071,10 @@ def _graveyard_matters(tree: ConceptTree) -> list[Signal]:
                 # cards there; it is no payoff on cards in YOUR graveyard
                 # (:func:`_graveyard_exile`). A battlefield exile or blink, and
                 # an exile out of your own graveyard, stay out of this arm.
-                exile = _graveyard_exile(enode)
+                exile = _graveyard_exile(enode, corrected_scope(c))
                 if exile == "own":
                     own_exile.add(unit_index)
                 elif exile is not None:
-                    # Phase drops "that player's" off the filter (Skullsnatcher,
-                    # Zombie Cannibal — retirement canary
-                    # test_gy_hate_that_players_graveyard_canary): the same
-                    # description veto the InZone arm below runs.
-                    if exile == "any" and _GY_OPP_RE.search(
-                        getattr(node, "description", "") or ""
-                    ):
-                        exile = "opponents"
                     fire(exile, c.raw)
                     hate_units.add(unit_index)
                 continue
@@ -2158,6 +2177,23 @@ def _land_sacrifice_makers(tree: ConceptTree) -> list[Signal]:
     return []
 
 
+def _recovered_minus_counter_on_target(unit: AbilityUnit, c: ConceptNode) -> bool:
+    """A -1/-1 counter placement phase v0.104.0 parks as a residue (the
+    ``place_counter`` token) put on a creature the ability targets: its own
+    object is a target, or "that creature" after the unit's ``TargetOnly`` choice
+    of a creature not restricted to yours (Attempted Murder's "Choose target
+    creature. … put two -1/-1 counters on that creature"). One put on your own
+    creature or on the card itself (Matopi Golem's "put a -1/-1 counter on it")
+    is a drawback, ``minus_counters_matter``'s."""
+    if c.recovered_by != "place_counter" or "-1/-1 counter" not in c.reading:
+        return False
+    if is_yours(c):
+        return False
+    return TARGET_OBJECT in c.reading or any(
+        tag_of(s.node) == "TargetOnly" and s.scope != "you" for s in unit.effects
+    )
+
+
 def _debuff_makers(tree: ConceptTree) -> list[Signal]:
     """debuff_makers — a -X/-X / -1/-1 enabler (CR 613.4c / 704.5f). Four anchors:
 
@@ -2194,11 +2230,10 @@ def _debuff_makers(tree: ConceptTree) -> list[Signal]:
 
     # A creature shrinking itself ("This creature gets +1/-1 until end of turn"
     # — the Flowstone shifters) pays a cost to grow; it shrinks nobody else's
-    # creature. On a noncreature card phase's ``SelfRef`` is the "it" an
-    # earlier clause chose (Blood Lust's "it gets +4/-4"; Jace, Architect of
-    # Thought's "whenever a creature an opponent controls attacks, it gets
-    # -1/-0").
-    self_creature = "Creature" in tree.card_types
+    # creature. Phase also stamps ``SelfRef`` on the "it" an earlier clause
+    # chose; the overlay's ``anaphoric_pump`` arm re-reads it (Blood Lust's "it
+    # gets +4/-4"; Jace, Architect of Thought's "whenever a creature an
+    # opponent controls attacks, it gets -1/-0").
     for unit in tree.units:
         # The unit's own effects plus those inside an ability or trigger it
         # grants (CR 113.1a): Sadistic Obsession's "Enchanted creature has
@@ -2208,10 +2243,7 @@ def _debuff_makers(tree: ConceptTree) -> list[Signal]:
         for c in chain(unit.effects, iter_nested_granted_effect_concepts(unit.node)):
             if (
                 c.concept == "pump"
-                and not (
-                    self_creature
-                    and tag_of(getattr(c.node, "target", None)) == "SelfRef"
-                )
+                and not targets_the_card(c)
                 and (
                     pump_is_negative(c.node)
                     or _negative_pt_field(c.node, "toughness")
@@ -2224,6 +2256,15 @@ def _debuff_makers(tree: ConceptTree) -> list[Signal]:
                 and counter_kind(c.node).upper() == "M1M1"
                 and c.scope != "you"
             ):
+                fire("any", c.raw)
+        # phase v0.104.0 residues: a -X/-X shrink its parsers failed on (Death's
+        # Approach's static, Sewer Plague's perpetual one — the ``debuff``
+        # token), never one on your own creatures, and a -1/-1 counter put on a
+        # targeted creature (Attempted Murder).
+        for c in unit.effects:
+            if (
+                c.recovered_by == "debuff" and not is_yours(c)
+            ) or _recovered_minus_counter_on_target(unit, c):
                 fire("any", c.raw)
         # Blight puts -1/-1 counters on a creature its player controls (CR
         # 701.68a); "each opponent blights 1" (High Perfect Morcant) shrinks
@@ -2239,7 +2280,7 @@ def _debuff_makers(tree: ConceptTree) -> list[Signal]:
         # whose creatures it sets and whether it animates them.
         set_sites: dict[int, TypedMirrorNode] = {}
         for sdef in iter_static_defs(unit.node):
-            affected = getattr(sdef, "affected", None)
+            affected = static_affected(sdef, unit)
             mods = getattr(sdef, "modifications", None) or ()
             # An animation's P/T is the new creature's (Living Lands' "All
             # Forests are 1/1 creatures"): the type change is CR 613.1d (layer
@@ -2259,7 +2300,10 @@ def _debuff_makers(tree: ConceptTree) -> list[Signal]:
             # creature's own "This creature gets -2/-2 as long as …" (the
             # Mirage Djinns, Death's Shadow) or "creatures you control get
             # -0/-2" (Vibrating Sphere) is a drawback on your own side.
-            if tag_of(affected) != "SelfRef" and filter_controller(affected) != "You":
+            if (
+                affected_tag(sdef, unit) != "SelfRef"
+                and filter_controller(affected, unit) != "You"
+            ):
                 power, toughness = pt_mod_signs(sdef)
                 if power < 0 or (toughness < 0 and power == 0):
                     fire("any", getattr(sdef, "description", None) or "")

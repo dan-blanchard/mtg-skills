@@ -60,6 +60,7 @@ from mtg_utils._card_ir.crosswalk.reads import (
     _present,
     _scope_from_player_node,
     _trigger_event,
+    _type_filter_words,
     effect_children,
     filter_core_types,
     iter_nested_granted_bodies,
@@ -71,6 +72,7 @@ from mtg_utils._card_ir.crosswalk.reads import (
     residue_is,
     static_mode_tag,
     tag_of,
+    trigger_caster_scope,
 )
 from mtg_utils._card_ir.mirror.runtime import (
     MISSING,
@@ -379,6 +381,29 @@ class ConceptNode:
 
 
 @dataclass(frozen=True)
+class FieldCorrection:
+    """One phase field an overlay-correction arm re-reads (ADR-0035 Stage-3b (b)).
+
+    For a node with NO :class:`ConceptNode` to decorate — a static def, a trigger
+    def, a target filter. Phase parsed the node but stamped one field wrong —
+    "that creature doesn't untap" as ``affected: SelfRef``, "that player
+    controls" as ``controller: You``. A wrong field on an effect that does have a
+    ``ConceptNode`` is that node's decoration instead (``scope`` / ``subject``
+    marks), never a correction here. ``node`` is the phase node, kept by identity
+    and never written; ``value`` is the corrected reading: another phase node of
+    the same tree (the filter the field should have named), or a tag string
+    (:data:`ANAPHORIC`, ``"SelfRef"``, a counter kind). ``arm`` names the
+    :mod:`~mtg_utils._card_ir.overlay_corrections` arm that wrote it. Read through
+    the shared reads that take the unit (``filter_controller(filt, unit)``,
+    ``static_affected(sdef, unit)``) or :meth:`AbilityUnit.corrected`."""
+
+    node: TypedMirrorNode
+    field: str
+    value: object
+    arm: str
+
+
+@dataclass(frozen=True)
 class AbilityUnit:
     """One ability of the card — the per-ability join scope (granularities a/b).
 
@@ -401,6 +426,28 @@ class AbilityUnit:
     effects: tuple[ConceptNode, ...]  # role=effect (the effect+sub_ability chain)
     costs: tuple[ConceptNode, ...]  # role=cost (activation costs)
     statics: tuple[ConceptNode, ...]  # role=static (continuous modifications)
+    # Written only by the overlay-correction stage (see :class:`FieldCorrection`).
+    corrections: tuple[FieldCorrection, ...] = ()
+
+    def correction(self, node: object, name: str) -> FieldCorrection | None:
+        """The :class:`FieldCorrection` an arm wrote for ``node``'s ``name``."""
+        for fc in self.corrections:
+            if fc.node is node and fc.field == name:
+                return fc
+        return None
+
+    def corrected(self, node: object, name: str) -> object:
+        """``node``'s ``name`` field as the overlay corrections read it: the
+        corrected value when an arm re-read it, else phase's own. Only a def's or
+        a filter's field is ever corrected here (:class:`FieldCorrection`); an
+        effect's wrong field is its ``ConceptNode`` decoration."""
+        fc = self.correction(node, name)
+        return fc.value if fc is not None else getattr(node, name, None)
+
+    def corrected_tag(self, node: object, name: str) -> str | None:
+        """The tag of :meth:`corrected` — a corrected tag string as is."""
+        value = self.corrected(node, name)
+        return value if isinstance(value, str) else tag_of(value)
 
     def iter_concepts(self) -> Iterator[ConceptNode]:
         """Every concept-node in this unit (effects, costs, statics)."""
@@ -546,6 +593,12 @@ class ConceptTree:
     # (Escape Velocity's escape, in its lowercase kind). Fold with
     # ``reads.normalised_keyword_name`` to compare.
     card_keywords: tuple[str, ...] = ()
+    # The type words of each printed keyword whose parameter is an object filter,
+    # as ``(keyword, core types + subtypes)`` in ``root.keywords`` order: "Affinity
+    # for planeswalkers" → ``("Affinity", ("Planeswalker",))`` (CR 702.41a: "This
+    # spell costs {1} less to cast for each [text] you control"). ``card_keywords``
+    # keeps only the name.
+    card_keyword_types: tuple[tuple[str, tuple[str, ...]], ...] = ()
 
     def is_type(self, core: str) -> bool:
         """Whether the card itself has core type ``core`` (Creature / Land / …).
@@ -936,7 +989,9 @@ def _decorate_effect(node: object, role: str) -> ConceptNode | None:
     )
 
 
-def walk_effect_chain(ability_like: TypedMirrorNode) -> Iterator[ConceptNode]:
+def walk_effect_chain(
+    ability_like: TypedMirrorNode, *, trigger: object = None
+) -> Iterator[ConceptNode]:
     """Yield role=effect concepts reachable from one ability unit, depth-first.
 
     Decorates every tagged effect node reached through an effect-bearing field
@@ -950,11 +1005,22 @@ def walk_effect_chain(ability_like: TypedMirrorNode) -> Iterator[ConceptNode]:
     (:func:`effect_owner_player_scope`, ``reads.effect_player_reach``).
     Depth-first: a node's else branch is walked after its main-branch subtree.
     Cycle-safe (id-set + depth cap).
+
+    ``trigger``: the trigger def whose ``execute`` this is. When it watches spells
+    you cast, the walk knows its triggering spell is yours
+    (``reads.is_own_drawback`` — Krark, the Thumbless).
     """
-    yield from _walk_effects(ability_like, 0, set())
+    cast_by_you = (
+        isinstance(trigger, TypedMirrorNode)
+        and getattr(trigger, "mode", None) == "SpellCast"
+        and trigger_caster_scope(trigger) == "you"
+    )
+    yield from _walk_effects(ability_like, 0, set(), cast_by_you=cast_by_you)
 
 
-def _walk_effects(node: object, depth: int, seen: set[int]) -> Iterator[ConceptNode]:
+def _walk_effects(
+    node: object, depth: int, seen: set[int], *, cast_by_you: bool = False
+) -> Iterator[ConceptNode]:
     if depth > 40 or not isinstance(node, TypedMirrorNode):
         return
     if id(node) in seen:
@@ -965,8 +1031,8 @@ def _walk_effects(node: object, depth: int, seen: set[int]) -> Iterator[ConceptN
         cn = _decorate_effect(node, "effect")
         if cn is not None:
             yield cn
-    for child in effect_children(node):
-        yield from _walk_effects(child, depth + 1, seen)
+    for child in effect_children(node, cast_by_you=cast_by_you):
+        yield from _walk_effects(child, depth + 1, seen, cast_by_you=cast_by_you)
 
 
 def _cost_concepts(ability: TypedMirrorNode) -> tuple[ConceptNode, ...]:
@@ -1467,6 +1533,7 @@ def build_concept_tree(
     card_alt_costs: list[AltCost] = []
     present_keywords: set[str] = set()
     card_keywords: list[str] = []
+    card_keyword_types: list[tuple[str, tuple[str, ...]]] = []
     kw_list = kws_root if isinstance(kws_root, list) else []
     kw_keys = [kw.key for kw in kw_list if isinstance(kw, MirrorVariant)]
     for kw in kw_list:
@@ -1478,6 +1545,12 @@ def build_concept_tree(
         name = kw.key if isinstance(kw, MirrorVariant) else str(kw)
         present_keywords.add(name)
         card_keywords.append(name)
+        # The parameter is the keyword's own struct (``S_Affinity``), not a
+        # ``Typed`` filter node, so its ``type_filters`` list is read directly.
+        if isinstance(kw, MirrorVariant) and (
+            words := _type_filter_words(getattr(kw.inner, "type_filters", None))
+        ):
+            card_keyword_types.append((name, tuple(words)))
     dropped_rows, dropped_curve = _dropped_keyword_costs(root, present_keywords)
     card_alt_costs.extend(dropped_rows)
     # A keyword phase parked as a residue (Escape Velocity's escape) still names it.
@@ -1633,7 +1706,7 @@ def build_concept_tree(
             continue
         execute = getattr(trig, "execute", MISSING)
         effects = (
-            tuple(walk_effect_chain(execute))
+            tuple(walk_effect_chain(execute, trigger=trig))
             if isinstance(execute, TypedMirrorNode)
             else ()
         )
@@ -1711,6 +1784,7 @@ def build_concept_tree(
         card_curve_costs=tuple(card_curve_costs),
         card_alt_costs=tuple(card_alt_costs),
         card_keywords=tuple(card_keywords),
+        card_keyword_types=tuple(card_keyword_types),
     )
     # ADR-0038 — substrate-wide Unimplemented recovery runs INSIDE the tree
     # build so every consumer (signal lanes, compat projection, convergence +
