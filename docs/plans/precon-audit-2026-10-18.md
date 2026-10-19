@@ -368,9 +368,11 @@ Flawless Maneuver and Deflecting Swat first, but didn't measure well enough to
 decide). Ramp goes to Smothering Tithe, Farseek, Rampant Growth, Sakura-Tribe Elder
 and Talisman, beside Patchwork Banner (three), Ashnod's Altar (two), Fellwar Stone,
 Thought Vessel and Cultivate. Card draw drops Faithless Looting and Frantic Search
-for Wheel of Misfortune, Distant Melody and Village Rites; Skullclamp is still the
-draw add in eleven precons — the draw read is per card, and Skullclamp's worth is
-the deck's X/1 creatures (the next step, measured in `card_draw.py`'s docstring).
+for Wheel of Misfortune, Distant Melody, Village Rites, Sylvan Library and Deadly
+Dispute. A deck fit (ADR-0060's amendment) scores how much of a draw engine's fuel
+the deck runs — Skullclamp's X/1 creatures and token makers — and, gating the
+upgrades and the "card draw short" fill alike, took Skullclamp from the draw add
+in eleven precons to seven with no guide match lost.
 
 ## What is left
 

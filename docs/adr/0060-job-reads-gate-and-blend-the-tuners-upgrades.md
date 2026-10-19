@@ -63,6 +63,18 @@ by another name.
 (`classify.UPGRADE_RANK`). The reads so far change which cards may be an upgrade
 more than which one is chosen; a read takes over a decision only when it measures
 as well as play-rate on it.
-Each read's misreads are listed in its module docstring and the backlog. The next
-lever is deck context: Skullclamp's draw depends on the deck's X/1 creatures and token
-makers, and it is still the card-draw add in eleven precons.
+Each read's misreads are listed in its module docstring and the backlog.
+
+**Amendment (2026-10-19): deck fit.** A read may carry a deck-context fit
+(`JobRead.fit`): card draw's names the fuel an engine needs from the deck
+(`card_draw.draw_fuel` — Skullclamp's X/1 creatures and token makers, Archmage
+Emeritus's instants and sorceries) and scores the share of it the deck runs
+(`deck_fit`, 0-1; one record per copy). The tuner passes the deck to the gate,
+which rejects a card-draw add the deck fuels below half (`swaps._DECK_FIT_FLOOR` —
+the middle of the gap between Abzan Armor's 0.39 and Quick Draw's 0.58, where every
+guide that adds Skullclamp sits, not a tuned value), and to the blend, where the
+fit lowers a score by the unfueled share of its size. The Spine fills ("card draw
+short") read the gate too. A read of part of a job (removal, of interaction) gates
+only a cut it reads as that part (`JobRead.whole_job`): an interaction fill may be
+a counterspell. On the 25 precons Skullclamp went from the card-draw add in eleven
+to seven, with no guide match lost (230 / 109 / 30).

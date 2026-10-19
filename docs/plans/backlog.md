@@ -121,10 +121,8 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   the typed-cheat rows and Sol Ring / Pacifism no longer score as payoffs.)
   (e) **The most-played card of a job recurs** (seventh pass; eighth pass:
   looting is gone — the draw read nets it zero). Left, all play-rate's picks
-  among the cards a read admits: Skullclamp is the card-draw add in 11
-  precons (the draw read is per card; its worth is the deck's X/1 creatures and
-  token makers — `job_quality/card_draw.py`'s docstring has the measured
-  deck-context scaling, the next step), Swiftfoot Boots the protection add in 9,
+  among the cards a read admits: Skullclamp is the card-draw add in 7
+  precons (11 before the deck fit, ADR-0060's amendment), Swiftfoot Boots the protection add in 9,
   Reclamation Sage the removal add in 6, Braids, Arisen Nightmare in 4 (a
   symmetric sacrifice engine), Patchwork Banner the ramp add in 3, with Ashnod's
   Altar, Fellwar Stone, Thought Vessel and Cultivate still in. A "main theme"

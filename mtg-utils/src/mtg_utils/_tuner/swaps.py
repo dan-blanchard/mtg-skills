@@ -21,6 +21,7 @@ from mtg_utils._analysis.budgets import COMMANDER_TEMPLATE, Template
 from mtg_utils._analysis.job_quality import read_for
 from mtg_utils._analysis.ranking import rank_candidates
 from mtg_utils._analysis.roles import DeckMana, role_of
+from mtg_utils._card_ir.trees import trees_for
 from mtg_utils._tuner.classify import CardClass, is_premium
 from mtg_utils._tuner.issues import (
     CUT_FILLER,
@@ -67,6 +68,15 @@ _MV_BANDS: tuple[float, ...] = (3.0, 5.0)
 #: play-rate alone 69; floors of 0.3-0.5 fell back toward synergy-first (63-49).
 _FIT_FLOOR = 0.2
 
+#: The share of a card's job its deck must fuel for the card to count as doing
+#: the job there (``JobRead.deck_fit``; card draw's engines). On the 25 precons
+#: (2026-10-19) Skullclamp's fit split at 0.39 (Abzan Armor) and below versus
+#: 0.58 (Quick Draw) and above, where every guide that adds it sits, so any floor
+#: in that gap reads the same; 0.5 is its middle, not a tuned value.
+_DECK_FIT_FLOOR = 0.5
+#: The job a Spine issue fills when it is not its row's role.
+_SPINE_JOBS = {"protection_short": "protection"}
+
 #: How deep an upgrade's search reads when the job has a card read
 #: (``job_quality``): the search pages by play-rate, so a short page would let
 #: popularity pick the candidates the read then orders.
@@ -94,14 +104,17 @@ def _mv_band(card: Mapping) -> int:
     return sum(1 for top in _MV_BANDS if cmc > top)
 
 
-def _blended_percentiles(cards: Sequence[dict], job: str | None) -> dict[str, float]:
+def _blended_percentiles(
+    cards: Sequence[dict], job: str | None, deck: Sequence[dict] | None = None
+) -> dict[str, float]:
     """For the cards ``job``'s read scores: the read's percentile among them plus
     their play-rate percentile — the order an ordering job's candidates take
-    (``JobRead.orders``)."""
+    (``JobRead.orders``). Given ``deck`` (its cards' records), the read is the
+    one in that deck (``JobRead.score``'s deck fit)."""
     read = read_for(job)
     if read is None:
         return {}
-    scored = [(c, s) for c in cards if (s := read.score(c)) is not None]
+    scored = [(c, s) for c in cards if (s := read.score(c, deck)) is not None]
     if not scored:
         return {}
     n = len(scored)
@@ -113,12 +126,29 @@ def _blended_percentiles(cards: Sequence[dict], job: str | None) -> dict[str, fl
     return out
 
 
+def _does_the_job(
+    card: dict, job: str | None, deck: Sequence[dict], cut: dict | None = None
+) -> bool:
+    """Whether ``card`` does ``job`` by its card read (``job_quality``), in a deck
+    that fuels at least ``_DECK_FIT_FLOOR`` of it — true for a job with no read,
+    for a card the read can't see at all (no concept trees: a set newer than the
+    phase pin), which its template role already vouched for, and for a read of
+    part of the job (removal, of interaction) unless it reads the ``cut``."""
+    read = read_for(job)
+    if read is None or not trees_for(card, bulk=card):
+        return True
+    if not read.whole_job and (cut is None or read.score(cut) is None):
+        return True
+    return read.score(card) is not None and read.deck_fit(card, deck) >= _DECK_FIT_FLOOR
+
+
 def _upgrades(
     candidate: dict,
     cut: CardClass,
     job: str | None,
     *,
     deck_mana: DeckMana | None = None,
+    deck: Sequence[dict] | None = None,
 ) -> bool:
     """Whether ``candidate`` is an upgrade of ``cut``: it costs no higher
     mana-value band (a two-mana removal spell is not upgraded to a six-mana one,
@@ -126,17 +156,19 @@ def _upgrades(
     (``upgrade_job``) it does that same job — card draw is not upgraded to a
     counterspell that draws — and, where the job has a card read
     (``job_quality.read_for``), does it by that read (a looter is no card-draw
-    upgrade); and more decks play it than the cut. The read decides membership,
-    not "better": against the precon guides' cuts it found the weaker card less
-    often than play-rate did, for every job (ADR-0060)."""
+    upgrade) — in ``deck`` (its cards' records), a read with a deck fit also needs
+    the deck to fuel at least ``_DECK_FIT_FLOOR`` of the job (Skullclamp in a deck
+    with few bodies to lose is no draw engine); and more decks play it than the
+    cut. The read decides membership, not "better": against the precon guides'
+    cuts it found the weaker card less often than play-rate did, for every job
+    (ADR-0060)."""
     if _mv_band(candidate) > _mv_band(cut.record):
         return False
     if job is not None and (
         upgrade_job(role_of(candidate, deck_mana=deck_mana), candidate) != job
     ):
         return False
-    read = read_for(job)
-    if read is not None and read.score(candidate) is None:
+    if not _does_the_job(candidate, job, deck or (), cut.record):
         return False
     rank = candidate.get("edhrec_rank")
     return rank is not None and (cut.edhrec_rank is None or rank < cut.edhrec_rank)
@@ -662,6 +694,10 @@ def propose_swaps(
     any other, and the add carries ``copy`` (the copy number it becomes). A cut
     removes ONE copy; a name may be cut as many times as it holds copies."""
     in_deck: dict[str, int] = {c.name: c.quantity for c in classes}
+    # The deck's records, for a job read's deck fit (an engine's fuel).
+    # The counted deck, one record per copy (a 60-card deck's four Lightning
+    # Bolts are four of its spells), read by the job reads' deck fit.
+    deck_records = tuple(c.record for c in classes for _ in range(max(1, c.quantity)))
     # The rejected adds the LAST find_add passed over — so an issue that then found
     # nothing can say the rejection is why, instead of silently yielding its slot.
     rejected_hits: list[str] = []
@@ -847,7 +883,7 @@ def propose_swaps(
             # guides' adds lower at the top of the list than play-rate does.
             read = read_for(job)
             blend = (
-                _blended_percentiles([r["card"] for r in scored], job)
+                _blended_percentiles([r["card"] for r in scored], job, deck_records)
                 if read is not None and read.orders and ctx.playrate
                 else {}
             )
@@ -957,8 +993,10 @@ def propose_swaps(
             if not game_changers.allows(card):
                 continue  # ADR-0030: never propose an add past the bracket's ceiling
             if upgrade_of is not None and not _upgrades(
-                card, upgrade_of, job, deck_mana=ctx.deck_mana
+                card, upgrade_of, job, deck_mana=ctx.deck_mana, deck=deck_records
             ):
+                continue
+            if upgrade_of is None and not _does_the_job(card, job, deck_records):
                 continue
             cost = acquire_cost(card)
             if cost is None:
@@ -1108,6 +1146,10 @@ def propose_swaps(
                 # role_fix is the ADR-0040 guard that stops that path handing a
                 # FOCUSED deck a staple over an in-budget on-avenue candidate.
                 role_fix=remedy.spine,
+                # A Spine fill's job, so its card read gates the add too (a
+                # looter fills no card-draw slot; Skullclamp none in a deck
+                # with few bodies to lose).
+                job=_SPINE_JOBS.get(issue.kind, issue.role) if remedy.spine else None,
             )
             if picked is None:
                 if rejected_hits and not swaps_for_issue:

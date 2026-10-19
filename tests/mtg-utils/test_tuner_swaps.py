@@ -1996,3 +1996,84 @@ def test_a_theme_add_is_the_most_played_card_that_fits(monkeypatch):
 
     assert run(playrate=True) == "Played Fit"
     assert run(playrate=False) == "Box Ticker"
+
+
+def test_the_draw_gate_rejects_an_engine_its_deck_cannot_fuel():
+    """Skullclamp draws when the equipped creature dies: in a deck of instants
+    and sorceries it has no bodies to lose, so it is no card-draw upgrade
+    there, however many decks play it; in a deck of X/1s and token makers it
+    is."""
+    divination = _real_cc("Divination", "spine", roles=["card_draw"], edhrec_rank=8000)
+    clamp = _played("Skullclamp", 10)
+    spells = [
+        test_card(n)
+        for n in ("Lightning Bolt", "Brainstorm", "Opt", "Counterspell", "Ponder")
+    ]
+    bodies = [
+        test_card(n)
+        for n in (
+            "Llanowar Elves",
+            "Raise the Alarm",
+            "Young Pyromancer",
+            "Krenko, Mob Boss",
+        )
+    ]
+    assert not _upgrades(clamp, divination, "card_draw", deck=spells)
+    assert _upgrades(clamp, divination, "card_draw", deck=bodies)
+    assert _upgrades(clamp, divination, "card_draw")  # no deck: no fit to read
+
+
+def test_a_spine_fill_is_gated_by_its_jobs_read():
+    """A card-draw shortfall fills with a card the draw read says draws: a
+    looter nets no card, so Faithless Looting fills no card-draw slot however
+    many decks play it, and Night's Whisper does."""
+    filler = _cc("Filler Card", "filler", cmc=3.0)
+    issue = {"kind": "role_short", "role": "card_draw", "severity": 5}
+
+    def fill(pool):
+        return _swaps_for_issue_dicts(
+            [filler],
+            [issue],
+            SwapContext(
+                budgets={"card_draw": _band(5, 10, 12)},
+                focus_result=_focus(),
+                deck_signals=[],
+                search_fn=lambda **_: pool,
+                identity="",
+                fmt="commander",
+                paper_only=True,
+                owned={},
+                budget=50.0,
+                max_swaps=1,
+                top_heavy=False,
+            ),
+        )["swaps"]
+
+    assert fill([_played("Faithless Looting", 10)]) == []
+    assert [s["add"]["name"] for s in fill([_played("Night's Whisper", 500)])] == [
+        "Night's Whisper"
+    ]
+
+
+def test_an_interaction_fill_may_be_a_counterspell():
+    """Removal's read covers only part of the interaction job: an interaction
+    shortfall may fill with Counterspell, which the read can't score."""
+    filler = _cc("Filler Card", "filler", cmc=3.0)
+    out = _swaps_for_issue_dicts(
+        [filler],
+        [{"kind": "role_short", "role": "interaction", "severity": 5}],
+        SwapContext(
+            budgets={"interaction": _band(5, 10, 12)},
+            focus_result=_focus(),
+            deck_signals=[],
+            search_fn=lambda **_: [_played("Counterspell", 50)],
+            identity="",
+            fmt="commander",
+            paper_only=True,
+            owned={},
+            budget=50.0,
+            max_swaps=1,
+            top_heavy=False,
+        ),
+    )
+    assert [s["add"]["name"] for s in out["swaps"]] == ["Counterspell"]

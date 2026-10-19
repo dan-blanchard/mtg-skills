@@ -57,23 +57,33 @@ The rest is popularity rather than misreads:
 - costs and drawbacks phase drops (Silverquill Silencer's chosen name,
   Moderation's one-spell lock, Shared Discovery's tapped creatures).
 
-Next step, a deck-context read: an engine runs only on the fuel its deck
-supplies. Scale ``flow`` by the deck's share of the watched object's types
-against a reference of a third of the nonland deck, capped at 1. For an
-Equipment's "equipped creature dies" (Skullclamp), count the X/1 creatures and
-creature-token makers against one card in seven. Measured on the 25 precons:
+The deck context (``draw_fuel`` / ``deck_fit``, ``JobRead.fit``): an engine
+runs only on the fuel its deck supplies, so in a deck the read is scaled by the
+share of the engine the deck can fuel. That share is the deck's share of
+nonland cards feeding the engine against the share at which it runs at full
+rate, capped at 1. Skullclamp's "equipped creature dies" wants X/1 creatures
+and creature-token makers (the ``token_maker`` lane), full at a quarter of the
+deck. Archmage Emeritus wants instants and sorceries; a creature-death,
+creature-cast, enters or combat engine wants creatures; an enchantress wants
+enchantments. Those are full at a third. Measured on the 25 precons
+(2026-10-19):
 
-- Skullclamp's flow drops from 1.59 to 1.12 in VelociRampTor (big dinosaurs)
-  and to 1.25 in EndlessPunishment, and stays full in the token decks.
-- Archmage Emeritus's flow (its instants and sorceries) drops from 1.32 to
-  0.52 in EnduringEnchantments.
+- Skullclamp's fit is 1.0 in the token and aristocrat decks (BloodRites,
+  SquirreledAway, MarduSurge). It is 0.33 in VelociRampTor (big dinosaurs) and
+  0.39 in AbzanArmor and EndlessPunishment.
+- Archmage Emeritus's fit is 0.29 in EnduringEnchantments and 1.0 in QuickDraw.
 
-That needs the deck, so it is not part of this per-card read.
+With the tuner gating an upgrade at fit 0.5 and ordering by the read in the
+deck, Skullclamp went from 11 adds to 8, with no guide match lost (230 swaps,
+109 cut matches, 30 add matches before and after). AbzanArmor's add became
+Sylvan Library, and GraveyardOverdrive's and FaeDominion's became Deadly
+Dispute (a FaeDominion guide add, as Skullclamp was).
 """
 
 from __future__ import annotations
 
 import math
+from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
@@ -114,6 +124,7 @@ from mtg_utils._card_ir.crosswalk import (
     watches_itself,
 )
 from mtg_utils._card_ir.trees import trees_for
+from mtg_utils.theme_presets import _signal_keys_for
 
 if TYPE_CHECKING:
     from mtg_utils._card_ir.crosswalk import AbilityUnit, ConceptNode
@@ -208,6 +219,7 @@ class _Source:
     act_mana: int | None  # an activated ability's mana
     tap: bool  # the activation taps
     treasure: int  # Treasures the unit makes (mana back)
+    watched: frozenset[str]  # the card types a trigger's watched object names
     fodder: bool  # it sacrifices another permanent per draw
     rate: float = 0.0
 
@@ -363,6 +375,22 @@ def _narrow(unit: AbilityUnit) -> float:
     return f
 
 
+def _watched_types(unit: AbilityUnit) -> frozenset[str]:
+    """The card types a trigger's watched object names: Creature for a creature
+    dying or entering (and for the creature an Equipment is attached to),
+    Instant and Sorcery for Archmage Emeritus's spells, Enchantment for an
+    enchantress."""
+    out: set[str] = set()
+    for field in ("valid_card", "valid_source"):
+        vc = getattr(unit.node, field, None)
+        if vc is None:
+            continue
+        if tag_of(vc) in _ATTACHED_TAGS:
+            out.add("Creature")
+        out |= set(filter_core_types(vc)) - {"Card", "Permanent", "Spell"}
+    return frozenset(out)
+
+
 def _rate(unit: AbilityUnit, src: _Source) -> float:
     """Expected firings per turn cycle."""
     if src.kind == "replacement":
@@ -448,6 +476,7 @@ def _sources(card: dict) -> list[_Source]:
             ):
                 kind, fuel = "ltb", None  # an Aura's "enchanted creature dies": once
             src = _Source(
+                watched=_watched_types(unit) if kind == "trigger" else frozenset(),
                 kind=kind,
                 got=got,
                 net=got - lost,
@@ -588,3 +617,116 @@ WEIGHTS: dict[str, float] = {
     "body": -0.06,  # a creature: dies to a sweeper
     "flow": 0.05,  # log2(1 + an engine's cards a turn cycle)
 }
+
+
+# ── Deck context: the fuel an engine needs from its deck ─────────────────────
+
+#: A deck fuel: what share of the nonland deck feeds the engine, against the
+#: share at which it runs at full rate (``_FUEL_REFERENCE``).
+#: ``x1_creatures_or_tokens``: an Equipment's "equipped creature dies"
+#: (Skullclamp), whose -1 toughness kills an X/1 and whose engine wants bodies
+#: cheap to lose: X/1 creatures and creature-token makers.
+_FUEL_REFERENCE: dict[str, float] = {
+    "x1_creatures_or_tokens": 1 / 4,
+    "creatures": 1 / 3,
+    "instants_sorceries": 1 / 3,
+    "enchantments": 1 / 3,
+    "artifacts": 1 / 3,
+}
+#: The fuels a deck must supply, by the trigger's fuel class.
+_DECK_FUELS = frozenset({"deaths", "enters", "creature_cast", "you_cast", "combat"})
+
+
+def _source_fuel(s: _Source) -> str | None:
+    """The deck fuel one draw trigger runs on, or ``None`` when every deck
+    supplies it (a turn, an opponent's spell, a land entering, any spell)."""
+    if s.kind != "trigger" or s.fuel is None:
+        return None
+    if s.fuel == "equipped_dies":
+        return "x1_creatures_or_tokens"
+    if s.fuel not in _DECK_FUELS:
+        return None
+    if s.watched & {"Instant", "Sorcery"} and not s.watched - {"Instant", "Sorcery"}:
+        return "instants_sorceries"
+    if "Creature" in s.watched or s.fuel in ("deaths", "creature_cast", "combat"):
+        return "creatures"
+    if s.watched == {"Enchantment"}:
+        return "enchantments"
+    if s.watched == {"Artifact"}:
+        return "artifacts"
+    return None
+
+
+#: oracle_id -> the card's deck fuel.
+_FUEL_MEMO: dict[str, str | None] = {}
+
+
+def draw_fuel(card: dict) -> str | None:
+    """What ``card``'s draw engine needs its deck to be full of
+    (``_FUEL_REFERENCE``'s keys), or ``None`` when it runs in any deck: no
+    engine, or one fired by the turn, opponents or any spell. The engine is
+    the one that flows the most cards."""
+    oid = card.get("oracle_id")
+    if oid and oid in _FUEL_MEMO:
+        return _FUEL_MEMO[oid]
+    engines = [
+        s
+        for s in _sources(card)
+        if s.got > 0 and s.kind in _ENGINE_KINDS and _advantage(s) > 0
+    ]
+    best = max(engines, key=lambda s: _advantage(s) * s.rate, default=None)
+    fuel = _source_fuel(best) if best is not None else None
+    if oid and trees_for(card, bulk=card):
+        _FUEL_MEMO[oid] = fuel
+    return fuel
+
+
+def _feeds(record: dict, fuel: str) -> bool:
+    """Whether one deck card feeds ``fuel``: by its type line, its printed
+    toughness, and the token-maker lane (``token_maker``: it makes creature
+    tokens for you)."""
+    face = faces(record)[0]
+    if fuel == "instants_sorceries":
+        return "Instant" in face or "Sorcery" in face
+    if fuel == "enchantments":
+        return "Enchantment" in face
+    if fuel == "artifacts":
+        return "Artifact" in face
+    makes_bodies = "token_maker" in _signal_keys_for(record)
+    if fuel == "creatures":
+        return "Creature" in face or makes_bodies
+    toughness = str(record.get("toughness") or "")
+    return ("Creature" in face and toughness in ("0", "1")) or makes_bodies
+
+
+#: (the deck's oracle ids, fuel) -> the share of its nonland cards feeding it.
+#: The deck's fuel shares, keyed by the deck sequence's identity and the fuel;
+#: each entry holds the deck itself, so a reused id can't alias another deck.
+_SHARE_MEMO: dict[tuple[int, str], tuple[Sequence[dict], float]] = {}
+
+
+def _fuel_share(deck_records: Sequence[dict], fuel: str) -> float:
+    """The share of the deck's nonland cards (one record per copy) feeding
+    ``fuel``."""
+    key = (id(deck_records), fuel)
+    hit = _SHARE_MEMO.get(key)
+    if hit is not None and hit[0] is deck_records:
+        return hit[1]
+    if len(_SHARE_MEMO) > 256:
+        _SHARE_MEMO.clear()
+    nonland = [r for r in deck_records if "Land" not in faces(r)[0]]
+    fed = sum(1 for r in nonland if _feeds(r, fuel))
+    share = fed / len(nonland) if nonland else 0.0
+    _SHARE_MEMO[key] = (deck_records, share)
+    return share
+
+
+def deck_fit(card: dict, deck_records: Sequence[dict]) -> float:
+    """The share of ``card``'s draw engine the deck can fuel, in [0, 1]: the
+    deck's share of nonland cards feeding :func:`draw_fuel`, against the share
+    at which it runs at full rate, capped at 1. 1.0 for a card with no
+    deck-dependent fuel, or with no deck to read."""
+    fuel = draw_fuel(card)
+    if fuel is None or not deck_records:
+        return 1.0
+    return min(1.0, _fuel_share(deck_records, fuel) / _FUEL_REFERENCE[fuel])

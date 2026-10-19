@@ -68,3 +68,88 @@ def test_a_cracked_rock_reads_as_a_one_shot():
     feats = card_draw.features(_real("Mind Stone"))
     assert feats["sac_draw"] == 1.0
     assert feats["engine"] == 0.0
+
+
+# ── Deck context: the fuel a draw engine needs from its deck ─────────────────
+
+_BODIES = [
+    "Llanowar Elves",
+    "Esper Sentinel",
+    "Birds of Paradise",
+    "Raise the Alarm",
+    "Young Pyromancer",
+    "Krenko, Mob Boss",
+    "Island",
+]
+_SPELLS = [
+    "Lightning Bolt",
+    "Divination",
+    "Brainstorm",
+    "Opt",
+    "Counterspell",
+    "Ponder",
+    "Preordain",
+    "Murder",
+    "Island",
+]
+
+
+def _deck(names: list[str]) -> list[dict]:
+    return [_real(n) for n in names]
+
+
+def test_skullclamp_runs_on_x1_creatures_and_token_makers():
+    """Skullclamp's engine is an equipped creature dying: a deck of X/1s and
+    creature-token makers fuels all of it, a deck of instants none."""
+    clamp = _real("Skullclamp")
+    assert card_draw.draw_fuel(clamp) == "x1_creatures_or_tokens"
+    assert card_draw.deck_fit(clamp, _deck(_BODIES)) == 1.0
+    assert card_draw.deck_fit(clamp, _deck(_SPELLS)) == 0.0
+
+
+def test_archmage_emeritus_runs_on_instants_and_sorceries():
+    archmage = _real("Archmage Emeritus")
+    assert card_draw.draw_fuel(archmage) == "instants_sorceries"
+    assert card_draw.deck_fit(archmage, _deck(_SPELLS)) == 1.0
+    # one instant (Raise the Alarm) among six nonland cards: half the third it wants
+    assert card_draw.deck_fit(archmage, _deck(_BODIES)) == pytest.approx(0.5)
+
+
+@pytest.mark.parametrize("name", ["Phyrexian Arena", "Rhystic Study", "Divination"])
+def test_a_draw_no_deck_fuels_fits_every_deck(name):
+    """An upkeep engine, an opponent-fired engine and a one-shot need nothing
+    from the deck."""
+    card = _real(name)
+    assert card_draw.draw_fuel(card) is None
+    assert card_draw.deck_fit(card, _deck(_SPELLS)) == 1.0
+
+
+def test_the_job_score_in_a_deck_scales_by_its_fit():
+    """``job_score`` with a deck: Skullclamp's score in a spells deck is zero;
+    Phyrexian Arena's is unchanged."""
+    clamp, arena = _real("Skullclamp"), _real("Phyrexian Arena")
+    spells = _deck(_SPELLS)
+    assert job_score(clamp, "card_draw", spells) == 0.0
+    assert job_score(clamp, "card_draw", _deck(_BODIES)) == job_score(
+        clamp, "card_draw"
+    )
+    assert job_score(arena, "card_draw", spells) == job_score(arena, "card_draw")
+
+
+def test_a_deck_fit_lowers_a_score_by_the_share_it_cannot_fuel():
+    """One formula for either sign: a score loses the unfueled share of its own
+    size (a positive score 1.0 at fit 0.4 reads 0.4, a negative -1.0 reads -1.6)."""
+    from mtg_utils._analysis.job_quality import JobRead
+
+    def read(base, fit):
+        return JobRead(
+            "card_draw",
+            lambda _c: {"x": base},
+            {"x": 1.0},
+            orders=False,
+            fit=lambda _c, _d: fit,
+        )
+
+    card = {"name": "Test Engine", "oracle_id": ""}
+    assert read(1.0, 0.4).score(card, deck=[card]) == 0.4
+    assert read(-1.0, 0.4).score(card, deck=[card]) == -1.6

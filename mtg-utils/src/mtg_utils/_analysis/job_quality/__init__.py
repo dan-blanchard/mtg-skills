@@ -27,7 +27,7 @@ read alone found the guides' adds less often than play-rate did, for every job
 
 from __future__ import annotations
 
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 
 from mtg_utils._analysis.job_quality import (
@@ -42,18 +42,43 @@ from mtg_utils._card_ir.trees import trees_for
 
 @dataclass(frozen=True)
 class JobRead:
-    """One job's card read: its module's ``features`` and ``WEIGHTS``, and
-    whether it also ORDERS an upgrade's candidates (blended with play-rate) or
-    only gates them."""
+    """One job's card read: its module's ``features`` and ``WEIGHTS``, whether it
+    also ORDERS an upgrade's candidates (blended with play-rate) or only gates
+    them, and an optional deck ``fit``: the share of the card's job its deck can
+    fuel, in [0, 1] (card draw's ``deck_fit`` — Skullclamp needs bodies to die)."""
 
     job: str
     features: Callable[[dict], dict[str, float] | None]
     weights: Mapping[str, float]
     orders: bool
+    fit: Callable[[dict, Sequence[dict]], float] | None = None
+    #: Whether the read covers the whole job. Removal is part of the
+    #: ``interaction`` job (counterspells are the rest), so it gates only a
+    #: card it reads as removal: a counterspell's upgrade, and an interaction
+    #: fill, are play-rate's.
+    whole_job: bool = True
 
-    def score(self, card: dict) -> float | None:
+    def deck_fit(self, card: dict, deck: Sequence[dict] | None) -> float:
+        """The share of ``card``'s job ``deck`` (its cards' records) can fuel;
+        1.0 without a deck, or for a job with no deck read."""
+        if self.fit is None or not deck:
+            return 1.0
+        return self.fit(card, deck)
+
+    def score(self, card: dict, deck: Sequence[dict] | None = None) -> float | None:
         """How well ``card`` does the job (higher is better): the weighted sum of
-        its features, or ``None`` when it does none of the job."""
+        its features, or ``None`` when it does none of the job. Given ``deck``,
+        lowered by the share of the job the deck can't fuel (:meth:`deck_fit`):
+        by that fraction of its size, whichever its sign. The card part is
+        memoized per oracle_id, the deck part read per call."""
+        base = self._card_score(card)
+        if base is None or deck is None or self.fit is None:
+            return base
+        f = self.deck_fit(card, deck)
+        return round(base - abs(base) * (1 - f), 3)
+
+    def _card_score(self, card: dict) -> float | None:
+        """The card's own score, deck-free (memoized per oracle_id)."""
         oid = card.get("oracle_id")
         key = (self.job, oid or "")
         if oid and key in _SCORE_MEMO:
@@ -86,11 +111,23 @@ _SCORE_MEMO: dict[tuple[str, str], float | None] = {}
 _READS: dict[str, JobRead] = {
     r.job: r
     for r in (
-        JobRead("interaction", removal.features, removal.WEIGHTS, orders=False),
+        JobRead(
+            "interaction",
+            removal.features,
+            removal.WEIGHTS,
+            orders=False,
+            whole_job=False,
+        ),
         JobRead("protection", protection.features, protection.WEIGHTS, orders=False),
         JobRead("board_wipe", board_wipe.features, board_wipe.WEIGHTS, orders=True),
         JobRead("ramp", ramp.features, ramp.WEIGHTS, orders=False),
-        JobRead("card_draw", card_draw.features, card_draw.WEIGHTS, orders=True),
+        JobRead(
+            "card_draw",
+            card_draw.features,
+            card_draw.WEIGHTS,
+            orders=True,
+            fit=card_draw.deck_fit,
+        ),
     )
 }
 
@@ -100,8 +137,11 @@ def read_for(job: str | None) -> JobRead | None:
     return _READS.get(job or "")
 
 
-def job_score(card: dict, job: str | None) -> float | None:
-    """How well ``card`` does ``job``, or ``None`` when the job has no read yet or
-    the card does none of it."""
+def job_score(
+    card: dict, job: str | None, deck: Sequence[dict] | None = None
+) -> float | None:
+    """How well ``card`` does ``job`` (in ``deck``, when given: its cards'
+    records), or ``None`` when the job has no read yet or the card does none of
+    it."""
     read = read_for(job)
-    return read.score(card) if read is not None else None
+    return read.score(card, deck) if read is not None else None
