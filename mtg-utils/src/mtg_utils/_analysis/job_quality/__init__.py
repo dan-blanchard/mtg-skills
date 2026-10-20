@@ -105,9 +105,12 @@ _SCORE_MEMO: dict[tuple[str, str], float | None] = {}
 #: guide adds near the top than play-rate alone for board wipes (11 vs 7 in the
 #: top thirty, n=19) and card draw (11 vs 6 in the top ten); fewer for
 #: protection (top three 11 vs 12, top thirty 24 vs 29), removal (7 vs 9 in the
-#: top ten) and ramp (3 vs 4), which gate only. The read alone did worse than
-#: play-rate for every job. (Measured over the whole identity, not the tuner's
-#: 600-card page above its fit floor.)
+#: top ten) and ramp (3 vs 4). Removal and ramp gate only. Protection orders by
+#: Dan's call (2026-10-19) despite trailing: its picks (Flawless Maneuver,
+#: Deflecting Swat, Teferi's Protection over Swiftfoot Boots) read right to a deck
+#: builder, and the gap is small. The read alone did worse than play-rate for
+#: every job. (Measured over the whole identity, not the tuner's 600-card page
+#: above its fit floor.)
 _READS: dict[str, JobRead] = {
     r.job: r
     for r in (
@@ -118,7 +121,7 @@ _READS: dict[str, JobRead] = {
             orders=False,
             whole_job=False,
         ),
-        JobRead("protection", protection.features, protection.WEIGHTS, orders=False),
+        JobRead("protection", protection.features, protection.WEIGHTS, orders=True),
         JobRead("board_wipe", board_wipe.features, board_wipe.WEIGHTS, orders=True),
         JobRead("ramp", ramp.features, ramp.WEIGHTS, orders=False),
         JobRead(

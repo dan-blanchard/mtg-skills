@@ -23,13 +23,15 @@ is measured against, never an input to it.
   cut" stays play-rate's: against the precon guides' cuts every read found the
   weaker card less often than play-rate (bottom-two guide-cut hits, read vs
   play-rate: removal 16 vs 21, ramp 14 vs 19, draw 19 vs 20, wipes 9 vs 10).
-- **Two reads also order, blended with play-rate** (`JobRead.orders`: board wipes,
-  card draw). Each candidate's read percentile on the page plus its play-rate
+- **Three reads also order, blended with play-rate** (`JobRead.orders`: board
+  wipes, card draw, protection). Each candidate's read percentile on the page plus its play-rate
   percentile decides (`swaps._blended_percentiles`). The tuner takes the top card,
   and at the top of the list the read alone found the guides' adds less often than
   play-rate did, for every job; the blend beat play-rate for wipes (11 vs 7 guide
   adds in the top thirty, n=19) and draw (11 vs 6 in the top ten), and trailed it
-  for protection (top thirty 24 vs 29), removal and ramp, which gate only. These
+  for protection (top thirty 24 vs 29), removal and ramp. Removal and ramp gate
+  only; protection orders by Dan's call — its picks (Flawless Maneuver, Deflecting
+  Swat over Swiftfoot Boots) read right to a deck builder and the gap is small. These
   counts rank the whole color identity, not the tuner's 600-card page above its
   fit floor — an approximation of the shipped order.
 - **The upgrade page reads deeper** (`_JOB_READ_PAGE`, 600 cards) when the job has a
@@ -39,7 +41,7 @@ Measured on the 25 precons (eighth pass, `docs/plans/precon-audit/job_reads.py`)
 
 | job | fit on main-job cards: CV Spearman | production read over every card it scores: Spearman / guide adds, median percentile (read vs play-rate) | use |
 |---|---|---|---|
-| protection | 0.56 | 0.56 / 0.92 vs 0.97 | gate |
+| protection | 0.56 | 0.56 / 0.92 vs 0.97 | gate + blend (Dan's call) |
 | board wipe | 0.50 | 0.49 / 0.79 vs 0.92 | gate + blend |
 | removal | 0.40 | 0.16 / 0.49 vs 0.94 | gate |
 | card draw | 0.33 | 0.33 / 0.76 vs 0.85 | gate + blend |

@@ -340,10 +340,11 @@ battlefield kill, which is why it falls furthest.)
   play-rate for every job (removal's read made Sheltered by Ghosts the add in
   seven precons). Against the guides' cuts every read found the weaker card less
   often than play-rate too. So every read gates membership — the add must do the
-  job by the read — while "better than the cut" stays play-rate's, and only wipes
-  and draw also order the candidates, by read percentile plus play-rate
+  job by the read — while "better than the cut" stays play-rate's, and wipes, draw
+  and protection also order the candidates, by read percentile plus play-rate
   percentile (11 vs 7 guide adds in the top thirty for wipes, 11 vs 6 in the top
-  ten for draw; protection's blend trailed play-rate, 24 vs 29 in the top thirty).
+  ten for draw; protection's blend trailed play-rate, 24 vs 29 in the top thirty,
+  and orders by Dan's call).
 - **Overload** spells are sweeps (CR 702.96a): Damn, Mizzium Mortars, Winds of
   Abandon, Electrickery and Vandalblast read `mass_removal`, Cyclonic Rift
   `mass_bounce` — a retirement canary watches for phase typing the mode.
@@ -363,9 +364,11 @@ Rollick, Lightning Bolt, Boros Charm, Goblin Bombardment, Orcish Bowmasters, Lor
 of the Third Path, Aetherflux Reservoir — popular cards that do the job, where play-
 rate alone had picked Animate Dead and An Offer You Can't Refuse. Wipes go to Toxic
 Deluge and Martial Coup (three each), with Spiteful Banditry and Pyrohemia through
-the blend. Protection stays Swiftfoot Boots and Lightning Greaves (the read put
-Flawless Maneuver and Deflecting Swat first, but didn't measure well enough to
-decide). Ramp goes to Smothering Tithe, Farseek, Rampant Growth, Sakura-Tribe Elder
+the blend. Protection upgrades go to Flawless Maneuver (two precons), Deflecting
+Swat and Lightning Greaves: protection orders by Dan's call, its blend having
+trailed play-rate slightly (24 vs 29 guide adds in the top thirty); the
+"protection short" fills still rank by mana-value band and play-rate (Swiftfoot
+Boots in four). Ramp goes to Smothering Tithe, Farseek, Rampant Growth, Sakura-Tribe Elder
 and Talisman, beside Patchwork Banner (three), Ashnod's Altar (two), Fellwar Stone,
 Thought Vessel and Cultivate. Card draw drops Faithless Looting and Frantic Search
 for Wheel of Misfortune, Distant Melody, Village Rites, Sylvan Library and Deadly

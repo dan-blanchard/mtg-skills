@@ -122,7 +122,9 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   (e) **The most-played card of a job recurs** (seventh pass; eighth pass:
   looting is gone — the draw read nets it zero). Left, all play-rate's picks
   among the cards a read admits: Skullclamp is the card-draw add in 7
-  precons (11 before the deck fit, ADR-0060's amendment), Swiftfoot Boots the protection add in 9,
+  precons (11 before the deck fit, ADR-0060's amendment), Swiftfoot Boots the protection add in 6 (the "protection short" fills, which
+  rank by band and play-rate; protection upgrades order by the read since Dan's
+  call),
   Reclamation Sage the removal add in 6, Braids, Arisen Nightmare in 4 (a
   symmetric sacrifice engine), Patchwork Banner the ramp add in 3, with Ashnod's
   Altar, Fellwar Stone, Thought Vessel and Cultivate still in. A "main theme"
@@ -154,8 +156,9 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   (`viable`, `commander_cards`, `upgrade_cards`, `lane_upgrade_cards`) — one
   focus slice would do.
   (j) **Job-read leftovers** (eighth pass, ADR-0060; each module docstring lists
-  its own). Removal, ramp and protection only gate (their blend with play-rate
-  trailed play-rate alone at the top of the list), and no read decides "better
+  its own). Removal and ramp only gate (their blend with play-rate trailed
+  play-rate alone at the top of the list; protection's did too, and orders by
+  Dan's call), and no read decides "better
   than the cut" yet (the cut side measured below play-rate for every job). Removal overrates an enters-the-
   battlefield exile on a cheap permanent (Sheltered by Ghosts and Static Prison
   read like Cast Out — the Aura's host and the upkeep payment carry no weight),

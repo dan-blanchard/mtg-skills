@@ -75,8 +75,8 @@ def test_job_score_routes_interaction_to_the_removal_read():
 
 
 def test_read_for_names_which_reads_order_candidates():
-    """Removal, ramp and protection only gate an upgrade's candidates; board
-    wipes and card draw also order them, blended with play-rate (ADR-0060)."""
+    """Removal and ramp only gate an upgrade's candidates; board wipes, card draw
+    and protection also order them, blended with play-rate (ADR-0060)."""
     orders = {
         job: read.orders
         for job in ("interaction", "protection", "board_wipe", "ramp", "card_draw")
@@ -84,7 +84,7 @@ def test_read_for_names_which_reads_order_candidates():
     }
     assert orders == {
         "interaction": False,
-        "protection": False,
+        "protection": True,
         "board_wipe": True,
         "ramp": False,
         "card_draw": True,
