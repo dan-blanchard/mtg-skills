@@ -13,7 +13,7 @@ can be dated; where the tuner proposes a stronger, newer card that is fine.
    `Commander` / `Deck` list shape by `precon-audit/to_decktxt.py` and parsed
    with `parse-deck --format commander`. Collector's-edition duplicates skipped.
 2. Tune: `deck-tune <deck.json> --max-swaps 10 --budget 100` (passes one to eight;
-   from the recall pass on, `--max-swaps 14 --budget 60`, the median guide's size —
+   from the recall pass on, `--max-swaps 30 --budget 440`, the largest guide's size —
    `precon-audit/guide_sizes.py`), paper medium, no collection.
 3. Guides: 2-3 per precon (EDHREC, Card Kingdom, Draftsim, TCGplayer, Star City
    Games, Hipsters of the Coast, Card Game Base, MTG Rocks), summarized by a
@@ -385,30 +385,40 @@ what the guides cut and add, how much the tuner finds, and what stops the rest.
 `precon-audit/misses.py` reruns the tune with the cut ranking and the candidate
 searches recorded and gives every guide card one reason (first that applies).
 
-**The recipe now uses the guides' own size.** `precon-audit/guide_sizes.py` counts
-each guide's list: over the 52 guides with one, the median makes 10 cuts and 13
-adds (14 swaps, the larger of the two), states a $50 budget, and its adds cost $58
-at today's prices (quartiles $35 / $122). The rerun recipe moves from ten swaps and
-$100 to **fourteen swaps and $60**; each deck set from its own guides' medians did a
-little worse (257 swaps, 112 / 31 matching) than the uniform median (276 / 120 /
-31), and $100 at fourteen swaps adds five guide matches (284 / 121 / 36) — budget
-binds the adds.
+**The recipe now uses the guides' own size — the largest.** `precon-audit/
+guide_sizes.py` counts each guide's list: over 54 guides the median makes 10 cuts
+and 13 adds (14 swaps, the larger of the two) and its adds cost $58 at today's
+prices; the 90th percentile 22 swaps and $199; the largest 30 swaps and $438. At
+the median, 16 of the 25 precons hit the swap cap — the cap, not the tuner, was
+stopping recall. At the largest the tuner stops on its own (one deck at the cap,
+a median of 20 swaps):
+
+| --max-swaps / --budget | swaps made | decks at the cap | cuts matching a guide | adds matching |
+|---|---|---|---|---|
+| 10 / $100 (passes one to eight) | 230 | — | 109 (47%) | 30 |
+| 14 / $60 (the median guide) | 322 | 16 | 139 (43%) | 30 |
+| 22 / $200 (90th percentile) | 454 | 7 | 176 (39%) | 42 |
+| 30 / $440 (the largest guide) | 493 | 1 | 185 (38%) | 47 |
+
+Past 22 swaps the extra cuts match a guide 27% of the time, about the 24% base
+rate. The recipe is now **thirty swaps and $440**, so recall is never capped below
+what a guide does; precision is read beside it.
 
 | guide cuts in the decks (424) | n | | guide adds (745) | n |
 |---|---|---|---|---|
-| cut | 120 | | added | 31 |
-| popular: off-lane, inside `UPGRADE_RANK` | 109 | | out of scope (in deck, land, banned, off-identity) | 135 |
-| a doer of the commander's lane, outside the deep-lane half | 91 | | a theme card no search looked for | 238 |
-| a carer of a built theme | 27 | | on a searched page, outranked | 170 |
-| in a cut pool, not reached | 26 | | a role card no issue asked for | 81 |
-| land / commander | 20 | | not on any page though its job was searched | 56 |
-| other | 18 | | on a page, gated (cost band, play-rate, job) | 32 |
-| protected (combo / closer / multiplier) | 13 | | on a page, costing more than the whole budget | 2 |
+| cut | 185 | | added | 47 |
+| popular: off-lane, inside `UPGRADE_RANK` | 75 | | out of scope (in deck, land, banned, off-identity) | 135 |
+| a doer of the commander's lane, outside the deep-lane half | 55 | | a theme card no search looked for | 238 |
+| a carer of a built theme | 27 | | on a searched page, outranked | 175 |
+| other | 25 | | not on any page though its job was searched | 67 |
+| in a cut pool, not reached | 24 | | on a page, gated (play-rate, cost band, job) | 40 |
+| land / commander | 20 | | a role card no issue asked for | 43 |
+| protected (combo / closer / multiplier) | 13 | | | |
 
-Recall is 120 of the 404 cuttable guide cuts (30%; 109 at ten swaps) and 31 of
-the 610 in-scope adds (5%). The levers, by size: the theme adds no search reaches
-(238), the adds already on a page but outranked (170), the cuts the popularity
-threshold shields (109), and the commander-lane cards the guides trim (91).
+Recall is 185 of the 404 cuttable guide cuts (46%) and 47 of the 610 in-scope adds
+(8%). The levers, by size: the theme adds no search reaches (238), the adds
+outranked on a page (175), the cuts the popularity threshold still shields (75),
+and the commander-lane cards the guides trim (55).
 
 Of those 238, 115 serve the main theme by the tuner's own read, and 88 of them don't
 match the theme's search spec at all: a theme's candidate page is still its
@@ -437,7 +447,7 @@ clause-cluster attribution for ident-served hits.
 curl -sL https://mtgjson.com/api/v5/decks/SliverSwarm_CMM.json -o SliverSwarm_CMM.json
 python3 -I docs/plans/precon-audit/to_decktxt.py SliverSwarm_CMM.json deck.txt
 cd mtg-utils && uv run parse-deck deck.txt --format commander --output deck.json
-uv run deck-tune deck.json --max-swaps 14 --budget 60 --output tune.json  # the median guide (guide_sizes.py)
+uv run deck-tune deck.json --max-swaps 30 --budget 440 --output tune.json  # the largest guide (guide_sizes.py)
 # compare: decks/<Name>/tune.json beside precon-audit/<Name>.md
 python3 -I docs/plans/precon-audit/compare.py
 ```

@@ -4,7 +4,7 @@ tuner doesn't, the reason it doesn't (docs/plans/precon-audit-2026-10-18.md).
     cd mtg-utils && uv run python ../docs/plans/precon-audit/misses.py ROOT [Name ...]
 
 ROOT holds decks/<Name>/deck.json and articles/<Name>.md. Runs the tune per deck
-(--max-swaps 14 --budget 60, the median guide's size — guide_sizes.py — as the
+(--max-swaps 30 --budget 440, the largest guide's size — guide_sizes.py — as the
 rerun recipe does) with the cut ranking and
 the candidate searches recorded, then sorts each guide card into one reason.
 
@@ -23,8 +23,9 @@ of its kind was searched, but its spec or page depth missed the card).
 """
 import collections, functools, json, multiprocessing, pathlib, re, sys
 
-#: The median upgrade guide's swaps and spend (guide_sizes.py, 2026-10-19).
-MAX_SWAPS, BUDGET = 14, 60
+#: The largest upgrade guide's swaps and spend (guide_sizes.py, 2026-10-19), so the
+#: recipe never caps recall below what a guide does.
+MAX_SWAPS, BUDGET = 30, 440
 
 
 def norm(n):
