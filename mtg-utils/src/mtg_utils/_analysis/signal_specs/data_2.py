@@ -605,8 +605,9 @@ SPECS_2: dict[tuple[str, str], SignalSpec] = {
     # `draw \w+ cards?` let \w+ eat the article in "draw a card", mislabeling ~753
     # one-shot cantrips (Remand, Cryptic Command) as engines — contradicting the
     # extractor's own _CARD_DRAW_RE. Mirror that: a recurring "at the beginning of …
-    # draw" OR a bulk 2+ / additional draw. (Single-draw permanents like Rhystic Study
-    # are surfaced by their own triggers' signals, not this avenue.)
+    # draw" OR a bulk 2+ / additional draw. (The lane also reads a repeating
+    # trigger's single draw — Rhystic Study, Kindred Discovery — which this
+    # pattern search and serve regex don't name.)
     ("card_draw_engine", "you"): _spec(
         "Card-advantage engine",
         "protection, recursion, and payoffs for a repeatable draw engine",

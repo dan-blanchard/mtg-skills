@@ -1422,6 +1422,53 @@ def _redraws_replaced_card(unit: AbilityUnit, c: ConceptNode) -> bool:
     return would_draw == "AnyPlayer" and not yours
 
 
+#: The events a trigger watching the card itself sees once per object: entering
+#: (CR 603.6a), leaving or dying (603.6c), changing zones, being sacrificed,
+#: discarded, cast, countered, drawn, turned face up or transformed. A draw on
+#: one of these is a one-shot rider; on any other event the trigger fires each
+#: time the event recurs (CR 603.2).
+_ONE_SHOT_SELF_EVENTS = frozenset(
+    {
+        "enters",
+        "dies",
+        "leaves",
+        "changes_zone",
+        "sacrificed",
+        "discarded",
+        "cast_spell",
+        "countered",
+        "drawn",
+        "turnfaceup",
+        "transformed",
+    }
+)
+
+
+def _repeats(unit: AbilityUnit) -> bool:
+    """Whether a trigger unit can fire again and again: it watches another
+    object or player (Rhystic Study, Kindred Discovery, Mentor of the Meek), or
+    watches the card itself on an event that recurs (Werewolf Pack Leader's
+    attacks, Fathom Mage's counters) — never its own one-time zone change
+    (:data:`_ONE_SHOT_SELF_EVENTS`: Wall of Omens' entering, Ichor Wellspring's
+    dying)."""
+    if unit.origin != "trigger":
+        return False
+    return not (
+        watches_itself(unit.node) and unit.trigger_event in _ONE_SHOT_SELF_EVENTS
+    )
+
+
+def _you_draw(unit: AbilityUnit, c: ConceptNode) -> bool:
+    """Whether the draw is plainly the controller's: no other drawer named (a
+    triggering player — Glademuse; the controller of a creature that dealt
+    damage — Edric), no opponent wrapper (Bounty Board's "each of its
+    controller's opponents draws")."""
+    return (
+        recipient_tag(c.node) in (None, "Controller")
+        and effect_owner_player_scope(unit.node, c.node) is None
+    )
+
+
 def _card_draw_engine(tree: ConceptTree) -> list[Signal]:
     """card_draw_engine — recurring / BULK card advantage, NOT a cantrip (CR
     121.1 / 121.2). The live path is a byte-identical kept mirror whose "no
@@ -1439,7 +1486,11 @@ def _card_draw_engine(tree: ConceptTree) -> list[Signal]:
       scope "each" via the ``ScopedPlayer`` recipient);
     * a Draw-REPLACEMENT unit ("if you would draw a card, … draw two cards
       instead" — Alhammarret's Archive; the replacement's ``event`` field is
-      the typed anchor).
+      the typed anchor);
+    * ANY ``Draw`` in a trigger that repeats (:func:`_repeats` — Rhystic
+      Study, Esper Sentinel, Kindred Discovery, Bident of Thassa) when you
+      are the one drawing (:func:`_you_draw`): a single draw each time the
+      event recurs is the Commander draw engine.
 
     Expected shadow posture: recall gains over the mirror are the desired
     structural improvement — adjudicated via the harness, not drift.
@@ -1462,7 +1513,10 @@ def _card_draw_engine(tree: ConceptTree) -> list[Signal]:
                 or (c.recovered_by == "draw" and MANY in c.subject)
             )
             if not (
-                is_phase or is_draw_repl or (bulk and unit.trigger_event != "enters")
+                is_phase
+                or is_draw_repl
+                or (bulk and unit.trigger_event != "enters")
+                or (_repeats(unit) and _you_draw(unit, c))
             ):
                 continue
             if is_draw_repl and not bulk and _redraws_replaced_card(unit, c):

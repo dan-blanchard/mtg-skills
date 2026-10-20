@@ -121,9 +121,13 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   the typed-cheat rows and Sol Ring / Pacifism no longer score as payoffs.)
   (e) **The most-played card of a job recurs** (seventh pass; eighth pass:
   looting is gone — the draw read nets it zero). Left, all play-rate's picks
-  among the cards a read admits: Skullclamp is the card-draw add in 16
-  precons at thirty swaps (7 at ten; 11 before the deck fit, ADR-0060's
-  amendment — at thirty swaps more draw upgrades run, and its fit passes), Swiftfoot Boots the protection add in 6 (the "protection short" fills, which
+  among the cards a read admits: the card-draw adds at thirty swaps are Esper
+  Sentinel in 13 precons, Rhystic Study in 10, Mystic Remora in 9 and Garruk's
+  Uprising in 9, none of them a guide add, since the card-draw page holds the
+  repeating draw engines (2026-10-20; before, Skullclamp in 15 and Village Rites
+  in 9 — Skullclamp matched three guides it no longer reaches). The read scores an
+  opponent-fed engine highest (`opp_fuel`, fitted to play-rate), and nothing reads
+  that an opponent can pay to stop the draw. Swiftfoot Boots the protection add in 6 (the "protection short" fills, which
   rank by band and play-rate; protection upgrades order by the read since Dan's
   call),
   Reclamation Sage the removal add in 6, Braids, Arisen Nightmare in 4 (a
@@ -188,7 +192,7 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   role's whole match set would remove both.
   (m) **Recall** (`precon-audit/misses.py`, at the largest guide's thirty
   swaps and $440, where the tuner stops on its own): 185 of 404 cuttable guide
-  cuts, 56 of 610 in-scope guide adds. The levers by size: theme adds no search
+  cuts, 52 of 610 in-scope guide adds. The levers by size: theme adds no search
   reaches (229; measured at 238 before an upgrade stopped being capped at four
   mana in a top-heavy deck — 203 match no spec the tuner searched, 22 sit past a
   page's depth, 12 were the cap's; of the 203, 83 serve
@@ -198,7 +202,7 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   54 → 52 at thirty — so it waits on a ranking that can tell them apart, and
   "payoff before enabler" is not that ranking (29 guide adds in the top ten
   against 45 for the current order; don't re-suggest). Then adds outranked on a
-  page (187); cuts the popularity threshold still shields (75 — guides cut
+  page (205); cuts the popularity threshold still shields (75 — guides cut
   popular off-theme cards like Feed the Swarm); commander-lane cards the
   guides trim (55). Six guide summaries don't tag sources per row
   (`guide_sizes.py` skips them).

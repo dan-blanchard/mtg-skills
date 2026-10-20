@@ -406,21 +406,21 @@ what a guide does; precision is read beside it.
 
 | guide cuts in the decks (424) | n | | guide adds (745) | n |
 |---|---|---|---|---|
-| cut | 186 | | added | 56 |
+| cut | 186 | | added | 52 |
 | popular: off-lane, inside `UPGRADE_RANK` | 75 | | out of scope (in deck, land, banned, off-identity) | 135 |
 | a doer of the commander's lane, outside the deep-lane half | 55 | | a theme card no search looked for | 229 |
-| a carer of a built theme | 27 | | on a searched page, outranked | 187 |
-| other | 25 | | not on any page though its job was searched | 53 |
-| in a cut pool, not reached | 23 | | on a page, gated (play-rate, cost band, job) | 45 |
+| a carer of a built theme | 27 | | on a searched page, outranked | 205 |
+| other | 25 | | not on any page though its job was searched | 40 |
+| in a cut pool, not reached | 23 | | on a page, gated (play-rate, cost band, job) | 44 |
 | land / commander | 20 | | a role card no issue asked for | 40 |
 | protected (combo / closer / multiplier) | 13 | | | |
 
-Recall is 186 of the 404 cuttable guide cuts (46%) and 56 of the 610 in-scope adds
-(9%; 52 before an upgrade stopped being held to a top-heavy deck's four-mana cap,
+Recall is 186 of the 404 cuttable guide cuts (46%) and 52 of the 610 in-scope adds
+(9%; 56 before the card-draw page held the repeating draw engines, 52 before an upgrade stopped being held to a top-heavy deck's four-mana cap,
 54 before the lane fixes below took two adds picked for misread roles, 47 before a job upgrade stopped requiring theme fit — the floor had kept
 Swords to Plowshares and Path to Exile behind Dragon Tempest in a goad deck). The
 levers, by size: the theme adds no search reaches (229), the adds outranked on a
-page (187), the cuts the popularity threshold still shields (75),
+page (205), the cuts the popularity threshold still shields (75),
 and the commander-lane cards the guides trim (55).
 
 Of those 238, 115 serve the main theme by the tuner's own read, and 88 of them don't
@@ -480,6 +480,18 @@ four mana or less, so a fix can't make its curve heavier, but an upgrade already
 takes no higher mana-value band than its cut. Lifting the cap for upgrades made 498
 swaps, 186 cuts and 56 adds matching: The First Sliver and Sliver Legion for Sliver
 Swarm, Ghalta and Etali for Veloci-Ramp-Tor, Conduit of Ruin for Eldrazi Unbound.
+
+The card-draw page never held a repeating trigger's single draw. The card-draw role
+counts any draw for you, but the search pages the `card-draw` preset, which reads
+`card_draw_engine`, and that lane took only an upkeep draw or a draw of two or more.
+Rhystic Study, Esper Sentinel, Kindred Discovery, Bident of Thassa and Sram counted
+as card draw and were never offered. The lane now reads a trigger that repeats and
+draws for you (718 more commander-legal cards), and 13 guide adds reach a page. The
+upgrades then take the most-played engines: Esper Sentinel in 13 decks, Rhystic Study
+in 10, Mystic Remora in 9, where Skullclamp was in 15 and Village Rites in 9. The
+guides add none of the three, so adds matching fell to 52 (Skullclamp three times,
+Deadly Dispute once). Kept: the role and its search now agree, and which engine a
+deck takes is the ranking's question (backlog "(e)").
 
 ## What is left
 

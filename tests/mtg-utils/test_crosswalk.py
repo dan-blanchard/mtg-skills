@@ -8183,6 +8183,11 @@ def test_creature_recursion_necromancy_structural():
         ("Phyrexian Arena", "you"),  # Phase Upkeep + Draw Controller
         ("Howling Mine", "each"),  # Phase Draw + ScopedPlayer recipient
         ("Alhammarret's Archive", "you"),  # Draw-replacement (event=Draw)
+        # A repeating trigger's single draw (CR 603.2: it fires each time):
+        ("Rhystic Study", "you"),  # watches an opponent's cast
+        ("Kindred Discovery", "you"),  # watches other creatures enter/attack
+        ("Mentor of the Meek", "you"),  # watches another creature enter
+        ("Werewolf Pack Leader", "you"),  # watches itself attack, again and again
     ],
 )
 def test_card_draw_engine_structural_arms(name, scope):
@@ -8193,10 +8198,21 @@ def test_card_draw_engine_structural_arms(name, scope):
     assert ("card_draw_engine", scope, "") in _idents(name)
 
 
-@pytest.mark.parametrize("name", ["Opt", "Elvish Visionary"])
+@pytest.mark.parametrize(
+    "name",
+    [
+        "Opt",
+        "Elvish Visionary",
+        "Wall of Omens",  # its own entering, once (CR 603.6a)
+        "Ichor Wellspring",  # its own dying, once (CR 603.6c)
+        "Bounty Board",  # the opponents draw
+        "Edric, Spymaster of Trest",  # the damaging creature's controller draws
+    ],
+)
 def test_card_draw_engine_excludes_cantrips(name):
     """A bare cantrip (Opt — count 1) and a one-shot ETB draw (Elvish
-    Visionary — the live mirror's ETB skip) are not engines."""
+    Visionary — the live mirror's ETB skip) are not engines; nor is a trigger
+    on the card's own one-time zone change, nor a draw another player makes."""
     assert "card_draw_engine" not in _keys(name)
 
 
