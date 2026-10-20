@@ -41,8 +41,11 @@ FRINGE_RANK = 15000
 # nonland cards ranked past 3000, 48% are guide cuts (119 of 247, about ten a
 # deck — a guide's cut list), against 14% of the off-lane template-role cards
 # ranked inside 1000 and 24% of the decks overall; inside a lane the same
-# read is a quarter as sharp (``swaps.cut_candidates``' lane tier).
-UPGRADE_RANK = 3000
+# read is a quarter as sharp (``swaps.cut_candidates``' lane tier). With the
+# recipe at the median guide's fourteen swaps, 1500 reaches ten more guide
+# cuts than 3000 (130 vs 120 of 404; 34% of the extra cuts are guide cuts) at
+# one guide add fewer; 1000 adds nothing more (2026-10-19).
+UPGRADE_RANK = 1500
 
 # The rank at or above which a card is premium — the format's top two hundred by
 # play-rate, the staples every list runs (Sol Ring is rank 1). A premium card is
