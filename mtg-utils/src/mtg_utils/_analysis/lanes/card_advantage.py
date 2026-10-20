@@ -29,8 +29,8 @@ from mtg_utils._analysis.tree_synthesis import (
     _is_shuffle_back_effect,
 )
 from mtg_utils._card_ir.crosswalk import (
-    _SELF_RETURN_TARGETS,
     OTHER,
+    SELF_REFERENCE_TARGETS,
     AbilityUnit,
     ConceptNode,
     ConceptTree,
@@ -583,7 +583,7 @@ TRANSFORMED_SELF_RETURNS: dict[SelfReturnRoute, SelfReturnRoute] = {
 _RECURSION_ORIGINS: frozenset[str] = frozenset({"Graveyard", "Exile"})
 #: Back-references that name the card itself while its own ability names nothing
 #: else first ("When ~ dies, return it to its owner's hand").
-_SELF_REFERENCES: frozenset[str] = _SELF_RETURN_TARGETS | {"ParentTarget"}
+_SELF_REFERENCES: frozenset[str] = SELF_REFERENCE_TARGETS
 _SELF_REF: frozenset[str] = frozenset({"SelfRef"})
 
 #: Every recursion keyword's route: cast from the graveyard — flashback 702.34a,

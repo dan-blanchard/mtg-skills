@@ -846,6 +846,11 @@ GRANTED_RECOVERY_ATTR = "_xw_granted_recovered"
 # names the produced card (Matter Reshaper's revealed top card).
 # :func:`is_dies_return_trigger` handles it explicitly with producer tracking.
 _SELF_RETURN_TARGETS: frozenset[str] = frozenset({"SelfRef", "TriggeringSource"})
+#: The self-return targets plus ``ParentTarget``, for a read that takes any
+#: back-reference in a trigger as the object it fired on — without the producer
+#: tracking above, so after a card producer it may name the produced card (in a
+#: dies trigger, a card that is no permanent either).
+SELF_REFERENCE_TARGETS: frozenset[str] = _SELF_RETURN_TARGETS | {"ParentTarget"}
 
 # Effects that introduce a NEW card object into a dies trigger's chain — a
 # back-reference after one of these names the produced card, not the dying

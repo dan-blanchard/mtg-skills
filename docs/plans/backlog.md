@@ -188,14 +188,32 @@ a review. Delete an entry when it ships; the commit or ADR records it from then 
   role's whole match set would remove both.
   (m) **Recall** (`precon-audit/misses.py`, at the largest guide's thirty
   swaps and $440, where the tuner stops on its own): 185 of 404 cuttable guide
-  cuts, 54 of 610 in-scope guide adds. The levers by size: theme adds no search
-  reaches (238 — 88 of the 115 that serve the main theme don't match its
-  pattern search; paging the theme's serving predicate put them on the page but
-  lost precision, 30 → 26 adds matching at ten swaps, so it waits on a ranking
-  that can tell them apart); adds outranked on a page (171); cuts the
-  popularity threshold still shields (75 — guides cut popular off-theme cards
-  like Feed the Swarm); commander-lane cards the guides trim (55). Six guide
-  summaries don't tag sources per row (`guide_sizes.py` skips them).
+  cuts, 52 of 610 in-scope guide adds. The levers by size: theme adds no search
+  reaches (238 — 203 match no spec the tuner searched, 22 sit past a page's
+  depth, 12 are cut by a top-heavy deck's four-mana cap; of the 203, 83 serve
+  the main avenue, 44 another viable one, 72 only a non-viable lane such as
+  Blood Rites' sacrifice package). Paging the theme's serving predicate puts
+  them on the page but loses precision — 30 → 26 adds matching at ten swaps,
+  54 → 52 at thirty — so it waits on a ranking that can tell them apart, and
+  "payoff before enabler" is not that ranking (29 guide adds in the top ten
+  against 45 for the current order; don't re-suggest). Then adds outranked on a
+  page (171); cuts the popularity threshold still shields (75 — guides cut
+  popular off-theme cards like Feed the Swarm); commander-lane cards the
+  guides trim (55). Six guide summaries don't tag sources per row
+  (`guide_sizes.py` skips them).
+  (n) **Lane follow-ups from the 2026-10-19 lane fixes.** A `choice_type` read
+  is written five times (`_shared.py`, `counters_voltron.py`,
+  `triggers_damage.py`, `graveyard_lifeloss.py`, `core_makers._choices`) and
+  wants one crosswalk read. A card with both a creature-type and a card-type
+  Choose still fires `chosen_type_matters` (phase doesn't link a marker to its
+  Choose). The bounce arm's graveyard-recall gate reads dies triggers only;
+  a discard or leaves-the-battlefield trigger returning the card itself is the
+  same recall. With `bounce_tempo` no longer firing on self-returns, check
+  whether `roles._ir_recursion_only` (a consumer-side veto on the compat IR)
+  still catches anything. The type-set neutralize arm also admits dual-use
+  Auras (Swift Reconfiguration, often cast on your own creature; One with the
+  Stars), and Imprisoned in the Moon and Minimus Containment still read as
+  `ramp` (the enchanted permanent, usually an opponent's, taps for mana).
   (l) **Tune speed.** The first ramp or card-draw preset search in a process
   builds card trees across the pool (15-46 s, about 70% of a precon tune's
   time): those presets read concepts the persisted signals index doesn't seed.

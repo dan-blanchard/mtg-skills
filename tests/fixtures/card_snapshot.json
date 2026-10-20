@@ -52530,6 +52530,230 @@
     "type_line": "Enchantment"
    }
   },
+  "Angelic Destiny": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Enchantment"
+      ],
+      "subtypes": [
+       "Aura"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "White"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [
+      {
+       "Enchant": {
+        "controller": null,
+        "properties": [],
+        "type": "Typed",
+        "type_filters": [
+         "Creature"
+        ]
+       }
+      }
+     ],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pioneer": "legal",
+      "standard": "legal",
+      "standardbrawl": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 2,
+      "shards": [
+       "White",
+       "White"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "066d73fa-369b-44a3-b1a9-d22176ac3566",
+       "06911410-9b19-4859-b41a-0eb2cd10d89c",
+       "58b6f2ab-0076-48b7-951c-b1ab6484d895",
+       "a0cd7438-fde2-4e26-9c34-52c476a971e9",
+       "a588b610-86bb-4a18-b54e-a12f7d7d15c8",
+       "a8c5b900-650b-4655-b8f8-a7d454b20207"
+      ]
+     },
+     "name": "Angelic Destiny",
+     "non_ability_text": null,
+     "oracle_text": "Enchant creature\nEnchanted creature gets +4/+4, has flying and first strike, and is an Angel in addition to its other types.\nWhen enchanted creature dies, return this card to its owner's hand.",
+     "power": null,
+     "printings": [
+      "FDC",
+      "FDN",
+      "M12",
+      "PLST",
+      "SOC",
+      "WOC"
+     ],
+     "rarities": [
+      "mythic"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2011-09-22",
+       "text": "If Angelic Destiny is no longer in a graveyard when its triggered ability resolves, it won't be returned to its owner's hand."
+      },
+      {
+       "date": "2011-09-22",
+       "text": "If the creature dies before the Angelic Destiny spell resolves, Angelic Destiny will go to its owner's graveyard. It won't return to its owner's hand."
+      }
+     ],
+     "scryfall_oracle_id": "8ba36878-0816-44c7-b543-8ebfc28c2ecd",
+     "static_abilities": [
+      {
+       "active_zones": [],
+       "affected": {
+        "controller": null,
+        "properties": [
+         {
+          "type": "EnchantedBy"
+         }
+        ],
+        "type": "Typed",
+        "type_filters": [
+         "Creature"
+        ]
+       },
+       "affected_zone": null,
+       "characteristic_defining": false,
+       "condition": null,
+       "description": "Enchanted creature gets +4/+4, has flying and first strike, and is an Angel in addition to its other types.",
+       "effect_zone": null,
+       "mode": "Continuous",
+       "modifications": [
+        {
+         "type": "AddPower",
+         "value": 4
+        },
+        {
+         "type": "AddToughness",
+         "value": 4
+        },
+        {
+         "subtype": "Angel",
+         "type": "AddSubtype"
+        },
+        {
+         "keyword": "Flying",
+         "type": "AddKeyword"
+        },
+        {
+         "keyword": "FirstStrike",
+         "type": "AddKeyword"
+        }
+       ]
+      }
+     ],
+     "toughness": null,
+     "triggers": [
+      {
+       "batched": false,
+       "condition": null,
+       "constraint": null,
+       "damage_kind": "Any",
+       "description": "When enchanted creature dies, return this card to its owner's hand.",
+       "destination": "Graveyard",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "destination": null,
+         "target": {
+          "type": "SelfRef"
+         },
+         "type": "Bounce"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": "ChangesZone",
+       "optional": false,
+       "origin": "Battlefield",
+       "phase": null,
+       "secondary": false,
+       "trigger_zones": [
+        "Battlefield"
+       ],
+       "valid_card": {
+        "type": "AttachedTo"
+       },
+       "valid_source": null,
+       "valid_target": null
+      }
+     ]
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 4.0,
+    "color_identity": [
+     "W"
+    ],
+    "colors": [
+     "W"
+    ],
+    "keywords": [
+     "Enchant"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "legal",
+     "standardbrawl": "legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{2}{W}{W}",
+    "name": "Angelic Destiny",
+    "oracle_id": "8ba36878-0816-44c7-b543-8ebfc28c2ecd",
+    "oracle_text": "Enchant creature\nEnchanted creature gets +4/+4, has flying and first strike, and is an Angel in addition to its other types.\nWhen enchanted creature dies, return this card to its owner's hand.",
+    "type_line": "Enchantment — Aura"
+   }
+  },
   "Angelic Skirmisher": {
    "phase_records": [
     {
@@ -219909,6 +220133,198 @@
     "power": "1",
     "toughness": "1",
     "type_line": "Creature — Sliver"
+   }
+  },
+  "Cloud Key": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Artifact"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 3,
+      "shards": [],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "1b6c0ff0-9dfe-450d-aec4-37b89ecceda8",
+       "3b348e66-0552-4650-82d5-67af84df5462",
+       "6f880de5-8fc5-4e4e-a4bb-cc3e61a7697b",
+       "b851ab76-e40e-4232-b120-0bc1905ef0b4",
+       "b893ab56-44a6-4b3c-bb3e-6deec298cbce",
+       "f8f539c4-9b68-49c2-b750-e4afa80d5178",
+       "f9d3df85-1922-437a-9d63-1b9111fa8aa3"
+      ]
+     },
+     "name": "Cloud Key",
+     "non_ability_text": null,
+     "oracle_text": "As this artifact enters, choose artifact, creature, enchantment, instant, or sorcery.\nSpells you cast of the chosen type cost {1} less to cast.",
+     "power": null,
+     "printings": [
+      "BRR",
+      "EOC",
+      "FUT",
+      "PLST",
+      "SLZ",
+      "TSR"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [
+      {
+       "condition": null,
+       "description": "As ~ enters, choose artifact, creature, enchantment, instant, or sorcery.",
+       "destination_zone": "Battlefield",
+       "event": "Moved",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "choice_type": {
+          "CardType": {
+           "options": [
+            "Artifact",
+            "Creature",
+            "Enchantment",
+            "Instant",
+            "Sorcery"
+           ]
+          }
+         },
+         "persist": true,
+         "type": "Choose"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": {
+        "type": "Mandatory"
+       },
+       "valid_card": {
+        "type": "SelfRef"
+       }
+      }
+     ],
+     "rulings": [
+      {
+       "date": "2021-03-19",
+       "text": "The cost reduction applies only to generic mana in the cost of spells of the chosen type you cast."
+      },
+      {
+       "date": "2021-03-19",
+       "text": "To determine the total cost of a spell, start with the mana cost or alternative cost you're paying (such as a flashback cost), add any cost increases (such as kicker costs), then apply any cost reductions (such as that of Cloud Key's ability). The mana value of the spell is determined by only its mana cost, no matter what the total cost to cast that spell was."
+      }
+     ],
+     "scryfall_oracle_id": "2a838818-d590-4374-9a63-d9e6381a0f0d",
+     "static_abilities": [
+      {
+       "active_zones": [],
+       "affected": {
+        "controller": "You",
+        "properties": [],
+        "type": "Typed",
+        "type_filters": [
+         "Card"
+        ]
+       },
+       "affected_zone": null,
+       "characteristic_defining": false,
+       "condition": null,
+       "description": "Spells you cast of the chosen type cost {1} less to cast.",
+       "effect_zone": null,
+       "mode": {
+        "ModifyCost": {
+         "amount": {
+          "generic": 1,
+          "shards": [],
+          "type": "Cost"
+         },
+         "mode": "Reduce",
+         "spell_filter": {
+          "controller": null,
+          "properties": [
+           {
+            "type": "IsChosenCardType"
+           }
+          ],
+          "type": "Typed",
+          "type_filters": [
+           "Card"
+          ]
+         }
+        }
+       },
+       "modifications": []
+      }
+     ],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 3.0,
+    "color_identity": [],
+    "colors": [],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{3}",
+    "name": "Cloud Key",
+    "oracle_id": "2a838818-d590-4374-9a63-d9e6381a0f0d",
+    "oracle_text": "As this artifact enters, choose artifact, creature, enchantment, instant, or sorcery.\nSpells you cast of the chosen type cost {1} less to cast.",
+    "type_line": "Artifact"
    }
   },
   "Cloud Sprite": {
@@ -493701,6 +494117,263 @@
     "power": "2",
     "toughness": "1",
     "type_line": "Creature — Human Noble"
+   }
+  },
+  "Imprisoned in the Moon": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Enchantment"
+      ],
+      "subtypes": [
+       "Aura"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Blue"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [
+      {
+       "Enchant": {
+        "filters": [
+         {
+          "controller": null,
+          "properties": [],
+          "type": "Typed",
+          "type_filters": [
+           "Creature"
+          ]
+         },
+         {
+          "controller": null,
+          "properties": [],
+          "type": "Typed",
+          "type_filters": [
+           "Land"
+          ]
+         },
+         {
+          "controller": null,
+          "properties": [],
+          "type": "Typed",
+          "type_filters": [
+           "Planeswalker"
+          ]
+         }
+        ],
+        "type": "Or"
+       }
+      }
+     ],
+     "legalities": {
+      "brawl": "legal",
+      "commander": "legal",
+      "duel": "legal",
+      "historic": "legal",
+      "legacy": "legal",
+      "modern": "legal",
+      "oathbreaker": "legal",
+      "pauper": "legal",
+      "paupercommander": "legal",
+      "pioneer": "legal",
+      "standard": "legal",
+      "standardbrawl": "legal",
+      "timeless": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 2,
+      "shards": [
+       "Blue"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "0d150547-09f5-45ce-a825-89944b066bd4",
+       "1d916675-1e7e-477f-bbb5-bd54fdfd8159",
+       "2b272d40-791f-4c2b-8e0c-785f6f8a42e7",
+       "4bd8bb9d-697d-4e11-a5f8-58234244f1a9",
+       "51efa1a1-2dfd-4c66-ae8a-08bc94204635",
+       "6e359c40-0175-48dd-9b4a-f416302210e8",
+       "7990ebba-e9f2-4ba4-a352-e26ec81d4bed",
+       "8181f54d-4515-43c6-8d08-b23a9e4199cc",
+       "925b566c-3774-49bc-b788-59b322163c8c",
+       "ce04f7f8-c483-4041-a905-aa517f825fdc",
+       "e75a663c-f12f-49d6-b84f-3f941049872e",
+       "ee28e147-6622-4399-a314-c14a5c912dd0",
+       "f21dc6da-b310-471b-b26a-e2806c03eaf0"
+      ]
+     },
+     "name": "Imprisoned in the Moon",
+     "non_ability_text": null,
+     "oracle_text": "Enchant creature, land, or planeswalker\nEnchanted permanent is a colorless land with \"{T}: Add {C}\" and loses all other card types and abilities.",
+     "power": null,
+     "printings": [
+      "AFC",
+      "EMN",
+      "FDN",
+      "INR",
+      "M3C",
+      "MOC",
+      "PEMN",
+      "SIR",
+      "SLD",
+      "SLZ",
+      "TLE",
+      "VOC"
+     ],
+     "rarities": [
+      "common",
+      "uncommon",
+      "rare",
+      "mythic"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2016-07-13",
+       "text": "At the time the permanent becomes enchanted, Imprisoned in the Moon causes it to lose all abilities except the noted mana ability. Any abilities the permanent gains after that point will work normally."
+      },
+      {
+       "date": "2016-07-13",
+       "text": "Becoming a land may cause other Auras to become illegally attached. These are put into their owner's graveyard, and any Equipment attached to the land become unattached and remain on the battlefield. Counters on the land remain on it even if they don't do anything."
+      },
+      {
+       "date": "2016-07-13",
+       "text": "If the enchanted permanent is a land and has land types, it retains those types even though it loses any intrinsic mana abilities associated with them. For example, a Plains enchanted by Imprisoned in the Moon is still a Plains, but it can't tap for {W}, only for {C}."
+      },
+      {
+       "date": "2016-07-13",
+       "text": "If you remove Imprisoned in the Moon from a planeswalker after tapping it for mana, you can still activate a loyalty ability of that planeswalker even though it's tapped."
+      },
+      {
+       "date": "2016-07-13",
+       "text": "The permanent will keep any supertypes it previously had. Notably, if Imprisoned in the Moon is enchanting a legendary permanent, that permanent will continue to be legendary."
+      }
+     ],
+     "scryfall_oracle_id": "339a7418-9a29-4eae-a3c2-ea590d175936",
+     "static_abilities": [
+      {
+       "active_zones": [],
+       "affected": {
+        "controller": null,
+        "properties": [
+         {
+          "type": "EnchantedBy"
+         }
+        ],
+        "type": "Typed",
+        "type_filters": [
+         "Permanent"
+        ]
+       },
+       "affected_zone": null,
+       "characteristic_defining": false,
+       "condition": null,
+       "description": "Enchanted permanent is a colorless land with \"{T}: Add {C}\" and loses all other card types and abilities.",
+       "effect_zone": null,
+       "mode": "Continuous",
+       "modifications": [
+        {
+         "core_types": [
+          "Land"
+         ],
+         "type": "SetCardTypes"
+        },
+        {
+         "colors": [],
+         "type": "SetColor"
+        },
+        {
+         "type": "RemoveAllAbilities"
+        },
+        {
+         "definition": {
+          "condition": null,
+          "cost": {
+           "type": "Tap"
+          },
+          "description": "{T}: Add {C}",
+          "duration": null,
+          "effect": {
+           "produced": {
+            "count": {
+             "type": "Fixed",
+             "value": 1
+            },
+            "type": "Colorless"
+           },
+           "type": "Mana"
+          },
+          "forward_result": false,
+          "is_mana_ability": true,
+          "kind": "Activated",
+          "optional": false,
+          "optional_targeting": false,
+          "sub_ability": null,
+          "target_prompt": null
+         },
+         "type": "GrantAbility"
+        }
+       ]
+      }
+     ],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": true,
+    "cmc": 3.0,
+    "color_identity": [
+     "U"
+    ],
+    "colors": [
+     "U"
+    ],
+    "keywords": [
+     "Enchant"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "legal",
+     "brawl": "legal",
+     "commander": "legal",
+     "competitivebrawl": "legal",
+     "duel": "legal",
+     "future": "legal",
+     "gladiator": "legal",
+     "historic": "legal",
+     "legacy": "legal",
+     "modern": "legal",
+     "oathbreaker": "legal",
+     "pauper": "legal",
+     "paupercommander": "legal",
+     "penny": "legal",
+     "pioneer": "legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "legal",
+     "standardbrawl": "legal",
+     "timeless": "legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{2}{U}",
+    "name": "Imprisoned in the Moon",
+    "oracle_id": "339a7418-9a29-4eae-a3c2-ea590d175936",
+    "oracle_text": "Enchant creature, land, or planeswalker\nEnchanted permanent is a colorless land with \"{T}: Add {C}\" and loses all other card types and abilities.",
+    "produced_mana": [
+     "C"
+    ],
+    "type_line": "Enchantment — Aura"
    }
   },
   "Impromptu Raid": {
@@ -831841,6 +832514,168 @@
     "type_line": "Creature — Nightstalker"
    }
   },
+  "Shimmer": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Enchantment"
+      ],
+      "subtypes": [],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Blue"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "premodern": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 2,
+      "shards": [
+       "Blue",
+       "Blue"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "5c892daa-57fe-4712-b64a-6099d531bb26"
+      ]
+     },
+     "name": "Shimmer",
+     "non_ability_text": null,
+     "oracle_text": "As this enchantment enters, choose a land type.\nEach land of the chosen type has phasing. (It phases in or out before its controller untaps during each of their untap steps. While it's phased out, it's treated as though it doesn't exist.)",
+     "power": null,
+     "printings": [
+      "MIR"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [
+      {
+       "condition": null,
+       "description": "As ~ enters, choose a land type.",
+       "destination_zone": "Battlefield",
+       "event": "Moved",
+       "execute": {
+        "condition": null,
+        "cost": null,
+        "description": null,
+        "duration": null,
+        "effect": {
+         "choice_type": "LandType",
+         "persist": true,
+         "type": "Choose"
+        },
+        "forward_result": false,
+        "kind": "Spell",
+        "optional": false,
+        "optional_targeting": false,
+        "sub_ability": null,
+        "target_prompt": null
+       },
+       "mode": {
+        "type": "Mandatory"
+       },
+       "valid_card": {
+        "type": "SelfRef"
+       }
+      }
+     ],
+     "rulings": [
+      {
+       "date": "2004-10-04",
+       "text": "Can affect basic or non-basic types, but it must be for a specific type. The chosen type must be an existing land type. See the glossary of the comprehensive rulebook for more details on existing land types."
+      }
+     ],
+     "scryfall_oracle_id": "f557fb2c-581b-4a8d-8766-1e46e92224fa",
+     "static_abilities": [
+      {
+       "active_zones": [],
+       "affected": {
+        "controller": null,
+        "properties": [
+         {
+          "type": "IsChosenCardType"
+         }
+        ],
+        "type": "Typed",
+        "type_filters": [
+         "Land"
+        ]
+       },
+       "affected_zone": null,
+       "characteristic_defining": false,
+       "condition": null,
+       "description": "Each land of the chosen type has phasing.",
+       "effect_zone": null,
+       "mode": "Continuous",
+       "modifications": [
+        {
+         "keyword": "Phasing",
+         "type": "AddKeyword"
+        }
+       ]
+      }
+     ],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 4.0,
+    "color_identity": [
+     "U"
+    ],
+    "colors": [
+     "U"
+    ],
+    "keywords": [],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "legal",
+     "premodern": "legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{2}{U}{U}",
+    "name": "Shimmer",
+    "oracle_id": "f557fb2c-581b-4a8d-8766-1e46e92224fa",
+    "oracle_text": "As this enchantment enters, choose a land type.\nEach land of the chosen type has phasing. (It phases in or out before its controller untaps during each of their untap steps. While it's phased out, it's treated as though it doesn't exist.)",
+    "type_line": "Enchantment"
+   }
+  },
   "Shipwreck Sifters": {
    "phase_records": [
     {
@@ -860658,6 +861493,174 @@
     "oracle_id": "440366dd-7654-4ede-aa47-7e8a7916e31e",
     "oracle_text": "(As this Saga enters and after your draw step, add a lore counter. Sacrifice after III.)\nI — Scry 2, then draw two cards.\nII — Create a Treasure token and a 2/2 blue Bird creature token with flying.\nIII — Put a flying counter on each creature you control without flying.",
     "type_line": "Enchantment — Saga"
+   }
+  },
+  "Song of the Dryads": {
+   "phase_records": [
+    {
+     "abilities": [],
+     "card_type": {
+      "core_types": [
+       "Enchantment"
+      ],
+      "subtypes": [
+       "Aura"
+      ],
+      "supertypes": []
+     },
+     "color_identity": [
+      "Green"
+     ],
+     "color_override": null,
+     "defense": null,
+     "flavor_name": null,
+     "keywords": [
+      {
+       "Enchant": {
+        "controller": null,
+        "properties": [],
+        "type": "Typed",
+        "type_filters": [
+         "Permanent"
+        ]
+       }
+      }
+     ],
+     "legalities": {
+      "commander": "legal",
+      "duel": "legal",
+      "legacy": "legal",
+      "oathbreaker": "legal",
+      "vintage": "legal"
+     },
+     "loyalty": null,
+     "mana_cost": {
+      "generic": 2,
+      "shards": [
+       "Green"
+      ],
+      "type": "Cost"
+     },
+     "metadata": {
+      "source_printing_ids": [
+       "00e58486-07a5-4a2d-8563-22c7f14c0a6e",
+       "073d85e6-1c43-46d8-b7d2-5e2ff61caf5c",
+       "0ccb4579-b090-45f6-a967-cec2c195f565",
+       "161e66e3-0339-495c-bd06-0a799a254906",
+       "94914c52-498d-4e15-89e5-7b23e02cf453",
+       "cce1130c-fc27-4508-a621-5d720a4df4ea"
+      ]
+     },
+     "name": "Song of the Dryads",
+     "non_ability_text": null,
+     "oracle_text": "Enchant permanent\nEnchanted permanent is a colorless Forest land.",
+     "power": null,
+     "printings": [
+      "C14",
+      "CMA",
+      "CMM",
+      "PLST",
+      "SLD"
+     ],
+     "rarities": [
+      "rare"
+     ],
+     "replacements": [],
+     "rulings": [
+      {
+       "date": "2014-11-07",
+       "text": "If the permanent was an Aura or an Equipment, it becomes unattached from whatever it was attached to."
+      },
+      {
+       "date": "2014-11-07",
+       "text": "The enchanted permanent loses any card types, subtypes, and colors it previously had. It keeps any supertypes it had and its name remains unchanged. It gains “{T}: Add {G}” and loses all other abilities from its rules text. It will still have any abilities it gained from other effects."
+      }
+     ],
+     "scryfall_oracle_id": "7c3944fa-7c86-4979-85a9-86196aa94594",
+     "static_abilities": [
+      {
+       "active_zones": [],
+       "affected": {
+        "controller": null,
+        "properties": [
+         {
+          "type": "EnchantedBy"
+         }
+        ],
+        "type": "Typed",
+        "type_filters": [
+         "Permanent"
+        ]
+       },
+       "affected_zone": null,
+       "characteristic_defining": false,
+       "condition": null,
+       "description": "Enchanted permanent is a colorless Forest land.",
+       "effect_zone": null,
+       "mode": "Continuous",
+       "modifications": [
+        {
+         "core_types": [
+          "Land"
+         ],
+         "type": "SetCardTypes"
+        },
+        {
+         "colors": [],
+         "type": "SetColor"
+        },
+        {
+         "land_type": "Forest",
+         "type": "SetBasicLandType"
+        }
+       ]
+      }
+     ],
+     "toughness": null,
+     "triggers": []
+    }
+   ],
+   "scryfall": {
+    "arena_available": false,
+    "cmc": 3.0,
+    "color_identity": [
+     "G"
+    ],
+    "colors": [
+     "G"
+    ],
+    "keywords": [
+     "Enchant"
+    ],
+    "layout": "normal",
+    "legalities": {
+     "alchemy": "not_legal",
+     "brawl": "not_legal",
+     "commander": "legal",
+     "competitivebrawl": "not_legal",
+     "duel": "legal",
+     "future": "not_legal",
+     "gladiator": "not_legal",
+     "historic": "not_legal",
+     "legacy": "legal",
+     "modern": "not_legal",
+     "oathbreaker": "legal",
+     "pauper": "not_legal",
+     "paupercommander": "not_legal",
+     "penny": "not_legal",
+     "pioneer": "not_legal",
+     "predh": "not_legal",
+     "premodern": "not_legal",
+     "standard": "not_legal",
+     "standardbrawl": "not_legal",
+     "timeless": "not_legal",
+     "vintage": "legal"
+    },
+    "mana_cost": "{2}{G}",
+    "name": "Song of the Dryads",
+    "oracle_id": "7c3944fa-7c86-4979-85a9-86196aa94594",
+    "oracle_text": "Enchant permanent\nEnchanted permanent is a colorless Forest land.",
+    "type_line": "Enchantment — Aura"
    }
   },
   "Songbirds' Blessing": {

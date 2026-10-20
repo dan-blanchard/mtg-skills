@@ -187,7 +187,6 @@ def test_token_copy_needs_an_object_in_play(name, fires):
         ("Syrix, Carrier of the Flame", "removal|you|"),  # damage to any target
         ("Syrix, Carrier of the Flame", "damage_equal_power|you|"),
         ("Psychic Pickpocket", "bounce_tempo|you|"),  # target nonland permanent
-        ("Shatterskull Charger", "bounce_tempo|you|"),  # return it (itself)
         ("Command the Stage", "self_recurring|you|"),  # return this card
         ("Tom, Bert, and William", "dies_recursion|you|"),  # return them
         ("Dawn Evangel", "creature_recursion|you|"),

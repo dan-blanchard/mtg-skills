@@ -1116,7 +1116,7 @@ def _enters_with_plus_one(node: object) -> bool:
 # (see roles.py's `_INTERACTION_PRESETS` comment). This is the DEDICATED
 # structural concept that comment named as the recovery mechanism: an Aura
 # whose OWN static ability restricts what it enchants from attacking/
-# blocking (CR 508.1a / 509.1b — the standard restriction-effect hooks a
+# blocking (CR 508.1c / 509.1b — the standard restriction-effect hooks a
 # static "can't attack"/"can't block" grant plugs into; CR 303.4 governs the
 # Aura's own "enchant" object).
 #
@@ -1204,7 +1204,7 @@ def _pacify_aura_compensates(tree: ConceptTree) -> bool:
 def _pacify_makers(tree: ConceptTree) -> list[Signal]:
     """pacify_makers — an Aura OR Equipment that NEUTRALIZES the permanent
     it's attached to (Pacifism, Arrest, Faith's Fetters, Prison Term — CR
-    508.1a/509.1b) by granting a can't-attack/can't-block restriction to
+    508.1c/509.1b) by granting a can't-attack/can't-block restriction to
     "whatever this enchants"/"equipped creature", rather than destroying/
     exiling/countering/bouncing/fighting/-X'ing it (CR 611.2 — the
     permanent stays on the battlefield, so this is deliberately NOT part
@@ -1271,7 +1271,8 @@ def _single_target_neutralize(tree: ConceptTree) -> list[Signal]:
     """single_target_neutralize — an Aura that NEUTRALIZES the creature it
     enchants by overwriting its base power (CR 613.4b layer 7b) down to 0/1
     (Darksteel Mutation, Lignify, Frogify, Witness Protection — usually
-    alongside "loses all abilities"), the soft-removal answer that beats
+    alongside "loses all abilities") or its card types to a non-creature's
+    (CR 205.1a: Song of the Dryads), the soft-removal answer that beats
     indestructible and dodges death triggers (case law: Darksteel
     Mutation's own 2013-10-17 rulings — the creature keeps supertypes and
     stays a commander, it just stops being a threat). Deliberately its OWN
@@ -1282,7 +1283,7 @@ def _single_target_neutralize(tree: ConceptTree) -> list[Signal]:
       same neutralizes-vs-removes boundary ``pacify_makers`` / budgets'
       ``_INTERACTION_PRESETS`` comment already enforce;
     * ``pacify_makers`` — a pacify lock is an attack/block RESTRICTION
-      (CR 508.1a/509.1b ``CantAttack``-family static modes); a base-P/T
+      (CR 508.1c/509.1b ``CantAttack``-family static modes); a base-P/T
       set is a layer-7b characteristic overwrite (CR 613.4b), a different
       mechanic that still lets the 1/1 attack and block;
     * ``debuff_makers`` — that lane's own docstring EXCLUDES the
@@ -1293,7 +1294,9 @@ def _single_target_neutralize(tree: ConceptTree) -> list[Signal]:
       answer-shaped subset on its own).
 
     Structural arm: an ``EnchantedBy``/``EquippedBy``-affected static site
-    whose ``SetPower`` value is <= 1 (the neutralize tell — power decides
+    that sets the object's card types without Creature (Song of the Dryads,
+    Imprisoned in the Moon — :func:`_neutralizing_mod`) or whose ``SetPower``
+    value is <= 1 (the neutralize tell — power decides
     whether the threat still attacks; Lignify's 0/4 and Deep Freeze's 0/4
     keep firing on power, while Kenrith's Transformation's 3/3 Elk and Eye
     of Nidhogg's 4/2 goad-enabler stay out). Vetoed by
@@ -1318,10 +1321,7 @@ def _single_target_neutralize(tree: ConceptTree) -> list[Signal]:
             ):
                 continue
             for m in getattr(node, "modifications", None) or ():
-                if not isinstance(m, TypedMirrorNode) or tag_of(m) != "SetPower":
-                    continue
-                v = mod_value(m)
-                if v is not None and v <= 1:
+                if _neutralizing_mod(m):
                     return [
                         Signal(
                             "single_target_neutralize",
@@ -1333,6 +1333,23 @@ def _single_target_neutralize(tree: ConceptTree) -> list[Signal]:
                         )
                     ]
     return []
+
+
+def _neutralizing_mod(m: object) -> bool:
+    """A modification on the attached object that neutralizes it: a base power
+    set to 1 or less, or a card-type set without Creature — the new type
+    replaces the old (CR 205.1a, layer 4: CR 613.1d), so Song of the Dryads'
+    and Imprisoned in the Moon's land is no creature at all."""
+    if not isinstance(m, TypedMirrorNode):
+        return False
+    tag = tag_of(m)
+    if tag == "SetCardTypes":
+        retyped = getattr(m, "core_types", None) or ()
+        return bool(retyped) and "Creature" not in retyped
+    if tag == "SetPower":
+        v = mod_value(m)
+        return v is not None and v <= 1
+    return False
 
 
 # ── task #96 (ADR-0040): type_changers — mass creature-type changers ─────────
@@ -1556,23 +1573,46 @@ def _chosen_type_serve_statics(tree: ConceptTree) -> list[tuple[str, str]]:
     return out
 
 
-def _chosen_type_options(tree: ConceptTree) -> tuple[str, ...] | None:
-    """The creature types a RESTRICTED chooser may pick (Dawn-Blessed Pennant:
-    "choose Elemental, Elf, …, or Treefolk"), read from the ``Choose`` effect's
-    ``CreatureType`` options; ``None`` for an open choice ("choose a creature
-    type": Door of Destinies) or when no restricted Choose is present."""
-    options: list[str] = []
+#: The type choices that are not a creature type (CR 205.2a card types; land
+#: types): a chosen-type marker read off one of these names no tribe.
+_NON_CREATURE_TYPE_CHOICES = frozenset({"CardType", "LandType"})
+
+
+def _choices(tree: ConceptTree) -> list[tuple[str, tuple[str, ...]]]:
+    """Every ``Choose`` effect on the tree as (what it chooses, the listed
+    options): ``("CreatureType", ())`` for an open choice (Door of Destinies),
+    ``("CreatureType", ("Elemental", …))`` for a listed one (Dawn-Blessed
+    Pennant), ``("CardType", ("Artifact", …))`` for Cloud Key. Phase carries an
+    open choice as a bare tag and a listed one as a keyed variant."""
+    out: list[tuple[str, tuple[str, ...]]] = []
     for unit in tree.units:
         for eff in getattr(unit, "effects", None) or ():
             choice = getattr(getattr(eff, "node", None), "choice_type", None)
             if choice is None:
                 continue
-            if getattr(choice, "key", None) != "CreatureType":
+            if isinstance(choice, str):
+                out.append((choice, ()))
                 continue
             listed = getattr(getattr(choice, "inner", None), "inner", None)
-            if not isinstance(listed, list) or not listed:
-                return None  # an open chosen type: the wildcard serves every tribe
-            options.extend(str(t) for t in listed)
+            options = tuple(str(t) for t in listed) if isinstance(listed, list) else ()
+            out.append((str(getattr(choice, "key", "")), options))
+    return out
+
+
+def _chosen_type_options(
+    choices: list[tuple[str, tuple[str, ...]]],
+) -> tuple[str, ...] | None:
+    """The creature types a RESTRICTED chooser may pick (Dawn-Blessed Pennant:
+    "choose Elemental, Elf, …, or Treefolk"); ``None`` for an open choice
+    ("choose a creature type": Door of Destinies) or when no creature-type
+    Choose is present."""
+    options: list[str] = []
+    for kind, listed in choices:
+        if kind != "CreatureType":
+            continue
+        if not listed:
+            return None  # an open chosen type: the wildcard serves every tribe
+        options.extend(listed)
     return tuple(dict.fromkeys(options)) or None
 
 
@@ -1610,12 +1650,24 @@ def _chosen_type_matters(tree: ConceptTree) -> list[Signal]:
     (Cavern of Souls), and replacement payoffs (Metallic Mimic) are known
     not-served-yet classes — recorded for a v2 arm, not dismissed.
 
+    A card that chooses a card or land type and no creature type (Cloud Key,
+    Umori, the Collector, Shimmer) is no tribal payoff, whatever its filter's
+    marker reads.
+
     A RESTRICTED chooser (Dawn-Blessed Pennant picks from eight printed types)
     serves only those tribes, so it emits one signal per listed type instead of
     the wildcard ``""`` — a Scarecrow deck never reads it as a payoff."""
     out: list[Signal] = []
+    choices = _choices(tree)
+    kinds = {kind for kind, _ in choices}
+    if kinds & _NON_CREATURE_TYPE_CHOICES and "CreatureType" not in kinds:
+        # A card that chooses a card type (CR 205.2a: Cloud Key's "artifact,
+        # creature, …") or a land type (Shimmer) and no creature type reads
+        # no creature type (CR 205.3m) off its marker, so the chosen-type
+        # payoff serves no tribe.
+        return out
     seen: set[tuple[str, str]] = set()
-    subjects = _chosen_type_options(tree) or ("",)
+    subjects = _chosen_type_options(choices) or ("",)
 
     def push(scope: str, raw: str) -> None:
         for subject in subjects:

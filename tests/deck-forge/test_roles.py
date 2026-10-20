@@ -415,3 +415,14 @@ def test_without_a_commander_deck_colored_mana_is_untouched():
 def test_the_tuner_never_sources_dead_ramp():
     assert not _reliable_ramp(_real("Arcane Signet"), deck_mana=_deck(_OMNATH))
     assert _reliable_ramp(_real("Arcane Signet"), deck_mana=_deck(_KRENKO))
+
+
+@pytest.mark.parametrize(
+    "name",
+    ["Pacifism", "Darksteel Mutation", "Song of the Dryads", "Imprisoned in the Moon"],
+)
+def test_a_neutralize_aura_is_interaction(name):
+    """An Aura that locks the enchanted threat (can't attack or block, CR
+    508.1c / 509.1b) or makes it a 0/1 or a land (CR 613.4b / 205.1a) answers
+    it like removal: the ``pacify-aura`` preset reads both lanes."""
+    assert "interaction" in role_of(_real(name))

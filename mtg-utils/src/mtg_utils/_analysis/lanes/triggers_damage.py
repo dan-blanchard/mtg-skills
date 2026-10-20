@@ -89,7 +89,6 @@ from mtg_utils._card_ir.crosswalk import (
     trigger_damage_kind,
     trigger_subject_scope,
     unit_keyword_grants,
-    unit_zones,
     watches_itself,
     zone_change_count_reads,
 )
@@ -1101,18 +1100,20 @@ def _bounce_tempo(tree: ConceptTree) -> list[Signal]:
     Phase ALSO emits a ZONE-LESS ``Bounce`` for graveyard-to-hand returns
     ([P21] — the InZone marker is dropped), so the [P8]-precedent node-local
     description screen restores the recursion/tempo boundary (CR 402.1 vs
-    404.1), scoped two ways against the multi-sentence description blob:
-    a SelfRef subject with a "from ... graveyard" description is a
-    self-return (Abzan Devotee) — WITHOUT it, battlefield self-bounce
-    (Blinking Spirit) keeps firing, matching live; a targeted bounce with
-    that description is vetoed only when it is the unit's ONLY bounce
+    404.1) against the multi-sentence description blob: a targeted bounce
+    with a "from ... graveyard" description is vetoed only when it is the
+    unit's ONLY bounce
     (Aphetto Dredging, Greasefang's reanimate-loop return) — a unit that
     also carries a genuine tempo bounce (Aether Helix's two-sentence pair)
-    still fires, matching live. A mass bounce co-fires with the ported
-    ``mass_bounce`` (live keeps both). Tier-1 (ADR-0036/0037 T10-finalize2
-    GLOBAL FINALIZE-2 fold): the deleted lane-time GY-return veto (node-own
-    description, whole-card fallback) is relocated verbatim to the bucket-B
-    ``synth_bounce_tempo`` node (:func:`_arm_bounce_tempo`), read below.
+    still fires, matching live. A card returning itself never fires — a
+    permanent's self-bounce (Blinking Spirit, Batterskull) is your own
+    permanent, like Aviary Mechanic's, and a dies trigger returning the dead
+    object (Rancor, The Scarab God) is a graveyard recall (CR 700.4). A mass
+    bounce co-fires with the ported ``mass_bounce`` (live keeps both). Tier-1
+    (ADR-0036/0037 T10-finalize2 GLOBAL FINALIZE-2 fold): the deleted
+    lane-time GY-return veto (node-own description) is relocated to the
+    bucket-B ``synth_bounce_tempo`` node (:func:`_arm_bounce_tempo`), read
+    below.
     Scope "you".
     """
     for c in tree.iter_concepts():
@@ -1124,21 +1125,18 @@ def _bounce_tempo(tree: ConceptTree) -> list[Signal]:
     # change_zone, no typed target to read), so the seam's reading of the
     # clause stands in: a return to a hand that isn't yours, of a
     # targeted permanent (Psychic Pickpocket — ``TARGET_OBJECT`` and a type
-    # word, so a spell bounce, Remand's shape, stays out), or of the card
-    # itself (``SELF`` — Imaginary Pet, Shatterskull Charger) only from a
-    # battlefield unit (the Blinking Spirit family, never a graveyard recall).
+    # word, so a spell bounce, Remand's shape, stays out). The card returning
+    # itself (``SELF`` — Imaginary Pet, Shatterskull Charger) is your own
+    # permanent, never tempo (the typed arm's SelfRef veto).
     for unit in tree.units:
         for c in unit.effect_concepts("change_zone"):
             if c.recovered_by != "bounce":
                 continue
             subject = c.subject
-            if "Hand" not in c.zones or YOURS in subject:
+            if "Hand" not in c.zones or YOURS in subject or SELF in subject:
                 continue
-            targets_permanent = TARGET_OBJECT in subject and any(
+            if TARGET_OBJECT in subject and any(
                 t in _BOUNCE_TYPE_WORDS for t in subject
-            )
-            if targets_permanent or (
-                SELF in subject and "Battlefield" in unit_zones(unit)
             ):
                 return [Signal("bounce_tempo", "you", "", c.raw, tree.name, "high")]
     return []

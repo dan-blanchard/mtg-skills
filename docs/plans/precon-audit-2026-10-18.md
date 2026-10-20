@@ -406,19 +406,20 @@ what a guide does; precision is read beside it.
 
 | guide cuts in the decks (424) | n | | guide adds (745) | n |
 |---|---|---|---|---|
-| cut | 185 | | added | 54 |
+| cut | 185 | | added | 52 |
 | popular: off-lane, inside `UPGRADE_RANK` | 75 | | out of scope (in deck, land, banned, off-identity) | 135 |
-| a doer of the commander's lane, outside the deep-lane half | 55 | | a theme card no search looked for | 238 |
+| a doer of the commander's lane, outside the deep-lane half | 55 | | a theme card no search looked for | 239 |
 | a carer of a built theme | 27 | | on a searched page, outranked | 171 |
-| other | 25 | | not on any page though its job was searched | 67 |
+| other | 25 | | not on any page though its job was searched | 68 |
 | in a cut pool, not reached | 24 | | on a page, gated (play-rate, cost band, job) | 37 |
 | land / commander | 20 | | a role card no issue asked for | 43 |
 | protected (combo / closer / multiplier) | 13 | | | |
 
-Recall is 185 of the 404 cuttable guide cuts (46%) and 54 of the 610 in-scope adds
-(9%; 47 before a job upgrade stopped requiring theme fit — the floor had kept
+Recall is 185 of the 404 cuttable guide cuts (46%) and 52 of the 610 in-scope adds
+(9%; 54 before the lane fixes below took two adds picked for misread roles, 47
+before a job upgrade stopped requiring theme fit — the floor had kept
 Swords to Plowshares and Path to Exile behind Dragon Tempest in a goad deck). The
-levers, by size: the theme adds no search reaches (238), the adds outranked on a
+levers, by size: the theme adds no search reaches (239), the adds outranked on a
 page (171), the cuts the popularity threshold still shields (75),
 and the commander-lane cards the guides trim (55).
 
@@ -431,6 +432,48 @@ predicate as well, tried 2026-10-19, put the guide adds on the page but dropped 
 adds matching a guide from 30 to 26: one pick per swap, and a wider page lets a
 popular card that fits loosely win it. Widening the page costs precision without
 buying recall until the ranking can tell those apart.
+
+### Where the theme adds go missing (2026-10-19, thirty swaps)
+
+The 238 theme adds no page holds, by why the page missed them
+(`precon-audit/misses.py`, then each searched spec re-run without its cap or page
+limit):
+
+| reason | n |
+|---|---|
+| matches no spec the tuner searched | 203 |
+| on a searched spec, past the page's depth | 22 |
+| cut by the top-heavy deck's four-mana cap | 12 |
+| other | 1 |
+
+Of the 203, by the tuner's own serve read: 83 serve the main avenue, 44 another
+viable avenue, 72 only lanes the focus read doesn't count as viable (Blood Rites'
+sacrifice package: Altar of Dementia, Pyre of Heroes, Victimize), and 4 nothing.
+The 12 the cap hides are top-band bodies: Gishath, Ghalta and Etali under
+Veloci-Ramp-Tor, The First Sliver and Sliver Legion.
+
+Two retries, both negative:
+
+- **The serving predicate's page, at thirty swaps.** It made 515 swaps, 190 cuts
+  and 52 adds matching, against 493 / 185 / 54. The wide page trades a tribe's own
+  members for generic tribal support: Cloud Key, Urza's Incubator and Roaming
+  Throne over Heart Sliver and Faerie Mastermind.
+- **Payoff first.** On the 31 theme pages that hold a guide add (122 of them),
+  ordering a candidate with a payoff clause first put 29 guide adds in the top ten,
+  against 45 for the current order (fits, then most played). Play-rate alone put
+  43, synergy first 26. The guides do not add payoffs over enablers the way they
+  cut feeders over carers.
+
+Three lane misreads turned up on the way, each fixed: Cloud Key, Umori and Shimmer
+read as tribal payoffs (`chosen_type_matters`; they choose a card or land type, CR
+205.2a, not a creature type); Song of the Dryads, Imprisoned in the Moon and the
+other Auras that make a threat a land or a Treasure read as nothing (now
+`single_target_neutralize`, which the `pacify-aura` preset reads, so every
+neutralize Aura is interaction); and 206 cards read as interaction only because they
+return themselves to hand (`bounce_tempo` fired on Rancor, Batterskull, The Scarab
+God). After the three: 493 swaps, 185 cuts and 52 adds matching. The two adds lost
+were picked for those misreads: Virtue and Valor traded Rancor in as an interaction
+fill, and traded Giant Inheritance, read as removal, for Stroke of Midnight.
 
 ## What is left
 

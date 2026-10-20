@@ -10607,19 +10607,37 @@ def test_bounce_tempo_excludes_graveyard_returns(name):
 
 
 def test_bounce_tempo_gy_screen_keeps_live_positives():
-    """The [P21] gates must not over-cut the live lane's members: battlefield
-    SELF-bounce fires (Blinking Spirit — SelfRef with no graveyard clause;
-    live includes the self-bounce family), and a unit pairing a genuine
-    tempo bounce with a graveyard recall in one description blob fires off
-    the tempo half (Aether Helix — two bounce effects, so the single-bounce
-    screen stands down)."""
-    assert ("bounce_tempo", "you", "") in _idents("Blinking Spirit")
+    """The [P21] gates must not over-cut the live lane's members: a unit
+    pairing a genuine tempo bounce with a graveyard recall in one description
+    blob fires off the tempo half (Aether Helix — two bounce effects, so the
+    single-bounce screen stands down)."""
     # v0.23.0 port (task #84): Aether Helix's recall half is now a typed
     # ChangeZone(origin: Graveyard), so the [P21] description screen stands
     # down structurally for the unit and the surviving Bounce node (the
     # genuine tempo half) fires — the single-bounce count screen is no
     # longer the mechanism that keeps it live.
     assert ("bounce_tempo", "you", "") in _idents("Aether Helix")
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        # A permanent returning itself is your own permanent (CR 602.2,
+        # 603.3a), the self-bounce the controller-You veto drops: it protects
+        # or re-uses the card and answers nothing.
+        "Blinking Spirit",
+        "Batterskull",
+        "Mtenda Griffin",
+        "Shatterskull Charger",  # a recovered residue's "return it"
+        # A dies trigger returning the dead object returns a card from the
+        # graveyard (CR 700.4): recursion, not tempo.
+        "Rancor",
+        "The Scarab God",
+        "Angelic Destiny",
+    ],
+)
+def test_bounce_tempo_never_fires_for_a_card_returning_itself(name):
+    assert "bounce_tempo" not in _keys(name)
 
 
 def test_bounce_tempo_p21_empty_desc_residue_pinned():
@@ -17272,11 +17290,6 @@ def test_damage_redirect_skips_a_life_floor():
         ("Mine Security", "conjure_makers"),
         ("Jessie Zane, Fangbringer", "conjure_makers"),
         ("Sandcloud Harbinger", "conjure_makers"),
-        # bounce_tempo: the desc-blob conflation fix — a battlefield
-        # self-bounce (the Blinking Spirit family) whose SAME description
-        # sentence mentions a graveyard recall no longer suppresses (CR
-        # 402.1 vs 404.1).
-        ("Mtenda Griffin", "bounce_tempo"),
         # mass_removal: the Radiance shared-color sweep now parses as a
         # DamageAll (CR 115.10; Cleansing Beam); the same-name sweep case is
         # pinned at the consumer seam (Bile Blight).
@@ -17629,7 +17642,8 @@ def test_token_maker_scopes_target_owner_beneficiary_any_funeral_pyre():
 
 # ── task #np_roles: single_target_neutralize — the Darksteel Mutation class ──
 # The base-P/T-overwrite neutralize Aura (CR 613.4b layer 7b): an
-# EnchantedBy-affected static whose SetPower value is <= 1. Deliberately its
+# EnchantedBy-affected static whose SetPower value is <= 1, or that sets the
+# object's card types without Creature (CR 205.1a). Deliberately its
 # own narrow key — CR 611.2 keeps "neutralizes" distinct from "removes"
 # (the pacify_makers boundary), and a pacify lock (CantAttack-family modes,
 # CR 508.1a/509.1b) is a different mechanic from a layer-7b characteristic
@@ -17647,6 +17661,15 @@ def test_single_target_neutralize_fires_for_lignify():
     """Lignify's 0/4 Treefolk lock fires on POWER (the neutralize tell —
     the threat stops attacking); the 4 toughness is irrelevant."""
     assert ("single_target_neutralize", "you", "") in _idents("Lignify")
+
+
+@pytest.mark.parametrize(
+    "name", ["Song of the Dryads", "Imprisoned in the Moon", "Minimus Containment"]
+)
+def test_single_target_neutralize_fires_for_a_type_set_without_creature(name):
+    """An Aura that makes the enchanted permanent a land or a Treasure: the new
+    card type replaces the old (CR 205.1a), so it is no creature at all."""
+    assert ("single_target_neutralize", "you", "") in _idents(name)
 
 
 def test_single_target_neutralize_excludes_kenriths_transformation():
@@ -18126,6 +18149,11 @@ def test_chosen_type_matters_wider_members(name, scope):
         # Type-GRANT (AddChosenSubtype) — type_changers' side of the
         # boundary, membership not payoff.
         "Xenograft",
+        # A card-type choice (CR 205.2a) or a land-type one is no creature
+        # type: the chosen-type discount serves no tribe.
+        "Cloud Key",
+        "Umori, the Collector",
+        "Shimmer",
     ],
 )
 def test_chosen_type_matters_excludes(name):

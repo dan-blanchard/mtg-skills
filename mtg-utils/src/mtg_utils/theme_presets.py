@@ -2076,17 +2076,28 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
     # ``lanes._pacify_makers``'s own docstring for the
     # structural read (a `CantAttack`/`CantBlock`/`CantAttackOrBlock`
     # static whose ``affected`` filter is `EnchantedBy` — "whatever this
-    # enchants").
+    # enchants"). The neutralize Auras join it (``single_target_neutralize``:
+    # a base power set to 1 or less, or a type set without Creature), the
+    # same answer — the threat stays, and stops being one.
     Preset(
         name="pacify-aura",
         description=(
             "An Aura that neutralizes the creature/permanent it enchants "
-            "(can't attack/block) rather than destroying, exiling, "
-            "countering, bouncing, fighting, or -X/-X'ing it — Pacifism, "
-            "Arrest (CR 508.1a/509.1b)."
+            "(can't attack/block — Pacifism, Arrest, CR 508.1c/509.1b; or "
+            "becomes a 0/1 or a land — Darksteel Mutation, Song of the "
+            "Dryads, CR 613.4b / 205.1a) rather than destroying, exiling, "
+            "countering, bouncing, fighting, or -X/-X'ing it."
         ),
-        signal_keys=("pacify_makers",),
-        should_match=("Pacifism", "Arrest", "Faith's Fetters", "Prison Term"),
+        signal_keys=("pacify_makers", "single_target_neutralize"),
+        should_match=(
+            "Pacifism",
+            "Arrest",
+            "Faith's Fetters",
+            "Prison Term",
+            "Darksteel Mutation",
+            "Song of the Dryads",
+            "Imprisoned in the Moon",
+        ),
         should_not_match=("Lightning Bolt", "Counterspell", "Murder"),
     ),
     # Board wipe — subset of removal that hits all/many creatures.
@@ -2453,7 +2464,14 @@ _FUNCTIONAL_PRESETS: tuple[Preset, ...] = (
         ),
         signal_keys=("bounce_tempo", "mass_bounce"),
         should_match=("Unsummon", "Boomerang"),
-        should_not_match=("Lightning Bolt", "Unnatural Restoration"),
+        # Rancor and Blinking Spirit return themselves: a graveyard recall and
+        # a self-bounce, never a bounce of an opponent's permanent.
+        should_not_match=(
+            "Lightning Bolt",
+            "Unnatural Restoration",
+            "Rancor",
+            "Blinking Spirit",
+        ),
     ),
     # Targeted discard — opponent discards card(s) (task #83 structural-view
     # conversion). Union of `opponent_discard` (CR 701.9 — a forced

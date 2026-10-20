@@ -6550,14 +6550,6 @@ def ability_zones(node: object) -> frozenset[str]:
     return frozenset(zones)
 
 
-def functions_off_battlefield(unit: AbilityUnit) -> bool:
-    """Whether a unit says it works only from zones other than the battlefield
-    (:func:`unit_zones` — a graveyard trigger, a graveyard-only activation):
-    "this card" there is a card, never a permanent (Loathsome Troll)."""
-    zones = unit_zones(unit)
-    return bool(zones) and "Battlefield" not in zones
-
-
 def _functions_on_battlefield(unit: AbilityUnit) -> bool:
     """Whether an activated ability can be activated while its object is on the
     battlefield: no other :func:`activation_zone` (cycling, CR 702.29a, "functions

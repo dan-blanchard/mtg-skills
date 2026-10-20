@@ -16,6 +16,7 @@ from mtg_utils._analysis.tree_synthesis._shared import (
     _synthetic_concept,
 )
 from mtg_utils._card_ir.crosswalk import (
+    SELF_REFERENCE_TARGETS,
     TUTOR_EFFECT_TAGS,
     AbilityUnit,
     ConceptNode,
@@ -27,7 +28,6 @@ from mtg_utils._card_ir.crosswalk import (
     filter_core_types,
     filter_inzone_zones,
     filter_subtypes,
-    functions_off_battlefield,
     has_filter_property,
     iter_cost_leaves,
     iter_nested_trigger_defs,
@@ -967,16 +967,13 @@ def _arm_dig_until(tree: ConceptTree) -> ConceptNode | None:
 # battlefield→hand bounce as tempo (CR 402.1: Boomerang, Unsummon) vs a
 # graveyard-recall/self-return (CR 404.1). Phase emits a ZONE-LESS ``Bounce``
 # for graveyard-to-hand returns ([P21] — the InZone marker is dropped), so
-# the [P8]-precedent node-local description screen restores the boundary,
-# scoped two ways: a SelfRef subject with a "from ... graveyard" description
-# is a self-return (Abzan Devotee); a targeted bounce with that description
-# is vetoed only when it's the unit's ONLY bounce (Aphetto Dredging,
-# Greasefang's reanimate-loop return) — a unit that also carries a genuine
-# tempo bounce (Aether Helix's two-sentence pair) still fires. A nested
-# delayed-trigger unit carries no description of its own (the oracle text
-# stayed on the parent), so the screen falls back to the whole-card
-# description — the genuine gap needing text, both branches read ONLY
-# description fields, never a cross-node typed lookup.
+# the [P8]-precedent node-local description screen restores the boundary: a
+# targeted bounce whose unit's description says "from … graveyard" is vetoed
+# only when it's the unit's ONLY bounce (Aphetto Dredging, Greasefang's
+# reanimate-loop return) — a unit that also carries a genuine tempo bounce
+# (Aether Helix's two-sentence pair) still fires. The screen reads ONLY the
+# unit's own description field, never a cross-node typed lookup. A card
+# returning itself never fires at all (the SelfRef veto in the arm).
 _BOUNCE_GY_PHRASES: tuple[str, ...] = (
     "from your graveyard",
     "from a graveyard",
@@ -992,8 +989,7 @@ def _bounce_gy_phrase(text: str) -> bool:
 
 def _arm_bounce_tempo(tree: ConceptTree) -> ConceptNode | None:
     """Synthesize a ``bounce_tempo`` node — the deleted lane-time GY-return
-    veto (node-own description, whole-card fallback for a description-less
-    nested delayed-trigger unit) relocated verbatim. CR 402.1 vs 404.1.
+    veto (node-own description) relocated. CR 402.1 vs 404.1.
 
     v0.23.0 port (task #84): phase migrated the GY→hand recall family from
     the zone-less ``Bounce`` the [P21] description screen was built for to
@@ -1004,12 +1000,9 @@ def _arm_bounce_tempo(tree: ConceptTree) -> ConceptNode | None:
     same unit is the genuine tempo half (Aether Helix's two-sentence pair),
     so the description screen stands down for that unit rather than
     vetoing the survivor."""
-    card_desc = " ".join(
-        (getattr(u.node, "description", None) or "") for u in tree.units
-    ).lower()
     for unit in tree.units:
         desc = (getattr(unit.node, "description", None) or "").lower()
-        gy_return = _bounce_gy_phrase(desc) if desc else _bounce_gy_phrase(card_desc)
+        gy_return = _bounce_gy_phrase(desc)
         gy_typed = any(
             tag_of(n) in ("ChangeZone", "ChangeZoneAll")
             and getattr(n, "origin", None) == "Graveyard"
@@ -1025,17 +1018,31 @@ def _arm_bounce_tempo(tree: ConceptTree) -> ConceptNode | None:
             "Graveyard" in filter_inzone_zones(getattr(n, "target", None))
             for n in iter_typed_nodes(unit.node)
         )
-        # A unit that functions only from a graveyard (Loathsome Troll's
-        # "Activate only if this card is in your graveyard") returns a card, not
-        # a permanent, when it returns itself.
-        off_battlefield = functions_off_battlefield(unit)
         bounces = [
             c
             for c in unit.iter_concepts()
             if c.role == "effect" and c.concept == "bounce"
         ]
+        dies_unit = unit.origin == "trigger" and unit.trigger_event == "dies"
         for c in bounces:
             sub = effect_filter(c.node)
+            if tag_of(sub) == "SelfRef":
+                # A permanent returning itself is your own permanent (its
+                # controller activates its abilities and controls its
+                # triggers, CR 602.2, 603.3a). The lane's call: that is the
+                # self-bounce the controller-You veto below drops (Aviary
+                # Mechanic) — Blinking Spirit and Batterskull protect or
+                # re-use it and answer nothing. An instant or sorcery returns itself
+                # from the stack, not the battlefield (CR 110.1): spell
+                # recursion (Unexpected Results). Never tempo.
+                continue
+            target = tag_of(getattr(c.node, "target", None))
+            if dies_unit and target in SELF_REFERENCE_TARGETS:
+                # A dies trigger's "return it" names the dead object, already
+                # in the graveyard (CR 700.4): a recall (Rancor, The Scarab
+                # God, Liesa) — or, after a card producer, the produced card,
+                # no permanent either.
+                continue
             # Typed-recall rider gates (task #84), BOTH scoped to a unit
             # whose own typed nodes carry a Graveyard-origin ChangeZone —
             # i.e. the unit IS a recall/reanimation chain, so a bounce
@@ -1046,33 +1053,12 @@ def _arm_bounce_tempo(tree: ConceptTree) -> ConceptNode | None:
             #   its owner's hand at the beginning of the next end step" —
             #   Cauldron Dance, Greasefang) or the recall pair's second
             #   half (Once and Future). OUTSIDE a recall unit the same tags
-            #   are phase's generic back-reference plumbing (Rancor's own
-            #   return trigger, Run Away Together's two-target set — both
-            #   genuine members, untouched);
-            # * a ``SelfRef`` bounce on an INSTANT/SORCERY tree is the
-            #   spell returning ITSELF from the graveyard (Revive the
-            #   Fallen's clash rider) — spell recursion, not the Blinking
-            #   Spirit battlefield self-bounce family. A PERMANENT's
-            #   SelfRef bounce in the same shape (Mtenda Griffin's
-            #   return-this-to-hand cost rider) keeps firing.
-            if (gy_typed or gy_chosen) and tag_of(getattr(c.node, "target", None)) in (
-                "ParentTarget",
-                "TrackedSet",
-            ):
+            #   are phase's generic back-reference plumbing (Run Away
+            #   Together's two-target set, a genuine member) — except in a
+            #   dies trigger, read above.
+            if (gy_typed or gy_chosen) and target in ("ParentTarget", "TrackedSet"):
                 continue
-            if tag_of(sub) == "SelfRef":
-                # An instant or sorcery returning itself does so from the stack:
-                # it is a spell there, not a permanent (CR 110.1: a permanent is
-                # a card or token on the battlefield), so it is spell recursion,
-                # not a battlefield bounce (Unexpected Results' "return
-                # Unexpected Results to its owner's hand").
-                if tree.is_type("Instant") or tree.is_type("Sorcery"):
-                    continue
-                if off_battlefield:
-                    continue
-                if gy_return:
-                    continue  # self GY-return — recursion, not tempo
-            elif gy_return and len(bounces) == 1 and desc:
+            if gy_return and len(bounces) == 1:
                 continue  # the unit IS the graveyard recall
             if "Graveyard" in filter_inzone_zones(sub):
                 continue
