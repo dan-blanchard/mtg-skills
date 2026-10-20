@@ -1226,7 +1226,7 @@ def test_the_upgrade_slots_are_off_lane_little_played_and_the_deep_lanes_half():
     classes = [_cc("Jace", "commander", [cheat]), *lane, staple, *off]
     emitters = {
         ("cheat_into_play", "you", ""): frozenset(
-            {"Jace", staple.name} | {c.name for c in lane}
+            {"Jace", staple.name, "Drawing Polymorph"} | {c.name for c in lane}
         )
     }
 
@@ -1242,6 +1242,14 @@ def test_the_upgrade_slots_are_off_lane_little_played_and_the_deep_lanes_half():
     fr = run(classes)
     assert fr["upgrade_cards"] == ["Clunky Removal"]
     assert fr["lane_upgrade_cards"] == [f"Polymorph {i}" for i in range(13, 6, -1)]
+    # A doer that also fills a template role is a lane slot too (its upgrade
+    # keeps the role): the least played of fifteen doers, it leads the half.
+    drawer = replace(
+        _cc("Drawing Polymorph", "spine", [cheat], roles=["card_draw"]),
+        edhrec_rank=99000,
+    )
+    fr = run([*classes, drawer])
+    assert fr["lane_upgrade_cards"][0] == "Drawing Polymorph"
     # Below the floor (eleven doers besides the premium one) the lane is whole.
     assert run([*classes[:12], staple, *off])["lane_upgrade_cards"] == []
 

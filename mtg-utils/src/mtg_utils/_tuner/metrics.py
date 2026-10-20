@@ -772,12 +772,18 @@ def focus(
     # costlier-first managed 30%, and no function read (one-shot vs
     # repeatable, body for its cost, in-deck synergy depth, how many lanes a
     # card touches) moved the rate off the 25% base at all. A premium card is
-    # never one. The lane's carers are the union over every held lane.
+    # never one. The lane's carers are the union over every held lane. A doer
+    # that also fills a template role is in the pool too (its upgrade keeps the
+    # role): at fourteen swaps that reached nine more guide cuts (139 vs 130 of
+    # 404) at the same precision, where taking two-thirds of the engine doers
+    # instead of half reached none (2026-10-19).
     lane_carers = set().union(*(carers.get(lbl, set()) for lbl in held_kept))
     lane_pool = [
         c
-        for c in engine_built
-        if c.name in lane_doers
+        for c in nonland
+        if c.bucket in ("engine", "spine")
+        and c.name not in fed_only_names
+        and c.name in lane_doers
         and c.grant_grade is None
         and not (cal.playrate_meaningful and is_premium(c.edhrec_rank))
     ]
